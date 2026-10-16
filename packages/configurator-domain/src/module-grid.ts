@@ -33,6 +33,10 @@ export const LEVEL_SNAP_M = 0.02;
  *  v1 migration) and the leaf is the one module all of them may import. */
 export const MAX_EMPTY_COLUMN_WIDTH_MM = 800;
 
+/** The along-wall granularity of a column key: `deriveColumnKeyAt` renders metres with `toFixed(2)`, so
+ *  two centres less than a centimetre apart address one column. Change the two together. */
+export const COLUMN_KEY_RESOLUTION_MM = 10;
+
 /** §3.2's column key from a wall and an along-wall coordinate, at 10 mm granularity. Exported because an
  *  empty column has no member to derive a key from (its extent is frozen, ADR 0011 Gap D), so every
  *  producer of one (a resize, a shrink's vacated strip, a split, a merge, and `set-width.ts`'s collision

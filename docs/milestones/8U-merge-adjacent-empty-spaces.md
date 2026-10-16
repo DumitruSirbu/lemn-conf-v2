@@ -12,6 +12,13 @@
 >
 > The owner has one new question, **Q-8U-2** (§4.1). It is **non-blocking**, and its recommended default is what
 > S3b and S4 build.
+>
+> **Third revision, same day, after S2:**
+> - S1 is committed (`1e2621e2`) and S2 is committed (`62fee695`). S3b is in progress. Then S4, then S5.
+> - S2's finding 3 is ruled in §6.2: an odd-width opening is a **known limit**, recorded with its trigger, not fixed
+>   in 8U. It needs **no owner question**. It adds criterion 3a, which S4 runs.
+> - S4's red list is reclassified from S2's run (§11, S4 item 3a). S4 owes two `it.fails` flips. The dispatch
+>   essentials are after the slice table.
 > The scribe has not added pointers to this plan yet (STATUS, the M8 wave table, `decisions/README.md`). The ADR in
 > *ADR draft* below is **Proposed**. The scribe gives it the next free number when it is accepted.
 
@@ -30,6 +37,13 @@ for this revision. **Second revision** (§4.2), at `HEAD` `0f85ed23`:
 - **[S3, read]** means the architect opened that file.
 - **[run]** in §4.2 is the architect's own scratch probe, run in the session scratchpad through
   `rtk proxy npx vitest run` against the domain's `src`, with S0's `module-grid` mock.
+
+**Third revision** (§6.2 and S4's item 3a), at `HEAD` `62fee695`, with S3b's edit to `merge-empty-columns.ts` in
+progress in the tree:
+- **[S2]** is a figure from the S2 implementer's runs, relayed by the coordinator.
+- **[S2, read]** means the architect opened the file in the gitignored `testing-reports/2026-10-16-8u-s2-census/out/`.
+- The architect ran no probe for this revision, because the tree is mid-edit and a result could not be reproduced.
+  **[src]** here means files the S3b edit does not touch, plus `merge-empty-columns.ts:20-320` as it stood when read.
 
 ## 1. The request
 
@@ -460,6 +474,106 @@ room's map. S0's count for that is 0, and S3 and S4 must re-count it.
   defeats. The editor's rule did merge, as written, a corner pair that §4.1 had meant to leave apart.
 - The ruling stands. The falsifier did its job, and its remedy is S3b, not a change to composition.
 
+### 6.2 Odd-width openings (S2 finding 3), and the architect's ruling, 2026-10-16
+
+**What S2 found** [S2]:
+
+- Criterion 10 holds on even widths only. Take a stored member-less column centred at 2000 that is 801, 1201 or
+  2001 mm wide. `offersFor` lists every `'fit'` row there, and `insertBody` refuses every one with
+  `NON_INTEGER_MILLIMETRES`.
+- The same is already true at HEAD for fixed-set rows in odd openings of 701 and 799 mm.
+- Nothing records it. A `rtk proxy grep` of `docs/BACKLOG.md` for the code, *odd width*, *half-millimetre* and
+  *offered then refused* finds nothing [run].
+
+**Why the seat lands on a half millimetre** [src]:
+
+- `evaluateInsertFit` plans the flush-left seat as `C − (W − w) / 2` (`insert-fit.ts:633`). In the 801 opening
+  (1599.5–2400.5) an 800 body therefore sits at 1999.5.
+- For an even body with a remainder, an odd `W` always fails somewhere:
+  - with a whole-mm centre, the seat fails, and `resolvePlacementMillimetres` refuses it
+    (`insert-body.ts:211-215`);
+  - with whole-mm edges, the remainder's centre fails, and `refuseFractionalParts` refuses it
+    (`split-column.ts:89-111`).
+- A body that fills its opening has no remainder and takes the opening's own centre, so it is unaffected.
+- `offersFor` runs the same `evaluateInsertFit` (`offers.ts:140-151`), so the half-millimetre seat is in its plan,
+  but only the command judges it.
+- ADR 0103 already recorded the exposure. `NON_INTEGER_MILLIMETRES` is *"already outside the offer list's reach"*,
+  and the command's guard is *"the backstop, not the gate"*, because §9 wants the refusal unreachable
+  [doc: ADR 0103, *Post-probe refusals*]. The reason it gives, that the offer list holds no probe, does not fit the
+  seat, which is planned before the probe. The exposure is real either way.
+
+**Where an odd opening can come from, and whether §12's "declined, never rounded" covers S4** [src, with one
+inference]:
+
+- **What a document can store.** An odd width on whole-mm edges has a half-mm centre, and a document cannot store
+  one: `alongMm` is a whole number (`toExactMillimetres`). So a storable odd opening has half-mm edges around a
+  whole-mm centre, like S2's reproduction. Only a document can supply it: the producers read keep even widths.
+  - `splitColumn` refuses a fractional part rather than write one.
+  - The wall-end clip keeps the recorded width's parity (`widestOnTheGrid`,
+    `clip-empty-columns-at-wall-end.ts:108-111`).
+- **The merge never makes an odd opening out of even ones.** A column the merge can measure has a whole-mm centre
+  (`measure`, `merge-empty-columns.ts:114-143`). So two columns abut only if their widths share parity.
+  - Even members give an even width on whole-mm edges.
+  - **An even count of odd members** gives a half-mm centre, and `landsOnWholeMillimetres` declines it (`:276`,
+    `:299-301`). **This is §12's case.**
+    - The decline is not the end of it. `planWidestAcceptedBlockFrom` retries one column shorter (`:207-213`).
+    - So only a **pair** stays wholly apart.
+    - Four stored 401s become one 1203, with one 401 left beside it.
+  - **An odd count of odd members** gives an odd width at a whole-mm centre, which the guard passes. So the uncapped
+    merge can *lengthen* an odd opening that a document holds (three stored 401s become one 1203), but it never
+    *creates* one.
+  - **A single stored odd column** is never touched by the merge. It is S2's case, and it is reachable at S2 already.
+- **So §12's line covers part of S4's reach, not all of it.** What it leaves out comes only from a document.
+- **[inf] No state reached without a crafted document holds an odd-width column or placement**, on or off the grid.
+  - The coordinator relayed that *"from S4 the editor reaches it through odd-width merged spans"*. That holds only if
+    this inference is false.
+  - It is falsified by any placement or column with a half-mm edge in criterion 1's sequences or in either census
+    sweep. Criterion 3a makes it a property, and S4 runs it.
+
+**Classification.**
+- **A contract gap in this plan.** Criterion 10 promised that the offer list equals what the insert accepts, at every
+  width. It never stated its domain.
+- **A latent, pre-existing §9 defect** of the "offered then refused" class (ADR 0017, ADR 0032). At HEAD only a
+  crafted document reaches it, through fixed-set rows at 701 and 799. S1 and S2 widen it to `'fit'` rows over 800.
+- **It is not an S2 implementation defect.** S2's code does what §5 says.
+
+**The ruling: a known limit, recorded with its trigger (ADR 0118), not fixed in 8U.**
+
+- Criterion 10 is scoped to openings on whole-mm edges. By the inference above, that is every opening the product
+  reaches.
+- The odd case gets its own witness, titled as the known limit (criterion 10). S4 writes it, as test-only work in
+  item 3c.
+- **The catalogue gives no odd width.** A `rtk proxy grep` of `catalog.ts` finds no odd three- or four-digit
+  literal and no odd metre literal. Its stepped sizes are multiples of `WIDTH_STEP_MM` (50, `:74`, `:83-91`) [run].
+  - So removing a catalogue-sized body leaves an even column.
+  - The inference therefore narrows to **derived** widths: a `'fit'` body built to its opening, and generation's
+    free-end `setWidth`. Criterion 3a checks those.
+  - Not swept: structural entries defined outside `catalog.ts`.
+- The scribe adds a backlog row.
+  - **Trigger:** criterion 3a failing, any producer of an odd-width column, or a stored production document that
+    holds one.
+  - **Remedy:** move the seat's whole-mm guard into `evaluateInsertFit`'s seating (`insert-fit.ts:607-638`), so
+    that the offer list and the command share one judge (ADR 0034). With it, write §9's empty sentence for an odd
+    opening that then offers nothing.
+- **No owner question.** Nothing a customer does reaches it, no production data exists [doc: STATUS, backlog 146],
+  and no owner ruling is crossed.
+
+**Alternatives refused.**
+
+- **Move the guard into `evaluateInsertFit` in 8U.** It is the right remedy when the trigger fires, but not now:
+  - it changes the shared judge in S2's committed file, and HEAD's offer lists at odd widths, for a state that only a
+    crafted document holds;
+  - an 801 opening would then offer nothing, while §9's empty sentence names 800 mm as the widest cabinet. That is a
+    second wrong message, and it would need copy designed for it.
+- **Filter in `offersFor` alone.** It makes two judges of one rule, which ADR 0034 refuses.
+- **Round the seat.** The comments beside both guards record the rule against it: rounding keys a body as its
+  neighbour (ADR 0044; `insert-body.ts:211-214`, `split-column.ts:98`). It would also put the body off the left
+  edge (ADR 0046).
+- **Decline odd merged spans in S4.** It would stop the merge lengthening a stored odd opening, but leave the single
+  stored 801 as it is. So it buys nothing.
+- **Refuse odd-width columns at the write seam.** It tightens a public seam, S1's security surface, for documents
+  nobody produces. The backlog row records it as the other remedy.
+
 ## 7. Records swept, and how each is settled
 
 Swept: every record matching *merge, void, gap, edge, remove, empty*, plus every record those cite. The ones that
@@ -535,6 +649,12 @@ bear on this rule:
 >      test miss.
 >    - Owner question Q-8U-2 is non-blocking, with default (a).
 >    - If (b) is ever built, it is a corner-ownership change, recorded with its trigger (ADR 0118).
+> 7. **An odd-width opening is a known limit, added 2026-10-16 (plan §6.2).** Only a stored document can hold one.
+>    There, the offer list lists rows that the insert refuses with `NON_INTEGER_MILLIMETRES`, which was already true
+>    at HEAD for fixed-set rows. The merge never creates such an opening; it can only lengthen one.
+>    - The premise is a property: no state reached without a crafted document holds a half-mm edge (criterion 3a).
+>    - The remedy is recorded with its trigger as a backlog row: one judge, with the seat's guard in
+>      `evaluateInsertFit`.
 >
 > **Alternatives.**
 >
@@ -587,6 +707,17 @@ grid. Command sequences are drawn from `removePlacement`, `insertBody` (any offe
 3. **Length conserved (property).** For each wall and each `[floor, top]` band, the union of member-less along-wall
    intervals in whole millimetres is identical before and after the merge. Each merged extent's left and right edges
    are its outermost members' edges.
+
+   3a. **On whole millimetres (property), added 2026-10-16 (§6.2).** This is the premise of §6.2's known limit.
+   - **What it checks.** Every placement's frame and every column in `recordedColumns` and `columns` has both
+     along-wall edges on whole millimetres, which means an even width at a whole-mm centre.
+   - **Where.** After every step of criterion 1's sequences, and in every composed room on S0's grid and on S3's
+     off-grid sweep.
+   - **Must not:** a half-mm edge in any state that no crafted document seeded.
+   - **On a counterexample:** S4 stops. It names the producer and returns §6.2 to planning. The odd-width limit is
+     then reachable, and the remedy recorded there moves into 8U.
+   - **Non-vacuity (R6).** The same check, run over a hand-built start that holds one stored 801 mm column, must
+     report it. That shows the check can fail. The generated world cannot show it (ADR 0093).
 4. **No cabinet moves (property).** `design.placements` deep-equals the command's own output after reconcile, and
    `priceDesign` returns the same result. The merge never changes a placement field.
 5. **Order-independent (property).** Clearing the same set of columns in any order publishes deep-equal maps (keys,
@@ -631,10 +762,25 @@ restored or the iteration removed.
    success or the same refusal code). If it is wider, the body is built at the entry's maximum, its left edge on the
    opening's left edge, with exactly one member-less remainder column on its right. **Must not**: a body wider than
    800, a body off the left edge, or a remainder in more than one column.
+   - **Where "one remainder" is judged** (added 2026-10-16, S2 deviation 2) [S2]:
+     - **Until S5**, `splitColumn` still cuts a remainder at 800. At command level, a 3000 opening leaves 800, 800 and
+       600 beside the 800 body.
+     - **From S4**, the remainder is judged **after the reconcile**, whose uncapped merge rejoins the pieces. This is
+       the `it.fails` at `insert-fit.at-its-maximum.test.ts:522`, which S4 flips.
+     - **From S5**, it is also judged at command level, on `insertBody`'s own effect.
 9. **Fixed-set rows** (dishwasher, bottle cargo, the four full-height rows except the pantry) behave as at HEAD at
    every width in the same sweep.
 10. **The offer list** for a void wider than 800 lists every row that criterion 8 accepts there, and no row it
     refuses. The count line is derived and never a literal (§9).
+    - **Scoped 2026-10-16 (§6.2):** this holds for openings on whole-mm edges, which criterion 3a shows are every
+      opening the product reaches.
+    - **The odd case gets its own witness, titled as §6.2's known limit. S4 writes it (item 3c).** Its title cites
+      *"8U §6.2 / R13"* until the scribe writes the backlog row. The fixture is a stored odd opening: 801, 1201 and
+      2001 for `'fit'` rows, and 701 and 799 for fixed-set rows.
+    - **What the witness asserts:** the insert refuses with `NON_INTEGER_MILLIMETRES`. It never throws, never rounds
+      a seat, and never puts a body off the left edge.
+    - **The `it.fails`.** "The offer list equals what the insert accepts" at those widths is an `it.fails` naming
+      the row. If it passes unexpectedly, someone has fixed the limit, and the row closes with it.
 
 *Resize, remove, select.*
 
@@ -652,6 +798,10 @@ restored or the iteration removed.
 14. **Old documents.** Every document fixture valid at HEAD loads; its placements are unchanged; loading twice gives
     deep-equal maps; `CURRENT_SCHEMA_VERSION` is still 5. A v1 document with a 1600 entry loads to the same map as a
     v5 document storing one 1600. The v1 arm's source is byte-identical to HEAD.
+    - S1 landed the equality under the editor's own limit as an `it.fails`
+      (`migrate-design.v1-split-and-one-wide-entry.test.ts:99`). The v1 pieces stay 800 + 800 until the merge at
+      load is uncapped.
+    - **S4 flips it to `it`.**
 
 *Generation.*
 
@@ -764,8 +914,12 @@ depends on S1, S2 and S3b, not only on S3** [S3, read: `out/s4-merge-default-run
 - **S2 before S4.** `generate-kitchen.u.uppers.test.ts` (U3b AC6, *"back-wall voids stay open and take a wall
   cabinet"*) goes red. A 900 mm upper-row opening answers `WIDTH_NOT_SUPPORTED`, because without S2 a `'fit'` wall
   cabinet has no widest-that-fits fallback.
-- **S3b before S4.** The 786 off-grid rooms (§4.2). After S3b, the inference is that the 9 throws and part of the
-  AC6 red disappear, because both are odd-width corners. S4 re-runs them and reports which reds remain.
+- **S3b before S4.** The 786 off-grid rooms (§4.2). ~~After S3b, the inference is that the 9 throws and part of the
+  AC6 red disappear, because both are odd-width corners.~~ **Corrected 2026-10-16:** both were gone before S3b. The
+  S4-alone run at S1 shows no `EMPTY_COLUMN_WIDER_THAN_CAP`, and at S2 AC6 passes [S2, read: `out/s4-alone-at-s1.log`,
+  `out/s4-alone-after-s2.log`]. AC6 is red at S1 and green at S2. So S1 and S2 cleared them, and the odd-width-corner
+inference was wrong. S3b is still owed for criterion 15a.
+  S4's remaining reds are classified in S4's item (3a).
 
 **Run them one at a time.** S1 and S2 do not touch each other's files, but S3b and S4 both edit
 `merge-empty-columns.ts`. The serial order costs little, and it keeps the S4-alone census meaningful at each step.
@@ -775,24 +929,52 @@ them must show no change.
 | Slice | Work (at most 5 items) | Production files | Reading |
 | --- | --- | --- | --- |
 | **S0** — **done 2026-10-16, committed `6d2e1ec0`**: test file `tests/merge-empty-columns.generated-kitchen.test.ts`, census in the gitignored `testing-reports/2026-10-16-8u-s0-census/`. It hit R1 (§6.1) | (1) A witness on a generated L room: a mid-run pair of whole-column clears summing to at most 800, with bodies on both sides, merges. (2) The owner's case (criterion 6) as a characterisation test asserting **today's** two 600s, titled as the expectation 8U flips. (3) A census over the two room sweeps: per-room fingerprints (placements and the projected frozen map) stored as a test fixture; counts of adjacent agreeing member-less pairs in generated output; and, after clearing each adjacent pair of columns, counts of pairs held apart by B2 versus B3 (top, floor or depth, separately). (4) A fixpoint census: the maps where a second merge pass changes something. (5) Generation's insert order per wall, and whether each `plannedVoid` would still find its void if the run's empty columns were one span. All quoted in the report | none | this plan §2, §5, §10 (1, 6, 15); `merge-empty-columns.ts` whole; `void-engine.ts:386-516`; `reconcile-command-result.ts`; `generate-kitchen.ts:690-800`; `tests/merge-empty-columns.test.ts:492-565`; `tests/commands/qa-c7s1-span-overlap.adversarial.test.ts:1-120` (the generate-and-reconcile pattern); `tests/support/fake-probe.ts`; the two sweep suites; ADR 0046, ADR 0110 d1–d4 |
-| **S1** — persistence seam | (1) Retire `EMPTY_COLUMN_WIDER_THAN_CAP` from `validateDesignForCatalog` and the severity table. (2) Round-trip tests at both seams (criterion 13), with HEAD's refusal table minus that code. (3) Check that no reader of `schemaVersion` branches on the ceiling, or stop and report. (4) Leave the v1 arm byte-identical, with a test (criterion 14). Criterion 15's digests stay unchanged, checked in this slice. (5) **Flip, in this slice, every test that asserts the cap refusal**, listed with its old and new expectation and the ADR (ADR 0152). Found by `rtk proxy grep WIDER_THAN_CAP`: `packages/configurator-domain/tests/qa-5g.adversarial.test.ts` (:120, :132, :140, :163, :227, :277), `tests/qa-5b2a.adversarial.test.ts` (:237, :508, :785), `tests/qa-5h.adversarial.test.ts:180` (a comment that names the bound), `tests/merge-empty-columns.test.ts:454` (a comment), and `apps/web/tests/app/api/designs/qa-5g.adversarial.test.ts`. A v1 case that asserts the *split* stays as it is. One that asserts a v2+ *refusal* becomes an acceptance | `validate-design.ts` (and `design-bounds.ts` only if a bound must move). The tests in `apps/web` change, but no web production file does | §6 *Persistence*; criteria 13–14; ADR 0052 *Migration*, *Security*; ADR 0044; ADR 0053; ADR 0146 (nothing from a driver leaves); `validate-design.ts:33-60`, `:180-190`, `:392-406`; `migrate-design.ts` whole; `tests/validate-design.test.ts`, `tests/migrate-design.test.ts`, `tests/empty-column-ceiling.test.ts`; the API write seam's call to the validator (`apps/web/src/app/api/designs/[id]/route.ts`; `packages/persistence/src` calls none, grep) |
-| **S2** — fit at its maximum | (1) `resolveFitWidth` builds at `min(opening, maximum)` and keeps the floors first. (2) Confirm the left-edge seat and `splitColumn` produce one remainder for a body narrower than its opening (test). (3) The offer list and its count line for a void wider than 800 (criterion 10). (4) The sweeps of criteria 8–9 over hand-built maps (ADR 0093: a rule the shipped kitchen cannot exercise owes a witness) (5) **Generation stays byte-identical** (criterion 15's digests), checked in this slice and not assumed. If a digest moves, a generated `'fit'` insert met an opening wider than its maximum: stop and report the room | `commands/insert-fit.ts`, `queries/offers.ts`, `queries/describe-selection.ts` (only if the count line is built there) | §5, E2, E11, E12; criteria 8–10; DEVELOPMENT-SPEC §5.2, §9 item 3; ADR 0017, ADR 0032 (+ the *Superseded* section), ADR 0035 d1–d2, ADR 0046 part 1 (*seated at an edge*), ADR 0048, ADR 0093; `insert-fit.ts:280-360`, `insert-body.ts`, `split-column.ts` |
+| **S1** — persistence seam. **Done 2026-10-16, committed `1e2621e2`.** It left criterion 14's v1 equality as an `it.fails` that S4 flips | (1) Retire `EMPTY_COLUMN_WIDER_THAN_CAP` from `validateDesignForCatalog` and the severity table. (2) Round-trip tests at both seams (criterion 13), with HEAD's refusal table minus that code. (3) Check that no reader of `schemaVersion` branches on the ceiling, or stop and report. (4) Leave the v1 arm byte-identical, with a test (criterion 14). Criterion 15's digests stay unchanged, checked in this slice. (5) **Flip, in this slice, every test that asserts the cap refusal**, listed with its old and new expectation and the ADR (ADR 0152). Found by `rtk proxy grep WIDER_THAN_CAP`: `packages/configurator-domain/tests/qa-5g.adversarial.test.ts` (:120, :132, :140, :163, :227, :277), `tests/qa-5b2a.adversarial.test.ts` (:237, :508, :785), `tests/qa-5h.adversarial.test.ts:180` (a comment that names the bound), `tests/merge-empty-columns.test.ts:454` (a comment), and `apps/web/tests/app/api/designs/qa-5g.adversarial.test.ts`. A v1 case that asserts the *split* stays as it is. One that asserts a v2+ *refusal* becomes an acceptance | `validate-design.ts` (and `design-bounds.ts` only if a bound must move). The tests in `apps/web` change, but no web production file does | §6 *Persistence*; criteria 13–14; ADR 0052 *Migration*, *Security*; ADR 0044; ADR 0053; ADR 0146 (nothing from a driver leaves); `validate-design.ts:33-60`, `:180-190`, `:392-406`; `migrate-design.ts` whole; `tests/validate-design.test.ts`, `tests/migrate-design.test.ts`, `tests/empty-column-ceiling.test.ts`; the API write seam's call to the validator (`apps/web/src/app/api/designs/[id]/route.ts`; `packages/persistence/src` calls none, grep) |
+| **S2** — fit at its maximum. **Done 2026-10-16, committed `62fee695`.** Finding 3 (odd widths) is ruled in §6.2. Deviation 2 (the cut at 800 stays in `splitColumn` until S5) is in criterion 8 | (1) `resolveFitWidth` builds at `min(opening, maximum)` and keeps the floors first. (2) Confirm the left-edge seat and `splitColumn` produce one remainder for a body narrower than its opening (test). (3) The offer list and its count line for a void wider than 800 (criterion 10). (4) The sweeps of criteria 8–9 over hand-built maps (ADR 0093: a rule the shipped kitchen cannot exercise owes a witness) (5) **Generation stays byte-identical** (criterion 15's digests), checked in this slice and not assumed. If a digest moves, a generated `'fit'` insert met an opening wider than its maximum: stop and report the room | `commands/insert-fit.ts`, `queries/offers.ts`, `queries/describe-selection.ts` (only if the count line is built there) | §5, E2, E11, E12; criteria 8–10; DEVELOPMENT-SPEC §5.2, §9 item 3; ADR 0017, ADR 0032 (+ the *Superseded* section), ADR 0035 d1–d2, ADR 0046 part 1 (*seated at an edge*), ADR 0048, ADR 0093; `insert-fit.ts:280-360`, `insert-body.ts`, `split-column.ts` |
 | **S3** — **done, `0f85ed23`** [S3: 91 570 rooms byte-identical; domain suite 7 765 green]. Composition merges at its own limit (re-scoped 2026-10-16, §6.1; behaviour-free at HEAD) | ~~(1) Generation composes identical placements when the run's empty columns are one span … That gate's predicate must become "the opening is wider than the planned body".~~ **Struck 2026-10-16: S0 showed one span cannot be composed through the left seat in reading order, and under §6.1 composition never sees one span, so the `isFreeEndBody` gate (`generate-kitchen.ts:795-800`) is unchanged.** (1) **The limit as a value.** `mergeAdjacentEmptyColumns` takes its width limit as an argument. `deriveColumns`, `deriveRecordedColumns` and `reconcileSuccessfulCommandResult` pass it through. With no argument they keep today's 800 (the editor's limit stays 800 until S4). It is a number, never a boolean (`engineering-conventions.md`). `splitEmptySpanAtCap` takes it too, for the shell's tiling, and so does `splitOversizedEmptyColumns` inside the reconcile. That makes the funnel **around** the commands independent of `module-grid.ts`. The commands' own two cuts (§6.1, *Two cuts inside the commands*) still read it, and no command gains a parameter. So (1a) **the census counts how often the insert-split cut and the shrink-overflow cut fire during composition**, at HEAD and under S0's mock. The expected count is 0, and a non-zero count stops the slice. (1b) **Flip owed (ADR 0152):** the test at `tests/generation/leftover-absorbed-beside-a-fixed-body.test.ts:107-112` asserts `CABINETRY_MAX_WIDTH_MM >= MAX_EMPTY_COLUMN_WIDTH_MM` (`:108-110`), the guard for two 800s read by one plan (its comment, `:104-106`). Once the headroom reads the catalogue's ceiling, that line guards nothing. It is restated as a property: for every width up to the ceiling, width plus `headroomBelowTheCeilingMm(width)` never exceeds `CABINETRY_MAX_WIDTH_MM` (old and new expectation listed in the report). `:111`, the owner's literal 800 against the catalogue, stays. (2) **Composition passes `CABINETRY_MAX_WIDTH_MM`** at all four sites, and the limit is named once in `generation/`: `shell-design.ts:890`, `loadWorld`, `applySuccessfulResult` and `replayGenerationLog`. `leftover-rule.ts` reads the same constant (criterion 17). (3) **The finishing step**: one uncapped `deriveRecordedColumns` → `projectFrozenMap` → `withFrozenMap` before `assertGeneratedDesign`, in both `generateKitchen` and `replayGenerationLog`. It counts the maps it changes (criterion 15a). (4) Criteria 15, 15a, 16 and 17 in **both worlds**, the second under S0's `module-grid` mock, with S0's figures reversed. The docstrings at `generate-kitchen.ts:231-232` and `:902` are corrected. (5) **Report the census** (rooms, throws, refusals, digest equality, maps changed by the finishing step), quoted from the run | `merge-empty-columns.ts` (signature only), `void-engine.ts` (`deriveColumns`, `deriveRecordedColumns` signatures), `commands/reconcile-command-result.ts`, `split-empty-span.ts`, `generation/generate-kitchen.ts`, `generation/shell-design.ts`, `generation/leftover-rule.ts`. **About 7 files, over the ~5 limit; named here as `docs/WORKFLOW.md` requires.** Three of them are signature-only, with no behaviour change at HEAD | §6.1 whole; criteria 15–17; ADR 0110 decision 2, *D revised* 1–5, B2, N11.8 (alternative D), U3b AC5 (M7B plan, `M7B-u-shaped-rooms.md:1388-1390`); ADR 0046 rule 1; S0's census scripts `c6`, `c8`, `c9` and `census-lib.ts` (`testing-reports/2026-10-16-8u-s0-census/scripts/`) as the census pattern; `generate-kitchen.ts:327-440`, `:698-801`, `:902-921`; `shell-design.ts:880-908`; `void-engine.ts:425-520`; `reconcile-command-result.ts` whole; `merge-empty-columns.ts:65-100`, `:207-231`; `split-empty-span.ts`; `leftover-rule.ts`; `tests/support/l-and-linear-generation-digest.ts` |
 | **S3b** — the corner guard becomes geometric (added 2026-10-16, §4.2; behaviour-free at HEAD) | (1) **The guard.** In `planBlock`, beside `isKeyTaken`, a run declines when its merged span's two outer edges are each within one key bucket (10 mm, inclusive, read from the key grid's own constant) of another column's outer edges on the same wall. "Another column" means any map column that is not a member of the run, which is `isKeyTaken`'s own set. The doc comment states the reason as §4.2 does: the two tests guard the same stretch of wall, and a 1 mm trim must not change the answer. (2) **Behaviour-free at HEAD:** the domain suite is green, criterion 15's committed digests are unchanged, and S0's grid census and S3's off-grid census are re-run (both [run]). It is behaviour-free because no capped merge ≤ 800 spans a column's whole stretch today [inf]. **A decline at HEAD stops the slice.** (3) **Under S0's mock**: criterion 15a off the grid goes from S3's 786 to **0**; S0's grid stays 0; every off-grid placement, step and command is identical. (4) **Count every decline by guard** (key test, geometric test) across both sweeps and criterion 1's command sequences, with **every geometric decline located**: wall, span, the column it stands over. Any decline not over a corner piece or an ADR 0122 widened cabinet stops the slice (§4.2, *Where else can it fire*). Also count the composed U rooms, on and off the grid, where each corner's upper row is still exactly its two strips. That count must equal every composed U room that has corner strips, and it is what backs Q-8U-2's *"in every U kitchen"*. (5) The F2′ fixtures (§10, F4 table), with R6: drop the new test and the 5985 room's 900 comes back. Add an editor pin: in a generated U, clear the whole column beside a corner strip, and the strips stay two while the freed column stays apart (B3, floor). That is §4.1's [run] case, and it is what backs Q-8U-2's last sentence | `merge-empty-columns.ts` only | §4.1, §4.2; criteria 1, 15, 15a; ADR 0046 (*Which end*: the predictability ruling), ADR 0110 N11.8 (the *Moving only the 20 838* row), ADR 0110 *Correction 2026-09-13*, ADR 0122 d4; `merge-empty-columns.ts:254-366`; `validate-design.ts:449-488`, `:523-567`; `module-grid.ts` (`deriveColumnKeyAt`); `testing-reports/2026-10-16-8u-s3-census/scripts/offgrid.scratch.ts`, `probe-room.scratch.ts` |
-| **S4** — the switch | (1) Remove the cap from `widestBlockFrom` [`merge-empty-columns.ts:226`]. After S3, this means the editor's default limit becomes none, while composition's stays `CABINETRY_MAX_WIDTH_MM`. Criterion 15 is re-run for real here, with no mock, and must still match S0's baseline. Criterion 15a's count is quoted. The F2 count is quoted against S0's 126 950 (criterion 1). F4's hand-built fixtures (§10, after criterion 7) land in this slice. (2) Iterate `planMerges` to a fixpoint; it terminates because each pass removes at least one column (criterion 2). (3) Flip, citing the ADR, the tests that assert the **merge** cap (S1 already flipped the refusal-code tests): `merge-empty-columns.test.ts:148`, `:161`, `:522`, and any merge or shrink-split assertion in `empty-column-ceiling.test.ts` / `qa-5b4b`. **Each flip is listed in the report with its old and new expectation (ADR 0152)**. **(3a), added 2026-10-16:** the S4-alone census also turned these red [S3, read: `out/s4-merge-default-run.log`]. Each is classified into one of three kinds before it is touched, and the kind is named in the report. **Repoint** means the expectation stays and the test reads composition's world. **Flip** means the editor's behaviour really changes, and the old and new expectations are listed. **Re-run** means the test is expected green after S1, S2 and S3b; if still red, it is classified then. *Repoint*: the test inspects the shell or composition's intermediate state through the editor's derivation, a world the shell never lives in (§6.1). It then loads through `COMPOSITION_WIDTH_LIMIT_MM`, or is restated over the **delivered** design. This covers `shell-design.test.ts` (criterion 4's inserts into the shell; the finished-end group), `shell-design.adversarial.test.ts`'s run-end-panel case, `shell-design.property.test.ts`, and `qa-7d5-bottle-cargo.adversarial.test.ts` (its nine cases read `facesOf(shell)`, `:759`). *Restate over the delivered design, never repoint*: `shell-design.adversarial.test.ts`'s *"carries its frozen map byte-identically through a change to every declared depth and back"*, *"reports no finding … at every other declared depth, and back again"*, *"is a fixed point of the load seam"* and R1.2's *"… at every declared depth and back"*. The depth command derives through the editor's default (`set-cabinet-depth.ts:241`), and criterion 16 forbids giving a command a limit. The editor also never loads, saves or depth-changes the shell. So the property these tests protect, ADR 0110 B3's *"still fits after any depth change"*, belongs to the **generated design**, and they are restated over `generateKitchen`'s output. **Must not**: a limit parameter added to `setCabinetDepth` or to any command to keep these green. *Flip*: `merge-empty-columns.generated-kitchen.test.ts:95` (S0's owner case, criterion 6), and `generate-kitchen.composition-width-limit.test.ts`'s *"keeps them two under today's editor limit"*, S3's own pin of the old editor limit. *Re-run, then classify*: `generate-kitchen.u.uppers.test.ts` (U3b AC6), `qa-u3b-generating-a-u.adversarial.test.ts` (AC1, AC2, AC5; AC6), `top-row.test.ts` (criteria 1–2), `generate-kitchen.u.property.test.ts` (U3b AC1), `corner-wall-unit.test.ts` (*"what a design stored before the unit does"*: a stored document's strips loaded by the editor, so a flip is likely if it still fails). **A test whose title states a rule (U3b AC6: "a wall cabinet can take every back-wall void") is not flipped to fit the code.** If S2's fit change does not make it hold, that is a finding. (4) Criteria 1–7, 11, 12 and 19 as properties and pins. (5) The visual captures (criterion 18) | `merge-empty-columns.ts`, `module-grid.ts` (doc comment only), and the one file where S3 put the editor's default limit. Nothing under `generation/` | §5, §6.1, §10 whole; ADR 0037, ADR 0046 (whole), ADR 0052, ADR 0043, ADR 0090 4b and Amendment B, ADR 0122, ADR 0152; `merge-empty-columns.ts` whole; `tests/merge-empty-columns.test.ts`, `tests/empty-column-ceiling.test.ts`, `tests/qa-5b4b.adversarial.test.ts`, `tests/qa-5g.adversarial.test.ts`; `queries/vacated-void.ts`; `browser-and-visual-qa.md` |
-| **S5** — retire the cut at 800 (behaviour-free after S4) | (1) `splitColumn`'s remainder becomes one piece. (2) The shrink's overflow pieces go (`width-resize-model.ts:117` and its writer). (3) `splitOversizedEmptyColumns` leaves the funnel and the exports. (4) `MAX_EMPTY_COLUMN_WIDTH_MM` remains only for the v1 arm, renamed to say so. Composition already reads `CABINETRY_MAX_WIDTH_MM`, through S3's `COMPOSITION_WIDTH_LIMIT_MM`, so nothing in `generation/` changes. **Tests that read the module-grid constant as generation's ceiling are repointed at `COMPOSITION_WIDTH_LIMIT_MM`** [S3]: `tests/support/before-c2-corner-unit.ts:75`, `tests/generation/tall-end-rule.test.ts`, `tests/generation/tall-end-composition.test.ts`. That is a fidelity fix with the expectation unchanged, listed under ADR 0152. If any of them goes red at S4, it moves to S4. **Proof that it is behaviour-free, in both worlds:** criterion 1's sequences give deep-equal reconciled maps before and after the slice, and criterion 15's generation digests are byte-identical before and after. Removing the commands' cuts is behaviour-free in composition only because S3's count showed they never fire there. S5 re-runs that count before deleting them, and quotes it | `commands/split-column.ts`, `commands/width-resize-model.ts`, `commands/apply-column-moves.ts`, `split-oversized-empty-columns.ts`, `commands/reconcile-command-result.ts` | ADR 0052 *Consequences*; ADR 0046 part 1; `split-empty-span.ts`; `void-engine.ts:30-40` (exports); `index.ts`; the S4 property suite |
+| **S4** — the switch | (1) Remove the cap from `widestBlockFrom` [`merge-empty-columns.ts:226`]. After S3, this means the editor's default limit becomes none, while composition's stays `CABINETRY_MAX_WIDTH_MM`. Criterion 15 is re-run for real here, with no mock, and must still match S0's baseline. Criterion 15a's count is quoted. The F2 count is quoted against S0's 126 950 (criterion 1). F4's hand-built fixtures (§10, after criterion 7) land in this slice. (2) Iterate `planMerges` to a fixpoint; it terminates because each pass removes at least one column (criterion 2). (3) Flip, citing the ADR, the tests that assert the **merge** cap (S1 already flipped the refusal-code tests): `merge-empty-columns.test.ts:148`, `:161`, `:522`, and any merge or shrink-split assertion in `empty-column-ceiling.test.ts` / `qa-5b4b`. **Each flip is listed in the report with its old and new expectation (ADR 0152)**. **(3a), rewritten 2026-10-16 after S2.** S3's list (from `out/s4-merge-default-run.log`) is superseded by S2's run of S4 alone [S2, read: `testing-reports/2026-10-16-8u-s2-census/out/s4-alone-after-s2.log`]. **That run covers `tests/generation/` and S0's file only, 73 files and 1 266 tests. It is not the domain suite.** So S4's first step is the **whole** domain suite under S4 alone. Every red is classified before it is touched, into one of the kinds below, and the kind is named in the report. The merge-cap flips in item (3) and both `it.fails` files lie outside the 73 files, so this run says nothing about them. In it, 16 tests in 5 files are red. **Every former *Re-run* file passes**: `generate-kitchen.u.uppers`, `qa-u3b-generating-a-u`, `top-row`, `generate-kitchen.u.property`, `corner-wall-unit`, and also `shell-design.property`. S1 retired the 9 `EMPTY_COLUMN_WIDER_THAN_CAP` throws, and S2 cleared AC6. None of these is touched unless the whole-suite run shows it red. **Flip** (2), where the editor's behaviour really changes and the old and new expectations are listed: `merge-empty-columns.generated-kitchen.test.ts:95`, S0's owner case and criterion 6 (red at `:107`); and `generate-kitchen.composition-width-limit.test.ts`'s *"keeps them two under today's editor limit"* (red at `:154`), S3's own pin of the old editor limit, which becomes *"one 1200 column"*. **Repoint** (12), where the expectation stays and the test reads composition's world. They share one seam: `facesOf` and `withWallABaseRunFilled` → `fillOpeningAt` in `tests/support/shell-design.ts:276-377` derive the **shell** with the editor's default limit. The shell is composition's private intermediate (§6.1). So the helper derives through `COMPOSITION_WIDTH_LIMIT_MM`, and `fillOpeningAt`'s docstring (*"the way the store saves it"*) is corrected to composition's world. The 9 are in `qa-7d5-bottle-cargo.adversarial.test.ts` (`:759`, `:827` ×2, `:919` ×4, `:969` ×2). The 3 are `shell-design.test.ts`'s finished-end group (`:663`, `:678`, `:688`). **Before the repoint, list every caller of `facesOf`** (`shell-design.test.ts`, `shell-design.property.test.ts`, `qa-7d5-bottle-cargo`, the support file) and confirm each passes a shell. A caller that passes `generateKitchen`'s output stays in the editor's world. Criterion 4's inserts and `shell-design.property`, green today, stay green. **Restate over the delivered design, never repoint** (2): `shell-design.adversarial.test.ts`'s *"carries its frozen map byte-identically through a change to every declared depth and back"* (`:338`) and *"is a fixed point of the load seam"* (`:401`). The counterexample is L 900 × 1802 × 2200, where wall B's 800 tile (900–1700) and 2 mm tile (1700–1702) become one 802 under the editor's rule. The depth command derives through the editor's default (`set-cabinet-depth.ts:241`), and criterion 16 forbids giving a command a limit. The editor also never loads, saves or depth-changes the shell. So ADR 0110 B3's *"still fits after any depth change"* belongs to the **generated design**, and these are restated over `generateKitchen`'s output, drawn from the rooms it accepts. The restatement states whether 900 × 1802 is one of them. If no generated room carries an 800 + 2 seam, it says so and names a declared witness (ADR 0093). The load-seam half is criterion 15a's load check, so one test may serve both if its title names both. The two sibling depth cases S3 listed, *"reports no finding … and back again"* and R1.2's (`:1302`), pass in S2's run and are not touched. **Must not**: a limit parameter on `setCabinetDepth` or on any command; or a test whose title states a rule (U3b AC6: *"a wall cabinet can take every back-wall void"*) flipped to fit the code. **`it.fails` flips owed to S4** (2), each turned to `it` and listed under ADR 0152: `migrate-design.v1-split-and-one-wide-entry.test.ts:99` (criterion 14, the v1 1600 map equality) and `commands/insert-fit.at-its-maximum.test.ts:522` (criterion 8's one remainder, judged after the reconcile). If an `it.fails` passes, vitest reports it red. So the whole-suite run shows both, and leaving either unflipped fails the gate. **(3b), added 2026-10-16 (§6.2):** criterion 3a's property, with its non-vacuity fixture. A counterexample stops the slice. **(3c), added 2026-10-16 (§6.2), test-only:** criterion 10's odd-width witness, which S2 did not land. It is the refusal pin plus the `it.fails` asserting that the offer list equals what the insert accepts at 801, 1201 and 2001 (`'fit'`) and at 701 and 799 (fixed-set). Its title cites *"8U §6.2 / R13"*, and the scribe adds the backlog row's reference when it writes the row (4) Criteria 1–7, 11, 12 and 19 as properties and pins. (5) The visual captures (criterion 18) | `merge-empty-columns.ts`, `module-grid.ts` (doc comment only), and the one file where S3 put the editor's default limit. Nothing under `generation/` | §5, §6.1, §10 whole; ADR 0037, ADR 0046 (whole), ADR 0052, ADR 0043, ADR 0090 4b and Amendment B, ADR 0122, ADR 0152; `merge-empty-columns.ts` whole; `tests/merge-empty-columns.test.ts`, `tests/empty-column-ceiling.test.ts`, `tests/qa-5b4b.adversarial.test.ts`, `tests/qa-5g.adversarial.test.ts`; `queries/vacated-void.ts`; `browser-and-visual-qa.md`; **added 2026-10-16:** §6.2; ADR 0103 (*Post-probe refusals*); `tests/support/shell-design.ts`; the two `it.fails` files; S2's `out/s4-alone-after-s2.log` |
+| **S5** — retire the cut at 800 (behaviour-free after S4) | (1) `splitColumn`'s remainder becomes one piece. From this item on, criterion 8's one remainder also holds at command level, on `insertBody`'s own effect, and a test asserts it there. This is S2 deviation 2: until now a 3000 opening leaves 800 + 800 + 600 at command level, and only S4's reconcile rejoins them. (2) The shrink's overflow pieces go (`width-resize-model.ts:117` and its writer). (3) `splitOversizedEmptyColumns` leaves the funnel and the exports. (4) `MAX_EMPTY_COLUMN_WIDTH_MM` remains only for the v1 arm, renamed to say so. Composition already reads `CABINETRY_MAX_WIDTH_MM`, through S3's `COMPOSITION_WIDTH_LIMIT_MM`, so nothing in `generation/` changes. **Tests that read the module-grid constant as generation's ceiling are repointed at `COMPOSITION_WIDTH_LIMIT_MM`** [S3]: `tests/support/before-c2-corner-unit.ts:75`, `tests/generation/tall-end-rule.test.ts`, `tests/generation/tall-end-composition.test.ts`. That is a fidelity fix with the expectation unchanged, listed under ADR 0152. If any of them goes red at S4, it moves to S4. **Proof that it is behaviour-free, in both worlds:** criterion 1's sequences give deep-equal reconciled maps before and after the slice, and criterion 15's generation digests are byte-identical before and after. Removing the commands' cuts is behaviour-free in composition only because S3's count showed they never fire there. S5 re-runs that count before deleting them, and quotes it | `commands/split-column.ts`, `commands/width-resize-model.ts`, `commands/apply-column-moves.ts`, `split-oversized-empty-columns.ts`, `commands/reconcile-command-result.ts` | ADR 0052 *Consequences*; ADR 0046 part 1; `split-empty-span.ts`; `void-engine.ts:30-40` (exports); `index.ts`; the S4 property suite |
+
+**S4 dispatch essentials (2026-10-16, after S2).**
+
+- **Base.** S3b must be committed first, because S4 edits the same `merge-empty-columns.ts`. One writing agent per
+  tree. The discarding git commands are banned by name.
+- **The switch.**
+  - The editor's limit is set in one place: the default of `mergeAdjacentEmptyColumns`' `widthLimitMm`
+    (`merge-empty-columns.ts:79`, as read before S3b). It becomes "no limit". `deriveColumns`,
+    `deriveRecordedColumns` and the reconcile inherit it.
+  - Composition keeps `COMPOSITION_WIDTH_LIMIT_MM`.
+  - `planMerges` is iterated to a fixpoint (criterion 2).
+- **Order of work.**
+  1. Run the whole domain suite under S4 alone.
+  2. Classify every red per item (3a) before touching it. The 16 known reds are a subset of that run.
+  3. Flip the two `it.fails`.
+  4. Land F4's fixtures; criteria 1–7, 3a, 11, 12 and 19; and criterion 10's odd-width witness (item 3c), which is
+     test-only.
+  5. Re-run criterion 15 for real, both tiers and S3's off-grid sweep. Quote 15a's count and the F2 counts by guard.
+- **Must not:**
+  - a limit parameter on any command, `setCabinetDepth` included;
+  - any production file under `generation/`;
+  - a test restated or repointed to hide a rule;
+  - rounding an odd seat;
+  - a fix for §6.2's known limit. If criterion 3a fails, stop and report.
+- **Report.** Every flip, repoint and restatement with its old and new expectation (ADR 0152), every census figure
+  quoted from the run, and the visual captures (criterion 18).
+- **Reading.** As in the S4 row, plus §6.2 and `tests/support/shell-design.ts`.
 
 The scribe owns the closing documents: the ADR's acceptance and number, dated notes on ADR 0037, 0046, 0052, 0110 and
 0122. ADR 0110's note is a **dated amendment** to decision 2, *"the same published openings"*, written from ADR
 draft decision 4, with pointers at *D revised* 5 and N11.8 alternative D. The scribe also adds a backlog row for F2
-under Q-8U-2's answer, with §4.1 as its trigger (ADR 0118). Then: `decisions/README.md`, `SUPERSESSIONS.md`, DEVELOPMENT-SPEC §3.2, §4, §5.2 and §11 rows 25–27, and STATUS.
+under Q-8U-2's answer, with §4.1 as its trigger (ADR 0118). The scribe also adds the odd-width row from §6.2, with
+its trigger and the two remedies. Then: `decisions/README.md`, `SUPERSESSIONS.md`, DEVELOPMENT-SPEC §3.2, §4, §5.2 and §11 rows 25–27, and STATUS.
 
-**Reading — QA (every slice):** this plan §5, §6.1 (*Test fidelity*), §10 (with the F4 table) and §12; the slice's own *Reading* cell;
+**Reading — QA (every slice):** this plan §5, §6.1 (*Test fidelity*), §6.2 (from S4), §10 (with the F4 table) and §12; the slice's own *Reading* cell;
 `engineering-conventions.md`, *Coverage an adversarial pass owes* and *Three guards that look thorough and cannot
 fail*; WORKFLOW R6; ADR 0152; `tests/support/fake-probe.ts`; the generated-kitchen pattern in
 `qa-c7s1-span-overlap.adversarial.test.ts:1-120`.
 
-**Reading — logic reviewer:** this plan §2–§7 (with §4.1 and §6.1) and §10; ADR 0037, 0046, 0052, 0110 d1–d4, *D revised*, N11.8, 0122; DEVELOPMENT-SPEC
+**Reading — logic reviewer:** this plan §2–§7 (with §4.1, §6.1 and §6.2) and §10; ADR 0103 (*Post-probe refusals*); ADR 0037, 0046, 0052, 0110 d1–d4, *D revised*, N11.8, 0122; DEVELOPMENT-SPEC
 §3.2, §4, §5.1–§5.4 and §11; the slice's diff with its tests.
 
 **Reading — clean-code reviewer:** `engineering-conventions.md`; ADR 0136 (comments); the diff, plus the files it
@@ -807,7 +989,13 @@ persistence write seam.
 ## 12. Adversarial QA cases owed
 
 - An odd total from a crafted stored document (a half-millimetre centre) → declined, never rounded, and never a throw
-  at `projectEmptyColumns`.
+  at `projectEmptyColumns`. **Sharpened 2026-10-16 (§6.2).** This is a pair of stored odd columns, and the pair
+  stays two. The cases QA also owes:
+  - four of them become one 1203 plus one 401, because a declined block is retried one column shorter;
+  - an odd count of them, for example three 401s, merges into one 1203 at a whole-mm centre;
+  - a single stored odd column is left alone;
+  - inserting into either refuses with `NON_INTEGER_MILLIMETRES` and never throws;
+  - criterion 10's `it.fails` stays failing.
 - A key collision: two cleared wall columns over the corner whose merged centre keys `A|0.45` → declined. The seeded
   corner columns stay apart (`merge-empty-columns.test.ts:304`).
 - `standsIn`: a run that encloses a placement → declined, at every width now possible.
@@ -849,6 +1037,7 @@ persistence write seam.
 | R1 | **Generation** relied on the cap (ADR 0110 d2), and an uncapped merge collapses the shell before inserting | ~~S3 lands first … stop and return to planning.~~ **Fired at S0, 2026-10-16, and resolved by §6.1's ruling.** The throws are 86 706 of 86 706 U rooms and 2 954 of 2 990 L rooms [S0]. Composition merges at the cabinet ceiling, and the editor is uncapped. ADR 0110 decision 2 is amended, not silently departed from. The residual risks are R10 and R11 |
 | R10 | **Two funnel modes drift apart.** Later work changes one merge site and not the others, or a new composition step derives the map without composition's limit, and generation starts throwing or composing differently from its baseline | One named limit in `generation/`. Criterion 16's grep at every site, and §12's per-site sabotage. Criterion 15's digests guard every later wave. **If S3 cannot reach criterion 15 at all four sites, stop and return to planning**: G-B (along-wall order with step-down) is the recorded fallback, and it needs its own census before it is chosen |
 | R12 | **A grid hides a millimetre.** S0's census ran on round room sizes and declared the corner exception closed. An odd width moved it by 1 mm and it escaped (§4.2) | Every census from S3b on includes S3's off-grid sweep (criterion 15). The F2 exception is defined geometrically, not by a count. The 1 mm shell trim itself (upper row 5084–5984 against a corner base at 5085–5985) is pre-existing and **not fixed here**. The scribe records it as a backlog row citing ADR 0110 *Correction 2026-09-13*, with this plan's §4.2 as its trigger |
+| R13 | **An odd-width opening is offered, then refused** (S2 finding 3, 2026-10-16) | Ruled in §6.2: a known limit that only a stored document reaches. Criterion 3a is the falsifiable premise, and S4 runs it. A counterexample stops S4 and moves the recorded remedy (one judge, in `evaluateInsertFit`) into 8U. The backlog row carries the trigger |
 | R11 | **The census proves nothing** because generation's limit aliases the constant S0's mock replaces | Composition reads `CABINETRY_MAX_WIDTH_MM` from `catalog.ts`, never from `module-grid.ts` (criterion 17). The reverse sabotage in criterion 19 must reproduce S0's throw |
 | R2 | The fit change touches §5.2, the offer list and the count line | Byte-identical behaviour at or under the maximum (criterion 8) |
 | R3 | A loosened write-seam refusal | A security reader; every other refusal pinned unchanged (criterion 13) |

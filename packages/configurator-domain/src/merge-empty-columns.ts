@@ -12,7 +12,9 @@ import {
 } from "./millimetres.js";
 import type { DesignWall } from "./design.js";
 import {
+  alongWallCoordinate,
   alongWallPosition,
+  COLUMN_KEY_RESOLUTION_MM,
   deriveColumnKeyAt,
   LEVEL_SNAP_M,
   MAX_EMPTY_COLUMN_WIDTH_MM,
@@ -34,6 +36,10 @@ const EDGE_TOUCH_TOLERANCE_MM = 1e-6;
  *  meet on a module line share an edge only. */
 const OVERLAP_EPSILON_MM = 1e-6;
 
+/** One key bucket, inclusive, plus float noise: two along-wall edges this close are one edge of wall to the key
+ *  grid, so a trim that moves a merged centre into the next bucket cannot separate them. */
+const SAME_EDGE_OF_WALL_MM = COLUMN_KEY_RESOLUTION_MM + EDGE_TOUCH_TOLERANCE_MM;
+
 /** One empty column as the scan reads it, in whole millimetres. `leftMm` and `rightMm` are
  *  half-integers when the width is odd, the case `landsOnWholeMillimetres` guards. */
 interface MeasuredColumn {
@@ -52,6 +58,9 @@ interface WallScan {
   readonly records: readonly PlacementRecord[];
   readonly widthLimitMm: number;
 }
+
+/** A run of wall along its length only, in millimetres. */
+type AlongWallStretchMm = Pick<WallSpanMm, "leftMm" | "rightMm">;
 
 /** The extent a run merges to, and the columns it replaces. */
 interface MergePlan {
@@ -261,7 +270,7 @@ function withinAgreement(left: number, right: number): boolean {
   return Math.abs(left - right) <= AGREEMENT_TOLERANCE_MM;
 }
 
-/** The merged extent, or nothing: the four reasons a run that may merge still does not. The two outer
+/** The merged extent, or nothing: the five reasons a run that may merge still does not. The two outer
  *  edges hold and the width is what lies between them (ADR 0031), so the run's total is conserved. */
 function planBlock(
   members: readonly MeasuredColumn[],
@@ -287,6 +296,7 @@ function planBlock(
 
   const key = deriveColumnKeyAt(span.wall, toMetres(centreMm));
   if (isKeyTaken(key, columns, members, reserved)) return undefined;
+  if (standsOverAnotherColumn(span, columns, members)) return undefined;
 
   return { members, column: mergedExtent(members, span, key, centreMm) };
 }
@@ -373,6 +383,42 @@ function isKeyTaken(
   if (reserved.has(key)) return true;
   const vacated = new Set(members.map((member) => member.column.key));
   return columns.has(key) && !vacated.has(key);
+}
+
+/** `isKeyTaken`'s geometric twin: a run over the same stretch of wall as a column that is not its member (the upper
+ *  row over a corner base) declines whatever its centre keys to, so a 1 mm trim cannot decide whether it merges.
+ *  Along the wall only, since the two stand at different heights; see ADR 0122 decision 4. */
+function standsOverAnotherColumn(
+  span: WallSpanMm,
+  columns: ReadonlyMap<string, ColumnExtent>,
+  members: readonly MeasuredColumn[],
+): boolean {
+  const memberKeys = new Set(members.map((member) => member.column.key));
+  return [...columns.values()].some(
+    (column) =>
+      column.wall === span.wall &&
+      !memberKeys.has(column.key) &&
+      isSameStretchOfWall(alongWallStretchOf(column), span),
+  );
+}
+
+/** Read from the centre and width alone, never through `measure`: a column off the millimetre grid still stands
+ *  over its wall, and skipping it would let the run merge. */
+function alongWallStretchOf(column: ColumnExtent): AlongWallStretchMm {
+  const centreMm =
+    alongWallCoordinate(column.wall, column) * MILLIMETRES_PER_METRE;
+  const widthMm = column.w * MILLIMETRES_PER_METRE;
+  return { leftMm: centreMm - widthMm / 2, rightMm: centreMm + widthMm / 2 };
+}
+
+function isSameStretchOfWall(
+  first: AlongWallStretchMm,
+  second: AlongWallStretchMm,
+): boolean {
+  return (
+    Math.abs(first.leftMm - second.leftMm) <= SAME_EDGE_OF_WALL_MM &&
+    Math.abs(first.rightMm - second.rightMm) <= SAME_EDGE_OF_WALL_MM
+  );
 }
 
 /** The column the run becomes: its two outer edges and the conservative envelope of the rest (highest
