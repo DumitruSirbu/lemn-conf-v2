@@ -19,6 +19,16 @@
 >   in 8U. It needs **no owner question**. It adds criterion 3a, which S4 runs.
 > - S4's red list is reclassified from S2's run (§11, S4 item 3a). S4 owes two `it.fails` flips. The dispatch
 >   essentials are after the slice table.
+>
+> **Fourth revision, same day, after QA round B on S4:**
+> - Criterion 5 failed on monotone tolerance chains, for example depths 620 / 600 / 580. Clearing the right pair
+>   first gives two columns, and the other orders give one.
+> - Ruled in §6.3 as a **contract gap**. It is a known limit, gated by a census. 8U changes no merge logic.
+> - Criterion 5 is restated to hold when the run's spread is within 20 mm. Criteria 2 and 7(b) and the F4 table
+>   are corrected, and R14 is added.
+> - A new slice, **S4b**, runs before S5. Its census decides whether the limit stands. If the census finds a hit,
+>   the owner is asked **Q-8U-3**. If it finds none, there is no owner question.
+>
 > The scribe has not added pointers to this plan yet (STATUS, the M8 wave table, `decisions/README.md`). The ADR in
 > *ADR draft* below is **Proposed**. The scribe gives it the next free number when it is accepted.
 
@@ -44,6 +54,15 @@ progress in the tree:
 - **[S2, read]** means the architect opened the file in the gitignored `testing-reports/2026-10-16-8u-s2-census/out/`.
 - The architect ran no probe for this revision, because the tree is mid-edit and a result could not be reproduced.
   **[src]** here means files the S3b edit does not touch, plus `merge-empty-columns.ts:20-320` as it stood when read.
+
+**Fourth revision** (§6.3), at `HEAD` `c15dc6e5`, with QA round B's three test files untracked in the tree:
+- **[QA-B]** is QA round B's finding, relayed by the coordinator.
+- **[run]** in §6.3 covers two things the architect ran. First, `rtk proxy pnpm vitest run
+  tests/merge-empty-columns.fixpoint-and-order.test.ts`, alone: 28 tests, 6 failed, listed in §6.3. Second, a
+  `rtk proxy grep` of `docs/decisions` and `docs/milestones`.
+- **[src]** means `merge-empty-columns.ts` read whole at that `HEAD`.
+- The impossibility argument in §6.3 is **[inf]**. It rests on a hand walk of two orders and has not been proved
+  over every rule.
 
 ## 1. The request
 
@@ -574,6 +593,158 @@ inference]:
 - **Refuse odd-width columns at the write seam.** It tightens a public seam, S1's security surface, for documents
   nobody produces. The backlog row records it as the other remedy.
 
+### 6.3 Tolerance chains and the clear order (QA round B), and the architect's ruling, 2026-10-16
+
+**What QA found** [QA-B; run]:
+
+- The room is L 4200 × 2400 × 2600, with three 600 mm base columns at 1400–3200 on wall A, floor 0. Their frozen
+  extents are stored. The bodies are removed through `removePlacement` and the reconcile.
+- **Depths 620 / 600 / 580** (tops 2600):
+  - in the orders 1,2,0 and 2,1,0 the result is **two** columns: `A|1.70` (600 wide, d 620) and `A|2.60` (1200
+    wide, d 580);
+  - in the other four orders it is **one**: `A|2.30` (1800 wide, d 580).
+- **Tops 2600 / 2580 / 2560** behave the same way.
+- **The bridged chain, tops 2560 / 2600 / 2580**, is one column in all six orders.
+- `tests/merge-empty-columns.fixpoint-and-order.test.ts` has 28 tests and **6 are red**. They are the two
+  right-pair-first orders on each of the two monotone chains (4), and the every-order equality on each (2). The
+  architect ran it alone at `c15dc6e5` with QA's untracked files [run].
+- Only stored extents reach it. No generated sequence hit it. **Whether a customer can reach it has not been
+  measured.**
+
+**Why** [src: `merge-empty-columns.ts:96-104`, `:264`, `:281-291`, `:311-312`, `:457-479`]:
+
+- `agrees` compares two neighbours' **current** extents within 20 mm. That relation is not transitive: 620 agrees
+  with 600 and 600 agrees with 580, but 620 does not agree with 580.
+- A merge writes the conservative envelope, and its members leave the map. So the value that bridged the chain
+  (600) is gone.
+- The S4 loop recovers a narrowing that leads **into** agreement. In 2560 | 2600 2580, the right pair becomes 2580,
+  which then agrees with 2560. The loop cannot recover a narrowing that leads **out of** agreement. In 620 | 600 580,
+  the right pair becomes 580, which no longer agrees with 620.
+- **So 7(b)'s sentence "the iteration is what makes criterion 5 hold" was true of the bridged chain only.** The F4
+  table's six-order witness of criterion 5 on 620 / 600 / 580 promised something the model does not do.
+
+**What the records accepted, and what they did not** [doc; run]:
+
+- ADR 0046 *Part 2 shipped* (2026-09-02) accepts a 20 mm loss **on a pair**: *"a 580 mm column merged with a 600
+  mm one publishes 580, losing 20 mm the customer never gets to use"*. `qa-5b4b.adversarial.test.ts:277-290` pins
+  this.
+- The same section names merging beyond tolerance as the harm: under `min` it *"would lose real depth silently"*.
+- **The 40 mm chain drift is in no decision record.** A `rtk proxy grep` of `docs/decisions` for *chain drift* and
+  *620, 600* finds nothing [run]. The drift appears in only two places, both of them prose:
+  - the doc comment at `merge-empty-columns.ts:448-450`, which marks it *"Not claimed"*;
+  - this plan's 7(b).
+- ADR 0046 rule 1 sorts the scan so that the geometry does not *"depend on the order the customer's commands
+  happened to run in"*. Its subject is the map's iteration order.
+- [inf] Under the cap, the clear order already decided 300 + 500 + 300 when the right pair was cleared first. ADR
+  0046 does not discuss that. Criterion 5 is this plan's promise, not an earlier ruling.
+
+**No rule that reads only the current map can give the same answer in every order and also keep 600 + 580 merging**
+[inf: the two-order walk below, with criterion 1 and the envelope held fixed]:
+
+- **Left pair first.** 620 + 600 merge to 600, and 580 agrees with 600. Criterion 1 (maximal) forces one column at
+  580, so the 620 member loses 40 mm.
+- **Right pair first.** 600 + 580 merge to 580, and 620 is 40 mm from 580. The result is two columns.
+- **One column in every order** would need 620 to merge with this 580. The map cannot tell this 580 from a stored
+  1200 that was always 580.
+- **Two columns in every order** would need the first agreeing pair to stay apart while nothing beside it is
+  cleared.
+- A merge is never undone, so the two partitions cannot be reconciled later.
+- **Any agreement that is an equivalence relation is order-independent.** The envelope takes one member's value in
+  each dimension, so a merged column stays in its members' class. The two such rules in reach are exact agreement
+  and fixed 20 mm buckets. Both stop 600 + 580 merging, which overturns ADR 0046 Part 2's sentence and its pins.
+- **A rule over the members' original values** needs each merged column to carry the [min, max] of every member it
+  absorbed, in each dimension. It can give one of two properties, not both, because merges are one-way:
+  - **order-independence**: merge when the intervals lie within tolerance of each other. This is the transitive
+    closure, and its drift is unbounded: a chain of n columns can lose 20(n − 1) mm.
+  - **a 20 mm drift bound**: merge only when the union's spread is at most 20. The clear order can still decide
+    which members join.
+  - Either way the interval must survive the reconcile's `recordedColumns` carry (`ColumnExtent`, `void-engine.ts`)
+    and a save and load (`emptyColumns`). Otherwise a save between two clears changes the answer. That needs a type
+    change outside this file and an optional schema field.
+
+**Classification.**
+
+- **A contract gap in this plan.** Criterion 5, 7(b) and the F4 table promised order-independence for every
+  tolerance chain, and the model cannot deliver it.
+- **Not an S4 implementation defect.** S4 built rule 2 and the loop as they were written.
+- **Not a test-fidelity problem.** QA's six reds read criterion 5 as it was written.
+
+**The ruling: a known limit, gated by a census, recorded with its trigger (ADR 0118). 8U changes no merge logic.**
+
+1. **Rule 2 stays as ADR 0046 wrote it.** Agreement is judged pairwise, on current extents, within 20 mm. The
+   merged column is the conservative envelope, and the merge is iterated to a fixpoint.
+2. **A monotone chain has no single correct partition under that rule.** What the product guarantees:
+   - **One map, one result.** For a given map the result is deterministic (sorted scan, fixpoint) and idempotent
+     (criterion 2).
+   - **One picture whatever the order, when the run's spread is within tolerance.** Clearing the same set in any
+     order gives deep-equal maps whenever, in each of floor, top and `d`, the spread is at most 20 mm (criterion 5,
+     restated). The spread is taken over every column of the final merged run, including any member-less neighbour
+     it joins. The reason: every value a merge can produce then lies within the members' own range.
+     So every adjacent pair agrees in every state, and the run always ends as one column at the same envelope.
+   - **Never wider than any member** (§4 rule 1; criterion 7(b)).
+3. **What is a known limit.** Consider a run whose neighbours agree but whose spread exceeds 20 mm in some
+   dimension:
+   - the clear order may decide whether it becomes one column or two;
+   - when it becomes one, a member may lose more than 20 mm. Even the bridged chain 2560 / 2600 / 2580 costs its
+     2600 member 40 mm in every order.
+4. **The gate is S4b's census (item 1), and its three parts are one rule.** S4b proceeds only if all three find
+   nothing:
+   - generated rooms whose columns are cleared in every order;
+   - a directed search that puts bodies of different depth sources side by side and then clears them;
+   - criterion 1's sequences, read step by step for a merge that costs a column it absorbed more than 20 mm.
+
+   If any part finds a case, S4b stops before any other change, and §6.3 returns to planning with Q-8U-3.
+5. **The doc comments are corrected** (S4b item 2), so the code no longer calls the drift "accepted" or the loop a
+   cure for the clear order.
+6. **The scribe adds a backlog row.**
+   - **Trigger:** S4b's census reports a hit; a stored production document holds such a run; or a catalogue change
+     puts three adjacent depth sources within 20 mm steps. The sources already step 600 → 620 → 638 (a deep top,
+     a base run, an oven tower) [src: `design.ts:96-98`, `catalog.ts:276`; doc: ADR 0073 decision 8]. Whether
+     they ever stand side by side in one row is what the census measures.
+   - **Remedies:** carry the member interval (Q-8U-3 (a) or (b)), or exact agreement (Q-8U-3 (c)).
+
+**Q-8U-3, asked only if S4b's census gate fires.** In plain terms:
+
+> Sometimes three empty spaces sit side by side. Each is within 2 cm of its neighbour's depth, but the two end
+> spaces differ by more than 2 cm (for example 638, 620 and 600 mm). Today, whether they join into one space or
+> stay two depends on the order the customer cleared them. We can make the result the same every time, but only one
+> of these ways:
+>
+> - **(a) Always one space**, as deep as the shallowest of them. A space can then end up more than 2 cm shallower
+>   than a cabinet that stood there.
+> - **(b) Never more than 2 cm shallower** than any cabinet that stood there. Which spaces join can still depend on
+>   the clear order.
+> - **(c) Only spaces of exactly equal depth join.** The result is always the same and never shallower. But an
+>   oven-tower space beside a base-cabinet space (18 mm apart) stays as two spaces.
+>
+> **Recommendation: (a).** Both (a) and (c) give the same result whatever the order. They differ in what they cost:
+>
+> - **(a)** keeps every space that joins today joining, including the oven tower beside a base cabinet. The cost
+>   is a space that can lose depth, plus one more stored field per empty space.
+> - **(c)** needs no new field and never loses depth. The cost is that spaces 1 to 20 mm apart, which join today,
+>   stay apart. On screen that looks like the "spaces don't merge" problem you reported.
+>
+> We recommend (a) because of that second cost.
+
+**No owner question if the census finds nothing.** In that case no customer reaches the limit, no production data
+exists [doc: STATUS, backlog 146], and no recorded ruling is crossed.
+
+**Alternatives refused.**
+
+- **Exact agreement or fixed buckets, now.** Either overturns ADR 0046 Part 2 and its pins
+  (`qa-5b4b.adversarial.test.ts:277-290`). It also stops the reachable 620 | 638 merge that ADR 0073 decision 8
+  describes, and all of that for a state only a crafted document is known to hold.
+- **Carry the member interval, now.** It needs a type change in `void-engine.ts`, an optional `emptyColumns` field,
+  and a security reader on the write seam. It still forces the choice between (a) and (b), for a state only a
+  crafted document is known to hold.
+- **A spread limit on current values.** The loop then merges the 600 envelope with 580 anyway. That bounds neither
+  the drift nor the order.
+- **Drop the fixpoint loop.** It brings back order-dependence for the bridged chain (QA's R6: 4 of 6 orders red),
+  and it breaks criterion 2.
+- **Store the pre-merge columns and merge only at read.** That would give closure over the originals. But ADR 0046's
+  2026-09-02 section decided post-merge projection: one canonical map that `col` keys are held to, and a split
+  leaves no pre-merge decomposition. Reopening that is not 8U's work.
+
 ## 7. Records swept, and how each is settled
 
 Swept: every record matching *merge, void, gap, edge, remove, empty*, plus every record those cite. The ones that
@@ -615,7 +786,8 @@ bear on this rule:
 > **ADR [number at acceptance] — Adjacent empty spaces merge whatever their total, and 800 mm caps the cabinet, not
 > the space**
 >
-> Status: **Proposed**, 2026-10-16. Q-8U-1 was answered (b) on 2026-10-16, so it is accepted at S4's close.
+> Status: **Proposed**, 2026-10-16. Q-8U-1 was answered (b) on 2026-10-16. ~~It is accepted at S4's close.~~ It is
+> accepted at **S4b's** close (revised 2026-10-16), because decision 8 stands only if S4b's census finds nothing.
 > Supersedes: ADR 0052 (for spaces) and ADR 0046's cap (in the editor). Amends ADR 0037 (revived uncapped) and
 > ADR 0110 decision 2 (*"the same published openings"*, for composition's intermediate states only). Leaves ADR 0122
 > d4 open.
@@ -655,6 +827,15 @@ bear on this rule:
 >    - The premise is a property: no state reached without a crafted document holds a half-mm edge (criterion 3a).
 >    - The remedy is recorded with its trigger as a backlog row: one judge, with the seat's guard in
 >      `evaluateInsertFit`.
+> 8. **A tolerance chain is a known limit, added 2026-10-16 (plan §6.3).**
+>    - Agreement is judged between neighbours, on current extents, within 20 mm, and it is not transitive. A merge
+>      forgets its members.
+>    - So a run whose neighbours agree but whose spread exceeds 20 mm may merge differently depending on the clear
+>      order. A member may also lose more than 20 mm.
+>    - The clear order cannot matter when each dimension's spread is within 20 mm (criterion 5).
+>    - ADR 0046 Part 2's 20 mm on a pair is unchanged.
+>    - The remedies are recorded with their trigger, which is S4b's census: carry each merged column's member
+>      interval, or require exact agreement.
 >
 > **Alternatives.**
 >
@@ -700,10 +881,14 @@ grid. Command sequences are drawn from `removePlacement`, `insertBody` (any offe
    - **an F2 pair merging at all because a 1 mm trim moved its centre out of the corner's key bucket** (S3's 5985
      room);
    - the geometric test declining anything that is not over another column.
-2. **Idempotent (property).** `merge(merge(m))` deep-equals `merge(m)` for every map reached in criterion 1, including
-   a hand-built tolerance chain whose tops are 2.56 / 2.60 / 2.58 (one column at the fixpoint; see criterion 7(b)). Today's code does not guarantee this
-   [src: `merge-empty-columns.ts:372-374`], so S4 iterates to a fixpoint. **A red result here is a finding, not a
-   flaky test.**
+2. **Idempotent (property).** `merge(merge(m))` deep-equals `merge(m)` for every map reached in criterion 1. It also
+   holds for the F4 table's hand-built tolerance chains:
+   - the bridged chain, tops 2.56 / 2.60 / 2.58, is one column at the fixpoint (criterion 7(b));
+   - each monotone chain keeps whatever its clear order gave, and a second call changes nothing (§6.3).
+
+   A single pass did not guarantee this, so S4 iterates to a fixpoint (`merge-empty-columns.ts:96-104`). The
+   fixpoint is per map. **It does not make the clear order irrelevant** (criterion 5, §6.3). **A red result here is
+   a finding, not a flaky test.**
 3. **Length conserved (property).** For each wall and each `[floor, top]` band, the union of member-less along-wall
    intervals in whole millimetres is identical before and after the merge. Each merged extent's left and right edges
    are its outermost members' edges.
@@ -720,17 +905,38 @@ grid. Command sequences are drawn from `removePlacement`, `insertBody` (any offe
      report it. That shows the check can fail. The generated world cannot show it (ADR 0093).
 4. **No cabinet moves (property).** `design.placements` deep-equals the command's own output after reconcile, and
    `priceDesign` returns the same result. The merge never changes a placement field.
-5. **Order-independent (property).** Clearing the same set of columns in any order publishes deep-equal maps (keys,
-   extents, `depthFromBuildId`). Uncapped, ADR 0037 measured this; the sort stays for the template tie.
+5. **Order-independent within tolerance (property). Restated 2026-10-16 (§6.3); the unconditional wording was a
+   contract gap.**
+   - **The promise.** Clearing the same set of columns in any order publishes deep-equal maps (keys, extents,
+     `depthFromBuildId`). It holds whenever, in each of floor, top and `d`, the spread is at most 20 mm, and no B4
+     guard declines. The spread is taken over the member-less extents of **every column in the final merged run**:
+     the cleared columns, and any member-less neighbour the run joins. A 625 already standing empty beside a cleared
+     600 / 610 run brings the limit back.
+   - **The property draws** 3 to 5 abutting member-less 600 mm columns, with each dimension's values in [v, v + 20]
+     whole mm. Each column has a distinct `depthFromBuildId`, and the clear orders are shuffled. Every order's map
+     must also equal the one-call load of the same columns.
+   - ADR 0037's measurement was on columns that agreed exactly. The sort stays for the template tie.
+   - **Outside that domain is a known limit (§6.3, R14).** A run whose neighbours agree but whose spread exceeds
+     20 mm may publish one column or two, depending on the order it was cleared in. The bridged chain (tops 2.56 /
+     2.60 / 2.58) is order-independent in all six orders [run], and it stays the witness of the loop. The two
+     monotone chains are not order-independent: depths 620 / 600 / 580 and tops 2.60 / 2.58 / 2.56. They are
+     pinned as the limit.
+   - **Must not:** two different maps for the same in-tolerance set; a merged column wider than any member in any
+     order.
 6. **Owner's case.** On a generated L room (4100 × 3300 × 2600), clearing `A|1.80` and `A|2.40` at every level gives
    one member-less column at 1500–2700, three level voids of 1200 mm, and the neighbours' placements byte-identical.
    This is S0's characterisation test, with its expectation flipped in S4, citing this ADR.
 7. **Must not merge (anti-invariants).** (a) Base-only clears under standing uppers (E6) stay two base voids, with each
    column keeping its key. (b) A pair that disagrees by more than 20 mm on floor, top or depth stays two (E8) **when no agreeing
-   neighbour bridges them**. A bridged chain such as tops 2.56 | 2.60 | 2.58 is one column at the fixpoint, with the
-   conservative envelope (top 2.56). That is the chain drift `merge-empty-columns.ts:372-374` already accepts (620,
-   600 and 580 lose 40 mm), and it is what makes criterion 5 hold: without the iteration, the clear order decides
-   whether that chain becomes one column or two. (c)
+   neighbour bridges them**. A bridged chain such as tops 2.56 | 2.60 | 2.58 is one column at the fixpoint in every
+   clear order, with the conservative envelope (top 2.56).
+   - Its 2.60 member loses 40 mm. That is a merge beyond tolerance on a member. No decision record accepts it: ADR
+     0046 Part 2 accepts 20 mm on a pair. §6.3 records it as part of a known limit (corrected 2026-10-16; this line
+     used to call it accepted, citing the doc comment now at `merge-empty-columns.ts:448-450`).
+   - The iteration is what makes **this** chain order-independent. Without it, the clear order decides (QA round B's
+     R6: 4 of 6 orders red).
+   - The iteration does **not** make a monotone chain (620 / 600 / 580) order-independent. Once a pair has merged,
+     the bridging member is gone (§6.3). (c)
    Nothing merges across walls, at the corner, or across a 10 mm gap (`merge-empty-columns.test.ts:387-418` keeps
    passing).
 
@@ -746,14 +952,15 @@ a **hand-built map**, as ADR 0093 requires:
 
 | Criterion | Hand-built fixture | Why the generated world cannot witness it |
 | --- | --- | --- |
-| 2, 5 | The tolerance chain: tops 2.56 / 2.60 / 2.58, then depths 620 / 600 / 580, cleared in all 6 orders | A second pass changes 0 generated maps [S0] |
+| 2, 5 | **Corrected 2026-10-16 (§6.3).** (i) The bridged chain, tops 2.56 / 2.60 / 2.58, cleared in all 6 orders: one column, for criteria 2 and 5. (ii) The monotone chains, depths 620 / 600 / 580 and tops 2.60 / 2.58 / 2.56: criterion 2 only. For criterion 5 they are §6.3's known-limit pins, with the per-order shapes and two `it.fails`. (iii) Criterion 5's within-tolerance property | A second pass changes 0 generated maps [S0]. S0 never varied the clear order |
 | 7(a) | Two adjacent 300 mm columns whose uppers stand and whose bases are removed | No occupied adjacent pair is 800 mm or less [S0] |
 | 7(b) | A pair of 600 + 200 (≤ 800) whose top differs by 30 mm, one whose floor differs and one whose depth differs, each alone and with no bridge | No agreeing pair of 800 mm or less stays apart, and the generated B3 pairs are all U pairs where floor and depth differ together (95 893) [S0] |
 | 1 (F2) | A hand-built L whose upper row over the corner holds 800 + 100 | F2 is generated in U only [S0] |
 | 1 (F2′) | That L and a U, each with the upper row trimmed 1 mm (over 1–901 against a 0–900 corner, and the 5084–5984 / 5085–5985 case), plus a span 11 mm off, which must merge. The 1 mm and 10 mm cases must decline; the 11 mm case must not | The geometric test's own boundary, at both sides of one key bucket |
 
 Each fixture's test states in its title which criterion it witnesses. Each must turn red under R6, with the cap
-restored or the iteration removed.
+restored or the iteration removed. **The exception is the monotone-chain pins (§6.3), which the loop does not
+affect.** Their R6 is S4b item 5: exact agreement turns their `it.fails` red.
 
 *Insert.*
 
@@ -921,6 +1128,12 @@ depends on S1, S2 and S3b, not only on S3** [S3, read: `out/s4-merge-default-run
 inference was wrong. S3b is still owed for criterion 15a.
   S4's remaining reds are classified in S4's item (3a).
 
+**Order, revised again 2026-10-16 after QA round B on S4: … → S4 → S4b → S5.** S4b is §6.3's slice. Its first item
+is a census that may send §6.3 back to planning, and S5 waits on it. **Tier for S4b:** adversarial QA reruns the
+census non-vacuity and the R6 edits, then a logic reviewer (§6.3, the restated criterion 5 and the ADR 0152 list)
+and a clean-code reviewer (the comments). There is no visual or security reader, because nothing a customer sees
+changes and no seam changes.
+
 **Run them one at a time.** S1 and S2 do not touch each other's files, but S3b and S4 both edit
 `merge-empty-columns.ts`. The serial order costs little, and it keeps the S4-alone census meaningful at each step.
 Criterion 15's two tiers (now including S3's off-grid sweep) are the condition on S1, S2 and S3b, and every one of
@@ -934,6 +1147,7 @@ them must show no change.
 | **S3** — **done, `0f85ed23`** [S3: 91 570 rooms byte-identical; domain suite 7 765 green]. Composition merges at its own limit (re-scoped 2026-10-16, §6.1; behaviour-free at HEAD) | ~~(1) Generation composes identical placements when the run's empty columns are one span … That gate's predicate must become "the opening is wider than the planned body".~~ **Struck 2026-10-16: S0 showed one span cannot be composed through the left seat in reading order, and under §6.1 composition never sees one span, so the `isFreeEndBody` gate (`generate-kitchen.ts:795-800`) is unchanged.** (1) **The limit as a value.** `mergeAdjacentEmptyColumns` takes its width limit as an argument. `deriveColumns`, `deriveRecordedColumns` and `reconcileSuccessfulCommandResult` pass it through. With no argument they keep today's 800 (the editor's limit stays 800 until S4). It is a number, never a boolean (`engineering-conventions.md`). `splitEmptySpanAtCap` takes it too, for the shell's tiling, and so does `splitOversizedEmptyColumns` inside the reconcile. That makes the funnel **around** the commands independent of `module-grid.ts`. The commands' own two cuts (§6.1, *Two cuts inside the commands*) still read it, and no command gains a parameter. So (1a) **the census counts how often the insert-split cut and the shrink-overflow cut fire during composition**, at HEAD and under S0's mock. The expected count is 0, and a non-zero count stops the slice. (1b) **Flip owed (ADR 0152):** the test at `tests/generation/leftover-absorbed-beside-a-fixed-body.test.ts:107-112` asserts `CABINETRY_MAX_WIDTH_MM >= MAX_EMPTY_COLUMN_WIDTH_MM` (`:108-110`), the guard for two 800s read by one plan (its comment, `:104-106`). Once the headroom reads the catalogue's ceiling, that line guards nothing. It is restated as a property: for every width up to the ceiling, width plus `headroomBelowTheCeilingMm(width)` never exceeds `CABINETRY_MAX_WIDTH_MM` (old and new expectation listed in the report). `:111`, the owner's literal 800 against the catalogue, stays. (2) **Composition passes `CABINETRY_MAX_WIDTH_MM`** at all four sites, and the limit is named once in `generation/`: `shell-design.ts:890`, `loadWorld`, `applySuccessfulResult` and `replayGenerationLog`. `leftover-rule.ts` reads the same constant (criterion 17). (3) **The finishing step**: one uncapped `deriveRecordedColumns` → `projectFrozenMap` → `withFrozenMap` before `assertGeneratedDesign`, in both `generateKitchen` and `replayGenerationLog`. It counts the maps it changes (criterion 15a). (4) Criteria 15, 15a, 16 and 17 in **both worlds**, the second under S0's `module-grid` mock, with S0's figures reversed. The docstrings at `generate-kitchen.ts:231-232` and `:902` are corrected. (5) **Report the census** (rooms, throws, refusals, digest equality, maps changed by the finishing step), quoted from the run | `merge-empty-columns.ts` (signature only), `void-engine.ts` (`deriveColumns`, `deriveRecordedColumns` signatures), `commands/reconcile-command-result.ts`, `split-empty-span.ts`, `generation/generate-kitchen.ts`, `generation/shell-design.ts`, `generation/leftover-rule.ts`. **About 7 files, over the ~5 limit; named here as `docs/WORKFLOW.md` requires.** Three of them are signature-only, with no behaviour change at HEAD | §6.1 whole; criteria 15–17; ADR 0110 decision 2, *D revised* 1–5, B2, N11.8 (alternative D), U3b AC5 (M7B plan, `M7B-u-shaped-rooms.md:1388-1390`); ADR 0046 rule 1; S0's census scripts `c6`, `c8`, `c9` and `census-lib.ts` (`testing-reports/2026-10-16-8u-s0-census/scripts/`) as the census pattern; `generate-kitchen.ts:327-440`, `:698-801`, `:902-921`; `shell-design.ts:880-908`; `void-engine.ts:425-520`; `reconcile-command-result.ts` whole; `merge-empty-columns.ts:65-100`, `:207-231`; `split-empty-span.ts`; `leftover-rule.ts`; `tests/support/l-and-linear-generation-digest.ts` |
 | **S3b** — the corner guard becomes geometric (added 2026-10-16, §4.2; behaviour-free at HEAD) | (1) **The guard.** In `planBlock`, beside `isKeyTaken`, a run declines when its merged span's two outer edges are each within one key bucket (10 mm, inclusive, read from the key grid's own constant) of another column's outer edges on the same wall. "Another column" means any map column that is not a member of the run, which is `isKeyTaken`'s own set. The doc comment states the reason as §4.2 does: the two tests guard the same stretch of wall, and a 1 mm trim must not change the answer. (2) **Behaviour-free at HEAD:** the domain suite is green, criterion 15's committed digests are unchanged, and S0's grid census and S3's off-grid census are re-run (both [run]). It is behaviour-free because no capped merge ≤ 800 spans a column's whole stretch today [inf]. **A decline at HEAD stops the slice.** (3) **Under S0's mock**: criterion 15a off the grid goes from S3's 786 to **0**; S0's grid stays 0; every off-grid placement, step and command is identical. (4) **Count every decline by guard** (key test, geometric test) across both sweeps and criterion 1's command sequences, with **every geometric decline located**: wall, span, the column it stands over. Any decline not over a corner piece or an ADR 0122 widened cabinet stops the slice (§4.2, *Where else can it fire*). Also count the composed U rooms, on and off the grid, where each corner's upper row is still exactly its two strips. That count must equal every composed U room that has corner strips, and it is what backs Q-8U-2's *"in every U kitchen"*. (5) The F2′ fixtures (§10, F4 table), with R6: drop the new test and the 5985 room's 900 comes back. Add an editor pin: in a generated U, clear the whole column beside a corner strip, and the strips stay two while the freed column stays apart (B3, floor). That is §4.1's [run] case, and it is what backs Q-8U-2's last sentence | `merge-empty-columns.ts` only | §4.1, §4.2; criteria 1, 15, 15a; ADR 0046 (*Which end*: the predictability ruling), ADR 0110 N11.8 (the *Moving only the 20 838* row), ADR 0110 *Correction 2026-09-13*, ADR 0122 d4; `merge-empty-columns.ts:254-366`; `validate-design.ts:449-488`, `:523-567`; `module-grid.ts` (`deriveColumnKeyAt`); `testing-reports/2026-10-16-8u-s3-census/scripts/offgrid.scratch.ts`, `probe-room.scratch.ts` |
 | **S4** — the switch | (1) Remove the cap from `widestBlockFrom` [`merge-empty-columns.ts:226`]. After S3, this means the editor's default limit becomes none, while composition's stays `CABINETRY_MAX_WIDTH_MM`. Criterion 15 is re-run for real here, with no mock, and must still match S0's baseline. Criterion 15a's count is quoted. The F2 count is quoted against S0's 126 950 (criterion 1). F4's hand-built fixtures (§10, after criterion 7) land in this slice. (2) Iterate `planMerges` to a fixpoint; it terminates because each pass removes at least one column (criterion 2). (3) Flip, citing the ADR, the tests that assert the **merge** cap (S1 already flipped the refusal-code tests): `merge-empty-columns.test.ts:148`, `:161`, `:522`, and any merge or shrink-split assertion in `empty-column-ceiling.test.ts` / `qa-5b4b`. **Each flip is listed in the report with its old and new expectation (ADR 0152)**. **(3a), rewritten 2026-10-16 after S2.** S3's list (from `out/s4-merge-default-run.log`) is superseded by S2's run of S4 alone [S2, read: `testing-reports/2026-10-16-8u-s2-census/out/s4-alone-after-s2.log`]. **That run covers `tests/generation/` and S0's file only, 73 files and 1 266 tests. It is not the domain suite.** So S4's first step is the **whole** domain suite under S4 alone. Every red is classified before it is touched, into one of the kinds below, and the kind is named in the report. The merge-cap flips in item (3) and both `it.fails` files lie outside the 73 files, so this run says nothing about them. In it, 16 tests in 5 files are red. **Every former *Re-run* file passes**: `generate-kitchen.u.uppers`, `qa-u3b-generating-a-u`, `top-row`, `generate-kitchen.u.property`, `corner-wall-unit`, and also `shell-design.property`. S1 retired the 9 `EMPTY_COLUMN_WIDER_THAN_CAP` throws, and S2 cleared AC6. None of these is touched unless the whole-suite run shows it red. **Flip** (2), where the editor's behaviour really changes and the old and new expectations are listed: `merge-empty-columns.generated-kitchen.test.ts:95`, S0's owner case and criterion 6 (red at `:107`); and `generate-kitchen.composition-width-limit.test.ts`'s *"keeps them two under today's editor limit"* (red at `:154`), S3's own pin of the old editor limit, which becomes *"one 1200 column"*. **Repoint** (12), where the expectation stays and the test reads composition's world. They share one seam: `facesOf` and `withWallABaseRunFilled` → `fillOpeningAt` in `tests/support/shell-design.ts:276-377` derive the **shell** with the editor's default limit. The shell is composition's private intermediate (§6.1). So the helper derives through `COMPOSITION_WIDTH_LIMIT_MM`, and `fillOpeningAt`'s docstring (*"the way the store saves it"*) is corrected to composition's world. The 9 are in `qa-7d5-bottle-cargo.adversarial.test.ts` (`:759`, `:827` ×2, `:919` ×4, `:969` ×2). The 3 are `shell-design.test.ts`'s finished-end group (`:663`, `:678`, `:688`). **Before the repoint, list every caller of `facesOf`** (`shell-design.test.ts`, `shell-design.property.test.ts`, `qa-7d5-bottle-cargo`, the support file) and confirm each passes a shell. A caller that passes `generateKitchen`'s output stays in the editor's world. Criterion 4's inserts and `shell-design.property`, green today, stay green. **Restate over the delivered design, never repoint** (2): `shell-design.adversarial.test.ts`'s *"carries its frozen map byte-identically through a change to every declared depth and back"* (`:338`) and *"is a fixed point of the load seam"* (`:401`). The counterexample is L 900 × 1802 × 2200, where wall B's 800 tile (900–1700) and 2 mm tile (1700–1702) become one 802 under the editor's rule. The depth command derives through the editor's default (`set-cabinet-depth.ts:241`), and criterion 16 forbids giving a command a limit. The editor also never loads, saves or depth-changes the shell. So ADR 0110 B3's *"still fits after any depth change"* belongs to the **generated design**, and these are restated over `generateKitchen`'s output, drawn from the rooms it accepts. The restatement states whether 900 × 1802 is one of them. If no generated room carries an 800 + 2 seam, it says so and names a declared witness (ADR 0093). The load-seam half is criterion 15a's load check, so one test may serve both if its title names both. The two sibling depth cases S3 listed, *"reports no finding … and back again"* and R1.2's (`:1302`), pass in S2's run and are not touched. **Must not**: a limit parameter on `setCabinetDepth` or on any command; or a test whose title states a rule (U3b AC6: *"a wall cabinet can take every back-wall void"*) flipped to fit the code. **`it.fails` flips owed to S4** (2), each turned to `it` and listed under ADR 0152: `migrate-design.v1-split-and-one-wide-entry.test.ts:99` (criterion 14, the v1 1600 map equality) and `commands/insert-fit.at-its-maximum.test.ts:522` (criterion 8's one remainder, judged after the reconcile). If an `it.fails` passes, vitest reports it red. So the whole-suite run shows both, and leaving either unflipped fails the gate. **(3b), added 2026-10-16 (§6.2):** criterion 3a's property, with its non-vacuity fixture. A counterexample stops the slice. **(3c), added 2026-10-16 (§6.2), test-only:** criterion 10's odd-width witness, which S2 did not land. It is the refusal pin plus the `it.fails` asserting that the offer list equals what the insert accepts at 801, 1201 and 2001 (`'fit'`) and at 701 and 799 (fixed-set). Its title cites *"8U §6.2 / R13"*, and the scribe adds the backlog row's reference when it writes the row (4) Criteria 1–7, 11, 12 and 19 as properties and pins. (5) The visual captures (criterion 18) | `merge-empty-columns.ts`, `module-grid.ts` (doc comment only), and the one file where S3 put the editor's default limit. Nothing under `generation/` | §5, §6.1, §10 whole; ADR 0037, ADR 0046 (whole), ADR 0052, ADR 0043, ADR 0090 4b and Amendment B, ADR 0122, ADR 0152; `merge-empty-columns.ts` whole; `tests/merge-empty-columns.test.ts`, `tests/empty-column-ceiling.test.ts`, `tests/qa-5b4b.adversarial.test.ts`, `tests/qa-5g.adversarial.test.ts`; `queries/vacated-void.ts`; `browser-and-visual-qa.md`; **added 2026-10-16:** §6.2; ADR 0103 (*Post-probe refusals*); `tests/support/shell-design.ts`; the two `it.fails` files; S2's `out/s4-alone-after-s2.log` |
+| **S4b** — tolerance chains (added 2026-10-16, §6.3). It restates a contract and pins a known limit, with **no merge-logic change**. Base: S4 plus QA round B's files (`tests/merge-empty-columns.fixpoint-and-order.test.ts`, `tests/merge-empty-columns.editor-sequences.property.test.ts`, `tests/support/merge-oracle.ts`), committed by the coordinator first or owned by this slice's one writer | (1) **The reachability census comes first. It is [run] and quoted, and it is the gate.** It has three parts, all gated (§6.3 ruling 4). **Part 1, generated rooms** on S0's grid and S3's off-grid sweep. Read each column's member-less extent by clearing it alone through the store path, not from its frozen extent, because ADR 0080 re-derives a cleared column's depth from its source and the setting. Then find every contiguous run of 3 or more columns on one wall, not only maximal runs, where (i) edges meet within 1e-6 mm, (ii) adjacent pairs agree on floor, top and `d` within 20 mm on those extents, and (iii) the spread in some dimension exceeds 20 mm. Count these runs per dimension. For each such run whose bodies are all deletable, remove them in every order (all orders up to 4 columns, 24 seeded orders beyond that) through `removePlacement` → `reconcileSuccessfulCommandResult`. Count **(a)** runs whose published maps differ by order, and **(b)** runs where a merged column's top or `d` is more than 20 mm below, or its floor more than 20 mm above, a member's member-less extent. **Part 2, a directed search**, because a customer's inserts can put depth sources side by side that generation never does (600, 620 and 638). In one generated L and one generated U, clear three adjacent columns, fill them with every ordered triple of offered rows of distinct depth sources (at most 8 rows), then clear the triple in all 6 orders. Count (a) and (b) as in Part 1. **Part 3, criterion 1's command sequences.** The harness carries, for each member-less column, the widest reading of every column it has absorbed across all earlier steps: the highest top and `d`, and the lowest floor. This is the memory the map lacks. **(b′)** counts a column whose top or `d` is more than 20 mm below, or whose floor is more than 20 mm above, that carried reading. Adjacent member-less pairs that agree but are unequal are also counted; that count is reported, not gated. Give up to 10 located examples for each count. **Non-vacuity:** the same script on the 620 / 600 / 580 room reports (a) = 1 and (b) ≥ 1, and, cleared as a sequence in the order 0, 1, 2, (b′) ≥ 1. **Gate:** if (a), (b) and (b′) are all 0, go on to items 2–5. If not, stop with no other change and return §6.3 to planning (Q-8U-3). (2) **Doc comments only, in `merge-empty-columns.ts`:** the loop (`:98-99`), `agrees` (`:276-280`) and `mergedExtent` (`:448-450`). Each says what §6.3 says: agreement is not transitive; the loop recovers a narrowing into agreement but not one out of it; a run whose spread exceeds 20 mm may depend on the clear order and may lose more than 20 mm on a member; this is a known limit (§6.3). Nothing may still call the drift accepted. `git diff` on the file shows comment lines only. (3) **Restate QA's six reds under ADR 0152**, each listed with its old and new expectation, in `tests/merge-empty-columns.fixpoint-and-order.test.ts`. **The four per-order reds** (orders 1,2,0 and 2,1,0 on both monotone chains) become pins of today's shape, titled *"8U §6.3 known limit (R14)"*. Depth chain: `A\|1.70` (1400–2000, d 620) and `A\|2.60` (2000–3200, d 580). Top chain: `A\|1.70` (top 2600) and `A\|2.60` (top 2560). The other four orders stay as one `A\|2.30` at 1400–3200. **The two every-order equalities** become `it.fails` with the same title prefix. The bridged chain's tests, the one-call-and-second-call test, the envelope test and the template property are unchanged. The file header's account of what is witnessed is corrected. (4) **Criterion 5 as restated, as a `fast-check` property** in the same file (§10 criterion 5's domain), going through the store path (`removePlacement` → reconcile). (5) **R6, both ways, each reverted and quoted.** (i) Halving `AGREEMENT_TOLERANCE_MM`: item 4's property goes red, which shows it draws real chains. (ii) Making agreement exact: both `it.fails` go red, and the per-order pins go red too, which shows the pins can fail. (iii) Dropping the sort in `planOneWall`, so the scan and the template tie follow the map's insertion order: item 4's property goes red. That needs ties at the minimum depth, so the property draws each dimension from a small set inside [v, v + 20] (for example v, v + 10 and v + 20) as well as from the whole range. A rightmost-of-equal-depths tie is still derived from geometry and is order-independent, so it is **not** this property's sabotage. QA's template pin covers it. If (iii) stays green, the report says so and why, and the generator is fixed before the slice closes. (iv) Removing the loop: the bridged chain goes red in 4 of 6 orders, as QA round B measured. **Gates:** the whole domain suite green; the web suite untouched. Criterion 15 is not re-run, because the production diff is comment-only; the report says so. **Must not:** any logic change in `src`; a restated test whose title still promises order-independence for a monotone chain; a fix for the limit | `merge-empty-columns.ts` (doc comments only) | §6.3; §10 criteria 1, 2, 5 and 7(b), and the F4 table; R5, R14; ADR 0046 rule 1, rule 2 and *Part 2 shipped*; ADR 0073 decision 8; ADR 0093; ADR 0118; ADR 0152; `merge-empty-columns.ts` whole; `tests/merge-empty-columns.fixpoint-and-order.test.ts`, `tests/support/merge-oracle.ts`, `tests/merge-empty-columns.editor-sequences.property.test.ts`; `tests/qa-5b4b.adversarial.test.ts:270-300`; S0's `scripts/c3b.scratch.ts` and `census-lib.ts` (the clear-a-run pattern); S3's `offgrid.scratch.ts` |
 | **S5** — retire the cut at 800 (behaviour-free after S4) | (1) `splitColumn`'s remainder becomes one piece. From this item on, criterion 8's one remainder also holds at command level, on `insertBody`'s own effect, and a test asserts it there. This is S2 deviation 2: until now a 3000 opening leaves 800 + 800 + 600 at command level, and only S4's reconcile rejoins them. (2) The shrink's overflow pieces go (`width-resize-model.ts:117` and its writer). (3) `splitOversizedEmptyColumns` leaves the funnel and the exports. (4) `MAX_EMPTY_COLUMN_WIDTH_MM` remains only for the v1 arm, renamed to say so. Composition already reads `CABINETRY_MAX_WIDTH_MM`, through S3's `COMPOSITION_WIDTH_LIMIT_MM`, so nothing in `generation/` changes. **Tests that read the module-grid constant as generation's ceiling are repointed at `COMPOSITION_WIDTH_LIMIT_MM`** [S3]: `tests/support/before-c2-corner-unit.ts:75`, `tests/generation/tall-end-rule.test.ts`, `tests/generation/tall-end-composition.test.ts`. That is a fidelity fix with the expectation unchanged, listed under ADR 0152. If any of them goes red at S4, it moves to S4. **Proof that it is behaviour-free, in both worlds:** criterion 1's sequences give deep-equal reconciled maps before and after the slice, and criterion 15's generation digests are byte-identical before and after. Removing the commands' cuts is behaviour-free in composition only because S3's count showed they never fire there. S5 re-runs that count before deleting them, and quotes it | `commands/split-column.ts`, `commands/width-resize-model.ts`, `commands/apply-column-moves.ts`, `split-oversized-empty-columns.ts`, `commands/reconcile-command-result.ts` | ADR 0052 *Consequences*; ADR 0046 part 1; `split-empty-span.ts`; `void-engine.ts:30-40` (exports); `index.ts`; the S4 property suite |
 
 **S4 dispatch essentials (2026-10-16, after S2).**
@@ -967,14 +1181,15 @@ The scribe owns the closing documents: the ADR's acceptance and number, dated no
 0122. ADR 0110's note is a **dated amendment** to decision 2, *"the same published openings"*, written from ADR
 draft decision 4, with pointers at *D revised* 5 and N11.8 alternative D. The scribe also adds a backlog row for F2
 under Q-8U-2's answer, with §4.1 as its trigger (ADR 0118). The scribe also adds the odd-width row from §6.2, with
-its trigger and the two remedies. Then: `decisions/README.md`, `SUPERSESSIONS.md`, DEVELOPMENT-SPEC §3.2, §4, §5.2 and §11 rows 25–27, and STATUS.
+its trigger and the two remedies. It also adds the tolerance-chain row from §6.3, with its trigger and remedies, and
+writes the ADR's decision 8. Then: `decisions/README.md`, `SUPERSESSIONS.md`, DEVELOPMENT-SPEC §3.2, §4, §5.2 and §11 rows 25–27, and STATUS.
 
-**Reading — QA (every slice):** this plan §5, §6.1 (*Test fidelity*), §6.2 (from S4), §10 (with the F4 table) and §12; the slice's own *Reading* cell;
+**Reading — QA (every slice):** this plan §5, §6.1 (*Test fidelity*), §6.2 (from S4), §6.3 (from S4b), §10 (with the F4 table) and §12; the slice's own *Reading* cell;
 `engineering-conventions.md`, *Coverage an adversarial pass owes* and *Three guards that look thorough and cannot
 fail*; WORKFLOW R6; ADR 0152; `tests/support/fake-probe.ts`; the generated-kitchen pattern in
 `qa-c7s1-span-overlap.adversarial.test.ts:1-120`.
 
-**Reading — logic reviewer:** this plan §2–§7 (with §4.1, §6.1 and §6.2) and §10; ADR 0103 (*Post-probe refusals*); ADR 0037, 0046, 0052, 0110 d1–d4, *D revised*, N11.8, 0122; DEVELOPMENT-SPEC
+**Reading — logic reviewer:** this plan §2–§7 (with §4.1, §6.1, §6.2 and §6.3) and §10; ADR 0103 (*Post-probe refusals*); ADR 0037, 0046, 0052, 0110 d1–d4, *D revised*, N11.8, 0122; DEVELOPMENT-SPEC
 §3.2, §4, §5.1–§5.4 and §11; the slice's diff with its tests.
 
 **Reading — clean-code reviewer:** `engineering-conventions.md`; ADR 0136 (comments); the diff, plus the files it
@@ -1000,7 +1215,10 @@ persistence write seam.
   corner columns stay apart (`merge-empty-columns.test.ts:304`).
 - `standsIn`: a run that encloses a placement → declined, at every width now possible.
 - A tolerance chain: tops 2.56 / 2.60 / 2.58 and depths 620 / 600 / 580. Check that one pass equals two, and that the
-  envelope is never wider than any member's.
+  envelope is never wider than any member's. **Done in QA round B.** It found that the monotone chains depend on the
+  clear order, which §6.3 rules a known limit (S4b). QA on S4b also checks the mirrored chain (580 / 600 / 620), so that
+  the pins do not encode the scan direction. Walked by hand [inf], it gives **two** columns in the orders 0,1,2 and
+  1,0,2, and one in the other four.
 - Wall-end clip versus recorded face (ADR 0090 Amendment B): a merged 2000 at a wall's end, then a room correction
   that shortens and restores the wall → the recorded face is untruncated and round-trips.
 - A depth change (ADR 0088, 0090) with a 1800 merged space; the leftmost shallowest member is the template.
@@ -1042,7 +1260,8 @@ persistence write seam.
 | R2 | The fit change touches §5.2, the offer list and the count line | Byte-identical behaviour at or under the maximum (criterion 8) |
 | R3 | A loosened write-seam refusal | A security reader; every other refusal pinned unchanged (criterion 13) |
 | R4 | Tests that assert the cap are flipped and launder a defect | Every flip is listed with its reason and ADR (S4 item 3); the logic reviewer reads each one |
-| R5 | The fixpoint changes the envelope in rare tolerance chains, so a stored map differs at load | Counted in S0 item 4 and quoted: a second pass changes **0** maps [S0]. So the generated world cannot witness it, and F4's hand-built chain is the only test that can fail (criterion 2). Placements never change |
+| R5 | The fixpoint changes the envelope in rare tolerance chains, so a stored map differs at load | Counted in S0 item 4 and quoted: a second pass changes **0** maps [S0]. So the generated world cannot witness it, and F4's hand-built chain is the only test that can fail (criterion 2). Placements never change. **S0's census never varied the clear order, so it says nothing about R14** (added 2026-10-16) |
+| R14 | **A tolerance chain depends on the clear order** (QA round B, 2026-10-16). A run whose neighbours agree but whose spread exceeds 20 mm may become one column or two depending on the clear order. When it becomes one, a member may lose more than 20 mm (§6.3) | Ruled a known limit in §6.3. 8U changes no merge logic. **The gate is S4b's census** over both sweeps and criterion 1's sequences. A non-zero count stops S4b and returns §6.3 to planning with Q-8U-3. Pinned by the per-order shapes and two `it.fails`. A backlog row carries the trigger. The real depth sources already step 600 → 620 → 638 [src; doc: ADR 0073 d8], so "a customer cannot reach it" is an inference until the census runs |
 | R6 | The owner expects per-level merging (I3) | Stated in Q-8U-1's text. If wanted, it is ADR 0122 d4's wave, with its own plan |
 | R7 | Disagreeing pairs (E8) and F2's corner pairs still show as two adjacent spaces, and the owner reports again | Counted by S0: F2 is 126 950 pairs in 63 475 composed U rooms, all declined by `isKeyTaken` alone. 95 893 B3 pairs appear after one clear, in U only, where floor and depth differ together. §4 rule 1's WHY is a shipped fix that must not be simplified away (`product-invariants.md`). F2 is put to the owner as Q-8U-2 (§4.1) and is not left for the owner to discover. The close-out names both counts |
 | R8 | Very wide void boxes on a phone: framing, and the click-stealing that §6.1's line threshold guards against | Visual review at 390 × 844, plus §11 rows 21–22 |
