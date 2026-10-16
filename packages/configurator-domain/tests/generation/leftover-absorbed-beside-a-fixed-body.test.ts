@@ -10,7 +10,6 @@ import {
   headroomBelowTheCeilingMm,
   leftoverAbsorbedBesideAFixedBody,
 } from "../../src/generation/leftover-rule.js";
-import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
 
 const CEILING_MM = 800;
 const ONE_MODULE_MM = 600;
@@ -101,12 +100,16 @@ describe("the leftover a base takes beside a fixed-width end body", () => {
     expect(headroomBelowTheCeilingMm(CEILING_MM + 50)).toBe(0);
   });
 
-  // The cap reads the empty-space ceiling (ADR 0052) and the owner's "up to 800" is the cabinet ceiling (§7); a
-  // widened cabinet is also a floor tile, so both bind. The space ceiling must never be the higher one, or a
-  // plan could size a cabinet the catalogue cannot build.
-  it("never sizes a cabinet past what the catalogue can build: the cabinet ceiling is at least the space ceiling", () => {
-    expect(CABINETRY_MAX_WIDTH_MM).toBeGreaterThanOrEqual(
-      MAX_EMPTY_COLUMN_WIDTH_MM,
+  it("never sizes a cabinet past what the catalogue can build: no width grows past the cabinet ceiling", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: CABINETRY_MAX_WIDTH_MM }),
+        (widthMm) => {
+          expect(
+            widthMm + headroomBelowTheCeilingMm(widthMm),
+          ).toBeLessThanOrEqual(CABINETRY_MAX_WIDTH_MM);
+        },
+      ),
     );
     expect(CEILING_MM).toBeLessThanOrEqual(CABINETRY_MAX_WIDTH_MM);
   });

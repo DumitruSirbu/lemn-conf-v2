@@ -12,7 +12,9 @@ import {
   deriveColumns,
   derivePlacementRecords,
   deriveRecordedColumns,
+  projectFrozenMap,
   recomputeVoids,
+  withFrozenMap,
   type BodyCatalog,
   type BodyDefinition,
   type Column,
@@ -38,6 +40,7 @@ import {
   type KitchenCompositionPlan,
 } from "./generation-priorities.js";
 import { BOTTLE_CARGO_BUILD_ID } from "./body-choice.js";
+import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
 import type {
   TwoWallDispatch,
   UGenerationRun,
@@ -228,9 +231,11 @@ function buildUShellFor(
   });
 }
 
-/** Composes one deterministic kitchen — an L, a straight run (ADR 0130) or a U — through the same command
- *  and frozen-map funnel as the editor. One probe lease brackets the entire attempt, including a
- *  minimum refusal or a throw. */
+/** Composes one deterministic kitchen — an L, a straight run (ADR 0130) or a U — through the editor's own
+ *  commands and frozen-map funnel, with one difference: until the last command, member-less columns split and
+ *  merge at `COMPOSITION_WIDTH_LIMIT_MM`, not the editor's limit, so the planned tiles stay apart. The design
+ *  returned is then re-derived by the editor's own rule (see ADR 0110 decision 2). One probe lease brackets the
+ *  entire attempt, including a minimum refusal or a throw. */
 export function generateKitchen(
   input: GenerateKitchenInput,
 ): GenerateKitchenResult {
@@ -503,11 +508,12 @@ function compose(args: {
     return refused(args.plan, args.input.occurredAt, steps, commands);
 
   if (args.input.room.shape === "U") assertAHoodStandsOverTheHob(steps);
-  assertExactlyOneOven(world.design);
-  assertGeneratedDesign(world.design, args.catalog);
+  const design = inTheEditorsCanonicalForm(world);
+  assertExactlyOneOven(design);
+  assertGeneratedDesign(design, args.catalog);
   return {
     ok: true,
-    design: world.design,
+    design,
     log: {
       occurredAt: args.input.occurredAt,
       plan: args.plan,
@@ -733,8 +739,14 @@ function loadWorld(design: Design, catalog: BodyCatalog): GenerationWorld {
     records,
     design,
     toMetres(design.room.widthMm),
+    COMPOSITION_WIDTH_LIMIT_MM,
   );
-  const columns = deriveColumns(records, design, design.room);
+  const columns = deriveColumns(
+    records,
+    design,
+    design.room,
+    COMPOSITION_WIDTH_LIMIT_MM,
+  );
   return {
     design,
     catalog,
@@ -752,6 +764,7 @@ function applySuccessfulResult(
     result,
     catalog: world.catalog,
     previousRecordedColumns: world.recordedColumns,
+    emptyColumnWidthLimitMm: COMPOSITION_WIDTH_LIMIT_MM,
   });
   return {
     design: reconciled.design,
@@ -760,6 +773,21 @@ function applySuccessfulResult(
     columns: reconciled.columns,
     voids: reconciled.voids,
   };
+}
+
+/** The composed design's frozen map as the editor's own load derives it, with the editor's merge limit: the only
+ *  map a customer sees. It moves no placement. */
+function inTheEditorsCanonicalForm(world: GenerationWorld): Design {
+  const records = derivePlacementRecords(world.design, world.catalog);
+  const recordedColumns = deriveRecordedColumns(
+    records,
+    world.design,
+    toMetres(world.design.room.widthMm),
+  );
+  return withFrozenMap(
+    world.design,
+    projectFrozenMap(recordedColumns, records),
+  );
 }
 
 function plannedVoid(
@@ -899,7 +927,10 @@ function refused(
   };
 }
 
-/** Replays the exact command sequence recorded by production through the same frozen-map funnel. */
+/** Replays the exact command sequence recorded by production through composition's funnel, at
+ *  `COMPOSITION_WIDTH_LIMIT_MM`, and re-derives the result by the editor's own rule, as `generateKitchen` does.
+ *  The only replay entry point: through the editor's funnel, a wider merge limit joins the planned tiles and the
+ *  log no longer finds its openings (see ADR 0110 decision 2). */
 export function replayGenerationLog(input: {
   readonly log: GenerationLog;
   readonly probeAt: BodyProbeFactory;
@@ -911,11 +942,12 @@ export function replayGenerationLog(input: {
   });
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(shell));
   const lease = input.probeAt(cabinetDepthMmOf(shell));
-  return lease.use(
-    (probe) =>
+  return lease.use((probe) =>
+    inTheEditorsCanonicalForm(
       input.log.commands.reduce(
         (world, command) => runCommand(world, command, probe).world,
         loadWorld(shell, catalog),
-      ).design,
+      ),
+    ),
   );
 }

@@ -2,9 +2,10 @@
 // reference kitchen's settings and depth, the structural corner pieces that fit under the ceiling, and
 // every free run of each wall recorded as empty space. Authored for its room, never derived by
 // removing from the reference kitchen, which would carry its column boundaries and depth sources into
-// rooms where none stood (Amendment B1). Each run is cut by `splitEmptySpanAtCap` (ADR 0052) with its
-// depth read off a neutral declared source (`occupiedDepthOfEntryM`; ADR 0073, 0102). Nothing is
-// clipped: `clipEmptyColumnsAtWallEnd` is a published-face pass (ADR 0090 Amendment B4).
+// rooms where none stood (Amendment B1). Each run is cut by `splitEmptySpanAtCap` at composition's width
+// limit (`COMPOSITION_WIDTH_LIMIT_MM`) with its depth read off a neutral declared source
+// (`occupiedDepthOfEntryM`; ADR 0073, 0102). Nothing is clipped: `clipEmptyColumnsAtWallEnd` is a
+// published-face pass (ADR 0090 Amendment B4).
 //
 // Wall B's runs end short of the wall by the corner's chain shift to the deepest declared depth
 // (Amendment B3), so a proposal still fits after the customer changes the depth. Wall A's floor run
@@ -58,6 +59,7 @@ import {
   type BodyDefinition,
 } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
+import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
 import { isBackWallBaseOnly } from "./run-layout.js";
 
 export interface LinearShellDesignInput {
@@ -818,7 +820,7 @@ function slideReserveMm(run: TileRun): number {
   return Math.max(0, ...shiftsMm);
 }
 
-/** The run cut at ADR 0052's ceiling, the near end first, to the last millimetre a whole-millimetre
+/** The run cut at composition's width limit, the near end first, to the last millimetre a whole-millimetre
  *  centre can reach. */
 function tilesOver(run: TileRun, span: AlongWallSpan): EmptyColumn[] {
   const lengthMm = span.endMm - span.startMm;
@@ -826,7 +828,11 @@ function tilesOver(run: TileRun, span: AlongWallSpan): EmptyColumn[] {
   // floor), has nothing to record; a tile with its floor at its top is `EMPTY_COLUMN_INVERTED`.
   if (lengthMm <= 0 || run.topMm <= run.y0Mm) return [];
   const reachMm = wholeMillimetreReachableEndMm(span);
-  return splitEmptySpanAtCap(span.startMm, reachMm).map((piece) =>
+  return splitEmptySpanAtCap(
+    span.startMm,
+    reachMm,
+    COMPOSITION_WIDTH_LIMIT_MM,
+  ).map((piece) =>
     tileOver(
       run,
       piece.centreMm - piece.widthMm / 2,
@@ -881,13 +887,18 @@ function sourceDefinition(source: string): BodyDefinition {
 
 /** The frozen map written the way the depth command writes its own: derived over the document, then
  *  projected back, so the corner's columns come from its placements and the stored arrays are in the
- *  order a later save would put them. */
+ *  order a later save would put them. Merged at composition's width limit, so the planned tiles stay apart. */
 function canonicalised(design: Design): Design {
   const records = derivePlacementRecords(design, SHELL_CATALOG);
   return withFrozenMap(
     design,
     projectFrozenMap(
-      deriveRecordedColumns(records, design, toMetres(design.room.widthMm)),
+      deriveRecordedColumns(
+        records,
+        design,
+        toMetres(design.room.widthMm),
+        COMPOSITION_WIDTH_LIMIT_MM,
+      ),
       records,
     ),
   );

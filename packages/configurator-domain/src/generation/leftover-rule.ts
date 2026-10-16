@@ -1,4 +1,4 @@
-import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../module-grid.js";
+import { CABINETRY_MAX_WIDTH_MM } from "../catalog.js";
 
 /** The owner's default storage module and strict maximum bare run end (ADR 0110 A4). */
 export const STORAGE_BODY_WIDTH_MM = 600;
@@ -26,15 +26,15 @@ export function planLeftover(freeEndMm: number): LeftoverPlan {
 // The absorb arithmetic below is shared by E6's tower opening (`tall-end-rule.ts`) and M7C wave C5's fridge end
 // (`fridge-end-leftover.ts`). It is internal to generation: `index.ts` names this module's public exports.
 
-/** How far a body of `widthMm` may grow before it passes the ceiling on an empty space (ADR 0052).
- *
- *  **It is the space ceiling, and the owner's "up to 800 mm" is the cabinet ceiling** (`CABINETRY_MAX_WIDTH_MM`,
- *  `catalog.ts`; §7). Two rules that carry the same figure: a widened cabinet is also a floor tile the
- *  shell cuts for it, so both bind, and the space ceiling is the one read here because the catalogue's
- *  must never be the lower (asserted in `leftover-absorbed-beside-a-fixed-body.test.ts`, so a plan never sizes a
- *  cabinet the catalogue cannot build). E6 reads this as it stands, whole millimetres. */
+/** Composition's one width limit: the cabinet ceiling (§7). The shell tiles, and composition splits and merges
+ *  member-less columns, at this width and never at the editor's, which reads `module-grid.ts` (see ADR 0110
+ *  decision 2). A widened cabinet is also the tile kept apart at it, so the headroom below reads it too. */
+export const COMPOSITION_WIDTH_LIMIT_MM = CABINETRY_MAX_WIDTH_MM;
+
+/** How far a body of `widthMm` may grow before it passes composition's width limit. E6 reads this as it stands,
+ *  whole millimetres. */
 export function headroomBelowTheCeilingMm(widthMm: number): number {
-  return Math.max(0, MAX_EMPTY_COLUMN_WIDTH_MM - widthMm);
+  return Math.max(0, COMPOSITION_WIDTH_LIMIT_MM - widthMm);
 }
 
 /** M7C wave C5, the owner's Q6 (2026-10-01): a leftover this wide or wider stays bare. */

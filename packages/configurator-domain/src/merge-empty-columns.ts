@@ -1,5 +1,6 @@
-// Adjacent empty columns on the same wall and row become one column when the run's total is at most
-// `MAX_EMPTY_COLUMN_WIDTH_MM`. A rule about the frozen map, not a subtraction inside `recomputeVoids`.
+// Adjacent empty columns on the same wall and row become one column when the run's total is at most the
+// caller's width limit (the editor's is `MAX_EMPTY_COLUMN_WIDTH_MM`). A rule about the frozen map, not a
+// subtraction inside `recomputeVoids`.
 //
 // It declines, never refuses: its call sites (`deriveColumns` and the store's `resolveColumns`) have no
 // rejection channel, so a run that cannot merge safely is left as it was. Two unmerged empty columns are
@@ -46,6 +47,12 @@ interface MeasuredColumn {
   readonly depthMm: number;
 }
 
+/** What every block on a wall is judged against: the records that stand in it and the widest it may merge to. */
+interface WallScan {
+  readonly records: readonly PlacementRecord[];
+  readonly widthLimitMm: number;
+}
+
 /** The extent a run merges to, and the columns it replaces. */
 interface MergePlan {
   readonly members: readonly MeasuredColumn[];
@@ -64,12 +71,14 @@ interface WallSpanMm {
 
 /** The empty columns that may become one, replaced by the column they become; other keys pass through.
  *  `hasFullHeightUnder` is not answered here: both callers run `withCurrentFullHeightMembers` over the
- *  result. The input map is returned by identity when nothing merges. */
+ *  result. The input map is returned by identity when nothing merges. `widthLimitMm` omitted is the
+ *  editor's own limit, the one place it is set; composition passes its own (see ADR 0110 decision 2). */
 export function mergeAdjacentEmptyColumns(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],
+  widthLimitMm: number = MAX_EMPTY_COLUMN_WIDTH_MM,
 ): ReadonlyMap<string, ColumnExtent> {
-  const plans = planMerges(columns, records);
+  const plans = planMerges(columns, { records, widthLimitMm });
   if (plans.length === 0) return columns;
 
   const merged = new Map<string, ColumnExtent>(columns);
@@ -85,9 +94,9 @@ export function mergeAdjacentEmptyColumns(
  *  level (ADR 0037's predicate), so deleting one cabinet from a column merges nothing. */
 function planMerges(
   columns: ReadonlyMap<string, ColumnExtent>,
-  records: readonly PlacementRecord[],
+  scan: WallScan,
 ): readonly MergePlan[] {
-  const occupied = new Set(records.map((record) => record.col));
+  const occupied = new Set(scan.records.map((record) => record.col));
   const measured: MeasuredColumn[] = [];
   for (const column of columns.values()) {
     if (occupied.has(column.key)) continue;
@@ -95,7 +104,7 @@ function planMerges(
     if (candidate) measured.push(candidate);
   }
   return [...groupByWall(measured).values()].flatMap((onOneWall) =>
-    planOneWall(onOneWall, columns, records),
+    planOneWall(onOneWall, columns, scan),
   );
 }
 
@@ -160,7 +169,7 @@ function groupByWall(
 function planOneWall(
   onOneWall: readonly MeasuredColumn[],
   columns: ReadonlyMap<string, ColumnExtent>,
-  records: readonly PlacementRecord[],
+  scan: WallScan,
 ): readonly MergePlan[] {
   const sorted = [...onOneWall].sort((a, b) => a.leftMm - b.leftMm);
   const plans: MergePlan[] = [];
@@ -171,7 +180,7 @@ function planOneWall(
       sorted,
       index,
       columns,
-      records,
+      scan,
       reserved,
     );
     if (!plan) {
@@ -192,27 +201,28 @@ function planWidestAcceptedBlockFrom(
   sorted: readonly MeasuredColumn[],
   start: number,
   columns: ReadonlyMap<string, ColumnExtent>,
-  records: readonly PlacementRecord[],
+  scan: WallScan,
   reserved: ReadonlySet<string>,
 ): MergePlan | undefined {
-  let members = widestBlockFrom(sorted, start);
+  let members = widestBlockFrom(sorted, start, scan.widthLimitMm);
   while (members.length > 1) {
-    const plan = planBlock(members, columns, records, reserved);
+    const plan = planBlock(members, columns, scan.records, reserved);
     if (plan) return plan;
     members = members.slice(0, -1);
   }
   return undefined;
 }
 
-/** The widest contiguous sub-run starting here whose total stays at or under the cap. Refused, never
+/** The widest contiguous sub-run starting here whose total stays at or under the limit. Refused, never
  *  truncated (ADR 0046): 600 + 400 stay as they are, three 300s become a 600 and a 300.
  *
- *  A column already wider than the cap yields a block of one. The branch stays so the split is
+ *  A column already wider than the limit yields a block of one. The branch stays so the split is
  *  reversible: 800 and its overflow never re-merge, while a `+50` bringing the total back under the
  *  ceiling restores the single column. */
 function widestBlockFrom(
   sorted: readonly MeasuredColumn[],
   start: number,
+  widthLimitMm: number,
 ): readonly MeasuredColumn[] {
   const first = sorted[start];
   if (!first) return [];
@@ -223,7 +233,7 @@ function widestBlockFrom(
     const previous = members[members.length - 1];
     if (!candidate || !previous) break;
     if (!abuts(previous, candidate) || !agrees(previous, candidate)) break;
-    if (totalMm + candidate.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM) break;
+    if (totalMm + candidate.widthMm > widthLimitMm) break;
     totalMm += candidate.widthMm;
     members.push(candidate);
   }
