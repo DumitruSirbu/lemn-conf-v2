@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { resolveTestDatabaseUrl } from "@lemnaria/persistence";
 
 import { DIGEST_SECRET_VARIABLE } from "../../../src/lib/server/digest/digest-secret-variable";
+import { PUBLIC_ORIGIN_VARIABLE } from "../../../src/lib/server/public-origin-variable";
 import { E2E_RATE_LIMIT_POLICY_FLAG } from "../../../src/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "../../../src/lib/server/rate-limit/network-source";
 
@@ -20,6 +21,7 @@ import {
   FAKE_MAIL_FLAG_NAME,
   MAIL_VARIABLES_THE_SUITE_REFUSES,
 } from "./fake-mail-environment";
+import { publicOriginEnvironmentOf } from "./public-origin-environment";
 
 // Every port a spec's own server listens on, here and nowhere else, each with what it is for. The suite's own server is
 // on 4320 (`playwright.config.ts`). Two specs of one run start their servers at once, so each names a port of its own.
@@ -63,11 +65,12 @@ const POLL_INTERVAL_MS = 500;
 const STOP_TIMEOUT_MS = 10_000;
 
 /**
- * Variables the second server must never inherit: they would choose its secret, policy or network source, or give it a
- * mail sender. It runs under `CI`, where a Gmail name inherited from the runner would be a real one.
+ * Variables the second server must never inherit: they would choose its secret, policy, network source or public
+ * origin, or give it a mail sender. It runs under `CI`, where a Gmail name inherited from the runner would be a real one.
  */
 const NOT_INHERITED: readonly string[] = [
   DIGEST_SECRET_VARIABLE,
+  PUBLIC_ORIGIN_VARIABLE,
   CLIENT_NETWORK_SOURCE_VARIABLE,
   E2E_RATE_LIMIT_POLICY_FLAG,
   RUN_SECRET_VARIABLE,
@@ -112,9 +115,10 @@ export async function startProductionPolicyServer(
   }
   await requirePortFree(port);
   const secret = makeSecondServerSecret();
+  const origin = `http://localhost:${String(port)}`;
   const child = spawnNextStart({
     port,
-    environment: environmentOfTheServer(secret, options),
+    environment: environmentOfTheServer({ secret, origin }, options),
     stdio: stdioOf(options),
   });
   const written = keepOutputOf(child);
@@ -125,7 +129,6 @@ export async function startProductionPolicyServer(
       );
     });
   });
-  const origin = `http://localhost:${String(port)}`;
   await Promise.race([waitUntilReady(origin), exited]);
   return {
     origin,
@@ -190,11 +193,20 @@ function keepOutputOf(child: ChildProcess): string[] {
   return written;
 }
 
+/** What is this server's alone: its secret, and the origin it listens on. */
+interface OwnServerValues {
+  readonly secret: string;
+  readonly origin: string;
+}
+
 function environmentOfTheServer(
-  secret: string,
+  { secret, origin }: OwnServerValues,
   { networkSource, unreachableDatabaseUrl }: ProductionPolicyServerOptions,
 ): NodeJS.ProcessEnv {
-  const environment = inheritedEnvironmentOf(process.env);
+  const environment: Record<string, string | undefined> = {
+    ...inheritedEnvironmentOf(process.env),
+    ...publicOriginEnvironmentOf(origin),
+  };
   // The guarded resolver refuses anything but an allowlisted test database, as the suite's own server's does.
   environment.DATABASE_URL = unreachableDatabaseUrl ?? resolveTestDatabaseUrl();
   environment[DIGEST_SECRET_VARIABLE] = secret;

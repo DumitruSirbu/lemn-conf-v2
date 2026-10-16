@@ -10,7 +10,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { endonymOf } from "@/i18n/locale-endonyms";
 import type { SentKitchenLink } from "@/lib/server/contact/sent-kitchen-link";
 import {
-  buildLeadNotification,
   composeLeadNotice,
   NoticeLineError,
   type NoticeKitchenLink,
@@ -147,14 +146,6 @@ describe("a notice whose link is unavailable", () => {
     expect(message.html).toContain(notice.kitchen.unavailable);
     expect(message.html).not.toContain(notice.kitchen.button);
     expect(hrefs.filter((href) => href?.includes("/s/"))).toEqual([]);
-  });
-
-  it("is what the notice without a link is: the route's builder hands the same message", () => {
-    const input = noticeInput(designSubmission());
-
-    expect(buildLeadNotification(input)).toEqual(
-      composeLeadNotice({ ...input, kitchenLink: { kind: "unavailable" } }),
-    );
   });
 });
 

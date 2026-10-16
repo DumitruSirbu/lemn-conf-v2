@@ -93,17 +93,6 @@ export class NoticeKitchenError extends Error {
   }
 }
 
-const NO_KITCHEN_LINK: NoticeKitchenLink = Object.freeze({
-  kind: "unavailable",
-});
-
-/** The notice with no kitchen link: what the route sends until it mints one. */
-export function buildLeadNotification(
-  input: LeadNotificationInput,
-): MailMessage {
-  return composeLeadNotice({ ...input, kitchenLink: NO_KITCHEN_LINK });
-}
-
 /**
  * Pure: the same input gives the same bytes. One view of the request makes both parts, the plain text and its HTML
  * alternative, so they cannot disagree. The subject holds the reference and nothing the customer wrote; a customer's

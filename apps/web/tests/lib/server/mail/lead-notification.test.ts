@@ -21,7 +21,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { endonymOf } from "@/i18n/locale-endonyms";
 import {
-  buildLeadNotification,
   composeLeadNotice,
   LEAD_NOTIFICATION_KEY_PREFIX,
   NoticeKitchenError,
@@ -506,10 +505,11 @@ describe("a line that would hold a control character or a line separator", () =>
     "throws for %s in the reference, which is also in the subject",
     (_label, breaker) => {
       expect(() =>
-        buildLeadNotification({
+        composeLeadNotice({
           reference: `LM-AB${breaker}CD`,
           submission: designRequest(),
           content: ro,
+          kitchenLink: { kind: "unavailable" },
         }),
       ).toThrow(NoticeLineError);
     },
@@ -531,10 +531,11 @@ describe("a line that would hold a control character or a line separator", () =>
     };
 
     expect(() =>
-      buildLeadNotification({
+      composeLeadNotice({
         reference: REFERENCE,
         submission: designRequest(),
         content,
+        kitchenLink: { kind: "unavailable" },
       }),
     ).toThrow(NoticeLineError);
   });

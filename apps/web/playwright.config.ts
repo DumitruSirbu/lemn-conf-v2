@@ -20,6 +20,7 @@ import {
   requireNoMailVariable,
   withholdMailVariables,
 } from "./tests/e2e/support/fake-mail-environment";
+import { publicOriginEnvironmentOf } from "./tests/e2e/support/public-origin-environment";
 
 // The application's own `DATABASE_URL` must be readable here, or `assertSafeTestDatabaseUrl` has
 // nothing to compare against and passes vacuously.
@@ -121,6 +122,8 @@ export default defineConfig({
       // A contact request is passed on by the fake sender, which only this flag selects and only with no mail variable
       // present (ADR 0154). Set here and in no env file, so no deployed environment inherits it.
       ...FAKE_MAIL_SERVER_ENVIRONMENT,
+      // The shop's notice links to this server's own share page: set here so a value from `.env.local` never reaches it.
+      ...publicOriginEnvironmentOf(BASE_URL),
     },
     // Long enough for a cold `next build` on CI.
     timeout: isContinuousIntegration ? 300_000 : 60_000,

@@ -1,6 +1,8 @@
 import "server-only";
 
-export const PUBLIC_ORIGIN_VARIABLE = "LEMNARIA_PUBLIC_ORIGIN";
+import { PUBLIC_ORIGIN_VARIABLE } from "@/lib/server/public-origin-variable";
+
+export { PUBLIC_ORIGIN_VARIABLE };
 
 export type PublicOriginEnvironment = Readonly<
   Record<string, string | undefined>

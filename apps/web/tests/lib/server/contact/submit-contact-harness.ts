@@ -5,7 +5,9 @@ import {
 } from "@lemnaria/configurator-domain";
 import {
   FakeContactSubmissionStore,
+  FakeSentKitchenViewRepository,
   type ContactSubmissionStore,
+  type SentKitchenViewRepository,
 } from "@lemnaria/persistence";
 import { vi } from "vitest";
 
@@ -21,6 +23,7 @@ import {
   type FakeMailSender,
 } from "@/lib/server/mail/fake-mail-sender";
 import type { MailOutcome } from "@/lib/server/mail/mail-sender";
+import type { PublicOriginOutcome } from "@/lib/server/public-origin";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
@@ -34,6 +37,11 @@ export const VISITOR_HASH = "ab".repeat(32);
 export const NAME_MARKER = "Zorba Fakeperson";
 export const EMAIL_MARKER = "Zorba.Fake@Example.invalid";
 export const PLACEHOLDER_REFERENCE = "LM-00000000";
+export const PUBLIC_ORIGIN = "https://lemnaria.example";
+export const CONFIGURED_ORIGIN: PublicOriginOutcome = {
+  status: "configured",
+  origin: PUBLIC_ORIGIN,
+};
 const NOON = new Date("2026-07-15T12:20:00Z");
 
 export const ENVIRONMENT = {
@@ -79,7 +87,9 @@ export interface Harness {
   readonly ports: SubmitContactPorts;
   readonly store: FakeContactSubmissionStore;
   readonly sender: FakeMailSender;
-  /** Every port call, in order: judge asks, lookups, loads, records, sends, marks. */
+  /** The frozen copies' fake, which takes a view only for a request the store holds, as the table's reference does. */
+  readonly views: FakeSentKitchenViewRepository;
+  /** Every port call, in order: judge asks, lookups, loads, records, view records, sends, marks. */
   readonly calls: string[];
   readonly recorded: ReturnType<typeof spyOnCounters>;
   submit(body?: string, visitorHash?: string): ReturnType<typeof submitContact>;
@@ -98,18 +108,30 @@ export interface HarnessOptions {
   readonly digester?: SubmitContactPorts["digester"];
   readonly noticeContent?: SubmitContactPorts["noticeContent"];
   readonly book?: SubmitContactPorts["book"];
+  readonly readPublicOrigin?: SubmitContactPorts["readPublicOrigin"];
+  readonly views?: (
+    inner: FakeSentKitchenViewRepository,
+  ) => SentKitchenViewRepository;
 }
 
-/** Every port the orchestration is handed, made of fakes: the persistence package's fake store, the mail's fake sender,
- *  the limiter with the setup's fake counters, and an owned load that answers a design. Nothing reaches a network. */
+/** Every port the orchestration is handed, made of fakes: the persistence package's fake store and frozen views, the
+ *  mail's fake sender, the limiter with the setup's fake counters, an owned load that answers a design, and a
+ *  configured origin. Nothing reaches a network. */
 export function aHarness(options: HarnessOptions = {}): Harness {
   const calls: string[] = [];
   const innerStore = new FakeContactSubmissionStore();
+  const innerViews = new FakeSentKitchenViewRepository({
+    isRequestStored: (clientRequestId) =>
+      innerStore
+        .heldSubmissions()
+        .some((held) => held.submission.clientRequestId === clientRequestId),
+  });
   const sender = createFakeMailSender(options.outcomes);
   const environment = options.environment ?? ENVIRONMENT;
   const headers =
     options.headers ?? new Headers({ "x-forwarded-for": "192.0.2.77" });
   const store = (options.store ?? ((inner) => inner))(innerStore);
+  const views = (options.views ?? ((inner) => inner))(innerViews);
   const ports: SubmitContactPorts = {
     store: loggedStore(store, calls),
     createSender:
@@ -132,11 +154,14 @@ export function aHarness(options: HarnessOptions = {}): Harness {
     makeJudge: (instant) =>
       loggedJudge(makeContactJudge({ environment, headers, instant }), calls),
     now: () => NOON,
+    readPublicOrigin: options.readPublicOrigin ?? (() => CONFIGURED_ORIGIN),
+    sentKitchenViews: loggedViews(views, calls),
   };
   return {
     ports,
     store: innerStore,
     sender,
+    views: innerViews,
     calls,
     recorded: spyOnCounters(),
     submit: (body = bodyOf(), visitorHash) =>
@@ -165,6 +190,19 @@ function loggedStore(
       calls.push("mark");
       return store.markNotified(id);
     },
+  };
+}
+
+function loggedViews(
+  views: SentKitchenViewRepository,
+  calls: string[],
+): SentKitchenViewRepository {
+  return {
+    record: (view) => {
+      calls.push("record-view");
+      return views.record(view);
+    },
+    load: (tokenHash) => views.load(tokenHash),
   };
 }
 

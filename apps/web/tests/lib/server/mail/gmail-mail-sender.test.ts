@@ -22,7 +22,7 @@ import {
   type MailTransport,
   type MakeMailTransport,
 } from "@/lib/server/mail/gmail-mail-sender";
-import { buildLeadNotification } from "@/lib/server/mail/lead-notification";
+import { composeLeadNotice } from "@/lib/server/mail/lead-notification";
 import type { MailConfiguration } from "@/lib/server/mail/mail-configuration";
 import {
   MAIL_FAILURE_KINDS,
@@ -283,13 +283,14 @@ describe("the composed message", () => {
             customerArbitrary,
             requestIdArbitrary,
             async (customer, requestId) => {
-              const notice = buildLeadNotification({
+              const notice = composeLeadNotice({
                 reference: "LM-ABCD2345",
                 submission: submissionOf(
                   contactOf(customer, channel),
                   requestId,
                 ),
                 content: ro,
+                kitchenLink: { kind: "unavailable" },
               });
               const options = buildGmailMessage(notice, CONFIGURATION);
 

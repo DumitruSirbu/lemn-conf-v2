@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveContent } from "@/i18n/content";
 import { endonymOf } from "@/i18n/locale-endonyms";
 import {
-  buildLeadNotification,
+  composeLeadNotice,
   LEAD_NOTIFICATION_KEY_PREFIX,
   NoticeLineError,
 } from "@/lib/server/mail/lead-notification";
@@ -173,10 +173,11 @@ describe("every breaking character, at every position, in every printed field", 
   it("throws for the reference before anything else, since the reference is in the subject", () => {
     const wrong = BREAKING_CODE_POINTS.filter((codePoint) => {
       const thrown = thrownBy(() =>
-        buildLeadNotification({
+        composeLeadNotice({
           reference: `LM-${String.fromCodePoint(codePoint)}${HOSTILE_MARKER}`,
           submission: designRequest(),
           content: ro,
+          kitchenLink: { kind: "unavailable" },
         }),
       );
       return !(
