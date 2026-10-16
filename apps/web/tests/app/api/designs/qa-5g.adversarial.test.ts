@@ -1,17 +1,8 @@
-// Adversarial QA for M5 wave 5G, write seam — criterion 5G-4's other half.
+// The write seam's answer to an empty column's width, on either side of ADR 0052's former 800 mm ceiling.
 //
-// **The wave's own write-seam case does not witness the rule it names.** Its fixture records a
-// 900 mm space on wall B at `alongMm: 3000`, which stands over the seeded kitchen's own placements,
-// so `validateDesignForCatalog` answers `EMPTY_COLUMN_WIDER_THAN_CAP` **and**
-// `EMPTY_COLUMN_OVERLAPS_PLACEMENT`, and the route returns the same `DESIGN_INVALID` either way.
-// Measured: deleting `findOversizedEmptyColumns` from `validate-design.ts` leaves the whole web
-// suite green.
-//
-// So the fixture here carries **one** fault. The design's placements are pared back to the single
-// body that keeps the document executable, and the space sits where nothing stands, so the only
-// thing between this PUT and a stored share link publishing an opening no catalogue body fits is
-// the code ADR 0052 added. DOM-001: both seams refuse together, and this is the half that faces the
-// network.
+// The fixture carries one recorded space where nothing stands, beside the single body that keeps the
+// document executable, so the width alone decides the PUT. An empty column of any width is valid, so
+// each case stores the document unchanged.
 import {
   DesignNotFoundError,
   KITCHEN_L_DESIGN,
@@ -157,11 +148,9 @@ function designWithEmptyColumnWidth(widthMm: number): Design {
   };
 }
 
-describe("PUT /api/designs/[id] — ADR 0052's ceiling at the write seam", () => {
-  /** The fixture's own control, and the reason the refusal below can only be the cap: at 800 mm the
-   *  very same document is stored. A fixture that was invalid for a second reason would fail here
-   *  and say so, rather than passing the next case for free. */
-  it("stores the same document when the space is exactly at the ceiling", async () => {
+describe("PUT /api/designs/[id] — an empty column's width at the write seam", () => {
+  /** The fixture's own control: a fixture invalid for a second reason would fail here and say so. */
+  it("stores the same document when the space is exactly at the former ceiling", async () => {
     const { id, cookie } = await mintDesign();
     const atCap = designWithEmptyColumnWidth(800);
 
@@ -174,28 +163,24 @@ describe("PUT /api/designs/[id] — ADR 0052's ceiling at the write seam", () =>
     expect(storedSerialization(id)).toBe(canonicalSerializeDesign(atCap));
   });
 
-  /** One millimetre over, and nothing else changed. This is the case that reddens when
-   *  `findOversizedEmptyColumns` is deleted; the wave's own write-seam case does not. */
-  it("refuses a space one millimetre over the ceiling, and stores nothing", async () => {
+  /** One millimetre over, and nothing else changed: the case a reinstated width ceiling reddens first. */
+  it("stores a space one millimetre over the former ceiling unchanged", async () => {
     const { id, cookie } = await mintDesign();
-    const before = storedSerialization(id);
+    const overFormerCap = designWithEmptyColumnWidth(801);
 
     const response = await PUT(
-      saveRequest(id, { design: designWithEmptyColumnWidth(801), cookie }),
+      saveRequest(id, { design: overFormerCap, cookie }),
       routeParams(id),
     );
 
-    expect(response.status).toBe(400);
-    expect(await response.json()).toStrictEqual({
-      code: "DESIGN_INVALID",
-      error: "Design payload failed validation.",
-    });
-    expect(storedSerialization(id)).toBe(before);
+    expect(response.status).toBe(200);
+    expect(storedSerialization(id)).toBe(
+      canonicalSerializeDesign(overFormerCap),
+    );
   });
 
-  /** And the space decomposed into columns the ceiling allows is stored, which is ADR 0037's half of
-   *  the rule: the 1400 mm *space* stays legal, carried as an 800 and a 600. A validator that
-   *  refused the space rather than the column would fail here. */
+  /** And the 1400 mm *space* carried as an 800 and a 600 is stored too: two abutting columns are not
+   *  an overlap. */
   it("stores the same span as two columns under the ceiling", async () => {
     const { id, cookie } = await mintDesign();
     const split: Design = {

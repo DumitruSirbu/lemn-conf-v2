@@ -30,7 +30,6 @@ import { InvalidDesignError } from "./repository.js";
 import {
   deriveColumnKeyAt,
   derivePlacementRecords,
-  MAX_EMPTY_COLUMN_WIDTH_MM,
   type BodyCatalog,
   type PlacementRecord,
 } from "./void-engine.js";
@@ -55,7 +54,6 @@ export type DesignValidationCode =
   | "EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN"
   | "EMPTY_COLUMN_OVERLAPS_PLACEMENT"
   | "EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN"
-  | "EMPTY_COLUMN_WIDER_THAN_CAP"
   | "COLUMN_EXTENT_HAS_NO_MEMBER"
   | "COLUMN_EXTENT_EXCLUDES_MEMBER"
   | "COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT"
@@ -183,7 +181,6 @@ export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   EMPTY_COLUMN_KEY_COLLIDES_WITH_EMPTY_COLUMN: "refusal",
   EMPTY_COLUMN_OVERLAPS_PLACEMENT: "refusal",
   EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN: "refusal",
-  EMPTY_COLUMN_WIDER_THAN_CAP: "refusal",
   COLUMN_EXTENT_HAS_NO_MEMBER: "refusal",
   COLUMN_EXTENT_EXCLUDES_MEMBER: "refusal",
   COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT: "refusal",
@@ -233,7 +230,6 @@ function findEmptyColumnIssues(design: Design): DesignValidationIssue[] {
   return [
     ...findUncontainedEmptyColumns(emptyColumns, design.room),
     ...findInvertedEmptyColumns(emptyColumns),
-    ...findOversizedEmptyColumns(emptyColumns),
     ...findWallOverlaps(design),
     ...findCollidingColumnKeys(design.placements, emptyColumns),
   ];
@@ -387,23 +383,6 @@ function toMemberSpan(record: PlacementRecord): MemberSpan {
     floorMm: toMillimetres(record.frame.y0),
     topMm: toMillimetres(record.frame.y0 + record.frame.h),
   };
-}
-
-/** ADR 0052: no empty column is wider than `MAX_EMPTY_COLUMN_WIDTH_MM`. Refuses one entry, never a space (a 1000 mm
- *  gap as 800 plus 200 passes); `migrateFromV1` splits oversized entries first, so old share links load. */
-function findOversizedEmptyColumns(
-  emptyColumns: readonly EmptyColumn[],
-): DesignValidationIssue[] {
-  return emptyColumns.flatMap((emptyColumn, index) =>
-    emptyColumn.widthMm > MAX_EMPTY_COLUMN_WIDTH_MM
-      ? [
-          issueAt(
-            "EMPTY_COLUMN_WIDER_THAN_CAP",
-            `emptyColumns.${String(index)}.widthMm`,
-          ),
-        ]
-      : [],
-  );
 }
 
 /** The room bounds a space as it bounds a body, through `findContainmentBreaches`; an empty column held only to

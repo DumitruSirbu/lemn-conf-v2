@@ -233,8 +233,6 @@ describe("the overlap rule at and around its boundary", () => {
 
   /** Containment is overlap: a sweep that only compares neighbours would miss the far end. */
   it("names every entry a containing entry swallows", () => {
-    // 800 rather than 1000: ADR 0052 caps an entry at the ceiling, and a wider one would also raise
-    // `EMPTY_COLUMN_WIDER_THAN_CAP`.
     const wide: EmptyColumn = { ...FREED_STRIP, alongMm: 2600, widthMm: 800 };
     const inside = [2300, 2500, 2900].map((alongMm) => ({
       ...FREED_STRIP,
@@ -504,8 +502,6 @@ describe("what holds an empty column to the room", () => {
       "EMPTY_COLUMN_PAST_WALL_END",
       "EMPTY_COLUMN_ABOVE_ROOM",
       "EMPTY_COLUMN_DEEPER_THAN_ROOM",
-      // 2000 mm also exceeds the width ceiling (ADR 0052).
-      "EMPTY_COLUMN_WIDER_THAN_CAP",
     ]);
     expect(() => migrateDesign(1, throughTheWire(design), CATALOG)).toThrow(
       InvalidDesignError,
@@ -741,7 +737,7 @@ describe("the key a restored entry lands under", () => {
   });
 });
 
-describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () => {
+describe("an oversized empty column, at version 1 and after it", () => {
   /** The 900 mm entry a version 1 row may hold, written before the ceiling (ADR 0052); the load path must
    *  carry it forward. */
   const OVERSIZED: EmptyColumn = {
@@ -777,15 +773,15 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     expect(columns.get("A|3.00")).toBeUndefined();
   });
 
-  /** A version 2 document was written under the ceiling, so an oversized entry is refused, not normalised;
-   *  normalising it too would leave nothing ever refused. */
-  it("refuses the same entry in a version 2 document, at both seams", () => {
+  /** Only version 1 owes the split: a version 2 document carries the same entry whole, and neither seam refuses
+   *  an empty column for its width. */
+  it("carries the same entry whole in a version 2 document, at both seams", () => {
     const design = withEmptyColumns([OVERSIZED]);
 
-    expect(codesFor(design)).toStrictEqual(["EMPTY_COLUMN_WIDER_THAN_CAP"]);
-    expect(() => migrateDesign(2, throughTheWire(design), CATALOG)).toThrow(
-      InvalidDesignError,
-    );
+    expect(codesFor(design)).toStrictEqual([]);
+    expect(
+      migrateDesign(2, throughTheWire(design), CATALOG).emptyColumns,
+    ).toStrictEqual([OVERSIZED]);
   });
 
   /** The 900 mm opening no catalogue body fills (`WIDTH_NOT_SUPPORTED`, widths top out at 800) becomes an

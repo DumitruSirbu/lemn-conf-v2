@@ -449,10 +449,6 @@ describe("the merge is a fixpoint and never leaves an unprojectable column", () 
   ])(
     "never publishes a column the document cannot carry, at any run of widths",
     (odd, halfWidths) => {
-      // `2h − 1` on the odd arm rather than `2h + 1`, since ADR 0052: the widest entry a document
-      // may carry is the ceiling, so the even arm reaches exactly 800 and the odd arm 799. A wider
-      // one would fail the final assertion on `EMPTY_COLUMN_WIDER_THAN_CAP`, which is a different
-      // rule than the fractional-centre one under test.
       const widths = halfWidths.map((half) => (odd ? 2 * half - 1 : 2 * half));
       const design = designWith(layOutFromLeftEdge(widths, odd ? 999.5 : 1000));
       const loaded = load(design);

@@ -65,8 +65,9 @@ const UNDECLARED_TIER_ID = "material.laminate";
  *  `SETTINGS_WEAR_UNOFFERED_FINISH` — see the justification at the finish-code assertion below.
  *  Backlog 50 added `RECORDED_SPAN_OVERLAPS_CORNER_BODY`, the cross-wall corner intersection
  *  `findWallOverlaps` was declared blind to, ruled a **mark** by the owner on 2026-09-09 precisely
- *  so that it cannot do to a stored row what this file exists to forbid. */
-const DECLARED_VALIDATION_CODE_COUNT = 32;
+ *  so that it cannot do to a stored row what this file exists to forbid. 8U retired
+ *  `EMPTY_COLUMN_WIDER_THAN_CAP`: an empty column of any width is valid. */
+const DECLARED_VALIDATION_CODE_COUNT = 31;
 
 const PACKAGE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
