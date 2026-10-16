@@ -1,6 +1,6 @@
 // Adjacent empty columns on the same wall and row become one column when the run's total is at most the
-// caller's width limit (the editor's is `MAX_EMPTY_COLUMN_WIDTH_MM`). A rule about the frozen map, not a
-// subtraction inside `recomputeVoids`.
+// caller's width limit. The editor's is none (8U plan §5: 800 mm caps a cabinet, not a space); composition
+// passes its own. A rule about the frozen map, not a subtraction inside `recomputeVoids`.
 //
 // It declines, never refuses: its call sites (`deriveColumns` and the store's `resolveColumns`) have no
 // rejection channel, so a run that cannot merge safely is left as it was. Two unmerged empty columns are
@@ -17,7 +17,6 @@ import {
   COLUMN_KEY_RESOLUTION_MM,
   deriveColumnKeyAt,
   LEVEL_SNAP_M,
-  MAX_EMPTY_COLUMN_WIDTH_MM,
 } from "./module-grid.js";
 // Types only, to keep this module a leaf: `void-engine.ts` imports this one for values, so a value
 // import back would close a runtime cycle.
@@ -39,6 +38,11 @@ const OVERLAP_EPSILON_MM = 1e-6;
 /** One key bucket, inclusive, plus float noise: two along-wall edges this close are one edge of wall to the key
  *  grid, so a trim that moves a merged centre into the next bucket cannot separate them. */
 const SAME_EDGE_OF_WALL_MM = COLUMN_KEY_RESOLUTION_MM + EDGE_TOUCH_TOLERANCE_MM;
+
+/** The editor's limit: none. Adjacent agreeing member-less columns are one space whatever their total (8U plan §5);
+ *  the 800 mm ceiling is the cabinet's (§7). Not read from `module-grid.ts`, whose constant still bounds the cuts
+ *  inside the commands and the v1 arm. */
+const EDITOR_MERGE_WIDTH_LIMIT_MM = Number.POSITIVE_INFINITY;
 
 /** One empty column as the scan reads it, in whole millimetres. `leftMm` and `rightMm` are
  *  half-integers when the width is odd, the case `landsOnWholeMillimetres` guards. */
@@ -81,15 +85,29 @@ interface WallSpanMm {
 /** The empty columns that may become one, replaced by the column they become; other keys pass through.
  *  `hasFullHeightUnder` is not answered here: both callers run `withCurrentFullHeightMembers` over the
  *  result. The input map is returned by identity when nothing merges. `widthLimitMm` omitted is the
- *  editor's own limit, the one place it is set; composition passes its own (see ADR 0110 decision 2). */
+ *  editor's own limit, none, the one place it is set; composition passes its own (8U plan §6.1, amending
+ *  ADR 0110 decision 2). */
 export function mergeAdjacentEmptyColumns(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],
-  widthLimitMm: number = MAX_EMPTY_COLUMN_WIDTH_MM,
+  widthLimitMm: number = EDITOR_MERGE_WIDTH_LIMIT_MM,
 ): ReadonlyMap<string, ColumnExtent> {
-  const plans = planMerges(columns, { records, widthLimitMm });
-  if (plans.length === 0) return columns;
+  const scan: WallScan = { records, widthLimitMm };
+  let merged = columns;
+  let plans = planMerges(merged, scan);
+  // Iterated, because a merged envelope narrows `top` and `d` and may then agree with a neighbour the pass
+  // refused. It terminates: every plan replaces at least two columns with one, so each pass shrinks the map.
+  while (plans.length > 0) {
+    merged = withPlansApplied(merged, plans);
+    plans = planMerges(merged, scan);
+  }
+  return merged;
+}
 
+function withPlansApplied(
+  columns: ReadonlyMap<string, ColumnExtent>,
+  plans: readonly MergePlan[],
+): ReadonlyMap<string, ColumnExtent> {
   const merged = new Map<string, ColumnExtent>(columns);
   for (const plan of plans) {
     // Vacated before the merged column is written: a merged centre may key back onto a member's own key.
@@ -170,9 +188,10 @@ function groupByWall(
   return walls;
 }
 
-/** Greedy, left to right, over the run sorted by along-wall coordinate (ADR 0046 rule 1). The capped
- *  merge is order-dependent (300 + 500 + 300 gives 800 + 300 from the left, 300 + 800 from the right)
- *  and `columns` iterates in insertion order, so sorting makes one design one picture. A block that
+/** Greedy, left to right, over the run sorted by along-wall coordinate (ADR 0046 rule 1). A finite limit
+ *  makes the merge order-dependent (at 800, 300 + 500 + 300 gives 800 + 300 from the left, 300 + 800 from
+ *  the right) and `columns` iterates in insertion order, so sorting makes one design one picture; uncapped,
+ *  the sort still decides `mergedExtent`'s template tie. A block that
  *  cannot be written is retried one column shorter; a start that merges nothing leaves its first
  *  column and the scan resumes at the next, so a decline never swallows the columns after it. */
 function planOneWall(
@@ -223,11 +242,12 @@ function planWidestAcceptedBlockFrom(
 }
 
 /** The widest contiguous sub-run starting here whose total stays at or under the limit. Refused, never
- *  truncated (ADR 0046): 600 + 400 stay as they are, three 300s become a 600 and a 300.
+ *  truncated (ADR 0046): at composition's 800, 600 + 400 stay as they are and three 300s become a 600 and
+ *  a 300. Under the editor's limit, none, the block runs until an edge fails to meet or a pair disagrees.
  *
- *  A column already wider than the limit yields a block of one. The branch stays so the split is
- *  reversible: 800 and its overflow never re-merge, while a `+50` bringing the total back under the
- *  ceiling restores the single column. */
+ *  A column already wider than a finite limit yields a block of one, so at that limit 800 and its overflow
+ *  never re-merge. In the editor the reconcile's split still cuts at 800 until it is retired (8U plan S5),
+ *  and this merge rejoins the pieces. */
 function widestBlockFrom(
   sorted: readonly MeasuredColumn[],
   start: number,
@@ -426,8 +446,8 @@ function isSameStretchOfWall(
  *  becomes ground, ceiling or depth no member had.
  *
  *  Not claimed: `agrees` is judged between neighbours, so a chain may drift past the tolerance (620,
- *  600, 580 loses 40 mm of depth); and the envelope narrows `top` and `d`, so a second pass over a
- *  merged column may accept what the first refused. "Fixpoint" is measured, not guaranteed.
+ *  600, 580 loses 40 mm of depth). The envelope narrows `top` and `d`, so a second pass over a merged
+ *  column may accept what the first refused; `mergeAdjacentEmptyColumns` iterates to the fixpoint for it.
  *
  *  The shallowest member is the template: a column's off-wall coordinate is its own half-depth, so the
  *  extent that keeps `d` keeps `x`/`z`, `wall`, `ry` and `depthFromBuildId` with it (ADR 0073 decision 8).

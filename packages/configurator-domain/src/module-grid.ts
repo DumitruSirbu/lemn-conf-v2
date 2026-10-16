@@ -22,9 +22,10 @@ export const LEVELS: readonly (readonly [number, number])[] = [
  *  are on the same row when their floors, tops and depths agree this closely (ADR 0046 rule 2). */
 export const LEVEL_SNAP_M = 0.02;
 
-/** The widest an empty column may be (ADR 0052). One constant bounds both a merge and the width a shrink
- *  hands back, so a merge that declines and a shrink that splits answer the same question. A ceiling on a
- *  column, never on a space: a 1000 mm gap is legal, carried as 800 + 200.
+/** ADR 0052's 800 mm cut on an empty column. It no longer bounds the editor's merge, which is uncapped
+ *  (8U plan §5), nor composition's, which reads the catalogue's ceiling. Until 8U S5 retires the cuts it
+ *  still bounds the width a shrink hands back, an insert's remainder, the reconcile's split and the v1
+ *  arm; in the editor the merge after them rejoins the pieces, so a 1000 mm gap shows as one space.
  *
  *  Equal to `CABINETRY_MAX_WIDTH_MM` (§7's widest cabinet) so anything the customer can be left with is
  *  something the catalogue can fill, but a separate constant because a separate rule; a test asserts this
