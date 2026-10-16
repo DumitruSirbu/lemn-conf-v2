@@ -236,6 +236,9 @@ describe("a message the predicate refuses", () => {
   );
 });
 
+/** A member of the port since it carries an HTML alternative: a message that answers it is sending one. */
+const HTML_MEMBER = "html";
+
 describe("what a message can add to the options beyond its three fields", () => {
   class MessageWithInheritedExtras implements MailMessage {
     readonly key = QA_MESSAGE.key;
@@ -244,10 +247,6 @@ describe("what a message can add to the options beyond its three fields", () => 
 
     get to(): string {
       return `inherited-${this.key.length.toString()}@example.com`;
-    }
-
-    get html(): string {
-      return `<b>${this.subject}</b>`;
     }
 
     toJSON(): object {
@@ -289,14 +288,14 @@ describe("what a message can add to the options beyond its three fields", () => 
       "a proxy that answers any member asked of it",
       new Proxy(QA_MESSAGE, {
         get: (target, member) =>
-          member in target
+          member in target || member === HTML_MEMBER
             ? target[member as keyof MailMessage]
             : "proxied-recipient@example.com",
         has: () => true,
-        ownKeys: () => ["key", "subject", "text", "to", "bcc", "html"],
+        ownKeys: () => ["key", "subject", "text", "to", "bcc"],
         getOwnPropertyDescriptor: (target, member) => ({
           value:
-            member in target
+            member in target || member === HTML_MEMBER
               ? target[member as keyof MailMessage]
               : "proxied-recipient@example.com",
           enumerable: true,
@@ -389,7 +388,8 @@ describe("the same message, the same bytes", () => {
   });
 });
 
-type Member = keyof MailMessage;
+/** The three members every message has; `html` is optional and has its own reading tests. */
+type Member = Exclude<keyof MailMessage, "html">;
 const MEMBERS: readonly Member[] = ["key", "subject", "text"];
 
 const LATER_ANSWERS: MailMessage = {

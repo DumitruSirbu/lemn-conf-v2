@@ -13,7 +13,7 @@ import {
 import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
 
 import type { Content } from "@/i18n/content";
-import { buildLeadNotification } from "@/lib/server/mail/lead-notification";
+import { composeLeadNotice } from "@/lib/server/mail/lead-notification";
 import type { MailMessage } from "@/lib/server/mail/mail-sender";
 
 import { ro } from "../../../support/romanian-content";
@@ -117,14 +117,18 @@ export function callbackRequest(
   });
 }
 
+/** A view-only link of the minted shape, under a reserved origin that resolves nowhere. */
+export const QA_KITCHEN_URL = "https://example.invalid/ro/s/QaQa0Link123";
+
 export function noticeOf(
   submission: ContactSubmissionToRecord,
   content: Content = ro,
 ): MailMessage {
-  return buildLeadNotification({
+  return composeLeadNotice({
     reference: QA_REFERENCE,
     submission,
     content,
+    kitchenLink: { kind: "link", url: QA_KITCHEN_URL },
   });
 }
 

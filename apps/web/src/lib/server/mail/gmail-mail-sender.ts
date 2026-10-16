@@ -47,13 +47,15 @@ export interface GmailTransportOptions {
   readonly socketTimeout: number;
 }
 
-/** Exactly what rides on the wire: no reply-to, no copy, no markup, no header of its own. */
+/** Exactly what rides on the wire: no reply-to, no copy, no attachment, no header of its own. With `html` the
+ *  library writes `multipart/alternative`, the text part first. */
 export interface GmailMessageOptions {
   readonly from: string;
   readonly to: string;
   readonly subject: string;
   readonly text: string;
   readonly messageId: string;
+  readonly html?: string;
 }
 
 export interface MailTransport {
@@ -103,9 +105,10 @@ export function buildGmailTransportOptions(
 }
 
 /**
- * Pure, and built from named members, never by spreading, so nothing a message carries beyond its three fields
- * can become a recipient or a header. The one recipient is the configured inbox. The `Message-ID` is a digest of
- * the key, so the client's request id reaches no header and a retry carries the same id.
+ * Pure, and built from named members, never by spreading the message, so nothing it carries beyond its four fields
+ * can become a recipient or a header; `html` is added only when the copy has one. The one recipient is the configured
+ * inbox. The `Message-ID` is a digest of the key, so the client's request id reaches no header and a retry carries
+ * the same id.
  * @throws UnusableMailAddressError when either address is not one plain mailbox.
  */
 export function buildGmailMessage(
@@ -115,13 +118,15 @@ export function buildGmailMessage(
   const { senderAddress, notificationAddress } = configuration;
   const senderDomain = plainDomainOf(senderAddress, "senderAddress");
   requirePlainMailbox(notificationAddress, "notificationAddress");
-  return {
+  const options: GmailMessageOptions = {
     from: senderAddress,
     to: notificationAddress,
     subject: copy.subject,
     text: copy.text,
     messageId: `<${digestOf(copy.key)}@${senderDomain}>`,
   };
+  const { html } = copy;
+  return html === undefined ? options : { ...options, html };
 }
 
 /**

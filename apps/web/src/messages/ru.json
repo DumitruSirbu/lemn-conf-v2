@@ -438,7 +438,28 @@
       "email": "E-mail"
     },
     "callbackLine": "Запрос обратного звонка, кухня не настроена.",
-    "emptyValue": "—"
+    "emptyValue": "—",
+    "tagline": "конфигуратор кухни",
+    "heading": "Новая заявка из конфигуратора",
+    "kitchen": {
+      "button": "Открыть кухню в 3D",
+      "note": "Ссылка только для просмотра: открывается без аккаунта.",
+      "unavailable": "Не удалось создать 3D-ссылку. Полный список — ниже.",
+      "linkLabel": "Кухня в 3D"
+    },
+    "clientHeading": "Клиент",
+    "actions": {
+      "call": "Позвонить",
+      "whatsapp": "Написать в WhatsApp",
+      "email": "Написать письмо"
+    },
+    "summaryHeading": "Кратко",
+    "groupCount": "{heading} — {count, plural, one {# корпус} few {# корпуса} many {# корпусов} other {# корпуса}}",
+    "appendixHeading": "Список корпусов (для проверки)",
+    "revisionLabel": "Ревизия",
+    "noReply": "Отправлено из конфигуратора Lemnaria. Не отвечай на это письмо — свяжись с клиентом напрямую.",
+    "preheader": "{lead} · {name}",
+    "preheaderWithLocality": "{lead} · {name} · {locality}"
   },
   "band": {
     "base": "нижний ряд",

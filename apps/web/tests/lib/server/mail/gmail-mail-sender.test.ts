@@ -131,7 +131,6 @@ describe("buildGmailMessage", () => {
       cc: customerAddress,
       bcc: customerAddress,
       replyTo: customerAddress,
-      html: "<b>x</b>",
       headers: { "X-Injected": customerAddress },
       attachments: [{ path: "/etc/hostname" }],
       envelope: { to: customerAddress },
@@ -240,6 +239,11 @@ describe("the composed message", () => {
     "to",
   ];
 
+  /** A `multipart/alternative` message names its encoding in each part, not at the top. */
+  const ALLOWED_HEADERS_OF_AN_ALTERNATIVE = ALLOWED_HEADERS.filter(
+    (name) => name !== "content-transfer-encoding",
+  );
+
   it("has one recipient, the configured one, and no reply-to, copy, markup or attachment", async () => {
     const composed = await compose(buildGmailMessage(MESSAGE, CONFIGURATION));
 
@@ -313,7 +317,12 @@ describe("the composed message", () => {
               expect(composed.headers.get("message-id")).toBe(
                 options.messageId,
               );
-              expect(composed.headerNames).toEqual(ALLOWED_HEADERS);
+              expect(composed.headerNames).toEqual(
+                ALLOWED_HEADERS_OF_AN_ALTERNATIVE,
+              );
+              expect(composed.headers.get("content-type")).toMatch(
+                /^multipart\/alternative\b/,
+              );
               expect(options.text).toContain(customer.name);
               if (channel === "email")
                 expect(options.text).toContain(customer.email);

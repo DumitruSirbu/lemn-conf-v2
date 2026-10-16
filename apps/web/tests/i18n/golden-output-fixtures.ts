@@ -119,7 +119,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 32 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 34 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -151,6 +151,8 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "leadNotice.subject",
   "leadNotice.line",
   "leadNotice.figure",
+  "leadNotice.groupCount",
+  "leadNotice.preheader",
   "submissionResult.channelLine",
   "submissionResult.whatsappMessageToShop",
   "submissionResult.alreadySentAdvice",
@@ -497,6 +499,46 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       translate("leadNotice.figure", {
         label: "label-token",
         amount: "43 000 MDL",
+      }),
+  ),
+  ...[0, 1, 2, 20].map((count) =>
+    contentFixture(
+      "leadNotice.groupCount",
+      `count-${String(count)}`,
+      () => romanianContent.leadNotice.groupCount("heading-token", count),
+      () =>
+        translate("leadNotice.groupCount", { heading: "heading-token", count }),
+    ),
+  ),
+  contentFixture(
+    "leadNotice.preheader",
+    "with-locality",
+    () =>
+      romanianContent.leadNotice.preheader({
+        lead: "lead-token",
+        name: "name-token",
+        locality: "locality-token",
+      }),
+    () =>
+      translate("leadNotice.preheaderWithLocality", {
+        lead: "lead-token",
+        name: "name-token",
+        locality: "locality-token",
+      }),
+  ),
+  contentFixture(
+    "leadNotice.preheader",
+    "without-locality",
+    () =>
+      romanianContent.leadNotice.preheader({
+        lead: "lead-token",
+        name: "name-token",
+        locality: "",
+      }),
+    () =>
+      translate("leadNotice.preheader", {
+        lead: "lead-token",
+        name: "name-token",
       }),
   ),
   ...(["phone", "whatsapp", "email"] as const).map((channel) =>

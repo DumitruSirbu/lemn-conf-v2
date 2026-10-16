@@ -27,10 +27,10 @@ import {
   thrownBy,
 } from "./qa-8j-notice-support";
 import { FAKE_APP_PASSWORD, QA_CONFIGURATION } from "./qa-8j-support";
+import { alternativePartsOf } from "./mime-alternative-support";
 import {
   ALLOWED_HEADER_NAMES,
   composeRaw,
-  decodedBodyOf,
   type RawMessage,
 } from "./qa-8n-compose-support";
 
@@ -99,23 +99,31 @@ function withLoneSurrogatesReplaced(text: string): string {
   return text.replace(LONE_SURROGATE, "\ufffd");
 }
 
+/** A `multipart/alternative` message names each part's encoding in the part, not at the top. */
+const ALLOWED_HEADER_NAMES_OF_AN_ALTERNATIVE = ALLOWED_HEADER_NAMES.filter(
+  (name) => name !== "content-transfer-encoding",
+);
+
 function expectCleanComposition(
   composed: RawMessage,
   message: MailMessage,
 ): void {
-  expect([...composed.headerNames].sort()).toEqual(ALLOWED_HEADER_NAMES);
+  expect([...composed.headerNames].sort()).toEqual(
+    ALLOWED_HEADER_NAMES_OF_AN_ALTERNATIVE,
+  );
   expect(composed.envelopeRecipients).toEqual([
     QA_CONFIGURATION.notificationAddress,
   ]);
-  expect(composed.headers.get("content-type")).toMatch(
-    /^text\/plain\b(?!.*boundary)/,
-  );
   expect(composed.headerBlock).not.toContain(OTHER_RECIPIENT);
+  const parts = alternativePartsOf(composed);
+  expect(parts.map(({ headers }) => headers.get("content-type"))).toEqual([
+    "text/plain; charset=utf-8",
+    "text/html; charset=utf-8",
+  ]);
+  const [textPart] = parts;
   // A lone surrogate cannot be written in UTF-8: the wire holds U+FFFD for it, and nothing else changes.
-  expect(decodedBodyOf(composed).replace(/\n$/, "")).toBe(
-    withLoneSurrogatesReplaced(message.text),
-  );
-  expect(decodedBodyOf(composed).split("\n")).not.toContain(".");
+  expect(textPart?.decoded).toBe(withLoneSurrogatesReplaced(message.text));
+  expect(textPart?.decoded.split("\n")).not.toContain(".");
 }
 
 describe("a breaking character in a customer's field, through the notice and the composer", () => {

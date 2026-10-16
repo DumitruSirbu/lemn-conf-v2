@@ -776,6 +776,22 @@ export function resolveAlreadySentAdvice(
   return translate("submissionResult.alreadySentAdvice", { phone });
 }
 
+/** What the notice's hidden first line is made of. An empty `locality` is left out rather than shown as a dash. */
+export interface NoticePreheaderParts {
+  readonly lead: string;
+  readonly name: string;
+  readonly locality: string;
+}
+
+export function resolveNoticePreheader(
+  translate: ContentTranslator,
+  { lead, name, locality }: NoticePreheaderParts,
+): string {
+  return locality === ""
+    ? translate("leadNotice.preheader", { lead, name })
+    : translate("leadNotice.preheaderWithLocality", { lead, name, locality });
+}
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {
@@ -1171,6 +1187,28 @@ export function resolveContent(translate: ContentTranslator) {
       },
       callbackLine: translate("leadNotice.callbackLine"),
       emptyValue: translate("leadNotice.emptyValue"),
+      tagline: translate("leadNotice.tagline"),
+      heading: translate("leadNotice.heading"),
+      kitchen: {
+        button: translate("leadNotice.kitchen.button"),
+        note: translate("leadNotice.kitchen.note"),
+        unavailable: translate("leadNotice.kitchen.unavailable"),
+        linkLabel: translate("leadNotice.kitchen.linkLabel"),
+      },
+      clientHeading: translate("leadNotice.clientHeading"),
+      actions: {
+        call: translate("leadNotice.actions.call"),
+        whatsapp: translate("leadNotice.actions.whatsapp"),
+        email: translate("leadNotice.actions.email"),
+      },
+      summaryHeading: translate("leadNotice.summaryHeading"),
+      groupCount: (heading: string, count: number) =>
+        translate("leadNotice.groupCount", { heading, count }),
+      appendixHeading: translate("leadNotice.appendixHeading"),
+      revisionLabel: translate("leadNotice.revisionLabel"),
+      noReply: translate("leadNotice.noReply"),
+      preheader: (parts: NoticePreheaderParts) =>
+        resolveNoticePreheader(translate, parts),
     },
   };
 }

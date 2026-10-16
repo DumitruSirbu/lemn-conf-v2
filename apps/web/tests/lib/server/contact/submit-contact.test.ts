@@ -7,6 +7,7 @@ import {
 import type { SubmissionRecording } from "@lemnaria/persistence";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { endonymOf } from "@/i18n/locale-endonyms";
 import { submitContact } from "@/lib/server/contact/submit-contact";
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
 import {
@@ -97,7 +98,9 @@ describe("a new request, stored and passed on", () => {
     await harness.submit(bodyOf({ locale: "ru" }));
 
     expect(harness.sender.sent[0]?.key).toBe(`lead-notification/${REQUEST_ID}`);
-    expect(harness.sender.sent[0]?.text).toContain("Limba clientului: ru");
+    expect(harness.sender.sent[0]?.text).toContain(
+      `Limba clientului: ${endonymOf("ru")}`,
+    );
     expect(harness.sender.sent[0]?.subject).not.toMatch(/[Ѐ-ӿ]/);
   });
 

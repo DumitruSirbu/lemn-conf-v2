@@ -8,6 +8,7 @@ import { createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveContent } from "@/i18n/content";
+import { endonymOf } from "@/i18n/locale-endonyms";
 import {
   buildLeadNotification,
   LEAD_NOTIFICATION_KEY_PREFIX,
@@ -51,7 +52,7 @@ interface PrintedField {
   /** The name the notice's error gives the line. */
   readonly line: string;
   readonly label: string;
-  /** Where the line stands in the body. */
+  /** Where the line stands in the body: after the kitchen link's line and the blank line under it. */
   readonly index: number;
   readonly withValue: (value: string) => ContactSubmissionToRecord;
 }
@@ -64,31 +65,31 @@ const PRINTED_FIELDS: readonly PrintedField[] = [
   {
     line: "locale",
     label: labels.locale,
-    index: 1,
+    index: 3,
     withValue: (locale) => designRequest({ locale }),
   },
   {
     line: "name",
     label: labels.name,
-    index: 2,
+    index: 4,
     withValue: (value) => contactWith("name", value),
   },
   {
     line: "phone",
     label: labels.phone,
-    index: 3,
+    index: 5,
     withValue: (value) => contactWith("phoneNormalForm", value),
   },
   {
     line: "locality",
     label: labels.locality,
-    index: 4,
+    index: 6,
     withValue: (value) => contactWith("locality", value),
   },
   {
     line: "email",
     label: labels.email,
-    index: 6,
+    index: 8,
     withValue: (value) => contactWith("email", value),
   },
 ];
@@ -291,7 +292,7 @@ describe("a value that breaks no line", () => {
 describe("what the notice does not read", () => {
   const NOT_READ_MARKER = "QA-NOT-READ-5d81c0";
 
-  it("gives the same bytes whatever the typed phone, consent version, digest and design id and revision hold", () => {
+  it("gives the same bytes whatever the typed phone, consent version, digest and design id hold", () => {
     const baseline = noticeOf(designRequest());
     const submission = designRequest({
       payloadDigest: NOT_READ_MARKER,
@@ -302,7 +303,7 @@ describe("what the notice does not read", () => {
       },
       target: {
         kind: "design",
-        design: { id: `${NOT_READ_MARKER}\n`, revision: NOT_READ_MARKER },
+        design: { id: `${NOT_READ_MARKER}\n`, revision: "7" },
       },
     });
 
@@ -469,16 +470,20 @@ describe("what building a notice writes", () => {
 });
 
 describe("the customer's own language", () => {
+  const LOCALE_LINE = 3;
+
   it("changes its own line and no other byte of the notice", () => {
     const romanian = noticeOf(designRequest({ locale: "ro" }));
     const russian = noticeOf(designRequest({ locale: "ru" }));
     const romanianLines = romanian.text.split("\n");
     const russianLines = russian.text.split("\n");
 
-    expect(russianLines[1]).toBe(`${labels.locale}: ru`);
-    expect(russianLines.filter((_line, index) => index !== 1)).toEqual(
-      romanianLines.filter((_line, index) => index !== 1),
+    expect(russianLines[LOCALE_LINE]).toBe(
+      `${labels.locale}: ${endonymOf("ru")}`,
     );
+    expect(
+      russianLines.filter((_line, index) => index !== LOCALE_LINE),
+    ).toEqual(romanianLines.filter((_line, index) => index !== LOCALE_LINE));
     expect(russian.subject).toBe(romanian.subject);
     expect(russian.key).toBe(romanian.key);
   });

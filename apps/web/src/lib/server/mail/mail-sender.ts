@@ -1,15 +1,17 @@
 import "server-only";
 
 /**
- * One fixed message. It names no recipient, no sender and no markup: the configured shop inbox is the
- * only recipient there is, and the adapter fills it, so a customer's address cannot become one by type.
- * `key` is the idempotency key; `text` is plain text. What may be sent is `isSendableMailMessage`:
- * a key of 1 to 256 visible ASCII characters, a non-empty subject on one line, and a non-empty text.
+ * One fixed message. It names no recipient and no sender: the configured shop inbox is the only recipient there is,
+ * and the adapter fills it, so a customer's address cannot become one by type. `key` is the idempotency key; `text`
+ * is plain text, and `html`, when present, is the same message as markup, sent beside `text` as its alternative.
+ * What may be sent is `isSendableMailMessage`: a key of 1 to 256 visible ASCII characters, a non-empty subject on
+ * one line, a non-empty text, and an `html` that is absent or a non-empty text of at most `HTML_MAX_LENGTH`.
  */
 export interface MailMessage {
   readonly key: string;
   readonly subject: string;
   readonly text: string;
+  readonly html?: string;
 }
 
 /** A closed list. Nothing a provider said is kept beyond which of these it was and, when there was one,
@@ -49,6 +51,10 @@ export const MAIL_REFUSED_UNSENT: MailOutcome = Object.freeze({
 
 const KEY_MAX_LENGTH = 256;
 
+/** UTF-16 code units. Far above the notice's own 90 000-byte budget, so only a defect reaches it; a mail that long is
+ *  clipped by the shop's client anyway. */
+export const HTML_MAX_LENGTH = 262_144;
+
 /** A value that can ride in a header: visible ASCII only, no space and no control character. */
 export const VISIBLE_ASCII_KEY = /^[\x21-\x7e]+$/;
 
@@ -62,7 +68,7 @@ export const LINE_BREAKING_CHARACTER = /[\p{Cc}\p{Zl}\p{Zp}]/u;
  * the adapter agree.
  */
 export function isSendableMailMessage(message: MailMessage): boolean {
-  const { key, subject, text } = message;
+  const { key, subject, text, html } = message;
   return (
     typeof key === "string" &&
     key.length <= KEY_MAX_LENGTH &&
@@ -71,14 +77,25 @@ export function isSendableMailMessage(message: MailMessage): boolean {
     subject.length > 0 &&
     !LINE_BREAKING_CHARACTER.test(subject) &&
     typeof text === "string" &&
-    text.length > 0
+    text.length > 0 &&
+    isAbsentOrSendableHtml(html)
+  );
+}
+
+function isAbsentOrSendableHtml(html: unknown): boolean {
+  return (
+    html === undefined ||
+    (typeof html === "string" &&
+      html.length > 0 &&
+      html.length <= HTML_MAX_LENGTH)
   );
 }
 
 /**
- * The only way a sender reads a message: its three members once, into a copy that cannot change, which the
- * predicate then judges. A sender builds only from the copy, so what was judged is what is sent. A message
- * that cannot be read, or may not be sent, answers nothing.
+ * The only way a sender reads a message: its four members once, into a copy that cannot change, which the
+ * predicate then judges. The copy holds `html` only when the message had one, so a plain-text message's copy has
+ * three members. A sender builds only from the copy, so what was judged is what is sent. A message that cannot be
+ * read, or may not be sent, answers nothing.
  */
 export function sendableCopyOf(message: MailMessage): MailMessage | undefined {
   const copy = readCopy(message);
@@ -87,8 +104,12 @@ export function sendableCopyOf(message: MailMessage): MailMessage | undefined {
 
 function readCopy(message: MailMessage): MailMessage | undefined {
   try {
-    const { key, subject, text } = message;
-    return Object.freeze({ key, subject, text });
+    const { key, subject, text, html } = message;
+    return Object.freeze(
+      html === undefined
+        ? { key, subject, text }
+        : { key, subject, text, html },
+    );
   } catch {
     return undefined;
   }

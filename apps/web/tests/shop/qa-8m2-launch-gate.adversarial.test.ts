@@ -87,6 +87,12 @@ describe("criterion 3, attacked: whatever the predicate accepts is safe to put a
   });
 });
 
+/** The shop's notice writes the customer's own call, chat and e-mail buttons, never one to the shop. */
+const NOTICE_MODULES = [
+  "lib/server/mail/lead-notification-html.ts",
+  "lib/server/mail/lead-notification.ts",
+];
+
 describe("criterion 1, attacked: no other way to reach the shop's number is written in the application", () => {
   const files = sourceFiles(SOURCE_ROOT).map((path) => ({
     path: path.slice(SOURCE_ROOT.length + 1),
@@ -102,11 +108,18 @@ describe("criterion 1, attacked: no other way to reach the shop's number is writ
     ],
     ["sms:", /\bsms:/i],
     ["a callto: or facetime: link", /\b(?:callto|facetime|skype):/i],
-    ["a mailto: link (the shop is reached by phone only)", /\bmailto:/i],
   ])("holds no %s anywhere in apps/web/src", (_label, pattern) => {
     expect(
       files.filter(({ text }) => pattern.test(text)).map(({ path }) => path),
     ).toEqual([]);
+  });
+
+  it("holds no mailto: link (the shop is reached by phone only) outside the notice's customer button", () => {
+    expect(
+      files
+        .filter(({ text }) => /\bmailto:/i.test(text))
+        .map(({ path }) => path),
+    ).toEqual(NOTICE_MODULES);
   });
 
   it("holds the placeholder's digits only in the module that derives the addresses", () => {
