@@ -58,7 +58,8 @@ export type GoldenFixtureGroup =
   | "catalog"
   | "room"
   | "review"
-  | "contact";
+  | "contact"
+  | "presetSave";
 
 export interface GoldenFixture {
   readonly id: string;
@@ -832,6 +833,29 @@ export const CONTACT_FIXTURES: readonly GoldenFixture[] = CONTACT_LEAF_KEYS.map(
   }),
 );
 
+/** The two preset-name leaves `Content` reaches through `presetName`, which picks one by whether the kitchen declares a
+ *  colour, so `Content` carries a resolver and no static leaf for them. Argument values are neutral tokens: the manifest
+ *  pins the sentence around them. */
+const PRESET_SAVE_RENDER_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "presetSave.generatedName": {
+    shape: "Shape",
+    walls: "Walls",
+    finish: "Finish",
+  },
+  "presetSave.generatedNameNoFinish": { shape: "Shape", walls: "Walls" },
+};
+
+export const PRESET_SAVE_FIXTURES: readonly GoldenFixture[] = Object.entries(
+  PRESET_SAVE_RENDER_ARGUMENTS,
+).map(([sourceKey, values]) => ({
+  id: sourceKey,
+  group: "presetSave" as const,
+  sourceKey,
+  renderCorrected: () => translateRuntime(sourceKey, values),
+}));
+
 type RejectionMessageKey = Exclude<
   keyof typeof correctedRomanian.rejection,
   "parts"
@@ -1175,6 +1199,7 @@ export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
   ...ROOM_FIXTURES,
   ...REVIEW_FIXTURES,
   ...CONTACT_FIXTURES,
+  ...PRESET_SAVE_FIXTURES,
   ...REJECTION_FIXTURES,
   ...CATALOGUE_FIXTURES,
 ];
@@ -1196,6 +1221,8 @@ const DESCRIPTOR_RESOLVERS: ReadonlySet<string> = new Set([
   // A contact field code and a class of contact answer, each resolved to one catalogue sentence.
   "contactFieldError",
   "contactOutcome",
+  // A saved kitchen's shape, walls and colour, resolved to the name a preset has when none is typed.
+  "presetName",
 ]);
 
 export function collectContentFunctionFamilies(): readonly string[] {

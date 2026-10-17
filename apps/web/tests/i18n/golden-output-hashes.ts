@@ -95,6 +95,10 @@
  * **Grown by 2 and rebaselined over exactly one by M8 wave 8V slice S7** — `submissionResult.designLinkLabel` and
  * `.designLinkNote`, the done page's design link, added; `submissionResult.alreadySentAdvice.phone-token` moved, its
  * sentence re-drafted to ask for no request number. All three drafted and provisional. **One moved and no others.**
+ *
+ * **Grown by 22, never rebaselined, by M8C wave P4** (ADR 0113 decision 2) — the save-as-preset button and dialog,
+ * `presetSave.*`: 20 static leaves, and the two preset-name leaves rendered with neutral tokens. Drafted and
+ * unapproved, the Russian to be re-signed by the owner. **No existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -829,6 +833,46 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "26044a3db5b29b9c452edaeee385bd8df5907c21b1552f2b5c8c1b55913681c8",
   "content.static.panel.widthTitle":
     "7032317e22f0150cde3c67663e1a940f619d7df1847ea3f9cec8f685c46a83ab",
+  "content.static.presetSave.close":
+    "b7f0026982e780c33344834500464527854631c01f51039d2eb87853b8370c6d",
+  "content.static.presetSave.confirm":
+    "761a3ee3fc9980310a2dd1d2f10d48817c0eeb6fff2f7c6856c73545855ad9f4",
+  "content.static.presetSave.intro":
+    "836a1183c1ded8d119c272af2d85e492331d13bb0c0f4c2c22c4ab6ace7edbcb",
+  "content.static.presetSave.nameLabel":
+    "cd68cdf69767159622bfd8e148e883898844c7f0abaaf204db3a5333fa12e62e",
+  "content.static.presetSave.open":
+    "696f595cf773054dc08eb1b54c9615b948786e49fe3cc208f2b9a8f8143baed5",
+  "content.static.presetSave.refusal.failed":
+    "58e77f81403dbd7cb6a7aadeff161f453875713ec753aae26bb746e80ac68f93",
+  "content.static.presetSave.refusal.findings":
+    "299a21b35f31cc9f6b412e049fdd2fafb8c2eed6708ea927a5ecedbe7ac1fca4",
+  "content.static.presetSave.refusal.imageRefused":
+    "d7d52816120e5f8e658215d9b7c7feceedeac09841f5cd750178d507ec362893",
+  "content.static.presetSave.refusal.missingHob":
+    "44237fcbdfb801f4a8c20dd07324170972260c702bded3b0aa90a8cf68a2a04a",
+  "content.static.presetSave.refusal.missingSink":
+    "9feb9d855d30f133500dd01eb56e20414f31ab4e29f4625321eaac9fb1ec64aa",
+  "content.static.presetSave.refusal.missingSinkAndHob":
+    "5a3a715262624aa68a9033a8265145b2c77ae6b7ce76ae3b4c5b249564a844af",
+  "content.static.presetSave.refusal.nameRefused":
+    "0c1138ed759d1fdae4a7513aa20358d3e23165d9fdf7291b63486d3e7982ddab",
+  "content.static.presetSave.refusal.notSaved":
+    "54e19b90257c388ea551234d46adbc784fc1ca89d22ce99f612814e017eda991",
+  "content.static.presetSave.refusal.presetLimit":
+    "b1a66a009b054bab8899fba6d5b9fe447537304da099214070a0e09486f72a86",
+  "content.static.presetSave.refusal.saveLimit":
+    "c08849e22b7c8cc76af3cd76bdcd1105b4029d317aac0b154d98d39dd6c90a4b",
+  "content.static.presetSave.refusal.stale":
+    "a40e28ec9039c16fc66f7500b90124503071f25bd5b09ce176afe59cd768e39c",
+  "content.static.presetSave.refusal.unavailable":
+    "fbb78f04c1fc8f2dba7cd885aa7c226ae61186e3a46a8b1f46ab7af73f30dd53",
+  "content.static.presetSave.saved":
+    "de94f0594c502ea3e92f0993456762b9998e9237cb667c3932b07aab85444d82",
+  "content.static.presetSave.saving":
+    "b703825a40e304f57aa2a7f1715d3c82c30e9021531246e8984298831b94ee70",
+  "content.static.presetSave.waiting":
+    "76386f7d6ff271ecaa47ed3e24ea592e230d6fb52499afc89349383e252caaf6",
   "content.static.price.emptyKitchenPrompt":
     "f279d4efee6ecea896540c1f09a19f9e919c01509a29a1c144ef734a8c3fbf17",
   "content.static.price.overflowingTotalWarning":
@@ -923,6 +967,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "05ad3dccbd3b466b2591175041951270cef2efc2bd60d710a4a1aa8ef0f40237",
   "content.static.webglUnavailable.titleMobile":
     "1f6e566133c1d51645cc79876acbf641808347343fda76a164d2104a08e0bf5e",
+  "presetSave.generatedName":
+    "fb4105e372839ef51829b7024c4f6f0282c3443c47cf6aae69f936ed4ec1e3ec",
+  "presetSave.generatedNameNoFinish":
+    "f76b0c07706718e74a0d74173ecc7b3c479f8819c2f91ceec71be310dc457701",
   "rejection.accessory-not-deletable":
     "6a2cd2e57109d963747b0ce8240e1f0e99d24229931b4aaf1f8d11c245a4bc48",
   "rejection.band-mismatch-base":

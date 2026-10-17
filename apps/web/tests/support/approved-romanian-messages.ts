@@ -36,6 +36,44 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     reviewCta: "Verifică designul",
   },
+  // Drafted, not approved (M8C wave P4; plan section 3.4, owner rulings of 2026-10-17; ADR 0113 decision 2): the save-as-preset
+  // button and its dialog. No frame draws any of it. `generatedName*` is the name shown when none is typed: shape, walls and
+  // the kitchen's colour, rendered per locale from stored facts and never stored (ADR 0112 Amendment A). The refusal
+  // sentences answer the preset route's codes and state no bound (ADR 0113 decision 5). The Russian is an agent's
+  // draft, to be re-signed by the owner.
+  presetSave: {
+    open: "Salvează ca preset",
+    intro: "Presetul păstrează bucătăria așa cum arată acum.",
+    nameLabel: "Nume (opțional)",
+    confirm: "Salvează",
+    close: "Închide",
+    waiting: "Se salvează modificările tale…",
+    saving: "Se salvează presetul…",
+    saved: "Presetul a fost salvat.",
+    generatedName: "{shape}, {walls} mm, {finish}",
+    generatedNameNoFinish: "{shape}, {walls} mm",
+    refusal: {
+      findings:
+        "Bucătăria are încă probleme semnalate în editor. Rezolvă-le, apoi încearcă din nou.",
+      missingSink: "Pentru preset, bucătăria are nevoie de o chiuvetă.",
+      missingHob: "Pentru preset, bucătăria are nevoie de o plită.",
+      missingSinkAndHob:
+        "Pentru preset, bucătăria are nevoie de o chiuvetă și de o plită.",
+      stale:
+        "Bucătăria s-a schimbat între timp. Reîncarcă pagina și încearcă din nou.",
+      nameRefused:
+        "Numele nu este acceptat. Încearcă un nume mai scurt, fără caractere speciale.",
+      imageRefused: "Imaginea nu a fost acceptată. Încearcă din nou.",
+      presetLimit: "Astăzi nu se mai pot salva alte presete. Încearcă mâine.",
+      saveLimit:
+        "Salvările sunt oprite pentru moment. Încearcă din nou puțin mai târziu.",
+      unavailable:
+        "Presetele nu se pot salva acum. Încearcă din nou mai târziu.",
+      notSaved:
+        "Modificările tale nu au putut fi salvate, așa că presetul nu se poate salva acum.",
+      failed: "Presetul nu a putut fi salvat. Încearcă din nou.",
+    },
+  },
   // Frame 1A's or 1B's wording as written, except `cornerQuestion` (the owner's) and `wallLabel.wallC` (drafted: no
   // frame draws a U's third wall).
   room: {

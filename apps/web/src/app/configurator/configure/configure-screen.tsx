@@ -26,6 +26,11 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 import styles from "./configure.module.css";
 import { BackConfirmation, BackConfirmationDialog } from "./back-confirmation";
 import { LocaleMenu } from "./locale-menu";
+import {
+  SaveAsPresetButton,
+  SaveAsPresetDialog,
+  useSaveAsPresetControl,
+} from "./save-as-preset";
 import { SelectionDebug } from "./selection-debug";
 import { useBackConfirmation } from "./use-back-confirmation";
 import { useBackGuard } from "./use-back-guard";
@@ -70,6 +75,7 @@ export function ConfigureScreen({
   // names, and what the row gives up to leave room for them. See `use-top-bar-fit.ts`.
   const topBar = useTopBarFit();
   const backConfirmation = useBackConfirmation();
+  const savePreset = useSaveAsPresetControl(variant === "owner");
   const backGuard = useBackGuard({
     isOwner: variant === "owner",
     isLinkQuestionOpen: backConfirmation.isAsking,
@@ -215,6 +221,14 @@ export function ConfigureScreen({
               2026-09-09 (ADR 0104 decision 8b), which took it out of the top bar so the header keeps
               frame D2A's shape on a flagged design as well as a seeded one. */}
           <div className={styles.sceneFooter}>
+            {/* The owner's ruling of 2026-10-17: *Salvează ca preset* at the bottom of the editor, on the
+                right, in every environment the server allows it in (ADR 0112 Amendment A). It is first in
+                the stack, so it rides above the hint, the flagged total and the warning band and shares
+                pixels with none of them; the stylesheet hides it while the phone's sheet is open. */}
+            <SaveAsPresetButton
+              control={savePreset}
+              isPanelOpen={panel.kind === "open"}
+            />
             {/* Frames 2A / D2A: the nothing-selected instruction copy, and the only place it lives.
                 It is hidden while the panel is open, where it would sit behind the sheet — and it is
                 gated on the same `PanelView` the panel renders from, so "panel open" and "hint
@@ -287,6 +301,11 @@ export function ConfigureScreen({
           onConfirm={backGuard.confirm}
           onStay={backGuard.stay}
         />
+      )}
+      {/* A direct child of the screen, as the two above are: the dialog marks every other band inert, and
+          the band that holds it stays live. */}
+      {savePreset.isOffered && savePreset.isOpen && (
+        <SaveAsPresetDialog onClose={savePreset.close} />
       )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the

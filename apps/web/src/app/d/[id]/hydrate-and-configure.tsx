@@ -6,6 +6,7 @@ import { useEffect } from "react";
 
 import { ConfigureScreen } from "@/app/configurator/configure/configure-screen";
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
+import { usePresetAuthoring } from "@/preset/preset-authoring-store";
 import {
   ConfiguratorSnapshotProvider,
   hydrateSessionStoreInBrowser,
@@ -35,6 +36,7 @@ export function HydrateAndConfigure({
     (session) => session.designId === designId,
   );
   useWriteAccessProbe(designId);
+  usePresetAuthoringProbe(designId);
   return (
     <ConfiguratorSnapshotProvider loaded={loaded}>
       <ConfigureScreen />
@@ -64,13 +66,16 @@ function useWriteAccessProbe(designId: DesignId): void {
       .loadWithAccess(designId)
       // The answer's design and revision are taken together, and only where the store holds no unsaved edit and the
       // answer's revision is the greater: a revision must never stand beside a document it was not read with (WEB-003).
-      .then(({ design, revision, canWrite }) => {
-        if (isCurrent)
-          useConfiguratorStore.getState().applyWriteAccess({
-            designId,
-            canWrite,
-            stored: { design, revision },
-          });
+      .then(({ design, revision, canWrite, canAuthorPresets }) => {
+        if (!isCurrent) return;
+        // Recorded first: `applyWriteAccess` moves `canWrite`, which `usePresetAuthoringProbe` watches, and it must
+        // find this answer already there.
+        usePresetAuthoring.getState().record({ designId, canAuthorPresets });
+        useConfiguratorStore.getState().applyWriteAccess({
+          designId,
+          canWrite,
+          stored: { design, revision },
+        });
       })
       .catch(() => {
         if (isCurrent)
@@ -80,4 +85,35 @@ function useWriteAccessProbe(designId: DesignId): void {
       isCurrent = false;
     };
   }, [designId, canWrite]);
+}
+
+/**
+ * Asks the server whether this design may be saved as a preset, when the probe above has not already told it.
+ *
+ * `hydrateSessionStoreInBrowser` skips a design the session already holds, which is every design Step 1 has just minted
+ * and handed over: its `canWrite` is already `true`, so `useWriteAccessProbe` never runs and nothing would record the
+ * answer, and the control would be missing on the owner's main path until a reload. This is that gap's one read
+ * (`GET /api/designs/{id}`, counted against the read limit once per design per session). It records `canAuthorPresets`
+ * only and applies nothing else of the answer. A failed read leaves the control absent: the server has not said yes.
+ */
+function usePresetAuthoringProbe(designId: DesignId): void {
+  const canWrite = useConfiguratorStore((state) => state.canWrite);
+  const answeredDesignId = usePresetAuthoring((state) => state.designId);
+  useEffect(() => {
+    if (canWrite !== true || answeredDesignId === designId) return;
+    let isCurrent = true;
+    void sessionConfigurationRepository
+      .loadWithAccess(designId)
+      .then(({ canAuthorPresets }) => {
+        if (isCurrent) {
+          usePresetAuthoring.getState().record({ designId, canAuthorPresets });
+        }
+      })
+      .catch(() => {
+        // The control stays absent; nothing else depends on this answer.
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [designId, canWrite, answeredDesignId]);
 }

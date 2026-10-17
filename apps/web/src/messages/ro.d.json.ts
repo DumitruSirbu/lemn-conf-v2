@@ -33,6 +33,32 @@ declare const messages: {
     },
     "reviewCta": "Verifică designul"
   },
+  "presetSave": {
+    "open": "Salvează ca preset",
+    "intro": "Presetul păstrează bucătăria așa cum arată acum.",
+    "nameLabel": "Nume (opțional)",
+    "confirm": "Salvează",
+    "close": "Închide",
+    "waiting": "Se salvează modificările tale…",
+    "saving": "Se salvează presetul…",
+    "saved": "Presetul a fost salvat.",
+    "generatedName": "{shape}, {walls} mm, {finish}",
+    "generatedNameNoFinish": "{shape}, {walls} mm",
+    "refusal": {
+      "findings": "Bucătăria are încă probleme semnalate în editor. Rezolvă-le, apoi încearcă din nou.",
+      "missingSink": "Pentru preset, bucătăria are nevoie de o chiuvetă.",
+      "missingHob": "Pentru preset, bucătăria are nevoie de o plită.",
+      "missingSinkAndHob": "Pentru preset, bucătăria are nevoie de o chiuvetă și de o plită.",
+      "stale": "Bucătăria s-a schimbat între timp. Reîncarcă pagina și încearcă din nou.",
+      "nameRefused": "Numele nu este acceptat. Încearcă un nume mai scurt, fără caractere speciale.",
+      "imageRefused": "Imaginea nu a fost acceptată. Încearcă din nou.",
+      "presetLimit": "Astăzi nu se mai pot salva alte presete. Încearcă mâine.",
+      "saveLimit": "Salvările sunt oprite pentru moment. Încearcă din nou puțin mai târziu.",
+      "unavailable": "Presetele nu se pot salva acum. Încearcă din nou mai târziu.",
+      "notSaved": "Modificările tale nu au putut fi salvate, așa că presetul nu se poate salva acum.",
+      "failed": "Presetul nu a putut fi salvat. Încearcă din nou."
+    }
+  },
   "room": {
     "title": "Cameră",
     "shapeQuestion": "Ce formă are camera?",
