@@ -232,6 +232,11 @@ export class FakeAccountStore implements AccountStore {
     };
   }
 
+  /** The account's current `password_hash`, which a session's creation compares. */
+  passwordHashOf(accountId: string): string | undefined {
+    return this.accountsById.get(accountId)?.passwordHash;
+  }
+
   /** Every account the table would hold. */
   heldAccounts(): readonly StoredAccount[] {
     return [...this.accountsById.values()].map((held) => storedAccountOf(held));

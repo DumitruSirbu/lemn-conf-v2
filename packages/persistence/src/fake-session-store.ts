@@ -33,6 +33,8 @@ export interface FakeSessionStoreOptions {
   /** The `accounts` side of the join: the account's current role, address and verification, or `undefined` when it has
    *  no row. `createFakeAccountAndSessionStores` wires it to a `FakeAccountStore`. */
   readonly accountOf: (accountId: string) => SessionAccount | undefined;
+  /** The account's current `password_hash`, or `undefined` when it has no row: what `create` compares. */
+  readonly passwordHashOf: (accountId: string) => string | undefined;
 }
 
 /**
@@ -45,10 +47,16 @@ export class FakeSessionStore implements SessionStore {
   private readonly sessionsByHash = new Map<string, HeldSession>();
   private readonly now: () => Date;
   private readonly accountOf: (accountId: string) => SessionAccount | undefined;
+  private readonly passwordHashOf: (accountId: string) => string | undefined;
 
-  constructor({ now = () => new Date(), accountOf }: FakeSessionStoreOptions) {
+  constructor({
+    now = () => new Date(),
+    accountOf,
+    passwordHashOf,
+  }: FakeSessionStoreOptions) {
     this.now = now;
     this.accountOf = accountOf;
+    this.passwordHashOf = passwordHashOf;
   }
 
   create(session: NewSession): Promise<SessionCreation> {
@@ -57,8 +65,10 @@ export class FakeSessionStore implements SessionStore {
       const existing = this.sessionsByHash.get(session.tokenHash);
       if (existing !== undefined)
         return createdIfSameLiveSession(existing, session);
-      if (this.accountOf(session.accountId) === undefined) {
-        return { kind: "refused" };
+      const currentHash = this.passwordHashOf(session.accountId);
+      if (currentHash === undefined) return { kind: "refused" };
+      if (currentHash !== session.expectedPasswordHash) {
+        return { kind: "stale" };
       }
       const at = this.now();
       this.sessionsByHash.set(session.tokenHash, {
@@ -166,6 +176,7 @@ export function createFakeAccountAndSessionStores(
   const sessions = new FakeSessionStore({
     now,
     accountOf: (accountId) => accounts.sessionAccountOf(accountId),
+    passwordHashOf: (accountId) => accounts.passwordHashOf(accountId),
   });
   return { accounts, sessions };
 }

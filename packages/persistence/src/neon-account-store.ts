@@ -195,6 +195,12 @@ export class NeonAccountStore implements AccountStore {
    * `verify-email` token **and** the account's hash must still be the one the caller verified. A second call with the
    * same token blocks on the row, re-reads `used_at`, finds it set and changes nothing.
    *
+   * The hash check is a **locking** read (`locked`, `for update`), not a subquery of the token update: a subquery reads
+   * the statement's snapshot, so a `replaceUnverifiedRegistration` committing after that snapshot would go unseen and
+   * the account would be verified under the replacing password. `for update` waits for such a writer, re-checks the
+   * row against the predicate, and holds the row until this statement commits, so the later `confirmed` update cannot
+   * land on a different password. It needs only the column UPDATE grant the table already carries.
+   *
    * On a retry only, a token already used for this account whose account is verified under that same hash is the first
    * attempt's own write, so it answers confirmed rather than a false invalid.
    */
@@ -211,18 +217,18 @@ export class NeonAccountStore implements AccountStore {
     const rows = await queryRows("confirm an e-mail address", () =>
       retryOnTransientFailure(
         ({ isRetry }) => this.sql`
-          with consumed as (
+          with locked as (
+            select id from accounts
+            where id = ${accountId} and password_hash = ${verifiedPasswordHash}
+            for update
+          ), consumed as (
             update account_email_tokens t
             set used_at = now()
             where t.token_hash = ${tokenHash}
-              and t.account_id = ${accountId}
+              and t.account_id in (select id from locked)
               and t.purpose = ${VERIFY_EMAIL}
               and t.used_at is null
               and t.expires_at > now()
-              and exists (
-                select 1 from accounts a
-                where a.id = t.account_id and a.password_hash = ${verifiedPasswordHash}
-              )
               and not exists (
                 select 1 from account_email_tokens newer
                 where newer.account_id = t.account_id

@@ -1,6 +1,7 @@
 import { ROLES } from "@lemnaria/configurator-domain";
 import type { Role } from "@lemnaria/configurator-domain";
 
+import { requirePasswordHashShape } from "./account-store.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
 /** A session's `last_seen_at` is written at most this often (ADR 0169 decision 3), which bounds the table's writes. */
@@ -33,16 +34,21 @@ export class SessionStoreError extends Error {
 export type IdleLifetimeSecondsByRole = Readonly<Record<Role, number>>;
 
 /** `tokenHash` is the SHA-256 of the cookie's value; the value itself never reaches the store. The absolute expiry is
- *  fixed here and never extended. */
+ *  fixed here and never extended. `expectedPasswordHash` is the hash the caller verified (a login binds the session to
+ *  the hash it holds **after** any rehash): the session is created only while the account still holds it. */
 export interface NewSession {
   readonly tokenHash: string;
   readonly accountId: string;
+  readonly expectedPasswordHash: string;
   readonly absoluteExpiresAt: Date;
 }
 
-/** `refused` is an account that does not exist, or a token hash already held by another account or already revoked. */
+/** `stale` is an account whose hash is no longer `expectedPasswordHash` (a reset or a rehash won the race): nothing was
+ *  written. `refused` is an account that does not exist, or a token hash already held by another account or already
+ *  revoked. */
 export type SessionCreation =
   | { readonly kind: "created" }
+  | { readonly kind: "stale" }
   | { readonly kind: "refused" };
 
 export interface SessionLookupRequest {
@@ -89,6 +95,7 @@ export interface SessionStore {
 
 export function requireValidNewSession(session: NewSession): void {
   requireSessionTokenHash(session.tokenHash, "create a session");
+  requirePasswordHashShape(session.expectedPasswordHash, "create a session");
   if (
     session.absoluteExpiresAt instanceof Date &&
     !Number.isNaN(session.absoluteExpiresAt.getTime())

@@ -38,11 +38,19 @@ export class NeonSessionStore implements SessionStore {
     this.sql = openApplicationDatabase(connectionUrl);
   }
 
-  /** The row is inserted from a `select` of its account, so an account that is gone inserts nothing and raises no
-   *  foreign-key error. Repeating it after a lost acknowledgement finds its own live row and answers created. */
+  /**
+   * A compare-and-set on the account's hash. The row is inserted from a `select` of its account **where the hash is
+   * still `expectedPasswordHash`**, locked `for share`: a reset or rehash committing after the statement's snapshot is
+   * waited for and the row re-checked, so a session never lands under a hash that was just replaced. An account that is
+   * gone inserts nothing and raises no foreign-key error.
+   *
+   * The answer is a row per outcome: `created` for the insert, or for a repeat after a lost acknowledgement that finds
+   * its own live row (that arm wins over `stale`); `stale` for an account that exists under another hash; no row at all
+   * for an account that is gone or a token hash another account already holds.
+   */
   async create(session: NewSession): Promise<SessionCreation> {
     requireValidNewSession(session);
-    const { tokenHash, accountId } = session;
+    const { tokenHash, accountId, expectedPasswordHash } = session;
     const absoluteExpiresAt = session.absoluteExpiresAt.toISOString();
     const rows = await queryRows("create a session", () =>
       retryOnTransientFailure(
@@ -50,18 +58,26 @@ export class NeonSessionStore implements SessionStore {
           with inserted as (
             insert into account_sessions (token_hash, account_id, absolute_expires_at)
             select ${tokenHash}, a.id, ${absoluteExpiresAt}::timestamptz
-            from accounts a where a.id = ${accountId}
+            from accounts a
+            where a.id = ${accountId} and a.password_hash = ${expectedPasswordHash}
+            for share of a
             on conflict (token_hash) do nothing
             returning token_hash
           )
-          select token_hash from inserted
+          select 'created' as outcome from inserted
           union
-          select token_hash from account_sessions
+          select 'created' from account_sessions
           where token_hash = ${tokenHash} and account_id = ${accountId} and revoked_at is null
+          union
+          select 'stale'
+          where exists (select 1 from accounts where id = ${accountId})
+            and not exists (
+              select 1 from accounts where id = ${accountId} and password_hash = ${expectedPasswordHash}
+            )
         `,
       ),
     );
-    return rows.length === 0 ? { kind: "refused" } : { kind: "created" };
+    return creationFrom(rows);
   }
 
   /**
@@ -174,6 +190,19 @@ function plainRowsOf(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function creationFrom(
+  rows: readonly Record<string, unknown>[],
+): SessionCreation {
+  const outcomes = rows.map((row) => row["outcome"]);
+  if (
+    !outcomes.every((outcome) => outcome === "created" || outcome === "stale")
+  ) {
+    throw new SessionStoreError("create a session");
+  }
+  if (outcomes.includes("created")) return { kind: "created" };
+  return outcomes.includes("stale") ? { kind: "stale" } : { kind: "refused" };
 }
 
 function lookupFrom(rows: readonly Record<string, unknown>[]): SessionLookup {
