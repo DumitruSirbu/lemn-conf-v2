@@ -289,6 +289,196 @@ request, read `select token_hash, created_at, revoked_at from contact_submission
 and revoke each row the same way. Do not delete rows: revocation is the operation (add-only spirit; ADR 0151 covers
 test rows only).
 
+## For `0012`–`0015`, the login and register tables (M8B wave L1, added 2026-10-17)
+
+The steps above stand. The tables are `accounts`, `account_sessions` and `account_email_tokens`; `0015` adds the column
+`designs.account_id`. The ledger goes from **11 to 15**. The decision and its reasons: [ADR 0169](../decisions/0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+(**Proposed** at the time of writing) and the plan `docs/milestones/M8B-login-register-plan.md`, §4. **Nothing in this
+section has been executed anywhere** [written in wave L1 by its developer; written, not run]. **Order of environments: preview first, then
+production**, every step on one database before the next.
+
+**Prerequisite.** Version **11** is M8C's `0011_create_presets.sql`, on the branch `fix/empty-space-fill-and-preset-save`.
+The migration runner refuses a gap, so `0012` cannot be applied to a database whose ledger reads fewer than 11. Production
+still needs `0009`, `0010` and `0011` first. If the login branch merges before M8C, the four files are renumbered at the
+rebase, which is free only while none of them has been applied anywhere.
+
+**The order against the code matters.** Every account route and every session read names these tables. If the code ships
+before the migrations and the grants, those requests answer 500 (a failed session read reads as anonymous, which is less
+access, so a visitor still works). The order is the migrations, then the grants, then the code.
+
+**Production grants are blocked this round.** Steps 3 and 5 to 7 prove the grant with `application-role-privileges.test.ts`,
+and that file has **no arms for these three tables yet** (owed, M8B plan §9; no tests are written this round). Until the arms
+exist, use the read-only catalog checks in step 7 below on preview, and do not grant on production.
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **15** (1 to 11 before). For
+  preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
+  ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0012`–`0015`:** `create table if not exists` passes over an older table of the same name, so confirm the
+  tables are the ones the files describe. Read-only, in the database console, with the migration credential:
+
+  ```sql
+  -- Expect account_email_tokens = 6, account_sessions = 6, accounts = 13.
+  select table_name, count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name in ('accounts', 'account_sessions', 'account_email_tokens')
+  group by table_name order by table_name;
+
+  -- Expect account_email_tokens: c = 2, f = 1, p = 1; account_sessions: c = 1, f = 1, p = 1;
+  -- accounts: c = 9, p = 1, u = 1. (PostgreSQL 18 also lists NOT NULL as 'n'; the filter leaves it out.)
+  select conrelid::regclass::text as table_name, contype, count(*) as constraints
+  from pg_constraint
+  where conrelid in (
+      'public.accounts'::regclass, 'public.account_sessions'::regclass, 'public.account_email_tokens'::regclass
+    )
+    and contype in ('c', 'f', 'p', 'u')
+  group by 1, 2 order by 1, 2;
+
+  -- Expect two rows, both on accounts (id), both cascading ('c'): account_email_tokens and account_sessions.
+  select conrelid::regclass::text as referencing, confrelid::regclass::text as referenced, confdeltype
+  from pg_constraint
+  where contype = 'f'
+    and conrelid in ('public.account_sessions'::regclass, 'public.account_email_tokens'::regclass)
+  order by 1;
+
+  -- Expect one row: account_id, text, YES (nullable).
+  select column_name, data_type, is_nullable
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'designs' and column_name = 'account_id';
+
+  -- Expect designs_account_id_shape (c), and no foreign key from designs to accounts.
+  select conname, contype from pg_constraint
+  where conrelid = 'public.designs'::regclass and conname = 'designs_account_id_shape';
+
+  -- Expect: account_email_tokens_newest_unused_idx, account_sessions_live_by_account_idx, designs_account_id_updated_at_idx.
+  select indexname from pg_indexes
+  where schemaname = 'public'
+    and indexname in (
+      'account_email_tokens_newest_unused_idx', 'account_sessions_live_by_account_idx',
+      'designs_account_id_updated_at_idx'
+    )
+  order by indexname;
+  ```
+
+  That is **3 tables, 13 + 6 + 6 columns, 11 + 3 + 4 named constraints (the primary keys and the one unique included)**, the
+  new `designs` column, constraint and index. Any other answer means stop and report.
+- **Before step 4, on each database: read `pg_default_acl`** with the query in the `0009` section. A row that would reach
+  `accounts`, `account_sessions` or `account_email_tokens` for `app_designs` or `PUBLIC` is a stop-and-report, as in step 3.
+- **Step 4, exactly these seven statements, preview first** (column-scoped, so that a bug or an injection in the application
+  cannot create or promote a staff account):
+
+  ```sql
+  GRANT SELECT ON TABLE public.accounts TO app_designs;
+  GRANT INSERT (id, email, email_normal_form, password_hash, locale, phone, phone_normal_form, privacy_notice_version)
+    ON TABLE public.accounts TO app_designs;
+  GRANT UPDATE (email_verified_at, password_hash, password_changed_at, updated_at, locale, phone, phone_normal_form,
+                privacy_notice_version)
+    ON TABLE public.accounts TO app_designs;
+
+  GRANT SELECT, INSERT ON TABLE public.account_sessions TO app_designs;
+  GRANT UPDATE (last_seen_at, revoked_at) ON TABLE public.account_sessions TO app_designs;
+
+  GRANT SELECT, INSERT ON TABLE public.account_email_tokens TO app_designs;
+  GRANT UPDATE (used_at) ON TABLE public.account_email_tokens TO app_designs;
+  ```
+
+  **No `DELETE`, no `TRUNCATE`, no `ALL`, no `WITH GRANT OPTION`, nothing to `PUBLIC`, nothing on
+  `ALL TABLES IN SCHEMA`.** On `accounts`, `role` and `created_at` get no `INSERT` or `UPDATE`; `id`, `email` and
+  `email_normal_form` get `INSERT` and never `UPDATE`. `SELECT` is table-wide, so `role` is readable (every request
+  reads it). Nothing on
+  `designs` changes: `app_designs` already holds table-level `UPDATE` there (ADR 0019 decision 11), which covers
+  `account_id`.
+- **Steps 5 to 7, until the test arms exist: read-only catalog checks with the migration credential.** These replace the
+  privilege test for these tables and prove less: they show what was granted, not that the application role's connection
+  behaves. Run them on preview after step 4.
+
+  ```sql
+  -- Table-level privileges. Expect: accounts SELECT; account_sessions INSERT, SELECT; account_email_tokens INSERT, SELECT.
+  -- No row for PUBLIC, no DELETE, TRUNCATE, REFERENCES or TRIGGER for app_designs, nothing with is_grantable = YES.
+  select table_name, grantee, privilege_type, is_grantable
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name in ('accounts', 'account_sessions', 'account_email_tokens')
+    and grantee in ('app_designs', 'PUBLIC')
+  order by table_name, grantee, privilege_type;
+
+  -- Column-level writes on accounts. Expect INSERT on exactly the 8 columns named in step 4 and UPDATE on exactly the 8
+  -- named in step 4; none of them role, id (UPDATE), email (UPDATE), email_normal_form (UPDATE), created_at.
+  select column_name, privilege_type
+  from information_schema.column_privileges
+  where table_schema = 'public' and table_name = 'accounts'
+    and grantee = 'app_designs' and privilege_type in ('INSERT', 'UPDATE')
+  order by privilege_type, column_name;
+
+  -- Expect: the only UPDATE columns are last_seen_at and revoked_at (sessions) and used_at (tokens).
+  select table_name, column_name, privilege_type
+  from information_schema.column_privileges
+  where table_schema = 'public' and table_name in ('account_sessions', 'account_email_tokens')
+    and grantee = 'app_designs' and privilege_type = 'UPDATE'
+  order by table_name, column_name;
+
+  -- Expect false on every row.
+  select 'role insert' as probe, has_column_privilege('app_designs', 'public.accounts', 'role', 'INSERT') as held
+  union all select 'role update', has_column_privilege('app_designs', 'public.accounts', 'role', 'UPDATE')
+  union all select 'id update', has_column_privilege('app_designs', 'public.accounts', 'id', 'UPDATE')
+  union all select 'email update', has_column_privilege('app_designs', 'public.accounts', 'email', 'UPDATE')
+  union all select 'email_normal_form update',
+    has_column_privilege('app_designs', 'public.accounts', 'email_normal_form', 'UPDATE')
+  union all select 'created_at update', has_column_privilege('app_designs', 'public.accounts', 'created_at', 'UPDATE');
+  ```
+
+  Any `DELETE`, any row for `PUBLIC`, any `true` in the last query, or any column outside the lists is a stop-and-report.
+- **Step 8:** `designs` is unchanged apart from the new column. On production, read it with `has_table_privilege`, not by
+  attempting a delete.
+
+### Making the first administrator (owner, by hand, console)
+
+The application cannot write `role`, so a staff account exists only by this step (ADR 0169 decision 7). No staff wave is
+built yet, so it is optional this round. **It needs the owner credential and cannot be done by the application role.**
+
+1. **Register and confirm the address in the application as an ordinary client**, so that the row carries a real argon2id
+   hash from the application. Do not insert an account by hand: nothing outside the application should make a password hash.
+2. **Read the row first, with the address in lower case** (the stored `email_normal_form`):
+
+   ```sql
+   -- Expect one row, role = client, email_verified_at set.
+   select id, role, email_verified_at from accounts where email_normal_form = '<lower-case address>';
+   ```
+
+   Not verified, or more than one row, or none: stop.
+3. **Promote, then end every session of that account in the same transaction**, because a role change takes effect at the
+   next request but a session that was already open should not outlive the decision (ADR 0169 decision 3):
+
+   ```sql
+   begin;
+   update accounts set role = 'administrator', updated_at = now() where id = '<id from step 2>' and role = 'client';
+   update account_sessions set revoked_at = now() where account_id = '<id from step 2>' and revoked_at is null;
+   commit;
+   ```
+
+   Expect `UPDATE 1` for the first statement. `UPDATE 0` means the id is wrong or the role is not `client`: roll back and
+   re-check step 2. The second statement may be `UPDATE 0` if the account holds no live session.
+4. **Demoting or any later role change is the same two statements** with the new role, in the same transaction. The role
+   column accepts only `client`, `operator` and `administrator` (`accounts_role_is_known`).
+5. **Check:** the account signs in again and holds the new role's capabilities; the old session is refused.
+
+### Revoking one account's sessions by hand (owner)
+
+For a suspected compromise, with the owner credential: `update account_sessions set revoked_at = now() where account_id =
+'<id>' and revoked_at is null;`, then read it back with the same predicate on `select count(*)`. Do not delete rows:
+revocation is the operation.
+
+### The account tables are not in the nightly export
+
+The nightly export covers `designs` only (`BACKUP_BLOB_PREFIX = "backups/designs/"`). `accounts`, `account_sessions` and
+`account_email_tokens` are **not** in it, and a restore of `designs` brings back `account_id` values that name accounts a
+restore will not recreate. Sessions and tokens are never backed up on purpose, so a restore cannot revive one (ADR 0169
+decision 10). The accounts backup is a later wave.
+
+**The test database.** The live persistence suite applies every migration to the test database through each live file's
+`beforeAll`; no grant is needed there.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only
