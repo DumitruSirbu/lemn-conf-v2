@@ -128,6 +128,26 @@ export const CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE = 10;
 export const CONTACT_LEAST_FORM_TIME_MS = 2000;
 
 /**
+ * PROVISIONAL, every figure below (M8B plan section 5, "Limiter policies"; ADR 0169 decision 5): the owner's answer
+ * changes these constants and no code. A row with two windows is two policies, since a name carries its window. A
+ * network block's rows bound the hashing cost and the solved challenges a network can spend; an address's rows bound
+ * the attempts at one account and the mail one inbox receives (the shared Gmail quota); an account's rows bound its
+ * own claims. None has an e2e twin: no test makes them often enough.
+ */
+const ACCOUNT_QUARTER_HOUR_MINUTES = 15;
+const ACCOUNT_HOUR_MINUTES = 60;
+const ACCOUNT_DAY_MINUTES = 1440;
+export const ACCOUNT_REGISTER_PER_BLOCK_HOUR_FIGURE = 5;
+export const ACCOUNT_REGISTER_PER_BLOCK_DAY_FIGURE = 20;
+export const ACCOUNT_LOGIN_PER_BLOCK_HOUR_FIGURE = 30;
+export const ACCOUNT_LOGIN_PER_ADDRESS_QUARTER_HOUR_FIGURE = 10;
+export const ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE = 30;
+export const ACCOUNT_RESET_REQUEST_PER_BLOCK_HOUR_FIGURE = 10;
+export const ACCOUNT_TOKEN_COMPLETE_PER_BLOCK_HOUR_FIGURE = 20;
+export const ACCOUNT_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
+export const ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE = 10;
+
+/**
  * Three times what one whole e2e run sends of each of the three buckets the suite's one shared block counts, rounded up
  * to the next hundred, by the same rule as the mint's: 10 requests of any kind and 3 new ones, counted in the hour and
  * in the day, at the last count of a whole run, so 30 and 9 and 9 become 100 each. The teardown fails above half of a
@@ -254,13 +274,93 @@ export const CONTACT_TRIES_BY_REQUEST_POLICY = policyOf(
   },
 );
 
+export const ACCOUNT_REGISTER_BY_BLOCK_HOUR_POLICY = policyOf(
+  "account-register-by-block",
+  {
+    figure: ACCOUNT_REGISTER_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_REGISTER_BY_BLOCK_DAY_POLICY = policyOf(
+  "account-register-by-block",
+  {
+    figure: ACCOUNT_REGISTER_PER_BLOCK_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_LOGIN_BY_BLOCK_POLICY = policyOf(
+  "account-login-by-block",
+  {
+    figure: ACCOUNT_LOGIN_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_LOGIN_BY_ADDRESS_QUARTER_HOUR_POLICY = policyOf(
+  "account-login-by-address",
+  {
+    figure: ACCOUNT_LOGIN_PER_ADDRESS_QUARTER_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_QUARTER_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_LOGIN_BY_ADDRESS_DAY_POLICY = policyOf(
+  "account-login-by-address",
+  {
+    figure: ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_RESET_REQUEST_BY_BLOCK_POLICY = policyOf(
+  "account-reset-request-by-block",
+  {
+    figure: ACCOUNT_RESET_REQUEST_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY = policyOf(
+  "account-token-complete-by-block",
+  {
+    figure: ACCOUNT_TOKEN_COMPLETE_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_MAIL_BY_ADDRESS_POLICY = policyOf(
+  "account-mail-by-address",
+  {
+    figure: ACCOUNT_MAIL_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_CLAIM_BY_ACCOUNT_POLICY = policyOf(
+  "account-claim-by-account",
+  {
+    figure: ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+/** The session twin of the write credential's bucket: the same figure and window, under a name of its own, so an
+ *  account's saves and a write token's are counted apart (ADR 0156). */
+export const SAVE_BY_ACCOUNT_POLICY = policyOf("design-save-by-account", {
+  figure: SAVES_PER_CREDENTIAL_FIGURE,
+  window: utcMinutes(SAVE_WINDOW_MINUTES),
+});
+
 export const MINT_POLICY_NAME = MINT_POLICY.name;
 export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
 
 /** What a request is limited for. A bucket has an e2e twin when the suite's one shared block would count it: the
  *  credential's, the reads, and the contact form's buckets by a browser, an address and a stored request have none,
  *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. A policy
- *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). */
+ *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). Nor has any
+ *  account purpose: the e2e round decides whether one needs it. */
 export type PolicyPurpose =
   | "mint"
   | "save-by-block"
@@ -273,7 +373,17 @@ export type PolicyPurpose =
   | "contact-new-by-block-day"
   | "contact-new-by-visitor"
   | "contact-new-by-address"
-  | "contact-tries-by-request";
+  | "contact-tries-by-request"
+  | "account-register-by-block-hour"
+  | "account-register-by-block-day"
+  | "account-login-by-block"
+  | "account-login-by-address-quarter-hour"
+  | "account-login-by-address-day"
+  | "account-reset-request-by-block"
+  | "account-token-complete-by-block"
+  | "account-mail-by-address"
+  | "account-claim-by-account"
+  | "save-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -320,7 +430,34 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
     production: CONTACT_TRIES_BY_REQUEST_POLICY,
     e2e: CONTACT_TRIES_BY_REQUEST_POLICY,
   },
+  "account-register-by-block-hour": sameInProduction(
+    ACCOUNT_REGISTER_BY_BLOCK_HOUR_POLICY,
+  ),
+  "account-register-by-block-day": sameInProduction(
+    ACCOUNT_REGISTER_BY_BLOCK_DAY_POLICY,
+  ),
+  "account-login-by-block": sameInProduction(ACCOUNT_LOGIN_BY_BLOCK_POLICY),
+  "account-login-by-address-quarter-hour": sameInProduction(
+    ACCOUNT_LOGIN_BY_ADDRESS_QUARTER_HOUR_POLICY,
+  ),
+  "account-login-by-address-day": sameInProduction(
+    ACCOUNT_LOGIN_BY_ADDRESS_DAY_POLICY,
+  ),
+  "account-reset-request-by-block": sameInProduction(
+    ACCOUNT_RESET_REQUEST_BY_BLOCK_POLICY,
+  ),
+  "account-token-complete-by-block": sameInProduction(
+    ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY,
+  ),
+  "account-mail-by-address": sameInProduction(ACCOUNT_MAIL_BY_ADDRESS_POLICY),
+  "account-claim-by-account": sameInProduction(ACCOUNT_CLAIM_BY_ACCOUNT_POLICY),
+  "save-by-account": sameInProduction(SAVE_BY_ACCOUNT_POLICY),
 };
+
+/** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */
+function sameInProduction(policy: LimitPolicy): Twins {
+  return { production: policy, e2e: policy };
+}
 
 /** Every policy once, for a check that no two share a name. */
 export const ALL_LIMIT_POLICIES: readonly LimitPolicy[] = Object.freeze([

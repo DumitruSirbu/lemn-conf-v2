@@ -539,7 +539,7 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
 
 | # | Item | File |
 | --- | --- | --- |
-| 1 | Port: `SessionStore`. `create({tokenHash, accountId, absoluteExpiresAt})`, `findLive(tokenHash)` → `{account: {id, role, emailVerified, email}, lastSeenAt}` or `none` (one statement joining `accounts`; filters revoked, absolutely expired, and idle-expired by the role's idle lifetime passed in), `touch(tokenHash)` (database only, never a cookie; only if `last_seen_at` is older than the touch interval), `revoke(tokenHash)`, `revokeAllForAccount(accountId)` | `session-store.ts` |
+| 1 | Port: `SessionStore`. `create({tokenHash, accountId, expectedPasswordHash, absoluteExpiresAt})` (a compare-and-set on the account's hash: `created`, `stale` or `refused`), `findLive(tokenHash)` → `{account: {id, role, emailVerified, email}, lastSeenAt}` or `none` (one statement joining `accounts`; filters revoked, absolutely expired, and idle-expired by the role's idle lifetime passed in), `touch(tokenHash)` (database only, never a cookie; only if `last_seen_at` is older than the touch interval), `revoke(tokenHash)`, `revokeAllForAccount(accountId)` | `session-store.ts` |
 | 2 | Neon implementation | `neon-session-store.ts` |
 | 3 | Fake | `fake-session-store.ts` |
 | 4 | Exports (after L4a) | `index.ts` |
@@ -551,6 +551,10 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
    lifetime. A role read is the account's **current** `role`, so a demotion takes effect on the next request.
 2. `touch` writes at most once per interval per session, and never extends `absolute_expires_at`.
 3. `revokeAllForAccount` leaves no live session for that account, including the caller's.
+4. `create` inserts only while the account's `password_hash` is still `expectedPasswordHash`, otherwise it answers
+   `stale` and writes nothing (L4a security review F2, 2026-10-18): a reset or rehash that wins the race cannot be
+   followed by a session bound to the hash it replaced. Callers (L8 `startSession`, L9) pass the hash they hold, and
+   handle `stale` as a failed sign-in.
 
 ---
 
@@ -660,6 +664,28 @@ authentication, registration and enumeration guidance (cited by section, from L0
 never log or return driver text (see L4a). A conflict gives the same response and a similar response time as a fresh
 insert. "Newest unused token" needs an explicit supersede at issue or a tie-breaker (see L4a); L8's acceptance 2 and 3 rest on it.
 
+**Conditions from the L4a security review (2026-10-18).** Each is `register-account.ts`'s or `verify-email.ts`'s to
+meet, and the reviewer checks them by reading:
+- **Equal statement counts in the registration branches (timing).** The unknown, unverified and verified branches
+  issue the same number of store statements, in the same order, or the register path is a single statement. The
+  branches are padded to equal counts (a harmless repeat of a read where a branch would otherwise skip one) so that
+  the response time does not tell a verified address from an unknown one. This is in addition to "each branch hashes
+  once".
+- **Verify the password against the account the token names, then confirm with that account's hash.** `verify-email.ts`
+  takes the account from `findByLiveToken`, verifies the submitted password against **that account's**
+  `passwordHash`, and passes that same hash as `verifiedPasswordHash` to **every** `confirmEmail` call (a retry
+  included). It never passes a hash read from `findByNormalForm`, from the request, or from an earlier request.
+  `confirmEmail` locks the account row (`for update`) and compares the hash under the lock, so a
+  `replaceUnverifiedRegistration` racing the confirmation makes it answer `invalid`; that guarantee holds only when
+  the hash passed is the one the password was verified against.
+- **`startSession` after a confirmation** passes the same `verifiedPasswordHash` as `expectedPasswordHash` to
+  `SessionStore.create` and answers a `stale` result as `link-or-password-invalid`, not as a signed-in response.
+- **Known divergence, kept on the tests-owed list.** When two tokens of one account and purpose are issued in the
+  same clock tick, the Neon store breaks the tie by `token_hash` (`(created_at, token_hash)` ordering) while the fake
+  breaks it by `issueOrder` (the later issue wins). They agree whenever the clock moves between issues, which is the
+  production case; they can disagree inside one tick. The live two-in-one-tick test in §9 (L4a/L4b) stays owed and
+  must assert only what both stores guarantee (exactly one token is live), not which one.
+
 ---
 
 ### L9 — Login, logout, who-am-I
@@ -693,6 +719,10 @@ reviewer checks them by reading:
 - **A platform failure is not a wrong password.** If `verifyPassword` fails for a platform reason (the `node:crypto`
   call throws, memory), the route answers a 503 and does not count it against the address as a wrong password,
   if feasible. If it is not feasible, `sign-in.ts` says so in a comment and the plan records the cost here.
+- **Bind the session to the post-rehash hash (L4a security review F2).** `startSession` passes
+  `SessionStore.create` the hash the account holds **after** any rehash: the new PHC string when
+  `replacePasswordHash` answered `replaced`, the verified one otherwise. A `stale` creation (a reset or another rehash
+  won the race) is answered as a failed sign-in, never as a signed-in response, and starts no session.
 
 ---
 
@@ -720,6 +750,9 @@ reviewer checks them by reading:
 check, the limiter and Turnstile before any lookup or hashing. The new password is NFKC-normalised and
 length-capped by `judgePassword` before it is hashed (the same rules as L9's obligations above). A hashing
 platform failure is a 503 and does not consume the token.
+A completed reset starts no session; the sessions a login creates concurrently are bound to the hash they verified
+(L9's obligation, `SessionStore.create` is a compare-and-set), so a login that verified the old password cannot
+outlive the reset.
 
 ---
 
@@ -933,6 +966,12 @@ Rules for the walk:
   - `findLive` at each expiry boundary.
   - A demotion read on the next call.
   - A retry after a lost acknowledgement.
+  - `SessionStore.create` with a stale `expectedPasswordHash` answers `stale` and writes nothing; one with the
+    current hash answers `created`; a reset or rehash racing a create leaves no live session under the old hash.
+  - `confirmEmail` racing `replaceUnverifiedRegistration`: the account is never verified under the replacing
+    password (the L4a F1 lock).
+  - **Known divergence:** the same-tick tiebreak (Neon `token_hash`, fake `issueOrder`); assert exactly one live
+    token, not which.
 - **L5.** Unique names; fail-closed on each unavailable cause; the address step not counted after a block
   refusal.
 - **L6.** Fixation: a planted value revoked and replaced. `requireCapability` truth table.

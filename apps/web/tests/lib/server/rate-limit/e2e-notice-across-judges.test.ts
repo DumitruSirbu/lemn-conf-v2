@@ -38,6 +38,16 @@ async function freshJudges() {
     "contact-new-by-visitor": () => Promise.resolve(undefined),
     "contact-new-by-address": () => Promise.resolve(undefined),
     "contact-tries-by-request": () => Promise.resolve(undefined),
+    "account-register-by-block-hour": () => Promise.resolve(undefined),
+    "account-register-by-block-day": () => Promise.resolve(undefined),
+    "account-login-by-block": () => Promise.resolve(undefined),
+    "account-login-by-address-quarter-hour": () => Promise.resolve(undefined),
+    "account-login-by-address-day": () => Promise.resolve(undefined),
+    "account-reset-request-by-block": () => Promise.resolve(undefined),
+    "account-token-complete-by-block": () => Promise.resolve(undefined),
+    "account-mail-by-address": () => Promise.resolve(undefined),
+    "account-claim-by-account": () => Promise.resolve(undefined),
+    "save-by-account": () => Promise.resolve(undefined),
   };
   return askers;
 }
