@@ -145,8 +145,9 @@ the retention job are later records. Each decision below names the seam it leave
   - they fail closed, as every write does (ADR 0156), and every figure is provisional;
   - by network block: register, login, reset request, token completion;
   - by address: login, with a 15-minute and a daily window, which gives the growing back-off;
-  - two **mail buckets per address**, one for registration (and a login's resend) and one for reset, which protect the
-    shared mail quota and a victim's inbox (**amended**: Amendment A, 2026-10-18; first drafted as one shared bucket);
+  - three **mail buckets per address**, one for registration, one for reset and one for a login's silent resend, which
+    protect the shared mail quota and a victim's inbox (**amended**: Amendment A, 2026-10-18; first drafted as one
+    shared bucket);
   - by account: claim, and session saves.
 - **The same answer for a known and an unknown address:** at register (always "check your inbox"), at login (one
   invalid-credentials answer, **including for a correct password on an unconfirmed account**, Amendment A), and at the reset request.
@@ -349,10 +350,11 @@ the wrong way:
   already added, dated), `docs/STATUS.md` (the M8B row), `environments-and-resources.md` (*Variables not yet
   set*: the two Turnstile names).
 
-## Amendment A — 2026-10-18: login never says "unconfirmed", and the mail buckets are two
+## Amendment A — 2026-10-18: login never says "unconfirmed", the mail buckets are three, and the L9 review defaults
 
-Source: the L8 security review of the register and verify-email routes (findings F1 and F2). Owner-visible. Nothing
-else in this record changes.
+Source: the L8 security review of the register and verify-email routes (findings F1 and F2), and the L9 security review
+of the login, logout and session routes (items 2 to 6 below, applied as the reviewer's defaults while the owner is
+away). Owner-visible. Nothing else in this record changes.
 
 **1. Login on an unverified account answers as a wrong password does (amends D5, "The same answer").** The plan's flow 3
 answered `403 {status:"unconfirmed", resent:true}` for a correct password on an unconfirmed account. Together with
@@ -377,13 +379,39 @@ Decided:
 Cost, accepted: a client who forgot to confirm sees the same message as one who mistyped. The resend is the remedy, and
 the copy points to the inbox.
 
-**2. Two per-address mail buckets, not one (amends D5, "New limiter purposes"; answers plan Q-L5 by default).** With
-one bucket shared by every account mail, a stranger who registered a victim's address five times in a UTC day (each
-costs a solved Turnstile challenge) used up the victim's reset budget. Decided:
-- `account-register-mail-by-address` (5 a day): the confirmation and already-registered mail of registration, and the
-  login's silent resend of the confirmation link (it sends the same link, so it shares that budget).
+**2. Three per-address mail buckets, not one (amends D5, "New limiter purposes"; answers plan Q-L5 by default; the third
+added by the L9 security review, F1).** With one bucket shared by every account mail, a stranger who registered a
+victim's address five times in a UTC day (each costs a solved Turnstile challenge) used up the victim's reset budget.
+Decided:
+- `account-register-mail-by-address` (5 a day): the confirmation and already-registered mail of registration, and
+  nothing else. The L8 review let the login's silent resend share it, since it sends the same link; the L9 review
+  found that signing in to an unconfirmed address could then use up that address's registration budget, and moved the
+  resend out.
 - `account-reset-mail-by-address` (5 a day): the reset link and the "password changed" notice.
-- Registration traffic can no longer exhaust the reset budget. Reset-on-reset starvation remains and is accepted.
-  An address can receive up to ten account mails a day. Figures stay provisional, constants only.
+- `account-login-resend-by-address` (5 a day): the login's silent resend of the confirmation link (purpose `mail`).
+  It is counted only inside the silent job that runs after the response, and no answer is ever made from it.
+- Registration traffic can no longer exhaust the reset budget, nor login traffic the registration budget.
+  Reset-on-reset starvation remains and is accepted. **Inbox volume bound: an address can receive up to fifteen
+  account mails a day**, up to five more than the ten the two-bucket split allowed. Figures stay provisional,
+  constants only.
+
+**3. Logout "everywhere" fails closed (L9 security review F2; owner-visible default).** The session that names the
+account to sign out is read by a variant that does not swallow a store failure; when it cannot be read, the request is
+answered `503`, not `204`. Reading a failure as anonymous would end only the presented session and answer as if every
+session of the account were gone. "This device" keeps its behaviour: it revokes the presented cookie only, and a store
+that is down already answers `503` there.
+
+**4. A cross-site session probe does not touch the session (L9 security review F3).** `GET /api/account/session` still
+answers a cross-site request, but does not mark the session seen, so a page of another site cannot keep a session's idle
+clock running.
+
+**5. A hashing platform failure stays counted (L9 security review F4).** A login whose hash cannot be computed is
+answered `503`, not as a wrong password, but it stays counted against the address buckets: the limiter counts every
+valid attempt at step 7, before the lookup and before the password is looked at, by design.
+
+**6. Recorded with its trigger, not built (L9 security review F5; ADR 0118).** When the argon2id shape is raised, a
+dummy hash at each shape still present is kept (or every account is rehashed offline first); otherwise an unknown
+address and a known one with an old-shape hash take different times and a timing class appears. Plan section 12 carries
+the row.
 
 The plan (§5, §7 L5/L6/L8/L9/L10/L14a, §10, §11) carries the matching text.

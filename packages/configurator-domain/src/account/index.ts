@@ -1,7 +1,9 @@
 export {
   ACCOUNT_FIELDS,
   PRIVACY_NOTICE_VERSION_MAX_LENGTH,
+  judgeAccountEmail,
   validateRegistration,
+  type AccountEmailJudgement,
   type AccountField,
   type AccountFieldCode,
   type AccountIssue,

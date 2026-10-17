@@ -10,7 +10,7 @@ import {
   invalidRequestResponse,
   loggedOutResponse,
 } from "@/lib/server/account/account-responses";
-import { readCurrentSession } from "@/lib/server/account/current-session";
+import { readCurrentSessionOrThrow } from "@/lib/server/account/current-session";
 import {
   endAllSessions,
   endSession,
@@ -47,18 +47,32 @@ async function logOut(
   request: NextRequest,
 ): Promise<NextResponse> {
   const response = loggedOutResponse();
-  const session =
-    scope === "everywhere"
-      ? await readCurrentSession(request.cookies)
-      : undefined;
-  if (session?.kind === "signed-in") {
-    // The account is the session's own, as the server read it: no id the request carried is ever an input.
-    await endAllSessions({ response, accountId: session.accountId });
+  if (scope === "everywhere") {
+    await endEverySessionOfPresentedAccount({ response, request });
   } else {
-    // Also the way "everywhere" ends when the session read as anonymous. `readCurrentSession` fails open, so a store
-    // that is down reads as anonymous; revoking the presented session then throws, and that is answered `503`
-    // instead of a `204` that would claim every session was ended.
     await endSession({ response, presentedCookies: request.cookies });
   }
   return response;
+}
+
+/**
+ * "Everywhere" fails closed: the session is read by the variant that throws, so a store that is down is answered `503`
+ * (by the caller's `answerUnavailableOnFailure`) and never read as anonymous, which would end only the presented
+ * session and still answer `204` as if every session of the account were gone. A session that reads as anonymous
+ * because the store says it is not live has nothing to end beyond the presented cookie.
+ */
+async function endEverySessionOfPresentedAccount({
+  response,
+  request,
+}: {
+  response: NextResponse;
+  request: NextRequest;
+}): Promise<void> {
+  const session = await readCurrentSessionOrThrow(request.cookies);
+  if (session.kind === "signed-in") {
+    // The account is the session's own, as the server read it: no id the request carried is ever an input.
+    await endAllSessions({ response, accountId: session.accountId });
+  } else {
+    await endSession({ response, presentedCookies: request.cookies });
+  }
 }

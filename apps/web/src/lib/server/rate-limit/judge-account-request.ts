@@ -40,8 +40,8 @@ export type AccountBlockPurpose =
 
 /** The purposes that count an address's buckets at the subject stage. `mail` and `password-changed` are one mail bucket
  *  each, for a route that sends a mail the flow's own subject stage did not already count: `mail` is the confirmation
- *  link a login resends to an unconfirmed account (the registration bucket), `password-changed` the notice a completed
- *  reset sends (the reset bucket). */
+ *  link a login resends to an unconfirmed account (its own resend bucket, counted only inside the job that runs after
+ *  the response), `password-changed` the notice a completed reset sends (the reset bucket). */
 export type AddressedPurpose =
   | "register"
   | "login"
@@ -119,7 +119,7 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
     event: "password-reset-request",
     buckets: ["account-reset-mail-by-address"],
   },
-  mail: { event: "mail", buckets: ["account-register-mail-by-address"] },
+  mail: { event: "mail", buckets: ["account-login-resend-by-address"] },
   "password-changed": {
     event: "mail",
     buckets: ["account-reset-mail-by-address"],

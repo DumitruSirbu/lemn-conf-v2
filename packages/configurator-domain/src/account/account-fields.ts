@@ -108,6 +108,28 @@ export function validateRegistration(
   return { ok: true, registration: assemble(judgements) };
 }
 
+/** What a person claims by an address alone, as login does: the address by the registration's rule and in the form
+ *  the limiter counts and accounts are looked up by, with no other field asked. */
+export type AccountEmailJudgement =
+  | {
+      readonly ok: true;
+      readonly email: string;
+      readonly emailNormalForm: string;
+    }
+  | { readonly ok: false; readonly issue: AccountIssue };
+
+export function judgeAccountEmail(raw: unknown): AccountEmailJudgement {
+  const judgement = judgeEmailAddress(raw);
+  if (!judgement.ok) {
+    return { ok: false, issue: { field: "email", code: judgement.code } };
+  }
+  return {
+    ok: true,
+    email: judgement.value,
+    emailNormalForm: countedFormOfAddress(judgement.value),
+  };
+}
+
 function judgeFields(
   input: PlainObject,
   servedLocales: readonly string[],

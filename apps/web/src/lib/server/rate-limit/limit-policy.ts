@@ -146,6 +146,7 @@ export const ACCOUNT_RESET_REQUEST_PER_BLOCK_HOUR_FIGURE = 10;
 export const ACCOUNT_TOKEN_COMPLETE_PER_BLOCK_HOUR_FIGURE = 20;
 export const ACCOUNT_REGISTER_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
 export const ACCOUNT_RESET_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
+export const ACCOUNT_LOGIN_RESEND_PER_ADDRESS_DAY_FIGURE = 5;
 export const ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE = 10;
 
 /**
@@ -331,8 +332,8 @@ export const ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY = policyOf(
   },
 );
 
-/** The confirmation and already-registered mail of registration, and a login's resend of the confirmation link. Apart
- *  from the reset bucket, so that traffic to register an address cannot use up that address's reset budget. */
+/** The confirmation and already-registered mail of registration. Apart from the reset bucket and the login resend's,
+ *  so that traffic to register an address cannot use up that address's reset budget. */
 export const ACCOUNT_REGISTER_MAIL_BY_ADDRESS_POLICY = policyOf(
   "account-register-mail-by-address",
   {
@@ -346,6 +347,17 @@ export const ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY = policyOf(
   "account-reset-mail-by-address",
   {
     figure: ACCOUNT_RESET_MAIL_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+/** A login's silent resend of the confirmation link, counted only inside the job that runs after the response and
+ *  never answered from. Apart from the registration bucket, so that signing in to an unconfirmed address cannot use up
+ *  that address's registration budget (L9 security review F1). */
+export const ACCOUNT_LOGIN_RESEND_BY_ADDRESS_POLICY = policyOf(
+  "account-login-resend-by-address",
+  {
+    figure: ACCOUNT_LOGIN_RESEND_PER_ADDRESS_DAY_FIGURE,
     window: utcMinutes(ACCOUNT_DAY_MINUTES),
   },
 );
@@ -395,6 +407,7 @@ export type PolicyPurpose =
   | "account-token-complete-by-block"
   | "account-register-mail-by-address"
   | "account-reset-mail-by-address"
+  | "account-login-resend-by-address"
   | "account-claim-by-account"
   | "save-by-account";
 
@@ -467,6 +480,9 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   ),
   "account-reset-mail-by-address": sameInProduction(
     ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY,
+  ),
+  "account-login-resend-by-address": sameInProduction(
+    ACCOUNT_LOGIN_RESEND_BY_ADDRESS_POLICY,
   ),
   "account-claim-by-account": sameInProduction(ACCOUNT_CLAIM_BY_ACCOUNT_POLICY),
   "save-by-account": sameInProduction(SAVE_BY_ACCOUNT_POLICY),

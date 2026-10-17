@@ -3,12 +3,11 @@ import "server-only";
 import { after, type NextResponse } from "next/server";
 
 import {
+  judgeAccountEmail,
   judgePassword,
-  validateRegistration,
 } from "@lemnaria/configurator-domain";
 import type { StoredAccount } from "@lemnaria/persistence";
 
-import { routing } from "@/i18n/routing";
 import { reportAccountEvent } from "@/lib/server/account/account-log";
 import {
   parseJsonObject,
@@ -63,10 +62,6 @@ const PASSWORD_MEMBER = "password";
  *  hashed, so a long body is not turned into argon2id work. */
 const REFUSED_PASSWORD_STAND_IN = "refused";
 
-/** `validateRegistration` also asks for these two; the login form has neither, so they are fixed values it accepts. */
-const UNUSED_NOTICE_VERSION = "login";
-const UNUSED_LOCALE = routing.defaultLocale;
-
 export interface SignInRequest {
   readonly bodyText: string;
   readonly headers: HeaderReader;
@@ -109,25 +104,18 @@ export async function signIn(request: SignInRequest): Promise<NextResponse> {
 /** Step 6: the address by the registration's rule, the password only as text. Nothing here looks at an account, and a
  *  password the policy refuses is not a field error: it is a wrong password, whatever the address. */
 function judgeAttempt(body: AccountRequestBody): AttemptJudgement {
-  const validation = validateRegistration(
-    {
-      email: textMemberOf(body, "email"),
-      locale: UNUSED_LOCALE,
-      privacyNoticeVersion: UNUSED_NOTICE_VERSION,
-    },
-    routing.locales,
-  );
+  const address = judgeAccountEmail(textMemberOf(body, "email"));
   const typedPassword = textMemberOf(body, PASSWORD_MEMBER);
   const issues: AccountInputIssue[] = [
-    ...(validation.ok ? [] : validation.issues),
+    ...(address.ok ? [] : [address.issue]),
     ...(typedPassword === undefined
       ? [{ field: PASSWORD_MEMBER, code: "PASSWORD_NOT_TEXT" } as const]
       : []),
   ];
-  if (!validation.ok || typedPassword === undefined) {
+  if (!address.ok || typedPassword === undefined) {
     return { ok: false, issues };
   }
-  const { email, emailNormalForm } = validation.registration;
+  const { email, emailNormalForm } = address;
   const judgement = judgePassword({ password: typedPassword, email });
   return {
     ok: true,

@@ -32,25 +32,36 @@ const ANONYMOUS_SESSION: CurrentSession = { kind: "anonymous" };
 /**
  * Reads the session the request's cookie names. **It never writes**: a page render may call it, and a render can neither
  * set a cookie nor be allowed to move `last_seen_at`. A cookie that is absent, malformed, unknown, revoked or expired
- * reads as anonymous, and so does a read that fails: less access is the safe way to fail.
+ * reads as anonymous, and so does a read that fails: less access is the safe way to fail. A caller for which anonymous
+ * is the *more* dangerous reading of a failure uses `readCurrentSessionOrThrow`.
  */
 export async function readCurrentSession(
   cookies: SessionCookieReader,
 ): Promise<CurrentSession> {
-  const sessionValue = readSessionCookie(cookies);
-  if (sessionValue === undefined) return ANONYMOUS_SESSION;
   try {
-    const lookup = await getSessionStore().findLive({
-      tokenHash: sha256Hex(sessionValue),
-      idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
-    });
-    return lookup.kind === "live"
-      ? signedInSessionOf(lookup.account)
-      : ANONYMOUS_SESSION;
+    return await readCurrentSessionOrThrow(cookies);
   } catch {
     reportAccountEvent({ event: "session-read", outcome: "unavailable" });
     return ANONYMOUS_SESSION;
   }
+}
+
+/**
+ * The same read, but a store that fails is thrown, not read as anonymous. For the one caller whose action must not
+ * proceed on a guess: ending every session of an account needs to know whose it is. The caller answers the throw.
+ */
+export async function readCurrentSessionOrThrow(
+  cookies: SessionCookieReader,
+): Promise<CurrentSession> {
+  const sessionValue = readSessionCookie(cookies);
+  if (sessionValue === undefined) return ANONYMOUS_SESSION;
+  const lookup = await getSessionStore().findLive({
+    tokenHash: sha256Hex(sessionValue),
+    idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
+  });
+  return lookup.kind === "live"
+    ? signedInSessionOf(lookup.account)
+    : ANONYMOUS_SESSION;
 }
 
 /**
