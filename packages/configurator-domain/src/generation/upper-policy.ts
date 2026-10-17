@@ -78,7 +78,10 @@ function isOverABaseOnlyBackWall(
 /** ADR 0110 Amendment E7: an upper is attempted above a base only where the body's declared top is at
  *  or below the wall row's floor. Reading the catalogue's declared height rather than a list of role
  *  names means a new full-height body needs no second place to be remembered. */
-function risesIntoWallRow(catalog: BodyCatalog, buildId: string): boolean {
+export function risesIntoWallRow(
+  catalog: BodyCatalog,
+  buildId: string,
+): boolean {
   const declaredTopMm = catalog.get(buildId)?.nominalHeightMm;
   if (declaredTopMm === undefined) {
     throw new Error(

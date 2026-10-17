@@ -57,6 +57,7 @@ import {
   projectFrozenMap,
   withFrozenMap,
   type BodyDefinition,
+  type PlannedBoundariesMm,
 } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
 import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
@@ -74,6 +75,7 @@ export interface LinearShellDesignInput {
 
 export interface LinearShellCompositionPlan {
   readonly floorWidthsMm: readonly number[];
+  readonly plannedBoundariesMm?: PlannedBoundariesMm;
 }
 
 export type LinearShellInputRefusal =
@@ -103,7 +105,10 @@ export function buildLinearShellDesign(input: LinearShellDesignInput): Design {
     updatedAt: input.occurredAt,
   };
   const tiles = linearFreeRunTiles(input.room, input.compositionPlan);
-  return canonicalised(withFrozenMap(shell, { emptyColumns: tiles }));
+  return canonicalised(
+    withFrozenMap(shell, { emptyColumns: tiles }),
+    input.compositionPlan?.plannedBoundariesMm,
+  );
 }
 
 function refuseUnbuildableLinearInput(input: LinearShellDesignInput): void {
@@ -180,6 +185,7 @@ const L_SHELL_WALLS: readonly LWall[] = ["A", "B"];
 
 export interface LShellCompositionPlan {
   readonly floorWidthsMm: Readonly<Record<LWall, readonly number[]>>;
+  readonly plannedBoundariesMm?: PlannedBoundariesMm;
 }
 
 /** Why the builder refused its input — a code, never a sentence (ADR 0095 decision 3). */
@@ -271,7 +277,10 @@ export function buildLShellDesign(input: LShellDesignInput): Design {
   const tiles = L_SHELL_WALLS.flatMap((wall) =>
     freeRunTiles(wall, input.room, input.compositionPlan),
   );
-  return canonicalised(withFrozenMap(corner, { emptyColumns: tiles }));
+  return canonicalised(
+    withFrozenMap(corner, { emptyColumns: tiles }),
+    input.compositionPlan?.plannedBoundariesMm,
+  );
 }
 
 /** The room is passed through untouched, so it must already be exactly what a stored design may say:
@@ -552,6 +561,7 @@ export interface UShellDesignInput {
 
 export interface UShellCompositionPlan {
   readonly floorWidthsMm: Readonly<Record<DesignWall, readonly number[]>>;
+  readonly plannedBoundariesMm?: PlannedBoundariesMm;
 }
 
 export type UShellInputRefusal =
@@ -586,7 +596,10 @@ export function buildUShellDesign(input: UShellDesignInput): Design {
     updatedAt: input.occurredAt,
   };
   const tiles = uShellFreeRunTiles(input.room, input.compositionPlan);
-  return canonicalised(withFrozenMap(shell, { emptyColumns: tiles }));
+  return canonicalised(
+    withFrozenMap(shell, { emptyColumns: tiles }),
+    input.compositionPlan?.plannedBoundariesMm,
+  );
 }
 
 function refuseUnbuildableUInput(input: UShellDesignInput): void {
@@ -887,8 +900,13 @@ function sourceDefinition(source: string): BodyDefinition {
 
 /** The frozen map written the way the depth command writes its own: derived over the document, then
  *  projected back, so the corner's columns come from its placements and the stored arrays are in the
- *  order a later save would put them. Merged at composition's width limit, so the planned tiles stay apart. */
-function canonicalised(design: Design): Design {
+ *  order a later save would put them. Merged at composition's width limit and never across a planned boundary,
+ *  so the planned tiles stay apart: a column the shell stores merged cannot be split again by the world that
+ *  loads it (ADR 0167 D6). */
+function canonicalised(
+  design: Design,
+  plannedBoundaries?: PlannedBoundariesMm,
+): Design {
   const records = derivePlacementRecords(design, SHELL_CATALOG);
   return withFrozenMap(
     design,
@@ -898,6 +916,7 @@ function canonicalised(design: Design): Design {
         design,
         toMetres(design.room.widthMm),
         COMPOSITION_WIDTH_LIMIT_MM,
+        plannedBoundaries,
       ),
       records,
     ),

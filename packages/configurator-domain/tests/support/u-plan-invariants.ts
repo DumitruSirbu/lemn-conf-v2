@@ -26,10 +26,6 @@ export type URuns = Readonly<
 
 const MODULE_MM = 600;
 const MAX_BARE_END_MM = 599;
-/** ADR 0110 N11.9 (RQ25): wall A's remainder of 300-599 mm takes a door base, so what stays bare on
- *  wall A is under 300 mm. */
-const MAX_WALL_A_BARE_END_MM = 299;
-const MIN_WALL_A_FILL_MM = 300;
 const T_MIN_MM = 4700;
 const LARGE_U_TOTAL_MM = 10_000;
 const COLUMN_HEIGHT_MM = 2200;
@@ -90,9 +86,9 @@ function basesOn(plan: Plan, wall: DesignWall): readonly Base[] {
     .sort((left, right) => left.startMm - right.startMm);
 }
 
-/** ADR 0110 N11.9: the one door base standing at wall A's high end, narrower than a module, that
- *  takes the remainder the plan would otherwise leave. Wall A's A4 fill is always a whole module, so
- *  a narrower door base on wall A is this fill or nothing. */
+/** The one door base standing at wall A's high end, narrower than a module, that takes the remainder the
+ *  composer would otherwise leave (ADR 0110 N11.9, now ADR 0167's general pass: `filledPlanFor` stands it).
+ *  Wall A's A4 fill is always a whole module, so a narrower door base on wall A is this fill or nothing. */
 export function isWallAFill(base: Base): boolean {
   return base.wall === "A" && base.buildId === DOOR && base.widthMm < MODULE_MM;
 }
@@ -275,35 +271,24 @@ function geometryFindings({ runs, plan }: UPlanContext): readonly string[] {
       );
     }
     const bareMm = plan.remainderMm[wall];
-    const maxBareMm = wall === "A" ? MAX_WALL_A_BARE_END_MM : MAX_BARE_END_MM;
-    if (bareMm < 0 || bareMm > maxBareMm) {
+    if (bareMm < 0 || bareMm > MAX_BARE_END_MM) {
       findings.push(`wall ${wall} bare end ${String(bareMm)} mm`);
     }
   }
-  findings.push(...wallAFillFindings({ runs, plan }));
+  findings.push(...wallAFillFindings({ plan }));
   const ids = plan.bases.map((base) => base.id);
   if (new Set(ids).size !== ids.length) findings.push("duplicate body ids");
   return findings;
 }
 
-/** ADR 0110 N11.9: a wall-A fill stands only at wall A's high end, 300-599 mm wide, and at most one of
- *  them; a narrower door base on any other wall is not a fill and is not looked for there. */
+/** ADR 0167 D7: the composer leaves wall A's remainder bare, like every wall's, for `withTheFreeEndsFilled` to
+ *  take afterwards; a wall-A fill standing in the composer's plan is a fill the general pass would stand twice. */
 function wallAFillFindings({
-  runs,
   plan,
-}: Pick<UPlanContext, "runs" | "plan">): readonly string[] {
-  const fills = plan.bases.filter(isWallAFill);
-  const findings: string[] = [];
-  if (fills.length > 1) findings.push("more than one wall-A fill");
-  for (const fill of fills) {
-    if (fill.endMm !== runs.A.endMm) {
-      findings.push(`wall-A fill ${fill.id} is not at wall A's high end`);
-    }
-    if (fill.widthMm < MIN_WALL_A_FILL_MM) {
-      findings.push(`wall-A fill ${fill.id} is ${String(fill.widthMm)} mm`);
-    }
-  }
-  return findings;
+}: Pick<UPlanContext, "plan">): readonly string[] {
+  return plan.bases
+    .filter(isWallAFill)
+    .map((fill) => `wall-A fill ${fill.id} stands in the composer's plan`);
 }
 
 /** *N3 revised* 9, E4: exactly one oven — the tower with `base-hob-2drawer`, or `base-hob-oven`. */

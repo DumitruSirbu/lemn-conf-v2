@@ -15,6 +15,7 @@ import {
   type DesignWall,
 } from "../../src/index.js";
 import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
+import { beforeAdr0167 } from "../support/before-adr-0167-free-end-fill.js";
 import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import { withTheCornerUnitPutBack } from "../support/before-c2-corner-unit.js";
 import { withTheTopRowTakenOff } from "../support/before-c3-top-row.js";
@@ -44,6 +45,15 @@ vi.mock(
   },
 );
 
+// ADR 0167 (M8C wave F1b): the same switch for the free-end fill, so the chain's first step asks the generator as it
+// stood before the fill and reproduces `DIGEST_AFTER_C5` unchanged.
+vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
+  const { withTheFreeEndFillSwitchable } = await import(
+    "../support/before-adr-0167-free-end-fill.js"
+  );
+  return withTheFreeEndFillSwitchable(await importOriginal());
+});
+
 const SAMPLES = 1500;
 /** AC4's recording: `digestGeneratedKitchens` run through `generateKitchen` on the tree
  *  before U3a's first commit (source extracted with `git archive`, run through this same support
@@ -61,6 +71,15 @@ const DIGEST_AFTER_C3 =
  *  widths, and the commands that place them). */
 const DIGEST_AFTER_C5 =
   "c32ccbbd8026c533bfce83dd7fbe70bfe6ea02dd43021938258ffdcb23bf58da";
+/** The recording as ADR 0167 (M8C wave F1b) restated it: every free run end of 200 mm or more takes a base
+ *  cabinet of exactly that width, and the full-height bodies that ended the run move out by it (the fill, its
+ *  upper and top cabinet, the moved bodies' spans and commands, the plan's remainder and floor widths). The
+ *  first step below reproduces `DIGEST_AFTER_C5` from today's generator with that pass switched off. Of the 933
+ *  rooms 594 gain a fill and 339 are byte-identical (a scratch measurement at the time of the restatement, not
+ *  committed: each fill was a base cabinet of exactly the remainder, each moved group moved by exactly it, and no
+ *  counted body moved). */
+const DIGEST_AFTER_ADR_0167 =
+  "09b3b73563bc8f9c9c3ae65784ccb570b9d229533cb5f8d57fa74e8f5ef6fe11";
 /** The recording as M7C wave C7 restated it: a wall-row or top-row cabinet beside a full-height member
  *  takes the wall depth (seat 291), where the centre-read overlap built it deep (561). */
 const DIGEST_AFTER_C7 =
@@ -322,8 +341,7 @@ describe("heights at the column's 2200 mm and above (U3a AC1)", () => {
         "base-bottle-cargo",
         "base-panbank",
         "base-panbank",
-        // ADR 0110 N11.9 (RQ25): wall A's 300 mm remainder takes a door base.
-        "base-cabinet",
+        // Wall A's 300 mm remainder stays bare in the composer; ADR 0167 D7's general pass fills it.
       ]);
     },
   );
@@ -354,11 +372,19 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
       probeAt: createFakeProbeFactory(),
     });
 
-  const generatedBeforeC5 = (room: unknown) => beforeC5(() => generated(room));
+  const generatedBeforeAdr0167 = (room: unknown) =>
+    beforeAdr0167(() => generated(room));
 
-  // Restated by ADR 0135 and M7C waves C2, C3, C7 and C5; the steps below walk it back to the pre-wave value.
-  it("reproduces the recorded digest over 933 generated kitchens", () => {
-    expect(digestGeneratedKitchens(generated)).toBe(DIGEST_AFTER_C5);
+  const generatedBeforeC5 = (room: unknown) =>
+    beforeC5(() => generatedBeforeAdr0167(room));
+
+  // Restated by ADR 0135 and M7C waves C2, C3, C7 and C5, and ADR 0167; the steps below walk it back to the
+  // pre-wave value.
+  it("reproduces the recorded digest over 933 generated kitchens, and the C5 recording with the fill switched off", () => {
+    expect(digestGeneratedKitchens(generated)).toBe(DIGEST_AFTER_ADR_0167);
+    expect(digestGeneratedKitchens(generatedBeforeAdr0167)).toBe(
+      DIGEST_AFTER_C5,
+    );
   });
 
   it("differs from the C7 recording only by the fridge-end cabinet, its upper and the fridge's move", () => {

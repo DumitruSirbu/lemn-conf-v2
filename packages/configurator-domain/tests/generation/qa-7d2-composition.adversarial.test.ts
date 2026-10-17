@@ -317,6 +317,9 @@ describe("7D2 pure planning and exact cut transitions", () => {
       "sink",
       "preparation",
       "hob",
+      // ADR 0167 D1: the 260 mm that stood bare beyond the tower is a storage-role fill, between the hob and the
+      // tower, which D5 moves out to the run's end.
+      "storage",
       "storage",
     ]);
   });

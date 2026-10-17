@@ -248,10 +248,12 @@ describe("8U criterion 1 (F2′) in generated U kitchens, the editor uncapped", 
     );
   });
 
-  it("keeps the odd-width U's right corner strips two, and the space freed beside them apart, when n9 is removed", () => {
-    const kitchen = removeThroughTheEditor(
+  // The 284 mm beside n9 stood bare when this was written; ADR 0167 fills it with n13, so the space freed beside the
+  // strips is n9's and n13's together, which the uncapped editor joins into the one 4200-5084 it was.
+  it("keeps the odd-width U's right corner strips two, and the space freed beside them apart, when n9 and the fill beside it are removed", () => {
+    const kitchen = ["n9", "n13"].reduce(
+      removeThroughTheEditor,
       generatedKitchen(ODD_WIDTH_U_ROOM),
-      "n9",
     );
 
     expect(

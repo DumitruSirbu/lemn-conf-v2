@@ -338,12 +338,16 @@ describe("known defect: an offered chip grows a base beside the U's right corner
   );
 });
 
-/** The generated U 5985 / 3000 / 3000 at 2200, with the offered base inserted into its floor opening `A|4.94`. */
+/** The generated U 5985 / 3000 / 3000 at 2200, with the offered base inserted into its floor opening `A|4.94`. That
+ *  opening stood bare when the defect was found; generation fills it now (ADR 0167), so the editor's own removal
+ *  opens it again before the base is offered. */
 function baseInsertedBesideTheRightCorner(): {
   inserted: World;
   base: PlacementRecord;
 } {
-  const kitchen = composedKitchenOf({ shape: "U", widthMm: 5985 });
+  const kitchen = withTheFillBesideTheRightCornerRemoved(
+    composedKitchenOf({ shape: "U", widthMm: 5985 }),
+  );
   const opening = kitchen.voids.find(
     (candidate) => candidate.col === "A|4.94" && candidate.y0 === 0,
   );
@@ -378,6 +382,19 @@ function baseInsertedBesideTheRightCorner(): {
   const base = inserted.records.find((record) => record.col === "A|4.94");
   if (!base) throw new Error("the base was not filed under A|4.94");
   return { inserted, base };
+}
+
+function withTheFillBesideTheRightCornerRemoved(kitchen: World): World {
+  const fill = kitchen.records.find((record) => record.col === "A|4.94");
+  if (!fill) throw new Error("the generated U has no fill at A|4.94");
+  const removal = removePlacement({
+    design: kitchen.design,
+    catalog: kitchen.catalog,
+    target: { kind: "placement", id: fill.id },
+    occurredAt: OCCURRED_AT,
+  });
+  if (!removal.ok) throw new Error(`remove refused: ${removal.reason.code}`);
+  return reconciled(kitchen, removal);
 }
 
 function composedKitchenOf({
