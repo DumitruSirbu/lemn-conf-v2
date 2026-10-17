@@ -18,6 +18,7 @@ import {
   type BodyCatalog,
   type BodyDefinition,
   type Column,
+  type PlannedBoundariesMm,
   type VoidRecord,
 } from "../void-engine.js";
 import type { CommandResult } from "../commands/command-result.js";
@@ -161,6 +162,9 @@ interface GenerationWorld {
   readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly columns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
+  /** The edges the plan's tiles share, which composition's merge never joins across (ADR 0167 D6). Fixed for the
+   *  whole composition and its replay, both read from the one plan. */
+  readonly plannedBoundaries: PlannedBoundariesMm;
 }
 
 const EMPTY_PARAMS = {} as const;
@@ -336,7 +340,11 @@ function compose(args: {
   readonly probe: BodyProbe;
   readonly input: GenerateKitchenInput;
 }): GenerateKitchenResult {
-  let world = loadWorld(args.shell, args.catalog);
+  let world = loadWorld(
+    args.shell,
+    args.catalog,
+    plannedBoundariesOf(args.plan),
+  );
   const steps: GenerationStep[] = [];
   const commands: GenerationCommand[] = [];
 
@@ -733,19 +741,25 @@ function runCommand(
   };
 }
 
-function loadWorld(design: Design, catalog: BodyCatalog): GenerationWorld {
+function loadWorld(
+  design: Design,
+  catalog: BodyCatalog,
+  plannedBoundaries: PlannedBoundariesMm,
+): GenerationWorld {
   const records = derivePlacementRecords(design, catalog);
   const recordedColumns = deriveRecordedColumns(
     records,
     design,
     toMetres(design.room.widthMm),
     COMPOSITION_WIDTH_LIMIT_MM,
+    plannedBoundaries,
   );
   const columns = deriveColumns(
     records,
     design,
     design.room,
     COMPOSITION_WIDTH_LIMIT_MM,
+    plannedBoundaries,
   );
   return {
     design,
@@ -753,7 +767,31 @@ function loadWorld(design: Design, catalog: BodyCatalog): GenerationWorld {
     recordedColumns,
     columns,
     voids: recomputeVoids(records, columns),
+    plannedBoundaries,
   };
+}
+
+/** The edge two consecutive planned bases share, wall by wall: where one planned tile ends and the next begins.
+ *  Not the first base's near edge nor the last one's far edge: the leftover beyond a run's last base is not a
+ *  planned tile, and composition merges it into that base (ADR 0166 criterion 15). */
+function plannedBoundariesOf(plan: GenerationPlan): PlannedBoundariesMm {
+  const walls = new Set(plan.bases.map((base) => base.wall));
+  return new Map(
+    [...walls].map((wall) => [wall, boundariesBetweenBasesOn(plan, wall)]),
+  );
+}
+
+function boundariesBetweenBasesOn(
+  plan: GenerationPlan,
+  wall: DesignWall,
+): readonly number[] {
+  const onWall = plan.bases
+    .filter((base) => base.wall === wall)
+    .sort((first, second) => first.startMm - second.startMm);
+  return onWall.slice(1).flatMap((base, index) => {
+    const previous = onWall[index];
+    return previous?.endMm === base.startMm ? [base.startMm] : [];
+  });
 }
 
 function applySuccessfulResult(
@@ -765,6 +803,7 @@ function applySuccessfulResult(
     catalog: world.catalog,
     previousRecordedColumns: world.recordedColumns,
     emptyColumnWidthLimitMm: COMPOSITION_WIDTH_LIMIT_MM,
+    plannedBoundaries: world.plannedBoundaries,
   });
   return {
     design: reconciled.design,
@@ -772,6 +811,7 @@ function applySuccessfulResult(
     recordedColumns: reconciled.recordedColumns,
     columns: reconciled.columns,
     voids: reconciled.voids,
+    plannedBoundaries: world.plannedBoundaries,
   };
 }
 
@@ -946,7 +986,7 @@ export function replayGenerationLog(input: {
     inTheEditorsCanonicalForm(
       input.log.commands.reduce(
         (world, command) => runCommand(world, command, probe).world,
-        loadWorld(shell, catalog),
+        loadWorld(shell, catalog, plannedBoundariesOf(input.log.plan)),
       ),
     ),
   );
