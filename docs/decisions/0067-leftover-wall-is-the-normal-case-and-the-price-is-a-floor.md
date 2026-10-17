@@ -94,3 +94,13 @@ fixture with a 200 mm remainder belongs with that wave. No other M6 wave gets a 
 
 **The seeded design's own room is not a candidate.** It is the reference kitchen and its dimensions
 are now pinned by the reference itself.
+
+## Dated note — 2026-10-17: decision 2 and generated kitchens (ADR 0167, Proposed)
+
+Decision 2 stands as written: a customer's remainder is normal, never marked, never corrected. The owner's 2026-10-17
+Fix 1 ruling (`docs/OWNER_FIXES.md`; Q-F1-1: *"keep the space empty"* where no cabinet is narrow enough) would narrow it
+**for kitchens the product generates**, once [ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)
+is Accepted: a remainder at or above the catalogue's narrowest cabinet is filled by one cabinet; a remainder below it is
+still the product working, and **the record's *"no filler"* holds** (no filler or end panel, Q-F1-1). Nothing here is
+struck; the 0167 note is a forward pointer while 0167 is Proposed. A distance metric that penalises leftover space is
+still refused.

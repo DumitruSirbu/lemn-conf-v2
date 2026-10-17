@@ -3,6 +3,31 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
+> ## M8C is PLANNED, and wave F0 (its records) is written — 2026-10-17. Nothing is built.
+>
+> [Scribe, no shell, nothing run. The plan and the owner's answers are as the coordinator relayed them; F0's files are
+> **uncommitted at the time of writing, so there is no commit hash**; the coordinator reviews and commits.]
+> - **What it is:** [`milestones/M8C-generation-fill-and-preset-authoring.md`](milestones/M8C-generation-fill-and-preset-authoring.md)
+>   (committed at `dad97495` on `fix/empty-space-fill-and-preset-save`): Fix 1 (generation fills every free wall-run end that the
+>   narrowest catalogue cabinet fits) and Fix 2 (save a kitchen as a preset, list it on Step 1, preview it in a carousel, use a
+>   copy). Fix 3 (accounts, roles, dashboard) stays M8B's. **No owner question is open** (Q-1 to Q-8 answered, plan §10). M8C
+>   runs **before** M8B, by the owner's ruling; **M8 is not done and M8's open list under *What to do next* below still
+>   stands unchanged.**
+> - **F0 wrote:** ADR [0167](decisions/0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)
+>   (**Proposed**; the run-end fill), ADR [0168](decisions/0168-the-owners-no-new-tests-is-option-c-for-m8c-the-existing-suites-are-updated-and-four-places-keep-a-committed-test.md)
+>   (**Accepted**; Q-1 = C), ADR 0112 Amendment A, ADR 0109 Amendment E, ADR 0003 4b amendment, ADR 0104 Amendment F, and
+>   dated notes on ADR 0110, 0166, 0067, 0117, 0120, 0130, with a `SUPERSESSIONS.md` row. **Nothing is struck while 0167 is
+>   Proposed;** the older text is the code's behaviour until F1b.
+> - **What to do next (M8C):** F1a S0, QA as a measurement agent (plan §5, *Order and first dispatch*): re-create the census,
+>   count planned-pair merges at HEAD (0 means M-1; otherwise M-2 inside F1b), list the tests the fill turns red. Then F1a S1
+>   and F1b. The authoring group P1 to P4, an owner checkpoint (migrations `0009`, `0010`, `0011`, grants, deploy to
+>   production, author there), then P5 to P9.
+> - **A launch-gate line is added** (M8 plan *Launch gate* and `M9-delivery-preparation.md`): the ungated save-as-preset
+>   policy is removed or replaced before the first public deploy. **The check does not exist yet** (wave P3).
+> - **Staleness, noted not edited:** the *RESUME HERE — 2026-10-17* entry under *What to do next* says branch
+>   `m8-mail-and-empty-space-merge`, "NOT pushed". The session's git log shows that branch merged as PR #12 (`4f85b970`),
+>   so "NOT pushed" predates it [source: git status snapshot at session start, not re-run].
+>
 > ## The tests review is DONE, and the shard gate it broke is fixed (`8aba717`) — 2026-10-08
 >
 > **Update, 2026-10-08, after `eaef634` [relayed by the coordinator, who ran the commands]: everything from the tests review is

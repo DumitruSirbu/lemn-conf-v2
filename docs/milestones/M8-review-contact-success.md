@@ -12593,6 +12593,13 @@ runbook.
 - [ ] **Added 2026-10-07.** The launch host and the database's home are ruled (Q21, Q22), and the
       list of personal data, holders and countries is with the owner. — **8S**
 - [ ] The phone gate. — **8T**
+- [ ] **Added 2026-10-17, from M8C.** The ungated save-as-preset button must be **removed or replaced by
+      `preset.create`** before the first public deploy, and the launch gate checks it (`pnpm gate:launch-placeholders`
+      refuses while the `ungatedUntilLaunch` policy is wired). **The check does not exist yet**: it is built in M8C wave
+      P3, as the plan states ([ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md)
+      Amendment A; `M8C-generation-fill-and-preset-authoring.md` §3.3). This replaces ADR 0112's *"the authoring flag's
+      production value is a deliberate owner choice at launch"*. Carried to [M9](M9-delivery-preparation.md) with the rest
+      of this gate.
 
 Verify using ADR 0019's intended low rates. **Do not use a high-volume loop as the regression
 test.**

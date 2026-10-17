@@ -1,7 +1,8 @@
 # ADR 0112 — The preset library is owner-authored data, saved from the editor through a server-side gate
 
 Status: Accepted (owner ruling, 2026-09-11; the gate's mechanism is an engineering decision and
-goes to a security reviewer in its wave)
+goes to a security reviewer in its wave); **Amendment A, 2026-10-17** (M8C: copy-on-use written in; decision 2's flag and
+secret suspended until the first public deploy; decisions 1 and 5 amended; nothing built)
 Date: 2026-09-11
 Type: Decision (owner ruling + engineering)
 Milestone: M7 — waves 7P1, 7P2, 7G (architect's re-plan, `docs/milestones/M7-room-and-presets.md`)
@@ -13,6 +14,7 @@ after M8. 7P1, 7P2 and 7G did not ship in M7. ADR 0131 §4 also quotes the owner
 ruling of the same day: presets live in their own table, only the administrator updates them, and
 using one copies it into a new private design. **That ruling is not recorded in this ADR.** A reviver
 writes its amendment here before planning 7P1. Nothing below is struck.
+**Update, 2026-10-17: the amendment is written — see Amendment A at the end of this record.**
 
 ## Context
 
@@ -144,3 +146,84 @@ customer.
 | [0012](0012-scheduled-export-is-a-scoped-sql-select.md) | The export is a scoped select over `designs`. | **Extended to `presets`** (consequences). |
 | SEC-003 (`route-availability.ts`) | An internal route is opt-in by an exact flag value in production. | **The pattern for the flag** (decision 2). |
 | `DEVELOPMENT-SPEC.md` §13.3 q5 | Thumbnails are rendered from the recipe so they cannot drift. | **Kept** by capturing from the preset's own design at save (decision 6). |
+
+## Amendment A — 2026-10-17: the preset work starts; copy-on-use is written in; decision 2's gate is suspended until the first public deploy
+
+**Evidence tiers.** *[doc]* quoted from this repository; *[plan]* the M8C plan (`milestones/M8C-generation-fill-and-preset-authoring.md`,
+§3.1–§3.7, committed at `dad97495`); *[relayed]* the coordinator's relay of the owner's 2026-10-17 answers; *[owner-doc]*
+`docs/OWNER_FIXES.md`. The scribe ran nothing and has no shell. **Everything below is decided, not built.**
+
+**Order, stated plainly.** The pointer at the head of this record and [ADR 0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)
+§4 both say a reviver writes this amendment *before planning* the work. The M8C plan was committed first (`dad97495`)
+and this amendment is written in wave F0 after it. The plan carries the design; this amendment is its record.
+
+**Why now.** ADR 0131 §4 named its revival trigger: *"the owner's direction to start the preset work"*. The owner gave it
+on 2026-10-17 (`OWNER_FIXES.md`, Fix 2: *"I need the button to save the preset, and after that, when I generate again, I
+should be able to see and select from the preset"* [owner-doc, line 89–90]). ADR 0131's *"after M8"* is also overridden
+by that direction, since M8C runs while M8 is open; M8's own open items stay M8's.
+
+**Copy-on-use, written in** (ADR 0131 §4 quotes the owner's 2026-09-15 words; this record now carries the rule).
+Presets live in their own table; only the administrator updates them; using one **copies it into a new private design**
+under its own write token. The preset row is never written by a customer (no `UPDATE` grant exists).
+
+**Decision 1, amended** (plan §3.2):
+- the columns are `id`, `shape` (`L`, `linear`, `U`), `wall_a_mm`, `wall_b_mm`, `wall_c_mm`, `height_mm` (B null for
+  `linear`, C non-null only for `U`), `design_document` (`jsonb`, the stored design at the schema version it was read
+  at), `typed_name`, `thumbnail` (`bytea`), `thumbnail_type`, `status` (`published` | `hidden`, default `published`) and
+  `created_at`, in migration `0011_create_presets.sql`;
+- **no design id is stored**; a preset does not depend on the private design it came from;
+- **the typed name is stored once** (optional, at most 80 characters) and shown verbatim; this replaces *"an optional
+  owner-typed name per locale"*. When it is empty, **a generated name is rendered per locale from the stored shape, the
+  walls and the design's finish colour, and is never stored** (the owner's ruling: one typed name, optional; else one
+  generated from shape, size and finish colour [relayed]);
+- the grant is `SELECT, INSERT` and nothing else, as before; hiding a preset is the owner's, by the runbook's procedure.
+
+**Decision 2, suspended until the first public deploy** (owner, 2026-10-17 [relayed]: *no password, no switch, every
+environment, for now*; launch-gate condition: removed, or replaced by `preset.create`, before the first public deploy).
+- No feature flag and no owner secret. The save control is shown wherever the editor can write, in every environment.
+- **The seam stays.** Decision 2 bullet 3 (*"the client never decides"*) is kept: the server's answer decides whether the
+  control is shown, through one swappable policy function (`preset-authoring-policy.ts`), whose only implementation is
+  named by one exported constant (`ungatedUntilLaunch`) that the launch gate refuses while it is wired. `GET
+  /api/designs/{id}` answers `canAuthorPresets` beside `canWrite`. Fix 3 (accounts, roles) replaces the implementation
+  with `preset.create`; the route does not change. [plan §3.3]
+- **The accepted, time-boxed risk, stated in one sentence [owner, relayed; the security reviewer records it]:** *"anyone
+  who can reach an environment can publish a preset onto every Step 1 screen in that environment's database"*. It ends at
+  the first public deploy; the M9 launch gate lists it (see `milestones/M9-delivery-preparation.md`, dated note
+  2026-10-17).
+- The 2026-08-27 rule *Nothing ships mid-milestone* (WORKFLOW) is **excepted by the owner for this deployment**:
+  **Q-4 = deploy to production and author presets there** [relayed selection]. The production deployment is not public.
+  The order on production is `0009`, `0010`, `0011`, their grants, then the deploy, because the migration runner applies
+  every pending file in order [plan §3.2, src: `migration-plan.ts:15-38`, not re-read].
+
+**Decision 3, kept and sharpened.** The route is `POST /api/designs/{id}/preset`, under the design's path on purpose: it
+requires **the design's own write token and visitor** (ADR 0114 G4), so a stranger who learns a design id cannot publish
+someone else's private kitchen. This is not a gate on authoring: anyone can mint a design (ADR 0147) and save it. The
+request carries a design id, an optional name, the revision the editor shows as saved and the image, **never a
+document**. A stale revision gets `409 PRESET_STALE` and no row. [plan §3.3]
+
+**Decision 4 and decision 6, kept.** The refusals are one I/O-free domain function: zero findings of either severity,
+and a sink and a hob (read off the catalogue's declarations, ADR 0121). Decision 6's image is **one 1280 × 960 capture**
+at the overview camera, at most 512 KiB, magic bytes and header dimensions checked on the server, and it serves both the
+card and the preview. [plan §3.3, §3.4]
+
+**Decision 5, amended (an engineering decision).** *"No public list endpoint is added"* is replaced by **one read route for
+one room's matches**: `GET /api/presets?shape=…&a=…&b=…&c=…`, answering the published presets of that shape whose every
+saved wall is within ±600 mm inclusive of the room's (ADR 0109 Amendment A2), newest first, at most 8, never a hidden
+row and never a design id, limited by the reads limiter (fail open), cacheable for 60 s; and `GET
+/api/presets/{id}/image`. Reason: the room exists only in the client until *Continuă*, and shipping every published
+snapshot in the room page is unbounded. The data is product data every customer is shown anyway. [plan §3.5]
+
+**Decision 7, kept:** security review on P1, P3, P4 and P6 (and P2, per the plan's tiers).
+
+**Consequences, replaced.**
+- *"wave 7P1 extends the export"* becomes **wave P2 adds a second, separately-scoped export before authoring starts**
+  (ADR 0012: a new table needs *"a second, separately-scoped export"*; the export is `backups/presets/`, with the same
+  14-day rotation).
+- **Correction of a sentence in `docs/OWNER_FIXES.md`** (that file is the owner's record and is not edited): it says the
+  presets table *"is part of the production backup like any other table"*. **That is false at HEAD** [plan, src:
+  `const BACKUP_BLOB_PREFIX = "backups/designs/"`, `apps/web/src/lib/server/backup-designs.ts:15`, confirmed by the
+  scribe's grep]. Neon's point-in-time history is 6 hours (milestones README). Until P2 ships, presets are not backed up.
+- *"M8's launch gate gains … the authoring flag's production value"* is replaced by **"the ungated policy is not wired"**;
+  `pnpm gate:launch-placeholders` refuses while it is (wave P3), the pattern ADR 0163 used for the shop's number.
+- The Step 1 notice *"Niciun preset gata făcut nu încape aici"* becomes true only when nothing matched; its copy, and all
+  new copy, is drafted for the owner's approval (ADR 0113).

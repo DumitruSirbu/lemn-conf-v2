@@ -4983,3 +4983,38 @@ alternative D (no generation-only seat, target or width); U3b AC5. No command ga
 steps and commands are byte-identical (8U S3 `0f85ed23`: *"behaviour-free at HEAD (91,570 rooms byte-identical)"*; 8U S4
 `a70c974b`: *"generation keeps its 800 limit (output byte-identical)"* — commit subjects). Decision 4's free-end merge
 is unchanged and runs inside composition's limit. Nothing above this amendment is edited.
+
+## Dated note — 2026-10-17: forward pointers to ADR 0167 (Proposed) for A4, D2, N3 revised 3, E8, E12.1, H1 and N11.9
+
+**Status of this note.** [ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)
+is **Proposed** and nothing in it is built (M8C waves F1a, F1b). **No sentence above is struck by this note.** Each
+pointer says what the owner's 2026-10-17 rulings (Q-F1-1, Q-2 = (b), Q-7 = (a), Q-8 = no new rule; see ADR 0167) would
+change **if and when 0167 is Accepted**; wave F1b's close converts the pointers. Line numbers below are as read by the
+scribe on 2026-10-17 before this note was added.
+
+- **A4** (`:145`, *"the remainder, at most 599 mm, stays"*): would be superseded **for generation** by 0167 D1/D2: a
+  remainder `≥ F` (the catalogue's narrowest cabinet, 200 mm today) is filled; the bare end becomes at most `F − 1`. The
+  599 mm cap never bound a customer's own edits (A4's own last sentence), and that is unchanged.
+- **D2** (`:286`, the deterministic mechanics; the phrase *"let the edges empty"* occurs at `:293`, quoting the owner,
+  and the *Amendment D* revision): the packing against the corner is unchanged; the *"edges empty"* outcome it
+  describes would be superseded for generation by 0167. *(The M8C plan cites "ADR 0110 D2 (let the edges empty)". The
+  phrase is the owner's, from the 2026-09-11 Q2 answer quoted at ADR 0109 Amendment A; in this record it is used inside
+  D2 at `:293`, which is why the pointer sits on D2.)*
+- ***N3 revised* 3**'s *"any bare remainder beyond it"* (the U fridge wall): would be superseded for generation; the
+  **counted positions** (the fridge `n` bases from the corner, `n` = 0, 2, 3 at 3000 / 3001–4000 / above 4000) **stand**:
+  a counted body is never moved by the fill (0167 D5, Q-7 = (a)). N3r 4 and 10 stand likewise.
+- **E8** (`:796`, *"the generated fridge stays `fridge-free`, and it is not moved"*): the fridge's **type** stays
+  `fridge-free`; *"not moved"* would be **departed from** where an uncounted fridge ends its run and a fill stands (0167
+  D5), as O10 already departs from it for its own window.
+- **E12.1** (`:1056`, the oven tower as near the hob as the block allows): unchanged **within** the block; the block
+  would stand `r` further from the hob (0167 D5).
+- **H1** (`:2096`, *"doors to fill … tall cabinets at the edge"*; *"Fridge (if space - door cabinet) => sink"*): kept; the
+  fill is read as H1's *"door cabinet, if space"* (prefix wall) or *"doors to fill"* (suffix wall), and the tall block or
+  the fridge still ends the run.
+- **N11.9 / RQ25a / RQ25b** (`:4585`): RQ25a's *"Back wall only"* and RQ25b's *"Fill from 300 mm"* were relayed
+  selections of 2026-09-29, scoped to a U's wall A; the owner's 2026-10-17 rulings (every wall; Q-F1-1) are later and
+  wider, so they would be overturned for generation by 0167 D1/D2/D7, with the step id `wall-a-remainder:A` kept for wall
+  A. Until 0167 is Accepted, N11.9 is the code's behaviour.
+
+**Not changed by 0167 or this note:** E6 and O10 (the absorbs run first, D4), E7, O9, O4, N3 revised 11 and Amendment C /
+F7 (the 100 mm reserve, D9).

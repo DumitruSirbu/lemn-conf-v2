@@ -509,3 +509,19 @@ Preserved here verbatim from that column so nothing is lost by the table's slimm
 - **M7B plan** D2 (β, wall C in wall B's mirror frame), D4 (one group reflected in `x = W/2`) and D5
   (the odd millimetre) → **replaced** by **ADR 0132** decisions 1, 2 and 4 (2026-09-29), on the owner's
   Q-U5 ruling and U0's census. The plan carries dated correction lines.
+- **Dated 2026-10-17, M8C wave F0 — PROPOSED, NOTHING STRUCK:** **ADR 0110** Amendment A4's *"the remainder, at most
+  599 mm, stays"*, Amendment D2's *"let the edges empty"*, *N3 revised* 3's *"any bare remainder beyond it"*, N11.9's
+  RQ25a / RQ25b (*"Back wall only"*, *"Fill from 300 mm"*), E8's *"not moved"* and E12.1's nearness (for the block's
+  distance from the hob) → **would be superseded for generated kitchens** by **ADR 0167** (*Proposed*), on the owner's
+  Fix 1 rulings of 2026-10-17 (Q-F1-1, Q-2 = (b), Q-7 = (a), relayed). **ADR 0109** Amendment A3.2 and Amendment D's F4
+  (the 600 mm refill) → read through 0167 by **ADR 0109 Amendment E**. **ADR 0067** decision 2, **ADR 0117** decision 1,
+  decision 6 and *Consequences*, **ADR 0120** (lines 78, 114, 438), **ADR 0130** line 31 and **ADR 0166** decision 4
+  (by M-1, or by M-2) carry dated forward pointers. Converted to supersessions only when 0167 is Accepted at wave F1b's
+  close; **until then the older text is the code's behaviour.**
+- **Dated 2026-10-17, M8C wave F0 — decided, not built:** **ADR 0112** decision 2 (a feature flag and an owner secret)
+  → **suspended until the first public deploy** by **Amendment A**, on the owner's ruling (*no password, no switch, every
+  environment, for now*, relayed); decisions 1 (the typed name per locale) and 5 (*"no public list endpoint"*) →
+  **amended** by the same amendment; consequence *"wave 7P1 extends the export"* → wave P2's second scoped export. **ADR
+  0003** decision 4b (*"a list with a per-card CTA, not a carousel"*) → **amended for the preset chooser** by its dated
+  amendment, on the owner's Q-6 (relayed); frames 1E and D1E's *"nu carusel"* notes are departed from by **ADR 0104
+  Amendment F**. **ADR 0168** records the owner's option C for M8C's tests (scope: M8C only).

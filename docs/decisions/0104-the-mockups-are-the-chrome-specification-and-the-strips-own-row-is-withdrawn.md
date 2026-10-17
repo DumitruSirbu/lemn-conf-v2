@@ -1,5 +1,8 @@
 # ADR 0104 — The mockups are the chrome specification, and the settings strip's own row is withdrawn
 
+> **Dated note, 2026-10-17:** Amendment F (at the end) records the owner's departure from frames 1E and D1E (a card with
+> Preview only, a carousel pop-up). Nothing above is struck.
+
 Status: Accepted — **supersedes [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)
 decision 2 and amends [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
 decisions 2, 3, 4 and 8.** ADR 0082 decisions 1 (as amended), 5, 6 and 7 stand and are **enforced**.
@@ -911,3 +914,38 @@ changes, including its refusal to fork copy per shell. [Source-verified by the c
 *"De ce acest preț?"*, and `price-breakdown-copy.test.ts` asserts it.] The mark was first ruled by the
 owner on 2026-09-09 (recorded at [ADR 0141](0141-romanian-copy-rulings-recovered-from-the-copy-lock-and-a-test.md)
 decision 1). Cite as `see ADR 0104 Amendment E`.
+
+## Amendment F, 2026-10-17 — frames 1E and D1E are departed from by the owner's ruling: the card has Preview only, and Preview opens a carousel (Q-6; M8C)
+
+**Evidence tiers.** *[doc]* quoted from this repository; *[src]* read by the scribe on 2026-10-17 (Grep of the two mockup
+files); *[relayed]* the coordinator's relay of the owner's answer. The scribe ran nothing else. **Decided, not built**
+(wave P8).
+
+**The ruling** is recorded at [ADR 0003](0003-design-reference-supersession.md), dated amendment of 2026-10-17 to
+decision 4b (the owner's Q-6, relayed: Preview opens a pop-up carousel with Previous, Next and Select; no *Folosește* on
+the card). This record is the chrome specification (decision 1), so the departure is recorded here too: **a frame is
+departed from by a dated owner ruling, never by an implementer's preference** (decision 7's rule for copy forks, applied
+to a screen).
+
+**The frame notes this departs from [src].**
+- Mobile frame 1E, `docs/design/mockups/Lemnaria Configurator Mobil.dc.html:401`: *"Listă verticală, nu carusel: fiecare
+  preset are propriul buton „Folosește" — nu mai e nevoie de un ecran de confirmare. Apar doar presetele care încap; cele
+  care intră cu o ajustare de până la 30 cm sunt afișate cu ajustarea declarată. Restul nu se afișează deloc — dacă nu
+  rămâne niciunul, se trece la generare (1F)."*
+- Desktop frame D1E, `docs/design/mockups/Lemnaria Configurator Desktop.dc.html:461`: *"Grilă de patru, nu carusel: toate
+  rezultatele se văd deodată — singurul avantaj real al desktopului aici. Fiecare card are propriul „Folosește", deci nu
+  există ecran de confirmare."*
+
+**What is departed from, and what is kept.** Departed from: *"nu carusel"* and the per-card *Folosește* on both frames
+(the card selects nothing; Preview opens the carousel; Select is inside the pop-up). **Kept from both frames:** the
+vertical list on the phone and the four-up grid on desktop, only presets that fit, the declared adjustment inline, and
+the fall-through to 1F when none fits. The note's *"până la 30 cm"* was already retired by ADR 0109 Amendment A (±600 mm
+and a declared change). Frames 1D / D1D (the loading skeletons) are read for chrome only. The mockup files are not edited
+(decision 1).
+
+**A mismatch in the M8C plan, reported.** The plan (§3.6) says frame 1E's note *"lives in ADR 0104's dated note"*. At
+HEAD the note lives in the mockup files at the two lines above; ADR 0104 held no note on it before this one. The plan
+names only the mobile frame; the desktop frame carries the same *"nu carusel"* note and is covered here.
+
+**Wave P8's reading** reads frames 1D, 1E and D1E for the card's content and the chrome only; the CTA and the *"nu
+carusel"* notes are superseded (plan §5, P8).

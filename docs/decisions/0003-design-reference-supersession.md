@@ -1,6 +1,6 @@
 # ADR 0003 — Design-reference supersession: void/column domain model replaces the run-anchor model
 
-Status: Accepted
+Status: Accepted; decision 4b amended 2026-10-17 (the preset chooser: a card with Preview only, a carousel pop-up with Select; owner's Q-6, relayed; see the dated amendment at the end)
 Date: 2026-08-24
 Type: Decision
 Milestone: Cross-cutting — established the M1–M8 roadmap and superseded parts of M0's scope
@@ -320,3 +320,44 @@ These are named as gates in the milestones. None may be resolved by inventing a 
     (`DEVELOPMENT-SPEC.md` §12, §13.3 question 2). Designed, not built.
 14. When linear and U rooms return, and with which recipes and per-wall data
     (`DEVELOPMENT-SPEC.md` §13.3 question 4).
+
+## Dated amendment — 2026-10-17: decision 4b, the preset chooser (owner's Q-6; M8C)
+
+**Evidence tiers.** *[doc]* quoted from this repository; *[plan]* M8C plan §3.6; *[relayed]* the coordinator's relay of the
+owner's answer; *[inf]* inference. The scribe ran nothing. **Decided, not built** (waves P7 and P8).
+
+**The owner's ruling, relayed (Q-6, 2026-10-17):** *Preview opens a pop-up with a slider (an image carousel of the
+matching presets), with previous and next navigation and a Select button that copies the preset into a new private
+design and opens it in the 3D editor. There is no* Folosește *on the card; the card has Preview only.* This is the
+coordinator's relay of the answer, not the owner's transcript.
+
+**What is amended.** Decision 4b's title and body, *"Preset selection is a list with a per-card CTA, not a carousel"*, and
+its sentences that each card carries its own **Folosește** button and that frame D1E has *"the same per-card CTA"*, are
+**superseded for the preset chooser by the owner's ruling**. They are left in place above, unstruck, because the
+amendment is by ruling and not a correction of fact.
+- **Kept:** the vertical list on screen (frame 1E); the desktop four-up grid (D1E); only presets that fit are shown; a
+  preset that fits after a declared adjustment shows it inline; when nothing fits, the flow falls through to bespoke
+  generation (1F / D1F). **The list is not paginated**; the carousel holds exactly the cards the list holds.
+- **Changed:** each card carries one control, *Previzualizează* (copy drafted, owner approves; ADR 0113), and the card
+  selects nothing. Preview opens a pop-up carousel at the tapped preset, in the list's order, with Previous and Next (at
+  least 44 px; swipe on the phone, arrow keys on desktop), a position (*"2 / 5"*), and **Select**, which acts on the slide
+  on screen. Select creates one new private design through the existing mint-then-save (ADR 0111) and opens the editor.
+- **Defaults not asked, the architect's [inf]:** no wrap-around (Previous disabled on the first slide, Next on the last);
+  one preset shows no Previous or Next; images load for the slide on screen and its two neighbours only. Falsified by the
+  owner saying otherwise.
+
+**Decision 4's paragraph before this one.** *"Step 1 resolves directly into Step 2 with the editor already open … There is
+no intermediate confirm-and-continue screen. This is consistent with §4b below — the per-card **Folosește** button *is*
+the confirmation"* (lines 141–145 above). **Whether the pop-up is a "confirm screen" is the architect's inference [inf]:**
+the pop-up is a preview, and *Select* still opens the editor directly with no further confirmation, so the product
+requirement of no intermediate confirm-and-continue screen is read as preserved. Falsified if the owner regards the pop-up
+as the confirm screen decision 4 forbids. The same sentence is in `docs/milestones/README.md` (*Flow being built*), read
+with this note.
+
+**A rejected direction, overridden by name.** `docs/milestones/README.md`, *Cross-cutting rules*, lists *"pagination in a
+chooser"* among the rejected directions (DEVELOPMENT-SPEC §13.2). A Previous/Next carousel comes close to it. **The owner
+overrode it for the Preview pop-up on 2026-10-17** [relayed]. DEVELOPMENT-SPEC §13.1's *"filtered list, never
+pagination"* (ADR 0027) governs the editor's catalogue offer list, not the preset chooser, and stays.
+
+**Frames.** The mockup files are not edited (ADR 0104). See [ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+Amendment F for the frame notes this departs from.
