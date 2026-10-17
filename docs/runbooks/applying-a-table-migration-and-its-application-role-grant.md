@@ -302,6 +302,13 @@ The migration runner refuses a gap, so `0012` cannot be applied to a database wh
 still needs `0009`, `0010` and `0011` first. If the login branch merges before M8C, the four files are renumbered at the
 rebase, which is free only while none of them has been applied anywhere.
 
+**This branch is red until M8C's `0011` lands.** `packages/persistence/src/migrations/` here holds `0001` to `0010` and then
+`0012`; there is no `0011` [source-verified, directory listing, 2026-10-18]. The runner refuses a gap, so anything that applies
+the whole migration set on this branch (the migrate command, and the live persistence suites that run it) cannot pass
+[inference from the runner's rule, not a run]. It turns green only when `fix/empty-space-fill-and-preset-save` merges first
+or the four files are renumbered at the rebase. Do not read a red migrate or persistence run on this branch as a defect in
+`0012` to `0015`, and do not apply them anywhere before `0011` is on the database.
+
 **The order against the code matters.** Every account route and every session read names these tables. If the code ships
 before the migrations and the grants, those requests answer 500 (a failed session read reads as anonymous, which is less
 access, so a visitor still works). The order is the migrations, then the grants, then the code.
@@ -365,8 +372,36 @@ exist, use the read-only catalog checks in step 7 below on preview, and do not g
   new `designs` column, constraint and index. Any other answer means stop and report.
 - **Before step 4, on each database: read `pg_default_acl`** with the query in the `0009` section. A row that would reach
   `accounts`, `account_sessions` or `account_email_tokens` for `app_designs` or `PUBLIC` is a stop-and-report, as in step 3.
-- **Step 4, exactly these seven statements, preview first** (column-scoped, so that a bug or an injection in the application
-  cannot create or promote a staff account):
+- **Before step 4, on each database: the pre-grant probes.** Read-only, with the migration credential. They prove that
+  nothing the grant will withhold is held already, through `PUBLIC`, a default privilege or a role membership. **Expect
+  `held = false` on every row.** One `true` is a stop-and-report; do not grant. The same query runs again after step 4 and
+  must still answer false on every row (the grant adds `SELECT`, `INSERT` and `UPDATE` on the named columns only):
+
+  ```sql
+  -- Pre-grant probes: expect false on all ten rows, before step 4 and again after it.
+  select 'accounts delete' as probe, has_table_privilege('app_designs', 'public.accounts', 'DELETE') as held
+  union all select 'accounts truncate', has_table_privilege('app_designs', 'public.accounts', 'TRUNCATE')
+  union all select 'account_sessions delete', has_table_privilege('app_designs', 'public.account_sessions', 'DELETE')
+  union all select 'account_sessions truncate', has_table_privilege('app_designs', 'public.account_sessions', 'TRUNCATE')
+  union all select 'account_email_tokens delete',
+    has_table_privilege('app_designs', 'public.account_email_tokens', 'DELETE')
+  union all select 'account_email_tokens truncate',
+    has_table_privilege('app_designs', 'public.account_email_tokens', 'TRUNCATE')
+  union all select 'accounts.created_at insert', has_column_privilege('app_designs', 'public.accounts', 'created_at', 'INSERT')
+  union all select 'accounts.email_verified_at insert',
+    has_column_privilege('app_designs', 'public.accounts', 'email_verified_at', 'INSERT')
+  union all select 'account_sessions.absolute_expires_at update',
+    has_column_privilege('app_designs', 'public.account_sessions', 'absolute_expires_at', 'UPDATE')
+  union all select 'account_sessions.account_id update',
+    has_column_privilege('app_designs', 'public.account_sessions', 'account_id', 'UPDATE');
+  ```
+
+  Before the grant they are false because nothing has been granted; after it, because the grant does not reach them. Either
+  way a `true` is a stop-and-report.
+- **Step 4, exactly these seven statements, preview first** (column-scoped, so that the application cannot write a role,
+  and every account it creates is a client. This does not make an SQL injection harmless: it could still insert an
+  `account_sessions` row for an administrator, update `password_hash`, or null `revoked_at` or `used_at`, and no grant can
+  prevent that. That risk is accepted, [ADR 0169](../decisions/0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) decision 7):
 
   ```sql
   GRANT SELECT ON TABLE public.accounts TO app_designs;
@@ -388,7 +423,8 @@ exist, use the read-only catalog checks in step 7 below on preview, and do not g
   `email_normal_form` get `INSERT` and never `UPDATE`. `SELECT` is table-wide, so `role` is readable (every request
   reads it). Nothing on
   `designs` changes: `app_designs` already holds table-level `UPDATE` there (ADR 0019 decision 11), which covers
-  `account_id`.
+  `account_id`. That also means an SQL injection can reassign `account_id` on any design, which is an access-control column;
+  the risk is accepted and recorded in ADR 0019's note of 2026-10-18.
 - **Steps 5 to 7, until the test arms exist: read-only catalog checks with the migration credential.** These replace the
   privilege test for these tables and prove less: they show what was granted, not that the application role's connection
   behaves. Run them on preview after step 4.
@@ -429,6 +465,7 @@ exist, use the read-only catalog checks in step 7 below on preview, and do not g
   ```
 
   Any `DELETE`, any row for `PUBLIC`, any `true` in the last query, or any column outside the lists is a stop-and-report.
+  **Run the pre-grant probes above again here** and quote them: every row must still read false.
 - **Step 8:** `designs` is unchanged apart from the new column. On production, read it with `has_table_privilege`, not by
   attempting a delete.
 
@@ -457,10 +494,13 @@ built yet, so it is optional this round. **It needs the owner credential and can
    commit;
    ```
 
-   Expect `UPDATE 1` for the first statement. `UPDATE 0` means the id is wrong or the role is not `client`: roll back and
+   Expect `UPDATE 1` for the first statement. `UPDATE 0` means the id is wrong or the role is not the one the guard names: roll back and
    re-check step 2. The second statement may be `UPDATE 0` if the account holds no live session.
-4. **Demoting or any later role change is the same two statements** with the new role, in the same transaction. The role
-   column accepts only `client`, `operator` and `administrator` (`accounts_role_is_known`).
+4. **Demoting or any later role change is the same two statements** with the new role, in the same transaction, **and the
+   first statement's guard names the account's current role, not `client`**: read the role in step 2, then write
+   `... where id = '<id>' and role = '<the role step 2 read>'`. Copied unchanged, `and role = 'client'` matches nothing for a
+   staff account and the statement answers `UPDATE 0`, which looks like a wrong id. The role column accepts only `client`,
+   `operator` and `administrator` (`accounts_role_is_known`).
 5. **Check:** the account signs in again and holds the new role's capabilities; the old session is refused.
 
 ### Revoking one account's sessions by hand (owner)
@@ -472,7 +512,11 @@ revocation is the operation.
 ### The account tables are not in the nightly export
 
 The nightly export covers `designs` only (`BACKUP_BLOB_PREFIX = "backups/designs/"`). `accounts`, `account_sessions` and
-`account_email_tokens` are **not** in it, and a restore of `designs` brings back `account_id` values that name accounts a
+`account_email_tokens` are **not** in it, and **a restore of `designs` loses `account_id`**: the export's row type and both
+of its selects in `packages/persistence/src/design-row-source.ts` list `write_token_hash` and `visitor_hash` and omit
+`account_id` [source-verified, 2026-10-18]. Every restored design comes back unclaimed (`account_id` null), so the
+claim is lost and the design opens on other devices no longer (ADR 0169 decision 8) [inference from the column's meaning]. Adding `account_id`
+to the export is owed to a later wave; it must come with an accounts backup, or the restored values would name accounts a
 restore will not recreate. Sessions and tokens are never backed up on purpose, so a restore cannot revive one (ADR 0169
 decision 10). The accounts backup is a later wave.
 

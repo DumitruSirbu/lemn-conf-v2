@@ -22,7 +22,10 @@
 -- the unclaimed rows out of it.
 --
 -- No grant is needed: `app_designs` already holds table-level UPDATE on `designs` (ADR 0019 decision 11,
--- an accepted risk), which covers the new column.
+-- an accepted risk), which covers the new column. **That grant means an SQL injection can reassign
+-- `account_id` on any design**, moving a design onto, or off, an account; `account_id` is an access-control
+-- column and the risk, accepted in 2026-08 for `write_token_hash`, now covers it (ADR 0019 decision 11, dated
+-- note of 2026-10-18).
 --
 -- **APPLY THIS BEFORE THE WEB CODE THAT READS IT SHIPS.** The order is load-bearing, as `0004`'s and
 -- `0005`'s headers state it: once the claim and the gate name this column, every query that does answers

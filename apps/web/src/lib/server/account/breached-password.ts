@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { reportAccountEvent } from "@/lib/server/account/account-log";
+import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
 
 // The breached-password check (ADR 0169 decision 2). Have I Been Pwned's range API is asked by k-anonymity: of the
 // password's SHA-1, only the first five hexadecimal characters leave this server, and the suffixes that come back are
@@ -15,8 +16,8 @@ const RANGE_ENDPOINT = "https://api.pwnedpasswords.com/range/";
 const PREFIX_LENGTH = 5;
 const SUFFIX_LENGTH = 35;
 const DEADLINE_MILLISECONDS = 1_500;
-/** The padded answer is about 40 KiB; a body far past that is not the service's. */
-const MAX_ANSWER_CHARACTERS = 512 * 1024;
+/** The padded answer is about 40 KiB; a body far past that is not the service's. Counted in bytes while it streams. */
+const MAX_ANSWER_BYTES = 512 * 1024;
 
 /** One line of the answer: 35 hexadecimal characters, a colon and a count. */
 const RANGE_LINE = /^([0-9A-F]{35}):(\d{1,10})$/;
@@ -51,8 +52,8 @@ async function fetchRangeListing(prefix: string): Promise<string | undefined> {
       signal: AbortSignal.timeout(DEADLINE_MILLISECONDS),
     });
     if (response.status !== 200) return undefined;
-    const body = await response.text();
-    return body.length <= MAX_ANSWER_CHARACTERS ? body : undefined;
+    const body = await readUtf8BodyWithLimit(response.body, MAX_ANSWER_BYTES);
+    return body.ok ? body.value : undefined;
   } catch {
     // The reason is dropped: a thrown value from the transport may quote the request, and the request names the prefix.
     return undefined;

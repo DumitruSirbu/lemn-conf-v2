@@ -26,8 +26,12 @@
 -- `role` is one of the owner's three names. It is the one list this migration enumerates; locale and token
 -- purpose are shape checks so that a later wave adding a locale or a purpose drops nothing. **The
 -- application role may read `role` (every request reads it) but is granted no INSERT or UPDATE on it** (the
--- grant below), so every account the application creates is a client and no bug or injection can promote
--- anyone.
+-- grant below), so every account the application creates is a client and the application cannot write a role.
+-- **That is not "no injection can reach staff access."** An SQL injection could still obtain it by inserting
+-- an `account_sessions` row for an administrator's `account_id` (the application holds INSERT there), by
+-- updating `accounts.password_hash` (granted UPDATE), or by nulling `revoked_at` or `used_at` on a revoked
+-- session or a used token (granted UPDATE). No grant can prevent these while the application must create
+-- sessions, change passwords and revoke; the risk is accepted (ADR 0169 decision 7).
 --
 -- `locale` is the language of the account's mail, a two-letter shape and not a list.
 --

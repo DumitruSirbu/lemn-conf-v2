@@ -1,7 +1,11 @@
 import "server-only";
 
 import { reportAccountEvent } from "@/lib/server/account/account-log";
-import { readPublicOrigin } from "@/lib/server/public-origin";
+import {
+  isLoopbackPublicOrigin,
+  readPublicOrigin,
+} from "@/lib/server/public-origin";
+import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
 
 // Server-side verification of a Cloudflare Turnstile token (ADR 0169 decision 5). A write that cannot be challenged
 // is refused, so every answer but `passed` ends the request: a failed challenge and an unreachable service differ
@@ -18,11 +22,15 @@ const SITEVERIFY_URL =
 const DEADLINE_MILLISECONDS = 3_000;
 /** Cloudflare documents a response token as at most 2,048 characters: a longer one cannot be genuine, so it is not sent. */
 const MAX_TOKEN_CHARACTERS = 2_048;
+/** A siteverify answer is a few hundred bytes; a body far past this is not Cloudflare's. Counted while it streams. */
+const MAX_ANSWER_BYTES = 64 * 1024;
 
 /**
  * Cloudflare's published always-pass, always-fail and already-spent secrets. The service answers them with the
- * placeholder host `example.com` and no `action`, so under one of them `success` alone decides. That loses nothing
- * real: a test secret passes or fails everything whatever the host, and the warning below says one is in use.
+ * placeholder host `example.com` and no `action`, so under one of them `success` alone could decide. That is allowed
+ * only where the public origin is a loopback one (which `readPublicOrigin` accepts only beside the e2e fake sender's
+ * flag, so no deployment has one): there a test secret proves nothing and nothing is at stake. Anywhere else a test
+ * secret is a misconfiguration, and the answer is `unavailable` (ADR 0169 decision 5, criterion 5 as amended).
  */
 const DOCUMENTED_TEST_SECRETS: ReadonlySet<string> = new Set([
   "1x0000000000000000000000000000000AA",
@@ -31,6 +39,8 @@ const DOCUMENTED_TEST_SECRETS: ReadonlySet<string> = new Set([
 ]);
 
 export const TEST_SECRET_WARNING = `turnstile: a documented Cloudflare test secret is in use (${TURNSTILE_SECRET_KEY_VARIABLE}); challenges prove nothing`;
+
+export const TEST_SECRET_REFUSED_LINE = `turnstile: a documented Cloudflare test secret is set (${TURNSTILE_SECRET_KEY_VARIABLE}) outside the loopback e2e environment; every challenge is refused as unavailable`;
 
 /** The only state of this module: whether the test-secret warning has been written, so it is written once. */
 let hasWarnedOfTestSecret = false;
@@ -52,8 +62,9 @@ interface SiteverifyAnswer {
 
 /**
  * Reads the secret and the public origin on every call (nothing is fixed at build), asks siteverify with a deadline,
- * and answers `passed` only when it said `success` and, outside a documented test secret, the `action` and the
- * `hostname` are the ones this deployment expects. Never rejects, and never puts the token, the secret or the
+ * and answers `passed` only when it said `success` and the `action` and the `hostname` are the ones this deployment
+ * expects; only a documented test secret in the loopback e2e environment is judged on `success` alone, and a test
+ * secret anywhere else is `unavailable` without asking. Never rejects, and never puts the token, the secret or the
  * client's address into a thrown value or a log line.
  */
 export async function verifyTurnstile(
@@ -61,24 +72,29 @@ export async function verifyTurnstile(
 ): Promise<TurnstileOutcome> {
   const secret = secretFromEnvironment();
   if (secret === undefined) return reportUnavailable();
-  warnOnceOfTestSecret(secret);
+  const isTestSecret = DOCUMENTED_TEST_SECRETS.has(secret);
+  if (isTestSecret && !isLoopbackPublicOrigin(process.env)) {
+    return refuseTestSecretOutsideLoopback();
+  }
+  if (isTestSecret) warnOnceOfTestSecret();
   if (!isPlausibleToken(request.token)) return "failed";
   const answer = await askSiteverify({ secret, request });
   if (answer === undefined) return reportUnavailable();
-  return judgeAnswer({ answer, request, secret });
+  return judgeAnswer({ answer, request, isTestSecret });
 }
 
 function judgeAnswer({
   answer,
   request,
-  secret,
+  isTestSecret,
 }: {
   answer: SiteverifyAnswer;
   request: TurnstileVerificationRequest;
-  secret: string;
+  /** True only in the loopback e2e environment: verifyTurnstile answers a test secret anywhere else before asking. */
+  isTestSecret: boolean;
 }): TurnstileOutcome {
   if (!answer.success) return reportRefused();
-  if (DOCUMENTED_TEST_SECRETS.has(secret)) return "passed";
+  if (isTestSecret) return "passed";
   const expectedHostname = expectedHostnameFromEnvironment();
   if (expectedHostname === undefined) return reportUnavailable();
   const isExpected =
@@ -110,7 +126,8 @@ async function askSiteverify({
       signal: AbortSignal.timeout(DEADLINE_MILLISECONDS),
     });
     if (response.status !== 200) return undefined;
-    return shapedAnswer(await response.json());
+    const body = await readUtf8BodyWithLimit(response.body, MAX_ANSWER_BYTES);
+    return body.ok ? shapedAnswer(JSON.parse(body.value)) : undefined;
   } catch {
     // The reason is dropped: a thrown value from the transport or the parser may quote the request body.
     return undefined;
@@ -146,10 +163,15 @@ function expectedHostnameFromEnvironment(): string | undefined {
     : undefined;
 }
 
-function warnOnceOfTestSecret(secret: string): void {
-  if (hasWarnedOfTestSecret || !DOCUMENTED_TEST_SECRETS.has(secret)) return;
+function warnOnceOfTestSecret(): void {
+  if (hasWarnedOfTestSecret) return;
   hasWarnedOfTestSecret = true;
   console.warn(TEST_SECRET_WARNING);
+}
+
+function refuseTestSecretOutsideLoopback(): "unavailable" {
+  console.error(TEST_SECRET_REFUSED_LINE);
+  return reportUnavailable();
 }
 
 function reportRefused(): "failed" {

@@ -110,6 +110,35 @@ export type {
   FakeContactSubmissionStoreOptions,
   HeldContactSubmission,
 } from "./fake-contact-submission-store.js";
+export { AccountStoreError, EMAIL_TOKEN_PURPOSES } from "./account-store.js";
+export type {
+  AccountCreation,
+  AccountLookup,
+  AccountStore,
+  AccountStoreOperation,
+  EmailConfirmation,
+  EmailConfirmationOutcome,
+  EmailTokenPurpose,
+  LiveTokenLookup,
+  NewAccount,
+  PasswordRehash,
+  PasswordRehashOutcome,
+  PasswordReset,
+  PasswordResetOutcome,
+  RegistrationReplacement,
+  RegistrationReplacementOutcome,
+  StoredAccount,
+  TokenIssueOutcome,
+  TokenToIssue,
+} from "./account-store.js";
+export { generateAccountId } from "./generate-account-id.js";
+export { NeonAccountStore } from "./neon-account-store.js";
+export { FakeAccountStore } from "./fake-account-store.js";
+export type {
+  FakeAccountStoreOptions,
+  HeldEmailToken,
+  SessionRevocation,
+} from "./fake-account-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {

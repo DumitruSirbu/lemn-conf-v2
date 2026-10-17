@@ -133,6 +133,14 @@ the retention job are later records. Each decision below names the seam it leave
   - on register, on login and on the reset request [owner];
   - verified on the server, with the expected action and hostname;
   - a failed check, or one that cannot be reached, **refuses**. Writes fail closed (ADR 0019 d5; Q-L3).
+  - **Dated note, 2026-10-18 (L3 security review): the test-secret relaxation is narrowed; owner-visible.** The
+    plan's L3 criterion 5 let a documented Cloudflare test secret pass on `success` alone, whatever the action and
+    host. Amended: that relaxation applies **only** when the public origin is a loopback one, which
+    `readPublicOrigin` accepts only beside `LEMNARIA_E2E_FAKE_MAIL=1`, so no deployment has it. A test secret set
+    anywhere else gets no relaxation and is not even asked: the check answers `unavailable` (the route refuses with
+    503) and one constant line is logged on every attempt. So a test secret pasted into a Preview or Production
+    variable fails closed instead of passing every challenge. Consequence for the owner: development with a test
+    key in `.env.local` needs the fake-mail flag and a loopback `LEMNARIA_PUBLIC_ORIGIN`, or the check refuses.
 - **New limiter purposes:**
   - they fail closed, as every write does (ADR 0156), and every figure is provisional;
   - by network block: register, login, reset request, token completion;
@@ -178,7 +186,13 @@ the retention job are later records. Each decision below names the seam it leave
 - **The application role cannot write `role`.**
   - Its `INSERT` and `UPDATE` grants on `accounts` are column-scoped and leave `role` out, so every account the
     application creates is a client.
-  - No bug or injection in the application can create staff or promote anyone.
+  - The application cannot write a role, so no bug in the application's own code path creates staff or
+    promotes anyone through `role`.
+  - **Accepted risk: an SQL injection could still reach staff access without writing `role`.** It could insert
+    an `account_sessions` row for an administrator's `account_id`, update `accounts.password_hash`, or null
+    `revoked_at` or `used_at` on a session or a token. The application must hold INSERT on sessions and UPDATE
+    on those columns to do its work, so no grant can prevent it. The defences are the ones that stop an
+    injection existing: tagged-template SQL only, and review.
   - Until the staff-management wave, a staff account exists only by the owner's console seed (runbook). Staff
     are by invitation only [owner].
 - **Who decides access:** every route that acts for an account checks a capability through one function. The
@@ -278,7 +292,7 @@ the wrong way:
 | **Claiming at registration, before confirmation** | Breaks obligation 3, and the 30-day cleanup would then meet claimed designs |
 | **Moving ownership at claim** (clearing `visitor_hash`) | Every visitor-gated path (share, save refresh, resume, contact) would need its account arm in the same wave, or the claiming browser would lose its own designs. Keeping the hash makes the claim safe to land before the gate. The shared-computer residual is recorded instead |
 | **Roles and capabilities in database tables, editable at run time** | A role editor and a `user.manage` surface with no screen yet. A closed list in code is reviewable, and changing it is a reviewed commit |
-| **A role writable by the application role** | An injection or a bug becomes a privilege escalation. The column grant makes it impossible |
+| **A role writable by the application role** | An injection or a bug becomes a privilege escalation by writing `role`. The column grant makes that one path impossible; it does not make injection harmless (D7's accepted risk) |
 | **Vercel BotID or hCaptcha instead of Turnstile** | The owner named Turnstile [owner]. BotID is ADR 0019 d5's for the contact form and is M9's to settle |
 | **A recipient field added to `MailMessage`** | Would undo ADR 0154 d11's guarantee by type. A second port keeps it |
 | **The e-mail encrypted at rest** | D11 |

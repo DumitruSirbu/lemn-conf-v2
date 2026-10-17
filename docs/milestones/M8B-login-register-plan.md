@@ -336,7 +336,8 @@ in the repo-root `.env.example`, commented, with no value (wave L3).
 **Turnstile test keys.** Cloudflare publishes always-pass and always-fail keys [ven; L0 re-reads them]. The
 owner may put them in `apps/web/.env.local` for development. The code logs one constant warning when it sees a
 documented test secret, as `FAKE_SENDER_WARNING` does [src: `create-mail-sender.ts`]. M9's gate gains a line
-(§10).
+(§10). **Amended 2026-10-18 (ADR 0169 D5, dated note):** a test secret is honoured only where the public origin is
+a loopback one (which needs `LEMNARIA_E2E_FAKE_MAIL=1`); anywhere else the check answers `unavailable` and logs.
 
 **The owner's Cloudflare step.** Create one Turnstile widget per environment's hostnames, in managed mode, and
 copy its two keys into the variables above. Cloudflare becomes a processor, which the GDPR wave records.
@@ -424,8 +425,8 @@ runbook. **Reviewer reading:** the same; security adds ADR 0019 d11.
    is a 64-hex SHA-256 check that refuses `''`.
 4. No check constraint enumerates a value set that a later wave in §12 is known to extend (locale, purpose).
    `role`'s list is the owner's three, a stated exception.
-5. The runbook's grants give `app_designs` no privilege on `role`, `id`, `email`, `email_normal_form`,
-   `created_at`. They give no `DELETE`, `TRUNCATE` or `ALL` on any of the three tables, and nothing to `PUBLIC`.
+5. The runbook's grants give `app_designs`: no INSERT or UPDATE on `role` or `created_at`; no UPDATE on `id`, `email` or
+   `email_normal_form`; no DELETE, TRUNCATE or ALL on any of the three tables; nothing to PUBLIC; no WITH GRANT OPTION.
 6. Header of every file: *apply before the code, before the grant*; the ledger before and after; frozen bytes.
 
 ---
@@ -487,7 +488,9 @@ pattern); `public-origin.ts`; ADR 0146 (nothing from a driver or vendor leaves);
    `cookies.delete` on it. Its value is never put in a URL, body or log.
 5. Turnstile answers `passed` only when siteverify said `success` **and** the action and hostname match. A
    timeout, a non-200, unreadable JSON or a missing variable answer `unavailable`. Nothing answers `passed` by
-   default.
+   default. **Amended 2026-10-18:** the only relaxation is a documented test secret beside a loopback public
+   origin (`success` alone decides); a test secret anywhere else answers `unavailable` and logs. Response bodies
+   (siteverify and HIBP) are read through `readUtf8BodyWithLimit`: 64 KiB and 512 KiB.
 6. Measured on a Preview deployment (L0 item 2, a measurement and not a test): hashing time with the stated
    parameters is quoted. If p95 exceeds 300 ms, the remedy is **not** another OWASP row: those rows are
    equal-strength trade-offs of about the same cost [ven]. The remedy is a lower cost with the owner's recorded
@@ -519,6 +522,16 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
 4. No statement writes `role`, `email`, `email_normal_form` or `id` after insert (the grant would refuse it;
    the code must not try).
 5. A retried call after a lost acknowledgement inserts no second account and issues no second token.
+
+**Notes from the L1 security review (2026-10-18), for this wave and L8.**
+- **A duplicate e-mail raises `23505` whose `DETAIL` contains the address** (`Key (email_normal_form)=(…) already exists`).
+  The store never logs, returns or rethrows the driver's text (ADR 0146's rule), and `createUnverified` maps the conflict to a
+  tagged result with no address in it. L8 then answers a conflict with the same response as a fresh insert and in a similar
+  time (both branches hash once), so the conflict is not an enumeration channel.
+- **"Newest unused token" is not enforced by the schema.** The index orders by `created_at desc` but nothing supersedes an
+  older unused token. Either `issueToken` marks every earlier unused token of the same account and purpose used in the same
+  transaction (explicit supersede at issue), or the lookup takes a tie-breaker (`created_at desc, token_hash desc`) so that
+  two tokens issued in one clock tick still have one winner. Pick one and test the two-in-one-tick case.
 
 ---
 
@@ -643,6 +656,10 @@ authentication, registration and enumeration guidance (cited by section, from L0
    per-address `429` is the same answer, at the same count, for an unknown, an unverified and a verified
    address.
 
+**Notes from the L1 security review (2026-10-18).** The `23505` on a duplicate address carries the address in its `DETAIL`:
+never log or return driver text (see L4a). A conflict gives the same response and a similar response time as a fresh
+insert. "Newest unused token" needs an explicit supersede at issue or a tie-breaker (see L4a); L8's acceptance 2 and 3 rest on it.
+
 ---
 
 ### L9 — Login, logout, who-am-I
@@ -665,6 +682,18 @@ authentication, registration and enumeration guidance (cited by section, from L0
 4. After `logout {scope:"everywhere"}`, no session of the account is live, including the one that asked.
 5. Logout via `GET`, cross-site, or without JSON changes nothing.
 
+**Obligations from the L3 security review (2026-10-18).** Each is the route's or `sign-in.ts`'s to meet, and the
+reviewer checks them by reading:
+- **Order of the work.** The cross-site check, the limiter and Turnstile all run **before** `verifyPassword`.
+  Argon2id is the most expensive thing the route does; nothing that has not passed the three may reach it.
+- **A length cap before hashing.** The login route caps the password's length before it is hashed (the same upper
+  bound registration applies), so an oversized body cannot be turned into argon2id work.
+- **Normalise exactly as `judgePassword`.** Login applies NFKC to the password the same way `judgePassword` does at
+  registration and reset; otherwise a user who registered with a composed character cannot sign in.
+- **A platform failure is not a wrong password.** If `verifyPassword` fails for a platform reason (the `node:crypto`
+  call throws, memory), the route answers a 503 and does not count it against the address as a wrong password,
+  if feasible. If it is not feasible, `sign-in.ts` says so in a comment and the plan records the cost here.
+
 ---
 
 ### L10 — Forgot and reset
@@ -686,6 +715,11 @@ authentication, registration and enumeration guidance (cited by section, from L0
 4. **A per-address refusal of the reset request cannot tell a verified address from any other.** The buckets
    are counted for every valid request before any lookup. The token insert and the mail run after the response.
    So the status, the body and the counts before the answer are the same in every branch.
+
+**Obligations from the L3 security review (2026-10-18).** The reset request and completion run the cross-site
+check, the limiter and Turnstile before any lookup or hashing. The new password is NFKC-normalised and
+length-capped by `judgePassword` before it is hashed (the same rules as L9's obligations above). A hashing
+platform failure is a 503 and does not consume the token.
 
 ---
 
@@ -977,4 +1011,5 @@ Rules for the walk:
 | GDPR export and erasure; notice; cookie notice | a narrow `DELETE` path under its own credential; `contact_submissions.account_id` (additive) | `on delete cascade` from accounts to sessions and tokens. No FK from designs, so erasure deletes designs explicitly first |
 | Retention job (drafts 365 days, unverified accounts 30 days, expired sessions and tokens) | `DELETE` under a separate credential; reverses ADR 0019's note of 2026-09-15 for account-owned drafts | `email_verified_at`, `created_at`, `absolute_expires_at`, `used_at`. Claiming requires a verified account, so **the 30-day cleanup never meets a claimed design** |
 | Accounts backup (QP5) | a separately scoped export (ADR 0012) | Sessions and tokens are never exported. `account_id` joins the design export with it |
+| Alert on sustained breach-check `unavailable` lines (L3 review, 2026-10-18) | a log drain or alert rule on `[account]` lines with `event: breach-check`, `outcome: unavailable` | `isBreachedPassword` writes one such line per failed check and accepts the password on the length rule alone (Q-L2), so a long outage is silent without an alert |
 | Registration nudge modal and pop-up cadence (obligation 8, Q-F3-8) | editor hooks | `GET /api/account/session` tells the editor whether the visitor is signed in |

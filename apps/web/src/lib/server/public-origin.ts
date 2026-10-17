@@ -65,6 +65,20 @@ export function readPublicOrigin(
   return isAccepted ? { status: "configured", origin: value } : UNAVAILABLE;
 }
 
+/**
+ * Whether the environment's public origin is a loopback one. Because `readPublicOrigin` accepts a loopback origin only
+ * beside the e2e fake sender's flag, `true` also means that flag is set: no deployment answers it.
+ */
+export function isLoopbackPublicOrigin(
+  environment: PublicOriginEnvironment,
+): boolean {
+  const outcome = readPublicOrigin(environment);
+  return (
+    outcome.status === "configured" &&
+    LOOPBACK_HOSTS.has(new URL(outcome.origin).hostname)
+  );
+}
+
 type OriginKind = "public" | "loopback" | "unusable";
 
 function originKindOf(value: string): OriginKind {
