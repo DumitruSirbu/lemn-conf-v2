@@ -3,7 +3,7 @@
 import { NARROWED_ROOM_OVERFLOWING_DESIGN } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { silenceEveryConsoleMethod } from "../../../lib/server/mail/qa-8j-support";
+import { spyOnEveryConsoleMethod } from "../../../lib/server/mail/mail-test-support";
 import {
   byEmail,
   callbackRequest,
@@ -55,7 +55,7 @@ let post: Post;
 let countedWindows: () => number[];
 
 beforeEach(async () => {
-  silenceEveryConsoleMethod();
+  spyOnEveryConsoleMethod();
   nameTheNetworkSource();
   resetOutside(outside);
   post = await loadRoute();
@@ -139,14 +139,39 @@ describe("a request from another site, by every shape of the two headers the gua
   });
 });
 
+const HTTP_METHOD_NAMES = [
+  "GET",
+  "HEAD",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "OPTIONS",
+];
+
+/** The exports of a route module that Next.js would serve as a method handler; route config such as `runtime` is not one. */
+function methodHandlersOf(routeModule: object): string[] {
+  return Object.keys(routeModule).filter((name) =>
+    HTTP_METHOD_NAMES.includes(name),
+  );
+}
+
 describe("a method that is not POST", () => {
-  it("has no handler: the route exports POST and nothing else to answer with", async () => {
+  it("has no handler: the route exports POST and no other method to answer with", async () => {
     vi.resetModules();
     const route = await import(
       "../../../../src/app/api/contact-submissions/route"
     );
 
-    expect(Object.keys(route)).toEqual(["POST"]);
+    expect(methodHandlersOf(route)).toEqual(["POST"]);
+  });
+
+  it("control: a module that also exports GET is caught, and route config alone is not mistaken for a handler", () => {
+    const withGet = { POST: () => null, GET: () => null, runtime: "nodejs" };
+    const configOnly = { POST: () => null, runtime: "nodejs", dynamic: "auto" };
+
+    expect(methodHandlersOf(withGet)).toEqual(["POST", "GET"]);
+    expect(methodHandlersOf(configOnly)).toEqual(["POST"]);
   });
 });
 

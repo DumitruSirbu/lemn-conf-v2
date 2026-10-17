@@ -90,7 +90,15 @@ export const FAILURE_SENTENCE = "failure-sentence";
 export const FAILURE_WAITING = "failure-waiting";
 /** Frame 5A, the confirmation the design form leaves for. */
 export const DONE_HEADING = "done-heading";
+/** The request's reference as text. Since wave 8V (D2) only the callback form's sent view draws it; 5A and the
+ *  already-sent view do not. */
 export const DONE_REFERENCE = "done-reference";
+/** 5A's card with the customer's own address of the design's editor (wave 8V D1), the address itself, and the copy
+ *  control and its announcement, whose test ids the callback view's reference card shares. */
+export const DONE_DESIGN_LINK_CARD = "done-design-link-card";
+export const DONE_DESIGN_LINK = "done-design-link";
+export const DONE_COPY = "done-copy";
+export const DONE_COPIED = "done-copied";
 export const UNAVAILABLE = "contact-unavailable";
 export const REFUSED_DESIGN = "contact-refused";
 export const REVIEW_LINK_IN_OUTCOME = "contact-outcome-review-link";
@@ -113,17 +121,100 @@ export function donePath(locale: "ro" | "ru", designId: string): string {
 }
 
 /** The design form's request was sent: the contact page was replaced by the design's confirmation, which shows the
- *  reference. Returns that reference as shown. */
+ *  customer's own design address and no reference card (wave 8V D1, D2). */
 export async function expectDoneShown(
   page: Page,
   locale: "ro" | "ru",
   designId: string,
-): Promise<string> {
+): Promise<void> {
   await page.waitForURL(`**${donePath(locale, designId)}`);
   await expect(page.getByTestId(DONE_HEADING)).toBeVisible();
-  const reference = page.getByTestId(DONE_REFERENCE);
-  await expect(reference).toBeVisible();
-  return (await reference.textContent()) ?? "";
+  await expectDesignLinkShown(page, locale, designId);
+  await expect(page.getByTestId(DONE_REFERENCE)).toHaveCount(0);
+}
+
+/** The editor's address of this design in this locale, absolute from the page's own origin: what 5A's card must show
+ *  and copy. Built from the page's URL, never from the card. */
+export function designAddressOf(
+  page: Page,
+  locale: "ro" | "ru",
+  designId: string,
+): string {
+  return `${new URL(page.url()).origin}/${locale}/d/${designId}`;
+}
+
+/** The address as the card draws it: the same address less its scheme, which the copy keeps. */
+export function shownDesignAddressOf(
+  page: Page,
+  locale: "ro" | "ru",
+  designId: string,
+): string {
+  return designAddressOf(page, locale, designId).replace(/^https?:\/\//, "");
+}
+
+/** The server render and the hydrating render show the editor's path; the absolute address follows on the next
+ *  render, which a page that stalls on a runner draws late. */
+const ABSOLUTE_ADDRESS_WITHIN_MS = 20_000;
+
+/** 5A's design-link card is visible and its address is this design's editor in this locale, without the scheme. */
+export async function expectDesignLinkShown(
+  page: Page,
+  locale: "ro" | "ru",
+  designId: string,
+): Promise<void> {
+  await expect(page.getByTestId(DONE_DESIGN_LINK_CARD)).toBeVisible();
+  await expect(page.getByTestId(DONE_DESIGN_LINK)).toHaveText(
+    shownDesignAddressOf(page, locale, designId),
+    { timeout: ABSOLUTE_ADDRESS_WITHIN_MS },
+  );
+}
+
+/** Wave 8V D2: the reference is on none of the customer's screens. Read from what the page shows (`innerText`), not its
+ *  markup, whose flight payload may carry the reference as a prop. An empty reference is refused, since every text
+ *  contains it and the check would pass for nothing. */
+export async function expectReferenceNotShown(
+  page: Page,
+  reference: string,
+): Promise<void> {
+  expect(reference, "a reference to look for").not.toBe("");
+  await expect(page.getByTestId(DONE_REFERENCE)).toHaveCount(0);
+  const shown = await page.evaluate(() => document.body.innerText);
+  expect(shown, "the screen shows the reference").not.toContain(reference);
+}
+
+/** The reference of the contact route's next `200` answer to this page, which the screens no longer show (wave 8V D2).
+ *  Call it before the press: a response that came before the wait was armed is never seen. A test that fails before it
+ *  awaits the wait is already red, so the wait's own rejection when the page closes is marked handled here. */
+export function nextSentReference(page: Page): Promise<string> {
+  const reference = referenceOfTheNextSentAnswer(page);
+  reference.catch(() => undefined);
+  return reference;
+}
+
+/** Generous for a runner that stalls for seconds at a time, and short of the 120 s test timeout so that a send answered
+ *  otherwise than `200` fails here, by name, and not as a timeout that names nothing. */
+const SENT_ANSWER_WITHIN_MS = 60_000;
+
+async function referenceOfTheNextSentAnswer(page: Page): Promise<string> {
+  const response = await page
+    .waitForResponse(
+      (answer) =>
+        new URL(answer.url()).pathname === CONTACT_ROUTE_PATH &&
+        answer.request().method() === "POST" &&
+        answer.status() === 200,
+      { timeout: SENT_ANSWER_WITHIN_MS },
+    )
+    .catch((cause: unknown) => {
+      throw new Error(
+        `no 200 answer from ${CONTACT_ROUTE_PATH} within ${String(SENT_ANSWER_WITHIN_MS)} ms`,
+        { cause },
+      );
+    });
+  const body = (await response.json()) as { reference?: unknown };
+  if (typeof body.reference !== "string" || body.reference === "") {
+    throw new Error("the contact route's 200 answer carries no reference");
+  }
+  return body.reference;
 }
 
 export function callbackPath(locale: "ro" | "ru"): string {

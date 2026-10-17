@@ -5,8 +5,9 @@
 // The answer is lost by `page.route` calling `route.fetch()`, which makes the request from this process and so reaches
 // the server and stores the row, and then `route.abort("internetdisconnected")`, which gives the page a rejected fetch.
 // The context is then taken offline and back online, which is the browser's own word that the connection is back. What
-// must follow: one more request under the same id and the same body, the page replaced by the confirmation with the
-// reference the first answer carried, and ONE row in the database. Every request that can reach the server is
+// must follow: one more request under the same id and the same body, answered with the reference the first answer
+// carried, the page replaced by the confirmation (which since wave 8V shows the design's own address and no reference),
+// and ONE row in the database. Every request that can reach the server is
 // registered with `contact-run.ts` before it leaves, so the teardown removes its rows (ADR 0151). Each test is a new
 // browser context, so each is its own visitor and sends one new request.
 import { expect, type BrowserContext, type Page } from "@playwright/test";
@@ -14,7 +15,6 @@ import { expect, type BrowserContext, type Page } from "@playwright/test";
 import {
   CTA,
   DONE_HEADING,
-  DONE_REFERENCE,
   FAILURE,
   FAILURE_HEADING,
   FAILURE_WAITING,
@@ -23,6 +23,9 @@ import {
   clientRequestIdOf,
   donePath,
   elapsedOf,
+  expectDesignLinkShown,
+  expectReferenceNotShown,
+  nextSentReference,
   pressTheCallToAction,
   recordContactRequests,
   sentAt,
@@ -160,7 +163,8 @@ async function walkTheRestOfTheTrace({
 
   await goForwardAndSettle(page);
   await expect(page).toHaveURL(donePath("ro", designId));
-  await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(reference);
+  await expectDesignLinkShown(page, "ro", designId);
+  await expectReferenceNotShown(page, reference);
   await expect(page.getByTestId("done-channel-line")).toContainText(
     typed.phone,
   );
@@ -169,7 +173,8 @@ async function walkTheRestOfTheTrace({
   await page.getByTestId("top-bar-locale").tap();
   await page.getByTestId("top-bar-locale-option-ru").tap();
   await page.waitForURL(`**${donePath("ru", designId)}`);
-  await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(reference);
+  await expectDesignLinkShown(page, "ru", designId);
+  await expectReferenceNotShown(page, reference);
   await expect(page.getByTestId("done-channel-line")).toContainText(
     typed.phone,
   );
@@ -179,7 +184,8 @@ async function walkTheRestOfTheTrace({
   await expectNothingTypedKept(page, context, typed, kept, "language");
 
   await page.reload();
-  await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(reference);
+  await expectDesignLinkShown(page, "ru", designId);
+  await expectReferenceNotShown(page, reference);
   await expect(page.getByTestId("done-channel-line")).toHaveText(
     MESSAGES.ru.submissionResult.channelLineWithoutValue,
   );
@@ -204,7 +210,7 @@ async function walkTheRestOfTheTrace({
 for (const locale of ["ro", "ru"] as const) {
   const words = MESSAGES[locale];
 
-  test(`${locale}: an answer the browser never saw is stored once; offline and online sends it again under its id, and the end is the confirmation with the first answer's reference`, async ({
+  test(`${locale}: an answer the browser never saw is stored once; offline and online sends it again under its id, answered with the first answer's reference, and the end is the confirmation, which does not show it`, async ({
     page,
     context,
     seededDesign,
@@ -290,7 +296,9 @@ for (const locale of ["ro", "ru"] as const) {
     // Back online: one more request, the same id and the same body, the elapsed time measured again.
     const sentBeforeReturn = sent.length;
     noteReplayOf(run, requestId);
+    const replayAnswered = nextSentReference(page);
     await context.setOffline(false);
+    const replayReference = await replayAnswered;
     await page.waitForURL(`**${donePath(locale, seededDesign.id)}`);
     await expect(page.getByTestId(DONE_HEADING)).toBeVisible();
 
@@ -306,11 +314,14 @@ for (const locale of ["ro", "ru"] as const) {
       "every attempt carried the one id",
     ).toBe(true);
 
-    // The end: the first answer's reference, the phone as typed, nothing else typed, focus on the heading, and the
+    // The end: the replay answered with the first answer's reference, which the confirmation does not show (wave 8V
+    // D2) in place of the design's own address; the phone as typed, nothing else typed, focus on the heading, and the
     // history no longer than it was when the form was sent.
-    await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(
-      lost.reference ?? "",
+    expect(replayReference, "the replay's answer is the first's").toBe(
+      lost.reference,
     );
+    await expectDesignLinkShown(page, locale, seededDesign.id);
+    await expectReferenceNotShown(page, replayReference);
     await expect(page.getByTestId("done-channel-line")).toContainText(
       typed.phone,
     );
@@ -373,10 +384,13 @@ test("ro: offline before the press, the request never leaves; 5B waits for the c
   );
 
   noteReplayOf(run, requestId);
+  const answered = nextSentReference(page);
   await context.setOffline(false);
+  const reference = await answered;
   await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
 
-  await expect(page.getByTestId(DONE_REFERENCE)).toBeVisible();
+  await expectDesignLinkShown(page, "ro", seededDesign.id);
+  await expectReferenceNotShown(page, reference);
   expect(sent).toHaveLength(2);
   expect(clientRequestIdOf(sentAt(sent, 1))).toBe(requestId);
   expect(withoutElapsed(sentAt(sent, 1))).toEqual(

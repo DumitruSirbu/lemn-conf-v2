@@ -1,38 +1,48 @@
-// What the port's predicate accepts, driven through everything that then receives it: the built request,
-// the platform's own header and request constructors, and the fake. Whether an accepted message can still
-// break, widen or change a request, and whether what a sender judged is what it sends and records.
+// What the port's predicate accepts, driven through everything that then receives it: the options the Gmail adapter
+// builds, the library's own composer, and the fake. Whether an accepted message can still break, widen or change a
+// message on the wire, and whether what a sender judged is what it sends and records. The transport is scripted and
+// the composer builds without sending; the network guard stands under every test.
+import { createHash } from "node:crypto";
+
 import { fc } from "@fast-check/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
 import {
+  buildGmailMessage,
+  buildGmailTransportOptions,
+  createGmailMailSender,
+} from "@/lib/server/mail/gmail-mail-sender";
+import {
   isSendableMailMessage,
   LINE_BREAKING_CHARACTER,
   type MailMessage,
 } from "@/lib/server/mail/mail-sender";
-import {
-  buildResendRequest,
-  createResendMailSender,
-  MAIL_USER_AGENT,
-  RESEND_SEND_URL,
-} from "@/lib/server/mail/resend-mail-sender";
 
-import { forbidFetch, releaseFetch } from "./mail-test-support";
 import {
-  FAKE_API_KEY,
+  forbidFetch,
+  forbidNetwork,
+  releaseFetch,
+  releaseNetwork,
+} from "./mail-test-support";
+import {
+  ACCEPTED_ONE_RECIPIENT,
+  expectNoMarkerIn,
+  FAKE_APP_PASSWORD,
   FAKE_INBOX,
   FAKE_SENDER,
   QA_CONFIGURATION,
-  expectNoMarkerIn,
   QA_MESSAGE,
-  stubFetchAnswering,
-  textAnswer,
+  transportsAnswering,
 } from "./qa-8j-support";
+import { ALLOWED_HEADER_NAMES, composeRaw } from "./qa-8n-compose-support";
 
 const VISIBLE_ASCII = Array.from(
   { length: 0x7e - 0x21 + 1 },
   (_unused, index) => String.fromCharCode(0x21 + index),
 );
+
+const WELL_FORMED_MESSAGE_ID = /^<[0-9a-f]{64}@[a-z0-9.-]+>$/;
 
 const sendableKey = fc
   .array(fc.constantFrom(...VISIBLE_ASCII), { minLength: 1, maxLength: 256 })
@@ -64,7 +74,7 @@ const UNSENDABLE_KEYS = [
   "key\u0000",
   "key\u007f",
   "ключ",
-  "key\u2028",
+  "key ",
 ];
 
 const unsendableMessage = fc.oneof(
@@ -80,8 +90,8 @@ const unsendableMessage = fc.oneof(
       "two\nlines",
       "two\r\nlines",
       "tab\there",
-      "separated\u2028here",
-      "paragraph\u2029here",
+      "separated here",
+      "paragraph here",
       "next\u0085line",
     ),
     text: sendableText,
@@ -93,79 +103,88 @@ const unsendableMessage = fc.oneof(
   }),
 );
 
-function acceptingFetch() {
-  return stubFetchAnswering(() => textAnswer(200, '{"id":"msg_1"}'));
+function acceptingTransports() {
+  return transportsAnswering(() => ACCEPTED_ONE_RECIPIENT);
 }
 
-function initOf(fetchSpy: ReturnType<typeof acceptingFetch>): RequestInit {
-  const init = fetchSpy.mock.calls[0]?.[1];
-  if (init === undefined) throw new Error("no request was made");
-  return init;
-}
-
-beforeEach(forbidFetch);
+beforeEach(() => {
+  forbidFetch();
+  forbidNetwork();
+});
 afterEach(() => {
   vi.restoreAllMocks();
   releaseFetch();
+  releaseNetwork();
 });
 
 describe("a message the predicate accepts, through everything that then receives it", () => {
-  it("builds a request the platform's own constructor takes, whose four headers read back unchanged", () => {
-    fc.assert(
-      fc.property(sendableMessage, (message) => {
-        const built = buildResendRequest(message, QA_CONFIGURATION);
+  it("is composed by the library, whatever it holds, into the clean header set and the one recipient", async () => {
+    await fc.assert(
+      fc.asyncProperty(sendableMessage, async (message) => {
+        const options = buildGmailMessage(message, QA_CONFIGURATION);
 
-        const request = new Request(built.url, built.init);
+        const composed = await composeRaw(options);
 
         expect(isSendableMailMessage(message)).toBe(true);
-        expect(Object.fromEntries(request.headers)).toEqual({
-          authorization: `Bearer ${FAKE_API_KEY}`,
-          "content-type": "application/json",
-          "user-agent": MAIL_USER_AGENT,
-          "idempotency-key": message.key,
-        });
+        expect([...composed.headerNames].sort()).toEqual(ALLOWED_HEADER_NAMES);
+        expect(composed.headers.get("message-id")).toMatch(
+          WELL_FORMED_MESSAGE_ID,
+        );
+        expect(composed.headers.get("content-type")).toMatch(/^text\/plain\b/);
+        expect(composed.envelopeRecipients).toEqual([FAKE_INBOX]);
+        expect(composed.envelopeSender).toBe(FAKE_SENDER);
       }),
+      { numRuns: 150 },
     );
   });
 
-  it("carries the subject and the text through the body unchanged, with the one configured recipient", () => {
-    fc.assert(
-      fc.property(sendableMessage, (message) => {
-        const { body } = buildResendRequest(message, QA_CONFIGURATION).init;
+  it("hands the transport exactly the five members, the configured addresses and the message's own subject and text", async () => {
+    await fc.assert(
+      fc.asyncProperty(sendableMessage, async (message) => {
+        const transports = acceptingTransports();
 
-        expect(JSON.parse(body)).toStrictEqual({
+        const outcome = await createGmailMailSender(
+          QA_CONFIGURATION,
+          transports.make,
+        ).send(message);
+
+        expect(outcome).toEqual({ ok: true });
+        const [options] = transports.sentOptions;
+        expect(Object.keys(options ?? {})).toEqual([
+          "from",
+          "to",
+          "subject",
+          "text",
+          "messageId",
+        ]);
+        expect(options).toMatchObject({
           from: FAKE_SENDER,
-          to: [FAKE_INBOX],
+          to: FAKE_INBOX,
           subject: message.subject,
           text: message.text,
         });
+        expect(options?.messageId).toBe(
+          `<${createHash("sha256").update(message.key, "utf8").digest("hex")}@mail.example.com>`,
+        );
       }),
     );
-  });
-
-  it("writes half surrogates as escapes, so the body survives a UTF-8 round trip unchanged", () => {
-    const message = { ...QA_MESSAGE, text: "before \ud800 after \udc00 end" };
-
-    const { body } = buildResendRequest(message, QA_CONFIGURATION).init;
-
-    expect(isSendableMailMessage(message)).toBe(true);
-    expect(new TextDecoder().decode(new TextEncoder().encode(body))).toBe(body);
-    expect((JSON.parse(body) as { text: string }).text).toBe(message.text);
   });
 
   it("is sent by the adapter and recorded by the fake alike", async () => {
     await fc.assert(
       fc.asyncProperty(sendableMessage, async (message) => {
-        const fetchSpy = acceptingFetch();
+        const transports = acceptingTransports();
         const fake = createFakeMailSender();
 
-        const fromAdapter =
-          await createResendMailSender(QA_CONFIGURATION).send(message);
+        const fromAdapter = await createGmailMailSender(
+          QA_CONFIGURATION,
+          transports.make,
+        ).send(message);
         const fromFake = await fake.send(message);
 
         expect(fromAdapter).toEqual({ ok: true });
         expect(fromFake).toEqual({ ok: true });
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        expect(transports.sentOptions).toHaveLength(1);
         expect(fake.sent).toEqual([message]);
       }),
     );
@@ -173,20 +192,22 @@ describe("a message the predicate accepts, through everything that then receives
 });
 
 describe("a message the predicate refuses", () => {
-  it("makes no request through the adapter and leaves no record in the fake, and both answer the same", async () => {
+  it("makes no transport through the adapter and leaves no record in the fake, and both answer the same", async () => {
     await fc.assert(
       fc.asyncProperty(unsendableMessage, async (message) => {
-        const fetchSpy = acceptingFetch();
+        const transports = acceptingTransports();
         const fake = createFakeMailSender([{ ok: false, kind: "busy" }]);
 
-        const fromAdapter =
-          await createResendMailSender(QA_CONFIGURATION).send(message);
+        const fromAdapter = await createGmailMailSender(
+          QA_CONFIGURATION,
+          transports.make,
+        ).send(message);
         const fromFake = await fake.send(message);
 
         expect(isSendableMailMessage(message)).toBe(false);
         expect(fromAdapter).toEqual({ ok: false, kind: "refused" });
         expect(fromFake).toEqual(fromAdapter);
-        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(transports.made()).toBe(0);
         expect(fake.sent).toEqual([]);
       }),
     );
@@ -199,21 +220,26 @@ describe("a message the predicate refuses", () => {
     ["a text that is a list of lines", { text: ["line"] }],
     ["a missing text", { text: undefined }],
   ])(
-    "refuses %s rather than letting it be coerced into a request",
+    "refuses %s rather than letting it be coerced into a message",
     async (_label, member) => {
-      const fetchSpy = acceptingFetch();
+      const transports = acceptingTransports();
       const message = { ...QA_MESSAGE, ...member } as unknown as MailMessage;
 
-      const outcome =
-        await createResendMailSender(QA_CONFIGURATION).send(message);
+      const outcome = await createGmailMailSender(
+        QA_CONFIGURATION,
+        transports.make,
+      ).send(message);
 
       expect(outcome).toEqual({ ok: false, kind: "refused" });
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(transports.made()).toBe(0);
     },
   );
 });
 
-describe("what a message can add to the request beyond its three fields", () => {
+/** A member of the port since it carries an HTML alternative: a message that answers it is sending one. */
+const HTML_MEMBER = "html";
+
+describe("what a message can add to the options beyond its three fields", () => {
   class MessageWithInheritedExtras implements MailMessage {
     readonly key = QA_MESSAGE.key;
     readonly subject = QA_MESSAGE.subject;
@@ -223,17 +249,13 @@ describe("what a message can add to the request beyond its three fields", () => 
       return `inherited-${this.key.length.toString()}@example.com`;
     }
 
-    get html(): string {
-      return `<b>${this.subject}</b>`;
-    }
-
     toJSON(): object {
       return {
         to: ["hook-recipient@example.com"],
         bcc: "hook-recipient@example.com",
         attachments: [{ filename: "x" }],
-        tags: [{ name: "x", value: "y" }],
-        scheduled_at: "tomorrow",
+        replyTo: "hook-recipient@example.com",
+        headers: { Bcc: "hook-recipient@example.com" },
       };
     }
   }
@@ -247,12 +269,13 @@ describe("what a message can add to the request beyond its three fields", () => 
       "a message whose members are accessors beside own extras",
       Object.defineProperties(
         {
-          reply_to: "own-recipient@example.com",
+          replyTo: "own-recipient@example.com",
           cc: ["own-recipient@example.com"],
+          bcc: "own-recipient@example.com",
           headers: { Bcc: "own-recipient@example.com" },
           attachments: [],
-          tags: [],
-          scheduled_at: "in 1 min",
+          envelope: { to: "own-recipient@example.com" },
+          list: { unsubscribe: "own-recipient@example.com" },
         },
         {
           key: { get: () => QA_MESSAGE.key, enumerable: true },
@@ -265,14 +288,14 @@ describe("what a message can add to the request beyond its three fields", () => 
       "a proxy that answers any member asked of it",
       new Proxy(QA_MESSAGE, {
         get: (target, member) =>
-          member in target
+          member in target || member === HTML_MEMBER
             ? target[member as keyof MailMessage]
             : "proxied-recipient@example.com",
         has: () => true,
-        ownKeys: () => ["key", "subject", "text", "to", "bcc", "html"],
+        ownKeys: () => ["key", "subject", "text", "to", "bcc"],
         getOwnPropertyDescriptor: (target, member) => ({
           value:
-            member in target
+            member in target || member === HTML_MEMBER
               ? target[member as keyof MailMessage]
               : "proxied-recipient@example.com",
           enumerable: true,
@@ -283,56 +306,47 @@ describe("what a message can add to the request beyond its three fields", () => 
   ];
 
   it.each(HOSTILE_MESSAGES)(
-    "sends exactly the plain message's bytes, headers and options for %s",
+    "hands the transport exactly the plain message's options, and composes to the plain message's headers, for %s",
     async (_label, message) => {
-      const plainSpy = acceptingFetch();
-      await createResendMailSender(QA_CONFIGURATION).send(QA_MESSAGE);
-      const plain = initOf(plainSpy);
-      const hostileSpy = acceptingFetch();
+      const plain = acceptingTransports();
+      await createGmailMailSender(QA_CONFIGURATION, plain.make).send(
+        QA_MESSAGE,
+      );
+      const hostile = acceptingTransports();
 
-      await createResendMailSender(QA_CONFIGURATION).send(message);
-      const hostile = initOf(hostileSpy);
+      await createGmailMailSender(QA_CONFIGURATION, hostile.make).send(message);
 
-      expect(hostile.body).toBe(plain.body);
-      expect(hostile.headers).toStrictEqual(plain.headers);
-      expect(Object.keys(hostile).sort()).toEqual(Object.keys(plain).sort());
+      expect(hostile.sentOptions).toStrictEqual(plain.sentOptions);
+      const [options] = hostile.sentOptions;
+      if (options === undefined) throw new Error("nothing was sent");
+      const composed = await composeRaw(options);
+      expect([...composed.headerNames].sort()).toEqual(ALLOWED_HEADER_NAMES);
+      expect(composed.envelopeRecipients).toEqual([FAKE_INBOX]);
+      expect(composed.raw).not.toContain("recipient@example.com");
     },
   );
 
-  it("hands fetch the method, headers, body, redirect rule and signal, and no other option", async () => {
-    const fetchSpy = acceptingFetch();
-
-    await createResendMailSender(QA_CONFIGURATION).send(QA_MESSAGE);
-
-    const init = initOf(fetchSpy);
-    expect(Object.keys(init).sort()).toEqual([
-      "body",
-      "headers",
-      "method",
-      "redirect",
-      "signal",
-    ]);
-    expect(Object.keys(init.headers as object)).toEqual([
-      "Authorization",
-      "Content-Type",
-      "User-Agent",
-      "Idempotency-Key",
-    ]);
-    expect(fetchSpy.mock.calls[0]?.[0]).toBe(RESEND_SEND_URL);
-  });
-
-  it("adds nothing a configuration carries beyond its three values", () => {
+  it("adds nothing a configuration carries beyond its three values: the options and the transport's are the same", async () => {
     const widened = {
       ...QA_CONFIGURATION,
       cc: "configured-extra@example.com",
+      bcc: "configured-extra@example.com",
       replyTo: "configured-extra@example.com",
       headers: { "X-Extra": "1" },
+      tls: { rejectUnauthorized: false },
+      service: "other",
+      host: "other.example.com",
     };
+    const plain = acceptingTransports();
+    const wide = acceptingTransports();
 
-    const built = buildResendRequest(QA_MESSAGE, widened);
+    await createGmailMailSender(QA_CONFIGURATION, plain.make).send(QA_MESSAGE);
+    await createGmailMailSender(widened, wide.make).send(QA_MESSAGE);
 
-    expect(built).toStrictEqual(
-      buildResendRequest(QA_MESSAGE, QA_CONFIGURATION),
+    expect(wide.sentOptions).toStrictEqual(plain.sentOptions);
+    expect(wide.transportOptions).toStrictEqual(plain.transportOptions);
+    expect(buildGmailTransportOptions(widened)).toStrictEqual(
+      buildGmailTransportOptions(QA_CONFIGURATION),
     );
   });
 });
@@ -344,32 +358,38 @@ describe("the same message, the same bytes", () => {
       subject: QA_MESSAGE.subject,
       key: QA_MESSAGE.key,
     };
-    const firstSpy = acceptingFetch();
-    await createResendMailSender(QA_CONFIGURATION).send(QA_MESSAGE);
-    const first = initOf(firstSpy).body;
-    const secondSpy = acceptingFetch();
+    const first = acceptingTransports();
+    const second = acceptingTransports();
 
-    await createResendMailSender({ ...QA_CONFIGURATION }).send(reordered);
+    await createGmailMailSender(QA_CONFIGURATION, first.make).send(QA_MESSAGE);
+    await createGmailMailSender({ ...QA_CONFIGURATION }, second.make).send(
+      reordered,
+    );
 
-    expect(initOf(secondSpy).body).toBe(first);
+    expect(second.sentOptions).toStrictEqual(first.sentOptions);
   });
 
-  it("is the same on a later attempt from the same sender, after a failure in between", async () => {
-    const sender = createResendMailSender(QA_CONFIGURATION);
-    const failingSpy = stubFetchAnswering(() => textAnswer(503, "down"));
-    await sender.send(QA_MESSAGE);
-    const firstAttempt = initOf(failingSpy);
-    const retrySpy = acceptingFetch();
+  it("is the same on a later attempt from the same sender, after a failure in between, Message-ID included", async () => {
+    const answers = [
+      () => Promise.reject(new Error("down")),
+      () => Promise.resolve(ACCEPTED_ONE_RECIPIENT),
+    ];
+    const transports = transportsAnswering(() => {
+      const answer = answers.shift();
+      return answer === undefined ? undefined : answer();
+    });
+    const sender = createGmailMailSender(QA_CONFIGURATION, transports.make);
 
     await sender.send(QA_MESSAGE);
-    const retry = initOf(retrySpy);
+    await sender.send(QA_MESSAGE);
 
-    expect(retry.body).toBe(firstAttempt.body);
-    expect(retry.headers).toStrictEqual(firstAttempt.headers);
+    expect(transports.sentOptions).toHaveLength(2);
+    expect(transports.sentOptions[1]).toStrictEqual(transports.sentOptions[0]);
   });
 });
 
-type Member = keyof MailMessage;
+/** The three members every message has; `html` is optional and has its own reading tests. */
+type Member = Exclude<keyof MailMessage, "html">;
 const MEMBERS: readonly Member[] = ["key", "subject", "text"];
 
 const LATER_ANSWERS: MailMessage = {
@@ -428,17 +448,19 @@ describe.each(CHANGING_MESSAGES)(
   "a message whose every member changes after its first answer, through %s",
   (_label, answering) => {
     it("is asked once for each member by the adapter, which sends the first answers", async () => {
-      const fetchSpy = acceptingFetch();
+      const transports = acceptingTransports();
       const { message, reads } = answering(QA_MESSAGE, LATER_ANSWERS);
 
-      const outcome =
-        await createResendMailSender(QA_CONFIGURATION).send(message);
+      const outcome = await createGmailMailSender(
+        QA_CONFIGURATION,
+        transports.make,
+      ).send(message);
 
-      const expected = buildResendRequest(QA_MESSAGE, QA_CONFIGURATION).init;
       expect(outcome).toEqual({ ok: true });
       expect(reads).toEqual({ key: 1, subject: 1, text: 1 });
-      expect(initOf(fetchSpy).body).toBe(expected.body);
-      expect(initOf(fetchSpy).headers).toStrictEqual(expected.headers);
+      expect(transports.sentOptions).toStrictEqual([
+        buildGmailMessage(QA_MESSAGE, QA_CONFIGURATION),
+      ]);
     });
 
     it("is asked once for each member by the fake, whose record of the first answers is frozen", async () => {
@@ -458,23 +480,24 @@ describe.each(CHANGING_MESSAGES)(
     it.each(MEMBERS)(
       "is refused unsent and unrecorded when its first %s may not be sent, however well it answers afterwards",
       async (member) => {
-        const fetchSpy = acceptingFetch();
+        const transports = acceptingTransports();
         const fake = createFakeMailSender();
         const unsendableFirst = {
           ...QA_MESSAGE,
           [member]: LATER_ANSWERS[member],
         };
 
-        const fromAdapter = await createResendMailSender(QA_CONFIGURATION).send(
-          answering(unsendableFirst, QA_MESSAGE).message,
-        );
+        const fromAdapter = await createGmailMailSender(
+          QA_CONFIGURATION,
+          transports.make,
+        ).send(answering(unsendableFirst, QA_MESSAGE).message);
         const fromFake = await fake.send(
           answering(unsendableFirst, QA_MESSAGE).message,
         );
 
         expect(fromAdapter).toEqual({ ok: false, kind: "refused" });
         expect(fromFake).toEqual(fromAdapter);
-        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(transports.made()).toBe(0);
         expect(fake.sent).toEqual([]);
       },
     );
@@ -485,7 +508,7 @@ function throwingWhenAskedFor(member: Member): MailMessage {
   return Object.defineProperty({ ...QA_MESSAGE }, member, {
     enumerable: true,
     get(): string {
-      throw new Error(`unreadable ${FAKE_API_KEY}`);
+      throw new Error(`unreadable ${FAKE_APP_PASSWORD}`);
     },
   });
 }
@@ -501,7 +524,7 @@ describe("what is handed to a sender in place of a readable message", () => {
         {},
         {
           get() {
-            throw new Error(`unreadable ${FAKE_API_KEY}`);
+            throw new Error(`unreadable ${FAKE_APP_PASSWORD}`);
           },
         },
       ),
@@ -515,23 +538,25 @@ describe("what is handed to a sender in place of a readable message", () => {
   ];
 
   it.each(UNREADABLE)(
-    "is refused without a request by the adapter, and by the fake without a record or a spent scripted answer: %s",
+    "is refused without a transport by the adapter, and by the fake without a record or a spent scripted answer: %s",
     async (_label, value) => {
-      const fetchSpy = acceptingFetch();
+      const transports = acceptingTransports();
       const fake = createFakeMailSender([{ ok: false, kind: "busy" }]);
       const message = value as MailMessage;
 
-      const fromAdapter =
-        await createResendMailSender(QA_CONFIGURATION).send(message);
+      const fromAdapter = await createGmailMailSender(
+        QA_CONFIGURATION,
+        transports.make,
+      ).send(message);
       const fromFake = await fake.send(message);
       const nextFromFake = await fake.send(QA_MESSAGE);
 
       expect(fromAdapter).toEqual({ ok: false, kind: "refused" });
       expect(fromFake).toEqual(fromAdapter);
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(transports.made()).toBe(0);
       expect(fake.sent).toEqual([QA_MESSAGE]);
       expect(nextFromFake).toEqual({ ok: false, kind: "busy" });
-      expectNoMarkerIn([fromAdapter, fromFake], [FAKE_API_KEY]);
+      expectNoMarkerIn([fromAdapter, fromFake], [FAKE_APP_PASSWORD]);
     },
   );
 

@@ -22,8 +22,12 @@ import {
   callbackPath,
   clientRequestIdOf,
   contactDocumentPath,
+  designAddressOf,
+  shownDesignAddressOf,
   donePath,
+  expectDesignLinkShown,
   expectFormDrawn,
+  expectReferenceNotShown,
   fillTheWholeForm,
   newToken,
   pressTheCallToAction,
@@ -192,7 +196,8 @@ test.describe("an answered failure is 5B's not-sent, and no return of the connec
       expect(withoutElapsed(sentAt(sent, 1))).toEqual(
         withoutElapsed(sentAt(sent, 0)),
       );
-      await expect(page.getByTestId(DONE_REFERENCE)).toHaveText("LMN-5B-0001");
+      await expectDesignLinkShown(page, "ro", seededDesign.id);
+      await expectReferenceNotShown(page, "LMN-5B-0001");
     });
   }
 
@@ -357,7 +362,8 @@ test.describe("a send nothing answered", () => {
     await context.setOffline(false);
     await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
     expect(sent).toHaveLength(3);
-    await expect(page.getByTestId(DONE_REFERENCE)).toHaveText("LMN-5B-0003");
+    await expectDesignLinkShown(page, "ro", seededDesign.id);
+    await expectReferenceNotShown(page, "LMN-5B-0003");
   });
 
   test("the callback form: no design card on 5B, the no-design kept sentence, no way to a design; the return of the connection ends in the sent view in place, and a reload shows the empty form", async ({
@@ -474,21 +480,44 @@ test("the connection returns while a retry made offline is still out: the event 
 test.describe("a reference that is not a reference", () => {
   const MARKUP = "<img src=x onerror=alert(1)>";
 
-  test("markup is text: it is drawn as those characters, nothing runs, and no element is made of it", async ({
-    page,
-    seededDesign,
-  }) => {
+  function recordDialogs(page: Page): string[] {
     const dialogs: string[] = [];
     page.on("dialog", (dialog) => {
       dialogs.push(dialog.message());
       void dialog.dismiss();
     });
+    return dialogs;
+  }
+
+  test("5A: markup in the answer's reference is not drawn at all, nothing runs, and no element is made of it", async ({
+    page,
+    seededDesign,
+  }) => {
+    const dialogs = recordDialogs(page);
     await openAndFill(page, contactDocumentPath("ro", seededDesign.id));
     await page.waitForTimeout(2400);
     await answerContactInOrder(page, [ANSWERS.sent(MARKUP)]);
 
     await pressTheCallToAction(page);
     await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
+
+    await expectDesignLinkShown(page, "ro", seededDesign.id);
+    await expectReferenceNotShown(page, MARKUP);
+    await expect(page.locator("main img")).toHaveCount(0);
+    await page.waitForTimeout(500);
+    expect(dialogs).toEqual([]);
+  });
+
+  test("the callback form's sent view, which still draws the reference: markup is text, drawn as those characters, nothing runs, and no element is made of it", async ({
+    page,
+  }) => {
+    const dialogs = recordDialogs(page);
+    await openAndFill(page, callbackPath("ro"));
+    await page.waitForTimeout(2400);
+    await answerContactInOrder(page, [ANSWERS.sent(MARKUP)]);
+
+    await pressTheCallToAction(page);
+    await expect(page.getByTestId("contact-sent")).toBeVisible();
 
     await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(MARKUP);
     await expect(page.locator("main img")).toHaveCount(0);
@@ -503,8 +532,8 @@ test.describe("a reference that is not a reference", () => {
 /** The confirmation's own timer is about two seconds; a runner whose page stalls for seconds at a time runs it late. */
 const CONFIRMATION_CLEARS_WITHIN_MS = 20_000;
 
-test.describe("what the reference card and the picture do on the page", () => {
-  test("ro: the copy control writes exactly the reference to the clipboard and its confirmation stands for about two seconds; the picture is the room's canvas with no camera control and no way to orbit it", async ({
+test.describe("what the design-link card and the picture do on the page", () => {
+  test("ro: the copy control writes exactly the design's address to the clipboard and its confirmation stands for about two seconds; the picture is the room's canvas with no camera control and no way to orbit it", async ({
     page,
     context,
     seededDesign,
@@ -515,6 +544,7 @@ test.describe("what the reference card and the picture do on the page", () => {
     await answerContactInOrder(page, [ANSWERS.sent("LMN-CP-0001")]);
     await pressTheCallToAction(page);
     await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
+    await expectDesignLinkShown(page, "ro", seededDesign.id);
 
     await page.getByTestId("done-copy").tap();
 
@@ -527,8 +557,8 @@ test.describe("what the reference card and the picture do on the page", () => {
     );
     expect(
       await page.evaluate(() => navigator.clipboard.readText()),
-      "the clipboard holds the reference and nothing else",
-    ).toBe("LMN-CP-0001");
+      "the clipboard holds the design's address and nothing else",
+    ).toBe(designAddressOf(page, "ro", seededDesign.id));
     await expect(page.getByTestId("done-copied")).toHaveText("", {
       timeout: CONFIRMATION_CLEARS_WITHIN_MS,
     });
@@ -539,7 +569,7 @@ test.describe("what the reference card and the picture do on the page", () => {
     await expect(picture).toHaveAttribute("aria-hidden", "true");
   });
 
-  test("ro: a clipboard that refuses the write shows no confirmation and leaves the reference selected, ready to be copied by hand", async ({
+  test("ro: a clipboard that refuses the write shows no confirmation and leaves the design's address selected, ready to be copied by hand", async ({
     page,
     seededDesign,
   }) => {
@@ -556,13 +586,14 @@ test.describe("what the reference card and the picture do on the page", () => {
     await answerContactInOrder(page, [ANSWERS.sent("LMN-CP-0002")]);
     await pressTheCallToAction(page);
     await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
+    await expectDesignLinkShown(page, "ro", seededDesign.id);
 
     await page.getByTestId("done-copy").tap();
     await page.waitForTimeout(500);
 
     await expect(page.getByTestId("done-copied")).toHaveText("");
     expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(
-      "LMN-CP-0002",
+      shownDesignAddressOf(page, "ro", seededDesign.id),
     );
   });
 });

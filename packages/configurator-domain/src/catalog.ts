@@ -73,8 +73,9 @@ const DEFAULT_MIN_WIDTH_MM = toMillimetres(MIN_WIDTH_M);
  *  the stepper is relative to a body's current width, so moving this to 25 mm costs no rework. */
 export const WIDTH_STEP_MM = 50;
 
-/** §7's ceiling every cabinetry row carries. Equal to but not `MAX_EMPTY_COLUMN_WIDTH_MM`, which must never exceed
- *  it; exported for that test only, as `module-grid.ts` is a leaf and this module is not (ADR 0052). */
+/** §7's ceiling every cabinetry row carries, and composition's width limit (`COMPOSITION_WIDTH_LIMIT_MM`). Equal to
+ *  but not `MAX_EMPTY_COLUMN_WIDTH_MM`, which must never exceed it and is not read from here, as `module-grid.ts` is a
+ *  leaf and this module is not (ADR 0052). */
 export const CABINETRY_MAX_WIDTH_MM = 800;
 
 /** Every multiple of `WIDTH_STEP_MM` inside these ranges, derived so the chips cannot drift from the bound (ADR 0035

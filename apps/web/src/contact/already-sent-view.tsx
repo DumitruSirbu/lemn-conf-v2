@@ -5,7 +5,6 @@ import { useEffect, useRef } from "react";
 
 import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
 import { BackToDesignLink } from "@/done/back-to-design-link";
-import { SentReferenceCard } from "@/done/sent-reference-card";
 import { useContent } from "@/i18n/use-content";
 import { CallShopLink } from "@/shop/call-shop-link";
 import { shopPhoneDisplay } from "@/shop/shop-phone";
@@ -17,19 +16,12 @@ import { ReviewBackLink, TopBar } from "./contact-top-bar";
  * The contact page of a kitchen already sent for (ADR 0163 decision 7). Nothing here is a form and its import closure
  * holds none of the send path, so it draws its own heading and takes the way back from a module of its own (ADR 0163 A5).
  */
-export function AlreadySentView({
-  designId,
-  reference,
-}: {
-  readonly designId: DesignId;
-  readonly reference: string;
-}) {
+export function AlreadySentView({ designId }: { readonly designId: DesignId }) {
   return (
     <main className={styles.screen}>
       <TopBar backLink={<ReviewBackLink designId={designId} />} />
       <div className={styles.body} data-testid="contact-already-sent">
         <SentHeading />
-        <SentReferenceCard reference={reference} />
         <CallAdvice />
         <ChangedKitchenSentence />
       </div>

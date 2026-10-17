@@ -1,4 +1,7 @@
-import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
+import {
+  CURRENT_SCHEMA_VERSION,
+  SAMPLE_PRICE_BOOK,
+} from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { contentFor } from "../../../support/catalogues";
@@ -17,6 +20,7 @@ const spies = vi.hoisted(() => ({
   loadOwnedDesign: vi.fn(),
   getContactSubmissionStore: vi.fn(),
   shippedPriceBook: vi.fn(),
+  getSentKitchenViewRepository: vi.fn(),
 }));
 
 vi.mock("@/lib/server/contact/judge-contact-request", () => ({
@@ -34,6 +38,16 @@ vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
 vi.mock("@/lib/server/shipped-price-book", () => ({
   shippedPriceBook: spies.shippedPriceBook,
 }));
+vi.mock("@/lib/server/repository", () => ({
+  getSentKitchenViewRepository: spies.getSentKitchenViewRepository,
+}));
+
+const A_VIEW = {
+  tokenHash: "ab".repeat(32),
+  clientRequestId: "req_0123456789abcdef",
+  schemaVersion: CURRENT_SCHEMA_VERSION,
+  document: "{}",
+};
 
 const { makeContactProductionPorts } = await import(
   "@/lib/server/contact/contact-production-ports"
@@ -116,6 +130,44 @@ describe("the contact's production ports, made for one request", () => {
       environment: process.env,
       headers,
       instant,
+    });
+  });
+
+  it("asks for the frozen copies' instance only when a view is recorded, and records through it", async () => {
+    const record = vi.fn(() => Promise.resolve("recorded"));
+    spies.getSentKitchenViewRepository.mockReturnValue({ record });
+    const ports = makeContactProductionPorts(new Headers());
+    expect(spies.getSentKitchenViewRepository).not.toHaveBeenCalled();
+
+    expect(await ports.sentKitchenViews.record(A_VIEW)).toBe("recorded");
+    expect(record).toHaveBeenCalledWith(A_VIEW);
+  });
+
+  it("makes the ports when the frozen copies' instance cannot be made, and rejects the record instead", async () => {
+    spies.getSentKitchenViewRepository.mockImplementation(() => {
+      throw new Error("no database");
+    });
+
+    const ports = makeContactProductionPorts(new Headers());
+
+    await expect(ports.sentKitchenViews.record(A_VIEW)).rejects.toThrow(
+      "no database",
+    );
+  });
+
+  it("reads the public origin from the process's environment each time it is asked, never once for the ports", () => {
+    vi.stubEnv("LEMNARIA_PUBLIC_ORIGIN", "https://first.lemnaria.example");
+    const ports = makeContactProductionPorts(new Headers());
+    expect(ports.readPublicOrigin()).toEqual({
+      status: "configured",
+      origin: "https://first.lemnaria.example",
+    });
+
+    vi.stubEnv("LEMNARIA_PUBLIC_ORIGIN", undefined);
+
+    expect(ports.readPublicOrigin()).toEqual({
+      status: "unavailable",
+      variable: "LEMNARIA_PUBLIC_ORIGIN",
     });
   });
 

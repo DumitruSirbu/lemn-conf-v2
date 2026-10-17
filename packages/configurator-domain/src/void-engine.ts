@@ -429,14 +429,16 @@ function restoredColumns(
 }
 
 /** §3.2: derived once at load; `top` and `regions` are load-time facts, never recomputed. Stored spaces and extents
- *  restore before the merge and before `hasFullHeightUnder` is answered (ADR 0053). */
+ *  restore before the merge and before `hasFullHeightUnder` is answered (ADR 0053). `mergeWidthLimitMm` omitted is
+ *  the editor's own; only composition passes one (`mergeAdjacentEmptyColumns`). */
 export function deriveColumns(
   records: readonly PlacementRecord[],
   stored: FrozenMapDocument = {},
   room: DesignRoom,
+  mergeWidthLimitMm?: number,
 ): ReadonlyMap<string, Column> {
   const columns = restoredColumns(records, stored, toMetres(room.widthMm));
-  return publishedFunnel(columns, records, room);
+  return publishedFunnel(columns, records, room, mergeWidthLimitMm);
 }
 
 /** The one published-face assembly: wall-end clip, merge, then the live full-height answer, which reads the extents
@@ -445,11 +447,13 @@ function publishedFunnel(
   columns: Map<string, ColumnExtent>,
   records: readonly PlacementRecord[],
   room: DesignRoom,
+  mergeWidthLimitMm?: number,
 ): ReadonlyMap<string, Column> {
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
       clipEmptyColumnsAtWallEnd(columns, records, room),
       records,
+      mergeWidthLimitMm,
     ),
     records,
   );
@@ -499,17 +503,21 @@ type MutableColumnExtent = {
 };
 
 /** The map as the document records it: `deriveColumns` minus the wall-end clip (ADR 0090 Amendment B). A projection
- *  into `emptyColumns`/`columnExtents` must use this, or a reversible wall length truncates stored spaces. */
+ *  into `emptyColumns`/`columnExtents` must use this, or a reversible wall length truncates stored spaces. The merge
+ *  limit is `deriveColumns`'. */
 export function deriveRecordedColumns(
   records: readonly PlacementRecord[],
   stored: FrozenMapDocument = {},
   roomWidthM: number,
+  mergeWidthLimitMm?: number,
 ): ReadonlyMap<string, Column> {
-  // A sibling pipeline, not `deriveColumns` with the clip moved: the merge caps at 800 mm (ADR 0052), so order matters.
+  // A sibling pipeline, not `deriveColumns` with the clip moved: the clip drops and narrows columns, changing the
+  // centres, widths and envelope the merge reads, so merging before clipping keys and tops the run differently.
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
       restoredColumns(records, stored, roomWidthM),
       records,
+      mergeWidthLimitMm,
     ),
     records,
   );

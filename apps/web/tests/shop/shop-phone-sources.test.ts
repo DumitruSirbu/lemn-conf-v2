@@ -10,13 +10,26 @@ import { filesUnder } from "../support/files-under";
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 
+/** The shop's notice, whose buttons reach the customer from the customer's own number and never the shop. */
+const NOTICE_MODULES = [
+  "lib/server/mail/lead-notification-html.ts",
+  "lib/server/mail/lead-notification.ts",
+];
+
 /** Each scheme's holders: the module that derives the shop's addresses holds both, and the one anchor that opens
  *  WhatsApp holds its own. */
 const SCHEMES = {
-  "tel:": { pattern: /\btel:/, holders: ["shop/shop-phone.ts"] },
+  "tel:": {
+    pattern: /\btel:/,
+    holders: [...NOTICE_MODULES, "shop/shop-phone.ts"],
+  },
   "wa.me/": {
     pattern: /\bwa\.me\//,
-    holders: ["done/send-on-whatsapp.tsx", "shop/shop-phone.ts"],
+    holders: [
+      "done/send-on-whatsapp.tsx",
+      "lib/server/mail/lead-notification.ts",
+      "shop/shop-phone.ts",
+    ],
   },
 } as const;
 

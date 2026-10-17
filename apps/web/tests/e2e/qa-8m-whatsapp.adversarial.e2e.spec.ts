@@ -7,13 +7,19 @@
 // Proved: nothing is asked of the share endpoint on arrival or while the page rests; with no link active one press is one
 // status read and one `POST`, and the link is shown; with a link active the warning stands and nothing is issued until the
 // customer goes on, three taps in all, and a double tap issues one; the external link's address is `https://wa.me/` + the shop's
-// WhatsApp digits + `?text=` and the one encoded message (the reference on the screen and the share address) and nothing
-// else (8M2 criteria 6 and 9); `target`, `rel`; no window is opened by script, and the tap opens one;
+// WhatsApp digits + `?text=` and the one encoded message (the answer's reference, which since wave 8V no screen shows,
+// and the share address) and nothing else (8M2 criteria 6 and 9); `target`, `rel`; no window is opened by script, and
+// the tap opens one;
 // the share address is in no history entry of this application, no storage, no cookie and no console line.
 import { expect, type Page, type Request } from "@playwright/test";
 
 import { shopWhatsAppDigits } from "../../src/shop/shop-phone";
-import { DONE_HEADING, DONE_REFERENCE, MESSAGES } from "./support/contact-page";
+import {
+  DONE_HEADING,
+  MESSAGES,
+  expectDesignLinkShown,
+  expectReferenceNotShown,
+} from "./support/contact-page";
 import { reachDoneByAMockedSend } from "./support/qa-8m";
 import { historyLength } from "./support/qa-8d-review";
 import { test } from "./support/seeded-design";
@@ -194,13 +200,13 @@ for (const locale of ["ro", "ru"] as const) {
     expect(shopWhatsAppDigits(), "the recipient is digits").toMatch(
       /^\d{8,15}$/,
     );
-    // The message carries the reference the screen shows (criterion 9), and the link last.
-    const shownReference = await page.getByTestId(DONE_REFERENCE).textContent();
-    expect(shownReference).toBe(REFERENCE_OF[locale]);
+    // The message carries the answer's reference (criterion 9), which no longer stands on the screen (wave 8V D2), and
+    // the link last.
+    await expectReferenceNotShown(page, REFERENCE_OF[locale]);
     const decoded = decodeURIComponent(
       expectedHref.slice(WHATSAPP_ADDRESS.length),
     );
-    expect(decoded).toContain(shownReference ?? "");
+    expect(decoded).toContain(REFERENCE_OF[locale]);
     expect(decoded).not.toContain("\n");
     expect(decoded.endsWith(`${origin}${sharePath}`)).toBe(true);
     await expect(open).toBeFocused();
@@ -235,8 +241,8 @@ test("ro: with a link already active the warning stands first, nothing is issued
   const traffic = watchShareEndpoint(page, seededDesign.id);
   await countScriptedWindows(page);
   await reachDoneByAMockedSend(page, seededDesign, "ro", "LMN-WA-0002");
-  const shownReference = await page.getByTestId(DONE_REFERENCE).textContent();
-  expect(shownReference).toBe("LMN-WA-0002");
+  await expectDesignLinkShown(page, "ro", seededDesign.id);
+  await expectReferenceNotShown(page, "LMN-WA-0002");
   const earlier = await page.evaluate(async (designId) => {
     const response = await fetch(`/api/designs/${designId}/share`, {
       method: "POST",

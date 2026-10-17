@@ -2565,6 +2565,8 @@ a candidate for a defect.
 
 **A second named sighting, 2026-10-09 [relayed, QA-run]:** `tests/room/plan-preview-model.facing-labels.test.ts:255`, "never intersect, over lengths across the approved U (Q-U1)", failed once in a whole run with "inside was reached: expected 6 to be >= 8" and passed alone three of three. Its cause is in the test: the property is unseeded and its floor counts how often a random draw reaches an arrangement [src :231-256]. No label intersected. Not established to be the entry's first failure. This one needs no recurrence: seed the property or build its arms so the floor is met by construction. No owner yet; not 8J's.
 
+**Dated note, 2026-10-17 [relayed by the coordinator at the 8J2 / 8U / 8V close].** `tests/room/plan-preview-model.facing-labels.test.ts` is reported flaky: the random test runs without a seed. **Owner action:** the next test-hygiene pass seeds it (or the M8 test audit, ADR 0152).
+
 ## 146. Count the stored design ids that do not have the generator's shape before 8L S2 gates a page — OWNER, RECORDED 2026-10-08
 
 **Source [the plan's 8H, *S2's readings*].** Whether every stored design id has the shape the generator makes is not
@@ -2715,11 +2717,15 @@ fake) and `qa-8j-environment` assert the same own keys `["send"]`: a newly added
 `qa-8j-request-and-predicate` 593, `qa-8j-notice-customer-text` 552, `qa-8j-notice-kitchen` 315; the developer's
 `lead-notification.test.ts` 687, `resend-mail-sender.test.ts` 615. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
 
-## 160. The mail adapter's answer mapping moves to its own module — RECORDED 2026-10-09 AT M8 8J's CLOSE
+## 160. The mail adapter's answer mapping moves to its own module — RECORDED 2026-10-09 AT M8 8J's CLOSE — CLOSED 2026-10-17 BY 8J2
 
 **Source [the plan's 8J, *the three reviews*, JC-R1.8].** `resend-mail-sender.ts` (231 lines) does request building, the timeout race and
 the answer mapping with body parsing. A move now costs a re-read and three source scans' lists for no behaviour. **Owner:** whoever next
 changes the file. **Trigger:** a second adapter, or the file's next change of behaviour.
+
+**Closed 2026-10-17.** The trigger fired: wave 8J2 (planned as 8N) replaced the Resend adapter with a Gmail SMTP one, whose answer
+table is its own module, `apps/web/src/lib/server/mail/smtp-answer.ts` [src: the file exists; S1 `b51899a6`, commit subject]. The Resend
+adapter was deleted (`fb15fa08`). [ADR 0164](../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md) decision 5.
 
 ## 161. The Control/Meta-click spec's URL wait is a test fault, and the two-tab helpers hide the status of a lockout — RECORDED 2026-10-09 BY THE TRIAGE OF 125 — CLOSED 2026-10-09, FIXED IN `c5432da`
 
@@ -3105,6 +3111,12 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 
 **Source [QA, relayed].** The failure comes from `neon('')` in a `describe` body: a pre-existing pattern, not new in 8Q2. **Trigger:** a change to how the live files read their environment, or the next audit.
 
+**Dated note, 2026-10-17 [relayed by the coordinator at the 8J2 / 8U / 8V close].** Reported again: four persistence live files that call `neon()` at `describe` scope fail to **load**
+when the connection variables are emptied. So the non-live recipe in `best-practices/ci-and-local-gates.md:449-451` (*"empty the three
+connection variables … a live file then skips"*, measured 2026-09-23) **does not hold for these files**; that guide carries a dated note.
+**Owner action:** move the `neon()` call inside a hook or behind the live gate, file by file, in a test-hygiene pass or the M8 audit. The
+four file names were not relayed to the scribe.
+
 ## 233. The `lock_timeout` of the store is not tested with a real contending lock — RECORDED 2026-10-14 AT M8 8Q2's CLOSE
 
 **Source [coordinator, relayed].** The 1000 ms `lock_timeout` and 2500 ms `statement_timeout` (ADR 0162 Amendment A, point 1) have no test that holds the cursor row lock from a second connection and watches the store give up (the coordinator's list; how they are pinned today was not read here). **Trigger:** a change to the store, or the next audit.
@@ -3144,3 +3156,55 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 ## 242. Not verified visually in 8M2: the phone and e-mail done-screen variants, and the keyboard open — RECORDED 2026-10-14 AT M8 8M2's CLOSE (visual)
 
 **Source [coordinator, relayed].** The visual check covered the screens listed in the 8M2 close. The *Telefon* and *E-mail* variants of the done screen and any screen with the on-screen keyboard open were not seen. **Owner:** 8T, on a real phone.
+
+## 243. A cabinet-depth round trip drifts the recorded depth of occupied columns — RECORDED 2026-10-17 AT M8 8U's CLOSE (pre-existing; customer-visible under 8U)
+
+**Evidence [src: `packages/configurator-domain/tests/commands/set-cabinet-depth.round-trip-drift.known-defect.test.ts`].** In the owner's room (L 4100 × 3300 × 2600, composed at the 600 mm default), `setCabinetDepth` 600 → 700 → 600 through the store's reconcile leaves the fridge column `B|2.45` published at **742 mm** and the oven-tower column `A|3.30` at **638 mm**, both **620** before (`:42-51`). Clearing the wall-B run around the fridge then gives three spaces, `1800 w600 d620`, `2450 w700 d742`, `3000 w400 d620`, where the fresh kitchen gives one, `2350 w1700 d620` (`:54-67`). The drift predates 8U; under 8U's uncapped merge (ADR 0166) the customer sees it as one 1700 space becoming three. It is also how a customer reaches backlog 246's stepped chain. **Trigger:** now (customer-reachable). **Owner action:** a domain wave that restores the recorded depth on the way back (ADR 0088/0090's depth chain), then restate the witness as *"the round trip restores 620"* (its header says so). No wave owns it.
+
+## 244. An offered width chip grows a base beside a U's right corner into the corner base — RECORDED 2026-10-17 AT M8 8U's CLOSE (pre-existing)
+
+**Evidence [src: `packages/configurator-domain/tests/merge-empty-columns.editor-sequences.property.test.ts:78`, `:311-313`, `:439`].** A known-defect witness, *"an offered chip grows a base beside the U's right corner into the corner base"*: the width-funding path offers a step that, taken, overlaps the right corner base, and the result is a design the validator will not save. The property's seed is pinned so the run does not land on it by chance (`:78`; *"some seeds (e.g. -2113359913) reach the width-funding defect"*). Pre-existing width funding, found by 8U's sequences. **Trigger:** now (an offered chip). **Owner action:** a domain fix in the width-funding planner so a chip is never offered over a corner piece (ADR 0034: the offer list and the command share one judge); then the witness flips. No wave owns it.
+
+## 245. An odd-width stored opening offers rows the insert then refuses — RECORDED 2026-10-17 AT M8 8U's CLOSE (known limit, 8U R13)
+
+**Evidence [doc: the 8U plan §6.2; ADR 0166 decision 7; src: `tests/merge-empty-columns.odd-width-known-limit.test.ts`, its title constant *"8U §6.2 / R13 known limit"*].** In an opening on half-mm edges (801, 1201, 2001 for `'fit'` rows; 701, 799 for fixed-set rows), `offersFor` lists rows that `insertBody` refuses with `NON_INTEGER_MILLIMETRES`: the flush-left seat lands on a half millimetre. Only a stored document can hold such an opening; no command produces one (criterion 3a's property). **Trigger:** criterion 3a failing; any producer of an odd-width column; a stored production document holding one. **Owner action / remedy:** move the seat's whole-mm check into `evaluateInsertFit`'s seating so the offer list and the command share one judge (ADR 0034), and write §9's empty sentence for an odd opening that then offers nothing. Alternative remedy: refuse odd-width columns at the write seam (a security-reader change).
+
+## 246. A tolerance chain's merge depends on the clear order, and a member can lose over 20 mm — RECORDED 2026-10-17 AT M8 8U's CLOSE (known limit, 8U R14; owner ruled, not built)
+
+**Evidence [doc: the 8U plan §6.3; ADR 0166 decision 8; src: `tests/merge-empty-columns.fixpoint-and-order.test.ts`, title constant *"8U §6.3 known limit (R14)"*].** Agreement is pairwise within 20 mm and not transitive. Depths 620 / 600 / 580 (or tops 2600 / 2580 / 2560) cleared right pair first give two columns; other orders give one at 580, costing the 620 member 40 mm. **Reachable by a customer:** a reviewer found that S4b's *"census 0"* never drove `setCabinetDepth`, and depth changes produce stepped chains (with backlog 243's drift) [relayed]. **Owner ruling:** Q-8U-3 = (a), *always one space* [relayed, 2026-10-17]. **Not built:** S4b changed comments only. **Trigger:** the owner schedules (a)'s build — when is not ruled; until then it is a recorded known limit. **Owner action then:** a domain wave that carries each merged column's member interval through `ColumnExtent` and `emptyColumns` (an optional schema field, with a security reader on the write seam), per the plan §6.3's option (a); then the per-order pins and the two `it.fails` flip.
+
+## 247. The 800 + 100 spaces above each U corner stay two — RECORDED 2026-10-17 AT M8 8U's CLOSE (F2; owner ruled Q-8U-2 = (a))
+
+**Evidence [doc: the 8U plan §4.1–§4.2; ADR 0166 decision 6].** The merged 900 would stand over the corner base's own stretch of wall, so the key guard and the same-stretch guard decline it, in every U at any width. The owner chose to keep them two [relayed]. **Trigger:** the owner asks for one 900 space (Q-8U-2 (b)). **Owner action then:** a corner-ownership design under ADR 0118, with the plan's §4.1 as its trigger; its likely cost is a wall cabinet centred over the corner with 50 mm unusable each side [inf, plan].
+
+## 248. The shell trims the upper row 1 mm in odd-width rooms — RECORDED 2026-10-17 AT M8 8U's CLOSE (8U R12; pre-existing)
+
+**Evidence [doc: the 8U plan §4.2, R12].** In U 5985 / 3000 / 3000, the right corner's upper row runs 5084–5984 against the corner base's 5085–5985. It moved the merged key one bucket and let the key guard miss (fixed by S3b's geometric guard, so it no longer changes a merge). **Trigger:** any rule that compares the upper row's edge with the base's exactly. **Owner action:** an ADR 0110 *Correction 2026-09-13* question; fixing it moves generated maps in every odd room, so it needs its own census.
+
+## 249. `qa-5b4b` "merges four abutting 200s into one 800, not into two 400s" cannot fail for its title's reason — RECORDED 2026-10-17 AT M8 8U's CLOSE — BLOCKS M8's CLOSE
+
+**Evidence [src: `packages/configurator-domain/tests/qa-5b4b.adversarial.test.ts:141`; relayed: the reviewer's finding].** The title names the 800 mm cap's greedy split (one 800, not two 400s). Under the uncapped merge four abutting 200s are one 800 whatever the split rule [inf], so the test cannot fail for the reason its title names (ADR 0152). **A "cannot fail" finding keeps the milestone open** (ADR 0152 Amendment A). **Owner action:** the M8 test auditor retitles it to what it now protects or deletes it on evidence, before M8 is marked Done.
+
+## 250. A retry under the same price-book version re-prices from the live book — RECORDED 2026-10-17 AT M8 8V's REVIEW (pre-existing)
+
+**Evidence [relayed: the 8V logic review].** A retried delivery prepares the design again (8V plan F9) and prices it from the live book. If the book's amounts change without its version, the retry's notice can show a different figure from the first attempt; the version check (ADR 0157) does not catch it (cf. K-S1.7, backlog 181). **Trigger:** a deployment that changes amounts without the version while an un-notified request waits. **Owner action:** the fix needs the stored `priced` snapshot read back for the retry, which the application role cannot read (ADR 0153); so it is a grant decision (the old Q40 (a)) or a version discipline in the price-book release process.
+
+## 251. A Romanian plural without "de" — RECORDED 2026-10-17 AT M8 8V's REVIEW — KEPT BY RULING
+
+**Evidence [relayed; doc: `best-practices/engineering-conventions.md:102`].** A reviewer flagged a count written as the bare noun. The owner ruled on 2026-09-10, *"without «de» on plural"*, so the bare noun is correct. **No action** unless the owner reopens the ruling. Recorded so the next reviewer does not re-raise it.
+
+## 252. `migrate-design.ts:255-257`'s comment says an odd-width v1 entry is refused; since 8U it loads whole — RECORDED 2026-10-17 AT M8 8U's REVIEW
+
+**Evidence [src: `packages/configurator-domain/src/migrate-design.ts:253-257`; relayed].** The comment says a split whose pieces would not land on whole millimetres *"goes forward for the validator to refuse"*. Since 8U, an oversize odd-width v1 entry is **not** refused: it loads as one entry [relayed; that S1's retirement of `EMPTY_COLUMN_WIDER_THAN_CAP` is the cause is the scribe's inference]. The code is right; the comment is false. **Owner action:** a developer corrects the comment (no behaviour). **Trigger:** the next edit of the file.
+
+## 253. `ContactPageView`'s already-sent arm carries a sent-reference field nothing reads — RECORDED 2026-10-17 AT M8 8V's REVIEW
+
+**Evidence [relayed: the 8V clean-code review].** Since 8V D2 the already-sent view draws no reference, but the view model's already-sent arm still carries it. Dead data, no behaviour. **Owner action:** a developer removes the field and its producer (and any test that asserts it, under ADR 0152). **Trigger:** the next change to the contact page's view model.
+
+## 254. Until `0010` and its grant are applied, the notice says "link unavailable" and an unknown share token answers 500 — RECORDED 2026-10-17 AT M8 8V's CLOSE (owner step)
+
+**Evidence [doc: the 8V plan risk 3; the runbook's `0010` section].** Without `contact_submission_views`, `record` fails, so every notice is sent with the *link unavailable* line (by design, ADR 0165 D4); and the `/s/{token}` page's second lookup throws on the missing table, so every unknown or revoked share token answers 500 instead of not-found (deliberate: a deployment error to see). **Trigger:** a deploy of this branch to an environment. **Owner action:** apply `0010` and the one grant, preview then production, **before** the code ships there ([runbook](../runbooks/applying-a-table-migration-and-its-application-role-grant.md)).
+
+## 255. 8U S5 is not built: the commands still cut empty space at 800 — RECORDED 2026-10-17 AT M8 8U's CLOSE
+
+**Evidence [doc: the 8U plan §11, S5 row; ADR 0166 *Consequences*].** `insertBody`'s remainder split (`splitColumn` via `splitEmptySpanAtCap`) and `setWidth`'s shrink overflow still cut at `MAX_EMPTY_COLUMN_WIDTH_MM` (800); `splitOversizedEmptyColumns` is still in the reconcile; the reconcile's uncapped merge rejoins every piece, so a customer sees no seam. Behaviour-free to remove. **Trigger:** the next change to those commands, or a test that judges a command's own effect (the 8U criterion 8 note). **Owner action:** a developer runs S5 as the plan's row writes it (re-run S3's composition cut count first; rename the constant to the v1 arm's; repoint three tests at `COMPOSITION_WIDTH_LIMIT_MM`).

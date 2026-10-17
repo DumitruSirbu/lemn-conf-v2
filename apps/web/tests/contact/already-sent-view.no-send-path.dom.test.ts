@@ -53,7 +53,6 @@ function mountTheView(): HTMLElement {
         timeZone: "Europe/Chisinau",
         children: createElement(AlreadySentView, {
           designId: DESIGN as never,
-          reference: "LM-2614",
         }),
       }),
     );

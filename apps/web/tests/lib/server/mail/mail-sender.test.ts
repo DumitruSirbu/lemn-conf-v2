@@ -226,9 +226,9 @@ describe("sendableCopyOf", () => {
 });
 
 describe("MailMessage", () => {
-  it("holds a key, a subject and a text and nothing else, so no recipient, sender or html can be set", () => {
+  it("holds a key, a subject, a text and an html alternative and nothing else, so no recipient or sender can be set", () => {
     expectTypeOf<keyof MailMessage>().toEqualTypeOf<
-      "key" | "subject" | "text"
+      "key" | "subject" | "text" | "html"
     >();
   });
 

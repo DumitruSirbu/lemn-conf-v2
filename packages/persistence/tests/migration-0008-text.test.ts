@@ -28,6 +28,12 @@ const MIGRATION_PATH = join(
 const SQL = readFileSync(MIGRATION_PATH, "utf8");
 const [STATEMENT = ""] = executableStatementsOf(SQL);
 
+/** Later migrations that name `contact_submissions` and whose text the checks below read against ADR 0153 decision 1's
+ *  rule, each by name, so a migration after them still trips the last test. */
+const LATER_MIGRATIONS_READ_AGAINST_THE_RULE: readonly string[] = [
+  "0010_create_contact_submission_views.sql",
+];
+
 const ALLOWED_NAMES_BEFORE_A_PARENTHESIS = [
   "and",
   "check",
@@ -155,11 +161,36 @@ describe("migration 0008's text", () => {
     expect(STATEMENT).toContain("contact_submissions_reference_is_unique");
   });
 
+  it("is named by 0010 only as the target of its reference to the request id, which reads no column the role may update and no personal one", () => {
+    const later = readMigrationFiles().find(
+      (migration) =>
+        migration.fileName === LATER_MIGRATIONS_READ_AGAINST_THE_RULE[0],
+    );
+    const statements = executableStatementsOf(later?.sql ?? "");
+    const namingTheTable = statements
+      .join(" ")
+      .match(/\bcontact_submissions\b[^,]*/g);
+
+    expect(statements).toHaveLength(1);
+    expect(namingTheTable).toEqual([
+      "contact_submissions (client_request_id) on delete cascade",
+    ]);
+    expect(
+      [...UPDATABLE_COLUMNS, ...PERSONAL_COLUMNS].filter((column) =>
+        wordsOf(statements.join(" ")).has(column),
+      ),
+    ).toEqual([]);
+  });
+
   it("is the last migration to name the table, or its author has read the rule that no constraint reads a column the role may update", () => {
     const laterMigrationsNamingTheTable = readMigrationFiles()
       .filter((migration) => migration.version > 8)
       .filter((migration) => /contact_submissions/i.test(migration.sql))
-      .map((migration) => migration.fileName);
+      .map((migration) => migration.fileName)
+      .filter(
+        (fileName) =>
+          !LATER_MIGRATIONS_READ_AGAINST_THE_RULE.includes(fileName),
+      );
 
     expect(
       laterMigrationsNamingTheTable,

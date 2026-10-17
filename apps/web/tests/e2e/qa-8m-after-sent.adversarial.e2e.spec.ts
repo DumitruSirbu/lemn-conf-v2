@@ -1,7 +1,9 @@
 // Wave 8M, what a customer has after a send, by touch, on the production server (criteria 1, 2, 3, 11, 12, 13): for each
-// channel the page is replaced by the design's confirmation, the history is no longer, the reference is the answer's,
-// the channel line names the one value typed for it and no other, and a reload shows the stored reference with no typed
-// value. THIS FILE HOLDS ONLY ON THE PRODUCTION SERVER (`CI=1`): it counts requests and reads the history's length.
+// channel the page is replaced by the design's confirmation, the history is no longer, the confirmation shows the
+// design's own address and not the answer's reference (wave 8V D1, D2), the channel line names the one value typed for
+// it and no other, and a reload shows the sent confirmation with no typed value; the stored reference a reload reads is
+// the one the message to the shop names. THIS FILE HOLDS ONLY ON THE PRODUCTION SERVER (`CI=1`): it counts requests and
+// reads the history's length.
 // Each test is a new browser context, so each is its own visitor and sends one new request, registered with
 // `contact-run.ts` before it leaves so that the teardown removes its row (ADR 0151).
 import {
@@ -15,11 +17,17 @@ import { shopTelAddress, shopWhatsAppDigits } from "../../src/shop/shop-phone";
 
 import {
   CTA,
+  DONE_COPIED,
+  DONE_COPY,
+  DONE_DESIGN_LINK,
   DONE_HEADING,
-  DONE_REFERENCE,
   MESSAGES,
   clientRequestIdOf,
+  designAddressOf,
   donePath,
+  expectDesignLinkShown,
+  expectReferenceNotShown,
+  nextSentReference,
   pressTheCallToAction,
   recordContactRequests,
   sentAt,
@@ -42,7 +50,12 @@ import {
   goBackAndSettle,
   historyLength,
 } from "./support/qa-8d-review";
-import { ALREADY_SENT, expectAlreadySentView } from "./support/qa-8m2";
+import {
+  ALREADY_SENT,
+  consoleProblems,
+  expectAlreadySentView,
+  watchTheConsole,
+} from "./support/qa-8m2";
 import {
   channelLineOf,
   expectNoTokenInThePage,
@@ -92,7 +105,7 @@ function registerIdsOf(page: Page): void {
 const CHANNELS: readonly SentChannel[] = ["phone", "whatsapp", "email"];
 
 for (const channel of CHANNELS) {
-  test(`ro, ${channel}: sent from the contact page, the confirmation replaces it, adds no history entry, shows the answer's reference and the value typed for the channel, and a reload shows the stored reference and no typed value`, async ({
+  test(`ro, ${channel}: sent from the contact page, the confirmation replaces it, adds no history entry, shows the design's own address and not the answer's reference, and the value typed for the channel, and a reload shows the sent confirmation with no reference and no typed value`, async ({
     page,
     context,
     seededDesign,
@@ -133,9 +146,8 @@ for (const channel of CHANNELS) {
     await expect(page.getByTestId(CTA)).toHaveCount(0);
     await expect(page.getByTestId(DONE_HEADING)).toBeFocused();
     await expect(page.locator("h1")).toHaveCount(1);
-    await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(
-      answered.reference,
-    );
+    await expectDesignLinkShown(page, "ro", seededDesign.id);
+    await expectReferenceNotShown(page, answered.reference);
 
     const typedForTheChannel = channel === "email" ? typed.email : typed.phone;
     await expect(page.getByTestId("done-channel-line")).toHaveText(
@@ -166,9 +178,11 @@ for (const channel of CHANNELS) {
 
     // Criterion 2: a load shows the latest notified request of this design at its stored revision, and no typed value.
     await page.reload();
-    await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(
-      answered.reference,
+    await expect(page.getByTestId(DONE_HEADING)).toHaveText(
+      MESSAGES.ro.submissionResult.sentHeading,
     );
+    await expectDesignLinkShown(page, "ro", seededDesign.id);
+    await expectReferenceNotShown(page, answered.reference);
     await expect(page.getByTestId("done-channel-line")).toHaveText(
       MESSAGES.ro.submissionResult.channelLineWithoutValue,
     );
@@ -188,7 +202,7 @@ for (const channel of CHANNELS) {
   });
 }
 
-test("ro: after a send the contact page of the same kitchen is the already-sent view and sends nothing; only a kitchen changed and saved at a new revision gets the form again, and its send is a second confirmation whose reference a reload shows, never the first's", async ({
+test("ro: after a send the contact page of the same kitchen is the already-sent view and sends nothing; only a kitchen changed and saved at a new revision gets the form again, and its send is a second confirmation whose reference, after a reload, the message to the shop names, never the first's", async ({
   page,
   context,
   seededDesign,
@@ -205,10 +219,10 @@ test("ro: after a send the contact page of the same kitchen is the already-sent 
   await chooseChannel(page, "phone");
   await tickConsent(page);
   await readyToSend(page, firstForm.drawnAtMs);
+  const firstAnswered = nextSentReference(page);
   await pressTheCallToAction(page);
+  const firstReference = await firstAnswered;
   await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
-  const firstReference =
-    (await page.getByTestId(DONE_REFERENCE).textContent()) ?? "";
   await expect(page.getByTestId("done-channel-line")).toContainText(
     first.phone,
   );
@@ -247,11 +261,11 @@ test("ro: after a send the contact page of the same kitchen is the already-sent 
   await chooseChannel(page, "phone");
   await tickConsent(page);
   await readyToSend(page, secondDrawnAtMs);
+  const secondAnswered = nextSentReference(page);
   await pressTheCallToAction(page);
+  const secondReference = await secondAnswered;
   await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
 
-  const secondReference =
-    (await page.getByTestId(DONE_REFERENCE).textContent()) ?? "";
   expect(secondReference).not.toBe(firstReference);
   await expect(page.getByTestId("done-channel-line")).toContainText(
     second.phone,
@@ -275,7 +289,15 @@ test("ro: after a send the contact page of the same kitchen is the already-sent 
   ).toBe(1);
 
   await page.reload();
-  await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(secondReference);
+  await expectDesignLinkShown(page, "ro", seededDesign.id);
+  await expectReferenceNotShown(page, firstReference);
+  await expectReferenceNotShown(page, secondReference);
+  // The reference a reload reads is no longer on the screen; the message to the shop is where it still goes (D2).
+  const message = await messageToTheShopOf(page);
+  expect(message, "the reload reads the second request").toContain(
+    secondReference,
+  );
+  expect(message, "never the first's").not.toContain(firstReference);
   await expectNoTokenInThePage(
     page,
     first,
@@ -298,6 +320,22 @@ test("ro: after a send the contact page of the same kitchen is the already-sent 
 
 const WRITE_TOKEN_COOKIE_PREFIX = "lemnaria_write_token_";
 
+/** Two requests, status then issue, with a page that on a runner stalled for 7.5 s between the answer to one and the
+ *  sending of the other (run 38574379483). */
+const SHARE_LINK_MADE_WITHIN_MS = 30_000;
+
+/** The message 5A's WhatsApp action hands to the shop's number, made by one press with no link active: the one place
+ *  on the customer's side the reference still goes (wave 8V D2, ADR 0163 d3). */
+async function messageToTheShopOf(page: Page): Promise<string> {
+  await page.getByTestId("done-whatsapp-send").tap();
+  const open = page.getByTestId("done-whatsapp-open");
+  await expect(open).toBeVisible({ timeout: SHARE_LINK_MADE_WITHIN_MS });
+  const href = (await open.getAttribute("href")) ?? "";
+  const recipient = `https://wa.me/${shopWhatsAppDigits()}?text=`;
+  expect(href.startsWith(recipient), "addressed to the shop").toBe(true);
+  return decodeURIComponent(href.slice(recipient.length));
+}
+
 async function sendOneRequest(
   page: Page,
   context: BrowserContext,
@@ -311,10 +349,10 @@ async function sendOneRequest(
   await chooseChannel(page, "phone");
   await tickConsent(page);
   await readyToSend(page, form.drawnAtMs);
+  const answered = nextSentReference(page);
   await pressTheCallToAction(page);
+  const reference = await answered;
   await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
-  const reference =
-    (await page.getByTestId(DONE_REFERENCE).textContent()) ?? "";
   return reference;
 }
 
@@ -343,11 +381,7 @@ test("ro, F3 (8M2 criterion 8): after a reload the action is drawn, /done probes
   expect(designReads, "the editor's own probe, and only it").toEqual(["GET"]);
 });
 
-/** Two requests, status then issue, with a page that on a runner stalled for 7.5 s between the answer to one and the
- *  sending of the other (run 38574379483). */
-const SHARE_LINK_MADE_WITHIN_MS = 30_000;
-
-test("ro, 8M2 criterion 9: after a reload the message to the shop names the reference on the screen, is addressed to the shop's number, and carries the customer's own share address", async ({
+test("ro, 8M2 criterion 9: after a reload the message to the shop names the reference the server answered, which the screen does not show, is addressed to the shop's number, and carries the customer's own share address", async ({
   page,
   context,
   seededDesign,
@@ -355,7 +389,8 @@ test("ro, 8M2 criterion 9: after a reload the message to the shop names the refe
 }) => {
   const reference = await sendOneRequest(page, context, seededDesign);
   await page.reload();
-  await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(reference);
+  await expectDesignLinkShown(page, "ro", seededDesign.id);
+  await expectReferenceNotShown(page, reference);
 
   await page.getByTestId("done-whatsapp-send").tap();
 
@@ -369,6 +404,34 @@ test("ro, 8M2 criterion 9: after a reload the message to the shop names the refe
   expect(message).toContain(reference);
   const origin = new URL(baseURL ?? "").origin;
   expect(message).toMatch(new RegExp(`${origin}/[^ ]+$`));
+});
+
+test("ro, 8V criterion 17: after a reload the card's address, once hydrated, is this design's absolute editor address, the copy control writes exactly what is shown, and the console names no hydration problem", async ({
+  page,
+  context,
+  seededDesign,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const reference = await sendOneRequest(page, context, seededDesign);
+  const said = watchTheConsole(page);
+  await page.reload();
+  await expectDesignLinkShown(page, "ro", seededDesign.id);
+  await expectReferenceNotShown(page, reference);
+
+  await page.getByTestId(DONE_COPY).tap();
+
+  await expect(page.getByTestId(DONE_COPIED)).toHaveText(
+    MESSAGES.ro.submissionResult.copied,
+  );
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied, "the clipboard holds the address and nothing else").toBe(
+    designAddressOf(page, "ro", seededDesign.id),
+  );
+  expect(
+    copied.replace(/^https?:\/\//, ""),
+    "the text shown is the text copied, less its scheme",
+  ).toBe(await page.getByTestId(DONE_DESIGN_LINK).innerText());
+  expect(consoleProblems(said), "hydration and the console").toEqual([]);
 });
 
 test("ro, F3 (8M2 criterion 8): without the write cookie the action is still drawn after a reload; one press makes one status request and shows the error and its retry, and nothing repeats without a press", async ({

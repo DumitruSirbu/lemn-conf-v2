@@ -69,12 +69,12 @@ describe("createFakeMailSender", () => {
     expect(sender.sent[0]?.text).toBe(FIRST.text);
   });
 
-  it("records the three fields only, even if a caller hands in a recipient or markup", async () => {
+  it("records the message's own fields only, even if a caller hands in a recipient or a header", async () => {
     const sender = createFakeMailSender();
     const withExtras = {
       ...FIRST,
       to: "customer@example.com",
-      html: "<b>x</b>",
+      headers: { Bcc: "customer@example.com" },
     } as MailMessage;
 
     await sender.send(withExtras);
@@ -84,6 +84,29 @@ describe("createFakeMailSender", () => {
       "subject",
       "text",
     ]);
+  });
+
+  it("records the html alternative beside the text when the message has one", async () => {
+    const sender = createFakeMailSender();
+
+    await sender.send({ ...FIRST, html: "<p>x</p>" });
+
+    expect(sender.sent).toEqual([{ ...FIRST, html: "<p>x</p>" }]);
+    expect(Object.keys(sender.sent[0] ?? {})).toEqual([
+      "key",
+      "subject",
+      "text",
+      "html",
+    ]);
+  });
+
+  it("refuses a message whose html is empty, as the adapter does, and records nothing", async () => {
+    const sender = createFakeMailSender();
+
+    const refused = await sender.send({ ...FIRST, html: "" });
+
+    expect(refused).toEqual({ ok: false, kind: "refused" });
+    expect(sender.sent).toEqual([]);
   });
 
   it("refuses a message that may not be sent, as the adapter does, and records nothing", async () => {

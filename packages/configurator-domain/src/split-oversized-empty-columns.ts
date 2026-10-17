@@ -26,25 +26,27 @@ import {
 // back would close a runtime cycle (see `merge-empty-columns.ts`).
 import type { ColumnExtent, PlacementRecord } from "./void-engine.js";
 
-/** Every member-less column of the map held to ADR 0052's ceiling, other keys untouched. "Member-less" is
- *  the merge's predicate (ADR 0046): no record is filed under the key at any level; an occupied column is
- *  never split. Cut left to right from the column's own left edge: a map has no "near" side, only the
- *  command that produced it does, and a resize or insert cuts its own span before this sees it. The input
- *  map is returned by identity when nothing is oversized. `hasFullHeightUnder` is not answered here, as the
- *  merge does not: the caller runs `withCurrentFullHeightMembers` over the result. */
+/** Every member-less column of the map held to `widthLimitMm` (omitted, ADR 0052's ceiling), other keys
+ *  untouched. "Member-less" is the merge's predicate (ADR 0046): no record is filed under the key at any
+ *  level; an occupied column is never split. Cut left to right from the column's own left edge: a map has
+ *  no "near" side, only the command that produced it does, and a resize or insert cuts its own span before
+ *  this sees it. The input map is returned by identity when nothing is oversized. `hasFullHeightUnder` is
+ *  not answered here, as the merge does not: the caller runs `withCurrentFullHeightMembers` over the result. */
 export function splitOversizedEmptyColumns(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],
+  widthLimitMm: number = MAX_EMPTY_COLUMN_WIDTH_MM,
 ): ReadonlyMap<string, ColumnExtent> {
   const occupied = new Set(records.map((record) => record.col));
   const oversized = [...columns.values()].filter(
-    (column) => !occupied.has(column.key) && isWiderThanCap(column),
+    (column) =>
+      !occupied.has(column.key) && isWiderThanLimit(column, widthLimitMm),
   );
   if (oversized.length === 0) return columns;
 
   const split = new Map<string, ColumnExtent>(columns);
   for (const column of oversized) {
-    const pieces = planPieces(column, split);
+    const pieces = planPieces(column, split, widthLimitMm);
     if (!pieces) continue;
     // Vacated before any piece is written: the leftmost piece keys back onto the original key whenever the
     // two centres share a 10 mm bucket (the merge's rule, `mergeAdjacentEmptyColumns`).
@@ -54,9 +56,9 @@ export function splitOversizedEmptyColumns(
   return split;
 }
 
-function isWiderThanCap(column: ColumnExtent): boolean {
+function isWiderThanLimit(column: ColumnExtent, widthLimitMm: number): boolean {
   const widthMm = toExactMillimetres(column.w);
-  return widthMm !== undefined && widthMm > MAX_EMPTY_COLUMN_WIDTH_MM;
+  return widthMm !== undefined && widthMm > widthLimitMm;
 }
 
 /** The columns this one becomes, or nothing. A column off the millimetre grid is left as is (no document
@@ -68,13 +70,18 @@ function isWiderThanCap(column: ColumnExtent): boolean {
 function planPieces(
   column: ColumnExtent,
   columns: ReadonlyMap<string, ColumnExtent>,
+  widthLimitMm: number,
 ): readonly ColumnExtent[] | undefined {
   const centreMm = toExactMillimetres(alongWallCentre(column));
   const widthMm = toExactMillimetres(column.w);
   if (centreMm === undefined || widthMm === undefined) return undefined;
 
   const leftEdgeMm = centreMm - widthMm / 2;
-  const pieces = splitEmptySpanAtCap(leftEdgeMm, leftEdgeMm + widthMm);
+  const pieces = splitEmptySpanAtCap(
+    leftEdgeMm,
+    leftEdgeMm + widthMm,
+    widthLimitMm,
+  );
   if (!landsOnWholeMillimetres(pieces)) return undefined;
 
   const extents = pieces.map((piece) =>

@@ -17,6 +17,7 @@ import { toExactMillimetres } from "../src/millimetres.js";
 import { alongWallCoordinate, deriveColumnKeyAt } from "../src/module-grid.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 import { findVacatedVoid } from "../src/queries/vacated-void.js";
+import { COMPOSITION_WIDTH_LIMIT_MM } from "../src/generation/leftover-rule.js";
 import { removePlacement } from "../src/commands/remove-placement.js";
 import {
   deriveColumns,
@@ -64,12 +65,14 @@ interface Loaded {
   readonly voids: readonly VoidRecord[];
 }
 
-function load(design: Design): Loaded {
+/** `mergeWidthLimitMm` omitted is the editor's load; composition's limit is passed to pin the capped scan. */
+function load(design: Design, mergeWidthLimitMm?: number): Loaded {
   const records = derivePlacementRecords(design, CATALOG);
   const columns = deriveColumns(
     records,
     { emptyColumns: design.emptyColumns },
     design.room,
+    mergeWidthLimitMm,
   );
   return { columns, records, voids: recomputeVoids(records, columns) };
 }
@@ -132,7 +135,7 @@ function layOutFromLeftEdge(
   return spaces;
 }
 
-describe("a block is the widest run under the cap, not the first pair under it", () => {
+describe("a block is the widest run under the limit, not the first pair under it", () => {
   // ADR 0046 rule 1 is *widest*: a scan that stops every block at two members passes every pair-plus-leftover
   // fixture, and four 200s is the shortest run where two-at-a-time and widest part company.
   it("merges four abutting 200s into one 800, not into two 400s", () => {
@@ -145,17 +148,42 @@ describe("a block is the widest run under the cap, not the first pair under it",
     });
   });
 
+  // Iterated to a fixpoint, a pair-at-a-time scan reaches the widest block whenever every pair fits; at a finite
+  // limit it parts company with it once the pairs it took no longer fit together.
+  it("takes the widest run at composition's 800 mm limit: 200 + 200 + 300 + 300 is 700 + 300, not 400 + 600", () => {
+    const loaded = load(
+      designWith(layOutFromLeftEdge([200, 200, 300, 300], 1000)),
+      COMPOSITION_WIDTH_LIMIT_MM,
+    );
+
+    expect(emptyExtentsOf(loaded)).toEqual({
+      "A|1.35": { centreMm: 1350, widthMm: 700 },
+      "A|1.85": { centreMm: 1850, widthMm: 300 },
+    });
+  });
+
   // A mutant seeding each run with the previous block's accumulated total leaves three 300s and 300 + 500 + 300
   // unchanged and stays a fixpoint. Six 200s shows it: carrying 800 forward makes the second block a single 200
-  // instead of a 400.
-  it("takes a second block at its own full width after a first block hit the cap", () => {
+  // instead of a 400. Only a finite limit has a first block that hits it, so this runs at composition's.
+  it("takes a second block at its own full width after a first block hit composition's 800 mm limit", () => {
     const loaded = load(
       designWith(layOutFromLeftEdge([200, 200, 200, 200, 200, 200], 1000)),
+      COMPOSITION_WIDTH_LIMIT_MM,
     );
 
     expect(emptyExtentsOf(loaded)).toEqual({
       "A|1.40": { centreMm: 1400, widthMm: 800 },
       "A|2.00": { centreMm: 2000, widthMm: 400 },
+    });
+  });
+
+  it("derives six abutting 200s at the load seam as one 1200 mm column", () => {
+    const loaded = load(
+      designWith(layOutFromLeftEdge([200, 200, 200, 200, 200, 200], 1000)),
+    );
+
+    expect(emptyExtentsOf(loaded)).toEqual({
+      "A|1.60": { centreMm: 1600, widthMm: 1200 },
     });
   });
 
@@ -286,7 +314,7 @@ function depthMmOfOpeningIn(loaded: Loaded, key: string): number {
 
 describe("geometry, and not the cap, is what stops a merge across a standing body", () => {
   /** A real 800 mm sink seated across 1900–2700. The seeded corner cannot demonstrate this: `A|0.30` + `A|0.75`
-   *  total 900, so the cap turns them away before `standsIn` is asked; this run totals 600. */
+   *  stand above the corner base and key onto its column, so the key guard, not `standsIn`, turns them away. */
   const SINK_ACROSS_THE_RUN = [
     {
       id: "p0",

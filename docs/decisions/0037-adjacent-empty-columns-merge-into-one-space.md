@@ -160,3 +160,12 @@ merge disabled — measured.
   correctly and still cost the customer an opening, because §4 subtracts height and never width.
   The delete path this decision was reported from therefore still gives two openings, not one:
   **backlog 2 remains open**, and closes with the re-split rather than with this half alone.
+
+## Dated note — 2026-10-17: the uncapped rule returns (ADR 0166)
+
+[ADR 0166](0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md)
+(wave 8U, the owner's Q-8U-1 = (b), relayed) revives this record's original rule: adjacent agreeing member-less
+columns merge **whatever their total**, and *"800 still caps every cabinet"*. It returns under the two conditions this
+record's withdrawal named: the insert splits its column first (ADR 0046 part 1), and a `'fit'` cabinet put into an
+opening wider than its maximum is built at its maximum, flush left, with one remainder (ADR 0166 decision 2). Backlog 2's
+combination-offer half stays open. Nothing above this note is edited.

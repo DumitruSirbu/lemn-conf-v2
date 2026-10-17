@@ -35,3 +35,9 @@ Original status line: accepted by product owner
 - Exact room input bounds, the first approved width set, sample price amounts, and the temporary
   deployment persistence provider still require recorded data before their dependent behavior can
   be called production-ready.
+
+## Dated note — 2026-10-17 (wave 8J2)
+
+Decision 7's *provider-neutral server API* is **kept**: the mail provider changed from Resend to Gmail SMTP behind the
+unchanged mail port ([ADR 0164](0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md)
+decision 1), so no route, store or page changed with it.

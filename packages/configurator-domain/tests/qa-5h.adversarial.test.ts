@@ -177,8 +177,7 @@ describe("a validated document must not publish an opening standing in a body", 
   // an extent claiming 1600 mm is inside a 3560 mm wall and passes, and the opening it publishes
   // spans 1200–2800 mm — straight through the hood in `A|2.60`.
   //
-  // Nothing else bounds it: `EMPTY_COLUMN_WIDER_THAN_CAP` (ADR 0052's 800 mm ceiling) governs
-  // `emptyColumns` only.
+  // Nothing else bounds it: neither stored array carries a width ceiling.
   it("refuses an extent wider than the column its own members occupy", () => {
     const design = withColumnExtents(
       [

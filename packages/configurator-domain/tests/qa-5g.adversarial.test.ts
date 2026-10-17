@@ -1,4 +1,4 @@
-// ADR 0052: 800 mm is the ceiling on any empty column. Attacks what `empty-column-ceiling.test.ts` and
+// ADR 0052's version 1 split of an empty column over 800 mm. Attacks what `empty-column-ceiling.test.ts` and
 // `qa-5b2a.adversarial.test.ts` leave: the boundary, the split at every width, the entry bound, the restamp's fixed
 // point, the entries the migration refuses, and the premise that an odd-width entry is unreachable (measured over
 // generated command sequences).
@@ -111,33 +111,29 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     }
   });
 
-  /** The other seam: `migrateFromV2` validates without normalising, so the same bytes under a version 2 stamp are
-   *  refused with the code ADR 0052 added, not whatever else the fixture happened to trip. */
-  it("refuses the same document declared version 2, naming the cap", () => {
+  /** Only version 1 owes the split: the same bytes under a version 2 stamp are carried whole, since an empty column
+   *  of any width is valid. */
+  it("carries the same document declared version 2 whole", () => {
     const stored = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 900)]);
 
-    expect(() => load(2, stored)).toThrow(InvalidDesignError);
-    expect(() => load(2, stored)).toThrow(/EMPTY_COLUMN_WIDER_THAN_CAP/);
+    expect(load(2, stored).emptyColumns).toStrictEqual(stored.emptyColumns);
   });
 
-  /** The boundary, from both sides and at both seams: 800 is not oversized, 801 is. A cap written `>=` instead of
-   *  `>` would split the 800. */
-  it("leaves exactly 800 alone and refuses exactly 801, at both versions", () => {
+  /** The version 1 arm's boundary from both sides: 800 is not oversized, 802 is. A cap written `>=` instead of `>`
+   *  would split the 800. The validator refuses neither, and version 2 carries both whole. */
+  it("splits 802 but not 800 at version 1, and carries both whole at version 2", () => {
     const atCap = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 800)]);
 
     expect(load(1, atCap).emptyColumns).toStrictEqual(atCap.emptyColumns);
     expect(load(2, atCap).emptyColumns).toStrictEqual(atCap.emptyColumns);
-    expect(
-      validateDesignForCatalog(atCap, CATALOG).map((issue) => issue.code),
-    ).not.toContain("EMPTY_COLUMN_WIDER_THAN_CAP");
+    expect(validateDesignForCatalog(atCap, CATALOG)).toStrictEqual([]);
 
     const overCap = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 802)]);
     expect(
       load(1, overCap).emptyColumns?.map((entry) => entry.widthMm),
     ).toStrictEqual([800, 2]);
-    expect(
-      validateDesignForCatalog(overCap, CATALOG).map((issue) => issue.code),
-    ).toContain("EMPTY_COLUMN_WIDER_THAN_CAP");
+    expect(load(2, overCap).emptyColumns).toStrictEqual(overCap.emptyColumns);
+    expect(validateDesignForCatalog(overCap, CATALOG)).toStrictEqual([]);
   });
 
   /** Swept rather than sampled: a whole number of ceilings leaves no remainder and anything between leaves exactly
@@ -157,10 +153,8 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
       }
       expect(spanOf(entries)).toStrictEqual(spanOf(stored.emptyColumns ?? []));
       expect(
-        validateDesignForCatalog(withEntries(EMPTY_ROOM, entries), CATALOG).map(
-          (issue) => issue.code,
-        ),
-      ).not.toContain("EMPTY_COLUMN_WIDER_THAN_CAP");
+        validateDesignForCatalog(withEntries(EMPTY_ROOM, entries), CATALOG),
+      ).toStrictEqual([]);
     },
   );
 
@@ -217,14 +211,14 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     );
   });
 
-  /** A version 1 entry of odd width is refused rather than split: `alongMm` is a whole millimetre, so a 1 mm piece
-   *  would sit at a half-millimetre centre no document can carry, and rounding would key it as its neighbour. The
-   *  entry goes forward as it was and `assertDesignValidForCatalog` refuses it; that no pre-5G empty column the
-   *  product can write has an odd width is asserted below. */
-  it("refuses an odd-width version 1 entry instead of rounding a piece onto a millimetre", () => {
+  /** A version 1 entry of odd width is not split: `alongMm` is a whole millimetre, so a 1 mm piece would sit at a
+   *  half-millimetre centre no document can carry, and rounding would key it as its neighbour. The entry goes forward
+   *  whole, and a whole entry of any width is valid; that no pre-5G empty column the product can write has an odd
+   *  width is asserted below. */
+  it("carries an odd-width version 1 entry whole instead of rounding a piece onto a millimetre", () => {
     const stored = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 901)]);
 
-    expect(() => load(1, stored)).toThrow(/EMPTY_COLUMN_WIDER_THAN_CAP/);
+    expect(load(1, stored).emptyColumns).toStrictEqual(stored.emptyColumns);
     // And the pieces really are unrepresentable, which is the reason: not a rounding decision the
     // migration could have made differently.
     expect(
@@ -274,7 +268,10 @@ describe("the map-level normaliser's decline paths", () => {
       validateDesignForCatalog(withEntries(EMPTY_ROOM, projected), CATALOG).map(
         (issue) => issue.code,
       ),
-    ).toContain("EMPTY_COLUMN_WIDER_THAN_CAP");
+    ).toStrictEqual([
+      "EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN",
+      "EMPTY_COLUMN_OVERLAPS_EMPTY_COLUMN",
+    ]);
   });
 });
 

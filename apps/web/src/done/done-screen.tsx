@@ -13,6 +13,7 @@ import type { SceneView } from "@/scene/scene-view";
 import { useWebGLSupport } from "@/scene/webgl-support";
 
 import { BackToDesignLink } from "./back-to-design-link";
+import { DesignLinkCard } from "./design-link-card";
 import styles from "./done.module.css";
 import {
   resultToShow,
@@ -21,7 +22,6 @@ import {
   type SentResult,
 } from "./result-to-show";
 import { SendOnWhatsapp } from "./send-on-whatsapp";
-import { SentReferenceCard } from "./sent-reference-card";
 import { recallSentRequest, type SentRequest } from "./sent-request-memory";
 
 export interface DoneScreenProps {
@@ -58,7 +58,7 @@ export function DoneScreen({
       <div className={styles.body}>
         <ResultHead result={result} />
         {result.kind === "sent" ? (
-          <SentBody reference={result.reference} />
+          <SentBody designId={designId} />
         ) : (
           <ReviewAgainLink designId={designId} />
         )}
@@ -215,10 +215,10 @@ export function ChannelSummary({
   );
 }
 
-function SentBody({ reference }: { readonly reference: string }) {
+function SentBody({ designId }: { readonly designId: DesignId }) {
   return (
     <>
-      <SentReferenceCard reference={reference} />
+      <DesignLinkCard designId={designId} />
       <NextSteps />
       <ResultPicture />
     </>

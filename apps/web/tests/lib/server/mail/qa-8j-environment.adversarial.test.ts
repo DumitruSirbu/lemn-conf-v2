@@ -1,6 +1,7 @@
 // The reader, the selection and the factory over every combination of the flag and the three mail
-// variables rather than one cell at a time, over an environment that records what it is asked, and
-// over values the reader accepts once they reach the request they were accepted for.
+// variables rather than one cell at a time, over the two retired names, over an environment that records
+// what it is asked, and over values the reader accepts once they reach the message they were accepted for.
+// The mail library is scripted: the factory builds the real adapter, and no test below opens a socket.
 import { fc } from "@fast-check/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,34 +10,49 @@ import {
   FAKE_SENDER_WARNING,
 } from "@/lib/server/mail/create-mail-sender";
 import {
+  buildGmailMessage,
+  UnusableMailAddressError,
+} from "@/lib/server/mail/gmail-mail-sender";
+import {
   MAIL_VARIABLE_NAMES,
   readMailConfiguration,
+  RETIRED_MAIL_VARIABLE_NAMES,
   type MailEnvironment,
 } from "@/lib/server/mail/mail-configuration";
-import { buildResendRequest } from "@/lib/server/mail/resend-mail-sender";
 import {
   FAKE_MAIL_FLAG,
   selectMailSender,
 } from "@/lib/server/mail/select-mail-sender";
 
-import { forbidFetch, releaseFetch } from "./mail-test-support";
 import {
+  forbidFetch,
+  forbidNetwork,
+  releaseFetch,
+  releaseNetwork,
   consoleCallsOf,
+  spyOnEveryConsoleMethod,
+} from "./mail-test-support";
+import {
+  ACCEPTED_ONE_RECIPIENT,
   everyReadingOf,
   expectNoMarkerIn,
-  FAKE_API_KEY,
+  FAKE_APP_PASSWORD,
   FAKE_INBOX,
   FAKE_SENDER,
   QA_MESSAGE,
-  silenceEveryConsoleMethod,
-  stubFetch,
-  stubFetchAnswering,
-  textAnswer,
+  quotingLibraryError,
+  rejectingWith,
 } from "./qa-8j-support";
 
+// The factory's default transport is the library's own `createTransport`: scripted here, and held by the network guard.
+const { createTransportMock } = vi.hoisted(() => ({
+  createTransportMock: vi.fn(),
+}));
+vi.mock("nodemailer", () => ({ createTransport: createTransportMock }));
+
 const USABLE_VALUES: Readonly<Record<string, string>> = {
-  RESEND_API_KEY: FAKE_API_KEY,
-  MAIL_FROM_ADDRESS: FAKE_SENDER,
+  GOOGLE_EMAIL: FAKE_SENDER,
+  GOOGLE_APP_PASSWORD: FAKE_APP_PASSWORD,
   LEAD_NOTIFICATION_ADDRESS: FAKE_INBOX,
 };
 
@@ -194,13 +210,25 @@ function cellsExpecting(kind: string): readonly Cell[] {
   );
 }
 
-const SECRETS = [FAKE_API_KEY, FAKE_SENDER, FAKE_INBOX, UNUSABLE_MARKER];
+const SECRETS = [FAKE_APP_PASSWORD, FAKE_SENDER, FAKE_INBOX, UNUSABLE_MARKER];
 
-beforeEach(forbidFetch);
+beforeEach(() => {
+  createTransportMock.mockReset();
+  forbidFetch();
+  forbidNetwork();
+});
 afterEach(() => {
   vi.restoreAllMocks();
   releaseFetch();
+  releaseNetwork();
 });
+
+/** Hands the next `createTransport` a transport whose `sendMail` does what the test says. */
+function scriptTransport(sendMail: () => Promise<unknown>) {
+  const transport = { sendMail: vi.fn(sendMail), close: vi.fn() };
+  createTransportMock.mockReturnValue(transport);
+  return transport;
+}
 
 describe("every combination of the flag and the three mail variables", () => {
   it("holds cells for the fake, the provider, a stray flag and a missing variable, so no arm below is empty", () => {
@@ -236,8 +264,8 @@ describe("every combination of the flag and the three mail variables", () => {
           ? {
               status: "configured",
               configuration: {
-                apiKey: FAKE_API_KEY,
-                fromAddress: FAKE_SENDER,
+                senderAddress: FAKE_SENDER,
+                appPassword: FAKE_APP_PASSWORD,
                 notificationAddress: FAKE_INBOX,
               },
             }
@@ -252,7 +280,7 @@ describe("every combination of the flag and the three mail variables", () => {
   });
 
   it("builds a sender exactly for the fake and the provider, and otherwise answers the selection's names", () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const wrong = CELLS.filter(({ environment, expectedSelection }) => {
       const creation = createMailSender(environment);
       const selected = expectedSelection as { kind: string };
@@ -265,7 +293,7 @@ describe("every combination of the flag and the three mail variables", () => {
   });
 
   it("puts no value of any variable, usable or not, into a selection or into what the factory returns", () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const leaking = CELLS.filter(({ environment }) => {
       const readings = everyReadingOf([
         selectMailSender(environment),
@@ -292,7 +320,7 @@ describe("every combination of the flag and the three mail variables", () => {
   });
 
   it("writes the one warning once for each fake built and nothing in any other cell", () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
 
     for (const { environment } of CELLS) createMailSender(environment);
 
@@ -301,6 +329,165 @@ describe("every combination of the flag and the three mail variables", () => {
     expect(lines.filter(([line]) => line !== FAKE_SENDER_WARNING)).toEqual([]);
     expect(lines.filter((line) => line.length !== 1)).toEqual([]);
     expect(vi.mocked(console.warn).mock.calls).toHaveLength(lines.length);
+  });
+});
+
+interface RetiredState {
+  readonly label: string;
+  /** Whether the environment itself defines the name, whatever it holds. */
+  readonly isPresent: boolean;
+  readonly place: Placement;
+}
+
+const RETIRED_STATES: readonly RetiredState[] = [
+  { label: "absent", isPresent: false, place: () => undefined },
+  { label: "a value", isPresent: true, place: own(() => "retired-value") },
+  { label: "empty", isPresent: true, place: own(() => "") },
+  { label: "own undefined", isPresent: true, place: own(() => undefined) },
+  {
+    label: "inherited",
+    isPresent: false,
+    place: (target, name) => {
+      (Object.getPrototypeOf(target) as Record<string, unknown>)[name] =
+        "retired-value";
+    },
+  },
+];
+
+function stateLabelled(label: string): VariableState {
+  const found = VARIABLE_STATES.find((state) => state.label === label);
+  if (found === undefined) throw new Error(`no variable state ${label}`);
+  return found;
+}
+
+/** The live three held at the states that decide the answer: all usable, none present, one unusable, one empty. */
+const LIVE_STATE_SETS: readonly (readonly VariableState[])[] = [
+  ["usable", "usable", "usable"],
+  ["absent", "absent", "absent"],
+  ["usable", "usable", "unusable"],
+  ["empty", "usable", "usable"],
+].map((labels) => labels.map(stateLabelled));
+
+describe("the two retired names beside the flag and the three live ones", () => {
+  interface RetiredCell {
+    readonly label: string;
+    readonly environment: MailEnvironment;
+    readonly flag: FlagState;
+    readonly retiredAreOwn: boolean;
+    readonly live: readonly VariableState[];
+  }
+
+  const RETIRED_CELLS: readonly RetiredCell[] = FLAG_STATES.flatMap((flag) =>
+    LIVE_STATE_SETS.flatMap((live) =>
+      RETIRED_STATES.flatMap((first) =>
+        RETIRED_STATES.map((second) => {
+          const environment = Object.create({}) as Record<string, unknown>;
+          flag.place(environment, FAKE_MAIL_FLAG);
+          MAIL_VARIABLE_NAMES.forEach((name, index) => {
+            live[index]?.place(environment, name);
+          });
+          first.place(environment, RETIRED_MAIL_VARIABLE_NAMES[0]);
+          second.place(environment, RETIRED_MAIL_VARIABLE_NAMES[1]);
+          return {
+            label: `flag ${flag.label}; live ${live.map(({ label }) => label).join("/")}; retired ${first.label}, ${second.label}`,
+            environment: environment as MailEnvironment,
+            flag,
+            retiredAreOwn: first.isPresent || second.isPresent,
+            live,
+          };
+        }),
+      ),
+    ),
+  );
+
+  const NAMES_OF_THE_UNUSABLE = (live: readonly VariableState[]) =>
+    MAIL_VARIABLE_NAMES.filter((_name, index) => !live[index]?.isUsable);
+
+  it("holds cells in which a retired name is own and the flag is on, and cells in which it is not", () => {
+    expect(
+      RETIRED_CELLS.filter(
+        ({ flag, retiredAreOwn, live }) =>
+          flag.isEnabled &&
+          retiredAreOwn &&
+          live.every(({ isPresent }) => !isPresent),
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      RETIRED_CELLS.filter(
+        ({ flag, retiredAreOwn, live }) =>
+          flag.isEnabled &&
+          !retiredAreOwn &&
+          live.every(({ isPresent }) => !isPresent),
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("refuses the fake beside a retired name that is an own member, whatever it holds and whatever the live three hold", () => {
+    const wrong = RETIRED_CELLS.filter(
+      ({ environment, flag, retiredAreOwn, live }) => {
+        const isAnyLiveOwn = live.some(({ isPresent }) => isPresent);
+        const expected =
+          flag.isEnabled && (retiredAreOwn || isAnyLiveOwn)
+            ? { kind: "unavailable", variables: [FAKE_MAIL_FLAG] }
+            : flag.isEnabled
+              ? { kind: "fake" }
+              : NAMES_OF_THE_UNUSABLE(live).length === 0
+                ? { kind: "provider" }
+                : {
+                    kind: "unavailable",
+                    variables: NAMES_OF_THE_UNUSABLE(live),
+                  };
+        return (
+          JSON.stringify(selectMailSender(environment)) !==
+          JSON.stringify(expected)
+        );
+      },
+    ).map(({ label }) => label);
+
+    expect(wrong).toEqual([]);
+  });
+
+  it("never lets a retired name configure, name it as unavailable, or change which live names are named", () => {
+    const wrong = RETIRED_CELLS.filter(({ environment, live }) => {
+      const unusable = NAMES_OF_THE_UNUSABLE(live);
+      const read = readMailConfiguration(environment);
+      return unusable.length === 0
+        ? read.status !== "configured"
+        : JSON.stringify(read) !==
+            JSON.stringify({ status: "unavailable", variables: unusable });
+    }).map(({ label }) => label);
+
+    expect(wrong).toEqual([]);
+  });
+
+  it("builds a sender through the factory exactly where the selection says, and names the flag alone where it refuses", () => {
+    spyOnEveryConsoleMethod();
+    const wrong = RETIRED_CELLS.filter(({ environment }) => {
+      const selection = selectMailSender(environment);
+      const creation = createMailSender(environment);
+      return selection.kind === "unavailable"
+        ? JSON.stringify(creation) !== JSON.stringify(selection)
+        : creation.kind !== "sender";
+    }).map(({ label }) => label);
+
+    expect(wrong).toEqual([]);
+  });
+
+  it("never names a retired name in anything it answers", () => {
+    spyOnEveryConsoleMethod();
+    const naming = RETIRED_CELLS.filter(({ environment }) => {
+      const readings = everyReadingOf([
+        selectMailSender(environment),
+        readMailConfiguration(environment),
+        createMailSender(environment),
+      ]);
+      return (
+        RETIRED_MAIL_VARIABLE_NAMES.some((name) => readings.includes(name)) ||
+        readings.includes("retired-value")
+      );
+    }).map(({ label }) => label);
+
+    expect(naming).toEqual([]);
   });
 });
 
@@ -339,7 +526,12 @@ const BYSTANDERS = {
 };
 
 describe("what the three functions ask of the environment they are handed", () => {
-  const FOUR_NAMES = [...MAIL_VARIABLE_NAMES, FAKE_MAIL_FLAG].sort();
+  // The three the reader reads, the two it retired (the fake's fence asks whether each is present), and the flag.
+  const SIX_NAMES = [
+    ...MAIL_VARIABLE_NAMES,
+    ...RETIRED_MAIL_VARIABLE_NAMES,
+    FAKE_MAIL_FLAG,
+  ].sort();
 
   it.each([
     ["a configured deployment", { ...USABLE_VALUES }],
@@ -349,10 +541,14 @@ describe("what the three functions ask of the environment they are handed", () =
       { ...USABLE_VALUES, [FAKE_MAIL_FLAG]: "1" },
     ],
     ["nothing", {}],
+    [
+      "the flag beside the retired names",
+      { [FAKE_MAIL_FLAG]: "1", RESEND_API_KEY: "x", MAIL_FROM_ADDRESS: "y" },
+    ],
   ])(
-    "asks for the four names at most, never the build mode or another variable, for %s",
+    "asks for the six names at most, never the build mode or another variable, for %s",
     (_label, values) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
       const { environment, asked } = recordingEnvironment({
         ...BYSTANDERS,
         ...values,
@@ -362,7 +558,7 @@ describe("what the three functions ask of the environment they are handed", () =
       selectMailSender(environment);
       createMailSender(environment);
 
-      expect([...asked].filter((name) => !FOUR_NAMES.includes(name))).toEqual(
+      expect([...asked].filter((name) => !SIX_NAMES.includes(name))).toEqual(
         [],
       );
       expect(asked.size).toBeGreaterThan(0);
@@ -370,8 +566,8 @@ describe("what the three functions ask of the environment they are handed", () =
   );
 
   it("reads nothing from the process environment while it reads, selects, builds and sends", async () => {
-    silenceEveryConsoleMethod();
-    stubFetchAnswering(() => textAnswer(200, '{"id":"msg_1"}'));
+    spyOnEveryConsoleMethod();
+    scriptTransport(() => Promise.resolve(ACCEPTED_ONE_RECIPIENT));
     const processAsked: string[] = [];
     const realEnvironment = process.env;
     process.env = new Proxy({} as NodeJS.ProcessEnv, {
@@ -408,8 +604,11 @@ describe("what the three functions ask of the environment they are handed", () =
 describe("a variable the environment cannot hand over", () => {
   function environmentWhoseSenderThrows(): MailEnvironment {
     return Object.defineProperty(
-      { RESEND_API_KEY: FAKE_API_KEY, LEAD_NOTIFICATION_ADDRESS: FAKE_INBOX },
-      "MAIL_FROM_ADDRESS",
+      {
+        GOOGLE_APP_PASSWORD: FAKE_APP_PASSWORD,
+        LEAD_NOTIFICATION_ADDRESS: FAKE_INBOX,
+      },
+      "GOOGLE_EMAIL",
       {
         enumerable: true,
         get(): string {
@@ -434,7 +633,7 @@ describe("a variable the environment cannot hand over", () => {
   ])(
     "never makes %s answer a configuration, a provider or a sender, and nothing that comes out holds the key",
     (_label, ask) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
 
       const result = answerOrThrown(() => ask(environmentWhoseSenderThrows()));
 
@@ -442,108 +641,198 @@ describe("a variable the environment cannot hand over", () => {
       expect(result).not.toMatchObject({ kind: "provider" });
       expect(result).not.toMatchObject({ kind: "sender" });
       expect(result).not.toMatchObject({ kind: "fake" });
-      expectNoMarkerIn(result, [FAKE_API_KEY, FAKE_INBOX]);
+      expectNoMarkerIn(result, [FAKE_APP_PASSWORD, FAKE_INBOX]);
     },
   );
 });
 
-const ADDRESS_BREAKERS = new Set([
-  " ",
-  "\t",
-  "\r",
-  "\n",
-  "@",
-  ",",
-  ";",
-  "<",
-  ">",
-]);
+const VISIBLE_ASCII = Array.from(
+  { length: 0x7e - 0x21 + 1 },
+  (_unused, index) => String.fromCharCode(0x21 + index),
+);
 
-/** Visible ASCII a recipient list or a header could not be split on: what the reader's rule lets through. */
-const addressPart = fc
-  .array(
-    fc.constantFrom(
-      ...Array.from({ length: 0x7e - 0x21 + 1 }, (_unused, index) =>
-        String.fromCharCode(0x21 + index),
-      ).filter((character) => !ADDRESS_BREAKERS.has(character)),
-    ),
-    { minLength: 1, maxLength: 24 },
-  )
+/** Visible ASCII of any shape, with a few characters a mailbox must not hold, so most draws are refused. */
+const anyVisibleText = fc
+  .array(fc.constantFrom(...VISIBLE_ASCII, " ", "\t", "\n", "\r", "\u0085"), {
+    minLength: 1,
+    maxLength: 30,
+  })
   .map((characters) => characters.join(""));
 
-const acceptedAddress = fc
-  .tuple(addressPart, addressPart)
-  .map(([local, domain]) => `${local}@${domain}`);
+const DOT_ATOM_CHARACTERS = Array.from("abcXYZ019!#$%&'*+/=?^_`{|}~-");
+const LABEL_CHARACTERS = Array.from("abcxyz019-");
 
-describe("an address the reader accepts, once it is in the request", () => {
-  it("is the body's one recipient and its sender, each read back whole from the JSON, however odd", () => {
-    fc.assert(
-      fc.property(acceptedAddress, acceptedAddress, (sender, inbox) => {
-        const read = readMailConfiguration({
-          RESEND_API_KEY: FAKE_API_KEY,
-          MAIL_FROM_ADDRESS: sender,
-          LEAD_NOTIFICATION_ADDRESS: inbox,
-        });
-        if (read.status !== "configured")
-          throw new Error("the generated address was not accepted");
+/** A mailbox of the plain shape, sometimes with a bad character spliced in, so most draws are accepted. */
+const nearlyPlainMailbox = fc
+  .tuple(
+    fc.string({ unit: fc.constantFrom(...DOT_ATOM_CHARACTERS), minLength: 1 }),
+    fc.string({ unit: fc.constantFrom(...LABEL_CHARACTERS), minLength: 1 }),
+    fc.string({
+      unit: fc.constantFrom(..."abcxyz".split("")),
+      minLength: 1,
+      maxLength: 6,
+    }),
+    fc.constantFrom("", "", "", '"', "(", "\\", "[", "]", ",", ";", ":", "<"),
+  )
+  .map(([local, label, top, splice]) => `${local}@${label}.${top}${splice}`);
 
-        const built = buildResendRequest(QA_MESSAGE, read.configuration);
-        const body = JSON.parse(built.init.body) as Record<string, unknown>;
+const candidateAddress = fc.oneof(
+  anyVisibleText,
+  nearlyPlainMailbox,
+  fc.constantFrom("a@bücher.example", "a@b.example", "x@y.z.example"),
+);
 
-        expect(body.to).toStrictEqual([inbox]);
-        expect(body.from).toBe(sender);
-        expect(Object.keys(body)).toEqual(["from", "to", "subject", "text"]);
-        expect(JSON.stringify(built.init.headers)).not.toContain(inbox);
-        expect(JSON.stringify(built.init.headers)).not.toContain(sender);
-      }),
+const WELL_FORMED_MESSAGE_ID = /^<[0-9a-f]{64}@[a-z0-9.-]+>$/;
+
+describe("an address the reader accepts, once it is in the message", () => {
+  const OTHER_ADDRESS = "qa-other-5d81c0@example.org";
+
+  /** Whether the adapter can write `address` as the given setting: it builds the message, or it refuses it. */
+  function isWrittenByTheAdapter(
+    address: string,
+    setting: "senderAddress" | "notificationAddress",
+  ): boolean {
+    try {
+      const options = buildGmailMessage(QA_MESSAGE, {
+        senderAddress: OTHER_ADDRESS,
+        appPassword: FAKE_APP_PASSWORD,
+        notificationAddress: OTHER_ADDRESS,
+        [setting]: address,
+      });
+      expect(options.messageId).toMatch(WELL_FORMED_MESSAGE_ID);
+      expect(options.from).toBe(
+        setting === "senderAddress" ? address : OTHER_ADDRESS,
+      );
+      expect(options.to).toBe(
+        setting === "notificationAddress" ? address : OTHER_ADDRESS,
+      );
+      return true;
+    } catch (thrown) {
+      if (!(thrown instanceof UnusableMailAddressError)) throw thrown;
+      expect(thrown.setting).toBe(setting);
+      return false;
+    }
+  }
+
+  function isReadAsConfigured(address: string, name: string): boolean {
+    const read = readMailConfiguration({
+      GOOGLE_EMAIL: OTHER_ADDRESS,
+      GOOGLE_APP_PASSWORD: FAKE_APP_PASSWORD,
+      LEAD_NOTIFICATION_ADDRESS: OTHER_ADDRESS,
+      [name]: address,
+    });
+    return read.status === "configured";
+  }
+
+  it.each([
+    ["GOOGLE_EMAIL", "senderAddress"],
+    ["LEAD_NOTIFICATION_ADDRESS", "notificationAddress"],
+  ] as const)(
+    "is read as configured in %s exactly when the adapter can write it, with a well-formed Message-ID, over %s",
+    (name, setting) => {
+      const tally = { accepted: 0, refused: 0 };
+
+      fc.assert(
+        fc.property(candidateAddress, (address) => {
+          const isRead = isReadAsConfigured(address, name);
+          const isWritten = isWrittenByTheAdapter(address, setting);
+
+          expect(isRead).toBe(isWritten);
+          tally[isRead ? "accepted" : "refused"] += 1;
+        }),
+        { numRuns: 600 },
+      );
+
+      expect(tally.accepted).toBeGreaterThan(30);
+      expect(tally.refused).toBeGreaterThan(30);
+    },
+  );
+
+  it("makes an address's bytes appear nowhere in the message's options but in the one member it was configured as", () => {
+    const options = buildGmailMessage(QA_MESSAGE, {
+      senderAddress: FAKE_SENDER,
+      appPassword: FAKE_APP_PASSWORD,
+      notificationAddress: FAKE_INBOX,
+    });
+
+    expect(JSON.stringify({ ...options, from: "", to: "" })).not.toContain(
+      FAKE_INBOX,
     );
+    expect(
+      JSON.stringify({ ...options, from: "", to: "", messageId: "" }),
+    ).not.toContain(FAKE_SENDER);
   });
 
-  it("accepts a key of any visible ASCII and builds a request the platform's constructor takes with it", () => {
-    const everyVisibleCharacter = Array.from(
-      { length: 0x7e - 0x21 + 1 },
-      (_unused, index) => String.fromCharCode(0x21 + index),
-    ).join("");
-    const read = readMailConfiguration({
+  it("is a password of every visible character that reaches the transport's `auth.pass` and no message option", async () => {
+    spyOnEveryConsoleMethod();
+    const everyVisibleCharacter = VISIBLE_ASCII.join("");
+    const transport = scriptTransport(() =>
+      Promise.resolve(ACCEPTED_ONE_RECIPIENT),
+    );
+    const creation = createMailSender({
       ...USABLE_VALUES,
-      RESEND_API_KEY: everyVisibleCharacter,
+      GOOGLE_APP_PASSWORD: everyVisibleCharacter,
     });
-    if (read.status !== "configured")
-      throw new Error("the key was not accepted");
+    if (creation.kind !== "sender") throw new Error("expected a sender");
 
-    const built = buildResendRequest(QA_MESSAGE, read.configuration);
+    const outcome = await creation.sender.send(QA_MESSAGE);
 
-    expect(
-      new Request(built.url, built.init).headers.get("authorization"),
-    ).toBe(`Bearer ${everyVisibleCharacter}`);
+    expect(outcome).toEqual({ ok: true });
+    expect(createTransportMock.mock.calls[0]?.[0]).toMatchObject({
+      auth: { user: FAKE_SENDER, pass: everyVisibleCharacter },
+    });
+    const sentOptions = JSON.stringify(transport.sendMail.mock.calls);
+    expect(sentOptions).not.toContain(everyVisibleCharacter.slice(0, 20));
   });
 });
 
-describe("the key, in what the factory hands back", () => {
+describe("the password, in what the factory hands back", () => {
+  const FAILURES: readonly [string, () => Promise<unknown>][] = [
+    [
+      "a rejection quoting every marker",
+      () => Promise.reject(quotingLibraryError({ code: "EAUTH" })),
+    ],
+    [
+      "a reply quoting the password",
+      () =>
+        Promise.reject(
+          quotingLibraryError({ responseCode: 535, code: "EAUTH" }),
+        ),
+    ],
+    [
+      "a result that names them",
+      () =>
+        Promise.resolve({
+          accepted: [],
+          rejected: [FAKE_INBOX],
+          response: FAKE_APP_PASSWORD,
+        }),
+    ],
+    ["a thrown string", () => rejectingWith(FAKE_APP_PASSWORD)],
+  ];
+
   it("is in no outcome and no line, whatever a failing transport throws back at the factory's sender", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const creation = createMailSender(USABLE_VALUES);
     if (creation.kind !== "sender") throw new Error("expected a sender");
     const outcomes: unknown[] = [];
-    const transports = [
-      () => Promise.reject(new TypeError(`bad header ${FAKE_API_KEY}`)),
-      () => Promise.resolve(textAnswer(401, `{"message":"${FAKE_API_KEY}"}`)),
-      () => Promise.resolve(textAnswer(200, `{"id":"${FAKE_API_KEY}"}`)),
-    ];
 
-    for (const transport of transports) {
-      stubFetch(transport);
+    for (const [, failure] of FAILURES) {
+      scriptTransport(failure);
       outcomes.push(await creation.sender.send(QA_MESSAGE));
     }
 
     expectNoMarkerIn(outcomes, SECRETS);
     expect(consoleCallsOf(consoleSpies)).toEqual([]);
+    expect(outcomes.every((outcome) => !(outcome as { ok: boolean }).ok)).toBe(
+      true,
+    );
   });
 });
 
 describe("the fake the factory builds", () => {
   it("writes its line when it is built and never when it is used, refused sends included", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const creation = createMailSender({ [FAKE_MAIL_FLAG]: "1" });
     if (creation.kind !== "sender") throw new Error("expected a sender");
     const linesAtBuild = consoleCallsOf(consoleSpies).length;
@@ -557,7 +846,7 @@ describe("the fake the factory builds", () => {
   });
 
   it("hands back a sender of `send` alone, from which nothing it was sent can be read back", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const creation = createMailSender({ [FAKE_MAIL_FLAG]: "1" });
     if (creation.kind !== "sender") throw new Error("expected a sender");
 

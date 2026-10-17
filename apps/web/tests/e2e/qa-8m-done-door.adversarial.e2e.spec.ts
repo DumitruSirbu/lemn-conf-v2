@@ -215,8 +215,12 @@ plain.describe("four doors, one answer", () => {
           );
           expect(owner.status).toBe(200);
           expect(owner.body).not.toContain('data-testid="design-load-error"');
-          // The owner's confirmation for a design nothing was sent for carries no reference and no claim in its markup.
+          // The owner's confirmation for a design nothing was sent for carries no reference and no claim in its markup:
+          // neither the reference card nor, since wave 8V, the design-link card that took its place on 5A.
           expect(owner.body).not.toContain('data-testid="done-reference"');
+          expect(owner.body).not.toContain(
+            'data-testid="done-design-link-card"',
+          );
         } finally {
           await visitors.cleanUp();
         }

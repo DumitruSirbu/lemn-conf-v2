@@ -347,3 +347,13 @@ erased.
 8. **Dated notes owed, not written here** (the dispatch for this close named ADR 0160 only): ADR 0159 d5 and
    Amendment A (`limitedTomorrow`), ADR 0114 Amendment G, ADR 0153, ADR 0148, ADR 0156 (the *ты* note), ADR 0095 (the
    re-sign list). ADR 0160 d2, d4, d5, d8, d10 and F3 **are** written.
+
+## Dated note — 2026-10-17, wave 8V (the scribe; nothing re-run)
+
+- **d7: the already-sent view no longer draws the reference.** [ADR 0165](0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
+  D2 removes the card; `alreadySentAdvice` is re-drafted in ro and ru without *"numărul cererii"* / *"номер заявки"*, as
+  provisional copy. The call link, the changed-kitchen sentence and *Înapoi la design* stay, and there is still no form
+  (Amendment A5 kept). **The callback sent view keeps the reference** (coordinator decision, 2026-10-17).
+- **d3 is unchanged:** the WhatsApp message still carries the reference and the customer's own live share link. The
+  shop's frozen e-mail link (ADR 0165 D3) is a separate table, so the two links are independent. The refusal of Q5 (c)
+  stands.

@@ -7,6 +7,7 @@ import {
 import type { SubmissionRecording } from "@lemnaria/persistence";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { endonymOf } from "@/i18n/locale-endonyms";
 import { submitContact } from "@/lib/server/contact/submit-contact";
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
 import {
@@ -29,6 +30,9 @@ import {
 afterEach(() => {
   vi.restoreAllMocks();
 });
+
+/** The token in the kitchen link, wherever the notice holds it: the only part of a retried notice that differs. */
+const KITCHEN_TOKEN = /(?<=\/ro\/s\/)[0-9A-Za-z]{12}/g;
 
 async function jsonOf(answer: Response): Promise<Record<string, unknown>> {
   return (await answer.json()) as Record<string, unknown>;
@@ -68,6 +72,7 @@ describe("a new request, stored and passed on", () => {
       "load",
       "judge:new",
       "record",
+      "record-view",
       "send",
       "mark",
     ]);
@@ -86,9 +91,10 @@ describe("a new request, stored and passed on", () => {
     const [message] = harness.sender.sent;
     expect(message?.subject).toContain(reference);
     expect(message?.text).toContain(reference);
-    expect(JSON.stringify(harness.sender.sent)).not.toContain(
-      PLACEHOLDER_REFERENCE,
-    );
+    const sentBytes = JSON.stringify(harness.sender.sent);
+    expect(sentBytes).not.toContain(PLACEHOLDER_REFERENCE);
+    expect(sentBytes).not.toContain("example.invalid");
+    expect(sentBytes).not.toContain("000000000000");
   });
 
   it("writes the notice in its own language whatever the request's, keyed by the request's id", async () => {
@@ -97,7 +103,9 @@ describe("a new request, stored and passed on", () => {
     await harness.submit(bodyOf({ locale: "ru" }));
 
     expect(harness.sender.sent[0]?.key).toBe(`lead-notification/${REQUEST_ID}`);
-    expect(harness.sender.sent[0]?.text).toContain("Limba clientului: ru");
+    expect(harness.sender.sent[0]?.text).toContain(
+      `Limba clientului: ${endonymOf("ru")}`,
+    );
     expect(harness.sender.sent[0]?.subject).not.toMatch(/[Ѐ-ӿ]/);
   });
 
@@ -424,7 +432,7 @@ describe("a stored request: its tries, never a new request's buckets", () => {
     expect(JSON.stringify(body)).not.toContain("LM-");
   });
 
-  it("counts the tries' bucket and none of a new request's, and sends the same notice bytes", async () => {
+  it("counts the tries' bucket and none of a new request's, and sends the same notice under a new link", async () => {
     const { harness } = await storedButNotNotified();
     const countedBefore = harness.recorded.mock.calls.length;
     harness.calls.length = 0;
@@ -438,13 +446,20 @@ describe("a stored request: its tries, never a new request's buckets", () => {
       "lookUp",
       "judge:tries",
       "load",
+      "record-view",
       "send",
       "mark",
     ]);
     expect(harness.calls).not.toContain("judge:new");
     expect(harness.calls).not.toContain("record");
+    const [first, second] = harness.sender.sent.map((message) =>
+      JSON.stringify(message),
+    );
     expect(harness.sender.sent).toHaveLength(2);
-    expect(harness.sender.sent[1]).toEqual(harness.sender.sent[0]);
+    expect(second).not.toBe(first);
+    expect(second?.replace(KITCHEN_TOKEN, "")).toBe(
+      first?.replace(KITCHEN_TOKEN, ""),
+    );
   });
 
   it("answers a stored and notified request with its reference and sends nothing", async () => {

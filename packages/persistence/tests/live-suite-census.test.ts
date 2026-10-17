@@ -142,6 +142,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes contact submission rows under ids that carry a marker only tests write, and needs the schema intact",
   },
+  "sent-kitchen-view-repository.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes contact submission and view rows under ids that carry a marker only this file writes, mints designs it deletes by id, and needs the schema intact (M8 wave 8V)",
+  },
   "neon-csp-report-store.test.ts": {
     gate: "live test database",
     lock: "exclusive",

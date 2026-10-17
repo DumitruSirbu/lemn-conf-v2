@@ -17,10 +17,12 @@ import {
 } from "@lemnaria/configurator-domain";
 import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
 import { inspect } from "node:util";
+import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { endonymOf } from "@/i18n/locale-endonyms";
 import {
-  buildLeadNotification,
+  composeLeadNotice,
   LEAD_NOTIFICATION_KEY_PREFIX,
   NoticeKitchenError,
   NoticeLineError,
@@ -40,6 +42,7 @@ import {
   variedKitchensOf,
   type VariedArm,
 } from "../../../support/varied-kitchens";
+import { FIXTURE_PUBLIC_ORIGIN } from "./lead-notice-fixtures";
 import {
   forbidFetch,
   PROCESS_ENV_OR_BUILD_MODE,
@@ -175,12 +178,24 @@ function callbackRequest(
   });
 }
 
+const KITCHEN_URL = "https://example.invalid/ro/s/Lead0Notice1";
+
 function noticeOf(submission: ContactSubmissionToRecord) {
-  return buildLeadNotification({
+  return composeLeadNotice({
     reference: REFERENCE,
     submission,
     content: ro,
+    kitchenLink: { kind: "link", url: KITCHEN_URL },
+    publicOrigin: FIXTURE_PUBLIC_ORIGIN,
   });
+}
+
+/** A design's text part opens with the kitchen link's line and a blank line; a callback's has neither. */
+const CUSTOMER_LINES_START = 2;
+
+/** The design's summary and appendix: everything after the customer's lines. */
+function kitchenLinesOf(lines: readonly string[]): readonly string[] {
+  return lines.slice(lines.indexOf("", CUSTOMER_LINES_START) + 1);
 }
 
 function bodyLinesOf(submission: ContactSubmissionToRecord): string[] {
@@ -206,7 +221,7 @@ function lineOf(label: string, value: string): string {
 
 const CALLBACK_NOTICE_LINES = [
   lineOf(notice.labels.reference, REFERENCE),
-  lineOf(notice.labels.locale, "ru"),
+  lineOf(notice.labels.locale, endonymOf("ru")),
   lineOf(notice.labels.name, NAME_MARKER),
   lineOf(notice.labels.phone, "+37369000111"),
   lineOf(notice.labels.locality, LOCALITY_MARKER),
@@ -280,7 +295,9 @@ describe("the notice's customer lines", () => {
   it("puts each value on a line of its own behind its label, the phone in its normal form", () => {
     const lines = bodyLinesOf(designRequest());
 
-    expect(lines.slice(0, 6)).toEqual(CALLBACK_NOTICE_LINES);
+    expect(lines.slice(CUSTOMER_LINES_START, CUSTOMER_LINES_START + 6)).toEqual(
+      CALLBACK_NOTICE_LINES,
+    );
     expect(lines.join("\n")).not.toContain(PHONE_AS_TYPED);
   });
 
@@ -491,10 +508,12 @@ describe("a line that would hold a control character or a line separator", () =>
     "throws for %s in the reference, which is also in the subject",
     (_label, breaker) => {
       expect(() =>
-        buildLeadNotification({
+        composeLeadNotice({
           reference: `LM-AB${breaker}CD`,
           submission: designRequest(),
           content: ro,
+          kitchenLink: { kind: "unavailable" },
+          publicOrigin: FIXTURE_PUBLIC_ORIGIN,
         }),
       ).toThrow(NoticeLineError);
     },
@@ -516,10 +535,12 @@ describe("a line that would hold a control character or a line separator", () =>
     };
 
     expect(() =>
-      buildLeadNotification({
+      composeLeadNotice({
         reference: REFERENCE,
         submission: designRequest(),
         content,
+        kitchenLink: { kind: "unavailable" },
+        publicOrigin: FIXTURE_PUBLIC_ORIGIN,
       }),
     ).toThrow(NoticeLineError);
   });
@@ -544,6 +565,17 @@ describe("the notice's kitchen lines", () => {
       throw new Error("the fixture is unavailable");
     return [
       lineOf(notice.labels.room, review.roomLine),
+      ...review.groups.map((group) =>
+        notice.groupCount(group.heading, group.rows.length),
+      ),
+      lineOf(
+        notice.labels.price,
+        notice.figure(review.figure.label, review.figure.amountText),
+      ),
+      review.disclaimer.rounding,
+      review.disclaimer.notice,
+      "",
+      notice.appendixHeading,
       ...review.groups.flatMap((group) => [
         group.heading,
         ...group.rows.flatMap((row) => [
@@ -556,13 +588,6 @@ describe("the notice's kitchen lines", () => {
       ...review.wholeKitchenRows.map((row) =>
         lineOf(row.label, row.amountText),
       ),
-      "",
-      lineOf(
-        notice.labels.price,
-        notice.figure(review.figure.label, review.figure.amountText),
-      ),
-      review.disclaimer.rounding,
-      review.disclaimer.notice,
     ];
   }
 
@@ -574,10 +599,9 @@ describe("the notice's kitchen lines", () => {
         ...dressedKitchens(arm, KITCHENS_PER_ARM),
       ];
       const mismatches = kitchens.filter((design) => {
-        const lines = bodyLinesOf(
-          designRequest({ snapshot: snapshotOfDesign(design) }),
+        const kitchen = kitchenLinesOf(
+          bodyLinesOf(designRequest({ snapshot: snapshotOfDesign(design) })),
         );
-        const kitchen = lines.slice(lines.indexOf("") + 1);
         return (
           JSON.stringify(kitchen) !==
           JSON.stringify(expectedKitchenLines(design))
@@ -644,10 +668,12 @@ describe("the notice's kitchen lines", () => {
   it("separates the customer's lines from the kitchen's with one blank line", () => {
     const lines = bodyLinesOf(designRequest());
 
-    expect(lines[6]).toBe("");
-    expect(lines[7]?.startsWith(notice.line(notice.labels.room, ""))).toBe(
-      true,
-    );
+    expect(lines[CUSTOMER_LINES_START + 6]).toBe("");
+    expect(
+      lines[CUSTOMER_LINES_START + 7]?.startsWith(
+        notice.line(notice.labels.room, ""),
+      ),
+    ).toBe(true);
   });
 
   it("prints the figure of the stored total, so a snapshot whose total is changed prints the changed figure", () => {
@@ -675,10 +701,12 @@ describe("the notice's kitchen lines", () => {
     );
   });
 
-  it("ends with the figure and the review's two disclaimer sentences and says nothing more about the price", () => {
+  it("ends the summary with the figure and the review's two disclaimer sentences and says nothing more about the price", () => {
     const lines = bodyLinesOf(designRequest());
+    const appendixAt = lines.indexOf(notice.appendixHeading);
 
-    expect(lines.slice(-3)).toEqual([
+    expect(lines[appendixAt - 1]).toBe("");
+    expect(lines.slice(appendixAt - 4, appendixAt - 1)).toEqual([
       expect.stringMatching(
         new RegExp(
           `^${notice.line(notice.labels.price, ro.price.startingPrefix)} \\d[\\d ]* MDL$`,
@@ -847,6 +875,65 @@ describe("the line-break class", () => {
   });
 });
 
+/** A tag's opening, `<p` or `</td`, in any text literal; a type's angle brackets are not literals and are not read. */
+const TAG_OPENING = /<\/?[A-Za-z!]/;
+
+/** Every string and template piece the source spells out, read as syntax. */
+function textLiteralsOf(source: string): string[] {
+  const file = ts.createSourceFile(
+    "module.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const literals: string[] = [];
+  function visit(node: ts.Node): void {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      literals.push(node.text);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return literals;
+}
+
+function tagLiteralsOf(source: string): string[] {
+  return textLiteralsOf(source).filter((text) => TAG_OPENING.test(text));
+}
+
+describe("the composer writes no markup", () => {
+  it("reads source: lead-notification.ts spells no tag in any literal, so markup is made only in lead-notification-html.ts", () => {
+    expect(tagLiteralsOf(readMailModuleSource("lead-notification.ts"))).toEqual(
+      [],
+    );
+  });
+
+  it("is a reading that finds a tag where one is written, and none in a type's brackets: the control", () => {
+    expect(
+      tagLiteralsOf(
+        'const a: Array<string> = []; const b = `<p>${a.join("")}</p>`; const c = "</td>";',
+      ),
+    ).toEqual(["<p>", "</p>", "</td>"]);
+    expect(
+      tagLiteralsOf(
+        "const a: Readonly<Record<string, number>> = {}; const b = 1 < 2;",
+      ),
+    ).toEqual([]);
+  });
+
+  it("finds the template's own tags in lead-notification-html.ts, so the reading is not blind to the real source", () => {
+    expect(
+      tagLiteralsOf(readMailModuleSource("lead-notification-html.ts")).length,
+    ).toBeGreaterThan(0);
+  });
+});
+
 describe("one request, one message, the same bytes", () => {
   it("gives equal messages for equal input", () => {
     expect(noticeOf(designRequest())).toEqual(noticeOf(designRequest()));
@@ -868,13 +955,13 @@ describe("one request, one message, the same bytes", () => {
     expect(noticeOf(designRequest())).toEqual(first);
   });
 
-  it("reads source: names no clock, random source, environment, build mode, request or markup", () => {
+  it("reads source: names no clock, random source, environment, build mode or request", () => {
     const source = readMailModuleSource("lead-notification.ts");
 
     expect(source).not.toMatch(PROCESS_ENV_OR_BUILD_MODE);
     expect(source).not.toMatch(
       /\bDate\b|Math\.random|\bcrypto\b|performance\.now|\bfetch\b/,
     );
-    expect(source).not.toMatch(/create-mail-sender|\bhtml\b/);
+    expect(source).not.toMatch(/create-mail-sender/);
   });
 });

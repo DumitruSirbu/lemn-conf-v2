@@ -9,6 +9,7 @@
 import {
   buildKitchenLBodyCatalog,
   buildUShellDesign,
+  CABINETRY_MAX_WIDTH_MM,
   cornerOf,
   derivePlacementRecords,
   deriveRecordedColumns,
@@ -130,6 +131,22 @@ function createBodyBuiltAt(kit: Kit, buildId: string): THREE.Box3 {
   return new THREE.Box3().setFromObject(body);
 }
 
+/** Composition's merge limit, which reads the cabinet ceiling (8U criterion 17). */
+const SHELL_MERGE_WIDTH_LIMIT_MM = CABINETRY_MAX_WIDTH_MM;
+
+/** The shell is composition's private intermediate, so its map is derived at composition's limit (8U plan §6.1). */
+function shellColumnsOf(
+  records: readonly PlacementRecord[],
+  design: Design,
+): ReturnType<typeof deriveRecordedColumns> {
+  return deriveRecordedColumns(
+    records,
+    design,
+    toMetres(design.room.widthMm),
+    SHELL_MERGE_WIDTH_LIMIT_MM,
+  );
+}
+
 function mountU(
   extra: (kit: Kit) => readonly DesignPlacement[] = () => [],
 ): MountedU {
@@ -155,11 +172,7 @@ function mountDesign(kit: Kit, design: Design): MountedU {
   stageRoot.add(solidsRoot, voidsRoot);
 
   syncSolidBodies({ kit, solidsRoot, records, room: design.room });
-  const columns = deriveRecordedColumns(
-    records,
-    design,
-    toMetres(design.room.widthMm),
-  );
+  const columns = shellColumnsOf(records, design);
   syncVoidMeshes({
     voidsRoot,
     voids: recomputeVoids(records, columns),
@@ -353,11 +366,7 @@ describe("wall C's bodies and voids are drawn at their world frames, unmirrored 
 
   it("keeps the wall-C void at the frame the domain derived, box centre and all", () => {
     const scene = mountU();
-    const columns = deriveRecordedColumns(
-      scene.records,
-      scene.design,
-      toMetres(U_ROOM.widthMm),
-    );
+    const columns = shellColumnsOf(scene.records, scene.design);
     const derived: VoidRecord = required(
       recomputeVoids(scene.records, columns).find((v) => v.id.startsWith("C|")),
       "a wall-C void",

@@ -3,11 +3,13 @@ import "server-only";
 import type {
   AuthorizedConfigurationRepository,
   OwnedDesignRepository,
+  SentKitchenViewRepository,
   ShareLinkRepository,
   VisitorResumeRepository,
 } from "@lemnaria/persistence";
 import {
   NeonConfigurationRepository,
+  NeonSentKitchenViewRepository,
   NeonShareLinkRepository,
 } from "@lemnaria/persistence";
 
@@ -29,6 +31,7 @@ type SharedRepository = Omit<AuthorizedConfigurationRepository, "load"> &
 // crash `next build` in any environment where the env var isn't set (e.g. CI without secrets).
 let repository: SharedRepository | undefined;
 let shareLinkRepository: ShareLinkRepository | undefined;
+let sentKitchenViewRepository: SentKitchenViewRepository | undefined;
 
 /** The single repository instance route handlers and server components share — the server-side
  *  port, whose update path takes a write credential (ADR 0019 decision 1), plus the visitor-resume
@@ -48,4 +51,11 @@ export function getRepository(): SharedRepository {
 export function getShareLinkRepository(): ShareLinkRepository {
   shareLinkRepository ??= new NeonShareLinkRepository();
   return shareLinkRepository;
+}
+
+/** The frozen copies of the kitchens the shop was sent: a port of its own beside the share link's, read by the share
+ *  page when a token names no share link, and written by the shop's notice. */
+export function getSentKitchenViewRepository(): SentKitchenViewRepository {
+  sentKitchenViewRepository ??= new NeonSentKitchenViewRepository();
+  return sentKitchenViewRepository;
 }

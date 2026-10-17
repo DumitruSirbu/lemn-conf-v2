@@ -4,10 +4,12 @@
 import { NARROWED_ROOM_OVERFLOWING_DESIGN } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { KITCHEN_LINK_CAUSES } from "@/lib/server/contact/sent-kitchen-link";
+
 import {
   consoleCallsOf,
-  silenceEveryConsoleMethod,
-} from "../../../lib/server/mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "../../../lib/server/mail/mail-test-support";
 import {
   byEmail,
   callbackRequest,
@@ -52,7 +54,7 @@ const PAST_EVERY_FIGURE = 40;
 /** What each key of a line may hold: a word from a list written here, a number, or a reference's shape. */
 const LINE_VALUES: Readonly<Record<string, RegExp>> = {
   event:
-    /^contact-(request-refused|request-unavailable|notice-not-sent|mark-failed|stored-request-refused)$/,
+    /^(contact-(request-refused|request-unavailable|notice-not-sent|mark-failed|stored-request-refused)|sent-kitchen-link-unavailable)$/,
   refusalCode: /^CONTACT_[A-Z_]+$/,
   status: /^(400|403|409|413|415|422|429|502|503)$/,
   policy: /^contact-[a-z0-9-]+$/,
@@ -70,6 +72,7 @@ const LINE_VALUES: Readonly<Record<string, RegExp>> = {
       "notice-unbuildable",
       "price-book-mismatch",
       "unexpected",
+      ...KITCHEN_LINK_CAUSES,
     ].join("|")})$`,
   ),
   mailFailureKind:
@@ -92,12 +95,18 @@ const LINE_BREAKERS: readonly (readonly [string, number])[] = [
   ["a null", 0x00],
 ];
 const INJECTED_HEADER = "Bcc: qa8k-injected@example.invalid";
+/** The notice's kitchen link writes its line as JSON text; with no public origin in this process it writes one. */
+const KITCHEN_LINK_LABEL = "[sent-kitchen-link]";
+const NO_ORIGIN_LINE = {
+  event: "sent-kitchen-link-unavailable",
+  cause: "origin-unset",
+} as const;
 
 let post: Post;
-let consoleSpies: ReturnType<typeof silenceEveryConsoleMethod>;
+let consoleSpies: ReturnType<typeof spyOnEveryConsoleMethod>;
 
 beforeEach(async () => {
-  consoleSpies = silenceEveryConsoleMethod();
+  consoleSpies = spyOnEveryConsoleMethod();
   nameTheNetworkSource();
   resetOutside(outside);
   post = await loadRoute();
@@ -110,9 +119,15 @@ afterEach(() => {
 
 /** Every line written so far, as the structured second argument of the console call that wrote it. */
 function linesWritten(): Record<string, unknown>[] {
-  return consoleCallsOf(consoleSpies).map(
-    ([, line]) => (line ?? {}) as Record<string, unknown>,
+  return consoleCallsOf(consoleSpies).map(([label, line]) =>
+    lineOf(label, line),
   );
+}
+
+function lineOf(label: unknown, line: unknown): Record<string, unknown> {
+  const fields: unknown =
+    label === KITCHEN_LINK_LABEL ? JSON.parse(String(line)) : line;
+  return (fields ?? {}) as Record<string, unknown>;
 }
 
 function eventsWritten(): unknown[] {
@@ -601,6 +616,7 @@ describe("no line on any branch holds anything submitted or thrown", () => {
         "contact-request-unavailable",
         "contact-notice-not-sent",
         "contact-mark-failed",
+        NO_ORIGIN_LINE.event,
       ]),
     );
     for (const marker of [
@@ -626,9 +642,9 @@ describe("no line on any branch holds anything submitted or thrown", () => {
     await walkEveryBranch();
 
     for (const [label, line, ...rest] of consoleCallsOf(consoleSpies)) {
-      expect(label).toBe("[contact]");
+      expect(["[contact]", KITCHEN_LINK_LABEL]).toContain(label);
       expect(rest).toEqual([]);
-      for (const [key, value] of Object.entries(line as object)) {
+      for (const [key, value] of Object.entries(lineOf(label, line))) {
         expect(Object.keys(LINE_VALUES)).toContain(key);
         expect(String(value), key).toMatch(LINE_VALUES[key] ?? /^$/);
       }
@@ -698,13 +714,18 @@ describe("how often a line is written", () => {
       await sendFull(full({ locale: "ru" }));
     }
 
-    expect(linesWritten()).toEqual([
-      {
-        event: "contact-request-refused",
-        refusalCode: "CONTACT_REQUEST_CONFLICT",
-        status: 409,
-      },
-    ]);
+    // Gathered method by method, so the two lines' order is the console's, not the request's.
+    expect(linesWritten()).toHaveLength(2);
+    expect(linesWritten()).toEqual(
+      expect.arrayContaining([
+        NO_ORIGIN_LINE,
+        {
+          event: "contact-request-refused",
+          refusalCode: "CONTACT_REQUEST_CONFLICT",
+          status: 409,
+        },
+      ]),
+    );
   });
 
   it("is once for a process and a policy for a limit, and each time for unavailable", async () => {

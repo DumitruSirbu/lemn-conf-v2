@@ -27,6 +27,7 @@ import {
   deliverNotice,
   inTheRegionOfAReference,
   proveTheNoticeIsBuildable,
+  type KitchenLinkSources,
 } from "@/lib/server/contact/deliver-notice";
 import type { ContactJudge } from "@/lib/server/contact/judge-contact-request";
 import {
@@ -52,10 +53,13 @@ export interface ContactBody {
 
 /**
  * Every port is handed in, so nothing here is held at module level: the store, the mail's factory, the one price book
- * of the request, the digester made from the secret, the notice's language, the owned load, the judge's maker and the
- * clock. A test hands the fakes; the route hands the production ones, each made inside the request.
+ * of the request, the digester made from the secret, the notice's language, the owned load, the judge's maker, the
+ * clock, and where the notice's kitchen link comes from. A test hands the fakes; the route hands the production ones,
+ * each made inside the request.
  */
-export interface SubmitContactPorts extends SubmissionSources {
+export interface SubmitContactPorts
+  extends SubmissionSources,
+    KitchenLinkSources {
   readonly store: ContactSubmissionStore;
   readonly createSender: () => MailSenderCreation;
   readonly digester: DigesterOutcome;
@@ -247,6 +251,10 @@ function passOn(
       sender: heldRequest.sender,
       noticeContent: ports.noticeContent,
       store: ports.store,
+      kitchenLinks: {
+        readPublicOrigin: ports.readPublicOrigin,
+        sentKitchenViews: ports.sentKitchenViews,
+      },
     });
   });
 }

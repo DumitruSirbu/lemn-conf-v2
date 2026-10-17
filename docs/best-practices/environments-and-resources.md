@@ -161,7 +161,8 @@ prints it. This guide previously carried no such list; the plan's *Proposed vari
 ### `CLIENT_NETWORK_SOURCE` and `LEMNARIA_E2E_RATE_LIMIT_POLICY` (wave 8F, 2026-10-09; names only; the owner's)
 
 No agent sets, reads or prints either. [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md)
-has the rules; `apps/web/.env.example` names both, commented, with no value.
+has the rules; ~~`apps/web/.env.example`~~ the repo-root `.env.example` names both, commented, with no value (*corrected
+2026-10-17: there is no `apps/web/.env.example`; the one tracked example file is at the repository root*).
 
 - **`CLIENT_NETWORK_SOURCE`:** exactly `vercel`, set on a deployment on that platform **only**. **Never in a local file, on another host, or
   for the platform's development target.** It tells the application to trust the one header that platform overwrites for the client's
@@ -173,14 +174,20 @@ has the rules; `apps/web/.env.example` names both, commented, with no value.
 
 ### The three mail variables and the e2e flag (wave 8J, 2026-10-09; names only; the owner's, and none is set by an agent)
 
-Resend is the provider (the owner, 2026-10-07). Nothing here exists in any environment until the owner creates it, and no agent sets,
-reads or prints one. [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md)
-has the rules; `apps/web/.env.example` names them, commented, with no value.
+> **Superseded in part, 2026-10-17 (wave 8J2, [ADR 0164](../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md)).**
+> Resend is no longer the provider: the notice leaves through Gmail SMTP by nodemailer (the owner, 2026-10-15). The
+> current names are in *The mail variables since 8J2* below. `RESEND_API_KEY` and `MAIL_FROM_ADDRESS` are **retired**:
+> they configure nothing, but stay wherever they are set (add-only) and still stop the e2e flag taking effect. The list
+> below is kept as it was written, struck where it no longer holds.
 
-- **`RESEND_API_KEY`** (a secret). **Create it with sending access only**: a key with full access, leaked, reads thirty days of
-  notices through the API. Never in the browser, never read at build.
-- **`MAIL_FROM_ADDRESS`**: a bare address on a domain the provider has verified (DNS records the owner adds). `Name <addr>` is
-  refused.
+~~Resend is the provider (the owner, 2026-10-07).~~ Nothing here exists in any environment until the owner creates it, and no agent sets,
+reads or prints one. [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md)
+has the rules; ~~`apps/web/.env.example`~~ the repo-root `.env.example` names them, commented, with no value.
+
+- ~~**`RESEND_API_KEY`** (a secret). **Create it with sending access only**: a key with full access, leaked, reads thirty days of
+  notices through the API. Never in the browser, never read at build.~~ *Retired 2026-10-17.*
+- ~~**`MAIL_FROM_ADDRESS`**: a bare address on a domain the provider has verified (DNS records the owner adds). `Name <addr>` is
+  refused.~~ *Retired 2026-10-17; the sender is now `GOOGLE_EMAIL`.*
 - **`LEAD_NOTIFICATION_ADDRESS`**: the shop's inbox, exactly one address.
 - **`LEMNARIA_E2E_FAKE_MAIL`**: test instrumentation, **unset on every deployment** (the phase gate checks that the name is in none).
   Beside any mail variable the server treats mail as unavailable, so a deployment set up to send cannot be turned to the fake by it.
@@ -190,3 +197,41 @@ has the rules; `apps/web/.env.example` names them, commented, with no value.
   message is sent or claimed sent. Nothing calls the module yet (8K wires it).
 - **On a machine whose `apps/web/.env.local` defines a mail name, the e2e contact specs will fail loudly by design** once 8K wires them;
   the rule is not weakened to mend that (an empty mail variable counts as present).
+
+### The mail variables since 8J2 (2026-10-17; names only; the owner's, and none is set by an agent)
+
+Gmail SMTP through nodemailer ([ADR 0164](../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md)
+decision 2). All three or none: if any is missing or unusable, mail is *unavailable* and the reader names the variables,
+never a value. The repo-root `.env.example` names them, commented, with no value [src: `.env.example:56-86`].
+
+- **`GOOGLE_EMAIL`**: the sending Google account, exactly one bare address, on an account with 2-Step Verification. The
+  notice leaves **from** it. A dedicated sending account is the recommended default (Q62, not yet answered).
+- **`GOOGLE_APP_PASSWORD`** (a secret): that account's App password, pasted **without spaces** — a value holding a space
+  reads *unavailable*; the code never strips it. It opens the whole mailbox, not only sending. Never printed, logged,
+  read at build or put in a browser bundle. Changing the account's password revokes it [inf], and then it is made again.
+- **`LEAD_NOTIFICATION_ADDRESS`**: the shop's inbox, the only recipient, exactly one address, never a customer's. **Its
+  value is the owner's and is never written in the repository** (the owner, 2026-10-16).
+- **`LEMNARIA_E2E_FAKE_MAIL`**: unchanged — unset on every deployment; beside any of the three names above **or the two
+  retired ones** the server treats mail as unavailable.
+- **Where the owner sets them:** Vercel **Production** and **Preview**, as sensitive, add-only; if a name already exists
+  there, it is not overwritten — report it. Production follows at launch (M9's gate). **Locally**, a copy is optional and
+  goes only in the **repo-root** `.env.local`, never `apps/web/.env.local` (the local server loads that file, and the
+  e2e contact specs then fail by design). The e2e harness withholds all five mail names from every server it starts
+  (ADR 0164 decision 7). `vercel env pull` rewrites the root file, so keep a private copy.
+
+### `LEMNARIA_PUBLIC_ORIGIN` (wave 8V, 2026-10-17; name only; the owner's)
+
+The site's public origin, under which the server writes the shop's view-only kitchen link
+([ADR 0165](../decisions/0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
+D7). **Not a secret, not a mail variable**; its absence never makes the contact route unavailable.
+
+- **Shape:** exactly an `https://` origin — the host, an optional port, nothing after it (no path, no trailing `/`,
+  lower case, an IDN in punycode). Anything else reads *unavailable* and the notice is sent **without** the link; the
+  log names the variable, never its value [src: `apps/web/src/lib/server/public-origin.ts:46-66`].
+- **Loopback only beside the e2e flag:** `localhost`, `127.0.0.1` or `[::1]`, over `http://` or `https://`, is accepted
+  only where `LEMNARIA_E2E_FAKE_MAIL` is set to `1`, which no deployment sets [src: `public-origin.ts:30-36`]. The e2e
+  harness sets it to its own server's origin; a local `next dev` without the flag sends its notice with the link
+  unavailable.
+- **One value per environment, add-only:** the production domain for Production and the matching origin for Preview,
+  because each environment's links resolve against its own database. Never the request's `Host`, never a code constant.
+- **Owner step:** add it per environment; nothing existing is changed.

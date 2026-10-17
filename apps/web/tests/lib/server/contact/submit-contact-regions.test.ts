@@ -8,7 +8,7 @@ import { ContactSubmissionStoreError } from "@lemnaria/persistence";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { submitContact } from "@/lib/server/contact/submit-contact";
-import { buildLeadNotification } from "@/lib/server/mail/lead-notification";
+import { composeLeadNotice } from "@/lib/server/mail/lead-notification";
 import type { MailFailureKind } from "@/lib/server/mail/mail-sender";
 
 import {
@@ -18,6 +18,7 @@ import {
   DESIGN_ID,
   EMAIL_MARKER,
   NAME_MARKER,
+  PLACEHOLDER_REFERENCE,
   REQUEST_ID,
   VISITOR_HASH,
   wireOf,
@@ -30,7 +31,7 @@ vi.mock("@/lib/server/mail/lead-notification", async (importOriginal) => {
     >();
   return {
     ...original,
-    buildLeadNotification: vi.fn(original.buildLeadNotification),
+    composeLeadNotice: vi.fn(original.composeLeadNotice),
   };
 });
 
@@ -56,7 +57,7 @@ function consoleLines() {
 }
 
 afterEach(() => {
-  vi.mocked(buildLeadNotification).mockReset();
+  vi.mocked(composeLeadNotice).mockReset();
   vi.mocked(snapshotSubmission).mockReset();
   vi.restoreAllMocks();
 });
@@ -308,19 +309,25 @@ describe("from a reference, a throw is the answer a retry may follow, with its l
   it("answers a notice that cannot be made with the stored reference as 502 retry, and no second row", async () => {
     const lines = consoleLines();
     const harness = aHarness();
-    let built = 0;
+    const builtFor: string[] = [];
     const real = await vi.importActual<
       typeof import("@/lib/server/mail/lead-notification")
     >("@/lib/server/mail/lead-notification");
-    vi.mocked(buildLeadNotification).mockImplementation((input) => {
-      built += 1;
-      if (built === 2) throw new Error("MARKER-1290");
-      return real.buildLeadNotification(input);
+    vi.mocked(composeLeadNotice).mockImplementation((input) => {
+      builtFor.push(input.reference);
+      if (input.reference !== PLACEHOLDER_REFERENCE) {
+        throw new Error("MARKER-1290");
+      }
+      return real.composeLeadNotice(input);
     });
 
     const answer = await harness.submit(bodyOf());
 
-    expect(built).toBe(2);
+    expect(builtFor).toEqual([
+      PLACEHOLDER_REFERENCE,
+      PLACEHOLDER_REFERENCE,
+      harness.store.heldSubmissions()[0]?.reference,
+    ]);
     expect(answer.status).toBe(502);
     expect(lines.errorLines()[0]).toMatchObject({
       cause: "notice-unbuildable",

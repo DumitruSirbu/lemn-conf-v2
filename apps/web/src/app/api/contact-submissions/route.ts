@@ -22,6 +22,9 @@ const CONTACT_BODY_MAX_BYTES = 8 * 1024;
 
 const JSON_MEDIA_TYPE = "application/json";
 
+// Pinned, not defaulted: nodemailer's raw TLS socket and the Postgres driver cannot run on Edge.
+export const runtime = "nodejs";
+
 /** What the route has made for one request: the ports the orchestration is handed, or the answer for a request that
  *  could not be given them. */
 type MadePorts =

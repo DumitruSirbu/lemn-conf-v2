@@ -70,12 +70,31 @@ const REDACTED_URL = "<redacted url>";
 
 /**
  * An error that reached the route with no domain meaning. Called at the rethrow: the throw still happens, so the
- * platform's own 500 and digest are unchanged, and this line makes the digest resolvable.
+ * platform's own 500 and digest are unchanged, and this line makes the digest resolvable. A `share-read` failure is
+ * written once in a process for each error name and code: the share view is read by anyone, with any token and no
+ * cookie, so a missing table or grant would otherwise buy a line for every request.
  */
 export function reportDesignFailure(
   operation: DesignOperation,
   error: unknown,
 ): void {
+  if (operation === "share-read") {
+    reportShareReadFailureOnce(error);
+    return;
+  }
+  emitFailureLine(operation, error);
+}
+
+const announcedShareReadFailures = new Set<string>();
+
+function reportShareReadFailureOnce(error: unknown): void {
+  const identity = `${errorNameOf(error)}:${errorCodeOf(error)}`;
+  if (announcedShareReadFailures.has(identity)) return;
+  announcedShareReadFailures.add(identity);
+  emitFailureLine("share-read", error);
+}
+
+function emitFailureLine(operation: DesignOperation, error: unknown): void {
   emitDesignLogLine("error", {
     event: "design-operation-failed",
     operation,

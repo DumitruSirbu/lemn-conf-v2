@@ -5,6 +5,7 @@
 
 import { INSERTABLE_BODY_DEFINITIONS } from "./catalog.js";
 import { toMillimetres } from "./millimetres.js";
+import { COLUMN_KEY_RESOLUTION_MM } from "./module-grid.js";
 import { LEVELS, MIN_SPAN_M } from "./void-engine.js";
 
 /**
@@ -106,10 +107,6 @@ export const MAX_PLACEMENTS =
  *  five-digit millimetre values, the two optional enums, and JSON punctuation — roughly 280 bytes —
  *  rounded up so indentation and key order cannot make an honest document fail. */
 const MAX_PLACEMENT_BYTES = 512;
-
-/** The along-wall granularity of a column key: `deriveColumnKeyAt` renders a metre value with
- *  `toFixed(2)`, so two centres less than a centimetre apart address one column. */
-const COLUMN_KEY_RESOLUTION_MM = 10;
 
 /** §2's walls A, B and C, `DesignWallSchema`'s whole domain (ADR 0132 decision 1). Used for the keys a
  *  wall can present, never for which shape has which wall (`wallsOf`, `room/walls-of-shape.ts`), so

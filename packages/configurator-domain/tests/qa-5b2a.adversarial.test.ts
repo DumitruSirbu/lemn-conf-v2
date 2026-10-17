@@ -233,8 +233,6 @@ describe("the overlap rule at and around its boundary", () => {
 
   /** Containment is overlap: a sweep that only compares neighbours would miss the far end. */
   it("names every entry a containing entry swallows", () => {
-    // 800 rather than 1000: ADR 0052 caps an entry at the ceiling, and a wider one would also raise
-    // `EMPTY_COLUMN_WIDER_THAN_CAP`.
     const wide: EmptyColumn = { ...FREED_STRIP, alongMm: 2600, widthMm: 800 };
     const inside = [2300, 2500, 2900].map((alongMm) => ({
       ...FREED_STRIP,
@@ -504,8 +502,6 @@ describe("what holds an empty column to the room", () => {
       "EMPTY_COLUMN_PAST_WALL_END",
       "EMPTY_COLUMN_ABOVE_ROOM",
       "EMPTY_COLUMN_DEEPER_THAN_ROOM",
-      // 2000 mm also exceeds the width ceiling (ADR 0052).
-      "EMPTY_COLUMN_WIDER_THAN_CAP",
     ]);
     expect(() => migrateDesign(1, throughTheWire(design), CATALOG)).toThrow(
       InvalidDesignError,
@@ -741,7 +737,7 @@ describe("the key a restored entry lands under", () => {
   });
 });
 
-describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () => {
+describe("an oversized empty column, at version 1 and after it", () => {
   /** The 900 mm entry a version 1 row may hold, written before the ceiling (ADR 0052); the load path must
    *  carry it forward. */
   const OVERSIZED: EmptyColumn = {
@@ -761,9 +757,9 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     widthMm: 100,
   };
 
-  /** A stored share link holding a 900 mm column must still load: it is normalised before the validator sees
-   *  it, keeping every millimetre (2550–3450). */
-  it("loads a version 1 row's 900 mm entry as an 800 and a 100", () => {
+  /** A stored share link holding a 900 mm column must still load: the v1 arm stores it as two pieces, keeping
+   *  every millimetre (2550–3450), and the editor's uncapped merge at load derives them as one space again. */
+  it("stores a version 1 row's 900 mm entry as an 800 and a 100, and derives them as one 900 mm column", () => {
     const reloaded = migrateDesign(
       1,
       throughTheWire(withEmptyColumns([OVERSIZED])),
@@ -772,25 +768,25 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
 
     expect(reloaded.emptyColumns).toStrictEqual([NEAR_PIECE, OVERFLOW_PIECE]);
     const columns = columnsOf(reloaded);
-    expect(columns.get("A|2.95")?.w).toBeCloseTo(0.8, 12);
-    expect(columns.get("A|3.40")?.w).toBeCloseTo(0.1, 12);
-    expect(columns.get("A|3.00")).toBeUndefined();
+    expect(columns.get("A|3.00")?.w).toBeCloseTo(0.9, 12);
+    expect(columns.get("A|2.95")).toBeUndefined();
+    expect(columns.get("A|3.40")).toBeUndefined();
   });
 
-  /** A version 2 document was written under the ceiling, so an oversized entry is refused, not normalised;
-   *  normalising it too would leave nothing ever refused. */
-  it("refuses the same entry in a version 2 document, at both seams", () => {
+  /** Only version 1 owes the split: a version 2 document carries the same entry whole, and neither seam refuses
+   *  an empty column for its width. */
+  it("carries the same entry whole in a version 2 document, at both seams", () => {
     const design = withEmptyColumns([OVERSIZED]);
 
-    expect(codesFor(design)).toStrictEqual(["EMPTY_COLUMN_WIDER_THAN_CAP"]);
-    expect(() => migrateDesign(2, throughTheWire(design), CATALOG)).toThrow(
-      InvalidDesignError,
-    );
+    expect(codesFor(design)).toStrictEqual([]);
+    expect(
+      migrateDesign(2, throughTheWire(design), CATALOG).emptyColumns,
+    ).toStrictEqual([OVERSIZED]);
   });
 
-  /** The 900 mm opening no catalogue body fills (`WIDTH_NOT_SUPPORTED`, widths top out at 800) becomes an
-   *  800 mm opening a `base-cabinet` is built into. */
-  it("publishes an opening the widest catalogue body now fits", () => {
+  /** Widths top out at 800, so the 900 mm opening takes a `base-cabinet` at its widest, flush left
+   *  (8U plan §5), rather than refusing it `WIDTH_NOT_SUPPORTED`. */
+  it("publishes one 900 mm opening that the widest catalogue body enters flush left", () => {
     const design = migrateDesign(
       1,
       throughTheWire(withEmptyColumns([OVERSIZED])),
@@ -799,7 +795,9 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     const columns = columnsOf(design);
     const records = derivePlacementRecords(design, CATALOG);
     const voids = recomputeVoids(records, columns);
-    const opening = voids.find((slot) => slot.col === "A|2.95");
+    const opening = voids.find(
+      (slot) => slot.col === "A|3.00" && slot.y0 === 0,
+    );
 
     const result = insertBody({
       design,
@@ -812,7 +810,12 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
       occurredAt: NOW,
     });
 
-    expect(opening?.w).toBeCloseTo(0.8, 12);
+    expect(opening?.w).toBeCloseTo(0.9, 12);
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.placements.at(-1)).toMatchObject({
+      alongMm: 2950,
+      body: { widthMm: 800 },
+    });
   });
 });

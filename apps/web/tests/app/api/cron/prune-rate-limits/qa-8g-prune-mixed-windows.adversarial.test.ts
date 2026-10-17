@@ -12,8 +12,8 @@ import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 import { GET } from "../../../../../src/app/api/cron/prune-rate-limits/route";
 import {
   consoleCallsOf,
-  silenceEveryConsoleMethod,
-} from "../../../../lib/server/mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "../../../../lib/server/mail/mail-test-support";
 
 const CRON_SECRET = "qa-cron-secret-5d81c0";
 /** Half past three in the morning in Chisinau, in winter: 01:30 UTC. */
@@ -69,7 +69,7 @@ afterEach(() => {
 
 describe("a day's totals, on a table that also holds hour rows", () => {
   it("count the day's own three buckets and none of the hour rows inside that day or starting with it", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     await plant(YESTERDAY, 1);
     await plant(YESTERDAY, 21);
     await plant(YESTERDAY, 25);
@@ -97,7 +97,7 @@ describe("a day's totals, on a table that also holds hour rows", () => {
 
 describe("what one night removes from a table of day rows and hour rows", () => {
   it("removes every hour row and day row whose window ended an hour ago or more, and no other", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const endedLongAgo = [
       YESTERDAY,
       hourHolding(NOW.getTime() - 30 * HOUR_MS),
@@ -127,7 +127,7 @@ describe("what one night removes from a table of day rows and hour rows", () => 
   });
 
   it("keeps the hour that ended half an hour ago although the day it lies in ended and is removed", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     vi.setSystemTime(new Date(YESTERDAY.endsAt.getTime() + 90 * MINUTE_MS));
     const lastHourOfTheDay = hourHolding(YESTERDAY.endsAt.getTime() - 1);
     const hourAfterMidnight = hourHolding(YESTERDAY.endsAt.getTime());
@@ -153,7 +153,7 @@ describe("a call that does not hold the secret", () => {
       { authorization: `Bearer ${CRON_SECRET} x` },
     ],
   ])("reads no total and removes no row, with %s", async (_label, headers) => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     await plant(hourHolding(NOW.getTime() - 30 * HOUR_MS), 1);
     const store = getRateLimitStore();
     const pruned = vi.spyOn(store, "pruneExpired");

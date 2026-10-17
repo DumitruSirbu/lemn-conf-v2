@@ -4,28 +4,39 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildGmailMessage,
+  UnusableMailAddressError,
+} from "@/lib/server/mail/gmail-mail-sender";
+import {
+  GOOGLE_APP_PASSWORD_VARIABLE,
+  GOOGLE_EMAIL_VARIABLE,
   LEAD_NOTIFICATION_ADDRESS_VARIABLE,
-  MAIL_API_KEY_VARIABLE,
-  MAIL_FROM_ADDRESS_VARIABLE,
   MAIL_VARIABLE_NAMES,
   readMailConfiguration,
+  RETIRED_MAIL_VARIABLE_NAMES,
   type MailEnvironment,
+  type MailVariableName,
 } from "@/lib/server/mail/mail-configuration";
 
 import {
   forbidFetch,
+  forbidNetwork,
+  NOT_ONE_PLAIN_MAILBOX,
   PROCESS_ENV_OR_BUILD_MODE,
   readMailModuleSource,
   releaseFetch,
+  releaseNetwork,
+  spyOnEveryConsoleMethod,
+  consoleCallsOf,
 } from "./mail-test-support";
 
-const FAKE_KEY = "re_FAKEKEY_0123456789";
-const FAKE_FROM = "orders@mail.example.com";
-const FAKE_INBOX = "inbox@example.com";
+const FAKE_PASSWORD = "ZxQ8vK3pWmRt5Yn2";
+const FAKE_SENDER = "zq7x9k.sender@marker-host.example";
+const FAKE_INBOX = "inbox.k4w8@shop-marker.example";
 
 const VALID_ENVIRONMENT: MailEnvironment = {
-  [MAIL_API_KEY_VARIABLE]: FAKE_KEY,
-  [MAIL_FROM_ADDRESS_VARIABLE]: FAKE_FROM,
+  [GOOGLE_EMAIL_VARIABLE]: FAKE_SENDER,
+  [GOOGLE_APP_PASSWORD_VARIABLE]: FAKE_PASSWORD,
   [LEAD_NOTIFICATION_ADDRESS_VARIABLE]: FAKE_INBOX,
 };
 
@@ -33,16 +44,22 @@ function withVariable(name: string, value: string | undefined) {
   return { ...VALID_ENVIRONMENT, [name]: value };
 }
 
-beforeEach(forbidFetch);
-afterEach(releaseFetch);
+beforeEach(() => {
+  forbidFetch();
+  forbidNetwork();
+});
+afterEach(() => {
+  releaseFetch();
+  releaseNetwork();
+});
 
 describe("readMailConfiguration", () => {
   it("answers configured with the three values when all are usable", () => {
     expect(readMailConfiguration(VALID_ENVIRONMENT)).toEqual({
       status: "configured",
       configuration: {
-        apiKey: FAKE_KEY,
-        fromAddress: FAKE_FROM,
+        senderAddress: FAKE_SENDER,
+        appPassword: FAKE_PASSWORD,
         notificationAddress: FAKE_INBOX,
       },
     });
@@ -52,8 +69,8 @@ describe("readMailConfiguration", () => {
     expect(readMailConfiguration({})).toEqual({
       status: "unavailable",
       variables: [
-        "RESEND_API_KEY",
-        "MAIL_FROM_ADDRESS",
+        "GOOGLE_EMAIL",
+        "GOOGLE_APP_PASSWORD",
         "LEAD_NOTIFICATION_ADDRESS",
       ],
     });
@@ -70,7 +87,7 @@ describe("readMailConfiguration", () => {
   );
 
   it("names every unusable variable and leaves out the usable one", () => {
-    const environment = withVariable(MAIL_API_KEY_VARIABLE, "has space");
+    const environment = withVariable(GOOGLE_APP_PASSWORD_VARIABLE, "has space");
     const result = readMailConfiguration({
       ...environment,
       [LEAD_NOTIFICATION_ADDRESS_VARIABLE]: "",
@@ -78,7 +95,10 @@ describe("readMailConfiguration", () => {
 
     expect(result).toEqual({
       status: "unavailable",
-      variables: [MAIL_API_KEY_VARIABLE, LEAD_NOTIFICATION_ADDRESS_VARIABLE],
+      variables: [
+        GOOGLE_APP_PASSWORD_VARIABLE,
+        LEAD_NOTIFICATION_ADDRESS_VARIABLE,
+      ],
     });
   });
 
@@ -91,9 +111,30 @@ describe("readMailConfiguration", () => {
     });
   });
 
+  it.each(MAIL_VARIABLE_NAMES)(
+    "names only %s, and throws nothing, when its own getter throws",
+    (name) => {
+      const GETTER_MARKER = "GETTER-MARKER-5c1e";
+      const environment: Record<string, string | undefined> = {
+        ...VALID_ENVIRONMENT,
+      };
+      Object.defineProperty(environment, name, {
+        enumerable: true,
+        get(): string {
+          throw new Error(GETTER_MARKER);
+        },
+      });
+
+      const result = readMailConfiguration(environment);
+
+      expect(result).toEqual({ status: "unavailable", variables: [name] });
+      expect(JSON.stringify(result)).not.toContain(GETTER_MARKER);
+    },
+  );
+
   it("ignores the process environment and reads only the one handed in", () => {
-    vi.stubEnv(MAIL_API_KEY_VARIABLE, FAKE_KEY);
-    vi.stubEnv(MAIL_FROM_ADDRESS_VARIABLE, FAKE_FROM);
+    vi.stubEnv(GOOGLE_EMAIL_VARIABLE, FAKE_SENDER);
+    vi.stubEnv(GOOGLE_APP_PASSWORD_VARIABLE, FAKE_PASSWORD);
     vi.stubEnv(LEAD_NOTIFICATION_ADDRESS_VARIABLE, FAKE_INBOX);
 
     try {
@@ -104,10 +145,11 @@ describe("readMailConfiguration", () => {
   });
 });
 
-describe("a key the reader calls usable", () => {
+describe("an app password the reader calls usable", () => {
   function statusForKey(value: string) {
-    return readMailConfiguration(withVariable(MAIL_API_KEY_VARIABLE, value))
-      .status;
+    return readMailConfiguration(
+      withVariable(GOOGLE_APP_PASSWORD_VARIABLE, value),
+    ).status;
   }
 
   it.each([
@@ -116,6 +158,7 @@ describe("a key the reader calls usable", () => {
     ["a leading space", " re_key"],
     ["a trailing space", "re_key "],
     ["an inner space", "re key"],
+    ["Google's own display, four groups of four", "abcd efgh ijkl mnop"],
     ["a line feed", "re_key\n"],
     ["a carriage return", "re_key\r"],
     ["a tab", "re_\tkey"],
@@ -147,8 +190,35 @@ describe("an address the reader calls usable", () => {
     return readMailConfiguration(withVariable(name, value)).status;
   }
 
+  const SHORT_LABEL = "a".repeat(63);
+  const domainOfLength = (lastLabelLength: number): string =>
+    [SHORT_LABEL, SHORT_LABEL, SHORT_LABEL, "d".repeat(lastLabelLength)].join(
+      ".",
+    );
+  /** Fifty-seven of these write as 63 ASCII characters in a label, fifty-eight as 64. */
+  const UNICODE_LABEL_FITTING = "ü".repeat(57);
+
+  const LENGTH_LIMIT_CASES: readonly (readonly [string, string, boolean])[] = [
+    ["a 64-character local part", `${"a".repeat(64)}@example.com`, true],
+    ["a 65-character local part", `${"a".repeat(65)}@example.com`, false],
+    ["a 63-character label", `shop@${SHORT_LABEL}.example`, true],
+    ["a 64-character label", `shop@${"a".repeat(64)}.example`, false],
+    ["a 253-character domain", `shop@${domainOfLength(61)}`, true],
+    ["a 254-character domain", `shop@${domainOfLength(62)}`, false],
+    [
+      "a label that writes as 63 ASCII characters",
+      `shop@${UNICODE_LABEL_FITTING}.example`,
+      true,
+    ],
+    [
+      "a label that writes as 64 ASCII characters",
+      `shop@${UNICODE_LABEL_FITTING}ü.example`,
+      false,
+    ],
+  ];
+
   const ADDRESS_VARIABLES = [
-    MAIL_FROM_ADDRESS_VARIABLE,
+    GOOGLE_EMAIL_VARIABLE,
     LEAD_NOTIFICATION_ADDRESS_VARIABLE,
   ];
 
@@ -186,13 +256,14 @@ describe("an address the reader calls usable", () => {
       expect(statusForAddress(name, value)).toBe("unavailable");
     });
 
-    it("decides every ASCII character in the local part as the rule says", () => {
-      const refusedByRule = new Set("@,;<>");
+    it("decides every ASCII character in the local part as the dot-atom rule says", () => {
+      const dotAtomSpecials = new Set("!#$%&'*+/=?^_`{|}~-.");
       const wronglyDecided: number[] = [];
       for (let code = 0; code <= 0x7f; code += 1) {
         const character = String.fromCharCode(code);
-        const isVisible = code >= 0x21 && code <= 0x7e;
-        const expectedUsable = isVisible && !refusedByRule.has(character);
+        const isLetterOrDigit = /[A-Za-z0-9]/.test(character);
+        const expectedUsable =
+          isLetterOrDigit || dotAtomSpecials.has(character);
         const isUsable =
           statusForAddress(name, `a${character}b@example.com`) === "configured";
         if (isUsable !== expectedUsable) wronglyDecided.push(code);
@@ -200,8 +271,76 @@ describe("an address the reader calls usable", () => {
 
       expect(wronglyDecided).toEqual([]);
     });
+
+    it.each(LENGTH_LIMIT_CASES)(
+      "decides %s at the RFC 5321 length limit",
+      (_label, address, isUsable) => {
+        expect(statusForAddress(name, address)).toBe(
+          isUsable ? "configured" : "unavailable",
+        );
+      },
+    );
+
+    it.each(NOT_ONE_PLAIN_MAILBOX)(
+      "refuses %j, which the adapter could not write as one plain mailbox",
+      (value) => {
+        expect(statusForAddress(name, value)).toBe("unavailable");
+      },
+    );
   });
+
+  it.each([
+    ["a quoted local part", '"a b"@example.com'],
+    ["a domain ending in a number", "shop@example.123"],
+    ["an address literal", "shop@[1.2.3.4]"],
+    ["a quote in the domain", 'shop@exam"ple.com'],
+    ["a parenthesis in the local part", "sh(op)@example.com"],
+    ["a leading dot", ".shop@example.com"],
+    ["two dots in a row", "sh..op@example.com"],
+  ])(
+    "refuses %s, which the older looser rule let through to be refused unsent",
+    (_label, value) => {
+      expect(statusForAddress(GOOGLE_EMAIL_VARIABLE, value)).toBe(
+        "unavailable",
+      );
+    },
+  );
+
+  it.each([
+    ...NOT_ONE_PLAIN_MAILBOX,
+    "shop@example.com",
+    "shop+leads@example.com",
+    "shop@localhost",
+    "shop@bücher.example",
+    "a.b.c@d.e.example",
+  ])(
+    "agrees with the adapter on %j: configured exactly when the adapter builds a message with it",
+    (value) => {
+      const adapterBuilds = canBuildWithSender(value);
+
+      expect(statusForAddress(GOOGLE_EMAIL_VARIABLE, value)).toBe(
+        adapterBuilds ? "configured" : "unavailable",
+      );
+    },
+  );
 });
+
+function canBuildWithSender(senderAddress: string): boolean {
+  try {
+    buildGmailMessage(
+      { key: "k", subject: "s", text: "t" },
+      {
+        senderAddress,
+        appPassword: FAKE_PASSWORD,
+        notificationAddress: FAKE_INBOX,
+      },
+    );
+    return true;
+  } catch (thrown) {
+    if (thrown instanceof UnusableMailAddressError) return false;
+    throw thrown;
+  }
+}
 
 describe("what an unavailable answer and the reader's failures disclose", () => {
   const MARKER = "SECRET-MARKER-7f3a";
@@ -228,8 +367,8 @@ describe("what an unavailable answer and the reader's failures disclose", () => 
 
   it("answers rather than throws for a value that is not a string", () => {
     const environment = {
-      [MAIL_API_KEY_VARIABLE]: { toString: () => MARKER },
-      [MAIL_FROM_ADDRESS_VARIABLE]: 42,
+      [GOOGLE_EMAIL_VARIABLE]: { toString: () => MARKER },
+      [GOOGLE_APP_PASSWORD_VARIABLE]: 42,
       [LEAD_NOTIFICATION_ADDRESS_VARIABLE]: null,
     } as unknown as MailEnvironment;
 
@@ -237,6 +376,164 @@ describe("what an unavailable answer and the reader's failures disclose", () => 
 
     expect(result.status).toBe("unavailable");
     expect(JSON.stringify(result)).not.toContain(MARKER);
+  });
+});
+
+describe("retired names", () => {
+  it("do not configure: the previous provider's names beside the inbox leave the two Google names missing", () => {
+    expect(
+      readMailConfiguration({
+        RESEND_API_KEY: "re_FAKEKEY_0123456789",
+        MAIL_FROM_ADDRESS: FAKE_SENDER,
+        [LEAD_NOTIFICATION_ADDRESS_VARIABLE]: FAKE_INBOX,
+      }),
+    ).toEqual({
+      status: "unavailable",
+      variables: [GOOGLE_EMAIL_VARIABLE, GOOGLE_APP_PASSWORD_VARIABLE],
+    });
+  });
+
+  it("are exactly the two the plan names, apart from the live three", () => {
+    expect([...RETIRED_MAIL_VARIABLE_NAMES]).toEqual([
+      "RESEND_API_KEY",
+      "MAIL_FROM_ADDRESS",
+    ]);
+    for (const name of RETIRED_MAIL_VARIABLE_NAMES) {
+      expect(MAIL_VARIABLE_NAMES).not.toContain(name);
+    }
+  });
+});
+
+describe("every assignment of the three names to the eight ways a value can be", () => {
+  const PLAIN_ADDRESS_VALUE = "arm.k7q@marker-arm.example";
+  const PASSWORD_VALUE = "Zq7Rk2Wm9xPd";
+
+  /** The eight arms. `absent` gives a name no own member at all; `usable` is name-specific. */
+  const ARMS = [
+    "absent",
+    "own-undefined",
+    "empty",
+    "usable",
+    "with-a-space",
+    "trailing-newline",
+    "two-addresses",
+    "angle-brackets",
+  ] as const;
+  type Arm = (typeof ARMS)[number];
+
+  function usableValueOf(name: string): string {
+    return name === GOOGLE_APP_PASSWORD_VARIABLE
+      ? PASSWORD_VALUE
+      : PLAIN_ADDRESS_VALUE;
+  }
+
+  function valueOfArm(arm: Arm, name: string): string | undefined {
+    const values: Record<Arm, string | undefined> = {
+      absent: "absent",
+      "own-undefined": undefined,
+      empty: "",
+      usable: usableValueOf(name),
+      "with-a-space": `${usableValueOf(name).slice(0, 4)} ${usableValueOf(name).slice(4)}`,
+      "trailing-newline": `${usableValueOf(name)}\n`,
+      "two-addresses": "two.one@pair-host.example,two.two@pair-host.example",
+      "angle-brackets": "<angle.one@bracket-host.example>",
+    };
+    return values[arm];
+  }
+
+  /**
+   * Written out per name, not derived from the reader's rule. A password is any visible ASCII, so a pair of addresses
+   * joined by a comma, and an address in angle brackets, are usable as one and not as an address.
+   */
+  function isUsable(arm: Arm, name: string): boolean {
+    if (arm === "usable") return true;
+    const isPassword = name === GOOGLE_APP_PASSWORD_VARIABLE;
+    return isPassword && (arm === "two-addresses" || arm === "angle-brackets");
+  }
+
+  function environmentOf(
+    arms: Readonly<Record<MailVariableName, Arm>>,
+  ): MailEnvironment {
+    const environment: Record<string, string | undefined> = {};
+    for (const name of MAIL_VARIABLE_NAMES) {
+      const value = valueOfArm(arms[name], name);
+      if (value !== "absent") environment[name] = value;
+    }
+    return environment;
+  }
+
+  function everyAssignment(): Record<MailVariableName, Arm>[] {
+    return ARMS.flatMap((first) =>
+      ARMS.flatMap((second) =>
+        ARMS.map((third) => ({
+          [MAIL_VARIABLE_NAMES[0]]: first,
+          [MAIL_VARIABLE_NAMES[1]]: second,
+          [MAIL_VARIABLE_NAMES[2]]: third,
+        })),
+      ),
+    );
+  }
+
+  function fourCharacterPiecesOf(value: string): string[] {
+    return Array.from({ length: Math.max(0, value.length - 3) }, (_, start) =>
+      value.slice(start, start + 4),
+    );
+  }
+
+  it("answers configured exactly when all three are usable, and otherwise names exactly the unusable ones in order", () => {
+    const wronglyAnswered: string[] = [];
+    for (const arms of everyAssignment()) {
+      const unusable = MAIL_VARIABLE_NAMES.filter(
+        (name) => !isUsable(arms[name], name),
+      );
+      const result = readMailConfiguration(environmentOf(arms));
+      const expected =
+        unusable.length === 0
+          ? "configured"
+          : JSON.stringify({ status: "unavailable", variables: unusable });
+      const actual =
+        result.status === "configured" ? "configured" : JSON.stringify(result);
+      if (actual !== expected) wronglyAnswered.push(JSON.stringify(arms));
+    }
+
+    expect(wronglyAnswered).toEqual([]);
+  });
+
+  it("meets every arm of every name, each many times, so no arm is covered by luck", () => {
+    const met = new Map<string, number>();
+    for (const arms of everyAssignment()) {
+      for (const name of MAIL_VARIABLE_NAMES) {
+        const key = `${name}:${arms[name]}`;
+        met.set(key, (met.get(key) ?? 0) + 1);
+      }
+    }
+
+    expect(met.size).toBe(MAIL_VARIABLE_NAMES.length * ARMS.length);
+    expect(Math.min(...met.values())).toBe(ARMS.length ** 2);
+  });
+
+  it("copies no value, and no piece of one four characters long, into an unavailable answer, a throw or a console call", () => {
+    const spies = spyOnEveryConsoleMethod();
+    const leaked: string[] = [];
+    try {
+      for (const arms of everyAssignment()) {
+        const environment = environmentOf(arms);
+        const result = readMailConfiguration(environment);
+        if (result.status === "configured") continue;
+        const answer = JSON.stringify(result);
+        const pieces = Object.values(environment).flatMap((value) =>
+          fourCharacterPiecesOf(value ?? ""),
+        );
+        if (pieces.some((piece) => answer.includes(piece))) {
+          leaked.push(JSON.stringify(arms));
+        }
+      }
+
+      expect(leaked).toEqual([]);
+      expect(consoleCallsOf(spies)).toEqual([]);
+    } finally {
+      for (const spy of spies) spy.mockRestore();
+    }
   });
 });
 
@@ -260,12 +557,100 @@ describe(".env.example", () => {
     "utf8",
   ).split("\n");
 
-  it.each(MAIL_VARIABLE_NAMES)("names %s with no value", (name) => {
-    const declarations = exampleLines.filter((line) =>
+  const declarationsOf = (name: string): string[] =>
+    exampleLines.filter((line) =>
       line.replace(/^#\s*/, "").startsWith(`${name}=`),
     );
 
-    expect(declarations).toHaveLength(1);
-    expect(declarations[0]?.replace(/^#\s*/, "")).toBe(`${name}=`);
+  const commentBlockAbove = (declaration: string): string => {
+    const at = exampleLines.indexOf(declaration);
+    const block: string[] = [];
+    for (let i = at - 1; i >= 0 && exampleLines[i]?.startsWith("#"); i -= 1) {
+      block.unshift(exampleLines[i] ?? "");
+    }
+    return block.join("\n");
+  };
+
+  it.each(MAIL_VARIABLE_NAMES)("names %s once, with no value", (name) => {
+    expect(declarationsOf(name)).toEqual([`# ${name}=`]);
+  });
+
+  it.each(RETIRED_MAIL_VARIABLE_NAMES)(
+    "keeps the retired %s once, commented, with no value, and says it is retired",
+    (name) => {
+      expect(declarationsOf(name)).toEqual([`# ${name}=`]);
+      expect(commentBlockAbove(`# ${name}=`)).toMatch(/RETIRED/);
+    },
+  );
+
+  it("defines no mail variable when copied: every declaration is a comment", () => {
+    const everyName = [
+      ...MAIL_VARIABLE_NAMES,
+      ...RETIRED_MAIL_VARIABLE_NAMES,
+      "LEMNARIA_E2E_FAKE_MAIL",
+    ];
+
+    const defined = exampleLines.filter((line) =>
+      everyName.some((name) => line.startsWith(`${name}=`)),
+    );
+
+    expect(defined).toEqual([]);
+  });
+
+  const proseOf = (commentBlock: string): string =>
+    commentBlock.replace(/\n#+\s?/g, " ");
+
+  const passwordProse = (): string =>
+    proseOf(commentBlockAbove(`# ${GOOGLE_APP_PASSWORD_VARIABLE}=`));
+
+  it("tells the owner to paste the App password without spaces, and that a value with a space is refused", () => {
+    expect(passwordProse()).toMatch(
+      /paste it without spaces; a value with a space is refused/i,
+    );
+  });
+
+  it("makes no claim about how Google groups the App password", () => {
+    expect(exampleLines.join("\n")).not.toMatch(/groups of four/i);
+  });
+
+  it("warns that the App password opens the whole mailbox", () => {
+    expect(passwordProse()).toMatch(/opens the whole mailbox/);
+  });
+
+  it("recommends a dedicated sending account as the default, not as a rule", () => {
+    expect(proseOf(commentBlockAbove(`# ${GOOGLE_EMAIL_VARIABLE}=`))).toMatch(
+      /dedicated account is recommended[\s\S]*default/,
+    );
+  });
+
+  it("says nothing local needs the mail names, and a local copy goes only in the repo-root .env.local", () => {
+    const prose = proseOf(exampleLines.join("\n"));
+
+    expect(prose).toMatch(/Nothing local needs them/);
+    expect(prose).toMatch(
+      /goes only in the repo-root \.env\.local, never apps\/web\/\.env\.local/,
+    );
+  });
+
+  it("carries no wave or plan marker in the mail block", () => {
+    expect(exampleLines.join("\n")).not.toMatch(/wave 8N|S3 rewrites/);
+  });
+
+  it("states that the shop's address is one address and never a customer's", () => {
+    expect(
+      commentBlockAbove(`# ${LEAD_NOTIFICATION_ADDRESS_VARIABLE}=`),
+    ).toMatch(/exactly one address, never a customer's/i);
+  });
+
+  it("keeps the fake's flag warning: test instrumentation, unset in the deployed application", () => {
+    expect(commentBlockAbove("# LEMNARIA_E2E_FAKE_MAIL=")).toMatch(
+      /Leave it UNSET in the deployed application/,
+    );
+  });
+
+  it("asks for one plain address on an account with 2-Step Verification for the sender", () => {
+    expect(commentBlockAbove(`# ${GOOGLE_EMAIL_VARIABLE}=`)).toMatch(
+      /exactly one plain address[\s\S]*2-Step Verification/,
+    );
   });
 });

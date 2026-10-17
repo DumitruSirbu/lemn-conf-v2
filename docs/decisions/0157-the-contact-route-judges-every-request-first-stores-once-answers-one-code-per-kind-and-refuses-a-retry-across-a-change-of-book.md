@@ -125,3 +125,16 @@ A new fix round only for a branch on which personal data leaves; a request store
 ## Dated note — 2026-10-13, waves 8L and 8M (the scribe; relayed; nothing re-run)
 
 **The client's side of 8L's criteria 10 to 12 (the plan's point 12 left this note owed):** one request in flight (no abort, no timer), the same id and the same body on a retry after any answer that is not success and after none, and a new id after `CONTACT_REQUEST_CONFLICT` or when a covered field or the revision changed (8L.3, 8L.4, 8L.5; ADR 0159 decisions 2 and 3). **8M adds:** an answered `502` (either code), `503`, `400 CONTACT_REJECTED` or any other answered failure is **retried only by a press**, never automatically, because each try spends the request's tries bucket (decision 1 here); the one automatic retry follows an `unanswered` send (a fetch with no answer) on the browser's `online` event, under the same id and body (ADR 0160 decision 1). 8M reads the stored request back once, for `/done` after a reload: `findSentReference`, by design id and revision, behind the owned load, opening nothing by a reference (decision 9 stands). A stored row whose notice was accepted and whose mark failed (decision 5) is shown as sent to the tab that got the `200` and as no request on a later load.
+
+## Dated note — 2026-10-17, waves 8J2 and 8V (the scribe; nothing re-run)
+
+- **The quota line** (*What is recorded*, *"The free quota is 100 messages a day"*) described Resend. Since
+  [ADR 0164](0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md)
+  decision 8 the limit is Gmail's, about 500 recipients a day for a consumer account (an owner-brief figure, not yet
+  quoted from Google). The class is the same: at the limit the request is *quota spent*, 5B, stored un-notified.
+- **The route mints a link per delivery attempt** ([ADR 0165](0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
+  D4): the order and the outward codes are unchanged, and a failed mint sends the notice with the link unavailable.
+- **A limit found at 8V's review, not new in 8V [relayed]:** a retry under the same price-book **version** re-prices
+  from the live book, so if a book's amounts change without its version, a retried notice can show a different figure
+  than the first attempt. Fixing it needs the stored snapshot read back, which the application role cannot do
+  (backlog 250; related to K-S1.7 above).

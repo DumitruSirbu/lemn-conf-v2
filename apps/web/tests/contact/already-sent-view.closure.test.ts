@@ -48,11 +48,11 @@ describe("the already-sent arm's import closure", () => {
     },
   );
 
-  it("is not an empty walk: it reaches the bar, the reference card, the review link and the locale menu", () => {
+  it("is not an empty walk: it reaches the bar, the way back to the design, the review link and the locale menu", () => {
     expect(importClosureOf("contact/already-sent-view.tsx")).toEqual(
       expect.arrayContaining([
         "contact/contact-top-bar.tsx",
-        "done/sent-reference-card.tsx",
+        "done/back-to-design-link.tsx",
         "result/review-link.tsx",
         "app/configurator/configure/locale-menu.tsx",
       ]),

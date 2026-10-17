@@ -1,9 +1,8 @@
-// M5 wave 5G — ADR 0052: 800 mm is the ceiling on any empty column, and a shrink that frees more
-// splits it.
+// ADR 0052's cut at 800 mm, and the uncapped merge that now follows it (8U plan §5): the cut still runs inside
+// the commands and the store's funnel, and the merge after it makes every adjacent agreeing space one column.
 //
-// The domain half. Criteria 5G-1, 5G-2 and 5G-5 are properties of the store's `resolveColumns` and
-// live in `apps/web/tests/store/empty-column-ceiling.test.ts`; what is here is the arithmetic those
-// rest on, the map-level normalisation, and criterion 5G-3's invariant over generated sequences.
+// The domain half. The store's `resolveColumns` properties live in `apps/web/tests/store/empty-column-ceiling.test.ts`;
+// what is here is the cut's arithmetic, the map-level normalisation, and 8U criterion 1 over generated sequences.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -16,7 +15,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
-import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
+import { LEVEL_SNAP_M, MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
 import { splitEmptySpanAtCap } from "../src/split-empty-span.js";
 import {
   deriveColumns,
@@ -36,9 +35,8 @@ const CATALOG = KITCHEN_L_BODY_CATALOG;
 const NOW = "2026-08-25T00:00:00.000Z";
 const PROBE = createFakeProbe({ catalog: CATALOG });
 
-/** The tolerance criterion 5G-3 states, and the only one it may use: a column's width is a metre
- *  float derived from whole millimetres, so it is compared to the ceiling with the noise a unit
- *  conversion carries and with nothing wider. */
+/** A column's extent is a metre float derived from whole millimetres, so edges and widths are compared with the
+ *  noise a unit conversion carries and with nothing wider. */
 const WIDTH_TOLERANCE_MM = 1e-6;
 
 describe("the two 800s, and which one depends on which", () => {
@@ -147,24 +145,13 @@ describe("normalising a frozen map that already holds an oversized column", () =
   });
 });
 
-describe("which side of the freed space takes the ceiling", () => {
-  /** **The half of ADR 0052 the map-level normaliser cannot express, and the reason the width
-   *  command cuts its own span.** The rule is *the column nearest the resized run fills first*; a
-   *  frozen map has no near side, so `splitOversizedEmptyColumns` can only fill left to right. The
-   *  two agree for a shrink funded from the right — there the near edge *is* the left one — and
-   *  disagree for one funded from the left, which is what this builds.
-   *
-   *  The seeded kitchen cannot reach it: `p6` is the one resizable column (ADR 0048) and shrinks by
-   *  at most 200 mm, so a space on its left tops out at 800 and never needs cutting. It is reachable
-   *  from a **loaded** design, which is where the fixture comes from: an 800 mm recorded space at
-   *  700–1500, legal under this very wave, abutting the pantry with the fridge column standing on
-   *  its right so the right side cannot fund.
-   *
-   *  Shrinking 600 → 400 holds the pantry's right edge, so 700–1700 is free. Filled from the run
-   *  outwards that is 800 at 900–1700 and 200 at 700–900; filled left to right it would be the other
-   *  way about, and the customer would be left with the sliver against the cabinet they just
-   *  resized. */
-  it("puts the ceiling-sized column against the run, not against the far wall", () => {
+describe("a shrink beside an empty column frees one space of the summed width (8U criterion 11, E9)", () => {
+  /** The seeded kitchen cannot reach it: `p6` is the one resizable column (ADR 0048) and shrinks by at most
+   *  200 mm, so a space on its left tops out at 800. It is reachable from a **loaded** design: an 800 mm recorded
+   *  space at 700–1500 abutting the pantry, with the fridge column standing on its right so the right side cannot
+   *  fund. Shrinking 600 → 400 holds the pantry's right edge, so 700–1700 is free: one 1000 mm space, with no
+   *  seam left where the command's own cut at 800 fell. */
+  it("leaves one 1000 mm column over 700-1700 after a shrink funded from the left, not an 800 and a sliver", () => {
     const world = load(withSpaceLeftOfThePantry());
 
     const result = setWidth({
@@ -181,31 +168,26 @@ describe("which side of the freed space takes the ceiling", () => {
     if (!result.ok) return;
     const after = advance(result.design, result.effect.columns);
     const empties = memberLess(after.columns, after.records);
-    expect(empties.map((column) => column.key)).toStrictEqual([
-      "B|0.80",
-      "B|1.30",
-    ]);
+    expect(empties.map((column) => column.key)).toStrictEqual(["B|1.20"]);
     expect(empties.map((column) => Math.round(column.w * 1000))).toStrictEqual([
-      200,
-      MAX_EMPTY_COLUMN_WIDTH_MM,
+      1000,
     ]);
   });
 });
 
-describe("no command leaves an empty column wider than the ceiling", () => {
-  /** **Criterion 5G-3.** The invariant over generated sequences of legal commands rather than over
-   *  chosen ones: after *every* command, each member-less column is at or under the ceiling.
+describe("no command leaves two adjacent agreeing empty columns apart (8U criterion 1)", () => {
+  /** After *every* command of a generated sequence, no two member-less columns on one wall abut and agree on
+   *  floor, top and depth within `LEVEL_SNAP_M`, whatever their total. Judged here from the columns' own extents,
+   *  not by calling the merge. A pair over a stretch of wall a body also stands on is excused, so a sequence that
+   *  reaches the seeded corner's wall pair (the merge's B4 decline, 8U plan §4.1, pinned elsewhere) is no false red.
    *
-   *  The sequence is applied exactly as the store applies it, `resolveColumns` and all, because that
-   *  is where the split and the merge meet — a property run against the raw published map would be
-   *  testing half the seam.
+   *  The sequence is applied exactly as the store applies it, `resolveColumns` and all, because that is where the
+   *  cut at 800 and the merge meet.
    *
-   *  **It asserts its own reach.** The seeded kitchen loads with zero empty columns, so a generator
-   *  that never frees a span wider than the ceiling would pass this vacuously; the run counts the
-   *  states in which a contiguous member-less span *exceeds* the ceiling — which is exactly the
-   *  pre-split span the rule is about — and fails if it never reached one. */
-  it("holds at every step of every generated sequence, and reaches the state", () => {
-    let overCapSpans = 0;
+   *  **It asserts its own reach.** The seeded kitchen loads with zero empty columns, so the run counts the states
+   *  holding one member-less column wider than any cabinet, which the cut alone would leave as pieces. */
+  it("holds at every step of every generated sequence, and reaches a space wider than any cabinet", () => {
+    let spacesWiderThanACabinet = 0;
     fc.assert(
       fc.property(
         // **Weighted, and that is load-bearing.** Reaching a free span over the ceiling on the
@@ -230,19 +212,15 @@ describe("no command leaves an empty column wider than the ceiling", () => {
           let world = load(KITCHEN_L_DESIGN);
           for (const step of steps) {
             world = apply(world, step);
-            for (const column of memberLess(world.columns, world.records)) {
-              expect(column.w * 1000).toBeLessThanOrEqual(
-                MAX_EMPTY_COLUMN_WIDTH_MM + WIDTH_TOLERANCE_MM,
-              );
-            }
-            overCapSpans += countSpansOverCap(world);
+            expect(unexcusedAdjacentAgreeingPairs(world)).toStrictEqual([]);
+            spacesWiderThanACabinet += countSpacesWiderThanACabinet(world);
           }
         },
       ),
       { numRuns: 60 },
     );
 
-    expect(overCapSpans).toBeGreaterThan(0);
+    expect(spacesWiderThanACabinet).toBeGreaterThan(0);
   });
 });
 
@@ -352,47 +330,89 @@ function fillWidestOpening(world: World): World {
   return result.ok ? advance(result.design, result.effect.columns) : world;
 }
 
-/** How many contiguous runs of member-less columns on one wall total more than the ceiling — the
- *  free span that, before this wave, would have been a single column the rule now forbids. It is the
- *  property's own coverage measure, and a run of two abutting pieces the split just made is exactly
- *  such a span. */
-function countSpansOverCap(world: World): number {
-  let found = 0;
-  for (const wall of ["A", "B"] as const) {
-    const onWall = memberLess(world.columns, world.records)
-      .filter((column) => column.wall === wall)
-      .map((column) => ({
-        leftMm: Math.round((alongOf(column) - column.w / 2) * 1000),
-        rightMm: Math.round((alongOf(column) + column.w / 2) * 1000),
-      }))
-      .sort((left, right) => left.leftMm - right.leftMm);
+interface MeasuredSpaceMm {
+  readonly key: string;
+  readonly wall: ColumnExtent["wall"];
+  readonly leftMm: number;
+  readonly rightMm: number;
+  readonly floorMm: number;
+  readonly topMm: number;
+  readonly depthMm: number;
+}
 
-    let runStartMm: number | undefined;
-    let runEndMm: number | undefined;
-    for (const span of onWall) {
-      if (runEndMm !== undefined && span.leftMm === runEndMm) {
-        runEndMm = span.rightMm;
-      } else {
-        if (
-          runStartMm !== undefined &&
-          runEndMm !== undefined &&
-          runEndMm - runStartMm > MAX_EMPTY_COLUMN_WIDTH_MM
-        ) {
-          found += 1;
-        }
-        runStartMm = span.leftMm;
-        runEndMm = span.rightMm;
-      }
-    }
-    if (
-      runStartMm !== undefined &&
-      runEndMm !== undefined &&
-      runEndMm - runStartMm > MAX_EMPTY_COLUMN_WIDTH_MM
-    ) {
-      found += 1;
+const AGREEMENT_TOLERANCE_MM = LEVEL_SNAP_M * 1000;
+
+/** Every pair of member-less columns on one wall that abut and agree, other than one over a body's stretch of
+ *  wall, named by both keys so a counterexample says where it is. */
+function unexcusedAdjacentAgreeingPairs(world: World): string[] {
+  const spaces = memberLess(world.columns, world.records).map(measured);
+  const pairs: string[] = [];
+  for (const left of spaces) {
+    for (const right of spaces) {
+      if (!abutsOnTheRight(left, right) || !agrees(left, right)) continue;
+      if (standsOverABody(world.records, left, right)) continue;
+      pairs.push(`${left.key} + ${right.key}`);
     }
   }
-  return found;
+  return pairs;
+}
+
+function abutsOnTheRight(
+  left: MeasuredSpaceMm,
+  right: MeasuredSpaceMm,
+): boolean {
+  return (
+    left.wall === right.wall &&
+    Math.abs(left.rightMm - right.leftMm) <= WIDTH_TOLERANCE_MM
+  );
+}
+
+function agrees(left: MeasuredSpaceMm, right: MeasuredSpaceMm): boolean {
+  return (
+    Math.abs(left.floorMm - right.floorMm) <= AGREEMENT_TOLERANCE_MM &&
+    Math.abs(left.topMm - right.topMm) <= AGREEMENT_TOLERANCE_MM &&
+    Math.abs(left.depthMm - right.depthMm) <= AGREEMENT_TOLERANCE_MM
+  );
+}
+
+/** Whether any body on the pair's wall overlaps the pair's joint stretch of wall, at any height. */
+function standsOverABody(
+  records: readonly PlacementRecord[],
+  left: MeasuredSpaceMm,
+  right: MeasuredSpaceMm,
+): boolean {
+  return records.some((record) => {
+    if (record.wall !== left.wall) return false;
+    const centreMm =
+      (record.wall === "A" ? record.frame.x : record.frame.z) * 1000;
+    const halfWidthMm = (record.frame.w * 1000) / 2;
+    return (
+      centreMm - halfWidthMm < right.rightMm - WIDTH_TOLERANCE_MM &&
+      centreMm + halfWidthMm > left.leftMm + WIDTH_TOLERANCE_MM
+    );
+  });
+}
+
+function measured(column: ColumnExtent): MeasuredSpaceMm {
+  const centreMm = alongOf(column) * 1000;
+  const widthMm = column.w * 1000;
+  return {
+    key: column.key,
+    wall: column.wall,
+    leftMm: centreMm - widthMm / 2,
+    rightMm: centreMm + widthMm / 2,
+    floorMm: Math.min(...column.regions.map(([startM]) => startM)) * 1000,
+    topMm: column.top * 1000,
+    depthMm: column.d * 1000,
+  };
+}
+
+/** The property's coverage measure: member-less columns wider than §7's widest cabinet, which the cut at 800
+ *  leaves as pieces and only the uncapped merge after it makes one. */
+function countSpacesWiderThanACabinet(world: World): number {
+  return memberLess(world.columns, world.records).filter(
+    (column) => column.w * 1000 > CABINETRY_MAX_WIDTH_MM + WIDTH_TOLERANCE_MM,
+  ).length;
 }
 
 function alongOf(column: ColumnExtent): number {

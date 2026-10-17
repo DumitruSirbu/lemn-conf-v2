@@ -115,3 +115,12 @@ one.**
 | [ADR 0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | A problem is recorded with its trigger and not built for. | **Applied.** The model change is not built; this record is its trigger. |
 | [ADR 0121](0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md) | A thing is identified by what it is, never by what correlates with it. | **A cousin rather than an instance.** The census here counts the thing itself — floor the column map does not cover — and the gap is that *visibility* was never measured, not that the wrong key was used. |
 | Wave 7D8, criterion 5 | 0 field differences across P2 ∪ P3. | **Held through the shrink fix**, measured on the built design rather than the plan. |
+
+## Dated note — 2026-10-17: decision 4's trigger is untouched by ADR 0166
+
+Wave 8U ([ADR 0166](0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md))
+uncapped the merge of **whole** member-less columns. The owner's Q-8U-1 answer kept the whole-column principle and
+declined a per-level merge under standing bodies (the plan's reading I3) [relayed]. So decision 4's one-extent-per-column
+model and its per-band change are **not** built, and this record remains their trigger. ADR 0166 decision 6's corner
+exception (the 800 + 100 spaces above each U corner stay two, Q-8U-2 = (a)) is the same one-identity-per-column limit,
+met at the corner. Nothing above this note is edited.

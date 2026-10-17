@@ -127,3 +127,12 @@ Nothing above is erased. Source of each: ADR 0163 and its Amendments A and B **[
 - **Owner's questions.** Q44 and Q45 are answered, and the register is settled as informal *tu* / *ты* everywhere.
   **Still open and the owner's:** the copy approvals (including four Russian leaves that change register and need
   re-signing), Q9's next-step texts, Q3's real shop number.
+
+## Dated note — 2026-10-17, wave 8V (the scribe; nothing re-run)
+
+**5A no longer draws the reference.** [ADR 0165](0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
+D1–D2 (the owner's request of 2026-10-16) replace the reference card on 5A with a design-link card: the customer's own
+editor address, *Copiază*, and the sentence that it opens for editing only in this browser (Q-8V-2 = yes, until M8B).
+The reference still travels in the `200` answer and the in-memory hand-over (this record's decision on the hand-over
+stands), because the WhatsApp message to the shop needs it. **The callback form's sent view keeps the reference**: a
+callback has no design (coordinator decision, 2026-10-17).

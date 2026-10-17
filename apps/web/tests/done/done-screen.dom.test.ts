@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 //
 // Frame 5A as a screen, in every state it has: a request this tab sent (each channel, both languages), the same page
-// after a reload (the reference and no typed value), a design with no request to show, and a read that failed. The
+// after a reload (no typed value), a design with no request to show, and a read that failed. The
 // canvas and the locale menu are stubs; the scene probe is the test's own. What each state claims comes from the pure
 // `resultToShow`, whose property is `result-to-show.test.ts`; here it is what reaches the page.
 //
 // What this cannot see: layout, the painted disc and picture, and a touch landing at 390 px (the visual pass's).
 import type { DesignId } from "@lemnaria/configurator-domain";
+import fc from "fast-check";
 import { NextIntlClientProvider, createTranslator } from "next-intl";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -55,6 +56,12 @@ const TYPED_PHONE = "079 123 456";
 const TYPED_EMAIL = "ana.popescu@example.com";
 const SERVER_REFERENCE = "SRV-5521";
 const HANDED_REFERENCE = "LM-2614";
+const ORIGIN = "https://lemnaria.example";
+
+/** A reference in the shape the contact route mints, `LM-` and eight capitals or digits: nothing else on 5A has it. */
+const A_REFERENCE = fc.stringMatching(/^LM-[0-9A-Z]{8}$/);
+/** Runs per arm, so neither the hand-over nor the server's answer can carry the sweep alone. */
+const RUNS_PER_ARM = 40;
 
 const SENT_ON_SERVER: SentReferenceAnswer = {
   kind: "sent",
@@ -156,7 +163,7 @@ describe.each(["ro", "ru"] as const)(
   "5A for a request this tab sent, in %s",
   (locale) => {
     it.each(CHANNELS)(
-      "says the %s channel and the exact value typed for it, with the reference the answer gave",
+      "says the %s channel and the exact value typed for it, and the design's own address in place of the reference",
       async (channel, contactValue) => {
         rememberSentRequest(handedOver({ channel, contactValue }));
 
@@ -169,7 +176,10 @@ describe.each(["ro", "ru"] as const)(
           }),
         );
         expect(textOf("done-channel-line")).toContain(contactValue);
-        expect(textOf("done-reference")).toBe(HANDED_REFERENCE);
+        expect(textOf("done-design-link")).toMatch(
+          new RegExp(`/${locale}/d/${DESIGN_ID}$`),
+        );
+        expect(container.textContent).not.toContain(HANDED_REFERENCE);
         expect(textOf("done-heading")).toBe(
           contentIn(locale).submissionResult.sentHeading,
         );
@@ -278,7 +288,7 @@ describe("5A, the screen as a whole, for a request this tab sent", () => {
 
 describe("5A while WebGL is asked and where it is missing", () => {
   it.each(["probing", "unsupported"] as const)(
-    "is %s: no canvas, and the heading, the reference and the way back are drawn all the same",
+    "is %s: no canvas, and the heading, the design's address and the way back are drawn all the same",
     async (support) => {
       scene.support = support;
       rememberSentRequest(handedOver());
@@ -287,7 +297,7 @@ describe("5A while WebGL is asked and where it is missing", () => {
 
       expect(isDrawn("stub-canvas")).toBe(false);
       expect(isDrawn("done-picture")).toBe(true);
-      expect(textOf("done-reference")).toBe(HANDED_REFERENCE);
+      expect(isDrawn("done-design-link")).toBe(true);
       expect(textOf("done-heading")).toBe(
         roMessages.submissionResult.sentHeading,
       );
@@ -297,10 +307,10 @@ describe("5A while WebGL is asked and where it is missing", () => {
 });
 
 describe("5A after a reload: the server's answer and no hand-over", () => {
-  it("shows the server's reference and the channel line that names no value", async () => {
+  it("claims the server's sent request with the channel line that names no value, and draws no reference", async () => {
     await mountDoneScreen(SENT_ON_SERVER);
 
-    expect(textOf("done-reference")).toBe(SERVER_REFERENCE);
+    expect(container.textContent).not.toContain(SERVER_REFERENCE);
     expect(textOf("done-channel-line")).toBe(
       roMessages.submissionResult.channelLineWithoutValue,
     );
@@ -327,12 +337,13 @@ describe("5A after a reload: the server's answer and no hand-over", () => {
     expect(container.innerHTML).not.toContain(HANDED_REFERENCE);
   });
 
-  it("shows the hand-over's reference, not the server's, when this tab sent the request", async () => {
+  it("follows the hand-over, not the server, when this tab sent the request: the typed value, and neither reference", async () => {
     rememberSentRequest(handedOver());
 
     await mountDoneScreen(SENT_ON_SERVER);
 
-    expect(textOf("done-reference")).toBe(HANDED_REFERENCE);
+    expect(textOf("done-channel-line")).toContain(TYPED_PHONE);
+    expect(container.innerHTML).not.toContain(HANDED_REFERENCE);
     expect(container.innerHTML).not.toContain(SERVER_REFERENCE);
   });
 });
@@ -348,7 +359,7 @@ describe("a hand-over that is not this page's", () => {
 
       await mountDoneScreen(NONE_ON_SERVER);
 
-      expect(isDrawn("done-reference")).toBe(false);
+      expect(isDrawn("done-design-link-card")).toBe(false);
       expect(container.innerHTML).not.toContain(HANDED_REFERENCE);
       expect(container.innerHTML).not.toContain(TYPED_PHONE);
       expect(textOf("done-heading")).toBe(
@@ -357,12 +368,14 @@ describe("a hand-over that is not this page's", () => {
     },
   );
 
-  it("from another design leaves the server's own reference with no typed value", async () => {
+  it("from another design leaves the server's own sent request with no typed value", async () => {
     rememberSentRequest(handedOver({ designId: OTHER_DESIGN_ID }));
 
     await mountDoneScreen(SENT_ON_SERVER);
 
-    expect(textOf("done-reference")).toBe(SERVER_REFERENCE);
+    expect(textOf("done-heading")).toBe(
+      roMessages.submissionResult.sentHeading,
+    );
     expect(container.innerHTML).not.toContain(TYPED_PHONE);
     expect(textOf("done-channel-line")).toBe(
       roMessages.submissionResult.channelLineWithoutValue,
@@ -378,7 +391,7 @@ describe.each([
     await mountDoneScreen(answer);
   });
 
-  it("says so in the h1 and claims no send: no check, no reference, no copy, no steps, no pinned region", () => {
+  it("says so in the h1 and claims no send: no check, no design link, no copy, no steps, no pinned region", () => {
     expect(textOf("done-heading")).toBe(
       roMessages.submissionResult[sentenceKey],
     );
@@ -389,7 +402,7 @@ describe.each([
       roMessages.submissionResult.topBarTitle,
     );
     for (const absent of [
-      "done-reference",
+      "done-design-link-card",
       "done-copy",
       "done-steps",
       "done-bottom",
@@ -439,8 +452,114 @@ describe("what a server render may show", () => {
       }),
     );
 
-    expect(markup).toContain(SERVER_REFERENCE);
+    expect(markup).toContain(
+      roMessages.submissionResult.channelLineWithoutValue,
+    );
+    expect(markup).not.toContain(SERVER_REFERENCE);
     expect(markup).not.toContain(HANDED_REFERENCE);
     expect(markup).not.toContain(TYPED_PHONE);
   });
+});
+
+describe("the design's own address on 5A", () => {
+  beforeEach(() => {
+    vi.stubGlobal("location", { origin: ORIGIN });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ["handed over from this tab", true],
+    ["answered by the server after a reload", false],
+  ] as const)(
+    "is this design's editor, absolute, for a request %s, and the copy writes exactly it",
+    async (_name, isHandedOver) => {
+      if (isHandedOver) rememberSentRequest(handedOver());
+      const writeText = vi.fn(() => Promise.resolve());
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+      await mountDoneScreen(SENT_ON_SERVER, "ru");
+
+      await act(async () => {
+        byTestId("done-copy").click();
+        await Promise.resolve();
+      });
+
+      expect(textOf("done-design-link")).toBe(
+        `${ORIGIN.replace(/^https:\/\//, "")}/ru/d/${DESIGN_ID}`,
+      );
+      expect(writeText).toHaveBeenCalledExactlyOnceWith(
+        `${ORIGIN}/ru/d/${DESIGN_ID}`,
+      );
+      Object.defineProperty(navigator, "clipboard", {
+        value: undefined,
+        configurable: true,
+      });
+    },
+  );
+
+  it("renders on a server, where there is no address to read, with the editor's path", () => {
+    vi.stubGlobal("location", undefined);
+
+    const markup = renderToStaticMarkup(
+      createElement(NextIntlClientProvider, {
+        locale: "ro",
+        messages: roMessages,
+        timeZone: "Europe/Chisinau",
+        children: createElement(DoneScreen, {
+          designId: DESIGN_ID,
+          revision: REVISION,
+          sentReference: SENT_ON_SERVER,
+        }),
+      }),
+    );
+
+    expect(markup).toContain(`/ro/d/${DESIGN_ID}<`);
+    expect(markup).not.toContain(ORIGIN);
+  });
+});
+
+describe("5A never renders the request's reference", () => {
+  it.each([
+    [
+      "handed over from this tab",
+      (reference: string) => {
+        rememberSentRequest(handedOver({ reference }));
+        return NONE_ON_SERVER;
+      },
+    ],
+    [
+      "answered by the server after a reload",
+      (reference: string): SentReferenceAnswer => ({ kind: "sent", reference }),
+    ],
+  ] as const)(
+    "for any reference %s: not in the text, not in any attribute, while the sent view is drawn",
+    async (_name, arrange) => {
+      await fc.assert(
+        fc.asyncProperty(A_REFERENCE, async (reference) => {
+          const answer = arrange(reference);
+          await mountDoneScreen(answer);
+          try {
+            expect(textOf("done-heading")).toBe(
+              roMessages.submissionResult.sentHeading,
+            );
+            expect(isDrawn("done-design-link-card")).toBe(true);
+            expect(container.innerHTML).not.toContain(reference);
+            expect(container.textContent).not.toContain(
+              roMessages.submissionResult.referenceLabel,
+            );
+            expect(isDrawn("done-reference")).toBe(false);
+          } finally {
+            unmountScreen();
+            forgetSentRequest();
+          }
+        }),
+        { numRuns: RUNS_PER_ARM },
+      );
+    },
+  );
 });

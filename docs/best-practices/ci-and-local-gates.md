@@ -449,6 +449,9 @@ so "non-live" must be established by the file's own gate, not by inspection. To 
 non-live, empty the three connection variables on the command line: `TEST_DATABASE_URL=
 DATABASE_URL= MIGRATION_DATABASE_URL= pnpm --filter @lemnaria/persistence exec vitest run …`
 (measured 2026-09-23, M7 wave 7E3c: a live file then skips instead of connecting).
+**Dated note, 2026-10-17 (M8 wave 8V) [relayed]: this does not hold for every file.** Four live files call `neon()`
+at `describe` scope, so with the variables emptied they fail to **load** rather than skip (backlog 232). Until they are
+fixed, a non-live run of the whole package reports those four as failures, not skips.
 
 **An instance from M8 wave 8I, 2026-10-09** [the 8I developer's handoff, relayed; the coordinator's addition is
 coordinator-run]. The ledger incident itself is in [ADR 0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md)'s

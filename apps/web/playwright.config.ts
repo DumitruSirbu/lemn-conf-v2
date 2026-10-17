@@ -18,14 +18,20 @@ import { secretOfThisRun } from "./tests/e2e/support/e2e-rate-limit-run";
 import {
   FAKE_MAIL_SERVER_ENVIRONMENT,
   requireNoMailVariable,
+  withholdMailVariables,
 } from "./tests/e2e/support/fake-mail-environment";
+import { publicOriginEnvironmentOf } from "./tests/e2e/support/public-origin-environment";
 
 // The application's own `DATABASE_URL` must be readable here, or `assertSafeTestDatabaseUrl` has
 // nothing to compare against and passes vacuously.
 loadEnvLocal();
 
-// The server inherits this process's environment, and refuses the fake sender beside any mail variable: a run that
-// holds one fails here, naming it, rather than starting a server that could send for real.
+// Every server and worker inherits the root `.env.local` copied in above, so any mail variable it holds is removed from
+// this in-memory copy before anything reads it (ADR 0164 decision 7); no file or deployment is touched.
+withholdMailVariables(process.env, console.log);
+
+// The server refuses the fake sender beside any mail variable: a run that still holds one fails here, naming it, rather
+// than starting a server that could send for real. After the line above this is the proof that the withholding ran.
 requireNoMailVariable(process.env);
 
 /**
@@ -116,6 +122,8 @@ export default defineConfig({
       // A contact request is passed on by the fake sender, which only this flag selects and only with no mail variable
       // present (ADR 0154). Set here and in no env file, so no deployed environment inherits it.
       ...FAKE_MAIL_SERVER_ENVIRONMENT,
+      // The shop's notice links to this server's own share page: set here so a value from `.env.local` never reaches it.
+      ...publicOriginEnvironmentOf(BASE_URL),
     },
     // Long enough for a cold `next build` on CI.
     timeout: isContinuousIntegration ? 300_000 : 60_000,

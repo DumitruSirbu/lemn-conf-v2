@@ -19,6 +19,7 @@ import {
   INSERTABLE_BODY_DEFINITIONS,
   listInsertableBodies,
   resolveCatalogEquivalent,
+  resolveWidthRangesMm,
   toInsertableBody,
   type InsertableBody,
 } from "../../src/catalog.js";
@@ -130,9 +131,14 @@ describe("the insert path and the width predicate agree, width by width", () => 
     );
   });
 
+  // Above its maximum a `'fit'` entry builds at that maximum, so what must agree with the predicate
+  // is the width built, and an opening the predicate accepts is built to exactly.
   it.each(FIT_BODIES.map((body) => [body.buildId, body] as const))(
-    "%s is inserted at exactly the widths `acceptsWidthMm` accepts",
+    "%s is built only at widths `acceptsWidthMm` accepts, filling every opening it accepts and refusing below its maximum otherwise",
     (buildId, body) => {
+      const maximumMm = Math.max(
+        ...resolveWidthRangesMm(body).map((range) => range.maxMm),
+      );
       const disagreements: string[] = [];
       for (const widthMm of SWEPT_WIDTHS_MM) {
         const world = openingWorldFor(body.band, widthMm);
@@ -151,12 +157,25 @@ describe("the insert path and the width predicate agree, width by width", () => 
             ? result.reason.code
             : undefined;
         const accepted = acceptsWidthMm(body, widthMm);
+        const builtMm = result.ok
+          ? result.design.placements.at(-1)?.body.widthMm
+          : undefined;
         if (accepted && widthRefusal !== undefined) {
           disagreements.push(
             `${buildId}@${String(widthMm)}: predicate accepts, insert refused ${widthRefusal}`,
           );
         }
-        if (!accepted && result.ok) {
+        if (builtMm !== undefined && !acceptsWidthMm(body, builtMm)) {
+          disagreements.push(
+            `${buildId}@${String(widthMm)}: insert built ${String(builtMm)}, which the predicate refuses`,
+          );
+        }
+        if (accepted && builtMm !== undefined && builtMm !== widthMm) {
+          disagreements.push(
+            `${buildId}@${String(widthMm)}: predicate accepts, insert built ${String(builtMm)}`,
+          );
+        }
+        if (!accepted && builtMm !== undefined && widthMm <= maximumMm) {
           disagreements.push(
             `${buildId}@${String(widthMm)}: predicate refuses, insert built it`,
           );

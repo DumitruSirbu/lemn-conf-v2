@@ -3,8 +3,8 @@
 // own server made, on port 4326, and counts requests, which a `next dev` server's strict mode makes untrustworthy
 // (ADR 0158 *Limits*, backlog 182). Its evidence is a `CI=1` run, never `pnpm ci:local`.
 //
-// The second server is given no fake sender, no mail variable and its own digest secret: the three mail variables are
-// absent, so `isContactSendable` is false and nothing it does can store or send. The page hands the browser a boolean;
+// The second server is given no fake sender, no mail variable and its own digest secret: the five mail variables
+// (three read, two retired) are absent, so `isContactSendable` is false and nothing it does can store or send. The page hands the browser a boolean;
 // neither the HTML nor the RSC payload holds a variable's name or value. Both pages draw the one link that rings the shop
 // (8M2.8); its number is the shop's, not the server's, and is checked in the browser.
 import { expect, test, type Page } from "@playwright/test";
@@ -32,9 +32,11 @@ const RUN_UNDER_CI =
 
 /** What must not reach a page: the names of the variables the decision reads, and the fake sender's flag. */
 const NAMES_THAT_MUST_NOT_REACH_A_PAGE = [
+  "GOOGLE_EMAIL",
+  "GOOGLE_APP_PASSWORD",
+  "LEAD_NOTIFICATION_ADDRESS",
   "RESEND_API_KEY",
   "MAIL_FROM_ADDRESS",
-  "LEAD_NOTIFICATION_ADDRESS",
   "LEMNARIA_E2E_FAKE_MAIL",
   "DIGEST_SECRET",
 ] as const;

@@ -438,6 +438,27 @@ replaced it — nothing is deleted or rewritten silently.
   *"well under one a second"* worst-case line (about 1,820 accepted reports a second with a named network source and
   a routed IPv6 `/48`).
 
+- **ADR 0154** d2 (*"no SDK, no dependency"*, for the transport only), d3 (the Resend answer table) and d4's
+  guarantee (*"a retry inside a day cannot send a second message"*) → **superseded** by **ADR 0164** (accepted
+  2026-10-17, wave 8J2, planned as 8N), on the owner's 2026-10-15 switch to nodemailer through Gmail SMTP. d6 (names),
+  d7 (refusal set), d9 (third party) and the J-S1.6 harness clause are **amended**; ADR 0153 R6 and ADR 0157's quota
+  line are noted. d2's must-not list stands except `html`.
+- **ADR 0154** d2's must-not item `html` and **ADR 0164** d1's *Not taken: … `html`* and d4's *"Plain text only"* →
+  **superseded** by **ADR 0165** (2026-10-17, wave 8V), recorded as **ADR 0164 Amendment A**: a plain-text part and,
+  when it fits 90 000 bytes, an HTML part. **M8 plan Q5 (a)** (*"the 3D view waits for the dashboard"*) → superseded
+  for the e-mail by the same record (Q-8V-1 = (a), a frozen copy).
+- **ADR 0160**'s and **ADR 0163** d7's reference with *Copiază* on 5A and on the already-sent view → **superseded** by
+  **ADR 0165** D1–D2. **Not superseded:** the callback form's sent view keeps the reference (coordinator decision,
+  2026-10-17; the 8V plan's *"`SentReferenceCard` … deleted"* is struck).
+- **ADR 0052** (800 mm is the ceiling on any empty column) → **superseded for spaces** by **ADR 0166** (2026-10-17, wave
+  8U, Q-8U-1 = (b)); 800 stays the ceiling on every cabinet and the v1 arm's normalisation. **Until 8U S5 is built**, the
+  commands' own cuts at 800 still run and the reconcile's uncapped merge rejoins their pieces. **ADR 0046**'s cap →
+  superseded **in the editor** by the same record; its rule 1 sort, rule 2, rule 3, part 1 and the left seat stand.
+  **ADR 0037**'s uncapped merge → **revived** under the conditions its withdrawal named (the insert split, plus the fit
+  at maximum). **ADR 0110** decision 2's *"the same published openings"* → **amended for composition's intermediate
+  states only**: composition merges at its own 800 limit, then finishes through the editor's uncapped derivation.
+  **ADR 0122** decision 4 is untouched and remains the trigger for per-level merging.
+
 ## Moved from the index Status column
 
 These claims were carried only in the old index's Status cells, not otherwise recorded above.

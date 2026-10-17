@@ -108,6 +108,24 @@ describe("the confirmation's stylesheet", () => {
     expect(valuesFor(STYLESHEET, "reference", "user-select")).toEqual(["all"]);
   });
 
+  it.each([
+    ["designLink", "overflow-wrap", "anywhere"],
+    ["designLink", "user-select", "all"],
+    ["linkText", "min-width", "0"],
+  ])(
+    "wraps a long design address inside the card, hiding none of it: .%s's %s is %s",
+    (className, property, expected) => {
+      expect(valuesFor(STYLESHEET, className, property)).toEqual([expected]);
+    },
+  );
+
+  it("holds the design link's announcement line open while it is empty: .linkCopied is as tall as its one line", () => {
+    expect(valuesFor(STYLESHEET, "linkCopied", "min-height")).toEqual(["12px"]);
+    expect(valuesFor(STYLESHEET, "linkCopied", "font")).toEqual([
+      "700 12px/1 var(--font-ui)",
+    ]);
+  });
+
   it.each(["disc", "barMark"])(
     "draws the check of .%s from the stylesheet, so that no text carries it",
     (className) => {

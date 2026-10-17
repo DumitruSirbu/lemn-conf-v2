@@ -4,7 +4,10 @@ import type { Metadata } from "next";
 import { DesignLoadError } from "@/app/d/[id]/design-load-error";
 import { SharedDesignView } from "@/app/s/[token]/shared-design-view";
 import { reportDesignFailure } from "@/lib/server/design-failure-log";
-import { getShareLinkRepository } from "@/lib/server/repository";
+import {
+  getSentKitchenViewRepository,
+  getShareLinkRepository,
+} from "@/lib/server/repository";
 import { isWellFormedShareToken } from "@/lib/server/share-token";
 import { sha256Hex } from "@/lib/server/sha256-hex";
 
@@ -22,10 +25,12 @@ export const metadata: Metadata = {
  * write.
  *
  * A malformed token issues no query: `isWellFormedShareToken` runs first and only a well-formed shape is hashed and
- * looked up. Every failure (malformed, unknown, revoked) renders the same `DesignLoadError`, byte-identical to
- * `/d/{id}`'s "not found", so none can be told apart from the response alone. The malformed branch's early return
- * skips the `await` the others take, which changes Next's RSC chunk numbering; accepted, because the token's shape is
- * public. The identity that must hold is between unknown and revoked tokens, both awaited.
+ * looked up. The hash is asked of the design's share link first and, when that names none, of the frozen copy sent to
+ * the shop; both render the same read-only view. Every failure (malformed, unknown, revoked in either) renders the
+ * same `DesignLoadError`, byte-identical to `/d/{id}`'s "not found", so none can be told apart from the response
+ * alone. The malformed branch's early return skips the `await`s the others take, which changes Next's RSC chunk
+ * numbering; accepted, because the token's shape is public. The identity that must hold is between unknown and
+ * revoked tokens, each answered after both lookups.
  *
  * `InvalidDesignError` is a stored document failing migration on the way out, rendered as `reason="invalid"` as
  * `/d/{id}` does. Anything else is a driver failure, logged as `"share-read"` (a line with no id, since
@@ -41,7 +46,7 @@ export default async function SharedDesignPage({
     return <DesignLoadError reason="not-found" />;
 
   try {
-    const outcome = await getShareLinkRepository().loadShared(sha256Hex(token));
+    const outcome = await loadSharedOrSentKitchen(sha256Hex(token));
     if (outcome.kind === "none") return <DesignLoadError reason="not-found" />;
     // `key={token}`: the token is public, and keying by it makes each share view a fresh mount, never a re-hydrate of
     // a live instance. Without it, back/forward between two share views reused one `SharedDesignView` and called
@@ -53,4 +58,11 @@ export default async function SharedDesignPage({
     reportDesignFailure("share-read", error);
     throw error;
   }
+}
+
+/** The design's own share link wins; the frozen copy is asked only when the hash names no share link. */
+async function loadSharedOrSentKitchen(tokenHash: string) {
+  const shared = await getShareLinkRepository().loadShared(tokenHash);
+  if (shared.kind === "found") return shared;
+  return getSentKitchenViewRepository().load(tokenHash);
 }

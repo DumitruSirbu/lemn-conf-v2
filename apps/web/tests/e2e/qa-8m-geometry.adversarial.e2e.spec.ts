@@ -10,13 +10,20 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import {
   ANSWERS,
   CTA,
+  DONE_COPIED,
+  DONE_COPY,
+  DONE_DESIGN_LINK,
+  DONE_DESIGN_LINK_CARD,
   DONE_REFERENCE,
   FAILURE,
+  MESSAGES,
   NETWORK_FAILURE,
   answerContactInOrder,
   contactDocumentPath,
   donePath,
+  expectDesignLinkShown,
   expectFormDrawn,
+  expectReferenceNotShown,
   fillTheWholeForm,
   newToken,
   pressTheCallToAction,
@@ -159,6 +166,141 @@ async function expectFocusClearOfTheRegion(
   ).toBeLessThanOrEqual(region.top);
 }
 
+/** The design-link card's parts whose edges must stay on the phone (wave 8V D1). */
+const CARD_PARTS = [
+  DONE_DESIGN_LINK_CARD,
+  DONE_DESIGN_LINK,
+  DONE_COPY,
+  DONE_COPIED,
+] as const;
+
+type Edges = Readonly<
+  Record<string, { left: number; right: number; height: number }>
+>;
+
+interface CopiedSnapshot {
+  readonly copiedText: string;
+  readonly scrollWidth: number;
+  readonly clientWidth: number;
+  readonly boxes: Edges;
+}
+
+/** A part that is not on the page has no edges, and `NaN` fails every bound below by name. */
+async function cardBoxesOf(page: Page): Promise<Edges> {
+  return page.evaluate((ids) => {
+    const edges: Record<
+      string,
+      { left: number; right: number; height: number }
+    > = {};
+    for (const id of ids) {
+      const rect = document
+        .querySelector(`[data-testid="${id}"]`)
+        ?.getBoundingClientRect();
+      edges[id] = {
+        left: rect?.left ?? NaN,
+        right: rect?.right ?? NaN,
+        height: rect?.height ?? NaN,
+      };
+    }
+    return edges;
+  }, CARD_PARTS);
+}
+
+function expectCardInsideThePhone(boxes: Edges, label: string): void {
+  for (const id of CARD_PARTS) {
+    const box = boxes[id];
+    console.log(
+      `QA8V card ${label} ${id}: ${String(Math.round(box?.left ?? NaN))} to ${String(Math.round(box?.right ?? NaN))} of ${String(PHONE.width)}`,
+    );
+    expect(box?.left, `${label}: ${id} left`).toBeGreaterThanOrEqual(0);
+    expect(box?.right, `${label}: ${id} right`).toBeLessThanOrEqual(
+      PHONE.width,
+    );
+  }
+}
+
+/** The announcement takes no width from the address and no height from the card: both stand where they stood. */
+function expectTheCardStill(
+  atRest: Edges,
+  copied: Edges,
+  locale: string,
+): void {
+  const address = {
+    atRest: atRest[DONE_DESIGN_LINK],
+    copied: copied[DONE_DESIGN_LINK],
+  };
+  const card = {
+    atRest: atRest[DONE_DESIGN_LINK_CARD],
+    copied: copied[DONE_DESIGN_LINK_CARD],
+  };
+  console.log(
+    `QA8V card ${locale} still: address ${String(Math.round(address.atRest?.left ?? NaN))}-${String(Math.round(address.atRest?.right ?? NaN))} at rest, ${String(Math.round(address.copied?.left ?? NaN))}-${String(Math.round(address.copied?.right ?? NaN))} copied; card ${String(Math.round(card.atRest?.height ?? NaN))} / ${String(Math.round(card.copied?.height ?? NaN))} px high`,
+  );
+  expect(address.copied?.left, `${locale}: the address's left edge`).toBe(
+    address.atRest?.left,
+  );
+  expect(address.copied?.right, `${locale}: the address's right edge`).toBe(
+    address.atRest?.right,
+  );
+  expect(card.copied?.height, `${locale}: the card's height`).toBe(
+    card.atRest?.height,
+  );
+}
+
+/** *Copiat* stands about two seconds, and a runner can stall longer than that between two steps of a test; so the page
+ *  measures itself in the very task that draws the word, and keeps what it measured for the test to read. */
+async function armTheCopiedSnapshot(page: Page): Promise<void> {
+  await page.evaluate((ids) => {
+    const copied = document.querySelector('[data-testid="done-copied"]');
+    if (copied === null) throw new Error("no done-copied region");
+    const observer = new MutationObserver(() => {
+      const text = copied.textContent;
+      if (text === "") return;
+      const boxes: Record<
+        string,
+        { left: number; right: number; height: number }
+      > = {};
+      for (const id of ids) {
+        const rect = document
+          .querySelector(`[data-testid="${id}"]`)
+          ?.getBoundingClientRect();
+        boxes[id] = {
+          left: rect?.left ?? NaN,
+          right: rect?.right ?? NaN,
+          height: rect?.height ?? NaN,
+        };
+      }
+      Reflect.set(window, "__copiedSnapshot", {
+        copiedText: text,
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+        boxes,
+      });
+      observer.disconnect();
+    });
+    observer.observe(copied, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+  }, CARD_PARTS);
+}
+
+async function copiedSnapshotOf(page: Page): Promise<CopiedSnapshot> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => Reflect.get(window, "__copiedSnapshot") !== undefined,
+        ),
+      { message: "the copied state was drawn", timeout: 20_000 },
+    )
+    .toBe(true);
+  return page.evaluate(
+    () => Reflect.get(window, "__copiedSnapshot") as CopiedSnapshot,
+  );
+}
+
 for (const locale of LOCALES) {
   test(`${locale}: 5A at 390 x 844, in every state of the WhatsApp action: the pinned region stays under half the screen, the last block scrolls clear of it, the page is never wider than the phone, and every control is at least 44 x 44`, async ({
     page,
@@ -246,32 +388,35 @@ for (const locale of LOCALES) {
     );
   });
 
-  test(`${locale}: a reference of ten thousand characters, with and without a break to wrap at, wraps inside the column, and the copy control and the region stay on the screen`, async ({
+  test(`${locale}: a reference of ten thousand characters in the answer is drawn nowhere on 5A, and the design-link card, its address and the copy control stay inside the phone, at rest and while ${MESSAGES[locale].submissionResult.copied} stands, which moves neither the address nor the card's height`, async ({
     page,
+    context,
     seededDesign,
   }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.setViewportSize(PHONE);
-    await reachDoneByAMockedSend(
-      page,
-      seededDesign,
-      locale,
-      "ABCDEFGHIJ".repeat(1000),
+    const longReference = "ABCDEFGHIJ".repeat(1000);
+    await reachDoneByAMockedSend(page, seededDesign, locale, longReference);
+    await expectDesignLinkShown(page, locale, seededDesign.id);
+    await expectReferenceNotShown(page, longReference);
+    await expectNoSideways(page, "5A with the design link");
+    const atRest = await cardBoxesOf(page);
+    expectCardInsideThePhone(atRest, `${locale}, at rest`);
+    await expectRegionWithinTheTripwire(page, "5A with the design link");
+
+    await armTheCopiedSnapshot(page);
+    await page.getByTestId(DONE_COPY).tap();
+    const whileCopied = await copiedSnapshotOf(page);
+    expect(whileCopied.copiedText, "the snapshot is of the copied state").toBe(
+      MESSAGES[locale].submissionResult.copied,
     );
-    await expectNoSideways(page, "an unbroken reference");
-    const reference = await boxOf(page.getByTestId(DONE_REFERENCE));
-    expect(reference.right, "the reference's right edge").toBeLessThanOrEqual(
-      PHONE.width,
-    );
-    expect(reference.left).toBeGreaterThanOrEqual(0);
-    await expectRegionWithinTheTripwire(
-      page,
-      "a ten-thousand-character reference",
-    );
-    const copy = await boxOf(page.getByTestId("done-copy"));
-    expect(copy.right).toBeLessThanOrEqual(PHONE.width);
-    expect(copy.left).toBeGreaterThanOrEqual(0);
-    await page.getByTestId("done-copy").scrollIntoViewIfNeeded();
-    await captureEvidence(page, `8m-5A-${locale}-long-reference`);
+    expect(
+      whileCopied.scrollWidth,
+      `${locale}, copied: the page's width`,
+    ).toBeLessThanOrEqual(whileCopied.clientWidth);
+    expectCardInsideThePhone(whileCopied.boxes, `${locale}, copied`);
+    expectTheCardStill(atRest, whileCopied.boxes, locale);
+    await captureEvidence(page, `8v-5A-${locale}-design-link-copied`);
   });
 
   test(`${locale}: 5B, in the lost-connection and not-sent states, online and offline, is no wider than the phone, its retry is on the first screen and at least 44 high, and the longest typed value stays inside the box`, async ({
@@ -342,6 +487,7 @@ for (const locale of LOCALES) {
     await expect(page.getByTestId("done-heading")).toBeVisible();
     await expect(page.getByTestId("done-heading")).toBeFocused();
     await expect(page.getByTestId(DONE_REFERENCE)).toHaveCount(0);
+    await expect(page.getByTestId(DONE_DESIGN_LINK_CARD)).toHaveCount(0);
     await expect(page.getByTestId(CTA)).toHaveCount(0);
     await expect(page.getByTestId("done-bottom")).toHaveCount(0);
     await expectNoSideways(page, "no request");

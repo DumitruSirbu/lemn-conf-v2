@@ -209,3 +209,15 @@ customer's own design holds.
   its own header comment.
 - **Q5 is closed.** It cannot be widened a fifth time: 800 mm now bounds every empty column, from
   every producer, at every seam.
+
+## Dated note — 2026-10-17: superseded for spaces (ADR 0166)
+
+The owner's ruling of 2026-09-02, *"lets make 800 the maximum of any empty column"*, is replaced by the owner's Q-8U-1
+= (b) (2026-10-16, relayed): **a space may exceed 800 mm; 800 stays the cap on every cabinet.** Recorded in
+[ADR 0166](0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md).
+
+- `EMPTY_COLUMN_WIDER_THAN_CAP` is retired at both write seams (8U S1, `1e2621e2`).
+- **What still cuts at 800 today:** the v1 migration arm (unchanged by design), and — **until 8U S5 is built** — the
+  commands' own cuts: `insertBody`'s remainder split and `setWidth`'s shrink overflow. The reconcile's uncapped merge
+  rejoins their pieces after every command, so no customer sees a seam (backlog 255).
+- *"A span wider than 800 may stay empty"* still holds. Nothing above this note is edited.

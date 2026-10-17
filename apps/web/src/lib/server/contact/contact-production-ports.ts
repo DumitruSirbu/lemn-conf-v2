@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { SentKitchenViewRepository } from "@lemnaria/persistence";
 import { createTranslator, type IntlError } from "next-intl";
 
 import { resolveContent, type Content } from "@/i18n/content";
@@ -12,7 +13,9 @@ import { readDigester } from "@/lib/server/digest/digest-secret";
 import { loadOwnedDesign } from "@/lib/server/load-owned-design";
 import { createMailSender } from "@/lib/server/mail/create-mail-sender";
 import { NOTICE_LOCALE } from "@/lib/server/mail/lead-notification";
+import { readPublicOrigin } from "@/lib/server/public-origin";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
+import { getSentKitchenViewRepository } from "@/lib/server/repository";
 import { shippedPriceBook } from "@/lib/server/shipped-price-book";
 
 /**
@@ -35,6 +38,20 @@ export function makeContactProductionPorts(
     makeJudge: (instant) =>
       makeContactJudge({ environment: process.env, headers, instant }),
     now: () => new Date(),
+    readPublicOrigin: () => readPublicOrigin(process.env),
+    sentKitchenViews: sentKitchenViewsOnFirstUse(),
+  };
+}
+
+/**
+ * The frozen copies' instance, asked for only when a link is minted and inside the promise: a connection that cannot
+ * be opened is then the record's rejection and a notice without the link, never a request refused before it is stored.
+ */
+function sentKitchenViewsOnFirstUse(): SentKitchenViewRepository {
+  const instance = () => Promise.resolve().then(getSentKitchenViewRepository);
+  return {
+    record: (view) => instance().then((views) => views.record(view)),
+    load: (tokenHash) => instance().then((views) => views.load(tokenHash)),
   };
 }
 

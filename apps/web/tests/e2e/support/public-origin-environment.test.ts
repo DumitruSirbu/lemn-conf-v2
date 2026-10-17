@@ -1,0 +1,92 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import {
+  PUBLIC_ORIGIN_VARIABLE,
+  readPublicOrigin,
+} from "@/lib/server/public-origin";
+
+import {
+  FAKE_MAIL_SERVER_ENVIRONMENT,
+  MAIL_VARIABLES_THE_SUITE_REFUSES,
+} from "./fake-mail-environment";
+import {
+  CONTACT_UNAVAILABLE_SERVER_PORT,
+  CSP_SHARE_REPORT_SERVER_PORT,
+  FAILED_RENDER_SERVER_PORT,
+  inheritedEnvironmentOf,
+  PRODUCTION_POLICY_SERVER_PORT,
+} from "./production-policy-server";
+import { publicOriginEnvironmentOf } from "./public-origin-environment";
+
+const SUITE_ORIGIN = "http://localhost:4320";
+const RUNNERS_ORIGIN = "https://production.lemnaria.example";
+
+describe("the public origin a suite's server is given", () => {
+  it("is read by the suite's server, which also holds the fake sender's flag, as configured and as exactly its own origin", () => {
+    const environment = {
+      ...FAKE_MAIL_SERVER_ENVIRONMENT,
+      ...publicOriginEnvironmentOf(SUITE_ORIGIN),
+    };
+
+    expect(readPublicOrigin(environment)).toEqual({
+      status: "configured",
+      origin: SUITE_ORIGIN,
+    });
+  });
+
+  it.each([
+    PRODUCTION_POLICY_SERVER_PORT,
+    CONTACT_UNAVAILABLE_SERVER_PORT,
+    CSP_SHARE_REPORT_SERVER_PORT,
+    FAILED_RENDER_SERVER_PORT,
+  ])(
+    "is unavailable to a second server on port %i, which has no fake sender and so writes no notice to link from",
+    (port) => {
+      const origin = `http://localhost:${String(port)}`;
+
+      expect(readPublicOrigin(publicOriginEnvironmentOf(origin))).toEqual({
+        status: "unavailable",
+        variable: PUBLIC_ORIGIN_VARIABLE,
+      });
+    },
+  );
+
+  it("names the variable as the server does, and is no mail variable the suite refuses", () => {
+    expect(Object.keys(publicOriginEnvironmentOf(SUITE_ORIGIN))).toEqual([
+      PUBLIC_ORIGIN_VARIABLE,
+    ]);
+    expect(MAIL_VARIABLES_THE_SUITE_REFUSES).not.toContain(
+      PUBLIC_ORIGIN_VARIABLE,
+    );
+  });
+
+  it("is never the runner's own for a second server, which is given its own origin instead", () => {
+    const inherited = inheritedEnvironmentOf({
+      [PUBLIC_ORIGIN_VARIABLE]: RUNNERS_ORIGIN,
+      UNRELATED: "kept",
+    });
+
+    expect(inherited).toEqual({ UNRELATED: "kept" });
+  });
+});
+
+describe("playwright.config.ts", () => {
+  const source = readFileSync(
+    join(import.meta.dirname, "../../../playwright.config.ts"),
+    "utf8",
+  );
+
+  it("reads source: gives the suite's server its own base address as the public origin, after the env file's values", () => {
+    const loadsTheEnvironment = source.indexOf("loadEnvLocal();");
+    const givesTheOrigin = source.indexOf(
+      "...publicOriginEnvironmentOf(BASE_URL),",
+    );
+
+    expect(loadsTheEnvironment).toBeGreaterThan(-1);
+    expect(givesTheOrigin).toBeGreaterThan(loadsTheEnvironment);
+    expect(source).toContain(`http://localhost:\${String(PORT)}`);
+  });
+});

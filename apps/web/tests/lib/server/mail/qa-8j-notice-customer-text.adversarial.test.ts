@@ -8,17 +8,26 @@ import { createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveContent } from "@/i18n/content";
+import { endonymOf } from "@/i18n/locale-endonyms";
 import {
-  buildLeadNotification,
+  composeLeadNotice,
   LEAD_NOTIFICATION_KEY_PREFIX,
   NoticeLineError,
 } from "@/lib/server/mail/lead-notification";
 import { isSendableMailMessage } from "@/lib/server/mail/mail-sender";
-import { createResendMailSender } from "@/lib/server/mail/resend-mail-sender";
+import { createGmailMailSender } from "@/lib/server/mail/gmail-mail-sender";
 import ruMessages from "@/messages/ru.json";
 
 import { ro } from "../../../support/romanian-content";
-import { forbidFetch, releaseFetch } from "./mail-test-support";
+import {
+  forbidFetch,
+  forbidNetwork,
+  releaseFetch,
+  releaseNetwork,
+  consoleCallsOf,
+  spyOnEveryConsoleMethod,
+} from "./mail-test-support";
+import { FIXTURE_PUBLIC_ORIGIN } from "./lead-notice-fixtures";
 import {
   acceptedContact,
   callbackRequest,
@@ -32,13 +41,10 @@ import {
   thrownBy,
 } from "./qa-8j-notice-support";
 import {
-  consoleCallsOf,
   everyReadingOf,
   expectNoMarkerIn,
   QA_CONFIGURATION,
-  silenceEveryConsoleMethod,
-  stubFetchAnswering,
-  textAnswer,
+  transportsAnswering,
 } from "./qa-8j-support";
 
 const labels = ro.leadNotice.labels;
@@ -47,7 +53,7 @@ interface PrintedField {
   /** The name the notice's error gives the line. */
   readonly line: string;
   readonly label: string;
-  /** Where the line stands in the body. */
+  /** Where the line stands in the body: after the kitchen link's line and the blank line under it. */
   readonly index: number;
   readonly withValue: (value: string) => ContactSubmissionToRecord;
 }
@@ -60,31 +66,31 @@ const PRINTED_FIELDS: readonly PrintedField[] = [
   {
     line: "locale",
     label: labels.locale,
-    index: 1,
+    index: 3,
     withValue: (locale) => designRequest({ locale }),
   },
   {
     line: "name",
     label: labels.name,
-    index: 2,
+    index: 4,
     withValue: (value) => contactWith("name", value),
   },
   {
     line: "phone",
     label: labels.phone,
-    index: 3,
+    index: 5,
     withValue: (value) => contactWith("phoneNormalForm", value),
   },
   {
     line: "locality",
     label: labels.locality,
-    index: 4,
+    index: 6,
     withValue: (value) => contactWith("locality", value),
   },
   {
     line: "email",
     label: labels.email,
-    index: 6,
+    index: 8,
     withValue: (value) => contactWith("email", value),
   },
 ];
@@ -117,10 +123,14 @@ function placementsOf(breaker: string): string[] {
   ];
 }
 
-beforeEach(forbidFetch);
+beforeEach(() => {
+  forbidFetch();
+  forbidNetwork();
+});
 afterEach(() => {
   vi.restoreAllMocks();
   releaseFetch();
+  releaseNetwork();
 });
 
 describe("every breaking character, at every position, in every printed field", () => {
@@ -164,10 +174,12 @@ describe("every breaking character, at every position, in every printed field", 
   it("throws for the reference before anything else, since the reference is in the subject", () => {
     const wrong = BREAKING_CODE_POINTS.filter((codePoint) => {
       const thrown = thrownBy(() =>
-        buildLeadNotification({
+        composeLeadNotice({
           reference: `LM-${String.fromCodePoint(codePoint)}${HOSTILE_MARKER}`,
           submission: designRequest(),
           content: ro,
+          kitchenLink: { kind: "unavailable" },
+          publicOrigin: FIXTURE_PUBLIC_ORIGIN,
         }),
       );
       return !(
@@ -283,7 +295,7 @@ describe("a value that breaks no line", () => {
 describe("what the notice does not read", () => {
   const NOT_READ_MARKER = "QA-NOT-READ-5d81c0";
 
-  it("gives the same bytes whatever the typed phone, consent version, digest and design id and revision hold", () => {
+  it("gives the same bytes whatever the typed phone, consent version, digest and design id hold", () => {
     const baseline = noticeOf(designRequest());
     const submission = designRequest({
       payloadDigest: NOT_READ_MARKER,
@@ -294,7 +306,7 @@ describe("what the notice does not read", () => {
       },
       target: {
         kind: "design",
-        design: { id: `${NOT_READ_MARKER}\n`, revision: NOT_READ_MARKER },
+        design: { id: `${NOT_READ_MARKER}\n`, revision: "7" },
       },
     });
 
@@ -436,7 +448,7 @@ describe("what building a notice writes", () => {
   ];
 
   it("is nothing, through any console method, for every request it refuses", () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
 
     const thrown = REFUSED_REQUESTS.map((submission) =>
       thrownBy(() => noticeOf(submission)),
@@ -447,7 +459,7 @@ describe("what building a notice writes", () => {
   });
 
   it("is nothing, through any console method, for a design, a callback and a notice in Russian", () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const russianContent = resolveContent(
       createTranslator({ locale: "ru", messages: ruMessages }),
     );
@@ -461,16 +473,20 @@ describe("what building a notice writes", () => {
 });
 
 describe("the customer's own language", () => {
+  const LOCALE_LINE = 3;
+
   it("changes its own line and no other byte of the notice", () => {
     const romanian = noticeOf(designRequest({ locale: "ro" }));
     const russian = noticeOf(designRequest({ locale: "ru" }));
     const romanianLines = romanian.text.split("\n");
     const russianLines = russian.text.split("\n");
 
-    expect(russianLines[1]).toBe(`${labels.locale}: ru`);
-    expect(russianLines.filter((_line, index) => index !== 1)).toEqual(
-      romanianLines.filter((_line, index) => index !== 1),
+    expect(russianLines[LOCALE_LINE]).toBe(
+      `${labels.locale}: ${endonymOf("ru")}`,
     );
+    expect(
+      russianLines.filter((_line, index) => index !== LOCALE_LINE),
+    ).toEqual(romanianLines.filter((_line, index) => index !== LOCALE_LINE));
     expect(russian.subject).toBe(romanian.subject);
     expect(russian.key).toBe(romanian.key);
   });
@@ -529,18 +545,21 @@ describe("the subject and the key", () => {
     ["letters outside ASCII", "cerere_ключ_0000000001"],
     ["three hundred characters", "q".repeat(300)],
   ])(
-    "never reach a request when the request id holds %s: the sender refuses the notice unsent",
+    "never reach a transport when the request id holds %s: the sender refuses the notice unsent",
     async (_label, clientRequestId) => {
-      const fetchSpy = stubFetchAnswering(() =>
-        textAnswer(200, '{"id":"msg_1"}'),
-      );
+      const transports = transportsAnswering(() => ({
+        accepted: [QA_CONFIGURATION.notificationAddress],
+        rejected: [],
+      }));
       const message = noticeOf(designRequest({ clientRequestId }));
 
-      const outcome =
-        await createResendMailSender(QA_CONFIGURATION).send(message);
+      const outcome = await createGmailMailSender(
+        QA_CONFIGURATION,
+        transports.make,
+      ).send(message);
 
       expect(outcome).toEqual({ ok: false, kind: "refused" });
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(transports.made()).toBe(0);
     },
   );
 });

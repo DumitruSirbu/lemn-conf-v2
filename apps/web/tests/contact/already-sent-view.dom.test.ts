@@ -31,6 +31,12 @@ import {
 import { DESIGN_ID } from "./contact-submission-harness";
 
 const SENT = { kind: "sent", reference: "LM-2614" } as const;
+
+/** The request number the old advice asked the customer to read out, per language. */
+const REQUEST_NUMBER_WORDS = {
+  ro: /num.rul cererii|num.r cerere/i,
+  ru: /номер заявки/i,
+} as const;
 const LOCALES: readonly ScreenLocale[] = ["ro", "ru"];
 
 let screen: MountedScreen;
@@ -91,12 +97,11 @@ describe.each(LOCALES)("the already-sent view in %s", (locale) => {
     ).toBe(copy.alreadySentChangedKitchen);
   });
 
-  it("draws the heading, the reference, the advice, the call link and the changed-kitchen sentence in that order", () => {
+  it("draws the heading, the advice, the call link and the changed-kitchen sentence in that order", () => {
     const container = mountTheView(locale);
 
     const inOrder = [
       byTestId(container, "contact-already-sent-heading"),
-      byTestId(container, "done-reference-card"),
       byTestId(container, "contact-already-sent-advice"),
       byTestId(container, "call-shop-link"),
       byTestId(container, "contact-already-sent-changed-kitchen"),
@@ -106,6 +111,23 @@ describe.each(LOCALES)("the already-sent view in %s", (locale) => {
       const next = inOrder[index + 1];
       expect(next !== undefined && isBefore(element, next)).toBe(true);
     }
+  });
+
+  it("renders no reference: not its text, its label or its copy control, and the advice asks for no request number", () => {
+    const container = mountTheView(locale);
+
+    expect(container.innerHTML).not.toContain(SENT.reference);
+    expect(container.textContent).not.toContain(copy.referenceLabel);
+    for (const absent of [
+      "done-reference-card",
+      "done-reference",
+      "done-copy",
+    ]) {
+      expect(container.querySelector(`[data-testid="${absent}"]`)).toBeNull();
+    }
+    expect(
+      byTestId(container, "contact-already-sent-advice").textContent,
+    ).not.toMatch(REQUEST_NUMBER_WORDS[locale]);
   });
 
   it("pins the way back to the editor alone at the foot, a link that is not prefetched", () => {

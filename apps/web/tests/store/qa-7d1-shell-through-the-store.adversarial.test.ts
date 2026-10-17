@@ -15,6 +15,7 @@ import {
   declaredCabinetDepthsMm,
   deriveSlotBand,
   fatalDesignValidationIssues,
+  generateKitchen,
   KITCHEN_L_DESIGN,
   MAX_ROOM_WIDTH_MM,
   migrateDesign,
@@ -114,6 +115,19 @@ function loadedShellIn(room: DesignRoom): Design {
   return migrateDesign(CURRENT_SCHEMA_VERSION, stored);
 }
 
+/** The kitchen `generateKitchen` delivers for `room`, as the persistence adapter hands it back. */
+function loadedGeneratedKitchenIn(room: DesignRoom): Design {
+  const result = generateKitchen({
+    room,
+    occurredAt: BUILT_AT,
+    probeAt: createFakeProbeFactory(),
+  });
+  if (!result.ok)
+    throw new Error(`${JSON.stringify(room)}: ${result.reason.code}`);
+  const stored: unknown = JSON.parse(JSON.stringify(result.design));
+  return migrateDesign(CURRENT_SCHEMA_VERSION, stored);
+}
+
 /** A U of 11 100 mm in total, whose back wall is base-only: the one shell that still tiles wall A's strips. */
 function loadedLargeUShell(): Design {
   const stored: unknown = JSON.parse(
@@ -158,10 +172,19 @@ function fatalFindingsOf(store: Store): string[] {
   ).map((issue) => `${issue.code}@${issue.path}`);
 }
 
-function frozenMapOf(design: Design): string {
+/** The frozen map less the depth a column holding a body records: its spaces whole, its extents' geometry. */
+function depthIndependentMapOf(design: Design): string {
   return JSON.stringify({
     emptyColumns: design.emptyColumns,
-    columnExtents: design.columnExtents,
+    columnExtents: (design.columnExtents ?? []).map(
+      ({ wall, alongMm, widthMm, y0Mm, topMm }) => ({
+        wall,
+        alongMm,
+        widthMm,
+        y0Mm,
+        topMm,
+      }),
+    ),
   });
 }
 
@@ -271,12 +294,26 @@ describe("a loaded shell through the store's own seam", () => {
       }
     },
   );
+});
 
-  it.each(ROOMS.map((room) => [JSON.stringify(room), room] as const))(
-    "in %s, keeps its frozen map through the store's funnel, a change to every declared depth and back",
+// The store is never handed a shell: it receives what `generateKitchen` delivers (see 8U plan §6.1), and the
+// shell's planned tiles stay apart only at composition's limit. So the depth round trip is asserted over the
+// delivered design, in every room here composition accepts; it refuses SMALLEST_ROOM (`MINIMUM_NOT_MET`).
+describe("a generated kitchen through the store's own seam", () => {
+  const GENERATED_ROOMS = [
+    REFERENCE_ROOM,
+    ODD_EDGE_ROOM,
+    PRE_7A3_APPROVED_CORNER,
+    APPROVED_CORNER,
+  ];
+
+  // Not the whole map: an occupied column's recorded depth and its source re-derive from its members on the way
+  // back, with the editor's merge capped and uncapped alike.
+  it.each(GENERATED_ROOMS.map((room) => [JSON.stringify(room), room] as const))(
+    "in %s, keeps its member-less spaces and every column's extent along the wall through the store's funnel, a change to every declared depth and back",
     (_name, room) => {
-      const store = createStore(loadedShellIn(room));
-      const before = frozenMapOf(store.getState().design);
+      const store = createStore(loadedGeneratedKitchenIn(room));
+      const before = depthIndependentMapOf(store.getState().design);
       expect(otherDepthsMm().length).toBeGreaterThan(0);
 
       for (const depthMm of otherDepthsMm()) {
@@ -286,7 +323,7 @@ describe("a loaded shell through the store's own seam", () => {
         expect(findingsOf(store), "back").toStrictEqual([]);
       }
 
-      expect(frozenMapOf(store.getState().design)).toBe(before);
+      expect(depthIndependentMapOf(store.getState().design)).toBe(before);
     },
   );
 });

@@ -4958,3 +4958,28 @@ because nothing stands inboard of the corner fridge (beside S1's 17,925 L rooms)
 | [0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | Approved corner minima 900 / 1000. | **Unchanged**; L 900 × 1000 is still refused. |
 | [0130](0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) | A straight kitchen has no corner; its sweep row cites c. 14. | **Restated** (O3). |
 | [0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md) | The corner pieces stand on the run's lines. | **Disjoint**: ADR 0135 moves the base row's joint; the wall rows' near edge is a separate arm. |
+
+## Dated amendment — 2026-10-17: decision 2's "the same published openings", for composition's intermediate states (ADR 0166 decision 4)
+
+**Why.** Wave 8U uncapped the editor's merge (Q-8U-1 = (b), relayed). Decision 2's premise, that generation composes
+every body at 600 to 800 mm *"so no two planned columns can merge"*, would stop holding in the editor's world. With the
+cap lifted everywhere, generation threw in 86 706 of 86 706 composed U rooms and 2 954 of 2 990 L rooms [the 8U plan
+§6.1, quoting S0's census].
+
+**What changes.**
+
+- **Composition merges at its own limit, the cabinet ceiling `CABINETRY_MAX_WIDTH_MM` (800)**, passed as a value at
+  every merge it runs: the shell's construction, the first load, after each command, and in `replayGenerationLog`.
+  Within composition, *D revised* 2's premise therefore **stays true**.
+- **When composition finishes**, the design goes once through the editor's own uncapped recorded-map derivation, before
+  `assertGeneratedDesign` and before it is returned. That is the only map the customer sees.
+- **Amended:** mid-composition, generation inserts into openings the editor would show merged for the same document.
+  Decision 2's *"the same published openings"* holds for the delivered design, not for composition's intermediate
+  states. This extends *D revised* item 5's *"composition's private intermediate"* from the shell's tiling to the rule
+  that keeps the planned tiles apart.
+
+**Unchanged:** decision 2's write rule (only `insertBody`, and `setWidth` at the free end); *D revised* 4; N11.8's
+alternative D (no generation-only seat, target or width); U3b AC5. No command gained a parameter. Generated placements,
+steps and commands are byte-identical (8U S3 `0f85ed23`: *"behaviour-free at HEAD (91,570 rooms byte-identical)"*; 8U S4
+`a70c974b`: *"generation keeps its 800 limit (output byte-identical)"* — commit subjects). Decision 4's free-end merge
+is unchanged and runs inside composition's limit. Nothing above this amendment is edited.

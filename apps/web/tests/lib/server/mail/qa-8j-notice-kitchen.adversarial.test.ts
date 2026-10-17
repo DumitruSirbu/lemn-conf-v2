@@ -81,7 +81,7 @@ function storedKitchensOf(arm: VariedArm): readonly StoredKitchen[] {
   });
 }
 
-/** The lines a review of this design and this price shows, in the notice's layout. */
+/** The lines a review of this design and this price shows, in the notice's layout: the summary, then the appendix. */
 function reviewLinesOf(design: Design, priced: PricedDesign): string[] {
   const review = describeReview({
     content: ro,
@@ -95,6 +95,17 @@ function reviewLinesOf(design: Design, priced: PricedDesign): string[] {
   if (review.kind !== "available") throw new Error("the review is unavailable");
   return [
     notice.line(notice.labels.room, review.roomLine),
+    ...review.groups.map((group) =>
+      notice.groupCount(group.heading, group.rows.length),
+    ),
+    notice.line(
+      notice.labels.price,
+      notice.figure(review.figure.label, review.figure.amountText),
+    ),
+    review.disclaimer.rounding,
+    review.disclaimer.notice,
+    "",
+    notice.appendixHeading,
     ...review.groups.flatMap((group) => [
       group.heading,
       ...group.rows.flatMap((row) => [
@@ -107,13 +118,6 @@ function reviewLinesOf(design: Design, priced: PricedDesign): string[] {
     ...review.wholeKitchenRows.map((row) =>
       notice.line(row.label, row.amountText),
     ),
-    "",
-    notice.line(
-      notice.labels.price,
-      notice.figure(review.figure.label, review.figure.amountText),
-    ),
-    review.disclaimer.rounding,
-    review.disclaimer.notice,
   ];
 }
 
@@ -129,9 +133,11 @@ function livePriceOf(design: Design): PricedDesign {
   return pricing.priced;
 }
 
+/** The text part after the link line and the customer's lines: the summary, then the appendix. */
 function kitchenLinesOf(submission: ContactSubmissionToRecord): string[] {
   const lines = noticeOf(submission).text.split("\n");
-  return lines.slice(lines.indexOf("") + 1);
+  const afterTheLink = lines.indexOf("") + 1;
+  return lines.slice(lines.indexOf("", afterTheLink) + 1);
 }
 
 function storedDesignOf(snapshot: SubmissionSnapshot): Design {

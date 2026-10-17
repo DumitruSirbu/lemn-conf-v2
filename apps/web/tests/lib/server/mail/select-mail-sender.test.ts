@@ -2,7 +2,11 @@ import { inspect } from "node:util";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { MailEnvironment } from "@/lib/server/mail/mail-configuration";
+import {
+  MAIL_VARIABLE_NAMES,
+  RETIRED_MAIL_VARIABLE_NAMES,
+  type MailEnvironment,
+} from "@/lib/server/mail/mail-configuration";
 import {
   FAKE_MAIL_FLAG,
   FAKE_MAIL_FLAG_ENABLED,
@@ -16,21 +20,24 @@ import {
   releaseFetch,
 } from "./mail-test-support";
 
-const FAKE_KEY = "re_FAKEKEY_0123456789";
-const FAKE_FROM = "orders@mail.example.com";
+const FAKE_PASSWORD = "ZxQ8vK3pWmRt5Yn2";
+const FAKE_SENDER = "orders@mail.example.com";
 const FAKE_INBOX = "inbox@example.com";
 
 const ALL_MAIL_VARIABLES: MailEnvironment = {
-  RESEND_API_KEY: FAKE_KEY,
-  MAIL_FROM_ADDRESS: FAKE_FROM,
+  GOOGLE_EMAIL: FAKE_SENDER,
+  GOOGLE_APP_PASSWORD: FAKE_PASSWORD,
   LEAD_NOTIFICATION_ADDRESS: FAKE_INBOX,
 };
 
 const ALL_THREE_NAMES = [
-  "RESEND_API_KEY",
-  "MAIL_FROM_ADDRESS",
+  "GOOGLE_EMAIL",
+  "GOOGLE_APP_PASSWORD",
   "LEAD_NOTIFICATION_ADDRESS",
 ];
+
+/** The three live names and the two retired ones: the five beside which the flag is refused. */
+const ALL_FIVE_NAMES = [...MAIL_VARIABLE_NAMES, ...RETIRED_MAIL_VARIABLE_NAMES];
 
 const PROVIDER_SELECTION = { kind: "provider" };
 
@@ -81,19 +88,19 @@ describe("selectMailSender: when the fake is chosen", () => {
 });
 
 describe("selectMailSender: the flag beside a mail variable", () => {
-  it.each(Object.keys(ALL_MAIL_VARIABLES))(
+  it.each(ALL_FIVE_NAMES)(
     "answers unavailable naming the flag when %s is also set",
     (name) => {
       const environment = {
         [FAKE_MAIL_FLAG]: "1",
-        [name]: ALL_MAIL_VARIABLES[name],
+        [name]: ALL_MAIL_VARIABLES[name] ?? "retired-value",
       };
 
       expect(selectMailSender(environment)).toEqual(FLAG_IS_UNAVAILABLE);
     },
   );
 
-  it.each(Object.keys(ALL_MAIL_VARIABLES))(
+  it.each(ALL_FIVE_NAMES)(
     "counts %s as present even when it is empty or unusable",
     (name) => {
       for (const value of ["", " ", "not usable"]) {
@@ -131,18 +138,18 @@ describe("selectMailSender: the provider", () => {
     });
 
     expect(Reflect.ownKeys(answer)).toEqual(["kind"]);
-    for (const value of [FAKE_KEY, FAKE_FROM, FAKE_INBOX]) {
+    for (const value of [FAKE_PASSWORD, FAKE_SENDER, FAKE_INBOX]) {
       expect(JSON.stringify(answer)).not.toContain(value);
       expect(inspected).not.toContain(value);
     }
   });
 
   it("is unavailable, naming what is missing, when one variable is unset", () => {
-    const environment = { ...ALL_MAIL_VARIABLES, MAIL_FROM_ADDRESS: undefined };
+    const environment = { ...ALL_MAIL_VARIABLES, GOOGLE_EMAIL: undefined };
 
     expect(selectMailSender(environment)).toEqual({
       kind: "unavailable",
-      variables: ["MAIL_FROM_ADDRESS"],
+      variables: ["GOOGLE_EMAIL"],
     });
   });
 
@@ -157,6 +164,78 @@ describe("selectMailSender: the provider", () => {
       variables: ["LEAD_NOTIFICATION_ADDRESS"],
     });
   });
+});
+
+describe("selectMailSender: the fake's fence over the five names", () => {
+  const STATES = ["absent", "own-undefined", "own-value"] as const;
+  type State = (typeof STATES)[number];
+
+  function environmentOf(
+    states: readonly State[],
+    flag: string | undefined,
+  ): MailEnvironment {
+    const environment: Record<string, string | undefined> = {};
+    ALL_FIVE_NAMES.forEach((name, index) => {
+      const state = states[index];
+      if (state === "own-undefined") environment[name] = undefined;
+      if (state === "own-value") environment[name] = "some-value";
+    });
+    if (flag !== undefined) environment[FAKE_MAIL_FLAG] = flag;
+    return environment;
+  }
+
+  function everyStateOfTheFiveNames(): State[][] {
+    return ALL_FIVE_NAMES.reduce<State[][]>(
+      (partial) =>
+        partial.flatMap((head) => STATES.map((state) => [...head, state])),
+      [[]],
+    );
+  }
+
+  it("selects the fake with the flag at 1 exactly when none of the five names is an own member", () => {
+    const cases = everyStateOfTheFiveNames();
+    const wrong = cases.filter((states) => {
+      const selection = selectMailSender(environmentOf(states, "1"));
+      const noneIsPresent = states.every((state) => state === "absent");
+      return noneIsPresent
+        ? selection.kind !== "fake"
+        : JSON.stringify(selection) !== JSON.stringify(FLAG_IS_UNAVAILABLE);
+    });
+
+    expect(cases).toHaveLength(STATES.length ** ALL_FIVE_NAMES.length);
+    expect(wrong).toEqual([]);
+  });
+
+  it("never selects the fake for any flag other than 1, whatever the five names hold", () => {
+    const cases = everyStateOfTheFiveNames();
+    const wrong = ["true", "01", " 1", "", "0", undefined].flatMap((flag) =>
+      cases.filter(
+        (states) =>
+          selectMailSender(environmentOf(states, flag)).kind === "fake",
+      ),
+    );
+
+    expect(wrong).toEqual([]);
+  });
+
+  it.each(RETIRED_MAIL_VARIABLE_NAMES)(
+    "refuses the flag beside the retired %s alone, which configures nothing",
+    (name) => {
+      expect(selectMailSender({ [FAKE_MAIL_FLAG]: "1", [name]: "x" })).toEqual(
+        FLAG_IS_UNAVAILABLE,
+      );
+    },
+  );
+
+  it.each(RETIRED_MAIL_VARIABLE_NAMES)(
+    "does not count the retired %s as configuration: without the flag it is unavailable, naming the three live names",
+    (name) => {
+      expect(selectMailSender({ [name]: "x" })).toEqual({
+        kind: "unavailable",
+        variables: ALL_THREE_NAMES,
+      });
+    },
+  );
 });
 
 describe("selectMailSender: what it is a function of", () => {
@@ -195,7 +274,7 @@ describe("selectMailSender: what it is a function of", () => {
 });
 
 describe("selectMailSender: a mail variable that is a member counts whatever it holds", () => {
-  it.each(Object.keys(ALL_MAIL_VARIABLES))(
+  it.each(ALL_FIVE_NAMES)(
     "answers unavailable naming the flag when %s is a member holding undefined",
     (name) => {
       const environment = { [FAKE_MAIL_FLAG]: "1", [name]: undefined };
@@ -238,8 +317,8 @@ describe("selectMailSender: what an unavailable answer discloses", () => {
   it("holds no part of an unusable value", () => {
     const MARKER = "SECRET-MARKER-9c1d";
     const environment = {
-      RESEND_API_KEY: `${MARKER} with spaces`,
-      MAIL_FROM_ADDRESS: `${MARKER}@a@example.com`,
+      GOOGLE_APP_PASSWORD: `${MARKER} with spaces`,
+      GOOGLE_EMAIL: `${MARKER}@a@example.com`,
       LEAD_NOTIFICATION_ADDRESS: `${MARKER}@example.com, x@example.com`,
     };
     const beside = { ...environment, [FAKE_MAIL_FLAG]: "1" };
@@ -265,6 +344,9 @@ describe("select-mail-sender.ts", () => {
       (match) => match[1],
     );
 
-    expect(imported).toEqual(["@/lib/server/mail/mail-configuration"]);
+    expect(imported).toEqual([
+      "@/lib/server/mail/fake-mail-flag",
+      "@/lib/server/mail/mail-configuration",
+    ]);
   });
 });

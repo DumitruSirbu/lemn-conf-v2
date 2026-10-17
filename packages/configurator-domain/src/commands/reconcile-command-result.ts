@@ -38,13 +38,17 @@ export function reconcileSuccessfulCommandResult(input: {
   readonly result: CommandSuccess;
   readonly catalog: BodyCatalog;
   readonly previousRecordedColumns: ReadonlyMap<string, Column>;
+  /** The split's and the merge's limit. Omitted, each keeps the editor's own, which differ: the split cuts at
+   *  `MAX_EMPTY_COLUMN_WIDTH_MM` and the merge is uncapped. Composition passes one for both (ADR 0110 decision 2). */
+  readonly emptyColumnWidthLimitMm?: number;
 }): ReconciledCommandResult {
   const records = derivePlacementRecords(input.result.design, input.catalog);
   const moved = movedColumns(input.result, input.previousRecordedColumns);
-  const recordedColumns = reconcileColumns(moved, records);
+  const funnel = { records, widthLimitMm: input.emptyColumnWidthLimitMm };
+  const recordedColumns = reconcileColumns(moved, funnel);
   const columns = reconcileColumns(
     clipEmptyColumnsAtWallEnd(moved, records, input.result.design.room),
-    records,
+    funnel,
   );
   const design = withFrozenMap(
     input.result.design,
@@ -70,18 +74,27 @@ function movedColumns(
     : previousRecordedColumns;
 }
 
+/** The records a reconcile reads and the width its split and merge hold member-less columns to; `undefined` leaves
+ *  each at its own default (the split at 800 mm, the merge uncapped). */
+interface ReconcileFunnel {
+  readonly records: readonly PlacementRecord[];
+  readonly widthLimitMm: number | undefined;
+}
+
 /** Clip free ground, split, merge, then re-answer full-height membership—in that exact order. */
 function reconcileColumns(
   columns: ReadonlyMap<string, ColumnExtent>,
-  records: readonly PlacementRecord[],
+  { records, widthLimitMm }: ReconcileFunnel,
 ): ReadonlyMap<string, Column> {
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
       splitOversizedEmptyColumns(
         clipEmptyColumnsToFreeGround(columns, records),
         records,
+        widthLimitMm,
       ),
       records,
+      widthLimitMm,
     ),
     records,
   );

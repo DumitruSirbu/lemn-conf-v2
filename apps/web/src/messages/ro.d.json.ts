@@ -391,6 +391,8 @@ declare const messages: {
     "referenceLabel": "Număr cerere",
     "copy": "Copiază",
     "copied": "Copiat",
+    "designLinkLabel": "Linkul designului tău",
+    "designLinkNote": "Linkul deschide designul pentru editare doar în acest browser.",
     "channelLine": "{channel, select, phone {Te sunăm la {contact}.} whatsapp {Te sunăm pe WhatsApp la {contact}.} other {Îți scriem la {contact}.}}",
     "channelLineWithoutValue": "Te contactăm pe canalul ales, la datele pe care le-ai completat în cerere.",
     "savedSentence": "Design-ul este salvat — îl poți redeschide oricând din acest browser.",
@@ -407,7 +409,7 @@ declare const messages: {
     "noRequest": "Nu avem nicio cerere trimisă pentru acest design, în forma lui de acum.",
     "notShown": "Nu putem arăta acum starea cererii tale. Încearcă din nou puțin mai târziu.",
     "alreadySentHeading": "Cererea pentru această bucătărie a fost deja trimisă",
-    "alreadySentAdvice": "Ai greșit ceva în cerere? Sună-ne la {phone} și spune-ne numărul cererii — corectăm împreună.",
+    "alreadySentAdvice": "Ai greșit ceva în cerere? Sună-ne la {phone} — găsim cererea după numărul tău de telefon.",
     "alreadySentChangedKitchen": "Dacă schimbi bucătăria, poți trimite o cerere nouă pentru ea.",
     "callShop": "Sună direct la noi",
     "failureHeading": "Nu am putut trimite cererea",
@@ -441,7 +443,28 @@ declare const messages: {
       "email": "E-mail"
     },
     "callbackLine": "Cerere de apel, fără bucătărie configurată.",
-    "emptyValue": "—"
+    "emptyValue": "—",
+    "tagline": "configurator bucătărie",
+    "heading": "Cerere nouă din configurator",
+    "kitchen": {
+      "button": "Vezi bucătăria în 3D",
+      "note": "Link de vizualizare: se deschide fără cont.",
+      "unavailable": "Linkul 3D nu a putut fi creat. Lista completă e mai jos.",
+      "linkLabel": "Bucătăria în 3D"
+    },
+    "clientHeading": "Client",
+    "actions": {
+      "call": "Sună",
+      "whatsapp": "Scrie pe WhatsApp",
+      "email": "Scrie un e-mail"
+    },
+    "summaryHeading": "Pe scurt",
+    "groupCount": "{heading} — {count, plural, one {# corp} few {# corpuri} other {# corpuri}}",
+    "appendixHeading": "Lista corpurilor (pentru verificare)",
+    "revisionLabel": "Revizia",
+    "noReply": "Trimis din configuratorul Lemnaria. Nu răspunde la acest e-mail — contactează clientul direct.",
+    "preheader": "{lead} · {name}",
+    "preheaderWithLocality": "{lead} · {name} · {locality}"
   },
   "band": {
     "base": "bază",

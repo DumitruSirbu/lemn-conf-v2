@@ -146,6 +146,8 @@ const FUNCTION_FAMILIES = [
   "leadNotice.subject",
   "leadNotice.line",
   "leadNotice.figure",
+  "leadNotice.groupCount",
+  "leadNotice.preheader",
 ] as const;
 
 describe("the localized content resolver", () => {
@@ -161,12 +163,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 208 resolved strings through the %s catalogue",
+    "maps all 224 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(208);
+      expect(leaves).toHaveLength(224);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -181,7 +183,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 40 public functions with %s ICU messages",
+    "backs exactly 42 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
@@ -290,6 +292,37 @@ describe("the localized content resolver", () => {
         translate("leadNotice.figure", {
           label: "label-token",
           amount: "43 000 MDL",
+        }),
+      );
+      expect(content.leadNotice.groupCount("heading-token", 5)).toBe(
+        translate("leadNotice.groupCount", {
+          heading: "heading-token",
+          count: 5,
+        }),
+      );
+      expect(
+        content.leadNotice.preheader({
+          lead: "lead-token",
+          name: "name-token",
+          locality: "locality-token",
+        }),
+      ).toBe(
+        translate("leadNotice.preheaderWithLocality", {
+          lead: "lead-token",
+          name: "name-token",
+          locality: "locality-token",
+        }),
+      );
+      expect(
+        content.leadNotice.preheader({
+          lead: "lead-token",
+          name: "name-token",
+          locality: "",
+        }),
+      ).toBe(
+        translate("leadNotice.preheader", {
+          lead: "lead-token",
+          name: "name-token",
         }),
       );
       expect(

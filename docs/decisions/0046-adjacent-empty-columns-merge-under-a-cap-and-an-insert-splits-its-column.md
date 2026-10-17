@@ -381,3 +381,14 @@ exist in the tree.
 - **The >800 mm empty column from a shrink is untouched** and stays an open product question.
 - **If the 800 mm cap ever moves to 600**, only the constant moves — every rule here is stated in
   terms of the cap rather than the number.
+
+## Dated note — 2026-10-17: the cap is gone in the editor (ADR 0166)
+
+[ADR 0166](0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md)
+(wave 8U, Q-8U-1 = (b), relayed) removes the merge's 800 mm cap **in the editor**; the merge is iterated to a fixpoint.
+**Composition** (generation's private intermediate) still merges at 800, passed as a value. Rule 1's sorted scan, rule 2
+(agreement within 20 mm, the conservative envelope, Part 2's 20 mm on a pair), rule 3, part 1's insert split and the
+left-edge seat all **stand**. The owner's earlier *"a 600 and a 400 each take their own cabinet — 'and this is a
+solution'"* is the ruling Q-8U-1 (b) changed, by the owner's own answer. Two known limits now sit on rule 2: an
+odd-width stored opening (ADR 0166 decision 7) and a tolerance chain whose result depends on the clear order (decision
+8). Nothing above this note is edited.

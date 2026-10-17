@@ -1,13 +1,13 @@
 import "server-only";
 
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
+import { createGmailMailSender } from "@/lib/server/mail/gmail-mail-sender";
 import {
   readMailConfiguration,
   type MailEnvironment,
   type MailVariableName,
 } from "@/lib/server/mail/mail-configuration";
 import type { MailSender } from "@/lib/server/mail/mail-sender";
-import { createResendMailSender } from "@/lib/server/mail/resend-mail-sender";
 import {
   FAKE_MAIL_FLAG,
   selectMailSender,
@@ -25,7 +25,7 @@ export type MailSenderCreation =
 
 /**
  * The only module that imports the fake or the adapter, and the only one that logs: one warning, made
- * of constants, when it builds the fake. The key is read here and handed to the adapter, so no value
+ * of constants, when it builds the fake. The password is read here and handed to the adapter, so no value
  * that holds it is returned.
  */
 export function createMailSender(
@@ -50,6 +50,6 @@ function buildProvider(environment: MailEnvironment): MailSenderCreation {
   }
   return {
     kind: "sender",
-    sender: createResendMailSender(configured.configuration),
+    sender: createGmailMailSender(configured.configuration),
   };
 }

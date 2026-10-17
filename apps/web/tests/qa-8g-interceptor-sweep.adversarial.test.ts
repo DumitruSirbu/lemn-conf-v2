@@ -12,8 +12,8 @@ import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-inst
 
 import {
   consoleCallsOf,
-  silenceEveryConsoleMethod,
-} from "./lib/server/mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "./lib/server/mail/mail-test-support";
 
 const { proxy } = await import("../src/proxy");
 
@@ -147,7 +147,7 @@ describe("which requests the interceptor holds for a judgement", () => {
   it.each(FLAGS)(
     "holds every counted path, by any method, where the owner names the host, and no other path there (flag %s)",
     async (flag) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
       under(NAMED_HOST, flag);
 
       const counted = await heldOfEach(everyMethodOf(COUNTED_PATHS));
@@ -233,7 +233,7 @@ describe("what the interceptor counts", () => {
   ])(
     "counts nothing and serves every counted page when %s",
     async (_label, source, flag) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
       under(source, flag);
       const hits = hitsRecorded();
       const statuses = new Set<number>();
@@ -245,7 +245,7 @@ describe("what the interceptor counts", () => {
   );
 
   it("never refuses a path it does not count, even from a block that is past its figure", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     under(NAMED_HOST, undefined);
     hitsRecorded().mockResolvedValue([READS_PER_BLOCK_FIGURE + 1]);
     const refusedCounted = (await ask(`/ro/d/${AN_ID}`)).status;
@@ -290,7 +290,7 @@ describe("what the interceptor answers for a path nobody rules on", () => {
   it.each([NO_SOURCE, NAMED_HOST, NOT_A_HOST])(
     "answers each of them, under $label, with a status below 500 and no throw",
     async (source) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
       under(source, undefined);
       const statuses: number[] = [];
       for (const method of METHODS) {
@@ -330,7 +330,7 @@ describe("a held request that is served", () => {
 
 describe("a refused page", () => {
   it("is the same for an owner and a stranger, and for any design's address, but for the nonce", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     under(NAMED_HOST, undefined);
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-03T14:20:00.000Z"));
@@ -378,7 +378,7 @@ describe("what the interceptor writes for reads it serves unjudged", () => {
           headers: AN_ADDRESS,
         }),
       );
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     under(NAMED_HOST, undefined);
     vi.spyOn(freshStore.getRateLimitStore(), "recordHits").mockRejectedValue(
       new Error("the store is down"),

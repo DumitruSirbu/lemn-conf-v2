@@ -529,6 +529,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     referenceLabel: "Număr cerere",
     copy: "Copiază",
     copied: "Copiat",
+    // Drafted, not approved (provisional until the owner reads them): the done page's card holding the customer's own
+    // design address, and its note that the address opens the design for editing in this browser only.
+    designLinkLabel: "Linkul designului tău",
+    designLinkNote:
+      "Linkul deschide designul pentru editare doar în acest browser.",
     channelLine:
       "{channel, select, phone {Te sunăm la {contact}.} whatsapp {Te sunăm pe WhatsApp la {contact}.} other {Îți scriem la {contact}.}}",
     channelLineWithoutValue:
@@ -554,8 +559,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Nu putem arăta acum starea cererii tale. Încearcă din nou puțin mai târziu.",
     // Drafted, none approved: the view of a kitchen already sent for. `{phone}` is the shop's display form.
     alreadySentHeading: "Cererea pentru această bucătărie a fost deja trimisă",
+    // Drafted, not approved (provisional): re-drafted to ask for no request number, which no customer screen shows.
     alreadySentAdvice:
-      "Ai greșit ceva în cerere? Sună-ne la {phone} și spune-ne numărul cererii — corectăm împreună.",
+      "Ai greșit ceva în cerere? Sună-ne la {phone} — găsim cererea după numărul tău de telefon.",
     alreadySentChangedKitchen:
       "Dacă schimbi bucătăria, poți trimite o cerere nouă pentru ea.",
     callShop: "Sună direct la noi",
@@ -595,6 +601,31 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     callbackLine: "Cerere de apel, fără bucătărie configurată.",
     emptyValue: "—",
+    // Drafted, not approved: the HTML notice's words (provisional until the owner reads the preview). `kitchen.unavailable`
+    // also opens the text part when no link could be made; `groupCount` takes CLDR's arms, so 0 reads "0 corpuri".
+    tagline: "configurator bucătărie",
+    heading: "Cerere nouă din configurator",
+    kitchen: {
+      button: "Vezi bucătăria în 3D",
+      note: "Link de vizualizare: se deschide fără cont.",
+      unavailable: "Linkul 3D nu a putut fi creat. Lista completă e mai jos.",
+      linkLabel: "Bucătăria în 3D",
+    },
+    clientHeading: "Client",
+    actions: {
+      call: "Sună",
+      whatsapp: "Scrie pe WhatsApp",
+      email: "Scrie un e-mail",
+    },
+    summaryHeading: "Pe scurt",
+    groupCount:
+      "{heading} — {count, plural, one {# corp} few {# corpuri} other {# corpuri}}",
+    appendixHeading: "Lista corpurilor (pentru verificare)",
+    revisionLabel: "Revizia",
+    noReply:
+      "Trimis din configuratorul Lemnaria. Nu răspunde la acest e-mail — contactează clientul direct.",
+    preheader: "{lead} · {name}",
+    preheaderWithLocality: "{lead} · {name} · {locality}",
   },
   band: {
     base: "bază",

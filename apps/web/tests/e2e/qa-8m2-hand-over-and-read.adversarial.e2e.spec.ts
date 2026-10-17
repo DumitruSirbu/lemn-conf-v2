@@ -4,13 +4,16 @@
 // leaves so that the teardown removes its row (ADR 0151). The test database only; the one direct read in it is a
 // `select` of one reference through the store the server itself uses.
 import { NeonContactSubmissionStore } from "@lemnaria/persistence";
-import { expect, type BrowserContext } from "@playwright/test";
+import { expect, type BrowserContext, type Page } from "@playwright/test";
 
 import {
   CTA,
+  DONE_HEADING,
   MESSAGES,
   SAVE_WAIT,
+  expectDesignLinkShown,
   expectFormDrawn,
+  expectReferenceNotShown,
 } from "./support/contact-page";
 import {
   countAndNoteStored,
@@ -66,6 +69,20 @@ test.beforeEach(() => {
   test.skip(process.env.CI === undefined, RUN_UNDER_CI);
 });
 
+/** The sent confirmation for this design: its heading, the design's own address, and not the reference (wave 8V D1,
+ *  D2), which before 8V was what said this was the request just sent. */
+async function expectConfirmationWithoutReference(
+  page: Page,
+  designId: string,
+  reference: string,
+): Promise<void> {
+  await expect(page.getByTestId(DONE_HEADING)).toHaveText(
+    MESSAGES.ro.submissionResult.sentHeading,
+  );
+  await expectDesignLinkShown(page, "ro", designId);
+  await expectReferenceNotShown(page, reference);
+}
+
 /** The confirmation's channel line, as the catalogue words it for the phone channel. */
 function phoneLine(contact: string): string {
   return channelLineOf(
@@ -92,7 +109,7 @@ test("15 and 26: the contact page's mount drops the hand-over (the editor's does
   await page.waitForURL(`**/ro/d/${id}`);
   await expectEditorReady(page);
   await goBackAndSettle(page);
-  await expect(page.getByTestId("done-reference")).toHaveText(one.reference);
+  await expectConfirmationWithoutReference(page, id, one.reference);
   await expect(channelLine).toHaveText(phoneLine(one.typed.phone));
 
   // Forward to the editor and on, by the controls, to the contact page of the kitchen sent: the view.
@@ -107,7 +124,7 @@ test("15 and 26: the contact page's mount drops the hand-over (the editor's does
 
   // Back three times is the confirmation, in the same document: nothing typed is recalled.
   for (let step = 0; step < 3; step += 1) await goBackAndSettle(page);
-  await expect(page.getByTestId("done-reference")).toHaveText(one.reference);
+  await expectConfirmationWithoutReference(page, id, one.reference);
   await expect(channelLine).toHaveText(
     MESSAGES.ro.submissionResult.channelLineWithoutValue,
   );
@@ -116,7 +133,7 @@ test("15 and 26: the contact page's mount drops the hand-over (the editor's does
   // And by Forward: one step back to the review and forward to the confirmation again.
   await goBackAndSettle(page);
   await goForwardAndSettle(page);
-  await expect(page.getByTestId("done-reference")).toHaveText(one.reference);
+  await expectConfirmationWithoutReference(page, id, one.reference);
   await expect(channelLine).toHaveText(
     MESSAGES.ro.submissionResult.channelLineWithoutValue,
   );

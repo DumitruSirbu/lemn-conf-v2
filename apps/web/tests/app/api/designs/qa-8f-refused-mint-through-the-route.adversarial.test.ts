@@ -19,11 +19,11 @@ import {
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
 import { bucketKeyOfTheRun } from "../../../e2e/support/e2e-rate-limit-run";
+import { everyReadingOf } from "../../../lib/server/mail/qa-8j-support";
 import {
   consoleCallsOf,
-  everyReadingOf,
-  silenceEveryConsoleMethod,
-} from "../../../lib/server/mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "../../../lib/server/mail/mail-test-support";
 
 /** What the route did before it answered, so a refusal can be shown to have done none of it. */
 const work = vi.hoisted(() => ({ done: [] as string[] }));
@@ -489,7 +489,7 @@ describe("every combination of the flag, the source and the secret, at the route
   it("writes one line for each such cell: the fixed text and a cause that is true of the cell", async () => {
     const wrong: string[] = [];
     for (const cell of UNJUDGED_CELLS) {
-      const consoleSpies = silenceEveryConsoleMethod();
+      const consoleSpies = spyOnEveryConsoleMethod();
       enter(cell);
       await mint();
       const lines = consoleCallsOf(consoleSpies);
@@ -519,7 +519,7 @@ describe("every combination of the flag, the source and the secret, at the route
     for (const cell of CELLS.filter(
       ({ secretValue }) => secretValue !== undefined && secretValue !== "",
     )) {
-      const consoleSpies = silenceEveryConsoleMethod();
+      const consoleSpies = spyOnEveryConsoleMethod();
       enter(cell);
       const response = await mint();
       const readings = everyReadingOf([
@@ -553,7 +553,7 @@ describe("every combination of the flag, the source and the secret, at the route
 
 describe("the e2e policy's one notice", () => {
   it("is the only thing a judged mint under the flag writes", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     vi.stubEnv(FLAG_VARIABLE, "1");
 
     const statuses = await statusesOf(MINT_DAILY_FIGURE + 5);
@@ -675,7 +675,7 @@ describe("who shares a bucket when the owner names the host", () => {
     const address = "203.0.113.77";
     const key = await keyCountedFor(from(address));
     await statusesOf(MINT_DAILY_FIGURE, from(address));
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
 
     const refused = await mint({ ...from(address), cookie: VISITOR_COOKIE });
 
@@ -743,7 +743,7 @@ describe("a store that answers something that is no count", () => {
   it.each(NO_COUNTS)(
     "answers 503 as a failed store and makes no design, for %s",
     async (_label, answer) => {
-      const consoleSpies = silenceEveryConsoleMethod();
+      const consoleSpies = spyOnEveryConsoleMethod();
       hitsRecorded().mockResolvedValue(answer as readonly number[]);
 
       const response = await mint({ cookie: VISITOR_COOKIE });
@@ -784,7 +784,7 @@ describe("a store that answers something that is no count", () => {
 describe("the key the e2e harness removes a run's rows by", () => {
   it("is the key the route counts a mint under when the server runs under the e2e flag and that secret", async () => {
     vi.stubEnv(FLAG_VARIABLE, "1");
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
 
     const counted = await keyCountedFor({ "x-forwarded-for": "203.0.113.1" });
 
@@ -866,7 +866,7 @@ describe("the three-second deadline, at the route", () => {
   });
 
   it("makes no design and writes no second line when the store allows the hit after it passed", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const store = storeThatHasNotAnswered();
     const pending = mint();
     await vi.advanceTimersByTimeAsync(RATE_LIMIT_DEADLINE_MS);
@@ -882,7 +882,7 @@ describe("the three-second deadline, at the route", () => {
   });
 
   it("leaves no rejection unhandled when the store fails after it passed", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const unhandled: unknown[] = [];
     const remember = (reason: unknown) => unhandled.push(reason);
     process.on("unhandledRejection", remember);

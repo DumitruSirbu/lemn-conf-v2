@@ -378,9 +378,58 @@ describe("an opening no cabinet fits says so in one sentence, with no rows", () 
     );
   });
 
-  // Over §7's 800 mm ceiling no cabinet fits and §9's zero-result rule inverts: clearing a neighbour widens the
-  // opening. The shipped kitchen holds no such column, so this one is a synthetic 950 mm.
-  it("names the widest cabinet for a span wider than every one of them", () => {
+  // A base standing below keeps the column whole, so no cabinet may be seated flush in the part of it that is free.
+  it("names the widest cabinet for a span wider than every one of them in a column a standing body keeps whole", () => {
+    const design: Design = {
+      room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
+      presetId: null,
+      placements: [
+        {
+          id: "standing-base",
+          wall: "A",
+          alongMm: 1000,
+          y0Mm: 0,
+          body: { buildId: "base-cabinet", widthMm: 600, heightMm: 860 },
+        },
+      ],
+      columnExtents: [
+        {
+          wall: "A",
+          alongMm: 1000,
+          widthMm: 1200,
+          y0Mm: 0,
+          topMm: 2600,
+          depthMm: 580,
+        },
+      ],
+      createdAt: OCCURRED_AT,
+      updatedAt: OCCURRED_AT,
+    };
+    const columns = deriveColumns(
+      derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG),
+      design,
+      design.room,
+    );
+    const world = worldFrom({ design, columns });
+    const opening = world.voids.find(
+      (record) => toMillimetres(record.w) === 1200,
+    );
+    if (!opening) throw new Error("no 1200 mm opening");
+
+    const replace = replaceAt(world, { kind: "void", id: opening.id });
+    const span = buildableWidthSpanMm(world.catalog);
+
+    expect(replace.rows).toEqual([]);
+    expect(replace.countLine).toBeUndefined();
+    expect(replace.emptyLine).toBe(
+      ro.panel.noOffersTooWide(1200, span?.maxMm ?? -1),
+    );
+  });
+});
+
+describe("a span wider than every cabinet offers each one that fits at its widest, and counts them (8U criterion 10)", () => {
+  // The shipped kitchen holds no column over 800 mm, so this one is a synthetic 950 mm wall row.
+  it("lists the wall rows the insert builds at 800 mm in a 950 mm span, under a count line derived from them", () => {
     const design: Design = {
       room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
       presetId: null,
@@ -415,15 +464,35 @@ describe("an opening no cabinet fits says so in one sentence, with no rows", () 
     );
     if (!opening) throw new Error("no 950 mm opening");
 
-    const replace = replaceAt(world, { kind: "void", id: opening.id });
-    const span = buildableWidthSpanMm(world.catalog);
+    const target = { kind: "void", id: opening.id } as const;
+    const built = [...world.catalog.keys()].flatMap((buildId) => {
+      const result = insertBody({
+        design: world.design,
+        catalog: world.catalog,
+        columns: world.columns,
+        voids: world.voids,
+        target,
+        buildId,
+        probe: PROBE,
+        occurredAt: OCCURRED_AT,
+      });
+      return result.ok
+        ? [{ buildId, widthMm: result.design.placements.at(-1)?.body.widthMm }]
+        : [];
+    });
+    const replace = replaceAt(world, target);
 
-    expect(replace.rows).toEqual([]);
-    expect(replace.countLine).toBeUndefined();
-    // The sentence names the widest cabinet there is rather than asking for a delete that would widen the opening.
-    expect(replace.emptyLine).toBe(
-      ro.panel.noOffersTooWide(950, span?.maxMm ?? -1),
+    expect(built.length).toBeGreaterThan(0);
+    expect(built.map((entry) => entry.widthMm)).toEqual(
+      built.map(() => buildableWidthSpanMm(world.catalog)?.maxMm),
     );
+    expect(replace.rows.map((row) => row.buildId)).toEqual(
+      built.map((entry) => entry.buildId),
+    );
+    expect(replace.countLine).toBe(
+      ro.panel.countForSlot(built.length, 950, 700),
+    );
+    expect(replace.emptyLine).toBeUndefined();
   });
 });
 

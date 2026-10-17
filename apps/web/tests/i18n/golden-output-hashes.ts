@@ -91,6 +91,10 @@
  * **Grown by 31 and shrunk by 2, never rebaselined, by M8 wave 8M slice S4** (ADR 0113 decision 2) — the result screens'
  * copy, `submissionResult.*`: 27 static leaves and four renderings of its two ICU leaves, drafted and unapproved (Q10
  * (a)); and `contact.outcomes.sent` and `.failed`, which 5A and 5B replace, removed. **No existing hash moved.**
+ *
+ * **Grown by 2 and rebaselined over exactly one by M8 wave 8V slice S7** — `submissionResult.designLinkLabel` and
+ * `.designLinkNote`, the done page's design link, added; `submissionResult.alreadySentAdvice.phone-token` moved, its
+ * sentence re-drafted to ask for no request number. All three drafted and provisional. **One moved and no others.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -367,6 +371,18 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "12d5689496dbbcdac9ab8bd65f388f9b2b0745e1201abd61f9df89746a1ff92c",
   "content.leadNotice.figure.label-and-amount":
     "a88ee83551961752909fc0b7588121c6fa9dd36710628b7d3c8a404acf64d93c",
+  "content.leadNotice.groupCount.count-0":
+    "f3763481c92d3af8baeda91f7954df439cf78fc80983642928ce591f5139b490",
+  "content.leadNotice.groupCount.count-1":
+    "3b04b818cc5b00bb157e5805bdf95f3863195b152a41032b67bb262da7af8e04",
+  "content.leadNotice.groupCount.count-2":
+    "ad69ec3957dfb27088eeb256a6813d619c11c7149f6b91f27b25887bb4b3ab02",
+  "content.leadNotice.groupCount.count-20":
+    "e5deb256ec83f2e018ff23fef9b3d221f7b3d6d4c47631b1a7aed04d94db080d",
+  "content.leadNotice.preheader.with-locality":
+    "5ebe11235a91075b93ff150ade309c9ba94058c7d03fd8b3ca4034e6e49288c9",
+  "content.leadNotice.preheader.without-locality":
+    "63ffd0f3694aa603ea63e09d3777af261d730c1f8754c9c7ba2fd428705a2fc3",
   "content.leadNotice.line.label-and-value":
     "b049cbc443e696cbb4917a2ab920bed23bd710e449bcfe0952351a6903d683a4",
   "content.leadNotice.subject.reference-token":
@@ -456,7 +472,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.submissionResult.channelLine.whatsapp":
     "ac05e2987222912765a9b1a8c311285d52b7e787fa62ea0d5147656058f43e87",
   "content.submissionResult.alreadySentAdvice.phone-token":
-    "4cee99b1c8923fde927d8a6e8dfdfceaadf1c8d187ca29587fc9db666f702211",
+    "9ff400025dc8bbe800d30dd2622248165d9db76c218feebba27581c7eb890378",
   "content.submissionResult.whatsappMessageToShop.reference-and-link-tokens":
     "cf8940b99576380ba3c92b8101f43c445764745e932b4f8deef537380c070e65",
   "content.static.brand":
@@ -563,6 +579,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
   "content.static.submissionResult.copied":
     "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
+  "content.static.submissionResult.designLinkLabel":
+    "3ceeb9885ac738ec14f522ad577fd6b9cbd26c2ea48076313bf1ef6900a332ff",
+  "content.static.submissionResult.designLinkNote":
+    "3e0d7fa334818590e622a58f043a6426c434e5071f01926043dcd31f975d6fd1",
   "content.static.submissionResult.channelLineWithoutValue":
     "bc571755ab6f6b6f9e49f038b67079560cf22e5cafa7407521c5dcda900816a4",
   "content.static.submissionResult.savedSentence":
@@ -693,6 +713,34 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "3115843660525f6e621c196d7b76dadbcd1b8d20a0a2ae2489b7d8e76680cc5e",
   "content.static.leadNotice.labels.room":
     "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
+  "content.static.leadNotice.tagline":
+    "40e938ca7d103a0203848240229682793b9f9ba893c3a36a7ecdf4294c917bd7",
+  "content.static.leadNotice.heading":
+    "06c7543c10f44471a362b27a2e9e613aaf866d60aae94972ef37394fad0435b0",
+  "content.static.leadNotice.kitchen.button":
+    "22adbea63929ce41d919fe27f5165f8f224df3b74ee31872b13d3c3c3416d088",
+  "content.static.leadNotice.kitchen.note":
+    "70b554f6dd13c7ea9fd5e4b39de5d0593d9d4e33a1335795f687c569ceec1f74",
+  "content.static.leadNotice.kitchen.unavailable":
+    "8512a507b3759ab525ecbfc6cda3771f9e5a7f0b62947b054fd63e35397c7d6d",
+  "content.static.leadNotice.kitchen.linkLabel":
+    "e13375b8a18658d48beb7540a3c221fb1fc856d57c8f5b07d2d54a66579525c2",
+  "content.static.leadNotice.clientHeading":
+    "0c77fe09ab336a3e57cc2b6804a9bac65e19a27782b5a9c815d585e894c3b7f2",
+  "content.static.leadNotice.actions.call":
+    "f47861c88128b27ac44349239117e7db0806289db07f81999057eda8519489c5",
+  "content.static.leadNotice.actions.whatsapp":
+    "6ccb4f20d1a4b0d7a52978735514458e333eb468a7015a89e360ede8778a2854",
+  "content.static.leadNotice.actions.email":
+    "79671316de585f09da9e1fc74e5d42b89cb50fe50468b27f901030955c19ae26",
+  "content.static.leadNotice.summaryHeading":
+    "42b16f3c935e0f9c21eb086501bf6959718f05613b4ec43c0909fde986cad47c",
+  "content.static.leadNotice.appendixHeading":
+    "2ab978637c2c488300dcbb00fc4b2cd9f0a502401ce87c687fe1d70f81608816",
+  "content.static.leadNotice.revisionLabel":
+    "cf19763b47968ec73f1ce607ff7cdec3c2798db3bd7abfc0bef83612c8ed350e",
+  "content.static.leadNotice.noReply":
+    "d14b6def2e480aab2e2c91ede501c848b1b0cbaa692cb32ccddca8db11cb1db6",
   "content.static.panel.accessCheckingNotice":
     "d0b90db4d45ac62176d4e0ab3c34563f4b82bc98c6394897283dffd04c28bc68",
   "content.static.panel.accessCheckingReason":

@@ -82,7 +82,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 32 function-valued legacy content families", () => {
+  it("covers exactly the 34 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -249,13 +249,16 @@ describe("golden-output fixture coverage", () => {
     // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
     // M8 8M S4: +27 for the result screens' static leaves (`submissionResult.*`).
     // M8 8M2 S2: +3 for `submissionResult.alreadySentHeading`, `.alreadySentChangedKitchen` and `.callShop`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(208);
+    // +14 for the HTML notice's static leaves (`leadNotice.*`).
+    // +2 for the done page's design link, `submissionResult.designLinkLabel` and `.designLinkNote`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(224);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
     // M8 8M2 S2: +2 for `submissionResult.whatsappMessageToShop` and `.alreadySentAdvice`.
     // M8 8M2 S3: -1 for the retired `submissionResult.whatsappMessage`.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(69);
+    // +6 for `leadNotice.groupCount`'s four counts and `.preheader` with and without a locality.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(75);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -285,7 +288,9 @@ describe("golden-output fixture coverage", () => {
     // M8 8M S4: +27 static and +4 function fixtures for `submissionResult.*`, -2 for the retired contact outcomes.
     // M8 8M2 S2: +3 static and +2 function fixtures for `submissionResult.*`.
     // M8 8M2 S3: -1 function fixture for the retired `submissionResult.whatsappMessage`.
-    expect(GOLDEN_FIXTURES).toHaveLength(517);
+    // +14 static and +6 function fixtures for the HTML notice's `leadNotice.*` leaves.
+    // +2 static fixtures for the done page's design link (`submissionResult.designLink*`).
+    expect(GOLDEN_FIXTURES).toHaveLength(539);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
