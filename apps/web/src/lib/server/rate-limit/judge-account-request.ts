@@ -7,6 +7,7 @@ import {
 import {
   subjectOfAccountId,
   subjectOfAddress,
+  type BucketSubject,
 } from "@/lib/server/rate-limit/bucket-subject";
 import {
   judgeStepsInSequence,
@@ -27,82 +28,89 @@ import {
 } from "@/lib/server/rate-limit/limit-policy";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
-/** What an account route is limited for, one name for each flow that has its own log line. `confirm-email` and
- *  `password-reset-complete` count in one bucket, since the plan bounds their hashing cost together. */
-export type AccountRequestPurpose =
+/** What a route is limited for at the block stage (M8B plan section 5, common order step 4): the purposes whose first
+ *  bucket counts the network. `confirm-email` and `password-reset-complete` count in one bucket, since the plan bounds
+ *  their hashing cost together, and have no other stage. */
+export type AccountBlockPurpose =
   | "register"
   | "login"
   | "reset-request"
   | "confirm-email"
-  | "password-reset-complete"
-  | "mail"
-  | "claim";
+  | "password-reset-complete";
 
-/** What a request is judged from. A route hands in the texts it has: an address in its counted form, an account's id.
- *  A step that counts a subject is asked only when the text for it is handed in. */
-export interface AccountRequestAsk {
-  readonly purpose: AccountRequestPurpose;
+/** The purposes that count an address's buckets at the subject stage. `mail` is the mail bucket alone, for a route that
+ *  sends a mail the flow's own subject stage did not already count (a login that finds an unconfirmed account). */
+export type AddressedPurpose = "register" | "login" | "reset-request" | "mail";
+
+export interface AccountBlockAsk {
+  readonly purpose: AccountBlockPurpose;
   readonly headers: HeaderReader;
-  readonly address?: string | undefined;
-  readonly accountId?: string | undefined;
 }
 
-/** The buckets of one flow, in the order they are asked: the network's, then the address's, then the account's. */
-interface AccountPlan {
+/**
+ * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
+ * address's purposes require the address in its counted form, and `claim` requires the account's id. There is no
+ * request without its subject.
+ */
+export type AccountSubjectAsk =
+  | {
+      readonly purpose: AddressedPurpose;
+      readonly headers: HeaderReader;
+      readonly address: string;
+    }
+  | {
+      readonly purpose: "claim";
+      readonly headers: HeaderReader;
+      readonly accountId: string;
+    };
+
+/** The buckets one stage of one flow counts, in the order they are asked, and the log event that names the flow. */
+interface StagePlan {
   readonly event: AccountEvent;
-  readonly blocks: readonly PolicyPurpose[];
-  readonly addressBuckets: readonly PolicyPurpose[];
-  readonly accountBuckets: readonly PolicyPurpose[];
+  readonly buckets: readonly PolicyPurpose[];
 }
 
-const NO_BUCKETS: readonly PolicyPurpose[] = [];
+const BLOCK_PLAN_OF_PURPOSE: Readonly<Record<AccountBlockPurpose, StagePlan>> =
+  {
+    register: {
+      event: "register",
+      buckets: [
+        "account-register-by-block-hour",
+        "account-register-by-block-day",
+      ],
+    },
+    login: { event: "login", buckets: ["account-login-by-block"] },
+    "reset-request": {
+      event: "password-reset-request",
+      buckets: ["account-reset-request-by-block"],
+    },
+    "confirm-email": {
+      event: "confirm-email",
+      buckets: ["account-token-complete-by-block"],
+    },
+    "password-reset-complete": {
+      event: "password-reset-complete",
+      buckets: ["account-token-complete-by-block"],
+    },
+  };
 
-const PLAN_OF_PURPOSE: Readonly<Record<AccountRequestPurpose, AccountPlan>> = {
-  register: {
-    event: "register",
-    blocks: ["account-register-by-block-hour", "account-register-by-block-day"],
-    addressBuckets: ["account-mail-by-address"],
-    accountBuckets: NO_BUCKETS,
-  },
+const SUBJECT_PLAN_OF_PURPOSE: Readonly<
+  Record<AccountSubjectAsk["purpose"], StagePlan>
+> = {
+  register: { event: "register", buckets: ["account-mail-by-address"] },
   login: {
     event: "login",
-    blocks: ["account-login-by-block"],
-    addressBuckets: [
+    buckets: [
       "account-login-by-address-quarter-hour",
       "account-login-by-address-day",
     ],
-    accountBuckets: NO_BUCKETS,
   },
   "reset-request": {
     event: "password-reset-request",
-    blocks: ["account-reset-request-by-block"],
-    addressBuckets: ["account-mail-by-address"],
-    accountBuckets: NO_BUCKETS,
+    buckets: ["account-mail-by-address"],
   },
-  "confirm-email": {
-    event: "confirm-email",
-    blocks: ["account-token-complete-by-block"],
-    addressBuckets: NO_BUCKETS,
-    accountBuckets: NO_BUCKETS,
-  },
-  "password-reset-complete": {
-    event: "password-reset-complete",
-    blocks: ["account-token-complete-by-block"],
-    addressBuckets: NO_BUCKETS,
-    accountBuckets: NO_BUCKETS,
-  },
-  mail: {
-    event: "mail",
-    blocks: NO_BUCKETS,
-    addressBuckets: ["account-mail-by-address"],
-    accountBuckets: NO_BUCKETS,
-  },
-  claim: {
-    event: "claim",
-    blocks: NO_BUCKETS,
-    addressBuckets: NO_BUCKETS,
-    accountBuckets: ["account-claim-by-account"],
-  },
+  mail: { event: "mail", buckets: ["account-mail-by-address"] },
+  claim: { event: "claim", buckets: ["account-claim-by-account"] },
 };
 
 const UNJUDGED: WriteJudgement = Object.freeze({
@@ -114,56 +122,73 @@ const UNJUDGED: WriteJudgement = Object.freeze({
 });
 
 /**
- * Judges one account request in one sequence, each step asked only when the one before it allowed: the network's
- * buckets first, then the address's or the account's when the text for them was handed in. A refusal at the block so
- * counts no row for an address, which anyone could otherwise invent. A write fails closed: whatever cannot be judged,
- * a throw while the steps are made included, is unavailable, and so no account write goes on. A refusal and an
- * unavailability are written down through `account-log.ts`, by event, outcome and policy name alone. The answer is the
- * judgement itself; the route owns its words. A purpose outside the list, which only a cast reaches, is unavailable
- * and unreported, since the line has no event to name it by.
+ * The block stage, asked at step 4 of the common order, **before** Turnstile: the network's buckets alone, in one
+ * sequence. A refusal here counts no row for an address, since the subject stage is never reached. A write fails
+ * closed: whatever cannot be judged, a throw while the steps are made included, is unavailable, and so no account
+ * write goes on. A refusal and an unavailability are written down through `account-log.ts`, by event, outcome and
+ * policy name alone. The answer is the judgement itself; the route owns its words. A purpose outside the list, which
+ * only a cast reaches, is unavailable and unreported, since the line has no event to name it by.
  */
-export async function judgeAccountRequest(
-  ask: AccountRequestAsk,
+export async function judgeAccountBlock({
+  purpose,
+  headers,
+}: AccountBlockAsk): Promise<WriteJudgement> {
+  if (!Object.hasOwn(BLOCK_PLAN_OF_PURPOSE, purpose)) return UNJUDGED;
+  const plan = BLOCK_PLAN_OF_PURPOSE[purpose];
+  return judgeStage(plan.event, () => {
+    const requestFor = requestMakerFor(headers);
+    return plan.buckets.map((bucket) => blockStep(requestFor(bucket)));
+  });
+}
+
+/**
+ * The subject stage, asked at step 7, **after** Turnstile and input validation and before any account lookup: the
+ * address's or the account's buckets, in one sequence, every one counted for every valid request so a refusal reads
+ * the same for every address. It counts nothing the block stage counted, and a route calls it for a purpose once. Fails
+ * closed and reports exactly as `judgeAccountBlock` does; a subject text that its constructor refuses is a judgement
+ * that failed.
+ */
+export async function judgeAccountSubject(
+  ask: AccountSubjectAsk,
 ): Promise<WriteJudgement> {
-  if (!Object.hasOwn(PLAN_OF_PURPOSE, ask.purpose)) return UNJUDGED;
-  const plan = PLAN_OF_PURPOSE[ask.purpose];
-  const judgement = await judgementOf(plan, ask);
-  reportJudgement(plan.event, judgement);
+  if (!Object.hasOwn(SUBJECT_PLAN_OF_PURPOSE, ask.purpose)) return UNJUDGED;
+  const plan = SUBJECT_PLAN_OF_PURPOSE[ask.purpose];
+  const makeSubject = subjectMakerOf(ask);
+  return judgeStage(plan.event, () => {
+    const requestFor = requestMakerFor(ask.headers);
+    return plan.buckets.map((bucket) =>
+      subjectStep(requestFor(bucket), makeSubject),
+    );
+  });
+}
+
+/** The subject is made through its constructor only when a step is asked, so a text it refuses is a failed judgement. */
+function subjectMakerOf(ask: AccountSubjectAsk): () => BucketSubject {
+  if (ask.purpose === "claim") {
+    const { accountId } = ask;
+    return () => subjectOfAccountId(accountId);
+  }
+  const { address } = ask;
+  return () => subjectOfAddress(address);
+}
+
+async function judgeStage(
+  event: AccountEvent,
+  makeSteps: () => PolicyStep[],
+): Promise<WriteJudgement> {
+  const judgement = await judgementOf(makeSteps);
+  reportJudgement(event, judgement);
   return judgement;
 }
 
 async function judgementOf(
-  plan: AccountPlan,
-  ask: AccountRequestAsk,
+  makeSteps: () => PolicyStep[],
 ): Promise<WriteJudgement> {
   try {
-    return await judgeStepsInSequence(stepsOf(plan, ask));
+    return await judgeStepsInSequence(makeSteps());
   } catch {
     return UNJUDGED;
   }
-}
-
-function stepsOf(
-  plan: AccountPlan,
-  { headers, address, accountId }: AccountRequestAsk,
-): PolicyStep[] {
-  const requestFor = requestMakerFor(headers);
-  const steps = plan.blocks.map((purpose) => blockStep(requestFor(purpose)));
-  if (address !== undefined) {
-    steps.push(
-      ...plan.addressBuckets.map((purpose) =>
-        subjectStep(requestFor(purpose), () => subjectOfAddress(address)),
-      ),
-    );
-  }
-  if (accountId !== undefined) {
-    steps.push(
-      ...plan.accountBuckets.map((purpose) =>
-        subjectStep(requestFor(purpose), () => subjectOfAccountId(accountId)),
-      ),
-    );
-  }
-  return steps;
 }
 
 /** One instant and one environment for every step, so a request judged across a window's turn tells one wait. */

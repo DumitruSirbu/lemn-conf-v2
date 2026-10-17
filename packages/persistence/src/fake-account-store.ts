@@ -237,6 +237,11 @@ export class FakeAccountStore implements AccountStore {
     return this.accountsById.get(accountId)?.passwordHash;
   }
 
+  /** The account's `password_changed_at`, which a session's liveness compares with its own creation. */
+  passwordChangedAtOf(accountId: string): Date | undefined {
+    return this.accountsById.get(accountId)?.passwordChangedAt;
+  }
+
   /** Every account the table would hold. */
   heldAccounts(): readonly StoredAccount[] {
     return [...this.accountsById.values()].map((held) => storedAccountOf(held));

@@ -45,8 +45,11 @@ export class NeonSessionStore implements SessionStore {
    * gone inserts nothing and raises no foreign-key error.
    *
    * The answer is a row per outcome: `created` for the insert, or for a repeat after a lost acknowledgement that finds
-   * its own live row (that arm wins over `stale`); `stale` for an account that exists under another hash; no row at all
-   * for an account that is gone or a token hash another account already holds.
+   * its own live row (that arm wins over `stale`); `stale` when the statement's snapshot shows the account under
+   * another hash; no row at all otherwise, which reads `refused`. That last case is not only an account that is gone
+   * or a token hash already held: a reset committing **while this statement waits on the row lock** also ends here,
+   * because the `for share` re-check drops the row while the `stale` arm reads the earlier snapshot. So `stale` and
+   * `refused` both mean no session, and a caller treats every result other than `created` as a failed sign-in.
    */
   async create(session: NewSession): Promise<SessionCreation> {
     requireValidNewSession(session);
@@ -81,10 +84,16 @@ export class NeonSessionStore implements SessionStore {
   }
 
   /**
-   * Live is three conditions in the one `where`: not revoked, before the absolute expiry, and `last_seen_at` plus the
-   * idle lifetime of the account's **current** role still ahead. The lifetimes travel as one JSON object keyed by role
-   * name, so a role with no figure reads as null, the comparison is not true, and the session is not live.
-   * `last_seen_at` is read as epoch milliseconds in text, so the driver's rendering of a timestamp never matters.
+   * Live is four conditions in the one `where`: not revoked, before the absolute expiry, `last_seen_at` plus the idle
+   * lifetime of the account's **current** role still ahead, and created no earlier than the account's
+   * `password_changed_at`. The last is a second line behind the revocation a reset performs: a session that a login
+   * racing the reset managed to write is older than the password and reads as not live. The column is `not null`, so
+   * it needs no guard for a missing value. The lifetimes travel as one JSON object keyed by role name, so a role with
+   * no figure reads as null, the comparison is not true, and the session is not live. `last_seen_at` is read as epoch
+   * milliseconds in text, so the driver's rendering of a timestamp never matters.
+   *
+   * Residual: a request that read its session as live **before** a reset committed, and finishes its work after, acted
+   * under the old password for that long. No store rule can close a window inside a single request.
    */
   async findLive({
     tokenHash,
@@ -103,6 +112,7 @@ export class NeonSessionStore implements SessionStore {
           where s.token_hash = ${tokenHash}
             and s.revoked_at is null
             and s.absolute_expires_at > now()
+            and s.created_at >= a.password_changed_at
             and s.last_seen_at
               + ((${lifetimes}::jsonb ->> a.role)::double precision * interval '1 second') > now()
         `,
@@ -111,20 +121,36 @@ export class NeonSessionStore implements SessionStore {
     return lookupFrom(rows);
   }
 
-  /** Writes only a session that is unrevoked and before its absolute expiry, and whose `last_seen_at` is older than the
-   *  interval. The idle lifetime is not asked here: a touch follows a `findLive` in the same request. */
-  async touch(tokenHash: string): Promise<void> {
-    requireSessionTokenHash(tokenHash, "touch a session");
+  /**
+   * Writes only a session that is **live by `findLive`'s test, repeated here** (a tagged-template `sql` cannot be
+   * interpolated into another, so the predicate is written twice and must change together), and whose `last_seen_at`
+   * is older than the touch interval. The idle lifetime is therefore asked here and not left to a caller's earlier
+   * read: a touch of an idle-expired session changes nothing, so it cannot revive it.
+   */
+  async touch({
+    tokenHash,
+    idleLifetimeSeconds,
+  }: SessionLookupRequest): Promise<void> {
+    requireValidSessionLookupRequest(
+      { tokenHash, idleLifetimeSeconds },
+      "touch a session",
+    );
+    const lifetimes = JSON.stringify(idleLifetimeSeconds);
     await queryRows("touch a session", () =>
       retryOnTransientFailure(
         () => this.sql`
-          update account_sessions
+          update account_sessions s
           set last_seen_at = now()
-          where token_hash = ${tokenHash}
-            and revoked_at is null
-            and absolute_expires_at > now()
-            and last_seen_at < now() - (${SESSION_TOUCH_INTERVAL_SECONDS}::double precision * interval '1 second')
-          returning token_hash
+          from accounts a
+          where s.token_hash = ${tokenHash}
+            and a.id = s.account_id
+            and s.revoked_at is null
+            and s.absolute_expires_at > now()
+            and s.created_at >= a.password_changed_at
+            and s.last_seen_at
+              + ((${lifetimes}::jsonb ->> a.role)::double precision * interval '1 second') > now()
+            and s.last_seen_at < now() - (${SESSION_TOUCH_INTERVAL_SECONDS}::double precision * interval '1 second')
+          returning s.token_hash
         `,
       ),
     );

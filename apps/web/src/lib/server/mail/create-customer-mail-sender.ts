@@ -34,7 +34,10 @@ export function createCustomerMailSender(
 function buildFake(): CustomerMailSenderCreation {
   console.warn(FAKE_SENDER_WARNING);
   const fake = createFakeCustomerMailSender();
-  return { kind: "sender", sender: { send: (message) => fake.send(message) } };
+  return {
+    kind: "sender",
+    sender: { audience: fake.audience, send: (message) => fake.send(message) },
+  };
 }
 
 function buildProvider(

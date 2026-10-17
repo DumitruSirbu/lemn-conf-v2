@@ -35,12 +35,14 @@ export interface FakeSessionStoreOptions {
   readonly accountOf: (accountId: string) => SessionAccount | undefined;
   /** The account's current `password_hash`, or `undefined` when it has no row: what `create` compares. */
   readonly passwordHashOf: (accountId: string) => string | undefined;
+  /** The account's `password_changed_at`, or `undefined` when it has no row: a session created before it is not live. */
+  readonly passwordChangedAtOf: (accountId: string) => Date | undefined;
 }
 
 /**
  * In-memory `SessionStore` with `NeonSessionStore`'s contract: the same refusals, the same liveness rule (unrevoked,
- * before the absolute expiry, seen within the role's idle lifetime), a touch at most once per interval that never moves
- * the absolute expiry, and the same atomicity (each method finishes before the next starts). It cannot stand for a
+ * before the absolute expiry, seen within the role's idle lifetime, created no earlier than the account's last password
+ * change), a touch of a live session at most once per interval that never moves the absolute expiry, and the same atomicity (each method finishes before the next starts). It cannot stand for a
  * retry after a lost acknowledgement, which has no in-memory counterpart.
  */
 export class FakeSessionStore implements SessionStore {
@@ -48,15 +50,18 @@ export class FakeSessionStore implements SessionStore {
   private readonly now: () => Date;
   private readonly accountOf: (accountId: string) => SessionAccount | undefined;
   private readonly passwordHashOf: (accountId: string) => string | undefined;
+  private readonly passwordChangedAtOf: (accountId: string) => Date | undefined;
 
   constructor({
     now = () => new Date(),
     accountOf,
     passwordHashOf,
+    passwordChangedAtOf,
   }: FakeSessionStoreOptions) {
     this.now = now;
     this.accountOf = accountOf;
     this.passwordHashOf = passwordHashOf;
+    this.passwordChangedAtOf = passwordChangedAtOf;
   }
 
   create(session: NewSession): Promise<SessionCreation> {
@@ -86,21 +91,21 @@ export class FakeSessionStore implements SessionStore {
   findLive(request: SessionLookupRequest): Promise<SessionLookup> {
     return settle(() => {
       requireValidSessionLookupRequest(request);
-      const held = this.sessionsByHash.get(request.tokenHash);
-      const account = held && this.accountOf(held.accountId);
-      if (held === undefined || account === undefined) return { kind: "none" };
-      if (!this.isLive(held, account, request.idleLifetimeSeconds)) {
-        return { kind: "none" };
-      }
-      return { kind: "live", account, lastSeenAt: held.lastSeenAt };
+      const live = this.liveSessionOf(request);
+      if (live === undefined) return { kind: "none" };
+      return {
+        kind: "live",
+        account: live.account,
+        lastSeenAt: live.held.lastSeenAt,
+      };
     });
   }
 
-  touch(tokenHash: string): Promise<void> {
+  touch(request: SessionLookupRequest): Promise<void> {
     return settle(() => {
-      requireSessionTokenHash(tokenHash, "touch a session");
-      const held = this.sessionsByHash.get(tokenHash);
-      if (held === undefined || !this.isTouchable(held)) return;
+      requireValidSessionLookupRequest(request, "touch a session");
+      const held = this.liveSessionOf(request)?.held;
+      if (held === undefined || !this.isDueForTouch(held)) return;
       held.lastSeenAt = this.now();
     });
   }
@@ -132,6 +137,21 @@ export class FakeSessionStore implements SessionStore {
     return [...this.sessionsByHash.values()].map((held) => ({ ...held }));
   }
 
+  /** The session and its account when the request's hash names a live one: the one test `findLive` and `touch` share. */
+  private liveSessionOf({
+    tokenHash,
+    idleLifetimeSeconds,
+  }: SessionLookupRequest):
+    | { readonly held: HeldSession; readonly account: SessionAccount }
+    | undefined {
+    const held = this.sessionsByHash.get(tokenHash);
+    const account = held && this.accountOf(held.accountId);
+    if (held === undefined || account === undefined) return undefined;
+    return this.isLive(held, account, idleLifetimeSeconds)
+      ? { held, account }
+      : undefined;
+  }
+
   private isLive(
     held: HeldSession,
     account: SessionAccount,
@@ -144,18 +164,22 @@ export class FakeSessionStore implements SessionStore {
     return (
       held.revokedAt === undefined &&
       held.absoluteExpiresAt.getTime() > nowMs &&
+      this.isCreatedSincePasswordChange(held) &&
       idleEndsMs > nowMs
     );
   }
 
-  private isTouchable(held: HeldSession): boolean {
-    const nowMs = this.now().getTime();
-    const intervalMs = SESSION_TOUCH_INTERVAL_SECONDS * MILLISECONDS_PER_SECOND;
+  private isCreatedSincePasswordChange(held: HeldSession): boolean {
+    const passwordChangedAt = this.passwordChangedAtOf(held.accountId);
     return (
-      held.revokedAt === undefined &&
-      held.absoluteExpiresAt.getTime() > nowMs &&
-      held.lastSeenAt.getTime() < nowMs - intervalMs
+      passwordChangedAt !== undefined &&
+      held.createdAt.getTime() >= passwordChangedAt.getTime()
     );
+  }
+
+  private isDueForTouch(held: HeldSession): boolean {
+    const intervalMs = SESSION_TOUCH_INTERVAL_SECONDS * MILLISECONDS_PER_SECOND;
+    return held.lastSeenAt.getTime() < this.now().getTime() - intervalMs;
   }
 }
 
@@ -177,6 +201,7 @@ export function createFakeAccountAndSessionStores(
     now,
     accountOf: (accountId) => accounts.sessionAccountOf(accountId),
     passwordHashOf: (accountId) => accounts.passwordHashOf(accountId),
+    passwordChangedAtOf: (accountId) => accounts.passwordChangedAtOf(accountId),
   });
   return { accounts, sessions };
 }

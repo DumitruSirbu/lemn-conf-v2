@@ -2,7 +2,7 @@ import "server-only";
 
 import {
   isSendableMailMessage,
-  sendableCopyOf,
+  sendableBodyCopyOf,
   type MailOutcome,
 } from "@/lib/server/mail/mail-sender";
 import { asciiDomainOfPlainMailbox } from "@/lib/server/mail/plain-mailbox";
@@ -24,9 +24,16 @@ export interface CustomerMailMessage {
   readonly html?: string;
 }
 
-/** As the shop's `MailSender`: a send answers with a value and never rejects. */
+export const CUSTOMER_AUDIENCE = "customer";
+
+/**
+ * As the shop's `MailSender`: a send answers with a value and never rejects. `audience` is a brand, so a shop sender
+ * cannot be assigned here; `send` is a property in both interfaces, so this sender, whose `send` does not accept a shop
+ * message, cannot be assigned to a `MailSender` either.
+ */
 export interface CustomerMailSender {
-  send(message: CustomerMailMessage): Promise<MailOutcome>;
+  readonly audience: typeof CUSTOMER_AUDIENCE;
+  readonly send: (message: CustomerMailMessage) => Promise<MailOutcome>;
 }
 
 /**
@@ -59,7 +66,7 @@ export function sendableCustomerCopyOf(
   message: CustomerMailMessage,
 ): CustomerMailMessage | undefined {
   const recipient = readRecipient(message);
-  const shared = sendableCopyOf(message);
+  const shared = sendableBodyCopyOf(message);
   if (recipient === undefined || shared === undefined) return undefined;
   const copy: CustomerMailMessage = Object.freeze({ recipient, ...shared });
   return isSendableCustomerMail(copy) ? copy : undefined;

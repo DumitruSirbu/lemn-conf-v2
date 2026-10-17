@@ -142,8 +142,8 @@ export interface AccountStore {
   confirmEmail(
     confirmation: EmailConfirmation,
   ): Promise<EmailConfirmationOutcome>;
-  /** One atomic step: the newest live token, marked used, the hash and `password_changed_at` set, every session of the
-   *  account revoked. */
+  /** One atomic transaction: the newest live token, marked used, the hash and `password_changed_at` set, then every
+   *  session of the account revoked (a second statement, so a session a racing login committed is revoked too). */
   completeReset(reset: PasswordReset): Promise<PasswordResetOutcome>;
   replacePasswordHash(rehash: PasswordRehash): Promise<PasswordRehashOutcome>;
 }

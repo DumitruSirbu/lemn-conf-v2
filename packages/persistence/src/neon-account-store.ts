@@ -41,7 +41,8 @@ const RESET_PASSWORD = "reset-password";
  * `AccountStore` on Neon Postgres, over `accounts` and `account_email_tokens` (migrations `0012`, `0014`). Every query
  * is a tagged-template `sql`, which parameterises values. Each method is **one statement**, so it is atomic without
  * `sql.transaction` (a batch of statements cannot branch on an earlier one): a token's `update … returning` is the gate,
- * and the other writes are driven from its `returning`.
+ * and the other writes are driven from its `returning`. The one exception is `completeReset`, a two-statement
+ * transaction whose second statement needs a snapshot taken after the first has finished waiting.
  *
  * The statements write only columns the application role is granted: `accounts` INSERT of the eight registration
  * columns and UPDATE of the verification, password, phone, locale and notice columns; `account_email_tokens` UPDATE of
@@ -276,9 +277,26 @@ export class NeonAccountStore implements AccountStore {
   }
 
   /**
-   * The same gate over a `reset-password` token of a **verified** account; the account comes from the token. The
-   * password, `password_changed_at` and every unrevoked session of the account change in this one statement, or none
-   * of it does. `account_sessions` is touched only through `revoked_at`.
+   * The same gate over a `reset-password` token of a **verified** account; the account comes from the token. It is one
+   * transaction of two statements, at READ COMMITTED (pinned: the second statement's fresh snapshot is load-bearing).
+   *
+   * Statement 1 consumes the token, retires its siblings and sets the password and `password_changed_at`, and answers
+   * whether the token was consumed. Its `accounts` update waits for any `SessionStore.create` holding the account row
+   * `for share`, and then holds the row until the transaction commits, so a later `create` waits and finds the hash
+   * replaced. Statement 2 revokes the account's unrevoked sessions. It cannot be a CTE of statement 1: a CTE reads the
+   * snapshot taken before that wait, and so misses the session a login committed while the update waited. A separate
+   * statement takes a new snapshot after statement 1 has finished waiting, and sees it.
+   *
+   * `password_changed_at` is `clock_timestamp()`, not the transaction's `now()`: `findLive` refuses a session created
+   * before it, and a racing login's `created_at` is its own statement's `now()`, which can be later than this
+   * transaction's. The residual sliver: the value is evaluated before the update waits on the share lock, so a login
+   * that began between the two can still have `created_at` after it. That session is caught by statement 2's
+   * revocation, which is the rule; the `findLive` comparison is a second line behind it.
+   *
+   * Statement 2 revokes only for a token **this transaction** consumed (`used_at = now()`, the transaction's one
+   * instant, which a retry's transaction cannot share): a replayed used token, or a retry after a lost acknowledgement
+   * of a commit, revokes nothing, so a login made under the new password meanwhile stands. `account_sessions` is
+   * touched only through `revoked_at`.
    *
    * On a retry only, a used token whose account carries exactly this call's new hash is the first attempt's own write:
    * a PHC string holds a random salt, so no other call can have written the same one.
@@ -288,64 +306,77 @@ export class NeonAccountStore implements AccountStore {
     passwordHash,
   }: PasswordReset): Promise<PasswordResetOutcome> {
     requireValidPasswordReset({ tokenHash, passwordHash });
-    const rows = await queryRows("complete a password reset", () =>
-      retryOnTransientFailure(
-        ({ isRetry }) => this.sql`
-          with consumed as (
-            update account_email_tokens t
-            set used_at = now()
-            where t.token_hash = ${tokenHash}
-              and t.purpose = ${RESET_PASSWORD}
-              and t.used_at is null
-              and t.expires_at > now()
-              and exists (
-                select 1 from accounts a
-                where a.id = t.account_id and a.email_verified_at is not null
-              )
-              and not exists (
-                select 1 from account_email_tokens newer
-                where newer.account_id = t.account_id
-                  and newer.purpose = t.purpose
-                  and newer.used_at is null
-                  and (newer.created_at, newer.token_hash) > (t.created_at, t.token_hash)
-              )
-            returning t.account_id
-          ), superseded as (
-            update account_email_tokens s
-            set used_at = now()
-            where s.account_id in (select account_id from consumed)
-              and s.purpose = ${RESET_PASSWORD}
-              and s.used_at is null
-              and s.token_hash <> ${tokenHash}
-            returning s.token_hash
-          ), changed as (
-            update accounts
-            set password_hash = ${passwordHash}, password_changed_at = now(), updated_at = now()
-            where id in (select account_id from consumed)
-            returning id
-          ), revoked as (
-            update account_sessions
-            set revoked_at = now()
-            where account_id in (select account_id from consumed) and revoked_at is null
-            returning token_hash
-          )
-          select (
-            exists (select 1 from consumed)
-            or (
-              ${isRetry}::boolean
-              and exists (
-                select 1 from account_email_tokens t
-                join accounts a on a.id = t.account_id
-                where t.token_hash = ${tokenHash}
-                  and t.purpose = ${RESET_PASSWORD}
-                  and t.used_at is not null
-                  and a.password_hash = ${passwordHash}
-              )
-            )
-          ) as is_done
-        `,
-      ),
-    );
+    const rows = await queryRows("complete a password reset", async () => {
+      const [consumptionRows] = await retryOnTransientFailure(({ isRetry }) =>
+        this.sql.transaction(
+          [
+            this.sql`
+                with consumed as (
+                  update account_email_tokens t
+                  set used_at = now()
+                  where t.token_hash = ${tokenHash}
+                    and t.purpose = ${RESET_PASSWORD}
+                    and t.used_at is null
+                    and t.expires_at > now()
+                    and exists (
+                      select 1 from accounts a
+                      where a.id = t.account_id and a.email_verified_at is not null
+                    )
+                    and not exists (
+                      select 1 from account_email_tokens newer
+                      where newer.account_id = t.account_id
+                        and newer.purpose = t.purpose
+                        and newer.used_at is null
+                        and (newer.created_at, newer.token_hash) > (t.created_at, t.token_hash)
+                    )
+                  returning t.account_id
+                ), superseded as (
+                  update account_email_tokens s
+                  set used_at = now()
+                  where s.account_id in (select account_id from consumed)
+                    and s.purpose = ${RESET_PASSWORD}
+                    and s.used_at is null
+                    and s.token_hash <> ${tokenHash}
+                  returning s.token_hash
+                ), changed as (
+                  update accounts
+                  set password_hash = ${passwordHash}, password_changed_at = clock_timestamp(), updated_at = now()
+                  where id in (select account_id from consumed)
+                  returning id
+                )
+                select (
+                  exists (select 1 from consumed)
+                  or (
+                    ${isRetry}::boolean
+                    and exists (
+                      select 1 from account_email_tokens t
+                      join accounts a on a.id = t.account_id
+                      where t.token_hash = ${tokenHash}
+                        and t.purpose = ${RESET_PASSWORD}
+                        and t.used_at is not null
+                        and a.password_hash = ${passwordHash}
+                    )
+                  )
+                ) as is_done
+              `,
+            this.sql`
+                update account_sessions
+                set revoked_at = now()
+                where revoked_at is null
+                  and account_id in (
+                    select t.account_id from account_email_tokens t
+                    where t.token_hash = ${tokenHash}
+                      and t.purpose = ${RESET_PASSWORD}
+                      and t.used_at = now()
+                  )
+                returning token_hash
+              `,
+          ],
+          { isolationLevel: "ReadCommitted" },
+        ),
+      );
+      return consumptionRows;
+    });
     return isDone(rows, "complete a password reset")
       ? { kind: "password-changed" }
       : { kind: "invalid" };

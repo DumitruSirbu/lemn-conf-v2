@@ -7,6 +7,7 @@ import { createTranslator, hasLocale, type IntlError } from "next-intl";
 import { resolveAccountMailCopy, type AccountMailCopy } from "@/i18n/content";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { escapeHtml } from "@/lib/server/mail/lead-notification-html";
+import type { PublicOrigin } from "@/lib/server/public-origin";
 import roMessages from "@/messages/ro.json";
 import ruMessages from "@/messages/ru.json";
 
@@ -16,15 +17,18 @@ export type AccountMailKind =
   | "reset-password"
   | "password-changed";
 
-/** A link under the site's public origin (`readPublicOrigin`'s answer), with the single-use token after `#`. */
+/**
+ * A link under the site's public origin, with the single-use token after `#`. The origin is a `PublicOrigin`, which only
+ * `readPublicOrigin` makes: the link's origin never comes from the request.
+ */
 export interface AccountMailTokenLink {
-  readonly origin: string;
+  readonly origin: PublicOrigin;
   readonly token: string;
 }
 
 /** A link under the site's public origin to a page that takes no token. */
 export interface AccountMailPlainLink {
-  readonly origin: string;
+  readonly origin: PublicOrigin;
 }
 
 export type AccountMailRequest =
@@ -47,7 +51,8 @@ export interface AccountMailContent {
   readonly html: string;
 }
 
-/** A link whose origin is not a bare origin, or whose token is not URL-safe. Holds neither value. */
+/** A link whose origin is not a bare origin, or whose token is not a URL-safe token of the generator's length. Holds
+ *  neither value. */
 export class AccountMailLinkError extends Error {
   constructor() {
     super("The account mail's link is not a bare origin with a URL-safe token");
@@ -55,9 +60,19 @@ export class AccountMailLinkError extends Error {
   }
 }
 
+/** A token hash that is not a SHA-256 hex string. Holds no value: it could be a secret's digest. */
+export class AccountMailKeyError extends Error {
+  constructor() {
+    super("The account mail's token hash is not a SHA-256 hex string");
+    this.name = "AccountMailKeyError";
+  }
+}
+
 export const ACCOUNT_MAIL_KEY_PREFIX = "account-mail/";
 
-const URL_SAFE_TOKEN = /^[A-Za-z0-9_-]{16,128}$/;
+/** Exactly what the token generator emits: `randomBytes(32).toString("base64url")` is `ceil(256 / 6) = 43` characters,
+ *  no padding. The database stores only the token's SHA-256 hex, which is what `accountMailKey` is given. */
+const URL_SAFE_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 const KEY_HASH_PREFIX_LENGTH = 16;
 const RANDOM_KEY_BYTES = 16;
@@ -94,17 +109,23 @@ export function buildAccountMail(
 
 /**
  * The idempotency key: the kind and the first half of the token row's hash (which names no address and cannot
- * produce the token), or a random value when the mail has no token row.
+ * produce the token), or a random value when the mail has no token row (`tokenHash` absent). A hash that is given and
+ * malformed is a caller's defect and never falls back to a random value, which would hide it and defeat the retry key.
+ * @throws AccountMailKeyError for a `tokenHash` that is not SHA-256 hex.
  */
 export function accountMailKey(
   kind: AccountMailKind,
   tokenHash?: string,
 ): string {
-  const suffix =
-    tokenHash !== undefined && SHA256_HEX.test(tokenHash)
-      ? tokenHash.slice(0, KEY_HASH_PREFIX_LENGTH)
-      : randomBytes(RANDOM_KEY_BYTES).toString("hex");
-  return `${ACCOUNT_MAIL_KEY_PREFIX}${kind}/${suffix}`;
+  return `${ACCOUNT_MAIL_KEY_PREFIX}${kind}/${keySuffixOf(tokenHash)}`;
+}
+
+function keySuffixOf(tokenHash: string | undefined): string {
+  if (tokenHash === undefined) {
+    return randomBytes(RANDOM_KEY_BYTES).toString("hex");
+  }
+  if (!SHA256_HEX.test(tokenHash)) throw new AccountMailKeyError();
+  return tokenHash.slice(0, KEY_HASH_PREFIX_LENGTH);
 }
 
 interface MailParts {

@@ -12,13 +12,29 @@ export type PublicOriginEnvironment = Readonly<
   Record<string, string | undefined>
 >;
 
+declare const publicOriginBrand: unique symbol;
+
+/**
+ * An origin that `readPublicOrigin` accepted: the one value a link the server writes into a message may be built on.
+ * It is only a type, and only `readPublicOrigin` makes one, so an origin taken from a request, a header or a body
+ * cannot be passed where a `PublicOrigin` is asked for.
+ */
+export type PublicOrigin = string & { readonly [publicOriginBrand]: true };
+
 /** `unavailable` names the variable and nothing of what it holds, not even whether it was set. */
 export type PublicOriginOutcome =
   | { readonly status: "configured"; readonly origin: string }
-  | {
-      readonly status: "unavailable";
-      readonly variable: typeof PUBLIC_ORIGIN_VARIABLE;
-    };
+  | PublicOriginUnavailable;
+
+interface PublicOriginUnavailable {
+  readonly status: "unavailable";
+  readonly variable: typeof PUBLIC_ORIGIN_VARIABLE;
+}
+
+/** What `readPublicOrigin` answers: a `PublicOriginOutcome` whose origin, when there is one, is branded. */
+export type ReadPublicOriginOutcome =
+  | { readonly status: "configured"; readonly origin: PublicOrigin }
+  | PublicOriginUnavailable;
 
 /** DNS's own bounds (RFC 1035 §2.3.4): a longer name never resolves, so it is a typo, not a host. */
 const MAX_HOST_NAME_LENGTH = 253;
@@ -38,7 +54,7 @@ const LOOPBACK_HOSTS: ReadonlySet<string> = new Set([
 /** The URL standard accepts port 0, which no server listens on: a link under it opens nothing. */
 const UNUSABLE_PORT = "0";
 
-const UNAVAILABLE: PublicOriginOutcome = {
+const UNAVAILABLE: PublicOriginUnavailable = {
   status: "unavailable",
   variable: PUBLIC_ORIGIN_VARIABLE,
 };
@@ -55,14 +71,16 @@ const UNAVAILABLE: PublicOriginOutcome = {
  */
 export function readPublicOrigin(
   environment: PublicOriginEnvironment,
-): PublicOriginOutcome {
+): ReadPublicOriginOutcome {
   const value = ownValue(environment, PUBLIC_ORIGIN_VARIABLE);
   if (value === undefined) return UNAVAILABLE;
   const kind = originKindOf(value);
   const isAccepted =
     kind === "public" ||
     (kind === "loopback" && isTheFakeSendersEnvironment(environment));
-  return isAccepted ? { status: "configured", origin: value } : UNAVAILABLE;
+  return isAccepted
+    ? { status: "configured", origin: value as PublicOrigin }
+    : UNAVAILABLE;
 }
 
 /**

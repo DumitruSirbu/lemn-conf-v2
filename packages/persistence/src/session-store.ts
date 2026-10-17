@@ -43,9 +43,14 @@ export interface NewSession {
   readonly absoluteExpiresAt: Date;
 }
 
-/** `stale` is an account whose hash is no longer `expectedPasswordHash` (a reset or a rehash won the race): nothing was
- *  written. `refused` is an account that does not exist, or a token hash already held by another account or already
- *  revoked. */
+/**
+ * Only `created` is a session. `stale` is an account whose hash was no longer `expectedPasswordHash` when the statement
+ * began; `refused` is every other case with no session: an account that does not exist, a token hash another account
+ * (or a revoked row) already holds, **and a reset or rehash that committed while the statement waited on the account's
+ * row lock**, since the re-check after that wait finds nothing to insert and the `stale` arm reads the statement's
+ * earlier snapshot. The two are therefore not a reliable diagnosis, and a caller treats **every result other than
+ * `created` as a failed sign-in that holds no session**, never as a signed-in response.
+ */
 export type SessionCreation =
   | { readonly kind: "created" }
   | { readonly kind: "stale" }
@@ -76,7 +81,7 @@ export type SessionLookup =
 
 /**
  * The port for sessions (ADR 0169 decision 3). A session is live while it is not revoked, before its absolute expiry,
- * and seen within its role's idle lifetime. Nothing here sets a cookie: `touch` writes the database alone, and only a
+ * seen within its role's idle lifetime, and created no earlier than the account's last password change. Nothing here sets a cookie: `touch` writes the database alone, and only a
  * route handler calls it. No method deletes a row, and none writes `token_hash`, `account_id`, `created_at` or
  * `absolute_expires_at` after insert.
  */
@@ -84,9 +89,10 @@ export interface SessionStore {
   create(session: NewSession): Promise<SessionCreation>;
   /** One read joining the account, so the role, address and verification are the account's current ones. */
   findLive(request: SessionLookupRequest): Promise<SessionLookup>;
-  /** Marks the session seen now, only if it is live and was last seen more than `SESSION_TOUCH_INTERVAL_SECONDS` ago.
-   *  It never extends the absolute expiry. */
-  touch(tokenHash: string): Promise<void>;
+  /** Marks the session seen now, only if it is live **by the same test as `findLive`** (so an idle-expired session is
+   *  never revived) and was last seen more than `SESSION_TOUCH_INTERVAL_SECONDS` ago. It never extends the absolute
+   *  expiry. */
+  touch(request: SessionLookupRequest): Promise<void>;
   /** Idempotent: an unknown or already revoked session changes nothing. */
   revoke(tokenHash: string): Promise<void>;
   /** Revokes every unrevoked session of the account, the caller's own included. */
@@ -107,12 +113,14 @@ export function requireValidNewSession(session: NewSession): void {
   );
 }
 
+/** `findLive` and `touch` ask the same question of the same request, so each names itself in the refusal. */
 export function requireValidSessionLookupRequest(
   request: SessionLookupRequest,
+  operation: "look up a session" | "touch a session" = "look up a session",
 ): void {
-  requireSessionTokenHash(request.tokenHash, "look up a session");
+  requireSessionTokenHash(request.tokenHash, operation);
   for (const role of Object.keys(ROLES)) {
-    requireIdleLifetime(request.idleLifetimeSeconds, role);
+    requireIdleLifetime(request.idleLifetimeSeconds, role, operation);
   }
 }
 
@@ -126,12 +134,13 @@ export function requireSessionTokenHash(
 function requireIdleLifetime(
   lifetimes: Readonly<Record<string, unknown>>,
   role: string,
+  operation: string,
 ): void {
   const seconds = lifetimes[role];
   if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) {
     return;
   }
   throw new Error(
-    `Refusing to look up a session: the idle lifetime of the ${role} role must be a positive number of seconds.`,
+    `Refusing to ${operation}: the idle lifetime of the ${role} role must be a positive number of seconds.`,
   );
 }

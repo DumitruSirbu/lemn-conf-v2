@@ -6,6 +6,7 @@ import { createTransport } from "nodemailer";
 
 import {
   asciiMailboxOf,
+  CUSTOMER_AUDIENCE,
   sendableCustomerCopyOf,
   type CustomerMailMessage,
   type CustomerMailSender,
@@ -204,6 +205,7 @@ export function createGmailCustomerMailSender(
 ): CustomerMailSender {
   const setup: SenderSetup = { configuration, makeTransport };
   return {
+    audience: CUSTOMER_AUDIENCE,
     send: (message) =>
       sendOnce(tryBuildCustomerMessage(message, configuration), setup),
   };

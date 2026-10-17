@@ -54,10 +54,10 @@ export async function readCurrentSession(
 }
 
 /**
- * Marks the session seen. **Route handlers only**: a Server Component calling this would make a render write. The idle
- * test is not the store's `touch` to make, so a session is touched only after `findLive` has found it live in this call;
- * otherwise an idle-expired session would be revived by being touched. A failed touch is bookkeeping that failed, so it
- * is logged and never fails the request.
+ * Marks the session seen. **Route handlers only**: a Server Component calling this would make a render write. The store
+ * applies `findLive`'s whole test (idle lifetime included) inside the write, so an idle-expired session is not revived
+ * by being touched and no read precedes it. A failed touch is bookkeeping that failed, so it is logged and never fails
+ * the request.
  */
 export async function touchCurrentSession(
   cookies: SessionCookieReader,
@@ -65,13 +65,10 @@ export async function touchCurrentSession(
   const sessionValue = readSessionCookie(cookies);
   if (sessionValue === undefined) return;
   try {
-    const store = getSessionStore();
-    const tokenHash = sha256Hex(sessionValue);
-    const lookup = await store.findLive({
-      tokenHash,
+    await getSessionStore().touch({
+      tokenHash: sha256Hex(sessionValue),
       idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
     });
-    if (lookup.kind === "live") await store.touch(tokenHash);
   } catch {
     reportAccountEvent({ event: "session-read", outcome: "unavailable" });
   }

@@ -253,11 +253,19 @@ of the flows. The runbook section for `0012`–`0015` is written in L1 (docs).
 1. `isCrossSiteRequest` → `403`, nothing read.
 2. `content-type: application/json`, else `415`.
 3. Body bounded by `read-body-with-limit.ts` (8 KiB), else `413`.
-4. Network-block limiter for the purpose → `429` / `503`.
+4. Network-block limiter for the purpose (`judgeAccountBlock`) → `429` / `503`.
 5. Turnstile, where named → `403 challenge-failed` / `503`.
 6. Input validation (domain) → `400` with field codes. **Independent of whether the address has an account.**
-7. Per-address limiter, where named.
+7. Subject limiter, where named (`judgeAccountSubject`: the address's or the account's buckets), before any account
+   lookup → `429` / `503`.
 8. The work.
+
+**The two stages are two calls, and no bucket is counted in both** (security review of L5, 2026-10-18). Step 4
+counts only network buckets; step 7 counts only address or account buckets. A refused step 4 never reaches step 7, so
+a refused block counts no row for an address, which anyone could otherwise invent; a Turnstile failure or an invalid
+body is answered before step 7, so it counts no address bucket either. `confirm-email` and `password-reset-complete`
+have step 4 only (the token is the subject). Each stage fails closed: whatever cannot be judged is `503`, and no
+account write goes on.
 
 Every answer is `Cache-Control: private, no-store`. **No answer, log line, error or header contains a password,
 a token, an e-mail address or a phone number** (`account-log.ts` writes event kinds, outcomes and policy names
@@ -271,7 +279,7 @@ only).
 | 4 | **Logout** `POST /api/account/logout` `{scope:"this-device"\|"everywhere"}` | Revoke this session, or every session of the account | `204`, the session cookie cleared (`Max-Age=0`, the same attributes, never `cookies.delete`, as `visitor.ts` explains [src]). No session: `204`, nothing done |
 | 5 | **Who am I** `GET /api/account/session` | Read the session (fails open to anonymous) | `{state:"anonymous"}` or `{state:"signed-in", email, capabilities:[…]}` |
 | 6 | **Forgot** `POST /api/account/password-reset/request` `{email, turnstileToken}` | Count the per-address buckets for **every** valid request, before any lookup. Then, **after the response** (`after()`): for a verified account, issue a `reset-password` token and mail the link; for an unknown or unverified address, do nothing. The request path before the answer is the same in every branch | **`202 {status:"check-inbox"}` always**, and a per-address `429` reads the same for every address |
-| 7 | **Reset** `GET /[locale]/account/reset-password#t=<token>`, then `POST …/password-reset/complete` `{token, newPassword}` | Policy check. One transaction: token valid (as in 2), set the hash and `password_changed_at`, revoke **every** session, mark the token used. Queue a "your password was changed" mail | `200 {status:"password-changed"}`. **No session is started**; the client logs in. One `400 link-invalid` |
+| 7 | **Reset** `GET /[locale]/account/reset-password#t=<token>`, then `POST …/password-reset/complete` `{token, newPassword}` | Policy check. One transaction of two statements: (1) token valid (as in 2), set the hash and `password_changed_at`, mark the token used; (2) revoke **every** session of the account, in a fresh snapshot so a session a racing login committed while (1) waited is revoked too (L4a/L4b review F1). Queue a "your password was changed" mail | `200 {status:"password-changed"}`. **No session is started**; the client logs in. One `400 link-invalid` |
 | 8 | **Claim** `GET /api/account/claim`, `POST /api/account/claim` | Requires a session, a verified account, `design.edit.own` and a well-formed visitor cookie. The `GET` counts designs with `visitor_hash = $v and account_id is null`. The `POST` (the client's confirmation) runs one `update … set account_id = $a where visitor_hash = $v and account_id is null returning id` | `{claimable:n}` / `{claimed:n}`. No visitor cookie: `{claimable:0}` |
 
 **Sessions** (D3):
@@ -308,9 +316,13 @@ only).
 | `account-claim-by-account` | new `subjectOfAccountId` | 10 / 60 min |
 | `design-save-by-account` | `subjectOfAccountId` | `SAVES_PER_CREDENTIAL_FIGURE` (300 / 60 min): the session twin of the write-credential bucket (ADR 0156) |
 
-**What the per-address buckets allow, accepted [inf]:** a stranger can spend a victim's login attempts for 15
-minutes. Turnstile makes each attempt cost a solved challenge. The refusal reads the same for known and unknown
-addresses.
+**What the per-address buckets allow, accepted [inf; that `account-login-by-address-day` and `account-mail-by-address` use
+`utcMinutes(ACCOUNT_DAY_MINUTES)`, a fixed UTC day, is source-verified in `limit-policy.ts` and `utc-window.ts`]:** a stranger who solves 30 Turnstile challenges (each attempt is counted before the password is
+looked at, so the victim's own correct password does not help) locks a victim's login until 00:00 UTC; the 10 per
+15 minutes bucket only spreads those 30 attempts across at least three quarter-hour windows. The 15-minute figure alone would
+cost the victim 15 minutes; the day figure is what makes it a day. Turnstile makes each attempt cost a solved
+challenge, and the refusal reads the same for known and unknown addresses. The owner may want the day figure raised or
+moved to a back-off that grows with failures (a figure changes constants, not code).
 
 ## 6. Variables and secrets the owner provisions
 
@@ -502,7 +514,7 @@ pattern); `public-origin.ts`; ADR 0146 (nothing from a driver or vendor leaves);
 
 | # | Item | File |
 | --- | --- | --- |
-| 1 | Port: `AccountStore`. `findByNormalForm`, `createUnverified`, `replaceUnverifiedRegistration`, `issueToken({accountId, purpose, tokenHash, expiresAt})`, `confirmEmail({tokenHash, accountId})` (one transaction: newest valid token, mark used, set verified), `completeReset({tokenHash, passwordHash})` (one transaction: token, hash, `password_changed_at`, revoke every session of the account), `replacePasswordHash` (rehash). Tagged results, never null | `account-store.ts` |
+| 1 | Port: `AccountStore`. `findByNormalForm`, `createUnverified`, `replaceUnverifiedRegistration`, `issueToken({accountId, purpose, tokenHash, expiresAt})`, `confirmEmail({tokenHash, accountId})` (one transaction: newest valid token, mark used, set verified), `completeReset({tokenHash, passwordHash})` (one transaction of two statements, READ COMMITTED: token, hash, `password_changed_at = clock_timestamp()`; then, in a fresh snapshot, revoke every session of the account, only for a token that transaction consumed), `replacePasswordHash` (rehash). Tagged results, never null | `account-store.ts` |
 | 2 | Neon implementation: tagged-template `sql` only, `retryOnTransientFailure` with ids generated outside the retried callback (the `mint` rule), driver errors through ADR 0146's rule | `neon-account-store.ts` |
 | 3 | In-memory fake with the same contract | `fake-account-store.ts` |
 | 4 | Exports | `index.ts` |
@@ -539,7 +551,7 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
 
 | # | Item | File |
 | --- | --- | --- |
-| 1 | Port: `SessionStore`. `create({tokenHash, accountId, expectedPasswordHash, absoluteExpiresAt})` (a compare-and-set on the account's hash: `created`, `stale` or `refused`), `findLive(tokenHash)` → `{account: {id, role, emailVerified, email}, lastSeenAt}` or `none` (one statement joining `accounts`; filters revoked, absolutely expired, and idle-expired by the role's idle lifetime passed in), `touch(tokenHash)` (database only, never a cookie; only if `last_seen_at` is older than the touch interval), `revoke(tokenHash)`, `revokeAllForAccount(accountId)` | `session-store.ts` |
+| 1 | Port: `SessionStore`. `create({tokenHash, accountId, expectedPasswordHash, absoluteExpiresAt})` (a compare-and-set on the account's hash: `created`, `stale` or `refused`), `findLive(tokenHash)` → `{account: {id, role, emailVerified, email}, lastSeenAt}` or `none` (one statement joining `accounts`; filters revoked, absolutely expired, idle-expired by the role's idle lifetime passed in, and created before the account's `password_changed_at`), `touch({tokenHash, idleLifetimeSeconds})` (database only, never a cookie; only a session that is live by `findLive`'s whole test, and only if `last_seen_at` is older than the touch interval), `revoke(tokenHash)`, `revokeAllForAccount(accountId)` | `session-store.ts` |
 | 2 | Neon implementation | `neon-session-store.ts` |
 | 3 | Fake | `fake-session-store.ts` |
 | 4 | Exports (after L4a) | `index.ts` |
@@ -549,12 +561,21 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
 **Acceptance.**
 1. `findLive` never returns a session that is revoked, past `absolute_expires_at`, or idle past its role's
    lifetime. A role read is the account's **current** `role`, so a demotion takes effect on the next request.
-2. `touch` writes at most once per interval per session, and never extends `absolute_expires_at`.
+2. `touch` writes at most once per interval per session, never extends `absolute_expires_at`, and never revives a
+   session `findLive` would not return (idle-expired included): the idle test is in the write, not in a caller's earlier
+   read (L4b/L5 security review F5, 2026-10-18).
 3. `revokeAllForAccount` leaves no live session for that account, including the caller's.
 4. `create` inserts only while the account's `password_hash` is still `expectedPasswordHash`, otherwise it answers
    `stale` and writes nothing (L4a security review F2, 2026-10-18): a reset or rehash that wins the race cannot be
-   followed by a session bound to the hash it replaced. Callers (L8 `startSession`, L9) pass the hash they hold, and
-   handle `stale` as a failed sign-in.
+   followed by a session bound to the hash it replaced. A reset that commits **while** the insert waits on the row lock
+   answers no row, which reads `refused`, not `stale`. Callers (L8 `startSession`, L9) pass the hash they hold, and
+   treat **every result other than `created`** (`stale` and `refused` alike) as a failed sign-in that holds no session.
+5. A reset leaves no live session, including one a login created while the reset waited on the account row: the
+   reset's second statement revokes in a fresh snapshot, and `findLive` additionally refuses a session created before
+   `password_changed_at` (L4b/L5 security review F1, 2026-10-18). **Residual:** `password_changed_at` is evaluated
+   before the reset's update waits on a share lock, so the `findLive` comparison alone would miss a login that began
+   in that gap; the revocation is the rule and the comparison a second line. A request that read its session as live
+   before the reset committed finishes its work under the old password.
 
 ---
 
@@ -564,7 +585,7 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
 | --- | --- | --- |
 | 1 | The purposes and figures of §5's table, each a named constant marked PROVISIONAL | `rate-limit/limit-policy.ts` |
 | 2 | `ACCOUNT_KIND` and `subjectOfAccountId(id)` (the id shape only), on the constructor-only model (ADR 0156) | `rate-limit/bucket-subject.ts` |
-| 3 | `judgeAccountRequest({purpose, headers, address?, accountId?})`: the block step, then the address or account step, through `judgeStepsInSequence`; fails closed; a refusal or unavailability reported through `account-log.ts` | `rate-limit/judge-account-request.ts` |
+| 3 | Two stages, each through `judgeStepsInSequence`, each failing closed, a refusal or unavailability reported through `account-log.ts`: `judgeAccountBlock({purpose, headers})` (the network's buckets; common order step 4, before Turnstile; the purposes `register`, `login`, `reset-request`, `confirm-email`, `password-reset-complete`) and `judgeAccountSubject(ask)` (the address's or the account's buckets; step 7, after Turnstile and validation, before any account lookup). The subject ask is a union keyed by purpose: `register`, `login`, `reset-request` and `mail` **require** `address`, `claim` **requires** `accountId`; there is no optional-address path. `mail` and `claim` have no block stage; `confirm-email` and `password-reset-complete` have no subject stage | `rate-limit/judge-account-request.ts` |
 
 **Reading:** this plan §5 *Limiter policies*; ADR 0155 (d1–d12), 0156 (subjects, writes fail closed), 0149;
 `limit-policy.ts`, `bucket-subject.ts`, `enforce-rate-limit.ts`, `judge-block-bucket.ts`, `judge-share-write.ts`,
@@ -578,7 +599,13 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
    has the same shape and would be accepted; what keeps an account key apart from every other key is the
    subject **kind**, which is digested with the text (`keyed-digest.ts`). Equal text under a different kind is a
    different key.
-4. The per-address step is asked only after the block step allowed, so a refused block counts no address hit.
+4. The subject stage is a route obligation after the block stage: it is asked only after the block stage allowed, and
+   after Turnstile and validation, so a refused block, a failed challenge or an invalid body counts no address hit.
+   **No bucket is counted twice:** `register` and `reset-request` count `account-mail-by-address` in their own subject
+   stage, so their routes must not also call `judgeAccountSubject({purpose:"mail"})`; `mail` is for a route that sends
+   a mail its flow did not count (login's unconfirmed resend), and it is a different bucket from login's address
+   buckets. The type system rejects a subject ask without its text; a cast that gets one through reads as
+   unavailable.
 
 ---
 
@@ -679,12 +706,62 @@ meet, and the reviewer checks them by reading:
   `replaceUnverifiedRegistration` racing the confirmation makes it answer `invalid`; that guarantee holds only when
   the hash passed is the one the password was verified against.
 - **`startSession` after a confirmation** passes the same `verifiedPasswordHash` as `expectedPasswordHash` to
-  `SessionStore.create` and answers a `stale` result as `link-or-password-invalid`, not as a signed-in response.
+  `SessionStore.create` and answers **every result other than `created`** (`stale` and `refused` alike; a reset
+  committing mid-insert reads `refused`) as `link-or-password-invalid`, not as a signed-in response, with no session
+  and no cookie set.
+- **Limiter calls (L5 review F2/F3), counted once.** The verify-email route calls `judgeAccountBlock` at step 4 only
+  (purpose `confirm-email`, before the body is hashed or the token read). The register route calls
+  `judgeAccountBlock` at step 4 (before Turnstile), then, after Turnstile and validation, `judgeAccountSubject`
+  `{purpose:"register", address}` before any account lookup: that call **is** the mail bucket for the mail the
+  branches queue, so the mail step must not count it again.
 - **Known divergence, kept on the tests-owed list.** When two tokens of one account and purpose are issued in the
   same clock tick, the Neon store breaks the tie by `token_hash` (`(created_at, token_hash)` ordering) while the fake
   breaks it by `issueOrder` (the later issue wins). They agree whenever the clock moves between issues, which is the
   production case; they can disagree inside one tick. The live two-in-one-tick test in §9 (L4a/L4b) stays owed and
   must assert only what both stores guarantee (exactly one token is live), not which one.
+
+**Conditions from the L7 security review (2026-10-18).** Each is the L8 caller's to meet, and the reviewer checks them
+by reading:
+- **The sender comes only from `createCustomerMailSender`.** No account flow builds a `CustomerMailSender` by hand or
+  takes a shop `MailSender`. L7 makes the two non-interchangeable by type (`CustomerMailSender` carries
+  `audience: "customer"`, so a shop sender is not assignable to it; both `send` members are properties, so a
+  customer sender is not assignable to `MailSender` either [source-verified by a throwaway typecheck]) and by behaviour
+  (the shop path, `sendableCopyOf`, refuses unsent any message with a `recipient` member of its own). The reviewer
+  greps the account modules for `createMailSender` and for `MailSender` imports: there must be none.
+- **The link's origin comes only from `readPublicOrigin(process.env)`.** `buildAccountMail` takes a branded
+  `PublicOrigin`, which only `readPublicOrigin` makes, so the request's `Host`, `Origin` and `X-Forwarded-*` headers
+  cannot reach a link. When it answers `unavailable`, the mail is not queued and the event is logged by kind only.
+- **The `after()` job catches what the mail builders throw.** `buildAccountMail` throws `AccountMailLinkError` (a
+  malformed origin or token) and, for a copy key missing from the messages, `IntlError`; `accountMailKey` throws
+  `AccountMailKeyError`. The job catches all three, logs the event kind and outcome with no message text, and never
+  lets one escape `after()` or change the response, which was sent before the job ran.
+- **Token shape.** The e-mail token is `randomBytes(32).toString("base64url")`: exactly 43 characters, `[A-Za-z0-9_-]`.
+  The generator in L8 emits that, the database stores its SHA-256 hex (64 characters) as `token_hash`, and
+  `buildAccountMail` accepts only a 43-character token (`AccountMailLinkError` otherwise). `accountMailKey` is given
+  the stored hash, or nothing when the mail has no token row; a hash that is given and malformed throws, and is never
+  replaced by a random key.
+- **The reset and verify pages clear the fragment and load no third-party script (L13).** On load each page reads
+  `#t=<token>` and calls `history.replaceState` to drop the fragment before anything else runs; neither page loads a
+  third-party script, frame or image (the Turnstile widget is on the pages that need a challenge, not on these two).
+  Otherwise the single-use token reaches a third party's code or a later `Referer`-less navigation's history entry.
+- **An e2e outbox reader is gated like the fake sender and never routable in production.** Any route, action or helper
+  that reads the fake customer sender's `sent` list is enabled only by `LEMNARIA_E2E_FAKE_MAIL=1` (`FAKE_MAIL_FLAG` in
+  `mail/fake-mail-flag.ts`, the fake sender's own flag, whose refusal beside a mail variable already exists), is absent from a production build, and has no path the
+  production router can match. The reviewer checks that a production environment, with the flag unset, answers `404` for
+  it and that it holds no code path to a real sender.
+- **Unicode-domain addresses.** The customer port is ASCII-only (`asciiMailboxOf` accepts an ASCII domain, written as
+  the transport writes it). An address with a Unicode domain is rejected upstream by `z.email()` (the domain's
+  address check, `isCountedFormOfAddress` in `contact-fields.ts` [source-verified]; `a@münchen.de` fails and
+  `a@xn--mnchen-3ya.de` passes, run against the installed zod), so it never reaches the port; L8 does not add a punycode conversion.
+- **Accepted, owner-visible: account mail can spend the shop's Gmail quota (L7 review M2).** Account mail and the shop's
+  lead notices leave through one Gmail account (~500 recipients a day, ADR 0164). The per-address and block buckets
+  bound one address and one network, not the total, so many addresses can together use the day's quota and a lead
+  notice is then refused as `quota-spent`. Not mitigated in L7. The two mitigations, for the owner to choose between
+  (also §10 and Q-L4): (a) **a global daily ceiling on account mail**, set under the quota with headroom kept for shop
+  notices, as one more limiter purpose in L8 (`account-mail-global`, a fixed subject, a UTC-day window, counted at the
+  one point where an account mail is queued; a refusal at the ceiling reads as the same `202` for the caller, as the
+  per-address refusal does); or (b) **a dedicated sending account** for account mail (Q62), which separates the
+  quotas. Until one is done, the owner accepts that a flood of registrations can delay lead notices.
 
 ---
 
@@ -721,8 +798,14 @@ reviewer checks them by reading:
   if feasible. If it is not feasible, `sign-in.ts` says so in a comment and the plan records the cost here.
 - **Bind the session to the post-rehash hash (L4a security review F2).** `startSession` passes
   `SessionStore.create` the hash the account holds **after** any rehash: the new PHC string when
-  `replacePasswordHash` answered `replaced`, the verified one otherwise. A `stale` creation (a reset or another rehash
-  won the race) is answered as a failed sign-in, never as a signed-in response, and starts no session.
+  `replacePasswordHash` answered `replaced`, the verified one otherwise. **Any result other than `created`** (`stale`:
+  a reset or another rehash won the race; `refused`: which a reset committing mid-insert also reads as) is answered as
+  a failed sign-in, never as a signed-in response, and starts no session and sets no cookie.
+- **Limiter calls (L5 review F2/F3), counted once.** `judgeAccountBlock({purpose:"login"})` at step 4, before
+  Turnstile; `judgeAccountSubject({purpose:"login", address})` at step 7, after Turnstile and validation, before the
+  account lookup, so a per-address refusal is the same for every address. Only after a correct password on an
+  unconfirmed account does the route call `judgeAccountSubject({purpose:"mail", address})` for the resend; the
+  login's address buckets are not counted again. Logout and who-am-I call neither.
 
 ---
 
@@ -750,6 +833,11 @@ reviewer checks them by reading:
 check, the limiter and Turnstile before any lookup or hashing. The new password is NFKC-normalised and
 length-capped by `judgePassword` before it is hashed (the same rules as L9's obligations above). A hashing
 platform failure is a 503 and does not consume the token.
+**Limiter calls (L5 review F2/F3), counted once.** The request route calls `judgeAccountBlock({purpose:"reset-request"})`
+at step 4 and, after Turnstile and validation, `judgeAccountSubject({purpose:"reset-request", address})` before any
+lookup: that call counts `account-mail-by-address` for every valid request, known address or not, and the mail queued
+after the response must not count it again. The completion route calls `judgeAccountBlock({purpose:"password-reset-complete"})`
+at step 4 only (the token is the subject).
 A completed reset starts no session; the sessions a login creates concurrently are bound to the hash they verified
 (L9's obligation, `SessionStore.create` is a compare-and-set), so a login that verified the old password cannot
 outlive the reset.
@@ -963,6 +1051,9 @@ Rules for the walk:
 - **L4a/L4b (live, test database).**
   - Single-use and newest-only tokens.
   - Atomic reset; an interleaving of two `confirmEmail` calls.
+  - A login's `create` holding the account row `for share` while a reset runs: the session it commits is revoked
+    (the reset's second statement); a retry of a committed reset revokes no session made since; `touch` of an
+    idle-expired session writes nothing; `findLive` refuses a session created before `password_changed_at`.
   - `findLive` at each expiry boundary.
   - A demotion read on the next call.
   - A retry after a lost acknowledgement.
@@ -972,8 +1063,9 @@ Rules for the walk:
     password (the L4a F1 lock).
   - **Known divergence:** the same-tick tiebreak (Neon `token_hash`, fake `issueOrder`); assert exactly one live
     token, not which.
-- **L5.** Unique names; fail-closed on each unavailable cause; the address step not counted after a block
-  refusal.
+- **L5.** Unique names; fail-closed on each unavailable cause; the subject stage is a separate call, so a refused
+  block counts no address hit and no bucket is counted in both stages; a subject ask without its address (or
+  account id), reached by a cast, reads as unavailable.
 - **L6.** Fixation: a planted value revoked and replaced. `requireCapability` truth table.
 - **L7.** Recipient refusals; the shop `MailMessage` type has no recipient (a type-level test); the token only
   after `#`; parity of keys.
@@ -1005,6 +1097,8 @@ Rules for the walk:
 | --- | --- | --- |
 | **No tests this round** | A rule implemented plausibly and wrongly passes review | Security review on every wave. §9 lists the owed tests by criterion. The milestone stays open |
 | **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | `account-mail-by-address` 5/day, the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider |
+| **One mail bucket per address for every account mail** (`account-mail-by-address`, 5 a day, shared by registration, resend and reset) | **Accepted, owner-visible [inf].** A stranger who registers or requests a reset for a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses the victim's whole mail allowance, so the victim's own reset mail is refused until 00:00 UTC, and an attacker can do it just before the victim needs it. The refusal reads the same for every address, so it cannot be used to probe accounts | The owner may want a **separate reset bucket**, so that registration noise cannot starve a reset (and the reverse). It is a new `PolicyPurpose` and one more `judgeAccountSubject` purpose, and no schema change. Not done this round; Q-L5 |
+| **Account mail can spend the shop's whole Gmail quota** (L7 security review M2) | **Accepted, owner-visible [inf].** Many addresses, each within its own buckets, can together use the day's ~500 recipients, and a shop lead notice is then refused (`quota-spent`, not retried automatically). Each account mail costs a solved Turnstile challenge, which bounds the rate and not the total | The owner chooses: (a) a **global daily ceiling on account mail** that leaves headroom for shop notices, as an L8 limiter purpose (see the L8 conditions), or (b) a **dedicated sending account** for account mail (Q62). Not done in L7 |
 | **Deliverability** of verification mail from a Gmail address | Mail in spam; a client cannot confirm | Recorded with the trigger *"the owner sees a confirmation not arrive"*. M9's provider choice |
 | **Turnstile is a third party in the login path** | Cloudflare down means no login | Fail closed (Q-L3). Recorded as accepted. It is not a proxy, so ADR 0019 d9's reasons do not apply (D11) |
 | **HIBP unreachable** | Breached passwords accepted during an outage | Q-L2 default fail-open with the length rule; logged |
@@ -1023,7 +1117,7 @@ Rules for the walk:
 3. The account endpoints are under the WAF scope.
 4. The privacy-notice text is the owner's, not a placeholder.
 
-## 11. Owner questions (four, each with a default)
+## 11. Owner questions (five, each with a default)
 
 | # | Question | Default if the owner takes it |
 | --- | --- | --- |
@@ -1031,6 +1125,7 @@ Rules for the walk:
 | **Q-L2** (part of QP1) | If the breached-password service cannot be reached, is the password accepted? | **Yes**, if it meets the length rule. The event is logged. (The minimum is 12, as Fix 3 item 1 proposed) |
 | **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **No**: login, register and reset answer "try again later". Writes fail closed (ADR 0019 d5) |
 | **Q-L4** (Q62) | Do confirmation and reset e-mails leave from the same Gmail account as the shop's notice? | Yes until M9, with the per-address bucket. **A dedicated sending account is recommended** |
+| **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **No** this round: one shared bucket of 5 a day. A separate reset bucket is recommended if a victim being unable to reset matters more than the extra mail it admits |
 
 **Owner steps** (not questions):
 - create the Turnstile widgets and set the two variables;

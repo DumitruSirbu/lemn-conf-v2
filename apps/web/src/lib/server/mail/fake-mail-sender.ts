@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  CUSTOMER_AUDIENCE,
   sendableCustomerCopyOf,
   type CustomerMailMessage,
   type CustomerMailSender,
@@ -52,6 +53,7 @@ export function createFakeCustomerMailSender(
 ): FakeCustomerMailSender {
   const sent: CustomerMailMessage[] = [];
   return {
+    audience: CUSTOMER_AUDIENCE,
     sent,
     send(message) {
       const copy = sendableCustomerCopyOf(message);

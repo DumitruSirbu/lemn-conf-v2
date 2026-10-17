@@ -6,6 +6,8 @@ import "server-only";
  * is plain text, and `html`, when present, is the same message as markup, sent beside `text` as its alternative.
  * What may be sent is `isSendableMailMessage`: a key of 1 to 256 visible ASCII characters, a non-empty subject on
  * one line, a non-empty text, and an `html` that is absent or a non-empty text of at most `HTML_MAX_LENGTH`.
+ * A message with a `recipient` member of its own is a customer's, not the shop's, and the shop path refuses it unsent
+ * (`sendableCopyOf`), so a customer message cannot reach the shop inbox through a mis-wired sender.
  */
 export interface MailMessage {
   readonly key: string;
@@ -36,9 +38,10 @@ export type MailOutcome =
       readonly status?: number;
     };
 
-/** A send answers with a value and never rejects: a caller reads the kind, not an exception. */
+/** A send answers with a value and never rejects: a caller reads the kind, not an exception. `send` is a property, not
+ *  a method, so its parameter is checked contravariantly and a `CustomerMailSender` cannot stand in for the shop's. */
 export interface MailSender {
-  send(message: MailMessage): Promise<MailOutcome>;
+  readonly send: (message: MailMessage) => Promise<MailOutcome>;
 }
 
 export const MAIL_ACCEPTED: MailOutcome = Object.freeze({ ok: true });
@@ -92,14 +95,33 @@ function isAbsentOrSendableHtml(html: unknown): boolean {
 }
 
 /**
- * The only way a sender reads a message: its four members once, into a copy that cannot change, which the
+ * The only way the shop's sender reads a message: its four members once, into a copy that cannot change, which the
  * predicate then judges. The copy holds `html` only when the message had one, so a plain-text message's copy has
  * three members. A sender builds only from the copy, so what was judged is what is sent. A message that cannot be
- * read, or may not be sent, answers nothing.
+ * read, that has a `recipient` member of its own, or that may not be sent, answers nothing.
  */
 export function sendableCopyOf(message: MailMessage): MailMessage | undefined {
+  return hasOwnRecipient(message) ? undefined : sendableBodyCopyOf(message);
+}
+
+/**
+ * `sendableCopyOf` without the recipient refusal: for the customer path, which reads the recipient itself and has the
+ * shop path's rules for everything else. A shop sender never calls it.
+ */
+export function sendableBodyCopyOf(
+  message: MailMessage,
+): MailMessage | undefined {
   const copy = readCopy(message);
   return copy !== undefined && isSendableMailMessage(copy) ? copy : undefined;
+}
+
+/** A message that cannot be inspected counts as having one: it answers nothing. */
+function hasOwnRecipient(message: MailMessage): boolean {
+  try {
+    return Object.hasOwn(message, "recipient");
+  } catch {
+    return true;
+  }
 }
 
 function readCopy(message: MailMessage): MailMessage | undefined {
