@@ -235,3 +235,19 @@ D7). **Not a secret, not a mail variable**; its absence never makes the contact 
 - **One value per environment, add-only:** the production domain for Production and the matching origin for Preview,
   because each environment's links resolve against its own database. Never the request's `Host`, never a code constant.
 - **Owner step:** add it per environment; nothing existing is changed.
+
+### The staging flow — a fixed Preview address (2026-10-17; the owner's Vercel steps)
+
+A Preview deployment's address changes on every push, so `LEMNARIA_PUBLIC_ORIGIN` cannot name it. The long-lived
+`staging` branch gives Preview one stable address.
+
+- **Flow:** feature branch → pull request into `staging` → test there → `staging` into `main`. `staging` was branched from the M8 work
+  (`m8-mail-and-empty-space-merge`) and is never force-pushed.
+- **Address:** in Vercel, Project → Settings → Domains, add a subdomain (e.g. `staging.<domain>`) with its Git branch set
+  to `staging`. It always points at the latest `staging` deployment. This needs a domain the owner controls.
+- **No domain yet:** Vercel's branch alias `lemnaria-configurator-gbt-git-staging-dumitrusirbus-projects.vercel.app` is
+  stable per branch, but deployment protection may demand a login, including from the shop's email link.
+- **Variables, add-only:** `LEMNARIA_PUBLIC_ORIGIN=https://staging.<domain>` and the mail variables as **Preview**
+  variables limited to the `staging` branch. Production keeps its own value in the Production scope. Nothing existing
+  is changed or removed.
+- **Database:** every Preview deployment shares `lemn-conf-v2-preview`; migration 0010 is already applied there.
