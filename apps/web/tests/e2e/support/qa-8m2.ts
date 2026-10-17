@@ -10,13 +10,16 @@ import {
 
 import {
   CTA,
-  DONE_HEADING,
+  DONE_COPY,
+  DONE_DESIGN_LINK_CARD,
   DONE_REFERENCE,
   MESSAGES,
   chooseChannel,
   clientRequestIdOf,
-  donePath,
+  expectDoneShown,
+  expectReferenceNotShown,
   fillTheTextFields,
+  nextSentReference,
   pressTheCallToAction,
   recordContactRequests,
   sentAt,
@@ -37,13 +40,16 @@ export const ALREADY_SENT = "contact-already-sent";
 export const ALREADY_SENT_HEADING = "contact-already-sent-heading";
 export const WEBGL_UNAVAILABLE = "webgl-unavailable";
 export const CONTACT_BACK = "contact-back";
-export const COPY_REFERENCE = "done-copy";
 export const ALREADY_SENT_ADVICE = "contact-already-sent-advice";
 export const ALREADY_SENT_CHANGED_KITCHEN =
   "contact-already-sent-changed-kitchen";
 export const ALREADY_SENT_BOTTOM = "contact-already-sent-bottom";
 export const CALL_SHOP_LINK = "call-shop-link";
 export const BACK_TO_DESIGN = "done-back-to-design";
+
+/** What the advice said before wave 8V criterion 18, in Romanian and Russian: *tell us the request's number*. */
+// eslint-disable-next-line no-restricted-syntax -- a negative claim about the wording (criterion 18): the words the re-drafted leaf must no longer hold, which no catalogue leaf can supply.
+const ASKS_FOR_THE_REQUEST_NUMBER = /numărul cererii|номер заявки/i;
 
 /** Two lines no wave of this application owns: the one the browser prints on every page for a feature name in the
  *  Permissions-Policy header (`security-headers.ts`), and the library's own deprecation of `THREE.Clock`, which a page
@@ -130,7 +136,8 @@ export interface OneSentRequest {
 }
 
 /** The editor, the review, the contact page, the form filled with new tokens, one press, and the confirmation shown:
- *  one new request in the database, whose reference is returned as the confirmation shows it. */
+ *  one new request in the database, whose reference is returned as the server's answer carried it (no screen shows it
+ *  since wave 8V D2). */
 export async function sendOneRequestByTheForm(
   page: Page,
   context: BrowserContext,
@@ -146,12 +153,11 @@ export async function sendOneRequestByTheForm(
   await chooseChannel(page, "phone");
   await tickConsent(page);
   await readyToSend(page, drawnAtMs);
+  const answered = nextSentReference(page);
   await pressTheCallToAction(page);
-  await page.waitForURL(`**${donePath(locale, design.id)}`);
-  await expect(page.getByTestId(DONE_HEADING)).toBeVisible();
-  const reference =
-    (await page.getByTestId(DONE_REFERENCE).textContent()) ?? "";
-  expect(reference, "the confirmation shows a reference").not.toBe("");
+  const reference = await answered;
+  await expectDoneShown(page, locale, design.id);
+  await expectReferenceNotShown(page, reference);
   return {
     reference,
     requestId: clientRequestIdOf(sentAt(sent, 0)),
@@ -160,11 +166,11 @@ export async function sendOneRequestByTheForm(
   };
 }
 
-/** Criterion 12's shape, as S5 completes it: the one `h1` with the focus, the reference as text in the card, the copy
- *  control, the advice naming the display form of the shop's number (and no unfilled `{phone}`), the one call link
- *  dialling the constant, the changed-kitchen sentence, the way back to the design pinned at the foot outside the view's
- *  container, and no form, no input, no call to action. The reference is scoped to the view because the card reuses the
- *  confirmation's test ids. */
+/** Criterion 12's shape, as S5 completes it and wave 8V (D2, criterion 18) amends it: the one `h1` with the focus, no
+ *  reference (`reference`, the request's own, is in none of the page's shown text) and no card or copy control, the
+ *  advice naming the display form of the shop's number (and no unfilled `{phone}`) and not asking for the request's
+ *  number, the one call link dialling the constant, the changed-kitchen sentence, the way back to the design pinned at
+ *  the foot outside the view's container, and no form, no input, no call to action. */
 export async function expectAlreadySentView(
   page: Page,
   reference: string,
@@ -178,9 +184,14 @@ export async function expectAlreadySentView(
   );
   await expect(page.getByTestId(ALREADY_SENT_HEADING)).toBeFocused();
   await expect(page.locator("h1")).toHaveCount(1);
-  await expect(view.getByTestId(DONE_REFERENCE)).toHaveText(reference);
-  await expect(view.getByTestId(COPY_REFERENCE)).toBeVisible();
+  await expectReferenceNotShown(page, reference);
+  for (const absent of [DONE_REFERENCE, DONE_COPY, DONE_DESIGN_LINK_CARD]) {
+    await expect(page.getByTestId(absent), absent).toHaveCount(0);
+  }
   await expectAdviceNamesTheShopNumber(view, copy.alreadySentAdvice);
+  await expect(view.getByTestId(ALREADY_SENT_ADVICE)).not.toContainText(
+    ASKS_FOR_THE_REQUEST_NUMBER,
+  );
   await expectOneCallLinkDialling(page, view, copy.callShop);
   await expect(view.getByTestId(ALREADY_SENT_CHANGED_KITCHEN)).toHaveText(
     copy.alreadySentChangedKitchen,
@@ -270,7 +281,7 @@ export async function expectViewLayout(
   expect(overflow.scrollWidth, `${label}: sideways`).toBeLessThanOrEqual(
     overflow.clientWidth,
   );
-  for (const id of [CALL_SHOP_LINK, BACK_TO_DESIGN, COPY_REFERENCE]) {
+  for (const id of [CALL_SHOP_LINK, BACK_TO_DESIGN]) {
     const box = await rectOf(page.getByTestId(id));
     expect
       .soft(box.height, `${label}: ${id} height`)

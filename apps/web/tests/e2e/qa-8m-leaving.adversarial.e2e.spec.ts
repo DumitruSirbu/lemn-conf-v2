@@ -10,9 +10,10 @@ import {
   ANSWERS,
   CTA,
   DONE_HEADING,
-  DONE_REFERENCE,
   answerContactWith,
   donePath,
+  expectDesignLinkShown,
+  expectReferenceNotShown,
   fillTheWholeForm,
   newToken,
   pressTheCallToAction,
@@ -90,7 +91,8 @@ test("ro: while the confirmation's page is on its way the contact page does not 
 
   await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
   await expect(page.getByTestId(DONE_HEADING)).toBeVisible();
-  await expect(page.getByTestId(DONE_REFERENCE)).toHaveText("LMN-LV-0001");
+  await expectDesignLinkShown(page, "ro", seededDesign.id);
+  await expectReferenceNotShown(page, "LMN-LV-0001");
 });
 
 test("ro: when the confirmation's page cannot be fetched at all, the customer who was told nothing but a send went is not left with an empty page and no way on", async ({

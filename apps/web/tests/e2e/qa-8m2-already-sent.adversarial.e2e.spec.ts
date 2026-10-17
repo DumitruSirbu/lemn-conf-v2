@@ -9,13 +9,14 @@ import { expect, type Page, type Route } from "@playwright/test";
 import {
   CTA,
   DONE_HEADING,
-  DONE_REFERENCE,
   FAILURE,
   chooseChannel,
   clientRequestIdOf,
   donePath,
   expectFormDrawn,
+  expectReferenceNotShown,
   fillTheTextFields,
+  nextSentReference,
   pressTheCallToAction,
   recordContactRequests,
   sentAt,
@@ -45,7 +46,6 @@ import {
 import {
   ALREADY_SENT,
   CONTACT_BACK,
-  COPY_REFERENCE,
   WEBGL_UNAVAILABLE,
   consoleProblems,
   contactPosts,
@@ -106,7 +106,7 @@ async function readAsTheOwner(
   return { status: response.status(), text: await response.text() };
 }
 
-test("ro and ru: a form at r, one send whose answer is lost, then a reload and a fresh navigation are the view with that request's reference, and one row; no response of the page holds a column of the row or a typed value; every control pressed sends no contact request; the console stays clean, with WebGL refused too; a stranger's browser gets neither", async ({
+test("ro and ru: a form at r, one send whose answer is lost, then a reload and a fresh navigation are the view for that request, its reference in the page's data and not on the screen, and one row; no response of the page holds a column of the row or a typed value; every control pressed sends no contact request; the console stays clean, with WebGL refused too; a stranger's browser gets neither", async ({
   page,
   context,
   browser,
@@ -116,7 +116,7 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
   const id = seededDesign.id;
 
   // 14 (f), A4: the form at r (the server process answered `none` for it), one send whose answer the browser never sees:
-  // the server stores and notifies, 5B shows, and a reload of the contact page is the view with that request's reference.
+  // the server stores and notifies, 5B shows, and a reload of the contact page is the view for that request.
   const sent = recordContactRequests(page);
   const typed = newTypedTokens(run);
   let lostReference: string | undefined;
@@ -178,7 +178,8 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
   await page.reload();
   await expectAlreadySentView(page, one.reference, "ro");
 
-  // A4, 14 (a): a fresh navigation, in the same server process, is the view with the reference the answer carried.
+  // A4, 14 (a): a fresh navigation, in the same server process, is the view; the reference the answer carried is in the
+  // page's data (the controls below) and not on the screen (wave 8V D2).
   await page.goto(contactPath("ro", id));
   await expectAlreadySentView(page, one.reference, "ro");
   await expect(page.getByTestId(DONE_HEADING)).toHaveCount(0);
@@ -208,8 +209,8 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
   ).not.toContain(`data-testid="${ALREADY_SENT}"`);
   expect(document.text).not.toContain(`data-testid="${CTA}"`);
 
-  // A5: every control on the view, pressed. The copy control, the locale menu, the chevron.
-  await page.getByTestId(COPY_REFERENCE).tap();
+  // A5: every control on the view, pressed. The locale menu, the chevron (the copy control left the view with the
+  // reference, wave 8V D2).
   await page.getByTestId("top-bar-locale").tap();
   await page.getByTestId("top-bar-locale-option-ru").tap();
   await page.waitForURL(`**${contactPath("ru", id)}`);
@@ -298,7 +299,7 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
   }
 });
 
-test("14 (e): two forms open on one kitchen at one revision, both sent, are two notified rows, and the page shows the later one's reference, in either tab", async ({
+test("14 (e): two forms open on one kitchen at one revision, both sent, are two notified rows, and the page is the view for the later one, whose reference (never the earlier's) is in the page's data, in either tab, with neither on the screen", async ({
   page,
   context,
   seededDesign,
@@ -325,14 +326,14 @@ test("14 (e): two forms open on one kitchen at one revision, both sent, are two 
   await readyToSend(page, formA.drawnAtMs);
   await readyToSend(tabB, drawnB);
 
+  const answeredA = nextSentReference(page);
   await pressTheCallToAction(page);
+  const referenceA = await answeredA;
   await page.waitForURL(`**${donePath("ro", id)}`);
-  const referenceA =
-    (await page.getByTestId(DONE_REFERENCE).textContent()) ?? "";
+  const answeredB = nextSentReference(tabB);
   await pressTheCallToAction(tabB);
+  const referenceB = await answeredB;
   await tabB.waitForURL(`**${donePath("ro", id)}`);
-  const referenceB =
-    (await tabB.getByTestId(DONE_REFERENCE).textContent()) ?? "";
 
   expect(referenceB).not.toBe(referenceA);
   expect(
@@ -344,6 +345,14 @@ test("14 (e): two forms open on one kitchen at one revision, both sent, are two 
   for (const tab of [page, tabB]) {
     await tab.goto(contactPath("ro", id));
     await expectAlreadySentView(tab, referenceB, "ro");
+    await expectReferenceNotShown(tab, referenceA);
+    const flight = await readAsTheOwner(tab, contactPath("ro", id), {
+      RSC: "1",
+    });
+    expect(flight.text, "the page's data names the later request").toContain(
+      referenceB,
+    );
+    expect(flight.text, "never the earlier one").not.toContain(referenceA);
   }
 });
 

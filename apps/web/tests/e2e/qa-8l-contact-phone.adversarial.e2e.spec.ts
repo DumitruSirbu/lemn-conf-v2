@@ -16,6 +16,7 @@ import {
   contactDocumentPath,
   CTA,
   expectDoneShown,
+  expectReferenceNotShown,
   expectFormDrawn,
   FAILURE,
   RETRY,
@@ -274,10 +275,10 @@ for (const locale of LOCALES) {
       expect(region?.height ?? Infinity).toBeLessThanOrEqual(HALF_THE_VIEWPORT);
       await captureEvidence(page, `8l-4C-${locale}`);
       release();
-      // The design form's request is sent: the page is replaced by the design's confirmation, with the answer's reference.
-      expect(await expectDoneShown(page, locale, seededDesign.id)).toBe(
-        "LM-4C",
-      );
+      // The design form's request is sent: the page is replaced by the design's confirmation, with the design's own
+      // address and not the answer's reference (wave 8V D1, D2).
+      await expectDoneShown(page, locale, seededDesign.id);
+      await expectReferenceNotShown(page, "LM-4C");
     });
 
     test("the form with no design: the heading and the sending line are the no-design ones, there is no card, and the bar leads to the start", async ({
@@ -388,7 +389,8 @@ test.describe("the language menu on the contact page", () => {
     });
     await answerContactWith(page, ANSWERS.sent("LM-RU"));
     await pressTheCallToAction(page);
-    expect(await expectDoneShown(page, "ru", seededDesign.id)).toBe("LM-RU");
+    await expectDoneShown(page, "ru", seededDesign.id);
+    await expectReferenceNotShown(page, "LM-RU");
     expect(sent).toHaveLength(1);
     expect(sent[0]?.body.locale).toBe("ru");
   });

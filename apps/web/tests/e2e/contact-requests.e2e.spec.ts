@@ -25,6 +25,8 @@ import {
   CTA,
   elapsedOf,
   expectDoneShown,
+  expectReferenceNotShown,
+  nextSentReference,
   expectFormDrawn,
   fillTheWholeForm,
   FAILURE,
@@ -216,10 +218,13 @@ test("criteria 4 and 10: while the answer is held, presses made in one task, tap
   }
   expect(sent).toHaveLength(1);
 
+  const answered = nextSentReference(page);
   releaseTheAnswer();
 
-  const reference = await expectDoneShown(page, "ro", seededDesign.id);
+  const reference = await answered;
+  await expectDoneShown(page, "ro", seededDesign.id);
   expect(isSubmissionReference(reference), reference).toBe(true);
+  await expectReferenceNotShown(page, reference);
   expect(sent).toHaveLength(1);
   const [only] = sent;
   if (only === undefined) throw new Error("no request was sent");
