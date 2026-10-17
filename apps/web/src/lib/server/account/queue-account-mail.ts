@@ -1,0 +1,115 @@
+import "server-only";
+
+import { after } from "next/server";
+
+import { reportAccountEvent } from "@/lib/server/account/account-log";
+import { createCustomerMailSender } from "@/lib/server/mail/create-customer-mail-sender";
+import type { CustomerMailSender } from "@/lib/server/mail/customer-mail";
+import {
+  accountMailKey,
+  buildAccountMail,
+  type AccountMailRequest,
+} from "@/lib/server/mail/account-mail-messages";
+import {
+  readPublicOrigin,
+  type PublicOrigin,
+} from "@/lib/server/public-origin";
+import { sha256Hex } from "@/lib/server/sha256-hex";
+
+// Account mail leaves after the response (ADR 0169 decision 5), so whether a mail was sent is not visible in the
+// response time. The sender comes from `createCustomerMailSender` alone and the link's origin from `readPublicOrigin`
+// alone: nothing a request carried reaches either.
+
+/** What is needed to write and send an account mail, made before any row is changed. */
+export interface AccountMailReadiness {
+  readonly sender: CustomerMailSender;
+  readonly origin: PublicOrigin;
+}
+
+export type AccountMailPreparation =
+  | { readonly kind: "ready"; readonly readiness: AccountMailReadiness }
+  | { readonly kind: "unavailable" };
+
+/** One message to one person. A token travels as its value, which this module hashes for the idempotency key. */
+export type AccountMailOrder =
+  | {
+      readonly kind: "confirm-email" | "reset-password";
+      readonly recipient: string;
+      readonly locale: string;
+      readonly token: string;
+    }
+  | {
+      readonly kind: "already-registered" | "password-changed";
+      readonly recipient: string;
+      readonly locale: string;
+    };
+
+/**
+ * Asks, from the environment alone and so the same for every address, whether a mail could be written and sent. When
+ * it could not, the flow answers unavailable before any row changes, since a link that cannot be written is not worth
+ * a row. The event is written down by kind and outcome only.
+ */
+export function prepareAccountMail(): AccountMailPreparation {
+  const origin = readPublicOrigin(process.env);
+  const creation = createCustomerMailSender(process.env);
+  if (origin.status === "unavailable" || creation.kind === "unavailable") {
+    reportAccountEvent({ event: "mail", outcome: "unavailable" });
+    return { kind: "unavailable" };
+  }
+  return {
+    kind: "ready",
+    readiness: { sender: creation.sender, origin: origin.origin },
+  };
+}
+
+/** Queues the mail to run after the response. The job never throws, so nothing it does can change that response. */
+export function queueAccountMail(
+  readiness: AccountMailReadiness,
+  order: AccountMailOrder,
+): void {
+  after(() => sendAccountMail(readiness, order));
+}
+
+async function sendAccountMail(
+  { sender, origin }: AccountMailReadiness,
+  order: AccountMailOrder,
+): Promise<void> {
+  try {
+    const request = requestOf(order, origin);
+    const content = buildAccountMail(request);
+    const key = accountMailKey(order.kind, tokenHashOf(order));
+    const outcome = await sender.send({
+      key,
+      recipient: order.recipient,
+      ...content,
+    });
+    reportAccountEvent({
+      event: "mail",
+      outcome: outcome.ok ? "succeeded" : "unavailable",
+    });
+  } catch {
+    // Every failure of the builders (a malformed origin or token, a missing copy key, a malformed hash) lands here with
+    // its message dropped: those messages are ours, but a job that throws would reach the framework's log.
+    reportAccountEvent({ event: "mail", outcome: "unavailable" });
+  }
+}
+
+function requestOf(
+  order: AccountMailOrder,
+  origin: PublicOrigin,
+): AccountMailRequest {
+  const { kind, locale } = order;
+  switch (kind) {
+    case "confirm-email":
+    case "reset-password":
+      return { kind, locale, link: { origin, token: order.token } };
+    case "already-registered":
+      return { kind, locale, link: { origin } };
+    case "password-changed":
+      return { kind, locale };
+  }
+}
+
+function tokenHashOf(order: AccountMailOrder): string | undefined {
+  return "token" in order ? sha256Hex(order.token) : undefined;
+}
