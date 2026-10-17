@@ -3,7 +3,7 @@ import "server-only";
 import { reportAccountEvent } from "@/lib/server/account/account-log";
 import { getDesignClaimRepository } from "@/lib/server/account/design-claim-instance";
 import {
-  isCapabilityHeld,
+  isClientHolding,
   type CapabilityHolder,
 } from "@/lib/server/account/require-capability";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/lib/server/visitor";
 
 // The designs a signed-in account may take from the browser it is using (ADR 0169 D8). Which designs those are is the
-// visitor cookie's alone, and whether the account may take them is its role and verification, read by the server. A
+// visitor cookie's alone, and whether the account may take them is its role (the client's alone, L11 review F1) and verification, read by the server. A
 // request never says either.
 
 const NO_CLAIMABLE_DESIGNS = 0;
@@ -25,13 +25,13 @@ export interface ClaimableDesignsAsk {
 
 /**
  * The visitor hash the account may claim under, or `undefined` when there is nothing to ask: the account does not hold
- * `design.edit.own` (an address not yet confirmed holds none), or the browser has no well-formed visitor cookie.
+ * `design.edit.own` (an address not yet confirmed holds none) or is not a client account (staff never claim), or the browser has no well-formed visitor cookie.
  */
 export function claimableVisitorHashOf({
   holder,
   cookies,
 }: ClaimableDesignsAsk): string | undefined {
-  return isCapabilityHeld(holder, "design.edit.own")
+  return isClientHolding(holder, "design.edit.own")
     ? readVisitorHash(cookies)
     : undefined;
 }

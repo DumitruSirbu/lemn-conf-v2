@@ -28,6 +28,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   );
   if (blocked !== undefined) return blocked;
   return answerUnavailableOnFailure("password-reset-complete", () =>
-    completePasswordReset({ bodyText: body.text, headers: request.headers }),
+    completePasswordReset({ bodyText: body.text }),
   );
 }

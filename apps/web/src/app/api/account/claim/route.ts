@@ -20,6 +20,7 @@ import {
 } from "@/lib/server/account/current-session";
 import { getDesignClaimRepository } from "@/lib/server/account/design-claim-instance";
 import {
+  isClientHolding,
   requireCapability,
   type CapabilityRefusal,
 } from "@/lib/server/account/require-capability";
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 /** Steps 1 and 3 of the common order: the cross-site check first, so nothing is read for a request from another site,
- *  then the session and its capability. A session that cannot be read is anonymous, which is the less-access reading. */
+ *  then the session, its capability and its role: only a client account claims, a staff account is answered `403`. A session that cannot be read is anonymous, which is the less-access reading. */
 async function sessionThatMayClaim(
   request: NextRequest,
 ): Promise<ClaimingSession> {
@@ -77,9 +78,12 @@ async function sessionThatMayClaim(
   const session = await readCurrentSession(request.cookies);
   const check = requireCapability(session, "design.edit.own");
   if (check.kind === "refused") return refusedForCapability(check.refusal);
-  return session.kind === "signed-in"
+  if (session.kind !== "signed-in")
+    return refusedForCapability("unauthenticated");
+  // Staff accounts hold `design.edit.own` too, but claiming is the client's alone (ADR 0169 D8, L11 review F1).
+  return isClientHolding(session, "design.edit.own")
     ? { kind: "may-claim", session }
-    : refusedForCapability("unauthenticated");
+    : refusedForCapability("forbidden");
 }
 
 async function claimForSession(

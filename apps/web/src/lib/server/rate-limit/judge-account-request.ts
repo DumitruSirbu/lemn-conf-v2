@@ -38,16 +38,11 @@ export type AccountBlockPurpose =
   | "confirm-email"
   | "password-reset-complete";
 
-/** The purposes that count an address's buckets at the subject stage. `mail` and `password-changed` are one mail bucket
- *  each, for a route that sends a mail the flow's own subject stage did not already count: `mail` is the confirmation
- *  link a login resends to an unconfirmed account (its own resend bucket, counted only inside the job that runs after
- *  the response), `password-changed` the notice a completed reset sends (the reset bucket). */
-export type AddressedPurpose =
-  | "register"
-  | "login"
-  | "reset-request"
-  | "mail"
-  | "password-changed";
+/** The purposes that count an address's buckets at the subject stage. `mail` is one mail bucket for a route that sends a
+ *  mail the flow's own subject stage did not already count: the confirmation link a login resends to an unconfirmed
+ *  account (its own resend bucket, counted only inside the job that runs after the response). The "password changed"
+ *  notice a completed reset sends counts no bucket (L10 review L1): a completed reset earns it. */
+export type AddressedPurpose = "register" | "login" | "reset-request" | "mail";
 
 export interface AccountBlockAsk {
   readonly purpose: AccountBlockPurpose;
@@ -120,10 +115,6 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
     buckets: ["account-reset-mail-by-address"],
   },
   mail: { event: "mail", buckets: ["account-login-resend-by-address"] },
-  "password-changed": {
-    event: "mail",
-    buckets: ["account-reset-mail-by-address"],
-  },
   claim: { event: "claim", buckets: ["account-claim-by-account"] },
 };
 

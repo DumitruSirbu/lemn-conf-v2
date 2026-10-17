@@ -6,7 +6,10 @@ import {
   judgeAccountEmail,
   judgePassword,
 } from "@lemnaria/configurator-domain";
-import type { StoredAccount } from "@lemnaria/persistence";
+import type {
+  PasswordResetOutcome,
+  StoredAccount,
+} from "@lemnaria/persistence";
 
 import { reportAccountEvent } from "@/lib/server/account/account-log";
 import {
@@ -63,7 +66,6 @@ export interface ResetLinkRequest {
 
 export interface ResetCompletionRequest {
   readonly bodyText: string;
-  readonly headers: HeaderReader;
 }
 
 export async function requestPasswordReset({
@@ -119,6 +121,30 @@ async function sendResetLink({
   readiness,
 }: ResetLinkJob): Promise<void> {
   try {
+    const token = await issueResetTokenToVerifiedAccount(emailNormalForm);
+    if (token === undefined) return;
+    queueAccountMail(readiness, {
+      kind: "reset-password",
+      recipient: token.account.email,
+      locale: token.account.locale,
+      token: token.value,
+    });
+  } catch {
+    reportAccountEvent({ event: "mail", outcome: "unavailable" });
+  }
+}
+
+interface IssuedResetToken {
+  readonly account: StoredAccount;
+  readonly value: string;
+}
+
+/** The lookup and the token insert, with a failure of the store written as the reset request's own, apart from a
+ *  failure of the mail. Nothing for an address that is unknown, unconfirmed, or whose token the store refused. */
+async function issueResetTokenToVerifiedAccount(
+  emailNormalForm: string,
+): Promise<IssuedResetToken | undefined> {
+  try {
     const store = getAccountStore();
     const lookup = await store.findByNormalForm(emailNormalForm);
     if (lookup.kind !== "found" || !lookup.account.isEmailVerified) return;
@@ -130,15 +156,15 @@ async function sendResetLink({
       tokenHash: token.hash,
       expiresAt: resetPasswordTokenExpiry(),
     });
-    if (issue.kind === "refused") return;
-    queueAccountMail(readiness, {
-      kind: "reset-password",
-      recipient: account.email,
-      locale: account.locale,
-      token: token.value,
-    });
+    return issue.kind === "refused"
+      ? undefined
+      : { account, value: token.value };
   } catch {
-    reportAccountEvent({ event: "mail", outcome: "unavailable" });
+    reportAccountEvent({
+      event: "password-reset-request",
+      outcome: "unavailable",
+    });
+    return undefined;
   }
 }
 
@@ -154,7 +180,6 @@ type NewPasswordJudgement =
  */
 export async function completePasswordReset({
   bodyText,
-  headers,
 }: ResetCompletionRequest): Promise<NextResponse> {
   const body = parseJsonObject(bodyText);
   if (body === undefined) return invalidRequestResponse();
@@ -169,18 +194,66 @@ export async function completePasswordReset({
   });
   if (!judgement.ok) return invalidInputResponse([judgement.issue]);
   const passwordHash = await hashPassword(judgement.password);
-  const reset = await getAccountStore().completeReset({
+  const reset = await completeResetOrRecover({
+    account,
     tokenHash,
     passwordHash,
   });
   if (reset.kind === "invalid") return linkInvalidResponse();
   await endEverySessionBestEffort(account.id);
-  scheduleChangedNotice({ account, headers });
+  scheduleChangedNotice(account);
   reportAccountEvent({
     event: "password-reset-complete",
     outcome: "succeeded",
   });
   return passwordChangedResponse();
+}
+
+interface ResetToComplete {
+  readonly account: StoredAccount;
+  readonly tokenHash: string;
+  readonly passwordHash: string;
+}
+
+/**
+ * `completeReset` can throw after its transaction committed (an acknowledgement lost past the retry). The account is read
+ * again, and a stored hash equal to the one just made, a hash that carries a random salt and so is no one else's, means the
+ * reset took effect: it is answered as the success it is, since a `503` would send the client to a link already spent.
+ * Any other state, and a read that fails, answer as before: the failure is rethrown for the route's `503`.
+ */
+async function completeResetOrRecover({
+  account,
+  tokenHash,
+  passwordHash,
+}: ResetToComplete): Promise<PasswordResetOutcome> {
+  try {
+    return await getAccountStore().completeReset({ tokenHash, passwordHash });
+  } catch (failure) {
+    if (await isPasswordHashStored({ account, passwordHash })) {
+      return { kind: "password-changed" };
+    }
+    throw failure;
+  }
+}
+
+async function isPasswordHashStored({
+  account,
+  passwordHash,
+}: Pick<ResetToComplete, "account" | "passwordHash">): Promise<boolean> {
+  try {
+    const address = judgeAccountEmail(account.email);
+    if (!address.ok) return false;
+    const lookup = await getAccountStore().findByNormalForm(
+      address.emailNormalForm,
+    );
+    return (
+      lookup.kind === "found" &&
+      lookup.account.id === account.id &&
+      lookup.account.passwordHash === passwordHash
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** The account a live reset token names, or nothing for an unknown, used, expired or superseded token and for an
@@ -230,40 +303,31 @@ async function endEverySessionBestEffort(accountId: string): Promise<void> {
   try {
     await getSessionStore().revokeAllForAccount(accountId);
   } catch {
-    reportAccountEvent({
-      event: "password-reset-complete",
-      outcome: "unavailable",
-    });
+    reportAccountEvent({ event: "session-revoke", outcome: "unavailable" });
   }
 }
 
-interface ChangedNotice {
-  readonly account: StoredAccount;
-  readonly headers: HeaderReader;
-}
-
-function scheduleChangedNotice(notice: ChangedNotice): void {
+function scheduleChangedNotice(account: StoredAccount): void {
   try {
-    after(() => sendChangedNotice(notice));
+    after(() => {
+      sendChangedNotice(account);
+    });
   } catch {
     reportAccountEvent({ event: "mail", outcome: "unavailable" });
   }
 }
 
-/** Counted once, against the reset bucket. A refusal or an unavailability drops the notice and changes no answer. */
-async function sendChangedNotice({
-  account,
-  headers,
-}: ChangedNotice): Promise<void> {
+/**
+ * Counts no bucket (L10 review L1): the notice cannot be asked for, only earned by a completed reset, and a reset needs a
+ * live token that the reset request's own bucket bounds. A stored address that the policy no longer accepts, an
+ * unavailable mailer or a failed send drops the notice and changes no answer; each is written down, without the address.
+ */
+function sendChangedNotice(account: StoredAccount): void {
   try {
-    const address = judgeAccountEmail(account.email);
-    if (!address.ok) return;
-    const judgement = await judgeAccountSubject({
-      purpose: "password-changed",
-      headers,
-      address: address.emailNormalForm,
-    });
-    if (judgement.decision.kind !== "allow") return;
+    if (!judgeAccountEmail(account.email).ok) {
+      reportAccountEvent({ event: "mail", outcome: "refused" });
+      return;
+    }
     const mail = prepareAccountMail();
     if (mail.kind === "unavailable") return;
     queueAccountMail(mail.readiness, {

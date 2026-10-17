@@ -93,9 +93,10 @@ export interface MintDesign {
   readonly design: Design;
   readonly writeTokenHash: string;
   readonly visitor: MintVisitor;
-  /** The signed-in, verified account the design belongs to from its first moment (ADR 0169 D8). Absent for a
+  /** The signed-in, verified client account the design belongs to from its first moment (ADR 0169 D8). Absent for a
    *  visitor, and then the statement is exactly the one that came before claiming, so a database that has not yet
-   *  applied `0015` still mints. */
+   *  applied `0015` still mints for a signed-out visitor. A mint that names an account inserts `account_id` and so
+   *  fails on a database without `0015`: apply it in every environment that receives this code. */
   readonly accountId?: string;
 }
 

@@ -310,3 +310,11 @@ shop's notice) is 8J's.
 
 - **R6 (8J2, [ADR 0164](0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md) decision 6).** SMTP has no idempotency key, so a cleared `notified_at` mark now re-notifies the shop **at once** on the next retry, not after a day. The stored mark is the only guard against a second notice.
 - **A sibling table (8V, [ADR 0165](0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md) D3).** Migration `0010` adds `contact_submission_views`, which holds a **copy** of the non-personal snapshot per minted link and references `contact_submissions (client_request_id)` on delete cascade. **The grants on `contact_submissions` are unchanged**: the application role still reads its seven columns and no personal one; the new table gets `INSERT, SELECT` only. `0010` and its grant are applied on no deployed database yet (owner steps).
+
+## Dated note — 2026-10-18, M8B wave L11 (claim; reviewer finding F2, accepted)
+
+**`designs.account_id` links a lead to an identified account through columns the application role can read.** Wave L11
+adds the column (migration `0015`) and stores it when a verified client claims or mints a design. `contact_submissions.design_id`
+is among the seven readable columns and `designs.account_id` is readable too, so a request can be joined to the account that owns its
+design. The personal columns stay unreadable and decision 1's grant is unchanged. Accepted risk, owner-visible; the
+plan (M8B §10) carries the row and [ADR 0169](0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) Amendment B the rest.

@@ -113,9 +113,10 @@ ADR 0169 holds the decisions and the sweep. In one line each:
 - **D7, RBAC.** Closed capabilities in the domain package. Three roles as capability sets, one role per account.
   Grants keep `role` out of the application role's `INSERT` and `UPDATE`, so the app can neither create nor
   promote staff. Every account-acting route checks a capability.
-- **D8, claim.** Requires a verified session, the visitor cookie and the client's explicit confirmation. One
+- **D8, claim.** Requires a verified **client** session (a staff account does not claim; L11 review F1, ADR 0169
+  Amendment B), the visitor cookie and the client's explicit confirmation. One
   atomic statement with `account_id is null`. Claiming leaves `visitor_hash` and `write_token_hash` untouched. A
-  mint made while signed in sets `account_id`.
+  mint made while a verified client is signed in sets `account_id`; a staff account's mint does not.
 - **D9, gate.** A claimed design opens, saves and shares for a session of its owning account on any device.
   Everyone else gets ADR 0114 decision 5's one indistinguishable refusal.
 - **D10, schema rules.** No `DELETE` grant. Tokens are stored as hashes only. No check constraint that a later
@@ -280,7 +281,7 @@ only).
 | 5 | **Who am I** `GET /api/account/session` | Read the session (fails open to anonymous) | `{state:"anonymous"}` or `{state:"signed-in", email, capabilities:[…]}` |
 | 6 | **Forgot** `POST /api/account/password-reset/request` `{email, turnstileToken}` | Count the per-address buckets for **every** valid request, before any lookup. Then, **after the response** (`after()`): for a verified account, issue a `reset-password` token and mail the link; for an unknown or unverified address, do nothing. The request path before the answer is the same in every branch | **`202 {status:"check-inbox"}` always**, and a per-address `429` reads the same for every address |
 | 7 | **Reset** `GET /[locale]/account/reset-password#t=<token>`, then `POST …/password-reset/complete` `{token, newPassword}` | Policy check. One transaction of two statements: (1) token valid (as in 2), set the hash and `password_changed_at`, mark the token used; (2) revoke **every** session of the account, in a fresh snapshot so a session a racing login committed while (1) waited is revoked too (L4a/L4b review F1). Queue a "your password was changed" mail | `200 {status:"password-changed"}`. **No session is started**; the client logs in. One `400 link-invalid` |
-| 8 | **Claim** `GET /api/account/claim`, `POST /api/account/claim` | Requires a session, a verified account, `design.edit.own` and a well-formed visitor cookie. The `GET` counts designs with `visitor_hash = $v and account_id is null`. The `POST` (the client's confirmation) runs one `update … set account_id = $a where visitor_hash = $v and account_id is null returning id` | `{claimable:n}` / `{claimed:n}`. No visitor cookie: `{claimable:0}` |
+| 8 | **Claim** `GET /api/account/claim`, `POST /api/account/claim` | Requires a session (`401` without one), a verified **client** account holding `design.edit.own` (`403` for an unconfirmed account or a staff role, L11 review F1) and a well-formed visitor cookie. The `GET` counts designs with `visitor_hash = $v and account_id is null`. The `POST` (the client's confirmation) runs one `update … set account_id = $a where visitor_hash = $v and account_id is null returning id` | `{claimable:n}` / `{claimed:n}`. No visitor cookie: `{claimable:0}` |
 
 **Sessions** (D3):
 - **Cookie:** `__Host-lemnaria_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`.
@@ -313,7 +314,7 @@ only).
 | `account-reset-request-by-block` | network block | 10 / 60 min |
 | `account-token-complete-by-block` | network block | 20 / 60 min (confirm and reset completion; bounds the hashing cost) |
 | `account-register-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the confirmation and already-registered mail of registration (purpose `register` only; a login's resend no longer counts here, L9 security review F1) |
-| `account-reset-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the reset link and the "password changed" notice (purposes `reset-request` and `password-changed`). Apart from the registration bucket, so register traffic cannot use up a victim's reset budget (L8 security review F2) |
+| `account-reset-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the reset link (purpose `reset-request`; the "password changed" notice counts no bucket, L10 review L1). Apart from the registration bucket, so register traffic cannot use up a victim's reset budget (L8 security review F2) |
 | `account-login-resend-by-address` | `subjectOfAddress` | 5 / 1440 min: a login's silent resend of the confirmation link (purpose `mail`), counted **only inside the `after()` job** and never answered from. Apart from the registration bucket, so signing in to an unconfirmed address cannot use up that address's registration budget (L9 security review F1, option a; owner-visible default) |
 | `account-claim-by-account` | new `subjectOfAccountId` | 10 / 60 min |
 | `design-save-by-account` | `subjectOfAccountId` | `SAVES_PER_CREDENTIAL_FIGURE` (300 / 60 min): the session twin of the write-credential bucket (ADR 0156) |
@@ -607,12 +608,13 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
    after Turnstile and validation, so a refused block, a failed challenge or an invalid body counts no address hit.
    **No bucket is counted twice:** `register` counts `account-register-mail-by-address` and `reset-request` counts
    `account-reset-mail-by-address` in their own subject stage, so their routes must not also call
-   `judgeAccountSubject({purpose:"mail"})` or `{purpose:"password-changed"}`. Those two are for a route that sends a
+   `judgeAccountSubject({purpose:"mail"})`. That one is for a route that sends a
    mail its flow did not count: `mail` is login's silent confirmation resend (it counts its **own** bucket,
    `account-login-resend-by-address`, so the registration bucket is counted only by `register`; decided in the L9
-   security review, F1, which reversed the L8 review's choice of sharing the registration bucket), `password-changed`
-   is the notice after a completed reset (it counts the **reset** bucket). All three are different buckets from login's
-   address buckets. The type system rejects a subject ask without its text; a cast that gets one through reads as
+   security review, F1, which reversed the L8 review's choice of sharing the registration bucket). The "password
+   changed" notice after a completed reset counts **no** bucket and has no purpose (L10 review L1, 2026-10-18): a
+   completed reset needs a live token, which the reset request's bucket already bounds. The buckets are different from
+   login's address buckets. The type system rejects a subject ask without its text; a cast that gets one through reads as
    unavailable.
 
 ---
@@ -882,10 +884,17 @@ platform failure is a 503 and does not consume the token.
 at step 4 and, after Turnstile and validation, `judgeAccountSubject({purpose:"reset-request", address})` before any
 lookup: that call counts `account-reset-mail-by-address` for every valid request, known address or not, and the mail queued
 after the response must not count it again. The completion route calls `judgeAccountBlock({purpose:"password-reset-complete"})`
-at step 4 only (the token is the subject). Its "password changed" notice is counted once with
-`judgeAccountSubject({purpose:"password-changed", address})` inside `after()`, against the reset bucket; a refusal there
-drops the notice and changes no answer (five reset requests in a UTC day leave no room for the notice, which is the
-price of one shared reset budget).
+at step 4 only (the token is the subject). Its "password changed" notice **counts no bucket** (L10 review L1, 2026-10-18; it first counted the reset bucket, which
+let five reset requests in a UTC day leave no room for the notice): it is earned by a completed reset, so it is bounded
+by completed resets, themselves bounded by the reset request's five tokens a day. The notice stays fail-silent: an
+unavailable mailer, a stored address the policy no longer accepts or a failed send drops it, changes no answer, and is
+written down without the address.
+**Completion recovery (L10 review L2).** When `completeReset` throws, the route reads the account again; a stored
+hash equal to the new `passwordHash` (random salt, so no one else's) means the transaction committed and the lost
+acknowledgement was the failure, so the reset is answered `200` with the belt pass and the notice. Any other state, and
+a failed read, answer `503` as before. The belt pass logs `session-revoke`/`unavailable` when it fails (distinct from the
+completion's own outcome), and a failure of the lookup or token insert in the request job logs
+`password-reset-request`/`unavailable`, apart from a mail failure.
 A completed reset starts no session; the sessions a login creates concurrently are bound to the hash they verified
 (L9's obligation, `SessionStore.create` is a compare-and-set), so a login that verified the old password cannot
 outlive the reset.
@@ -909,8 +918,13 @@ outlive the reset.
    by two accounts from one visitor cookie. Exactly one account wins each design.
 2. A claim changes `account_id` only. **`visitor_hash`, `write_token_hash`, `revision`, `updated_at` and
    `document` are unchanged**, so the claiming browser keeps working exactly as before.
-3. Without a verified account, a well-formed visitor cookie and `design.edit.own`, nothing is claimed and
-   `claimable` is 0.
+3. **Route contract (reconciled with the code, L11 review F4).** No live session answers `401`; a session that is
+   not a verified **client** account holding `design.edit.own` (an unconfirmed account, or an operator or
+   administrator) answers `403`; neither claims. For a verified client, a missing or malformed visitor cookie
+   gives `{claimable:0}` / `{claimed:0}`. Sign-in and confirmation tell the client `claimable: 0` for any account that
+   may not claim.
+   **Staff do not claim and do not own by mint (L11 review F1, ADR 0169 Amendment B):** the claim route refuses a
+   staff session, and a design a staff account mints is stored exactly as a visitor's (no `account_id`).
 4. The `GET` changes nothing. The claim happens only on the client's `POST` (the confirmation, Fix 3 item 20).
 5. The mint's bodyless contract, its limiter and its visitor rotation are unchanged. Signed out, the stored row
    is byte-identical to today's.
@@ -1038,6 +1052,10 @@ chrome spec); engineering-conventions *UI and content*, *Localised copy*; `brows
 2. "Log out everywhere" states that every device is signed out.
 3. A session that expires mid-use shows the mock-up's "session expired" state. Unsaved edits stay in the
    editor's state, so no edit is lost.
+4. **The claim calls answer `401` (no session) and `403` (not a verified client), L11 review F4.** The dialog and its
+   caller handle both without an error screen: `401` is the "session expired" state, `403` shows no dialog.
+5. **The dialog says what is attached (L11 review F1 residual):** the count, the dates and thumbnails of the kitchens, not
+   a bare number, because the first claimer keeps a design on any device and nothing can unclaim it yet.
 
 ---
 
@@ -1127,6 +1145,14 @@ Rules for the walk:
     bucket (and `register` never counts the resend bucket); "everywhere" answers `503` when the session read fails and
     "this device" still answers `204`; a cross-site `GET /api/account/session` answers but writes no `last_seen_at`.
   - Reset revokes all.
+- **L10 review (route, with fakes).** `completeReset` throwing after the hash was stored answers `200` with the belt pass and
+  the notice; throwing with another hash stored answers `503`; the notice counts no bucket and a stored address the policy
+  refuses logs `mail`/`refused`; a belt failure logs `session-revoke`, not `password-reset-complete`.
+- **L11 review (route, with fakes).** A staff session answers `403` on both claim methods and its mint stores no
+  `account_id`; sign-in and confirmation tell a staff account `claimable: 0`. **The fakes' `mint` ignores `accountId`**
+  (L11 review F7, which named `FakeConfigurationRepository.mint`; that class has no `mint`, the repository doubles of the
+  `apps/web/tests/app/api/designs/` route tests do, e.g. `write-authorization.adversarial.test.ts`, whose `mint` destructures `design`, `writeTokenHash` and `visitor` only): a route test of mint-while-signed-in on a double proves nothing about
+  the stamp until it stores it, and the stored `account_id` is proved by the live arm below.
 - **L11 (live).**
   - Two concurrent claims of one visitor's designs by two accounts: each design once.
   - The claim changes `account_id` only.
@@ -1148,7 +1174,7 @@ Rules for the walk:
 | --- | --- | --- |
 | **No tests this round** | A rule implemented plausibly and wrongly passes review | Security review on every wave. §9 lists the owed tests by criterion. The milestone stays open |
 | **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | the three per-address mail buckets (5/day each), the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider |
-| **Three mail buckets per address** (`account-register-mail-by-address` for registration, `account-reset-mail-by-address` for reset and the "password changed" notice, `account-login-resend-by-address` for a login's silent resend; 5 a day each; L8 security review F2, L9 security review F1) | **Owner-visible [inf].** A stranger who registers a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses only the registration bucket, so the victim's reset mail still has its own five. The same stranger can still use the reset bucket by requesting resets five times, and the victim's own reset mail is then refused until 00:00 UTC; the refusal reads the same for every address, so it cannot be used to probe accounts. An address can receive up to fifteen account mails a day (the login resend bucket adds up to five over the L8 split; L9 security review F1) | A single shared bucket was the first design; the split closes registration noise starving a reset, and the third bucket closes sign-in attempts on an unconfirmed address starving a registration's mail. Reset-on-reset starvation remains and is accepted; a per-address figure change is constants, not code. Q-L5 |
+| **Three mail buckets per address** (`account-register-mail-by-address` for registration, `account-reset-mail-by-address` for the reset link (the "password changed" notice counts none, L10 review L1), `account-login-resend-by-address` for a login's silent resend; 5 a day each; L8 security review F2, L9 security review F1) | **Owner-visible [inf].** A stranger who registers a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses only the registration bucket, so the victim's reset mail still has its own five. The same stranger can still use the reset bucket by requesting resets five times, and the victim's own reset mail is then refused until 00:00 UTC; the refusal reads the same for every address, so it cannot be used to probe accounts. An address can receive up to fifteen account mails a day (the login resend bucket adds up to five over the L8 split; L9 security review F1), plus at most five "password changed" notices, one per completed reset (L10 review L1) | A single shared bucket was the first design; the split closes registration noise starving a reset, and the third bucket closes sign-in attempts on an unconfirmed address starving a registration's mail. Reset-on-reset starvation remains and is accepted; a per-address figure change is constants, not code. Q-L5 |
 | **Account mail can spend the shop's whole Gmail quota** (L7 security review M2) | **Accepted, owner-visible [inf].** Many addresses, each within its own buckets, can together use the day's ~500 recipients, and a shop lead notice is then refused (`quota-spent`, not retried automatically). Each account mail costs a solved Turnstile challenge, which bounds the rate and not the total | The owner chooses: (a) a **global daily ceiling on account mail** that leaves headroom for shop notices, as an L8 limiter purpose (see the L8 conditions), or (b) a **dedicated sending account** for account mail (Q62). Not done in L7 |
 | **Deliverability** of verification mail from a Gmail address | Mail in spam; a client cannot confirm | Recorded with the trigger *"the owner sees a confirmation not arrive"*. M9's provider choice |
 | **Turnstile is a third party in the login path** | Cloudflare down means no login | Fail closed (Q-L3). Recorded as accepted. It is not a proxy, so ADR 0019 d9's reasons do not apply (D11) |
@@ -1159,6 +1185,10 @@ Rules for the walk:
 | **Argon2 on the deployment target** | Too slow or too fast | L3 criterion 6 measures; parameters live in the PHC string |
 | **`crypto.argon2` stability** | If marked experimental, an API change in a 24.x patch | L0 reads the docs; fallback scrypt is named |
 | **Screens not yet designed** | L13b, L14a, L14b wait | Server waves do not depend on them. The owner's own order puts design first |
+| **A claimed design cannot be taken back** (L11 review F1) | **Owner-visible [inf].** Whoever claims first keeps the designs on any device, and a visitor cookie's rotation does not revoke a claim already made; there is no unclaim. A client who claims from a shared computer attaches that browser's designs to their account for good | Recorded residual. A later wave gives staff a reassign / unclaim control. L14b's dialog shows what is attached (count, dates, thumbnails) so the person knows before confirming |
+| **A staff account is a visitor for designs** (L11 review F1) | **Owner-visible [inf].** An operator or administrator who browses the configurator is not stamped on the designs they mint, and cannot claim; their designs are reachable by their visitor cookie only | Decided by default: claiming and mint ownership are the `client` role's. Staff reading any design is the `design.read.any` wave (D9) |
+| **`designs.account_id` links a lead to an identified account** (L11 review F2) | **Accepted [inf].** `contact_submissions.design_id` and `designs.account_id` are both readable by the application role, so a lead can be joined to the account that owns the design. Contact data stays unreadable (ADR 0153 d1) | Accepted risk, recorded as a dated note in ADR 0153 (2026-10-18) |
+| **Migration `0015` must be applied wherever this code runs** (L11 review F3) | The mint of a signed-in verified client inserts `account_id`; on a database without `0015` that mint fails, though a signed-out mint still works | Apply `0012`-`0015` in **every** environment that receives this code, **preview included**, before it is deployed there. M9 launch-gate line 2 already covers production |
 | **Account e-mail is readable by the application role** (unlike contact data, ADR 0153 d1) | A leaked `DATABASE_URL` leaks account e-mails | Needed to sign in and to send. Recorded in D11 with the alternative (encryption at rest) and its trigger |
 
 **M9 launch-gate lines this plan adds:**
@@ -1176,7 +1206,7 @@ Rules for the walk:
 | **Q-L2** (part of QP1) | If the breached-password service cannot be reached, is the password accepted? | **Yes**, if it meets the length rule. The event is logged. (The minimum is 12, as Fix 3 item 1 proposed) |
 | **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **No**: login, register and reset answer "try again later". Writes fail closed (ADR 0019 d5) |
 | **Q-L4** (Q62) | Do confirmation and reset e-mails leave from the same Gmail account as the shop's notice? | Yes until M9, with the per-address bucket. **A dedicated sending account is recommended** |
-| **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **Yes, answered by default in the L8 security review (F2): separate buckets**, `account-register-mail-by-address` (registration notices) and `account-reset-mail-by-address` (reset request and the "password changed" notice), 5 a day each; **and a dedicated login-resend bucket `account-login-resend-by-address`, added by default in the L9 security review (F1)**, 5 a day. Owner-visible; the owner may change any figure (constants only) |
+| **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **Yes, answered by default in the L8 security review (F2): separate buckets**, `account-register-mail-by-address` (registration notices) and `account-reset-mail-by-address` (the reset request; the "password changed" notice counts none, L10 review L1), 5 a day each; **and a dedicated login-resend bucket `account-login-resend-by-address`, added by default in the L9 security review (F1)**, 5 a day. Owner-visible; the owner may change any figure (constants only) |
 
 **Owner steps** (not questions):
 - create the Turnstile widgets and set the two variables;

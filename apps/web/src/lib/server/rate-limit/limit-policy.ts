@@ -342,7 +342,7 @@ export const ACCOUNT_REGISTER_MAIL_BY_ADDRESS_POLICY = policyOf(
   },
 );
 
-/** The reset link and the "password changed" notice. Registration traffic never counts here. */
+/** The reset link. The "password changed" notice counts no bucket (L10 review L1). Registration traffic never counts here. */
 export const ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY = policyOf(
   "account-reset-mail-by-address",
   {

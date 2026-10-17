@@ -387,7 +387,8 @@ Decided:
   nothing else. The L8 review let the login's silent resend share it, since it sends the same link; the L9 review
   found that signing in to an unconfirmed address could then use up that address's registration budget, and moved the
   resend out.
-- `account-reset-mail-by-address` (5 a day): the reset link and the "password changed" notice.
+- `account-reset-mail-by-address` (5 a day): the reset link. (The "password changed" notice counted it until the L10 review;
+  see Amendment B, item 2.)
 - `account-login-resend-by-address` (5 a day): the login's silent resend of the confirmation link (purpose `mail`).
   It is counted only inside the silent job that runs after the response, and no answer is ever made from it.
 - Registration traffic can no longer exhaust the reset budget, nor login traffic the registration budget.
@@ -415,3 +416,41 @@ address and a known one with an old-shape hash take different times and a timing
 the row.
 
 The plan (§5, §7 L5/L6/L8/L9/L10/L14a, §10, §11) carries the matching text.
+
+## Amendment B — 2026-10-18: claiming is the client's, the notice counts no bucket, a committed reset is recognised
+
+Source: the security reviews of the L10 (reset) and L11 (claim, mint) waves, applied as the reviewers' recommendations
+while the owner is away. Owner-visible. Nothing else in this record changes.
+
+**1. Claiming and mint ownership are for the `client` role only (amends D8; L11 review F1).** Operator and
+administrator hold `design.edit.own` as well, so the capability alone let a staff account claim a visitor's designs and be
+stamped on the ones it minted. Decided, from the role the server read from the session (never from the request):
+- `GET` and `POST /api/account/claim` answer `403` for a signed-in session that is not a verified client (`401` for no
+  session, as before).
+- A design minted by a staff session is stored as a visitor's, with no `account_id`.
+- Sign-in and email confirmation tell a staff account `claimable: 0`.
+
+Residuals, recorded (plan §10): the first claimer keeps a design on any device, rotating the visitor cookie does not
+revoke a claim already made, and there is no unclaim path yet. A later wave gives staff a reassign / unclaim control. The
+L14b dialog shows what is attached (count, dates, thumbnails) before the person confirms. A deployment must apply `0015`
+in every environment that receives this code, preview included (L11 review F3): the mint of a signed-in client inserts
+`account_id`, so on a database without it that mint fails, while a signed-out mint is unchanged. The claim calls answer
+`401` and `403`; L14b handles both (F4).
+
+**2. The "password changed" notice counts no bucket (amends Amendment A, item 2; L10 review L1).** Counting the reset
+bucket let a stranger's five reset requests in a UTC day leave no room for the victim's notice. The notice is earned by
+a completed reset, which needs a live token, which the reset request's five-a-day bucket bounds, so it is bounded without
+a bucket of its own. The `password-changed` limiter purpose is removed. It stays fail-silent. An address can receive at
+most five such notices a day on top of the fifteen account mails of Amendment A.
+
+**3. A reset that committed is recognised (L10 review L2).** When `completeReset` throws, the route reads the account
+again; if the stored hash equals the new one (random salt, so no one else's), the reset is answered `200` as done
+(belt pass and notice included). Any other state, and a failed read, answer `503` as before.
+
+**4. Log lines tell the cases apart (L10 review I1, I2).** The belt pass that ends every session logs the new event
+`session-revoke` (closed list extended by one), so a reset that succeeded is not also logged as
+`password-reset-complete`/`unavailable`. A failure of the reset request's lookup or token insert logs
+`password-reset-request`/`unavailable`, apart from a mail failure; a notice dropped because the stored address no longer
+passes the address policy logs `mail`/`refused`. No line holds an address.
+
+The plan (§2 D8, §5, §7 L5/L10/L11/L14b, §9, §10) carries the matching text.
