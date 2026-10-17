@@ -609,6 +609,33 @@ declare const messages: {
       "widthsJoin": " sau "
     },
     "DEPENDENT_MEMBER_NOT_REBUILDABLE": "„{label}” nu poate fi adăugat aici: „{memberLabel}”, care stă deasupra, nu poate fi reconstruit la adâncimea coloanei."
+  },
+  "accountMail": {
+    "noReply": "Trimis din configuratorul Lemnaria. Nu răspunde la acest e-mail.",
+    "linkFallback": "Dacă butonul nu se deschide, copiază această adresă în browser:",
+    "confirmEmail": {
+      "subject": "Confirmă adresa de e-mail pentru contul Lemnaria",
+      "intro": "Ai creat un cont Lemnaria. Deschide link-ul de mai jos și introdu parola contului ca să confirmi adresa de e-mail.",
+      "action": "Confirmă adresa",
+      "note": "Link-ul se poate folosi o singură dată. Dacă nu ai creat tu contul, ignoră acest mesaj."
+    },
+    "alreadyRegistered": {
+      "subject": "Ai deja un cont Lemnaria",
+      "intro": "Cineva a încercat să creeze un cont Lemnaria cu această adresă, dar ea are deja un cont. Poți intra în cont; dacă ai uitat parola, o poți reseta de acolo.",
+      "action": "Intră în cont",
+      "note": "Dacă nu ai încercat tu, nu trebuie să faci nimic."
+    },
+    "resetPassword": {
+      "subject": "Resetează parola contului Lemnaria",
+      "intro": "Am primit o cerere de resetare a parolei. Deschide link-ul de mai jos și alege o parolă nouă.",
+      "action": "Alege o parolă nouă",
+      "note": "Link-ul se poate folosi o singură dată. Dacă nu ai cerut tu resetarea, ignoră acest mesaj: parola ta nu s-a schimbat."
+    },
+    "passwordChanged": {
+      "subject": "Parola contului Lemnaria a fost schimbată",
+      "intro": "Parola contului tău a fost schimbată, iar sesiunile deschise au fost închise.",
+      "note": "Dacă nu ai făcut tu schimbarea, resetează imediat parola din pagina de autentificare."
+    }
   }
 };
 export default messages;

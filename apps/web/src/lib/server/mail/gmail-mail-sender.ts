@@ -4,6 +4,12 @@ import { createHash } from "node:crypto";
 
 import { createTransport } from "nodemailer";
 
+import {
+  asciiMailboxOf,
+  sendableCustomerCopyOf,
+  type CustomerMailMessage,
+  type CustomerMailSender,
+} from "@/lib/server/mail/customer-mail";
 import type { MailConfiguration } from "@/lib/server/mail/mail-configuration";
 import {
   MAIL_REFUSED_UNSENT,
@@ -118,9 +124,53 @@ export function buildGmailMessage(
   const { senderAddress, notificationAddress } = configuration;
   const senderDomain = plainDomainOf(senderAddress, "senderAddress");
   requirePlainMailbox(notificationAddress, "notificationAddress");
-  const options: GmailMessageOptions = {
+  return gmailOptionsOf({
+    copy,
     from: senderAddress,
+    senderDomain,
     to: notificationAddress,
+  });
+}
+
+/**
+ * As `buildGmailMessage`, except that the one recipient is the message's own, written as the transport takes it. The
+ * configured inbox is not consulted, so a customer's mail can never be addressed to the shop by this path.
+ * @throws UnusableMailAddressError when the sender address is not one plain mailbox;
+ *   UnusableRecipientError when the recipient is not.
+ */
+export function buildGmailCustomerMessage(
+  copy: CustomerMailMessage,
+  configuration: MailConfiguration,
+): GmailMessageOptions {
+  const { senderAddress } = configuration;
+  const senderDomain = plainDomainOf(senderAddress, "senderAddress");
+  const to = asciiMailboxOf(copy.recipient);
+  if (to === undefined) throw new UnusableRecipientError();
+  return gmailOptionsOf({ copy, from: senderAddress, senderDomain, to });
+}
+
+/** A customer message whose recipient is not one plain mailbox. Holds no address. */
+export class UnusableRecipientError extends Error {
+  constructor() {
+    super("The message's recipient is not one plain mailbox address");
+    this.name = "UnusableRecipientError";
+  }
+}
+
+function gmailOptionsOf({
+  copy,
+  from,
+  senderDomain,
+  to,
+}: {
+  readonly copy: MailMessage;
+  readonly from: string;
+  readonly senderDomain: string;
+  readonly to: string;
+}): GmailMessageOptions {
+  const options: GmailMessageOptions = {
+    from,
+    to,
     subject: copy.subject,
     text: copy.text,
     messageId: `<${digestOf(copy.key)}@${senderDomain}>`,
@@ -140,7 +190,22 @@ export function createGmailMailSender(
 ): MailSender {
   const setup: SenderSetup = { configuration, makeTransport };
   return {
-    send: (message) => sendOnce(message, setup),
+    send: (message) => sendOnce(tryBuildMessage(message, configuration), setup),
+  };
+}
+
+/**
+ * The shop's transport rules for a message addressed to a customer: one attempt, the seven kinds, no reply-to, copy,
+ * blind copy, header of its own or attachment. The recipient is the message's own and nothing else.
+ */
+export function createGmailCustomerMailSender(
+  configuration: MailConfiguration,
+  makeTransport: MakeMailTransport = DEFAULT_MAKE_TRANSPORT,
+): CustomerMailSender {
+  const setup: SenderSetup = { configuration, makeTransport };
+  return {
+    send: (message) =>
+      sendOnce(tryBuildCustomerMessage(message, configuration), setup),
   };
 }
 
@@ -151,10 +216,9 @@ interface SenderSetup {
 }
 
 async function sendOnce(
-  message: MailMessage,
+  options: GmailMessageOptions | undefined,
   setup: SenderSetup,
 ): Promise<MailOutcome> {
-  const options = tryBuildMessage(message, setup.configuration);
   if (options === undefined) return MAIL_REFUSED_UNSENT;
   const transport = tryMakeTransport(setup);
   if ("outcome" in transport) return transport.outcome;
@@ -174,6 +238,20 @@ function tryBuildMessage(
     return copy === undefined
       ? undefined
       : buildGmailMessage(copy, configuration);
+  } catch {
+    return undefined;
+  }
+}
+
+function tryBuildCustomerMessage(
+  message: CustomerMailMessage,
+  configuration: MailConfiguration,
+): GmailMessageOptions | undefined {
+  try {
+    const copy = sendableCustomerCopyOf(message);
+    return copy === undefined
+      ? undefined
+      : buildGmailCustomerMessage(copy, configuration);
   } catch {
     return undefined;
   }

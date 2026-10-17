@@ -792,6 +792,39 @@ export function resolveNoticePreheader(
     : translate("leadNotice.preheaderWithLocality", { lead, name, locality });
 }
 
+/** The wording of the four account e-mails, resolved in one locale. `action` is the label of the link's button. */
+export function resolveAccountMailCopy(translate: ContentTranslator) {
+  return {
+    noReply: translate("accountMail.noReply"),
+    linkFallback: translate("accountMail.linkFallback"),
+    confirmEmail: {
+      subject: translate("accountMail.confirmEmail.subject"),
+      intro: translate("accountMail.confirmEmail.intro"),
+      action: translate("accountMail.confirmEmail.action"),
+      note: translate("accountMail.confirmEmail.note"),
+    },
+    alreadyRegistered: {
+      subject: translate("accountMail.alreadyRegistered.subject"),
+      intro: translate("accountMail.alreadyRegistered.intro"),
+      action: translate("accountMail.alreadyRegistered.action"),
+      note: translate("accountMail.alreadyRegistered.note"),
+    },
+    resetPassword: {
+      subject: translate("accountMail.resetPassword.subject"),
+      intro: translate("accountMail.resetPassword.intro"),
+      action: translate("accountMail.resetPassword.action"),
+      note: translate("accountMail.resetPassword.note"),
+    },
+    passwordChanged: {
+      subject: translate("accountMail.passwordChanged.subject"),
+      intro: translate("accountMail.passwordChanged.intro"),
+      note: translate("accountMail.passwordChanged.note"),
+    },
+  };
+}
+
+export type AccountMailCopy = ReturnType<typeof resolveAccountMailCopy>;
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {

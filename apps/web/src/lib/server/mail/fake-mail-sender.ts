@@ -1,6 +1,11 @@
 import "server-only";
 
 import {
+  sendableCustomerCopyOf,
+  type CustomerMailMessage,
+  type CustomerMailSender,
+} from "@/lib/server/mail/customer-mail";
+import {
   MAIL_ACCEPTED,
   MAIL_REFUSED_UNSENT,
   sendableCopyOf,
@@ -27,6 +32,29 @@ export function createFakeMailSender(
     sent,
     send(message) {
       const copy = sendableCopyOf(message);
+      if (copy === undefined) return Promise.resolve(MAIL_REFUSED_UNSENT);
+      const outcome = scriptedOutcomes[sent.length] ?? MAIL_ACCEPTED;
+      sent.push(copy);
+      return Promise.resolve(outcome);
+    },
+  };
+}
+
+export interface FakeCustomerMailSender extends CustomerMailSender {
+  /** Every message handed to `send` that may be sent, in order, including those whose scripted outcome was a failure. */
+  readonly sent: readonly CustomerMailMessage[];
+}
+
+/** As `createFakeMailSender`, for a message addressed to a customer: a message that may not be sent is refused
+ *  unrecorded, and nothing reaches a network. */
+export function createFakeCustomerMailSender(
+  scriptedOutcomes: readonly MailOutcome[] = [],
+): FakeCustomerMailSender {
+  const sent: CustomerMailMessage[] = [];
+  return {
+    sent,
+    send(message) {
+      const copy = sendableCustomerCopyOf(message);
       if (copy === undefined) return Promise.resolve(MAIL_REFUSED_UNSENT);
       const outcome = scriptedOutcomes[sent.length] ?? MAIL_ACCEPTED;
       sent.push(copy);
