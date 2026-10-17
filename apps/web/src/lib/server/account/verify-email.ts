@@ -14,10 +14,11 @@ import {
   invalidRequestResponse,
   linkOrPasswordInvalidResponse,
   signedInResponse,
+  unavailableResponse,
 } from "@/lib/server/account/account-responses";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import { isWellFormedEmailToken } from "@/lib/server/account/email-token";
-import { DUMMY_PHC, verifyPassword } from "@/lib/server/account/password-hash";
+import { checkPassword, DUMMY_PHC } from "@/lib/server/account/password-hash";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { startSession } from "@/lib/server/account/session-lifecycle";
 import { sha256Hex } from "@/lib/server/sha256-hex";
@@ -54,12 +55,26 @@ export async function verifyEmail({
     return linkOrPasswordInvalidResponse();
   }
   const tokenHash = sha256Hex(token);
-  const account = await accountHoldingPassword({
+  const holding = await accountHoldingPassword({
     account: await findAccountOfLiveToken(tokenHash),
     password,
   });
-  if (account === undefined) return linkOrPasswordInvalidResponse();
-  return confirmAndSignIn({ account, tokenHash, presentedCookies });
+  if (holding.kind === "unverifiable") return answerUnavailable();
+  if (holding.kind === "not-held") return linkOrPasswordInvalidResponse();
+  return confirmAndSignIn({
+    account: holding.account,
+    tokenHash,
+    presentedCookies,
+  });
+}
+
+/**
+ * The password is compared on the platform that computes it; a platform that could not compute is not a wrong password,
+ * so it is answered `503` with the token untouched, and the line says `unavailable`.
+ */
+function answerUnavailable(): NextResponse {
+  reportAccountEvent({ event: "confirm-email", outcome: "unavailable" });
+  return unavailableResponse();
 }
 
 async function findAccountOfLiveToken(
@@ -72,6 +87,12 @@ async function findAccountOfLiveToken(
   return lookup.kind === "found" ? lookup.account : undefined;
 }
 
+/** `unverifiable` is the platform's failure to compute the comparison, told apart from a password that does not match. */
+type PasswordHolding =
+  | { readonly kind: "holds"; readonly account: StoredAccount }
+  | { readonly kind: "not-held" }
+  | { readonly kind: "unverifiable" };
+
 /**
  * The account, when `password` is the one it holds. It is checked against **that** account's hash, taken from the
  * token's lookup and from nowhere else. A missing account, or a password the policy refuses, is verified against the
@@ -83,14 +104,17 @@ async function accountHoldingPassword({
 }: {
   account: StoredAccount | undefined;
   password: string;
-}): Promise<StoredAccount | undefined> {
+}): Promise<PasswordHolding> {
   const judgement = judgePassword({ password, email: account?.email ?? "" });
   const comparable = judgement.ok ? account : undefined;
-  const matches = await verifyPassword({
+  const check = await checkPassword({
     password: judgement.ok ? judgement.password : REFUSED_PASSWORD_STAND_IN,
     phc: comparable?.passwordHash ?? DUMMY_PHC,
   });
-  return matches ? comparable : undefined;
+  if (check === "failed") return { kind: "unverifiable" };
+  return check === "match" && comparable !== undefined
+    ? { kind: "holds", account: comparable }
+    : { kind: "not-held" };
 }
 
 /**

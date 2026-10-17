@@ -13,10 +13,14 @@ const EMAIL_TOKEN_BYTES = 32;
 /** Exactly what `randomBytes(32).toString("base64url")` produces, and the only length `buildAccountMail` accepts. */
 const WELL_FORMED_EMAIL_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
-const MILLISECONDS_PER_HOUR = 60 * 60 * 1_000;
+const MILLISECONDS_PER_MINUTE = 60 * 1_000;
+const MILLISECONDS_PER_HOUR = 60 * MILLISECONDS_PER_MINUTE;
 
 /** How long a confirmation link works (ADR 0169 decision 5). */
 const VERIFY_EMAIL_TOKEN_LIFETIME_HOURS = 24;
+
+/** How long a reset link works (ADR 0169 decision 5): short, since it opens the account without the old password. */
+const RESET_PASSWORD_TOKEN_LIFETIME_MINUTES = 30;
 
 export interface MintedEmailToken {
   /** The value for the link. It is never stored, logged or returned to the client. */
@@ -38,5 +42,12 @@ export function isWellFormedEmailToken(value: unknown): value is string {
 export function verifyEmailTokenExpiry(): Date {
   return new Date(
     Date.now() + VERIFY_EMAIL_TOKEN_LIFETIME_HOURS * MILLISECONDS_PER_HOUR,
+  );
+}
+
+export function resetPasswordTokenExpiry(): Date {
+  return new Date(
+    Date.now() +
+      RESET_PASSWORD_TOKEN_LIFETIME_MINUTES * MILLISECONDS_PER_MINUTE,
   );
 }

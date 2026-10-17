@@ -79,6 +79,18 @@ export function linkOrPasswordInvalidResponse(): NextResponse {
   return statusResponse(400, "link-or-password-invalid");
 }
 
+/** `400`: the one answer to a reset that did not succeed because of its link: unknown, used, expired, superseded, or the
+ *  token of an account never confirmed. */
+export function linkInvalidResponse(): NextResponse {
+  return statusResponse(400, "link-invalid");
+}
+
+/** `200`: the password was replaced and every session of the account ended. No session is started and no cookie set:
+ *  the client signs in with the new password. */
+export function passwordChangedResponse(): NextResponse {
+  return statusResponse(200, "password-changed");
+}
+
 /** `200`: the client is signed in. The route sets the session cookie on this very response. */
 export function signedInResponse(claimable: number): NextResponse {
   return NextResponse.json(
