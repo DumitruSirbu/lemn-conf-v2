@@ -55,6 +55,29 @@ export type {
   FakeSentKitchenViewRepositoryOptions,
   HeldSentKitchenView,
 } from "./fake-sent-kitchen-view-repository.js";
+export { PresetRepositoryError } from "./preset-repository.js";
+export { MAX_PRESET_THUMBNAIL_BYTES } from "./preset-validation.js";
+export {
+  MAX_PRESET_NAME_CHARACTERS,
+  isShowablePresetName,
+} from "./preset-name.js";
+export type {
+  PresetImageLookup,
+  PresetListing,
+  PresetLookup,
+  PresetNeighbourhood,
+  PresetOperation,
+  PresetRepository,
+  PresetShape,
+  PresetStatus,
+  PresetThumbnailType,
+  PresetToRecord,
+  PresetWalls,
+  StoredPreset,
+} from "./preset-repository.js";
+export { NeonPresetRepository } from "./neon-preset-repository.js";
+export { FakePresetRepository } from "./fake-preset-repository.js";
+export type { HeldPreset } from "./fake-preset-repository.js";
 export { NeonRateLimitStore } from "./neon-rate-limit-store.js";
 export {
   RateLimitStoreError,

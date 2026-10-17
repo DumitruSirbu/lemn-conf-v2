@@ -878,6 +878,13 @@ P5 needs F1b, since adaptation refills with its rule.
   the list expose beyond what a card shows? Can a browser sniff the image as anything else? Can the image route serve
   anything but a stored image? Is a design id ever returned?
 - **Logic and clean-code, one combined reviewer, Reading:** the diff; ADR 0109 A2, A4; `engineering-conventions.md`.
+- **Note from the P1 security review (2026-10-18): the image's `max-age` must be short.** §3.5 gives the image route
+  `Cache-Control: public, max-age=31536000, immutable`, on the premise that rows are insert-only. But the owner hides a
+  preset by hand (runbook, *Hiding one preset*), and a hidden preset's image then stays at the CDN and in browsers for up
+  to a year. P6 should choose a short `max-age` (the listing's 60 seconds is the precedent) with `stale-while-revalidate`
+  at most that long, and drop `immutable`; the cost is one revalidation per card per minute. That amends §3.5's header
+  list, which the scribe records. P6's own listing code must also read `PresetListing.unreadableCount` from the
+  repository and log only that count when it is not zero (the repository keeps nothing of an unreadable row).
 
 ### P7 — Step 1 fetches and evaluates (Light)
 
