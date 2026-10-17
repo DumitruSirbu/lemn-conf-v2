@@ -12,7 +12,8 @@ import { useCopyText } from "./use-copy-text";
 /**
  * The customer's own address of this design's editor as text, the control that copies exactly that text, and the note
  * that it opens the design for editing in this browser only. *Copiat* is announced politely once the clipboard accepted
- * the write; where it did not, the address is selected so it can be copied by hand.
+ * the write, on a line of its own that is held open while empty, so neither the address nor the note moves when it
+ * appears; where the write was refused, the address is selected so it can be copied by hand.
  */
 export function DesignLinkCard({ designId }: { readonly designId: DesignId }) {
   const content = useContent().submissionResult;
@@ -36,25 +37,19 @@ export function DesignLinkCard({ designId }: { readonly designId: DesignId }) {
             {address}
           </span>
         </div>
-        <div className={styles.copyArea}>
-          <span
-            role="status"
-            className={styles.copied}
-            data-testid="done-copied"
-          >
-            {isCopied ? content.copied : null}
-          </span>
-          <button
-            type="button"
-            className={styles.copyButton}
-            aria-describedby={labelId}
-            data-testid="done-copy"
-            onClick={copy}
-          >
-            {content.copy}
-          </button>
-        </div>
+        <button
+          type="button"
+          className={styles.copyButton}
+          aria-describedby={labelId}
+          data-testid="done-copy"
+          onClick={copy}
+        >
+          {content.copy}
+        </button>
       </div>
+      <p role="status" className={styles.linkCopied} data-testid="done-copied">
+        {isCopied ? content.copied : null}
+      </p>
       <p className={styles.linkNote} data-testid="done-design-link-note">
         {content.designLinkNote}
       </p>

@@ -9,10 +9,12 @@ import {
   NoticeLineError,
   type NoticeKitchenLink,
 } from "@/lib/server/mail/lead-notification";
+import type { PublicOriginOutcome } from "@/lib/server/public-origin";
 
 import { ro } from "../../../support/romanian-content";
 import {
   designSubmission,
+  FIXTURE_PUBLIC_ORIGIN,
   fixtureContact,
   KITCHEN_LINK,
   noticeInput,
@@ -184,15 +186,43 @@ const token = fc
 const origin = fc.constantFrom(
   "https://example.invalid",
   "https://configurator.lemnaria.example",
+  "https://attacker.example",
   "http://localhost:4320",
   "http://127.0.0.1:3000",
 );
+
+/** A link as handed in, the origin the attempt read, and whether the notice may show the link. */
+interface HandedInLink {
+  readonly link: NoticeKitchenLink;
+  readonly publicOrigin: PublicOriginOutcome;
+  readonly isShown: boolean;
+  readonly isForeign: boolean;
+}
+
+function configured(base: string): PublicOriginOutcome {
+  return { status: "configured", origin: base };
+}
+
 const validLink = fc.tuple(origin, token).map(
-  ([base, value]): NoticeKitchenLink => ({
-    kind: "link",
-    url: `${base}/ro/s/${value}`,
+  ([base, value]): HandedInLink => ({
+    link: { kind: "link", url: `${base}/ro/s/${value}` },
+    publicOrigin: configured(base),
+    isShown: true,
+    isForeign: false,
   }),
 );
+/** Well formed, but under an origin other than the one configured for the attempt. */
+const foreignLink = fc
+  .tuple(origin, origin, token)
+  .filter(([configuredBase, linkBase]) => configuredBase !== linkBase)
+  .map(
+    ([configuredBase, linkBase, value]): HandedInLink => ({
+      link: { kind: "link", url: `${linkBase}/ro/s/${value}` },
+      publicOrigin: configured(configuredBase),
+      isShown: false,
+      isForeign: true,
+    }),
+  );
 const HOSTILE_URLS = [
   "javascript:alert(1)",
   "JaVaScRiPt:alert(1)",
@@ -203,10 +233,20 @@ const HOSTILE_URLS = [
   "//example.invalid/ro/s/Fixture0Tok1",
   "https://example.invalid/ro/s/Fixture0Tok",
 ];
-const hostileLink = fc
-  .constantFrom(...HOSTILE_URLS)
-  .map((url): NoticeKitchenLink => ({ kind: "link", url }));
-const unavailable = fc.constant<NoticeKitchenLink>({ kind: "unavailable" });
+const hostileLink = fc.constantFrom(...HOSTILE_URLS).map(
+  (url): HandedInLink => ({
+    link: { kind: "link", url },
+    publicOrigin: FIXTURE_PUBLIC_ORIGIN,
+    isShown: false,
+    isForeign: false,
+  }),
+);
+const unavailable = fc.constant<HandedInLink>({
+  link: { kind: "unavailable" },
+  publicOrigin: FIXTURE_PUBLIC_ORIGIN,
+  isShown: false,
+  isForeign: false,
+});
 
 const generatedRequest = fc.record({
   channel: fc.constantFrom<ContactFields["channel"]>(
@@ -215,21 +255,23 @@ const generatedRequest = fc.record({
     "email",
   ),
   local: localPart,
-  link: fc.oneof(validLink, hostileLink, unavailable),
+  handedIn: fc.oneof(validLink, foreignLink, hostileLink, unavailable),
   name: hostileText.filter((value) => !BREAKS_A_LINE.test(value)),
 });
 
 describe("every href in the HTML part", () => {
-  it("matches exactly one of the four shapes, the kitchen link only as handed in, e-mail only for its channel", () => {
+  it("matches exactly one of the four shapes, the kitchen link only as handed in and under the origin configured for it, e-mail only for its channel", () => {
     const seen = {
       kitchen: 0,
       call: 0,
       whatsapp: 0,
       mailto: 0,
       refusedLink: 0,
+      foreignLink: 0,
     };
     fc.assert(
-      fc.property(generatedRequest, ({ channel, local, link, name }) => {
+      fc.property(generatedRequest, ({ channel, local, handedIn, name }) => {
+        const { link, publicOrigin, isShown, isForeign } = handedIn;
         const email = `${local}@example.md`;
         const contact = {
           ...fixtureContact(
@@ -240,16 +282,15 @@ describe("every href in the HTML part", () => {
           name,
           email: channel === "email" ? email : undefined,
         };
-        const message = composeLeadNotice(
-          noticeInput(designSubmission({ contact }), link),
-        );
+        const message = composeLeadNotice({
+          ...noticeInput(designSubmission({ contact }), link),
+          publicOrigin,
+        });
 
         const hrefs = [
           ...parseNotice(message.html ?? "").document.querySelectorAll("a"),
         ].map((anchor) => anchor.getAttribute("href") ?? "");
 
-        const isHandedInLink =
-          link.kind === "link" && !HOSTILE_URLS.includes(link.url);
         for (const href of hrefs) {
           const shapes = [CALL, WHATSAPP, MAILTO, KITCHEN].filter((shape) =>
             shape.test(href),
@@ -257,7 +298,9 @@ describe("every href in the HTML part", () => {
           expect(shapes).toHaveLength(1);
         }
         const kitchenHrefs = hrefs.filter((href) => KITCHEN.test(href));
-        expect(kitchenHrefs).toEqual(isHandedInLink ? [link.url] : []);
+        expect(kitchenHrefs).toEqual(
+          isShown && link.kind === "link" ? [link.url] : [],
+        );
         expect(hrefs.filter((href) => CALL.test(href))).toHaveLength(1);
         expect(hrefs.filter((href) => WHATSAPP.test(href))).toHaveLength(
           channel === "whatsapp" ? 1 : 0,
@@ -275,7 +318,8 @@ describe("every href in the HTML part", () => {
         seen.call += 1;
         seen.whatsapp += channel === "whatsapp" ? 1 : 0;
         seen.mailto += mailtos.length;
-        seen.refusedLink += link.kind === "link" && !isHandedInLink ? 1 : 0;
+        seen.refusedLink += link.kind === "link" && !isShown ? 1 : 0;
+        seen.foreignLink += isForeign ? 1 : 0;
       }),
       { numRuns: RUNS, seed: PROPERTY_SEED },
     );

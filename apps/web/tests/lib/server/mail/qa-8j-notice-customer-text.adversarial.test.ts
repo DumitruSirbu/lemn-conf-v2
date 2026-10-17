@@ -27,6 +27,7 @@ import {
   consoleCallsOf,
   spyOnEveryConsoleMethod,
 } from "./mail-test-support";
+import { FIXTURE_PUBLIC_ORIGIN } from "./lead-notice-fixtures";
 import {
   acceptedContact,
   callbackRequest,
@@ -178,6 +179,7 @@ describe("every breaking character, at every position, in every printed field", 
           submission: designRequest(),
           content: ro,
           kitchenLink: { kind: "unavailable" },
+          publicOrigin: FIXTURE_PUBLIC_ORIGIN,
         }),
       );
       return !(

@@ -31,6 +31,7 @@ import {
 } from "@/lib/server/mail/mail-sender";
 
 import { ro } from "../../../support/romanian-content";
+import { FIXTURE_PUBLIC_ORIGIN } from "./lead-notice-fixtures";
 import {
   consoleCallsOf,
   forbidFetch,
@@ -291,6 +292,7 @@ describe("the composed message", () => {
                 ),
                 content: ro,
                 kitchenLink: { kind: "unavailable" },
+                publicOrigin: FIXTURE_PUBLIC_ORIGIN,
               });
               const options = buildGmailMessage(notice, CONFIGURATION);
 

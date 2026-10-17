@@ -147,6 +147,20 @@ describe("the card's roles", () => {
     expect(status.textContent).toBe("");
   });
 
+  it("holds the announcement on a line of its own, outside the row the address and the copy control share", async () => {
+    installClipboard(() => Promise.resolve());
+    mountCard();
+    const row = elementMarked("done-copy").parentElement;
+
+    await pressCopy();
+
+    const status = elementMarked("done-copied");
+    expect(status.textContent).toBe(roMessages.submissionResult.copied);
+    expect(row?.contains(elementMarked("done-design-link"))).toBe(true);
+    expect(row?.contains(status)).toBe(false);
+    expect(status.parentElement).toBe(elementMarked("done-design-link-card"));
+  });
+
   it("reads the address left to right, whatever the page's direction, and draws it as text, not a link", () => {
     mountCard();
 

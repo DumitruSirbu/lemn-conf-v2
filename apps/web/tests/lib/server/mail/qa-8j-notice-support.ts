@@ -21,6 +21,7 @@ import {
   VARIED_STRAIGHT_ARM,
   variedKitchensOf,
 } from "../../../support/varied-kitchens";
+import { FIXTURE_PUBLIC_ORIGIN } from "./lead-notice-fixtures";
 
 // Invented, recognisable values: a test looks for them where the customer's text must not be.
 export const QA_REFERENCE = "LM-QAQA2345";
@@ -129,6 +130,7 @@ export function noticeOf(
     submission,
     content,
     kitchenLink: { kind: "link", url: QA_KITCHEN_URL },
+    publicOrigin: FIXTURE_PUBLIC_ORIGIN,
   });
 }
 

@@ -188,12 +188,22 @@
   gap: 8px;
 }
 
-.copied {
+.copied,
+.linkCopied {
   font: 700 12px/1 var(--font-ui);
   color: var(--success);
 }
 
+/* The design link's announcement has a line of its own under the address row, held at its height while empty: when
+ * *Copiat* arrives nothing beside it gives up width and nothing below it moves. */
+.linkCopied {
+  min-height: 12px;
+  margin: 0;
+  text-align: end;
+}
+
 .copyButton {
+  flex: 0 0 auto;
   min-width: var(--touch-target);
   min-height: var(--touch-target);
   padding: 0 6px;

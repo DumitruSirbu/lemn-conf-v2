@@ -22,9 +22,29 @@ const PROPERTY_RUNS = 2_000;
 /** Each arm of the property must be reached this often, or the sweep says nothing about it. */
 const MIN_RUNS_PER_ARM = 200;
 
+/** The e2e fake sender's opt-in, the only environment a loopback origin is accepted in. */
+const FAKE_MAIL_FLAG = "LEMNARIA_E2E_FAKE_MAIL";
+
 function readFrom(value: string): ReturnType<typeof readPublicOrigin> {
   return readPublicOrigin({ [PUBLIC_ORIGIN_VARIABLE]: value });
 }
+
+function readInTheE2eEnvironment(
+  value: string,
+): ReturnType<typeof readPublicOrigin> {
+  return readPublicOrigin({
+    [PUBLIC_ORIGIN_VARIABLE]: value,
+    [FAKE_MAIL_FLAG]: "1",
+  });
+}
+
+const LOOPBACK_ORIGINS = [
+  ["plain http on localhost with a port", "http://localhost:3000"],
+  ["plain http on localhost", "http://localhost"],
+  ["plain http on 127.0.0.1", "http://127.0.0.1:3100"],
+  ["plain http on [::1]", "http://[::1]:3000"],
+  ["https on a loopback host", "https://127.0.0.1:8443"],
+] as const;
 
 describe("readPublicOrigin: the shapes it accepts", () => {
   it.each([
@@ -32,13 +52,25 @@ describe("readPublicOrigin: the shapes it accepts", () => {
     ["an https host with a port", "https://shop.lemnaria.example:8443"],
     ["a deep https host", "https://a.b.c.lemnaria.example"],
     ["an IDN in punycode", "https://xn--bcher-kva.example"],
-    ["plain http on localhost with a port", "http://localhost:3000"],
-    ["plain http on localhost", "http://localhost"],
-    ["plain http on 127.0.0.1", "http://127.0.0.1:3100"],
-    ["plain http on [::1]", "http://[::1]:3000"],
-    ["https on a loopback host", "https://127.0.0.1:8443"],
   ])("accepts %s, answering it unchanged", (_shape, value) => {
     expect(readFrom(value)).toEqual({ status: "configured", origin: value });
+  });
+
+  it.each(LOOPBACK_ORIGINS)(
+    "accepts %s beside the e2e fake sender's flag, answering it unchanged",
+    (_shape, value) => {
+      expect(readInTheE2eEnvironment(value)).toEqual({
+        status: "configured",
+        origin: value,
+      });
+    },
+  );
+
+  it("accepts a public origin beside the flag as well", () => {
+    expect(readInTheE2eEnvironment("https://lemnaria.example")).toEqual({
+      status: "configured",
+      origin: "https://lemnaria.example",
+    });
   });
 
   it("names the variable LEMNARIA_PUBLIC_ORIGIN", () => {
@@ -100,6 +132,40 @@ describe("readPublicOrigin: what it refuses, naming only the variable", () => {
     expect(readFrom(value)).toEqual(UNAVAILABLE);
   });
 
+  it.each(LOOPBACK_ORIGINS)(
+    "refuses %s in an environment without the e2e fake sender's flag",
+    (_shape, value) => {
+      expect(readFrom(value)).toEqual(UNAVAILABLE);
+    },
+  );
+
+  it.each([
+    ["true", "true"],
+    ["01", "01"],
+    ["a space before the 1", " 1"],
+    ["0", "0"],
+    ["empty", ""],
+  ])(
+    "refuses a loopback origin beside the flag set to %s, which does not opt in",
+    (_label, flagValue) => {
+      expect(
+        readPublicOrigin({
+          [PUBLIC_ORIGIN_VARIABLE]: "http://localhost:3000",
+          [FAKE_MAIL_FLAG]: flagValue,
+        }),
+      ).toEqual(UNAVAILABLE);
+    },
+  );
+
+  it("refuses a loopback origin beside a flag the environment only inherits", () => {
+    const environment = Object.assign(
+      Object.create({ [FAKE_MAIL_FLAG]: "1" }) as Record<string, string>,
+      { [PUBLIC_ORIGIN_VARIABLE]: "http://localhost:3000" },
+    );
+
+    expect(readPublicOrigin(environment)).toEqual(UNAVAILABLE);
+  });
+
   it("refuses an environment without the variable", () => {
     expect(readPublicOrigin({})).toEqual(UNAVAILABLE);
   });
@@ -150,16 +216,20 @@ const DEFAULT_PORTS: Readonly<Record<string, string>> = {
   http: "80",
 };
 const MAX_HOST_LENGTH = 253;
+const LOOPBACK_IN_VALUE =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::|$)/;
+/** Loopback values are a fraction of the generated ones, so their arms have a floor of their own. */
+const MIN_LOOPBACK_RUNS = 40;
 const MAX_PORT = 65_535;
 
-function isOriginByTheRule(value: string): boolean {
+function isOriginByTheRule(value: string, isE2e: boolean): boolean {
   const match = ORIGIN_SHAPE.exec(value);
   if (match === null) return false;
   const [, scheme = "", host = "", port] = match;
   if (port !== undefined) {
     if (Number(port) > MAX_PORT || port === DEFAULT_PORTS[scheme]) return false;
   }
-  if (LOOPBACK_HOST.test(host)) return true;
+  if (LOOPBACK_HOST.test(host)) return isE2e;
   return (
     scheme === "https" && host.length <= MAX_HOST_LENGTH && NAME_HOST.test(host)
   );
@@ -222,29 +292,43 @@ const anyInputArbitrary = fc.oneof(
 );
 
 describe("readPublicOrigin: as a property over generated values", () => {
-  it("is configured exactly when the rule accepts the value, and then answers the value itself", () => {
-    const answers = { configured: 0, unavailable: 0 };
+  it("is configured exactly when the rule accepts the value in its environment, and then answers the value itself", () => {
+    const answers = {
+      configured: 0,
+      unavailable: 0,
+      loopbackInE2e: 0,
+      loopbackOutsideE2e: 0,
+    };
 
     fc.assert(
-      fc.property(anyInputArbitrary, (value) => {
-        const outcome = readFrom(value);
-        const expected = isOriginByTheRule(value)
+      fc.property(anyInputArbitrary, fc.boolean(), (value, isE2e) => {
+        const outcome = isE2e
+          ? readInTheE2eEnvironment(value)
+          : readFrom(value);
+        const expected = isOriginByTheRule(value, isE2e)
           ? { status: "configured", origin: value }
           : UNAVAILABLE;
         expect(outcome).toEqual(expected);
         answers[outcome.status] += 1;
+        if (isOriginByTheRule(value, true) && LOOPBACK_IN_VALUE.test(value)) {
+          answers[isE2e ? "loopbackInE2e" : "loopbackOutsideE2e"] += 1;
+        }
       }),
       { seed: PROPERTY_SEED, numRuns: PROPERTY_RUNS },
     );
 
     expect(answers.configured).toBeGreaterThanOrEqual(MIN_RUNS_PER_ARM);
     expect(answers.unavailable).toBeGreaterThanOrEqual(MIN_RUNS_PER_ARM);
+    expect(answers.loopbackInE2e).toBeGreaterThanOrEqual(MIN_LOOPBACK_RUNS);
+    expect(answers.loopbackOutsideE2e).toBeGreaterThanOrEqual(
+      MIN_LOOPBACK_RUNS,
+    );
   });
 
   it("refuses every origin with one character of garbage put before or after it", () => {
     fc.assert(
       fc.property(mutatedOriginArbitrary, (value) => {
-        expect(readFrom(value)).toEqual(UNAVAILABLE);
+        expect(readInTheE2eEnvironment(value)).toEqual(UNAVAILABLE);
       }),
       { seed: PROPERTY_SEED, numRuns: PROPERTY_RUNS },
     );

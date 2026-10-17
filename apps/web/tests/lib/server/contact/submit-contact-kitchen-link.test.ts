@@ -13,6 +13,8 @@ import type {
 } from "@lemnaria/persistence";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ContactFailure, causeOf } from "@/lib/server/contact/contact-failure";
+import { proveTheNoticeIsBuildable } from "@/lib/server/contact/deliver-notice";
 import { KITCHEN_LINK_DEADLINE_MS } from "@/lib/server/contact/sent-kitchen-link";
 import { submitContact } from "@/lib/server/contact/submit-contact";
 import type { MailMessage } from "@/lib/server/mail/mail-sender";
@@ -28,6 +30,11 @@ import {
   spyOnEveryConsoleMethod,
   type ConsoleSpy,
 } from "../mail/mail-test-support";
+import {
+  densestUKitchen,
+  designSubmission,
+  dressed,
+} from "../mail/lead-notice-fixtures";
 import { parseNotice } from "../mail/notice-html-dom-support";
 import {
   aHarness,
@@ -358,6 +365,56 @@ describe("the notice is proved buildable in both forms before anything is stored
   );
 });
 
+describe("a notice is proved sendable, and is sent, whatever the kitchen's size", () => {
+  const TEXT_KITCHEN_LINK =
+    /https:\/\/lemnaria\.example\/ro\/s\/([0-9A-Za-z]{12})$/;
+
+  it("sends the densest kitchen a design can hold as its text part alone, with the recorded link first, answers 200 and marks it", async () => {
+    const harness = aHarness({ design: dressed(densestUKitchen()) });
+
+    const answer = await harness.submit(bodyOf());
+
+    const [message] = harness.sender.sent;
+    const token = TEXT_KITCHEN_LINK.exec(
+      message?.text.split("\n")[0] ?? "",
+    )?.[1];
+    expect(answer.status).toBe(200);
+    expect(harness.sender.sent).toHaveLength(1);
+    expect(message?.html).toBeUndefined();
+    expect(token).toBeDefined();
+    expect(harness.views.heldViews().map((view) => view.tokenHash)).toEqual([
+      sha256Of(token ?? ""),
+    ]);
+    expect(harness.store.heldSubmissions()[0]?.notifiedAt).toBeDefined();
+  });
+
+  it("refuses, before anything is stored, a notice no sender would take", () => {
+    const submission = designSubmission({ clientRequestId: "not a header" });
+
+    const thrown = thrownBy(() => {
+      proveTheNoticeIsBuildable(submission, ro);
+    });
+
+    expect(thrown).toBeInstanceOf(ContactFailure);
+    expect(causeOf(thrown)).toBe("notice-unbuildable");
+  });
+
+  it("proves a sendable request without a throw, as the control for the refusal above", () => {
+    expect(() => {
+      proveTheNoticeIsBuildable(designSubmission(), ro);
+    }).not.toThrow();
+  });
+});
+
+function thrownBy(action: () => void): unknown {
+  try {
+    action();
+  } catch (thrown) {
+    return thrown;
+  }
+  return undefined;
+}
+
 describe("a retried request mints a link of its own for each attempt and none for an attempt that sends nothing", () => {
   it("records two views for a notice sent twice, each notice's token naming its own, both holding the one kitchen", async () => {
     const harness = aHarness({ outcomes: [NOT_SENT] });
@@ -448,6 +505,33 @@ describe("the notice is never priced again", () => {
     const swapped = await noticeWhenTheBookIsSwappedAfterTheRecord(true);
 
     expect(swapped).toBe(control);
+  });
+
+  /** A first attempt the mail refused, then a retry while the server holds `book`. */
+  async function retriedUnder(book: PriceBook) {
+    let isFirstAttemptDone = false;
+    const harness = aHarness({ outcomes: [NOT_SENT] });
+    const ports = {
+      ...harness.ports,
+      get book() {
+        return isFirstAttemptDone ? book : SAMPLE_PRICE_BOOK;
+      },
+    };
+    const submit = () =>
+      submitContact({ text: bodyOf(), visitorHash: undefined }, ports);
+    await submit();
+    isFirstAttemptDone = true;
+    const retried = await submit();
+    return { harness, retried };
+  }
+
+  it("sends nothing priced again on a retry once the server holds a changed book, which has its own version: the retry is a conflict", async () => {
+    const NEXT_BOOK: PriceBook = { ...SAMPLE_PRICE_BOOK, version: "next" };
+
+    const { harness, retried } = await retriedUnder(NEXT_BOOK);
+
+    expect(retried.status).toBe(409);
+    expect(harness.sender.sent).toHaveLength(1);
   });
 });
 

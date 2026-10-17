@@ -26,6 +26,11 @@ const CONTACT_ROUTE_FILES = [
 
 const THE_ONE_HOOK = "done/use-replace-with-done.ts";
 
+/** The card's address hook lives outside `done/` and reads the page's own address: it is scanned with the flow, and
+ *  may take the path builder, which only writes a path, from the navigation module. */
+const THE_ADDRESS_HOOK = "review/use-absolute-editor-address.ts";
+const THE_ADDRESS_HOOKS_IMPORT = "import of getPathname from @/i18n/navigation";
+
 /** What a module may take from the navigation modules: the link, which a customer's own tap follows. Nothing that moves
  *  the page by itself. */
 const NAVIGATION_MODULES = new Set([
@@ -81,6 +86,7 @@ function filesOfTheFlow(): string[] {
     ...sourceFilesUnder(join(SOURCE_ROOT, "done")),
     ...sourceFilesUnder(join(SOURCE_ROOT, "result")),
     ...CONTACT_ROUTE_FILES.map((file) => join(SOURCE_ROOT, file)),
+    join(SOURCE_ROOT, THE_ADDRESS_HOOK),
   ].map((file) => relative(SOURCE_ROOT, file));
 }
 
@@ -229,6 +235,45 @@ function whatTheOneHookDoesWithTheRouter(source: string): string[] {
   return found;
 }
 
+/** Reads the address hook: the page's address may be named only to read its origin. Anything else of it is a finding. */
+function whatTheAddressHookDoesWithTheLocation(source: string): string[] {
+  const file = parse(source, THE_ADDRESS_HOOK);
+  const found: string[] = [];
+
+  function visit(node: ts.Node): void {
+    if (ts.isIdentifier(node) && node.text === "location") judge(node);
+    ts.forEachChild(node, visit);
+  }
+
+  function judge(identifier: ts.Identifier): void {
+    const parent = identifier.parent;
+    const isTheOriginRead =
+      ts.isPropertyAccessExpression(parent) &&
+      parent.expression === identifier &&
+      parent.name.text === "origin" &&
+      !isAssignedTo(parent) &&
+      !(
+        ts.isCallExpression(parent.parent) &&
+        parent.parent.expression === parent
+      );
+    if (!isTheOriginRead)
+      found.push(`location used as ${parent.getText(file)}`);
+  }
+
+  function isAssignedTo(node: ts.Node): boolean {
+    const parent = node.parent;
+    return (
+      ts.isBinaryExpression(parent) &&
+      parent.left === node &&
+      parent.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      parent.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+    );
+  }
+
+  visit(file);
+  return found;
+}
+
 describe("the flow's source, read as syntax", () => {
   it("has files to read, so the loops below are not empty ones", () => {
     expect(filesOfTheFlow()).toEqual(
@@ -238,18 +283,29 @@ describe("the flow's source, read as syntax", () => {
         "done/done-screen.tsx",
         "done/send-on-whatsapp.tsx",
         THE_ONE_HOOK,
+        THE_ADDRESS_HOOK,
         ...CONTACT_ROUTE_FILES,
       ]),
     );
+  });
+
+  it("the address hook names the page's address only to read its origin", () => {
+    const source = readFileSync(join(SOURCE_ROOT, THE_ADDRESS_HOOK), "utf8");
+
+    expect(source).toMatch(/\blocation\.origin\b/);
+    expect(whatTheAddressHookDoesWithTheLocation(source)).toEqual([]);
   });
 
   it("moves the page by script nowhere but in the one hook", () => {
     const offenders = filesOfTheFlow()
       .filter((file) => file !== THE_ONE_HOOK)
       .flatMap((file) =>
-        waysOffThePage(readFileSync(join(SOURCE_ROOT, file), "utf8"), file).map(
-          (way) => `${file}: ${way}`,
-        ),
+        waysOffThePage(readFileSync(join(SOURCE_ROOT, file), "utf8"), file)
+          .filter(
+            (way) =>
+              !(file === THE_ADDRESS_HOOK && way === THE_ADDRESS_HOOKS_IMPORT),
+          )
+          .map((way) => `${file}: ${way}`),
       );
 
     expect(offenders).toEqual([]);
@@ -274,6 +330,28 @@ describe("the flow's source, read as syntax", () => {
     });
 
     expect(callers).toEqual(["contact/contact-screen.tsx"]);
+  });
+});
+
+describe("the address hook's reading finds any use of the page's address but reading its origin", () => {
+  it.each([
+    ["an address assigned", `location.href = "/x";`],
+    ["the origin assigned", `location.origin = "https://x";`],
+    ["a reload", `location.reload();`],
+    ["the address handed on", `const here = location; here.assign("/x");`],
+    ["the address taken off the window", `const a = window.location.origin;`],
+  ])("flags %s", (_name, source) => {
+    expect(
+      whatTheAddressHookDoesWithTheLocation(source).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("says nothing of the origin read, as the hook reads it", () => {
+    expect(
+      whatTheAddressHookDoesWithTheLocation(
+        "const address = `${location.origin}${path}`;",
+      ),
+    ).toEqual([]);
   });
 });
 

@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  FAKE_MAIL_FLAG,
+  FAKE_MAIL_FLAG_ENABLED,
+} from "@/lib/server/mail/fake-mail-flag";
 import { PUBLIC_ORIGIN_VARIABLE } from "@/lib/server/public-origin-variable";
 
 export { PUBLIC_ORIGIN_VARIABLE };
@@ -23,7 +27,8 @@ const DNS_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
  *  IPv4 address and rewrites it. */
 const TOP_LEVEL_LABEL = /^[a-z]/;
 
-/** The only hosts plain `http:` is accepted for: the developer's own machine, never a reachable address. */
+/** The developer's own machine, never a reachable address: accepted only beside the e2e fake sender's flag, and then
+ *  over plain `http:` too. */
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set([
   "localhost",
   "127.0.0.1",
@@ -45,24 +50,42 @@ const UNAVAILABLE: PublicOriginOutcome = {
  * Accepted is exactly an origin as the URL standard serialises one, so a value that parses only after normalising
  * (a path, a trailing `/`, userinfo, upper case, an explicit default port, a Unicode host, whitespace) is unavailable,
  * as is plain `http:` anywhere but a loopback host, an address literal that is not a loopback one, and a host ending
- * in a dot.
+ * in a dot. A loopback host is accepted only in an environment that also holds the e2e fake sender's flag, which no
+ * deployment sets, so no real notice can carry one.
  */
 export function readPublicOrigin(
   environment: PublicOriginEnvironment,
 ): PublicOriginOutcome {
   const value = ownValue(environment, PUBLIC_ORIGIN_VARIABLE);
-  if (value === undefined || !isUsableOrigin(value)) return UNAVAILABLE;
-  return { status: "configured", origin: value };
+  if (value === undefined) return UNAVAILABLE;
+  const kind = originKindOf(value);
+  const isAccepted =
+    kind === "public" ||
+    (kind === "loopback" && isTheFakeSendersEnvironment(environment));
+  return isAccepted ? { status: "configured", origin: value } : UNAVAILABLE;
 }
 
-function isUsableOrigin(value: string): boolean {
+type OriginKind = "public" | "loopback" | "unusable";
+
+function originKindOf(value: string): OriginKind {
   const url = parsedUrl(value);
-  if (url === undefined || url.origin !== value) return false;
-  if (url.port === UNUSABLE_PORT) return false;
+  if (url === undefined || url.origin !== value) return "unusable";
+  if (url.port === UNUSABLE_PORT) return "unusable";
   if (LOOPBACK_HOSTS.has(url.hostname)) {
-    return url.protocol === "https:" || url.protocol === "http:";
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? "loopback"
+      : "unusable";
   }
-  return url.protocol === "https:" && isDnsHostName(url.hostname);
+  return url.protocol === "https:" && isDnsHostName(url.hostname)
+    ? "public"
+    : "unusable";
+}
+
+/** The fake sender's own opt-in, read as it reads it: only this exact value. */
+function isTheFakeSendersEnvironment(
+  environment: PublicOriginEnvironment,
+): boolean {
+  return ownValue(environment, FAKE_MAIL_FLAG) === FAKE_MAIL_FLAG_ENABLED;
 }
 
 function parsedUrl(value: string): URL | undefined {

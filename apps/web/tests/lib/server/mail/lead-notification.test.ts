@@ -17,6 +17,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
 import { inspect } from "node:util";
+import ts from "typescript";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { endonymOf } from "@/i18n/locale-endonyms";
@@ -41,6 +42,7 @@ import {
   variedKitchensOf,
   type VariedArm,
 } from "../../../support/varied-kitchens";
+import { FIXTURE_PUBLIC_ORIGIN } from "./lead-notice-fixtures";
 import {
   forbidFetch,
   PROCESS_ENV_OR_BUILD_MODE,
@@ -184,6 +186,7 @@ function noticeOf(submission: ContactSubmissionToRecord) {
     submission,
     content: ro,
     kitchenLink: { kind: "link", url: KITCHEN_URL },
+    publicOrigin: FIXTURE_PUBLIC_ORIGIN,
   });
 }
 
@@ -510,6 +513,7 @@ describe("a line that would hold a control character or a line separator", () =>
           submission: designRequest(),
           content: ro,
           kitchenLink: { kind: "unavailable" },
+          publicOrigin: FIXTURE_PUBLIC_ORIGIN,
         }),
       ).toThrow(NoticeLineError);
     },
@@ -536,6 +540,7 @@ describe("a line that would hold a control character or a line separator", () =>
         submission: designRequest(),
         content,
         kitchenLink: { kind: "unavailable" },
+        publicOrigin: FIXTURE_PUBLIC_ORIGIN,
       }),
     ).toThrow(NoticeLineError);
   });
@@ -867,6 +872,65 @@ describe("the line-break class", () => {
     expect(LINE_BREAKING_CHARACTER.source).toBe("[\\p{Cc}\\p{Zl}\\p{Zp}]");
     expect(source).toMatch(/LINE_BREAKING_CHARACTER/);
     expect(source).not.toMatch(/\\p\{Cc\}|\\u2028|\\u2029/);
+  });
+});
+
+/** A tag's opening, `<p` or `</td`, in any text literal; a type's angle brackets are not literals and are not read. */
+const TAG_OPENING = /<\/?[A-Za-z!]/;
+
+/** Every string and template piece the source spells out, read as syntax. */
+function textLiteralsOf(source: string): string[] {
+  const file = ts.createSourceFile(
+    "module.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const literals: string[] = [];
+  function visit(node: ts.Node): void {
+    if (
+      ts.isStringLiteral(node) ||
+      ts.isNoSubstitutionTemplateLiteral(node) ||
+      ts.isTemplateHead(node) ||
+      ts.isTemplateMiddle(node) ||
+      ts.isTemplateTail(node)
+    ) {
+      literals.push(node.text);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  return literals;
+}
+
+function tagLiteralsOf(source: string): string[] {
+  return textLiteralsOf(source).filter((text) => TAG_OPENING.test(text));
+}
+
+describe("the composer writes no markup", () => {
+  it("reads source: lead-notification.ts spells no tag in any literal, so markup is made only in lead-notification-html.ts", () => {
+    expect(tagLiteralsOf(readMailModuleSource("lead-notification.ts"))).toEqual(
+      [],
+    );
+  });
+
+  it("is a reading that finds a tag where one is written, and none in a type's brackets: the control", () => {
+    expect(
+      tagLiteralsOf(
+        'const a: Array<string> = []; const b = `<p>${a.join("")}</p>`; const c = "</td>";',
+      ),
+    ).toEqual(["<p>", "</p>", "</td>"]);
+    expect(
+      tagLiteralsOf(
+        "const a: Readonly<Record<string, number>> = {}; const b = 1 < 2;",
+      ),
+    ).toEqual([]);
+  });
+
+  it("finds the template's own tags in lead-notification-html.ts, so the reading is not blind to the real source", () => {
+    expect(
+      tagLiteralsOf(readMailModuleSource("lead-notification-html.ts")).length,
+    ).toBeGreaterThan(0);
   });
 });
 

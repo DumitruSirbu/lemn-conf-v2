@@ -1,10 +1,5 @@
 import "server-only";
 
-import {
-  PUBLIC_ORIGIN_VARIABLE,
-  readPublicOrigin,
-} from "@/lib/server/public-origin";
-
 /** A label and the value it names, both already one line each. */
 export interface LabelledValue {
   readonly label: string;
@@ -23,6 +18,8 @@ export type NoticeKitchenView =
   | {
       readonly kind: "link";
       readonly href: string;
+      /** The configured public origin the link must sit under, as the composer was handed it. */
+      readonly origin: string;
       readonly buttonLabel: string;
       readonly note: string;
     }
@@ -104,7 +101,7 @@ export class NoticeMarkupError extends Error {
   }
 }
 
-const TOKEN = "[0-9A-Za-z]{12}";
+const WHOLE_TOKEN = /^[0-9A-Za-z]{12}$/;
 const LANGUAGE_TAG = /^[a-z]{2}$/;
 const E164_DIGITS = "[1-9][0-9]{1,14}";
 const CALL_HREF = new RegExp(`^tel:\\+${E164_DIGITS}$`);
@@ -114,29 +111,38 @@ const WHATSAPP_HREF = new RegExp(`^https://wa\\.me/${E164_DIGITS}$`);
 const MAILTO_HREF =
   /^mailto:(?:[A-Za-z0-9._~!*'()-]|%(?![01][0-9A-Fa-f]|7[Ff])[0-9A-Fa-f]{2})+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/;
 
+/** Where a kitchen link may point: under the configured public origin, in the notice's language. */
+export interface KitchenLinkScope {
+  readonly origin: string;
+  readonly lang: string;
+}
+
 /**
- * The kitchen link's one shape: the configured public origin, the notice's language and a share token. The origin is
- * judged by the same reader that configures it, so a link under any other origin is refused.
+ * The kitchen link's one shape: exactly the configured origin, the notice's language and a share token. A link under
+ * any other origin is refused, however well formed.
  */
-export function isKitchenLinkHref(href: string, lang: string): boolean {
+export function isKitchenLinkHref(
+  href: string,
+  { origin, lang }: KitchenLinkScope,
+): boolean {
   if (!LANGUAGE_TAG.test(lang)) return false;
-  const match = new RegExp(`^(.+)/${lang}/s/${TOKEN}$`).exec(href);
-  const origin = match?.[1];
+  const prefix = `${origin}/${lang}/s/`;
+  return href.startsWith(prefix) && WHOLE_TOKEN.test(href.slice(prefix.length));
+}
+
+/** A call, a WhatsApp chat or an e-mail: the three shapes a contact button may have. */
+export function isContactActionHref(href: string): boolean {
   return (
-    origin !== undefined &&
-    readPublicOrigin({ [PUBLIC_ORIGIN_VARIABLE]: origin }).status ===
-      "configured"
+    CALL_HREF.test(href) || WHATSAPP_HREF.test(href) || MAILTO_HREF.test(href)
   );
 }
 
-/** The four shapes an `href` may have, and nothing else: the kitchen link, a call, a WhatsApp chat, an e-mail. */
-export function isAllowedNoticeHref(href: string, lang: string): boolean {
-  return (
-    isKitchenLinkHref(href, lang) ||
-    CALL_HREF.test(href) ||
-    WHATSAPP_HREF.test(href) ||
-    MAILTO_HREF.test(href)
-  );
+/** The four shapes an `href` may have, and nothing else: the kitchen link in its scope, a call, a chat, an e-mail. */
+export function isAllowedNoticeHref(
+  href: string,
+  scope: KitchenLinkScope,
+): boolean {
+  return isKitchenLinkHref(href, scope) || isContactActionHref(href);
 }
 
 /** The one escape, for text and attribute values alike: after it, a value can close no element and no attribute. */
@@ -288,11 +294,11 @@ function cardRowsOf(view: LeadNoticeView): readonly Markup[] {
     ...(body.kind === "design"
       ? [
           linkRow(body.kitchen.link, view.lang),
-          clientRow(view.client, view.lang),
+          clientRow(view.client),
           summaryRow(body.kitchen.summary),
           appendixRow(body.kitchen.appendix),
         ]
-      : [clientRow(view.client, view.lang), callbackRow(body.callbackLine)]),
+      : [clientRow(view.client), callbackRow(body.callbackLine)]),
     footerRow(view.footer),
   ];
 }
@@ -404,7 +410,10 @@ function primaryButton(
           anchor(
             {
               href: link.href,
-              lang,
+              isAllowed: isKitchenLinkHref(link.href, {
+                origin: link.origin,
+                lang,
+              }),
               style: textStyle("16px", ON_ACCENT, {
                 display: "inline-block",
                 padding: "12px 24px",
@@ -423,7 +432,7 @@ function primaryButton(
   ]);
 }
 
-function clientRow(client: NoticeClientView, lang: string): Markup {
+function clientRow(client: NoticeClientView): Markup {
   return sectionRow([
     heading2(client.heading),
     paragraph(
@@ -431,14 +440,14 @@ function clientRow(client: NoticeClientView, lang: string): Markup {
       textStyle("20px", INK, { "font-weight": "bold", "margin-top": "8px" }),
     ),
     paragraph(client.phone, textStyle("16px", INK, { "margin-top": "4px" })),
-    ...(client.actions.length > 0 ? [actionsOf(client.actions, lang)] : []),
+    ...(client.actions.length > 0 ? [actionsOf(client.actions)] : []),
     factsTable(client.facts),
   ]);
 }
 
 const ACTION_GAP_PX = "8px";
 
-function actionsOf(actions: readonly ContactAction[], lang: string): Markup {
+function actionsOf(actions: readonly ContactAction[]): Markup {
   return layoutTable({ style: styleOf({ "margin-top": "12px" }) }, [
     element(
       "tr",
@@ -451,7 +460,7 @@ function actionsOf(actions: readonly ContactAction[], lang: string): Markup {
             anchor(
               {
                 href: action.href,
-                lang,
+                isAllowed: isContactActionHref(action.href),
                 style: textStyle("15px", ACCENT_STRONG, {
                   display: "inline-block",
                   padding: "11px 16px",
@@ -695,12 +704,16 @@ function voidElement(
   return markupOf(`<${tag}${attributeText(attributes)}>`);
 }
 
-/** The only builder that writes an `href`, and only one of the four allowed shapes. */
+/** The only builder that writes an `href`, and only one its caller judged by the shape its place allows. */
 function anchor(
-  link: { readonly href: string; readonly lang: string; readonly style: Style },
+  link: {
+    readonly href: string;
+    readonly isAllowed: boolean;
+    readonly style: Style;
+  },
   label: string,
 ): Markup {
-  if (!isAllowedNoticeHref(link.href, link.lang)) throw new NoticeMarkupError();
+  if (!link.isAllowed) throw new NoticeMarkupError();
   return markupOf(
     `<a href="${escapeHtml(link.href)}" style="${escapeHtml(link.style)}">${escapeHtml(label)}</a>`,
   );

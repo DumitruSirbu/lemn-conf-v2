@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  FAKE_MAIL_FLAG,
+  FAKE_MAIL_FLAG_ENABLED,
+} from "@/lib/server/mail/fake-mail-flag";
+import {
   MAIL_VARIABLE_NAMES,
   ownValue,
   readMailConfiguration,
@@ -9,10 +13,7 @@ import {
   type MailVariableName,
 } from "@/lib/server/mail/mail-configuration";
 
-export const FAKE_MAIL_FLAG = "LEMNARIA_E2E_FAKE_MAIL";
-
-/** Only this exact value opts in, so a stray `true`, `01` or ` 1` cannot read as "enabled". */
-export const FAKE_MAIL_FLAG_ENABLED = "1";
+export { FAKE_MAIL_FLAG, FAKE_MAIL_FLAG_ENABLED };
 
 export type MailSenderSelection =
   | { readonly kind: "fake" }

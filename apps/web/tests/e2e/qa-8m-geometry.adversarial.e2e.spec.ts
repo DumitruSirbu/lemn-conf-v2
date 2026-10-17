@@ -174,7 +174,9 @@ const CARD_PARTS = [
   DONE_COPIED,
 ] as const;
 
-type Edges = Readonly<Record<string, { left: number; right: number }>>;
+type Edges = Readonly<
+  Record<string, { left: number; right: number; height: number }>
+>;
 
 interface CopiedSnapshot {
   readonly copiedText: string;
@@ -186,12 +188,19 @@ interface CopiedSnapshot {
 /** A part that is not on the page has no edges, and `NaN` fails every bound below by name. */
 async function cardBoxesOf(page: Page): Promise<Edges> {
   return page.evaluate((ids) => {
-    const edges: Record<string, { left: number; right: number }> = {};
+    const edges: Record<
+      string,
+      { left: number; right: number; height: number }
+    > = {};
     for (const id of ids) {
       const rect = document
         .querySelector(`[data-testid="${id}"]`)
         ?.getBoundingClientRect();
-      edges[id] = { left: rect?.left ?? NaN, right: rect?.right ?? NaN };
+      edges[id] = {
+        left: rect?.left ?? NaN,
+        right: rect?.right ?? NaN,
+        height: rect?.height ?? NaN,
+      };
     }
     return edges;
   }, CARD_PARTS);
@@ -210,6 +219,34 @@ function expectCardInsideThePhone(boxes: Edges, label: string): void {
   }
 }
 
+/** The announcement takes no width from the address and no height from the card: both stand where they stood. */
+function expectTheCardStill(
+  atRest: Edges,
+  copied: Edges,
+  locale: string,
+): void {
+  const address = {
+    atRest: atRest[DONE_DESIGN_LINK],
+    copied: copied[DONE_DESIGN_LINK],
+  };
+  const card = {
+    atRest: atRest[DONE_DESIGN_LINK_CARD],
+    copied: copied[DONE_DESIGN_LINK_CARD],
+  };
+  console.log(
+    `QA8V card ${locale} still: address ${String(Math.round(address.atRest?.left ?? NaN))}-${String(Math.round(address.atRest?.right ?? NaN))} at rest, ${String(Math.round(address.copied?.left ?? NaN))}-${String(Math.round(address.copied?.right ?? NaN))} copied; card ${String(Math.round(card.atRest?.height ?? NaN))} / ${String(Math.round(card.copied?.height ?? NaN))} px high`,
+  );
+  expect(address.copied?.left, `${locale}: the address's left edge`).toBe(
+    address.atRest?.left,
+  );
+  expect(address.copied?.right, `${locale}: the address's right edge`).toBe(
+    address.atRest?.right,
+  );
+  expect(card.copied?.height, `${locale}: the card's height`).toBe(
+    card.atRest?.height,
+  );
+}
+
 /** *Copiat* stands about two seconds, and a runner can stall longer than that between two steps of a test; so the page
  *  measures itself in the very task that draws the word, and keeps what it measured for the test to read. */
 async function armTheCopiedSnapshot(page: Page): Promise<void> {
@@ -219,12 +256,19 @@ async function armTheCopiedSnapshot(page: Page): Promise<void> {
     const observer = new MutationObserver(() => {
       const text = copied.textContent;
       if (text === "") return;
-      const boxes: Record<string, { left: number; right: number }> = {};
+      const boxes: Record<
+        string,
+        { left: number; right: number; height: number }
+      > = {};
       for (const id of ids) {
         const rect = document
           .querySelector(`[data-testid="${id}"]`)
           ?.getBoundingClientRect();
-        boxes[id] = { left: rect?.left ?? NaN, right: rect?.right ?? NaN };
+        boxes[id] = {
+          left: rect?.left ?? NaN,
+          right: rect?.right ?? NaN,
+          height: rect?.height ?? NaN,
+        };
       }
       Reflect.set(window, "__copiedSnapshot", {
         copiedText: text,
@@ -344,7 +388,7 @@ for (const locale of LOCALES) {
     );
   });
 
-  test(`${locale}: a reference of ten thousand characters in the answer is drawn nowhere on 5A, and the design-link card, its address and the copy control stay inside the phone, at rest and while ${MESSAGES[locale].submissionResult.copied} stands`, async ({
+  test(`${locale}: a reference of ten thousand characters in the answer is drawn nowhere on 5A, and the design-link card, its address and the copy control stay inside the phone, at rest and while ${MESSAGES[locale].submissionResult.copied} stands, which moves neither the address nor the card's height`, async ({
     page,
     context,
     seededDesign,
@@ -356,7 +400,8 @@ for (const locale of LOCALES) {
     await expectDesignLinkShown(page, locale, seededDesign.id);
     await expectReferenceNotShown(page, longReference);
     await expectNoSideways(page, "5A with the design link");
-    expectCardInsideThePhone(await cardBoxesOf(page), `${locale}, at rest`);
+    const atRest = await cardBoxesOf(page);
+    expectCardInsideThePhone(atRest, `${locale}, at rest`);
     await expectRegionWithinTheTripwire(page, "5A with the design link");
 
     await armTheCopiedSnapshot(page);
@@ -370,6 +415,7 @@ for (const locale of LOCALES) {
       `${locale}, copied: the page's width`,
     ).toBeLessThanOrEqual(whileCopied.clientWidth);
     expectCardInsideThePhone(whileCopied.boxes, `${locale}, copied`);
+    expectTheCardStill(atRest, whileCopied.boxes, locale);
     await captureEvidence(page, `8v-5A-${locale}-design-link-copied`);
   });
 

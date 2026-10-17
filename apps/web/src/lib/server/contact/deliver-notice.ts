@@ -30,6 +30,7 @@ import {
 } from "@/lib/server/mail/lead-notification";
 import {
   isRetryableMailFailure,
+  isSendableMailMessage,
   type MailMessage,
   type MailOutcome,
   type MailSender,
@@ -40,11 +41,16 @@ import type { PublicOriginOutcome } from "@/lib/server/public-origin";
  *  it is never sent: the one that is sent is built again with the stored reference. */
 const PLACEHOLDER_REFERENCE = "LM-00000000";
 
-/** A link of the kitchen link's own shape under a host that never resolves, for the proof alone: a sent notice's link
- *  is only ever the one `mintSentKitchenLink` answered. */
+/** A host that never resolves, and a link of the kitchen link's own shape under it, for the proof alone: a sent
+ *  notice's link is only ever the one `mintSentKitchenLink` answered. */
+const PLACEHOLDER_ORIGIN = "https://example.invalid";
+const PLACEHOLDER_PUBLIC_ORIGIN: PublicOriginOutcome = Object.freeze({
+  status: "configured",
+  origin: PLACEHOLDER_ORIGIN,
+});
 const PLACEHOLDER_KITCHEN_LINK: NoticeKitchenLink = Object.freeze({
   kind: "link",
-  url: `https://example.invalid/${NOTICE_LOCALE}/s/000000000000`,
+  url: `${PLACEHOLDER_ORIGIN}/${NOTICE_LOCALE}/s/000000000000`,
 });
 
 const NO_KITCHEN_LINK: NoticeKitchenLink = Object.freeze({
@@ -69,21 +75,26 @@ export interface Delivery {
 }
 
 /**
- * Proves the notice can be made before the request is stored, with a kitchen link and without one, as either may be
- * sent: a request whose notice cannot be built is refused and stores nothing. The messages are dropped, and never
- * sent: their reference and link are placeholders, and the one sent is built again with the stored reference.
+ * Proves the notice can be made, and may be sent, before the request is stored, with a kitchen link and without one,
+ * as either may be sent: a request whose notice cannot be built, or that no sender would take, is refused and stores
+ * nothing. The messages are dropped, and never sent: their reference and link are placeholders, and the one sent is
+ * built again with the stored reference.
  */
 export function proveTheNoticeIsBuildable(
   submission: ContactSubmissionToRecord,
   noticeContent: Content,
 ): void {
   for (const kitchenLink of [PLACEHOLDER_KITCHEN_LINK, NO_KITCHEN_LINK]) {
-    noticeFor({
+    const message = noticeFor({
       reference: PLACEHOLDER_REFERENCE,
       submission,
       content: noticeContent,
       kitchenLink,
+      publicOrigin: PLACEHOLDER_PUBLIC_ORIGIN,
     });
+    if (!isSendableMailMessage(message)) {
+      throw new ContactFailure("notice-unbuildable");
+    }
   }
 }
 
@@ -117,21 +128,30 @@ export async function inTheRegionOfAReference(
  * a success, with its line.
  */
 export async function deliverNotice(delivery: Delivery): Promise<NextResponse> {
-  const { reference, submission, sender, noticeContent } = delivery;
-  const kitchenLink = await kitchenLinkFor(delivery);
+  const { reference, submission, sender, noticeContent, kitchenLinks } =
+    delivery;
+  const publicOrigin = kitchenLinks.readPublicOrigin();
+  const kitchenLink = await kitchenLinkFor(delivery, publicOrigin);
   const outcome = await sender.send(
-    noticeFor({ reference, submission, content: noticeContent, kitchenLink }),
+    noticeFor({
+      reference,
+      submission,
+      content: noticeContent,
+      kitchenLink,
+      publicOrigin,
+    }),
   );
   if (!outcome.ok) return notPassedOnByTheMail(reference, outcome);
   return markedAsSent(delivery);
 }
 
 /** A callback has no kitchen, so nothing is minted for it. A design's link is the mint's own answer, handed on as it
- *  came, so no other string can stand for it. The snapshot was made from a design read at the current schema. */
-function kitchenLinkFor({
-  submission,
-  kitchenLinks,
-}: Delivery): Promise<NoticeKitchenLink> {
+ *  came, so no other string can stand for it; the notice holds it only under the origin it was minted under. The
+ *  snapshot was made from a design read at the current schema. */
+function kitchenLinkFor(
+  { submission, kitchenLinks }: Delivery,
+  origin: PublicOriginOutcome,
+): Promise<NoticeKitchenLink> {
   const { clientRequestId, target, snapshot } = submission;
   if (target.kind === "intent" || snapshot === undefined) {
     return Promise.resolve(NO_KITCHEN_LINK);
@@ -142,10 +162,7 @@ function kitchenLinkFor({
       schemaVersion: CURRENT_SCHEMA_VERSION,
       document: snapshot.document,
     },
-    {
-      origin: kitchenLinks.readPublicOrigin(),
-      repository: kitchenLinks.sentKitchenViews,
-    },
+    { origin, repository: kitchenLinks.sentKitchenViews },
   );
 }
 

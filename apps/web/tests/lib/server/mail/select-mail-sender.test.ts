@@ -344,6 +344,9 @@ describe("select-mail-sender.ts", () => {
       (match) => match[1],
     );
 
-    expect(imported).toEqual(["@/lib/server/mail/mail-configuration"]);
+    expect(imported).toEqual([
+      "@/lib/server/mail/fake-mail-flag",
+      "@/lib/server/mail/mail-configuration",
+    ]);
   });
 });

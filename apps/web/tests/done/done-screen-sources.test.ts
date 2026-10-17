@@ -121,6 +121,13 @@ describe("the confirmation's stylesheet", () => {
     },
   );
 
+  it("holds the design link's announcement line open while it is empty: .linkCopied is as tall as its one line", () => {
+    expect(valuesFor(STYLESHEET, "linkCopied", "min-height")).toEqual(["12px"]);
+    expect(valuesFor(STYLESHEET, "linkCopied", "font")).toEqual([
+      "700 12px/1 var(--font-ui)",
+    ]);
+  });
+
   it.each(["disc", "barMark"])(
     "draws the check of .%s from the stylesheet, so that no text carries it",
     (className) => {

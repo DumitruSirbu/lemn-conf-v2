@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { Design, Finish, Handle } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -23,7 +22,9 @@ import {
 } from "../../../support/varied-kitchens";
 import {
   designSubmission,
+  dressed,
   FIXTURE_KITCHEN_URL,
+  FIXTURE_ORIGIN,
   fixtureContact,
   fixtureNamed,
   LEAD_NOTICE_FIXTURES,
@@ -82,23 +83,26 @@ describe("escapeHtml", () => {
   });
 });
 
+const FIXTURE_SCOPE = { origin: FIXTURE_ORIGIN, lang: NOTICE_LOCALE } as const;
+
 describe("the href allow-list", () => {
   it.each([
-    ["the kitchen link", FIXTURE_KITCHEN_URL],
+    ["the kitchen link", FIXTURE_KITCHEN_URL, FIXTURE_SCOPE],
     [
-      "the kitchen link on a loopback origin",
+      "the kitchen link under a loopback origin it was configured with",
       "http://localhost:4320/ro/s/AbCdEf012345",
+      { origin: "http://localhost:4320", lang: NOTICE_LOCALE },
     ],
+    ["a call", "tel:+37369000123", FIXTURE_SCOPE],
+    ["a WhatsApp chat", "https://wa.me/37369000123", FIXTURE_SCOPE],
+    ["an e-mail", "mailto:ion.exemplu%2Boferta@example.invalid", FIXTURE_SCOPE],
     [
-      "the kitchen link on a loopback address",
-      "http://127.0.0.1:3000/ro/s/AbCdEf012345",
+      "an e-mail with an encoded question mark",
+      "mailto:a%3Fcc%3Db@example.md",
+      FIXTURE_SCOPE,
     ],
-    ["a call", "tel:+37369000123"],
-    ["a WhatsApp chat", "https://wa.me/37369000123"],
-    ["an e-mail", "mailto:ion.exemplu%2Boferta@example.invalid"],
-    ["an e-mail with an encoded question mark", "mailto:a%3Fcc%3Db@example.md"],
-  ])("accepts %s", (_label, href) => {
-    expect(isAllowedNoticeHref(href, NOTICE_LOCALE)).toBe(true);
+  ])("accepts %s", (_label, href, scope) => {
+    expect(isAllowedNoticeHref(href, scope)).toBe(true);
   });
 
   it.each([
@@ -108,7 +112,27 @@ describe("the href allow-list", () => {
     ["a data address", "data:text/html,<script>alert(1)</script>"],
     ["a VBScript", "vbscript:msgbox(1)"],
     ["a file", "file:///etc/passwd"],
+    [
+      "a kitchen link of the right shape under another origin",
+      "https://attacker.example/ro/s/Fixture0Tok1",
+    ],
+    [
+      "a kitchen link under a host that starts with the origin",
+      "https://example.invalid.attacker.example/ro/s/Fixture0Tok1",
+    ],
+    [
+      "a kitchen link under the origin on another port",
+      "https://example.invalid:8443/ro/s/Fixture0Tok1",
+    ],
+    [
+      "a kitchen link under a loopback origin it was not configured with",
+      "http://localhost:4320/ro/s/AbCdEf012345",
+    ],
     ["a kitchen link with a short token", "https://example.invalid/ro/s/short"],
+    [
+      "a kitchen link with a token past twelve characters",
+      `${FIXTURE_KITCHEN_URL}0`,
+    ],
     [
       "a kitchen link in another language",
       "https://example.invalid/ru/s/Fixture0Tok1",
@@ -130,10 +154,6 @@ describe("the href allow-list", () => {
       "http://example.invalid/ro/s/Fixture0Tok1",
     ],
     [
-      "a kitchen link on a port past the range",
-      "https://example.invalid:99999/ro/s/Fixture0Tok1",
-    ],
-    [
       "a kitchen link nested in another",
       `${FIXTURE_KITCHEN_URL}/ro/s/Fixture0Tok1`,
     ],
@@ -150,11 +170,16 @@ describe("the href allow-list", () => {
     ["an e-mail with a capital domain", "mailto:a@Example.md"],
     ["an empty address", ""],
   ])("refuses %s", (_label, href) => {
-    expect(isAllowedNoticeHref(href, NOTICE_LOCALE)).toBe(false);
+    expect(isAllowedNoticeHref(href, FIXTURE_SCOPE)).toBe(false);
   });
 
   it("refuses the kitchen link when the notice's language is not a language tag", () => {
-    expect(isAllowedNoticeHref(FIXTURE_KITCHEN_URL, "r.")).toBe(false);
+    expect(
+      isAllowedNoticeHref(FIXTURE_KITCHEN_URL, {
+        origin: FIXTURE_ORIGIN,
+        lang: "r.",
+      }),
+    ).toBe(false);
   });
 
   it("is what the template asks: a view holding a refused link is not rendered", () => {
@@ -162,7 +187,54 @@ describe("the href allow-list", () => {
 
     expect(() => renderLeadNoticeHtml(view)).toThrow(NoticeMarkupError);
   });
+
+  it("asks a contact button for a contact shape: the kitchen link itself is refused as a call", () => {
+    const view = viewWithAction(FIXTURE_KITCHEN_URL);
+
+    expect(() => renderLeadNoticeHtml(view)).toThrow(NoticeMarkupError);
+  });
+
+  it("asks the button for the origin the view names: a kitchen link under another origin is not rendered", () => {
+    const view = viewWithKitchenLink({
+      href: "https://attacker.example/ro/s/Fixture0Tok1",
+      origin: FIXTURE_ORIGIN,
+    });
+
+    expect(() => renderLeadNoticeHtml(view)).toThrow(NoticeMarkupError);
+    expect(() =>
+      renderLeadNoticeHtml(
+        viewWithKitchenLink({
+          href: FIXTURE_KITCHEN_URL,
+          origin: FIXTURE_ORIGIN,
+        }),
+      ),
+    ).not.toThrow();
+  });
 });
+
+function viewWithKitchenLink(link: {
+  readonly href: string;
+  readonly origin: string;
+}): LeadNoticeView {
+  return {
+    ...viewWithAction("tel:+37369000123"),
+    body: {
+      kind: "design",
+      kitchen: {
+        roomLine: "room",
+        link: { kind: "link", ...link, buttonLabel: "open", note: "note" },
+        summary: {
+          heading: "summary",
+          groupCounts: [],
+          figure: "figure",
+          rounding: "rounding",
+          disclaimer: "disclaimer",
+        },
+        appendix: { heading: "appendix", groups: [], wholeKitchenRows: [] },
+      },
+    },
+  };
+}
 
 function viewWithAction(href: string): LeadNoticeView {
   return {
@@ -400,42 +472,26 @@ describe("contrast", () => {
   });
 });
 
-/** Gmail clips a message past about 102 KB; the notice keeps its own margin under that. */
-const HTML_BUDGET_BYTES = 90_000;
+/** Criterion 7's bound, which is also the composer's budget: the generated U kitchens, at maxima, each body dressed.
+ *  Measured: the largest is 67 014 bytes, a U of 54 bodies. A kitchen past the budget (about 81 dressed bodies) is
+ *  sent as text alone, which `lead-notice-compose.test.ts` covers. */
+const HTML_BOUND_BYTES = 90_000;
 const MIN_U_KITCHENS = 50;
 
-const OWN_FINISH: Finish = { kind: "palette-entry", entryId: "pal.antracit" };
-const OWN_HANDLES: readonly Handle[] = ["steel", "black", "push"];
-
-/** Every body dressed, so each row carries the most facts the review gives. */
-function dressed(design: Design): Design {
-  return {
-    ...design,
-    placements: design.placements.map((placement, index) => ({
-      ...placement,
-      body: {
-        ...placement.body,
-        finish: OWN_FINISH,
-        handle: OWN_HANDLES[index % OWN_HANDLES.length],
-      },
-    })),
-  };
-}
-
 describe("size", () => {
-  it("keeps the HTML of every U kitchen of the sweep, dressed, under 90 000 bytes", () => {
-    const sizes = variedKitchensOf(VARIED_U_ARM).flatMap(({ design }) => {
-      const kitchen = dressed(design);
-      const snapshot = snapshotOf(kitchen) ?? snapshotOf(design);
+  it("keeps the HTML part of every U kitchen of the sweep, dressed, and keeps it under 90 000 bytes", () => {
+    const notices = variedKitchensOf(VARIED_U_ARM).flatMap(({ design }) => {
+      const snapshot = snapshotOf(dressed(design)) ?? snapshotOf(design);
       if (snapshot === undefined) return [];
-      const html =
-        composeLeadNotice(noticeInput(designSubmission({ snapshot }))).html ??
-        "";
-      return [Buffer.byteLength(html, "utf8")];
+      return [composeLeadNotice(noticeInput(designSubmission({ snapshot })))];
     });
+    const sizes = notices.map(({ html }) =>
+      html === undefined ? Number.NaN : Buffer.byteLength(html, "utf8"),
+    );
 
-    expect(sizes.length).toBeGreaterThanOrEqual(MIN_U_KITCHENS);
-    expect(Math.max(...sizes)).toBeLessThanOrEqual(HTML_BUDGET_BYTES);
+    expect(notices.length).toBeGreaterThanOrEqual(MIN_U_KITCHENS);
+    expect(notices.filter(({ html }) => html === undefined)).toEqual([]);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(HTML_BOUND_BYTES);
   });
 });
 

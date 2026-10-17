@@ -239,3 +239,66 @@ describe("ADR 0014 S2 — the log gains detail and the response does not", () =>
     );
   });
 });
+
+describe("reportDesignFailure, for the share view's read, which anyone can ask with any token", () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  /** The once-per-process memory lives as long as its module, so each case reads a module of its own. */
+  async function freshReport() {
+    vi.resetModules();
+    const module = await import("../../../src/lib/server/design-failure-log");
+    return module.reportDesignFailure;
+  }
+
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("writes the first failure in full, and nothing for the same error name and code again", async () => {
+    const report = await freshReport();
+
+    report("share-read", driverError('relation "a" does not exist', "42P01"));
+    report("share-read", driverError('relation "b" does not exist', "42P01"));
+    report("share-read", driverError('relation "c" does not exist', "42P01"));
+
+    expect(errorSpy.mock.calls.map((call) => call[1])).toEqual([
+      {
+        event: "design-operation-failed",
+        operation: "share-read",
+        errorName: "NeonDbError",
+        errorCode: "42P01",
+        reason: 'relation "a" does not exist',
+      },
+    ]);
+  });
+
+  it("writes a failure of another code, or another error, as a first line of its own", async () => {
+    const report = await freshReport();
+
+    report("share-read", driverError("missing table", "42P01"));
+    report("share-read", driverError("permission denied", "42501"));
+    report("share-read", new TypeError("fetch failed"));
+    report("share-read", driverError("permission denied again", "42501"));
+
+    expect(
+      errorSpy.mock.calls.map((call) => {
+        const line = call[1] as Record<string, unknown>;
+        return `${String(line.errorName)}:${String(line.errorCode)}`;
+      }),
+    ).toEqual([
+      "NeonDbError:42P01",
+      "NeonDbError:42501",
+      "TypeError:unavailable",
+    ]);
+  });
+
+  it("still writes every failure of any other operation, as the control for the read's once", async () => {
+    const report = await freshReport();
+
+    report("load", driverError("missing table", "42P01"));
+    report("load", driverError("missing table", "42P01"));
+    report("share-issue", driverError("missing table", "42P01"));
+
+    expect(errorSpy).toHaveBeenCalledTimes(3);
+  });
+});

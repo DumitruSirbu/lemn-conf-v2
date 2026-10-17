@@ -33,6 +33,7 @@ import {
   type MailMessage,
 } from "@/lib/server/mail/mail-sender";
 import { asciiDomainOfPlainMailbox } from "@/lib/server/mail/plain-mailbox";
+import type { PublicOriginOutcome } from "@/lib/server/public-origin";
 import type { BreakdownGroup } from "@/price/price-breakdown-model";
 import {
   describeReview,
@@ -55,14 +56,21 @@ export interface LeadNotificationInput {
   readonly content: Content;
 }
 
-/** The view-only link to the kitchen as sent, or that there is none. A link of any other shape is shown as none. */
+/** The view-only link to the kitchen as sent, or that there is none. A link of any other shape, or under any origin but
+ *  the configured one, is shown as none. */
 export type NoticeKitchenLink =
   | { readonly kind: "link"; readonly url: string }
   | { readonly kind: "unavailable" };
 
 export interface LeadNoticeInput extends LeadNotificationInput {
   readonly kitchenLink: NoticeKitchenLink;
+  /** The public origin as it was read for this attempt, the one the link was minted under. */
+  readonly publicOrigin: PublicOriginOutcome;
 }
+
+/** UTF-8 bytes. Gmail clips an HTML part past about 102 KB, so a notice whose HTML is longer is sent as its text part
+ *  alone, which carries the same link first: the shop is told either way, and the HTML is never cut off mid-kitchen. */
+export const NOTICE_HTML_BUDGET_BYTES = 90_000;
 
 /** A line of the notice that has no usable value, or would hold a control character or a line separator. Names the
  *  line, never its value. */
@@ -96,7 +104,8 @@ export class NoticeKitchenError extends Error {
 /**
  * Pure: the same input gives the same bytes. One view of the request makes both parts, the plain text and its HTML
  * alternative, so they cannot disagree. The subject holds the reference and nothing the customer wrote; a customer's
- * text appears only as a value, unescaped in the text and escaped in the HTML.
+ * text appears only as a value, unescaped in the text and escaped in the HTML. An HTML part past
+ * `NOTICE_HTML_BUDGET_BYTES` is left out, so the message is its text part alone.
  * @throws NoticeLineError for a value that cannot be one line; NoticeKitchenError for a kitchen it cannot describe.
  */
 export function composeLeadNotice(input: LeadNoticeInput): MailMessage {
@@ -105,7 +114,8 @@ export function composeLeadNotice(input: LeadNoticeInput): MailMessage {
   const customer = customerValuesOf(input);
   const body = noticeBodyOf(input);
   const view = viewOf({ input, subject, customer, body: body.view });
-  return {
+  const html = renderLeadNoticeHtml(view);
+  const message = {
     key: `${LEAD_NOTIFICATION_KEY_PREFIX}${requestIdOf(submission)}`,
     subject,
     text: [
@@ -113,8 +123,12 @@ export function composeLeadNotice(input: LeadNoticeInput): MailMessage {
       ...customerLinesOf(customer, content),
       ...body.trailingLines,
     ].join("\n"),
-    html: renderLeadNoticeHtml(view),
   };
+  return isWithinTheHtmlBudget(html) ? { ...message, html } : message;
+}
+
+function isWithinTheHtmlBudget(html: string): boolean {
+  return new TextEncoder().encode(html).byteLength <= NOTICE_HTML_BUDGET_BYTES;
 }
 
 /** The customer's values behind their labels, each one line, in the text part's order. */
@@ -328,15 +342,20 @@ function kitchenPartOf(
 }
 
 function kitchenLinkViewOf({ input, line }: KitchenSource): NoticeKitchenView {
-  const { kitchenLink, content } = input;
+  const { kitchenLink, publicOrigin, content } = input;
   const { kitchen } = content.leadNotice;
   if (
     kitchenLink.kind === "link" &&
-    isKitchenLinkHref(kitchenLink.url, NOTICE_LOCALE)
+    publicOrigin.status === "configured" &&
+    isKitchenLinkHref(kitchenLink.url, {
+      origin: publicOrigin.origin,
+      lang: NOTICE_LOCALE,
+    })
   ) {
     return {
       kind: "link",
       href: kitchenLink.url,
+      origin: publicOrigin.origin,
       buttonLabel: line("kitchenButton", kitchen.button),
       note: line("kitchenNote", kitchen.note),
     };

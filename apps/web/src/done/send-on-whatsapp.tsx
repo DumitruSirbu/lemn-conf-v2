@@ -34,7 +34,8 @@ type WhatsappStep =
 
 interface SendOnWhatsappProps {
   readonly designId: DesignId;
-  /** The reference shown on the screen, so the shop can find the request the link belongs to. */
+  /** The request's reference, which the message to the shop carries so the shop can find the request the link belongs
+   *  to; the screen does not show it. */
   readonly reference: string;
 }
 

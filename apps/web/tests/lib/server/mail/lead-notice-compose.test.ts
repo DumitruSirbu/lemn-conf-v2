@@ -1,31 +1,29 @@
-import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
-  DesignSchema,
-  projectDesignForDisplay,
-  type SubmissionSnapshot,
-} from "@lemnaria/configurator-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { endonymOf } from "@/i18n/locale-endonyms";
 import type { SentKitchenLink } from "@/lib/server/contact/sent-kitchen-link";
 import {
   composeLeadNotice,
+  NOTICE_HTML_BUDGET_BYTES,
   NoticeLineError,
   type NoticeKitchenLink,
 } from "@/lib/server/mail/lead-notification";
 import {
+  HTML_MAX_LENGTH,
   isSendableMailMessage,
   LINE_BREAKING_CHARACTER,
 } from "@/lib/server/mail/mail-sender";
-import { describeReview } from "@/review/review-model";
+import { PUBLIC_ORIGIN_VARIABLE } from "@/lib/server/public-origin";
 
 import { ro } from "../../../support/romanian-content";
 import { VARIED_ARMS, VARIED_L_ARM } from "../../../support/varied-kitchens";
 import {
   callbackSubmission,
+  densestUKitchen,
   designSubmission,
+  dressed,
   FIXTURE_KITCHEN_URL,
+  FIXTURE_PUBLIC_ORIGIN,
   FIXTURE_REFERENCE,
   FIXTURE_REVISION,
   fixtureContact,
@@ -34,6 +32,7 @@ import {
   NO_LINK,
   noticeInput,
   sendableKitchensOf,
+  snapshotOf,
 } from "./lead-notice-fixtures";
 import { consoleCallsOf, spyOnEveryConsoleMethod } from "./mail-test-support";
 import { ownTextOf, parseNotice } from "./notice-html-dom-support";
@@ -147,46 +146,72 @@ describe("a notice whose link is unavailable", () => {
     expect(message.html).not.toContain(notice.kitchen.button);
     expect(hrefs.filter((href) => href?.includes("/s/"))).toEqual([]);
   });
+
+  it.each([
+    [
+      "a link of the minted shape under attacker.example, not the configured origin",
+      { kind: "link", url: "https://attacker.example/ro/s/Fixture0Tok1" },
+      FIXTURE_PUBLIC_ORIGIN,
+    ],
+    [
+      "a link while the attempt read no usable origin",
+      KITCHEN_LINK,
+      { status: "unavailable", variable: PUBLIC_ORIGIN_VARIABLE },
+    ],
+  ] as const)(
+    "refuses %s, showing the unavailable sentence in both parts",
+    (_label, kitchenLink, publicOrigin) => {
+      const refused = composeLeadNotice({
+        ...noticeInput(designSubmission(), kitchenLink),
+        publicOrigin,
+      });
+
+      expect(linesOf(refused.text)[0]).toBe(notice.kitchen.unavailable);
+      expect(refused.text).not.toContain("/ro/s/");
+      expect(refused.html).toContain(notice.kitchen.unavailable);
+      expect(refused.html).not.toContain("/ro/s/");
+    },
+  );
 });
 
-describe("the compact summary", () => {
-  function groupsOf(snapshot: SubmissionSnapshot) {
-    const design = DesignSchema.parse(JSON.parse(snapshot.document));
-    const review = describeReview({
-      content: ro,
-      design,
-      pricing: { ok: true, priced: snapshot.priced },
-      groups: projectDesignForDisplay(
-        design,
-        buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
-      ),
-    });
-    if (review.kind !== "available")
-      throw new Error("the review is unavailable");
-    return review.groups;
-  }
+/** A group's count as the summary line writes it, read back by its digits: `{heading} — {count} {noun}`. */
+const GROUP_COUNT = / — (\d+) \S+$/;
 
+/** The summary's group lines in the text part: after the room line, up to the figure. */
+function summaryGroupLinesOf(text: string): string[] {
+  const lines = linesOf(text);
+  const summaryStart = lines.indexOf("", 2) + 2;
+  const figureAt = lines.findIndex(
+    (line, index) =>
+      index >= summaryStart && line.startsWith(notice.labels.price),
+  );
+  return lines.slice(summaryStart, figureAt);
+}
+
+function countOf(groupLine: string): number {
+  return Number(GROUP_COUNT.exec(groupLine)?.[1] ?? Number.NaN);
+}
+
+describe("the compact summary", () => {
   it.each(VARIED_ARMS.map((arm) => [arm.name, arm] as const))(
-    "counts each group's bodies as the stored review's rows, in the text and in the HTML, for the %s arm",
+    "counts, over its groups, every body the stored design holds, and shows the same lines in the HTML, for the %s arm",
     (_name, arm) => {
       const kitchens = sendableKitchensOf(arm).slice(0, KITCHENS_PER_ARM);
-      const wrong = kitchens.filter(({ snapshot }) => {
+      const wrong = kitchens.filter(({ design, snapshot }) => {
         const message = composeLeadNotice(
           noticeInput(designSubmission({ snapshot })),
         );
-        const expected = groupsOf(snapshot).map((group) =>
-          notice.groupCount(group.heading, group.rows.length),
-        );
-        const lines = linesOf(message.text);
-        const summaryStart = lines.indexOf("", 2) + 2;
+        const groupLines = summaryGroupLinesOf(message.text);
+        const counts = groupLines.map(countOf);
         const paragraphs = [
           ...parseNotice(message.html ?? "").document.querySelectorAll("p"),
         ].map(ownTextOf);
         return (
-          JSON.stringify(
-            lines.slice(summaryStart, summaryStart + expected.length),
-          ) !== JSON.stringify(expected) ||
-          expected.some((line) => !paragraphs.includes(line))
+          groupLines.length === 0 ||
+          counts.some((count) => !(count >= 1)) ||
+          counts.reduce((total, count) => total + count, 0) !==
+            design.placements.length ||
+          groupLines.some((line) => !paragraphs.includes(line))
         );
       });
 
@@ -199,10 +224,93 @@ describe("the compact summary", () => {
     const counts = sendableKitchensOf(VARIED_L_ARM)
       .slice(0, KITCHENS_PER_ARM)
       .flatMap(({ snapshot }) =>
-        groupsOf(snapshot).map((group) => group.rows.length),
+        summaryGroupLinesOf(
+          composeLeadNotice(noticeInput(designSubmission({ snapshot }))).text,
+        ).map(countOf),
       );
 
     expect(new Set(counts).size).toBeGreaterThan(3);
+  });
+});
+
+/**
+ * Measured on this fixture, all 261 bodies dressed: the HTML would be 271 340 bytes (270 398 UTF-16 units, past the
+ * sender's 262 144), and the text part is 18 740 bytes. Packed in the fixture's order, the HTML first passes the
+ * budget at 81 dressed bodies (90 546 bytes), or 112 plain ones.
+ */
+const DENSEST_PLACEMENTS = 261;
+
+/** One dressed body adds about 1 040 bytes to the HTML; a kept notice within this of the budget is at its edge. */
+const LARGEST_DRESSED_ROW_BYTES = 1_500;
+
+describe("a notice whose HTML is past its budget", () => {
+  const design = dressed(densestUKitchen());
+  const snapshot = snapshotOf(design);
+  const message =
+    snapshot === undefined
+      ? undefined
+      : composeLeadNotice(noticeInput(designSubmission({ snapshot })));
+
+  it("is made from a kitchen the domain stores: the densest U, every body dressed", () => {
+    expect(design.placements).toHaveLength(DENSEST_PLACEMENTS);
+    expect(snapshot).toBeDefined();
+  });
+
+  it("is sent as its text part alone, which a sender takes", () => {
+    expect(message).toBeDefined();
+    expect(message?.html).toBeUndefined();
+    expect(message !== undefined && isSendableMailMessage(message)).toBe(true);
+  });
+
+  it("still opens with the kitchen link's line, a blank line and the customer's lines, and counts every body", () => {
+    const text = message?.text ?? "";
+
+    expect(linesOf(text).slice(0, 9)).toEqual([
+      notice.line(notice.kitchen.linkLabel, FIXTURE_KITCHEN_URL),
+      "",
+      ...customerLinesFor(endonymOf("ro")),
+      "",
+    ]);
+    expect(
+      summaryGroupLinesOf(text)
+        .map(countOf)
+        .reduce((total, count) => total + count, 0),
+    ).toBe(DENSEST_PLACEMENTS);
+  });
+
+  it("keeps the HTML up to the budget, so a notice is not stripped while it would still fit", () => {
+    const sizes = Array.from(
+      { length: DENSEST_PLACEMENTS },
+      (_unused, index) => {
+        const prefix = {
+          ...design,
+          placements: design.placements.slice(0, index + 1),
+        };
+        const prefixSnapshot = snapshotOf(prefix);
+        if (prefixSnapshot === undefined) return Number.NaN;
+        const { html } = composeLeadNotice(
+          noticeInput(designSubmission({ snapshot: prefixSnapshot })),
+        );
+        return html === undefined
+          ? undefined
+          : new TextEncoder().encode(html).byteLength;
+      },
+    );
+    const keptCount = sizes.filter((size) => size !== undefined).length;
+    const largestKept = sizes[keptCount - 1] ?? Number.NaN;
+
+    expect(sizes.slice(keptCount).every((size) => size === undefined)).toBe(
+      true,
+    );
+    expect(largestKept).toBeLessThanOrEqual(NOTICE_HTML_BUDGET_BYTES);
+    expect(largestKept).toBeGreaterThan(
+      NOTICE_HTML_BUDGET_BYTES - LARGEST_DRESSED_ROW_BYTES,
+    );
+  });
+
+  it("keeps its budget under Gmail's clip and far under the sender's own cap, both in bytes", () => {
+    expect(NOTICE_HTML_BUDGET_BYTES).toBe(90_000);
+    expect(NOTICE_HTML_BUDGET_BYTES).toBeLessThan(HTML_MAX_LENGTH);
   });
 });
 

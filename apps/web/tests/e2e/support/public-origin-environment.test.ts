@@ -8,7 +8,10 @@ import {
   readPublicOrigin,
 } from "@/lib/server/public-origin";
 
-import { MAIL_VARIABLES_THE_SUITE_REFUSES } from "./fake-mail-environment";
+import {
+  FAKE_MAIL_SERVER_ENVIRONMENT,
+  MAIL_VARIABLES_THE_SUITE_REFUSES,
+} from "./fake-mail-environment";
 import {
   CONTACT_UNAVAILABLE_SERVER_PORT,
   CSP_SHARE_REPORT_SERVER_PORT,
@@ -22,20 +25,31 @@ const SUITE_ORIGIN = "http://localhost:4320";
 const RUNNERS_ORIGIN = "https://production.lemnaria.example";
 
 describe("the public origin a suite's server is given", () => {
+  it("is read by the suite's server, which also holds the fake sender's flag, as configured and as exactly its own origin", () => {
+    const environment = {
+      ...FAKE_MAIL_SERVER_ENVIRONMENT,
+      ...publicOriginEnvironmentOf(SUITE_ORIGIN),
+    };
+
+    expect(readPublicOrigin(environment)).toEqual({
+      status: "configured",
+      origin: SUITE_ORIGIN,
+    });
+  });
+
   it.each([
-    4320,
     PRODUCTION_POLICY_SERVER_PORT,
     CONTACT_UNAVAILABLE_SERVER_PORT,
     CSP_SHARE_REPORT_SERVER_PORT,
     FAILED_RENDER_SERVER_PORT,
   ])(
-    "is read by the server as configured, and as exactly its own origin, on port %i",
+    "is unavailable to a second server on port %i, which has no fake sender and so writes no notice to link from",
     (port) => {
       const origin = `http://localhost:${String(port)}`;
 
       expect(readPublicOrigin(publicOriginEnvironmentOf(origin))).toEqual({
-        status: "configured",
-        origin,
+        status: "unavailable",
+        variable: PUBLIC_ORIGIN_VARIABLE,
       });
     },
   );
