@@ -143,11 +143,20 @@ export function designAddressOf(
   return `${new URL(page.url()).origin}/${locale}/d/${designId}`;
 }
 
+/** The address as the card draws it: the same address less its scheme, which the copy keeps. */
+export function shownDesignAddressOf(
+  page: Page,
+  locale: "ro" | "ru",
+  designId: string,
+): string {
+  return designAddressOf(page, locale, designId).replace(/^https?:\/\//, "");
+}
+
 /** The server render and the hydrating render show the editor's path; the absolute address follows on the next
  *  render, which a page that stalls on a runner draws late. */
 const ABSOLUTE_ADDRESS_WITHIN_MS = 20_000;
 
-/** 5A's design-link card is visible and its address is this design's editor in this locale, absolute. */
+/** 5A's design-link card is visible and its address is this design's editor in this locale, without the scheme. */
 export async function expectDesignLinkShown(
   page: Page,
   locale: "ro" | "ru",
@@ -155,7 +164,7 @@ export async function expectDesignLinkShown(
 ): Promise<void> {
   await expect(page.getByTestId(DONE_DESIGN_LINK_CARD)).toBeVisible();
   await expect(page.getByTestId(DONE_DESIGN_LINK)).toHaveText(
-    designAddressOf(page, locale, designId),
+    shownDesignAddressOf(page, locale, designId),
     { timeout: ABSOLUTE_ADDRESS_WITHIN_MS },
   );
 }

@@ -162,14 +162,12 @@
   min-width: 0;
 }
 
-/* An address of any length stays on one line and ends in an ellipsis, so the card never scrolls sideways; the copy and
- * a tap's selection take it whole. It reads left to right in a page of either direction. */
+/* An address of any length wraps onto as many lines as it needs, so the card never scrolls sideways and none of the
+ * address is hidden; the copy takes it whole. It reads left to right in a page of either direction. */
 .designLink {
-  overflow: hidden;
   font: 700 14px/1.3 var(--font-ui);
   text-align: start;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   unicode-bidi: isolate;
   user-select: all;
 }

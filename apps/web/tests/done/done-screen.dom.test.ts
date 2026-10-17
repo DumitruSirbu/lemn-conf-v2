@@ -489,7 +489,9 @@ describe("the design's own address on 5A", () => {
         await Promise.resolve();
       });
 
-      expect(textOf("done-design-link")).toBe(`${ORIGIN}/ru/d/${DESIGN_ID}`);
+      expect(textOf("done-design-link")).toBe(
+        `${ORIGIN.replace(/^https:\/\//, "")}/ru/d/${DESIGN_ID}`,
+      );
       expect(writeText).toHaveBeenCalledExactlyOnceWith(
         `${ORIGIN}/ru/d/${DESIGN_ID}`,
       );

@@ -23,6 +23,7 @@ import {
   clientRequestIdOf,
   contactDocumentPath,
   designAddressOf,
+  shownDesignAddressOf,
   donePath,
   expectDesignLinkShown,
   expectFormDrawn,
@@ -592,7 +593,7 @@ test.describe("what the design-link card and the picture do on the page", () => 
 
     await expect(page.getByTestId("done-copied")).toHaveText("");
     expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(
-      designAddressOf(page, "ro", seededDesign.id),
+      shownDesignAddressOf(page, "ro", seededDesign.id),
     );
   });
 });

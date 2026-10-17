@@ -4,7 +4,7 @@
 // exactly as shown, *Copiat* announced politely, the address selected where the clipboard does not take it, and a server
 // render that names no origin and hydrates without a warning. The clipboard and the page's origin are the test's own.
 //
-// What this cannot see: the ellipsis as painted at 390 px and a real browser's clipboard permission (the visual pass's).
+// What this cannot see: the wrap as painted at 390 px and a real browser's clipboard permission (the visual pass's).
 import type { DesignId } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement } from "react";
@@ -22,6 +22,7 @@ type Locale = keyof typeof MESSAGES;
 
 const DESIGN_ID = "design0123456789abcde" as DesignId;
 const ORIGIN = "https://lemnaria.example";
+const HOST = "lemnaria.example";
 
 let container: HTMLDivElement;
 let root: Root | undefined;
@@ -91,11 +92,11 @@ afterEach(() => {
 describe.each(["ro", "ru"] as const)("the design's address in %s", (locale) => {
   const copy = MESSAGES[locale].submissionResult;
 
-  it("is this design's editor in this locale, absolute from the page's origin", () => {
+  it("shows this design's editor in this locale from the page's origin, without the scheme", () => {
     mountCard(locale);
 
     expect(elementMarked("done-design-link").textContent).toBe(
-      `${ORIGIN}/${locale}/d/${DESIGN_ID}`,
+      `${HOST}/${locale}/d/${DESIGN_ID}`,
     );
   });
 
@@ -116,9 +117,6 @@ describe.each(["ro", "ru"] as const)("the design's address in %s", (locale) => {
     await pressCopy();
 
     expect(writeText).toHaveBeenCalledExactlyOnceWith(
-      elementMarked("done-design-link").textContent,
-    );
-    expect(writeText).toHaveBeenCalledWith(
       `${ORIGIN}/${locale}/d/${DESIGN_ID}`,
     );
     expect(elementMarked("done-copied").textContent).toBe(copy.copied);
@@ -190,7 +188,7 @@ describe("a copy the clipboard does not take", () => {
 
       expect(elementMarked("done-copied").textContent).toBe("");
       expect(document.getSelection()?.toString()).toBe(
-        `${ORIGIN}/ro/d/${DESIGN_ID}`,
+        `${HOST}/ro/d/${DESIGN_ID}`,
       );
     },
   );
@@ -226,7 +224,7 @@ describe("the card as the server renders it and the browser hydrates it", () => 
 
     expect(consoleError).not.toHaveBeenCalled();
     expect(elementMarked("done-design-link").textContent).toBe(
-      `${ORIGIN}/ro/d/${DESIGN_ID}`,
+      `${HOST}/ro/d/${DESIGN_ID}`,
     );
     expect(writeText).toHaveBeenCalledExactlyOnceWith(
       `${ORIGIN}/ro/d/${DESIGN_ID}`,

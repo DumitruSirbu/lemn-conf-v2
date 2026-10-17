@@ -13,13 +13,15 @@ import { useCopyText } from "./use-copy-text";
  * The customer's own address of this design's editor as text, the control that copies exactly that text, and the note
  * that it opens the design for editing in this browser only. *Copiat* is announced politely once the clipboard accepted
  * the write, on a line of its own that is held open while empty, so neither the address nor the note moves when it
- * appears; where the write was refused, the address is selected so it can be copied by hand.
+ * appears; where the write was refused, the address is selected so it can be copied by hand. The address is shown
+ * without its scheme, which is noise on a phone, and wraps; the copy still takes the whole address.
  */
 export function DesignLinkCard({ designId }: { readonly designId: DesignId }) {
   const content = useContent().submissionResult;
   const address = useAbsoluteEditorAddress(designId);
   const { isCopied, copy, shownTextRef } = useCopyText(address);
   const labelId = useId();
+  const shownAddress = withoutScheme(address);
 
   return (
     <div className={styles.linkCard} data-testid="done-design-link-card">
@@ -34,7 +36,7 @@ export function DesignLinkCard({ designId }: { readonly designId: DesignId }) {
             className={styles.designLink}
             data-testid="done-design-link"
           >
-            {address}
+            {shownAddress}
           </span>
         </div>
         <button
@@ -55,4 +57,8 @@ export function DesignLinkCard({ designId }: { readonly designId: DesignId }) {
       </p>
     </div>
   );
+}
+
+function withoutScheme(address: string): string {
+  return address.replace(/^https?:\/\//, "");
 }

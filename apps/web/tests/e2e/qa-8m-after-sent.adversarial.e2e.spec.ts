@@ -427,9 +427,10 @@ test("ro, 8V criterion 17: after a reload the card's address, once hydrated, is 
   expect(copied, "the clipboard holds the address and nothing else").toBe(
     designAddressOf(page, "ro", seededDesign.id),
   );
-  expect(copied, "the text shown is the text copied").toBe(
-    await page.getByTestId(DONE_DESIGN_LINK).innerText(),
-  );
+  expect(
+    copied.replace(/^https?:\/\//, ""),
+    "the text shown is the text copied, less its scheme",
+  ).toBe(await page.getByTestId(DONE_DESIGN_LINK).innerText());
   expect(consoleProblems(said), "hydration and the console").toEqual([]);
 });
 

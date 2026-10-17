@@ -109,13 +109,11 @@ describe("the confirmation's stylesheet", () => {
   });
 
   it.each([
-    ["designLink", "white-space", "nowrap"],
-    ["designLink", "overflow", "hidden"],
-    ["designLink", "text-overflow", "ellipsis"],
+    ["designLink", "overflow-wrap", "anywhere"],
     ["designLink", "user-select", "all"],
     ["linkText", "min-width", "0"],
   ])(
-    "keeps a long design address on one line inside the card: .%s's %s is %s",
+    "wraps a long design address inside the card, hiding none of it: .%s's %s is %s",
     (className, property, expected) => {
       expect(valuesFor(STYLESHEET, className, property)).toEqual([expected]);
     },
