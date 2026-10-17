@@ -325,10 +325,18 @@ decision 2) and has no grant step, so the code would reach production before any
 steps below, issue the grants, prove them with the privilege test as `app_designs`, and only then merge or promote the
 code.
 
-**Presets are not backed up until wave P2 ships.** The nightly export covers `designs` only
-(`BACKUP_BLOB_PREFIX = "backups/designs/"`), and Neon's point-in-time history is 6 hours. Do not author presets on a
-database before P2's export runs there ([ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md),
-Amendment A, *Consequences*).
+**Presets are backed up only where wave P2's export has run, and the `designs` export never covers them.** The nightly
+`designs` export is scoped to `designs` (`BACKUP_BLOB_PREFIX = "backups/designs/"`). Wave P2 added a second, separately
+scoped export of `presets` under `backups/presets/` (cron `/api/cron/backup-presets`, 03:15 UTC daily, 14-day rotation),
+and Neon's point-in-time history is only 6 hours. **Do not author presets on a database until all three hold there:**
+the code containing P2 is deployed to that environment, the Cron Jobs tab of the Vercel dashboard lists
+`/api/cron/backup-presets`, and `vercel blob list --prefix backups/presets/` shows at least one object (a run over an
+empty table still writes one, a single newline). The export runs on **Production only**: it authenticates with
+`CRON_SECRET`, which is deliberately not set for Preview, so presets authored on a preview database are never backed up
+([ADR 0009](../decisions/0009-deployment-configuration-gaps.md) item 4). The restore recipe is *Restoring the `presets`
+table* in [`design-db-restore.md`](design-db-restore.md)
+([ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md), Amendment A,
+*Consequences*). This has not been observed running anywhere [src: written from the code; nothing was deployed or run].
 
 - **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
   `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **11** (1 to 10 before, or

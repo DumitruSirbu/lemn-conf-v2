@@ -6,6 +6,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/backup-presets",
+      "schedule": "15 3 * * *"
+    },
+    {
       "path": "/api/cron/prune-rate-limits",
       "schedule": "30 3 * * *"
     }

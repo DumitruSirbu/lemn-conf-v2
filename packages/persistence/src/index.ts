@@ -5,6 +5,12 @@ export type {
   DesignRowPageQuery,
   DesignRowSource,
 } from "./design-row-source.js";
+export { createNeonPresetRowSource } from "./preset-row-source.js";
+export type {
+  PresetBackupRow,
+  PresetRowPageQuery,
+  PresetRowSource,
+} from "./preset-row-source.js";
 export { FakeConfigurationRepository } from "./fake-configuration-repository.js";
 export {
   DesignWriteConflictError,
