@@ -19,6 +19,8 @@ export {
 } from "./neon-configuration-repository.js";
 export type {
   AuthorizedConfigurationRepository,
+  AuthorizedDesignLookup,
+  AuthorizedDesignRepository,
   AuthorizedSave,
   DesignVersion,
   LoadOwnedOutcome,

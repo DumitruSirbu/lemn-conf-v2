@@ -198,6 +198,10 @@ export {
 export * from "./queries/width-options.js";
 export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
+// Whether a stored kitchen may be kept as a preset, the room it is saved in, and the facts its generated name is made
+// of (ADR 0112 decision 4, Amendment A).
+export * from "./preset/preset-candidate.js";
+export * from "./preset/preset-name-facts.js";
 export * from "./pricing/price-book.js";
 export * from "./pricing/price-lines.js";
 // The book's ingress (ADR 0062 seam 1): a composition root parses once, so every consumer downstream

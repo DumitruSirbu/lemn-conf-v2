@@ -39,7 +39,7 @@ const REFUSALS = {
   heightMm: "the height must be a whole number of millimetres above zero",
   design: `the design must be an object with a room, in text the database can hold, of at most ${String(MAX_DESIGN_BYTES)} bytes`,
   room: "the shape, the walls and the height must be those of the design's own room",
-  typedName: `the typed name must be 1 to ${String(MAX_PRESET_NAME_CHARACTERS)} characters, NFC, trimmed, with no control or bidi-override character`,
+  typedName: `the typed name must be 1 to ${String(MAX_PRESET_NAME_CHARACTERS)} characters, NFC, trimmed, with no control, format or separator character (the bidi overrides included)`,
   thumbnail: `the thumbnail must be 1 to ${String(MAX_PRESET_THUMBNAIL_BYTES)} bytes`,
   thumbnailType:
     "the thumbnail type must be image/webp, image/png or image/jpeg",

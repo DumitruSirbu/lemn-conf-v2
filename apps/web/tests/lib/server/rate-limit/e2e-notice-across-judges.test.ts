@@ -32,6 +32,7 @@ async function freshJudges() {
     "csp-report": () => judgeCspReport(headers),
     "save-by-block": () => Promise.resolve(undefined),
     "save-by-credential": () => Promise.resolve(undefined),
+    "preset-creation": () => Promise.resolve(undefined),
     "contact-every-by-block": () => Promise.resolve(undefined),
     "contact-new-by-block-hour": () => Promise.resolve(undefined),
     "contact-new-by-block-day": () => Promise.resolve(undefined),

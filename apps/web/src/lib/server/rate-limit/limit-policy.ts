@@ -93,6 +93,15 @@ export const CSP_REPORT_WINDOW_MINUTES = 60;
 export const CSP_REPORTS_PER_BLOCK_FIGURE = 100;
 
 /**
+ * Fifty presets saved in a Chișinău calendar day, counted once over every caller (plan M8C section 3.3, the security
+ * review of P1): while authoring is ungated (ADR 0112 Amendment A) a flood of valid saves would fill the shared Blob
+ * quota, hidden rows included, since the nightly export copies every row. The owner authors a library, a few kitchens
+ * a day; a figure of this size bounds a flood and leaves the work room. Fifty saves in a day lock authoring out until
+ * the next Chișinău midnight, which is the intended failure. The owner's answer changes this constant and no code.
+ */
+export const PRESET_CREATIONS_PER_DAY_FIGURE = 50;
+
+/**
  * Three times what one whole e2e run makes of each, rounded up to the next hundred, by the same rule as the mint's: 395
  * saves and 146 share writes at the last count of a whole run. A bucket lasts one invocation, which may run the whole
  * suite, and the teardown fails above half of a figure.
@@ -160,6 +169,11 @@ export const E2E_SAVE_BY_BLOCK_POLICY = policyOf("design-save-by-block-e2e", {
 export const SAVE_BY_CREDENTIAL_POLICY = policyOf("design-save-by-credential", {
   figure: SAVES_PER_CREDENTIAL_FIGURE,
   window: utcMinutes(SAVE_WINDOW_MINUTES),
+});
+
+export const PRESET_CREATION_POLICY = policyOf("preset-creation-global", {
+  figure: PRESET_CREATIONS_PER_DAY_FIGURE,
+  window: CHISINAU_DAY,
 });
 
 export const SHARE_WRITE_POLICY = policyOf("share-write-by-block", {
@@ -260,12 +274,14 @@ export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
 /** What a request is limited for. A bucket has an e2e twin when the suite's one shared block would count it: the
  *  credential's, the reads, and the contact form's buckets by a browser, an address and a stored request have none,
  *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. A policy
- *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). */
+ *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). The global
+ *  cap on preset creation has none for the same reason: no test saves fifty presets in a day. */
 export type PolicyPurpose =
   | "mint"
   | "save-by-block"
   | "save-by-credential"
   | "share-write"
+  | "preset-creation"
   | "read"
   | "csp-report"
   | "contact-every-by-block"
@@ -293,6 +309,10 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "share-write": {
     production: SHARE_WRITE_POLICY,
     e2e: E2E_SHARE_WRITE_POLICY,
+  },
+  "preset-creation": {
+    production: PRESET_CREATION_POLICY,
+    e2e: PRESET_CREATION_POLICY,
   },
   read: { production: READ_POLICY, e2e: READ_POLICY },
   "csp-report": { production: CSP_REPORT_POLICY, e2e: CSP_REPORT_POLICY },

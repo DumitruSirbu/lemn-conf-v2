@@ -167,8 +167,9 @@ describe("the policies of saves, shares and reads as data", () => {
   it("gives every policy a name of its own that carries its window and starts with no other's", () => {
     const names = ALL_LIMIT_POLICIES.map((policy) => policy.name);
 
-    // Eight before the contact form, its six policies and three twins since, and the policy report's one.
-    expect(ALL_LIMIT_POLICIES).toHaveLength(18);
+    // Eight before the contact form, its six policies and three twins since, the policy report's one, and the preset
+    // save's one global cap (M8C P3).
+    expect(ALL_LIMIT_POLICIES).toHaveLength(19);
     expect(new Set(names).size).toBe(names.length);
     for (const policy of ALL_LIMIT_POLICIES) {
       const label =

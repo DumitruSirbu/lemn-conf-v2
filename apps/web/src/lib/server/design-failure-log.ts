@@ -21,6 +21,9 @@ import {
   LIMIT_REACHED_STATUS,
   MINT_UNAVAILABLE_CODE,
   MINT_UNAVAILABLE_STATUS,
+  PRESET_LIMIT_REACHED_CODE,
+  PRESET_UNAVAILABLE_CODE,
+  PRESET_UNAVAILABLE_STATUS,
   READ_LIMIT_REACHED_CODE,
   SAVE_LIMIT_REACHED_CODE,
   SAVE_UNAVAILABLE_CODE,
@@ -35,7 +38,7 @@ import {
 } from "@/persistence/design-request-errors";
 
 /** Which handler the line came from, not the HTTP method: `PUT` and `PATCH` are one operation, and
- *  `POST /api/designs` is `mint` rather than a second `save`. `resume` is the visitor-hash lookup the locale pages
+ *  `POST /api/designs` is `mint` rather than a second `save`. `preset-save` is `POST /api/designs/{id}/preset`. `resume` is the visitor-hash lookup the locale pages
  *  run before answering; its one line, on a driver failure only, carries no value, hash or id. The `share-*`
  *  operations are named for what they authorise, not the verb. `share-read` is the share view's read of an issued
  *  link, named apart from `load` because its line must carry no id. */
@@ -47,7 +50,8 @@ export type DesignOperation =
   | "share-issue"
   | "share-revoke"
   | "share-status"
-  | "share-read";
+  | "share-read"
+  | "preset-save";
 
 /** A refusal as the server sees it. `code` is a log-only label for the 403, whose response carries no code: one
  *  answer for every write refusal keeps the route from being an existence oracle for design ids. */
@@ -215,6 +219,40 @@ export function reportSaveLimit(line: SaveLimitLine): void {
     event: "design-operation-refused",
     operation: "save",
     refusalCode: SAVE_LIMIT_REACHED_CODE,
+    status: LIMIT_REACHED_STATUS,
+    policy: line.policy,
+  });
+}
+
+/** A refused preset save names its policy; one that could not be judged, or whose store gave no answer, names its
+ *  cause. Nothing else: no address, credential, design, name, image or header value ever reaches the line. */
+export type PresetSaveLimitLine =
+  | { readonly kind: "refused"; readonly policy: string }
+  | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
+
+const presetPoliciesWithARefusalWritten = new Set<string>();
+
+/**
+ * A flood past the day's cap must not buy a log write a request: a refusal is written at most once for a process and a
+ * policy. A save that could not be judged is written each time, as every other write's is.
+ */
+export function reportPresetSaveLimit(line: PresetSaveLimitLine): void {
+  if (line.kind === "unavailable") {
+    emitDesignLogLine("error", {
+      event: "design-operation-unavailable",
+      operation: "preset-save",
+      refusalCode: PRESET_UNAVAILABLE_CODE,
+      status: PRESET_UNAVAILABLE_STATUS,
+      cause: line.cause,
+    });
+    return;
+  }
+  if (presetPoliciesWithARefusalWritten.has(line.policy)) return;
+  presetPoliciesWithARefusalWritten.add(line.policy);
+  emitDesignLogLine("warn", {
+    event: "design-operation-refused",
+    operation: "preset-save",
+    refusalCode: PRESET_LIMIT_REACHED_CODE,
     status: LIMIT_REACHED_STATUS,
     policy: line.policy,
   });
