@@ -364,6 +364,11 @@ the customer's.
 decides frame 5A's *"Trimite design-ul pe WhatsApp"*: build it on the customer's own share link,
 which re-issues and so revokes a link they already sent (recommended, with the existing warning), or
 leave it out of M8. *Blocks:* 8M.
+**Dated pointer, 2026-10-17:** (a) is **superseded for the e-mail** by the owner's request of 2026-10-16 and Q-8V-1 =
+(a): the notice now leads with a frozen view-only link to the kitchen as sent — in effect this question's (b), served by
+the existing `/s/{token}` route and a new table (wave 8V,
+[ADR 0165](../decisions/0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)).
+(c) stays refused.
 
 **Q6 — The contact fields.** *[Answered 2026-10-07: (i) and (ii) as recommended (relayed).
 **(iii) is not settled:** see Q24.]* ADR 0001 d6 requires name and phone and makes e-mail optional. Three
@@ -1291,6 +1296,9 @@ same day by *M8 restated*, above, where the two disagree.**
 | 8Q | The CSP enforces | web | Full + security | 8L; a preview measurement of the bot check's scripts if Q21 keeps it. **Closed 2026-10-13** (*8Q as closed*, above) |
 | 8Q2 | CSP reports kept in a table of our own (Q46 = (c); [plan](8Q2-csp-report-table.md), [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md), Accepted) | persistence, web | Full + security | 8Q. **Closed 2026-10-14** (*8Q2 as closed*, below); owner steps for `0009` open |
 | 8M2 | The design goes to the shop's WhatsApp; an already-sent kitchen shows its request and a call (Q44 = (b), Q45, F3; [plan](8M2-shop-whatsapp-and-already-sent.md), [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md), **Accepted; wave CLOSED 2026-10-14**, see *8M2 as closed*) | web | Full + visual | 8M. **Added 2026-10-13; after 8Q2, before 8T** |
+| 8J2 | The shop's notice leaves through Gmail SMTP by nodemailer (planned as "8N"; [plan](8N-nodemailer-gmail-notification.md), [ADR 0164](../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md), **Accepted**) | web | Full + security | 8J, 8K. **Added 2026-10-16; built and reviewed, docs closed 2026-10-17**; the one real send is the owner's |
+| 8U | Adjacent empty spaces merge anywhere; 800 caps the cabinet, not the space (Q-8U-1 = (b); [plan](8U-merge-adjacent-empty-spaces.md), [ADR 0166](../decisions/0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md), **Accepted**) | domain, web tests | Full + visual + security (S1) | — **Added 2026-10-16; built and reviewed, docs closed 2026-10-17; S5 not built (backlog 255)** |
+| 8V | The done page links to the customer's design; the shop's e-mail is branded HTML led by a frozen view-only link (Q-8V-1 = (a), Q-8V-2 = yes; [plan](8V-done-page-link-and-shop-email.md), [ADR 0165](../decisions/0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md), **Accepted**) | persistence, web | Full + security | 8J2. **Added 2026-10-16; built and reviewed, docs closed 2026-10-17**; `0010` and its grant are owner steps |
 | 8R | The firewall rules, staged | none (runbook, owner action) | Coordinator-only | **Q21** |
 | 8S | Pre-launch checks | none (docs, owner reads) | Light | The owner's facts (Q3, Q7, Q9); **Q22** for the data list |
 | 8T | The phone gate, the desktop line, the phase gate | — | Coordinator + visual | **Q21** (the gate's WAF half); the owner's text in every slot |

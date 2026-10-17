@@ -22,6 +22,16 @@ verified domain with the DNS records the owner adds; the shop's inbox address; t
 and DMARC on the production domain. The one real send is the owner's. Separately, the 20 a day on new designs is
 counted per block of 256 addresses for IPv4 (ADR 0147 Amendment A), which changes the wording of interim 2.
 
+**Dated note, 2026-10-17, at M8 wave 8J2's close (applies to the paragraph above and to row 4 / line 43–44):** the
+provider is now **Gmail SMTP by nodemailer** (the owner, 2026-10-15;
+[ADR 0164](../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md)).
+The three variables are **`GOOGLE_EMAIL`, `GOOGLE_APP_PASSWORD`, `LEAD_NOTIFICATION_ADDRESS`**; `RESEND_API_KEY` and
+`MAIL_FROM_ADDRESS` are retired. An **App password** on a 2-Step-Verified account replaces Resend's *"sending access
+only"* key, and it opens the whole mailbox (hence a dedicated sending account, Q62). **Google** is the processor the
+privacy text names (Q7, Q13). **Open for the M9 planner, not settled here:** whether the sending domain, its DNS records and SPF, DKIM and DMARC on
+the production domain are still owed now that mail leaves from a Google account. Wave 8V adds
+`LEMNARIA_PUBLIC_ORIGIN` per environment (ADR 0165 D7). The one real send is still the owner's.
+
 **What is ruled, and what is not.** Ruled by the owner: a separate delivery-preparation milestone will be
 planned. **Not ruled, deferred to this milestone as leanings:** the host (Q21: *"or in one of Moldova's
 servers or one server in Germany I guess"*), the database's home (Q22: *"I think if I will have a VPS I can

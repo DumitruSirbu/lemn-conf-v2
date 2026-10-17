@@ -175,7 +175,7 @@ status corrections, in one of these two files:
 | 142 | Owner decisions from 8E: ~~S2's over-count~~ and ~~the keyed hash~~ decided 2026-10-08; what remains is whether the two guarded deletes (now on preview) stay, and the `.gitignore` line `vercel env pull` added | open.md — recorded 2026-10-08, updated at 8H's close; the owner's |
 | 143 | The revision shape admits nineteen digits, past a bigint column's range (F12) | open.md — found 2026-10-08 by M8 8H's QA; persistence's; trigger: `design-revision.ts` is next opened |
 | 144 | Any export of contact data neutralises a leading `=`, `+`, `-` or `@` | open.md — recorded 2026-10-08 at 8H's close; trigger: an export is built |
-| 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; a possible recurrence with a name added 2026-10-08 (`client-write-path.adversarial`, not established to be the same test); **a second named sighting 2026-10-09** (`plan-preview-model.facing-labels.test.ts:255`, a test-side cause: seed the property; no recurrence needed); trigger: a recurrence |
+| 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; a possible recurrence with a name added 2026-10-08 (`client-write-path.adversarial`, not established to be the same test); **a second named sighting 2026-10-09** (`plan-preview-model.facing-labels.test.ts:255`, a test-side cause: seed the property; no recurrence needed); **seen flaky again during 8U/8V, 2026-10-17 [relayed]**; trigger: a recurrence |
 | 146 | Count the stored design ids that lack the generator's shape, before 8L S2 | open.md — recorded 2026-10-08; **resolved by owner ruling 2026-10-12 (nothing in production; ADR 0159 Amendment A); the owner must still confirm no production data exists at merge time** |
 | 147 | `e2e-shard-budget` failed at `ee834b6` and the pre-push hook runs it | open.md — **closed 2026-10-08**, owner chose option 1, fixed in `8aba717` (the file split); residue is 153 |
 | 148 | A metres field and a dangling separator (`3,` `,5`): refuse, or read as a value? | open.md — **closed 2026-10-08**, ruled by the owner ("no separator should be accepted"), pinned in `eaef634`; the URL question is 154 |
@@ -190,7 +190,7 @@ status corrections, in one of these two files:
 | 157 | For the milestone-close test audit: 8I's QA files restate six cases the developer's tests hold, file sizes and other nits | open.md — recorded 2026-10-09 at M8 8I's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
 | 158 | The mail tests' fixtures are duplicated between the developer's and QA's files (fake key and addresses, fetch stubs, notice fixtures, the dressed-kitchen fixture) | open.md — recorded 2026-10-09 at M8 8J's close (JC-R1.12, JC-R1.18); trigger: 8K's first test that needs them |
 | 159 | For the milestone-close test audit: 8J's restated pairs, the nits and JC-R1.20/1.21, with the file sizes at review | open.md — recorded 2026-10-09 at M8 8J's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
-| 160 | The mail adapter's answer mapping moves to its own module | open.md — recorded 2026-10-09 at M8 8J's close (JC-R1.8); trigger: a second adapter or the file's next change of behaviour |
+| 160 | The mail adapter's answer mapping moves to its own module | open.md — recorded 2026-10-09 at M8 8J's close (JC-R1.8); **closed 2026-10-17: the Gmail adapter's answer table is its own module, `mail/smtp-answer.ts` (8J2 S1 `b51899a6`; ADR 0164 d5)** |
 | 161 | The Control/Meta-click spec's URL wait is a test fault; the two-tab helpers hide the status of a lockout | open.md — recorded 2026-10-09 by the triage of 125; **closed 2026-10-09, fixed in `c5432da`** |
 | 162 | A pixel comparison in `qa-8d-review-scene…e2e.spec.ts:188` flickered once in a whole `CI=1` run | open.md — recorded 2026-10-09 at M8 8F's close; trigger: a recurrence, or the M8 test audit |
 | 163 | A tap on Continuă immediately after Step 1 loads does nothing (before hydration) | open.md — recorded 2026-10-09 (visual verifier); a product question; no owner |
@@ -262,7 +262,7 @@ status corrections, in one of these two files:
 | 229 | The live pattern differential costs 28 s per persistence live run | open.md — recorded 2026-10-14 (8Q2 QA note) |
 | 230 | Second-server report rows are bounded only by the sink spec | open.md — recorded 2026-10-14 (8Q2 QA note) |
 | 231 | `requireValidCspReportPlacement` and its three QA-owned cases could be deleted outright | open.md — recorded 2026-10-14 (8Q2 QA edit) |
-| 232 | Four persistence live files fail at collection with every database variable blanked (`neon('')` in a `describe` body; pre-existing) | open.md — recorded 2026-10-14 (8Q2 QA note) |
+| 232 | Four persistence live files fail at collection with every database variable blanked (`neon('')` in a `describe` body; pre-existing) | open.md — recorded 2026-10-14 (8Q2 QA note); **seen again 2026-10-17 (8V): the non-live recipe in `ci-and-local-gates.md` does not hold for these files** |
 | 233 | The store's `lock_timeout` is not tested with a real contending lock | open.md — recorded 2026-10-14 (8Q2 close) |
 | 234 | `contact_submissions` test-database leak: one `ro` and one `ru` row per multi-spec e2e invocation; writer spec unknown; pre-existing, 30 rows | open.md — recorded 2026-10-14 (8M2 close) |
 | 235 | The launch gate refuses only the exact placeholder; `deploy.yml`'s gate is not Vercel's, so the checklist line is the real gate | open.md — recorded 2026-10-14 (8M2 close) |
@@ -273,6 +273,21 @@ status corrections, in one of these two files:
 | 240 | The contact page's 300 ms read deadline fired once in a whole e2e run | open.md — recorded 2026-10-14 (8M2 close) |
 | 241 | One very long unbroken Russian word not verified visually | open.md — recorded 2026-10-14 (8M2 close) |
 | 242 | Phone and e-mail done-screen variants and the keyboard open not verified visually (8T) | open.md — recorded 2026-10-14 (8M2 close) |
+| 243 | A cabinet-depth round trip (600 → 700 → 600) drifts occupied columns' recorded depth (fridge 620 → 742, tower 620 → 638); since 8U it splits one 1700 space into three | open.md — recorded 2026-10-17 (8U close); pre-existing |
+| 244 | An offered width chip grows a base beside a U's right corner into the corner base (unsavable design) | open.md — recorded 2026-10-17 (8U close); pre-existing |
+| 245 | An odd-width stored opening offers rows the insert then refuses (`NON_INTEGER_MILLIMETRES`; 8U R13) | open.md — recorded 2026-10-17 (8U close); known limit, ADR 0166 d7 |
+| 246 | A tolerance chain's merge depends on the clear order and can cost a member over 20 mm (8U R14); reachable through `setCabinetDepth` | open.md — recorded 2026-10-17 (8U close); owner ruled Q-8U-3 = (a), not built; ADR 0166 d8 |
+| 247 | The 800 + 100 spaces above each U corner stay two (F2; Q-8U-2 = (a)) | open.md — recorded 2026-10-17 (8U close); ADR 0166 d6 |
+| 248 | The shell trims the upper row 1 mm in odd-width rooms (8U R12) | open.md — recorded 2026-10-17 (8U close); pre-existing |
+| 249 | `qa-5b4b` "merges four abutting 200s into one 800" cannot fail its title under the uncapped merge — **blocks M8's close** (ADR 0152 Amendment A) | open.md — recorded 2026-10-17 (8U close); owner: the M8 test audit |
+| 250 | A retry under the same price-book version re-prices from the live book | open.md — recorded 2026-10-17 (8V review); pre-existing |
+| 251 | A Romanian plural without *"de"* flagged in review — kept by the owner's 2026-09-10 ruling (bare noun) | open.md — recorded 2026-10-17 (8V review); no action |
+| 252 | `migrate-design.ts:255-257`'s comment says an odd-width v1 entry is refused; since 8U it loads whole | open.md — recorded 2026-10-17 (8U review) |
+| 253 | `ContactPageView`'s already-sent arm carries a sent-reference field nothing reads | open.md — recorded 2026-10-17 (8V review) |
+| 254 | Until `0010` and its grant are applied, the notice says "link unavailable" and an unknown share token answers 500 | open.md — recorded 2026-10-17 (8V close); owner step |
+| 255 | 8U S5 not built: the commands still cut empty space at 800 and the reconcile rejoins it (behaviour-free) | open.md — recorded 2026-10-17 (8U close) |
+
+*Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 
 *Notes at 8M2's close on existing entries:* 196 (second caller, new triggers, the deadline seen once) and 198 (`SentReferenceAnswer` in `@/done/result-to-show`) carry dated notes in `open.md`.
 

@@ -326,3 +326,9 @@ deployment where the variables are set, and a later close-out quotes it. It woul
 The e2e rate-limit policy's flag, `LEMNARIA_E2E_RATE_LIMIT_POLICY`, follows this record's fake-and-flag pattern: exactly `1`, an own member, and
 refused (every mint `503`) beside `CLIENT_NETWORK_SOURCE` as the mail flag is beside a mail variable. Its gate line joins the mail flag's at 8T.
 [ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md) decision 10.
+
+## Dated note — 2026-10-17, waves 8J2 and 8V (the scribe; nothing re-run; this record's text is not edited)
+
+- **The provider changed.** [ADR 0164](0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md) (accepted 2026-10-17) **supersedes d2** for the transport (*"no SDK, no dependency"*: nodemailer 10.1.1 is pinned), **d3** (the Resend answer table; the SMTP table is `mail/smtp-answer.ts`) and **d4's guarantee** (*"a retry inside a day cannot send a second message"* no longer holds). It **amends d6** (the names are `GOOGLE_EMAIL`, `GOOGLE_APP_PASSWORD`, `LEAD_NOTIFICATION_ADDRESS`), **d7** (the fake's refusal set keeps the two retired names), **d9** (Google is the third party) and **J-S1.6's harness** (the e2e harness withholds all five mail names). The Resend adapter and its tests were deleted (`fb15fa08`, subject).
+- **`html`.** d2's must-not item `html` is **superseded** by [ADR 0165](0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md) D5 (ADR 0164 Amendment A). The rest of the must-not list stands.
+- **Kept:** d1 (the port and the seven kinds), d5, d8 and the title's rule — the notice is the stored review printed, never priced again.

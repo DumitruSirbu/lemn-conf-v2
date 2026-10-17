@@ -1,10 +1,12 @@
 # ADR 0164 — The shop's notice leaves through Gmail SMTP by nodemailer behind the unchanged port, and the stored mark is the only guard against a second notice
 
-Status: **Proposed — 2026-10-16**, by the architect at the planning of the wave. Nothing is built. No real message has
-been sent by anyone.
+Status: **Accepted — 2026-10-17**, at the wave's documentation close (see *Acceptance* at the end); **amended by
+Amendment A (ADR 0165)**. ~~**Proposed — 2026-10-16**, by the architect at the planning of the wave. Nothing is built.~~
+*Corrected 2026-10-17:* a plain-text notice **did** reach the owner before wave 8V (8V plan §1, [owner]); its provider,
+environment and headers were not quoted, so it does not discharge the quoted one real send (ADR 0154 criterion 9).
 Date: 2026-10-16
 Type: Decision
-Milestone: M8, wave 8N (proposed id 8J2; plan:
+Milestone: M8, wave 8N, **renamed 8J2 on 2026-10-17** per its plan's own note (plan:
 [`milestones/8N-nodemailer-gmail-notification.md`](../milestones/8N-nodemailer-gmail-notification.md))
 
 **Supersedes, when accepted:**
@@ -294,3 +296,37 @@ Each limit has its trigger.
 Reads only. No gate, test, server or database was run [ran: none]. `npm view nodemailer` and `npm pack
 nodemailer@10.1.1` were run by the architect on 2026-10-16. The variable names, without values, were listed in the
 two `.env.local` files.
+
+## Acceptance — 2026-10-17 (scribe, at the 8J2 close)
+
+**Accepted as built.** Commits on branch `m8-mail-and-empty-space-merge` [subjects read from the reflog; the scribe ran
+nothing]: plan `49737d9c`; S1 `b51899a6` (*"nodemailer 10.1.1 pinned, Gmail SMTP adapter and SMTP answer table behind
+the unchanged mail port"*); S2 + QA `fb15fa08` (*"Resend adapter and tests deleted (ADR 0152), harness withholds all
+five mail names"*); S3 + QA `0da63d6a` (*"contact route pinned to the Node runtime … whole e2e 1050 passed"*); review
+fix-up `58ab3695`. The answer table lives in `mail/smtp-answer.ts` [src: file exists], which discharges backlog 160.
+
+- **The wave id is 8J2.** The plan's file keeps its path (`8N-nodemailer-gmail-notification.md`); `8N` stays the M8B
+  profile reservation.
+- **Q61, Q62, Q63 are not recorded as answered.** The code builds their defaults: no Reply-To; any sending account
+  (a dedicated one recommended); a possible second notice over a lost one.
+- **Every limit above stands**, in particular *Gmail behaviours are unproven*. Unquoted evidence exists: the owner
+  received a plain-text notice before 8V (8V plan §1, [owner]), but its provider, environment and headers were not
+  quoted. The trigger is still the owner's one real send from Preview, quoted, now checked together with 8V's HTML
+  (ADR 0165, owner step 4).
+- Nothing above this section is edited except the Status and Milestone lines.
+
+## Amendment A — 2026-10-17, by wave 8V (ADR 0165)
+
+**d1:** *Not taken: … `html`* no longer holds. `MailMessage` gains `html?: string`. The predicate adds *absent or a
+non-empty string*, and `sendableCopyOf` copies four members. Nothing else of the port changes.
+
+**d4:** *"Plain text only"* is replaced by *a plain-text part and, when the HTML fits its budget, an HTML part, as
+`multipart/alternative`*. A notice whose HTML exceeds `NOTICE_HTML_BUDGET_BYTES` (90 000 UTF-8 bytes) is sent as its
+text part alone (`mail/lead-notification.ts:71-73`, `:127-132` [src]; review fix pass `0d21f388`). The rest of the
+must-not list stands: no `replyTo`, `cc`, `bcc`, `headers`, `attachments`, display name, or customer value in a
+header. `disableFileAccess` and `disableUrlAccess` stay set, and the HTML holds no remote or active content (ADR 0165
+D5).
+
+**d10:** Google additionally receives a view-only link to the kitchen as sent. The link holds no personal data.
+
+Nothing above this amendment is edited.

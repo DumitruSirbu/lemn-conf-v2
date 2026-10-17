@@ -174,9 +174,13 @@ then production**, every step on one database before the next.
 The steps above stand; the table is `contact_submission_views`, the version is **10**. It holds one row per view-only
 link in the shop's notice: the token's hash, the request it was minted for, and a copy of the kitchen as sent. Nothing in
 it is personal. The decision and its reasons: the 8V plan, `docs/milestones/8V-done-page-link-and-shop-email.md`, D3 and
-D6 (its decision record is ADR 0165 once the scribe creates it). These steps were written by the S1 developer and have
-**not been executed anywhere**. **Order of environments: preview first, then production**, every step on one database
-before the next.
+D6; the decision record is [ADR 0165](../decisions/0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
+(accepted 2026-10-17). These steps were written by the S1 developer. ~~and have **not been executed anywhere**.~~
+**Corrected 2026-10-17:** the owner steps below have **not been executed on preview or production**. The **test**
+database is different: the live persistence suite applies `0010` there itself, through each live file's `beforeAll`
+(`runMigrations`, e.g. `packages/persistence/tests/sent-kitchen-view-repository.live.test.ts:159-160` [src]) — see *The
+test database* at the end of this section. **Order of environments: preview first, then production**, every step on one
+database before the next.
 
 **Unlike `0009`, the order against the code matters.** When a token names no share link, the share page's second lookup
 reads this table. So if the code ships before the migration and the grant, **every unknown or revoked share token
@@ -249,7 +253,41 @@ notice is unaffected: without the table it says the link is unavailable and is s
 
 **The test database.** The live persistence suite applies `0010` to the test database on its next run, as it does
 every migration: each live file's `beforeAll` runs the migrations with that database's owner credential, and CI's
-persistence leg does the same. No grant is needed there.
+persistence leg does the same. No grant is needed there. *(2026-10-17: whether a live run has already applied it there
+was relayed, not read by the scribe; `migrate:status test` shows the ledger.)*
+
+### Revoking one frozen kitchen link (owner, by hand; added 2026-10-17)
+
+A link in a shop's notice ends only when its row is revoked or its contact request is deleted (cascade). The customer
+never holds this link, so only the owner can withdraw it (ADR 0165 D6). **The application role cannot do this**: it holds
+`INSERT, SELECT` only, and the privilege test proves `update … set revoked_at` is refused (`42501`). Use the **owner**
+credential for that environment, in the database console.
+
+1. **Take the token** from the link: the last path segment of `…/ro/s/<token>`, 12 letters and digits. Never paste a
+   token into a shared channel; it opens the kitchen.
+2. **Compute its hash** on your own machine: the stored value is the lowercase SHA-256 hex of the token
+   (`apps/web/src/lib/server/share-token.ts:55` [src]), for example `printf '%s' '<token>' | shasum -a 256`.
+3. **Revoke, read-back first:**
+
+   ```sql
+   -- Expect one row, revoked_at null.
+   select created_at, revoked_at
+   from contact_submission_views
+   where token_hash = '<sha256 hex>';
+
+   update contact_submission_views
+   set revoked_at = now()
+   where token_hash = '<sha256 hex>' and revoked_at is null;
+   ```
+
+   Expect `UPDATE 1`. `UPDATE 0` means the hash is wrong or the link is already revoked: stop and re-check step 2.
+4. **Check:** the link now shows the same not-found page as an unknown token. Nothing in `design_share_links` changes,
+   and the customer's own share link is unaffected (ADR 0165 D9).
+
+A retried notice may have carried a **second** link for the same request (ADR 0165 D4). To find every link of one
+request, read `select token_hash, created_at, revoked_at from contact_submission_views where client_request_id = '<id>'`
+and revoke each row the same way. Do not delete rows: revocation is the operation (add-only spirit; ADR 0151 covers
+test rows only).
 
 ## Why step 5 names the application role
 

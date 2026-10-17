@@ -129,7 +129,7 @@ type Column = {
 };
 ```
 
-~~Columns are computed **once at load** and never change.~~ **SUPERSEDED, in two steps.** By **ADR 0011 Gap D**: a column's *extent* is frozen at load, while its live predicates (`hasFullHeightUnder`) are re-answered on every derivation. By **ADR 0031** and **[ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)** (2026-09-01): a resize moves two extents, a merge joins two, and an insert splits one — each written by the command that caused it, never by a global re-derivation. And by **[ADR 0044](../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md)** (2026-09-01): the map is derived at load from the placements **and** from the document's stored `emptyColumns`, because a column with no member is the one kind nothing else can reconstruct. And by **[ADR 0053](../decisions/0053-the-design-document-records-the-whole-frozen-map.md)** (2026-09-02): the map is now derived from the placements, the stored `emptyColumns` **and** the stored `columnExtents` — the frozen extent of a column that still holds a member, restored over what the placements would otherwise imply, and made safe by monotone vertical containment plus a cross-column overlap sweep rather than by disjointness.
+~~Columns are computed **once at load** and never change.~~ **SUPERSEDED, in two steps.** By **ADR 0011 Gap D**: a column's *extent* is frozen at load, while its live predicates (`hasFullHeightUnder`) are re-answered on every derivation. By **ADR 0031** and **[ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md)** (2026-09-01): a resize moves two extents, ~~a merge joins two~~ **a merge joins any number, uncapped** ([ADR 0166](../decisions/0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md), 2026-10-17; in the editor — generation's composition still merges at 800), and an insert splits one — each written by the command that caused it, never by a global re-derivation. And by **[ADR 0044](../decisions/0044-an-empty-space-is-recorded-in-the-design-document.md)** (2026-09-01): the map is derived at load from the placements **and** from the document's stored `emptyColumns`, because a column with no member is the one kind nothing else can reconstruct. And by **[ADR 0053](../decisions/0053-the-design-document-records-the-whole-frozen-map.md)** (2026-09-02): the map is now derived from the placements, the stored `emptyColumns` **and** the stored `columnExtents` — the frozen extent of a column that still holds a member, restored over what the placements would otherwise imply, and made safe by monotone vertical containment plus a cross-column overlap sweep rather than by disjointness.
 ~~Accessories contribute nothing.~~ **SUPERSEDED by ADR 0038** — `groupByColumn` is unconditional; every placement contributes.
 **WHY (stability):** every void, level and merge keys off the column. The reorder feature was removed precisely so nothing can move horizontally and invalidate it. **That reason no longer holds as written** — ADR 0031 and ADR 0046 both move columns horizontally. What the void model actually needs is that column identity is stable *within* a command, which it is.
 
@@ -193,6 +193,8 @@ Result set for a cleared standard column: `0.00→0.86`, `1.50→2.20`, `2.20→
 
 **§4 has no horizontal half, and that is fixed outside it — [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md), 2026-09-01.** The pseudocode above subtracts the **height** a member occupies and never its **width**, so a body narrower than its column closes the level and the remainder is stranded — no void, no column, no second insert. Reachable in four taps with no resize: clear `A|2.60`, insert a 300 mm bottle cargo into the 600 mm opening. The pseudocode is **unchanged**; what changes is that an insert now **splits** its column first, so no column is ever wider than its members by the time this runs. ADR 0037's withdrawal is the record of what happens when a merge widens a column without that split.
 
+**Amended 2026-10-17 — [ADR 0166](../decisions/0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md).** A merged member-less column may now be **wider than 800 mm** (800 caps the cabinet, §7, not the space). The insert split still runs first, so the pseudocode still never meets a column wider than its members. The merge stays whole-column: bases cleared under standing uppers stay separate voids (row 27; per-level columns are ADR 0122 decision 4's model change).
+
 ---
 
 ## 5. Operations
@@ -211,7 +213,10 @@ Otherwise: remove `obj` from the scene, splice out of `items`, `recomputeVoids()
 b = BODIES[buildId]                             → else reject "not in library"
 target band = void.h >= 1.9 ? 'column' : void.y0 < 0.2 ? 'base' : 'wall'
 if b.band != 'column' and target != 'column' and b.band != target → reject (band message)
-w = b.w === 'fit' ? void.w : b.w                → if w > void.w + TOL reject (width message)
+w = b.w === 'fit' ? min(void.w, b.maxW) : b.w   → if w > void.w + TOL reject (width message)
+                                                  # amended 2026-10-17, ADR 0166 d2: a 'fit' body in a wider
+                                                  # opening is built at its maximum, flush left; the remainder
+                                                  # is one empty column on its right
 h = b.hFlex ? (void.h <= 0.9 ? void.h : b.h) : b.h
 takesSpan = h > void.h + TOL
 if takesSpan and b.band != 'column' → reject "does not fit this level"
@@ -534,6 +539,9 @@ text is kept so the history reads, but the ADR named beside it is what the code 
 | 22 | Delete, then click another cabinet | selects it (voids never swallow clicks) |
 | 23 | Pick *Nișă frigider integrat* | stays that product and price |
 | 24 | Any unknown `kind` | no replace section at all |
+| 25 | Clear two adjacent 600 mm columns mid-run, top to bottom (added 2026-10-17, [ADR 0166](../decisions/0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md)) | one 1200 mm space at each level; the neighbours do not move |
+| 26 | Insert a `'fit'` body into a space wider than its maximum (added 2026-10-17, ADR 0166) | built at its maximum, flush left; the remainder is one space on its right |
+| 27 | Clear only the bases of two adjacent columns (added 2026-10-17, ADR 0166) | two base voids; per-level merging is ADR 0122 decision 4's model change |
 
 ---
 
@@ -615,7 +623,7 @@ Conclusions reached in the design session. The rejected ones matter most: each w
 ### 13.3 Open questions for production
 
 1. **Unify the occupied swap sets with the fit-filtered catalogue?** Today an occupied cabinet uses a hand-authored per-kind set (5–6 rows) while a void uses the catalogue filtered by fit (10–15). The dishwasher niche has 3, which looks broken beside its neighbours. Unifying gives one source of truth; the cost is losing the implicit discouragement of swapping a plumbed niche for plain storage — that consequence would move into the note or a confirmation.
-2. **Run re-split** — the last piece of the width story (§12). **Half closed 2026-09-01 by [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md):** the *mechanism* — one span yielding several columns — ships as an insert-time split plus a capped merge. The *offer* does not: nothing shows a customer `800+600` versus `600+400+400` for a run. `docs/BACKLOG.md` entry 2 stays open for that half.
+2. **Run re-split** — the last piece of the width story (§12). **Half closed 2026-09-01 by [ADR 0046](../decisions/0046-adjacent-empty-columns-merge-under-a-cap-and-an-insert-splits-its-column.md):** the *mechanism* — one span yielding several columns — ships as an insert-time split plus a capped merge. The *offer* does not: nothing shows a customer `800+600` versus `600+400+400` for a run. `docs/BACKLOG.md` entry 2 stays open for that half. **Still open after 2026-10-17:** [ADR 0166](../decisions/0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md) uncapped the merge; the *offer* half is untouched and stays open.
 3. **Click reachability** of placements occluded from every fixed camera (§6.4).
 4. **Arbitrary room shapes.** `LEVELS` and the two wall planes are constants for this 3.6 × 2.4 m L-shaped room. The concepts (column, span, level, run) generalise, but they must become per-wall data.
 5. **Presets have no per-preset geometry.** All four presets load the same `kitchen-l` scene and differ only by door finish and camera angle; their thumbnails in `shots/presets/` were rendered from that scene by `preset-shots.html` (keep that rig — re-run it whenever geometry or finishes change, so thumbnails cannot drift from the model). Real presets need a recipe per preset.

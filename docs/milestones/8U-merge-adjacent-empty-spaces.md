@@ -1,5 +1,12 @@
 # Wave 8U — Adjacent empty spaces merge anywhere in a run
 
+> **STATUS, 2026-10-17 (scribe): S0, S1, S2, S3, S3b, S4 and S4b BUILT; QA rounds A and B and the review fix pass
+> landed; documentation closed. S5 is NOT built (behaviour-free; backlog 255). M8 is not done.** Owner answers
+> [relayed]: Q-8U-1 = (b), Q-8U-2 = (a), **Q-8U-3 = (a), ruled but not built** (§6.3; backlog 246). The ADR draft (§9)
+> is [ADR 0166](../decisions/0166-adjacent-empty-spaces-merge-whatever-their-total-and-800-mm-caps-the-cabinet-not-the-space.md),
+> **Accepted**. Commits and the code-comment pointer table: *Close note, 2026-10-17* at the end of this file. The
+> revision banners below are history.
+
 > **STATUS: PLANNED by the architect, 2026-10-16. Revised the same day after S0's stop (§6.1).** S0 is done (tests
 > and census, no production change). It hit §13 R1's STOP: with the cap lifted, generation throws. The owner
 > answered **Q-8U-1 = (b)**. The architect's ruling on generation is in §6.1 and needs **no owner question**.
@@ -1276,3 +1283,81 @@ close-out. The milestone's test audit covers 8U's tests (ADR 0152 Amendment A).
 
 **Where it sits [inf]:** a wave on the M8 branch before 8T. 8T is the owner-attended gate on a real phone, and it
 should see the editor as it will ship. Nothing ships mid-milestone either way.
+
+## Close note, 2026-10-17 (scribe)
+
+**Evidence tiers here:** commit subjects read from the reflog [commit]; the coordinator's word [relayed]; the scribe's
+own reads of the tree [src]. The scribe has no shell and ran no command, test or gate.
+
+**Commits on `m8-mail-and-empty-space-merge` [commit]:** plan `fcf6b419`; S0 `6d2e1ec0`; S3 `0f85ed23` (*"behaviour-free
+at HEAD (91,570 rooms byte-identical)"*); plan `8c17410d`; S1 `1e2621e2`; S2 `62fee695`; S3b `de0a0171`; S4 `a70c974b`
+(*"generation keeps its 800 limit (output byte-identical)"*); round A `c15dc6e5` (*"28 domain + 19 web tests flipped,
+repointed or restated … suites green"*); plan `4190b2a7`; S4b + round B part 1 `e5fe5223`; round B part 2 `9c69f1c0`;
+review fix pass `2b2b0511` (*"the uncapped merge no longer costs cubic time on a crafted 1893-entry document (2619 ms to
+2 ms, 8,848,020 comparisons against the old search, 0 mismatches)"*).
+
+**Owner rulings [relayed, 2026-10-15..17]:** Q-8U-1 = (b); I3 declined. Q-8U-2 = (a): two spaces above every U corner
+(the key and same-stretch guards). Q-8U-3 = (a): always one space within a tolerance chain — **recorded as a known
+limit until built**, because a customer **can** reach a stepped chain through `setCabinetDepth`.
+
+**Corrections, dated 2026-10-17:**
+
+- **S4b's "census 0" is corrected.** The S4b commit subject reads *"census 0 on generated, offered and sequence data"*.
+  A reviewer found that the census never drove `setCabinetDepth` [relayed], so §6.3's *"only a crafted document is known
+  to hold"* and the gate's "no owner question if the census finds nothing" no longer describe the state. Q-8U-3 was
+  asked and answered; ADR 0166 decision 8 is accepted on the ruling.
+- **The editor merge is subquadratic via a screen** that restates four of `planBlock`'s guards; its comment says to
+  change both places [relayed]. ADR 0166 decision 6 records the cost.
+- **S5 is not built.** §9's *"After S5 the 800 figure survives with exactly two meanings"* describes a future state; ADR
+  0166's *Consequences* gives today's three.
+
+**Scribe duties (§11 closing paragraph, §6.2, §6.3, R12) — done:** ADR 0166 accepted; dated notes on ADR 0037, 0046,
+0052, 0110 (a dated amendment to decision 2), 0122; `decisions/README.md` and `SUPERSESSIONS.md`; DEVELOPMENT-SPEC
+§3.2, §4, §5.2, §11 rows 25–27, §13.3 item 2 left open; backlog 243–249 and 252, 255; STATUS.
+
+**Not evidenced to the scribe:** criterion 18's visual captures and the S1 security reading — the coordinator relayed
+"built and reviewed" for the wave, not these two by name, and the scribe read neither. Criterion 20's `pnpm check` and `pnpm format:check` at the closing commit — not relayed.
+
+### Code comments that cite this plan — repoint before the plan is archived
+
+This plan will be archived at M8's close (WORKFLOW step 7), and an archived plan must not be read. These comments and
+test titles point into it. **A developer edits them; the scribe does not.** Found with the Grep tool for
+`\b8[UV]\b` outside `docs/` (115 occurrences in 49 files) — **not** `rtk proxy grep`, because the scribe has no shell.
+Plain wave labels (*"8U's oracle"*, *"since wave 8V"*, *"M8 wave 8V"*) may stay; the rows below are the section,
+criterion and decision pointers. *"ADR 0166 c. n"* means the criterion table in ADR 0166. **A second pass** for
+pointers without the wave token (`plan §`, `§4.1–§6.3`, `(Dn`, `8N.n`, `8J2`) over `apps/web/src`, `apps/web/tests` and
+`packages/configurator-domain/src` added one row (`8N.5`); its other hits cite older plans or DEVELOPMENT-SPEC sections
+(e.g. `§6.1` picking, `§6.3` identity, `repository.ts:38`'s pre-8V *D3*) and are not this plan's. Kept as they are:
+`qa-8n-harness.adversarial.test.ts:26` (a marker string) and `mail-configuration.test.ts:636` (asserts *"wave 8N"* is
+**absent** from `.env.example`).
+
+| Pointer in code | Where (file:line) | Repoint to |
+| --- | --- | --- |
+| `8U plan §5` — the rule, 800 caps a cabinet not a space | `apps/web/tests/store/qa-5g.adversarial.test.ts:1`, `:118`; `apps/web/tests/store/empty-column-ceiling.test.ts:2`, `:125`; `packages/configurator-domain/src/merge-empty-columns.ts:2`, `:42`; `tests/empty-column-ceiling.test.ts:1`; `tests/merge-empty-columns.generated-kitchen.test.ts:3`; `tests/merge-empty-columns.test.ts:1`, `:149` | ADR 0166 decision 1 |
+| `8U plan §5` — a fit body into a wider space | `apps/web/tests/store/empty-columns-merge.test.ts:128`; `packages/configurator-domain/tests/qa-5b2a.adversarial.test.ts:788`; `tests/merge-empty-columns.test.ts:570` | ADR 0166 decisions 1 and 2 |
+| `8U §5, criterion 8` and `8U §6.2` | `packages/three-adapter/tests/catalog-bodies.adversarial.test.ts:343` | ADR 0166 decision 2 / c. 8; decision 7 |
+| `8U plan §6.1` — composition's private intermediate | `apps/web/tests/store/qa-7d1-shell-through-the-store.adversarial.test.ts:299`; `packages/three-adapter/tests/scene-sync.u-right-corner.test.ts:137`; `src/merge-empty-columns.ts:88`; `tests/support/shell-design.ts:272`; `tests/generation/generate-kitchen.composition-width-limit.test.ts:2`; `tests/generation/shell-design.adversarial.test.ts:493` | ADR 0166 decision 4; ADR 0110 *Dated amendment — 2026-10-17* |
+| `8U plan S5` | `tests/generation/generate-kitchen.composition-width-limit.test.ts:4` | Backlog 255 |
+| `(8U plan` … uncapped (continues on the next line) | `src/module-grid.ts:26` | ADR 0166 decisions 1 and 4; backlog 255 for the cuts that remain |
+| `8U plan §6.3`, `plan §6.3`, `R14` | `src/merge-empty-columns.ts:102`, `:525`, `:696`; `tests/merge-empty-columns.fixpoint-and-order.test.ts:3`, `:151`, `:215` | ADR 0166 decision 8; backlog 246 |
+| `KNOWN_LIMIT = "8U §6.3 known limit (R14)"` (a test-title constant) | `tests/merge-empty-columns.fixpoint-and-order.test.ts:56` | Retitle to backlog 246 / ADR 0166 decision 8 (a title change; list it under ADR 0152) |
+| `8U §6.2 / R13` | `tests/merge-empty-columns.odd-width-known-limit.test.ts:1`, `:53`, `:105`; `tests/commands/set-width.beside-a-wide-space.property.test.ts:5` | ADR 0166 decision 7; backlog 245 |
+| `KNOWN_LIMIT = "8U §6.2 / R13 known limit"` | `tests/merge-empty-columns.odd-width-known-limit.test.ts:40` | Retitle to backlog 245 / ADR 0166 decision 7 (§10 criterion 10 said the title cites R13 *"until the scribe writes the backlog row"*) |
+| `8U plan §4.1` | `tests/empty-column-ceiling.test.ts:182`; `tests/merge-empty-columns.test.ts:348` | ADR 0166 decision 6; backlog 247 |
+| `8U plan §2.3 B4 and §4.2` | `tests/support/merge-oracle.ts:5` | ADR 0166 *Context* (B1–B4) and decision 6 |
+| `8U §12` (an owed QA case) | `tests/merge-empty-columns.widest-wall.test.ts:1`, `:54`; `tests/merge-empty-columns.mirror-equivariance.property.test.ts:1`, `:54`; `tests/merge-empty-columns.fixpoint-and-order.test.ts:214`, `:318`; `tests/commands/insert-fit.fixed-set-remainder.test.ts:1`, `:33`; `tests/commands/set-cabinet-depth.wide-merged-space.test.ts:1`, `:26`; `tests/merge-empty-columns.wall-end-round-trip.test.ts:1` | ADR 0166 decision 1 (decision 2 for the fixed-set file, decision 8 for `fixpoint…:214`); the other ADR each line already names stays |
+| `8U criterion n` / `8U plan criterion 6` / `§10 criterion 8, 14` | `apps/web/tests/store/empty-column-ceiling.test.ts:122`; `apps/web/tests/store/empty-columns-merge.test.ts:5`; `apps/web/tests/panel/width-stepper.qa.test.ts:430`; `packages/three-adapter/tests/scene-sync.u-right-corner.test.ts:134`; `packages/three-adapter/tests/picking.merged-void.test.ts:1`, `:26`; `tests/empty-column-ceiling.test.ts:5`, `:148`, `:178`; `tests/merge-empty-columns.generated-kitchen.test.ts:94`; `tests/merge-empty-columns.fixpoint-and-order.test.ts:1`, `:123`, `:287`, `:347`; `tests/migrate-design.v1-split-and-one-wide-entry.test.ts:97`; `tests/queries/vacated-void.after-an-uncapped-merge.test.ts:1`, `:25`; `tests/merge-empty-columns.same-stretch-of-wall.test.ts:80`, `:223`; `tests/generation/shell-design.adversarial.test.ts:496`; `tests/merge-empty-columns.must-not-merge.test.ts:1`, `:56`, `:71`, `:115`, `:145`; `tests/merge-empty-columns.editor-sequences.property.test.ts:1`, `:195`; `tests/support/merge-oracle.ts:82`, `:218`; `tests/commands/set-width.beside-a-wide-space.property.test.ts:1`, `:48`; `tests/commands/insert-fit.at-its-maximum.test.ts:225`, `:249`, `:521`, `:538`; `tests/commands/set-cabinet-depth.round-trip-drift.known-defect.test.ts:28` | ADR 0166, the same criterion number (its criterion table) |
+| `8U item 2: E2, E3, E11, E12` | `tests/commands/insert-fit.at-its-maximum.test.ts:366` | ADR 0166 decision 2 / c. 8 |
+| *"Known defect, awaiting a backlog row"* | `tests/commands/set-cabinet-depth.round-trip-drift.known-defect.test.ts:1`, `:41` | Backlog 243 |
+| *"Known defect … awaits a backlog row"*, and the pinned-seed note | `tests/merge-empty-columns.editor-sequences.property.test.ts:311`, `:313`, `:78` | Backlog 244 |
+| `8U retired` (the cap refusal) | `tests/qa-6q-a-load-seam.adversarial.test.ts:68` | ADR 0166 decision 3 |
+| `the 8V plan's D3` | `packages/persistence/tests/application-role-privileges.test.ts:199` | ADR 0165 D3 |
+| `8V criterion 13` | `packages/persistence/tests/application-role-privileges.test.ts:55`, `:594` | ADR 0165 D3 (the table and its one grant) |
+| `8V criterion 9` | `packages/persistence/tests/sent-kitchen-view-repository.live.test.ts:280` | ADR 0165 D3 (frozen copy) |
+| `wave 8V D1` / `D2` | `apps/web/tests/e2e/qa-8m2-already-sent.adversarial.e2e.spec.ts:182`, `:213`; `support/contact-page.ts:93`, `:96`, `:124`, `:163`, `:176`; `support/qa-8m2.ts:140`, `:169`; `qa-8m-geometry.adversarial.e2e.spec.ts:169`; `qa-8m-after-sent.adversarial.e2e.spec.ts:3`, `:328`; `qa-8m-whatsapp.adversarial.e2e.spec.ts:203`; `qa-8m2-hand-over-and-read.adversarial.e2e.spec.ts:72`; `qa-8l-contact-phone.adversarial.e2e.spec.ts:279` | ADR 0165 D1 / D2 (same labels) |
+| `8V criterion 17`, `8V criterion 18` | `apps/web/tests/e2e/qa-8m-after-sent.adversarial.e2e.spec.ts:409` (a test title); `support/qa-8m2.ts:50`, `:169` | ADR 0165 D1 (17), D2 (18) |
+| `the plan's 8N.5` (the 8J2 plan's SMTP answer table) | `apps/web/tests/lib/server/mail/qa-8j-provider-answers.adversarial.test.ts:64` | ADR 0164 decision 5 (its answer table) |
+| `-- M8 wave 8V.` (migration header) | `packages/persistence/src/migrations/0010_create_contact_submission_views.sql:1` | **Do not edit.** A migration's bytes are frozen and pinned by its text test |
+
+**Disagreement between this plan and a hand-back, recorded rather than settled:** none found in what the scribe read
+beyond the three above (S4b's census; S5; the visual and security evidence not seen).
