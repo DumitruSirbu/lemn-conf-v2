@@ -139,6 +139,29 @@ export type {
   HeldEmailToken,
   SessionRevocation,
 } from "./fake-account-store.js";
+export {
+  SESSION_TOUCH_INTERVAL_SECONDS,
+  SessionStoreError,
+} from "./session-store.js";
+export type {
+  IdleLifetimeSecondsByRole,
+  NewSession,
+  SessionAccount,
+  SessionCreation,
+  SessionLookup,
+  SessionLookupRequest,
+  SessionStore,
+  SessionStoreOperation,
+} from "./session-store.js";
+export { NeonSessionStore } from "./neon-session-store.js";
+export {
+  FakeSessionStore,
+  createFakeAccountAndSessionStores,
+} from "./fake-session-store.js";
+export type {
+  FakeSessionStoreOptions,
+  HeldSession,
+} from "./fake-session-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {

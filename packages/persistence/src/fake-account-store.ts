@@ -29,6 +29,7 @@ import type {
   TokenToIssue,
 } from "./account-store.js";
 import { generateAccountId } from "./generate-account-id.js";
+import type { SessionAccount } from "./session-store.js";
 
 /** An account as the table holds it. `role` is always `client`: the application role cannot write any other. */
 interface HeldAccount {
@@ -217,6 +218,18 @@ export class FakeAccountStore implements AccountStore {
       });
       return { kind: "replaced" };
     });
+  }
+
+  /** The `accounts` side of a session lookup: the account's current role, address and verification. */
+  sessionAccountOf(accountId: string): SessionAccount | undefined {
+    const held = this.accountsById.get(accountId);
+    if (held === undefined) return undefined;
+    return {
+      id: held.id,
+      email: held.email,
+      role: held.role,
+      isEmailVerified: held.emailVerifiedAt !== undefined,
+    };
   }
 
   /** Every account the table would hold. */
