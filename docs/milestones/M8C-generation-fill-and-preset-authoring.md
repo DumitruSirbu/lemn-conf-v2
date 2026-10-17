@@ -5,6 +5,11 @@
 > **Fix 3 (accounts, roles, dashboard) is not planned here**; it stays M8B's. Branch:
 > `fix/empty-space-fill-and-preset-save`, cut from `main` at `4f85b970`.
 >
+> **Progress, 2026-10-17 [doc: git log; reports relayed].** F0, F1a and F1b S1/S2 are committed (`8023c880` domain,
+> `b43a8e18` F1a, `e3818726` web and adapter). The logic review and the visual check are done, with the findings in
+> ADR 0167 Amendment A and backlog 256 to 260. Remaining F1b obligations: run the e2e suite once before any push. **The e2e suite has not been run
+> for F1b; no claim is made.** F1b's close and ADR 0167's acceptance are the coordinator's call.
+>
 > **Answered [relayed by the coordinator, 2026-10-17]:**
 > - Q-1 = **C**.
 > - Q-2 = **(b)**: *"between"*, with the long-wall exception (§2.7).

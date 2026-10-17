@@ -2583,7 +2583,7 @@ identical). Desktop shards of 3 are now 65 / 67 / 61 against the ceiling of 70 (
 82 / 89 / 73 / 81 / 97 / 63. `pnpm ci:local` at `8aba717`: all gates green. The residue is entry 153. The text below is the entry as
 first written and is kept as history.
 
-**Source [coordinator-run, `pnpm ci:local` at `ee834b6`; `docs/TESTS_REVIEW.md`, *Progress*].** The tests-review fix-up deleted three
+**Source [coordinator-run, `pnpm ci:local` at `ee834b6`; `docs/archive/TESTS_REVIEW.md`, *Progress*].** The tests-review fix-up deleted three
 desktop e2e spec files (6 tests), which moved Playwright's split, because a file is never divided across shards
 (`scripts/gates/e2e-shard-budget.mjs`, `RATCHETED_CEILINGS`). Desktop shards of 3 now hold 132 / 0 / 61 tests against a
 ceiling of 70. `room-desktop-line.desktop.e2e.spec.ts` holds 69 of the 193 desktop tests. **Measured by the coordinator** with
@@ -2610,7 +2610,7 @@ refuses all four forms. **The coordinator's reading, not the owner's:** the eith
 pins the four forms as `refusal("notANumber")` and in the `notDigits` table, red under mutation [QA's recorded runs]. The open
 question that remains is entry 154. The text below is the entry as first written and is kept as history.
 
-**Source [doc, `docs/TESTS_REVIEW.md` line 285; the architect's reading, relayed].** No decision record rules on it. Four
+**Source [doc, `docs/archive/TESTS_REVIEW.md` line 285; the architect's reading, relayed].** No decision record rules on it. Four
 tests in `parse-metres` accept either answer (`expectRefusedOrExactly`), so they cannot tell the two behaviours apart; the
 review's mutation turned the parser's pattern from `\d+` to `\d*` and the four stayed green. **The architect did not read
 the parser: which answer is today's behaviour is unverified.** The same file's tests `refuses ","` and `refuses "."` went red
@@ -3064,7 +3064,7 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 **Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: the width of the ru string against the mockup was not compared. **Trigger:** 8T's phone gate, Russian.
 
 ## 219. The CSP report sink becomes a table in our own database — OWNER RULED 2026-10-13 (Q46 = (c)), NOT BUILT; SCHEDULED IN WAVE 8Q2
-**Update, 2026-10-13, later [coordinator, relayed]: scheduled in wave 8Q2, in M8 before 8T, which overrides the M9 trigger below.** Plan `docs/milestones/8Q2-csp-report-table.md`; ADR 0162 (Proposed). The cap is 10,000 reports with no age delete and the log line kept (Q50 to Q54, defaults). The text below is kept as recorded.
+**Update, 2026-10-13, later [coordinator, relayed]: scheduled in wave 8Q2, in M8 before 8T, which overrides the M9 trigger below.** Plan `docs/milestones/done/8Q2-csp-report-table.md`; ADR 0162 (Proposed). The cap is 10,000 reports with no age delete and the log line kept (Q50 to Q54, defaults). The text below is kept as recorded.
 
 **Update, 2026-10-14, at 8Q2's close [scribe]: built.** ADR 0162 is Accepted (Amendment A) and ADR 0161 has Amendment C; the cap, the writer mark and the runbook shipped. **Still open, owner actions:** `0009` and its two grants on preview and production (applied on the test database only). Leftovers from the build are 228 to 233.
 
@@ -3208,3 +3208,23 @@ four file names were not relayed to the scribe.
 ## 255. 8U S5 is not built: the commands still cut empty space at 800 — RECORDED 2026-10-17 AT M8 8U's CLOSE
 
 **Evidence [doc: the 8U plan §11, S5 row; ADR 0166 *Consequences*].** `insertBody`'s remainder split (`splitColumn` via `splitEmptySpanAtCap`) and `setWidth`'s shrink overflow still cut at `MAX_EMPTY_COLUMN_WIDTH_MM` (800); `splitOversizedEmptyColumns` is still in the reconcile; the reconcile's uncapped merge rejoins every piece, so a customer sees no seam. Behaviour-free to remove. **Trigger:** the next change to those commands, or a test that judges a command's own effect (the 8U criterion 8 note). **Owner action:** a developer runs S5 as the plan's row writes it (re-run S3's composition cut count first; rename the constant to the v1 arm's; repoint three tests at `COMPOSITION_WIDTH_LIMIT_MM`).
+
+## 256. The mobile camera preset crops the run ends on long walls, so a fill or tall block at a run end needs a manual zoom-out — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [visual check, synthetic touch only].** On straight 4100 and 6000 and on L 3560x4250 wall B, the mobile camera preset's framing crops the run ends. **Not checked whether it predates F1b** [unverified]. Related to entries 16 and 25. **Trigger:** the next change to the camera presets, or entry 16's hand check. **Owner:** unassigned.
+
+## 257. The room form rejects a straight wall of 6100 ("A prea lung", limit 6000): the M8C plan's 6100 witness cannot be entered — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [visual check, executed].** The form refuses 6100 with "A prea lung" (limit 6000). The M8C plan's 6100 witness is unenterable through the form; it can only be exercised below the form (domain or stored design). **Trigger:** the next use of that witness. **Owner:** unassigned.
+
+## 258. No committed test exercises O10 and the fill acting together — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [source-verified by the F1b report; not re-read here].** `qa-c5s1` and `qa-c5s2` now run with the fill off, so nothing committed has O10 and the fill acting in one room. **Trigger / owner:** to be covered by option C's one committed property (ADR 0168).
+
+## 259. E2e support-file comments still describe bare remainders — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [reported, prose only].** The test-support comments in the e2e support files (for example `qa-u5-cutaway.ts`) still describe bare remainders, which the fill now closes at 200 mm or more. Comments only; no behaviour. **Trigger:** the next edit to those files.
+
+## 260. A comment in `generation-model.ts` about a 900x2200 room reading "nu poate fi inclus" may be stale — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [inference, unverified].** Step 1F's *Depozitare* row now reads placed in more rooms because the fill is a storage-role step (plan §2.4). The comment in `apps/web/src/room/generation-model.ts` about a 900x2200 room is **not confirmed stale**; nobody re-ran that room. **Trigger:** check the room's row and fix or confirm the comment.

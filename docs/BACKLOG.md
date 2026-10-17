@@ -249,7 +249,7 @@ status corrections, in one of these two files:
 | 216 | The lint rule against a direct `"zod"` import does not catch a dynamic `import("zod")` | open.md — recorded 2026-10-13 (8Q) |
 | 217 | The summary-card thumbnail is a striped placeholder on a fresh design (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
 | 218 | The ru top-bar title truncates to "Конфигур…" at 390 px (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
-| 219 | The CSP report sink moves from the server log to a table in our own database (owner's Q46 = (c)) | open.md — recorded 2026-10-13; **built in wave 8Q2, closed 2026-10-14** ([plan](milestones/8Q2-csp-report-table.md), ADR 0162 Accepted); `0009` and its grant on preview and production are owner actions, not done |
+| 219 | The CSP report sink moves from the server log to a table in our own database (owner's Q46 = (c)) | open.md — recorded 2026-10-13; **built in wave 8Q2, closed 2026-10-14** ([plan](milestones/done/8Q2-csp-report-table.md), ADR 0162 Accepted); `0009` and its grant on preview and production are owner actions, not done |
 | 220 | H1: `contact-answer.ts`'s 60 s unreadable wait is pinned only against its own constant; no record fixes 60 s | open.md — audit 2026-10-13 (held) |
 | 221 | Unguarded: `prepare-submission.ts:88` (`NO_CABINET` branch) and `:90` (`PRICING_VERSION_MISMATCH` cause, unreachable in tests) | open.md — audit 2026-10-13 |
 | 222 | Unguarded: `submit-contact.ts:303` (`channel === "email" && email !== undefined`, `&&` to `\|\|`) | open.md — audit 2026-10-13 |
@@ -286,6 +286,11 @@ status corrections, in one of these two files:
 | 253 | `ContactPageView`'s already-sent arm carries a sent-reference field nothing reads | open.md — recorded 2026-10-17 (8V review) |
 | 254 | Until `0010` and its grant are applied, the notice says "link unavailable" and an unknown share token answers 500 | open.md — recorded 2026-10-17 (8V close); owner step |
 | 255 | 8U S5 not built: the commands still cut empty space at 800 and the reconcile rejoins it (behaviour-free) | open.md — recorded 2026-10-17 (8U close) |
+| 256 | The mobile camera preset crops the run ends on long walls (straight 4100 and 6000, L 3560x4250 wall B); unknown whether it predates F1b | open.md — recorded 2026-10-17 (M8C F1b visual check) |
+| 257 | The room form rejects a straight wall of 6100 ("A prea lung", limit 6000); the M8C plan's 6100 witness is unenterable | open.md — recorded 2026-10-17 (M8C F1b) |
+| 258 | No committed test exercises O10 and the fill together (`qa-c5s1`/`qa-c5s2` run with the fill off) | open.md — recorded 2026-10-17 (M8C F1b); to be covered by option C's one property (ADR 0168) |
+| 259 | E2e support-file comments (e.g. `qa-u5-cutaway.ts`) still describe bare remainders | open.md — recorded 2026-10-17 (M8C F1b); prose only |
+| 260 | A `generation-model.ts` comment about a 900x2200 room reading "nu poate fi inclus" may be stale (unverified) | open.md — recorded 2026-10-17 (M8C F1b) |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

@@ -3,17 +3,17 @@
 > **STATUS, 2026-10-17 (scribe): BUILT AND REVIEWED; documentation closed. The wave id is 8J2** (renamed per the note
 > below; this file keeps its path, and `8N` stays the M8B profile reservation). Commits on `m8-mail-and-empty-space-merge`
 > [subjects read from the reflog]: plan `49737d9c`, S1 `b51899a6`, S2 + QA `fb15fa08`, S3 + QA `0da63d6a` (its subject:
-> *"whole e2e 1050 passed"*), review fix-up `58ab3695`. [ADR 0164](../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md)
+> *"whole e2e 1050 passed"*), review fix-up `58ab3695`. [ADR 0164](../../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md)
 > is **Accepted**, with Amendment A from wave 8V. *For the scribe, at the close* is done: dated notes on ADR 0001,
 > 0153, 0154, 0157; `environments-and-resources.md`; `M9-delivery-preparation.md`; `decisions/README.md`;
 > `SUPERSESSIONS.md`; backlog 160 closed; STATUS. **Open:** Q61–Q63 (defaults built, not recorded as answered); the
 > owner-side steps below, including the one real send from Preview. **The milestone (M8) is not done.**
 >
 > **Earlier status, kept:** **PLANNED by the architect, 2026-10-16. Not dispatched. No code exists for this wave.** The decision
-> record is [ADR 0164](../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md),
+> record is [ADR 0164](../../decisions/0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md),
 > **Proposed**.
 >
-> **The wave id collides.** `8N` is still a reserved name. [`M8B-customer-profiles.md:22`](M8B-customer-profiles.md)
+> **The wave id collides.** `8N` is still a reserved name. [`M8B-customer-profiles.md:22`](../M8B-customer-profiles.md)
 > says: *"Wave names 8N and 8P1–8P9 are kept so the M8 plan's references still resolve"* [doc], and 8N appears there
 > and in the M8 plan as the profiles design record. This file sits at the path the dispatch named. **The architect
 > recommends the id `8J2`.** It is a follow-on of 8J, the mail wave, in the pattern of 8K2, 8M2 and 8Q2, and no

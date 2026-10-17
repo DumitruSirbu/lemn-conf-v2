@@ -2,7 +2,7 @@
 
 > **STATUS: CLOSED 2026-10-14 (local, not pushed; code HEAD `3cceecb4`), except the owner's steps for `0009` on
 > preview and production, which nobody has done.** The close is in the M8 plan, *8Q2 as closed*. The decision record is
-> [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md),
+> [ADR 0162](../../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md),
 > **Accepted**, with Amendment A. Q50 to Q54: the defaults were taken (2026-10-13). Everything below is the plan as
 > written before the build; where the build differs, ADR 0162 Amendment A and the M8 plan's close govern (for one,
 > the worst-case rate under *The store's one statement* is corrected there).

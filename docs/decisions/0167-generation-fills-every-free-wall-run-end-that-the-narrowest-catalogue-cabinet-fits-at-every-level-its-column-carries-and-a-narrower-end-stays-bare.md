@@ -178,6 +178,28 @@ to the L.
 - **Acceptance** is the plan's §6: F-1 to F-10 and DEVELOPMENT-SPEC §11 rows 28–31 [plan §6 lists 28–31; the F1b close
   line in §5 says 28–30; this record follows §6].
 
+## Amendment A — F1b outcomes, 2026-10-17 (appended; nothing above is changed)
+
+**Status note.** The record stays **Proposed**. The plan makes Accepted follow wave F1b's close, and that close is the
+coordinator's call; it has not been made here. Code has since landed (`8023c880` domain, `b43a8e18` F1a, `e3818726`
+web and adapter), so "Nothing in this record is built" in the status line above is no longer true; it is left as written
+and corrected by this note.
+
+1. **Owner ruling, 2026-10-17 [relayed, the owner's reply to the coordinator's question]:** *"yes, keep the lone fill
+   and continue"*. A wall the composer left with no planned body still gets the fill: one base cabinet of the whole free
+   run, with its wall and top cabinets by the usual rules. Evidence [logic review, executed]: L 1100x2200x2600 wall A
+   (200 mm); U 3000x1500x1500x2600 walls B and C (500 mm); 316 of 2544 rooms on the L 100 mm grid and 682 of 3994 on the
+   U 2600 grid.
+2. **Consequence [F1b S2a report and logic review F4, reported].** A 200 mm top cabinet or 200 mm wall cabinet over a
+   fill offers no alternatives in the replace list: wall-lift and open-shelf start at the 300 default floor, and
+   `offersFor` returns the wall cabinet alone. `qa-c3s1-top-row`'s swap assertion is now conditional on the catalogue
+   offering an alternative at that width.
+3. **Consequence [inference].** Step 1F's *Depozitare* row reads *placed* in more rooms, because the fill is a
+   storage-role step (plan §2.4). A comment in `apps/web/src/room/generation-model.ts` about a 900x2200 room reading
+   "nu poate fi inclus" may be stale; **unverified**, backlog 260.
+4. **Backlog recorded the same day:** 256 (mobile camera framing crops long-wall run ends), 257 (the form refuses a 6100
+   wall), 258 (O10 and the fill untested together), 259 (e2e support comments).
+
 ## Follow-up (recorded with its trigger, not built; ADR 0118's form)
 
 **Learning placement rules from the owner's presets** [relayed, Q-8]. Consistent with ADR 0117 d3: taste enters through

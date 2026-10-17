@@ -4,7 +4,7 @@
 > `m8-mail-and-empty-space-merge` [subjects read from the reflog]: plan `2b71c19b`, S1 `9aa11d34`, S2 `f2b1095f`,
 > S3+S4+S6 `53f47c88`, S5 `a079a797`, S7 `7ca2d443`, e2e repoint `c218f4e1` (its subject: *"mobile e2e 114 + 55
 > passed"*), review fix pass `0d21f388`. **Owner answers [relayed]:** Q-8V-1 = (a), Q-8V-2 = yes. **Records:**
-> [ADR 0165](../decisions/0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
+> [ADR 0165](../../decisions/0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
 > accepted; ADR 0164 Amendment A; dated notes on 0153, 0154, 0157, 0160, 0163; the M8 plan's Q5 pointer; the runbook's
 > revocation step; `LEMNARIA_PUBLIC_ORIGIN` in `environments-and-resources.md`. **Where the build departs from this
 > plan** (recorded in ADR 0165): D2 — the callback sent view keeps `SentReferenceCard` (struck below); D5 — a notice

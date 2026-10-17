@@ -2,9 +2,9 @@
 
 > **STATUS: CLOSED 2026-10-14 (local, not pushed; code HEAD `c6374732`, branch `m8-review-contact-success`).** Planned
 > by the architect on 2026-10-13; S1 to S5 built, QA'd and reviewed. **S6 was NOT built, per Q55 (a).** The decision
-> record is [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md),
+> record is [ADR 0163](../../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md),
 > **Accepted** (Amendment B records the close). The close, with evidence and the owner's open list, is in
-> [the M8 plan, *8M2 as closed*](M8-review-contact-success.md). The sections below are the **plan as written**, kept;
+> [the M8 plan, *8M2 as closed*](../M8-review-contact-success.md). The sections below are the **plan as written**, kept;
 > where they say "if S6" or "Proposed", the close overrides them.
 >
 > *(Previous banner, kept: "PLANNED by the architect, 2026-10-13. Not dispatched. No code exists for this wave.")*
