@@ -62,9 +62,14 @@ export async function hashPassword(password: string): Promise<string> {
   return formatHash({ shape: CURRENT_SHAPE, salt, tag });
 }
 
+/** What comparing a password with a stored hash came to. `failed` is the platform's (the `node:crypto` call threw, or
+ *  memory ran out): it says nothing of whether the password was right. */
+export type PasswordCheck = "match" | "mismatch" | "failed";
+
 /**
  * Whether `password` is the one `phc` was made from, computed with the parameters `phc` names. A string that is not a
- * well-formed hash, or one the platform refuses to compute, is false and never throws.
+ * well-formed hash, or one the platform refuses to compute, is false and never throws. A caller that must tell a wrong
+ * password from a platform that could not compute asks `checkPassword`.
  */
 export async function verifyPassword({
   password,
@@ -73,13 +78,26 @@ export async function verifyPassword({
   password: string;
   phc: string;
 }): Promise<boolean> {
+  return (await checkPassword({ password, phc })) === "match";
+}
+
+/** `verifyPassword`'s comparison, with a platform failure told apart from a mismatch. A malformed hash is a mismatch. */
+export async function checkPassword({
+  password,
+  phc,
+}: {
+  password: string;
+  phc: string;
+}): Promise<PasswordCheck> {
   const parsed = parseHash(phc);
-  if (parsed === undefined) return false;
+  if (parsed === undefined) return "mismatch";
   try {
     const tag = await deriveTag({ password, salt: parsed.salt, shape: parsed });
-    return tag.length === parsed.tag.length && timingSafeEqual(tag, parsed.tag);
+    return tag.length === parsed.tag.length && timingSafeEqual(tag, parsed.tag)
+      ? "match"
+      : "mismatch";
   } catch {
-    return false;
+    return "failed";
   }
 }
 

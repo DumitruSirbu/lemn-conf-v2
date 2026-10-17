@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import type {
   AccountField,
+  Capability,
   AccountFieldCode,
   PasswordRefusalCode,
 } from "@lemnaria/configurator-domain";
@@ -82,6 +83,42 @@ export function linkOrPasswordInvalidResponse(): NextResponse {
 export function signedInResponse(claimable: number): NextResponse {
   return NextResponse.json(
     { status: "signed-in", claimable },
+    { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
+  );
+}
+
+/** `401`: the one answer to a sign-in that did not succeed: an unknown address, a wrong password and a correct password
+ *  on an unconfirmed account read alike (ADR 0169 Amendment A). */
+export function invalidCredentialsResponse(): NextResponse {
+  return statusResponse(401, "invalid-credentials");
+}
+
+/** `204`: a logout was done, or there was nothing to do. The route clears the session cookie on this very response. */
+export function loggedOutResponse(): NextResponse {
+  return new NextResponse(null, {
+    status: 204,
+    headers: ACCOUNT_RESPONSE_HEADERS,
+  });
+}
+
+/** `200`: nobody is signed in. */
+export function anonymousSessionResponse(): NextResponse {
+  return NextResponse.json(
+    { state: "anonymous" },
+    { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
+  );
+}
+
+/** `200`: who is signed in, by address and capabilities alone. No id, role or verification flag leaves the server. */
+export function signedInSessionResponse({
+  email,
+  capabilities,
+}: {
+  email: string;
+  capabilities: readonly Capability[];
+}): NextResponse {
+  return NextResponse.json(
+    { state: "signed-in", email, capabilities },
     { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
   );
 }

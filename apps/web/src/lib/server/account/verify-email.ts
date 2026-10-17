@@ -31,7 +31,7 @@ import { sha256Hex } from "@/lib/server/sha256-hex";
  * Claiming a visitor's designs is wave L11 (`countClaimable` does not exist yet), so the count a client is told is
  * none until that wave replaces this constant with the count.
  */
-const CLAIMABLE_DESIGNS_BEFORE_L11 = 0;
+export const CLAIMABLE_DESIGNS_BEFORE_L11 = 0;
 
 /** What is hashed in place of a password the policy refused: it is never compared, and no input of the client's is. */
 const REFUSED_PASSWORD_STAND_IN = "refused";
