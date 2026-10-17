@@ -17,13 +17,8 @@ import {
   RUN_END_PANEL_SEEDED_X_M,
   type Kit,
 } from "./kitchen-parts.js";
-import { floorDepthMm } from "./room-extent.js";
+import { CORNER_OVERHANG_M, floorDepthMm } from "./room-extent.js";
 import { isMesh, isTexture, toMaterials } from "./three-guards.js";
-
-/** The floor and the two wall planes run this far past the corner, so the planes meet without a visible seam.
- *  Fixed, not proportional: it is a construction detail, not a room dimension (see ADR 0143 decision 1). At a
- *  900 mm wall a third of the 1200 mm plane sits behind the corner: accepted appearance, not a defect. */
-const CORNER_OVERHANG_M = 0.3;
 
 const FLOOR_NAME = "floor";
 /** Wall A's plane: z = 0, fronts +Z, `rotation.y = 0`. */

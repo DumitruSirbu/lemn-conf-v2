@@ -8,7 +8,7 @@ import {
   applyCutaway,
   CAMERA_FIELD_OF_VIEW_DEGREES,
   cutawayWallsFor,
-  findCameraPresetForRoom,
+  overviewFittedToFrame,
   STAGE_BACKGROUND,
   type Vector3Tuple,
 } from "@lemnaria/three-adapter";
@@ -132,13 +132,15 @@ function rootsOf(scene: THREE.Scene): SceneRoots {
   return { solids, voids };
 }
 
-/** A camera of the editor's own lens and clip planes, standing where the room's overview preset stands. */
+/** A camera of the editor's own lens and clip planes, looking along the room's overview direction from far enough back
+ *  that the whole room fits the capture frame. */
 function overviewCameraFor(rig: SnapshotRig): THREE.PerspectiveCamera {
   const live = rig.camera as THREE.PerspectiveCamera;
-  const preset = findCameraPresetForRoom("overview", rig.room);
+  const aspect = PRESET_IMAGE_WIDTH_PX / PRESET_IMAGE_HEIGHT_PX;
+  const preset = overviewFittedToFrame(rig.room, aspect);
   const shot = new THREE.PerspectiveCamera(
     CAMERA_FIELD_OF_VIEW_DEGREES,
-    PRESET_IMAGE_WIDTH_PX / PRESET_IMAGE_HEIGHT_PX,
+    aspect,
     live.near,
     live.far,
   );
