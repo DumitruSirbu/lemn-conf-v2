@@ -25,11 +25,11 @@ import {
   readUtf8BodyWithLimit,
   type BoundedBodyFailure,
 } from "@/lib/server/read-body-with-limit";
+import { readRequestDesignAccess } from "@/lib/server/account/design-reader";
 import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
 import { refusalOfSaveLimit } from "@/lib/server/rate-limit/judge-save-request";
 import { getRepository } from "@/lib/server/repository";
 import {
-  readVisitorHash,
   refreshVisitorCookie,
   resolveRequestVisitor,
 } from "@/lib/server/visitor";
@@ -58,13 +58,16 @@ type ReadDesignOutcome =
 const EXPECTED_REVISION_HEADER = "x-expected-revision";
 
 /**
- * Gated to the owning browser alone (ADR 0114 decision 5). A missing or malformed visitor cookie, a
- * foreign one and an unknown id are one outcome, `designNotFoundResponse`, so no branch here can tell
- * a caller which it hit; the first two never reach the repository.
+ * Gated to the owning browser or the owning account's session (ADR 0114 decision 5, ADR 0169 D9). A request
+ * with neither a well-formed visitor cookie nor a client session, a foreign cookie, another account's session
+ * and an unknown id are one outcome, `designNotFoundResponse`, so no branch here can tell a caller which it
+ * hit; the first never reaches the repository.
  *
  * `canWrite` exists because the write-token cookie is `HttpOnly`: without it a panel could only learn
- * whether it may edit by attempting an edit (§9 rules out warn-after-click). It is a boolean; no
- * token, hash or fragment leaves this handler.
+ * whether it may edit by attempting an edit (§9 rules out warn-after-click). It is true for a browser that
+ * holds the design's write token, and for the session of the account that owns the design (never for a
+ * session on a design the account does not own). It is a boolean; no token, hash or fragment leaves this
+ * handler.
  *
  * It is advisory, never the authorisation decision. Nothing may be written on the strength of a
  * `canWrite` this route returned: `PUT`/`PATCH` make the hash part of `saveAuthorized`'s own `update`
@@ -80,18 +83,23 @@ export async function GET(
   const { id } = await params;
   const limited = await refusalOfReadLimit(request.headers);
   if (limited) return limited;
-  const visitorHash = readVisitorHash(request.cookies);
-  if (visitorHash === undefined) return designNotFoundResponse(id);
+  const { accessor, accountMayEdit } = await readRequestDesignAccess(
+    request.cookies,
+  );
+  if (accessor === undefined) return designNotFoundResponse(id);
 
   try {
-    const outcome = await getRepository().loadOwned({ id, visitorHash });
+    const outcome = await getRepository().loadOwned({ id, accessor });
     if (outcome.kind === "none") return designNotFoundResponse(id);
+    const canWriteAsAccount =
+      accountMayEdit && outcome.isOwnedByAccount === true;
     return NextResponse.json(
       {
         id,
         design: outcome.design,
         revision: outcome.revision,
-        canWrite: hasWriteCredentialFor(request.cookies, id),
+        canWrite:
+          hasWriteCredentialFor(request.cookies, id) || canWriteAsAccount,
       },
       { headers: PER_CREDENTIAL_HEADERS },
     );

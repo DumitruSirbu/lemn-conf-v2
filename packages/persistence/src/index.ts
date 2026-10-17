@@ -16,6 +16,7 @@ export {
 export type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
+  DesignAccessor,
   DesignClaimRepository,
   DesignVersion,
   LoadOwnedOutcome,

@@ -101,11 +101,11 @@ class RotatingRepository {
     });
   }
 
-  loadOwned({ id, visitorHash }: OwnedDesignLookup): Promise<LoadOwnedOutcome> {
+  loadOwned({ id, accessor }: OwnedDesignLookup): Promise<LoadOwnedOutcome> {
     this.calls.push("loadOwned");
     if (this.failWith !== undefined) return Promise.reject(this.failWith);
     const row = this.rows.get(id);
-    if (row?.visitorHash !== visitorHash)
+    if (row === undefined || row.visitorHash !== accessor.visitorHash)
       return Promise.resolve({ kind: "none" });
     if (row.isDocumentInvalid)
       return Promise.reject(

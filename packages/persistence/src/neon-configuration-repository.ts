@@ -20,6 +20,8 @@ interface DesignRow {
   document: unknown;
   /** `revision::text`, never the driver's rendering of a `bigint` — see `DesignRevision`. */
   revision: DesignRevision;
+  /** Whether the accessor's account is the row's owner, from the same row the read matched. */
+  is_owned_by_account: boolean;
 }
 
 /** The one row the conditional update returns: `revision` is the new one if this write landed, null if it matched
@@ -131,35 +133,49 @@ export type VisitorResumeLookup =
   | { readonly kind: "none" };
 
 /**
- * A second, narrower port, not a fourth method on `AuthorizedConfigurationRepository`: it starts from a visitor hash
+ * Who is asking to read a design (ADR 0169 D9): the browser's visitor hash, the signed-in client account's id, or
+ * both. At least one is present by construction, so a caller that has neither cannot reach the repository. Each value
+ * is trusted to be what the server derived (a hash of the visitor cookie, the id of the session's account): a request
+ * never names either. An absent member matches no row.
+ */
+export type DesignAccessor =
+  | { readonly visitorHash: string; readonly accountId?: string }
+  | { readonly visitorHash?: string; readonly accountId: string };
+
+/**
+ * A second, narrower port, not a fourth method on `AuthorizedConfigurationRepository`: it starts from who is asking
  * and learns an id, and folding it in would force every mint/save/load test double to fake a lookup.
  */
 export interface VisitorResumeRepository {
-  /** The visitor's most recently updated design, or none. `visitorHash` is trusted to be already hashed: a malformed
-   *  value matches no row, because `0005`'s check constraint admits nothing else. */
-  resumeVisitor(visitorHash: string): Promise<VisitorResumeLookup>;
+  /** The most recently updated design the accessor's visitor or account owns, or none. A malformed value matches no
+   *  row: `0005`'s and `0015`'s check constraints admit nothing else. */
+  resume(accessor: DesignAccessor): Promise<VisitorResumeLookup>;
 }
 
-/** `loadOwned`'s argument, grouped so a caller cannot name the id and forget the visitor hash (ADR 0114 H2). */
+/** `loadOwned`'s argument, grouped so a caller cannot name the id and forget who is asking (ADR 0114 H2). */
 export interface OwnedDesignLookup {
   readonly id: DesignId;
-  readonly visitorHash: string;
+  readonly accessor: DesignAccessor;
 }
 
 /** Tagged like `VisitorResumeLookup`, so a caller cannot forget to check which case it got. A foreign row, a
- *  pre-`0005` row (`visitor_hash is null`) and a missing row are all `"none"`: one outcome of one statement, so a
- *  non-owner cannot observe which it was. */
+ *  pre-`0005` row (`visitor_hash is null`, no account) and a missing row are all `"none"`: one outcome of one
+ *  statement, so a non-owner cannot observe which it was. */
 export type LoadOwnedOutcome =
   | {
       readonly kind: "found";
       readonly design: Design;
       readonly revision: DesignRevision;
+      /** Whether the accessor's **account** is the row's owner, as against the row having matched through the visitor
+       *  alone. Absent reads as `false`. The one fact a caller may use to say a session may write the design. */
+      readonly isOwnedByAccount?: boolean;
     }
   | { readonly kind: "none" };
 
 /**
- * The gated read (ADR 0114 Amendment H2): a design is readable only by the browser whose visitor hash the row carries.
- * `migrateDesign` runs only on `found`, so `InvalidDesignError` is reachable by the design's owner alone.
+ * The gated read (ADR 0114 Amendment H2, ADR 0169 D9): a design is readable by the browser whose visitor hash the row
+ * carries, or by the account whose id the row carries. `migrateDesign` runs only on `found`, so `InvalidDesignError`
+ * is reachable by the design's owner alone.
  */
 export interface OwnedDesignRepository {
   loadOwned(lookup: OwnedDesignLookup): Promise<LoadOwnedOutcome>;
@@ -408,18 +424,24 @@ export class NeonConfigurationRepository
   }
 
   /**
-   * The gated read (ADR 0114 Amendment H2): `id` and `visitorHash` in one predicate, so a foreign row, a pre-`0005`
-   * row and a missing row are one outcome. `migrateDesign` runs only on a match. No `requireSha256Digest`: a
-   * malformed `visitorHash` matches no row, because `0005`'s check constraint admits nothing else.
+   * The gated read (ADR 0114 Amendment H2, ADR 0169 D9): `id` and either credential in one predicate, so a foreign
+   * row, a pre-`0005` row and a missing row are one outcome. An absent member is bound as `null`, and `x = null` is
+   * never true, so an accessor with only a visitor matches exactly what it did before accounts existed, and one with
+   * only an account matches only that account's rows. A visitor-less, account-less row matches neither arm. The owner
+   * flag comes from the same row. `migrateDesign` runs only on a match. No `requireSha256Digest`: a malformed value
+   * matches no row, because `0005`'s and `0015`'s check constraints admit nothing else.
    */
   async loadOwned({
     id,
-    visitorHash,
+    accessor,
   }: OwnedDesignLookup): Promise<LoadOwnedOutcome> {
+    const { visitorHash, accountId } = nullableCredentialsOf(accessor);
     const rows = (await retryOnTransientFailure(
       () => this.sql`
-      select schema_version, document, revision::text as revision
-      from designs where id = ${id} and visitor_hash = ${visitorHash}
+      select schema_version, document, revision::text as revision,
+        coalesce(account_id = ${accountId}, false) as is_owned_by_account
+      from designs
+      where id = ${id} and (visitor_hash = ${visitorHash} or account_id = ${accountId})
     `,
     )) as DesignRow[];
 
@@ -430,16 +452,29 @@ export class NeonConfigurationRepository
       kind: "found",
       design: migrateDesign(row.schema_version, row.document),
       revision: row.revision,
+      isOwnedByAccount: row.is_owned_by_account,
     };
   }
 
-  /** Ordered by `updated_at desc, id desc` for a deterministic tie break; served by the partial index
-   *  `designs_visitor_hash_updated_at_idx` (`0005`). */
-  async resumeVisitor(visitorHash: string): Promise<VisitorResumeLookup> {
+  /**
+   * Ordered by `updated_at desc, id desc` for a deterministic tie break. Each credential is its own indexed query with
+   * its own `limit 1` (`designs_visitor_hash_updated_at_idx`, `0005`, and `designs_account_id_updated_at_idx`, `0015`),
+   * and the two candidates are merged by the same order, so a plain `or` never takes the planner off either index. One
+   * statement; an absent member is bound as `null` and contributes no candidate.
+   */
+  async resume(accessor: DesignAccessor): Promise<VisitorResumeLookup> {
+    const { visitorHash, accountId } = nullableCredentialsOf(accessor);
     const rows = (await retryOnTransientFailure(
       () => this.sql`
-      select id from designs
-      where visitor_hash = ${visitorHash}
+      select id from (
+        (select id, updated_at from designs
+          where visitor_hash = ${visitorHash}
+          order by updated_at desc, id desc limit 1)
+        union all
+        (select id, updated_at from designs
+          where account_id = ${accountId}
+          order by updated_at desc, id desc limit 1)
+      ) as candidates
       order by updated_at desc, id desc
       limit 1
     `,
@@ -489,6 +524,18 @@ export class NeonConfigurationRepository
 
     return rows.map((row) => row.id);
   }
+}
+
+/** The accessor's two credentials as statement parameters. `null` is safe only here: it reaches no stored column, just
+ *  the right side of an `=` comparison, which answers "no" for every row. */
+function nullableCredentialsOf(accessor: DesignAccessor): {
+  readonly visitorHash: string | null;
+  readonly accountId: string | null;
+} {
+  return {
+    visitorHash: accessor.visitorHash ?? null,
+    accountId: accessor.accountId ?? null,
+  };
 }
 
 /** Covers every hash a mint is about to store, whichever `MintVisitor` branch supplied it. */

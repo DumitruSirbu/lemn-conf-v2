@@ -318,12 +318,12 @@ describe(SUITE_NAME, () => {
       const line = await exportedLineFor(id);
 
       await sql`delete from designs where id = ${id}`;
-      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+      await expect(repository().resume({ visitorHash })).resolves.toEqual({
         kind: "none",
       });
       await restoreRow(line);
 
-      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+      await expect(repository().resume({ visitorHash })).resolves.toEqual({
         kind: "found",
         id,
       });

@@ -713,7 +713,9 @@ describe("resumeVisitor (D3)", () => {
   it.skipIf(!hasLiveDatabase)(
     "answers none for a hash no row carries",
     async () => {
-      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+      const lookup = await testRepository().resume({
+        visitorHash: VISITOR_HASH,
+      });
 
       expect(lookup).toEqual({ kind: "none" });
     },
@@ -727,7 +729,9 @@ describe("resumeVisitor (D3)", () => {
       const newerId = await mintWithVisitor(VISITOR_HASH);
       await setUpdatedAt(newerId, 1);
 
-      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+      const lookup = await testRepository().resume({
+        visitorHash: VISITOR_HASH,
+      });
 
       expect(lookup).toEqual({ kind: "found", id: newerId });
     },
@@ -745,7 +749,9 @@ describe("resumeVisitor (D3)", () => {
       `;
       const mineId = await mintWithVisitor(VISITOR_HASH);
 
-      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+      const lookup = await testRepository().resume({
+        visitorHash: VISITOR_HASH,
+      });
 
       expect(lookup).toEqual({ kind: "found", id: mineId });
     },
@@ -822,15 +828,19 @@ describe("mint rotation (Amendment H1)", () => {
       mintedIds.push(newId);
 
       expect((await rowFor(id)).visitor_hash).toBe(newHash);
-      await expect(testRepository().resumeVisitor(oldHash)).resolves.toEqual({
+      await expect(
+        testRepository().resume({ visitorHash: oldHash }),
+      ).resolves.toEqual({
         kind: "none",
       });
-      await expect(testRepository().resumeVisitor(newHash)).resolves.toEqual({
+      await expect(
+        testRepository().resume({ visitorHash: newHash }),
+      ).resolves.toEqual({
         kind: "found",
         id: newId,
       });
       await expect(
-        testRepository().loadOwned({ id, visitorHash: newHash }),
+        testRepository().loadOwned({ id, accessor: { visitorHash: newHash } }),
       ).resolves.toMatchObject({ kind: "found" });
     },
   );
@@ -907,7 +917,7 @@ describe("loadOwned (Amendment H2)", () => {
 
       const outcome = await testRepository().loadOwned({
         id,
-        visitorHash: OWNER_HASH,
+        accessor: { visitorHash: OWNER_HASH },
       });
 
       expect(outcome.kind).toBe("found");
@@ -930,7 +940,10 @@ describe("loadOwned (Amendment H2)", () => {
       mintedIds.push(id);
 
       await expect(
-        testRepository().loadOwned({ id, visitorHash: STRANGER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: STRANGER_HASH },
+        }),
       ).resolves.toEqual({ kind: "none" });
     },
   );
@@ -941,7 +954,10 @@ describe("loadOwned (Amendment H2)", () => {
       const id = await insertTokenlessOwnerlessRow();
 
       await expect(
-        testRepository().loadOwned({ id, visitorHash: OWNER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: OWNER_HASH },
+        }),
       ).resolves.toEqual({ kind: "none" });
     },
   );
@@ -952,7 +968,7 @@ describe("loadOwned (Amendment H2)", () => {
       await expect(
         testRepository().loadOwned({
           id: "does-not-exist-00000000",
-          visitorHash: OWNER_HASH,
+          accessor: { visitorHash: OWNER_HASH },
         }),
       ).resolves.toEqual({ kind: "none" });
     },
@@ -964,10 +980,16 @@ describe("loadOwned (Amendment H2)", () => {
       const id = await insertInvalidDocumentRow(OWNER_HASH);
 
       await expect(
-        testRepository().loadOwned({ id, visitorHash: OWNER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: OWNER_HASH },
+        }),
       ).rejects.toThrow(InvalidDesignError);
       await expect(
-        testRepository().loadOwned({ id, visitorHash: STRANGER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: STRANGER_HASH },
+        }),
       ).resolves.toEqual({ kind: "none" });
     },
   );

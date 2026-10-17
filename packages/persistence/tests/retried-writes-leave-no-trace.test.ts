@@ -600,7 +600,7 @@ describe(SUITE_NAME, () => {
         const loaded = await withLostFirstReply(afterTheWriteLands(reply), () =>
           configurations().loadOwned({
             id: credentials.designId,
-            visitorHash: credentials.visitorHash,
+            accessor: { visitorHash: credentials.visitorHash },
           }),
         );
 

@@ -929,7 +929,9 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         updatedHoursAgo: 2,
       });
 
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: `qa-7e3a-touched-late-${stamp}`,
       });
@@ -954,7 +956,9 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         from unnest(${ids}::text[]) as i
       `;
 
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: `qa-7e3a-tie-c-${stamp}`,
       });
@@ -970,7 +974,9 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
       await neon(testDatabaseUrl)`
         update designs set updated_at = now() - interval '1 hour' where id = ${first}
       `;
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: second,
       });
@@ -983,7 +989,9 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         requestVisitor: { kind: "absent" },
       });
 
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: first,
       });
@@ -1015,7 +1023,7 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         "null",
       ]) {
         await expect(
-          repository().resumeVisitor(hostile),
+          repository().resume({ visitorHash: hostile }),
           JSON.stringify(hostile),
         ).resolves.toEqual({ kind: "none" });
       }
@@ -1303,7 +1311,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
             for (let earlier = 0; earlier < k; earlier++)
               expect(await countUnder(hashes[earlier] ?? "")).toBe(0);
             await expect(
-              repository().resumeVisitor(hashes[k] ?? ""),
+              repository().resume({ visitorHash: hashes[k] ?? "" }),
             ).resolves.toEqual({ kind: "found", id });
             expect((await shareLinks.loadShared(shareTokenHash)).kind).toBe(
               "found",
@@ -1350,16 +1358,24 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
       ];
       for (const visitorHash of shapes)
         await expect(
-          repository().loadOwned({ id, visitorHash }),
+          repository().loadOwned({ id, accessor: { visitorHash } }),
           JSON.stringify(visitorHash),
         ).resolves.toEqual({ kind: "none" });
       for (const hostileId of ["%", "_".repeat(id.length), `${id}' or '1'='1`])
         await expect(
-          repository().loadOwned({ id: hostileId, visitorHash: ownerHash }),
+          repository().loadOwned({
+            id: hostileId,
+            accessor: { visitorHash: ownerHash },
+          }),
           hostileId,
         ).resolves.toEqual({ kind: "none" });
       expect(
-        (await repository().loadOwned({ id, visitorHash: ownerHash })).kind,
+        (
+          await repository().loadOwned({
+            id,
+            accessor: { visitorHash: ownerHash },
+          })
+        ).kind,
       ).toBe("found");
     },
   );
@@ -1494,7 +1510,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: first?.id ?? "",
-            visitorHash: firstHash,
+            accessor: { visitorHash: firstHash },
           })
         ).kind,
       ).toBe("found");
@@ -1502,7 +1518,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: second?.id ?? "",
-            visitorHash: secondHash,
+            accessor: { visitorHash: secondHash },
           })
         ).kind,
       ).toBe("found");
@@ -1544,7 +1560,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: victim.id,
-            visitorHash: attackerHash,
+            accessor: { visitorHash: attackerHash },
           })
         ).kind,
       ).toBe("none");
@@ -1552,7 +1568,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: attacker.id,
-            visitorHash: ownerHash,
+            accessor: { visitorHash: ownerHash },
           })
         ).kind,
       ).toBe("none");
