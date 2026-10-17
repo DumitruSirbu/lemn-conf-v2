@@ -145,11 +145,11 @@ the retention job are later records. Each decision below names the seam it leave
   - they fail closed, as every write does (ADR 0156), and every figure is provisional;
   - by network block: register, login, reset request, token completion;
   - by address: login, with a 15-minute and a daily window, which gives the growing back-off;
-  - one **mail bucket per address** shared by every account e-mail, which protects the shared mail quota and a
-    victim's inbox;
+  - two **mail buckets per address**, one for registration (and a login's resend) and one for reset, which protect the
+    shared mail quota and a victim's inbox (**amended**: Amendment A, 2026-10-18; first drafted as one shared bucket);
   - by account: claim, and session saves.
 - **The same answer for a known and an unknown address:** at register (always "check your inbox"), at login (one
-  invalid-credentials answer), and at the reset request.
+  invalid-credentials answer, **including for a correct password on an unconfirmed account**, Amendment A), and at the reset request.
 - **Account mail is sent after the response**, so whether a mail was sent is not visible in the response time.
 - **Tokens:** a confirmation token lasts 24 hours and a reset token 30 minutes. Each is single-use, and only the
   newest unused token of its purpose works.
@@ -348,3 +348,42 @@ the wrong way:
 - **Other files:** `decisions/README.md` (the row), `SUPERSESSIONS.md`, `M8B-customer-profiles.md` (pointer
   already added, dated), `docs/STATUS.md` (the M8B row), `environments-and-resources.md` (*Variables not yet
   set*: the two Turnstile names).
+
+## Amendment A — 2026-10-18: login never says "unconfirmed", and the mail buckets are two
+
+Source: the L8 security review of the register and verify-email routes (findings F1 and F2). Owner-visible. Nothing
+else in this record changes.
+
+**1. Login on an unverified account answers as a wrong password does (amends D5, "The same answer").** The plan's flow 3
+answered `403 {status:"unconfirmed", resent:true}` for a correct password on an unconfirmed account. Together with
+register's branch (c) that is an enumeration oracle: an attacker registers a victim's address with a password of their
+own (register answers the same `202` in every branch), then logs in with it. An address that was unknown, or unverified,
+is now an unverified account holding the attacker's password, and answers `unconfirmed`; a verified account was not
+changed by register and answers `401`. The two are told apart, and so the attacker learns which addresses already have
+a confirmed account.
+
+Decided:
+- A correct password on an unverified account answers **the same `401 {status:"invalid-credentials"}`, status and
+  body, as a wrong password and an unknown address**. No `unconfirmed` or `resent` member exists in any answer.
+- **Equal work before the response**: one argon2id verification (the dummy hash for an unknown address) and the same
+  lookup in every branch. The confirmation resend (the limiter count, the token insert and the mail) runs in `after()`,
+  so nothing it costs is visible in the response time.
+- **A limiter refusal or unavailability on the resend is silent**: no mail, no distinct response. The login's own
+  address and block buckets are unchanged and still answer `429` the same way for every address.
+- The login screen has one failure state, with copy of the form "if your details are right, check your inbox" (the
+  plan's L14a). A legitimate client who registered and did not confirm is sent the confirmation link again without
+  being told so; if no mail comes, registering again issues a new link.
+
+Cost, accepted: a client who forgot to confirm sees the same message as one who mistyped. The resend is the remedy, and
+the copy points to the inbox.
+
+**2. Two per-address mail buckets, not one (amends D5, "New limiter purposes"; answers plan Q-L5 by default).** With
+one bucket shared by every account mail, a stranger who registered a victim's address five times in a UTC day (each
+costs a solved Turnstile challenge) used up the victim's reset budget. Decided:
+- `account-register-mail-by-address` (5 a day): the confirmation and already-registered mail of registration, and the
+  login's silent resend of the confirmation link (it sends the same link, so it shares that budget).
+- `account-reset-mail-by-address` (5 a day): the reset link and the "password changed" notice.
+- Registration traffic can no longer exhaust the reset budget. Reset-on-reset starvation remains and is accepted.
+  An address can receive up to ten account mails a day. Figures stay provisional, constants only.
+
+The plan (§5, §7 L5/L6/L8/L9/L10/L14a, §10, §11) carries the matching text.

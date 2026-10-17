@@ -45,7 +45,8 @@ async function freshJudges() {
     "account-login-by-address-day": () => Promise.resolve(undefined),
     "account-reset-request-by-block": () => Promise.resolve(undefined),
     "account-token-complete-by-block": () => Promise.resolve(undefined),
-    "account-mail-by-address": () => Promise.resolve(undefined),
+    "account-register-mail-by-address": () => Promise.resolve(undefined),
+    "account-reset-mail-by-address": () => Promise.resolve(undefined),
     "account-claim-by-account": () => Promise.resolve(undefined),
     "save-by-account": () => Promise.resolve(undefined),
   };

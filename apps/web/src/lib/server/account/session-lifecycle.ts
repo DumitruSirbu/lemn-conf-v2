@@ -2,6 +2,7 @@ import "server-only";
 
 import type { NextResponse } from "next/server";
 
+import { reportAccountEvent } from "@/lib/server/account/account-log";
 import { ABSOLUTE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 import {
   clearSessionCookie,
@@ -27,7 +28,7 @@ export interface SessionStart {
   readonly role: Role;
   /** The hash the account holds now, **after** any rehash, and the one the caller verified the password against. */
   readonly expectedPasswordHash: string;
-  /** The request's cookies: a live session it carries is revoked before a new one is minted, so a planted value grants
+  /** The request's cookies: a live session it carries is revoked once the new one is stored, so a planted value grants
    *  nothing after a sign-in (no fixation). */
   readonly presentedCookies: SessionCookieReader;
 }
@@ -37,8 +38,11 @@ export interface SessionStart {
 export type SessionStartOutcome = "started" | "stale" | "refused";
 
 /**
- * Revokes the presented session, mints a fresh value, stores its hash bound to `expectedPasswordHash`, and sets the
- * cookie with the role's absolute lifetime as `Max-Age`. The cookie is set only when the session was stored.
+ * Mints a fresh value, stores its hash bound to `expectedPasswordHash`, sets the cookie with the role's absolute
+ * lifetime as `Max-Age`, and only then revokes the presented session. The new session comes first so a refused
+ * sign-in (`stale`, `refused`) or a store failure leaves the client's existing session untouched, and the cookie is
+ * set only when the session was stored. The revoke is best effort: a failure is written down by event and outcome
+ * and never fails the sign-in, at the price that a presented session may stay live until it expires.
  */
 export async function startSession({
   response,
@@ -48,7 +52,6 @@ export async function startSession({
   presentedCookies,
 }: SessionStart): Promise<SessionStartOutcome> {
   const store = getSessionStore();
-  await revokePresentedSession(presentedCookies);
   const value = mintSessionValue();
   const maxAgeSeconds = ABSOLUTE_LIFETIME_SECONDS_BY_ROLE[role];
   const creation = await store.create({
@@ -61,6 +64,7 @@ export async function startSession({
   });
   if (creation.kind !== "created") return creation.kind;
   setSessionCookie({ response, value, maxAgeSeconds });
+  await revokePresentedSessionBestEffort(presentedCookies);
   return "started";
 }
 
@@ -97,4 +101,14 @@ async function revokePresentedSession(
   const presentedValue = readSessionCookie(presentedCookies);
   if (presentedValue === undefined) return;
   await getSessionStore().revoke(sha256Hex(presentedValue));
+}
+
+async function revokePresentedSessionBestEffort(
+  presentedCookies: SessionCookieReader,
+): Promise<void> {
+  try {
+    await revokePresentedSession(presentedCookies);
+  } catch {
+    reportAccountEvent({ event: "logout", outcome: "unavailable" });
+  }
 }

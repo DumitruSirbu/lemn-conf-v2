@@ -275,7 +275,7 @@ only).
 | --- | --- | --- | --- |
 | 1 | **Register** `POST /api/account/register` `{email, password, phone?, locale, privacyNoticeVersion, turnstileToken}` | (a) Policy check, including the breach check. (b) Unknown address: insert unverified, issue a `verify-email` token, mail the link. (c) **Unverified** address: overwrite `password_hash`, phone, locale and notice version; issue a new token (older ones stop working); mail the link. (d) **Verified** address: change nothing; mail an "already registered — log in or reset" notice. (e) Hash the password in every branch | **`202 {status:"check-inbox"}` in (b), (c) and (d) alike.** One mail is queued in each, sent after the response (`after()`, [inf/ven]) |
 | 2 | **Confirm** `GET /[locale]/account/verify-email#t=<token>` | The page reads the fragment (never sent to the server, never in a `Referer`) and asks for the password. `POST /api/account/verify-email` `{token, password}`: one transaction. The token must be the newest unused, unexpired one of its purpose. The password must verify against the account's current hash. Then: set `email_verified_at`, mark the token used, start a session | `200 {status:"signed-in", claimable:n}` and `Set-Cookie`, **or one answer `400 {status:"link-or-password-invalid"}`** for an unknown, used, expired or superseded token or a wrong password |
-| 3 | **Login** `POST /api/account/login` `{email, password, turnstileToken}` | Unknown address: verify against a fixed dummy hash, so the time class is equal. Wrong password: same. Correct password but unverified: queue a fresh confirmation link (per-address mail bucket). Correct and verified: rehash if the parameters are old, then start a session | `200 {status:"signed-in", claimable:n}` / **`401 {status:"invalid-credentials"}` for unknown and wrong alike** / `403 {status:"unconfirmed", resent:true}`, only after a correct password |
+| 3 | **Login** `POST /api/account/login` `{email, password, turnstileToken}` | Unknown address: verify against a fixed dummy hash, so the time class is equal. Wrong password: same. **Correct password but unverified: the same `401` as a wrong password, with the same verification work and no other work before the response (ADR 0169 Amendment A, L8 security review F1).** The confirmation resend (`judgeAccountSubject({purpose:"mail"})`, a new `verify-email` token, the mail) runs entirely in `after()`, and a limiter refusal or unavailability there is silent. Correct and verified: rehash if the parameters are old, then start a session | `200 {status:"signed-in", claimable:n}` / **`401 {status:"invalid-credentials"}` for an unknown address, a wrong password and a correct password on an unconfirmed account alike** (one body, one status). No `unconfirmed` or `resent` member exists |
 | 4 | **Logout** `POST /api/account/logout` `{scope:"this-device"\|"everywhere"}` | Revoke this session, or every session of the account | `204`, the session cookie cleared (`Max-Age=0`, the same attributes, never `cookies.delete`, as `visitor.ts` explains [src]). No session: `204`, nothing done |
 | 5 | **Who am I** `GET /api/account/session` | Read the session (fails open to anonymous) | `{state:"anonymous"}` or `{state:"signed-in", email, capabilities:[…]}` |
 | 6 | **Forgot** `POST /api/account/password-reset/request` `{email, turnstileToken}` | Count the per-address buckets for **every** valid request, before any lookup. Then, **after the response** (`after()`): for a verified account, issue a `reset-password` token and mail the link; for an unknown or unverified address, do nothing. The request path before the answer is the same in every branch | **`202 {status:"check-inbox"}` always**, and a per-address `429` reads the same for every address |
@@ -289,7 +289,7 @@ only).
   - Why: a page render (a Server Component) can read a cookie but cannot set one [ven: Next's `cookies()`; L0
     re-reads it]. A cookie that slid only on some requests would be a second, partial clock.
 - **Start:** "starting a session" always mints a new value. If the request carries a valid session value, that
-  session is **revoked** first, so there is no fixation.
+  session is **revoked** once the new one is stored, so there is no fixation.
 - **Touch:** `last_seen_at` is written **only in route handlers** (every editor save, the design probe
   `GET /api/designs/{id}`, `GET /api/account/session`), at most once an hour per session, which bounds writes. A
   page render reads the session and writes nothing.
@@ -312,11 +312,14 @@ only).
 | `account-login-by-address` | `subjectOfAddress` | 10 / 15 min, 30 / 1440 min (the growing back-off) |
 | `account-reset-request-by-block` | network block | 10 / 60 min |
 | `account-token-complete-by-block` | network block | 20 / 60 min (confirm and reset completion; bounds the hashing cost) |
-| `account-mail-by-address` | `subjectOfAddress` | 5 / 1440 min, shared by every account mail to one address (protects the shared Gmail quota and a victim's inbox) |
+| `account-register-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the confirmation and already-registered mail of registration, and a login's silent resend of the confirmation link (purposes `register` and `mail`) |
+| `account-reset-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the reset link and the "password changed" notice (purposes `reset-request` and `password-changed`). Apart from the registration bucket, so register traffic cannot use up a victim's reset budget (L8 security review F2) |
 | `account-claim-by-account` | new `subjectOfAccountId` | 10 / 60 min |
 | `design-save-by-account` | `subjectOfAccountId` | `SAVES_PER_CREDENTIAL_FIGURE` (300 / 60 min): the session twin of the write-credential bucket (ADR 0156) |
 
-**What the per-address buckets allow, accepted [inf; that `account-login-by-address-day` and `account-mail-by-address` use
+Together the two per-address mail buckets still protect the shared Gmail quota and a victim's inbox: at most 10 account mails a day to one address.
+
+**What the per-address buckets allow, accepted [inf; that `account-login-by-address-day` and the two per-address mail buckets use
 `utcMinutes(ACCOUNT_DAY_MINUTES)`, a fixed UTC day, is source-verified in `limit-policy.ts` and `utc-window.ts`]:** a stranger who solves 30 Turnstile challenges (each attempt is counted before the password is
 looked at, so the victim's own correct password does not help) locks a victim's login until 00:00 UTC; the 10 per
 15 minutes bucket only spreads those 30 attempts across at least three quarter-hour windows. The 15-minute figure alone would
@@ -601,10 +604,13 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
    different key.
 4. The subject stage is a route obligation after the block stage: it is asked only after the block stage allowed, and
    after Turnstile and validation, so a refused block, a failed challenge or an invalid body counts no address hit.
-   **No bucket is counted twice:** `register` and `reset-request` count `account-mail-by-address` in their own subject
-   stage, so their routes must not also call `judgeAccountSubject({purpose:"mail"})`; `mail` is for a route that sends
-   a mail its flow did not count (login's unconfirmed resend), and it is a different bucket from login's address
-   buckets. The type system rejects a subject ask without its text; a cast that gets one through reads as
+   **No bucket is counted twice:** `register` counts `account-register-mail-by-address` and `reset-request` counts
+   `account-reset-mail-by-address` in their own subject stage, so their routes must not also call
+   `judgeAccountSubject({purpose:"mail"})` or `{purpose:"password-changed"}`. Those two are for a route that sends a
+   mail its flow did not count: `mail` is login's silent confirmation resend (it counts the **registration** mail
+   bucket, since it sends the same confirmation link; decided in the L8 security review, F2), `password-changed` is
+   the notice after a completed reset (it counts the **reset** bucket). Both are different buckets from login's
+   address buckets. The type system rejects a subject ask without its text; a cast that gets one through reads as
    unavailable.
 
 ---
@@ -614,7 +620,7 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
 | # | Item | File |
 | --- | --- | --- |
 | 1 | `readCurrentSession(cookies)` → `{kind:"anonymous"}` or `{kind:"signed-in", accountId, role, capabilities, emailVerified, email}`. A failed read is anonymous. It never writes. A separate `touchCurrentSession` is called by route handlers only | `account/current-session.ts` |
-| 2 | `startSession({response, accountId, role, presentedCookie})`: revoke a presented live session, mint, store the hash, set the cookie. `endSession`, `endAllSessions` | `account/session-lifecycle.ts` |
+| 2 | `startSession({response, accountId, role, expectedPasswordHash, presentedCookies})`: mint, store the hash (compare-and-set), set the cookie only on `started`, then revoke a presented live session (best effort). `endSession`, `endAllSessions` | `account/session-lifecycle.ts` |
 | 3 | `requireCapability(session, capability)` → allowed, or one refusal value; the routes map it to `401` / `403` | `account/require-capability.ts` |
 
 **Reading:** this plan §2 (D3, D7), §5 *Sessions*; L3's `session-cookie.ts`, L4b's port; ADR 0114 H1 (rotation
@@ -622,7 +628,8 @@ reasoning). **Reviewer reading:** the same.
 
 **Acceptance.**
 1. After `startSession`, the response carries a session value the request did not carry, and a valid value the
-   request carried is revoked (no fixation).
+   request carried is revoked once the new session is stored (no fixation). A `stale` or `refused` start revokes
+   nothing.
 2. `requireCapability` allows exactly when `hasCapability(role, capability)` **and** the session is signed in.
    An unverified account holds **no** capability that touches designs.
 3. No route or page decides access from anything the client sent except the session cookie. A role or
@@ -687,6 +694,20 @@ authentication, registration and enumeration guidance (cited by section, from L0
    per-address `429` is the same answer, at the same count, for an unknown, an unverified and a verified
    address.
 
+**Note on acceptance 3 and `startSession` (L8 security review F4, 2026-10-18).** `startSession` creates the new
+session first (the compare-and-set on the account's hash), sets the cookie only on `started`, and only then revokes the
+session the request presented. Before, the presented session was revoked first, so a confirmation or sign-in that came
+back `stale` or `refused` had already signed the client out of a good session. **Residual, accepted:** the revoke is
+best effort. If it fails, the sign-in still succeeds, one `logout` / `unavailable` line is written through
+`account-log.ts`, and the presented session stays live until it is revoked, idles out or expires; the new cookie
+replaces it in this browser. A session an attacker had planted is a session the attacker already held; it is not a
+way into the victim's new one.
+
+**Accepted, low, owner-visible (L8 security review F3).** The three register branches differ in how many statements
+commit before the response (the unverified branch also supersedes older tokens), a commit-cost variance far below the
+argon2id time they all spend and below the network's own jitter. Not padded. If measurement ever shows it, move the
+token work into `after()`; optional, later.
+
 **Notes from the L1 security review (2026-10-18).** The `23505` on a duplicate address carries the address in its `DETAIL`:
 never log or return driver text (see L4a). A conflict gives the same response and a similar response time as a fresh
 insert. "Newest unused token" needs an explicit supersede at issue or a tie-breaker (see L4a); L8's acceptance 2 and 3 rest on it.
@@ -712,8 +733,8 @@ meet, and the reviewer checks them by reading:
 - **Limiter calls (L5 review F2/F3), counted once.** The verify-email route calls `judgeAccountBlock` at step 4 only
   (purpose `confirm-email`, before the body is hashed or the token read). The register route calls
   `judgeAccountBlock` at step 4 (before Turnstile), then, after Turnstile and validation, `judgeAccountSubject`
-  `{purpose:"register", address}` before any account lookup: that call **is** the mail bucket for the mail the
-  branches queue, so the mail step must not count it again.
+  `{purpose:"register", address}` before any account lookup: that call **is** the `account-register-mail-by-address`
+  bucket for the mail the branches queue, so the mail step must not count it again.
 - **Known divergence, kept on the tests-owed list.** When two tokens of one account and purpose are issued in the
   same clock tick, the Neon store breaks the tie by `token_hash` (`(created_at, token_hash)` ordering) while the fake
   breaks it by `issueOrder` (the later issue wins). They agree whenever the clock moves between issues, which is the
@@ -779,7 +800,12 @@ by reading:
 **Acceptance.**
 1. An unknown address and a wrong password produce the **same status and body**, and both run exactly one
    argon2id verification.
-2. `unconfirmed` is answered **only after the password verified**.
+2. **A correct password on an unconfirmed account answers the same `401 invalid-credentials` status and body as a
+   wrong password and an unknown address** (ADR 0169 Amendment A). It does the same work before the response (one
+   argon2id verification, the same lookup); the resend (limiter count, token insert, mail) runs in `after()`, and its
+   limiter refusal is silent. No answer carries `unconfirmed` or `resent`. This closes the oracle in which an attacker
+   registers a victim's address with a password of their own and then logs in with it (`unconfirmed` would tell an
+   unknown address, now unverified, from a verified one).
 3. A successful login sets a session value the request did not carry. A session cookie planted before login
    grants nothing after it.
 4. After `logout {scope:"everywhere"}`, no session of the account is live, including the one that asked.
@@ -804,8 +830,9 @@ reviewer checks them by reading:
 - **Limiter calls (L5 review F2/F3), counted once.** `judgeAccountBlock({purpose:"login"})` at step 4, before
   Turnstile; `judgeAccountSubject({purpose:"login", address})` at step 7, after Turnstile and validation, before the
   account lookup, so a per-address refusal is the same for every address. Only after a correct password on an
-  unconfirmed account does the route call `judgeAccountSubject({purpose:"mail", address})` for the resend; the
-  login's address buckets are not counted again. Logout and who-am-I call neither.
+  unconfirmed account does the route call `judgeAccountSubject({purpose:"mail", address})` for the resend, **inside
+  `after()`** and counting `account-register-mail-by-address`; a refusal or unavailability there sends no mail and
+  changes no answer. The login's address buckets are not counted again. Logout and who-am-I call neither.
 
 ---
 
@@ -835,9 +862,12 @@ length-capped by `judgePassword` before it is hashed (the same rules as L9's obl
 platform failure is a 503 and does not consume the token.
 **Limiter calls (L5 review F2/F3), counted once.** The request route calls `judgeAccountBlock({purpose:"reset-request"})`
 at step 4 and, after Turnstile and validation, `judgeAccountSubject({purpose:"reset-request", address})` before any
-lookup: that call counts `account-mail-by-address` for every valid request, known address or not, and the mail queued
+lookup: that call counts `account-reset-mail-by-address` for every valid request, known address or not, and the mail queued
 after the response must not count it again. The completion route calls `judgeAccountBlock({purpose:"password-reset-complete"})`
-at step 4 only (the token is the subject).
+at step 4 only (the token is the subject). Its "password changed" notice is counted once with
+`judgeAccountSubject({purpose:"password-changed", address})` inside `after()`, against the reset bucket; a refusal there
+drops the notice and changes no answer (five reset requests in a UTC day leave no room for the notice, which is the
+price of one shared reset budget).
 A completed reset starts no session; the sessions a login creates concurrently are bound to the hash they verified
 (L9's obligation, `SessionStore.create` is a compare-and-set), so a login that verified the old password cannot
 outlive the reset.
@@ -964,7 +994,7 @@ chrome spec); engineering-conventions *UI and content*, *Localised copy*; `brows
 
 | # | Item | File |
 | --- | --- | --- |
-| 1 | Login screen, including the `unconfirmed` state | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx` |
+| 1 | Login screen. It has one failure state: copy of the form "if your details are right, check your inbox" (no `unconfirmed` state, ADR 0169 Amendment A) | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx` |
 | 2 | Forgot and reset screens (the reset page reads `#t` as the confirm page does) | `app/[locale]/account/forgot-password/page.tsx`, `app/[locale]/account/reset-password/page.tsx` |
 | 3 | Copy | messages (not counted) |
 
@@ -1096,8 +1126,8 @@ Rules for the walk:
 | Risk | Consequence | Response |
 | --- | --- | --- |
 | **No tests this round** | A rule implemented plausibly and wrongly passes review | Security review on every wave. §9 lists the owed tests by criterion. The milestone stays open |
-| **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | `account-mail-by-address` 5/day, the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider |
-| **One mail bucket per address for every account mail** (`account-mail-by-address`, 5 a day, shared by registration, resend and reset) | **Accepted, owner-visible [inf].** A stranger who registers or requests a reset for a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses the victim's whole mail allowance, so the victim's own reset mail is refused until 00:00 UTC, and an attacker can do it just before the victim needs it. The refusal reads the same for every address, so it cannot be used to probe accounts | The owner may want a **separate reset bucket**, so that registration noise cannot starve a reset (and the reverse). It is a new `PolicyPurpose` and one more `judgeAccountSubject` purpose, and no schema change. Not done this round; Q-L5 |
+| **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | the two per-address mail buckets (5/day each), the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider |
+| **Two mail buckets per address** (`account-register-mail-by-address` for registration and the login resend, `account-reset-mail-by-address` for reset and the "password changed" notice; 5 a day each; L8 security review F2) | **Owner-visible [inf].** A stranger who registers a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses only the registration bucket, so the victim's reset mail still has its own five. The same stranger can still use the reset bucket by requesting resets five times, and the victim's own reset mail is then refused until 00:00 UTC; the refusal reads the same for every address, so it cannot be used to probe accounts. An address can receive up to ten account mails a day | A single shared bucket was the first design; the split closes registration noise starving a reset. Reset-on-reset starvation remains and is accepted; a per-address figure change is constants, not code. Q-L5 |
 | **Account mail can spend the shop's whole Gmail quota** (L7 security review M2) | **Accepted, owner-visible [inf].** Many addresses, each within its own buckets, can together use the day's ~500 recipients, and a shop lead notice is then refused (`quota-spent`, not retried automatically). Each account mail costs a solved Turnstile challenge, which bounds the rate and not the total | The owner chooses: (a) a **global daily ceiling on account mail** that leaves headroom for shop notices, as an L8 limiter purpose (see the L8 conditions), or (b) a **dedicated sending account** for account mail (Q62). Not done in L7 |
 | **Deliverability** of verification mail from a Gmail address | Mail in spam; a client cannot confirm | Recorded with the trigger *"the owner sees a confirmation not arrive"*. M9's provider choice |
 | **Turnstile is a third party in the login path** | Cloudflare down means no login | Fail closed (Q-L3). Recorded as accepted. It is not a proxy, so ADR 0019 d9's reasons do not apply (D11) |
@@ -1125,7 +1155,7 @@ Rules for the walk:
 | **Q-L2** (part of QP1) | If the breached-password service cannot be reached, is the password accepted? | **Yes**, if it meets the length rule. The event is logged. (The minimum is 12, as Fix 3 item 1 proposed) |
 | **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **No**: login, register and reset answer "try again later". Writes fail closed (ADR 0019 d5) |
 | **Q-L4** (Q62) | Do confirmation and reset e-mails leave from the same Gmail account as the shop's notice? | Yes until M9, with the per-address bucket. **A dedicated sending account is recommended** |
-| **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **No** this round: one shared bucket of 5 a day. A separate reset bucket is recommended if a victim being unable to reset matters more than the extra mail it admits |
+| **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **Yes, answered by default in the L8 security review (F2): separate buckets**, `account-register-mail-by-address` (registration notices and the login resend) and `account-reset-mail-by-address` (reset request and the "password changed" notice), 5 a day each. Owner-visible; the owner may change either figure (constants only) or ask for a dedicated login-resend bucket |
 
 **Owner steps** (not questions):
 - create the Turnstile widgets and set the two variables;
