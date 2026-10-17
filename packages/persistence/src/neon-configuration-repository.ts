@@ -5,6 +5,7 @@ import {
   migrateDesign,
 } from "@lemnaria/configurator-domain";
 
+import { requireAccountIdShape } from "./account-id-shape.js";
 import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
 import { openApplicationDatabase } from "./open-application-database.js";
@@ -92,6 +93,10 @@ export interface MintDesign {
   readonly design: Design;
   readonly writeTokenHash: string;
   readonly visitor: MintVisitor;
+  /** The signed-in, verified account the design belongs to from its first moment (ADR 0169 D8). Absent for a
+   *  visitor, and then the statement is exactly the one that came before claiming, so a database that has not yet
+   *  applied `0015` still mints. */
+  readonly accountId?: string;
 }
 
 /**
@@ -159,13 +164,42 @@ export interface OwnedDesignRepository {
   loadOwned(lookup: OwnedDesignLookup): Promise<LoadOwnedOutcome>;
 }
 
+/** What one mint inserts, once the id is drawn and the optional account is settled to a value or its absence. */
+interface MintedRow {
+  readonly id: DesignId;
+  readonly design: Design;
+  readonly writeTokenHash: string;
+  readonly visitor: MintVisitor;
+  readonly accountId: string | undefined;
+}
+
+/** `claimVisitorDesigns`'s argument, grouped so the visitor hash and the account id cannot be swapped at a call site. */
+export interface VisitorDesignsClaim {
+  readonly visitorHash: string;
+  /** From the server's own session and nowhere else: a claim never takes an account id from a request. */
+  readonly accountId: string;
+}
+
+/**
+ * The claim port (ADR 0169 D8), a narrow one of its own like `VisitorResumeRepository`: it starts from a visitor hash
+ * and an account, and folding it into the mint/save port would make every test double for that port fake it.
+ */
+export interface DesignClaimRepository {
+  /** How many designs the visitor holds that no account has claimed. Reads, changes nothing. */
+  countClaimable(visitorHash: string): Promise<number>;
+  /** Gives every unclaimed design of the visitor to the account in one statement and answers the ids it gave. A design
+   *  that already has an account is never touched, so of two accounts claiming at once each design goes to one. */
+  claimVisitorDesigns(claim: VisitorDesignsClaim): Promise<readonly DesignId[]>;
+}
+
 /** `AuthorizedConfigurationRepository` on Neon Postgres. Every query is a tagged-template `sql`, which parameterises
  *  values: nothing here concatenates a value into SQL text. */
 export class NeonConfigurationRepository
   implements
     AuthorizedConfigurationRepository,
     VisitorResumeRepository,
-    OwnedDesignRepository
+    OwnedDesignRepository,
+    DesignClaimRepository
 {
   private readonly sql;
 
@@ -183,16 +217,19 @@ export class NeonConfigurationRepository
     design,
     writeTokenHash,
     visitor,
+    accountId,
   }: MintDesign): Promise<DesignVersion> {
     requireSha256Digest(writeTokenHash, "write-token hash", "mint a design");
     requireVisitorDigests(visitor);
+    if (accountId !== undefined)
+      requireAccountIdShape(accountId, "mint a design");
     // Generated outside the retried callback and must stay there: a fresh id per retry would insert a second row
     // when only an acknowledgement was lost.
     const id = generateDesignId();
 
     const results = (await retryOnTransientFailure(() =>
       this.sql.transaction(
-        this.mintStatements(id, design, writeTokenHash, visitor),
+        this.mintStatements({ id, design, writeTokenHash, visitor, accountId }),
         // Pinned (see `NeonShareLinkRepository.issue`): READ COMMITTED lets a rotation racing another mint see the
         // first one's committed move.
         { isolationLevel: "ReadCommitted" },
@@ -210,17 +247,20 @@ export class NeonConfigurationRepository
    * a lost acknowledgement moves and inserts nothing twice. The rotate branch's `update` touches only `visitor_hash`,
    * leaving `updated_at` for resume order; the fresh branch issues no `UPDATE`.
    */
-  private mintStatements(
-    id: DesignId,
-    design: Design,
-    writeTokenHash: string,
-    visitor: MintVisitor,
-  ) {
-    const insert = this.sql`
-      insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
-      values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitor.visitorHash})
-      on conflict (id) do nothing
-    `;
+  private mintStatements({
+    id,
+    design,
+    writeTokenHash,
+    visitor,
+    accountId,
+  }: MintedRow) {
+    const insert = this.mintInsert({
+      id,
+      design,
+      writeTokenHash,
+      visitor,
+      accountId,
+    });
     const select = this.sql`
       select revision::text as revision from designs
       where id = ${id} and visitor_hash = ${visitor.visitorHash}
@@ -234,6 +274,27 @@ export class NeonConfigurationRepository
       insert,
       select,
     ];
+  }
+
+  /** The signed-out insert never names `account_id`, so it is byte for byte what it was before claiming existed. */
+  private mintInsert({
+    id,
+    design,
+    writeTokenHash,
+    visitor,
+    accountId,
+  }: MintedRow) {
+    if (accountId === undefined)
+      return this.sql`
+        insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
+        values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitor.visitorHash})
+        on conflict (id) do nothing
+      `;
+    return this.sql`
+      insert into designs (id, schema_version, document, write_token_hash, visitor_hash, account_id)
+      values (${id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${writeTokenHash}, ${visitor.visitorHash}, ${accountId})
+      on conflict (id) do nothing
+    `;
   }
 
   /**
@@ -385,6 +446,47 @@ export class NeonConfigurationRepository
 
     const row = rows[0];
     return row === undefined ? { kind: "none" } : { kind: "found", id: row.id };
+  }
+
+  /** Served by `designs_visitor_hash_updated_at_idx` (`0005`). A malformed `visitorHash` matches no row, so it counts
+   *  none; it is still refused here, because the claim beside it must not guess what a malformed value means. */
+  async countClaimable(visitorHash: string): Promise<number> {
+    requireSha256Digest(visitorHash, "visitor hash", "count claimable designs");
+    const rows = (await retryOnTransientFailure(
+      () => this.sql`
+      select count(*)::int as claimable from designs
+      where visitor_hash = ${visitorHash} and account_id is null
+    `,
+    )) as { claimable: number }[];
+
+    return rows[0]?.claimable ?? 0;
+  }
+
+  /**
+   * One statement, and `account_id is null` is in its predicate: the claim is decided by the row at the instant it is
+   * written, not by an earlier read, so a design some account already holds is never changed, and of two accounts
+   * racing for one visitor's designs the second finds the first's rows no longer matching (READ COMMITTED re-checks
+   * the predicate after waiting on the row lock). It sets `account_id` and nothing else: `visitor_hash`,
+   * `write_token_hash`, `revision`, `updated_at` and `document` stay as they were, so the claiming browser works as
+   * before (ADR 0169 D8).
+   *
+   * Not retried, unlike the reads here: a repeat after a lost acknowledgement would find its own rows claimed already
+   * and answer none, which would tell the client nothing was claimed when everything was. The caller answers the
+   * failure and the person confirms again, and that second claim takes whatever is left.
+   */
+  async claimVisitorDesigns({
+    visitorHash,
+    accountId,
+  }: VisitorDesignsClaim): Promise<readonly DesignId[]> {
+    requireSha256Digest(visitorHash, "visitor hash", "claim designs");
+    requireAccountIdShape(accountId, "claim designs");
+    const rows = (await this.sql`
+      update designs set account_id = ${accountId}
+      where visitor_hash = ${visitorHash} and account_id is null
+      returning id
+    `) as { id: DesignId }[];
+
+    return rows.map((row) => row.id);
   }
 }
 

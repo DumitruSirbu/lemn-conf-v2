@@ -1,6 +1,7 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { accountIdToOwnNewDesign } from "@/lib/server/account/design-owner";
 import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
 import {
   reportDesignFailure,
@@ -79,14 +80,17 @@ function crossSiteMintRefusedResponse(): NextResponse {
  *
  *  Every mint issues a fresh visitor value (ADR 0114 Amendment H1, *"Rotate on mint"*): a well-formed one the request
  *  carried is rotated away from, never re-emitted, and the repository moves that browser's rows to the fresh value in
- *  the insert's transaction, so a mint leaves the browser with exactly one identity. */
+ *  the insert's transaction, so a mint leaves the browser with exactly one identity. A mint made while a verified
+ *  account is signed in also stores that account (ADR 0169 D8); every other mint is exactly as it was. */
 async function mintDesignRow(request: NextRequest): Promise<NextResponse> {
   const writeToken = mintWriteToken();
   const visitor = resolveVisitorForMint(request);
+  const accountId = await accountIdToOwnNewDesign(request.cookies);
   const { id, revision } = await getRepository().mint({
     design: KITCHEN_L_DESIGN,
     writeTokenHash: writeToken.hash,
     visitor: visitor.mintVisitor,
+    ...(accountId === undefined ? {} : { accountId }),
   });
 
   // The token and the visitor value travel in `Set-Cookie` headers only, absent from the JSON body where script

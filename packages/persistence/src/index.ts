@@ -6,6 +6,8 @@ export type {
   DesignRowSource,
 } from "./design-row-source.js";
 export { FakeConfigurationRepository } from "./fake-configuration-repository.js";
+export { FakeDesignClaimRepository } from "./fake-design-claim-repository.js";
+export type { HeldClaimableDesign } from "./fake-design-claim-repository.js";
 export {
   DesignWriteConflictError,
   DesignWriteForbiddenError,
@@ -14,6 +16,7 @@ export {
 export type {
   AuthorizedConfigurationRepository,
   AuthorizedSave,
+  DesignClaimRepository,
   DesignVersion,
   LoadOwnedOutcome,
   MintDesign,
@@ -23,6 +26,7 @@ export type {
   RequestVisitor,
   SaveOutcome,
   StoredDesign,
+  VisitorDesignsClaim,
   VisitorResumeLookup,
   VisitorResumeRepository,
 } from "./neon-configuration-repository.js";

@@ -16,6 +16,7 @@ import {
   signedInResponse,
   unavailableResponse,
 } from "@/lib/server/account/account-responses";
+import { countClaimableDesignsAtSignIn } from "@/lib/server/account/claimable-designs";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import { isWellFormedEmailToken } from "@/lib/server/account/email-token";
 import { checkPassword, DUMMY_PHC } from "@/lib/server/account/password-hash";
@@ -27,12 +28,6 @@ import { sha256Hex } from "@/lib/server/sha256-hex";
 // route has already checked the request's origin, media type and size and the network's limit (steps 1 to 4). There
 // is no challenge: the token is the proof, and it was sent to the inbox alone. Every way of not succeeding is one
 // answer, so a stranger holding a guess learns nothing of which part was wrong.
-
-/**
- * Claiming a visitor's designs is wave L11 (`countClaimable` does not exist yet), so the count a client is told is
- * none until that wave replaces this constant with the count.
- */
-export const CLAIMABLE_DESIGNS_BEFORE_L11 = 0;
 
 /** What is hashed in place of a password the policy refused: it is never compared, and no input of the client's is. */
 const REFUSED_PASSWORD_STAND_IN = "refused";
@@ -138,7 +133,12 @@ async function confirmAndSignIn({
     verifiedPasswordHash: account.passwordHash,
   });
   if (confirmation.kind === "invalid") return linkOrPasswordInvalidResponse();
-  const response = signedInResponse(CLAIMABLE_DESIGNS_BEFORE_L11);
+  const response = signedInResponse(
+    await countClaimableDesignsAtSignIn({
+      holder: { role: account.role, isEmailVerified: true },
+      cookies: presentedCookies,
+    }),
+  );
   const outcome = await startSession({
     response,
     accountId: account.id,

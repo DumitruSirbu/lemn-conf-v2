@@ -24,6 +24,7 @@ import {
   unavailableResponse,
   type AccountInputIssue,
 } from "@/lib/server/account/account-responses";
+import { countClaimableDesignsAtSignIn } from "@/lib/server/account/claimable-designs";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import {
   mintEmailToken,
@@ -41,7 +42,6 @@ import {
 } from "@/lib/server/account/queue-account-mail";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { startSession } from "@/lib/server/account/session-lifecycle";
-import { CLAIMABLE_DESIGNS_BEFORE_L11 } from "@/lib/server/account/verify-email";
 import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
@@ -200,7 +200,12 @@ async function signInVerifiedAccount({
   password: string;
   presentedCookies: SessionCookieReader;
 }): Promise<NextResponse> {
-  const response = signedInResponse(CLAIMABLE_DESIGNS_BEFORE_L11);
+  const response = signedInResponse(
+    await countClaimableDesignsAtSignIn({
+      holder: { role: account.role, isEmailVerified: account.isEmailVerified },
+      cookies: presentedCookies,
+    }),
+  );
   const outcome = await startSession({
     response,
     accountId: account.id,

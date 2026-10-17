@@ -135,6 +135,32 @@ export function signedInSessionResponse({
   );
 }
 
+/** `200`: how many designs the signed-in account could claim from this browser. Changes nothing. */
+export function claimableResponse(claimable: number): NextResponse {
+  return NextResponse.json(
+    { claimable },
+    { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
+  );
+}
+
+/** `200`: how many designs the claim gave to the signed-in account. */
+export function claimedResponse(claimed: number): NextResponse {
+  return NextResponse.json(
+    { claimed },
+    { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
+  );
+}
+
+/** `401`: the route needs a signed-in account and the request has none (or its session could not be read). */
+export function unauthenticatedResponse(): NextResponse {
+  return statusResponse(401, "unauthenticated");
+}
+
+/** `403`: the session is live but its account may not do this: a role without the capability, or an unconfirmed address. */
+export function forbiddenResponse(): NextResponse {
+  return statusResponse(403, "forbidden");
+}
+
 /** `429`: a limit is reached. `Retry-After` is the whole seconds to wait and the only number in the answer. */
 export function rateLimitedResponse(retryAfterSeconds: number): NextResponse {
   return NextResponse.json(
