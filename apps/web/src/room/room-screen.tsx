@@ -36,6 +36,7 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { DimensionsForm } from "./dimensions-form";
 import { GenerationSteps } from "./generation-steps";
 import { PlanPreview } from "./plan-preview";
+import { PresetChooser, PresetWait } from "./preset-list";
 import {
   canContinueFrom,
   draftStateOf,
@@ -48,7 +49,12 @@ import {
   roomShapeInState,
   useRoomQuerySync,
 } from "./room-query-sync";
-import { useGeneration, type GenerationRun } from "./use-generation";
+import {
+  useGeneration,
+  usePresetCopy,
+  type GenerationRun,
+  type PresetCopy,
+} from "./use-generation";
 import { usePresets, type PresetOffers } from "./use-presets";
 import styles from "./room.module.css";
 import {
@@ -83,18 +89,25 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
   // 404s under the proxy allow-list, and an addressable composition URL would re-run generation on
   // every reload and mint a second design.
   const generation = useGeneration();
-  // The presets read for the room continued from live and end with the composition on screen (plan M8C section 3.5),
-  // so every way out of it ends both: the effects below and *Înapoi* all go through this one `leave`.
+  // The presets read for the room continued from live until composition is on screen or the customer leaves (plan M8C
+  // section 3.5), and so does the copy of one the customer chose: every way out of Step 1's presets ends all three, so
+  // they go through this one `leave`.
   const presets = usePresets();
+  const presetCopy = usePresetCopy();
   const { leave: leaveGeneration } = generation;
   const { clear: clearPresets } = presets;
+  const { reset: resetPresetCopy } = presetCopy;
   const leave = useCallback(() => {
     leaveGeneration();
     clearPresets();
-  }, [leaveGeneration, clearPresets]);
+    resetPresetCopy();
+  }, [leaveGeneration, clearPresets, resetPresetCopy]);
   const run: GenerationRun = { ...generation, leave };
-  // Title and body read this one expression, so they cannot disagree about the sub-state.
-  const isComposing = shapeInTheUrl !== undefined && run.state.phase !== "idle";
+  // Title and body read this one expression, so they cannot disagree about the sub-state. 1D and 1E are titled as 1F
+  // is: *Preset*.
+  const isComposing =
+    shapeInTheUrl !== undefined &&
+    (run.state.phase !== "idle" || isShowingPresets(presets));
 
   // A URL that names no shape names no room to compose for, so the run ends. This ends a run and
   // starts none, and is idempotent under StrictMode. It does not catch a browser Back out of 1F: that
@@ -130,10 +143,16 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
           policy={policy}
           run={run}
           presets={presets}
+          presetCopy={presetCopy}
         />
       )}
     </main>
   );
+}
+
+/** 1D or 1E is on screen: the presets are being found for the room, or have been and are being chosen from. */
+function isShowingPresets(presets: PresetOffers): boolean {
+  return presets.state.status === "loading" || presets.state.status === "ready";
 }
 
 /** Only the title changes in composition; the pill still resolves the step leaves at `step: 1`. */
@@ -243,6 +262,7 @@ interface DimensionsStepProps {
   readonly policy: RoomPolicy;
   readonly run: GenerationRun;
   readonly presets: PresetOffers;
+  readonly presetCopy: PresetCopy;
 }
 
 /**
@@ -258,6 +278,7 @@ function DimensionsStep({
   policy,
   run,
   presets,
+  presetCopy,
 }: DimensionsStepProps) {
   const translate = useTranslations();
   const { draft, setDraft, departTo } = useRoomQuerySync(seedShape);
@@ -274,6 +295,9 @@ function DimensionsStep({
   const suggestionId = useId();
   const refusedShape = oneC.isShapeRefused ? draft.shape : undefined;
   const dimensionsBodyRef = useRef<HTMLDivElement>(null);
+  // Whether the composition on screen was reached by choosing to generate over a list of presets, which 1F must not
+  // answer with "no preset fits". Set by that choice and cleared by the next *Continuă*; nothing else reads it.
+  const [wasOfferedPresets, setWasOfferedPresets] = useState(false);
 
   function edit(nextDraft: RoomDraft): void {
     noteEdit({ before: draft, after: nextDraft });
@@ -296,13 +320,14 @@ function DimensionsStep({
   }
 
   /**
-   * The one place generation starts, and it is an event handler: `reactStrictMode` double-invokes
-   * effects in development, so an effect would build two kits and mint two design rows.
+   * The one place Step 1's work starts, and it is an event handler: `reactStrictMode` double-invokes effects in
+   * development, so an effect would read the listing twice, build two kits and mint two design rows.
    *
-   * The departure flushes first, then composition runs beside it, and the presets for the room are read beside
-   * both. Composition does not wait for them and cannot be stopped by them: whatever they find (nothing, an error, a
-   * timeout) lands in `presets.state` for the list to read, and composition is what happens until a screen says
-   * otherwise. Over a room the domain refuses
+   * The departure flushes first, then the presets for the room are found (1D). Composition does not run beside them: a
+   * composition writes a design and opens the editor on it, so it starts only when there is nothing to choose from,
+   * and `presets.begin` calls `composeWhenNoOffers` in the task that learns so, with no frame of the form between 1D
+   * and 1F. A run the customer left meanwhile calls nothing. With offers the list (1E) waits for a choice: a preset
+   * (`presetCopy`) or `generateInstead`. Over a room the domain refuses
    * (mid-burst the button can still be active over a 1C draft) the tap ends the pause so the reasons
    * appear, and calls no `departTo`: that would push the refused query as a history entry.
    */
@@ -312,9 +337,20 @@ function DimensionsStep({
       endPause();
       return;
     }
+    setWasOfferedPresets(false);
     departTo("presets");
+    presets.begin(room, () => {
+      run.compose(room);
+    });
+  }
+
+  /** 1E's way out: generate for the room the offers were read for, and forget them. Composition starts in this tap. */
+  function generateInstead(): void {
+    const { room } = presets.state;
+    if (room === undefined) return;
+    setWasOfferedPresets(true);
+    presets.clear();
     run.compose(room);
-    presets.begin(room);
   }
 
   if (run.state.phase !== "idle") {
@@ -323,6 +359,23 @@ function DimensionsStep({
         run={run.state}
         onBack={run.leave}
         onRetry={run.retryHandoff}
+        wasOfferedPresets={wasOfferedPresets}
+      />
+    );
+  }
+
+  const { status: presetStatus, room: presetRoom } = presets.state;
+  if (presetRoom !== undefined && presetStatus === "loading") {
+    return <PresetWait room={presetRoom} onBack={run.leave} />;
+  }
+  if (presetRoom !== undefined && presetStatus === "ready") {
+    return (
+      <PresetChooser
+        room={presetRoom}
+        offers={presets.state.offers}
+        copy={presetCopy}
+        onBack={run.leave}
+        onSkip={generateInstead}
       />
     );
   }

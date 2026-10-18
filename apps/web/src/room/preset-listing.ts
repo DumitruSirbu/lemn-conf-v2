@@ -227,7 +227,8 @@ function summaryOfItem(item: unknown): PresetSummary | undefined {
 }
 
 /** The typed name when it is plain showable text, and `undefined` (the generated name) otherwise. It is only ever
- *  rendered as a React text child: never as markup, an address or an attribute. */
+ *  rendered as a React text child, and as an image's `alt` (React escapes an attribute's value as it does a child's):
+ *  never as markup, an address, or the name of an attribute. */
 function showableTypedName(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const characterCount = Array.from(value).length;

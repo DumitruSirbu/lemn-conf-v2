@@ -13,6 +13,8 @@ import {
 } from "@lemnaria/configurator-domain";
 import { useLocale, useTranslations } from "next-intl";
 
+import { useContent } from "@/i18n/use-content";
+
 import {
   droppedRolesIn,
   GENERATION_ROLE_MESSAGE_KEY,
@@ -42,6 +44,8 @@ export interface GenerationStepsProps {
   /** Asks the failed hand-off to write again. Offered only in that state, and re-runs the composition's own
    *  attempt rather than composing anything. */
   readonly onRetry: () => void;
+  /** The customer was shown presets and chose to generate, so 1F must not say that none fits (plan M8C section 3.6). */
+  readonly wasOfferedPresets?: boolean;
 }
 
 /** The shape's short name, as the summary line reads it. A `Record` over `DesignRoom["shape"]`, so a shape
@@ -73,6 +77,7 @@ export function GenerationSteps({
   run,
   onBack,
   onRetry,
+  wasOfferedPresets = false,
 }: GenerationStepsProps) {
   const translate = useTranslations();
 
@@ -85,7 +90,7 @@ export function GenerationSteps({
           </h2>
           <RoomSummary room={run.room} />
         </div>
-        <ComposeNotice run={run} />
+        <ComposeNotice run={run} wasOfferedPresets={wasOfferedPresets} />
         {/* A failed run carries no `rows`, so this is a type narrowing: no screen claims *inclus* over a
             discarded design. */}
         {run.phase === "failed" ? null : <StepList rows={run.rows} />}
@@ -179,7 +184,7 @@ function ComposeCta({
  *  The leaf follows the wall count `wallsOf` gives the shape: one wall `roomSummaryLinear`, two `roomSummary`,
  *  three `roomSummaryU`. A straight room's entered fields are wall A and height; `room.depthMm` is the drawn
  *  floor's depth, not a length the customer typed (ADR 0130 decision 2), so it must not be printed as one. */
-function RoomSummary({ room }: { readonly room: DesignRoom }) {
+export function RoomSummary({ room }: { readonly room: DesignRoom }) {
   const translate = useTranslations();
   const wallCount = wallsOf(room.shape).length;
   const shape = translate(SHAPE_SHORT_MESSAGE_KEY[room.shape]);
@@ -235,8 +240,15 @@ function wallCOf(room: DesignRoom): number {
  * before the mutation it announces, so `aria-live` is never switched on with the text change. Focus is deliberately
  * not moved: it would interrupt someone mid-list. `generation-steps.dom.test.ts` pins this.
  */
-function ComposeNotice({ run }: { readonly run: ActiveGenerationRun }) {
+function ComposeNotice({
+  run,
+  wasOfferedPresets,
+}: {
+  readonly run: ActiveGenerationRun;
+  readonly wasOfferedPresets: boolean;
+}) {
   const translate = useTranslations();
+  const content = useContent();
   const hasFailed =
     run.phase === "failed" || hasFailedHandoff(run) || hasLimitedHandoff(run);
 
@@ -255,7 +267,9 @@ function ComposeNotice({ run }: { readonly run: ActiveGenerationRun }) {
         <span className={styles.composeSpinner} aria-hidden="true" />
       ) : null}
       <span className={styles.composeNoticeText}>
-        {translate(noticeMessageKeyFor(run))}
+        {wasOfferedPresets && !hasFailed
+          ? content.presetChooser.composingNotice
+          : translate(noticeMessageKeyFor(run))}
       </span>
     </div>
   );

@@ -7,6 +7,8 @@
 //    `loadProbeFactory` and `releaseOrReport`.
 // 4. One attempt writes the design once, built in the transition that first holds a design and never in a
 //    handler, a render or a `useMemo`: every retry re-runs that attempt, so a retry is never a second row.
+//    The one other attempt, a copy of a preset, is held by `usePresetCopy` below; this file is the only one that
+//    may construct either, and `attempt-construction-sites.test.ts` holds it to exactly these two sites.
 // It writes no URL, store, cookie or web storage (a reload would re-run generation and mint a second design)
 // and reports no per-row progress: `generateKitchen` is one synchronous call.
 import {
@@ -244,6 +246,126 @@ export function useGeneration(): GenerationRun {
   }, [handOff, show]);
 
   return { state, compose, leave, retryHandoff };
+}
+
+/**
+ * How far the copy of a chosen preset has got. `limited` is a mint the server refused because the day's limit is
+ * reached, as in `HandoffStatus`: nothing is offered again.
+ */
+export type PresetCopyStatus = "idle" | "saving" | "failed" | "limited";
+
+/** The preset a customer chose to copy, and the design its card and slide showed: the one evaluation (ADR 0109
+ *  decision 4), which is written and not evaluated again. */
+export interface PresetSelection {
+  readonly presetId: string;
+  readonly design: Design;
+}
+
+export interface PresetCopy {
+  readonly status: PresetCopyStatus;
+  /** Writes `selection` as a new private design and opens the editor on it. Inert while a write is in flight and
+   *  after the day's limit; after a failure it asks the same attempt again, never a second row. */
+  readonly select: (selection: PresetSelection) => void;
+  /** Forgets that the last write failed, so a pop-up opened again or moved to another slide does not repeat it. The
+   *  attempt is kept: asking again is still the same row. Inert in every other state. */
+  readonly dismissFailure: () => void;
+  /** Ends the copy: a pure state clear, idempotent. A write in flight still lands, and nobody is moved when it does. */
+  readonly reset: () => void;
+}
+
+const COPY_IDLE: PresetCopyStatus = "idle";
+
+/**
+ * Copy-on-use (ADR 0131 decision 4, ADR 0112 Amendment A): a chosen preset becomes a new private design for this
+ * visitor, through the same mint-then-save as a composition (ADR 0111), and the editor opens on it. The preset's row
+ * is never written. The document is the offer's own adapted design with the preset's id and fresh stamps: the
+ * adaptation stamped it when the offers were evaluated, which may be minutes before the tap, and the copy is a new
+ * design made now.
+ *
+ * One attempt per preset per visit, kept in a ref and made at first use. That is the exception to rule 4's "never in a
+ * handler", and it is safe for the reason the rule exists: a second tap finds the attempt and reuses it, so a tap is
+ * never a second row. `reset` forgets them, so a Step 1 visit begun afresh copies afresh.
+ */
+export function usePresetCopy(): PresetCopy {
+  const [status, setStatus] = useState<PresetCopyStatus>(COPY_IDLE);
+  // Read from the handler, which must not close over a stale status: the first tap and a fast second tap are two calls
+  // of one callback.
+  const currentStatus = useRef<PresetCopyStatus>(COPY_IDLE);
+  const attempts = useRef(new Map<string, DesignCreationAttempt>());
+  // Which visit's copy is current: bumped by `reset` only, never by a tap, so an attempt asked again after a failure
+  // still opens the editor, and an attempt from a visit that was left never does.
+  const visit = useRef(0);
+  const screenIsShowing = useRef(false);
+  const openDesign = useDesignRoute();
+
+  const show = useCallback((next: PresetCopyStatus) => {
+    currentStatus.current = next;
+    setStatus(next);
+  }, []);
+
+  useEffect(() => {
+    screenIsShowing.current = true;
+    return () => {
+      screenIsShowing.current = false;
+    };
+  }, []);
+
+  const attemptFor = useCallback(
+    (selection: PresetSelection): DesignCreationAttempt => {
+      const known = attempts.current.get(selection.presetId);
+      if (known !== undefined) return known;
+      const now = new Date().toISOString();
+      const copyVisit = visit.current;
+      const attempt = createDesignCreationAttempt({
+        design: {
+          ...selection.design,
+          presetId: selection.presetId,
+          createdAt: now,
+          updatedAt: now,
+        },
+        navigateToDesign: (id) => {
+          if (!screenIsShowing.current) return;
+          if (visit.current !== copyVisit) return;
+          openDesign(id);
+        },
+      });
+      attempts.current.set(selection.presetId, attempt);
+      return attempt;
+    },
+    [openDesign],
+  );
+
+  const select = useCallback(
+    (selection: PresetSelection) => {
+      if (currentStatus.current === "saving") return;
+      if (currentStatus.current === "limited") return;
+      const copyVisit = visit.current;
+      show("saving");
+      void attemptFor(selection)
+        .run()
+        .then(
+          () => undefined,
+          (error: unknown) => {
+            if (visit.current !== copyVisit) return;
+            show(error instanceof MintLimitReachedError ? "limited" : "failed");
+          },
+        );
+    },
+    [attemptFor, show],
+  );
+
+  const dismissFailure = useCallback(() => {
+    if (currentStatus.current === "failed") show(COPY_IDLE);
+  }, [show]);
+
+  const reset = useCallback(() => {
+    // A fresh visit, so a write left behind finds a screen that is no longer its own.
+    visit.current += 1;
+    attempts.current.clear();
+    if (currentStatus.current !== COPY_IDLE) show(COPY_IDLE);
+  }, [show]);
+
+  return { status, select, dismissFailure, reset };
 }
 
 /** The composed kitchen as the screen holds it. Separate from the run's state: the hand-off's fields are the

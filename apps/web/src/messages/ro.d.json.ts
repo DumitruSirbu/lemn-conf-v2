@@ -60,6 +60,19 @@ declare const messages: {
       "failed": "Presetul nu a putut fi salvat. Încearcă din nou."
     }
   },
+  "presetChooser": {
+    "heading": "Bucătării care încap",
+    "waiting": "Verificăm ce presete încap în camera ta…",
+    "preview": "Previzualizează",
+    "adjusted": "Ajustată ca să intre în camera ta",
+    "skip": "Generează o bucătărie nouă",
+    "previous": "Anterior",
+    "next": "Următorul",
+    "close": "Închide previzualizarea",
+    "select": "Alege acest preset",
+    "selecting": "Se creează bucătăria ta…",
+    "composingNotice": "Compunem o bucătărie pe măsura camerei tale — durează puțin mai mult."
+  },
   "room": {
     "title": "Cameră",
     "shapeQuestion": "Ce formă are camera?",

@@ -1,0 +1,438 @@
+/**
+ * **Step 1's preset wait (1D), list (1E) and Preview pop-up** (M8C wave P8; plan section 3.6).
+ *
+ * Frames 1D and 1E (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:251-403`) and D1E are read for the
+ * chrome and the card only. The frame's per-card *Folosește* and its *nu carusel* note are superseded by the owner's
+ * ruling of 2026-10-17 (ADR 0003 decision 4b, amended; ADR 0104 Amendment F): the card carries one control, the
+ * pop-up carries Previous, Next and Select. The footer buttons are `room.module.css`'s own `.composeFooter`, `.back`
+ * and `.cta`, so the two footers cannot drift; this file adds classes and edits none of that file's.
+ */
+
+/* The frame's column (`:272`): scrolls vertically when the cards outgrow the space above the fixed footer, as 1F's
+ * `.composeBody` does (7D5b W7), and declares both axes because a lone `overflow-y: auto` computes `overflow-x` to
+ * `auto` too (ADR 0082 decision 2). */
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.heading {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+/* ── 1D, the wait (`:272-292`) ─────────────────────────────────────────────────────────────────── */
+
+.waitNotice {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 11px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.waitText {
+  font: 400 12.5px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.spinner {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: chooserTurn 1s linear infinite;
+}
+
+.skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skeleton {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 15px;
+  animation: chooserPulse 1.6s ease-in-out infinite;
+}
+
+.skeletonImage {
+  height: 168px;
+  background: #e8e3da;
+}
+
+.skeletonLines {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+}
+
+.skeletonLineShort,
+.skeletonLineLong {
+  display: block;
+  height: 12px;
+  background: #e2ddd3;
+  border-radius: 4px;
+}
+
+.skeletonLineShort {
+  width: 55%;
+}
+
+.skeletonLineLong {
+  width: 85%;
+}
+
+/* ── 1E, the list (`:301-398`) ─────────────────────────────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  gap: 13px;
+  padding: 13px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+}
+
+/* The stored image is 4:3 (1280 x 960, ADR 0112 decision 6), so the thumbnail is too: nothing of the room is cropped
+ * away, where the frame's 96 x 104 box would cut a third of it. */
+.thumb {
+  flex: 0 0 112px;
+  align-self: flex-start;
+  overflow: hidden;
+  background: #efece5;
+  border-radius: 10px;
+  aspect-ratio: 4 / 3;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The frame's fourth card (`:384`): the same box with hatching where the image did not arrive. */
+.imageMissing {
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    135deg,
+    #e9e4da 0 8px,
+    #f1ede5 8px 16px
+  );
+}
+
+.cardInfo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+/* A typed name is the owner's text, so it may be one long word: it wraps rather than widening the card. */
+.name {
+  margin: 0;
+  font: 700 15.5px/1.2 var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+/* The frame's declared adjustment (`:362-367`): `#eef1ea` and `#2d5016` are the frame's own, drawn for a change
+ * that was made for the customer and is good news, not a refusal. */
+.adjusted {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin: 0;
+  padding: 8px 10px;
+  font: 400 11.5px/1.35 var(--font-ui);
+  color: #2d5016;
+  background: #eef1ea;
+  border-radius: 9px;
+}
+
+.adjustedGlyph {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  font: 700 10px/14px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: #2d5016;
+  border-radius: 50%;
+}
+
+/* 44 px each way (DEVELOPMENT-SPEC section 10.1): the frame's 38 px is under the target. */
+.previewButton {
+  align-self: flex-start;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  margin-top: auto;
+  padding: 0 15px;
+  font: 700 12.5px/1 var(--font-ui);
+  color: var(--accent-strong);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.previewButton:focus-visible,
+.navButton:focus-visible,
+.closeButton:focus-visible,
+.selectButton:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* ── The Preview pop-up ────────────────────────────────────────────────────────────────────────── */
+
+/* `7` is the settings item's own layer (`configure.module.css`'s stacking table): a modal covers everything the
+ * screen draws. Fixed and out of flow, so it claims no cell, and it is the one band `useBackgroundInert` leaves live. */
+.dialogHost {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(28 24 20 / 45%);
+}
+
+/* The phone's sheet: full width from the bottom edge, as the settings sheet is. */
+.dialog {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 94dvh;
+  padding: 14px 18px calc(16px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+}
+
+.dialog:focus {
+  outline: none;
+}
+
+.dialogHead {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.position {
+  font: 700 13px/1 var(--font-ui);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.closeButton {
+  display: flex;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  align-items: center;
+  justify-content: center;
+  font: 400 22px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.slide {
+  overflow: hidden;
+  background: #efece5;
+  border-radius: 12px;
+  aspect-ratio: 4 / 3;
+}
+
+.slideFrame {
+  width: 100%;
+  height: 100%;
+}
+
+.slideTitle {
+  margin: 0;
+  font: 700 18px/1.2 var(--font-ui);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.slideStatus {
+  min-height: 1.45em;
+  margin: 0;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.slideStatus[data-copy-status="failed"],
+.slideStatus[data-copy-status="limited"] {
+  color: var(--refusal-ink, #8f2020);
+}
+
+.dialogActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.navButton {
+  flex: 0 0 auto;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.navButton:disabled {
+  color: #a89c8e;
+  cursor: default;
+  opacity: 0.6;
+}
+
+.selectButton {
+  flex: 1;
+  min-height: var(--touch-target);
+  padding: 0 18px;
+  font: 700 15px/1 var(--font-ui);
+  color: var(--paper);
+  cursor: pointer;
+  background: var(--accent-strong);
+  border: 0;
+  border-radius: 12px;
+}
+
+.selectButton:disabled {
+  color: #a89c8e;
+  cursor: default;
+  background: #ece7dd;
+  border: 1px solid var(--line);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+@keyframes chooserTurn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes chooserPulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ── Desktop (`room.module.css`'s own breakpoint): D1E's four-up grid, and a centred pop-up ──────── */
+
+@media (min-width: 900px) {
+  .body {
+    gap: 24px;
+    width: 100%;
+    max-width: 1248px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+
+  .heading {
+    font-size: 28px;
+  }
+
+  .skeletons {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    flex-direction: column;
+  }
+
+  .thumb {
+    flex: 0 0 auto;
+    align-self: stretch;
+  }
+
+  .dialog {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    width: min(880px, calc(100vw - 80px));
+    max-height: calc(100dvh - 80px);
+    padding: 20px 28px 24px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    transform: translate(-50%, -50%);
+  }
+}

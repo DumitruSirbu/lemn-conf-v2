@@ -103,6 +103,11 @@
  * **Grown by 1, never rebaselined, by the security review of M8C wave P6** (ADR 0113 decision 2) —
  * `presetSave.refusal.tooLarge`, the sentence for a kitchen larger than a preset may be. Drafted and unapproved, the
  * Russian to be re-signed by the owner. **No existing hash moved.**
+ *
+ * **Grown by 11, never rebaselined, by M8C wave P8** (ADR 0113 decision 2) — Step 1's preset wait (1D), list (1E) and
+ * Preview pop-up, `presetChooser.*`: the heading, the wait sentence, the card's and the pop-up's controls, the declared
+ * adjustment, the busy label and the 1F sentence a customer who chose to generate over the list reads. Drafted and
+ * unapproved, the Russian to be re-signed by the owner. **No existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -837,6 +842,28 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "26044a3db5b29b9c452edaeee385bd8df5907c21b1552f2b5c8c1b55913681c8",
   "content.static.panel.widthTitle":
     "7032317e22f0150cde3c67663e1a940f619d7df1847ea3f9cec8f685c46a83ab",
+  "content.static.presetChooser.adjusted":
+    "7511ea57f0938953916af79b90ae1578e6bd103a79926abb9835ff5f320bc384",
+  "content.static.presetChooser.close":
+    "2dd58cd1984b0c08a13e02133def88dc92a4771d2eae5de9688ae6663fbedd67",
+  "content.static.presetChooser.composingNotice":
+    "06249058c0d00aba17fbc8fa1b6229986bd3f07b42824ef0394b87ff374e27b0",
+  "content.static.presetChooser.heading":
+    "f6a401e7e1f855a6e3d9d27512496885a3013c1ea3bf1a6e31f3bd5acb44ddf5",
+  "content.static.presetChooser.next":
+    "3432e94fd956d7b47da90dd8b431036c493a07407a6e6f28197c4c6fbaa294aa",
+  "content.static.presetChooser.preview":
+    "b381666c3632181d1cae5d5f874334204ee61922c73e229114a56f1c0aa0e55d",
+  "content.static.presetChooser.previous":
+    "e4ce7c09d51e3b8831d3386a7df68f29647d112969b9b31b67c2b56709ba7dc3",
+  "content.static.presetChooser.select":
+    "f9c7ca95da95df5e28377e349266c6d0957944009f530113103d53ffd972525e",
+  "content.static.presetChooser.selecting":
+    "d319796b8ac9d74b9b352af4e193d13713b71292521c65a875f81bd34a6dc22c",
+  "content.static.presetChooser.skip":
+    "c8048a1b78de5554480bf3f4b7c6b8a3993a0b4cf6f4b3a3d979e7c9416a54f6",
+  "content.static.presetChooser.waiting":
+    "b03545653f7b22aea095770ee7a3d1eb2cd16d1f15eee9ff3226b7de01836adf",
   "content.static.presetSave.close":
     "b7f0026982e780c33344834500464527854631c01f51039d2eb87853b8370c6d",
   "content.static.presetSave.confirm":

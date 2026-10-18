@@ -76,6 +76,27 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       failed: "Presetul nu a putut fi salvat. Încearcă din nou.",
     },
   },
+  // Drafted, not approved (M8C wave P8; plan section 3.6, the owner's Q-6 ruling of 2026-10-17; ADR 0113 decision 2):
+  // Step 1's preset wait (1D), its list (1E) and the Preview pop-up. `heading` and `waiting` are frames 1D and 1E's own
+  // words; the rest are no frame's: the mockup's per-card *Folosește* is superseded by the ruling (ADR 0003 decision 4b,
+  // amended; ADR 0104 Amendment F), so the card says `preview`, the pop-up says `select`, and the list's way out to
+  // generation is `skip`. `composingNotice` replaces 1F's `noPresetNotice` after a customer was shown presets and chose to
+  // generate: that sentence says no preset fits, which is then untrue. The Russian is an agent's draft, to be re-signed
+  // by the owner.
+  presetChooser: {
+    heading: "Bucătării care încap",
+    waiting: "Verificăm ce presete încap în camera ta…",
+    preview: "Previzualizează",
+    adjusted: "Ajustată ca să intre în camera ta",
+    skip: "Generează o bucătărie nouă",
+    previous: "Anterior",
+    next: "Următorul",
+    close: "Închide previzualizarea",
+    select: "Alege acest preset",
+    selecting: "Se creează bucătăria ta…",
+    composingNotice:
+      "Compunem o bucătărie pe măsura camerei tale — durează puțin mai mult.",
+  },
   // Frame 1A's or 1B's wording as written, except `cornerQuestion` (the owner's) and `wallLabel.wallC` (drafted: no
   // frame draws a U's third wall).
   room: {
