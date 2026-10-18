@@ -202,6 +202,33 @@ export * from "./queries/vacated-void.js";
 // of (ADR 0112 decision 4, Amendment A).
 export * from "./preset/preset-candidate.js";
 export * from "./preset/preset-name-facts.js";
+// Which presets a room is offered, each adapted to it once (ADR 0109 Amendments A2 to E, plan M8C section 3.5). Named,
+// not `export *`: the world, the subtraction and the refill are internal to the one evaluation, so no second caller
+// can adapt a preset by a path the evaluation never took.
+export { adaptPresetToRoom } from "./preset/adapt-preset.js";
+export type {
+  AdaptablePreset,
+  AdaptPresetInput,
+} from "./preset/adapt-preset.js";
+export {
+  evaluatePresetOffers,
+  orderPresetOffers,
+  type PresetOffer,
+} from "./preset/evaluate-presets.js";
+export {
+  isRoomInPresetWindow,
+  matchPresets,
+  PRESET_WINDOW_MM,
+} from "./preset/match-presets.js";
+export type {
+  KeptBody,
+  PresetAdaptation,
+  PresetAdaptationChanges,
+  PresetAddition,
+  PresetNotOfferedReason,
+  PresetRemoval,
+  PresetRemovalCause,
+} from "./preset/preset-adaptation-result.js";
 export * from "./pricing/price-book.js";
 export * from "./pricing/price-lines.js";
 // The book's ingress (ADR 0062 seam 1): a composition root parses once, so every consumer downstream

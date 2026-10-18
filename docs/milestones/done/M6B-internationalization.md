@@ -12,7 +12,7 @@
 > **Added 2026-09-11.** Since the banner below was written, **the owner reviewed the built product**
 > and gave six rulings — a language dropdown, appliances drawn-not-sold, no greyed offers, the colour
 > reset out of the carousel, a thinner selection highlight and one figure treatment. They are
-> [ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md),
+> [ADR 0107](../../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md),
 > and the round that followed them is *The owner's review of the built product* below — **it is also
 > the review 6B-i and 6B-j never had**. Two consequences change what the banner says: **ADR 0105's
 > e2e split has shipped** (`b60f298`), so after Gate O2 **only the push remains**, and it needed the
@@ -44,7 +44,7 @@
 > — three lint rules, a package-boundary test, ADR 0106 Amendment A's prose sweep and the written
 > convention in `docs/best-practices/engineering-conventions.md`, **every rule proved by landing a
 > violation and observing the red**. **No agent may pass Gate O2.** The review aid is
-> [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
+> [`docs/i18n/gate-o2-russian-review.md`](../../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
 > beside its Romanian source, by namespace — and it carries **two items that are decisions rather
 > than translation checks**: the eight decor names are translated, and `configure.localeSwitch` is new
 > Romanian that has never been through Gate O1. **After Gate O2, the phase's own remaining work is
@@ -53,7 +53,7 @@
 > before M7. The owner supplied a 13-line Romanian edit set on 2026-09-07 and directed that the
 > corrected catalogue be translated first, then the remaining implementation waves continue.
 > Summary: `docs/STATUS.md`. The rulings this plan rests on:
-> [ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md).
+> [ADR 0095](../../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md).
 >
 > **Waves 6B-f, 6B-f2, 6B-g, 6B-h1, 6B-h2 and 6B-j were re-planned on 2026-09-10 against the tree at
 > `6ea640f`**, after the branch was rebased onto a `main` that had moved 134 commits. The sections
@@ -66,15 +66,15 @@ Status: ~~in progress~~ ~~blocked on Gate O2, 2026-09-10 — every wave shipped~
 2026-09-11 — every wave shipped, the Russian is approved copy, only the push remains** on branch
 `m6b-internationalization`. The 2026-09-07 owner sequencing ruling
 supersedes the planned dependency order described below; see *Owner sequencing correction*.
-Reference: [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 5;
-[ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md);
+Reference: [ADR 0001](../../decisions/0001-initial-product-and-stack.md) decision 5;
+[ADR 0095](../../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md);
 `docs/best-practices/engineering-conventions.md:61`; `docs/brand.md:30`;
 `docs/ARCHITECTURE_PROPOSAL.md:774`; `docs/BACKLOG.md` entry 53.
 
 ## This is not new scope
 
 **A launch requirement decided on day one has travelled through six milestones without an owner.**
-[ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 5 — *"Launch with Romanian as the
+[ADR 0001](../../decisions/0001-initial-product-and-stack.md) decision 5 — *"Launch with Romanian as the
 default locale and Russian as a supported locale"* — was **Accepted 2026-08-20 and has never been
 superseded**. `docs/best-practices/engineering-conventions.md:61` has required the same thing in
 writing the whole time: *"Keep user-visible copy in the project's localization/content system. Add
@@ -101,7 +101,7 @@ formatted for it, every customer-visible string is reached by a short key from a
 message file, a complete Russian file sits beside the Romanian one, and a Romanian string literal
 cannot re-enter the source without failing a gate.
 
-**[ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 5 is satisfied at M6B's close,
+**[ADR 0001](../../decisions/0001-initial-product-and-stack.md) decision 5 is satisfied at M6B's close,
 not still owed.** After six milestones of being owed, the one thing left outstanding is the owner's
 sign-off on the drafted Russian wording — a review line on M8's launch gate, not engineering.
 
@@ -257,7 +257,7 @@ figure is used and the difference is recorded — every correction makes the pha
 ## The rulings this phase rests on
 
 Recorded in full, with alternatives, in
-[ADR 0095](../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md).
+[ADR 0095](../../decisions/0095-romanian-is-the-source-and-lives-in-message-files-and-the-domain-publishes-codes-not-sentences.md).
 Summarised here so a wave dispatch does not have to open it.
 
 1. **ICU MessageFormat is the format; next-intl is the library, subject to a compatibility gate.**
@@ -444,7 +444,7 @@ sequenced so the mechanical bulk is separable from the decisions.
 | **6B-h2** | **DONE 2026-09-10, `9863f33`:** the test sweep — Romanian literals in `apps/web/tests` **104 → 34** outside the copy lock, **33 → 10** files, 26 converted, 6B-h1's one-line residue folded in; and the *"96 tautologies"* purge **did not happen, because there were none to purge** — 97 assertions of that shape, 0 unfalsifiable, settled by mutation | **Light** (tests only, but see below) | ~~6B-h1~~ **6B-g** |
 | **Gate O1** | **CLOSED 2026-09-07 — the owner supplied a 13-line edit set: 12 semantic values and one whitespace-only line.** Not a wave; an owner input | — | Catalogue collection |
 | **6B-i** | **DONE 2026-09-10, `87429ca`:** the second locale — the `RO` chip becomes a **link** to the other locale at the current locale-free path, the pseudo-locale becomes a **consumed** length-stress transform over a real catalogue, and the **five Russian plural leaves gain CLDR `many`** (the parity gate had been requiring Romanian's categories). One new leaf, `configure.localeSwitch`; hashes **303 → 304, one added, none moved** | **Full** (closes ADR 0001 decision 5) | Translation: **Gate O1 closed**. Integration and wave gate: 6B-b, 6B-h2 — **both met, 6B-h2 at `9863f33`** |
-| **Gate O2** | ~~**HARD STOP — the owner checks the Russian. OPEN as of 2026-09-10, and it is the only thing between M6B and close.**~~ **CLOSED 2026-09-11 — the owner approved all 235 leaves as drafted.** Not a wave; an owner review, and a real one. Review aid: [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) | — | 6B-i — **met** |
+| **Gate O2** | ~~**HARD STOP — the owner checks the Russian. OPEN as of 2026-09-10, and it is the only thing between M6B and close.**~~ **CLOSED 2026-09-11 — the owner approved all 235 leaves as drafted.** Not a wave; an owner review, and a real one. Review aid: [`docs/i18n/gate-o2-russian-review.md`](../../i18n/gate-o2-russian-review.md) | — | 6B-i — **met** |
 | **6B-j** | **DONE 2026-09-10, `aff9a2c`:** the re-drift gate — **three lint rules**, a package-boundary test **extending** `pricing-seams.test.ts`'s existing sweep rather than adding a second walker, ADR 0106 Amendment A's inherited prose sweep, and the written convention in `engineering-conventions.md` § *Localised copy*. **Every rule proved by landing a violation and observing the red** | **Medium** (re-tiered 2026-09-10; it was Light) | 6B-i |
 
 6B-b and 6B-c are independent of one another and may run in either order after 6B-a. Everything from
@@ -805,7 +805,7 @@ one family at a time"* — **must be empty when this wave closes**.
   carrying the withdrawn word *corp*. They are not a 6B-f escape: this section's own Goal paragraph
   already excepts "the price book's prose (6B-f2)", so the criterion contradicted the goal it serves.
   The contradiction is an artefact of sequence — the criterion was written before
-  [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+  [ADR 0106](../../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
   created 6B-f2 on 2026-09-10 — and the exception is named here rather than left implicit so that
   6B-j does not re-report it as an escape, which `M6B-internationalization.md:893-895` would
   otherwise instruct it to do.
@@ -902,7 +902,7 @@ running tests.** They are recorded here rather than in a wave report because the
 finding to carry forward. In a codebase that deliberately writes long explanatory comments, a comment
 claiming a guard is a specific and repeating hazard: the next reader trusts it and does not write the
 real guard. The durable form of this is one line in
-[`docs/best-practices/engineering-conventions.md`](../best-practices/engineering-conventions.md)
+[`docs/best-practices/engineering-conventions.md`](../../best-practices/engineering-conventions.md)
 under *Tests*, added at this wave's close; this section is the worked example behind it.
 
 ##### The verification blind spot — neither method alone clears a wave of this kind
@@ -963,7 +963,7 @@ unapproved agent draft until Gate O2.
 > **Corrected at the close, 2026-09-10: the book authored 14 keys, not 16** — 6 `name` and 8
 > `description`, read back from `apps/web/src/messages/ro.json:200-237`. **Hettich and Blum carry no
 > `nameKey`**: they are brand names, and under
-> [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+> [ADR 0106](../../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
 > decision 1 the key wins when present, so the correct move for a row whose name must not be
 > translated is to author no key and let decision 2's required `name` render. The two tier
 > `description` leaves beside them are keyed as planned.
@@ -1016,7 +1016,7 @@ governs. The coordinator records it; the recommendation above is the planner's, 
   Three leaves stated an amount or an earning rule in prose — *"…inclus în preț"* and two *"Inclus…"*
   clauses — and were trimmed in both locales. The constraint that makes this a rule rather than an
   edit is
-  [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+  [ADR 0106](../../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
   **Amendment A**, which carries the three leaves, why the wave's own digit sweep could not see them,
   and the enforcement gate it assigns to 6B-j; read it there rather than restated here.
 - **No numeric rate, `perUnitMinor`, or rule id moves into `messages/`.** ADR 0062's authority is
@@ -1123,7 +1123,7 @@ not duplicated into `messages/`.
 > **Citation corrected 2026-09-10**, on 6B-g's logic review. **No ADR rules which module the constant
 > lives in.** ADR 0062 contains no occurrence of *currenc* or *MDL* — its decision 1 governs amounts,
 > tiers, deltas and rules, which a currency code is none of. What makes the currency MDL at all is
-> [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 4. The constant's home in the
+> [ADR 0001](../../decisions/0001-initial-product-and-stack.md) decision 4. The constant's home in the
 > price book is right and unchanged; only the number cited for it was wrong, and it was wrong in the
 > code as well (`apps/web/src/price/starting-price.ts`), where it is now corrected to ADR 0001.
 > Recorded rather than quietly repointed, because a plausible-looking ADR number is the kind of thing
@@ -1287,7 +1287,7 @@ rather than covered by the pass.
 >
 > **And the 10 in `sample-price-book.ts` are not debt.** They are the `name` / `description`
 > fallbacks that
-> [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+> [ADR 0106](../../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
 > decision 2 **deliberately keeps required**, so a book nobody at Lemnaria authored still renders.
 > Removing them would break that ADR, and a later sweep that treats them as an escape has misread it.
 > 6B-f's amended criterion above already excepts this file by name.
@@ -1497,7 +1497,7 @@ product renders from key order.
 did**: mutating the model's leaf leaves that case green and fails `cabinet-depth-control.test.ts`
 instead. The comment is rewritten to lead with what the case does **not** claim, and to name the
 three places
-[ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md)
+[ADR 0100](../../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md)
 decision 5's copy/coefficient coupling actually lives.
 
 ##### Two entries struck from 6B-j's allow-list, before that wave inherits them
@@ -1598,7 +1598,7 @@ now a **link to the other locale at the current locale-free path**.
 
 **A link rather than a popover, for three recorded reasons.** The mockups draw the chip closed in
 every frame and never open one, so a menu would be chrome the reference does not declare — which is
-the ruling [ADR 0104](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+the ruling [ADR 0104](../../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
 already made for this screen. With two locales the entire choice is *"the other one"*. And a locale
 here **is** a URL, so an anchor gets focus, keyboard activation and no-JS activation without any of
 the three being invented. `apps/web/src/i18n/use-locale-switch.ts` **throws rather than
@@ -1644,7 +1644,7 @@ that anyone counted.
 > **OPEN as of 2026-09-10, and it is the only thing between M6B and close.** 6B-i and 6B-j have both
 > shipped, so **M6B's build scope is complete**; the milestone is blocked here, on the owner, and
 > **no agent may pass this gate**. The review aid is
-> [`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — all **235** leaves of
+> [`docs/i18n/gate-o2-russian-review.md`](../../i18n/gate-o2-russian-review.md) — all **235** leaves of
 > `ru.json` beside their Romanian source, grouped by namespace, in the catalogues' own key order.
 > **Two of the six items it flags are decisions rather than translation checks:**
 >
@@ -1652,7 +1652,7 @@ that anyone counted.
 >   `Дуб Бардолино натуральный`). This is a **product question, not a wording one**: they read as the
 >   board manufacturer's own decor names, and a customer holding a supplier sample is matching the
 >   printed text. If they should not be translated, the remedy has the same shape as *Hettich* and
->   *Blum* under [ADR 0106](../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
+>   *Blum* under [ADR 0106](../../decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
 >   decision 1 — **no key, one spelling in every locale**.
 > - **F4 — `configure.localeSwitch` has not been through Gate O1.** Its Romanian was authored by
 >   6B-i, after the gate closed, so it needs an O1 read as well as an O2 one.
@@ -2190,7 +2190,7 @@ Falsifiable, and stated as invariants including what must not happen.
    manufacturer records remain data; displayed prose becomes message descriptors so `/ru/…` does
    not leak Romanian. Existing Romanian moves byte-for-byte and Russian stays unapproved until O2.
 5. **~~Does `priceBook`'s oven-tower label have to stop naming appliances?~~ Closed by the owner,
-   2026-09-11 — [ADR 0107](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
+   2026-09-11 — [ADR 0107](../../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)
    Decision 7.** Opened by the review's logic reviewer: `priceBreakdown.disclaimer` says the estimate
    excludes *electrocasnice*, and directly beneath it the breakdown prints **Coloană cuptor +
    microunde 9 000** — so the two lines read together appeared to reproduce the contradiction
@@ -2212,7 +2212,7 @@ also the round that covers waves 6B-i and 6B-j**, which shipped verified but not
 owner's own direction — see *Verification* above, where that gap is named.
 
 **The rulings are ADR 0107**
-([`decisions/0107-…`](../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)),
+([`decisions/0107-…`](../../decisions/0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md)),
 with three of them recorded at the records they change: ADR 0032's *Superseded* section (no greyed
 offers), ADR 0099 Amendment D (the reset leaves the carousel) and ADR 0104 Amendment A (the figure's
 prefix, and the locale caret's precedent). They are not restated here.
@@ -2315,7 +2315,7 @@ landed in the working tree. It saved itself with `git show HEAD:`.
 **The lesson, and it is general:** a visual verifier owns the tree exclusively for the length of its
 run, and a reviewer judges against `git show HEAD:` rather than against the working tree. It is
 written into
-[`best-practices/browser-and-visual-qa.md`](../best-practices/browser-and-visual-qa.md) so it
+[`best-practices/browser-and-visual-qa.md`](../../best-practices/browser-and-visual-qa.md) so it
 outlives this milestone.
 
 **Waves 6B-i and 6B-j shipped verified but not reviewed**, by the owner's direction to focus on
@@ -2336,7 +2336,7 @@ seventh ruling followed on 2026-09-11**, closing an open question the review's l
 about the oven-tower label — see *ADR 0107 Decision 7* below and open question 5.
 
 **What the owner did:** read
-[`docs/i18n/gate-o2-russian-review.md`](../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
+[`docs/i18n/gate-o2-russian-review.md`](../../i18n/gate-o2-russian-review.md) — 235 leaves, Russian
 beside its Romanian source, by namespace — and ruled. Of its six flagged items, **F1, F2, F3 and F5**
 (Russian-wording questions) all stand as written. The remaining two were **product questions rather
 than translation checks**, put to the owner separately, and both were also left as drafted:
@@ -2394,7 +2394,7 @@ cycles; recorded in `docs/best-practices/ci-and-local-gates.md`.
 - **What a future ruling would cost.** A Russian change is a value edit. **A Romanian change is
   an O1-class change** — copy lock updated in the same commit, the golden manifest re-baselined for
   exactly those keys with the key list in the commit message, and the affected Russian re-translated.
-- ~~**[ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)'s
+- ~~**[ADR 0105](../../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)'s
   e2e project split**, deferred by the owner *"just after you will finish the M6B milestone"* and
   **deliberately not started while this milestone was open** — restructuring the gate that measures a
   milestone during that milestone makes a failure ambiguous between the split and the wave. It is

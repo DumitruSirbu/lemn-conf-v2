@@ -5,8 +5,8 @@ has answered Q1, Q1b, Q3, Q4, Q5, Q6, Q7 and the corner joint (J). Done: C1 S1 (
 (`21c702b`), and wave C4 (S0; S1 `c4eeea6`; S2 `48bbc0c`). Wave C2 is done too (S1 `075529b`; S2 `0a1a69a`; gate G-C2 passed, Q9: handles kept as built). C1 S3 is done (`01c40be`). Next: C3 (in implementation), then C5, C1 S4 (browser Back warning), and wave CE last, by the owner's word. Nothing is pushed; `pnpm check` and `pnpm ci:local` have not been run on this branch, and e2e only as individual specs run by QA.** Branch `m7c-m7-feedback-fixes`,
 cut from `main` at `2615b51`. Sits between M7B and M8. Every wave follows `docs/WORKFLOW.md`.
 
-Source: `docs/M7-FEEDBACK.md`, twelve items (FB-012, the red e2e shards, was added on 2026-10-01) from the owner's hands-on check of M7 and M7B, with
-screenshots in `docs/M7-FEEDBACK-assets/`.
+Source: `docs/archive/M7-FEEDBACK.md`, twelve items (FB-012, the red e2e shards, was added on 2026-10-01) from the owner's hands-on check of M7 and M7B, with
+screenshots in `docs/archive/M7-FEEDBACK-assets/`.
 
 Evidence tiers used below: **[src]** read at `2615b51` (file:line), **[doc]** quoted from a record,
 **[inf]** inference, owed a measurement; **[C0]** measured by C0, confirmed by QA 2026-10-01 (scripts and

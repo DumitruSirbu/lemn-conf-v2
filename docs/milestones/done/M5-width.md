@@ -74,7 +74,7 @@ Shrinking creates adjacent empty space, capped at 800 mm since 5G (ADR 0052).
   700 mm worktop change wall-cabinet height, what happens to a design saved at 600 when the setting
   moves, do the two deliberately-deep top cabinets track anything, and does the hood follow the map.
   All five are repeated in full, not summarised, in
-  `docs/milestones/M6-price-and-global-settings.md`'s *Worktop depth* section — read them there.
+  `docs/milestones/done/M6-price-and-global-settings.md`'s *Worktop depth* section — read them there.
   Three of the original eight are already answered (ADR 0039 — the hood is standard depth, hung at
   the front; ADR 0036 decisions 1 and 3 — the map's value is the finished cabinet, and the "600 or
   620" question dissolves because the setting is cabinet depth, not worktop depth). The eighth,

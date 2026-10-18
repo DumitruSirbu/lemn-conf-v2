@@ -27,7 +27,7 @@ susan*, *L-shape kitchen scene*. Code read at **`5fbcad7`** (branch `m7-room-and
 archival commit; no production file differs from `a989a85`).
 
 **Wave ids are `U0`…`U7`, not `7B…`**: `7B` is already an M7 wave id (the preset search wave,
-deferred past M8 by [ADR 0131](../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)),
+deferred past M8 by [ADR 0131](../../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md)),
 and a second meaning for it would make every `git log` grep ambiguous. Commit subjects read
 `M7B wave U<n> …` so `git log --oneline -i --grep='^M7B wave'` audits them
 (`docs/best-practices/documentation.md`, *Auditing the wave commits*).
@@ -41,7 +41,7 @@ path, rules and guards as the L — that they can edit, reload and share on a ph
 ## Scope
 
 **In.** The stored U room and wall C; the second (right-hand) corner assembly, built on
-[ADR 0129](../decisions/0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md)'s
+[ADR 0129](../../decisions/0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md)'s
 per-group reflection primitive; the U shell and its bounds; composition across three walls (by the
 owner's ruling, Q-U3); the void engine, commands, validation, depth change and frozen map on wall C;
 the 3D shell, picking, cameras, lights, selection outline and overflow mark for a U; Step 1 turning
@@ -61,7 +61,7 @@ every wall"*); M8's review screen (it inherits wall C, see *What M7B hands M8*).
 function at the end of the module), and `validateRoomInput` refuses a U with `SHAPE_NOT_BUILDABLE`
 (`room/validate-room.ts:92`). So until U6 adds U's owner-approved bounds to `APPROVED_ROOM_POLICY`,
 no customer can create a U design through Step 1, whatever U1–U5 build. This is
-[ADR 0116](../decisions/0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md)
+[ADR 0116](../../decisions/0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md)
 decision 1 and ADR 0108 Amendment D's sequencing, kept exactly as wave 7J kept them for the
 straight kitchen. It is also why a late owner answer blocks only U3 and U6.
 
@@ -108,22 +108,22 @@ sections (read by section, not whole).
 
 | Record | What it says | Effect on M7B |
 | --- | --- | --- |
-| [0003](../decisions/0003-design-reference-supersession.md) row *Wall C and U-shaped layout logic*, *Open questions* 14 | The reference models walls A and B only; when U returns, with which recipes and per-wall data. | **Answered by this milestone**: no recipe (ADR 0131), composition only; per-wall data is transform, length and corner reach (M7 re-plan). |
-| [0021](../decisions/0021-corner-returns-are-structural-in-data.md), [0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md) | Corner pieces are structural: no replace, delete or insert; their own kinds. | **Applies to both corners** (D4). |
-| [0025](../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md) | The X-leg seats at −0.020 (§11 row 19's named exception). | **Holds mirrored** at the right corner (U4-A1). |
-| [0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) d5, [0130](../decisions/0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) D3 | Each wall's own run bounds it; a wall a shape lacks has run 0, and a stray body is marked, not refused. | **Extended** to wall C (D6). |
-| [0089](../decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md) | A depth change slides wall B's chain; the 30 mm upper-row residue is the product's answer. | **Extended** to wall C (D9); the residue is not closed. |
-| [0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md) | The e2e job splits by project rather than raising its ceiling. | U7 reports what it adds against it. |
-| [0108](../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md) B2, C, G | U stays refused until its wave puts bounds to the owner; *"U (M7B): the same rule across three runs, with two corners"*; one maximum, 6000, for every wall of every shape — *"M7B's U inherits G1"*. | **B2 followed** (Q-U1). C's sentence is the **architect's**, not an owner ruling — its exact form waits on Q-U3. **G is settled and not re-asked**: every U wall's maximum is 6000. |
-| [0110](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md) decisions 1–2, A–M | The command path; the owner's order and every composition rule. | **Decisions 1–2 bind unchanged.** Every amendment is two-walled; how each reads on three walls is Q-U3's consequence, recorded as ADR 0110 Amendment N. |
-| [0116](../decisions/0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md) + A | The type widens in the wave that designs the shape; `U` casts remain and name M7B. | **Discharged in U2 (type) and U6 (casts)**, `BuildableShapes`, engine limits, approved policy and validator widening together per decision 1. |
-| [0117](../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation is the cheap correct baseline; taste enters through presets. | **The frame for Q-U3's recommendation.** |
-| [0118](../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | Record an unmet problem with its trigger. | Q-U5, D11, D14's triggers. |
-| [0120](../decisions/0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) B2, C1, D1–D3, E | 6000 per wall; the entered number is the run to furnish; no panel at a run's end; draw the kitchen, not the room; sink and hob on the wider wall. | **Applied** (D10–D12); E's wider-wall rule is an input to Q-U3, not a decided answer for three walls. |
-| [0121](../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md) | Identify a thing by what it is. | Which corner a piece belongs to is a domain query, never a position the adapter reads (D4). |
-| [0125](../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | Approved corner minima 900 / 1000 keep a margin over the engine's 880 / 880. | **The margin carries to both corners** (Q-U1's proposal). |
-| [0129](../decisions/0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md) | Domain canonical, mirror is presentation; one primitive, settable on the root or one corner group; *"whether a right corner becomes walls A + C is M7B's question"*; outline `DoubleSide` exception. | **The foundation** (D2, D4). Its deferred question is **answered by D3: no**. |
-| [0131](../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md) | Presets deferred past M8; every shape goes dimensions → 1F. | **Followed**: no U preset. |
+| [0003](../../decisions/0003-design-reference-supersession.md) row *Wall C and U-shaped layout logic*, *Open questions* 14 | The reference models walls A and B only; when U returns, with which recipes and per-wall data. | **Answered by this milestone**: no recipe (ADR 0131), composition only; per-wall data is transform, length and corner reach (M7 re-plan). |
+| [0021](../../decisions/0021-corner-returns-are-structural-in-data.md), [0066](../../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md) | Corner pieces are structural: no replace, delete or insert; their own kinds. | **Applies to both corners** (D4). |
+| [0025](../../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md) | The X-leg seats at −0.020 (§11 row 19's named exception). | **Holds mirrored** at the right corner (U4-A1). |
+| [0065](../../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) d5, [0130](../../decisions/0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) D3 | Each wall's own run bounds it; a wall a shape lacks has run 0, and a stray body is marked, not refused. | **Extended** to wall C (D6). |
+| [0089](../../decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md) | A depth change slides wall B's chain; the 30 mm upper-row residue is the product's answer. | **Extended** to wall C (D9); the residue is not closed. |
+| [0105](../../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md) | The e2e job splits by project rather than raising its ceiling. | U7 reports what it adds against it. |
+| [0108](../../decisions/0108-a-room-is-validated-against-policy-data-and-the-interim-policy-is-the-engines-own-limits.md) B2, C, G | U stays refused until its wave puts bounds to the owner; *"U (M7B): the same rule across three runs, with two corners"*; one maximum, 6000, for every wall of every shape — *"M7B's U inherits G1"*. | **B2 followed** (Q-U1). C's sentence is the **architect's**, not an owner ruling — its exact form waits on Q-U3. **G is settled and not re-asked**: every U wall's maximum is 6000. |
+| [0110](../../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md) decisions 1–2, A–M | The command path; the owner's order and every composition rule. | **Decisions 1–2 bind unchanged.** Every amendment is two-walled; how each reads on three walls is Q-U3's consequence, recorded as ADR 0110 Amendment N. |
+| [0116](../../decisions/0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md) + A | The type widens in the wave that designs the shape; `U` casts remain and name M7B. | **Discharged in U2 (type) and U6 (casts)**, `BuildableShapes`, engine limits, approved policy and validator widening together per decision 1. |
+| [0117](../../decisions/0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation is the cheap correct baseline; taste enters through presets. | **The frame for Q-U3's recommendation.** |
+| [0118](../../decisions/0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | Record an unmet problem with its trigger. | Q-U5, D11, D14's triggers. |
+| [0120](../../decisions/0120-the-room-is-a-fact-and-the-kitchen-adapts-to-it-and-coverage-is-negotiable-where-dimensions-are-not.md) B2, C1, D1–D3, E | 6000 per wall; the entered number is the run to furnish; no panel at a run's end; draw the kitchen, not the room; sink and hob on the wider wall. | **Applied** (D10–D12); E's wider-wall rule is an input to Q-U3, not a decided answer for three walls. |
+| [0121](../../decisions/0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md) | Identify a thing by what it is. | Which corner a piece belongs to is a domain query, never a position the adapter reads (D4). |
+| [0125](../../decisions/0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | Approved corner minima 900 / 1000 keep a margin over the engine's 880 / 880. | **The margin carries to both corners** (Q-U1's proposal). |
+| [0129](../../decisions/0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md) | Domain canonical, mirror is presentation; one primitive, settable on the root or one corner group; *"whether a right corner becomes walls A + C is M7B's question"*; outline `DoubleSide` exception. | **The foundation** (D2, D4). Its deferred question is **answered by D3: no**. |
+| [0131](../../decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md) | Presets deferred past M8; every shape goes dimensions → 1F. | **Followed**: no U preset. |
 | M7 re-plan, *What U means for stored documents* (archived plan `:1467-1480`) | Widening walls and shape is additive; storage bounds grow on purpose; the right-hand L question is M7B's. | **Followed** (D1, D3, D8). |
 
 No record says the opposite of anything below. **Two records are close enough to need care:**

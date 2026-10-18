@@ -54,7 +54,7 @@ export interface PresetRoom {
   readonly heightMm: number;
 }
 
-export function presetRoomOf(design: Design): PresetRoom {
+export function presetRoomOf(design: Pick<Design, "room">): PresetRoom {
   const { room } = design;
   const walls: { aMm: number; bMm?: number; cMm?: number } = {
     aMm: room.widthMm,

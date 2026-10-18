@@ -28,12 +28,12 @@
 > with its adversarial-QA round at `588e0a0`), and **6K-b's domain half shipped** at `4dc08e0`; the
 > scene half and the control itself are not started. **6N has not started.** **6F is
 > superseded** — see 6P–6R below. **Three waves added 2026-09-04: 6K-c**, on
-> [ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md), which closes
+> [ADR 0073](../../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md), which closes
 > the residue 6K-a found and could not fix; and **6K-e**, on
-> [ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md), whose finding is that
+> [ADR 0074](../../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md), whose finding is that
 > the probe measuring a depth change holds a kit at the depth being left; and **6K-d**, adjudicated by
 > the coordinator from adversarial QA's finding and ruled the same day by
-> [ADR 0075](../decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md), on a
+> [ADR 0075](../../decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md), on a
 > rebuild swapping a body for one declared at a different depth under the same declaration kind — whose
 > ruling reclassifies the measured 39 mm as a **fake-probe artefact** beside a narrower declaration
 > defect. **None of the three gates 6K-b** — see
@@ -44,7 +44,7 @@
 > then the owner section. **Twenty-nine waves, twenty-eight
 > unblocked** (twenty-four until 6K-c, 6K-d and 6K-e were added on 2026-09-04; 6K-d's architect pass
 > was delivered the same day as ADR 0075 and it is unblocked). **6K-f was added 2026-09-05 on
-> [ADR 0076](../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**
+> [ADR 0076](../../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**
 > — the store drops a body-probe lease's `release` at five call sites and strands one transient kit
 > per depth change — and it is **the one wave gated by another**: it is 6K-e's residue and follows it.
 > **6K-i was added 2026-09-05** for the finding ADR 0079 recorded and did not rule: two ordinary
@@ -52,26 +52,26 @@
 > older than 6K-c and begins with the adjudication rather than a fix. It now **gates 6X**, and its
 > plan section was reconciled with ADR 0090 decision 6 on 2026-09-06.
 > **6Q-c was added 2026-09-05 on an owner ruling** —
-> [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md):
+> [ADR 0081](../../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md):
 > a material change now shows a **conditional, blocking confirmation** where 6Q's plan had an
 > always-shown sentence, and it is silent when no cabinet carries a chosen colour. It gates on 6Q-b
 > and gates nothing. The same ruling **closes ADR 0078's raised carry-over question — no carry-over**
 > — and withdraws 6Q-b's `materialWarning` clause. **Made dispatchable 2026-09-05 by
-> [ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md)**,
+> [ADR 0086](../../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md)**,
 > which corrects the presence condition to compare materials rather than id strings and replaces the
 > `chosenCount ≤ resolvedCount` criterion — measured false on three reachable inputs, one of them the
 > fixture the wave reuses. **A second owner ruling the same day**,
-> [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md), makes
+> [ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md), makes
 > the whole-kitchen strip wrap rather than overflow and adds no wave: it lands inside **6R** as a
 > scope addition, closing `docs/BACKLOG.md` entry 32 and scheduling entry 33.
 > The seven owner decisions were taken
 > on 2026-09-02 (ADRs 0055–0061); ADRs 0062–0064 followed, the last two on 2026-09-03.
 >
 > **Five waves added 2026-09-04 on two owner decisions taken that day.**
-> [ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)
+> [ADR 0071](../../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)
 > (material carries price; the colour control's shape differs per material) adds **6P, 6Q, 6R** and
 > **supersedes 6F**, which was one clause of it.
-> [ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md) (hardware priced
+> [ADR 0070](../../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md) (hardware priced
 > per mechanism) adds **6S** and **6T**. Neither decision is re-opened by these waves; what the waves
 > decide is sequencing, boundaries and what must be asserted. **The open inputs they need from the
 > owner are listed in *Open questions gating this phase*, not invented at the wave.**
@@ -105,7 +105,7 @@ Out: the review screen's own summary (M8, though it reuses this grouping); comme
 
 **M6 owns a fourth global control: worktop depth (owner's decision, 2026-08-27).** *Setări globale*
 gains worktop depth (600 / 700) beside the material and hardware tiers. **The geometry it drives is
-already built when this phase starts** — `docs/milestones/M5-width.md` work items 5, 6 and 7 make
+already built when this phase starts** — `docs/milestones/done/M5-width.md` work items 5, 6 and 7 make
 wall and top depth derive from a declared worktop depth through an extensible map, and base carcass
 depth derive from it through a formula, with the map as the single source for both §7's
 `WALL_DEPTH_MM` and §5.2's `WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M` so the two cannot drift.
@@ -144,7 +144,7 @@ machinery. What it has to supply, and what M5 deliberately did not:
 4. Build the global settings surface: three material tiers and three hardware tiers, each with its
    description and its price delta, **plus worktop depth (600 / 700) as a fourth control**. The
    geometry behind that control — the worktop → wall/top depth map and the base carcass formula — is
-   built by **M5 waves 5A and 5F**, `docs/milestones/M5-width.md` work items 5, 6 and 7; this item
+   built by **M5 waves 5A and 5F**, `docs/milestones/done/M5-width.md` work items 5, 6 and 7; this item
    builds the control and the persisted value, which M5 explicitly did not.
 5. Wire material and hardware selection to recalculation, including the effect on which per-cabinet
    finishes remain available.
@@ -277,7 +277,7 @@ items** and are marked *(backlog)* in the table:
   certification audit on 2026-09-05 and ruled by the owner the same day. New wave **6U**, ADR 0087.
 
 **The setting is called cabinet depth from here on, not worktop depth** —
-[ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) decision 3, which this
+[ADR 0036](../../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) decision 3, which this
 plan's older prose above pre-dates. The worktop is an external part that influences neither geometry
 nor price, and naming the control after it is the mistake ADR 0036 corrected in the code's own
 constant (`worktop-depth.ts` carries a comment saying the rename is owed and deferred).
@@ -306,7 +306,7 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6K-f — a probe lease is a scoped borrow and the store publishes no probe *(ADR 0076)* — **DONE 2026-09-05, `827e1e1`** | D | 6K-e — **gated by it**, this is 6K-e's residue | Full |
 | 6K-h — a depth change plans against the catalogue, not against the seats it is about to replace *(ADR 0077 decision 8, addendum)* — **DONE 2026-09-05, `e90ccc8`** | D | 6K-f — **runs before 6K-g**, both edit `set-cabinet-depth.ts` | Full |
 | 6K-g — a seat fixed by a joint is declared, and every entry declares which plane seats it *(ADR 0077)* — **DONE 2026-09-05, `52e3c70`** | D | 6K-f, 6K-h — **sequenced after both**, same file | Full |
-| 6K-i — a depth change plans against the frozen extent, and only the depth is re-derived *(ADR 0079's finding, **adjudicated 2026-09-06 by ADR 0088** — implementation defect; the wave is owed and planned. **ADR 0088 decision 1 was amended 2026-09-06 by [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 6** — build the planning map from the *moved* extents; **the plan section was reconciled with that amendment 2026-09-06** and remains **one wave**)* — **DONE 2026-09-06, `deb237f`, merged on branch `wave/6r-control-shapes-and-strip-row`; four review findings closed at `1116ae9`, all test-strength** | D | **6J-d — discharged: merged to `main` at `e7eba07`**. It gates **6X** | Full |
+| 6K-i — a depth change plans against the frozen extent, and only the depth is re-derived *(ADR 0079's finding, **adjudicated 2026-09-06 by ADR 0088** — implementation defect; the wave is owed and planned. **ADR 0088 decision 1 was amended 2026-09-06 by [ADR 0090](../../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md) decision 6** — build the planning map from the *moved* extents; **the plan section was reconciled with that amendment 2026-09-06** and remains **one wave**)* — **DONE 2026-09-06, `deb237f`, merged on branch `wave/6r-control-shapes-and-strip-row`; four review findings closed at `1116ae9`, all test-strength** | D | **6J-d — discharged: merged to `main` at `e7eba07`**. It gates **6X** | Full |
 | 6K-j — an empty space follows the setting, and the fallback is not a ratchet *(ADR 0080, owner instruction 2026-09-05; **amended after QA, same day** — the predicate is an equality)* — **DONE 2026-09-05, `151429f`** | D | 6K-c — **gated by it**, and it gates nothing | Full |
 | 6L — the handle path learns cabinet from appliance *(backlog 18)* — **CERTIFIED WITH FINDINGS 2026-09-05, `59f8669`** | G | none — **sequenced before 6B and 6G** | Full |
 | 6M — the overflow is marked and warned about *(ADR 0065)* — **DONE 2026-09-04, `ce77171`** | — | 6A3 | Light + visual |
@@ -320,18 +320,18 @@ constant (`worktop-depth.ts` carries a comment saying the rename is owed and def
 | 6Q — a material change resolves every finish it does not offer *(ADR 0071, ADR 0057; supersedes 6F)*; splits 6Q-a → 6Q-b *(ADR 0078)* — **DONE 2026-09-05: 6Q-a `9e9d54e`, 6Q-b `59f8669` (ADR 0085); 6Q-c also done, see its own row below (`14cef90`)** | G | 6P | Full |
 | 6Q-c — the change confirms before it wipes a chosen colour, and is silent when none was *(ADR 0081, owner 2026-09-05; dispatchable per ADR 0086)* — **DONE 2026-09-05, `14cef90`** | G | 6Q-b — **gated by it** | Full + visual |
 | 6R — three control shapes, six decors the 3D approximates, and a strip that wraps *(ADR 0071, ADR 0082)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R-b) | G | 6Q, 6G | Light + visual |
-| 6R-b — the strip gets its own row, and containment is measured against its own band *(opened by [ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md), which amends ADR 0082 decision 1 — **6R did not close without it**)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R) | G | **6R — the same two stylesheets, never in parallel** | Light + visual |
+| 6R-b — the strip gets its own row, and containment is measured against its own band *(opened by [ADR 0094](../../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md), which amends ADR 0082 decision 1 — **6R did not close without it**)* — **DONE 2026-09-06, `aa6ad9e`** (one commit with 6R) | G | **6R — the same two stylesheets, never in parallel** | Light + visual |
 | 6S — door leaves, drawers and door band heights become declared facts *(ADR 0070)* — **DONE 2026-09-04, `280daa4`/`a2bff48`** | P | none | Full |
 | 6T — hardware priced per mechanism *(ADR 0070, planned by ADR 0092)* — **DONE 2026-09-06, `0d0ee61`, with QA at `88f85e2` and the per-handle vocabulary retired at `e9ab7b2`. ~~On branch `wave/6t-finish`: ready to merge, not yet on `main`~~ merged to `main` 2026-09-07 at `857a29e`, with 6T-a and 6W** | P | 6S, 6B2 — **lands on one branch with 6W and 6T-a** | Full |
-| 6T-a — one push-to-open predicate *(opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment C, on the owner's ruling of 2026-09-06 — 6T counts a latch only on a **recorded** mode, so the demo's 16 top-row latches bill at zero)* — **DONE 2026-09-06, `0a9ce1a` (with ADR 0092 decision 16), QA at `fb127b8`; Amendment C itself recorded at `bf2ba61`. ~~Same branch, ready to merge, not yet on `main`~~ merged to `main` 2026-09-07 at `857a29e`** | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
+| 6T-a — one push-to-open predicate *(opened by [ADR 0092](../../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment C, on the owner's ruling of 2026-09-06 — 6T counts a latch only on a **recorded** mode, so the demo's 16 top-row latches bill at zero)* — **DONE 2026-09-06, `0a9ce1a` (with ADR 0092 decision 16), QA at `fb127b8`; Amendment C itself recorded at `bf2ba61`. ~~Same branch, ready to merge, not yet on `main`~~ merged to `main` 2026-09-07 at `857a29e`** | P | 6T — **same branch, reaches `main` with 6T and 6W; never in parallel with 6T, 6T2 or 6P** | Full |
 | 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* — **DONE 2026-09-07, merged to `main` at `825ba43`; adversarial QA (289 tests) and a logic review (Full). One open owner input it raised: whether an out-of-bounds sink still bills its rack — see the close-out and ADR 0092 open input 7** | P | 6T — **same files, never in parallel; and never beside 6P or 6T-a** | Full |
 | 6W — a tier that prices below the default *(ADR 0092 decision 12)* — **DONE 2026-09-06, `1d6fc7e`, QA at `ca35b96`. ~~Same branch, ready to merge, not yet on `main`~~ merged to `main` 2026-09-07 at `857a29e`. Criterion 4 — the *De la* claim — is met in code under an architect's interim and **not** with the owner's words; see the close-out and ADR 0092 open input 4** | P | 6T — **same branch, reaches `main` with it** | Full |
 | 6U — the hob holds its reach, and a deeper worktop grows behind it *(ADR 0087; wave 6I's unraised question, owner 2026-09-05)* — **DONE 2026-09-06, `38d5cad`** | D | none — **after 6Q**, and it gates nothing | Full + visual |
-| 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* — **DONE 2026-09-07, merged to `main` at `c7c9743`, with QA's four added tests at `bba4b1b` and two false criterion sentences corrected at `88f06ba`. Adversarial QA; no separate logic review. Its last criterion — runner evidence — is owed, not met; see the close-out** | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
-| 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* — **work item 1 withdrawn and the mutation criterion corrected 2026-09-07 by [ADR 0093 Amendment A](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)** — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X-a; adversarial QA and a logic review (Full)** | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
-| 6X-a — the ladder's direction is asserted, not only its existence *(opened by [ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md) Amendment A §6 — swapping the depth operands moves a member-less extent 100 mm the wrong way and nothing goes red)* — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X; adversarial QA and a logic review (Full), and the review ran *after* the merge — a sequencing error recorded at the close-out, no blocker found, its two documentation findings fixed at `bdef351`** | D | **6X — gated by it**, and it gates nothing | Test fidelity |
-| 6Y — a depth no entry declares carries no entry's name *(opened by [ADR 0102](../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md) decision 4, against `restoredColumns` in `void-engine.ts`; ADR 0079 decision 9's enumeration is its first criterion; `docs/BACKLOG.md` entry 56)* — **OPEN, and not planned here: this row exists because ADR 0102 opened the wave on 2026-09-08 and the table never gained it.** Its blast radius is **four** suites, not the three ADR 0102's consequences list — `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts` makes the fourth | D | none — **independent of 6Z**; whichever of the two lands second re-runs the other's suites | Full |
-| 6Z — a standing body is re-planned when something is inserted beneath it *(opened by [ADR 0103](../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md), on the owner's ruling of 2026-09-08 — the insert path is already correct for the body being inserted, and nothing ever re-plans a body already standing)* — **DONE 2026-09-08, merged to `fix/m6-remediation`. Work item 1's sweep found NO reachable pre-probe refusal — 786 offered inserts over 8 states, 24 of them re-planning a standing body, zero refusing — so 6Z-a was not needed and the wave did not split.** Adversarial QA dispatched 2026-09-08; **the visual leg is NOT done** and is owed. | D | none — **independent of 6Y**, either order; ~~6Z-a if and only if work item 1 finds a reachable pre-probe refusal~~ **not needed** | Full + visual |
+| 6V — a selection is counted by what changed, not by what colour it is *(opened by [ADR 0091](../../decisions/0091-an-instruments-premise-is-re-quantified-and-the-product-claim-inside-it-becomes-a-wave.md) decision 6 — the debt wave 6R was obliged to carry rather than discharge)* — **DONE 2026-09-07, merged to `main` at `c7c9743`, with QA's four added tests at `bba4b1b` and two false criterion sentences corrected at `88f06ba`. Adversarial QA; no separate logic review. Its last criterion — runner evidence — is owed, not met; see the close-out** | — | **6R — gated by it**, and it gates nothing | Test infra + one product fix |
+| 6X — the slide is witnessed by an assertion, not by a redecorated demo *(opened by [ADR 0093](../../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md); ADR 0090 decision 6 has no falsifiable check)* — **work item 1 withdrawn and the mutation criterion corrected 2026-09-07 by [ADR 0093 Amendment A](../../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)** — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X-a; adversarial QA and a logic review (Full)** | D | **6K-i — gated by it**, and it gates nothing | Test fidelity |
+| 6X-a — the ladder's direction is asserted, not only its existence *(opened by [ADR 0093](../../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md) Amendment A §6 — swapping the depth operands moves a member-less extent 100 mm the wrong way and nothing goes red)* — **DONE 2026-09-07, merged to `main` at `9f5a4f6` with 6X; adversarial QA and a logic review (Full), and the review ran *after* the merge — a sequencing error recorded at the close-out, no blocker found, its two documentation findings fixed at `bdef351`** | D | **6X — gated by it**, and it gates nothing | Test fidelity |
+| 6Y — a depth no entry declares carries no entry's name *(opened by [ADR 0102](../../decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md) decision 4, against `restoredColumns` in `void-engine.ts`; ADR 0079 decision 9's enumeration is its first criterion; `docs/BACKLOG.md` entry 56)* — **OPEN, and not planned here: this row exists because ADR 0102 opened the wave on 2026-09-08 and the table never gained it.** Its blast radius is **four** suites, not the three ADR 0102's consequences list — `apps/web/tests/store/qa-6y-lifted-column-source.witness.test.ts` makes the fourth | D | none — **independent of 6Z**; whichever of the two lands second re-runs the other's suites | Full |
+| 6Z — a standing body is re-planned when something is inserted beneath it *(opened by [ADR 0103](../../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md), on the owner's ruling of 2026-09-08 — the insert path is already correct for the body being inserted, and nothing ever re-plans a body already standing)* — **DONE 2026-09-08, merged to `fix/m6-remediation`. Work item 1's sweep found NO reachable pre-probe refusal — 786 offered inserts over 8 states, 24 of them re-planning a standing body, zero refusing — so 6Z-a was not needed and the wave did not split.** Adversarial QA dispatched 2026-09-08; **the visual leg is NOT done** and is owed. | D | none — **independent of 6Y**, either order; ~~6Z-a if and only if work item 1 finds a reachable pre-probe refusal~~ **not needed** | Full + visual |
 
 > **Updated later on 2026-09-08: 6Z is DONE and merged, so ONE row is open — 6Y.** The arithmetic
 > below now reads **39 DONE** + 5 CERTIFIED + 3 not-shipping + **1 open (6Y)** = 48. 6Y does not
@@ -397,7 +397,7 @@ every call site that currently orders placements for display — none may keep a
   keyed on the raw band.
 - **Within a group the order is row-major: `y0Mm` before `alongMm`** — the whole hanging row left to
   right, then the whole top row left to right
-  ([ADR 0063](../decisions/0063-a-group-is-listed-row-major-height-before-position.md), owner,
+  ([ADR 0063](../../decisions/0063-a-group-is-listed-row-major-height-before-position.md), owner,
   2026-09-02). The full chain is `wall → normalised band → y0Mm → alongMm → placementId`.
 
   **6A shipped the transposed order and it is being corrected in its review-fix punch list.** Along
@@ -413,7 +413,7 @@ every call site that currently orders placements for display — none may keep a
   design whose `placements` array has been randomly permuted. Asserted as a property over generated
   permutations, not one shuffled fixture.
 - Each entry's label comes from `describeBodyLabelAt`
-  ([ADR 0033](../decisions/0033-door-count-is-derived-from-width-not-declared.md)) — never a literal,
+  ([ADR 0033](../../decisions/0033-door-count-is-derived-from-width-not-declared.md)) — never a literal,
   never a second derivation. A body whose `buildId` migrated on resize (`docs/BACKLOG.md` entry 20)
   must read the same in the projection as in the panel header, or the two have already diverged.
 - Empty columns and voids produce **no** entry. A design of nothing but empty space projects to zero
@@ -438,7 +438,7 @@ every call site that currently orders placements for display — none may keep a
 ### Wave 6A2 — a seeded row carries its catalogue equivalent's name (`docs/BACKLOG.md` entry 20)
 
 New scope, decided by the owner on 2026-09-03 —
-[ADR 0064](../decisions/0064-a-seeded-row-carries-its-catalogue-equivalents-name.md). Escalated out
+[ADR 0064](../../decisions/0064-a-seeded-row-carries-its-catalogue-equivalents-name.md). Escalated out
 of the backlog by 6A's logic review.
 
 **Why it is a wave and not a rider.** The seeded pantry reads *"Coloană"* until the customer's first
@@ -489,7 +489,7 @@ entry 43 queues the missing literal pin.
 
 ### Wave 6A3 — a body past the end of its wall is detected, as one domain fact
 
-**[ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).** Detection
+**[ADR 0065](../../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).** Detection
 only; the marking and the warning are wave 6M.
 
 **Why detection is its own wave, and why it is early.** Four surfaces have to agree about whether a
@@ -514,7 +514,7 @@ and the same failure if it is not: one design marked in one place and not anothe
   `longestWallRunMm`. Whether that function's `max` should survive elsewhere is not this wave's
   question; that it must not answer *this* one is.
 - **One-sided: `run end ≤ wall length`, never equality. A remainder is the expected case, not a
-  tolerance** ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)).
+  tolerance** ([ADR 0067](../../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)).
   Real walls are not round — 2444 mm is typical — and the manufacturer closes the leftover with
   filler at the real measurement, outside this product. So under-filling is never reported, and **no
   companion check asserting that a run _reaches_ its wall may be added**: that is the check a gate
@@ -555,7 +555,7 @@ and the same failure if it is not: one design marked in one place and not anothe
 #### Wave 6A3 — the QA punch list, ruled 2026-09-03
 
 Adversarial QA found two defects in 6A3 as first implemented. Both are adjudicated in
-**[ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)**;
+**[ADR 0069](../../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)**;
 read it before touching either. The work below is settled — nothing here is re-decided by the
 implementer.
 
@@ -613,7 +613,7 @@ decision 7 named a behaviour, never a code set.* Closed by ADR 0069 decisions 1�
    `assertDesignValidForCatalog`, not merely a reported code.
 
 **Items 4 and 5 — from the logic review, ruled 2026-09-03. Both amend the punch list above; see
-[ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
+[ADR 0069](../../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
 sections 5b and 5c.**
 
 4. **`migrate-design.ts`: delete guard 1 outright** — do not filter it, do not keep it. This
@@ -667,7 +667,7 @@ accepts an insert into an opening that lies wholly past the end of a wall. Wheth
 *offer* such an opening is the insert command's own question, belongs to wave 6M or M7, and is the
 owner's call (ADR 0069 consequences). **Registered at wave 6M below and in `docs/STATUS.md`**, so the
 question has an owner rather than only a mention. **Closed 2026-09-04 — see wave 6M's close-out and
-[ADR 0069's amendment](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code):
+[ADR 0069's amendment](../../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code):
 never offered, and already built as a map-level clip.**
 
 #### Wave 6A3 — shipped 2026-09-03, commit `eb9ba03`
@@ -698,8 +698,8 @@ at 6M.
 
 ### Wave 6A4 — the wall corner returns get their own kinds and names
 
-**[ADR 0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md)**, owner
-2026-09-03, mirroring [ADR 0025](../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md)'s
+**[ADR 0066](../../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md)**, owner
+2026-09-03, mirroring [ADR 0025](../../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md)'s
 treatment of the base corners. Raised by 6I's review.
 
 **The defect.** `wall-corner-return-570` (570 × 700) and `wall-corner-return-570-top` (570 × 400)
@@ -741,7 +741,7 @@ either.
   **"Corp"** — in the panel header and, since 6D, in the **priced document** — silently reinstating
   the very defect this wave exists to remove. The row-24 rule is sound in general, for a body that
   can actually be replaced; it is not this wave's exposure. See
-  [ADR 0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md)'s
+  [ADR 0066](../../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md)'s
   correction.
 - The two lines read differently in the breakdown, for the reason they differ.
 
@@ -750,7 +750,7 @@ either.
 ### Wave 6B — the price book and the pure pricing query
 
 **Goal.** Work item 1, which after
-[ADR 0004](../decisions/0004-m2-pricing-engine-deletion.md) is a **rebuild** and not an adaptation:
+[ADR 0004](../../decisions/0004-m2-pricing-engine-deletion.md) is a **rebuild** and not an adaptation:
 no pricing code survives to adapt.
 
 **Touches.** A new `packages/configurator-domain/src/pricing/` (price-book shape, the query, and the
@@ -759,7 +759,7 @@ sample book as a separate file), `index.ts`, tests.
 **Acceptance criteria.**
 
 - **Price is a formula over width, never a table keyed on the width ladder** —
-  [ADR 0035](../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 8, which
+  [ADR 0035](../../decisions/0035-width-is-a-bounded-stepper-not-a-menu-of-sizes.md) decision 8, which
   is recorded specifically so M6 is not designed as a lookup and then rebuilt. Falsifiable in two
   parts: no price-data structure keys on a width value, and a rule prices a 575 mm body without a
   575 row. Nothing under `pricing/` imports `WIDTH_STEP_MM` — the step is presentation and nothing
@@ -786,8 +786,8 @@ sample book as a separate file), `index.ts`, tests.
   nothing emits a line whose amount is zero; a rule that is missing is never read as zero, and
   omission never means "included".
 - **Fail whole.** A placement whose `buildId` resolves no rule — directly or through
-  `catalogEquivalentId` ([ADR 0022](../decisions/0022-seeded-entries-declare-their-catalogue-equivalent.md),
-  [ADR 0029](../decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)) —
+  `catalogEquivalentId` ([ADR 0022](../../decisions/0022-seeded-entries-declare-their-catalogue-equivalent.md),
+  [ADR 0029](../../decisions/0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md)) —
   returns a failure naming the id it could not resolve. No partial line set, no partial total.
 - The book carries a version and a status; the query refuses a book whose version does not match the
   one it was asked for, with no "current version" fallback and no migration inside pricing.
@@ -803,7 +803,7 @@ sample book as a separate file), `index.ts`, tests.
   at the moment part of it became unbuildable.
 - Rounding is **not** in the query. Amounts are exact integer minor units; presentation rounds.
 
-**Three prohibitions, from [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md).**
+**Three prohibitions, from [ADR 0062](../../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md).**
 A manufacturer-facing dashboard whose *primary* purpose is adjusting prices arrives after M8. **6B
 builds none of it** — no admin surface, no auth, no endpoint, no schema. What it owes is three
 things it must **not** do, each cheap now and expensive to retrofit:
@@ -837,7 +837,7 @@ shape.
   spreads — so a single plausible edit to a corner row turns a silent agreement into a body billed
   for two handles it does not have. **Pinned by a test on a seeded corner**, not by inspection.
 - **The handle line's quantity is a count of _cabinet_ handles, never of handle meshes**
-  ([ADR 0061](../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md)
+  ([ADR 0061](../../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md)
   decision 2). It reads the count wave 6L declares on the catalogue entry, because the domain has no
   meshes to look at and §12 keeps it that way. `tall-oven-tower` bills **two**, not four.
 - **Pricing does not copy 6A's lookup.** Reported by 6A's implementer: the projection resolves the
@@ -850,7 +850,7 @@ shape.
 
 ### Wave 6B2 — the door step and the height term
 
-**[ADR 0068](../decisions/0068-price-steps-at-the-door-count-and-follows-height.md)**, owner
+**[ADR 0068](../../decisions/0068-price-steps-at-the-door-count-and-follows-height.md)**, owner
 2026-09-03. Two more price shapes, because 6B's single `linear-in-width` is not general.
 
 **Why a separate wave rather than an extension of 6B, and it is a close call.** The shape *is* 6B's
@@ -945,7 +945,7 @@ module CSS, `apps/web/src/app/configurator/configure/configure-screen.tsx` and i
   no total is persisted.
 - **A refused edit leaves the figure byte-identical**, and on desktop it is explicitly labelled
   unchanged while the rejection banner stands. This closes
-  [ADR 0024](../decisions/0024-the-rejection-banner-has-no-reachable-path.md)'s third frame-2C
+  [ADR 0024](../../decisions/0024-the-rejection-banner-has-no-reachable-path.md)'s third frame-2C
   requirement — the one M4 closed unmet on purpose and M5 wave 5E still carries.
 - A pricing failure renders **no** figure: not a zero, not a stale one, not a dash that reads as
   free.
@@ -1023,12 +1023,12 @@ exact wording.
 
 | String | Ruled in |
 | --- | --- |
-| *"Dulap suspendat de colț"*, *"Dulap de colț rând de sus"* | [ADR 0066](../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md), owner 2026-09-03 |
-| *"Racord bază de colț"*, *"Corp bază de colț"* | [ADR 0025](../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md) decision 5 |
-| The *"De la"* prefix and rounding up to the thousand | [ADR 0001](../decisions/0001-initial-product-and-stack.md) decision 4, and the mockups' presentation rule |
+| *"Dulap suspendat de colț"*, *"Dulap de colț rând de sus"* | [ADR 0066](../../decisions/0066-the-wall-corner-returns-get-their-own-kinds-and-names.md), owner 2026-09-03 |
+| *"Racord bază de colț"*, *"Corp bază de colț"* | [ADR 0025](../../decisions/0025-the-corner-base-legs-seat-on-the-l-joint.md) decision 5 |
+| The *"De la"* prefix and rounding up to the thousand | [ADR 0001](../../decisions/0001-initial-product-and-stack.md) decision 4, and the mockups' presentation rule |
 | The 2D disclaimer and *"Nu constituie ofertă comercială"* | Mockup frame 2D. **The desktop frame draws a shorter disclaimer, and it is superseded — the code deliberately differs from D2D here, and that is not a defect.** 2D reads *"…Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare."*; D2D stops at *"…electrocasnice."* and drops the measurement clause entirely. This row rules the string by frame **2D**, and 6D's own criterion above requires the on-site measurement, so wave 6D ships 2D's fuller sentence in **both** shells from a single constant. Settled from the record rather than by the wave's judgement, and consistent with how the previous two mockup inconsistencies went to the owner — *dulapuri* in both warnings, `De la neschimbat` on both shells: each time the two spellings converged on one. The mockup HTML still shows the shorter form; it is the record of what was drawn and was not edited. A later reader diffing the code against D2D will find this row before concluding the disclaimer is wrong. D2D also carries **no** *"Nu constituie ofertă comercială"* note at all, and it ships on both shells for the same reason: wave 6C's criterion names that sentence as what carries "the rounded lines and the rounded total need not sum" |
 | *"inclus"* for a zero-amount tier | Mockup frame 2E |
-| *"Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."* — the scene warning | [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 7b, owner 2026-09-03, **re-ruled the same day** to say *dulapuri* rather than *corpuri*, matching the flagged total. The superseded wording is struck through in place at the ADR. Wave 6M builds this string; it exists in no code today |
+| *"Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap."* — the scene warning | [ADR 0065](../../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) decision 7b, owner 2026-09-03, **re-ruled the same day** to say *dulapuri* rather than *corpuri*, matching the flagged total. The superseded wording is struck through in place at the ADR. Wave 6M builds this string; it exists in no code today |
 | *"Prețul include și dulapuri ce depășesc mărimea peretelui și necesită ajustări"* — the flagged total | ADR 0065 decision 7b. **The owner's own phrasing: verbatim, punctuation included, and not to be tidied** |
 | *"De la neschimbat"* — the price label while an edit is refused | Owner, 2026-09-03. **The code deliberately differs from both mockups here, and that is not a defect.** D2C draws `De la · neschimbat` (U+00B7) and mobile 2C draws `De la, neschimbat`; asked to reconcile the two spellings, the owner removed the separator entirely rather than picking one, so both shells now read `De la neschimbat` from a single constant. The mockup HTML **no longer** shows the old forms. It did until 2026-09-07, when the owner re-exported the reference for the top-bar wave and the export dropped `De la · neschimbat` from D2C. This row is therefore the only surviving record of what the frames drew, which is why `starting-price.adversarial.test.ts` now reads its counterfactual here rather than from the HTML: a reference the owner re-exports cannot witness what that reference once said. A later reader diffing the code against a frame will find this row before concluding the label is wrong |
 | What a kitchen with no cabinets says instead of *"De la 0 MDL"* | **Not ruled** — raised by 6C's QA, 2026-09-03, and deliberately not filled by the wave. No command reaches it: removal refuses the four structural corner bodies, so the emptiest kitchen a customer can build prices at 8 000 MDL. But `DesignSchema` holds `placements` to `.max(MAX_PLACEMENTS)` with **no `.min()`**, so a zero-placement document passes the write seam and resumes through a share link, and the bar then reads *"De la 0 MDL"*. Whether that is right, or wants its own copy, is the owner's. Likeliest to matter at **M7**, where generation may produce an empty result before it produces a kitchen |
@@ -1088,7 +1088,7 @@ itself does not decide it. **6G already covers the recovery path** — the tier 
 a design carrying a stale tier, so the customer is not stuck — but nothing yet reconciles the stored
 value itself. Not decided here; the next reader of wave 6F should treat this as an open input rather
 than rediscover it. **Closed 2026-09-04 by
-[ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) —
+[ADR 0072](../../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) —
 not by the reconcile-at-load recommendation above.** The question dissolves rather than gets answered
 as asked: versioning and stale-price handling belong to the manufacturer dashboard, M6 builds none of
 it, and a book change until then is a developer edit migrated in the same commit. See wave 6Q's
@@ -1097,7 +1097,7 @@ acceptance criteria for where this lands.
 ### Wave 6F — a global material that invalidates a per-cabinet finish
 
 > **SUPERSEDED 2026-09-04 by waves 6P, 6Q and 6R —
-> [ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md).**
+> [ADR 0071](../../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md).**
 > Not deleted, and not cancelled: **every criterion below is carried forward by wave 6Q**, which is
 > where the filter, the reset and the warning now ship. What changed is that 6F assumed the only
 > thing a material could invalidate was *membership* of a fixed five-value list. Under ADR 0071 the
@@ -1115,7 +1115,7 @@ offers.** ADR 0057's reconciliation rule for a per-cabinet finish is the propose
 whole-kitchen material or hardware tier, reconciled at load. Not yet decided or built — 6F's own
 acceptance criteria below are unchanged and do not cover it.
 
-**UNBLOCKED 2026-09-02 — [ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md).**
+**UNBLOCKED 2026-09-02 — [ADR 0057](../../decisions/0057-a-material-change-resets-an-unavailable-finish.md).**
 An affected cabinet resets to the new material's default finish, and the sheet states that
 consequence before the change is applied. The filter, the reset and the warning ship together;
 none of the three means anything alone.
@@ -1181,7 +1181,7 @@ has four hinged leaves and that function answers two. Reaching for the raw deriv
 demonstrably the wrong move **and there is a right one to name**: use `widthDerivedDoorLeafCount`.
 
 **If the tier turns out to price per leaf, it must use that same function**, because
-[ADR 0068](../decisions/0068-price-steps-at-the-door-count-and-follows-height.md) already puts a
+[ADR 0068](../../decisions/0068-price-steps-at-the-door-count-and-follows-height.md) already puts a
 carcass's own price on it. Two rules counting leaves on different denominators is the failure, and it
 is quiet.
 
@@ -1292,14 +1292,14 @@ own comment scopes at eight files plus message and test names), `catalog.ts`,
   is a note and never a reason to widen the wave.
 - **The hood's finished line follows the setting and its body does not.** `HOOD_FINISHED_DEPTH_MM`
   is the cabinet depth while `HOOD_DEPTH_MM` stays 500
-  ([ADR 0039](../decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md): a hood is a
+  ([ADR 0039](../../decisions/0039-the-hood-is-a-standard-depth-hung-at-the-front.md): a hood is a
   manufactured appliance, hung at the front). At 700 the concealed gap behind it therefore grows
   from 100 mm to 200 mm. That is the ADRs' intent, and it must be asserted at both depths so it
   cannot later be "fixed" by aligning the hood to the map.
 
 ### Wave 6I — the base family follows the formula
 
-**Not blocked.** This closes the carry-out `docs/milestones/M5-width.md` hands M6 by name: beyond
+**Not blocked.** This closes the carry-out `docs/milestones/done/M5-width.md` hands M6 by name: beyond
 `baseCabinet`, the corner, return, dishwasher and oven-tower bodies stay byte-identical across
 depths — measured in 5F's QA — and **M6 must not ship the depth control without closing it.** It is
 a gap in reach rather than a live defect only because nothing ships at 700.
@@ -1322,7 +1322,7 @@ a gap in reach rather than a live defect only because nothing ships at 700.
   clearance is measured at both declared depths and stated, so the floor is a number somebody read
   rather than one somebody remembered.
 - **The two pinned entries do not move, and the pin is a declaration rather than a held-still
-  constant** — [ADR 0058](../decisions/0058-the-two-deep-top-cabinets-are-pinned.md) decisions 2 and
+  constant** — [ADR 0058](../../decisions/0058-the-two-deep-top-cabinets-are-pinned.md) decisions 2 and
   3. Falsifiable: build the catalogue at 600 and at 700; `wall-2door-600-deep-top` and
   `wall-2door-700-over-fridge` finish at 600 at both, while every other cabinetry entry has moved.
   An entry that neither tracks the setting nor declares an exception **fails loudly** rather than
@@ -1351,7 +1351,7 @@ a gap in reach rather than a live defect only because nothing ships at 700.
   **A wave that makes any label depth-dependent must revisit both** — this criterion and that call
   site — because the moment the values differ across depths, "admissible either way" stops being
   true and a cabinet can silently rename itself at 700 inside a priced document. That is what the
-  gate is here to catch ([ADR 0064](../decisions/0064-a-seeded-row-carries-its-catalogue-equivalents-name.md)'s
+  gate is here to catch ([ADR 0064](../../decisions/0064-a-seeded-row-carries-its-catalogue-equivalents-name.md)'s
   amendment).
 - **Seats are derived too, not only depths.** 6I found every body's *seat* still a literal, so at 700
   the reference room did not compose — carcasses through walls, worktops intersecting, upper corner
@@ -1375,7 +1375,7 @@ a gap in reach rather than a live defect only because nothing ships at 700.
 > **Both halves are superseded.** The 400 mm premise came from a wall B of 2400 mm, which
 > `docs/BACKLOG.md` entry 21's *corrected* resolution replaces with **2830** — so there is no overrun
 > at 600 and nothing for that gate to report there. And
-> [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) moved
+> [ADR 0065](../../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md) moved
 > detection out of a parity test entirely: it is now **one published per-placement fact**, because
 > four surfaces have to agree about it, which a test file cannot give them. **Wave 6A3 owns it**,
 > with the sharper criterion this one could not have had — nothing flagged at 600, `p7` and `p24`
@@ -1399,7 +1399,7 @@ a gap in reach rather than a live defect only because nothing ships at 700.
   nobody has answered. Do not derive it into a formula and do not leave it inherited: raise it.
 
   > **NOT MET AT 6I's CLOSE — the question was never raised. Answered 2026-09-05 by
-  > [ADR 0087](../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md),
+  > [ADR 0087](../../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md),
   > and fixed by wave 6U below.** Found by the M6 certification audit, two waves after the depth
   > control shipped: searching all of `docs/` for `HOB_FORWARD_OFFSET` returned this sentence and
   > nothing else — no backlog entry, no *Not established* question, no record. **6I's own judgement
@@ -1418,7 +1418,7 @@ three-adapter test named for it, which the audit found inert — one instance of
 
 ### Wave 6I2 — clearance is not a build depth (`docs/BACKLOG.md` entries 15 and 10)
 
-**UNBLOCKED 2026-09-02 — [ADR 0060](../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md).**
+**UNBLOCKED 2026-09-02 — [ADR 0060](../../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md).**
 New scope, folded in from the backlog on 2026-09-02. The column publishes a build depth beside its
 clearance; the build depth is declared, never the clearance MAX; and both routes into a slot land on
 it, which closes entry 10 at **600** — swap's number.
@@ -1474,7 +1474,7 @@ and the void mesh in `packages/three-adapter`.
 
   > **Narrowed at close-out, 2026-09-04, and it is a narrowing of scope rather than a defect.** "Every
   > column" overclaims: only **wall-band** carcasses read the build depth this wave publishes. Base,
-  > full-height and appliance builders discard it under [ADR 0040](../decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md)'s
+  > full-height and appliance builders discard it under [ADR 0040](../../decisions/0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md)'s
   > `wall-plane` rule — they build to one declared distance from the wall plane regardless of what the
   > plan hands them — and base depths reach the kit through `makeKit({ cabinetDepthMm })`, never
   > through the plan at all. The property that actually holds, and is what shipped, is **"both routes
@@ -1509,9 +1509,9 @@ pass.
 
 ### Wave 6J — the persisted cabinet depth, and what a change does
 
-**UNBLOCKED 2026-09-02** — [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md)
-(migrate on change), [ADR 0056](../decisions/0056-two-cabinet-depths-are-declared-and-the-control-reads-the-map.md)
-(two declared depths) and [ADR 0058](../decisions/0058-the-two-deep-top-cabinets-are-pinned.md)
+**UNBLOCKED 2026-09-02** — [ADR 0055](../../decisions/0055-a-depth-change-migrates-the-stored-design.md)
+(migrate on change), [ADR 0056](../../decisions/0056-two-cabinet-depths-are-declared-and-the-control-reads-the-map.md)
+(two declared depths) and [ADR 0058](../../decisions/0058-the-two-deep-top-cabinets-are-pinned.md)
 (the two deep tops are pinned). Wave 6I2 remains a gate.
 
 **Owed from wave 6I2's close-out: a command-path assertion pinned at 700, not at 600.** 6I2 shipped
@@ -1563,7 +1563,7 @@ it here rather than assume 6I2's 600-only coverage already proves the compositio
   whole point is that depth varies.
 - **A stored design predates this wave's schema, and the migration seam is where that is answered.**
   ADR 0052 measured five rows in the application database at `schema_version` 1. Whatever
-  [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md)'s version bump does,
+  [ADR 0055](../../decisions/0055-a-depth-change-migrates-the-stored-design.md)'s version bump does,
   it meets documents written before any of this existed, and **ADR 0052's own precedent governs the
   shape of the answer**: `migrateFromV1` **normalises** a document written under a superseded rule
   rather than refusing it, because *"a `/d/{id}` share link is the one artefact this project hands to
@@ -1571,7 +1571,7 @@ it here rather than assume 6I2's 600-only coverage already proves the compositio
 
 ### Wave 6K — the depth control on the sheet — **DONE 2026-09-04 (6K-a, `30c3bcb`); 6K-b below**
 
-**UNBLOCKED 2026-09-02** — [ADR 0059](../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md)
+**UNBLOCKED 2026-09-02** — [ADR 0059](../../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md)
 settles the floor. Still gated on 6J and 6G.
 
 **Acceptance criteria.**
@@ -1591,9 +1591,9 @@ settles the floor. Still gated on 6J and 6G.
   clearance measured at 600 and reaches zero at 520 — and it is enforced in the domain as well as
   here, so a document cannot arrive below it by another route.
 - **Two call sites still hard-code the pre-6J constant, and the second one gates the criterion above
-  it.** Recorded 2026-09-04 as [ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)'s
+  it.** Recorded 2026-09-04 as [ADR 0073](../../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)'s
   finding, classified as an implementation defect against
-  [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md) decision 1 and **not** a
+  [ADR 0055](../../decisions/0055-a-depth-change-migrates-the-stored-design.md) decision 1 and **not** a
   contract gap — no decision needs revising.
   `packages/configurator-domain/src/commands/insert-fit.ts:834` passes
   `cabinetDepthMm: WORKTOP_DEPTH_MM` (600) to `columnBuildDepthM`, so at a 700 mm kitchen every wall
@@ -1611,7 +1611,7 @@ settles the floor. Still gated on 6J and 6G.
 
 #### Wave 6K-b — the scene's half, ruled 2026-09-04 — **DONE 2026-09-04, `4dc08e0`/`30d419b`/`e664e33`**
 
-**[ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md).** The stage memo is
+**[ADR 0074](../../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md).** The stage memo is
 keyed on the design's cabinet depth and **the whole stage is rebuilt** — kit, shell, both roots, the
 room, the light rig, the ground and the blob. The narrow "swap the kit and the shell under the mounted
 bodies" shape is **refused**: `signBody` (`scene-sync.ts`) is a function of the record alone, a depth
@@ -1671,7 +1671,7 @@ for why the narrow shape avoids none of the cost.
 
 ### Wave 6K-c — a frozen extent records the body its depth came from — **DONE 2026-09-05, `56b6815`**
 
-**[ADR 0073](../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)**, ruled
+**[ADR 0073](../../decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)**, ruled
 2026-09-04. Wave 6K-a fixed what a depth change can fix locally — an extent whose column still has
 members is re-answered as the MAX of the frozen extent and what those members measure, never
 shrinking. This wave closes the residue it named: **a frozen extent with no member left to measure
@@ -1731,7 +1731,7 @@ production files, which is the dispatch limit — the byte-cap edit is one line 
   change; a member-less **base** column frozen at 620 stays 620 and is the stated residual, not a
   defect to be fixed by inventing a number.
 
-  **Re-scoped by wave 6K-j ([ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)
+  **Re-scoped by wave 6K-j ([ADR 0080](../../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)
   decisions 3 and 5); the 620 is unchanged and the sentence around it is not.** Two things this arm
   did are different things, and only one of them survives. The **surplus** — 620, deeper than
   `columnBuildDepthM` can express at any setting — is kept, and *"stays 620"* is still the right
@@ -1767,7 +1767,7 @@ production files, which is the dispatch limit — the byte-cap edit is one line 
   failure is indistinguishable from one that never existed (`docs/WORKFLOW.md`).
 
 **Residue found by adversarial QA before this wave was committed, ruled 2026-09-05 by
-[ADR 0079](../decisions/0079-a-republished-depth-names-the-body-it-came-from.md).** Two findings, both
+[ADR 0079](../../decisions/0079-a-republished-depth-names-the-body-it-came-from.md).** Two findings, both
 on the uncommitted diff and neither reaching a shipped wave — `depthFromBuildId` appears in no
 committed file. The wave **stays one wave** and absorbs them: one is store-only, the other domain-only,
 and no contract crosses between them.
@@ -1878,7 +1878,7 @@ dependency. `PlacementRecord` carries the rule raw and it is resolved where it i
 leaves the eight test files that build entries without one green. ADR 0079 amendment, section D.
 
 **Confirmed by the owner on 2026-09-05, and this wave's scope is unchanged.**
-[ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)
+[ADR 0080](../../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)
 records the instruction — *"everything, cabinets, empty spaces, everything, should change to six
 hundred depth"* — and measures this wave against it: once 6K-c lands, every current-schema column's
 depth is a pure function of (recorded source, setting) in both directions, which is the requirement.
@@ -1889,7 +1889,7 @@ rules about empty spaces, and the ratchet inside that fallback is wave 6K-j's. N
 
 ### Wave 6K-j — an empty space follows the setting, and the fallback is not a ratchet — **DONE 2026-09-05, `151429f`**
 
-**[ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)**,
+**[ADR 0080](../../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)**,
 ruled 2026-09-05 on a direct owner instruction: *"everything — cabinets, empty spaces, everything —
 should change to six hundred depth… you don't keep all their depth in mind because there was earlier a
 cabinet deeper, and now this is missing."*
@@ -1908,7 +1908,7 @@ measured on the shipped fixture, every current-schema column's depth is already 
   70 mm proud of every wall body around it. **This wave ends it.**
 
 **Amended 2026-09-05, after the implementation landed and adversarial QA swept it**
-([ADR 0080](../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)'s
+([ADR 0080](../../decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)'s
 amendment, sections A–I; QA's files are `apps/web/tests/store/qa-6k-j-fallback-rule.adversarial.test.ts`
 and `qa-6k-j-closure.adversarial.test.ts`). **The predicate is an equality, not a bound**, and three of
 the criteria below were rewritten because QA falsified the sentences they were built on. Every depth
@@ -2129,7 +2129,7 @@ changed its height" — recurring on the depth axis, in the file that documents 
 its own wave rather than a patch inside 6K.
 
 **RULED 2026-09-04 —
-[ADR 0075](../decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md), and it
+[ADR 0075](../../decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md), and it
 changes what this wave is.** Two answers, and the second matters more than the first.
 
 **291 is right, and it is not a choice between two defensible numbers.** `frameDepthMm` on a
@@ -2190,10 +2190,10 @@ frozen extent records the body its depth came from"* — wave 6K-c's own record,
 ADR headers are authoritative: this wave is **ADR 0074**, as the citation immediately below already
 states.
 
-**[ADR 0074](../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md)'s finding**, recorded
+**[ADR 0074](../../decisions/0074-the-scene-rebuilds-whole-at-a-depth-change.md)'s finding**, recorded
 2026-09-04 while ruling on 6K-b's scene half. **A third call site on the pre-6J depth, after ADR 0073's
 two, and classified the same way**: an implementation defect against
-[ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md) decision 1, beside a
+[ADR 0055](../../decisions/0055-a-depth-change-migrates-the-stored-design.md) decision 1, beside a
 test-fidelity problem. No decision needs revising.
 
 `setCabinetDepth` writes every rebuilt body's `seatDepthMm` from the probe it is handed, and the store
@@ -2241,7 +2241,7 @@ reachable in the tree through 6J-b and 6K-a. 6K-b carries the failing guard inst
 
 ### Wave 6K-f — a probe lease is a scoped borrow, and the store publishes no probe — **DONE 2026-09-05, `827e1e1`**
 
-**[ADR 0076](../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**,
+**[ADR 0076](../../decisions/0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md)**,
 ruled 2026-09-05 on a confirmed leak reported against 6K-e's own work. **Gated by 6K-e**, which it
 finishes: 6K-e gave the store a factory and the adapter a `disposeKit`, and the store then dropped
 the release at five call sites. Classified in the ADR as a **contract gap first** — the lease
@@ -2386,7 +2386,7 @@ the tap-to-frame interval against decision 9.
 
 ### Wave 6K-h — a depth change plans against the catalogue, not against the seats it is about to replace — **DONE 2026-09-05, `e90ccc8`**
 
-**[ADR 0077](../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)
+**[ADR 0077](../../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)
 decision 8**, in that record's Addendum of 2026-09-05. **Runs before 6K-g**, which rules on the other
 clause of the same principle and whose fix is far larger. Both edit `commands/set-cabinet-depth.ts`,
 so do not run them in parallel.
@@ -2502,7 +2502,7 @@ the one ADR 0028's original report is about.
 
 ### Wave 6K-g — a seat fixed by a joint is declared, and every entry declares which plane seats it — **DONE 2026-09-05, `52e3c70`**
 
-**[ADR 0077](../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)**,
+**[ADR 0077](../../decisions/0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md)**,
 ruled 2026-09-05 on a confirmed blocker created by 6K-d's own probe-dispatch fix. **Sequenced after
 6K-f and after 6K-h**, both of which also edit `commands/set-cabinet-depth.ts`. 6K-h goes first
 because its defect is reachable by any customer who uses the depth control twice and its fix is one
@@ -2644,14 +2644,14 @@ assertion describes.
 ### Wave 6K-i — a depth change plans against the frozen extent, and only the depth is re-derived
 
 **Adjudicated 2026-09-06 by
-[ADR 0088](../decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)**,
+[ADR 0088](../../decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md)**,
 which rules ADR 0079's recorded-and-unruled finding an **implementation defect** in
 `set-cabinet-depth.ts` against ADR 0011 Gap D and ADR 0053 — not a contract gap and not a
 test-fidelity problem. Read that record first: it carries the measurements, the two refused cures and
 the sweep. This section is the wave.
 
 **Amended 2026-09-06, by
-[ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+[ADR 0090](../../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
 decision 6 — which amends ADR 0088 decision 1, the sentence this whole section was planned against.**
 Read that record's decisions 2 and 6, Amendment A's ladder and Amendment B before this plan. Every
 paragraph the amendment reaches is marked *(amended)* below; everything unmarked is the plan as first
@@ -2685,7 +2685,7 @@ derivations whose difference is the ladder's exact rung, and the depth pair — 
 planning map it feeds is not circular on the rebuild's own output. There is nothing here to split.
 
 **And the witness is not this wave's** —
-[ADR 0093](../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
+[ADR 0093](../../decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
 decisions 1 and 5. The slide is correct and, on the shipped kitchen, **unobservable**: no wall-B column
 holds a body whose rebuild the collapsed top can refuse, so removing the slide is byte-identical over
 284 delete × depth trails. Its falsifiable assertion is **wave 6X's**, and 6K-i merges unwidened. A
@@ -3027,7 +3027,7 @@ merged branch are in wave 6R-b's close-out above and cover this wave.
 ### Wave 6L — the handle path learns a cabinet handle from an appliance's (`docs/BACKLOG.md` entry 18)
 
 **CONFIRMED FOR M6 by the owner, 2026-09-02, with a second half that reaches pricing** —
-[ADR 0061](../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md).
+[ADR 0061](../../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md).
 Scheduled in track G and **sequenced before 6B and 6G**: 6B reads the handle count this wave
 declares, so it can no longer run first.
 
@@ -3102,7 +3102,7 @@ once for all three waves it touches.
 
 ### Wave 6M — the overflow is marked in the scene and warned about
 
-**[ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).** The
+**[ADR 0065](../../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).** The
 presentation half of 6A3.
 
 **Sequencing, and it differs from where this was expected to land.** The instinct was to put it with
@@ -3120,7 +3120,7 @@ different question from marking a body the customer already placed, which is rul
 covers both a remnant the product itself creates (this wave, or M7's generation) and a fabricated
 empty-column entry, because **one decision governs both**. Not urgent and not blocking; it needed the
 owner before this wave decided anything about it. **Closed 2026-09-04 — see the wave's close-out
-below**, and see [ADR 0069's amendment](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code).
+below**, and see [ADR 0069's amendment](../../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md#amendment--2026-09-04-the-reserved-question-is-closed-and-it-was-already-answered-in-code).
 
 **Acceptance criteria.**
 
@@ -3149,7 +3149,7 @@ behaviour was already shipped before the question was explicitly closed**:
 `void-engine.ts`, clips every member-less column to its wall's own length (dropping one that starts
 at or past it) before any command or load can publish it as an insertable opening — verified wired in
 against the tree. Neither this wave's own section nor
-[ADR 0069](../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
+[ADR 0069](../../decisions/0069-past-the-wall-is-one-code-family-and-severity-is-declared-per-code.md)
 connected the shipped clip to the reserved question until now; see that ADR's amendment for the full
 record. `EMPTY_COLUMN_PAST_WALL_END` is unchanged by this — it stays a defence-in-depth mark for a
 stored document nobody wrote through a command; the clip makes it unreachable from anything a command
@@ -3274,7 +3274,7 @@ moves the numerator**, which is exactly the story the bar tells. It carries into
 
 **The reference already specifies its copy and layout**, so this is not a design task — the Romanian
 strings, the ordering and the per-body width list all come from the panel. **With one caveat that is
-this wave's alone** ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)):
+this wave's alone** ([ADR 0067](../../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)):
 the panel was written against a **round** wall with a 30 mm remainder, and its heading is
 *"LĂȚIME ACOPERITĂ · **PRACTIC PLIN**"*. Real walls are not round — 2444 mm is typical — so on a real
 wall the same bar shows a **large** remainder, and **the customer must not read that as an error or
@@ -3293,7 +3293,7 @@ test fixture with a ~200 mm leftover belongs here.
 open items.**
 
 > **Planned 2026-09-05, and the section above is superseded in five places by
-> [ADR 0083](../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md).**
+> [ADR 0083](../../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md).**
 > Kept unedited above rather than rewritten, because it is the record of what the feature request was
 > assessed as before anything was measured, and three of its four "what it needs" bullets were right.
 > The corrections, each stated at its bullet below, and then the four waves this splits into.
@@ -3401,7 +3401,7 @@ Finding classifies it and **wave 6J-c** below closes it. Wave 6I's review indepe
 consequence in built geometry: at 700 the reference room does not compose.
 
 **Until 6J-c lands, wall B reads 2800 / 2920 with 120 mm free at both depths.** Legal and
-unremarkable under [ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)
+unremarkable under [ADR 0067](../../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)
 — never marked, never warned about — but 90 mm more bare wall than the reference panel shows, and a
 reader comparing the two should find this paragraph first.
 
@@ -3520,7 +3520,7 @@ that rewrites stored placements under migrate-on-change (ADR 0055).
   wall A's run at the corner. Wave 6I's review measured *"carcasses through walls, worktops
   intersecting, upper corner returns overlapping by 70 mm"*; this is the wave that makes that false.
 - **At 700 mm no wall-B placement's near edge sits inside wall A's corner reach**, asserted **per
-  chain and not as a total** ([ADR 0089](../decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md)
+  chain and not as a total** ([ADR 0089](../../decisions/0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md)
   decision 3). Measured at `14cef90`, the two arms are different numbers and both are negative at
   700: `base-formula` — `base-corner-return-320`'s near edge 580 against `base-corner-x-900`'s frame
   depth 560 → 660, so +20 mm becomes **−80 mm**; `wall-map` — `wall-corner-return-570`/`-top`'s near
@@ -3557,7 +3557,7 @@ and the same merge, and were measured on the merged tree.
 
 ##### Wave 6J-d — the frozen map slides with the run it records
 
-**Gated by 6J-c and lands with it.** [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).
+**Gated by 6J-c and lands with it.** [ADR 0090](../../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md).
 6J-c moves wall B's placements and leaves `Design.emptyColumns`, `Design.columnExtents` and the
 store's `columns` map at the coordinates it just vacated. **6J-c does not reach `main` without this
 wave** (ADR 0090 decision 7): both commit on one branch, and the branch merges when `pnpm ci:local`
@@ -4000,7 +4000,7 @@ production files. **Tier: Full.** **Gate: 6N-0 and 6N-a.**
   — not through a second branch that asks whether a panel exists.
 - **Bare wall is never reported as anything but a remainder**, and **no criterion asserting that a
   run *reaches* its wall may be added**
-  ([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)). It is
+  ([ADR 0067](../../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)). It is
   the check a gate author looking for things to assert would write; it is wrong in the normal case,
   and this wave is the one most likely to attract it. **Wall B's own 120 mm at 600 is the live
   example** until 6J-c lands.
@@ -4015,7 +4015,7 @@ production files. **Tier: Full.** **Gate: 6N-0 and 6N-a.**
 - **A wall with no placement on it produces no entry**, matching `projectDesignForDisplay`'s rule
   that a group is never empty. Not an entry reading `0 / 3560`.
 - **The body list per wall is the projection's**, reused rather than re-sorted
-  ([ADR 0063](../decisions/0063-a-group-is-listed-row-major-height-before-position.md)), and empty
+  ([ADR 0063](../../decisions/0063-a-group-is-listed-row-major-height-before-position.md)), and empty
   spaces are not in it.
 - **No document field is added and no schema version is owed.** Derived on every read, stored
   nowhere (§12).
@@ -4054,7 +4054,7 @@ question Q1** — the reference artefact is not in the tree, so its placement an
   ships the owner's answer or it does not ship the copy.
 - **Visual gate at 390 × 844**, against the running app: the bar takes no height from the canvas it
   is not entitled to, nothing leaves the viewport
-  ([ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)'s rule
+  ([ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)'s rule
   applied to a second surface), and **three states are captured** — the seeded kitchen's fitting bar,
   the ~200 mm remainder, and the overflow fixture's overflowing bar. Measured off the running page,
   not modelled; wave 6M's three-error correction of 2026-09-04 is why.
@@ -4095,7 +4095,7 @@ what a later wave would build on, should this be revisited.
 this ruling as cancelling the whole 6N chain:**
 
 - **6N-0** (the demo room clears its run at both depths, `3560 × 2920`) rests on a **separate
-  ruling**: the fixture correction [ADR 0083](../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md)
+  ruling**: the fixture correction [ADR 0083](../../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md)
   records, which wave 6Q-b was already built around. It is what the room *is*, independent of whether
   any bar ever renders its coverage.
 - **6N-a** (the run-end panel's seat becomes a domain fact) is **not bars groundwork**. Its subject is
@@ -4106,7 +4106,7 @@ this ruling as cancelling the whole 6N chain:**
 
 ### Wave 6P — the finish model: three materials, a declared palette, and a document that predates both
 
-**[ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
+**[ADR 0071](../../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
 owner 2026-09-04. **With 6Q and 6R this supersedes wave 6F**, which was one clause of it.
 
 **Goal.** Make *a finish* expressible. Three declared materials, price-ordered — **PAL (melamine) <
@@ -4138,7 +4138,7 @@ real shape.
   a tier. A fourth material on either side then fails a gate instead of rendering a colour control
   with no options, or a priced tier no colour control offers. **Two independent lists of three is
   ADR 0028's failure one seam over.** The domain still imports no book
-  ([ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)
+  ([ADR 0062](../../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)
   seam 1), so the assertion lives in a test that composes both — not in `pricing/`, and not in a
   runtime check inside the domain.
 - **A finish is two kinds of thing and the discriminant is declared, never inferred from the
@@ -4209,7 +4209,7 @@ real shape.
 
 ### Wave 6Q — a material change resolves every finish it does not offer
 
-**[ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md), unchanged and
+**[ADR 0057](../../decisions/0057-a-material-change-resets-an-unavailable-finish.md), unchanged and
 still governing**, now that the offer differs in **shape** and not only in membership.
 **This wave is where wave 6F ships**; its criteria are carried forward here in full.
 
@@ -4245,7 +4245,7 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
   This wave adds the clause **in the same change that adds the behaviour** — the two are one edit,
   and a wave that ships either alone has shipped the defect from one side or the other.
   **Amended 2026-09-05 by the owner, recorded in
-  [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md):
+  [ADR 0081](../../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md):
   the warning is no longer a clause in `materialWarning` at all.** It becomes a **conditional,
   blocking confirmation** shown when — and only when — some cabinet carries a colour that differs
   from its current material's declared default, and the apply runs no command until it is confirmed.
@@ -4264,7 +4264,7 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
   still an open input.
 - **A stored material or hardware tier the price book no longer offers — no longer this wave's to
   answer. Ruled 2026-09-04, recorded in
-  [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md),
+  [ADR 0072](../../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md),
   which deferred it with a home rather than closing it outright.** The question travelled 6E → 6F →
   6Q looking for the wave that owns reconciliation; ADR 0072 dissolves it instead: prices become
   versioned and a saved kitchen keeps the price it was quoted at, but **all of that machinery is
@@ -4281,9 +4281,9 @@ would put a Full-tier rule and a Light-tier surface in one diff and one review.
 - **A body that cannot wear a finish is never reset, never refused and never counted** in the
   "applies to N bodies" figure the sheet already renders.
 
-#### The plan, 2026-09-05 — [ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md). Two sub-waves, in this order — **now three, see 6Q-c**
+#### The plan, 2026-09-05 — [ADR 0078](../../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md). Two sub-waves, in this order — **now three, see 6Q-c**
 
-**[ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md)
+**[ADR 0078](../../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md)
 rules the three things 6P left open** and this plan sits on: what *"offers"* means now that a finish
 has two kinds (derived from `ColourControl.shape`, and MDF offers **every** free colour the schema
 admits), where the invariant is enforced (the load seam **resolves**, the write seam **refuses**, and
@@ -4306,7 +4306,7 @@ punch-list items. Neither sub-wave is a candidate for batching with 6R, whose re
 screen.
 
 **Revised 2026-09-05 —
-[ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+[ADR 0081](../../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
 adds a third sub-wave.** The owner replaced the always-shown warning with a **conditional, blocking
 confirmation**, which is a domain predicate plus an interactive step on a modal surface. Folding it
 into 6Q-b would put a load-path migration, a validation refusal and a two-step dialog with a focus
@@ -4398,7 +4398,7 @@ reaches into `panel-model.ts` to pre-empt it has taken 6R's diff.
    clause, drafted and marked *pending owner review*. **Static, not conditional, and carrying no
    count**… Two live assertions in `apps/web/tests/settings/global-settings-model.test.ts` must be
    **inverted, not deleted**.~~ **Withdrawn 2026-09-05 by the owner's ruling —
-   [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+   [ADR 0081](../../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
    decision 5.** The finish consequence is no longer a clause in this sheet's standing copy; it is a
    conditional blocking confirmation, and it ships in **6Q-c** with the query that decides when it
    appears. `ro.globalSettings.materialWarning` is **unchanged**, so the two assertions are **kept,
@@ -4418,7 +4418,7 @@ reaches a frontless carcass like any other. Nothing in `panel-model.ts` or `thre
 actually landed.
 
 **And no `BodyCatalog` on `WholeKitchenTierInput` — ruled 2026-09-05,
-[ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md)
+[ADR 0084](../../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md)
 decision 4, and the answer does not expire with this wave.** It is a decision about the **pair**:
 `setHardwareTier` shares the shape, would never read the field, and a parameter one command ignores
 is the flag argument that module's head comment already refused once. It would also be a **third
@@ -4440,7 +4440,7 @@ the domain copy names the web copy the way the web copy already names it.
 
 **Close-out, 2026-09-05.** Adversarial QA's one red finding — the load-seam ordering criterion this
 section's table originally stated, `packages/configurator-domain/tests/qa-6q-b-load-seam.adversarial.test.ts`
-attack 6 — is settled by [ADR 0085](../decisions/0085-a-normalisations-guard-asks-what-the-normalisation-changes.md):
+attack 6 — is settled by [ADR 0085](../../decisions/0085-a-normalisations-guard-asks-what-the-normalisation-changes.md):
 `correctPreCorrectionRoom`'s guard becomes a comparison across the rewrite rather than an absolute
 reading of the corrected document, and the withdrawn ordering criterion is replaced by the two
 falsifiable ones ADR 0085 decision 6 states, reflected in the criteria row above. `pnpm ci:local`
@@ -4450,9 +4450,9 @@ review found the implementation matches intent with no blocker; clean-code revie
 ##### 6Q-c — the confirmation that precedes the wipe, and the silence when there is nothing to wipe — **DONE 2026-09-05, `14cef90`**
 
 **Added 2026-09-05 on the owner's ruling, recorded in
-[ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md);
+[ADR 0081](../../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md);
 made dispatchable 2026-09-05 by
-[ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md),
+[ADR 0086](../../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md),
 which corrects this section's presence condition, replaces its inequality criterion and re-aims its
 "the count on screen is the query's" criterion.** Read both before dispatching: ADR 0081 carries the
 predicate's exact table and the consequence the owner may not have weighed; ADR 0086 carries the
@@ -4757,12 +4757,12 @@ browser. `docs/BACKLOG.md` entry 48 records the testing gap.
 | No stored design holds a finish its material does not offer, over every pair, at both seams | **6Q-a** (the query) then **6Q-b** (the two seams' outputs) | The generated-pair property, run three times: against the query, against `migrateDesign`'s output, against `setMaterialTier`'s |
 | The resolution runs once and produces one `CommandResult` | **6Q-b** | The effect's count, plus `onDesignChanged` called exactly once — below |
 | The warning is shown before the apply, on both viewports | **6Q-c** (moved from 6Q-b, ADR 0081) | The confirm step gates the apply: zero commands run while it stands, one after it. Asserted in the model, in the store and by real interaction on both shells |
-| The confirmation appears only when a chosen colour would be lost, and never otherwise | **6Q-c** | `countCabinetsWearingAChosenFinish`, both branches counted and both non-empty, with a floor per arm. **The presence condition compares materials, not id strings** ([ADR 0086](../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md) decision 3): `(applied: undefined, pending: "material.melamine")` is not a material change, because `undefined` resolves to `DEFAULT_MATERIAL_ID`, which *is* melamine — asserted with a chosen colour standing, so a confirmation that appeared there would fail. **The `chosenCount ≤ resolvedCount` criterion is withdrawn as generalised** and replaced by the same relation under its three preconditions plus three pairwise-distinct literals (~~14~~ **26** bodies — corrected 2026-09-05, `KITCHEN_L_DESIGN` has 26 placements and the projection carries all of them; 4 chosen, 2 resolved): measured false at 4 ≤ 2 on the fixture this plan reuses, at 1 ≤ 0 on a valid PAL kitchen re-applying PAL, and at 1 ≤ 0 on an undeclared tier |
+| The confirmation appears only when a chosen colour would be lost, and never otherwise | **6Q-c** | `countCabinetsWearingAChosenFinish`, both branches counted and both non-empty, with a floor per arm. **The presence condition compares materials, not id strings** ([ADR 0086](../../decisions/0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md) decision 3): `(applied: undefined, pending: "material.melamine")` is not a material change, because `undefined` resolves to `DEFAULT_MATERIAL_ID`, which *is* melamine — asserted with a chosen colour standing, so a confirmation that appeared there would fail. **The `chosenCount ≤ resolvedCount` criterion is withdrawn as generalised** and replaced by the same relation under its three preconditions plus three pairwise-distinct literals (~~14~~ **26** bodies — corrected 2026-09-05, `KITCHEN_L_DESIGN` has 26 placements and the projection carries all of them; 4 chosen, 2 resolved): measured false at 4 ≤ 2 on the fixture this plan reuses, at 1 ≤ 0 on a valid PAL kitchen re-applying PAL, and at 1 ≤ 0 on an undeclared tier |
 | The shape changes too — MDF → veneer, asserted on mixed finishes, as one result | **6Q-b** | The veneer fixture — below |
 | The reset target is each material's declared default | **6Q-b** | `defaultFinish` read from `MATERIALS`; a mutation of the declaration moves the reset |
 | A stale tier the book no longer offers | **neither** — ADR 0072 dissolved it | ADR 0078 decision 3 is the only thing owed: an undeclared id resolves and refuses nothing (**6Q-a** item 2) |
 | The finish reset moves nothing | **6Q-b** | Whole-document comparison with named exclusions — below |
-| A body that cannot wear a finish is never reset, never refused, never counted | **6Q-b**, and the three verbs land at three different seams — [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) decision 2 | **Never reset**: asserted as the **output**, not as the ordering — a hood stored wearing `pal.alb` on a veneer kitchen loads carrying **no finish at all** (`packages/configurator-domain/tests/finish-resolution-at-the-load-seam.test.ts`, plus the sweep over all three materials), which [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) decision 2a already rules the right home for it. **The wave's original wording — *"the strip runs first, so nothing frontless reaches the resolution"* — is withdrawn as unverifiable ([ADR 0085](../decisions/0085-a-normalisations-guard-asks-what-the-normalisation-changes.md) decision 6): the two normalisations commute on every input, QA measured zero failures from swapping them, and a criterion no test can fail is not a criterion.** What guards the ordering's *intent* instead is the invariant that makes it immaterial: `resolveFinishesTheMaterialDoesNotOffer` changes the set of placements carrying a `finish` key **not at all** — for every placement, `finish === undefined` before iff after — swept over 6Q-a's generated pair space with both branches non-empty (at least one placement rewritten, at least one absence preserved) and the count of finish-carrying placements pinned as a literal. That assertion goes red the moment either normalisation grows a condition, which is the outcome the ordering was written to defend. **Never counted**: `resolvedFinishCount`, which is 2 on a fixture whose hood carries nothing; the `appliesTo` figure is the material's *reach* and counts the hood, pinned **unchanged**. **Never refused**: on the **load path**, by the same ordering; `PUT` refuses a payload no command produces, and that is accepted |
+| A body that cannot wear a finish is never reset, never refused, never counted | **6Q-b**, and the three verbs land at three different seams — [ADR 0084](../../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) decision 2 | **Never reset**: asserted as the **output**, not as the ordering — a hood stored wearing `pal.alb` on a veneer kitchen loads carrying **no finish at all** (`packages/configurator-domain/tests/finish-resolution-at-the-load-seam.test.ts`, plus the sweep over all three materials), which [ADR 0084](../../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) decision 2a already rules the right home for it. **The wave's original wording — *"the strip runs first, so nothing frontless reaches the resolution"* — is withdrawn as unverifiable ([ADR 0085](../../decisions/0085-a-normalisations-guard-asks-what-the-normalisation-changes.md) decision 6): the two normalisations commute on every input, QA measured zero failures from swapping them, and a criterion no test can fail is not a criterion.** What guards the ordering's *intent* instead is the invariant that makes it immaterial: `resolveFinishesTheMaterialDoesNotOffer` changes the set of placements carrying a `finish` key **not at all** — for every placement, `finish === undefined` before iff after — swept over 6Q-a's generated pair space with both branches non-empty (at least one placement rewritten, at least one absence preserved) and the count of finish-carrying placements pinned as a literal. That assertion goes red the moment either normalisation grows a condition, which is the outcome the ordering was written to defend. **Never counted**: `resolvedFinishCount`, which is 2 on a fixture whose hood carries nothing; the `appliesTo` figure is the material's *reach* and counts the hood, pinned **unchanged**. **Never refused**: on the **load path**, by the same ordering; `PUT` refuses a payload no command produces, and that is accepted |
 
 ##### The property, stated exactly, and the guard against a third vacuous sweep
 
@@ -4845,7 +4845,7 @@ palette entry, so every decor resets to white. That is ADR 0057 working as ruled
 raised owner question.
 
 > **Corrected 2026-09-05 —
-> [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md).
+> [ADR 0084](../../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md).
 > The criterion above named one fixture for a guarantee that lives at two seams, and the two halves
 > it asked for could not both hold.** `setMaterialTier` takes `WholeKitchenTierInput`, which carries
 > no `BodyCatalog` — deliberately, since `setHardwareTier` takes the same shape — so the command
@@ -4881,7 +4881,7 @@ raised owner question.
 >
 > **And the two other conflations in the same sentence.** *"Never counted"* names
 > `resolvedFinishCount`, **not** the sheet's *"applies to N bodies"* figure — that figure is the
-> material's reach, it counts the hood ([ADR 0016](../decisions/0016-hood-chimney-is-carcass.md)) and
+> material's reach, it counts the hood ([ADR 0016](../../decisions/0016-hood-chimney-is-carcass.md)) and
 > must keep counting it, exactly as this wave's *What it must not do* already says. *"Never refused"*
 > is scoped to the **load path**, where a refusal is a dead `/d/{id}` link; at
 > `PUT /api/designs/[id]` the validator is document-level and catalogue-blind by design, and a
@@ -4951,7 +4951,7 @@ correctness is *whether it appeared* — which no `renderToStaticMarkup` asserti
   each cabinet"* — so ADR 0057's rejection of nearest-finish mapping and ADR 0078 decision 4's
   prohibition both stand, **reaffirmed rather than merely unrevisited**. The same message replaced
   the warning's shape; see
-  [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+  [ADR 0081](../../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
   and wave 6Q-c.
 - **Raised 2026-09-05, blocking nothing: should a free colour be canonicalised to lower case?**
   `FREE_COLOUR_PATTERN` admits both cases, `sameFinish` compares by string equality, and ADR 0081
@@ -4989,7 +4989,7 @@ changes because of it.
 **Touches.** `apps/web/src/panel/panel-model.ts` (the finish section), `apps/web/src/panel/editor-panel.tsx`
 and its module CSS, `apps/web/src/content/ro.ts`, `packages/three-adapter/src/finishes.ts`.
 **Plus, from the scope addition below (owner-ruled 2026-09-05,
-[ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)):**
+[ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)):**
 `apps/web/src/settings/global-settings.module.css` and
 `apps/web/src/app/configurator/configure/configure.module.css` — unrelated to this wave's subject and
 here because it is the wave that carries the visual gate on that screen.
@@ -5037,7 +5037,7 @@ here because it is the wave that carries the visual gate on that screen.
 
 #### Scope addition, 2026-09-05, owner-ruled: the whole-kitchen strip wraps and nothing leaves the screen
 
-> **Not met as implemented — see wave 6R-b below** ([ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md),
+> **Not met as implemented — see wave 6R-b below** ([ADR 0094](../../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md),
 > 2026-09-06). The criterion *"the price bar is fully visible… and the strip overlays neither,
 > measured on a flagged design too"* fails at the **shipped two chips** on desktop below 1150 px on a
 > flagged design: the settings trigger stands 39.06 × 44.00 px over the price bar and both chips are
@@ -5047,7 +5047,7 @@ here because it is the wave that carries the visual gate on that screen.
 > as this wave (`aa6ad9e`)** — see this wave's close-out and 6R-b's own, both below.
 
 
-**[ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)**, closing
+**[ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)**, closing
 `docs/BACKLOG.md` entry 32 and scheduling entry 33. Read the record before dispatching; it carries the
 measurements, the refused alternatives and the reason horizontal scrolling is not one of them.
 
@@ -5160,8 +5160,8 @@ credentials included — into the dev server's log. Seen once during setup. It w
 
 ### Wave 6R-b — the strip gets its own row, and containment is measured against its own band
 
-**[ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)**,
-which amends [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
+**[ADR 0094](../../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)**,
+which amends [ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
 decision 1 (*Amendment A* there). **Tier: Light + visual.** Two stylesheets, two e2e specs, one set of
 re-measured constants. Read ADR 0094 before dispatching; it carries the measurements and the six
 refused alternatives, including the one that looks right (a width threshold at 1150).
@@ -5292,7 +5292,7 @@ passes is the failure ADR 0028 exists for, and the record says which one this is
 **What it cost, stated because it was spent knowingly.** The desktop canvas loses the strip's row at
 every desktop width, including widths where nothing was wrong — the plan's *~44 px* is the content and
 the measured band is **45 px** with its rule. The desktop layout departs narrowly from frame D2E, which
-draws the two pills inside the top bar; [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
+draws the two pills inside the top bar; [ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
 decision 6 already permits that — a frame does not answer *"may a control leave the screen"* — and the
 owner's 2026-09-05 ruling names vertical height as the currency. The desktop pill styling stays.
 
@@ -5305,7 +5305,7 @@ four test additions.
 
 ### Wave 6S — door leaves, drawers and door band heights become declared facts
 
-**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md)**'s first two
+**[ADR 0070](../../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md)**'s first two
 recorded implementation gaps. **Declaration only — nothing priced changes in this wave.** The shape
 wave 6H used for depth: parameterise first, value-preserving, so the wave that consumes the fact is
 small.
@@ -5505,8 +5505,8 @@ two rows' mechanism contradictions (`wall-lift`, `base-bottle-cargo`) stay open 
 
 ### Wave 6T — hardware priced per mechanism
 
-**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md), planned by
-[ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md).**
+**[ADR 0070](../../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md), planned by
+[ADR 0092](../../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md).**
 Gate: 6S for the declarations, 6B2 for the shape registry. **The two sink extras have moved to 6T2**
 — ADR 0092 decision 13 takes the plan's own split trigger in advance, on a measured file count.
 **Carries one open owner input and does not stall on it**: whether the default hardware tier still
@@ -5641,7 +5641,7 @@ by that run.
 
 ### Wave 6T-a — one push-to-open predicate
 
-**Opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
+**Opened by [ADR 0092](../../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
 Amendment C (decision 3), on the owner's ruling of 2026-09-06.** Gate: **6T**, whose quantity basis
 it repairs. **Same branch as 6T and 6W; the three reach `main` together** (ADR 0092 decision 12).
 **Must not run beside 6T, 6T2 or 6P** — all four edit `sample-price-book.ts`. Tier: **Full**.
@@ -5811,8 +5811,8 @@ is struck and corrected — so there is nothing to unwind in the decision record
 
 ### Wave 6T2 — the two sink extras
 
-**[ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md) decision 4, planned
-by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
+**[ADR 0070](../../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md) decision 4, planned
+by [ADR 0092](../../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
 decisions 9–11.** Gate: 6T (same files). **Must not run beside 6T or 6P.**
 
 **Goal.** A sink is a declared catalogue fact; the rack's host is a derived position; both extras are
@@ -5908,7 +5908,7 @@ unresolved and carried past M6's wave table.
 
 ### Wave 6W — a tier that prices below the default
 
-**Opened by [ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
+**Opened by [ADR 0092](../../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
 decision 12.** Gate: 6T — the condition is not reachable until 6T's amounts exist. **Same branch as
 6T; the two reach `main` together.** Carries one open owner input.
 
@@ -6010,15 +6010,15 @@ open input 4.
 - Sample and commercial price amounts.
 - What the estimate includes, and therefore which lines the breakdown shows.
 - The rule for a per-cabinet finish invalidated by a material change. **Answered 2026-09-02 —
-  [ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md)** (reset to the
+  [ADR 0057](../../decisions/0057-a-material-change-resets-an-unavailable-finish.md)** (reset to the
   new material's default, warned before the apply), and **reshaped 2026-09-04 by
-  [ADR 0071](../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
+  [ADR 0071](../../decisions/0071-material-carries-price-colour-carries-a-different-control-per-material.md)**,
   which makes the offer differ in *shape* per material and not only in membership. ADR 0057 is
   unchanged; the rule ships at wave **6Q**. Left listed rather than deleted because the bullet has
   read as open since 2026-09-02 and a reader arriving at it needs the pointer, not a gap.
 - **Added 2026-09-03:** what a hardware tier counts when it prices hinges and slides, and whether
   `deriveDoorCount` — which returns leaves per *band* — is the right source. See wave 6G.
-  **Answered 2026-09-04 — [ADR 0070](../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md):**
+  **Answered 2026-09-04 — [ADR 0070](../../decisions/0070-hardware-is-priced-per-mechanism-not-per-handle.md):**
   neither leaves nor `deriveDoorCount`. Hardware prices per **mechanism** — 2 hinges per door leaf (3
   over 900 mm), 2 runners per drawer, 1 push-to-open per handle-less door or drawer — which the
   shipped 6G book does not yet implement; see that ADR's recorded implementation gap.
@@ -6062,7 +6062,7 @@ own unruled strings — and never presented it as ruled. **All seven items below
   record was to preserve the colour; **the owner ruled the opposite — stay on PAL, colour lost, reset
   to Alb.** Reasoning recorded because it overrides rather than confirms the recommendation: raising a
   design's price by moving it to MDF behind the customer's back is the same failure
-  [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md)'s
+  [ADR 0072](../../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md)'s
   design exists to prevent for future book edits — a price must never move without the customer
   present to see why. Keeping the material and losing the colour is consistent with ADR 0057's
   ordinary reset rather than an exception to it: the finish resets to the material's default, and
@@ -6108,7 +6108,7 @@ own unruled strings — and never presented it as ruled. **All seven items below
   interface; the four strings still ship marked *pending owner review* in the code as 6G's precedent
   set, and this ruling is recorded so nobody scatters strings into components in the meantime.
 
-### Added 2026-09-05 with wave 6Q's plan — [ADR 0078](../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md)
+### Added 2026-09-05 with wave 6Q's plan — [ADR 0078](../../decisions/0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md)
 
 **Neither blocks dispatch.** Both are recorded here rather than resolved by an implementer, under the
 same rule the seven items above were.
@@ -6135,7 +6135,7 @@ same rule the seven items above were.
   ADR 0057's rejection of nearest-finish mapping and ADR 0078 decision 4 both stand, reaffirmed
   rather than merely unrevisited. What the same message *did* change is the warning's shape —
   conditional and blocking, not a standing sentence — which is
-  [ADR 0081](../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
+  [ADR 0081](../../decisions/0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md)
   and wave **6Q-c**.
 
 ### Added 2026-09-05 with ADR 0081 — one raised, one recorded, neither blocking
@@ -6155,13 +6155,13 @@ same rule the seven items above were.
 
 ### Cabinet depth — recorded 2026-08-27, **partly decided since; corrected 2026-09-02**
 
-Carried from `docs/milestones/M5-width.md`'s *Not established — Depth*, where they are numbered.
+Carried from `docs/milestones/done/M5-width.md`'s *Not established — Depth*, where they are numbered.
 They are here as well as there because they reach the **control**, and M5 never meets them: M5 holds
 one cabinet depth by construction, so nothing in that phase can change one.
 
 > **Correction, 2026-09-02 (M6 planning sweep).** The heading above said *none decided* and that has
 > been false since 2026-08-28.
-> [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) rules on three of
+> [ADR 0036](../../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) rules on three of
 > these: decision 4 closes question 3 (**height follows neither width nor depth**), decision 5
 > closes the *outcome* half of question 4 (**every body adapts automatically, nothing is left
 > behind**) and hands only the mechanism to M6, and decision 3 records the setting as **cabinet**
@@ -6208,7 +6208,7 @@ recorded in this plan or in a dated ADR; nothing here is invented. Each carries 
 recommendation with its reasoning, so a decision can be taken by reading this section alone.
 
 **Read this first.** Three of the four questions this section was asked to open were already ruled
-on by [ADR 0036](../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) on 2026-08-28,
+on by [ADR 0036](../../decisions/0036-a-declared-dimension-is-the-finished-cabinet.md) on 2026-08-28,
 and the *Cabinet depth* section above has been corrected in place to say so. What is left is
 genuinely narrower than the plan's older prose implies, and **no recorded decision is overturned
 here.** Where a ruling exists, the remaining choice is stated as what the ADR itself handed forward.
@@ -6220,19 +6220,19 @@ here.** Where a ruling exists, the remaining choice is stated as what the ADR it
 >
 > | # | Outcome | Record |
 > | --- | --- | --- |
-> | 1 | Migrate on change | [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md) |
-> | 2 | Two depths, 600 and 700, control built for n | [ADR 0056](../decisions/0056-two-cabinet-depths-are-declared-and-the-control-reads-the-map.md) |
+> | 1 | Migrate on change | [ADR 0055](../../decisions/0055-a-depth-change-migrates-the-stored-design.md) |
+> | 2 | Two depths, 600 and 700, control built for n | [ADR 0056](../../decisions/0056-two-cabinet-depths-are-declared-and-the-control-reads-the-map.md) |
 > | 3 | No action — already decided 2026-08-28 | ADR 0036 decision 4 |
-> | 4 | Reset to the new material's default, warned before apply | [ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md) |
-> | 5 | **Stay put — the two deep tops are pinned** | [ADR 0058](../decisions/0058-the-two-deep-top-cabinets-are-pinned.md) |
-> | 6 | A declared 520 mm cabinet-depth floor | [ADR 0059](../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md) |
-> | 7 | Three parts: the column publishes a build depth; both routes land on it, at 600; a pin is not inherited by a replacement | [ADR 0060](../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md) |
+> | 4 | Reset to the new material's default, warned before apply | [ADR 0057](../../decisions/0057-a-material-change-resets-an-unavailable-finish.md) |
+> | 5 | **Stay put — the two deep tops are pinned** | [ADR 0058](../../decisions/0058-the-two-deep-top-cabinets-are-pinned.md) |
+> | 6 | A declared 520 mm cabinet-depth floor | [ADR 0059](../../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md) |
+> | 7 | Three parts: the column publishes a build depth; both routes land on it, at 600; a pin is not inherited by a replacement | [ADR 0060](../../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md) |
 > | 8 | The run must fit the wall it stands on — **the requirement is met at both depths; the run itself is not, at 700** (see the correction below); the give-way rule is M7's | — |
-> | — | 6L confirmed, and the handle line counts cabinet handles | [ADR 0061](../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md) |
+> | — | 6L confirmed, and the handle line counts cabinet handles | [ADR 0061](../../decisions/0061-a-cabinet-handle-is-declared-and-an-appliance-bar-is-not-one.md) |
 
 ### 1. A design saved at 600 when the customer switches to 700 — the mechanism
 
-**DECIDED 2026-09-02 — MIGRATE ON CHANGE.** [ADR 0055](../decisions/0055-a-depth-change-migrates-the-stored-design.md),
+**DECIDED 2026-09-02 — MIGRATE ON CHANGE.** [ADR 0055](../../decisions/0055-a-depth-change-migrates-the-stored-design.md),
 which also records the reasoning the owner decided on and one accepted consequence: 600 → 700 → 600
 is not guaranteed to return the exact original document if a body was resized in between.
 
@@ -6262,7 +6262,7 @@ open, so a comment in the code is not enough.
 ### 2. Is an 800 mm cabinet depth real?
 
 **DECIDED 2026-09-02 — TWO VALUES, 600 AND 700, CONTROL BUILT FOR N.**
-[ADR 0056](../decisions/0056-two-cabinet-depths-are-declared-and-the-control-reads-the-map.md).
+[ADR 0056](../../decisions/0056-two-cabinet-depths-are-declared-and-the-control-reads-the-map.md).
 No 800 row is written; ADR 0028's refusal stands.
 
 **Already narrowed.** ADR 0036 decision 3 records **two values, 600 and 700**. ADR 0028 decision 2
@@ -6298,7 +6298,7 @@ is why the ADR closed it deliberately.
 ### 4. A per-cabinet finish invalidated by a global material change
 
 **DECIDED 2026-09-02 — RESET TO THE NEW MATERIAL'S DEFAULT, STATED IN THE WARNING BEFORE APPLY.**
-[ADR 0057](../decisions/0057-a-material-change-resets-an-unavailable-finish.md). Unblocks 6F.
+[ADR 0057](../../decisions/0057-a-material-change-resets-an-unavailable-finish.md). Unblocks 6F.
 
 **Genuinely undecided.** Nothing in `docs/decisions/` rules on it — this is the one of the four that
 is fully open. What is *not* open is the invariant: this plan already requires that no invalid state
@@ -6323,7 +6323,7 @@ can check, whose errors are invisible.
 ### 5. Do the two deliberately-deep top cabinets track anything?
 
 **DECIDED 2026-09-02 — STAY PUT. Both entries are pinned and immune to the depth setting.**
-[ADR 0058](../decisions/0058-the-two-deep-top-cabinets-are-pinned.md).
+[ADR 0058](../../decisions/0058-the-two-deep-top-cabinets-are-pinned.md).
 
 The three options were: **follow their column**, **follow the map**, or **stay put**. The owner chose
 the third; this planner had recommended the first. What follows is what pinning costs, worked out
@@ -6380,7 +6380,7 @@ loudly.
 ### 6. A cabinet depth the dishwasher niche cannot survive
 
 **DECIDED 2026-09-02 — DECLARE A 520 mm FLOOR beside the depth map, carrying the arithmetic that
-produced it.** [ADR 0059](../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md).
+produced it.** [ADR 0059](../../decisions/0059-the-dishwasher-niche-declares-a-cabinet-depth-floor.md).
 Enforced in the domain, not only in the control. Unblocks 6K.
 
 **One correction carried into the ADR.** The arithmetic is **not** `cabinetDepth / 2 − 240`, which
@@ -6421,7 +6421,7 @@ cannot occur.
 ### 7. Does the uncapped arm read the column at all?
 
 **DECIDED 2026-09-02 — three parts, all owner-decided.**
-[ADR 0060](../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md). Unblocks
+[ADR 0060](../../decisions/0060-a-column-publishes-a-build-depth-beside-its-clearance.md). Unblocks
 6I2, and 6J behind it.
 
 - **7a** — the column publishes a build depth beside its clearance.
@@ -6517,7 +6517,7 @@ the divergence closing on the number the seeded design chose deliberately.
 
 ### 8. A body past the end of its wall is marked, not moved
 
-**DECIDED 2026-09-03 — [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).**
+**DECIDED 2026-09-03 — [ADR 0065](../../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).**
 The owner replaced the question rather than answering it:
 
 > *"what if we not resize the corner just adapt the depth and if the last cabinets go off the wall to
@@ -6531,7 +6531,7 @@ same day is **withdrawn** and marked so at that record.
 
 **The constraint is one-sided.** `run end ≤ wall length`, never equality. **Leaving bare wall at the
 end is the expected case, not a tolerance**
-([ADR 0067](../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)): real
+([ADR 0067](../../decisions/0067-leftover-wall-is-the-normal-case-and-the-price-is-a-floor.md)): real
 walls are not round — 2444 mm is typical — and the manufacturer closes the remainder with filler at
 the real measurement, outside this product. So under-filling is never marked or warned about, and no
 check asserting that a run *reaches* its wall may be added.
@@ -6559,7 +6559,7 @@ when wave 6K ships the depth control — not on the default design's first load.
 
 > **Both corrections below LANDED on 2026-09-03, in commit `75668b8`. The wall B figure is then
 > superseded on 2026-09-05 by the owner — see
-> [ADR 0083](../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md),
+> [ADR 0083](../../decisions/0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md),
 > which this whole subsection now defers to.**
 >
 > What landed: `{ widthMm: 3560, depthMm: 2830 }`, the along-wall bound as each wall's own run, and a
@@ -6628,7 +6628,7 @@ arguably so:** `p7` and `p24` are refused with `PLACEMENT_PAST_WALL_END` → `mi
 `InvalidDesignError` → the load path maps it to **HTTP 500 `DESIGN_UNREADABLE`** → `/d/{id}` renders
 a load error. A share link stops opening.
 
-**The answer is [ADR 0052](../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s, not a
+**The answer is [ADR 0052](../../decisions/0052-800-mm-is-the-ceiling-on-any-empty-column.md)'s, not a
 new decision.** `migrateFromV1` **normalises** a document that was legal under the rule in force when
 it was written, rather than refusing it, because *"a `/d/{id}` share link is the one artefact this
 project hands to someone who cannot be asked to reload it"*. A stored design carrying the old room is
@@ -6668,7 +6668,7 @@ Kept because three of them were live for a day and one is elegant enough to be r
 
 ### Wave 6U — the hob holds its reach, and a deeper worktop grows behind it
 
-**[ADR 0087](../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md)**,
+**[ADR 0087](../../decisions/0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md)**,
 answering the one product question **wave 6I was told to raise and never did**. Owner-ruled
 2026-09-05. `packages/three-adapter` only — no domain declaration, no store action, no surface, no
 stored field, no schema version.
@@ -7160,7 +7160,7 @@ boundary and is **wave 6X-a's**, per ADR 0093 Amendment A §6.
 
 #### Wave 6X — shipped 2026-09-07, merged to `main` at `9f5a4f6` (one merge with 6X-a)
 
-**What shipped.** [ADR 0090](../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+**What shipped.** [ADR 0090](../../decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
 decision 6 now has an assertion that **goes red when the slide is removed** — the thing it did not
 have. What makes that worth a wave is the measurement it corrects: **QA had already measured that
 removing the slide was byte-identical over 284 trails and left all 4 554 tests green.** A rule the
@@ -7246,7 +7246,7 @@ mutation evidence as machine-verified is reading it wrong; the QA pass is what e
 ### Wave 6Z — a standing body is re-planned when something is inserted beneath it
 
 **Tier: Full + visual.** It changes a domain rule and it changes what the customer sees in the scene.
-Ruled by [ADR 0103](../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md);
+Ruled by [ADR 0103](../../decisions/0103-a-standing-body-is-re-planned-when-something-is-inserted-beneath-it-and-a-delete-leaves-it-alone.md);
 read that record before writing a line, because the wave executes a ruling rather than inventing one.
 
 **Goal.** On a successful insert, re-plan every body already standing in a column the insert touched,
