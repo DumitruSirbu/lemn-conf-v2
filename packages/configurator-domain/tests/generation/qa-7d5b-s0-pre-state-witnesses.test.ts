@@ -1,7 +1,7 @@
 // M7 wave 7D5b slice S0 — the plan's witness rooms, read at HEAD `acb7b6f` before any 7D5b production
 // edit, and E5's two prices read from the sample price book.
 //
-// Each witness is the room the plan (`docs/milestones/M7-room-and-presets.md`, *Wave 7D5b*) names for
+// Each witness is the room the plan (docs/decisions/0171, 7D5b E2-E7) names for
 // a population, and each is asserted as the shape the plan says it has **before** the wave: where the
 // door cabinet beside the sink stands (E2, E4), which drawer cabinets stand (E6), what S1's bottle
 // cost (E7) and where the threshold drawer stands (E3). A witness that stopped being the shape it is

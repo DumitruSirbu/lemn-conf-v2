@@ -33,7 +33,7 @@
 //
 // **Neither surviving absence is a repoint at `renderCorrected`.** A fixture comparing a resolver to
 // itself is layer-3 shape sitting in a layer-4 gate, which is the defect the four-layer test model
-// names — see `docs/milestones/M6B-internationalization.md` and `docs/WORKFLOW.md:444`.
+// names — see `docs/decisions/0095` (*Four layers*) and `docs/WORKFLOW.md:444`.
 import { createTranslator } from "next-intl";
 
 import {

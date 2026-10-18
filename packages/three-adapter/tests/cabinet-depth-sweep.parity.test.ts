@@ -1,9 +1,9 @@
 // **M6 wave 6I's criterion 1, against the meshes rather than against a constant.**
 //
-// The carry-out `docs/milestones/M5-width.md` hands M6 by name: beyond `baseCabinet`, the corner,
-// return, dishwasher and oven-tower bodies stayed byte-identical across cabinet depths — measured in
-// wave 5F's QA — while the base formula moved. It was a gap in reach rather than a live defect only
-// because nothing ships at 700.
+// The carry-out M5 hands M6 by name (quoted in `docs/decisions/0051`): beyond `baseCabinet`, the
+// corner, return, dishwasher and oven-tower bodies stayed byte-identical across cabinet depths —
+// measured in wave 5F's QA — while the base formula moved. It was a gap in reach rather than a live
+// defect only because nothing ships at 700.
 //
 // Two kits are built, one at each depth ADR 0056 declares, and every floor-standing body is measured
 // in both. The claim is per body and it is a **difference**: this body deepens by exactly what

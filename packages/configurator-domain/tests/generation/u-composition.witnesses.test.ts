@@ -3,11 +3,11 @@
 // moved), the six rooms N10.6 adds, and the rooms ADR 0110 N11.5 moves or pins. Each room is read
 // exactly as N4′ and N10.6 read it: bodies per wall, from the corner outward. The N11.5 rows also
 // pin every body's start and end, because comparing `(role, buildId)` alone is how N11.1's fridge
-// moving by up to 599 mm passed unseen. This file is the regression pin `docs/milestones/M7B-u-shaped-
-// rooms.md` U3a-AC2 asks for; a diff here is either a rule change the architect must adjudicate, or
-// a bug in this plan. The plan is the composer's: wall A's 300-599 mm remainder N11.9 once filled here stands
-// bare, and ADR 0167 D7's general pass (`filledPlanFor`, pinned in `u-composition.wall-a-remainder.test.ts`)
-// fills it.
+// moving by up to 599 mm passed unseen. This file is the regression pin for those witnesses
+// (`docs/decisions/0110`, U3a AC2); a diff here is either a rule change the architect must
+// adjudicate, or a bug in this plan. The plan is the composer's: wall A's 300-599 mm remainder N11.9
+// once filled here stands bare, and ADR 0167 D7's general pass (`filledPlanFor`, pinned in
+// `u-composition.wall-a-remainder.test.ts`) fills it.
 import { describe, expect, it } from "vitest";
 
 import {

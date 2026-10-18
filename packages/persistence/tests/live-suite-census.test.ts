@@ -87,7 +87,7 @@ interface ExpectedClassification {
  *  files that name a database-URL source without taking the schema lock. Keys are paths under
  *  `tests/`.
  *
- *  **Fourteen rows, not the thirteen of 7E3c S2** (migration-environment-safety-check, 2026-09-28):
+ *  **Fourteen rows, not the thirteen of 7E3c S2** (docs/decisions/0169, 2026-09-28):
  *  `read-database-url.test.ts` joined as a fifth "none" file — a unit test of `readDatabaseUrl` and
  *  `readMigrationDatabaseUrl` that names those functions without ever connecting, same reason
  *  `test-database-url.test.ts` is a "none" file rather than a gated one. Before that,

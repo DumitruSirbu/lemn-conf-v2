@@ -1,23 +1,23 @@
-// **The M7 mobile gate, by touch** — wave 7K, slices S1 and S2 (`docs/milestones/M7-room-and-presets.md`,
-// *Wave 7K — the plan (2026-09-28)*).
+// **The M7 mobile gate, by touch** — wave 7K, slices S1 and S2 (docs/decisions/0171, 7K; the §, G and D
+// numbers cited below are that record's, and "criterion N" is its A-N).
 //
-// The gate is a manifest (§3): four specs earlier waves wrote and this wave inherits unchanged —
+// The gate is a manifest (7K §3): four specs earlier waves wrote and this wave inherits unchanged —
 // `room-to-editor.qa`, `room-traversal.qa`, `linear-flow` and `mirror-real-flow` — plus this one,
-// which closes the gaps they leave. **None of them is driven by touch** (G6), and ADR 0023 is this
+// which closes the gaps they leave. **None of them is driven by touch** (7K G6), and ADR 0023 is this
 // product's own precedent that a tap and a click can differ. So everything here is reached with a
-// finger (D5): no click, no mouse, no fill over a length, and no `goto` to a room query — every
+// finger (7K D5): no click, no mouse, no fill over a length, and no `goto` to a room query — every
 // Step-1 state is reached from the one before it.
 //
-// **Out of this gate by derivation, not by choice (D2):** the preset list (frame 1E), *Folosește*,
+// **Out of this gate by derivation, not by choice (7K D2):** the preset list (frame 1E), *Folosește*,
 // the card's price against the editor's and the save-as-preset sweep. The 2026-09-15 and 2026-09-22
-// rulings put the preset story past M8 (G3), and a gate asserting against a control that does not
+// rulings put the preset story past M8 (7K G3), and a gate asserting against a control that does not
 // exist is a vacuous one. The evaluated-design round trip is asserted on the **composed** design,
-// the only design Step 1 creates today (D7).
+// the only design Step 1 creates today (7K D7).
 //
-// **A defect this gate finds stays red** (D10): the product is fixed in its own dispatch, never by
+// **A defect this gate finds stays red** (7K D10): the product is fixed in its own dispatch, never by
 // weakening an assertion here.
 //
-// **CI is the verdict.** Locally the suite serves `next dev`, not a build (G16).
+// **CI is the verdict.** Locally the suite serves `next dev`, not a build (7K G16).
 import { expect, type Page } from "@playwright/test";
 
 import { waitForSettleAfter } from "./support/mirror-flow";
@@ -52,7 +52,7 @@ import {
 type CornerDirection = "left" | "right";
 
 /** The L room each journey types — comfortably inside the approved bounds, so composition places
- *  every core role and the journey, not the generator's boundary, is the subject (criterion 6). */
+ *  every core role and the journey, not the generator's boundary, is the subject (docs/decisions/0171 7K A6). */
 const L_ROOM_AS_TYPED = {
   wallA: "3560",
   wallB: "4250",

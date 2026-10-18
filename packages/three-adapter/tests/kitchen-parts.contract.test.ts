@@ -1,4 +1,4 @@
-// The geometry acceptance criteria of `docs/milestones/M1-scene-port.md`, asserted against the
+// The geometry acceptance criteria of docs/decisions/0170 (M1 geometry criteria), asserted against the
 // port directly rather than against the reference. Where the parity suite proves "the port is the
 // same as the reference", this suite proves "the reference contract in SPEC.md actually holds" —
 // so a future change that drifts both files at once still fails here.

@@ -2,8 +2,8 @@
  * **Step 1's screen, drawn as frames 1A and 1B draw it**
  * (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:48-99` and `:101-187`). Every figure
  * below is the frame's own. Where wave 7F1 departs from the frames it says so by name — see
- * *Departures from frames 1A and 1B* in `docs/milestones/M7-room-and-presets.md` — and the one
- * departure it declares is the plan preview's **scale**, which is arithmetic this file never does.
+ * docs/decisions/0171, *7F1 departures* — and the one departure it declares is the plan preview's
+ * **scale**, which is arithmetic this file never does.
  * Nothing here departs silently.
  */
 
@@ -1018,8 +1018,7 @@
 }
 
 /* The dropped-roles sentence, in the state the screen already has and with no per-role explanation
- * and no recovery flow. The ruling lives in `docs/milestones/M7-room-and-presets.md`, wave 7D4; it is
- * owed ADR 0110 Amendment F, which is 7D4's slice S0 and is not yet written. */
+ * and no recovery flow. The ruling lives in `docs/decisions/0110`, Amendment F (F15). */
 .composeDropped {
   margin: 0;
   font: 400 12px/1.5 var(--font-ui);
