@@ -356,6 +356,47 @@ export function AccountLink({
   );
 }
 
+/** A link set inside a sentence. `isNewTab` opens the destination beside the form, so what was typed survives. */
+export function InlineLink({
+  href,
+  isNewTab = false,
+  children,
+}: {
+  readonly href: string;
+  readonly isNewTab?: boolean;
+  readonly children: ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      className={styles.inlineLink}
+      {...(isNewTab ? { target: "_blank", rel: "noopener" } : {})}
+    >
+      {children}
+    </a>
+  );
+}
+
+/** An action of the page that reads as a link: it changes what the page shows and is no address. */
+export function LinkButton({
+  onClick,
+  children,
+}: {
+  readonly onClick: () => void;
+  readonly children: ReactNode;
+}) {
+  return (
+    <button type="button" className={styles.linkButton} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+/** The sentence above the primary action that names the notice the person is shown. */
+export function LegalLine({ children }: { readonly children: ReactNode }) {
+  return <p className={styles.legal}>{children}</p>;
+}
+
 export interface ChallengeFieldProps {
   readonly siteKey: string | undefined;
   readonly nonce: string | undefined;
@@ -364,6 +405,8 @@ export interface ChallengeFieldProps {
   readonly resetCount: number;
   /** The server refused the last token: said under the slot, where the person looks for the challenge. */
   readonly isRefused: boolean;
+  /** Called once the slot shows its "unavailable" copy, so the page can stop saying it waits for a challenge. */
+  readonly onUnavailable?: () => void;
 }
 
 /** The Turnstile slot with its three states drawn in the page's words: loading, unavailable and refused. */
@@ -383,7 +426,9 @@ export function ChallengeField(props: ChallengeFieldProps) {
           </div>
         }
         unavailableContent={
-          <FormNotice tone="warning">{copy.challenge.unavailable}</FormNotice>
+          <UnavailableChallenge onShown={props.onUnavailable}>
+            {copy.challenge.unavailable}
+          </UnavailableChallenge>
         }
       />
       {props.isRefused ? (
@@ -391,6 +436,20 @@ export function ChallengeField(props: ChallengeFieldProps) {
       ) : null}
     </div>
   );
+}
+
+/** The slot's "unavailable" notice, which tells the page it was drawn: the widget decides this on its own. */
+function UnavailableChallenge({
+  onShown,
+  children,
+}: {
+  readonly onShown: (() => void) | undefined;
+  readonly children: ReactNode;
+}) {
+  useEffect(() => {
+    onShown?.();
+  }, [onShown]);
+  return <FormNotice tone="warning">{children}</FormNotice>;
 }
 
 /** A wait the button counts down; `onElapsed` is called once, when it reaches nothing. */

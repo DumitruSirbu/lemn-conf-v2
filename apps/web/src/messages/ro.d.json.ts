@@ -706,6 +706,35 @@ declare const messages: {
     "logIn": "Intră în cont",
     "sentTitle": "Verifică-ți e-mailul",
     "sentBody": "Dacă există un cont confirmat cu această adresă, ți-am trimis un link pentru o parolă nouă. Link-ul este valabil 30 de minute."
+  },
+  "accountRegister": {
+    "metaTitle": "Cont nou — {brand}",
+    "headerTitle": "Cont nou",
+    "title": "Creează un cont",
+    "body": "Cu un cont îți deschizi bucătăriile de pe orice dispozitiv.",
+    "phoneLabel": "Telefon (opțional, neverificat)",
+    "phonePlaceholder": "069 123 456",
+    "phoneHint": "Îl folosim doar ca să te putem suna despre oferta ta. Nu îl verificăm prin SMS.",
+    "legal": "Prin crearea contului accepți ca datele tale să fie prelucrate conform <notice>Notei de confidențialitate</notice>. Personalul Lemnaria poate vedea bucătăriile salvate în cont.",
+    "noticeNewTab": "(se deschide într-o filă nouă)",
+    "submit": "Creează contul",
+    "submitting": "Se creează…",
+    "haveAccount": "Ai deja cont?",
+    "logIn": "Intră în cont"
+  },
+  "accountCheckInbox": {
+    "headerTitle": "Verifică e-mailul",
+    "title": "Verifică-ți e-mailul",
+    "body": "Dacă datele sunt corecte, ți-am trimis un e-mail la <strong>{email}</strong>. Deschide link-ul din el și introdu parola ca să confirmi adresa.",
+    "validity": "Link-ul este valabil 24 de ore.",
+    "retryOrLogIn": "Poți încerca din nou înregistrarea cu aceeași adresă, sau <link>intră în cont</link> dacă ai confirmat deja.",
+    "wrongAddress": "Am greșit adresa"
+  },
+  "privacyNotice": {
+    "metaTitle": "Notă de confidențialitate — {brand}",
+    "badge": "Pagină provizorie",
+    "title": "Notă de confidențialitate",
+    "placeholder": "Textul notei de confidențialitate nu este încă publicat. Această pagină ține locul versiunii {version}."
   }
 };
 export default messages;

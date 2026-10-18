@@ -4,8 +4,10 @@ import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import {
+  resolveAccountCheckInboxCopy,
   resolveAccountForgotCopy,
   resolveAccountKitCopy,
+  resolveAccountRegisterCopy,
   resolveAccountShellCopy,
   resolveContent,
 } from "./content";
@@ -28,4 +30,14 @@ export function useAccountShellCopy() {
 export function useAccountForgotCopy() {
   const translate = useTranslations();
   return useMemo(() => resolveAccountForgotCopy(translate), [translate]);
+}
+
+export function useAccountRegisterCopy() {
+  const translate = useTranslations();
+  return useMemo(() => resolveAccountRegisterCopy(translate), [translate]);
+}
+
+export function useAccountCheckInboxCopy() {
+  const translate = useTranslations();
+  return useMemo(() => resolveAccountCheckInboxCopy(translate), [translate]);
 }

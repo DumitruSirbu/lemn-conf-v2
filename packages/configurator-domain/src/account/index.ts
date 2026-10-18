@@ -13,6 +13,7 @@ export {
   type RegistrationValidation,
 } from "./account-fields.js";
 export {
+  countPasswordCharacters,
   judgePassword,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,

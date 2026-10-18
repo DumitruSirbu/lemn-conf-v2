@@ -130,17 +130,17 @@ export function AccountActions({ children }: { readonly children: ReactNode }) {
   );
 }
 
-/** A line of words with a link at its end, centred under the primary action. */
+/** A line of words with a link at its end, centred under the primary action. The words are optional. */
 export function ActionsLine({
   lead,
   children,
 }: {
-  readonly lead: string;
+  readonly lead?: string;
   readonly children: ReactNode;
 }) {
   return (
     <p className={styles.actionsLine}>
-      <span>{lead}</span>
+      {lead === undefined ? null : <span>{lead}</span>}
       {children}
     </p>
   );

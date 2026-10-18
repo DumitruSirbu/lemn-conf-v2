@@ -46,6 +46,12 @@ export function judgePassword(candidate: PasswordCandidate): PasswordJudgement {
   return { ok: true, password };
 }
 
+/** A password's length as the rule counts it: code points after NFKC. A form's live counter reads this, so the number
+ *  it shows is the number the rule judges. */
+export function countPasswordCharacters(password: string): number {
+  return countCharacters(password.normalize("NFKC"));
+}
+
 function isTheAddress(normalisedPassword: string, email: string): boolean {
   return (
     normalisedPassword.toLowerCase() === email.normalize("NFKC").toLowerCase()

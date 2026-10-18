@@ -1060,6 +1060,66 @@ export function resolveAccountForgotCopy(translate: ContentTranslator) {
 
 export type AccountForgotCopy = ReturnType<typeof resolveAccountForgotCopy>;
 
+/** The register page's own text. The legal line carries a tagged span, drawn by the caller as the notice's link. */
+export function resolveAccountRegisterCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountRegister.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountRegister.headerTitle"),
+    title: translate("accountRegister.title"),
+    body: translate("accountRegister.body"),
+    phoneLabel: translate("accountRegister.phoneLabel"),
+    phonePlaceholder: translate("accountRegister.phonePlaceholder"),
+    phoneHint: translate("accountRegister.phoneHint"),
+    legal: (notice: RichTagRenderer) =>
+      translate.rich("accountRegister.legal", { notice }),
+    noticeNewTab: translate("accountRegister.noticeNewTab"),
+    submit: translate("accountRegister.submit"),
+    submitting: translate("accountRegister.submitting"),
+    haveAccount: translate("accountRegister.haveAccount"),
+    logIn: translate("accountRegister.logIn"),
+  };
+}
+
+export type AccountRegisterCopy = ReturnType<typeof resolveAccountRegisterCopy>;
+
+/** The screen after a registration was accepted. The address is the one the person typed, passed as a value. */
+export function resolveAccountCheckInboxCopy(translate: ContentTranslator) {
+  return {
+    headerTitle: translate("accountCheckInbox.headerTitle"),
+    title: translate("accountCheckInbox.title"),
+    body: (email: string, strong: RichTagRenderer) =>
+      translate.rich("accountCheckInbox.body", { email, strong }),
+    validity: translate("accountCheckInbox.validity"),
+    retryOrLogIn: (link: RichTagRenderer) =>
+      translate.rich("accountCheckInbox.retryOrLogIn", { link }),
+    wrongAddress: translate("accountCheckInbox.wrongAddress"),
+  };
+}
+
+export type AccountCheckInboxCopy = ReturnType<
+  typeof resolveAccountCheckInboxCopy
+>;
+
+/** The stand-in for the privacy notice. `version` is the notice version the stub holds the place of. */
+export function resolvePrivacyNoticeCopy(
+  translate: ContentTranslator,
+  version: string,
+) {
+  return {
+    metaTitle: translate("privacyNotice.metaTitle", {
+      brand: translate("brand"),
+    }),
+    badge: translate("privacyNotice.badge"),
+    title: translate("privacyNotice.title"),
+    placeholder: translate("privacyNotice.placeholder", { version }),
+    backToConfigurator: translate("accountShell.backToConfigurator"),
+  };
+}
+
+export type PrivacyNoticeCopy = ReturnType<typeof resolvePrivacyNoticeCopy>;
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {

@@ -16,7 +16,6 @@ import {
   AccountShell,
   accountPathOf,
   ActionsLine,
-  PrimaryAction,
   SecondaryAction,
   startPathOf,
 } from "./account-shell";
@@ -34,6 +33,10 @@ import {
   TextField,
   type SubmitWait,
 } from "./account-form-parts";
+import {
+  RequestFailedScreen,
+  useFocusOnMount,
+} from "./account-outcome-screens";
 import {
   useForgotPassword,
   type ForgotFeedback,
@@ -254,46 +257,6 @@ function SentScreen({ locale }: { readonly locale: AppLocale }) {
       </AccountActions>
     </>
   );
-}
-
-/** Frame A8A: our fault, not the person's (a refused request, a platform error, an answer this page has no class for).
- *  A reload mends it, and the form's values were not worth keeping across it. */
-function RequestFailedScreen({ locale }: { readonly locale: AppLocale }) {
-  const kit = useAccountKitCopy();
-  const shell = useAccountShellCopy();
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useFocusOnMount(headingRef);
-  return (
-    <>
-      <AccountPane>
-        <OutcomeHero
-          tone="error"
-          title={kit.requestFailed.title}
-          headingRef={headingRef}
-        >
-          {kit.requestFailed.body}
-        </OutcomeHero>
-      </AccountPane>
-      <AccountActions>
-        <PrimaryAction
-          onClick={() => {
-            window.location.reload();
-          }}
-        >
-          {kit.reloadPage}
-        </PrimaryAction>
-        <SecondaryAction href={startPathOf(locale)}>
-          {shell.backToConfigurator}
-        </SecondaryAction>
-      </AccountActions>
-    </>
-  );
-}
-
-function useFocusOnMount(target: RefObject<HTMLElement | null>): void {
-  useEffect(() => {
-    target.current?.focus();
-  }, [target]);
 }
 
 interface FocusTargets {
