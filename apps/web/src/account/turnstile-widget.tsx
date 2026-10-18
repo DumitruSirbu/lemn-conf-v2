@@ -40,8 +40,12 @@ interface TurnstileApi {
 type WindowWithTurnstile = Window & { turnstile?: TurnstileApi };
 
 /** Exactly this URL: Cloudflare forbids proxying or caching it. `render=explicit` leaves rendering to this component. */
-const TURNSTILE_SCRIPT_URL =
-  "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+const TURNSTILE_SCRIPT_URL = `${TURNSTILE_ORIGIN}/turnstile/v0/api.js?render=explicit`;
+
+/** How long the script may take to load and the widget to render before the form shows its "unavailable" copy. The
+ *  wait for a person to solve an interactive challenge is not counted: this stops at the end of `render`. */
+const TURNSTILE_RENDER_TIMEOUT_MS = 10_000;
 
 export function TurnstileWidget(props: TurnstileWidgetProps): ReactNode {
   const { siteKey, nonce, unavailableContent } = props;
@@ -65,49 +69,114 @@ function TurnstileChallenge({
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenChangeRef = useRef(onTokenChange);
-  const [hasScriptFailed, setHasScriptFailed] = useState(false);
+  const [isUnavailable, setIsUnavailable] = useState(false);
 
   useEffect(() => {
     onTokenChangeRef.current = onTokenChange;
   }, [onTokenChange]);
 
   useEffect(() => {
-    let isCancelled = false;
-    loadTurnstile(nonce)
-      .then((api) => {
-        const container = containerRef.current;
-        if (isCancelled || container === null) return;
-        widgetIdRef.current = api.render(container, {
-          sitekey: siteKey,
-          action,
-          callback: (token) => {
-            onTokenChangeRef.current(token);
-          },
-          "expired-callback": () => {
-            onTokenChangeRef.current(null);
-          },
-          "error-callback": () => {
-            onTokenChangeRef.current(null);
-          },
-        });
-      })
-      .catch(() => {
-        if (!isCancelled) setHasScriptFailed(true);
-      });
-    return () => {
-      isCancelled = true;
-      removeWidget(widgetIdRef);
-    };
+    return mountChallenge({
+      siteKey,
+      nonce,
+      action,
+      containerRef,
+      widgetIdRef,
+      onTokenChangeRef,
+      markUnavailable: () => {
+        setIsUnavailable(true);
+      },
+    });
   }, [siteKey, nonce, action]);
 
   useEffect(() => {
     if (resetCount === 0) return;
-    resetWidget(widgetIdRef);
     onTokenChangeRef.current(null);
+    resetWidget(widgetIdRef);
   }, [resetCount]);
 
-  if (hasScriptFailed) return unavailableContent;
+  if (isUnavailable) return unavailableContent;
   return <div ref={containerRef} />;
+}
+
+interface ChallengeMount {
+  readonly siteKey: string;
+  readonly nonce: string;
+  readonly action: TurnstileAction;
+  readonly containerRef: { readonly current: HTMLDivElement | null };
+  readonly widgetIdRef: { current: string | null };
+  readonly onTokenChangeRef: {
+    readonly current: (token: string | null) => void;
+  };
+  readonly markUnavailable: () => void;
+}
+
+/**
+ * Loads the script, renders the widget and watches for the three ways it never shows: the script or the render fails,
+ * the widget reports an error, or the browser blocks Cloudflare's origin under the page's policy. Any of them hands the
+ * form `null` and the caller `markUnavailable`, so the person sees the "unavailable" copy and not an empty box.
+ * Returns the cleanup, which also takes the held token away from the form: a token belongs to one key, nonce and action.
+ */
+function mountChallenge(mount: ChallengeMount): () => void {
+  const {
+    siteKey,
+    nonce,
+    action,
+    containerRef,
+    widgetIdRef,
+    onTokenChangeRef,
+  } = mount;
+  let isCancelled = false;
+
+  const fail = (): void => {
+    if (isCancelled) return;
+    onTokenChangeRef.current(null);
+    removeWidget(widgetIdRef);
+    mount.markUnavailable();
+  };
+  const renderTimeoutId = window.setTimeout(fail, TURNSTILE_RENDER_TIMEOUT_MS);
+  const stopWatchingPolicy = failOnBlockedChallengeOrigin(fail);
+
+  loadTurnstile(nonce)
+    .then((api) => {
+      window.clearTimeout(renderTimeoutId);
+      const container = containerRef.current;
+      if (isCancelled || container === null) return;
+      widgetIdRef.current = api.render(container, {
+        sitekey: siteKey,
+        action,
+        callback: (token) => {
+          onTokenChangeRef.current(token);
+        },
+        "expired-callback": () => {
+          onTokenChangeRef.current(null);
+        },
+        "error-callback": fail,
+      });
+    })
+    .catch(() => {
+      window.clearTimeout(renderTimeoutId);
+      fail();
+    });
+
+  return () => {
+    isCancelled = true;
+    window.clearTimeout(renderTimeoutId);
+    stopWatchingPolicy();
+    onTokenChangeRef.current(null);
+    removeWidget(widgetIdRef);
+  };
+}
+
+/** The page's policy names Cloudflare's frame; a block of that origin means the challenge can never appear. */
+function failOnBlockedChallengeOrigin(fail: () => void): () => void {
+  const onViolation = (event: SecurityPolicyViolationEvent): void => {
+    if (event.blockedURI.startsWith(TURNSTILE_ORIGIN)) fail();
+  };
+  document.addEventListener("securitypolicyviolation", onViolation);
+  return () => {
+    document.removeEventListener("securitypolicyviolation", onViolation);
+  };
 }
 
 function isBlank(value: string | undefined): value is undefined | "" {
@@ -147,6 +216,7 @@ function loadTurnstile(nonce: string): Promise<TurnstileApi> {
 }
 
 function appendTurnstileScript(nonce: string): Promise<TurnstileApi> {
+  removeStaleTurnstileScript();
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.src = TURNSTILE_SCRIPT_URL;
@@ -163,4 +233,9 @@ function appendTurnstileScript(nonce: string): Promise<TurnstileApi> {
     };
     document.head.append(script);
   });
+}
+
+/** A script that loaded without defining `turnstile`, or never answered, would otherwise sit beside its retry. */
+function removeStaleTurnstileScript(): void {
+  document.querySelector(`script[src="${TURNSTILE_SCRIPT_URL}"]`)?.remove();
 }

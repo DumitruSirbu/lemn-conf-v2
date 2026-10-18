@@ -6,6 +6,7 @@ import { routing } from "@/i18n/routing";
 import { selectNetworkSource } from "@/lib/server/rate-limit/network-source";
 import {
   ACCOUNT_PAGE_HEADERS,
+  ACCOUNT_TOKEN_PAGE_HEADERS,
   buildContentSecurityPolicy,
   CONTENT_SECURITY_POLICY_MODE,
   CSP_ENFORCED_HEADER,
@@ -98,6 +99,7 @@ function applyPageHeaders(
   );
   if (isSharePath(pathname)) applySharedViewHeaders(response);
   if (isAccountPath(pathname)) applyAccountPageHeaders(response);
+  if (isAccountTokenPath(pathname)) applyAccountTokenPageHeaders(response);
 }
 
 /**
@@ -180,6 +182,12 @@ function applySharedViewHeaders(response: NextResponse): void {
 
 function applyAccountPageHeaders(response: NextResponse): void {
   for (const { key, value } of ACCOUNT_PAGE_HEADERS) {
+    response.headers.set(key, value);
+  }
+}
+
+function applyAccountTokenPageHeaders(response: NextResponse): void {
+  for (const { key, value } of ACCOUNT_TOKEN_PAGE_HEADERS) {
     response.headers.set(key, value);
   }
 }
@@ -270,6 +278,11 @@ function isAccountPath(pathname: string): boolean {
     ...ACCOUNT_CHALLENGE_PAGES,
     ...ACCOUNT_TOKEN_PAGES,
   ]);
+}
+
+/** The account screens that read a single-use token: the only ones that answer `Referrer-Policy: no-referrer`. */
+function isAccountTokenPath(pathname: string): boolean {
+  return isAccountPageIn(pathname, ACCOUNT_TOKEN_PAGES);
 }
 
 /** The account screens that show a Turnstile challenge, and the only paths whose policy names its frame. */

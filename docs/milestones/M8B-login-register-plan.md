@@ -1003,6 +1003,24 @@ Turnstile quotations. **Reviewer reading:** the same.
 2. The widget never renders without a nonce. A missing site key renders the "unavailable" state, never a widget
    with an empty key.
 
+**Obligations from the L13a security review (2026-10-18), carried to L13b and L14a.** Item 2 above is amended:
+`Referrer-Policy: no-referrer` is on `verify-email` and `reset-password` only; the other two headers are on all five
+pages (ADR 0161 Amendment D).
+- **M1, full document loads.** Every link into, out of and between account pages is a full document load (a plain
+  `<a href>` or `location.assign`, not `next/link`), **or** the account family gets its own root layout through route
+  groups. A client-side navigation does not re-run `proxy.ts`, so the per-path CSP and headers would not apply: the
+  Turnstile frame would be blocked on the challenge pages, or the third-party script would carry over to the
+  verify and reset pages. L13b and L14a each check every link they add.
+- **M2, a real site key.** Turnstile is verified on a Preview deploy with a real site key; Cloudflare's test keys
+  cannot show a `Referer` problem. Recorded as launch-gate line 5 below.
+- **L3, encoded segments.** Once the pages exist, request percent-encoded static segments (`/ro/%61ccount/login`)
+  against a built server; any account path whose segments differ once decoded answers `404`, as the locale segment
+  already does.
+- **L13b decides the locale prefix of e-mailed links.** An unprefixed `/account/*` is not locale-routed; L13b states
+  whether every e-mailed link must carry the locale prefix and tests the builder to match.
+- **Evidence gap.** The Turnstile CSP facts are implementer-cited (Cloudflare docs, May 2026), not L0-verified (ADR 0161
+  Amendment D).
+
 ### L13b — Register and confirm screens (needs the owner's screens)
 
 | # | Item | File |
@@ -1211,6 +1229,8 @@ Rules for the walk:
 2. Migrations `0012`–`0015` are applied and their grants proved by the privilege test.
 3. The account endpoints are under the WAF scope.
 4. The privacy-notice text is the owner's, not a placeholder.
+5. Turnstile has been loaded and solved on a Preview deploy with a **real** site key on register, login and the reset
+   request, with no `frame-src` or `Referer` failure in the console or the CSP report table (L13a review M2).
 
 ## 11. Owner questions (five, each with a default)
 

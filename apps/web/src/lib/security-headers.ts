@@ -87,14 +87,25 @@ export const SHARE_VIEW_HEADERS: readonly { key: string; value: string }[] = [
 
 /**
  * Every response on an account page (`/{locale}/account/{page}`): a sign-in, confirmation or reset screen carries a
- * credential or a single-use token in its address or its form, so it is never indexed or cached and leaks not even the
- * origin when a link is followed. Same shape as `SHARE_VIEW_HEADERS`, set in `src/proxy.ts` (ADR 0169).
+ * credential or a single-use token in its address or its form, so it is never indexed or cached. Same shape as
+ * `SHARE_VIEW_HEADERS`, set in `src/proxy.ts` (ADR 0169). `Referrer-Policy` is not here: see
+ * `ACCOUNT_TOKEN_PAGE_HEADERS`.
  */
 export const ACCOUNT_PAGE_HEADERS: readonly { key: string; value: string }[] = [
-  { key: "Referrer-Policy", value: "no-referrer" },
   { key: "X-Robots-Tag", value: "noindex, nofollow" },
   { key: "Cache-Control", value: "private, no-store" },
 ];
+
+/**
+ * Added on the two pages that read a single-use token (`verify-email`, `reset-password`): they leak not even the origin
+ * when a link is followed. The three pages that show a Turnstile challenge keep the site default
+ * (`strict-origin-when-cross-origin`) because the challenge may need the `Referer`, and an old browser's same-origin
+ * `POST` under `no-referrer` would send `Origin: null` (L13a security review M2/L2).
+ */
+export const ACCOUNT_TOKEN_PAGE_HEADERS: readonly {
+  key: string;
+  value: string;
+}[] = [{ key: "Referrer-Policy", value: "no-referrer" }];
 
 /**
  * The one third-party origin the policy ever names: Cloudflare Turnstile's challenge frame. Its `api.js` is loaded by
