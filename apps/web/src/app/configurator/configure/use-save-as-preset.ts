@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   savePreset,
@@ -52,6 +52,9 @@ export type PresetSavePhase =
   | { readonly kind: "sending" }
   | { readonly kind: "saved" }
   | { readonly kind: "refused"; readonly reason: PresetRefusalReason };
+
+/** How long the saved notice stays readable before the dialog closes by itself. */
+export const SAVED_NOTICE_VISIBLE_MS = 1000;
 
 export interface PresetSave {
   readonly phase: PresetSavePhase;
@@ -109,4 +112,21 @@ async function captureOrNothing() {
 
 function refused(reason: PresetRefusalReason): PresetSavePhase {
   return { kind: "refused", reason };
+}
+
+/** Closes the dialog once the saved notice has been on screen for `SAVED_NOTICE_VISIBLE_MS`. A refusal never closes it,
+ *  and the timer dies with the dialog, so a manual close first leaves nothing to fire. */
+export function useCloseAfterSavedNotice(
+  phase: PresetSavePhase,
+  close: () => void,
+): void {
+  const isSaved = phase.kind === "saved";
+
+  useEffect(() => {
+    if (!isSaved) return undefined;
+    const timer = setTimeout(close, SAVED_NOTICE_VISIBLE_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isSaved, close]);
 }

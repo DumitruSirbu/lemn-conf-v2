@@ -103,13 +103,13 @@ export const CSP_REPORT_WINDOW_MINUTES = 60;
 export const CSP_REPORTS_PER_BLOCK_FIGURE = 100;
 
 /**
- * Fifty presets saved in a Chișinău calendar day, counted once over every caller (see ADR 0167 Amendment B item 8):
+ * 100 presets saved in a Chișinău calendar day, counted once over every caller (see ADR 0167 Amendment B item 8):
  * while authoring is ungated (ADR 0112 Amendment A) a flood of valid saves would fill the shared Blob
  * quota, hidden rows included, since the nightly export copies every row. The owner authors a library, a few kitchens
- * a day; a figure of this size bounds a flood and leaves the work room. Fifty saves in a day lock authoring out until
+ * a day; a figure of this size bounds a flood and leaves the work room. 100 saves in a day lock authoring out until
  * the next Chișinău midnight, which is the intended failure. The owner's answer changes this constant and no code.
  */
-export const PRESET_CREATIONS_PER_DAY_FIGURE = 50;
+export const PRESET_CREATIONS_PER_DAY_FIGURE = 100;
 
 /**
  * Three times what one whole e2e run makes of each, rounded up to the next hundred, by the same rule as the mint's: 395
@@ -290,7 +290,7 @@ export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
  *  credential's, the reads, and the contact form's buckets by a browser, an address and a stored request have none,
  *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. A policy
  *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). The global
- *  cap on preset creation has none for the same reason: no test saves fifty presets in a day, and nor has the preset
+ *  cap on preset creation has none for the same reason: no test saves 100 presets in a day, and nor has the preset
  *  reads' bucket, which the suite's server counts no more than it counts the other reads. */
 export type PolicyPurpose =
   | "mint"

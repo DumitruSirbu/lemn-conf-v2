@@ -97,17 +97,25 @@
  * sentence re-drafted to ask for no request number. All three drafted and provisional. **One moved and no others.**
  *
  * **Grown by 22, never rebaselined, by M8C wave P4** (ADR 0113 decision 2) — the save-as-preset button and dialog,
- * `presetSave.*`: 20 static leaves, and the two preset-name leaves rendered with neutral tokens. Drafted and
- * unapproved, the Russian to be re-signed by the owner. **No existing hash moved.**
+ * `presetSave.*`: 20 static leaves, and the two preset-name leaves rendered with neutral tokens. The Romanian was
+ * approved as drafted by the owner on 2026-10-18 (relayed), and no hash moved with it; the Russian is an agent's draft
+ * the owner has not read. **No existing hash moved.**
  *
  * **Grown by 1, never rebaselined, by the security review of M8C wave P6** (ADR 0113 decision 2) —
- * `presetSave.refusal.tooLarge`, the sentence for a kitchen larger than a preset may be. Drafted and unapproved, the
- * Russian to be re-signed by the owner. **No existing hash moved.**
+ * `presetSave.refusal.tooLarge`, the sentence for a kitchen larger than a preset may be. The Romanian was approved as
+ * drafted by the owner on 2026-10-18 (relayed); the Russian is an agent's draft the owner has not read. **No existing
+ * hash moved.**
  *
  * **Grown by 11, never rebaselined, by M8C wave P8** (ADR 0113 decision 2) — Step 1's preset wait (1D), list (1E) and
  * Preview pop-up, `presetChooser.*`: the heading, the wait sentence, the card's and the pop-up's controls, the declared
- * adjustment, the busy label and the 1F sentence a customer who chose to generate over the list reads. Drafted and
- * unapproved, the Russian to be re-signed by the owner. **No existing hash moved.**
+ * adjustment, the busy label and the 1F sentence a customer who chose to generate over the list reads. The Romanian was
+ * approved as drafted by the owner on 2026-10-18 (relayed); the Russian is an agent's draft the owner has not read.
+ * **No existing hash moved.**
+ *
+ * **Grown by 2, never rebaselined, by the carousel's Select failure copy** (ADR 0113 decision 2) —
+ * `presetChooser.selectFailed` and `.selectLimitReached`, which the Preview pop-up reads in place of the
+ * `room.compose.saveFailed` and `.limitReached` it had borrowed. Drafted and unapproved in both languages.
+ * **No existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -858,6 +866,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "e4ce7c09d51e3b8831d3386a7df68f29647d112969b9b31b67c2b56709ba7dc3",
   "content.static.presetChooser.select":
     "f9c7ca95da95df5e28377e349266c6d0957944009f530113103d53ffd972525e",
+  "content.static.presetChooser.selectFailed":
+    "1f6d7cc47415c4d86a293affeddea699b73fcb6e1957b4c8c2775a1b013e65d5",
+  "content.static.presetChooser.selectLimitReached":
+    "0ec6b1e1be77583f21c31a404daf2aeb098f71f727f2a5fd8cec42f0bc599325",
   "content.static.presetChooser.selecting":
     "d319796b8ac9d74b9b352af4e193d13713b71292521c65a875f81bd34a6dc22c",
   "content.static.presetChooser.skip":

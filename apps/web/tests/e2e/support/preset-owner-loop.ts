@@ -159,7 +159,9 @@ async function saveAsPreset(
   await expect(page.getByTestId("save-as-preset-status")).toHaveText(
     ro.presetSave.saved,
   );
-  await expect(confirm).toBeDisabled();
+  // The notice is read for about a second, then the dialog closes as Close does and focus returns to the button.
+  await expect(page.getByTestId("save-as-preset-dialog")).toBeHidden();
+  await expect(open).toBeFocused();
   expect(repository.saves).toHaveLength(1);
   expect(repository.saves[0]?.body.name).toBe(TYPED_NAME);
 }

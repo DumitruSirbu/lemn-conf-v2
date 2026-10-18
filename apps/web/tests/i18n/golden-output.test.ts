@@ -254,7 +254,8 @@ describe("golden-output fixture coverage", () => {
     // M8C P4: +20 for the save-as-preset button and dialog (`presetSave.*`).
     // M8C P6 security review: +1 for `presetSave.refusal.tooLarge`.
     // M8C P8: +11 for Step 1's preset wait, list and Preview pop-up (`presetChooser.*`).
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(256);
+    // +2 for the carousel Select's own failure sentences, `presetChooser.selectFailed` and `.selectLimitReached`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(258);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
@@ -296,7 +297,8 @@ describe("golden-output fixture coverage", () => {
     // M8C P4: +20 static fixtures for `presetSave.*`, +2 for the preset-name leaves `Content` reaches through `presetName`.
     // M8C P6 security review: +1 static fixture for `presetSave.refusal.tooLarge`.
     // M8C P8: +11 static fixtures for `presetChooser.*`.
-    expect(GOLDEN_FIXTURES).toHaveLength(573);
+    // +2 static fixtures for `presetChooser.selectFailed` and `.selectLimitReached`.
+    expect(GOLDEN_FIXTURES).toHaveLength(575);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

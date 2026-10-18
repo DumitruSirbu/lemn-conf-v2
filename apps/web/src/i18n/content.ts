@@ -936,6 +936,8 @@ export function resolveContent(translate: ContentTranslator) {
       close: translate("presetChooser.close"),
       select: translate("presetChooser.select"),
       selecting: translate("presetChooser.selecting"),
+      selectFailed: translate("presetChooser.selectFailed"),
+      selectLimitReached: translate("presetChooser.selectLimitReached"),
       composingNotice: translate("presetChooser.composingNotice"),
     },
     panel: {

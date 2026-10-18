@@ -20,7 +20,6 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { useTranslations } from "next-intl";
 
 import { useContent } from "@/i18n/use-content";
 import {
@@ -304,7 +303,7 @@ function CopyStatusLine({
 }: {
   readonly copyStatus: PresetCopyStatus;
 }) {
-  const translate = useTranslations();
+  const content = useContent();
 
   return (
     <p
@@ -313,8 +312,10 @@ function CopyStatusLine({
       data-testid="preset-carousel-status"
       data-copy-status={copyStatus}
     >
-      {copyStatus === "failed" ? translate("room.compose.saveFailed") : null}
-      {copyStatus === "limited" ? translate("room.compose.limitReached") : null}
+      {copyStatus === "failed" ? content.presetChooser.selectFailed : null}
+      {copyStatus === "limited"
+        ? content.presetChooser.selectLimitReached
+        : null}
     </p>
   );
 }

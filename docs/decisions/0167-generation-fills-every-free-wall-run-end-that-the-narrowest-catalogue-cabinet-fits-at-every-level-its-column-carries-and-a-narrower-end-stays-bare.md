@@ -224,6 +224,8 @@ Outcomes after Amendment A, each as relayed:
 7. **Read limiter.** Preset reads have their own limiter, 1,200 an hour, a **provisional engineer figure** the owner can
    change [relayed]. A failed read answers **503** [relayed].
 8. **Global cap.** 50 saves a day across all callers, **provisional** [relayed].
+   *Correction, 2026-10-18: the figure of 50 above is superseded by 100 a day, the owner's decision [relayed]; still
+   provisional. The constant is `PRESET_CREATIONS_PER_DAY_FIGURE`.*
 9. **Image CSP.** The image path's CSP is enforced by the proxy for the exact path. **Source-verified on self-hosted
    Next 16.3.8; Vercel is unverified.** First-deploy check: `curl -sI` on a preset image URL [relayed, src].
 10. **Generated name.** Rendered per locale from the stored facts, never stored (already in ADR 0112 Amendment A); the

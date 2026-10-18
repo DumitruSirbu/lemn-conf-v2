@@ -17,7 +17,11 @@ import { ConfirmationDialog } from "@/settings/confirmation-dialog";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
-import { usePresetSave, type PresetSave } from "./use-save-as-preset";
+import {
+  usePresetSave,
+  useCloseAfterSavedNotice,
+  type PresetSave,
+} from "./use-save-as-preset";
 
 const TEST_ID_PREFIX = "save-as-preset";
 
@@ -100,6 +104,7 @@ export function SaveAsPresetDialog({
 }) {
   const content = useContent();
   const save = usePresetSave();
+  useCloseAfterSavedNotice(save.phase, onClose);
   const [typedName, setTypedName] = useState("");
   const fieldId = useId();
   const design = useConfiguratorStore((state) => state.design);

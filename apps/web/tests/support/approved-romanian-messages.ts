@@ -36,11 +36,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     reviewCta: "Verifică designul",
   },
-  // Drafted, not approved (M8C wave P4; plan section 3.4, owner rulings of 2026-10-17; ADR 0113 decision 2): the save-as-preset
-  // button and its dialog. No frame draws any of it. `generatedName*` is the name shown when none is typed: shape, walls and
-  // the kitchen's colour, rendered per locale from stored facts and never stored (ADR 0112 Amendment A). The refusal
-  // sentences answer the preset route's codes and state no bound (ADR 0113 decision 5). The Russian is an agent's
-  // draft, to be re-signed by the owner.
+  // Approved by the owner, 2026-10-18 (relayed), as drafted in M8C waves P4 and P6 (`refusal.tooLarge` included; plan
+  // section 3.4; ADR 0113 decision 2): the save-as-preset button and its dialog. No frame draws any of it. `generatedName*`
+  // is the name shown when none is typed: shape, walls and the kitchen's colour, rendered per locale from stored facts
+  // and never stored (ADR 0112 Amendment A); the owner approved its format, "În formă de L, 3200 × 2400 mm, alb", with
+  // the finish lower-cased. The refusal sentences answer the preset route's codes and state no bound (ADR 0113 decision
+  // 5). The Russian is an agent's draft the owner has not read, and stays unapproved (ADR 0095 decision 2, fourth
+  // step).
   presetSave: {
     open: "Salvează ca preset",
     intro: "Presetul păstrează bucătăria așa cum arată acum.",
@@ -76,13 +78,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       failed: "Presetul nu a putut fi salvat. Încearcă din nou.",
     },
   },
-  // Drafted, not approved (M8C wave P8; plan section 3.6, the owner's Q-6 ruling of 2026-10-17; ADR 0113 decision 2):
-  // Step 1's preset wait (1D), its list (1E) and the Preview pop-up. `heading` and `waiting` are frames 1D and 1E's own
-  // words; the rest are no frame's: the mockup's per-card *Folosește* is superseded by the ruling (ADR 0003 decision 4b,
-  // amended; ADR 0104 Amendment F), so the card says `preview`, the pop-up says `select`, and the list's way out to
-  // generation is `skip`. `composingNotice` replaces 1F's `noPresetNotice` after a customer was shown presets and chose to
-  // generate: that sentence says no preset fits, which is then untrue. The Russian is an agent's draft, to be re-signed
-  // by the owner.
+  // Approved by the owner, 2026-10-18 (relayed), as drafted in M8C wave P8, except `selectFailed` and `selectLimitReached`
+  // (plan section 3.6, the owner's Q-6 ruling of 2026-10-17; ADR 0113 decision 2): Step 1's preset wait (1D), its list
+  // (1E) and the Preview pop-up. `heading` and `waiting` are frames 1D and 1E's own words; the rest are no frame's: the
+  // mockup's per-card *Folosește* is superseded by the ruling (ADR 0003 decision 4b, amended; ADR 0104 Amendment F), so
+  // the card says `preview`, the pop-up says `select`, and the list's way out to generation is `skip`. `composingNotice`
+  // replaces 1F's `noPresetNotice` after a customer was shown presets and chose to generate: that sentence says no
+  // preset fits, which is then untrue. The Russian is an agent's draft the owner has not read, and stays unapproved
+  // (ADR 0095 decision 2, fourth step).
   presetChooser: {
     heading: "Bucătării care încap",
     waiting: "Verificăm ce presete încap în camera ta…",
@@ -94,6 +97,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     close: "Închide previzualizarea",
     select: "Alege acest preset",
     selecting: "Se creează bucătăria ta…",
+    // Drafted, not approved: what the pop-up says when copying the chosen preset into a new kitchen failed. It is the
+    // pop-up's own, since `room.compose.saveFailed` speaks of a kitchen already drawn on the room screen.
+    selectFailed:
+      "Nu am putut crea bucătăria din acest preset. Încearcă din nou.",
+    // Drafted, not approved: the day's limit on new kitchens, as `room.compose.limitReached` says it, without that
+    // sentence's second half about the room, which the pop-up does not show.
+    selectLimitReached:
+      "Astăzi nu se mai pot crea alte bucătării. Încearcă din nou mâine.",
     composingNotice:
       "Compunem o bucătărie pe măsura camerei tale — durează puțin mai mult.",
   },
