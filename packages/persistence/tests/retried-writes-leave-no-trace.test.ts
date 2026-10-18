@@ -81,6 +81,26 @@ describe(SUITE_NAME, () => {
     return new NeonConfigurationRepository(testDatabaseUrl);
   }
 
+  /** The flat bag of a minted design's own credentials, kept as the suite always held it. */
+  interface MintedCredentials {
+    readonly designId: DesignId;
+    readonly writeTokenHash: string;
+    readonly visitorHash: string;
+  }
+
+  function shareCredentialsOf(
+    credentials: MintedCredentials,
+  ): ShareLinkCredentials {
+    return {
+      designId: credentials.designId,
+      credential: {
+        kind: "write-token",
+        writeTokenHash: credentials.writeTokenHash,
+        visitorHash: credentials.visitorHash,
+      },
+    };
+  }
+
   function shareLinks(): NeonShareLinkRepository {
     return new NeonShareLinkRepository(testDatabaseUrl);
   }
@@ -106,7 +126,7 @@ describe(SUITE_NAME, () => {
   }
 
   async function mintFreshDesign(): Promise<{
-    credentials: ShareLinkCredentials;
+    credentials: MintedCredentials;
     revision: string;
   }> {
     const visitorHash = newVisitorHash();
@@ -261,9 +281,15 @@ describe(SUITE_NAME, () => {
       const { credentials } = await mintFreshDesign();
       const previousToken = randomDigest();
       const nextToken = randomDigest();
-      await shareLinks().issue({ ...credentials, tokenHash: previousToken });
+      await shareLinks().issue({
+        ...shareCredentialsOf(credentials),
+        tokenHash: previousToken,
+      });
       const issue = () =>
-        shareLinks().issue({ ...credentials, tokenHash: nextToken });
+        shareLinks().issue({
+          ...shareCredentialsOf(credentials),
+          tokenHash: nextToken,
+        });
       const outcome = loss
         ? await withLostFirstReply(loss, issue)
         : await issue();
@@ -302,8 +328,12 @@ describe(SUITE_NAME, () => {
           afterTheWriteLands(reply),
           () =>
             shareLinks().issue({
-              ...credentials,
-              writeTokenHash: randomDigest(),
+              designId: credentials.designId,
+              credential: {
+                kind: "write-token",
+                writeTokenHash: randomDigest(),
+                visitorHash: credentials.visitorHash,
+              },
               tokenHash: nextToken,
             }),
         );
@@ -326,7 +356,10 @@ describe(SUITE_NAME, () => {
           fromVisitorHash: credentials.visitorHash,
         });
       const issue = () =>
-        shareLinks().issue({ ...credentials, tokenHash: token });
+        shareLinks().issue({
+          ...shareCredentialsOf(credentials),
+          tokenHash: token,
+        });
       let outcome: string;
       if (loss) {
         outcome = await withLostFirstReply(loss, issue, rotateFromAnotherTab);
@@ -367,7 +400,10 @@ describe(SUITE_NAME, () => {
       async (reply) => {
         const { credentials } = await mintFreshDesign();
         const issue = () =>
-          shareLinks().issue({ ...credentials, tokenHash: randomDigest() });
+          shareLinks().issue({
+            ...shareCredentialsOf(credentials),
+            tokenHash: randomDigest(),
+          });
 
         const outcome = await withLostFirstReply(
           beforeTheWriteLands(reply),
@@ -390,11 +426,18 @@ describe(SUITE_NAME, () => {
       async () => {
         const { credentials } = await mintFreshDesign();
         const token = randomDigest();
-        await shareLinks().issue({ ...credentials, tokenHash: token });
+        await shareLinks().issue({
+          ...shareCredentialsOf(credentials),
+          tokenHash: token,
+        });
 
         const outcome = await shareLinks().issue({
-          ...credentials,
-          visitorHash: randomDigest(),
+          designId: credentials.designId,
+          credential: {
+            kind: "write-token",
+            writeTokenHash: credentials.writeTokenHash,
+            visitorHash: randomDigest(),
+          },
           tokenHash: token,
         });
 
@@ -407,8 +450,11 @@ describe(SUITE_NAME, () => {
     async function revokeScenario(loss: Loss | undefined) {
       const { credentials } = await mintFreshDesign();
       const token = randomDigest();
-      await shareLinks().issue({ ...credentials, tokenHash: token });
-      const revoke = () => shareLinks().revoke(credentials);
+      await shareLinks().issue({
+        ...shareCredentialsOf(credentials),
+        tokenHash: token,
+      });
+      const revoke = () => shareLinks().revoke(shareCredentialsOf(credentials));
       const outcome = loss
         ? await withLostFirstReply(loss, revoke)
         : await revoke();
@@ -449,7 +495,7 @@ describe(SUITE_NAME, () => {
       return {
         id: designId,
         design,
-        writeTokenHash,
+        credential: { kind: "write-token", hash: writeTokenHash } as const,
         expectedRevision,
         requestVisitor: { kind: "present", visitorHash } as const,
       };

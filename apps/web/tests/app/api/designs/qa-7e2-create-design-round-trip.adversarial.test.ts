@@ -45,11 +45,15 @@ class InMemoryAuthorizedRepository
   saveAuthorized({
     id,
     design,
-    writeTokenHash,
+    credential,
     expectedRevision,
   }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
-    if (row === undefined || row.writeTokenHash !== writeTokenHash) {
+    if (
+      row === undefined ||
+      credential.kind !== "write-token" ||
+      row.writeTokenHash !== credential.hash
+    ) {
       return Promise.reject(new DesignWriteForbiddenError(id));
     }
     if (row.revision !== expectedRevision) {

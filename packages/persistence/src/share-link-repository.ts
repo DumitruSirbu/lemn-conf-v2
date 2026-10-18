@@ -6,14 +6,31 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
 /**
- * The credential trio every share-link operation but `loadShared` is authorised against: the design and the two hashes
- * the share route reads off the request's cookies. Grouped so the write-token hash and the visitor hash cannot be
- * swapped at a call site.
+ * What authorises a share-link operation (ADR 0114 Amendment G4, ADR 0169 D9): the pair of hashes the share route reads
+ * off the request's cookies, or the id of the account that owns the design. Alternatives, never both: each arm is its
+ * own statement, so one cannot widen the other. The account's id is the server's own session's.
+ */
+export type ShareCredential =
+  | {
+      readonly kind: "write-token";
+      readonly writeTokenHash: string;
+      readonly visitorHash: string;
+    }
+  | { readonly kind: "account"; readonly accountId: string };
+
+type WriteTokenShareCredential = Extract<
+  ShareCredential,
+  { kind: "write-token" }
+>;
+type AccountShareCredential = Extract<ShareCredential, { kind: "account" }>;
+
+/**
+ * What every share-link operation but `loadShared` is authorised against: the design and a credential for it. Grouped so
+ * the design and the credential cannot be swapped at a call site.
  */
 export interface ShareLinkCredentials {
   readonly designId: DesignId;
-  readonly writeTokenHash: string;
-  readonly visitorHash: string;
+  readonly credential: ShareCredential;
 }
 
 /** `issue`'s argument: the credentials that authorise minting a link, plus the hash of the link's token. */
@@ -101,54 +118,24 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
    */
   async issue({
     designId,
-    writeTokenHash,
-    visitorHash,
+    credential,
     tokenHash,
   }: IssueShareLink): Promise<ShareLinkIssueOutcome> {
     requireSha256Digest(tokenHash, "token hash", "issue a share link");
-    // A tagged-template `sql` binds interpolations as parameters, so one `sql` query cannot be interpolated into
-    // another and the credential predicate is repeated in each statement.
     const [, , , issued] = (await retryOnTransientFailure(({ isRetry }) =>
       this.sql.transaction(
-        [
-          this.sql`
-            select 1 from designs
-            where id = ${designId}
-              and write_token_hash = ${writeTokenHash}
-              and visitor_hash = ${visitorHash}
-            for update
-          `,
-          this.sql`
-            update design_share_links
-            set revoked_at = now()
-            where revoked_at is null
-              and not exists (
-                select 1 from design_share_links where token_hash = ${tokenHash}
-              )
-              and design_id = (
-                select id from designs
-                where id = ${designId}
-                  and write_token_hash = ${writeTokenHash}
-                  and visitor_hash = ${visitorHash}
-              )
-          `,
-          this.sql`
-            insert into design_share_links (token_hash, design_id)
-            select ${tokenHash}, id from designs
-            where id = ${designId}
-              and write_token_hash = ${writeTokenHash}
-              and visitor_hash = ${visitorHash}
-            on conflict (token_hash) do nothing
-          `,
-          this.sql`
-            select s.token_hash from design_share_links s
-            join designs d on d.id = s.design_id
-            where s.token_hash = ${tokenHash}
-              and d.id = ${designId}
-              and d.write_token_hash = ${writeTokenHash}
-              and (d.visitor_hash = ${visitorHash} or ${isRetry})
-          `,
-        ],
+        credential.kind === "write-token"
+          ? this.issueStatementsByWriteToken({
+              designId,
+              credential,
+              tokenHash,
+              isRetry,
+            })
+          : this.issueStatementsByAccount({
+              designId,
+              credential,
+              tokenHash,
+            }),
         // Pinned: Postgres's own default, explicit so a change to `neon()`'s default cannot silently pick the other.
         { isolationLevel: "ReadCommitted" },
       ),
@@ -157,14 +144,128 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
     return issued.length > 0 ? "issued" : "refused";
   }
 
+  /** `issue`'s four statements for the write-token arm. A tagged-template `sql` binds interpolations as parameters, so
+   *  one `sql` query cannot be interpolated into another and the credential predicate is repeated in each statement. */
+  private issueStatementsByWriteToken({
+    designId,
+    credential: { writeTokenHash, visitorHash },
+    tokenHash,
+    isRetry,
+  }: {
+    designId: DesignId;
+    credential: WriteTokenShareCredential;
+    tokenHash: string;
+    isRetry: boolean;
+  }) {
+    return [
+      this.sql`
+        select 1 from designs
+        where id = ${designId}
+          and write_token_hash = ${writeTokenHash}
+          and visitor_hash = ${visitorHash}
+        for update
+      `,
+      this.sql`
+        update design_share_links
+        set revoked_at = now()
+        where revoked_at is null
+          and not exists (
+            select 1 from design_share_links where token_hash = ${tokenHash}
+          )
+          and design_id = (
+            select id from designs
+            where id = ${designId}
+              and write_token_hash = ${writeTokenHash}
+              and visitor_hash = ${visitorHash}
+          )
+      `,
+      this.sql`
+        insert into design_share_links (token_hash, design_id)
+        select ${tokenHash}, id from designs
+        where id = ${designId}
+          and write_token_hash = ${writeTokenHash}
+          and visitor_hash = ${visitorHash}
+        on conflict (token_hash) do nothing
+      `,
+      this.sql`
+        select s.token_hash from design_share_links s
+        join designs d on d.id = s.design_id
+        where s.token_hash = ${tokenHash}
+          and d.id = ${designId}
+          and d.write_token_hash = ${writeTokenHash}
+          and (d.visitor_hash = ${visitorHash} or ${isRetry})
+      `,
+    ];
+  }
+
+  /** `issue`'s four statements for the account arm: the same four with `account_id = $a` as the whole predicate. The
+   *  last has no retry relaxation, because there is no visitor condition for a rotation to have moved: a link under this
+   *  call's token on a design the account owns is already the proof. */
+  private issueStatementsByAccount({
+    designId,
+    credential: { accountId },
+    tokenHash,
+  }: {
+    designId: DesignId;
+    credential: AccountShareCredential;
+    tokenHash: string;
+  }) {
+    return [
+      this.sql`
+        select 1 from designs
+        where id = ${designId} and account_id = ${accountId}
+        for update
+      `,
+      this.sql`
+        update design_share_links
+        set revoked_at = now()
+        where revoked_at is null
+          and not exists (
+            select 1 from design_share_links where token_hash = ${tokenHash}
+          )
+          and design_id = (
+            select id from designs
+            where id = ${designId} and account_id = ${accountId}
+          )
+      `,
+      this.sql`
+        insert into design_share_links (token_hash, design_id)
+        select ${tokenHash}, id from designs
+        where id = ${designId} and account_id = ${accountId}
+        on conflict (token_hash) do nothing
+      `,
+      this.sql`
+        select s.token_hash from design_share_links s
+        join designs d on d.id = s.design_id
+        where s.token_hash = ${tokenHash}
+          and d.id = ${designId}
+          and d.account_id = ${accountId}
+      `,
+    ];
+  }
+
   /** One statement, one snapshot: the CTE asks whether the credential authorises anything, the update revokes the
    *  active row if so, and `revoked` covers both "revoked something" and "authorised, nothing active" (idempotent);
    *  `refused` covers only a credential naming no design. */
-  async revoke(
-    credentials: ShareLinkCredentials,
-  ): Promise<ShareLinkRevokeOutcome> {
-    const { designId, writeTokenHash, visitorHash } = credentials;
-    const rows = (await retryOnTransientFailure(
+  async revoke({
+    designId,
+    credential,
+  }: ShareLinkCredentials): Promise<ShareLinkRevokeOutcome> {
+    const rows =
+      credential.kind === "write-token"
+        ? await this.revokeByWriteToken(designId, credential)
+        : await this.revokeByAccount(designId, credential);
+
+    return rowOrImpossible(rows, "revoke").is_authorised
+      ? "revoked"
+      : "refused";
+  }
+
+  private async revokeByWriteToken(
+    designId: DesignId,
+    { writeTokenHash, visitorHash }: WriteTokenShareCredential,
+  ): Promise<RevokeRow[]> {
+    return (await retryOnTransientFailure(
       () => this.sql`
         with authorised as (
           select 1 from designs
@@ -182,19 +283,50 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
         select exists (select 1 from authorised) as is_authorised
       `,
     )) as RevokeRow[];
+  }
 
-    return rowOrImpossible(rows, "revoke").is_authorised
-      ? "revoked"
-      : "refused";
+  private async revokeByAccount(
+    designId: DesignId,
+    { accountId }: AccountShareCredential,
+  ): Promise<RevokeRow[]> {
+    return (await retryOnTransientFailure(
+      () => this.sql`
+        with authorised as (
+          select 1 from designs
+          where id = ${designId} and account_id = ${accountId}
+        ), revoked as (
+          update design_share_links
+          set revoked_at = now()
+          where design_id = ${designId}
+            and revoked_at is null
+            and exists (select 1 from authorised)
+          returning token_hash
+        )
+        select exists (select 1 from authorised) as is_authorised
+      `,
+    )) as RevokeRow[];
   }
 
   /** One select, two independent `exists` checks: `active` is never reported without `is_authorised`, so a refused
    *  caller learns nothing about whether a link exists. */
-  async status(
-    credentials: ShareLinkCredentials,
-  ): Promise<ShareLinkStatusOutcome> {
-    const { designId, writeTokenHash, visitorHash } = credentials;
-    const rows = (await retryOnTransientFailure(
+  async status({
+    designId,
+    credential,
+  }: ShareLinkCredentials): Promise<ShareLinkStatusOutcome> {
+    const rows =
+      credential.kind === "write-token"
+        ? await this.statusByWriteToken(designId, credential)
+        : await this.statusByAccount(designId, credential);
+
+    const row = rowOrImpossible(rows, "status");
+    return row.is_authorised ? { active: row.active } : "refused";
+  }
+
+  private async statusByWriteToken(
+    designId: DesignId,
+    { writeTokenHash, visitorHash }: WriteTokenShareCredential,
+  ): Promise<StatusRow[]> {
+    return (await retryOnTransientFailure(
       () => this.sql`
         select
           exists (
@@ -213,9 +345,28 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
           ) as active
       `,
     )) as StatusRow[];
+  }
 
-    const row = rowOrImpossible(rows, "status");
-    return row.is_authorised ? { active: row.active } : "refused";
+  private async statusByAccount(
+    designId: DesignId,
+    { accountId }: AccountShareCredential,
+  ): Promise<StatusRow[]> {
+    return (await retryOnTransientFailure(
+      () => this.sql`
+        select
+          exists (
+            select 1 from designs
+            where id = ${designId} and account_id = ${accountId}
+          ) as is_authorised,
+          exists (
+            select 1 from design_share_links s
+            join designs d on d.id = s.design_id
+            where d.id = ${designId}
+              and d.account_id = ${accountId}
+              and s.revoked_at is null
+          ) as active
+      `,
+    )) as StatusRow[];
   }
 
   /** No credential and no `requireSha256Digest`: a malformed token hash matches no row, because `0006`'s check

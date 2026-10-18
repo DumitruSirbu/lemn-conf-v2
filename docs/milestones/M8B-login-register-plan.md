@@ -1161,6 +1161,20 @@ Rules for the walk:
   - The refusal-equality matrix (owner browser, owning account, other account, no credentials, missing id).
   - Session saves only on claimed designs of the account.
   - The 409 order; the share arms.
+- **L12b (route plus live; the stale doubles and the untested arms).**
+  - **Doubles that compile but do not exercise the account arm:** the `saveAuthorized` fakes of the
+    `apps/web/tests/app/api/designs/` route tests refuse any credential that is not `kind: "write-token"`, and
+    `share-link-route.test.ts`'s fake authorises the write-token pair only; the `freshJudge` adapter of
+    `judge-save-request.test.ts` wraps a bare hash as a write-token credential, so no case counts `save-by-account`; the
+    persistence live suites reach the share repository through `tests/support/flat-share-repository.ts`, an adapter
+    for the old flat call shape, not a test.
+  - Owed: a session save lands for the owning account's claimed design and is a `403` for an unclaimed design, another
+    account's and an unknown id (one body); a cross-site session save is that `403` and reads no session; the 409
+    arrives only after the account predicate matched; the account arm's lost-acknowledgement retry (`landed`) answers
+    success, not a conflict; a session save sets no cookie of any kind; `canWrite` and the save path agree for every
+    (token cookie, session, ownership) combination, the known divergence being a present-but-wrong token cookie on an
+    owner's signed-in browser (`canWrite: true`, save `403`); share issue, revoke and status by account, with another
+    account's session refused identically; the account arm of `issue` has no retry relaxation.
 - **L13a–L14b (e2e and visual).**
   - Register → confirm → claim → open on a second browser context with no visitor cookie.
   - CSP unchanged off account paths.

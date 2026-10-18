@@ -74,7 +74,11 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
       return Promise.reject(this.failSaveWith as Error);
     }
     const row = this.rows.get(save.id);
-    if (!row || row.writeTokenHash !== save.writeTokenHash) {
+    if (
+      !row ||
+      save.credential.kind !== "write-token" ||
+      row.writeTokenHash !== save.credential.hash
+    ) {
       return Promise.reject(new DesignWriteForbiddenError(save.id));
     }
     if (row.revision !== save.expectedRevision) {

@@ -58,13 +58,17 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   saveAuthorized({
     id,
     design,
-    writeTokenHash,
+    credential,
     expectedRevision,
   }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
     // The order the real repository uses: the credential decides between 403 and 409, so a caller
     // without one can never see a conflict and never learn the design exists.
-    if (!row || row.writeTokenHash !== writeTokenHash) {
+    if (
+      !row ||
+      credential.kind !== "write-token" ||
+      row.writeTokenHash !== credential.hash
+    ) {
       return Promise.reject(new DesignWriteForbiddenError(id));
     }
     if (row.revision !== expectedRevision) {

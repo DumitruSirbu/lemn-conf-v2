@@ -7,7 +7,11 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { runMigrations } from "../src/migrate.js";
 import { NeonConfigurationRepository } from "../src/neon-configuration-repository.js";
 import { NeonShareLinkRepository } from "../src/share-link-repository.js";
-import type { ShareLinkCredentials } from "../src/share-link-repository.js";
+import {
+  flatShareRepository,
+  type FlatShareCredentials,
+  type FlatShareRepository,
+} from "./support/flat-share-repository.js";
 import {
   announceSkippedLiveSuite,
   isLiveTestDatabaseConfigured,
@@ -45,7 +49,7 @@ function nextTokenHash(): string {
 describe(SUITE_NAME, () => {
   const mintedIds: DesignId[] = [];
 
-  async function mintDesign(): Promise<ShareLinkCredentials> {
+  async function mintDesign(): Promise<FlatShareCredentials> {
     const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
       design: KITCHEN_L_DESIGN,
       writeTokenHash: WRITE_TOKEN_HASH,
@@ -59,8 +63,8 @@ describe(SUITE_NAME, () => {
     };
   }
 
-  function repository(): NeonShareLinkRepository {
-    return new NeonShareLinkRepository(testDatabaseUrl);
+  function repository(): FlatShareRepository {
+    return flatShareRepository(new NeonShareLinkRepository(testDatabaseUrl));
   }
 
   /** Rows fetched and counted in JS rather than with SQL's own aggregate: the census's destructive
@@ -344,7 +348,7 @@ describe(`${SUITE_NAME} — adversarial QA (M7 wave 7E3c)`, () => {
       writeTokenHash: WRITE_TOKEN_HASH,
       visitorHash: VISITOR_HASH,
     },
-  ): Promise<ShareLinkCredentials> {
+  ): Promise<FlatShareCredentials> {
     const { id } = await new NeonConfigurationRepository(testDatabaseUrl).mint({
       design: KITCHEN_L_DESIGN,
       writeTokenHash: hashes.writeTokenHash,
@@ -354,8 +358,8 @@ describe(`${SUITE_NAME} — adversarial QA (M7 wave 7E3c)`, () => {
     return { designId: id, ...hashes };
   }
 
-  function repository(): NeonShareLinkRepository {
-    return new NeonShareLinkRepository(testDatabaseUrl);
+  function repository(): FlatShareRepository {
+    return flatShareRepository(new NeonShareLinkRepository(testDatabaseUrl));
   }
 
   async function activeHashesOf(designId: DesignId): Promise<string[]> {

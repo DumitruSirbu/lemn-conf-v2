@@ -45,6 +45,19 @@ export async function readingAccountOf(
   };
 }
 
+/**
+ * The id of the account whose session may write the designs it owns, or `undefined`. Save and share ask this, and
+ * `canWrite` is derived from the same `mayEdit` (`readRequestDesignAccess`), so the flag a page shows and the save the
+ * server accepts cannot disagree about which sessions may edit. Still only half of the decision: the row must also be
+ * the account's, and the repository's own predicate says so.
+ */
+export async function editingAccountIdOf(
+  cookies: SessionCookieReader,
+): Promise<string | undefined> {
+  const account = await readingAccountOf(cookies);
+  return account?.mayEdit === true ? account.accountId : undefined;
+}
+
 /** The accessor for a visitor hash and an account, either or both, or `undefined` when there is neither. */
 export function designAccessorOf(
   visitorHash: string | undefined,

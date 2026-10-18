@@ -25,6 +25,7 @@ export type {
   OwnedDesignLookup,
   OwnedDesignRepository,
   RequestVisitor,
+  SaveCredential,
   SaveOutcome,
   StoredDesign,
   VisitorDesignsClaim,
@@ -37,6 +38,7 @@ export { NeonShareLinkRepository } from "./share-link-repository.js";
 export type {
   IssueShareLink,
   LoadSharedOutcome,
+  ShareCredential,
   ShareLinkCredentials,
   ShareLinkIssueOutcome,
   ShareLinkRepository,

@@ -141,7 +141,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
       const saved = await repository.saveAuthorized({
         id,
         design: updated,
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: FIRST_REVISION,
         requestVisitor: { kind: "absent" },
       });
@@ -181,7 +181,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         repository.saveAuthorized({
           id,
           design: { ...KITCHEN_L_DESIGN, presetId: "attacker-preset" },
-          writeTokenHash: WRONG_TOKEN_HASH,
+          credential: { kind: "write-token", hash: WRONG_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -204,7 +204,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         repository.saveAuthorized({
           id: "does-not-exist-00000000",
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -231,7 +231,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         repository.saveAuthorized({
           id,
           design: { ...KITCHEN_L_DESIGN, presetId: "legacy-overwrite" },
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -415,7 +415,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
       const saved = await repository.saveAuthorized({
         id,
         design: firstTab,
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "absent" },
       });
@@ -423,7 +423,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         repository.saveAuthorized({
           id,
           design: secondTab,
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: revision,
           requestVisitor: { kind: "absent" },
         }),
@@ -447,21 +447,21 @@ describe("saveAuthorized revisions (WEB-003)", () => {
       const first = await repository.saveAuthorized({
         id,
         design: designNamed("first"),
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "absent" },
       });
       const second = await repository.saveAuthorized({
         id,
         design: designNamed("second"),
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: first.revision,
         requestVisitor: { kind: "absent" },
       });
       const third = await repository.saveAuthorized({
         id,
         design: designNamed("third"),
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: second.revision,
         requestVisitor: { kind: "absent" },
       });
@@ -485,7 +485,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         repository.saveAuthorized({
           id,
           design: designNamed("stale"),
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: "9999",
           requestVisitor: { kind: "absent" },
         }),
@@ -508,7 +508,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
           repository.saveAuthorized({
             id,
             design: designNamed("attacker"),
-            writeTokenHash: WRONG_TOKEN_HASH,
+            credential: { kind: "write-token", hash: WRONG_TOKEN_HASH },
             expectedRevision: claimed,
             requestVisitor: { kind: "absent" },
           }),
@@ -543,7 +543,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         repository.saveAuthorized({
           id,
           design: designNamed("malformed-revision"),
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: value,
           requestVisitor: { kind: "absent" },
         }),
@@ -599,7 +599,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const saved = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "owned-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "present", visitorHash: OWNER_HASH },
       });
@@ -622,7 +622,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const foreign = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "foreign-cookie-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "present", visitorHash: STRANGER_HASH },
       });
@@ -631,7 +631,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const cookieless = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "cookieless-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: foreign.revision,
         requestVisitor: { kind: "absent" },
       });
@@ -664,7 +664,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const staleSave = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "stale-cookie-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "present", visitorHash: OWNER_HASH },
       });

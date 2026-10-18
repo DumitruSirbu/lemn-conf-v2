@@ -19,7 +19,7 @@ import {
   SentKitchenViewRepositoryError,
 } from "../src/sent-kitchen-view-repository.js";
 import { NeonShareLinkRepository } from "../src/share-link-repository.js";
-import type { ShareLinkCredentials } from "../src/share-link-repository.js";
+import { flatShareRepository } from "./support/flat-share-repository.js";
 import {
   FAKE_SNAPSHOT,
   aDesignSubmission,
@@ -61,7 +61,10 @@ function newClientRequestId(): string {
 }
 
 /** A minted design's credentials and the revision it was minted at. */
-interface MintedDesign extends ShareLinkCredentials {
+interface MintedDesign {
+  readonly designId: string;
+  readonly writeTokenHash: string;
+  readonly visitorHash: string;
   readonly revision: DesignRevision;
 }
 
@@ -289,7 +292,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         {
           id: design.designId,
           design: ANOTHER_KITCHEN,
-          writeTokenHash: design.writeTokenHash,
+          credential: { kind: "write-token", hash: design.writeTokenHash },
           expectedRevision: design.revision,
           requestVisitor: { kind: "present", visitorHash: design.visitorHash },
         },
@@ -308,7 +311,9 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
     it("is untouched by issuing and revoking the customer's share link, and touches no share link itself", async () => {
       const design = await mintDesign();
-      const shares = new NeonShareLinkRepository(liveTestDatabaseUrl);
+      const shares = flatShareRepository(
+        new NeonShareLinkRepository(liveTestDatabaseUrl),
+      );
       const shareTokenHash = newTokenHash();
       expect(await shares.issue({ ...design, tokenHash: shareTokenHash })).toBe(
         "issued",

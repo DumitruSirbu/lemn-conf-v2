@@ -20,7 +20,11 @@ interface DesignRow {
   document: unknown;
   /** `revision::text`, never the driver's rendering of a `bigint` — see `DesignRevision`. */
   revision: DesignRevision;
-  /** Whether the accessor's account is the row's owner, from the same row the read matched. */
+}
+
+/** What the gated read selects beyond a plain row: whether the accessor's account is the row's owner, from the same row
+ *  the read matched. */
+interface OwnedDesignRow extends DesignRow {
   is_owned_by_account: boolean;
 }
 
@@ -66,11 +70,21 @@ export interface StoredDesign {
   readonly revision: DesignRevision;
 }
 
-/** One authorised replacement of a stored design, grouped so the hash cannot be swapped with the id at a call site. */
+/**
+ * What authorises a save (ADR 0019 decision 1, ADR 0169 D9): the design's write token, as the hash the route read, or
+ * the id of the account that owns the design. The account's id is the server's own session's and no request member can
+ * name one. The two are alternatives, never both: each arm is its own statement, so a caller cannot widen one with the
+ * other.
+ */
+export type SaveCredential =
+  | { readonly kind: "write-token"; readonly hash: string }
+  | { readonly kind: "account"; readonly accountId: string };
+
+/** One authorised replacement of a stored design, grouped so the credential cannot be swapped with the id at a call site. */
 export interface AuthorizedSave {
   readonly id: DesignId;
   readonly design: Design;
-  readonly writeTokenHash: string;
+  readonly credential: SaveCredential;
   /** The revision the caller read; the write lands only if the row still carries it. */
   readonly expectedRevision: DesignRevision;
   /** The requester's own visitor value, so `saveAuthorized` can say whether the row it wrote is still theirs. */
@@ -322,9 +336,11 @@ export class NeonConfigurationRepository
    * `returning revision` makes zero matched rows visible: a bare `update` matching nothing reports success. A row
    * with a NULL `write_token_hash` never matches, so it fails closed.
    *
-   * Deliberately no `requireSha256Digest` or `isDesignRevision`, unlike `mint`: a wrong-shaped credential or revision
-   * is simply not the right one, and the answer is a refusal, not a crash. The predicate gives that for every shape
-   * (`NULL = ''` is NULL), and the revision is compared as text so no caller string can raise a cast error.
+   * Deliberately no `requireSha256Digest`, account-id shape check or `isDesignRevision`, unlike `mint`: a wrong-shaped
+   * credential or revision is simply not the right one, and the answer is a refusal, not a crash. The predicate gives
+   * that for every shape (`NULL = ''` is NULL), and the revision is compared as text so no caller string can raise a
+   * cast error. The account arm's write needs the row's own `account_id`: a session never writes a design that is
+   * unclaimed or another account's, and the two are the one refusal.
    */
   async saveAuthorized(save: AuthorizedSave): Promise<SaveOutcome> {
     const outcome = await this.updateIfCurrent(save);
@@ -343,6 +359,28 @@ export class NeonConfigurationRepository
   /**
    * One statement answers both questions from one snapshot: may this caller write the design, and did the write
    * land. Two statements could turn a genuine conflict into a refusal, or the reverse, if the row changed between.
+   * The credential picks the statement (`updateByWriteToken`, `updateByAccount`); both return the same row.
+   */
+  private async updateIfCurrent(
+    save: AuthorizedSave,
+  ): Promise<ConditionalUpdateRow> {
+    const { credential } = save;
+    const rows =
+      credential.kind === "write-token"
+        ? await this.updateByWriteToken(save, credential.hash)
+        : await this.updateByAccount(save, credential.accountId);
+
+    const outcome = rows[0];
+    if (!outcome)
+      throw new Error(
+        "The conditional update returned no row at all, which this statement cannot do — the " +
+          "database did not run the query this repository sent.",
+      );
+    return outcome;
+  }
+
+  /**
+   * The write-token arm: the statement every save made before accounts existed.
    *
    * On a retry only, a row already at `expectedRevision + 1` holding this very document is the first attempt's own
    * write, so it answers as success rather than a false conflict; a first attempt never takes that arm.
@@ -351,18 +389,15 @@ export class NeonConfigurationRepository
    * minted version would keep asking for an older normalisation arm on every load, so that arm could never be removed.
    * Safe in both directions: a normalised document is a fixed point of every arm below the current version.
    */
-  private async updateIfCurrent({
-    id,
-    design,
-    writeTokenHash,
-    expectedRevision,
-    requestVisitor,
-  }: AuthorizedSave): Promise<ConditionalUpdateRow> {
+  private async updateByWriteToken(
+    { id, design, expectedRevision, requestVisitor }: AuthorizedSave,
+    writeTokenHash: string,
+  ): Promise<ConditionalUpdateRow[]> {
     // `null` for "absent" is safe only here: it reaches no stored column, just the right side of the `coalesce`
     // comparison below, where `= null` answers "no" for every row.
     const requestVisitorHash =
       requestVisitor.kind === "present" ? requestVisitor.visitorHash : null;
-    const rows = (await retryOnTransientFailure(
+    return (await retryOnTransientFailure(
       ({ isRetry }) => this.sql`
       with authorised as (
         select 1 from designs
@@ -392,14 +427,46 @@ export class NeonConfigurationRepository
         ) as owns_visitor
     `,
     )) as ConditionalUpdateRow[];
+  }
 
-    const outcome = rows[0];
-    if (!outcome)
-      throw new Error(
-        "The conditional update returned no row at all, which this statement cannot do — the " +
-          "database did not run the query this repository sent.",
-      );
-    return outcome;
+  /**
+   * The account arm (ADR 0169 D9): the same statement with `account_id = $a` where the token arm has the write-token
+   * hash, in all three places, so the 409 is still reported only to a caller whose credential matched the row, and a
+   * row no account has claimed (`account_id is null`) matches nobody. The retry rule is the token arm's. The visitor is
+   * not this arm's concern: it does not ask who owns the visitor, and `owns_visitor` is always `false`, because a
+   * session save refreshes no visitor cookie.
+   */
+  private async updateByAccount(
+    { id, design, expectedRevision }: AuthorizedSave,
+    accountId: string,
+  ): Promise<ConditionalUpdateRow[]> {
+    return (await retryOnTransientFailure(
+      ({ isRetry }) => this.sql`
+      with authorised as (
+        select 1 from designs
+        where id = ${id} and account_id = ${accountId}
+      ), updated as (
+        update designs
+        set document = ${design}, schema_version = ${CURRENT_SCHEMA_VERSION},
+            updated_at = now(), revision = revision + 1
+        where id = ${id}
+          and account_id = ${accountId}
+          and revision::text = ${expectedRevision}
+        returning revision
+      ), landed as (
+        select revision from designs
+        where ${isRetry}
+          and id = ${id}
+          and account_id = ${accountId}
+          and (revision - 1)::text = ${expectedRevision}
+          and document = ${design}
+      )
+      select
+        exists (select 1 from authorised) as is_authorised,
+        coalesce((select revision::text from updated), (select revision::text from landed)) as revision,
+        false as owns_visitor
+    `,
+    )) as ConditionalUpdateRow[];
   }
 
   /**
@@ -443,7 +510,7 @@ export class NeonConfigurationRepository
       from designs
       where id = ${id} and (visitor_hash = ${visitorHash} or account_id = ${accountId})
     `,
-    )) as DesignRow[];
+    )) as OwnedDesignRow[];
 
     const row = rows[0];
     if (!row) return { kind: "none" };

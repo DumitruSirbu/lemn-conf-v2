@@ -9,7 +9,13 @@ import {
   validateDesignForCatalog,
 } from "@lemnaria/configurator-domain";
 import type { Design } from "@lemnaria/configurator-domain";
-import { isDesignRevision, type DesignRevision } from "@lemnaria/persistence";
+import {
+  isDesignRevision,
+  type DesignRevision,
+  type RequestVisitor,
+  type SaveCredential,
+  type SaveOutcome,
+} from "@lemnaria/persistence";
 import { NextResponse, type NextRequest } from "next/server";
 
 import {
@@ -25,7 +31,11 @@ import {
   readUtf8BodyWithLimit,
   type BoundedBodyFailure,
 } from "@/lib/server/read-body-with-limit";
-import { readRequestDesignAccess } from "@/lib/server/account/design-reader";
+import {
+  editingAccountIdOf,
+  readRequestDesignAccess,
+} from "@/lib/server/account/design-reader";
+import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
 import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
 import { refusalOfSaveLimit } from "@/lib/server/rate-limit/judge-save-request";
 import { getRepository } from "@/lib/server/repository";
@@ -66,7 +76,8 @@ const EXPECTED_REVISION_HEADER = "x-expected-revision";
  * `canWrite` exists because the write-token cookie is `HttpOnly`: without it a panel could only learn
  * whether it may edit by attempting an edit (§9 rules out warn-after-click). It is true for a browser that
  * holds the design's write token, and for the session of the account that owns the design (never for a
- * session on a design the account does not own). It is a boolean; no token, hash or fragment leaves this
+ * session on a design the account does not own). Each is a credential `PUT`/`PATCH` accept (`saveCredentialOf`), and
+ * the session's half is derived from the same `mayEdit` the save reads (`editingAccountIdOf`). It is a boolean; no token, hash or fragment leaves this
  * handler.
  *
  * It is advisory, never the authorisation decision. Nothing may be written on the strength of a
@@ -124,17 +135,17 @@ export async function PATCH(
 
 /**
  * Shared by `PUT` and `PATCH`: a save is a full replacement either way, and the body is the `Design`
- * document itself. A request with no write-token cookie for this design is refused before its body is
- * read. One carrying a cookie is still not trusted here: the hash goes to `saveAuthorized`, part of the
- * `update` predicate. There must be no verification step in this file; a check here followed by a
- * write there is the time-of-check/time-of-use window ADR 0019 rejects.
+ * document itself. A request with neither a write-token cookie for this design nor a session of an account that may
+ * edit is refused before its body is read. One carrying either is still not trusted here: the credential goes to
+ * `saveAuthorized`, part of the `update` predicate. There must be no verification step in this file; a check here
+ * followed by a write there is the time-of-check/time-of-use window ADR 0019 rejects.
  */
 async function saveDesign(
   request: NextRequest,
   { id }: { id: string },
 ): Promise<NextResponse> {
-  const writeTokenHash = readWriteTokenHash(request, id);
-  if (writeTokenHash === undefined) return writeForbiddenResponse();
+  const credential = await saveCredentialOf(request, id);
+  if (credential === undefined) return writeForbiddenResponse();
 
   // After the credential check and before the body is read: an unauthorised caller must not be able
   // to tell this refusal from the 403.
@@ -143,7 +154,7 @@ async function saveDesign(
 
   // Counted after the two refusals that are not, and before the body is read: a refusal reads no body, writes no row
   // and touches no cookie, and nothing of the limiter runs between the write and its answer.
-  const limited = await refusalOfSaveLimit(request.headers, writeTokenHash);
+  const limited = await refusalOfSaveLimit(request.headers, credential);
   if (limited) return limited;
 
   try {
@@ -154,25 +165,70 @@ async function saveDesign(
     const saved = await getRepository().saveAuthorized({
       id,
       design: body.design,
-      writeTokenHash,
+      credential,
       expectedRevision,
-      requestVisitor: resolveRequestVisitor(request.cookies),
+      requestVisitor: requestVisitorOf(request, credential),
     });
 
-    // A save keeps edit access and the visitor identity alive on the same clock.
-    // `refreshVisitorCookie` re-emits only the request's own well-formed value and never mints one
-    // (no save changes ownership), and only when `saved.ownsVisitor`, so a value another tab has
-    // rotated away is not re-emitted (ADR 0114 Amendment H3).
     const response = NextResponse.json({
       id: saved.id,
       revision: saved.revision,
     });
-    refreshWriteTokenCookie({ request, response }, id);
-    if (saved.ownsVisitor) refreshVisitorCookie({ request, response });
+    if (credential.kind === "write-token") {
+      refreshCookiesAfterTokenSave({ request, response }, id, saved);
+    }
     return response;
   } catch (error) {
     return designErrorResponse("save", error);
   }
+}
+
+/**
+ * The credential a save presents, or `undefined`. The write token, when the request carries one, exactly as before: the
+ * session is not read, and nothing about this arm depends on whether there is one. Otherwise the session of an account
+ * that may edit (ADR 0169 D9), and only for a request from this site, asked first: a cross-site request is answered as
+ * one with no credential, so a sibling origin learns nothing from it and the session is not even read. Every cause of
+ * "no credential" is the same `undefined`; whether the design is that account's is the repository's predicate to say.
+ */
+async function saveCredentialOf(
+  request: NextRequest,
+  id: string,
+): Promise<SaveCredential | undefined> {
+  const writeTokenHash = readWriteTokenHash(request, id);
+  if (writeTokenHash !== undefined) {
+    return { kind: "write-token", hash: writeTokenHash };
+  }
+  if (isCrossSiteRequest(request)) return undefined;
+  const accountId = await editingAccountIdOf(request.cookies);
+  return accountId === undefined ? undefined : { kind: "account", accountId };
+}
+
+const ABSENT_VISITOR: RequestVisitor = { kind: "absent" };
+
+/** The visitor the token arm checks `ownsVisitor` against. The account arm names none: it refreshes no visitor cookie,
+ *  so there is nothing to own. */
+function requestVisitorOf(
+  request: NextRequest,
+  credential: SaveCredential,
+): RequestVisitor {
+  return credential.kind === "write-token"
+    ? resolveRequestVisitor(request.cookies)
+    : ABSENT_VISITOR;
+}
+
+/**
+ * A token save keeps edit access and the visitor identity alive on the same clock. `refreshVisitorCookie`
+ * re-emits only the request's own well-formed value and never mints one (no save changes ownership), and only when
+ * `saved.ownsVisitor`, so a value another tab has rotated away is not re-emitted (ADR 0114 Amendment H3). A session
+ * save never calls this: it sets no cookie at all.
+ */
+function refreshCookiesAfterTokenSave(
+  context: { request: NextRequest; response: NextResponse },
+  id: string,
+  saved: SaveOutcome,
+): void {
+  refreshWriteTokenCookie(context, id);
+  if (saved.ownsVisitor) refreshVisitorCookie(context);
 }
 
 /** The revision the caller claims to be editing, or `undefined`. Absent and malformed are one case on

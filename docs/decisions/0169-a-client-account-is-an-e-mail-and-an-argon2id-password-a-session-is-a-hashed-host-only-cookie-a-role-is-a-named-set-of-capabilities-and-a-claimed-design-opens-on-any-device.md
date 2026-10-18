@@ -312,6 +312,13 @@ the wrong way:
 - **Residual, accepted [inf]:** after logout on a shared computer, the visitor cookie there still opens the
   designs made in that browser, as it does today for any visitor. A later "forget this browser" control can
   clear it.
+- **Residual, accepted, recorded 2026-10-18 with L12b [inf] (D8):** a claimed design stays readable through the
+  claiming browser's visitor cookie after the account signs out, because claiming leaves `visitor_hash` as it was and
+  the visitor cookie is not a session. A later wave may rotate the visitor cookie at sign-out. Rotation would close
+  reading and sharing in that browser, **not saving**: the write token in that browser lives for 30 days and still
+  writes the design, as it did before the claim. Rotation is therefore not the whole remedy; the "forget this browser"
+  control above would also have to clear the write-token cookies. Trigger to revisit: a report of a shared computer, or
+  that control being built.
 - **The M9 launch gate gains four lines** (plan §10).
 
 ## Decision-record sweep

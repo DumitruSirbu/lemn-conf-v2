@@ -1,5 +1,7 @@
+import type { ShareCredential } from "@lemnaria/persistence";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { editingAccountIdOf } from "@/lib/server/account/design-reader";
 import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
 import { designNotFoundResponse } from "@/lib/server/design-errors";
 import {
@@ -39,12 +41,6 @@ const SHARE_CROSS_SITE_REFUSED: DesignRefusal = {
   status: 404,
 };
 
-/** The pair the credential check requires (ADR 0114 Amendment G4), present together or not at all. */
-interface ShareCredentials {
-  readonly writeTokenHash: string;
-  readonly visitorHash: string;
-}
-
 /** Issues a fresh, active share link, revoking whatever was active first. The token is handed back exactly once;
  *  only its hash is stored. */
 export async function POST(
@@ -54,8 +50,8 @@ export async function POST(
   const { id } = await params;
   const refused = refusedShareRequest(request, id, "share-issue");
   if (refused) return refused;
-  const credentials = shareCredentialsFor(request, id);
-  if (!credentials) return designNotFoundResponse(id);
+  const credential = await shareCredentialFor(request, id);
+  if (!credential) return designNotFoundResponse(id);
   const limited = await refusalOfShareWriteLimit(
     request.headers,
     "share-issue",
@@ -66,7 +62,7 @@ export async function POST(
     const { token, hash } = createShareToken();
     const outcome = await getShareLinkRepository().issue({
       designId: id,
-      ...credentials,
+      credential,
       tokenHash: hash,
     });
     if (outcome === "refused") return designNotFoundResponse(id);
@@ -89,8 +85,8 @@ export async function DELETE(
   const { id } = await params;
   const refused = refusedShareRequest(request, id, "share-revoke");
   if (refused) return refused;
-  const credentials = shareCredentialsFor(request, id);
-  if (!credentials) return designNotFoundResponse(id);
+  const credential = await shareCredentialFor(request, id);
+  if (!credential) return designNotFoundResponse(id);
   const limited = await refusalOfShareWriteLimit(
     request.headers,
     "share-revoke",
@@ -100,7 +96,7 @@ export async function DELETE(
   try {
     const outcome = await getShareLinkRepository().revoke({
       designId: id,
-      ...credentials,
+      credential,
     });
     if (outcome === "refused") return designNotFoundResponse(id);
     return new NextResponse(null, {
@@ -124,13 +120,13 @@ export async function GET(
   if (refused) return refused;
   const limited = await refusalOfReadLimit(request.headers);
   if (limited) return limited;
-  const credentials = shareCredentialsFor(request, id);
-  if (!credentials) return designNotFoundResponse(id);
+  const credential = await shareCredentialFor(request, id);
+  if (!credential) return designNotFoundResponse(id);
 
   try {
     const outcome = await getShareLinkRepository().status({
       designId: id,
-      ...credentials,
+      credential,
     });
     if (outcome === "refused") return designNotFoundResponse(id);
     return NextResponse.json(outcome, {
@@ -159,17 +155,23 @@ function refusedShareRequest(
   return designNotFoundResponse(id);
 }
 
-/** A write-token cookie for this design and a well-formed visitor cookie, both present. Absent either, the
- *  repository is never asked, so the refusal costs no query and does not reveal whether the other would have
- *  mattered. */
-function shareCredentialsFor(
+/**
+ * The credential a share request presents, or `undefined`. A write-token cookie for this design and a well-formed
+ * visitor cookie, both present (ADR 0114 Amendment G4), exactly as before and without reading the session. Otherwise the
+ * session of an account that may edit (ADR 0169 D9): sharing is managed by an editor, for all three methods. The
+ * cross-site check has already run for every method. Absent both, the repository is never asked, so the refusal costs
+ * no query and does not reveal whether the other would have mattered. Whether the design is that account's is the
+ * repository's predicate to say, and its refusal is the one for a design that is unclaimed, another's, or unknown.
+ */
+async function shareCredentialFor(
   request: NextRequest,
   id: string,
-): ShareCredentials | undefined {
+): Promise<ShareCredential | undefined> {
   const writeTokenHash = readWriteTokenHash(request, id);
   const visitorHash = readVisitorHash(request.cookies);
-  if (writeTokenHash === undefined || visitorHash === undefined) {
-    return undefined;
+  if (writeTokenHash !== undefined && visitorHash !== undefined) {
+    return { kind: "write-token", writeTokenHash, visitorHash };
   }
-  return { writeTokenHash, visitorHash };
+  const accountId = await editingAccountIdOf(request.cookies);
+  return accountId === undefined ? undefined : { kind: "account", accountId };
 }

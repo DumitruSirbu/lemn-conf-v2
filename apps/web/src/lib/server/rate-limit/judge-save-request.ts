@@ -1,9 +1,14 @@
 import "server-only";
 
+import type { SaveCredential } from "@lemnaria/persistence";
 import type { NextResponse } from "next/server";
 
 import { reportSaveLimit } from "@/lib/server/design-failure-log";
-import { subjectOfWriteCredentialHash } from "@/lib/server/rate-limit/bucket-subject";
+import {
+  subjectOfAccountId,
+  subjectOfWriteCredentialHash,
+  type BucketSubject,
+} from "@/lib/server/rate-limit/bucket-subject";
 import {
   judgeStepsInSequence,
   RATE_LIMIT_DEADLINE_MS,
@@ -14,7 +19,10 @@ import {
   blockStep,
   subjectStep,
 } from "@/lib/server/rate-limit/judge-block-bucket";
-import { choosePolicy } from "@/lib/server/rate-limit/limit-policy";
+import {
+  choosePolicy,
+  type PolicyPurpose,
+} from "@/lib/server/rate-limit/limit-policy";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import {
   saveLimitReachedResponse,
@@ -27,12 +35,13 @@ import { refusalOfWriteLimit } from "@/lib/server/rate-limit/refusal-of-write-li
  * a request the block passed is counted against its write credential. A refusal at the block counts the block alone and
  * writes no row for a credential, which anyone could otherwise invent. Both steps take the one instant, and so the one
  * window, so a save judged across an hour's turn tells one wait. The credential's subject is made from the hash the
- * route read, through its constructor alone, and a hash it refuses is a judgement that failed. The policy answered is
- * the one of the step that decided.
+ * route read, or from the id of the session's account (ADR 0169 D9: the `save-by-account` bucket beside the
+ * credential's), through its constructor alone, and a value it refuses is a judgement that failed. The policy answered
+ * is the one of the step that decided.
  */
 export async function judgeSaveRequest(
   headers: HeaderReader,
-  writeTokenHash: string,
+  credential: SaveCredential,
 ): Promise<WriteJudgement> {
   const environment = process.env;
   const block = blockBucketRequestFor({
@@ -42,14 +51,33 @@ export async function judgeSaveRequest(
     deadlineMs: RATE_LIMIT_DEADLINE_MS,
     instant: new Date(),
   });
-  const credential = {
+  const { purpose, makeSubject } = bucketOfCredential(credential);
+  const credentialRequest = {
     ...block,
-    policy: choosePolicy(environment, "save-by-credential"),
+    policy: choosePolicy(environment, purpose),
   };
   return judgeStepsInSequence([
     blockStep(block),
-    subjectStep(credential, () => subjectOfWriteCredentialHash(writeTokenHash)),
+    subjectStep(credentialRequest, makeSubject),
   ]);
+}
+
+/** The bucket a credential is counted in and the one constructor that may make its subject: the two arms are counted
+ *  apart. */
+function bucketOfCredential(credential: SaveCredential): {
+  readonly purpose: PolicyPurpose;
+  readonly makeSubject: () => BucketSubject;
+} {
+  if (credential.kind === "write-token") {
+    return {
+      purpose: "save-by-credential",
+      makeSubject: () => subjectOfWriteCredentialHash(credential.hash),
+    };
+  }
+  return {
+    purpose: "save-by-account",
+    makeSubject: () => subjectOfAccountId(credential.accountId),
+  };
 }
 
 /**
@@ -59,9 +87,9 @@ export async function judgeSaveRequest(
  */
 export function refusalOfSaveLimit(
   headers: HeaderReader,
-  writeTokenHash: string,
+  credential: SaveCredential,
 ): Promise<NextResponse | undefined> {
-  return refusalOfWriteLimit(() => judgeSaveRequest(headers, writeTokenHash), {
+  return refusalOfWriteLimit(() => judgeSaveRequest(headers, credential), {
     refused: saveLimitReachedResponse,
     unavailable: saveUnavailableResponse,
     reportRefused: (policy) => {

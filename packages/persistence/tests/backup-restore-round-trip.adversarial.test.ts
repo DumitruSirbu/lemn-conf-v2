@@ -145,7 +145,7 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: edited,
-          writeTokenHash: hashWriteToken(token),
+          credential: { kind: "write-token", hash: hashWriteToken(token) },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -178,7 +178,10 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: hashWriteToken("a-different-token"),
+          credential: {
+            kind: "write-token",
+            hash: hashWriteToken("a-different-token"),
+          },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -262,7 +265,10 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: hashWriteToken("any-token-at-all"),
+          credential: {
+            kind: "write-token",
+            hash: hashWriteToken("any-token-at-all"),
+          },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -293,7 +299,7 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: hashWriteToken(token),
+          credential: { kind: "write-token", hash: hashWriteToken(token) },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
