@@ -1,6 +1,7 @@
 import "server-only";
 
-import { argon2, randomBytes, timingSafeEqual } from "node:crypto";
+import * as nodeCrypto from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 
 // Passwords are hashed with argon2id from `node:crypto` (Node 24.7 and later), stored as a PHC string so that the
 // parameters travel with each hash and can be raised without a migration (ADR 0169 decision 2). A hash made with
@@ -35,6 +36,10 @@ const CURRENT_SHAPE: HashShape = {
 const ARGON2_ALGORITHM = "argon2id";
 const ARGON2_VERSION = 19;
 
+const ARGON2_REQUIRES_NODE_MESSAGE =
+  "argon2id password hashing needs node:crypto.argon2, which exists from Node 24.7; run the server on Node >=24.7.";
+const ARGON2_MISSING_LOG_LINE = `[account] ${ARGON2_REQUIRES_NODE_MESSAGE}`;
+
 // What a stored string may name and still be computed. Every hash is ours, so these bound a damaged row rather than
 // an attacker: a string outside them is not a hash, and is never fed to the function.
 const MIN_SALT_BYTES = 8;
@@ -55,8 +60,20 @@ interface ParsedHash extends HashShape {
   readonly tag: Buffer;
 }
 
+/** `node:crypto` has no `argon2` on a Node older than 24.7. Callers answer 503 on any throw, so this is loud, not a
+ *  "wrong password". */
+export class Argon2UnavailableError extends Error {
+  constructor() {
+    super(ARGON2_REQUIRES_NODE_MESSAGE);
+    this.name = "Argon2UnavailableError";
+  }
+}
+
+let hasReportedMissingArgon2 = false;
+
 /** A fresh hash of `password`, at the current cost, with a new 16-byte salt. */
 export async function hashPassword(password: string): Promise<string> {
+  assertArgon2Available();
   const salt = randomBytes(CURRENT_SHAPE.saltBytes);
   const tag = await deriveTag({ password, salt, shape: CURRENT_SHAPE });
   return formatHash({ shape: CURRENT_SHAPE, salt, tag });
@@ -78,6 +95,7 @@ export async function checkPassword({
   password: string;
   phc: string;
 }): Promise<PasswordCheck> {
+  assertArgon2Available();
   const parsed = parseHash(phc);
   if (parsed === undefined) return "mismatch";
   try {
@@ -118,6 +136,17 @@ export const DUMMY_PHC: string = formatHash({
   tag: Buffer.alloc(CURRENT_SHAPE.tagBytes),
 });
 
+function assertArgon2Available(): void {
+  // The type says it is always there; an older runtime says otherwise.
+  if (typeof (nodeCrypto as Partial<typeof nodeCrypto>).argon2 === "function")
+    return;
+  if (!hasReportedMissingArgon2) {
+    hasReportedMissingArgon2 = true;
+    console.error(ARGON2_MISSING_LOG_LINE);
+  }
+  throw new Argon2UnavailableError();
+}
+
 function deriveTag({
   password,
   salt,
@@ -128,7 +157,7 @@ function deriveTag({
   shape: HashShape;
 }): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    argon2(
+    nodeCrypto.argon2(
       ARGON2_ALGORITHM,
       {
         message: password,
