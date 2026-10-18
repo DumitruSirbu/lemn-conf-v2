@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // The save-as-preset dialog's close after a successful save: the saved notice stays readable for
-// SAVED_NOTICE_VISIBLE_MS, then the dialog closes exactly as its Close button does, and no refusal closes it.
+// SAVED_NOTICE_VISIBLE_MS, fades for SAVED_NOTICE_FADE_MS, then the dialog closes exactly as its Close button does, and no refusal closes it.
 import { KITCHEN_L_DESIGN, type DesignId } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement } from "react";
@@ -24,7 +24,10 @@ import {
   SaveAsPresetDialog,
   useSaveAsPresetControl,
 } from "@/app/configurator/configure/save-as-preset";
-import { SAVED_NOTICE_VISIBLE_MS } from "@/app/configurator/configure/use-save-as-preset";
+import {
+  SAVED_NOTICE_FADE_MS,
+  SAVED_NOTICE_VISIBLE_MS,
+} from "@/app/configurator/configure/use-save-as-preset";
 import { usePresetAuthoring } from "@/preset/preset-authoring-store";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
@@ -128,7 +131,7 @@ describe("the save-as-preset dialog after a successful save", () => {
 
   it("then closes the dialog and gives focus back to the button that opened it", async () => {
     await openAndSave({ kind: "saved" });
-    await advance(SAVED_NOTICE_VISIBLE_MS);
+    await advance(SAVED_NOTICE_VISIBLE_MS + SAVED_NOTICE_FADE_MS);
 
     expect(byTestId("save-as-preset-dialog")).toBeNull();
     expect(document.activeElement).toBe(byTestId("save-as-preset"));

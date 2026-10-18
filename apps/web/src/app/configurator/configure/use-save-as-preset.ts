@@ -6,6 +6,7 @@ import {
   savePreset,
   type PresetRefusalReason,
 } from "@/persistence/preset-save-client";
+import { matchesMedia } from "@/lib/matches-media";
 import { captureSceneImage } from "@/scene/capture-scene-image";
 import {
   hasUnsavedEdit,
@@ -55,6 +56,11 @@ export type PresetSavePhase =
 
 /** How long the saved notice stays readable before the dialog closes by itself. */
 export const SAVED_NOTICE_VISIBLE_MS = 1000;
+
+/** How long the dialog then takes to fade out before it closes (`Presete.dc.html#3t-saved`). None under reduced motion. */
+export const SAVED_NOTICE_FADE_MS = 200;
+
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 export interface PresetSave {
   readonly phase: PresetSavePhase;
@@ -114,19 +120,35 @@ function refused(reason: PresetRefusalReason): PresetSavePhase {
   return { kind: "refused", reason };
 }
 
-/** Closes the dialog once the saved notice has been on screen for `SAVED_NOTICE_VISIBLE_MS`. A refusal never closes it,
- *  and the timer dies with the dialog, so a manual close first leaves nothing to fire. */
+/**
+ * Closes the dialog once the saved notice has been on screen for `SAVED_NOTICE_VISIBLE_MS` and has then faded for
+ * `SAVED_NOTICE_FADE_MS`; the result is true during that fade. A refusal never closes it, and both timers die with the
+ * dialog, so a manual close first leaves nothing to fire. Under reduced motion there is no fade: it closes at the end of
+ * the visible time.
+ */
 export function useCloseAfterSavedNotice(
   phase: PresetSavePhase,
   close: () => void,
-): void {
+): boolean {
   const isSaved = phase.kind === "saved";
+  const [isFading, setFading] = useState(false);
 
   useEffect(() => {
     if (!isSaved) return undefined;
-    const timer = setTimeout(close, SAVED_NOTICE_VISIBLE_MS);
+    let closeTimer: ReturnType<typeof setTimeout> | undefined;
+    const fadeTimer = setTimeout(() => {
+      if (matchesMedia(REDUCED_MOTION_QUERY)) {
+        close();
+        return;
+      }
+      setFading(true);
+      closeTimer = setTimeout(close, SAVED_NOTICE_FADE_MS);
+    }, SAVED_NOTICE_VISIBLE_MS);
     return () => {
-      clearTimeout(timer);
+      clearTimeout(fadeTimer);
+      clearTimeout(closeTimer);
     };
   }, [isSaved, close]);
+
+  return isFading;
 }
