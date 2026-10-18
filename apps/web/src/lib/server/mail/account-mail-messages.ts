@@ -18,8 +18,8 @@ export type AccountMailKind =
   | "password-changed";
 
 /**
- * A link under the site's public origin, with the single-use token after `#`. The origin is a `PublicOrigin`, which only
- * `readPublicOrigin` makes: the link's origin never comes from the request.
+ * A link under the site's public origin, with the single-use token after `#`. The origin is a `PublicOrigin`, which
+ * only `readPublicOrigin` makes: the link's origin never comes from the request.
  */
 export interface AccountMailTokenLink {
   readonly origin: PublicOrigin;

@@ -12,9 +12,9 @@ export type ContentSecurityPolicyMode = "report-only" | "enforce";
  * this one line.
  *
  * Enforcing holds only while every document a browser is sent carries a nonce, and a nonce reaches the HTML of a
- * dynamically rendered response alone: a route listed in `.next/prerender-manifest.json` would go blank. `/_global-error`
- * and `/_not-found` stay listed but are never sent as documents: `app/[locale]/[...unmatched]` renders the 404 per
- * request and `next.config.ts` rewrites those two addresses to it (ADR 0041, ADR 0161).
+ * dynamically rendered response alone: a route listed in `.next/prerender-manifest.json` would go blank.
+ * `/_global-error` and `/_not-found` stay listed but are never sent as documents: `app/[locale]/[...unmatched]` renders
+ * the 404 per request and `next.config.ts` rewrites those two addresses to it (ADR 0041, ADR 0161).
  */
 export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
   "enforce";

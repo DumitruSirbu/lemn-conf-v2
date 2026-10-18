@@ -342,7 +342,8 @@ export const ACCOUNT_REGISTER_MAIL_BY_ADDRESS_POLICY = policyOf(
   },
 );
 
-/** The reset link. The "password changed" notice counts no bucket (L10 review L1). Registration traffic never counts here. */
+/** The reset link. The "password changed" notice counts no bucket (ADR 0169 Amendment B, item 2). Registration traffic
+ *  never counts here. */
 export const ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY = policyOf(
   "account-reset-mail-by-address",
   {
@@ -353,7 +354,7 @@ export const ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY = policyOf(
 
 /** A login's silent resend of the confirmation link, counted only inside the job that runs after the response and
  *  never answered from. Apart from the registration bucket, so that signing in to an unconfirmed address cannot use up
- *  that address's registration budget (L9 security review F1). */
+ *  that address's registration budget (ADR 0169 Amendment A, item 2). */
 export const ACCOUNT_LOGIN_RESEND_BY_ADDRESS_POLICY = policyOf(
   "account-login-resend-by-address",
   {

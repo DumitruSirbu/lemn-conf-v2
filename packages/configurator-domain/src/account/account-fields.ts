@@ -25,7 +25,9 @@ export const PRIVACY_NOTICE_VERSION_MAX_LENGTH = 32;
 
 /** The shape the column's check enforces. No closed list exists yet: the notice's text is a later wave, and
  *  a list would be an identifier nobody had published. */
-const PRIVACY_NOTICE_VERSION_SHAPE = /^[a-z0-9.-]{1,32}$/;
+const PRIVACY_NOTICE_VERSION_SHAPE = new RegExp(
+  `^[a-z0-9.-]{1,${String(PRIVACY_NOTICE_VERSION_MAX_LENGTH)}}$`,
+);
 
 export const ACCOUNT_FIELDS = [
   "email",
@@ -44,11 +46,6 @@ export interface AccountIssue {
   readonly field: AccountField;
   readonly code: AccountFieldCode;
 }
-
-/** What arrives in a request body: any field may be absent or of the wrong type. */
-export type RegistrationInput = Readonly<
-  Partial<Record<AccountField, unknown>>
->;
 
 /** A phone as typed and as stored. It is unverified, and is labelled so wherever it is shown. */
 export interface RegisteredPhone {

@@ -19,7 +19,11 @@ import {
 import { countClaimableDesignsAtSignIn } from "@/lib/server/account/claimable-designs";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import { isWellFormedEmailToken } from "@/lib/server/account/email-token";
-import { checkPassword, DUMMY_PHC } from "@/lib/server/account/password-hash";
+import {
+  checkPassword,
+  DUMMY_PHC,
+  REFUSED_PASSWORD_STAND_IN,
+} from "@/lib/server/account/password-hash";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { startSession } from "@/lib/server/account/session-lifecycle";
 import { sha256Hex } from "@/lib/server/sha256-hex";
@@ -28,9 +32,6 @@ import { sha256Hex } from "@/lib/server/sha256-hex";
 // route has already checked the request's origin, media type and size and the network's limit (steps 1 to 4). There
 // is no challenge: the token is the proof, and it was sent to the inbox alone. Every way of not succeeding is one
 // answer, so a stranger holding a guess learns nothing of which part was wrong.
-
-/** What is hashed in place of a password the policy refused: it is never compared, and no input of the client's is. */
-const REFUSED_PASSWORD_STAND_IN = "refused";
 
 export interface VerifyEmailRequest {
   readonly bodyText: string;
@@ -82,7 +83,8 @@ async function findAccountOfLiveToken(
   return lookup.kind === "found" ? lookup.account : undefined;
 }
 
-/** `unverifiable` is the platform's failure to compute the comparison, told apart from a password that does not match. */
+/** `unverifiable` is the platform's failure to compute the comparison, told apart from a password that does not match.
+ */
 type PasswordHolding =
   | { readonly kind: "holds"; readonly account: StoredAccount }
   | { readonly kind: "not-held" }

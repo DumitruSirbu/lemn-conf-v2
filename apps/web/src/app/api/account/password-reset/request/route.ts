@@ -22,7 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (body.kind === "refused") return body.response;
   const blocked = answerOfJudgement(
     await judgeAccountBlock({
-      purpose: "reset-request",
+      purpose: "password-reset-request",
       headers: request.headers,
     }),
   );

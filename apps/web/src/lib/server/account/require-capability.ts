@@ -6,9 +6,11 @@ import type { Capability, Role } from "@lemnaria/configurator-domain";
 import type { CurrentSession } from "@/lib/server/account/current-session";
 
 // The one place a route asks whether an account may do something (ADR 0169 decision 7). It reads the session the server
-// built from the session cookie and nothing the client sent: a role or capability in a body or a header is never an input.
+// built from the session cookie and nothing the client sent: a role or capability in a body or a header is never an
+// input.
 
-/** The capabilities that touch a design. An account whose address is not confirmed holds none of them, whatever its role. */
+/** The capabilities that touch a design. An account whose address is not confirmed holds none of them, whatever its
+ *  role. */
 const DESIGN_CAPABILITIES: readonly Capability[] = [
   "design.read.own",
   "design.edit.own",
@@ -22,7 +24,8 @@ export interface CapabilityHolder {
   readonly isEmailVerified: boolean;
 }
 
-/** `unauthenticated` maps to 401 (no live session), `forbidden` to 403 (a session that does not hold the capability). */
+/** `unauthenticated` maps to 401 (no live session), `forbidden` to 403 (a session that does not hold the capability).
+ */
 export type CapabilityRefusal = "unauthenticated" | "forbidden";
 
 export type CapabilityCheck =
@@ -41,8 +44,8 @@ const CLIENT_ROLE: Role = "client";
 
 /**
  * Whether the holder is a client account that holds the capability. Claiming a visitor's designs and being stamped as
- * the owner of a minted one are the client's alone (ADR 0169 D8, L11 review F1): a staff account that browses as a visitor
- * keeps its designs as a visitor's, and one that signs in does not take them.
+ * the owner of a minted one are the client's alone (ADR 0169 D8, Amendment B): a staff account that browses as a
+ * visitor keeps its designs as a visitor's, and one that signs in does not take them.
  */
 export function isClientHolding(
   holder: CapabilityHolder,

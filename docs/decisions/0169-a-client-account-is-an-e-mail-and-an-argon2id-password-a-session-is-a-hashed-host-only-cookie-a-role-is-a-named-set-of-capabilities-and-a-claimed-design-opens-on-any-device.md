@@ -461,3 +461,47 @@ again; if the stored hash equals the new one (random salt, so no one else's), th
 passes the address policy logs `mail`/`refused`. No line holds an address.
 
 The plan (§2 D8, §5, §7 L5/L10/L11/L14b, §9, §10) carries the matching text.
+
+## Amendment C — 2026-10-18: residual of the L12b security review (L1)
+
+Owner-visible, accepted, Low (availability). Nothing else in this record changes.
+
+**Residual.** A write-token cookie, even a wrong or planted one, beats a valid owner session on `PUT`/`PATCH` and on
+share: `saveCredentialOf` and `shareCredentialFor` (`apps/web/src/app/api/designs/[id]/route.ts`, `share/route.ts`)
+pick the token arm when a token cookie is present. A same-site sibling origin that knows a design id can plant junk and
+stop a signed-in owner saving or sharing that design on that device for 30 days. `GET` still answers `canWrite: true`.
+
+**Optional mitigation, not shipped, and not before the refusal matrix of plan §9 exists:** when the token arm raises
+`DesignWriteForbiddenError` and the request is same-site with an editing session, run the account arm once. A `409`
+from the token arm wins; the limiter counts once; the same for share.
+
+Plan §10 carries the matching row; plan §9 records that the L12 refusal-matrix doubles must model both access arms
+with null semantics (L12a review I2).
+
+## Amendment D — 2026-10-18: vendor facts on `crypto.argon2` and the Node version are a gate for applying `0012`
+
+Nothing in D2 is reversed. D2's line "`engines.node` becomes `>=24.7 <25`" is **not confirmed to work as intended** (fact 3
+below); the change is an **owner decision**, not made here (no `package.json` edit was made by this note).
+
+**Facts, with the tier behind each.** All fetched or run 2026-10-18.
+
+1. **Node 24 API.** `https://nodejs.org/docs/latest-v24.x/api/crypto.html` lists `crypto.argon2` and `crypto.argon2Sync`
+   as "Added in: v24.7.0", with no Experimental stability marker. The docs JSON (`crypto.json`) gives stability `None`.
+   [doc: fetched]. On local Node v24.19.0, `argon2Sync` ran and printed no `ExperimentalWarning` [run]. This closes plan
+   L0's stability read; the scrypt fallback is not triggered.
+2. **Vercel runtime.** `https://vercel.com/docs/functions/runtimes/node-js/node-js-versions` says: "Current available
+   versions are: 24.x (default) 22.x. Only major versions are available. Vercel automatically rolls out minor and patch
+   updates when needed." [doc: fetched]. The 24.x **patch is not published**, so whether Vercel runs >= 24.7 is **not
+   established**. The argon2id-only check cannot be dropped (there is no fallback algorithm in the stored format), so on
+   a runtime below 24.7 every register and login would fail.
+3. **`engines` forms.** The docs show `24.x`, `^24.0.0` and `>=22.0.0` (the last resolving to the latest 24.x)
+   [doc: fetched]. The form `>=24.7 <25` is **not documented** and gives no minimum-minor guarantee [inf]. The documented
+   safe form is `24.x`.
+
+**Gate (owner, before applying `0012` in any environment).**
+- Confirm the runtime is >= 24.7 by running `node -v` in a Vercel **build log**, or by logging `process.version` from a
+  function, in each environment (preview first).
+- Recommended: set `engines.node` to `24.x` and add a startup or runtime guard that refuses to serve account routes when
+  `crypto.argon2` is not a function or `process.version` is below 24.7.0. **Owner decision; not made.**
+
+Plan §10 (risk row "`crypto.argon2` stability") and the M9 launch-gate list carry the matching text.

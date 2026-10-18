@@ -59,7 +59,7 @@ export function reportAccountEvent({
   const line = {
     event: ACCOUNT_EVENTS.find((known) => known === event) ?? OTHER_VALUE,
     outcome: ACCOUNT_OUTCOMES.find((known) => known === outcome) ?? OTHER_VALUE,
-    ...(policy === undefined ? {} : { policy: policyNameOf(policy) }),
+    ...(policy === undefined ? {} : { policy: sanitisedPolicyName(policy) }),
   };
   try {
     (outcome === "unavailable" ? console.error : console.warn)(
@@ -71,7 +71,7 @@ export function reportAccountEvent({
   }
 }
 
-function policyNameOf(policy: unknown): string {
+function sanitisedPolicyName(policy: unknown): string {
   return typeof policy === "string" && POLICY_NAME_SHAPE.test(policy)
     ? policy
     : NO_POLICY_NAME;

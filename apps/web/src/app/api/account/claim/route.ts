@@ -57,9 +57,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 }
 
 /**
- * The claim itself, made only on this `POST`: it is the client's confirmation, and nothing else claims. It has no body to
- * read, so the cross-site check stands in for the body checks. The account is the session's and no request member can
- * name another; the update gives the browser's unclaimed designs to it and leaves the browser's own access as it was.
+ * The claim itself, made only on this `POST`: it is the client's confirmation, and nothing else claims. It has no body
+ * to read, so the cross-site check stands in for the body checks. The account is the session's and no request member
+ * can name another; the update gives the browser's unclaimed designs to it and leaves the browser's own access as it
+ * was.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const claiming = await sessionThatMayClaim(request);
@@ -70,7 +71,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 /** Steps 1 and 3 of the common order: the cross-site check first, so nothing is read for a request from another site,
- *  then the session, its capability and its role: only a client account claims, a staff account is answered `403`. A session that cannot be read is anonymous, which is the less-access reading. */
+ *  then the session, its capability and its role: only a client account claims, a staff account is answered `403`. A
+ *  session that cannot be read is anonymous, which is the less-access reading. */
 async function sessionThatMayClaim(
   request: NextRequest,
 ): Promise<ClaimingSession> {
@@ -80,7 +82,7 @@ async function sessionThatMayClaim(
   if (check.kind === "refused") return refusedForCapability(check.refusal);
   if (session.kind !== "signed-in")
     return refusedForCapability("unauthenticated");
-  // Staff accounts hold `design.edit.own` too, but claiming is the client's alone (ADR 0169 D8, L11 review F1).
+  // Staff accounts hold `design.edit.own` too, but claiming is the client's alone (ADR 0169 D8, Amendment B).
   return isClientHolding(session, "design.edit.own")
     ? { kind: "may-claim", session }
     : refusedForCapability("forbidden");

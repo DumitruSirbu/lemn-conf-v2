@@ -67,21 +67,10 @@ export async function hashPassword(password: string): Promise<string> {
 export type PasswordCheck = "match" | "mismatch" | "failed";
 
 /**
- * Whether `password` is the one `phc` was made from, computed with the parameters `phc` names. A string that is not a
- * well-formed hash, or one the platform refuses to compute, is false and never throws. A caller that must tell a wrong
- * password from a platform that could not compute asks `checkPassword`.
+ * Whether `password` is the one `phc` was made from, computed with the parameters `phc` names. A platform failure is
+ * told apart from a mismatch, so a caller never reads "could not compute" as "wrong password". A string that is not a
+ * well-formed hash is a mismatch and never throws.
  */
-export async function verifyPassword({
-  password,
-  phc,
-}: {
-  password: string;
-  phc: string;
-}): Promise<boolean> {
-  return (await checkPassword({ password, phc })) === "match";
-}
-
-/** `verifyPassword`'s comparison, with a platform failure told apart from a mismatch. A malformed hash is a mismatch. */
 export async function checkPassword({
   password,
   phc,
@@ -113,6 +102,10 @@ export function needsRehash(phc: string): boolean {
     parsed.tag.length !== CURRENT_SHAPE.tagBytes
   );
 }
+
+/** Hashed and compared in place of a password the domain's policy refused: it never matches, and no input of the
+ *  client's is hashed, so a long body is not turned into argon2id work. */
+export const REFUSED_PASSWORD_STAND_IN = "refused";
 
 /**
  * A fixed hash at the current cost, for the unknown-address path: verifying against it takes as long as verifying a

@@ -62,12 +62,19 @@ export function prepareAccountMail(): AccountMailPreparation {
   };
 }
 
-/** Queues the mail to run after the response. The job never throws, so nothing it does can change that response. */
+/**
+ * Queues the mail to run after the response. Neither the job nor the queueing throws, so nothing here can change that
+ * response: `after` itself throws when it cannot schedule, and by then the row it follows is already written.
+ */
 export function queueAccountMail(
   readiness: AccountMailReadiness,
   order: AccountMailOrder,
 ): void {
-  after(() => sendAccountMail(readiness, order));
+  try {
+    after(() => sendAccountMail(readiness, order));
+  } catch {
+    reportAccountEvent({ event: "mail", outcome: "unavailable" });
+  }
 }
 
 async function sendAccountMail(

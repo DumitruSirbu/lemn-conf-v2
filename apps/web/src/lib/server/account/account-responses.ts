@@ -79,8 +79,8 @@ export function linkOrPasswordInvalidResponse(): NextResponse {
   return statusResponse(400, "link-or-password-invalid");
 }
 
-/** `400`: the one answer to a reset that did not succeed because of its link: unknown, used, expired, superseded, or the
- *  token of an account never confirmed. */
+/** `400`: the one answer to a reset that did not succeed because of its link: unknown, used, expired, superseded, or
+ *  the token of an account never confirmed. */
 export function linkInvalidResponse(): NextResponse {
   return statusResponse(400, "link-invalid");
 }
@@ -156,7 +156,8 @@ export function unauthenticatedResponse(): NextResponse {
   return statusResponse(401, "unauthenticated");
 }
 
-/** `403`: the session is live but its account may not do this: a role without the capability, or an unconfirmed address. */
+/** `403`: the session is live but its account may not do this: a role without the capability, or an unconfirmed
+ *  address. */
 export function forbiddenResponse(): NextResponse {
   return statusResponse(403, "forbidden");
 }

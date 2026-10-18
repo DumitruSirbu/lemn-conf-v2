@@ -35,6 +35,7 @@ import {
   DUMMY_PHC,
   hashPassword,
   needsRehash,
+  REFUSED_PASSWORD_STAND_IN,
 } from "@/lib/server/account/password-hash";
 import {
   prepareAccountMail,
@@ -48,8 +49,8 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 // Flow 3 of the M8B plan: signing in. From step 5 of the common order on; the route has already checked the request's
 // origin, media type and size and the network's limit (steps 1 to 4). Every way of not signing in is one `401`: an
 // unknown address, a wrong password, a password the policy refuses, and a correct password on an address not yet
-// confirmed (ADR 0169 Amendment A). Each of them does the same work before the answer: the address's buckets, one lookup
-// and exactly one argon2id verification.
+// confirmed (ADR 0169 Amendment A). Each of them does the same work before the answer: the address's buckets, one
+// lookup and exactly one argon2id verification.
 //
 // The address's buckets are counted for every valid attempt, before the lookup and before the password is looked at
 // (plan section 5), so nothing here counts a "failed" attempt a second time. That is also why a platform failure of the
@@ -57,10 +58,6 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
 const TURNSTILE_ACTION = "login";
 const PASSWORD_MEMBER = "password";
-
-/** Hashed and compared in place of a password the policy refused: it never matches, and no input of the client's is
- *  hashed, so a long body is not turned into argon2id work. */
-const REFUSED_PASSWORD_STAND_IN = "refused";
 
 export interface SignInRequest {
   readonly bodyText: string;
@@ -70,7 +67,8 @@ export interface SignInRequest {
 }
 
 interface Attempt {
-  /** The address as the limiter counts it and as accounts are looked up, from the same domain rule registration uses. */
+  /** The address as the limiter counts it and as accounts are looked up, from the same domain rule registration uses.
+   */
   readonly emailNormalForm: string;
   /** The NFKC password, or `undefined` for one the password policy refused. */
   readonly password: string | undefined;
@@ -161,7 +159,8 @@ async function answerAttempt({
   });
 }
 
-/** The one lookup. An unknown address and a refused password are both no claim, and are verified against the dummy hash. */
+/** The one lookup. An unknown address and a refused password are both no claim, and are verified against the dummy
+ *  hash. */
 async function claimOf({
   emailNormalForm,
   password,
@@ -240,6 +239,12 @@ async function passwordHashAfterRehash({
   return rehash.kind === "replaced" ? replacementHash : account.passwordHash;
 }
 
+interface ConfirmationResend {
+  readonly account: StoredAccount;
+  readonly emailNormalForm: string;
+  readonly headers: HeaderReader;
+}
+
 /**
  * Everything the resend does runs after the response, so the answer is the wrong-password answer after the same work:
  * the limiter count, the readiness of the mail, the token and the mail. A refusal or an unavailability is silent, and
@@ -252,12 +257,6 @@ function scheduleConfirmationResend(resend: ConfirmationResend): void {
   } catch {
     reportAccountEvent({ event: "mail", outcome: "unavailable" });
   }
-}
-
-interface ConfirmationResend {
-  readonly account: StoredAccount;
-  readonly emailNormalForm: string;
-  readonly headers: HeaderReader;
 }
 
 async function resendConfirmation({

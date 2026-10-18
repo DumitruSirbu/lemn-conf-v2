@@ -35,6 +35,7 @@ import {
   editingAccountIdOf,
   readRequestDesignAccess,
 } from "@/lib/server/account/design-reader";
+import { touchCurrentSession } from "@/lib/server/account/current-session";
 import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
 import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
 import { refusalOfSaveLimit } from "@/lib/server/rate-limit/judge-save-request";
@@ -77,8 +78,8 @@ const EXPECTED_REVISION_HEADER = "x-expected-revision";
  * whether it may edit by attempting an edit (§9 rules out warn-after-click). It is true for a browser that
  * holds the design's write token, and for the session of the account that owns the design (never for a
  * session on a design the account does not own). Each is a credential `PUT`/`PATCH` accept (`saveCredentialOf`), and
- * the session's half is derived from the same `mayEdit` the save reads (`editingAccountIdOf`). It is a boolean; no token, hash or fragment leaves this
- * handler.
+ * the session's half is derived from the same `mayEdit` the save reads (`editingAccountIdOf`). It is a boolean; no
+ * token, hash or fragment leaves this handler.
  *
  * It is advisory, never the authorisation decision. Nothing may be written on the strength of a
  * `canWrite` this route returned: `PUT`/`PATCH` make the hash part of `saveAuthorized`'s own `update`
@@ -98,6 +99,9 @@ export async function GET(
     request.cookies,
   );
   if (accessor === undefined) return designNotFoundResponse(id);
+  if (accessor.accountId !== undefined && !isCrossSiteRequest(request)) {
+    await touchCurrentSession(request.cookies);
+  }
 
   try {
     const outcome = await getRepository().loadOwned({ id, accessor });
@@ -146,7 +150,6 @@ async function saveDesign(
 ): Promise<NextResponse> {
   const credential = await saveCredentialOf(request, id);
   if (credential === undefined) return writeForbiddenResponse();
-
   // After the credential check and before the body is read: an unauthorised caller must not be able
   // to tell this refusal from the 403.
   const expectedRevision = readExpectedRevision(request);
@@ -156,6 +159,9 @@ async function saveDesign(
   // and touches no cookie, and nothing of the limiter runs between the write and its answer.
   const limited = await refusalOfSaveLimit(request.headers, credential);
   if (limited) return limited;
+  // The account arm is the session's, and `saveCredentialOf` already answered a cross-site request as no credential.
+  // After the limiter, so a refusal writes no row; bookkeeping that fails never fails the save.
+  if (credential.kind === "account") await touchCurrentSession(request.cookies);
 
   try {
     // Inside the try: `readDesign` is not expected to throw, but nothing above a `try` has a handler.

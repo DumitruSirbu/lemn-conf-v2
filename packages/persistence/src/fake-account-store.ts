@@ -31,7 +31,8 @@ import type {
 import { generateAccountId } from "./generate-account-id.js";
 import type { SessionAccount } from "./session-store.js";
 
-/** An account as the table holds it. `role` is always `client`: the application role cannot write any other. */
+/** An account as the table holds it. `role` is `client` unless a test sets it: the application role cannot write any
+ *  other. */
 interface HeldAccount {
   readonly id: string;
   readonly email: string;
@@ -45,12 +46,12 @@ interface HeldAccount {
   readonly passwordChangedAt: Date;
 }
 
-/** A token row. `issueOrder` stands for `created_at`: a later issue is newer even inside one clock tick. */
+/** A token row. `issuedAt` stands for `created_at`. */
 export interface HeldEmailToken {
   readonly tokenHash: string;
   readonly accountId: string;
   readonly purpose: EmailTokenPurpose;
-  readonly issueOrder: number;
+  readonly issuedAt: Date;
   readonly expiresAt: Date;
   usedAt: Date | undefined;
 }
@@ -59,30 +60,21 @@ export interface FakeAccountStoreOptions {
   /** The database's clock. A test passes its own to cross an expiry. */
   readonly now?: () => Date;
   /**
-   * What `completeReset` does to the account's sessions. The session store (wave L4b) is a separate port, so its fake
-   * passes a function that sets `revoked_at` on its own rows; with none, the fake only records the call, readable
-   * through `sessionRevocations()`.
+   * What `completeReset` does to the account's sessions. The session store is a separate port, so its fake passes a
+   * function that sets `revoked_at` on its own rows; with none, a reset revokes nothing.
    */
   readonly revokeSessionsOf?: (accountId: string, at: Date) => void;
 }
 
-/** An account whose sessions a reset revoked, and when. */
-export interface SessionRevocation {
-  readonly accountId: string;
-  readonly at: Date;
-}
-
 /**
  * In-memory `AccountStore` with `NeonAccountStore`'s contract: the same refusals, the same newest-live-token rule
- * (unused, unexpired, no newer unused sibling), the same retirement of siblings on use, and the same atomicity (each
- * method finishes before the next starts). It cannot stand for a retry after a lost acknowledgement, which has no
- * in-memory counterpart.
+ * (unused, unexpired, no newer unused sibling by issue time, then token hash), the same retirement of siblings on use,
+ * and the same atomicity (each method finishes before the next starts). It cannot stand for a retry after a lost
+ * acknowledgement, which has no in-memory counterpart.
  */
 export class FakeAccountStore implements AccountStore {
   private readonly accountsById = new Map<string, HeldAccount>();
   private readonly tokensByHash = new Map<string, HeldEmailToken>();
-  private readonly revocations: SessionRevocation[] = [];
-  private issuedTokenCount = 0;
   private readonly now: () => Date;
   private readonly revokeSessionsOf: (accountId: string, at: Date) => void;
 
@@ -91,11 +83,7 @@ export class FakeAccountStore implements AccountStore {
     revokeSessionsOf,
   }: FakeAccountStoreOptions = {}) {
     this.now = now;
-    this.revokeSessionsOf =
-      revokeSessionsOf ??
-      ((accountId, at) => {
-        this.revocations.push({ accountId, at });
-      });
+    this.revokeSessionsOf = revokeSessionsOf ?? (() => undefined);
   }
 
   findByNormalForm(emailNormalForm: string): Promise<AccountLookup> {
@@ -151,12 +139,11 @@ export class FakeAccountStore implements AccountStore {
       const existing = this.tokensByHash.get(token.tokenHash);
       if (existing !== undefined) return issuedIfSameToken(existing, token);
       if (!this.accountsById.has(token.accountId)) return { kind: "refused" };
-      this.issuedTokenCount += 1;
       this.tokensByHash.set(token.tokenHash, {
         tokenHash: token.tokenHash,
         accountId: token.accountId,
         purpose: token.purpose,
-        issueOrder: this.issuedTokenCount,
+        issuedAt: this.now(),
         expiresAt: token.expiresAt,
         usedAt: undefined,
       });
@@ -252,9 +239,13 @@ export class FakeAccountStore implements AccountStore {
     return [...this.tokensByHash.values()].map((token) => ({ ...token }));
   }
 
-  /** The resets that revoked an account's sessions, when no `revokeSessionsOf` was passed. */
-  sessionRevocations(): readonly SessionRevocation[] {
-    return [...this.revocations];
+  /** Test-only, and not on the `AccountStore` port: the application role cannot write a role, so a test seeds one. */
+  setRoleOf(accountId: string, role: Role): void {
+    const held = this.accountsById.get(accountId);
+    if (held === undefined) {
+      throw new Error("FakeAccountStore.setRoleOf: no such account");
+    }
+    this.accountsById.set(accountId, { ...held, role });
   }
 
   private accountWithNormalForm(
@@ -283,7 +274,7 @@ export class FakeAccountStore implements AccountStore {
         other.accountId === token.accountId &&
         other.purpose === token.purpose &&
         other.usedAt === undefined &&
-        other.issueOrder > token.issueOrder,
+        isIssuedAfter(other, token),
     );
   }
 
@@ -294,6 +285,19 @@ export class FakeAccountStore implements AccountStore {
       if (isSibling) other.usedAt ??= at;
     }
   }
+}
+
+/**
+ * Neon's `(created_at, token_hash) > (...)`. Two tokens issued in the same clock tick are ordered by hash, which is a
+ * coin flip with respect to issue order: a test that needs one token to supersede another advances its clock between
+ * the two issues.
+ */
+function isIssuedAfter(
+  candidate: HeldEmailToken,
+  token: HeldEmailToken,
+): boolean {
+  const byTime = candidate.issuedAt.getTime() - token.issuedAt.getTime();
+  return byTime === 0 ? candidate.tokenHash > token.tokenHash : byTime > 0;
 }
 
 /** A rejected promise for a refusal, as the Neon store's `async` methods give, without an `async` body that awaits

@@ -35,15 +35,17 @@ export interface FakeSessionStoreOptions {
   readonly accountOf: (accountId: string) => SessionAccount | undefined;
   /** The account's current `password_hash`, or `undefined` when it has no row: what `create` compares. */
   readonly passwordHashOf: (accountId: string) => string | undefined;
-  /** The account's `password_changed_at`, or `undefined` when it has no row: a session created before it is not live. */
+  /** The account's `password_changed_at`, or `undefined` when it has no row: a session created before it is not live.
+   */
   readonly passwordChangedAtOf: (accountId: string) => Date | undefined;
 }
 
 /**
  * In-memory `SessionStore` with `NeonSessionStore`'s contract: the same refusals, the same liveness rule (unrevoked,
  * before the absolute expiry, seen within the role's idle lifetime, created no earlier than the account's last password
- * change), a touch of a live session at most once per interval that never moves the absolute expiry, and the same atomicity (each method finishes before the next starts). It cannot stand for a
- * retry after a lost acknowledgement, which has no in-memory counterpart.
+ * change), a touch of a live session at most once per interval that never moves the absolute expiry, and the same
+ * atomicity (each method finishes before the next starts). It cannot stand for a retry after a lost acknowledgement,
+ * which has no in-memory counterpart.
  */
 export class FakeSessionStore implements SessionStore {
   private readonly sessionsByHash = new Map<string, HeldSession>();
@@ -90,7 +92,7 @@ export class FakeSessionStore implements SessionStore {
 
   findLive(request: SessionLookupRequest): Promise<SessionLookup> {
     return settle(() => {
-      requireValidSessionLookupRequest(request);
+      requireValidSessionLookupRequest(request, "look up a session");
       const live = this.liveSessionOf(request);
       if (live === undefined) return { kind: "none" };
       return {
@@ -137,7 +139,8 @@ export class FakeSessionStore implements SessionStore {
     return [...this.sessionsByHash.values()].map((held) => ({ ...held }));
   }
 
-  /** The session and its account when the request's hash names a live one: the one test `findLive` and `touch` share. */
+  /** The session and its account when the request's hash names a live one: the one test `findLive` and `touch` share.
+   */
   private liveSessionOf({
     tokenHash,
     idleLifetimeSeconds,

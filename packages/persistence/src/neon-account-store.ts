@@ -40,8 +40,8 @@ const RESET_PASSWORD = "reset-password";
 /**
  * `AccountStore` on Neon Postgres, over `accounts` and `account_email_tokens` (migrations `0012`, `0014`). Every query
  * is a tagged-template `sql`, which parameterises values. Each method is **one statement**, so it is atomic without
- * `sql.transaction` (a batch of statements cannot branch on an earlier one): a token's `update … returning` is the gate,
- * and the other writes are driven from its `returning`. The one exception is `completeReset`, a two-statement
+ * `sql.transaction` (a batch of statements cannot branch on an earlier one): a token's `update … returning` is the
+ * gate, and the other writes are driven from its `returning`. The one exception is `completeReset`, a two-statement
  * transaction whose second statement needs a snapshot taken after the first has finished waiting.
  *
  * The statements write only columns the application role is granted: `accounts` INSERT of the eight registration

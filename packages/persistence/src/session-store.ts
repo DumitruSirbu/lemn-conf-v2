@@ -1,7 +1,7 @@
 import { ROLES } from "@lemnaria/configurator-domain";
 import type { Role } from "@lemnaria/configurator-domain";
 
-import { requirePasswordHashShape } from "./account-store.js";
+import { requirePasswordHashShape } from "./password-hash-shape.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
 /** A session's `last_seen_at` is written at most this often (ADR 0169 decision 3), which bounds the table's writes. */
@@ -81,9 +81,9 @@ export type SessionLookup =
 
 /**
  * The port for sessions (ADR 0169 decision 3). A session is live while it is not revoked, before its absolute expiry,
- * seen within its role's idle lifetime, and created no earlier than the account's last password change. Nothing here sets a cookie: `touch` writes the database alone, and only a
- * route handler calls it. No method deletes a row, and none writes `token_hash`, `account_id`, `created_at` or
- * `absolute_expires_at` after insert.
+ * seen within its role's idle lifetime, and created no earlier than the account's last password change. Nothing here
+ * sets a cookie: `touch` writes the database alone, and only a route handler calls it. No method deletes a row, and
+ * none writes `token_hash`, `account_id`, `created_at` or `absolute_expires_at` after insert.
  */
 export interface SessionStore {
   create(session: NewSession): Promise<SessionCreation>;
@@ -116,7 +116,7 @@ export function requireValidNewSession(session: NewSession): void {
 /** `findLive` and `touch` ask the same question of the same request, so each names itself in the refusal. */
 export function requireValidSessionLookupRequest(
   request: SessionLookupRequest,
-  operation: "look up a session" | "touch a session" = "look up a session",
+  operation: "look up a session" | "touch a session",
 ): void {
   requireSessionTokenHash(request.tokenHash, operation);
   for (const role of Object.keys(ROLES)) {
@@ -126,7 +126,7 @@ export function requireValidSessionLookupRequest(
 
 export function requireSessionTokenHash(
   tokenHash: unknown,
-  operation: string,
+  operation: SessionStoreOperation,
 ): void {
   requireSha256Digest(tokenHash, "session token hash", operation);
 }
@@ -134,7 +134,7 @@ export function requireSessionTokenHash(
 function requireIdleLifetime(
   lifetimes: Readonly<Record<string, unknown>>,
   role: string,
-  operation: string,
+  operation: SessionStoreOperation,
 ): void {
   const seconds = lifetimes[role];
   if (typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0) {

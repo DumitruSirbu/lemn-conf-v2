@@ -34,15 +34,19 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 export type AccountBlockPurpose =
   | "register"
   | "login"
-  | "reset-request"
+  | "password-reset-request"
   | "confirm-email"
   | "password-reset-complete";
 
-/** The purposes that count an address's buckets at the subject stage. `mail` is one mail bucket for a route that sends a
- *  mail the flow's own subject stage did not already count: the confirmation link a login resends to an unconfirmed
+/** The purposes that count an address's buckets at the subject stage. `mail` is one mail bucket for a route that sends
+ *  a mail the flow's own subject stage did not already count: the confirmation link a login resends to an unconfirmed
  *  account (its own resend bucket, counted only inside the job that runs after the response). The "password changed"
- *  notice a completed reset sends counts no bucket (L10 review L1): a completed reset earns it. */
-export type AddressedPurpose = "register" | "login" | "reset-request" | "mail";
+ *  notice a completed reset sends counts no bucket (ADR 0169 Amendment B, item 2): a completed reset earns it. */
+export type AddressedPurpose =
+  | "register"
+  | "login"
+  | "password-reset-request"
+  | "mail";
 
 export interface AccountBlockAsk {
   readonly purpose: AccountBlockPurpose;
@@ -82,7 +86,7 @@ const BLOCK_PLAN_OF_PURPOSE: Readonly<Record<AccountBlockPurpose, StagePlan>> =
       ],
     },
     login: { event: "login", buckets: ["account-login-by-block"] },
-    "reset-request": {
+    "password-reset-request": {
       event: "password-reset-request",
       buckets: ["account-reset-request-by-block"],
     },
@@ -110,7 +114,7 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
       "account-login-by-address-day",
     ],
   },
-  "reset-request": {
+  "password-reset-request": {
     event: "password-reset-request",
     buckets: ["account-reset-mail-by-address"],
   },
@@ -167,7 +171,8 @@ export async function judgeAccountSubject(
   });
 }
 
-/** The subject is made through its constructor only when a step is asked, so a text it refuses is a failed judgement. */
+/** The subject is made through its constructor only when a step is asked, so a text it refuses is a failed judgement.
+ */
 function subjectMakerOf(ask: AccountSubjectAsk): () => BucketSubject {
   if (ask.purpose === "claim") {
     const { accountId } = ask;

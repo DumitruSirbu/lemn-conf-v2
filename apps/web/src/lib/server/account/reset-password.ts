@@ -85,7 +85,7 @@ export async function requestPasswordReset({
   if (mail.kind === "unavailable") return unavailableResponse();
   const limited = answerOfJudgement(
     await judgeAccountSubject({
-      purpose: "reset-request",
+      purpose: "password-reset-request",
       headers,
       address: address.emailNormalForm,
     }),
@@ -216,10 +216,11 @@ interface ResetToComplete {
 }
 
 /**
- * `completeReset` can throw after its transaction committed (an acknowledgement lost past the retry). The account is read
- * again, and a stored hash equal to the one just made, a hash that carries a random salt and so is no one else's, means the
- * reset took effect: it is answered as the success it is, since a `503` would send the client to a link already spent.
- * Any other state, and a read that fails, answer as before: the failure is rethrown for the route's `503`.
+ * `completeReset` can throw after its transaction committed (an acknowledgement lost past the retry). The account is
+ * read again, and a stored hash equal to the one just made, a hash that carries a random salt and so is no one else's,
+ * means the reset took effect: it is answered as the success it is, since a `503` would send the client to a link
+ * already spent. Any other state, and a read that fails, answer as before: the failure is rethrown for the route's
+ * `503`.
  */
 async function completeResetOrRecover({
   account,
@@ -318,9 +319,10 @@ function scheduleChangedNotice(account: StoredAccount): void {
 }
 
 /**
- * Counts no bucket (L10 review L1): the notice cannot be asked for, only earned by a completed reset, and a reset needs a
- * live token that the reset request's own bucket bounds. A stored address that the policy no longer accepts, an
- * unavailable mailer or a failed send drops the notice and changes no answer; each is written down, without the address.
+ * Counts no bucket (ADR 0169 Amendment B, item 2): the notice cannot be asked for, only earned by a completed reset,
+ * and a reset needs a live token that the reset request's own bucket bounds. A stored address that the policy no longer
+ * accepts, an unavailable mailer or a failed send drops the notice and changes no answer; each is written down, without
+ * the address.
  */
 function sendChangedNotice(account: StoredAccount): void {
   try {

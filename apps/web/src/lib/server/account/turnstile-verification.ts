@@ -20,7 +20,8 @@ export const TURNSTILE_SECRET_KEY_VARIABLE = "TURNSTILE_SECRET_KEY";
 const SITEVERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const DEADLINE_MILLISECONDS = 3_000;
-/** Cloudflare documents a response token as at most 2,048 characters: a longer one cannot be genuine, so it is not sent. */
+/** Cloudflare documents a response token as at most 2,048 characters: a longer one cannot be genuine, so it is not
+ *  sent. */
 const MAX_TOKEN_CHARACTERS = 2_048;
 /** A siteverify answer is a few hundred bytes; a body far past this is not Cloudflare's. Counted while it streams. */
 const MAX_ANSWER_BYTES = 64 * 1024;
@@ -50,8 +51,6 @@ export interface TurnstileVerificationRequest {
   readonly token: string;
   /** The `action` the widget on this route was rendered with; siteverify must echo it. */
   readonly expectedAction: string;
-  /** The client's address, when the network source has one. Optional for Cloudflare. */
-  readonly remoteIp?: string;
 }
 
 interface SiteverifyAnswer {
@@ -117,9 +116,6 @@ async function askSiteverify({
       body: JSON.stringify({
         secret,
         response: request.token,
-        ...(request.remoteIp === undefined
-          ? {}
-          : { remoteip: request.remoteIp }),
       }),
       cache: "no-store",
       redirect: "error",

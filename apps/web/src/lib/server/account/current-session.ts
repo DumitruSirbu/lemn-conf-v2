@@ -30,10 +30,10 @@ export type CurrentSession = { readonly kind: "anonymous" } | SignedInSession;
 const ANONYMOUS_SESSION: CurrentSession = { kind: "anonymous" };
 
 /**
- * Reads the session the request's cookie names. **It never writes**: a page render may call it, and a render can neither
- * set a cookie nor be allowed to move `last_seen_at`. A cookie that is absent, malformed, unknown, revoked or expired
- * reads as anonymous, and so does a read that fails: less access is the safe way to fail. A caller for which anonymous
- * is the *more* dangerous reading of a failure uses `readCurrentSessionOrThrow`.
+ * Reads the session the request's cookie names. **It never writes**: a page render may call it, and a render can
+ * neither set a cookie nor be allowed to move `last_seen_at`. A cookie that is absent, malformed, unknown, revoked or
+ * expired reads as anonymous, and so does a read that fails: less access is the safe way to fail. A caller for which
+ * anonymous is the *more* dangerous reading of a failure uses `readCurrentSessionOrThrow`.
  */
 export async function readCurrentSession(
   cookies: SessionCookieReader,

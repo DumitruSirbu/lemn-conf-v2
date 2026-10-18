@@ -144,7 +144,6 @@ export { FakeAccountStore } from "./fake-account-store.js";
 export type {
   FakeAccountStoreOptions,
   HeldEmailToken,
-  SessionRevocation,
 } from "./fake-account-store.js";
 export {
   SESSION_TOUCH_INTERVAL_SECONDS,

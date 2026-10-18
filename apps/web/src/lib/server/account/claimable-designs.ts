@@ -12,8 +12,8 @@ import {
 } from "@/lib/server/visitor";
 
 // The designs a signed-in account may take from the browser it is using (ADR 0169 D8). Which designs those are is the
-// visitor cookie's alone, and whether the account may take them is its role (the client's alone, L11 review F1) and verification, read by the server. A
-// request never says either.
+// visitor cookie's alone, and whether the account may take them is its role (the client's alone, ADR 0169 Amendment B)
+// and verification, read by the server. A request never says either.
 
 const NO_CLAIMABLE_DESIGNS = 0;
 
@@ -25,7 +25,8 @@ export interface ClaimableDesignsAsk {
 
 /**
  * The visitor hash the account may claim under, or `undefined` when there is nothing to ask: the account does not hold
- * `design.edit.own` (an address not yet confirmed holds none) or is not a client account (staff never claim), or the browser has no well-formed visitor cookie.
+ * `design.edit.own` (an address not yet confirmed holds none) or is not a client account (staff never claim), or the
+ * browser has no well-formed visitor cookie.
  */
 export function claimableVisitorHashOf({
   holder,
@@ -36,7 +37,7 @@ export function claimableVisitorHashOf({
     : undefined;
 }
 
-/** How many designs this browser holds that the account may claim. A failed count is thrown for the caller to answer. */
+/** How many designs this browser holds that the account may claim. A failed count is thrown to the caller. */
 export async function countClaimableDesigns(
   ask: ClaimableDesignsAsk,
 ): Promise<number> {

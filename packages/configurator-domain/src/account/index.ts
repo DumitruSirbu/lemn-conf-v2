@@ -9,7 +9,6 @@ export {
   type AccountIssue,
   type RegisteredPhone,
   type RegistrationFields,
-  type RegistrationInput,
   type RegistrationValidation,
 } from "./account-fields.js";
 export {

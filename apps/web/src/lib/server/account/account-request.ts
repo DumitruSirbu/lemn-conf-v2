@@ -79,9 +79,9 @@ export function textMemberOf(
 }
 
 /**
- * Step 5: the answer that stops a request whose challenge was not passed, or nothing when it was. A token that is absent
- * or not text is a failed challenge. A check that could not be made is `503`, since a write that cannot be challenged
- * is refused.
+ * Step 5: the answer that stops a request whose challenge was not passed, or nothing when it was. A token that is
+ * absent or not text is a failed challenge. A check that could not be made is `503`, since a write that cannot be
+ * challenged is refused.
  */
 export async function refusalOfChallenge({
   body,

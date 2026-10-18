@@ -39,7 +39,8 @@ interface TurnstileApi {
 
 type WindowWithTurnstile = Window & { turnstile?: TurnstileApi };
 
-/** Exactly this URL: Cloudflare forbids proxying or caching it. `render=explicit` leaves rendering to this component. */
+/** Exactly this URL: Cloudflare forbids proxying or caching it. `render=explicit` leaves rendering to this component.
+ */
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 const TURNSTILE_SCRIPT_URL = `${TURNSTILE_ORIGIN}/turnstile/v0/api.js?render=explicit`;
 
@@ -69,7 +70,13 @@ function TurnstileChallenge({
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenChangeRef = useRef(onTokenChange);
-  const [isUnavailable, setIsUnavailable] = useState(false);
+  const challengeKey = `${siteKey}|${nonce}|${action}`;
+  const [unavailableChallengeKey, setUnavailableChallengeKey] = useState<
+    string | null
+  >(null);
+  // Keyed rather than a flag: a new key, nonce or action is a new challenge, and it starts available in the same render
+  // that mounts its container, so no effect has to reset it.
+  const isUnavailable = unavailableChallengeKey === challengeKey;
 
   useEffect(() => {
     onTokenChangeRef.current = onTokenChange;
@@ -84,10 +91,10 @@ function TurnstileChallenge({
       widgetIdRef,
       onTokenChangeRef,
       markUnavailable: () => {
-        setIsUnavailable(true);
+        setUnavailableChallengeKey(challengeKey);
       },
     });
-  }, [siteKey, nonce, action]);
+  }, [siteKey, nonce, action, challengeKey]);
 
   useEffect(() => {
     if (resetCount === 0) return;
@@ -112,10 +119,13 @@ interface ChallengeMount {
 }
 
 /**
- * Loads the script, renders the widget and watches for the three ways it never shows: the script or the render fails,
- * the widget reports an error, or the browser blocks Cloudflare's origin under the page's policy. Any of them hands the
- * form `null` and the caller `markUnavailable`, so the person sees the "unavailable" copy and not an empty box.
- * Returns the cleanup, which also takes the held token away from the form: a token belongs to one key, nonce and action.
+ * Loads the script, renders the widget and watches for the three ways it never shows: the script fails to load, the
+ * render fails or times out, or the browser blocks Cloudflare's origin under the page's policy. Any of them hands the
+ * form `null` and the caller `markUnavailable`, so the person sees the "unavailable" copy and not an empty box. A
+ * widget error after it rendered is treated as transient: it only takes the held token away, and the form's next
+ * reset asks the challenge again.
+ * Returns the cleanup, which also takes the held token away from the form: a token belongs to one key, nonce and
+ * action.
  */
 function mountChallenge(mount: ChallengeMount): () => void {
   const {
@@ -151,7 +161,9 @@ function mountChallenge(mount: ChallengeMount): () => void {
         "expired-callback": () => {
           onTokenChangeRef.current(null);
         },
-        "error-callback": fail,
+        "error-callback": () => {
+          onTokenChangeRef.current(null);
+        },
       });
     })
     .catch(() => {

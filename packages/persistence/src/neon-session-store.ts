@@ -99,7 +99,10 @@ export class NeonSessionStore implements SessionStore {
     tokenHash,
     idleLifetimeSeconds,
   }: SessionLookupRequest): Promise<SessionLookup> {
-    requireValidSessionLookupRequest({ tokenHash, idleLifetimeSeconds });
+    requireValidSessionLookupRequest(
+      { tokenHash, idleLifetimeSeconds },
+      "look up a session",
+    );
     const lifetimes = JSON.stringify(idleLifetimeSeconds);
     const rows = await queryRows("look up a session", () =>
       retryOnTransientFailure(

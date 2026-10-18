@@ -314,7 +314,7 @@ only).
 | `account-reset-request-by-block` | network block | 10 / 60 min |
 | `account-token-complete-by-block` | network block | 20 / 60 min (confirm and reset completion; bounds the hashing cost) |
 | `account-register-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the confirmation and already-registered mail of registration (purpose `register` only; a login's resend no longer counts here, L9 security review F1) |
-| `account-reset-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the reset link (purpose `reset-request`; the "password changed" notice counts no bucket, L10 review L1). Apart from the registration bucket, so register traffic cannot use up a victim's reset budget (L8 security review F2) |
+| `account-reset-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the reset link (purpose `password-reset-request`; the "password changed" notice counts no bucket, L10 review L1). Apart from the registration bucket, so register traffic cannot use up a victim's reset budget (L8 security review F2) |
 | `account-login-resend-by-address` | `subjectOfAddress` | 5 / 1440 min: a login's silent resend of the confirmation link (purpose `mail`), counted **only inside the `after()` job** and never answered from. Apart from the registration bucket, so signing in to an unconfirmed address cannot use up that address's registration budget (L9 security review F1, option a; owner-visible default) |
 | `account-claim-by-account` | new `subjectOfAccountId` | 10 / 60 min |
 | `design-save-by-account` | `subjectOfAccountId` | `SAVES_PER_CREDENTIAL_FIGURE` (300 / 60 min): the session twin of the write-credential bucket (ADR 0156) |
@@ -590,7 +590,7 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
 | --- | --- | --- |
 | 1 | The purposes and figures of §5's table, each a named constant marked PROVISIONAL | `rate-limit/limit-policy.ts` |
 | 2 | `ACCOUNT_KIND` and `subjectOfAccountId(id)` (the id shape only), on the constructor-only model (ADR 0156) | `rate-limit/bucket-subject.ts` |
-| 3 | Two stages, each through `judgeStepsInSequence`, each failing closed, a refusal or unavailability reported through `account-log.ts`: `judgeAccountBlock({purpose, headers})` (the network's buckets; common order step 4, before Turnstile; the purposes `register`, `login`, `reset-request`, `confirm-email`, `password-reset-complete`) and `judgeAccountSubject(ask)` (the address's or the account's buckets; step 7, after Turnstile and validation, before any account lookup). The subject ask is a union keyed by purpose: `register`, `login`, `reset-request` and `mail` **require** `address`, `claim` **requires** `accountId`; there is no optional-address path. `mail` and `claim` have no block stage; `confirm-email` and `password-reset-complete` have no subject stage | `rate-limit/judge-account-request.ts` |
+| 3 | Two stages, each through `judgeStepsInSequence`, each failing closed, a refusal or unavailability reported through `account-log.ts`: `judgeAccountBlock({purpose, headers})` (the network's buckets; common order step 4, before Turnstile; the purposes `register`, `login`, `password-reset-request`, `confirm-email`, `password-reset-complete`) and `judgeAccountSubject(ask)` (the address's or the account's buckets; step 7, after Turnstile and validation, before any account lookup). The subject ask is a union keyed by purpose: `register`, `login`, `password-reset-request` and `mail` **require** `address`, `claim` **requires** `accountId`; there is no optional-address path. `mail` and `claim` have no block stage; `confirm-email` and `password-reset-complete` have no subject stage | `rate-limit/judge-account-request.ts` |
 
 **Reading:** this plan §5 *Limiter policies*; ADR 0155 (d1–d12), 0156 (subjects, writes fail closed), 0149;
 `limit-policy.ts`, `bucket-subject.ts`, `enforce-rate-limit.ts`, `judge-block-bucket.ts`, `judge-share-write.ts`,
@@ -606,7 +606,7 @@ retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retr
    different key.
 4. The subject stage is a route obligation after the block stage: it is asked only after the block stage allowed, and
    after Turnstile and validation, so a refused block, a failed challenge or an invalid body counts no address hit.
-   **No bucket is counted twice:** `register` counts `account-register-mail-by-address` and `reset-request` counts
+   **No bucket is counted twice:** `register` counts `account-register-mail-by-address` and `password-reset-request` counts
    `account-reset-mail-by-address` in their own subject stage, so their routes must not also call
    `judgeAccountSubject({purpose:"mail"})`. That one is for a route that sends a
    mail its flow did not count: `mail` is login's silent confirmation resend (it counts its **own** bucket,
@@ -880,8 +880,8 @@ the owner may reverse (ADR 0169 Amendment A).**
 check, the limiter and Turnstile before any lookup or hashing. The new password is NFKC-normalised and
 length-capped by `judgePassword` before it is hashed (the same rules as L9's obligations above). A hashing
 platform failure is a 503 and does not consume the token.
-**Limiter calls (L5 review F2/F3), counted once.** The request route calls `judgeAccountBlock({purpose:"reset-request"})`
-at step 4 and, after Turnstile and validation, `judgeAccountSubject({purpose:"reset-request", address})` before any
+**Limiter calls (L5 review F2/F3), counted once.** The request route calls `judgeAccountBlock({purpose:"password-reset-request"})`
+at step 4 and, after Turnstile and validation, `judgeAccountSubject({purpose:"password-reset-request", address})` before any
 lookup: that call counts `account-reset-mail-by-address` for every valid request, known address or not, and the mail queued
 after the response must not count it again. The completion route calls `judgeAccountBlock({purpose:"password-reset-complete"})`
 at step 4 only (the token is the subject). Its "password changed" notice **counts no bucket** (L10 review L1, 2026-10-18; it first counted the reset bucket, which
@@ -1193,6 +1193,11 @@ Rules for the walk:
     (token cookie, session, ownership) combination, the known divergence being a present-but-wrong token cookie on an
     owner's signed-in browser (`canWrite: true`, save `403`); share issue, revoke and status by account, with another
     account's session refused identically; the account arm of `issue` has no retry relaxation.
+- **Refusal-matrix doubles (L12a review I2, 2026-10-18).** The doubles for the L12 refusal matrix must model **both**
+  access arms, visitor / write-token and account, with null semantics (a missing or unmatched credential reads as
+  `null`, as the real repositories do). The double in
+  `apps/web/tests/app/api/designs/qa-7e3b-owner-gate.adversarial.test.ts` would pass a bypass if reused, so it is not
+  to be reused for the matrix.
 - **L13a–L14b (e2e and visual).**
   - Register → confirm → claim → open on a second browser context with no visitor cookie.
   - CSP unchanged off account paths.
@@ -1215,12 +1220,13 @@ Rules for the walk:
 | **Migration numbering vs M8C** | Sequence error at merge | Merge after M8C or renumber before first apply (§0) |
 | **`designs.account_id` without FK** | A stale id after a hand-deleted account | Code and erasure order. Shape check. Accepted (`0008` precedent) |
 | **Argon2 on the deployment target** | Too slow or too fast | L3 criterion 6 measures; parameters live in the PHC string |
-| **`crypto.argon2` stability** | If marked experimental, an API change in a 24.x patch | L0 reads the docs; fallback scrypt is named |
+| **`crypto.argon2` stability** | If marked experimental, an API change in a 24.x patch | L0 reads the docs; fallback scrypt is named. **Read 2026-10-18 [doc: fetched]:** not experimental, added v24.7.0, no warning on local 24.19.0 [run]. The open risk is the Vercel patch level (launch gate 6; ADR 0169 Amendment D) |
 | **Screens not yet designed** | L13b, L14a, L14b wait | Server waves do not depend on them. The owner's own order puts design first |
 | **A claimed design cannot be taken back** (L11 review F1) | **Owner-visible [inf].** Whoever claims first keeps the designs on any device, and a visitor cookie's rotation does not revoke a claim already made; there is no unclaim. A client who claims from a shared computer attaches that browser's designs to their account for good | Recorded residual. A later wave gives staff a reassign / unclaim control. L14b's dialog shows what is attached (count, dates, thumbnails) so the person knows before confirming |
 | **A staff account is a visitor for designs** (L11 review F1) | **Owner-visible [inf].** An operator or administrator who browses the configurator is not stamped on the designs they mint, and cannot claim; their designs are reachable by their visitor cookie only | Decided by default: claiming and mint ownership are the `client` role's. Staff reading any design is the `design.read.any` wave (D9) |
 | **`designs.account_id` links a lead to an identified account** (L11 review F2) | **Accepted [inf].** `contact_submissions.design_id` and `designs.account_id` are both readable by the application role, so a lead can be joined to the account that owns the design. Contact data stays unreadable (ADR 0153 d1) | Accepted risk, recorded as a dated note in ADR 0153 (2026-10-18) |
 | **Migration `0015` must be applied wherever this code runs** (L11 review F3) | The mint of a signed-in verified client inserts `account_id`; on a database without `0015` that mint fails, though a signed-out mint still works | Apply `0012`-`0015` in **every** environment that receives this code, **preview included**, before it is deployed there. M9 launch-gate line 2 already covers production |
+| **A write-token cookie, even a wrong or planted one, beats a valid owner session on save and share** (L12b security review L1, 2026-10-18) | **Owner-visible, accepted, Low (availability).** `saveCredentialOf` and `shareCredentialFor` (`apps/web/src/app/api/designs/[id]/route.ts`, `share/route.ts`) choose the token arm whenever a token cookie is present. A same-site sibling origin that knows a design id can plant junk and stop a signed-in owner saving or sharing that design on that device for 30 days. `GET` still says `canWrite: true`. Nothing is exposed; the owner can clear the cookie | Accepted. **Optional mitigation, not shipped, and not to be built before the refusal matrix of §9 exists:** when the token arm raises `DesignWriteForbiddenError` and the request is same-site with an editing session, run the account arm once (a `409` from the token arm wins; the limiter counts once; the same for share) |
 | **Account e-mail is readable by the application role** (unlike contact data, ADR 0153 d1) | A leaked `DATABASE_URL` leaks account e-mails | Needed to sign in and to send. Recorded in D11 with the alternative (encryption at rest) and its trigger |
 
 **M9 launch-gate lines this plan adds:**
@@ -1231,6 +1237,50 @@ Rules for the walk:
 4. The privacy-notice text is the owner's, not a placeholder.
 5. Turnstile has been loaded and solved on a Preview deploy with a **real** site key on register, login and the reset
    request, with no `frame-src` or `Referer` failure in the console or the CSP report table (L13a review M2).
+6. **Before applying `0012` in any environment (preview first):** the owner confirms the Vercel runtime is Node >= 24.7
+   (`node -v` in a build log, or log `process.version`). Vercel publishes only "24.x"; the patch is not documented
+   [doc: fetched 2026-10-18]. The argon2id-only check cannot be dropped. Owner decision: change `engines.node` from
+   `>=24.7 <25` to the documented form `24.x` and add a runtime guard (ADR 0169 Amendment D). Not yet done.
+
+## Review record (written 2026-10-18)
+
+- **Security review ran** on L1, L3, L4a, L4b+L5, L7, L8, L9, L10, L11, L12a, L12b and L13a; the reports were acted on
+  (their findings are in §10 and ADR 0169 and its amendments).
+- **The planned logic and clean-code reviews had NOT run** at the time this note was first written; results are appended
+  below (2026-10-18).
+- **Logic and clean-code review have now run** (two of each, split `packages/` and `apps/web/src`). **No blockers.**
+  Waves have now had security, logic and clean-code review, **all by reading only; nothing has been executed.**
+  - **Fixed** (a developer is applying these; confirm each in the diff, not here): `touch` on save and probe;
+    the `queueAccountMail` guard; dead-code removal; widget retry; fake tie-break parity; fake role seed; the cheap
+    clean-code items.
+  - **Deferred as follow-ups:**
+    - Shared `queryRows` helper across the 5 stores.
+    - The "newest live token" SQL predicate is written 3 times.
+    - The route skeleton is duplicated in 5 POST routes.
+    - The `after()` wrapper is repeated.
+    - `completeReset` is too long.
+    - Comment trimming beyond the cheap pass.
+    - Split `reset-password.ts` into request and complete.
+    - Error-name field in `answerUnavailableOnFailure`.
+    - Fakes for `loadOwned`, resume, and account-arm save/share by account are owed; plan items that say "the fake's
+      same" are stale.
+    - `privacyNoticeVersion` is validated by shape only. **Owner flag** until the notice text is published.
+    - The fake and Neon same-tick token tie-break differs; on Neon it is a coin flip.
+    - The confirm page copy must say "if you already confirmed, sign in".
+    - A login resend invalidates the first mail's link (by design).
+    - E-mailed links 404 until L13b/L14a create the pages and decide the locale prefix.
+    - The e2e outbox is unreachable (the factory builds a fresh fake); it needs a flag-gated singleton.
+  - **Highest-risk UNEXECUTED SQL, to run first in a live run:**
+    1. Session create: `INSERT … SELECT … FOR SHARE OF a ON CONFLICT` inside a CTE.
+    2. `confirmEmail`: the locked CTE with `FOR UPDATE`.
+    3. `completeReset`: two statements relying on `now()` and snapshot assumptions.
+    4. The union-all resume query.
+    5. The `->> a.role` lookup.
+- The waves are **not yet through the planned review tier with executed evidence** (`docs/WORKFLOW.md`).
+- **Deviation from the no-tests rule (ADR 0169 D12).** Developers ran vitest twice: in L7 (`tests/lib/server/mail` and
+  `tests/i18n`, 5 failures) and in L1 (`migration-files` and `migration-safety`, 3 failures, from the missing `0011`).
+  Roughly 50 existing test call-shape edits, and a new adapter `tests/support/flat-share-repository.ts`, were made
+  only to keep typecheck green. They are not new coverage (see §9, L12b).
 
 ## 11. Owner questions (five, each with a default)
 

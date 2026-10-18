@@ -4,6 +4,7 @@ import type {
   Role,
 } from "@lemnaria/configurator-domain";
 
+import { requirePasswordHashShape } from "./password-hash-shape.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
 /** The links the mail carries. The closed list lives here and not in the table, so a later purpose drops no
@@ -148,24 +149,10 @@ export interface AccountStore {
   replacePasswordHash(rehash: PasswordRehash): Promise<PasswordRehashOutcome>;
 }
 
-const ARGON2ID_PHC =
-  /^[$]argon2id[$]v=19[$]m=[0-9]+,t=[0-9]+,p=[0-9]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$/;
 const LOCALE_SHAPE = /^[a-z]{2}$/;
 const PRIVACY_NOTICE_VERSION_SHAPE = /^[a-z0-9.-]{1,32}$/;
 const EMAIL_LENGTH_RANGE = { least: 3, most: 254 } as const;
 const PHONE_MAX_LENGTH = 32;
-
-/** The shape `accounts_password_hash_is_argon2id` (`0012`) enforces, asked before a statement is sent. It reads a hash's
- *  shape and says nothing of any password. */
-export function requirePasswordHashShape(
-  value: unknown,
-  operation: string,
-): void {
-  if (typeof value === "string" && ARGON2ID_PHC.test(value)) return;
-  throw new Error(
-    `Refusing to ${operation}: a password hash must be an argon2id PHC string. The table would refuse the row.`,
-  );
-}
 
 /** Every check `0012` makes on a registration's columns, and the hash's. A message names the field, never its value. */
 export function requireValidNewAccount(account: NewAccount): void {
@@ -256,7 +243,7 @@ export function isEmailTokenPurpose(
 
 function requireValidRegistrationFields(
   fields: RegistrationReplacement,
-  operation: string,
+  operation: AccountStoreOperation,
 ): void {
   requireField(
     isLengthWithin(
@@ -309,7 +296,7 @@ function requireField(
   isValid: boolean,
   field: string,
   rule: string,
-  operation: string,
+  operation: AccountStoreOperation,
 ): void {
   if (isValid) return;
   throw new Error(
