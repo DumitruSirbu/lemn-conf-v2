@@ -11,6 +11,7 @@ import {
   resolveAccountNotFoundCopy,
   resolveAccountRegisterCopy,
   resolveAccountShellCopy,
+  resolveAccountVerifyCopy,
   resolveContent,
 } from "./content";
 
@@ -52,4 +53,9 @@ export function useAccountNotFoundCopy() {
 export function useAccountCheckInboxCopy() {
   const translate = useTranslations();
   return useMemo(() => resolveAccountCheckInboxCopy(translate), [translate]);
+}
+
+export function useAccountVerifyCopy() {
+  const translate = useTranslations();
+  return useMemo(() => resolveAccountVerifyCopy(translate), [translate]);
 }

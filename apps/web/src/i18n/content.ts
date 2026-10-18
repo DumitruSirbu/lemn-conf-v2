@@ -1104,6 +1104,26 @@ export function resolveAccountLoginCopy(translate: ContentTranslator) {
 
 export type AccountLoginCopy = ReturnType<typeof resolveAccountLoginCopy>;
 
+/** The confirm-address page's own text. The invalid-link sentence carries a tagged span, drawn as the sign-in link. */
+export function resolveAccountVerifyCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountVerify.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountVerify.headerTitle"),
+    title: translate("accountVerify.title"),
+    lead: translate("accountVerify.lead"),
+    submit: translate("accountVerify.submit"),
+    submitting: translate("accountVerify.submitting"),
+    invalidLink: (link: RichTagRenderer) =>
+      translate.rich("accountVerify.invalidLink", { link }),
+    confirmedTitle: translate("accountVerify.confirmedTitle"),
+    confirmedBody: translate("accountVerify.confirmedBody"),
+  };
+}
+
+export type AccountVerifyCopy = ReturnType<typeof resolveAccountVerifyCopy>;
+
 /** The page an unknown address under the account family lands on. */
 export function resolveAccountNotFoundCopy(translate: ContentTranslator) {
   return {

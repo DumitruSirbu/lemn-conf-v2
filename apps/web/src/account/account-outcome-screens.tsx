@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitCopy, useAccountShellCopy } from "@/i18n/use-content";
@@ -25,6 +25,45 @@ export function RequestFailedScreen({
   readonly locale: AppLocale;
 }) {
   const kit = useAccountKitCopy();
+  return (
+    <FailedRequestFrame locale={locale} body={kit.requestFailed.body}>
+      <PrimaryAction
+        onClick={() => {
+          window.location.reload();
+        }}
+      >
+        {kit.reloadPage}
+      </PrimaryAction>
+    </FailedRequestFrame>
+  );
+}
+
+/** Frame A8A on a page that read a single-use token from its address (lot 1 review, D7). The address no longer holds
+ *  the token, so a reload would only land on the invalid-link screen: the way back is the link in the e-mail, and the
+ *  screen offers no reload. */
+export function TokenRequestFailedScreen({
+  locale,
+}: {
+  readonly locale: AppLocale;
+}) {
+  const kit = useAccountKitCopy();
+  return (
+    <FailedRequestFrame locale={locale} body={kit.requestFailed.tokenBody} />
+  );
+}
+
+/** What both A8A screens share: the heading and the sentence, then the primary action if there is one, then the way
+ *  back to the configurator. */
+function FailedRequestFrame({
+  locale,
+  body,
+  children,
+}: {
+  readonly locale: AppLocale;
+  readonly body: string;
+  readonly children?: ReactNode;
+}) {
+  const kit = useAccountKitCopy();
   const shell = useAccountShellCopy();
   const headingRef = useRef<HTMLHeadingElement>(null);
   useFocusOnMount(headingRef);
@@ -36,17 +75,11 @@ export function RequestFailedScreen({
           title={kit.requestFailed.title}
           headingRef={headingRef}
         >
-          {kit.requestFailed.body}
+          {body}
         </OutcomeHero>
       </AccountPane>
       <AccountActions>
-        <PrimaryAction
-          onClick={() => {
-            window.location.reload();
-          }}
-        >
-          {kit.reloadPage}
-        </PrimaryAction>
+        {children}
         <SecondaryAction href={startPathOf(locale)}>
           {shell.backToConfigurator}
         </SecondaryAction>

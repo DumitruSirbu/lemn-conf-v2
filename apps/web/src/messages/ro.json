@@ -739,6 +739,17 @@
     "invalidCredentials": "E-mailul sau parola nu se potrivesc. Dacă datele sunt corecte, verifică-ți e-mailul: s-ar putea să trebuiască întâi să confirmi adresa.",
     "sessionExpired": "Sesiunea ta a expirat. Intră din nou în cont ca să continui."
   },
+  "accountVerify": {
+    "metaTitle": "Confirmă adresa — {brand}",
+    "headerTitle": "Confirmă adresa",
+    "title": "Confirmă adresa de e-mail",
+    "lead": "Introdu parola pe care ai ales-o la crearea contului.",
+    "submit": "Confirmă și intră în cont",
+    "submitting": "Se confirmă…",
+    "invalidLink": "Link-ul sau parola nu sunt valabile. Verifică parola și folosește cel mai recent e-mail primit de la noi. Dacă ai confirmat deja adresa, <link>intră în cont</link>.",
+    "confirmedTitle": "Adresa este confirmată",
+    "confirmedBody": "Te-am conectat. Te ducem înapoi la configurator…"
+  },
   "accountNotFound": {
     "title": "Pagina nu există",
     "body": "Adresa nu duce la nicio pagină din cont."
