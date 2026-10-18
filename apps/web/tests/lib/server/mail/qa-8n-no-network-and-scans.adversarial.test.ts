@@ -159,7 +159,7 @@ describe("what the tree names", () => {
 
 describe("every test file in the whole tree that can build a mail transport", () => {
   const BUILDS_A_TRANSPORT =
-    /(?:from|import\(|require\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/(?:gmail-mail-sender|create-mail-sender)|(?:\.{1,2}\/)+[\w./-]*(?:gmail-mail-sender|create-mail-sender))["']/;
+    /(?:from|import\(|require\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/(?:gmail-mail-sender|smtp-mail-sender|smtp-transport|create-mail-sender|create-customer-mail-sender)|(?:\.{1,2}\/)+[\w./-]*(?:gmail-mail-sender|smtp-mail-sender|smtp-transport|create-mail-sender|create-customer-mail-sender))["']/;
   const GUARDS_THE_NETWORK = (source: string) =>
     /\bforbidNetwork\(/.test(source) && /\breleaseNetwork\b/.test(source);
 

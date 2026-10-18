@@ -251,6 +251,8 @@ describe("the other mail modules", () => {
     "fake-mail-sender.ts",
     "select-mail-sender.ts",
     "gmail-mail-sender.ts",
+    "smtp-mail-sender.ts",
+    "smtp-transport.ts",
     "smtp-answer.ts",
     "plain-mailbox.ts",
     "lead-notification.ts",
@@ -271,6 +273,11 @@ interface NamingRule {
 const MAIL_DIRECTORY = "lib/server/mail/";
 const FACTORY = `${MAIL_DIRECTORY}create-mail-sender.ts`;
 const GMAIL_ADAPTER = `${MAIL_DIRECTORY}gmail-mail-sender.ts`;
+const SMTP_ADAPTER = `${MAIL_DIRECTORY}smtp-mail-sender.ts`;
+
+function mayImportTheMailLibrary(path: string): boolean {
+  return [GMAIL_ADAPTER, SMTP_ADAPTER].includes(path);
+}
 
 const NAMING_RULES: readonly NamingRule[] = [
   {
@@ -300,7 +307,7 @@ const NAMING_RULES: readonly NamingRule[] = [
     what: "the mail library",
     pattern:
       /from\s+["']nodemailer["']|import\(\s*["']nodemailer["']|require\(\s*["']nodemailer["']/,
-    isAllowed: (path) => path === GMAIL_ADAPTER,
+    isAllowed: mayImportTheMailLibrary,
     mustBeFoundIn: GMAIL_ADAPTER,
     mentions: [
       'import { createTransport } from "nodemailer";',
@@ -336,6 +343,17 @@ describe.each(NAMING_RULES)(
     });
   },
 );
+
+describe("the mail-library fence", () => {
+  it.each([
+    FACTORY,
+    `${MAIL_DIRECTORY}smtp-transport.ts`,
+    `${MAIL_DIRECTORY}select-mail-sender.ts`,
+    `${MAIL_DIRECTORY}create-customer-mail-sender.ts`,
+  ])("control: still refuses %s", (path) => {
+    expect(mayImportTheMailLibrary(path)).toBe(false);
+  });
+});
 
 describe("the previous provider", () => {
   const PROVIDER_CODE =

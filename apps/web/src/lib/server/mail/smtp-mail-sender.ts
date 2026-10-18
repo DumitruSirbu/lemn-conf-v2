@@ -63,6 +63,15 @@ export type MakeSmtpTransport = (
 
 export const DEFAULT_MAKE_SMTP_TRANSPORT: MakeSmtpTransport = createTransport;
 
+const DNS_NAME_MAX_LENGTH = 253;
+const DNS_LABEL = "[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?";
+// Labels of letters, digits and inner hyphens only, so a scheme, path, port, space, userinfo or bracket cannot pass.
+// The last label starts with a letter, which also refuses a bare number or an IPv4 literal.
+const PLAIN_DNS_NAME = new RegExp(
+  `^(?:${DNS_LABEL}\\.)*[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$`,
+  "i",
+);
+
 /** A setting that cannot be used as given. Names the setting, never its value. */
 export class UnusableSmtpSettingError extends Error {
   readonly setting: keyof SmtpMailSettings;
@@ -78,12 +87,16 @@ export class UnusableSmtpSettingError extends Error {
  * Pure, and built from named members, never by spreading the settings. Port 465 is implicit TLS. Port 587 is STARTTLS
  * that must succeed: `requireTLS` forbids a plaintext fallback. There is no `tls` override, so the platform's own
  * certificate checks and minimum protocol version stand.
- * @throws UnusableSmtpSettingError when the port is neither 465 nor 587, whatever its type.
+ * @throws UnusableSmtpSettingError when the host is not a plain DNS name, the user or the password is empty, or the
+ *   port is neither 465 nor 587, whatever its type.
  */
 export function buildSmtpTransportOptions(
   settings: SmtpMailSettings,
 ): SmtpTransportOptions {
   const { host, user, password } = settings;
+  refuseUnlessUsable(isPlainDnsName(host), "host");
+  refuseUnlessUsable(isNonBlank(user), "user");
+  refuseUnlessUsable(isNonBlank(password), "password");
   // Read as `unknown`: the types allow two ports, but a value forced past them must be refused, not trusted.
   const port: unknown = settings.port;
   const connection = {
@@ -225,4 +238,24 @@ function plainDomainOf(
   const domain = asciiDomainOfPlainMailbox(address);
   if (domain === undefined) throw new UnusableSmtpSettingError(setting);
   return domain;
+}
+
+/** Read as `unknown`: a value forced past the types must be refused, not trusted. */
+function isPlainDnsName(value: unknown): boolean {
+  return (
+    typeof value === "string" &&
+    value.length <= DNS_NAME_MAX_LENGTH &&
+    PLAIN_DNS_NAME.test(value)
+  );
+}
+
+function isNonBlank(value: unknown): boolean {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function refuseUnlessUsable(
+  isUsable: boolean,
+  setting: keyof SmtpMailSettings,
+): void {
+  if (!isUsable) throw new UnusableSmtpSettingError(setting);
 }

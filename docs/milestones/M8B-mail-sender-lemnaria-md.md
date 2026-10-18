@@ -100,9 +100,11 @@ All [src] unless marked.
     imports of `nodemailer`, `gmail-mail-sender` and `create-mail-sender` only. A test importing a new adapter module, or
     the existing `create-customer-mail-sender`, escapes the census. **That is an existing gap since L7** [src] that W1
     closes by widening both patterns.
-  - No lint rule or test pins which source file imports `nodemailer` [ran: `grep -rln nodemailer` outside
-    `node_modules`, `.next`, `docs`: only `gmail-mail-sender.ts` in `src/lib`, three route files naming it in comments
-    or config, tests, `package.json`, the lockfile and `.env.example`].
+  - No lint rule pins which source file imports `nodemailer`, but a test does: `create-mail-sender.test.ts`'s naming
+    rule *the mail library* (`isAllowed`) fails any file under `apps/web/src` other than `gmail-mail-sender.ts` that
+    imports it [src, found by W1's review]. A new importer, `smtp-mail-sender.ts`, therefore needs that `isAllowed` to
+    grow. [ran: `grep -rln nodemailer` outside `node_modules`, `.next`, `docs`: only `gmail-mail-sender.ts` in
+    `src/lib`, three route files naming it in comments or config, tests, `package.json`, the lockfile and `.env.example`].
 
 **nodemailer facts this plan relies on** [nm]:
 
@@ -120,7 +122,7 @@ All [src] unless marked.
 | Name | Secret | Rule ("usable") | Purpose |
 | --- | --- | --- | --- |
 | `MAIL_TRANSPORT` | no | exactly `smtp` | The opt-in. Absent: today's behaviour. |
-| `MAIL_SMTP_HOST` | no | a lower-case ASCII DNS name, at least two labels, last label starting with a letter; no scheme, port, path, IP literal or trailing dot | The provider's submission host [Q1]. |
+| `MAIL_SMTP_HOST` | no | a lower-case ASCII DNS name, at least two labels, last label starting with a letter; no scheme, port, path, IP literal or trailing dot. **A hard W2 requirement** (the W1 builder refuses only a host that is not a plain DNS name; W2's reader is the one place that holds this whole rule, and a test must pin each clause) | The provider's submission host [Q1]. |
 | `MAIL_SMTP_PORT` | no | exactly `465` or exactly `587` | Implicit TLS or STARTTLS submission [Q2]. |
 | `MAIL_SMTP_USER` | yes (treated as) | visible ASCII, no space, 1–254 characters | The SMTP login [Q3]. May differ from the From address. |
 | `MAIL_SMTP_PASSWORD` | **yes** | visible ASCII, no space (`VISIBLE_ASCII_KEY`), as Gmail's | The SMTP password. Never printed, logged, read at build, or bundled. |
@@ -402,10 +404,20 @@ in configuration and on e-mail header injection (cited by section), and §4.4 of
    is **unedited** (`git diff --stat <base> -- <those paths>` prints only the two allowed widenings, run with
    `rtk proxy`), and all of them pass. For every Gmail configuration, `buildGmailTransportOptions` deep-equals its value
    at the base commit. `GMAIL_SMTP_HOST` stays in `gmail-mail-sender.ts`.
-   **Allowed widenings, and the rule for them:** the census patterns in `mail-network-guard.test.ts` and
-   `qa-8n-no-network-and-scans.adversarial.test.ts` grow to match `smtp-mail-sender`, `smtp-transport` and
-   `create-customer-mail-sender`, each with a control sample. A name list or pattern may **grow**; no assertion may be
-   removed, loosened or skipped. A reviewer checks every edited line of an existing test against that rule.
+   **Allowed widenings, and the rule for them:** three list widenings, plus the growth of one `isAllowed`.
+   (i) The census patterns in `mail-network-guard.test.ts` and `qa-8n-no-network-and-scans.adversarial.test.ts` grow to
+   match `smtp-mail-sender`, `smtp-transport` and `create-customer-mail-sender`, each with a control sample.
+   (ii) `smtp-mail-sender.ts` and `smtp-transport.ts` join the no-log / no-env "other mail modules" list in
+   `create-mail-sender.test.ts`. (iii) The same two join `SENDING_MODULES` in `lead-notice-preview.test.ts`.
+   (iv) The `isAllowed` of the naming rule *the mail library* in `create-mail-sender.test.ts` also allows
+   `smtp-mail-sender.ts` (§3), with a control sample proving other files are still refused. A name list, pattern or
+   `isAllowed` may **grow**; no assertion may be removed, loosened or skipped. A reviewer checks every edited line of an
+   existing test against that rule.
+   **The base was already red.** At W1's base commit five existing tests were already red for reasons unrelated
+   to W1, from L7 and L5 [doc: the W1 dispatch; not re-run at the base]: the `create-mail-sender.test.ts` naming rules for `create-customer-mail-sender`, the
+   `qa-8n-no-network-and-scans` lines that name `limit-policy`, `judge-account-request` and `sign-in`, and the
+   `qa-8j` proxy case that asks for `recipient`. They belong to the tests-owed round, not to W1; "all of them pass" in
+   this criterion means no test W1 touches or could affect regresses, and W1 does not edit those five.
 2. **465 means implicit TLS, 587 means STARTTLS and nothing weaker.** For port 465 the options hold `secure: true` and
    no `requireTLS`. For port 587 they hold `secure: false` and `requireTLS: true`.
    *Property (fast-check over arbitrary settings objects, extra members included):* the built options **never** hold

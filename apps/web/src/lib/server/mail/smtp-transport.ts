@@ -23,7 +23,7 @@ const GREETING_TIMEOUT_MS = 3_000;
 const SOCKET_TIMEOUT_MS = 6_000;
 
 /** What every SMTP transport shares: no pool, no logging, no file or URL reads, and every wait shorter than the bound. */
-export const HARDENED_TRANSPORT_OPTIONS = {
+export const HARDENED_TRANSPORT_OPTIONS = Object.freeze({
   pool: false,
   logger: false,
   debug: false,
@@ -33,7 +33,7 @@ export const HARDENED_TRANSPORT_OPTIONS = {
   connectionTimeout: CONNECTION_TIMEOUT_MS,
   greetingTimeout: GREETING_TIMEOUT_MS,
   socketTimeout: SOCKET_TIMEOUT_MS,
-} as const;
+} as const);
 
 /** Exactly what rides on the wire: no reply-to, no copy, no attachment, no header of its own. With `html` the
  *  library writes `multipart/alternative`, the text part first. */

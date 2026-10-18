@@ -258,7 +258,7 @@ value [src: `.env.example:162-163`].
 
 [`M8B-mail-sender-lemnaria-md.md`](../milestones/M8B-mail-sender-lemnaria-md.md) plans a provider-neutral SMTP path:
 `MAIL_TRANSPORT` (exactly `smtp`; the opt-in), `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT` (`465` or `587`), `MAIL_SMTP_USER`,
-`MAIL_SMTP_PASSWORD` (a secret) and `MAIL_SMTP_FROM_ADDRESS` [doc: that plan's variable table]. **They are a plan.** Nothing
-is built (the code has only the Gmail SMTP sender), nothing is set in any environment, and the provider is not chosen. When
+`MAIL_SMTP_PASSWORD` (a secret) and `MAIL_SMTP_FROM_ADDRESS` [doc: that plan's variable table]. **They are a plan.** An SMTP adapter
+exists, unwired; nothing reads these names, nothing is set in any environment, and the provider is not chosen. When
 they exist they follow the same rules: add-only, the owner provisions, and `GOOGLE_*` is not removed until the owner decides.
 `MAIL_FROM_ADDRESS` stays the retired Resend name and is not reused.
