@@ -294,6 +294,12 @@
   height: 100%;
 }
 
+/* The dialog's max-height can squeeze `.slide` below its 4:3 height (its `overflow: hidden` lets it shrink), so `cover`
+ * would crop the stored 4:3 image; `contain` letterboxes it instead, and the dialog does not scroll Select away. */
+.slideFrame .image {
+  object-fit: contain;
+}
+
 .slideTitle {
   margin: 0;
   font: 700 18px/1.2 var(--font-ui);
@@ -313,8 +319,11 @@
   color: var(--refusal-ink, #8f2020);
 }
 
+/* Wraps so a long translated label moves Next to its own line rather than squeezing Select; source order is kept, so
+ * the focus order is Previous, Select, Next at every width. */
 .dialogActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
 }
@@ -332,17 +341,23 @@
   border-radius: 12px;
 }
 
+.navButton:last-child {
+  margin-left: auto;
+}
+
 .navButton:disabled {
   color: #a89c8e;
   cursor: default;
   opacity: 0.6;
 }
 
+/* A label that still wraps grows the button instead of overflowing it: the 1.2 line height and the vertical padding
+ * keep two lines inside the box, and `min-height` keeps the 44 px target for one. */
 .selectButton {
-  flex: 1;
+  flex: 1 1 9rem;
   min-height: var(--touch-target);
-  padding: 0 18px;
-  font: 700 15px/1 var(--font-ui);
+  padding: 10px 18px;
+  font: 700 15px/1.2 var(--font-ui);
   color: var(--paper);
   cursor: pointer;
   background: var(--accent-strong);

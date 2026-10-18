@@ -29,6 +29,10 @@ import type { PresetCopy } from "./use-generation";
 /** The wait shows two placeholder cards, as frame 1D does: a stand-in for the list, not a count of what will be found. */
 const SKELETON_CARD_COUNT = 2;
 
+/** How long the wait stays unpainted: an empty or failed listing answers well inside it, and a flash of skeletons
+ *  before composition starts would read as a glitch. Only the wait's content is held back: the answer is never. */
+const PRESET_WAIT_GRACE_MS = 250;
+
 export interface PresetWaitProps {
   readonly room: DesignRoom;
   readonly onBack: () => void;
@@ -36,37 +40,13 @@ export interface PresetWaitProps {
 
 /** 1D: the room being checked against the library. It lasts at most the offers' budget (`PRESET_OFFERS_BUDGET_MS`). */
 export function PresetWait({ room, onBack }: PresetWaitProps) {
-  const content = useContent();
   const translate = useTranslations();
+  const isGraceOver = useHasElapsed(PRESET_WAIT_GRACE_MS);
 
   return (
     <>
       <div className={styles.body} data-testid="room-presets-wait">
-        <div className={styles.intro}>
-          <h2 className={styles.heading}>{content.presetChooser.heading}</h2>
-          <RoomSummary room={room} />
-        </div>
-        <div
-          className={styles.waitNotice}
-          role="status"
-          data-testid="room-presets-wait-notice"
-        >
-          <span className={styles.spinner} aria-hidden="true" />
-          <span className={styles.waitText}>
-            {content.presetChooser.waiting}
-          </span>
-        </div>
-        <ul className={styles.skeletons} aria-hidden="true">
-          {Array.from({ length: SKELETON_CARD_COUNT }, (_, position) => (
-            <li className={styles.skeleton} key={position}>
-              <div className={styles.skeletonImage} />
-              <div className={styles.skeletonLines}>
-                <span className={styles.skeletonLineShort} />
-                <span className={styles.skeletonLineLong} />
-              </div>
-            </li>
-          ))}
-        </ul>
+        {isGraceOver ? <PresetWaitContent room={room} /> : null}
       </div>
       <div className={roomStyles.composeFooter}>
         <button
@@ -80,6 +60,54 @@ export function PresetWait({ room, onBack }: PresetWaitProps) {
       </div>
     </>
   );
+}
+
+function PresetWaitContent({ room }: { readonly room: DesignRoom }) {
+  const content = useContent();
+
+  return (
+    <>
+      <div className={styles.intro}>
+        <h2 className={styles.heading}>{content.presetChooser.heading}</h2>
+        <RoomSummary room={room} />
+      </div>
+      <div
+        className={styles.waitNotice}
+        role="status"
+        data-testid="room-presets-wait-notice"
+      >
+        <span className={styles.spinner} aria-hidden="true" />
+        <span className={styles.waitText}>{content.presetChooser.waiting}</span>
+      </div>
+      <ul className={styles.skeletons} aria-hidden="true">
+        {Array.from({ length: SKELETON_CARD_COUNT }, (_, position) => (
+          <li className={styles.skeleton} key={position}>
+            <div className={styles.skeletonImage} />
+            <div className={styles.skeletonLines}>
+              <span className={styles.skeletonLineShort} />
+              <span className={styles.skeletonLineLong} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** False until `delayMs` after mounting. The timer starts no work, so StrictMode's second effect run is harmless. */
+function useHasElapsed(delayMs: number): boolean {
+  const [hasElapsed, setHasElapsed] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setHasElapsed(true);
+    }, delayMs);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [delayMs]);
+
+  return hasElapsed;
 }
 
 export interface PresetChooserProps {
