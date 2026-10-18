@@ -1,0 +1,115 @@
+/**
+ * **The toned status box of the preset dialogs** (`Presete.dc.html` `ST`, `:629-636`). Progress is the neutral
+ * surface with a spinner; error, warn and ok carry a glyph. Warn (amber) is the day's limit only: nothing the customer
+ * did wrong, so not the refusal red.
+ */
+
+/* Reserved, so that the buttons below stay where they are whether or not there is a sentence. */
+.area {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--touch-target);
+}
+
+.notice {
+  --notice-surface: transparent;
+  --notice-line: transparent;
+  --notice-ink: var(--ink-muted);
+  --notice-mark: var(--accent);
+
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  background: var(--notice-surface);
+  border: 1px solid var(--notice-line);
+  border-radius: 10px;
+}
+
+.notice[data-tone] {
+  padding: 11px 13px;
+}
+
+.notice[data-tone="progress"] {
+  --notice-surface: var(--surface);
+  --notice-line: var(--line);
+  --notice-ink: var(--ink-muted);
+}
+
+.notice[data-tone="error"] {
+  --notice-surface: #fdf3f3;
+  --notice-line: #f1d4d4;
+  --notice-ink: #8f2020;
+  --notice-mark: var(--refusal);
+}
+
+.notice[data-tone="warn"] {
+  --notice-surface: #f7ecdc;
+  --notice-line: #e6cfa8;
+  --notice-ink: #7c4a0c;
+  --notice-mark: #b45309;
+}
+
+.notice[data-tone="ok"] {
+  --notice-surface: #eef1ea;
+  --notice-line: #d5dfcc;
+  --notice-ink: #2d5016;
+  --notice-mark: #2d5016;
+}
+
+.sentence {
+  min-width: 0;
+  margin: 0;
+  font: 400 13px/1.45 var(--font-ui);
+  color: var(--notice-ink);
+  text-wrap: pretty;
+}
+
+.spinner {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: noticeTurn 0.9s linear infinite;
+}
+
+.glyph {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  font: 700 11px/16px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: var(--notice-mark);
+  border-radius: 50%;
+}
+
+@keyframes noticeTurn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .notice[data-tone] {
+    padding: 11px 14px;
+  }
+
+  .notice {
+    gap: 10px;
+  }
+
+  .sentence {
+    font-size: 13.5px;
+  }
+}

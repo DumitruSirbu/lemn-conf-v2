@@ -116,6 +116,10 @@
  * `presetChooser.selectFailed` and `.selectLimitReached`, which the Preview pop-up reads in place of the
  * `room.compose.saveFailed` and `.limitReached` it had borrowed. Drafted and unapproved in both languages.
  * **No existing hash moved.**
+ *
+ * **One key re-baselined by M8D wave W2** (ADR 0113 decision 4; ADR 0104 Amendment G, O-1) —
+ * `presetChooser.selectLimitReached`, whose Romanian changed from "… Încearcă din nou mâine." to the owner-accepted
+ * "… Încearcă mâine." (the Russian is unchanged). Its hash is the only one that moved; the other 574 are as before.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -869,7 +873,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.presetChooser.selectFailed":
     "1f6d7cc47415c4d86a293affeddea699b73fcb6e1957b4c8c2775a1b013e65d5",
   "content.static.presetChooser.selectLimitReached":
-    "0ec6b1e1be77583f21c31a404daf2aeb098f71f727f2a5fd8cec42f0bc599325",
+    "5f1ee796399e82b963d84d98a7e2f1af3b6ad6504af6c45365ab33baae3f95b7",
   "content.static.presetChooser.selecting":
     "d319796b8ac9d74b9b352af4e193d13713b71292521c65a875f81bd34a6dc22c",
   "content.static.presetChooser.skip":

@@ -72,7 +72,7 @@ declare const messages: {
     "select": "Alege acest preset",
     "selecting": "Se creează bucătăria ta…",
     "selectFailed": "Nu am putut crea bucătăria din acest preset. Încearcă din nou.",
-    "selectLimitReached": "Astăzi nu se mai pot crea alte bucătării. Încearcă din nou mâine.",
+    "selectLimitReached": "Astăzi nu se mai pot crea alte bucătării. Încearcă mâine.",
     "composingNotice": "Compunem o bucătărie pe măsura camerei tale — durează puțin mai mult."
   },
   "room": {

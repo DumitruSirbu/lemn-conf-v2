@@ -195,9 +195,7 @@ async function chooseThePresetIn(
   await page.getByTestId("room-preset-preview").click();
   const dialog = page.getByTestId("preset-carousel-dialog");
   await expect(dialog).toBeVisible();
-  await expect(page.getByTestId("preset-carousel-position")).toHaveText(
-    "1 / 1",
-  );
+  await expect(page.getByTestId("preset-carousel-position")).toHaveCount(0);
   await expect(page.getByTestId("preset-carousel-name")).toHaveText(TYPED_NAME);
   await expect(page.getByTestId("preset-carousel-previous")).toHaveCount(0);
   await expect(page.getByTestId("preset-carousel-next")).toHaveCount(0);
