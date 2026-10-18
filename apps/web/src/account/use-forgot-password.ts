@@ -42,10 +42,13 @@ export interface ForgotPassword {
   readonly isBusy: boolean;
   /** Whether a challenge token is held. The server refuses a request without one. */
   readonly hasToken: boolean;
+  /** Whether the challenge slot says it cannot load: no token will come, and the page must not say one is awaited. */
+  readonly isChallengeUnavailable: boolean;
   /** Bumped after every answer, because the server spends the token on nearly all of them. */
   readonly resetCount: number;
   readonly editEmail: (value: string) => void;
   readonly receiveToken: (token: string | null) => void;
+  readonly markChallengeUnavailable: () => void;
   readonly submit: () => void;
   readonly clearFeedback: () => void;
 }
@@ -55,6 +58,7 @@ export function useForgotPassword(): ForgotPassword {
   const [token, setToken] = useState<string | null>(null);
   const [resetCount, setResetCount] = useState(0);
   const [isBusy, setIsBusy] = useState(false);
+  const [isChallengeUnavailable, setIsChallengeUnavailable] = useState(false);
   const [feedback, setFeedback] = useState<ForgotFeedback>(NO_FEEDBACK);
   const isSendingRef = useRef(false);
 
@@ -65,6 +69,10 @@ export function useForgotPassword(): ForgotPassword {
 
   const receiveToken = useCallback((newToken: string | null) => {
     setToken(newToken);
+  }, []);
+
+  const markChallengeUnavailable = useCallback(() => {
+    setIsChallengeUnavailable(true);
   }, []);
 
   const submit = useCallback(() => {
@@ -98,9 +106,11 @@ export function useForgotPassword(): ForgotPassword {
     feedback,
     isBusy,
     hasToken: token !== null,
+    isChallengeUnavailable,
     resetCount,
     editEmail,
     receiveToken,
+    markChallengeUnavailable,
     submit,
     clearFeedback,
   };

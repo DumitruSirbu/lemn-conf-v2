@@ -1084,6 +1084,36 @@ export function resolveAccountRegisterCopy(translate: ContentTranslator) {
 
 export type AccountRegisterCopy = ReturnType<typeof resolveAccountRegisterCopy>;
 
+/** The login page's own text. One sentence answers every refused sign-in, so it is one leaf. */
+export function resolveAccountLoginCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountLogin.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountLogin.headerTitle"),
+    title: translate("accountLogin.title"),
+    submit: translate("accountLogin.submit"),
+    submitting: translate("accountLogin.submitting"),
+    forgot: translate("accountLogin.forgot"),
+    noAccount: translate("accountLogin.noAccount"),
+    createOne: translate("accountLogin.createOne"),
+    invalidCredentials: translate("accountLogin.invalidCredentials"),
+    sessionExpired: translate("accountLogin.sessionExpired"),
+  };
+}
+
+export type AccountLoginCopy = ReturnType<typeof resolveAccountLoginCopy>;
+
+/** The page an unknown address under the account family lands on. */
+export function resolveAccountNotFoundCopy(translate: ContentTranslator) {
+  return {
+    title: translate("accountNotFound.title"),
+    body: translate("accountNotFound.body"),
+  };
+}
+
+export type AccountNotFoundCopy = ReturnType<typeof resolveAccountNotFoundCopy>;
+
 /** The screen after a registration was accepted. The address is the one the person typed, passed as a value. */
 export function resolveAccountCheckInboxCopy(translate: ContentTranslator) {
   return {

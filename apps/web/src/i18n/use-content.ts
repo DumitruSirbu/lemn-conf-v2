@@ -7,6 +7,8 @@ import {
   resolveAccountCheckInboxCopy,
   resolveAccountForgotCopy,
   resolveAccountKitCopy,
+  resolveAccountLoginCopy,
+  resolveAccountNotFoundCopy,
   resolveAccountRegisterCopy,
   resolveAccountShellCopy,
   resolveContent,
@@ -35,6 +37,16 @@ export function useAccountForgotCopy() {
 export function useAccountRegisterCopy() {
   const translate = useTranslations();
   return useMemo(() => resolveAccountRegisterCopy(translate), [translate]);
+}
+
+export function useAccountLoginCopy() {
+  const translate = useTranslations();
+  return useMemo(() => resolveAccountLoginCopy(translate), [translate]);
+}
+
+export function useAccountNotFoundCopy() {
+  const translate = useTranslations();
+  return useMemo(() => resolveAccountNotFoundCopy(translate), [translate]);
 }
 
 export function useAccountCheckInboxCopy() {

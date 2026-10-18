@@ -410,6 +410,16 @@
   border: 0;
 }
 
+/* The links that belong to the fields above them (the login's "forgot password"): tucked up under the last field, as the
+   mock-up draws them, since a link is at least 44px tall and the pane's own gap would double the space. */
+.fieldLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-block: -8px;
+}
+
 /* The sentence above the primary action that names the notice the person is shown. */
 .legal {
   margin: 0;
@@ -430,6 +440,7 @@
   font: 700 15px/1.15 var(--font-ui);
   font-variant-numeric: tabular-nums;
   color: var(--paper);
+  text-decoration: none;
   cursor: pointer;
   background: var(--accent);
   border: 0;

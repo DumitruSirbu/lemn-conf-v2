@@ -34,10 +34,12 @@ export function startPathOf(locale: AppLocale): string {
 
 export interface AccountShellProps {
   readonly locale: AppLocale;
-  /** The page this shell frames, so the language links lead to the same page in the other languages. */
-  readonly page: AccountPage;
-  /** The phone header's title. It wraps, so a longer language loses none of its words. */
-  readonly headerTitle: string;
+  /** The page this shell frames, so the language links lead to the same page in the other languages. A shell with no
+   *  page (the 404 of an unknown address) has no counterpart to lead to and draws no language links. */
+  readonly page?: AccountPage;
+  /** The phone header's title. It wraps, so a longer language loses none of its words. Left out, the wordmark stands
+   *  alone. */
+  readonly headerTitle?: string;
   readonly children: ReactNode;
 }
 
@@ -58,13 +60,19 @@ export function AccountShell({
           <span className={styles.backText}>{copy.backToConfigurator}</span>
         </a>
         <span className={styles.wordmark}>{copy.brand}</span>
-        <span className={styles.navDivider} aria-hidden="true" />
-        <span className={styles.navTitle}>{headerTitle}</span>
-        <nav className={styles.localeNav} aria-label={copy.localeMenu}>
-          {otherLocalesThan(locale).map((other) => (
-            <LocaleLink key={other} locale={other} page={page} />
-          ))}
-        </nav>
+        {headerTitle === undefined ? null : (
+          <>
+            <span className={styles.navDivider} aria-hidden="true" />
+            <span className={styles.navTitle}>{headerTitle}</span>
+          </>
+        )}
+        {page === undefined ? null : (
+          <nav className={styles.localeNav} aria-label={copy.localeMenu}>
+            {otherLocalesThan(locale).map((other) => (
+              <LocaleLink key={other} locale={other} page={page} />
+            ))}
+          </nav>
+        )}
       </header>
       <main className={styles.stage}>
         <div className={styles.card}>{children}</div>
@@ -108,12 +116,13 @@ export function AccountHeading({
   lead,
 }: {
   readonly title: string;
-  readonly lead: string;
+  /** A page whose title says it all (the login) has no lead. */
+  readonly lead?: string;
 }) {
   return (
     <div className={styles.head}>
       <h1 className={styles.heading}>{title}</h1>
-      <p className={styles.lead}>{lead}</p>
+      {lead === undefined ? null : <p className={styles.lead}>{lead}</p>}
     </div>
   );
 }
@@ -156,6 +165,21 @@ export function SecondaryAction({
 }) {
   return (
     <a className={styles.secondary} href={href}>
+      {children}
+    </a>
+  );
+}
+
+/** The primary action when it leaves for another document: a plain anchor drawn as the button it stands in for. */
+export function PrimaryLink({
+  href,
+  children,
+}: {
+  readonly href: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <a className={styles.submit} href={href}>
       {children}
     </a>
   );

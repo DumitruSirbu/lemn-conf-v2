@@ -730,6 +730,22 @@ declare const messages: {
     "retryOrLogIn": "Poți încerca din nou înregistrarea cu aceeași adresă, sau <link>intră în cont</link> dacă ai confirmat deja.",
     "wrongAddress": "Am greșit adresa"
   },
+  "accountLogin": {
+    "metaTitle": "Intră în cont — {brand}",
+    "headerTitle": "Intră în cont",
+    "title": "Intră în cont",
+    "submit": "Intră în cont",
+    "submitting": "Se verifică…",
+    "forgot": "Ai uitat parola?",
+    "noAccount": "Nu ai cont?",
+    "createOne": "Creează unul",
+    "invalidCredentials": "E-mailul sau parola nu se potrivesc. Dacă datele sunt corecte, verifică-ți e-mailul: s-ar putea să trebuiască întâi să confirmi adresa.",
+    "sessionExpired": "Sesiunea ta a expirat. Intră din nou în cont ca să continui."
+  },
+  "accountNotFound": {
+    "title": "Pagina nu există",
+    "body": "Adresa nu duce la nicio pagină din cont."
+  },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",
     "badge": "Pagină provizorie",

@@ -356,6 +356,11 @@ export function AccountLink({
   );
 }
 
+/** The links that belong to the fields above them, in one row under the last of them. */
+export function FieldLinks({ children }: { readonly children: ReactNode }) {
+  return <div className={styles.fieldLinks}>{children}</div>;
+}
+
 /** A link set inside a sentence. `isNewTab` opens the destination beside the form, so what was typed survives. */
 export function InlineLink({
   href,
@@ -501,6 +506,43 @@ export function SubmitButton(props: SubmitButtonProps) {
       ) : null}
       {!isBusy && wait === undefined ? label : null}
     </button>
+  );
+}
+
+export interface ChallengedSubmitProps {
+  readonly label: string;
+  readonly busyLabel: string;
+  readonly isBusy: boolean;
+  /** Whether a challenge token is held. The server refuses a request without one. */
+  readonly hasToken: boolean;
+  /** Whether the challenge slot says it cannot load: no token will come, and the page must not say one is awaited. */
+  readonly isChallengeUnavailable: boolean;
+  readonly wait?: SubmitWait | undefined;
+}
+
+/** The primary action of a form that sends a challenge token and, while it waits for one, the line that says why the
+ *  button is off. A limit being counted down is the reason then, and it is already on the button. */
+export function ChallengedSubmit(props: ChallengedSubmitProps) {
+  const { label, busyLabel, isBusy, hasToken, isChallengeUnavailable, wait } =
+    props;
+  const copy = useAccountKitCopy();
+  const reasonId = useId();
+  const isExplainingWait =
+    !hasToken && !isBusy && !isChallengeUnavailable && wait === undefined;
+  return (
+    <>
+      <SubmitButton
+        label={label}
+        busyLabel={busyLabel}
+        isBusy={isBusy}
+        isOff={!hasToken}
+        {...(wait === undefined ? {} : { wait })}
+        {...(isExplainingWait ? { describedBy: reasonId } : {})}
+      />
+      {isExplainingWait ? (
+        <FormHint id={reasonId}>{copy.challenge.waiting}</FormHint>
+      ) : null}
+    </>
   );
 }
 

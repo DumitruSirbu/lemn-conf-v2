@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import {
@@ -22,14 +22,13 @@ import {
 import {
   AccountForm,
   AccountLink,
+  ChallengedSubmit,
   ChallengeField,
-  FormHint,
   FormNotice,
   HelpItem,
   HelpList,
   OutcomeHero,
   RateLimitNotice,
-  SubmitButton,
   TextField,
   type SubmitWait,
 } from "./account-form-parts";
@@ -114,6 +113,7 @@ function AskingScreen({
           onTokenChange={forgot.receiveToken}
           resetCount={forgot.resetCount}
           isRefused={forgot.feedback.kind === "challenge-failed"}
+          onUnavailable={forgot.markChallengeUnavailable}
         />
       </AccountPane>
       <AccountActions>
@@ -183,32 +183,21 @@ function FeedbackNotice({
   }
 }
 
-/** The primary action and, while it waits for a challenge token, the line that says why it is off. */
 function SubmitArea({ forgot }: { readonly forgot: ForgotPassword }) {
   const copy = useAccountForgotCopy();
   const kit = useAccountKitCopy();
-  const reasonId = useId();
-  const wait = waitOf(forgot);
-  const isWaitingForChallenge = !forgot.hasToken && !forgot.isBusy;
   const isRetry =
     forgot.feedback.kind === "unavailable" ||
     forgot.feedback.kind === "unanswered";
   return (
-    <>
-      <SubmitButton
-        label={isRetry ? kit.retry : copy.submit}
-        busyLabel={copy.submitting}
-        isBusy={forgot.isBusy}
-        isOff={!forgot.hasToken}
-        {...(wait === undefined ? {} : { wait })}
-        {...(isWaitingForChallenge && wait === undefined
-          ? { describedBy: reasonId }
-          : {})}
-      />
-      {isWaitingForChallenge && wait === undefined ? (
-        <FormHint id={reasonId}>{kit.challenge.waiting}</FormHint>
-      ) : null}
-    </>
+    <ChallengedSubmit
+      label={isRetry ? kit.retry : copy.submit}
+      busyLabel={copy.submitting}
+      isBusy={forgot.isBusy}
+      hasToken={forgot.hasToken}
+      isChallengeUnavailable={forgot.isChallengeUnavailable}
+      wait={waitOf(forgot)}
+    />
   );
 }
 
