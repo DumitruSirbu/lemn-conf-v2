@@ -1,5 +1,13 @@
 # Chrome parity with the design reference — screen 2, both shells
 
+> **Close-out, 2026-10-18 (analyst-verified in git/source, coordinator-relayed; not re-run here).**
+> The wave shipped 2026-09-09/10 via `55c0a9b4`, `0efcbbd1`, `d1f34977` and `b489f028`; the ruling is
+> ADR 0104. The "Verifică designul" CTA was later wired by M8 wave 8D S4 (`75860c11`). The copy now
+> lives in `apps/web/src/messages/ro.d.json.ts`; `ro.ts` no longer exists. The D2A coverage panel was
+> never built: it is a feature, and this plan excluded it. Before/after measurements are not recorded
+> in this file; the standing gate is the `top-bar-pill-containment` e2e specs. The stale-status note
+> below is superseded by this block and kept as history.
+
 Status: ~~**Planned, 2026-09-09.** Not started.~~ **This status is stale and is flagged rather than
 corrected, 2026-09-11.** `main` carries `d1f3497` *"fix(chrome): two defects adversarial QA found,
 and the gates that name them"* and `b489f02` *"test(e2e): re-point nine assertions the chrome-parity
@@ -9,12 +17,12 @@ verified, or what it left open**. The M6B close-out pass that found this could n
 walk the acceptance criteria below against the tree, mark each met or unmet at the criterion, and
 record the deviations. **Do not read the plan below as instruction without doing that first.**
 Branch `fix/m6-remediation`, base `5c30e92`.
-Ruling: [ADR 0104](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md).
-Amends: [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
-*Amendment B*, [ADR 0094](../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)
+Ruling: [ADR 0104](../../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md).
+Amends: [ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
+*Amendment B*, [ADR 0094](../../decisions/0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)
 *Amendment A*.
 
-**Its own file rather than a section of `docs/milestones/M6-price-and-global-settings.md`**, because
+**Its own file rather than a section of `docs/milestones/done/M6-price-and-global-settings.md`**, because
 that file is 7,500 lines and this is remediation of a drift across two shells rather than an M6
 feature. The repository already keeps such work in its own file —
 `adversarial-review-remediation.md`, `dom-003-set-width-split.md`.
@@ -43,7 +51,7 @@ need just ot calculate the remaining space and decide, how many global setting f
 display with separation like in dektop header, and if one or multiple not fit, count those that not
 fit and add that count after `+`"*; and the floor, *"ex `Pal melaminat + 2` => `Pal mela.. + 2`"*.
 The whole rule is in *How the pill narrows* and in
-[ADR 0104](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
+[ADR 0104](../../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
 decision 3. **Labels are never abbreviated** — the owner's `MDF` was a shorter material in an example,
 not a rule — so do not raise it.
 
@@ -61,7 +69,7 @@ every width, flagged or not** — criterion 12c asserts it — and `1cc86d8`'s 9
 **The kitchen's colour joins the pill** — *“if it fits, it should be displayed also”* — governed by
 the ladder like any other setting. **Four settings, `+N` counting from four**, in the order
 `material │ colour │ hardware │ depth`, which
-[ADR 0099](../decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 9
+[ADR 0099](../../decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 9
 already ruled (*“just behind the material”*) and which the settings sheet already renders.
 
 ## FOR THE OWNER — four questions, none of them blocking
@@ -126,7 +134,7 @@ own declared numbers rather than against a description of them.
 > *“I wanted to be same as in reference, SAME, because this is the design I made and approve.”*
 > *“on mobile same shit, you done what you wanted not what is in reference.”*
 
-[ADR 0003](../decisions/0003-design-reference-supersession.md) already made the mockups reference
+[ADR 0003](../../decisions/0003-design-reference-supersession.md) already made the mockups reference
 artefacts and already recorded the owner's calibration rule — *“the immediate goal being a working
 POC that matches the design reference”* (§7) — and already set the precedent that a frame beats a
 spec sentence about chrome (§5, on the desktop rail). ADR 0104 decision 1 makes the reading explicit:
@@ -152,7 +160,7 @@ Verified by reading the two mockup files and
 | mobile header | `‹` · `2/4` · `Configurare` · **one chip with `+2`** · `RO ▾` | `‹ Cameră` · `2/4` · `Configurare` · `RO ▾`, and the settings in a band below |
 | mobile bottom bar | price row, then **`Înapoi` + `Verifică designul`** | price row only |
 | camera presets | over the scene, `left:14/28px top:14/24px` | ✅ matches |
-| depth named on the pill | **yes** (`Adâncime 600`) | no — [ADR 0082](../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md) left it open; the frame answers it |
+| depth named on the pill | **yes** (`Adâncime 600`) | no — [ADR 0082](../../decisions/0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md) left it open; the frame answers it |
 
 **`+2` is the reference's own answer to a settings summary that will not fit, and it was never
 implemented.** Instead the chips overflowed a 390 px screen, and the project spent ADR 0082, its
@@ -414,7 +422,7 @@ neither, and the strip that stood in for both is what cost it ADR 0082, ADR 0094
   `material │ colour │ hardware │ depth` — so showing two is `+2` and showing one is `+3`. A fifth
   later changes the count with no edit here.
 - **The order is ruled, not chosen**, and it matters because the ladder collapses from the end.
-  [ADR 0099](../decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 9
+  [ADR 0099](../../decisions/0099-a-colour-is-chosen-at-two-levels-and-the-cabinets-wins.md) decision 9
   places colour *“just behind the material”* on the owner's own words, and the settings sheet renders
   in that order (`global-settings.tsx:664–689`). The control and the surface it opens name things in
   the same order. **`PAL melaminat` is therefore the name that survives at the floor**, which is also
@@ -678,7 +686,7 @@ and ADR 0094's criteria 4a–4h. **Every predicate is still true of the pill; th
 
 | assertion | disposition |
 | --- | --- |
-| chip-count sweeps (2, 3, 4, 5 chips) | **die** — there is no chip count. Replaced by a **label-length** sweep: the shipped tier names, and a book-length name long enough to drive the pill to rung 4, since [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) seam 1 makes tier names data authored outside TypeScript. That is what ADR 0082 decision 1 was actually about |
+| chip-count sweeps (2, 3, 4, 5 chips) | **die** — there is no chip count. Replaced by a **label-length** sweep: the shipped tier names, and a book-length name long enough to drive the pill to rung 4, since [ADR 0062](../../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) seam 1 makes tier names data authored outside TypeScript. That is what ADR 0082 decision 1 was actually about |
 | *contains every chip and the trigger* (viewport) | **survives, re-pointed at the pill and at every other top-bar control** — including the CTA and the locale, which is the assertion that would catch D2A drawn at a width it does not fit |
 | *inside `.settingsRow`'s own band* (4b) | **survives**, with the band being the pill's own grid item |
 | *no chip clipped* (4a) | **survives, and tightens**: **at most one** element on the pill may report `scrollWidth > clientWidth`, and it is the **last shown label at rung 4**. At rungs 1–3 the count is zero — a label that does not fit is counted, not cut |

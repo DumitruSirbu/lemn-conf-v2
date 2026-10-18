@@ -85,6 +85,15 @@ export const SHARE_VIEW_HEADERS: readonly { key: string; value: string }[] = [
   { key: "Cache-Control", value: "private, no-store" },
 ];
 
+/**
+ * What a stored preset image is served under (plan M8C section 3.5): a document that loads nothing and runs in a
+ * sandbox, so an image that is not one cannot act as a page. The image route sets it and `src/proxy.ts` sets it again,
+ * because a header the proxy has already put on the response wins over the route's own (`send-response.js` appends a
+ * route header only when none is present), and the page policy would otherwise be what reached the browser.
+ */
+export const PRESET_IMAGE_CONTENT_SECURITY_POLICY =
+  "default-src 'none'; sandbox";
+
 export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {
   return mode === "enforce" ? CSP_ENFORCED_HEADER : CSP_REPORT_ONLY_HEADER;
 }

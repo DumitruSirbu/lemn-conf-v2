@@ -84,6 +84,15 @@ const READ_WINDOW_MINUTES = 60;
 export const READS_PER_BLOCK_FIGURE = 600;
 
 /**
+ * PROVISIONAL, the engineer's figure and not the owner's (the security review of M8C P6): 1,200 an hour for each network
+ * block, over the preset listing and every preset image together. A room's Step 1 reads the listing once and an image
+ * for each card it shows, up to eight and again for each time a card is opened, so the presets would spend the 600 of
+ * `READS_PER_BLOCK_FIGURE` that pages and the design reads share, and a shared carrier network would be refused pages
+ * for looking at kitchens. Its own bucket keeps the two apart. The owner's answer changes this constant and no code.
+ */
+export const PRESET_READS_PER_BLOCK_FIGURE = 1200;
+
+/**
  * PROVISIONAL until the owner answers Q47: 100 browser reports of a policy violation an hour for each network block
  * (ADR 0161 decision 2). One page with a broken add-on sends a few; 100 is enough to learn that something is wrong and
  * small enough that a flood costs little. While no network source is named the one shared bucket holds all visitors'
@@ -191,6 +200,11 @@ export const READ_POLICY = policyOf("read-by-block", {
   window: utcMinutes(READ_WINDOW_MINUTES),
 });
 
+export const PRESET_READ_POLICY = policyOf("preset-read-by-block", {
+  figure: PRESET_READS_PER_BLOCK_FIGURE,
+  window: utcMinutes(READ_WINDOW_MINUTES),
+});
+
 export const CSP_REPORT_POLICY = policyOf("csp-report-by-block", {
   figure: CSP_REPORTS_PER_BLOCK_FIGURE,
   window: utcMinutes(CSP_REPORT_WINDOW_MINUTES),
@@ -275,7 +289,8 @@ export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
  *  credential's, the reads, and the contact form's buckets by a browser, an address and a stored request have none,
  *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. A policy
  *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). The global
- *  cap on preset creation has none for the same reason: no test saves fifty presets in a day. */
+ *  cap on preset creation has none for the same reason: no test saves fifty presets in a day, and nor has the preset
+ *  reads' bucket, which the suite's server counts no more than it counts the other reads. */
 export type PolicyPurpose =
   | "mint"
   | "save-by-block"
@@ -283,6 +298,7 @@ export type PolicyPurpose =
   | "share-write"
   | "preset-creation"
   | "read"
+  | "preset-read"
   | "csp-report"
   | "contact-every-by-block"
   | "contact-new-by-block-hour"
@@ -315,6 +331,7 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
     e2e: PRESET_CREATION_POLICY,
   },
   read: { production: READ_POLICY, e2e: READ_POLICY },
+  "preset-read": { production: PRESET_READ_POLICY, e2e: PRESET_READ_POLICY },
   "csp-report": { production: CSP_REPORT_POLICY, e2e: CSP_REPORT_POLICY },
   "contact-every-by-block": {
     production: CONTACT_EVERY_BY_BLOCK_POLICY,

@@ -14,6 +14,7 @@ import { SAVE_LIMIT_REACHED_CODE } from "./design-request-errors";
 const PRESET_STALE_CODE = "PRESET_STALE";
 const PRESET_NAME_REFUSED_CODE = "PRESET_NAME_REFUSED";
 const PRESET_IMAGE_REFUSED_CODE = "PRESET_IMAGE_REFUSED";
+const PRESET_TOO_LARGE_CODE = "PRESET_TOO_LARGE";
 const PRESET_HAS_FINDINGS_CODE = "PRESET_HAS_FINDINGS";
 const PRESET_MINIMUM_NOT_MET_CODE = "PRESET_MINIMUM_NOT_MET";
 const PRESET_LIMIT_REACHED_CODE = "PRESET_LIMIT_REACHED";
@@ -38,6 +39,7 @@ export type PresetRefusalReason =
   | "stale"
   | "nameRefused"
   | "imageRefused"
+  | "tooLarge"
   | "presetLimit"
   | "saveLimit"
   | "unavailable"
@@ -96,6 +98,8 @@ function reasonOf(status: number, body: RefusalBody): PresetRefusalReason {
       return "nameRefused";
     case PRESET_IMAGE_REFUSED_CODE:
       return "imageRefused";
+    case PRESET_TOO_LARGE_CODE:
+      return "tooLarge";
     case PRESET_LIMIT_REACHED_CODE:
       return "presetLimit";
     case SAVE_LIMIT_REACHED_CODE:

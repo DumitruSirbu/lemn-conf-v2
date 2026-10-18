@@ -64,7 +64,11 @@ export type {
   HeldSentKitchenView,
 } from "./fake-sent-kitchen-view-repository.js";
 export { PresetRepositoryError } from "./preset-repository.js";
-export { MAX_PRESET_THUMBNAIL_BYTES } from "./preset-validation.js";
+export {
+  MAX_PRESET_DESIGN_BYTES,
+  MAX_PRESET_THUMBNAIL_BYTES,
+  isWithinPresetDesignBound,
+} from "./preset-validation.js";
 export {
   MAX_PRESET_NAME_CHARACTERS,
   isShowablePresetName,

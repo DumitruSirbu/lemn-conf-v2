@@ -33,6 +33,8 @@ async function freshJudges() {
     "save-by-block": () => Promise.resolve(undefined),
     "save-by-credential": () => Promise.resolve(undefined),
     "preset-creation": () => Promise.resolve(undefined),
+    // Reads of presets have no twin (the same policy under the flag), so no e2e notice is asked of them.
+    "preset-read": () => Promise.resolve(undefined),
     "contact-every-by-block": () => Promise.resolve(undefined),
     "contact-new-by-block-hour": () => Promise.resolve(undefined),
     "contact-new-by-block-day": () => Promise.resolve(undefined),

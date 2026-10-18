@@ -18,6 +18,7 @@ export const PRESET_REQUEST_INVALID_CODE = "PRESET_REQUEST_INVALID";
 export const PRESET_NAME_REFUSED_CODE = "PRESET_NAME_REFUSED";
 export const PRESET_IMAGE_REFUSED_CODE = "PRESET_IMAGE_REFUSED";
 export const PRESET_STALE_CODE = "PRESET_STALE";
+export const PRESET_TOO_LARGE_CODE = "PRESET_TOO_LARGE";
 
 /** The log-only codes of the refusals that answer as a design that does not exist. */
 export const PRESET_CROSS_SITE_REFUSED = {
@@ -58,6 +59,15 @@ export function presetImageRefusedResponse(): NextResponse {
     code: PRESET_IMAGE_REFUSED_CODE,
     status: UNPROCESSABLE_STATUS,
     sentence: "The preset image was refused.",
+  });
+}
+
+/** `422`: the stored kitchen is larger than a preset may be, the size a listing sends. Reached only by the design's author. */
+export function presetTooLargeResponse(): NextResponse {
+  return refusal({
+    code: PRESET_TOO_LARGE_CODE,
+    status: UNPROCESSABLE_STATUS,
+    sentence: "The design is too large to be kept as a preset.",
   });
 }
 

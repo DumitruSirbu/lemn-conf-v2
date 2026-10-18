@@ -6,6 +6,7 @@ import {
   type Design,
 } from "@lemnaria/configurator-domain";
 import {
+  isWithinPresetDesignBound,
   PresetRepositoryError,
   type PresetToRecord,
 } from "@lemnaria/persistence";
@@ -32,6 +33,7 @@ import {
   presetCandidateRefusedResponse,
   presetSavedResponse,
   presetStaleResponse,
+  presetTooLargeResponse,
 } from "@/lib/server/preset/preset-save-responses";
 import { refusalOfPresetCreationCap } from "@/lib/server/rate-limit/judge-preset-creation";
 import { refusalOfSaveLimit } from "@/lib/server/rate-limit/judge-save-request";
@@ -126,6 +128,9 @@ async function saveAsPreset(
     buildKitchenLBodyCatalog(cabinetDepthMmOf(stored.design)),
   );
   if (candidateRefusal) return presetCandidateRefusedResponse(candidateRefusal);
+
+  if (!isWithinPresetDesignBound(stored.design))
+    return presetTooLargeResponse();
 
   const checked = checkPresetSubmission(read.body);
   if (!checked.ok) return checked.response;

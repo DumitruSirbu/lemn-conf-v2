@@ -1,4 +1,5 @@
 import { MAX_DESIGN_BYTES, isDesignId } from "@lemnaria/configurator-domain";
+import type { Design } from "@lemnaria/configurator-domain";
 
 import {
   MAX_PRESET_NAME_CHARACTERS,
@@ -16,6 +17,15 @@ const INTEGER_COLUMN_MAX = 2_147_483_647;
 
 /** `presets_thumbnail_size`: ADR 0112 Amendment A, decision 6. */
 export const MAX_PRESET_THUMBNAIL_BYTES = 512 * 1024;
+
+/**
+ * The most a preset's snapshot may measure, so that every preset stored can be listed (the security review of M8C P6).
+ * The listing sends each snapshot to Step 1 and eight of them at `MAX_DESIGN_BYTES` would be a 4.2 MB answer, so a
+ * snapshot above this is left out of it; this bound is checked at the write, where the owner can be told, and the
+ * listing keeps the same check as a second line. 128 KiB is more than a full U packed with the narrowest bodies (about
+ * 80 KB) and five times a seeded kitchen's twenty-six placements.
+ */
+export const MAX_PRESET_DESIGN_BYTES = 128 * 1024;
 
 /** Far above any room and far below `INTEGER_COLUMN_MAX`, so a window never overflows a wall's difference. */
 const MAX_WINDOW_MM = 1_000_000;
@@ -37,6 +47,7 @@ const REFUSALS = {
   walls:
     "the walls must be whole millimetres, wall B for an L and a U, wall C for a U alone",
   heightMm: "the height must be a whole number of millimetres above zero",
+  designSize: `the design must serialise to at most ${String(MAX_PRESET_DESIGN_BYTES)} bytes, as a listing sends it`,
   design: `the design must be an object with a room, in text the database can hold, of at most ${String(MAX_DESIGN_BYTES)} bytes`,
   room: "the shape, the walls and the height must be those of the design's own room",
   typedName: `the typed name must be 1 to ${String(MAX_PRESET_NAME_CHARACTERS)} characters, NFC, trimmed, with no control, format or separator character (the bidi overrides included)`,
@@ -79,6 +90,9 @@ export function requireValidPresetToRecord(preset: PresetToRecord): string {
     throw refusalOf("record", "thumbnailType");
   }
   const documentJson = designJsonTextOf(preset.design);
+  if (!isWithinPresetDesignBound(preset.design)) {
+    throw refusalOf("record", "designSize");
+  }
   requireRoomOfTheDesign(preset);
   return documentJson;
 }
@@ -95,6 +109,18 @@ export function requireValidPresetNeighbourhood(
   if (!isWholeNumberWithin(neighbourhood.limit, 1, MAX_LISTED_PRESETS)) {
     throw refusalOf("list", "limit");
   }
+}
+
+/**
+ * Whether a snapshot is small enough to be listed: the bytes of its JSON with `presetId` nulled, which is how the
+ * listing sends it, at most `MAX_PRESET_DESIGN_BYTES`. The one measure, used by the write and by the listing.
+ */
+export function isWithinPresetDesignBound(design: Design): boolean {
+  const text = jsonTextOf({ ...design, presetId: null });
+  return (
+    text !== undefined &&
+    Buffer.byteLength(text, "utf8") <= MAX_PRESET_DESIGN_BYTES
+  );
 }
 
 /** Whether a string has the shape of an id `record` made. Anything else names no row, so no statement is sent. */

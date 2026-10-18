@@ -6,7 +6,7 @@
 > ADR 0041), DB-001 + DB-002 + DB-003 (S5, `e666d96`), DOC-001 (S6, `c5df227`), WEB-002 + WEB-004 (S7),
 > SCENE-002 (S8), DOM-002 (S9, ADR 0040's 2026-08-31 amendment — one residual, S9-F1, recorded open in
 > `docs/BACKLOG.md`), DB-004 (S10, ADR 0042), WEB-003 (S11, migration `0004_add_design_revision.sql`),
-> and DOM-003 (S12, in `docs/milestones/dom-003-set-width-split.md`). **Only SEC-001 remains open** —
+> and DOM-003 (S12, in `docs/milestones/done/dom-003-set-width-split.md`). **Only SEC-001 remains open** —
 > deferred to M8 by the owner's decision (`f342752`, ADR 0019's 2026-08-31 correction, and
 > `M8-review-contact-success.md`'s launch gate) — a gated launch check, not scheduled work.
 >
@@ -171,7 +171,7 @@ green.
 
 **The three measured-figures tables below are kept verbatim, unlike the rest of this wave's record.**
 ADR 0051's own evidence sweep (decision row for
-`docs/milestones/adversarial-review-remediation.md`) requires them to stay exactly as measured on
+`docs/milestones/done/adversarial-review-remediation.md`) requires them to stay exactly as measured on
 2026-08-30, each carrying its own dated 2026-09-01 correction pointer rather than being edited — "the
 tables themselves are unedited: they record what was measured then, and DOM-002's story depends on
 them." They are not compressed here for that reason.
@@ -204,7 +204,7 @@ Four bodies the report's table does not name are also not their seat, and the sw
 | `base-corner-return-320`                    | 580  | 600      | its worktop                  |
 
 > **2026-09-01 — the dishwasher's 632 is history, not current.** This table records what was measured
-> on 2026-08-30. [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) removes the
+> on 2026-08-30. [ADR 0051](../../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) removes the
 > appliance's own door bar from `dishwasherHousing` and gives it a decor door instead, so
 > `base-dishwasher` and `base-dishwasher-600` now occupy **620 mm**, deepest member the door's bar
 > rather than the appliance's. See ADR 0040's 2026-09-01 correction for the durable record.
@@ -226,7 +226,7 @@ instead of the seat encoding they record. The property each test asserts is unch
 Each of those five is a "the trap, stated" assertion whose point is that the frozen opening is deeper
 than what gets built. Every one of them got **sharper**, not weaker.
 
-> **2026-09-01 — the first row's 632 is history.** [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)
+> **2026-09-01 — the first row's 632 is history.** [ADR 0051](../../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md)
 > moves the dishwasher niche's occupied depth to 620, so a column whose deepest member is a
 > `base-dishwasher` now fills 620, not 632. This table is unedited because it records what wave S9
 > found true at the time; see ADR 0040's 2026-09-01 correction.
@@ -249,7 +249,7 @@ for the same members:
 | `B\|1.80`, `A\|0.30`, `A\|0.75`, `B\|0.61` | — | — | 0 | unchanged |
 
 **2026-09-01 — `A|2.00`'s 632 is history, not current.** This table records what wave S9 measured on
-2026-08-30. [ADR 0051](../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) removes the
+2026-08-30. [ADR 0051](../../decisions/0051-the-dishwasher-niche-wears-a-decor-door.md) removes the
 dishwasher's own door bar and gives the niche a decor door instead, so `A|2.00` now fills **620 mm**.
 See ADR 0040's 2026-09-01 correction for the durable record.
 
@@ -302,4 +302,4 @@ both green.
 
 `commands/set-width.ts` (1,663 lines, 45 functions) was split into nine modules with no behaviour
 change — verified by a byte-identical 20,280-call characterisation sweep before and after. Full
-record: **`docs/milestones/dom-003-set-width-split.md`**.
+record: **`docs/milestones/done/dom-003-set-width-split.md`**.

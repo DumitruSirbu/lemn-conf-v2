@@ -285,6 +285,58 @@ export function reportReadLimitOnce(line: ReadLimitLine): void {
   });
 }
 
+/** The two public reads of the presets table: the listing and one image. */
+export type PresetReadOperation = "preset-list" | "preset-image";
+
+const announcedPresetReadFailures = new Set<string>();
+
+/**
+ * A preset read that failed, answered as "no presets" or a 404 and so invisible to the customer. Anyone can drive these
+ * reads with any query and no cookie, so a missing table or grant must not buy a line for every request: one line for a
+ * process, an operation and an error's name. The line carries that name and nothing else: not the message, which a
+ * driver fills with endpoint detail, and not the code, the query or the id.
+ */
+export function reportPresetReadFailureOnce(
+  operation: PresetReadOperation,
+  error: unknown,
+): void {
+  const errorName = errorNameOf(error);
+  const identity = `${operation}:${errorName}`;
+  if (announcedPresetReadFailures.has(identity)) return;
+  announcedPresetReadFailures.add(identity);
+  emitDesignLogLine("error", {
+    event: "preset-read-failed",
+    operation,
+    errorName,
+  });
+}
+
+/** The rows a listing could not show: documents this build cannot migrate, and snapshots over the listing's byte bound. */
+export interface UnlistedPresetCounts {
+  readonly unreadableCount: number;
+  readonly oversizedCount: number;
+}
+
+const announcedUnlistedPresetCounts = new Set<string>();
+
+/**
+ * Written when either count is not zero, once for a process and a pair of counts: a row that stays unreadable would
+ * otherwise be a line for every listing near it. Two counts and nothing of the rows: the repository keeps no id, name
+ * or document of an unreadable one (`PresetListing`).
+ */
+export function reportUnlistedPresetsOnce(counts: UnlistedPresetCounts): void {
+  const { unreadableCount, oversizedCount } = counts;
+  if (unreadableCount === 0 && oversizedCount === 0) return;
+  const identity = `${String(unreadableCount)}:${String(oversizedCount)}`;
+  if (announcedUnlistedPresetCounts.has(identity)) return;
+  announcedUnlistedPresetCounts.add(identity);
+  emitDesignLogLine("warn", {
+    event: "preset-listing-incomplete",
+    unreadableCount,
+    oversizedCount,
+  });
+}
+
 /** The one line an e2e policy writes, made from the flag's own name, and true of each twin alike: its figure is not the
  *  production one. */
 export const E2E_MINT_POLICY_NOTICE =

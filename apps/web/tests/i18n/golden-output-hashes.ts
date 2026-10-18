@@ -99,6 +99,10 @@
  * **Grown by 22, never rebaselined, by M8C wave P4** (ADR 0113 decision 2) — the save-as-preset button and dialog,
  * `presetSave.*`: 20 static leaves, and the two preset-name leaves rendered with neutral tokens. Drafted and
  * unapproved, the Russian to be re-signed by the owner. **No existing hash moved.**
+ *
+ * **Grown by 1, never rebaselined, by the security review of M8C wave P6** (ADR 0113 decision 2) —
+ * `presetSave.refusal.tooLarge`, the sentence for a kitchen larger than a preset may be. Drafted and unapproved, the
+ * Russian to be re-signed by the owner. **No existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -865,6 +869,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "c08849e22b7c8cc76af3cd76bdcd1105b4029d317aac0b154d98d39dd6c90a4b",
   "content.static.presetSave.refusal.stale":
     "a40e28ec9039c16fc66f7500b90124503071f25bd5b09ce176afe59cd768e39c",
+  "content.static.presetSave.refusal.tooLarge":
+    "c29f6bfc80e915738826375b9cea020b890459c4f921427e7f3983d2f7613897",
   "content.static.presetSave.refusal.unavailable":
     "fbb78f04c1fc8f2dba7cd885aa7c226ae61186e3a46a8b1f46ab7af73f30dd53",
   "content.static.presetSave.saved":

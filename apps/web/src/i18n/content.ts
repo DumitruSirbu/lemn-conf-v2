@@ -917,6 +917,7 @@ export function resolveContent(translate: ContentTranslator) {
         stale: translate("presetSave.refusal.stale"),
         nameRefused: translate("presetSave.refusal.nameRefused"),
         imageRefused: translate("presetSave.refusal.imageRefused"),
+        tooLarge: translate("presetSave.refusal.tooLarge"),
         presetLimit: translate("presetSave.refusal.presetLimit"),
         saveLimit: translate("presetSave.refusal.saveLimit"),
         unavailable: translate("presetSave.refusal.unavailable"),

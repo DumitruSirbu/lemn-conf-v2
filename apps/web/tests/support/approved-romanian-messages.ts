@@ -64,6 +64,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       nameRefused:
         "Numele nu este acceptat. Încearcă un nume mai scurt, fără caractere speciale.",
       imageRefused: "Imaginea nu a fost acceptată. Încearcă din nou.",
+      tooLarge:
+        "Pentru preset, bucătăria este prea mare. Elimină câteva elemente și încearcă din nou.",
       presetLimit: "Astăzi nu se mai pot salva alte presete. Încearcă mâine.",
       saveLimit:
         "Salvările sunt oprite pentru moment. Încearcă din nou puțin mai târziu.",
