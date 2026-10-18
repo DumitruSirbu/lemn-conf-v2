@@ -25,7 +25,7 @@ import {
 import { useTranslations } from "next-intl";
 // From `next/navigation`, not `@/i18n/navigation`: a query is the same in both locales.
 import { useSearchParams } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 // A temporary cross-route import of the editor's locale menu. Moving it to `src/chrome/` is not a
 // relocation: `top-bar-box.test.ts` and `qa-w4-top-bar.adversarial.test.ts` are ADR 0104 structural
@@ -49,6 +49,7 @@ import {
   useRoomQuerySync,
 } from "./room-query-sync";
 import { useGeneration, type GenerationRun } from "./use-generation";
+import { usePresets, type PresetOffers } from "./use-presets";
 import styles from "./room.module.css";
 import {
   withCornerDirection,
@@ -81,8 +82,17 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
   // client state, not a URL sub-state: a new query key is stripped by the settle, a new path segment
   // 404s under the proxy allow-list, and an addressable composition URL would re-run generation on
   // every reload and mint a second design.
-  const run = useGeneration();
-  const { leave } = run;
+  const generation = useGeneration();
+  // The presets read for the room continued from live and end with the composition on screen (plan M8C section 3.5),
+  // so every way out of it ends both: the effects below and *Înapoi* all go through this one `leave`.
+  const presets = usePresets();
+  const { leave: leaveGeneration } = generation;
+  const { clear: clearPresets } = presets;
+  const leave = useCallback(() => {
+    leaveGeneration();
+    clearPresets();
+  }, [leaveGeneration, clearPresets]);
+  const run: GenerationRun = { ...generation, leave };
   // Title and body read this one expression, so they cannot disagree about the sub-state.
   const isComposing = shapeInTheUrl !== undefined && run.state.phase !== "idle";
 
@@ -115,7 +125,12 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
       {shapeInTheUrl === undefined ? (
         <ShapeStep policy={policy} />
       ) : (
-        <DimensionsStep seedShape={shapeInTheUrl} policy={policy} run={run} />
+        <DimensionsStep
+          seedShape={shapeInTheUrl}
+          policy={policy}
+          run={run}
+          presets={presets}
+        />
       )}
     </main>
   );
@@ -227,6 +242,7 @@ interface DimensionsStepProps {
   readonly seedShape: RoomShape;
   readonly policy: RoomPolicy;
   readonly run: GenerationRun;
+  readonly presets: PresetOffers;
 }
 
 /**
@@ -237,7 +253,12 @@ interface DimensionsStepProps {
  * the form from the URL. With `useRoomQuerySync` mounted above the branch, leaving 1F is a pure
  * state clear and the draft survives.
  */
-function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
+function DimensionsStep({
+  seedShape,
+  policy,
+  run,
+  presets,
+}: DimensionsStepProps) {
   const translate = useTranslations();
   const { draft, setDraft, departTo } = useRoomQuerySync(seedShape);
   const { typing, noteKeystroke, noteEdit, endPause } = useTypingPause(draft);
@@ -278,7 +299,10 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
    * The one place generation starts, and it is an event handler: `reactStrictMode` double-invokes
    * effects in development, so an effect would build two kits and mint two design rows.
    *
-   * The departure flushes first, then composition runs beside it. Over a room the domain refuses
+   * The departure flushes first, then composition runs beside it, and the presets for the room are read beside
+   * both. Composition does not wait for them and cannot be stopped by them: whatever they find (nothing, an error, a
+   * timeout) lands in `presets.state` for the list to read, and composition is what happens until a screen says
+   * otherwise. Over a room the domain refuses
    * (mid-burst the button can still be active over a 1C draft) the tap ends the pause so the reasons
    * appear, and calls no `departTo`: that would push the refused query as a history entry.
    */
@@ -290,6 +314,7 @@ function DimensionsStep({ seedShape, policy, run }: DimensionsStepProps) {
     }
     departTo("presets");
     run.compose(room);
+    presets.begin(room);
   }
 
   if (run.state.phase !== "idle") {

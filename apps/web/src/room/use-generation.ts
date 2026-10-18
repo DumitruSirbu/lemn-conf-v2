@@ -2,7 +2,7 @@
 // 1. A run starts from the tap that asked for it, never from an effect: `reactStrictMode` runs an effect twice,
 //    which would build two kits and two designs and mint two rows.
 // 2. The adapter arrives through a dynamic import inside that handler, so the first screen does not carry
-//    `three`. This file alone names the package under `apps/web/src/room`.
+//    `three`. This file alone names the package under `apps/web/src/room`; `use-presets.ts` borrows its factory.
 // 3. The kit is borrowed through a lease and released on every path (ADR 0076 decision 3); see
 //    `loadProbeFactory` and `releaseOrReport`.
 // 4. One attempt writes the design once, built in the transition that first holds a design and never in a
@@ -311,7 +311,8 @@ function useDesignRoute(): (id: DesignId) => void {
 }
 
 /**
- * The adapter's only route into the room screen. The factory builds the kit with the same `wallDepthMm` as
+ * The adapter's only route into the room screen, for composition and, lent through `use-presets.ts`, for the
+ * evaluation of presets. The factory builds the kit with the same `wallDepthMm` as
  * `scene/kitchen-stage.tsx`: a design generated at another wall depth would persist seats the editor's scene
  * disagrees with. No renderer or WebGL; `makeKit` falls back to `document.createElement` for its textures, so
  * this cannot move to a Web Worker.
@@ -319,7 +320,7 @@ function useDesignRoute(): (id: DesignId) => void {
  * The kit exists before the lease does, and this factory brackets that window: `createBodyProbeLease`'s `finally`
  * covers `use` only, so a throw while building the room or the probe would strand the kit's buffers and textures.
  */
-async function loadProbeFactory(): Promise<BodyProbeFactory> {
+export async function loadProbeFactory(): Promise<BodyProbeFactory> {
   const { createBodyProbe, disposeKit, makeKit } = await import(
     "@lemnaria/three-adapter"
   );

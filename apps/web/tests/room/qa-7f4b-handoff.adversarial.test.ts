@@ -69,6 +69,7 @@ const OTHER_ROOM_QUERY =
 
 const DECLARED_CABINET_DEPTH_MM = 600;
 const DESIGNS_ENDPOINT = "/api/designs";
+const PRESET_LISTING_ENDPOINT = "/api/presets";
 
 const MINTED_ID: DesignId = "design 1";
 const MINTED_REVISION = "1";
@@ -134,6 +135,12 @@ function installStubbedServer(): void {
     "fetch",
     (url: unknown, init?: RequestInit): Promise<Response> => {
       const method = init?.method ?? "GET";
+      // Step 1 now reads the preset listing beside composition (plan M8C section 3.5, P7). `calls` is the log of
+      // design requests, which is what these criteria count, so the listing is answered "unavailable" (read as
+      // "no presets") and stays out of it.
+      if (String(url).startsWith(PRESET_LISTING_ENDPOINT)) {
+        return Promise.resolve(jsonResponse(404, {}));
+      }
       calls.push({ method, url: String(url), body: jsonBodyOf(init) });
 
       if (method === "POST") {
