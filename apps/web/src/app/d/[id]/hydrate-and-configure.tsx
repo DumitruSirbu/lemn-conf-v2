@@ -88,19 +88,27 @@ function useWriteAccessProbe(designId: DesignId): void {
 }
 
 /**
- * Asks the server whether this design may be saved as a preset, when the probe above has not already told it.
+ * Asks the server whether this design may be saved as a preset, when no other read is going to tell it.
  *
- * `hydrateSessionStoreInBrowser` skips a design the session already holds, which is every design Step 1 has just minted
- * and handed over: its `canWrite` is already `true`, so `useWriteAccessProbe` never runs and nothing would record the
- * answer, and the control would be missing on the owner's main path until a reload. This is that gap's one read
- * (`GET /api/designs/{id}`, counted against the read limit once per design per session). It records `canAuthorPresets`
- * only and applies nothing else of the answer. A failed read leaves the control absent: the server has not said yes.
+ * `hydrateSessionStoreInBrowser` skips a design the session already holds, and then `canWrite` is already `true`, so
+ * `useWriteAccessProbe` never runs and nothing would record the answer: the control would be missing until a reload.
+ * This is that gap's one read (`GET /api/designs/{id}`, counted against the read limit once per design per session). It
+ * records `canAuthorPresets` only. A failed read leaves the control absent: the server has not said yes.
+ *
+ * **It reads the session store itself and never the rendered `canWrite`.** This component stands outside the snapshot
+ * provider, so while React hydrates a full load its hook answers the seeded store's `true` for one pass, before the
+ * session store's `"checking"` is seen; acting on that would read the design twice (once here, once in the probe above).
+ * The store's own state is already `"checking"` by then, because `hydrateSessionStoreInBrowser` ran in this render.
+ * The rendered value is kept as a dependency only so the effect looks again when write access settles.
  */
 function usePresetAuthoringProbe(designId: DesignId): void {
   const canWrite = useConfiguratorStore((state) => state.canWrite);
   const answeredDesignId = usePresetAuthoring((state) => state.designId);
   useEffect(() => {
-    if (canWrite !== true || answeredDesignId === designId) return;
+    const held = useConfiguratorStore.getState();
+    const isSettledWritable =
+      held.designId === designId && held.canWrite === true;
+    if (!isSettledWritable || answeredDesignId === designId) return;
     let isCurrent = true;
     void sessionConfigurationRepository
       .loadWithAccess(designId)
