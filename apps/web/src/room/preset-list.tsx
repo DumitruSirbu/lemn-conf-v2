@@ -1,9 +1,9 @@
 "use client";
 
 // Step 1's two preset screens: 1D, the wait while the presets that fit the room are found, and
-// 1E, the list of the ones that do. Frames 1D and 1E are the chrome (`docs/design/mockups/Lemnaria Configurator
-// Mobil.dc.html:251-403`), with the owner's ruling of 2026-10-17 laid over them (ADR 0003 decision 4b, amended; ADR
-// 0104 Amendment F): a card carries one control, *Previzualizează*, and selects nothing. Preview opens the carousel
+// 1E, the list of the ones that do. Frames `Presete.dc.html#1d` and `#1e-1` are the chrome, with the owner's ruling of
+// 2026-10-17 laid over them (ADR 0003 decision 4b, amended; ADR 0104 Amendment F): a card carries one control,
+// *Previzualizează*, and selects nothing. Preview opens the carousel
 // pop-up, where *Select* copies the preset; the list has its own way out to generation (`onSkip`).
 //
 // Nothing here fetches or evaluates: the offers arrive complete from `use-presets.ts`, and the card, the slide and the
@@ -16,11 +16,10 @@ import { useContent } from "@/i18n/use-content";
 
 import { RoomSummary } from "./generation-steps";
 import {
-  AdjustedNote,
   PresetCarouselDialog,
-  PresetImage,
   type PresetSlide,
 } from "./preset-carousel-dialog";
+import { AdjustedNote, PresetImage } from "./preset-image";
 import type { ListedPresetOffer } from "./preset-offers";
 import styles from "./preset-chooser.module.css";
 import roomStyles from "./room.module.css";
@@ -66,7 +65,7 @@ function PresetWaitContent({ room }: { readonly room: DesignRoom }) {
   const content = useContent();
 
   return (
-    <>
+    <div className={styles.waitContent}>
       <div className={styles.intro}>
         <h2 className={styles.heading}>{content.presetChooser.heading}</h2>
         <RoomSummary room={room} />
@@ -83,14 +82,14 @@ function PresetWaitContent({ room }: { readonly room: DesignRoom }) {
         {Array.from({ length: SKELETON_CARD_COUNT }, (_, position) => (
           <li className={styles.skeleton} key={position}>
             <div className={styles.skeletonImage} />
-            <div className={styles.skeletonLines}>
-              <span className={styles.skeletonLineShort} />
-              <span className={styles.skeletonLineLong} />
+            <div className={styles.skeletonBody}>
+              <span className={styles.skeletonName} />
+              <span className={styles.skeletonButton} />
             </div>
           </li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }
 

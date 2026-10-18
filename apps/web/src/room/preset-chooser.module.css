@@ -1,22 +1,21 @@
 /**
- * **Step 1's preset wait (1D), list (1E) and Preview pop-up** (M8C wave P8; plan section 3.6).
+ * **Step 1's preset wait (1D), list (1E) and Preview pop-up.**
  *
- * Frames 1D and 1E (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:251-403`) and D1E are read for the
- * chrome and the card only. The frame's per-card *Folosește* and its *nu carusel* note are superseded by the owner's
- * ruling of 2026-10-17 (ADR 0003 decision 4b, amended; ADR 0104 Amendment F): the card carries one control, the
- * pop-up carries Previous, Next and Select. The footer buttons are `room.module.css`'s own `.composeFooter`, `.back`
- * and `.cta`, so the two footers cannot drift; this file adds classes and edits none of that file's.
+ * The wait, the list and the card follow `Presete.dc.html` frames `#1d`, `#1e-1` and `#d1e`; the card carries one
+ * control and the pop-up carries Previous, Next and Select (ADR 0003 decision 4b, amended). The footer buttons are
+ * `room.module.css`'s own `.composeFooter`, `.back` and `.cta`, so the footers cannot drift; this file adds classes and
+ * edits none of that file's.
  */
 
-/* The frame's column (`:272`): scrolls vertically when the cards outgrow the space above the fixed footer, as 1F's
- * `.composeBody` does (7D5b W7), and declares both axes because a lone `overflow-y: auto` computes `overflow-x` to
- * `auto` too (ADR 0082 decision 2). */
+/* Scrolls vertically when the cards outgrow the space above the fixed footer, as 1F's `.composeBody` does, and declares
+ * both axes because a lone `overflow-y: auto` computes `overflow-x` to `auto` too (ADR 0082 decision 2). The 20 px
+ * below keeps the last card clear of the footer. */
 .body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px 18px;
+  gap: 14px;
+  padding: 18px 18px 20px;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -33,7 +32,16 @@
   letter-spacing: -0.015em;
 }
 
-/* ── 1D, the wait (`:272-292`) ─────────────────────────────────────────────────────────────────── */
+/* ── 1D, the wait ────────────────────────────────────────────────────────────────────────────── */
+
+/* One element, so that the 200 ms fade covers the heading, the notice and the skeletons together. `inherit` takes the
+ * body's own gap, which differs between the phone and desktop. */
+.waitContent {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  animation: chooserFadeIn 200ms ease-out;
+}
 
 .waitNotice {
   display: flex;
@@ -69,84 +77,108 @@
   list-style: none;
 }
 
+/* The card's own shape: the 4:3 image, the name and the 44 px button. */
 .skeleton {
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line-soft);
   border-radius: 15px;
-  animation: chooserPulse 1.6s ease-in-out infinite;
+  animation: chooserShimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton:nth-child(2) {
+  animation-delay: 0.3s;
 }
 
 .skeletonImage {
-  height: 168px;
   background: #e8e3da;
+  aspect-ratio: 4 / 3;
 }
 
-.skeletonLines {
+.skeletonBody {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
   padding: 14px;
 }
 
-.skeletonLineShort,
-.skeletonLineLong {
+.skeletonName {
   display: block;
-  height: 12px;
+  width: 60%;
+  height: 14px;
   background: #e2ddd3;
   border-radius: 4px;
 }
 
-.skeletonLineShort {
-  width: 55%;
+.skeletonButton {
+  display: block;
+  height: var(--touch-target);
+  background: #ebe6dd;
+  border-radius: 11px;
 }
 
-.skeletonLineLong {
-  width: 85%;
-}
-
-/* ── 1E, the list (`:301-398`) ─────────────────────────────────────────────────────────────────── */
+/* ── 1E, the list ─────────────────────────────────────────────────────────────────────────────── */
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 14px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* A column (`Presete.dc.html#1e-1`): the image edge to edge, then the name, the note and the button. */
 .card {
   display: flex;
-  gap: 13px;
-  padding: 13px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 15px;
 }
 
-/* The stored image is 4:3 (1280 x 960, ADR 0112 decision 6), so the thumbnail is too: nothing of the room is cropped
- * away, where the frame's 96 x 104 box would cut a third of it. */
+/* The stored image is 4:3 (1280 x 960, ADR 0112 decision 6), so its box is too, and `contain` letterboxes any other
+ * shape instead of cropping it. */
 .thumb {
-  flex: 0 0 112px;
-  align-self: flex-start;
+  position: relative;
   overflow: hidden;
   background: #efece5;
-  border-radius: 10px;
+  border-bottom: 1px solid var(--line-soft);
   aspect-ratio: 4 / 3;
+}
+
+.imageFrame {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 .image {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
-/* The frame's fourth card (`:384`): the same box with hatching where the image did not arrive. */
+/* Over the image until it has loaded or failed; the box behind it is the image's own. */
+.imageLoading {
+  position: absolute;
+  inset: 0;
+  background: #e8e3da;
+  animation: chooserShimmer 1.6s ease-in-out infinite;
+}
+
 .imageMissing {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  overflow: hidden;
   background: repeating-linear-gradient(
     135deg,
     #e9e4da 0 8px,
@@ -154,30 +186,43 @@
   );
 }
 
+/* A typed name may be one unbroken word, so it wraps anywhere rather than clipping. */
+.imageMissingName {
+  max-width: 80%;
+  padding: 9px 12px;
+  font: 700 14px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  background: rgb(250 248 244 / 90%);
+  border-radius: 8px;
+}
+
 .cardInfo {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: 7px;
+  gap: 10px;
   min-width: 0;
+  padding: 13px 14px 14px;
 }
 
 /* A typed name is the owner's text, so it may be one long word: it wraps rather than widening the card. */
 .name {
   margin: 0;
-  font: 700 15.5px/1.2 var(--font-ui);
+  font: 700 15.5px/1.3 var(--font-ui);
   overflow-wrap: anywhere;
 }
 
-/* The frame's declared adjustment (`:362-367`): `#eef1ea` and `#2d5016` are the frame's own, drawn for a change
- * that was made for the customer and is good news, not a refusal. */
+/* `#eef1ea` and `#2d5016` are the frame's own, drawn for a change that was made for the customer and is good news,
+ * not a refusal. */
 .adjusted {
   display: flex;
   gap: 7px;
-  align-items: center;
+  align-items: flex-start;
   margin: 0;
   padding: 8px 10px;
-  font: 400 11.5px/1.35 var(--font-ui);
+  font: 400 12px/1.35 var(--font-ui);
   color: #2d5016;
   background: #eef1ea;
   border-radius: 9px;
@@ -187,6 +232,7 @@
   flex: 0 0 14px;
   width: 14px;
   height: 14px;
+  margin-top: 1px;
   font: 700 10px/14px var(--font-ui);
   color: #fff;
   text-align: center;
@@ -194,19 +240,17 @@
   border-radius: 50%;
 }
 
-/* 44 px each way (DEVELOPMENT-SPEC section 10.1): the frame's 38 px is under the target. */
+/* The card's width, and 44 px tall (DEVELOPMENT-SPEC section 10.1); a longer label wraps and grows the button. */
 .previewButton {
-  align-self: flex-start;
-  min-width: var(--touch-target);
   min-height: var(--touch-target);
-  margin-top: auto;
-  padding: 0 15px;
-  font: 700 12.5px/1 var(--font-ui);
+  padding: 6px 12px;
+  font: 700 13.5px/1.2 var(--font-ui);
   color: var(--accent-strong);
+  text-align: center;
   cursor: pointer;
   background: transparent;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 11px;
 }
 
 .previewButton:focus-visible,
@@ -292,12 +336,6 @@
 .slideFrame {
   width: 100%;
   height: 100%;
-}
-
-/* The dialog's max-height can squeeze `.slide` below its 4:3 height (its `overflow: hidden` lets it shrink), so `cover`
- * would crop the stored 4:3 image; `contain` letterboxes it instead, and the dialog does not scroll Select away. */
-.slideFrame .image {
-  object-fit: contain;
 }
 
 .slideTitle {
@@ -390,15 +428,28 @@
   }
 }
 
-@keyframes chooserPulse {
+@keyframes chooserShimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
   50% {
-    opacity: 0.6;
+    opacity: 0.9;
+  }
+}
+
+@keyframes chooserFadeIn {
+  from {
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .spinner,
-  .skeleton {
+  .skeleton,
+  .imageLoading,
+  .waitContent {
     animation: none;
   }
 }
@@ -421,21 +472,52 @@
   .skeletons {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
   }
 
+  .skeleton {
+    border-radius: 16px;
+  }
+
+  .skeletonBody {
+    gap: 12px;
+    padding: 16px 18px;
+  }
+
+  .skeletonName {
+    height: 15px;
+  }
+
+  /* Aligned to the top, so that one long name does not stretch the cards beside it (`Presete.dc.html#d1e-8`). */
   .list {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
+    gap: 20px;
+    align-items: start;
   }
 
   .card {
-    flex-direction: column;
+    border-radius: 16px;
   }
 
-  .thumb {
-    flex: 0 0 auto;
-    align-self: stretch;
+  .cardInfo {
+    gap: 11px;
+    padding: 16px 18px 18px;
+  }
+
+  .name {
+    font-size: 17px;
+  }
+
+  .adjusted {
+    gap: 8px;
+    padding: 9px 11px;
+    font-size: 13px;
+  }
+
+  .previewButton {
+    padding: 6px 14px;
+    font-size: 14px;
   }
 
   .dialog {

@@ -9,10 +9,6 @@
 // direct child of `<main>` so that `useBackgroundInert` can mark every other band of the screen inert; the caller
 // returns focus to the card that opened it once this has unmounted and the bands are live again.
 import {
-  PRESET_THUMBNAIL_HEIGHT_PX,
-  PRESET_THUMBNAIL_WIDTH_PX,
-} from "@lemnaria/configurator-domain";
-import {
   useCallback,
   useEffect,
   useId,
@@ -29,13 +25,13 @@ import {
 } from "@/settings/confirmation-dialog";
 
 import styles from "./preset-chooser.module.css";
+import { AdjustedNote, PresetImage } from "./preset-image";
 import type { PresetCopyStatus } from "./use-generation";
 
 /** Marks drawn by the stylesheet's typography rather than words, so no locale has a say in them. */
 const CLOSE_GLYPH = "×";
 const PREVIOUS_GLYPH = "‹";
 const NEXT_GLYPH = "›";
-const ADJUSTED_GLYPH = "✓";
 const POSITION_SEPARATOR = " / ";
 
 /** How many slides each side of the one on screen have their image fetched ahead of the tap. */
@@ -59,50 +55,6 @@ export interface PresetCarouselDialogProps {
   /** The slide on screen changed, so what was said about the last one no longer applies. */
   readonly onSlideChange: () => void;
   readonly onClose: () => void;
-}
-
-/** A stored image that hatches over when it does not arrive, in the box it would have filled. */
-export function PresetImage({
-  slide,
-  loading,
-}: {
-  readonly slide: PresetSlide;
-  readonly loading: "lazy" | "eager";
-}) {
-  const [hasFailed, setFailed] = useState(false);
-  if (hasFailed)
-    return (
-      <div className={styles.imageMissing} role="img" aria-label={slide.name} />
-    );
-
-  return (
-    <img
-      src={slide.imageUrl}
-      alt={slide.name}
-      width={PRESET_THUMBNAIL_WIDTH_PX}
-      height={PRESET_THUMBNAIL_HEIGHT_PX}
-      loading={loading}
-      decoding="async"
-      className={styles.image}
-      onError={() => {
-        setFailed(true);
-      }}
-    />
-  );
-}
-
-/** The declared change (ADR 0109 Amendment A3.3): the adaptation made this kitchen fit, and the card says so. */
-export function AdjustedNote({ testId }: { readonly testId: string }) {
-  const content = useContent();
-
-  return (
-    <p className={styles.adjusted} data-testid={testId}>
-      <span className={styles.adjustedGlyph} aria-hidden="true">
-        {ADJUSTED_GLYPH}
-      </span>
-      {content.presetChooser.adjusted}
-    </p>
-  );
 }
 
 export function PresetCarouselDialog({
