@@ -12,15 +12,69 @@ suite imports — in `packages/three-adapter/reference/`. Nothing in the codebas
 | --- | --- |
 | `DEVELOPMENT-SPEC.md` | The authoritative behavioural spec. Milestones cite it by section (`§4`, `§6.1`) and by `§11` row number. Supersedes `SPEC.md` — see `docs/decisions/0003-design-reference-supersession.md`. |
 | `SPEC.md` | The original supplier spec, kept for provenance. Where the two disagree, `DEVELOPMENT-SPEC.md` wins. |
-| `mockups/Lemnaria Configurator Desktop.dc.html` | Desktop screen mockups. Milestones cite frames as `D2A`, `D2D`, `D2E`. |
-| `mockups/Lemnaria Configurator Mobil.dc.html` | Mobile screen mockups. Frames cited as `2A`, `2D`, `2E`, `3A`, `4A`, `5A`. |
+| `mockups/Lemnaria Configurator Desktop.dc.html` | Desktop screen mockups. Milestones cite frames as `D2A`, `D2D`, `D2E`. Since 2026-10-18 it opens with a *Presete v2* section that imports `Presete.dc.html` (desktop frames) and says it replaces D1D/D1E below it. |
+| `mockups/Lemnaria Configurator Mobil.dc.html` | Mobile screen mockups. Frames cited as `2A`, `2D`, `2E`, `3A`, `4A`, `5A`. Since 2026-10-18 it opens with a *Presete v2* section that imports `Presete.dc.html` (mobile frames) and says it replaces 1D/1E below it. |
+| `mockups/Presete.dc.html` | The preset screens, v2 (owner's export, 2026-10-18; brief: `claude-design-brief-preset-screens.md`). Frames 1D, 1E (revised), 1G, 1H, 3S, 3T and their desktop twins (`D1D` … `D3T`), each state and the Russian variants beside the default. Opened alone it shows both surfaces with a header; the two files above import it with `surface="mobile"` / `surface="desktop"`. Cite a frame by chip and element id, e.g. `Presete.dc.html#1g-single` (chip *1G · d*). Planned against in `docs/milestones/M8D-preset-screens-to-mockup.md`. |
+| `mockups/support.js` | The `.dc.html` runtime (generated, *do not edit*). Every `.dc.html` file here loads it; without it a frame is an unrendered template. |
+| `mockups/shots/presets/01-p.png` … `04-p.png` | The four placeholder kitchen pictures the preset frames draw (old 1E, the v2 cards, slides and editor backdrop). They are not 4:3 (924 × 540) and are not product thumbnails. |
 | `mockups/Alegere corp - layouturi.dc.html` | Cabinet-selection and layout mockups. |
 
-Not copied, and deliberately so: `uploads/` and `shots/` (≈3.8 MB of source imagery and reference
-screenshots) and the runnable rig (`preset-shots.html`, `kitchen-3d.html`, `support.js`,
-`three-d-stage.js`). They were inputs to M1's visual fidelity work, which is complete; the fidelity
-capture scripts in `apps/web/scripts/` still point at `design-source/` and only run while that folder
-is present locally.
+All mockup files are copied **verbatim** from the owner's export; nothing in them is edited (ADR 0104
+decision 1). The 2026-10-18 copy was checked byte for byte (`cmp`) against
+`design-source/presets/`. The pre-commit formatter leaves them alone (`docs/` is in `.prettierignore`;
+`prettier --file-info` reports `support.js` and `Presete.dc.html` as ignored), and no package's `lint`
+script reaches `docs/`.
+
+## Opening the mockups
+
+Serve the folder over HTTP and open the file in a browser, for example
+`python3 -m http.server 8000` from `docs/design/mockups/`, then `http://localhost:8000/Presete.dc.html`.
+
+- **Not from `file://`.** `support.js` fetches the page itself and each `dc-import` sibling
+  (`Presete.dc.html`) with `fetch`, which a browser refuses for `file://` pages.
+- **Needs internet access.** `support.js` loads React 18.3.1, ReactDOM 18.3.1 and Babel standalone
+  7.29.0 from `unpkg.com`.
+- **Expected 404s, harmless:** `kitchen-3d.html` (the live-3D iframe of frames 2B / D2B, not copied —
+  those two frames stay blank), and two requests for a literal `{{ c.img }}` / `{{ f.img }}` made
+  before the template is filled in.
+
+Rendered on 2026-10-18 with headless Chromium (Playwright) against that server: `Presete.dc.html`
+93 of 93 images loaded, no unfilled `{{ }}` left in the text; both screen files rendered their
+*Presete v2* section with the imported frames.
+
+## Line citations shifted on 2026-10-18
+
+The v2 export **inserts five lines** near the top of both screen files (the *Presete v2* section).
+A `…dc.html:N` citation written before this copy (any commit up to and including `bb112df0`) reads:
+
+- `Lemnaria Configurator Mobil.dc.html:N` with N ≥ 39 → now line **N + 5**;
+- `Lemnaria Configurator Desktop.dc.html:N` with N ≥ 37 → now line **N + 5**.
+
+Lines above those are unchanged. On 2026-10-18 there were 91 explicit `…dc.html:N` citations in 21
+files under `docs/`, `apps/` and `packages/` (build output and `node_modules` excluded; bare `:N`
+citations beside a named file are not counted); they are not rewritten. The one test that reads these files (`apps/web/tests/price/price-breakdown-copy.test.ts`)
+matches text, not lines, and passed against the new copies (17 of 17, run 2026-10-18). The export also
+changes one editor default in each file's script, `priceTotal` `"60 000"` → `"60.000"`; the drawn
+figure already read `60.000`, and the application's grouping is not decided by the mockup (ADR 0095).
+
+## Not copied, and deliberately so
+
+- `uploads/` and the old `shots/` (source imagery and M1 reference screenshots) — inputs to M1's
+  visual fidelity work, which is complete; the fidelity capture scripts in `apps/web/scripts/` still
+  point at `design-source/` and only run while that folder is present locally.
+- The runnable rig: `kitchen-3d.html`, `three-d-stage.js`, `preset-shots.html`, `cabinets/*.svg` and
+  the export's own `kitchen-parts.js`. A second `kitchen-parts.js` here would diverge from the
+  corrected copy in `packages/three-adapter/reference/` (ADR 0005). Frames 2B / D2B therefore show
+  an empty iframe, as they did before.
+- The export's `DEVELOPMENT-SPEC.md` and `SPEC.md`: older than the copies above, which the project has
+  since amended.
+- `Lemnaria Cont Lot 1.dc.html` and `ContBlocks.dc.html` (account screens: create account, confirm
+  e-mail, sign in, forgotten and new password). Out of the preset work's scope; they belong to M8B and
+  are lost when `design-source/` is deleted unless copied first — an owner question in the M8D plan.
+
+`support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
+date the tracked mockups could not render on their own; it is now copied because the v2 preset
+frames are produced entirely by its runtime from data in a script.
 
 ## Reference geometry
 
