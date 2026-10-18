@@ -298,6 +298,14 @@ status corrections, in one of these two files:
 | 265 | An in-flight mint after Înapoi from 1F completes (pre-existing, observed once) | open.md — recorded 2026-10-18 (M8C close-out) |
 | 266 | Desktop e2e shard 2 is at its 67 ceiling | open.md — recorded 2026-10-18 (M8C close-out) |
 | 267 | 13 throwaway designs in the preview database; the staging database possibly migrated to 0011 | open.md — recorded 2026-10-18 (M8C close-out); owner may delete, add-only |
+| 268 | `generate-kitchen.ts` `compose` about 218 lines; the "insert a planned base and record the step" block appears 3 times | open.md — recorded 2026-10-18 (M8C clean-code review) |
+| 269 | `shellOf` in `target-shell.ts` duplicates the shape dispatch of `buildShellFor` / `buildUShellFor` | open.md — recorded 2026-10-18 (M8C clean-code review) |
+| 270 | `backup-presets.ts` is a near copy of `backup-designs.ts` (policy drift risk) | open.md — recorded 2026-10-18 (M8C clean-code review) |
+| 271 | `scene-capture-registration.ts` hard-codes adapter node names | open.md — recorded 2026-10-18 (M8C clean-code review) |
+| 272 | Large UI functions: `PresetCarouselDialog`, `PresetChooser`, `usePresetCopy` | open.md — recorded 2026-10-18 (M8C clean-code review) |
+| 273 | Comments still citing plans (4 files) | open.md — recorded 2026-10-18 (M8C clean-code review) |
+| 274 | No ADR home for the save-route check order and the "none fits" notice | open.md — recorded 2026-10-18 (M8C clean-code review); needs an ADR decision |
+| 275 | Generic 413/503 constants in the preset-named wire contract; `MAX_LISTING_BYTES` grew | open.md — recorded 2026-10-18 (M8C clean-code review) |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

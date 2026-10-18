@@ -3256,3 +3256,35 @@ four file names were not relayed to the scribe.
 ## 267. Throwaway designs in the preview database, and a possibly migrated staging database — RECORDED 2026-10-18 AT M8C CLOSE-OUT
 
 **Evidence [relayed; ids are in the P4 and P8 visual reports, which the scribe did not read].** The P4 and P8 visual checks minted 13 throwaway designs in the preview database. Add-only: the owner may delete them, no agent will. Separately, a live persistence run by the P3 developer may have applied migration `0011` to the allow-listed test database `lemn-conf-v2-staging`; **unconfirmed**. **Owner:** the owner.
+
+## 268. `generate-kitchen.ts` `compose` is about 218 lines, and one block appears three times — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer; the scribe did not re-read the source].** `compose` in `generate-kitchen.ts` is about 218 lines. The block "insert a planned base and record the step" appears three times: in the priority loop, the storage loop and the free-end-fill loop. **Cost of deciding:** extract `applyPlannedBase` and named pending-resize and fill steps; a domain-rule file, so the full review tier applies. **Owner:** unassigned.
+
+## 269. `shellOf` in `target-shell.ts` duplicates the shape dispatch of `buildShellFor` / `buildUShellFor` — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `shellOf` (56 lines) in `packages/configurator-domain/src/preset/target-shell.ts` repeats the shape dispatch that `buildShellFor` and `buildUShellFor` perform in `generation/generate-kitchen.ts`. **Cost of deciding:** one shape-dispatching builder used by both; touches two domain modules. **Owner:** unassigned.
+
+## 270. `backup-presets.ts` is a near copy of `backup-designs.ts` — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `apps/web/src/lib/server/backup-presets.ts` (347 lines) is a near copy of `backup-designs.ts` (420 lines): the rotation policy (14 days, 30 files), the ndjson streaming and the blob client are duplicated. The page size differs (5 against 200) by design and must stay a parameter. **Cost of deciding:** consolidate when a third export appears, or sooner to stop the policy drifting between the two. **Owner:** unassigned.
+
+## 271. `scene-capture-registration.ts` hard-codes the adapter's node names — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `apps/web/src/scene/scene-capture-registration.ts` names `solids`, `voids`, `selection_outline` and `overflow_mark` as string literals. A rename in `packages/three-adapter` would silently put outlines in thumbnails, with no failing check. **Cost of deciding:** export the names, or a `hideEditingOverlays` helper, from the adapter and consume it here. **Owner:** unassigned.
+
+## 272. Large UI functions in the preset flow — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `PresetCarouselDialog` is about 161 lines, `PresetChooser` about 89, and `usePresetCopy` about 81, the last living in `use-generation.ts`. **Cost of deciding:** split the components; move `usePresetCopy` to `use-preset-copy.ts` if the attempt-construction-sites test allows it (to be checked, not assumed). **Owner:** unassigned.
+
+## 273. Comments that still cite plans — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `merge-empty-columns.ts` ("8U plan §"), `validation-suggestion.tsx` and `kitchen-canvas.tsx` ("milestone"), and `free-end-refill.ts` ("600 mm") still cite plans or milestones instead of ADRs. **Cost of deciding:** comment-only edits, each pointing at the governing ADR; no review tier needed. **Owner:** unassigned.
+
+## 274. Two claims have no ADR home — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** (1) The check order in the preset save route (`checkPresetSubmission`): author proven first, candidate before image. (2) The "none fits" notice in `generation-steps.tsx`, cited to the Consequences of ADR 0112 Amendment A. Neither has a decision record of its own. **Cost of deciding:** an ADR decision is needed (owner or planning wave), then the code comments re-cite it. **Owner:** unassigned.
+
+## 275. Generic 413/503 status constants live in a preset-named module; the listing byte cap grew — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** The generic 413 and 503 status constants now live in the preset-named `apps/web/src/preset/preset-wire-contract.ts`. Also `MAX_LISTING_BYTES` grew from 1,153,434 to 1,179,648 bytes (8 × (128 KiB + 16 KiB)). **Cost of deciding:** move or rename the constants to a neutral module; the cap change is recorded only. **Owner:** unassigned.
