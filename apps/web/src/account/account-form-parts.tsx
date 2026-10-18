@@ -1,0 +1,444 @@
+"use client";
+
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+  type Ref,
+} from "react";
+
+import type { AccountRateLimitNotice, RichTagRenderer } from "@/i18n/content";
+import { useAccountKitCopy } from "@/i18n/use-content";
+
+import styles from "./account.module.css";
+
+// The parts every account page is made of. They draw what they are given and decide nothing: which message, which
+// field and when a form may send belong to the page's form. Links are plain anchors, since an account page is a
+// document of its own and never a client-side navigation.
+
+/** A tagged span of a message, drawn as the element it names. */
+export const renderStrong: RichTagRenderer = (chunks) => (
+  <strong>{chunks}</strong>
+);
+
+/**
+ * `false` in the server's HTML and while the client hydrates, `true` after. A form's submit stays disabled until then,
+ * so a press before the page's script has run cannot post the form to its own address.
+ */
+function useIsHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+}
+
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
+export interface AccountFormProps {
+  /** Called on every submit, after the browser's own submission is cancelled. The form decides whether to send. */
+  readonly onSubmit: () => void;
+  readonly isBusy: boolean;
+  readonly children: ReactNode;
+}
+
+export function AccountForm({ onSubmit, isBusy, children }: AccountFormProps) {
+  return (
+    <form
+      method="post"
+      noValidate
+      className={styles.form}
+      aria-busy={isBusy ? true : undefined}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+    >
+      {children}
+    </form>
+  );
+}
+
+interface FieldIds {
+  readonly inputId: string;
+  readonly hintId: string;
+  readonly errorId: string;
+  readonly describedBy: string | undefined;
+}
+
+/** The ids a field's input points at: its refusal first, then the hint, each only while it is drawn. */
+function useFieldIds(hasHint: boolean, hasError: boolean): FieldIds {
+  const inputId = useId();
+  const hintId = useId();
+  const errorId = useId();
+  const described = [hasError ? errorId : "", hasHint ? hintId : ""].filter(
+    (id) => id !== "",
+  );
+  return {
+    inputId,
+    hintId,
+    errorId,
+    describedBy: described.length === 0 ? undefined : described.join(" "),
+  };
+}
+
+interface FieldFrameProps {
+  readonly label: string;
+  readonly ids: FieldIds;
+  readonly hint: string | undefined;
+  readonly error: string | undefined;
+  /** The password's live length, shown opposite the label. */
+  readonly count?: string | undefined;
+  readonly children: ReactNode;
+}
+
+/** The label, the box the control sits in, then the refusal and the hint. The refusal is announced when it appears. */
+function FieldFrame({
+  label,
+  ids,
+  hint,
+  error,
+  count,
+  children,
+}: FieldFrameProps) {
+  return (
+    <div className={styles.field} data-invalid={error !== undefined}>
+      <div className={styles.labelRow}>
+        <label className={styles.label} htmlFor={ids.inputId}>
+          {label}
+        </label>
+        {count === undefined ? null : (
+          <span className={styles.count}>{count}</span>
+        )}
+      </div>
+      <div className={styles.control}>{children}</div>
+      {error === undefined ? null : (
+        <p id={ids.errorId} className={styles.fieldError} role="alert">
+          <span className={styles.fieldErrorMark} aria-hidden="true" />
+          <span>{error}</span>
+        </p>
+      )}
+      {hint === undefined ? null : <FormHint id={ids.hintId}>{hint}</FormHint>}
+    </div>
+  );
+}
+
+/** A quiet line under a field or a button; the control it explains points at it with `aria-describedby`. */
+export function FormHint({
+  id,
+  children,
+}: {
+  readonly id: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <p id={id} className={styles.hint}>
+      {children}
+    </p>
+  );
+}
+
+export interface TextFieldProps {
+  readonly label: string;
+  readonly name: string;
+  readonly type: "email" | "tel" | "text";
+  readonly autoComplete: "email" | "tel";
+  readonly placeholder?: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly hint?: string;
+  /** The refusal's sentence. Its presence marks the field invalid; it never repeats the value. */
+  readonly error?: string;
+  readonly inputRef?: Ref<HTMLInputElement>;
+}
+
+export function TextField(props: TextFieldProps) {
+  const { label, hint, error, onChange } = props;
+  const ids = useFieldIds(hint !== undefined, error !== undefined);
+  return (
+    <FieldFrame label={label} ids={ids} hint={hint} error={error}>
+      <input
+        ref={props.inputRef}
+        id={ids.inputId}
+        className={styles.input}
+        name={props.name}
+        type={props.type}
+        autoComplete={props.autoComplete}
+        autoCapitalize="off"
+        spellCheck={false}
+        placeholder={props.placeholder}
+        value={props.value}
+        aria-invalid={error === undefined ? undefined : true}
+        aria-describedby={ids.describedBy}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+      />
+    </FieldFrame>
+  );
+}
+
+export interface PasswordFieldProps {
+  readonly label: string;
+  readonly name: string;
+  /** Register and reset choose a password; login and confirm enter the one that exists. */
+  readonly autoComplete: "new-password" | "current-password";
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly hint?: string;
+  readonly count?: string;
+  readonly error?: string;
+  readonly inputRef?: Ref<HTMLInputElement>;
+}
+
+/** A password box with a show / hide control inside its edge, in place of a "repeat the password" field. */
+export function PasswordField(props: PasswordFieldProps) {
+  const { label, hint, error, count, onChange } = props;
+  const copy = useAccountKitCopy();
+  const [isShown, setIsShown] = useState(false);
+  const ids = useFieldIds(hint !== undefined, error !== undefined);
+  return (
+    <FieldFrame label={label} ids={ids} hint={hint} error={error} count={count}>
+      <input
+        ref={props.inputRef}
+        id={ids.inputId}
+        className={styles.input}
+        name={props.name}
+        type={isShown ? "text" : "password"}
+        autoComplete={props.autoComplete}
+        autoCapitalize="off"
+        spellCheck={false}
+        value={props.value}
+        aria-invalid={error === undefined ? undefined : true}
+        aria-describedby={ids.describedBy}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+      />
+      <button
+        type="button"
+        className={styles.toggle}
+        aria-label={isShown ? copy.hidePasswordName : copy.showPasswordName}
+        onClick={() => {
+          setIsShown((wasShown) => !wasShown);
+        }}
+      >
+        {isShown ? copy.hidePassword : copy.showPassword}
+      </button>
+    </FieldFrame>
+  );
+}
+
+export interface FormNoticeProps {
+  readonly tone: "error" | "warning" | "info" | "success";
+  readonly title?: string;
+  readonly children: ReactNode;
+  /** The form moves focus here when the notice replaces the person's place: the summary of several refused fields. */
+  readonly ref?: Ref<HTMLDivElement> | undefined;
+}
+
+/** A form-level message in a live region. An error interrupts (`alert`); the other tones wait their turn (`status`). */
+export function FormNotice({ tone, title, children, ref }: FormNoticeProps) {
+  return (
+    <div
+      ref={ref}
+      className={styles.notice}
+      data-tone={tone}
+      role={tone === "error" ? "alert" : "status"}
+      tabIndex={-1}
+    >
+      <span className={styles.noticeMark} aria-hidden="true" />
+      <div className={styles.noticeText}>
+        {title === undefined ? null : (
+          <span className={styles.noticeTitle}>{title}</span>
+        )}
+        <span className={styles.noticeBody}>{children}</span>
+      </div>
+    </div>
+  );
+}
+
+/** The sentence for a limited request, in the warning tone. The same words for every address (plan section 5). */
+export function RateLimitNotice({
+  notice,
+  ref,
+}: {
+  readonly notice: AccountRateLimitNotice;
+  readonly ref?: Ref<HTMLDivElement> | undefined;
+}) {
+  const copy = useAccountKitCopy();
+  return (
+    <FormNotice tone="warning" ref={ref}>
+      {copy.rateLimit(notice, renderStrong)}
+    </FormNotice>
+  );
+}
+
+export interface OutcomeHeroProps {
+  readonly tone: "success" | "error" | "neutral";
+  /** The neutral tone's mark: a letter for "check your e-mail", a question mark for a page that does not exist. */
+  readonly glyph?: "mail" | "question";
+  readonly title: string;
+  readonly children: ReactNode;
+  /** The title takes focus when this screen replaces the form, so a screen reader starts at its first word. */
+  readonly headingRef?: Ref<HTMLHeadingElement>;
+}
+
+/** The state that ends a page: a mark, a title and the sentence under it. */
+export function OutcomeHero(props: OutcomeHeroProps) {
+  return (
+    <section
+      className={styles.hero}
+      data-tone={props.tone}
+      data-glyph={props.glyph}
+    >
+      <span className={styles.heroMark} aria-hidden="true" />
+      <h2 ref={props.headingRef} tabIndex={-1} className={styles.heroTitle}>
+        {props.title}
+      </h2>
+      <p className={styles.heroBody}>{props.children}</p>
+    </section>
+  );
+}
+
+/** "Did the e-mail not arrive?": a titled list of what to try. */
+export function HelpList({
+  title,
+  children,
+}: {
+  readonly title: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div className={styles.help}>
+      <p className={styles.helpTitle}>{title}</p>
+      <ul className={styles.helpItems}>{children}</ul>
+    </div>
+  );
+}
+
+export function HelpItem({ children }: { readonly children: ReactNode }) {
+  return <li className={styles.helpItem}>{children}</li>;
+}
+
+/** A plain anchor: a full document load, at least as tall as a touch target. */
+export function AccountLink({
+  href,
+  children,
+}: {
+  readonly href: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <a href={href} className={styles.link}>
+      {children}
+    </a>
+  );
+}
+
+/** A wait the button counts down; `onElapsed` is called once, when it reaches nothing. */
+export interface SubmitWait {
+  readonly seconds: number;
+  readonly onElapsed: () => void;
+}
+
+export interface SubmitButtonProps {
+  readonly label: string;
+  readonly busyLabel: string;
+  readonly isBusy: boolean;
+  /** Not ready to send: no token yet, or a refusal the person has still to answer. */
+  readonly isOff: boolean;
+  /** Counting a limit down: the button is off and says when it comes back. */
+  readonly wait?: SubmitWait;
+  /** The id of the line that says why the button is off. */
+  readonly describedBy?: string;
+}
+
+/**
+ * The page's one primary action. It is `disabled` until hydrated and `aria-disabled` after, so it stays reachable with
+ * its reason beside it; a press while it is off is cancelled here, so no form needs to check twice.
+ */
+export function SubmitButton(props: SubmitButtonProps) {
+  const { label, busyLabel, isBusy, isOff, wait, describedBy } = props;
+  const isHydrated = useIsHydrated();
+  const isUnavailable = isOff || isBusy || wait !== undefined;
+  return (
+    <button
+      type="submit"
+      className={styles.submit}
+      disabled={!isHydrated}
+      aria-disabled={isHydrated && isUnavailable ? true : undefined}
+      aria-busy={isBusy ? true : undefined}
+      aria-describedby={describedBy}
+      onClick={(event) => {
+        if (isUnavailable) event.preventDefault();
+      }}
+    >
+      {isBusy ? <span className={styles.spinner} aria-hidden="true" /> : null}
+      {isBusy ? busyLabel : null}
+      {!isBusy && wait !== undefined ? (
+        <RetryCountdown
+          key={wait.seconds}
+          seconds={wait.seconds}
+          onElapsed={wait.onElapsed}
+        />
+      ) : null}
+      {!isBusy && wait === undefined ? label : null}
+    </button>
+  );
+}
+
+const COUNTDOWN_TICK_MS = 250;
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
+const SECOND_DIGITS = 2;
+
+function RetryCountdown({
+  seconds,
+  onElapsed,
+}: {
+  readonly seconds: number;
+  readonly onElapsed: () => void;
+}) {
+  const copy = useAccountKitCopy();
+  const remaining = useRemainingSeconds(seconds, onElapsed);
+  const minutes = Math.floor(remaining / SECONDS_PER_MINUTE);
+  const secondsPart = String(remaining % SECONDS_PER_MINUTE).padStart(
+    SECOND_DIGITS,
+    "0",
+  );
+  return <span role="timer">{copy.retryCountdown(minutes, secondsPart)}</span>;
+}
+
+/** Whole seconds left, counted against the clock rather than by ticks, so a background tab catches up. */
+function useRemainingSeconds(seconds: number, onElapsed: () => void): number {
+  const [remaining, setRemaining] = useState(seconds);
+  const onElapsedRef = useRef(onElapsed);
+
+  useEffect(() => {
+    onElapsedRef.current = onElapsed;
+  }, [onElapsed]);
+
+  useEffect(() => {
+    const endsAtMs = Date.now() + seconds * MS_PER_SECOND;
+    const timerId = window.setInterval(() => {
+      const left = Math.ceil((endsAtMs - Date.now()) / MS_PER_SECOND);
+      if (left > 0) {
+        setRemaining(left);
+        return;
+      }
+      window.clearInterval(timerId);
+      onElapsedRef.current();
+    }, COUNTDOWN_TICK_MS);
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [seconds]);
+
+  return remaining;
+}

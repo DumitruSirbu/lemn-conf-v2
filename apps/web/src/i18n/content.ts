@@ -1,6 +1,8 @@
 import type { _Translator, Messages } from "next-intl";
+import type { ReactNode } from "react";
 
 import type {
+  AccountFieldCode,
   Band,
   BodyLabel,
   ContactChannel,
@@ -9,6 +11,7 @@ import type {
   DesignWall,
   EmptySpaceSide,
   PaletteEntryId,
+  PasswordRefusalCode,
   RejectionDetail,
 } from "@lemnaria/configurator-domain";
 
@@ -824,6 +827,207 @@ export function resolveAccountMailCopy(translate: ContentTranslator) {
 }
 
 export type AccountMailCopy = ReturnType<typeof resolveAccountMailCopy>;
+
+/** The fields of an account form that a server answer can mark. `locale` and the notice version are the page's own
+ *  values, so a refusal of either is the request failing, not a field to correct. */
+export type AccountIssueField = "email" | "phone" | "password";
+
+/** The password's refusals: the domain's three, the breach check's, a password that was not text, and the empty
+ *  password the form refuses before sending. */
+export type AccountIssueCode =
+  | AccountFieldCode
+  | PasswordRefusalCode
+  | "PASSWORD_BREACHED"
+  | "PASSWORD_NOT_TEXT"
+  | "PASSWORD_REQUIRED";
+
+/** One field and one code, never the value that was refused. */
+export interface AccountFieldIssue {
+  readonly field: AccountIssueField;
+  readonly code: AccountIssueCode;
+}
+
+/** How a limited account request is told, with the one value a sentence carries already read: whole minutes, or the
+ *  clock time and whether it is tomorrow's. `unreadable` carries no number. */
+export type AccountRateLimitNotice =
+  | { readonly kind: "minutes"; readonly minutes: number }
+  | {
+      readonly kind: "at";
+      readonly time: string;
+      readonly isTomorrow: boolean;
+    }
+  | { readonly kind: "unreadable" };
+
+/** Draws a tagged span of a message. The caller owns the element, so this module holds no markup. */
+export type RichTagRenderer = (chunks: ReactNode) => ReactNode;
+
+/**
+ * The sentence for one field refusal, found by the field and the code: one code can be worded per field. A code
+ * arrives from the network, so one this build has no leaf for is told as the failed request it is.
+ */
+export function resolveAccountFieldError(
+  translate: ContentTranslator,
+  { field, code }: AccountFieldIssue,
+): string {
+  switch (field) {
+    case "email":
+      return resolveEmailError(translate, code);
+    case "phone":
+      return resolvePhoneError(translate, code);
+    case "password":
+      return resolvePasswordError(translate, code);
+    default:
+      return assertNever(field);
+  }
+}
+
+function resolveEmailError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("accountFieldErrors.emailRequired");
+    case "MALFORMED":
+      return translate("accountFieldErrors.emailMalformed");
+    case "TOO_LONG":
+      return translate("accountFieldErrors.emailTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.emailForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolvePhoneError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "PHONE_MOLDOVAN_INCOMPLETE":
+      return translate("accountFieldErrors.phoneMoldovanIncomplete");
+    case "PHONE_MOLDOVAN_TOO_MANY_DIGITS":
+      return translate("accountFieldErrors.phoneMoldovanTooManyDigits");
+    case "PHONE_MOLDOVAN_SECOND_ZERO":
+      return translate("accountFieldErrors.phoneMoldovanSecondZero");
+    case "PHONE_INTERNATIONAL_INCOMPLETE":
+      return translate("accountFieldErrors.phoneInternationalIncomplete");
+    case "PHONE_INTERNATIONAL_TOO_MANY_DIGITS":
+      return translate("accountFieldErrors.phoneInternationalTooManyDigits");
+    case "PHONE_FORMAT_UNRECOGNISED":
+      return translate("accountFieldErrors.phoneFormatUnrecognised");
+    case "TOO_LONG":
+      return translate("accountFieldErrors.phoneTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.phoneForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolvePasswordError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "PASSWORD_TOO_SHORT":
+      return translate("accountFieldErrors.passwordTooShort");
+    case "PASSWORD_TOO_LONG":
+      return translate("accountFieldErrors.passwordTooLong");
+    case "PASSWORD_IS_EMAIL":
+      return translate("accountFieldErrors.passwordIsEmail");
+    case "PASSWORD_BREACHED":
+      return translate("accountFieldErrors.passwordBreached");
+    case "PASSWORD_NOT_TEXT":
+      return translate("accountFieldErrors.passwordNotText");
+    case "PASSWORD_REQUIRED":
+      return translate("accountFieldErrors.passwordRequired");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+/** The form-level sentence for a limited request. Its lead is a tagged span, drawn by the caller's renderer. */
+export function resolveAccountRateLimit(
+  translate: ContentTranslator,
+  notice: AccountRateLimitNotice,
+  strong: RichTagRenderer,
+): ReactNode {
+  switch (notice.kind) {
+    case "minutes":
+      return translate.rich("accountForm.rateLimitedMinutes", {
+        minutes: notice.minutes,
+        strong,
+      });
+    case "at":
+      return translate.rich(
+        notice.isTomorrow
+          ? "accountForm.rateLimitedTomorrowAt"
+          : "accountForm.rateLimitedAt",
+        { time: notice.time, strong },
+      );
+    case "unreadable":
+      return translate.rich("accountForm.rateLimitedFallback", { strong });
+    default:
+      return assertNever(notice);
+  }
+}
+
+/** The shared wording of the account forms, resolved in one locale: the fields, the notices every form can show and
+ *  the challenge slot. A page's own text is added here too: a component never reads the catalogue itself. */
+export function resolveAccountKitCopy(translate: ContentTranslator) {
+  return {
+    emailLabel: translate("accountForm.emailLabel"),
+    emailPlaceholder: translate("accountForm.emailPlaceholder"),
+    passwordLabel: translate("accountForm.passwordLabel"),
+    newPasswordLabel: translate("accountForm.newPasswordLabel"),
+    passwordHint: translate("accountForm.passwordHint"),
+    passwordCount: (count: number, minimum: number) =>
+      translate("accountForm.passwordCount", { count, min: minimum }),
+    showPassword: translate("accountForm.showPassword"),
+    hidePassword: translate("accountForm.hidePassword"),
+    showPasswordName: translate("accountForm.showPasswordName"),
+    hidePasswordName: translate("accountForm.hidePasswordName"),
+    fieldSummary: (count: number) =>
+      translate("accountForm.fieldSummary", { count }),
+    retryCountdown: (minutes: number, seconds: string) =>
+      translate("accountForm.retryCountdown", { minutes, seconds }),
+    unavailable: {
+      title: translate("accountForm.unavailableTitle"),
+      body: translate("accountForm.unavailableBody"),
+    },
+    retry: translate("accountForm.retry"),
+    requestFailed: {
+      title: translate("accountForm.requestFailedTitle"),
+      body: translate("accountForm.requestFailedBody"),
+      tokenBody: translate("accountForm.requestFailedTokenBody"),
+    },
+    reloadPage: translate("accountForm.reloadPage"),
+    offline: {
+      title: translate("accountForm.offlineTitle"),
+      body: translate("accountForm.offlineBody"),
+    },
+    challenge: {
+      loading: translate("accountForm.challengeLoading"),
+      failed: translate("accountForm.challengeFailed"),
+      unavailable: translate("accountForm.challengeUnavailable"),
+      waiting: translate("accountForm.challengeWaiting"),
+    },
+    checkInbox: {
+      helpTitle: translate("accountForm.checkInboxHelpTitle"),
+      spam: translate("accountForm.checkInboxSpam"),
+      newest: translate("accountForm.checkInboxNewest"),
+    },
+    fieldError: (issue: AccountFieldIssue) =>
+      resolveAccountFieldError(translate, issue),
+    rateLimit: (notice: AccountRateLimitNotice, strong: RichTagRenderer) =>
+      resolveAccountRateLimit(translate, notice, strong),
+  };
+}
+
+export type AccountKitCopy = ReturnType<typeof resolveAccountKitCopy>;
 
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
