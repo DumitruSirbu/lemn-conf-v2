@@ -227,3 +227,24 @@ snapshot in the room page is unbounded. The data is product data every customer 
   `pnpm gate:launch-placeholders` refuses while it is (wave P3), the pattern ADR 0163 used for the shop's number.
 - The Step 1 notice *"Niciun preset gata făcut nu încape aici"* becomes true only when nothing matched; its copy, and all
   new copy, is drafted for the owner's approval (ADR 0113).
+
+### Dated note, 2026-10-18 (M8C close-out): what was built that Amendment A does not say
+
+Written by the scribe from the coordinator's brief **[relayed]**; the scribe ran nothing and re-read no source. Nothing
+above is changed.
+
+- **A `schema_version` column** exists on `presets`; Amendment A's column list and the plan's §3.2 do not have it.
+- **The grant is column-level on INSERT**, with `created_at` and `status` excluded from it (so a caller cannot set them),
+  rather than the table-level `SELECT, INSERT` Amendment A states.
+- **`design_document` has a 4 MiB ceiling.**
+- **A names rule** governs the typed name (the plan's NFC, trim, 80-character and control-character rules; the code is
+  the authority).
+- **A second export** (`backups/presets/`) exists, as the Consequences above required.
+- **The save route path** is `POST /api/designs/{id}/preset`, as decision 3 says.
+- **The launch-gate line** is wired as the plan §3.3 describes (`pnpm gate:launch-placeholders` refuses while
+  `ungatedUntilLaunch` is wired); the scribe did not run it.
+- **`deploy.yml` conclusion [relayed]:** do **not** use `deploy.yml` for the rollout. The launch gate is **not on the
+  real production path**, so the time box rests on the **M9 checklist**. **Verify Vercel deployment protection** on
+  production; it is unverified here.
+- **Unconfirmed:** whether migration `0011` was applied to the allow-listed test database `lemn-conf-v2-staging` by a
+  live persistence run in P3. No agent applied `0009`, `0010` or `0011` to preview or production.

@@ -291,6 +291,13 @@ status corrections, in one of these two files:
 | 258 | No committed test exercises O10 and the fill together (`qa-c5s1`/`qa-c5s2` run with the fill off) | open.md — recorded 2026-10-17 (M8C F1b); to be covered by option C's one property (ADR 0168) |
 | 259 | E2e support-file comments (e.g. `qa-u5-cutaway.ts`) still describe bare remainders | open.md — recorded 2026-10-17 (M8C F1b); prose only |
 | 260 | A `generation-model.ts` comment about a 900x2200 room reading "nu poate fi inclus" may be stale (unverified) | open.md — recorded 2026-10-17 (M8C F1b) |
+| 261 | DOM-003's deferred clean-ups in the width commands (index row added 2026-10-18; entry dated 2026-10-18) | open.md — LOW |
+| 262 | Back from 1D, 1E or 1F lands on 1A (pre-existing; a product question) | open.md — recorded 2026-10-18 (M8C close-out) |
+| 263 | Frame 1E mock-up deviations: no count line, no price or chips on the cards | open.md — recorded 2026-10-18 (M8C close-out) |
+| 264 | `identifierSchema` character sets (a domain wave) | open.md — recorded 2026-10-18 (M8C close-out) |
+| 265 | An in-flight mint after Înapoi from 1F completes (pre-existing, observed once) | open.md — recorded 2026-10-18 (M8C close-out) |
+| 266 | Desktop e2e shard 2 is at its 67 ceiling | open.md — recorded 2026-10-18 (M8C close-out) |
+| 267 | 13 throwaway designs in the preview database; the staging database possibly migrated to 0011 | open.md — recorded 2026-10-18 (M8C close-out); owner may delete, add-only |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

@@ -21,6 +21,14 @@ Nothing here was re-run by the scribe; no test counts are restated.
 - Push state of the current branch and whether gates (`pnpm check`, `pnpm ci:local`) passed at HEAD are not
   known to this page. Run them and quote the result before claiming either.
 
+**2026-10-18 update (M8C close-out) [coordinator's brief, relayed; the scribe ran nothing].** Waves F0 to P9 are
+committed on the branch (commit list and verification figures in the
+[M8C plan banner](milestones/M8C-generation-fill-and-preset-authoring.md)); HEAD is `c57540b9`. The milestone is **not
+closed**: the owner obligations in that banner are open (migrations `0009`/`0010`/`0011` and grants on preview and
+production, copy approval, provisional figures, Back-history question, first-deploy checks). `pnpm ci:local` was **not
+run**. ADR 0167 stays Proposed; its acceptance is the coordinator's or owner's call (Amendment B). Backlog 262-267
+recorded. Section 1's HEAD line above is older than this update.
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
@@ -44,7 +52,7 @@ for the owner to rule, not guessed; none is open now.
 | 8M2, 8J2 (file `8N-`), 8Q2, 8V | Done, archived | M8 sub-waves | No (`milestones/done/`) | doc-quoted H:1210-1213; files in `milestones/done/` |
 | 8U Merge adjacent empty spaces | Built and reviewed; plan not archived; S5 not built | Close note lists code comments to repoint before archiving | Only for S5 / the repoint list, [`8U-...md`](milestones/8U-merge-adjacent-empty-spaces.md) | doc-quoted H:1212, 1219 |
 | M8B Customer profiles | Planned | After M8C by owner ruling, before launch; no wave dispatched | When started, [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) | doc-quoted H:615, 6-15 |
-| M8C Generation fill and preset authoring | In progress | F0, F1a, F1b committed (section 1); authoring group P1-P9 not started per the F0 banner | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
+| M8C Generation fill and preset authoring | Waves F0-P9 committed, not closed | See the 2026-10-18 update in section 1; owner obligations open | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
 | M9 Delivery preparation | Proposed stub | No plan, no waves; inherits 8R/8S and the launch gate | When started, [`M9-delivery-preparation.md`](milestones/M9-delivery-preparation.md) | doc-quoted H:616 |
 | Adversarial review remediation | Done (S1-S12 shipped, commits db9c4024..); only SEC-001 stays open, as a launch gate tracked in `docs/backlog/open.md` and M9 | Plan archived at `milestones/done/adversarial-review-remediation.md` | No | doc-quoted H:617, 625-642; shipped state verified in git/source by a read-only analyst (coordinator-relayed) |
 | dom-003 set-width split | Done (shipped in 30283571) | Nine-module `set-width.ts` split; plan archived at `milestones/done/dom-003-set-width-split.md` | No | doc-quoted H:617, 630; commit verified in git by a read-only analyst (coordinator-relayed) |

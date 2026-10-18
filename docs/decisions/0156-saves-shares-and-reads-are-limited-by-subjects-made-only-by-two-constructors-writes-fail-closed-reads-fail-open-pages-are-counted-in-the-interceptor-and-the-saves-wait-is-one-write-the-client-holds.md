@@ -94,6 +94,14 @@ After round 2 of the first pass, a finding was fixed inside 8G only if a counted
 - **`qa-8d-review-scene…:188`** failed once more in a whole run: its third sighting (backlog 162).
 - **The mint's twin was 511 against a third of 533, then 513, then 528**; the wave that passes 533 raises it.
 
+## Note — 2026-10-18 (M8C P6 security review): preset reads have their own purpose
+
+Dated 2026-10-18 (M8C P6 security review): preset reads (`GET /api/presets` and `GET /api/presets/{id}/image`) are
+judged under their own read purpose, `preset-read`, at 1,200 an hour for each network block (provisional, the engineer's
+figure; the owner can change the constant). The purpose fails open like every read, has no e2e twin, and its 429 shape is
+the read refusal's. [relayed by the coordinator; the scribe did not re-read the source or run a test.] Nothing above is
+changed.
+
 ## What is unproven until a deployment
 
 *[security's lists, relayed]* The three statements and the counters' grant test **as the role `app_designs`** (the totals read among them; the persistence suite's 2 skips are the grant tests); the host's header holds one address and cannot be forged; the host's own interceptor runtime (the installed documentation calls it platform-specific [doc, `proxy.md:762`]); the cron itself; G-S3.2's suffixed spellings; that the deployed runtime names the Chișinău zone. *Not run:* `pnpm check`, `pnpm ci:local`, anything on a CI runner, e2e in dev mode in full, **the whole e2e run after the last mark (`18a9f319`)**. *Not proven:* desktop for the leave-and-return traces and for C2-1 (mobile only); C2-1's cause is read from the source and from the absence of a page request on return, the router's cache setting not varied.

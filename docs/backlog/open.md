@@ -3232,3 +3232,27 @@ four file names were not relayed to the scribe.
 ## 261. DOM-003's deferred clean-ups in the width commands — LOW, RECORDED 2026-10-18 FROM THE DOM-003 PLAN
 
 **Evidence [doc: the dom-003 plan's deferred follow-ups, relayed by the coordinator; not re-read in source here].** Four low-priority items, none a behaviour change, all sourced to the dom-003 plan (`docs/milestones/done/dom-003-set-width-split.md`). (1) Narrow `SetWidthInput` on the `plan-width-funding.ts` phase functions, so each takes only the fields it reads. (2) Fold `commands/along-wall.ts` into a shared export; `module-grid.ts` now holds `alongWallCoordinate` and `alongWallPosition`. (3) The `fundingScan` comment is stricter than the code it describes (low). (4) `columnWidthChoices` has a body of about 35 lines [as reported by the analyst]. **Trigger:** the next edit to the width commands. **Owner:** unassigned.
+
+## 262. Back from 1D, 1E or 1F lands on 1A — PRE-EXISTING, A PRODUCT QUESTION, RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [source-verified by an agent, relayed].** `departTo("presets")` pushes no history entry, so hardware Back from 1D, 1E or 1F lands on 1A (ADR 0139 decision 3's claim to the contrary is corrected by a dated note). Not introduced by M8C. **Trigger:** the owner decides whether Back should step through Step 1's sub-states. **Owner:** the owner.
+
+## 263. Frame 1E mock-up deviations: no count line, no price or chips on the cards — RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed, not re-read].** The shipped preset cards (P8) omit the count line and the price and chips that the 1E mock-up shows. **Trigger:** the owner reviews 1E against the mock-up. **Owner:** unassigned.
+
+## 264. `identifierSchema` character sets — A DOMAIN WAVE, RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed; the detail is not in the brief].** The coordinator lists the character sets of `identifierSchema` as needing a domain wave. The scribe has no further detail; ask the coordinator before planning. **Owner:** unassigned.
+
+## 265. An in-flight mint after Înapoi from 1F still completes — PRE-EXISTING, OBSERVED ONCE, RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed: observed once; not reproduced].** After the customer taps Înapoi from 1F, a mint already in flight completes. Related to ADR 0139 decision 10. **Trigger:** a second sighting, or the Back-history decision (262). **Owner:** unassigned.
+
+## 266. Desktop e2e shard 2 is at its 67 ceiling — RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed].** The desktop shard-2 budget is at its ceiling of 67; the next desktop spec needs a rebalance. **Trigger:** the next added desktop e2e spec. **Owner:** unassigned.
+
+## 267. Throwaway designs in the preview database, and a possibly migrated staging database — RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed; ids are in the P4 and P8 visual reports, which the scribe did not read].** The P4 and P8 visual checks minted 13 throwaway designs in the preview database. Add-only: the owner may delete them, no agent will. Separately, a live persistence run by the P3 developer may have applied migration `0011` to the allow-listed test database `lemn-conf-v2-staging`; **unconfirmed**. **Owner:** the owner.

@@ -200,6 +200,38 @@ and corrected by this note.
 4. **Backlog recorded the same day:** 256 (mobile camera framing crops long-wall run ends), 257 (the form refuses a 6100
    wall), 258 (O10 and the fill untested together), 259 (e2e support comments).
 
+## Amendment B — M8C outcomes from F1b to P9, 2026-10-18 (appended; nothing above is changed)
+
+**Status note, 2026-10-18.** The record **stays Proposed**. The plan (§5, F1b *Close*) lists "ADR 0167 accepted" among
+F1b's close items, but the plan's own banner and Amendment A above both say F1b's close and this record's acceptance are
+**the coordinator's or owner's call**, and no record read by the scribe makes that call. Acceptance is therefore left
+open here and in `STATUS.md`; whoever accepts it changes the status line and cites this note.
+
+**Evidence tiers.** *[relayed]* the coordinator's brief to the scribe, 2026-10-18 (owner rulings and engineer figures as
+relayed); *[src]* source-verified by an agent, relayed, not re-read by the scribe; *[inf]* inference. **The scribe ran
+nothing.**
+
+Outcomes after Amendment A, each as relayed:
+
+1. **Lone fill: ruled** (Amendment A item 1, 2026-10-17). Restated for completeness.
+2. **The end-group move is not applied to presets** [relayed, owner ruling 2026-10-17]. Tall blocks stay where the
+   preset's author put them; D5's move of the end group concerns generation only.
+3. **The row-end pass is removed** [relayed, owner: removals stay]. A column the owner removed in a preset is not
+   refilled by a separate row-end pass.
+4. **Taller-room tops** are added only if the preset's own columns carry tops [relayed].
+5. **U presets that cross the 10 m back-wall line are not offered** [relayed]. An accepted cost, not a defect.
+6. **Listing bound.** The 128 KiB bound on a preset's listing payload is enforced at save [relayed].
+7. **Read limiter.** Preset reads have their own limiter, 1,200 an hour, a **provisional engineer figure** the owner can
+   change [relayed]. A failed read answers **503** [relayed].
+8. **Global cap.** 50 saves a day across all callers, **provisional** [relayed].
+9. **Image CSP.** The image path's CSP is enforced by the proxy for the exact path. **Source-verified on self-hosted
+   Next 16.3.8; Vercel is unverified.** First-deploy check: `curl -sI` on a preset image URL [relayed, src].
+10. **Generated name.** Rendered per locale from the stored facts, never stored (already in ADR 0112 Amendment A); the
+    exact format awaits the owner's approval [relayed].
+11. **P8 Select** copies the preset through the **existing mint path**, with **one attempt per preset id**. This departs
+    from the wording of ADR 0139 decision 5 (one attempt per composition); **the owner is to confirm** [relayed].
+    See the dated note on ADR 0139.
+
 ## Follow-up (recorded with its trigger, not built; ADR 0118's form)
 
 **Learning placement rules from the owner's presets** [relayed, Q-8]. Consistent with ADR 0117 d3: taste enters through

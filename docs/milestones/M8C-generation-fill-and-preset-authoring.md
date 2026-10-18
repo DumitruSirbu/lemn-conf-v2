@@ -10,6 +10,35 @@
 > ADR 0167 Amendment A and backlog 256 to 260. Remaining F1b obligations: run the e2e suite once before any push. **The e2e suite has not been run
 > for F1b; no claim is made.** F1b's close and ADR 0167's acceptance are the coordinator's call.
 >
+> **Status, 2026-10-18 [doc: coordinator's `git log d91b7063..HEAD`, relayed]: waves F0 to P9 are committed; the
+> milestone is not closed.** Commits: F1a `b43a8e18`; F1b `8023c880`, `e3818726`, `dd40bf16`; P1 `4bacf95c`; P2
+> `71d62947`; P3 `3d5ace29`; P4 `652b044a`, `d6095ea1`; P5 `051edd0e`; P6 `de4db951`; P7 `b6dfe157`; P8 `0d10fba2`,
+> `18a26909`; owner-loop e2e and probe fix `c57540b9`. ADR 0167 stays Proposed (acceptance is the coordinator's or
+> owner's call; Amendment B records the outcomes). Outcomes that depart from this plan are in ADR 0167 Amendment B and
+> ADR 0112's dated note of 2026-10-18.
+>
+> **Verification evidence [coordinator-relayed; the scribe ran nothing].** Full e2e run at `18a26909`: 1051 of 1052
+> passed, the one red being `design-return-requests.e2e.spec.ts:44`, fixed in `c57540b9` and re-run green alone, plus the
+> preset-owner-loop spec. Domain 322 files / 7905 tests; web 534 files / 11247; persistence non-live 2651 passed. **Not
+> run: `pnpm ci:local`.** The e2e run saw `GET /api/presets` answer 200 on the test database, so the table exists there.
+>
+> **Remaining owner obligations (nothing here is done):**
+> 1. Apply migrations `0009`, `0010`, `0011` and their grants on preview, then production, by the runbook (owner only).
+>    No agent applied any of them to preview or production. A live persistence run in P3 may have applied `0011` to the
+>    allow-listed test database `lemn-conf-v2-staging`; unconfirmed.
+> 2. Confirm the Vercel plan allows the third cron (Hobby: 100 crons, once a day, hour precision).
+> 3. Approve the draft copy (`presetSave.*`, 22 + 1 leaves from P4 and P6; `presetChooser.*`, 11 leaves from P8; ro and
+>    ru) and the generated-name format.
+> 4. Set the preset-read (1,200 an hour) and 50-a-day figures, both provisional.
+> 5. Decide the Back-history product question (backlog 262).
+> 6. Verify the image CSP on the first deploy (`curl -sI`; Vercel unverified) and deployment protection on production.
+> 7. Hand-check that a preset row is byte-identical after its copy is edited.
+> 8. Measure the real-phone 1D and evaluation cost (unmeasured).
+> 9. Check real thumbnails in a browser (the framing fix `d6095ea1` was proven numerically only).
+> 10. Shard budget: desktop shard 2 is at its 67 ceiling (backlog 266).
+> 11. Before public launch, replace the launch gate and the ungated save button with `preset.create` (M8B Fix 3).
+> 12. Confirm the P8 Select attempt placement (ADR 0139 dated note).
+>
 > **Answered [relayed by the coordinator, 2026-10-17]:**
 > - Q-1 = **C**.
 > - Q-2 = **(b)**: *"between"*, with the long-wall exception (§2.7).
