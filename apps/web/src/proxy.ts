@@ -5,18 +5,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { routing } from "@/i18n/routing";
 import { selectNetworkSource } from "@/lib/server/rate-limit/network-source";
 import {
+  ACCOUNT_PAGE_HEADERS,
   buildContentSecurityPolicy,
   CONTENT_SECURITY_POLICY_MODE,
   CSP_ENFORCED_HEADER,
   cspResponseHeaderName,
   NONCE_HEADER,
   SHARE_VIEW_HEADERS,
+  TURNSTILE_FRAME_SOURCES,
 } from "@/lib/security-headers";
 
 const handleLocaleRouting = createMiddleware(routing);
 
 /** The pages after a design's editor, in the order the customer meets them: `/d/{id}/review`, `/contact`, `/done`. */
 const DESIGN_STEP_SEGMENTS: readonly string[] = ["review", "contact", "done"];
+
+/** The account screens, `/{locale}/account/{page}`. Only the first three show a Turnstile challenge (ADR 0169 D5: on
+ *  register, login and the reset request); the other two read a single-use token from the address fragment and load no
+ *  third-party script, frame or image at all, so their policy is the site's (L8 obligation, plan L13). */
+const ACCOUNT_FAMILY_SEGMENT = "account";
+const ACCOUNT_CHALLENGE_PAGES: readonly string[] = [
+  "register",
+  "login",
+  "forgot-password",
+];
+const ACCOUNT_TOKEN_PAGES: readonly string[] = [
+  "verify-email",
+  "reset-password",
+];
 
 /** The one status of a response the interceptor passes on to its page: not the locale's redirect and not a `404`. */
 const PASSED_ON_STATUS = 200;
@@ -53,6 +69,9 @@ export function proxy(
   const policy = buildContentSecurityPolicy({
     nonce,
     isDevelopment: process.env.NODE_ENV !== "production",
+    frameSources: isAccountChallengePath(request.nextUrl.pathname)
+      ? TURNSTILE_FRAME_SOURCES
+      : [],
   });
   const requestHeaders = withNonce(request.headers, nonce, policy);
   const securedRequest = new NextRequest(request, { headers: requestHeaders });
@@ -78,6 +97,7 @@ function applyPageHeaders(
     policy,
   );
   if (isSharePath(pathname)) applySharedViewHeaders(response);
+  if (isAccountPath(pathname)) applyAccountPageHeaders(response);
 }
 
 /**
@@ -158,6 +178,12 @@ function applySharedViewHeaders(response: NextResponse): void {
   }
 }
 
+function applyAccountPageHeaders(response: NextResponse): void {
+  for (const { key, value } of ACCOUNT_PAGE_HEADERS) {
+    response.headers.set(key, value);
+  }
+}
+
 /**
  * A locale is written one way, and anything else that reads as one is refused as a case variant always was: a first
  * segment that is not itself a locale but is one once decoded and lowered (`RO`, `%72o`, `r%6F`). The framework matches
@@ -234,6 +260,32 @@ function isSharePath(pathname: string): boolean {
     routeSegments.length === 2 &&
     routeSegments[0] === "s" &&
     routeSegments[1] !== ""
+  );
+}
+
+/** An account screen: a real locale first, then exactly `account/{page}` for a page named above. A path written any
+ *  other way (no locale, a case variant, a longer path) is not one and gets the site's policy. */
+function isAccountPath(pathname: string): boolean {
+  return isAccountPageIn(pathname, [
+    ...ACCOUNT_CHALLENGE_PAGES,
+    ...ACCOUNT_TOKEN_PAGES,
+  ]);
+}
+
+/** The account screens that show a Turnstile challenge, and the only paths whose policy names its frame. */
+function isAccountChallengePath(pathname: string): boolean {
+  return isAccountPageIn(pathname, ACCOUNT_CHALLENGE_PAGES);
+}
+
+function isAccountPageIn(pathname: string, pages: readonly string[]): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  const [locale, family, page] = segments;
+  return (
+    segments.length === 3 &&
+    hasLocale(routing.locales, locale) &&
+    family === ACCOUNT_FAMILY_SEGMENT &&
+    page !== undefined &&
+    pages.includes(page)
   );
 }
 
