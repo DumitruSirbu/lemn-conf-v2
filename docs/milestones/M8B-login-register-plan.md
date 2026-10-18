@@ -103,8 +103,10 @@ ADR 0169 holds the decisions and the sweep. In one line each:
 
   Logout is `POST` only. **An e-mailed link's `GET` never changes state.**
 - **D5, abuse.**
-  - Turnstile on register, login and reset request, verified on the server; a failed or unreachable check
-    refuses.
+  - Turnstile on register, login and reset request, verified on the server; a failed check refuses (`403`), a
+    misconfigured deployment refuses (`503`), and an **unreachable** Cloudflare lets a request that carried a token
+    proceed with one logged line, the limiters being the control (owner's ruling 2026-10-18; ADR 0169 Amendment E,
+    item 5).
   - New limiter policies, which fail closed, including one mail bucket per address.
   - Equal answers for known and unknown addresses. A dummy hash for an unknown address.
   - Account mail is sent after the response.
@@ -255,7 +257,7 @@ of the flows. The runbook section for `0012`–`0015` is written in L1 (docs).
 2. `content-type: application/json`, else `415`.
 3. Body bounded by `read-body-with-limit.ts` (8 KiB), else `413`.
 4. Network-block limiter for the purpose (`judgeAccountBlock`) → `429` / `503`.
-5. Turnstile, where named → `403 challenge-failed` / `503`.
+5. Turnstile, where named → `403 challenge-failed` (failed, or no token) / `503` (not configured). An unreachable Cloudflare for a present token proceeds, logged (owner ruling 2026-10-18).
 6. Input validation (domain) → `400` with field codes. **Independent of whether the address has an account.**
 7. Subject limiter, where named (`judgeAccountSubject`: the address's or the account's buckets), before any account
    lookup → `429` / `503`.
@@ -339,8 +341,8 @@ in the repo-root `.env.example`, commented, with no value (wave L3).
 | Name | Kind | Where | Absent or unusable |
 | --- | --- | --- | --- |
 | `TURNSTILE_SITE_KEY` | public widget key, read **on the server per request** and handed to the widget (not `NEXT_PUBLIC_…`, so nothing is fixed at build) | Production, Preview, Development; `apps/web/.env.local` | Account pages render "unavailable"; account `POST`s answer `503` |
-| `TURNSTILE_SECRET_KEY` | **secret**, siteverify | same | Account `POST`s that need Turnstile answer `503` (fail closed) |
-| `LEMNARIA_PUBLIC_ORIGIN` | exists (ADR 0165) | — | Register, resend and reset answer `503`: a link that cannot be written is not sent |
+| `TURNSTILE_SECRET_KEY` | **secret**, siteverify | same | Account `POST`s that need Turnstile answer `503` (fail closed; a misconfiguration, never treated as an outage) |
+| `LEMNARIA_PUBLIC_ORIGIN` | exists (ADR 0165) | — | Register, resend and reset answer `503`: a link that cannot be written is not sent. Turnstile also answers `503` without it, since the hostname siteverify must report is unknown |
 | `DIGEST_SECRET` | exists (ADR 0155) | — | Every account `POST` answers `503` (the limiter cannot key) |
 | `GOOGLE_EMAIL`, `GOOGLE_APP_PASSWORD` | exist (ADR 0164) | — | Mail-sending flows answer `503` before any row changes |
 | `LEMNARIA_E2E_FAKE_MAIL` | exists; the customer fake obeys it as the shop fake does | never on a deployment | — |
@@ -484,7 +486,7 @@ and domain boundaries*. **Reviewer reading:** the same.
 | 1 | `hashPassword(nfkcPassword)` → PHC string, argon2id from `node:crypto`: m = 19 456 KiB, t = 2, p = 1, 16-byte salt from `randomBytes`, 32-byte tag. `verifyPassword({password, phc})` parses the PHC string, recomputes with its own parameters, compares with `timingSafeEqual`. `needsRehash(phc)`. `DUMMY_PHC`, a fixed hash for the unknown-address path | `password-hash.ts` |
 | 2 | `isBreachedPassword(password)`: SHA-1 the password; send only the first 5 hex characters to the HIBP range API with `Add-Padding: true`; compare suffixes locally; ignore padded entries (count 0). Deadline 1 500 ms. Unreachable or late answers `unknown` (Q-L2) | `breached-password.ts` |
 | 3 | `__Host-lemnaria_session`: mint (32 bytes, base64url, 43 characters), set, clear, read-and-shape-check. The same attribute constant for set and clear, on `visitor.ts`'s model | `session-cookie.ts` |
-| 4 | `verifyTurnstile({token, expectedAction, remoteIp?})`: reads both variables per call. `POST` to siteverify with a deadline. Requires `success`, `action === expectedAction` and a hostname matching `LEMNARIA_PUBLIC_ORIGIN`'s host. Answers `passed` / `failed` / `unavailable`. Logs one constant warning for a documented test secret | `turnstile-verification.ts` |
+| 4 | `verifyTurnstile({token, expectedAction, remoteIp?})`: reads both variables per call. `POST` to siteverify with a deadline. Requires `success`, `action === expectedAction` and a hostname matching `LEMNARIA_PUBLIC_ORIGIN`'s host. Answers `passed` / `failed` / `unreachable` / `not-configured` (amended 2026-10-18 by the owner's ruling: `unreachable` proceeds and is logged, `not-configured` is `503`). Logs one constant warning for a documented test secret | `turnstile-verification.ts` |
 | 5 | `reportAccountEvent({event, outcome, policy?})`: a closed event list, no identifiers or values | `account-log.ts` |
 
 Also: root `package.json` `engines.node` → `">=24.7 <25"` (tooling, not counted). Repo-root `.env.example` gains
@@ -506,9 +508,13 @@ pattern); `public-origin.ts`; ADR 0146 (nothing from a driver or vendor leaves);
 4. The session cookie's set and clear emit identical attributes except `Max-Age`. Nothing calls
    `cookies.delete` on it. Its value is never put in a URL, body or log.
 5. Turnstile answers `passed` only when siteverify said `success` **and** the action and hostname match. A
-   timeout, a non-200, unreadable JSON or a missing variable answer `unavailable`. Nothing answers `passed` by
+   timeout, a network error, a non-200 or unreadable JSON, with a token present, answer `unreachable`; a missing
+   `TURNSTILE_SECRET_KEY` or `LEMNARIA_PUBLIC_ORIGIN` answers `not-configured`. Nothing answers `passed` by
    default. **Amended 2026-10-18:** the only relaxation is a documented test secret beside a loopback public
-   origin (`success` alone decides); a test secret anywhere else answers `unavailable` and logs. Response bodies
+   origin (`success` alone decides); a test secret anywhere else answers `not-configured` and logs. **Amended
+   2026-10-18 (owner's ruling):** `unreachable` lets the route proceed as if the challenge passed and logs one
+   `turnstile`/`unavailable` event; `not-configured` is `503` with a constant error line; an empty or absent token is
+   `failed` and never excused. Response bodies
    (siteverify and HIBP) are read through `readUtf8BodyWithLimit`: 64 KiB and 512 KiB.
 6. Measured on a Preview deployment (L0 item 2, a measurement and not a test): hashing time with the stated
    parameters is quoted. If p95 exceeds 300 ms, the remedy is **not** another OWASP row: those rows are
@@ -694,8 +700,12 @@ authentication, registration and enumeration guidance (cited by section, from L0
    a victim's address cannot take the account:* the stranger's link reaches only the victim's inbox. If the
    victim then registers again, the stranger's password stops matching.
 4. Every refusal before step 8 of the common order writes nothing and sends nothing.
-5. A request whose Turnstile check fails or is unavailable never reaches input validation's side effects (no
+5. A request whose Turnstile check fails (or is not configured, `503`) never reaches input validation's side effects (no
    hash, no row, no mail).
+   **Owner ruling 2026-10-18 (applies to L8, L9 and L10, which all call `refusalOfChallenge`):** a request that
+   carried a token while siteverify was unreachable is not refused; it proceeds to step 6 with one
+   `turnstile`/`unavailable` line logged, and both limiter stages still run in full. A request with no token is always
+   `403`; a misconfigured deployment (`not-configured`) is `503`. ADR 0169 Amendment E, item 5.
 6. **Every per-address bucket is counted for every valid request before the account is looked up**, so a
    per-address `429` is the same answer, at the same count, for an unknown, an unverified and a verified
    address.
@@ -1216,7 +1226,7 @@ Rules for the walk:
 | **Three mail buckets per address** (`account-register-mail-by-address` for registration, `account-reset-mail-by-address` for the reset link (the "password changed" notice counts none, L10 review L1), `account-login-resend-by-address` for a login's silent resend; 5 a day each; L8 security review F2, L9 security review F1) | **Owner-visible [inf].** A stranger who registers a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses only the registration bucket, so the victim's reset mail still has its own five. The same stranger can still use the reset bucket by requesting resets five times, and the victim's own reset mail is then refused until 00:00 UTC; the refusal reads the same for every address, so it cannot be used to probe accounts. An address can receive up to fifteen account mails a day (the login resend bucket adds up to five over the L8 split; L9 security review F1), plus at most five "password changed" notices, one per completed reset (L10 review L1) | A single shared bucket was the first design; the split closes registration noise starving a reset, and the third bucket closes sign-in attempts on an unconfirmed address starving a registration's mail. Reset-on-reset starvation remains and is accepted; a per-address figure change is constants, not code. Q-L5 |
 | **Account mail can spend the shop's whole Gmail quota** (L7 security review M2) | **Accepted, owner-visible [inf].** Many addresses, each within its own buckets, can together use the day's ~500 recipients, and a shop lead notice is then refused (`quota-spent`, not retried automatically). Each account mail costs a solved Turnstile challenge, which bounds the rate and not the total | The owner chooses: (a) a **global daily ceiling on account mail** that leaves headroom for shop notices, as an L8 limiter purpose (see the L8 conditions), or (b) a **dedicated sending account** for account mail (Q62). Not done in L7 |
 | **Deliverability** of verification mail from a Gmail address | Mail in spam; a client cannot confirm | Recorded with the trigger *"the owner sees a confirmation not arrive"*. M9's provider choice |
-| **Turnstile is a third party in the login path** | Cloudflare down means no login | Fail closed (Q-L3). Recorded as accepted. It is not a proxy, so ADR 0019 d9's reasons do not apply (D11) |
+| **Turnstile is a third party in the login path** | Cloudflare down: a request that already holds a token goes through (logged, limiters apply); a person whose widget cannot load has no token and cannot submit | Owner ruling 2026-10-18 (Q-L3 reversed): no server-side block when siteverify is unreachable. The widget-side residual is accepted and has no client bypass (a bot would claim it). It is not a proxy, so ADR 0019 d9's reasons do not apply (D11) |
 | **HIBP unreachable** | Breached passwords accepted during an outage | Q-L2 default fail-open with the length rule; logged |
 | **Shared computer** | After logout, that browser's visitor cookie still opens designs made in it, as ADR 0114 already allows; a claimed design is opened by that cookie too | Recorded residual. A later "forget this browser" control can clear the visitor cookie. Personal data is not in designs (contact data is separate, ADR 0153) |
 | **Migration numbering vs M8C** | Sequence error at merge | Merge after M8C or renumber before first apply (§0) |
@@ -1309,12 +1319,12 @@ Rules for the walk:
 | --- | --- | --- |
 | **Q-L1** (QP2) | How long does a session last? | Client: 30 days idle, 90 days absolute. Operator and administrator: 12 hours idle, 7 days absolute |
 | **Q-L2** (part of QP1) | If the breached-password service cannot be reached, is the password accepted? | **Yes**, if it meets the length rule. The event is logged. (The minimum is 12, as Fix 3 item 1 proposed) |
-| **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **No**: login, register and reset answer "try again later". Writes fail closed (ADR 0019 d5) |
+| **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **Answered by the owner, 2026-10-18: yes, with the limiters as the control.** *"we will have rate limit on this so no blocking if turnstile is not reachable"* (ADR 0169 Amendment E, item 5). The reviewer default ("No") is withdrawn. A missing key or origin is a misconfiguration and still answers `503` |
 | **Q-L4** (Q62) | Do confirmation and reset e-mails leave from the same Gmail account as the shop's notice? | Yes until M9, with the per-address bucket. **A dedicated sending account is recommended** |
 | **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **Yes, answered by default in the L8 security review (F2): separate buckets**, `account-register-mail-by-address` (registration notices) and `account-reset-mail-by-address` (the reset request; the "password changed" notice counts none, L10 review L1), 5 a day each; **and a dedicated login-resend bucket `account-login-resend-by-address`, added by default in the L9 security review (F1)**, 5 a day. Owner-visible; the owner may change any figure (constants only) |
 
-**Q-L1, Q-L2, Q-L3 and Q-L5 (the defaults below), D12 and Amendments A–C are reviewer defaults, not yet ratified in the owner's words** (the list
-is in ADR 0169 Amendment E, item 2). Q-L4 is answered by the owner, 2026-10-18: *"keep same email as sender"*.
+**Q-L1, Q-L2 and Q-L5 (the defaults below; Q-L3 is the owner's since 2026-10-18), D12 and Amendments A–C are reviewer defaults, not yet ratified in the owner's words** (the list
+is in ADR 0169 Amendment E, item 2). Q-L4 is answered by the owner, 2026-10-18: *"keep same email as sender"*; so is Q-L3: *"we will have rate limit on this so no blocking if turnstile is not reachable"*.
 
 **Owner steps** (not questions):
 - create the Turnstile widgets and set the two variables;

@@ -79,9 +79,12 @@ export function textMemberOf(
 }
 
 /**
- * Step 5: the answer that stops a request whose challenge was not passed, or nothing when it was. A token that is
- * absent or not text is a failed challenge. A check that could not be made is `503`, since a write that cannot be
- * challenged is refused.
+ * Step 5: the answer that stops a request whose challenge was not passed, or nothing when it may go on. A token that
+ * is absent, empty or not text is a failed challenge (`403`) and is never excused, so leaving the token out cannot
+ * skip the check. A deployment that cannot judge a challenge (`not-configured`) is `503`. A Cloudflare that cannot be
+ * reached while a token was presented (`unreachable`) lets the request go on, as if the challenge had passed (the
+ * owner's ruling of 2026-10-18, ADR 0169 Amendment E, item 5): `verifyTurnstile` has logged the outage, and the caller's block
+ * and subject limiters still run in full as the compensating control.
  */
 export async function refusalOfChallenge({
   body,
@@ -94,10 +97,15 @@ export async function refusalOfChallenge({
     token: textMemberOf(body, "turnstileToken") ?? "",
     expectedAction,
   });
-  if (outcome === "passed") return undefined;
-  return outcome === "failed"
-    ? challengeFailedResponse()
-    : unavailableResponse();
+  switch (outcome) {
+    case "passed":
+    case "unreachable":
+      return undefined;
+    case "failed":
+      return challengeFailedResponse();
+    case "not-configured":
+      return unavailableResponse();
+  }
 }
 
 /**

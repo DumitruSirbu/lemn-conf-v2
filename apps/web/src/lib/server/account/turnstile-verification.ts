@@ -7,13 +7,26 @@ import {
 } from "@/lib/server/public-origin";
 import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
 
-// Server-side verification of a Cloudflare Turnstile token (ADR 0169 decision 5). A write that cannot be challenged
-// is refused, so every answer but `passed` ends the request: a failed challenge and an unreachable service differ
-// only in the status the route gives (403 and 503), and nothing here answers `passed` by default.
+// Server-side verification of a Cloudflare Turnstile token (ADR 0169 decision 5, Amendment E, item 5). Two kinds of "could
+// not decide" are kept apart because they are answered oppositely. A deployment that is MISCONFIGURED (`not-configured`)
+// must not silently lose its check, so the route refuses with 503 and the log is loud. A Cloudflare that cannot be
+// REACHED (`unreachable`) while a token was presented is the owner's ruling of 2026-10-18: the request proceeds as if
+// the challenge had passed, one `turnstile`/`unavailable` line is logged per occurrence, and the rate limiters (which
+// still run in full) are the compensating control. Nothing here answers `passed` for an unreachable service: the
+// route decides what `unreachable` means, and an empty token never reaches the network (it is `failed`).
 
-/** `failed`: Cloudflare answered and said no (or the token, action or host did not match). `unavailable`: nothing
- *  could be decided, whether for a missing variable, an unreachable service or an answer that cannot be read. */
-export type TurnstileOutcome = "passed" | "failed" | "unavailable";
+/**
+ * `failed`: Cloudflare answered and said no (or the token, action or host did not match), or the token is empty or too
+ * long to be genuine. `unreachable`: a token was presented and siteverify could not be asked or its answer could not be
+ * read (network error, timeout, a status other than 200, an unreadable body). `not-configured`: the deployment cannot
+ * judge a challenge at all (no secret, no public origin, or a documented test secret outside the loopback e2e
+ * environment).
+ */
+export type TurnstileOutcome =
+  | "passed"
+  | "failed"
+  | "unreachable"
+  | "not-configured";
 
 export const TURNSTILE_SECRET_KEY_VARIABLE = "TURNSTILE_SECRET_KEY";
 
@@ -41,7 +54,12 @@ const DOCUMENTED_TEST_SECRETS: ReadonlySet<string> = new Set([
 
 export const TEST_SECRET_WARNING = `turnstile: a documented Cloudflare test secret is in use (${TURNSTILE_SECRET_KEY_VARIABLE}); challenges prove nothing`;
 
-export const TEST_SECRET_REFUSED_LINE = `turnstile: a documented Cloudflare test secret is set (${TURNSTILE_SECRET_KEY_VARIABLE}) outside the loopback e2e environment; every challenge is refused as unavailable`;
+export const TEST_SECRET_REFUSED_LINE = `turnstile: a documented Cloudflare test secret is set (${TURNSTILE_SECRET_KEY_VARIABLE}) outside the loopback e2e environment; every challenge is refused as not configured`;
+
+export const SECRET_MISSING_LINE = `turnstile: ${TURNSTILE_SECRET_KEY_VARIABLE} is missing or empty; every challenge is refused as not configured`;
+
+export const PUBLIC_ORIGIN_MISSING_LINE =
+  "turnstile: LEMNARIA_PUBLIC_ORIGIN is missing or unusable, so the hostname siteverify must report is unknown; every challenge is refused as not configured";
 
 /** The only state of this module: whether the test-secret warning has been written, so it is written once. */
 let hasWarnedOfTestSecret = false;
@@ -62,40 +80,72 @@ interface SiteverifyAnswer {
 /**
  * Reads the secret and the public origin on every call (nothing is fixed at build), asks siteverify with a deadline,
  * and answers `passed` only when it said `success` and the `action` and the `hostname` are the ones this deployment
- * expects; only a documented test secret in the loopback e2e environment is judged on `success` alone, and a test
- * secret anywhere else is `unavailable` without asking. Never rejects, and never puts the token, the secret or the
- * client's address into a thrown value or a log line.
+ * expects; only a documented test secret in the loopback e2e environment is judged on `success` alone. A missing
+ * secret, a missing public origin and a test secret anywhere else are `not-configured` without asking. An empty or
+ * oversized token is `failed` without asking. Only when a plausible token was sent and siteverify could not be asked or
+ * read is the answer `unreachable`. Never rejects, and never puts the token, the secret or the client's address into a
+ * thrown value or a log line.
  */
 export async function verifyTurnstile(
   request: TurnstileVerificationRequest,
 ): Promise<TurnstileOutcome> {
-  const secret = secretFromEnvironment();
-  if (secret === undefined) return reportUnavailable();
-  const isTestSecret = DOCUMENTED_TEST_SECRETS.has(secret);
-  if (isTestSecret && !isLoopbackPublicOrigin(process.env)) {
-    return refuseTestSecretOutsideLoopback();
-  }
-  if (isTestSecret) warnOnceOfTestSecret();
+  const configuration = readConfiguration();
+  if (configuration.kind === "not-configured") return "not-configured";
+  const { secret, expectedHostname, isTestSecret } = configuration;
   if (!isPlausibleToken(request.token)) return "failed";
   const answer = await askSiteverify({ secret, request });
-  if (answer === undefined) return reportUnavailable();
-  return judgeAnswer({ answer, request, isTestSecret });
+  if (answer === undefined) return reportUnreachable();
+  return judgeAnswer({ answer, request, expectedHostname, isTestSecret });
+}
+
+type TurnstileConfiguration =
+  | { readonly kind: "not-configured" }
+  | {
+      readonly kind: "configured";
+      readonly secret: string;
+      /** Undefined only under a test secret in the loopback e2e environment, where no hostname is compared. */
+      readonly expectedHostname: string | undefined;
+      readonly isTestSecret: boolean;
+    };
+
+/** Everything the deployment must hold for a challenge to mean anything; each gap is logged loudly, each call. */
+function readConfiguration(): TurnstileConfiguration {
+  const secret = secretFromEnvironment();
+  if (secret === undefined) return reportNotConfigured(SECRET_MISSING_LINE);
+  const isTestSecret = DOCUMENTED_TEST_SECRETS.has(secret);
+  if (isTestSecret) {
+    if (!isLoopbackPublicOrigin(process.env)) {
+      return reportNotConfigured(TEST_SECRET_REFUSED_LINE);
+    }
+    warnOnceOfTestSecret();
+    return {
+      kind: "configured",
+      secret,
+      expectedHostname: undefined,
+      isTestSecret,
+    };
+  }
+  const expectedHostname = expectedHostnameFromEnvironment();
+  if (expectedHostname === undefined) {
+    return reportNotConfigured(PUBLIC_ORIGIN_MISSING_LINE);
+  }
+  return { kind: "configured", secret, expectedHostname, isTestSecret };
 }
 
 function judgeAnswer({
   answer,
   request,
+  expectedHostname,
   isTestSecret,
 }: {
   answer: SiteverifyAnswer;
   request: TurnstileVerificationRequest;
-  /** True only in the loopback e2e environment: verifyTurnstile answers a test secret anywhere else before asking. */
+  expectedHostname: string | undefined;
+  /** True only in the loopback e2e environment: readConfiguration refuses a test secret anywhere else. */
   isTestSecret: boolean;
 }): TurnstileOutcome {
   if (!answer.success) return reportRefused();
   if (isTestSecret) return "passed";
-  const expectedHostname = expectedHostnameFromEnvironment();
-  if (expectedHostname === undefined) return reportUnavailable();
   const isExpected =
     answer.action === request.expectedAction &&
     answer.hostname?.toLowerCase() === expectedHostname;
@@ -165,9 +215,13 @@ function warnOnceOfTestSecret(): void {
   console.warn(TEST_SECRET_WARNING);
 }
 
-function refuseTestSecretOutsideLoopback(): "unavailable" {
-  console.error(TEST_SECRET_REFUSED_LINE);
-  return reportUnavailable();
+/** Misconfiguration is never quiet: one constant line naming the gap, then the account event, on every attempt. */
+function reportNotConfigured(line: string): {
+  readonly kind: "not-configured";
+} {
+  console.error(line);
+  reportAccountEvent({ event: "turnstile", outcome: "unavailable" });
+  return { kind: "not-configured" };
 }
 
 function reportRefused(): "failed" {
@@ -175,7 +229,8 @@ function reportRefused(): "failed" {
   return "failed";
 }
 
-function reportUnavailable(): "unavailable" {
+/** One `turnstile`/`unavailable` line per occurrence, so an outage is visible. The line holds no token and no address. */
+function reportUnreachable(): "unreachable" {
   reportAccountEvent({ event: "turnstile", outcome: "unavailable" });
-  return "unavailable";
+  return "unreachable";
 }

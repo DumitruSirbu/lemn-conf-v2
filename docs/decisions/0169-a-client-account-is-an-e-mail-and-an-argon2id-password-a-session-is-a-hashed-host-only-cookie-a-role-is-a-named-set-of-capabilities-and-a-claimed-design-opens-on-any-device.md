@@ -16,7 +16,7 @@ Acceptance is the owner's. These are what stands between this record and it. Non
    anywhere (plan §0).
 2. **The Node gate (Amendment D).** The owner confirms the Vercel runtime is Node >= 24.7 in each environment, preview
    first, and decides whether `engines.node` moves from `>=24.7 <25` to `24.x` plus a runtime guard.
-3. **Ratify the defaults.** Q-L1, Q-L2, Q-L3, Q-L5, D12 and Amendments A–C are still reviewer defaults, **not** ratified
+3. **Ratify the defaults.** Q-L1, Q-L2, Q-L5, D12 and Amendments A–C are still reviewer defaults (Q-L3 is no longer one: the owner ruled on it, Amendment E item 5), **not** ratified
    in the owner's words. They are listed under *Defaults awaiting owner ratification* below.
 4. **The lawyer for the privacy notice (Amendment E).** The notice text, the lawful-basis wording and the Moldovan
    authority question are for the owner's legal adviser; the version list holds one placeholder.
@@ -179,7 +179,10 @@ write it. Source for every row: `docs/OWNER_FIXES.md` *Fix 3* [doc]; the "lands"
 - **Turnstile:**
   - on register, on login and on the reset request [owner];
   - verified on the server, with the expected action and hostname;
-  - a failed check, or one that cannot be reached, **refuses**. Writes fail closed (ADR 0019 d5; Q-L3).
+  - a failed check **refuses** (`403`). A check that cannot be judged because the deployment is **misconfigured**
+    refuses too (`503`). A Cloudflare that **cannot be reached** does *not* refuse: the owner ruled on 2026-10-18 that
+    the request proceeds, with the limiters as the control (Amendment E, item 5; this replaces the first draft's
+    "an unreachable check refuses", which was the reviewer default Q-L3).
   - **Dated note, 2026-10-18 (L3 security review): the test-secret relaxation is narrowed; owner-visible.** The
     plan's L3 criterion 5 let a documented Cloudflare test secret pass on `success` alone, whatever the action and
     host. Amended: that relaxation applies **only** when the public origin is a loopback one, which
@@ -660,7 +663,7 @@ stays **Proposed**.
 Acceptance of this record should ratify each one knowingly:
 1. **Session lifetimes (Q-L1):** client 30 days idle and 90 absolute; staff 12 hours idle and 7 days absolute.
 2. **Breach check down accepts (Q-L2):** the password passes on the length rule and the event is logged.
-3. **Turnstile down refuses (Q-L3):** register, login and reset answer "try again later".
+3. ~~**Turnstile down refuses (Q-L3)**~~ **Removed 2026-10-18: the owner ruled the opposite** (item 5 below).
 4. **Only the client role claims and owns designs** (Amendment B; now by capability, D7).
 5. **A uniform 401 for login**, including a correct password on an unconfirmed account (Amendment A, item 1).
 6. **Three mail buckets, and an un-counted "password changed" notice (Q-L5; Amendments A item 2, B item 2).**
@@ -698,3 +701,43 @@ Acceptance of this record should ratify each one knowingly:
 - The lawyer or the Moldovan authority confirms this. The EDPB and CNIL passages that support it are **unverified**
   [ven, not re-read].
 - Until the notice text is the owner's, M9 launch-gate line 4 stands.
+
+**5. Turnstile unreachable no longer refuses: the owner's ruling, 2026-10-18 [owner] (replaces default Q-L3 and D5's
+"or one that cannot be reached").** Quoted as relayed by the coordinator: *"we will have rate limit on this so no
+blocking if turnstile is not reachable"*. As built:
+- **What "unreachable" is.** Cloudflare's siteverify was asked about a **present** token and genuinely could not
+  answer: a network error, the 3 s deadline, a status other than `200` (any 4xx or 5xx included), a redirect, a body
+  that is over 64 KiB or is not the expected JSON shape. `verifyTurnstile` answers the result kind `unreachable`.
+  `refusalOfChallenge` then lets the request **proceed as if the challenge had passed**, and `verifyTurnstile` logs one
+  `turnstile`/`unavailable` account event per occurrence (event, outcome, no token, no address, no other value), so an
+  outage is visible in the log as a run of those lines.
+- **The compensating control.** Nothing else changes. The block stage (step 4) runs before Turnstile and the subject
+  stage (step 7) after it, exactly as before, and both still fail closed. The limiters are the whole defence during an
+  outage: the register, login and reset-request buckets (D5, Amendment A) cap what an unchallenged caller can do.
+  Cost accepted by the owner's ruling: during an outage the per-address and per-network limits are all that stop a
+  scripted flow, and the attacks Turnstile made costlier (victim lockout by solved challenges, mail flooding) are
+  bounded by the buckets and no longer by solving effort.
+- **Misconfiguration is not an outage and still refuses with `503`, loudly.** A distinct result kind, `not-configured`,
+  covers: `TURNSTILE_SECRET_KEY` missing or empty; `LEMNARIA_PUBLIC_ORIGIN` missing or unusable (the hostname
+  siteverify must report is then unknown); a documented Cloudflare test secret outside the loopback fake-mail
+  environment. Each logs one constant line through `console.error` naming the gap, plus the `turnstile`/`unavailable`
+  event, on every attempt. These are checked **before** siteverify is asked, so a misconfigured deployment cannot be
+  mistaken for an outage and cannot silently lose its check.
+- **A Cloudflare answer is final.** Whenever Cloudflare does answer (`200` and a readable body), the answer decides as
+  before: `success: false`, a wrong `action` or a wrong `hostname` is `failed` (`403`); only a full match passes.
+- **An absent token is always refused.** A body with no `turnstileToken`, an empty one, a non-text one, or one over
+  2,048 characters is `failed` (`403`) and never reaches the network, whatever Cloudflare's state. The fail-open
+  covers only a siteverify that could not be asked or read **after a token was obtained**. There is no client-claimed
+  bypass flag ("the widget was unavailable"): a bot would simply claim it.
+- **Accepted residual, stated plainly.** The fail-open is server-side only. If Cloudflare is down so that the widget
+  script cannot load, the frame is blocked, or the widget times out (`turnstile-widget.tsx` falls back to its
+  `unavailableContent`), the person has **no token and cannot submit**: a Cloudflare outage blocks widget-dependent
+  submission for real users even though the server would have let a present token through. Only a token already held
+  when siteverify then fails, or a token the widget produced before the outage reached the server, benefits. The owner
+  accepted blocking on the *server's* side being removed; removing it on the *client's* side would need either a
+  client-claimed flag (rejected above) or a separate server-verifiable fallback challenge (not built; a new decision).
+- **Other residuals.** (a) A status other than `200` is unreachable by the owner's wording, so a Cloudflare `4xx`
+  (including a rate-limit answer to our own siteverify calls) opens the gate for that request; Cloudflare answers a
+  rejected secret or token with `200` and `success: false`, which stays `failed`. (b) A caller who cannot make
+  Cloudflare unreachable gains nothing by sending a junk token: it is asked about and answered `failed`.
+  (c) The M9 launch-gate line on the real-key preview walk is unchanged.
