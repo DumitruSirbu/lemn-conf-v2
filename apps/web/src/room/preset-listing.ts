@@ -1,15 +1,18 @@
-// Step 1's one read of `GET /api/presets` (plan M8C section 3.5), and the whole of what the browser trusts from it.
+// Step 1's one read of `GET /api/presets` (ADR 0112 Amendment A decision 5), and the whole of what the browser trusts from it.
 //
 // The answer is untrusted data, however it got here: a cache, a proxy or a compromised route hands the same bytes. So
 // everything is checked on receipt, in this order and before anything is evaluated: the status, the size, the count,
 // and then each item by itself. An item is rebuilt field by field from what survived its own parse and never copied
 // from the wire (no spread, no `Object.assign`, no merge), so a key the route did not mean to send cannot arrive. A
 // failed item is dropped alone. Any failure of the read itself is "no presets": Step 1 goes on to composition and the
-// customer sees no error (plan section 3.5, *Fail open*). Nothing here is kept: the caller holds the result for the
+// customer sees no error (see ADR 0167 Amendment B item 7). Nothing here is kept: the caller holds the result for the
 // visit and no longer.
 import {
   DesignSchema,
   isDesignId,
+  isShowablePresetName,
+  MAX_LISTING_BYTES,
+  PRESET_LIST_LIMIT,
   presetNameFactsOf,
   presetRoomOf,
   type DesignRoom,
@@ -21,24 +24,8 @@ import {
   type PresetSummary,
 } from "@/preset/preset-summary-wire";
 
-/** The most a room is offered, as the route states it (`PRESET_LIST_LIMIT`): a longer answer is cut, not trusted. */
-export const MAX_LISTED_PRESETS = 8;
-
-/**
- * The most a listing may measure: eight snapshots at the 128 KiB the write allows (`MAX_PRESET_DESIGN_BYTES`) and the
- * summary around each. More than that is not this route talking.
- */
-export const MAX_LISTING_BYTES = Math.ceil(1.1 * 1024 * 1024);
-
 /** How long the read may take before it is given up as "none". A few hundred milliseconds is typical; this is the tail. */
 export const LISTING_TIMEOUT_MS = 3_000;
-
-/** The longest typed name the table holds, in characters (`MAX_PRESET_NAME_CHARACTERS` in the persistence package,
- *  which the browser cannot import: it carries the database driver). */
-const MAX_TYPED_NAME_CHARACTERS = 80;
-
-/** Control, format (zero-width, bidi) and separator characters: none shows as text, so a name holding one is not shown. */
-const INVISIBLE_CHARACTER = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
 const OK_STATUS = 200;
 
@@ -66,7 +53,7 @@ export type PresetListing =
 
 /** The listing's address for a room. Built from the room's preset form so a straight room names `a` alone and an L no
  *  `c`, which the route's strict reading would otherwise refuse. */
-export function presetListingUrl(room: DesignRoom): string {
+function presetListingUrl(room: DesignRoom): string {
   const { shape, walls } = presetRoomOf({ room });
   const query = new URLSearchParams({ shape, a: String(walls.aMm) });
   if (walls.bMm !== undefined) query.set("b", String(walls.bMm));
@@ -183,14 +170,14 @@ function parsedJson(text: string): unknown {
 }
 
 /**
- * The items of a received list that stand on their own, in the order sent, at most `MAX_LISTED_PRESETS` of them. The
- * cut comes first, so a list of thousands costs eight parses.
+ * The items of a received list that stand on their own, in the order sent, at most `PRESET_LIST_LIMIT` of them. The
+ * cut comes first, so a list of thousands costs `PRESET_LIST_LIMIT` parses.
  */
-export function validatedPresetSummaries(
+function validatedPresetSummaries(
   items: readonly unknown[],
 ): readonly PresetSummary[] {
   return items
-    .slice(0, MAX_LISTED_PRESETS)
+    .slice(0, PRESET_LIST_LIMIT)
     .flatMap((item) => summaryOfItem(item) ?? []);
 }
 
@@ -230,14 +217,7 @@ function summaryOfItem(item: unknown): PresetSummary | undefined {
  *  rendered as a React text child, and as an image's `alt` (React escapes an attribute's value as it does a child's):
  *  never as markup, an address, or the name of an attribute. */
 function showableTypedName(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const characterCount = Array.from(value).length;
-  const isShowable =
-    characterCount >= 1 &&
-    characterCount <= MAX_TYPED_NAME_CHARACTERS &&
-    value === value.trim() &&
-    !INVISIBLE_CHARACTER.test(value);
-  return isShowable ? value : undefined;
+  return isShowablePresetName(value) ? value : undefined;
 }
 
 function isObject(value: unknown): value is object {

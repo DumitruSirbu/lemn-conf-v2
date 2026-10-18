@@ -1,4 +1,4 @@
-// What `GET /api/presets` answers, as the browser reads it (plan M8C section 3.5). It lives outside `lib/server` because
+// What `GET /api/presets` answers, as the browser reads it (ADR 0112 Amendment A decision 5). It lives outside `lib/server` because
 // the client bundle may not import a server-only module; the route builds it and Step 1 reads it.
 import type { Design, PresetNameFacts } from "@lemnaria/configurator-domain";
 import type { PresetShape, PresetWalls } from "@lemnaria/persistence";
@@ -13,7 +13,7 @@ export function presetImagePath(presetId: string): string {
 
 /**
  * One published preset as Step 1 is told of it. It carries the snapshot, because the room exists only in the browser
- * and the evaluation runs there, in the generation lease (plan section 3.5). It carries no status and no design id (a
+ * and the evaluation runs there, in the generation lease. It carries no status and no design id (a
  * preset has none), and its `design.presetId` is always `null`: the copy a customer makes names this preset itself.
  * `design.createdAt` and `design.updatedAt` are the owner's draft's, kept because the schema requires them.
  */

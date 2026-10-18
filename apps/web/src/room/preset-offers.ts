@@ -1,4 +1,4 @@
-// What Step 1 offers for a room, from the listing to the ordered offers (plan M8C section 3.5): read the listing, then
+// What Step 1 offers for a room, from the listing to the ordered offers (ADR 0109 decision 4): read the listing, then
 // adapt each candidate to the room once, in a probe lease, inside one time budget. It is the browser's half of
 // `evaluatePresetOffers`, taken apart so that it can stop: that function is one synchronous call over every candidate,
 // and a phone cannot be asked to hold the main thread for a number of adaptations nobody has timed. Here each candidate
@@ -85,7 +85,7 @@ async function offersWithinBudget(
   });
 }
 
-export interface BudgetedEvaluation {
+interface BudgetedEvaluation {
   readonly room: DesignRoom;
   readonly presets: readonly PresetSummary[];
   readonly probeAt: BodyProbeFactory;
@@ -100,7 +100,7 @@ export interface BudgetedEvaluation {
  * candidate. What finished before that, or before the customer left, is what is returned. Each adaptation leases its
  * probe and gives it back before it returns (ADR 0076), so stopping between candidates leaks nothing.
  */
-export async function evaluatePresetsWithinBudget(
+async function evaluatePresetsWithinBudget(
   input: BudgetedEvaluation,
 ): Promise<readonly ListedPresetOffer[]> {
   const { room, presets, probeAt, deadline, signal } = input;

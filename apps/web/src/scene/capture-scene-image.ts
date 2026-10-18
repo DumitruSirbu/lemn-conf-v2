@@ -1,22 +1,16 @@
-// The preset's thumbnail (plan M8C section 3.4; ADR 0112 decision 6): one frame of the editor's own scene, at one size,
-// encoded to fit the route's cap. The editor's canvas is drawn by a component inside it (`scene-capture-registration.ts`)
-// and reached from outside through this module's registry, because the dialog that asks for the image is not part of
-// the canvas's tree.
-
-/** Must match `PRESET_THUMBNAIL_WIDTH_PX` and `_HEIGHT_PX` in `lib/server/preset/thumbnail-check.ts`, the route's check of
- *  the header. Duplicated because that module is server-only and the client bundle must not import it. */
-export const PRESET_IMAGE_WIDTH_PX = 1280;
-export const PRESET_IMAGE_HEIGHT_PX = 960;
-
-/** Must match `MAX_PRESET_THUMBNAIL_BYTES` in `@lemnaria/persistence`, which the client bundle must not import a value
- *  from (it sits beside the Postgres driver). */
-const PRESET_IMAGE_MAX_BYTES = 512 * 1024;
-
-export type PresetImageType = "image/webp" | "image/png" | "image/jpeg";
+// The preset's thumbnail (ADR 0112 Amendment A decision 6): one frame of the editor's own scene, at one size, encoded to
+// fit the route's cap. The editor's canvas is drawn by a component inside it (`scene-capture-registration.ts`) and
+// reached from outside through this module's registry, because the dialog that asks for the image is not part of the
+// canvas's tree.
+import {
+  isPresetThumbnailType,
+  MAX_PRESET_THUMBNAIL_BYTES,
+  type PresetThumbnailType,
+} from "@lemnaria/configurator-domain";
 
 /** What the route's body carries: the type the bytes really are, and the bytes as plain base64 with no `data:` prefix. */
 export interface EncodedPresetImage {
-  readonly imageType: PresetImageType;
+  readonly imageType: PresetThumbnailType;
   readonly base64: string;
 }
 
@@ -43,7 +37,7 @@ export function registerSceneSnapshotter(next: SceneSnapshotter): () => void {
 
 /**
  * The editor's scene as it would be shown on a card: the overview camera, no selection or void outlines, at exactly
- * 1280 x 960. WebP when the browser encodes it within the cap, else PNG within the cap, else JPEG at falling quality;
+ * the capture size (`PRESET_THUMBNAIL_WIDTH_PX` by `PRESET_THUMBNAIL_HEIGHT_PX`). WebP when the browser encodes it within the cap, else PNG within the cap, else JPEG at falling quality;
  * the size never changes (the route refuses any other).
  */
 export async function captureSceneImage(): Promise<EncodedPresetImage> {
@@ -77,12 +71,14 @@ async function encodeJpegWithinCap(frame: HTMLCanvasElement): Promise<Blob> {
 }
 
 function fitsTheCap(blob: Blob): boolean {
-  return isPresetImageType(blob.type) && blob.size <= PRESET_IMAGE_MAX_BYTES;
+  return (
+    isPresetThumbnailType(blob.type) && blob.size <= MAX_PRESET_THUMBNAIL_BYTES
+  );
 }
 
 function encode(
   frame: HTMLCanvasElement,
-  type: PresetImageType,
+  type: PresetThumbnailType,
   quality?: number,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -97,12 +93,8 @@ function encode(
   });
 }
 
-function isPresetImageType(type: string): type is PresetImageType {
-  return type === "image/webp" || type === "image/png" || type === "image/jpeg";
-}
-
-function imageTypeOf(blob: Blob): PresetImageType {
-  if (!isPresetImageType(blob.type)) {
+function imageTypeOf(blob: Blob): PresetThumbnailType {
+  if (!isPresetThumbnailType(blob.type)) {
     throw new SceneCaptureUnavailableError("the encoded type");
   }
   return blob.type;

@@ -1,24 +1,18 @@
 import {
+  isPresetShape,
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_WIDTH_MM,
+  PRESET_LIST_LIMIT,
   PRESET_WINDOW_MM,
+  type PresetShape,
 } from "@lemnaria/configurator-domain";
-import type {
-  PresetNeighbourhood,
-  PresetShape,
-  PresetWalls,
-} from "@lemnaria/persistence";
-
-/** More than a phone shows at once and the most a room is offered (plan M8C section 3.5). */
-export const PRESET_LIST_LIMIT = 8;
+import type { PresetNeighbourhood, PresetWalls } from "@lemnaria/persistence";
 
 export type PresetListQuery =
   | { readonly kind: "valid"; readonly neighbourhood: PresetNeighbourhood }
   | { readonly kind: "invalid" };
 
 const INVALID: PresetListQuery = { kind: "invalid" };
-
-const SHAPES: readonly string[] = ["L", "linear", "U"];
 
 const QUERY_KEYS: readonly string[] = ["shape", "a", "b", "c"];
 
@@ -56,10 +50,6 @@ function hasOnlyEachKnownKeyOnce(searchParams: URLSearchParams): boolean {
     keys.every((key) => QUERY_KEYS.includes(key)) &&
     new Set(keys).size === keys.length
   );
-}
-
-function isPresetShape(value: string): value is PresetShape {
-  return SHAPES.includes(value);
 }
 
 function wallsOf(

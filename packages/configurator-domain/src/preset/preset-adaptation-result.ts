@@ -6,6 +6,8 @@ import type { Design, DesignWall } from "../design.js";
 
 import type {
   MinimumKitchenPart,
+  PRESET_HAS_FINDINGS,
+  PRESET_MINIMUM_NOT_MET,
   PresetFindingCode,
 } from "./preset-candidate.js";
 
@@ -42,7 +44,7 @@ export interface PresetAdaptationChanges {
 export type KeptBody = "sink" | "hob" | "structural";
 
 export type PresetNotOfferedReason =
-  /** The shape differs or a wall is beyond +-600 mm (A2). */
+  /** The shape differs or a wall is beyond `PRESET_WINDOW_MM` (A2). */
   | { readonly code: "NOT_IN_WINDOW" }
   | { readonly code: "BODY_NOT_IN_CATALOGUE"; readonly buildId: string }
   /** The corner assembly would be sized, or composed, differently in the room (E4); nothing is narrowed (A5). */
@@ -55,12 +57,12 @@ export type PresetNotOfferedReason =
       readonly refusalCode: string;
     }
   | {
-      readonly code: "PRESET_HAS_FINDINGS";
+      readonly code: typeof PRESET_HAS_FINDINGS;
       readonly depthMm: number;
       readonly finding: PresetFindingCode;
     }
   | {
-      readonly code: "PRESET_MINIMUM_NOT_MET";
+      readonly code: typeof PRESET_MINIMUM_NOT_MET;
       readonly missing: readonly MinimumKitchenPart[];
     }
   /** Something the adaptation did not foresee threw. Fail closed; the count of these is a defect count. */

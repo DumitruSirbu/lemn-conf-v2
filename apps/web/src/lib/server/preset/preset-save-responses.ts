@@ -1,10 +1,20 @@
 import "server-only";
 
-import type { PresetRefusal } from "@lemnaria/configurator-domain";
+import {
+  PRESET_HAS_FINDINGS,
+  type PresetRefusal,
+} from "@lemnaria/configurator-domain";
 import { NextResponse } from "next/server";
 
 import { PER_CREDENTIAL_HEADERS } from "@/lib/server/design-errors";
 import { reportDesignRefusal } from "@/lib/server/design-failure-log";
+import {
+  PRESET_IMAGE_REFUSED_CODE,
+  PRESET_NAME_REFUSED_CODE,
+  PRESET_REQUEST_INVALID_CODE,
+  PRESET_STALE_CODE,
+  PRESET_TOO_LARGE_CODE,
+} from "@/preset/preset-wire-contract";
 
 /**
  * The answers of `POST /api/designs/{id}/preset` that are the route's own. Every one carries a stable code and a fixed
@@ -13,12 +23,6 @@ import { reportDesignRefusal } from "@/lib/server/design-failure-log";
  *
  * The credential refusals are not here: they answer `designNotFoundResponse`, byte for byte (ADR 0114 decision G5).
  */
-
-export const PRESET_REQUEST_INVALID_CODE = "PRESET_REQUEST_INVALID";
-export const PRESET_NAME_REFUSED_CODE = "PRESET_NAME_REFUSED";
-export const PRESET_IMAGE_REFUSED_CODE = "PRESET_IMAGE_REFUSED";
-export const PRESET_STALE_CODE = "PRESET_STALE";
-export const PRESET_TOO_LARGE_CODE = "PRESET_TOO_LARGE";
 
 /** The log-only codes of the refusals that answer as a design that does not exist. */
 export const PRESET_CROSS_SITE_REFUSED = {
@@ -92,7 +96,7 @@ export function presetCandidateRefusedResponse(
     status: UNPROCESSABLE_STATUS,
   });
   const detail =
-    candidateRefusal.code === "PRESET_HAS_FINDINGS"
+    candidateRefusal.code === PRESET_HAS_FINDINGS
       ? { finding: candidateRefusal.finding }
       : { missing: candidateRefusal.missing };
   return NextResponse.json(

@@ -56,7 +56,7 @@ interface AuthorCredentials {
 }
 
 /**
- * Saves the design's stored kitchen as a preset (ADR 0112 decisions 3 and 4, Amendment A; plan M8C section 3.3). It
+ * Saves the design's stored kitchen as a preset (ADR 0112 decisions 3 and 4, Amendment A). It
  * lives under the design's own path because the write-token cookie is scoped to it: only the browser that holds both
  * credentials can publish this design, and the credentials are compared in SQL by the load. The request names the
  * revision the editor shows, an optional name and the image, and never a document: what is kept is the stored design.

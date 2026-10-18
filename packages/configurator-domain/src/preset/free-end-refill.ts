@@ -55,14 +55,14 @@ import { shellOf, type ShellTiling } from "./target-shell.js";
 const MILLIMETRES_PER_METRE = 1000;
 
 /** One planned column of a free end. A tile narrower than the cabinet floor is recorded and left empty. */
-export interface FillTile {
+interface FillTile {
   readonly wall: DesignWall;
   readonly startMm: number;
   readonly widthMm: number;
   readonly isFilled: boolean;
 }
 
-export type RefillStep =
+type RefillStep =
   | {
       readonly ok: true;
       readonly world: PresetWorld;

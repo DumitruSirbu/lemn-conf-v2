@@ -1,6 +1,6 @@
 "use client";
 
-// The Preview pop-up (plan M8C section 3.6, the owner's ruling of 2026-10-17; ADR 0003 decision 4b, amended): a carousel
+// The Preview pop-up (ADR 0003 decision 4b, as its dated amendment changes it): a carousel
 // of the presets the list shows, in the list's order, opened on the one that was tapped. Previous and Next stop at the
 // ends, a position reads "2 / 5", and Select acts on the slide on screen. It draws the stored image and no live 3D.
 //
@@ -8,6 +8,10 @@
 // background), not from `ConfirmationDialog` itself, whose shell is one sentence and two buttons. It must stand as a
 // direct child of `<main>` so that `useBackgroundInert` can mark every other band of the screen inert; the caller
 // returns focus to the card that opened it once this has unmounted and the bands are live again.
+import {
+  PRESET_THUMBNAIL_HEIGHT_PX,
+  PRESET_THUMBNAIL_WIDTH_PX,
+} from "@lemnaria/configurator-domain";
 import {
   useCallback,
   useEffect,
@@ -27,10 +31,6 @@ import {
 
 import styles from "./preset-chooser.module.css";
 import type { PresetCopyStatus } from "./use-generation";
-
-/** The stored image's size (ADR 0112 decision 6): the attributes let the box be reserved before the image arrives. */
-const IMAGE_WIDTH_PX = 1280;
-const IMAGE_HEIGHT_PX = 960;
 
 /** Marks drawn by the stylesheet's typography rather than words, so no locale has a say in them. */
 const CLOSE_GLYPH = "×";
@@ -80,8 +80,8 @@ export function PresetImage({
     <img
       src={slide.imageUrl}
       alt={slide.name}
-      width={IMAGE_WIDTH_PX}
-      height={IMAGE_HEIGHT_PX}
+      width={PRESET_THUMBNAIL_WIDTH_PX}
+      height={PRESET_THUMBNAIL_HEIGHT_PX}
       loading={loading}
       decoding="async"
       className={styles.image}
@@ -271,7 +271,7 @@ export function PresetCarouselDialog({
 /**
  * The slide on screen and the images next to it. A neighbour is mounted hidden and eager, because a hidden lazy image
  * is never fetched and the point is to have the next one by the time it is wanted; anything further away is not
- * mounted, so at most three of a list's eight full-size images are in play. The list's thumbnails are these same URLs.
+ * mounted, so at most three of a list's `PRESET_LIST_LIMIT` full-size images are in play. The list's thumbnails are these same URLs.
  */
 function SlideImages({
   slides,

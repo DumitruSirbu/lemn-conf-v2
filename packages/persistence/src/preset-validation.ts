@@ -1,49 +1,36 @@
-import { MAX_DESIGN_BYTES, isDesignId } from "@lemnaria/configurator-domain";
+import {
+  MAX_DESIGN_BYTES,
+  MAX_PRESET_DESIGN_BYTES,
+  MAX_PRESET_NAME_CHARACTERS,
+  MAX_PRESET_THUMBNAIL_BYTES,
+  PRESET_SHAPES,
+  PRESET_THUMBNAIL_TYPES,
+  isDesignId,
+  isPresetShape,
+  isPresetThumbnailType,
+  isShowablePresetName,
+  isUnstorableText,
+} from "@lemnaria/configurator-domain";
 import type { Design } from "@lemnaria/configurator-domain";
 
-import {
-  MAX_PRESET_NAME_CHARACTERS,
-  isShowablePresetName,
-} from "./preset-name.js";
 import type {
   PresetNeighbourhood,
   PresetToRecord,
   PresetWalls,
 } from "./preset-repository.js";
-import { isUnstorableText } from "./snapshot-judgement.js";
 
 /** The widest a `presets` integer column holds (`integer`); a wall or a window beyond it is the server's refusal. */
 const INTEGER_COLUMN_MAX = 2_147_483_647;
 
-/** `presets_thumbnail_size`: ADR 0112 Amendment A, decision 6. */
-export const MAX_PRESET_THUMBNAIL_BYTES = 512 * 1024;
-
-/**
- * The most a preset's snapshot may measure, so that every preset stored can be listed (the security review of M8C P6).
- * The listing sends each snapshot to Step 1 and eight of them at `MAX_DESIGN_BYTES` would be a 4.2 MB answer, so a
- * snapshot above this is left out of it; this bound is checked at the write, where the owner can be told, and the
- * listing keeps the same check as a second line. 128 KiB is more than a full U packed with the narrowest bodies (about
- * 80 KB) and five times a seeded kitchen's twenty-six placements.
- */
-export const MAX_PRESET_DESIGN_BYTES = 128 * 1024;
-
 /** Far above any room and far below `INTEGER_COLUMN_MAX`, so a window never overflows a wall's difference. */
 const MAX_WINDOW_MM = 1_000_000;
 
-/** More than a Step 1 screen shows (eight), so a caller's limit is a choice and not a way to read the table. */
+/** More than a Step 1 screen shows (`PRESET_LIST_LIMIT`), so a caller's limit is a choice and not a way to read the table. */
 const MAX_LISTED_PRESETS = 100;
-
-const PRESET_SHAPES: readonly string[] = ["L", "linear", "U"];
-
-const THUMBNAIL_TYPES: readonly string[] = [
-  "image/webp",
-  "image/png",
-  "image/jpeg",
-];
 
 const REFUSALS = {
   preset: "the preset must be an object",
-  shape: "the shape must be L, linear or U",
+  shape: `the shape must be ${listedWithOr(PRESET_SHAPES)}`,
   walls:
     "the walls must be whole millimetres, wall B for an L and a U, wall C for a U alone",
   heightMm: "the height must be a whole number of millimetres above zero",
@@ -52,8 +39,7 @@ const REFUSALS = {
   room: "the shape, the walls and the height must be those of the design's own room",
   typedName: `the typed name must be 1 to ${String(MAX_PRESET_NAME_CHARACTERS)} characters, NFC, trimmed, with no control, format or separator character (the bidi overrides included)`,
   thumbnail: `the thumbnail must be 1 to ${String(MAX_PRESET_THUMBNAIL_BYTES)} bytes`,
-  thumbnailType:
-    "the thumbnail type must be image/webp, image/png or image/jpeg",
+  thumbnailType: `the thumbnail type must be ${listedWithOr(PRESET_THUMBNAIL_TYPES)}`,
   windowMm: `the window must be a whole number of millimetres from 0 to ${String(MAX_WINDOW_MM)}`,
   limit: `the limit must be a whole number from 1 to ${String(MAX_LISTED_PRESETS)}`,
 } as const;
@@ -86,7 +72,7 @@ export function requireValidPresetToRecord(preset: PresetToRecord): string {
   if (!isStorableThumbnail(preset.thumbnail)) {
     throw refusalOf("record", "thumbnail");
   }
-  if (!THUMBNAIL_TYPES.includes(preset.thumbnailType)) {
+  if (!isPresetThumbnailType(preset.thumbnailType)) {
     throw refusalOf("record", "thumbnailType");
   }
   const documentJson = designJsonTextOf(preset.design);
@@ -151,6 +137,10 @@ function isWallWithinWindow(
   return Math.abs(saved - asked) <= windowMm;
 }
 
+function listedWithOr(values: readonly string[]): string {
+  return `${values.slice(0, -1).join(", ")} or ${values.at(-1) ?? ""}`;
+}
+
 function refusalOf(operation: RefusedOperation, part: Refusal): Error {
   const what = operation === "record" ? "record a preset" : "list presets";
   return new Error(`Refusing to ${what}: ${REFUSALS[part]}.`);
@@ -161,7 +151,7 @@ function requireShapeAndWalls(
   shape: unknown,
   walls: PresetWalls,
 ): void {
-  if (typeof shape !== "string" || !PRESET_SHAPES.includes(shape)) {
+  if (!isPresetShape(shape)) {
     throw refusalOf(operation, "shape");
   }
   if (!isObject(walls as unknown) || !wallsFitShape(shape, walls)) {

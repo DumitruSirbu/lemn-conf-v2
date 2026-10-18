@@ -1,4 +1,4 @@
-// Whether a stored kitchen may be kept as a preset (ADR 0112 decision 4, plan M8C section 3.3), and the room it was
+// Whether a stored kitchen may be kept as a preset (ADR 0112 decision 4, Amendment A), and the room it was
 // saved in. I/O-free: the catalogue is handed in, and nothing here reads a request, a store or a clock.
 
 import { HOB_ACCESSORY_KIND } from "../catalog.js";
@@ -22,7 +22,7 @@ export const PRESET_MINIMUM_NOT_MET = "PRESET_MINIMUM_NOT_MET";
 export type MinimumKitchenPart = "sink" | "hob";
 
 /** A body past the end of its wall: the review's own word for it (`judgeSubmissionEligibility`). */
-export const BODIES_PAST_WALL_FINDING = "BODIES_PAST_WALL";
+const BODIES_PAST_WALL_FINDING = "BODIES_PAST_WALL";
 
 export type PresetFindingCode =
   | DesignValidationCode

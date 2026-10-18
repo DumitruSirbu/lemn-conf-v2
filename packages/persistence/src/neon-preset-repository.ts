@@ -1,3 +1,8 @@
+import {
+  isPresetShape,
+  isPresetThumbnailType,
+} from "@lemnaria/configurator-domain";
+
 import { generateDesignId } from "./generate-design-id.js";
 import { reducedCauseOf } from "./migration-errors.js";
 import { openApplicationDatabase } from "./open-application-database.js";
@@ -224,7 +229,7 @@ function isPresetRow(row: object): row is PresetRow {
   return (
     hasExactlyKeys(row, PRESET_ROW_KEYS) &&
     isPresetId(candidate.id) &&
-    isKnownShape(candidate.shape) &&
+    isPresetShape(candidate.shape) &&
     Number.isInteger(candidate.wall_a_mm) &&
     isIntegerOrNull(candidate.wall_b_mm) &&
     isIntegerOrNull(candidate.wall_c_mm) &&
@@ -233,7 +238,7 @@ function isPresetRow(row: object): row is PresetRow {
     isObject(candidate.design_document) &&
     (candidate.typed_name === null ||
       typeof candidate.typed_name === "string") &&
-    isKnownThumbnailType(candidate.thumbnail_type)
+    isPresetThumbnailType(candidate.thumbnail_type)
   );
 }
 
@@ -243,17 +248,7 @@ function isImageRow(row: object): row is ImageRow {
     hasExactlyKeys(row, IMAGE_ROW_KEYS) &&
     typeof candidate.thumbnail_hex === "string" &&
     EVEN_LENGTH_LOWERCASE_HEX.test(candidate.thumbnail_hex) &&
-    isKnownThumbnailType(candidate.thumbnail_type)
-  );
-}
-
-function isKnownShape(value: unknown): value is PresetShape {
-  return value === "L" || value === "linear" || value === "U";
-}
-
-function isKnownThumbnailType(value: unknown): value is PresetThumbnailType {
-  return (
-    value === "image/webp" || value === "image/png" || value === "image/jpeg"
+    isPresetThumbnailType(candidate.thumbnail_type)
   );
 }
 

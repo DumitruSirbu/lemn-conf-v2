@@ -1,4 +1,4 @@
-// The list Step 1 shows for a room (ADR 0109 decision 4 and Amendment A4, plan M8C section 3.5): the presets in the
+// The list Step 1 shows for a room (ADR 0109 decision 4 and Amendment A4): the presets in the
 // room's window, each adapted once, the ones that cannot be offered left out, and the rest in the owner's order. The
 // card, the preview and `Select` all read the one evaluation each offer carries, so none of them can disagree.
 
@@ -18,7 +18,7 @@ export interface PresetOffer<Preset extends AdaptablePreset> {
 }
 
 /** The offers for `room`, in `presets`' order (newest first) refined by `orderPresetOffers`. A room that cannot be
- *  read offers nothing: Step 1 goes on to composition (plan M8C section 3.5, fail open). */
+ *  read offers nothing: Step 1 goes on to composition (fail open, see ADR 0112 Amendment A). */
 export function evaluatePresetOffers<Preset extends AdaptablePreset>(input: {
   readonly room: DesignRoom;
   readonly presets: readonly Preset[];

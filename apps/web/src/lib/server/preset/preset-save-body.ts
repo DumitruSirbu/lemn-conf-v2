@@ -1,12 +1,11 @@
 import "server-only";
 
 import {
-  isDesignRevision,
   isShowablePresetName,
   MAX_PRESET_THUMBNAIL_BYTES,
-  type DesignRevision,
   type PresetThumbnailType,
-} from "@lemnaria/persistence";
+} from "@lemnaria/configurator-domain";
+import { isDesignRevision, type DesignRevision } from "@lemnaria/persistence";
 import type { NextRequest, NextResponse } from "next/server";
 
 import { payloadTooLargeResponse } from "@/lib/server/design-errors";
@@ -19,7 +18,7 @@ import { checkThumbnail } from "@/lib/server/preset/thumbnail-check";
 import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
 
 /**
- * What a preset save carries (plan M8C section 3.3; ADR 0112 decision 3): the revision the editor shows as saved, an
+ * What a preset save carries (ADR 0112 decision 3): the revision the editor shows as saved, an
  * optional name, the declared type of the image and the image itself, in base64 because the body reader decodes text.
  * It carries no design, and a key the request holds beyond these four is never read, so a body carrying a `design` is
  * not refused and changes nothing.
@@ -64,13 +63,13 @@ const ENVELOPE_ALLOWANCE_BYTES = 8 * 1024;
  * its cap still arrives and is refused as an image (`422`), and a body of any other size is cut off at the limit
  * (`413`) before it is held whole.
  */
-export const MAX_PRESET_SAVE_BODY_BYTES =
+const MAX_PRESET_SAVE_BODY_BYTES =
   Math.ceil(MAX_PRESET_THUMBNAIL_BYTES / BYTES_PER_BASE64_GROUP) *
     BASE64_CHARACTERS_PER_THREE_BYTES +
   ENVELOPE_ALLOWANCE_BYTES;
 
-/** Far above any name the rule accepts (80 characters), so a name is refused before it is normalised and not after a
- *  caller has made this route normalise a megabyte. */
+/** The bound on a name before it is normalised, far above any name the rule accepts (`MAX_PRESET_NAME_CHARACTERS`), so a
+ *  name is refused before the route normalises it and not after a caller has made it normalise a megabyte. */
 const LONGEST_NAME_TEXT_UNITS = 1024;
 
 const STRICT_BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
@@ -138,13 +137,13 @@ function bodyOf(fields: Fields): PresetSaveBodyOutcome {
 /**
  * The name rule, strict base64 and the image check, in that order. Asked only after the stored design has been proved
  * the author's and found fit to keep, so a caller who is not its author learns nothing of these rules, and a design
- * that cannot be a preset is told so before its image is judged (plan M8C section 3.3, steps 8 and 9).
+ * that cannot be a preset is told so before its image is judged.
  */
 export function checkPresetSubmission(
   body: PresetSaveBody,
 ): PresetSubmissionOutcome {
-  const typedName = typedNameOf(body.name);
-  if (typedName === REFUSED_NAME) return refused(presetNameRefusedResponse());
+  const name = judgedTypedName(body.name);
+  if (name.kind === "refused") return refused(presetNameRefusedResponse());
   const image = bytesOfStrictBase64(body.image);
   if (image === undefined) return refused(presetImageRefusedResponse());
   const thumbnail = checkThumbnail(body.imageType, image);
@@ -152,22 +151,28 @@ export function checkPresetSubmission(
     return refused(presetImageRefusedResponse());
   return {
     ok: true,
-    submission: { typedName, image, imageType: thumbnail.type },
+    submission: { typedName: name.typedName, image, imageType: thumbnail.type },
   };
 }
 
-const REFUSED_NAME = Symbol("refused name");
+type TypedNameVerdict =
+  | { readonly kind: "judged"; readonly typedName: string | undefined }
+  | { readonly kind: "refused" };
+
+const REFUSED_NAME: TypedNameVerdict = Object.freeze({ kind: "refused" });
 
 /** NFC, trimmed, and nothing when that leaves nothing; then the rule the table and the listing apply, which is the
- *  persistence package's and not restated here. */
-function typedNameOf(
-  name: string | null | undefined,
-): string | undefined | typeof REFUSED_NAME {
-  if (name === undefined || name === null) return undefined;
+ *  domain's and not restated here. */
+function judgedTypedName(name: string | null | undefined): TypedNameVerdict {
+  if (name === undefined || name === null) return judged(undefined);
   if (name.length > LONGEST_NAME_TEXT_UNITS) return REFUSED_NAME;
   const normalised = name.normalize("NFC").trim();
-  if (normalised === "") return undefined;
-  return isShowablePresetName(normalised) ? normalised : REFUSED_NAME;
+  if (normalised === "") return judged(undefined);
+  return isShowablePresetName(normalised) ? judged(normalised) : REFUSED_NAME;
+}
+
+function judged(typedName: string | undefined): TypedNameVerdict {
+  return { kind: "judged", typedName };
 }
 
 /** The bytes of canonical base64 and of nothing else: `Buffer.from` skips what it cannot read, so the text is judged

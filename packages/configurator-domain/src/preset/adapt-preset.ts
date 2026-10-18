@@ -1,4 +1,4 @@
-// A preset in a room that is not the one it was saved in (ADR 0109 Amendments A3, B, C, E; plan M8C section 3.5).
+// A preset in a room that is not the one it was saved in (ADR 0109 Amendments A3, B, C, E).
 //
 // In order: the preset is taken to the shell's cabinet depth, where the floor runs are stated; moved into the room
 // (the corner pieces the ceiling admits, a U's right corner zone); stripped of what the room cannot hold (the bodies
@@ -42,6 +42,7 @@ import {
 } from "./preset-adaptation-result.js";
 import {
   PRESET_HAS_FINDINGS,
+  PRESET_MINIMUM_NOT_MET,
   presetRoomOf,
   refusalOfPresetCandidate,
   type PresetRoom,
@@ -338,6 +339,6 @@ function refusalAt(
   );
   if (refusal === undefined) return undefined;
   return refusal.code === PRESET_HAS_FINDINGS
-    ? { code: "PRESET_HAS_FINDINGS", depthMm, finding: refusal.finding }
-    : { code: "PRESET_MINIMUM_NOT_MET", missing: refusal.missing };
+    ? { code: PRESET_HAS_FINDINGS, depthMm, finding: refusal.finding }
+    : { code: PRESET_MINIMUM_NOT_MET, missing: refusal.missing };
 }

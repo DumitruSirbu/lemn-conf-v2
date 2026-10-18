@@ -84,11 +84,12 @@ const READ_WINDOW_MINUTES = 60;
 export const READS_PER_BLOCK_FIGURE = 600;
 
 /**
- * PROVISIONAL, the engineer's figure and not the owner's (the security review of M8C P6): 1,200 an hour for each network
- * block, over the preset listing and every preset image together. A room's Step 1 reads the listing once and an image
- * for each card it shows, up to eight and again for each time a card is opened, so the presets would spend the 600 of
- * `READS_PER_BLOCK_FIGURE` that pages and the design reads share, and a shared carrier network would be refused pages
- * for looking at kitchens. Its own bucket keeps the two apart. The owner's answer changes this constant and no code.
+ * PROVISIONAL, the engineer's figure and not the owner's (see ADR 0156): 1,200 an hour for each
+ * network block, over the preset listing and every preset image together. A room's Step 1 reads the listing once and an
+ * image for each card it shows, up to `PRESET_LIST_LIMIT` and again for each time a card is opened, so the presets would
+ * spend the 600 of `READS_PER_BLOCK_FIGURE` that pages and the design reads share, and a shared carrier network would be
+ * refused pages for looking at kitchens. Its own bucket keeps the two apart. The owner's answer changes this constant
+ * and no code.
  */
 export const PRESET_READS_PER_BLOCK_FIGURE = 1200;
 
@@ -102,8 +103,8 @@ export const CSP_REPORT_WINDOW_MINUTES = 60;
 export const CSP_REPORTS_PER_BLOCK_FIGURE = 100;
 
 /**
- * Fifty presets saved in a Chișinău calendar day, counted once over every caller (plan M8C section 3.3, the security
- * review of P1): while authoring is ungated (ADR 0112 Amendment A) a flood of valid saves would fill the shared Blob
+ * Fifty presets saved in a Chișinău calendar day, counted once over every caller (see ADR 0167 Amendment B item 8):
+ * while authoring is ungated (ADR 0112 Amendment A) a flood of valid saves would fill the shared Blob
  * quota, hidden rows included, since the nightly export copies every row. The owner authors a library, a few kitchens
  * a day; a figure of this size bounds a flood and leaves the work room. Fifty saves in a day lock authoring out until
  * the next Chișinău midnight, which is the intended failure. The owner's answer changes this constant and no code.

@@ -38,20 +38,20 @@ export interface PresetWorld {
   readonly plannedBoundaries: PlannedBoundariesMm;
 }
 
-export type WorldStep =
+type WorldStep =
   | { readonly ok: true; readonly world: PresetWorld }
   | { readonly ok: false; readonly refusalCode: string };
 
-export interface InsertedStep {
+interface InsertedStep {
   readonly world: PresetWorld;
   readonly placementId: string;
 }
 
-export type InsertStep =
+type InsertStep =
   | ({ readonly ok: true } & InsertedStep)
   | { readonly ok: false; readonly refusalCode: string };
 
-export interface PresetWorldInput {
+interface PresetWorldInput {
   readonly design: Design;
   readonly catalog: BodyCatalog;
   readonly plannedBoundaries?: PlannedBoundariesMm;

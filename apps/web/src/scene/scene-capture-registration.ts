@@ -2,6 +2,8 @@
 
 import {
   DEFAULT_CABINET_DEPTH_MM,
+  PRESET_THUMBNAIL_HEIGHT_PX,
+  PRESET_THUMBNAIL_WIDTH_PX,
   type DesignRoom,
 } from "@lemnaria/configurator-domain";
 import {
@@ -19,8 +21,6 @@ import * as THREE from "three";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import {
-  PRESET_IMAGE_HEIGHT_PX,
-  PRESET_IMAGE_WIDTH_PX,
   registerSceneSnapshotter,
   SceneCaptureUnavailableError,
 } from "./capture-scene-image";
@@ -117,7 +117,11 @@ function drawOverviewFrame(
   const hidden = hideOutlines(rig.scene, roots.voids);
   try {
     rig.gl.setPixelRatio(1);
-    rig.gl.setSize(PRESET_IMAGE_WIDTH_PX, PRESET_IMAGE_HEIGHT_PX, false);
+    rig.gl.setSize(
+      PRESET_THUMBNAIL_WIDTH_PX,
+      PRESET_THUMBNAIL_HEIGHT_PX,
+      false,
+    );
     rig.gl.render(rig.scene, shotCamera);
     return copyOnBackground(rig.gl.domElement);
   } finally {
@@ -136,7 +140,7 @@ function rootsOf(scene: THREE.Scene): SceneRoots {
  *  that the whole room fits the capture frame. */
 function overviewCameraFor(rig: SnapshotRig): THREE.PerspectiveCamera {
   const live = rig.camera as THREE.PerspectiveCamera;
-  const aspect = PRESET_IMAGE_WIDTH_PX / PRESET_IMAGE_HEIGHT_PX;
+  const aspect = PRESET_THUMBNAIL_WIDTH_PX / PRESET_THUMBNAIL_HEIGHT_PX;
   const preset = overviewFittedToFrame(rig.room, aspect);
   const shot = new THREE.PerspectiveCamera(
     CAMERA_FIELD_OF_VIEW_DEGREES,
@@ -168,13 +172,13 @@ function hideOutlines(
 
 function copyOnBackground(source: HTMLCanvasElement): HTMLCanvasElement {
   const copy = document.createElement("canvas");
-  copy.width = PRESET_IMAGE_WIDTH_PX;
-  copy.height = PRESET_IMAGE_HEIGHT_PX;
+  copy.width = PRESET_THUMBNAIL_WIDTH_PX;
+  copy.height = PRESET_THUMBNAIL_HEIGHT_PX;
   const context = copy.getContext("2d");
   if (context === null) throw new SceneCaptureUnavailableError("no 2d context");
   // The renderer is transparent over the page's colour, and a JPEG has no transparency.
   context.fillStyle = STAGE_BACKGROUND;
-  context.fillRect(0, 0, PRESET_IMAGE_WIDTH_PX, PRESET_IMAGE_HEIGHT_PX);
+  context.fillRect(0, 0, PRESET_THUMBNAIL_WIDTH_PX, PRESET_THUMBNAIL_HEIGHT_PX);
   context.drawImage(source, 0, 0);
   return copy;
 }

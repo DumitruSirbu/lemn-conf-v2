@@ -22,7 +22,7 @@ import type { RightCornerZone } from "./preset-room-fit.js";
 import { afterRemoving, type PresetWorld } from "./preset-world.js";
 import type { WallRunMm } from "./target-shell.js";
 
-export type SubtractionStep =
+type SubtractionStep =
   | {
       readonly ok: true;
       readonly world: PresetWorld;

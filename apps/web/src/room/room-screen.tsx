@@ -89,8 +89,8 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
   // 404s under the proxy allow-list, and an addressable composition URL would re-run generation on
   // every reload and mint a second design.
   const generation = useGeneration();
-  // The presets read for the room continued from live until composition is on screen or the customer leaves (plan M8C
-  // section 3.5), and so does the copy of one the customer chose: every way out of Step 1's presets ends all three, so
+  // The presets read for the room continued from live until composition is on screen or the customer leaves (see
+  // ADR 0139), and so does the copy of one the customer chose: every way out of Step 1's presets ends all three, so
   // they go through this one `leave`.
   const presets = usePresets();
   const presetCopy = usePresetCopy();

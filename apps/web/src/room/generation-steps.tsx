@@ -44,7 +44,7 @@ export interface GenerationStepsProps {
   /** Asks the failed hand-off to write again. Offered only in that state, and re-runs the composition's own
    *  attempt rather than composing anything. */
   readonly onRetry: () => void;
-  /** The customer was shown presets and chose to generate, so 1F must not say that none fits (plan M8C section 3.6). */
+  /** The customer was shown presets and chose to generate, so 1F must not say that none fits (ADR 0112 Amendment A). */
   readonly wasOfferedPresets?: boolean;
 }
 

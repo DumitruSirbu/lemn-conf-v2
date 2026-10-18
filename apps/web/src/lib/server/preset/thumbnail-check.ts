@@ -1,23 +1,12 @@
 import "server-only";
 
 import {
+  isPresetThumbnailType,
   MAX_PRESET_THUMBNAIL_BYTES,
+  PRESET_THUMBNAIL_HEIGHT_PX,
+  PRESET_THUMBNAIL_WIDTH_PX,
   type PresetThumbnailType,
-} from "@lemnaria/persistence";
-
-/**
- * The one capture size (plan M8C section 3.4, ADR 0112 Amendment A decision 6): the preset's card and its preview are
- * the same image, drawn at the overview camera at this size. The editor's capture meets it exactly, and a re-encode to
- * a smaller file lowers the quality and never the size.
- */
-export const PRESET_THUMBNAIL_WIDTH_PX = 1280;
-export const PRESET_THUMBNAIL_HEIGHT_PX = 960;
-
-export const PRESET_THUMBNAIL_TYPES: readonly PresetThumbnailType[] = [
-  "image/webp",
-  "image/png",
-  "image/jpeg",
-];
+} from "@lemnaria/configurator-domain";
 
 export type ThumbnailVerdict =
   | { readonly kind: "accepted"; readonly type: PresetThumbnailType }
@@ -32,7 +21,7 @@ interface PixelSize {
 
 /**
  * Whether these bytes are an image of the type the caller declared, at the capture size, within the size cap. The
- * header is read and nothing is decoded: the server never turns the image into pixels (plan section 3.3), so this
+ * header is read and nothing is decoded: the server never turns the image into pixels (ADR 0112 Amendment A decision 6), so this
  * stands between an upload and a stored row by magic bytes, declared type, size and the dimensions in the header.
  * Every read is bounds-checked and a header that is short, odd or lying is a refusal, never a throw.
  */
@@ -40,7 +29,7 @@ export function checkThumbnail(
   declaredType: unknown,
   bytes: Uint8Array,
 ): ThumbnailVerdict {
-  if (!isThumbnailType(declaredType)) return REFUSED;
+  if (!isPresetThumbnailType(declaredType)) return REFUSED;
   if (bytes.byteLength < 1 || bytes.byteLength > MAX_PRESET_THUMBNAIL_BYTES) {
     return REFUSED;
   }
@@ -50,13 +39,6 @@ export function checkThumbnail(
     size.widthPx === PRESET_THUMBNAIL_WIDTH_PX &&
     size.heightPx === PRESET_THUMBNAIL_HEIGHT_PX;
   return isCaptureSize ? { kind: "accepted", type: declaredType } : REFUSED;
-}
-
-function isThumbnailType(value: unknown): value is PresetThumbnailType {
-  return (
-    typeof value === "string" &&
-    PRESET_THUMBNAIL_TYPES.some((type) => type === value)
-  );
 }
 
 const HEADER_READERS: Readonly<

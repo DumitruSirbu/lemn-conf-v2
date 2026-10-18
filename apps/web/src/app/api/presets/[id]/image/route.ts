@@ -1,5 +1,8 @@
-import { isDesignId } from "@lemnaria/configurator-domain";
-import type { PresetThumbnailType } from "@lemnaria/persistence";
+import {
+  isDesignId,
+  isPresetThumbnailType,
+  type PresetThumbnailType,
+} from "@lemnaria/configurator-domain";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { reportPresetReadFailureOnce } from "@/lib/server/design-failure-log";
@@ -15,20 +18,12 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/** The types an image is served as, a closed list. The table holds the same three (`presets_thumbnail_type`); the route
- *  states them again so that nothing stored, however it got there, is ever sent as another `Content-Type`. */
-const SERVABLE_IMAGE_TYPES: readonly PresetThumbnailType[] = [
-  "image/webp",
-  "image/png",
-  "image/jpeg",
-];
-
 const NOT_FOUND_STATUS = 404;
 
 /**
  * Short, and not `immutable`: the owner hides a preset by hand and nothing here can recall a copy, so a hidden preset's
- * image may stay in a browser or a cache for this minute and no longer (plan M8C section 3.5, as the P1 security review
- * amends it). No `stale-while-revalidate`, which would double it.
+ * image may stay in a browser or a cache for this minute and no longer. No `stale-while-revalidate`, which would double
+ * it (ADR 0112 Amendment A decision 5).
  */
 const IMAGE_CACHE_CONTROL = "public, max-age=60";
 
@@ -49,7 +44,8 @@ export async function GET(
 
   try {
     const lookup = await getPresetRepository().loadPublishedImage(id);
-    if (lookup.kind === "none" || !isServableType(lookup.type)) {
+    // A stored type outside the closed list, however it got there, is never sent as another `Content-Type`.
+    if (lookup.kind === "none" || !isPresetThumbnailType(lookup.type)) {
       return notFoundResponse();
     }
     return imageResponse(lookup.bytes, lookup.type);
@@ -57,10 +53,6 @@ export async function GET(
     reportPresetReadFailureOnce("preset-image", error);
     return notFoundResponse();
   }
-}
-
-function isServableType(type: string): type is PresetThumbnailType {
-  return (SERVABLE_IMAGE_TYPES as readonly string[]).includes(type);
 }
 
 /**

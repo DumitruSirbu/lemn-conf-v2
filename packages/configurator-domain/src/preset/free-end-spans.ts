@@ -16,7 +16,7 @@ import type { PresetWorld } from "./preset-world.js";
 const MILLIMETRES_PER_METRE = 1000;
 
 /** One column that holds at least one body, in the along-wall millimetres of its wall. */
-export interface OccupiedSpan {
+interface OccupiedSpan {
   readonly wall: DesignWall;
   readonly startMm: number;
   readonly endMm: number;

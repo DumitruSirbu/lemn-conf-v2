@@ -66,13 +66,11 @@ export type {
 export { PresetRepositoryError } from "./preset-repository.js";
 export {
   MAX_PRESET_DESIGN_BYTES,
-  MAX_PRESET_THUMBNAIL_BYTES,
-  isWithinPresetDesignBound,
-} from "./preset-validation.js";
-export {
   MAX_PRESET_NAME_CHARACTERS,
+  MAX_PRESET_THUMBNAIL_BYTES,
   isShowablePresetName,
-} from "./preset-name.js";
+} from "@lemnaria/configurator-domain";
+export { isWithinPresetDesignBound } from "./preset-validation.js";
 export type {
   PresetImageLookup,
   PresetListing,

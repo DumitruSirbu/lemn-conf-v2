@@ -10,6 +10,7 @@ import { summariesOf } from "@/lib/server/preset/preset-summary";
 import { refusalOfPresetReadLimit } from "@/lib/server/rate-limit/judge-read-request";
 import { getPresetRepository } from "@/lib/server/repository";
 import type { PresetListResponse } from "@/preset/preset-summary-wire";
+import { SERVICE_UNAVAILABLE_STATUS } from "@/preset/preset-wire-contract";
 
 // Talks to Postgres with the application role and decides per request what to count; never prerendered.
 export const runtime = "nodejs";
@@ -17,7 +18,6 @@ export const dynamic = "force-dynamic";
 
 const OK_STATUS = 200;
 const BAD_REQUEST_STATUS = 400;
-const UNAVAILABLE_STATUS = 503;
 
 /**
  * No cookie decides this answer, so it is public. The minute is how long a hidden preset may stay in a browser or a
@@ -33,8 +33,8 @@ const INVALID_QUERY_CODE = "PRESET_QUERY_INVALID";
 const PRESETS_UNAVAILABLE_CODE = "PRESETS_UNAVAILABLE";
 
 /**
- * The published presets near one room, newest first, at most eight (ADR 0112 decision 5 as Amendment A amends it; plan
- * M8C section 3.5). It reads and nothing else, and it answers every customer alike: the summaries of
+ * The published presets near one room, newest first, at most `PRESET_LIST_LIMIT` (ADR 0112 decision 5 as Amendment A
+ * amends it). It reads and nothing else, and it answers every customer alike: the summaries of
  * `preset-summary.ts`, never a hidden row, a status or a design id. The reads limiter is asked first and fails open.
  * A store that gives no answer, a missing table included, is a `503` that carries an empty list, which Step 1 reads as
  * "no presets" and goes on to composition; it is logged by the error's name alone.
@@ -87,6 +87,6 @@ function unavailableResponse(): NextResponse {
       error: "Presets cannot be listed right now.",
       presets: [],
     },
-    { status: UNAVAILABLE_STATUS, headers: NOT_CACHED },
+    { status: SERVICE_UNAVAILABLE_STATUS, headers: NOT_CACHED },
   );
 }

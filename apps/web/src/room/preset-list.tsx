@@ -1,6 +1,6 @@
 "use client";
 
-// Step 1's two preset screens (plan M8C section 3.6): 1D, the wait while the presets that fit the room are found, and
+// Step 1's two preset screens: 1D, the wait while the presets that fit the room are found, and
 // 1E, the list of the ones that do. Frames 1D and 1E are the chrome (`docs/design/mockups/Lemnaria Configurator
 // Mobil.dc.html:251-403`), with the owner's ruling of 2026-10-17 laid over them (ADR 0003 decision 4b, amended; ADR
 // 0104 Amendment F): a card carries one control, *Previzualizează*, and selects nothing. Preview opens the carousel

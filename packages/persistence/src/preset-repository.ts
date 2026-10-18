@@ -1,4 +1,10 @@
-import type { Design } from "@lemnaria/configurator-domain";
+import type {
+  Design,
+  PresetShape,
+  PresetThumbnailType,
+} from "@lemnaria/configurator-domain";
+
+export type { PresetShape, PresetThumbnailType };
 
 export type PresetOperation =
   | "record a preset"
@@ -6,12 +12,8 @@ export type PresetOperation =
   | "load a published preset"
   | "load a published preset's image";
 
-export type PresetShape = "L" | "linear" | "U";
-
 /** `published` is the default; `hidden` is set by the owner by hand and is never read back by the application. */
 export type PresetStatus = "published" | "hidden";
-
-export type PresetThumbnailType = "image/webp" | "image/png" | "image/jpeg";
 
 /** The walls of the room a preset was saved in, or of the room Step 1 asks about. Wall B belongs to an `L` and a `U`,
  *  wall C to a `U` alone, as `DesignRoomSchema` has them; a `linear` room has wall A only. */
@@ -28,7 +30,7 @@ export interface PresetToRecord {
   readonly walls: PresetWalls;
   readonly heightMm: number;
   readonly design: Design;
-  /** The one name the owner typed, 1 to 80 characters. Absent means the name is generated when it is shown. */
+  /** The one name the owner typed, 1 to `MAX_PRESET_NAME_CHARACTERS` characters. Absent means the name is generated when it is shown. */
   readonly typedName?: string;
   readonly thumbnail: Uint8Array;
   readonly thumbnailType: PresetThumbnailType;

@@ -39,7 +39,7 @@ export interface PresetRoomFit {
   readonly rightCornerZone?: RightCornerZone;
 }
 
-export type PresetRoomFitResult =
+type PresetRoomFitResult =
   | { readonly ok: true; readonly fit: PresetRoomFit }
   | { readonly ok: false; readonly reason: PresetNotOfferedReason };
 

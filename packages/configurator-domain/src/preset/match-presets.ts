@@ -1,5 +1,5 @@
-// Which stored presets a room is offered (ADR 0109 Amendment A2, plan M8C section 3.5): the same shape, and every
-// wall the shape has within the owner's +-600 mm of the length the preset was saved in, inclusive. The corner
+// Which stored presets a room is offered (ADR 0109 Amendment A2): the same shape, and every wall the shape has within
+// `PRESET_WINDOW_MM` of the length the preset was saved in, inclusive. The corner
 // direction is no criterion (the domain is canonical and the mirror is presentation, ADR 0129 D2), and neither is the
 // ceiling: a lower room drops a row as a declared adaptation (Amendment B), it does not unmatch the preset.
 //

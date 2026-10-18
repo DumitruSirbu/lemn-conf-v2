@@ -1,4 +1,4 @@
-// Who may save a kitchen as a preset: one swappable function (ADR 0112 Amendment A, plan M8C section 3.3). Both the
+// Who may save a kitchen as a preset: one swappable function (ADR 0112 Amendment A). Both the
 // save route and `GET /api/designs/{id}` ask `mayAuthorPresets`, so the server's answer decides whether the button is
 // shown (ADR 0112 decision 2, bullet 3: the client never decides) and the route cannot disagree with it.
 //
