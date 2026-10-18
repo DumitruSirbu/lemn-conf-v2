@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import styles from "./account.module.css";
+
 // The Cloudflare Turnstile challenge on an account form (ADR 0169 D5). The page's server component reads the site key
 // per request and the request's nonce (`NONCE_HEADER`) and hands both down; the widget hands the form a token and takes
 // it back when the token is spent, expired or failed. The token is verified on the server with the same `action`.
@@ -21,6 +23,8 @@ export interface TurnstileWidgetProps {
   readonly resetCount: number;
   /** The localised "challenge unavailable" copy, from the caller's catalogue. */
   readonly unavailableContent: ReactNode;
+  /** Drawn over the reserved slot from the first paint until `render` returns, so the slot is never an empty gap. */
+  readonly loadingContent?: ReactNode;
 }
 
 interface TurnstileRenderOptions {
@@ -66,6 +70,7 @@ function TurnstileChallenge({
   onTokenChange,
   resetCount,
   unavailableContent,
+  loadingContent,
 }: TurnstileChallengeProps): ReactNode {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
@@ -74,9 +79,13 @@ function TurnstileChallenge({
   const [unavailableChallengeKey, setUnavailableChallengeKey] = useState<
     string | null
   >(null);
-  // Keyed rather than a flag: a new key, nonce or action is a new challenge, and it starts available in the same render
-  // that mounts its container, so no effect has to reset it.
+  const [renderedChallengeKey, setRenderedChallengeKey] = useState<
+    string | null
+  >(null);
+  // Keyed rather than a flag: a new key, nonce or action is a new challenge, and it starts available (and not yet
+  // rendered) in the same render that mounts its container, so no effect has to reset either.
   const isUnavailable = unavailableChallengeKey === challengeKey;
+  const isRendered = renderedChallengeKey === challengeKey;
 
   useEffect(() => {
     onTokenChangeRef.current = onTokenChange;
@@ -93,6 +102,9 @@ function TurnstileChallenge({
       markUnavailable: () => {
         setUnavailableChallengeKey(challengeKey);
       },
+      markRendered: () => {
+        setRenderedChallengeKey(challengeKey);
+      },
     });
   }, [siteKey, nonce, action, challengeKey]);
 
@@ -103,7 +115,14 @@ function TurnstileChallenge({
   }, [resetCount]);
 
   if (isUnavailable) return unavailableContent;
-  return <div ref={containerRef} />;
+  // The slot is Cloudflare's widget size, reserved before the script runs. The placeholder is a sibling of the
+  // container, never a child: the widget writes into the container and React must not own what is in it.
+  return (
+    <div className={styles.challengeSlot}>
+      <div ref={containerRef} />
+      {isRendered ? null : loadingContent}
+    </div>
+  );
 }
 
 interface ChallengeMount {
@@ -116,6 +135,7 @@ interface ChallengeMount {
     readonly current: (token: string | null) => void;
   };
   readonly markUnavailable: () => void;
+  readonly markRendered: () => void;
 }
 
 /**
@@ -165,6 +185,7 @@ function mountChallenge(mount: ChallengeMount): () => void {
           onTokenChangeRef.current(null);
         },
       });
+      mount.markRendered();
     })
     .catch(() => {
       window.clearTimeout(renderTimeoutId);

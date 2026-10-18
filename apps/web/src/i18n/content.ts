@@ -1029,6 +1029,37 @@ export function resolveAccountKitCopy(translate: ContentTranslator) {
 
 export type AccountKitCopy = ReturnType<typeof resolveAccountKitCopy>;
 
+/** The frame every account page sits in: the wordmark, the way back to the configurator and the language control. */
+export function resolveAccountShellCopy(translate: ContentTranslator) {
+  return {
+    brand: translate("brand"),
+    backToConfigurator: translate("accountShell.backToConfigurator"),
+    localeMenu: translate("accountShell.localeMenu"),
+  };
+}
+
+export type AccountShellCopy = ReturnType<typeof resolveAccountShellCopy>;
+
+/** The forgotten-password page's own text, on the screen that asks and on the screen that says it was sent. */
+export function resolveAccountForgotCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountForgot.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountForgot.headerTitle"),
+    title: translate("accountForgot.title"),
+    body: translate("accountForgot.body"),
+    submit: translate("accountForgot.submit"),
+    submitting: translate("accountForgot.submitting"),
+    remembered: translate("accountForgot.remembered"),
+    logIn: translate("accountForgot.logIn"),
+    sentTitle: translate("accountForgot.sentTitle"),
+    sentBody: translate("accountForgot.sentBody"),
+  };
+}
+
+export type AccountForgotCopy = ReturnType<typeof resolveAccountForgotCopy>;
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {

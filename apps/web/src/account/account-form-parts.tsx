@@ -14,6 +14,7 @@ import type { AccountRateLimitNotice, RichTagRenderer } from "@/i18n/content";
 import { useAccountKitCopy } from "@/i18n/use-content";
 
 import styles from "./account.module.css";
+import { TurnstileWidget, type TurnstileAction } from "./turnstile-widget";
 
 // The parts every account page is made of. They draw what they are given and decide nothing: which message, which
 // field and when a form may send belong to the page's form. Links are plain anchors, since an account page is a
@@ -118,13 +119,26 @@ function FieldFrame({
       </div>
       <div className={styles.control}>{children}</div>
       {error === undefined ? null : (
-        <p id={ids.errorId} className={styles.fieldError} role="alert">
-          <span className={styles.fieldErrorMark} aria-hidden="true" />
-          <span>{error}</span>
-        </p>
+        <InlineRefusal id={ids.errorId}>{error}</InlineRefusal>
       )}
       {hint === undefined ? null : <FormHint id={ids.hintId}>{hint}</FormHint>}
     </div>
+  );
+}
+
+/** A refusal drawn under what it is about, announced when it appears: a field's, or the challenge slot's. */
+export function InlineRefusal({
+  id,
+  children,
+}: {
+  readonly id?: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <p id={id} className={styles.fieldError} role="alert">
+      <span className={styles.fieldErrorMark} aria-hidden="true" />
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -289,7 +303,8 @@ export interface OutcomeHeroProps {
   readonly headingRef?: Ref<HTMLHeadingElement>;
 }
 
-/** The state that ends a page: a mark, a title and the sentence under it. */
+/** The state that ends a page: a mark, the page's heading and the sentence under it. It replaces the form, whose own
+ *  heading goes with it, so this is the page's one `h1`. */
 export function OutcomeHero(props: OutcomeHeroProps) {
   return (
     <section
@@ -298,9 +313,9 @@ export function OutcomeHero(props: OutcomeHeroProps) {
       data-glyph={props.glyph}
     >
       <span className={styles.heroMark} aria-hidden="true" />
-      <h2 ref={props.headingRef} tabIndex={-1} className={styles.heroTitle}>
+      <h1 ref={props.headingRef} tabIndex={-1} className={styles.heroTitle}>
         {props.title}
-      </h2>
+      </h1>
       <p className={styles.heroBody}>{props.children}</p>
     </section>
   );
@@ -338,6 +353,43 @@ export function AccountLink({
     <a href={href} className={styles.link}>
       {children}
     </a>
+  );
+}
+
+export interface ChallengeFieldProps {
+  readonly siteKey: string | undefined;
+  readonly nonce: string | undefined;
+  readonly action: TurnstileAction;
+  readonly onTokenChange: (token: string | null) => void;
+  readonly resetCount: number;
+  /** The server refused the last token: said under the slot, where the person looks for the challenge. */
+  readonly isRefused: boolean;
+}
+
+/** The Turnstile slot with its three states drawn in the page's words: loading, unavailable and refused. */
+export function ChallengeField(props: ChallengeFieldProps) {
+  const copy = useAccountKitCopy();
+  return (
+    <div className={styles.challengeArea}>
+      <TurnstileWidget
+        siteKey={props.siteKey}
+        nonce={props.nonce}
+        action={props.action}
+        onTokenChange={props.onTokenChange}
+        resetCount={props.resetCount}
+        loadingContent={
+          <div className={styles.challengeLoading}>
+            {copy.challenge.loading}
+          </div>
+        }
+        unavailableContent={
+          <FormNotice tone="warning">{copy.challenge.unavailable}</FormNotice>
+        }
+      />
+      {props.isRefused ? (
+        <InlineRefusal>{copy.challenge.failed}</InlineRefusal>
+      ) : null}
+    </div>
   );
 }
 

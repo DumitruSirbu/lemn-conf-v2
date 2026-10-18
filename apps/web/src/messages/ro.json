@@ -687,5 +687,21 @@
     "phoneFormatUnrecognised": "Nu recunoaștem formatul. Scrie numărul cu prefixul țării (ex.: +373 69 123 456).",
     "phoneTooLong": "Numărul este prea lung.",
     "phoneForbiddenCharacter": "Numărul conține caractere care nu sunt permise."
+  },
+  "accountShell": {
+    "backToConfigurator": "Înapoi la configurator",
+    "localeMenu": "Limba"
+  },
+  "accountForgot": {
+    "metaTitle": "Parolă uitată — {brand}",
+    "headerTitle": "Parolă uitată",
+    "title": "Ai uitat parola?",
+    "body": "Scrie adresa contului. Îți trimitem un link pentru o parolă nouă.",
+    "submit": "Trimite link-ul de resetare",
+    "submitting": "Se trimite…",
+    "remembered": "Ți-ai amintit?",
+    "logIn": "Intră în cont",
+    "sentTitle": "Verifică-ți e-mailul",
+    "sentBody": "Dacă există un cont confirmat cu această adresă, ți-am trimis un link pentru o parolă nouă. Link-ul este valabil 30 de minute."
   }
 }
