@@ -7,7 +7,7 @@ environment and headers were not quoted, so it does not discharge the quoted one
 Date: 2026-10-16
 Type: Decision
 Milestone: M8, wave 8N, **renamed 8J2 on 2026-10-17** per its plan's own note (plan:
-[`milestones/8N-nodemailer-gmail-notification.md`](../milestones/8N-nodemailer-gmail-notification.md))
+[`milestones/done/8N-nodemailer-gmail-notification.md`](../milestones/done/8N-nodemailer-gmail-notification.md))
 
 **Supersedes, when accepted:**
 

@@ -89,7 +89,7 @@ decision 11. Cite as `see ADR 0139 decision N`.
 
 - **Context.** [ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
   Amendment D4 decides *that* the browser's Back asks before leaving an edited editor and records the
-  as-built behaviour; the mechanics below were recorded only in `milestones/M7C-m7-feedback-fixes.md`
+  as-built behaviour; the mechanics below were recorded only in `milestones/done/M7C-m7-feedback-fixes.md`
   and the comment.
 - **Mechanism.** The router cannot refuse a traversal (Next's `onPopState` restores whichever entry the
   browser landed on), so the only shape available is a **guard entry**: one extra history entry with the

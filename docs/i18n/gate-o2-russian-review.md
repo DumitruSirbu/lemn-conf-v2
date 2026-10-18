@@ -2,7 +2,7 @@
 
 **What this is.** Every one of the **235** leaves of `apps/web/src/messages/ru.json` beside the
 Romanian it was translated from, grouped by namespace and in the catalogues' own key order. It is
-the review aid for Gate O2 (`docs/milestones/M6B-internationalization.md`, § *Gate O2*), produced by
+the review aid for Gate O2 (`docs/milestones/done/M6B-internationalization.md`, § *Gate O2*), produced by
 wave 6B-i.
 
 **What you are asked to check: the Russian wording, and only that.** Not the keys, not the ICU

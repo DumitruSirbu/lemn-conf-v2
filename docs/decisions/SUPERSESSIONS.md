@@ -306,7 +306,7 @@ replaced it — nothing is deleted or rewritten silently.
   a green gate once stood on it.
 
 - **ADR 0084** (2026-09-05) does not supersede a decision record: it corrects **wave 6Q-b's**
-  veneer-fixture criterion in `docs/milestones/M6-price-and-global-settings.md` — the hood bullet and
+  veneer-fixture criterion in `docs/milestones/done/M6-price-and-global-settings.md` — the hood bullet and
   the *"not three, which would mean the hood was counted"* clause are struck in place there, with the
   measurement that moved them. Listed here because the number was reasoned and a reader who met it
   needs the pointer.
@@ -525,3 +525,12 @@ Preserved here verbatim from that column so nothing is lost by the table's slimm
   0003** decision 4b (*"a list with a per-card CTA, not a carousel"*) → **amended for the preset chooser** by its dated
   amendment, on the owner's Q-6 (relayed); frames 1E and D1E's *"nu carusel"* notes are departed from by **ADR 0104
   Amendment F**. **ADR 0168** records the owner's option C for M8C's tests (scope: M8C only).
+- **Annotated 2026-10-18, nothing superseded:** **ADR 0142** decision 6 carries a dated note pointing at **ADR
+  0169**, which records the migration-target safety plan it named (extends ADR 0096 decision 3; the code also
+  refuses two name shapes the plan did not list, a drift note there). **ADR 0170** restates three M1 to M3 plan
+  claims with drift notes and strikes none: M3 work item 9's *"never recomputed by a command"* (read it through
+  ADR 0011 Gap D, ADR 0044, ADR 0031 and ADR 0046, as the `DEVELOPMENT-SPEC.md` §3.2 and §13.1 entries above
+  already say), the M3 *Surfaces* gate's *"temporary developer affordance"* (replaced by M4's panel), and the
+  *fifteen* insertable entries (a test says fourteen; unreconciled). **ADR 0171** notes that 7K G3 (*"no preset
+  list, card, Folosește or save-as-preset control exists"*) described the product at `642ce47` and has since
+  been overtaken by the revived preset story (ADR 0112 Amendment A, ADR 0003 decision 4b amendment).

@@ -5,7 +5,7 @@ review** (M7B wave U7 S0, tier Full plus security). A finding there amends this 
 line.
 Date: 2026-09-30
 Type: Decision (architect), on an owner ruling of 2026-09-30 relayed by the coordinator
-Milestone: M7B, wave U7 S0 (`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*)
+Milestone: M7B, wave U7 S0 (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U7 — the plan*)
 
 **How to read the citations.** Source is read at `4dd3c3b`. Each load-bearing claim is labelled
 **[doc-quoted]**, **[source-verified]** (read in the tree or in `node_modules` at that commit),

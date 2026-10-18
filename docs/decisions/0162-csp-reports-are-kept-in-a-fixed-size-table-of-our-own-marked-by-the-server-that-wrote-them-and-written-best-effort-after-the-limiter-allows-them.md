@@ -6,7 +6,7 @@ gained its **Amendment C** pointing here. The close's outcomes are under *Amendm
 erased. **The application role's grant is not proved live** (Amendment A, point 7).
 Date: 2026-10-13
 Type: Decision
-Milestone: M8 wave 8Q2 (plan: [`milestones/8Q2-csp-report-table.md`](../milestones/8Q2-csp-report-table.md));
+Milestone: M8 wave 8Q2 (plan: [`milestones/done/8Q2-csp-report-table.md`](../milestones/done/8Q2-csp-report-table.md));
 placement is the architect's recommendation, Q50
 Amends, when accepted: ADR 0161 decision 2 (*"Nothing is stored but the limiter's counter"*), decision 3 (*"The
 logged record holds only…"*, now also the stored row) and *Consequences* (the cost per accepted report). Discharges

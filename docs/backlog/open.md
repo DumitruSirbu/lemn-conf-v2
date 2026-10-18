@@ -1472,9 +1472,9 @@ than the approved ones.
 - **Depth joined M5 on 2026-08-27** and is no longer "M5's entire scope" being width alone. Entry 5's
   unfinished half (the unlinked cap and nominal) is M5 wave **5A**, and base carcass depth as a
   formula is wave **5F** — both shipped (see `docs/backlog/resolved.md`, entry 5). The wave letters
-  were reassigned when that landed — `docs/milestones/M5-width.md` carries the old→new mapping.
+  were reassigned when that landed — `docs/milestones/done/M5-width.md` carries the old→new mapping.
 - **The worktop depth control is M6's, not M5's** (owner, 2026-08-27). M5 owns the geometry with the
-  worktop as a declared constant at 600; `docs/milestones/M6-price-and-global-settings.md` work item
+  worktop as a declared constant at 600; `docs/milestones/done/M6-price-and-global-settings.md` work item
   4 adds the control. Scheduled in both, so it is not backlog in either.
 - **M4's deferred review findings** (the redundant panel test-file split, `advancePast` opening a
   span no command can produce, the notice remounting on every retry, the write-access probe's
@@ -1991,7 +1991,7 @@ here. No owner yet; phase is M8.
 
 ## 92. SEC-U1.1 — the largest storable design row grows to 523,972 bytes — FOUND 2026-09-29, DEFERRED TO M8's LAUNCH GATE
 
-**Found by M7B wave U1's security review** (S1.1, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+**Found by M7B wave U1's security review** (S1.1, Low; `docs/milestones/done/M7B-u-shaped-rooms.md`, *U1
 close-out*). Wave U1's storage-bounds slice (S2, `7e3b99d`) re-derives `MAX_DESIGN_BYTES` from
 186→279 placements and 1262→1893 empty columns for the third wall run: 349,656 → 523,972 bytes, a
 1.5× growth over the two-wall figure. This grows the accepted risk
@@ -2002,7 +2002,7 @@ is M8.
 
 ## 93. SEC-U1.2 — no per-shape empty-column count check bounds an L/straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
 
-**Found by M7B wave U1's security review** (S1.2, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+**Found by M7B wave U1's security review** (S1.2, Low; `docs/milestones/done/M7B-u-shaped-rooms.md`, *U1
 close-out*). After U1, an L or straight document may carry up to 1893 empty columns and marked
 wall-C entries even though it has no wall C — `MAX_EMPTY_COLUMNS` is a global cap, not a per-shape
 one. An optional per-shape count check (walls × 631) would tighten this; it is recorded, not built.
@@ -2010,7 +2010,7 @@ No owner, no phase.
 
 ## 94. AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens — FOUND 2026-09-29, CLOSED 2026-09-29 (M7B wave U2)
 
-**Found by M7B wave U1's logic review** (R1.3; `docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance
+**Found by M7B wave U1's logic review** (R1.3; `docs/milestones/done/M7B-u-shaped-rooms.md`, U1 acceptance
 criterion 6 and *U1 close-out*). The property (1000 runs, `mirrorUDesign` reviewed, sabotage both ways
 confirmed) exercised arbitrary U documents and a restated fixture rather than designs
 `generateKitchen` actually produces for a U shell. This is not a defect in what shipped — U1 has no
@@ -2019,13 +2019,13 @@ one exists. **Owed to wave U2's acceptance criterion A2**, not open-ended.
 
 **CLOSED 2026-09-29 — discharged by M7B wave U2.** AC6's mirror property now runs on real
 `buildUShellDesign` outputs through `mirrorUDesign`, 200 samples plus about 80 boundary rooms, zero
-findings, voids mirroring as predicted (`docs/milestones/M7B-u-shaped-rooms.md`, *U2 close-out*). No
+findings, voids mirroring as predicted (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U2 close-out*). No
 further action owed.
 
 ## 95. The A∩C corner sweep also marks a stray wall-C span on an L or straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
 
 **Found by M7B wave U1's logic review** (R1.4, a disagreement rather than a bug;
-`docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance criterion 7 and *U1 close-out*). The A∩C
+`docs/milestones/done/M7B-u-shaped-rooms.md`, U1 acceptance criterion 7 and *U1 close-out*). The A∩C
 corner-overlap sweep (`findCornerOverlaps`) runs unconditionally, so it also fires on an L or straight
 document that happens to carry a stray wall-C span, producing an extra mark-severity finding there.
 Acceptance criterion 2 (old documents load with identical findings) is not at risk, because no
@@ -2034,7 +2034,7 @@ skips wall C entirely for a shape that lacks it is optional and was left undone.
 
 ## 96. The engine's minimum-kitchen figures omit the 100 mm reserve, so they cannot be switched on as a gate — FOUND 2026-09-30, LATENT, U6 BRINGS THE APPROVED FIGURE
 
-**Found by M7B wave U3b's close-out** (`docs/milestones/M7B-u-shaped-rooms.md`, *U3b close-out*). The
+**Found by M7B wave U3b's close-out** (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U3b close-out*). The
 engine's minimum-kitchen figures, L and U alike (`wallMinimumMm` 880), exclude the 100 mm reserve, so
 they cannot be turned on as a gate without adding it. With the gate forced on, 2,160 of 36,506 sampled U
 rooms (sides 1480–1599, for example 2400/6000/1599) pass the gate while the generator refuses them.
@@ -2049,7 +2049,7 @@ No owner, no phase.
 
 ## 98. A reload shows the seeded L (3 chips) before the loaded design — FOUND 2026-09-30, PRE-EXISTING, NOT A U6 BLOCKER
 
-**Found by M7B wave U5's QA and review** (`docs/milestones/M7B-u-shaped-rooms.md`, *U5 close-out*).
+**Found by M7B wave U5's QA and review** (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U5 close-out*).
 Zustand 5.0.15's `useStore` server snapshot is `getInitialState()`, so server rendering and the
 hydration render show the seeded L (3 chips) before the loaded design. It affects every `/d/{id}` and
 `/s/{token}` load for every non-L design, and lasted about 130 ms in dev. Pre-existing since zustand 5,
@@ -2081,7 +2081,7 @@ phase.
 
 **Answered 2026-09-30 (Q-U7-2, relayed selection, not verbatim): "Leave them (Recommended)."** The six
 rows stay; nothing removes them. The architect recorded the answer in the milestone
-(`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
+(`docs/milestones/done/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
 
 **Another leftover row, 2026-10-07.** M8 wave 8A S1's measurement left one row, `su3IuyF9TqeLXtm6AegGl`, in
 the test database, undeleted as its brief required (add-only); it is recorded in the M8 plan's *8A figures*.
@@ -2099,7 +2099,7 @@ with the rows above and with backlog 79's; no earlier answer extends to them.
 ADR 0116 reads buildability from policy data, so a policy that stops stating a shape refuses it again.
 **If any future policy stops stating a shape, the e2e tests removed in U6 must come back:** census E3, E4's
 U half, E5 and E9 (the region's colours, its gap, and its clipping;
-`docs/milestones/M7B-u-shaped-rooms.md`, *U6 S0 census*). No owner, no phase.
+`docs/milestones/done/M7B-u-shaped-rooms.md`, *U6 S0 census*). No owner, no phase.
 
 ## 102. Dev-only security candidates from the undici review — FOUND 2026-09-30, NOT SCHEDULED
 
@@ -3228,3 +3228,7 @@ four file names were not relayed to the scribe.
 ## 260. A comment in `generation-model.ts` about a 900x2200 room reading "nu poate fi inclus" may be stale — RECORDED 2026-10-17 AT M8C F1b
 
 **Evidence [inference, unverified].** Step 1F's *Depozitare* row now reads placed in more rooms because the fill is a storage-role step (plan §2.4). The comment in `apps/web/src/room/generation-model.ts` about a 900x2200 room is **not confirmed stale**; nobody re-ran that room. **Trigger:** check the room's row and fix or confirm the comment.
+
+## 261. DOM-003's deferred clean-ups in the width commands — LOW, RECORDED 2026-10-18 FROM THE DOM-003 PLAN
+
+**Evidence [doc: the dom-003 plan's deferred follow-ups, relayed by the coordinator; not re-read in source here].** Four low-priority items, none a behaviour change, all sourced to the dom-003 plan (`docs/milestones/done/dom-003-set-width-split.md`). (1) Narrow `SetWidthInput` on the `plan-width-funding.ts` phase functions, so each takes only the fields it reads. (2) Fold `commands/along-wall.ts` into a shared export; `module-grid.ts` now holds `alongWallCoordinate` and `alongWallPosition`. (3) The `fundingScan` comment is stricter than the code it describes (low). (4) `columnWidthChoices` has a body of about 35 lines [as reported by the analyst]. **Trigger:** the next edit to the width commands. **Owner:** unassigned.

@@ -36,7 +36,7 @@ Started 2026-10-01 on branch `m7b-u-shaped-rooms`.
 
 ## Triage — 2026-10-01
 
-Done by the architect. The plan is `docs/milestones/M7C-m7-feedback-fixes.md`; its *Triage* table carries
+Done by the architect. The plan is `docs/milestones/done/M7C-m7-feedback-fixes.md`; its *Triage* table carries
 the classification and the evidence for each item. The reporter's text above and below is unchanged.
 
 | ID | Triage note | Owner |

@@ -37,7 +37,7 @@
 - **Order, by the owner's ruling** [owner]: *"fixes first, then the preset milestone, then login / register /
   dashboard."* So M8C runs before M8B, although its letter is later. `milestones/README.md` should say so in its
   M8C row (§12).
-- **M8 is not done** (`STATUS.md`, *What to do next*, 2026-10-17). M8C does not close M8's open items: the test audit
+- **M8 is not done** (`STATUS.md` as it stood 2026-10-17, *What to do next*, now in `docs/archive/STATUS-history.md` line 1210). M8C does not close M8's open items: the test audit
   (backlog 249), the `findSentReference` live run, 8T, and `pnpm ci:local` before a push. Those stay M8's.
 
 ## 1. The two requests, classified

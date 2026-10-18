@@ -9,7 +9,7 @@ asks the same question
 ## Context
 
 Wave 6Q-b's plan states the destructive-path fixture as **five things at once**
-(`docs/milestones/M6-price-and-global-settings.md`, *"The veneer fixture, so the destructive path is
+(`docs/milestones/done/M6-price-and-global-settings.md`, *"The veneer fixture, so the destructive path is
 measured rather than assumed"*). Two of the five cannot both hold as written:
 
 > **One `canFinish: false` body — the hood — carrying a stored finish**, which the strip removes and

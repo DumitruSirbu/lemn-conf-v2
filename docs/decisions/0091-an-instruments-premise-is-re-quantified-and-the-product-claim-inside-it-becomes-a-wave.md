@@ -268,7 +268,7 @@ This is comment text only: no constant, no threshold, no predicate, no export.
 ### 6. Wave 6V is opened, and it owns both halves
 
 Named here rather than left to be re-derived. Its plan is at the end of this record, ready to be
-pasted into `docs/milestones/M6-price-and-global-settings.md` by whoever holds that file.
+pasted into `docs/milestones/done/M6-price-and-global-settings.md` by whoever holds that file.
 
 ### 7. What does not change
 
@@ -341,7 +341,7 @@ pasted into `docs/milestones/M6-price-and-global-settings.md` by whoever holds t
 
 ## Wave 6V — a selection is counted by what changed, not by what colour it is
 
-**To be pasted into `docs/milestones/M6-price-and-global-settings.md` after wave 6U.** It is written
+**To be pasted into `docs/milestones/done/M6-price-and-global-settings.md` after wave 6U.** It is written
 here because 6R holds the milestone file at the time of writing.
 
 **Tier: Test infrastructure + one product fix. Runner-only evidence.**

@@ -218,7 +218,7 @@ narrower than a chip, and predicate 3 above is that reading made assertable.
 
 > **Re-pointed 2026-09-09, not dropped — *Amendment A*.** 6R-b shipped and met these. The layout they
 > were written against is withdrawn, so each is restated against the pill in
-> [`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md)'s
+> [`docs/milestones/done/chrome-parity-with-the-design-reference.md`](../milestones/done/chrome-parity-with-the-design-reference.md)'s
 > *Tests* section. **No criterion here is deleted to make a layout pass**; where one loses its
 > subject, the plan names what replaces it. Criterion **4i** is the one this record and ADR 0104
 > disagree about, and ADR 0104 decision 9 answers it rather than waiving it.
@@ -287,7 +287,7 @@ one. **There is no state of this tree in which the strip work is absent**, so it
 than postponed.
 
 **Where it is recorded and who owns it.** A new sub-wave **6R-b** in
-`docs/milestones/M6-price-and-global-settings.md`, immediately after 6R's scope addition, carrying
+`docs/milestones/done/M6-price-and-global-settings.md`, immediately after 6R's scope addition, carrying
 criteria 4a–4i verbatim. `docs/BACKLOG.md` entries 32 and 33 stay as ADR 0082 left them — 33 is
 **met** (the trigger measures 101.48 × 44.00 and 108.05 × 44.00, against its 93.5 × 13) and 32 is
 discharged by ADR 0082 as a *decision*; what is unmet is the wave's criteria, and the wave plan is
@@ -374,7 +374,7 @@ the amendment is written into that record rather than left to be inferred from t
 
 ## Consequences
 
-- **Wave 6R does not close; wave 6R-b is added to `docs/milestones/M6-price-and-global-settings.md`**
+- **Wave 6R does not close; wave 6R-b is added to `docs/milestones/done/M6-price-and-global-settings.md`**
   with criteria 4a–4i. 6R's Part A stands verified and is not re-run.
 - **The desktop canvas is about 44 px shorter at every width.** Paid in the owner's declared currency,
   and the price bar and the stage both keep their structural guarantees.
@@ -453,4 +453,4 @@ such function and clipped below its content width.
 About 45 px of desktop canvas at every width — the cost this record accepted knowingly under
 *"What this costs, stated rather than discovered later"* — and, on mobile, the whole strip band. The
 plan is
-[`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md).
+[`docs/milestones/done/chrome-parity-with-the-design-reference.md`](../milestones/done/chrome-parity-with-the-design-reference.md).

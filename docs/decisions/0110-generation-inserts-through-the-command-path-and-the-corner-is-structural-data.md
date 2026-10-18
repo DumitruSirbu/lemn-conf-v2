@@ -3293,7 +3293,7 @@ not restated here.**
 
 ## Amendment N — 2026-09-29: how a U kitchen is composed (M7B Q-U3), from the owner's own arrangement
 
-**Written before code, in M7B wave U0.** The plan is `docs/milestones/M7B-u-shaped-rooms.md`, *Owner
+**Written before code, in M7B wave U0.** The plan is `docs/milestones/done/M7B-u-shaped-rooms.md`, *Owner
 questions*, Q-U3, and *U0 measurements*. The owner answered on 2026-09-29 and the coordinator relayed
 the answer. The owner chose **option (c), their own arrangement**. That is neither the plan's (a) nor
 its (b), and the plan's lean towards (b) is withdrawn. Figures are **[measured]** by `u0-measure.mjs`
@@ -4698,8 +4698,8 @@ and the price book), not a composition change. It would be its own item.
 
 ## Amendment O — 2026-10-01: a fixed corner wall unit stands over every generated corner; the top row, the validator's banded reach and the fridge-gap absorb
 
-**Written for M7C wave C2** (`docs/milestones/M7C-m7-feedback-fixes.md`, *C2 — the corner wall unit*, and
-`docs/M7-FEEDBACK.md`, M7-FB-004 and M7-FB-011). **Decided and landed are kept apart.** C2 S1 is committed
+**Written for M7C wave C2** (`docs/milestones/done/M7C-m7-feedback-fixes.md`, *C2 — the corner wall unit*, and
+`docs/archive/M7-FEEDBACK.md`, M7-FB-004 and M7-FB-011). **Decided and landed are kept apart.** C2 S1 is committed
 as `075529b` (the builder, nothing mounted). C2 S2 (the domain, the shell, the prices, the validator) is
 committed as `0a1a69a` (hashes read from the branch's reflog). Both are on branch `m7c-m7-feedback-fixes`,
 not pushed and not run on the CI runner; the figures in O8 were measured by QA before the commit. **O9 (the top row, wave C3) is decided and its slice S1 is committed as `02b1c7b`;
@@ -4930,7 +4930,7 @@ remainder (F7, 0108 H3). E6's absorb shares the headroom helper, unchanged. [QA 
 rooms change; straight 0 of 481; U 0. About 17,925 L rooms per ceiling keep a bare 50-299 mm leftover
 because the fridge's neighbour is the dishwasher (16,300) or the sink (1,625), correct under "only where
 the neighbour is a door cabinet". The editor half remains not built (backlog 104). Record:
-`milestones/M7C-m7-feedback-fixes.md`, *C5 S1 as built*.
+`milestones/done/M7C-m7-feedback-fixes.md`, *C5 S1 as built*.
 
 **Update, later 2026-10-05: S2 is built for the U, in `58f6fc5`.** The same rule on the fridge wall (B or
 C), run last in `composedPlan`. With pantries beyond the fridge it is not outermost and nothing changes.

@@ -20,13 +20,13 @@ owner asks.** At a close the scope is that milestone's test work. **Default scop
 found with `git diff --name-only <commit>..HEAD`, where `<commit>` is the audited commit recorded in the newest report
 under `docs/test-audits/`. When there is no report yet, **the baseline is the commit that closes the tests review on
 `m8-review-contact-success`, on or after `35a3974`** (it follows from the owner's rulings; the owner did not name the commit,
-and the first report records the exact hash). The first full pass audited `fd2c958` (`docs/TESTS_REVIEW.md`) and the fix-up
+and the first report records the exact hash). The first full pass audited `fd2c958` (`docs/archive/TESTS_REVIEW.md`) and the fix-up
 since then changed 360 test files, so do not use `fd2c958`. A full-suite pass only when the dispatch asks for it in words. That the audit
 recurs this way is **the owner's ruling of 2026-10-08, "Incremental (Recommended)"** (ADR 0152 decision 4). The report records the audited commit.
 
 ## What to look for
 
-Six shapes of a fake check: `docs/TESTS_REVIEW.md` lines 42–66 (values the test declared itself; a regex over source
+Six shapes of a fake check: `docs/archive/TESTS_REVIEW.md` lines 42–66 (values the test declared itself; a regex over source
 standing in for behaviour; both sides from the same source; a fixture that does not isolate the rule; an assertion too
 loose to notice; a loop or early return that runs zero assertions). Do not restate them in a report; cite the shape.
 The fix-up added two:
@@ -98,7 +98,7 @@ are counted from the Status column by script, never written by hand.**
 
 ## What the first full pass cost and found
 
-From `docs/TESTS_REVIEW.md`, *Statistics* (counted by script from its Status cells): 674 rows settled, 126 made real, 453
+From `docs/archive/TESTS_REVIEW.md`, *Statistics* (counted by script from its Status cells): 674 rows settled, 126 made real, 453
 deleted, 24 partly, 20 kept because the review was wrong, 51 kept as honest. Test files changed: 360, with 4,005 lines
 added and 8,716 removed (`git diff --shortstat`). The review was wrong on 52 rows (8%), a floor. Two production defects
 were found and fixed. Eight independent logic reviews, nothing restored.

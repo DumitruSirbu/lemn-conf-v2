@@ -16,7 +16,7 @@ desktop, and both back links confirm before leaving; decision 8's widths carry a
 Date: 2026-09-09 (decisions 3, 8 and 9 rewritten the same day on the owner's second and third rulings)
 Type: Decision (owner ruling) + adjudication
 Milestone: M6 — opens the wave planned in
-[`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md)
+[`docs/milestones/done/chrome-parity-with-the-design-reference.md`](../milestones/done/chrome-parity-with-the-design-reference.md)
 
 ## Context
 
@@ -510,7 +510,7 @@ in place — ADR 0082 and ADR 0094 — and neither amendment is left to be infer
   any measurement exists, and the jsdom behaviour the unit tests need — is new ground and is a named
   risk in the plan rather than an implementation detail.
 - **A wave is opened**, planned in
-  [`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md),
+  [`docs/milestones/done/chrome-parity-with-the-design-reference.md`](../milestones/done/chrome-parity-with-the-design-reference.md),
   with an owner browser review before any QA is dispatched.
 - **Four stylesheets and four components change**: `configure.module.css`, `configure-screen.tsx`,
   `global-settings.module.css`, `global-settings.tsx`, `global-settings-model.ts`,
@@ -788,7 +788,7 @@ Step 1 is M7B wave U5's.
 **What this amendment does.** It records an owner ruling that departs from frame D2A, which is why it is
 recorded here. **Nothing above is struck.** Decision 8's widths gain a dated note (D3). Amendment C
 (above) is the corner toggle and is not this. Written for M7C wave C1 slice S3
-(`docs/milestones/M7C-m7-feedback-fixes.md`, *Q1*, *Q1b*, *C1*; `docs/M7-FEEDBACK.md`, M7-FB-001).
+(`docs/milestones/done/M7C-m7-feedback-fixes.md`, *Q1*, *Q1b*, *C1*; `docs/archive/M7-FEEDBACK.md`, M7-FB-001).
 **S3 is committed as `01c40be`** (hash read from the branch's reflog; QA-green in a browser and
 reviewed; not pushed, and not run on the CI runner). Labels: **[doc-quoted]**, **[relayed]** (stated by QA, a
 reviewer or the coordinator, not re-run by the scribe), **[inference]**.
@@ -885,7 +885,7 @@ actually wants and calls hard; it is backlog 103 and not this amendment.
 > either question open leaves. **Not a defect, recorded:** after a language switch that follows the guard,
 > three Backs are needed, because the locale menu pushes its own entry. Forward back into the editor does
 > not re-arm. Real phone swipe-back and real bfcache were not exercised. Record:
-> `milestones/M7C-m7-feedback-fixes.md`, *C1 S4 as built*.
+> `milestones/done/M7C-m7-feedback-fixes.md`, *C1 S4 as built*.
 
 ### D5 — alternatives considered
 

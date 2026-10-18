@@ -6,7 +6,7 @@ the files, no code replacements."*
 
 **This file is not wired to anything.** No call site, import or test was changed. `ro.ts` and the
 domain's Romanian are still what the product renders. This is the reading copy for
-[Gate O1](../milestones/M6B-internationalization.md), and the Romanian in it is **verbatim** — the
+[Gate O1](../milestones/done/M6B-internationalization.md), and the Romanian in it is **verbatim** — the
 only value that differs from what ships today is the zero-count plural, which the owner ruled on
 2026-09-06.
 

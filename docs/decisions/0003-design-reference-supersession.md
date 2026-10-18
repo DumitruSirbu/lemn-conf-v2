@@ -9,7 +9,7 @@ Original status line: accepted by product owner (the owner chose the new referen
 confirmed it supersedes the earlier accepted domain documents where they conflict)
 
 Supersedes, in part: `docs/CONFIGURATION_MODEL.md`, `docs/ARCHITECTURE_PROPOSAL.md` §3–§4,
-`docs/PRODUCT_REQUIREMENTS.md` (step wording), `docs/MAIN_REQUIREMENTS.md` (whole document),
+`docs/PRODUCT_REQUIREMENTS.md` (step wording), `docs/archive/MAIN_REQUIREMENTS.md` (whole document),
 `docs/milestones/done/M0-foundations.md` (parts of its accepted scope).
 
 ## Context
@@ -273,7 +273,7 @@ after desktop. See `docs/milestones/README.md`.
    persistence, and contact-separation contracts are sound, are implemented, and are orthogonal to
    the placement model. A surgical supersession keeps the paper trail and does not discard verified
    work.
-4. **Delete `docs/MAIN_REQUIREMENTS.md`.** Rejected: it is the prompt that produced the previous
+4. **Delete `docs/archive/MAIN_REQUIREMENTS.md`.** Rejected: it is the prompt that produced the previous
    mockup. It is marked superseded and retained as a record.
 5. **Build desktop first because its chrome is simpler.** Rejected: the owner named mobile as top
    priority, and the mobile mockup is the only one covering all five screens.
@@ -282,7 +282,7 @@ after desktop. See `docs/milestones/README.md`.
 
 - `docs/CONFIGURATION_MODEL.md`, `docs/ARCHITECTURE_PROPOSAL.md`, `docs/PRODUCT_REQUIREMENTS.md`
   carry supersession notes on their affected sections and point here.
-  `docs/MAIN_REQUIREMENTS.md` carries a whole-document supersession note.
+  `docs/archive/MAIN_REQUIREMENTS.md` carries a whole-document supersession note.
 - `docs/milestones/done/M0-foundations.md` is closed as partially superseded. Its progress log stays
   intact; a dated status section names which landed work is retired. In particular the run-anchor
   packing, reorder and margin-move commands, junction-group validation, wall-C transforms, and

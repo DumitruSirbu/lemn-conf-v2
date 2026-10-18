@@ -3,7 +3,7 @@
 Status: Accepted (records a rule already shipped, with the owner's answer of 2026-09-30)
 Date: 2026-09-30
 Type: Finding + Decision (architect), recording an owner answer relayed by the coordinator
-Milestone: M7B, wave U7 S4 (3) (`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, G11)
+Milestone: M7B, wave U7 S4 (3) (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U7 — the plan*, G11)
 
 **Why this record exists.** The rule was written only in the M7B plan (*Owner questions*, *"Not
 asked, recorded instead: no new 1C suggestion for a U"*). A plan is archived at the phase close, and

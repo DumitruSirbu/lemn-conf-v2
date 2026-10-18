@@ -4,8 +4,8 @@ Status: Accepted (decision). Slice S1 is committed as `c4eeea6` and slice S2 as 
 `m7c-m7-feedback-fixes`, not pushed (hashes read from the branch's reflog).
 Date: 2026-10-01
 Type: Finding + Decision (owner rulings, relayed selections)
-Milestone: M7C, wave C4 (`docs/milestones/M7C-m7-feedback-fixes.md`, *C4 — the corner seam*); owner feedback
-M7-FB-006 (`docs/M7-FEEDBACK.md`)
+Milestone: M7C, wave C4 (`docs/milestones/done/M7C-m7-feedback-fixes.md`, *C4 — the corner seam*); owner feedback
+M7-FB-006 (`docs/archive/M7-FEEDBACK.md`)
 
 **Decided and landed are kept apart.** Everything below is the decision and the result its implementer
 or QA measured. Neither slice has been run on the CI runner. Labels: **[doc-quoted]** from the plan
@@ -16,7 +16,7 @@ scribe, who did not re-run it, **[source-verified]** read at the file and line n
 
 The owner's feedback M7-FB-006 reported that at both corners of a run the corner unit's front and
 worktop edge are set back from the adjoining cabinets, so the fronts are not on one line
-(`docs/M7-FEEDBACK.md`, *M7-FB-006*). The reporter recalled earlier milestones mentioning it. No record
+(`docs/archive/M7-FEEDBACK.md`, *M7-FB-006*). The reporter recalled earlier milestones mentioning it. No record
 names the setback: ADR 0025 records the legs' depths as measurements of the reference room and never
 compares them with the run beside them.
 
@@ -67,7 +67,7 @@ neighbour at 600 and 700, in an L, a right-hand L and a U.
 This retires an older relation, the return's worktop finishing "1 mm proud" of a column run (plan, *One
 consequence to show the owner*, and the parity test `cabinet-depth-sweep.parity.test.ts`, which the plan
 says pins it [doc-quoted]). QA found no dated decision that pins it for the return. ADR 0058 line 30
-says "1 mm proud — flush" of top cabinet `p23` over the pantry only, and `docs/milestones/M6-price-and-global-settings.md:6338`
+says "1 mm proud — flush" of top cabinet `p23` over the pantry only, and `docs/milestones/done/M6-price-and-global-settings.md:6338`
 says the same of `p23`; neither names the base return [source-verified, both read]. The owner's ruling
 for one line makes a base-cabinet relation the right one, and the owner sees it at the visual gate.
 It occurs in generated U rooms: 2,630 left and 2,708 right of 47,691 composed, witnessed by U 4200 / 1600

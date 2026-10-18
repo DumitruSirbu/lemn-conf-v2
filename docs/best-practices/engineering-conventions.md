@@ -322,7 +322,7 @@ ADR 0136, Consequences.
   names and confirm the gate goes red; if it stays green, the comment is the defect and it is more
   dangerous than a missing test, because the next reader trusts it and does not write the real guard.
   Three of the four dead gates M6B wave 6B-f found were exactly this shape, and none was found by
-  running the suite — see that wave's close-out in `docs/milestones/M6B-internationalization.md`.
+  running the suite — see that wave's close-out in `docs/milestones/done/M6B-internationalization.md`.
   The same rule covers the two ways a gate disarms itself quietly: a helper that is module-private is
   invisible to the totality test that should be sweeping it, and a guard that returns early on some
   precondition reports success on every run where the precondition is false.
@@ -450,7 +450,7 @@ every member of a set" needs a **minimum count per arm** of whatever it is branc
 total count — otherwise the sweep can pass while landing entirely on the arm nobody changed, and it
 certifies nothing about the arm that moved. Found at M6 wave 6I2's close-out (2026-09-04): the wave's
 strongest property was first swept without a floor per arm, and the fixture the sweep reached happened
-to be the arm 6I2 did **not** touch — see `../milestones/M6-price-and-global-settings.md` wave 6I2's
+to be the arm 6I2 did **not** touch — see `../milestones/done/M6-price-and-global-settings.md` wave 6I2's
 close-out for the specific instance.
 
 Two more instances from the tests review (2026-10-08, [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
