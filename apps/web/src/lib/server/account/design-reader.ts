@@ -3,7 +3,7 @@ import "server-only";
 import type { DesignAccessor } from "@lemnaria/persistence";
 
 import { readCurrentSession } from "@/lib/server/account/current-session";
-import { isClientHolding } from "@/lib/server/account/require-capability";
+import { isCapabilityHeld } from "@/lib/server/account/require-capability";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import {
   readVisitorHash,
@@ -29,7 +29,7 @@ export interface RequestDesignAccess {
 }
 
 /**
- * The account a session reads designs as: a verified **client** holding `design.read.own` and nobody else (ADR 0169
+ * The account a session reads designs as: a verified account holding `design.read.own`, which only a client does (ADR 0169
  * Amendment B). Staff reading any design is a later wave, so a staff session reads as a visitor does: by its cookie
  * alone. A session that cannot be read is anonymous, so the failure gives less access.
  */
@@ -38,10 +38,10 @@ export async function readingAccountOf(
 ): Promise<ReadingAccount | undefined> {
   const session = await readCurrentSession(cookies);
   if (session.kind !== "signed-in") return undefined;
-  if (!isClientHolding(session, "design.read.own")) return undefined;
+  if (!isCapabilityHeld(session, "design.read.own")) return undefined;
   return {
     accountId: session.accountId,
-    mayEdit: isClientHolding(session, "design.edit.own"),
+    mayEdit: isCapabilityHeld(session, "design.edit.own"),
   };
 }
 

@@ -167,12 +167,12 @@ Each must pass `migration-safety.ts`'s unattended screen [src]:
 | `email` | `text not null`, 3–254 characters | As typed, trimmed. 254 = `CONTACT_EMAIL_MAX_LENGTH` [src] |
 | `email_normal_form` | `text not null`, unique (`accounts_email_normal_form_is_unique`), 3–254 characters | The domain's `countedFormOfAddress` (lower case, nothing stripped) [src: `contact-fields.ts:120`]. **No `= lower(…)` check:** Postgres `lower()` and JS `toLowerCase()` agree only on what both treat alike, so the code is the one authority on the normal form |
 | `email_verified_at` | `timestamptz` null | Null until confirmed. The 30-day cleanup (later) reads it |
-| `password_hash` | `text not null`, `~ '^\$argon2id\$v=19\$m=[0-9]+,t=[0-9]+,p=[0-9]+\$[A-Za-z0-9+/]{16,}\$[A-Za-z0-9+/]{16,}$'` | PHC string. The parameters live in the hash, so raising them needs no migration |
+| `password_hash` | `text not null`, constraint `accounts_password_hash_is_phc`, `~ '^[$][a-z0-9-]{1,32}([$]v=[0-9]+)?[$][^$]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$'` (as built, 2026-10-18) | The **generic PHC shape**; strict argon2id is enforced in code only (`password-hash-shape.ts`). The parameters live in the hash, so raising them needs no migration |
 | `password_changed_at` | `timestamptz not null default now()` | Shown in the "password changed" mail. Later sessions compare against it |
 | `role` | `text not null default 'client'`, in (`client`, `operator`, `administrator`) | Owner's three names [owner]. **Not in the application role's grants** (below) |
-| `locale` | `text not null`, `~ '^[a-z]{2}$'` | The language of the account's mail. A shape check, not a list, so adding a locale drops nothing |
+| `locale` | `text not null`, `~ '^[a-z]{2}(-[a-z]{2})?$'` (widened, as built 2026-10-18; the persistence `LOCALE_SHAPE` mirror matches) | The language of the account's mail, with an optional region. A shape check, not a list, so adding a locale drops nothing |
 | `phone`, `phone_normal_form` | `text` null, both null or both set; at most 32 characters | Optional, **unverified**, labelled so [owner Q-F3-2]. `normalisePhoneNumber` makes the normal form [src] |
-| `privacy_notice_version` | `text not null`, `~ '^[a-z0-9.-]{1,32}$'` | Which notice was shown at registration (GDPR item 13) |
+| `privacy_notice_version` | `text not null`, `~ '^[a-z0-9.-]{1,32}$'` | Which notice was shown at registration (GDPR item 13). The column keeps the shape check; the **domain** validates against the closed list `PRIVACY_NOTICE_VERSIONS = ['2026-10-draft']` (code `UNKNOWN_NOTICE_VERSION`) |
 | `created_at`, `updated_at` | `timestamptz not null default now()` | — |
 
 **Not added, by ADR 0118** (no reader yet): name, address, disabled or invited-by marks, erasure marks. Each is
@@ -274,14 +274,14 @@ only).
 
 | # | Flow | Steps | Answer |
 | --- | --- | --- | --- |
-| 1 | **Register** `POST /api/account/register` `{email, password, phone?, locale, privacyNoticeVersion, turnstileToken}` | (a) Policy check, including the breach check. (b) Unknown address: insert unverified, issue a `verify-email` token, mail the link. (c) **Unverified** address: overwrite `password_hash`, phone, locale and notice version; issue a new token (older ones stop working); mail the link. (d) **Verified** address: change nothing; mail an "already registered — log in or reset" notice. (e) Hash the password in every branch | **`202 {status:"check-inbox"}` in (b), (c) and (d) alike.** One mail is queued in each, sent after the response (`after()`, [inf/ven]) |
+| 1 | **Register** `POST /api/account/register` `{email, password, phone?, locale, privacyNoticeVersion, turnstileToken}` (`privacyNoticeVersion` must be in the closed list `PRIVACY_NOTICE_VERSIONS`, else field code `UNKNOWN_NOTICE_VERSION`; the register UI sends `PRIVACY_NOTICE_VERSIONS[0]`) | (a) Policy check, including the breach check. (b) Unknown address: insert unverified, issue a `verify-email` token, mail the link. (c) **Unverified** address: overwrite `password_hash`, phone, locale and notice version; issue a new token (older ones stop working); mail the link. (d) **Verified** address: change nothing; mail an "already registered — log in or reset" notice. (e) Hash the password in every branch | **`202 {status:"check-inbox"}` in (b), (c) and (d) alike.** One mail is queued in each, sent after the response (`after()`, [inf/ven]) |
 | 2 | **Confirm** `GET /[locale]/account/verify-email#t=<token>` | The page reads the fragment (never sent to the server, never in a `Referer`) and asks for the password. `POST /api/account/verify-email` `{token, password}`: one transaction. The token must be the newest unused, unexpired one of its purpose. The password must verify against the account's current hash. Then: set `email_verified_at`, mark the token used, start a session | `200 {status:"signed-in", claimable:n}` and `Set-Cookie`, **or one answer `400 {status:"link-or-password-invalid"}`** for an unknown, used, expired or superseded token or a wrong password |
 | 3 | **Login** `POST /api/account/login` `{email, password, turnstileToken}` | Unknown address: verify against a fixed dummy hash, so the time class is equal. Wrong password: same. **Correct password but unverified: the same `401` as a wrong password, with the same verification work and no other work before the response (ADR 0169 Amendment A, L8 security review F1).** The confirmation resend (`judgeAccountSubject({purpose:"mail"})`, which counts its own bucket `account-login-resend-by-address`, a new `verify-email` token, the mail) runs entirely in `after()`, and a limiter refusal or unavailability there is silent. Correct and verified: rehash if the parameters are old, then start a session | `200 {status:"signed-in", claimable:n}` / **`401 {status:"invalid-credentials"}` for an unknown address, a wrong password and a correct password on an unconfirmed account alike** (one body, one status). No `unconfirmed` or `resent` member exists |
 | 4 | **Logout** `POST /api/account/logout` `{scope:"this-device"\|"everywhere"}` | Revoke this session, or every session of the account | `204`, the session cookie cleared (`Max-Age=0`, the same attributes, never `cookies.delete`, as `visitor.ts` explains [src]). No session: `204`, nothing done |
 | 5 | **Who am I** `GET /api/account/session` | Read the session (fails open to anonymous) | `{state:"anonymous"}` or `{state:"signed-in", email, capabilities:[…]}` |
 | 6 | **Forgot** `POST /api/account/password-reset/request` `{email, turnstileToken}` | Count the per-address buckets for **every** valid request, before any lookup. Then, **after the response** (`after()`): for a verified account, issue a `reset-password` token and mail the link; for an unknown or unverified address, do nothing. The request path before the answer is the same in every branch | **`202 {status:"check-inbox"}` always**, and a per-address `429` reads the same for every address |
 | 7 | **Reset** `GET /[locale]/account/reset-password#t=<token>`, then `POST …/password-reset/complete` `{token, newPassword}` | Policy check. One transaction of two statements: (1) token valid (as in 2), set the hash and `password_changed_at`, mark the token used; (2) revoke **every** session of the account, in a fresh snapshot so a session a racing login committed while (1) waited is revoked too (L4a/L4b review F1). Queue a "your password was changed" mail | `200 {status:"password-changed"}`. **No session is started**; the client logs in. One `400 link-invalid` |
-| 8 | **Claim** `GET /api/account/claim`, `POST /api/account/claim` | Requires a session (`401` without one), a verified **client** account holding `design.edit.own` (`403` for an unconfirmed account or a staff role, L11 review F1) and a well-formed visitor cookie. The `GET` counts designs with `visitor_hash = $v and account_id is null`. The `POST` (the client's confirmation) runs one `update … set account_id = $a where visitor_hash = $v and account_id is null returning id` | `{claimable:n}` / `{claimed:n}`. No visitor cookie: `{claimable:0}` |
+| 8 | **Claim** `GET /api/account/claim`, `POST /api/account/claim` | Requires a session (`401` without one), a verified **client** account holding `design.edit.own`, decided by capability (`isCapabilityHeld`; `isClientHolding` is gone) (`403` for an unconfirmed account or a staff role, L11 review F1) and a well-formed visitor cookie. The `GET` counts designs with `visitor_hash = $v and account_id is null`. The `POST` (the client's confirmation) runs one `update … set account_id = $a where visitor_hash = $v and account_id is null returning id` | `{claimable:n}` / `{claimed:n}`. No visitor cookie: `{claimable:0}` |
 
 **Sessions** (D3):
 - **Cookie:** `__Host-lemnaria_session`, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`.
@@ -310,7 +310,7 @@ only).
 | --- | --- | --- |
 | `account-register-by-block` | network block | 5 / 60 min, 20 / 1440 min |
 | `account-login-by-block` | network block | 30 / 60 min |
-| `account-login-by-address` | `subjectOfAddress` | 10 / 15 min, 30 / 1440 min (the growing back-off) |
+| `account-login-by-address` | `subjectOfAddress` | 10 / 15 min, **100 / 1440 min** (day figure raised from 30, `ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE`): **two fixed windows, not a growing back-off**, every valid attempt counted before the lookup. This is an **interim**. The owner's decision of 2026-10-18 (failure-only counting, growing delay, 100 / day ceiling; ADR 0169 D5, *Login throttling*) is **not built** and needs a design; see the `IMPLEMENTATION STATE` line and §12 *Review record* |
 | `account-reset-request-by-block` | network block | 10 / 60 min |
 | `account-token-complete-by-block` | network block | 20 / 60 min (confirm and reset completion; bounds the hashing cost) |
 | `account-register-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the confirmation and already-registered mail of registration (purpose `register` only; a login's resend no longer counts here, L9 security review F1) |
@@ -322,12 +322,14 @@ only).
 Together the three per-address mail buckets still protect the shared Gmail quota and a victim's inbox: at most 15 account mails a day to one address (5 registration, 5 reset, 5 login resend; the resend bucket is the L9 security review's F1, so up to 5 more mails a day per address than before it).
 
 **What the per-address buckets allow, accepted [inf; that `account-login-by-address-day` and the three per-address mail buckets use
-`utcMinutes(ACCOUNT_DAY_MINUTES)`, a fixed UTC day, is source-verified in `limit-policy.ts` and `utc-window.ts`]:** a stranger who solves 30 Turnstile challenges (each attempt is counted before the password is
+`utcMinutes(ACCOUNT_DAY_MINUTES)`, a fixed UTC day, is source-verified in `limit-policy.ts` and `utc-window.ts`]:** a stranger who solves 30 Turnstile challenges (100 since the interim raise of the day figure, 2026-10-18; each attempt is counted before the password is
 looked at, so the victim's own correct password does not help) locks a victim's login until 00:00 UTC; the 10 per
 15 minutes bucket only spreads those 30 attempts across at least three quarter-hour windows. The 15-minute figure alone would
 cost the victim 15 minutes; the day figure is what makes it a day. Turnstile makes each attempt cost a solved
-challenge, and the refusal reads the same for known and unknown addresses. The owner may want the day figure raised or
-moved to a back-off that grows with failures (a figure changes constants, not code).
+challenge, and the refusal reads the same for known and unknown addresses. A stranger's about 5 solved challenges also
+use up the victim's reset-mail bucket (5 a day). **Owner decision 2026-10-18, after research (OWASP Authentication Cheat
+Sheet, NIST SP 800-63B): login throttling moves to failure-only counting with a growing delay and a 100 / day ceiling.**
+The reset-mail residual is not changed by it. What was built is in ADR 0169 D5's `IMPLEMENTATION STATE` line.
 
 ## 6. Variables and secrets the owner provisions
 
@@ -454,7 +456,7 @@ runbook. **Reviewer reading:** the same; security adds ADR 0019 d11.
 | --- | --- | --- |
 | 1 | `validateRegistration(input)`: e-mail through the contact e-mail rule; optional phone through `normalisePhoneNumber`; locale in the app's locales; notice version. Returns codes, never text | `account-fields.ts` |
 | 2 | `judgePassword({password, email})`: NFKC first; 12–128 code points; not equal (case-insensitively) to the e-mail; **no composition rules, no trimming**. Codes `PASSWORD_TOO_SHORT`, `PASSWORD_TOO_LONG`, `PASSWORD_IS_EMAIL`. The breach check is the server's (I/O) and adds `PASSWORD_BREACHED` | `password-policy.ts` |
-| 3 | `CAPABILITIES` (closed): `design.read.own`, `design.edit.own`, `design.read.any`, `design.unhide`, `contact.read`, `contact.update-status`, `note.write`, `preset.create`, `preset.manage`, `price.edit`, `translation.edit`, `user.manage`, `audit.read`. `ROLES`: client = the two `.own`; operator = the client's two + `design.read.any`, `contact.read`, `contact.update-status`, `note.write`, `design.unhide`; administrator = all. `hasCapability(role, capability)`; `isRole(text)` | `capabilities.ts` |
+| 3 | `CAPABILITIES` (closed): `design.read.own`, `design.edit.own`, `design.read.any`, `design.unhide`, `contact.read`, `contact.update-status`, `note.write`, `preset.create`, `preset.manage`, `price.edit`, `translation.edit`, `user.manage`, `audit.read`. `ROLES`: client = the two `.own` (only the client holds them); operator = `design.read.any`, `contact.read`, `contact.update-status`, `note.write`, `design.unhide`; administrator = every capability except the two `.own` ones [src: `capabilities.ts`, read 2026-10-18]. `hasCapability(role, capability)`; `isRole(text)` | `capabilities.ts` |
 | 4 | The package's exports | `account/index.ts`, `src/index.ts` |
 
 **Reading:** this plan §2 (D1, D2, D7); `OWNER_FIXES.md` *Fix 3* items 1, 8–12 and *Consequences*;
@@ -907,8 +909,8 @@ outlive the reset.
 | --- | --- | --- |
 | 1 | `countClaimable(visitorHash)`, `claimVisitorDesigns({visitorHash, accountId})` (one statement, `account_id is null` in its predicate, `returning id`) | `packages/persistence/src/neon-configuration-repository.ts` |
 | 2 | The fake repository's same | `packages/persistence/src/fake-configuration-repository.ts` |
-| 3 | `GET` / `POST /api/account/claim` (flow 8), `requireCapability(design.edit.own)`, a verified account | `app/api/account/claim/route.ts` |
-| 4 | The mint stores `account_id` when the request has a signed-in, verified session with `design.edit.own`; otherwise exactly as today | `app/api/designs/route.ts` (+ `MintDesign` gains an optional `accountId` in the repository) |
+| 3 | `GET` / `POST /api/account/claim` (flow 8), `requireCapability(design.edit.own)` (decided by `isCapabilityHeld`), a verified account | `app/api/account/claim/route.ts` |
+| 4 | The mint stores `account_id` when the request has a signed-in, verified session holding `design.edit.own` (a client; decided by capability); otherwise exactly as today | `app/api/designs/route.ts` (+ `MintDesign` gains an optional `accountId` in the repository) |
 
 **Reading:** this plan §5 flow 8, §2 (D8); ADR 0114 d3, H1 (rotation), ADR 0111 d1 (bodyless mint); `api/designs/route.ts`,
 `visitor.ts`, `neon-configuration-repository.ts` `mint`, `mintStatements`. **Reviewer reading:** the same.
@@ -919,8 +921,8 @@ outlive the reset.
 2. A claim changes `account_id` only. **`visitor_hash`, `write_token_hash`, `revision`, `updated_at` and
    `document` are unchanged**, so the claiming browser keeps working exactly as before.
 3. **Route contract (reconciled with the code, L11 review F4).** No live session answers `401`; a session that is
-   not a verified **client** account holding `design.edit.own` (an unconfirmed account, or an operator or
-   administrator) answers `403`; neither claims. For a verified client, a missing or malformed visitor cookie
+   not a verified account holding `design.edit.own` (an unconfirmed account, or an operator or
+   administrator, who do not hold it: ADR 0169 D7 revised 2026-10-18; decided by `isCapabilityHeld`) answers `403`; neither claims. For a verified client, a missing or malformed visitor cookie
    gives `{claimable:0}` / `{claimed:0}`. Sign-in and confirmation tell the client `claimable: 0` for any account that
    may not claim.
    **Staff do not claim and do not own by mint (L11 review F1, ADR 0169 Amendment B):** the claim route refuses a
@@ -965,7 +967,7 @@ outlive the reset.
 | # | Item | File |
 | --- | --- | --- |
 | 1 | `saveAuthorized` takes a credential union `{kind:"write-token", hash}` \| `{kind:"account", accountId}`. The account arm's predicate is `account_id = $a`. Revision and retry rules unchanged | `neon-configuration-repository.ts` |
-| 2 | `PUT /api/designs/{id}`: the write token if present; otherwise the session's account with `design.edit.own`; `isCrossSiteRequest` first for the session arm; limiter by `design-save-by-account` for that arm | `app/api/designs/[id]/route.ts` (PUT half) |
+| 2 | `PUT /api/designs/{id}`: the write token if present; otherwise the session's account holding `design.edit.own` (a client); `isCrossSiteRequest` first for the session arm; limiter by `design-save-by-account` for that arm | `app/api/designs/[id]/route.ts` (PUT half) |
 | 3 | The save judge accepts the account subject | `rate-limit/judge-save-request.ts` |
 | 4 | Share `issue` / `revoke` / `status` accept the same union (account arm: `account_id = $a`) | `packages/persistence/src/share-link-repository.ts` |
 | 5 | The share route reads the session when the cookies are absent | `app/api/designs/[id]/share/route.ts` |
@@ -1227,6 +1229,10 @@ Rules for the walk:
 | **`designs.account_id` links a lead to an identified account** (L11 review F2) | **Accepted [inf].** `contact_submissions.design_id` and `designs.account_id` are both readable by the application role, so a lead can be joined to the account that owns the design. Contact data stays unreadable (ADR 0153 d1) | Accepted risk, recorded as a dated note in ADR 0153 (2026-10-18) |
 | **Migration `0015` must be applied wherever this code runs** (L11 review F3) | The mint of a signed-in verified client inserts `account_id`; on a database without `0015` that mint fails, though a signed-out mint still works | Apply `0012`-`0015` in **every** environment that receives this code, **preview included**, before it is deployed there. M9 launch-gate line 2 already covers production |
 | **A write-token cookie, even a wrong or planted one, beats a valid owner session on save and share** (L12b security review L1, 2026-10-18) | **Owner-visible, accepted, Low (availability).** `saveCredentialOf` and `shareCredentialFor` (`apps/web/src/app/api/designs/[id]/route.ts`, `share/route.ts`) choose the token arm whenever a token cookie is present. A same-site sibling origin that knows a design id can plant junk and stop a signed-in owner saving or sharing that design on that device for 30 days. `GET` still says `canWrite: true`. Nothing is exposed; the owner can clear the cookie | Accepted. **Optional mitigation, not shipped, and not to be built before the refusal matrix of §9 exists:** when the token arm raises `DesignWriteForbiddenError` and the request is same-site with an editing session, run the account arm once (a `409` from the token arm wins; the limiter counts once; the same for share) |
+| **Victim lockout by solved challenges** (2026-10-18) | **Owner-visible.** As first built, 30 solved Turnstile challenges lock a victim's login until 00:00 UTC and about 5 block their reset mail | Login throttling changes to failure-only counting, growing delay, 100 / day (ADR 0169 D5; state of the build on its `IMPLEMENTATION STATE` line). The reset-mail bucket is unchanged: residual stays |
+| **Promoting a client strands the designs it claimed** (2026-10-18) | The runbook's administrator seed promotes a client; staff no longer hold `design.read.own` / `design.edit.own`, so its claimed designs stop opening through the account arm (their `account_id` is untouched) | Recorded residual (ADR 0169 D7). The staff-management wave decides how promotion treats them |
+| **A restore loses accounts and un-claims designs** (2026-10-18) | The design export omits `account_id`; there is no accounts export | M9 launch-gate line 7: the accounts backup (QP5) before any real account exists |
+| **Turnstile consent and Cloudflare as a processor are unrecorded** (2026-10-18) | OWNER_FIXES item 17 is not met | Deferred; trigger *before any real user*. M9 launch-gate line 8 |
 | **Account e-mail is readable by the application role** (unlike contact data, ADR 0153 d1) | A leaked `DATABASE_URL` leaks account e-mails | Needed to sign in and to send. Recorded in D11 with the alternative (encryption at rest) and its trigger |
 
 **M9 launch-gate lines this plan adds:**
@@ -1240,7 +1246,11 @@ Rules for the walk:
 6. **Before applying `0012` in any environment (preview first):** the owner confirms the Vercel runtime is Node >= 24.7
    (`node -v` in a build log, or log `process.version`). Vercel publishes only "24.x"; the patch is not documented
    [doc: fetched 2026-10-18]. The argon2id-only check cannot be dropped. Owner decision: change `engines.node` from
-   `>=24.7 <25` to the documented form `24.x` and add a runtime guard (ADR 0169 Amendment D). Not yet done.
+   `>=24.7 <25` (in force at HEAD since L3) to the documented form `24.x` and add a runtime guard (ADR 0169
+   Amendment D). Not yet decided.
+7. **The accounts backup (QP5)** exists and a restore of it has been rehearsed before any real account exists. A
+   restore of the design export alone returns designs unclaimed and no accounts (ADR 0169 Consequences).
+8. **The Turnstile consent decision and the Cloudflare processor entry** exist (ADR 0169 Consequences).
 
 ## Review record (written 2026-10-18)
 
@@ -1264,7 +1274,18 @@ Rules for the walk:
     - Error-name field in `answerUnavailableOnFailure`.
     - Fakes for `loadOwned`, resume, and account-arm save/share by account are owed; plan items that say "the fake's
       same" are stale.
-    - `privacyNoticeVersion` is validated by shape only. **Owner flag** until the notice text is published.
+    - `privacyNoticeVersion` is now validated against the closed list `PRIVACY_NOTICE_VERSIONS = ['2026-10-draft']`
+      (code `UNKNOWN_NOTICE_VERSION`); persistence keeps the shape check. **Owner flag** stands: the single entry is a
+      placeholder until the notice text is published.
+    - **Login throttling: the true failure-only back-off is unbuilt (needs a design).** Built is an interim: the per-address
+      day figure 30 to 100. The store only increments (`recordHits`, `totalsOfWindow`; no per-key read, no reset),
+      counting happens before judging, and windows are fixed per policy, so each delay tier is its own policy. Needs:
+      (1) `readCounts` without incrementing in the Neon and fake stores; (2) sign-in split into check-before-verify and
+      record-on-any-failure, recorded identically for unknown, wrong, refused and unconfirmed (enumeration rule);
+      (3) reset on success (a reset port or a success-epoch in the key); (4) a decision on the check/record race and
+      the `503` hash-failure path; (5) the `sign-in.ts` header updated. Owner: the coordinator assigns a wave; no
+      owner decision is outstanding (ADR 0169 D5). `docs/backlog/open.md` was not used: it holds observed product
+      behaviour, and engineering deferrals live here and in STATUS.
     - The fake and Neon same-tick token tie-break differs; on Neon it is a coin flip.
     - The confirm page copy must say "if you already confirmed, sign in".
     - A login resend invalidates the first mail's link (by design).
@@ -1291,6 +1312,9 @@ Rules for the walk:
 | **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **No**: login, register and reset answer "try again later". Writes fail closed (ADR 0019 d5) |
 | **Q-L4** (Q62) | Do confirmation and reset e-mails leave from the same Gmail account as the shop's notice? | Yes until M9, with the per-address bucket. **A dedicated sending account is recommended** |
 | **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **Yes, answered by default in the L8 security review (F2): separate buckets**, `account-register-mail-by-address` (registration notices) and `account-reset-mail-by-address` (the reset request; the "password changed" notice counts none, L10 review L1), 5 a day each; **and a dedicated login-resend bucket `account-login-resend-by-address`, added by default in the L9 security review (F1)**, 5 a day. Owner-visible; the owner may change any figure (constants only) |
+
+**Q-L1, Q-L2, Q-L3 and Q-L5 (the defaults below), D12 and Amendments A–C are reviewer defaults, not yet ratified in the owner's words** (the list
+is in ADR 0169 Amendment E, item 2). Q-L4 is answered by the owner, 2026-10-18: *"keep same email as sender"*.
 
 **Owner steps** (not questions):
 - create the Turnstile widgets and set the two variables;

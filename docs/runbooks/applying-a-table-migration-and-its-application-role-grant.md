@@ -309,6 +309,14 @@ the whole migration set on this branch (the migrate command, and the live persis
 or the four files are renumbered at the rebase. Do not read a red migrate or persistence run on this branch as a defect in
 `0012` to `0015`, and do not apply them anywhere before `0011` is on the database.
 
+**Ledger and `0012` as built (update 2026-10-18, developer report; not run by the scribe).** `0011` lives on the M8C branch
+(`fix/empty-space-fill-and-preset-save`), so the ledger reads **1-11 before** and **1-12 after** applying `0012` alone. In
+`0012` the hash constraint is named `accounts_password_hash_is_phc` and checks only the generic PHC shape
+`^[$][a-z0-9-]{1,32}([$]v=[0-9]+)?[$][^$]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$` (strict argon2id is enforced in code,
+`password-hash-shape.ts`); the `locale` check is `^[a-z]{2}(-[a-z]{2})?$`. Any check that looks for the old name
+`accounts_password_hash_is_argon2id` will not find it. The unattended screen function returned `[]` on `0012` alone, but the
+CLI gate cannot run until `0011` is present.
+
 **The order against the code matters.** Every account route and every session read names these tables. If the code ships
 before the migrations and the grants, those requests answer 500 (a failed session read reads as anonymous, which is less
 access, so a visitor still works). The order is the migrations, then the grants, then the code.

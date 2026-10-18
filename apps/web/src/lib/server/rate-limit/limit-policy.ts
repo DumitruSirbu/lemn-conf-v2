@@ -141,7 +141,10 @@ export const ACCOUNT_REGISTER_PER_BLOCK_HOUR_FIGURE = 5;
 export const ACCOUNT_REGISTER_PER_BLOCK_DAY_FIGURE = 20;
 export const ACCOUNT_LOGIN_PER_BLOCK_HOUR_FIGURE = 30;
 export const ACCOUNT_LOGIN_PER_ADDRESS_QUARTER_HOUR_FIGURE = 10;
-export const ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE = 30;
+/** The ceiling on one address's attempts in a day, set at 100 and not lower: a hard cap that counts every attempt, a
+ *  stranger's too, locks the owner out of their own account for the day (NIST SP 800-63B-4 puts the ceiling on
+ *  consecutive failures at 100). The quarter-hour figure is what slows a guesser; this one only bounds a day. */
+export const ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE = 100;
 export const ACCOUNT_RESET_REQUEST_PER_BLOCK_HOUR_FIGURE = 10;
 export const ACCOUNT_TOKEN_COMPLETE_PER_BLOCK_HOUR_FIGURE = 20;
 export const ACCOUNT_REGISTER_MAIL_PER_ADDRESS_DAY_FIGURE = 5;

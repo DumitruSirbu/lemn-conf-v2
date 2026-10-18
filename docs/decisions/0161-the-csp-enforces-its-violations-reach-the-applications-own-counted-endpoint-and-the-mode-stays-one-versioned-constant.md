@@ -318,6 +318,8 @@ points correct are struck in place.
    built here"* for Q46 is likewise overtaken.
 
 **Amendment D - dated 2026-10-18, at M8B wave L13a (code HEAD `1a261b90`, plus the review fixes of the same wave).**
+**PROVISIONAL pending ADR 0169:** this changes the enforced policy on the authority of a record that is still
+Proposed. Acceptance of ADR 0169 ratifies it; rejection means it must be reverted.
 [ADR 0169](0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
 D11 widens the policy on three paths, and decision 1's *"`frame-src 'none'`"* is read through it:
 

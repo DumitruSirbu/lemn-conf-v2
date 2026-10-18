@@ -149,7 +149,7 @@ export interface AccountStore {
   replacePasswordHash(rehash: PasswordRehash): Promise<PasswordRehashOutcome>;
 }
 
-const LOCALE_SHAPE = /^[a-z]{2}$/;
+const LOCALE_SHAPE = /^[a-z]{2}(-[a-z]{2})?$/;
 const PRIVACY_NOTICE_VERSION_SHAPE = /^[a-z0-9.-]{1,32}$/;
 const EMAIL_LENGTH_RANGE = { least: 3, most: 254 } as const;
 const PHONE_MAX_LENGTH = 32;

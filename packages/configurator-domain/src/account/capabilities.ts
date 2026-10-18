@@ -21,15 +21,15 @@ export const CAPABILITIES = [
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
-/** What every account can do with its own designs. Staff hold it too, because a visitor with no account can
- *  already make designs and a staff account must not be able to do less. */
+/** What a client can do with its own designs. The client alone holds these: a staff account that browses as a
+ *  visitor keeps its designs as a visitor's, and one that signs in does not claim, own or read-by-account any
+ *  (ADR 0169 D8, Amendment B). Claiming and owning are therefore decided by this capability, not by a role name. */
 const CLIENT_CAPABILITIES = [
   "design.read.own",
   "design.edit.own",
 ] as const satisfies readonly Capability[];
 
 const OPERATOR_CAPABILITIES = [
-  ...CLIENT_CAPABILITIES,
   "design.read.any",
   "contact.read",
   "contact.update-status",
@@ -37,11 +37,16 @@ const OPERATOR_CAPABILITIES = [
   "design.unhide",
 ] as const satisfies readonly Capability[];
 
+/** Every capability but the client's own-design pair: an administrator holds all of staff's, none of the client's. */
+const ADMINISTRATOR_CAPABILITIES = CAPABILITIES.filter(
+  (capability) => !CLIENT_CAPABILITIES.some((own) => own === capability),
+);
+
 /** The role names are the owner's three. A role is stored as text, so the keys here are the only list. */
 export const ROLES = {
   client: CLIENT_CAPABILITIES,
   operator: OPERATOR_CAPABILITIES,
-  administrator: CAPABILITIES,
+  administrator: ADMINISTRATOR_CAPABILITIES,
 } as const satisfies Readonly<Record<string, readonly Capability[]>>;
 export type Role = keyof typeof ROLES;
 

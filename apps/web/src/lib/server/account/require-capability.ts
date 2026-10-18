@@ -40,20 +40,6 @@ export function isCapabilityHeld(
   return holder.isEmailVerified || !DESIGN_CAPABILITIES.includes(capability);
 }
 
-const CLIENT_ROLE: Role = "client";
-
-/**
- * Whether the holder is a client account that holds the capability. Claiming a visitor's designs and being stamped as
- * the owner of a minted one are the client's alone (ADR 0169 D8, Amendment B): a staff account that browses as a
- * visitor keeps its designs as a visitor's, and one that signs in does not take them.
- */
-export function isClientHolding(
-  holder: CapabilityHolder,
-  capability: Capability,
-): boolean {
-  return holder.role === CLIENT_ROLE && isCapabilityHeld(holder, capability);
-}
-
 /** Every capability the holder holds, in the domain's order. */
 export function capabilitiesHeldBy(
   holder: CapabilityHolder,

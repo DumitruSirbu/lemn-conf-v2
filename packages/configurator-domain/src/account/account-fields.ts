@@ -23,11 +23,10 @@ import {
 /** The longest notice version the `accounts.privacy_notice_version` column accepts. */
 export const PRIVACY_NOTICE_VERSION_MAX_LENGTH = 32;
 
-/** The shape the column's check enforces. No closed list exists yet: the notice's text is a later wave, and
- *  a list would be an identifier nobody had published. */
-const PRIVACY_NOTICE_VERSION_SHAPE = new RegExp(
-  `^[a-z0-9.-]{1,${String(PRIVACY_NOTICE_VERSION_MAX_LENGTH)}}$`,
-);
+/** The notice versions a registration may name, a closed list so that a stored version always names a notice
+ *  that was shown. Each entry must fit the column's shape (`^[a-z0-9.-]{1,32}$`). This one is a draft: the
+ *  lawyer-approved real version replaces it before launch. */
+export const PRIVACY_NOTICE_VERSIONS: readonly string[] = ["2026-10-draft"];
 
 export const ACCOUNT_FIELDS = [
   "email",
@@ -40,7 +39,8 @@ export type AccountField = (typeof ACCOUNT_FIELDS)[number];
 export type AccountFieldCode =
   | EmailAddressCode
   | PhoneRefusalCode
-  | "UNKNOWN_LOCALE";
+  | "UNKNOWN_LOCALE"
+  | "UNKNOWN_NOTICE_VERSION";
 
 export interface AccountIssue {
   readonly field: AccountField;
@@ -189,12 +189,9 @@ function judgeLocale(
 function judgePrivacyNoticeVersion(raw: unknown): Judgement<string> {
   const text = readSelectedText(raw);
   if (!text.ok) return text;
-  if (text.value.length > PRIVACY_NOTICE_VERSION_MAX_LENGTH) {
-    return refuse("TOO_LONG");
-  }
-  return PRIVACY_NOTICE_VERSION_SHAPE.test(text.value)
+  return PRIVACY_NOTICE_VERSIONS.includes(text.value)
     ? text
-    : refuse("MALFORMED");
+    : refuse("UNKNOWN_NOTICE_VERSION");
 }
 
 /** A value the page chooses from a set is not typed, so nothing is trimmed or stripped to make it match. */

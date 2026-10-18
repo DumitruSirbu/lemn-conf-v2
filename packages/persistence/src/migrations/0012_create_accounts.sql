@@ -16,10 +16,14 @@
 --
 -- `email_verified_at` is null until the link in the confirmation mail is used.
 --
--- `password_hash` is a PHC string for argon2id, with its parameters inside it, so raising them needs no
--- migration. The check is the string's shape and nothing about a password: a plaintext, an empty string or
--- a hash from another scheme is refused by the database as well as by the code. Written with `[$]` and not
--- a backslash, because the unattended screen refuses a backslash inside a quoted string.
+-- `password_hash` is a PHC string with its parameters inside it, so raising them needs no migration. The
+-- database check is deliberately the generic PHC shape (`$id$[v=N$]params$salt$hash`, with the salt and the
+-- hash at least 16 base64 characters each) and not argon2id's: moving to another scheme, scrypt for one, must
+-- not need a migration against a table whose bytes cannot be edited once applied. The strict argon2id shape,
+-- which is what the application accepts today, is enforced in code (`password-hash-shape.ts`) and stays the
+-- only gate on what is written. The check is the string's shape and nothing about a password: a plaintext or
+-- an empty string is refused by the database as well as by the code. Written with `[$]` and not a backslash,
+-- because the unattended screen refuses a backslash inside a quoted string.
 --
 -- `password_changed_at` is shown in the password-changed mail, and later sessions compare against it.
 --
@@ -33,7 +37,8 @@
 -- session or a used token (granted UPDATE). No grant can prevent these while the application must create
 -- sessions, change passwords and revoke; the risk is accepted (ADR 0169 decision 7).
 --
--- `locale` is the language of the account's mail, a two-letter shape and not a list.
+-- `locale` is the language of the account's mail, a shape and not a list: two lower-case letters with an
+-- optional two-letter region (`ro`, `en`, `pt-br`), so a later wave adding a locale drops nothing.
 --
 -- `phone` and `phone_normal_form` are optional, unverified, and set together or not at all; at most 32
 -- characters, `CONTACT_PHONE_MAX_LENGTH`. `normalisePhoneNumber` makes the normal form.
@@ -78,14 +83,14 @@ create table if not exists accounts (
     constraint accounts_email_normal_form_length check (char_length(email_normal_form) between 3 and 254),
   email_verified_at timestamptz,
   password_hash text not null
-    constraint accounts_password_hash_is_argon2id check (
-      password_hash ~ '^[$]argon2id[$]v=19[$]m=[0-9]+,t=[0-9]+,p=[0-9]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$'
+    constraint accounts_password_hash_is_phc check (
+      password_hash ~ '^[$][a-z0-9-]{1,32}([$]v=[0-9]+)?[$][^$]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$'
     ),
   password_changed_at timestamptz not null default now(),
   role text not null default 'client'
     constraint accounts_role_is_known check (role in ('client', 'operator', 'administrator')),
   locale text not null
-    constraint accounts_locale_shape check (locale ~ '^[a-z]{2}$'),
+    constraint accounts_locale_shape check (locale ~ '^[a-z]{2}(-[a-z]{2})?$'),
   phone text,
   phone_normal_form text,
   privacy_notice_version text not null

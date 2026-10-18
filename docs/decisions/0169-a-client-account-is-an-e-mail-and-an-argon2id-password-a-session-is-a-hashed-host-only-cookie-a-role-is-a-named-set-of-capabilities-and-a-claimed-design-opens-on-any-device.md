@@ -2,9 +2,26 @@
 
 Status: **Proposed — 2026-10-17.** Drafted by the architect for the owner. Nothing here is accepted. It amends
 ADR 0115 and ADR 0019 (the sweep below) only once accepted.
-Date: 2026-10-17
+Date: 2026-10-17 (amended 2026-10-18; the status stays Proposed)
 Type: Decision (architect's proposal, built on the owner's rulings of 2026-10-17)
 Milestone: M8B — login and register ([`milestones/M8B-login-register-plan.md`](../milestones/M8B-login-register-plan.md))
+
+## Before accepting (remaining owner and coordinator items, 2026-10-18)
+
+Acceptance is the owner's. These are what stands between this record and it. None is done by this note.
+
+1. **Rebase or merge after M8C's `0011` (finding F2 of the architect review).** The migrations here are `0012`–`0015`
+   and the runner refuses a gap. `0011` lives on `fix/empty-space-fill-and-preset-save`, so this is **not resolvable on
+   this branch**; it happens at the merge, and the numbering is free only while none of `0012`–`0015` has been applied
+   anywhere (plan §0).
+2. **The Node gate (Amendment D).** The owner confirms the Vercel runtime is Node >= 24.7 in each environment, preview
+   first, and decides whether `engines.node` moves from `>=24.7 <25` to `24.x` plus a runtime guard.
+3. **Ratify the defaults.** Q-L1, Q-L2, Q-L3, Q-L5, D12 and Amendments A–C are still reviewer defaults, **not** ratified
+   in the owner's words. They are listed under *Defaults awaiting owner ratification* below.
+4. **The lawyer for the privacy notice (Amendment E).** The notice text, the lawful-basis wording and the Moldovan
+   authority question are for the owner's legal adviser; the version list holds one placeholder.
+5. ~~Complete the `IMPLEMENTATION STATE` line in D5~~ **Done 2026-10-18:** it records an interim (day figure 100); the
+   true back-off is unbuilt and needs a design (D5, plan §12).
 
 **Evidence tiers.**
 - *[owner]*: the owner's rulings as recorded in `docs/OWNER_FIXES.md`, *Fix 3*, 2026-10-17.
@@ -44,6 +61,35 @@ open for the owner. The next step is the decision record."* [doc].
 This record decides the **login and register** part. The dashboard, staff screens, GDPR export and erasure, and
 the retention job are later records. Each decision below names the seam it leaves for them.
 
+### Fix 3 rulings and where each lands (added 2026-10-18)
+
+"Honoured" means the design in this record and the plan answers the ruling. **No code has been executed** (D12), so
+nothing here is verified; a "deferred" row is **not built**, and its owner is the plan section or the record that must
+write it. Source for every row: `docs/OWNER_FIXES.md` *Fix 3* [doc]; the "lands" column is the plan [doc].
+
+| Ruling | Status | Where it lands, and the named owner |
+| --- | --- | --- |
+| Three roles: client, operator, administrator | Honoured | D7. Closed list in code, `accounts.role` shape-checked to the three names |
+| Capabilities, not role names | Honoured in the access check, **with exceptions being removed** | D7: every route calls one capability function. Claiming and mint ownership were first a role-name check (Amendment B); they move to capabilities (D7, Amendment B revised) |
+| Turnstile on register and login | Honoured (also on the reset request) | D5. The CSP (ADR 0161 Amendment D) and a real-key preview walk are owed (M9 gate line 5). Turnstile consent and Cloudflare as a processor: deferred, see Consequences |
+| Optional phone, unverified, no SMS (Q-F3-2) | Honoured | D1. Stored unverified and labelled so; no SMS surface exists |
+| No 2FA | Honoured | D1 |
+| GDPR as the standard (Q-F3-1) | **Partly; mostly deferred** | The design follows it where it touches login (hashing, no secret in a log, notice version recorded, Amendment E). The notice text, processors list, export, erasure and the Moldovan check are deferred: plan §12 rows "GDPR export and erasure; notice; cookie notice" and "Accounts backup"; the notice text and the legal check are the **owner's** (plan §11, owner steps) |
+| Staff by invitation only | **Deferred** | Today a staff account exists only by the owner's console seed (D7). Plan §12 row "Staff invitation and management" owns the invitation token and the way to set `role` |
+| One-browser limit lifted for a client with a profile | Honoured for claimed and signed-in-minted designs | D8, D9, ADR 0115 decisions 2–3 lifted for them. Unchanged for a visitor with no account |
+| Q-F3-3: operator sees drafts and a "sent" flag | **Deferred** | `design.read.any` is named in the capability list and wired to nothing; `designs.sent_at` does not exist. Plan §12 rows "Dashboard" and "Operator and administrator screens" |
+| Q-F3-4: no `design.edit.any`; operator views, notes, sets status | Honoured for the negative; the rest deferred | D7 has no `design.edit.any`. `note.write` is named; the notes table and screens are plan §12 "Operator and administrator screens" |
+| Q-F3-5: keep all kitchens; Save / Discard | **Deferred** | Plan §12 "Dashboard". Needs a mock-up and its own decision record |
+| Q-F3-6: erasure removes personal data, sent kitchens included | **Deferred** | Plan §12 "GDPR export and erasure": a narrow `DELETE` under its own credential, revoking the frozen shop link. Nothing deletes anything today (D10) |
+| Retention: drafts 365 days, sent kept | **Deferred** | Plan §12 "Retention job". It reverses ADR 0019's note of 2026-09-15 and **needs an owning record that says so** (Consequences) |
+| Q-F3-7: unverified accounts deleted after 30 days | **Deferred** | Same job. D8 makes it safe (a claim needs a verified account). The clock to use is named in Consequences |
+| Q-F3-8: visitor has no list; Save / Discard nudge | **Deferred** | Plan §12 "Registration nudge modal". The seam is `GET /api/account/session` |
+| Q-F3-9: client may hide a sent kitchen | **Deferred** | Plan §12 "Dashboard" (`hidden_by_client_at`) |
+| Q-F3-10: only staff unhide | **Deferred** | `design.unhide` is named for the operator and administrator; the control is plan §12 "Operator and administrator screens" |
+| Items 6 and 11: audit log of staff actions and reads | **Deferred** | Plan §12 "Operator and administrator screens, notes, audit log": `audit_log` table, and `requireCapability` is the one place to add the write. No staff read of another's design exists yet, so no read goes unlogged |
+| Item 20: claim after the client confirms | Honoured | D8, plan L11 and the L14b dialog (the dialog waits on the owner's screens) |
+| Item 7: security review on every wave | Honoured so far | Ran by reading on L1, L3, L4a, L4b+L5, L7–L11, L12a, L12b and L13a [doc: plan *Review record*]. L2 and L6 are not in that list. Waves L13b–L14b are unbuilt and keep the rule |
+
 ## Decision
 
 ### D1. A client account is an e-mail and a password; the e-mail is confirmed by a link and the password together
@@ -79,7 +125,8 @@ the retention job are later records. Each decision below names the seam it leave
   login.
 - **Comparison** uses `timingSafeEqual`.
 - **An unknown address** is verified against a fixed dummy hash, so it takes as long as a wrong password.
-- **`engines.node` becomes `>=24.7 <25`.**
+- **`engines.node` becomes `>=24.7 <25`.** (In force at HEAD since L3; whether that form is the right one is the
+  owner's open decision, Amendment D.)
 - **Measured:** 16.4 ms on a developer laptop [run]. Not the target: the deployment measurement is owed (plan,
   L3 criterion 6).
 - **The rule:**
@@ -144,7 +191,9 @@ the retention job are later records. Each decision below names the seam it leave
 - **New limiter purposes:**
   - they fail closed, as every write does (ADR 0156), and every figure is provisional;
   - by network block: register, login, reset request, token completion;
-  - by address: login, with a 15-minute and a daily window, which gives the growing back-off;
+  - by address: login, with a 15-minute and a daily window. **These are two fixed windows, not a growing back-off**
+    (this record first called them one; corrected 2026-10-18). See *Login throttling* below, which supersedes the
+    figures;
   - three **mail buckets per address**, one for registration, one for reset and one for a login's silent resend, which
     protect the shared mail quota and a victim's inbox (**amended**: Amendment A, 2026-10-18; first drafted as one
     shared bucket);
@@ -154,6 +203,39 @@ the retention job are later records. Each decision below names the seam it leave
 - **Account mail is sent after the response**, so whether a mail was sent is not visible in the response time.
 - **Tokens:** a confirmation token lasts 24 hours and a reset token 30 minutes. Each is single-use, and only the
   newest unused token of its purpose works.
+
+**Login throttling: the residual as built, and the owner's decision of 2026-10-18.**
+
+- **The residual, as first built (owner-visible).** The login counts every attempt before the password is looked at,
+  in a 10-per-15-minutes window and a 30-per-day window per address (fixed UTC day) [doc: plan §5, source-verified in
+  `limit-policy.ts` and `utc-window.ts`]. So a stranger who solves **30 Turnstile challenges locks a victim's login until
+  00:00 UTC**, whatever the victim types, and about **5 solved challenges block the victim's reset mail** for the rest of
+  the day (the reset-mail bucket is 5 a day; Amendment A, item 2). Turnstile makes each attempt cost a solved challenge
+  and the refusal reads the same for every address, but the victim is still locked out.
+- **Research (the owner asked for it: "if you are not sure make a research").** OWASP *Authentication Cheat Sheet*
+  [ven: read by the coordinator, not re-read here]: count per account, lock out with an exponential delay, and show the
+  CAPTCHA only after failures. NIST SP 800-63B [ven, same]: limit **consecutive failed** attempts, to no more than 100;
+  delays that increase; disregard earlier failures after a success.
+- **Decision (owner, 2026-10-18, "if this is a best practice I approve").** Login throttling moves to
+  **failure-only counting with a growing delay and a ceiling of 100 failures a day** per address. A correct password
+  resets the run. The block-level bucket and Turnstile stay. The reset-mail bucket (5 a day) is not changed by this
+  decision, so the victim's reset-mail residual is **not** closed by it and stays recorded.
+- **IMPLEMENTATION STATE (filled 2026-10-18 from the developer's report, source-verified by the developer; not re-run
+  by the scribe): INTERIM.** The login per-address day figure was raised **30 to 100**
+  (`ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE` in `apps/web/src/lib/server/rate-limit/limit-policy.ts`). The quarter-hour
+  figure is unchanged at 10 / 15 min. The mechanism still counts **every valid attempt before the lookup**.
+  **The true failure-only back-off the owner approved is NOT built and needs a design.** Why it is not a small change:
+  the limiter store only increments (`recordHits`, `totalsOfWindow`; there is no per-key read and no reset), counting
+  happens before judging, and windows are fixed per policy, so each delay tier would be its own policy. It needs:
+  1. a `readCounts` that reads without incrementing, in the Neon and the fake stores;
+  2. sign-in split into check-before-verify and record-on-any-failure, with **identical recording** for unknown,
+     wrong, refused and unconfirmed (the enumeration rule, Amendment A);
+  3. a reset on success (a reset port, or a success-epoch in the key);
+  4. a decision on the check/record race and on the `503` hash-failure path;
+  5. the `sign-in.ts` header comment updated to match.
+  Recorded as a follow-up in plan §12 (*Review record*); `docs/backlog/open.md` is for observed product behaviour and
+  was not used. Until it is built, the victim residual above shrinks (100 solved challenges, not 30, lock a login until
+  00:00 UTC) but does not go away.
 
 ### D6. Mail to a customer goes through a second port, and the shop's port is unchanged
 
@@ -175,13 +257,27 @@ the retention job are later records. Each decision below names the seam it leave
   - `price.edit`, `translation.edit`;
   - `user.manage`, `audit.read`.
 - **Roles:**
-  - **client** holds the two `.own` capabilities;
-  - **operator** holds the client's two, plus `design.read.any`, `contact.read`, `contact.update-status`,
-    `note.write` and `design.unhide`;
-  - **administrator** holds all of them.
+  - **client** holds the two `.own` capabilities, and only the client does (revised 2026-10-18);
+  - **operator** holds `design.read.any`, `contact.read`, `contact.update-status`, `note.write` and `design.unhide`;
+  - **administrator** holds every capability **except** the two `.own` ones.
 - **No `design.edit.any` exists** [owner Q-F3-4].
-- **Staff also hold the client's two** [inf]: a visitor with no account can already make designs, and a staff
-  account should not be able to do less.
+- **`design.read.own` and `design.edit.own` are client-only (revised 2026-10-18, architect review).** This record first
+  said staff also hold the client's two [inf: a staff account should not be able to do less than a visitor]. That
+  inference had a cost: the capability alone let a staff account claim a visitor's designs, so Amendment B added
+  role-name checks beside the capability check, which is the hard-coded role name the owner ruled against. The
+  capability sets now carry the rule, and the role-name checks are replaced by the capability check (built; update
+  2026-10-18, developer report). Staff who browse the configurator do so as a visitor, as before (Amendment B).
+  **As built** [src: `packages/configurator-domain/src/account/capabilities.ts`, read by the scribe]: client =
+  `design.read.own`, `design.edit.own`; operator = `design.read.any`, `contact.read`, `contact.update-status`,
+  `note.write`, `design.unhide`; administrator = every capability except the two `.own` ones. Claim, own, mint-account
+  and read-by-account are decided by capability (`isCapabilityHeld`), and `isClientHolding` is gone [developer report,
+  not re-grepped in code by the scribe]. `GET /api/account/session` now lists no own-design capabilities for staff.
+- **Residual, recorded (revised 2026-10-18): promotion strands claimed designs.** The runbook's administrator seed
+  promotes an existing client. After promotion the account no longer holds `design.read.own` / `design.edit.own`, so the
+  designs it claimed as a client **stop opening through the account arm** (D9). Their `account_id` is untouched and the
+  claiming browser's visitor cookie and write token still work. Nothing is lost; the owner should seed an administrator
+  from an address that has claimed nothing, until the staff-management wave decides how a promotion treats claimed
+  designs.
 - **One role per account**, stored in `accounts.role` and checked against the three names.
 - **Changing what a role may do is a reviewed code change.** There is no runtime role editor.
 - **The application role cannot write `role`.**
@@ -196,6 +292,10 @@ the retention job are later records. Each decision below names the seam it leave
     injection existing: tagged-template SQL only, and review.
   - Until the staff-management wave, a staff account exists only by the owner's console seed (runbook). Staff
     are by invitation only [owner].
+  - **"The application cannot write `role`" is temporary.** The staff-management wave must choose its mechanism
+    explicitly (a narrow grant, or a separate credential), with its own review. The same applies to the e-mail:
+    `email` is not in the application's `UPDATE` grant, so rectification and e-mail change need their own grant and
+    review (plan §12 "Profile").
 - **Who decides access:** every route that acts for an account checks a capability through one function. The
   UI hides controls and never authorises.
 
@@ -254,6 +354,12 @@ the wrong way:
   - *Alternative:* the e-mail encrypted at rest with an application-held key.
   - *Why not now:* key management, another owner-provisioned secret, and every lookup by a keyed digest.
   - *Trigger to revisit:* the database is shared with another service, or a leak of `DATABASE_URL` is suspected.
+- **The lead-to-account join (named 2026-10-18; ADR 0153 d1 is eroded, not kept).** `contact_submissions.design_id` and
+  `designs.account_id` are both readable by the application role, so a lead can be joined to the identified account
+  that owns its design, with no personal column read. ADR 0153 d1's intent was that the application learns nothing
+  about who a lead is; for a claimed design it now can. Accepted [inf, plan §10]. *Trigger to revisit:* the first
+  feature that reads both together, or the database being shared with another service. The remedy would be to stop
+  readers joining them (a view, or removing `design_id` from the readable seven); it is not built.
 - **Turnstile is not the Cloudflare proxy that ADR 0019 d9 rejected.** Nothing sits in the request path. The
   widget is a third-party script and frame on the account pages only, and the CSP widens there alone (ADR 0161
   gets a dated note).
@@ -319,7 +425,26 @@ the wrong way:
   writes the design, as it did before the claim. Rotation is therefore not the whole remedy; the "forget this browser"
   control above would also have to clear the write-token cookies. Trigger to revisit: a report of a shared computer, or
   that control being built.
-- **The M9 launch gate gains four lines** (plan §10).
+- **The M9 launch gate gains four lines** (plan §10). Two more are added by this amendment, below.
+- **A restore loses accounts and un-claims every design (added 2026-10-18).** The design export omits `account_id`
+  and no accounts export exists; sessions and tokens are never exported (D10). Restoring from a backup therefore
+  returns designs unclaimed and no accounts. **M9 launch-gate line (new): the accounts backup (QP5) exists and a
+  restore of it has been rehearsed before any real account exists.**
+- **Turnstile consent, and Cloudflare as a processor, are deferred (added 2026-10-18).** Turnstile loads a third-party
+  script and frame on the account pages. Whether it needs consent, and the processor record with its agreement and
+  transfer mechanism, are not written (OWNER_FIXES item 17). *Trigger: before any real user.* **M9 launch-gate line
+  (new): the Turnstile consent decision and the Cloudflare processor entry exist.**
+- **D7 is temporary on two points.** "The application cannot write `role`" and "`email` is not in the application's
+  grant" each hold only until the staff-management wave and the profile wave, and each of those must choose its
+  mechanism explicitly (D7).
+- **Retention: no horizon exists for sessions or tokens (added 2026-10-18).** They are revoked or used by timestamp and
+  never deleted (D10); expired rows accumulate. The retention job owns it (plan §12). **The 30-day unverified-account
+  cleanup must name its clock:** `created_at` is wrong, because registering again on an unverified address replaces
+  the pending password and token without resetting `created_at`. The clock is `updated_at`, or the newest
+  `account_email_tokens.created_at` for the account, whichever the job's record chooses [inf].
+- **ADR 0019's "nothing is deleted automatically" (note of 2026-09-15) is reversed by the retention ruling** (drafts at
+  365 days, unverified accounts at 30). This record does not reverse it (D10: no `DELETE` grant). **The retention-job
+  record must own the reversal and supersede that note explicitly**; until it exists, nothing is deleted.
 
 ## Decision-record sweep
 
@@ -340,9 +465,16 @@ the wrong way:
 | [0154](0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md) d11; [0164](0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md) | The message has no recipient; a recipient is M8B's change under its own review | **Kept for the shop.** A separate customer port (D6) is that change |
 | [0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), [0156](0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md) | A keyed limiter; subjects only from constructors; writes fail closed | **Extended:** new purposes, one new subject kind (an account id), the same rules |
 | [0161](0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md) | The CSP enforces; `frame-src 'none'` | **Amended on account pages only** to admit the Turnstile frame (and whatever L0's read requires). Every other path byte-identical |
+| 0019 decision 11 (first accepted risk), dated note 2026-10-18 | `app_designs` holds table-level `UPDATE` on `designs`; the owner's 2026-08-25 "not worth it" | **Scope grew:** `designs.account_id` is now an access-control column that grant lets an injection reassign. The note says so and does not reopen the ruling. **Provisional pending 0169; acceptance of 0169 ratifies it** |
+| 0153, dated note 2026-10-18 (lead to account join) | Records the join of `contact_submissions.design_id` with `designs.account_id` as an accepted risk | **Its pointer is corrected to cite D11 (the named join and its trigger) and plan §10**, not Amendment B. d1 is eroded for claimed designs (D11). **Provisional pending 0169; acceptance ratifies it** |
+| 0161 Amendment D, 2026-10-18 | Widens `frame-src` on three account paths for the Turnstile frame | **The enforced CSP's behaviour was changed on the authority of this Proposed record.** Acceptance of 0169 ratifies Amendment D; rejection means it must be reverted. **Provisional pending 0169** |
 | [0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md) | A bot shield or CAPTCHA deferred to M9 | **Not changed for the mint.** Turnstile here covers the account endpoints alone |
 | [0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | Record with a trigger; do not build | **Applied:** no session secret, no pepper, no columns without a reader, no e-mail encryption (D11) |
 | 0168 (on the M8C branch `fix/empty-space-fill-and-preset-save`; not on `main` at `4f85b970`) | No new tests, option C, M8C only | **Pattern followed and widened for this round** (D12). Neither record amends WORKFLOW |
+
+Three rows above (ADR 0019 d11, the ADR 0153 lead-to-account note, ADR 0161 Amendment D) are notes **already written**
+in those records, while this record is Proposed. Each is marked *provisional pending ADR 0169* in its own text as of
+2026-10-18.
 
 ## Records to annotate on acceptance (the scribe's, not done while Proposed)
 
@@ -429,11 +561,14 @@ The plan (§5, §7 L5/L6/L8/L9/L10/L14a, §10, §11) carries the matching text.
 Source: the security reviews of the L10 (reset) and L11 (claim, mint) waves, applied as the reviewers' recommendations
 while the owner is away. Owner-visible. Nothing else in this record changes.
 
-**1. Claiming and mint ownership are for the `client` role only (amends D8; L11 review F1).** Operator and
-administrator hold `design.edit.own` as well, so the capability alone let a staff account claim a visitor's designs and be
-stamped on the ones it minted. Decided, from the role the server read from the session (never from the request):
-- `GET` and `POST /api/account/claim` answer `403` for a signed-in session that is not a verified client (`401` for no
-  session, as before).
+**1. Claiming and mint ownership are for clients only (amends D8; L11 review F1).** *Revised 2026-10-18 (architect
+review): the mechanism below was first a check on the role name; it is replaced by the capabilities (built, per the
+developer's report of 2026-10-18: `isCapabilityHeld`, and `isClientHolding` is gone), because operator and administrator
+no longer hold `design.read.own` / `design.edit.own` (D7). The outcome is unchanged, and the role-name checks are gone.* The original reasoning, kept: operator and administrator held `design.edit.own` as well, so the
+capability alone let a staff account claim a visitor's designs and be stamped on the ones it minted. Decided, from the
+session the server read (never from the request):
+- `GET` and `POST /api/account/claim` answer `403` for a signed-in session that is not a verified account holding
+  `design.edit.own` (that is, not a verified client; `401` for no session, as before).
 - A design minted by a staff session is stored as a visitor's, with no `account_id`.
 - Sign-in and email confirmation tell a staff account `claimable: 0`.
 
@@ -480,8 +615,10 @@ with null semantics (L12a review I2).
 
 ## Amendment D — 2026-10-18: vendor facts on `crypto.argon2` and the Node version are a gate for applying `0012`
 
-Nothing in D2 is reversed. D2's line "`engines.node` becomes `>=24.7 <25`" is **not confirmed to work as intended** (fact 3
-below); the change is an **owner decision**, not made here (no `package.json` edit was made by this note).
+Nothing in D2 is reversed. **`engines.node` `>=24.7 <25` IS in force at HEAD**, set in wave L3 (clarified 2026-10-18; the
+first wording of this amendment read as if it were still to be made). It is **not confirmed to work as intended** (fact 3
+below). What remains the **owner's decision** is whether to move it to the documented `24.x` and add a runtime guard; no
+`package.json` edit was made by this note.
 
 **Facts, with the tier behind each.** All fetched or run 2026-10-18.
 
@@ -505,3 +642,59 @@ below); the change is an **owner decision**, not made here (no `package.json` ed
   `crypto.argon2` is not a function or `process.version` is below 24.7.0. **Owner decision; not made.**
 
 Plan §10 (risk row "`crypto.argon2` stability") and the M9 launch-gate list carry the matching text.
+
+## Amendment E — 2026-10-18: architect review, the owner's own words, the migration change, the notice version
+
+Source: the logic review by the architect that the owner asked for, and the owner's message of the same day. The status
+stays **Proposed**.
+
+**1. The owner's own words, 2026-10-18 [owner].** Quoted from the owner's message as relayed by the coordinator:
+- *"for 1 delegate logic reviewer on opus to verify and provide feedback from architect"*: the review that produced the
+  changes in this amendment.
+- Q-L4: *"keep same email as sender"*. Customer mail leaves from the shop's Gmail sender (D6). This **ratifies** Q-L4's
+  default. The dedicated-account recommendation stays open as a recommendation only.
+- Lockout: *"if this is a best practice I approve, if you a not sure make a research"*. The research and the approval are
+  recorded in D5 (*Login throttling*): approved as best practice.
+
+**2. Defaults awaiting owner ratification.** These are **reviewer defaults, not yet ratified in the owner's words**.
+Acceptance of this record should ratify each one knowingly:
+1. **Session lifetimes (Q-L1):** client 30 days idle and 90 absolute; staff 12 hours idle and 7 days absolute.
+2. **Breach check down accepts (Q-L2):** the password passes on the length rule and the event is logged.
+3. **Turnstile down refuses (Q-L3):** register, login and reset answer "try again later".
+4. **Only the client role claims and owns designs** (Amendment B; now by capability, D7).
+5. **A uniform 401 for login**, including a correct password on an unconfirmed account (Amendment A, item 1).
+6. **Three mail buckets, and an un-counted "password changed" notice (Q-L5; Amendments A item 2, B item 2).**
+7. **No tests this round (D12).** A coordinator relay, not an owner quotation (D12 says so).
+8. **Claiming cannot be undone** (Amendment B residual; no unclaim path).
+- *The owner asked to have two of these explained.* The request as relayed does not name which two. **OPEN: the
+  coordinator records which two, and that the explanation was given, here.** Until then, none of the eight counts as
+  ratified.
+- Amendments A–C are also defaults of the reviewers (the owner was away); the list above names the substance of each.
+
+**3. The F1 migration change (relayed by the coordinator; the migration files were not re-read for this note).**
+- `password_hash`'s check was widened to the **generic PHC shape**; the strict argon2id shape is enforced in code.
+- `locale` was widened to allow a region (for example `ro-MD`).
+- The `role` list was **kept** at the three names. Accepted knowingly: a fourth role needs an **owner-run
+  drop-constraint migration**.
+- **As built (update 2026-10-18, developer report; not re-run by the scribe).** Migration `0012` renamed the constraint
+  to `accounts_password_hash_is_phc`, with the generic PHC shape
+  `^[$][a-z0-9-]{1,32}([$]v=[0-9]+)?[$][^$]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$`. The locale check is
+  `^[a-z]{2}(-[a-z]{2})?$`, and the persistence `LOCALE_SHAPE` mirror was widened to match. Strict argon2id is enforced
+  **in code only** (`password-hash-shape.ts`). The unattended screen function returned `[]` on `0012` alone, but the CLI
+  gate cannot run until `0011` is present (it lives on the M8C branch).
+- The migration headers cite "ADR 0169 decision 7/8/9", so **decision numbering in this record is now frozen**: new
+  material goes in an amendment and never renumbers D1–D12.
+
+**4. The privacy notice version: research result.**
+- **Store** the notice version shown and the timestamp, as accountability evidence. Word it "notice shown, version X",
+  **not "consent"**: the account's basis is contract, Art. 6(1)(b) [OWNER_FIXES item 13], and a consent label would claim
+  a basis the record does not rely on.
+- **Validate** the submitted version against a **closed list** of published versions, replacing the shape-only check.
+  The list has one **placeholder entry, `2026-10-draft`**; it is not owner-approved text.
+- **As built (update 2026-10-18, developer report):** the closed list is `PRIVACY_NOTICE_VERSIONS = ['2026-10-draft']`;
+  a version outside it gives the new field code `UNKNOWN_NOTICE_VERSION`. The register UI must send
+  `PRIVACY_NOTICE_VERSIONS[0]`. Persistence keeps its own shape check.
+- **Archive each version's text**, so what a person was shown can be reproduced.
+- The lawyer or the Moldovan authority confirms this. The EDPB and CNIL passages that support it are **unverified**
+  [ven, not re-read].
+- Until the notice text is the owner's, M9 launch-gate line 4 stands.
