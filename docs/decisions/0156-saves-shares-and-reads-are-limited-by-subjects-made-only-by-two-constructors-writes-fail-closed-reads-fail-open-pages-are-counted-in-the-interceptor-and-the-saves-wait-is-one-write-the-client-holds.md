@@ -116,3 +116,10 @@ After round 2 of the first pass, a finding was fixed inside 8G only if a counted
 ## Note — 2026-10-12: decision 10 extended, and its three limits closed, by wave 8K2 ([ADR 0158](0158-a-design-loaded-again-is-never-offered-an-edit-on-a-copy-older-than-the-stored-one-and-never-shown-as-saved-while-the-tab-holds-a-write-and-the-review-is-left-to-adr-0148.md))
 
 Written by the documentation scribe at 8K2's close; nothing above was edited. **Decision 10's sentence *"A design loaded while its own write waits is given the waiting design and its wait"* now holds for every write the tab holds for that design**: waiting for the limit, backing off, sent and not yet answered, and ready and not yet sent; a write in flight reports its outcome to the generation that shows its design when it is answered. **Three limits above are closed:** C2-1 (a design returned to is shown from the page's kept copy), GL-R4.1 (the same path for a failure's backoff), and *"A write sent and not yet answered when its design is loaded again is not adopted"* (the *Limits* bullet naming GL-R3.3). Where *Limits* says C2-1 *is not fixed*, it is fixed; QA's two expected-to-fail marks are removed. Decision 10's other sentences stand. **Its *one predicate, `isSavePaused`* is now `pausedUntilMs(status, resumesAtMs)`, which answers the time itself** (backlog 171; `1087f45b`). Backlog 169 (the queue's one wait) is closed by `7b16568a`.
+
+## Dated note — 2026-10-18: one new subject kind, an account id (ADR 0169 D5; the scribe; this record's text is not edited)
+
+[ADR 0169](0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+(**Accepted** 2026-10-18) *extends* this record's subjects with one kind, an account id, for the account-scoped purposes (claim,
+and session saves of a claimed design); the rules are unchanged: subjects come only from constructors, writes fail closed.
+Nothing here is superseded. Built but unexercised (ADR 0169 D12).

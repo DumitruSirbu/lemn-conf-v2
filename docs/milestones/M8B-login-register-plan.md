@@ -1299,6 +1299,10 @@ placeholders are filled and the BLOCKING lines clear. Nothing below is built.
 19. **Russian translation** of the notice (the app ships `ru`).
 20. **Registration sends `PRIVACY_NOTICE_VERSIONS[0]`**, and the real published version replaces the placeholder
     `2026-10-draft` (ADR 0169 Amendment E, item 4); each version's text is archived.
+21. **The accounts ADR is renumbered at merge, before `0012` is applied (added 2026-10-18).** The M8C branch in the
+    primary checkout holds a different ADR 0169 (migration commands), 0170 and 0171, so this plan's ADR 0169 must take a
+    free number; its citations (the `0012`–`0015` headers and other files; see ADR 0169 *Remaining before production*,
+    item 9) are re-pointed in the same change.
 
 **Waves L13b to L14b wait for Claude Design** (screens). The prompt is
 `docs/design/prompts/account-screens-claude-design-prompt.md`. They are not dispatched until the owner brings the

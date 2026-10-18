@@ -32,6 +32,17 @@ The record is Accepted. These are what stands between it and a production accoun
 7. **The login back-off** (D5 *IMPLEMENTATION STATE*) is still interim: the day figure is 100, the failure-only back-off
    is unbuilt and needs a design (plan §12).
 8. ~~Complete the `IMPLEMENTATION STATE` line in D5~~ **Done 2026-10-18.**
+9. **Renumber this record at merge, before any migration is applied (ADR-number clash, noted 2026-10-18).** The primary
+   checkout's M8C branch (`fix/empty-space-fill-and-preset-save`) already holds a **different** ADR 0169 (*the migration
+   commands refuse a declared environment the credential does not reach…*), plus 0170 and 0171 [src: `Glob` of
+   `docs/decisions/01{69,70,71}-*` in the primary checkout, 2026-10-18; file names read, bodies not]. Two records cannot
+   share a number, so this one takes the next free number when the branches meet. Cost: the migration headers
+   `0012`–`0015` cite "ADR 0169 decision 7/8/9" and **40 non-doc files in this checkout cite "ADR 0169"** [src: one `Grep`
+   count of the string outside `docs/`, 2026-10-18; the coordinator's figure was about 42, not reconciled]. Those
+   citations, the plan, STATUS and the other records' notes must be re-pointed in the same change. Decision numbering
+   D1–D12 stays frozen (Amendment E, item 3). Do the renumbering **before** `0012` is applied, because a migration header
+   that cites the wrong record is then in a database's history. Nothing is renumbered by this note, and the new number
+   is not chosen here.
 
 **Evidence tiers.**
 - *[owner]*: the owner's rulings as recorded in `docs/OWNER_FIXES.md`, *Fix 3*, 2026-10-17.
