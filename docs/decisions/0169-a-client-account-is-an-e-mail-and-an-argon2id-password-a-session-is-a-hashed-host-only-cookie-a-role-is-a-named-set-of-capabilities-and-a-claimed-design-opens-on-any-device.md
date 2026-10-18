@@ -1,27 +1,37 @@
 # ADR 0169 — A client account is an e-mail and an argon2id password behind Turnstile; a session is a hashed host-only cookie; a role is a named set of capabilities; and a claimed design opens on any device
 
-Status: **Proposed — 2026-10-17.** Drafted by the architect for the owner. Nothing here is accepted. It amends
-ADR 0115 and ADR 0019 (the sweep below) only once accepted.
-Date: 2026-10-17 (amended 2026-10-18; the status stays Proposed)
+Status: **Accepted — 2026-10-18, by the owner** (proposed 2026-10-17). Owner's words, relayed by the coordinator:
+*"accept the adr, the node version, the migration run and the privacy notice"*, and, on the eight defaults,
+*"accept 4,8 and the rest"* after the explanations. Acceptance is of the **decisions**: the code is built-unexercised
+(D12), no migration is applied, and the remaining items are listed below. It amends ADR 0115 and ADR 0019 as the
+sweep below states.
+Date: 2026-10-17 (amended 2026-10-18; accepted 2026-10-18)
 Type: Decision (architect's proposal, built on the owner's rulings of 2026-10-17)
 Milestone: M8B — login and register ([`milestones/M8B-login-register-plan.md`](../milestones/M8B-login-register-plan.md))
 
-## Before accepting (remaining owner and coordinator items, 2026-10-18)
+## Remaining before production (2026-10-18, after acceptance)
 
-Acceptance is the owner's. These are what stands between this record and it. None is done by this note.
+The record is Accepted. These are what stands between it and a production account. None is done by this note.
 
-1. **Rebase or merge after M8C's `0011` (finding F2 of the architect review).** The migrations here are `0012`–`0015`
-   and the runner refuses a gap. `0011` lives on `fix/empty-space-fill-and-preset-save`, so this is **not resolvable on
-   this branch**; it happens at the merge, and the numbering is free only while none of `0012`–`0015` has been applied
-   anywhere (plan §0).
-2. **The Node gate (Amendment D).** The owner confirms the Vercel runtime is Node >= 24.7 in each environment, preview
-   first, and decides whether `engines.node` moves from `>=24.7 <25` to `24.x` plus a runtime guard.
-3. **Ratify the defaults.** Q-L1, Q-L2, Q-L5, D12 and Amendments A–C are still reviewer defaults (Q-L3 is no longer one: the owner ruled on it, Amendment E item 5), **not** ratified
-   in the owner's words. They are listed under *Defaults awaiting owner ratification* below.
-4. **The lawyer for the privacy notice (Amendment E).** The notice text, the lawful-basis wording and the Moldovan
-   authority question are for the owner's legal adviser; the version list holds one placeholder.
-5. ~~Complete the `IMPLEMENTATION STATE` line in D5~~ **Done 2026-10-18:** it records an interim (day figure 100); the
-   true back-off is unbuilt and needs a design (D5, plan §12).
+1. **Merge M8C first (finding F2 of the architect review).** The migrations here are `0012`–`0015` and the runner
+   refuses a gap. `0011` lives on `fix/empty-space-fill-and-preset-save`, so this is **not resolvable on this branch**;
+   it happens at the merge.
+2. **Apply the migrations: the owner's step, none has been run.** The owner accepted the migration plan (*"the migration
+   run"*), but applying is the owner's step under AGENTS rule 1 and is blocked until `0011` is on the base. Order:
+   merge M8C; apply `0011`; apply `0012`–`0015`; apply the grants per the runbook `docs/runbooks/applying-a-table-migration-and-its-application-role-grant.md`,
+   section *For 0012-0015*; verify. **No migration has been applied anywhere** (scribe's statement of the coordinator's
+   report; not checked against a database).
+3. **The Node check (Amendment D).** The owner accepted the coordinator's recommendation. `package.json` `engines.node`
+   is `"24.x"` and `password-hash.ts` defines and throws `Argon2UnavailableError` [src: both read by the scribe
+   2026-10-18, one grep each; the throw site at line 147 was not read in context]. The remaining owner step is `node -v`
+   in a Vercel **build log**, per environment, preview first.
+4. **The tests-owed round.** D12 stands: M8B cannot close until the owed tests (plan §9) exist.
+5. **Screens L13b–L14b** wait for Claude Design (prompt: `docs/design/prompts/account-screens-claude-design-prompt.md`).
+6. **The privacy notice.** The owner accepted `docs/legal/privacy-notice-draft.md` as the **working draft only**. It is
+   not publishable until its placeholders are filled and its launch blockers are cleared (plan M9 gates).
+7. **The login back-off** (D5 *IMPLEMENTATION STATE*) is still interim: the day figure is 100, the failure-only back-off
+   is unbuilt and needs a design (plan §12).
+8. ~~Complete the `IMPLEMENTATION STATE` line in D5~~ **Done 2026-10-18.**
 
 **Evidence tiers.**
 - *[owner]*: the owner's rulings as recorded in `docs/OWNER_FIXES.md`, *Fix 3*, 2026-10-17.
@@ -475,9 +485,10 @@ the wrong way:
 | [0118](0118-a-problem-that-has-not-occurred-is-recorded-with-its-trigger-and-not-built-for.md) | Record with a trigger; do not build | **Applied:** no session secret, no pepper, no columns without a reader, no e-mail encryption (D11) |
 | 0168 (on the M8C branch `fix/empty-space-fill-and-preset-save`; not on `main` at `4f85b970`) | No new tests, option C, M8C only | **Pattern followed and widened for this round** (D12). Neither record amends WORKFLOW |
 
-Three rows above (ADR 0019 d11, the ADR 0153 lead-to-account note, ADR 0161 Amendment D) are notes **already written**
-in those records, while this record is Proposed. Each is marked *provisional pending ADR 0169* in its own text as of
-2026-10-18.
+Three rows above (ADR 0019 d11, the ADR 0153 lead-to-account note, ADR 0161 Amendment D) are notes that were written
+in those records while this record was Proposed. On acceptance (2026-10-18) each is **ratified**, and the
+*provisional* marking in each record is changed to say so. ADR 0019's "nothing is deleted automatically" is **not**
+reversed by acceptance: it is reversed only when the retention-job record lands (Consequences).
 
 ## Records to annotate on acceptance (the scribe's, not done while Proposed)
 
@@ -618,6 +629,11 @@ with null semantics (L12a review I2).
 
 ## Amendment D — 2026-10-18: vendor facts on `crypto.argon2` and the Node version are a gate for applying `0012`
 
+**Update 2026-10-18 (owner accepted the recommendation):** `package.json` `engines.node` is now `"24.x"` and
+`password-hash.ts` defines `Argon2UnavailableError` (scribe read both). D2's "`engines.node` becomes `>=24.7 <25`" is
+superseded by `24.x`. The gate below still stands for the `node -v` check in a Vercel build log; nothing was run by the
+scribe. The paragraphs below are the text as written before the acceptance.
+
 Nothing in D2 is reversed. **`engines.node` `>=24.7 <25` IS in force at HEAD**, set in wave L3 (clarified 2026-10-18; the
 first wording of this amendment read as if it were still to be made). It is **not confirmed to work as intended** (fact 3
 below). What remains the **owner's decision** is whether to move it to the documented `24.x` and add a runtime guard; no
@@ -656,11 +672,36 @@ stays **Proposed**.
   changes in this amendment.
 - Q-L4: *"keep same email as sender"*. Customer mail leaves from the shop's Gmail sender (D6). This **ratifies** Q-L4's
   default. The dedicated-account recommendation stays open as a recommendation only.
+- **Superseded 2026-10-18 (later the same day) [owner]:** *"email will be from domain provider and domain is md
+  lemnaria.md"* (as relayed by the coordinator). This **supersedes** *"keep same email as sender"*, so Q-L4's ratified
+  default (the shop's Gmail as customer sender) no longer stands. Customer account mail is to be sent from an address on
+  the owner's domain `lemnaria.md` through the domain provider's mail service, not the consumer Gmail account (D6's
+  "reuses the Gmail transport" is therefore the interim only). **Nothing is built:** the code has only the Gmail SMTP
+  sender (`apps/web/src/lib/server/mail`, named by the coordinator, not re-read). Effects: the processor-contract gate
+  becomes "obtain and verify the domain provider's data-processing agreement and region"; the provider's name is not yet
+  known; SPF, DKIM and DMARC for `lemnaria.md` are set at the provider; a provider-neutral SMTP configuration is a
+  follow-up the architect is planning in `docs/milestones/M8B-mail-sender-lemnaria-md.md` (not yet written when this note
+  was made). Environment variables stay add-only and the owner provisions the secrets.
+- **Widened 2026-10-18, minutes later [owner]:** *"everywhing will be send and received unde @lemnaria.md"* (as relayed,
+  typos kept). Read as owner direction: **both** account mail and the shop's lead notices are to be sent and received on
+  `@lemnaria.md` addresses through the domain provider, and Gmail is to be **retired from both paths**. This covers
+  ADR 0164's sender too, but ADR 0164 is not amended and nothing is built; until the move, the shop's notice stays on
+  Gmail. Env vars stay add-only: the owner decides when to remove the `GOOGLE_*` variables. The mail processor in the
+  privacy notice becomes the domain provider only (name a placeholder), and Google drops out of the processor list once
+  Gmail is retired.
+- **Timing, 2026-10-18 [owner]:** *"now till development keep gmail one as it works"* (as relayed). The `lemnaria.md`
+  move is the **target, not the current state**. During development Gmail remains the working sender for both account
+  mail and lead notices; **nothing is retired**. The cutover is a later owner step, after the new sender is built and
+  tested on Preview. Read every "will be sent from `lemnaria.md`" line above with that timing; D6's Gmail reuse and
+  Q-L4's mechanics still describe what runs today. The Gmail no-processor-contract blocker stays a launch gate until
+  the cutover or before real users, whichever comes first.
 - Lockout: *"if this is a best practice I approve, if you a not sure make a research"*. The research and the approval are
   recorded in D5 (*Login throttling*): approved as best practice.
 
-**2. Defaults awaiting owner ratification.** These are **reviewer defaults, not yet ratified in the owner's words**.
-Acceptance of this record should ratify each one knowingly:
+**2. Ratified by the owner 2026-10-18.** Superseding the earlier heading *Defaults awaiting owner ratification*. After
+the coordinator explained them, the owner said *"accept 4,8 and the rest"* (as relayed): items 1, 2, 4, 5, 6, 7 and 8
+are ratified; item 3 is superseded by the owner's own Turnstile ruling (item 5 below) and its default was never
+ratified. The owner also said *"accept the adr"*. The items, as originally worded:
 1. **Session lifetimes (Q-L1):** client 30 days idle and 90 absolute; staff 12 hours idle and 7 days absolute.
 2. **Breach check down accepts (Q-L2):** the password passes on the length rule and the event is logged.
 3. ~~**Turnstile down refuses (Q-L3)**~~ **Removed 2026-10-18: the owner ruled the opposite** (item 5 below).
@@ -669,10 +710,11 @@ Acceptance of this record should ratify each one knowingly:
 6. **Three mail buckets, and an un-counted "password changed" notice (Q-L5; Amendments A item 2, B item 2).**
 7. **No tests this round (D12).** A coordinator relay, not an owner quotation (D12 says so).
 8. **Claiming cannot be undone** (Amendment B residual; no unclaim path).
-- *The owner asked to have two of these explained.* The request as relayed does not name which two. **OPEN: the
-  coordinator records which two, and that the explanation was given, here.** Until then, none of the eight counts as
-  ratified.
-- Amendments A–C are also defaults of the reviewers (the owner was away); the list above names the substance of each.
+- *The owner asked to have two of these explained.* Items 4 and 8 are the two the owner named in the ratifying words
+  (*"accept 4,8 and the rest"*), after explanations; the coordinator's report does not say separately which two were
+  explained, so this is an inference from those words. The earlier OPEN line is closed on that basis.
+- Amendments A–C were the reviewers' defaults while the owner was away. Their substance is the list above (items 4, 5, 6
+  and 8), which the owner ratified; no other part of A–C was separately ratified in the owner's words.
 
 **3. The F1 migration change (relayed by the coordinator; the migration files were not re-read for this note).**
 - `password_hash`'s check was widened to the **generic PHC shape**; the strict argon2id shape is enforced in code.
@@ -700,7 +742,9 @@ Acceptance of this record should ratify each one knowingly:
 - **Archive each version's text**, so what a person was shown can be reproduced.
 - The lawyer or the Moldovan authority confirms this. The EDPB and CNIL passages that support it are **unverified**
   [ven, not re-read].
-- Until the notice text is the owner's, M9 launch-gate line 4 stands.
+- Until the notice text is the owner's, M9 launch-gate line 4 stands. **Update 2026-10-18:** the owner accepted
+  `docs/legal/privacy-notice-draft.md` as the **working draft only**; it is not publishable, and the version list still
+  holds the placeholder.
 
 **5. Turnstile unreachable no longer refuses: the owner's ruling, 2026-10-18 [owner] (replaces default Q-L3 and D5's
 "or one that cannot be reached").** Quoted as relayed by the coordinator: *"we will have rate limit on this so no

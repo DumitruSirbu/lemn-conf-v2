@@ -313,7 +313,8 @@ shop's notice) is 8J's.
 
 ## Dated note — 2026-10-18, M8B wave L11 (claim; reviewer finding F2, accepted)
 
-**PROVISIONAL pending ADR 0169** (Proposed): this note stands only if the owner accepts it; acceptance ratifies it.
+**Ratified 2026-10-18:** ADR 0169 was accepted by the owner that day, which ratifies this note. (It was marked
+*PROVISIONAL pending ADR 0169* when written.)
 
 **`designs.account_id` links a lead to an identified account through columns the application role can read.** Wave L11
 adds the column (migration `0015`) and stores it when a verified client claims or mints a design. `contact_submissions.design_id`

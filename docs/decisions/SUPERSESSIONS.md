@@ -458,6 +458,13 @@ replaced it — nothing is deleted or rewritten silently.
   at maximum). **ADR 0110** decision 2's *"the same published openings"* → **amended for composition's intermediate
   states only**: composition merges at its own 800 limit, then finishes through the editor's uncapped derivation.
   **ADR 0122** decision 4 is untouched and remains the trigger for per-level merging.
+- **ADR 0169** (Accepted 2026-10-18): **ADR 0115** decisions 1 and 4 are **implemented** by it, and decisions 2–3 are
+  **lifted for claimed and signed-in designs** only; **ADR 0019** d1's write half is **amended** for a claimed design
+  (D9). **ADR 0019**'s note of 2026-09-15 (*"nothing is deleted automatically"*) is **NOT yet superseded**: it is
+  reversed only when the retention-job record lands, and no such record exists. The notes on ADR 0019 d11, ADR 0153 and
+  ADR 0161 Amendment D are ratified, not superseded. Its own Q-L4 default (customer mail from the shop's Gmail) is
+  superseded within the record by the owner's later domain-mail ruling (Amendment E item 1); ADR 0164 is not yet
+  amended for it because nothing is built.
 
 ## Moved from the index Status column
 

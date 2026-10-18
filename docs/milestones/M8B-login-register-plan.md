@@ -1222,7 +1222,7 @@ Rules for the walk:
 | Risk | Consequence | Response |
 | --- | --- | --- |
 | **No tests this round** | A rule implemented plausibly and wrongly passes review | Security review on every wave. §9 lists the owed tests by criterion. The milestone stays open |
-| **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | the three per-address mail buckets (5/day each), the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider |
+| **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | the three per-address mail buckets (5/day each), the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider. **Update 2026-10-18:** the owner's direction (ADR 0169 Amendment E) moves account mail, and later the shop's notices, to `@lemnaria.md` via the domain provider. Once the new sender is configured this risk no longer applies to account mail; shop lead notices may still use Gmail until moved. Nothing is built |
 | **Three mail buckets per address** (`account-register-mail-by-address` for registration, `account-reset-mail-by-address` for the reset link (the "password changed" notice counts none, L10 review L1), `account-login-resend-by-address` for a login's silent resend; 5 a day each; L8 security review F2, L9 security review F1) | **Owner-visible [inf].** A stranger who registers a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses only the registration bucket, so the victim's reset mail still has its own five. The same stranger can still use the reset bucket by requesting resets five times, and the victim's own reset mail is then refused until 00:00 UTC; the refusal reads the same for every address, so it cannot be used to probe accounts. An address can receive up to fifteen account mails a day (the login resend bucket adds up to five over the L8 split; L9 security review F1), plus at most five "password changed" notices, one per completed reset (L10 review L1) | A single shared bucket was the first design; the split closes registration noise starving a reset, and the third bucket closes sign-in attempts on an unconfirmed address starving a registration's mail. Reset-on-reset starvation remains and is accepted; a per-address figure change is constants, not code. Q-L5 |
 | **Account mail can spend the shop's whole Gmail quota** (L7 security review M2) | **Accepted, owner-visible [inf].** Many addresses, each within its own buckets, can together use the day's ~500 recipients, and a shop lead notice is then refused (`quota-spent`, not retried automatically). Each account mail costs a solved Turnstile challenge, which bounds the rate and not the total | The owner chooses: (a) a **global daily ceiling on account mail** that leaves headroom for shop notices, as an L8 limiter purpose (see the L8 conditions), or (b) a **dedicated sending account** for account mail (Q62). Not done in L7 |
 | **Deliverability** of verification mail from a Gmail address | Mail in spam; a client cannot confirm | Recorded with the trigger *"the owner sees a confirmation not arrive"*. M9's provider choice |
@@ -1255,12 +1255,54 @@ Rules for the walk:
    request, with no `frame-src` or `Referer` failure in the console or the CSP report table (L13a review M2).
 6. **Before applying `0012` in any environment (preview first):** the owner confirms the Vercel runtime is Node >= 24.7
    (`node -v` in a build log, or log `process.version`). Vercel publishes only "24.x"; the patch is not documented
-   [doc: fetched 2026-10-18]. The argon2id-only check cannot be dropped. Owner decision: change `engines.node` from
-   `>=24.7 <25` (in force at HEAD since L3) to the documented form `24.x` and add a runtime guard (ADR 0169
-   Amendment D). Not yet decided.
+   [doc: fetched 2026-10-18]. The argon2id-only check cannot be dropped. **Decided 2026-10-18 (owner accepted the
+   recommendation):** `package.json` `engines.node` is `24.x` and `password-hash.ts` throws `Argon2UnavailableError`
+   when `crypto.argon2` is missing [src: read by the scribe]. **Still open: the `node -v` check in a build log.**
 7. **The accounts backup (QP5)** exists and a restore of it has been rehearsed before any real account exists. A
    restore of the design export alone returns designs unclaimed and no accounts (ADR 0169 Consequences).
 8. **The Turnstile consent decision and the Cloudflare processor entry** exist (ADR 0169 Consequences).
+
+**Further M9 launch gates, added 2026-10-18** from `docs/legal/privacy-notice-draft.md` (its §0 launch-gate table, §(d)
+processors and its placeholders). The draft is the owner's **working draft only**: not publishable until the
+placeholders are filled and the BLOCKING lines clear. Nothing below is built.
+
+*BLOCKING*
+9. **Mail processor contract.** The draft flagged the sender as a consumer Gmail account with an app password (ADR 0164)
+   and so no Art. 28 contract. **Owner direction 2026-10-18** (ADR 0169 Amendment E): all mail, account mail and the
+   shop's lead notices, is sent and received on `@lemnaria.md` through the domain provider; Gmail is to be retired from
+   both paths. **Timing (owner, 2026-10-18, *"now till development keep gmail one as it works"*):** the move is the
+   target; Gmail keeps working for both paths during development, nothing is retired, and the cutover is a later owner
+   step after the new sender is built and tested on Preview. **The Gmail blocker stays a launch gate** until the
+   cutover or before real users. At cutover the gate is: **obtain and verify the domain provider's data-processing agreement and region**
+   (provider name: PLACEHOLDER); set SPF, DKIM and DMARC for `lemnaria.md` at the provider; the provider-neutral SMTP
+   configuration is a follow-up planned in `docs/milestones/M8B-mail-sender-lemnaria-md.md` (architect). Until the move,
+   the Gmail gap stands. When Gmail is retired, Google leaves the notice's processor list; env vars are add-only and the
+   owner decides when `GOOGLE_*` is removed. The *Sent* folder purge in the draft applies only while Gmail is used.
+10. **Retention, erasure and export are built, or the notice text changes.** Stated in the notice and not built: drafts
+    deleted at 365 days; unverified accounts at 30 days; a horizon for sessions and tokens (draft: 90 d / 7 d); erasure
+    on request; data export. **Erasure must reach the shop's receiving inbox and the shop's WhatsApp copies** (draft §0),
+    which are now `@lemnaria.md` mailboxes plus WhatsApp. A horizon for anonymous designs and for contact requests is
+    also a placeholder. The retention-job record must supersede ADR 0019's 2026-09-15 note explicitly (ADR 0169).
+
+*Needs a lawyer or the authority (owner to verify with the CNPDCP where Moldovan)*
+11. Turnstile running without consent (the draft's item 4; related to line 8).
+12. Whether a GDPR Art. 27 EU representative is required.
+13. The Moldovan basis for transfers to US processors; Law 195/2024 details are **unverified** (draft §(e)).
+14. The legal basis for staff viewing unsent drafts, and its purpose text (placeholder).
+15. The retention horizon for sent kitchens (draft: until erasure, flagged).
+
+*Needs the owner*
+16. **Neon DPA and region** unverified (the draft says not to read `DATABASE_URL`; read the Neon console).
+17. **Company facts** are placeholders: entity name, IDNO, registered address, contact e-mail; DPO "or none".
+18. **Contact form:** ADR 0150's validated `consent` field versus the draft's Art. 6(1)(b) basis. Choose: relabel the
+    checkbox as an acknowledgement, or make consent the basis. Not both.
+19. **Russian translation** of the notice (the app ships `ru`).
+20. **Registration sends `PRIVACY_NOTICE_VERSIONS[0]`**, and the real published version replaces the placeholder
+    `2026-10-draft` (ADR 0169 Amendment E, item 4); each version's text is archived.
+
+**Waves L13b to L14b wait for Claude Design** (screens). The prompt is
+`docs/design/prompts/account-screens-claude-design-prompt.md`. They are not dispatched until the owner brings the
+screens back.
 
 ## Review record (written 2026-10-18)
 

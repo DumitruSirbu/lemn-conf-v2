@@ -9,6 +9,13 @@ research agent. Nothing in this file is in force.
 > EU representative (GDPR Art. 27) is required; (3) the legal basis chosen for staff viewing unsent drafts and for
 > the contact form; (4) that Turnstile may run without consent; (5) the retention horizon for sent kitchens.
 
+> **Owner note, 2026-10-18 (added by the scribe):** the owner accepted this file as the **working draft only**, and ruled
+> that all mail, account mail and the shop's notices, will be sent and received on `@lemnaria.md` through the domain
+> provider (ADR 0169 Amendment E; direction, nothing built; Gmail stays the working sender during development and the
+> no-processor-contract blocker below stands until cutover). Where the draft names Google/Gmail as the mail processor
+> (§5, §6, §(d)), read it as the domain provider (name PLACEHOLDER) once Gmail is retired; the text below is not yet
+> changed. Launch gates: `docs/milestones/M8B-login-register-plan.md` §10.
+
 Evidence labels used throughout:
 
 - **[doc]** — quoted (short quote) from the cited URL or file, fetched 2026-10-18. Quotes from web pages came through
