@@ -1124,6 +1124,28 @@ export function resolveAccountVerifyCopy(translate: ContentTranslator) {
 
 export type AccountVerifyCopy = ReturnType<typeof resolveAccountVerifyCopy>;
 
+/** The new-password page's own text: the form, the changed screen and the one screen for a link that is no longer good. */
+export function resolveAccountResetCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountReset.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountReset.headerTitle"),
+    title: translate("accountReset.title"),
+    body: translate("accountReset.body"),
+    submit: translate("accountReset.submit"),
+    submitting: translate("accountReset.submitting"),
+    changedTitle: translate("accountReset.changedTitle"),
+    changedBody: translate("accountReset.changedBody"),
+    logIn: translate("accountReset.logIn"),
+    linkInvalidTitle: translate("accountReset.linkInvalidTitle"),
+    linkInvalidBody: translate("accountReset.linkInvalidBody"),
+    requestNewLink: translate("accountReset.requestNewLink"),
+  };
+}
+
+export type AccountResetCopy = ReturnType<typeof resolveAccountResetCopy>;
+
 /** The page an unknown address under the account family lands on. */
 export function resolveAccountNotFoundCopy(translate: ContentTranslator) {
   return {

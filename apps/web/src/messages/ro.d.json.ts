@@ -753,6 +753,20 @@ declare const messages: {
     "confirmedTitle": "Adresa este confirmată",
     "confirmedBody": "Te-am conectat. Te ducem înapoi la configurator…"
   },
+  "accountReset": {
+    "metaTitle": "Parolă nouă — {brand}",
+    "headerTitle": "Parolă nouă",
+    "title": "Alege o parolă nouă",
+    "body": "O vei folosi de acum ca să intri în cont.",
+    "submit": "Salvează parola nouă",
+    "submitting": "Se salvează…",
+    "changedTitle": "Parola a fost schimbată",
+    "changedBody": "Te-am deconectat de pe toate dispozitivele, pentru siguranță. Intră în cont cu parola nouă.",
+    "logIn": "Intră în cont",
+    "linkInvalidTitle": "Link-ul nu mai este valabil",
+    "linkInvalidBody": "A expirat, a fost folosit sau a fost înlocuit de unul mai nou.",
+    "requestNewLink": "Cere un link nou"
+  },
   "accountNotFound": {
     "title": "Pagina nu există",
     "body": "Adresa nu duce la nicio pagină din cont."

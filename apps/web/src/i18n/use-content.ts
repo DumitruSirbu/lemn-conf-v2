@@ -10,6 +10,7 @@ import {
   resolveAccountLoginCopy,
   resolveAccountNotFoundCopy,
   resolveAccountRegisterCopy,
+  resolveAccountResetCopy,
   resolveAccountShellCopy,
   resolveAccountVerifyCopy,
   resolveContent,
@@ -58,4 +59,9 @@ export function useAccountCheckInboxCopy() {
 export function useAccountVerifyCopy() {
   const translate = useTranslations();
   return useMemo(() => resolveAccountVerifyCopy(translate), [translate]);
+}
+
+export function useAccountResetCopy() {
+  const translate = useTranslations();
+  return useMemo(() => resolveAccountResetCopy(translate), [translate]);
 }
