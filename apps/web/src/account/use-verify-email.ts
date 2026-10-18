@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useRef, useState } from "react";
 
 import type { AccountRateLimitNotice } from "@/i18n/content";
@@ -139,8 +137,8 @@ function isPasswordSpentBy(feedback: VerifyFeedback): boolean {
   );
 }
 
-/** The token stays for every answer a retry can mend, a wrong password included: the server spends it only on a
- *  confirmation. After one, or after a failure no retry mends, there is nothing left to send. */
+/** The token stays for every answer a retry can mend, a wrong password and a platform failure included: the server
+ *  spends it only on a confirmation. After one, or after a refusal no retry mends, there is nothing left to send. */
 function isTokenSpentBy(feedback: VerifyFeedback): boolean {
   return feedback.kind === "signed-in" || feedback.kind === "request-failed";
 }
@@ -161,7 +159,9 @@ async function sendAndAnswer(
 }
 
 /** Every outcome the page can be given. The request is the confirmation, so the classes it never answers with (a
- *  challenge, a registered address, a refused field) are, like any unlisted answer, a failed request. */
+ *  challenge, a registered address, a refused field) are, like any unlisted answer, a failed request. A server error
+ *  is told as a request that got no answer, which keeps the form, the password and the token for a retry: it says
+ *  nothing about the link. */
 function feedbackFrom(outcome: AccountOutcome, nowMs: number): VerifyFeedback {
   switch (outcome.kind) {
     case "signed-in":
@@ -177,6 +177,7 @@ function feedbackFrom(outcome: AccountOutcome, nowMs: number): VerifyFeedback {
     case "unavailable":
       return { kind: "unavailable" };
     case "unanswered":
+    case "platform-failed":
       return { kind: "unanswered" };
     case "request-failed":
     case "check-inbox":

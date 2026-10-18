@@ -1,5 +1,3 @@
-"use client";
-
 import { judgeAccountEmail } from "@lemnaria/configurator-domain";
 import { useCallback, useRef, useState } from "react";
 
@@ -156,6 +154,7 @@ function feedbackFrom(outcome: AccountOutcome, nowMs: number): ForgotFeedback {
     case "unanswered":
       return { kind: "unanswered" };
     case "request-failed":
+    case "platform-failed":
     case "signed-in":
     case "password-changed":
     case "invalid-credentials":

@@ -4,14 +4,7 @@ import {
   countPasswordCharacters,
   PASSWORD_MIN_LENGTH,
 } from "@lemnaria/configurator-domain";
-import {
-  createRef,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { createRef, useState, type RefObject } from "react";
 
 import type { AccountFieldIssue, AccountIssueField } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
@@ -21,19 +14,20 @@ import {
   useAccountRegisterCopy,
 } from "@/i18n/use-content";
 
+import { isRetryable } from "./account-answer";
+import { useMoveFocusOnAnswer } from "./account-focus";
 import {
   AccountForm,
   AccountLink,
+  ChallengedSubmit,
   ChallengeField,
-  FormHint,
   FormNotice,
   InlineLink,
   LegalLine,
   PasswordField,
   RateLimitNotice,
-  SubmitButton,
   TextField,
-  type SubmitWait,
+  waitOfFeedback,
 } from "./account-form-parts";
 import { RequestFailedScreen } from "./account-outcome-screens";
 import {
@@ -47,7 +41,6 @@ import {
 import { CheckInboxView } from "./check-inbox-view";
 import {
   useRegisterAccount,
-  type FocusRequest,
   type RegisterAccount,
   type RegisterFeedback,
 } from "./use-register-account";
@@ -105,17 +98,16 @@ function RegisterScreen({
   }
 }
 
-type InputRefs = Readonly<
-  Record<AccountIssueField, RefObject<HTMLInputElement | null>>
->;
-
-function createInputRefs(): InputRefs {
+function createFocusTargets() {
   return {
     email: createRef<HTMLInputElement>(),
     password: createRef<HTMLInputElement>(),
     phone: createRef<HTMLInputElement>(),
+    notice: createRef<HTMLDivElement>(),
   };
 }
+
+type FocusTargets = ReturnType<typeof createFocusTargets>;
 
 function AskingScreen({
   register,
@@ -124,15 +116,17 @@ function AskingScreen({
   nonce,
 }: RegisterFormProps & { readonly register: RegisterAccount }) {
   const copy = useAccountRegisterCopy();
-  const [inputRefs] = useState(createInputRefs);
-  const noticeRef = useRef<HTMLDivElement>(null);
-  useMoveFocusOnAnswer(register.focusRequest, { inputRefs, noticeRef });
+  const [targets] = useState(createFocusTargets);
+  useMoveFocusOnAnswer(register.focusRequest, targets);
   return (
     <AccountForm onSubmit={register.submit} isBusy={register.isBusy}>
       <AccountPane>
         <AccountHeading title={copy.title} lead={copy.body} />
-        <FeedbackNotice feedback={register.feedback} noticeRef={noticeRef} />
-        <Fields register={register} inputRefs={inputRefs} />
+        <FeedbackNotice
+          feedback={register.feedback}
+          noticeRef={targets.notice}
+        />
+        <Fields register={register} targets={targets} />
         <ChallengeField
           siteKey={siteKey}
           nonce={nonce}
@@ -158,16 +152,16 @@ function AskingScreen({
 
 function Fields({
   register,
-  inputRefs,
+  targets,
 }: {
   readonly register: RegisterAccount;
-  readonly inputRefs: InputRefs;
+  readonly targets: FocusTargets;
 }) {
   return (
     <>
-      <EmailField register={register} inputRef={inputRefs.email} />
-      <NewPasswordField register={register} inputRef={inputRefs.password} />
-      <PhoneField register={register} inputRef={inputRefs.phone} />
+      <EmailField register={register} inputRef={targets.email} />
+      <NewPasswordField register={register} inputRef={targets.password} />
+      <PhoneField register={register} inputRef={targets.phone} />
     </>
   );
 }
@@ -309,76 +303,17 @@ function NoticeLine({ locale }: { readonly locale: AppLocale }) {
   );
 }
 
-/**
- * The primary action and, while it waits for a challenge token, the line that says why it is off. When the challenge
- * slot has said it cannot load, that is the reason and it is already on the page: the waiting line would contradict it.
- */
 function SubmitArea({ register }: { readonly register: RegisterAccount }) {
   const copy = useAccountRegisterCopy();
   const kit = useAccountKitCopy();
-  const reasonId = useId();
-  const wait = waitOf(register);
-  const isWaitingForChallenge =
-    !register.hasToken && !register.isBusy && !register.isChallengeUnavailable;
-  const isRetry =
-    register.feedback.kind === "unavailable" ||
-    register.feedback.kind === "unanswered";
   return (
-    <>
-      <SubmitButton
-        label={isRetry ? kit.retry : copy.submit}
-        busyLabel={copy.submitting}
-        isBusy={register.isBusy}
-        isOff={!register.hasToken}
-        {...(wait === undefined ? {} : { wait })}
-        {...(isWaitingForChallenge && wait === undefined
-          ? { describedBy: reasonId }
-          : {})}
-      />
-      {isWaitingForChallenge && wait === undefined ? (
-        <FormHint id={reasonId}>{kit.challenge.waiting}</FormHint>
-      ) : null}
-    </>
+    <ChallengedSubmit
+      label={isRetryable(register.feedback) ? kit.retry : copy.submit}
+      busyLabel={copy.submitting}
+      isBusy={register.isBusy}
+      hasToken={register.hasToken}
+      isChallengeUnavailable={register.isChallengeUnavailable}
+      wait={waitOfFeedback(register.feedback, register.clearFeedback)}
+    />
   );
-}
-
-/** A short limit is counted down on the button; a longer one is told in the notice and the button stays ready. */
-function waitOf(register: RegisterAccount): SubmitWait | undefined {
-  const { feedback } = register;
-  if (
-    feedback.kind !== "rate-limited" ||
-    feedback.countdownSeconds === undefined
-  ) {
-    return undefined;
-  }
-  return {
-    seconds: feedback.countdownSeconds,
-    onElapsed: register.clearFeedback,
-  };
-}
-
-interface FocusTargets {
-  readonly inputRefs: InputRefs;
-  readonly noticeRef: RefObject<HTMLDivElement | null>;
-}
-
-/** After an answer, focus goes where the person must look: the one refused field, or the notice that now heads the
- *  form. It moves once per answer, and never while the person types. */
-function useMoveFocusOnAnswer(
-  request: FocusRequest | undefined,
-  { inputRefs, noticeRef }: FocusTargets,
-): void {
-  useEffect(() => {
-    if (request === undefined) return;
-    switch (request.target) {
-      case "notice":
-        noticeRef.current?.focus();
-        return;
-      case "nowhere":
-        return;
-      default:
-        inputRefs[request.target].current?.focus();
-        return;
-    }
-  }, [request, inputRefs, noticeRef]);
 }

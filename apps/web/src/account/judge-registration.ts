@@ -4,7 +4,7 @@ import {
   type AccountIssue,
 } from "@lemnaria/configurator-domain";
 
-import type { AccountFieldIssue, AccountIssueField } from "@/i18n/content";
+import type { AccountFieldIssue } from "@/i18n/content";
 import { routing, type AppLocale } from "@/i18n/routing";
 
 import { currentPrivacyNoticeVersion } from "./privacy-notice-version";
@@ -29,13 +29,6 @@ export interface AcceptedRegistration {
 export type RegistrationJudgement =
   | { readonly kind: "accepted"; readonly registration: AcceptedRegistration }
   | { readonly kind: "refused"; readonly issues: readonly AccountFieldIssue[] };
-
-/** The form's fields in the order they are drawn, which is the order a summary counts and a single refusal is found. */
-export const REGISTER_FIELD_ORDER: readonly AccountIssueField[] = [
-  "email",
-  "password",
-  "phone",
-];
 
 export function judgeRegistration(
   fields: RegisterFields,

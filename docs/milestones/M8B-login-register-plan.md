@@ -1086,6 +1086,10 @@ chrome spec); engineering-conventions *UI and content*, *Localised copy*; `brows
    caller handle both without an error screen: `401` is the "session expired" state, `403` shows no dialog.
 5. **The dialog says what is attached (L11 review F1 residual):** the count, the dates and thumbnails of the kitchens, not
    a bare number, because the first claimer keeps a design on any device and nothing can unclaim it yet.
+6. **The claim dialog makes no router action on the verify page** (no `router.refresh`, no `router.replace`/`push`, no
+   server action, no soft navigation; it uses `fetch` and, when done, `location.assign`). The verify page is a token
+   page: the Next router keeps a copy of the address from before `#t=` was removed, and any router action writes that
+   copy back into the address bar (observed on a production build; lot 1 review criterion 15).
 
 ---
 

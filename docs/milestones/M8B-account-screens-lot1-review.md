@@ -304,7 +304,7 @@ plan §3's row for `app/[locale]/account/**` [doc].
 
 | Layer | Files | May import | Must not |
 | --- | --- | --- | --- |
-| Route shells `apps/web/src/app/[locale]/account/{register,login,forgot-password,verify-email,reset-password}/page.tsx`, `account/[...unmatched]/page.tsx`, `account/not-found.tsx`, `app/[locale]/privacy-notice/page.tsx` | One server component each. It reads per request and renders one client screen | `next/headers`, `NONCE_HEADER`, `challenge-page-props.ts`, `src/account/*` | copy, styles, `"use client"` (the room page's shell rule, `configurator/room/page.tsx`) |
+| Route shells `apps/web/src/app/[locale]/account/{register,login,forgot-password,verify-email,reset-password}/page.tsx`, `account/[[...unmatched]]/page.tsx`, `account/not-found.tsx`, `app/[locale]/privacy-notice/page.tsx` | One server component each. It reads per request and renders one client screen | `next/headers`, `NONCE_HEADER`, `challenge-page-props.ts`, `src/account/*` | copy, styles, `"use client"` (the room page's shell rule, `configurator/room/page.tsx`) |
 | `apps/web/src/lib/server/account/challenge-page-props.ts` (server-only) | `readChallengePageProps(): Promise<{siteKey, nonce}>`. It reads `process.env.TURNSTILE_SITE_KEY` and `(await headers()).get(NONCE_HEADER)`. Calling `headers()` makes the page dynamic, which the nonce requires [doc: next@16.3.8 `content-security-policy.md:181`]. Token pages call `connection()` instead, as the unmatched page does | `server-only`, `next/headers`, `security-headers.ts` | `NEXT_PUBLIC_*` (plan §6) |
 | `apps/web/src/account/` (client) | `account-answer.ts` (pure classifier), `send-account-request.ts`, `account-shell.tsx`, `account-form-parts.tsx`, `account.module.css`, one `*-form.tsx` per page, `check-inbox-view.tsx`, `fragment-token.ts`, the existing `turnstile-widget.tsx` | the domain (`judgePassword`, `judgeAccountEmail`, `PRIVACY_NOTICE_VERSIONS`), `useContent`, `clock-time.ts`, `use-keep-focus-above.ts` | `next/link`, `@/i18n/navigation`, `StartLink`, `LocaleMenu`, `document.cookie`, `localStorage`, `sessionStorage` (plan §3, L13b criterion 1) |
 | `apps/web/src/i18n/content.ts` | `resolveAccountFieldError(field, code)` and `resolveAccountOutcome(...)` with **literal keys** (ADR 0095 d1), plus the rich-text resolver of P7 | messages | template keys |
@@ -342,7 +342,14 @@ The classifier lives in `account-answer.ts`. It is pure: input `{status, retryAf
 | `503 unavailable` | A1H | A4F | A5G | A3F | A6H |
 | `403 cross-site`, `400 invalid-request`, `413`, `415` | A8A | A8A | A8A | A8A, token variant (D7) | A8A, token variant |
 | no answer (fetch threw) | A8B words, in the form | same | same | same | same |
-| **anything else** (an unexpected status, a body that is not JSON, an unknown word, e.g. a platform 5xx) | A8A | A8A | A8A | A8A token variant | A8A token variant |
+| **anything else below 500** (an unexpected status, a body that is not JSON, an unknown word) | A8A | A8A | A8A | A8A token variant | A8A token variant |
+| **an unrecognised answer from 500 up** (a gateway's `502`, a `500` page; amended 2026-10-18, below) | A8A | A8A | A8A | A8B words, in the form; token and password kept | A8B words, in the form; token and password kept |
+
+*Amendment 2026-10-18 (screens-batch logic review).* The classifier gained a class, `platform-failed`, for an
+unrecognised answer with status 500 or more. On the two token pages it is told as the row "no answer": the form stays,
+the password and the single-use token are kept, and the same button retries; before, it ended the page with the A8A
+token variant although nothing said the link was spent, and the hook's own comment said the token stays. Login,
+register and forgot-password still show A8A for it, unchanged. A non-JSON answer below 500 stays "anything else".
 
 **On load of a token page.**
 
@@ -473,7 +480,7 @@ already lists them as turning red [doc].
 | **L13b.1 — the shared kit** | 1. `account-answer.ts`: the §3.3 classifier and the bounded Retry-After → wait class (countdown / minutes / clock time).<br>2. `send-account-request.ts`: one POST helper for the five paths; no answer → `unanswered`.<br>3. `account-form-parts.tsx`: TextField, PasswordField (show / hide), FormNotice (err / warn / info / ok, live region, focus target), OutcomeHero, HelpList, SubmitButton (busy, countdown, hydrated gate).<br>4. `account.module.css` (tokens from `globals.css`; 44px targets).<br>5. `content.ts`: the two resolvers and the P7 rich resolver. Copy for the kit's leaves | `account/account-answer.ts`, `account/send-account-request.ts`, `account/account-form-parts.tsx`, `account/account.module.css`, `i18n/content.ts` (modified) | This file §2.1–2.7, §3.1 P5–P7, §3.2–3.4; `account-responses.ts`; `contact-answer.ts`, `send-contact-request.ts`, `contact-form.tsx`, `contact.module.css`; `clock-time.ts`; ADR 0095 d1; `engineering-conventions.md` *Localised copy* | **P5's structure** (whether a clock-time wait class exists; the 600 s and 3600 s thresholds) and **P7**. Wording and P6's namespace land as draft leaves and do not block |
 | **L13b.2 — the shell, the challenge props, forgot** | 1. `account-shell.tsx`: mobile header (‹ as `<a href="/{locale}">`, wordmark, title per SB2's answer, a plain-`<a>` locale chip), desktop card.<br>2. `challenge-page-props.ts`.<br>3. `turnstile-widget.tsx`: `loadingContent` (P10), the 300 × 65 reserved slot.<br>4. The forgot page and form (A5A–A5G + the long variant) | `account/account-shell.tsx`, `lib/server/account/challenge-page-props.ts`, `account/turnstile-widget.tsx` (modified), `app/[locale]/account/forgot-password/page.tsx`, `account/forgot-password-form.tsx` | L13b.1's list; `turnstile-widget.tsx`; `proxy.ts:24-36,274-303`; `security-headers.ts`; plan flow 6; ADR 0161 Amendment D | L13b.1 |
 | **L13b.3 — register and check-inbox, and the notice stub** | 1. The register page and form (A1A–A1H): client checks through `judgePassword` and `judgeAccountEmail`, the body with `PRIVACY_NOTICE_VERSIONS[0]` and `locale`.<br>2. `check-inbox-view.tsx` (A2A, "Am greșit adresa" back to the form with the e-mail kept).<br>3. The P4 notice stub.<br>4. The P11 counter, if the owner keeps it (one domain export, Full review) | `app/[locale]/account/register/page.tsx`, `account/register-form.tsx`, `account/check-inbox-view.tsx`, `app/[locale]/privacy-notice/page.tsx` (+ `packages/configurator-domain/src/account/index.ts` if P11 (a)) | L13b.2's list; plan flow 1; `register-account.ts`; `account-fields.ts`; `password-policy.ts`; ADR 0169 D1, D2 | L13b.2, P4, P11 |
-| **L13b.4 — login and the shared 404** | 1. The login page and form (A4A–A4F, invalid-input per §3.3), `onSignedIn(claimable)` → `location.assign` (P8).<br>2. `account/not-found.tsx` + `account/[...unmatched]/page.tsx` (A8C; `connection()` as the existing unmatched page).<br>3. **Conditional:** the criterion 13 probe on a built server. If a percent-encoded account path is served, `proxy.ts` refuses a path whose segments differ once decoded, mirroring `hasMisspelledLocalePrefix` (`proxy.ts:202-211`) | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx`, `app/[locale]/account/not-found.tsx`, `app/[locale]/account/[...unmatched]/page.tsx` (+ `proxy.ts`, only if item 3 triggers) | L13b.3's list; plan flow 3; `sign-in.ts:80-120`; ADR 0169 Amendment A; `app/[locale]/[...unmatched]/page.tsx` | L13b.3 |
+| **L13b.4 — login and the shared 404** | 1. The login page and form (A4A–A4F, invalid-input per §3.3), `onSignedIn(claimable)` → `location.assign` (P8).<br>2. `account/not-found.tsx` + `account/[[...unmatched]]/page.tsx` (optional catch-all, so the bare `/{locale}/account` also reaches A8C;  `connection()` as the existing unmatched page).<br>3. **Conditional:** the criterion 13 probe on a built server. If a percent-encoded account path is served, `proxy.ts` refuses a path whose segments differ once decoded, mirroring `hasMisspelledLocalePrefix` (`proxy.ts:202-211`) | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx`, `app/[locale]/account/not-found.tsx`, `app/[locale]/account/[[...unmatched]]/page.tsx` (+ `proxy.ts`, only if item 3 triggers) | L13b.3's list; plan flow 3; `sign-in.ts:80-120`; ADR 0169 Amendment A; `app/[locale]/[...unmatched]/page.tsx` | L13b.3 |
 | **L14a.1 — the fragment and the confirm page** | 1. `fragment-token.ts`: read once, shape check, `replaceState`, ref-held.<br>2. The verify page (`connection()`) and form (A3A–A3G, the D7 token variant, P3 (b) chip hidden), `onSignedIn` after A3G | `account/fragment-token.ts`, `app/[locale]/account/verify-email/page.tsx`, `account/verify-email-form.tsx` | The L13b reading; plan flow 2; L8 conditions (fragment); `verify-email.ts`; `account-mail-messages.ts:75,165-176`; ADR 0161 Amendment D item 4; P12 | L13b.4 |
 | **L14a.2 — reset and the session-expired arrival** | 1. The reset page and form (A6A–A6H; `newPassword` sent, `field:"password"` shown on the new-password input).<br>2. A4G: `?reason=session-expired`, matched against a closed list, shows the info notice on login (P9) | `app/[locale]/account/reset-password/page.tsx`, `account/reset-password-form.tsx`, `account/login-form.tsx` (modified) | L14a.1's list; plan flow 7; `reset-password.ts:55-60,176-210` | L14a.1 |
 | **W-doc** (scribe, no code) | `docs/design/README.md` lists the two Lot 1 files and the `A`/`DA` frame IDs. The plan §7 amendment (§3.0). P1–P12 rulings | docs only | §3 here | the rulings |
@@ -537,9 +544,26 @@ for the pages it adds.
     - No title or button label is truncated.
 13. **L3 (L13a obligation).** On a built server, `/ro/%61ccount/login` and every other account path whose segments
     differ once decoded answer **`404`**, as the locale segment already does (plan L13a obligation L3) [doc]. If the
-    probe shows such a path being served, L13b.4 adds the conditional `proxy.ts` fix.
+    probe shows such a path being served, L13b.4 adds the conditional `proxy.ts` fix. **Probed: yes** (2026-10-18, a
+    fresh `next build` of HEAD `9b7575f5`, `next start` on a free port, `curl`): `/ro/%61ccount/verify-email`,
+    `/ro/account/%76erify-email`, `/ro/account/verify%2Demail`, `/ro/%61ccount/login`, `/ro/account/%6Cogin`,
+    `/ro/account/forgot%2Dpassword` and `/ro/%61ccount/reset-password` all answered **`404`** (the written
+    `/ro/account/verify-email`, `login`, `forgot-password` and `reset-password` answered `200`). **No `proxy.ts`
+    change was needed.** Observed, not inferred.
 14. **Sign-in success** leaves through one `onSignedIn(claimable)` path and a full document load to `/{locale}`.
-    `?reason=` values outside the closed list render nothing.
+    `?reason=` values outside the closed list render nothing. The session-expired note shows only until the person's
+    first submit.
+15. **No router actions on a token page.** `/account/verify-email` and `/account/reset-password`
+    make no `router.refresh`, `router.replace`/`push`, server action or soft navigation of their own, and L14b's claim
+    dialog, opened from the verify page, makes none either. Reason, observed on a production build of `9b7575f5`: the
+    Next router takes its `canonicalUrl` from `location.href` while it still holds `#t=`, and router actions
+    rewrite the address from that copy, so a `router.refresh()` or `router.replace(pathname)` put `#t=<token>` back
+    into the address bar and the history entry although the page had removed it. `fragment-token.ts` now tells the
+    router, once, through the patched `history.replaceState` (one internal `ACTION_RESTORE`; observed on the production build: no network request in the 800 ms after the page was interactive, and the page was not reloaded), and that ends the copy
+    `router.refresh()` uses (re-probed: the address stays clean). It does **not** end the router's second copy, the
+    route cache entry learned at hydration (`discoverKnownRoute`, canonicalUrl with the fragment), which a soft
+    navigation to the same path still writes back (re-probed with `router.replace(pathname)`: the fragment returns;
+    `router.push` and a `Link` use the same entry by reading `navigation.js`, not probed). Nothing public clears that entry, so this rule is the defence for that class.
 
 ### 3.6 Review tiers
 

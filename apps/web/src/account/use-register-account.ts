@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useRef, useState } from "react";
 
 import type {
@@ -268,6 +266,7 @@ function feedbackFrom(
     case "unanswered":
       return { kind: "unanswered" };
     case "request-failed":
+    case "platform-failed":
     case "signed-in":
     case "password-changed":
     case "invalid-credentials":

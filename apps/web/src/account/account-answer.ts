@@ -27,8 +27,8 @@ export interface AccountAnswer {
 
 /**
  * How a `429` is told. A short wait is a countdown on the button; a middling one is whole minutes; a long one is the
- * clock time it ends at, because the account day windows are UTC days and "tomorrow" is wrong part of the night.
- * `unreadable` has no number: the answer's `Retry-After` could not be believed.
+ * clock time it ends at, because the account day windows are Chișinău calendar days and "tomorrow" is wrong part of
+ * the night. `unreadable` has no number: the answer's `Retry-After` could not be believed.
  */
 export type AccountWait =
   | { readonly kind: "countdown"; readonly seconds: number }
@@ -50,20 +50,27 @@ export type AccountOutcome =
   | { readonly kind: "rate-limited"; readonly wait: AccountWait }
   | { readonly kind: "unavailable" }
   | { readonly kind: "request-failed" }
+  | { readonly kind: "platform-failed" }
   | { readonly kind: "unanswered" };
 
 /** The request that got no answer at all. Told from `request-failed` by the fetch's rejection alone. */
 export const UNANSWERED_OUTCOME: AccountOutcome = { kind: "unanswered" };
 
-/** Any answer the flow has no class for: a refused request (`cross-site`, `invalid-request`, `413`, `415`), a
- *  platform error, a body that is not JSON, or a word this flow never says. */
+/** Any answer below `500` the flow has no class for: a refused request (`cross-site`, `invalid-request`, `413`,
+ *  `415`), a body that is not JSON, or a word this flow never says. */
 export const REQUEST_FAILED_OUTCOME: AccountOutcome = {
   kind: "request-failed",
 };
 
-/** The pages that read a single-use token from the address: a reload cannot mend them, the e-mail's link can. */
-export function isTokenFlow(flow: AccountFlow): boolean {
-  return flow === "verify-email" || flow === "reset-password";
+/** A server error no word of the flow explains (a gateway's `502`, a `500` page that is not JSON). It is told from
+ *  `request-failed` because a retry may mend it: a page that holds a single-use token keeps it for that retry. */
+export const PLATFORM_FAILED_OUTCOME: AccountOutcome = {
+  kind: "platform-failed",
+};
+
+/** A feedback the same button mends by pressing it again: the service was not there, or the request got no answer. */
+export function isRetryable(feedback: { readonly kind: string }): boolean {
+  return feedback.kind === "unavailable" || feedback.kind === "unanswered";
 }
 
 const COUNTDOWN_BELOW_SECONDS = 600;
@@ -71,9 +78,12 @@ const MINUTES_UNTIL_SECONDS = 3600;
 const SECONDS_PER_MINUTE = 60;
 const MS_PER_SECOND = 1000;
 const SHORTEST_WAIT_SECONDS = 1;
-/** A UTC day, the longest window an account limit states; held here because the client cannot import the server's
- *  policy. A longer `Retry-After` is not one a limit sent. */
-const LONGEST_WAIT_SECONDS = 86_400;
+/** 25 hours, the longest a Chișinău day lasts and so the longest window an account limit states. It is the server's
+ *  `LONGEST_DAY_SECONDS` (`lib/server/rate-limit/chisinau-day.ts`), held here because that module imports the
+ *  persistence package, which a client module may not; keep the two equal. A longer `Retry-After` is not one a limit
+ *  sent. */
+const LONGEST_WAIT_SECONDS = 90_000;
+const FIRST_SERVER_ERROR_STATUS = 500;
 
 const OK_STATUS = 200;
 const ACCEPTED_STATUS = 202;
@@ -182,7 +192,9 @@ export function classifyAccountAnswer(
   if (answer.status === INVALID_INPUT_STATUS && word === "invalid-input") {
     return classifyInvalidInput(rule, answer.body);
   }
-  return REQUEST_FAILED_OUTCOME;
+  return answer.status >= FIRST_SERVER_ERROR_STATUS
+    ? PLATFORM_FAILED_OUTCOME
+    : REQUEST_FAILED_OUTCOME;
 }
 
 function isFlowRefusal(

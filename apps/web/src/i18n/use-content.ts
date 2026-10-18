@@ -14,54 +14,53 @@ import {
   resolveAccountShellCopy,
   resolveAccountVerifyCopy,
   resolveContent,
+  type ContentTranslator,
 } from "./content";
 
-export function useContent() {
+/** A resolver's copy for the current locale, resolved once per locale rather than once per render. */
+function useResolved<Copy>(
+  resolve: (translate: ContentTranslator) => Copy,
+): Copy {
   const translate = useTranslations();
-  return useMemo(() => resolveContent(translate), [translate]);
+  return useMemo(() => resolve(translate), [resolve, translate]);
+}
+
+export function useContent() {
+  return useResolved(resolveContent);
 }
 
 export function useAccountKitCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountKitCopy(translate), [translate]);
+  return useResolved(resolveAccountKitCopy);
 }
 
 export function useAccountShellCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountShellCopy(translate), [translate]);
+  return useResolved(resolveAccountShellCopy);
 }
 
 export function useAccountForgotCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountForgotCopy(translate), [translate]);
+  return useResolved(resolveAccountForgotCopy);
 }
 
 export function useAccountRegisterCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountRegisterCopy(translate), [translate]);
+  return useResolved(resolveAccountRegisterCopy);
 }
 
 export function useAccountLoginCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountLoginCopy(translate), [translate]);
+  return useResolved(resolveAccountLoginCopy);
 }
 
 export function useAccountNotFoundCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountNotFoundCopy(translate), [translate]);
+  return useResolved(resolveAccountNotFoundCopy);
 }
 
 export function useAccountCheckInboxCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountCheckInboxCopy(translate), [translate]);
+  return useResolved(resolveAccountCheckInboxCopy);
 }
 
 export function useAccountVerifyCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountVerifyCopy(translate), [translate]);
+  return useResolved(resolveAccountVerifyCopy);
 }
 
 export function useAccountResetCopy() {
-  const translate = useTranslations();
-  return useMemo(() => resolveAccountResetCopy(translate), [translate]);
+  return useResolved(resolveAccountResetCopy);
 }

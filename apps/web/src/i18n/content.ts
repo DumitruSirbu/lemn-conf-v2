@@ -1,3 +1,7 @@
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "@lemnaria/configurator-domain";
 import type { _Translator, Messages } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -933,9 +937,13 @@ function resolvePasswordError(
 ): string {
   switch (code) {
     case "PASSWORD_TOO_SHORT":
-      return translate("accountFieldErrors.passwordTooShort");
+      return translate("accountFieldErrors.passwordTooShort", {
+        min: PASSWORD_MIN_LENGTH,
+      });
     case "PASSWORD_TOO_LONG":
-      return translate("accountFieldErrors.passwordTooLong");
+      return translate("accountFieldErrors.passwordTooLong", {
+        max: PASSWORD_MAX_LENGTH,
+      });
     case "PASSWORD_IS_EMAIL":
       return translate("accountFieldErrors.passwordIsEmail");
     case "PASSWORD_BREACHED":
@@ -983,7 +991,9 @@ export function resolveAccountKitCopy(translate: ContentTranslator) {
     emailPlaceholder: translate("accountForm.emailPlaceholder"),
     passwordLabel: translate("accountForm.passwordLabel"),
     newPasswordLabel: translate("accountForm.newPasswordLabel"),
-    passwordHint: translate("accountForm.passwordHint"),
+    passwordHint: translate("accountForm.passwordHint", {
+      min: PASSWORD_MIN_LENGTH,
+    }),
     passwordCount: (count: number, minimum: number) =>
       translate("accountForm.passwordCount", { count, min: minimum }),
     showPassword: translate("accountForm.showPassword"),

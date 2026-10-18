@@ -1,6 +1,6 @@
 "use client";
 
-import { createRef, useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import {
@@ -9,6 +9,12 @@ import {
   useAccountVerifyCopy,
 } from "@/i18n/use-content";
 
+import { isRetryable } from "./account-answer";
+import {
+  createPasswordPageTargets,
+  useFocusPasswordWhenReady,
+  useMoveFocusOnAnswer,
+} from "./account-focus";
 import {
   AccountForm,
   FormNotice,
@@ -17,7 +23,7 @@ import {
   PasswordField,
   RateLimitNotice,
   SubmitButton,
-  type SubmitWait,
+  waitOfFeedback,
 } from "./account-form-parts";
 import {
   TokenRequestFailedScreen,
@@ -37,7 +43,6 @@ import {
   useVerifyEmail,
   type VerifyEmail,
   type VerifyFeedback,
-  type VerifyFocusRequest,
 } from "./use-verify-email";
 
 // The confirm-address page (Lot 1 frames A3A to A3G). The e-mail's link brings a token in the address fragment; the page
@@ -143,26 +148,14 @@ function InvalidLinkSentence({ locale }: VerifyEmailFormProps) {
   ));
 }
 
-interface AskingFocusTargets {
-  readonly password: RefObject<HTMLInputElement | null>;
-  readonly notice: RefObject<HTMLDivElement | null>;
-}
-
-function createFocusTargets(): AskingFocusTargets {
-  return {
-    password: createRef<HTMLInputElement>(),
-    notice: createRef<HTMLDivElement>(),
-  };
-}
-
 function AskingScreen({
   verify,
   locale,
 }: VerifyEmailFormProps & { readonly verify: VerifyEmail }) {
   const copy = useAccountVerifyCopy();
   const kit = useAccountKitCopy();
-  const [targets] = useState(createFocusTargets);
-  useFocusPasswordWhenReady(verify, targets.password);
+  const [targets] = useState(createPasswordPageTargets);
+  useFocusPasswordWhenReady(verify.tokenStatus, targets.password);
   useMoveFocusOnAnswer(verify.focusRequest, targets);
   return (
     <AccountForm onSubmit={verify.submit} isBusy={verify.isBusy}>
@@ -237,53 +230,14 @@ function FeedbackNotice({
 function SubmitArea({ verify }: { readonly verify: VerifyEmail }) {
   const copy = useAccountVerifyCopy();
   const kit = useAccountKitCopy();
-  const { feedback } = verify;
-  const isRetry =
-    feedback.kind === "unavailable" || feedback.kind === "unanswered";
-  const wait = waitOf(verify);
+  const wait = waitOfFeedback(verify.feedback, verify.clearFeedback);
   return (
     <SubmitButton
-      label={isRetry ? kit.retry : copy.submit}
+      label={isRetryable(verify.feedback) ? kit.retry : copy.submit}
       busyLabel={copy.submitting}
       isBusy={verify.isBusy}
       isOff={verify.tokenStatus !== "present"}
       {...(wait === undefined ? {} : { wait })}
     />
   );
-}
-
-/** A short limit is counted down on the button; a longer one is told in the notice and the button stays ready. */
-function waitOf({
-  feedback,
-  clearFeedback,
-}: VerifyEmail): SubmitWait | undefined {
-  if (
-    feedback.kind !== "rate-limited" ||
-    feedback.countdownSeconds === undefined
-  ) {
-    return undefined;
-  }
-  return { seconds: feedback.countdownSeconds, onElapsed: clearFeedback };
-}
-
-/** Frame A3A: a link that held a token starts the person at the password. */
-function useFocusPasswordWhenReady(
-  { tokenStatus }: VerifyEmail,
-  password: RefObject<HTMLInputElement | null>,
-): void {
-  useEffect(() => {
-    if (tokenStatus === "present") password.current?.focus();
-  }, [tokenStatus, password]);
-}
-
-/** After an answer, focus goes where the person must look: the password to retype, or the notice that now heads the
- *  form. It moves once per answer, and never while the person types. */
-function useMoveFocusOnAnswer(
-  request: VerifyFocusRequest | undefined,
-  targets: AskingFocusTargets,
-): void {
-  useEffect(() => {
-    if (request === undefined || request.target === "nowhere") return;
-    targets[request.target].current?.focus();
-  }, [request, targets]);
 }

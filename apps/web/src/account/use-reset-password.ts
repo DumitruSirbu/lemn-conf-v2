@@ -1,5 +1,3 @@
-"use client";
-
 import { judgePassword } from "@lemnaria/configurator-domain";
 import { useCallback, useRef, useState } from "react";
 
@@ -153,8 +151,8 @@ function isPasswordSpentBy(feedback: ResetFeedback): boolean {
 }
 
 /** The token stays for every answer a retry can mend: the server spends it only on a change, and a refused password,
- *  a limit and a platform failure leave it whole. After a change, a link it no longer honours or a failure no retry
- *  mends, there is nothing left to send. */
+ *  a limit, a lost connection and a platform failure (told as `unanswered`) leave it whole. After a change, a link it
+ *  no longer honours or a refusal no retry mends, there is nothing left to send. */
 function isTokenSpentBy(feedback: ResetFeedback): boolean {
   return (
     feedback.kind === "password-changed" ||
@@ -179,7 +177,9 @@ async function sendAndAnswer(
 }
 
 /** Every outcome the page can be given. The request is the change, so the classes it never answers with (a session,
- *  a challenge, a registered address) are, like any unlisted answer, a failed request. */
+ *  a challenge, a registered address) are, like any unlisted answer, a failed request. A server error is told as a
+ *  request that got no answer, which keeps the form, the password and the token for a retry: it says nothing about
+ *  the link. */
 function feedbackFrom(outcome: AccountOutcome, nowMs: number): ResetFeedback {
   switch (outcome.kind) {
     case "password-changed":
@@ -197,6 +197,7 @@ function feedbackFrom(outcome: AccountOutcome, nowMs: number): ResetFeedback {
     case "unavailable":
       return { kind: "unavailable" };
     case "unanswered":
+    case "platform-failed":
       return { kind: "unanswered" };
     case "request-failed":
     case "check-inbox":

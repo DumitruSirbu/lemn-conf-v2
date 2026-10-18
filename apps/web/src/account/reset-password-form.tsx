@@ -4,7 +4,7 @@ import {
   countPasswordCharacters,
   PASSWORD_MIN_LENGTH,
 } from "@lemnaria/configurator-domain";
-import { createRef, useEffect, useRef, useState, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import {
@@ -13,6 +13,12 @@ import {
   useAccountShellCopy,
 } from "@/i18n/use-content";
 
+import { isRetryable } from "./account-answer";
+import {
+  createPasswordPageTargets,
+  useFocusPasswordWhenReady,
+  useMoveFocusOnAnswer,
+} from "./account-focus";
 import {
   AccountForm,
   FormNotice,
@@ -20,7 +26,7 @@ import {
   PasswordField,
   RateLimitNotice,
   SubmitButton,
-  type SubmitWait,
+  waitOfFeedback,
 } from "./account-form-parts";
 import {
   TokenRequestFailedScreen,
@@ -39,7 +45,6 @@ import {
 import {
   useResetPassword,
   type ResetFeedback,
-  type ResetFocusRequest,
   type ResetPassword,
 } from "./use-reset-password";
 
@@ -141,22 +146,10 @@ function LinkInvalidScreen({ locale }: ResetPasswordFormProps) {
   );
 }
 
-interface AskingFocusTargets {
-  readonly password: RefObject<HTMLInputElement | null>;
-  readonly notice: RefObject<HTMLDivElement | null>;
-}
-
-function createFocusTargets(): AskingFocusTargets {
-  return {
-    password: createRef<HTMLInputElement>(),
-    notice: createRef<HTMLDivElement>(),
-  };
-}
-
 function AskingScreen({ reset }: { readonly reset: ResetPassword }) {
   const copy = useAccountResetCopy();
-  const [targets] = useState(createFocusTargets);
-  useFocusPasswordWhenReady(reset, targets.password);
+  const [targets] = useState(createPasswordPageTargets);
+  useFocusPasswordWhenReady(reset.tokenStatus, targets.password);
   useMoveFocusOnAnswer(reset.focusRequest, targets);
   return (
     <AccountForm onSubmit={reset.submit} isBusy={reset.isBusy}>
@@ -236,53 +229,14 @@ function FeedbackNotice({
 function SubmitArea({ reset }: { readonly reset: ResetPassword }) {
   const copy = useAccountResetCopy();
   const kit = useAccountKitCopy();
-  const { feedback } = reset;
-  const isRetry =
-    feedback.kind === "unavailable" || feedback.kind === "unanswered";
-  const wait = waitOf(reset);
+  const wait = waitOfFeedback(reset.feedback, reset.clearFeedback);
   return (
     <SubmitButton
-      label={isRetry ? kit.retry : copy.submit}
+      label={isRetryable(reset.feedback) ? kit.retry : copy.submit}
       busyLabel={copy.submitting}
       isBusy={reset.isBusy}
       isOff={reset.tokenStatus !== "present"}
       {...(wait === undefined ? {} : { wait })}
     />
   );
-}
-
-/** A short limit is counted down on the button; a longer one is told in the notice and the button stays ready. */
-function waitOf({
-  feedback,
-  clearFeedback,
-}: ResetPassword): SubmitWait | undefined {
-  if (
-    feedback.kind !== "rate-limited" ||
-    feedback.countdownSeconds === undefined
-  ) {
-    return undefined;
-  }
-  return { seconds: feedback.countdownSeconds, onElapsed: clearFeedback };
-}
-
-/** Frame A6A: a link that held a token starts the person at the password. */
-function useFocusPasswordWhenReady(
-  { tokenStatus }: ResetPassword,
-  password: RefObject<HTMLInputElement | null>,
-): void {
-  useEffect(() => {
-    if (tokenStatus === "present") password.current?.focus();
-  }, [tokenStatus, password]);
-}
-
-/** After an answer, focus goes where the person must look: the password to correct, or the notice that now heads the
- *  form. It moves once per answer, and never while the person types. */
-function useMoveFocusOnAnswer(
-  request: ResetFocusRequest | undefined,
-  targets: AskingFocusTargets,
-): void {
-  useEffect(() => {
-    if (request === undefined || request.target === "nowhere") return;
-    targets[request.target].current?.focus();
-  }, [request, targets]);
 }

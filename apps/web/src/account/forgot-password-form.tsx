@@ -9,6 +9,7 @@ import {
   useAccountShellCopy,
 } from "@/i18n/use-content";
 
+import { isRetryable } from "./account-answer";
 import {
   AccountActions,
   AccountHeading,
@@ -30,7 +31,7 @@ import {
   OutcomeHero,
   RateLimitNotice,
   TextField,
-  type SubmitWait,
+  waitOfFeedback,
 } from "./account-form-parts";
 import {
   RequestFailedScreen,
@@ -186,34 +187,16 @@ function FeedbackNotice({
 function SubmitArea({ forgot }: { readonly forgot: ForgotPassword }) {
   const copy = useAccountForgotCopy();
   const kit = useAccountKitCopy();
-  const isRetry =
-    forgot.feedback.kind === "unavailable" ||
-    forgot.feedback.kind === "unanswered";
   return (
     <ChallengedSubmit
-      label={isRetry ? kit.retry : copy.submit}
+      label={isRetryable(forgot.feedback) ? kit.retry : copy.submit}
       busyLabel={copy.submitting}
       isBusy={forgot.isBusy}
       hasToken={forgot.hasToken}
       isChallengeUnavailable={forgot.isChallengeUnavailable}
-      wait={waitOf(forgot)}
+      wait={waitOfFeedback(forgot.feedback, forgot.clearFeedback)}
     />
   );
-}
-
-/** A short limit is counted down on the button; a longer one is told in the notice and the button stays ready. */
-function waitOf(forgot: ForgotPassword): SubmitWait | undefined {
-  const { feedback } = forgot;
-  if (
-    feedback.kind !== "rate-limited" ||
-    feedback.countdownSeconds === undefined
-  ) {
-    return undefined;
-  }
-  return {
-    seconds: feedback.countdownSeconds,
-    onElapsed: forgot.clearFeedback,
-  };
 }
 
 /** Frame A5C, identical for a known, an unknown and an unconfirmed address. The address is not shown. */

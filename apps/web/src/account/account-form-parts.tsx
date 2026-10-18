@@ -226,6 +226,7 @@ export function PasswordField(props: PasswordFieldProps) {
         type={isShown ? "text" : "password"}
         autoComplete={props.autoComplete}
         autoCapitalize="off"
+        autoCorrect="off"
         spellCheck={false}
         value={props.value}
         aria-invalid={error === undefined ? undefined : true}
@@ -461,6 +462,23 @@ function UnavailableChallenge({
 export interface SubmitWait {
   readonly seconds: number;
   readonly onElapsed: () => void;
+}
+
+/** A short limit is counted down on the button; a longer one is told in the notice and the button stays ready. */
+export function waitOfFeedback(
+  feedback: {
+    readonly kind: string;
+    readonly countdownSeconds?: number | undefined;
+  },
+  clearFeedback: () => void,
+): SubmitWait | undefined {
+  if (
+    feedback.kind !== "rate-limited" ||
+    feedback.countdownSeconds === undefined
+  ) {
+    return undefined;
+  }
+  return { seconds: feedback.countdownSeconds, onElapsed: clearFeedback };
 }
 
 export interface SubmitButtonProps {

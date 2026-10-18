@@ -1,11 +1,13 @@
 "use client";
 
-import { createRef, useEffect, useState, type RefObject } from "react";
+import { createRef, useState, type RefObject } from "react";
 
 import type { AccountFieldIssue } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitCopy, useAccountLoginCopy } from "@/i18n/use-content";
 
+import { isRetryable } from "./account-answer";
+import { useMoveFocusOnAnswer } from "./account-focus";
 import {
   AccountForm,
   AccountLink,
@@ -16,7 +18,7 @@ import {
   PasswordField,
   RateLimitNotice,
   TextField,
-  type SubmitWait,
+  waitOfFeedback,
 } from "./account-form-parts";
 import { RequestFailedScreen } from "./account-outcome-screens";
 import {
@@ -30,7 +32,6 @@ import {
 import type { LoginArrival } from "./login-arrival";
 import {
   useSignIn,
-  type FocusRequest,
   type LoginFeedback,
   type LoginField,
   type SignIn,
@@ -85,7 +86,7 @@ function AskingScreen({
         <AccountHeading title={copy.title} />
         <FeedbackNotice
           feedback={signIn.feedback}
-          arrival={arrival}
+          arrival={signIn.hasSubmitted ? undefined : arrival}
           noticeRef={targets.notice}
         />
         <EmailField signIn={signIn} inputRef={targets.email} />
@@ -227,58 +228,22 @@ function FeedbackNotice({
 function SubmitArea({ signIn }: { readonly signIn: SignIn }) {
   const copy = useAccountLoginCopy();
   const kit = useAccountKitCopy();
-  const isRetry =
-    signIn.feedback.kind === "unavailable" ||
-    signIn.feedback.kind === "unanswered";
   return (
     <ChallengedSubmit
-      label={isRetry ? kit.retry : copy.submit}
+      label={isRetryable(signIn.feedback) ? kit.retry : copy.submit}
       busyLabel={copy.submitting}
       isBusy={signIn.isBusy}
       hasToken={signIn.hasToken}
       isChallengeUnavailable={signIn.isChallengeUnavailable}
-      wait={waitOf(signIn)}
+      wait={waitOfFeedback(signIn.feedback, signIn.clearFeedback)}
     />
   );
 }
 
-/** A short limit is counted down on the button; a longer one is told in the notice and the button stays ready. */
-function waitOf(signIn: SignIn): SubmitWait | undefined {
-  const { feedback } = signIn;
-  if (
-    feedback.kind !== "rate-limited" ||
-    feedback.countdownSeconds === undefined
-  ) {
-    return undefined;
-  }
-  return {
-    seconds: feedback.countdownSeconds,
-    onElapsed: signIn.clearFeedback,
-  };
-}
-
-interface FocusTargets {
-  readonly email: RefObject<HTMLInputElement | null>;
-  readonly password: RefObject<HTMLInputElement | null>;
-  readonly notice: RefObject<HTMLDivElement | null>;
-}
-
-function createFocusTargets(): FocusTargets {
+function createFocusTargets() {
   return {
     email: createRef<HTMLInputElement>(),
     password: createRef<HTMLInputElement>(),
     notice: createRef<HTMLDivElement>(),
   };
-}
-
-/** After an answer, focus goes where the person must look: the refused field, the password to retype, or the notice
- *  that now heads the form. It moves once per answer, and never while the person types. */
-function useMoveFocusOnAnswer(
-  request: FocusRequest | undefined,
-  targets: FocusTargets,
-): void {
-  useEffect(() => {
-    if (request === undefined || request.target === "nowhere") return;
-    targets[request.target].current?.focus();
-  }, [request, targets]);
 }

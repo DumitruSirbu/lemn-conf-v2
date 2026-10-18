@@ -15,6 +15,8 @@ export interface ChallengePageProps {
  * Read per request, never at build: the site key is a deployment value and the nonce is minted by `proxy.ts` for this
  * request alone. Awaiting `headers()` is what makes the calling page dynamic, which the nonce needs to reach the HTML.
  * The key is the public site key and is read without a `NEXT_PUBLIC_` name, so it is never inlined into a bundle.
+ * A page that calls this is reached by a plain document load, never a client navigation: the policy that names the
+ * challenge's frame is that document's own (`proxy.ts`, account challenge pages).
  */
 export async function readChallengePageProps(): Promise<ChallengePageProps> {
   const requestHeaders = await headers();
