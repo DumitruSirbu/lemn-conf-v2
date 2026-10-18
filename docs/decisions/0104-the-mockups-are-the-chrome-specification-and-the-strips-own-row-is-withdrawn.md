@@ -2,6 +2,10 @@
 
 > **Dated note, 2026-10-17:** Amendment F (at the end) records the owner's departure from frames 1E and D1E (a card with
 > Preview only, a carousel pop-up). Nothing above is struck.
+>
+> **Dated note, 2026-10-18:** Amendment G (at the end) makes the owner's *Presete v2* frames the chrome specification for
+> the preset screens and supersedes the old 1D/1E/D1D/D1E frames, with Amendment F's reading of them. Nothing above is
+> struck.
 
 Status: Accepted — **supersedes [ADR 0094](0094-the-strip-gets-its-own-row-and-containment-is-measured-against-its-own-band.md)
 decision 2 and amends [ADR 0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md)
@@ -949,3 +953,65 @@ names only the mobile frame; the desktop frame carries the same *"nu carusel"* n
 
 **Wave P8's reading** reads frames 1D, 1E and D1E for the card's content and the chrome only; the CTA and the *"nu
 carusel"* notes are superseded (plan §5, P8).
+
+## Amendment G, 2026-10-18 — the owner's *Presete v2* frames are the chrome specification for the preset screens (M8D)
+
+**Evidence tiers.** *[doc]* quoted from this repository (the M8D plan, `docs/milestones/M8D-preset-screens-to-mockup.md`,
+and this record); *[relayed]* the coordinator's relay of the owner's answers of 2026-10-18 (the owner's words, per the
+relay: *"accept proposal"*, i.e. the plan's recommendation for each of O-1 to O-6); *[src]* none: the scribe read no
+application source for this amendment and ran nothing. **Decided; the screens are not yet built to it** (M8D waves W1 to
+W3; W0, the docs, is this amendment's wave).
+
+**The ruling.** The owner's export of 2026-10-18 is copied verbatim into `docs/design/mockups/`: `Presete.dc.html`,
+`support.js`, `shots/presets/01-p.png` to `04-p.png`, and replacement copies of the two screen files carrying a *Presete v2*
+section (inventory: plan §1; how to open them: `docs/design/README.md`). Per decision 1 the files are not edited.
+The frames of `Presete.dc.html` (1D, 1E, 1G, 1H, 3S, 3T and the desktop D1D to D3T, with their Russian variants) are the
+**chrome specification** for the preset wait, list, Preview pop-up and the editor's *Salvează ca preset* chip and dialog.
+The old frames 1D, 1E, D1D and D1E below the *Presete v2* banner in both screen files are **superseded** (their own banner
+says *"înlocuiește 1D/1E de mai jos"*), and **Amendment F's reading of the old 1E/D1E with them**; Amendment F's
+departures (Preview-only card, carousel pop-up) are what v2 draws, so nothing in F's outcome is reversed.
+
+**What v2 does not govern.** The editor and list backdrop drawn behind 3S/3T/1G (top bar, camera chips, price, hint, the
+room summary) is context, not authority. Where it differs from the shipped editor the shipped screen stands: *"De ce
+acest preț"* without the question mark (Amendment E rules the mark), the room summary in metres (ADR 0126 rules whole
+millimetres), the desktop top bar without the back link (Amendment D rules the link). Plan §1.
+
+**Card content (closes backlog 263).** The v2 card carries the image, the name, the optional *adjusted* note and one
+button (*"Fără preț, chipuri sau „Folosește""*). The M8C plan §3.6's count line, finish, handle and price are superseded
+by it; backlog 263 is resolved by this decision, delivery in W1. No data contract changes (plan §0).
+
+**Departures from the frames, and from the plan's first reading of them (plan §7, D-1 to D-8).** These are the
+architect's, recorded here so they are decisions and not drift [doc: plan §7; reasons condensed from it]:
+
+| # | Departure | Reason |
+| --- | --- | --- |
+| D-1 | The save dialog gets its own shell composed from `trapTab`, `useEscapeToDismiss` and `useBackgroundInert`; `ConfirmationDialog` is unchanged | v2's head (title, intro, ×), button heights and 520 px centred desktop box differ from the shared dialog; changing the shared one would reach back confirmation (Amendment D) and the settings confirm step, whose geometry a test pins |
+| D-2 | One shared status notice component (`preset/preset-status-notice.tsx`) for both preset dialogs | v2 draws one tone set in both; two copies would drift |
+| D-3 | `PresetImage` and `AdjustedNote` move to `room/preset-image.tsx` in W1 | W1 adds the loading and failed states the card and the slide share; not the split of backlog 272 |
+| D-4 | Desktop list chrome stays as shipped except gap 20 and top alignment | D1E's `32px 56px` body and 48 px footer would fork the footer D1B, D1C and D1F share; low impact |
+| D-5 | The footer CTA is touched only if a measured clipping at 320 px requires it | `.cta` is shared with 1B and 1F |
+| D-6 | `notSaved` keeps *Salvează* disabled although 3T · copy says every refusal re-enables it | `notSaved` is the editor's own save having stopped for good, not a route refusal; a retry cannot succeed |
+| D-7 | While a write is in flight nothing closes either dialog; controls that cannot act use `aria-disabled` (focusable) where the ring would otherwise be empty | Keeps Tab focus from falling to `body`; today's pop-up empties its ring while selecting (plan C-6) |
+| D-8 | The 40 × 4 handles are decoration (`aria-hidden`), no drag-to-close | As the settings sheet's grabber already is |
+
+**The owner's answers, relayed (2026-10-18, "accept proposal" to the plan's recommendations).**
+- **O-1.** `presetChooser.selectFailed` is approved as drafted (identical to v2's sentence). `presetChooser.selectLimitReached`
+  changes to v2's wording, *"Astăzi nu se mai pot crea alte bucătării. Încearcă mâine."*, replacing the drafted
+  *"… Încearcă din nou mâine."*. The code and the copy lock change in W2; this record is the decision. Russian stays an
+  unapproved agent draft (ADR 0095 decision 2).
+- **O-2.** The pop-up's focus order is × → Anterior → Următorul → Alege on both the phone and desktop. The phone matches
+  1G · g; desktop departs from D1G · g (× → Anterior → Alege → Următorul), because one DOM serves both shells (ADR 0003 §5).
+- **O-3.** The save dialog's initial focus is the field only when a mouse or keyboard is the main input (a fine primary
+  pointer); on touch, focus starts on the dialog itself so the phone keyboard does not cover *Salvează* unasked. The field
+  is first in Tab either way. The test is the pointer, not the width.
+- **O-4.** The app's focus ring (2 px `var(--accent-strong)` outline, offset 2) is kept, not the frames' box-shadow ring.
+- **O-5.** M8D runs on `fix/empty-space-fill-and-preset-save`, before that branch's pull request and before M8B.
+- **O-6.** The account mockups were copied verbatim into `docs/design/mockups/` (`Lemnaria Cont Lot 1.dc.html`,
+  `ContBlocks.dc.html`) in commit `1d08a894` [doc: the commit subject in the coordinator's brief; the scribe did not run
+  `git show`]. They belong to M8B.
+
+**Copy.** No new string key is needed (plan §4); the Romanian preset copy was approved 2026-10-18 (relayed), apart from
+the two leaves above, which O-1 settles.
+
+**Citing a frame.** By chip and element id, e.g. `Presete.dc.html#1g-single` (chip *1G · d*). Citations of the two screen
+files written before this copy shift by five lines (`docs/design/README.md`).

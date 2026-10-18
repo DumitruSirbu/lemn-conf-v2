@@ -29,6 +29,15 @@ production, copy approval, provisional figures, Back-history question, first-dep
 run**. ADR 0167 stays Proposed; its acceptance is the coordinator's or owner's call (Amendment B). Backlog 262-267
 recorded. Section 1's HEAD line above is older than this update.
 
+**2026-10-18 update (M8D, preset screens to the v2 mockup) [coordinator's brief, relayed; the scribe ran nothing].**
+Plan [`M8D-preset-screens-to-mockup.md`](milestones/M8D-preset-screens-to-mockup.md). The owner's answers to O-1 to O-6
+are recorded in [ADR 0104 Amendment G](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md);
+M8D runs on this branch before its PR and before M8B. W0 (docs) is done and W1 is in progress; W2 and W3 are not started
+(nothing built by the scribe). **Copy:** the Romanian preset copy was approved 2026-10-18 (relayed). **Still open:** the
+Russian copy (an unapproved agent draft, ADR 0095 decision 2), and the two leaves `presetChooser.selectFailed` (approved as
+drafted by O-1; whether the copy lock already holds it was not checked) and `presetChooser.selectLimitReached` (wording changed to
+v2's *"… Încearcă mâine."* by O-1, in code in W2). Backlog 263 is resolved by decision (delivery in W1).
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
@@ -53,6 +62,7 @@ for the owner to rule, not guessed; none is open now.
 | 8U Merge adjacent empty spaces | Built and reviewed; plan not archived; S5 not built | Close note lists code comments to repoint before archiving | Only for S5 / the repoint list, [`8U-...md`](milestones/8U-merge-adjacent-empty-spaces.md) | doc-quoted H:1212, 1219 |
 | M8B Customer profiles | Planned | After M8C by owner ruling, before launch; no wave dispatched | When started, [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) | doc-quoted H:615, 6-15 |
 | M8C Generation fill and preset authoring | Waves F0-P9 committed, not closed | See the 2026-10-18 update in section 1; owner obligations open | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
+| M8D Preset screens to the v2 mockup | W0 done; W1 in progress (2026-10-18, relayed) | Runs on this branch before its PR and before M8B (owner O-5) | Yes, [`M8D-...md`](milestones/M8D-preset-screens-to-mockup.md) | coordinator's brief (relayed) + doc-quoted plan banner |
 | M9 Delivery preparation | Proposed stub | No plan, no waves; inherits 8R/8S and the launch gate | When started, [`M9-delivery-preparation.md`](milestones/M9-delivery-preparation.md) | doc-quoted H:616 |
 | Adversarial review remediation | Done (S1-S12 shipped, commits db9c4024..); only SEC-001 stays open, as a launch gate tracked in `docs/backlog/open.md` and M9 | Plan archived at `milestones/done/adversarial-review-remediation.md` | No | doc-quoted H:617, 625-642; shipped state verified in git/source by a read-only analyst (coordinator-relayed) |
 | dom-003 set-width split | Done (shipped in 30283571) | Nine-module `set-width.ts` split; plan archived at `milestones/done/dom-003-set-width-split.md` | No | doc-quoted H:617, 630; commit verified in git by a read-only analyst (coordinator-relayed) |

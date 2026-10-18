@@ -1,11 +1,20 @@
 # M8D — The preset screens to the owner's v2 mockup (list, wait, preview pop-up, Save as preset)
 
-> **STATUS: PLANNED, 2026-10-18. Nothing is built.** This is the plan (`docs/WORKFLOW.md`, step 1) for bringing
+> **STATUS update, 2026-10-18 [relayed by the coordinator; the scribe ran nothing]: owner answers O-1 to O-6 recorded
+> ("accept proposal": every recommendation taken); W0 (docs) done; W1 in progress; W2 and W3 not started.** The answers
+> are in [ADR 0104 Amendment G](../decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md):
+> O-1 `selectFailed` approved as drafted and `selectLimitReached` changed to v2's *"… Încearcă mâine."* (code in W2);
+> O-2 focus order × → Anterior → Următorul → Alege on both screens; O-3 save-dialog initial focus in the field only when
+> a mouse or keyboard is the main input; O-4 the app's focus ring kept; O-5 M8D runs on `fix/empty-space-fill-and-preset-save`
+> before its PR and before M8B; O-6 the account mockups copied (commit `1d08a894`). §12 below is left as written, as the
+> record of the questions. Backlog 263 is resolved by decision (v2 cards carry no price or chips); delivery is W1.
+>
+> **Original banner: PLANNED, 2026-10-18. Nothing is built.** This is the plan (`docs/WORKFLOW.md`, step 1) for bringing
 > Step 1's preset screens and the editor's *Salvează ca preset* to the owner's v2 frames. The design was copied into
 > `docs/design/mockups/` on 2026-10-18 (uncommitted at the time of writing; see §1). The frames are the owner's export,
 > produced from `docs/design/claude-design-brief-preset-screens.md`.
 >
-> **Branch.** Not decided — owner question O-5 (§12). Planned against `fix/empty-space-fill-and-preset-save` at
+> **Branch.** Decided by O-5 (2026-10-18): `fix/empty-space-fill-and-preset-save`. Planned against `fix/empty-space-fill-and-preset-save` at
 > `bb112df0`, where the screens this plan changes were built by M8C waves P4 and P8.
 >
 > **Evidence tiers used below.** *[src]* read in the source at `bb112df0` by the architect, 2026-10-18; *[doc]* quoted

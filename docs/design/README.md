@@ -68,9 +68,12 @@ figure already read `60.000`, and the application's grouping is not decided by t
   an empty iframe, as they did before.
 - The export's `DEVELOPMENT-SPEC.md` and `SPEC.md`: older than the copies above, which the project has
   since amended.
-- `Lemnaria Cont Lot 1.dc.html` and `ContBlocks.dc.html` (account screens: create account, confirm
-  e-mail, sign in, forgotten and new password). Out of the preset work's scope; they belong to M8B and
-  are lost when `design-source/` is deleted unless copied first — an owner question in the M8D plan.
+- ~~`Lemnaria Cont Lot 1.dc.html` and `ContBlocks.dc.html`~~ — **copied since 2026-10-18** (owner answer O-6,
+  commit `1d08a894` [coordinator's brief; the scribe did not run `git show`]) into `docs/design/mockups/`, verbatim.
+  They are the account screens (create account, confirm e-mail, sign in, forgotten and new password); they belong to
+  M8B, not the preset work. Open them as the others: serve `docs/design/mockups/` over HTTP (see *Opening the mockups*
+  above) and visit `http://localhost:8000/Lemnaria%20Cont%20Lot%201.dc.html` or `…/ContBlocks.dc.html`. Not rendered
+  or verified by the scribe, and they are not yet in the file table above.
 
 `support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
 date the tracked mockups could not render on their own; it is now copied because the v2 preset

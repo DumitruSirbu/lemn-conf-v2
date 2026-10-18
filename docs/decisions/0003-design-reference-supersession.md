@@ -361,3 +361,11 @@ pagination"* (ADR 0027) governs the editor's catalogue offer list, not the prese
 
 **Frames.** The mockup files are not edited (ADR 0104). See [ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
 Amendment F for the frame notes this departs from.
+
+**Dated note, 2026-10-18 — swipe is required, was not built in P8, and is being built (M8D W2).** *[doc]* The 4b
+amendment above says Previous and Next come *"swipe on the phone, arrow keys on desktop"*; the M8C plan's P8 slice S1 listed
+*"swipe and arrow keys"*. The M8D plan (`docs/milestones/M8D-preset-screens-to-mockup.md` §3 G-10) records, from a read of
+`preset-carousel-dialog.tsx` at `bb112df0`, that the shipped pop-up has the arrow keys and no pointer or touch handling, and
+that no record departs from the swipe. That is an implementation defect against this decision, not a change to it: **the
+swipe is required.** M8D wave W2 builds it (not yet built as of this note; the scribe verified nothing in source). Nothing
+above is struck. See ADR 0104 Amendment G for the v2 frames that now specify this pop-up.

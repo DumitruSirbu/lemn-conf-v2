@@ -293,7 +293,7 @@ status corrections, in one of these two files:
 | 260 | A `generation-model.ts` comment about a 900x2200 room reading "nu poate fi inclus" may be stale (unverified) | open.md — recorded 2026-10-17 (M8C F1b) |
 | 261 | DOM-003's deferred clean-ups in the width commands (index row added 2026-10-18; entry dated 2026-10-18) | open.md — LOW |
 | 262 | Back from 1D, 1E or 1F lands on 1A (pre-existing; a product question) | open.md — recorded 2026-10-18 (M8C close-out) |
-| 263 | Frame 1E mock-up deviations: no count line, no price or chips on the cards | open.md — recorded 2026-10-18 (M8C close-out) |
+| 263 | Frame 1E mock-up deviations: no count line, no price or chips on the cards | open.md — recorded 2026-10-18 (M8C close-out); resolved by decision 2026-10-18 (v2 mockup, ADR 0104 Amendment G), delivery in M8D W1; moves to resolved.md when W1 ships |
 | 264 | `identifierSchema` character sets (a domain wave) | open.md — recorded 2026-10-18 (M8C close-out) |
 | 265 | An in-flight mint after Înapoi from 1F completes (pre-existing, observed once) | open.md — recorded 2026-10-18 (M8C close-out) |
 | 266 | Desktop e2e shard 2 is at its 67 ceiling | open.md — recorded 2026-10-18 (M8C close-out) |

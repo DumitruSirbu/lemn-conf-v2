@@ -3237,9 +3237,11 @@ four file names were not relayed to the scribe.
 
 **Evidence [source-verified by an agent, relayed].** `departTo("presets")` pushes no history entry, so hardware Back from 1D, 1E or 1F lands on 1A (ADR 0139 decision 3's claim to the contrary is corrected by a dated note). Not introduced by M8C. **Trigger:** the owner decides whether Back should step through Step 1's sub-states. **Owner:** the owner.
 
-## 263. Frame 1E mock-up deviations: no count line, no price or chips on the cards — RECORDED 2026-10-18 AT M8C CLOSE-OUT
+## 263. Frame 1E mock-up deviations: no count line, no price or chips on the cards — RECORDED 2026-10-18 AT M8C CLOSE-OUT; RESOLVED BY DECISION 2026-10-18 (v2 MOCKUP); DELIVERY IN M8D W1
 
 **Evidence [relayed, not re-read].** The shipped preset cards (P8) omit the count line and the price and chips that the 1E mock-up shows. **Trigger:** the owner reviews 1E against the mock-up. **Owner:** unassigned.
+
+**Resolution [doc: M8D plan §6, §12 and ADR 0104 Amendment G; nothing built or run by the scribe].** The owner's v2 mockup replaces frame 1E: its card has the image, the name, an optional adjusted note and one button, with no price, counts or chips (*"Fără preț, chipuri sau „Folosește""*). The shipped cards' omission is therefore the specified design, not a deviation, and the card is reworked to v2's column layout in M8D wave W1 (`docs/milestones/M8D-preset-screens-to-mockup.md`). The entry stays in this file, not `resolved.md`, until W1 ships (resolved.md holds only what is fixed and shipped); move it then. **Owner:** M8D.
 
 ## 264. `identifierSchema` character sets — A DOMAIN WAVE, RECORDED 2026-10-18 AT M8C CLOSE-OUT
 
