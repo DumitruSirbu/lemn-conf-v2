@@ -332,7 +332,9 @@ export type SignedInOutcome =
   /** `401`: the password was changed but this device's new session could not be started; the person signs in again. */
   | { readonly kind: "password-changed-sign-in" }
   | { readonly kind: "conflict-sent" }
-  | { readonly kind: "conflict-not-sent" };
+  | { readonly kind: "conflict-not-sent" }
+  /** `409`: the account holds more than one export carries. Final: repeating the request cannot succeed. */
+  | { readonly kind: "export-too-large" };
 
 interface SignedInSuccessRule {
   readonly status: number;
@@ -455,7 +457,13 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
   },
   export: {
     successes: [{ status: OK_STATUS, outcomeOf: received }],
-    refusals: [],
+    refusals: [
+      {
+        status: CONFLICT_STATUS,
+        word: "export-too-large",
+        outcome: { kind: "export-too-large" },
+      },
+    ],
     isAboutOneKitchen: false,
     placeableFields: [],
   },

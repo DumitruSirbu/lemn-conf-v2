@@ -4,6 +4,7 @@ import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   profileColumnWritesOf,
   requireValidEmailChangeConfirmation,
+  requireValidEmailChangeRetirement,
   requireValidEmailChangeTokenToIssue,
   requireValidEmailConfirmation,
   requireValidLiveTokenLookup,
@@ -244,11 +245,11 @@ export class FakeAccountStore implements AccountStore {
           purpose: "email-change",
         });
       }
-      if (
-        this.accountsById.get(token.accountId)?.emailVerifiedAt === undefined
-      ) {
-        return { kind: "refused" };
-      }
+      const account = this.accountsById.get(token.accountId);
+      const isIssuable =
+        account?.emailVerifiedAt !== undefined &&
+        account.passwordHash === token.verifiedPasswordHash;
+      if (!isIssuable) return { kind: "refused" };
       this.tokensByHash.set(token.tokenHash, {
         tokenHash: token.tokenHash,
         accountId: token.accountId,
@@ -260,6 +261,18 @@ export class FakeAccountStore implements AccountStore {
         usedAt: undefined,
       });
       return { kind: "issued" };
+    });
+  }
+
+  retireEmailChangeTokens(accountId: string): Promise<void> {
+    return settle(() => {
+      requireValidEmailChangeRetirement(accountId);
+      const at = this.now();
+      for (const token of this.tokensByHash.values()) {
+        const isEmailChangeOfAccount =
+          token.accountId === accountId && token.purpose === "email-change";
+        if (isEmailChangeOfAccount) token.usedAt ??= at;
+      }
     });
   }
 

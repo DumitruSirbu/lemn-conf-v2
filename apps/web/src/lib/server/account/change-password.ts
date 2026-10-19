@@ -6,7 +6,6 @@ import { validatePasswordChange } from "@lemnaria/configurator-domain";
 import type {
   PasswordChange,
   PasswordChangeOutcome,
-  StoredAccount,
 } from "@lemnaria/persistence";
 
 import { reportAccountEvent } from "@/lib/server/account/account-log";
@@ -21,18 +20,14 @@ import {
   passwordChangedKeepingSessionResponse,
   passwordChangedSignInResponse,
   unauthenticatedResponse,
-  unavailableResponse,
   wrongPasswordResponse,
 } from "@/lib/server/account/account-responses";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import { isBreachedPassword } from "@/lib/server/account/breached-password";
+import { refusalOfCurrentPassword } from "@/lib/server/account/current-password-check";
 import type { SignedInSession } from "@/lib/server/account/current-session";
 import { schedulePasswordChangedNotice } from "@/lib/server/account/password-changed-notice";
-import {
-  checkPassword,
-  hashPassword,
-  REFUSED_PASSWORD_STAND_IN,
-} from "@/lib/server/account/password-hash";
+import { hashPassword } from "@/lib/server/account/password-hash";
 import {
   clearSessionCookie,
   type SessionCookieReader,
@@ -111,7 +106,11 @@ async function answerChange({
   const lookup = await getAccountStore().findById(session.accountId);
   if (lookup.kind === "none") return unauthenticatedResponse();
   const { account } = lookup;
-  const refused = await refusalOfCurrentPassword(passwords, account);
+  const refused = await refusalOfCurrentPassword({
+    currentPassword: passwords.currentPassword,
+    account,
+    event: "password-change",
+  });
   if (refused !== undefined) return refused;
   if ((await isBreachedPassword(passwords.newPassword)) === "breached") {
     return invalidInputResponse([
@@ -131,29 +130,6 @@ async function answerChange({
     expectedPasswordHash: passwordHash,
     presentedCookies,
   });
-}
-
-/**
- * The one argon2id verification, whatever was typed: a text the password policy refused is verified as a stand-in
- * against the account's own hash, so it costs what a wrong password costs. A platform that could not compute is not a
- * wrong password, and is answered `503`.
- */
-async function refusalOfCurrentPassword(
-  { currentPassword }: JudgedPasswords,
-  account: StoredAccount,
-): Promise<NextResponse | undefined> {
-  const check = await checkPassword({
-    password: currentPassword ?? REFUSED_PASSWORD_STAND_IN,
-    phc: account.passwordHash,
-  });
-  if (check === "failed") return answerUnavailable();
-  const isVerified = currentPassword !== undefined && check === "match";
-  return isVerified ? undefined : answerWrongPassword();
-}
-
-function answerUnavailable(): NextResponse {
-  reportAccountEvent({ event: "password-change", outcome: "unavailable" });
-  return unavailableResponse();
 }
 
 function answerWrongPassword(): NextResponse {

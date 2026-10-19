@@ -910,7 +910,8 @@ declare const messages: {
     "saved": "Salvat",
     "nothingToSave": "Nimic de salvat",
     "privacyNotice": "Nota de confidențialitate",
-    "privacyNoticeNewTab": "(se deschide într-o filă nouă)"
+    "privacyNoticeNewTab": "(se deschide într-o filă nouă)",
+    "exportTooLarge": "Contul tău are prea multe bucătării pentru o singură descărcare. Nu am pregătit niciun fișier."
   },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",

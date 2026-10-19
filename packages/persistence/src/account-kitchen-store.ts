@@ -8,14 +8,16 @@ export const MAX_KITCHEN_NAME_CHARACTERS = 120;
 /** The most kitchens one page returns. */
 export const MAX_KITCHEN_PAGE_SIZE = 50;
 
-/** The most kitchens one export holds. An account with more is refused whole (`KitchenExport` `too-many`) and never
- *  given a part of its data as if it were all of it. PROVISIONAL: a count, not a byte bound; the figure is the
- *  engineer's, to be set against a measured document size. */
-export const MAX_EXPORTED_KITCHENS = 500;
+/** The most kitchens one export holds. An account with more is refused whole (`ExportSize` and `KitchenExport`
+ *  `too-many`) and never given a part of its data as if it were all of it. PROVISIONAL: a count, not a byte bound
+ *  (a byte sum would serialise documents before any limiter ran); the figure is the engineer's, to be set against a
+ *  measured document size. */
+export const MAX_EXPORTED_KITCHENS = 200;
 
 export type AccountKitchenStoreOperation =
   | "list kitchens"
   | "count kitchens"
+  | "measure an export"
   | "export kitchens"
   | "rename a kitchen"
   | "duplicate a kitchen"
@@ -151,6 +153,11 @@ export type KitchenExport =
   | { readonly kind: "exported"; readonly kitchens: readonly ExportedKitchen[] }
   | { readonly kind: "too-many" };
 
+/** Whether an export of the account's kitchens is within `MAX_EXPORTED_KITCHENS`, asked without reading a document. */
+export type ExportSize =
+  | { readonly kind: "within-bound" }
+  | { readonly kind: "too-many" };
+
 /**
  * The port for the kitchens an account owns ("My kitchens"). Every read and write names the account in its own
  * predicate. Nothing here changes `document`, `revision`, `write_token_hash`, `visitor_hash` or `account_id` of an
@@ -167,6 +174,11 @@ export interface AccountKitchenStore {
   countListed(accountId: string): Promise<number>;
   /** Sets the name only: `updated_at` and `revision` stay, so an open editor gets no conflict. */
   rename(rename: KitchenRename): Promise<KitchenRenameOutcome>;
+  /**
+   * A count of the kitchens `exportAll` would hold, with no document read: lets a caller refuse an export that can
+   * never succeed before it spends anything on it. Hidden kitchens count; deleted ones do not.
+   */
+  measureExport(accountId: string): Promise<ExportSize>;
   /**
    * Every kitchen of the account that its owner has not deleted, hidden ones included, newest first by
    * `(updated_at desc, id desc)`, for the owner's own data export. Reads only; at most `MAX_EXPORTED_KITCHENS`.

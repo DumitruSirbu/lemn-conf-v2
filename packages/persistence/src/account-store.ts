@@ -30,6 +30,7 @@ export type AccountStoreOperation =
   | "confirm an e-mail address"
   | "complete a password reset"
   | "issue an e-mail change token"
+  | "retire e-mail change tokens"
   | "change an e-mail address"
   | "replace a password hash"
   | "read a profile"
@@ -102,10 +103,12 @@ export type TokenIssueOutcome =
 /**
  * An `email-change` token: the new address travels on the row, so the link carries only the token and the address is
  * read back from the row at confirmation, never from the link. `newEmail` is as typed and trimmed, `newEmailNormalForm`
- * is the domain's counted form, as `accounts` holds them.
+ * is the domain's counted form, as `accounts` holds them. `verifiedPasswordHash` is the hash the caller verified the
+ * current password against, bound into the one statement so a password changed after that check issues nothing.
  */
 export interface EmailChangeTokenToIssue {
   readonly accountId: string;
+  readonly verifiedPasswordHash: string;
   readonly newEmail: string;
   readonly newEmailNormalForm: string;
   readonly tokenHash: string;
@@ -239,11 +242,13 @@ export interface AccountStore {
     replacement: RegistrationReplacement,
   ): Promise<RegistrationReplacementOutcome>;
   issueToken(token: TokenToIssue): Promise<TokenIssueOutcome>;
-  /** Inserts an `email-change` token holding the new address, for a verified account only. A newer token of the purpose
-   *  supersedes this one, as for any purpose. */
+  /** Inserts an `email-change` token holding the new address, for a verified account that still holds
+   *  `verifiedPasswordHash` only. A newer token of the purpose supersedes this one, as for any purpose. */
   issueEmailChangeToken(
     token: EmailChangeTokenToIssue,
   ): Promise<TokenIssueOutcome>;
+  /** Marks every unused `email-change` token of the account used, and no token of another purpose. Idempotent. */
+  retireEmailChangeTokens(accountId: string): Promise<void>;
   /**
    * One transaction: the newest live `email-change` token consumed, `email` and `email_normal_form` replaced by the
    * row's new address, every other unused token of the account retired (a link mailed to the old address cannot outlive
@@ -316,6 +321,7 @@ export function requireValidEmailChangeTokenToIssue(
 ): void {
   const operation = "issue an e-mail change token";
   requireAccountIdShape(token.accountId, operation);
+  requirePasswordHashShape(token.verifiedPasswordHash, operation);
   requireSha256Digest(token.tokenHash, "token hash", operation);
   requireField(
     isLengthWithin(
@@ -343,6 +349,10 @@ export function requireValidEmailChangeTokenToIssue(
     "a valid instant",
     operation,
   );
+}
+
+export function requireValidEmailChangeRetirement(accountId: string): void {
+  requireAccountIdShape(accountId, "retire e-mail change tokens");
 }
 
 export function requireValidEmailChangeConfirmation(

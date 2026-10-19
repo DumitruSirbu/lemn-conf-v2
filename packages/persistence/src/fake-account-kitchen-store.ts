@@ -13,6 +13,7 @@ import type {
   KitchenDeleteOutcome,
   KitchenDuplication,
   KitchenDuplicationOutcome,
+  ExportSize,
   KitchenExport,
   KitchenHideOutcome,
   KitchenMark,
@@ -127,15 +128,19 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
     });
   }
 
+  measureExport(accountId: string): Promise<ExportSize> {
+    return settle(() => {
+      requireAccountIdShape(accountId, "measure an export");
+      return this.exportableOf(accountId).length > MAX_EXPORTED_KITCHENS
+        ? { kind: "too-many" }
+        : { kind: "within-bound" };
+    });
+  }
+
   exportAll(accountId: string): Promise<KitchenExport> {
     return settle(() => {
       requireAccountIdShape(accountId, "export kitchens");
-      const owned = [...this.kitchensById.values()]
-        .filter(
-          (kitchen) =>
-            kitchen.accountId === accountId && kitchen.deletedAt === undefined,
-        )
-        .sort(newestFirst);
+      const owned = this.exportableOf(accountId).sort(newestFirst);
       if (owned.length > MAX_EXPORTED_KITCHENS) return { kind: "too-many" };
       return {
         kind: "exported",
@@ -236,6 +241,14 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
     return kitchen?.accountId === accountId && isListed(kitchen)
       ? kitchen
       : undefined;
+  }
+
+  /** Not deleted; hidden ones are kept. */
+  private exportableOf(accountId: string): HeldKitchen[] {
+    return [...this.kitchensById.values()].filter(
+      (kitchen) =>
+        kitchen.accountId === accountId && kitchen.deletedAt === undefined,
+    );
   }
 
   private listedNewestFirst(accountId: string): HeldKitchen[] {

@@ -153,6 +153,12 @@ export function profileResponse(profile: {
   );
 }
 
+/** `409`: the account holds more kitchens than one export carries. Repeating the request cannot change that, so a
+ *  client must not offer a retry. */
+export function exportTooLargeResponse(): NextResponse {
+  return statusResponse(409, "export-too-large");
+}
+
 /** The file name the download carries: ASCII, since it travels in a header. */
 const ACCOUNT_EXPORT_FILE_NAME = "lemnaria-account-data.json";
 

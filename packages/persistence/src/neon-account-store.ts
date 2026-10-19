@@ -5,6 +5,7 @@ import {
   AccountStoreError,
   profileColumnWritesOf,
   requireValidEmailChangeConfirmation,
+  requireValidEmailChangeRetirement,
   requireValidEmailChangeTokenToIssue,
   requireValidEmailConfirmation,
   requireValidLiveTokenLookup,
@@ -285,14 +286,21 @@ export class NeonAccountStore implements AccountStore {
 
   /**
    * `issueToken` for an `email-change` token: the row carries the new address (`0018`), and only a **verified** account
-   * gets one. Inserted from a `select` of its account, so an account that is gone inserts nothing and raises no
-   * foreign-key error. Repeating it after a lost acknowledgement finds its own row and answers issued.
+   * that still holds the hash the caller verified gets one. Inserted from a `select` of its account, so an account that
+   * is gone inserts nothing and raises no foreign-key error. Repeating it after a lost acknowledgement finds its own
+   * row and answers issued.
    */
   async issueEmailChangeToken(
     token: EmailChangeTokenToIssue,
   ): Promise<TokenIssueOutcome> {
     requireValidEmailChangeTokenToIssue(token);
-    const { accountId, tokenHash, newEmail, newEmailNormalForm } = token;
+    const {
+      accountId,
+      verifiedPasswordHash,
+      tokenHash,
+      newEmail,
+      newEmailNormalForm,
+    } = token;
     const expiresAt = token.expiresAt.toISOString();
     const rows = await queryRows("issue an e-mail change token", () =>
       retryOnTransientFailure(
@@ -303,7 +311,9 @@ export class NeonAccountStore implements AccountStore {
             )
             select ${tokenHash}, a.id, ${EMAIL_CHANGE}, ${expiresAt}::timestamptz,
               ${newEmail}::text, ${newEmailNormalForm}::text
-            from accounts a where a.id = ${accountId} and a.email_verified_at is not null
+            from accounts a
+            where a.id = ${accountId} and a.email_verified_at is not null
+              and a.password_hash = ${verifiedPasswordHash}
             on conflict (token_hash) do nothing
             returning token_hash
           )
@@ -315,6 +325,22 @@ export class NeonAccountStore implements AccountStore {
       ),
     );
     return rows.length === 0 ? { kind: "refused" } : { kind: "issued" };
+  }
+
+  /** Idempotent: a repeat finds nothing unused and changes nothing. Names `account_id` and the purpose, so no other
+   *  account's token and no reset or confirmation link is touched. */
+  async retireEmailChangeTokens(accountId: string): Promise<void> {
+    requireValidEmailChangeRetirement(accountId);
+    await queryRows("retire e-mail change tokens", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          update account_email_tokens
+          set used_at = now()
+          where account_id = ${accountId} and purpose = ${EMAIL_CHANGE} and used_at is null
+          returning token_hash
+        `,
+      ),
+    );
   }
 
   /**

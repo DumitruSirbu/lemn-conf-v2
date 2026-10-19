@@ -194,7 +194,7 @@ async function refusalOfMailLimits({
 }
 
 interface ChangeMailJob {
-  readonly requester: Pick<StoredAccount, "id" | "locale">;
+  readonly requester: Pick<StoredAccount, "id" | "locale" | "passwordHash">;
   readonly target: AcceptedAddress;
   readonly readiness: AccountMailReadiness;
 }
@@ -209,12 +209,14 @@ function scheduleChangeMail(job: ChangeMailJob): void {
 }
 
 /**
- * Both mail buckets were counted before the answer, so nothing here counts them again. The account's own address gets
- * nothing. An address another account holds gets a notice, sent to that account's own address and language. A free
- * address gets the link, in the requester's language.
+ * Both mail buckets were counted before the answer, so nothing here counts them again. The account's earlier unused
+ * links are retired first, whatever the address is, so the token table does not tell the three cases apart. The
+ * account's own address then gets nothing. An address another account holds gets a notice, sent to that account's own
+ * address and language. A free address gets the link, in the requester's language.
  */
 async function sendChangeMail(job: ChangeMailJob): Promise<void> {
   try {
+    await getAccountStore().retireEmailChangeTokens(job.requester.id);
     if (job.target.isCurrentAddress) return;
     const holder = await getAccountStore().findByNormalForm(
       job.target.emailNormalForm,
@@ -242,8 +244,8 @@ function sendAddressInUseNotice(
   });
 }
 
-/** The link goes to the address as typed. A token the store refused (the account is gone or no longer verified) sends
- *  nothing. */
+/** The link goes to the address as typed. A token the store refused (the account is gone, no longer verified, or its
+ *  password changed since it was checked) sends nothing. */
 async function sendChangeLink({
   requester,
   target,
@@ -252,6 +254,7 @@ async function sendChangeLink({
   const token = mintEmailToken();
   const issue = await getAccountStore().issueEmailChangeToken({
     accountId: requester.id,
+    verifiedPasswordHash: requester.passwordHash,
     newEmail: target.email,
     newEmailNormalForm: target.emailNormalForm,
     tokenHash: token.hash,

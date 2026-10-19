@@ -49,6 +49,7 @@ export async function completeEmailChange({
   });
   if (outcome.kind === "invalid") return linkInvalidResponse();
   await endEverySessionBestEffort(outcome.accountId);
+  // Best-effort: `previous` is undefined on the retry arm, so that arm sends no notice to the old address.
   if (outcome.previous !== undefined)
     scheduleOldAddressNotice(outcome.previous);
   reportAccountEvent({ event: "email-change-confirm", outcome: "succeeded" });

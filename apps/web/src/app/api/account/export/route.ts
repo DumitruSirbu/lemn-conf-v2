@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * The signed-in account downloads its own data (M8B Lot 2, E10). A `POST`, not a `GET`: a cross-site top-level `GET`
  * carries a `Lax` cookie and would spend the bucket, and the JSON media type this route requires cannot be sent by a
  * cross-site form. The client sends `{}`; the body is read for its bound and is otherwise ignored. Steps 1 to 4 of the
- * common order are the route's; `exportOwnAccount` counts the account's daily bucket and then reads.
+ * common order are the route's; `exportOwnAccount` measures the size, counts the account's daily bucket, then reads.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = await readGuardedBody(request);

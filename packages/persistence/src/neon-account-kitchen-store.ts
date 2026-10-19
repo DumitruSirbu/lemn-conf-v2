@@ -15,6 +15,7 @@ import type {
   AccountKitchenStore,
   AccountKitchenStoreOperation,
   ExportedKitchen,
+  ExportSize,
   KitchenCursor,
   KitchenDeleteOutcome,
   KitchenDuplication,
@@ -145,6 +146,22 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
       ),
     );
     return totalOf(rows, "count kitchens");
+  }
+
+  /** The count `exportAll` bounds, over the same predicate and with no document selected. */
+  async measureExport(accountId: string): Promise<ExportSize> {
+    requireAccountIdShape(accountId, "measure an export");
+    const rows = await queryRows("measure an export", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          select count(*)::int as total from designs
+          where account_id = ${accountId} and deleted_by_client_at is null
+        `,
+      ),
+    );
+    return totalOf(rows, "measure an export") > MAX_EXPORTED_KITCHENS
+      ? { kind: "too-many" }
+      : { kind: "within-bound" };
   }
 
   /**

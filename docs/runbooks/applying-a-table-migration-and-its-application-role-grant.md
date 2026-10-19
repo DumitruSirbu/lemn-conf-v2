@@ -848,6 +848,13 @@ and no recovery point is written that night (`docs/runbooks/design-db-restore.md
   GRANT UPDATE (email, email_normal_form) ON TABLE public.accounts TO app_designs;
   ```
 
+  **Gate: do not run this statement before both of these hold.** (a) The S9 security-review findings F1 (the owner's
+  ruling on the notice and undo path for an address change), F2 (the `email-change` tokens retired on every request, so
+  the token table does not depend on whether the address exists) and F3 (the token bound to the password hash that was
+  checked) are closed. (b) The confirm page for the link exists. Until then the e-mail-change request (E8) and
+  confirmation (E9) routes should stay unreachable from the product. Without the grant E9 answers `503`, so an early
+  deploy fails safe; running the grant early would make a half-built flow live.
+
   After it, the older section's probes `email update` and `email_normal_form update` read **true** and its expectation
   "none of them id (UPDATE), email (UPDATE), email_normal_form (UPDATE)" no longer holds: the `accounts` UPDATE columns are
   then the 8 of the older step 4, plus `name`, `address`, `email`, `email_normal_form` (12). `role`, `id` and `created_at`

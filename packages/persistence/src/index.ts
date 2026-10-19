@@ -223,6 +223,7 @@ export type {
   AccountKitchenStore,
   AccountKitchenStoreOperation,
   ExportedKitchen,
+  ExportSize,
   KitchenCursor,
   KitchenDeleteOutcome,
   KitchenDuplication,

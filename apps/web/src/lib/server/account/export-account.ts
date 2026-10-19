@@ -8,8 +8,8 @@ import { reportAccountEvent } from "@/lib/server/account/account-log";
 import {
   accountExportResponse,
   answerOfJudgement,
+  exportTooLargeResponse,
   unauthenticatedResponse,
-  unavailableResponse,
 } from "@/lib/server/account/account-responses";
 import { getAccountKitchenStore } from "@/lib/server/account/account-kitchen-store-instance";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
@@ -20,6 +20,11 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 // E10 of the Lot 2 plan: a signed-in account downloads its own data. From step 5 of the common order on; the route has
 // checked the origin, media type, size, session and capability (steps 1 to 4). The account is the session's, and no
 // request member names one.
+//
+// Order: the size is measured first, with no document read, so an account that can never be exported is refused for
+// good without spending its daily bucket; then the bucket is counted, then the whole export is read. The read repeats
+// the bound in its own statement, and an account that grew past it in between is refused the same way, having spent
+// the bucket.
 //
 // Scope (plan C15, O4): the profile and every kitchen the person has not deleted, hidden ones included. The shop's
 // requests and its notes are not in it: no contact personal column is readable by the application (ADR 0153 d1) and
@@ -37,6 +42,8 @@ export async function exportOwnAccount({
   session,
   headers,
 }: AccountExportRequest): Promise<NextResponse> {
+  const size = await getAccountKitchenStore().measureExport(session.accountId);
+  if (size.kind === "too-many") return answerTooLarge();
   const limited = answerOfJudgement(
     await judgeAccountSubject({
       purpose: "export",
@@ -53,10 +60,7 @@ export async function exportOwnAccount({
   if (account.kind === "none" || profile.kind === "none") {
     return unauthenticatedResponse();
   }
-  if (kitchens.kind === "too-many") {
-    reportAccountEvent({ event: "export", outcome: "unavailable" });
-    return unavailableResponse();
-  }
+  if (kitchens.kind === "too-many") return answerTooLarge();
   reportAccountEvent({ event: "export", outcome: "succeeded" });
   return accountExportResponse(
     JSON.stringify({
@@ -70,6 +74,11 @@ export async function exportOwnAccount({
       kitchens: kitchens.kitchens.map(exportedKitchenOf),
     }),
   );
+}
+
+function answerTooLarge(): NextResponse {
+  reportAccountEvent({ event: "export", outcome: "refused" });
+  return exportTooLargeResponse();
 }
 
 function exportedKitchenOf(kitchen: ExportedKitchen) {
