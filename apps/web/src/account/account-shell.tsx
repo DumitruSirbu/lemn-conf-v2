@@ -22,7 +22,8 @@ export type AccountPage =
   | "forgot-password"
   | "verify-email"
   | "reset-password"
-  | "kitchens";
+  | "kitchens"
+  | "profile";
 
 export function accountPathOf(locale: AppLocale, page: AccountPage): string {
   return `/${locale}/account/${page}`;

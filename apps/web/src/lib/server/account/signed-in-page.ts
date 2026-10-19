@@ -80,7 +80,11 @@ async function sessionOrUndefined(
   }
 }
 
-function redirectToLogin(locale: AppLocale, hadSessionCookie: boolean): never {
+/** To the login page: with `reason=session-expired` when the request carried a session cookie, plain when it did not. */
+export function redirectToLogin(
+  locale: AppLocale,
+  hadSessionCookie: boolean,
+): never {
   const loginPath = `/${locale}/account/login`;
   return redirect(
     hadSessionCookie

@@ -1,0 +1,71 @@
+/* The profile page (Lot 2 frames A10A to A10D, A10H and ContBlocks2's text and rows blocks). The fields, notices and the
+ * action bar are the account kit's; this adds the address read as text and the row that opens the privacy notice. The
+ * page's tokens are `globals.css`'s. */
+.readOnly {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.readOnlyLabel {
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.readOnlyValue {
+  font: 400 15px/1.4 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-soft);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 52px;
+  box-sizing: border-box;
+  padding: 10px 4px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: 2px;
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowLabel {
+  font: 700 14.5px/1.35 var(--font-ui);
+  text-wrap: pretty;
+}
+
+.rowSub {
+  font: 400 12px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.rowMark {
+  flex: none;
+  font: 400 22px/1 var(--font-ui);
+  color: var(--accent);
+}
+
+.rowMark::before {
+  content: "\203A";
+}
