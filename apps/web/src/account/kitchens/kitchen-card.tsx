@@ -24,12 +24,8 @@ import {
 import type { ListedKitchen } from "./kitchens-answer";
 import { RenameKitchenForm } from "./rename-kitchen-form";
 import type { KitchenActions } from "./use-kitchen-actions";
-import {
-  describeKitchenPrice,
-  formatRelativeAge,
-  relativeAgeOf,
-  type KitchenPrice,
-} from "./kitchen-summary";
+import { describeKitchenPrice, type KitchenPrice } from "./kitchen-summary";
+import { formatRelativeAge, relativeAgeOf } from "./relative-age";
 import styles from "./kitchens.module.css";
 import type { CardFocusRequest } from "./use-kitchens";
 

@@ -139,7 +139,7 @@ describe("exactly two modules in this application name a price book, one for eac
   it("are the browser's composition root and the server's, and nothing else", () => {
     expect(modulesNaming(/SAMPLE_PRICE_BOOK/)).toEqual([
       "lib/server/shipped-price-book.ts",
-      "price/use-priced-design.ts",
+      "price/price-book-root.ts",
     ]);
   });
 
