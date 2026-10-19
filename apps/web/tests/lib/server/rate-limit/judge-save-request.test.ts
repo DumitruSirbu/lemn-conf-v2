@@ -480,12 +480,16 @@ describe("judge-save-request.ts", () => {
     );
   });
 
-  it("reads source: makes the credential's subject inside the second step, from the hash it was handed", () => {
-    expect(source).toMatch(
-      /subjectStep\(\s*credential,\s*\(\) =>\s*subjectOfWriteCredentialHash\(writeTokenHash\)/,
-    );
+  it("reads source: makes the credential's subject inside the second step, from the hash or the account id it was handed", () => {
+    expect(source).toMatch(/subjectStep\(credentialRequest,\s*makeSubject\)/);
     expect(source).toMatch(
       /judgeStepsInSequence\(\[\s*blockStep\(block\),\s*subjectStep\(/,
+    );
+    expect(source).toMatch(
+      /purpose: "save-by-credential",\s*makeSubject: \(\) =>\s*subjectOfWriteCredentialHash\(credential\.hash\)/,
+    );
+    expect(source).toMatch(
+      /purpose: "save-by-account",\s*makeSubject: \(\) => subjectOfAccountId\(credential\.accountId\)/,
     );
   });
 });

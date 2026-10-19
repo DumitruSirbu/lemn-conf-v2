@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import * as limitPolicyModule from "@/lib/server/rate-limit/limit-policy";
 import {
   ALL_LIMIT_POLICIES,
   CSP_REPORT_POLICY,
@@ -37,6 +38,68 @@ import {
   PROCESS_ENV_OR_BUILD_MODE,
   readSource,
 } from "../server-source-support";
+
+/** Every purpose, as a record whose keys the compiler holds to `PolicyPurpose`: a purpose added to the type without a
+ *  line here (or removed from it with one left) is a type error, so the derivations below cannot go on without it. */
+const PURPOSE_RECORD: Record<PolicyPurpose, true> = {
+  mint: true,
+  "save-by-block": true,
+  "save-by-credential": true,
+  "share-write": true,
+  "preset-creation": true,
+  read: true,
+  "preset-read": true,
+  "csp-report": true,
+  "contact-every-by-block": true,
+  "contact-new-by-block-hour": true,
+  "contact-new-by-block-day": true,
+  "contact-new-by-visitor": true,
+  "contact-new-by-address": true,
+  "contact-tries-by-request": true,
+  "account-register-by-block-hour": true,
+  "account-register-by-block-day": true,
+  "account-login-by-block": true,
+  "account-login-by-address-quarter-hour": true,
+  "account-login-by-address-day": true,
+  "account-reset-request-by-block": true,
+  "account-token-complete-by-block": true,
+  "account-register-mail-by-address": true,
+  "account-reset-mail-by-address": true,
+  "account-login-resend-by-address": true,
+  "account-claim-by-account": true,
+  "save-by-account": true,
+  "account-password-check-by-account-hour": true,
+  "account-password-check-by-account-day": true,
+  "account-profile-by-account": true,
+  "account-email-change-mail-by-address": true,
+  "account-email-change-by-account": true,
+  "account-export-by-account": true,
+  "duplicate-by-account": true,
+};
+const EVERY_PURPOSE = Object.keys(PURPOSE_RECORD) as PolicyPurpose[];
+const FLAGGED: NetworkEnvironment = { [E2E_RATE_LIMIT_POLICY_FLAG]: "1" };
+
+function chosenPolicyOf(
+  environment: NetworkEnvironment,
+  purpose: PolicyPurpose,
+): LimitPolicy {
+  const choice = choosePolicy(environment, purpose);
+  if (choice.status !== "chosen") {
+    throw new Error(`no policy is chosen for ${purpose}`);
+  }
+  return choice.policy;
+}
+
+function isPolicyShaped(value: unknown): value is LimitPolicy {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.name === "string" &&
+    typeof candidate.figure === "number" &&
+    typeof candidate.window === "object" &&
+    candidate.window !== null
+  );
+}
 
 describe("the policies as data", () => {
   it("names the mint's one row and the e2e policy's own, each carrying its window", () => {
@@ -164,12 +227,40 @@ describe("the policies of saves, shares and reads as data", () => {
     ).toBe(true);
   });
 
+  it("lists exactly the policies the purposes can reach, each purpose with a policy of its own and the twins beside them", () => {
+    const productionOfEachPurpose = EVERY_PURPOSE.map((purpose) =>
+      chosenPolicyOf({}, purpose),
+    );
+    const twinOfEachPurpose = EVERY_PURPOSE.map((purpose) =>
+      chosenPolicyOf(FLAGGED, purpose),
+    );
+    const twins = new Set(
+      twinOfEachPurpose.filter(
+        (policy, index) => policy !== productionOfEachPurpose[index],
+      ),
+    );
+    const reachable = new Set([...productionOfEachPurpose, ...twins]);
+
+    // no two purposes are counted in one bucket, so a hit for one is never a hit for another
+    expect(new Set(productionOfEachPurpose).size).toBe(EVERY_PURPOSE.length);
+    expect(new Set(ALL_LIMIT_POLICIES).size).toBe(ALL_LIMIT_POLICIES.length);
+    expect(new Set(ALL_LIMIT_POLICIES)).toEqual(reachable);
+    expect(ALL_LIMIT_POLICIES).toHaveLength(EVERY_PURPOSE.length + twins.size);
+    // a floor, so that a derivation which found nothing cannot pass for a structure
+    expect(EVERY_PURPOSE.length).toBeGreaterThanOrEqual(30);
+    expect(twins.size).toBeGreaterThanOrEqual(6);
+  });
+
+  it("lists every policy the module exports, and exports every policy it lists", () => {
+    const exported = Object.values(limitPolicyModule).filter(isPolicyShaped);
+
+    expect(new Set(exported)).toEqual(new Set(ALL_LIMIT_POLICIES));
+    expect(exported.length).toBeGreaterThanOrEqual(ALL_LIMIT_POLICIES.length);
+  });
+
   it("gives every policy a name of its own that carries its window and starts with no other's", () => {
     const names = ALL_LIMIT_POLICIES.map((policy) => policy.name);
 
-    // Eight before the contact form, its six policies and three twins since, the policy report's one, and the preset
-    // save's one global cap (M8C P3), and the preset reads' own bucket (M8C P6 security review).
-    expect(ALL_LIMIT_POLICIES).toHaveLength(20);
     expect(new Set(names).size).toBe(names.length);
     for (const policy of ALL_LIMIT_POLICIES) {
       const label =
@@ -183,6 +274,21 @@ describe("the policies of saves, shares and reads as data", () => {
         names.some((other) => other !== name && other.startsWith(`${name}-`)),
       ),
     ).toEqual([]);
+  });
+
+  it("names the stem of a purpose's policies apart: two windows of one stem differ only in the window they carry", () => {
+    const stems = new Map<string, string[]>();
+    for (const { name } of ALL_LIMIT_POLICIES) {
+      const stem = name.replace(/-per-.*$/, "");
+      stems.set(stem, [...(stems.get(stem) ?? []), name]);
+    }
+
+    for (const [, sameStem] of stems) {
+      expect(new Set(sameStem).size).toBe(sameStem.length);
+    }
+    expect(
+      [...stems.values()].filter((names) => names.length > 1).length,
+    ).toBeGreaterThanOrEqual(5);
   });
 
   it("gives every figure above nought and every window a whole number of minutes that divides a day", () => {
@@ -202,6 +308,25 @@ describe("the policies of saves, shares and reads as data", () => {
     expect(E2E_SHARE_WRITE_POLICY.figure).toBeGreaterThan(
       SHARE_WRITE_POLICY.figure,
     );
+  });
+
+  it("keeps every e2e twin of every purpose, the contact form's three included, above its production figure and in its window", () => {
+    const twinned = EVERY_PURPOSE.filter(
+      (purpose) =>
+        chosenPolicyOf(FLAGGED, purpose) !== chosenPolicyOf({}, purpose),
+    );
+
+    expect(twinned.length).toBeGreaterThanOrEqual(6);
+    for (const purpose of twinned) {
+      const production = chosenPolicyOf({}, purpose);
+      const twin = chosenPolicyOf(FLAGGED, purpose);
+
+      expect(twin.figure, purpose).toBeGreaterThan(production.figure);
+      expect(twin.window, purpose).toEqual(production.window);
+      expect(twin.name, purpose).not.toBe(production.name);
+      expect(isE2eTwin(twin), purpose).toBe(true);
+      expect(isE2eTwin(production), purpose).toBe(false);
+    }
   });
 });
 
