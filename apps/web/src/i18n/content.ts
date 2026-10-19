@@ -863,6 +863,7 @@ export type AccountMailCopy = ReturnType<typeof resolveAccountMailCopy>;
  *  are the password change's own request members, named as the body names them (plan P13). */
 export type AccountIssueField =
   | "email"
+  | "newEmail"
   | "phone"
   | "password"
   | "currentPassword"
@@ -885,9 +886,9 @@ export interface AccountFieldIssue {
   readonly code: AccountIssueCode;
 }
 
-/** How a limited account request is told, with the one value a sentence carries already read: whole minutes, or the
- *  clock time and whether it is tomorrow's. `unreadable` carries no number. */
-export type AccountRateLimitNotice =
+/** A limit told by a sentence that does not change as the page lives, with the one value it carries already read:
+ *  whole minutes, or the clock time and whether it is tomorrow's. `unreadable` carries no number. */
+export type AccountRateLimitSentence =
   | { readonly kind: "minutes"; readonly minutes: number }
   | {
       readonly kind: "at";
@@ -895,6 +896,12 @@ export type AccountRateLimitNotice =
       readonly isTomorrow: boolean;
     }
   | { readonly kind: "unreadable" };
+
+/** How a limited account request is told. A short wait is a `countdown` the notice keeps live up to the instant it
+ *  ends; any other is a sentence. */
+export type AccountRateLimitNotice =
+  | AccountRateLimitSentence
+  | { readonly kind: "countdown"; readonly endsAtMs: number };
 
 /** Draws a tagged span of a message. The caller owns the element, so this module holds no markup. */
 export type RichTagRenderer = (chunks: ReactNode) => ReactNode;
@@ -909,6 +916,7 @@ export function resolveAccountFieldError(
 ): string {
   switch (field) {
     case "email":
+    case "newEmail":
       return resolveEmailError(translate, code);
     case "phone":
       return resolvePhoneError(translate, code);
@@ -1030,7 +1038,7 @@ function resolvePasswordError(
 /** The form-level sentence for a limited request. Its lead is a tagged span, drawn by the caller's renderer. */
 export function resolveAccountRateLimit(
   translate: ContentTranslator,
-  notice: AccountRateLimitNotice,
+  notice: AccountRateLimitSentence,
   strong: RichTagRenderer,
 ): ReactNode {
   switch (notice.kind) {
@@ -1072,8 +1080,17 @@ export function resolveAccountKitCopy(translate: ContentTranslator) {
     hidePasswordName: translate("accountForm.hidePasswordName"),
     fieldSummary: (count: number) =>
       translate("accountForm.fieldSummary", { count }),
-    retryCountdown: (minutes: number, seconds: string) =>
-      translate("accountForm.retryCountdown", { minutes, seconds }),
+    rateLimitCountdown: (
+      minutes: number,
+      seconds: string,
+      strong: RichTagRenderer,
+    ) =>
+      translate.rich("accountForm.rateLimitedCountdown", {
+        minutes,
+        seconds,
+        strong,
+      }),
+    rateLimitReady: translate("accountForm.rateLimitedReady"),
     unavailable: {
       title: translate("accountForm.unavailableTitle"),
       body: translate("accountForm.unavailableBody"),
@@ -1102,7 +1119,7 @@ export function resolveAccountKitCopy(translate: ContentTranslator) {
     },
     fieldError: (issue: AccountFieldIssue) =>
       resolveAccountFieldError(translate, issue),
-    rateLimit: (notice: AccountRateLimitNotice, strong: RichTagRenderer) =>
+    rateLimit: (notice: AccountRateLimitSentence, strong: RichTagRenderer) =>
       resolveAccountRateLimit(translate, notice, strong),
   };
 }
@@ -1180,6 +1197,7 @@ export function resolveAccountLoginCopy(translate: ContentTranslator) {
     invalidCredentials: translate("accountLogin.invalidCredentials"),
     sessionExpired: translate("accountLogin.sessionExpired"),
     signedOutEverywhere: translate("accountLogin.signedOutEverywhere"),
+    passwordMaybeChanged: translate("accountLogin.passwordMaybeChanged"),
   };
 }
 
@@ -1352,6 +1370,40 @@ export function resolveAccountPasswordCopy(translate: ContentTranslator) {
 }
 
 export type AccountPasswordCopy = ReturnType<typeof resolveAccountPasswordCopy>;
+
+/** The e-mail change's own text: the confirm page that the e-mailed link opens, and the sheet on the profile that asks
+ *  for the link. The field refusals and the service notices are the forms' own. */
+export function resolveAccountEmailChangeCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountEmailChange.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountEmailChange.title"),
+    lead: translate("accountEmailChange.lead"),
+    confirm: translate("accountEmailChange.confirm"),
+    confirming: translate("accountEmailChange.confirming"),
+    changedTitle: translate("accountEmailChange.changedTitle"),
+    changedBody: translate("accountEmailChange.changedBody"),
+    logIn: translate("accountEmailChange.logIn"),
+    linkInvalidTitle: translate("accountEmailChange.linkInvalidTitle"),
+    linkInvalidBody: translate("accountEmailChange.linkInvalidBody"),
+    openProfile: translate("accountEmailChange.openProfile"),
+    changeControl: translate("accountEmailChange.changeControl"),
+    sheetTitle: translate("accountEmailChange.sheetTitle"),
+    newEmailLabel: translate("accountEmailChange.newEmailLabel"),
+    passwordHint: translate("accountEmailChange.passwordHint"),
+    send: translate("accountEmailChange.send"),
+    sending: translate("accountEmailChange.sending"),
+    cancel: translate("accountEmailChange.cancel"),
+    sentTitle: translate("accountEmailChange.sentTitle"),
+    sentBody: translate("accountEmailChange.sentBody"),
+    close: translate("accountEmailChange.close"),
+  };
+}
+
+export type AccountEmailChangeCopy = ReturnType<
+  typeof resolveAccountEmailChangeCopy
+>;
 
 function resolveShapeShortName(
   translate: ContentTranslator,

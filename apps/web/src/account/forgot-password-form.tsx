@@ -194,7 +194,7 @@ function SubmitArea({ forgot }: { readonly forgot: ForgotPassword }) {
       isBusy={forgot.isBusy}
       hasToken={forgot.hasToken}
       isChallengeUnavailable={forgot.isChallengeUnavailable}
-      wait={waitOfFeedback(forgot.feedback, forgot.clearFeedback)}
+      wait={waitOfFeedback(forgot.feedback)}
     />
   );
 }

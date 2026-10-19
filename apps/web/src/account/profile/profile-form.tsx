@@ -24,6 +24,8 @@ import {
   PrimaryAction,
 } from "../account-shell";
 import { ForbiddenScreen } from "../forbidden-screen";
+import { ChangeEmailControl } from "./change-email-sheet";
+import { EMAIL_CHANGE_ENABLED } from "./email-change-enabled";
 import styles from "./profile.module.css";
 import { ProfileRows } from "./profile-rows";
 import {
@@ -34,8 +36,9 @@ import {
 import type { ProfileField, ProfileValues } from "./profile-values";
 
 // "Profil" (Lot 2 frames A10A to A10D and A10H): the optional name, address and phone a signed-in account keeps, and its
-// address as text. It is drawn filled from the server, and a save sends only what changed. The address cannot be changed
-// here yet, and the page says nothing of a way to. Every link is a plain anchor, as on every account page.
+// address as text. It is drawn filled from the server, and a save sends only what changed. The address is changed in a
+// sheet of its own, offered only while `EMAIL_CHANGE_ENABLED`; when it is off the page says nothing of a way to. Every
+// link is a plain anchor, as on every account page.
 
 export interface ProfileFormProps {
   readonly locale: AppLocale;
@@ -129,7 +132,7 @@ function ProfileScreen({
         <FeedbackNotice feedback={save.feedback} noticeRef={targets.notice} />
         <NameField save={save} inputRef={targets.name} />
         <AddressField save={save} inputRef={targets.address} />
-        <EmailText email={email} />
+        <EmailText locale={locale} email={email} />
         <PhoneField save={save} inputRef={targets.phone} />
         <ProfileRows locale={locale} />
       </AccountPane>
@@ -224,13 +227,21 @@ function PhoneField({ save, inputRef }: FieldProps) {
   );
 }
 
-/** The account's address, as text: it is what the person signs in with, and this page does not change it. */
-function EmailText({ email }: { readonly email: string }) {
+/** The account's address, as text: it is what the person signs in with. Changing it is its own act, a sheet, and is
+ *  offered only while the e-mail change is on. */
+function EmailText({
+  locale,
+  email,
+}: {
+  readonly locale: AppLocale;
+  readonly email: string;
+}) {
   const kit = useAccountKitCopy();
   return (
     <div className={styles.readOnly}>
       <span className={styles.readOnlyLabel}>{kit.emailLabel}</span>
       <span className={styles.readOnlyValue}>{email}</span>
+      {EMAIL_CHANGE_ENABLED ? <ChangeEmailControl locale={locale} /> : null}
     </div>
   );
 }
@@ -293,7 +304,7 @@ function FeedbackNotice({
 function SubmitArea({ save }: { readonly save: ProfileSave }) {
   const copy = useAccountProfileCopy();
   const kit = useAccountKitCopy();
-  const wait = waitOfFeedback(save.feedback, save.clearFeedback);
+  const wait = waitOfFeedback(save.feedback);
   return (
     <SubmitButton
       label={isRetryable(save.feedback) ? kit.retry : copy.submit}

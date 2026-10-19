@@ -248,6 +248,8 @@ function arrivalSentenceOf(
       return copy.sessionExpired;
     case "signed-out-everywhere":
       return copy.signedOutEverywhere;
+    case "password-maybe-changed":
+      return copy.passwordMaybeChanged;
   }
 }
 
@@ -261,7 +263,7 @@ function SubmitArea({ signIn }: { readonly signIn: SignIn }) {
       isBusy={signIn.isBusy}
       hasToken={signIn.hasToken}
       isChallengeUnavailable={signIn.isChallengeUnavailable}
-      wait={waitOfFeedback(signIn.feedback, signIn.clearFeedback)}
+      wait={waitOfFeedback(signIn.feedback)}
     />
   );
 }

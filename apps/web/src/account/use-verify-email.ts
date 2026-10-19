@@ -2,11 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { AccountRateLimitNotice } from "@/i18n/content";
 
-import {
-  countdownSecondsOf,
-  rateLimitNoticeOf,
-  type AccountOutcome,
-} from "./account-answer";
+import { rateLimitNoticeOf, type AccountOutcome } from "./account-answer";
 import { useFragmentToken, type FragmentTokenStatus } from "./fragment-token";
 import { sendAccountRequest } from "./send-account-request";
 
@@ -24,7 +20,6 @@ export type VerifyFeedback =
       readonly kind: "rate-limited";
       /** Told once, when the answer came, so the sentence does not drift as the page redraws. */
       readonly notice: AccountRateLimitNotice;
-      readonly countdownSeconds: number | undefined;
     }
   | { readonly kind: "unavailable" }
   | { readonly kind: "unanswered" }
@@ -50,7 +45,6 @@ export interface VerifyEmail {
   readonly isBusy: boolean;
   readonly editPassword: (value: string) => void;
   readonly submit: () => void;
-  readonly clearFeedback: () => void;
 }
 
 export function useVerifyEmail(): VerifyEmail {
@@ -95,10 +89,6 @@ export function useVerifyEmail(): VerifyEmail {
     });
   }, [discard, password, showAnswer, tokenRef]);
 
-  const clearFeedback = useCallback(() => {
-    setFeedback(NO_FEEDBACK);
-  }, []);
-
   return {
     tokenStatus,
     password,
@@ -107,7 +97,6 @@ export function useVerifyEmail(): VerifyEmail {
     isBusy,
     editPassword,
     submit,
-    clearFeedback,
   };
 }
 
@@ -172,7 +161,6 @@ function feedbackFrom(outcome: AccountOutcome, nowMs: number): VerifyFeedback {
       return {
         kind: "rate-limited",
         notice: rateLimitNoticeOf(outcome.wait, nowMs),
-        countdownSeconds: countdownSecondsOf(outcome.wait),
       };
     case "unavailable":
       return { kind: "unavailable" };

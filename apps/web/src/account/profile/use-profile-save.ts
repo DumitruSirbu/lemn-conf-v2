@@ -5,11 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import type { AccountFieldIssue, AccountRateLimitNotice } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 
-import {
-  countdownSecondsOf,
-  rateLimitNoticeOf,
-  type SignedInOutcome,
-} from "../account-answer";
+import { rateLimitNoticeOf, type SignedInOutcome } from "../account-answer";
 import type { FocusRequest } from "../account-focus";
 import { loginPathWithReason } from "../login-arrival";
 import { leaveFor } from "../on-signed-in";
@@ -40,7 +36,6 @@ export type ProfileFeedback =
       readonly kind: "rate-limited";
       /** Told once, when the answer came, so the sentence does not drift as the page redraws. */
       readonly notice: AccountRateLimitNotice;
-      readonly countdownSeconds: number | undefined;
     }
   | { readonly kind: "unavailable" }
   | { readonly kind: "unanswered" }
@@ -63,7 +58,6 @@ export interface ProfileSave {
   readonly isBusy: boolean;
   readonly editField: (field: ProfileField, value: string) => void;
   readonly submit: () => void;
-  readonly clearFeedback: () => void;
 }
 
 /** What a request for the save came to: a thing to draw, or the person being sent to sign in. */
@@ -118,10 +112,6 @@ export function useProfileSave(
     });
   }, [locale, savedValues, showAnswer, values]);
 
-  const clearFeedback = useCallback(() => {
-    setFeedback(NO_FEEDBACK);
-  }, []);
-
   return {
     values,
     feedback,
@@ -129,7 +119,6 @@ export function useProfileSave(
     isBusy,
     editField,
     submit,
-    clearFeedback,
   };
 }
 
@@ -203,7 +192,6 @@ function stepOf(outcome: SignedInOutcome, nowMs: number): SaveStep {
       return answered({
         kind: "rate-limited",
         notice: rateLimitNoticeOf(outcome.wait, nowMs),
-        countdownSeconds: countdownSecondsOf(outcome.wait),
       });
     case "unavailable":
       return answered({ kind: "unavailable" });

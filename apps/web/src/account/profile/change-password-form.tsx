@@ -353,7 +353,7 @@ function FeedbackNotice({
 function SubmitArea({ change }: { readonly change: ChangePassword }) {
   const copy = useAccountPasswordCopy();
   const kit = useAccountKitCopy();
-  const wait = waitOfFeedback(change.feedback, change.clearFeedback);
+  const wait = waitOfFeedback(change.feedback);
   return (
     <SubmitButton
       label={isRetryable(change.feedback) ? kit.retry : copy.submit}

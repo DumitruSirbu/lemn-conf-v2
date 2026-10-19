@@ -6,13 +6,9 @@ import { useCallback, useRef, useState } from "react";
 import type { AccountFieldIssue, AccountRateLimitNotice } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 
-import {
-  countdownSecondsOf,
-  rateLimitNoticeOf,
-  type SignedInOutcome,
-} from "../account-answer";
+import { rateLimitNoticeOf, type SignedInOutcome } from "../account-answer";
 import type { FocusRequest } from "../account-focus";
-import { loginPathWithReason } from "../login-arrival";
+import { loginPathWithReason, type LoginArrival } from "../login-arrival";
 import { leaveFor } from "../on-signed-in";
 import {
   sendSignedInRequest,
@@ -48,7 +44,6 @@ export type ChangePasswordFeedback =
       readonly kind: "rate-limited";
       /** Told once, when the answer came, so the sentence does not drift as the page redraws. */
       readonly notice: AccountRateLimitNotice;
-      readonly countdownSeconds: number | undefined;
     }
   | { readonly kind: "unavailable" }
   | { readonly kind: "unanswered" }
@@ -81,7 +76,6 @@ export interface ChangePassword {
   readonly isBusy: boolean;
   readonly editField: (field: ChangePasswordField, value: string) => void;
   readonly submit: () => void;
-  readonly clearFeedback: () => void;
 }
 
 /** What a request for the change came to: a thing to draw, or the person being sent to sign in. */
@@ -96,6 +90,7 @@ export function useChangePassword(locale: AppLocale): ChangePassword {
     useState<ChangePasswordFocusRequest>();
   const [isBusy, setIsBusy] = useState(false);
   const isSendingRef = useRef(false);
+  const mayHaveChangedRef = useRef(false);
 
   const showAnswer = useCallback((answer: ChangePasswordFeedback) => {
     setFeedback(answer);
@@ -121,17 +116,22 @@ export function useChangePassword(locale: AppLocale): ChangePassword {
       isSendingRef.current = false;
       setIsBusy(false);
       if (step.kind === "sign-in") {
-        leaveFor(loginPathWithReason(locale, "session-expired"));
+        leaveFor(
+          loginPathWithReason(
+            locale,
+            arrivalAfterSignIn(mayHaveChangedRef.current),
+          ),
+        );
         return;
       }
+      mayHaveChangedRef.current = mayHaveChangedAfter(
+        mayHaveChangedRef.current,
+        step.feedback,
+      );
       if (isPasswordSpentBy(step.feedback)) setValues(EMPTY_VALUES);
       showAnswer(step.feedback);
     });
   }, [locale, showAnswer, values]);
-
-  const clearFeedback = useCallback(() => {
-    setFeedback(NO_FEEDBACK);
-  }, []);
 
   return {
     values,
@@ -140,7 +140,6 @@ export function useChangePassword(locale: AppLocale): ChangePassword {
     isBusy,
     editField,
     submit,
-    clearFeedback,
   };
 }
 
@@ -223,6 +222,36 @@ function withoutRefusalOf(
     : { kind: "fields-refused", issues: remaining };
 }
 
+/** A request that got no answer may have been carried out, which ended the session it was sent with. Only an answer
+ *  from a live session says it was not; one that proves nothing (a service outage) leaves the doubt where it was. */
+function mayHaveChangedAfter(
+  wasInDoubt: boolean,
+  feedback: ChangePasswordFeedback,
+): boolean {
+  if (feedback.kind === "unanswered") return true;
+  return wasInDoubt && !isAnsweredByLiveSession(feedback);
+}
+
+function isAnsweredByLiveSession(feedback: ChangePasswordFeedback): boolean {
+  switch (feedback.kind) {
+    case "fields-refused":
+    case "wrong-password":
+    case "rate-limited":
+    case "changed":
+    case "changed-sign-in":
+    case "forbidden":
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** A refused session after a doubtful request is not told as an expired one: the person may have changed the password
+ *  themselves, and the neutral note tells them which one to use. */
+function arrivalAfterSignIn(mayHaveChanged: boolean): LoginArrival {
+  return mayHaveChanged ? "password-maybe-changed" : "session-expired";
+}
+
 /** Neither password is kept once the change is made: the form is gone and nothing should hold them. */
 function isPasswordSpentBy(feedback: ChangePasswordFeedback): boolean {
   return feedback.kind === "changed" || feedback.kind === "changed-sign-in";
@@ -251,7 +280,6 @@ function stepOf(outcome: SignedInOutcome, nowMs: number): ChangeStep {
       return answered({
         kind: "rate-limited",
         notice: rateLimitNoticeOf(outcome.wait, nowMs),
-        countdownSeconds: countdownSecondsOf(outcome.wait),
       });
     case "unavailable":
       return answered({ kind: "unavailable" });

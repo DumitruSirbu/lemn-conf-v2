@@ -229,7 +229,7 @@ function FeedbackNotice({
 function SubmitArea({ reset }: { readonly reset: ResetPassword }) {
   const copy = useAccountResetCopy();
   const kit = useAccountKitCopy();
-  const wait = waitOfFeedback(reset.feedback, reset.clearFeedback);
+  const wait = waitOfFeedback(reset.feedback);
   return (
     <SubmitButton
       label={isRetryable(reset.feedback) ? kit.retry : copy.submit}
