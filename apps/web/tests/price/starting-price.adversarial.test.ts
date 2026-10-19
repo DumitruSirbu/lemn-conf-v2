@@ -410,6 +410,10 @@ describe("only these modules may go near a price, and only one of them may round
 
   it("names every module that can reach a priced amount or the figure built from one", () => {
     expect(pricingModules).toEqual([
+      // The kitchen card prints the price line `describeKitchenPrice` makes; it derives and rounds nothing. The age
+      // arithmetic that does round is in `relative-age.ts`, which reaches no price and is not listed.
+      "account/kitchens/kitchen-card.tsx",
+      "account/kitchens/kitchen-summary.ts",
       // The review screen and its two helpers render the model's figure and rows; they derive and round nothing.
       "app/d/[id]/review/review-screen.tsx",
       // Frame 4A's card prints the review's own figure (`review.figure.amountText`) beside its room line, so the
@@ -428,6 +432,8 @@ describe("only these modules may go near a price, and only one of them may round
       "price/flagged-total-warning.tsx",
       "price/price-bar-model.ts",
       "price/price-bar.tsx",
+      // The browser's price-book root: the one module that names the book (ADR 0157 d8); it prices and rounds nothing.
+      "price/price-book-root.ts",
       // Listed rather than exempted: a new module that can reach a priced amount is a recorded addition, and it
       // still has to pass the three assertions below.
       "price/price-breakdown-model.ts",

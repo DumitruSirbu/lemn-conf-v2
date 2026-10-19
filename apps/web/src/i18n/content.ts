@@ -2,8 +2,7 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
 } from "@lemnaria/configurator-domain";
-import type { _Translator, Messages } from "next-intl";
-import type { ReactNode } from "react";
+import type { _Translator, Messages, RichTagsFunction } from "next-intl";
 
 import type {
   AccountFieldCode,
@@ -904,7 +903,10 @@ export type AccountRateLimitNotice =
   | { readonly kind: "countdown"; readonly endsAtMs: number };
 
 /** Draws a tagged span of a message. The caller owns the element, so this module holds no markup. */
-export type RichTagRenderer = (chunks: ReactNode) => ReactNode;
+export type RichTagRenderer = RichTagsFunction;
+
+/** What a rich message resolves to; taken from the translator's own type so this module names no React. */
+type RichMessage = ReturnType<RichTagsFunction>;
 
 /**
  * The sentence for one field refusal, found by the field and the code: one code can be worded per field. A code
@@ -1040,7 +1042,7 @@ export function resolveAccountRateLimit(
   translate: ContentTranslator,
   notice: AccountRateLimitSentence,
   strong: RichTagRenderer,
-): ReactNode {
+): RichMessage {
   switch (notice.kind) {
     case "minutes":
       return translate.rich("accountForm.rateLimitedMinutes", {
