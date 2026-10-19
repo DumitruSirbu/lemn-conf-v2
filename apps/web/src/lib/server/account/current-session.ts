@@ -47,8 +47,9 @@ export async function readCurrentSession(
 }
 
 /**
- * The same read, but a store that fails is thrown, not read as anonymous. For the one caller whose action must not
- * proceed on a guess: ending every session of an account needs to know whose it is. The caller answers the throw.
+ * The same read, but a store that fails is thrown, not read as anonymous. For a caller that must not proceed on a
+ * guess: ending every session of an account needs to know whose it is, and a signed-in page must not tell a person
+ * their session expired because the store was down. The caller answers the throw.
  */
 export async function readCurrentSessionOrThrow(
   cookies: SessionCookieReader,

@@ -87,7 +87,8 @@ export const SHARE_VIEW_HEADERS: readonly { key: string; value: string }[] = [
 
 /**
  * Every response on an account page (`/{locale}/account/{page}`): a sign-in, confirmation or reset screen carries a
- * credential or a single-use token in its address or its form, so it is never indexed or cached. Same shape as
+ * credential or a single-use token in its address or its form, and a signed-in page holds the person's own data, so
+ * none is ever indexed or cached. Same shape as
  * `SHARE_VIEW_HEADERS`, set in `src/proxy.ts` (ADR 0169). `Referrer-Policy` is not here: see
  * `ACCOUNT_TOKEN_PAGE_HEADERS`.
  */
@@ -97,8 +98,8 @@ export const ACCOUNT_PAGE_HEADERS: readonly { key: string; value: string }[] = [
 ];
 
 /**
- * Added on the two pages that read a single-use token (`verify-email`, `reset-password`): they leak not even the origin
- * when a link is followed. The three pages that show a Turnstile challenge keep the site default
+ * Added on the token pages, the ones that read a single-use token (`ACCOUNT_TOKEN_PAGES` in `src/proxy.ts`): they leak
+ * not even the origin when a link is followed. The three pages that show a Turnstile challenge keep the site default
  * (`strict-origin-when-cross-origin`) because the challenge may need the `Referer`, and an old browser's same-origin
  * `POST` under `no-referrer` would send `Origin: null` (L13a security review M2/L2).
  */

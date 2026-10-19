@@ -341,3 +341,11 @@ D11 widens the policy on three paths, and decision 1's *"`frame-src 'none'`"* is
    `Cache-Control` on all five account pages. The three challenge pages keep the site default
    (`strict-origin-when-cross-origin`): the challenge may need the `Referer`, and an old browser's same-origin `POST`
    under `no-referrer` sends `Origin: null`.
+
+   **Note, dated 2026-10-19 (Lot 2 wave U1, ADR 0169 Amendment F, P3).** Item 4's "only" and "all five account
+   pages" no longer describe the headers. `Referrer-Policy: no-referrer` now also applies to `confirm-email`, so it
+   covers the three token pages (`verify-email`, `reset-password`, `confirm-email`). The account headers
+   (`X-Robots-Tag`, `Cache-Control`) now cover ten account pages: the five above plus the signed-in pages
+   kitchens, profile, password, export and delete. Both changes tighten policy. The signed-in pages stay out of
+   the Turnstile set (`frame-src 'none'`). The basis is P3, a coordinator-accepted default pending owner
+   confirmation. The original text of item 4 is left as written.

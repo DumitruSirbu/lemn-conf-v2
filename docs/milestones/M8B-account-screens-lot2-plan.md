@@ -834,6 +834,7 @@ The method is Lot 1's (§6 common). Two additions:
 | **O15** | Keep one file per lot (`Lemnaria Cont Lot 2.dc.html`), as Lot 1 did? | Yes | S0b README |
 | **O16** | Add a capability `account.manage.own` (every role) for the self-service routes (P4)? It extends the capability list the owner ruled (Fix 3 item 9, ADR 0169 D7) | Yes. The alternative is a named `requireSignedIn` check recorded as an exception to D7's "one function" | S7, S8 |
 | **O17** | Plural with twenty: the 2026-09-10 ruling "without «de»", or the approved Lot 2 / brief's "20 de bucătării" (C30)? | "20 bucătării" (the dated ruling) | U5, U9a copy |
+| **O18** | HTTP 200 vs 403 for the forbidden page (needs experimental authInterrupts) | — | A20C |
 
 The wave split (P1), P2, P3, P5, P7–P11, P13–P18, P20 and the classifier shape are the architect's or the
 coordinator's to rule. They are not owner questions.

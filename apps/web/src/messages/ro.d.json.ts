@@ -771,6 +771,10 @@ declare const messages: {
     "title": "Pagina nu există",
     "body": "Adresa nu duce la nicio pagină din cont."
   },
+  "accountForbidden": {
+    "title": "Nu ai acces la această pagină",
+    "body": "Contul cu care ești conectat nu poate deschide această pagină."
+  },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",
     "badge": "Pagină provizorie",

@@ -21,9 +21,10 @@ const handleLocaleRouting = createMiddleware(routing);
 /** The pages after a design's editor, in the order the customer meets them: `/d/{id}/review`, `/contact`, `/done`. */
 const DESIGN_STEP_SEGMENTS: readonly string[] = ["review", "contact", "done"];
 
-/** The account screens, `/{locale}/account/{page}`. Only the first three show a Turnstile challenge (ADR 0169 D5: on
- *  register, login and the reset request); the other two read a single-use token from the address fragment and load no
- *  third-party script, frame or image at all, so their policy is the site's (L8 obligation, plan L13). */
+/** The account screens, `/{locale}/account/{page}`. Only the three challenge pages show a Turnstile challenge (ADR 0169
+ *  D5: on register, login and the reset request). The token pages read a single-use token from the address fragment
+ *  and the signed-in pages hold the person's own data; none of them loads a third-party script, frame or image at
+ *  all, so their policy is the site's (L8 obligation, plan L13; Lot 2 plan, P3). */
 const ACCOUNT_FAMILY_SEGMENT = "account";
 const ACCOUNT_CHALLENGE_PAGES: readonly string[] = [
   "register",
@@ -33,6 +34,14 @@ const ACCOUNT_CHALLENGE_PAGES: readonly string[] = [
 const ACCOUNT_TOKEN_PAGES: readonly string[] = [
   "verify-email",
   "reset-password",
+  "confirm-email",
+];
+const ACCOUNT_SIGNED_IN_PAGES: readonly string[] = [
+  "kitchens",
+  "profile",
+  "password",
+  "export",
+  "delete",
 ];
 
 /** The one status of a response the interceptor passes on to its page: not the locale's redirect and not a `404`. */
@@ -277,6 +286,7 @@ function isAccountPath(pathname: string): boolean {
   return isAccountPageIn(pathname, [
     ...ACCOUNT_CHALLENGE_PAGES,
     ...ACCOUNT_TOKEN_PAGES,
+    ...ACCOUNT_SIGNED_IN_PAGES,
   ]);
 }
 

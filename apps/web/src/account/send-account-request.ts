@@ -1,13 +1,19 @@
+import { isDesignId } from "@lemnaria/configurator-domain";
+
 import {
   classifyAccountAnswer,
+  classifySignedInAnswer,
+  KITCHEN_UNAVAILABLE_OUTCOME,
   UNANSWERED_OUTCOME,
   type AccountAnswer,
   type AccountFlow,
   type AccountOutcome,
+  type SignedInOutcome,
 } from "./account-answer";
 
-// The one request an account form makes. It has no abort and no timer: the form's one-in-flight guard lasts until
-// this settles, so it must last at least as long as the server may take, whatever that is.
+// The one request an account form makes, and the one request a signed-in screen makes. Neither has an abort or a timer:
+// the one-in-flight guard of the form or the screen lasts until this settles, so it must last at least as long as the
+// server may take, whatever that is.
 
 /** Same-origin paths, so the browser states the origin the routes' cross-site guard reads. */
 const ACCOUNT_ENDPOINTS: Readonly<Record<AccountFlow, string>> = {
@@ -18,6 +24,15 @@ const ACCOUNT_ENDPOINTS: Readonly<Record<AccountFlow, string>> = {
   "reset-password": "/api/account/password-reset/complete",
 };
 
+const KITCHENS_ENDPOINT = "/api/account/kitchens";
+const PROFILE_ENDPOINT = "/api/account/profile";
+const PASSWORD_ENDPOINT = "/api/account/password";
+const EMAIL_CHANGE_ENDPOINT = "/api/account/email-change";
+const CONFIRM_EMAIL_ENDPOINT = "/api/account/email-change/confirm";
+const EXPORT_ENDPOINT = "/api/account/export";
+const CLAIM_ENDPOINT = "/api/account/claim";
+const LOGOUT_ENDPOINT = "/api/account/logout";
+const EMPTY_JSON_BODY = {};
 const JSON_MEDIA_TYPE = "application/json";
 
 /** Under the token pages' `no-referrer` a POST's `Origin` could read `null`, which the cross-site guard refuses;
@@ -62,6 +77,62 @@ export type AccountRequest =
   | { readonly flow: "verify-email"; readonly body: VerifyEmailBody }
   | { readonly flow: "reset-password"; readonly body: ResetPasswordBody };
 
+export interface ProfileBody {
+  /** A member left out is unchanged; an empty text clears it. */
+  readonly name?: string;
+  readonly address?: string;
+  readonly phone?: string;
+}
+
+export interface ChangePasswordBody {
+  readonly currentPassword: string;
+  readonly newPassword: string;
+}
+
+export interface ChangeEmailBody {
+  readonly newEmail: string;
+  readonly currentPassword: string;
+}
+
+export interface ConfirmEmailBody {
+  readonly token: string;
+}
+
+export interface LogoutBody {
+  readonly scope: "this-device" | "everywhere";
+}
+
+/** What is done to one of the account's kitchens. The names are composed by the screen from its catalogue: the server
+ *  writes no sentence. */
+export type KitchenAction =
+  | { readonly kind: "rename"; readonly name: string }
+  | { readonly kind: "duplicate"; readonly name: string }
+  | { readonly kind: "delete" }
+  | { readonly kind: "hide" };
+
+export type SignedInRequest =
+  | { readonly flow: "kitchens"; readonly cursor?: string }
+  | {
+      readonly flow: "kitchen-action";
+      readonly id: string;
+      readonly action: KitchenAction;
+    }
+  | { readonly flow: "profile"; readonly body: ProfileBody }
+  | { readonly flow: "password"; readonly body: ChangePasswordBody }
+  | { readonly flow: "email-change"; readonly body: ChangeEmailBody }
+  | { readonly flow: "confirm-email"; readonly body: ConfirmEmailBody }
+  | { readonly flow: "export" }
+  | { readonly flow: "claim"; readonly intent: "count" | "claim" }
+  | { readonly flow: "logout"; readonly body: LogoutBody };
+
+/** One request as the browser sends it. Every method but `GET` sends a JSON body, `{}` when the request has none of
+ *  its own: the account routes refuse a `POST`, `PATCH` or `DELETE` that is not JSON (plan lot 2, section 2.2). */
+interface PlannedRequest {
+  readonly method: "GET" | "POST" | "PATCH" | "DELETE";
+  readonly path: string;
+  readonly body?: object;
+}
+
 /** `fetch`, as far as this request uses it, so a caller may hand in its own. */
 export type FetchAccount = (
   url: string,
@@ -75,23 +146,98 @@ export async function sendAccountRequest(
   request: AccountRequest,
   fetchAccount: FetchAccount = browserFetch,
 ): Promise<AccountOutcome> {
-  const answer = await answerTo(request, fetchAccount);
+  const answer = await answerTo(formRequestPlan(request), fetchAccount);
   return answer === undefined
     ? UNANSWERED_OUTCOME
     : classifyAccountAnswer(request.flow, answer);
 }
 
+/**
+ * The same for the signed-in area. The account is the session's: no request member names one. An id that does not
+ * have a design id's shape names no kitchen, so it is answered as the server would answer it and never put in an
+ * address (it could carry a path segment of its own).
+ */
+export async function sendSignedInRequest(
+  request: SignedInRequest,
+  fetchAccount: FetchAccount = browserFetch,
+): Promise<SignedInOutcome> {
+  if (request.flow === "kitchen-action" && !isDesignId(request.id)) {
+    return KITCHEN_UNAVAILABLE_OUTCOME;
+  }
+  const answer = await answerTo(signedInRequestPlan(request), fetchAccount);
+  return answer === undefined
+    ? UNANSWERED_OUTCOME
+    : classifySignedInAnswer(request.flow, answer);
+}
+
+function formRequestPlan({ flow, body }: AccountRequest): PlannedRequest {
+  return { method: "POST", path: ACCOUNT_ENDPOINTS[flow], body };
+}
+
+function signedInRequestPlan(request: SignedInRequest): PlannedRequest {
+  switch (request.flow) {
+    case "kitchens":
+      return { method: "GET", path: kitchensPathOf(request.cursor) };
+    case "kitchen-action":
+      return kitchenActionPlan(request.id, request.action);
+    case "profile":
+      return { method: "PATCH", path: PROFILE_ENDPOINT, body: request.body };
+    case "password":
+      return { method: "POST", path: PASSWORD_ENDPOINT, body: request.body };
+    case "email-change":
+      return {
+        method: "POST",
+        path: EMAIL_CHANGE_ENDPOINT,
+        body: request.body,
+      };
+    case "confirm-email":
+      return {
+        method: "POST",
+        path: CONFIRM_EMAIL_ENDPOINT,
+        body: request.body,
+      };
+    case "export":
+      return { method: "POST", path: EXPORT_ENDPOINT };
+    case "claim":
+      return {
+        method: request.intent === "count" ? "GET" : "POST",
+        path: CLAIM_ENDPOINT,
+      };
+    case "logout":
+      return { method: "POST", path: LOGOUT_ENDPOINT, body: request.body };
+  }
+}
+
+function kitchensPathOf(cursor: string | undefined): string {
+  return cursor === undefined
+    ? KITCHENS_ENDPOINT
+    : `${KITCHENS_ENDPOINT}?cursor=${encodeURIComponent(cursor)}`;
+}
+
+function kitchenActionPlan(id: string, action: KitchenAction): PlannedRequest {
+  const path = `${KITCHENS_ENDPOINT}/${encodeURIComponent(id)}`;
+  switch (action.kind) {
+    case "rename":
+      return { method: "PATCH", path, body: { name: action.name } };
+    case "duplicate":
+      return {
+        method: "POST",
+        path: `${path}/duplicate`,
+        body: { name: action.name },
+      };
+    case "delete":
+      return { method: "DELETE", path };
+    case "hide":
+      return { method: "POST", path: `${path}/hide` };
+  }
+}
+
 async function answerTo(
-  { flow, body }: AccountRequest,
+  planned: PlannedRequest,
   fetchAccount: FetchAccount,
 ): Promise<AccountAnswer | undefined> {
   try {
-    const response = await fetchAccount(ACCOUNT_ENDPOINTS[flow], {
-      method: "POST",
-      headers: { "content-type": JSON_MEDIA_TYPE },
-      body: JSON.stringify(body),
-      referrerPolicy: SAME_ORIGIN_REFERRER_POLICY,
-    });
+    const response = await fetchAccount(planned.path, initOf(planned));
     return {
       status: response.status,
       retryAfter: response.headers.get("retry-after"),
@@ -100,6 +246,18 @@ async function answerTo(
   } catch {
     return undefined;
   }
+}
+
+function initOf({ method, body }: PlannedRequest): RequestInit {
+  if (method === "GET") {
+    return { method, referrerPolicy: SAME_ORIGIN_REFERRER_POLICY };
+  }
+  return {
+    method,
+    headers: { "content-type": JSON_MEDIA_TYPE },
+    body: JSON.stringify(body ?? EMPTY_JSON_BODY),
+    referrerPolicy: SAME_ORIGIN_REFERRER_POLICY,
+  };
 }
 
 async function readJsonOrNothing(response: Response): Promise<unknown> {

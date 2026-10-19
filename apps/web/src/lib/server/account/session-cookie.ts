@@ -81,3 +81,11 @@ export function readSessionCookie(
     ? carried
     : undefined;
 }
+
+/** Whether the request carries a value under the session cookie's name, whatever it is. An empty value names no
+ *  session and a browser drops a cleared cookie, so only a value counts. A malformed one does: only a hand that edited
+ *  it could have made one, and it names a session that is not live. */
+export function carriesSessionCookie(cookies: SessionCookieReader): boolean {
+  const carried = cookies.get(SESSION_COOKIE_NAME)?.value;
+  return carried !== undefined && carried !== "";
+}

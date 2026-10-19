@@ -1166,6 +1166,19 @@ export function resolveAccountNotFoundCopy(translate: ContentTranslator) {
 
 export type AccountNotFoundCopy = ReturnType<typeof resolveAccountNotFoundCopy>;
 
+/** The page a signed-in account lands on when its role does not hold the capability the page needs. It never says the
+ *  session expired: the session is live. */
+export function resolveAccountForbiddenCopy(translate: ContentTranslator) {
+  return {
+    title: translate("accountForbidden.title"),
+    body: translate("accountForbidden.body"),
+  };
+}
+
+export type AccountForbiddenCopy = ReturnType<
+  typeof resolveAccountForbiddenCopy
+>;
+
 /** The screen after a registration was accepted. The address is the one the person typed, passed as a value. */
 export function resolveAccountCheckInboxCopy(translate: ContentTranslator) {
   return {
