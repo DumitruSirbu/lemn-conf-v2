@@ -25,10 +25,20 @@ export interface TopBarSpacing {
  * How many of each gap stand between the row's fixed items and the pill's track, read off `configure.module.css`'s
  * desktop grid and asserted against it by `top-bar-box.test.ts`. `NAV_GAP_COUNT`: the nav's two internal gaps plus
  * the one between nav and pill (the settings item's margin makes it up to the nav's gap). `ROW_GAP_COUNT`: the
- * three 28 px dividers, each taking the row's `column-gap` on either side.
+ * four 28 px dividers (price, actions, the account control, locale), each taking the row's `column-gap` on either side.
+ *
+ * **The account control is one more fixed item of the row, and its width is not here.** The pill's track is measured
+ * with the control in place, whatever it is showing (a visitor's pill, a client's 44 px icon, the invisible stand-in
+ * before the answer), so what it costs the ladder is already in `pillTrackPx`. What the measurement cannot carry is
+ * how much of the row the gives return, and that is the control's two gaps: its own divider and the padding before it.
+ *
+ * **The count assumes the control is drawn, and errs on the safe side where it is not.** A session the control draws
+ * nothing for (staff, until their menu has rows) leaves the row with six gaps while this models eight, so give B is
+ * credited 16 px it does not return. The pill is then handed too much track by 16 px and under-fills in that band of
+ * widths; it never clips. Do not "fix" it by crediting less than the row returns: that over-fills the pill and clips.
  */
 const NAV_GAP_COUNT = 3;
-const ROW_GAP_COUNT = 6;
+const ROW_GAP_COUNT = 8;
 
 export interface TopBarFitInput {
   /** The settings item's own track, measured — the row's residue on desktop. */

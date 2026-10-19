@@ -817,6 +817,12 @@ declare const messages: {
     "title": "Nu ai acces la această pagină",
     "body": "Contul cu care ești conectat nu poate deschide această pagină."
   },
+  "accountControl": {
+    "signIn": "Intră în cont",
+    "menuName": "Contul meu",
+    "signedInAs": "Conectat ca",
+    "close": "Închide"
+  },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",
     "badge": "Pagină provizorie",

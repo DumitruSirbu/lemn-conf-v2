@@ -5,16 +5,16 @@
  * sheet-or-rail is. The price bar has used it since M6; **this wave takes the same answer for four
  * more controls** rather than inventing a second one (ADR 0104 decision 2).
  *
- * The top bar's controls are five grid items — `nav`, `settings`, `price`, `actions`, `locale` — and
- * the two shells place them:
+ * The top bar's controls are six grid items — `nav`, `settings`, `price`, `actions`, `account`, `locale` —
+ * and the two shells place them:
  *
- *   desktop   "nav settings price actions locale"     rows: 76px, minmax(0, 1fr)
- *             "stage stage stage stage stage"
+ *   desktop   "nav settings price actions account locale"   rows: 76px, minmax(0, 1fr)
+ *             "stage stage stage stage stage stage"
  *
- *   mobile    "nav settings locale"                   rows: auto, minmax(0, 1fr), auto, auto
- *             "stage stage stage"
- *             "price price price"
- *             "actions actions actions"
+ *   mobile    "nav settings account locale"         rows: auto, minmax(0, 1fr), auto, auto
+ *             "stage stage stage stage"
+ *             "price price price price"
+ *             "actions actions actions actions"
  *
  * **The settings strip's own row is withdrawn** (ADR 0104 decision 2, superseding ADR 0094
  * decision 2). There is no `settingsRow` here and no band under the header on either shell: the
@@ -28,7 +28,7 @@
  * 58 e2e specs down in wave 6K-b3 and it is being re-decided by the restructure:
  *
  *   | layer                                    | mobile | desktop |
- *   | nav, settings' own paint, actions         |   2    |    2    |
+ *   | nav, settings' own paint, actions, account |   2    |    2    |
  *   | the price cell                            | **3**  |  **5**  |
  *   | §9's panel — a sheet on mobile, a rail on desktop |   4    |    4    |
  *   | the breakdown's popover                   |   —    |    6    |
@@ -110,11 +110,11 @@
   position: relative;
   display: grid;
   grid-template-areas:
-    "nav      settings locale"
-    "stage    stage    stage"
-    "price    price    price"
-    "actions  actions  actions";
-  grid-template-columns: minmax(0, 1fr) auto auto;
+    "nav      settings account  locale"
+    "stage    stage    stage    stage"
+    "price    price    price    price"
+    "actions  actions  actions  actions";
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   /* **No column gap, and the reason is the rule.** Each of the top bar's cells draws the band's own
    * `border-bottom`, so a gap *between* the cells is a gap in that line — measured 2026-09-09: three
@@ -126,11 +126,12 @@
   background: var(--paper);
 }
 
-/* The top bar's five cells share one band: each draws the paper and the rule, so the band reads as
+/* The top bar's six cells share one band: each draws the paper and the rule, so the band reads as
  * one line across the screen. It is the mechanism the price cell has used since M6, extended from
- * two cells to five. */
+ * two cells to six. */
 .nav,
 .settings,
+.account,
 .locale {
   z-index: 2;
   display: flex;
@@ -159,6 +160,15 @@
   z-index: 7;
   /* Frame 2A's `gap: 9px`, carried by the cell that follows the nav rather than by the row. */
   padding: 11px 0 11px 9px;
+}
+
+/* The account control's cell. It stands at the band's shared `2`: its menu is not nested in it but rendered into the
+ * screen (`account/session/account-control.tsx`), so the cell's number caps nothing. 6 px from the pill before it; the
+ * control's own 8 px of target padding is the rest. */
+.account {
+  grid-area: account;
+  flex: 0 0 auto;
+  padding: 11px 0 11px 6px;
 }
 
 /* **`position: relative` and a layer of its own, both for the menu.** The dropdown hangs from this
@@ -622,20 +632,21 @@
    *
    * **`fit-content(50%)` on the price track is superseded.** The top bar is no longer two columns, so
    * neither cell can starve the other by taking more than its share; what is left of that purpose —
-   * every control inside its own item at every width — is the containment assertion over all five
+   * every control inside its own item at every width — is the containment assertion over all six
    * items. The residue is now the settings track, and a residue is safe here in the way ADR 0094
    * said it was not: the pill has a **total function of width**, a complete reference-declared
    * drawing at every width down to its floor, which the chips row never had. */
   .screen {
     grid-template-areas:
-      "nav settings price actions locale"
-      "stage stage stage stage stage";
-    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+      "nav settings price actions account locale"
+      "stage stage stage stage stage stage";
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
     grid-template-rows: 76px minmax(0, 1fr);
   }
 
   .nav,
   .settings,
+  .account,
   .locale,
   .priceRow {
     /* Frame D2A `:544`: `padding: 0 28px 0 40px` on the band, split across its outer cells so the
@@ -644,10 +655,11 @@
   }
 
   /* The row's own spacing, carried by the cells so the band's rule is never broken by a gap. Each of
-   * the three cells that draws a divider takes the gap **twice** — once before the divider, as this
+   * the four cells that draw a divider takes the gap **twice** — once before the divider, as this
    * padding, and once after it, as the divider's own margin — which is how frame D2A draws them. */
   .priceRow,
   .actions,
+  .account,
   .locale {
     padding-left: var(--top-bar-row-gap);
   }
@@ -672,10 +684,11 @@
     padding-left: var(--top-bar-nav-gap);
   }
 
-  /* Frame D2A's three 28 px dividers, as pseudo-elements on the cells they precede: they are
-   * decoration, they take no grid track, and each takes the row's own `column-gap` on either side. */
+  /* Frame D2A's three 28 px dividers and the account control's, as pseudo-elements on the cells they precede: they
+   * are decoration, they take no grid track, and each takes the row's own `column-gap` on either side. */
   .priceRow::before,
   .actions::before,
+  .account::before,
   .locale::before {
     flex: 0 0 1px;
     align-self: center;
@@ -763,7 +776,7 @@
     display: flex;
     grid-area: actions;
     align-items: center;
-    /* `padding-block` only: the inline padding is the row's own gap, declared once for the three
+    /* `padding-block` only: the inline padding is the row's own gap, declared once for the four
      * cells that draw a divider. A `padding: 0` here would take that gap back. */
     padding-block: 0;
     border-bottom: 1px solid var(--line-soft);
@@ -802,7 +815,7 @@
   }
 
   /* **Stretched rather than centred**, like every other cell in the band: each draws the same
-   * `border-bottom` and the five are read as one rule across the top bar. A centred cell would hang
+   * `border-bottom` and the six are read as one rule across the top bar. A centred cell would hang
    * its rule at its own box's foot and break the line in two.
    *
    * `min-width: 0` so the cell is its track rather than its contents — the containment declaration

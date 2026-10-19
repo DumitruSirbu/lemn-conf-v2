@@ -39,6 +39,10 @@ const JSON_MEDIA_TYPE = "application/json";
  *  this per-request policy keeps the real origin on a same-origin request. */
 const SAME_ORIGIN_REFERRER_POLICY: ReferrerPolicy = "same-origin";
 
+/** A read states no origin the guard needs (it reads `Sec-Fetch-Site`, which a page cannot suppress), and the page it
+ *  is sent from may carry a secret in its address (the share view's token): none of it may go in `Referer`. */
+export const NO_REFERRER_POLICY: ReferrerPolicy = "no-referrer";
+
 export interface RegisterBody {
   readonly email: string;
   readonly password: string;
@@ -250,7 +254,7 @@ async function answerTo(
 
 function initOf({ method, body }: PlannedRequest): RequestInit {
   if (method === "GET") {
-    return { method, referrerPolicy: SAME_ORIGIN_REFERRER_POLICY };
+    return { method, referrerPolicy: NO_REFERRER_POLICY };
   }
   return {
     method,

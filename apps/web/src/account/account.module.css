@@ -989,6 +989,105 @@
   overflow-wrap: anywhere;
 }
 
+/* The account control in the top bar. The target is `--touch-target` high, and its negative block margin
+ * gives back what the band does not have: the bar's height is its tallest control (the settings chip's 27 px in the editor,
+ * the locale chip's 25 px in the room, so 25 is the lower), so a 44 px box that took its full height would lift the
+ * whole band. Vertical only, so no clip check reads it as cut. */
+.accountTarget {
+  --account-band-line: 25px;
+
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: var(--touch-target);
+  margin-block: calc((var(--account-band-line) - var(--touch-target)) / 2);
+}
+
+/* The visitor's way in: a text link on a phone. */
+.accountSignIn {
+  composes: accountTarget;
+  padding: 0 8px;
+  font: 700 12.5px/1.1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* The same box before the answer is known: it takes the room and paints nothing. */
+.accountPending {
+  composes: accountSignIn;
+  visibility: hidden;
+}
+
+/* The client's icon: no initials and no name beside it, the glyph alone (the accessible name is on the button). */
+.accountIcon {
+  composes: accountTarget;
+  justify-content: center;
+  width: var(--touch-target);
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+}
+
+.accountSignIn:focus-visible,
+.accountIcon:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.accountGlyph {
+  position: relative;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+}
+
+.accountGlyph::before,
+.accountGlyph::after {
+  position: absolute;
+  content: "";
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.accountGlyph::before {
+  top: 4px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+}
+
+.accountGlyph::after {
+  top: 15px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+}
+
+/* The menu's contents: who is signed in, in two lines. */
+.menuIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menuIdentityLabel {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.menuIdentityEmail {
+  font: 700 15px/1.4 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
 /* The desktop dialog (frame `dDialog`): 480 px, centred, on both kinds, and no grabber because it is never a sheet. */
 @media (min-width: 900px) {
   .dialogSurface,
@@ -1028,5 +1127,47 @@
     flex: none;
     padding: 12px 20px;
     font-size: 14px;
+  }
+
+  /* The control's desktop form: an outlined pill for a visitor and a bordered circle for a client. The band is
+   * 76 px, so the 44 px box needs nothing given back. */
+  .accountTarget {
+    margin-block: 0;
+  }
+
+  .accountSignIn {
+    padding: 0 16px;
+    font-size: 14px;
+    border: 1px solid var(--accent);
+    border-radius: 22px;
+  }
+
+  .accountIcon {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 50%;
+  }
+
+  .accountSignIn:focus-visible,
+  .accountIcon:focus-visible {
+    outline-offset: 2px;
+  }
+
+  /* The menu is a popover under the bar here, not a sheet: 340 px wide, on the right, the bar's height
+   * down. Two classes, so it wins over the dialog rule above whatever the order. */
+  .dialogSurface.menuSurface {
+    top: 68px;
+    right: 40px;
+    bottom: auto;
+    left: auto;
+    gap: 12px;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 84px);
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 14px 34px rgb(28 24 20 / 18%);
+    transform: none;
   }
 }

@@ -27,6 +27,8 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
+import { AccountControl } from "@/account/session/account-control";
+
 // A temporary cross-route import of the editor's locale menu. Moving it to `src/chrome/` is not a
 // relocation: `top-bar-box.test.ts` and `qa-w4-top-bar.adversarial.test.ts` are ADR 0104 structural
 // guards asserting the locale cell's positioning lives in the component, which a `className` prop breaks.
@@ -180,6 +182,7 @@ function RoomTopBar({ isComposing }: { readonly isComposing: boolean }) {
           {translate(isComposing ? "room.compose.title" : "room.title")}
         </span>
       </header>
+      <AccountControl cellClassName={styles.account ?? ""} />
       <LocaleMenu />
     </div>
   );

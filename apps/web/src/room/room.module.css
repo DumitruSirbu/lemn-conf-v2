@@ -55,6 +55,17 @@
   border-bottom: 1px solid var(--line-soft);
 }
 
+/* The account control's cell, between the title and the language chip. It draws the band's paper and rule like the
+ * cells either side; its 44 px target gives its excess height back (`account.module.css`), so the band stays the chip's. */
+.account {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 11px 0 11px 6px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
 .wordmark {
   flex: 0 0 auto;
   font: 700 12px/1 var(--font-ui);
@@ -1128,6 +1139,10 @@
   .topBarCell {
     gap: 20px;
     padding: 11px 0;
+  }
+
+  .account {
+    padding: 0;
   }
 
   .wordmark {

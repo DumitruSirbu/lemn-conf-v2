@@ -4,6 +4,7 @@ import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 
+import { AccountControl } from "@/account/session/account-control";
 import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
 import { PriceBar } from "@/price/price-bar";
@@ -172,6 +173,11 @@ export function ConfigureScreen({
       <div className={styles.settings} ref={topBar.settingsTrackRef}>
         <GlobalSettings visibleCount={topBar.visibleCount} />
       </div>
+      {/* The account control, after the settings pill and before the language chip in the bar and in the Tab
+          order. The cell is the band's; the control's menu is not in it but rendered into this `<main>`, so it is a direct
+          child of the screen as the dialogs below are and marks the whole header inert. Drawn in the shared variant too:
+          who is signed in has nothing to do with whose design is on screen. */}
+      <AccountControl cellClassName={styles.account ?? ""} />
       {/* Frames 2A / D2A draw this chip exactly as it is drawn here, and the owner's 2026-09-10
           ruling gives the caret its meaning: it opens a menu of every locale `routing.locales`
           declares. The cell itself is the component's, because the popover is positioned against it

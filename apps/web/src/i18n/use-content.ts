@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import {
   resolveAccountCheckInboxCopy,
+  resolveAccountControlCopy,
   resolveAccountForbiddenCopy,
   resolveAccountForgotCopy,
   resolveAccountKitCopy,
@@ -56,6 +57,10 @@ export function useAccountNotFoundCopy() {
 
 export function useAccountForbiddenCopy() {
   return useResolved(resolveAccountForbiddenCopy);
+}
+
+export function useAccountControlCopy() {
+  return useResolved(resolveAccountControlCopy);
 }
 
 export function useAccountCheckInboxCopy() {

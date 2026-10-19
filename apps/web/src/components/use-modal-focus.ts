@@ -16,10 +16,11 @@ import {
  *  so unchecked radios are not listed: they would put the trap's first and last stops on elements Tab never
  *  visits. `:not([disabled])` is on every part because a disabled radio is no more tabbable than a disabled
  *  button. Any other input is a stop of its own (the preset dialog's name field): left out, Tab would skip the field
- *  and the trap's first stop would be wrong. *Renunță* is never disabled, so the ring is never empty: leaving must
+ *  and the trap's first stop would be wrong. A link with an `href` is a stop too (an account menu's destinations).
+ *  *Renunță* is never disabled, so the ring is never empty: leaving must
  *  stay possible on every surface. */
 const TAB_STOP_SELECTOR =
-  'button:not([disabled]), input[type="radio"]:checked:not([disabled]), input:not([type="radio"]):not([disabled])';
+  'button:not([disabled]), a[href], input[type="radio"]:checked:not([disabled]), input:not([type="radio"]):not([disabled])';
 
 /** Where focus goes when the dialog closes, for a dialog whose caller does not return it itself. */
 export interface ReturnFocusPolicy {
@@ -101,11 +102,21 @@ function focusOpenerOr(
   fallback: HTMLElement | null | undefined,
   opener: Element | null,
 ): void {
-  if (opener instanceof HTMLElement && opener.isConnected) {
+  if (hasFocusableOpener(opener)) {
     opener.focus();
     return;
   }
   fallback?.focus();
+}
+
+/** The body is what holds focus when a press did not focus the control that opened the dialog (Safari and Firefox do not
+ *  focus a button on click), so it names no opener and the fallback is the better answer. */
+function hasFocusableOpener(opener: Element | null): opener is HTMLElement {
+  return (
+    opener instanceof HTMLElement &&
+    opener.isConnected &&
+    opener !== document.body
+  );
 }
 
 /**

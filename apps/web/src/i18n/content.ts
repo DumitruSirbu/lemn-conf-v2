@@ -1181,6 +1181,18 @@ export type AccountForbiddenCopy = ReturnType<
   typeof resolveAccountForbiddenCopy
 >;
 
+/** The account control in the configurator's top bar: the way in, the name of the signed-in menu and what it says. */
+export function resolveAccountControlCopy(translate: ContentTranslator) {
+  return {
+    signIn: translate("accountControl.signIn"),
+    menuName: translate("accountControl.menuName"),
+    signedInAs: translate("accountControl.signedInAs"),
+    close: translate("accountControl.close"),
+  };
+}
+
+export type AccountControlCopy = ReturnType<typeof resolveAccountControlCopy>;
+
 /** The screen after a registration was accepted. The address is the one the person typed, passed as a value. */
 export function resolveAccountCheckInboxCopy(translate: ContentTranslator) {
   return {
