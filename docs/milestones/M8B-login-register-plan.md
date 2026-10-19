@@ -391,7 +391,7 @@ and security reviewers, in parallel, on a diff whose verification (§8) is green
 | **L13a** | CSP for account pages, Turnstile widget | L8, L0's reads | Full + security | 3 |
 | **L13b** | Register and confirm screens | L13a, **owner's screens** | Full + visual + security | 3 |
 | **L14a** | Login, forgot and reset screens | L9, L10, L13a, **owner's screens** | Full + visual + security | 4 |
-| **L14b** | Claim dialog, signed-in control (log out here or everywhere) | L11, L14a | Full + visual + security | ≤ 3 |
+| **L14b** | Claim dialog, signed-in control (log out here or everywhere). **Superseded 2026-10-19 by [`M8B-account-screens-lot2-plan.md`](M8B-account-screens-lot2-plan.md) §6: server waves S0a–S12 and UI waves U1–U15b replace this row; "≤ 3" does not hold for Lot 2 (ADR 0169 Amendment F, pending owner confirmation).** | L11, L14a | Full + visual + security | ≤ 3 (superseded) |
 
 **Parallelism:**
 - L2, L5 and L7 can run beside L1.

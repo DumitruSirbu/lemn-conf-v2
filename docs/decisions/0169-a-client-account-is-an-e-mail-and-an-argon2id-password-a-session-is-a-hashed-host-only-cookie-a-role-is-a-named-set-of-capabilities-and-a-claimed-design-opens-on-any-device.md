@@ -753,6 +753,79 @@ ratified. The owner also said *"accept the adr"*. The items, as originally worde
 - **Archive each version's text**, so what a person was shown can be reproduced.
 - The lawyer or the Moldovan authority confirms this. The EDPB and CNIL passages that support it are **unverified**
   [ven, not re-read].
+
+## Amendment F — 2026-10-19: Lot 2 (client dashboard, A9–A20) port rulings, coordinator-accepted defaults, pending owner confirmation
+
+Source: `docs/milestones/M8B-account-screens-lot2-plan.md` §4 (rulings P-rows) and §9 (owner questions O-rows), a DRAFT
+by the architect dated 2026-10-19. Evidence tier: **[doc]**. The scribe copied the rulings from that file; the code
+it cites was not re-read for this amendment. The status stays **Proposed**.
+
+**Status of everything below: coordinator-accepted defaults, pending owner confirmation.** The architect's
+recommendation in each row was accepted by the coordinator. The owner has not ruled on any of it in his own words.
+It does not extend the owner's ratification of Amendment E. Nothing is built by this amendment (D12 still applies: no
+tests, no QA step this round).
+
+**1. Accepted defaults** (the architect's recommendation in each plan row; P-numbers are the plan's).
+- **P1.** The plan's L14b row ("≤ 3 files") is replaced by server waves S0a–S12 and UI waves U1–U15b (Lot 2 plan §6).
+- **P2.** Routes as the mock names them: `kitchens`, `profile`, `password`, `export`, `delete`, `confirm-email`.
+- **P3.** `proxy.ts`: add `ACCOUNT_SIGNED_IN_PAGES = [kitchens, profile, password, export, delete]` (account headers,
+  site CSP, no Turnstile frame) and add `confirm-email` to `ACCOUNT_TOKEN_PAGES`. Re-run Lot 1 criterion 13's
+  encoded-segment probe on the new paths. Security reviews.
+- **P5.** Card price: E1 returns `document`; the client prices with a pure `priceFloorOf` exported from
+  `use-priced-design.ts`, so the price book is still named once (ADR 0062 seam 1).
+- **P7.** Share sheet: status on open, then issue on request, with the replace warning; never issue on open. The copy
+  is new and is the owner's to approve.
+- **P8.** Delete a draft: a `deleted_by_client_at` mark, no `DELETE` grant (D10 and the privilege test stand). Physical
+  removal is left to a later retention or erasure job. The copy changes (plan C6); the owner approves it under O3.
+- **P9.** A9K: the existing `design-load-error.tsx` gains a "Bucătăriile mele" action for a client session; the same
+  copy for every refusal.
+- **P10.** The claim dialog opens on the login or verify page before leaving (the built `on-signed-in.ts` seam). On the
+  verify page, Lot 1 criterion 15 binds it: `fetch` only, then `location.assign`.
+- **P11.** Password change keeps this device: revoke every session, then start a new session in the same response,
+  bound to the new hash. `findLive` refuses a session created before `password_changed_at` [src, as cited by the
+  plan], so this is required. It is a new rule beside D3's reset rule.
+- **P12.** E-mail change: (1) a new token purpose `email-change` whose row carries the new address (migration
+  provisional `0018`); (2) a new `UPDATE (email, email_normal_form)` grant, the review D7 names; (3) confirm revokes
+  every session and mails the old address; (4) a taken address at request gets one `202`, and the new inbox gets an
+  "address already has an account" notice; (5) three buckets: password check per account, mail per target, a
+  per-account mail cap; (6) **residual accepted for this round:** if the target is held by an unverified account,
+  every confirm answers `link-invalid` until the unbuilt 30-day cleanup (Q-F3-7) removes it. **Points (3) and (4) are
+  also owner question O8 and stay open (see 2).**
+- **P13.** The error field on a new-password route is `newPassword`, equal to the body member.
+- **P14.** This-device logout from an account page is a full load to `/{locale}` after `204`.
+- **P15.** The header account control is one more fixed item in the measured top-bar ladder of ADR 0104 d8/d9. The
+  existing `top-bar-box` test will turn red; updating it is owed (D12). The pill keeps the app's real step total.
+- **P16.** A20B trigger: when the save status turns `unauthorized` on a design opened through the account arm, the
+  editor asks `GET /api/account/session`. Anonymous shows the sheet; signed-in keeps today's read-only state. The
+  person's own sign-out disarms it, so an in-place "Ieși din cont" never shows "session expired".
+- **P17.** New limiter purposes, figures provisional and constants only: `account-password-check-by-account` 10 / 60 min
+  and 30 / UTC day; `account-email-change-mail-by-address` 5 / day; `account-email-change-by-account` 5 / day;
+  `account-profile-by-account` 30 / 60 min; `account-export-by-account` 5 / UTC day; `design-duplicate-by-account`
+  20 / day plus the mint's existing per-IP bucket. Rename, delete and hide reuse `design-save-by-account`. The owner
+  may change the figures.
+- **P18.** Dialog shell: extract the focus trap, Escape and inert background from `settings/confirmation-dialog.tsx`
+  into one hook used by both; settings behaviour stays byte-identical.
+- **P20.** Tier of the UI waves: Full + security + visual on every U-wave. Lowering U6 and U9b to Light is the
+  coordinator's explicit choice to make, not a default.
+
+**2. Open owner questions (not decided; do not build on a default).** Plan §9 lists their defaults; none is recorded
+here as ruled.
+- **O1.** Save / Discard under autosave (CG1). Blocks U15, the keep-kitchen pop-up (A15, A16).
+- **O2.** Claim dialog detail: count only, or count, dates and names (amends plan L14b criterion 5). Blocks U9a and
+  the conditional server wave S11.
+- **O6.** The sent flag is set when the request is stored, or when the shop's notice is marked sent. **P6's choice of a
+  `designs.sent_at` column written by the contact flow rather than a read-time join is not recorded here**: its
+  trigger moment is O6 and its backfill is O11. Blocks S5.
+- **O8.** E-mail change mails: the already-registered notice, the old-address notice copy, and revoking every session
+  on confirm (P12 points 3 and 4). Blocks S9, U11.
+- **O10.** Return to the open kitchen after sign-in through a closed allow-list (plan C26). Blocks U15b.
+- **O12.** "Anulează" on Lot 2 dialogs against ADR 0086's "name the outcome" rule (P19). Blocks U2.
+- **O16.** A capability `account.manage.own` for the self-service routes (P4). Blocks S7, S8.
+- **O17.** The plural for twenty: the 2026-09-10 ruling "without «de»" or the approved "20 de bucătării". Blocks U5,
+  U9a copy.
+
+**3. Not covered by this amendment.** P4 and P19 (owner questions O16 and O12), P6 (above), and the other owner
+questions O3–O5, O7, O9, O11, O13–O15 of plan §9. They are neither accepted nor ruled here.
 - Until the notice text is the owner's, M9 launch-gate line 4 stands. **Update 2026-10-18:** the owner accepted
   `docs/legal/privacy-notice-draft.md` as the **working draft only**; it is not publishable, and the version list still
   holds the placeholder.
