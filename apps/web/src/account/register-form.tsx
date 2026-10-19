@@ -313,7 +313,7 @@ function SubmitArea({ register }: { readonly register: RegisterAccount }) {
       isBusy={register.isBusy}
       hasToken={register.hasToken}
       isChallengeUnavailable={register.isChallengeUnavailable}
-      wait={waitOfFeedback(register.feedback, register.clearFeedback)}
+      wait={waitOfFeedback(register.feedback)}
     />
   );
 }

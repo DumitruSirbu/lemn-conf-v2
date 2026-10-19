@@ -1,16 +1,13 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type ReactNode,
-  type Ref,
-} from "react";
+import { useEffect, useId, useState, type ReactNode, type Ref } from "react";
 
 import { useIsHydrated } from "@/components/use-is-hydrated";
-import type { AccountRateLimitNotice, RichTagRenderer } from "@/i18n/content";
+import type {
+  AccountRateLimitNotice,
+  AccountRateLimitSentence,
+  RichTagRenderer,
+} from "@/i18n/content";
 import { useAccountKitCopy } from "@/i18n/use-content";
 
 import styles from "./account.module.css";
@@ -275,7 +272,8 @@ export function FormNotice({
   );
 }
 
-/** The sentence for a limited request, in the warning tone. The same words for every address (plan section 5). */
+/** The sentence for a limited request, in the warning tone. The same words for every address (plan section 5). A short
+ *  wait is counted down here and nowhere else: the submit button only stays off for it. */
 export function RateLimitNotice({
   notice,
   ref,
@@ -283,10 +281,68 @@ export function RateLimitNotice({
   readonly notice: AccountRateLimitNotice;
   readonly ref?: Ref<HTMLDivElement> | undefined;
 }) {
+  return notice.kind === "countdown" ? (
+    <CountdownRateLimitNotice endsAtMs={notice.endsAtMs} ref={ref} />
+  ) : (
+    <SentenceRateLimitNotice sentence={notice} ref={ref} />
+  );
+}
+
+function SentenceRateLimitNotice({
+  sentence,
+  ref,
+}: {
+  readonly sentence: AccountRateLimitSentence;
+  readonly ref?: Ref<HTMLDivElement> | undefined;
+}) {
   const copy = useAccountKitCopy();
   return (
     <FormNotice tone="warning" ref={ref}>
-      {copy.rateLimit(notice, renderStrong)}
+      {copy.rateLimit(sentence, renderStrong)}
+    </FormNotice>
+  );
+}
+
+/**
+ * The ticking time is hidden from assistive technology and a sentence fixed at mount stands in for it, so the live
+ * region announces the limit once, not every second. The same element then says the wait is over, which is the second
+ * and last announcement.
+ */
+function CountdownRateLimitNotice({
+  endsAtMs,
+  ref,
+}: {
+  readonly endsAtMs: number;
+  readonly ref?: Ref<HTMLDivElement> | undefined;
+}) {
+  const copy = useAccountKitCopy();
+  const remaining = useSecondsUntil(endsAtMs);
+  const [announcedMinutes] = useState(() =>
+    Math.max(1, Math.ceil(secondsUntil(endsAtMs) / SECONDS_PER_MINUTE)),
+  );
+  if (remaining === 0) {
+    return (
+      <FormNotice tone="info" ref={ref}>
+        {copy.rateLimitReady}
+      </FormNotice>
+    );
+  }
+  const minutes = Math.floor(remaining / SECONDS_PER_MINUTE);
+  const secondsPart = String(remaining % SECONDS_PER_MINUTE).padStart(
+    SECOND_DIGITS,
+    "0",
+  );
+  return (
+    <FormNotice tone="warning" ref={ref}>
+      <span aria-hidden="true">
+        {copy.rateLimitCountdown(minutes, secondsPart, renderStrong)}
+      </span>
+      <span className={styles.visuallyHidden}>
+        {copy.rateLimit(
+          { kind: "minutes", minutes: announcedMinutes },
+          renderStrong,
+        )}
+      </span>
     </FormNotice>
   );
 }
@@ -455,27 +511,23 @@ function UnavailableChallenge({
   return <FormNotice tone="warning">{children}</FormNotice>;
 }
 
-/** A wait the button counts down; `onElapsed` is called once, when it reaches nothing. */
+/** A limit the button stays off for: it ends at an instant, which the notice counts down to. */
 export interface SubmitWait {
-  readonly seconds: number;
-  readonly onElapsed: () => void;
+  readonly endsAtMs: number;
 }
 
-/** A short limit is counted down on the button; a longer one is told in the notice and the button stays ready. */
-export function waitOfFeedback(
-  feedback: {
-    readonly kind: string;
-    readonly countdownSeconds?: number | undefined;
-  },
-  clearFeedback: () => void,
-): SubmitWait | undefined {
+/** The limit a feedback states, if it is a short one: the button keeps its label and is off until it ends. */
+export function waitOfFeedback(feedback: {
+  readonly kind: string;
+  readonly notice?: AccountRateLimitNotice;
+}): SubmitWait | undefined {
   if (
     feedback.kind !== "rate-limited" ||
-    feedback.countdownSeconds === undefined
+    feedback.notice?.kind !== "countdown"
   ) {
     return undefined;
   }
-  return { seconds: feedback.countdownSeconds, onElapsed: clearFeedback };
+  return { endsAtMs: feedback.notice.endsAtMs };
 }
 
 export interface SubmitButtonProps {
@@ -484,7 +536,7 @@ export interface SubmitButtonProps {
   readonly isBusy: boolean;
   /** Not ready to send: no token yet, or a refusal the person has still to answer. */
   readonly isOff: boolean;
-  /** Counting a limit down: the button is off and says when it comes back. */
+  /** A limit being counted down in the notice: the button is off until it ends and keeps its label. */
   readonly wait?: SubmitWait;
   /** The id of the line that says why the button is off. */
   readonly describedBy?: string;
@@ -497,7 +549,8 @@ export interface SubmitButtonProps {
 export function SubmitButton(props: SubmitButtonProps) {
   const { label, busyLabel, isBusy, isOff, wait, describedBy } = props;
   const isHydrated = useIsHydrated();
-  const isUnavailable = isOff || isBusy || wait !== undefined;
+  const isWaiting = useSecondsUntil(wait?.endsAtMs) > 0;
+  const isUnavailable = isOff || isBusy || isWaiting;
   return (
     <button
       type="submit"
@@ -511,15 +564,7 @@ export function SubmitButton(props: SubmitButtonProps) {
       }}
     >
       {isBusy ? <span className={styles.spinner} aria-hidden="true" /> : null}
-      {isBusy ? busyLabel : null}
-      {!isBusy && wait !== undefined ? (
-        <RetryCountdown
-          key={wait.seconds}
-          seconds={wait.seconds}
-          onElapsed={wait.onElapsed}
-        />
-      ) : null}
-      {!isBusy && wait === undefined ? label : null}
+      {isBusy ? busyLabel : label}
     </button>
   );
 }
@@ -536,14 +581,15 @@ export interface ChallengedSubmitProps {
 }
 
 /** The primary action of a form that sends a challenge token and, while it waits for one, the line that says why the
- *  button is off. A limit being counted down is the reason then, and it is already on the button. */
+ *  button is off. A limit being counted down is the reason then, and the notice above already says it. */
 export function ChallengedSubmit(props: ChallengedSubmitProps) {
   const { label, busyLabel, isBusy, hasToken, isChallengeUnavailable, wait } =
     props;
   const copy = useAccountKitCopy();
   const reasonId = useId();
+  const isLimited = useSecondsUntil(wait?.endsAtMs) > 0;
   const isExplainingWait =
-    !hasToken && !isBusy && !isChallengeUnavailable && wait === undefined;
+    !hasToken && !isBusy && !isChallengeUnavailable && !isLimited;
   return (
     <>
       <SubmitButton
@@ -566,47 +612,30 @@ const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 const SECOND_DIGITS = 2;
 
-function RetryCountdown({
-  seconds,
-  onElapsed,
-}: {
-  readonly seconds: number;
-  readonly onElapsed: () => void;
-}) {
-  const copy = useAccountKitCopy();
-  const remaining = useRemainingSeconds(seconds, onElapsed);
-  const minutes = Math.floor(remaining / SECONDS_PER_MINUTE);
-  const secondsPart = String(remaining % SECONDS_PER_MINUTE).padStart(
-    SECOND_DIGITS,
-    "0",
-  );
-  return <span role="timer">{copy.retryCountdown(minutes, secondsPart)}</span>;
+/** Whole seconds until the instant, or none when there is no instant or it has gone by. */
+function secondsUntil(endsAtMs: number | undefined): number {
+  if (endsAtMs === undefined) return 0;
+  return Math.max(0, Math.ceil((endsAtMs - Date.now()) / MS_PER_SECOND));
 }
 
-/** Whole seconds left, counted against the clock rather than by ticks, so a background tab catches up. */
-function useRemainingSeconds(seconds: number, onElapsed: () => void): number {
-  const [remaining, setRemaining] = useState(seconds);
-  const onElapsedRef = useRef(onElapsed);
+/** Whole seconds left, counted against the clock rather than by ticks, so a background tab catches up. Every reader of
+ *  one instant agrees without sharing a timer. */
+function useSecondsUntil(endsAtMs: number | undefined): number {
+  const [remaining, setRemaining] = useState(() => secondsUntil(endsAtMs));
 
   useEffect(() => {
-    onElapsedRef.current = onElapsed;
-  }, [onElapsed]);
-
-  useEffect(() => {
-    const endsAtMs = Date.now() + seconds * MS_PER_SECOND;
-    const timerId = window.setInterval(() => {
-      const left = Math.ceil((endsAtMs - Date.now()) / MS_PER_SECOND);
-      if (left > 0) {
-        setRemaining(left);
-        return;
-      }
-      window.clearInterval(timerId);
-      onElapsedRef.current();
-    }, COUNTDOWN_TICK_MS);
+    if (endsAtMs === undefined) return;
+    const tick = () => {
+      const left = secondsUntil(endsAtMs);
+      setRemaining(left);
+      if (left === 0) window.clearInterval(timerId);
+    };
+    const timerId = window.setInterval(tick, COUNTDOWN_TICK_MS);
+    tick();
     return () => {
       window.clearInterval(timerId);
     };
-  }, [seconds]);
+  }, [endsAtMs]);
 
-  return remaining;
+  return endsAtMs === undefined ? 0 : remaining;
 }

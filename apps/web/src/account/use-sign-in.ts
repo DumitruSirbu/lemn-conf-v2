@@ -7,11 +7,7 @@ import type {
   AccountRateLimitNotice,
 } from "@/i18n/content";
 
-import {
-  countdownSecondsOf,
-  rateLimitNoticeOf,
-  type AccountOutcome,
-} from "./account-answer";
+import { rateLimitNoticeOf, type AccountOutcome } from "./account-answer";
 import { onSignedIn, type AskToClaim, type Destination } from "./on-signed-in";
 import { sendAccountRequest } from "./send-account-request";
 
@@ -37,7 +33,6 @@ export type LoginFeedback =
       readonly kind: "rate-limited";
       /** Told once, when the answer came, so the sentence does not drift as the page redraws. */
       readonly notice: AccountRateLimitNotice;
-      readonly countdownSeconds: number | undefined;
     }
   | { readonly kind: "unavailable" }
   | { readonly kind: "unanswered" }
@@ -76,7 +71,6 @@ export interface SignIn {
   readonly receiveToken: (token: string | null) => void;
   readonly markChallengeUnavailable: () => void;
   readonly submit: () => void;
-  readonly clearFeedback: () => void;
 }
 
 const EMPTY_VALUES = { email: "", password: "" };
@@ -150,10 +144,6 @@ export function useSignIn(
     });
   }, [askToClaim, destination, showAnswer, token, values]);
 
-  const clearFeedback = useCallback(() => {
-    setFeedback(NO_FEEDBACK);
-  }, []);
-
   return {
     ...values,
     feedback,
@@ -167,7 +157,6 @@ export function useSignIn(
     receiveToken,
     markChallengeUnavailable,
     submit,
-    clearFeedback,
   };
 }
 
@@ -271,7 +260,6 @@ function feedbackFrom(outcome: AccountOutcome, nowMs: number): SignInAnswer {
       return {
         kind: "rate-limited",
         notice: rateLimitNoticeOf(outcome.wait, nowMs),
-        countdownSeconds: countdownSecondsOf(outcome.wait),
       };
     case "unavailable":
       return { kind: "unavailable" };

@@ -3,11 +3,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { AccountFieldIssue, AccountRateLimitNotice } from "@/i18n/content";
 
-import {
-  countdownSecondsOf,
-  rateLimitNoticeOf,
-  type AccountOutcome,
-} from "./account-answer";
+import { rateLimitNoticeOf, type AccountOutcome } from "./account-answer";
 import { sendAccountRequest } from "./send-account-request";
 
 // What the forgotten-password page remembers, and the one thing it does with it: asks the server for a link. The
@@ -25,7 +21,6 @@ export type ForgotFeedback =
       readonly kind: "rate-limited";
       /** Told once, when the answer came, so the sentence does not drift as the page redraws. */
       readonly notice: AccountRateLimitNotice;
-      readonly countdownSeconds: number | undefined;
     }
   | { readonly kind: "unavailable" }
   | { readonly kind: "unanswered" }
@@ -48,7 +43,6 @@ export interface ForgotPassword {
   readonly receiveToken: (token: string | null) => void;
   readonly markChallengeUnavailable: () => void;
   readonly submit: () => void;
-  readonly clearFeedback: () => void;
 }
 
 export function useForgotPassword(): ForgotPassword {
@@ -95,10 +89,6 @@ export function useForgotPassword(): ForgotPassword {
     });
   }, [email, token]);
 
-  const clearFeedback = useCallback(() => {
-    setFeedback(NO_FEEDBACK);
-  }, []);
-
   return {
     email,
     feedback,
@@ -110,7 +100,6 @@ export function useForgotPassword(): ForgotPassword {
     receiveToken,
     markChallengeUnavailable,
     submit,
-    clearFeedback,
   };
 }
 
@@ -147,7 +136,6 @@ function feedbackFrom(outcome: AccountOutcome, nowMs: number): ForgotFeedback {
       return {
         kind: "rate-limited",
         notice: rateLimitNoticeOf(outcome.wait, nowMs),
-        countdownSeconds: countdownSecondsOf(outcome.wait),
       };
     case "unavailable":
       return { kind: "unavailable" };

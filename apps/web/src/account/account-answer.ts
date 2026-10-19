@@ -33,7 +33,7 @@ export interface AccountAnswer {
 }
 
 /**
- * How a `429` is told. A short wait is a countdown on the button; a middling one is whole minutes; a long one is the
+ * How a `429` is told. A short wait is a countdown in the notice; a middling one is whole minutes; a long one is the
  * clock time it ends at, because the account day windows are Chișinău calendar days and "tomorrow" is wrong part of
  * the night. `unreadable` has no number: the answer's `Retry-After` could not be believed.
  */
@@ -444,7 +444,7 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
     ],
     refusals: [wrongPasswordRefusal()],
     isAboutOneKitchen: false,
-    placeableFields: [],
+    placeableFields: ["newEmail", "currentPassword"],
   },
   "confirm-email": {
     successes: [
@@ -617,14 +617,10 @@ export function waitFrom(retryAfter: string | null): AccountWait {
   return { kind: "clock-time", seconds };
 }
 
-/** The seconds a button counts down, or none when the wait is told in minutes, in a clock time or not at all. */
-export function countdownSecondsOf(wait: AccountWait): number | undefined {
-  return wait.kind === "countdown" ? wait.seconds : undefined;
-}
-
 /**
- * The wait as the sentence needs it. A clock time is never earlier than `nowMs` plus the wait, since `clockTimeOf`
- * rounds up; it carries its day when that is not today's.
+ * The wait as the notice needs it. A countdown is anchored to the instant it ends, so the notice and the button, which
+ * each read the clock, agree without sharing a timer. A clock time is never earlier than `nowMs` plus the wait, since
+ * `clockTimeOf` rounds up; it carries its day when that is not today's.
  */
 export function rateLimitNoticeOf(
   wait: AccountWait,
@@ -632,7 +628,10 @@ export function rateLimitNoticeOf(
 ): AccountRateLimitNotice {
   switch (wait.kind) {
     case "countdown":
-      return { kind: "minutes", minutes: wholeMinutesOf(wait.seconds) };
+      return {
+        kind: "countdown",
+        endsAtMs: nowMs + wait.seconds * MS_PER_SECOND,
+      };
     case "minutes":
       return { kind: "minutes", minutes: wait.minutes };
     case "clock-time": {

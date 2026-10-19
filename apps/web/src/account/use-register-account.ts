@@ -7,11 +7,7 @@ import type {
 } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 
-import {
-  countdownSecondsOf,
-  rateLimitNoticeOf,
-  type AccountOutcome,
-} from "./account-answer";
+import { rateLimitNoticeOf, type AccountOutcome } from "./account-answer";
 import {
   judgeRegistration,
   type AcceptedRegistration,
@@ -37,7 +33,6 @@ export type RegisterFeedback =
       readonly kind: "rate-limited";
       /** Told once, when the answer came, so the sentence does not drift as the page redraws. */
       readonly notice: AccountRateLimitNotice;
-      readonly countdownSeconds: number | undefined;
     }
   | { readonly kind: "unavailable" }
   | { readonly kind: "unanswered" }
@@ -77,7 +72,6 @@ export interface RegisterAccount {
   readonly receiveToken: (token: string | null) => void;
   readonly markChallengeUnavailable: () => void;
   readonly submit: () => void;
-  readonly clearFeedback: () => void;
   /** Back from "check your e-mail" to the form, with the address and the phone kept. */
   readonly editAgain: () => void;
 }
@@ -137,10 +131,6 @@ export function useRegisterAccount(locale: AppLocale): RegisterAccount {
     });
   }, [locale, showAnswer, token, values]);
 
-  const clearFeedback = useCallback(() => {
-    setFeedback(NO_FEEDBACK);
-  }, []);
-
   // The form is gone while "check your e-mail" is shown, so its challenge slot starts over on the way back, and focus,
   // which fell with the button pressed, goes to the address the person came back to correct.
   const editAgain = useCallback(() => {
@@ -161,7 +151,6 @@ export function useRegisterAccount(locale: AppLocale): RegisterAccount {
     receiveToken,
     markChallengeUnavailable,
     submit,
-    clearFeedback,
     editAgain,
   };
 }
@@ -271,7 +260,6 @@ function feedbackFrom(
       return {
         kind: "rate-limited",
         notice: rateLimitNoticeOf(outcome.wait, nowMs),
-        countdownSeconds: countdownSecondsOf(outcome.wait),
       };
     case "unavailable":
       return { kind: "unavailable" };

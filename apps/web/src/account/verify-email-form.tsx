@@ -242,7 +242,7 @@ function FeedbackNotice({
 function SubmitArea({ verify }: { readonly verify: VerifyEmail }) {
   const copy = useAccountVerifyCopy();
   const kit = useAccountKitCopy();
-  const wait = waitOfFeedback(verify.feedback, verify.clearFeedback);
+  const wait = waitOfFeedback(verify.feedback);
   return (
     <SubmitButton
       label={isRetryable(verify.feedback) ? kit.retry : copy.submit}

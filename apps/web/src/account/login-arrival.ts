@@ -5,11 +5,15 @@ import type { AppLocale } from "@/i18n/routing";
 
 import { accountPathOf } from "./account-shell";
 
-export type LoginArrival = "session-expired" | "signed-out-everywhere";
+export type LoginArrival =
+  | "session-expired"
+  | "signed-out-everywhere"
+  | "password-maybe-changed";
 
 const KNOWN_ARRIVALS: readonly LoginArrival[] = [
   "session-expired",
   "signed-out-everywhere",
+  "password-maybe-changed",
 ];
 
 /** A reason outside the list, repeated or empty is no reason: the page then shows nothing extra. */

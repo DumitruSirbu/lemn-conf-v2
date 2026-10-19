@@ -709,7 +709,8 @@
     "rateLimitedAt": "<strong>Prea multe încercări.</strong> Încearcă din nou după ora {time}.",
     "rateLimitedTomorrowAt": "<strong>Prea multe încercări.</strong> Încearcă din nou mâine, după ora {time}.",
     "rateLimitedFallback": "<strong>Prea multe încercări.</strong> Încearcă din nou puțin mai târziu.",
-    "retryCountdown": "Încearcă din nou peste {minutes, number}:{seconds}",
+    "rateLimitedCountdown": "<strong>Prea multe încercări.</strong> Încearcă din nou peste {minutes, number}:{seconds}",
+    "rateLimitedReady": "Poți încerca din nou.",
     "unavailableTitle": "Serviciul nu este disponibil acum",
     "unavailableBody": "Nu am schimbat nimic. Încearcă din nou în câteva minute.",
     "retry": "Încearcă din nou",
@@ -801,7 +802,8 @@
     "createOne": "Creează unul",
     "invalidCredentials": "E-mailul sau parola nu se potrivesc. Dacă datele sunt corecte, verifică-ți e-mailul: s-ar putea să trebuiască întâi să confirmi adresa.",
     "sessionExpired": "Sesiunea ta a expirat. Intră din nou în cont ca să continui.",
-    "signedOutEverywhere": "Te-am deconectat de pe toate dispozitivele."
+    "signedOutEverywhere": "Te-am deconectat de pe toate dispozitivele.",
+    "passwordMaybeChanged": "Dacă ți-ai schimbat parola, autentifică-te cu parola nouă."
   },
   "accountVerify": {
     "metaTitle": "Confirmă adresa — {brand}",
@@ -967,6 +969,29 @@
     "backToProfile": "Înapoi la Profil",
     "changedSignInBody": "Autentifică-te din nou, cu parola nouă.",
     "logIn": "Intră în cont"
+  },
+  "accountEmailChange": {
+    "metaTitle": "Confirmă adresa nouă — {brand}",
+    "title": "Confirmă adresa nouă",
+    "lead": "Apasă „Confirmă” ca să folosești noua adresă pentru cont.",
+    "confirm": "Confirmă",
+    "confirming": "Se confirmă…",
+    "changedTitle": "Adresa a fost schimbată.",
+    "changedBody": "Folosește noua adresă ca să intri în cont.",
+    "logIn": "Intră în cont",
+    "linkInvalidTitle": "Link-ul nu mai este valabil",
+    "linkInvalidBody": "A expirat, a fost folosit sau a fost înlocuit. Dacă ai confirmat deja adresa, intră în cont cu adresa nouă. Altfel, cere un link nou din Profil.",
+    "openProfile": "Deschide Profilul",
+    "changeControl": "Schimbă e-mailul",
+    "sheetTitle": "Schimbă e-mailul",
+    "newEmailLabel": "E-mail nou",
+    "passwordHint": "Ne trebuie ca să confirmăm că ești tu.",
+    "send": "Trimite link-ul de confirmare",
+    "sending": "Se trimite…",
+    "cancel": "Anulează",
+    "sentTitle": "Verifică e-mailul",
+    "sentBody": "Dacă adresa poate fi folosită, ți-am trimis un link la ea. Până confirmi, contul folosește adresa veche.",
+    "close": "Închide"
   },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",
