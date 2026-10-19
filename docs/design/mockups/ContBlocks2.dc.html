@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;flex-direction:column;gap:16px;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1c1d1f">
+<sc-for list="{{blocks}}" as="b" hint-placeholder-count="2">
+
+<sc-if value="{{b.legacy}}"><dc-import name="ContBlocks" blocks="{{b.one}}" hint-size="100%,60px" style="width:100%"></dc-import></sc-if>
+
+<sc-if value="{{b.isGrab}}"><span aria-hidden="true" style="align-self:center;width:40px;height:4px;border-radius:2px;background:#dcd8ce;margin:-4px 0 -6px"></span></sc-if>
+
+<sc-if value="{{b.isH}}"><h2 style="margin:0;font:700 19px/1.28 Helvetica,Arial,sans-serif;letter-spacing:-.01em;color:#1c1814;text-wrap:pretty;overflow-wrap:anywhere">{{b.v}}</h2></sc-if>
+
+<sc-if value="{{b.isHint}}"><span style="margin-top:-8px;font:400 11.5px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{b.v}}</span></sc-if>
+
+<sc-if value="{{b.isCount}}"><div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px"><span style="font:700 13px/1.3 Helvetica,Arial,sans-serif;color:#1c1814;font-variant-numeric:tabular-nums">{{b.v}}</span><span style="font:400 12px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">{{b.sort}}</span></div></sc-if>
+
+<sc-if value="{{b.isBtns}}"><div style="display:flex;flex-wrap:wrap;gap:10px">
+<sc-for list="{{b.items}}" as="it">
+<div style="flex:1 1 200px;position:relative;border-radius:12px;outline:{{it.ol}};outline-offset:2px">
+<sc-if value="{{it.tab}}"><span aria-hidden="true" style="position:absolute;top:-9px;left:-9px;z-index:2;width:20px;height:20px;border-radius:50%;background:#1c1814;color:#faf8f4;font:700 11px/20px Helvetica,Arial,sans-serif;text-align:center">{{it.tab}}</span></sc-if>
+<sc-if value="{{it.kp}}"><div role="button" style="min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;text-align:center;font:700 15px/1.25 Helvetica,Arial,sans-serif;color:#faf8f4">{{it.label}}</div></sc-if>
+<sc-if value="{{it.kpb}}"><div role="button" aria-busy="true" style="min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;gap:10px;font:700 15px/1.25 Helvetica,Arial,sans-serif;color:#faf8f4"><span style="flex:0 0 16px;width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid rgba(250,248,244,.35);border-top-color:#faf8f4"></span>{{it.label}}</div></sc-if>
+<sc-if value="{{it.ks}}"><div role="button" style="min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;border:1px solid #dcd8ce;background:#faf8f4;display:flex;align-items:center;justify-content:center;text-align:center;font:700 14px/1.25 Helvetica,Arial,sans-serif;color:#6b5e52">{{it.label}}</div></sc-if>
+<sc-if value="{{it.kd}}"><div role="button" style="min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;border:1px solid #dc2626;background:#faf8f4;display:flex;align-items:center;justify-content:center;text-align:center;font:700 14px/1.25 Helvetica,Arial,sans-serif;color:#8f2020">{{it.label}}</div></sc-if>
+<sc-if value="{{it.kdb}}"><div role="button" aria-busy="true" style="min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;border:1px solid #dc2626;background:#faf8f4;display:flex;align-items:center;justify-content:center;gap:10px;font:700 14px/1.25 Helvetica,Arial,sans-serif;color:#8f2020"><span style="flex:0 0 16px;width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid #f0cfcf;border-top-color:#dc2626"></span>{{it.label}}</div></sc-if>
+<sc-if value="{{it.kok}}"><div role="status" style="min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;border:1px solid #d3dccb;background:#eef1ea;display:flex;align-items:center;justify-content:center;gap:8px;font:700 14px/1.25 Helvetica,Arial,sans-serif;color:#2d5016"><span>✓</span>{{it.label}}</div></sc-if>
+<sc-if value="{{it.klk}}"><div role="button" style="min-height:44px;display:flex;align-items:center;justify-content:center;text-align:center;font:700 14px/1.25 Helvetica,Arial,sans-serif;color:#7c5c3d">{{it.label}}</div></sc-if>
+</div>
+</sc-for>
+</div></sc-if>
+
+<sc-if value="{{b.isK}}"><div aria-label="{{b.name}}" style="position:relative;display:flex;flex-direction:column;gap:12px;padding:12px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:14px;outline:{{b.ol}};outline-offset:2px">
+  <div style="display:flex;gap:12px;align-items:flex-start">
+    <div style="flex:0 0 104px;width:104px;height:78px;border-radius:8px;border:1px solid #dcd8ce;box-sizing:border-box;background:repeating-linear-gradient(135deg,#e9e4da 0 8px,#f1ede5 8px 16px);display:flex;align-items:center;justify-content:center">
+      <sc-if value="{{b.thLoad}}"><span style="width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid #dcd8ce;border-top-color:#7c5c3d"></span></sc-if>
+      <sc-if value="{{b.thOk}}"><span style="font:400 9.5px/1.2 ui-monospace,Menlo,monospace;color:#6b5e52;background:#f5f3f0;padding:2px 4px;border-radius:3px">randare</span></sc-if>
+      <sc-if value="{{b.thFail}}"><span style="font:400 9.5px/1.2 ui-monospace,Menlo,monospace;color:#6b5e52;background:#f5f3f0;padding:2px 4px;border-radius:3px;text-align:center">fără imagine</span></sc-if>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+      <sc-if value="{{b.sent}}"><span style="align-self:flex-start;display:flex;gap:5px;align-items:center;padding:4px 8px;border-radius:999px;background:#eef1ea;border:1px solid #d3dccb;font:700 11.5px/1 Helvetica,Arial,sans-serif;color:#2d5016">✓ Trimisă</span></sc-if>
+      <sc-if value="{{b.draft}}"><span style="align-self:flex-start;padding:4px 8px;border-radius:999px;background:#ece7dd;border:1px solid #dcd8ce;font:700 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Ciornă</span></sc-if>
+      <sc-if value="{{b.showName}}"><span style="font:700 14.5px/1.3 Helvetica,Arial,sans-serif;color:#1c1814;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{b.name}}</span></sc-if>
+      <span style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52;font-variant-numeric:tabular-nums">{{b.meta}}</span>
+      <span style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">{{b.mod}}</span>
+      <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif;color:#1c1814;font-variant-numeric:tabular-nums">{{b.price}}</span>
+    </div>
+  </div>
+  <sc-if value="{{b.rename}}"><div style="display:flex;flex-direction:column;gap:12px">
+    <dc-import name="ContBlocks" blocks="{{b.renameOne}}" hint-size="100%,80px" style="width:100%"></dc-import>
+    <div style="display:flex;gap:10px"><div role="button" style="flex:1;min-height:44px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Salvează</div><div role="button" style="flex:1;min-height:44px;box-sizing:border-box;border-radius:12px;border:1px solid #dcd8ce;background:#faf8f4;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">Anulează</div></div>
+  </div></sc-if>
+  <sc-if value="{{b.busy}}"><div aria-busy="true" role="status" style="display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:12px;background:#faf8f4;border:1px solid #dcd8ce;font:700 13px/1.3 Helvetica,Arial,sans-serif;color:#1c1814"><span style="flex:0 0 16px;width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid #dcd8ce;border-top-color:#7c5c3d"></span>{{b.busy}}</div></sc-if>
+  <sc-if value="{{b.actions}}"><div style="display:flex;gap:10px">
+    <div role="button" aria-label="Deschide {{b.name}}" style="flex:1;min-height:44px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Deschide</div>
+    <div role="button" aria-label="Mai multe acțiuni pentru {{b.name}}" aria-expanded="{{b.menuOpen}}" style="flex:0 0 44px;width:44px;height:44px;box-sizing:border-box;border-radius:12px;border:1px solid #dcd8ce;background:#faf8f4;display:flex;align-items:center;justify-content:center;font:700 18px/1 Helvetica,Arial,sans-serif;color:#5a3e25;outline:{{b.dotsOl}};outline-offset:2px">⋯</div>
+  </div></sc-if>
+  <sc-if value="{{b.menu}}"><div role="menu" style="position:absolute;right:12px;top:calc(100% - 6px);z-index:6;width:236px;padding:6px 0;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px;box-shadow:0 14px 34px rgba(28,24,20,.18);display:flex;flex-direction:column">
+    <sc-for list="{{b.menu}}" as="m">
+      <sc-if value="{{m.sep}}"><span style="height:1px;background:#e4dfd5;margin:6px 0"></span></sc-if>
+      <sc-if value="{{m.isItem}}"><div role="menuitem" style="min-height:44px;display:flex;align-items:center;padding:0 16px;margin:0 6px;border-radius:8px;font:{{m.font}};color:{{m.color}};outline:{{m.ol}};outline-offset:-2px">{{m.label}}</div></sc-if>
+    </sc-for>
+  </div></sc-if>
+</div></sc-if>
+
+<sc-if value="{{b.isSkel}}"><div aria-hidden="true" style="display:flex;gap:12px;padding:12px;background:#f5f3f0;border:1px solid #e4dfd5;border-radius:14px">
+  <span style="flex:0 0 104px;height:78px;border-radius:8px;background:#ece7dd"></span>
+  <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding-top:4px"><span style="width:56px;height:16px;border-radius:999px;background:#ece7dd"></span><span style="width:90%;height:12px;border-radius:4px;background:#ece7dd"></span><span style="width:60%;height:10px;border-radius:4px;background:#ece7dd"></span><span style="width:40%;height:10px;border-radius:4px;background:#ece7dd"></span></div>
+</div></sc-if>
+
+<sc-if value="{{b.isGrid}}"><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px">
+<sc-for list="{{b.items}}" as="k">
+  <sc-if value="{{k.skel}}"><div aria-hidden="true" style="display:flex;flex-direction:column;gap:12px;padding:14px;background:#f5f3f0;border:1px solid #e4dfd5;border-radius:16px"><span style="height:200px;border-radius:10px;background:#ece7dd"></span><span style="width:70px;height:18px;border-radius:999px;background:#ece7dd"></span><span style="width:85%;height:14px;border-radius:4px;background:#ece7dd"></span><span style="width:55%;height:12px;border-radius:4px;background:#ece7dd"></span><span style="height:44px;border-radius:12px;background:#ece7dd"></span></div></sc-if>
+  <sc-if value="{{k.real}}"><div aria-label="{{k.name}}" style="position:relative;display:flex;flex-direction:column;gap:8px;padding:14px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:16px;outline:{{k.ol}};outline-offset:2px">
+    <div style="height:200px;border-radius:10px;border:1px solid #dcd8ce;box-sizing:border-box;background:repeating-linear-gradient(135deg,#e9e4da 0 8px,#f1ede5 8px 16px);display:flex;align-items:center;justify-content:center;margin-bottom:4px"><span style="font:400 11px/1.2 ui-monospace,Menlo,monospace;color:#6b5e52;background:#f5f3f0;padding:3px 6px;border-radius:3px">{{k.thLabel}}</span></div>
+    <sc-if value="{{k.sent}}"><span style="align-self:flex-start;padding:5px 9px;border-radius:999px;background:#eef1ea;border:1px solid #d3dccb;font:700 12px/1 Helvetica,Arial,sans-serif;color:#2d5016">✓ Trimisă</span></sc-if>
+    <sc-if value="{{k.draft}}"><span style="align-self:flex-start;padding:5px 9px;border-radius:999px;background:#ece7dd;border:1px solid #dcd8ce;font:700 12px/1 Helvetica,Arial,sans-serif;color:#5a3e25">Ciornă</span></sc-if>
+    <span style="font:700 16px/1.3 Helvetica,Arial,sans-serif;color:#1c1814;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em">{{k.name}}</span>
+    <span style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52;font-variant-numeric:tabular-nums">{{k.meta}}</span>
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">{{k.mod}}</span><span style="font:700 14px/1.4 Helvetica,Arial,sans-serif;color:#1c1814;font-variant-numeric:tabular-nums">{{k.price}}</span></div>
+    <div style="display:flex;gap:10px;margin-top:4px"><div role="button" aria-label="Deschide {{k.name}}" style="flex:1;min-height:44px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Deschide</div><div role="button" aria-label="Mai multe acțiuni pentru {{k.name}}" style="flex:0 0 44px;height:44px;box-sizing:border-box;border-radius:12px;border:1px solid #dcd8ce;background:#faf8f4;display:flex;align-items:center;justify-content:center;font:700 18px/1 Helvetica,Arial,sans-serif;color:#5a3e25">⋯</div></div>
+  </div></sc-if>
+</sc-for>
+</div></sc-if>
+
+<sc-if value="{{b.isRows}}"><div style="display:flex;flex-direction:column;border-top:1px solid #e4dfd5">
+<sc-for list="{{b.items}}" as="r">
+  <div role="link" style="min-height:52px;box-sizing:border-box;padding:10px 4px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e4dfd5;outline:{{r.ol}};outline-offset:2px;border-radius:2px">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font:{{r.font}};color:{{r.color}};text-wrap:pretty">{{r.label}}</span><sc-if value="{{r.sub}}"><span style="font:400 12px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">{{r.sub}}</span></sc-if></div>
+    <span aria-hidden="true" style="font:400 22px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">{{r.arrow}}</span>
+  </div>
+</sc-for>
+</div></sc-if>
+
+<sc-if value="{{b.isText}}"><div style="display:flex;flex-direction:column;gap:6px">
+  <span style="font:700 12.5px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">{{b.label}}</span>
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 12px"><span style="font:400 15px/1.4 Helvetica,Arial,sans-serif;color:#1c1d1f;overflow-wrap:anywhere">{{b.value}}</span><sc-if value="{{b.link}}"><a href="#" style="min-height:44px;display:flex;align-items:center;font:700 13.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">{{b.link}}</a></sc-if></div>
+</div></sc-if>
+
+<sc-if value="{{b.isUrl}}"><div style="display:flex;flex-direction:column;gap:6px"><span style="font:700 12.5px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">{{b.label}}</span><div style="min-height:48px;box-sizing:border-box;padding:12px 14px;border:1px solid #dcd8ce;border-radius:12px;background:#f5f3f0;font:400 14px/1.4 ui-monospace,Menlo,monospace;color:#1c1d1f;overflow-wrap:anywhere">{{b.value}}</div></div></sc-if>
+
+<sc-if value="{{b.isThumb}}"><div style="display:flex;gap:12px;align-items:center;padding:10px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px">
+  <span style="flex:0 0 64px;height:48px;border-radius:6px;border:1px solid #dcd8ce;background:repeating-linear-gradient(135deg,#e9e4da 0 6px,#f1ede5 6px 12px)"></span>
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px"><span style="font:700 14px/1.3 Helvetica,Arial,sans-serif;color:#1c1814;overflow-wrap:anywhere">{{b.name}}</span><span style="font:400 12px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">{{b.meta}}</span></div>
+</div></sc-if>
+
+<sc-if value="{{b.isClaim}}"><div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{b.items}}" as="c"><div style="display:flex;gap:12px;align-items:center;padding:8px;border:1px solid #e4dfd5;border-radius:10px"><span style="flex:0 0 56px;height:42px;border-radius:6px;background:repeating-linear-gradient(135deg,#e9e4da 0 6px,#f1ede5 6px 12px)"></span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font:700 13.5px/1.3 Helvetica,Arial,sans-serif;color:#1c1814;overflow-wrap:anywhere">{{c.name}}</span><span style="font:400 12px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52">{{c.date}}</span></div></div></sc-for>
+</div></sc-if>
+
+<sc-if value="{{b.isAcct}}"><div style="display:flex;flex-direction:column;gap:4px"><span style="font:400 12px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Conectat ca</span><span style="font:700 15px/1.4 Helvetica,Arial,sans-serif;color:#1c1814;overflow-wrap:anywhere">{{b.v}}</span></div></sc-if>
+
+<sc-if value="{{b.isPromo}}"><div role="region" aria-label="De ce un cont?" style="display:flex;gap:6px;align-items:flex-start;padding:14px 6px 14px 16px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;box-shadow:0 10px 26px rgba(28,24,20,.12)">
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px"><span style="font:400 13px/1.5 Helvetica,Arial,sans-serif;color:#1c1814;text-wrap:pretty"><strong>De ce un cont?</strong> Îți păstrezi bucătăriile și le deschizi de pe orice dispozitiv.</span><div role="button" style="align-self:flex-start;min-height:44px;padding:0 16px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#faf8f4">Creează cont</div></div>
+  <div role="button" aria-label="Închide" style="flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font:400 22px/1 Helvetica,Arial,sans-serif;color:#6b5e52">×</div>
+</div></sc-if>
+
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;blocks&quot;:{&quot;editor&quot;:null,&quot;default&quot;:[],&quot;tsType&quot;:&quot;any[]&quot;}}"></script>
+</body>
+</html>

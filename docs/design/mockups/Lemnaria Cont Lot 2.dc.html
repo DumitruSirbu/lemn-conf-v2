@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin:0; background:#e7e3da; -webkit-font-smoothing:antialiased; }
+  a { color:#7c5c3d; }
+  a:hover { color:#5a3e25; }
+</style>
+</helmet>
+<div style="padding:56px 56px 96px;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1c1d1f;display:flex;flex-direction:column;gap:64px">
+  <header style="max-width:780px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:14px"><span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span><span style="width:1px;height:16px;background:#dcd8ce"></span><span style="font:400 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7d7a72">Cont · lotul 2 · client · mobil 390 + desktop 1920</span></div>
+    <h1 style="margin:0;font:700 34px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;max-width:24ch">Bucătăriile mele, profil, date, ieșire și ferestrele din editor</h1>
+    <p style="margin:0;font:400 14.5px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:66ch;text-wrap:pretty">A9–A14 sunt pagini întregi; A15–A18 și A20 sunt ferestre în editor sau pe pagina de cont; A19 este controlul din antet. Header mobil: doar ‹, sigla și chip-ul RO; titlul este H1 în conținut. Toate țintele ≥ 44 px. Focus trap, ordinea Tab și inelul de focus sunt desenate (cercurile numerotate din A15A, A9H, A9G, A10D).</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:9px 11px;border-radius:5px">Paletă provizorie — nu este brandul final</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Fără Turnstile în lotul 2</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Fără rolul afișat clientului</span>
+    </div>
+  </header>
+
+  <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#1c1814;border-radius:10px;max-width:780px"><span style="font:700 13px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#faf8f4">Partea 1 · Mobil 390 × 844</span><span style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#dcd8ce">toate ecranele, în ordine A9 → A20</span></div>
+  <sc-for list="{{screens}}" as="sc" hint-placeholder-count="2">
+  <section id="{{sc.idl}}" style="display:flex;flex-direction:column;gap:24px">
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+      <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Ecran {{sc.id}}</span>
+      <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{sc.name}}</span>
+      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">{{sc.route}}</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+      <sc-for list="{{sc.frames}}" as="f" hint-placeholder-count="3">
+      <div id="{{f.idl}}" style="display:flex;flex-direction:column;gap:12px;width:390px">
+        <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:8px">
+          <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">{{f.id}}</span>
+          <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{f.cap}}</span>
+          <sc-if value="{{f.plain}}"><span style="font:700 9.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6b5e52;border:1px solid #c9c2b6;padding:4px 6px;border-radius:4px">Pagină simplă · fără terți</span></sc-if>
+        </div>
+        <div style="position:relative;width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+          <div style="padding:0 6px 0 2px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #e4dfd5;flex:0 0 auto">
+            <sc-if value="{{f.hdrStd}}"><span aria-label="Înapoi la configurator" style="flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font:400 28px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">‹</span><span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;flex:1">Lemnaria</span></sc-if>
+            <sc-if value="{{f.hdrEd}}"><span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;padding-left:14px">Lemnaria</span><span aria-label="Pasul 3 din 5" style="margin-left:6px;font:700 11.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;border:1px solid #dcd8ce;border-radius:999px;padding:7px 10px;font-variant-numeric:tabular-nums">3/5</span><span style="flex:1"></span>
+              <sc-if value="{{f.hdrOut}}"><span style="min-height:44px;display:flex;align-items:center;padding:0 8px;font:700 12.5px/1.1 Helvetica,Arial,sans-serif;color:#7c5c3d">Intră în cont</span></sc-if>
+              <sc-if value="{{f.hdrIn}}"><span aria-label="Contul meu" style="flex:0 0 44px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;outline:{{f.acOl}};outline-offset:-3px;border-radius:12px"><span style="position:relative;width:28px;height:28px;box-sizing:border-box;border-radius:50%;border:1.5px solid #7c5c3d;overflow:hidden"><span style="position:absolute;left:8px;top:4px;width:8px;height:8px;border-radius:50%;background:#7c5c3d"></span><span style="position:absolute;left:4px;top:15px;width:16px;height:16px;border-radius:50%;background:#7c5c3d"></span></span></span></sc-if></sc-if>
+            <span aria-label="Limba: română" style="display:flex;align-items:center;justify-content:center;gap:4px;flex:0 0 auto;min-width:44px;min-height:44px;box-sizing:border-box;padding:0 8px"><span style="display:flex;align-items:center;gap:4px;padding:8px 9px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:8px"><span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">RO</span><span style="font:400 10px/1 Helvetica,Arial,sans-serif;color:#6b5e52">▾</span></span></span>
+          </div>
+          <sc-if value="{{f.edBg}}"><div style="flex:1;background:repeating-linear-gradient(135deg,#e9e4da 0 10px,#f1ede5 10px 20px);display:flex;align-items:center;justify-content:center"><span style="font:400 11px/1.3 ui-monospace,Menlo,monospace;color:#6b5e52;background:#f5f3f0;padding:4px 7px;border-radius:3px">editor 3D · bucătărie deschisă</span></div></sc-if>
+          <sc-if value="{{f.pageBg}}"><div style="flex:1;overflow:hidden;padding:20px 18px;display:flex;flex-direction:column;gap:16px">
+            <sc-if value="{{f.title}}"><div style="display:flex;flex-direction:column;gap:7px"><h1 style="margin:0;font:700 22px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.015em;color:#1c1814;text-wrap:pretty">{{f.title}}</h1><sc-if value="{{f.body}}"><p style="margin:0;font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.body}}</p></sc-if></div></sc-if>
+            <dc-import name="ContBlocks2" blocks="{{f.blocks}}" hint-size="100%,240px" style="width:100%"></dc-import>
+          </div></sc-if>
+          <sc-if value="{{f.hasBar}}"><div style="border-top:1px solid #dcd8ce;padding:12px 18px 18px;flex:0 0 auto;background:#faf8f4"><dc-import name="ContBlocks2" blocks="{{f.bar}}" hint-size="100%,52px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.ov}}"><div style="position:absolute;inset:0;background:rgba(28,24,20,.30)"></div></sc-if>
+          <sc-if value="{{f.mSheet}}"><div role="dialog" aria-modal="true" style="position:absolute;left:0;right:0;bottom:0;max-height:90%;overflow:hidden;box-sizing:border-box;padding:10px 18px 22px;background:#faf8f4;border-radius:20px 20px 0 0;box-shadow:0 -16px 36px rgba(28,24,20,.18)"><dc-import name="ContBlocks2" blocks="{{f.ovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.mDialog}}"><div role="alertdialog" aria-modal="true" style="position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);box-sizing:border-box;padding:20px 18px 18px;background:#faf8f4;border-radius:18px;box-shadow:0 18px 44px rgba(28,24,20,.22)"><dc-import name="ContBlocks2" blocks="{{f.ovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.toast}}"><div role="status" style="position:absolute;left:18px;right:18px;bottom:22px;min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;background:#1c1814;color:#faf8f4;font:700 13.5px/1.35 Helvetica,Arial,sans-serif;display:flex;align-items:center">{{f.toast}}</div></sc-if>
+        </div>
+        <sc-if value="{{showNotes}}"><div style="display:flex;flex-direction:column;gap:5px;max-width:390px"><span style="font:700 11px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#5a3e25">Server: {{f.server}}</span><span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.note}}</span></div></sc-if>
+      </div>
+      </sc-for>
+      <sc-if value="{{showNotes}}">
+      <div style="width:300px;display:flex;flex-direction:column;gap:10px;padding:16px 18px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:14px;margin-top:30px">
+        <span style="font:700 10.5px/1.3 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">RU · traducere de lucru — de verificat de un vorbitor nativ</span>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Titlu</span><span style="font:700 14px/1.35 Helvetica,Arial,sans-serif;color:#1c1814">{{sc.ru.title}}</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Buton principal</span><span style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#1c1814">{{sc.ru.primary}}</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Eroarea principală</span><span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:#1c1814;text-wrap:pretty">{{sc.ru.error}}</span></div>
+        <sc-for list="{{sc.ru.extra}}" as="x"><span style="font:400 12.5px/1.45 Helvetica,Arial,sans-serif;color:#1c1814;text-wrap:pretty">{{x}}</span></sc-for>
+        <span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52">Loc pentru ~30% text în plus.</span>
+      </div>
+      </sc-if>
+    </div>
+
+    </sc-if>
+  </section>
+  </sc-for>
+  <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#1c1814;border-radius:10px;max-width:780px"><span style="font:700 13px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#faf8f4">Partea 2 · Desktop 1920 × 1080</span><span style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#dcd8ce">aceleași ecrane, doar stările cu variantă desktop</span></div>
+  <sc-if value="{{showDesktop}}"><sc-for list="{{screens}}" as="sc" hint-placeholder-count="2">
+  <sc-if value="{{sc.hasD}}"><section id="d-{{sc.idl}}" style="display:flex;flex-direction:column;gap:24px">
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+      <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Ecran {{sc.id}}</span>
+      <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{sc.name}}</span>
+      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">{{sc.route}}</span>
+    </div>
+    <sc-if value="{{showDesktop}}">
+    <div style="display:flex;flex-wrap:wrap;gap:36px">
+      <sc-for list="{{sc.dFrames}}" as="f" hint-placeholder-count="1">
+      <div id="d{{f.idl}}" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;gap:8px"><span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D{{f.id}}</span><span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{f.cap}} · desktop</span></div>
+        <div style="position:relative;width:1920px;height:1080px;box-sizing:border-box;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+          <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e4dfd5">
+            <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+            <sc-if value="{{f.hdrStd}}"><span style="display:flex;align-items:center;gap:8px;height:44px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#7c5c3d"><span style="font:400 22px/1 Helvetica,Arial,sans-serif">‹</span>Înapoi la configurator</span></sc-if>
+            <sc-if value="{{f.hdrEd}}"><span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;border:1px solid #dcd8ce;border-radius:999px;padding:9px 12px">Pasul 3 din 5</span></sc-if>
+            <span style="flex:1"></span>
+            <sc-if value="{{f.hdrOut}}"><span style="min-height:44px;display:flex;align-items:center;padding:0 16px;border:1px solid #7c5c3d;border-radius:22px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">Intră în cont</span></sc-if>
+            <sc-if value="{{f.hdrIn}}"><span aria-label="Contul meu" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid #dcd8ce;border-radius:50%;background:#f5f3f0"><span style="position:relative;width:28px;height:28px;box-sizing:border-box;border-radius:50%;border:1.5px solid #7c5c3d;overflow:hidden"><span style="position:absolute;left:8px;top:4px;width:8px;height:8px;border-radius:50%;background:#7c5c3d"></span><span style="position:absolute;left:4px;top:15px;width:16px;height:16px;border-radius:50%;background:#7c5c3d"></span></span></span></sc-if>
+            <span style="display:flex;align-items:center;gap:5px;height:44px;box-sizing:border-box;padding:0 14px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:22px"><span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">RO</span><span style="font:400 11px/1 Helvetica,Arial,sans-serif;color:#6b5e52">▾</span></span>
+          </div>
+          <sc-if value="{{f.edBg}}"><div style="flex:1;background:repeating-linear-gradient(135deg,#e9e4da 0 12px,#f1ede5 12px 24px);display:flex;align-items:center;justify-content:center"><span style="font:400 13px/1.3 ui-monospace,Menlo,monospace;color:#6b5e52;background:#f5f3f0;padding:5px 9px;border-radius:3px">editor 3D · bucătărie deschisă</span></div></sc-if>
+          <sc-if value="{{f.wide}}"><div style="flex:1;overflow:hidden;padding:40px 64px;display:flex;flex-direction:column;gap:24px;background:#faf8f4"><h1 style="margin:0;font:700 28px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;color:#1c1814">{{f.title}}</h1><dc-import name="ContBlocks2" blocks="{{f.dBlocks}}" hint-size="100%,400px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.cardBg}}"><div style="flex:1;display:flex;align-items:center;justify-content:center;background:#f5f3f0;overflow:hidden">
+            <div style="width:440px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px;padding:36px 36px 30px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:18px;box-shadow:0 14px 34px rgba(28,24,20,.06)">
+              <sc-if value="{{f.title}}"><div style="display:flex;flex-direction:column;gap:8px"><h1 style="margin:0;font:700 28px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;color:#1c1814">{{f.title}}</h1><sc-if value="{{f.body}}"><p style="margin:0;font:400 14px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.body}}</p></sc-if></div></sc-if>
+              <dc-import name="ContBlocks2" blocks="{{f.blocks}}" hint-size="100%,240px" style="width:100%"></dc-import>
+              <sc-if value="{{f.hasBar}}"><dc-import name="ContBlocks2" blocks="{{f.bar}}" hint-size="100%,52px" style="width:100%"></dc-import></sc-if>
+            </div></div></sc-if>
+          <sc-if value="{{f.ov}}"><div style="position:absolute;inset:0;background:rgba(28,24,20,.30)"></div></sc-if>
+          <sc-if value="{{f.dDialog}}"><div role="dialog" aria-modal="true" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:480px;box-sizing:border-box;padding:28px 28px 24px;background:#faf8f4;border-radius:18px;box-shadow:0 18px 44px rgba(28,24,20,.22)"><dc-import name="ContBlocks2" blocks="{{f.ovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.dMenu}}"><div role="menu" style="position:absolute;right:40px;top:68px;width:340px;box-sizing:border-box;padding:16px 16px 8px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;box-shadow:0 14px 34px rgba(28,24,20,.18)"><dc-import name="ContBlocks2" blocks="{{f.ovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.toast}}"><div role="status" style="position:absolute;left:50%;transform:translateX(-50%);bottom:32px;min-height:48px;box-sizing:border-box;padding:12px 20px;border-radius:12px;background:#1c1814;color:#faf8f4;font:700 14px/1.35 Helvetica,Arial,sans-serif;display:flex;align-items:center">{{f.toast}}</div></sc-if>
+        </div>
+      </div>
+      </sc-for>
+    </div>
+    </sc-if>
+  </section></sc-if>
+  </sc-for></sc-if>
+
+
+  <section id="raspunsuri" style="display:flex;flex-direction:column;gap:20px;max-width:900px">
+    <div style="border-bottom:1px solid #d5d0c5;padding-bottom:12px"><span style="font:700 22px/1 Helvetica,Arial,sans-serif">Răspunsuri la întrebările 0.9</span></div>
+    <sc-for list="{{answers}}" as="a"><div style="display:flex;flex-direction:column;gap:5px;padding:14px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px"><span style="font:700 13.5px/1.35 Helvetica,Arial,sans-serif;color:#1c1814">{{a.q}}</span><span style="font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{a.a}}</span></div></sc-for>
+    <div style="border-bottom:1px solid #d5d0c5;padding-bottom:12px;margin-top:12px"><span style="font:700 22px/1 Helvetica,Arial,sans-serif">Plurale (RO / RU) · 1, 2, 5, 20</span></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><sc-for list="{{plurals}}" as="p"><span style="font:400 13px/1.5 Helvetica,Arial,sans-serif;color:#1c1814;font-variant-numeric:tabular-nums">{{p}}</span></sc-for></div>
+    <div style="border-bottom:1px solid #d5d0c5;padding-bottom:12px;margin-top:12px"><span style="font:700 22px/1 Helvetica,Arial,sans-serif">Blocuri noi (ContBlocks2) și copy adăugat</span></div>
+    <sc-for list="{{lists}}" as="l"><span style="font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{l}}</span></sc-for>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Afișare&quot;},&quot;showDesktop&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Afișare&quot;}}">
+const E='ana.popescu@mail.md',TEL='069 123 456',PW='pădure de stejar lângă Orhei';
+const K1='În L, 3200 × 2400 mm, alb mat',K2='În U, 4100 × 2800 mm, stejar natural',K3='Bucătăria de la țară pentru bunici, cu insulă și măsuță de scris pentru copii, varianta a treia, cu blat închis';
+const SHORT='Parola trebuie să aibă cel puțin 12 caractere.';
+const BREACH='Această parolă apare în scurgeri de date publice, așa că nu e sigură. Alege alta — de exemplu o frază din câteva cuvinte.';
+const PWH='Cel puțin 12 caractere. Poți folosi o frază; spațiile sunt permise.';
+const OFF='Conexiunea s-a întrerupt. Nu ai pierdut nimic din ce ai scris.';
+const UNAV='Serviciul nu este disponibil acum. Nu am schimbat nimic. Încearcă din nou în câteva minute.';
+const roK=n=>n===1?'1 bucătărie':(n%100===0||n%100>=20)?n+' de bucătării':n+' bucătării';
+const ruK=n=>n+' '+((n%10===1&&n%100!==11)?'кухня':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?'кухни':'кухонь');
+const claimTxt=n=>n===1?'Am găsit **1 bucătărie** făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?':`Am găsit **${roK(n)}** făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?`;
+const field=o=>({t:'field',label:'',...o});
+const N=(tone,text,o={})=>({t:'notice',tone,text,...o});
+const P=text=>({t:'p',text});
+const hero=(tone,title,text,glyph)=>({t:'hero',tone,title,text,glyph});
+const H=v=>({t:'H',v});
+const BT=(...items)=>({t:'btns',items});
+const kp=(label,o)=>({k:'kp',label,...o}),kpb=(label)=>({k:'kpb',label}),ks=(label,o)=>({k:'ks',label,...o}),kd=(label,o)=>({k:'kd',label,...o}),kdb=label=>({k:'kdb',label}),kok=label=>({k:'kok',label}),klk=label=>({k:'klk',label});
+const card=(o)=>({t:'k',name:K1,meta:'În L · 3200 × 2400 mm',mod:'Modificată acum 2 zile',price:'de la 28 400 MDL',draft:true,actions:true,thOk:true,showName:true,...o});
+const email=(o={})=>field({label:'E-mail',ph:'nume@exemplu.md',...o});
+const pw=(label,o={})=>field({label,pw:true,...o});
+const rl=m=>N('warn','**Prea multe încercări.** '+m);
+const UN=N('err',UNAV,{title:'Serviciul nu este disponibil acum'});
+const OFFN=N('err',OFF,{title:'Fără conexiune'});
+const LIST=[card({name:K1,sent:true,draft:false,price:'de la 28 400 MDL'}),card({name:K2,mod:'Modificată ieri',price:'de la 41 900 MDL',meta:'În U · 4100 × 2800 mm'}),card({name:K3,mod:'Modificată acum 5 zile',price:'de la 35 200 MDL',meta:'Cu insulă · 3600 × 3000 mm'})];
+const MENU_D=[{label:'Redenumește'},{label:'Duplică'},{label:'Link de partajare'},{sep:1},{label:'Șterge',danger:1}];
+const prof=(o={})=>[field({label:'Nume (opțional)',ph:'ex.: Ana Popescu',value:o.name}),field({label:'Adresă / localitate (opțional)',ph:'ex.: Orhei',value:o.addr}),{t:'text',label:'E-mail',value:E,link:'Schimbă e-mailul'},field({label:'Telefon (opțional, neverificat)',ph:TEL,value:o.tel===undefined?TEL:o.tel,err:o.telErr,hint:'Îl folosim doar ca să te sunăm despre oferta ta. Nu îl verificăm prin SMS. Îl poți șterge oricând.'}),{t:'rows',items:[{label:'Schimbă parola'},{label:'Exportă datele mele'},{label:'Șterge contul',danger:1},{label:'Ieși de pe toate dispozitivele'},{label:'Nota de confidențialitate',sub:'(se deschide într-o filă nouă)'}]}];
+const SAVE=[kp('Salvează modificările')];
+const MAILSHEET=(o={})=>[{t:'grab'},H('Schimbă e-mailul'),field({label:'E-mail nou',ph:'nume@exemplu.md',value:o.e,err:o.eErr,focus:o.f1}),pw('Parola actuală',{value:o.p,err:o.pErr,hint:'Ne trebuie ca să confirmăm că ești tu.'}),BT(o.busy?kpb('Se trimite…'):kp('Trimite link-ul de confirmare'),ks('Anulează'))];
+const DEL_DIALOG=(busy)=>[H('Ștergi bucătăria „'+K2+'”?'),P('O ștergem definitiv. Nu o vei mai putea recupera.'),BT(busy?kdb('Se șterge…'):kd('Șterge'),ks('Anulează',{focus:1}))];
+const KEEP=(o={})=>[{t:'grab'},H('Păstrezi bucătăria curentă?'),{t:'thumb',name:K1,meta:'Modificări nesalvate'},P('O poți salva în Bucătăriile mele înainte să începi una nouă.'),BT(o.busy?kpb('Se salvează…'):kp('Salvează',{tab:1,focus:1}),ks('Nu o păstra',{tab:2}),klk('Anulează')),P('Nu o păstra: modificările de la ultima salvare se pierd.')];
+const EXP=[{t:'grab'},H('Sesiunea a expirat'),P('Intră din nou în cont ca să poți salva. Bucătăria rămâne deschisă aici.'),BT(kp('Intră în cont'),ks('Mai târziu'))];
+const CLAIM=(n,o={})=>[H('Atașezi bucătăriile din acest browser?'),P(claimTxt(n)),N('warn','Odată atașate, rămân în contul tău și nu pot fi mutate în alt cont. Dacă nu este dispozitivul tău, alege „Nu acum”.'),...(o.pre||[]),BT(o.busy?kpb('Se atașează…'):kp('Atașează'),ks('Nu acum',{focus:1}))];
+const ACCT=[{t:'acct',v:E},{t:'rows',items:[{label:'Bucătăriile mele'},{label:'Profil'},{label:'Ieși din cont'},{label:'Ieși de pe toate dispozitivele'}]}];
+const STAFF=[{t:'rows',items:[{label:'Zona personalului'},{label:'Ieși din cont'},{label:'Ieși de pe toate dispozitivele'}]}];
+const LOGOUT_ALL=(busy)=>[H('Ieși de pe toate dispozitivele?'),P('Te deconectăm de pe toate dispozitivele, inclusiv acesta.'),...(busy===2?[N('err','Nu am putut închide sesiunile. Nu am schimbat nimic. Încearcă din nou.')]:[]),BT(busy===1?kdb('Se deconectează…'):kd('Ieși peste tot'),ks('Anulează',{focus:1}))];
+const URL='https://lemnaria.md/ro/v/k7Qp2xN9';
+const SHARE=(st)=>[{t:'grab'},H('Link de partajare'),P('Oricine are link-ul poate vedea bucătăria, fără s-o poată modifica.'),{t:'url',label:'Link',value:URL},...(st==='stop'?[N('warn','Cine are link-ul nu va mai putea vedea bucătăria.')]:[]),st==='stop'?BT(kd('Oprește link-ul'),ks('Anulează',{focus:1})):BT(st==='copied'?kok('Copiat'):kp('Copiază link-ul',{focus:1,tab:1}),kd('Oprește link-ul',{tab:2}),klk('Închide'))];
+const HIDE=(m)=>[H('Ascunzi o bucătărie trimisă?'),P('Ai trimis-o deja magazinului. Dacă o ascunzi, dispare din lista ta și **nu o vei mai putea deschide sau edita**. Nu este o ștergere: echipa Lemnaria o vede în continuare. **Doar personalul magazinului o poate face din nou vizibilă.** Dacă vrei ca datele să fie șterse, folosește [Șterge contul].'),...(m==='err'?[N('err',UNAV)]:[]),BT(m==='busy'?kdb('Se ascunde…'):kd('Ascunde'),ks('Anulează',{focus:1}))];
+
+// f: id,cap,server,note,title,body,blocks,bar,ov:{k,blocks},toast,bg,hdr,d,dBlocks
+const SCREENS=[
+{id:'A9',name:'Bucătăriile mele',route:'/[locale]/account/kitchens (propusă)',ru:{title:'Мои кухни',primary:'Открыть',error:'Кухня недоступна.',extra:['Меню «⋯»: Переименовать · Дублировать · Ссылка для просмотра · Удалить / Скрыть','Начать кухню — «Начать кухню». Бейджи: Отправлена / Черновик.']},frames:[
+{id:'A9A',d:1,cap:'Se încarcă',server:'în așteptare (GET listă: de stabilit)',note:'Schelet; miniatura dungată rămâne și la eșec. Lista are regiune live „Se încarcă bucătăriile”.',title:'Bucătăriile mele',blocks:[{t:'skel'},{t:'skel'},{t:'skel'}],dBlocks:[{t:'grid',items:[{skel:1},{skel:1},{skel:1},{skel:1}]}]},
+{id:'A9B',cap:'Gol',server:'200 listă goală (de stabilit)',note:'Un singur apel la acțiune. Fără „arată ascunse”.',title:'Bucătăriile mele',blocks:[hero('neu','Nu ai încă nicio bucătărie salvată.','Când salvezi una, o găsești aici, pe orice dispozitiv.','◫')],bar:[kp('Începe o bucătărie')]},
+{id:'A9C',d:1,cap:'Listă: trimisă + ciorne · nume lung pe 2 rânduri',server:'200 listă (de stabilit)',note:'Sortare implicită: cele mai recent modificate sus. Nume peste 2 rânduri se taie; numele complet = nume accesibil și se arată la deschidere. Numărul: 3 → „3 bucătării”; 1, 2, 5, 20 în tabelul de plurale.',title:'Bucătăriile mele',blocks:[{t:'cnt',v:'3 bucătării',sort:'Cele mai recente întâi'},...LIST,BT(ks('Încarcă mai multe'))],dBlocks:[{t:'cnt',v:'3 bucătării',sort:'Cele mai recente întâi'},{t:'grid',items:[{real:1,name:K1,sent:1,meta:'În L · 3200 × 2400 mm',mod:'Modificată acum 2 zile',price:'de la 28 400 MDL',thLabel:'randare'},{real:1,name:K2,draft:1,meta:'În U · 4100 × 2800 mm',mod:'Modificată ieri',price:'de la 41 900 MDL',thLabel:'randare'},{real:1,name:K3,draft:1,meta:'Cu insulă · 3600 × 3000 mm',mod:'Modificată acum 5 zile',price:'de la 35 200 MDL',thLabel:'randare'},{real:1,name:'În I, 2800 mm, gri grafit',draft:1,meta:'În I · 2800 mm',mod:'Modificată acum 3 săpt.',price:'de la 19 800 MDL',thLabel:'fără imagine'}]}]},
+{id:'A9D',cap:'Meniu „⋯” deschis · ciornă',server:'—',note:'Elemente de 44 px; Esc închide, focusul revine pe „⋯”. Pe trimisă, ultimul element este „Ascunde” (nu „Șterge”).',title:'Bucătăriile mele',blocks:[LIST[0],{...LIST[1],menuOpen:true,dotsOl:'2px solid #7c5c3d',menu:MENU_D.map((m,i)=>i===0?{...m,focus:1}:m)},LIST[2]]},
+{id:'A9E',cap:'Redenumire inline · eroare',server:'de stabilit',note:'Eroare lipită de câmp (aria-invalid). „Numele este prea lung.” la depășire.',title:'Bucătăriile mele',blocks:[{...LIST[1],actions:false,rename:true,renameOne:[field({label:'Nume',value:'',err:'Scrie un nume.',focus:0})]},LIST[0]]},
+{id:'A9F',cap:'Duplicare în curs · apoi toast',server:'de stabilit',note:'Cardul copie apare sus; butoanele rămân lățimea lor.',title:'Bucătăriile mele',blocks:[card({name:K2+' (copie)',actions:false,busy:'Se creează copia…',mod:'acum',draft:true,thOk:false,thLoad:true}),LIST[0],LIST[1]],toast:'✓ Copie creată'},
+{id:'A9G',cap:'Link de partajare · focus + Tab',server:'de stabilit',note:'Ordine Tab: ① Copiază link-ul → ② Oprește link-ul → Închide. Focus prins în foaie; Esc închide.',title:'Bucătăriile mele',blocks:[LIST[0],LIST[1]],ov:{k:'sheet',blocks:SHARE()}},
+{id:'A9G2',d:1,cap:'Copiat · oprire cu confirmare',server:'de stabilit',note:'Confirmarea se face în aceeași foaie. Fără „undo”.',title:'Bucătăriile mele',blocks:[LIST[0],LIST[1]],ov:{k:'sheet',blocks:SHARE('stop')}},
+{id:'A9H',d:1,cap:'Ștergere ciornă · „Anulează” focusat',server:'de stabilit',note:'Dialog cu nume, ce se șterge și că nu se recuperează. Focus prins; revine pe „⋯”.',title:'Bucătăriile mele',blocks:[LIST[0],LIST[1]],ov:{k:'dialog',blocks:DEL_DIALOG()}},
+{id:'A9I',cap:'Serviciu indisponibil',server:'503 unavailable',note:'Notificare în ecran, „Încearcă din nou”.',title:'Bucătăriile mele',blocks:[UN],bar:[kp('Încearcă din nou')]},
+{id:'A9J',cap:'Fără conexiune',server:'niciun răspuns',note:'Notificare, nu ecran întreg; lista deja încărcată rămâne.',title:'Bucătăriile mele',blocks:[OFFN,LIST[0],LIST[1]],bar:[kp('Încearcă din nou')]},
+{id:'A9K',cap:'Bucătărie indisponibilă la deschidere',server:'404 sau aparține altcuiva (același răspuns)',note:'Același text pentru lipsă și pentru a altcuiva.',title:'Bucătăria nu este disponibilă.',blocks:[P('Poate a fost ștearsă sau ascunsă. Poți continua cu celelalte bucătării.')],bar:[kp('Bucătăriile mele'),ks('Înapoi la configurator')]},
+]},
+{id:'A10',name:'Profil',route:'/[locale]/account/profile (propusă)',ru:{title:'Профиль',primary:'Сохранить изменения',error:'Номер выглядит неполным. Номер Молдовы содержит 9 цифр (напр.: 069 123 456).',extra:['Телефон (необязательно, не проверяется)','Подтверди новый адрес · «Ссылка больше не действительна. Она истекла, была использована или заменена. Запроси новую в Профиле.»']},frames:[
+{id:'A10A',d:1,cap:'Încărcat',server:'GET profil: de stabilit',note:'Telefonul gol se salvează (retragere). Linkul de confidențialitate se deschide în filă nouă.',title:'Profil',blocks:prof(),bar:SAVE},
+{id:'A10B',cap:'Se salvează',server:'de stabilit',note:'aria-busy; lățime păstrată.',title:'Profil',blocks:prof(),bar:[kpb('Se salvează…')]},
+{id:'A10C',cap:'Salvat',server:'de stabilit',note:'Mesaj în regiune live.',title:'Profil',blocks:[N('ok','Salvat'),...prof()],bar:SAVE},
+{id:'A10D',cap:'Eroare telefon',server:'400 invalid-input · PHONE_MOLDOVAN_INCOMPLETE',note:'Câmp unic cu eroare: focus direct pe câmp. Toate codurile de telefon din 0.7 se afișează la fel.',title:'Profil',blocks:prof({tel:'069 123 45',telErr:'Numărul pare incomplet. Un număr din Moldova are 9 cifre (ex.: 069 123 456).'}),bar:SAVE},
+{id:'A10E',d:1,cap:'Foaie: schimbă e-mailul · focus + Tab',server:'de stabilit',note:'Tab: e-mail nou → parola actuală → Trimite → Anulează. Focus prins; revine pe „Schimbă e-mailul”.',title:'Profil',blocks:prof(),ov:{k:'sheet',blocks:MAILSHEET({e:'ana@mail',f1:1,p:PW,eErr:'Adresa nu pare corectă. Verifică „@” și domeniul (ex.: nume@exemplu.md).'})}},
+{id:'A10F',cap:'Foaie: parolă greșită',server:'de stabilit (parola proprie poate fi spusă greșită)',note:'Doar parola proprie primește mesaj specific.',title:'Profil',blocks:prof(),ov:{k:'sheet',blocks:MAILSHEET({e:'ana.nou@mail.md',p:'greșită123',pErr:'Parola actuală nu este corectă.'})}},
+{id:'A10G',cap:'Foaie: răspuns neutru',server:'de stabilit · același răspuns pentru adresă ocupată',note:'Nu spune dacă adresa e luată.',title:'Profil',blocks:prof(),ov:{k:'sheet',blocks:[{t:'grab'},H('Verifică e-mailul'),N('info','Dacă adresa poate fi folosită, ți-am trimis un link la ea. Până confirmi, contul folosește adresa veche.'),BT(ks('Închide',{focus:1}))]}},
+{id:'A10H',cap:'Serviciu indisponibil',server:'503 unavailable',note:'Ce ai scris rămâne.',title:'Profil',blocks:[UN,...prof()],bar:[kp('Încearcă din nou')]},
+{id:'A10T1',d:1,plain:1,cap:'Confirmă adresa nouă · pregătit',server:'— (token în #t=, scos din bara de adrese)',note:'/[locale]/account/confirm-email#t=… (propusă). Fără Turnstile, terți sau chip de limbă.',title:'Confirmă adresa nouă',body:'Apasă „Confirmă” ca să folosești noua adresă pentru cont.',blocks:[],bar:[kp('Confirmă')],hdr:'plain'},
+{id:'A10T2',plain:1,cap:'Se confirmă',server:'în așteptare',note:'aria-busy.',title:'Confirmă adresa nouă',blocks:[],bar:[kpb('Se confirmă…')],hdr:'plain'},
+{id:'A10T3',plain:1,cap:'Gata',server:'de stabilit',note:'',title:null,blocks:[hero('ok','Adresa a fost schimbată.','Folosește noua adresă ca să intri în cont.')],bar:[kp('Intră în cont')],hdr:'plain'},
+{id:'A10T4',plain:1,cap:'Link nevalabil (un singur răspuns)',server:'de stabilit',note:'Nu „Reîncarcă pagina”: reîncărcarea pierde token-ul.',title:null,blocks:[hero('err','Link-ul nu mai este valabil','A expirat, a fost folosit sau a fost înlocuit. Cere unul nou din Profil.')],bar:[kp('Deschide Profilul')],hdr:'plain'},
+{id:'A10T5',plain:1,cap:'Indisponibil · reîncercare păstrează token-ul',server:'503 unavailable',note:'„Încearcă din nou” retrimite cu același token; textul spune „Deschide din nou link-ul din e-mail” doar dacă pagina a fost reîncărcată.',title:'Confirmă adresa nouă',blocks:[N('err',UNAV+' Dacă pagina se reîncarcă, deschide din nou link-ul din e-mail.',{title:'Serviciul nu este disponibil acum'})],bar:[kp('Încearcă din nou')],hdr:'plain'},
+]},
+{id:'A11',name:'Schimbă parola',route:'/[locale]/account/password (propusă)',ru:{title:'Смена пароля',primary:'Сменить пароль',error:'Текущий пароль неверный.',extra:['Пароль изменён. Выход выполнен на остальных устройствах.']},frames:[
+{id:'A11A',d:1,cap:'Pregătit',server:'—',note:'autocomplete current-password / new-password. Fără „repetă parola”, fără indicator de putere.',title:'Schimbă parola',blocks:[pw('Parola actuală',{focus:1}),pw('Parola nouă',{hint:PWH})],bar:[kp('Schimbă parola')]},
+{id:'A11B',cap:'Parola actuală greșită',server:'de stabilit',note:'Eroare pe câmp; focus pe el.',title:'Schimbă parola',blocks:[pw('Parola actuală',{value:'greșită1234',err:'Parola actuală nu este corectă.'}),pw('Parola nouă',{value:PW,hint:PWH})],bar:[kp('Schimbă parola')]},
+{id:'A11C',cap:'Parolă nouă refuzată',server:'400 PASSWORD_BREACHED (alte coduri: 0.7)',note:'',title:'Schimbă parola',blocks:[pw('Parola actuală',{value:PW}),pw('Parola nouă',{value:'parola123456',err:BREACH})],bar:[kp('Schimbă parola')]},
+{id:'A11D',cap:'Se salvează',server:'în așteptare',note:'',title:'Schimbă parola',blocks:[pw('Parola actuală',{value:PW}),pw('Parola nouă',{value:'o frază nouă și lungă'})],bar:[kpb('Se schimbă…')]},
+{id:'A11E',d:1,cap:'Succes',server:'de stabilit',note:'Propunere: acest dispozitiv rămâne conectat (vezi răspunsul 5).',title:null,blocks:[hero('ok','Parola a fost schimbată','Te-am deconectat de pe celelalte dispozitive.')],bar:[kp('Înapoi la Profil')]},
+{id:'A11F',cap:'Prea multe încercări',server:'429 · Retry-After: 240',note:'Așteptarea în notificare, nu în buton.',title:'Schimbă parola',blocks:[rl('Încearcă din nou peste 3:58'),pw('Parola actuală',{value:PW}),pw('Parola nouă',{hint:PWH})],bar:[kp('Schimbă parola')]},
+{id:'A11G',cap:'Serviciu indisponibil',server:'503 unavailable',note:'',title:'Schimbă parola',blocks:[UN,pw('Parola actuală',{value:PW}),pw('Parola nouă',{hint:PWH})],bar:[kp('Încearcă din nou')]},
+]},
+{id:'A12',name:'Exportă datele mele',route:'/[locale]/account/export (propusă)',ru:{title:'Экспорт моих данных',primary:'Скачать данные',error:'Слишком много попыток. Попробуй ещё раз после 14:30.'},frames:[
+{id:'A12A',d:1,cap:'Pregătit',server:'de stabilit',note:'',title:'Exportă datele mele',body:'Primești un fișier JSON cu profilul tău, toate bucătăriile (inclusiv cele trimise și cele ascunse), cererile tale către magazin și notele personalului despre ele.',blocks:[],bar:[kp('Descarcă datele')]},
+{id:'A12B',cap:'Se pregătește',server:'în așteptare',note:'',title:'Exportă datele mele',blocks:[N('info','Se pregătește fișierul…')],bar:[kpb('Se pregătește…')]},
+{id:'A12C',cap:'Gata',server:'de stabilit',note:'',title:'Exportă datele mele',blocks:[N('ok','Fișierul este gata. Descărcarea a început.')],bar:[kp('Descarcă din nou')]},
+{id:'A12D',cap:'Prea multe încercări · ceas',server:'429 · Retry-After: 8 400',note:'Peste 60 min: oră exactă.',title:'Exportă datele mele',blocks:[rl('Încearcă din nou după ora 14:30.')],bar:[kp('Descarcă datele')]},
+{id:'A12E',cap:'Indisponibil',server:'503',note:'',title:'Exportă datele mele',blocks:[UN],bar:[kp('Încearcă din nou')]},
+]},
+{id:'A13',name:'Șterge contul',route:'/[locale]/account/delete (propusă)',ru:{title:'Удалить аккаунт',primary:'Удалить аккаунт навсегда',error:'Неверный пароль.',extra:['Это действие нельзя отменить.']},frames:[
+{id:'A13A',d:1,cap:'Confirmare',server:'de stabilit',note:'„Exportă datele mele” este link, nu pas obligatoriu. Fără „scrie DELETE”.',title:'Șterge contul',blocks:[P('Ștergem profilul, datele de contact, toate bucătăriile (inclusiv cele trimise și cele ascunse), link-urile de partajare, cererile tale către magazin și notele personalului despre ele. Link-ul de vizualizare din anunțul trimis magazinului nu va mai funcționa. **E-mailurile deja ajunse la magazin și mesajele trimise pe WhatsApp nu pot fi retrase.** Copiile de siguranță se suprascriu în cel mult 14 zile.'),P('**Această acțiune nu poate fi anulată.**'),{t:'links',items:[{a:'Exportă datele mele'}]},pw('Parola',{focus:1})],bar:[kd('Șterge definitiv contul'),ks('Anulează',{focus:1})]},
+{id:'A13B',cap:'Parolă greșită',server:'de stabilit',note:'',title:'Șterge contul',blocks:[pw('Parola',{value:'greșită1234',err:'Parola nu este corectă.'})],bar:[kd('Șterge definitiv contul'),ks('Anulează')]},
+{id:'A13C',cap:'Se șterge',server:'în așteptare',note:'',title:'Șterge contul',blocks:[pw('Parola',{value:PW})],bar:[kdb('Se șterge…'),ks('Anulează')]},
+{id:'A13D',cap:'Gata',server:'de stabilit',note:'Deconectat.',title:null,blocks:[hero('ok','Contul a fost șters.','Te-am deconectat.')],bar:[kp('Înapoi la configurator')]},
+{id:'A13E',cap:'Indisponibil',server:'503',note:'',title:'Șterge contul',blocks:[N('err','Nu am șters nimic. Încearcă din nou în câteva minute.',{title:'Serviciul nu este disponibil acum'}),pw('Parola',{value:PW})],bar:[kd('Încearcă din nou'),ks('Anulează')]},
+{id:'A13F',cap:'Prea multe încercări',server:'429 · Retry-After: 61 200',note:'',title:'Șterge contul',blocks:[rl('Încearcă din nou mâine, după ora 03:00.'),pw('Parola',{value:PW})],bar:[kd('Șterge definitiv contul'),ks('Anulează')]},
+]},
+{id:'A14',name:'Ieși din cont',route:'POST /api/account/logout',ru:{title:'Выйти из всех устройств?',primary:'Выйти везде',error:'Не удалось завершить сеансы. Ничего не изменено. Попробуй ещё раз.',extra:['Выход выполнен. · «Ты вышел» не используется.']},frames:[
+{id:'A14A',cap:'„Ieși din cont” · toast pe configurator',server:'204 (this-device)',note:'Imediat, fără dialog.',bg:'editor',hdr:'ed-out',toast:'Ai ieșit din cont.',blocks:[]},
+{id:'A14B',d:1,cap:'Dialog „peste tot” · Anulează focusat',server:'—',note:'',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'dialog',blocks:LOGOUT_ALL()}},
+{id:'A14C',cap:'Se deconectează',server:'în așteptare',note:'',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'dialog',blocks:LOGOUT_ALL(1)}},
+{id:'A14D',cap:'Gata · A4',server:'204 (everywhere)',note:'Apoi A4 (lotul 1) cu notificarea.',title:'Intră în cont',blocks:[N('info','Te-am deconectat de pe toate dispozitivele.'),email(),pw('Parolă')],bar:[kp('Intră în cont')]},
+{id:'A14E',cap:'503: sesiunile rămân',server:'503 (fail-closed)',note:'',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'dialog',blocks:LOGOUT_ALL(2)}},
+{id:'A14F',cap:'Fără conexiune',server:'niciun răspuns',note:'',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'dialog',blocks:[H('Ieși de pe toate dispozitivele?'),N('err',OFF),BT(kp('Încearcă din nou'),ks('Anulează',{focus:1}))]}},
+]},
+{id:'A15',name:'Păstrezi bucătăria curentă?',route:'editor · client',ru:{title:'Сохранить текущую кухню?',primary:'Сохранить',error:'Не удалось сохранить. Ничего не потеряно.',extra:['Не сохранять · «Изменения после последнего сохранения будут потеряны.»']},frames:[
+{id:'A15A',d:1,cap:'Deschis · ordine Tab',server:'—',note:'Apare doar cu modificări nelistate. Focus pe „Salvează”; ③ Anulează. Focus prins; Esc = Anulează.',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'sheet',blocks:KEEP()}},
+{id:'A15B',cap:'Se salvează',server:'de stabilit',note:'',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'sheet',blocks:KEEP({busy:1})}},
+{id:'A15C',cap:'Salvată · continuă',server:'de stabilit',note:'',bg:'editor',hdr:'ed-in',blocks:[],toast:'✓ Salvată în Bucătăriile mele'},
+{id:'A15D',cap:'Salvare eșuată',server:'503',note:'Rămâi în editor; nimic pierdut.',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'sheet',blocks:[{t:'grab'},H('Păstrezi bucătăria curentă?'),N('err','Nu am putut salva. Nu ai pierdut nimic. Încearcă din nou.'),BT(kp('Încearcă din nou'),ks('Nu o păstra'),klk('Anulează'))]}},
+]},
+{id:'A16',name:'Același pop-up fără cont',route:'editor · vizitator',ru:{title:'Сохранить текущую кухню?',primary:'Создать аккаунт',error:'Без аккаунта нет списка кухонь, и её нельзя открыть на другом устройстве.'},frames:[
+{id:'A16A',d:1,cap:'Ca A15',server:'—',note:'Același aspect ca A15A.',bg:'editor',hdr:'ed-out',blocks:[],ov:{k:'sheet',blocks:KEEP()}},
+{id:'A16B',d:1,cap:'După „Salvează”',server:'—',note:'Nu spune unde se păstrează. „Nu acum” la fel de vizibil.',bg:'editor',hdr:'ed-out',blocks:[],ov:{k:'sheet',blocks:[{t:'grab'},H('Am păstrat bucătăria.'),P('**Fără cont nu ai o listă de bucătării și nu o poți deschide de pe alt dispozitiv.** Dacă îți creezi un cont din acest browser, o poți atașa contului.'),BT(kp('Creează cont',{focus:1}),ks('Nu acum'))]}},
+{id:'A16C',cap:'Card ocazional · frecvență de stabilit',server:'—',note:'Se poate închide; nu blochează.',bg:'editor',hdr:'ed-out',blocks:[],promo:1},
+]},
+{id:'A17',name:'Ascunzi o bucătărie trimisă?',route:'A9 · dialog',ru:{title:'Скрыть отправленную кухню?',primary:'Скрыть',error:'Не удалось скрыть. Ничего не изменено.'},frames:[
+{id:'A17A',d:1,cap:'Dialog',server:'de stabilit',note:'„Anulează” focusat; fără „undo”.',title:'Bucătăriile mele',blocks:[LIST[0],LIST[1]],ov:{k:'dialog',blocks:HIDE()}},
+{id:'A17B',cap:'Se ascunde',server:'în așteptare',note:'',title:'Bucătăriile mele',blocks:[LIST[0],LIST[1]],ov:{k:'dialog',blocks:HIDE('busy')}},
+{id:'A17C',cap:'Gata',server:'de stabilit',note:'Cardul dispare din listă.',title:'Bucătăriile mele',blocks:[LIST[1],LIST[2]],toast:'Bucătăria a fost ascunsă.'},
+{id:'A17D',cap:'Eroare',server:'503',note:'',title:'Bucătăriile mele',blocks:[LIST[0],LIST[1]],ov:{k:'dialog',blocks:HIDE('err')}},
+]},
+{id:'A18',name:'Atașezi bucătăriile din acest browser?',route:'după A3 / A4, înainte de ieșire',ru:{title:'Прикрепить кухни из этого браузера?',primary:'Прикрепить',error:'Слишком много попыток. Попробуй ещё раз через 25 мин.',extra:[1,2,5,20].map(n=>`n=${n}: Найдено: ${ruK(n)}, созданных в этом браузере без аккаунта. Прикрепить к аккаунту?`)},frames:[
+...[1,2,5,20].map((n,i)=>({id:i?'A18A'+(i+1):'A18A',d:i===0?1:0,cap:'n = '+n,server:'GET claim → {claimable:'+n+'}',note:'Doar numărul. Nu pe Pasul 1, nu la deschiderea unei bucătării, nu blochează.',bg:'blocks',title:'Bucătăriile mele',blocks:[hero('neu','Bucătăriile mele','','◫')],ov:{k:'dialog',blocks:CLAIM(n)}})),
+{id:'A18B',cap:'Se atașează',server:'în așteptare',note:'',title:'Bucătăriile mele',blocks:[],ov:{k:'dialog',blocks:CLAIM(2,{busy:1})}},
+{id:'A18C',cap:'Succes · numărul serverului',server:'{claimed:2}',note:'Poate diferi de n.',title:'Bucătăriile mele',blocks:[LIST[0],LIST[1]],ov:{k:'dialog',blocks:[H('✓ 2 bucătării atașate'),BT(kp('Deschide Bucătăriile mele',{focus:1}))]}},
+{id:'A18D',cap:'Prea multe încercări',server:'429 · Retry-After: 1 500',note:'',title:'Bucătăriile mele',blocks:[],ov:{k:'dialog',blocks:CLAIM(2,{pre:[rl('Încearcă din nou peste 25 min.')]})}},
+{id:'A18E',cap:'Indisponibil',server:'503 · dialogul rămâne',note:'401 → A20; 403 → fără dialog (doar notă).',title:'Bucătăriile mele',blocks:[],ov:{k:'dialog',blocks:CLAIM(2,{pre:[N('err',UNAV)]})}},
+{id:'A18F',cap:'VARIANTĂ VIITOARE — necesită API',server:'de stabilit (azi doar numărul)',note:'Listă cu miniatură, nume, dată.',title:'Bucătăriile mele',blocks:[],ov:{k:'dialog',blocks:[H('Atașezi bucătăriile din acest browser?'),{t:'claim',items:[{name:K1,date:'Salvată pe 12 oct.'},{name:K2,date:'Salvată pe 9 oct.'}]},BT(kp('Atașează'),ks('Nu acum',{focus:1}))]}},
+]},
+{id:'A19',name:'Control cont în antet',route:'configurator + pagini de cont',ru:{title:'Мой аккаунт',primary:'Войти',error:'Меню: Мои кухни · Профиль · Выйти · Выйти на всех устройствах',extra:['Персонал: Зона персонала']},frames:[
+{id:'A19A',d:1,cap:'Deconectat',server:'session → anonymous',note:'„Intră în cont”, 44 px.',bg:'editor',hdr:'ed-out',blocks:[]},
+{id:'A19B',d:1,cap:'Client · meniu',server:'session → signed-in',note:'Pictogramă fără inițiale; nume accesibil „Contul meu”. Rolul nu apare.',bg:'editor',hdr:'ed-in',acFocus:1,blocks:[],ov:{k:'menu',blocks:ACCT}},
+{id:'A19C',cap:'Personal · meniu',server:'capabilities staff',note:'Personalul nu are „Bucătăriile mele”.',bg:'editor',hdr:'ed-in',acFocus:1,blocks:[],ov:{k:'menu',blocks:STAFF}},
+{id:'A19D',cap:'Antet mobil editor 390 px',server:'—',note:'Pasul devine „3/5” (nume complet accesibil) ca să încapă pictograma: 44 px + 44 px chip.',bg:'editor',hdr:'ed-in',blocks:[]},
+]},
+{id:'A20',name:'Sesiune expirată · fără acces',route:'toate',ru:{title:'Сеанс истёк',primary:'Войти',error:'У тебя нет доступа к этой странице.'},frames:[
+{id:'A20A',cap:'Sosire pe A4 după 401',server:'401 unauthenticated',note:'Ca A4G (lotul 1).',title:'Intră în cont',blocks:[N('info','Sesiunea ta a expirat. Intră din nou în cont ca să continui.'),email(),pw('Parolă')],bar:[kp('Intră în cont')]},
+{id:'A20B',d:1,cap:'În editor · foaie',server:'401 unauthenticated',note:'Nu promite că modificările supraviețuiesc.',bg:'editor',hdr:'ed-in',blocks:[],ov:{k:'sheet',blocks:EXP}},
+{id:'A20C',d:1,cap:'403 · pagină întreagă',server:'403 forbidden',note:'Nu spune „sesiune expirată”.',title:null,blocks:[hero('err','Nu ai acces la această pagină','Contul cu care ești conectat nu poate deschide această pagină.')],bar:[kp('Înapoi la configurator')]},
+]},
+];
+
+function rich(s){const out=[];const re=/\*\*(.+?)\*\*|\[(.+?)\]/g;let i=0,m;while((m=re.exec(s))){if(m.index>i)out.push({plain:true,v:s.slice(i,m.index)});out.push(m[1]?{bold:true,v:m[1]}:{link:true,v:m[2]});i=re.lastIndex;}if(i<s.length)out.push({plain:true,v:s.slice(i)});return out;}
+function L1(b){const o={...b};
+if(b.t==='p'){o.isP=true;o.segs=rich(b.text);}
+if(b.t==='notice'){o.segs=rich(b.text);o.nErr=b.tone==='err';o.nWarn=b.tone==='warn';o.nOk=b.tone==='ok';o.nInfo=b.tone==='info';}
+if(b.t==='field'){o.isField=true;o.noErr=!b.err;o.hasVal=!!b.value;o.isPh=!b.value;o.disp=b.value?(b.pw?'•'.repeat(Math.min(b.value.length,22)):b.value):(b.ph||'');o.toggle=b.pw?'Arată':null;o.boxErr=!!b.err;o.boxFocus=!b.err&&!!b.focus;o.boxNorm=!b.err&&!b.focus;}
+if(b.t==='hero'){o.isHero=true;o.segs=rich(b.text||'');o.hOk=b.tone==='ok';o.hErr=b.tone==='err';o.hNeu=b.tone==='neu';}
+if(b.t==='links')o.isLinks=true;
+return o;}
+const OL='2px solid #7c5c3d';
+function B(b){
+if(['p','notice','field','hero','links'].includes(b.t))return{legacy:true,one:[L1(b)]};
+const o={...b};
+if(b.t==='H')o.isH=true;
+if(b.t==='grab')o.isGrab=true;
+if(b.t==='cnt')o.isCount=true;
+if(b.t==='skel')o.isSkel=true;
+if(b.t==='text')o.isText=true;
+if(b.t==='url')o.isUrl=true;
+if(b.t==='thumb')o.isThumb=true;
+if(b.t==='claim')o.isClaim=true;
+if(b.t==='acct')o.isAcct=true;
+if(b.t==='promo')o.isPromo=true;
+if(b.t==='btns')o.isBtns=true,o.items=b.items.map(it=>({...it,[it.k]:true,ol:it.focus?OL:'none'}));
+if(b.t==='k'){o.isK=true;o.sent=!!b.sent;o.draft=!b.sent;o.thFail=false;o.ol='none';o.dotsOl=b.dotsOl||'none';o.menuOpen=!!b.menuOpen;if(b.renameOne)o.renameOne=b.renameOne.map(L1);if(b.menu)o.menu=b.menu.map(m=>({...m,isItem:!m.sep,font:'700 14px/1.2 Helvetica,Arial,sans-serif',color:m.danger?'#8f2020':'#1c1814',ol:m.focus?OL:'none'}));}
+if(b.t==='grid'){o.isGrid=true;o.items=b.items.map(k=>({...k,ol:'none'}));}
+if(b.t==='rows'){o.isRows=true;o.items=b.items.map(r=>({...r,font:'700 15px/1.3 Helvetica,Arial,sans-serif',color:r.danger?'#8f2020':'#1c1814',ol:r.focus?OL:'none',arrow:r.sub?'↗':'›'}));}
+return o;}
+function F(sc,f){
+const ov=f.ov||null,k=ov&&ov.k;
+const hdr=f.hdr||'std';
+const blocks=(f.promo?[{t:'promo'}]:(f.blocks||[])).map(B);
+return{id:f.id,idl:f.id.toLowerCase(),cap:f.cap,server:f.server,note:f.note,plain:!!f.plain,d:!!f.d,
+title:f.title===undefined?sc.name:f.title,body:f.body,blocks,dBlocks:(f.dBlocks||f.blocks||[]).map(B),
+bar:f.bar?[B(BT(...f.bar))]:null,hasBar:!!f.bar,
+edBg:f.bg==='editor',pageBg:f.bg!=='editor',wide:!!f.dBlocks,cardBg:f.bg!=='editor'&&!f.dBlocks,
+hdrStd:hdr==='std'||hdr==='plain',hdrEd:hdr==='ed-in'||hdr==='ed-out',hdrIn:hdr==='ed-in',hdrOut:hdr==='ed-out',acOl:f.acFocus?OL:'none',
+ov:!!ov,ovBlocks:ov?ov.blocks.map(B):null,
+mSheet:k==='sheet'||k==='menu',mDialog:k==='dialog',dDialog:k==='sheet'||k==='dialog',dMenu:k==='menu',toast:f.toast||null};}
+const BUILT=SCREENS.map(sc=>{const frames=sc.frames.map(f=>F(sc,f));return{id:sc.id,idl:sc.id.toLowerCase(),name:sc.name,route:sc.route,ru:{extra:[],...sc.ru},frames,dFrames:frames.filter(f=>f.d),hasD:frames.some(f=>f.d)};});
+const ANS=[
+['1 · A15: „Nu o păstra” șterge sau doar delistează?','Depinde de unde provine bucătăria. Dacă a fost generată fără contul curent și nu e în listă: „Modificările de la ultima salvare se pierd.” Dacă e deja în cont (salvată automat): butonul devine „Păstrează versiunea salvată”, iar linia spune „Rămâne în Bucătăriile mele așa cum ai salvat-o ultima oară. Modificările de după se pierd.” Nu ștergem niciodată o bucătărie din acest buton.'],
+['2 · A9: paginare și sortare','„Încarcă mai multe” (buton de 44 px, fără defilare infinită, care mută focusul). Sortare implicită: ultima modificare, cele mai noi primele; contorul „{n} bucătării” rămâne sus.'],
+['3 · A19: antet mobil în editor','Insigna de pas se scurtează la „3/5” (nume accesibil „Pasul 3 din 5”) și pictograma contului stă imediat după ea, înainte de chip-ul RO. Totul în 390 px cu ținte de 44 px (vezi A19D).'],
+['4 · A20: cale de întoarcere','Da, ca simplu parametru de întoarcere, fără a promite modificările nesalvate: „După ce intri, te ducem înapoi la bucătărie. Modificările nesalvate nu se păstrează.” Doar dacă bucătăria este deja salvată.'],
+['5 · A11: acest dispozitiv rămâne conectat?','Da; celelalte sunt deconectate (cum arată textul de succes). Utilizatorul tocmai a dovedit parola.'],
+['6 · A10: notificare pe adresa veche?','Da: un e-mail informativ la adresa veche („Adresa contului s-a schimbat”), fără link de anulare nou, ca semnal de securitate. Server: de stabilit.']].map(a=>({q:a[0],a:a[1]}));
+const PLUR=[1,2,5,20].map(n=>`${n} → RO: ${roK(n)} · RU: ${ruK(n)}`);
+const LISTS=['Blocuri noi (ContBlocks2): card de bucătărie (miniatură dungată, badge Trimisă ✓ / Ciornă, „⋯” 44 px, meniu, redenumire inline, stare ocupată), schelet, grilă desktop, rând-link de 44 px, valoare text cu link, câmp URL, miniatură de dialog, listă de atașare, antet de foaie, buton distructiv/ocupat/succes/link, card ocazional (A16C), rând de cont.','Copy adăugat peste brief: „Bucătăriile mele”, „Cele mai recente întâi”, „Încarcă mai multe”, „Se pregătește fișierul…”, „Link de partajare”, „Fișierul este gata. Descărcarea a început.”, „Poate a fost ștearsă sau ascunsă…” (A9K), „Parola nu este corectă.” (A13B), „Se atașează…”, „Deschide Bucătăriile mele”, „Am păstrat bucătăria.” (titlu A16B), „Nu am putut salva. Nu ai pierdut nimic.” (A15D), „Conectat ca”, „Pasul 3/5”. Toate celelalte texte vin din brief.','Server: ce nu e în brief este marcat „de stabilit”.'];
+class Component extends DCLogic{renderVals(){return{screens:BUILT,answers:ANS,plurals:PLUR,lists:LISTS,showNotes:this.props.showNotes??true,showDesktop:this.props.showDesktop??true};}}
+</script>
+</body>
+</html>
