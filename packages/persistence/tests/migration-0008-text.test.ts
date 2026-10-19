@@ -32,6 +32,7 @@ const [STATEMENT = ""] = executableStatementsOf(SQL);
  *  rule, each by name, so a migration after them still trips the last test. */
 const LATER_MIGRATIONS_READ_AGAINST_THE_RULE: readonly string[] = [
   "0010_create_contact_submission_views.sql",
+  "0015_add_design_account_id.sql",
 ];
 
 const ALLOWED_NAMES_BEFORE_A_PARENTHESIS = [
@@ -180,6 +181,18 @@ describe("migration 0008's text", () => {
         wordsOf(statements.join(" ")).has(column),
       ),
     ).toEqual([]);
+  });
+
+  it("is named by 0015 only in its header comment, so no statement of it can read a column the role may update", () => {
+    const account = readMigrationFiles().find(
+      (migration) =>
+        migration.fileName === LATER_MIGRATIONS_READ_AGAINST_THE_RULE[1],
+    );
+    const statements = executableStatementsOf(account?.sql ?? "");
+
+    expect(account?.sql).toMatch(/contact_submissions/i);
+    expect(statements.length).toBeGreaterThan(0);
+    expect(statements.join(" ")).not.toMatch(/contact_submissions/);
   });
 
   it("is the last migration to name the table, or its author has read the rule that no constraint reads a column the role may update", () => {

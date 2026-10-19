@@ -69,6 +69,13 @@ const ALL_MIGRATION_FILE_NAMES = [
   "0009_create_csp_reports.sql",
   "0010_create_contact_submission_views.sql",
   "0011_create_presets.sql",
+  "0012_create_accounts.sql",
+  "0013_create_account_sessions.sql",
+  "0014_create_account_email_tokens.sql",
+  "0015_add_design_account_id.sql",
+  "0016_add_design_dashboard_columns.sql",
+  "0017_add_account_profile_columns.sql",
+  "0018_add_email_token_new_address.sql",
 ];
 
 /** Every version after the first, read from disk. Forgetting a *suffix* of the ledger is the only
