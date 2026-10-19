@@ -913,6 +913,20 @@ declare const messages: {
     "privacyNoticeNewTab": "(se deschide într-o filă nouă)",
     "exportTooLarge": "Contul tău are prea multe bucătării pentru o singură descărcare. Nu am pregătit niciun fișier."
   },
+  "accountPassword": {
+    "metaTitle": "Schimbă parola — {brand}",
+    "title": "Schimbă parola",
+    "currentPasswordLabel": "Parola actuală",
+    "newPasswordLabel": "Parola nouă",
+    "currentPasswordWrong": "Parola actuală nu este corectă.",
+    "submit": "Schimbă parola",
+    "submitting": "Se schimbă…",
+    "changedTitle": "Parola a fost schimbată",
+    "changedBody": "Te-am deconectat de pe celelalte dispozitive.",
+    "backToProfile": "Înapoi la Profil",
+    "changedSignInBody": "Autentifică-te din nou, cu parola nouă.",
+    "logIn": "Intră în cont"
+  },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",
     "badge": "Pagină provizorie",

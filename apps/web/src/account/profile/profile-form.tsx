@@ -25,6 +25,7 @@ import {
 } from "../account-shell";
 import { ForbiddenScreen } from "../forbidden-screen";
 import styles from "./profile.module.css";
+import { ProfileRows } from "./profile-rows";
 import {
   useProfileSave,
   type ProfileFeedback,
@@ -35,9 +36,6 @@ import type { ProfileField, ProfileValues } from "./profile-values";
 // "Profil" (Lot 2 frames A10A to A10D and A10H): the optional name, address and phone a signed-in account keeps, and its
 // address as text. It is drawn filled from the server, and a save sends only what changed. The address cannot be changed
 // here yet, and the page says nothing of a way to. Every link is a plain anchor, as on every account page.
-
-/** The notice's page: its own document, opened beside the form so what was typed survives. */
-const PRIVACY_NOTICE_PATH_SEGMENT = "privacy-notice";
 
 export interface ProfileFormProps {
   readonly locale: AppLocale;
@@ -133,7 +131,7 @@ function ProfileScreen({
         <AddressField save={save} inputRef={targets.address} />
         <EmailText email={email} />
         <PhoneField save={save} inputRef={targets.phone} />
-        <PrivacyNoticeRow locale={locale} />
+        <ProfileRows locale={locale} />
       </AccountPane>
       <AccountActions>
         <SubmitArea save={save} />
@@ -234,27 +232,6 @@ function EmailText({ email }: { readonly email: string }) {
       <span className={styles.readOnlyLabel}>{kit.emailLabel}</span>
       <span className={styles.readOnlyValue}>{email}</span>
     </div>
-  );
-}
-
-/** The row that opens the privacy notice beside the form, so what was typed survives. */
-function PrivacyNoticeRow({ locale }: { readonly locale: AppLocale }) {
-  const copy = useAccountProfileCopy();
-  return (
-    <nav className={styles.rows}>
-      <a
-        className={styles.row}
-        href={`/${locale}/${PRIVACY_NOTICE_PATH_SEGMENT}`}
-        target="_blank"
-        rel="noopener"
-      >
-        <span className={styles.rowText}>
-          <span className={styles.rowLabel}>{copy.privacyNotice}</span>
-          <span className={styles.rowSub}>{copy.privacyNoticeNewTab}</span>
-        </span>
-        <span className={styles.rowMark} aria-hidden="true" />
-      </a>
-    </nav>
   );
 }
 

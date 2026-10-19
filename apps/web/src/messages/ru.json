@@ -910,6 +910,20 @@
     "privacyNoticeNewTab": "(откроется в новой вкладке)",
     "exportTooLarge": "В твоём аккаунте слишком много кухонь для одной загрузки. Файл не создан."
   },
+  "accountPassword": {
+    "metaTitle": "Смена пароля — {brand}",
+    "title": "Смена пароля",
+    "currentPasswordLabel": "Текущий пароль",
+    "newPasswordLabel": "Новый пароль",
+    "currentPasswordWrong": "Текущий пароль неверный.",
+    "submit": "Сменить пароль",
+    "submitting": "Меняем…",
+    "changedTitle": "Пароль изменён",
+    "changedBody": "Мы вышли из аккаунта на остальных устройствах.",
+    "backToProfile": "Назад в профиль",
+    "changedSignInBody": "Войди снова, уже с новым паролем.",
+    "logIn": "Войти"
+  },
   "privacyNotice": {
     "metaTitle": "Уведомление о конфиденциальности — {brand}",
     "badge": "Временная страница",

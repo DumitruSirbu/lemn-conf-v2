@@ -1,5 +1,5 @@
 /* The profile page (Lot 2 frames A10A to A10D, A10H and ContBlocks2's text and rows blocks). The fields, notices and the
- * action bar are the account kit's; this adds the address read as text and the row that opens the privacy notice. The
+ * action bar are the account kit's; this adds the address read as text and the rows under the fields. The
  * page's tokens are `globals.css`'s. */
 .readOnly {
   display: flex;
@@ -35,6 +35,17 @@
   text-decoration: none;
   border-bottom: 1px solid var(--line-soft);
   border-radius: 2px;
+}
+
+.rowButton {
+  composes: row;
+  width: 100%;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .row:focus-visible {

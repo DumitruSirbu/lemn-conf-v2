@@ -859,11 +859,14 @@ export function resolveAccountMailCopy(translate: ContentTranslator) {
 export type AccountMailCopy = ReturnType<typeof resolveAccountMailCopy>;
 
 /** The fields of an account form that a server answer can mark. `locale` and the notice version are the page's own
- *  values, so a refusal of either is the request failing, not a field to correct. */
+ *  values, so a refusal of either is the request failing, not a field to correct. `currentPassword` and `newPassword`
+ *  are the password change's own request members, named as the body names them (plan P13). */
 export type AccountIssueField =
   | "email"
   | "phone"
   | "password"
+  | "currentPassword"
+  | "newPassword"
   | "name"
   | "address";
 
@@ -910,6 +913,8 @@ export function resolveAccountFieldError(
     case "phone":
       return resolvePhoneError(translate, code);
     case "password":
+    case "currentPassword":
+    case "newPassword":
       return resolvePasswordError(translate, code);
     case "name":
       return resolveNameError(translate, code);
@@ -1325,6 +1330,28 @@ export function resolveAccountProfileCopy(translate: ContentTranslator) {
 }
 
 export type AccountProfileCopy = ReturnType<typeof resolveAccountProfileCopy>;
+
+/** The password-change page's own text. The password policy hint and the field refusals are the forms' own. */
+export function resolveAccountPasswordCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountPassword.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountPassword.title"),
+    currentPasswordLabel: translate("accountPassword.currentPasswordLabel"),
+    newPasswordLabel: translate("accountPassword.newPasswordLabel"),
+    currentPasswordWrong: translate("accountPassword.currentPasswordWrong"),
+    submit: translate("accountPassword.submit"),
+    submitting: translate("accountPassword.submitting"),
+    changedTitle: translate("accountPassword.changedTitle"),
+    changedBody: translate("accountPassword.changedBody"),
+    backToProfile: translate("accountPassword.backToProfile"),
+    changedSignInBody: translate("accountPassword.changedSignInBody"),
+    logIn: translate("accountPassword.logIn"),
+  };
+}
+
+export type AccountPasswordCopy = ReturnType<typeof resolveAccountPasswordCopy>;
 
 function resolveShapeShortName(
   translate: ContentTranslator,
