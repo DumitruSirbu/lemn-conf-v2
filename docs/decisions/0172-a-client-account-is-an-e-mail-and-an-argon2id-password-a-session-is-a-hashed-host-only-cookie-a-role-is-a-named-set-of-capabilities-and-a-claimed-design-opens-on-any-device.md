@@ -892,3 +892,61 @@ blocking if turnstile is not reachable"*. As built:
   rejected secret or token with `200` and `success: false`, which stays `failed`. (b) A caller who cannot make
   Cloudflare unreachable gains nothing by sending a junk token: it is asked about and answered `failed`.
   (c) The M9 launch-gate line on the real-key preview walk is unchanged.
+
+## Amendment G — 2026-10-19..20: Lot 2 as built, the column bounds, the ADR 0019 d11 scope growth, accepted residuals, and new owner questions
+
+Source: the coordinator's brief of 2026-10-20, relaying wave reviews (a logic and a security agent per wave) on branch
+`feat/login-register`, HEAD `a47db452`. Evidence tier: **source-verified by those reviews, relayed**. The scribe re-read
+no code and ran nothing. **No test was written (D12), and nothing was run against a database or in a browser.** The
+status stays as Amendment F left it. The built state, wave by wave, is in
+`docs/milestones/M8B-account-screens-lot2-plan.md` §12; this amendment records the decisions and open questions.
+
+**1. Owner rulings already recorded (Amendment F 2a and the plan), restated for the built state.**
+- O5: nothing now. O6: the sent mark is set when the request is stored, and S5 does so before the shop notice, bounded
+  at 1 s and non-fatal. O10: landing. O16: `account.manage.own` for all roles, now in the capability list. O18: the
+  200 plus payload ruling for the forbidden page.
+- The 200-kitchen export cap is **provisional**; over the cap the export answers `409 export-too-large` and does not
+  spend the bucket.
+
+**2. Choices made while building (architect or coordinator, not owner rulings).**
+- Kitchen names are normalised **NFC, not NFKC** (the plan's S2 text said NFKC).
+- `readExistingPassword`: the is-the-address rule is applied only to a **new** password; sign-in no longer applies it.
+- Column bounds: `accounts.name` at most 120, `accounts.address` at most 200 in the database; domain limits 100 and
+  100. The database checks bound length only; the domain refuses control and format characters, and the store refuses
+  them for kitchen names.
+- Duplicate: the client composes "{name} (copie)" and truncates by code points; the server never truncates.
+- E2-E5: one 404 for every unreachable case; the `409` words `sent` / `not-sent` only after ownership.
+- Password change answers `401 password-changed-sign-in` if the new session cannot start.
+- Password change and reset completion retire every unused e-mail token (open as O23).
+- E-mail change: tokens retired before branching on the target; the token is bound to the verified password hash;
+  confirm refuses a token created before `password_changed_at`. Mail copy is DRAFT (O8 defaults).
+- Backup export and restore carry `sent_at`, `hidden_by_client_at`, `deleted_by_client_at` **only**; `account_id` and
+  `name` are not exported, per D10, until the accounts export QP5 exists (open as O21).
+- The E-mail-change UI is to be gated behind a constant `EMAIL_CHANGE_ENABLED = false` (in progress, not committed).
+
+**3. ADR 0019 d11 accepted risk, scope grown again.** `hidden_by_client_at`, `deleted_by_client_at` and `sent_at` fall
+under the table-level `UPDATE` on `designs`, as `account_id` did. **The owner's re-acceptance is needed before hide and
+delete are used in production.** Column-scoping stays the named revisit.
+
+**4. Accepted residuals (reviewers' findings).** A lost acknowledgement on the E9 confirm drops the old-address notice;
+a login-versus-confirm race sliver; an E9 `503` followed by `link-invalid`; duplicate has no lifetime cap; `markSent` is
+not scoped by account on its own port; the S5 already-notified-replay case is not repaired, and the owner-run O11
+backfill statement is its repair.
+
+**5. Open owner questions (none ruled; do not build on a default).**
+- **O19 (review finding F1).** E-mail change takeover recovery: a notice to the **old** address at request time and/or a
+  time-limited revert link in the confirm notice. Recommended: both. **It blocks the grant `UPDATE (email,
+  email_normal_form)` on `accounts` (runbook step 4b). That grant is not to be made until F1 is ruled, the confirm page
+  exists, and E8/E9 are gated.**
+- **O20.** Keep or drop `GET /api/account/profile` (it exists; the plan said a server read).
+- **O21.** Should the backup export ever carry `account_id` and `name` (after QP5)?
+- **O22.** The frozen sent-kitchen copy at `/s/<token>` (`contact_submission_views`) stays reachable after hide, by
+  design (ADR 0165). Confirm explicitly. The plan's CG9 and criterion 3 now carry a dated qualifying note.
+- **O23.** Accept that password reset and change retire all unused e-mail tokens, verify-email included?
+- **O24.** The 429 wait shown in the notice (mock A11F / SB10), implemented once in the shared `account-form-parts`.
+- Amendment F's O1, O2, O8, O12, O17 stay open.
+
+**6. Tests owed (D12).** S4 predicates (about 20 sites), mutation-proven; E1, E2-E5 and E6-E10 route order and 404
+byte-identity; copy lock `approved-romanian-messages.ts` plus golden hashes for `accountKitchens`, `accountProfile`,
+`accountPassword`, `accountMail` and `claimDialog`; `limit-policy.test.ts` (the length 20 assertion is already stale);
+persistence statement tests; `top-bar-box.test.ts`.

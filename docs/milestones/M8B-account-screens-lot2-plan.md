@@ -2,6 +2,13 @@
 
 > **STATUS: DRAFT, 2026-10-19, architect. No wave dispatched, nothing committed.**
 >
+> **Update 2026-10-20 [coordinator's brief, relayed; the scribe ran nothing]: waves are built and committed.** Server
+> waves S1-S10 and UI waves U5, U6, U10, U12 are committed on `feat/login-register` (HEAD `a47db452`); U7/U8 and U11
+> are in progress. Each wave was source-reviewed by a logic and a security agent. **No test was written (ADR 0172 D12),
+> and nothing was run against a database or in a browser.** The built state, the decided column bounds, the accepted
+> residuals and the tests owed are in the new §12; the new owner questions O19-O24 are in §9. The text above this line
+> and §§1-11 are the plan as written on 2026-10-19 and are kept unchanged.
+>
 > - Branch `feat/login-register`, worktree `lemnaria-configurator-login`.
 > - This file adds to [`M8B-login-register-plan.md`](M8B-login-register-plan.md) and to
 >   [`M8B-account-screens-lot1-review.md`](M8B-account-screens-lot1-review.md).
@@ -389,7 +396,7 @@ None is a test-fidelity problem: no test exists this round.
 | CG6 | **Claim dialog detail.** Plan L14b criterion 5 requires count, dates and thumbnails. The API gives a count, and the mock calls the list "future" | O2 |
 | CG7 | **Profile columns and e-mail change grant** (ADR 0118, ADR 0172 D7: "e-mail change need their own grant and review") | S1, S7, S9, P12 |
 | CG8 | **The sent flag.** Deriving it by joining `contact_submissions.design_id` to `designs.account_id` is exactly ADR 0172 D11's "trigger to revisit: the first feature that reads both together" [doc] | P6 |
-| CG9 | **Hide must close every arm.** ADR 0172 Consequences: the claiming browser's visitor cookie and write token keep reading and writing a claimed design [doc]. A17's copy is false unless `loadOwned`, `resume`, `saveAuthorized` and share exclude hidden and deleted rows **on both arms** | S4 |
+| CG9 | *(Qualified 2026-10-20: the frozen sent-kitchen copy at `/s/<token>` stays reachable after hide, by design, ADR 0165; confirmation is O22. The text below is the original.)* **Hide must close every arm.** ADR 0172 Consequences: the claiming browser's visitor cookie and write token keep reading and writing a claimed design [doc]. A17's copy is false unless `loadOwned`, `resume`, `saveAuthorized` and share exclude hidden and deleted rows **on both arms** | S4 |
 | CG10 | **A20B is unobservable.** A save after expiry is refused with the one indistinguishable `403`/`404` of the design routes [src: `designs/[id]/route.ts`], so the editor cannot tell expiry from "not yours" | P16 |
 | CG11 | **"This device stays signed in" after a password change** is a new rule beside D3 ("reset revokes every session"), and `findLive`'s `created_at >= password_changed_at` makes it a structural dependency [src] | P11 |
 
@@ -666,7 +673,9 @@ each is a test owed (§8.3).
      of ADR 0114.
 2. **No request-chosen identity.** No new route reads an account id, role, capability or visitor hash from the body,
    query or a header. The account is `readCurrentSession`'s.
-3. **Hide and delete close every arm** (S4).
+3. **Hide and delete close every arm** (S4). *(Qualified 2026-10-20, O22 open: the shop's frozen copy at `/s/<token>`
+   in `contact_submission_views` stays reachable after hide, by design, ADR 0165. The "revoked share link" line below
+   concerns the client's own share link only.)*
    - After E4 or E5 succeeds, the claiming browser (visitor cookie and write token) and the owning session both get
      criterion 1's refusal on read, save, share and resume. The contact route refuses to send it.
    - The share link that was active is revoked (`/s/{token}` gives the share page's not-found).
@@ -854,6 +863,20 @@ The rows above keep their original text. Status: **O5, O6, O10, O16, O18 answere
   that payload. No experimental `authInterrupts`. Consistent with the existing SharedOutcome / forbidden handling in
   `apps/web/src/lib/server/account/signed-in-page.ts` [doc-quoted from the owner's relay; the file was not re-read].
 
+### New open owner questions, 2026-10-20 [coordinator's brief, relayed]
+
+Raised by the wave reviews. None is ruled. Evidence tier of every row: **source-verified by the reviewing agents**
+(the scribe re-read no code).
+
+| # | Question | Recommendation | Blocks |
+| --- | --- | --- | --- |
+| **O19** | **E-mail change takeover recovery (review finding F1).** Someone holding a signed-in session and the password can move the account to an address they control, and the old owner has no way back. Send a notice to the **old** address at request time, and/or a time-limited revert link in the confirm notice | **Both** | The grant `UPDATE (email, email_normal_form)` on `accounts` (runbook step 4b). It is **not** to be made until F1 is ruled, the confirm page exists, and E8/E9 are gated (below) |
+| **O20** | `GET /api/account/profile` exists, though plan §1 A10 said the profile is read on the server. Keep or drop? | Not stated | S7/S8 surface |
+| **O21** | Should the backup export ever carry `account_id` and `name`? (Today it deliberately does not; see §12.) | Decide after QP5, the accounts export | backup/restore |
+| **O22** | The frozen sent-kitchen copy at `/s/<token>` (`contact_submission_views`) **stays reachable after hide**, by design (ADR 0165). Confirm explicitly, and amend the wording of CG9 and criterion 3 | Confirm | CG9, criterion 3 |
+| **O23** | Password change and reset completion now retire **every** unused e-mail token, including verify-email. Accept that side effect? | Not stated | S8 |
+| **O24** | The 429 wait shown inside the notice (mock A11F / SB10) is being implemented once, in the shared `account-form-parts`. Confirm | Not stated | U-wave copy |
+
 ### Future work
 
 - **Data-erasure / retention policy ADR** (needed later; there is currently no policy on user-data erasure). Owner:
@@ -911,3 +934,72 @@ coordinator's to rule. They are not owner questions.
   - hide unbuilt rows;
   - omit "Zona personalului";
   - "20 bucătării" per the owner's 2026-09-10 ruling.
+
+---
+
+## 12. Built state, 2026-10-19..20 (added by the scribe)
+
+**Evidence.** Every fact below is **source-verified by wave reviews** (a logic and a security agent per wave), relayed by
+the coordinator on 2026-10-20 with HEAD `a47db452`. The scribe re-read no code and ran nothing. **No test was written
+(ADR 0172 D12). Nothing was run against a database or in a browser.** "Built" means committed and reviewed by reading,
+not exercised. §§1-11 are unchanged; where they differ, this section records what was built.
+
+### 12.1 Server waves, committed on `feat/login-register`
+
+| Wave | What is built |
+| --- | --- |
+| S1 | Migrations `0016`-`0018`: `designs` gains `name`, `sent_at`, `hidden_by_client_at`, `deleted_by_client_at`; `accounts` gains `name`, `address`; `account_email_tokens` gains `new_email`, `new_email_normal_form`. **Unapplied anywhere** |
+| S2 | Domain rules: kitchen name normalised **NFC, not NFKC** (the plan's S2 said NFKC); profile name, address and phone validation; password-change and e-mail-change validators; `readExistingPassword`: the is-the-address rule now applies only to a **new** password, and sign-in no longer applies it |
+| S3 | Account kitchen store: list by keyset with a total, rename, duplicate, hide and `markDeleted` (each with an atomic share-link revoke), `SentMarkStore` split into its own port. Documents that cannot be read are skipped and counted as `skippedCount` |
+| S4 | Gate exclusion of hidden and deleted kitchens on load, resume, save, preset read, share issue / revoke / status, and the public share read (reviewers counted about 20 predicate sites) |
+| S5 | `sent_at` is set when the request is **stored**, before the shop notice, bounded at 1 s and non-fatal. A retry before the notice repairs a missed mark. **The already-notified-replay case is not repaired**; the owner-run O11 backfill statement is its repair |
+| S6a | `GET /api/account/kitchens`: 12 per page, opaque base64url cursor, returns summary plus document |
+| S6b | E2 rename `PATCH`; E3 duplicate `POST` (the client composes the full "{name} (copie)" and truncates by code points, the server never truncates); E4 delete `DELETE` (unsent only); E5 hide `POST` (sent only). The 404 is identical for every unreachable case; `409` words `sent` / `not-sent` are answered only after ownership |
+| S7 / S8 | Account store; capability `account.manage.own` for all roles; `GET` and `PATCH /api/account/profile`; `POST /api/account/password` (replaces the session; if the new session cannot start the answer is `401 password-changed-sign-in`). Password change and reset completion now retire **every** unused e-mail token (O23) |
+| S9 | E8 / E9 e-mail change and three mails (O8 defaults; **copy is DRAFT**). Security fixes: e-mail-change tokens are retired before branching on the target; the token is bound to the verified password hash; confirm refuses a token created before `password_changed_at` |
+| S10 | E10 export: profile and kitchens, hidden included, deleted excluded, a **provisional 200-kitchen cap**; over the cap answers `409 export-too-large` and does not spend the bucket |
+
+**Deviation: the backup export.** Backup export and restore carry `sent_at`, `hidden_by_client_at` and
+`deleted_by_client_at` **only**. `account_id` and `name` are deliberately **not** exported, per ADR 0172 D10, until the
+accounts export (QP5) exists. Owner question O21.
+
+**Deviation: `GET /api/account/profile` exists** although §1 A10 said the page reads the profile on the server. Owner
+question O20.
+
+### 12.2 UI waves
+
+- **Committed and merged into the branch:** U5 kitchens list; U6 card price (one price-book module,
+  `price/price-book-root.ts`); U10 profile page; U12 password page. U12 follow-ups are in progress.
+- **In progress, not committed:** U7 / U8 (card menu and dialogs); U11 (confirm-email page) and the E8 request page.
+  The E-mail-change UI is to be gated behind a constant `EMAIL_CHANGE_ENABLED = false`.
+- **Not built:** U13 (export page) was not reported; U14, U15 and S11 / S12 remain as §6.4 states.
+
+### 12.3 Bounds chosen
+
+- `accounts.name` at most 120 and `accounts.address` at most 200 in the database; the **domain** limits are 100 and 100.
+- The database checks bound **length only**. The domain refuses control and format characters, and the store also
+  refuses them for kitchen names.
+
+### 12.4 ADR 0019 d11 accepted risk, scope grown again
+
+`hidden_by_client_at`, `deleted_by_client_at` and `sent_at` fall under the table-level `UPDATE` on `designs`.
+**The owner must re-accept before hide and delete are used in production.** Recorded as ADR 0172 Amendment G.
+
+### 12.5 Accepted residuals (reviewers' findings, accepted for this round)
+
+- A lost acknowledgement on the E9 confirm drops the old-address notice.
+- A login-versus-confirm race sliver.
+- An E9 `503` is followed by `link-invalid` on retry.
+- Duplicate has no lifetime cap (only the daily buckets).
+- `markSent` is not scoped by account on its own port.
+
+### 12.6 Owed: the tests round
+
+- S4 predicates (about 20 sites), each mutation-proven.
+- Route order and 404 byte-identity for E1, E2-E5, E6-E10.
+- Copy lock `approved-romanian-messages.ts` and golden hashes for `accountKitchens`, `accountProfile`,
+  `accountPassword`, `accountMail` and `claimDialog`.
+- `limit-policy.test.ts`: the length 20 assertion is already stale.
+- Persistence statement tests.
+- `top-bar-box.test.ts`.
+- The §8.3 list above stands.
