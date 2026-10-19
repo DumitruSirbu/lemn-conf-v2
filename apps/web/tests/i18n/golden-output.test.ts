@@ -29,6 +29,7 @@ import {
 } from "./golden-output-fixtures";
 import { GOLDEN_OUTPUT_SHA256 } from "./golden-output-hashes";
 import { isRomanianCopyApproved } from "../support/approved-romanian-messages";
+import { withoutDraftCopy } from "../support/draft-romanian-copy";
 import { catalogueLeaves } from "../support/catalogues";
 
 const GATE_O1_SEMANTIC_CORRECTION_KEYS = [
@@ -255,7 +256,8 @@ describe("golden-output fixture coverage", () => {
     // M8C P6 security review: +1 for `presetSave.refusal.tooLarge`.
     // M8C P8: +11 for Step 1's preset wait, list and Preview pop-up (`presetChooser.*`).
     // +2 for the carousel Select's own failure sentences, `presetChooser.selectFailed` and `.selectLimitReached`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(258);
+    // Lot 2 tests round: +1 for `designLoadError.bodyClient`, the design-load error's sentence for a signed-in client.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(259);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
@@ -298,7 +300,8 @@ describe("golden-output fixture coverage", () => {
     // M8C P6 security review: +1 static fixture for `presetSave.refusal.tooLarge`.
     // M8C P8: +11 static fixtures for `presetChooser.*`.
     // +2 static fixtures for `presetChooser.selectFailed` and `.selectLimitReached`.
-    expect(GOLDEN_FIXTURES).toHaveLength(575);
+    // Lot 2 tests round: +1 static fixture for `designLoadError.bodyClient`.
+    expect(GOLDEN_FIXTURES).toHaveLength(576);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
@@ -310,10 +313,14 @@ describe("golden-output fixture coverage", () => {
  *
  *  **Asserted rather than skipped on.** It used to be an early `return`, which made a red copy lock
  *  render both gates below green in the same run — one failure hiding whatever the other would have
- *  said. Fix the copy lock first, then rebaseline the hashes explicitly. */
+ *  said. Fix the copy lock first, then rebaseline the hashes explicitly.
+ *
+ *  The check is made on the approved part of the catalogue: the owner-unapproved draft units (`draft-romanian-copy.ts`)
+ *  are pinned by digest in `romanian-draft-copy.test.ts`, and a fixture that renders one of them is gated by its hash
+ *  below like any other, so a draft edit still moves a hash and is seen. */
 function expectApprovedRomanianCopy(): void {
   expect(
-    isRomanianCopyApproved(correctedRomanian),
+    isRomanianCopyApproved(withoutDraftCopy(correctedRomanian)),
     "Romanian copy is unapproved: settle it against the copy lock before reading these hashes",
   ).toBe(true);
 }

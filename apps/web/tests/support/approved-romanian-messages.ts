@@ -1,7 +1,12 @@
 import { isDeepStrictEqual } from "node:util";
 
-// Gate O1: the sole Romanian wording corpus: approved copy plus the drafted leaves it has to carry (grep `drafted`).
-// The lock is a deep equality against `ro.json`, so a leaf missing here fails it. Carrying a leaf is not approval.
+// Gate O1: the sole Romanian wording corpus for the APPROVED part of `ro.json`: approved copy plus the leaves marked
+// `Drafted` in a comment that sit inside an approved namespace (grep `Drafted`; carrying a leaf is not approval).
+// `romanian-copy-lock.test.ts` holds `withoutDraftCopy(ro)` to this object by deep equality, so a leaf of the approved part
+// missing here fails it. The account screens' wording is NOT here: it is owner-unapproved draft copy named unit by unit in
+// `draft-romanian-copy.ts` and pinned there by digest. Two draft conventions therefore coexist: a comment on a leaf that
+// this file carries (the M8C precedent), and the manifest for whole namespaces. `isRomanianCopyApproved` takes either as
+// approved, so its answer is about this object's shape, not about who approved the words.
 export const APPROVED_ROMANIAN_MESSAGES = {
   brand: "Lemnaria",
   meta: {
