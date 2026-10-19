@@ -355,6 +355,7 @@
     "bodyNotFound": "Linkul acesta nu mai corespunde niciunei configurații salvate. Posibil că a fost ștearsă sau linkul este invalid.",
     "bodyInvalid": "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
     "bodyUnavailable": "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
+    "bodyClient": "Bucătăria nu este disponibilă. Poate a fost ștearsă sau ascunsă, sau a fost creată în alt browser fără cont.",
     "startOver": "Începe o configurare nouă",
     "tooManyRequests": "Prea multe cereri într-un timp scurt. Încearcă din nou peste puțin timp.",
     "tryAgain": "Încearcă din nou"
@@ -973,7 +974,7 @@
   "accountEmailChange": {
     "metaTitle": "Confirmă adresa nouă — {brand}",
     "title": "Confirmă adresa nouă",
-    "lead": "Apasă „Confirmă” ca să folosești noua adresă pentru cont.",
+    "lead": "Apasă „Confirmă” ca să folosești noua adresă pentru cont. Dacă nu ai cerut această schimbare, închide pagina.",
     "confirm": "Confirmă",
     "confirming": "Se confirmă…",
     "changedTitle": "Adresa a fost schimbată.",
@@ -992,6 +993,18 @@
     "sentTitle": "Verifică e-mailul",
     "sentBody": "Dacă adresa poate fi folosită, ți-am trimis un link la ea. Până confirmi, contul folosește adresa veche.",
     "close": "Închide"
+  },
+  "accountExport": {
+    "metaTitle": "Exportă datele mele — {brand}",
+    "title": "Exportă datele mele",
+    "lead": "Primești un fișier JSON cu profilul tău și toate bucătăriile (inclusiv cele trimise și cele ascunse).",
+    "submit": "Descarcă datele",
+    "submitting": "Se pregătește…",
+    "preparing": "Se pregătește fișierul…",
+    "downloaded": "Fișierul este gata. Descărcarea a început.",
+    "downloadedHint": "Dacă descărcarea nu a pornit, încearcă din nou.",
+    "downloadAgain": "Descarcă din nou",
+    "backToProfile": "Înapoi la Profil"
   },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",

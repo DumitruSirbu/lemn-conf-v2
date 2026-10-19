@@ -1489,6 +1489,28 @@ export type AccountEmailChangeCopy = ReturnType<
   typeof resolveAccountEmailChangeCopy
 >;
 
+/** The data-export page's own text. The refusal for an account too large to export is the profile namespace's leaf; the
+ *  limit, offline and unavailable notices are the forms' own. */
+export function resolveAccountExportCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountExport.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountExport.title"),
+    lead: translate("accountExport.lead"),
+    submit: translate("accountExport.submit"),
+    submitting: translate("accountExport.submitting"),
+    preparing: translate("accountExport.preparing"),
+    downloaded: translate("accountExport.downloaded"),
+    downloadedHint: translate("accountExport.downloadedHint"),
+    downloadAgain: translate("accountExport.downloadAgain"),
+    backToProfile: translate("accountExport.backToProfile"),
+    tooLarge: translate("accountProfile.exportTooLarge"),
+  };
+}
+
+export type AccountExportCopy = ReturnType<typeof resolveAccountExportCopy>;
+
 function resolveShapeShortName(
   translate: ContentTranslator,
   shape: DesignRoomShape,
@@ -1959,6 +1981,8 @@ export function resolveContent(translate: ContentTranslator) {
       bodyInvalid: translate("designLoadError.bodyInvalid"),
       // The "wrong browser" refusal (ADR 0114 decision 5).
       bodyUnavailable: translate("designLoadError.bodyUnavailable"),
+      // A signed-in client's one sentence: it names no cause, so it tells nothing of why the design was refused.
+      bodyClient: translate("designLoadError.bodyClient"),
       startOver: translate("designLoadError.startOver"),
       // The sentence a refused page read is answered with: the interceptor reads it from the catalogue itself.
       tooManyRequests: translate("designLoadError.tooManyRequests"),

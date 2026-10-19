@@ -174,6 +174,73 @@ export async function sendSignedInRequest(
     : classifySignedInAnswer(request.flow, answer);
 }
 
+/** What the export request came to: the file to hand the person, or an outcome the page draws. */
+export type ExportAnswer =
+  | {
+      readonly kind: "file";
+      readonly blob: Blob;
+      /** Always a name this module accepts: the server's, when it is a plain `.json` name, else the fallback. */
+      readonly fileName: string;
+    }
+  | { readonly kind: "refused"; readonly outcome: SignedInOutcome };
+
+/** Where the export's file name falls back to when the answer names none this module accepts. */
+export const EXPORT_FALLBACK_FILE_NAME = "lemnaria-account-data.json";
+
+const SAFE_EXPORT_FILE_NAME = /^[A-Za-z0-9._-]{1,100}\.json$/;
+const QUOTED_FILE_NAME = /filename="([^"]*)"/i;
+const OK_STATUS = 200;
+
+/**
+ * The account export, which is the one answer of the area that is a file and not JSON the screen reads. A `200` with a
+ * JSON media type is taken as a blob before anything reads its body, since a body can be read once; every other answer
+ * is classified like any signed-in answer. The file is handed back and kept nowhere here.
+ */
+export async function sendExportRequest(
+  fetchAccount: FetchAccount = browserFetch,
+): Promise<ExportAnswer> {
+  const planned = signedInRequestPlan({ flow: "export" });
+  try {
+    const response = await fetchAccount(planned.path, initOf(planned));
+    return isExportFile(response)
+      ? {
+          kind: "file",
+          blob: await response.blob(),
+          fileName: exportFileNameOf(response.headers),
+        }
+      : { kind: "refused", outcome: await classifiedExportRefusal(response) };
+  } catch {
+    return { kind: "refused", outcome: UNANSWERED_OUTCOME };
+  }
+}
+
+function isExportFile(response: Response): boolean {
+  return (
+    response.status === OK_STATUS &&
+    (response.headers.get("content-type") ?? "").startsWith(JSON_MEDIA_TYPE)
+  );
+}
+
+/** The server's name for the file is a header, so it is not trusted past a plain name: no path, no markup. */
+function exportFileNameOf(headers: Headers): string {
+  const named = QUOTED_FILE_NAME.exec(
+    headers.get("content-disposition") ?? "",
+  )?.[1];
+  return named !== undefined && SAFE_EXPORT_FILE_NAME.test(named)
+    ? named
+    : EXPORT_FALLBACK_FILE_NAME;
+}
+
+async function classifiedExportRefusal(
+  response: Response,
+): Promise<SignedInOutcome> {
+  return classifySignedInAnswer("export", {
+    status: response.status,
+    retryAfter: response.headers.get("retry-after"),
+    body: await readJsonOrNothing(response),
+  });
+}
+
 function formRequestPlan({ flow, body }: AccountRequest): PlannedRequest {
   return { method: "POST", path: ACCOUNT_ENDPOINTS[flow], body };
 }
