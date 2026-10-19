@@ -17,6 +17,7 @@ import {
   type DesignOperation,
   type DesignRefusal,
 } from "@/lib/server/design-failure-log";
+import { PAYLOAD_TOO_LARGE_STATUS } from "@/preset/preset-wire-contract";
 
 /** The public codes a rejected save answers with: stable, enumerable and free of detail from the rejected
  *  document. A client branches on these; the reason stays out of the response. */
@@ -196,6 +197,6 @@ export function invalidBodyResponse(reason: string): NextResponse {
 export function payloadTooLargeResponse(): NextResponse {
   return NextResponse.json(
     { code: PAYLOAD_TOO_LARGE_CODE, error: "Design payload too large." },
-    { status: 413 },
+    { status: PAYLOAD_TOO_LARGE_STATUS },
   );
 }

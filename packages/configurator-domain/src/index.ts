@@ -198,6 +198,42 @@ export {
 export * from "./queries/width-options.js";
 export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
+// Whether a stored kitchen may be kept as a preset, the room it is saved in, and the facts its generated name is made
+// of (ADR 0112 decision 4, Amendment A).
+export * from "./preset/preset-candidate.js";
+export * from "./preset/preset-name-facts.js";
+// The figures, closed lists and typed-name rule a preset is held to by every layer that touches it (ADR 0112
+// Amendment A), and the text Postgres cannot hold.
+export * from "./preset/preset-limits.js";
+export * from "./preset/preset-name-rule.js";
+export { isUnstorableText } from "./unstorable-text.js";
+// Which presets a room is offered, each adapted to it once (ADR 0109 Amendments A2 to E). Named,
+// not `export *`: the world, the subtraction and the refill are internal to the one evaluation, so no second caller
+// can adapt a preset by a path the evaluation never took.
+export { adaptPresetToRoom } from "./preset/adapt-preset.js";
+export type {
+  AdaptablePreset,
+  AdaptPresetInput,
+} from "./preset/adapt-preset.js";
+export {
+  evaluatePresetOffers,
+  orderPresetOffers,
+  type PresetOffer,
+} from "./preset/evaluate-presets.js";
+export {
+  isRoomInPresetWindow,
+  matchPresets,
+  PRESET_WINDOW_MM,
+} from "./preset/match-presets.js";
+export type {
+  KeptBody,
+  PresetAdaptation,
+  PresetAdaptationChanges,
+  PresetAddition,
+  PresetNotOfferedReason,
+  PresetRemoval,
+  PresetRemovalCause,
+} from "./preset/preset-adaptation-result.js";
 export * from "./pricing/price-book.js";
 export * from "./pricing/price-lines.js";
 // The book's ingress (ADR 0062 seam 1): a composition root parses once, so every consumer downstream

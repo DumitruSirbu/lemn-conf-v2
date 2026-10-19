@@ -18,6 +18,7 @@ import {
   type BodyCatalog,
   type BodyDefinition,
   type Column,
+  type PlannedBoundariesMm,
   type VoidRecord,
 } from "../void-engine.js";
 import type { CommandResult } from "../commands/command-result.js";
@@ -39,7 +40,13 @@ import {
   type GenerationRun,
   type KitchenCompositionPlan,
 } from "./generation-priorities.js";
-import { BOTTLE_CARGO_BUILD_ID } from "./body-choice.js";
+import { BOTTLE_CARGO_BUILD_ID, DOOR_BASE_BUILD_ID } from "./body-choice.js";
+import {
+  countedBodyIdsOf,
+  isAFreeEndFill,
+  withTheFreeEndsFilled,
+  type FreeEndFillRule,
+} from "./free-end-fill.js";
 import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
 import type {
   TwoWallDispatch,
@@ -65,6 +72,7 @@ import { planUKitchenComposition } from "./u-composition.js";
 import {
   hasRoomForATopRow,
   isAnUpperOwedOver,
+  risesIntoWallRow,
   WALL_CABINET_BUILD_ID,
   upperBuildIdOver,
   TOP_ROLE,
@@ -161,6 +169,9 @@ interface GenerationWorld {
   readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly columns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
+  /** The edges the plan's tiles share, which composition's merge never joins across (ADR 0167 D6). Fixed for the
+   *  whole composition and its replay, both read from the one plan. */
+  readonly plannedBoundaries: PlannedBoundariesMm;
 }
 
 const EMPTY_PARAMS = {} as const;
@@ -198,17 +209,21 @@ function buildShellFor(args: {
 }): Design {
   const { room, occurredAt, plan } = args;
   if (isUKitchenPlan(plan)) return buildUShellFor(room, occurredAt, plan);
+  const plannedBoundariesMm = plannedBoundariesOf(plan);
   if (room.shape === "linear") {
     return buildLinearShellDesign({
       room,
       occurredAt,
-      compositionPlan: { floorWidthsMm: plan.floorWidthsMm.A },
+      compositionPlan: {
+        floorWidthsMm: plan.floorWidthsMm.A,
+        plannedBoundariesMm,
+      },
     });
   }
   return buildLShellDesign({
     room,
     occurredAt,
-    compositionPlan: { floorWidthsMm: plan.floorWidthsMm },
+    compositionPlan: { floorWidthsMm: plan.floorWidthsMm, plannedBoundariesMm },
   });
 }
 
@@ -227,7 +242,10 @@ function buildUShellFor(
   return buildUShellDesign({
     room,
     occurredAt,
-    compositionPlan: { floorWidthsMm: plan.floorWidthsMm },
+    compositionPlan: {
+      floorWidthsMm: plan.floorWidthsMm,
+      plannedBoundariesMm: plannedBoundariesOf(plan),
+    },
   });
 }
 
@@ -240,7 +258,7 @@ export function generateKitchen(
   input: GenerateKitchenInput,
 ): GenerateKitchenResult {
   const catalog = buildKitchenLBodyCatalog(PLANNING_CABINET_DEPTH_MM);
-  const plan = planComposition(input.room, declaredColumnSizes(catalog));
+  const plan = planComposition(input.room, catalog);
   const shell = buildShellFor({
     room: input.room,
     occurredAt: input.occurredAt,
@@ -252,18 +270,49 @@ export function generateKitchen(
   return lease.use((probe) => compose({ shell, catalog, plan, probe, input }));
 }
 
+/** The kitchen's plan: the shape's composer, then the free ends it left bare filled (ADR 0167). The fill is
+ *  the last step of the plan, after every absorb, so it reads only the remainder they leave. */
 function planComposition(
   room: Design["room"],
-  columns: DeclaredColumnSizes,
+  catalog: BodyCatalog,
 ): GenerationPlan {
-  if (room.shape === "U") {
-    return planUKitchenComposition({
-      room,
-      runs: uShellFloorRuns(room),
-      columns,
-    });
-  }
-  return planKitchenComposition({ room, runs: shellRunsFor(room), columns });
+  const columns = declaredColumnSizes(catalog);
+  const composed =
+    room.shape === "U"
+      ? planUKitchenComposition({ room, runs: uShellFloorRuns(room), columns })
+      : planKitchenComposition({ room, runs: shellRunsFor(room), columns });
+  return withTheFreeEndsFilled(composed, {
+    ...declaredFreeEndFill(catalog),
+    runs: freeRunsOf(room),
+    countedIds: countedBodyIdsOf(composed),
+  });
+}
+
+/** Every wall's free run the plan was composed against. */
+function freeRunsOf(room: Design["room"]): FreeEndFillRule["runs"] {
+  return room.shape === "U" ? uShellFloorRuns(room) : shellRunsFor(room);
+}
+
+/** The two bodies a filled column carries, a base cabinet under a wall cabinet (and the top cabinet is the
+ *  same wall cabinet), so the fill is as wide as the narrower of the two permits (ADR 0167 D2). */
+const FILLED_COLUMN_BUILD_IDS: readonly string[] = [
+  DOOR_BASE_BUILD_ID,
+  WALL_CABINET_BUILD_ID,
+];
+
+/** The floor and the full-height test the fill reads, from the catalogue: a generation-side copy of either
+ *  would be a second authority (ADR 0102). */
+function declaredFreeEndFill(
+  catalog: BodyCatalog,
+): Pick<FreeEndFillRule, "floorMm" | "isFullHeight"> {
+  return {
+    floorMm: Math.max(
+      ...FILLED_COLUMN_BUILD_IDS.map((buildId) =>
+        declaredMinWidthMm(catalog, buildId),
+      ),
+    ),
+    isFullHeight: (buildId) => risesIntoWallRow(catalog, buildId),
+  };
 }
 
 /** The block's 600 mm and 2200 mm are the catalogue's, read here and threaded into the rule: a
@@ -314,6 +363,14 @@ function soleDeclaredWidthMm(catalog: BodyCatalog, buildId: string): number {
   return bound.minMm;
 }
 
+function declaredMinWidthMm(catalog: BodyCatalog, buildId: string): number {
+  const minWidthMm = declaredEntry(catalog, buildId).minWidthMm;
+  if (minWidthMm === undefined) {
+    throw new Error(`generateKitchen: ${buildId} declares no width floor`);
+  }
+  return minWidthMm;
+}
+
 function declaredHeightMm(catalog: BodyCatalog, buildId: string): number {
   const heightMm = declaredEntry(catalog, buildId).nominalHeightMm;
   if (heightMm === undefined) {
@@ -336,7 +393,11 @@ function compose(args: {
   readonly probe: BodyProbe;
   readonly input: GenerateKitchenInput;
 }): GenerateKitchenResult {
-  let world = loadWorld(args.shell, args.catalog);
+  let world = loadWorld(
+    args.shell,
+    args.catalog,
+    plannedBoundariesOf(args.plan),
+  );
   const steps: GenerationStep[] = [];
   const commands: GenerationCommand[] = [];
 
@@ -412,7 +473,7 @@ function compose(args: {
   // Storage is the leftover rule, after all four priority items, and each physical body has one
   // deterministic log row rather than hiding a repeated insertion behind a count.
   for (const planned of plannedBases.filter(
-    (base) => base.role === "storage",
+    (base) => base.role === "storage" && !isAFreeEndFill(base),
   )) {
     const applied = insertPlannedBase(
       world,
@@ -453,6 +514,27 @@ function compose(args: {
       ...previous,
       commands: [...previous.commands, pending.command],
     };
+  }
+
+  // The free-end fills follow the resizes, so each opens onto a neighbour already at its planned width (ADR 0167).
+  for (const planned of plannedBases.filter(isAFreeEndFill)) {
+    const applied = insertPlannedBase(
+      world,
+      planned,
+      args.probe,
+      args.input.occurredAt,
+    );
+    if (applied.pendingResize) {
+      throw new Error(
+        `generateKitchen: the fill ${planned.id} received a width other than its planned ${String(planned.widthMm)} mm, so its tile was joined to a neighbour`,
+      );
+    }
+    world = applied.world;
+    commands.push(...applied.commands);
+    steps.push(applied.step);
+    if (applied.step.status === "placed") {
+      placedBaseIds.set(planned.id, applied.step.placementId);
+    }
   }
 
   // Every base is settled before any upper is attempted. A refusal is atomic in `insertBody`, so it
@@ -733,19 +815,25 @@ function runCommand(
   };
 }
 
-function loadWorld(design: Design, catalog: BodyCatalog): GenerationWorld {
+function loadWorld(
+  design: Design,
+  catalog: BodyCatalog,
+  plannedBoundaries: PlannedBoundariesMm,
+): GenerationWorld {
   const records = derivePlacementRecords(design, catalog);
   const recordedColumns = deriveRecordedColumns(
     records,
     design,
     toMetres(design.room.widthMm),
     COMPOSITION_WIDTH_LIMIT_MM,
+    plannedBoundaries,
   );
   const columns = deriveColumns(
     records,
     design,
     design.room,
     COMPOSITION_WIDTH_LIMIT_MM,
+    plannedBoundaries,
   );
   return {
     design,
@@ -753,7 +841,32 @@ function loadWorld(design: Design, catalog: BodyCatalog): GenerationWorld {
     recordedColumns,
     columns,
     voids: recomputeVoids(records, columns),
+    plannedBoundaries,
   };
+}
+
+/** The edge two consecutive planned bases share, wall by wall: where one planned tile ends and the next begins.
+ *  A free-end fill is a planned base, so both its edges are here. Not the first base's near edge nor the last
+ *  one's far edge: the leftover beyond a run's last base is not a planned tile, and composition merges it into
+ *  that base (ADR 0166 criterion 15). */
+function plannedBoundariesOf(plan: GenerationPlan): PlannedBoundariesMm {
+  const walls = new Set(plan.bases.map((base) => base.wall));
+  return new Map(
+    [...walls].map((wall) => [wall, boundariesBetweenBasesOn(plan, wall)]),
+  );
+}
+
+function boundariesBetweenBasesOn(
+  plan: GenerationPlan,
+  wall: DesignWall,
+): readonly number[] {
+  const onWall = plan.bases
+    .filter((base) => base.wall === wall)
+    .sort((first, second) => first.startMm - second.startMm);
+  return onWall.slice(1).flatMap((base, index) => {
+    const previous = onWall[index];
+    return previous?.endMm === base.startMm ? [base.startMm] : [];
+  });
 }
 
 function applySuccessfulResult(
@@ -765,6 +878,7 @@ function applySuccessfulResult(
     catalog: world.catalog,
     previousRecordedColumns: world.recordedColumns,
     emptyColumnWidthLimitMm: COMPOSITION_WIDTH_LIMIT_MM,
+    plannedBoundaries: world.plannedBoundaries,
   });
   return {
     design: reconciled.design,
@@ -772,6 +886,7 @@ function applySuccessfulResult(
     recordedColumns: reconciled.recordedColumns,
     columns: reconciled.columns,
     voids: reconciled.voids,
+    plannedBoundaries: world.plannedBoundaries,
   };
 }
 
@@ -946,7 +1061,7 @@ export function replayGenerationLog(input: {
     inTheEditorsCanonicalForm(
       input.log.commands.reduce(
         (world, command) => runCommand(world, command, probe).world,
-        loadWorld(shell, catalog),
+        loadWorld(shell, catalog, plannedBoundariesOf(input.log.plan)),
       ),
     ),
   );

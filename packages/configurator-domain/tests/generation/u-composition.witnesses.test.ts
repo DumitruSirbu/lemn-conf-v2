@@ -3,9 +3,11 @@
 // moved), the six rooms N10.6 adds, and the rooms ADR 0110 N11.5 moves or pins. Each room is read
 // exactly as N4′ and N10.6 read it: bodies per wall, from the corner outward. The N11.5 rows also
 // pin every body's start and end, because comparing `(role, buildId)` alone is how N11.1's fridge
-// moving by up to 599 mm passed unseen. This file is the regression pin `docs/milestones/M7B-u-shaped-
-// rooms.md` U3a-AC2 asks for; a diff here is either a rule change the architect must adjudicate, or
-// a bug in this plan.
+// moving by up to 599 mm passed unseen. This file is the regression pin for those witnesses
+// (`docs/decisions/0110`, U3a AC2); a diff here is either a rule change the architect must
+// adjudicate, or a bug in this plan. The plan is the composer's: wall A's 300-599 mm remainder N11.9
+// once filled here stands bare, and ADR 0167 D7's general pass (`filledPlanFor`, pinned in
+// `u-composition.wall-a-remainder.test.ts`) fills it.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -181,10 +183,9 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
       { role: "storage", buildId: "base-bottle-cargo" },
       { role: "storage", buildId: "base-panbank" },
       { role: "storage", buildId: "base-panbank" },
-      // ADR 0110 N11.9 (RQ25): the 300 mm that stood bare takes a door base.
-      { role: "storage", buildId: "base-cabinet" },
     ]);
-    expect(plan.remainderMm.A).toBe(0);
+    // The composer leaves wall A's 300 mm bare; ADR 0167 D7's general pass stands the door base there.
+    expect(plan.remainderMm.A).toBe(300);
     expect(rolesAndBuildIdsOn(plan, "C")).toStrictEqual([
       { role: "storage", buildId: "base-3drawer" },
       { role: "storage", buildId: "base-3drawer" },
@@ -402,10 +403,9 @@ describe("ADR 0110 N11.2 with RQ23: the drawer takes the hob's place where the b
       ...A_UP_TO_THE_HOB,
       body("base-bottle-cargo", 3300, 3600),
       body("base-panbank", 3600, 4200),
-      // ADR 0110 N11.9 (RQ25): the 300 mm that stood bare takes a door base.
-      body("base-cabinet", 4200, 4500),
     ]);
-    expect(plan.remainderMm.A).toBe(0);
+    // Wall A's run ends at 4500: the composer leaves 300 mm bare there for ADR 0167 D7's general pass.
+    expect(plan.remainderMm.A).toBe(300);
     expect(positionedBasesOn(plan, "C")).toStrictEqual([
       body("base-panbank", 900, 1500),
       body("base-3drawer", 1500, 2100),
@@ -414,7 +414,7 @@ describe("ADR 0110 N11.2 with RQ23: the drawer takes the hob's place where the b
     ]);
   });
 
-  it("6000 / 6000 / 6000, 1800 mm after the hob: the bottle stands, then two pan drawers, with a 300 mm door base at wall A's high end (RQ23, N11.9)", () => {
+  it("6000 / 6000 / 6000, 1800 mm after the hob: the bottle stands, then two pan drawers, with 300 mm left bare at wall A's high end (RQ23; ADR 0167 D7 fills it)", () => {
     const plan = planFor(uRoom(6000, 6000, 6000));
 
     expect(positionedBasesOn(plan, "A")).toStrictEqual([
@@ -422,10 +422,8 @@ describe("ADR 0110 N11.2 with RQ23: the drawer takes the hob's place where the b
       body("base-bottle-cargo", 3300, 3600),
       body("base-panbank", 3600, 4200),
       body("base-panbank", 4200, 4800),
-      // ADR 0110 N11.9 (RQ25): the 300 mm that stood bare takes a door base.
-      body("base-cabinet", 4800, 5100),
     ]);
-    expect(plan.remainderMm.A).toBe(0);
+    expect(plan.remainderMm.A).toBe(300);
     expect(positionedBasesOn(plan, "C")).toStrictEqual([
       body("base-3drawer", 900, 1500),
       body("base-3drawer", 1500, 2100),

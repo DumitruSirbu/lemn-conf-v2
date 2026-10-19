@@ -53,6 +53,8 @@ const OVEN_TOWER_BODY = "tall-oven-tower";
 const HOB_WITH_OVEN_BODY = "base-hob-oven";
 const BOTTLE_BODY = "base-bottle-cargo";
 const PANTRY_BODY = "tall-pantry";
+/** The cabinet generation's run-end fill stands (ADR 0167 D1); its step carries the storage role. */
+const RUN_END_FILL_BODY = "base-cabinet";
 
 /** The three ceilings the 7D5b plan measures at (*"identical at 2200, 2600 and 3900 mm ceilings
  *  unless stated"*). */
@@ -155,8 +157,12 @@ describe("the witnesses, re-read on the tree S2 leaves (task 1)", () => {
       const rows = resolveGenerationRows(result.log);
       expect(statusOf(rows, "hob")).toBe("placed");
       expect(statusOf(rows, "dishwasher")).toBe("placed");
-      // The bottle stays, so storage is inclus on its account, not the dishwasher's.
-      expect(nonDishwasherStorageBodies(result)).toEqual([BOTTLE_BODY]);
+      // The bottle stays, so storage is inclus on its account, not the dishwasher's. Wall A's 350 mm
+      // remainder past the bottle is now filled by one base-cabinet (ADR 0167 D1), also a storage body.
+      expect(nonDishwasherStorageBodies(result)).toEqual([
+        BOTTLE_BODY,
+        RUN_END_FILL_BODY,
+      ]);
       expect(statusOf(rows, "storage")).toBe("placed");
       expect(droppedRolesIn(result.log)).toEqual([]);
     });

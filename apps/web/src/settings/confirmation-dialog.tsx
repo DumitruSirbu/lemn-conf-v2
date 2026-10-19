@@ -9,6 +9,7 @@ import {
   useId,
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
   type RefObject,
 } from "react";
 
@@ -18,10 +19,12 @@ import styles from "./global-settings.module.css";
 
 /** The tab ring inside the dialog. A radio group contributes exactly its checked member (the browser's own rule),
  *  so unchecked radios are not listed: they would put the trap's first and last stops on elements Tab never
- *  visits. `:not([disabled])` is on both halves because a disabled radio is no more tabbable than a disabled
- *  button. *Renunță* is never disabled, so the ring is never empty: leaving must stay possible on every surface. */
+ *  visits. `:not([disabled])` is on every part because a disabled radio is no more tabbable than a disabled
+ *  button. Any other input is a stop of its own (the preset dialog's name field): left out, Tab would skip the field
+ *  and the trap's first stop would be wrong. *Renunță* is never disabled, so the ring is never empty: leaving must
+ *  stay possible on every surface. */
 const TAB_STOP_SELECTOR =
-  'button:not([disabled]), input[type="radio"]:checked:not([disabled])';
+  'button:not([disabled]), input[type="radio"]:checked:not([disabled]), input:not([type="radio"]):not([disabled])';
 
 const SETTINGS_TEST_ID_PREFIX = "global-settings";
 
@@ -65,11 +68,17 @@ export function ConfirmationDialog({
   testIdPrefix,
   onConfirm,
   onStay,
+  isConfirmDisabled = false,
+  children,
 }: {
   readonly view: ConfirmationCopy;
   readonly testIdPrefix: string;
   readonly onConfirm: () => void;
   readonly onStay: () => void;
+  /** The confirmation cannot be given yet (something it waits on): its own reason, not the customer's access. */
+  readonly isConfirmDisabled?: boolean;
+  /** Anything the question needs beside its sentence, drawn under it (the preset dialog's name field and status). */
+  readonly children?: ReactNode;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -113,7 +122,10 @@ export function ConfirmationDialog({
           bodyId={bodyId}
           testIdPrefix={testIdPrefix}
           actionsAlignment="center"
-        />
+          isConfirmDisabled={isConfirmDisabled}
+        >
+          {children}
+        </ConfirmStep>
       </div>
     </div>
   );
@@ -175,6 +187,8 @@ export function ConfirmStep({
   bodyId,
   testIdPrefix = SETTINGS_TEST_ID_PREFIX,
   actionsAlignment = "start",
+  isConfirmDisabled = false,
+  children,
 }: {
   readonly step: ConfirmationStep;
   readonly editability: Editability;
@@ -182,6 +196,8 @@ export function ConfirmStep({
   readonly bodyId?: string;
   readonly testIdPrefix?: string;
   readonly actionsAlignment?: ActionsAlignment;
+  readonly isConfirmDisabled?: boolean;
+  readonly children?: ReactNode;
 }) {
   return (
     <>
@@ -193,6 +209,7 @@ export function ConfirmStep({
         >
           {step.view.body}
         </p>
+        {children}
       </div>
       <div className={FOOTER_CLASS_BY_ALIGNMENT[actionsAlignment]}>
         <div className={styles.actions}>
@@ -210,7 +227,7 @@ export function ConfirmStep({
             type="button"
             className={styles.apply}
             data-testid={`${testIdPrefix}-confirm`}
-            disabled={editability.isReadOnly}
+            disabled={editability.isReadOnly || isConfirmDisabled}
             {...(editability.isReadOnly
               ? { title: editability.disabledReason }
               : {})}

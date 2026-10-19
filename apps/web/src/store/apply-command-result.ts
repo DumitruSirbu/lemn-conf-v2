@@ -1,4 +1,4 @@
-// The store's half of `docs/milestones/M3-mutations.md` work item 9: turn a domain `CommandResult` into the exact
+// The store's half of docs/decisions/0170 M3 work item 9: turn a domain `CommandResult` into the exact
 // state the store holds next. It lives beside the store so the store's actions stay the call/apply/schedule
 // adapter and the two easiest invariants to break (frozen columns, a selection that never dangles) are testable
 // without zustand. No product rule lives here: guards and the ADR-sensitive reconciliation live in the domain;

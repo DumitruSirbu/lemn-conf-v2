@@ -5,7 +5,7 @@ a U's side-wall presets cut away the run their eye stands in, and its overview l
 side on the centre line (U4 QA). **A8, 2026-09-29:** A2's run bound withdrawn; the cutaway survives a sync; Q-U4-cam answered "Hide them"; D14 owed by U5's close
 Date: 2026-09-29
 Type: Finding + Decision (architect), on owner rulings of 2026-09-29 relayed by the coordinator
-Milestone: M7B, wave U0 (`docs/milestones/M7B-u-shaped-rooms.md`, *Wave U0*, *U0 census*, *U0
+Milestone: M7B, wave U0 (`docs/milestones/done/M7B-u-shaped-rooms.md`, *Wave U0*, *U0 census*, *U0
 measurements*)
 
 **Pointer, 2026-10-01.** Decision 7's D10 gives `findCornerOverlaps` the A∩C corner. M7C wave C2 bands

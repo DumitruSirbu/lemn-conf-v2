@@ -1,6 +1,7 @@
 import type { Design } from "@lemnaria/configurator-domain";
 import {
   CURRENT_SCHEMA_VERSION,
+  isUnstorableText,
   migrateDesign,
 } from "@lemnaria/configurator-domain";
 
@@ -8,7 +9,6 @@ import { reducedCauseOf } from "./migration-errors.js";
 import { openApplicationDatabase } from "./open-application-database.js";
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { requireSha256Digest } from "./sha256-digest.js";
-import { isUnstorableText } from "./snapshot-judgement.js";
 
 export type SentKitchenViewOperation =
   | "record a sent kitchen view"

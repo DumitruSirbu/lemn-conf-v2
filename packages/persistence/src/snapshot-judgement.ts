@@ -1,13 +1,7 @@
+import { isUnstorableText } from "@lemnaria/configurator-domain";
 import type { SubmissionSnapshot } from "@lemnaria/configurator-domain";
 
 import { refusalOf, requireObject } from "./contact-submission-refusal.js";
-
-/** Half of a surrogate pair: a high half with no low half after it, or a low half with no high half before it. Tested
- *  without the `u` flag so a half is seen as a code unit. */
-const LONE_SURROGATE =
-  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
-
-const NUL = "\u0000";
 
 /** How many levels of lists and objects a snapshot may nest, the root object counting as the first. A design's and a
  *  price's depths are fixed by their types and are a handful; the bound is far from all of them and does not move
@@ -178,9 +172,4 @@ function isPlainObject(value: unknown): value is object {
   if (!isJsonObject(value)) return false;
   const prototype: unknown = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
-}
-
-/** What Postgres cannot hold in text: a NUL, and half of a surrogate pair. */
-export function isUnstorableText(text: string): boolean {
-  return text.includes(NUL) || LONE_SURROGATE.test(text);
 }

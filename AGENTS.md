@@ -15,7 +15,7 @@ yourself, and it tells you which of them are worth opening at all.
 
 Milestones marked **Done** are archived in `docs/milestones/done/` and must **not** be read — their
 plans describe intentions that have since shipped or been superseded, and acting on one reintroduces
-a design the project abandoned. Business logic lives in `docs/decisions/`: those records are this
+a design the project abandoned. `docs/archive/` is the same: historical record, not to be read except for a history question. Business logic lives in `docs/decisions/`: those records are this
 repository's knowledge base and the durable "why" behind the code. A dated decision beats any
 milestone prose.
 
@@ -63,14 +63,14 @@ milestone prose.
 | `docs/best-practices/engineering-conventions.md`                                    | Writing code — naming, structure, DRY/KISS/SOLID.                                                                                                                                                                                                                                                                                                  |
 | `docs/best-practices/browser-and-visual-qa.md`                                      | Verifying a visible or interactive surface.                                                                                                                                                                                                                                                                                                        |
 | `docs/best-practices/documentation.md`                                              | Writing a decision record or milestone update.                                                                                                                                                                                                                                                                                                     |
-| `docs/TESTS_REVIEW.md`, `docs/test-audits/`                                         | The first full test review and its fix-up; later audit reports (none yet).                                                                                                                                                                                                                                                                         |
+| `docs/test-audits/`                                                                 | Audit reports (none yet). The first full review, `docs/archive/TESTS_REVIEW.md`, is historical: do not read it.                                                                                                                                                                                                                                    |
 | `.claude/agents/` (Claude Code) or `docs/AGENT_ROLES.md` and `docs/agents/` (Codex) | Dispatching a sub-agent; role cards and hand-off formats (including `configurator-test-auditor`). Use whichever matches the coordinating LLM — the two are kept equivalent but are not the same file format.                                                                                                                                       |
 
 **Current state and history**
 
 | Read                        | When                                                                                                                                                                 |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/STATUS.md`            | **First, every session.** Where the project stands, what is open, what to do next.                                                                                   |
+| `docs/STATUS.md`            | **First, every session.** Short current state: phase table, what is open. History is in `docs/archive/STATUS-history.md`.                                            |
 | `docs/BACKLOG.md`           | Reported issues with no owner and no phase yet. Read before proposing a fix for something a user reported — it may already be recorded, with the investigation done. |
 | `docs/decisions/`           | The knowledge base for business logic. Before re-deciding anything — a dated record supersedes earlier prose, and must not be silently overturned.                   |
 | `docs/milestones/M<n>-*.md` | Working on a phase STATUS lists as In progress or Planned. **Never one marked Done.**                                                                                |

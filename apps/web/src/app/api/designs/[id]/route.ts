@@ -25,6 +25,7 @@ import {
   readUtf8BodyWithLimit,
   type BoundedBodyFailure,
 } from "@/lib/server/read-body-with-limit";
+import { mayAuthorPresets } from "@/lib/server/preset/preset-authoring-policy";
 import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
 import { refusalOfSaveLimit } from "@/lib/server/rate-limit/judge-save-request";
 import { getRepository } from "@/lib/server/repository";
@@ -66,6 +67,10 @@ const EXPECTED_REVISION_HEADER = "x-expected-revision";
  * whether it may edit by attempting an edit (§9 rules out warn-after-click). It is a boolean; no
  * token, hash or fragment leaves this handler.
  *
+ * `canAuthorPresets` is the same kind of fact: the server's answer, by the policy the preset save route asks, to whether
+ * the editor may show its save-as-preset control (ADR 0112 decision 2, bullet 3). It is true only beside `canWrite`, and
+ * the save route re-proves both credentials and asks the policy again.
+ *
  * It is advisory, never the authorisation decision. Nothing may be written on the strength of a
  * `canWrite` this route returned: `PUT`/`PATCH` make the hash part of `saveAuthorized`'s own `update`
  * predicate, and a check-then-write window is what ADR 0019 closes.
@@ -86,12 +91,14 @@ export async function GET(
   try {
     const outcome = await getRepository().loadOwned({ id, visitorHash });
     if (outcome.kind === "none") return designNotFoundResponse(id);
+    const canWrite = hasWriteCredentialFor(request.cookies, id);
     return NextResponse.json(
       {
         id,
         design: outcome.design,
         revision: outcome.revision,
-        canWrite: hasWriteCredentialFor(request.cookies, id),
+        canWrite,
+        canAuthorPresets: canWrite && (await mayAuthorPresets(request)),
       },
       { headers: PER_CREDENTIAL_HEADERS },
     );

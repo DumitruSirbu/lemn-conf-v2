@@ -1,0 +1,632 @@
+/**
+ * **Step 1's preset wait (1D), list (1E) and Preview pop-up.**
+ *
+ * The wait, the list and the card follow `Presete.dc.html` frames `#1d`, `#1e-1` and `#d1e`; the card carries one
+ * control and the pop-up carries Previous, Next and Select (ADR 0003 decision 4b, amended). The footer buttons are
+ * `room.module.css`'s own `.composeFooter`, `.back` and `.cta`, so the footers cannot drift; this file adds classes and
+ * edits none of that file's.
+ */
+
+/* Scrolls vertically when the cards outgrow the space above the fixed footer, as 1F's `.composeBody` does, and declares
+ * both axes because a lone `overflow-y: auto` computes `overflow-x` to `auto` too (ADR 0082 decision 2). The 20 px
+ * below keeps the last card clear of the footer. */
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 18px 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.heading {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+/* ── 1D, the wait ────────────────────────────────────────────────────────────────────────────── */
+
+/* One element, so that the 200 ms fade covers the heading, the notice and the skeletons together. `inherit` takes the
+ * body's own gap, which differs between the phone and desktop. */
+.waitContent {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  animation: chooserFadeIn 200ms ease-out;
+}
+
+.waitNotice {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 11px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.waitText {
+  font: 400 12.5px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.spinner {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: chooserTurn 1s linear infinite;
+}
+
+.skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The card's own shape: the 4:3 image, the name and the 44 px button. */
+.skeleton {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 15px;
+  animation: chooserShimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.skeletonImage {
+  background: #e8e3da;
+  aspect-ratio: 4 / 3;
+}
+
+.skeletonBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.skeletonName {
+  display: block;
+  width: 60%;
+  height: 14px;
+  background: #e2ddd3;
+  border-radius: 4px;
+}
+
+.skeletonButton {
+  display: block;
+  height: var(--touch-target);
+  background: #ebe6dd;
+  border-radius: 11px;
+}
+
+/* ── 1E, the list ─────────────────────────────────────────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A column (`Presete.dc.html#1e-1`): the image edge to edge, then the name, the note and the button. */
+.card {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+}
+
+/* The stored image is 4:3 (1280 x 960, ADR 0112 decision 6), so its box is too, and `contain` letterboxes any other
+ * shape instead of cropping it. */
+.thumb {
+  position: relative;
+  overflow: hidden;
+  background: #efece5;
+  border-bottom: 1px solid var(--line-soft);
+  aspect-ratio: 4 / 3;
+}
+
+.imageFrame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Over the image until it has loaded or failed; the box behind it is the image's own. */
+.imageLoading {
+  position: absolute;
+  inset: 0;
+  background: #e8e3da;
+  animation: chooserShimmer 1.6s ease-in-out infinite;
+}
+
+.imageMissing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  overflow: hidden;
+  background: repeating-linear-gradient(
+    135deg,
+    #e9e4da 0 8px,
+    #f1ede5 8px 16px
+  );
+}
+
+/* A typed name may be one unbroken word, so it wraps anywhere rather than clipping. */
+.imageMissingName {
+  max-width: 80%;
+  padding: 9px 12px;
+  font: 700 14px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  background: rgb(250 248 244 / 90%);
+  border-radius: 8px;
+}
+
+.cardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 13px 14px 14px;
+}
+
+/* A typed name is the owner's text, so it may be one long word: it wraps rather than widening the card. */
+.name {
+  margin: 0;
+  font: 700 15.5px/1.3 var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+/* `#eef1ea` and `#2d5016` are the frame's own, drawn for a change that was made for the customer and is good news,
+ * not a refusal. */
+.adjusted {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 8px 10px;
+  font: 400 12px/1.35 var(--font-ui);
+  color: #2d5016;
+  background: #eef1ea;
+  border-radius: 9px;
+}
+
+.adjustedGlyph {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  font: 700 10px/14px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: #2d5016;
+  border-radius: 50%;
+}
+
+/* The card's width, and 44 px tall (DEVELOPMENT-SPEC section 10.1); a longer label wraps and grows the button. */
+.previewButton {
+  min-height: var(--touch-target);
+  padding: 6px 12px;
+  font: 700 13.5px/1.2 var(--font-ui);
+  color: var(--accent-strong);
+  text-align: center;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.previewButton:focus-visible,
+.navButton:focus-visible,
+.closeButton:focus-visible,
+.selectButton:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* ── The Preview pop-up (`Presete.dc.html#1g-first`, `#d1g`) ─────────────────────────────────────── */
+
+/* `7` is the settings item's own layer (`configure.module.css`'s stacking table): a modal covers everything the
+ * screen draws. Fixed and out of flow, so it claims no cell, and it is the one band `useBackgroundInert` leaves live. */
+.dialogHost {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(28 24 20 / 52%);
+}
+
+/* The phone's sheet: full width from the bottom edge, as the settings sheet is. */
+.dialog {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 94dvh;
+  padding: 10px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  background: var(--paper);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 22%);
+}
+
+.dialog:focus {
+  outline: none;
+}
+
+/* Decoration only: it does not drag. */
+.handle {
+  flex: none;
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.dialogHead {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -6px;
+}
+
+.position {
+  font: 700 13px/1 var(--font-ui);
+  color: var(--ink-muted);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.closeButton {
+  display: flex;
+  flex: 0 0 var(--touch-target);
+  width: var(--touch-target);
+  height: var(--touch-target);
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  font: 400 20px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.closeButton[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* `flex: none` and `touch-action: pan-y`: the box keeps its 4:3 when the sheet is taller than the screen, and the
+ * browser keeps the vertical pan while a sideways swipe reaches `useSlideSwipe`. */
+.slide {
+  flex: none;
+  overflow: hidden;
+  background: #efece5;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  aspect-ratio: 4 / 3;
+  touch-action: pan-y;
+}
+
+/* Shown again each time `hidden` is lifted, so a slide change fades the new one in. */
+.slideFrame {
+  width: 100%;
+  height: 100%;
+  animation: chooserFadeIn 150ms ease-out;
+}
+
+.slideText {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.slideTitle {
+  margin: 0;
+  font: 700 19px/1.25 var(--font-ui);
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.slideText .adjusted {
+  align-self: flex-start;
+  font-size: 12.5px;
+}
+
+/* Phone: Previous and Next share a row above a full-width Select. The source order is the focus order (×, Previous,
+ * Next, Select) at every width; desktop moves Select between them by grid placement alone. */
+.dialogActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.navButton {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 10px;
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--accent-strong);
+  text-align: center;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.navGlyph {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.navButton:disabled {
+  color: #b3a99c;
+  cursor: default;
+  background: var(--surface);
+  border-color: var(--line-soft);
+}
+
+/* A label that still wraps grows the button instead of overflowing it: the 1.2 line height and the vertical padding
+ * keep two lines inside the box, and `min-height` keeps the 52 px target for one. Inert through `aria-disabled`, not
+ * `disabled`, so that focus stays on it while it is busy or the day's limit is reached. */
+.selectButton {
+  grid-column: 1 / -1;
+  min-height: 52px;
+  padding: 8px 14px;
+  font: 700 15px/1.2 var(--font-ui);
+  color: var(--paper);
+  cursor: pointer;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+}
+
+.selectButton[aria-disabled="true"] {
+  color: #a89c8e;
+  cursor: default;
+  background: #ece7dd;
+  border-color: var(--line);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+@keyframes chooserTurn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes chooserShimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes chooserFadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .skeleton,
+  .imageLoading,
+  .waitContent,
+  .slideFrame {
+    animation: none;
+  }
+}
+
+/* ── Desktop (`room.module.css`'s own breakpoint): D1E's four-up grid, and a centred pop-up ──────── */
+
+@media (min-width: 900px) {
+  .body {
+    gap: 24px;
+    width: 100%;
+    max-width: 1248px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+
+  .heading {
+    font-size: 28px;
+  }
+
+  .skeletons {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+  }
+
+  .skeleton {
+    border-radius: 16px;
+  }
+
+  .skeletonBody {
+    gap: 12px;
+    padding: 16px 18px;
+  }
+
+  .skeletonName {
+    height: 15px;
+  }
+
+  /* Aligned to the top, so that one long name does not stretch the cards beside it (`Presete.dc.html#d1e-8`). */
+  .list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+    align-items: start;
+  }
+
+  .card {
+    border-radius: 16px;
+  }
+
+  .cardInfo {
+    gap: 11px;
+    padding: 16px 18px 18px;
+  }
+
+  .name {
+    font-size: 17px;
+  }
+
+  .adjusted {
+    gap: 8px;
+    padding: 9px 11px;
+    font-size: 13px;
+  }
+
+  .previewButton {
+    padding: 6px 14px;
+    font-size: 14px;
+  }
+
+  .dialog {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    width: min(880px, calc(100vw - 80px));
+    max-height: calc(100dvh - 80px);
+    padding: 18px 28px 26px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgb(28 24 20 / 28%);
+    transform: translate(-50%, -50%);
+  }
+
+  .handle {
+    display: none;
+  }
+
+  .dialogHead {
+    margin-top: 0;
+  }
+
+  .position {
+    font-size: 13.5px;
+  }
+
+  /* 440 px tall, 4:3, centred (`#d1g`); on a short window it gives up height before Select leaves the screen. The 360 px
+   * is the dialog's own chrome (head, name, note, status, actions, gaps, padding) with room for a two-line name, plus
+   * the 80 px the dialog keeps clear of the viewport. */
+  .slide {
+    align-self: center;
+    width: auto;
+    max-width: 100%;
+    height: clamp(160px, calc(100dvh - 440px), 440px);
+  }
+
+  .slideTitle {
+    font-size: 22px;
+  }
+
+  .slideText .adjusted {
+    font-size: 13.5px;
+  }
+
+  .dialogActions {
+    grid-template-columns: 1fr minmax(260px, auto) 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .navButton {
+    padding: 6px 20px;
+    font-size: 14.5px;
+  }
+
+  .navGlyph {
+    font-size: 19px;
+  }
+
+  .previousButton {
+    grid-row: 1;
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .nextButton {
+    grid-row: 1;
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .selectButton {
+    grid-row: 1;
+    grid-column: 2;
+    padding: 8px 28px;
+    font-size: 15.5px;
+  }
+}

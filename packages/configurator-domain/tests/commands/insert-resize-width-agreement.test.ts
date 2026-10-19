@@ -252,7 +252,7 @@ describe("what a resize accepts is what an insert would have built", () => {
       });
   }
 
-  // **The invariant this sub-wave exists to protect** (`docs/milestones/M5-width.md`, 5D2a's risk):
+  // **The invariant this sub-wave exists to protect** (`docs/decisions/0032`, decision 4):
   // a bound that widened what `insertBody` offers without widening what `setWidth` accepts — or the
   // reverse — is `docs/BACKLOG.md` entry 13 reappearing. Both paths read one declaration now, so a
   // divergence would be silent; this states the agreement as an assertion over the shipped kitchen

@@ -10,6 +10,7 @@ import {
   CSP_ENFORCED_HEADER,
   cspResponseHeaderName,
   NONCE_HEADER,
+  PRESET_IMAGE_CONTENT_SECURITY_POLICY,
   SHARE_VIEW_HEADERS,
 } from "@/lib/security-headers";
 
@@ -68,11 +69,19 @@ export function proxy(
   return answerCountedRead({ request, response, policy });
 }
 
-/** The headers a page's answer gets, set on a served page and on a refused one alike. */
+/** The headers a page's answer gets, set on a served page and on a refused one alike. A stored preset's image is not a
+ *  page: it gets the closed policy of `PRESET_IMAGE_CONTENT_SECURITY_POLICY`, enforced whatever the page policy's mode. */
 function applyPageHeaders(
   response: NextResponse,
   { pathname, policy }: { pathname: string; policy: string },
 ): void {
+  if (isPresetImagePath(pathname)) {
+    response.headers.set(
+      CSP_ENFORCED_HEADER,
+      PRESET_IMAGE_CONTENT_SECURITY_POLICY,
+    );
+    return;
+  }
   response.headers.set(
     cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE),
     policy,
@@ -234,6 +243,21 @@ function isSharePath(pathname: string): boolean {
     routeSegments.length === 2 &&
     routeSegments[0] === "s" &&
     routeSegments[1] !== ""
+  );
+}
+
+/** `/api/presets/{id}/image`, unprefixed: the one address the image route answers on. A locale in front of `/api` is an
+ *  ordinary framework 404, which gets the page policy like any other. */
+function isPresetImagePath(pathname: string): boolean {
+  const [api, presets, id, image, ...rest] = pathname
+    .split("/")
+    .filter(Boolean);
+  return (
+    api === "api" &&
+    presets === "presets" &&
+    id !== undefined &&
+    image === "image" &&
+    rest.length === 0
   );
 }
 

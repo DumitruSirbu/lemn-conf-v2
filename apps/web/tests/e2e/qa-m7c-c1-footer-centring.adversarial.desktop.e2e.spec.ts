@@ -1,7 +1,7 @@
-// M7C wave C1 slice S1 adversarial QA (docs/WORKFLOW.md step 3), criterion 1
-// (`docs/milestones/M7C-m7-feedback-fixes.md`, *C1*): at 1280, 1440 and 1920 px wide, in 1A, 1B, 1C
-// and 1F, each footer control's vertical centre is within 1 px of the footer's. *Must not:* any phone
-// footer rule changes; a control moves horizontally.
+// M7C wave C1 slice S1 adversarial QA (docs/WORKFLOW.md step 3), FB-009 (docs/decisions/0171, M7C C1 S1):
+// at 1280, 1440 and 1920 px wide, in 1A, 1B, 1C and 1F, each footer control's vertical centre is within
+// 1 px of the footer's (the test's own tolerance). *Must not:* any phone footer rule changes; a control
+// moves horizontally.
 //
 // **Computed layout, not the declaration.** `tests/room/step-one-desktop-footer-centring.test.ts`
 // pins `align-items: center` in two rule bodies and stays green under a later rule that overrides it

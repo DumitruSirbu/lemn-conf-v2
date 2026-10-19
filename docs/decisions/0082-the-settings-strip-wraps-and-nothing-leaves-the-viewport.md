@@ -308,4 +308,4 @@ screen, and `+N` says that there is more rather than hiding it.
 
 The desktop canvas gets ADR 0094's row back — about 45 px at every width — and the mobile canvas gets
 the whole strip band back, less the 2 px the header grows to hold frame 2A's own chip. The plan is
-[`docs/milestones/chrome-parity-with-the-design-reference.md`](../milestones/chrome-parity-with-the-design-reference.md).
+[`docs/milestones/done/chrome-parity-with-the-design-reference.md`](../milestones/done/chrome-parity-with-the-design-reference.md).

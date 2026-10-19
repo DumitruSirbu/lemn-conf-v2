@@ -83,7 +83,7 @@ the finest number the product can record.
 **F1 is a contract gap in ADR 0073, surfacing as an implementation defect against wave 6K-c's own
 stated acceptance criterion.** Both halves are true and the pair is what sizes the fix.
 
-- **The criterion is stated and is violated.** `docs/milestones/M6-price-and-global-settings.md`,
+- **The criterion is stated and is violated.** `docs/milestones/done/M6-price-and-global-settings.md`,
   wave 6K-c: _"no sequence of commands makes a frozen extent shallower than it was frozen at"_. QA's
   sequence does. The diff is not shippable as it stands.
 - **The rule that would meet it is not stated anywhere.** ADR 0073 decision 1 defines the field as the

@@ -6,6 +6,9 @@ Two independent recovery paths, chosen by how far back the needed state is:
 - **A dated Vercel Blob export** — anything older than that window, back to whichever nightly
   export still exists (14-day rotation; see `apps/web/src/lib/server/backup-designs.ts`).
 
+This file restores `designs`. The `presets` table has its own export and its own recipe, further down
+(*Restoring the `presets` table*): the two exports never share a prefix, a cron or a restore.
+
 Accepted worst-case data loss: up to roughly a day. Beyond the PITR window, the most recent
 recovery point is the last nightly export, not the moment of failure — a known consequence of this
 mechanism (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and backups").
@@ -311,6 +314,170 @@ or, if the whole database needs replacing, following Neon's project-level restor
 procedure to promote the restored branch. Prefer the narrower, row-level repair; reach for a
 whole-branch promotion only when the corruption is broad enough that "designs the export didn't
 cover" is not a meaningful distinction anymore.
+
+## Restoring the `presets` table
+
+**Wave M8C P2, written 2026-10-18. Nothing here has been executed**: the export has not been deployed or run, and the
+recipe below has not been drilled [src: written from the code and the migration; no database, Blob store or script
+was touched]. Treat the first real use as the drill, against a throwaway target (step 3 of Path 2 above).
+
+### What the export is
+
+| | |
+| --- | --- |
+| Route | `/api/cron/backup-presets`, declared in `apps/web/vercel.json` at `15 3 * * *` (03:15 UTC daily, between the `designs` export at 03:00 and the rate-limit prune at 03:30) |
+| Blob prefix | `backups/presets/` (the trailing slash matters; it can never match `backups/designs/`). A pathname is `backups/presets/<ISO timestamp>-<8 hex>.ndjson` |
+| Rows | **Every** `presets` row, `hidden` ones included, one JSON object per line, in `id` order. A zero-row export is uploaded too, as a single newline |
+| Columns | `id, shape, wall_a_mm, wall_b_mm, wall_c_mm, height_mm, schema_version, design_document, typed_name, thumbnail_hex, thumbnail_type, status, created_at`. The image is `thumbnail_hex`, the bytes as lowercase hex text, the way the repository reads and writes it; it is `decode(..., 'hex')` on the way back |
+| Retention | 14 days, and at most 30 files, the same rule as `designs`. Rotation lists and deletes only under `backups/presets/` |
+| Credentials | None new. It reads as the application role (`DATABASE_URL`, `app_designs`, whose table-level `SELECT` on `presets` covers every column) and writes with the project's one `BLOB_READ_WRITE_TOKEN`; the cron authenticates with `CRON_SECRET`, **set for Production only**. "Separately scoped" (ADR 0012) means the query and the prefix, not a second token |
+| Not covered | **Preview.** `CRON_SECRET` is deliberately not set there, so the route answers 401 and a preview database's presets are never backed up |
+
+Neon's point-in-time history is 6 hours (Path 1 above), so this export is the only recovery point older than that.
+
+### Find and download the export
+
+The same commands as Path 2 steps 1 and 2, with the other prefix:
+
+```bash
+BLOB_READ_WRITE_TOKEN="$BLOB_READ_WRITE_TOKEN" vercel blob list --prefix backups/presets/
+BLOB_READ_WRITE_TOKEN="$BLOB_READ_WRITE_TOKEN" vercel blob get \
+  "backups/presets/2026-10-19T03:15:00.000Z-9f3c1a07.ndjson" \
+  --access private \
+  --output ./restore-presets-2026-10-19.ndjson
+```
+
+Pick the newest export at or before the recovery point. An export of one newline is a real snapshot of an empty table:
+if it is the newest, restoring from it restores nothing, correctly.
+
+### Restore into a throwaway target first, with the owner credential
+
+The application role **cannot** restore: it has no `UPDATE` and its `INSERT` is by column, without `status` and
+`created_at`, so it can neither put a hidden preset back hidden nor keep a preset's original time. The restore runs as
+the **owner** role. Follow Path 2 step 3 to make a throwaway database and migrate it (the migration creates `presets`;
+the grant is not needed for the owner). Only after that target checks out, and only if the live table really needs
+repair, run the same script with the owner connection string for the live database in `RESTORE_DATABASE_URL`, supplied
+for that one invocation and never printed or written into a file.
+
+```ts
+// restore-presets-from-backup.mts
+// Usage: RESTORE_DATABASE_URL=... tsx restore-presets-from-backup.mts ./restore-presets-2026-10-19.ndjson
+import { readFileSync } from "node:fs";
+
+import { migrateDesign } from "@lemnaria/configurator-domain";
+import { neon } from "@neondatabase/serverless";
+
+interface PresetBackupRow {
+  id: string;
+  shape: string;
+  wall_a_mm: number;
+  wall_b_mm: number | null;
+  wall_c_mm: number | null;
+  height_mm: number;
+  schema_version: number;
+  design_document: unknown;
+  typed_name: string | null;
+  thumbnail_hex: string;
+  thumbnail_type: string;
+  status: string;
+  created_at: string;
+}
+
+async function main(): Promise<void> {
+  const filePath = process.argv[2];
+  if (!filePath) throw new Error("Usage: tsx restore-presets-from-backup.mts <path-to-ndjson>");
+
+  const connectionUrl = process.env["RESTORE_DATABASE_URL"];
+  if (!connectionUrl) throw new Error("Set RESTORE_DATABASE_URL to the restore target (owner role).");
+
+  const sql = neon(connectionUrl);
+  const lines = readFileSync(filePath, "utf8").split("\n").filter((line) => line.length > 0);
+
+  let restored = 0;
+  let alreadyPresent = 0;
+  let failed = 0;
+
+  for (const line of lines) {
+    // Each row fails on its own: a single corrupt line must not abort the whole restore.
+    try {
+      const row = JSON.parse(line) as PresetBackupRow;
+      // Validation only. The document and its version go back exactly as exported: a preset keeps the
+      // `schema_version` it was written in and is migrated when it is read, so nothing is rewritten here.
+      migrateDesign(row.schema_version, row.design_document);
+
+      // `do nothing`, never `do update`: an update would put back the `status` the export held and so
+      // re-publish a preset the owner hid after the export was taken.
+      const inserted = await sql`
+        insert into presets (
+          id, shape, wall_a_mm, wall_b_mm, wall_c_mm, height_mm, schema_version, design_document,
+          typed_name, thumbnail, thumbnail_type, status, created_at
+        )
+        values (
+          ${row.id}, ${row.shape}, ${row.wall_a_mm}::integer, ${row.wall_b_mm}::integer, ${row.wall_c_mm}::integer,
+          ${row.height_mm}::integer, ${row.schema_version}::integer, ${JSON.stringify(row.design_document)}::jsonb,
+          ${row.typed_name}::text, decode(${row.thumbnail_hex}::text, 'hex'), ${row.thumbnail_type},
+          ${row.status}, ${row.created_at}::timestamptz
+        )
+        on conflict (id) do nothing
+        returning id
+      `;
+      if (inserted.length === 1) restored += 1;
+      else alreadyPresent += 1;
+    } catch (error) {
+      failed += 1;
+      console.error("Skipped one row that failed validation or insert:", error instanceof Error ? error.name : "error");
+    }
+  }
+
+  console.log(`Restored ${String(restored)}, already present ${String(alreadyPresent)}, skipped ${String(failed)}.`);
+  if (failed > 0) {
+    console.warn("Rows were skipped. Investigate before treating the restore as complete.");
+  }
+}
+
+await main();
+```
+
+```bash
+cd packages/persistence
+RESTORE_DATABASE_URL="<restore-drill connection string>" \
+  ./node_modules/.bin/tsx ./restore-presets-from-backup.mts ../../restore-presets-2026-10-19.ndjson
+```
+
+The same two notes as the `designs` script apply: save it as `.mts`, and run it from `packages/persistence/` with the
+workspace's own `tsx`. The script prints an exception's class name, not its message, because a driver message can carry
+a connection value.
+
+### Verify
+
+The bar is the image, byte for byte, and the status, not a row count:
+
+```bash
+diff \
+  <(psql "<restore-drill connection string>" -At -c "select id || '|' || status || '|' || md5(thumbnail) from presets" | sort) \
+  <(node -e '
+    const fs = require("node:fs");
+    const crypto = require("node:crypto");
+    for (const line of fs.readFileSync(process.argv[1], "utf8").split("\n").filter(Boolean)) {
+      const r = JSON.parse(line);
+      const md5 = crypto.createHash("md5").update(Buffer.from(r.thumbnail_hex, "hex")).digest("hex");
+      console.log(`${r.id}|${r.status}|${md5}`);
+    }
+  ' ./restore-presets-2026-10-19.ndjson | sort)
+```
+
+No output from `diff` and exit status 0 means every id, status and image checksum matches, for a restore into an empty
+table. Into a table that already held rows, expect `diff` to show the rows the live table kept as they were.
+
+### After a restore, check what the restore cannot know
+
+- **Deleted rows come back.** The table has no application `DELETE`, but the owner can delete by hand; anything deleted
+  since the export reappears. Delete it again if it should stay gone.
+- **A Path 1 (PITR) restore moves the whole database back**, so a preset hidden after the restore point is published
+  again. Re-check the hidden presets afterwards (the hiding statement is in the runbook for applying a table migration,
+  *For `0011`*, the owner's hand steps) and hide them again.
+- **The row-level restore above keeps whatever is in the live table** (`on conflict do nothing`), so a preset the owner
+  has since hidden stays hidden, and a preset edited by hand since the export is not overwritten.
 
 ## Drill record — Path 2 executed 2026-08-25
 

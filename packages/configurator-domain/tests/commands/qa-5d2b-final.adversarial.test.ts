@@ -215,7 +215,7 @@ describe("a shrink's strip widens on the next press", () => {
   // space itself is fine (ADR 0037, *"ok to have empty space left"*).
   //
   // What is owed is §9 telling the customer the space is too narrow for anything and may be left —
-  // wave 5D2c's copy, recorded in `docs/milestones/M5-width.md`. The measurement below is kept as a
+  // wave 5D2c's copy, recorded in `docs/decisions/0043`. The measurement below is kept as a
   // passing row so the shape stays visible rather than becoming folklore.
   it("publishes the strip as an opening, with nothing offered into it", () => {
     const world = press(oneRun(), 550);

@@ -15,7 +15,7 @@ import { UNLISTED_DATABASE } from "../src/test-database-url.js";
 import { spawnPersistenceCli } from "./support/spawn-persistence-cli.js";
 
 /**
- * Adversarial QA of `docs/milestones/migration-environment-safety-check.md`: inputs the
+ * Adversarial QA of docs/decisions/0169 AC1-AC9 and Decision 2: inputs the
  * implementer's `migration-target.test.ts` and `migration-target-cli.test.ts` do not try.
  *
  * **R3, binding on every spawned case here:** `MIGRATION_DATABASE_URL` is always set explicitly
@@ -469,7 +469,7 @@ describe("the CLIs, spawned — cases the implementer's CLI file does not try", 
 
   it("migrate passes a matching ad-hoc label all the way to the connect step", async () => {
     // Stronger than "no mismatch error": proves the run reached runMigrations and that a failed connect
-    // settles with the plan's AC8 line.
+    // settles with the docs/decisions/0169 AC8 line.
     const result = await spawnPersistenceCli(
       "src/migrate.ts",
       [PASS_THROUGH_DATABASE],

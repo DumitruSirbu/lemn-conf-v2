@@ -245,7 +245,7 @@ kitchen's wall bodies wrong independently of anything this record decides.
 ## Consequences
 
 - **Wave 6K-c implements this**, after 6K-b. It does **not** gate 6K-b — see the wave's own note in
-  `docs/milestones/M6-price-and-global-settings.md`.
+  `docs/milestones/done/M6-price-and-global-settings.md`.
 - **`MAX_DESIGN_BYTES` must be re-derived, not assumed.** ADR 0053's per-entry allowance is 128 bytes
   and a worst-case entry carrying `depthFromBuildId` reaches it: `wall-corner-return-570-top` is 26
   characters and the key plus quotes, colon and comma is 21 more. The allowance and the cap both move,

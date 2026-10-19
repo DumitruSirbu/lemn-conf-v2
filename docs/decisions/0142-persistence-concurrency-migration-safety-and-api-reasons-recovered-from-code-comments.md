@@ -165,6 +165,11 @@ decision 5 (additive, idempotent migrations run unattended; the rest need a huma
   `databaseNameOf` now lives in `packages/persistence/src/open-database.ts`, not `migrate.ts`, and its
   no-slash refusal is applied at every site that opens a connection (B7), not only the migration target.
   The rule above stands; its reach widened.
+- **Note, 2026-10-18 — [ADR 0169](0169-the-migration-commands-refuse-a-declared-environment-the-credential-does-not-reach-and-the-criteria-that-say-so.md).**
+  The "Where recorded elsewhere" milestone plan (`migration-environment-safety-check.md`) is now recorded as
+  an ADR: its Decisions 1 to 3, alternatives, Known limit and AC1 to AC15, with a drift note that
+  `assertDeclaredEnvironmentReaches` also refuses `NO_AGREED_DATABASE_NAME` and any name holding `%` or `\`.
+  Decision 6's text is unchanged; code comments cite ADR 0169, not the plan.
 
 ## Decision 7 — a live test forgets the migration-ledger rows before dropping the column, never after
 
@@ -224,7 +229,7 @@ decision 5 (additive, idempotent migrations run unattended; the rest need a huma
 - **Why.** The document was produced by this build; a row left at its minted version would keep asking for
   an older normalisation arm on every load, so that arm could never be removed.
 - **Evidence note.** Searched `docs/decisions/` and `docs/backlog/` on 2026-10-06 for the restamp and
-  fixed-point property: no decision record states it. `docs/milestones/M6-price-and-global-settings.md`
+  fixed-point property: no decision record states it. `docs/milestones/done/M6-price-and-global-settings.md`
   (a plan, line "The migration is a fixed point") states the property for one migration only.
 - **Evidence tier.** Recovered from a code comment on 2026-10-06, not re-measured.
 - **Where.** `packages/persistence/src/neon-configuration-repository.ts` (`updateIfCurrent`).

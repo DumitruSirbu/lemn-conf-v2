@@ -1,5 +1,5 @@
 // M7B U3b S1 — `generateKitchen` composes a U (ADR 0110 decisions 1-6, N11.6, N11.8, N11.9): the same
-// plan U3a made, put into a U shell body by body through `insertBody`, with the log replayable on its
+// plan U3a made, with the free ends ADR 0167 fills (`filledPlanFor`, which this file holds to the log's plan), put into a U shell body by body through `insertBody`, with the log replayable on its
 // own. The property over the engine range is `generate-kitchen.u.property.test.ts`, and the whole
 // approved grid is `generate-kitchen.u.grid-*.test.ts`; this file holds the named rooms.
 import { describe, expect, it } from "vitest";
@@ -18,7 +18,7 @@ import {
   spanMismatchesOf,
   uPlanOf,
 } from "../support/generated-u.js";
-import { planFor, uRoom } from "../support/u-plan-fixtures.js";
+import { filledPlanFor, uRoom } from "../support/u-plan-fixtures.js";
 
 /** Every room the U3a witness file pins a plan for: N4′'s seven, N10.6's six, and N11's rows. Its
  *  3600 / 3500 / 2200 row at 2199 mm is left out: the approved heights start at 2200 (as they do for
@@ -70,10 +70,10 @@ function placementOf(result: ComposedKitchen, baseId: string): DesignPlacement {
 
 describe("generateKitchen composes the U3a witnesses (U3b AC3)", () => {
   it.each(WITNESS_ROOMS.map((room) => [JSON.stringify(room), room] as const))(
-    "%s: the plan is U3a's, and every body stands where it says",
+    "%s: the plan is U3a's with ADR 0167's fills, and every body stands where it says",
     (_label, room) => {
       const result = generateU(room);
-      const plan = planFor(room);
+      const plan = filledPlanFor(room);
 
       expect(result.ok).toBe(plan.minimumMet);
       expect(result.log.plan).toStrictEqual(plan);

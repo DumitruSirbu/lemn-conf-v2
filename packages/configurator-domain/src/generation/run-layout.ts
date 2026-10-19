@@ -102,7 +102,8 @@ export interface UKitchenCompositionPlan {
   readonly floorWidthsMm: Readonly<Record<DesignWall, readonly number[]>>;
   readonly dropped: readonly GenerationCoreRole[];
   readonly minimumMet: boolean;
-  /** Each wall's bare end, after wall A's remainder fill (ADR 0110 N11.9): wall A's is under 300 mm. */
+  /** Each wall's bare end as the composer leaves it, under 600 mm: `withTheFreeEndsFilled` takes what is at
+   *  least the catalogue's narrowest cabinet, wall A's included (ADR 0167 D7). */
   readonly remainderMm: Readonly<Record<DesignWall, number>>;
   /** `undefined` when the fridge was dropped. */
   readonly fridgePosition: UPlacementPosition | undefined;

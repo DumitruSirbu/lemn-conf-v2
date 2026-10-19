@@ -483,6 +483,44 @@
   pointer-events: none;
 }
 
+/* *Salvează ca preset* (M8C wave P4; owner ruling of 2026-10-17: the bottom of the editor, the right side). The first
+ * child of the scene's bottom stack, so it stands above the hint, the flagged total and the warning band and shares
+ * pixels with none of them, whatever is on screen. The stack ignores pointers; this is the one control in it that does,
+ * and it is a chip like the camera presets (`--touch-target` high, 44 px, §10.1).
+ *
+ * Hidden on the phone while the sheet is open (`data-panel-open`): the sheet stands over the scene's lower part, and
+ * the button would sit under a finger meant for it. On desktop the rail stands beside the scene and covers nothing. */
+.savePreset {
+  display: flex;
+  align-items: center;
+  align-self: flex-end;
+  min-height: var(--touch-target);
+  padding: 0 16px;
+  margin: 0 14px 10px 0;
+  font: 700 12.5px/1 var(--font-ui);
+  color: var(--accent-strong);
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  background: rgb(250 248 244 / 95%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+}
+
+/* The app's ring (owner answer O-4), with a paper gap the width of the outline's offset under it: over the scene the
+ * ring's inner edge then meets paper, not whatever cabinet or wall the chip happens to stand over (frame 3S · focus). */
+.savePreset:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--paper);
+}
+
+/* Hidden while the panel is open, and shown again by the desktop branch below: this file declares no width threshold
+ * of its own (`top-bar-box.test.ts` counts the word), the shell fork being the only branch. */
+.savePreset[data-panel-open="true"] {
+  display: none;
+}
+
 .hint {
   display: flex;
   justify-content: center;
@@ -650,6 +688,18 @@
 
   .backAction {
     display: none;
+  }
+
+  /* The desktop rail stands beside the scene and covers none of it, so the button stays (see `.savePreset`). */
+  .savePreset[data-panel-open="true"] {
+    display: flex;
+  }
+
+  /* D3S: 13 px type, 18 px of side padding, 28 px in from the scene's right edge. */
+  .savePreset {
+    padding: 0 18px;
+    margin-right: 28px;
+    font-size: 13px;
   }
 
   /* **The way back to Step 1 is drawn on desktop too** (M7C FB-001; ADR 0104 Amendment D): the

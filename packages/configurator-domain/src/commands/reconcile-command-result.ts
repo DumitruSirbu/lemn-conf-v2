@@ -19,6 +19,7 @@ import {
   type Column,
   type ColumnExtent,
   type PlacementRecord,
+  type PlannedBoundariesMm,
   type VoidRecord,
 } from "../void-engine.js";
 import type { CommandSuccess } from "./command-result.js";
@@ -41,10 +42,17 @@ export function reconcileSuccessfulCommandResult(input: {
   /** The split's and the merge's limit. Omitted, each keeps the editor's own, which differ: the split cuts at
    *  `MAX_EMPTY_COLUMN_WIDTH_MM` and the merge is uncapped. Composition passes one for both (ADR 0110 decision 2). */
   readonly emptyColumnWidthLimitMm?: number;
+  /** The edges composition's planned tiles share, which the merge never joins across (ADR 0167 D6). Omitted, as
+   *  the editor does, none. The split does not read it. */
+  readonly plannedBoundaries?: PlannedBoundariesMm;
 }): ReconciledCommandResult {
   const records = derivePlacementRecords(input.result.design, input.catalog);
   const moved = movedColumns(input.result, input.previousRecordedColumns);
-  const funnel = { records, widthLimitMm: input.emptyColumnWidthLimitMm };
+  const funnel = {
+    records,
+    widthLimitMm: input.emptyColumnWidthLimitMm,
+    plannedBoundaries: input.plannedBoundaries,
+  };
   const recordedColumns = reconcileColumns(moved, funnel);
   const columns = reconcileColumns(
     clipEmptyColumnsAtWallEnd(moved, records, input.result.design.room),
@@ -75,16 +83,18 @@ function movedColumns(
 }
 
 /** The records a reconcile reads and the width its split and merge hold member-less columns to; `undefined` leaves
- *  each at its own default (the split at 800 mm, the merge uncapped). */
+ *  each at its own default (the split at 800 mm, the merge uncapped). `plannedBoundaries` is the merge's alone,
+ *  and `undefined` leaves it with none. */
 interface ReconcileFunnel {
   readonly records: readonly PlacementRecord[];
   readonly widthLimitMm: number | undefined;
+  readonly plannedBoundaries: PlannedBoundariesMm | undefined;
 }
 
 /** Clip free ground, split, merge, then re-answer full-height membership—in that exact order. */
 function reconcileColumns(
   columns: ReadonlyMap<string, ColumnExtent>,
-  { records, widthLimitMm }: ReconcileFunnel,
+  { records, widthLimitMm, plannedBoundaries }: ReconcileFunnel,
 ): ReadonlyMap<string, Column> {
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
@@ -95,6 +105,7 @@ function reconcileColumns(
       ),
       records,
       widthLimitMm,
+      plannedBoundaries,
     ),
     records,
   );

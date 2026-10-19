@@ -1,5 +1,5 @@
-// **The U's desktop line, by click** — M7B wave U7, slice S2 (`docs/milestones/M7B-u-shaped-rooms.md`,
-// *U7 — the plan (2026-09-30)*, S2 and AC2). 1440 x 900 with a pointer and no touch: D1B, D1C and D1F
+// **The U's desktop line, by click** — M7B wave U7, slice S2 (reload flash gated at zero wrong-chip
+// frames: `docs/decisions/0133`, U7 D5). 1440 x 900 with a pointer and no touch: D1B, D1C and D1F
 // where the phone has 1B, 1C and 1F. The journey and every assertion live in
 // `support/u-gate-journeys.ts`, shared with the phone (`u-gate.e2e.spec.ts`); this file is what the
 // desktop adds to it: the *Sugestii* card at D1C, and 1F's static plan aside drawing three walls.

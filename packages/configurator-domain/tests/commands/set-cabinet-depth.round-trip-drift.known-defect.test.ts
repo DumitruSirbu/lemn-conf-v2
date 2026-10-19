@@ -33,10 +33,14 @@ const OWNERS_ROOM = {
   heightMm: 2600,
 } as const;
 
-/** The fridge's column on wall B and the oven tower's on wall A; the rows of the run the customer clears below. */
-const FRIDGE_COLUMN = "B|2.45";
-const TOWER_COLUMN = "A|3.30";
-const WALL_B_RUN_AROUND_THE_FRIDGE = ["n7", "n13", "n19", "n0"];
+/** The fridge's column on wall B and the oven tower's on wall A. ADR 0167 moved both outward by the 400 and 500 mm the
+ *  owner's room left bare (the fridge from 2450 to 2850, the tower from 3300 to 3800), and stands a 400 mm fill on
+ *  wall B between the 600 mm cabinet and the fridge. */
+const FRIDGE_COLUMN = "B|2.85";
+const TOWER_COLUMN = "A|3.80";
+/** The run the customer clears below: wall B from the 600 mm cabinet's near face to the fridge's far face, at every
+ *  level. It was one cabinet and the fridge (1500-3200 with 400 mm bare) before the fill. */
+const WALL_B_RUN_AROUND_THE_FRIDGE_MM = { startMm: 1500, endMm: 3200 };
 
 describe("known defect, awaiting a backlog row: a cabinet-depth round trip drifts the published depths", () => {
   it("publishes the fridge column at 742 mm and the tower column at 638 mm after 600 -> 700 -> 600, both 620 before", () => {
@@ -51,7 +55,7 @@ describe("known defect, awaiting a backlog row: a cabinet-depth round trip drift
     });
   });
 
-  it("leaves three spaces of 600, 700 (742 deep) and 400 where the cleared run around the fridge was one of 1700", () => {
+  it("leaves a space of 1000 and one of 700 (742 deep) where the cleared run around the fridge was one of 1700", () => {
     const composed = ownersKitchen();
 
     const fresh = clearedAroundTheFridge(composed);
@@ -61,9 +65,8 @@ describe("known defect, awaiting a backlog row: a cabinet-depth round trip drift
 
     expect(wallBSpaces(fresh)).toEqual(["2350 w1700 d620"]);
     expect(wallBSpaces(afterRoundTrip)).toEqual([
-      "1800 w600 d620",
-      "2450 w700 d742",
-      "3000 w400 d620",
+      "2000 w1000 d620",
+      "2850 w700 d742",
     ]);
   });
 });
@@ -92,8 +95,20 @@ function atDepth(design: Design, cabinetDepthMm: number): Design {
   );
 }
 
+function wallBRunAroundTheFridge(design: Design): string[] {
+  const { startMm, endMm } = WALL_B_RUN_AROUND_THE_FRIDGE_MM;
+  return design.placements
+    .filter(
+      (placement) =>
+        placement.wall === "B" &&
+        placement.alongMm - placement.body.widthMm / 2 >= startMm &&
+        placement.alongMm + placement.body.widthMm / 2 <= endMm,
+    )
+    .map((placement) => placement.id);
+}
+
 function clearedAroundTheFridge(start: Design): Design {
-  return WALL_B_RUN_AROUND_THE_FRIDGE.reduce((design, id) => {
+  return wallBRunAroundTheFridge(start).reduce((design, id) => {
     const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
     return reconciled(
       design,

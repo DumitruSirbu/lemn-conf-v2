@@ -45,11 +45,16 @@ function filesWhere(count: (source: string) => number): readonly string[] {
 }
 
 describe("one attempt is constructed in one place (ruling R17)", () => {
-  it("is called from exactly one module under apps/web/src", () => {
+  it("is called from exactly one module under apps/web/src, at exactly two sites", () => {
     // `use-generation.ts` calls it in `attemptFor`, from the transition in which a design first
-    // exists. A second entry here is a second mint identity, and therefore a second row per
-    // composition — the failure wave 7F4b was split out to prevent.
-    expect(filesWhere(callSitesIn)).toEqual(["room/use-generation.ts"]);
+    // exists, and (M8C P8) in `usePresetCopy`, for the copy of a chosen preset; that second site is
+    // the only change to this expectation, which was one site. A third entry here is a third mint
+    // identity, and therefore a further row per selection — the failure wave 7F4b was split out to
+    // prevent.
+    expect(filesWhere(callSitesIn)).toEqual([
+      "room/use-generation.ts",
+      "room/use-generation.ts",
+    ]);
   });
 
   it("is declared exactly once, so the name above is not a name nothing has", () => {

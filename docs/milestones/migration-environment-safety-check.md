@@ -3,6 +3,11 @@
 Status: **Planned** — standalone tooling-safety task, **not part of M7 or any product milestone**.
 Planned 2026-09-28 at `7a6438a` (`m7-room-and-presets`). Nothing here is implemented.
 
+> **Dated pointer, 2026-10-18.** The status line above is the planning-time state and was not updated.
+> The decision and the acceptance criteria are recorded in
+> [ADR 0169](../decisions/0169-the-migration-commands-refuse-a-declared-environment-the-credential-does-not-reach-and-the-criteria-that-say-so.md),
+> which also says what is present at HEAD. Code comments cite that ADR, not this plan. Text kept as written.
+
 Every code citation below was read at `7a6438a`. Evidence tiers follow `docs/WORKFLOW.md`:
 **[source]** = read in the tree at that commit, **[measured]** = a command run while planning,
 **[inference]** = reasoning not yet checked against code or the vendor.

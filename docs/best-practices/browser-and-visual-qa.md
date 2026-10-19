@@ -78,5 +78,5 @@ Both were learned in one hour on 2026-09-10, during M6B's owner-review round, an
 the verifier caught a QA probe and nearly filed it as a defect, and later **nearly retracted a true
 finding** because a fix had already landed in the tree it was measuring. It saved itself by reading
 `git show HEAD:`. Recorded in
-[`milestones/M6B-internationalization.md`](../milestones/M6B-internationalization.md), *The owner's
+[`milestones/done/M6B-internationalization.md`](../milestones/done/M6B-internationalization.md), *The owner's
 review of the built product*.

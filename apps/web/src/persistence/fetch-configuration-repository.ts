@@ -57,6 +57,9 @@ export interface LoadedDesign {
   readonly design: Design;
   readonly revision: DesignRevision;
   readonly canWrite: boolean;
+  /** The server's answer, by its policy, to whether the editor may offer *Salvează ca preset* (ADR 0112 decision 2,
+   *  bullet 3). Advisory like `canWrite`: the save route asks the policy again. */
+  readonly canAuthorPresets: boolean;
 }
 
 /** One save as one value: the opaque `id`, mint identity and revision could be swapped at a positional call site
@@ -193,6 +196,7 @@ export class FetchConfigurationRepository {
       design: readDesign(payload),
       revision: readRevision(payload, "Loading a design"),
       canWrite: readCanWrite(payload),
+      canAuthorPresets: readCanAuthorPresets(payload),
     };
   }
 
@@ -394,6 +398,14 @@ function readRevision(payload: unknown, operation: string): DesignRevision {
  *  reading of an answer we did not get. A design that was never loaded is the store's default, not decided here. */
 function readCanWrite(payload: unknown): boolean {
   return (payload as { canWrite?: unknown } | null)?.canWrite === true;
+}
+
+/** Absent or non-boolean reads as false, so a server that does not say never gets the control. */
+function readCanAuthorPresets(payload: unknown): boolean {
+  return (
+    (payload as { canAuthorPresets?: unknown } | null)?.canAuthorPresets ===
+    true
+  );
 }
 
 /** The load route answers `{ id, design, canWrite }`. The payload is validated, not trusted: a design that fails

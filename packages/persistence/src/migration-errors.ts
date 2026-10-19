@@ -29,7 +29,7 @@ export class MigrationExecutionError extends MigrationError {}
 /** The declared environment (`migrate`/`migrate:status`'s required argument) and the database
  *  `MIGRATION_DATABASE_URL` actually reaches disagree. Raised by
  *  `assertDeclaredEnvironmentReaches` before either CLI opens a connection or reads anything, so the
- *  incident this guards against (`docs/milestones/migration-environment-safety-check.md`) cannot
+ *  incident this guards against (docs/decisions/0169, Why) cannot
  *  repeat one careless argument away. */
 export class MigrationTargetMismatchError extends MigrationError {}
 

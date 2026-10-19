@@ -293,7 +293,7 @@ describe("generateKitchen — the architect's witnesses", () => {
     ).toBe(0);
   });
 
-  it("leaves 6000 mm with 0 mm bare, and no room past it holds more bodies", () => {
+  it("leaves 6000 mm with 0 mm bare, and no room past it holds more bodies but the fill its extra width earns", () => {
     const at6000 = generate(linearRoom(6000));
     expect(at6000.ok).toBe(true);
     if (!at6000.ok) return;
@@ -303,14 +303,22 @@ describe("generateKitchen — the architect's witnesses", () => {
         farEdgeMm(required(bases6000.at(-1), "6000 mm's last base")),
     ).toBe(0);
 
+    // ADR 0167 D1: 6100, 6200 and 6300 mm leave 300, 400 and 500 mm beyond the same ten bodies (measured before the
+    // fill), each at or over the 200 mm floor, so each takes one fill of exactly that width: 11 bodies.
+    const fillsOver: boolean[] = [];
     for (const widthMm of [6100, 6200, 6300]) {
       const over = generate(linearRoom(widthMm));
       expect(over.ok).toBe(true);
       if (!over.ok) continue;
-      expect(baseBodies(over.design).length).toBeLessThanOrEqual(
-        bases6000.length,
+      const hasFill = over.log.steps.some(
+        (step) => step.id === "wall-a-remainder:A" && step.status === "placed",
       );
+      fillsOver.push(hasFill);
+      expect(
+        baseBodies(over.design).length - (hasFill ? 1 : 0),
+      ).toBeLessThanOrEqual(bases6000.length);
     }
+    expect(fillsOver).toEqual([true, true, true]);
   });
 
   it("composes 1200 mm as a sink and a hob only, bare end 0", () => {

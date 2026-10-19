@@ -5,7 +5,7 @@ reviewed on branch `m8-mail-and-empty-space-merge`; **not deployed**, migration 
 preview or production**, and **no real notice sent with this template** (owner steps open, below).
 Date: 2026-10-17
 Type: Decision
-Milestone: M8, wave 8V (plan: [`milestones/8V-done-page-link-and-shop-email.md`](../milestones/8V-done-page-link-and-shop-email.md))
+Milestone: M8, wave 8V (plan: [`milestones/done/8V-done-page-link-and-shop-email.md`](../milestones/done/8V-done-page-link-and-shop-email.md))
 
 **Supersedes:**
 

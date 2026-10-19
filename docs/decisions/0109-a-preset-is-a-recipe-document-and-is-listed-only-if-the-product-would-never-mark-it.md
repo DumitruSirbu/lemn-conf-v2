@@ -1,6 +1,6 @@
 # ADR 0109 — A preset is a recipe document, and it is listed only if the product would never mark it
 
-Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q4: the library is owner-authored data and starts empty; a preset matches within ±600 mm per wall and is adapted by removing cabinets from the free ends, never by narrowing; decision 8's threshold is retired; **Amendment B, 2026-09-11** — a ceiling under a preset's tallest body drops the rows above it as a declared adaptation; **Amendment C, 2026-09-11** — a proposal must fit at every declared depth, amending decision 5; **Amendment D, 2026-09-11** — the owner confirmed the edge adaptation (F4) and the every-depth fit with its wall-B reserve (F7))
+Status: Accepted (**Amendment A, 2026-09-11** — the owner's answers to Q2 and Q4: the library is owner-authored data and starts empty; a preset matches within ±600 mm per wall and is adapted by removing cabinets from the free ends, never by narrowing; decision 8's threshold is retired; **Amendment B, 2026-09-11** — a ceiling under a preset's tallest body drops the rows above it as a declared adaptation; **Amendment C, 2026-09-11** — a proposal must fit at every declared depth, amending decision 5; **Amendment D, 2026-09-11** — the owner confirmed the edge adaptation (F4) and the every-depth fit with its wall-B reserve (F7); **Amendment E, 2026-10-17** — the refill reads ADR 0167 at every free end, a U's back wall adapts at its right end, a corner sized differently means the preset is not shown; decided for M8C, not built)
 Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7B and 7C (architect's plan, `docs/milestones/M7-room-and-presets.md`)
@@ -270,3 +270,38 @@ adapted preset, like a composed kitchen, must still fit after a change to the de
 so on wall B its planned end is the wall's length less the chain shift. **The stated exception to A3's
 599 mm:** on wall B, measured at the preset's own depth, the bare end may reach 599 mm plus that shift
 (699 today); at the deepest depth it is at most 599 again.
+
+## Amendment E — 2026-10-17: the refill reads ADR 0167 at every free end; a U's back wall adapts at its right end; a corner sized differently means the preset is not shown
+
+**Evidence tiers.** *[doc]* quoted from this repository; *[plan]* the M8C plan §3.5–§3.6 (`dad97495`); *[relayed]* the
+coordinator's relay of the owner's 2026-10-17 answers (selections of options the architect wrote, not quotations). The
+scribe ran nothing. **Decided for the preset waves P5 to P8, not built. ADR 0167 is Proposed**, so the refill rule below
+reads it as it stands when F1b accepts it.
+
+**E1. Q-3 = refill every free end, at every level [relayed].** Amendment A3.2's *"the leftover rule, shared with
+generation (ADR 0110 Amendment A)"* is read as the generator's rule **as [ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)
+amends it**. After an adapted preset loses its free-end columns, **every** free end is refilled by generation's own rule
+at every level its column carries, including a bare end the owner saved. Nothing is re-derived elsewhere (ADR 0117 d6).
+
+**E2. Two earlier restatements of the 600 rule are read the same way.** Amendment A3.2 (*"any bare run end of 600 mm or
+more receives 600 mm storage bases until less than 600 mm remains … at most 599 mm"*) and **Amendment D's F4** (owner
+confirmed on 2026-09-11: *"any bare stretch of 600 mm or more gets a 600 mm storage cabinet"*) are the shared leftover
+rule that ADR 0167 would narrow for generation. The 2026-10-17 rulings are later and wider, so for the refill they are
+read through ADR 0167 once it is Accepted; until then they stand as written. **F7's exception** (on wall B the bare end
+may reach 599 mm plus the chain shift, 699 mm today) is a statement about the 100 mm reserve, which ADR 0167 D9 keeps;
+it is not touched.
+
+**E3. Q-5 = on a U whose back wall differs, the back wall's right end is its free end [relayed].** Columns are removed or
+refilled there, as generation leaves its remainder there (ADR 0110 N11.8). The right corner assembly and wall C move with
+the wall's end, and nothing else on wall A moves.
+
+**E4. A corner sized differently in the target room: the preset is not shown.** If `cornerAssemblyWidthsMm` would differ
+in the target room (it depends on the walls, wave 7D7), the preset is not shown. This is conservative; nothing is
+narrowed (A5). It applies to both corners of a U.
+
+**E5. Decision 4 holds: the list and the application are one evaluation.** The card, the Preview carousel (ADR 0003 4b,
+amended the same day) and *Select* all read the same evaluated design. *Select* writes it and does not evaluate again.
+Order is A4's: no change first, then fewer removed, then newest.
+
+**E6. Reading that a bare end the owner saved is refilled is an inference [inf]**, from "every free end". It is falsified
+if the owner wants a saved bare end kept.

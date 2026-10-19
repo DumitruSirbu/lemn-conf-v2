@@ -24,7 +24,15 @@ import {
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
 const browser = vi.hoisted(() => ({
   pathname: "/ro/configurator/room",
@@ -970,13 +978,21 @@ describe("a chip chosen outside a burst shows its 1C at once (R1.4)", () => {
 });
 
 describe("the tap over an accepted room still leaves (F2's other arm)", () => {
-  it("departs and composes from a room the domain accepts, mid-burst", () => {
+  it("departs and leaves the form for the presets wait from a room the domain accepts, mid-burst", () => {
+    // Held open: the tap starts the preset read, and an unstubbed `fetch` would open a real socket.
+    vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
     render(A_VALID_ROOM);
     type("wallA", "3700");
 
     click("room-continue");
 
-    expect(maybeAt("room-compose")).not.toBe(null);
+    // Since M8C P8 the tap enters 1D, the wait for the presets that fit, and composition (1F) follows it only when none
+    // does; `room-composition.dom.test.ts` holds that the 1F that follows is the room's.
+    expect(maybeAt("room-presets-wait")).not.toBe(null);
+    expect(maybeAt("room-fields")).toBe(null);
   });
 });
 

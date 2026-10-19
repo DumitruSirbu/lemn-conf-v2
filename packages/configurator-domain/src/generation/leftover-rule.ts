@@ -1,6 +1,8 @@
 import { CABINETRY_MAX_WIDTH_MM } from "../catalog.js";
 
-/** The owner's default storage module and strict maximum bare run end (ADR 0110 A4). */
+/** The owner's default storage module (ADR 0110 A4). `MAX_GENERATED_LEFTOVER_MM` is what whole modules leave of
+ *  a run, which is no longer the bare end: a generated kitchen fills a remainder the narrowest cabinet fits,
+ *  and only one under that floor stays bare (ADR 0167). */
 export const STORAGE_BODY_WIDTH_MM = 600;
 export const MAX_GENERATED_LEFTOVER_MM = STORAGE_BODY_WIDTH_MM - 1;
 

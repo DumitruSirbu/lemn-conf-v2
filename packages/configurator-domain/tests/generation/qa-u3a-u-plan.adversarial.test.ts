@@ -9,12 +9,25 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   generateKitchen,
+  KITCHEN_L_DESIGN,
   uShellFloorRuns,
   type DesignRoom,
   type DesignWall,
+  type GenerateKitchenResult,
+  type GenerationPlan,
 } from "../../src/index.js";
+import { DOOR_BASE_BUILD_ID } from "../../src/generation/body-choice.js";
+import {
+  countedBodyIdsOf,
+  isAFreeEndFill,
+} from "../../src/generation/free-end-fill.js";
+import { basesAlongWall } from "../../src/generation/run-layout.js";
+import { risesIntoWallRow } from "../../src/generation/upper-policy.js";
 import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
+import { beforeAdr0167 } from "../support/before-adr-0167-free-end-fill.js";
 import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import { withTheCornerUnitPutBack } from "../support/before-c2-corner-unit.js";
 import { withTheTopRowTakenOff } from "../support/before-c3-top-row.js";
@@ -23,6 +36,7 @@ import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   DIGEST_OCCURRED_AT,
   digestGeneratedKitchens,
+  digestRooms,
 } from "../support/l-and-linear-generation-digest.js";
 import {
   farWallOf,
@@ -30,7 +44,7 @@ import {
   uPlanFindings,
   type URuns,
 } from "../support/u-plan-invariants.js";
-import { planFor, uRoom } from "../support/u-plan-fixtures.js";
+import { FILL_FLOOR_MM, planFor, uRoom } from "../support/u-plan-fixtures.js";
 
 // M7C wave C5 S1: the recordings below up to C7's are of planners that stood before the leftover beside an
 // end fridge was absorbed (`fridge-end-leftover.ts`), so each chain step asks the planner as it stood before.
@@ -43,6 +57,15 @@ vi.mock(
     return withTheFridgeEndLeafSwitchable(await importOriginal());
   },
 );
+
+// ADR 0167 (M8C wave F1b): the same switch for the free-end fill, so the chain's first step asks the generator as it
+// stood before the fill and reproduces `DIGEST_AFTER_C5` unchanged.
+vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
+  const { withTheFreeEndFillSwitchable } = await import(
+    "../support/before-adr-0167-free-end-fill.js"
+  );
+  return withTheFreeEndFillSwitchable(await importOriginal());
+});
 
 const SAMPLES = 1500;
 /** AC4's recording: `digestGeneratedKitchens` run through `generateKitchen` on the tree
@@ -79,6 +102,165 @@ const DIGEST_BEFORE_ADR_0135 =
 function findingsFor(room: DesignRoom): readonly string[] {
   const runs = uShellFloorRuns(room);
   return uPlanFindings({ room, runs, plan: planFor(room, runs) });
+}
+
+const PLANNING_CATALOG = buildKitchenLBodyCatalog(
+  cabinetDepthMmOf(KITCHEN_L_DESIGN),
+);
+type DigestRoom = ReturnType<typeof digestRooms>[number];
+const WALLS: readonly DesignWall[] = ["A", "B", "C"];
+const FINDINGS_SHOWN = 10;
+
+/** ADR 0167, over the digest's rooms: what the fill did to each wall, read off the plan of the same room with
+ *  the pass off and on. Empty where every fill is one base cabinet of exactly the bare end it replaced, and
+ *  only a full-height body that no count holds moved, outward by exactly that width, leaving each wall's
+ *  bases contiguous to the run's end. */
+function theFillFindingsOver(
+  generateWithoutFill: (room: DigestRoom) => unknown,
+  generateWithFill: (room: DigestRoom) => unknown,
+): readonly string[] {
+  const findings = digestRooms().flatMap((room) => {
+    const without = generateWithoutFill(room) as GenerateKitchenResult;
+    const withFill = generateWithFill(room) as GenerateKitchenResult;
+    return WALLS.flatMap((wall) =>
+      fillFindingsOnWall({ wall, without, withFill }).map(
+        (finding) => `${JSON.stringify(room)} wall ${wall}: ${finding}`,
+      ),
+    );
+  });
+  return findings.slice(0, FINDINGS_SHOWN);
+}
+
+interface WallComparison {
+  readonly wall: DesignWall;
+  readonly without: GenerateKitchenResult;
+  readonly withFill: GenerateKitchenResult;
+}
+
+function fillFindingsOnWall(comparison: WallComparison): readonly string[] {
+  const { wall, without } = comparison;
+  const bareEndMm = remainderOn(without.log.plan, wall);
+  const isFilled =
+    without.log.plan.minimumMet &&
+    bareEndMm !== undefined &&
+    bareEndMm >= FILL_FLOOR_MM;
+  const expectedFillMm = isFilled ? bareEndMm : undefined;
+  return [
+    ...fillFindings(comparison, expectedFillMm),
+    ...movedBodyFindings(comparison, expectedFillMm ?? 0),
+    ...contiguityFindings(comparison, expectedFillMm ?? 0),
+  ];
+}
+
+function remainderOn(
+  plan: GenerationPlan,
+  wall: DesignWall,
+): number | undefined {
+  const remainders: Partial<Record<DesignWall, number>> = plan.remainderMm;
+  return remainders[wall];
+}
+
+function wallBases(plan: GenerationPlan, wall: DesignWall) {
+  return basesAlongWall(plan.bases, wall);
+}
+
+/** (a) One base cabinet of exactly the old remainder, in the plan and in the log, where the remainder reaches the
+ *  catalogue's floor; nothing where it does not. */
+function fillFindings(
+  { wall, withFill }: WallComparison,
+  expectedFillMm: number | undefined,
+): readonly string[] {
+  const fills = wallBases(withFill.log.plan, wall).filter(isAFreeEndFill);
+  const fillSteps = withFill.log.steps.filter(
+    (step) =>
+      step.status === "placed" &&
+      step.id === `wall-${wall.toLowerCase()}-remainder:${wall}`,
+  );
+  if (expectedFillMm === undefined) {
+    return fills.length === 0 && fillSteps.length === 0
+      ? []
+      : [`a fill stands where the end is bare or under the floor`];
+  }
+  const fill = fills.length === 1 ? fills[0] : undefined;
+  const isOneBaseCabinet =
+    fill?.buildId === DOOR_BASE_BUILD_ID && fill.role === "storage";
+  if (fill === undefined || !isOneBaseCabinet) {
+    return [`${String(fills.length)} fills, not one base cabinet`];
+  }
+  if (fill.widthMm !== expectedFillMm || fillSteps.length !== 1) {
+    return [
+      `the fill is ${String(fill.widthMm)} mm with ${String(fillSteps.length)} steps, the old remainder ${String(expectedFillMm)} mm`,
+    ];
+  }
+  return [];
+}
+
+/** (b) Every body that moved is full-height, uncounted, and moved outward by exactly the fill's width. */
+function movedBodyFindings(
+  { wall, without, withFill }: WallComparison,
+  fillMm: number,
+): readonly string[] {
+  const before = new Map(
+    wallBases(without.log.plan, wall).map((base) => [base.id, base]),
+  );
+  const counted = countedBodyIdsOf(without.log.plan);
+  const stayed = wallBases(withFill.log.plan, wall).filter(
+    (base) => !isAFreeEndFill(base),
+  );
+  const unknown = stayed.filter((base) => !before.has(base.id));
+  const vanished = before.size - (stayed.length - unknown.length);
+  const problems = stayed.flatMap((base) => {
+    const old = before.get(base.id);
+    const movedMm = old === undefined ? 0 : base.startMm - old.startMm;
+    if (movedMm === 0) return [];
+    if (!risesIntoWallRow(PLANNING_CATALOG, base.buildId)) {
+      return [`${base.id} moved and is not full-height`];
+    }
+    if (counted.has(base.id)) return [`${base.id} moved and is counted`];
+    return movedMm === fillMm
+      ? []
+      : [
+          `${base.id} moved ${String(movedMm)} mm, the fill is ${String(fillMm)} mm`,
+        ];
+  });
+  return [
+    ...unknown.map((base) => `${base.id} is new beside the fill`),
+    ...(vanished === 0 ? [] : [`${String(vanished)} bodies vanished`]),
+    ...problems,
+  ];
+}
+
+/** (c) The bases still run from the corner without a gap or an overlap, to the run's end, which is the old last
+ *  end plus the fill's width. */
+function contiguityFindings(
+  { wall, without, withFill }: WallComparison,
+  fillMm: number,
+): readonly string[] {
+  const before = wallBases(without.log.plan, wall);
+  const after = wallBases(withFill.log.plan, wall);
+  const firstOld = before[0];
+  const lastOld = before.at(-1);
+  if (firstOld === undefined || lastOld === undefined) {
+    return after.length === 0 ? [] : ["bases appear on a wall that had none"];
+  }
+  const gaps = after.filter(
+    (base, index) => index > 0 && base.startMm !== after[index - 1]?.endMm,
+  );
+  const startsAt = after[0]?.startMm;
+  const endsAt = after.at(-1)?.endMm;
+  return [
+    ...(startsAt === firstOld.startMm
+      ? []
+      : [
+          `the run starts at ${String(startsAt)}, not ${String(firstOld.startMm)}`,
+        ]),
+    ...gaps.map((base) => `${base.id} does not abut the body before it`),
+    ...(endsAt === lastOld.endMm + fillMm
+      ? []
+      : [
+          `the bases end at ${String(endsAt)}, not the run's end ${String(lastOld.endMm + fillMm)}`,
+        ]),
+  ];
 }
 
 function bodiesOn(
@@ -322,8 +504,7 @@ describe("heights at the column's 2200 mm and above (U3a AC1)", () => {
         "base-bottle-cargo",
         "base-panbank",
         "base-panbank",
-        // ADR 0110 N11.9 (RQ25): wall A's 300 mm remainder takes a door base.
-        "base-cabinet",
+        // Wall A's 300 mm remainder stays bare in the composer; ADR 0167 D7's general pass fills it.
       ]);
     },
   );
@@ -354,11 +535,22 @@ describe("the L, the mirrored L and the straight kitchen are byte-identical to t
       probeAt: createFakeProbeFactory(),
     });
 
-  const generatedBeforeC5 = (room: unknown) => beforeC5(() => generated(room));
+  const generatedBeforeAdr0167 = (room: unknown) =>
+    beforeAdr0167(() => generated(room));
 
-  // Restated by ADR 0135 and M7C waves C2, C3, C7 and C5; the steps below walk it back to the pre-wave value.
-  it("reproduces the recorded digest over 933 generated kitchens", () => {
-    expect(digestGeneratedKitchens(generated)).toBe(DIGEST_AFTER_C5);
+  const generatedBeforeC5 = (room: unknown) =>
+    beforeC5(() => generatedBeforeAdr0167(room));
+
+  // Restated by ADR 0135 and M7C waves C2, C3, C7 and C5; the steps below walk it back to the pre-wave value. ADR
+  // 0167's restatement is a structure computed from the plans (`theFillFindingsOver`), not a recorded hash: the
+  // C5 digest is the anchor, because the generator with the fill switched off reproduces it.
+  it("differs from the C5 recording over 933 generated kitchens only by the free-end fills and the bodies they moved", () => {
+    expect(digestGeneratedKitchens(generatedBeforeAdr0167)).toBe(
+      DIGEST_AFTER_C5,
+    );
+    expect(
+      theFillFindingsOver(generatedBeforeAdr0167, generated),
+    ).toStrictEqual([]);
   });
 
   it("differs from the C7 recording only by the fridge-end cabinet, its upper and the fridge's move", () => {

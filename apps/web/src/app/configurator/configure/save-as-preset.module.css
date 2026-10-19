@@ -1,0 +1,288 @@
+/**
+ * **The *Salvează ca preset* dialog** (`Presete.dc.html#3t`, `#d3t`; M8D decision D-1): the phone's bottom sheet and
+ * desktop's 520 px card, in a shell of its own so that `ConfirmationDialog` (back confirmation, the settings confirm
+ * step) is left as it is.
+ *
+ * The dialog is a grid because its Tab order is not its reading order: the DOM runs head, field, status, *Închide*,
+ * *Salvează*, and then the round ×, which the grid areas draw beside the title (frame 3T · a: field, *Închide*,
+ * *Salvează*, ×).
+ */
+
+/* `7` is the settings item's own layer (`configure.module.css`'s stacking table): a modal covers everything the screen
+ * draws. Fixed and out of flow, and the one band `useBackgroundInert` leaves live. The close fade runs on this element
+ * (`data-closing`, set by `useCloseAfterSavedNotice`, which also times the unmount). */
+.host {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  transition: opacity 200ms ease-out;
+}
+
+.host[data-closing="true"] {
+  opacity: 0;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(28 24 20 / 52%);
+}
+
+.dialog {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-areas:
+    "handle handle"
+    "head close"
+    "field field"
+    "status status"
+    "actions actions";
+  grid-template-columns: minmax(0, 1fr) var(--touch-target);
+  column-gap: 12px;
+  row-gap: 16px;
+  max-height: 94dvh;
+  padding: 10px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  background: var(--paper);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 22%);
+}
+
+.dialog:focus {
+  outline: none;
+}
+
+/* Decoration only: it does not drag. */
+.handle {
+  grid-area: handle;
+  justify-self: center;
+  width: 40px;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  grid-area: head;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 4px;
+  margin-top: -4px;
+}
+
+.title {
+  margin: 0;
+  font: 700 19px/1.25 var(--font-ui);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.intro {
+  margin: 0;
+  font: 400 13.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.closeButton {
+  display: flex;
+  grid-area: close;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin-top: -4px;
+  font: 400 20px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  grid-area: field;
+  gap: 7px;
+}
+
+.label {
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+/* 16 px: a phone's browser does not zoom the page when this takes focus. */
+.input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  font: 400 16px/1.3 var(--font-ui);
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #cfc7b9;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+.input::placeholder {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.input:disabled {
+  background: var(--surface);
+}
+
+.status {
+  grid-area: status;
+}
+
+/* They wrap onto two rows when they do not fit (the Russian labels at 320 px, `#3t-ru-320`). */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: actions;
+  gap: 10px;
+}
+
+.closeAction,
+.confirmAction {
+  min-height: 52px;
+  padding: 8px 14px;
+  font: 700 15px/1.2 var(--font-ui);
+  text-align: center;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.closeAction {
+  flex: 0 0 auto;
+  min-width: 96px;
+  padding: 0 18px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink-muted);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.closeAction[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.confirmAction {
+  flex: 1 1 140px;
+  color: var(--paper);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.confirmAction:disabled {
+  color: #a89c8e;
+  cursor: default;
+  background: #ece7dd;
+  border-color: var(--line);
+}
+
+/* The app's own ring (owner answer O-4): 2 px outline, offset 2 px, on every control of the dialog. */
+.input:focus-visible,
+.closeButton:focus-visible,
+.closeAction:focus-visible,
+.confirmAction:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .host {
+    transition: none;
+  }
+}
+
+/* Desktop (`room.module.css`'s own breakpoint): a 520 px card centred on both axes over the scene. */
+@media (min-width: 900px) {
+  .dialog {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    grid-template-areas:
+      "head close"
+      "field field"
+      "status status"
+      "actions actions";
+    column-gap: 16px;
+    row-gap: 18px;
+    width: min(520px, calc(100vw - 48px));
+    max-height: calc(100dvh - 48px);
+    padding: 24px 28px 26px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgb(28 24 20 / 28%);
+    transform: translate(-50%, -50%);
+  }
+
+  .handle {
+    display: none;
+  }
+
+  .head {
+    gap: 7px;
+    margin-top: 0;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .intro {
+    font-size: 14px;
+  }
+
+  .closeButton {
+    margin-top: 0;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+
+  .input {
+    min-height: 46px;
+    padding: 11px 14px;
+    font-size: 15px;
+    border-radius: 11px;
+  }
+
+  .actions {
+    justify-content: flex-end;
+  }
+
+  .closeAction,
+  .confirmAction {
+    min-height: 48px;
+    padding: 0 22px;
+  }
+
+  .closeAction {
+    font-size: 14.5px;
+  }
+
+  .confirmAction {
+    flex: 0 0 auto;
+    min-width: 150px;
+    padding: 0 26px;
+  }
+}

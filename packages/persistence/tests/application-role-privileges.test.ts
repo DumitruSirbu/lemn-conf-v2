@@ -1,9 +1,19 @@
-import { CURRENT_SCHEMA_VERSION } from "@lemnaria/configurator-domain";
+import {
+  CURRENT_SCHEMA_VERSION,
+  KITCHEN_L_DESIGN,
+} from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
 import type { TestContext } from "vitest";
 
+import {
+  insertUnlessHeldStatement,
+  selectPublishedNearStatement,
+} from "../src/preset-statements.js";
+import { requireValidPresetToRecord } from "../src/preset-validation.js";
+import type { StatementTag } from "../src/preset-statements.js";
+import type { PresetToRecord } from "../src/preset-repository.js";
 import { readDatabaseUrl } from "../src/read-database-url.js";
 import { columnsHolding, columnsOf } from "./support/column-privileges.js";
 import {
@@ -46,13 +56,15 @@ import {
  * were allowed (`truncate`, `drop table`, `create table`) is never sent: what it proved is read from the catalog. The
  * only statements sent besides reads are deletes of a row that does not exist, only after the catalog has said the
  * role may not delete from that table, and one insert into `contact_submission_views` naming a request id that
- * `contact_submissions`' own check forbids, so the reference refuses it and it can store nothing.
+ * `contact_submissions`' own check forbids, so the reference refuses it and it can store nothing. Against `presets`
+ * only `explain` is sent, which plans a statement and never runs it.
  */
 const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 if (!hasLiveDatabase) {
   console.warn(
     "[live-suite skipped] the application's database role, the csp_reports and csp_report_cursor grant checks " +
-      "(8Q2 criterion 7) and the contact_submission_views grant checks (8V criterion 13) included: DATABASE_URL, " +
+      "(8Q2 criterion 7), the contact_submission_views grant checks (8V criterion 13) and the presets grant check " +
+      "(M8C wave P1, ADR 0168 exception 1) included: DATABASE_URL, " +
       "which these checks need to be the application role's connection, is not set. Nothing here was asserted.",
   );
 }
@@ -214,6 +226,44 @@ async function skipUnlessTheViewsTableExists(
   );
 }
 
+const PRESETS = "public.presets";
+/** The grant of ADR 0112 decision 1 as the security review narrowed it: `SELECT` on the table, and no table-level
+ *  privilege besides. The owner alone hides a preset. */
+const PRESETS_TABLE_PRIVILEGES = ["SELECT"];
+/** The eleven columns the grant names for `INSERT`, written out here and not read from the repository, so a column
+ *  added to the table or to the grant is unnoticed until someone names it. Sorted in the test, as `READABLE_COLUMNS`
+ *  is, because the catalog's order depends on the collation. */
+const PRESETS_INSERTABLE_COLUMNS = [
+  "id",
+  "shape",
+  "wall_a_mm",
+  "wall_b_mm",
+  "wall_c_mm",
+  "height_mm",
+  "schema_version",
+  "design_document",
+  "typed_name",
+  "thumbnail",
+  "thumbnail_type",
+];
+/** Left out of the grant on purpose: with `INSERT` on `created_at` a leaked credential could stamp a row with a
+ *  far-future time and keep it first in every listing, and with it on `status` it could insert a row already hidden. */
+const PRESETS_COLUMNS_THE_ROLE_CANNOT_INSERT = ["created_at", "status"];
+
+/** Skips, with the reason the M8C plan (section 4) names, until the owner has applied `0011`: never a failure, never a
+ *  pass. */
+async function skipUnlessThePresetsTableExists(
+  context: TestContext,
+): Promise<void> {
+  const [probe] = (await neon(readDatabaseUrl())`
+    select to_regclass(${PRESETS}::text) is not null as exists
+  `) as { exists: boolean }[];
+  context.skip(
+    probe?.exists !== true,
+    `${PRESETS} does not exist yet on this database`,
+  );
+}
+
 /** One of the repository's statements, planned and never run, with values of the shape it sends. */
 function explainOfTheViewStatement(
   text: string,
@@ -238,6 +288,41 @@ async function grantsToPublicOn(
     where c.oid = ${tableName}::regclass
   `) as { granted: number }[];
   return row?.granted ?? -1;
+}
+
+/** A statement and its values as a tagged template gives them, to be handed to `explain`. */
+interface RecordedStatement {
+  readonly text: string;
+  readonly values: readonly unknown[];
+}
+
+const recordedStatement: StatementTag<RecordedStatement> = (
+  strings,
+  ...values
+) => ({ text: strings.join("?"), values });
+
+/** A kitchen of the shape the repository's `record` takes, with the room of its own design. */
+function aPresetToRecord(): PresetToRecord {
+  const { room } = KITCHEN_L_DESIGN;
+  return {
+    shape: "L",
+    walls: { aMm: room.widthMm, bMm: room.depthMm },
+    heightMm: room.heightMm,
+    design: KITCHEN_L_DESIGN,
+    thumbnail: Uint8Array.of(1, 2, 3),
+    thumbnailType: "image/png",
+  };
+}
+
+/** A repository statement, planned and never run, with the values it sends. */
+function explainOfThePresetStatement(
+  statement: RecordedStatement,
+): Promise<unknown> {
+  expect(statement.values).toHaveLength(placeholderCountOf(statement.text));
+  return neon(readDatabaseUrl()).query(
+    `explain ${withNumberedPlaceholders(statement.text)}`,
+    [...statement.values],
+  );
 }
 
 /** What the server answered a statement with, as the failure it raised or `undefined` when it raised none. */
@@ -696,6 +781,93 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
             `values ('${"0".repeat(64)}', '${NO_SUCH_REQUEST_ID}', ${String(CURRENT_SCHEMA_VERSION)}, '{}'::jsonb)`,
         ),
       ).toMatchObject({ code: FOREIGN_KEY_VIOLATION });
+    },
+  );
+
+  // M8C wave P1, ADR 0168 exception 1: the runbook's grant proof for migration `0011`. The table comes from the
+  // migration; the grant is the owner's, so these skip with the reason until both exist. Asked of the catalog,
+  // `PUBLIC` and inherited roles included. Nothing is inserted: a row here would be a preset on every Step 1 screen of
+  // the database reached, and the role could not remove it. The last two probes are `explain`, which plans a statement
+  // and never runs it: a delete and an update the role may not make must be refused with 42501, or `explain` is not
+  // checking privileges. The update is the owner's hiding statement, so it is also the proof that the application
+  // cannot hide, show or rewrite a preset.
+  guardedTest(
+    "effectively holds select on public.presets, insert on exactly eleven named columns and not on created_at or status, nothing through PUBLIC, and has a delete and an update refused, once it exists",
+    async (context) => {
+      await skipUnlessThePresetsTableExists(context);
+      const sql = neon(readDatabaseUrl());
+
+      const known = await tablePrivilegesTheServerKnows(sql);
+      expect(known).toEqual(
+        expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+      );
+      expect(await privilegesHeldOn(sql, PRESETS, known)).toEqual(
+        PRESETS_TABLE_PRIVILEGES,
+      );
+      const columns = await columnsOf(sql, PRESETS);
+      expect([...columns].sort()).toEqual(
+        [
+          ...PRESETS_INSERTABLE_COLUMNS,
+          ...PRESETS_COLUMNS_THE_ROLE_CANNOT_INSERT,
+        ].sort(),
+      );
+      expect(await columnsHolding(sql, PRESETS, "SELECT")).toEqual(columns);
+      expect(
+        [...(await columnsHolding(sql, PRESETS, "INSERT"))].sort(),
+      ).toEqual([...PRESETS_INSERTABLE_COLUMNS].sort());
+      expect(await columnsHolding(sql, PRESETS, "UPDATE")).toEqual([]);
+      expect(await columnsHolding(sql, PRESETS, "REFERENCES")).toEqual([]);
+      await expectNothingHeldWithGrantOption(sql, PRESETS, known);
+      expect(await grantsToPublicOn(sql, PRESETS)).toBe(0);
+
+      expect(await failureOf(`explain delete from ${PRESETS}`)).toMatchObject({
+        code: INSUFFICIENT_PRIVILEGE,
+      });
+      expect(
+        await failureOf(`explain update ${PRESETS} set status = 'hidden'`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
+  // As for the csp tables and `contact_submission_views`: `explain` shows the server finds the column grant enough for
+  // the two statements the repository sends that the role can plan. They are the repository's own statements, built by
+  // the same functions, so they cannot drift from what is planned here. The negative controls show the column grant
+  // is what is checked: an insert that names `status`, or `created_at`, is refused with 42501.
+  guardedTest(
+    "can have the repository's record and list statements planned, and cannot have an insert naming status or created_at planned, once the table exists",
+    async (context) => {
+      await skipUnlessThePresetsTableExists(context);
+      const preset = aPresetToRecord();
+
+      await expect(
+        explainOfThePresetStatement(
+          insertUnlessHeldStatement(
+            recordedStatement,
+            "0".repeat(21),
+            preset,
+            requireValidPresetToRecord(preset),
+          ),
+        ),
+      ).resolves.toBeDefined();
+      await expect(
+        explainOfThePresetStatement(
+          selectPublishedNearStatement(recordedStatement, {
+            shape: "L",
+            walls: preset.walls,
+            windowMm: 600,
+            limit: 8,
+          }),
+        ),
+      ).resolves.toBeDefined();
+
+      for (const column of PRESETS_COLUMNS_THE_ROLE_CANNOT_INSERT) {
+        expect(
+          await failureOf(
+            `explain insert into ${PRESETS} (id, ${column}) values ('${"0".repeat(21)}', ` +
+              `${column === "status" ? "'hidden'" : "now()"})`,
+          ),
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+      }
     },
   );
 });

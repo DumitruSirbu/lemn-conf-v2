@@ -107,6 +107,9 @@ const SMALLEST_ROOM_QUERY =
 
 const RUN_TIMEOUT_MS = 3000;
 const POLL_MS = 5;
+const PRESET_LISTING_ENDPOINT = "/api/presets";
+const MICROTASK_TURNS_A_LISTING_NEEDS = 40;
+const MICROTASK_TURNS_AN_IMPORT_NEEDS = 8;
 
 let container: HTMLDivElement;
 let root: Root;
@@ -210,17 +213,6 @@ async function waitUntil(settled: () => boolean, what: string): Promise<void> {
     });
   }
   throw new Error(`the composition never ${what}`);
-}
-
-/**
- * Lets a run's dynamic import resolve without its paint frame arriving, parking the run between the two so a second
- * run can start on top of it. Resolve the first import before issuing the second: under Vitest 3.2 two same-tick
- * dynamic imports of a `vi.mock`-ed module return different namespaces, and the second is the real module.
- */
-async function letTheImportResolve(): Promise<void> {
-  await act(async () => {
-    for (let turn = 0; turn < 8; turn += 1) await Promise.resolve();
-  });
 }
 
 /** Lets every continuation a finished run may still hold run to completion; a token never compared would repaint. */
@@ -327,9 +319,48 @@ afterEach(() => {
 
 /** Holds the hand-off's `fetch` open. Unstubbed, a settled run's `POST` opened a real socket whose timing decided how
  *  far the hand-off got. It never answers, so every trail, push count and ledger is read against `saving`; a
- *  rejection would update `RoomScreen` outside `act`. The hand-off itself is `room-handoff.dom.test.ts`'s. */
+ *  rejection would update `RoomScreen` outside `act`. The hand-off itself is `room-handoff.dom.test.ts`'s.
+ *
+ *  The preset listing is answered at once with a 404, which Step 1 reads as "no presets": since M8C P8 composition
+ *  starts only after that read, and a listing held open would hold every run here for its own 3 s timeout. */
 function holdEveryRequestOpen(): void {
-  vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+  vi.stubGlobal("fetch", (url: unknown) =>
+    String(url).startsWith(PRESET_LISTING_ENDPOINT)
+      ? Promise.resolve(new Response(null, { status: 404 }))
+      : new Promise<Response>(() => undefined),
+  );
+}
+
+/**
+ * The wait (1D) between the tap and 1F, which the stubbed listing ends within microtasks. A test that acts on the run
+ * straight after the tap, as these did before M8C P8, awaits this first. Microtasks only, no timer, so the run
+ * is carried no further than its paint frame, where these tests mean to hold it.
+ */
+async function settleTheListing(): Promise<void> {
+  await act(async () => {
+    for (let turn = 0; turn < MICROTASK_TURNS_A_LISTING_NEEDS; turn += 1) {
+      await Promise.resolve();
+    }
+  });
+}
+
+/**
+ * Lets a run get through the preset listing and resolve its dynamic import without its paint frame arriving, parking
+ * the run between the two so a second run can start on top of it. Resolve the first import before issuing the second:
+ * under Vitest 3.2 two same-tick dynamic imports of a `vi.mock`-ed module return different namespaces, and the second is
+ * the real module. It is one `act`, not `settleTheListing` and then a second one: a second `act` is a second task
+ * boundary, and under load enough real time passes in it for the paint frame to arrive.
+ */
+async function settleTheListingAndTheImport(): Promise<void> {
+  await act(async () => {
+    for (
+      let turn = 0;
+      turn < MICROTASK_TURNS_A_LISTING_NEEDS + MICROTASK_TURNS_AN_IMPORT_NEEDS;
+      turn += 1
+    ) {
+      await Promise.resolve();
+    }
+  });
 }
 
 describe("a kit that exists before the lease does (criterion 28, risk 5)", () => {
@@ -400,6 +431,7 @@ describe("a run whose screen is gone (criterion 28)", () => {
     render();
 
     tapContinue();
+    await settleTheListing();
     // Not *Înapoi*: the tree itself goes, and the run's continuation is the only thing left holding the kit.
     act(() => {
       root.unmount();
@@ -417,7 +449,7 @@ describe("two runs alive at once (the run token)", () => {
     render();
 
     tapContinue();
-    await letTheImportResolve();
+    await settleTheListingAndTheImport();
     // Precondition: the first run is parked on its paint frame, short of the generator, and the second starts on top.
     expect(vi.mocked(generateKitchen)).not.toHaveBeenCalled();
     expect(composePhase()).toBe("composing");
@@ -455,7 +487,7 @@ describe("two runs alive at once (the run token)", () => {
     render();
 
     tapContinue();
-    await letTheImportResolve();
+    await settleTheListingAndTheImport();
     expect(vi.mocked(generateKitchen)).not.toHaveBeenCalled();
 
     tapComposeBack();
@@ -473,6 +505,7 @@ describe("two runs alive at once (the run token)", () => {
     render();
 
     tapContinue();
+    await settleTheListing();
     expect(composePhase()).toBe("composing");
     tapComposeBack();
     await settleGenerationCalls(1);

@@ -11,7 +11,7 @@ import { databaseNameOf } from "../src/open-database.js";
 import { ALLOWED_TEST_DATABASE_NAMES } from "../src/test-database-url.js";
 
 /**
- * `docs/milestones/migration-environment-safety-check.md` AC1–AC5: the pure check both CLIs refuse
+ * docs/decisions/0169 AC1-AC5: the pure check both CLIs refuse
  * through, and the argument-reading helper they share. Never a database — this module has no I/O.
  */
 
@@ -91,7 +91,7 @@ describe("assertDeclaredEnvironmentReaches — a listed environment", () => {
     expectThrowsMismatch("preview", "lemn-conf-v2");
   });
 
-  // AC2's property: every listed label refuses every database name that is not its own.
+  // docs/decisions/0169 AC2's property: every listed label refuses every database name that is not its own.
   propertyTest.prop([fc.constantFrom(...LISTED_ENVIRONMENTS), fc.string()], {
     seed: 20260928,
     numRuns: 300,
@@ -194,7 +194,7 @@ describe("assertDeclaredEnvironmentReaches — an unlisted label", () => {
     expect(message).not.toContain("@host");
   });
 
-  // AC3's property: an unlisted label passes iff it equals the database name exactly, that name is
+  // docs/decisions/0169 AC3's property: an unlisted label passes iff it equals the database name exactly, that name is
   // claimed by no listed environment, is not empty, and is not the unparseable placeholder.
   propertyTest.prop([fc.string(), fc.string()], {
     seed: 20260928,

@@ -304,3 +304,21 @@ undated prose in a wave plan.
 | M7 plan, *Owner's statement of intent*, 2026-09-03, point 2 | The fallback must produce **a functional kitchen**, not merely a placement that fits. | **The floor decision 1 keeps.** *Cheap* bounds which roles a kitchen gains; it never licenses dropping one it could have had. |
 | [0062](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) | Nothing is built for the dashboard in M6–M8. | **Untouched.** The preset library is ADR 0112's owner-directed exception and this record adds none. |
 | [0107](0107-appliances-are-drawn-and-not-sold-and-a-language-is-named-in-its-own-language.md) | Appliances are drawn and not sold. | **Consistent**: what a generated kitchen *draws* is still bounded by the catalogue, whichever path places it. |
+
+## Dated note — 2026-10-17: an owner ruling under decision 7 narrows decision 1 and *Consequences* (ADR 0167, Proposed)
+
+The owner asked that generation fill every free wall-run end where a cabinet fits (`docs/OWNER_FIXES.md`, Fix 1; Q-F1-1,
+Q-2 = (b), Q-8 = no new rule; see [ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)).
+This is **the route decision 7 names**: *"The route to change a refusal is an owner ruling, and nothing else."* It is not a
+taste rule added from a screenshot (decision 4). Once 0167 is Accepted:
+- **Decision 1** (generation owes a correct, complete, cheap kitchen) is read with a fill at every free end of at least
+  the catalogue's narrowest cabinet, at the price rise 0167 records; *cheap* still bounds which roles a kitchen gains.
+- ***Consequences*, *"The generator will keep looking plain, and that is the design"*:** the bare run end is no longer
+  part of that plainness for remainders at or above the floor. The record lists *"Doors-only uppers, no open shelves, no
+  mechanisms, no top row, an empty strip above the uppers, a free-standing fridge"*; 0167 does not touch those (and ADR
+  0110 Amendment O9 had already changed *"no top row"* before this note).
+- **Decision 6, third bullet** (*"Adaptation subtracts taste and refills with the baseline"*, refilling *"any bare
+  stretch of 600 mm or more"*): the refill is the baseline, and the baseline moves with 0167; see ADR 0109 Amendment E.
+- **Decision 3 stands:** the owner's own Q-8 answer sends placement rules that the generator lacks (the hob 2–3 cabinets
+  from the corner) to his presets, not to the generator, with a follow-up trigger recorded in 0167.
+Nothing above is struck; this is a forward pointer while 0167 is Proposed.

@@ -120,7 +120,7 @@ own figures (290 000, 1 200 000, a 1 490 000 drop) are test arithmetic and stay 
   web app; the domain's `pricing/` keeps exact integer minor units and never rounds.
 - **Related, recorded.** [ADR 0092](0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md)
   decision 12 covers the *De la* claim, not this. The same rule is a criterion in
-  `docs/milestones/M6-price-and-global-settings.md` (a plan, not a decision record).
+  `docs/milestones/done/M6-price-and-global-settings.md` (a plan, not a decision record).
 - **Where.** `apps/web/src/price/starting-price.ts`; `apps/web/src/price/price-breakdown-model.ts`.
 
 *Note — 2026-10-09 (wave 8J):* the shop's notice (`apps/web/src/lib/server/mail/lead-notification.ts`) joined this decision's list of

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin:0; background:#e7e3da; -webkit-font-smoothing:antialiased; }
+  a { color:#7c5c3d; }
+  a:hover { color:#5a3e25; }
+</style>
+</helmet>
+
+<div style="padding:56px 56px 96px;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1c1d1f;display:flex;flex-direction:column;gap:64px">
+
+  <header style="max-width:780px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+      <span style="width:1px;height:16px;background:#dcd8ce"></span>
+      <span style="font:400 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7d7a72">Cont · lotul 1 · mobil 390 + desktop 1920</span>
+    </div>
+    <h1 style="margin:0;font:700 34px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;max-width:22ch">Creează cont, confirmă adresa, intră, parolă uitată și parolă nouă</h1>
+    <p style="margin:0;font:400 14.5px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:64ch;text-wrap:pretty">Pagini întregi sub /[locale]/account/*, separate de configurator. Fiecare stare arată un singur răspuns al serverului (cuvântul e notat sub cadru, niciodată afișat). Mesajele neutre nu dezvăluie dacă o adresă are cont. Desktop: coloană de 440 px centrată, nu un formular întins.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:9px 11px;border-radius:5px">Paletă provizorie — nu este brandul final</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Turnstile doar pe A1, A4, A5</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">A3 și A6: pagini simple, fără terți</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Fără reguli de compoziție a parolei</span>
+    </div>
+  </header>
+
+  <sc-for list="{{screens}}" as="sc" hint-placeholder-count="2">
+  <section id="{{sc.idl}}" style="display:flex;flex-direction:column;gap:24px">
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+      <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Ecran {{sc.id}}</span>
+      <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{sc.name}}</span>
+      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">{{sc.route}}</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+      <sc-for list="{{sc.frames}}" as="f" hint-placeholder-count="3">
+      <div id="{{f.idl}}" style="display:flex;flex-direction:column;gap:12px;width:390px">
+        <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:8px">
+          <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">{{f.id}}</span>
+          <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{f.cap}}</span>
+          <sc-if value="{{f.plain}}"><span style="font:700 9.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6b5e52;border:1px solid #c9c2b6;padding:4px 6px;border-radius:4px">Pagină simplă · fără terți</span></sc-if>
+        </div>
+        <div style="width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+          <div style="padding:2px 12px 2px 4px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #e4dfd5;flex:0 0 auto">
+            <span aria-label="Înapoi la configurator" style="flex:0 0 40px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font:400 26px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">‹</span>
+            <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;flex:0 0 auto">Lemnaria</span>
+            <span style="width:1px;height:14px;background:#dcd8ce;flex:0 0 auto"></span>
+            <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{sc.header}}</span>
+            <span style="display:flex;align-items:center;gap:4px;flex:0 0 auto;padding:6px 8px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:8px">
+              <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">RO</span>
+              <span style="font:400 10px/1 Helvetica,Arial,sans-serif;color:#7d7a72">▾</span>
+            </span>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:22px 18px;display:flex;flex-direction:column;gap:18px">
+            <sc-if value="{{f.hasTitle}}">
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <h2 style="margin:0;font:700 22px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.015em;color:#1c1814">{{f.title}}</h2>
+                <sc-if value="{{f.body}}"><p style="margin:0;font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.body}}</p></sc-if>
+              </div>
+            </sc-if>
+            <dc-import name="ContBlocks" blocks="{{f.blocks}}" hint-size="100%,240px" style="width:100%"></dc-import>
+          </div>
+          <sc-if value="{{f.hasBar}}">
+          <div style="border-top:1px solid #dcd8ce;padding:13px 18px 20px;display:flex;flex-direction:column;gap:11px;flex:0 0 auto">
+            <sc-if value="{{f.bar.legal}}"><p style="margin:0;font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty"><sc-for list="{{f.bar.legal}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></p></sc-if>
+            <sc-if value="{{f.bar.pOn}}"><div style="height:52px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">{{f.bar.label}}</div></sc-if>
+            <sc-if value="{{f.bar.pFocus}}"><div style="height:52px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4;outline:2px solid #7c5c3d;outline-offset:2px">{{f.bar.label}}</div></sc-if>
+            <sc-if value="{{f.bar.pOff}}"><div aria-disabled="true" style="height:52px;box-sizing:border-box;border-radius:12px;background:#ece7dd;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e;font-variant-numeric:tabular-nums">{{f.bar.label}}</div></sc-if>
+            <sc-if value="{{f.bar.pBusy}}"><div aria-busy="true" style="height:52px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;gap:10px;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4"><span style="width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid rgba(250,248,244,.35);border-top-color:#faf8f4"></span>{{f.bar.label}}</div></sc-if>
+            <sc-if value="{{f.bar.secondary}}"><div style="height:52px;box-sizing:border-box;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{f.bar.secondary}}</div></sc-if>
+            <sc-if value="{{f.bar.link}}"><div style="min-height:40px;display:flex;align-items:center;justify-content:center;gap:5px;font:400 13px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52"><sc-if value="{{f.bar.link.pre}}"><span>{{f.bar.link.pre}}</span></sc-if><a href="#" style="color:#7c5c3d;font-weight:700">{{f.bar.link.a}}</a></div></sc-if>
+          </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{showNotes}}">
+        <div style="display:flex;flex-direction:column;gap:5px;max-width:390px">
+          <span style="font:700 11px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#5a3e25">Server: {{f.server}}</span>
+          <span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.note}}</span>
+        </div>
+        </sc-if>
+      </div>
+      </sc-for>
+
+      <sc-if value="{{showNotes}}">
+      <div style="width:300px;display:flex;flex-direction:column;gap:10px;padding:16px 18px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:14px;margin-top:30px">
+        <span style="font:700 10.5px/1.3 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">RU · traducere de lucru — de verificat de un vorbitor nativ</span>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Titlu</span><span style="font:700 14px/1.35 Helvetica,Arial,sans-serif;color:#1c1814">{{sc.ru.title}}</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Buton principal</span><span style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#1c1814">{{sc.ru.primary}}</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Eroarea principală</span><span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:#1c1814;text-wrap:pretty">{{sc.ru.error}}</span></div>
+        <span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52">Butoanele și mesajele au loc pentru ~30% text în plus.</span>
+      </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{showDesktop}}">
+    <div style="display:flex;flex-wrap:wrap;gap:36px">
+      <sc-for list="{{sc.dFrames}}" as="f" hint-placeholder-count="1">
+      <div id="d{{f.idl}}" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D{{f.id}}</span>
+          <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{f.cap}} · desktop</span>
+        </div>
+        <div style="width:1920px;height:1080px;box-sizing:border-box;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+          <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #e4dfd5">
+            <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+            <span style="display:flex;align-items:center;gap:8px;height:44px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#7c5c3d"><span style="font:400 22px/1 Helvetica,Arial,sans-serif">‹</span>Înapoi la configurator</span>
+            <span style="display:flex;align-items:center;gap:5px;height:40px;flex:0 0 auto;margin-left:auto;padding:0 12px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:20px">
+              <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">RO</span>
+              <span style="font:400 11px/1 Helvetica,Arial,sans-serif;color:#7d7a72">▾</span>
+            </span>
+          </div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#f5f3f0;overflow:hidden">
+            <div style="width:440px;box-sizing:border-box;display:flex;flex-direction:column;gap:22px;padding:38px 36px 32px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:18px;box-shadow:0 14px 34px rgba(28,24,20,.06)">
+              <sc-if value="{{f.hasTitle}}">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <h2 style="margin:0;font:700 28px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;color:#1c1814">{{f.title}}</h2>
+                  <sc-if value="{{f.body}}"><p style="margin:0;font:400 14px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.body}}</p></sc-if>
+                </div>
+              </sc-if>
+              <dc-import name="ContBlocks" blocks="{{f.blocks}}" hint-size="100%,240px" style="width:100%"></dc-import>
+              <sc-if value="{{f.hasBar}}">
+              <div style="display:flex;flex-direction:column;gap:11px;padding-top:4px">
+                <sc-if value="{{f.bar.legal}}"><p style="margin:0;font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty"><sc-for list="{{f.bar.legal}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></p></sc-if>
+                <sc-if value="{{f.bar.pOn}}"><div style="height:52px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">{{f.bar.label}}</div></sc-if>
+                <sc-if value="{{f.bar.pFocus}}"><div style="height:52px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4;outline:2px solid #7c5c3d;outline-offset:2px">{{f.bar.label}}</div></sc-if>
+                <sc-if value="{{f.bar.pOff}}"><div style="height:52px;box-sizing:border-box;border-radius:12px;background:#ece7dd;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e;font-variant-numeric:tabular-nums">{{f.bar.label}}</div></sc-if>
+                <sc-if value="{{f.bar.pBusy}}"><div style="height:52px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;gap:10px;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4"><span style="width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid rgba(250,248,244,.35);border-top-color:#faf8f4"></span>{{f.bar.label}}</div></sc-if>
+                <sc-if value="{{f.bar.secondary}}"><div style="height:52px;box-sizing:border-box;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{f.bar.secondary}}</div></sc-if>
+                <sc-if value="{{f.bar.link}}"><div style="min-height:40px;display:flex;align-items:center;justify-content:center;gap:5px;font:400 13px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52"><sc-if value="{{f.bar.link.pre}}"><span>{{f.bar.link.pre}}</span></sc-if><a href="#" style="color:#7c5c3d;font-weight:700">{{f.bar.link.a}}</a></div></sc-if>
+              </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-for>
+    </div>
+    </sc-if>
+  </section>
+  </sc-for>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Afișare&quot;},&quot;showDesktop&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Afișare&quot;}}">
+const PWH = 'Cel puțin 12 caractere. Poți folosi o frază; spațiile sunt permise.';
+const E = 'ana.popescu@mail.md', PW = 'pădure de stejar lângă Orhei', TEL = '069 123 456';
+const BREACH = 'Această parolă apare în scurgeri de date publice, așa că nu e sigură. Alege alta — de exemplu o frază din câteva cuvinte.';
+const SHORT = 'Parola trebuie să aibă cel puțin 12 caractere.';
+const LEGAL = 'Prin crearea contului accepți ca datele tale să fie prelucrate conform [Notei de confidențialitate]. Personalul Lemnaria poate vedea bucătăriile salvate în cont.';
+const INV3 = 'Link-ul sau parola nu sunt valabile. Verifică parola și folosește cel mai recent e-mail primit de la noi. Dacă ai confirmat deja adresa, [intră în cont].';
+const INV4 = 'E-mailul sau parola nu se potrivesc. Dacă datele sunt corecte, verifică-ți e-mailul: s-ar putea să trebuiască întâi să confirmi adresa.';
+const SPAM = 'Verifică folderul Spam sau Promoții.', RECENT = 'Folosește cel mai recent e-mail: un link nou îl anulează pe cel vechi.';
+
+const email = (o = {}) => ({ t: 'field', label: 'E-mail', ph: 'nume@exemplu.md', ...o });
+const pw = (o = {}) => ({ t: 'field', label: 'Parolă', pw: true, ...o });
+const pwNew = (o = {}) => pw({ label: 'Parolă nouă', hint: PWH, ...o });
+const tel = (o = {}) => ({ t: 'field', label: 'Telefon (opțional, neverificat)', ph: TEL, hint: 'Îl folosim doar ca să te putem suna despre oferta ta. Nu îl verificăm prin SMS.', ...o });
+const ts = s => ({ t: 'turn', s });
+const N = (tone, text, o = {}) => ({ t: 'notice', tone, text, ...o });
+const P = text => ({ t: 'p', text });
+const L = v => ({ t: 'label', v });
+const hero = (tone, title, text, glyph) => ({ t: 'hero', tone, title, text, glyph });
+const help = (title, items) => ({ t: 'help', title, items });
+const links = (...items) => ({ t: 'links', items });
+const RL = N('warn', '**Prea multe încercări.** Încearcă din nou peste 4 min.');
+const RL2 = N('warn', '**Prea multe încercări azi.** Încearcă din nou mâine.');
+const UN = N('err', 'Nu am schimbat nimic. Încearcă din nou în câteva minute.', { title: 'Serviciul nu este disponibil acum' });
+const CD = 'Încearcă din nou peste 3:58';
+const S_RL = '429 rate-limited · Retry-After: 240';
+const S_RL2 = '429 rate-limited · Retry-After: 61 200 (limita zilnică)';
+const N_RL = 'Numărătoare inversă pe buton doar pentru așteptări sub 10 min. Același text oricare ar fi adresa.';
+const N_RL2 = 'Limita zilnică se resetează la 00:00 UTC — fără numărătoare pentru așteptări lungi; butonul rămâne activ, următoarea încercare primește din nou 429.';
+const N_UN = 'Panou ca 5B, sus în formular (regiune live, primește focusul). Valorile scrise rămân, parola se golește. „Încearcă din nou” retrimite.';
+
+const SCREENS = [
+  {
+    id: 'A1', name: 'Înregistrare', header: 'Cont nou', route: '/[locale]/account/register',
+    ru: { title: 'Создать аккаунт', primary: 'Создать аккаунт', error: 'Этот пароль встречается в публичных утечках данных, поэтому он небезопасен. Выбери другой — например, фразу из нескольких слов.' },
+    base: { title: 'Creează un cont', body: 'Cu un cont îți deschizi bucătăriile de pe orice dispozitiv.', bar: { legal: LEGAL, primary: 'Creează contul' } },
+    frames: [
+      { id: 'A1A', d: 1, cap: 'Gol · verificarea se încarcă', server: '—', note: 'Doar e-mail, parolă și telefon opțional. Fără nume, adresă sau „repetă parola” (Arată/Ascunde o înlocuiește). Butonul e inactiv până trece Turnstile. Fără bifă de consimțământ: contul este un contract.',
+        blocks: [email(), pw({ hint: PWH }), tel(), ts('load'), links({ pre: 'Ai deja cont?', a: 'Intră în cont' })], st: 'off' },
+      { id: 'A1B', cap: 'Completat, valid · focus pe buton', server: '— (înainte de trimitere)', note: 'Inel de focus pe butonul principal: 2px #7c5c3d, offset 2px. Parola acceptă lipire și manageri de parole; autocomplete="new-password", "email", "tel".',
+        blocks: [email({ value: E }), pw({ value: PW, hint: PWH }), tel({ value: TEL }), ts('pass'), links({ pre: 'Ai deja cont?', a: 'Intră în cont' })], st: 'focus' },
+      { id: 'A1C', d: 1, cap: 'Erori pe câmpuri', server: '400 invalid-input · PASSWORD_TOO_SHORT, PHONE_MOLDOVAN_INCOMPLETE', note: 'Rezumat în regiune live sus; focusul merge pe primul câmp invalid. Fiecare câmp: aria-invalid + aria-describedby spre mesaj. Mesajul nu repetă valoarea. Contorul „8 / 12” e permis, un indicator de putere nu.',
+        blocks: [N('err', 'Verifică cele 2 câmpuri marcate.'), email({ value: E }), pw({ value: 'stejar12', count: '8 / 12', err: SHORT, hint: PWH }), tel({ value: '069 123 45', err: 'Numărul pare incomplet. Un număr din Moldova are 9 cifre (ex.: 069 123 456).' }), ts('pass')] },
+      { id: 'A1D', cap: 'Parolă găsită în scurgeri', server: '400 invalid-input · PASSWORD_BREACHED', note: 'Verificarea e doar pe server. Textul nu sugerează că persoana a fost spartă. Turnstile se resetează după orice răspuns.',
+        blocks: [email({ value: E }), pw({ value: 'parola123456', err: BREACH, hint: PWH }), tel({ value: TEL }), ts('ready')] },
+      { id: 'A1E', cap: 'Se trimite', server: 'în așteptare', note: 'Butonul își păstrează lățimea: spinner + „Se creează…”, aria-busy pe formular.',
+        blocks: [email({ value: E }), pw({ value: PW, hint: PWH }), tel({ value: TEL }), ts('pass')], st: 'busy', label: 'Se creează…' },
+      { id: 'A1F', cap: 'Verificarea anti-robot a eșuat', server: '403 challenge-failed', note: 'Mesajul stă sub slot; widgetul se resetează. Valorile rămân. Starea „se încarcă” este în A1A, „nu se poate încărca” în A7.',
+        blocks: [email({ value: E }), pw({ value: PW, hint: PWH }), tel({ value: TEL }), { t: 'turn', s: 'fail' }], st: 'off' },
+      { id: 'A1G', cap: 'Prea multe încercări · așteptare scurtă', server: S_RL, note: N_RL,
+        blocks: [RL, email({ value: E }), pw({ value: PW, hint: PWH }), tel({ value: TEL }), ts('pass')], st: 'off', label: CD },
+      { id: 'A1G2', cap: 'Prea multe încercări · „mâine”', server: S_RL2, note: N_RL2,
+        blocks: [RL2, email({ value: E }), pw({ value: PW, hint: PWH }), tel({ value: TEL }), ts('pass')] },
+      { id: 'A1H', cap: 'Serviciu indisponibil', server: '503 unavailable', note: N_UN,
+        blocks: [UN, email({ value: E }), pw({ hint: PWH }), tel({ value: TEL }), ts('ready')], label: 'Încearcă din nou' },
+    ],
+  },
+  {
+    id: 'A2', name: 'Verifică-ți e-mailul', header: 'Verifică e-mailul', route: 'după A1 · fără rută proprie',
+    ru: { title: 'Проверь почту', primary: 'Вернуться в конфигуратор', error: 'Если данные верны, мы отправили тебе письмо на {адрес}. Открой ссылку в нём и введи пароль, чтобы подтвердить адрес.' },
+    frames: [
+      { id: 'A2A', d: 1, cap: 'Răspuns neutru după înregistrare', server: '202 check-inbox', note: 'Identic pentru adresă nouă, neconfirmată sau deja înregistrată (aceasta primește e-mailul „ai deja un cont”). Nu spune „contul a fost creat”. Întrebare deschisă: un buton „Retrimite” ar cere o rută nouă pe server — nu există acum.',
+        blocks: [hero('neu', 'Verifică-ți e-mailul', `Dacă datele sunt corecte, ți-am trimis un e-mail la **${E}**. Deschide link-ul din el și introdu parola ca să confirmi adresa.`, '@'), P('Link-ul este valabil 24 de ore.'),
+          help('Nu a ajuns e-mailul?', [SPAM, RECENT, 'Poți încerca din nou înregistrarea cu aceeași adresă, sau [intră în cont] dacă ai confirmat deja.'])],
+        bar: { secondary: 'Înapoi la configurator', link: { a: 'Am greșit adresa' } } },
+    ],
+  },
+  {
+    id: 'A3', name: 'Confirmă adresa', header: 'Confirmă adresa', route: '/[locale]/account/verify-email#t=…', plain: 1,
+    ru: { title: 'Подтверди адрес электронной почты', primary: 'Подтвердить и войти', error: 'Ссылка или пароль недействительны. Проверь пароль и используй самое последнее письмо от нас. Если ты уже подтвердил адрес, войди.' },
+    base: { title: 'Confirmă adresa de e-mail', body: 'Introdu parola pe care ai ales-o la crearea contului.', bar: { primary: 'Confirmă și intră în cont' } },
+    frames: [
+      { id: 'A3A', d: 1, cap: 'Pregătit · focus pe parolă', server: '—', note: 'Fără Turnstile, analytics, fonturi sau imagini externe. Token-ul se citește din #t= și se șterge imediat din bara de adrese; nu se afișează. Adresa de e-mail nu apare — pagina n-o cunoaște. autocomplete="current-password".',
+        blocks: [pw({ focus: 1 })] },
+      { id: 'A3B', cap: 'Se confirmă', server: 'în așteptare', note: 'aria-busy; butonul păstrează lățimea.', blocks: [pw({ value: PW })], st: 'busy', label: 'Se confirmă…' },
+      { id: 'A3C', d: 1, cap: 'Link sau parolă nevalabile', server: '400 link-or-password-invalid', note: 'Un singur mesaj pentru parolă greșită, link expirat, folosit sau înlocuit. Parola se golește, focusul revine pe ea.',
+        blocks: [N('err', INV3), pw({ focus: 1 })] },
+      { id: 'A3D', cap: 'Deschisă fără token', server: '— (fără #t= în adresă)', note: 'Același text ca A3C, fără formular.',
+        blocks: [N('err', INV3)], bar: { secondary: 'Înapoi la configurator' } },
+      { id: 'A3E', cap: 'Prea multe încercări', server: S_RL, note: 'Limita pe blocuri de încercări. ' + N_RL, blocks: [RL, pw()], st: 'off', label: CD },
+      { id: 'A3F', cap: 'Serviciu indisponibil', server: '503 unavailable', note: N_UN, blocks: [UN, pw()], label: 'Încearcă din nou' },
+      { id: 'A3G', cap: 'Confirmat · tranziție', server: '200 signed-in · claimable: n', note: 'Afișat ~1 s, apoi configuratorul / „Bucătăriile mele”. Dacă claimable > 0, se deschide dialogul de atașare (A17, lotul 2).',
+        title: null, blocks: [hero('ok', 'Adresa este confirmată', 'Te-am conectat. Te ducem la bucătăriile tale…')], bar: null },
+    ],
+  },
+  {
+    id: 'A4', name: 'Intră în cont', header: 'Intră în cont', route: '/[locale]/account/login',
+    ru: { title: 'Войти', primary: 'Войти', error: 'Адрес электронной почты или пароль не подходят. Если данные верны, проверь почту: возможно, сначала нужно подтвердить адрес.' },
+    base: { title: 'Intră în cont', bar: { primary: 'Intră în cont', link: { pre: 'Nu ai cont?', a: 'Creează unul' } } },
+    frames: [
+      { id: 'A4A', d: 1, cap: 'Gol', server: '—', note: 'Fără „Ține-mă minte” (sesiunile sunt gestionate de server), fără butoane sociale. autocomplete="email" și "current-password".',
+        blocks: [email(), pw(), links({ a: 'Ai uitat parola?' }), ts('ready')] },
+      { id: 'A4B', cap: 'Se verifică', server: 'în așteptare', note: 'aria-busy; butonul păstrează lățimea.',
+        blocks: [email({ value: E }), pw({ value: PW }), links({ a: 'Ai uitat parola?' }), ts('pass')], st: 'busy', label: 'Se verifică…' },
+      { id: 'A4C', d: 1, cap: 'Date care nu se potrivesc', server: '401 invalid-credentials', note: 'Singurul eșec: adresă necunoscută, parolă greșită sau cont neconfirmat (acesta primește în tăcere un link nou). Nu există stare „neconfirmat”. E-mailul rămâne, parola se golește, focus pe parolă.',
+        blocks: [N('err', INV4), email({ value: E }), pw({ focus: 1 }), links({ a: 'Ai uitat parola?' }), ts('ready')] },
+      { id: 'A4D', cap: 'Verificarea anti-robot a eșuat', server: '403 challenge-failed', note: 'Widgetul se resetează; valorile rămân.',
+        blocks: [email({ value: E }), pw({ value: PW }), links({ a: 'Ai uitat parola?' }), { t: 'turn', s: 'fail' }], st: 'off' },
+      { id: 'A4E', cap: 'Prea multe încercări · scurt', server: S_RL, note: N_RL,
+        blocks: [RL, email({ value: E }), pw(), links({ a: 'Ai uitat parola?' }), ts('pass')], st: 'off', label: CD },
+      { id: 'A4E2', cap: 'Prea multe încercări · „mâine”', server: S_RL2, note: N_RL2,
+        blocks: [RL2, email({ value: E }), pw(), links({ a: 'Ai uitat parola?' }), ts('pass')] },
+      { id: 'A4F', cap: 'Serviciu indisponibil', server: '503 unavailable', note: N_UN,
+        blocks: [UN, email({ value: E }), pw(), links({ a: 'Ai uitat parola?' }), ts('ready')], label: 'Încearcă din nou' },
+      { id: 'A4G', cap: 'Sosire după sesiune expirată', server: 'trimis aici după un 401 unauthenticated', note: 'Notificare discretă, nu eroare. Întrebare deschisă pentru val: paginile de cont sunt încărcări complete — cum supraviețuiesc modificările nesalvate din editor nu e decis; textul nu promite nimic.',
+        blocks: [N('info', 'Sesiunea ta a expirat. Intră din nou în cont ca să continui.'), email(), pw(), links({ a: 'Ai uitat parola?' }), ts('ready')] },
+    ],
+  },
+  {
+    id: 'A5', name: 'Parolă uitată', header: 'Parolă uitată', route: '/[locale]/account/forgot-password',
+    ru: { title: 'Забыл пароль?', primary: 'Отправить ссылку для сброса', error: 'Если есть подтверждённый аккаунт с этим адресом, мы отправили ссылку для нового пароля. Ссылка действует 30 минут.' },
+    base: { title: 'Ai uitat parola?', body: 'Scrie adresa contului. Îți trimitem un link pentru o parolă nouă.', bar: { primary: 'Trimite link-ul de resetare', link: { pre: 'Ți-ai amintit?', a: 'Intră în cont' } } },
+    frames: [
+      { id: 'A5A', d: 1, cap: 'Gol', server: '—', note: 'Un singur câmp + Turnstile.', blocks: [email(), ts('ready')] },
+      { id: 'A5B', cap: 'Se trimite', server: 'în așteptare', note: 'aria-busy.', blocks: [email({ value: E }), ts('pass')], st: 'busy', label: 'Se trimite…' },
+      { id: 'A5C', d: 1, cap: 'Răspuns neutru', server: '202 check-inbox', note: 'Mereu același răspuns: adresă cunoscută, necunoscută sau neconfirmată. Nu confirmă existența contului.',
+        title: null, blocks: [hero('neu', 'Verifică-ți e-mailul', 'Dacă există un cont confirmat cu această adresă, ți-am trimis un link pentru o parolă nouă. Link-ul este valabil 30 de minute.', '@'), help('Nu a ajuns e-mailul?', [SPAM, RECENT])],
+        bar: { secondary: 'Înapoi la configurator' } },
+      { id: 'A5D', cap: 'Adresă greșită', server: '400 invalid-input · email MALFORMED', note: 'Un singur câmp: fără rezumat sus, focus direct pe câmp.',
+        blocks: [email({ value: 'ana.popescu@mail', err: 'Adresa nu pare corectă. Verifică „@” și domeniul (ex.: nume@exemplu.md).' }), ts('pass')] },
+      { id: 'A5E', cap: 'Verificarea anti-robot a eșuat', server: '403 challenge-failed', note: 'Widgetul se resetează.', blocks: [email({ value: E }), { t: 'turn', s: 'fail' }], st: 'off' },
+      { id: 'A5F', cap: 'Prea multe încercări', server: S_RL, note: 'Același text pentru orice adresă. ' + N_RL, blocks: [RL, email({ value: E }), ts('pass')], st: 'off', label: CD },
+      { id: 'A5G', cap: 'Serviciu indisponibil', server: '503 unavailable', note: N_UN, blocks: [UN, email({ value: E }), ts('ready')], label: 'Încearcă din nou' },
+    ],
+  },
+  {
+    id: 'A6', name: 'Parolă nouă', header: 'Parolă nouă', route: '/[locale]/account/reset-password#t=…', plain: 1,
+    ru: { title: 'Выбрать новый пароль', primary: 'Сохранить новый пароль', error: 'Ссылка больше не действует. Она истекла, была использована или заменена более новой.' },
+    base: { title: 'Alege o parolă nouă', body: 'O vei folosi de acum ca să intri în cont.', bar: { primary: 'Salvează parola nouă' } },
+    frames: [
+      { id: 'A6A', d: 1, cap: 'Pregătit · focus pe parolă', server: '—', note: 'Fără Turnstile și fără resurse terțe. Token-ul pleacă din bara de adrese la încărcare. autocomplete="new-password"; Arată/Ascunde în loc de „repetă parola”.',
+        blocks: [pwNew({ focus: 1 })] },
+      { id: 'A6B', cap: 'Parolă prea scurtă', server: '400 invalid-input · PASSWORD_TOO_SHORT', note: 'O parolă refuzată nu consumă link-ul — mesajul nu spune nimic despre link.',
+        blocks: [pwNew({ value: 'stejar123', count: '9 / 12', err: SHORT })] },
+      { id: 'A6C', cap: 'Parolă găsită în scurgeri', server: '400 invalid-input · PASSWORD_BREACHED', note: 'Ca A1D. Link-ul rămâne valabil.', blocks: [pwNew({ value: 'parola123456', err: BREACH })] },
+      { id: 'A6D', cap: 'Se salvează', server: 'în așteptare', note: 'aria-busy.', blocks: [pwNew({ value: PW })], st: 'busy', label: 'Se salvează…' },
+      { id: 'A6E', d: 1, cap: 'Parolă schimbată', server: '200 password-changed', note: 'Nu se pornește nicio sesiune: persoana intră cu parola nouă.',
+        title: null, blocks: [hero('ok', 'Parola a fost schimbată', 'Te-am deconectat de pe toate dispozitivele, pentru siguranță. Intră în cont cu parola nouă.')], bar: { primary: 'Intră în cont' } },
+      { id: 'A6F', cap: 'Link nevalabil', server: '400 link-invalid · sau pagină fără #t=', note: 'Același ecran pentru link expirat, folosit, înlocuit sau lipsă.',
+        title: null, blocks: [hero('err', 'Link-ul nu mai este valabil', 'A expirat, a fost folosit sau a fost înlocuit de unul mai nou.')], bar: { primary: 'Cere un link nou', secondary: 'Înapoi la configurator' } },
+      { id: 'A6G', cap: 'Prea multe încercări', server: S_RL, note: N_RL, blocks: [RL, pwNew()], st: 'off', label: CD },
+      { id: 'A6H', cap: 'Serviciu indisponibil', server: '503 unavailable', note: N_UN, blocks: [UN, pwNew()], label: 'Încearcă din nou' },
+    ],
+  },
+  {
+    id: 'A7', name: 'Slotul Turnstile · componentă', header: 'Componentă', route: 'apare doar pe A1, A4, A5',
+    ru: { title: 'Проверяем, что ты человек…', primary: '—', error: 'Проверка «не робот» не прошла. Попробуй ещё раз.' },
+    frames: [
+      { id: 'A7A', d: 1, cap: 'Cele cinci stări', server: '403 challenge-failed (starea 4)', note: 'Slot de 300 × 65 rezervat (de verificat cu documentația Cloudflare), temă deschisă, deasupra butonului. Doar eticheta „Cloudflare Turnstile”, fără alt branding. În starea 5 butonul de trimitere rămâne inactiv. Apare doar pe A1, A4, A5.',
+        title: 'Verificarea anti-robot', body: 'Slotul rezervat, în fiecare stare.',
+        blocks: [L('1 · Se încarcă'), ts('load'), L('2 · Gata'), ts('ready'), L('3 · Trecută'), ts('pass'), L('4 · Eșuată'), { t: 'turn', s: 'fail' }, L('5 · Nu se poate încărca'), ts('unav')], bar: null },
+    ],
+  },
+  {
+    id: 'A8', name: 'Erori comune', header: 'Lemnaria', route: 'toate rutele /account/*',
+    ru: { title: 'Запрос не удалось отправить', primary: 'Обновить страницу', error: 'Соединение прервалось. Ты ничего не потерял из того, что написал.' },
+    frames: [
+      { id: 'A8A', d: 1, cap: 'Cerere care nu a putut fi trimisă', server: '403 cross-site · 400 invalid-request · 413 body-too-large · 415 unsupported-media-type', note: 'O eroare a noastră, nu a persoanei: un singur text generic pentru toate patru.',
+        title: null, blocks: [hero('err', 'Cererea nu a putut fi trimisă', 'Reîncarcă pagina și încearcă din nou.')], bar: { primary: 'Reîncarcă pagina', secondary: 'Înapoi la configurator' } },
+      { id: 'A8B', cap: 'Fără conexiune', server: 'niciun răspuns (offline)', note: 'Ca 5B. Valorile din formular rămân; la revenire se poate retrimite.',
+        title: null, blocks: [hero('err', 'Conexiunea s-a întrerupt', 'Nu ai pierdut nimic din ce ai scris.')], bar: { primary: 'Încearcă din nou' } },
+      { id: 'A8C', cap: 'Pagina nu există', server: '404', note: 'Pentru orice cale necunoscută sub /account/*.',
+        title: null, blocks: [hero('neu', 'Pagina nu există', 'Adresa nu duce la nicio pagină din cont.', '?')], bar: { primary: 'Înapoi la configurator' } },
+    ],
+  },
+];
+
+function rich(s) {
+  const out = []; const re = /\*\*(.+?)\*\*|\[(.+?)\]/g; let i = 0, m;
+  while ((m = re.exec(s))) {
+    if (m.index > i) out.push({ plain: true, v: s.slice(i, m.index) });
+    out.push(m[1] ? { bold: true, v: m[1] } : { link: true, v: m[2] });
+    i = re.lastIndex;
+  }
+  if (i < s.length) out.push({ plain: true, v: s.slice(i) });
+  return out;
+}
+
+function block(b) {
+  const o = { ...b };
+  if (b.t === 'p') { o.isP = true; o.segs = rich(b.text); }
+  if (b.t === 'label') o.isLabel = true;
+  if (b.t === 'notice') { o.segs = rich(b.text); o.nErr = b.tone === 'err'; o.nWarn = b.tone === 'warn'; o.nOk = b.tone === 'ok'; o.nInfo = b.tone === 'info'; }
+  if (b.t === 'field') {
+    o.isField = true; o.noErr = !b.err; o.hasVal = !!b.value; o.isPh = !b.value;
+    o.disp = b.value ? (b.pw && !b.shown ? '•'.repeat(Math.min(b.value.length, 22)) : b.value) : (b.ph || '');
+    o.toggle = b.pw ? (b.shown ? 'Ascunde' : 'Arată') : null;
+    o.boxErr = !!b.err; o.boxFocus = !b.err && !!b.focus; o.boxNorm = !b.err && !b.focus;
+  }
+  if (b.t === 'turn') { o.tLoad = b.s === 'load'; o.tReady = b.s === 'ready' || b.s === 'fail'; o.failMsg = b.s === 'fail'; o.tPass = b.s === 'pass'; o.tUnav = b.s === 'unav'; }
+  if (b.t === 'hero') { o.isHero = true; o.segs = rich(b.text); o.hOk = b.tone === 'ok'; o.hErr = b.tone === 'err'; o.hNeu = b.tone === 'neu'; }
+  if (b.t === 'help') { o.isHelp = true; o.items = b.items.map(t => ({ segs: rich(t) })); }
+  if (b.t === 'links') o.isLinks = true;
+  return o;
+}
+
+function frame(sc, f) {
+  const base = sc.base || {};
+  const title = 'title' in f ? f.title : base.title;
+  const rawBar = 'bar' in f ? f.bar : base.bar;
+  let bar = null;
+  if (rawBar) {
+    const st = f.st || 'on';
+    const label = f.label || rawBar.primary;
+    bar = {
+      legal: rawBar.legal ? rich(rawBar.legal) : null,
+      label, pOn: !!rawBar.primary && st === 'on', pFocus: !!rawBar.primary && st === 'focus',
+      pOff: !!rawBar.primary && st === 'off', pBusy: !!rawBar.primary && st === 'busy',
+      secondary: rawBar.secondary || null, link: rawBar.link || null,
+    };
+  }
+  return {
+    id: f.id, idl: f.id.toLowerCase(), cap: f.cap, server: f.server, note: f.note, d: !!f.d, plain: !!sc.plain,
+    title, hasTitle: !!title, body: 'title' in f ? f.body : base.body,
+    blocks: f.blocks.map(block), bar, hasBar: !!bar,
+  };
+}
+
+const BUILT = SCREENS.map(sc => {
+  const frames = sc.frames.map(f => frame(sc, f));
+  return { id: sc.id, idl: sc.id.toLowerCase(), name: sc.name, header: sc.header, route: sc.route, ru: sc.ru, frames, dFrames: frames.filter(f => f.d) };
+});
+
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      screens: BUILT,
+      showNotes: this.props.showNotes ?? true,
+      showDesktop: this.props.showDesktop ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>

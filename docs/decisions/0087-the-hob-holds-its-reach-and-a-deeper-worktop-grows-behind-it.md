@@ -8,7 +8,7 @@ Milestone: M6 — answers wave 6I's unraised product question; schedules wave 6U
 ## Context
 
 M6 wave 6I closed on 2026-09-03 with one acceptance criterion that was an instruction rather than a
-claim (`docs/milestones/M6-price-and-global-settings.md`, wave 6I, *What the wave deliberately does
+claim (`docs/milestones/done/M6-price-and-global-settings.md`, wave 6I, *What the wave deliberately does
 not do*):
 
 > **`HOB_FORWARD_OFFSET_M = 0.06` is the one literal the seat sweep left.** The hob follows its
@@ -242,7 +242,7 @@ body and silently change what the domain declares that body finishes at.
 
 ## Consequences
 
-- **Wave 6U owns the fix** — `docs/milestones/M6-price-and-global-settings.md`. It is
+- **Wave 6U owns the fix** — `docs/milestones/done/M6-price-and-global-settings.md`. It is
   `packages/three-adapter` only, and it lands after 6Q. It is independent of every open M6 wave: no
   domain declaration, no store action, no surface and no stored field changes.
 - **Wave 6I's criterion is answered rather than dropped.** It is marked in place at the criterion,

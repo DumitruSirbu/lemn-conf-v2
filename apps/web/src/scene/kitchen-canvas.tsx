@@ -10,6 +10,7 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import type { ReactNode } from "react";
 
+import { SceneCaptureRegistration } from "./scene-capture-registration";
 import {
   KitchenStage,
   useNoEditing,
@@ -38,6 +39,8 @@ export default function KitchenCanvas(props: KitchenCanvasProps) {
       }}
     >
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
+      {/* The editor's canvas alone can be captured as a preset's thumbnail; the view-only one mounts none. */}
+      <SceneCaptureRegistration />
     </SceneCanvas>
   );
 }

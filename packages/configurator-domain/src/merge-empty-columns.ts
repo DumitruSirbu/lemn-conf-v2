@@ -1,6 +1,7 @@
 // Adjacent empty columns on the same wall and row become one column when the run's total is at most the
 // caller's width limit. The editor's is none (8U plan §5: 800 mm caps a cabinet, not a space); composition
-// passes its own. A rule about the frozen map, not a subtraction inside `recomputeVoids`.
+// passes its own, and with it the planned boundaries it will not merge across (ADR 0167 D6). A rule about
+// the frozen map, not a subtraction inside `recomputeVoids`.
 //
 // It declines, never refuses: its call sites (`deriveColumns` and the store's `resolveColumns`) have no
 // rejection channel, so a run that cannot merge safely is left as it was. Two unmerged empty columns are
@@ -44,6 +45,16 @@ const SAME_EDGE_OF_WALL_MM = COLUMN_KEY_RESOLUTION_MM + EDGE_TOUCH_TOLERANCE_MM;
  *  the commands and the v1 arm. */
 const EDITOR_MERGE_WIDTH_LIMIT_MM = Number.POSITIVE_INFINITY;
 
+/** Along-wall coordinates, in millimetres and per wall, of the edges that two planned tiles share (ADR 0167 D6):
+ *  the only places composition's merge may not join across. The far edge of the last planned tile is not one,
+ *  for the leftover beyond it is not a planned tile and composition merges it in (ADR 0166 criterion 15). The
+ *  coordinates are a column's own (`x` on wall A, `z` on the others, times 1000), as a plan's `startMm` and
+ *  `endMm` are. */
+export type PlannedBoundariesMm = ReadonlyMap<DesignWall, readonly number[]>;
+
+/** The editor's: none. Only composition has planned tiles. */
+const EDITOR_PLANNED_BOUNDARIES: PlannedBoundariesMm = new Map();
+
 /** One empty column as the scan reads it, in whole millimetres. `leftMm` and `rightMm` are
  *  half-integers when the width is odd, the case `landsOnWholeMillimetres` guards. */
 interface MeasuredColumn {
@@ -57,10 +68,12 @@ interface MeasuredColumn {
   readonly depthMm: number;
 }
 
-/** What every block on a wall is judged against: the records that stand in it and the widest it may merge to. */
+/** What every block on a wall is judged against: the records that stand in it, the widest it may merge to, and
+ *  the planned boundaries it may not cross. */
 interface WallScan {
   readonly records: readonly PlacementRecord[];
   readonly widthLimitMm: number;
+  readonly plannedBoundaries: PlannedBoundariesMm;
 }
 
 /** A run of wall along its length only, in millimetres. */
@@ -86,13 +99,15 @@ interface WallSpanMm {
  *  `hasFullHeightUnder` is not answered here: both callers run `withCurrentFullHeightMembers` over the
  *  result. The input map is returned by identity when nothing merges. `widthLimitMm` omitted is the
  *  editor's own limit, none, the one place it is set; composition passes its own (8U plan §6.1, amending
- *  ADR 0110 decision 2). */
+ *  ADR 0110 decision 2). `plannedBoundaries` omitted is the editor's too, none: composition passes the edges its
+ *  planned tiles share, and a run is never joined across one (ADR 0166 decision 4, amended by ADR 0167 D6). */
 export function mergeAdjacentEmptyColumns(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],
   widthLimitMm: number = EDITOR_MERGE_WIDTH_LIMIT_MM,
+  plannedBoundaries: PlannedBoundariesMm = EDITOR_PLANNED_BOUNDARIES,
 ): ReadonlyMap<string, ColumnExtent> {
-  const scan: WallScan = { records, widthLimitMm };
+  const scan: WallScan = { records, widthLimitMm, plannedBoundaries };
   let merged = columns;
   let plans = planMerges(merged, scan);
   // Iterated, because a merged envelope narrows `top` and `d` and may then agree with a neighbour the pass
@@ -221,6 +236,8 @@ function planOneWall(
 /** One wall's pass, read once: the bodies standing on it and every column's stretch of it sorted by left edge, so
  *  a length the guards decline is screened out without re-reading the map. */
 interface WallIndex extends WallScan {
+  /** This wall's planned boundaries, from the scan's map. */
+  readonly plannedBoundariesMm: readonly number[];
   readonly sorted: readonly MeasuredColumn[];
   readonly columns: ReadonlyMap<string, ColumnExtent>;
   readonly footprints: readonly WallSpanMm[];
@@ -241,6 +258,7 @@ function indexWall(
   const wall = sorted[0]?.column.wall ?? "A";
   return {
     ...scan,
+    plannedBoundariesMm: scan.plannedBoundaries.get(wall) ?? [],
     sorted,
     columns,
     footprints: scan.records
@@ -272,7 +290,7 @@ function planWidestAcceptedBlockFrom(
   wall: WallIndex,
   reserved: ReadonlySet<string>,
 ): MergePlan | undefined {
-  const block = widestBlockFrom(wall.sorted, start, wall.widthLimitMm);
+  const block = widestBlockFrom(start, wall);
   if (block.members.length < 2) return undefined;
   const screen = screenBlock(block, wall);
   for (let last = block.members.length - 1; last >= 1; last -= 1) {
@@ -295,15 +313,13 @@ interface CandidateBlock {
  *  truncated (ADR 0046): at composition's 800, 600 + 400 stay as they are and three 300s become a 600 and
  *  a 300. Under the editor's limit, none, the block runs until an edge fails to meet or a pair disagrees.
  *  It also ends where the envelope stops having height: the envelope only narrows as a block grows, so no
- *  longer block can pass `hasPositiveHeight`.
+ *  longer block can pass `hasPositiveHeight`. And it ends at a planned boundary: a longer block crosses it too,
+ *  so ending here is exact, and the guards `passesScreen` restates only ever see blocks that stop short of one.
  *
  *  A column already wider than a finite limit yields a block of one, so at that limit 800 and its overflow
  *  never re-merge. In the editor the reconcile's split cuts at 800 and this merge rejoins the pieces. */
-function widestBlockFrom(
-  sorted: readonly MeasuredColumn[],
-  start: number,
-  widthLimitMm: number,
-): CandidateBlock {
+function widestBlockFrom(start: number, wall: WallIndex): CandidateBlock {
+  const { sorted, widthLimitMm } = wall;
   const first = sorted[start];
   if (!first) return { members: [], prefixes: [] };
   const members = [first];
@@ -315,6 +331,7 @@ function widestBlockFrom(
     const envelope = prefixes[prefixes.length - 1];
     if (!candidate || !previous || !envelope) break;
     if (!abuts(previous, candidate) || !agrees(previous, candidate)) break;
+    if (isPlannedBoundary(previous.rightMm, wall.plannedBoundariesMm)) break;
     if (totalMm + candidate.widthMm > widthLimitMm) break;
     const widened = widenedBy(envelope, candidate);
     if (!hasPositiveHeight(widened)) break;
@@ -512,6 +529,15 @@ function coveredOffsets(
 
 function abuts(left: MeasuredColumn, right: MeasuredColumn): boolean {
   return Math.abs(right.leftMm - left.rightMm) <= EDGE_TOUCH_TOLERANCE_MM;
+}
+
+function isPlannedBoundary(
+  edgeMm: number,
+  boundariesMm: readonly number[],
+): boolean {
+  return boundariesMm.some(
+    (boundaryMm) => Math.abs(boundaryMm - edgeMm) <= EDGE_TOUCH_TOLERANCE_MM,
+  );
 }
 
 /** ADR 0046 rule 2, plus a third condition: `d`. A column's floor, `top` and `d` all travel into the

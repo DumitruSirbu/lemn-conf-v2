@@ -331,7 +331,7 @@ moves an anchor and re-keys a map, and decision 3 of ADR 0088 stays true.
 
 ## Consequences
 
-- **Wave 6J-d is opened**, planned in `docs/milestones/M6-price-and-global-settings.md`. It is larger
+- **Wave 6J-d is opened**, planned in `docs/milestones/done/M6-price-and-global-settings.md`. It is larger
   than the single follow-on file the implementer proposed — six production files across two packages —
   and decision 5 is why. It lands with 6J-c.
 - **Wave 6K-i's plan changes before it is written.** Decision 6 amends the record it is built on. 6K-i

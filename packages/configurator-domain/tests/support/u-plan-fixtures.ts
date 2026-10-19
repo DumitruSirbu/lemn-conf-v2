@@ -15,13 +15,40 @@ import {
   type UKitchenCompositionPlan,
   type UPlannedGenerationBase,
 } from "../../src/index.js";
+import { DOOR_BASE_BUILD_ID } from "../../src/generation/body-choice.js";
+import {
+  countedBodyIdsOf,
+  withTheFreeEndsFilled,
+} from "../../src/generation/free-end-fill.js";
 import { planUKitchenComposition } from "../../src/generation/u-composition.js";
+import {
+  risesIntoWallRow,
+  WALL_CABINET_BUILD_ID,
+} from "../../src/generation/upper-policy.js";
 import type { URuns } from "./u-plan-invariants.js";
 
 /** The catalogue's declared column sizes, as `generateKitchen` hands them to the planner. */
 export const DECLARED_COLUMNS = declaredColumnSizes(
   buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN)),
 );
+
+const PLANNING_CATALOG = buildKitchenLBodyCatalog(
+  cabinetDepthMmOf(KITCHEN_L_DESIGN),
+);
+
+/** ADR 0167 D2: the narrowest width both bodies of a filled column share, read from the catalogue. A remainder
+ *  of at least this takes a fill, so what a filled plan leaves bare is under it. */
+export const FILL_FLOOR_MM = Math.max(
+  ...[DOOR_BASE_BUILD_ID, WALL_CABINET_BUILD_ID].map(declaredMinWidthMm),
+);
+
+function declaredMinWidthMm(buildId: string): number {
+  const minWidthMm = PLANNING_CATALOG.get(buildId)?.minWidthMm;
+  if (minWidthMm === undefined) {
+    throw new Error(`${buildId} declares no width floor`);
+  }
+  return minWidthMm;
+}
 
 const DEFAULT_ROOM_HEIGHT_MM = 2600;
 const DEFAULT_ROOM: DesignRoom = {
@@ -57,6 +84,22 @@ export function planFor(
   runs: URuns = uShellFloorRuns(room),
 ): UKitchenCompositionPlan {
   return planUKitchenComposition({ room, runs, columns: DECLARED_COLUMNS });
+}
+
+/** The plan `generateKitchen` builds from: the U planner's, then every free end of at least the catalogue's
+ *  narrowest cabinet filled (ADR 0167). `planFor` stays the composer alone, which leaves those ends bare.
+ *  The same wiring as `generateKitchen`'s own, which `generate-kitchen.u.test.ts` compares against `log.plan`. */
+export function filledPlanFor(
+  room: DesignRoom,
+  runs: URuns = uShellFloorRuns(room),
+): UKitchenCompositionPlan {
+  const composed = planFor(room, runs);
+  return withTheFreeEndsFilled(composed, {
+    floorMm: FILL_FLOOR_MM,
+    isFullHeight: (buildId) => risesIntoWallRow(PLANNING_CATALOG, buildId),
+    runs,
+    countedIds: countedBodyIdsOf(composed),
+  });
 }
 
 /** The bases a plan stands on `wall`, in increasing along-wall order. */

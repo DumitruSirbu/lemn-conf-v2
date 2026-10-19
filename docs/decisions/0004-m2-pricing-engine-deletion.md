@@ -79,7 +79,7 @@ doc as a dependency.
 
 ## Follow-up
 
-M6 (`docs/milestones/M6-price-and-global-settings.md`) already names work item 1 as "adapt the
+M6 (`docs/milestones/done/M6-price-and-global-settings.md`) already names work item 1 as "adapt the
 existing pure pricing query to the new `Design` shape." After this deletion there is no existing
 query left to adapt — M6 work item 1 becomes a rebuild from §5.5/§9's pricing rules against the
 `Design`/frame model, not an adaptation of `pricing-engine.ts`. Flagged in that milestone doc.

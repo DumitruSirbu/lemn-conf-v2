@@ -9,7 +9,10 @@ import type {
 } from "./design.js";
 import type { Finish } from "./materials.js";
 import { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
-import { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
+import {
+  mergeAdjacentEmptyColumns,
+  type PlannedBoundariesMm,
+} from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
 import { drawnFinishOf } from "./resolved-finish.js";
 import type { SeatRule } from "./seat-rule.js";
@@ -33,7 +36,10 @@ export {
   LEVEL_SNAP_M,
   MAX_EMPTY_COLUMN_WIDTH_MM,
 } from "./module-grid.js";
-export { mergeAdjacentEmptyColumns } from "./merge-empty-columns.js";
+export {
+  mergeAdjacentEmptyColumns,
+  type PlannedBoundariesMm,
+} from "./merge-empty-columns.js";
 export { splitOversizedEmptyColumns } from "./split-oversized-empty-columns.js";
 export { clipEmptyColumnsAtWallEnd } from "./clip-empty-columns-at-wall-end.js";
 export { clipEmptyColumnsToFreeGround } from "./clip-empty-columns-to-free-ground.js";
@@ -430,15 +436,23 @@ function restoredColumns(
 
 /** §3.2: derived once at load; `top` and `regions` are load-time facts, never recomputed. Stored spaces and extents
  *  restore before the merge and before `hasFullHeightUnder` is answered (ADR 0053). `mergeWidthLimitMm` omitted is
- *  the editor's own; only composition passes one (`mergeAdjacentEmptyColumns`). */
+ *  the editor's own, and so are the planned boundaries; only composition passes either
+ *  (`mergeAdjacentEmptyColumns`). */
 export function deriveColumns(
   records: readonly PlacementRecord[],
   stored: FrozenMapDocument = {},
   room: DesignRoom,
   mergeWidthLimitMm?: number,
+  plannedBoundaries?: PlannedBoundariesMm,
 ): ReadonlyMap<string, Column> {
   const columns = restoredColumns(records, stored, toMetres(room.widthMm));
-  return publishedFunnel(columns, records, room, mergeWidthLimitMm);
+  return publishedFunnel(
+    columns,
+    records,
+    room,
+    mergeWidthLimitMm,
+    plannedBoundaries,
+  );
 }
 
 /** The one published-face assembly: wall-end clip, merge, then the live full-height answer, which reads the extents
@@ -448,12 +462,14 @@ function publishedFunnel(
   records: readonly PlacementRecord[],
   room: DesignRoom,
   mergeWidthLimitMm?: number,
+  plannedBoundaries?: PlannedBoundariesMm,
 ): ReadonlyMap<string, Column> {
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
       clipEmptyColumnsAtWallEnd(columns, records, room),
       records,
       mergeWidthLimitMm,
+      plannedBoundaries,
     ),
     records,
   );
@@ -504,12 +520,13 @@ type MutableColumnExtent = {
 
 /** The map as the document records it: `deriveColumns` minus the wall-end clip (ADR 0090 Amendment B). A projection
  *  into `emptyColumns`/`columnExtents` must use this, or a reversible wall length truncates stored spaces. The merge
- *  limit is `deriveColumns`'. */
+ *  limit and the planned boundaries are `deriveColumns`'. */
 export function deriveRecordedColumns(
   records: readonly PlacementRecord[],
   stored: FrozenMapDocument = {},
   roomWidthM: number,
   mergeWidthLimitMm?: number,
+  plannedBoundaries?: PlannedBoundariesMm,
 ): ReadonlyMap<string, Column> {
   // A sibling pipeline, not `deriveColumns` with the clip moved: the clip drops and narrows columns, changing the
   // centres, widths and envelope the merge reads, so merging before clipping keys and tops the run differently.
@@ -518,6 +535,7 @@ export function deriveRecordedColumns(
       restoredColumns(records, stored, roomWidthM),
       records,
       mergeWidthLimitMm,
+      plannedBoundaries,
     ),
     records,
   );

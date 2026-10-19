@@ -1,8 +1,8 @@
 // M7B U3b S1, criterion 1 — the composition property. Over the engine's U range, at the approved
 // heights 2200, 2600 and 3900, `generateKitchen` either refuses exactly the rooms U3a's plan refuses,
-// or composes a design that: breaks none of the plan's rules (`uPlanFindings`, re-derived from the room
-// and the runs), overflows nowhere, is deterministic, replays from its own log, carries exactly one
-// oven, leaves under 600 mm bare (under 300 mm on wall A), puts every body where the plan put it, and
+// or composes a design that: breaks none of the composer's rules (`uPlanFindings` on the composer's plan,
+// re-derived from the room and the runs, whose fills the log's plan adds, as `filledPlanFor` does), overflows nowhere, is deterministic, replays from its own log, carries exactly one
+// oven, leaves under 200 mm bare on every wall (ADR 0167), puts every body where the plan put it, and
 // keeps the U's rules for its uppers: one hood over the hob, no upper over a full-height body or a
 // corner zone, wall A base-only in a large U, and an upper over every other base.
 // The composed count is checked so the property cannot pass by landing on refusals.
@@ -25,6 +25,11 @@ import {
 import { upperFindings } from "../support/generated-u-uppers.js";
 import { engineUWallBounds } from "../support/room-input.js";
 import { uPlanFindings } from "../support/u-plan-invariants.js";
+import {
+  FILL_FLOOR_MM,
+  filledPlanFor,
+  planFor,
+} from "../support/u-plan-fixtures.js";
 
 const RUNS = 300;
 const APPROVED_HEIGHTS_MM = [2200, 2600, 3900] as const;
@@ -62,7 +67,11 @@ function checkGeneratedU(room: DesignRoom): "composed" | "refused" {
   const { design } = result;
   const runs = uShellFloorRuns(room);
 
-  expect(uPlanFindings({ room, runs, plan }), label).toStrictEqual([]);
+  expect(
+    uPlanFindings({ room, runs, plan: planFor(room, runs) }),
+    label,
+  ).toStrictEqual([]);
+  expect(plan, label).toStrictEqual(filledPlanFor(room, runs));
   expect(findOverflowingPlacementIds(design), label).toStrictEqual([]);
   expect(upperFindings(room, result), label).toStrictEqual([]);
   expect(spanMismatchesOf(result), label).toStrictEqual([]);
@@ -72,9 +81,11 @@ function checkGeneratedU(room: DesignRoom): "composed" | "refused" {
     ),
     label,
   ).toHaveLength(1);
-  expect(plan.remainderMm.A, label).toBeLessThan(300);
-  expect(plan.remainderMm.B, label).toBeLessThan(600);
-  expect(plan.remainderMm.C, label).toBeLessThan(600);
+  for (const wall of ["A", "B", "C"] as const) {
+    expect(plan.remainderMm[wall], `${label} wall ${wall}`).toBeLessThan(
+      FILL_FLOOR_MM,
+    );
+  }
   expect(composeU(room), label).toStrictEqual(result);
   expect(
     replayGenerationLog({ log: result.log, probeAt: createFakeProbeFactory() }),

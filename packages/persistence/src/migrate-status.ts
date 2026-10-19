@@ -195,8 +195,7 @@ if (isDirectCliInvocation) {
 
 async function reportDeployedSchemaStatus(): Promise<void> {
   try {
-    // Required, and checked before any read (see `migrate.ts` and
-    // docs/milestones/migration-environment-safety-check.md).
+    // Required, and checked before any read (see `migrate.ts` and docs/decisions/0169, Why).
     const environment = readDeclaredEnvironment(process.argv, "migrate:status");
     const connectionUrl = requireMigrationDatabaseUrl();
     const databaseName = databaseNameOf(connectionUrl);
@@ -220,7 +219,7 @@ async function reportDeployedSchemaStatus(): Promise<void> {
 }
 
 /** Duplicates `readMigrationDatabaseUrl` (both throw the same `MigrationExecutionError`); consolidating the two was
- *  left out of scope by docs/milestones/migration-environment-safety-check.md. */
+ *  left out of scope by docs/decisions/0169 (Scope, Out). */
 function requireMigrationDatabaseUrl(): string {
   const url = process.env[MIGRATION_URL_VARIABLE];
   if (url === undefined || url === "") {

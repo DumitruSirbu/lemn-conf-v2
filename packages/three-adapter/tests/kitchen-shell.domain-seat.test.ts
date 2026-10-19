@@ -186,7 +186,6 @@ describe("the adapter's panel constants are the domain's, not a copy", () => {
     expect(code).toContain("runEndPanelSeatM");
     expect(literals).toEqual([
       "0", // an anchored wall plane's coordinate on the axis it stands on
-      "0.3", // CORNER_OVERHANG_M
       "1", // the unstretched tile axis, and a sole-material count
       "2", // halving a drawn length or a height to its centre
     ]);

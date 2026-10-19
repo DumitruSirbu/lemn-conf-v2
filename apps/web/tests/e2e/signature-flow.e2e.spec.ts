@@ -14,7 +14,7 @@ import {
 import { test } from "./support/seeded-design";
 
 /**
- * M3's own gate (`docs/milestones/M3-mutations.md`, "Surfaces"): `DEVELOPMENT-SPEC.md` §10's
+ * M3's own gate (docs/decisions/0170, M3 Surfaces gate): `DEVELOPMENT-SPEC.md` §10's
  * signature flow, end to end **by real touch at 390 × 844** — now through §9's real panel, which
  * is what M4 built and what replaced the temporary dev controls this file used to drive. §11 row 1
  * is the last step, proven through real mutations rather than through a fixture.

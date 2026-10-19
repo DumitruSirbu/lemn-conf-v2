@@ -1,4 +1,4 @@
-// Work item 2's decomposition-parity proof (`docs/milestones/M2-void-engine.md`): M1 rendered
+// Work item 2's decomposition-parity proof (docs/decisions/0170, M2 work item 2): M1 rendered
 // `builders['kitchen-l']()` as one whole-scene call. From here bodies are mounted individually via
 // `deriveCabinetWorldTransform`, and this is the first place that switch could silently lose M1's
 // verified fidelity — so it is proven, not assumed.

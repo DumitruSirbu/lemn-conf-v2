@@ -20,6 +20,7 @@ import {
   type DesignPlacement,
   type DesignRoom,
 } from "../../src/design.js";
+import { acceptsWidthMm, listInsertableBodies } from "../../src/catalog.js";
 import { buildKitchenLBodyCatalog } from "../../src/fixtures/kitchen-l-design.js";
 import { generateKitchen } from "../../src/generation/generate-kitchen.js";
 import { toMetres } from "../../src/millimetres.js";
@@ -379,6 +380,18 @@ function withoutTheTopRow(design: Design): Design {
   };
 }
 
+/** Whether the catalogue builds a wall-band body other than the top cabinet itself at `widthMm`. A 200 mm top, which
+ *  ADR 0167's fill earns over a 200 mm base, has none: the wall lift and the open shelf start at the default width
+ *  floor, so its replace list is the cabinet alone and a swap is owed only above it. */
+function hasAnAlternativeAt(world: World, widthMm: number): boolean {
+  return listInsertableBodies(world.catalog).some(
+    (body) =>
+      body.buildId !== TOP_CABINET_BUILD_ID &&
+      body.band === "wall" &&
+      acceptsWidthMm(body, widthMm),
+  );
+}
+
 function priced(design: Design) {
   const result = priceDesign({
     design,
@@ -438,6 +451,7 @@ describe.each(ROOMS)(
     });
 
     it("can be deleted, swapped for each body its list offers, resized, and given a bar", () => {
+      let topsWithAlternatives = 0;
       for (const top of tops) {
         const target = { kind: "placement", id: top.id } as const;
         const removed = applied(
@@ -455,7 +469,13 @@ describe.each(ROOMS)(
         const swaps = offersFor({ ...world, target })
           .map((offer) => offer.buildId)
           .filter((buildId) => buildId !== TOP_CABINET_BUILD_ID);
-        expect(swaps.length).toBeGreaterThan(0);
+        const hasAlternative = hasAnAlternativeAt(world, top.body.widthMm);
+        if (hasAlternative) {
+          topsWithAlternatives += 1;
+          expect(swaps.length).toBeGreaterThan(0);
+        } else {
+          expect(swaps).toEqual([]);
+        }
         probeAt(world.cabinetDepthMm).use((probe) => {
           for (const buildId of swaps) {
             const swapped = applied(
@@ -519,6 +539,7 @@ describe.each(ROOMS)(
           }),
         ).toBe(false);
       }
+      expect(topsWithAlternatives).toBeGreaterThan(0);
     });
 
     it("stays when the upper beneath it is deleted, and follows when that upper is resized", () => {

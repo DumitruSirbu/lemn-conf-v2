@@ -22,7 +22,7 @@ instantiated once for the cabinet material (`kitchen-parts.ts:505`, `oakTex = wo
 This enum was built before the product had three priced materials with different manufacturing
 realities. The owner ruled on materials, colours and finishes on 2026-09-04, closing that gap. This
 record is scoped to the decision itself; it does not touch
-[`M6-price-and-global-settings.md`](../milestones/M6-price-and-global-settings.md), which an
+[`M6-price-and-global-settings.md`](../milestones/done/M6-price-and-global-settings.md), which an
 architect is splitting into two wave plans concurrently — implementation detail belongs there, once
 written.
 
@@ -131,7 +131,7 @@ discrepancy, and it does not change any decision recorded here.
 ## Amendment — 2026-09-04: each material's default finish is ruled, closing the input Consequences left owed
 
 Consequences' final bullet named this owed, not decided, and carried the recommendation forward as
-an open input at waves 6P/6Q (`docs/milestones/M6-price-and-global-settings.md`, *Open questions
+an open input at waves 6P/6Q (`docs/milestones/done/M6-price-and-global-settings.md`, *Open questions
 gating this phase*). The owner has now ruled it, on the recommendation already on record:
 
 | Material | Default finish |

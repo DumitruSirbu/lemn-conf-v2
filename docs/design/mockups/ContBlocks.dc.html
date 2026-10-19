@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;flex-direction:column;gap:16px;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1c1d1f">
+<sc-for list="{{blocks}}" as="b" hint-placeholder-count="3">
+
+<sc-if value="{{b.isP}}"><p style="margin:0;font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty"><sc-for list="{{b.segs}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.bold}}"><strong style="font-weight:700;color:#1c1814">{{s.v}}</strong></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></p></sc-if>
+
+<sc-if value="{{b.isLabel}}"><span style="font:700 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72;margin-bottom:-6px">{{b.v}}</span></sc-if>
+
+<sc-if value="{{b.nErr}}"><div role="alert" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:#fdf3f3;border:1px solid #f0cfcf;border-radius:12px"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:#dc2626;color:#faf8f4;font:700 12px/18px Helvetica,Arial,sans-serif;text-align:center">!</span><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><sc-if value="{{b.title}}"><span style="font:700 14px/1.3 Helvetica,Arial,sans-serif;color:#8f2020">{{b.title}}</span></sc-if><span style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#8f2020;text-wrap:pretty"><sc-for list="{{b.segs}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.bold}}"><strong style="font-weight:700">{{s.v}}</strong></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></span></div></div></sc-if>
+
+<sc-if value="{{b.nWarn}}"><div role="status" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:#f7ecdc;border:1px solid #e6cfa8;border-radius:12px"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:#b45309;color:#faf8f4;font:700 12px/18px Helvetica,Arial,sans-serif;text-align:center">!</span><span style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#5a3e25;text-wrap:pretty"><sc-for list="{{b.segs}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.bold}}"><strong style="font-weight:700;color:#1c1814">{{s.v}}</strong></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></span></div></sc-if>
+
+<sc-if value="{{b.nOk}}"><div role="status" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:#eef1ea;border:1px solid #d3dccb;border-radius:12px"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:#2d5016;color:#faf8f4;font:700 11px/18px Helvetica,Arial,sans-serif;text-align:center">✓</span><span style="font:700 12.5px/1.5 Helvetica,Arial,sans-serif;color:#2d5016"><sc-for list="{{b.segs}}" as="s"><span>{{s.v}}</span></sc-for></span></div></sc-if>
+
+<sc-if value="{{b.nInfo}}"><div role="status" style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:#7c5c3d;color:#faf8f4;font:700 11px/18px Helvetica,Arial,sans-serif;text-align:center">i</span><span style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#1c1814;text-wrap:pretty"><sc-for list="{{b.segs}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.bold}}"><strong style="font-weight:700">{{s.v}}</strong></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></span></div></sc-if>
+
+<sc-if value="{{b.isField}}">
+<div style="display:flex;flex-direction:column;gap:6px">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+    <sc-if value="{{b.err}}"><label style="font:700 12.5px/1.2 Helvetica,Arial,sans-serif;color:#dc2626">{{b.label}}</label></sc-if>
+    <sc-if value="{{b.noErr}}"><label style="font:700 12.5px/1.2 Helvetica,Arial,sans-serif;color:#1c1814">{{b.label}}</label></sc-if>
+    <sc-if value="{{b.count}}"><span style="font:400 11.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52;font-variant-numeric:tabular-nums">{{b.count}}</span></sc-if>
+  </div>
+  <sc-if value="{{b.boxNorm}}"><div style="display:flex;align-items:center;gap:10px;height:54px;box-sizing:border-box;padding:0 6px 0 14px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:12px"><sc-if value="{{b.isPh}}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e">{{b.disp}}</span></sc-if><sc-if value="{{b.hasVal}}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 15px/1 Helvetica,Arial,sans-serif;color:#1c1d1f">{{b.disp}}</span></sc-if><sc-if value="{{b.toggle}}"><span style="min-width:56px;height:44px;display:flex;align-items:center;justify-content:center;font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">{{b.toggle}}</span></sc-if></div></sc-if>
+  <sc-if value="{{b.boxFocus}}"><div style="display:flex;align-items:center;gap:10px;height:54px;box-sizing:border-box;padding:0 6px 0 14px;background:#faf8f4;border:1px solid #7c5c3d;border-radius:12px;outline:2px solid #7c5c3d;outline-offset:2px"><sc-if value="{{b.isPh}}"><span style="flex:1;min-width:0;display:flex;align-items:center;gap:1px;font:400 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e"><span style="width:1.5px;height:20px;background:#1c1814"></span>{{b.disp}}</span></sc-if><sc-if value="{{b.hasVal}}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 15px/1 Helvetica,Arial,sans-serif;color:#1c1d1f">{{b.disp}}</span></sc-if><sc-if value="{{b.toggle}}"><span style="min-width:56px;height:44px;display:flex;align-items:center;justify-content:center;font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">{{b.toggle}}</span></sc-if></div></sc-if>
+  <sc-if value="{{b.boxErr}}"><div aria-invalid="true" style="display:flex;align-items:center;gap:10px;height:54px;box-sizing:border-box;padding:0 5px 0 13px;background:#fdf3f3;border:2px solid #dc2626;border-radius:12px"><sc-if value="{{b.isPh}}"><span style="flex:1;min-width:0;font:400 15px/1 Helvetica,Arial,sans-serif;color:#a89c8e">{{b.disp}}</span></sc-if><sc-if value="{{b.hasVal}}"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 15px/1 Helvetica,Arial,sans-serif;color:#1c1d1f">{{b.disp}}</span></sc-if><sc-if value="{{b.toggle}}"><span style="min-width:56px;height:44px;display:flex;align-items:center;justify-content:center;font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#7c5c3d">{{b.toggle}}</span></sc-if></div></sc-if>
+  <sc-if value="{{b.err}}"><div style="display:flex;gap:9px;align-items:flex-start;background:#fdf3f3;border-radius:10px;padding:11px 12px"><span style="flex:0 0 16px;width:16px;height:16px;border-radius:50%;background:#dc2626;color:#faf8f4;font:700 11px/16px Helvetica,Arial,sans-serif;text-align:center">!</span><span style="font:400 12px/1.45 Helvetica,Arial,sans-serif;color:#8f2020;text-wrap:pretty">{{b.err}}</span></div></sc-if>
+  <sc-if value="{{b.hint}}"><span style="font:400 11.5px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{b.hint}}</span></sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{b.tLoad}}"><div style="width:300px;max-width:100%;height:65px;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid #dcd8ce;border-radius:6px;background:repeating-linear-gradient(135deg,#e9e4da 0 8px,#f1ede5 8px 16px)"><span style="flex:0 0 16px;width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid #dcd8ce;border-top-color:#7c5c3d"></span><span style="font:700 12px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52;background:#f5f3f0;padding:3px 5px;border-radius:4px">Se verifică dacă ești om…</span></div></sc-if>
+
+<sc-if value="{{b.tReady}}"><div style="display:flex;flex-direction:column;gap:8px"><div style="width:300px;max-width:100%;height:65px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 14px;border:1px solid #dcd8ce;border-radius:6px;background:#f5f3f0"><span style="flex:0 0 22px;width:22px;height:22px;box-sizing:border-box;border-radius:6px;border:1px solid #a89c8e;background:#faf8f4"></span><span style="flex:1;font:400 13px/1.3 Helvetica,Arial,sans-serif;color:#1c1814">Verificare de securitate</span><span style="font:700 9.5px/1.2 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;text-align:right;max-width:64px">Cloudflare Turnstile</span></div><sc-if value="{{b.failMsg}}"><div role="alert" style="display:flex;gap:9px;align-items:flex-start;background:#fdf3f3;border-radius:10px;padding:11px 12px;max-width:300px;box-sizing:border-box"><span style="flex:0 0 16px;width:16px;height:16px;border-radius:50%;background:#dc2626;color:#faf8f4;font:700 11px/16px Helvetica,Arial,sans-serif;text-align:center">!</span><span style="font:400 12px/1.45 Helvetica,Arial,sans-serif;color:#8f2020">Verificarea anti-robot nu a reușit. Încearcă din nou.</span></div></sc-if></div></sc-if>
+
+<sc-if value="{{b.tPass}}"><div style="width:300px;max-width:100%;height:65px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 14px;border:1px solid #dcd8ce;border-radius:6px;background:#f5f3f0"><span style="flex:0 0 22px;width:22px;height:22px;border-radius:50%;background:#2d5016;color:#faf8f4;font:700 12px/22px Helvetica,Arial,sans-serif;text-align:center">✓</span><span style="flex:1;font:700 13px/1.3 Helvetica,Arial,sans-serif;color:#2d5016">Verificat</span><span style="font:700 9.5px/1.2 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;text-align:right;max-width:64px">Cloudflare Turnstile</span></div></sc-if>
+
+<sc-if value="{{b.tUnav}}"><div style="width:300px;max-width:100%;min-height:65px;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px dashed #a89c8e;border-radius:6px;background:#faf8f4"><span style="flex:0 0 18px;width:18px;height:18px;border-radius:50%;background:#b45309;color:#faf8f4;font:700 12px/18px Helvetica,Arial,sans-serif;text-align:center">!</span><span style="font:400 12px/1.45 Helvetica,Arial,sans-serif;color:#1c1814">Verificarea nu se poate încărca acum. Încearcă din nou mai târziu.</span></div></sc-if>
+
+<sc-if value="{{b.isHero}}"><div style="display:flex;flex-direction:column;gap:12px;padding-top:6px">
+  <sc-if value="{{b.hOk}}"><span style="width:44px;height:44px;border-radius:50%;background:#eef1ea;border:1px solid #d3dccb;color:#2d5016;display:flex;align-items:center;justify-content:center;font:700 20px/1 Helvetica,Arial,sans-serif">✓</span></sc-if>
+  <sc-if value="{{b.hNeu}}"><span style="width:44px;height:44px;border-radius:50%;background:#ece7dd;border:1px solid #dcd8ce;color:#7c5c3d;display:flex;align-items:center;justify-content:center;font:700 19px/1 Helvetica,Arial,sans-serif">{{b.glyph}}</span></sc-if>
+  <sc-if value="{{b.hErr}}"><span style="width:44px;height:44px;border-radius:50%;background:#fdf3f3;border:1px solid #f0cfcf;color:#dc2626;display:flex;align-items:center;justify-content:center;font:700 20px/1 Helvetica,Arial,sans-serif">!</span></sc-if>
+  <h2 style="margin:0;font:700 22px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.015em;color:#1c1814">{{b.title}}</h2>
+  <p style="margin:0;font:400 13.5px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty"><sc-for list="{{b.segs}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.bold}}"><strong style="font-weight:700;color:#1c1814">{{s.v}}</strong></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></p>
+</div></sc-if>
+
+<sc-if value="{{b.isHelp}}"><div style="display:flex;flex-direction:column;gap:10px;padding:14px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:14px">
+  <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif;color:#1c1814">{{b.title}}</span>
+  <sc-for list="{{b.items}}" as="it"><div style="display:flex;gap:8px;align-items:flex-start"><span style="flex:0 0 5px;width:5px;height:5px;border-radius:50%;background:#7c5c3d;margin-top:7px"></span><span style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty"><sc-for list="{{it.segs}}" as="s"><sc-if value="{{s.plain}}"><span>{{s.v}}</span></sc-if><sc-if value="{{s.bold}}"><strong style="font-weight:700;color:#1c1814">{{s.v}}</strong></sc-if><sc-if value="{{s.link}}"><a href="#" style="color:#7c5c3d;font-weight:700">{{s.v}}</a></sc-if></sc-for></span></div></sc-for>
+</div></sc-if>
+
+<sc-if value="{{b.isLinks}}"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin:-8px 0">
+  <sc-for list="{{b.items}}" as="it"><span style="display:flex;align-items:center;gap:5px;min-height:44px;font:400 13px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52"><sc-if value="{{it.pre}}"><span>{{it.pre}}</span></sc-if><a href="#" style="color:#7c5c3d;font-weight:700">{{it.a}}</a></span></sc-for>
+</div></sc-if>
+
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;blocks&quot;:{&quot;editor&quot;:null,&quot;default&quot;:[],&quot;tsType&quot;:&quot;any[]&quot;}}"></script>
+</body>
+</html>

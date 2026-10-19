@@ -11,7 +11,7 @@ import {
 import * as THREE from "three";
 
 import { mirroredX } from "./corner-direction.js";
-import { floorDepthMm } from "./room-extent.js";
+import { floorDepthMm, floorPlanBoundsM } from "./room-extent.js";
 import { context2d } from "./three-guards.js";
 
 /** CSS colour behind the (alpha) canvas, and the background the reference preset shots were captured on.
@@ -352,6 +352,92 @@ export function findCameraPresetForRoom(
   );
   if (!preset) throw new Error(`Unknown camera preset: ${id}`);
   return preset;
+}
+
+/** The share of the frame's half-width and half-height left empty on every side by `overviewFittedToFrame`. */
+const FRAME_FIT_MARGIN = 0.05;
+
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+/**
+ * The room's overview view, backed off until the whole room fits a frame of `aspect` (width over height): the preset's
+ * viewing direction and elevation, looking at the middle of the room's bounding box, at the nearest distance where all
+ * eight corners project inside the frustum less `FRAME_FIT_MARGIN`. For a corner at offset `q` from the target, with
+ * `r`, `u`, `f` the camera's right, up and forward axes, the distance `d` must satisfy
+ * `|q.r| / (k * aspect) <= q.f + d` and `|q.u| / k <= q.f + d`, where `k = tan(fov / 2) * (1 - margin)`; the answer is
+ * the largest `|q.r| / (k * aspect) - q.f` and `|q.u| / k - q.f` over the corners. Not what the live camera reads.
+ */
+export function overviewFittedToFrame(
+  room: DesignRoom,
+  aspect: number,
+): CameraPreset {
+  const overview = findCameraPresetForRoom("overview", room);
+  const eyeDirection = new THREE.Vector3(...overview.position)
+    .sub(new THREE.Vector3(...overview.target))
+    .normalize();
+  const bounds = roomBoundsM(room);
+  const target = bounds.getCenter(new THREE.Vector3());
+  const distance = distanceFittingCorners({
+    corners: cornersOf(bounds),
+    target,
+    eyeDirection,
+    aspect,
+  });
+  const eye = target.clone().addScaledVector(eyeDirection, distance);
+  return {
+    id: overview.id,
+    position: [eye.x, eye.y, eye.z],
+    target: [target.x, target.y, target.z],
+  };
+}
+
+/** The drawn room in world metres, mirrored with the room: the floor's footprint, from the floor to the top of the
+ *  taller of the walls and the kitchen. */
+function roomBoundsM(room: DesignRoom): THREE.Box3 {
+  const floor = floorPlanBoundsM(room);
+  const direction = cornerDirectionOf(room);
+  const topM = Math.max(toMetres(room.heightMm), KITCHEN_TOP_M);
+  return new THREE.Box3().setFromPoints([
+    new THREE.Vector3(mirroredX(direction, floor.minX), 0, floor.minZ),
+    new THREE.Vector3(mirroredX(direction, floor.maxX), topM, floor.maxZ),
+  ]);
+}
+
+function cornersOf(box: THREE.Box3): readonly THREE.Vector3[] {
+  const { min, max } = box;
+  return [min.x, max.x].flatMap((x) =>
+    [min.y, max.y].flatMap((y) =>
+      [min.z, max.z].map((z) => new THREE.Vector3(x, y, z)),
+    ),
+  );
+}
+
+interface FitInput {
+  readonly corners: readonly THREE.Vector3[];
+  readonly target: THREE.Vector3;
+  /** Unit vector from the target to the eye. */
+  readonly eyeDirection: THREE.Vector3;
+  readonly aspect: number;
+}
+
+function distanceFittingCorners(input: FitInput): number {
+  const { corners, target, eyeDirection, aspect } = input;
+  const forward = eyeDirection.clone().negate();
+  const right = new THREE.Vector3().crossVectors(forward, WORLD_UP).normalize();
+  const up = new THREE.Vector3().crossVectors(right, forward);
+  const halfHeightTangent =
+    VERTICAL_HALF_ANGLE_TANGENT * (1 - FRAME_FIT_MARGIN);
+  const halfWidthTangent = halfHeightTangent * aspect;
+  return Math.max(
+    ...corners.flatMap((corner) => {
+      const offset = corner.clone().sub(target);
+      const ahead = offset.dot(forward);
+      return [
+        Math.abs(offset.dot(right)) / halfWidthTangent - ahead,
+        Math.abs(offset.dot(up)) / halfHeightTangent - ahead,
+      ];
+    }),
+  );
 }
 
 function framedOnRoom(

@@ -94,7 +94,7 @@ dropping `M5 Wave 5A`, `5B`, `5C`, `Waves 5C2 + 5C3` and `Wave 5D` — five wave
 rule was written about. The plural needs no second pattern, since `wave` is a prefix of `waves`.
 
 The rule exists because it failed before that. On 2026-08-31 an adversarial review found `STATUS.md`
-and `../milestones/M5-width.md` both saying waves 5D2c and 5F remained open while eight commits
+and `../milestones/done/M5-width.md` both saying waves 5D2c and 5F remained open while eight commits
 implementing them were already ancestors of `HEAD` (`testing-reports/06-docs-and-process.md`,
 DOC-001). `AGENTS.md` makes `STATUS.md` the file a session reads to decide what to open and what work
 remains, so an under-reported wave does not merely go stale — **it dispatches work against behaviour

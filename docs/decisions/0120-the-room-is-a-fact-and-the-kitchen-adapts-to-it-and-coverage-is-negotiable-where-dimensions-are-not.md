@@ -1417,3 +1417,14 @@ amendment**: the wire-bound fix, its cost (`MAX_DESIGN_BYTES` +3.67 %, a SEC-002
 and the product consequence it sizes (a withdrawn band of 1 980 rooms, an admitted band of 7 380) are
 in [ADR 0124](0124-the-wall-maxima-move-together-and-one-number-not-two.md), M7 wave 7A3 slice S0. Code
 lands in slice S2.
+
+## Dated note — 2026-10-17: the 599 mm citations at lines 78, 114 and 438 (ADR 0167, Proposed)
+
+This record cites ADR 0110 Amendment A4's 599 mm cap three times: the principle (*"ADR 0110 Amendment A4 caps what the
+product proposes to leave at 599 mm"*, line 78), audit row F4 (*"`planLeftover` leaves up to 599 mm bare"*, line 114)
+and the decision-record sweep (line 438). The owner's 2026-10-17 Fix 1 ruling would narrow that cap **for generation**
+once [ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)
+is Accepted (the bare end becomes at most one millimetre under the catalogue's narrowest cabinet). **This record's ruling
+is unaffected**: *coverage is negotiable where dimensions are not*, and a smaller room is still adapted to rather than
+refused. The F4 row's *"exemplary"* verdict is about the drop order and the refusal, not about the 599 figure. Nothing is
+struck; this is a forward pointer while 0167 is Proposed.

@@ -47,11 +47,18 @@ import {
   type Column,
   type VoidRecord,
 } from "../../src/void-engine.js";
+import { beforeAdr0167 } from "../support/before-adr-0167-free-end-fill.js";
 import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { gateVerdictFor } from "../support/u-gate-verdict.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 
+vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
+  const { withTheFreeEndFillSwitchable } = await import(
+    "../support/before-adr-0167-free-end-fill.js"
+  );
+  return withTheFreeEndFillSwitchable(await importOriginal());
+});
 vi.mock(
   "../../src/generation/fridge-end-leftover.js",
   async (importOriginal) => {
@@ -218,9 +225,34 @@ function composed(room: DesignRoom): Design {
   return result.design;
 }
 
+/** The owner's rule is audited in the world before ADR 0167's free-end fill: the fill takes a remainder of 200 mm
+ *  or more, which O10's absorb of 50-298 mm would otherwise have taken, so the pre-C5 kitchen this oracle reads
+ *  its leftover from and the kitchen it audits both run with the fill pass switched off. */
+function composedBeforeTheFill(room: DesignRoom): Design {
+  const result = beforeAdr0167(() =>
+    generateKitchen({ room, occurredAt: OCCURRED_AT, probeAt }),
+  );
+  if (!result.ok) {
+    throw new Error(`${labelOf(room)} refused: ${result.reason.code}`);
+  }
+  return result.design;
+}
+
+/** The floor space recorded beyond a run's last body is its bare end; ADR 0167 fills one of at least the narrowest
+ *  cabinet's 200 mm. */
+const FILL_FLOOR_MM = 200;
+
+function hasAFillableFloorEnd(design: Design): boolean {
+  return (design.emptyColumns ?? []).some(
+    (space) => space.y0Mm === 0 && space.widthMm >= FILL_FLOOR_MM,
+  );
+}
+
 function composedBeforeC5(room: DesignRoom): Design | undefined {
   const result = beforeC5(() =>
-    generateKitchen({ room, occurredAt: OCCURRED_AT, probeAt }),
+    beforeAdr0167(() =>
+      generateKitchen({ room, occurredAt: OCCURRED_AT, probeAt }),
+    ),
   );
   return result.ok ? result.design : undefined;
 }
@@ -297,6 +329,8 @@ interface Census {
   readonly changedByLeftoverMm: Record<string, number>;
   /** A door base inboard of a fridge that is not the outermost body: bodies beyond it, so no change. */
   notOutermostBesideADoorBase: number;
+  /** Rooms whose kitchen before the fill leaves no floor end of 200 mm or more: the fill has nothing to take there. */
+  withoutAFillableEnd: number;
   readonly defects: string[];
 }
 
@@ -306,6 +340,7 @@ function emptyCensus(): Census {
     changed: { B: 0, C: 0 },
     changedByLeftoverMm: {},
     notOutermostBesideADoorBase: 0,
+    withoutAFillableEnd: 0,
     defects: [],
   };
 }
@@ -315,11 +350,18 @@ function auditRoom(room: DesignRoom, census: Census): void {
   const before = composedBeforeC5(room);
   if (!before) return;
   census.rooms += 1;
-  const live = composed(room);
+  const live = composedBeforeTheFill(room);
   const where = labelOf(room);
   const fail = (message: string) => census.defects.push(`${where}: ${message}`);
   const end = fridgeEndOf(before);
 
+  if (!hasAFillableFloorEnd(live)) {
+    // ADR 0167 D2 and D4: with every bare end under the floor, the shipped generator, fill pass on, adds nothing.
+    census.withoutAFillableEnd += 1;
+    if (JSON.stringify(composed(room)) !== JSON.stringify(live)) {
+      fail("the fill changed a kitchen whose every bare end is under 200 mm");
+    }
+  }
   if (
     JSON.stringify(live.placements) !==
     JSON.stringify(expectedPlacements(before, end))
@@ -473,6 +515,7 @@ describe("criteria 1-4 on the built U kitchen", () => {
       expect(census.defects.slice(0, 20)).toEqual([]);
       expect(census.changed.B).toBeGreaterThan(0);
       expect(census.changed.C).toBeGreaterThan(0);
+      expect(census.withoutAFillableEnd).toBeGreaterThan(0);
       // Pantries (or, below the column, door bases) beyond the fridge: the rule has no reach there.
       expect(census.notOutermostBesideADoorBase).toBeGreaterThan(0);
     },
@@ -777,7 +820,7 @@ describe("the reach of the rule on a U's side walls", () => {
       const room =
         wall === "B" ? uRoom(4000, 2400, 2300) : uRoom(4000, 2300, 2400);
       const before = composedBeforeC5(room);
-      const live = composed(room);
+      const live = composedBeforeTheFill(room);
       const other = wall === "B" ? "C" : "B";
 
       for (const untouched of ["A", other] as const) {

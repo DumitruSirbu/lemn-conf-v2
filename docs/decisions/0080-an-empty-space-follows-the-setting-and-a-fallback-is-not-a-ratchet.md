@@ -266,7 +266,7 @@ reported in decision 7 rather than resolved here.
 - **Wave 6K-c closes on its current scope, unwidened.** Every criterion it carries is confirmed by
   this record; none is added to it.
 - **New wave 6K-j** implements decision 4 — see
-  `docs/milestones/M6-price-and-global-settings.md`. Three production lines and a predicate, measured
+  `docs/milestones/done/M6-price-and-global-settings.md`. Three production lines and a predicate, measured
   in a copy of the tree: the only published depth that changes on the fixture is the ratchet.
 - **ADR 0073's residual paragraph and wave 6K-c's residual sentence are re-scoped, not deleted.** The
   base column frozen at 620 still stays 620 and that is still the right answer; what changes is that

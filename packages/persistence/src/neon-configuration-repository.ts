@@ -140,6 +140,14 @@ export interface OwnedDesignLookup {
   readonly visitorHash: string;
 }
 
+/** `loadAuthorized`'s argument: the design's id and both credentials' hashes, grouped so none can be swapped for
+ *  another at a call site (ADR 0114 decision G4). */
+export interface AuthorizedDesignLookup {
+  readonly id: DesignId;
+  readonly writeTokenHash: string;
+  readonly visitorHash: string;
+}
+
 /** Tagged like `VisitorResumeLookup`, so a caller cannot forget to check which case it got. A foreign row, a
  *  pre-`0005` row (`visitor_hash is null`) and a missing row are all `"none"`: one outcome of one statement, so a
  *  non-owner cannot observe which it was. */
@@ -159,13 +167,23 @@ export interface OwnedDesignRepository {
   loadOwned(lookup: OwnedDesignLookup): Promise<LoadOwnedOutcome>;
 }
 
+/**
+ * A third, narrower read for a route that acts on a design as its author and must have proved both credentials
+ * (the preset save): a port of its own for the reason `OwnedDesignRepository` is one, so no existing test double has
+ * to fake it.
+ */
+export interface AuthorizedDesignRepository {
+  loadAuthorized(lookup: AuthorizedDesignLookup): Promise<LoadOwnedOutcome>;
+}
+
 /** `AuthorizedConfigurationRepository` on Neon Postgres. Every query is a tagged-template `sql`, which parameterises
  *  values: nothing here concatenates a value into SQL text. */
 export class NeonConfigurationRepository
   implements
     AuthorizedConfigurationRepository,
     VisitorResumeRepository,
-    OwnedDesignRepository
+    OwnedDesignRepository,
+    AuthorizedDesignRepository
 {
   private readonly sql;
 
@@ -358,6 +376,37 @@ export class NeonConfigurationRepository
       () => this.sql`
       select schema_version, document, revision::text as revision
       from designs where id = ${id} and visitor_hash = ${visitorHash}
+    `,
+    )) as DesignRow[];
+
+    const row = rows[0];
+    if (!row) return { kind: "none" };
+
+    return {
+      kind: "found",
+      design: migrateDesign(row.schema_version, row.document),
+      revision: row.revision,
+    };
+  }
+
+  /**
+   * The read that proves authorship: the id, the write token's hash and the visitor's hash in one predicate, compared
+   * in SQL as `saveAuthorized` and the share link do, so a wrong token, a foreign visitor, a pre-`0005` row and a
+   * missing row are one outcome. A row with a NULL `write_token_hash` or `visitor_hash` never matches. `migrateDesign`
+   * runs only on a match. No `requireSha256Digest`: a wrong-shaped credential is simply not the right one.
+   */
+  async loadAuthorized({
+    id,
+    writeTokenHash,
+    visitorHash,
+  }: AuthorizedDesignLookup): Promise<LoadOwnedOutcome> {
+    const rows = (await retryOnTransientFailure(
+      () => this.sql`
+      select schema_version, document, revision::text as revision
+      from designs
+      where id = ${id}
+        and write_token_hash = ${writeTokenHash}
+        and visitor_hash = ${visitorHash}
     `,
     )) as DesignRow[];
 

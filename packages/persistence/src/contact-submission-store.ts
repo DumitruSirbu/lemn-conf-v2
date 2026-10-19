@@ -1,4 +1,7 @@
-import { CONTACT_INTENTS } from "@lemnaria/configurator-domain";
+import {
+  CONTACT_INTENTS,
+  isUnstorableText,
+} from "@lemnaria/configurator-domain";
 import type {
   ContactFields,
   DesignReference,
@@ -15,7 +18,7 @@ import {
 import type { RefusedPart } from "./contact-submission-refusal.js";
 import { isDesignRevision } from "./design-revision.js";
 import { requireSha256Digest } from "./sha256-digest.js";
-import { isUnstorableText, judgeSnapshot } from "./snapshot-judgement.js";
+import { judgeSnapshot } from "./snapshot-judgement.js";
 import type { SnapshotJson } from "./snapshot-judgement.js";
 
 export type { SnapshotJson } from "./snapshot-judgement.js";

@@ -13,7 +13,7 @@ and reachable in two since wave 5B8 made the pantry resizable (clear `B|2.45`, t
 400). Since wave 5B2 (ADR 0044) that oversized column **survives a reload**, and it publishes an
 opening every `widthFlex: 'fit'` body refuses as `WIDTH_NOT_SUPPORTED`.
 
-This is Q5, M5's own open question (`docs/milestones/M5-width.md`, ADR 0035 decision 7), widened four
+This is Q5, M5's own open question (`docs/milestones/done/M5-width.md`, ADR 0035 decision 7), widened four
 times during M5B without being closed. Owner, 2026-09-02: **"lets make 800 the maximum of any empty
 column."**
 
@@ -182,7 +182,7 @@ customer's own design holds.
 | [ADR 0038](0038-pre-release-no-stored-designs-no-migrations.md) | No design has ever been stored; corrected 2026-08-31 that the "no deserialisation surface" premise was false when written. | **Its core premise — "no design has ever been stored" — is also false, measured here rather than argued.** Five rows exist, at `schema_version` 1. The decision's operative rules (no migration was owed *until now*, dead code kept only to read an older shape may be deleted) stood correctly for those five rows, because none carries the field this wave changes — but the premise itself should be read as retired by measurement, not merely "not yet tested," the same shape of correction ADR 0038 already applied to itself once. |
 | `docs/STATUS.md:236` | Names `MERGE_CAP_MM` as a live constant. | **Stale; corrected in this wave's STATUS.md update** — the merge now reads `MAX_EMPTY_COLUMN_WIDTH_MM`, and no second 800 exists in the tree. |
 | `docs/STATUS.md:291-294` | Records Q5 as open and frames 800 as undecided. | **Corrected in this wave's STATUS.md update** to record the closure above. |
-| `docs/milestones/M5-width.md` | Q5 recorded as M5's open question. | **Closed in place with a dated pointer to this record.** |
+| `docs/milestones/done/M5-width.md` | Q5 recorded as M5's open question. | **Closed in place with a dated pointer to this record.** |
 | [ADR 0020](0020-a-migration-file-is-not-an-applied-migration.md) | `APPLICATION /lemn-conf-v2 rows: 0`, a dated measurement corrected by ADR 0038. | **Given a dated pointer to this wave's 2026-09-02 measurement** (5 rows, schema_version 1), since it is an observation rather than a ruling and the premise it recorded has now been re-measured a second time. |
 
 ## Consequences

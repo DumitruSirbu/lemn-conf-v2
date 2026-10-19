@@ -15,7 +15,7 @@ import { APPROVED_ROMANIAN_MESSAGES } from "../../support/approved-romanian-mess
 import type { Locale } from "./seeded-design";
 
 /** Q1b's approved set and the heading the owner added on 2026-10-01
- *  (`docs/milestones/M7C-m7-feedback-fixes.md`), byte for byte. */
+ *  (`docs/decisions/0104` Amendment D1 and D2), byte for byte. */
 export const APPROVED_COPY: Readonly<
   Record<Locale, { title: string; body: string; confirm: string; stay: string }>
 > = {
