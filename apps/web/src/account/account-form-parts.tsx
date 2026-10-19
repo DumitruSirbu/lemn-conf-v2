@@ -145,7 +145,11 @@ export interface TextFieldProps {
   readonly label: string;
   readonly name: string;
   readonly type: "email" | "tel" | "text";
-  readonly autoComplete: "email" | "tel";
+  readonly autoComplete: "email" | "tel" | "name" | "street-address";
+  /** Capitals a name or an address begins its words with; an address, a number and the like stay as typed. */
+  readonly autoCapitalize?: "off" | "words";
+  /** Underlines misspellings; on for a name and an address, off for an e-mail address and a number. */
+  readonly spellCheck?: boolean;
   readonly placeholder?: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
@@ -167,8 +171,8 @@ export function TextField(props: TextFieldProps) {
         name={props.name}
         type={props.type}
         autoComplete={props.autoComplete}
-        autoCapitalize="off"
-        spellCheck={false}
+        autoCapitalize={props.autoCapitalize ?? "off"}
+        spellCheck={props.spellCheck ?? false}
         placeholder={props.placeholder}
         value={props.value}
         aria-invalid={error === undefined ? undefined : true}

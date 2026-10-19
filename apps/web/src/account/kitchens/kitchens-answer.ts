@@ -1,7 +1,9 @@
 import {
   DesignRoomShapeSchema,
+  DesignSchema,
   FinishSchema,
   isDesignId,
+  type Design,
   type DesignRoomShape,
   type KitchenSummary,
 } from "@lemnaria/configurator-domain";
@@ -11,7 +13,8 @@ import {
 // page that does not have the shape below is told as a failed request, never drawn half-understood.
 //
 // The contract (Lot 2 plan, E1): `{ total, kitchens: [{ id, name | null, updatedAt, isSent, summary }], nextCursor | null }`
-// where `summary` is the domain's `KitchenSummary` (shape, walls in millimetres, finish).
+// where `summary` is the domain's `KitchenSummary` (shape, walls in millimetres, finish). Each kitchen also carries its
+// stored `document`, which prices the card; a document this build cannot read costs the card its price and nothing more.
 
 /** One kitchen of the list. */
 export interface ListedKitchen {
@@ -23,6 +26,8 @@ export interface ListedKitchen {
   readonly updatedAtIso: string;
   readonly isSent: boolean;
   readonly summary: KitchenSummary;
+  /** The stored design, checked by the domain's schema; `undefined` when it fails, and the card then shows no price. */
+  readonly document: Design | undefined;
 }
 
 export interface KitchensPage {
@@ -84,7 +89,13 @@ function kitchenFrom(raw: unknown): ListedKitchen | undefined {
     updatedAtIso: updatedAt,
     isSent,
     summary,
+    document: documentFrom(ownValueOf(raw, "document")),
   };
+}
+
+function documentFrom(raw: unknown): Design | undefined {
+  const parsed = DesignSchema.safeParse(raw);
+  return parsed.success ? parsed.data : undefined;
 }
 
 function summaryFrom(raw: unknown): KitchenSummary | undefined {

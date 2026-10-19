@@ -748,7 +748,11 @@ declare const messages: {
     "phoneInternationalTooManyDigits": "Numărul internațional are prea multe cifre.",
     "phoneFormatUnrecognised": "Nu recunoaștem formatul. Scrie numărul cu prefixul țării (ex.: +373 69 123 456).",
     "phoneTooLong": "Numărul este prea lung.",
-    "phoneForbiddenCharacter": "Numărul conține caractere care nu sunt permise."
+    "phoneForbiddenCharacter": "Numărul conține caractere care nu sunt permise.",
+    "nameTooLong": "Numele este prea lung.",
+    "nameForbiddenCharacter": "Numele conține caractere care nu sunt permise.",
+    "addressTooLong": "Adresa este prea lungă.",
+    "addressForbiddenCharacter": "Adresa conține caractere care nu sunt permise."
   },
   "accountShell": {
     "backToConfigurator": "Înapoi la configurator",
@@ -840,6 +844,7 @@ declare const messages: {
     "menuName": "Contul meu",
     "signedInAs": "Conectat ca",
     "myKitchens": "Bucătăriile mele",
+    "profile": "Profil",
     "close": "Închide",
     "signOutHere": "Ieși din cont",
     "signOutEverywhere": "Ieși de pe toate dispozitivele",
@@ -889,6 +894,23 @@ declare const messages: {
     "emptyTitle": "Nu ai încă nicio bucătărie salvată.",
     "emptyBody": "Când salvezi una, o găsești aici, pe orice dispozitiv.",
     "startKitchen": "Începe o bucătărie"
+  },
+  "accountProfile": {
+    "metaTitle": "Profil — {brand}",
+    "title": "Profil",
+    "nameLabel": "Nume (opțional)",
+    "namePlaceholder": "ex.: Ana Popescu",
+    "addressLabel": "Adresă / localitate (opțional)",
+    "addressPlaceholder": "ex.: Orhei",
+    "phoneLabel": "Telefon (opțional, neverificat)",
+    "phonePlaceholder": "069 123 456",
+    "phoneHint": "Îl folosim doar ca să te putem suna despre oferta ta. Nu îl verificăm prin SMS. Îl poți șterge oricând.",
+    "submit": "Salvează modificările",
+    "submitting": "Se salvează…",
+    "saved": "Salvat",
+    "nothingToSave": "Nimic de salvat",
+    "privacyNotice": "Nota de confidențialitate",
+    "privacyNoticeNewTab": "(se deschide într-o filă nouă)"
   },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",

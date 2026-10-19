@@ -409,7 +409,7 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
     ],
     refusals: [],
     isAboutOneKitchen: false,
-    placeableFields: ["phone"],
+    placeableFields: ["name", "address", "phone"],
   },
   password: {
     successes: [

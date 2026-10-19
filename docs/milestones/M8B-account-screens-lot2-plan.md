@@ -298,7 +298,7 @@ A dialog on A9.
 | --- | --- | --- | --- |
 | A19A + DA19A | Signed out: "Intră în cont" (44 px; a pill on desktop) | `GET /api/account/session` → anonymous [src] | A full-load `<a href>` to the login page (M1 covers links **into** account pages) |
 | A19B + DA19B | Client menu: "Conectat ca {e-mail}", Bucătăriile mele, Profil, Ieși din cont, Ieși de pe toate dispozitivele | → signed-in with `design.read.own` | Icon with no initials; accessible name "Contul meu". The role is never shown. Items appear only once their page exists (§3 C25) |
-| A19C | Staff menu: Zona personalului, Ieși din cont, Ieși de pe toate dispozitivele | → signed-in without `.own` capabilities [src: ADR 0172 D7 as built] | "Zona personalului" is Lot 3 and unbuilt: omitted (§3 C24) |
+| A19C | Staff menu: Zona personalului, Ieși din cont, Ieși de pe toate dispozitivele | → signed-in without `.own` capabilities [src: ADR 0172 D7 as built] | "Zona personalului" is Lot 3 and unbuilt: omitted (§3 C24). Staff also get a "Profil" row (O16: `account.manage.own` for every role, §3 C25), a deliberate departure from A19C |
 | A19D | Mobile editor header at 390 px | — | The pill is already "{step}/{total}" in the app (`configure.stepPill`) [src]. The app shows **4** steps on the room screen (`STEP_ONE_OF_FOUR`) [src], not the drawn 3/5. The icon joins the top-bar ladder (P15) |
 
 ### A20 — Session expired vs no access

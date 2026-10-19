@@ -46,8 +46,14 @@ export type RegisterFeedback =
 
 const NO_FEEDBACK: RegisterFeedback = { kind: "none" };
 
+/** The fields the register form asks for. */
+export type RegisterField = Extract<
+  AccountIssueField,
+  "email" | "password" | "phone"
+>;
+
 /** Where focus goes after an answer: the one refused field, or the notice that now heads the form. */
-export type RegisterFocusTarget = AccountIssueField | "notice" | "nowhere";
+export type RegisterFocusTarget = RegisterField | "notice" | "nowhere";
 
 /** A new object for every answer, so the page moves focus once per answer and never while the person types. */
 export interface FocusRequest {
@@ -67,7 +73,7 @@ export interface RegisterAccount {
   readonly isChallengeUnavailable: boolean;
   /** Bumped after every answer, because the server spends the token on nearly all of them. */
   readonly resetCount: number;
-  readonly editField: (field: AccountIssueField, value: string) => void;
+  readonly editField: (field: RegisterField, value: string) => void;
   readonly receiveToken: (token: string | null) => void;
   readonly markChallengeUnavailable: () => void;
   readonly submit: () => void;
@@ -91,7 +97,7 @@ export function useRegisterAccount(locale: AppLocale): RegisterAccount {
     setFocusRequest({ target: focusTargetOf(answer) });
   }, []);
 
-  const editField = useCallback((field: AccountIssueField, value: string) => {
+  const editField = useCallback((field: RegisterField, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setFeedback((current) => withoutRefusalOf(current, field));
   }, []);
@@ -180,10 +186,16 @@ function focusTargetOf(feedback: RegisterFeedback): RegisterFocusTarget {
 /** The field, when exactly one is refused. */
 function refusedFieldOf(
   issues: readonly AccountFieldIssue[],
-): AccountIssueField | undefined {
+): RegisterField | undefined {
   const fields = new Set(issues.map((issue) => issue.field));
   const [only] = fields;
-  return fields.size === 1 ? only : undefined;
+  return fields.size === 1 && only !== undefined && isRegisterField(only)
+    ? only
+    : undefined;
+}
+
+function isRegisterField(field: AccountIssueField): field is RegisterField {
+  return field === "email" || field === "password" || field === "phone";
 }
 
 function refusalFeedbackOf(
@@ -197,7 +209,7 @@ function refusalFeedbackOf(
 /** Editing a field takes back that field's refusal and leaves the others standing. */
 function withoutRefusalOf(
   feedback: RegisterFeedback,
-  field: AccountIssueField,
+  field: RegisterField,
 ): RegisterFeedback {
   if (feedback.kind !== "fields-refused") return feedback;
   const remaining = feedback.issues.filter((issue) => issue.field !== field);

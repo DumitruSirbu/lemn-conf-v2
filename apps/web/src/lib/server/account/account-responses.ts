@@ -7,6 +7,7 @@ import type {
   Capability,
   AccountFieldCode,
   EmailChangeIssue,
+  KitchenNameRefusalCode,
   PasswordChangeIssue,
   PasswordRefusalCode,
   ProfileTextIssue,
@@ -46,7 +47,8 @@ export interface AccountInputIssue {
     | PasswordIssueCode
     | PasswordChangeIssue["code"]
     | EmailChangeIssue["code"]
-    | ProfileTextIssue["code"];
+    | ProfileTextIssue["code"]
+    | KitchenNameRefusalCode;
 }
 
 /** `403`: the request came from another site; nothing was read. */
@@ -233,6 +235,40 @@ export function kitchenListResponse(list: KitchenListWire): NextResponse {
     status: 200,
     headers: ACCOUNT_RESPONSE_HEADERS,
   });
+}
+
+/** `200`: the kitchen has the name shown here, which is the judged form that was stored, not the text as typed. */
+export function kitchenRenamedResponse(name: string): NextResponse {
+  return NextResponse.json(
+    { name },
+    { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
+  );
+}
+
+/** `201`: the copy of a kitchen exists under this new id. */
+export function kitchenDuplicatedResponse(id: string): NextResponse {
+  return NextResponse.json(
+    { id },
+    { status: 201, headers: ACCOUNT_RESPONSE_HEADERS },
+  );
+}
+
+/** `204`: a kitchen was hidden or deleted from its owner's list. */
+export function kitchenMarkedResponse(): NextResponse {
+  return new NextResponse(null, {
+    status: 204,
+    headers: ACCOUNT_RESPONSE_HEADERS,
+  });
+}
+
+/** `409`: the kitchen belongs to the caller and was sent to the shop, so it cannot be deleted. */
+export function kitchenSentResponse(): NextResponse {
+  return statusResponse(409, "sent");
+}
+
+/** `409`: the kitchen belongs to the caller and was never sent to the shop, so it cannot be hidden. */
+export function kitchenNotSentResponse(): NextResponse {
+  return statusResponse(409, "not-sent");
 }
 
 /** `401`: the route needs a signed-in account and the request has none (or its session could not be read). */

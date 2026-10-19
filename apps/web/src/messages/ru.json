@@ -745,7 +745,11 @@
     "phoneInternationalTooManyDigits": "В международном номере слишком много цифр.",
     "phoneFormatUnrecognised": "Формат не распознан. Введи номер с кодом страны (например, +373 69 123 456).",
     "phoneTooLong": "Номер слишком длинный.",
-    "phoneForbiddenCharacter": "В номере есть недопустимые символы."
+    "phoneForbiddenCharacter": "В номере есть недопустимые символы.",
+    "nameTooLong": "Имя слишком длинное.",
+    "nameForbiddenCharacter": "В имени есть недопустимые символы.",
+    "addressTooLong": "Адрес слишком длинный.",
+    "addressForbiddenCharacter": "В адресе есть недопустимые символы."
   },
   "accountShell": {
     "backToConfigurator": "Вернуться в конфигуратор",
@@ -837,6 +841,7 @@
     "menuName": "Мой аккаунт",
     "signedInAs": "Вход выполнен как",
     "myKitchens": "Мои кухни",
+    "profile": "Профиль",
     "close": "Закрыть",
     "signOutHere": "Выйти из аккаунта",
     "signOutEverywhere": "Выйти на всех устройствах",
@@ -886,6 +891,23 @@
     "emptyTitle": "У тебя пока нет сохранённых кухонь.",
     "emptyBody": "Когда сохранишь кухню, она появится здесь, на любом устройстве.",
     "startKitchen": "Начать кухню"
+  },
+  "accountProfile": {
+    "metaTitle": "Профиль — {brand}",
+    "title": "Профиль",
+    "nameLabel": "Имя (необязательно)",
+    "namePlaceholder": "напр.: Ана Попеску",
+    "addressLabel": "Адрес / населённый пункт (необязательно)",
+    "addressPlaceholder": "напр.: Оргеев",
+    "phoneLabel": "Телефон (необязательно, не проверяется)",
+    "phonePlaceholder": "069 123 456",
+    "phoneHint": "Мы используем его только для того, чтобы позвонить тебе по поводу твоего предложения. SMS для проверки мы не отправляем. Ты можешь удалить его в любой момент.",
+    "submit": "Сохранить изменения",
+    "submitting": "Сохраняем…",
+    "saved": "Сохранено",
+    "nothingToSave": "Нечего сохранять",
+    "privacyNotice": "Уведомление о конфиденциальности",
+    "privacyNoticeNewTab": "(откроется в новой вкладке)"
   },
   "privacyNotice": {
     "metaTitle": "Уведомление о конфиденциальности — {brand}",

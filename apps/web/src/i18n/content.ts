@@ -860,7 +860,12 @@ export type AccountMailCopy = ReturnType<typeof resolveAccountMailCopy>;
 
 /** The fields of an account form that a server answer can mark. `locale` and the notice version are the page's own
  *  values, so a refusal of either is the request failing, not a field to correct. */
-export type AccountIssueField = "email" | "phone" | "password";
+export type AccountIssueField =
+  | "email"
+  | "phone"
+  | "password"
+  | "name"
+  | "address";
 
 /** The password's refusals: the domain's three, the breach check's, a password that was not text, and the empty
  *  password the form refuses before sending. */
@@ -906,6 +911,10 @@ export function resolveAccountFieldError(
       return resolvePhoneError(translate, code);
     case "password":
       return resolvePasswordError(translate, code);
+    case "name":
+      return resolveNameError(translate, code);
+    case "address":
+      return resolveAddressError(translate, code);
     default:
       return assertNever(field);
   }
@@ -952,6 +961,36 @@ function resolvePhoneError(
     case "FORBIDDEN_CHARACTER":
     case "NOT_TEXT":
       return translate("accountFieldErrors.phoneForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveNameError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "TOO_LONG":
+      return translate("accountFieldErrors.nameTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.nameForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveAddressError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "TOO_LONG":
+      return translate("accountFieldErrors.addressTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.addressForbiddenCharacter");
     default:
       return translate("accountForm.requestFailedBody");
   }
@@ -1214,6 +1253,7 @@ export function resolveAccountControlCopy(translate: ContentTranslator) {
     menuName: translate("accountControl.menuName"),
     signedInAs: translate("accountControl.signedInAs"),
     myKitchens: translate("accountControl.myKitchens"),
+    profile: translate("accountControl.profile"),
     close: translate("accountControl.close"),
     signOutHere: translate("accountControl.signOutHere"),
     signOutEverywhere: translate("accountControl.signOutEverywhere"),
@@ -1247,6 +1287,7 @@ export function resolveAccountKitchensCopy(translate: ContentTranslator) {
         shape: resolveShapeShortName(translate, summary.shape),
         walls: summary.wallsMm.join(PRESET_WALL_JOINER),
       }),
+    price: resolvePriceCopy(translate),
     open: translate("accountKitchens.open"),
     openNamed: (name: string) =>
       translate("accountKitchens.openNamed", { name }),
@@ -1259,6 +1300,31 @@ export function resolveAccountKitchensCopy(translate: ContentTranslator) {
 }
 
 export type AccountKitchensCopy = ReturnType<typeof resolveAccountKitchensCopy>;
+
+/** The profile page's own text: the optional details a signed-in account keeps. The e-mail label is the forms' own. */
+export function resolveAccountProfileCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountProfile.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountProfile.title"),
+    nameLabel: translate("accountProfile.nameLabel"),
+    namePlaceholder: translate("accountProfile.namePlaceholder"),
+    addressLabel: translate("accountProfile.addressLabel"),
+    addressPlaceholder: translate("accountProfile.addressPlaceholder"),
+    phoneLabel: translate("accountProfile.phoneLabel"),
+    phonePlaceholder: translate("accountProfile.phonePlaceholder"),
+    phoneHint: translate("accountProfile.phoneHint"),
+    submit: translate("accountProfile.submit"),
+    submitting: translate("accountProfile.submitting"),
+    saved: translate("accountProfile.saved"),
+    nothingToSave: translate("accountProfile.nothingToSave"),
+    privacyNotice: translate("accountProfile.privacyNotice"),
+    privacyNoticeNewTab: translate("accountProfile.privacyNoticeNewTab"),
+  };
+}
+
+export type AccountProfileCopy = ReturnType<typeof resolveAccountProfileCopy>;
 
 function resolveShapeShortName(
   translate: ContentTranslator,
@@ -1412,6 +1478,17 @@ function resolvePresetFinishName(
           colourValue: finish.value,
         });
   return name.toLowerCase();
+}
+
+/** The words every price figure is made of, which the configurator's bar and the account's kitchen cards share. */
+export function resolvePriceCopy(translate: ContentTranslator) {
+  return {
+    startingPrefix: translate("price.startingPrefix"),
+    amountWithCurrency: (amount: string) =>
+      translate("price.amountWithCurrency", { amount }),
+    overflowingTotalWarning: translate("price.overflowingTotalWarning"),
+    emptyKitchenPrompt: translate("price.emptyKitchenPrompt"),
+  };
 }
 
 export function resolveContent(translate: ContentTranslator) {
@@ -1604,13 +1681,7 @@ export function resolveContent(translate: ContentTranslator) {
         corner: translate("panel.structuralReasons.corner"),
       },
     },
-    price: {
-      startingPrefix: translate("price.startingPrefix"),
-      amountWithCurrency: (amount: string) =>
-        translate("price.amountWithCurrency", { amount }),
-      overflowingTotalWarning: translate("price.overflowingTotalWarning"),
-      emptyKitchenPrompt: translate("price.emptyKitchenPrompt"),
-    },
+    price: resolvePriceCopy(translate),
     priceBreakdown: {
       title: translate("priceBreakdown.title"),
       disclaimer: translate("priceBreakdown.disclaimer"),

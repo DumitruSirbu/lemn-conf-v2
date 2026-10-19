@@ -180,6 +180,9 @@ export const ACCOUNT_EMAIL_CHANGE_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
 export const ACCOUNT_EMAIL_CHANGE_PER_ACCOUNT_DAY_FIGURE = 5;
 /** How often an account may download its data: the file is the whole account, built per request. */
 export const ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE = 5;
+/** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
+ *  ADR 0147's intent). */
+export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
 
 /**
  * Three times what one whole e2e run sends of each of the three buckets the suite's one shared block counts, rounded up
@@ -464,6 +467,15 @@ export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+/** A copy of a kitchen, counted for the account that makes it; the mint's per-network bucket is counted beside it. */
+export const DESIGN_DUPLICATE_BY_ACCOUNT_POLICY = policyOf(
+  "design-duplicate-by-account",
+  {
+    figure: DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
 /** The session twin of the write credential's bucket: the same figure and window, under a name of its own, so an
  *  account's saves and a write token's are counted apart (ADR 0156). */
 export const SAVE_BY_ACCOUNT_POLICY = policyOf("design-save-by-account", {
@@ -513,7 +525,8 @@ export type PolicyPurpose =
   | "account-profile-by-account"
   | "account-email-change-mail-by-address"
   | "account-email-change-by-account"
-  | "account-export-by-account";
+  | "account-export-by-account"
+  | "duplicate-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -613,6 +626,7 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "account-export-by-account": sameInProduction(
     ACCOUNT_EXPORT_BY_ACCOUNT_POLICY,
   ),
+  "duplicate-by-account": sameInProduction(DESIGN_DUPLICATE_BY_ACCOUNT_POLICY),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */
