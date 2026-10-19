@@ -755,6 +755,11 @@ before the code is harmless; the code naming a column the database lacks answers
 unattended screen [executed in wave S1: `pnpm --filter @lemnaria/persistence run migrate:unattended-check` printed
 "every migration file is additive and idempotent" and exited 0], but applying them stays the owner's step.
 
+**The nightly `designs` backup names `0016`'s columns.** Its select reads `sent_at`, `hidden_by_client_at` and
+`deleted_by_client_at`, so `0016` (and `0015` before it, which the runner requires) must be applied in each
+environment **before** the web code that contains that export ships. Until then the cron `/api/cron/backup-designs` answers `503` with status `export-failed`
+and no recovery point is written that night (`docs/runbooks/design-db-restore.md`, Path 2).
+
 **What is new to grant, and what is not.**
 
 | Table | Grant | Why | When |

@@ -44,6 +44,7 @@ import {
   type PreparedSubmission,
   type SubmissionSources,
 } from "@/lib/server/contact/prepare-submission";
+import { beforeDeadline } from "@/lib/server/contact/sent-kitchen-link";
 import type { DigesterOutcome } from "@/lib/server/digest/digest-secret";
 import type { MailSenderCreation } from "@/lib/server/mail/create-mail-sender";
 import type { MailSender } from "@/lib/server/mail/mail-sender";
@@ -234,10 +235,15 @@ async function countAndRecord(
       });
 }
 
+/** How long the answer waits for the sent mark, in milliseconds: one keyed update, so a mark past this is hung and the
+ *  customer's answer is not held for it. */
+const SENT_MARK_DEADLINE_MS = 1000;
+
 /**
  * The request is stored, so its design is sent whether or not the shop's notice then goes out. A design target is
  * `ready` only after `loadOwned` found that very id, so no id from the raw request reaches the store. A mark that fails
- * is a line and never an answer: the row exists, and a throw here would read as "cannot be taken".
+ * or outlasts `SENT_MARK_DEADLINE_MS` is a line and never an answer: the row exists, and a throw here would read as
+ * "cannot be taken". The mark is idempotent, so a retry repairs one that was lost.
  */
 async function markDesignSent(
   sentMarks: SentMarkStore,
@@ -246,7 +252,10 @@ async function markDesignSent(
 ): Promise<void> {
   if (target.kind !== "design") return;
   try {
-    await sentMarks.markSent(target.design.id);
+    await beforeDeadline(
+      sentMarks.markSent(target.design.id),
+      SENT_MARK_DEADLINE_MS,
+    );
   } catch {
     reportContactSentMarkFailed(reference);
   }
@@ -263,7 +272,9 @@ function holdForDelivery(
 }
 
 /** The retry of a stored request reads its design again, and is refused for it as any request is, with a line that
- *  names the stored request. A request this call stored carries what it stored. */
+ *  names the stored request. A request this call stored carries what it stored. A retry that finds its design marks it
+ *  sent again; a stored request whose notice already went out is answered without that read, so a mark lost there is
+ *  not repaired: the lookup carries no design id. */
 function passOn(
   heldRequest: HeldRequest,
   ports: SubmitContactPorts,
@@ -273,6 +284,9 @@ function passOn(
     const prepared = await storedOrPrepared(heldRequest, ports);
     if (prepared.kind === "refused") {
       return refuseStoredWithLine(prepared.refusal, reference);
+    }
+    if (heldRequest.stored === undefined) {
+      await markDesignSent(ports.sentMarks, prepared.submission, reference);
     }
     return deliverNotice({
       reference,

@@ -11,8 +11,8 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
  *
  * It carries the access-control marks of `0015` and `0016` for the same reason: `hidden_by_client_at` and
  * `deleted_by_client_at` close a design to every arm, and a restore without them reopens each kitchen a client hid or
- * deleted. `account_id` is the owner's access, `sent_at` the shop's filter and `name` the client's title. A `null` is
- * "open", "unclaimed", "unsent" or "unnamed", so a dump written before these columns restores as it always did.
+ * deleted, and `sent_at` is the shop's filter. A `null` is "open" or "unsent", so a dump written before these columns
+ * restores as it always did. `account_id` and `name` are not exported until the accounts export exists (ADR 0172 D10).
  */
 export interface DesignBackupRow {
   readonly id: string;
@@ -22,8 +22,6 @@ export interface DesignBackupRow {
   readonly updated_at: string;
   readonly write_token_hash: string | null;
   readonly visitor_hash: string | null;
-  readonly account_id: string | null;
-  readonly name: string | null;
   readonly sent_at: string | null;
   readonly hidden_by_client_at: string | null;
   readonly deleted_by_client_at: string | null;
@@ -66,14 +64,14 @@ export function createNeonDesignRowSource(
         afterId === undefined
           ? sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash,
-                     visitor_hash, account_id, name, sent_at, hidden_by_client_at, deleted_by_client_at
+                     visitor_hash, sent_at, hidden_by_client_at, deleted_by_client_at
               from designs
               order by id
               limit ${pageSize}
             `
           : sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash,
-                     visitor_hash, account_id, name, sent_at, hidden_by_client_at, deleted_by_client_at
+                     visitor_hash, sent_at, hidden_by_client_at, deleted_by_client_at
               from designs
               where id > ${afterId}
               order by id
