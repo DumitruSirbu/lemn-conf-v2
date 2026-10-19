@@ -159,6 +159,7 @@ export class FakeAccountStore implements AccountStore {
         passwordChangedAt: at,
       });
       this.revokeSessionsOf(held.id, at);
+      this.retireEmailTokensOf(held.id, at);
       return { kind: "changed" };
     });
   }
@@ -255,7 +256,7 @@ export class FakeAccountStore implements AccountStore {
         return { kind: "invalid" };
       }
       const at = this.now();
-      this.useTokenAndRetireSiblings(token, at);
+      this.retireEmailTokensOf(account.id, at);
       this.accountsById.set(account.id, {
         ...account,
         passwordHash: reset.passwordHash,
@@ -349,6 +350,13 @@ export class FakeAccountStore implements AccountStore {
         other.usedAt === undefined &&
         isIssuedAfter(other, token),
     );
+  }
+
+  /** Every unused token of the account, of any purpose, is marked used. */
+  private retireEmailTokensOf(accountId: string, at: Date): void {
+    for (const token of this.tokensByHash.values()) {
+      if (token.accountId === accountId) token.usedAt ??= at;
+    }
   }
 
   private useTokenAndRetireSiblings(token: HeldEmailToken, at: Date): void {

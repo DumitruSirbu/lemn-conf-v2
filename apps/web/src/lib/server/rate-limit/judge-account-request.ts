@@ -71,6 +71,8 @@ export type AccountSubjectAsk =
       readonly purpose: AccountKeyedPurpose;
       readonly headers: HeaderReader;
       readonly accountId: string;
+      /** The log event that names the flow; the purpose's own when absent (`password-check` is `password-change`). */
+      readonly event?: AccountEvent;
     };
 
 /** The buckets one stage of one flow counts, in the order they are asked, and the log event that names the flow. */
@@ -174,12 +176,16 @@ export async function judgeAccountSubject(
   if (!Object.hasOwn(SUBJECT_PLAN_OF_PURPOSE, ask.purpose)) return UNJUDGED;
   const plan = SUBJECT_PLAN_OF_PURPOSE[ask.purpose];
   const makeSubject = subjectMakerOf(ask);
-  return judgeStage(plan.event, () => {
+  return judgeStage(eventOf(ask, plan), () => {
     const requestFor = requestMakerFor(ask.headers);
     return plan.buckets.map((bucket) =>
       subjectStep(requestFor(bucket), makeSubject),
     );
   });
+}
+
+function eventOf(ask: AccountSubjectAsk, plan: StagePlan): AccountEvent {
+  return "accountId" in ask ? (ask.event ?? plan.event) : plan.event;
 }
 
 /** The subject is made through its constructor only when a step is asked, so a text it refuses is a failed judgement.

@@ -19,6 +19,7 @@ import {
   invalidInputResponse,
   invalidRequestResponse,
   passwordChangedKeepingSessionResponse,
+  passwordChangedSignInResponse,
   unauthenticatedResponse,
   unavailableResponse,
   wrongPasswordResponse,
@@ -194,8 +195,9 @@ async function isNewHashStored({
 /**
  * Every session of the account ended with the change, this device's too, so this device is given a new one, bound to
  * the new hash, on the success response itself. The password is changed either way: if the new session cannot be
- * started (a store failure, or a racing reset or change that replaced the hash again) the person is answered `401` with
- * the cookie cleared, which is the truth ("signed out"), and never a `200` without a live session.
+ * started (a store failure, or a racing reset or change that replaced the hash again) the person is answered `401`
+ * `password-changed-sign-in` with the cookie cleared, which is the truth ("changed, now signed out"), and never a `200`
+ * without a live session.
  */
 async function replacingSessionResponse({
   session,
@@ -219,7 +221,7 @@ async function replacingSessionResponse({
     return response;
   }
   reportAccountEvent({ event: "password-change", outcome: "unavailable" });
-  const signedOut = unauthenticatedResponse();
+  const signedOut = passwordChangedSignInResponse();
   clearSessionCookie(signedOut);
   return signedOut;
 }

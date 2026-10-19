@@ -52,8 +52,7 @@ const RESET_PASSWORD = "reset-password";
  * is a tagged-template `sql`, which parameterises values. Each method is **one statement**, so it is atomic without
  * `sql.transaction` (a batch of statements cannot branch on an earlier one): a token's `update … returning` is the
  * gate, and the other writes are driven from its `returning`. The two exceptions are `completeReset` and
- * `changePassword`, two-statement transactions whose second statement needs a snapshot taken after the first has
- * finished waiting.
+ * `changePassword`, transactions whose later statements need a snapshot taken after the first has finished waiting.
  *
  * The statements write only columns the application role is granted: `accounts` INSERT of the eight registration
  * columns and UPDATE of the verification, password, phone, name, address, locale and notice columns;
@@ -349,7 +348,8 @@ export class NeonAccountStore implements AccountStore {
    * The same gate over a `reset-password` token of a **verified** account; the account comes from the token. It is one
    * transaction of two statements, at READ COMMITTED (pinned: the second statement's fresh snapshot is load-bearing).
    *
-   * Statement 1 consumes the token, retires its siblings and sets the password and `password_changed_at`, and answers
+   * Statement 1 consumes the token, retires every other unused token of the account (any purpose, so a mailed link
+   * cannot outlive the password it was issued under) and sets the password and `password_changed_at`, and answers
    * whether the token was consumed. Its `accounts` update waits for any `SessionStore.create` holding the account row
    * `for share`, and then holds the row until the transaction commits, so a later `create` waits and finds the hash
    * replaced. Statement 2 revokes the account's unrevoked sessions. It cannot be a CTE of statement 1: a CTE reads the
@@ -403,7 +403,6 @@ export class NeonAccountStore implements AccountStore {
                   update account_email_tokens s
                   set used_at = now()
                   where s.account_id in (select account_id from consumed)
-                    and s.purpose = ${RESET_PASSWORD}
                     and s.used_at is null
                     and s.token_hash <> ${tokenHash}
                   returning s.token_hash
@@ -491,7 +490,7 @@ export class NeonAccountStore implements AccountStore {
   }
 
   /**
-   * The same two-statement shape as `completeReset`, at READ COMMITTED, for a password changed from a live session.
+   * The same shape as `completeReset`, at READ COMMITTED, for a password changed from a live session.
    * Statement 1 is a compare-and-set: the hash is replaced only while it is still `expectedPasswordHash`, and
    * `password_changed_at` is set to `clock_timestamp()` (see `completeReset` for why not `now()`). It holds the account
    * row until the commit, so a `SessionStore.create` waiting on it finds the hash replaced. Statement 2 revokes the
@@ -502,6 +501,9 @@ export class NeonAccountStore implements AccountStore {
    * lost acknowledgement of a commit revokes nothing, so a sign-in made under the new password meanwhile stands. On a
    * retry only, an account already holding exactly this call's new hash (a PHC string holds a random salt) is the first
    * attempt's own write. The caller's replacing session is created after this returns, so it is not revoked here.
+   *
+   * Statement 3 retires every unused e-mail token of the account, of any purpose, under the same condition as
+   * statement 2, so a link mailed before the change cannot be used after it.
    */
   async changePassword({
     accountId,
@@ -538,6 +540,18 @@ export class NeonAccountStore implements AccountStore {
                 update account_sessions
                 set revoked_at = now()
                 where revoked_at is null
+                  and account_id = ${accountId}
+                  and exists (
+                    select 1 from accounts a
+                    where a.id = ${accountId}
+                      and a.password_hash = ${passwordHash}
+                      and a.updated_at = now()
+                  )
+              `,
+            this.sql`
+                update account_email_tokens
+                set used_at = now()
+                where used_at is null
                   and account_id = ${accountId}
                   and exists (
                     select 1 from accounts a

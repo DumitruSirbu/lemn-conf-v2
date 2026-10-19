@@ -329,6 +329,8 @@ export type SignedInOutcome =
   /** The one `404` of a kitchen: unknown, not the account's, hidden or deleted all read alike. */
   | { readonly kind: "kitchen-unavailable" }
   | { readonly kind: "wrong-password" }
+  /** `401`: the password was changed but this device's new session could not be started; the person signs in again. */
+  | { readonly kind: "password-changed-sign-in" }
   | { readonly kind: "conflict-sent" }
   | { readonly kind: "conflict-not-sent" };
 
@@ -417,7 +419,7 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
         outcomeOf: () => ({ kind: "password-changed" }),
       },
     ],
-    refusals: [wrongPasswordRefusal()],
+    refusals: [wrongPasswordRefusal(), passwordChangedSignInRefusal()],
     isAboutOneKitchen: false,
     placeableFields: [],
   },
@@ -476,6 +478,14 @@ function wrongPasswordRefusal(): SignedInRefusalRule {
     status: INVALID_INPUT_STATUS,
     word: "wrong-password",
     outcome: { kind: "wrong-password" },
+  };
+}
+
+function passwordChangedSignInRefusal(): SignedInRefusalRule {
+  return {
+    status: UNAUTHORISED_STATUS,
+    word: "password-changed-sign-in",
+    outcome: { kind: "password-changed-sign-in" },
   };
 }
 

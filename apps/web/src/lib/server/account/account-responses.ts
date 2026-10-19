@@ -107,6 +107,12 @@ export function passwordChangedKeepingSessionResponse(): NextResponse {
   return statusResponse(200, "password-changed");
 }
 
+/** `401`: the password was changed and every session ended, but this device's replacing session could not be started.
+ *  The route clears the session cookie on this very response; the person signs in with the new password. */
+export function passwordChangedSignInResponse(): NextResponse {
+  return statusResponse(401, "password-changed-sign-in");
+}
+
 /** `400`: the current password did not verify, because it was wrong or because it is a text no password can be. The
  *  person's own password is the one thing the answer may speak of. */
 export function wrongPasswordResponse(): NextResponse {
