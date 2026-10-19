@@ -10,6 +10,7 @@ import {
   ownValueOf,
   readTypedText,
   type PlainObject,
+  type TextRefusalCode,
 } from "../contact/input-checks.js";
 import {
   normalisePhoneNumber,
@@ -164,17 +165,26 @@ function assemble(accepted: AcceptedJudgements): RegistrationFields {
   };
 }
 
-/** Left empty, the phone is simply not given. Given, it is judged by the contact rule for a number. */
-function judgeOptionalPhone(
-  raw: unknown,
-): Judgement<RegisteredPhone | undefined> {
+export type OptionalPhoneJudgement =
+  | { readonly ok: true; readonly value: RegisteredPhone | undefined }
+  | {
+      readonly ok: false;
+      readonly code: TextRefusalCode | PhoneRefusalCode;
+    };
+
+/** Left empty, the phone is simply not given. Given, it is judged by the contact rule for a number. Registration and
+ *  the profile read a phone by this one rule. */
+export function judgeOptionalPhone(raw: unknown): OptionalPhoneJudgement {
   const entered = readTypedText(raw, CONTACT_PHONE_MAX_LENGTH);
   if (!entered.ok) return entered;
-  if (entered.value === "") return accept(undefined);
+  if (entered.value === "") return { ok: true, value: undefined };
   const phone = normalisePhoneNumber(entered.value);
   return phone.ok
-    ? accept({ entered: entered.value, normalForm: phone.normalForm })
-    : refuse(phone.code);
+    ? {
+        ok: true,
+        value: { entered: entered.value, normalForm: phone.normalForm },
+      }
+    : { ok: false, code: phone.code };
 }
 
 function judgeLocale(

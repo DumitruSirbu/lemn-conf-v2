@@ -567,6 +567,10 @@ answered `503`, not `204`. Reading a failure as anonymous would end only the pre
 session of the account were gone. "This device" keeps its behaviour: it revokes the presented cookie only, and a store
 that is down already answers `503` there.
 
+*Dated note, 2026-10-19 (refinement, relayed by the coordinator; not re-verified in code by the scribe):*
+`POST /api/account/logout` with scope `"everywhere"` and **no live session** clears the cookie and answers `401`.
+`204` means only that every session of the account ended. The `503` rule above is unchanged.
+
 **4. A cross-site session probe does not touch the session (L9 security review F3).** `GET /api/account/session` still
 answers a cross-site request, but does not mark the session seen, so a page of another site cannot keep a session's idle
 clock running.
@@ -825,8 +829,26 @@ here as ruled.
 - **O17.** The plural for twenty: the 2026-09-10 ruling "without «de»" or the approved "20 de bucătării". Blocks U5,
   U9a copy.
 
+**2a. Owner confirmations, 2026-10-19 [owner, relayed by the coordinator].** These promote the matching coordinator
+defaults above from "pending owner confirmation" to **owner-confirmed**. The remaining items in 2 (O1, O2, O8, O12,
+O17) stay pending. The list in 2 is kept as written.
+- **O6, owner-confirmed.** The sent flag is set when the request is **stored**, regardless of whether the shop e-mail
+  succeeds, because operators and admins filter by this flag even when e-mail sending fails. P6's `designs.sent_at`
+  column is still not recorded here; O11 (backfill) stays open.
+- **O10, owner-confirmed, with additions.** Default landing after sign-in is "Bucătăriile mele" for a client. Operator
+  and admin get a general dashboard (statistics) that is **not yet planned**; until it exists they land on the start
+  page. The closed C26 allow-list `^/(ro|ru)/d/[A-Za-z0-9_-]{21}$` stays for the refused-save case and takes
+  precedence over the default landing.
+- **O16, owner-confirmed.** Add the capability `account.manage.own` (every role) for the self-service routes (P4).
+- **O5, owner ruling (was not in the list above).** Delete account: do nothing now. No A13, no interim row, no contact
+  address. A data-erasure / retention policy ADR is needed later; there is currently no policy on user-data erasure.
+- **O18, owner ruling (was not in the list above).** Keep HTTP 200 for the forbidden page. The backend includes an
+  explicit machine-readable marker in the payload (state `"forbidden"` plus a message key) and the UI renders the
+  "access forbidden" screen from it. No experimental `authInterrupts`. Consistent with the existing
+  SharedOutcome / forbidden handling in `apps/web/src/lib/server/account/signed-in-page.ts` (relayed; not re-read).
+
 **3. Not covered by this amendment.** P4 and P19 (owner questions O16 and O12), P6 (above), and the other owner
-questions O3–O5, O7, O9, O11, O13–O15 of plan §9. They are neither accepted nor ruled here.
+questions O3–O5, O7, O9, O11, O13–O15 of plan §9. They are neither accepted nor ruled here, except as 2a records.
 - Until the notice text is the owner's, M9 launch-gate line 4 stands. **Update 2026-10-18:** the owner accepted
   `docs/legal/privacy-notice-draft.md` as the **working draft only**; it is not publishable, and the version list still
   holds the placeholder.

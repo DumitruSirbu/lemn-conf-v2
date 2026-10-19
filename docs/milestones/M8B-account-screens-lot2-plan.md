@@ -836,6 +836,30 @@ The method is Lot 1's (§6 common). Two additions:
 | **O17** | Plural with twenty: the 2026-09-10 ruling "without «de»", or the approved Lot 2 / brief's "20 de bucătării" (C30)? | "20 bucătării" (the dated ruling) | U5, U9a copy |
 | **O18** | HTTP 200 vs 403 for the forbidden page (needs experimental authInterrupts) | — | A20C |
 
+### Answered by the owner, 2026-10-19 [owner, relayed by the coordinator]
+
+The rows above keep their original text. Status: **O5, O6, O10, O16, O18 answered**; the other rows stay open.
+
+- **O5 — ANSWERED.** Do nothing now. No A13, no interim row, no contact address (the row's default is not taken).
+- **O6 — ANSWERED.** The sent flag is set when the request is **stored**, regardless of whether the shop e-mail
+  succeeds. Rationale: operators and admins filter by this flag even when e-mail sending fails.
+- **O10 — ANSWERED.** Default landing after sign-in is "Bucătăriile mele" (the kitchen list) for a client. For
+  operator and admin it is a general dashboard that is **not yet planned** (it will hold statistics); until it exists
+  they land on the start page. The closed C26 return-path allow-list `/{ro|ru}/d/{id}` stays for the refused-save case
+  and takes precedence.
+- **O16 — ANSWERED (default confirmed).** Add the capability `account.manage.own` (every role) for the self-service
+  routes.
+- **O18 — ANSWERED.** Keep HTTP 200. The backend includes an explicit machine-readable forbidden marker in the
+  response payload (a state `"forbidden"` plus a message key), and the UI renders the "access forbidden" screen from
+  that payload. No experimental `authInterrupts`. Consistent with the existing SharedOutcome / forbidden handling in
+  `apps/web/src/lib/server/account/signed-in-page.ts` [doc-quoted from the owner's relay; the file was not re-read].
+
+### Future work
+
+- **Data-erasure / retention policy ADR** (needed later; there is currently no policy on user-data erasure). Owner:
+  the owner with the architect; no wave yet. It also decides A13 and the physical removal of P8's marked drafts.
+- **Operator / admin dashboard** (O10): general dashboard holding statistics; not planned. Owner: the owner; no wave yet.
+
 The wave split (P1), P2, P3, P5, P7–P11, P13–P18, P20 and the classifier shape are the architect's or the
 coordinator's to rule. They are not owner questions.
 

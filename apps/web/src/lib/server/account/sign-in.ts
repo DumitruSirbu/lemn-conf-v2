@@ -4,7 +4,7 @@ import { after, type NextResponse } from "next/server";
 
 import {
   judgeAccountEmail,
-  judgePassword,
+  readExistingPassword,
 } from "@lemnaria/configurator-domain";
 import type { StoredAccount } from "@lemnaria/persistence";
 
@@ -100,7 +100,9 @@ export async function signIn(request: SignInRequest): Promise<NextResponse> {
 }
 
 /** Step 6: the address by the registration's rule, the password only as text. Nothing here looks at an account, and a
- *  password the policy refuses is not a field error: it is a wrong password, whatever the address. */
+ *  password outside the length bounds is not a field error: it is a wrong password, whatever the address. The rule that
+ *  a password may not be the address is for choosing one and is not applied: an account whose password equals the
+ *  address it was later changed to must still be able to sign in. */
 function judgeAttempt(body: AccountRequestBody): AttemptJudgement {
   const address = judgeAccountEmail(textMemberOf(body, "email"));
   const typedPassword = textMemberOf(body, PASSWORD_MEMBER);
@@ -113,8 +115,8 @@ function judgeAttempt(body: AccountRequestBody): AttemptJudgement {
   if (!address.ok || typedPassword === undefined) {
     return { ok: false, issues };
   }
-  const { email, emailNormalForm } = address;
-  const judgement = judgePassword({ password: typedPassword, email });
+  const { emailNormalForm } = address;
+  const judgement = readExistingPassword(typedPassword);
   return {
     ok: true,
     attempt: {

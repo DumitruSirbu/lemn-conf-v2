@@ -736,6 +736,151 @@ decision 10). The accounts backup is a later wave.
 **The test database.** The live persistence suite applies every migration to the test database through each live file's
 `beforeAll`; no grant is needed there.
 
+## For `0016`–`0018`, the client dashboard columns (M8B Lot 2 wave S1, added 2026-10-19)
+
+The steps above stand. No table is created: `0016` adds four columns to `designs`, `0017` adds two to `accounts`, and
+`0018` adds two to `account_email_tokens`. The ledger goes from **15 to 18**. The decision and its reasons: ADR 0172
+Amendment F (P6, P8, P12) and the plan `docs/milestones/M8B-account-screens-lot2-plan.md`, section 2.4 step 2.
+**Nothing in this section has been executed anywhere** [written in wave S1 by its developer; the SQL and the grants
+below have not been run against any database, and the privilege test has no arms for them: no tests this round,
+ADR 0172 D12]. **The numbers `0016`–`0018` are provisional** until the M8C merge settles which migration numbers the
+base holds (ADR 0172, Remaining items 1 and 9); if a number changes, the file names, the ledger readings below and the
+headers' ledger sentences change with it, **before** any of them is applied. **Order of environments: preview first,
+then production**, every step on one database before the next.
+
+**Apply order.** `0016`–`0018` come **after `0015`** and the runner refuses a gap, so a database whose ledger reads
+fewer than 15 takes `0012`–`0015` first (section above), including their own grants. Then, in this order: the
+migrations (step 1), the checks (step 2), the grants (step 4), the code. The migrations are additive, so applying them
+before the code is harmless; the code naming a column the database lacks answers 500. `0016`–`0018` pass the
+unattended screen [executed in wave S1: `pnpm --filter @lemnaria/persistence run migrate:unattended-check` printed
+"every migration file is additive and idempotent" and exited 0], but applying them stays the owner's step.
+
+**What is new to grant, and what is not.**
+
+| Table | Grant | Why | When |
+| --- | --- | --- | --- |
+| `accounts` | `UPDATE (name, address)` | The profile save (E6, wave S7) writes both; the phone it also writes is already granted by `0012` | With the S7 code |
+| `accounts` | `UPDATE (email, email_normal_form)` | The e-mail change confirm (E9, P12 point 2) rewrites the address. **This is the grant ADR 0172 D7 reserves for its own review**: until now `email` and `email_normal_form` were INSERT-only, so an injection could not change which address an account answers to | **Not before wave S9 ships and the security reviewer has accepted it**; see the risk note below |
+| `account_email_tokens` | `INSERT (new_email, new_email_normal_form)` | The request (E8) stores the new address on the token row | Step 4. Redundant beside `0014`'s table-level `INSERT`, which already covers a new column; granted by name so the privilege checks list each column |
+| `designs` | none | `app_designs` holds table-level `UPDATE` (ADR 0019 decision 11), which covers all four new columns | — |
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **18** (1 to 15 before). For
+  preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
+  ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0016`–`0018`:** `add column if not exists` passes over an older column of the same name, so confirm the
+  columns and checks are the ones the files describe. Read-only, with the migration credential:
+
+  ```sql
+  -- Expect 8 rows: designs.name text, designs.sent_at / hidden_by_client_at / deleted_by_client_at timestamptz,
+  -- accounts.name / accounts.address text, account_email_tokens.new_email / new_email_normal_form text; all YES (nullable).
+  select table_name, column_name, data_type, is_nullable
+  from information_schema.columns
+  where table_schema = 'public'
+    and ((table_name = 'designs' and column_name in ('name', 'sent_at', 'hidden_by_client_at', 'deleted_by_client_at'))
+      or (table_name = 'accounts' and column_name in ('name', 'address'))
+      or (table_name = 'account_email_tokens' and column_name in ('new_email', 'new_email_normal_form')))
+  order by table_name, column_name;
+
+  -- Expect these 6 check constraints, contype c, each present once.
+  select conrelid::regclass::text as table_name, conname
+  from pg_constraint
+  where contype = 'c'
+    and conname in (
+      'designs_name_length', 'accounts_name_length', 'accounts_address_length',
+      'account_email_tokens_new_email_length', 'account_email_tokens_new_email_normal_form_length',
+      'account_email_tokens_new_email_is_set_with_its_normal_form'
+    )
+  order by 1, 2;
+
+  -- Expect: accounts = 15 columns (it was 13); account_email_tokens = 8 columns (it was 6).
+  select table_name, count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public' and table_name in ('accounts', 'account_email_tokens')
+  group by table_name order by table_name;
+
+  -- Expect: accounts = 11 constraints of kind c (it was 9); account_email_tokens = 5 (it was 2). Other kinds unchanged.
+  select conrelid::regclass::text as table_name, count(*) as check_constraints
+  from pg_constraint
+  where contype = 'c'
+    and conrelid in ('public.accounts'::regclass, 'public.account_email_tokens'::regclass)
+  group by 1 order by 1;
+  ```
+
+  Any other answer means stop and report. **Behaviour of the checks, to confirm on preview once and not assume** [inference
+  from the SQL, never run]: an empty string is refused in `name` and `address`, a 121-character `name` is refused, a lone
+  `new_email` without its normal form is refused, and `NULL` passes every check.
+- **The probes for these grants**, read-only, in their own query and not appended to the older section's "false on every
+  row" block (whose expectation they would break). Run it before step 4, after step 4 and after step 4b:
+
+  ```sql
+  select 'accounts.name update' as probe, has_column_privilege('app_designs', 'public.accounts', 'name', 'UPDATE') as held
+  union all select 'accounts.address update', has_column_privilege('app_designs', 'public.accounts', 'address', 'UPDATE')
+  union all select 'account_email_tokens.new_email update',
+    has_column_privilege('app_designs', 'public.account_email_tokens', 'new_email', 'UPDATE');
+  ```
+
+  | When | `accounts.name update` | `accounts.address update` | `account_email_tokens.new_email update` |
+  | --- | --- | --- | --- |
+  | Before step 4 | false | false | false |
+  | After step 4 | **true** | **true** | false |
+  | After step 4b | true (unchanged) | true (unchanged) | false (unchanged) |
+
+  Step 4b changes none of these three: it grants `UPDATE` on `email` and `email_normal_form`, which the older section's
+  probes `email update` and `email_normal_form update` report. Any other reading means stop and report.
+- **Step 4 (profile), preview first.** Exactly these statements:
+
+  ```sql
+  GRANT UPDATE (name, address) ON TABLE public.accounts TO app_designs;
+  GRANT INSERT (new_email, new_email_normal_form) ON TABLE public.account_email_tokens TO app_designs;
+  ```
+
+  No `DELETE`, no `TRUNCATE`, no `ALL`, no `WITH GRANT OPTION`, nothing to `PUBLIC`. No `INSERT` on `accounts.name` or
+  `address`: registration writes neither.
+- **Step 4b (e-mail change), separately and later.** Run only when wave S9 is built and reviewed:
+
+  ```sql
+  GRANT UPDATE (email, email_normal_form) ON TABLE public.accounts TO app_designs;
+  ```
+
+  After it, the older section's probes `email update` and `email_normal_form update` read **true** and its expectation
+  "none of them id (UPDATE), email (UPDATE), email_normal_form (UPDATE)" no longer holds: the `accounts` UPDATE columns are
+  then the 8 of the older step 4, plus `name`, `address`, `email`, `email_normal_form` (12). `role`, `id` and `created_at`
+  stay false.
+- **Step 5 to 7 for this section, read-only catalog checks with the migration credential**, after step 4 (and again after 4b):
+
+  ```sql
+  -- Expect UPDATE on accounts: the 8 columns of the older step 4, plus name and address (10); plus email and
+  -- email_normal_form (12) only after step 4b. Never role, id, created_at.
+  select column_name from information_schema.column_privileges
+  where table_schema = 'public' and table_name = 'accounts' and grantee = 'app_designs' and privilege_type = 'UPDATE'
+  order by column_name;
+
+  -- Expect: account_email_tokens UPDATE is still used_at alone.
+  select column_name from information_schema.column_privileges
+  where table_schema = 'public' and table_name = 'account_email_tokens' and grantee = 'app_designs'
+    and privilege_type = 'UPDATE'
+  order by column_name;
+  ```
+
+**Accepted risk, scope grown (ADR 0019 decision 11).** `app_designs` holds table-level `UPDATE` on `designs`, so an SQL
+injection can already reassign `write_token_hash` and `account_id` on any design. `0016` adds `hidden_by_client_at` and
+`deleted_by_client_at` (setting or clearing them makes any design unopenable or openable again once the gate, wave S4,
+honours them) and `sent_at` (marking any design sent). **That is two more access-control columns and one more flag under
+a risk accepted in 2026-08 for `write_token_hash`; the owner has not re-accepted it for these.** Narrowing the `designs`
+grant to column-level is the real fix and is not part of this round. An injection can already take over an account
+today, by the `UPDATE` on `password_hash` and the table-level `INSERT` on `account_sessions` and `account_email_tokens`
+(accepted under ADR 0172 D7). What step 4b adds is not a new route to takeover but a **silent, persistent rewrite of the
+recovery e-mail channel**: the address an account answers to, and where its reset links go, changed without the password
+changing and surviving a later password reset. That is why 4b waits for its own review.
+
+**`sent_at` is not backfilled.** Every design that existed before the contact flow writes it (wave S5) has `sent_at`
+NULL and so reads as an unsent draft, even if a request for it was stored earlier. The backfill is open question O11;
+`0016` does not guess.
+
+**Rollback.** None by command: the migrations are additive and nothing here drops a column. A wrong column is fixed by a
+new migration, never by editing a file that has been applied.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

@@ -31,19 +31,40 @@ export type PasswordJudgement =
   | { readonly ok: false; readonly code: PasswordRefusalCode };
 
 export function judgePassword(candidate: PasswordCandidate): PasswordJudgement {
-  if (
-    candidate.password.length >
-    PASSWORD_MAX_LENGTH * UNNORMALISED_LENGTH_FACTOR
-  ) {
-    return refuse("PASSWORD_TOO_LONG");
-  }
-  const password = candidate.password.normalize("NFKC");
-  const length = countCharacters(password);
-  if (length < PASSWORD_MIN_LENGTH) return refuse("PASSWORD_TOO_SHORT");
-  if (length > PASSWORD_MAX_LENGTH) return refuse("PASSWORD_TOO_LONG");
-  if (isTheAddress(password, candidate.email))
+  const reading = readExistingPassword(candidate.password);
+  if (!reading.ok) return reading;
+  if (isTheAddress(reading.password, candidate.email)) {
     return refuse("PASSWORD_IS_EMAIL");
-  return { ok: true, password };
+  }
+  return reading;
+}
+
+export type PasswordLengthRefusalCode = Exclude<
+  PasswordRefusalCode,
+  "PASSWORD_IS_EMAIL"
+>;
+
+export type ExistingPasswordReading =
+  | { readonly ok: true; readonly password: string }
+  | { readonly ok: false; readonly code: PasswordLengthRefusalCode };
+
+/**
+ * A typed password in the form that is verified against a stored hash: the same NFKC form and the same bounds as
+ * `judgePassword`, without the rule that it may not be the address. That rule is for choosing a password. Applied to
+ * one that already exists it would lock out a person whose password equals the address they have since changed to, who
+ * could then neither sign in nor change it.
+ */
+export function readExistingPassword(
+  password: string,
+): ExistingPasswordReading {
+  if (password.length > PASSWORD_MAX_LENGTH * UNNORMALISED_LENGTH_FACTOR) {
+    return refuseLength("PASSWORD_TOO_LONG");
+  }
+  const normalised = password.normalize("NFKC");
+  const length = countCharacters(normalised);
+  if (length < PASSWORD_MIN_LENGTH) return refuseLength("PASSWORD_TOO_SHORT");
+  if (length > PASSWORD_MAX_LENGTH) return refuseLength("PASSWORD_TOO_LONG");
+  return { ok: true, password: normalised };
 }
 
 /** A password's length as the rule counts it: code points after NFKC. A form's live counter reads this, so the number
@@ -59,5 +80,11 @@ function isTheAddress(normalisedPassword: string, email: string): boolean {
 }
 
 function refuse(code: PasswordRefusalCode): PasswordJudgement {
+  return { ok: false, code };
+}
+
+function refuseLength(
+  code: PasswordLengthRefusalCode,
+): ExistingPasswordReading {
   return { ok: false, code };
 }
