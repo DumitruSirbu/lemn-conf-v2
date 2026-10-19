@@ -36,6 +36,7 @@ export type ExportFeedback =
 
 const NO_FEEDBACK: ExportFeedback = { kind: "none" };
 const DOWNLOADED_FEEDBACK: ExportFeedback = { kind: "downloaded" };
+const REQUEST_FAILED_FEEDBACK: ExportFeedback = { kind: "request-failed" };
 
 /** Where focus goes after an answer: the notice that now heads the page. */
 export type ExportFocusRequest = FocusRequest<"notice">;
@@ -68,15 +69,19 @@ export function useExport(locale: AppLocale): AccountExport {
     isSendingRef.current = true;
     setIsBusy(true);
     setFeedback(NO_FEEDBACK);
-    void requestFile().then((step) => {
-      isSendingRef.current = false;
-      setIsBusy(false);
-      if (step.kind === "sign-in") {
-        leaveFor(loginPathWithReason(locale, "session-expired"));
-        return;
-      }
-      showAnswer(step.feedback);
-    });
+    void requestFile()
+      .catch(() => answered(REQUEST_FAILED_FEEDBACK))
+      .finally(() => {
+        isSendingRef.current = false;
+        setIsBusy(false);
+      })
+      .then((step) => {
+        if (step.kind === "sign-in") {
+          leaveFor(loginPathWithReason(locale, "session-expired"));
+          return;
+        }
+        showAnswer(step.feedback);
+      });
   }, [locale, showAnswer]);
 
   return { feedback, focusRequest, isBusy, download };
@@ -100,15 +105,25 @@ function isNoticeAnswer(feedback: ExportFeedback): boolean {
 async function requestFile(): Promise<ExportStep> {
   const answer = await sendExportRequest();
   if (answer.kind === "file") {
-    saveFile(answer.blob, answer.fileName);
-    return answered(DOWNLOADED_FEEDBACK);
+    return handOverFile(answer.blob, answer.fileName);
   }
   return stepOf(answer.outcome, Date.now());
 }
 
-/** Every outcome the page can be given. A server error no word explains is told as a request that got no answer, which
- *  keeps the button for a retry; the classes the request never answers with are, like any unlisted answer, a failed
- *  request. */
+/** A browser that refuses the download (a blocked anchor, an exhausted blob store) throws here: the person is told the
+ *  request failed, not left with a button that never comes back. */
+function handOverFile(blob: Blob, fileName: string): ExportStep {
+  try {
+    saveFile(blob, fileName);
+    return answered(DOWNLOADED_FEEDBACK);
+  } catch {
+    return answered(REQUEST_FAILED_FEEDBACK);
+  }
+}
+
+/** Every outcome the page can be given. Only a request that got no answer, or a service that says it is not there, may be
+ *  pressed again at once: a platform error is told as a failed request with the way back, since each press spends the
+ *  account's daily export. The classes the request never answers with are, like any unlisted answer, a failed request. */
 function stepOf(outcome: SignedInOutcome, nowMs: number): ExportStep {
   switch (outcome.kind) {
     case "rate-limited":
@@ -119,7 +134,6 @@ function stepOf(outcome: SignedInOutcome, nowMs: number): ExportStep {
     case "unavailable":
       return answered({ kind: "unavailable" });
     case "unanswered":
-    case "platform-failed":
       return answered({ kind: "unanswered" });
     case "export-too-large":
       return answered({ kind: "too-large" });
@@ -128,7 +142,7 @@ function stepOf(outcome: SignedInOutcome, nowMs: number): ExportStep {
     case "forbidden":
       return answered({ kind: "forbidden" });
     default:
-      return answered({ kind: "request-failed" });
+      return answered(REQUEST_FAILED_FEEDBACK);
   }
 }
 

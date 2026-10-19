@@ -49,3 +49,8 @@
   font: 700 14px/1 var(--font-ui);
   text-decoration: none;
 }
+
+.myKitchensPlaceholder {
+  min-height: var(--touch-target);
+  visibility: hidden;
+}

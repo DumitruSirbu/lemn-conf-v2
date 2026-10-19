@@ -1502,6 +1502,7 @@ export function resolveAccountExportCopy(translate: ContentTranslator) {
     submitting: translate("accountExport.submitting"),
     preparing: translate("accountExport.preparing"),
     downloaded: translate("accountExport.downloaded"),
+    downloadedHint: translate("accountExport.downloadedHint"),
     downloadAgain: translate("accountExport.downloadAgain"),
     backToProfile: translate("accountExport.backToProfile"),
     tooLarge: translate("accountProfile.exportTooLarge"),
@@ -1980,6 +1981,8 @@ export function resolveContent(translate: ContentTranslator) {
       bodyInvalid: translate("designLoadError.bodyInvalid"),
       // The "wrong browser" refusal (ADR 0114 decision 5).
       bodyUnavailable: translate("designLoadError.bodyUnavailable"),
+      // A signed-in client's one sentence: it names no cause, so it tells nothing of why the design was refused.
+      bodyClient: translate("designLoadError.bodyClient"),
       startOver: translate("designLoadError.startOver"),
       // The sentence a refused page read is answered with: the interceptor reads it from the catalogue itself.
       tooManyRequests: translate("designLoadError.tooManyRequests"),

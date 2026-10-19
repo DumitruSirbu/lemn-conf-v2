@@ -32,8 +32,9 @@ import {
 } from "./use-export";
 
 // "Exportă datele mele" (Lot 2 frames A12A to A12E): one button that downloads the account's data as a JSON file. The
-// page shows nothing of the file and keeps nothing of it. An account too large for one file is told so and offered the
-// way back, not a retry, since asking again cannot succeed. Every link is a plain anchor, as on every account page.
+// page shows nothing of the file and keeps nothing of it. An account too large for one file, and a request that failed
+// for a reason no word explains, are offered the way back and not a retry: asking again cannot succeed, or spends the
+// account's daily export without telling. Every link is a plain anchor, as on every account page.
 
 export function ExportScreen({ locale }: { readonly locale: AppLocale }) {
   const exporting = useExport(locale);
@@ -134,7 +135,11 @@ function ExportNotice({
   const { feedback } = exporting;
   switch (feedback.kind) {
     case "downloaded":
-      return <FormNotice tone="success">{copy.downloaded}</FormNotice>;
+      return (
+        <FormNotice tone="success" title={copy.downloaded}>
+          {copy.downloadedHint}
+        </FormNotice>
+      );
     case "rate-limited":
       return <RateLimitNotice notice={feedback.notice} ref={noticeRef} />;
     case "unavailable":
@@ -179,7 +184,7 @@ function ActionArea({
   readonly exporting: AccountExport;
 }) {
   const copy = useAccountExportCopy();
-  if (exporting.feedback.kind === "too-large") {
+  if (isWayBackOnly(exporting.feedback)) {
     return (
       <PrimaryLink href={accountPathOf(locale, "profile")}>
         {copy.backToProfile}
@@ -187,6 +192,11 @@ function ActionArea({
     );
   }
   return <DownloadButton exporting={exporting} />;
+}
+
+/** The feedbacks after which pressing the download again is not offered. */
+function isWayBackOnly(feedback: ExportFeedback): boolean {
+  return feedback.kind === "too-large" || feedback.kind === "request-failed";
 }
 
 function DownloadButton({ exporting }: { readonly exporting: AccountExport }) {
