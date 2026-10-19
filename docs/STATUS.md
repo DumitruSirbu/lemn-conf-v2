@@ -38,7 +38,7 @@ Russian copy (an unapproved agent draft, ADR 0095 decision 2), and the two leave
 drafted by O-1; whether the copy lock already holds it was not checked) and `presetChooser.selectLimitReached` (wording changed to
 v2's *"… Încearcă mâine."* by O-1, in code in W2). Backlog 263 is resolved by decision (delivery in W1).
 
-**2026-10-20 update (M8B Lot 2 built, branch `feat/login-register`, HEAD `a47db452`) [coordinator's brief, relayed; the
+**2026-10-19 update (M8B Lot 2 built, branch `feat/login-register`, HEAD `a47db452`) [coordinator's brief, relayed; the
 scribe ran nothing].** Server waves S1-S10 and UI waves U5, U6, U10, U12 are committed; each wave was reviewed by reading
 (a logic and a security agent). **No tests were written (ADR 0172 D12); nothing was run against a database or in a
 browser.** Migrations `0016`-`0018` are **unapplied anywhere**. In progress, uncommitted: U7/U8 and U11 plus the E8 page
@@ -49,7 +49,7 @@ O19 (e-mail change takeover recovery; blocks the `UPDATE (email, email_normal_fo
 (password change retires all unused tokens), O24 (429 wait in the notice). **Owner re-acceptance needed** of ADR 0019 d11's
 scope growth (`hidden_by_client_at`, `deleted_by_client_at`, `sent_at`) before hide and delete are used in production.
 
-**2026-10-20 update, later (M8B Lot 2 UI built, branch `feat/login-register`, HEAD `aa09a1e0`) [coordinator's brief,
+**2026-10-19 update, later (M8B Lot 2 UI built, branch `feat/login-register`, HEAD `aa09a1e0`) [coordinator's brief,
 relayed; commits read by the scribe in the worktree reflogs; nothing run].** This supersedes the "in progress,
 uncommitted" sentence of the update above. U5-U13 are all committed and reviewed by reading (a logic and a security agent
 each; no browser, no database run): U7/U8 (card menu, inline rename, duplicate, share sheet on the shared
@@ -58,7 +58,7 @@ for all account forms, login arrival `password-maybe-changed`. **The e-mail chan
 `EMAIL_CHANGE_ENABLED = false` hides the UI **and** the E8/E9 routes answer an empty `404` (the earlier "only the UI"
 wording was wrong). **New open owner questions O25-O27:** O25 (client load-error wording, RO and RU), O26 (export bound by
 bytes against the 200-kitchen count; platform limit unknown), O27 (approve all RO and RU draft copy of Lot 2). O1-O24
-keep their recorded states. **D12 was lifted by the owner for the tests round (2026-10-20):** tests are being added in
+keep their recorded states. **D12 was lifted by the owner for the tests round (2026-10-19):** tests are being added in
 three lanes (persistence and domain; web server routes; web client, UI and i18n) with mutation proofs; **results to be
 recorded** by the coordinator (plan [§13](milestones/M8B-account-screens-lot2-plan.md)). Detail: plan §12.7-§13; ADR 0172
 Amendment G, addendum.
@@ -86,7 +86,7 @@ for the owner to rule, not guessed; none is open now.
 | 8M2, 8J2 (file `8N-`), 8Q2, 8V | Done, archived | M8 sub-waves | No (`milestones/done/`) | doc-quoted H:1210-1213; files in `milestones/done/` |
 | 8U Merge adjacent empty spaces | Built and reviewed; plan not archived; S5 not built | Close note lists code comments to repoint before archiving | Only for S5 / the repoint list, [`8U-...md`](milestones/8U-merge-adjacent-empty-spaces.md) | doc-quoted H:1212, 1219 |
 | M8B Accounts: login and register (Lot 1 backend, waves L1-L13a) | Built, unexercised (no tests this round, ADR 0172 D12); ADR 0172 accepted by the owner 2026-10-18 | Branch `feat/login-register`, local, not pushed. `main` (M8C's `0011`, M8D) is merged into it; the accounts ADR was renumbered 0169 -> 0172 at that merge because `main` holds a different 0169 (migration commands), 0170 and 0171. Migrations `0012`-`0015` are **unapplied** and need `0011` applied first (owner step; order and grants in ADR 0172 *Remaining before production*); screens L13b-L14b wait for Claude Design | When started, [`M8B-login-register-plan.md`](milestones/M8B-login-register-plan.md) | doc-quoted (the branch's pre-merge STATUS, 2026-10-18; coordinator-relayed counts not re-run) |
-| M8B Account screens Lot 2 (client dashboard A9-A20) | **Update 2026-10-20 (later): S1-S10 and U5-U13 built and committed (HEAD `aa09a1e0`), reviewed by reading only, unrun; e-mail change gated whole by `EMAIL_CHANGE_ENABLED = false`; D12 lifted for the tests round, three lanes, results to be recorded; open questions O19-O27 (section 1); ADR 0172 Amendment G and addendum.** *Earlier 2026-10-20 text: S1-S10, U5, U6, U10, U12 built, U7/U8 and U11 in progress, no tests (D12).* Original row: designs received, port plan written 2026-10-19; draft, no wave dispatched | Architect rulings recorded as ADR 0172 Amendment F as coordinator-accepted defaults, pending owner confirmation; owner questions O1, O2, O8, O12, O17 open; O5, O6, O10, O16, O18 answered 2026-10-19 (ADR 0172 Amendment F, 2a). Waves U1-U4, U9a, U15a and U15b are committed on `feat/login-register`; commit `9d33cd6a` is the latest [coordinator-relayed, not re-run] | When started, [`M8B-account-screens-lot2-plan.md`](milestones/M8B-account-screens-lot2-plan.md) | doc-quoted (the branch's pre-merge STATUS) |
+| M8B Account screens Lot 2 (client dashboard A9-A20) | **Update 2026-10-19 (later): S1-S10 and U5-U13 built and committed (HEAD `aa09a1e0`), reviewed by reading only, unrun; e-mail change gated whole by `EMAIL_CHANGE_ENABLED = false`; D12 lifted for the tests round, three lanes, results to be recorded; open questions O19-O27 (section 1); ADR 0172 Amendment G and addendum.** *Earlier 2026-10-19 text: S1-S10, U5, U6, U10, U12 built, U7/U8 and U11 in progress, no tests (D12).* Original row: designs received, port plan written 2026-10-19; draft, no wave dispatched | Architect rulings recorded as ADR 0172 Amendment F as coordinator-accepted defaults, pending owner confirmation; owner questions O1, O2, O8, O12, O17 open; O5, O6, O10, O16, O18 answered 2026-10-19 (ADR 0172 Amendment F, 2a). Waves U1-U4, U9a, U15a and U15b are committed on `feat/login-register`; commit `9d33cd6a` is the latest [coordinator-relayed, not re-run] | When started, [`M8B-account-screens-lot2-plan.md`](milestones/M8B-account-screens-lot2-plan.md) | doc-quoted (the branch's pre-merge STATUS) |
 | M8B Customer profiles (original plan) | Planned | After M8C by owner ruling, before launch; superseded in part by the two rows above | [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) | doc-quoted H:615, 6-15 |
 | M8C Generation fill and preset authoring | Waves F0-P9 committed, not closed | See the 2026-10-18 update in section 1; owner obligations open | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
 | M8D Preset screens to the v2 mockup | W0 done; W1 in progress (2026-10-18, relayed) | Runs on this branch before its PR and before M8B (owner O-5) | Yes, [`M8D-...md`](milestones/M8D-preset-screens-to-mockup.md) | coordinator's brief (relayed) + doc-quoted plan banner |

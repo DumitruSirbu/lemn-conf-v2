@@ -2,20 +2,20 @@
 
 > **STATUS: DRAFT, 2026-10-19, architect. No wave dispatched, nothing committed.**
 >
-> **Update 2026-10-20 [coordinator's brief, relayed; the scribe ran nothing]: waves are built and committed.** Server
+> **Update 2026-10-19 [coordinator's brief, relayed; the scribe ran nothing]: waves are built and committed.** Server
 > waves S1-S10 and UI waves U5, U6, U10, U12 are committed on `feat/login-register` (HEAD `a47db452`); U7/U8 and U11
 > are in progress. Each wave was source-reviewed by a logic and a security agent. **No test was written (ADR 0172 D12),
 > and nothing was run against a database or in a browser.** The built state, the decided column bounds, the accepted
 > residuals and the tests owed are in the new §12; the new owner questions O19-O24 are in §9. The text above this line
 > and §§1-11 are the plan as written on 2026-10-19 and are kept unchanged.
 >
-> **Update 2026-10-20, later [coordinator's brief, relayed; the scribe read the repository, ran no command]: every UI
+> **Update 2026-10-19, later [coordinator's brief, relayed; the scribe read the repository, ran no command]: every UI
 > wave U5-U13 is built and committed (branch HEAD `aa09a1e0`, from the worktree's `.git/worktrees/.../logs/HEAD`).** U7,
 > U8, U9b, U11, U12 and U13 are now BUILT and reviewed by reading (a logic and a security agent each; no browser, no
 > database run). U11's page, sheet **and the E8/E9 routes** are gated by `EMAIL_CHANGE_ENABLED = false` (the routes answer
 > an empty `404` while it is off; an earlier line here and in STATUS/ADR 0172 said only the UI was gated, and is
 > corrected in §12.7). New owner questions O25-O27 are in §9. **D12 was lifted by the owner for the tests round on
-> 2026-10-20**; the tests round is recorded in §13, results to be recorded.
+> 2026-10-19**; the tests round is recorded in §13, results to be recorded.
 >
 > - Branch `feat/login-register`, worktree `lemnaria-configurator-login`.
 > - This file adds to [`M8B-login-register-plan.md`](M8B-login-register-plan.md) and to
@@ -404,7 +404,7 @@ None is a test-fidelity problem: no test exists this round.
 | CG6 | **Claim dialog detail.** Plan L14b criterion 5 requires count, dates and thumbnails. The API gives a count, and the mock calls the list "future" | O2 |
 | CG7 | **Profile columns and e-mail change grant** (ADR 0118, ADR 0172 D7: "e-mail change need their own grant and review") | S1, S7, S9, P12 |
 | CG8 | **The sent flag.** Deriving it by joining `contact_submissions.design_id` to `designs.account_id` is exactly ADR 0172 D11's "trigger to revisit: the first feature that reads both together" [doc] | P6 |
-| CG9 | *(Qualified 2026-10-20: the frozen sent-kitchen copy at `/s/<token>` stays reachable after hide, by design, ADR 0165; confirmation is O22. The text below is the original.)* **Hide must close every arm.** ADR 0172 Consequences: the claiming browser's visitor cookie and write token keep reading and writing a claimed design [doc]. A17's copy is false unless `loadOwned`, `resume`, `saveAuthorized` and share exclude hidden and deleted rows **on both arms** | S4 |
+| CG9 | *(Qualified 2026-10-19: the frozen sent-kitchen copy at `/s/<token>` stays reachable after hide, by design, ADR 0165; confirmation is O22. The text below is the original.)* **Hide must close every arm.** ADR 0172 Consequences: the claiming browser's visitor cookie and write token keep reading and writing a claimed design [doc]. A17's copy is false unless `loadOwned`, `resume`, `saveAuthorized` and share exclude hidden and deleted rows **on both arms** | S4 |
 | CG10 | **A20B is unobservable.** A save after expiry is refused with the one indistinguishable `403`/`404` of the design routes [src: `designs/[id]/route.ts`], so the editor cannot tell expiry from "not yours" | P16 |
 | CG11 | **"This device stays signed in" after a password change** is a new rule beside D3 ("reset revokes every session"), and `findLive`'s `created_at >= password_changed_at` makes it a structural dependency [src] | P11 |
 
@@ -681,7 +681,7 @@ each is a test owed (§8.3).
      of ADR 0114.
 2. **No request-chosen identity.** No new route reads an account id, role, capability or visitor hash from the body,
    query or a header. The account is `readCurrentSession`'s.
-3. **Hide and delete close every arm** (S4). *(Qualified 2026-10-20, O22 open: the shop's frozen copy at `/s/<token>`
+3. **Hide and delete close every arm** (S4). *(Qualified 2026-10-19, O22 open: the shop's frozen copy at `/s/<token>`
    in `contact_submission_views` stays reachable after hide, by design, ADR 0165. The "revoked share link" line below
    concerns the client's own share link only.)*
    - After E4 or E5 succeeds, the claiming browser (visitor cookie and write token) and the owning session both get
@@ -871,7 +871,7 @@ The rows above keep their original text. Status: **O5, O6, O10, O16, O18 answere
   that payload. No experimental `authInterrupts`. Consistent with the existing SharedOutcome / forbidden handling in
   `apps/web/src/lib/server/account/signed-in-page.ts` [doc-quoted from the owner's relay; the file was not re-read].
 
-### New open owner questions, 2026-10-20 [coordinator's brief, relayed]
+### New open owner questions, 2026-10-19 [coordinator's brief, relayed]
 
 Raised by the wave reviews. None is ruled. Evidence tier of every row: **source-verified by the reviewing agents**
 (the scribe re-read no code).
@@ -885,13 +885,13 @@ Raised by the wave reviews. None is ruled. Evidence tier of every row: **source-
 | **O23** | Password change and reset completion now retire **every** unused e-mail token, including verify-email. Accept that side effect? | Not stated | S8 |
 | **O24** | The 429 wait shown inside the notice (mock A11F / SB10) is being implemented once, in the shared `account-form-parts`. Confirm | Not stated | U-wave copy |
 
-**Correction 2026-10-20 (later) to the O19 row above.** Its "Blocks" cell reads "E8/E9 are gated (below)" as a future
+**Correction 2026-10-19 (later) to the O19 row above.** Its "Blocks" cell reads "E8/E9 are gated (below)" as a future
 condition. At HEAD `aa09a1e0` the confirm page exists (U11) and E8/E9 **are** gated: both routes call
 `refuseWhileEmailChangeIsOff()` first and answer an empty `404` (**source-verified**:
 `apps/web/src/lib/server/account/email-change-gate.ts:12-18`, and the comment at the top of
 `api/account/email-change/route.ts:19` and `.../confirm/route.ts:19`). The grant stays blocked on F1 (O19) alone.
 
-### New open owner questions, 2026-10-20 (later) [coordinator's brief, relayed]
+### New open owner questions, 2026-10-19 (later) [coordinator's brief, relayed]
 
 Raised by the U7-U13 reviews and the tests round. None is ruled. O1-O18 and O19-O24 keep the states recorded above.
 
@@ -961,10 +961,10 @@ coordinator's to rule. They are not owner questions.
 
 ---
 
-## 12. Built state, 2026-10-19..20 (added by the scribe)
+## 12. Built state, 2026-10-19 (added by the scribe)
 
 **Evidence.** Every fact below is **source-verified by wave reviews** (a logic and a security agent per wave), relayed by
-the coordinator on 2026-10-20 with HEAD `a47db452`. The scribe re-read no code and ran nothing. **No test was written
+the coordinator on 2026-10-19 with HEAD `a47db452`. The scribe re-read no code and ran nothing. **No test was written
 (ADR 0172 D12). Nothing was run against a database or in a browser.** "Built" means committed and reviewed by reading,
 not exercised. §§1-11 are unchanged; where they differ, this section records what was built.
 
@@ -992,7 +992,7 @@ question O20.
 
 ### 12.2 UI waves
 
-*Superseded 2026-10-20 (later) by §12.7: the "in progress" and "not built" bullets below were true at HEAD `a47db452`
+*Superseded 2026-10-19 (later) by §12.7: the "in progress" and "not built" bullets below were true at HEAD `a47db452`
 and are kept as written.*
 
 - **Committed and merged into the branch:** U5 kitchens list; U6 card price (one price-book module,
@@ -1031,9 +1031,9 @@ and are kept as written.*
 - `top-bar-box.test.ts`.
 - The §8.3 list above stands.
 
-*Update 2026-10-20 (later): this list is now the tests round's brief, §13.*
+*Update 2026-10-19 (later): this list is now the tests round's brief, §13.*
 
-### 12.7 Built state at HEAD `aa09a1e0` (added 2026-10-20, later)
+### 12.7 Built state at HEAD `aa09a1e0` (added 2026-10-19, later)
 
 **Evidence.** Wave commits: **doc-quoted** from the worktree reflog (`.git/worktrees/lemnaria-configurator-login-lane-{a,b,c}/logs/HEAD`
 and the main worktree's `logs/HEAD`, read by the scribe; hashes are the lane commits, merged into the branch at the
@@ -1066,9 +1066,9 @@ none was put to the owner.
 - **The card menu is a dialog of rows, not an ARIA menu** (no `role="menu"` arrow-key model).
 - **Staff get a "Profil" row** in the header menu (O16: `account.manage.own` for every role), a departure from A19C.
 
-## 13. The tests round (added 2026-10-20, later)
+## 13. The tests round (added 2026-10-19, later)
 
-**D12 was lifted by the owner for this round on 2026-10-20**, in the owner's words as relayed by the coordinator: "run
+**D12 was lifted by the owner for this round on 2026-10-19**, in the owner's words as relayed by the coordinator: "run
 the scribe pass and then the tests round and commit" [relayed, not a verbatim transcript]. The scope of the lift is this
 round only; D12's other lines are unchanged.
 

@@ -893,9 +893,9 @@ blocking if turnstile is not reachable"*. As built:
   Cloudflare unreachable gains nothing by sending a junk token: it is asked about and answered `failed`.
   (c) The M9 launch-gate line on the real-key preview walk is unchanged.
 
-## Amendment G — 2026-10-19..20: Lot 2 as built, the column bounds, the ADR 0019 d11 scope growth, accepted residuals, and new owner questions
+## Amendment G — 2026-10-19: Lot 2 as built, the column bounds, the ADR 0019 d11 scope growth, accepted residuals, and new owner questions
 
-Source: the coordinator's brief of 2026-10-20, relaying wave reviews (a logic and a security agent per wave) on branch
+Source: the coordinator's brief of 2026-10-19, relaying wave reviews (a logic and a security agent per wave) on branch
 `feat/login-register`, HEAD `a47db452`. Evidence tier: **source-verified by those reviews, relayed**. The scribe re-read
 no code and ran nothing. **No test was written (D12), and nothing was run against a database or in a browser.** The
 status stays as Amendment F left it. The built state, wave by wave, is in
@@ -951,7 +951,7 @@ byte-identity; copy lock `approved-romanian-messages.ts` plus golden hashes for 
 `accountPassword`, `accountMail` and `claimDialog`; `limit-policy.test.ts` (the length 20 assertion is already stale);
 persistence statement tests; `top-bar-box.test.ts`.
 
-### Amendment G, addendum — 2026-10-20 (later): U7-U13 built, E8/E9 gated, review-driven choices, O25-O27, tests round
+### Amendment G, addendum — 2026-10-19 (later): U7-U13 built, E8/E9 gated, review-driven choices, O25-O27, tests round
 
 Source: the coordinator's brief, relaying the U7-U13 reviews (a logic and a security agent per wave) at branch HEAD
 `aa09a1e0`; commits read in the worktree reflogs. File facts below were read in the repository by the scribe
@@ -982,7 +982,7 @@ response-size limit is unknown; an attempt that fails after the bucket is counte
 all RO and RU draft copy: `accountKitchens`, `accountProfile`, `accountPassword`, `accountEmailChange`, `accountExport`,
 the `accountMail` e-mail-change mails, `claimDialog`, `sessionExpiredSheet`. O1-O24 keep their recorded states.
 
-**5. D12 lifted for the tests round.** On 2026-10-20 the owner lifted D12 for this round ("run the scribe pass and then the
+**5. D12 lifted for the tests round.** On 2026-10-19 the owner lifted D12 for this round ("run the scribe pass and then the
 tests round and commit", relayed). Tests are being added in three lanes (persistence and domain; web server routes; web
 client, UI and i18n) with mutation proofs. D12 is unchanged for anything outside this round. **Results: to be recorded**
 (plan §13).
