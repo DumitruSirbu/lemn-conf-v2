@@ -9,6 +9,7 @@ import { rateLimitNoticeOf } from "../account-answer";
 import { loginPathWithReason } from "../login-arrival";
 import { leaveFor } from "../on-signed-in";
 import { sendSignedInRequest } from "../send-account-request";
+import { listingAfter, type ListingChange } from "./listing-change";
 import {
   kitchensPageFrom,
   type KitchensPage,
@@ -78,6 +79,10 @@ export interface Kitchens {
   readonly loadMore: () => void;
   /** "Încearcă din nou" after the first page could not be had. */
   readonly retry: () => void;
+  /** A kitchen action's effect on the pages shown. Ignored while no page is shown. */
+  readonly change: (change: ListingChange) => void;
+  /** A refusal of the account's capability mid-visit: the whole screen is the forbidden one. */
+  readonly forbid: () => void;
 }
 
 /** What a request for a page came to. */
@@ -144,13 +149,32 @@ export function useKitchens(locale: AppLocale): Kitchens {
     const { nextCursor } = state.listing;
     if (nextCursor === undefined || isRequestOutRef.current) return;
     const shownIds = new Set(state.listing.kitchens.map(({ id }) => id));
-    setState({ ...state, more: { kind: "loading" } });
+    setState((current) =>
+      current.phase === "listed"
+        ? { ...current, more: { kind: "loading" } }
+        : current,
+    );
     request({ cursor: nextCursor, shownIds }, (step) => {
       setState((current) => withNextPage(current, step));
     });
   }, [request, state]);
 
-  return { state, loadMore, retry };
+  const change = useCallback((listingChange: ListingChange) => {
+    setState((current) =>
+      current.phase === "listed"
+        ? {
+            ...current,
+            listing: listingAfter(current.listing, listingChange),
+          }
+        : current,
+    );
+  }, []);
+
+  const forbid = useCallback(() => {
+    setState({ phase: "forbidden" });
+  }, []);
+
+  return { state, loadMore, retry, change, forbid };
 }
 
 function firstPageState(step: DrawnStep): KitchensState {

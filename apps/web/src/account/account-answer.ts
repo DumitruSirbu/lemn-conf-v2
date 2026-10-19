@@ -1,3 +1,5 @@
+import { isDesignId } from "@lemnaria/configurator-domain";
+
 import type {
   AccountFieldIssue,
   AccountIssueField,
@@ -8,9 +10,9 @@ import { clockTimeOf, isToldOnALaterDay } from "@/i18n/clock-time";
 // What an account route answered, as the one state the screen draws. The class is read from the HTTP status and the
 // body's `status` word together, because one status carries several words (`400` is `invalid-input`,
 // `invalid-request` and a link's refusal). Nothing here keeps the answer's body, its headers or a field's value: a
-// class, the fields to mark, a claimable count or a wait in seconds. The one exception is `received`, the success of
-// the two signed-in requests whose answer is the data itself (the kitchens list and the export): the sender hands the
-// parsed body on and the screen's own reader checks its shape.
+// class, the fields to mark, a claimable count or a wait in seconds. The exceptions are the successes whose answer is
+// the data itself: `received` (the kitchens list and the export), whose screen's own reader checks the shape, and the
+// two one-member answers of a kitchen action, `renamed` (the stored name) and `created` (the copy's design id).
 //
 // The form flows and the signed-in flows are two unions with one classifier module. They are separate so that every
 // hook that switches over the form flows' outcomes stays exhaustive without learning classes it can never be given.
@@ -314,8 +316,12 @@ export type SignedInFlow =
 /** What a signed-in route answered. The classes of the form flows keep their meaning here; the rest are the area's. */
 export type SignedInOutcome =
   | SharedOutcome
-  /** The work was done and the answer holds nothing the screen reads: a rename, a copy, a hide, a delete, a sign-out. */
+  /** The work was done and the answer holds nothing the screen reads: a hide, a delete, a sign-out. */
   | { readonly kind: "succeeded" }
+  /** A rename was stored. `name` is the form the server kept (NFC, trimmed), which the card shows. */
+  | { readonly kind: "renamed"; readonly name: string }
+  /** A copy was made. `id` is its design id, which its card opens. */
+  | { readonly kind: "created"; readonly id: string }
   /** The answer is the data. Its shape is the reading screen's to check, since only that screen knows what it needs. */
   | { readonly kind: "received"; readonly body: unknown }
   /** A claim's number: the designs that could be claimed, or the designs that were. */
@@ -380,8 +386,8 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
   },
   "kitchen-action": {
     successes: [
-      { status: OK_STATUS, outcomeOf: succeeded },
-      { status: CREATED_STATUS, outcomeOf: succeeded },
+      { status: OK_STATUS, outcomeOf: renamedFrom },
+      { status: CREATED_STATUS, outcomeOf: createdFrom },
       { status: NO_CONTENT_STATUS, outcomeOf: succeeded },
     ],
     refusals: [
@@ -397,7 +403,9 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
       },
     ],
     isAboutOneKitchen: true,
-    placeableFields: [],
+    // Only a rename's name is a field the person can correct. A copy's `400` reads as `invalid-input` on `name` too,
+    // since the classifier is told by the flow; the caller of a copy maps it to a failure, as its name is composed.
+    placeableFields: ["name"],
   },
   profile: {
     successes: [
@@ -487,6 +495,22 @@ function passwordChangedSignInRefusal(): SignedInRefusalRule {
     word: "password-changed-sign-in",
     outcome: { kind: "password-changed-sign-in" },
   };
+}
+
+/** A rename answered without the name it kept is not one the card can show. */
+function renamedFrom(body: unknown): SignedInOutcome {
+  const name = ownValueOf(body, "name");
+  return typeof name === "string" && name !== ""
+    ? { kind: "renamed", name }
+    : REQUEST_FAILED_OUTCOME;
+}
+
+/** A copy answered without a design id is not one the list can open. */
+function createdFrom(body: unknown): SignedInOutcome {
+  const id = ownValueOf(body, "id");
+  return typeof id === "string" && isDesignId(id)
+    ? { kind: "created", id }
+    : REQUEST_FAILED_OUTCOME;
 }
 
 /** The claim's two answers, `{claimable}` and `{claimed}`, are told by the number alone: a request knows which it

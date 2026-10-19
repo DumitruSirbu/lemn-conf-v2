@@ -1,13 +1,29 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  type RefObject,
+} from "react";
 
 import type { Content } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitchensCopy } from "@/i18n/use-content";
 import { priceFloorOf } from "@/price/price-book-root";
 
+import { KitchenOverlays } from "./kitchen-overlays";
+import type { KitchenChoice } from "./kitchen-menu";
+import {
+  returnFocusTargetOf,
+  useKitchenSurface,
+  type KitchenSurfaceControls,
+} from "./kitchen-surface";
 import type { ListedKitchen } from "./kitchens-answer";
+import { RenameKitchenForm } from "./rename-kitchen-form";
+import type { KitchenActions } from "./use-kitchen-actions";
 import {
   describeKitchenPrice,
   formatRelativeAge,
@@ -20,7 +36,8 @@ import type { CardFocusRequest } from "./use-kitchens";
 // One kitchen of the list (ContBlocks2's card). It opens the kitchen by a full document load: the editor is a page with
 // a policy of its own, and an account page never makes a client-side navigation. The thumbnail is a placeholder until the
 // product renders pictures (plan C2). The price is the configurator bar's own, worked out from the kitchen's stored
-// document in the browser; a kitchen whose document cannot be priced shows none.
+// document in the browser; a kitchen whose document cannot be priced shows none. Beside "Deschide" stands the "⋯" that
+// opens the card's menu (rename, copy, share, delete or hide); what the menu leads to is drawn in the screen's `<main>`.
 
 export interface KitchenCardProps {
   readonly kitchen: ListedKitchen;
@@ -30,6 +47,9 @@ export interface KitchenCardProps {
   /** Takes focus once per request: the first kitchen of a page the person asked for, or the last one shown when that
    *  page added none. */
   readonly focusRequest: CardFocusRequest | undefined;
+  readonly actions: KitchenActions;
+  /** Where focus goes when an act removes this card while a dialog of it is open. */
+  readonly listFocusRef: RefObject<HTMLElement | null>;
 }
 
 export function KitchenCard({
@@ -37,6 +57,8 @@ export function KitchenCard({
   locale,
   readAtMs,
   focusRequest,
+  actions,
+  listFocusRef,
 }: KitchenCardProps) {
   const copy = useAccountKitchensCopy();
   const nameId = useId();
@@ -69,17 +91,132 @@ export function KitchenCard({
             </div>
           </div>
         </div>
-        <a
-          ref={openRef}
-          className={styles.open}
+        <CardActions
+          kitchen={kitchen}
+          kitchenName={name}
           href={`/${locale}/d/${kitchen.id}`}
-          aria-label={copy.openNamed(name)}
-        >
-          {copy.open}
-        </a>
+          openRef={openRef}
+          actions={actions}
+          listFocusRef={listFocusRef}
+        />
       </article>
     </li>
   );
+}
+
+interface CardActionsProps {
+  readonly kitchen: ListedKitchen;
+  readonly kitchenName: string;
+  readonly href: string;
+  readonly openRef: RefObject<HTMLAnchorElement | null>;
+  readonly actions: KitchenActions;
+  readonly listFocusRef: RefObject<HTMLElement | null>;
+}
+
+/** The foot of the card: "Deschide" and "⋯", or, while the name is being changed, its field. The surfaces the "⋯" opens
+ *  hang off it, since the button is what they return focus to. */
+function CardActions({
+  kitchen,
+  kitchenName,
+  href,
+  openRef,
+  actions,
+  listFocusRef,
+}: CardActionsProps) {
+  const copy = useAccountKitchensCopy();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const controls = useKitchenSurface(triggerRef);
+  const { surface, openOverlay, close } = controls;
+  const returnFocusRef = useMemo(
+    () => returnFocusTargetOf(triggerRef, listFocusRef),
+    [listFocusRef],
+  );
+  useFocusTriggerWhenRenameEnds(surface.kind === "rename", triggerRef);
+  const choose = useCallback(
+    (choice: KitchenChoice) => {
+      chooseFromMenu(choice, controls, () => {
+        actions.duplicate(kitchen, kitchenName);
+      });
+    },
+    [controls, actions, kitchen, kitchenName],
+  );
+
+  if (surface.kind === "rename") {
+    return (
+      <RenameKitchenForm
+        kitchen={kitchen}
+        kitchenName={kitchenName}
+        actions={actions}
+        onDone={close}
+      />
+    );
+  }
+  return (
+    <div className={styles.actionsRow}>
+      <a
+        ref={openRef}
+        className={styles.open}
+        href={href}
+        aria-label={copy.openNamed(kitchenName)}
+      >
+        {copy.open}
+      </a>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={styles.dots}
+        aria-label={copy.actions.moreFor(kitchenName)}
+        aria-haspopup="dialog"
+        aria-expanded={surface.kind === "menu"}
+        onClick={() => {
+          openOverlay("menu");
+        }}
+      />
+      <KitchenOverlays
+        surface={surface}
+        kitchen={kitchen}
+        kitchenName={kitchenName}
+        actions={actions}
+        onChoose={choose}
+        onClose={close}
+        returnFocusRef={returnFocusRef}
+      />
+    </div>
+  );
+}
+
+/** A row of the menu: the menu goes, and what the row asks for takes its place. */
+function chooseFromMenu(
+  choice: KitchenChoice,
+  { openOverlay, beginRename, close }: KitchenSurfaceControls,
+  duplicate: () => void,
+): void {
+  switch (choice) {
+    case "rename":
+      beginRename();
+      return;
+    case "duplicate":
+      close();
+      duplicate();
+      return;
+    case "share":
+    case "delete":
+    case "hide":
+      openOverlay(choice);
+      return;
+  }
+}
+
+/** The field that was pressed away has taken focus with it; the "⋯" it grew from is where the person is. */
+function useFocusTriggerWhenRenameEnds(
+  isRenaming: boolean,
+  triggerRef: RefObject<HTMLElement | null>,
+): void {
+  const wasRenamingRef = useRef(false);
+  useEffect(() => {
+    if (wasRenamingRef.current && !isRenaming) triggerRef.current?.focus();
+    wasRenamingRef.current = isRenaming;
+  }, [isRenaming, triggerRef]);
 }
 
 function priceOfKitchen(
