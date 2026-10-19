@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import type { AppLocale } from "@/i18n/routing";
 import {
   useAccountControlCopy,
+  useAccountExportCopy,
   useAccountPasswordCopy,
   useAccountProfileCopy,
 } from "@/i18n/use-content";
@@ -15,8 +16,8 @@ import { LogoutEverywhereDialog } from "../session/logout-everywhere-dialog";
 import styles from "./profile.module.css";
 
 // The rows under the profile's fields (Lot 2 frame A10A): the pages and acts that belong to the account and are not a
-// detail of it. A row appears once what it opens is built (plan C8), so "Exportă datele mele" and "Șterge contul" are
-// not here yet. Every link is a plain anchor, as on every account page.
+// detail of it. A row appears once what it opens is built (plan C8), so "Șterge contul" is not here yet. Every link is a
+// plain anchor, as on every account page.
 
 /** The notice's page: its own document, opened beside the form so what was typed survives. */
 const PRIVACY_NOTICE_PATH_SEGMENT = "privacy-notice";
@@ -25,6 +26,7 @@ export function ProfileRows({ locale }: { readonly locale: AppLocale }) {
   return (
     <nav className={styles.rows}>
       <ChangePasswordRow locale={locale} />
+      <ExportRow locale={locale} />
       <SignOutEverywhereRow />
       <PrivacyNoticeRow locale={locale} />
     </nav>
@@ -35,6 +37,18 @@ function ChangePasswordRow({ locale }: { readonly locale: AppLocale }) {
   const copy = useAccountPasswordCopy();
   return (
     <a className={styles.row} href={accountPathOf(locale, "password")}>
+      <span className={styles.rowText}>
+        <span className={styles.rowLabel}>{copy.title}</span>
+      </span>
+      <span className={styles.rowMark} aria-hidden="true" />
+    </a>
+  );
+}
+
+function ExportRow({ locale }: { readonly locale: AppLocale }) {
+  const copy = useAccountExportCopy();
+  return (
+    <a className={styles.row} href={accountPathOf(locale, "export")}>
       <span className={styles.rowText}>
         <span className={styles.rowLabel}>{copy.title}</span>
       </span>

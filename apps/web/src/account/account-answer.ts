@@ -11,7 +11,7 @@ import { clockTimeOf, isToldOnALaterDay } from "@/i18n/clock-time";
 // body's `status` word together, because one status carries several words (`400` is `invalid-input`,
 // `invalid-request` and a link's refusal). Nothing here keeps the answer's body, its headers or a field's value: a
 // class, the fields to mark, a claimable count or a wait in seconds. The exceptions are the successes whose answer is
-// the data itself: `received` (the kitchens list and the export), whose screen's own reader checks the shape, and the
+// the data itself: `received` (the kitchens list), whose screen's own reader checks the shape, and the
 // two one-member answers of a kitchen action, `renamed` (the stored name) and `created` (the copy's design id).
 //
 // The form flows and the signed-in flows are two unions with one classifier module. They are separate so that every
@@ -465,7 +465,9 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
     placeableFields: [],
   },
   export: {
-    successes: [{ status: OK_STATUS, outcomeOf: received }],
+    // The file is not JSON-read: `sendExportRequest` takes a successful answer as a blob before this runs, so a `200`
+    // that reaches the classifier is one that was not the file and falls through to a failed request.
+    successes: [],
     refusals: [
       {
         status: CONFLICT_STATUS,

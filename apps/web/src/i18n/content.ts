@@ -1489,6 +1489,27 @@ export type AccountEmailChangeCopy = ReturnType<
   typeof resolveAccountEmailChangeCopy
 >;
 
+/** The data-export page's own text. The refusal for an account too large to export is the profile namespace's leaf; the
+ *  limit, offline and unavailable notices are the forms' own. */
+export function resolveAccountExportCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountExport.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountExport.title"),
+    lead: translate("accountExport.lead"),
+    submit: translate("accountExport.submit"),
+    submitting: translate("accountExport.submitting"),
+    preparing: translate("accountExport.preparing"),
+    downloaded: translate("accountExport.downloaded"),
+    downloadAgain: translate("accountExport.downloadAgain"),
+    backToProfile: translate("accountExport.backToProfile"),
+    tooLarge: translate("accountProfile.exportTooLarge"),
+  };
+}
+
+export type AccountExportCopy = ReturnType<typeof resolveAccountExportCopy>;
+
 function resolveShapeShortName(
   translate: ContentTranslator,
   shape: DesignRoomShape,

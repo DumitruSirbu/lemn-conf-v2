@@ -996,6 +996,17 @@ declare const messages: {
     "sentBody": "Dacă adresa poate fi folosită, ți-am trimis un link la ea. Până confirmi, contul folosește adresa veche.",
     "close": "Închide"
   },
+  "accountExport": {
+    "metaTitle": "Exportă datele mele — {brand}",
+    "title": "Exportă datele mele",
+    "lead": "Primești un fișier JSON cu profilul tău și toate bucătăriile (inclusiv cele trimise și cele ascunse).",
+    "submit": "Descarcă datele",
+    "submitting": "Se pregătește…",
+    "preparing": "Se pregătește fișierul…",
+    "downloaded": "Fișierul este gata. Descărcarea a început.",
+    "downloadAgain": "Descarcă din nou",
+    "backToProfile": "Înapoi la Profil"
+  },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",
     "badge": "Pagină provizorie",

@@ -1,7 +1,11 @@
 "use client";
 
-import { useContent } from "@/i18n/use-content";
+import { useLocale } from "next-intl";
+
+import { accountPathOf } from "@/account/account-shell";
+import { useAccountSession } from "@/account/session/use-account-session";
 import { Link } from "@/i18n/navigation";
+import { useAccountControlCopy, useContent } from "@/i18n/use-content";
 
 import styles from "./design-load-error.module.css";
 
@@ -34,7 +38,9 @@ function assertNever(value: never): never {
 }
 
 /** The recoverable, visible failure state the load-by-link route falls back to instead of a
- *  partial hydration or a silent redirect (M2 "Loading is fail-whole" acceptance criterion). */
+ *  partial hydration or a silent redirect (M2 "Loading is fail-whole" acceptance criterion). A signed-in client is also
+ *  offered their kitchens. That depends on the session alone, never on the reason, so what is drawn tells nothing about
+ *  why the design was refused. */
 export function DesignLoadError({
   reason,
 }: {
@@ -45,9 +51,24 @@ export function DesignLoadError({
     <main className={styles.screen} data-testid="design-load-error">
       <h1 className={styles.title}>{copy.title}</h1>
       <p className={styles.text}>{bodyFor(reason, copy)}</p>
+      <MyKitchensAction />
       <Link className={styles.startOver} href="/configurator/room">
         {copy.startOver}
       </Link>
     </main>
+  );
+}
+
+/** Only a client has a list of kitchens to go to. While the session is unknown, and for a visitor or staff, nothing is
+ *  drawn. A plain anchor: the account pages are documents of their own. */
+function MyKitchensAction() {
+  const locale = useLocale();
+  const session = useAccountSession();
+  const copy = useAccountControlCopy();
+  if (session.kind !== "client") return null;
+  return (
+    <a className={styles.myKitchens} href={accountPathOf(locale, "kitchens")}>
+      {copy.myKitchens}
+    </a>
   );
 }

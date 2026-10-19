@@ -7,6 +7,7 @@ import {
   resolveAccountCheckInboxCopy,
   resolveAccountControlCopy,
   resolveAccountEmailChangeCopy,
+  resolveAccountExportCopy,
   resolveAccountForbiddenCopy,
   resolveAccountForgotCopy,
   resolveAccountKitchensCopy,
@@ -108,4 +109,8 @@ export function useAccountPasswordCopy() {
 
 export function useAccountEmailChangeCopy() {
   return useResolved(resolveAccountEmailChangeCopy);
+}
+
+export function useAccountExportCopy() {
+  return useResolved(resolveAccountExportCopy);
 }
