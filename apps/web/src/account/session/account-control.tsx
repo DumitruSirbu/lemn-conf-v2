@@ -101,7 +101,7 @@ function ControlFor({
     case "client":
       return <SignedInMenu email={session.email} signOutHere={signOutHere} />;
     case "staff":
-      // Staff are not told apart from each other, and the staff area is not built: their menu holds the way out only.
+      // Staff are not told apart from each other, and the staff area is not built: their menu holds the profile and the way out only.
       return <SignedInMenu email={undefined} signOutHere={signOutHere} />;
   }
 }
@@ -243,6 +243,7 @@ function SignedInMenu({
           kitchensHref={
             email === undefined ? undefined : accountPathOf(locale, "kitchens")
           }
+          profileHref={accountPathOf(locale, "profile")}
           isSignOutBusy={signOutHere.isSending}
           onClose={close}
           onSignOutHere={signOutAndClose}
@@ -259,6 +260,7 @@ function MenuPortal({
   open,
   email,
   kitchensHref,
+  profileHref,
   isSignOutBusy,
   onClose,
   onSignOutHere,
@@ -268,6 +270,7 @@ function MenuPortal({
   readonly open: OpenState;
   readonly email: string | undefined;
   readonly kitchensHref: string | undefined;
+  readonly profileHref: string;
   readonly isSignOutBusy: boolean;
   readonly onClose: () => void;
   readonly onSignOutHere: () => void;
@@ -279,6 +282,7 @@ function MenuPortal({
       <AccountMenu
         email={email}
         kitchensHref={kitchensHref}
+        profileHref={profileHref}
         isSignOutBusy={isSignOutBusy}
         onClose={onClose}
         onSignOutHere={onSignOutHere}
@@ -299,6 +303,7 @@ function MenuPortal({
 function AccountMenu({
   email,
   kitchensHref,
+  profileHref,
   isSignOutBusy,
   onClose,
   onSignOutHere,
@@ -308,6 +313,8 @@ function AccountMenu({
   readonly email: string | undefined;
   /** The client's list of kitchens; staff have none and are shown no row. */
   readonly kitchensHref: string | undefined;
+  /** The account's own details, which every role keeps. */
+  readonly profileHref: string;
   /** A sign-out of this device is out: the rows wait for its answer. */
   readonly isSignOutBusy: boolean;
   readonly onClose: () => void;
@@ -356,6 +363,7 @@ function AccountMenu({
           {kitchensHref === undefined ? null : (
             <MenuLinkRow label={copy.myKitchens} href={kitchensHref} />
           )}
+          <MenuLinkRow label={copy.profile} href={profileHref} />
           <MenuRow
             label={copy.signOutHere}
             isBusy={isSignOutBusy}

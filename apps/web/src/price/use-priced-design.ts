@@ -9,12 +9,17 @@
 // Derived on every render, stored nowhere (§12): the memo is keyed on the two store slices the answer
 // depends on. That caches a pure query and does not persist a total; `DesignSchema` has no price field.
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   parsePriceBook,
   priceDesign,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
+  type BodyCatalog,
+  type Design,
   type PriceBook,
   type PriceBookParseResult,
+  type PricedDesign,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
@@ -68,6 +73,19 @@ function priceBookOrRefusal(): PriceBookParseResult {
   return PARSED_PRICE_BOOK;
 }
 
+/** One design priced against the one book. A book that did not parse is a refusal, not a throw. */
+function priceAgainstBook(design: Design, catalog: BodyCatalog): PricingResult {
+  const parsed = priceBookOrRefusal();
+  if (!parsed.ok) return { ok: false, failure: parsed.failure };
+  return priceDesign({
+    design,
+    catalog,
+    book: parsed.book,
+    pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    selections: design.settings,
+  });
+}
+
 /**
  * The current design, priced. The bar and §9's footer both read this one hook, so neither can show a
  * different number. Whole-kitchen selections come straight off `design.settings`, with nothing
@@ -78,17 +96,30 @@ export function usePricedDesign(): PricingResult {
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
 
-  return useMemo(() => {
-    const parsed = priceBookOrRefusal();
-    if (!parsed.ok) return { ok: false, failure: parsed.failure };
-    return priceDesign({
+  return useMemo(() => priceAgainstBook(design, catalog), [design, catalog]);
+}
+
+/**
+ * A stored kitchen priced as the editor's bar prices it: the same book, the same selections and the catalogue at the
+ * kitchen's own cabinet depth (the store's `catalogAt` is `buildKitchenLBodyCatalog`). The figure is the starting
+ * price of the kitchen as it stands, not a cross-tier minimum (`starting-price.ts`). Nothing when no honest figure
+ * exists, so a card shows none: the pricing refused it, or the document, which came off the wire, broke a rule the
+ * pricing did not guard.
+ */
+export function priceFloorOf(design: Design): PricedDesign | undefined {
+  const priced = tryPricing(design);
+  return priced?.ok === true ? priced.priced : undefined;
+}
+
+function tryPricing(design: Design): PricingResult | undefined {
+  try {
+    return priceAgainstBook(
       design,
-      catalog,
-      book: parsed.book,
-      pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
-      selections: design.settings,
-    });
-  }, [design, catalog]);
+      buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 /**

@@ -12,6 +12,7 @@ import {
   resolveAccountKitCopy,
   resolveAccountLoginCopy,
   resolveAccountNotFoundCopy,
+  resolveAccountProfileCopy,
   resolveAccountRegisterCopy,
   resolveAccountResetCopy,
   resolveAccountShellCopy,
@@ -93,4 +94,8 @@ export function useAccountVerifyCopy() {
 
 export function useAccountResetCopy() {
   return useResolved(resolveAccountResetCopy);
+}
+
+export function useAccountProfileCopy() {
+  return useResolved(resolveAccountProfileCopy);
 }

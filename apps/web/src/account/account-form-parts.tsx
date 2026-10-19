@@ -145,7 +145,9 @@ export interface TextFieldProps {
   readonly label: string;
   readonly name: string;
   readonly type: "email" | "tel" | "text";
-  readonly autoComplete: "email" | "tel";
+  readonly autoComplete: "email" | "tel" | "name" | "street-address";
+  /** Capitals a name or an address begins its words with; an address, a number and the like stay as typed. */
+  readonly autoCapitalize?: "off" | "words";
   readonly placeholder?: string;
   readonly value: string;
   readonly onChange: (value: string) => void;
@@ -167,7 +169,7 @@ export function TextField(props: TextFieldProps) {
         name={props.name}
         type={props.type}
         autoComplete={props.autoComplete}
-        autoCapitalize="off"
+        autoCapitalize={props.autoCapitalize ?? "off"}
         spellCheck={false}
         placeholder={props.placeholder}
         value={props.value}
