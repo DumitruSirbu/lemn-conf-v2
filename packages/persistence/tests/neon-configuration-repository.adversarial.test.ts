@@ -437,15 +437,40 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
     return source.slice(start, end);
   }
 
-  it("issues exactly one query, and that query is the conditional update", () => {
-    const body = bodyOfSaveAuthorized();
-    const queries = body.match(/this\.sql`/g) ?? [];
+  /** One credential arm's method, from its signature to the doc comment of the next member. */
+  function bodyOfArm(name: string): string {
+    const start = source.indexOf(`private async ${name}(`);
+    expect(start, `${name} must exist to be checked`).toBeGreaterThan(0);
+    const end = source.indexOf("\n  /**", start);
+    expect(end, `${name} must be followed by another member`).toBeGreaterThan(
+      start,
+    );
+    return source.slice(start, end);
+  }
 
-    expect(queries).toHaveLength(1);
-    expect(body).toMatch(/and write_token_hash = \$\{writeTokenHash\}/);
-    // The revision shares the credential's predicate: a second statement would reopen the read-then-write window.
-    expect(body).toMatch(/and revision::text = \$\{expectedRevision\}/);
-    expect(body).toMatch(/returning revision/);
+  // Re-scoped when the account arm was added (ADR 0172 D9): "one statement" became "one statement per credential arm",
+  // each carrying the credential and the revision in its own predicate.
+  it.each([
+    ["updateByWriteToken", /and write_token_hash = \$\{writeTokenHash\}/],
+    ["updateByAccount", /and account_id = \$\{accountId\}/],
+  ] as const)(
+    "%s issues exactly one query, and that query is the conditional update",
+    (arm, credentialPredicate) => {
+      const body = bodyOfArm(arm);
+      const queries = body.match(/this\.sql`/g) ?? [];
+
+      expect(queries).toHaveLength(1);
+      expect(body).toMatch(credentialPredicate);
+      // The revision shares the credential's predicate: a second statement would reopen the read-then-write window.
+      expect(body).toMatch(/and revision::text = \$\{expectedRevision\}/);
+      expect(body).toMatch(/returning revision/);
+    },
+  );
+
+  it("the whole save path sends two statements in the source, one per credential arm, and nothing else", () => {
+    expect(bodyOfSaveAuthorized().match(/this\.sql`/g) ?? []).toHaveLength(2);
+    expect(bodyOfArm("updateByWriteToken")).not.toContain("account_id");
+    expect(bodyOfArm("updateByAccount")).not.toContain("write_token_hash");
   });
 
   it("reads nothing before it writes", () => {

@@ -73,7 +73,13 @@ describe(SUITE_NAME, () => {
     return new NeonConfigurationRepository(testDatabaseUrl);
   }
 
-  /** The runbook's restore statement, verbatim. */
+  /**
+   * The runbook's restore statement (`docs/runbooks/design-db-restore.md`, "Restore"), marks included. Not verbatim in
+   * two respects: the runbook script migrates each row with `migrateDesign` and stores `CURRENT_SCHEMA_VERSION`, where
+   * this stores the dump's document at version 1 as the earlier copy did; and it runs inside the script's own loop.
+   * The statement text itself, columns and conflict clause, is the runbook's, and
+   * `design-row-source.statements.test.ts` pins that the runbook's text restores every column the backup exports.
+   */
   async function restoreRow(line: string): Promise<void> {
     if (!sql) return;
     const row = JSON.parse(line) as {
@@ -84,18 +90,25 @@ describe(SUITE_NAME, () => {
       updated_at: string;
       write_token_hash?: string | null;
       visitor_hash?: string | null;
+      sent_at?: string | null;
+      hidden_by_client_at?: string | null;
+      deleted_by_client_at?: string | null;
     };
     await sql`
       insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
-                            visitor_hash)
+                            visitor_hash, sent_at, hidden_by_client_at, deleted_by_client_at)
       values (${row.id}, 1, ${row.document as Design}, ${row.created_at}, ${row.updated_at},
-              ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
+              ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null}, ${row.sent_at ?? null},
+              ${row.hidden_by_client_at ?? null}, ${row.deleted_by_client_at ?? null})
       on conflict (id) do update
         set schema_version = excluded.schema_version,
             document = excluded.document,
             updated_at = excluded.updated_at,
             write_token_hash = excluded.write_token_hash,
-            visitor_hash = excluded.visitor_hash
+            visitor_hash = excluded.visitor_hash,
+            sent_at = coalesce(designs.sent_at, excluded.sent_at),
+            hidden_by_client_at = coalesce(designs.hidden_by_client_at, excluded.hidden_by_client_at),
+            deleted_by_client_at = coalesce(designs.deleted_by_client_at, excluded.deleted_by_client_at)
     `;
   }
 
@@ -336,4 +349,184 @@ describe(SUITE_NAME, () => {
     },
     30_000,
   );
+  // Lot 2 (plan S4, ADR 0172 D9, D10): a client's hide or delete is an access-control mark, and a restore that drops it
+  // reopens the kitchen to its browser and its account. These run the whole loop, as the tests above do for the token.
+  describe("the client's marks survive export, loss and restore", () => {
+    const MARK_COLUMNS = [
+      "sent_at",
+      "hidden_by_client_at",
+      "deleted_by_client_at",
+    ] as const;
+
+    async function mintMarked(
+      marks: Partial<Record<(typeof MARK_COLUMNS)[number], true>>,
+    ): Promise<{ id: DesignId; token: string; visitorHash: string }> {
+      const token = `qa-marks-token-${String(Date.now())}-${String(mintedIds.length)}`;
+      const visitorHash = createHash("sha256")
+        .update(token, "utf8")
+        .digest("hex");
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitor: { kind: "fresh", visitorHash },
+      });
+      mintedIds.push(id);
+      if (!sql) return { id, token, visitorHash };
+      if (marks.sent_at)
+        await sql`update designs set sent_at = now() where id = ${id}`;
+      if (marks.hidden_by_client_at) {
+        await sql`update designs set hidden_by_client_at = now() where id = ${id}`;
+      }
+      if (marks.deleted_by_client_at) {
+        await sql`update designs set deleted_by_client_at = now() where id = ${id}`;
+      }
+      return { id, token, visitorHash };
+    }
+
+    async function marksOf(id: DesignId): Promise<Record<string, boolean>> {
+      if (!sql) return {};
+      const rows = (await sql`
+        select (sent_at is not null) as sent_at,
+               (hidden_by_client_at is not null) as hidden_by_client_at,
+               (deleted_by_client_at is not null) as deleted_by_client_at
+        from designs where id = ${id}
+      `) as Record<string, boolean>[];
+      return rows[0] ?? {};
+    }
+
+    it.skipIf(!hasLiveDatabase)(
+      "exports sent_at, hidden_by_client_at and deleted_by_client_at, and neither account_id nor name",
+      async () => {
+        const { id } = await mintMarked({
+          sent_at: true,
+          hidden_by_client_at: true,
+        });
+
+        const row = JSON.parse((await exportedLineFor(id)).trim()) as Record<
+          string,
+          unknown
+        >;
+
+        expect(Object.keys(row)).toEqual(
+          expect.arrayContaining([...MARK_COLUMNS]),
+        );
+        expect(Object.keys(row)).not.toContain("account_id");
+        expect(Object.keys(row)).not.toContain("name");
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a hidden kitchen is still hidden after the restore, and its token and its browser are still refused",
+      async () => {
+        const { id, token, visitorHash } = await mintMarked({
+          sent_at: true,
+          hidden_by_client_at: true,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        const before = await marksOf(id);
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await marksOf(id)).toEqual(before);
+        expect(before).toEqual({
+          sent_at: true,
+          hidden_by_client_at: true,
+          deleted_by_client_at: false,
+        });
+        await expect(
+          repository().loadOwned({ id, accessor: { visitorHash } }),
+        ).resolves.toEqual({ kind: "none" });
+        await expect(
+          repository().saveAuthorized({
+            id,
+            design: KITCHEN_L_DESIGN,
+            credential: { kind: "write-token", hash: hashWriteToken(token) },
+            expectedRevision: RESTORED_REVISION,
+            requestVisitor: { kind: "absent" },
+          }),
+        ).rejects.toThrow(DesignWriteForbiddenError);
+        await expect(repository().resume({ visitorHash })).resolves.toEqual({
+          kind: "none",
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a deleted kitchen is still deleted after the restore",
+      async () => {
+        const { id, visitorHash } = await mintMarked({
+          deleted_by_client_at: true,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await marksOf(id)).toEqual({
+          sent_at: false,
+          hidden_by_client_at: false,
+          deleted_by_client_at: true,
+        });
+        await expect(
+          repository().loadOwned({ id, accessor: { visitorHash } }),
+        ).resolves.toEqual({ kind: "none" });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "an open kitchen stays open and unsent, so a restore marks nothing it was not told to",
+      async () => {
+        const { id, visitorHash } = await mintMarked({});
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await marksOf(id)).toEqual({
+          sent_at: false,
+          hidden_by_client_at: false,
+          deleted_by_client_at: false,
+        });
+        await expect(repository().resume({ visitorHash })).resolves.toEqual({
+          kind: "found",
+          id,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a dump from before the marks existed never reopens a kitchen hidden since: the re-run keeps the mark",
+      async () => {
+        const { id } = await mintMarked({
+          sent_at: true,
+          hidden_by_client_at: true,
+        });
+        if (!sql) return;
+        const dumpBeforeTheMarks = `${JSON.stringify({
+          id,
+          schema_version: 1,
+          document: KITCHEN_L_DESIGN,
+          created_at: "2026-08-01T00:00:00.000Z",
+          updated_at: "2026-08-01T00:00:00.000Z",
+        })}\n`;
+
+        await restoreRow(dumpBeforeTheMarks);
+
+        expect(await marksOf(id)).toEqual({
+          sent_at: true,
+          hidden_by_client_at: true,
+          deleted_by_client_at: false,
+        });
+      },
+      30_000,
+    );
+  });
 });
