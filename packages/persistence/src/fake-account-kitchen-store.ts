@@ -19,6 +19,7 @@ import type {
   KitchenRename,
   KitchenRenameOutcome,
   ListedKitchen,
+  SentMarkStore,
 } from "./account-kitchen-store.js";
 import { generateDesignId } from "./generate-design-id.js";
 
@@ -112,6 +113,7 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
             ? cursorOf(lastOfPage)
             : null,
         total: listed.length,
+        skippedCount: 0,
       };
     });
   }
@@ -187,15 +189,12 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
     });
   }
 
-  markSent(designId: DesignId): Promise<void> {
-    return settle(() => {
-      const kitchen = this.kitchensById.get(designId);
-      if (kitchen === undefined) return;
-      this.kitchensById.set(designId, {
-        ...kitchen,
-        sentAt: kitchen.sentAt ?? this.now(),
-      });
-    });
+  /** For `FakeSentMarkStore` only: `NeonSentMarkStore`'s statement, a no-op unless the row is an unsent, listed one. */
+  stampSentIfDraft(designId: DesignId): void {
+    const kitchen = this.kitchensById.get(designId);
+    if (kitchen === undefined || kitchen.sentAt !== undefined) return;
+    if (!isListed(kitchen)) return;
+    this.kitchensById.set(designId, { ...kitchen, sentAt: this.now() });
   }
 
   private markAndRevoke(marked: HeldKitchen, at: Date): void {
@@ -217,6 +216,17 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
     return [...this.kitchensById.values()]
       .filter((kitchen) => kitchen.accountId === accountId && isListed(kitchen))
       .sort(newestFirst);
+  }
+}
+
+/** In-memory `SentMarkStore` over a `FakeAccountKitchenStore`'s rows, on that store's clock. */
+export class FakeSentMarkStore implements SentMarkStore {
+  constructor(private readonly kitchens: FakeAccountKitchenStore) {}
+
+  markSent(designId: DesignId): Promise<void> {
+    return settle(() => {
+      this.kitchens.stampSentIfDraft(designId);
+    });
   }
 }
 

@@ -221,9 +221,16 @@ export type {
   KitchenRename,
   KitchenRenameOutcome,
   ListedKitchen,
+  SentMarkStore,
 } from "./account-kitchen-store.js";
-export { NeonAccountKitchenStore } from "./neon-account-kitchen-store.js";
-export { FakeAccountKitchenStore } from "./fake-account-kitchen-store.js";
+export {
+  NeonAccountKitchenStore,
+  NeonSentMarkStore,
+} from "./neon-account-kitchen-store.js";
+export {
+  FakeAccountKitchenStore,
+  FakeSentMarkStore,
+} from "./fake-account-kitchen-store.js";
 export type {
   FakeAccountKitchenStoreOptions,
   HeldKitchen,

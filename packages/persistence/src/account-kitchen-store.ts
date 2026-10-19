@@ -65,9 +65,17 @@ export interface ListedKitchen {
 
 export interface KitchenPage {
   readonly kitchens: readonly ListedKitchen[];
+  /** Taken from the last row the page consumed, readable or not, so a skipped row never stalls the walk. */
   readonly nextCursor: KitchenCursor | null;
-  /** Every listed kitchen of the account, counted by the same statement and snapshot as the page. */
+  /** Every listed kitchen of the account, counted by the same statement and snapshot as the page. A kitchen counted
+   *  here may be absent from `kitchens` (see `skippedCount`), so `total` can exceed what the pages add up to. */
   readonly total: number;
+  /**
+   * Kitchens this page consumed whose stored document this build cannot read: left out of `kitchens`, still counted in
+   * `total`. Nothing about them (id, name, document, the reason) leaves the store. Always 0 in the fake, which holds
+   * parsed designs and cannot represent an unreadable document.
+   */
+  readonly skippedCount: number;
 }
 
 export interface KitchenRename {
@@ -118,9 +126,9 @@ export type KitchenDeleteOutcome =
   | { readonly kind: "none" };
 
 /**
- * The port for the kitchens an account owns ("My kitchens"). Every read and write but `markSent` names the account in
- * its own predicate. Nothing here changes `document`, `revision`, `write_token_hash`, `visitor_hash` or `account_id`
- * of an existing row, and only `duplicate` inserts.
+ * The port for the kitchens an account owns ("My kitchens"). Every read and write names the account in its own
+ * predicate. Nothing here changes `document`, `revision`, `write_token_hash`, `visitor_hash` or `account_id` of an
+ * existing row, and only `duplicate` inserts.
  *
  * `hide` and `markDeleted` set an access-control mark and revoke the design's active share link in one atomic step.
  * They do not by themselves close the other ways into a kitchen (the visitor cookie and write token, a share `issue`):
@@ -141,10 +149,17 @@ export interface AccountKitchenStore {
   hide(mark: KitchenMark): Promise<KitchenHideOutcome>;
   /** Deletes an unsent kitchen from its owner's list by a mark. The stored row stays. */
   markDeleted(mark: KitchenMark): Promise<KitchenDeleteOutcome>;
+}
+
+/**
+ * The contact flow's port, kept apart from `AccountKitchenStore` so an account route never holds it. It is scoped by
+ * design id alone, because the contact flow also sends designs no account owns, so the caller must pass an id it has
+ * already verified (`loadOwned`); this port checks no owner.
+ */
+export interface SentMarkStore {
   /**
-   * Records that a request for the design was stored: `sent_at = coalesce(sent_at, now())`, so the first instant
-   * stands and nothing ever clears it. Scoped by design id alone, because the contact flow also sends designs no
-   * account owns; an unknown id changes nothing.
+   * Records that a request for the design was stored: sets `sent_at` once, so the first instant stands and nothing ever
+   * clears it. A design that is already sent, hidden or deleted by its client, or unknown, is left unchanged.
    */
   markSent(designId: DesignId): Promise<void>;
 }
@@ -205,16 +220,27 @@ export function requireValidKitchenPageRequest({
   }
 }
 
+/** What `judgeKitchenName` refuses (control, line and paragraph separators, lone surrogates) plus the format characters
+ *  it removes: a name reaching the store has been judged, so none can remain, and a NUL or lone surrogate would be a
+ *  driver error rather than a refusal. */
+const UNSTORABLE_NAME_CHARACTER = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
+
 export function requireValidKitchenName(
   name: unknown,
   operation: AccountKitchenStoreOperation,
 ): void {
-  if (typeof name === "string") {
-    const length = Array.from(name).length;
-    if (length >= 1 && length <= MAX_KITCHEN_NAME_CHARACTERS) return;
-  }
+  if (typeof name === "string" && isStorableKitchenName(name)) return;
   throw new Error(
-    `Refusing to ${operation}: a kitchen name must be 1 to ${String(MAX_KITCHEN_NAME_CHARACTERS)} characters. ` +
-      `The table would refuse the row.`,
+    `Refusing to ${operation}: a kitchen name must be 1 to ${String(MAX_KITCHEN_NAME_CHARACTERS)} characters ` +
+      `with no control or format character. The table would refuse the row.`,
+  );
+}
+
+function isStorableKitchenName(name: string): boolean {
+  const length = Array.from(name).length;
+  return (
+    length >= 1 &&
+    length <= MAX_KITCHEN_NAME_CHARACTERS &&
+    !UNSTORABLE_NAME_CHARACTER.test(name)
   );
 }

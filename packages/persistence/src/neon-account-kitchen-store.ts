@@ -1,4 +1,4 @@
-import type { DesignId } from "@lemnaria/configurator-domain";
+import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { migrateDesign } from "@lemnaria/configurator-domain";
 import type { NeonQueryPromise } from "@neondatabase/serverless";
 
@@ -24,6 +24,7 @@ import type {
   KitchenRename,
   KitchenRenameOutcome,
   ListedKitchen,
+  SentMarkStore,
 } from "./account-kitchen-store.js";
 import { generateDesignId } from "./generate-design-id.js";
 import { reducedCauseOf } from "./migration-errors.js";
@@ -43,11 +44,10 @@ type MarkVerdict = "marked" | "conflict" | "none";
 
 /**
  * `AccountKitchenStore` on Neon Postgres, over `designs` and `design_share_links` (migrations `0001`, `0006`, `0015`,
- * `0016`). Every query is a tagged-template `sql`, which parameterises values. Every statement but `markSent` names
- * `account_id` in its own predicate, and a listed kitchen is one whose `hidden_by_client_at` and
- * `deleted_by_client_at` are both null.
+ * `0016`). Every query is a tagged-template `sql`, which parameterises values. Every statement names `account_id` in
+ * its own predicate, and a listed kitchen is one whose `hidden_by_client_at` and `deleted_by_client_at` are both null.
  *
- * The statements write only `name` (rename), the two marks, `sent_at`, `design_share_links.revoked_at`, and a new row
+ * The statements write only `name` (rename), the two marks, `design_share_links.revoked_at`, and a new row
  * (duplicate). None writes `document`, `revision`, `updated_at`, `write_token_hash`, `visitor_hash` or `account_id` of
  * an existing row, and none deletes.
  */
@@ -62,24 +62,24 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
   /**
    * One statement carries the page and the count, so `total` and the kitchens come from one snapshot, and a page that
    * is empty still reports the total (`left join lateral … on true` always yields a row). It asks for one kitchen more
-   * than `limit`; that extra row only decides whether a next page exists. The keyset walk is
-   * `designs_account_id_updated_at_idx` (`0015`).
+   * than `limit`; that extra row only decides whether a next page exists, so its `document` is selected as null (a
+   * `row_number()` beyond `limit`). The keyset walk is `designs_account_id_updated_at_idx` (`0015`).
    */
   async listPage(request: KitchenPageRequest): Promise<KitchenPage> {
     requireValidKitchenPageRequest(request);
     const { accountId, limit, after } = request;
-    const fetchCount = limit + 1;
     const rows = await queryRows("list kitchens", () =>
       retryOnTransientFailure(() =>
         after === undefined
-          ? this.firstPageRows(accountId, fetchCount)
-          : this.pageRowsAfter(accountId, fetchCount, after),
+          ? this.firstPageRows(accountId, limit)
+          : this.pageRowsAfter(accountId, limit, after),
       ),
     );
     return kitchenPageFrom(rows, limit);
   }
 
-  private firstPageRows(accountId: string, fetchCount: number) {
+  private firstPageRows(accountId: string, limit: number) {
+    const fetchCount = limit + 1;
     return this.sql`
       select t.total, p.id, p.name, p.is_sent, p.cursor_updated_at, p.schema_version, p.document
       from (
@@ -88,7 +88,8 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
           and hidden_by_client_at is null and deleted_by_client_at is null
       ) t
       left join lateral (
-        select id, name, (sent_at is not null) as is_sent, schema_version, document,
+        select id, name, (sent_at is not null) as is_sent, schema_version,
+          case when row_number() over (order by updated_at desc, id desc) <= ${limit}::int then document end as document,
           to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_updated_at
         from designs
         where account_id = ${accountId}
@@ -102,9 +103,10 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
 
   private pageRowsAfter(
     accountId: string,
-    fetchCount: number,
+    limit: number,
     after: KitchenCursor,
   ) {
+    const fetchCount = limit + 1;
     return this.sql`
       select t.total, p.id, p.name, p.is_sent, p.cursor_updated_at, p.schema_version, p.document
       from (
@@ -113,7 +115,8 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
           and hidden_by_client_at is null and deleted_by_client_at is null
       ) t
       left join lateral (
-        select id, name, (sent_at is not null) as is_sent, schema_version, document,
+        select id, name, (sent_at is not null) as is_sent, schema_version,
+          case when row_number() over (order by updated_at desc, id desc) <= ${limit}::int then document end as document,
           to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_updated_at
         from designs
         where account_id = ${accountId}
@@ -285,18 +288,6 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
       : outcomeOfRefusal(verdict, "sent");
   }
 
-  /** Idempotent: the first instant stands. Reads and writes no other column, so `updated_at` and resume order stay. */
-  async markSent(designId: DesignId): Promise<void> {
-    await guarded("mark a kitchen sent", () =>
-      retryOnTransientFailure(
-        () => this.sql`
-          update designs set sent_at = coalesce(sent_at, now())
-          where id = ${designId}
-        `,
-      ),
-    );
-  }
-
   /**
    * The shape of every mark: a transaction of two statements, so the share-link revoke is atomic with the mark and
    * waits on the same row lock that a share `issue` takes. (1) `select … for update` locks the design row, queuing
@@ -336,6 +327,36 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
       ),
     );
     return markReportFrom(plainRowsOf(results[1], operation), operation);
+  }
+}
+
+/**
+ * `SentMarkStore` on Neon Postgres, over `designs` (`0016`). The one statement names no account, because the contact
+ * flow also sends designs no account owns; it is for a route that has already verified the id.
+ */
+export class NeonSentMarkStore implements SentMarkStore {
+  private readonly sql;
+
+  /** `connectionUrl` defaults to `DATABASE_URL`; only the live tests pass it, to target their own database. */
+  constructor(connectionUrl?: string) {
+    this.sql = openApplicationDatabase(connectionUrl);
+  }
+
+  /**
+   * A no-op when `sent_at` is already set, so the first instant stands and a repeat after a lost acknowledgement
+   * changes nothing. A hidden or deleted draft is never marked. Writes no other column, so `updated_at` and resume
+   * order stay.
+   */
+  async markSent(designId: DesignId): Promise<void> {
+    await guarded("mark a kitchen sent", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          update designs set sent_at = now()
+          where id = ${designId} and sent_at is null
+            and hidden_by_client_at is null and deleted_by_client_at is null
+        `,
+      ),
+    );
   }
 }
 
@@ -393,7 +414,11 @@ function isCount(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
-/** The page's rows, newest first: the lateral join's kitchens, or one row with no kitchen when there are none. */
+/**
+ * The page's rows, newest first: the lateral join's kitchens, or one row with no kitchen when there are none. A kitchen
+ * whose document `migrateDesign` refuses is counted in `skippedCount` and left out of `kitchens`; `nextCursor` still
+ * comes from the last row consumed, so the walk moves past it.
+ */
 function kitchenPageFrom(rows: readonly Row[], limit: number): KitchenPage {
   const total = rows[0]?.["total"];
   if (rows.length === 0 || !isCount(total)) {
@@ -404,14 +429,17 @@ function kitchenPageFrom(rows: readonly Row[], limit: number): KitchenPage {
     throw new AccountKitchenStoreError("list kitchens");
   }
   const kept = found.slice(0, limit);
+  const kitchens = kept.flatMap(readableKitchenFrom);
   return {
-    kitchens: kept.map(listedKitchenFrom),
+    kitchens,
     nextCursor: found.length > limit ? cursorOf(kept[kept.length - 1]) : null,
     total,
+    skippedCount: kept.length - kitchens.length,
   };
 }
 
-function listedKitchenFrom(row: Row): ListedKitchen {
+/** The kitchen of a row, or none when its document is unreadable. A row of the wrong shape is the store error. */
+function readableKitchenFrom(row: Row): readonly ListedKitchen[] {
   const { name, is_sent, schema_version, document } = row;
   const { id, updatedAt } = cursorOf(row);
   if (
@@ -421,13 +449,29 @@ function listedKitchenFrom(row: Row): ListedKitchen {
   ) {
     throw new AccountKitchenStoreError("list kitchens");
   }
-  return {
-    id,
-    name,
-    updatedAt: instantOfCursorText(updatedAt),
-    isSent: is_sent,
-    design: migrateDesign(schema_version, document),
-  };
+  const design = migratedDesignOrUndefined(schema_version, document);
+  if (design === undefined) return [];
+  return [
+    {
+      id,
+      name,
+      updatedAt: instantOfCursorText(updatedAt),
+      isSent: is_sent,
+      design,
+    },
+  ];
+}
+
+/** The failure is dropped whole: `InvalidDesignError` and a schema error can quote document text. */
+function migratedDesignOrUndefined(
+  schemaVersion: number,
+  document: unknown,
+): Design | undefined {
+  try {
+    return migrateDesign(schemaVersion, document);
+  } catch {
+    return undefined;
+  }
 }
 
 function cursorOf(row: Row | undefined): KitchenCursor {
