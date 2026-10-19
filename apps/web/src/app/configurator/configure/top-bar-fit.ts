@@ -32,10 +32,11 @@ export interface TopBarSpacing {
  * before the answer), so what it costs the ladder is already in `pillTrackPx`. What the measurement cannot carry is
  * how much of the row the gives return, and that is the control's two gaps: its own divider and the padding before it.
  *
- * **The count assumes the control is drawn, and errs on the safe side where it is not.** A session the control draws
- * nothing for (staff, until their menu has rows) leaves the row with six gaps while this models eight, so give B is
- * credited 16 px it does not return. The pill is then handed too much track by 16 px and under-fills in that band of
- * widths; it never clips. Do not "fix" it by crediting less than the row returns: that over-fills the pill and clips.
+ * **The count assumes the control is drawn, and errs on the safe side where it is not.** Every session draws it now
+ * (staff's menu holds the ways out), so the count is exact; a screen that mounted no control would leave the row with
+ * six gaps while this models eight, and give B would be credited 16 px it does not return. The pill is then handed too
+ * much track by 16 px and under-fills in that band of widths; it never clips. Do not "fix" it by crediting less than the
+ * row returns: that over-fills the pill and clips.
  */
 const NAV_GAP_COUNT = 3;
 const ROW_GAP_COUNT = 8;

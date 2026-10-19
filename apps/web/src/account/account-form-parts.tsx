@@ -5,11 +5,11 @@ import {
   useId,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
   type Ref,
 } from "react";
 
+import { useIsHydrated } from "@/components/use-is-hydrated";
 import type { AccountRateLimitNotice, RichTagRenderer } from "@/i18n/content";
 import { useAccountKitCopy } from "@/i18n/use-content";
 
@@ -24,22 +24,6 @@ import { TurnstileWidget, type TurnstileAction } from "./turnstile-widget";
 export const renderStrong: RichTagRenderer = (chunks) => (
   <strong>{chunks}</strong>
 );
-
-/**
- * `false` in the server's HTML and while the client hydrates, `true` after. A form's submit stays disabled until then,
- * so a press before the page's script has run cannot post the form to its own address.
- */
-function useIsHydrated(): boolean {
-  return useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
-}
-
-function subscribeToNothing(): () => void {
-  return () => undefined;
-}
 
 export interface AccountFormProps {
   /** Called on every submit, after the browser's own submission is cancelled. The form decides whether to send. */

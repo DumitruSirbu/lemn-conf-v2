@@ -2,7 +2,7 @@
 
 import { createRef, useState, type RefObject } from "react";
 
-import type { AccountFieldIssue } from "@/i18n/content";
+import type { AccountFieldIssue, AccountLoginCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitCopy, useAccountLoginCopy } from "@/i18n/use-content";
 
@@ -190,7 +190,7 @@ function FeedbackNotice({
   switch (feedback.kind) {
     case "none":
       return arrival === undefined ? null : (
-        <FormNotice tone="info">{copy.sessionExpired}</FormNotice>
+        <FormNotice tone="info">{arrivalSentenceOf(arrival, copy)}</FormNotice>
       );
     case "fields-refused": {
       const count = new Set(feedback.issues.map((issue) => issue.field)).size;
@@ -222,6 +222,20 @@ function FeedbackNotice({
       );
     default:
       return null;
+  }
+}
+
+/** What each reason says. A reason added to the closed list cannot be drawn with another's sentence: the switch has to
+ *  name it. */
+function arrivalSentenceOf(
+  arrival: LoginArrival,
+  copy: AccountLoginCopy,
+): string {
+  switch (arrival) {
+    case "session-expired":
+      return copy.sessionExpired;
+    case "signed-out-everywhere":
+      return copy.signedOutEverywhere;
   }
 }
 

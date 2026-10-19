@@ -1,18 +1,33 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { useCallback, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 
+import { useIsHydrated } from "@/components/use-is-hydrated";
 import { trapTab, useModalFocus } from "@/components/use-modal-focus";
+import type { AccountControlCopy } from "@/i18n/content";
 import { useAccountControlCopy } from "@/i18n/use-content";
 
 import { accountPathOf } from "../account-shell";
 import styles from "../account.module.css";
+import { StatusToast } from "../status-toast";
+import { LogoutEverywhereDialog } from "./logout-everywhere-dialog";
 import {
   useAccountSession,
   type AccountSessionState,
 } from "./use-account-session";
+import {
+  useSignOutHere,
+  type SignOutHere,
+  type SignOutHereOutcome,
+} from "./use-logout";
 
 // The account control in the configurator's top bar: one cell for the host's grid or flex row, holding the visitor's way
 // in or the signed-in client's menu.
@@ -20,9 +35,14 @@ import {
 // The way in is a plain anchor, never the router's link: an account page is a document of its own, with a policy and a
 // nonce of its own, so a soft navigation would carry the wrong ones.
 //
-// The menu is not drawn inside the cell but rendered into the screen's own `<main>`. The modal behaviour marks every
-// band of the `<main>` but the one holding the dialog inert, and both top bars are bands of it (the room's is a single
-// one): a dialog nested in the bar would leave the whole bar operable.
+// The menu, and the "sign out everywhere" question it leads to, are not drawn inside the cell but rendered into the
+// screen's own `<main>`. The modal behaviour marks every band of the `<main>` but the one holding the dialog inert, and
+// both top bars are bands of it (the room's is a single one): a dialog nested in the bar would leave the whole bar
+// operable.
+//
+// The confirmation of "Ieși din cont" is rendered into the document's body instead. It outlives the menu, which goes
+// with the signed-in state it was drawn for, and it must be neither inert while a dialog is open elsewhere nor held under
+// the cell's stacking number (the cell is a grid item of the editor, so its `z-index` caps whatever it contains).
 
 export interface AccountControlProps {
   /** The host's cell: where it stands in the bar, and the band's paper and rule it draws. */
@@ -31,20 +51,47 @@ export interface AccountControlProps {
 
 export function AccountControl({ cellClassName }: AccountControlProps) {
   const session = useAccountSession();
-  // Staff have no kitchens or profile and the staff area is not built, so until their menu has rows there is nothing
-  // for it to hold and the bar draws no control for them.
-  if (session.kind === "staff") return null;
+  const signOutHere = useSignOutHere();
+  const cellRef = useRef<HTMLDivElement>(null);
+  useFocusSignInAfterSignOut(cellRef, signOutHere.outcome);
   return (
-    <div className={cellClassName} data-testid="top-bar-account">
-      <ControlFor session={session} />
-    </div>
+    <>
+      <div
+        ref={cellRef}
+        className={cellClassName}
+        data-testid="top-bar-account"
+      >
+        <ControlFor session={session} signOutHere={signOutHere} />
+      </div>
+      <SignOutHereToast
+        outcome={signOutHere.outcome}
+        onElapsed={signOutHere.clearOutcome}
+      />
+    </>
   );
+}
+
+/** After "Ieși din cont" the icon the person pressed is gone, and focus has fallen to the body; the sign-in link that
+ *  took its place is where they are. Only then: focus the person has put elsewhere is theirs, and a page that was just
+ *  loaded has had no sign-out, so nothing is moved. */
+function useFocusSignInAfterSignOut(
+  cellRef: RefObject<HTMLElement | null>,
+  outcome: SignOutHereOutcome | undefined,
+): void {
+  useEffect(() => {
+    if (outcome !== "signed-out") return;
+    const holder = document.activeElement;
+    if (holder !== null && holder !== document.body) return;
+    cellRef.current?.querySelector<HTMLElement>("a[href]")?.focus();
+  }, [outcome, cellRef]);
 }
 
 function ControlFor({
   session,
+  signOutHere,
 }: {
-  readonly session: Exclude<AccountSessionState, { kind: "staff" }>;
+  readonly session: AccountSessionState;
+  readonly signOutHere: SignOutHere;
 }) {
   switch (session.kind) {
     case "pending":
@@ -52,7 +99,45 @@ function ControlFor({
     case "anonymous":
       return <SignInLink />;
     case "client":
-      return <ClientMenu email={session.email} />;
+      return <SignedInMenu email={session.email} signOutHere={signOutHere} />;
+    case "staff":
+      // Staff are not told apart from each other, and the staff area is not built: their menu holds the way out only.
+      return <SignedInMenu email={undefined} signOutHere={signOutHere} />;
+  }
+}
+
+/** The confirmation that "Ieși din cont" happened, or the sentence that it did not. The region is mounted from the first
+ *  render on and only its words come and go, which is what a live region needs to be announced. */
+function SignOutHereToast({
+  outcome,
+  onElapsed,
+}: {
+  readonly outcome: SignOutHereOutcome | undefined;
+  readonly onElapsed: () => void;
+}) {
+  const copy = useAccountControlCopy();
+  const isHydrated = useIsHydrated();
+  if (!isHydrated) return null;
+  return createPortal(
+    <StatusToast
+      message={toastMessageOf(outcome, copy)}
+      onElapsed={onElapsed}
+    />,
+    document.body,
+  );
+}
+
+function toastMessageOf(
+  outcome: SignOutHereOutcome | undefined,
+  copy: AccountControlCopy,
+): string | undefined {
+  switch (outcome) {
+    case "signed-out":
+      return copy.signedOutToast;
+    case "failed":
+      return copy.signOutFailed;
+    case undefined:
+      return undefined;
   }
 }
 
@@ -81,17 +166,60 @@ function SignInLink() {
   );
 }
 
-/** The client's icon and, once it is pressed, their menu in the screen's `<main>`. */
-function ClientMenu({ email }: { readonly email: string }) {
+/** What stands open in the screen's `<main>`: the menu, or the question the menu led to. */
+type OpenSurface = "menu" | "logout-everywhere";
+
+interface OpenState {
+  readonly screen: HTMLElement;
+  readonly surface: OpenSurface;
+}
+
+interface OpenSurfaceControls {
+  readonly open: OpenState | undefined;
+  readonly openMenu: () => void;
+  readonly close: () => void;
+  /** From the menu to the question, in the same `<main>`. */
+  readonly askEverywhere: () => void;
+}
+
+/** Which surface is open and where: the screen's `<main>`, found from the trigger, or the body for a screen without one. */
+function useOpenSurface(
+  triggerRef: RefObject<HTMLElement | null>,
+): OpenSurfaceControls {
+  const [open, setOpen] = useState<OpenState | undefined>(undefined);
+  const openMenu = useCallback(() => {
+    const screen = triggerRef.current?.closest("main") ?? document.body;
+    setOpen({ screen, surface: "menu" });
+  }, [triggerRef]);
+  const close = useCallback(() => {
+    setOpen(undefined);
+  }, []);
+  const askEverywhere = useCallback(() => {
+    setOpen((current) =>
+      current === undefined
+        ? undefined
+        : { screen: current.screen, surface: "logout-everywhere" },
+    );
+  }, []);
+  return { open, openMenu, close, askEverywhere };
+}
+
+/** The icon and, once it is pressed, the menu in the screen's `<main>`. A client's menu names who is signed in; staff's
+ *  does not, since the control is not told who they are. */
+function SignedInMenu({
+  email,
+  signOutHere,
+}: {
+  readonly email: string | undefined;
+  readonly signOutHere: SignOutHere;
+}) {
   const copy = useAccountControlCopy();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [screen, setScreen] = useState<HTMLElement | undefined>(undefined);
-  const open = useCallback(() => {
-    setScreen(triggerRef.current?.closest("main") ?? document.body);
-  }, []);
-  const close = useCallback(() => {
-    setScreen(undefined);
-  }, []);
+  const { open, openMenu, close, askEverywhere } = useOpenSurface(triggerRef);
+  const signOutAndClose = useCallback(() => {
+    close();
+    signOutHere.signOut();
+  }, [close, signOutHere]);
 
   return (
     <>
@@ -101,34 +229,80 @@ function ClientMenu({ email }: { readonly email: string }) {
         className={styles.accountIcon}
         aria-label={copy.menuName}
         aria-haspopup="dialog"
-        aria-expanded={screen !== undefined}
+        aria-expanded={open !== undefined}
         data-testid="top-bar-account-trigger"
-        onClick={open}
+        onClick={openMenu}
       >
         <span className={styles.accountGlyph} aria-hidden="true" />
       </button>
-      {screen === undefined
-        ? null
-        : createPortal(
-            <AccountMenu
-              email={email}
-              onClose={close}
-              returnFocusRef={triggerRef}
-            />,
-            screen,
-          )}
+      {open === undefined ? null : (
+        <MenuPortal
+          open={open}
+          email={email}
+          isSignOutBusy={signOutHere.isSending}
+          onClose={close}
+          onSignOutHere={signOutAndClose}
+          onSignOutEverywhere={askEverywhere}
+          returnFocusRef={triggerRef}
+        />
+      )}
     </>
+  );
+}
+
+/** Whichever surface is open, rendered into the screen it was opened on. */
+function MenuPortal({
+  open,
+  email,
+  isSignOutBusy,
+  onClose,
+  onSignOutHere,
+  onSignOutEverywhere,
+  returnFocusRef,
+}: {
+  readonly open: OpenState;
+  readonly email: string | undefined;
+  readonly isSignOutBusy: boolean;
+  readonly onClose: () => void;
+  readonly onSignOutHere: () => void;
+  readonly onSignOutEverywhere: () => void;
+  readonly returnFocusRef: RefObject<HTMLElement | null>;
+}) {
+  return createPortal(
+    open.surface === "menu" ? (
+      <AccountMenu
+        email={email}
+        isSignOutBusy={isSignOutBusy}
+        onClose={onClose}
+        onSignOutHere={onSignOutHere}
+        onSignOutEverywhere={onSignOutEverywhere}
+        returnFocusRef={returnFocusRef}
+      />
+    ) : (
+      <LogoutEverywhereDialog
+        onClose={onClose}
+        returnFocusFallbackRef={returnFocusRef}
+      />
+    ),
+    open.screen,
   );
 }
 
 /** The sheet on a phone and the popover on a desktop: one surface, which of the two is the stylesheet's to say. */
 function AccountMenu({
   email,
+  isSignOutBusy,
   onClose,
+  onSignOutHere,
+  onSignOutEverywhere,
   returnFocusRef,
 }: {
-  readonly email: string;
+  readonly email: string | undefined;
+  /** A sign-out of this device is out: the rows wait for its answer. */
+  readonly isSignOutBusy: boolean;
   readonly onClose: () => void;
+  readonly onSignOutHere: () => void;
+  readonly onSignOutEverywhere: () => void;
   /** Where focus goes on close if what had it on open has gone by then. */
   readonly returnFocusRef: RefObject<HTMLElement | null>;
 }) {
@@ -162,9 +336,23 @@ function AccountMenu({
         onKeyDown={trapTab}
       >
         <span className={styles.dialogGrabber} aria-hidden="true" />
-        <div className={styles.menuIdentity}>
-          <span className={styles.menuIdentityLabel}>{copy.signedInAs}</span>
-          <span className={styles.menuIdentityEmail}>{email}</span>
+        {email === undefined ? null : (
+          <div className={styles.menuIdentity}>
+            <span className={styles.menuIdentityLabel}>{copy.signedInAs}</span>
+            <span className={styles.menuIdentityEmail}>{email}</span>
+          </div>
+        )}
+        <div className={styles.menuRows}>
+          <MenuRow
+            label={copy.signOutHere}
+            isBusy={isSignOutBusy}
+            onPress={onSignOutHere}
+          />
+          <MenuRow
+            label={copy.signOutEverywhere}
+            isBusy={isSignOutBusy}
+            onPress={onSignOutEverywhere}
+          />
         </div>
         <div className={styles.dialogActions}>
           <button
@@ -177,5 +365,28 @@ function AccountMenu({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Busy it stays reachable (`aria-disabled`, not `disabled`), so the Tab ring is never emptied, and it ignores a press. */
+function MenuRow({
+  label,
+  isBusy,
+  onPress,
+}: {
+  readonly label: string;
+  readonly isBusy: boolean;
+  readonly onPress: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.menuRow}
+      aria-disabled={isBusy ? true : undefined}
+      onClick={isBusy ? undefined : onPress}
+    >
+      {label}
+      <span className={styles.menuRowMark} aria-hidden="true" />
+    </button>
   );
 }

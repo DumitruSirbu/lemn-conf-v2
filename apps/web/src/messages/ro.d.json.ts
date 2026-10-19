@@ -782,7 +782,8 @@ declare const messages: {
     "noAccount": "Nu ai cont?",
     "createOne": "Creează unul",
     "invalidCredentials": "E-mailul sau parola nu se potrivesc. Dacă datele sunt corecte, verifică-ți e-mailul: s-ar putea să trebuiască întâi să confirmi adresa.",
-    "sessionExpired": "Sesiunea ta a expirat. Intră din nou în cont ca să continui."
+    "sessionExpired": "Sesiunea ta a expirat. Intră din nou în cont ca să continui.",
+    "signedOutEverywhere": "Te-am deconectat de pe toate dispozitivele."
   },
   "accountVerify": {
     "metaTitle": "Confirmă adresa — {brand}",
@@ -821,7 +822,19 @@ declare const messages: {
     "signIn": "Intră în cont",
     "menuName": "Contul meu",
     "signedInAs": "Conectat ca",
-    "close": "Închide"
+    "close": "Închide",
+    "signOutHere": "Ieși din cont",
+    "signOutEverywhere": "Ieși de pe toate dispozitivele",
+    "signedOutToast": "Ai ieșit din cont.",
+    "signOutFailed": "Nu am putut încheia sesiunea. Încearcă din nou."
+  },
+  "logoutEverywhere": {
+    "title": "Ieși de pe toate dispozitivele?",
+    "description": "Te deconectăm de pe toate dispozitivele, inclusiv acesta.",
+    "confirm": "Ieși peste tot",
+    "busy": "Se deconectează…",
+    "cancel": "Anulează",
+    "unavailable": "Nu am putut închide sesiunile. Nu am schimbat nimic. Încearcă din nou."
   },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",

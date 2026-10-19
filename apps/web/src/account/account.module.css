@@ -961,12 +961,15 @@
   border-top-color: var(--refusal);
 }
 
-/* The message region fills no box of its own: it is the live region, and the line inside it is the toast. Above the
+/* `--toast-clear-bottom` (0 unless a screen sets it) lifts the toast clear of a bar the screen keeps at the foot. The
+ * message region fills no box of its own: it is the live region, and the line inside it is the toast. Above the
  * dialog (7, see `.dialogHost`), so the answer to an act made in a dialog is not hidden by the dialog that closes under it. */
 .toastRegion {
   position: fixed;
   right: 18px;
-  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(
+    22px + env(safe-area-inset-bottom, 0px) + var(--toast-clear-bottom, 0px)
+  );
   left: 18px;
   z-index: 8;
   display: flex;
@@ -1088,6 +1091,48 @@
   overflow-wrap: anywhere;
 }
 
+/* The menu's ways out, as rows (frame `isRows`): 48 px high, the text at the start and a mark at the end, ruled apart. */
+.menuRows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-soft);
+}
+
+.menuRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 12px 0;
+  font: 700 15px/1.3 var(--font-ui);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.menuRow[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.menuRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.menuRowMark {
+  flex: none;
+  color: var(--ink-faint);
+}
+
+.menuRowMark::before {
+  content: "›";
+}
+
 /* The desktop dialog (frame `dDialog`): 480 px, centred, on both kinds, and no grabber because it is never a sheet. */
 @media (min-width: 900px) {
   .dialogSurface,
@@ -1116,7 +1161,7 @@
 
   .toastRegion {
     right: auto;
-    bottom: 32px;
+    bottom: calc(32px + var(--toast-clear-bottom, 0px));
     left: 50%;
     width: max-content;
     max-width: min(560px, calc(100vw - 36px));

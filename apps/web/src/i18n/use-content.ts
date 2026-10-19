@@ -16,6 +16,7 @@ import {
   resolveAccountShellCopy,
   resolveAccountVerifyCopy,
   resolveContent,
+  resolveLogoutEverywhereCopy,
   type ContentTranslator,
 } from "./content";
 
@@ -61,6 +62,10 @@ export function useAccountForbiddenCopy() {
 
 export function useAccountControlCopy() {
   return useResolved(resolveAccountControlCopy);
+}
+
+export function useLogoutEverywhereCopy() {
+  return useResolved(resolveLogoutEverywhereCopy);
 }
 
 export function useAccountCheckInboxCopy() {

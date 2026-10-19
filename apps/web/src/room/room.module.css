@@ -1130,10 +1130,14 @@
 @media (min-width: 900px) {
   /* ── The top bar, D1A/D1B/D1C `:52-60` — a 76 px band, `padding: 0 40px`, `gap: 20px` ──────────── */
 
+  /* The desktop-rule fix (the account cell bridges the gaps, see `.account` below): `--top-bar-gap` is the value of the
+   * `gap` declared here and must stay in step with it, because the cell takes it back with a negative margin. */
   .topBar {
+    --top-bar-gap: 20px;
+
     height: 76px;
     padding: 0 40px;
-    gap: 20px;
+    gap: var(--top-bar-gap);
   }
 
   .topBarCell {
@@ -1141,8 +1145,12 @@
     padding: 11px 0;
   }
 
+  /* The flex gap is empty space, and the rule under the band is drawn by the cells: a gap either side of this cell
+   * left the rule broken there. The cell stretches over both gaps with a negative margin and pads back what it took, so
+   * the control stands where it stood and the cell's own paper and rule span the gaps. */
   .account {
-    padding: 0;
+    padding: 0 var(--top-bar-gap);
+    margin-inline: calc(var(--top-bar-gap) * -1);
   }
 
   .wordmark {

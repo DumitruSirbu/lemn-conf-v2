@@ -1111,6 +1111,7 @@ export function resolveAccountLoginCopy(translate: ContentTranslator) {
     createOne: translate("accountLogin.createOne"),
     invalidCredentials: translate("accountLogin.invalidCredentials"),
     sessionExpired: translate("accountLogin.sessionExpired"),
+    signedOutEverywhere: translate("accountLogin.signedOutEverywhere"),
   };
 }
 
@@ -1181,17 +1182,35 @@ export type AccountForbiddenCopy = ReturnType<
   typeof resolveAccountForbiddenCopy
 >;
 
-/** The account control in the configurator's top bar: the way in, the name of the signed-in menu and what it says. */
+/** The account control in the configurator's top bar: the way in, the name of the signed-in menu, what it says and the
+ *  two ways out of it. */
 export function resolveAccountControlCopy(translate: ContentTranslator) {
   return {
     signIn: translate("accountControl.signIn"),
     menuName: translate("accountControl.menuName"),
     signedInAs: translate("accountControl.signedInAs"),
     close: translate("accountControl.close"),
+    signOutHere: translate("accountControl.signOutHere"),
+    signOutEverywhere: translate("accountControl.signOutEverywhere"),
+    signedOutToast: translate("accountControl.signedOutToast"),
+    signOutFailed: translate("accountControl.signOutFailed"),
   };
 }
 
 export type AccountControlCopy = ReturnType<typeof resolveAccountControlCopy>;
+
+/** The question that signs the person out of every device, and the sentence for the one failure it names itself. A
+ *  connection that dropped is told by the form kit's offline notice, which every account screen shares. */
+export function resolveLogoutEverywhereCopy(translate: ContentTranslator) {
+  return {
+    title: translate("logoutEverywhere.title"),
+    description: translate("logoutEverywhere.description"),
+    confirm: translate("logoutEverywhere.confirm"),
+    busy: translate("logoutEverywhere.busy"),
+    cancel: translate("logoutEverywhere.cancel"),
+    unavailable: translate("logoutEverywhere.unavailable"),
+  };
+}
 
 /** The screen after a registration was accepted. The address is the one the person typed, passed as a value. */
 export function resolveAccountCheckInboxCopy(translate: ContentTranslator) {

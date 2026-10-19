@@ -41,6 +41,7 @@ let hasDefiniteAnswer = false;
 let isReading = false;
 let latestReadId = 0;
 let isListeningForPageRestore = false;
+let wasSignedOutByPerson = false;
 const listeners = new Set<() => void>();
 
 export function useAccountSession(): AccountSessionState {
@@ -58,6 +59,18 @@ export function markSignedOut(): void {
   publish(ANONYMOUS);
 }
 
+/** The person chose to sign out on this document: anonymous is the truth, and it is not an expiry. A signed-in answer
+ *  after it (a page restored from the cache, a refresh) withdraws the mark, since the session it was about is a new one. */
+export function markSignedOutByPerson(): void {
+  wasSignedOutByPerson = true;
+  markSignedOut();
+}
+
+/** Whether the session on this document ended because its owner chose so. The editor's session-expiry notice reads it. */
+export function isSignedOutByPerson(): boolean {
+  return wasSignedOutByPerson;
+}
+
 /** Asks the server again, whatever was answered before (a session may have ended or begun elsewhere). */
 export function refreshSession(): void {
   hasDefiniteAnswer = false;
@@ -69,6 +82,7 @@ export function resetAccountSessionForTests(): void {
   current = PENDING;
   hasDefiniteAnswer = false;
   isReading = false;
+  wasSignedOutByPerson = false;
   latestReadId += 1;
 }
 
@@ -116,6 +130,9 @@ async function readSession(): Promise<void> {
 }
 
 function publish(next: AccountSessionState): void {
+  if (next.kind === "client" || next.kind === "staff") {
+    wasSignedOutByPerson = false;
+  }
   current = next;
   for (const listener of listeners) listener();
 }
