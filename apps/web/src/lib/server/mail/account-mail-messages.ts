@@ -15,7 +15,10 @@ export type AccountMailKind =
   | "confirm-email"
   | "already-registered"
   | "reset-password"
-  | "password-changed";
+  | "password-changed"
+  | "email-change"
+  | "email-change-address-in-use"
+  | "email-changed";
 
 /**
  * A link under the site's public origin, with the single-use token after `#`. The origin is a `PublicOrigin`, which
@@ -33,16 +36,19 @@ export interface AccountMailPlainLink {
 
 export type AccountMailRequest =
   | {
-      readonly kind: "confirm-email" | "reset-password";
+      readonly kind: "confirm-email" | "reset-password" | "email-change";
       readonly locale: string;
       readonly link: AccountMailTokenLink;
     }
   | {
-      readonly kind: "already-registered";
+      readonly kind: "already-registered" | "email-change-address-in-use";
       readonly locale: string;
       readonly link: AccountMailPlainLink;
     }
-  | { readonly kind: "password-changed"; readonly locale: string };
+  | {
+      readonly kind: "password-changed" | "email-changed";
+      readonly locale: string;
+    };
 
 /** What a message is made of, apart from its key and recipient. */
 export interface AccountMailContent {
@@ -86,6 +92,8 @@ const PAGE_BY_KIND = {
   "confirm-email": "verify-email",
   "reset-password": "reset-password",
   "already-registered": "login",
+  "email-change": "confirm-email",
+  "email-change-address-in-use": "login",
 } as const;
 
 /**
@@ -149,6 +157,12 @@ function partsOf(
       return withAction(copy.alreadyRegistered, request, locale);
     case "password-changed":
       return copy.passwordChanged;
+    case "email-change":
+      return withAction(copy.emailChange, request, locale);
+    case "email-change-address-in-use":
+      return withAction(copy.emailChangeAddressInUse, request, locale);
+    case "email-changed":
+      return copy.emailChanged;
   }
 }
 

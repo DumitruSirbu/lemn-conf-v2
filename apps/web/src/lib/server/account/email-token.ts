@@ -22,6 +22,13 @@ const VERIFY_EMAIL_TOKEN_LIFETIME_HOURS = 24;
 /** How long a reset link works (ADR 0172 decision 5): short, since it opens the account without the old password. */
 const RESET_PASSWORD_TOKEN_LIFETIME_MINUTES = 30;
 
+/**
+ * How long an e-mail-change link works. PROVISIONAL: no record gives a figure. 24 hours as for a confirmation, since
+ * the link goes to an inbox the person has to open, and it changes the address only; the password was asked for at the
+ * request.
+ */
+const EMAIL_CHANGE_TOKEN_LIFETIME_HOURS = 24;
+
 export interface MintedEmailToken {
   /** The value for the link. It is never stored, logged or returned to the client. */
   readonly value: string;
@@ -49,5 +56,11 @@ export function resetPasswordTokenExpiry(): Date {
   return new Date(
     Date.now() +
       RESET_PASSWORD_TOKEN_LIFETIME_MINUTES * MILLISECONDS_PER_MINUTE,
+  );
+}
+
+export function emailChangeTokenExpiry(): Date {
+  return new Date(
+    Date.now() + EMAIL_CHANGE_TOKEN_LIFETIME_HOURS * MILLISECONDS_PER_HOUR,
   );
 }

@@ -6,6 +6,7 @@ import type {
   AccountField,
   Capability,
   AccountFieldCode,
+  EmailChangeIssue,
   PasswordChangeIssue,
   PasswordRefusalCode,
   ProfileTextIssue,
@@ -38,11 +39,13 @@ export interface AccountInputIssue {
     | AccountField
     | "password"
     | PasswordChangeIssue["field"]
+    | EmailChangeIssue["field"]
     | ProfileTextIssue["field"];
   readonly code:
     | AccountFieldCode
     | PasswordIssueCode
     | PasswordChangeIssue["code"]
+    | EmailChangeIssue["code"]
     | ProfileTextIssue["code"];
 }
 
@@ -121,6 +124,12 @@ export function wrongPasswordResponse(): NextResponse {
   return statusResponse(400, "wrong-password");
 }
 
+/** `200`: the address of the account was replaced by the one the link carried and every session ended; no session is
+ *  started, so the person signs in with the new address. */
+export function emailChangedResponse(): NextResponse {
+  return statusResponse(200, "email-changed");
+}
+
 /** `200`: the profile fields the request named were saved. */
 export function profileSavedResponse(): NextResponse {
   return statusResponse(200, "saved");
@@ -140,6 +149,22 @@ export function profileResponse(profile: {
     },
     { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
   );
+}
+
+/** The file name the download carries: ASCII, since it travels in a header. */
+const ACCOUNT_EXPORT_FILE_NAME = "lemnaria-account-data.json";
+
+/** `200`: the signed-in account's own data as a JSON download. `body` is the finished text; nothing is added to it. */
+export function accountExportResponse(body: string): NextResponse {
+  return new NextResponse(body, {
+    status: 200,
+    headers: {
+      ...ACCOUNT_RESPONSE_HEADERS,
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${ACCOUNT_EXPORT_FILE_NAME}"`,
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }
 
 /** `200`: the client is signed in. The route sets the session cookie on this very response. */

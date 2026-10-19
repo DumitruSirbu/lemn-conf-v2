@@ -803,7 +803,12 @@ export function resolveNoticePreheader(
     : translate("leadNotice.preheaderWithLocality", { lead, name, locality });
 }
 
-/** The wording of the four account e-mails, resolved in one locale. `action` is the label of the link's button. */
+/**
+ * The wording of the account e-mails, resolved in one locale. `action` is the label of the link's button.
+ * DRAFT, pending the owner's approval (plan O8): `emailChange`, `emailChangeAddressInUse` and `emailChanged`, in both
+ * locales. `emailChanged` goes to the OLD address and points the reader to "write to us" without an address, since the
+ * shop's contact address for this is not ruled (plan O5). None is in the approved-copy table.
+ */
 export function resolveAccountMailCopy(translate: ContentTranslator) {
   return {
     noReply: translate("accountMail.noReply"),
@@ -830,6 +835,23 @@ export function resolveAccountMailCopy(translate: ContentTranslator) {
       subject: translate("accountMail.passwordChanged.subject"),
       intro: translate("accountMail.passwordChanged.intro"),
       note: translate("accountMail.passwordChanged.note"),
+    },
+    emailChange: {
+      subject: translate("accountMail.emailChange.subject"),
+      intro: translate("accountMail.emailChange.intro"),
+      action: translate("accountMail.emailChange.action"),
+      note: translate("accountMail.emailChange.note"),
+    },
+    emailChangeAddressInUse: {
+      subject: translate("accountMail.emailChangeAddressInUse.subject"),
+      intro: translate("accountMail.emailChangeAddressInUse.intro"),
+      action: translate("accountMail.emailChangeAddressInUse.action"),
+      note: translate("accountMail.emailChangeAddressInUse.note"),
+    },
+    emailChanged: {
+      subject: translate("accountMail.emailChanged.subject"),
+      intro: translate("accountMail.emailChanged.intro"),
+      note: translate("accountMail.emailChanged.note"),
     },
   };
 }

@@ -5,6 +5,7 @@ import type { NeonQueryPromise } from "@neondatabase/serverless";
 import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   AccountKitchenStoreError,
+  MAX_EXPORTED_KITCHENS,
   instantOfCursorText,
   isKitchenCursor,
   requireValidKitchenName,
@@ -13,10 +14,12 @@ import {
 import type {
   AccountKitchenStore,
   AccountKitchenStoreOperation,
+  ExportedKitchen,
   KitchenCursor,
   KitchenDeleteOutcome,
   KitchenDuplication,
   KitchenDuplicationOutcome,
+  KitchenExport,
   KitchenHideOutcome,
   KitchenMark,
   KitchenPage,
@@ -47,7 +50,8 @@ type MarkVerdict = "marked" | "conflict" | "none";
  * `0016`). Every query is a tagged-template `sql`, which parameterises values. Every statement names `account_id` in
  * its own predicate, and a listed kitchen is one whose `hidden_by_client_at` and `deleted_by_client_at` are both null.
  *
- * The statements write only `name` (rename), the two marks, `design_share_links.revoked_at`, and a new row
+ * `exportAll` reads, and also lists a hidden kitchen, which every other read leaves out. The statements write only
+ * `name` (rename), the two marks, `design_share_links.revoked_at`, and a new row
  * (duplicate). None writes `document`, `revision`, `updated_at`, `write_token_hash`, `visitor_hash` or `account_id` of
  * an existing row, and none deletes.
  */
@@ -141,6 +145,37 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
       ),
     );
     return totalOf(rows, "count kitchens");
+  }
+
+  /**
+   * One read in one snapshot: the count and the rows. The rows are selected only while the count is within
+   * `MAX_EXPORTED_KITCHENS` (the lateral's `where`), so an account over the bound costs a count and no documents. Hidden
+   * kitchens are included, deleted ones are not. Columns are named: no hash, token or visitor is selected. A document
+   * this build cannot read is exported as `null` with the rest of its row.
+   */
+  async exportAll(accountId: string): Promise<KitchenExport> {
+    requireAccountIdShape(accountId, "export kitchens");
+    const rows = await queryRows("export kitchens", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          select t.total, p.id, p.name, p.is_sent, p.is_hidden, p.cursor_updated_at, p.schema_version, p.document
+          from (
+            select count(*)::int as total from designs
+            where account_id = ${accountId} and deleted_by_client_at is null
+          ) t
+          left join lateral (
+            select id, name, (sent_at is not null) as is_sent, (hidden_by_client_at is not null) as is_hidden,
+              schema_version, document,
+              to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as cursor_updated_at
+            from designs
+            where account_id = ${accountId} and deleted_by_client_at is null
+              and t.total <= ${MAX_EXPORTED_KITCHENS}::int
+          ) p on true
+          order by p.cursor_updated_at desc nulls last, p.id desc
+        `,
+      ),
+    );
+    return kitchenExportFrom(rows);
   }
 
   /** Idempotent, so a repeat after a lost acknowledgement ends in the same row and the same answer. */
@@ -435,6 +470,44 @@ function kitchenPageFrom(rows: readonly Row[], limit: number): KitchenPage {
     nextCursor: found.length > limit ? cursorOf(kept[kept.length - 1]) : null,
     total,
     skippedCount: kept.length - kitchens.length,
+  };
+}
+
+/** The export's rows: the account's total, then one row per kitchen, or one row with no kitchen when there are none or
+ *  when the total is over the bound. A row count that differs from the total is a statement that did not answer as it
+ *  was written, and is the store error. */
+function kitchenExportFrom(rows: readonly Row[]): KitchenExport {
+  const total = rows[0]?.["total"];
+  if (rows.length === 0 || !isCount(total)) {
+    throw new AccountKitchenStoreError("export kitchens");
+  }
+  if (total > MAX_EXPORTED_KITCHENS) return { kind: "too-many" };
+  const found = rows.filter((row) => row["id"] !== null);
+  if (found.length !== total) {
+    throw new AccountKitchenStoreError("export kitchens");
+  }
+  return { kind: "exported", kitchens: found.map(exportedKitchenFrom) };
+}
+
+function exportedKitchenFrom(row: Row): ExportedKitchen {
+  const { name, is_sent, is_hidden, schema_version, document } = row;
+  const cursor = { updatedAt: row["cursor_updated_at"], id: row["id"] };
+  if (
+    !isKitchenCursor(cursor) ||
+    (typeof name !== "string" && name !== null) ||
+    typeof is_sent !== "boolean" ||
+    typeof is_hidden !== "boolean" ||
+    typeof schema_version !== "number"
+  ) {
+    throw new AccountKitchenStoreError("export kitchens");
+  }
+  return {
+    id: cursor.id,
+    name,
+    updatedAt: instantOfCursorText(cursor.updatedAt),
+    isSent: is_sent,
+    isHidden: is_hidden,
+    design: migratedDesignOrUndefined(schema_version, document) ?? null,
   };
 }
 

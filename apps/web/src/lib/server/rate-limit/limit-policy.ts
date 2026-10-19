@@ -174,6 +174,12 @@ export const ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE = 10;
 export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_HOUR_FIGURE = 10;
 export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_DAY_FIGURE = 30;
 export const ACCOUNT_PROFILE_PER_ACCOUNT_HOUR_FIGURE = 30;
+/** The mail an address is sent for an e-mail change, counted by the address asked for whoever asks (it bounds one
+ *  inbox, and the shared Gmail quota), and the mail one account may ask for. The day is the UTC day. */
+export const ACCOUNT_EMAIL_CHANGE_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
+export const ACCOUNT_EMAIL_CHANGE_PER_ACCOUNT_DAY_FIGURE = 5;
+/** How often an account may download its data: the file is the whole account, built per request. */
+export const ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE = 5;
 
 /**
  * Three times what one whole e2e run sends of each of the three buckets the suite's one shared block counts, rounded up
@@ -432,6 +438,32 @@ export const ACCOUNT_PROFILE_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+/** Counted for the address an e-mail change asks for, for a free, a taken and the account's own address alike. Apart from
+ *  the registration and reset buckets, so that change requests cannot use up an address's other budgets. */
+export const ACCOUNT_EMAIL_CHANGE_MAIL_BY_ADDRESS_POLICY = policyOf(
+  "account-email-change-mail-by-address",
+  {
+    figure: ACCOUNT_EMAIL_CHANGE_MAIL_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_EMAIL_CHANGE_BY_ACCOUNT_POLICY = policyOf(
+  "account-email-change-by-account",
+  {
+    figure: ACCOUNT_EMAIL_CHANGE_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
+  "account-export-by-account",
+  {
+    figure: ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
 /** The session twin of the write credential's bucket: the same figure and window, under a name of its own, so an
  *  account's saves and a write token's are counted apart (ADR 0156). */
 export const SAVE_BY_ACCOUNT_POLICY = policyOf("design-save-by-account", {
@@ -478,7 +510,10 @@ export type PolicyPurpose =
   | "save-by-account"
   | "account-password-check-by-account-hour"
   | "account-password-check-by-account-day"
-  | "account-profile-by-account";
+  | "account-profile-by-account"
+  | "account-email-change-mail-by-address"
+  | "account-email-change-by-account"
+  | "account-export-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -568,6 +603,15 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   ),
   "account-profile-by-account": sameInProduction(
     ACCOUNT_PROFILE_BY_ACCOUNT_POLICY,
+  ),
+  "account-email-change-mail-by-address": sameInProduction(
+    ACCOUNT_EMAIL_CHANGE_MAIL_BY_ADDRESS_POLICY,
+  ),
+  "account-email-change-by-account": sameInProduction(
+    ACCOUNT_EMAIL_CHANGE_BY_ACCOUNT_POLICY,
+  ),
+  "account-export-by-account": sameInProduction(
+    ACCOUNT_EXPORT_BY_ACCOUNT_POLICY,
   ),
 };
 

@@ -8,9 +8,15 @@ export const MAX_KITCHEN_NAME_CHARACTERS = 120;
 /** The most kitchens one page returns. */
 export const MAX_KITCHEN_PAGE_SIZE = 50;
 
+/** The most kitchens one export holds. An account with more is refused whole (`KitchenExport` `too-many`) and never
+ *  given a part of its data as if it were all of it. PROVISIONAL: a count, not a byte bound; the figure is the
+ *  engineer's, to be set against a measured document size. */
+export const MAX_EXPORTED_KITCHENS = 500;
+
 export type AccountKitchenStoreOperation =
   | "list kitchens"
   | "count kitchens"
+  | "export kitchens"
   | "rename a kitchen"
   | "duplicate a kitchen"
   | "hide a kitchen"
@@ -126,6 +132,26 @@ export type KitchenDeleteOutcome =
   | { readonly kind: "none" };
 
 /**
+ * A kitchen as the person's own data export holds it. Listed or hidden, never deleted. `design` is the stored document as
+ * this build reads it, or `null` when this build cannot read it (the row is still exported, never silently dropped).
+ * No hash, token, visitor or other account id is in it.
+ */
+export interface ExportedKitchen {
+  readonly id: DesignId;
+  /** `null` is "never named", not an empty name. */
+  readonly name: string | null;
+  readonly updatedAt: Date;
+  readonly isSent: boolean;
+  readonly isHidden: boolean;
+  readonly design: Design | null;
+}
+
+/** `too-many` is more than `MAX_EXPORTED_KITCHENS` kitchens, counted in the same statement; nothing is returned. */
+export type KitchenExport =
+  | { readonly kind: "exported"; readonly kitchens: readonly ExportedKitchen[] }
+  | { readonly kind: "too-many" };
+
+/**
  * The port for the kitchens an account owns ("My kitchens"). Every read and write names the account in its own
  * predicate. Nothing here changes `document`, `revision`, `write_token_hash`, `visitor_hash` or `account_id` of an
  * existing row, and only `duplicate` inserts.
@@ -141,6 +167,11 @@ export interface AccountKitchenStore {
   countListed(accountId: string): Promise<number>;
   /** Sets the name only: `updated_at` and `revision` stay, so an open editor gets no conflict. */
   rename(rename: KitchenRename): Promise<KitchenRenameOutcome>;
+  /**
+   * Every kitchen of the account that its owner has not deleted, hidden ones included, newest first by
+   * `(updated_at desc, id desc)`, for the owner's own data export. Reads only; at most `MAX_EXPORTED_KITCHENS`.
+   */
+  exportAll(accountId: string): Promise<KitchenExport>;
   /** Copies a listed kitchen to a new row of the same account, with no write token, no visitor and no marks. */
   duplicate(
     duplication: KitchenDuplication,

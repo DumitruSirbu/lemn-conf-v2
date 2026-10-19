@@ -2,6 +2,7 @@ import type { Design, DesignId } from "@lemnaria/configurator-domain";
 
 import { requireAccountIdShape } from "./account-id-shape.js";
 import {
+  MAX_EXPORTED_KITCHENS,
   cursorTextOf,
   requireValidKitchenName,
   requireValidKitchenPageRequest,
@@ -12,6 +13,7 @@ import type {
   KitchenDeleteOutcome,
   KitchenDuplication,
   KitchenDuplicationOutcome,
+  KitchenExport,
   KitchenHideOutcome,
   KitchenMark,
   KitchenPage,
@@ -122,6 +124,30 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
     return settle(() => {
       requireAccountIdShape(accountId, "count kitchens");
       return this.listedNewestFirst(accountId).length;
+    });
+  }
+
+  exportAll(accountId: string): Promise<KitchenExport> {
+    return settle(() => {
+      requireAccountIdShape(accountId, "export kitchens");
+      const owned = [...this.kitchensById.values()]
+        .filter(
+          (kitchen) =>
+            kitchen.accountId === accountId && kitchen.deletedAt === undefined,
+        )
+        .sort(newestFirst);
+      if (owned.length > MAX_EXPORTED_KITCHENS) return { kind: "too-many" };
+      return {
+        kind: "exported",
+        kitchens: owned.map((kitchen) => ({
+          id: kitchen.id,
+          name: kitchen.name ?? null,
+          updatedAt: new Date(kitchen.updatedAt),
+          isSent: kitchen.sentAt !== undefined,
+          isHidden: kitchen.hiddenAt !== undefined,
+          design: structuredClone(kitchen.design),
+        })),
+      };
     });
   }
 

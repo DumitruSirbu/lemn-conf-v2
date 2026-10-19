@@ -11,8 +11,16 @@ import { requireSha256Digest } from "./sha256-digest.js";
 
 /** The links the mail carries. The closed list lives here and not in the table, so a later purpose drops no
  *  constraint (`0014`). */
-export const EMAIL_TOKEN_PURPOSES = ["verify-email", "reset-password"] as const;
+export const EMAIL_TOKEN_PURPOSES = [
+  "verify-email",
+  "reset-password",
+  "email-change",
+] as const;
 export type EmailTokenPurpose = (typeof EMAIL_TOKEN_PURPOSES)[number];
+
+/** The purposes whose row carries no address. An `email-change` row holds the new address (`0018`), so it is issued
+ *  only through `issueEmailChangeToken`, and no row of that purpose can exist without one. */
+export type PlainEmailTokenPurpose = Exclude<EmailTokenPurpose, "email-change">;
 
 export type AccountStoreOperation =
   | "look up an account"
@@ -21,6 +29,8 @@ export type AccountStoreOperation =
   | "issue an e-mail token"
   | "confirm an e-mail address"
   | "complete a password reset"
+  | "issue an e-mail change token"
+  | "change an e-mail address"
   | "replace a password hash"
   | "read a profile"
   | "update a profile"
@@ -79,7 +89,7 @@ export type RegistrationReplacementOutcome =
 /** `tokenHash` is the SHA-256 of the value in the link; the value itself never reaches the store. */
 export interface TokenToIssue {
   readonly accountId: string;
-  readonly purpose: EmailTokenPurpose;
+  readonly purpose: PlainEmailTokenPurpose;
   readonly tokenHash: string;
   readonly expiresAt: Date;
 }
@@ -88,6 +98,43 @@ export interface TokenToIssue {
 export type TokenIssueOutcome =
   | { readonly kind: "issued" }
   | { readonly kind: "refused" };
+
+/**
+ * An `email-change` token: the new address travels on the row, so the link carries only the token and the address is
+ * read back from the row at confirmation, never from the link. `newEmail` is as typed and trimmed, `newEmailNormalForm`
+ * is the domain's counted form, as `accounts` holds them.
+ */
+export interface EmailChangeTokenToIssue {
+  readonly accountId: string;
+  readonly newEmail: string;
+  readonly newEmailNormalForm: string;
+  readonly tokenHash: string;
+  readonly expiresAt: Date;
+}
+
+/** The token alone is the subject of a confirmation: no account is named, and the address comes from the token's row. */
+export interface EmailChangeConfirmation {
+  readonly tokenHash: string;
+}
+
+/**
+ * `changed` carries the address and language the account had before, for the notice to the old address. They are
+ * `undefined` only for a retry after a lost acknowledgement, whose first attempt had already replaced them.
+ * `invalid` covers an unknown, used, expired or superseded token, a token issued before the account's last password
+ * change, an account that is not verified, and a new address another account now holds.
+ */
+export type EmailChangeOutcome =
+  | {
+      readonly kind: "changed";
+      readonly accountId: string;
+      readonly previous: PreviousAddress | undefined;
+    }
+  | { readonly kind: "invalid" };
+
+export interface PreviousAddress {
+  readonly email: string;
+  readonly locale: string;
+}
 
 /** A token as the link carried it, asked of a purpose. */
 export interface LiveTokenLookup {
@@ -169,7 +216,7 @@ export type PasswordChangeOutcome =
 /**
  * The port for accounts and their e-mail tokens (ADR 0172 decisions 1, 2, 5, 10). A token works once, and only while
  * it is the newest unused, unexpired token of its purpose for its account; using one retires its older siblings.
- * No method writes `role`, `email`, `email_normal_form` or `id` after insert.
+ * No method writes `role` or `id` after insert; only `confirmEmailChange` writes `email` and `email_normal_form`.
  */
 export interface AccountStore {
   findByNormalForm(emailNormalForm: string): Promise<AccountLookup>;
@@ -192,6 +239,20 @@ export interface AccountStore {
     replacement: RegistrationReplacement,
   ): Promise<RegistrationReplacementOutcome>;
   issueToken(token: TokenToIssue): Promise<TokenIssueOutcome>;
+  /** Inserts an `email-change` token holding the new address, for a verified account only. A newer token of the purpose
+   *  supersedes this one, as for any purpose. */
+  issueEmailChangeToken(
+    token: EmailChangeTokenToIssue,
+  ): Promise<TokenIssueOutcome>;
+  /**
+   * One transaction: the newest live `email-change` token consumed, `email` and `email_normal_form` replaced by the
+   * row's new address, every other unused token of the account retired (a link mailed to the old address cannot outlive
+   * it), then every session revoked in a second statement. A token issued before the account's last password change is
+   * refused, and so is a new address another account holds, which writes nothing and leaves the token whole.
+   */
+  confirmEmailChange(
+    confirmation: EmailChangeConfirmation,
+  ): Promise<EmailChangeOutcome>;
   /** One atomic step: the newest live token, marked used, and the address verified. */
   confirmEmail(
     confirmation: EmailConfirmation,
@@ -237,9 +298,9 @@ export function requireValidRegistrationReplacement(
 export function requireValidTokenToIssue(token: TokenToIssue): void {
   requireSha256Digest(token.tokenHash, "token hash", "issue an e-mail token");
   requireField(
-    isEmailTokenPurpose(token.purpose),
+    isPlainEmailTokenPurpose(token.purpose),
     "purpose",
-    "one of the closed list",
+    "one of the closed list that carries no address",
     "issue an e-mail token",
   );
   requireField(
@@ -247,6 +308,50 @@ export function requireValidTokenToIssue(token: TokenToIssue): void {
     "expiry",
     "a valid instant",
     "issue an e-mail token",
+  );
+}
+
+export function requireValidEmailChangeTokenToIssue(
+  token: EmailChangeTokenToIssue,
+): void {
+  const operation = "issue an e-mail change token";
+  requireAccountIdShape(token.accountId, operation);
+  requireSha256Digest(token.tokenHash, "token hash", operation);
+  requireField(
+    isLengthWithin(
+      token.newEmail,
+      EMAIL_LENGTH_RANGE.least,
+      EMAIL_LENGTH_RANGE.most,
+    ),
+    "new e-mail",
+    "3 to 254 characters",
+    operation,
+  );
+  requireField(
+    isLengthWithin(
+      token.newEmailNormalForm,
+      EMAIL_LENGTH_RANGE.least,
+      EMAIL_LENGTH_RANGE.most,
+    ),
+    "new e-mail normal form",
+    "3 to 254 characters",
+    operation,
+  );
+  requireField(
+    token.expiresAt instanceof Date && !Number.isNaN(token.expiresAt.getTime()),
+    "expiry",
+    "a valid instant",
+    operation,
+  );
+}
+
+export function requireValidEmailChangeConfirmation(
+  confirmation: EmailChangeConfirmation,
+): void {
+  requireSha256Digest(
+    confirmation.tokenHash,
+    "token hash",
+    "change an e-mail address",
   );
 }
 
@@ -352,6 +457,13 @@ export function isEmailTokenPurpose(
   value: unknown,
 ): value is EmailTokenPurpose {
   return EMAIL_TOKEN_PURPOSES.some((purpose) => purpose === value);
+}
+
+/** A purpose whose row carries no address; a cast can hand `issueToken` the other kind, and it is refused. */
+function isPlainEmailTokenPurpose(
+  value: unknown,
+): value is PlainEmailTokenPurpose {
+  return isEmailTokenPurpose(value) && value !== "email-change";
 }
 
 function requireValidRegistrationFields(

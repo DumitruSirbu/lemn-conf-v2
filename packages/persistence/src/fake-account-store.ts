@@ -3,6 +3,8 @@ import type { Role } from "@lemnaria/configurator-domain";
 import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   profileColumnWritesOf,
+  requireValidEmailChangeConfirmation,
+  requireValidEmailChangeTokenToIssue,
   requireValidEmailConfirmation,
   requireValidLiveTokenLookup,
   requireValidNewAccount,
@@ -17,6 +19,9 @@ import type {
   AccountCreation,
   AccountLookup,
   AccountStore,
+  EmailChangeConfirmation,
+  EmailChangeOutcome,
+  EmailChangeTokenToIssue,
   EmailConfirmation,
   EmailConfirmationOutcome,
   EmailTokenPurpose,
@@ -57,13 +62,15 @@ interface HeldAccount {
   readonly passwordChangedAt: Date;
 }
 
-/** A token row. `issuedAt` stands for `created_at`. */
+/** A token row. `issuedAt` stands for `created_at`. The address pair is set on an `email-change` row alone. */
 export interface HeldEmailToken {
   readonly tokenHash: string;
   readonly accountId: string;
   readonly purpose: EmailTokenPurpose;
   readonly issuedAt: Date;
   readonly expiresAt: Date;
+  readonly newEmail?: string;
+  readonly newEmailNormalForm?: string;
   usedAt: Date | undefined;
 }
 
@@ -71,7 +78,7 @@ export interface FakeAccountStoreOptions {
   /** The database's clock. A test passes its own to cross an expiry. */
   readonly now?: () => Date;
   /**
-   * What `completeReset` does to the account's sessions. The session store is a separate port, so its fake passes a
+   * What `completeReset`, `changePassword` and `confirmEmailChange` do to the account's sessions. The session store is a separate port, so its fake passes a
    * function that sets `revoked_at` on its own rows; with none, a reset revokes nothing.
    */
   readonly revokeSessionsOf?: (accountId: string, at: Date) => void;
@@ -225,6 +232,37 @@ export class FakeAccountStore implements AccountStore {
     });
   }
 
+  issueEmailChangeToken(
+    token: EmailChangeTokenToIssue,
+  ): Promise<TokenIssueOutcome> {
+    return settle(() => {
+      requireValidEmailChangeTokenToIssue(token);
+      const existing = this.tokensByHash.get(token.tokenHash);
+      if (existing !== undefined) {
+        return issuedIfSameToken(existing, {
+          accountId: token.accountId,
+          purpose: "email-change",
+        });
+      }
+      if (
+        this.accountsById.get(token.accountId)?.emailVerifiedAt === undefined
+      ) {
+        return { kind: "refused" };
+      }
+      this.tokensByHash.set(token.tokenHash, {
+        tokenHash: token.tokenHash,
+        accountId: token.accountId,
+        purpose: "email-change",
+        issuedAt: this.now(),
+        expiresAt: token.expiresAt,
+        newEmail: token.newEmail,
+        newEmailNormalForm: token.newEmailNormalForm,
+        usedAt: undefined,
+      });
+      return { kind: "issued" };
+    });
+  }
+
   confirmEmail(
     confirmation: EmailConfirmation,
   ): Promise<EmailConfirmationOutcome> {
@@ -244,6 +282,32 @@ export class FakeAccountStore implements AccountStore {
         emailVerifiedAt: account.emailVerifiedAt ?? at,
       });
       return { kind: "confirmed" };
+    });
+  }
+
+  confirmEmailChange(
+    confirmation: EmailChangeConfirmation,
+  ): Promise<EmailChangeOutcome> {
+    return settle(() => {
+      requireValidEmailChangeConfirmation(confirmation);
+      const token = this.liveToken(confirmation.tokenHash, "email-change");
+      const account = token && this.accountsById.get(token.accountId);
+      if (account === undefined || !this.isChangeableBy(token, account)) {
+        return { kind: "invalid" };
+      }
+      const at = this.now();
+      this.retireEmailTokensOf(account.id, at);
+      this.accountsById.set(account.id, {
+        ...account,
+        email: token.newEmail ?? account.email,
+        emailNormalForm: token.newEmailNormalForm ?? account.emailNormalForm,
+      });
+      this.revokeSessionsOf(account.id, at);
+      return {
+        kind: "changed",
+        accountId: account.id,
+        previous: { email: account.email, locale: account.locale },
+      };
     });
   }
 
@@ -327,6 +391,26 @@ export class FakeAccountStore implements AccountStore {
   ): HeldAccount | undefined {
     return [...this.accountsById.values()].find(
       (held) => held.emailNormalForm === emailNormalForm,
+    );
+  }
+
+  /** Neon's consume predicate beyond liveness: a verified account, a token issued no earlier than its last password
+   *  change, an address on the row, and no other account holding that address. */
+  private isChangeableBy(
+    token: HeldEmailToken | undefined,
+    account: HeldAccount,
+  ): token is HeldEmailToken {
+    if (
+      token?.newEmail === undefined ||
+      token.newEmailNormalForm === undefined
+    ) {
+      return false;
+    }
+    const holder = this.accountWithNormalForm(token.newEmailNormalForm);
+    return (
+      account.emailVerifiedAt !== undefined &&
+      token.issuedAt.getTime() >= account.passwordChangedAt.getTime() &&
+      (holder === undefined || holder.id === account.id)
     );
   }
 
@@ -439,7 +523,7 @@ function heldPhoneOf(
 /** The table's `on conflict do nothing`: a hash already held answers issued only for the very same token. */
 function issuedIfSameToken(
   existing: HeldEmailToken,
-  token: TokenToIssue,
+  token: { accountId: string; purpose: EmailTokenPurpose },
 ): TokenIssueOutcome {
   const isSame =
     existing.accountId === token.accountId &&

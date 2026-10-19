@@ -29,14 +29,15 @@ import {
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
 /** What a route is limited for at the block stage (M8B plan section 5, common order step 4): the purposes whose first
- *  bucket counts the network. `confirm-email` and `password-reset-complete` count in one bucket, since the plan bounds
- *  their hashing cost together, and have no other stage. */
+ *  bucket counts the network. `confirm-email`, `password-reset-complete` and `email-change-confirm` count in one bucket,
+ *  since the plan bounds the cost of using a mailed link together, and have no other stage. */
 export type AccountBlockPurpose =
   | "register"
   | "login"
   | "password-reset-request"
   | "confirm-email"
-  | "password-reset-complete";
+  | "password-reset-complete"
+  | "email-change-confirm";
 
 /** The purposes that count an address's buckets at the subject stage. `mail` is one mail bucket for a route that sends
  *  a mail the flow's own subject stage did not already count: the confirmation link a login resends to an unconfirmed
@@ -46,6 +47,7 @@ export type AddressedPurpose =
   | "register"
   | "login"
   | "password-reset-request"
+  | "email-change-mail"
   | "mail";
 
 export interface AccountBlockAsk {
@@ -53,8 +55,14 @@ export interface AccountBlockAsk {
   readonly headers: HeaderReader;
 }
 
-/** The purposes an account's own id is counted for: its claims, its password checks and its profile saves. */
-export type AccountKeyedPurpose = "claim" | "password-check" | "profile";
+/** The purposes an account's own id is counted for: its claims, its password checks, its profile saves, the mail its
+ *  e-mail changes ask for, and its data exports. */
+export type AccountKeyedPurpose =
+  | "claim"
+  | "password-check"
+  | "profile"
+  | "email-change"
+  | "export";
 
 /**
  * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
@@ -103,6 +111,10 @@ const BLOCK_PLAN_OF_PURPOSE: Readonly<Record<AccountBlockPurpose, StagePlan>> =
       event: "password-reset-complete",
       buckets: ["account-token-complete-by-block"],
     },
+    "email-change-confirm": {
+      event: "email-change-confirm",
+      buckets: ["account-token-complete-by-block"],
+    },
   };
 
 const SUBJECT_PLAN_OF_PURPOSE: Readonly<
@@ -123,6 +135,10 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
     event: "password-reset-request",
     buckets: ["account-reset-mail-by-address"],
   },
+  "email-change-mail": {
+    event: "email-change",
+    buckets: ["account-email-change-mail-by-address"],
+  },
   mail: { event: "mail", buckets: ["account-login-resend-by-address"] },
   claim: { event: "claim", buckets: ["account-claim-by-account"] },
   "password-check": {
@@ -133,6 +149,11 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
     ],
   },
   profile: { event: "profile", buckets: ["account-profile-by-account"] },
+  "email-change": {
+    event: "email-change",
+    buckets: ["account-email-change-by-account"],
+  },
+  export: { event: "export", buckets: ["account-export-by-account"] },
 };
 
 const UNJUDGED: WriteJudgement = Object.freeze({

@@ -56,6 +56,9 @@ async function freshJudges() {
     "account-password-check-by-account-hour": () => Promise.resolve(undefined),
     "account-password-check-by-account-day": () => Promise.resolve(undefined),
     "account-profile-by-account": () => Promise.resolve(undefined),
+    "account-email-change-mail-by-address": () => Promise.resolve(undefined),
+    "account-email-change-by-account": () => Promise.resolve(undefined),
+    "account-export-by-account": () => Promise.resolve(undefined),
   };
   return askers;
 }

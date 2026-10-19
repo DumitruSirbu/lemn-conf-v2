@@ -677,6 +677,23 @@ declare const messages: {
       "subject": "Parola contului Lemnaria a fost schimbată",
       "intro": "Parola contului tău a fost schimbată, iar sesiunile deschise au fost închise.",
       "note": "Dacă nu ai făcut tu schimbarea, resetează imediat parola din pagina de autentificare."
+    },
+    "emailChange": {
+      "subject": "Confirmă noua adresă de e-mail a contului Lemnaria",
+      "intro": "Ai cerut ca această adresă să devină adresa contului tău Lemnaria. Deschide link-ul de mai jos ca să confirmi schimbarea.",
+      "action": "Confirmă adresa nouă",
+      "note": "Link-ul se poate folosi o singură dată. După confirmare vei intra în cont cu noua adresă, iar sesiunile deschise pe toate dispozitivele se închid. Dacă nu ai cerut tu schimbarea, ignoră acest mesaj: adresa contului nu se schimbă."
+    },
+    "emailChangeAddressInUse": {
+      "subject": "Această adresă are deja un cont Lemnaria",
+      "intro": "Cineva a cerut ca un alt cont Lemnaria să folosească această adresă, dar ea are deja un cont. Poți intra în cont; dacă ai uitat parola, o poți reseta de acolo.",
+      "action": "Intră în cont",
+      "note": "Dacă nu ai nicio legătură cu această cerere, nu trebuie să faci nimic: contul tău nu s-a schimbat."
+    },
+    "emailChanged": {
+      "subject": "Adresa contului Lemnaria s-a schimbat",
+      "intro": "Adresa de e-mail a contului tău Lemnaria a fost schimbată, iar sesiunile deschise au fost închise. De acum contul nu mai folosește această adresă.",
+      "note": "Dacă nu ai făcut tu schimbarea, scrie-ne cât mai repede, ca să te ajutăm să recuperezi contul."
     }
   },
   "accountForm": {
