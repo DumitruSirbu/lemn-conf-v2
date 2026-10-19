@@ -115,6 +115,11 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
    * READ COMMITTED is load-bearing: a second issue blocked on (1) takes a fresh snapshot per statement, so it sees the
    * first's committed insert and revokes it before inserting its own. Under a stricter level its insert would collide
    * with `0006`'s one-active-link index. See ADR 0145.
+   *
+   * Every statement also carries the gate exclusion (ADR 0172 D9, plan S4): a design the client hid or deleted is
+   * refused exactly like an unauthorised one. It is repeated in each statement rather than only in (1), because under
+   * READ COMMITTED an issue blocked on (1) by a hide's row lock re-checks (1)'s predicate once the hide commits, and
+   * (3) and (4) each read the committed marks again: no link is minted for a design hidden while the issue waited.
    */
   async issue({
     designId,
@@ -163,6 +168,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
         where id = ${designId}
           and write_token_hash = ${writeTokenHash}
           and visitor_hash = ${visitorHash}
+          and hidden_by_client_at is null and deleted_by_client_at is null
         for update
       `,
       this.sql`
@@ -177,6 +183,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
             where id = ${designId}
               and write_token_hash = ${writeTokenHash}
               and visitor_hash = ${visitorHash}
+              and hidden_by_client_at is null and deleted_by_client_at is null
           )
       `,
       this.sql`
@@ -185,6 +192,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
         where id = ${designId}
           and write_token_hash = ${writeTokenHash}
           and visitor_hash = ${visitorHash}
+          and hidden_by_client_at is null and deleted_by_client_at is null
         on conflict (token_hash) do nothing
       `,
       this.sql`
@@ -194,6 +202,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
           and d.id = ${designId}
           and d.write_token_hash = ${writeTokenHash}
           and (d.visitor_hash = ${visitorHash} or ${isRetry})
+          and d.hidden_by_client_at is null and d.deleted_by_client_at is null
       `,
     ];
   }
@@ -214,6 +223,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
       this.sql`
         select 1 from designs
         where id = ${designId} and account_id = ${accountId}
+          and hidden_by_client_at is null and deleted_by_client_at is null
         for update
       `,
       this.sql`
@@ -226,12 +236,14 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
           and design_id = (
             select id from designs
             where id = ${designId} and account_id = ${accountId}
+              and hidden_by_client_at is null and deleted_by_client_at is null
           )
       `,
       this.sql`
         insert into design_share_links (token_hash, design_id)
         select ${tokenHash}, id from designs
         where id = ${designId} and account_id = ${accountId}
+          and hidden_by_client_at is null and deleted_by_client_at is null
         on conflict (token_hash) do nothing
       `,
       this.sql`
@@ -240,13 +252,15 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
         where s.token_hash = ${tokenHash}
           and d.id = ${designId}
           and d.account_id = ${accountId}
+          and d.hidden_by_client_at is null and d.deleted_by_client_at is null
       `,
     ];
   }
 
   /** One statement, one snapshot: the CTE asks whether the credential authorises anything, the update revokes the
    *  active row if so, and `revoked` covers both "revoked something" and "authorised, nothing active" (idempotent);
-   *  `refused` covers only a credential naming no design. */
+   *  `refused` covers a credential naming no design and a design the client hid or deleted, whose link is already
+   *  revoked. */
   async revoke({
     designId,
     credential,
@@ -272,6 +286,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
           where id = ${designId}
             and write_token_hash = ${writeTokenHash}
             and visitor_hash = ${visitorHash}
+            and hidden_by_client_at is null and deleted_by_client_at is null
         ), revoked as (
           update design_share_links
           set revoked_at = now()
@@ -294,6 +309,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
         with authorised as (
           select 1 from designs
           where id = ${designId} and account_id = ${accountId}
+            and hidden_by_client_at is null and deleted_by_client_at is null
         ), revoked as (
           update design_share_links
           set revoked_at = now()
@@ -334,6 +350,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
             where id = ${designId}
               and write_token_hash = ${writeTokenHash}
               and visitor_hash = ${visitorHash}
+              and hidden_by_client_at is null and deleted_by_client_at is null
           ) as is_authorised,
           exists (
             select 1 from design_share_links s
@@ -341,6 +358,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
             where d.id = ${designId}
               and d.write_token_hash = ${writeTokenHash}
               and d.visitor_hash = ${visitorHash}
+              and d.hidden_by_client_at is null and d.deleted_by_client_at is null
               and s.revoked_at is null
           ) as active
       `,
@@ -357,12 +375,14 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
           exists (
             select 1 from designs
             where id = ${designId} and account_id = ${accountId}
+              and hidden_by_client_at is null and deleted_by_client_at is null
           ) as is_authorised,
           exists (
             select 1 from design_share_links s
             join designs d on d.id = s.design_id
             where d.id = ${designId}
               and d.account_id = ${accountId}
+              and d.hidden_by_client_at is null and d.deleted_by_client_at is null
               and s.revoked_at is null
           ) as active
       `,
@@ -370,7 +390,8 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
   }
 
   /** No credential and no `requireSha256Digest`: a malformed token hash matches no row, because `0006`'s check
-   *  constraint admits nothing else. It selects no id, so the caller learns only the migrated document. */
+   *  constraint admits nothing else. It selects no id, so the caller learns only the migrated document. A design the
+   *  client hid or deleted is `none`, like an unknown link, even if its link row somehow stayed active. */
   async loadShared(tokenHash: string): Promise<LoadSharedOutcome> {
     const rows = (await retryOnTransientFailure(
       () => this.sql`
@@ -378,6 +399,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
         from design_share_links s
         join designs d on d.id = s.design_id
         where s.token_hash = ${tokenHash} and s.revoked_at is null
+          and d.hidden_by_client_at is null and d.deleted_by_client_at is null
       `,
     )) as SharedDesignRow[];
 

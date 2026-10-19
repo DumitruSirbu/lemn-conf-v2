@@ -359,6 +359,13 @@ export class NeonConfigurationRepository
    * that for every shape (`NULL = ''` is NULL), and the revision is compared as text so no caller string can raise a
    * cast error. The account arm's write needs the row's own `account_id`: a session never writes a design that is
    * unclaimed or another account's, and the two are the one refusal.
+   *
+   * A design the client hid or deleted (`hidden_by_client_at` / `deleted_by_client_at`, ADR 0172 D9, plan S4) is
+   * refused on both arms by the same refusal, because the marks are in all three places the credential is. The marks
+   * are checked in the `update` itself, so a hide that commits while a save waits on the row lock wins and the write
+   * does not land (READ COMMITTED re-checks the predicate against the committed row). In that one race the `authorised`
+   * CTE, which shares the statement's snapshot, still reads the pre-hide row, so the owner is told of a conflict
+   * rather than a refusal; only a caller whose credential matched sees it, so it is no oracle.
    */
   async saveAuthorized(save: AuthorizedSave): Promise<SaveOutcome> {
     const outcome = await this.updateIfCurrent(save);
@@ -420,12 +427,14 @@ export class NeonConfigurationRepository
       with authorised as (
         select 1 from designs
         where id = ${id} and write_token_hash = ${writeTokenHash}
+          and hidden_by_client_at is null and deleted_by_client_at is null
       ), updated as (
         update designs
         set document = ${design}, schema_version = ${CURRENT_SCHEMA_VERSION},
             updated_at = now(), revision = revision + 1
         where id = ${id}
           and write_token_hash = ${writeTokenHash}
+          and hidden_by_client_at is null and deleted_by_client_at is null
           and revision::text = ${expectedRevision}
         returning revision, visitor_hash
       ), landed as (
@@ -433,6 +442,7 @@ export class NeonConfigurationRepository
         where ${isRetry}
           and id = ${id}
           and write_token_hash = ${writeTokenHash}
+          and hidden_by_client_at is null and deleted_by_client_at is null
           and (revision - 1)::text = ${expectedRevision}
           and document = ${design}
       )
@@ -463,12 +473,14 @@ export class NeonConfigurationRepository
       with authorised as (
         select 1 from designs
         where id = ${id} and account_id = ${accountId}
+          and hidden_by_client_at is null and deleted_by_client_at is null
       ), updated as (
         update designs
         set document = ${design}, schema_version = ${CURRENT_SCHEMA_VERSION},
             updated_at = now(), revision = revision + 1
         where id = ${id}
           and account_id = ${accountId}
+          and hidden_by_client_at is null and deleted_by_client_at is null
           and revision::text = ${expectedRevision}
         returning revision
       ), landed as (
@@ -476,6 +488,7 @@ export class NeonConfigurationRepository
         where ${isRetry}
           and id = ${id}
           and account_id = ${accountId}
+          and hidden_by_client_at is null and deleted_by_client_at is null
           and (revision - 1)::text = ${expectedRevision}
           and document = ${design}
       )
@@ -512,7 +525,8 @@ export class NeonConfigurationRepository
    * The gated read (ADR 0114 Amendment H2, ADR 0172 D9): `id` and either credential in one predicate, so a foreign
    * row, a pre-`0005` row and a missing row are one outcome. An absent member is bound as `null`, and `x = null` is
    * never true, so an accessor with only a visitor matches exactly what it did before accounts existed, and one with
-   * only an account matches only that account's rows. A visitor-less, account-less row matches neither arm. The owner
+   * only an account matches only that account's rows. A visitor-less, account-less row matches neither arm, and a row
+   * the client hid or deleted (ADR 0172 D9, plan S4) matches neither arm either: it is the one `"none"`. The owner
    * flag comes from the same row. `migrateDesign` runs only on a match. No `requireSha256Digest`: a malformed value
    * matches no row, because `0005`'s and `0015`'s check constraints admit nothing else.
    */
@@ -527,6 +541,7 @@ export class NeonConfigurationRepository
         coalesce(account_id = ${accountId}, false) as is_owned_by_account
       from designs
       where id = ${id} and (visitor_hash = ${visitorHash} or account_id = ${accountId})
+        and hidden_by_client_at is null and deleted_by_client_at is null
     `,
     )) as OwnedDesignRow[];
 
@@ -545,7 +560,8 @@ export class NeonConfigurationRepository
    * The read that proves authorship: the id, the write token's hash and the visitor's hash in one predicate, compared
    * in SQL as `saveAuthorized` and the share link do, so a wrong token, a foreign visitor, a pre-`0005` row and a
    * missing row are one outcome. A row with a NULL `write_token_hash` or `visitor_hash` never matches. `migrateDesign`
-   * runs only on a match. No `requireSha256Digest`: a wrong-shaped credential is simply not the right one.
+   * runs only on a match. No `requireSha256Digest`: a wrong-shaped credential is simply not the right one. A design
+   * the client hid or deleted is `"none"` here as well (plan S4): the preset save is another way into a claimed design.
    */
   async loadAuthorized({
     id,
@@ -559,6 +575,7 @@ export class NeonConfigurationRepository
       where id = ${id}
         and write_token_hash = ${writeTokenHash}
         and visitor_hash = ${visitorHash}
+        and hidden_by_client_at is null and deleted_by_client_at is null
     `,
     )) as DesignRow[];
 
@@ -576,7 +593,9 @@ export class NeonConfigurationRepository
    * Ordered by `updated_at desc, id desc` for a deterministic tie break. Each credential is its own indexed query with
    * its own `limit 1` (`designs_visitor_hash_updated_at_idx`, `0005`, and `designs_account_id_updated_at_idx`, `0015`),
    * and the two candidates are merged by the same order, so a plain `or` never takes the planner off either index. One
-   * statement; an absent member is bound as `null` and contributes no candidate.
+   * statement; an absent member is bound as `null` and contributes no candidate. Hidden and deleted designs are
+   * excluded inside each candidate query, before its `limit 1`, so the newest *open* design is the one that is found
+   * (ADR 0172 D9, plan S4); filtering after the limit would answer "none" for a browser whose newest design was hidden.
    */
   async resume(accessor: DesignAccessor): Promise<VisitorResumeLookup> {
     const { visitorHash, accountId } = nullableCredentialsOf(accessor);
@@ -585,10 +604,12 @@ export class NeonConfigurationRepository
       select id from (
         (select id, updated_at from designs
           where visitor_hash = ${visitorHash}
+            and hidden_by_client_at is null and deleted_by_client_at is null
           order by updated_at desc, id desc limit 1)
         union all
         (select id, updated_at from designs
           where account_id = ${accountId}
+            and hidden_by_client_at is null and deleted_by_client_at is null
           order by updated_at desc, id desc limit 1)
       ) as candidates
       order by updated_at desc, id desc
