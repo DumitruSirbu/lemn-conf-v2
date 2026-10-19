@@ -1,5 +1,5 @@
 // What an account may do. A capability is one action a route can check, a role is a named set of them, and
-// an account holds exactly one role (ADR 0169 decision 7). Changing what a role may do is a reviewed edit
+// an account holds exactly one role (ADR 0172 decision 7). Changing what a role may do is a reviewed edit
 // of this file: there is no runtime role editor, and the application's database role cannot write `role`.
 
 /** Every action a route may ask about. There is no `design.edit.any`, and none may be added without the
@@ -23,7 +23,7 @@ export type Capability = (typeof CAPABILITIES)[number];
 
 /** What a client can do with its own designs. The client alone holds these: a staff account that browses as a
  *  visitor keeps its designs as a visitor's, and one that signs in does not claim, own or read-by-account any
- *  (ADR 0169 D8, Amendment B). Claiming and owning are therefore decided by this capability, not by a role name. */
+ *  (ADR 0172 D8, Amendment B). Claiming and owning are therefore decided by this capability, not by a role name. */
 const CLIENT_CAPABILITIES = [
   "design.read.own",
   "design.edit.own",

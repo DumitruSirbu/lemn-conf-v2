@@ -16,7 +16,7 @@ import {
 } from "@/lib/server/public-origin";
 import { sha256Hex } from "@/lib/server/sha256-hex";
 
-// Account mail leaves after the response (ADR 0169 decision 5), so whether a mail was sent is not visible in the
+// Account mail leaves after the response (ADR 0172 decision 5), so whether a mail was sent is not visible in the
 // response time. The sender comes from `createCustomerMailSender` alone and the link's origin from `readPublicOrigin`
 // alone: nothing a request carried reaches either.
 

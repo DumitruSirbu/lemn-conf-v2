@@ -41,7 +41,7 @@ export type AccountBlockPurpose =
 /** The purposes that count an address's buckets at the subject stage. `mail` is one mail bucket for a route that sends
  *  a mail the flow's own subject stage did not already count: the confirmation link a login resends to an unconfirmed
  *  account (its own resend bucket, counted only inside the job that runs after the response). The "password changed"
- *  notice a completed reset sends counts no bucket (ADR 0169 Amendment B, item 2): a completed reset earns it. */
+ *  notice a completed reset sends counts no bucket (ADR 0172 Amendment B, item 2): a completed reset earns it. */
 export type AddressedPurpose =
   | "register"
   | "login"

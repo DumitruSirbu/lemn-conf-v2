@@ -87,6 +87,11 @@ describe("generateKitchen", () => {
     // carries drawers again (E4). Its width, tile and position remain the ruled 600 mm at [2100, 2700]
     // — was `base-hob-oven` beside a bottle from 7D5 S1 until M11.
     //
+    // **The tower moved in M8C wave F1b and the hob did not**: wall A's run ends at 3560 with 260 mm
+    // bare beyond the tower, which ADR 0167 D1 fills with a base cabinet of exactly that width, and D5
+    // moves the full-height tower out by it (260) to end at the run's end: fill [2700, 2960], tower
+    // [2960, 3560].
+    //
     // **The preparation body moved in 7D4 S2 and its position did not**: Amendment F5 makes it
     // `base-3drawer`, the cutlery reached while cutting being within reach of the preparation
     // surface. Still 600 mm at [1500, 2100] on wall A, which is 7D4's criterion 11 — this wave
@@ -98,9 +103,17 @@ describe("generateKitchen", () => {
     ]);
     expect(
       result.log.plan.bases
-        .filter((base) => base.id === "bottle" || base.id.startsWith("column:"))
+        .filter(
+          (base) =>
+            base.id === "bottle" ||
+            base.id.startsWith("column:") ||
+            base.id === "wall-a-remainder:A",
+        )
         .map((base) => [base.buildId, base.wall, base.startMm, base.endMm]),
-    ).toEqual([["tall-oven-tower", "A", 2700, 3300]]);
+    ).toEqual([
+      ["base-cabinet", "A", 2700, 2960],
+      ["tall-oven-tower", "A", 2960, 3560],
+    ]);
     expect(bases.length).toBeGreaterThan(4);
     expect(
       result.design.placements.some(
@@ -250,15 +263,18 @@ describe("generateKitchen", () => {
   });
 
   it("plans wall A to its reachable odd-span end before allowing the final storage resize", () => {
-    // Remainder exactly 200 on purpose: the resized slot ends 200 mm short of the run end, which is the
-    // inclusive edge of the final fit-body resize allowance. The bottle after the hob shifts the slot
+    // Remainder 198 on purpose: the resized slot ends 198 mm short of the run end, the largest remainder ADR 0167
+    // leaves bare (its floor is the catalogue's 200, and a run's end is an even number of mm) and so the nearest
+    // a bare end can come to the final fit-body resize allowance's inclusive edge of 200. At 200 the end takes a
+    // fill and the slot is no longer stretched, so the room moved from 4401 to 4399, still an odd span, at the
+    // same ceiling. The bottle after the hob shifts the slot
     // by 300 mm (M7 wave 7D5 S1), so the room moved from 3501 to 3801 to keep that edge. The pan drawer
     // before the hob (7D5 S2, owner ruling Q-H6a = A) then took 3801's only storage slot, so the room
     // moved again by its 600 mm, to 4401. The ceiling dropped to 2000 because at 2200 a 4401 wall A
     // stands the 7D3 tall block in the slot this test is about.
     const room: DesignRoom = {
       shape: "L",
-      widthMm: 4401,
+      widthMm: 4399,
       depthMm: 1700,
       heightMm: 2000,
     };
@@ -268,9 +284,9 @@ describe("generateKitchen", () => {
     if (!result.ok) return;
     expect(lShellFloorRuns(room).A).toMatchObject({
       startMm: 900,
-      endMm: 4400,
+      endMm: 4398,
     });
-    expect(result.log.plan.remainderMm.A).toBe(200);
+    expect(result.log.plan.remainderMm.A).toBe(198);
     // 7D5b S1 / ADR 0110 M1/M8/M9: this room holds no door slot beside the sink, so M7(e) swaps the
     // drawers — the dishwasher takes the preparation 3-drawer's module and the pan drawer carries the
     // preparation id and role (M9). The pan drawer is therefore found by its body, not by its id; its
@@ -329,7 +345,7 @@ describe("generateKitchen", () => {
     const room: DesignRoom = {
       shape: "L",
       widthMm: 2100,
-      depthMm: 1801,
+      depthMm: 1799,
       heightMm: 2200,
     };
     const result = generate(room);
@@ -338,9 +354,11 @@ describe("generateKitchen", () => {
     if (!result.ok) return;
     expect(lShellFloorRuns(room).B).toMatchObject({
       startMm: 900,
-      endMm: 1700,
+      endMm: 1698,
     });
-    expect(result.log.plan.remainderMm.B).toBe(200);
+    // 198 and not 200 (the room moved from 1801 to 1799): a remainder of 200 takes ADR 0167's fill, and the
+    // sink's slot is then not stretched.
+    expect(result.log.plan.remainderMm.B).toBe(198);
     const sink = result.log.plan.bases.find((base) => base.id === "sink");
     expect(sink).toMatchObject({
       widthMm: 600,

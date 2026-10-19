@@ -11,7 +11,10 @@ import {
   blockBucketRequestFor,
   judgeBlockBucket,
 } from "@/lib/server/rate-limit/judge-block-bucket";
-import { policyNameOf } from "@/lib/server/rate-limit/limit-policy";
+import {
+  policyNameOf,
+  type PolicyPurpose,
+} from "@/lib/server/rate-limit/limit-policy";
 import {
   selectNetworkSource,
   type HeaderReader,
@@ -24,23 +27,41 @@ export type ReadJudgement =
 
 const SERVE: ReadJudgement = Object.freeze({ kind: "serve" });
 
+/** The two purposes a read is judged under: the pages and the design reads together, and the presets' own. */
+type ReadPurpose = Extract<PolicyPurpose, "read" | "preset-read">;
+
 /**
- * Judges one read by the network's block. A read fails open: whatever cannot be judged, or is not judged in the
- * read's own 300 milliseconds, is served. Under no network source nothing is asked at all, no secret and no store,
- * since the one bucket the world shares would protect nothing and could stop every page. At most one line for a
- * process and a cause is written, never one for a request.
+ * Judges one read by the network's block. A read fails open: whatever cannot be judged, or is not judged in the read's
+ * own 300 milliseconds, is served. Under no network source nothing is asked at all, no secret and no store, since the
+ * one bucket the world shares would protect nothing and could stop every page. At most one line for a process and a
+ * cause is written, never one for a request.
  */
-export async function judgeReadRequest(
+export function judgeReadRequest(
+  headers: HeaderReader,
+): Promise<ReadJudgement> {
+  return judgeReadOf("read", headers);
+}
+
+/** The same judgement under the presets' own bucket, so the listing and the images cannot spend the pages' figure. */
+export function judgePresetReadRequest(
+  headers: HeaderReader,
+): Promise<ReadJudgement> {
+  return judgeReadOf("preset-read", headers);
+}
+
+async function judgeReadOf(
+  purpose: ReadPurpose,
   headers: HeaderReader,
 ): Promise<ReadJudgement> {
   try {
-    return await judgeUnlessNoSourceIsNamed(headers);
+    return await judgeUnlessNoSourceIsNamed(purpose, headers);
   } catch {
     return servedUnjudged("judgement-failed");
   }
 }
 
 async function judgeUnlessNoSourceIsNamed(
+  purpose: ReadPurpose,
   headers: HeaderReader,
 ): Promise<ReadJudgement> {
   const environment = process.env;
@@ -48,7 +69,7 @@ async function judgeUnlessNoSourceIsNamed(
   const request = blockBucketRequestFor({
     environment,
     headers,
-    purpose: "read",
+    purpose,
     deadlineMs: RATE_LIMIT_READ_DEADLINE_MS,
     instant: new Date(),
   });
@@ -75,7 +96,18 @@ function servedUnjudged(cause: UnavailableCause): ReadJudgement {
 export async function refusalOfReadLimit(
   headers: HeaderReader,
 ): Promise<NextResponse | undefined> {
-  const judgement = await judgeReadRequest(headers);
+  return refusalOf(await judgeReadRequest(headers));
+}
+
+/** The same `429` for a preset read, from the presets' own bucket. The two windows are one length, so the wait is the one
+ *  the read refusal already bounds. */
+export async function refusalOfPresetReadLimit(
+  headers: HeaderReader,
+): Promise<NextResponse | undefined> {
+  return refusalOf(await judgePresetReadRequest(headers));
+}
+
+function refusalOf(judgement: ReadJudgement): NextResponse | undefined {
   if (judgement.kind === "serve") return undefined;
   try {
     return readLimitReachedResponse(judgement.retryAfterSeconds);

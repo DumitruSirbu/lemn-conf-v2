@@ -2,7 +2,7 @@ import "server-only";
 
 // The account routes' lines, over closed lists. `reportAccountEvent` is handed an event kind, an outcome and the name
 // of a limiter policy, and nothing else, so no line can hold a password, a token, a session value, an e-mail address or
-// a phone number: there is no parameter to carry one (ADR 0169 decision 5; flow rules in M8B plan section 5).
+// a phone number: there is no parameter to carry one (ADR 0172 decision 5; flow rules in M8B plan section 5).
 
 /** What happened, by kind. A closed list that also types the line. */
 export const ACCOUNT_EVENTS = [

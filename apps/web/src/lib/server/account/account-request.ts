@@ -83,7 +83,7 @@ export function textMemberOf(
  * is absent, empty or not text is a failed challenge (`403`) and is never excused, so leaving the token out cannot
  * skip the check. A deployment that cannot judge a challenge (`not-configured`) is `503`. A Cloudflare that cannot be
  * reached while a token was presented (`unreachable`) lets the request go on, as if the challenge had passed (the
- * owner's ruling of 2026-10-18, ADR 0169 Amendment E, item 5): `verifyTurnstile` has logged the outage, and the caller's block
+ * owner's ruling of 2026-10-18, ADR 0172 Amendment E, item 5): `verifyTurnstile` has logged the outage, and the caller's block
  * and subject limiters still run in full as the compensating control.
  */
 export async function refusalOfChallenge({

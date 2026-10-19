@@ -3293,7 +3293,7 @@ not restated here.**
 
 ## Amendment N — 2026-09-29: how a U kitchen is composed (M7B Q-U3), from the owner's own arrangement
 
-**Written before code, in M7B wave U0.** The plan is `docs/milestones/M7B-u-shaped-rooms.md`, *Owner
+**Written before code, in M7B wave U0.** The plan is `docs/milestones/done/M7B-u-shaped-rooms.md`, *Owner
 questions*, Q-U3, and *U0 measurements*. The owner answered on 2026-09-29 and the coordinator relayed
 the answer. The owner chose **option (c), their own arrangement**. That is neither the plan's (a) nor
 its (b), and the plan's lean towards (b) is withdrawn. Figures are **[measured]** by `u0-measure.mjs`
@@ -4698,8 +4698,8 @@ and the price book), not a composition change. It would be its own item.
 
 ## Amendment O — 2026-10-01: a fixed corner wall unit stands over every generated corner; the top row, the validator's banded reach and the fridge-gap absorb
 
-**Written for M7C wave C2** (`docs/milestones/M7C-m7-feedback-fixes.md`, *C2 — the corner wall unit*, and
-`docs/M7-FEEDBACK.md`, M7-FB-004 and M7-FB-011). **Decided and landed are kept apart.** C2 S1 is committed
+**Written for M7C wave C2** (`docs/milestones/done/M7C-m7-feedback-fixes.md`, *C2 — the corner wall unit*, and
+`docs/archive/M7-FEEDBACK.md`, M7-FB-004 and M7-FB-011). **Decided and landed are kept apart.** C2 S1 is committed
 as `075529b` (the builder, nothing mounted). C2 S2 (the domain, the shell, the prices, the validator) is
 committed as `0a1a69a` (hashes read from the branch's reflog). Both are on branch `m7c-m7-feedback-fixes`,
 not pushed and not run on the CI runner; the figures in O8 were measured by QA before the commit. **O9 (the top row, wave C3) is decided and its slice S1 is committed as `02b1c7b`;
@@ -4930,7 +4930,7 @@ remainder (F7, 0108 H3). E6's absorb shares the headroom helper, unchanged. [QA 
 rooms change; straight 0 of 481; U 0. About 17,925 L rooms per ceiling keep a bare 50-299 mm leftover
 because the fridge's neighbour is the dishwasher (16,300) or the sink (1,625), correct under "only where
 the neighbour is a door cabinet". The editor half remains not built (backlog 104). Record:
-`milestones/M7C-m7-feedback-fixes.md`, *C5 S1 as built*.
+`milestones/done/M7C-m7-feedback-fixes.md`, *C5 S1 as built*.
 
 **Update, later 2026-10-05: S2 is built for the U, in `58f6fc5`.** The same rule on the fridge wall (B or
 C), run last in `composedPlan`. With pantries beyond the fridge it is not outermost and nothing changes.
@@ -4983,3 +4983,38 @@ alternative D (no generation-only seat, target or width); U3b AC5. No command ga
 steps and commands are byte-identical (8U S3 `0f85ed23`: *"behaviour-free at HEAD (91,570 rooms byte-identical)"*; 8U S4
 `a70c974b`: *"generation keeps its 800 limit (output byte-identical)"* — commit subjects). Decision 4's free-end merge
 is unchanged and runs inside composition's limit. Nothing above this amendment is edited.
+
+## Dated note — 2026-10-17: forward pointers to ADR 0167 (Proposed) for A4, D2, N3 revised 3, E8, E12.1, H1 and N11.9
+
+**Status of this note.** [ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)
+is **Proposed** and nothing in it is built (M8C waves F1a, F1b). **No sentence above is struck by this note.** Each
+pointer says what the owner's 2026-10-17 rulings (Q-F1-1, Q-2 = (b), Q-7 = (a), Q-8 = no new rule; see ADR 0167) would
+change **if and when 0167 is Accepted**; wave F1b's close converts the pointers. Line numbers below are as read by the
+scribe on 2026-10-17 before this note was added.
+
+- **A4** (`:145`, *"the remainder, at most 599 mm, stays"*): would be superseded **for generation** by 0167 D1/D2: a
+  remainder `≥ F` (the catalogue's narrowest cabinet, 200 mm today) is filled; the bare end becomes at most `F − 1`. The
+  599 mm cap never bound a customer's own edits (A4's own last sentence), and that is unchanged.
+- **D2** (`:286`, the deterministic mechanics; the phrase *"let the edges empty"* occurs at `:293`, quoting the owner,
+  and the *Amendment D* revision): the packing against the corner is unchanged; the *"edges empty"* outcome it
+  describes would be superseded for generation by 0167. *(The M8C plan cites "ADR 0110 D2 (let the edges empty)". The
+  phrase is the owner's, from the 2026-09-11 Q2 answer quoted at ADR 0109 Amendment A; in this record it is used inside
+  D2 at `:293`, which is why the pointer sits on D2.)*
+- ***N3 revised* 3**'s *"any bare remainder beyond it"* (the U fridge wall): would be superseded for generation; the
+  **counted positions** (the fridge `n` bases from the corner, `n` = 0, 2, 3 at 3000 / 3001–4000 / above 4000) **stand**:
+  a counted body is never moved by the fill (0167 D5, Q-7 = (a)). N3r 4 and 10 stand likewise.
+- **E8** (`:796`, *"the generated fridge stays `fridge-free`, and it is not moved"*): the fridge's **type** stays
+  `fridge-free`; *"not moved"* would be **departed from** where an uncounted fridge ends its run and a fill stands (0167
+  D5), as O10 already departs from it for its own window.
+- **E12.1** (`:1056`, the oven tower as near the hob as the block allows): unchanged **within** the block; the block
+  would stand `r` further from the hob (0167 D5).
+- **H1** (`:2096`, *"doors to fill … tall cabinets at the edge"*; *"Fridge (if space - door cabinet) => sink"*): kept; the
+  fill is read as H1's *"door cabinet, if space"* (prefix wall) or *"doors to fill"* (suffix wall), and the tall block or
+  the fridge still ends the run.
+- **N11.9 / RQ25a / RQ25b** (`:4585`): RQ25a's *"Back wall only"* and RQ25b's *"Fill from 300 mm"* were relayed
+  selections of 2026-09-29, scoped to a U's wall A; the owner's 2026-10-17 rulings (every wall; Q-F1-1) are later and
+  wider, so they would be overturned for generation by 0167 D1/D2/D7, with the step id `wall-a-remainder:A` kept for wall
+  A. Until 0167 is Accepted, N11.9 is the code's behaviour.
+
+**Not changed by 0167 or this note:** E6 and O10 (the absorbs run first, D4), E7, O9, O4, N3 revised 11 and Amendment C /
+F7 (the 100 mm reserve, D9).

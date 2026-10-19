@@ -94,6 +94,14 @@ After round 2 of the first pass, a finding was fixed inside 8G only if a counted
 - **`qa-8d-review-scene…:188`** failed once more in a whole run: its third sighting (backlog 162).
 - **The mint's twin was 511 against a third of 533, then 513, then 528**; the wave that passes 533 raises it.
 
+## Note — 2026-10-18 (M8C P6 security review): preset reads have their own purpose
+
+Dated 2026-10-18 (M8C P6 security review): preset reads (`GET /api/presets` and `GET /api/presets/{id}/image`) are
+judged under their own read purpose, `preset-read`, at 1,200 an hour for each network block (provisional, the engineer's
+figure; the owner can change the constant). The purpose fails open like every read, has no e2e twin, and its 429 shape is
+the read refusal's. [relayed by the coordinator; the scribe did not re-read the source or run a test.] Nothing above is
+changed.
+
 ## What is unproven until a deployment
 
 *[security's lists, relayed]* The three statements and the counters' grant test **as the role `app_designs`** (the totals read among them; the persistence suite's 2 skips are the grant tests); the host's header holds one address and cannot be forged; the host's own interceptor runtime (the installed documentation calls it platform-specific [doc, `proxy.md:762`]); the cron itself; G-S3.2's suffixed spellings; that the deployed runtime names the Chișinău zone. *Not run:* `pnpm check`, `pnpm ci:local`, anything on a CI runner, e2e in dev mode in full, **the whole e2e run after the last mark (`18a9f319`)**. *Not proven:* desktop for the leave-and-return traces and for C2-1 (mobile only); C2-1's cause is read from the source and from the absence of a page request on return, the router's cache setting not varied.
@@ -117,9 +125,9 @@ After round 2 of the first pass, a finding was fixed inside 8G only if a counted
 
 Written by the documentation scribe at 8K2's close; nothing above was edited. **Decision 10's sentence *"A design loaded while its own write waits is given the waiting design and its wait"* now holds for every write the tab holds for that design**: waiting for the limit, backing off, sent and not yet answered, and ready and not yet sent; a write in flight reports its outcome to the generation that shows its design when it is answered. **Three limits above are closed:** C2-1 (a design returned to is shown from the page's kept copy), GL-R4.1 (the same path for a failure's backoff), and *"A write sent and not yet answered when its design is loaded again is not adopted"* (the *Limits* bullet naming GL-R3.3). Where *Limits* says C2-1 *is not fixed*, it is fixed; QA's two expected-to-fail marks are removed. Decision 10's other sentences stand. **Its *one predicate, `isSavePaused`* is now `pausedUntilMs(status, resumesAtMs)`, which answers the time itself** (backlog 171; `1087f45b`). Backlog 169 (the queue's one wait) is closed by `7b16568a`.
 
-## Dated note — 2026-10-18: one new subject kind, an account id (ADR 0169 D5; the scribe; this record's text is not edited)
+## Dated note — 2026-10-18: one new subject kind, an account id (ADR 0172 D5; the scribe; this record's text is not edited)
 
-[ADR 0169](0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+[ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
 (**Accepted** 2026-10-18) *extends* this record's subjects with one kind, an account id, for the account-scoped purposes (claim,
 and session saves of a claimed design); the rules are unchanged: subjects come only from constructors, writes fail closed.
-Nothing here is superseded. Built but unexercised (ADR 0169 D12).
+Nothing here is superseded. Built but unexercised (ADR 0172 D12).

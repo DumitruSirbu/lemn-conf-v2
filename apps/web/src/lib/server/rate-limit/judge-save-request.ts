@@ -35,7 +35,7 @@ import { refusalOfWriteLimit } from "@/lib/server/rate-limit/refusal-of-write-li
  * a request the block passed is counted against its write credential. A refusal at the block counts the block alone and
  * writes no row for a credential, which anyone could otherwise invent. Both steps take the one instant, and so the one
  * window, so a save judged across an hour's turn tells one wait. The credential's subject is made from the hash the
- * route read, or from the id of the session's account (ADR 0169 D9: the `save-by-account` bucket beside the
+ * route read, or from the id of the session's account (ADR 0172 D9: the `save-by-account` bucket beside the
  * credential's), through its constructor alone, and a value it refuses is a judgement that failed. The policy answered
  * is the one of the step that decided.
  */

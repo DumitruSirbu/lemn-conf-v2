@@ -2,12 +2,12 @@
 
 > **STATUS: PLANNED, draft of 2026-10-17. No wave dispatched.** Branch `feat/login-register`, cut from
 > `origin/main` at `4f85b970`; not pushed. The decision record is
-> [ADR 0169](../decisions/0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md),
+> [ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md),
 > **Proposed**: nothing below is dispatchable until the owner accepts it (wave L0).
 >
 > **This round runs without tests, by the owner's instruction** (relayed by the coordinator, 2026-10-17:
 > *"development proceeds WITHOUT writing or running tests this round"*). That deviates from `docs/WORKFLOW.md`
-> (paired tests, QA gates review) and is recorded as ADR 0169 decision 12, scoped to this round. §8 says what
+> (paired tests, QA gates review) and is recorded as ADR 0172 decision 12, scoped to this round. §8 says what
 > replaces QA and what it costs; §9 lists the tests owed.
 
 This plan covers the **login and register part of Fix 3** (`docs/OWNER_FIXES.md`, *Fix 3*, owner rulings
@@ -30,7 +30,7 @@ wave L0 re-reads every one before code depends on it.
   screens in Claude Design, (3) M8B is replanned. This plan is (3) for the server half and waits on (2) for the
   screens (waves L13b, L14a, L14b; L13a needs only L0's reads).
 - **M8C** (the sibling branch `fix/empty-space-fill-and-preset-save`) holds ADRs **0167, 0168** and migration
-  **`0011_create_presets.sql`** [src: that branch's plan §3.2 and `docs/decisions/` listing]. Hence ADR **0169**
+  **`0011_create_presets.sql`** [src: that branch's plan §3.2 and `docs/decisions/` listing]. Hence ADR **0172**
   and migrations **0012–0015** here. The migration runner refuses a gap (`MigrationSequenceError`,
   `packages/persistence/src/migration-files.ts:59-87`) [src]. **This branch merges after M8C**, or its
   migrations are renumbered at rebase. That is free only while none of them has been applied anywhere; once
@@ -39,7 +39,7 @@ wave L0 re-reads every one before code depends on it.
 
 | M8B stub | Here |
 | --- | --- |
-| 8N (design record, QP1–QP5) | L0 and ADR 0169. QP1 and QP2 get defaults (§11). QP3 and QP5 are later waves. QP4 (design names) belongs to the dashboard |
+| 8N (design record, QP1–QP5) | L0 and ADR 0172. QP1 and QP2 get defaults (§11). QP3 and QP5 are later waves. QP4 (design names) belongs to the dashboard |
 | 8P1 persistence | L1 (schema), L4a, L4b (stores) |
 | 8P2 hashing and password rules | L2 (rules), L3 (hashing, breach check) |
 | 8P3 sign-up and verification | L7 (customer mail), L8 |
@@ -87,7 +87,7 @@ once they confirm, and then open and save from any device. Throughout:
 
 ## 2. What the plan rests on
 
-ADR 0169 holds the decisions and the sweep. In one line each:
+ADR 0172 holds the decisions and the sweep. In one line each:
 
 - **D1, account.** E-mail and password. No 2FA, no SMS. Phone optional, unverified [owner Q-F3-2].
 - **D2, password.** Argon2id from `node:crypto` (no new dependency), stored as a PHC string and rehashed at
@@ -105,7 +105,7 @@ ADR 0169 holds the decisions and the sweep. In one line each:
 - **D5, abuse.**
   - Turnstile on register, login and reset request, verified on the server; a failed check refuses (`403`), a
     misconfigured deployment refuses (`503`), and an **unreachable** Cloudflare lets a request that carried a token
-    proceed with one logged line, the limiters being the control (owner's ruling 2026-10-18; ADR 0169 Amendment E,
+    proceed with one logged line, the limiters being the control (owner's ruling 2026-10-18; ADR 0172 Amendment E,
     item 5).
   - New limiter policies, which fail closed, including one mail bucket per address.
   - Equal answers for known and unknown addresses. A dummy hash for an unknown address.
@@ -115,7 +115,7 @@ ADR 0169 holds the decisions and the sweep. In one line each:
 - **D7, RBAC.** Closed capabilities in the domain package. Three roles as capability sets, one role per account.
   Grants keep `role` out of the application role's `INSERT` and `UPDATE`, so the app can neither create nor
   promote staff. Every account-acting route checks a capability.
-- **D8, claim.** Requires a verified **client** session (a staff account does not claim; L11 review F1, ADR 0169
+- **D8, claim.** Requires a verified **client** session (a staff account does not claim; L11 review F1, ADR 0172
   Amendment B), the visitor cookie and the client's explicit confirmation. One
   atomic statement with `account_id is null`. Claiming leaves `visitor_hash` and `write_token_hash` untouched. A
   mint made while a verified client is signed in sets `account_id`; a staff account's mint does not.
@@ -217,7 +217,7 @@ The grant carries no `DELETE`, no `TRUNCATE`, no `ALL`, no `WITH GRANT OPTION`, 
 | `account_id` | `text not null references accounts (id) on delete cascade` | — |
 | `purpose` | `text not null`, `~ '^[a-z-]{1,32}$'` | Closed list in code (`verify-email`, `reset-password`). A shape check, so a later purpose (staff invitation, e-mail change) drops nothing |
 | `created_at` | `timestamptz not null default now()` | Only the newest unused token of a purpose works |
-| `expires_at` | `timestamptz not null` | 24 h to confirm, 30 min to reset (ADR 0169 D5) |
+| `expires_at` | `timestamptz not null` | 24 h to confirm, 30 min to reset (ADR 0172 D5) |
 | `used_at` | `timestamptz` null | Single use |
 
 - **Index:** `(account_id, purpose, created_at desc) where used_at is null`.
@@ -278,7 +278,7 @@ only).
 | --- | --- | --- | --- |
 | 1 | **Register** `POST /api/account/register` `{email, password, phone?, locale, privacyNoticeVersion, turnstileToken}` (`privacyNoticeVersion` must be in the closed list `PRIVACY_NOTICE_VERSIONS`, else field code `UNKNOWN_NOTICE_VERSION`; the register UI sends `PRIVACY_NOTICE_VERSIONS[0]`) | (a) Policy check, including the breach check. (b) Unknown address: insert unverified, issue a `verify-email` token, mail the link. (c) **Unverified** address: overwrite `password_hash`, phone, locale and notice version; issue a new token (older ones stop working); mail the link. (d) **Verified** address: change nothing; mail an "already registered — log in or reset" notice. (e) Hash the password in every branch | **`202 {status:"check-inbox"}` in (b), (c) and (d) alike.** One mail is queued in each, sent after the response (`after()`, [inf/ven]) |
 | 2 | **Confirm** `GET /[locale]/account/verify-email#t=<token>` | The page reads the fragment (never sent to the server, never in a `Referer`) and asks for the password. `POST /api/account/verify-email` `{token, password}`: one transaction. The token must be the newest unused, unexpired one of its purpose. The password must verify against the account's current hash. Then: set `email_verified_at`, mark the token used, start a session | `200 {status:"signed-in", claimable:n}` and `Set-Cookie`, **or one answer `400 {status:"link-or-password-invalid"}`** for an unknown, used, expired or superseded token or a wrong password |
-| 3 | **Login** `POST /api/account/login` `{email, password, turnstileToken}` | Unknown address: verify against a fixed dummy hash, so the time class is equal. Wrong password: same. **Correct password but unverified: the same `401` as a wrong password, with the same verification work and no other work before the response (ADR 0169 Amendment A, L8 security review F1).** The confirmation resend (`judgeAccountSubject({purpose:"mail"})`, which counts its own bucket `account-login-resend-by-address`, a new `verify-email` token, the mail) runs entirely in `after()`, and a limiter refusal or unavailability there is silent. Correct and verified: rehash if the parameters are old, then start a session | `200 {status:"signed-in", claimable:n}` / **`401 {status:"invalid-credentials"}` for an unknown address, a wrong password and a correct password on an unconfirmed account alike** (one body, one status). No `unconfirmed` or `resent` member exists |
+| 3 | **Login** `POST /api/account/login` `{email, password, turnstileToken}` | Unknown address: verify against a fixed dummy hash, so the time class is equal. Wrong password: same. **Correct password but unverified: the same `401` as a wrong password, with the same verification work and no other work before the response (ADR 0172 Amendment A, L8 security review F1).** The confirmation resend (`judgeAccountSubject({purpose:"mail"})`, which counts its own bucket `account-login-resend-by-address`, a new `verify-email` token, the mail) runs entirely in `after()`, and a limiter refusal or unavailability there is silent. Correct and verified: rehash if the parameters are old, then start a session | `200 {status:"signed-in", claimable:n}` / **`401 {status:"invalid-credentials"}` for an unknown address, a wrong password and a correct password on an unconfirmed account alike** (one body, one status). No `unconfirmed` or `resent` member exists |
 | 4 | **Logout** `POST /api/account/logout` `{scope:"this-device"\|"everywhere"}` | Revoke this session, or every session of the account | `204`, the session cookie cleared (`Max-Age=0`, the same attributes, never `cookies.delete`, as `visitor.ts` explains [src]). No session: `204`, nothing done |
 | 5 | **Who am I** `GET /api/account/session` | Read the session (fails open to anonymous) | `{state:"anonymous"}` or `{state:"signed-in", email, capabilities:[…]}` |
 | 6 | **Forgot** `POST /api/account/password-reset/request` `{email, turnstileToken}` | Count the per-address buckets for **every** valid request, before any lookup. Then, **after the response** (`after()`): for a verified account, issue a `reset-password` token and mail the link; for an unknown or unverified address, do nothing. The request path before the answer is the same in every branch | **`202 {status:"check-inbox"}` always**, and a per-address `429` reads the same for every address |
@@ -312,7 +312,7 @@ only).
 | --- | --- | --- |
 | `account-register-by-block` | network block | 5 / 60 min, 20 / 1440 min |
 | `account-login-by-block` | network block | 30 / 60 min |
-| `account-login-by-address` | `subjectOfAddress` | 10 / 15 min, **100 / 1440 min** (day figure raised from 30, `ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE`): **two fixed windows, not a growing back-off**, every valid attempt counted before the lookup. This is an **interim**. The owner's decision of 2026-10-18 (failure-only counting, growing delay, 100 / day ceiling; ADR 0169 D5, *Login throttling*) is **not built** and needs a design; see the `IMPLEMENTATION STATE` line and §12 *Review record* |
+| `account-login-by-address` | `subjectOfAddress` | 10 / 15 min, **100 / 1440 min** (day figure raised from 30, `ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE`): **two fixed windows, not a growing back-off**, every valid attempt counted before the lookup. This is an **interim**. The owner's decision of 2026-10-18 (failure-only counting, growing delay, 100 / day ceiling; ADR 0172 D5, *Login throttling*) is **not built** and needs a design; see the `IMPLEMENTATION STATE` line and §12 *Review record* |
 | `account-reset-request-by-block` | network block | 10 / 60 min |
 | `account-token-complete-by-block` | network block | 20 / 60 min (confirm and reset completion; bounds the hashing cost) |
 | `account-register-mail-by-address` | `subjectOfAddress` | 5 / 1440 min: the confirmation and already-registered mail of registration (purpose `register` only; a login's resend no longer counts here, L9 security review F1) |
@@ -331,7 +331,7 @@ cost the victim 15 minutes; the day figure is what makes it a day. Turnstile mak
 challenge, and the refusal reads the same for known and unknown addresses. A stranger's about 5 solved challenges also
 use up the victim's reset-mail bucket (5 a day). **Owner decision 2026-10-18, after research (OWASP Authentication Cheat
 Sheet, NIST SP 800-63B): login throttling moves to failure-only counting with a growing delay and a 100 / day ceiling.**
-The reset-mail residual is not changed by it. What was built is in ADR 0169 D5's `IMPLEMENTATION STATE` line.
+The reset-mail residual is not changed by it. What was built is in ADR 0172 D5's `IMPLEMENTATION STATE` line.
 
 ## 6. Variables and secrets the owner provisions
 
@@ -357,7 +357,7 @@ in the repo-root `.env.example`, commented, with no value (wave L3).
 **Turnstile test keys.** Cloudflare publishes always-pass and always-fail keys [ven; L0 re-reads them]. The
 owner may put them in `apps/web/.env.local` for development. The code logs one constant warning when it sees a
 documented test secret, as `FAKE_SENDER_WARNING` does [src: `create-mail-sender.ts`]. M9's gate gains a line
-(§10). **Amended 2026-10-18 (ADR 0169 D5, dated note):** a test secret is honoured only where the public origin is
+(§10). **Amended 2026-10-18 (ADR 0172 D5, dated note):** a test secret is honoured only where the public origin is
 a loopback one (which needs `LEMNARIA_E2E_FAKE_MAIL=1`); anywhere else the check answers `unavailable` and logs.
 
 **The owner's Cloudflare step.** Create one Turnstile widget per environment's hostnames, in managed mode, and
@@ -373,7 +373,7 @@ and security reviewers, in parallel, on a diff whose verification (§8) is green
 
 | Wave | Does | Depends on | Tier | Prod. files |
 | --- | --- | --- | --- | --- |
-| **L0** | Owner accepts ADR 0169; vendor re-reads; owner provisions Turnstile | — | Light (one security reviewer on the ADR) | 0 |
+| **L0** | Owner accepts ADR 0172; vendor re-reads; owner provisions Turnstile | — | Light (one security reviewer on the ADR) | 0 |
 | **L1** | Migrations 0012–0015; runbook section | L0 | Full + security | 4 |
 | **L2** | Domain: account fields, password policy, capabilities | L0 | Full | 4 |
 | **L3** | Hashing, breach check, session cookie, Turnstile, account log; engines floor | L2 | Full + security | 5 |
@@ -391,7 +391,7 @@ and security reviewers, in parallel, on a diff whose verification (§8) is green
 | **L13a** | CSP for account pages, Turnstile widget | L8, L0's reads | Full + security | 3 |
 | **L13b** | Register and confirm screens | L13a, **owner's screens** | Full + visual + security | 3 |
 | **L14a** | Login, forgot and reset screens | L9, L10, L13a, **owner's screens** | Full + visual + security | 4 |
-| **L14b** | Claim dialog, signed-in control (log out here or everywhere). **Superseded 2026-10-19 by [`M8B-account-screens-lot2-plan.md`](M8B-account-screens-lot2-plan.md) §6: server waves S0a–S12 and UI waves U1–U15b replace this row; "≤ 3" does not hold for Lot 2 (ADR 0169 Amendment F, pending owner confirmation).** | L11, L14a | Full + visual + security | ≤ 3 (superseded) |
+| **L14b** | Claim dialog, signed-in control (log out here or everywhere). **Superseded 2026-10-19 by [`M8B-account-screens-lot2-plan.md`](M8B-account-screens-lot2-plan.md) §6: server waves S0a–S12 and UI waves U1–U15b replace this row; "≤ 3" does not hold for Lot 2 (ADR 0172 Amendment F, pending owner confirmation).** | L11, L14a | Full + visual + security | ≤ 3 (superseded) |
 
 **Parallelism:**
 - L2, L5 and L7 can run beside L1.
@@ -405,16 +405,16 @@ and security reviewers, in parallel, on a diff whose verification (§8) is green
 
 | # | Item |
 | --- | --- |
-| 1 | The owner accepts ADR 0169 (or amends it), and answers Q-L1–Q-L4 or takes the defaults (§11) |
+| 1 | The owner accepts ADR 0172 (or amends it), and answers Q-L1–Q-L4 or takes the defaults (§11) |
 | 2 | Vendor re-reads, quoted with URL and date: Turnstile client embed, the CSP it needs (`script-src`/`frame-src` host, behaviour under `'strict-dynamic'`), siteverify fields (`success`, `hostname`, `action`, `error-codes`), token lifetime and single use, the test keys, **the `hostname` siteverify returns for the test keys, and how per-deployment Preview URLs compare with the one Preview `LEMNARIA_PUBLIC_ORIGIN`** (this settles L3 item 4's hostname rule). Next's `cookies()`: where it may set a cookie. HIBP `range` endpoint and `Add-Padding`. Node 24 `crypto.argon2` stability index. The Node patch version Vercel deploys. Next 16 `after()` |
 | 3 | The owner creates the Turnstile widgets and sets the two variables (§6) |
-| 4 | The scribe writes the dated notes ADR 0169 owes (its *Records to annotate on acceptance*), the `decisions/README.md` row and `SUPERSESSIONS.md` |
+| 4 | The scribe writes the dated notes ADR 0172 owes (its *Records to annotate on acceptance*), the `decisions/README.md` row and `SUPERSESSIONS.md` |
 
-**Reading:** this plan; ADR 0169; `OWNER_FIXES.md` *Fix 3*; ADR 0115, 0019 (d1, d5, d9, notes), 0114 d1–d6, 0154
+**Reading:** this plan; ADR 0172; `OWNER_FIXES.md` *Fix 3*; ADR 0115, 0019 (d1, d5, d9, notes), 0114 d1–d6, 0154
 d11, 0161 d1–d2. **Reviewer reading (security):** the same plus `security-headers.ts`, `cross-site-request.ts`.
 
 **Acceptance.**
-- ADR 0169 status reads *Accepted* with a date and the owner's words, or the amendments are recorded.
+- ADR 0172 status reads *Accepted* with a date and the owner's words, or the amendments are recorded.
 - Each [ven] fact used in §5 and §6 is replaced by a quotation, or the plan is corrected where a quotation
   disagrees.
 - If `crypto.argon2` is marked *Experimental* in the Node 24 docs, the plan names the fallback (`crypto.scrypt`,
@@ -433,7 +433,7 @@ d11, 0161 d1–d2. **Reviewer reading (security):** the same plus `security-head
 | 4 | `designs.account_id`, its check and index | `…/0015_add_design_account_id.sql` |
 | 5 | Runbook section: ledger 11 → 15, column and constraint counts, the grants verbatim, `pg_default_acl` before the grant, the console seed of an administrator, and revoking an account's sessions after a role change | `docs/runbooks/applying-a-table-migration-and-its-application-role-grant.md` (docs) |
 
-**Reading:** this plan §4; ADR 0169 D7, D10; ADR 0008 and its notes; ADR 0153 d1 (column grants); ADR 0020; ADR
+**Reading:** this plan §4; ADR 0172 D7, D10; ADR 0008 and its notes; ADR 0153 d1 (column grants); ADR 0020; ADR
 0096 d5; `migration-safety.ts` (shapes and diagnoses); `0005`, `0006`, `0008`, `0010` (headers as templates); the
 runbook. **Reviewer reading:** the same; security adds ADR 0019 d11.
 
@@ -492,7 +492,7 @@ and domain boundaries*. **Reviewer reading:** the same.
 Also: root `package.json` `engines.node` → `">=24.7 <25"` (tooling, not counted). Repo-root `.env.example` gains
 the two Turnstile names (docs).
 
-**Reading:** this plan §2 (D2, D3, D5), §5 *Sessions*, §6; ADR 0169 D2, D3, D5; ADR 0114 d1 (cookie
+**Reading:** this plan §2 (D2, D3, D5), §5 *Sessions*, §6; ADR 0172 D2, D3, D5; ADR 0114 d1 (cookie
 attributes) and `visitor.ts`; `write-token.ts`; `sha256-hex.ts`; `mail/create-mail-sender.ts` (the warning
 pattern); `public-origin.ts`; ADR 0146 (nothing from a driver or vendor leaves); L0's vendor quotations.
 **Reviewer reading:** the same; security adds ADR 0019 Alternative 1's reasons.
@@ -532,7 +532,7 @@ pattern); `public-origin.ts`; ADR 0146 (nothing from a driver or vendor leaves);
 | 3 | In-memory fake with the same contract | `fake-account-store.ts` |
 | 4 | Exports | `index.ts` |
 
-**Reading:** this plan §4, §5 flows 1, 2, 6, 7; ADR 0169 D2, D10; `neon-configuration-repository.ts` (mint and
+**Reading:** this plan §4, §5 flows 1, 2, 6, 7; ADR 0172 D2, D10; `neon-configuration-repository.ts` (mint and
 retry rules), `share-link-repository.ts` (transaction isolation, `issue`), `retry-on-transient-failure.ts`,
 `open-application-database.ts`; ADR 0142, 0145, 0146. **Reviewer reading:** the same.
 
@@ -685,7 +685,7 @@ change under its own review"*), 0164 (d2, d6, must-not list), 0165 (HTML and fal
 | 4 | Orchestration of flow 2: token, password, the transaction, `startSession`, `claimable` count | `lib/server/account/verify-email.ts` |
 | 5 | The closed answer set of every account route (status, body, headers) | `lib/server/account/account-responses.ts` |
 
-**Reading:** this plan §5 (common order, flows 1–2); ADR 0169 D1–D6, D12; `api/designs/[id]/share/route.ts`
+**Reading:** this plan §5 (common order, flows 1–2); ADR 0172 D1–D6, D12; `api/designs/[id]/share/route.ts`
 (order template), `api/contact-submissions/route.ts`, `read-body-with-limit.ts`, `cross-site-request.ts`,
 `rate-limit/rate-limited-response.ts`; L2–L7 modules. **Reviewer reading:** the same; security adds OWASP's
 authentication, registration and enumeration guidance (cited by section, from L0's reads).
@@ -705,7 +705,7 @@ authentication, registration and enumeration guidance (cited by section, from L0
    **Owner ruling 2026-10-18 (applies to L8, L9 and L10, which all call `refusalOfChallenge`):** a request that
    carried a token while siteverify was unreachable is not refused; it proceeds to step 6 with one
    `turnstile`/`unavailable` line logged, and both limiter stages still run in full. A request with no token is always
-   `403`; a misconfigured deployment (`not-configured`) is `503`. ADR 0169 Amendment E, item 5.
+   `403`; a misconfigured deployment (`not-configured`) is `503`. ADR 0172 Amendment E, item 5.
 6. **Every per-address bucket is counted for every valid request before the account is looked up**, so a
    per-address `429` is the same answer, at the same count, for an unknown, an unverified and a verified
    address.
@@ -811,13 +811,13 @@ by reading:
 | 3 | `POST /api/account/logout` (flow 4) | `app/api/account/logout/route.ts` |
 | 4 | `GET /api/account/session` (flow 5) | `app/api/account/session/route.ts` |
 
-**Reading:** this plan §5 (flows 3–5, *Sessions*); ADR 0169 D3–D5; L6 modules. **Reviewer reading:** the same.
+**Reading:** this plan §5 (flows 3–5, *Sessions*); ADR 0172 D3–D5; L6 modules. **Reviewer reading:** the same.
 
 **Acceptance.**
 1. An unknown address and a wrong password produce the **same status and body**, and both run exactly one
    argon2id verification.
 2. **A correct password on an unconfirmed account answers the same `401 invalid-credentials` status and body as a
-   wrong password and an unknown address** (ADR 0169 Amendment A). It does the same work before the response (one
+   wrong password and an unknown address** (ADR 0172 Amendment A). It does the same work before the response (one
    argon2id verification, the same lookup); the resend (limiter count, token insert, mail) runs in `after()`, and its
    limiter refusal is silent. No answer carries `unconfirmed` or `resent`. This closes the oracle in which an attacker
    registers a victim's address with a password of their own and then logs in with it (`unconfirmed` would tell an
@@ -854,7 +854,7 @@ reviewer checks them by reading:
   bucket); a refusal or unavailability there sends no mail and changes no answer. The login's address buckets are not counted again. Logout and who-am-I call neither.
 
 **L9 security review, 2026-10-18: reviewer defaults, applied while the owner is away. Owner-visible; each is a default
-the owner may reverse (ADR 0169 Amendment A).**
+the owner may reverse (ADR 0172 Amendment A).**
 - **F1: the login resend has its own bucket** `account-login-resend-by-address` (5 a day), purpose `mail`, counted only
   inside the silent `after()` job and never answered from. The registration bucket is counted only by `register`.
   Cost: an address can receive up to 5 more account mails a day (15, not 10).
@@ -876,7 +876,7 @@ the owner may reverse (ADR 0169 Amendment A).**
 | 2 | `POST /api/account/password-reset/complete` (flow 7) | `app/api/account/password-reset/complete/route.ts` |
 | 3 | Orchestration of flows 6–7 | `lib/server/account/reset-password.ts` |
 
-**Reading:** this plan §5 (flows 6–7); L4a's `completeReset`; ADR 0169 D2, D5. **Reviewer reading:** the same.
+**Reading:** this plan §5 (flows 6–7); L4a's `completeReset`; ADR 0172 D2, D5. **Reviewer reading:** the same.
 
 **Acceptance.**
 1. The request answers the same for unknown, unverified and verified addresses. Mail goes only to a verified
@@ -932,10 +932,10 @@ outlive the reset.
    `document` are unchanged**, so the claiming browser keeps working exactly as before.
 3. **Route contract (reconciled with the code, L11 review F4).** No live session answers `401`; a session that is
    not a verified account holding `design.edit.own` (an unconfirmed account, or an operator or
-   administrator, who do not hold it: ADR 0169 D7 revised 2026-10-18; decided by `isCapabilityHeld`) answers `403`; neither claims. For a verified client, a missing or malformed visitor cookie
+   administrator, who do not hold it: ADR 0172 D7 revised 2026-10-18; decided by `isCapabilityHeld`) answers `403`; neither claims. For a verified client, a missing or malformed visitor cookie
    gives `{claimable:0}` / `{claimed:0}`. Sign-in and confirmation tell the client `claimable: 0` for any account that
    may not claim.
-   **Staff do not claim and do not own by mint (L11 review F1, ADR 0169 Amendment B):** the claim route refuses a
+   **Staff do not claim and do not own by mint (L11 review F1, ADR 0172 Amendment B):** the claim route refuses a
    staff session, and a design a staff account mints is stored exactly as a visitor's (no `account_id`).
 4. The `GET` changes nothing. The claim happens only on the client's `POST` (the confirmation, Fix 3 item 20).
 5. The mint's bodyless contract, its limiter and its visitor rotation are unchanged. Signed out, the stored row
@@ -1006,7 +1006,7 @@ outlive the reset.
 | 2 | Account pages answer `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`, `Cache-Control: private, no-store` (the `SHARE_VIEW_HEADERS` pattern [src]) | `proxy.ts` |
 | 3 | Turnstile widget (client): loads the script with the request's nonce; receives the site key as a prop from the server; hands a token to the form; resets after each submit | `account/turnstile-widget.tsx` |
 
-**Reading:** this plan §2 (D4, D5), §6; ADR 0161 d1–d2; ADR 0169 D11; `security-headers.ts`, `proxy.ts`; L0's
+**Reading:** this plan §2 (D4, D5), §6; ADR 0161 d1–d2; ADR 0172 D11; `security-headers.ts`, `proxy.ts`; L0's
 Turnstile quotations. **Reviewer reading:** the same.
 
 **Acceptance.**
@@ -1056,7 +1056,7 @@ chrome spec); engineering-conventions *UI and content*, *Localised copy*; `brows
 
 | # | Item | File |
 | --- | --- | --- |
-| 1 | Login screen. It has one failure state: copy of the form "if your details are right, check your inbox" (no `unconfirmed` state, ADR 0169 Amendment A) | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx` |
+| 1 | Login screen. It has one failure state: copy of the form "if your details are right, check your inbox" (no `unconfirmed` state, ADR 0172 Amendment A) | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx` |
 | 2 | Forgot and reset screens (the reset page reads `#t` as the confirm page does) | `app/[locale]/account/forgot-password/page.tsx`, `app/[locale]/account/reset-password/page.tsx` |
 | 3 | Copy | messages (not counted) |
 
@@ -1226,7 +1226,7 @@ Rules for the walk:
 | Risk | Consequence | Response |
 | --- | --- | --- |
 | **No tests this round** | A rule implemented plausibly and wrongly passes review | Security review on every wave. §9 lists the owed tests by criterion. The milestone stays open |
-| **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | the three per-address mail buckets (5/day each), the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider. **Update 2026-10-18:** the owner's direction (ADR 0169 Amendment E) moves account mail, and later the shop's notices, to `@lemnaria.md` via the domain provider. Once the new sender is configured this risk no longer applies to account mail; shop lead notices may still use Gmail until moved. Nothing is built |
+| **One Gmail quota for the shop notice and account mail** (~500 recipients/day for a consumer account, [doc: ADR 0164, owner-brief figure]) | A forgot-password flood starves lead notices | the three per-address mail buckets (5/day each), the block buckets, Turnstile. Q-L4: a dedicated sending account (Q62). M9 picks a provider. **Update 2026-10-18:** the owner's direction (ADR 0172 Amendment E) moves account mail, and later the shop's notices, to `@lemnaria.md` via the domain provider. Once the new sender is configured this risk no longer applies to account mail; shop lead notices may still use Gmail until moved. Nothing is built |
 | **Three mail buckets per address** (`account-register-mail-by-address` for registration, `account-reset-mail-by-address` for the reset link (the "password changed" notice counts none, L10 review L1), `account-login-resend-by-address` for a login's silent resend; 5 a day each; L8 security review F2, L9 security review F1) | **Owner-visible [inf].** A stranger who registers a victim's address five times in a UTC day (each costs a solved Turnstile challenge) uses only the registration bucket, so the victim's reset mail still has its own five. The same stranger can still use the reset bucket by requesting resets five times, and the victim's own reset mail is then refused until 00:00 UTC; the refusal reads the same for every address, so it cannot be used to probe accounts. An address can receive up to fifteen account mails a day (the login resend bucket adds up to five over the L8 split; L9 security review F1), plus at most five "password changed" notices, one per completed reset (L10 review L1) | A single shared bucket was the first design; the split closes registration noise starving a reset, and the third bucket closes sign-in attempts on an unconfirmed address starving a registration's mail. Reset-on-reset starvation remains and is accepted; a per-address figure change is constants, not code. Q-L5 |
 | **Account mail can spend the shop's whole Gmail quota** (L7 security review M2) | **Accepted, owner-visible [inf].** Many addresses, each within its own buckets, can together use the day's ~500 recipients, and a shop lead notice is then refused (`quota-spent`, not retried automatically). Each account mail costs a solved Turnstile challenge, which bounds the rate and not the total | The owner chooses: (a) a **global daily ceiling on account mail** that leaves headroom for shop notices, as an L8 limiter purpose (see the L8 conditions), or (b) a **dedicated sending account** for account mail (Q62). Not done in L7 |
 | **Deliverability** of verification mail from a Gmail address | Mail in spam; a client cannot confirm | Recorded with the trigger *"the owner sees a confirmation not arrive"*. M9's provider choice |
@@ -1236,15 +1236,15 @@ Rules for the walk:
 | **Migration numbering vs M8C** | Sequence error at merge | Merge after M8C or renumber before first apply (§0) |
 | **`designs.account_id` without FK** | A stale id after a hand-deleted account | Code and erasure order. Shape check. Accepted (`0008` precedent) |
 | **Argon2 on the deployment target** | Too slow or too fast | L3 criterion 6 measures; parameters live in the PHC string |
-| **`crypto.argon2` stability** | If marked experimental, an API change in a 24.x patch | L0 reads the docs; fallback scrypt is named. **Read 2026-10-18 [doc: fetched]:** not experimental, added v24.7.0, no warning on local 24.19.0 [run]. The open risk is the Vercel patch level (launch gate 6; ADR 0169 Amendment D) |
+| **`crypto.argon2` stability** | If marked experimental, an API change in a 24.x patch | L0 reads the docs; fallback scrypt is named. **Read 2026-10-18 [doc: fetched]:** not experimental, added v24.7.0, no warning on local 24.19.0 [run]. The open risk is the Vercel patch level (launch gate 6; ADR 0172 Amendment D) |
 | **Screens not yet designed** | L13b, L14a, L14b wait | Server waves do not depend on them. The owner's own order puts design first |
 | **A claimed design cannot be taken back** (L11 review F1) | **Owner-visible [inf].** Whoever claims first keeps the designs on any device, and a visitor cookie's rotation does not revoke a claim already made; there is no unclaim. A client who claims from a shared computer attaches that browser's designs to their account for good | Recorded residual. A later wave gives staff a reassign / unclaim control. L14b's dialog shows what is attached (count, dates, thumbnails) so the person knows before confirming |
 | **A staff account is a visitor for designs** (L11 review F1) | **Owner-visible [inf].** An operator or administrator who browses the configurator is not stamped on the designs they mint, and cannot claim; their designs are reachable by their visitor cookie only | Decided by default: claiming and mint ownership are the `client` role's. Staff reading any design is the `design.read.any` wave (D9) |
 | **`designs.account_id` links a lead to an identified account** (L11 review F2) | **Accepted [inf].** `contact_submissions.design_id` and `designs.account_id` are both readable by the application role, so a lead can be joined to the account that owns the design. Contact data stays unreadable (ADR 0153 d1) | Accepted risk, recorded as a dated note in ADR 0153 (2026-10-18) |
 | **Migration `0015` must be applied wherever this code runs** (L11 review F3) | The mint of a signed-in verified client inserts `account_id`; on a database without `0015` that mint fails, though a signed-out mint still works | Apply `0012`-`0015` in **every** environment that receives this code, **preview included**, before it is deployed there. M9 launch-gate line 2 already covers production |
 | **A write-token cookie, even a wrong or planted one, beats a valid owner session on save and share** (L12b security review L1, 2026-10-18) | **Owner-visible, accepted, Low (availability).** `saveCredentialOf` and `shareCredentialFor` (`apps/web/src/app/api/designs/[id]/route.ts`, `share/route.ts`) choose the token arm whenever a token cookie is present. A same-site sibling origin that knows a design id can plant junk and stop a signed-in owner saving or sharing that design on that device for 30 days. `GET` still says `canWrite: true`. Nothing is exposed; the owner can clear the cookie | Accepted. **Optional mitigation, not shipped, and not to be built before the refusal matrix of §9 exists:** when the token arm raises `DesignWriteForbiddenError` and the request is same-site with an editing session, run the account arm once (a `409` from the token arm wins; the limiter counts once; the same for share) |
-| **Victim lockout by solved challenges** (2026-10-18) | **Owner-visible.** As first built, 30 solved Turnstile challenges lock a victim's login until 00:00 UTC and about 5 block their reset mail | Login throttling changes to failure-only counting, growing delay, 100 / day (ADR 0169 D5; state of the build on its `IMPLEMENTATION STATE` line). The reset-mail bucket is unchanged: residual stays |
-| **Promoting a client strands the designs it claimed** (2026-10-18) | The runbook's administrator seed promotes a client; staff no longer hold `design.read.own` / `design.edit.own`, so its claimed designs stop opening through the account arm (their `account_id` is untouched) | Recorded residual (ADR 0169 D7). The staff-management wave decides how promotion treats them |
+| **Victim lockout by solved challenges** (2026-10-18) | **Owner-visible.** As first built, 30 solved Turnstile challenges lock a victim's login until 00:00 UTC and about 5 block their reset mail | Login throttling changes to failure-only counting, growing delay, 100 / day (ADR 0172 D5; state of the build on its `IMPLEMENTATION STATE` line). The reset-mail bucket is unchanged: residual stays |
+| **Promoting a client strands the designs it claimed** (2026-10-18) | The runbook's administrator seed promotes a client; staff no longer hold `design.read.own` / `design.edit.own`, so its claimed designs stop opening through the account arm (their `account_id` is untouched) | Recorded residual (ADR 0172 D7). The staff-management wave decides how promotion treats them |
 | **A restore loses accounts and un-claims designs** (2026-10-18) | The design export omits `account_id`; there is no accounts export | M9 launch-gate line 7: the accounts backup (QP5) before any real account exists |
 | **Turnstile consent and Cloudflare as a processor are unrecorded** (2026-10-18) | OWNER_FIXES item 17 is not met | Deferred; trigger *before any real user*. M9 launch-gate line 8 |
 | **Account e-mail is readable by the application role** (unlike contact data, ADR 0153 d1) | A leaked `DATABASE_URL` leaks account e-mails | Needed to sign in and to send. Recorded in D11 with the alternative (encryption at rest) and its trigger |
@@ -1263,8 +1263,8 @@ Rules for the walk:
    recommendation):** `package.json` `engines.node` is `24.x` and `password-hash.ts` throws `Argon2UnavailableError`
    when `crypto.argon2` is missing [src: read by the scribe]. **Still open: the `node -v` check in a build log.**
 7. **The accounts backup (QP5)** exists and a restore of it has been rehearsed before any real account exists. A
-   restore of the design export alone returns designs unclaimed and no accounts (ADR 0169 Consequences).
-8. **The Turnstile consent decision and the Cloudflare processor entry** exist (ADR 0169 Consequences).
+   restore of the design export alone returns designs unclaimed and no accounts (ADR 0172 Consequences).
+8. **The Turnstile consent decision and the Cloudflare processor entry** exist (ADR 0172 Consequences).
 
 **Further M9 launch gates, added 2026-10-18** from `docs/legal/privacy-notice-draft.md` (its §0 launch-gate table, §(d)
 processors and its placeholders). The draft is the owner's **working draft only**: not publishable until the
@@ -1272,7 +1272,7 @@ placeholders are filled and the BLOCKING lines clear. Nothing below is built.
 
 *BLOCKING*
 9. **Mail processor contract.** The draft flagged the sender as a consumer Gmail account with an app password (ADR 0164)
-   and so no Art. 28 contract. **Owner direction 2026-10-18** (ADR 0169 Amendment E): all mail, account mail and the
+   and so no Art. 28 contract. **Owner direction 2026-10-18** (ADR 0172 Amendment E): all mail, account mail and the
    shop's lead notices, is sent and received on `@lemnaria.md` through the domain provider; Gmail is to be retired from
    both paths. **Timing (owner, 2026-10-18, *"now till development keep gmail one as it works"*):** the move is the
    target; Gmail keeps working for both paths during development, nothing is retired, and the cutover is a later owner
@@ -1286,7 +1286,7 @@ placeholders are filled and the BLOCKING lines clear. Nothing below is built.
     deleted at 365 days; unverified accounts at 30 days; a horizon for sessions and tokens (draft: 90 d / 7 d); erasure
     on request; data export. **Erasure must reach the shop's receiving inbox and the shop's WhatsApp copies** (draft §0),
     which are now `@lemnaria.md` mailboxes plus WhatsApp. A horizon for anonymous designs and for contact requests is
-    also a placeholder. The retention-job record must supersede ADR 0019's 2026-09-15 note explicitly (ADR 0169).
+    also a placeholder. The retention-job record must supersede ADR 0019's 2026-09-15 note explicitly (ADR 0172).
 
 *Needs a lawyer or the authority (owner to verify with the CNPDCP where Moldovan)*
 11. Turnstile running without consent (the draft's item 4; related to line 8).
@@ -1302,10 +1302,10 @@ placeholders are filled and the BLOCKING lines clear. Nothing below is built.
     checkbox as an acknowledgement, or make consent the basis. Not both.
 19. **Russian translation** of the notice (the app ships `ru`).
 20. **Registration sends `PRIVACY_NOTICE_VERSIONS[0]`**, and the real published version replaces the placeholder
-    `2026-10-draft` (ADR 0169 Amendment E, item 4); each version's text is archived.
+    `2026-10-draft` (ADR 0172 Amendment E, item 4); each version's text is archived.
 21. **The accounts ADR is renumbered at merge, before `0012` is applied (added 2026-10-18).** The M8C branch in the
-    primary checkout holds a different ADR 0169 (migration commands), 0170 and 0171, so this plan's ADR 0169 must take a
-    free number; its citations (the `0012`–`0015` headers and other files; see ADR 0169 *Remaining before production*,
+    primary checkout held a different ADR 0169 (migration commands), 0170 and 0171, so this plan's ADR took the free
+    number 0172 at the merge (it was written as ADR 0169); its citations (the `0012`–`0015` headers and other files; see ADR 0172 *Remaining before production*,
     item 9) are re-pointed in the same change.
 
 **Waves L13b to L14b wait for Claude Design** (screens). The prompt is
@@ -1315,7 +1315,7 @@ screens back.
 ## Review record (written 2026-10-18)
 
 - **Security review ran** on L1, L3, L4a, L4b+L5, L7, L8, L9, L10, L11, L12a, L12b and L13a; the reports were acted on
-  (their findings are in §10 and ADR 0169 and its amendments).
+  (their findings are in §10 and ADR 0172 and its amendments).
 - **The planned logic and clean-code reviews had NOT run** at the time this note was first written; results are appended
   below (2026-10-18).
 - **Logic and clean-code review have now run** (two of each, split `packages/` and `apps/web/src`). **No blockers.**
@@ -1344,7 +1344,7 @@ screens back.
       record-on-any-failure, recorded identically for unknown, wrong, refused and unconfirmed (enumeration rule);
       (3) reset on success (a reset port or a success-epoch in the key); (4) a decision on the check/record race and
       the `503` hash-failure path; (5) the `sign-in.ts` header updated. Owner: the coordinator assigns a wave; no
-      owner decision is outstanding (ADR 0169 D5). `docs/backlog/open.md` was not used: it holds observed product
+      owner decision is outstanding (ADR 0172 D5). `docs/backlog/open.md` was not used: it holds observed product
       behaviour, and engineering deferrals live here and in STATUS.
     - The fake and Neon same-tick token tie-break differs; on Neon it is a coin flip.
     - The confirm page copy must say "if you already confirmed, sign in".
@@ -1358,7 +1358,7 @@ screens back.
     4. The union-all resume query.
     5. The `->> a.role` lookup.
 - The waves are **not yet through the planned review tier with executed evidence** (`docs/WORKFLOW.md`).
-- **Deviation from the no-tests rule (ADR 0169 D12).** Developers ran vitest twice: in L7 (`tests/lib/server/mail` and
+- **Deviation from the no-tests rule (ADR 0172 D12).** Developers ran vitest twice: in L7 (`tests/lib/server/mail` and
   `tests/i18n`, 5 failures) and in L1 (`migration-files` and `migration-safety`, 3 failures, from the missing `0011`).
   Roughly 50 existing test call-shape edits, and a new adapter `tests/support/flat-share-repository.ts`, were made
   only to keep typecheck green. They are not new coverage (see §9, L12b).
@@ -1369,12 +1369,12 @@ screens back.
 | --- | --- | --- |
 | **Q-L1** (QP2) | How long does a session last? | Client: 30 days idle, 90 days absolute. Operator and administrator: 12 hours idle, 7 days absolute |
 | **Q-L2** (part of QP1) | If the breached-password service cannot be reached, is the password accepted? | **Yes**, if it meets the length rule. The event is logged. (The minimum is 12, as Fix 3 item 1 proposed) |
-| **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **Answered by the owner, 2026-10-18: yes, with the limiters as the control.** *"we will have rate limit on this so no blocking if turnstile is not reachable"* (ADR 0169 Amendment E, item 5). The reviewer default ("No") is withdrawn. A missing key or origin is a misconfiguration and still answers `503` |
+| **Q-L3** | If Cloudflare's Turnstile check cannot be reached, can a client still log in? | **Answered by the owner, 2026-10-18: yes, with the limiters as the control.** *"we will have rate limit on this so no blocking if turnstile is not reachable"* (ADR 0172 Amendment E, item 5). The reviewer default ("No") is withdrawn. A missing key or origin is a misconfiguration and still answers `503` |
 | **Q-L4** (Q62) | Do confirmation and reset e-mails leave from the same Gmail account as the shop's notice? | Yes until M9, with the per-address bucket. **A dedicated sending account is recommended** |
 | **Q-L5** (L5 review F7) | Should a password-reset mail have its own per-address bucket, apart from registration and resend mail (see §10)? | **Yes, answered by default in the L8 security review (F2): separate buckets**, `account-register-mail-by-address` (registration notices) and `account-reset-mail-by-address` (the reset request; the "password changed" notice counts none, L10 review L1), 5 a day each; **and a dedicated login-resend bucket `account-login-resend-by-address`, added by default in the L9 security review (F1)**, 5 a day. Owner-visible; the owner may change any figure (constants only) |
 
 **Q-L1, Q-L2 and Q-L5 (the defaults below; Q-L3 is the owner's since 2026-10-18), D12 and Amendments A–C are reviewer defaults, not yet ratified in the owner's words** (the list
-is in ADR 0169 Amendment E, item 2). Q-L4 is answered by the owner, 2026-10-18: *"keep same email as sender"*; so is Q-L3: *"we will have rate limit on this so no blocking if turnstile is not reachable"*.
+is in ADR 0172 Amendment E, item 2). Q-L4 is answered by the owner, 2026-10-18: *"keep same email as sender"*; so is Q-L3: *"we will have rate limit on this so no blocking if turnstile is not reachable"*.
 
 **Owner steps** (not questions):
 - create the Turnstile widgets and set the two variables;

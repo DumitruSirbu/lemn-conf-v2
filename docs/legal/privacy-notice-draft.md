@@ -11,7 +11,7 @@ research agent. Nothing in this file is in force.
 
 > **Owner note, 2026-10-18 (added by the scribe):** the owner accepted this file as the **working draft only**, and ruled
 > that all mail, account mail and the shop's notices, will be sent and received on `@lemnaria.md` through the domain
-> provider (ADR 0169 Amendment E; direction, nothing built; Gmail stays the working sender during development and the
+> provider (ADR 0172 Amendment E; direction, nothing built; Gmail stays the working sender during development and the
 > no-processor-contract blocker below stands until cutover). Where the draft names Google/Gmail as the mail processor
 > (§5, §6, §(d)), read it as the domain provider (name PLACEHOLDER) once Gmail is retired; the text below is not yet
 > changed. Launch gates: `docs/milestones/M8B-login-register-plan.md` §10.
@@ -30,15 +30,15 @@ Evidence labels used throughout:
 ## 0. Launch gate — read before publishing anything
 
 The notice may only state what is **true on the day it is published**. Several statements the owner asked for are
-**intentions that the code does not yet carry out** [src, `docs/decisions/0169-…md`]:
+**intentions that the code does not yet carry out** [src, `docs/decisions/0172-…md`]:
 
 | Statement in the draft                                   | State in the repository today                                                                                                                                        |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Drafts deleted after 1 year (365 days)                   | **Deferred** — ADR 0169 table: "Retention: drafts 365 days, sent kept — Deferred" (plan §12 "Retention job")                                                         |
-| Unverified accounts deleted after 30 days                | **Deferred** — ADR 0169: "Q-F3-7: unverified accounts deleted after 30 days — Deferred"                                                                              |
-| Erasure on request removes everything incl. sent kitchens | **Deferred** — ADR 0169: "The notice text, processors list, export, erasure and the Moldovan check are deferred"                                                      |
+| Drafts deleted after 1 year (365 days)                   | **Deferred** — ADR 0172 table: "Retention: drafts 365 days, sent kept — Deferred" (plan §12 "Retention job")                                                         |
+| Unverified accounts deleted after 30 days                | **Deferred** — ADR 0172: "Q-F3-7: unverified accounts deleted after 30 days — Deferred"                                                                              |
+| Erasure on request removes everything incl. sent kitchens | **Deferred** — ADR 0172: "The notice text, processors list, export, erasure and the Moldovan check are deferred"                                                      |
 | Data export (portability)                                | **Deferred** — same line                                                                                                                                             |
-| Sessions and tokens have a deletion horizon              | **None exists** — ADR 0169: "Retention: no horizon exists for sessions or tokens … expired rows accumulate"                                                           |
+| Sessions and tokens have a deletion horizon              | **None exists** — ADR 0172: "Retention: no horizon exists for sessions or tokens … expired rows accumulate"                                                           |
 | The notice version shown at registration is recorded     | Column exists (`accounts.privacy_notice_version`, check `^[a-z0-9.-]{1,32}$`, migration 0012) [src]; no value is wired in `apps/web/src` yet [src: grep found none]   |
 | Backups rotate in 14 days                                | Owner's figure; not checked here [not verified]                                                                                                                      |
 | Shop notices sent by e-mail are erased on request        | **Not true today [inf]:** ADR 0164 says "The sending account's *Sent* folder keeps every notice". A manual or scripted purge of the Gmail *Sent* folder must exist.   |
@@ -427,7 +427,7 @@ Guidelines 2/2023 v2.0 (7 Oct 2024) extend Art. 5(3) beyond cookies to other rea
 
 | Name                          | Set by          | Purpose                                                       | Lifetime                                                                                     | Category                 | Evidence                                                                                          |
 | ----------------------------- | --------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------- |
-| `__Host-lemnaria_session`     | Lemnaria        | Keeps a signed-in user signed in; HttpOnly, Secure, SameSite=Lax | `Max-Age` = absolute session life: clients 90 d (idle end 30 d, server-side), staff 7 d (idle 12 h) | Strictly necessary (authentication) | [src] ADR 0169 D3; `apps/web/src/lib/server/account/session-cookie.ts`, `session-lifetimes.ts` |
+| `__Host-lemnaria_session`     | Lemnaria        | Keeps a signed-in user signed in; HttpOnly, Secure, SameSite=Lax | `Max-Age` = absolute session life: clients 90 d (idle end 30 d, server-side), staff 7 d (idle 12 h) | Strictly necessary (authentication) | [src] ADR 0172 D3; `apps/web/src/lib/server/account/session-cookie.ts`, `session-lifetimes.ts` |
 | `__Host-lemnaria_visitor`     | Lemnaria        | Marks the browser that owns anonymous designs                 | 30 d, sliding on each save                                                                   | Strictly necessary (the user asked to keep a design) | [src] `apps/web/src/lib/server/visitor.ts:17,24`; ADR 0114                                   |
 | `lemnaria_write_token_<id>`   | Lemnaria        | Lets only the owning browser edit that design; one per design, path-scoped | 30 d, sliding                                                                                | Strictly necessary       | [src] `apps/web/src/lib/server/write-token.ts:18,20`                                             |
 | `NEXT_LOCALE`                 | Lemnaria (next-intl) | Remembers the chosen language; set only when it differs from the browser's language | Session (no `Max-Age` in next-intl 4.14.2 config or app config)                             | Strictly necessary / UI preference requested by the user [inf] | [src] `apps/web/src/i18n/routing.ts`; `next-intl/dist/esm/development/routing/config.js`, `middleware/syncCookie.js` |
@@ -442,8 +442,8 @@ Result: **no consent banner is required** for the cookies above [inf], but the t
 "strictly necessary … explicitly requested" exemption, and WP194's security-cookie reasoning supports it. The weak
 point is Cloudflare's **own** use of the same signals to improve its product, which is not necessary for the
 user's request. Mitigations already in place or recommended: load Turnstile only on register, login and reset
-(ADR 0169 D5 [src]); disclose Cloudflare's controller role (done in §5). A lawyer should confirm (item 4 of the box
-at the top). ADR 0169 already lists this as an M9 launch-gate line [src].
+(ADR 0172 D5 [src]); disclose Cloudflare's controller role (done in §5). A lawyer should confirm (item 4 of the box
+at the top). ADR 0172 already lists this as an M9 launch-gate line [src].
 
 ---
 

@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin:0; background:#e7e3da; -webkit-font-smoothing:antialiased; }
+  a { color:#7c5c3d; }
+  a:hover { color:#5a3e25; }
+  .num { font-variant-numeric:tabular-nums; }
+  @keyframes shimmer { 0% { opacity:.45 } 50% { opacity:.9 } 100% { opacity:.45 } }
+  @keyframes spin { to { transform:rotate(360deg) } }
+</style>
+</helmet>
+
+<div style="padding:{{ rootPad }};font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1c1d1f;display:flex;flex-direction:column;gap:72px">
+
+  <sc-if value="{{ standalone }}" hint-placeholder-val="{{ true }}">
+    <header style="max-width:780px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+        <span style="width:1px;height:16px;background:#dcd8ce"></span>
+        <span style="font:400 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7d7a72">Presete · mobil 390 × 844 și desktop 1440 × 900</span>
+      </div>
+      <h1 style="margin:0;font:700 34px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;max-width:22ch">Presete: listă, previzualizare cu slider și „Salvează ca preset”</h1>
+      <p style="margin:0;font:400 14.5px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:66ch;text-wrap:pretty">Cadrele 1E (revizuit), 1D, 1G, 1H, 3S și 3T, cu stările alături de varianta implicită. Variantele rusești folosesc șiruri de probă, marcate RU TBD, cu excepția „Выбрать этот пресет”. Textele noi sunt marcate NEW COPY.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:9px 11px;border-radius:5px">RU TBD — de confirmat cu catalogul</span>
+        <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Inel de focus: 2 px gol + 2 px cerneală</span>
+        <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Mișcare: fade 150–200 ms, fără wrap</span>
+      </div>
+    </header>
+  </sc-if>
+
+  <sc-if value="{{ showMobile }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-direction:column;gap:72px">
+
+    <!-- ===== MOBIL · LISTĂ ===== -->
+    <section style="display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+        <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Mobil · Ecran 1</span>
+        <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Presete care încap · 1D, 1E revizuit</span>
+        <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">/configurator/room → presete</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+        <sc-for list="{{ mList }}" as="f" hint-placeholder-count="4">
+          <div id="{{ f.id }}" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">{{ f.chip }}</span>
+              <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{ f.title }}</span>
+              <sc-if value="{{ f.ru }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:4px 6px;border-radius:4px">RU TBD</span></sc-if>
+            </div>
+            <div style="width:{{ f.w }}px;height:844px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+              <div style="padding:11px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #e4dfd5;flex:0 0 auto">
+                <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;flex:0 0 auto">Lemnaria</span>
+                <span class="num" style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#faf8f4;background:#7c5c3d;padding:5px 6px;border-radius:5px;flex:0 0 auto">1/4</span>
+                <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.t.step }}</span>
+                <span style="display:flex;align-items:center;gap:4px;flex:0 0 auto;padding:6px 8px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:8px">
+                  <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">{{ f.t.lang }}</span>
+                  <span style="font:400 10px/1 Helvetica,Arial,sans-serif;color:#7d7a72">▾</span>
+                </span>
+              </div>
+              <div data-scroll-end="{{ f.scrollEnd }}" style="flex:1;min-height:0;overflow-y:auto;padding:18px 18px 20px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;flex-direction:column;gap:5px;flex:0 0 auto">
+                  <h2 style="margin:0;font:700 22px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.015em;text-wrap:balance">{{ f.t.heading }}</h2>
+                  <span class="num" style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.room }}</span>
+                </div>
+                <sc-if value="{{ f.loading }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:14px">
+                    <div style="display:flex;align-items:center;gap:9px;padding:11px 13px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:11px">
+                      <span style="width:14px;height:14px;flex:0 0 14px;box-sizing:border-box;border:2px solid #dcd8ce;border-top-color:#7c5c3d;border-radius:50%;animation:spin .9s linear infinite"></span>
+                      <span style="font:400 12.5px/1.4 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.checking }}</span>
+                    </div>
+                    <div style="border:1px solid #e4dfd5;border-radius:15px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out infinite">
+                      <div style="aspect-ratio:4/3;background:#e8e3da"></div>
+                      <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+                        <span style="width:60%;height:14px;border-radius:4px;background:#e2ddd3"></span>
+                        <span style="width:100%;height:44px;border-radius:11px;background:#ebe6dd"></span>
+                      </div>
+                    </div>
+                    <div style="border:1px solid #e4dfd5;border-radius:15px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out .3s infinite">
+                      <div style="aspect-ratio:4/3;background:#e8e3da"></div>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-for list="{{ f.cards }}" as="c" hint-placeholder-count="2">
+                  <div style="flex:0 0 auto;display:flex;flex-direction:column;border:1px solid #dcd8ce;border-radius:15px;overflow:hidden;background:#faf8f4">
+                    <div style="position:relative;aspect-ratio:4/3;background:#efece5;border-bottom:1px solid #e4dfd5">
+                      <sc-if value="{{ c.ok }}" hint-placeholder-val="{{ true }}"><img src="{{ c.img }}" alt="{{ c.name }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block"></sc-if>
+                      <sc-if value="{{ c.failed }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#e9e4da 0 8px,#f1ede5 8px 16px);display:flex;align-items:center;justify-content:center;padding:18px">
+                          <span style="max-width:80%;font:700 14px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52;text-align:center;background:rgba(250,248,244,.9);padding:9px 12px;border-radius:8px;text-wrap:balance">{{ c.name }}</span>
+                        </div>
+                      </sc-if>
+                    </div>
+                    <div style="padding:13px 14px 14px;display:flex;flex-direction:column;gap:10px">
+                      <span style="font:700 15.5px/1.3 Helvetica,Arial,sans-serif;text-wrap:pretty;overflow-wrap:anywhere">{{ c.name }}</span>
+                      <sc-if value="{{ c.adjusted }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;gap:7px;align-items:flex-start;padding:8px 10px;background:#eef1ea;border-radius:9px">
+                          <span style="width:14px;height:14px;flex:0 0 14px;margin-top:1px;border-radius:50%;background:#2d5016;color:#fff;font:700 10px/14px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+                          <span style="font:400 12px/1.35 Helvetica,Arial,sans-serif;color:#2d5016">{{ c.adjustedLabel }}</span>
+                        </div>
+                      </sc-if>
+                      <div style="min-height:44px;padding:6px 12px;box-sizing:border-box;border-radius:11px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;text-align:center;font:700 13.5px/1.2 Helvetica,Arial,sans-serif;color:#5a3e25">{{ c.previewLabel }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="flex:0 0 auto;border-top:1px solid #dcd8ce;background:#faf8f4;padding:14px 18px 20px;display:flex;gap:10px">
+                <div style="flex:0 0 96px;min-height:52px;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.back }}</div>
+                <sc-if value="{{ f.genBtn }}" hint-placeholder-val="{{ true }}">
+                  <div style="flex:1;min-width:0;min-height:52px;padding:8px 12px;box-sizing:border-box;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;text-align:center;font:700 15px/1.2 Helvetica,Arial,sans-serif;color:#faf8f4;text-wrap:balance">{{ f.t.generate }}</div>
+                </sc-if>
+              </div>
+            </div>
+            <span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:{{ f.w }}px;text-wrap:pretty">{{ f.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- ===== MOBIL · PREVIZUALIZARE ===== -->
+    <section style="display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+        <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Mobil · Ecran 1</span>
+        <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Previzualizare cu slider · 1G, 1H</span>
+        <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">bottom sheet modal peste 1E</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+        <sc-for list="{{ mPrev }}" as="f" hint-placeholder-count="3">
+          <div id="{{ f.id }}" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">{{ f.chip }}</span>
+              <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{ f.title }}</span>
+              <sc-if value="{{ f.ru }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:4px 6px;border-radius:4px">RU TBD</span></sc-if>
+            </div>
+            <div style="width:{{ f.w }}px;height:844px;position:relative;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+              <div style="padding:11px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #e4dfd5">
+                <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;flex:0 0 auto">Lemnaria</span>
+                <span class="num" style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#faf8f4;background:#7c5c3d;padding:5px 6px;border-radius:5px;flex:0 0 auto">1/4</span>
+                <span style="font:700 15px/1 Helvetica,Arial,sans-serif;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.t.step }}</span>
+                <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25;padding:6px 8px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:8px">{{ f.t.lang }} ▾</span>
+              </div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:14px">
+                <span style="font:700 22px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.015em">{{ f.t.heading }}</span>
+                <div style="border:1px solid #dcd8ce;border-radius:15px;overflow:hidden">
+                  <div style="aspect-ratio:4/3;background:#efece5"><img src="shots/presets/01-p.png" alt="" style="width:100%;height:100%;object-fit:contain;display:block"></div>
+                </div>
+              </div>
+              <div style="position:absolute;inset:0;background:rgba(28,24,20,.52)"></div>
+              <div role="dialog" aria-modal="true" style="position:absolute;left:0;right:0;bottom:0;background:#faf8f4;border-radius:22px 22px 0 0;box-shadow:0 -16px 36px rgba(28,24,20,.22);display:flex;flex-direction:column;gap:14px;padding:10px 18px 22px">
+                <span style="width:40px;height:4px;border-radius:2px;background:#dcd8ce;align-self:center"></span>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:-6px">
+                  <span class="num" style="font:700 13px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52">{{ f.counter }}</span>
+                  <span aria-label="{{ f.t.close }}" style="position:relative;width:44px;height:44px;flex:0 0 44px;box-sizing:border-box;border-radius:50%;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:400 20px/1 Helvetica,Arial,sans-serif;color:#6b5e52;box-shadow:{{ f.closeRing }}">×<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">1</span></sc-if></span>
+                </div>
+                <div style="position:relative;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#efece5;border:1px solid #e4dfd5">
+                  <sc-if value="{{ f.imgOk }}" hint-placeholder-val="{{ true }}"><img src="{{ f.img }}" alt="{{ f.name }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block"></sc-if>
+                  <sc-if value="{{ f.imgLoading }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#e8e3da;animation:shimmer 1.6s ease-in-out infinite"></div></sc-if>
+                  <sc-if value="{{ f.imgFailed }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#e9e4da 0 8px,#f1ede5 8px 16px);display:flex;align-items:center;justify-content:center;padding:20px">
+                      <span style="max-width:82%;font:700 14px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52;text-align:center;background:rgba(250,248,244,.9);padding:9px 12px;border-radius:8px;text-wrap:balance">{{ f.name }}</span>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <span style="font:700 19px/1.25 Helvetica,Arial,sans-serif;letter-spacing:-.01em;text-wrap:pretty;overflow-wrap:anywhere">{{ f.name }}</span>
+                  <sc-if value="{{ f.adjusted }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;gap:7px;align-items:flex-start;padding:8px 10px;background:#eef1ea;border-radius:9px;align-self:flex-start">
+                      <span style="width:14px;height:14px;flex:0 0 14px;margin-top:1px;border-radius:50%;background:#2d5016;color:#fff;font:700 10px/14px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+                      <span style="font:400 12.5px/1.35 Helvetica,Arial,sans-serif;color:#2d5016">{{ f.t.adjusted }}</span>
+                    </div>
+                  </sc-if>
+                </div>
+                <div aria-live="polite" style="min-height:44px;display:flex;flex-direction:column;justify-content:center">
+                  <sc-if value="{{ f.st.show }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;gap:9px;align-items:flex-start;padding:11px 13px;background:{{ f.st.bg }};border:1px solid {{ f.st.bd }};border-radius:10px">
+                      <sc-if value="{{ f.st.spin }}" hint-placeholder-val="{{ false }}"><span style="width:15px;height:15px;flex:0 0 15px;margin-top:1px;box-sizing:border-box;border:2px solid #dcd8ce;border-top-color:#7c5c3d;border-radius:50%;animation:spin .9s linear infinite"></span></sc-if>
+                      <sc-if value="{{ f.st.glyph }}" hint-placeholder-val="{{ false }}"><span style="width:16px;height:16px;flex:0 0 16px;margin-top:1px;border-radius:50%;background:{{ f.st.ic }};color:#fff;font:700 11px/16px Helvetica,Arial,sans-serif;text-align:center">{{ f.st.g }}</span></sc-if>
+                      <span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:{{ f.st.fg }};text-wrap:pretty">{{ f.st.text }}</span>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <sc-if value="{{ f.multi }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;gap:10px">
+                      <div aria-disabled="{{ f.prev.dis }}" style="position:relative;flex:1;min-width:0;min-height:48px;padding:6px 10px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.prev.bd }};background:{{ f.prev.bg }};color:{{ f.prev.fg }};box-shadow:{{ f.prev.ring }};display:flex;align-items:center;justify-content:center;gap:7px;text-align:center;font:700 14px/1.2 Helvetica,Arial,sans-serif"><span aria-hidden="true" style="font-size:18px">‹</span>{{ f.t.prev }}<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">2</span></sc-if></div>
+                      <div aria-disabled="{{ f.next.dis }}" style="position:relative;flex:1;min-width:0;min-height:48px;padding:6px 10px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.next.bd }};background:{{ f.next.bg }};color:{{ f.next.fg }};box-shadow:{{ f.next.ring }};display:flex;align-items:center;justify-content:center;gap:7px;text-align:center;font:700 14px/1.2 Helvetica,Arial,sans-serif">{{ f.t.next }}<span aria-hidden="true" style="font-size:18px">›</span><sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">3</span></sc-if></div>
+                    </div>
+                  </sc-if>
+                  <div aria-disabled="{{ f.sel.dis }}" style="position:relative;min-height:52px;padding:8px 14px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.sel.bd }};background:{{ f.sel.bg }};color:{{ f.sel.fg }};box-shadow:{{ f.sel.ring }};display:flex;align-items:center;justify-content:center;text-align:center;font:700 15px/1.2 Helvetica,Arial,sans-serif">{{ f.t.select }}<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">4</span></sc-if></div>
+                </div>
+              </div>
+            </div>
+            <span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:{{ f.w }}px;text-wrap:pretty">{{ f.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- ===== MOBIL · SALVEAZĂ CA PRESET ===== -->
+    <section style="display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+        <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#2d5016">Mobil · Ecran 2</span>
+        <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Salvează ca preset · 3S, 3T</span>
+        <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">unealtă de expert în editor</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+        <sc-for list="{{ mEdit }}" as="f" hint-placeholder-count="3">
+          <div id="{{ f.id }}" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#2d5016;padding:5px 7px;border-radius:4px">{{ f.chip }}</span>
+              <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{ f.title }}</span>
+              <sc-if value="{{ f.ru }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:4px 6px;border-radius:4px">RU TBD</span></sc-if>
+            </div>
+            <div style="width:{{ f.w }}px;height:844px;position:relative;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+              <div style="padding:11px 14px;display:flex;align-items:center;gap:9px;border-bottom:1px solid #e4dfd5;background:#faf8f4;z-index:2">
+                <span style="font:700 17px/1 Helvetica,Arial,sans-serif;color:#7c5c3d;flex:0 0 auto;width:22px;text-align:center">‹</span>
+                <span class="num" style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#faf8f4;background:#7c5c3d;padding:5px 6px;border-radius:5px;flex:0 0 auto">2/4</span>
+                <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.t.configure }}</span>
+                <span style="display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;max-width:150px;padding:7px 9px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:9px">
+                  <span style="width:14px;height:14px;flex:0 0 14px;border-radius:3px;background:repeating-linear-gradient(0deg,#d9d2c6 0 3px,#cfc7b9 3px 6px);border:1px solid #c4bcae"></span>
+                  <span style="font:700 11px/1 Helvetica,Arial,sans-serif;color:#6b5e52;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">PAL melaminat</span>
+                  <span class="num" style="font:700 10px/1 Helvetica,Arial,sans-serif;color:#7c5c3d;flex:0 0 auto">+2</span>
+                </span>
+                <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25;padding:6px 8px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:8px;flex:0 0 auto">{{ f.t.lang }} ▾</span>
+              </div>
+              <div style="flex:1;position:relative;background:#f2f0ea;overflow:hidden">
+                <img src="shots/presets/01-p.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">
+                <div style="position:absolute;left:14px;right:14px;top:14px;display:flex;flex-wrap:wrap;gap:7px">
+                  <span style="font:700 11px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:rgba(250,248,244,.92);border:1px solid #dcd8ce;padding:8px 10px;border-radius:20px">{{ f.t.view0 }}</span>
+                  <span style="font:400 11px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.8);border:1px solid #dcd8ce;padding:8px 10px;border-radius:20px">{{ f.t.view1 }}</span>
+                  <span style="font:400 11px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.8);border:1px solid #dcd8ce;padding:8px 10px;border-radius:20px">{{ f.t.view2 }}</span>
+                </div>
+                <sc-if value="{{ f.chipOn }}" hint-placeholder-val="{{ true }}">
+                  <div style="position:absolute;right:14px;bottom:64px;height:44px;padding:0 16px;box-sizing:border-box;display:flex;align-items:center;background:rgba(250,248,244,.95);border:1px solid #dcd8ce;border-radius:22px;font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;white-space:nowrap;box-shadow:{{ f.chipRing }}">{{ f.t.saveChip }}</div>
+                  <div style="position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center;padding:0 14px;pointer-events:none">
+                    <span style="font:400 12px/1.2 Helvetica,Arial,sans-serif;color:#5a3e25;background:rgba(250,248,244,.92);border:1px solid #dcd8ce;padding:10px 13px;border-radius:22px;text-align:center">{{ f.t.hint }}</span>
+                  </div>
+                </sc-if>
+              </div>
+              <div style="border-top:1px solid #dcd8ce;background:#faf8f4;padding:12px 18px 20px;display:flex;flex-direction:column;gap:11px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <span style="font:400 10.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7d7a72">{{ f.t.from }}</span>
+                    <span class="num" style="font:700 21px/1 Helvetica,Arial,sans-serif">43.000 MDL</span>
+                  </div>
+                  <span style="font:700 12px/1.2 Helvetica,Arial,sans-serif;color:#7c5c3d;text-align:right">{{ f.t.why }} ⌃</span>
+                </div>
+                <div style="display:flex;gap:10px">
+                  <div style="flex:0 0 96px;height:52px;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.back }}</div>
+                  <div style="flex:1;min-width:0;height:52px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;justify-content:center;text-align:center;font:700 15px/1.2 Helvetica,Arial,sans-serif;color:#faf8f4">{{ f.t.verify }}</div>
+                </div>
+              </div>
+              <sc-if value="{{ f.sheet }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;left:0;right:0;bottom:0;height:470px;background:#faf8f4;border-top:1px solid #dcd8ce;border-radius:22px 22px 0 0;box-shadow:0 -16px 36px rgba(28,24,20,.18);display:flex;flex-direction:column;gap:14px;padding:11px 18px 20px;z-index:3">
+                  <span style="width:40px;height:4px;border-radius:2px;background:#dcd8ce;align-self:center"></span>
+                  <div style="flex:1;border-radius:12px;background:repeating-linear-gradient(135deg,#e9e4da 0 9px,#f1ede5 9px 18px);display:flex;align-items:center;justify-content:center">
+                    <span style="font:400 11px/1 ui-monospace,Menlo,Consolas,monospace;color:#8d8377">[ sheet de editare corp — vezi 2B ]</span>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ f.dialog }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;background:rgba(28,24,20,.52);z-index:4"></div>
+                <div role="dialog" aria-modal="true" style="position:absolute;left:0;right:0;bottom:0;z-index:5;background:#faf8f4;border-radius:22px 22px 0 0;box-shadow:0 -16px 36px rgba(28,24,20,.22);display:flex;flex-direction:column;gap:16px;padding:10px 18px 22px">
+                  <span style="width:40px;height:4px;border-radius:2px;background:#dcd8ce;align-self:center"></span>
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-top:-4px">
+                    <div style="display:flex;flex-direction:column;gap:6px;padding-top:4px;min-width:0">
+                      <h2 style="margin:0;font:700 19px/1.25 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{ f.t.saveTitle }}</h2>
+                      <span style="font:400 13.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{ f.t.saveIntro }}</span>
+                    </div>
+                    <span style="position:relative;width:44px;height:44px;flex:0 0 44px;box-sizing:border-box;border-radius:50%;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:400 20px/1 Helvetica,Arial,sans-serif;color:#6b5e52">×<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">4</span></sc-if></span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <span style="font:700 12.5px/1.2 Helvetica,Arial,sans-serif;color:#1c1d1f">{{ f.t.nameLabel }}</span>
+                    <div style="position:relative;min-height:48px;padding:12px 14px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.inBd }};background:{{ f.inBg }};box-shadow:{{ f.inRing }};display:flex;align-items:center;font:400 16px/1.3 Helvetica,Arial,sans-serif;color:{{ f.inFg }};overflow-wrap:anywhere">{{ f.inText }}<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">1</span></sc-if></div>
+                  </div>
+                  <div aria-live="polite" style="min-height:44px;display:flex;flex-direction:column;justify-content:center">
+                    <sc-if value="{{ f.st.show }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;gap:9px;align-items:flex-start;padding:11px 13px;background:{{ f.st.bg }};border:1px solid {{ f.st.bd }};border-radius:10px">
+                        <sc-if value="{{ f.st.spin }}" hint-placeholder-val="{{ false }}"><span style="width:15px;height:15px;flex:0 0 15px;margin-top:1px;box-sizing:border-box;border:2px solid #dcd8ce;border-top-color:#7c5c3d;border-radius:50%;animation:spin .9s linear infinite"></span></sc-if>
+                        <sc-if value="{{ f.st.glyph }}" hint-placeholder-val="{{ false }}"><span style="width:16px;height:16px;flex:0 0 16px;margin-top:1px;border-radius:50%;background:{{ f.st.ic }};color:#fff;font:700 11px/16px Helvetica,Arial,sans-serif;text-align:center">{{ f.st.g }}</span></sc-if>
+                        <span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:{{ f.st.fg }};text-wrap:pretty">{{ f.st.text }}</span>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;gap:10px">
+                    <div style="position:relative;flex:0 0 auto;min-width:96px;min-height:52px;padding:0 18px;box-sizing:border-box;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 14px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.close }}<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">2</span></sc-if></div>
+                    <div aria-disabled="{{ f.saveB.dis }}" style="position:relative;flex:1 1 140px;min-height:52px;padding:8px 14px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.saveB.bd }};background:{{ f.saveB.bg }};color:{{ f.saveB.fg }};box-shadow:{{ f.saveB.ring }};display:flex;align-items:center;justify-content:center;text-align:center;font:700 15px/1.2 Helvetica,Arial,sans-serif">{{ f.t.save }}<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">3</span></sc-if></div>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+            <span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:{{ f.w }}px;text-wrap:pretty">{{ f.note }}</span>
+          </div>
+        </sc-for>
+
+        <div id="3t-copy" style="display:flex;flex-direction:column;gap:12px;width:440px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#2d5016;padding:5px 7px;border-radius:4px">3T · copy</span>
+            <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">Refuzuri · același tipar, alt text</span>
+          </div>
+          <div style="background:#faf8f4;border:1px solid #dcd8ce;border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px">
+            <span style="font:400 12.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">Toate apar în zona de stare de sub câmp, cu tiparul de eroare din 3T-f. „Salvează” redevine activ pentru reîncercare. Cadrele desenate complet sunt indicate în dreapta.</span>
+            <sc-for list="{{ errList }}" as="e" hint-placeholder-count="6">
+              <div style="display:flex;gap:9px;align-items:flex-start;padding:10px 12px;background:#fdf3f3;border:1px solid #f1d4d4;border-radius:10px">
+                <span style="width:16px;height:16px;flex:0 0 16px;margin-top:1px;border-radius:50%;background:#dc2626;color:#fff;font:700 11px/16px Helvetica,Arial,sans-serif;text-align:center">!</span>
+                <span style="flex:1;font:400 12.5px/1.45 Helvetica,Arial,sans-serif;color:#8f2020;text-wrap:pretty">{{ e.text }}</span>
+                <span style="flex:0 0 auto;font:700 10px/1.2 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:{{ e.tagFg }};text-align:right">{{ e.tag }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showDesktop }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-direction:column;gap:72px">
+
+    <!-- ===== DESKTOP · LISTĂ ===== -->
+    <section style="display:flex;flex-direction:column;gap:28px">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+        <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Desktop · Ecran 1</span>
+        <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Presete care încap · D1D, D1E revizuit</span>
+        <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">1440 × 900</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+        <sc-for list="{{ dList }}" as="f" hint-placeholder-count="2">
+          <div id="{{ f.id }}" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">{{ f.chip }}</span>
+              <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{ f.title }}</span>
+              <sc-if value="{{ f.ru }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:4px 6px;border-radius:4px">RU TBD</span></sc-if>
+            </div>
+            <div style="width:1440px;height:900px;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+              <div style="height:64px;flex:0 0 64px;padding:0 40px;display:flex;align-items:center;gap:18px;border-bottom:1px solid #e4dfd5">
+                <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+                <span class="num" style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#faf8f4;background:#7c5c3d;padding:7px 8px;border-radius:5px">1/4</span>
+                <span style="font:700 19px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{ f.t.step }}</span>
+                <span style="margin-left:auto;display:flex;align-items:center;gap:5px;height:40px;padding:0 12px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:20px;font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">{{ f.t.lang }} ▾</span>
+              </div>
+              <div data-scroll-end="{{ f.scrollEnd }}" style="flex:1;min-height:0;overflow-y:auto;padding:32px 56px 32px;display:flex;flex-direction:column;gap:24px">
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <h2 style="margin:0;font:700 28px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">{{ f.t.heading }}</h2>
+                  <span class="num" style="font:400 14.5px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.room }}</span>
+                </div>
+                <sc-if value="{{ f.loading }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:22px">
+                    <div style="display:flex;align-items:center;gap:11px;padding:13px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:11px;align-self:flex-start">
+                      <span style="width:15px;height:15px;box-sizing:border-box;border:2px solid #dcd8ce;border-top-color:#7c5c3d;border-radius:50%;animation:spin .9s linear infinite"></span>
+                      <span style="font:400 13.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.checking }}</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px">
+                      <div style="border:1px solid #e4dfd5;border-radius:16px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out infinite"><div style="aspect-ratio:4/3;background:#e8e3da"></div><div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px"><span style="width:60%;height:15px;border-radius:4px;background:#e2ddd3"></span><span style="height:44px;border-radius:11px;background:#ebe6dd"></span></div></div>
+                      <div style="border:1px solid #e4dfd5;border-radius:16px;overflow:hidden;background:#f5f3f0;animation:shimmer 1.6s ease-in-out .3s infinite"><div style="aspect-ratio:4/3;background:#e8e3da"></div><div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px"><span style="width:48%;height:15px;border-radius:4px;background:#e2ddd3"></span><span style="height:44px;border-radius:11px;background:#ebe6dd"></span></div></div>
+                    </div>
+                  </div>
+                </sc-if>
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;align-items:start">
+                  <sc-for list="{{ f.cards }}" as="c" hint-placeholder-count="4">
+                    <div style="display:flex;flex-direction:column;border:1px solid #dcd8ce;border-radius:16px;overflow:hidden;background:#faf8f4">
+                      <div style="position:relative;aspect-ratio:4/3;background:#efece5;border-bottom:1px solid #e4dfd5">
+                        <sc-if value="{{ c.ok }}" hint-placeholder-val="{{ true }}"><img src="{{ c.img }}" alt="{{ c.name }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block"></sc-if>
+                        <sc-if value="{{ c.failed }}" hint-placeholder-val="{{ false }}">
+                          <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#e9e4da 0 9px,#f1ede5 9px 18px);display:flex;align-items:center;justify-content:center;padding:20px">
+                            <span style="max-width:80%;font:700 14px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52;text-align:center;background:rgba(250,248,244,.9);padding:9px 12px;border-radius:8px;text-wrap:balance">{{ c.name }}</span>
+                          </div>
+                        </sc-if>
+                      </div>
+                      <div style="padding:16px 18px 18px;display:flex;flex-direction:column;gap:11px">
+                        <span style="font:700 17px/1.3 Helvetica,Arial,sans-serif;text-wrap:pretty;overflow-wrap:anywhere">{{ c.name }}</span>
+                        <sc-if value="{{ c.adjusted }}" hint-placeholder-val="{{ false }}">
+                          <div style="display:flex;gap:8px;align-items:flex-start;padding:9px 11px;background:#eef1ea;border-radius:9px">
+                            <span style="width:15px;height:15px;flex:0 0 15px;margin-top:1px;border-radius:50%;background:#2d5016;color:#fff;font:700 10px/15px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+                            <span style="font:400 13px/1.35 Helvetica,Arial,sans-serif;color:#2d5016">{{ c.adjustedLabel }}</span>
+                          </div>
+                        </sc-if>
+                        <div style="min-height:44px;padding:6px 14px;box-sizing:border-box;border-radius:11px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;text-align:center;font:700 14px/1.2 Helvetica,Arial,sans-serif;color:#5a3e25">{{ c.previewLabel }}</div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="flex:0 0 auto;border-top:1px solid #dcd8ce;padding:16px 56px;display:flex;align-items:center;justify-content:space-between;gap:16px">
+                <div style="min-width:120px;height:48px;padding:0 22px;box-sizing:border-box;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:700 14.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.back }}</div>
+                <sc-if value="{{ f.genBtn }}" hint-placeholder-val="{{ true }}">
+                  <div style="height:48px;padding:0 26px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 15px/1 Helvetica,Arial,sans-serif;color:#faf8f4">{{ f.t.generate }}</div>
+                </sc-if>
+              </div>
+            </div>
+            <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:900px;text-wrap:pretty">{{ f.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- ===== DESKTOP · PREVIZUALIZARE ===== -->
+    <section style="display:flex;flex-direction:column;gap:28px">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+        <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Desktop · Ecran 1</span>
+        <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Previzualizare cu slider · D1G, D1H</span>
+        <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">modal centrat 880 px; stările sunt arătate doar ca modal</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+        <sc-for list="{{ dPrev }}" as="f" hint-placeholder-count="2">
+          <div id="{{ f.id }}" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">{{ f.chip }}</span>
+              <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{ f.title }}</span>
+              <sc-if value="{{ f.ru }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:4px 6px;border-radius:4px">RU TBD</span></sc-if>
+            </div>
+            <div style="position:relative;width:{{ f.cw }};height:{{ f.ch }};display:flex;align-items:center;justify-content:center;border-radius:14px;overflow:hidden;box-shadow:{{ f.frameShadow }}">
+              <sc-if value="{{ f.context }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden">
+                  <div style="height:64px;flex:0 0 64px;padding:0 40px;display:flex;align-items:center;gap:18px;border-bottom:1px solid #e4dfd5">
+                    <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+                    <span class="num" style="font:700 12px/1 Helvetica,Arial,sans-serif;color:#faf8f4;background:#7c5c3d;padding:7px 8px;border-radius:5px">1/4</span>
+                    <span style="font:700 19px/1 Helvetica,Arial,sans-serif">{{ f.t.step }}</span>
+                  </div>
+                  <div style="padding:32px 56px;display:flex;flex-direction:column;gap:24px">
+                    <span style="font:700 28px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em">{{ f.t.heading }}</span>
+                    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px">
+                      <sc-for list="{{ f.bgCards }}" as="c" hint-placeholder-count="4">
+                        <div style="border:1px solid #dcd8ce;border-radius:16px;overflow:hidden"><div style="aspect-ratio:4/3;background:#efece5"><img src="{{ c.img }}" alt="" style="width:100%;height:100%;object-fit:contain;display:block"></div><div style="padding:16px 18px;font:700 17px/1.3 Helvetica,Arial,sans-serif">{{ c.name }}</div></div>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div style="position:absolute;inset:0;background:rgba(28,24,20,.52)"></div>
+                </div>
+              </sc-if>
+              <div role="dialog" aria-modal="true" style="position:relative;width:880px;box-sizing:border-box;background:#faf8f4;border:1px solid #dcd8ce;border-radius:18px;box-shadow:0 24px 60px rgba(28,24,20,.28);padding:18px 28px 26px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                  <span class="num" style="font:700 13.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52">{{ f.counter }}</span>
+                  <span aria-label="{{ f.t.close }}" style="position:relative;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:400 20px/1 Helvetica,Arial,sans-serif;color:#6b5e52;box-shadow:{{ f.closeRing }}">×<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">1</span></sc-if></span>
+                </div>
+                <div style="position:relative;height:440px;aspect-ratio:4/3;align-self:center;border-radius:12px;overflow:hidden;background:#efece5;border:1px solid #e4dfd5">
+                  <sc-if value="{{ f.imgOk }}" hint-placeholder-val="{{ true }}"><img src="{{ f.img }}" alt="{{ f.name }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block"></sc-if>
+                  <sc-if value="{{ f.imgLoading }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:#e8e3da;animation:shimmer 1.6s ease-in-out infinite"></div></sc-if>
+                  <sc-if value="{{ f.imgFailed }}" hint-placeholder-val="{{ false }}">
+                    <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#e9e4da 0 10px,#f1ede5 10px 20px);display:flex;align-items:center;justify-content:center;padding:28px">
+                      <span style="max-width:76%;font:700 16px/1.35 Helvetica,Arial,sans-serif;color:#6b5e52;text-align:center;background:rgba(250,248,244,.9);padding:11px 14px;border-radius:9px;text-wrap:balance">{{ f.name }}</span>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <span style="font:700 22px/1.25 Helvetica,Arial,sans-serif;letter-spacing:-.01em;text-wrap:pretty">{{ f.name }}</span>
+                  <sc-if value="{{ f.adjusted }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;gap:8px;align-items:center;padding:9px 11px;background:#eef1ea;border-radius:9px;align-self:flex-start">
+                      <span style="width:15px;height:15px;flex:0 0 15px;border-radius:50%;background:#2d5016;color:#fff;font:700 10px/15px Helvetica,Arial,sans-serif;text-align:center">✓</span>
+                      <span style="font:400 13.5px/1.35 Helvetica,Arial,sans-serif;color:#2d5016">{{ f.t.adjusted }}</span>
+                    </div>
+                  </sc-if>
+                </div>
+                <div aria-live="polite" style="min-height:44px;display:flex;flex-direction:column;justify-content:center">
+                  <sc-if value="{{ f.st.show }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;gap:10px;align-items:flex-start;padding:11px 14px;background:{{ f.st.bg }};border:1px solid {{ f.st.bd }};border-radius:10px">
+                      <sc-if value="{{ f.st.spin }}" hint-placeholder-val="{{ false }}"><span style="width:15px;height:15px;flex:0 0 15px;margin-top:1px;box-sizing:border-box;border:2px solid #dcd8ce;border-top-color:#7c5c3d;border-radius:50%;animation:spin .9s linear infinite"></span></sc-if>
+                      <sc-if value="{{ f.st.glyph }}" hint-placeholder-val="{{ false }}"><span style="width:16px;height:16px;flex:0 0 16px;margin-top:1px;border-radius:50%;background:{{ f.st.ic }};color:#fff;font:700 11px/16px Helvetica,Arial,sans-serif;text-align:center">{{ f.st.g }}</span></sc-if>
+                      <span style="font:400 13.5px/1.45 Helvetica,Arial,sans-serif;color:{{ f.st.fg }}">{{ f.st.text }}</span>
+                    </div>
+                  </sc-if>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px">
+                  <sc-if value="{{ f.multi }}" hint-placeholder-val="{{ true }}">
+                    <div style="flex:1 1 180px;display:flex">
+                      <div style="position:relative;min-height:48px;padding:6px 20px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.prev.bd }};background:{{ f.prev.bg }};color:{{ f.prev.fg }};box-shadow:{{ f.prev.ring }};display:flex;align-items:center;gap:8px;font:700 14.5px/1.2 Helvetica,Arial,sans-serif"><span aria-hidden="true" style="font-size:19px">‹</span>{{ f.t.prev }}<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">2</span></sc-if></div>
+                    </div>
+                  </sc-if>
+                  <div style="position:relative;min-width:260px;min-height:52px;padding:8px 28px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.sel.bd }};background:{{ f.sel.bg }};color:{{ f.sel.fg }};box-shadow:{{ f.sel.ring }};display:flex;align-items:center;justify-content:center;font:700 15.5px/1.2 Helvetica,Arial,sans-serif">{{ f.t.select }}<sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">3</span></sc-if></div>
+                  <sc-if value="{{ f.multi }}" hint-placeholder-val="{{ true }}">
+                    <div style="flex:1 1 180px;display:flex;justify-content:flex-end">
+                      <div style="position:relative;min-height:48px;padding:6px 20px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.next.bd }};background:{{ f.next.bg }};color:{{ f.next.fg }};box-shadow:{{ f.next.ring }};display:flex;align-items:center;gap:8px;font:700 14.5px/1.2 Helvetica,Arial,sans-serif">{{ f.t.next }}<span aria-hidden="true" style="font-size:19px">›</span><sc-if value="{{ f.annot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-8px;left:-8px;width:20px;height:20px;border-radius:50%;background:#1c1d1f;color:#faf8f4;font:700 11px/20px ui-monospace,Menlo,monospace;text-align:center">4</span></sc-if></div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+            <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:880px;text-wrap:pretty">{{ f.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- ===== DESKTOP · SALVEAZĂ CA PRESET ===== -->
+    <section style="display:flex;flex-direction:column;gap:28px">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+        <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#2d5016">Desktop · Ecran 2</span>
+        <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">Salvează ca preset · D3S, D3T</span>
+        <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">chip în scenă + card centrat 520 px</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+        <sc-for list="{{ dEdit }}" as="f" hint-placeholder-count="2">
+          <div id="{{ f.id }}" style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#2d5016;padding:5px 7px;border-radius:4px">{{ f.chip }}</span>
+              <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{ f.title }}</span>
+              <sc-if value="{{ f.ru }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:4px 6px;border-radius:4px">RU TBD</span></sc-if>
+            </div>
+            <div style="position:relative;width:{{ f.cw }};height:{{ f.ch }};display:flex;align-items:center;justify-content:center;border-radius:14px;overflow:hidden;box-shadow:{{ f.frameShadow }}">
+              <sc-if value="{{ f.context }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden">
+                  <div style="height:64px;flex:0 0 64px;padding:0 24px 0 40px;display:flex;align-items:center;gap:20px;border-bottom:1px solid #e4dfd5">
+                    <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+                    <span class="num" style="font:700 12px/1 Helvetica,Arial,sans-serif;color:#faf8f4;background:#7c5c3d;padding:7px 8px;border-radius:5px">2/4</span>
+                    <span style="font:700 19px/1 Helvetica,Arial,sans-serif">{{ f.t.configure }}</span>
+                    <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+                      <span style="display:flex;align-items:center;gap:9px;height:40px;padding:0 14px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:20px;font:400 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25"><span style="width:16px;height:16px;border-radius:4px;background:repeating-linear-gradient(0deg,#d9d2c6 0 4px,#cfc7b9 4px 8px);border:1px solid #c4bcae"></span>PAL melaminat ▾</span>
+                      <span class="num" style="font:700 19px/1 Helvetica,Arial,sans-serif">43.000 MDL</span>
+                      <span style="height:44px;padding:0 20px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 14.5px/1 Helvetica,Arial,sans-serif;color:#faf8f4">{{ f.t.verify }}</span>
+                      <span style="height:40px;padding:0 12px;display:flex;align-items:center;background:#ece7dd;border:1px solid #dcd8ce;border-radius:20px;font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">{{ f.t.lang }} ▾</span>
+                    </div>
+                  </div>
+                  <div style="flex:1;position:relative;background:#f2f0ea;overflow:hidden">
+                    <img src="shots/presets/01-p.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">
+                    <div style="position:absolute;left:28px;top:24px;display:flex;gap:10px">
+                      <span style="font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:rgba(250,248,244,.94);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">{{ f.t.view0 }}</span>
+                      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.82);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">{{ f.t.view1 }}</span>
+                      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#6b5e52;background:rgba(250,248,244,.82);border:1px solid #dcd8ce;padding:12px 16px;border-radius:22px">{{ f.t.view2 }}</span>
+                    </div>
+                    <div style="position:absolute;left:0;right:0;bottom:28px;display:flex;justify-content:center;pointer-events:none">
+                      <span style="font:400 13.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:rgba(250,248,244,.94);border:1px solid #dcd8ce;padding:13px 18px;border-radius:24px">{{ f.t.hintD }}</span>
+                    </div>
+                    <div style="position:absolute;right:28px;bottom:84px;height:44px;padding:0 18px;box-sizing:border-box;display:flex;align-items:center;background:rgba(250,248,244,.96);border:1px solid #dcd8ce;border-radius:22px;font:700 13px/1 Helvetica,Arial,sans-serif;color:#5a3e25;box-shadow:{{ f.chipRing }}">{{ f.t.saveChip }}</div>
+                  </div>
+                  <sc-if value="{{ f.dialog }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background:rgba(28,24,20,.52)"></div></sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ f.dialog }}" hint-placeholder-val="{{ true }}">
+                <div role="dialog" aria-modal="true" style="position:relative;width:520px;box-sizing:border-box;background:#faf8f4;border:1px solid #dcd8ce;border-radius:18px;box-shadow:0 24px 60px rgba(28,24,20,.28);padding:24px 28px 26px;display:flex;flex-direction:column;gap:18px">
+                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+                    <div style="display:flex;flex-direction:column;gap:7px;padding-top:4px">
+                      <h2 style="margin:0;font:700 22px/1.25 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{ f.t.saveTitle }}</h2>
+                      <span style="font:400 14px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.saveIntro }}</span>
+                    </div>
+                    <span style="width:44px;height:44px;flex:0 0 44px;box-sizing:border-box;border-radius:50%;border:1px solid #dcd8ce;display:flex;align-items:center;justify-content:center;font:400 20px/1 Helvetica,Arial,sans-serif;color:#6b5e52">×</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <span style="font:700 13px/1.2 Helvetica,Arial,sans-serif">{{ f.t.nameLabel }}</span>
+                    <div style="min-height:46px;padding:11px 14px;box-sizing:border-box;border-radius:11px;border:1px solid {{ f.inBd }};background:{{ f.inBg }};box-shadow:{{ f.inRing }};display:flex;align-items:center;font:400 15px/1.3 Helvetica,Arial,sans-serif;color:{{ f.inFg }}">{{ f.inText }}</div>
+                  </div>
+                  <div aria-live="polite" style="min-height:44px;display:flex;flex-direction:column;justify-content:center">
+                    <sc-if value="{{ f.st.show }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;gap:10px;align-items:flex-start;padding:11px 14px;background:{{ f.st.bg }};border:1px solid {{ f.st.bd }};border-radius:10px">
+                        <sc-if value="{{ f.st.spin }}" hint-placeholder-val="{{ false }}"><span style="width:15px;height:15px;flex:0 0 15px;margin-top:1px;box-sizing:border-box;border:2px solid #dcd8ce;border-top-color:#7c5c3d;border-radius:50%;animation:spin .9s linear infinite"></span></sc-if>
+                        <sc-if value="{{ f.st.glyph }}" hint-placeholder-val="{{ false }}"><span style="width:16px;height:16px;flex:0 0 16px;margin-top:1px;border-radius:50%;background:{{ f.st.ic }};color:#fff;font:700 11px/16px Helvetica,Arial,sans-serif;text-align:center">{{ f.st.g }}</span></sc-if>
+                        <span style="font:400 13.5px/1.45 Helvetica,Arial,sans-serif;color:{{ f.st.fg }};text-wrap:pretty">{{ f.st.text }}</span>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px">
+                    <div style="min-height:48px;padding:0 22px;border-radius:12px;border:1px solid #dcd8ce;display:flex;align-items:center;font:700 14.5px/1 Helvetica,Arial,sans-serif;color:#6b5e52">{{ f.t.close }}</div>
+                    <div style="min-width:150px;min-height:48px;padding:0 26px;box-sizing:border-box;border-radius:12px;border:1px solid {{ f.saveB.bd }};background:{{ f.saveB.bg }};color:{{ f.saveB.fg }};box-shadow:{{ f.saveB.ring }};display:flex;align-items:center;justify-content:center;font:700 15px/1 Helvetica,Arial,sans-serif">{{ f.t.save }}</div>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+            <span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:{{ f.noteW }};text-wrap:pretty">{{ f.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;surface&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;all&quot;,&quot;mobile&quot;,&quot;desktop&quot;],&quot;default&quot;:&quot;all&quot;,&quot;tsType&quot;:&quot;'all'|'mobile'|'desktop'&quot;}}">
+class Component extends DCLogic {
+  componentDidMount() {
+    const go = () => document.querySelectorAll('[data-scroll-end="true"]').forEach(e => { e.scrollTop = e.scrollHeight; });
+    go(); setTimeout(go, 400); setTimeout(go, 1500);
+  }
+  renderVals() {
+    const surface = this.props.surface ?? 'all';
+    const RO = {
+      lang: 'RO', step: 'Preset', heading: 'Bucătării care încap', room: 'În L · 3,60 × 2,40 m · h 2,60 m',
+      preview: 'Previzualizează', adjusted: 'Ajustată ca să intre în camera ta', back: 'Înapoi',
+      generate: 'Generează o bucătărie nouă', checking: 'Verificăm ce presete încap în camera ta…',
+      prev: 'Anterior', next: 'Următorul', select: 'Alege acest preset', close: 'Închide',
+      selecting: 'Se creează bucătăria ta…', selErr: 'Nu am putut crea bucătăria din acest preset. Încearcă din nou.',
+      limit: 'Astăzi nu se mai pot crea alte bucătării. Încearcă mâine.',
+      configure: 'Configurare', view0: 'Vedere generală', view1: 'Perete A', view2: 'Perete B',
+      hint: 'Atinge un corp pentru a-l edita', hintD: 'Clic pe un corp pentru a-l edita', from: 'De la', why: 'De ce acest preț', verify: 'Verifică designul',
+      saveChip: 'Salvează ca preset', saveTitle: 'Salvează ca preset', saveIntro: 'Presetul păstrează bucătăria așa cum arată acum.',
+      nameLabel: 'Nume (opțional)', namePh: 'În formă de L, 3200 × 2400 mm, alb', save: 'Salvează',
+      waiting: 'Se salvează modificările tale…', saving: 'Se salvează presetul…', saved: 'Presetul a fost salvat.',
+      saveErr: 'Presetul nu a putut fi salvat. Încearcă din nou.'
+    };
+    const RU = {
+      lang: 'RU', step: 'Пресет', heading: 'Кухни, которые поместятся', room: 'Г-образная · 3,60 × 2,40 м · h 2,60 м',
+      preview: 'Предварительный просмотр', adjusted: 'Подогнана, чтобы поместиться в твою комнату', back: 'Назад',
+      generate: 'Сгенерировать новую кухню', checking: 'Проверяем, какие пресеты поместятся в твою комнату…',
+      prev: 'Предыдущий', next: 'Следующий', select: 'Выбрать этот пресет', close: 'Закрыть',
+      selecting: 'Создаём твою кухню…', selErr: 'Не удалось создать кухню из этого пресета. Попробуй ещё раз.',
+      limit: 'Сегодня больше нельзя создавать кухни. Попробуй завтра.',
+      configure: 'Настройка', view0: 'Общий вид', view1: 'Стена A', view2: 'Стена B',
+      hint: 'Нажми на корпус, чтобы изменить его', hintD: 'Кликни по корпусу, чтобы изменить его', from: 'От', why: 'Почему такая цена', verify: 'Проверить дизайн',
+      saveChip: 'Сохранить как пресет', saveTitle: 'Сохранить как пресет', saveIntro: 'Пресет сохранит кухню такой, какая она сейчас.',
+      nameLabel: 'Название (необязательно)', namePh: 'Г-образная, 3200 × 2400 мм, белая', save: 'Сохранить',
+      waiting: 'Сохраняем твои изменения…', saving: 'Сохраняем пресет…', saved: 'Пресет сохранён.',
+      saveErr: 'Не удалось сохранить пресет. Попробуй ещё раз.'
+    };
+    const IM = n => 'shots/presets/0' + n + '-p.png';
+    const PRE = [
+      { name: 'Ozun clasic', img: IM(1) }, { name: 'Nistru compact', img: IM(2) },
+      { name: 'Codru insulă', img: IM(3), adjusted: true }, { name: 'Buștean deschis', img: IM(4) },
+      { name: 'Prut liniar', img: IM(2) }, { name: 'Orhei cu coloană', img: IM(1) },
+      { name: 'Soroca deschis', img: IM(4), adjusted: true }, { name: 'Cahul în U', img: IM(3) }
+    ];
+    const LONG = 'Ozun clasic în L cu insulă, coloană pentru frigider și blat din stejar natural';
+    const card = (p, t, o = {}) => ({ name: o.name || p.name, img: p.img, ok: !o.failed, failed: !!o.failed, adjusted: o.adjusted ?? !!p.adjusted, previewLabel: t.preview, adjustedLabel: t.adjusted });
+    const RING = '0 0 0 2px #faf8f4, 0 0 0 4px #1c1d1f';
+    const btn = (kind, st = 'on') => {
+      const p = kind === 'p', d = st === 'off';
+      return {
+        bg: p ? (d ? '#ece7dd' : '#7c5c3d') : (d ? '#f5f3f0' : '#faf8f4'),
+        fg: p ? (d ? '#a89c8e' : '#faf8f4') : (d ? '#b3a99c' : '#5a3e25'),
+        bd: p ? (d ? '#dcd8ce' : '#7c5c3d') : (d ? '#e4dfd5' : '#dcd8ce'),
+        ring: st === 'focus' ? RING : 'none', dis: d ? 'true' : 'false'
+      };
+    };
+    const ST = (kind, text) => {
+      const base = { show: true, text, spin: false, glyph: false, g: '', ic: '' };
+      if (!kind) return { show: false, text: '', spin: false, glyph: false };
+      if (kind === 'progress') return { ...base, spin: true, bg: '#f5f3f0', bd: '#dcd8ce', fg: '#6b5e52' };
+      if (kind === 'error') return { ...base, glyph: true, g: '!', ic: '#dc2626', bg: '#fdf3f3', bd: '#f1d4d4', fg: '#8f2020' };
+      if (kind === 'warn') return { ...base, glyph: true, g: '!', ic: '#b45309', bg: '#f7ecdc', bd: '#e6cfa8', fg: '#7c4a0c' };
+      return { ...base, glyph: true, g: '✓', ic: '#2d5016', bg: '#eef1ea', bd: '#d5dfcc', fg: '#2d5016' };
+    };
+
+    // ---- lists
+    const lf = (o) => {
+      const t = o.ru ? RU : RO;
+      return { id: o.id, chip: o.chip, title: o.title, note: o.note || '', ru: !!o.ru, w: o.w || 390, t,
+        loading: !!o.loading, genBtn: !o.loading, scrollEnd: !!o.scrollEnd, cards: (o.cards || []).map(c => Array.isArray(c) ? card(c[0], t, c[1]) : card(c, t)) };
+    };
+    const mList = [
+      lf({ id: '1d', chip: '1D', title: 'Așteptare · doar după 250 ms', loading: true,
+        note: 'Neschimbat, cu o singură modificare: subsolul are doar „Înapoi”. Apare numai dacă răspunsul întârzie peste 250 ms, cu fade de 200 ms; sub prag se trece direct în 1E (sau, fără presete, direct la generare) — fără flash.' }),
+      lf({ id: '1e-1', chip: '1E · 1', title: 'Revizuit · un singur preset', cards: [PRE[0]],
+        note: 'Card: imagine 4:3 (letterbox, niciodată decupată), nume, notă opțională, un singur buton. Fără preț, chipuri sau „Folosește”. Alegerea se face din previzualizare (1G).' }),
+      lf({ id: '1e-3', chip: '1E · 3', title: 'Trei presete · una ajustată', cards: PRE.slice(0, 3),
+        note: 'Nota de ajustare apare doar pe presetele adaptate camerei.' }),
+      lf({ id: '1e-8', chip: '1E · 8', title: 'Opt presete · derulare', cards: PRE,
+        note: 'Doar lista derulează; antetul și subsolul rămân fixe. Derulează în cadru.' }),
+      lf({ id: '1e-8-end', chip: '1E · 8↓', title: 'Derulat până la capăt', cards: PRE, scrollEnd: true,
+        note: 'Ultimul card e complet vizibil deasupra subsolului fix (20 px spațiu sub el).' }),
+      lf({ id: '1e-img', chip: '1E · img', title: 'Imagine care nu s-a încărcat', cards: [[PRE[3], { failed: true }], PRE[0]],
+        note: 'Hașură + numele presetului în zona 4:3; cardul rămâne utilizabil.' }),
+      lf({ id: '1e-long', chip: '1E · lung', title: 'Nume lung (80 caractere)', cards: [[PRE[0], { name: LONG }], PRE[2]],
+        note: 'Numele se rupe pe rânduri, fără trunchiere; înălțimea cardului crește.' }),
+      lf({ id: '1e-ru', chip: '1E · RU', title: 'Rusă', ru: true, cards: PRE.slice(0, 3),
+        note: 'Butonul cardului ține și eticheta lungă pe un rând; footerul încape la 390 px.' }),
+      lf({ id: '1e-ru-320', chip: '1E · RU 320', title: 'Rusă la 320 px', ru: true, w: 320, cards: [[PRE[0], { name: LONG }], PRE[2]],
+        note: 'Cel mai strâmt caz: butonul principal din subsol trece pe două rânduri, fără scroll orizontal.' })
+    ];
+    const dList = [
+      lf({ id: 'd1d', chip: 'D1D', title: 'Așteptare · doar după 250 ms', loading: true,
+        note: 'Ca pe mobil: doar „Înapoi”, fade de 200 ms, nu apare deloc sub 250 ms.' }),
+      lf({ id: 'd1e', chip: 'D1E', title: 'Revizuit · trei presete', cards: PRE.slice(0, 3),
+        note: 'Grilă de 4 coloane; cardurile au aceeași structură ca pe mobil.' }),
+      lf({ id: 'd1e-8', chip: 'D1E · 8', title: 'Opt presete · imagine eșuată, nume lung', cards: [PRE[0], PRE[1], PRE[2], PRE[3], PRE[4], [PRE[5], { failed: true }], [PRE[6], { name: LONG }], PRE[7]],
+        note: 'Lista derulează între antet și subsolul fix. Cardurile se aliniază sus, ca un nume lung să nu întindă rândul.' }),
+      lf({ id: 'd1e-ru', chip: 'D1E · RU', title: 'Rusă', ru: true, cards: PRE.slice(0, 4), note: '' })
+    ];
+
+    // ---- preview
+    const pv = (o, desk) => {
+      const t = o.ru ? RU : RO, p = o.p;
+      const ctx = !!o.context;
+      return { id: o.id, chip: o.chip, title: o.title, note: o.note || '', ru: !!o.ru, w: o.w || 390, t,
+        counter: o.single ? '' : o.counter, multi: !o.single, name: o.name || p.name, img: p.img,
+        imgOk: !o.img, imgLoading: o.img === 'loading', imgFailed: o.img === 'failed',
+        adjusted: o.adjusted ?? !!p.adjusted,
+        st: o.st === 'selecting' ? ST('progress', t.selecting) : o.st === 'selErr' ? ST('error', t.selErr) : o.st === 'limit' ? ST('warn', t.limit) : ST(null),
+        prev: btn('s', o.prev), next: btn('s', o.next), sel: btn('p', o.sel),
+        closeRing: o.close === 'focus' ? RING : 'none', annot: !!o.annot,
+        context: ctx, cw: ctx ? '1440px' : 'auto', ch: ctx ? '900px' : 'auto',
+        frameShadow: ctx ? '0 18px 44px rgba(28,24,20,.10)' : 'none',
+        bgCards: PRE.slice(0, 4).map(c => ({ name: c.name, img: c.img }))
+      };
+    };
+    const S = (o) => o;
+    const prevStates = [
+      S({ id: 'first', chip: '1G · a', title: 'Primul slide', counter: '1 / 5', p: PRE[0], prev: 'off', note: '„Anterior” dezactivat la capăt — fără wrap. Se deschide pe presetul atins.' }),
+      S({ id: 'mid', chip: '1G · b', title: 'Slide din mijloc · ajustat', counter: '3 / 5', p: PRE[2], note: 'Nota de ajustare sub nume. Zona de stare are înălțime rezervată, ca butoanele să nu sară.' }),
+      S({ id: 'last', chip: '1G · c', title: 'Ultimul slide', counter: '5 / 5', p: PRE[4], next: 'off', note: '„Următorul” dezactivat.' }),
+      S({ id: 'single', chip: '1G · d', title: 'Un singur preset', p: PRE[0], single: true, note: 'Fără contor și fără Anterior/Următorul.' }),
+      S({ id: 'loading', chip: '1G · e', title: 'Imaginea se încarcă', counter: '2 / 5', p: PRE[1], img: 'loading', note: 'Schelet în zona 4:3; restul cadrului e deja utilizabil.' }),
+      S({ id: 'failed', chip: '1G · f', title: 'Imagine eșuată · nume lung', counter: '4 / 5', p: PRE[3], img: 'failed', name: LONG, note: 'Hașură cu numele; numele lung se rupe pe rânduri.' }),
+      S({ id: 'focus', chip: '1G · g', title: 'Tastatură · ordinea focusului', counter: '2 / 5', p: PRE[1], next: 'focus', annot: true, note: 'Focus prins în dialog: Tab 1→4 și înapoi la 1. ← / → schimbă slide-ul (fade 150 ms). Esc închide și readuce focusul pe „Previzualizează” al cardului deschis. Inel vizibil pe orice fundal.' }),
+      S({ id: 'selecting', hchip: true, chip: '1H · a', title: 'Se creează', counter: '2 / 5', p: PRE[1], st: 'selecting', sel: 'off', prev: 'off', next: 'off', note: 'Toate acțiunile blocate cât se creează copia; la succes se deschide editorul 3D.' }),
+      S({ id: 'error', chip: '1H · b', title: 'Eroare la alegere', counter: '2 / 5', p: PRE[1], st: 'selErr', note: 'Butonul redevine activ pentru reîncercare.' }),
+      S({ id: 'limit', chip: '1H · c', title: 'Limita zilnică', counter: '2 / 5', p: PRE[1], st: 'limit', sel: 'off', note: 'Alegerea e dezactivată; răsfoirea rămâne posibilă.' }),
+      S({ id: 'ru', chip: '1G · RU', title: 'Rusă', ru: true, counter: '3 / 5', p: PRE[2], note: '„Выбрать этот пресет” încape pe un rând; Anterior/Următorul stau pe rândul de deasupra.' })
+    ];
+    const mPrev = prevStates.map(o => pv({ ...o, id: '1g-' + o.id, chip: o.chip })).concat([
+      pv({ id: '1g-ru-320', chip: '1G · RU 320', title: 'Rusă la 320 px', ru: true, w: 320, counter: '4 / 5', p: PRE[3], name: LONG, st: 'selErr',
+        note: 'Cel mai strâmt caz: rândul de acțiuni rămâne vizibil fără derularea paginii din spate.' })
+    ]);
+    mPrev.forEach(f => { if (f.st.show && f.ru && f.w === 320) f.st = ST('error', RU.selErr); });
+    const dPrev = [
+      pv({ id: 'd1g', chip: 'D1G', title: 'În context · slide din mijloc', counter: '3 / 5', p: PRE[2], context: true,
+        note: 'Modal 880 px peste lista 1E. Imaginea are zona 4:3 de 440 px înălțime, cu letterbox. Ordinea focusului pe desktop: × → Anterior → Alege → Următorul.' })
+    ].concat(prevStates.filter(o => o.id !== 'mid').map(o => pv({ ...o, id: 'd1g-' + o.id, chip: 'D' + o.chip, note: o.id === 'focus' ? 'Ordinea focusului: × → Anterior → Alege → Următorul; ←/→ schimbă slide-ul, Esc închide.' : o.note })));
+
+    // ---- save as preset
+    const sv = (o) => {
+      const t = o.ru ? RU : RO, v = o.value || '', ctx = o.context !== false;
+      const stText = o.stText || (o.st === 'waiting' ? t.waiting : o.st === 'saving' ? t.saving : o.st === 'saved' ? t.saved : '');
+      const kind = o.st === 'waiting' || o.st === 'saving' ? 'progress' : o.st === 'saved' ? 'ok' : o.stText ? 'error' : null;
+      return { id: o.id, chip: o.chip, title: o.title, note: o.note || '', ru: !!o.ru, w: o.w || 390, t,
+        chipOn: !o.sheet, sheet: !!o.sheet, dialog: !!o.dialog, chipRing: o.chipFocus ? RING : 'none',
+        inText: v || t.namePh, inFg: v ? '#1c1d1f' : '#8d8377', inBd: o.focus ? '#7c5c3d' : '#cfc7b9',
+        inRing: o.focus ? RING : 'none', inBg: o.inOff ? '#f5f3f0' : '#ffffff',
+        st: ST(kind, stText), saveB: btn('p', o.save), annot: !!o.annot,
+        context: ctx, cw: ctx ? '1440px' : 'auto', ch: ctx ? '900px' : 'auto', noteW: ctx ? '900px' : '520px',
+        frameShadow: ctx ? '0 18px 44px rgba(28,24,20,.10)' : 'none' };
+    };
+    const E = {
+      issues: 'Bucătăria are încă probleme semnalate în editor. Rezolvă-le, apoi încearcă din nou.',
+      sinkHob: 'Pentru preset, bucătăria are nevoie de o chiuvetă și de o plită.',
+      name: 'Numele nu este acceptat. Încearcă un nume mai scurt, fără caractere speciale.',
+      image: 'Imaginea nu a fost acceptată. Încearcă din nou.'
+    };
+    const mEdit = [
+      sv({ id: '3s', chip: '3S', title: 'Editor · chip „Salvează ca preset”', note: 'Chip de 44 px în dreapta-jos a scenei, deasupra indiciului; vizibil pentru toți deocamdată, mai târziu doar pentru administratori. Nu în bara de sus.' }),
+      sv({ id: '3s-sheet', chip: '3S · sheet', title: 'Sheet de editare deschis', sheet: true, note: 'Cât timp sheet-ul de editare e deschis, chipul se ascunde.' }),
+      sv({ id: '3s-focus', chip: '3S · focus', title: 'Chip cu focus de tastatură', chipFocus: true, note: 'Inel de focus vizibil peste scena 3D.' }),
+      sv({ id: '3s-ru', chip: '3S · RU', title: 'Rusă', ru: true, note: 'Eticheta mai lungă încape lângă marginea dreaptă.' }),
+      sv({ id: '3t', chip: '3T · a', title: 'Dialog · implicit', dialog: true, annot: true, note: 'Placeholder = numele generat. Focusul intră în câmp (1), apoi Închide, Salvează, ×; Esc închide. Font 16 px în câmp (fără zoom pe iOS).' }),
+      sv({ id: '3t-typed', chip: '3T · b', title: 'Nume tastat · focus', dialog: true, value: 'Ozun clasic alb', focus: true, note: 'Câmpul activ primește inelul de focus.' }),
+      sv({ id: '3t-wait', chip: '3T · c', title: 'Așteaptă ultima modificare', dialog: true, st: 'waiting', save: 'off', note: '„Salvează” dezactivat până se salvează ultima editare.' }),
+      sv({ id: '3t-saving', chip: '3T · d', title: 'Se salvează', dialog: true, st: 'saving', save: 'off', inOff: true, note: 'Câmpul și butonul sunt blocate.' }),
+      sv({ id: '3t-saved', chip: '3T · e', title: 'Salvat', dialog: true, st: 'saved', save: 'off', inOff: true, note: 'Dialogul se închide singur după ~1 s, cu fade de 200 ms; focusul revine pe chip.' }),
+      sv({ id: '3t-err1', chip: '3T · f', title: 'Refuz · probleme în editor', dialog: true, stText: E.issues, note: 'Tiparul de eroare comun tuturor refuzurilor; „Salvează” activ pentru reîncercare.' }),
+      sv({ id: '3t-err2', chip: '3T · g', title: 'Refuz · lipsesc chiuvetă și plită', dialog: true, stText: E.sinkHob, note: 'Variantele doar-chiuvetă / doar-plită: vezi lista de copy.' }),
+      sv({ id: '3t-err3', chip: '3T · h', title: 'Refuz · nume neacceptat', dialog: true, value: 'Ozun clasic alb ★★★ — varianta finală pentru vitrina magazinului', stText: E.name, note: 'Valoarea rămâne în câmp, ca să poată fi corectată.' }),
+      sv({ id: '3t-ru', chip: '3T · RU', title: 'Rusă', ru: true, dialog: true, note: '' }),
+      sv({ id: '3t-ru-320', chip: '3T · RU 320', title: 'Rusă la 320 px · eroare', ru: true, w: 320, dialog: true, stText: RU.saveErr, note: 'Butoanele trec pe două rânduri când nu încap.' })
+    ];
+    const dEdit = [
+      sv({ id: 'd3s', chip: 'D3S', title: 'Editor · chip „Salvează ca preset”', note: 'Dreapta-jos a scenei, deasupra rândului indiciului; nu în bara de sus.' }),
+      sv({ id: 'd3t', chip: 'D3T · a', title: 'Dialog în context', dialog: true, note: 'Card centrat 520 px peste scenă. Focus: câmp → Închide → Salvează → ×.' }),
+      sv({ id: 'd3t-wait', chip: 'D3T · c', title: 'Așteaptă ultima modificare', dialog: true, context: false, st: 'waiting', save: 'off' }),
+      sv({ id: 'd3t-saving', chip: 'D3T · d', title: 'Se salvează', dialog: true, context: false, st: 'saving', save: 'off', inOff: true }),
+      sv({ id: 'd3t-saved', chip: 'D3T · e', title: 'Salvat · se închide după ~1 s', dialog: true, context: false, st: 'saved', save: 'off', inOff: true }),
+      sv({ id: 'd3t-err', chip: 'D3T · f', title: 'Refuz · imagine', dialog: true, context: false, stText: E.image }),
+      sv({ id: 'd3t-ru', chip: 'D3T · RU', title: 'Rusă', ru: true, dialog: true, context: false, focus: true })
+    ];
+    const NEW = { tag: 'NEW COPY', tagFg: '#b45309' }, SH = s => ({ tag: s, tagFg: '#7d7a72' }), NO = { tag: '', tagFg: '#7d7a72' };
+    const errList = [
+      { text: E.issues, ...SH('3T-f') }, { text: E.sinkHob, ...SH('3T-g') },
+      { text: 'Pentru preset, bucătăria are nevoie de o chiuvetă.', ...NEW },
+      { text: 'Pentru preset, bucătăria are nevoie de o plită.', ...NEW },
+      { text: 'Bucătăria s-a schimbat între timp. Reîncarcă pagina și încearcă din nou.', ...NO },
+      { text: E.name, ...SH('3T-h') }, { text: E.image, ...SH('D3T-f') },
+      { text: 'Pentru preset, bucătăria este prea mare. Elimină câteva elemente și încearcă din nou.', ...NO },
+      { text: 'Astăzi nu se mai pot salva alte presete. Încearcă mâine.', ...NO },
+      { text: 'Salvările sunt oprite pentru moment. Încearcă din nou puțin mai târziu.', ...NO },
+      { text: 'Presetele nu se pot salva acum. Încearcă din nou mai târziu.', ...NO },
+      { text: 'Modificările tale nu au putut fi salvate, așa că presetul nu se poate salva acum.', ...NO },
+      { text: 'Presetul nu a putut fi salvat. Încearcă din nou.', ...NO }
+    ];
+
+    return {
+      standalone: surface === 'all', rootPad: surface === 'all' ? '56px 56px 96px' : '0',
+      showMobile: surface !== 'desktop', showDesktop: surface !== 'mobile',
+      mList, dList, mPrev, dPrev, mEdit, dEdit, errList
+    };
+  }
+}
+</script>
+</body>
+</html>

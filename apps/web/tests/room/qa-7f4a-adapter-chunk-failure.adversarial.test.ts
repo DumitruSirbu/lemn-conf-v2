@@ -52,6 +52,7 @@ import roMessages from "../../src/messages/ro.json";
 
 const RUN_TIMEOUT_MS = 3000;
 const POLL_MS = 5;
+const PRESET_LISTING_ENDPOINT = "/api/presets";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -98,6 +99,12 @@ async function settleFailure(): Promise<void> {
 }
 
 beforeEach(() => {
+  // Answered at once with a 404, which Step 1 reads as "no presets": since M8C P8 composition starts after that read.
+  vi.stubGlobal("fetch", (url: unknown) =>
+    String(url).startsWith(PRESET_LISTING_ENDPOINT)
+      ? Promise.resolve(new Response(null, { status: 404 }))
+      : new Promise<Response>(() => undefined),
+  );
   browser.push.mockClear();
   browser.replace.mockClear();
   container = document.createElement("div");
@@ -110,6 +117,7 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 describe("the adapter chunk cannot be fetched (criterion 35)", () => {
@@ -119,10 +127,11 @@ describe("the adapter chunk cannot be fetched (criterion 35)", () => {
     act(() => {
       elementAt("room-continue").click();
     });
-    // The pending list is on the glass first, exactly as it is for a run that will succeed: the
-    // import is awaited *after* the entry into composition, so the customer never sees a dead tap.
-    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
-    expect(elementAt("room-compose-rows").children).toHaveLength(6);
+    // The customer never sees a dead tap. Before M8C P8 the pending list was the first thing on the glass; now 1D, the
+    // wait for the presets that fit, is, and 1F follows it. The chunk's rejection comes a few microtasks after 1F's
+    // composition is entered, in the same task, so no pending list is committed before the failure replaces it: that is
+    // the better outcome of the two, and the pending list's own first frame is `room-composition.dom.test.ts`'s.
+    expect(maybeAt("room-presets-wait")).not.toBe(null);
     await settleFailure();
 
     expect(elementAt("room-compose-notice").textContent).toContain(

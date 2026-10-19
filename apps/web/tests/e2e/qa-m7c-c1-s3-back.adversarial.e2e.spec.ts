@@ -1,5 +1,5 @@
 // M7C wave C1 slice S3 adversarial QA (docs/WORKFLOW.md step 3), at 390 x 844 by touch: criteria 3a,
-// 3b, 3c and 4 of `docs/milestones/M7C-m7-feedback-fixes.md`, *C1*. The desktop half is
+// 3b, 3c and 4 of C1 (`docs/decisions/0104` Amendment D2). The desktop half is
 // `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts`; `support/qa-m7c-c1-s3-back.ts` holds what the
 // two share.
 //

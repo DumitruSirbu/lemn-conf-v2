@@ -7,7 +7,7 @@ under *Amends, when accepted* have their dated note is stated in Amendment B; AD
 others are **owed** and listed there.
 Date: 2026-10-13
 Type: Decision
-Milestone: M8 wave 8M2 (plan: [`milestones/8M2-shop-whatsapp-and-already-sent.md`](../milestones/8M2-shop-whatsapp-and-already-sent.md))
+Milestone: M8 wave 8M2 (plan: [`milestones/done/8M2-shop-whatsapp-and-already-sent.md`](../milestones/done/8M2-shop-whatsapp-and-already-sent.md))
 
 **Amends, when accepted:**
 - [ADR 0160](0160-a-sent-request-is-handed-to-its-done-page-in-memory-by-a-replaced-history-entry-an-answerless-send-is-retried-only-by-the-connection-returning-and-the-failure-screen-is-a-state-of-the-contact-page.md)

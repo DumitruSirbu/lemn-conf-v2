@@ -35,7 +35,7 @@ passed / 4 skipped**, **e2e 110 passed / 1 skipped**, run locally. Two things th
 now depend on are stated where they belong rather than here — open input 1 (the three drafted
 push-to-open rates, now load-bearing on a customer-visible price) and open input 4 (6W's *De la*
 claim, shipped under an architect's interim the owner has not ruled on). **Checked at the same
-pass: Amendment C's millimetre-literal rule is stated in `docs/milestones/M6-price-and-global-settings.md`
+pass: Amendment C's millimetre-literal rule is stated in `docs/milestones/done/M6-price-and-global-settings.md`
 and the false float premise that once justified it — that `TOP_ROW_Y0_M * 1000` evaluates to
 `2200.0000000000002`, when it is exactly `2200` — appears only there, struck and corrected. This
 record never carried it and there is nothing here to unwind.**
@@ -655,7 +655,7 @@ more than *"two flat amounts and one locating query"*.
 
 **Amendment C adds a fourth: 6T-a — one push-to-open predicate.** Opened by Amendment C's correction
 of decision 3. Gate: 6T, whose quantity basis it repairs; **same branch as 6T and 6W**. Its full plan
-is written directly into `docs/milestones/M6-price-and-global-settings.md` rather than pasted from
+is written directly into `docs/milestones/done/M6-price-and-global-settings.md` rather than pasted from
 here, because the coordinator's copy is the one a dispatch reads and this amendment landed after 6T's
 section was already pasted. **It is not a fourth parallel wave**: it edits
 `hardware-mechanisms.ts` and `sample-price-book.ts`, so the no-parallel rule below covers it too.
@@ -932,7 +932,7 @@ code, the standing process ruled on 2026-09-04.
 
 ---
 
-## To be pasted into `docs/milestones/M6-price-and-global-settings.md`
+## To be pasted into `docs/milestones/done/M6-price-and-global-settings.md`
 
 **Written here because the coordinator holds that file.** The first block replaces wave 6T's
 existing section; the second and third are new sections after it; the fourth is the wave-table rows.
@@ -1159,6 +1159,6 @@ alternative is a negative badge, which the mockups' *de la +9 000* has no form f
 | 6T2 — the two sink extras *(ADR 0070 decision 4, ADR 0092 decisions 9–11)* | P | 6T — **same files, never in parallel; and never beside 6P or 6T-a** | Full |
 | 6W — a tier that prices below the default *(ADR 0092 decision 12)* | P | 6T — **same branch, reaches `main` with it** | Full |
 
-**6T-a's wave section is written directly into `docs/milestones/M6-price-and-global-settings.md`**
+**6T-a's wave section is written directly into `docs/milestones/done/M6-price-and-global-settings.md`**
 rather than pasted from here, because this amendment landed after 6T's section was already in that
 file. The row above is the only thing this record contributes to the table.

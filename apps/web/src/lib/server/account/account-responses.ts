@@ -100,7 +100,7 @@ export function signedInResponse(claimable: number): NextResponse {
 }
 
 /** `401`: the one answer to a sign-in that did not succeed: an unknown address, a wrong password and a correct password
- *  on an unconfirmed account read alike (ADR 0169 Amendment A). */
+ *  on an unconfirmed account read alike (ADR 0172 Amendment A). */
 export function invalidCredentialsResponse(): NextResponse {
   return statusResponse(401, "invalid-credentials");
 }

@@ -5,7 +5,7 @@ import type { Capability, Role } from "@lemnaria/configurator-domain";
 
 import type { CurrentSession } from "@/lib/server/account/current-session";
 
-// The one place a route asks whether an account may do something (ADR 0169 decision 7). It reads the session the server
+// The one place a route asks whether an account may do something (ADR 0172 decision 7). It reads the session the server
 // built from the session cookie and nothing the client sent: a role or capability in a body or a header is never an
 // input.
 

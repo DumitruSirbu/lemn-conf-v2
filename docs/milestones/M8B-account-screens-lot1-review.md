@@ -6,7 +6,7 @@
 > regrouping in §3.0 is a **proposal**. The coordinator or the owner rules on it, and the scribe records the ruling as a
 > dated amendment to the plan.
 >
-> **D12 still applies.** ADR 0169 D12 says this round runs without tests and without a QA step. So "QA" below means
+> **D12 still applies.** ADR 0172 D12 says this round runs without tests and without a QA step. So "QA" below means
 > **none this round**. The gate is the green verification in plan §8. E2E work is **owed** (§3.7) and is not part of
 > any wave.
 
@@ -280,7 +280,7 @@ regrouping as a dated amendment to plan §7** once the coordinator accepts it. U
 
 ### 3.1 Decisions this port needs
 
-Each is to be recorded by the scribe as an ADR 0169 amendment, or a new ADR where named.
+Each is to be recorded by the scribe as an ADR 0172 amendment, or a new ADR where named.
 
 | # | Question | Options | Recommendation | Who |
 | --- | --- | --- | --- | --- |
@@ -449,7 +449,7 @@ already lists them as turning red [doc].
   - the Turnstile site key is the owner's test key in `apps/web/.env.local` (O7). No agent sets, reads or prints it
     (plan §6).
 
-**QA reading:** none this round (ADR 0169 D12).
+**QA reading:** none this round (ADR 0172 D12).
 
 **Reviewer reading, common.** These lines are pasted into every reviewer dispatch, with each wave's own row added.
 
@@ -459,7 +459,7 @@ already lists them as turning red [doc].
   - plan L8 conditions (fragment, outbox);
   - plan L13a obligations M1, L3;
   - ADR 0161 Amendment D;
-  - ADR 0169 D4, D5, Amendment A;
+  - ADR 0172 D4, D5, Amendment A;
   - `proxy.ts`, `security-headers.ts`, `cross-site-request.ts`.
 - **Logic:**
   - this file §2.1, §2.2, §3.3;
@@ -479,8 +479,8 @@ already lists them as turning red [doc].
 | --- | --- | --- | --- | --- |
 | **L13b.1 — the shared kit** | 1. `account-answer.ts`: the §3.3 classifier and the bounded Retry-After → wait class (countdown / minutes / clock time).<br>2. `send-account-request.ts`: one POST helper for the five paths; no answer → `unanswered`.<br>3. `account-form-parts.tsx`: TextField, PasswordField (show / hide), FormNotice (err / warn / info / ok, live region, focus target), OutcomeHero, HelpList, SubmitButton (busy, countdown, hydrated gate).<br>4. `account.module.css` (tokens from `globals.css`; 44px targets).<br>5. `content.ts`: the two resolvers and the P7 rich resolver. Copy for the kit's leaves | `account/account-answer.ts`, `account/send-account-request.ts`, `account/account-form-parts.tsx`, `account/account.module.css`, `i18n/content.ts` (modified) | This file §2.1–2.7, §3.1 P5–P7, §3.2–3.4; `account-responses.ts`; `contact-answer.ts`, `send-contact-request.ts`, `contact-form.tsx`, `contact.module.css`; `clock-time.ts`; ADR 0095 d1; `engineering-conventions.md` *Localised copy* | **P5's structure** (whether a clock-time wait class exists; the 600 s and 3600 s thresholds) and **P7**. Wording and P6's namespace land as draft leaves and do not block |
 | **L13b.2 — the shell, the challenge props, forgot** | 1. `account-shell.tsx`: mobile header (‹ as `<a href="/{locale}">`, wordmark, title per SB2's answer, a plain-`<a>` locale chip), desktop card.<br>2. `challenge-page-props.ts`.<br>3. `turnstile-widget.tsx`: `loadingContent` (P10), the 300 × 65 reserved slot.<br>4. The forgot page and form (A5A–A5G + the long variant) | `account/account-shell.tsx`, `lib/server/account/challenge-page-props.ts`, `account/turnstile-widget.tsx` (modified), `app/[locale]/account/forgot-password/page.tsx`, `account/forgot-password-form.tsx` | L13b.1's list; `turnstile-widget.tsx`; `proxy.ts:24-36,274-303`; `security-headers.ts`; plan flow 6; ADR 0161 Amendment D | L13b.1 |
-| **L13b.3 — register and check-inbox, and the notice stub** | 1. The register page and form (A1A–A1H): client checks through `judgePassword` and `judgeAccountEmail`, the body with `PRIVACY_NOTICE_VERSIONS[0]` and `locale`.<br>2. `check-inbox-view.tsx` (A2A, "Am greșit adresa" back to the form with the e-mail kept).<br>3. The P4 notice stub.<br>4. The P11 counter, if the owner keeps it (one domain export, Full review) | `app/[locale]/account/register/page.tsx`, `account/register-form.tsx`, `account/check-inbox-view.tsx`, `app/[locale]/privacy-notice/page.tsx` (+ `packages/configurator-domain/src/account/index.ts` if P11 (a)) | L13b.2's list; plan flow 1; `register-account.ts`; `account-fields.ts`; `password-policy.ts`; ADR 0169 D1, D2 | L13b.2, P4, P11 |
-| **L13b.4 — login and the shared 404** | 1. The login page and form (A4A–A4F, invalid-input per §3.3), `onSignedIn(claimable)` → `location.assign` (P8).<br>2. `account/not-found.tsx` + `account/[[...unmatched]]/page.tsx` (optional catch-all, so the bare `/{locale}/account` also reaches A8C;  `connection()` as the existing unmatched page).<br>3. **Conditional:** the criterion 13 probe on a built server. If a percent-encoded account path is served, `proxy.ts` refuses a path whose segments differ once decoded, mirroring `hasMisspelledLocalePrefix` (`proxy.ts:202-211`) | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx`, `app/[locale]/account/not-found.tsx`, `app/[locale]/account/[[...unmatched]]/page.tsx` (+ `proxy.ts`, only if item 3 triggers) | L13b.3's list; plan flow 3; `sign-in.ts:80-120`; ADR 0169 Amendment A; `app/[locale]/[...unmatched]/page.tsx` | L13b.3 |
+| **L13b.3 — register and check-inbox, and the notice stub** | 1. The register page and form (A1A–A1H): client checks through `judgePassword` and `judgeAccountEmail`, the body with `PRIVACY_NOTICE_VERSIONS[0]` and `locale`.<br>2. `check-inbox-view.tsx` (A2A, "Am greșit adresa" back to the form with the e-mail kept).<br>3. The P4 notice stub.<br>4. The P11 counter, if the owner keeps it (one domain export, Full review) | `app/[locale]/account/register/page.tsx`, `account/register-form.tsx`, `account/check-inbox-view.tsx`, `app/[locale]/privacy-notice/page.tsx` (+ `packages/configurator-domain/src/account/index.ts` if P11 (a)) | L13b.2's list; plan flow 1; `register-account.ts`; `account-fields.ts`; `password-policy.ts`; ADR 0172 D1, D2 | L13b.2, P4, P11 |
+| **L13b.4 — login and the shared 404** | 1. The login page and form (A4A–A4F, invalid-input per §3.3), `onSignedIn(claimable)` → `location.assign` (P8).<br>2. `account/not-found.tsx` + `account/[[...unmatched]]/page.tsx` (optional catch-all, so the bare `/{locale}/account` also reaches A8C;  `connection()` as the existing unmatched page).<br>3. **Conditional:** the criterion 13 probe on a built server. If a percent-encoded account path is served, `proxy.ts` refuses a path whose segments differ once decoded, mirroring `hasMisspelledLocalePrefix` (`proxy.ts:202-211`) | `app/[locale]/account/login/page.tsx`, `account/login-form.tsx`, `app/[locale]/account/not-found.tsx`, `app/[locale]/account/[[...unmatched]]/page.tsx` (+ `proxy.ts`, only if item 3 triggers) | L13b.3's list; plan flow 3; `sign-in.ts:80-120`; ADR 0172 Amendment A; `app/[locale]/[...unmatched]/page.tsx` | L13b.3 |
 | **L14a.1 — the fragment and the confirm page** | 1. `fragment-token.ts`: read once, shape check, `replaceState`, ref-held.<br>2. The verify page (`connection()`) and form (A3A–A3G, the D7 token variant, P3 (b) chip hidden), `onSignedIn` after A3G | `account/fragment-token.ts`, `app/[locale]/account/verify-email/page.tsx`, `account/verify-email-form.tsx` | The L13b reading; plan flow 2; L8 conditions (fragment); `verify-email.ts`; `account-mail-messages.ts:75,165-176`; ADR 0161 Amendment D item 4; P12 | L13b.4 |
 | **L14a.2 — reset and the session-expired arrival** | 1. The reset page and form (A6A–A6H; `newPassword` sent, `field:"password"` shown on the new-password input).<br>2. A4G: `?reason=session-expired`, matched against a closed list, shows the info notice on login (P9) | `app/[locale]/account/reset-password/page.tsx`, `account/reset-password-form.tsx`, `account/login-form.tsx` (modified) | L14a.1's list; plan flow 7; `reset-password.ts:55-60,176-210` | L14a.1 |
 | **W-doc** (scribe, no code) | `docs/design/README.md` lists the two Lot 1 files and the `A`/`DA` frame IDs. The plan §7 amendment (§3.0). P1–P12 rulings | docs only | §3 here | the rulings |

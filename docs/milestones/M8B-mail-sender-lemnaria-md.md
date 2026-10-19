@@ -23,8 +23,8 @@ Parent plan: [`M8B-login-register-plan.md`](M8B-login-register-plan.md) (wave L7
 Three rulings, all 2026-10-18, in order [owner]:
 
 1. *"email will be from domain provider and domain is md lemnaria.md"* — account mail leaves from an address on
-   `lemnaria.md` through the domain provider's mail service. Recorded in ADR 0169 Amendment E item 1 [doc:
-   `docs/decisions/0169-…md:675-685`].
+   `lemnaria.md` through the domain provider's mail service. Recorded in ADR 0172 Amendment E item 1 [doc:
+   `docs/decisions/0172-…md:675-685`].
 2. *"everywhing will be send and received unde @lemnaria.md"* — the shop's lead notices too: they are **sent from** an
    address on `lemnaria.md` and **received at** a mailbox on `lemnaria.md`. Gmail leaves both paths.
 3. *"now till development keep gmail one as it works"* — Gmail stays the **only configured sender** during development,
@@ -202,7 +202,7 @@ today (`create-mail-sender.ts:26-30`).
 
 **Bounces and replies.** With no `envelope` option the return path is the `From` address [nm]. So the From must be a
 **real mailbox** that someone can read, or bounces and customer replies are lost. That is an owner choice (Q6), not a
-reason to add an `envelope` or a `Reply-To`: either one widens the surface that ADR 0164 and ADR 0169 D6 keep closed.
+reason to add an `envelope` or a `Reply-To`: either one widens the surface that ADR 0164 and ADR 0172 D6 keep closed.
 
 **Logging.** The adapter logs nothing. Only the factory logs, and only the fake's constant warning. A thrown error
 names a setting, never a value. `smtp-answer.ts` reads only `code`, `responseCode` and one comparison of `response`;
@@ -333,7 +333,7 @@ in the provider's panel.
   So "Gmail during development" holds only while **no real user's data** flows through it.
 - **New M9 launch-gate line (W3 adds it to the parent plan's list):** *before any real user, Production mail is sent
   through the `lemnaria.md` provider with its data-processing agreement in place and its data location recorded, or
-  Google is otherwise covered by an Art. 28 contract.* The line carries ADR 0169 Amendment E's recorded effect
+  Google is otherwise covered by an Art. 28 contract.* The line carries ADR 0172 Amendment E's recorded effect
   ("obtain and verify the domain provider's data-processing agreement and region") into M9's gate list; it changes
   nothing in that record.
 - **The shared-quota risk is transformed, not closed.** The parent plan's L7 M2 risk (`M8B-login-register-plan.md:793-801`,
@@ -364,12 +364,12 @@ in the provider's panel.
 
 ## 9. Records owed
 
-- **A new ADR, provisional number.** This worktree's records jump from 0166 to 0169, and the `-gbt` worktree already
-  holds a **different** 0169 plus 0167, 0168, 0170 and 0171 [ran: `ls docs/decisions` in both worktrees]. So both
-  worktrees hold an ADR 0169 with different content, which is a numbering clash for the merge to resolve. The new
+- **A new ADR, provisional number.** This worktree's records jumped from 0166 to 0169 (the accounts ADR, since renumbered 0172 at the merge with `main`), and the `-gbt` worktree
+  already held a **different** 0169 plus 0167, 0168, 0170 and 0171 [ran: `ls docs/decisions` in both worktrees]. So both
+  worktrees held an ADR 0169 with different content, a numbering clash the merge resolved by renumbering the accounts ADR to 0172. The new
   record takes the next number free on **both** branches at the time it is written. It is **owed, not written**.
 - **It amends** ADR 0164 d2 (the names; the sender is no longer necessarily the Google account) and d5 (the fixed host
-  and port become configuration; the TLS rules of §4.4), and ADR 0169 D6 (*"reuses the Gmail transport … until M9
+  and port become configuration; the TLS rules of §4.4), and ADR 0172 D6 (*"reuses the Gmail transport … until M9
   chooses a provider"*). **It keeps** ADR 0154 d1 and d11, ADR 0164 d4's must-not list, d6, d7 and d9, and ADR 0165.
   Alternatives to record: presence-based selection, a per-path opt-in, a duplicate adapter, an explicit `envelope` or
   `Reply-To`.
@@ -382,9 +382,9 @@ and W4.
 
 | Wave | Items | Production files | Depends on | Tier | Reading |
 | --- | --- | --- | --- | --- | --- |
-| **W1** — the SMTP adapter, unwired | 1. Move the shared send machinery out of the Gmail adapter, unchanged. 2. `buildSmtpTransportOptions` (465 / 587 rules, §4.4). 3. Shop and customer message builders and senders. 4. The Gmail adapter delegates and keeps every export | `mail/smtp-transport.ts` (new), `mail/smtp-mail-sender.ts` (new), `mail/gmail-mail-sender.ts` | — | **Full + security** | This plan §3, §4.4, §4.5; ADR 0164 d4, d5, d6, Amendment A; ADR 0165 D5; ADR 0169 D6 and the L7 security-review conditions (`M8B-login-register-plan.md:760-801`); ADR 0146; source: `gmail-mail-sender.ts`, `smtp-answer.ts`, `mail-sender.ts`, `customer-mail.ts`, `plain-mailbox.ts`; [nm] `smtp-connection/index.d.ts:1-60`, `smtp-connection/index.js:100-120`, `:1460-1485`, `mime-node/index.js:901-930`; Node `tls` docs on `DEFAULT_MIN_VERSION`; tests: `mail-network-guard.test.ts:110-160`, `qa-8n-no-network-and-scans.adversarial.test.ts:100-200` |
-| **W2** — configuration, selection, factories, harness | 1. `readSmtpConfiguration` and `SMTP_MAIL_VARIABLE_NAMES`. 2. Selection rows S1–S6. 3. Both factories branch on the selector's kind. 4. The harness withholds the six new names. 5. `.env.example` documents them, commented, with no value | `mail/smtp-configuration.ts` (new), `mail/select-mail-sender.ts`, `mail/create-mail-sender.ts`, `mail/create-customer-mail-sender.ts`, `tests/e2e/support/fake-mail-environment.ts` (+ `.env.example`, config) | W1 | **Full + security** | This plan §3, §4.1–§4.3, §6.3; ADR 0154 d6, d7; ADR 0164 d2, d3, d7; ADR 0169 D6, Amendment E item 1; `docs/best-practices/environments-and-resources.md` (*Hard rule*, *The mail variables since 8J2*); source: `mail-configuration.ts`, `select-mail-sender.ts`, `create-mail-sender.ts`, `create-customer-mail-sender.ts`, `fake-mail-flag.ts`, `contact/contact-availability.ts`, `account/queue-account-mail.ts:47-63`, `tests/e2e/support/fake-mail-environment.ts`, `production-policy-server.ts:70-85`, `qa-8j-environment.adversarial.test.ts:160-260` and `:470-565`, `fake-mail-environment.test.ts` |
-| **W3** — records and documents | The ADR (§9); `environments-and-resources.md` gains *The SMTP mail variables*; the parent plan's risk rows and launch-gate line (§7); privacy-draft processor lines (§7), marked draft | docs only | W2 | **Coordinator-only**, plus the owner's reading of the privacy lines | This plan §6, §7, §9; ADR 0164; ADR 0169 Amendment E; `docs/best-practices/documentation.md`; `privacy-notice-draft.md` lines named in §7 |
+| **W1** — the SMTP adapter, unwired | 1. Move the shared send machinery out of the Gmail adapter, unchanged. 2. `buildSmtpTransportOptions` (465 / 587 rules, §4.4). 3. Shop and customer message builders and senders. 4. The Gmail adapter delegates and keeps every export | `mail/smtp-transport.ts` (new), `mail/smtp-mail-sender.ts` (new), `mail/gmail-mail-sender.ts` | — | **Full + security** | This plan §3, §4.4, §4.5; ADR 0164 d4, d5, d6, Amendment A; ADR 0165 D5; ADR 0172 D6 and the L7 security-review conditions (`M8B-login-register-plan.md:760-801`); ADR 0146; source: `gmail-mail-sender.ts`, `smtp-answer.ts`, `mail-sender.ts`, `customer-mail.ts`, `plain-mailbox.ts`; [nm] `smtp-connection/index.d.ts:1-60`, `smtp-connection/index.js:100-120`, `:1460-1485`, `mime-node/index.js:901-930`; Node `tls` docs on `DEFAULT_MIN_VERSION`; tests: `mail-network-guard.test.ts:110-160`, `qa-8n-no-network-and-scans.adversarial.test.ts:100-200` |
+| **W2** — configuration, selection, factories, harness | 1. `readSmtpConfiguration` and `SMTP_MAIL_VARIABLE_NAMES`. 2. Selection rows S1–S6. 3. Both factories branch on the selector's kind. 4. The harness withholds the six new names. 5. `.env.example` documents them, commented, with no value | `mail/smtp-configuration.ts` (new), `mail/select-mail-sender.ts`, `mail/create-mail-sender.ts`, `mail/create-customer-mail-sender.ts`, `tests/e2e/support/fake-mail-environment.ts` (+ `.env.example`, config) | W1 | **Full + security** | This plan §3, §4.1–§4.3, §6.3; ADR 0154 d6, d7; ADR 0164 d2, d3, d7; ADR 0172 D6, Amendment E item 1; `docs/best-practices/environments-and-resources.md` (*Hard rule*, *The mail variables since 8J2*); source: `mail-configuration.ts`, `select-mail-sender.ts`, `create-mail-sender.ts`, `create-customer-mail-sender.ts`, `fake-mail-flag.ts`, `contact/contact-availability.ts`, `account/queue-account-mail.ts:47-63`, `tests/e2e/support/fake-mail-environment.ts`, `production-policy-server.ts:70-85`, `qa-8j-environment.adversarial.test.ts:160-260` and `:470-565`, `fake-mail-environment.test.ts` |
+| **W3** — records and documents | The ADR (§9); `environments-and-resources.md` gains *The SMTP mail variables*; the parent plan's risk rows and launch-gate line (§7); privacy-draft processor lines (§7), marked draft | docs only | W2 | **Coordinator-only**, plus the owner's reading of the privacy lines | This plan §6, §7, §9; ADR 0164; ADR 0172 Amendment E; `docs/best-practices/documentation.md`; `privacy-notice-draft.md` lines named in §7 |
 | *Owner* | §5 setup; §6.1 steps 3–5 | — | W2 for step 3 | — | §5, §6, §8 |
 | **W4** — retirement (gated on the owner's ruling) | §6.4 | `mail-configuration.ts`, `select-mail-sender.ts`, both factories, Gmail adapter deleted | Production cutover evidence | **Full + security** | Planned when ruled; ADR 0152 for the deletions |
 
@@ -497,7 +497,7 @@ in configuration and on e-mail header injection (cited by section), and §4.4 of
 | R5 | The provider's quota reply differs from `550 5.4.5` | A cap read as `busy` and retried, or as `refused` | Recorded limit. The table changes only once Q8's codes are quoted |
 | R6 | Two SPF records, or an SPF record at the wrong DNS host (Q4) | SPF fails for all mail on the domain | §5.3 "exactly one". Checked in the Preview headers |
 | R7 | Gmail carries real users' data before cutover | No Art. 28 contract (privacy draft BLOCKING) | The new launch-gate line (§7) |
-| R8 | The ADR 0169 number clash between the two worktrees | A broken link or a mis-cited decision after the merge | §9. Resolved at the merge, before the new ADR is numbered |
+| R8 | The ADR 0169 number clash between the two worktrees (resolved: accounts ADR is now 0172) | A broken link or a mis-cited decision after the merge | §9. Resolved at the merge, before the new ADR is numbered |
 
 ## 13. Verification method
 

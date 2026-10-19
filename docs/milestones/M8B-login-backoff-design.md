@@ -5,19 +5,19 @@ yet (§9 lists the one owed).
 Branch: `feat/login-register` (worktree `lemnaria-configurator-login`).
 Parent plan: [`M8B-login-register-plan.md`](M8B-login-register-plan.md) (§5 *Limiter policies*, wave L9, §12 *Review
 record*).
-Governing record: ADR 0169 (on this branch; **renumbered at merge**, ADR 0169 *Remaining before production* item 9),
+Governing record: ADR 0172 (on this branch; **renumbered from 0169 to 0172 at the merge with `main`**, ADR 0172 *Remaining before production* item 9),
 D5 *Login throttling*, Amendment A items 1 and 5, Amendment E items 1 and 5.
 
 **Evidence tiers used below.**
 
-- **[owner]** the owner's words or ruling, as recorded in ADR 0169.
-- **[relay]** the owner's intent as stated in the coordinator's dispatch of 2026-10-18 and **not** recorded in ADR 0169:
+- **[owner]** the owner's words or ruling, as recorded in ADR 0172.
+- **[relay]** the owner's intent as stated in the coordinator's dispatch of 2026-10-18 and **not** recorded in ADR 0172:
   the example schedule "1, 2, 5, 15, 60 min", "a high absolute ceiling (≤ 100/day)", "a looser per-network counter",
   and "the forgot-password flow is the way back in". The owed amendment (§9) must not quote these as [owner] until the
   owner confirms them.
 - **[doc]** quoted from this repository, with a path.
 - **[src]** read in the source on this branch at `d07a09a1`, by the architect, for this plan.
-- **[ven]** a vendor or standards fact. Here that means only the OWASP and NIST lines ADR 0169 D5 records. The record
+- **[ven]** a vendor or standards fact. Here that means only the OWASP and NIST lines ADR 0172 D5 records. The record
   itself labels them "read by the coordinator, not re-read here". They were **not** re-researched for this plan.
 - **[inf]** the architect's inference. Every SQL statement below is [inf]: a sketch for wave B1 to prove, not a
   verified statement.
@@ -26,19 +26,19 @@ D5 *Login throttling*, Amendment A items 1 and 5, Amendment E items 1 and 5.
 
 ## 1. Goal
 
-Build the login throttling the owner approved on 2026-10-18 [owner, ADR 0169 D5 *Decision*]:
+Build the login throttling the owner approved on 2026-10-18 [owner, ADR 0172 D5 *Decision*]:
 
 > failure-only counting with a growing delay and a ceiling of 100 failures a day per address. A correct password resets
 > the run. The block-level bucket and Turnstile stay. The reset-mail bucket (5 a day) is not changed by this decision.
 
-The research behind it [ven, ADR 0169 D5 *Research*]:
+The research behind it [ven, ADR 0172 D5 *Research*]:
 
 - OWASP *Authentication Cheat Sheet*: count per account, lock out with an exponential delay, show the CAPTCHA only
   after failures.
 - NIST SP 800-63B: limit **consecutive failed** attempts to no more than 100, use delays that increase, disregard
   earlier failures after a success.
 
-What runs today is an **INTERIM** [doc: ADR 0169 D5 *IMPLEMENTATION STATE*; src: `limit-policy.ts:143,147`,
+What runs today is an **INTERIM** [doc: ADR 0172 D5 *IMPLEMENTATION STATE*; src: `limit-policy.ts:143,147`,
 `judge-account-request.ts` `SUBJECT_PLAN_OF_PURPOSE.login`, `sign-in.ts` `signIn`]:
 
 - two fixed UTC windows per address, `account-login-by-address` at 10 per 15 min and 100 per 1440 min;
@@ -49,7 +49,7 @@ What runs today is an **INTERIM** [doc: ADR 0169 D5 *IMPLEMENTATION STATE*; src:
 
 - The reset-mail bucket and its residual. They are unchanged by the owner's decision.
 - The block buckets of other flows.
-- Turnstile's behaviour, which stays exactly as ADR 0169 Amendment E item 5 has it.
+- Turnstile's behaviour, which stays exactly as ADR 0172 Amendment E item 5 has it.
 - The login screen copy. A `429` already exists and keeps its shape.
 
 ---
@@ -114,9 +114,9 @@ create index if not exists login_backoff_runs_expires_at on login_backoff_runs (
   prune has not reached yet is read as a fresh run, exactly as `0007` treats an expired window.
 - **Migration screen.** `0016` must pass the unattended screen (`migration-safety.ts`) with no finding. It uses only
   `0007`'s constructs plus `boolean`. Wave B1 runs the screen. It cannot run the CLI gate until `0011` is on the base
-  [doc: ADR 0169 Amendment E item 3].
+  [doc: ADR 0172 Amendment E item 3].
 
-**Numbering and order [doc: ADR 0169 *Remaining* items 1–2; src: `0011_create_presets.sql` exists on the M8C
+**Numbering and order [doc: ADR 0172 *Remaining* items 1–2; src: `0011_create_presets.sql` exists on the M8C
 checkout, `0012`–`0015` on this branch].** The order is:
 
 1. merge M8C;
@@ -133,7 +133,7 @@ before it is applied anywhere.
 `GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.login_backoff_runs TO app_designs;`
 
 - `DELETE` is for the prune only. A reset is an `UPDATE`.
-- ADR 0169 D10's "No `DELETE` grant" is written for the four account tables. This is a limiter table, on `0007`'s
+- ADR 0172 D10's "No `DELETE` grant" is written for the four account tables. This is a limiter table, on `0007`'s
   precedent. The amendment owed in §9 says so explicitly, so that it is not read as a silent exception.
 
 ### 3.3 The port (persistence) [inf]
@@ -150,7 +150,7 @@ a typed store error when the database gives no trustworthy answer, as `RateLimit
 | `clearRun({key})` | After a completed password reset, and after a confirmed e-mail: run and day count to 0 |
 | `pruneExpired(now)` | Deletes rows with `expires_at <= now`. Called by the existing nightly cron as one more step |
 
-Why there is **no `readCounts`** (ADR 0169 D5 *IMPLEMENTATION STATE*, need 1, which this plan replaces):
+Why there is **no `readCounts`** (ADR 0172 D5 *IMPLEMENTATION STATE*, need 1, which this plan replaces):
 
 - A read-then-record check lets every request that passes the check before any record lands make a guess.
 - That burst is bounded only by the solved Turnstile tokens the attacker holds (one per solve) and by
@@ -264,7 +264,7 @@ It is closed by reserving first (§3.3).
 
 ### 4.4 The `503` hash-failure path: a recorded ruling changes
 
-ADR 0169 Amendment A item 5 and plan L9 F4 [doc] say:
+ADR 0172 Amendment A item 5 and plan L9 F4 [doc] say:
 
 > a hashing platform failure answers `503` but stays counted … the count cannot be taken back once the hash is known to
 > have failed.
@@ -278,7 +278,7 @@ feasible"). Under this design, taking the count back **is** feasible (`refundAtt
 - This **overturns Amendment A item 5.** It is therefore owner question Q4 and a dated amendment (§9), and is not
   made silently.
 
-### 4.5 The enumeration rule (ADR 0169 Amendment A)
+### 4.5 The enumeration rule (ADR 0172 Amendment A)
 
 1. **Identical recording.** Every `401` branch does exactly one store write before the response: the same
    `admitAttempt`, on a key made from the normal form of the typed address (`keyOf` takes the subject text only, never
@@ -348,7 +348,7 @@ The figures assume the default schedule. Each failure costs one solved challenge
   login is refused for almost the whole day, at about **9 + 23 ≈ 32 solved challenges on the first day and 24 a day
   after that**.
 - **Closing the way back in too** costs about **5 more** solved challenges a day. They exhaust the reset-mail bucket
-  (5 a day, unchanged [doc: ADR 0169 Amendment A item 2]).
+  (5 a day, unchanged [doc: ADR 0172 Amendment A item 2]).
 - **Total to keep a victim fully out: about 29–37 solved challenges a day.**
 
 | | Interim (today) | This design, default schedule |
@@ -381,27 +381,27 @@ Q2 offers two variants that restore the interim's lockout cost:
 ## 6. Waves
 
 All code waves are tier **Full**, with security review mandatory on every one: auth, persistence, public endpoint
-(WORKFLOW tier table; ADR 0169 D12 "security review is on every code wave").
+(WORKFLOW tier table; ADR 0172 D12 "security review is on every code wave").
 
-**Tests.** ADR 0169 D12's no-test rule is scoped to "this round of M8B only" [doc]. **Proposed default: this design
+**Tests.** ADR 0172 D12's no-test rule is scoped to "this round of M8B only" [doc]. **Proposed default: this design
 ships with its tests** (Q1). QA writes the properties in §7 with `fast-check`.
 
 | Wave | Items (≤ 5 files) | Reading |
 | --- | --- | --- |
-| **B1 — persistence** | (1) `packages/persistence/src/migrations/0016_create_login_backoff_runs.sql`, with a header in `0007`'s style: apply before the code that counts, apply before the grant, the bytes are frozen once applied; (2) `login-backoff-store.ts`: port, request checks, store error; (3) `neon-login-backoff-store.ts`; (4) `fake-login-backoff-store.ts`, with the same semantics including serialised admission; (5) `index.ts` exports | This plan §3, §4.1–4.3. ADR 0149 (count may err high). ADR 0169 D10 and Amendment E item 3. `0007_create_rate_limit_counters.sql`, `rate-limit-store.ts`, `neon-rate-limit-store.ts`, `fake-rate-limit-store.ts`, `retry-on-transient-failure.ts`, `migration-safety.ts` (the screen's allow-list) |
-| **B2 — limiter judge** | (1) `apps/web/src/lib/server/rate-limit/judge-login-backoff.ts`: makes the key through the digester under policy `account-login-backoff`, maps admission to a `RateLimitDecision`, computes `Retry-After`, applies the write deadline, fails closed, reports through `account-log.ts`, and exposes `forget`, `refund` and `clear`; (2) `login-backoff-store-instance.ts`, lazy, as `rate-limit-store-instance.ts`; (3) `limit-policy.ts`: the schedule, ceiling and quiet-period constants, PROVISIONAL, **added** only (nothing retired yet, so the build stays green); (4) `prune-rate-limits.ts`, or the cron route: one more prune step for the new table | This plan §4, §5.1. ADR 0156 (writes fail closed). ADR 0169 D5, Amendment A. `enforce-rate-limit.ts`, `judge-block-bucket.ts`, `judge-account-request.ts`, `limit-policy.ts`, `bucket-subject.ts`, `account-responses.ts` (`answerOfJudgement`), `prune-rate-limits.ts`, `app/api/cron/prune-rate-limits/route.ts` |
-| **B3 — wiring and retirement** | (1) `sign-in.ts`: admission at step 7, the outcome table, `forgetRun` in `after()`, refund (Q4), and the **header comment rewritten** (it currently says every valid attempt is counted before the lookup and a `503` cannot be un-counted); (2) `reset-password.ts`: `clearRun` after `password-changed`; (3) `verify-email.ts`: `clearRun` after a started session; (4) `judge-account-request.ts`: drop `login` from `SUBJECT_PLAN_OF_PURPOSE` and from `AddressedPurpose`; (5) `limit-policy.ts`: retire `ACCOUNT_LOGIN_BY_ADDRESS_*`, their `PolicyPurpose` entries and their twins, keeping `ALL_LIMIT_POLICIES` duplicate-free | This plan §4.2, §4.5, §5.1. ADR 0169 D5, Amendment A items 1 and 5, Amendment E item 5. Plan §5 flow 3 and L9 obligations. `sign-in.ts`, `reset-password.ts`, `verify-email.ts`, `judge-account-request.ts`, `limit-policy.ts`, `app/api/account/login/route.ts` (read only) |
-| **B4 — records** (documentation; not a code wave) | ADR 0169 amendment (§9). Plan §5 limiter table, §9 tests-owed, §12. Runbook section *For 0016* (steps 1–9 as for 0007). `docs/STATUS.md` | This plan. ADR 0169. The runbook's 0007 section. `docs/best-practices/documentation.md` |
+| **B1 — persistence** | (1) `packages/persistence/src/migrations/0016_create_login_backoff_runs.sql`, with a header in `0007`'s style: apply before the code that counts, apply before the grant, the bytes are frozen once applied; (2) `login-backoff-store.ts`: port, request checks, store error; (3) `neon-login-backoff-store.ts`; (4) `fake-login-backoff-store.ts`, with the same semantics including serialised admission; (5) `index.ts` exports | This plan §3, §4.1–4.3. ADR 0149 (count may err high). ADR 0172 D10 and Amendment E item 3. `0007_create_rate_limit_counters.sql`, `rate-limit-store.ts`, `neon-rate-limit-store.ts`, `fake-rate-limit-store.ts`, `retry-on-transient-failure.ts`, `migration-safety.ts` (the screen's allow-list) |
+| **B2 — limiter judge** | (1) `apps/web/src/lib/server/rate-limit/judge-login-backoff.ts`: makes the key through the digester under policy `account-login-backoff`, maps admission to a `RateLimitDecision`, computes `Retry-After`, applies the write deadline, fails closed, reports through `account-log.ts`, and exposes `forget`, `refund` and `clear`; (2) `login-backoff-store-instance.ts`, lazy, as `rate-limit-store-instance.ts`; (3) `limit-policy.ts`: the schedule, ceiling and quiet-period constants, PROVISIONAL, **added** only (nothing retired yet, so the build stays green); (4) `prune-rate-limits.ts`, or the cron route: one more prune step for the new table | This plan §4, §5.1. ADR 0156 (writes fail closed). ADR 0172 D5, Amendment A. `enforce-rate-limit.ts`, `judge-block-bucket.ts`, `judge-account-request.ts`, `limit-policy.ts`, `bucket-subject.ts`, `account-responses.ts` (`answerOfJudgement`), `prune-rate-limits.ts`, `app/api/cron/prune-rate-limits/route.ts` |
+| **B3 — wiring and retirement** | (1) `sign-in.ts`: admission at step 7, the outcome table, `forgetRun` in `after()`, refund (Q4), and the **header comment rewritten** (it currently says every valid attempt is counted before the lookup and a `503` cannot be un-counted); (2) `reset-password.ts`: `clearRun` after `password-changed`; (3) `verify-email.ts`: `clearRun` after a started session; (4) `judge-account-request.ts`: drop `login` from `SUBJECT_PLAN_OF_PURPOSE` and from `AddressedPurpose`; (5) `limit-policy.ts`: retire `ACCOUNT_LOGIN_BY_ADDRESS_*`, their `PolicyPurpose` entries and their twins, keeping `ALL_LIMIT_POLICIES` duplicate-free | This plan §4.2, §4.5, §5.1. ADR 0172 D5, Amendment A items 1 and 5, Amendment E item 5. Plan §5 flow 3 and L9 obligations. `sign-in.ts`, `reset-password.ts`, `verify-email.ts`, `judge-account-request.ts`, `limit-policy.ts`, `app/api/account/login/route.ts` (read only) |
+| **B4 — records** (documentation; not a code wave) | ADR 0172 amendment (§9). Plan §5 limiter table, §9 tests-owed, §12. Runbook section *For 0016* (steps 1–9 as for 0007). `docs/STATUS.md` | This plan. ADR 0172. The runbook's 0007 section. `docs/best-practices/documentation.md` |
 
 **QA reading (each wave):** this plan §4 and §7. The wave's files. `fake-login-backoff-store.ts` (B2 and B3).
 `sign-in.ts` (B3).
 
-**Logic reviewer reading:** this plan §3–§5. ADR 0169 D5 and Amendment A. The wave's diff and the files in its Reading
+**Logic reviewer reading:** this plan §3–§5. ADR 0172 D5 and Amendment A. The wave's diff and the files in its Reading
 column.
 
 **Clean-code reviewer reading:** the wave's diff. `docs/best-practices/engineering-conventions.md`.
 
-**Security reviewer reading:** this plan §3.2, §4.2–§4.7 and §5. ADR 0169 D5 and Amendments A and E (item 5). ADR
+**Security reviewer reading:** this plan §3.2, §4.2–§4.7 and §5. ADR 0172 D5 and Amendments A and E (item 5). ADR
 0156. The wave's diff. For B3 also `account-request.ts` (`refusalOfChallenge`) and `password-hash.ts`
 (`checkPassword`, `DUMMY_PHC`).
 
@@ -508,7 +508,7 @@ Production follows the same steps, after `0011`–`0015`.
 
 ## 9. Records owed on acceptance (by the scribe, not in this file)
 
-A dated **amendment to ADR 0169**, under its post-merge number. It states:
+A dated **amendment to ADR 0172**, under its post-merge number. It states:
 
 1. **D5 *Login throttling*:** the mechanism as built — reservation, `forgetRun`, `clearRun`, the schedule and the
    ceiling. The *IMPLEMENTATION STATE* line moves from INTERIM to built.

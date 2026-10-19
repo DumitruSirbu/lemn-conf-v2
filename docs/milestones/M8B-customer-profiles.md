@@ -10,7 +10,7 @@
 
 > **Dated note, 2026-10-17 (architect).** The login and register part of Fix 3 (`docs/OWNER_FIXES.md`, owner rulings
 > of 2026-10-17) is planned in [`M8B-login-register-plan.md`](M8B-login-register-plan.md), waves L0–L14b, with
-> [ADR 0169](../decisions/0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+> [ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
 > **Proposed**. That plan's §0 maps 8N and 8P1–8P7 onto its waves. 8P8, 8P9 and the modal stay later waves. QP1 and
 > QP2 get proposed defaults there (owner questions Q-L1, Q-L2). QP3 and QP5 belong to the later GDPR and backup waves.
 > QP4 belongs to the dashboard. Nothing below is changed.

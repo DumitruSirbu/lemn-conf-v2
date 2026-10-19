@@ -71,7 +71,7 @@ export interface StoredDesign {
 }
 
 /**
- * What authorises a save (ADR 0019 decision 1, ADR 0169 D9): the design's write token, as the hash the route read, or
+ * What authorises a save (ADR 0019 decision 1, ADR 0172 D9): the design's write token, as the hash the route read, or
  * the id of the account that owns the design. The account's id is the server's own session's and no request member can
  * name one. The two are alternatives, never both: each arm is its own statement, so a caller cannot widen one with the
  * other.
@@ -109,7 +109,7 @@ export interface MintDesign {
   readonly design: Design;
   readonly writeTokenHash: string;
   readonly visitor: MintVisitor;
-  /** The signed-in, verified client account the design belongs to from its first moment (ADR 0169 D8). Absent for a
+  /** The signed-in, verified client account the design belongs to from its first moment (ADR 0172 D8). Absent for a
    *  visitor, and then the statement is exactly the one that came before claiming, so a database that has not yet
    *  applied `0015` still mints for a signed-out visitor. A mint that names an account inserts `account_id` and so
    *  fails on a database without `0015`: apply it in every environment that receives this code. */
@@ -147,7 +147,7 @@ export type VisitorResumeLookup =
   | { readonly kind: "none" };
 
 /**
- * Who is asking to read a design (ADR 0169 D9): the browser's visitor hash, the signed-in client account's id, or
+ * Who is asking to read a design (ADR 0172 D9): the browser's visitor hash, the signed-in client account's id, or
  * both. At least one is present by construction, so a caller that has neither cannot reach the repository. Each value
  * is trusted to be what the server derived (a hash of the visitor cookie, the id of the session's account): a request
  * never names either. An absent member matches no row.
@@ -172,6 +172,14 @@ export interface OwnedDesignLookup {
   readonly accessor: DesignAccessor;
 }
 
+/** `loadAuthorized`'s argument: the design's id and both credentials' hashes, grouped so none can be swapped for
+ *  another at a call site (ADR 0114 decision G4). */
+export interface AuthorizedDesignLookup {
+  readonly id: DesignId;
+  readonly writeTokenHash: string;
+  readonly visitorHash: string;
+}
+
 /** Tagged like `VisitorResumeLookup`, so a caller cannot forget to check which case it got. A foreign row, a
  *  pre-`0005` row (`visitor_hash is null`, no account) and a missing row are all `"none"`: one outcome of one
  *  statement, so a non-owner cannot observe which it was. */
@@ -187,7 +195,7 @@ export type LoadOwnedOutcome =
   | { readonly kind: "none" };
 
 /**
- * The gated read (ADR 0114 Amendment H2, ADR 0169 D9): a design is readable by the browser whose visitor hash the row
+ * The gated read (ADR 0114 Amendment H2, ADR 0172 D9): a design is readable by the browser whose visitor hash the row
  * carries, or by the account whose id the row carries. `migrateDesign` runs only on `found`, so `InvalidDesignError`
  * is reachable by the design's owner alone.
  */
@@ -212,7 +220,7 @@ export interface VisitorDesignsClaim {
 }
 
 /**
- * The claim port (ADR 0169 D8), a narrow one of its own like `VisitorResumeRepository`: it starts from a visitor hash
+ * The claim port (ADR 0172 D8), a narrow one of its own like `VisitorResumeRepository`: it starts from a visitor hash
  * and an account, and folding it into the mint/save port would make every test double for that port fake it.
  */
 export interface DesignClaimRepository {
@@ -223,6 +231,15 @@ export interface DesignClaimRepository {
   claimVisitorDesigns(claim: VisitorDesignsClaim): Promise<readonly DesignId[]>;
 }
 
+/**
+ * A third, narrower read for a route that acts on a design as its author and must have proved both credentials
+ * (the preset save): a port of its own for the reason `OwnedDesignRepository` is one, so no existing test double has
+ * to fake it.
+ */
+export interface AuthorizedDesignRepository {
+  loadAuthorized(lookup: AuthorizedDesignLookup): Promise<LoadOwnedOutcome>;
+}
+
 /** `AuthorizedConfigurationRepository` on Neon Postgres. Every query is a tagged-template `sql`, which parameterises
  *  values: nothing here concatenates a value into SQL text. */
 export class NeonConfigurationRepository
@@ -230,7 +247,8 @@ export class NeonConfigurationRepository
     AuthorizedConfigurationRepository,
     VisitorResumeRepository,
     OwnedDesignRepository,
-    DesignClaimRepository
+    DesignClaimRepository,
+    AuthorizedDesignRepository
 {
   private readonly sql;
 
@@ -430,7 +448,7 @@ export class NeonConfigurationRepository
   }
 
   /**
-   * The account arm (ADR 0169 D9): the same statement with `account_id = $a` where the token arm has the write-token
+   * The account arm (ADR 0172 D9): the same statement with `account_id = $a` where the token arm has the write-token
    * hash, in all three places, so the 409 is still reported only to a caller whose credential matched the row, and a
    * row no account has claimed (`account_id is null`) matches nobody. The retry rule is the token arm's. The visitor is
    * not this arm's concern: it does not ask who owns the visitor, and `owns_visitor` is always `false`, because a
@@ -491,7 +509,7 @@ export class NeonConfigurationRepository
   }
 
   /**
-   * The gated read (ADR 0114 Amendment H2, ADR 0169 D9): `id` and either credential in one predicate, so a foreign
+   * The gated read (ADR 0114 Amendment H2, ADR 0172 D9): `id` and either credential in one predicate, so a foreign
    * row, a pre-`0005` row and a missing row are one outcome. An absent member is bound as `null`, and `x = null` is
    * never true, so an accessor with only a visitor matches exactly what it did before accounts existed, and one with
    * only an account matches only that account's rows. A visitor-less, account-less row matches neither arm. The owner
@@ -520,6 +538,37 @@ export class NeonConfigurationRepository
       design: migrateDesign(row.schema_version, row.document),
       revision: row.revision,
       isOwnedByAccount: row.is_owned_by_account,
+    };
+  }
+
+  /**
+   * The read that proves authorship: the id, the write token's hash and the visitor's hash in one predicate, compared
+   * in SQL as `saveAuthorized` and the share link do, so a wrong token, a foreign visitor, a pre-`0005` row and a
+   * missing row are one outcome. A row with a NULL `write_token_hash` or `visitor_hash` never matches. `migrateDesign`
+   * runs only on a match. No `requireSha256Digest`: a wrong-shaped credential is simply not the right one.
+   */
+  async loadAuthorized({
+    id,
+    writeTokenHash,
+    visitorHash,
+  }: AuthorizedDesignLookup): Promise<LoadOwnedOutcome> {
+    const rows = (await retryOnTransientFailure(
+      () => this.sql`
+      select schema_version, document, revision::text as revision
+      from designs
+      where id = ${id}
+        and write_token_hash = ${writeTokenHash}
+        and visitor_hash = ${visitorHash}
+    `,
+    )) as DesignRow[];
+
+    const row = rows[0];
+    if (!row) return { kind: "none" };
+
+    return {
+      kind: "found",
+      design: migrateDesign(row.schema_version, row.document),
+      revision: row.revision,
     };
   }
 
@@ -571,7 +620,7 @@ export class NeonConfigurationRepository
    * racing for one visitor's designs the second finds the first's rows no longer matching (READ COMMITTED re-checks
    * the predicate after waiting on the row lock). It sets `account_id` and nothing else: `visitor_hash`,
    * `write_token_hash`, `revision`, `updated_at` and `document` stay as they were, so the claiming browser works as
-   * before (ADR 0169 D8).
+   * before (ADR 0172 D8).
    *
    * Not retried, unlike the reads here: a repeat after a lost acknowledgement would find its own rows claimed already
    * and answer none, which would tell the client nothing was claimed when everything was. The caller answers the

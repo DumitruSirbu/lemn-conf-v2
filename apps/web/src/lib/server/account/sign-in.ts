@@ -49,7 +49,7 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 // Flow 3 of the M8B plan: signing in. From step 5 of the common order on; the route has already checked the request's
 // origin, media type and size and the network's limit (steps 1 to 4). Every way of not signing in is one `401`: an
 // unknown address, a wrong password, a password the policy refuses, and a correct password on an address not yet
-// confirmed (ADR 0169 Amendment A). Each of them does the same work before the answer: the address's buckets, one
+// confirmed (ADR 0172 Amendment A). Each of them does the same work before the answer: the address's buckets, one
 // lookup and exactly one argon2id verification.
 //
 // The address's buckets are counted for every valid attempt, before the lookup and before the password is looked at

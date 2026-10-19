@@ -11,8 +11,8 @@ import {
   type VisitorCookieReader,
 } from "@/lib/server/visitor";
 
-// The designs a signed-in account may take from the browser it is using (ADR 0169 D8). Which designs those are is the
-// visitor cookie's alone, and whether the account may take them is its capability (the client's alone, ADR 0169 Amendment B)
+// The designs a signed-in account may take from the browser it is using (ADR 0172 D8). Which designs those are is the
+// visitor cookie's alone, and whether the account may take them is its capability (the client's alone, ADR 0172 Amendment B)
 // and verification, read by the server. A request never says either.
 
 const NO_CLAIMABLE_DESIGNS = 0;

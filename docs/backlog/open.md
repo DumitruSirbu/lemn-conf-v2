@@ -1472,9 +1472,9 @@ than the approved ones.
 - **Depth joined M5 on 2026-08-27** and is no longer "M5's entire scope" being width alone. Entry 5's
   unfinished half (the unlinked cap and nominal) is M5 wave **5A**, and base carcass depth as a
   formula is wave **5F** — both shipped (see `docs/backlog/resolved.md`, entry 5). The wave letters
-  were reassigned when that landed — `docs/milestones/M5-width.md` carries the old→new mapping.
+  were reassigned when that landed — `docs/milestones/done/M5-width.md` carries the old→new mapping.
 - **The worktop depth control is M6's, not M5's** (owner, 2026-08-27). M5 owns the geometry with the
-  worktop as a declared constant at 600; `docs/milestones/M6-price-and-global-settings.md` work item
+  worktop as a declared constant at 600; `docs/milestones/done/M6-price-and-global-settings.md` work item
   4 adds the control. Scheduled in both, so it is not backlog in either.
 - **M4's deferred review findings** (the redundant panel test-file split, `advancePast` opening a
   span no command can produce, the notice remounting on every retry, the write-access probe's
@@ -1991,7 +1991,7 @@ here. No owner yet; phase is M8.
 
 ## 92. SEC-U1.1 — the largest storable design row grows to 523,972 bytes — FOUND 2026-09-29, DEFERRED TO M8's LAUNCH GATE
 
-**Found by M7B wave U1's security review** (S1.1, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+**Found by M7B wave U1's security review** (S1.1, Low; `docs/milestones/done/M7B-u-shaped-rooms.md`, *U1
 close-out*). Wave U1's storage-bounds slice (S2, `7e3b99d`) re-derives `MAX_DESIGN_BYTES` from
 186→279 placements and 1262→1893 empty columns for the third wall run: 349,656 → 523,972 bytes, a
 1.5× growth over the two-wall figure. This grows the accepted risk
@@ -2002,7 +2002,7 @@ is M8.
 
 ## 93. SEC-U1.2 — no per-shape empty-column count check bounds an L/straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
 
-**Found by M7B wave U1's security review** (S1.2, Low; `docs/milestones/M7B-u-shaped-rooms.md`, *U1
+**Found by M7B wave U1's security review** (S1.2, Low; `docs/milestones/done/M7B-u-shaped-rooms.md`, *U1
 close-out*). After U1, an L or straight document may carry up to 1893 empty columns and marked
 wall-C entries even though it has no wall C — `MAX_EMPTY_COLUMNS` is a global cap, not a per-shape
 one. An optional per-shape count check (walls × 631) would tighten this; it is recorded, not built.
@@ -2010,7 +2010,7 @@ No owner, no phase.
 
 ## 94. AC6's mirror-equivariance property ran on arbitrary U documents, not generated U kitchens — FOUND 2026-09-29, CLOSED 2026-09-29 (M7B wave U2)
 
-**Found by M7B wave U1's logic review** (R1.3; `docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance
+**Found by M7B wave U1's logic review** (R1.3; `docs/milestones/done/M7B-u-shaped-rooms.md`, U1 acceptance
 criterion 6 and *U1 close-out*). The property (1000 runs, `mirrorUDesign` reviewed, sabotage both ways
 confirmed) exercised arbitrary U documents and a restated fixture rather than designs
 `generateKitchen` actually produces for a U shell. This is not a defect in what shipped — U1 has no
@@ -2019,13 +2019,13 @@ one exists. **Owed to wave U2's acceptance criterion A2**, not open-ended.
 
 **CLOSED 2026-09-29 — discharged by M7B wave U2.** AC6's mirror property now runs on real
 `buildUShellDesign` outputs through `mirrorUDesign`, 200 samples plus about 80 boundary rooms, zero
-findings, voids mirroring as predicted (`docs/milestones/M7B-u-shaped-rooms.md`, *U2 close-out*). No
+findings, voids mirroring as predicted (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U2 close-out*). No
 further action owed.
 
 ## 95. The A∩C corner sweep also marks a stray wall-C span on an L or straight document — FOUND 2026-09-29, OPTIONAL, NOT SCHEDULED
 
 **Found by M7B wave U1's logic review** (R1.4, a disagreement rather than a bug;
-`docs/milestones/M7B-u-shaped-rooms.md`, U1 acceptance criterion 7 and *U1 close-out*). The A∩C
+`docs/milestones/done/M7B-u-shaped-rooms.md`, U1 acceptance criterion 7 and *U1 close-out*). The A∩C
 corner-overlap sweep (`findCornerOverlaps`) runs unconditionally, so it also fires on an L or straight
 document that happens to carry a stray wall-C span, producing an extra mark-severity finding there.
 Acceptance criterion 2 (old documents load with identical findings) is not at risk, because no
@@ -2034,7 +2034,7 @@ skips wall C entirely for a shape that lacks it is optional and was left undone.
 
 ## 96. The engine's minimum-kitchen figures omit the 100 mm reserve, so they cannot be switched on as a gate — FOUND 2026-09-30, LATENT, U6 BRINGS THE APPROVED FIGURE
 
-**Found by M7B wave U3b's close-out** (`docs/milestones/M7B-u-shaped-rooms.md`, *U3b close-out*). The
+**Found by M7B wave U3b's close-out** (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U3b close-out*). The
 engine's minimum-kitchen figures, L and U alike (`wallMinimumMm` 880), exclude the 100 mm reserve, so
 they cannot be turned on as a gate without adding it. With the gate forced on, 2,160 of 36,506 sampled U
 rooms (sides 1480–1599, for example 2400/6000/1599) pass the gate while the generator refuses them.
@@ -2049,7 +2049,7 @@ No owner, no phase.
 
 ## 98. A reload shows the seeded L (3 chips) before the loaded design — FOUND 2026-09-30, PRE-EXISTING, NOT A U6 BLOCKER
 
-**Found by M7B wave U5's QA and review** (`docs/milestones/M7B-u-shaped-rooms.md`, *U5 close-out*).
+**Found by M7B wave U5's QA and review** (`docs/milestones/done/M7B-u-shaped-rooms.md`, *U5 close-out*).
 Zustand 5.0.15's `useStore` server snapshot is `getInitialState()`, so server rendering and the
 hydration render show the seeded L (3 chips) before the loaded design. It affects every `/d/{id}` and
 `/s/{token}` load for every non-L design, and lasted about 130 ms in dev. Pre-existing since zustand 5,
@@ -2081,7 +2081,7 @@ phase.
 
 **Answered 2026-09-30 (Q-U7-2, relayed selection, not verbatim): "Leave them (Recommended)."** The six
 rows stay; nothing removes them. The architect recorded the answer in the milestone
-(`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
+(`docs/milestones/done/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
 
 **Another leftover row, 2026-10-07.** M8 wave 8A S1's measurement left one row, `su3IuyF9TqeLXtm6AegGl`, in
 the test database, undeleted as its brief required (add-only); it is recorded in the M8 plan's *8A figures*.
@@ -2099,7 +2099,7 @@ with the rows above and with backlog 79's; no earlier answer extends to them.
 ADR 0116 reads buildability from policy data, so a policy that stops stating a shape refuses it again.
 **If any future policy stops stating a shape, the e2e tests removed in U6 must come back:** census E3, E4's
 U half, E5 and E9 (the region's colours, its gap, and its clipping;
-`docs/milestones/M7B-u-shaped-rooms.md`, *U6 S0 census*). No owner, no phase.
+`docs/milestones/done/M7B-u-shaped-rooms.md`, *U6 S0 census*). No owner, no phase.
 
 ## 102. Dev-only security candidates from the undici review — FOUND 2026-09-30, NOT SCHEDULED
 
@@ -2583,7 +2583,7 @@ identical). Desktop shards of 3 are now 65 / 67 / 61 against the ceiling of 70 (
 82 / 89 / 73 / 81 / 97 / 63. `pnpm ci:local` at `8aba717`: all gates green. The residue is entry 153. The text below is the entry as
 first written and is kept as history.
 
-**Source [coordinator-run, `pnpm ci:local` at `ee834b6`; `docs/TESTS_REVIEW.md`, *Progress*].** The tests-review fix-up deleted three
+**Source [coordinator-run, `pnpm ci:local` at `ee834b6`; `docs/archive/TESTS_REVIEW.md`, *Progress*].** The tests-review fix-up deleted three
 desktop e2e spec files (6 tests), which moved Playwright's split, because a file is never divided across shards
 (`scripts/gates/e2e-shard-budget.mjs`, `RATCHETED_CEILINGS`). Desktop shards of 3 now hold 132 / 0 / 61 tests against a
 ceiling of 70. `room-desktop-line.desktop.e2e.spec.ts` holds 69 of the 193 desktop tests. **Measured by the coordinator** with
@@ -2610,7 +2610,7 @@ refuses all four forms. **The coordinator's reading, not the owner's:** the eith
 pins the four forms as `refusal("notANumber")` and in the `notDigits` table, red under mutation [QA's recorded runs]. The open
 question that remains is entry 154. The text below is the entry as first written and is kept as history.
 
-**Source [doc, `docs/TESTS_REVIEW.md` line 285; the architect's reading, relayed].** No decision record rules on it. Four
+**Source [doc, `docs/archive/TESTS_REVIEW.md` line 285; the architect's reading, relayed].** No decision record rules on it. Four
 tests in `parse-metres` accept either answer (`expectRefusedOrExactly`), so they cannot tell the two behaviours apart; the
 review's mutation turned the parser's pattern from `\d+` to `\d*` and the four stayed green. **The architect did not read
 the parser: which answer is today's behaviour is unverified.** The same file's tests `refuses ","` and `refuses "."` went red
@@ -3064,7 +3064,7 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 **Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: the width of the ru string against the mockup was not compared. **Trigger:** 8T's phone gate, Russian.
 
 ## 219. The CSP report sink becomes a table in our own database — OWNER RULED 2026-10-13 (Q46 = (c)), NOT BUILT; SCHEDULED IN WAVE 8Q2
-**Update, 2026-10-13, later [coordinator, relayed]: scheduled in wave 8Q2, in M8 before 8T, which overrides the M9 trigger below.** Plan `docs/milestones/8Q2-csp-report-table.md`; ADR 0162 (Proposed). The cap is 10,000 reports with no age delete and the log line kept (Q50 to Q54, defaults). The text below is kept as recorded.
+**Update, 2026-10-13, later [coordinator, relayed]: scheduled in wave 8Q2, in M8 before 8T, which overrides the M9 trigger below.** Plan `docs/milestones/done/8Q2-csp-report-table.md`; ADR 0162 (Proposed). The cap is 10,000 reports with no age delete and the log line kept (Q50 to Q54, defaults). The text below is kept as recorded.
 
 **Update, 2026-10-14, at 8Q2's close [scribe]: built.** ADR 0162 is Accepted (Amendment A) and ADR 0161 has Amendment C; the cap, the writer mark and the runbook shipped. **Still open, owner actions:** `0009` and its two grants on preview and production (applied on the test database only). Leftovers from the build are 228 to 233.
 
@@ -3208,3 +3208,85 @@ four file names were not relayed to the scribe.
 ## 255. 8U S5 is not built: the commands still cut empty space at 800 — RECORDED 2026-10-17 AT M8 8U's CLOSE
 
 **Evidence [doc: the 8U plan §11, S5 row; ADR 0166 *Consequences*].** `insertBody`'s remainder split (`splitColumn` via `splitEmptySpanAtCap`) and `setWidth`'s shrink overflow still cut at `MAX_EMPTY_COLUMN_WIDTH_MM` (800); `splitOversizedEmptyColumns` is still in the reconcile; the reconcile's uncapped merge rejoins every piece, so a customer sees no seam. Behaviour-free to remove. **Trigger:** the next change to those commands, or a test that judges a command's own effect (the 8U criterion 8 note). **Owner action:** a developer runs S5 as the plan's row writes it (re-run S3's composition cut count first; rename the constant to the v1 arm's; repoint three tests at `COMPOSITION_WIDTH_LIMIT_MM`).
+
+## 256. The mobile camera preset crops the run ends on long walls, so a fill or tall block at a run end needs a manual zoom-out — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [visual check, synthetic touch only].** On straight 4100 and 6000 and on L 3560x4250 wall B, the mobile camera preset's framing crops the run ends. **Not checked whether it predates F1b** [unverified]. Related to entries 16 and 25. **Trigger:** the next change to the camera presets, or entry 16's hand check. **Owner:** unassigned.
+
+## 257. The room form rejects a straight wall of 6100 ("A prea lung", limit 6000): the M8C plan's 6100 witness cannot be entered — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [visual check, executed].** The form refuses 6100 with "A prea lung" (limit 6000). The M8C plan's 6100 witness is unenterable through the form; it can only be exercised below the form (domain or stored design). **Trigger:** the next use of that witness. **Owner:** unassigned.
+
+## 258. No committed test exercises O10 and the fill acting together — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [source-verified by the F1b report; not re-read here].** `qa-c5s1` and `qa-c5s2` now run with the fill off, so nothing committed has O10 and the fill acting in one room. **Trigger / owner:** to be covered by option C's one committed property (ADR 0168).
+
+## 259. E2e support-file comments still describe bare remainders — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [reported, prose only].** The test-support comments in the e2e support files (for example `qa-u5-cutaway.ts`) still describe bare remainders, which the fill now closes at 200 mm or more. Comments only; no behaviour. **Trigger:** the next edit to those files.
+
+## 260. A comment in `generation-model.ts` about a 900x2200 room reading "nu poate fi inclus" may be stale — RECORDED 2026-10-17 AT M8C F1b
+
+**Evidence [inference, unverified].** Step 1F's *Depozitare* row now reads placed in more rooms because the fill is a storage-role step (plan §2.4). The comment in `apps/web/src/room/generation-model.ts` about a 900x2200 room is **not confirmed stale**; nobody re-ran that room. **Trigger:** check the room's row and fix or confirm the comment.
+
+## 261. DOM-003's deferred clean-ups in the width commands — LOW, RECORDED 2026-10-18 FROM THE DOM-003 PLAN
+
+**Evidence [doc: the dom-003 plan's deferred follow-ups, relayed by the coordinator; not re-read in source here].** Four low-priority items, none a behaviour change, all sourced to the dom-003 plan (`docs/milestones/done/dom-003-set-width-split.md`). (1) Narrow `SetWidthInput` on the `plan-width-funding.ts` phase functions, so each takes only the fields it reads. (2) Fold `commands/along-wall.ts` into a shared export; `module-grid.ts` now holds `alongWallCoordinate` and `alongWallPosition`. (3) The `fundingScan` comment is stricter than the code it describes (low). (4) `columnWidthChoices` has a body of about 35 lines [as reported by the analyst]. **Trigger:** the next edit to the width commands. **Owner:** unassigned.
+
+## 262. Back from 1D, 1E or 1F lands on 1A — PRE-EXISTING, A PRODUCT QUESTION, RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [source-verified by an agent, relayed].** `departTo("presets")` pushes no history entry, so hardware Back from 1D, 1E or 1F lands on 1A (ADR 0139 decision 3's claim to the contrary is corrected by a dated note). Not introduced by M8C. **Trigger:** the owner decides whether Back should step through Step 1's sub-states. **Owner:** the owner.
+
+## 263. Frame 1E mock-up deviations: no count line, no price or chips on the cards — RECORDED 2026-10-18 AT M8C CLOSE-OUT; RESOLVED BY DECISION 2026-10-18 (v2 MOCKUP); DELIVERY IN M8D W1
+
+**Evidence [relayed, not re-read].** The shipped preset cards (P8) omit the count line and the price and chips that the 1E mock-up shows. **Trigger:** the owner reviews 1E against the mock-up. **Owner:** unassigned.
+
+**Resolution [doc: M8D plan §6, §12 and ADR 0104 Amendment G; nothing built or run by the scribe].** The owner's v2 mockup replaces frame 1E: its card has the image, the name, an optional adjusted note and one button, with no price, counts or chips (*"Fără preț, chipuri sau „Folosește""*). The shipped cards' omission is therefore the specified design, not a deviation, and the card is reworked to v2's column layout in M8D wave W1 (`docs/milestones/M8D-preset-screens-to-mockup.md`). The entry stays in this file, not `resolved.md`, until W1 ships (resolved.md holds only what is fixed and shipped); move it then. **Owner:** M8D.
+
+## 264. `identifierSchema` character sets — A DOMAIN WAVE, RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed; the detail is not in the brief].** The coordinator lists the character sets of `identifierSchema` as needing a domain wave. The scribe has no further detail; ask the coordinator before planning. **Owner:** unassigned.
+
+## 265. An in-flight mint after Înapoi from 1F still completes — PRE-EXISTING, OBSERVED ONCE, RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed: observed once; not reproduced].** After the customer taps Înapoi from 1F, a mint already in flight completes. Related to ADR 0139 decision 10. **Trigger:** a second sighting, or the Back-history decision (262). **Owner:** unassigned.
+
+## 266. Desktop e2e shard 2 is at its 67 ceiling — RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed].** The desktop shard-2 budget is at its ceiling of 67; the next desktop spec needs a rebalance. **Trigger:** the next added desktop e2e spec. **Owner:** unassigned.
+
+## 267. Throwaway designs in the preview database, and a possibly migrated staging database — RECORDED 2026-10-18 AT M8C CLOSE-OUT
+
+**Evidence [relayed; ids are in the P4 and P8 visual reports, which the scribe did not read].** The P4 and P8 visual checks minted 13 throwaway designs in the preview database. Add-only: the owner may delete them, no agent will. Separately, a live persistence run by the P3 developer may have applied migration `0011` to the allow-listed test database `lemn-conf-v2-staging`; **unconfirmed**. **Owner:** the owner.
+
+## 268. `generate-kitchen.ts` `compose` is about 218 lines, and one block appears three times — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer; the scribe did not re-read the source].** `compose` in `generate-kitchen.ts` is about 218 lines. The block "insert a planned base and record the step" appears three times: in the priority loop, the storage loop and the free-end-fill loop. **Cost of deciding:** extract `applyPlannedBase` and named pending-resize and fill steps; a domain-rule file, so the full review tier applies. **Owner:** unassigned.
+
+## 269. `shellOf` in `target-shell.ts` duplicates the shape dispatch of `buildShellFor` / `buildUShellFor` — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `shellOf` (56 lines) in `packages/configurator-domain/src/preset/target-shell.ts` repeats the shape dispatch that `buildShellFor` and `buildUShellFor` perform in `generation/generate-kitchen.ts`. **Cost of deciding:** one shape-dispatching builder used by both; touches two domain modules. **Owner:** unassigned.
+
+## 270. `backup-presets.ts` is a near copy of `backup-designs.ts` — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `apps/web/src/lib/server/backup-presets.ts` (347 lines) is a near copy of `backup-designs.ts` (420 lines): the rotation policy (14 days, 30 files), the ndjson streaming and the blob client are duplicated. The page size differs (5 against 200) by design and must stay a parameter. **Cost of deciding:** consolidate when a third export appears, or sooner to stop the policy drifting between the two. **Owner:** unassigned.
+
+## 271. `scene-capture-registration.ts` hard-codes the adapter's node names — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `apps/web/src/scene/scene-capture-registration.ts` names `solids`, `voids`, `selection_outline` and `overflow_mark` as string literals. A rename in `packages/three-adapter` would silently put outlines in thumbnails, with no failing check. **Cost of deciding:** export the names, or a `hideEditingOverlays` helper, from the adapter and consume it here. **Owner:** unassigned.
+
+## 272. Large UI functions in the preset flow — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `PresetCarouselDialog` is about 161 lines, `PresetChooser` about 89, and `usePresetCopy` about 81, the last living in `use-generation.ts`. **Cost of deciding:** split the components; move `usePresetCopy` to `use-preset-copy.ts` if the attempt-construction-sites test allows it (to be checked, not assumed). **Owner:** unassigned.
+
+## 273. Comments that still cite plans — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** `merge-empty-columns.ts` ("8U plan §"), `validation-suggestion.tsx` and `kitchen-canvas.tsx` ("milestone"), and `free-end-refill.ts` ("600 mm") still cite plans or milestones instead of ADRs. **Cost of deciding:** comment-only edits, each pointing at the governing ADR; no review tier needed. **Owner:** unassigned.
+
+## 274. Two claims have no ADR home — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** (1) The check order in the preset save route (`checkPresetSubmission`): author proven first, candidate before image. (2) The "none fits" notice in `generation-steps.tsx`, cited to the Consequences of ADR 0112 Amendment A. Neither has a decision record of its own. **Cost of deciding:** an ADR decision is needed (owner or planning wave), then the code comments re-cite it. **Owner:** unassigned.
+
+## 275. Generic 413/503 status constants live in a preset-named module; the listing byte cap grew — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
+
+**Evidence [source-verified by the reviewer].** The generic 413 and 503 status constants now live in the preset-named `apps/web/src/preset/preset-wire-contract.ts`. Also `MAX_LISTING_BYTES` grew from 1,153,434 to 1,179,648 bytes (8 × (128 KiB + 16 KiB)). **Cost of deciding:** move or rename the constants to a neutral module; the cap change is recorded only. **Owner:** unassigned.

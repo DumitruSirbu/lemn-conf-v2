@@ -69,6 +69,7 @@ const OTHER_ROOM_QUERY =
 
 const DECLARED_CABINET_DEPTH_MM = 600;
 const DESIGNS_ENDPOINT = "/api/designs";
+const PRESET_LISTING_ENDPOINT = "/api/presets";
 
 const MINTED_ID: DesignId = "design 1";
 const MINTED_REVISION = "1";
@@ -76,6 +77,7 @@ const WRITTEN_REVISION = "2";
 const EDITOR_HREF = `/ro/d/${encodeURIComponent(MINTED_ID)}`;
 
 const RUN_TIMEOUT_MS = 3000;
+const MICROTASK_TURNS_A_LISTING_NEEDS = 40;
 const POLL_MS = 5;
 
 let container: HTMLDivElement;
@@ -134,6 +136,12 @@ function installStubbedServer(): void {
     "fetch",
     (url: unknown, init?: RequestInit): Promise<Response> => {
       const method = init?.method ?? "GET";
+      // Step 1 now reads the preset listing beside composition (plan M8C section 3.5, P7). `calls` is the log of
+      // design requests, which is what these criteria count, so the listing is answered "unavailable" (read as
+      // "no presets") and stays out of it.
+      if (String(url).startsWith(PRESET_LISTING_ENDPOINT)) {
+        return Promise.resolve(jsonResponse(404, {}));
+      }
       calls.push({ method, url: String(url), body: jsonBodyOf(init) });
 
       if (method === "POST") {
@@ -278,6 +286,19 @@ function settleComposedRows(): Promise<void> {
   return waitUntil(() => handoffState() !== null, "composed");
 }
 
+/**
+ * The wait (1D) between the tap and 1F, which the stubbed listing (answered 404 above) ends within microtasks. A test that
+ * acts on 1F straight after the tap, as these did before M8C P8, awaits this first. Microtasks only, no timer, so the
+ * run is carried no further than its paint frame.
+ */
+async function settleTheListing(): Promise<void> {
+  await act(async () => {
+    for (let turn = 0; turn < MICROTASK_TURNS_A_LISTING_NEEDS; turn += 1) {
+      await Promise.resolve();
+    }
+  });
+}
+
 function tapContinue(): void {
   act(() => {
     elementAt("room-continue").click();
@@ -355,10 +376,11 @@ describe("no tap sequence mints a second row (criterion 39)", () => {
    * race Vitest's module mock and hand back one mocked and one real `makeKit`, which throws under happy-dom.
    * The test below closes the question earlier: the first tap removes the button.
    */
-  it("takes the primary control away with the first tap, so a second one reaches nothing", () => {
+  it("takes the primary control away with the first tap, so a second one reaches nothing", async () => {
     render();
 
     tapContinue();
+    await settleTheListing();
 
     // 1F replaces the form, and 1F's own primary control is the busy `<div>` and not a button.
     expect(maybeAt("room-continue")).toBe(null);
@@ -369,6 +391,7 @@ describe("no tap sequence mints a second row (criterion 39)", () => {
     render();
 
     tapContinue();
+    await settleTheListing();
     tapComposeBack();
     await settleQuietly();
 
@@ -382,6 +405,7 @@ describe("no tap sequence mints a second row (criterion 39)", () => {
     render();
 
     tapContinue();
+    await settleTheListing();
     pressBrowserBack();
     await settleQuietly();
 

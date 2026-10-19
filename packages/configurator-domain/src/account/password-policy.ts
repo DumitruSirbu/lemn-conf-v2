@@ -1,6 +1,6 @@
 import { countCharacters } from "../contact/input-checks.js";
 
-// The password rule (ADR 0169 decision 2): length is the whole policy. There are no composition rules, and
+// The password rule (ADR 0172 decision 2): length is the whole policy. There are no composition rules, and
 // nothing is trimmed, case-folded or truncated, so a password of twelve spaces is a password. The breached-
 // password check is I/O and belongs to the server, which adds its own refusal beside these.
 

@@ -31,7 +31,9 @@ import { createFakeProbeFactory } from "./support/fake-probe.js";
 const OCCURRED_AT = "2026-10-16T12:00:00.000Z";
 const LEVEL_FLOORS_MM = LEVELS.map(([floorM]) => millimetresOf(floorM));
 
-/** The room the owner reported from: wall A has the sink at 900-1500, drawers 1800, hob 2400, free end 3600-4100. */
+/** The room the owner reported from: wall A has the sink at 900-1500, drawers 1800, hob 2400, then the bottle, a 500 mm
+ *  fill at 3000-3500 and the tower at 3500-4100. The 500 mm that stood bare at 3600-4100 when the owner reported it is
+ *  filled by generation now (ADR 0167), so no free end is left on wall A. */
 const OWNERS_L_ROOM: DesignRoom = {
   shape: "L",
   widthMm: 4100,
@@ -102,17 +104,11 @@ describe("spaces cleared in a generated kitchen", () => {
     const cleared = clearColumns(generated, clearedKeys);
 
     const joinedSpace = { startMm: 1500, endMm: 2700 };
-    const freeEnd = { startMm: 3600, endMm: 4100 };
-    expect(memberlessSpans(cleared, "A")).toEqual([joinedSpace, freeEnd]);
+    expect(memberlessSpans(cleared, "A")).toEqual([joinedSpace]);
     expect(levelOpeningsOnWall(cleared, "A")).toEqual(
-      [joinedSpace, freeEnd].flatMap((span) =>
-        LEVEL_FLOORS_MM.map((floorMm) => ({ floorMm, ...span })),
-      ),
+      LEVEL_FLOORS_MM.map((floorMm) => ({ floorMm, ...joinedSpace })),
     );
-    expect(storedEmptySpans(cleared.design, "A")).toEqual([
-      joinedSpace,
-      freeEnd,
-    ]);
+    expect(storedEmptySpans(cleared.design, "A")).toEqual([joinedSpace]);
     expect(hasBodyEndingAt(cleared, "A", 1500)).toBe(true);
     expect(hasBodyStartingAt(cleared, "A", 2700)).toBe(true);
     expect(cleared.design.placements).toEqual(

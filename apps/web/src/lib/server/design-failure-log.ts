@@ -21,6 +21,9 @@ import {
   LIMIT_REACHED_STATUS,
   MINT_UNAVAILABLE_CODE,
   MINT_UNAVAILABLE_STATUS,
+  PRESET_LIMIT_REACHED_CODE,
+  PRESET_UNAVAILABLE_CODE,
+  PRESET_UNAVAILABLE_STATUS,
   READ_LIMIT_REACHED_CODE,
   SAVE_LIMIT_REACHED_CODE,
   SAVE_UNAVAILABLE_CODE,
@@ -35,7 +38,7 @@ import {
 } from "@/persistence/design-request-errors";
 
 /** Which handler the line came from, not the HTTP method: `PUT` and `PATCH` are one operation, and
- *  `POST /api/designs` is `mint` rather than a second `save`. `resume` is the visitor-hash lookup the locale pages
+ *  `POST /api/designs` is `mint` rather than a second `save`. `preset-save` is `POST /api/designs/{id}/preset`. `resume` is the visitor-hash lookup the locale pages
  *  run before answering; its one line, on a driver failure only, carries no value, hash or id. The `share-*`
  *  operations are named for what they authorise, not the verb. `share-read` is the share view's read of an issued
  *  link, named apart from `load` because its line must carry no id. */
@@ -47,7 +50,8 @@ export type DesignOperation =
   | "share-issue"
   | "share-revoke"
   | "share-status"
-  | "share-read";
+  | "share-read"
+  | "preset-save";
 
 /** A refusal as the server sees it. `code` is a log-only label for the 403, whose response carries no code: one
  *  answer for every write refusal keeps the route from being an existence oracle for design ids. */
@@ -220,6 +224,40 @@ export function reportSaveLimit(line: SaveLimitLine): void {
   });
 }
 
+/** A refused preset save names its policy; one that could not be judged, or whose store gave no answer, names its
+ *  cause. Nothing else: no address, credential, design, name, image or header value ever reaches the line. */
+export type PresetSaveLimitLine =
+  | { readonly kind: "refused"; readonly policy: string }
+  | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
+
+const presetPoliciesWithARefusalWritten = new Set<string>();
+
+/**
+ * A flood past the day's cap must not buy a log write a request: a refusal is written at most once for a process and a
+ * policy. A save that could not be judged is written each time, as every other write's is.
+ */
+export function reportPresetSaveLimit(line: PresetSaveLimitLine): void {
+  if (line.kind === "unavailable") {
+    emitDesignLogLine("error", {
+      event: "design-operation-unavailable",
+      operation: "preset-save",
+      refusalCode: PRESET_UNAVAILABLE_CODE,
+      status: PRESET_UNAVAILABLE_STATUS,
+      cause: line.cause,
+    });
+    return;
+  }
+  if (presetPoliciesWithARefusalWritten.has(line.policy)) return;
+  presetPoliciesWithARefusalWritten.add(line.policy);
+  emitDesignLogLine("warn", {
+    event: "design-operation-refused",
+    operation: "preset-save",
+    refusalCode: PRESET_LIMIT_REACHED_CODE,
+    status: LIMIT_REACHED_STATUS,
+    policy: line.policy,
+  });
+}
+
 /** What a read's limiter writes, each at most once in a process: a read served because it could not be judged, by
  *  its cause, and the first refusal. A line for each read would let one flood buy a log write for each request. */
 export type ReadLimitLine =
@@ -244,6 +282,58 @@ export function reportReadLimitOnce(line: ReadLimitLine): void {
   emitDesignLogLine("warn", {
     event: "design-read-served-unjudged",
     cause: line.cause,
+  });
+}
+
+/** The two public reads of the presets table: the listing and one image. */
+export type PresetReadOperation = "preset-list" | "preset-image";
+
+const announcedPresetReadFailures = new Set<string>();
+
+/**
+ * A preset read that failed, answered as "no presets" or a 404 and so invisible to the customer. Anyone can drive these
+ * reads with any query and no cookie, so a missing table or grant must not buy a line for every request: one line for a
+ * process, an operation and an error's name. The line carries that name and nothing else: not the message, which a
+ * driver fills with endpoint detail, and not the code, the query or the id.
+ */
+export function reportPresetReadFailureOnce(
+  operation: PresetReadOperation,
+  error: unknown,
+): void {
+  const errorName = errorNameOf(error);
+  const identity = `${operation}:${errorName}`;
+  if (announcedPresetReadFailures.has(identity)) return;
+  announcedPresetReadFailures.add(identity);
+  emitDesignLogLine("error", {
+    event: "preset-read-failed",
+    operation,
+    errorName,
+  });
+}
+
+/** The rows a listing could not show: documents this build cannot migrate, and snapshots over the listing's byte bound. */
+export interface UnlistedPresetCounts {
+  readonly unreadableCount: number;
+  readonly oversizedCount: number;
+}
+
+const announcedUnlistedPresetCounts = new Set<string>();
+
+/**
+ * Written when either count is not zero, once for a process and a pair of counts: a row that stays unreadable would
+ * otherwise be a line for every listing near it. Two counts and nothing of the rows: the repository keeps no id, name
+ * or document of an unreadable one (`PresetListing`).
+ */
+export function reportUnlistedPresetsOnce(counts: UnlistedPresetCounts): void {
+  const { unreadableCount, oversizedCount } = counts;
+  if (unreadableCount === 0 && oversizedCount === 0) return;
+  const identity = `${String(unreadableCount)}:${String(oversizedCount)}`;
+  if (announcedUnlistedPresetCounts.has(identity)) return;
+  announcedUnlistedPresetCounts.add(identity);
+  emitDesignLogLine("warn", {
+    event: "preset-listing-incomplete",
+    unreadableCount,
+    oversizedCount,
   });
 }
 

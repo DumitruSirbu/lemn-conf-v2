@@ -24,7 +24,7 @@ export type OwnedDesignLoad =
 
 /**
  * The one answer every `/[locale]/d/{id}…` page gives to "may this request see this design?" (ADR 0114 decision 5,
- * Amendment H2; ADR 0169 D9). Each page that opens a stored design calls this and renders its own screen for `found`,
+ * Amendment H2; ADR 0172 D9). Each page that opens a stored design calls this and renders its own screen for `found`,
  * so two routes cannot answer one request differently.
  *
  * The request may see a design its browser owns (the visitor cookie) or one its signed-in client account owns (the

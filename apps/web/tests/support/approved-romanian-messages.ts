@@ -36,6 +36,79 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     reviewCta: "Verifică designul",
   },
+  // Approved by the owner, 2026-10-18 (relayed), as drafted in M8C waves P4 and P6 (`refusal.tooLarge` included; plan
+  // section 3.4; ADR 0113 decision 2): the save-as-preset button and its dialog. No frame draws any of it. `generatedName*`
+  // is the name shown when none is typed: shape, walls and the kitchen's colour, rendered per locale from stored facts
+  // and never stored (ADR 0112 Amendment A); the owner approved its format, "În formă de L, 3200 × 2400 mm, alb", with
+  // the finish lower-cased. The refusal sentences answer the preset route's codes and state no bound (ADR 0113 decision
+  // 5). The Russian is an agent's draft the owner has not read, and stays unapproved (ADR 0095 decision 2, fourth
+  // step).
+  presetSave: {
+    open: "Salvează ca preset",
+    intro: "Presetul păstrează bucătăria așa cum arată acum.",
+    nameLabel: "Nume (opțional)",
+    confirm: "Salvează",
+    close: "Închide",
+    waiting: "Se salvează modificările tale…",
+    saving: "Se salvează presetul…",
+    saved: "Presetul a fost salvat.",
+    generatedName: "{shape}, {walls} mm, {finish}",
+    generatedNameNoFinish: "{shape}, {walls} mm",
+    refusal: {
+      findings:
+        "Bucătăria are încă probleme semnalate în editor. Rezolvă-le, apoi încearcă din nou.",
+      missingSink: "Pentru preset, bucătăria are nevoie de o chiuvetă.",
+      missingHob: "Pentru preset, bucătăria are nevoie de o plită.",
+      missingSinkAndHob:
+        "Pentru preset, bucătăria are nevoie de o chiuvetă și de o plită.",
+      stale:
+        "Bucătăria s-a schimbat între timp. Reîncarcă pagina și încearcă din nou.",
+      nameRefused:
+        "Numele nu este acceptat. Încearcă un nume mai scurt, fără caractere speciale.",
+      imageRefused: "Imaginea nu a fost acceptată. Încearcă din nou.",
+      tooLarge:
+        "Pentru preset, bucătăria este prea mare. Elimină câteva elemente și încearcă din nou.",
+      presetLimit: "Astăzi nu se mai pot salva alte presete. Încearcă mâine.",
+      saveLimit:
+        "Salvările sunt oprite pentru moment. Încearcă din nou puțin mai târziu.",
+      unavailable:
+        "Presetele nu se pot salva acum. Încearcă din nou mai târziu.",
+      notSaved:
+        "Modificările tale nu au putut fi salvate, așa că presetul nu se poate salva acum.",
+      failed: "Presetul nu a putut fi salvat. Încearcă din nou.",
+    },
+  },
+  // Approved by the owner, 2026-10-18 (relayed), as drafted in M8C wave P8 (plan section 3.6, the owner's Q-6 ruling of
+  // 2026-10-17; ADR 0113 decision 2), with the two pop-up failure sentences settled by O-1 (see them below): Step 1's
+  // preset wait (1D), its list (1E) and the Preview pop-up. `heading` and `waiting` are frames 1D and 1E's own words;
+  // the rest are no frame's: the
+  // mockup's per-card *Folosește* is superseded by the ruling (ADR 0003 decision 4b, amended; ADR 0104 Amendment F), so
+  // the card says `preview`, the pop-up says `select`, and the list's way out to generation is `skip`. `composingNotice`
+  // replaces 1F's `noPresetNotice` after a customer was shown presets and chose to generate: that sentence says no
+  // preset fits, which is then untrue. The Russian is an agent's draft the owner has not read, and stays unapproved
+  // (ADR 0095 decision 2, fourth step).
+  presetChooser: {
+    heading: "Bucătării care încap",
+    waiting: "Verificăm ce presete încap în camera ta…",
+    preview: "Previzualizează",
+    adjusted: "Ajustată ca să intre în camera ta",
+    skip: "Generează o bucătărie nouă",
+    previous: "Anterior",
+    next: "Următorul",
+    close: "Închide previzualizarea",
+    select: "Alege acest preset",
+    selecting: "Se creează bucătăria ta…",
+    // approved by the owner 2026-10-18 (relayed), O-1. What the pop-up says when copying the chosen preset into a new
+    // kitchen failed; its own, since `room.compose.saveFailed` speaks of a kitchen already drawn on the room screen.
+    selectFailed:
+      "Nu am putut crea bucătăria din acest preset. Încearcă din nou.",
+    // wording accepted by the owner 2026-10-18 (relayed), O-1. The day's limit on new kitchens, as v2 words it
+    // (`Presete.dc.html#1g-limit`).
+    selectLimitReached:
+      "Astăzi nu se mai pot crea alte bucătării. Încearcă mâine.",
+    composingNotice:
+      "Compunem o bucătărie pe măsura camerei tale — durează puțin mai mult.",
+  },
   // Frame 1A's or 1B's wording as written, except `cornerQuestion` (the owner's) and `wallLabel.wallC` (drafted: no
   // frame draws a U's third wall).
   room: {

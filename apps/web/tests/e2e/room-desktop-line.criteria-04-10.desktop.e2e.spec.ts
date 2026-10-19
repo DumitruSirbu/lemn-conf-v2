@@ -1,6 +1,6 @@
-// **Step 1's desktop line** — M7 wave 7L, slice S5 (`docs/milestones/M7-room-and-presets.md`,
-// *Wave 7L — the plan (2026-09-28)*, D12 and §5): the **layout contract** of frames D1A, D1B, D1C
-// and D1F, asserted at the `desktop` project's 1440 x 900 unless a test names another viewport.
+// **Step 1's desktop line** — M7 wave 7L, slice S5 (`docs/decisions/0104`, decision 1 and
+// Amendment B): the **layout contract** of frames D1A, D1B, D1C and D1F, asserted at the `desktop`
+// project's 1440 x 900 unless a test names another viewport.
 //
 // **This file carries criteria 4 to 10.** The contract is one spec split in three by criterion, so that no
 // file outgrows an e2e shard; the other two are

@@ -1,4 +1,4 @@
--- M8B wave L1. ADR 0169 decisions 1, 2, 7 and 10: a client account is an e-mail and a password, and the
+-- M8B wave L1. ADR 0172 decisions 1, 2, 7 and 10: a client account is an e-mail and a password, and the
 -- table that holds it is the one place the application can be made to create or promote staff, so it is
 -- built so that the application role cannot.
 --
@@ -35,7 +35,7 @@
 -- an `account_sessions` row for an administrator's `account_id` (the application holds INSERT there), by
 -- updating `accounts.password_hash` (granted UPDATE), or by nulling `revoked_at` or `used_at` on a revoked
 -- session or a used token (granted UPDATE). No grant can prevent these while the application must create
--- sessions, change passwords and revoke; the risk is accepted (ADR 0169 decision 7).
+-- sessions, change passwords and revoke; the risk is accepted (ADR 0172 decision 7).
 --
 -- `locale` is the language of the account's mail, a shape and not a list: two lower-case letters with an
 -- optional two-letter region (`ro`, `en`, `pt-br`), so a later wave adding a locale drops nothing.

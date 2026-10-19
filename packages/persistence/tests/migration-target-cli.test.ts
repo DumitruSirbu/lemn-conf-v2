@@ -10,14 +10,14 @@ import { spawnPersistenceCli } from "./support/spawn-persistence-cli.js";
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
 /**
- * `docs/milestones/migration-environment-safety-check.md` AC6–AC9: both CLIs, spawned as real
- * child processes so what an operator's terminal would actually show is what gets asserted on.
+ * docs/decisions/0169 AC6-AC9: both CLIs, spawned as real child processes so what an operator's
+ * terminal would actually show is what gets asserted on.
  *
- * **R3, binding on every case here:** `MIGRATION_DATABASE_URL` is always set explicitly, on the
- * `.invalid` TLD (RFC 6761; never resolves), and never to `production` or `lemn-conf-v2`. Mismatch
- * cases declare `preview` against a URL naming `lemn-conf-v2` — the 2026-09-28 incident's exact
- * shape. Pass-through cases declare the unlisted probe name `lemnaria_cli_probe`, which the real
- * local credential would also refuse, so each case stays safe even if `spawnPersistenceCli`'s
+ * **R3 (safety rule, docs/decisions/0169 AC6-AC9), binding on every case here:** `MIGRATION_DATABASE_URL` is
+ * always set explicitly, on the `.invalid` TLD (RFC 6761; never resolves), and never to `production` or
+ * `lemn-conf-v2`. Mismatch cases declare `preview` against a URL naming `lemn-conf-v2` — the 2026-09-28
+ * incident's exact shape. Pass-through cases declare the unlisted probe name `lemnaria_cli_probe`, which the
+ * real local credential would also refuse, so each case stays safe even if `spawnPersistenceCli`'s
  * environment replacement were ever bypassed by accident.
  */
 

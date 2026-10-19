@@ -9,7 +9,7 @@
 > - that prompt;
 > - the Lot 1 review §2 and SB1–SB16;
 > - `docs/OWNER_FIXES.md` Fix 2 and Fix 3;
-> - ADR 0169 D7 (capabilities as built);
+> - ADR 0172 D7 (capabilities as built);
 > - plan §12.
 >
 > No server contract exists for this lot. All copy is draft.

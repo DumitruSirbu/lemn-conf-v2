@@ -12,6 +12,7 @@ import {
   CSP_ENFORCED_HEADER,
   cspResponseHeaderName,
   NONCE_HEADER,
+  PRESET_IMAGE_CONTENT_SECURITY_POLICY,
   SHARE_VIEW_HEADERS,
   TURNSTILE_FRAME_SOURCES,
 } from "@/lib/security-headers";
@@ -21,7 +22,7 @@ const handleLocaleRouting = createMiddleware(routing);
 /** The pages after a design's editor, in the order the customer meets them: `/d/{id}/review`, `/contact`, `/done`. */
 const DESIGN_STEP_SEGMENTS: readonly string[] = ["review", "contact", "done"];
 
-/** The account screens, `/{locale}/account/{page}`. Only the three challenge pages show a Turnstile challenge (ADR 0169
+/** The account screens, `/{locale}/account/{page}`. Only the three challenge pages show a Turnstile challenge (ADR 0172
  *  D5: on register, login and the reset request). The token pages read a single-use token from the address fragment
  *  and the signed-in pages hold the person's own data; none of them loads a third-party script, frame or image at
  *  all, so their policy is the site's (L8 obligation, plan L13; Lot 2 plan, P3). */
@@ -97,11 +98,19 @@ export function proxy(
   return answerCountedRead({ request, response, policy });
 }
 
-/** The headers a page's answer gets, set on a served page and on a refused one alike. */
+/** The headers a page's answer gets, set on a served page and on a refused one alike. A stored preset's image is not a
+ *  page: it gets the closed policy of `PRESET_IMAGE_CONTENT_SECURITY_POLICY`, enforced whatever the page policy's mode. */
 function applyPageHeaders(
   response: NextResponse,
   { pathname, policy }: { pathname: string; policy: string },
 ): void {
+  if (isPresetImagePath(pathname)) {
+    response.headers.set(
+      CSP_ENFORCED_HEADER,
+      PRESET_IMAGE_CONTENT_SECURITY_POLICY,
+    );
+    return;
+  }
   response.headers.set(
     cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE),
     policy,
@@ -309,6 +318,21 @@ function isAccountPageIn(pathname: string, pages: readonly string[]): boolean {
     family === ACCOUNT_FAMILY_SEGMENT &&
     page !== undefined &&
     pages.includes(page)
+  );
+}
+
+/** `/api/presets/{id}/image`, unprefixed: the one address the image route answers on. A locale in front of `/api` is an
+ *  ordinary framework 404, which gets the page policy like any other. */
+function isPresetImagePath(pathname: string): boolean {
+  const [api, presets, id, image, ...rest] = pathname
+    .split("/")
+    .filter(Boolean);
+  return (
+    api === "api" &&
+    presets === "presets" &&
+    id !== undefined &&
+    image === "image" &&
+    rest.length === 0
   );
 }
 

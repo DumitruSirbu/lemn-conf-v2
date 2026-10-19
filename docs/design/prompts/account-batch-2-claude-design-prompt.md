@@ -4,7 +4,7 @@
 > the Lot 1 review, and is identical in the Lot 3 prompt. Attach `Lemnaria Cont Lot 1.dc.html`, `ContBlocks.dc.html`,
 > `Lemnaria Configurator Mobil.dc.html` and `…Desktop.dc.html`. It replaces Part 2 of
 > `account-screens-claude-design-prompt.md`. Sources: Lot 1 review §2 and SB1–SB16, `OWNER_FIXES.md` Fix 3,
-> ADR 0169 D7–D9 + Amendment B, plan §12 / L14b, privacy-notice draft §8, the built account routes.
+> ADR 0172 D7–D9 + Amendment B, plan §12 / L14b, privacy-notice draft §8, the built account routes.
 
 ## Part 0 — Shared brief (identical in the Lot 2 and Lot 3 prompts)
 

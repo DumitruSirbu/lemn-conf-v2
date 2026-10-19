@@ -62,7 +62,7 @@ export function readDeclaredEnvironment(
 /**
  * Refuses to proceed when the declared environment and the database `MIGRATION_DATABASE_URL` reaches disagree. Both
  * CLIs call it before they open a connection, so a mismatch does no work. The rule
- * (`docs/milestones/migration-environment-safety-check.md`, Decision 2):
+ * (docs/decisions/0169, Decision 2):
  * - a listed environment passes only when the database reached is one of its own names;
  * - an unlisted label passes only as the exact, unclaimed name of the database it reaches, so a listed environment's
  *   database is never reachable under another label;

@@ -25,9 +25,9 @@ const DECLARED_ROWS: readonly (readonly [number, number])[] = [
 ];
 
 /** §7's wall entries whose depth the map governs. The hood is not among them: `HOOD_DEPTH_MM` is
- *  500 and whether a hood follows the worktop is an open question (`M5-width.md`, *Not
- *  established*). Listed by id rather than filtered by depth, so an entry that silently stopped
- *  reading the map cannot drop out of the sweep. */
+ *  500 and the hood is exempt from the map (`docs/decisions/0039`, decision 1). Listed by id rather
+ *  than filtered by depth, so an entry that silently stopped reading the map cannot drop out of the
+ *  sweep. */
 const WALL_ENTRY_IDS = ["wall-cabinet", "wall-lift", "open-shelf"];
 
 const HOOD_DEPTH_MM = 500;

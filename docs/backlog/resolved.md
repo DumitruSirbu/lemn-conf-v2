@@ -206,14 +206,14 @@ single-source map is justified by drift prevention, not by the symptom needing b
 depth through an extensible map (`600 -> 330`, `700 -> 400`; `800 -> 500` named, not committed),
 and that map is the single source for both the nominal and the cap. Worktop depth becomes a
 whole-kitchen setting and base carcass depth becomes a formula. **This entry's remaining half is now
-M5 waves 5A and 5F** — see `docs/milestones/M5-width.md`, *Depth joins this phase*. The entry stays
+M5 waves 5A and 5F** — see `docs/milestones/done/M5-width.md`, *Depth joins this phase*. The entry stays
 here rather than being deleted because its measurements and its head-clearance reasoning are what
 the waves are built on.
 
 **The split, decided the same day: M5 owns the geometry, M6 owns the control.** Worktop depth is a
 **single declared constant at 600 mm** in M5 — no user-facing control, no schema field, no settings
 UI, no version bump. Making it settable is
-`docs/milestones/M6-price-and-global-settings.md` **work item 4**, as a fourth control in *Setări
+`docs/milestones/done/M6-price-and-global-settings.md` **work item 4**, as a fourth control in *Setări
 globale* beside the material and hardware tiers. So the fix for the defect reported here needs
 neither of those things and is not waiting on them.
 
@@ -430,7 +430,7 @@ worktop-depth map is a single declared constant with no control on it (see backl
 This is a floor with no way to be crossed yet, which is why it is backlog rather than a defect.
 
 **The first thing that can reach it is M6's *Setări globale* depth control**
-(`docs/milestones/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
+(`docs/milestones/done/M6-price-and-global-settings.md` work item 4), so that work is this entry's owner.
 Whoever wires the control needs a decision before a customer can pick a cabinet depth below 520 mm
 with a dishwasher niche in the design: refuse that combination with a stated reason, cap the depth
 control's floor at 520 mm globally, or give the niche its own floor separate from the rest of the
@@ -508,7 +508,7 @@ bound is `wallRunMm(wall, room)` — wall A the width, wall B the depth, per ADR
 test fixtures had been standing in the slack and were corrected with it: three declared wall-B runs
 past the room depth, and one claimed 100 mm of wall A past the corrected 3560.
 
-**Where it now lives:** `docs/milestones/M6-price-and-global-settings.md`, owner decision 8, and
+**Where it now lives:** `docs/milestones/done/M6-price-and-global-settings.md`, owner decision 8, and
 [ADR 0065](../decisions/0065-a-body-past-the-end-of-its-wall-is-marked-not-moved.md).
 
 **One half of this entry stays open**: the **shell** renders `RW 4.2 × RD 3.4` and matches neither
@@ -763,7 +763,7 @@ right and still is.
 
 ~~**Still open, and now a named question inside M5 (2026-08-27).**~~ The owner's worktop-depth rule
 (entry 5's second half) governs wall depth through a map, and whether the hood follows it is
-**question 1** in `docs/milestones/M5-width.md`'s *Not established — Depth*. The two are one
+**question 1** in `docs/milestones/done/M5-width.md`'s *Not established — Depth*. The two are one
 decision: putting the hood in the map means giving `make.hood` a depth parameter, which is what this
 entry says it lacks. M5 wave 5A pins `hood-600` at 500 as a regression **precisely because the
 question is open** — the day it is decided, that assertion changes deliberately.
@@ -824,7 +824,7 @@ a persisted fact and nothing re-derives it.
 only. This entry lives on the **uncapped** path — over a full-height column, where
 `hasFullHeightUnder` lifts the cap and both 600 and 680 are legitimately the column's depth. So 5A
 fixes the sibling defect over a base run and leaves this divergence exactly as measured. It is
-recorded as **question 8** in `docs/milestones/M5-width.md`'s *Not established — Depth* so M5 does
+recorded as **question 8** in `docs/milestones/done/M5-width.md`'s *Not established — Depth* so M5 does
 not mistake it for something already handled.
 
 ## 11. `base-dishwasher` offers a finish and a handle it has neither of — DECIDED 2026-09-01, SHIPPED
@@ -1030,7 +1030,7 @@ today. Changing `resolveDepthM` inside a wave scoped to DOM-002 would have been 
 change the remediation exists to stop, which is why it was recorded rather than fixed.
 
 **Evidence.** Commit `f9b92e1` (wave S9, closing DOM-002); the wave S9 summary in
-`docs/milestones/adversarial-review-remediation.md`; and `testing-reports/03-domain-model.md`, whose
+`docs/milestones/done/adversarial-review-remediation.md`; and `testing-reports/03-domain-model.md`, whose
 DOM-002 finding is what the wave was scoped to.
 
 Related: entry 10 is the same seam from the other side — two routes to "a wall cabinet in this slot"
@@ -1279,7 +1279,7 @@ leave the viewport at any chip count; the chips **wrap**, and vertical growth is
 — *"even if you need to just increase the height and take from the vertical height, I'm totally okay
 with this"*. Horizontal scrolling is refused, and a chip is never narrowed below the line it is alone
 on. **It lands as a scope addition inside wave 6R**, with measured criteria at two, three, four and
-five chips on both shells; see that wave in `milestones/M6-price-and-global-settings.md`.
+five chips on both shells; see that wave in `milestones/done/M6-price-and-global-settings.md`.
 
 **Two corrections to this entry, recorded rather than edited away.** *"Blocks wave 6R, which adds a
 finish control and therefore a third"* rests on a misreading of 6R's scope — **6R adds no chip**, its

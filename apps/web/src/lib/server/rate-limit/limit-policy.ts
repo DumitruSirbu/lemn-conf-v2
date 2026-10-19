@@ -84,6 +84,16 @@ const READ_WINDOW_MINUTES = 60;
 export const READS_PER_BLOCK_FIGURE = 600;
 
 /**
+ * PROVISIONAL, the engineer's figure and not the owner's (see ADR 0156): 1,200 an hour for each
+ * network block, over the preset listing and every preset image together. A room's Step 1 reads the listing once and an
+ * image for each card it shows, up to `PRESET_LIST_LIMIT` and again for each time a card is opened, so the presets would
+ * spend the 600 of `READS_PER_BLOCK_FIGURE` that pages and the design reads share, and a shared carrier network would be
+ * refused pages for looking at kitchens. Its own bucket keeps the two apart. The owner's answer changes this constant
+ * and no code.
+ */
+export const PRESET_READS_PER_BLOCK_FIGURE = 1200;
+
+/**
  * PROVISIONAL until the owner answers Q47: 100 browser reports of a policy violation an hour for each network block
  * (ADR 0161 decision 2). One page with a broken add-on sends a few; 100 is enough to learn that something is wrong and
  * small enough that a flood costs little. While no network source is named the one shared bucket holds all visitors'
@@ -91,6 +101,15 @@ export const READS_PER_BLOCK_FIGURE = 600;
  */
 export const CSP_REPORT_WINDOW_MINUTES = 60;
 export const CSP_REPORTS_PER_BLOCK_FIGURE = 100;
+
+/**
+ * 100 presets saved in a Chișinău calendar day, counted once over every caller (see ADR 0167 Amendment B item 8):
+ * while authoring is ungated (ADR 0112 Amendment A) a flood of valid saves would fill the shared Blob
+ * quota, hidden rows included, since the nightly export copies every row. The owner authors a library, a few kitchens
+ * a day; a figure of this size bounds a flood and leaves the work room. 100 saves in a day lock authoring out until
+ * the next Chișinău midnight, which is the intended failure. The owner's answer changes this constant and no code.
+ */
+export const PRESET_CREATIONS_PER_DAY_FIGURE = 100;
 
 /**
  * Three times what one whole e2e run makes of each, rounded up to the next hundred, by the same rule as the mint's: 395
@@ -128,7 +147,7 @@ export const CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE = 10;
 export const CONTACT_LEAST_FORM_TIME_MS = 2000;
 
 /**
- * PROVISIONAL, every figure below (M8B plan section 5, "Limiter policies"; ADR 0169 decision 5): the owner's answer
+ * PROVISIONAL, every figure below (M8B plan section 5, "Limiter policies"; ADR 0172 decision 5): the owner's answer
  * changes these constants and no code. A row with two windows is two policies, since a name carries its window. A
  * network block's rows bound the hashing cost and the solved challenges a network can spend; an address's rows bound
  * the attempts at one account and the mail one inbox receives (the shared Gmail quota); an account's rows bound its
@@ -187,6 +206,11 @@ export const SAVE_BY_CREDENTIAL_POLICY = policyOf("design-save-by-credential", {
   window: utcMinutes(SAVE_WINDOW_MINUTES),
 });
 
+export const PRESET_CREATION_POLICY = policyOf("preset-creation-global", {
+  figure: PRESET_CREATIONS_PER_DAY_FIGURE,
+  window: CHISINAU_DAY,
+});
+
 export const SHARE_WRITE_POLICY = policyOf("share-write-by-block", {
   figure: SHARE_WRITES_PER_BLOCK_FIGURE,
   window: utcMinutes(SHARE_WRITE_WINDOW_MINUTES),
@@ -199,6 +223,11 @@ export const E2E_SHARE_WRITE_POLICY = policyOf("share-write-by-block-e2e", {
 
 export const READ_POLICY = policyOf("read-by-block", {
   figure: READS_PER_BLOCK_FIGURE,
+  window: utcMinutes(READ_WINDOW_MINUTES),
+});
+
+export const PRESET_READ_POLICY = policyOf("preset-read-by-block", {
+  figure: PRESET_READS_PER_BLOCK_FIGURE,
   window: utcMinutes(READ_WINDOW_MINUTES),
 });
 
@@ -345,7 +374,7 @@ export const ACCOUNT_REGISTER_MAIL_BY_ADDRESS_POLICY = policyOf(
   },
 );
 
-/** The reset link. The "password changed" notice counts no bucket (ADR 0169 Amendment B, item 2). Registration traffic
+/** The reset link. The "password changed" notice counts no bucket (ADR 0172 Amendment B, item 2). Registration traffic
  *  never counts here. */
 export const ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY = policyOf(
   "account-reset-mail-by-address",
@@ -357,7 +386,7 @@ export const ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY = policyOf(
 
 /** A login's silent resend of the confirmation link, counted only inside the job that runs after the response and
  *  never answered from. Apart from the registration bucket, so that signing in to an unconfirmed address cannot use up
- *  that address's registration budget (ADR 0169 Amendment A, item 2). */
+ *  that address's registration budget (ADR 0172 Amendment A, item 2). */
 export const ACCOUNT_LOGIN_RESEND_BY_ADDRESS_POLICY = policyOf(
   "account-login-resend-by-address",
   {
@@ -387,14 +416,18 @@ export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
 /** What a request is limited for. A bucket has an e2e twin when the suite's one shared block would count it: the
  *  credential's, the reads, and the contact form's buckets by a browser, an address and a stored request have none,
  *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. A policy
- *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). Nor has any
- *  account purpose: the e2e round decides whether one needs it. */
+ *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). The global
+ *  cap on preset creation has none for the same reason: no test saves 100 presets in a day, and nor has the preset
+ *  reads' bucket, which the suite's server counts no more than it counts the other reads. Nor has any account
+ *  purpose: the e2e round decides whether one needs it. */
 export type PolicyPurpose =
   | "mint"
   | "save-by-block"
   | "save-by-credential"
   | "share-write"
+  | "preset-creation"
   | "read"
+  | "preset-read"
   | "csp-report"
   | "contact-every-by-block"
   | "contact-new-by-block-hour"
@@ -434,7 +467,12 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
     production: SHARE_WRITE_POLICY,
     e2e: E2E_SHARE_WRITE_POLICY,
   },
+  "preset-creation": {
+    production: PRESET_CREATION_POLICY,
+    e2e: PRESET_CREATION_POLICY,
+  },
   read: { production: READ_POLICY, e2e: READ_POLICY },
+  "preset-read": { production: PRESET_READ_POLICY, e2e: PRESET_READ_POLICY },
   "csp-report": { production: CSP_REPORT_POLICY, e2e: CSP_REPORT_POLICY },
   "contact-every-by-block": {
     production: CONTACT_EVERY_BY_BLOCK_POLICY,

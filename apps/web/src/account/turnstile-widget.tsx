@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import styles from "./account.module.css";
 
-// The Cloudflare Turnstile challenge on an account form (ADR 0169 D5). The page's server component reads the site key
+// The Cloudflare Turnstile challenge on an account form (ADR 0172 D5). The page's server component reads the site key
 // per request and the request's nonce (`NONCE_HEADER`) and hands both down; the widget hands the form a token and takes
 // it back when the token is spent, expired or failed. The token is verified on the server with the same `action`.
 

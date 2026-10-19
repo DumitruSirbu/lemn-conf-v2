@@ -333,11 +333,11 @@ refused (every mint `503`) beside `CLIENT_NETWORK_SOURCE` as the mail flag is be
 - **`html`.** d2's must-not item `html` is **superseded** by [ADR 0165](0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md) D5 (ADR 0164 Amendment A). The rest of the must-not list stands.
 - **Kept:** d1 (the port and the seven kinds), d5, d8 and the title's rule — the notice is the stored review printed, never priced again.
 
-## Dated note — 2026-10-18: a customer port exists beside the shop's (ADR 0169 D6; the scribe; this record's text is not edited)
+## Dated note — 2026-10-18: a customer port exists beside the shop's (ADR 0172 D6; the scribe; this record's text is not edited)
 
-[ADR 0169](0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+[ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
 (**Accepted** 2026-10-18) makes the change d11 reserved for M8B: a **separate** `CustomerMailMessage` carrying exactly one plain
 mailbox. **d11 is kept for the shop, not superseded:** `MailMessage` still has no recipient, so no path makes a customer
 the recipient of the shop's notice (ADR 0164 likewise stands). The customer sender reuses the Gmail transport until a
 provider move; the owner's 2026-10-18 direction to send from `@lemnaria.md` is a target, **nothing is built**, and the
-plan is `milestones/M8B-mail-sender-lemnaria-md.md` (ADR 0169 Amendment E, item 1). Built but unexercised (ADR 0169 D12).
+plan is `milestones/M8B-mail-sender-lemnaria-md.md` (ADR 0172 Amendment E, item 1). Built but unexercised (ADR 0172 D12).

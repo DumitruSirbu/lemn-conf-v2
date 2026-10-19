@@ -7,7 +7,7 @@ import {
 } from "@/lib/server/public-origin";
 import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
 
-// Server-side verification of a Cloudflare Turnstile token (ADR 0169 decision 5, Amendment E, item 5). Two kinds of "could
+// Server-side verification of a Cloudflare Turnstile token (ADR 0172 decision 5, Amendment E, item 5). Two kinds of "could
 // not decide" are kept apart because they are answered oppositely. A deployment that is MISCONFIGURED (`not-configured`)
 // must not silently lose its check, so the route refuses with 503 and the log is loud. A Cloudflare that cannot be
 // REACHED (`unreachable`) while a token was presented is the owner's ruling of 2026-10-18: the request proceeds as if
@@ -44,7 +44,7 @@ const MAX_ANSWER_BYTES = 64 * 1024;
  * placeholder host `example.com` and no `action`, so under one of them `success` alone could decide. That is allowed
  * only where the public origin is a loopback one (which `readPublicOrigin` accepts only beside the e2e fake sender's
  * flag, so no deployment has one): there a test secret proves nothing and nothing is at stake. Anywhere else a test
- * secret is a misconfiguration, and the answer is `unavailable` (ADR 0169 decision 5, criterion 5 as amended).
+ * secret is a misconfiguration, and the answer is `unavailable` (ADR 0172 decision 5, criterion 5 as amended).
  */
 const DOCUMENTED_TEST_SECRETS: ReadonlySet<string> = new Set([
   "1x0000000000000000000000000000000AA",

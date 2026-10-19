@@ -508,7 +508,7 @@ was asked about — is **confirmed by** the ruling rather than overturned by it.
 
 - **Wave 6Z is opened** — *a standing body is re-planned when something is inserted beneath it* — with
   the file list and the acceptance criteria in
-  [`milestones/M6-price-and-global-settings.md`](../milestones/M6-price-and-global-settings.md).
+  [`milestones/done/M6-price-and-global-settings.md`](../milestones/done/M6-price-and-global-settings.md).
   Tier Full + visual. It gates on nothing and gates nothing; it is independent of 6Y and the two may
   land in either order.
 - **Wave 6Z-a is named but not opened.** It exists only if 6Z's first work item finds a dependent

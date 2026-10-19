@@ -20,7 +20,7 @@ import {
   type SessionCookieReader,
 } from "@/lib/server/account/session-cookie";
 
-// The gate of every signed-in account page (M8B Lot 2 plan, U1; ADR 0169 decisions 3 and 7). A page asks it for the
+// The gate of every signed-in account page (M8B Lot 2 plan, U1; ADR 0172 decisions 3 and 7). A page asks it for the
 // session and the capability it needs and gets the session or the one state it must draw, `forbidden` or
 // `unavailable`. Anything else leaves by a redirect, so a page never renders for a person who is not signed in. It
 // reads and never writes: a render sets no cookie, clears none and does not mark the session seen.

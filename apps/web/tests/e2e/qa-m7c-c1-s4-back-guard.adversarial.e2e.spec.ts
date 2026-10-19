@@ -1,5 +1,5 @@
 // M7C wave C1 slice S4 adversarial QA (docs/WORKFLOW.md step 3), at 390 x 844 by touch: the browser
-// Back's confirmation, criteria 1-5 of `docs/milestones/M7C-m7-feedback-fixes.md`, *C1*, *S4*, pushed
+// Back's confirmation (`docs/decisions/0104` Amendment D4, built as `docs/decisions/0139` decision 6), pushed
 // where the implementer's `editor-back-guard.e2e.spec.ts` does not go. Mobile project only: the
 // behaviour has no viewport branch, and desktop shard 2/3 is at its budget (backlog 106).
 //

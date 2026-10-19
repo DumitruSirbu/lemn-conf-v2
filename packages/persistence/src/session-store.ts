@@ -4,7 +4,7 @@ import type { Role } from "@lemnaria/configurator-domain";
 import { requirePasswordHashShape } from "./password-hash-shape.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
-/** A session's `last_seen_at` is written at most this often (ADR 0169 decision 3), which bounds the table's writes. */
+/** A session's `last_seen_at` is written at most this often (ADR 0172 decision 3), which bounds the table's writes. */
 export const SESSION_TOUCH_INTERVAL_SECONDS = 60 * 60;
 
 export type SessionStoreOperation =
@@ -80,7 +80,7 @@ export type SessionLookup =
   | { readonly kind: "none" };
 
 /**
- * The port for sessions (ADR 0169 decision 3). A session is live while it is not revoked, before its absolute expiry,
+ * The port for sessions (ADR 0172 decision 3). A session is live while it is not revoked, before its absolute expiry,
  * seen within its role's idle lifetime, and created no earlier than the account's last password change. Nothing here
  * sets a cookie: `touch` writes the database alone, and only a route handler calls it. No method deletes a row, and
  * none writes `token_hash`, `account_id`, `created_at` or `absolute_expires_at` after insert.

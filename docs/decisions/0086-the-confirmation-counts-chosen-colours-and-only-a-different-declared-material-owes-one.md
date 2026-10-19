@@ -132,7 +132,7 @@ correct implementation.
    > pairwise-distinct literals against a mix-up, and it pinned a wrong one — the fact it was written
    > to guard against. Also corrects this record's other two mentions of the same figure (Context, and
    > "The confusable number is `appliesTo`'s" below — both corrected in place, same date), the
-   > three-numbers table in `docs/milestones/M6-price-and-global-settings.md`'s 6Q-c section, this
+   > three-numbers table in `docs/milestones/done/M6-price-and-global-settings.md`'s 6Q-c section, this
    > file's own index row in `docs/decisions/README.md`, and the third illustrative mention in the
    > milestone file (*"tuturor celor 14 corpuri"*). **Not corrected here: the two source comments
    > citing it**, which are a developer's, not a scribe's, to fix.
@@ -356,7 +356,7 @@ inequality as generalised — is overturned here on three measurements rather th
 ## Consequences
 
 - **Wave 6Q-c is dispatchable.** Its plan is updated in
-  `docs/milestones/M6-price-and-global-settings.md` to carry decisions 1–7 as work items and
+  `docs/milestones/done/M6-price-and-global-settings.md` to carry decisions 1–7 as work items and
   criteria.
 - **The three numbers are named once, in one test file, as literals**: 14 displayed bodies, 4 chosen
   colours, 2 finishes resolved by veneer. A later wave that changes the seeded kitchen moves all

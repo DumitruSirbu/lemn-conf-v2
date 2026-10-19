@@ -130,8 +130,9 @@ describe("syncRunEndPanel — the straight room's one panel, never at x <= 0", (
   }
 
   // 3700 mm (G7) fills its wall exactly, so ADR 0120 D2's own veto rightly hides the panel there —
-  // 2000 mm is chosen instead because it leaves the ordinary bare end the panel needs to stand in.
-  const ROOM_WITH_A_BARE_END: DesignRoom = { ...LINEAR_ROOM, widthMm: 2000 };
+  // 2499 mm is chosen instead: its 99 mm remainder is under the 200 mm floor (ADR 0167 D2), so it stays the ordinary
+  // bare end the panel needs to stand in. A remainder of 200 mm or more is now filled to the wall (ADR 0167 D1).
+  const ROOM_WITH_A_BARE_END: DesignRoom = { ...LINEAR_ROOM, widthMm: 2499 };
 
   it("seats the right panel at runEndPanelSeatM's own answer, no left panel drawn", () => {
     const records = generatedRecords(ROOM_WITH_A_BARE_END);

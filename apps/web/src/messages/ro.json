@@ -30,6 +30,48 @@
     },
     "reviewCta": "Verifică designul"
   },
+  "presetSave": {
+    "open": "Salvează ca preset",
+    "intro": "Presetul păstrează bucătăria așa cum arată acum.",
+    "nameLabel": "Nume (opțional)",
+    "confirm": "Salvează",
+    "close": "Închide",
+    "waiting": "Se salvează modificările tale…",
+    "saving": "Se salvează presetul…",
+    "saved": "Presetul a fost salvat.",
+    "generatedName": "{shape}, {walls} mm, {finish}",
+    "generatedNameNoFinish": "{shape}, {walls} mm",
+    "refusal": {
+      "findings": "Bucătăria are încă probleme semnalate în editor. Rezolvă-le, apoi încearcă din nou.",
+      "missingSink": "Pentru preset, bucătăria are nevoie de o chiuvetă.",
+      "missingHob": "Pentru preset, bucătăria are nevoie de o plită.",
+      "missingSinkAndHob": "Pentru preset, bucătăria are nevoie de o chiuvetă și de o plită.",
+      "stale": "Bucătăria s-a schimbat între timp. Reîncarcă pagina și încearcă din nou.",
+      "nameRefused": "Numele nu este acceptat. Încearcă un nume mai scurt, fără caractere speciale.",
+      "imageRefused": "Imaginea nu a fost acceptată. Încearcă din nou.",
+      "tooLarge": "Pentru preset, bucătăria este prea mare. Elimină câteva elemente și încearcă din nou.",
+      "presetLimit": "Astăzi nu se mai pot salva alte presete. Încearcă mâine.",
+      "saveLimit": "Salvările sunt oprite pentru moment. Încearcă din nou puțin mai târziu.",
+      "unavailable": "Presetele nu se pot salva acum. Încearcă din nou mai târziu.",
+      "notSaved": "Modificările tale nu au putut fi salvate, așa că presetul nu se poate salva acum.",
+      "failed": "Presetul nu a putut fi salvat. Încearcă din nou."
+    }
+  },
+  "presetChooser": {
+    "heading": "Bucătării care încap",
+    "waiting": "Verificăm ce presete încap în camera ta…",
+    "preview": "Previzualizează",
+    "adjusted": "Ajustată ca să intre în camera ta",
+    "skip": "Generează o bucătărie nouă",
+    "previous": "Anterior",
+    "next": "Următorul",
+    "close": "Închide previzualizarea",
+    "select": "Alege acest preset",
+    "selecting": "Se creează bucătăria ta…",
+    "selectFailed": "Nu am putut crea bucătăria din acest preset. Încearcă din nou.",
+    "selectLimitReached": "Astăzi nu se mai pot crea alte bucătării. Încearcă mâine.",
+    "composingNotice": "Compunem o bucătărie pe măsura camerei tale — durează puțin mai mult."
+  },
   "room": {
     "title": "Cameră",
     "shapeQuestion": "Ce formă are camera?",

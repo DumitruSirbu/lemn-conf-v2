@@ -1,5 +1,5 @@
 // M7C wave C1 slice S4 (FB-001, Q10), at 390 x 844 by touch: the confirmation on the browser's Back,
-// criteria 1-5 of `docs/milestones/M7C-m7-feedback-fixes.md`, *C1*, *S4*. Mobile project only: the
+// `docs/decisions/0104` Amendment D4, built as `docs/decisions/0139` decision 6. Mobile project only: the
 // behaviour has no viewport branch, and desktop shard 2/3 is at its budget (backlog 106).
 //
 // **What only a browser can show, and why this is not a unit test.** Whether Back lands on the

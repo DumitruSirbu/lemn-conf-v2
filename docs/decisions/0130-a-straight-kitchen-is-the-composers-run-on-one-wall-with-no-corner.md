@@ -117,3 +117,13 @@ Swept 2026-09-24 for `linear`, `straight`, `1200`, `6300`, `6000`, `wallA` over 
 | 0129 | A right-hand L is a reflection of the left. | **Scoped to a corner** (decision 6). |
 | 0065 decision 5 | Each wall's own run bounds it. | **Extended** (decision 3). |
 | 0028, 0044, 0053, 0068, 0073, 0079, 0090, 0092, 0093, 0097, 0099, 0100, 0011, 0027, 0048, 0076, 0077, 0087, 0117 | Term hits on *linear in width* pricing, *straight* as an adverb, 1200/6000/6300 as coordinates or derived caps. | **No bearing** (read, not a room rule). |
+
+## Dated note — 2026-10-17: the measured "bare end ≤ 599 mm" (line 31) and ADR 0167 (Proposed)
+
+The *Context* measurement (line 31: *"no body on wall B, no overflow and a bare end ≤ 599 mm"*) was taken against `8cd084b`
+and describes the composer **before** the owner's 2026-10-17 Fix 1 ruling. It stays true of that commit. Once
+[ADR 0167](0167-generation-fills-every-free-wall-run-end-that-the-narrowest-catalogue-cabinet-fits-at-every-level-its-column-carries-and-a-narrower-end-stays-bare.md)
+is Accepted, a straight kitchen's bare end is at most one millimetre under the catalogue's narrowest cabinet (a
+remainder at or above it is filled, between the run and its tall block or fridge, which then stand at the wall's end;
+0167 D5). The straight kitchen's decisions 1 to 7 are unchanged. Nothing is struck; this is a forward pointer while 0167
+is Proposed.

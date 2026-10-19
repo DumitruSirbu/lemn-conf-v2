@@ -607,7 +607,7 @@ rather than put back to them. `approved-room-policy.test.ts`' pin and `is-shape-
 **Relayed.** The owner answered M7B's Q-U1 and Q-U2 on 2026-09-29, and the coordinator relayed the
 answers. Both answers are selections of options the plan wrote, so they are recorded as **relayed
 selections, not quotations** (`docs/best-practices/documentation.md`, *Mark a relayed answer as
-relayed*). The plan is `docs/milestones/M7B-u-shaped-rooms.md`, *Owner questions*. Figures are
+relayed*). The plan is `docs/milestones/done/M7B-u-shaped-rooms.md`, *Owner questions*. Figures are
 **[measured]** by `u0-measure.mjs` (kept by name in the U0 scratchpad) against a `tsc` build of
 `packages/configurator-domain/src` at `dd9f63a`, unless labelled otherwise.
 

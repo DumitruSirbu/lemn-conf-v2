@@ -158,7 +158,7 @@ function refusedShareRequest(
 /**
  * The credential a share request presents, or `undefined`. A write-token cookie for this design and a well-formed
  * visitor cookie, both present (ADR 0114 Amendment G4), exactly as before and without reading the session. Otherwise
- * the session of an account that may edit (ADR 0169 D9): sharing is managed by an editor, for all three methods. The
+ * the session of an account that may edit (ADR 0172 D9): sharing is managed by an editor, for all three methods. The
  * cross-site check has already run for every method. Absent both, the repository is never asked, so the refusal costs
  * no query and does not reveal whether the other would have mattered. Whether the design is that account's is the
  * repository's predicate to say, and its refusal is the one for a design that is unclaimed, another's, or unknown.

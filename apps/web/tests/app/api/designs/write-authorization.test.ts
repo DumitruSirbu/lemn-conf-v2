@@ -444,6 +444,7 @@ describe("GET /api/designs/[id]", () => {
       revision: FIRST_REVISION,
       design: KITCHEN_L_DESIGN,
       canWrite: false,
+      canAuthorPresets: false,
     });
   });
 
@@ -522,6 +523,7 @@ describe("GET /api/designs/[id]", () => {
     expect(token.length).toBeGreaterThan(20);
     expect(raw).not.toContain(token);
     expect([...Object.keys(JSON.parse(raw) as object)].sort()).toEqual([
+      "canAuthorPresets",
       "canWrite",
       "design",
       "id",

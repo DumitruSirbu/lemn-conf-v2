@@ -238,7 +238,7 @@ D7). **Not a secret, not a mail variable**; its absence never makes the contact 
 
 ### `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (M8B, 2026-10-18; names only; the owner's)
 
-For the login and register pages ([ADR 0169](../decisions/0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+For the login and register pages ([ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
 D5, *Consequences*; the number changes at merge). **Add-only; the owner provisions both; no agent creates, reads or prints
 either.** No agent knows whether they are set in any environment. The repo-root `.env.example` names both, commented, with no
 value [src: `.env.example:162-163`].
@@ -251,7 +251,7 @@ value [src: `.env.example:162-163`].
   challenge is checked [src: `turnstile-verification.ts:199`, one line]. Never printed, logged, read at build or bundled.
   Unset or empty: every challenge is refused as not configured (`503`), loudly. A documented Cloudflare **test** secret is
   honoured only beside `LEMNARIA_E2E_FAKE_MAIL=1` with a loopback `LEMNARIA_PUBLIC_ORIGIN`; set anywhere else it is refused
-  as not configured (ADR 0169 D5, dated note). The production secret must be the real widget's (plan §10, M9 gate line 1).
+  as not configured (ADR 0172 D5, dated note). The production secret must be the real widget's (plan §10, M9 gate line 1).
 - **`LEMNARIA_PUBLIC_ORIGIN`** (above) is also required for the check: the hostname Cloudflare reports is compared with it.
 
 ### Planned mail variables for the `lemnaria.md` sender: PLANNED, NOT SET

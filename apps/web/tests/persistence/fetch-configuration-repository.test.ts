@@ -343,6 +343,8 @@ describe("FetchConfigurationRepository", () => {
       design: KITCHEN_L_DESIGN,
       revision: STORED_REVISION,
       canWrite: true,
+      // M8C P4: the load now carries the preset control's server answer; this route body names none, so it reads false.
+      canAuthorPresets: false,
     });
     // One request, not two: the credential answer rides the read it was already going to make.
     expect(requests).toHaveLength(1);

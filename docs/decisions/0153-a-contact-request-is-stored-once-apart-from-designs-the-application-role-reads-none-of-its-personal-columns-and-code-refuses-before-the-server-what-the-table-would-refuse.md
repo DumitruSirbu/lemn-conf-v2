@@ -313,13 +313,13 @@ shop's notice) is 8J's.
 
 ## Dated note — 2026-10-18, M8B wave L11 (claim; reviewer finding F2, accepted)
 
-**Ratified 2026-10-18:** ADR 0169 was accepted by the owner that day, which ratifies this note. (It was marked
-*PROVISIONAL pending ADR 0169* when written.)
+**Ratified 2026-10-18:** ADR 0172 was accepted by the owner that day, which ratifies this note. (It was marked
+*PROVISIONAL pending ADR 0172* when written.)
 
 **`designs.account_id` links a lead to an identified account through columns the application role can read.** Wave L11
 adds the column (migration `0015`) and stores it when a verified client claims or mints a design. `contact_submissions.design_id`
 is among the seven readable columns and `designs.account_id` is readable too, so a request can be joined to the account that owns its
 design. The personal columns stay unreadable and decision 1's grant is unchanged, but decision 1's intent (the
 application learns nothing about who a lead is) is eroded for a claimed design. Accepted risk, owner-visible; the
-plan (M8B §10) carries the row and [ADR 0169](0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) D11 (the named join and its revisit trigger) the rest. (The pointer first said
+plan (M8B §10) carries the row and [ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) D11 (the named join and its revisit trigger) the rest. (The pointer first said
 Amendment B, which does not discuss the join.)

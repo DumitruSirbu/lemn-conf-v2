@@ -260,7 +260,7 @@ if (isDirectCliInvocation) {
   loadEnvLocal();
   try {
     // Required, and checked before any connect: a silently ignored argument could aim this at production's credential
-    // (see docs/milestones/migration-environment-safety-check.md).
+    // (see docs/decisions/0169, Why).
     const environment = readDeclaredEnvironment(process.argv, "migrate");
     const connectionUrl = readMigrationDatabaseUrl();
     const databaseName = databaseNameOf(connectionUrl);

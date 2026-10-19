@@ -140,6 +140,7 @@ export {
   findCameraPresetForRoom,
   KITCHEN_TOP_M,
   MAX_DEVICE_PIXEL_RATIO,
+  overviewFittedToFrame,
   RENDERER_PARAMETERS,
   seatObjectOnStage,
   STAGE_BACKGROUND,

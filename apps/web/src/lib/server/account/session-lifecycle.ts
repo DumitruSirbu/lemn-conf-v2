@@ -15,7 +15,7 @@ import { getSessionStore } from "@/lib/server/account/session-store-instance";
 import { sha256Hex } from "@/lib/server/sha256-hex";
 import type { Role } from "@lemnaria/configurator-domain";
 
-// Starting and ending sessions (ADR 0169 decision 3). Each takes the response it will set a cookie on, so the route
+// Starting and ending sessions (ADR 0172 decision 3). Each takes the response it will set a cookie on, so the route
 // owns the answer and this module owns the cookie. A store failure is thrown for the route to answer as unavailable:
 // nothing here pretends a session started or ended.
 

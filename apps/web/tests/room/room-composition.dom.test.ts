@@ -82,6 +82,8 @@ const SMALLEST_ROOM_QUERY =
 /** Any depth would do; it is the kitchen's declared one so the fake kit is the one the run would build. */
 const DECLARED_CABINET_DEPTH_MM = 600;
 
+const PRESET_LISTING_ENDPOINT = "/api/presets";
+
 /** The probe the fake kit answers with. It measures what the builder would actually produce, so an
  *  insert that passed the domain's guards succeeds — the kit is faked, the composition is not. */
 function fakeProbeAtKitDepth(cabinetDepthMm: number | undefined): BodyProbe {
@@ -148,6 +150,7 @@ async function waitUntil(settled: () => boolean, what: string): Promise<void> {
 }
 
 const MICROTASK_TURNS_AN_AWAIT_CHAIN_NEEDS = 10;
+const MICROTASK_TURNS_A_LISTING_NEEDS = 40;
 
 /** Everything already resolved gets to run, and no timer does: a plain loop, since `act` waits on a task of its own. */
 async function drainMicrotasks(): Promise<void> {
@@ -164,6 +167,19 @@ function composePhase(): string | null {
 
 async function settleComposition(): Promise<void> {
   await waitUntil(() => composePhase() === "composed", "resolved its rows");
+}
+
+/**
+ * The wait (1D) between the tap and 1F: the stubbed listing answers at once, so 1F is on screen within microtasks. A
+ * test that acts on 1F straight after the tap, as these did before M8C P8, awaits this first. Microtasks only, no timer,
+ * so the run is carried no further than its paint frame, where these tests mean to hold it.
+ */
+async function settleTheListing(): Promise<void> {
+  await act(async () => {
+    for (let turn = 0; turn < MICROTASK_TURNS_A_LISTING_NEEDS; turn += 1) {
+      await Promise.resolve();
+    }
+  });
 }
 
 async function settleFailure(): Promise<void> {
@@ -272,9 +288,17 @@ afterEach(() => {
  * It never answers: a rejection would land after the test ended and update `RoomScreen` outside `act`.
  * Push and request counts below are therefore the departure's alone; the hand-off's guarantees are
  * `room-handoff.dom.test.ts`'s.
+ *
+ * The preset listing is the one request answered, at once and with a 404, which Step 1 reads as "no presets" (plan M8C
+ * section 3.5). Since M8C P8 composition starts only after that read, so a listing held open would hold every test below
+ * for the listing's own 3 s timeout, which is also this file's `RUN_TIMEOUT_MS`.
  */
 function holdEveryRequestOpen(): void {
-  vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+  vi.stubGlobal("fetch", (url: unknown) =>
+    String(url).startsWith(PRESET_LISTING_ENDPOINT)
+      ? Promise.resolve(new Response(null, { status: 404 }))
+      : new Promise<Response>(() => undefined),
+  );
 }
 
 // The sequences reachable only at a composable draft; those in `qa-7f1-d45-convergence.adversarial.test.ts` lead
@@ -352,6 +376,7 @@ describe("entering composition (criteria 24, 27, 29)", () => {
     render();
 
     tapContinue();
+    await settleTheListing();
 
     expect(vi.mocked(generateKitchen)).not.toHaveBeenCalled();
     // Six rows, the dishwasher's among them (ADR 0110 Amendment M3).
@@ -548,6 +573,7 @@ describe("the kit is borrowed and released on every path (criterion 28)", () => 
     render();
 
     tapContinue();
+    await settleTheListing();
     tapComposeBack();
     // `generateKitchen` is one synchronous call and cannot be cancelled; the abandoned run must still return the kit.
     await settleReleasedKits(1);
@@ -712,6 +738,7 @@ describe("a browser Back out of composition", () => {
     render();
 
     tapContinue();
+    await settleTheListing();
     pressBrowserBack();
 
     expect(maybeAt("room-fields")).not.toBe(null);

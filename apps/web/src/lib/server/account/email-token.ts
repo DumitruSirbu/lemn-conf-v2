@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 
 import { sha256Hex } from "@/lib/server/sha256-hex";
 
-// The single-use value an account e-mail carries after `#` (ADR 0169 decision 5). The mail holds the value; the
+// The single-use value an account e-mail carries after `#` (ADR 0172 decision 5). The mail holds the value; the
 // database holds only its SHA-256, so a leaked table cannot be turned into a working link.
 
 /** 256 bits from the platform CSPRNG, as the session value is drawn: `ceil(256 / 6) = 43` base64url characters. */
@@ -16,10 +16,10 @@ const WELL_FORMED_EMAIL_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const MILLISECONDS_PER_MINUTE = 60 * 1_000;
 const MILLISECONDS_PER_HOUR = 60 * MILLISECONDS_PER_MINUTE;
 
-/** How long a confirmation link works (ADR 0169 decision 5). */
+/** How long a confirmation link works (ADR 0172 decision 5). */
 const VERIFY_EMAIL_TOKEN_LIFETIME_HOURS = 24;
 
-/** How long a reset link works (ADR 0169 decision 5): short, since it opens the account without the old password. */
+/** How long a reset link works (ADR 0172 decision 5): short, since it opens the account without the old password. */
 const RESET_PASSWORD_TOKEN_LIFETIME_MINUTES = 30;
 
 export interface MintedEmailToken {

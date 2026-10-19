@@ -136,8 +136,9 @@ const BOTTLE_CARGO_MIN_WIDTH_MM = 200;
  *  adrift. */
 const HOB_BASE_WIDTHS_MM: readonly number[] = [600];
 
-/** ADR 0027: the appliance `kind` both hob-bearing bases carry built in; see `carriesAccessoryKind`. */
-const HOB_ACCESSORY_KIND = "induction_cooktop";
+/** ADR 0027: the appliance `kind` both hob-bearing bases carry built in; see `carriesAccessoryKind`. Exported so the
+ *  preset rule asks the declaration and never writes the literal a second time (ADR 0121). */
+export const HOB_ACCESSORY_KIND = "induction_cooktop";
 
 const DISHWASHER_WIDTHS_MM: readonly number[] = [450, 600];
 

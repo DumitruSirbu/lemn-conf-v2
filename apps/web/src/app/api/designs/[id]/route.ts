@@ -37,6 +37,7 @@ import {
 } from "@/lib/server/account/design-reader";
 import { touchCurrentSession } from "@/lib/server/account/current-session";
 import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
+import { mayAuthorPresets } from "@/lib/server/preset/preset-authoring-policy";
 import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
 import { refusalOfSaveLimit } from "@/lib/server/rate-limit/judge-save-request";
 import { getRepository } from "@/lib/server/repository";
@@ -69,7 +70,7 @@ type ReadDesignOutcome =
 const EXPECTED_REVISION_HEADER = "x-expected-revision";
 
 /**
- * Gated to the owning browser or the owning account's session (ADR 0114 decision 5, ADR 0169 D9). A request
+ * Gated to the owning browser or the owning account's session (ADR 0114 decision 5, ADR 0172 D9). A request
  * with neither a well-formed visitor cookie nor a client session, a foreign cookie, another account's session
  * and an unknown id are one outcome, `designNotFoundResponse`, so no branch here can tell a caller which it
  * hit; the first never reaches the repository.
@@ -80,6 +81,11 @@ const EXPECTED_REVISION_HEADER = "x-expected-revision";
  * session on a design the account does not own). Each is a credential `PUT`/`PATCH` accept (`saveCredentialOf`), and
  * the session's half is derived from the same `mayEdit` the save reads (`editingAccountIdOf`). It is a boolean; no
  * token, hash or fragment leaves this handler.
+ *
+ * `canAuthorPresets` is the same kind of fact: the server's answer, by the policy the preset save route asks, to whether
+ * the editor may show its save-as-preset control (ADR 0112 decision 2, bullet 3). It is true only for a browser that
+ * holds the write token, never for a session alone: the preset save route re-proves the write token and the visitor
+ * (`loadAuthorized`) and asks the policy again, and an account session carries neither.
  *
  * It is advisory, never the authorisation decision. Nothing may be written on the strength of a
  * `canWrite` this route returned: `PUT`/`PATCH` make the hash part of `saveAuthorized`'s own `update`
@@ -106,6 +112,7 @@ export async function GET(
   try {
     const outcome = await getRepository().loadOwned({ id, accessor });
     if (outcome.kind === "none") return designNotFoundResponse(id);
+    const holdsWriteToken = hasWriteCredentialFor(request.cookies, id);
     const canWriteAsAccount =
       accountMayEdit && outcome.isOwnedByAccount === true;
     return NextResponse.json(
@@ -113,8 +120,8 @@ export async function GET(
         id,
         design: outcome.design,
         revision: outcome.revision,
-        canWrite:
-          hasWriteCredentialFor(request.cookies, id) || canWriteAsAccount,
+        canWrite: holdsWriteToken || canWriteAsAccount,
+        canAuthorPresets: holdsWriteToken && (await mayAuthorPresets(request)),
       },
       { headers: PER_CREDENTIAL_HEADERS },
     );
@@ -192,7 +199,7 @@ async function saveDesign(
 /**
  * The credential a save presents, or `undefined`. The write token, when the request carries one, exactly as before: the
  * session is not read, and nothing about this arm depends on whether there is one. Otherwise the session of an account
- * that may edit (ADR 0169 D9), and only for a request from this site, asked first: a cross-site request is answered as
+ * that may edit (ADR 0172 D9), and only for a request from this site, asked first: a cross-site request is answered as
  * one with no credential, so a sibling origin learns nothing from it and the session is not even read. Every cause of
  * "no credential" is the same `undefined`; whether the design is that account's is the repository's predicate to say.
  */

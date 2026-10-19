@@ -153,7 +153,8 @@ describe("7J-A11 — the straight run's one end panel, swept over the approved w
   /**
    * Each width with the seat it must produce, in millimetres along wall A. A row with no expectation passed for a
    * function that never seats a panel, so every row states one: `NO_PANEL` where the run ends closer than 19 mm to
-   * the wall's end, or where the generator stands a column in the seat.
+   * the wall's end, where a remainder of 200 mm or more is filled to the wall (ADR 0167 D1), or where the generator
+   * stands a column in the seat.
    */
   const SEATS_BY_WIDTH_MM: readonly {
     readonly widthMm: number;
@@ -162,13 +163,30 @@ describe("7J-A11 — the straight run's one end panel, swept over the approved w
   }[] = [
     { widthMm: 1200, seatMm: NO_PANEL, because: "the run ends on the wall" },
     { widthMm: 1201, seatMm: NO_PANEL, because: "1 mm is left past the run" },
-    { widthMm: 1799, seatMm: 1510, because: "the run ends at 1500" },
+    {
+      widthMm: 1799,
+      seatMm: NO_PANEL,
+      because: "the 299 mm left past the run at 1500 is filled to the wall",
+    },
     { widthMm: 1800, seatMm: NO_PANEL, because: "the run ends on the wall" },
-    { widthMm: 2000, seatMm: 1810, because: "the run ends at 1800" },
-    { widthMm: 2499, seatMm: 2410, because: "the run ends at 2400" },
+    {
+      widthMm: 2000,
+      seatMm: NO_PANEL,
+      because: "the 200 mm left past the run at 1800 is filled to the wall",
+    },
+    {
+      widthMm: 2499,
+      seatMm: 2410,
+      because:
+        "the run ends at 2400 and 99 mm, under the 200 mm floor, stays bare",
+    },
     { widthMm: 2500, seatMm: NO_PANEL, because: "the run ends on the wall" },
     { widthMm: 3100, seatMm: NO_PANEL, because: "the run ends on the wall" },
-    { widthMm: 3699, seatMm: 3410, because: "the run ends at 3400" },
+    {
+      widthMm: 3699,
+      seatMm: NO_PANEL,
+      because: "the 299 mm left past the run at 3400 is filled to the wall",
+    },
     { widthMm: 4001, seatMm: NO_PANEL, because: "a column stands in the seat" },
     { widthMm: 4899, seatMm: NO_PANEL, because: "a column stands in the seat" },
     { widthMm: 5999, seatMm: NO_PANEL, because: "a column stands in the seat" },

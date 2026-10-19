@@ -71,7 +71,7 @@ non-personal columns.
 The steps above stand; the tables are `csp_reports` and `csp_report_cursor`, the version is **9**, and these are added
 by the security reader's read of `0009` [relayed; none of it has been executed]. The decision and its reasons:
 [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md).
-The plan: `docs/milestones/8Q2-csp-report-table.md`, *The grant, for review*. **Order of environments: preview first,
+The plan: `docs/milestones/done/8Q2-csp-report-table.md`, *The grant, for review*. **Order of environments: preview first,
 then production**, every step on one database before the next.
 
 **The code merges before this runs and behaves as today until it does** (8Q2 criterion 14): a report still answers
@@ -173,7 +173,7 @@ then production**, every step on one database before the next.
 
 The steps above stand; the table is `contact_submission_views`, the version is **10**. It holds one row per view-only
 link in the shop's notice: the token's hash, the request it was minted for, and a copy of the kitchen as sent. Nothing in
-it is personal. The decision and its reasons: the 8V plan, `docs/milestones/8V-done-page-link-and-shop-email.md`, D3 and
+it is personal. The decision and its reasons: the 8V plan, `docs/milestones/done/8V-done-page-link-and-shop-email.md`, D3 and
 D6; the decision record is [ADR 0165](../decisions/0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md)
 (accepted 2026-10-17). These steps were written by the S1 developer. ~~and have **not been executed anywhere**.~~
 **Corrected 2026-10-17:** the owner steps below have **not been executed on preview or production**. The **test**
@@ -289,33 +289,238 @@ request, read `select token_hash, created_at, revoked_at from contact_submission
 and revoke each row the same way. Do not delete rows: revocation is the operation (add-only spirit; ADR 0151 covers
 test rows only).
 
+## For `0011_create_presets.sql` (wave M8C P1, added 2026-10-18)
+
+The steps above stand; the table is `presets`, the version is **11**. It holds the kitchens the owner saves as presets:
+the room each was saved in, a copy of the design at the schema version it was written in, an optional typed name, one
+image, a status and a time. It holds no design id and nothing personal. The decision and its reasons: [ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md)
+decision 1 and its Amendment A; the plan: `docs/milestones/M8C-generation-fill-and-preset-authoring.md`, section 3.2. The
+privilege-test arm is one of the four tests the owner's option C keeps ([ADR 0168](../decisions/0168-the-owners-no-new-tests-is-option-c-for-m8c-the-existing-suites-are-updated-and-four-places-keep-a-committed-test.md),
+exception 1). These steps were written by the P1 developer and **have not been executed anywhere** [src: written from the
+migration and the test; nothing was run against a database]. **Order of environments: preview first, then production**,
+every step on one database before the next.
+
+**On production, `0009` and `0010` are expected to be pending** [plan, section 3.2, which cites `docs/STATUS.md`; the
+STATUS owner list itself names only `0010` and its grant as owed, and lists "production migration state of `0004` and
+`0009`'s owner steps" as still to be read, so this is not established]. **Run `migrate:status production` first and
+follow what the ledger says.** The migration runner applies every pending file in order, so a ledger at **8** means one
+run applies all three, and **their grants are owed too**:
+
+| Order on production | What | Section |
+| --- | --- | --- |
+| 1 | Run the migration: from a ledger at **8**, it reads **11** after, having applied `0009`, `0010` and `0011` | steps 1 and 2 of each section below |
+| 2 | Grants for `csp_reports` and `csp_report_cursor` (two statements) | *For `0009`*, step 4 |
+| 3 | Grant for `contact_submission_views` (one statement) | *For `0010`*, step 4 |
+| 4 | Grant for `presets` (one statement) | this section, step 4 |
+| 5 | The privilege test as `app_designs`, quoted per environment | each section's steps 5 to 7 |
+| 6 | **Then** the deploy of the code that reads them | |
+
+**The order against the code matters, as for `0010`.** The code of the later M8C waves reads and writes `presets`. Until the
+table and the grant exist, a save answers with an error and Step 1's list fails open to composition (plan, section 3.5).
+The code that reads `0010` answers 500 for an unknown share token until that table and its grant exist (the `0010`
+section). So: the migration, then every grant, then the deploy.
+
+**Do not use `.github/workflows/deploy.yml` for this rollout.** It migrates and then deploys in one run (ADR 0096
+decision 2) and has no grant step, so the code would reach production before any grant exists. Migrate manually with the
+steps below, issue the grants, prove them with the privilege test as `app_designs`, and only then merge or promote the
+code.
+
+**Presets are backed up only where wave P2's export has run, and the `designs` export never covers them.** The nightly
+`designs` export is scoped to `designs` (`BACKUP_BLOB_PREFIX = "backups/designs/"`). Wave P2 added a second, separately
+scoped export of `presets` under `backups/presets/` (cron `/api/cron/backup-presets`, 03:15 UTC daily, 14-day rotation),
+and Neon's point-in-time history is only 6 hours. **Do not author presets on a database until all three hold there:**
+the code containing P2 is deployed to that environment, the Cron Jobs tab of the Vercel dashboard lists
+`/api/cron/backup-presets`, and `vercel blob list --prefix backups/presets/` shows at least one object (a run over an
+empty table still writes one, a single newline). The export runs on **Production only**: it authenticates with
+`CRON_SECRET`, which is deliberately not set for Preview, so presets authored on a preview database are never backed up
+([ADR 0009](../decisions/0009-deployment-configuration-gaps.md) item 4). The restore recipe is *Restoring the `presets`
+table* in [`design-db-restore.md`](design-db-restore.md)
+([ADR 0112](../decisions/0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md), Amendment A,
+*Consequences*). This has not been observed running anywhere [src: written from the code; nothing was deployed or run].
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **11** (1 to 10 before, or
+  1 to 8 on a production that has not had `0009` and `0010`). For preview, pass `PREVIEW_OWNER_DATABASE_URL` as
+  `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
+  ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0011`:** `create table if not exists` passes over an older table of the same name, so confirm the table
+  is the one `0011` describes. Run these read-only, in the database console, with the migration credential:
+
+  ```sql
+  -- Expect 13.
+  select count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'presets';
+
+  -- Expect c = 14, p = 1.
+  select contype, count(*) as constraints
+  from pg_constraint
+  where conrelid = 'public.presets'::regclass and contype in ('c', 'p')
+  group by contype order by contype;
+
+  -- Expect 0 before any preset has been saved.
+  select count(*) as presets from presets;
+  ```
+
+  That is **13 columns and 15 constraints**: the primary key on `id`, thirteen column checks
+  (`presets_id_is_a_design_id_shape`, `presets_shape_is_known`, `presets_wall_a_is_positive`,
+  `presets_wall_b_is_positive`, `presets_wall_c_is_positive`, `presets_height_is_positive`,
+  `presets_schema_version_is_positive`, `presets_design_document_is_an_object`, `presets_design_document_size`,
+  `presets_typed_name_length`, `presets_thumbnail_size`, `presets_thumbnail_type_is_known`, `presets_status_is_known`)
+  and the table check `presets_walls_match_shape`. Any other answer means stop and report.
+- **Before step 4, on each database, read `pg_default_acl`** with the query in the `0009` section. Any row that would
+  reach `presets` for `app_designs` or `PUBLIC` means stop and report, as in step 3.
+- **Step 3:** run this before the grant, with the table present. In the privilege test, the two `public.presets`
+  tests must be **red with nothing held**, not skipped. A skip, *"public.presets does not exist yet on this database"*, means
+  `0011` is not on the database reached.
+- **Step 4: issue exactly this one statement, preview first.** The insert is granted by column, not by table:
+
+  ```sql
+  GRANT SELECT, INSERT (
+      id, shape, wall_a_mm, wall_b_mm, wall_c_mm, height_mm, schema_version, design_document, typed_name, thumbnail,
+      thumbnail_type
+    ) ON TABLE public.presets TO app_designs;
+  ```
+
+  `created_at` and `status` are left out on purpose. Their defaults (`now()` and `'published'`) are then the only values
+  the application can give them, so a leaked credential can neither stamp a row with a far-future `created_at` to keep
+  it first in every listing nor insert a row already hidden. Do not grant `INSERT` on the table, nor `UPDATE`, `DELETE`,
+  `TRUNCATE`, `REFERENCES`, `TRIGGER` or `ALL`. Do not add `WITH GRANT OPTION`. Grant nothing to `PUBLIC` and nothing
+  on `ALL TABLES IN SCHEMA`. The application never hides, shows or rewrites a preset: the owner does, by hand, below
+  ([ADR 0008](../decisions/0008-least-privilege-database-role.md)).
+- **Steps 5 to 7, as `app_designs` on each database.** Run the privilege test file with `DATABASE_URL` set to that
+  environment's application-role URL, for that one invocation. Use the command in the `0009` section. Quote the run's
+  own line `reached database "…" as role "…"` with the outcome, for preview and again for production.
+
+  The two `public.presets` tests must have **run, not skipped**. The first asserts, asked of the catalog (`PUBLIC` and
+  inherited roles included):
+  - *Holds exactly the grant:* table-level `SELECT` and no other table-level privilege (so table-level `INSERT` is
+    false); column-level `INSERT` on exactly the eleven columns of step 4 and on neither `created_at` nor `status`; no
+    column `UPDATE` or `REFERENCES`; nothing with grant option.
+  - *Nothing through `PUBLIC`.*
+  - *The negative controls.* `explain delete from public.presets` and `explain update public.presets set status =
+    'hidden'` are each refused with SQLSTATE **`42501`**. The update is the owner's hiding statement, so its refusal is
+    the proof that the application cannot hide, show or rewrite a preset.
+
+  The second is the planning test. **Positive:** `explain` of the repository's own record statement and list statement
+  is planned without error: the server finds the column grant enough. The test builds them with the repository's own
+  statement functions, so they are the statements it sends. **Negative control:** `explain insert` naming `status`, and
+  `explain insert` naming `created_at`, are each refused with SQLSTATE **`42501`**; that is what makes the grant's
+  omission of the two columns checked and not assumed. Both tests send `explain`, which plans a statement and never
+  runs it, and insert nothing.
+
+  On production, the `csp_reports` and `contact_submission_views` tests have never run either; their passing arms are
+  quoted from the same run (the `0009` and `0010` sections).
+- **Step 8:** `designs` is unchanged. On production, read it with `has_table_privilege`, not by attempting a delete.
+
+**The test database.** The live persistence suite applies `0011` to the test database on its next run, as it does every
+migration: each live file's `beforeAll` runs the migrations with that database's owner credential, and CI's persistence
+leg does the same. No grant is needed there.
+
+### Hiding one preset (owner, by hand; added 2026-10-18)
+
+A published preset is shown on Step 1 of every room whose walls are within 600 mm of its own, and no customer can
+withdraw it. Only the owner can: the application role holds `SELECT` and `INSERT` on named columns only, and the
+privilege test proves `update … set status` is refused (`42501`). A hidden row is never read by the application again:
+every read adds `status = 'published'`, and the image route answers not-found for it. Use the **owner** credential for
+that environment, in the database console. Never delete a row (add-only spirit; [ADR 0151](../decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md)
+covers test rows only).
+
+**Hiding is immediate only for requests that are not cached.** The plan serves a preset's image with `Cache-Control:
+public, max-age=31536000, immutable` (plan, section 3.5), so a copy already held by a browser or by the CDN stays
+available for up to a year after the row is hidden, to anyone who holds its address. The listing is cached for 60
+seconds, after which the preset is no longer offered. Hiding therefore also needs a CDN purge: in the Vercel dashboard,
+the project's caches, purge the CDN cache (or invalidate the image address) [inf: the exact control was not checked
+here]. A copy in an individual browser cannot be purged and expires with its `max-age`. Until the image route's
+`max-age` is shortened (a note for wave P6 in the plan), do not rely on a hidden image being gone.
+
+1. **Find the preset.** Read the columns that identify it, never the image or the document:
+
+   ```sql
+   select id, shape, wall_a_mm, wall_b_mm, wall_c_mm, height_mm, typed_name, status, created_at
+   from presets
+   order by created_at desc;
+   ```
+
+   The `id` is the 21-character value the image route serves under (`/api/presets/<id>/image`).
+2. **Hide it, read-back first:**
+
+   ```sql
+   -- Expect one row, status published.
+   select id, typed_name, status
+   from presets
+   where id = '<id>';
+
+   update presets
+   set status = 'hidden'
+   where id = '<id>' and status = 'published';
+   ```
+
+   Expect `UPDATE 1`. `UPDATE 0` means the id is wrong or the preset is already hidden: stop and re-check step 1.
+3. **Check:** read the row again; `status` is `hidden`. Step 1 for a room near it no longer offers it (within the
+   listing's 60 seconds), and its image address answers not-found to a request that is not cached. **Then purge the CDN
+   cache** as above. A customer who already copied the preset into a private design keeps that design: using a preset
+   copies it, and the copy does not depend on the row.
+4. **To show it again,** the same statement with `set status = 'published' where id = '<id>' and status = 'hidden'`;
+   expect `UPDATE 1`.
+
+### If presets are flooding Step 1 (owner, by hand; added 2026-10-18)
+
+Until the gate of ADR 0112 Amendment A is replaced, anyone who can reach an environment can publish a preset onto every
+Step 1 screen of that environment's database: the accepted, time-boxed risk. If it happens, hide the rows by time, not
+one by one. The application cannot set `created_at` (the grant leaves the column out), so the range below is the
+server's clock and not the attacker's.
+
+1. **Find the range.** Read the recent rows and choose `<from>` and `<to>` (timestamps with a zone) that cover the flood
+   and none of the owner's own presets:
+
+   ```sql
+   select id, shape, typed_name, created_at
+   from presets
+   where status = 'published'
+   order by created_at desc
+   limit 100;
+   ```
+2. **Read the count back first.** Expect exactly the number of rows you mean to hide; if it is more, narrow the range
+   before going on:
+
+   ```sql
+   select count(*) as to_hide
+   from presets
+   where status = 'published' and created_at >= '<from>' and created_at < '<to>';
+   ```
+3. **Hide them,** with the same range:
+
+   ```sql
+   update presets
+   set status = 'hidden'
+   where status = 'published' and created_at >= '<from>' and created_at < '<to>';
+   ```
+
+   Expect `UPDATE <count from step 2>`. Any other number means the table changed in between: stop and read again.
+4. **Check and purge,** as in *Hiding one preset*, steps 3 and the CDN purge. The rows stay in the table as `hidden`
+   (the owner's own presets inside the range can be shown again one by one, step 4 above).
+
 ## For `0012`–`0015`, the login and register tables (M8B wave L1, added 2026-10-17)
 
 The steps above stand. The tables are `accounts`, `account_sessions` and `account_email_tokens`; `0015` adds the column
-`designs.account_id`. The ledger goes from **11 to 15**. The decision and its reasons: [ADR 0169](../decisions/0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+`designs.account_id`. The ledger goes from **11 to 15**. The decision and its reasons: [ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
 (**Proposed** at the time of writing) and the plan `docs/milestones/M8B-login-register-plan.md`, §4. **Nothing in this
 section has been executed anywhere** [written in wave L1 by its developer; written, not run]. **Order of environments: preview first, then
 production**, every step on one database before the next.
 
-**Prerequisite.** Version **11** is M8C's `0011_create_presets.sql`, on the branch `fix/empty-space-fill-and-preset-save`.
-The migration runner refuses a gap, so `0012` cannot be applied to a database whose ledger reads fewer than 11. Production
-still needs `0009`, `0010` and `0011` first. If the login branch merges before M8C, the four files are renumbered at the
-rebase, which is free only while none of them has been applied anywhere.
+**Prerequisite.** Version **11** is M8C's `0011_create_presets.sql`, which `main` carries and this branch now contains
+(merged 2026-10-19; `packages/persistence/src/migrations/` holds `0001` to `0015` with no gap and no duplicate number
+[source-verified, directory listing, 2026-10-19]). The migration runner refuses a gap, so `0012` cannot be applied to a
+database whose ledger reads fewer than 11, and `0012`-`0015` must not be applied anywhere before `0011` is on that
+database. Production still needs `0009`, `0010` and `0011` first (sections above); apply them, then `0012`-`0015`.
 
-**This branch is red until M8C's `0011` lands.** `packages/persistence/src/migrations/` here holds `0001` to `0010` and then
-`0012`; there is no `0011` [source-verified, directory listing, 2026-10-18]. The runner refuses a gap, so anything that applies
-the whole migration set on this branch (the migrate command, and the live persistence suites that run it) cannot pass
-[inference from the runner's rule, not a run]. It turns green only when `fix/empty-space-fill-and-preset-save` merges first
-or the four files are renumbered at the rebase. Do not read a red migrate or persistence run on this branch as a defect in
-`0012` to `0015`, and do not apply them anywhere before `0011` is on the database.
-
-**Ledger and `0012` as built (update 2026-10-18, developer report; not run by the scribe).** `0011` lives on the M8C branch
-(`fix/empty-space-fill-and-preset-save`), so the ledger reads **1-11 before** and **1-12 after** applying `0012` alone. In
+**Ledger and `0012` as built (update 2026-10-18, developer report; not run by the scribe).** `0011` is M8C's, so the ledger reads **1-11 before** and **1-12 after** applying `0012` alone. In
 `0012` the hash constraint is named `accounts_password_hash_is_phc` and checks only the generic PHC shape
 `^[$][a-z0-9-]{1,32}([$]v=[0-9]+)?[$][^$]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$` (strict argon2id is enforced in code,
 `password-hash-shape.ts`); the `locale` check is `^[a-z]{2}(-[a-z]{2})?$`. Any check that looks for the old name
 `accounts_password_hash_is_argon2id` will not find it. The unattended screen function returned `[]` on `0012` alone, but the
-CLI gate cannot run until `0011` is present.
+CLI gate could not run until `0011` was present (it is now, after the merge; not re-run).
 
 **The order against the code matters.** Every account route and every session read names these tables. If the code ships
 before the migrations and the grants, those requests answer 500 (a failed session read reads as anonymous, which is less
@@ -409,7 +614,7 @@ exist, use the read-only catalog checks in step 7 below on preview, and do not g
 - **Step 4, exactly these seven statements, preview first** (column-scoped, so that the application cannot write a role,
   and every account it creates is a client. This does not make an SQL injection harmless: it could still insert an
   `account_sessions` row for an administrator, update `password_hash`, or null `revoked_at` or `used_at`, and no grant can
-  prevent that. That risk is accepted, [ADR 0169](../decisions/0169-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) decision 7):
+  prevent that. That risk is accepted, [ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) decision 7):
 
   ```sql
   GRANT SELECT ON TABLE public.accounts TO app_designs;
@@ -479,7 +684,7 @@ exist, use the read-only catalog checks in step 7 below on preview, and do not g
 
 ### Making the first administrator (owner, by hand, console)
 
-The application cannot write `role`, so a staff account exists only by this step (ADR 0169 decision 7). No staff wave is
+The application cannot write `role`, so a staff account exists only by this step (ADR 0172 decision 7). No staff wave is
 built yet, so it is optional this round. **It needs the owner credential and cannot be done by the application role.**
 
 1. **Register and confirm the address in the application as an ordinary client**, so that the row carries a real argon2id
@@ -493,7 +698,7 @@ built yet, so it is optional this round. **It needs the owner credential and can
 
    Not verified, or more than one row, or none: stop.
 3. **Promote, then end every session of that account in the same transaction**, because a role change takes effect at the
-   next request but a session that was already open should not outlive the decision (ADR 0169 decision 3):
+   next request but a session that was already open should not outlive the decision (ADR 0172 decision 3):
 
    ```sql
    begin;
@@ -523,9 +728,9 @@ The nightly export covers `designs` only (`BACKUP_BLOB_PREFIX = "backups/designs
 `account_email_tokens` are **not** in it, and **a restore of `designs` loses `account_id`**: the export's row type and both
 of its selects in `packages/persistence/src/design-row-source.ts` list `write_token_hash` and `visitor_hash` and omit
 `account_id` [source-verified, 2026-10-18]. Every restored design comes back unclaimed (`account_id` null), so the
-claim is lost and the design opens on other devices no longer (ADR 0169 decision 8) [inference from the column's meaning]. Adding `account_id`
+claim is lost and the design opens on other devices no longer (ADR 0172 decision 8) [inference from the column's meaning]. Adding `account_id`
 to the export is owed to a later wave; it must come with an accounts backup, or the restored values would name accounts a
-restore will not recreate. Sessions and tokens are never backed up on purpose, so a restore cannot revive one (ADR 0169
+restore will not recreate. Sessions and tokens are never backed up on purpose, so a restore cannot revive one (ADR 0172
 decision 10). The accounts backup is a later wave.
 
 **The test database.** The live persistence suite applies every migration to the test database through each live file's

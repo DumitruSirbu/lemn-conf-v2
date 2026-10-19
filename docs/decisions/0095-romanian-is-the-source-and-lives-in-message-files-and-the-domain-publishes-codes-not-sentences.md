@@ -5,7 +5,7 @@ Date: 2026-09-06
 Type: Decision (implements [ADR 0001](0001-initial-product-and-stack.md) decision 5; supersedes M3
 work item 2's *"both, never a choice"* placement of the refusal sentence)
 Milestone: M6B — internationalization; the phase plan is
-[`docs/milestones/M6B-internationalization.md`](../milestones/M6B-internationalization.md)
+[`docs/milestones/done/M6B-internationalization.md`](../milestones/done/M6B-internationalization.md)
 
 ## What was asked
 

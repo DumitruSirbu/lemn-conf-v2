@@ -1,5 +1,5 @@
 // M7C wave C1 slice S3 adversarial QA (docs/WORKFLOW.md step 3), at the desktop viewport: criteria 3,
-// 3a, 3b and 3c of `docs/milestones/M7C-m7-feedback-fixes.md`, *C1*. The phone half is
+// 3a, 3b and 3c of C1 (`docs/decisions/0104` Amendment D2). The phone half is
 // `qa-m7c-c1-s3-back.adversarial.e2e.spec.ts`; `support/qa-m7c-c1-s3-back.ts` holds what the two share.
 //
 // **The file name sorts it beside the top-bar specs on purpose.** Playwright shards whole files in name

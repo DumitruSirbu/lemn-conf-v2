@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { reportAccountEvent } from "@/lib/server/account/account-log";
 import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
 
-// The breached-password check (ADR 0169 decision 2). Have I Been Pwned's range API is asked by k-anonymity: of the
+// The breached-password check (ADR 0172 decision 2). Have I Been Pwned's range API is asked by k-anonymity: of the
 // password's SHA-1, only the first five hexadecimal characters leave this server, and the suffixes that come back are
 // compared here. The password, its SHA-1 and its suffix are never returned, thrown or logged.
 

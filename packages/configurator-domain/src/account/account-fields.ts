@@ -16,7 +16,7 @@ import {
   type PhoneRefusalCode,
 } from "../contact/phone-number.js";
 
-// What a person types to register (ADR 0169 decision 1). The password is not here: its rule needs the
+// What a person types to register (ADR 0172 decision 1). The password is not here: its rule needs the
 // address and its text is never trimmed, so `judgePassword` reads it. A refusal is a field and a code and
 // never the value.
 

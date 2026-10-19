@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 
 import type { NextResponse } from "next/server";
 
-// The one session cookie (ADR 0169 decision 3), on `visitor.ts`'s model. The value is 256 random bits; the server
+// The one session cookie (ADR 0172 decision 3), on `visitor.ts`'s model. The value is 256 random bits; the server
 // stores only its SHA-256, so the value itself never reaches a URL, a body or a log from here.
 
 /**

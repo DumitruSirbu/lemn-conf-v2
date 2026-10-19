@@ -3,7 +3,7 @@ import "server-only";
 import type { Role } from "@lemnaria/configurator-domain";
 import type { IdleLifetimeSecondsByRole } from "@lemnaria/persistence";
 
-// How long a session lives, by role (ADR 0169 decision 3; owner Q-L1). One table, so the cookie's `Max-Age`, the
+// How long a session lives, by role (ADR 0172 decision 3; owner Q-L1). One table, so the cookie's `Max-Age`, the
 // stored absolute expiry and the store's idle test cannot drift apart. A role that is added to the domain without a
 // row here is a type error.
 

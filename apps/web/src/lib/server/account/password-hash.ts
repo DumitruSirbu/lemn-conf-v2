@@ -4,7 +4,7 @@ import * as nodeCrypto from "node:crypto";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 
 // Passwords are hashed with argon2id from `node:crypto` (Node 24.7 and later), stored as a PHC string so that the
-// parameters travel with each hash and can be raised without a migration (ADR 0169 decision 2). A hash made with
+// parameters travel with each hash and can be raised without a migration (ADR 0172 decision 2). A hash made with
 // older parameters still verifies and is replaced by `needsRehash`'s caller at the next successful login.
 //
 // These functions take the NFKC form of the password and use it as given: the domain's `judgePassword` normalises,

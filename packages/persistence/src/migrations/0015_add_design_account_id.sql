@@ -1,4 +1,4 @@
--- M8B wave L1. ADR 0169 decisions 8 and 9: a design claimed by a confirmed account opens, saves and shares
+-- M8B wave L1. ADR 0172 decisions 8 and 9: a design claimed by a confirmed account opens, saves and shares
 -- for that account on any device. This column is what "claimed" means at the database: the id of the
 -- owning account, set by the claim and by a mint made while signed in. It sits beside `visitor_hash` and
 -- `write_token_hash` (`0005`, `0002`), which a claim leaves untouched.

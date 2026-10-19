@@ -89,7 +89,7 @@ export const SHARE_VIEW_HEADERS: readonly { key: string; value: string }[] = [
  * Every response on an account page (`/{locale}/account/{page}`): a sign-in, confirmation or reset screen carries a
  * credential or a single-use token in its address or its form, and a signed-in page holds the person's own data, so
  * none is ever indexed or cached. Same shape as
- * `SHARE_VIEW_HEADERS`, set in `src/proxy.ts` (ADR 0169). `Referrer-Policy` is not here: see
+ * `SHARE_VIEW_HEADERS`, set in `src/proxy.ts` (ADR 0172). `Referrer-Policy` is not here: see
  * `ACCOUNT_TOKEN_PAGE_HEADERS`.
  */
 export const ACCOUNT_PAGE_HEADERS: readonly { key: string; value: string }[] = [
@@ -113,11 +113,20 @@ export const ACCOUNT_TOKEN_PAGE_HEADERS: readonly {
  * a nonced script and Turnstile propagates that nonce, so under `'strict-dynamic'` no `script-src` host is needed;
  * Cloudflare's CSP page lists `frame-src` for this origin [doc: developers.cloudflare.com/turnstile/reference/
  * content-security-policy, "Last updated May 5, 2026", read 2026-10-18]. Only the pages that show a challenge pass it
- * to `buildContentSecurityPolicy` (ADR 0169 D11; ADR 0161 dated note owed).
+ * to `buildContentSecurityPolicy` (ADR 0172 D11; ADR 0161 dated note owed).
  */
 export const TURNSTILE_FRAME_SOURCES: readonly string[] = [
   "https://challenges.cloudflare.com",
 ];
+
+/**
+ * What a stored preset image is served under (see ADR 0167 Amendment B item 9): a document that loads nothing and runs in a
+ * sandbox, so an image that is not one cannot act as a page. The image route sets it and `src/proxy.ts` sets it again,
+ * because a header the proxy has already put on the response wins over the route's own (`send-response.js` appends a
+ * route header only when none is present), and the page policy would otherwise be what reached the browser.
+ */
+export const PRESET_IMAGE_CONTENT_SECURITY_POLICY =
+  "default-src 'none'; sandbox";
 
 export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {
   return mode === "enforce" ? CSP_ENFORCED_HEADER : CSP_REPORT_ONLY_HEADER;

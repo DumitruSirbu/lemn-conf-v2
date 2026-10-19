@@ -1,4 +1,4 @@
--- M8B wave L1. ADR 0169 decisions 1 and 5: the single-use links in the mail a customer is sent, to confirm
+-- M8B wave L1. ADR 0172 decisions 1 and 5: the single-use links in the mail a customer is sent, to confirm
 -- an address and to reset a password. This table holds the server's half of each link.
 --
 -- `token_hash` is the primary key and a SHA-256 hex digest, with `0006`'s check that also refuses `''`. The
@@ -11,13 +11,13 @@
 -- so a later purpose (a staff invitation, an e-mail change) drops no constraint.
 --
 -- `created_at` is how only the newest unused token of a purpose is honoured. `expires_at` is set by the code
--- (24 hours to confirm, 30 minutes to reset, ADR 0169 decision 5). `used_at` makes a token single-use.
+-- (24 hours to confirm, 30 minutes to reset, ADR 0172 decision 5). `used_at` makes a token single-use.
 -- Nothing is deleted: use is an UPDATE of a timestamp, and the application role holds no DELETE.
 --
 -- The partial index serves "the newest unused token of this purpose for this account"; used rows stay out
 -- of it.
 --
--- **Tokens are never exported to a backup.** A restore cannot revive one (ADR 0169 decision 10).
+-- **Tokens are never exported to a backup.** A restore cannot revive one (ADR 0172 decision 10).
 --
 -- **APPLY THIS BEFORE THE CODE THAT READS IT SHIPS, AND BEFORE THE GRANT**, and after `0012`, which it
 -- references. Registration, confirmation and reset name this table. The grant is the owner's separate step:

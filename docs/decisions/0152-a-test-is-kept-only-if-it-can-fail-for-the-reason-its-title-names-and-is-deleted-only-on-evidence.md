@@ -6,11 +6,11 @@ fail" finding keeps the milestone open).** The owner's sentence in *Context* and
 the owner's; every other rule below says whose it is.
 Date: 2026-10-08
 Type: Decision
-Milestone: M8 (raised by `docs/TESTS_REVIEW.md` and its fix-up, on branch `m8-review-contact-success`)
+Milestone: M8 (raised by `docs/archive/TESTS_REVIEW.md` and its fix-up, on branch `m8-review-contact-success`)
 Extends: [ADR 0093](0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md),
 [ADR 0121](0121-a-thing-is-identified-by-what-it-is-and-the-discriminating-case-is-the-one-nobody-screenshots.md)
 
-The record was written by the documentation scribe from `docs/TESTS_REVIEW.md` (lines 1–103, *Progress* and *Statistics*)
+The record was written by the documentation scribe from `docs/archive/TESTS_REVIEW.md` (lines 1–103, *Progress* and *Statistics*)
 and the coordinator's hand-over of 2026-10-08. The scribe has no shell and ran nothing. Every figure is copied from the
 *Statistics* section, which that file says was counted by script from the per-row Status cells; the mutations behind it
 are QA agents' recorded runs, and the coordinator re-ran the suites, not the mutations. What reached the scribe only

@@ -41,7 +41,7 @@ export async function resumeVisitorRoute(
 
 /**
  * `/[locale]` and `/[locale]/configurator/configure`'s shared body. It resumes the most recently updated design the
- * browser's visitor cookie or the signed-in client account owns (ADR 0169 D9); the account is the server's reading of
+ * browser's visitor cookie or the signed-in client account owns (ADR 0172 D9); the account is the server's reading of
  * the session cookie and never anything the request says.
  *
  * Signed out, exactly as before accounts: no cookie resumes nothing and never calls the repository; a malformed one is

@@ -1,4 +1,4 @@
-// M3 work item 6 (`docs/milestones/M3-mutations.md`): `DEVELOPMENT-SPEC.md` §7's fourteen
+// M3 work item 6 (docs/decisions/0170, M3 work item 6): `DEVELOPMENT-SPEC.md` §7's fourteen
 // insertable entries, built at the size §5.2 planned for the opening.
 //
 // Every case is measured through the real probe rather than by reading the builder's arguments

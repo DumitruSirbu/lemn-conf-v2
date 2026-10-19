@@ -51,11 +51,11 @@ rejected exactly that shape already, both times in the M6 milestone plan:
   production ahead of its reader: *"a declaration whose only consumer is its own test is not an
   ADR 0028 parity gate — parity needs two independently derived numbers — it is a rename, and it
   would ship a production seam with no production caller"*
-  (`docs/milestones/M6-price-and-global-settings.md:546-551`).
+  (`docs/milestones/done/M6-price-and-global-settings.md:546-551`).
 - Wave 6E, shipped 2026-09-03, built the whole-kitchen settings container but explicitly left
   cabinet depth's arrival — and whether it owes a version bump — to wave 6J rather than pre-empting
   it: *"Whether depth's arrival owes a version bump is 6J's decision and is deliberately not
-  pre-empted here"* (`docs/milestones/M6-price-and-global-settings.md:958-959`).
+  pre-empted here"* (`docs/milestones/done/M6-price-and-global-settings.md:958-959`).
 
 A `pricingVersion` field today would have no dashboard to write a second version, and no recalculate
 command to read the old one against — the same unreachable-second-reader shape both precedents
@@ -102,7 +102,7 @@ with it. Not designed here.
 
 **This design dissolves the stored-tier problem recorded in wave 6E rather than patching it.** Wave
 6E surfaced, and left open, the question of a design carrying a material or hardware tier the price
-book no longer offers (`docs/milestones/M6-price-and-global-settings.md:970-977`). Under this
+book no longer offers (`docs/milestones/done/M6-price-and-global-settings.md:970-977`). Under this
 record's design, a kitchen priced at book v1 keeps pricing against v1, where its tier still exists,
 so nothing is ever orphaned by an edit elsewhere. The reconciliation question does not disappear — it
 **moves to the moment the customer presses "apply new prices"**, which is exactly where they are
@@ -144,7 +144,7 @@ it still owes is the notice, the explicit recalculate action, and the retained-v
 - The dashboard wave, whenever it is scheduled, inherits two open sub-decisions (version id vs.
   snapshot; where books live) with a recommendation on each, and inherits wave 6G's tier-list
   recovery path already built.
-- `docs/milestones/M6-price-and-global-settings.md` is not edited by this record — an architect is
+- `docs/milestones/done/M6-price-and-global-settings.md` is not edited by this record — an architect is
   writing wave plans into it concurrently. A pointer from M6 to this ADR, if wanted, is the M6
   architect's or the coordinator's to add once that work lands.
 

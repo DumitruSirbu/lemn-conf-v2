@@ -10,7 +10,7 @@ import {
   type VisitorCookieReader,
 } from "@/lib/server/visitor";
 
-// Who is asking to read a design (ADR 0169 D9). Both credentials come from the request's cookies and are judged by the
+// Who is asking to read a design (ADR 0172 D9). Both credentials come from the request's cookies and are judged by the
 // server: the visitor cookie is hashed, the session is looked up. A request never names an account, a role or a
 // capability.
 
@@ -29,7 +29,7 @@ export interface RequestDesignAccess {
 }
 
 /**
- * The account a session reads designs as: a verified account holding `design.read.own`, which only a client does (ADR 0169
+ * The account a session reads designs as: a verified account holding `design.read.own`, which only a client does (ADR 0172
  * Amendment B). Staff reading any design is a later wave, so a staff session reads as a visitor does: by its cookie
  * alone. A session that cannot be read is anonymous, so the failure gives less access.
  */

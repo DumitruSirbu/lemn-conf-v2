@@ -1,4 +1,4 @@
--- M8B wave L1. ADR 0169 decision 3: a session is 256 random bits in a host-only cookie, and the server
+-- M8B wave L1. ADR 0172 decision 3: a session is 256 random bits in a host-only cookie, and the server
 -- keeps only the SHA-256 of that value. This table is the server's half.
 --
 -- `token_hash` is the primary key rather than a surrogate id: every lookup this table serves is "does this
@@ -21,7 +21,7 @@
 -- The partial index serves "every live session of this account", which logout everywhere and a password
 -- reset both ask; revoked rows stay out of it. A resolve by `token_hash` needs no index of its own.
 --
--- **Sessions are never exported to a backup.** A restore cannot revive one (ADR 0169 decision 10).
+-- **Sessions are never exported to a backup.** A restore cannot revive one (ADR 0172 decision 10).
 --
 -- **APPLY THIS BEFORE THE CODE THAT READS IT SHIPS, AND BEFORE THE GRANT**, and after `0012`, which it
 -- references. Every authenticated request reads this table. The grant is the owner's separate step:

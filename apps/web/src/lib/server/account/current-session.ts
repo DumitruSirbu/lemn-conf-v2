@@ -13,7 +13,7 @@ import {
 } from "@/lib/server/account/session-cookie";
 import { sha256Hex } from "@/lib/server/sha256-hex";
 
-// Who is asking (ADR 0169 decision 3). The only input is the session cookie. The role, the address and the verification
+// Who is asking (ADR 0172 decision 3). The only input is the session cookie. The role, the address and the verification
 // are the account's current ones, read on every request, so a demotion takes effect on the next one.
 
 export interface SignedInSession {

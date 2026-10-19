@@ -319,7 +319,7 @@ function scheduleChangedNotice(account: StoredAccount): void {
 }
 
 /**
- * Counts no bucket (ADR 0169 Amendment B, item 2): the notice cannot be asked for, only earned by a completed reset,
+ * Counts no bucket (ADR 0172 Amendment B, item 2): the notice cannot be asked for, only earned by a completed reset,
  * and a reset needs a live token that the reset request's own bucket bounds. A stored address that the policy no longer
  * accepts, an unavailable mailer or a failed send drops the notice and changes no answer; each is written down, without
  * the address.

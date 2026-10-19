@@ -35,7 +35,7 @@ price-book versioning and does not mention the field; it was cited in the dispat
 ruling and it does not touch the subject. The record that introduced the field is wave 6J-a's commit
 `c8ba3af`, whose message states the intent directly: *"`AlongWallDepthChain` becomes a required field
 on every `CabinetDepthRule` arm, so which chain moves a body — the base formula or the wall map — is
-declared per entry."* Its acceptance criterion in `docs/milestones/M6-price-and-global-settings.md`
+declared per entry."* Its acceptance criterion in `docs/milestones/done/M6-price-and-global-settings.md`
 is explicit that a reader was owed in the same wave: *"This wave is where it gains a production
 reader, so it is where declaring it stops being a rename."* The declaration shipped and the reader
 did not. That is the unmet criterion ADR 0083 found and 6J-c closes.
@@ -83,7 +83,7 @@ parameterise it"*). Carrying it unread on purpose would make it exactly the thin
 warns about.
 
 It is kept because **the reader is owed, named, planned and scheduled**: wave 6J-c, in
-`docs/milestones/M6-price-and-global-settings.md`, with its goal, its two touched production files
+`docs/milestones/done/M6-price-and-global-settings.md`, with its goal, its two touched production files
 and eight falsifiable criteria already written. The gap is that the reader has not been implemented,
 not that nobody knows what it is.
 

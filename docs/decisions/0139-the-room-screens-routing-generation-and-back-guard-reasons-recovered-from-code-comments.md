@@ -89,7 +89,7 @@ decision 11. Cite as `see ADR 0139 decision N`.
 
 - **Context.** [ADR 0104](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md)
   Amendment D4 decides *that* the browser's Back asks before leaving an edited editor and records the
-  as-built behaviour; the mechanics below were recorded only in `milestones/M7C-m7-feedback-fixes.md`
+  as-built behaviour; the mechanics below were recorded only in `milestones/done/M7C-m7-feedback-fixes.md`
   and the comment.
 - **Mechanism.** The router cannot refuse a traversal (Next's `onPopState` restores whichever entry the
   browser landed on), so the only shape available is a **guard entry**: one extra history entry with the
@@ -206,3 +206,15 @@ here as `ADR 0139 d11`.*
   without it).
 - **Rejected alternative.** A hydrated-but-unmeasured frame count: it also rises with load.
 - **Where.** `apps/web/tests/room/plan-preview.dom.test.ts` and `apps/web/tests/e2e/room-desktop-line.desktop.e2e.spec.ts` (`MAX_PRE_HYDRATION_PLAN_PAINTS`).
+
+## Dated note, 2026-10-18 (M8C close-out): decision 3's claim about `departTo("presets")`, and where the Select attempt sits
+
+Written by the scribe from the coordinator's brief **[relayed; source-verified by an agent, not re-read by the scribe]**.
+Nothing above is changed.
+
+- **Decision 3's stale claim.** Decision 3 says `departTo("presets")` pushes the room's own query as a history entry.
+  That is not what the code does: it does not push an entry, so **hardware Back from 1D, 1E or 1F lands on 1A**. This is
+  **pre-existing**, not introduced by M8C. Whether that is wanted is a product question (backlog 262), not decided here.
+- **Select's attempt (departs from decision 5's wording).** P8's Select copies a preset into a new private design through
+  the existing mint path, with **one attempt per preset id** (decision 5 says one attempt per composition). The owner is
+  to confirm this. See ADR 0167 Amendment B item 11.

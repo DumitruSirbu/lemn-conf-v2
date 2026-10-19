@@ -125,7 +125,7 @@ export type PasswordRehashOutcome =
   | { readonly kind: "stale" };
 
 /**
- * The port for accounts and their e-mail tokens (ADR 0169 decisions 1, 2, 5, 10). A token works once, and only while
+ * The port for accounts and their e-mail tokens (ADR 0172 decisions 1, 2, 5, 10). A token works once, and only while
  * it is the newest unused, unexpired token of its purpose for its account; using one retires its older siblings.
  * No method writes `role`, `email`, `email_normal_form` or `id` after insert.
  */

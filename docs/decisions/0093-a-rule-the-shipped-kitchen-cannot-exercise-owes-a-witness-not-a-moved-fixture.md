@@ -370,7 +370,7 @@ in decision 2.
 - **Wave 6K-i merges on its own gates**, unwidened and unheld, with its residue recorded here before
   the merge rather than after it.
 - **Wave 6X is opened**, planned at the end of this record, ready to be pasted into
-  `docs/milestones/M6-price-and-global-settings.md` by whoever holds that file. No backlog entry is
+  `docs/milestones/done/M6-price-and-global-settings.md` by whoever holds that file. No backlog entry is
   created: the obligation is scheduled and owned, which is the line `docs/BACKLOG.md` draws.
 - **The project has a rule for a case it had ruled only by example.** Decision 1 states what ADR 0079
   decision 10 and ADR 0090 decision 4b each said about one artefact: a behaviour the tree cannot
@@ -401,7 +401,7 @@ in decision 2.
 
 ## Wave 6X — the slide is witnessed by an assertion, not by a redecorated demo
 
-**To be pasted into `docs/milestones/M6-price-and-global-settings.md` after wave 6V.** It is written
+**To be pasted into `docs/milestones/done/M6-price-and-global-settings.md` after wave 6V.** It is written
 here because another agent holds the milestone file at the time of writing.
 
 **Tier: test fidelity, domain package only. No production code, no fixture, no runner evidence.**
@@ -798,7 +798,7 @@ state of the code for it to have ruled on.
 
 ## Wave 6X-a — the ladder's direction is asserted, not only its existence
 
-**To be pasted into `docs/milestones/M6-price-and-global-settings.md` after wave 6X.**
+**To be pasted into `docs/milestones/done/M6-price-and-global-settings.md` after wave 6X.**
 
 **Tier: test fidelity, domain package only. No production code, no fixture, no runner evidence.**
 

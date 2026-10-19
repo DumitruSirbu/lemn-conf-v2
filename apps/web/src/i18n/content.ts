@@ -14,8 +14,10 @@ import type {
   CornerDirection,
   DesignWall,
   EmptySpaceSide,
+  Finish,
   PaletteEntryId,
   PasswordRefusalCode,
+  PresetNameFacts,
   RejectionDetail,
 } from "@lemnaria/configurator-domain";
 
@@ -1217,6 +1219,57 @@ export type PrivacyNoticeCopy = ReturnType<typeof resolvePrivacyNoticeCopy>;
 
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
+/** Walls are written in the order A, B, C and joined by the multiplication sign, which both shipped locales share. */
+const PRESET_WALL_JOINER = " × ";
+
+/**
+ * The name a preset has when nobody typed one: its shape, its walls in whole millimetres and the kitchen's colour
+ * (ADR 0112 Amendment A). Rendered here from the stored facts and never stored, so each locale reads its own words.
+ * The colour is lower-cased after it is named, and a design that declares none simply leaves it out.
+ */
+export function resolvePresetName(
+  translate: ContentTranslator,
+  facts: PresetNameFacts,
+): string {
+  const shape = resolvePresetShapeName(translate, facts.shape);
+  const walls = facts.wallsMm.join(PRESET_WALL_JOINER);
+  if (facts.finish === undefined) {
+    return translate("presetSave.generatedNameNoFinish", { shape, walls });
+  }
+  const finish = resolvePresetFinishName(translate, facts.finish);
+  return translate("presetSave.generatedName", { shape, walls, finish });
+}
+
+function resolvePresetShapeName(
+  translate: ContentTranslator,
+  shape: PresetNameFacts["shape"],
+): string {
+  switch (shape) {
+    case "linear":
+      return translate("room.shapes.linear.name");
+    case "L":
+      return translate("room.shapes.L.name");
+    case "U":
+      return translate("room.shapes.U.name");
+    default:
+      return assertNever(shape);
+  }
+}
+
+/** A palette entry by its approved name; a free colour has none, so by its value. */
+function resolvePresetFinishName(
+  translate: ContentTranslator,
+  finish: Finish,
+): string {
+  const name =
+    finish.kind === "palette-entry"
+      ? resolveFinishName(translate, finish.entryId)
+      : translate("globalSettings.pillColourValue", {
+          colourValue: finish.value,
+        });
+  return name.toLowerCase();
+}
+
 export function resolveContent(translate: ContentTranslator) {
   return {
     // `cornerDirection` stays the second positional argument, so existing two-argument calls keep their meaning.
@@ -1241,6 +1294,8 @@ export function resolveContent(translate: ContentTranslator) {
       resolveContactFieldError(translate, code),
     contactOutcome: (notice: ContactOutcomeNotice) =>
       resolveContactOutcome(translate, notice),
+    /** A saved kitchen's facts resolved to its generated preset name (a descriptor resolver, like `reviewRoomLine`). */
+    presetName: (facts: PresetNameFacts) => resolvePresetName(translate, facts),
     brand: translate("brand"),
     configure: {
       step: translate("configure.step", { step: 2, totalSteps: 4 }),
@@ -1267,6 +1322,46 @@ export function resolveContent(translate: ContentTranslator) {
       },
       loading: translate("configure.loading"),
       overflowWarning: translate("configure.overflowWarning"),
+    },
+    presetSave: {
+      open: translate("presetSave.open"),
+      intro: translate("presetSave.intro"),
+      nameLabel: translate("presetSave.nameLabel"),
+      confirm: translate("presetSave.confirm"),
+      close: translate("presetSave.close"),
+      waiting: translate("presetSave.waiting"),
+      saving: translate("presetSave.saving"),
+      saved: translate("presetSave.saved"),
+      refusal: {
+        findings: translate("presetSave.refusal.findings"),
+        missingSink: translate("presetSave.refusal.missingSink"),
+        missingHob: translate("presetSave.refusal.missingHob"),
+        missingSinkAndHob: translate("presetSave.refusal.missingSinkAndHob"),
+        stale: translate("presetSave.refusal.stale"),
+        nameRefused: translate("presetSave.refusal.nameRefused"),
+        imageRefused: translate("presetSave.refusal.imageRefused"),
+        tooLarge: translate("presetSave.refusal.tooLarge"),
+        presetLimit: translate("presetSave.refusal.presetLimit"),
+        saveLimit: translate("presetSave.refusal.saveLimit"),
+        unavailable: translate("presetSave.refusal.unavailable"),
+        notSaved: translate("presetSave.refusal.notSaved"),
+        failed: translate("presetSave.refusal.failed"),
+      },
+    },
+    presetChooser: {
+      heading: translate("presetChooser.heading"),
+      waiting: translate("presetChooser.waiting"),
+      preview: translate("presetChooser.preview"),
+      adjusted: translate("presetChooser.adjusted"),
+      skip: translate("presetChooser.skip"),
+      previous: translate("presetChooser.previous"),
+      next: translate("presetChooser.next"),
+      close: translate("presetChooser.close"),
+      select: translate("presetChooser.select"),
+      selecting: translate("presetChooser.selecting"),
+      selectFailed: translate("presetChooser.selectFailed"),
+      selectLimitReached: translate("presetChooser.selectLimitReached"),
+      composingNotice: translate("presetChooser.composingNotice"),
     },
     panel: {
       close: translate("panel.close"),

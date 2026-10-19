@@ -56,9 +56,18 @@ import {
   withTheDishwasherTradeUndone,
 } from "../support/pre-width-run-recording.js";
 import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+import { theGeneratorBeforeAdr0167 } from "../support/before-adr-0167-free-end-fill.js";
 
 // Tests that compare with a recording of an earlier planner run `thePlannerBeforeC5()` (fridge-end leftover not
-// absorbed); the rest of the file runs the shipped planner.
+// absorbed); the rest of the file runs the shipped planner. The wall-row recording of criterion 21 also runs
+// `theGeneratorBeforeAdr0167()`: the free-end fill (ADR 0167) stands a base and its upper where the recording has
+// bare floor, which is not a body composing an upper but a rule the recording predates.
+vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
+  const { withTheFreeEndFillSwitchable } = await import(
+    "../support/before-adr-0167-free-end-fill.js"
+  );
+  return withTheFreeEndFillSwitchable(await importOriginal());
+});
 vi.mock(
   "../../src/generation/fridge-end-leftover.js",
   async (importOriginal) => {
@@ -1138,6 +1147,7 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
 describe("criterion 21 — the wall row is asserted, not composed", () => {
   it("reproduces 7D3's wall row character for character wherever 7D8 did not re-key", () => {
     thePlannerBeforeC5();
+    theGeneratorBeforeAdr0167();
     // Outside the re-key no character of the wall row moves; inside it the row follows the bases. A row that changed
     // where the floor did not means a body composed an upper.
     const arms = { outsideTheReKey: 0, moved: 0, refused: 0 };

@@ -308,7 +308,7 @@ the established form; see ADR 0073 onward.
   "lowest body" was off-screen, it used the wrong canvas height (an overflowing design's wrapped
   price-bar warning changes `sceneHeightFor`'s subtraction), and its AABB-corner projection sat ~18 px
   below the painted geometry. Corrected 2026-09-04 — see that wave's close-out in
-  `docs/milestones/M6-price-and-global-settings.md`.
+  `docs/milestones/done/M6-price-and-global-settings.md`.
 - Do not add tool-specific hooks, credentials, timers, or machine-local settings from the previous
   Claude project. They are not portable project configuration.
 

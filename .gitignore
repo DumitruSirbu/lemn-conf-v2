@@ -52,7 +52,7 @@ apps/web/next-env.d.ts
 # reports committed in August; screenshots alone reached 17 MB in one pass.
 #
 # They are still cited by name from about twenty accepted ADRs and from
-# `docs/milestones/adversarial-review-remediation.md`. Those citations now point
+# `docs/milestones/done/adversarial-review-remediation.md`. Those citations now point
 # at git history rather than at a checked-out file: `git log --all -- <path>`
 # finds the commit, `git show <commit>:<path>` prints it.
 testing-reports/

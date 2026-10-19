@@ -2,13 +2,16 @@ import "server-only";
 
 import type {
   AuthorizedConfigurationRepository,
+  AuthorizedDesignRepository,
   OwnedDesignRepository,
+  PresetRepository,
   SentKitchenViewRepository,
   ShareLinkRepository,
   VisitorResumeRepository,
 } from "@lemnaria/persistence";
 import {
   NeonConfigurationRepository,
+  NeonPresetRepository,
   NeonSentKitchenViewRepository,
   NeonShareLinkRepository,
 } from "@lemnaria/persistence";
@@ -29,9 +32,10 @@ type SharedRepository = Omit<AuthorizedConfigurationRepository, "load"> &
 
 // Lazily created, not module-load-eager: `neon(process.env.DATABASE_URL!)` at import time would
 // crash `next build` in any environment where the env var isn't set (e.g. CI without secrets).
-let repository: SharedRepository | undefined;
+let repository: (SharedRepository & AuthorizedDesignRepository) | undefined;
 let shareLinkRepository: ShareLinkRepository | undefined;
 let sentKitchenViewRepository: SentKitchenViewRepository | undefined;
+let presetRepository: PresetRepository | undefined;
 
 /** The single repository instance route handlers and server components share — the server-side
  *  port, whose update path takes a write credential (ADR 0019 decision 1), plus the visitor-resume
@@ -39,6 +43,16 @@ let sentKitchenViewRepository: SentKitchenViewRepository | undefined;
  *  any code that introspects the underlying object (e.g. `instanceof`, class-shape checks in test
  *  doubles). */
 export function getRepository(): SharedRepository {
+  return sharedInstance();
+}
+
+/** The read that proves a caller is a design's author: the same instance as `getRepository()`'s, behind a port of its
+ *  own so that widening `SharedRepository` does not oblige every test double of it to fake a read it never makes. */
+export function getAuthorizedDesignRepository(): AuthorizedDesignRepository {
+  return sharedInstance();
+}
+
+function sharedInstance(): SharedRepository & AuthorizedDesignRepository {
   repository ??= new NeonConfigurationRepository();
   return repository;
 }
@@ -58,4 +72,10 @@ export function getShareLinkRepository(): ShareLinkRepository {
 export function getSentKitchenViewRepository(): SentKitchenViewRepository {
   sentKitchenViewRepository ??= new NeonSentKitchenViewRepository();
   return sentKitchenViewRepository;
+}
+
+/** The owner's saved kitchens, in a port of its own: `INSERT` and `SELECT` on `presets` are all its role holds. */
+export function getPresetRepository(): PresetRepository {
+  presetRepository ??= new NeonPresetRepository();
+  return presetRepository;
 }

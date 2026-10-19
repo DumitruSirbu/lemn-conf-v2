@@ -203,7 +203,7 @@ with no ceiling: `void-engine.ts:906-909` (line numbers as of 2026-09-02; correc
 originally cited 744-751) records nine taps producing a **900 mm** empty column,
 where every `'fit'` cabinet is refused. The 800 mm merge cap does not bound that path — it is one
 column growing, not two merging — and it remains the open product question recorded in
-`docs/milestones/M5-width.md`. A reviewer will meet a >800 mm empty column while testing this and
+`docs/milestones/done/M5-width.md`. A reviewer will meet a >800 mm empty column while testing this and
 must not read it as this record's regression.
 
 ## What this is and is not, against backlog 2

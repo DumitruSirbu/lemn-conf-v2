@@ -6,7 +6,7 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
 /**
- * What authorises a share-link operation (ADR 0114 Amendment G4, ADR 0169 D9): the pair of hashes the share route reads
+ * What authorises a share-link operation (ADR 0114 Amendment G4, ADR 0172 D9): the pair of hashes the share route reads
  * off the request's cookies, or the id of the account that owns the design. Alternatives, never both: each arm is its
  * own statement, so one cannot widen the other. The account's id is the server's own session's.
  */
