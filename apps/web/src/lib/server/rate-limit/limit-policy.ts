@@ -174,6 +174,9 @@ export const ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE = 10;
 export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_HOUR_FIGURE = 10;
 export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_DAY_FIGURE = 30;
 export const ACCOUNT_PROFILE_PER_ACCOUNT_HOUR_FIGURE = 30;
+/** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
+ *  ADR 0147's intent). */
+export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
 
 /**
  * Three times what one whole e2e run sends of each of the three buckets the suite's one shared block counts, rounded up
@@ -432,6 +435,15 @@ export const ACCOUNT_PROFILE_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+/** A copy of a kitchen, counted for the account that makes it; the mint's per-network bucket is counted beside it. */
+export const DESIGN_DUPLICATE_BY_ACCOUNT_POLICY = policyOf(
+  "design-duplicate-by-account",
+  {
+    figure: DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
 /** The session twin of the write credential's bucket: the same figure and window, under a name of its own, so an
  *  account's saves and a write token's are counted apart (ADR 0156). */
 export const SAVE_BY_ACCOUNT_POLICY = policyOf("design-save-by-account", {
@@ -478,7 +490,8 @@ export type PolicyPurpose =
   | "save-by-account"
   | "account-password-check-by-account-hour"
   | "account-password-check-by-account-day"
-  | "account-profile-by-account";
+  | "account-profile-by-account"
+  | "duplicate-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -569,6 +582,7 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "account-profile-by-account": sameInProduction(
     ACCOUNT_PROFILE_BY_ACCOUNT_POLICY,
   ),
+  "duplicate-by-account": sameInProduction(DESIGN_DUPLICATE_BY_ACCOUNT_POLICY),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */

@@ -30,13 +30,15 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
 /** What a route is limited for at the block stage (M8B plan section 5, common order step 4): the purposes whose first
  *  bucket counts the network. `confirm-email` and `password-reset-complete` count in one bucket, since the plan bounds
- *  their hashing cost together, and have no other stage. */
+ *  their hashing cost together, and have no other stage. `kitchen-duplicate` counts the mint's own per-network bucket (a
+ *  copy is a mint, ADR 0147's intent) and is followed by the account's copy bucket at the subject stage. */
 export type AccountBlockPurpose =
   | "register"
   | "login"
   | "password-reset-request"
   | "confirm-email"
-  | "password-reset-complete";
+  | "password-reset-complete"
+  | "kitchen-duplicate";
 
 /** The purposes that count an address's buckets at the subject stage. `mail` is one mail bucket for a route that sends
  *  a mail the flow's own subject stage did not already count: the confirmation link a login resends to an unconfirmed
@@ -53,8 +55,17 @@ export interface AccountBlockAsk {
   readonly headers: HeaderReader;
 }
 
-/** The purposes an account's own id is counted for: its claims, its password checks and its profile saves. */
-export type AccountKeyedPurpose = "claim" | "password-check" | "profile";
+/** The purposes an account's own id is counted for: its claims, its password checks, its profile saves and the changes
+ *  it makes to a kitchen. A rename, a hide and a delete are counted in the saves' bucket (`save-by-account`); a copy has
+ *  a bucket of its own. */
+export type AccountKeyedPurpose =
+  | "claim"
+  | "password-check"
+  | "profile"
+  | "kitchen-rename"
+  | "kitchen-duplicate"
+  | "kitchen-hide"
+  | "kitchen-delete";
 
 /**
  * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
@@ -103,6 +114,7 @@ const BLOCK_PLAN_OF_PURPOSE: Readonly<Record<AccountBlockPurpose, StagePlan>> =
       event: "password-reset-complete",
       buckets: ["account-token-complete-by-block"],
     },
+    "kitchen-duplicate": { event: "kitchen-duplicate", buckets: ["mint"] },
   };
 
 const SUBJECT_PLAN_OF_PURPOSE: Readonly<
@@ -133,6 +145,13 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
     ],
   },
   profile: { event: "profile", buckets: ["account-profile-by-account"] },
+  "kitchen-rename": { event: "kitchen-rename", buckets: ["save-by-account"] },
+  "kitchen-duplicate": {
+    event: "kitchen-duplicate",
+    buckets: ["duplicate-by-account"],
+  },
+  "kitchen-hide": { event: "kitchen-hide", buckets: ["save-by-account"] },
+  "kitchen-delete": { event: "kitchen-delete", buckets: ["save-by-account"] },
 };
 
 const UNJUDGED: WriteJudgement = Object.freeze({
