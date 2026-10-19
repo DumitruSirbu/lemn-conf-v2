@@ -170,6 +170,10 @@ export const ACCOUNT_REGISTER_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
 export const ACCOUNT_RESET_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
 export const ACCOUNT_LOGIN_RESEND_PER_ADDRESS_DAY_FIGURE = 5;
 export const ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE = 10;
+/** How often a signed-in account may have its current password checked: the guess budget of a stolen session. */
+export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_HOUR_FIGURE = 10;
+export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_DAY_FIGURE = 30;
+export const ACCOUNT_PROFILE_PER_ACCOUNT_HOUR_FIGURE = 30;
 
 /**
  * Three times what one whole e2e run sends of each of the three buckets the suite's one shared block counts, rounded up
@@ -403,6 +407,31 @@ export const ACCOUNT_CLAIM_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+/** Counted before the current password is verified, whether it is right or wrong. The day is the UTC day. */
+export const ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_HOUR_POLICY = policyOf(
+  "account-password-check-by-account",
+  {
+    figure: ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_DAY_POLICY = policyOf(
+  "account-password-check-by-account",
+  {
+    figure: ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_PROFILE_BY_ACCOUNT_POLICY = policyOf(
+  "account-profile-by-account",
+  {
+    figure: ACCOUNT_PROFILE_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
 /** The session twin of the write credential's bucket: the same figure and window, under a name of its own, so an
  *  account's saves and a write token's are counted apart (ADR 0156). */
 export const SAVE_BY_ACCOUNT_POLICY = policyOf("design-save-by-account", {
@@ -446,7 +475,10 @@ export type PolicyPurpose =
   | "account-reset-mail-by-address"
   | "account-login-resend-by-address"
   | "account-claim-by-account"
-  | "save-by-account";
+  | "save-by-account"
+  | "account-password-check-by-account-hour"
+  | "account-password-check-by-account-day"
+  | "account-profile-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -528,6 +560,15 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   ),
   "account-claim-by-account": sameInProduction(ACCOUNT_CLAIM_BY_ACCOUNT_POLICY),
   "save-by-account": sameInProduction(SAVE_BY_ACCOUNT_POLICY),
+  "account-password-check-by-account-hour": sameInProduction(
+    ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_HOUR_POLICY,
+  ),
+  "account-password-check-by-account-day": sameInProduction(
+    ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_DAY_POLICY,
+  ),
+  "account-profile-by-account": sameInProduction(
+    ACCOUNT_PROFILE_BY_ACCOUNT_POLICY,
+  ),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */

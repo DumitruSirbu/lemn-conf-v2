@@ -14,6 +14,8 @@ export const ACCOUNT_EVENTS = [
   "password-reset-complete",
   "claim",
   "kitchens",
+  "profile",
+  "password-change",
   "session-read",
   "session-revoke",
   "breach-check",

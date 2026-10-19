@@ -35,6 +35,7 @@ import {
   resetPasswordTokenExpiry,
 } from "@/lib/server/account/email-token";
 import { hashPassword } from "@/lib/server/account/password-hash";
+import { schedulePasswordChangedNotice } from "@/lib/server/account/password-changed-notice";
 import {
   prepareAccountMail,
   queueAccountMail,
@@ -201,7 +202,7 @@ export async function completePasswordReset({
   });
   if (reset.kind === "invalid") return linkInvalidResponse();
   await endEverySessionBestEffort(account.id);
-  scheduleChangedNotice(account);
+  schedulePasswordChangedNotice(account);
   reportAccountEvent({
     event: "password-reset-complete",
     outcome: "succeeded",
@@ -305,39 +306,5 @@ async function endEverySessionBestEffort(accountId: string): Promise<void> {
     await getSessionStore().revokeAllForAccount(accountId);
   } catch {
     reportAccountEvent({ event: "session-revoke", outcome: "unavailable" });
-  }
-}
-
-function scheduleChangedNotice(account: StoredAccount): void {
-  try {
-    after(() => {
-      sendChangedNotice(account);
-    });
-  } catch {
-    reportAccountEvent({ event: "mail", outcome: "unavailable" });
-  }
-}
-
-/**
- * Counts no bucket (ADR 0172 Amendment B, item 2): the notice cannot be asked for, only earned by a completed reset,
- * and a reset needs a live token that the reset request's own bucket bounds. A stored address that the policy no longer
- * accepts, an unavailable mailer or a failed send drops the notice and changes no answer; each is written down, without
- * the address.
- */
-function sendChangedNotice(account: StoredAccount): void {
-  try {
-    if (!judgeAccountEmail(account.email).ok) {
-      reportAccountEvent({ event: "mail", outcome: "refused" });
-      return;
-    }
-    const mail = prepareAccountMail();
-    if (mail.kind === "unavailable") return;
-    queueAccountMail(mail.readiness, {
-      kind: "password-changed",
-      recipient: account.email,
-      locale: account.locale,
-    });
-  } catch {
-    reportAccountEvent({ event: "mail", outcome: "unavailable" });
   }
 }
