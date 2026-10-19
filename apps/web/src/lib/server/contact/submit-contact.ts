@@ -8,13 +8,18 @@ import {
 } from "@lemnaria/configurator-domain";
 import type {
   ContactSubmissionStore,
+  ContactSubmissionToRecord,
+  SentMarkStore,
   SubmissionLookup,
 } from "@lemnaria/persistence";
 import type { NextResponse } from "next/server";
 
 import type { Content } from "@/i18n/content";
 import { ContactFailure, causeOf } from "@/lib/server/contact/contact-failure";
-import { reportContactUnavailable } from "@/lib/server/contact/contact-log";
+import {
+  reportContactSentMarkFailed,
+  reportContactUnavailable,
+} from "@/lib/server/contact/contact-log";
 import {
   refuseStoredWithLine,
   refuseWithLine,
@@ -52,15 +57,16 @@ export interface ContactBody {
 }
 
 /**
- * Every port is handed in, so nothing here is held at module level: the store, the mail's factory, the one price book
- * of the request, the digester made from the secret, the notice's language, the owned load, the judge's maker, the
- * clock, and where the notice's kitchen link comes from. A test hands the fakes; the route hands the production ones,
- * each made inside the request.
+ * Every port is handed in, so nothing here is held at module level: the store, the sent mark, the mail's factory, the
+ * one price book of the request, the digester made from the secret, the notice's language, the owned load, the judge's
+ * maker, the clock, and where the notice's kitchen link comes from. A test hands the fakes; the route hands the
+ * production ones, each made inside the request.
  */
 export interface SubmitContactPorts
   extends SubmissionSources,
     KitchenLinkSources {
   readonly store: ContactSubmissionStore;
+  readonly sentMarks: SentMarkStore;
   readonly createSender: () => MailSenderCreation;
   readonly digester: DigesterOutcome;
   readonly noticeContent: Content;
@@ -215,12 +221,35 @@ async function countAndRecord(
   if (limited !== undefined) return endWithAnswer(limited);
   const recording = await ports.store.record(prepared.submission);
   if (recording.kind === "conflict") return endWithAnswer(refuseAsConflict());
+  await markDesignSent(
+    ports.sentMarks,
+    prepared.submission,
+    recording.reference,
+  );
   return recording.isNotified
     ? endWithAnswer(sentAnswer(recording.reference))
     : holdForDelivery(admission, {
         reference: recording.reference,
         stored: prepared,
       });
+}
+
+/**
+ * The request is stored, so its design is sent whether or not the shop's notice then goes out. A design target is
+ * `ready` only after `loadOwned` found that very id, so no id from the raw request reaches the store. A mark that fails
+ * is a line and never an answer: the row exists, and a throw here would read as "cannot be taken".
+ */
+async function markDesignSent(
+  sentMarks: SentMarkStore,
+  { target }: ContactSubmissionToRecord,
+  reference: string,
+): Promise<void> {
+  if (target.kind !== "design") return;
+  try {
+    await sentMarks.markSent(target.design.id);
+  } catch {
+    reportContactSentMarkFailed(reference);
+  }
 }
 
 function holdForDelivery(

@@ -215,6 +215,14 @@ interface BackupRow {
   // available in this browser" page is all that loads. Older dumps predate the column the same way
   // `write_token_hash` above does, and land as NULL for the same reason: unowned, not an error.
   visitor_hash?: string | null;
+  // The access-control marks of `0015` and `0016`. A restore that drops them brings every kitchen a client hid or
+  // deleted back open to every arm, and every claimed design back unowned. Dumps written before those migrations
+  // carry `undefined`, which lands as NULL: open, unclaimed, unsent, unnamed — exactly what such a row was.
+  account_id?: string | null;
+  name?: string | null;
+  sent_at?: string | null;
+  hidden_by_client_at?: string | null;
+  deleted_by_client_at?: string | null;
 }
 
 async function main(): Promise<void> {
@@ -239,15 +247,23 @@ async function main(): Promise<void> {
 
       await sql`
         insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
-                              visitor_hash)
+                              visitor_hash, account_id, name, sent_at, hidden_by_client_at,
+                              deleted_by_client_at)
         values (${row.id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${row.created_at}, ${row.updated_at},
-                ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
+                ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null}, ${row.account_id ?? null},
+                ${row.name ?? null}, ${row.sent_at ?? null}, ${row.hidden_by_client_at ?? null},
+                ${row.deleted_by_client_at ?? null})
         on conflict (id) do update
           set schema_version = excluded.schema_version,
               document = excluded.document,
               updated_at = excluded.updated_at,
               write_token_hash = excluded.write_token_hash,
-              visitor_hash = excluded.visitor_hash
+              visitor_hash = excluded.visitor_hash,
+              account_id = coalesce(designs.account_id, excluded.account_id),
+              name = coalesce(excluded.name, designs.name),
+              sent_at = coalesce(designs.sent_at, excluded.sent_at),
+              hidden_by_client_at = coalesce(designs.hidden_by_client_at, excluded.hidden_by_client_at),
+              deleted_by_client_at = coalesce(designs.deleted_by_client_at, excluded.deleted_by_client_at)
       `;
       restored += 1;
     } catch (error) {
@@ -276,6 +292,21 @@ RESTORE_DATABASE_URL="<restore-drill connection string>" \
 
 Use the workspace's own `tsx` rather than `npx tsx`: `npx` may resolve a globally installed copy
 running under a different Node version than the one `.nvmrc` pins.
+
+**The access-control marks (`0015`, `0016`) travel with the row.** The export carries `account_id`, `name`,
+`sent_at`, `hidden_by_client_at` and `deleted_by_client_at`, and the script above writes them back. Three things to
+know before running it:
+
+- **The target must already hold `0015` and `0016`** (ledger 1-16, or the numbers the M8C merge settles). The insert
+  names these columns, so a target without them refuses every row.
+- **A null mark means open.** A dump taken before `0015` or `0016` has no such member and restores every row as
+  unclaimed, unsent, unnamed and not hidden or deleted, which is what those rows were.
+- **A restore over a row that already exists never loosens a mark.** `account_id`, `sent_at`, `hidden_by_client_at`
+  and `deleted_by_client_at` keep the live row's value and take the dump's only when the live one is null, so
+  restoring an older dump cannot reopen a kitchen a client hid or deleted after it was taken, or give a claimed design
+  back to nobody. `name` takes the dump's value when it has one, as `document` does. The cost is that a mark staff
+  cleared after the dump (`design.unhide`) is set again by a restore over the live row; clear it again afterwards. A
+  restore into an empty target has no live row, so it writes the dump's marks exactly.
 
 ### 5. Verify the restored target
 

@@ -8,6 +8,11 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
  * returns rows readable and permanently unwritable. It carries `visitor_hash` because that column is read access (ADR
  * 0114 decision 5): without it a restored design is unreadable to its owner. Both are SHA-256 digests, never tokens or
  * cookies, so a leaked backup yields nothing presentable as a credential.
+ *
+ * It carries the access-control marks of `0015` and `0016` for the same reason: `hidden_by_client_at` and
+ * `deleted_by_client_at` close a design to every arm, and a restore without them reopens each kitchen a client hid or
+ * deleted. `account_id` is the owner's access, `sent_at` the shop's filter and `name` the client's title. A `null` is
+ * "open", "unclaimed", "unsent" or "unnamed", so a dump written before these columns restores as it always did.
  */
 export interface DesignBackupRow {
   readonly id: string;
@@ -17,6 +22,11 @@ export interface DesignBackupRow {
   readonly updated_at: string;
   readonly write_token_hash: string | null;
   readonly visitor_hash: string | null;
+  readonly account_id: string | null;
+  readonly name: string | null;
+  readonly sent_at: string | null;
+  readonly hidden_by_client_at: string | null;
+  readonly deleted_by_client_at: string | null;
 }
 
 /** One page of a keyset walk over `designs`, ordered by `id`. Keyset, not `offset`: a concurrent insert must not shift
@@ -56,14 +66,14 @@ export function createNeonDesignRowSource(
         afterId === undefined
           ? sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash,
-                     visitor_hash
+                     visitor_hash, account_id, name, sent_at, hidden_by_client_at, deleted_by_client_at
               from designs
               order by id
               limit ${pageSize}
             `
           : sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash,
-                     visitor_hash
+                     visitor_hash, account_id, name, sent_at, hidden_by_client_at, deleted_by_client_at
               from designs
               where id > ${afterId}
               order by id

@@ -4,8 +4,10 @@ import {
   type Design,
 } from "@lemnaria/configurator-domain";
 import {
+  FakeAccountKitchenStore,
   FakeContactSubmissionStore,
   FakeSentKitchenViewRepository,
+  FakeSentMarkStore,
   type ContactSubmissionStore,
   type SentKitchenViewRepository,
 } from "@lemnaria/persistence";
@@ -134,6 +136,7 @@ export function aHarness(options: HarnessOptions = {}): Harness {
   const views = (options.views ?? ((inner) => inner))(innerViews);
   const ports: SubmitContactPorts = {
     store: loggedStore(store, calls),
+    sentMarks: new FakeSentMarkStore(new FakeAccountKitchenStore()),
     createSender:
       options.createSender ??
       (() => ({ kind: "sender", sender: loggedSender(sender, calls) })),

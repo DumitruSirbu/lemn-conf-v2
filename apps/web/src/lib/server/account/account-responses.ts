@@ -9,8 +9,10 @@ import type {
   PasswordRefusalCode,
 } from "@lemnaria/configurator-domain";
 
+import type { KitchenListWire } from "@/account/kitchens/kitchens-wire-contract";
 import { LONGEST_DAY_SECONDS } from "@/lib/server/rate-limit/chisinau-day";
 import type { WriteJudgement } from "@/lib/server/rate-limit/enforce-rate-limit";
+import type { ReadJudgement } from "@/lib/server/rate-limit/judge-read-request";
 
 // The closed set of answers the account routes give (M8B plan section 5). Every answer is `private, no-store`, a body
 // of a `status` word and nothing else but what that status needs, and none holds a password, a token, an address or
@@ -151,6 +153,14 @@ export function claimedResponse(claimed: number): NextResponse {
   );
 }
 
+/** `200`: a page of the signed-in account's listed kitchens. Changes nothing. */
+export function kitchenListResponse(list: KitchenListWire): NextResponse {
+  return NextResponse.json(list, {
+    status: 200,
+    headers: ACCOUNT_RESPONSE_HEADERS,
+  });
+}
+
 /** `401`: the route needs a signed-in account and the request has none (or its session could not be read). */
 export function unauthenticatedResponse(): NextResponse {
   return statusResponse(401, "unauthenticated");
@@ -194,6 +204,19 @@ export function answerOfJudgement({
   return isTellableWait(decision.retryAfterSeconds)
     ? rateLimitedResponse(decision.retryAfterSeconds)
     : unavailableResponse();
+}
+
+/**
+ * The `429` that stops a read, or nothing when it is served. A read fails open, so a wait that cannot be told is
+ * served too, as `refusalOfReadLimit` does for the design reads.
+ */
+export function answerOfReadJudgement(
+  judgement: ReadJudgement,
+): NextResponse | undefined {
+  if (judgement.kind === "serve") return undefined;
+  return isTellableWait(judgement.retryAfterSeconds)
+    ? rateLimitedResponse(judgement.retryAfterSeconds)
+    : undefined;
 }
 
 function isTellableWait(seconds: number): boolean {
