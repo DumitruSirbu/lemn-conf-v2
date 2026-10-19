@@ -88,15 +88,20 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
 
   loadOwned({
     id,
-    visitorHash,
+    accessor,
   }: {
     id: DesignId;
-    visitorHash: string;
+    accessor: { visitorHash?: string; accountId?: string };
   }): Promise<
     { kind: "found"; design: Design; revision: string } | { kind: "none" }
   > {
     const row = this.rows.get(id);
-    if (!row || row.visitorHash !== visitorHash)
+    // An absent member matches no row, as `x = null` is never true in the real statement.
+    if (
+      !row ||
+      accessor.visitorHash === undefined ||
+      row.visitorHash !== accessor.visitorHash
+    )
       return Promise.resolve({ kind: "none" });
     return Promise.resolve({
       kind: "found",

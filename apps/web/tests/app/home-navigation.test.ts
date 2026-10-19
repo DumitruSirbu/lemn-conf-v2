@@ -30,7 +30,7 @@ class StubResumeRepository {
   calls = 0;
   constructor(private readonly outcome: VisitorResumeLookup | Error) {}
 
-  resumeVisitor(): Promise<VisitorResumeLookup> {
+  resume(): Promise<VisitorResumeLookup> {
     this.calls += 1;
     return this.outcome instanceof Error
       ? Promise.reject(this.outcome)

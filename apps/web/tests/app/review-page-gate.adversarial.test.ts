@@ -43,7 +43,10 @@ const state = vi.hoisted(() => ({
 }));
 const loadOwned = vi.hoisted(() =>
   vi.fn<
-    (lookup: { id: string; visitorHash: string }) => Promise<LoadOwnedResult>
+    (lookup: {
+      id: string;
+      accessor: { visitorHash?: string; accountId?: string };
+    }) => Promise<LoadOwnedResult>
   >(),
 );
 const designLoadError = vi.hoisted(() => vi.fn(() => null));
@@ -100,9 +103,9 @@ interface StoredRow {
 /** What the real `loadOwned` answers: `found` for the owner, the load seam's refusal only for the owner of a row it
  *  refuses (`assertDesignValidForCatalog`, run for real), and `none` for every other combination (Amendment H2). */
 function ownerOnlyRepository(rows: Record<string, StoredRow>): void {
-  loadOwned.mockImplementation(({ id, visitorHash }) => {
+  loadOwned.mockImplementation(({ id, accessor }) => {
     const row = rows[id];
-    if (row?.ownerHash !== visitorHash)
+    if (row === undefined || row.ownerHash !== accessor.visitorHash)
       return Promise.resolve({ kind: "none" });
     if (row.isInvalid === true)
       return Promise.reject(
@@ -291,7 +294,7 @@ describe("the owner", () => {
     });
     expect(loadOwned).toHaveBeenCalledWith({
       id: OWNED_ROW_ID,
-      visitorHash: sha256Hex(OWNER_VALUE),
+      accessor: { visitorHash: sha256Hex(OWNER_VALUE) },
     });
   });
 

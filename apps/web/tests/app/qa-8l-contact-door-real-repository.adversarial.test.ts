@@ -36,6 +36,10 @@ const UNROUTABLE_DATABASE_URL =
 /** Where the driver posts a query for that host: it swaps the host's first label for `api.`. */
 const SQL_ENDPOINT = "https://api.invalid/sql";
 
+/** A browser with no session reads as its visitor alone: `loadOwned` binds the account arm as `null` (ADR 0172 D9),
+ *  twice (the owner flag and the `where`), and `account_id = null` matches no row. */
+const NO_ACCOUNT = null;
+
 const DOORS = ["editor", "review", "contact"] as const;
 type Door = (typeof DOORS)[number];
 
@@ -283,15 +287,17 @@ describe("a visitor's request", () => {
     },
   );
 
-  it("for a well-formed id: the contact door sends the very statement the review sends, with the id and the cookie's hash as parameters", async () => {
+  it("for a well-formed id: the contact door sends the very statement the review sends, with the id and the cookie's hash as parameters and no account bound", async () => {
     await renderDoor("review", WELL_FORMED_ID);
     await renderDoor("contact", WELL_FORMED_ID);
 
     expect(sentQueries).toHaveLength(2);
     expect(sentQueries[1]).toEqual(sentQueries[0]);
     expect(sentQueries[1]?.params).toEqual([
+      NO_ACCOUNT,
       WELL_FORMED_ID,
       sha256Hex(OWNER_VALUE),
+      NO_ACCOUNT,
     ]);
   });
 

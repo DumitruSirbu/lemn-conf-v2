@@ -43,7 +43,10 @@ const state = vi.hoisted(() => ({
 }));
 const loadOwned = vi.hoisted(() =>
   vi.fn<
-    (lookup: { id: string; visitorHash: string }) => Promise<LoadOwnedResult>
+    (lookup: {
+      id: string;
+      accessor: { visitorHash?: string; accountId?: string };
+    }) => Promise<LoadOwnedResult>
   >(),
 );
 const designLoadError = vi.hoisted(() => vi.fn(() => null));
@@ -77,9 +80,9 @@ function sha256Hex(value: string): string {
 function ownerOnlyRepository(
   rows: Record<string, { ownerHash: string | null; isInvalid?: boolean }>,
 ): void {
-  loadOwned.mockImplementation(({ id, visitorHash }) => {
+  loadOwned.mockImplementation(({ id, accessor }) => {
     const row = rows[id];
-    if (row?.ownerHash !== visitorHash)
+    if (row === undefined || row.ownerHash !== accessor.visitorHash)
       return Promise.resolve({ kind: "none" });
     if (row.isInvalid === true)
       return Promise.reject(
@@ -212,7 +215,7 @@ describe("criterion 1 — the page gate, per refusal case and locale", () => {
     expect(page.type).toBe(hydrateAndConfigure);
     expect(loadOwned).toHaveBeenCalledWith({
       id: OWNED_ROW_ID,
-      visitorHash: sha256Hex(OWNER_VALUE),
+      accessor: { visitorHash: sha256Hex(OWNER_VALUE) },
     });
   });
 
