@@ -29,6 +29,7 @@ import {
   accountPathOf,
   ActionsLine,
 } from "./account-shell";
+import { ClaimDialog } from "./claim-dialog";
 import type { LoginArrival } from "./login-arrival";
 import {
   useSignIn,
@@ -51,7 +52,8 @@ export interface LoginFormProps {
 }
 
 export function LoginForm(props: LoginFormProps) {
-  const signIn = useSignIn(props.locale);
+  const [claimableCount, askToClaim] = useState<number>();
+  const signIn = useSignIn(props.locale, askToClaim);
   const copy = useAccountLoginCopy();
   return (
     <AccountShell
@@ -63,6 +65,9 @@ export function LoginForm(props: LoginFormProps) {
         <RequestFailedScreen locale={props.locale} />
       ) : (
         <AskingScreen signIn={signIn} {...props} />
+      )}
+      {claimableCount === undefined ? null : (
+        <ClaimDialog locale={props.locale} count={claimableCount} />
       )}
     </AccountShell>
   );

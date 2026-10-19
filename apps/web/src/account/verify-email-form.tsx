@@ -38,6 +38,7 @@ import {
   SecondaryAction,
   startPathOf,
 } from "./account-shell";
+import { ClaimDialog } from "./claim-dialog";
 import { onSignedIn } from "./on-signed-in";
 import {
   useVerifyEmail,
@@ -95,25 +96,31 @@ function ConfirmedScreen({
 }: VerifyEmailFormProps & { readonly claimable: number }) {
   const copy = useAccountVerifyCopy();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [claimableCount, askToClaim] = useState<number>();
   useFocusOnMount(headingRef);
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      onSignedIn({ locale, claimable });
+      onSignedIn({ locale, claimable }, askToClaim);
     }, CONFIRMED_SCREEN_MS);
     return () => {
       window.clearTimeout(timerId);
     };
   }, [locale, claimable]);
   return (
-    <AccountPane>
-      <OutcomeHero
-        tone="success"
-        title={copy.confirmedTitle}
-        headingRef={headingRef}
-      >
-        {copy.confirmedBody}
-      </OutcomeHero>
-    </AccountPane>
+    <>
+      <AccountPane>
+        <OutcomeHero
+          tone="success"
+          title={copy.confirmedTitle}
+          headingRef={headingRef}
+        >
+          {copy.confirmedBody}
+        </OutcomeHero>
+      </AccountPane>
+      {claimableCount === undefined ? null : (
+        <ClaimDialog locale={locale} count={claimableCount} />
+      )}
+    </>
   );
 }
 

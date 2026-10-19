@@ -15,6 +15,10 @@ import styles from "./account.module.css";
  *  cancel; any other is a `dialog`, drawn as a sheet on a phone and opening on its confirmation. */
 export type AccountDialogKind = "standard" | "destructive";
 
+/** How the confirmation is drawn, apart from what the dialog is. A claim is irreversible and so asks as a destructive
+ *  dialog does, but what it does is not harmful and its button is the primary one. */
+export type AccountDialogConfirmTone = "primary" | "destructive";
+
 /** The way out. It is the name of what is kept, so it is also what Escape and the scrim do. */
 export interface DialogCancel {
   readonly label: string;
@@ -30,14 +34,23 @@ export interface DialogConfirm {
   readonly onPress: () => void;
 }
 
-export interface AccountDialogProps {
+/** What a dialog needs whatever its way out. */
+interface AccountDialogBaseProps {
   readonly kind: AccountDialogKind;
   /** What names the dialog: the question. */
-  readonly title: string;
+  readonly title: ReactNode;
   /** The consequence, which describes the dialog to a screen reader. Left out where the content describes itself. */
-  readonly description?: string;
+  readonly description?: ReactNode;
+  /** The id of a further element in `children` that describes the dialog too (a warning drawn as a notice). */
+  readonly alsoDescribedById?: string;
   readonly confirm: DialogConfirm;
-  readonly cancel: DialogCancel;
+  /** The confirmation's button, for a screen that moves focus to it when the dialog changes what it says. */
+  readonly confirmRef?: RefObject<HTMLButtonElement | null>;
+  /** Left out, the confirmation is drawn as the kind says: destructive in a destructive dialog, primary otherwise. */
+  readonly confirmTone?: AccountDialogConfirmTone;
+  /** Set where the title changes while the dialog is open (a question that becomes its answer), so that the new title
+   *  is announced. Left out, the title is read once, as the dialog's name. */
+  readonly announcesTitleChange?: boolean;
   /** The control focus lands on, where the opening question is not the buttons (a rename's field). Left out, a
    *  destructive dialog opens on its cancel and any other on its confirmation. */
   readonly initialFocusRef?: RefObject<HTMLElement | null>;
@@ -47,25 +60,46 @@ export interface AccountDialogProps {
   readonly children?: ReactNode;
 }
 
-export function AccountDialog({
-  kind,
-  title,
-  description,
-  confirm,
-  cancel,
-  initialFocusRef,
-  returnFocusFallbackRef,
-  children,
-}: AccountDialogProps) {
+/** A dialog has a cancel, which is also what Escape and the scrim do, or it says what they do: a dialog whose act is
+ *  done and has one way on names it, so that Escape never takes that way by inference. */
+export type AccountDialogProps = AccountDialogBaseProps &
+  (
+    | {
+        readonly cancel: DialogCancel;
+        readonly dismiss?: undefined;
+      }
+    | {
+        readonly cancel?: undefined;
+        /** What Escape and the scrim do when the dialog draws no cancel. */
+        readonly dismiss: () => void;
+      }
+  );
+
+export function AccountDialog(props: AccountDialogProps) {
+  const {
+    kind,
+    title,
+    description,
+    alsoDescribedById,
+    confirm,
+    confirmRef: callerConfirmRef,
+    cancel,
+    confirmTone,
+    announcesTitleChange,
+    initialFocusRef,
+    returnFocusFallbackRef,
+    children,
+  } = props;
   const hostRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
+  const ownConfirmRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = callerConfirmRef ?? ownConfirmRef;
   const cancelRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
   const isDestructive = kind === "destructive";
   // A request in flight cannot be taken back, so nothing leaves the dialog until it is answered.
-  const dismiss = confirm.isBusy ? doNothingWhileBusy : cancel.onPress;
+  const dismiss = confirm.isBusy ? doNothingWhileBusy : wayOutOf(props);
 
   useModalFocus({
     hostRef,
@@ -88,7 +122,10 @@ export function AccountDialog({
         role={isDestructive ? "alertdialog" : "dialog"}
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={description === undefined ? undefined : descriptionId}
+        aria-describedby={describedByOf(
+          description === undefined ? undefined : descriptionId,
+          alsoDescribedById,
+        )}
         tabIndex={-1}
         className={styles.dialogSurface}
         data-kind={kind}
@@ -100,10 +137,11 @@ export function AccountDialog({
           description={description}
           titleId={titleId}
           descriptionId={descriptionId}
+          announcesTitleChange={announcesTitleChange === true}
         />
         {children}
         <DialogActions
-          kind={kind}
+          confirmTone={confirmTone ?? toneOfKind(kind)}
           confirm={confirm}
           cancel={cancel}
           confirmRef={confirmRef}
@@ -121,19 +159,25 @@ function DialogHeader({
   description,
   titleId,
   descriptionId,
+  announcesTitleChange,
 }: {
   readonly kind: AccountDialogKind;
-  readonly title: string;
-  readonly description: string | undefined;
+  readonly title: ReactNode;
+  readonly description: ReactNode;
   readonly titleId: string;
   readonly descriptionId: string;
+  readonly announcesTitleChange: boolean;
 }) {
   return (
     <>
       {kind === "destructive" ? null : (
         <span className={styles.dialogGrabber} aria-hidden="true" />
       )}
-      <h2 id={titleId} className={styles.dialogTitle}>
+      <h2
+        id={titleId}
+        className={styles.dialogTitle}
+        aria-live={announcesTitleChange ? "polite" : undefined}
+      >
         {title}
       </h2>
       {description === undefined ? null : (
@@ -147,43 +191,55 @@ function DialogHeader({
 
 /** The act, then the way out. */
 function DialogActions({
-  kind,
+  confirmTone,
   confirm,
   cancel,
   confirmRef,
   cancelRef,
 }: {
-  readonly kind: AccountDialogKind;
+  readonly confirmTone: AccountDialogConfirmTone;
   readonly confirm: DialogConfirm;
-  readonly cancel: DialogCancel;
+  readonly cancel: DialogCancel | undefined;
   readonly confirmRef: RefObject<HTMLButtonElement | null>;
   readonly cancelRef: RefObject<HTMLButtonElement | null>;
 }) {
   return (
     <div className={styles.dialogActions}>
-      <ConfirmButton kind={kind} confirm={confirm} buttonRef={confirmRef} />
-      <CancelButton
-        cancel={cancel}
-        isBusy={confirm.isBusy}
-        buttonRef={cancelRef}
+      <ConfirmButton
+        tone={confirmTone}
+        confirm={confirm}
+        buttonRef={confirmRef}
       />
+      {cancel === undefined ? null : (
+        <CancelButton
+          cancel={cancel}
+          isBusy={confirm.isBusy}
+          buttonRef={cancelRef}
+        />
+      )}
     </div>
   );
 }
 
-const CONFIRM_CLASS_BY_KIND: Readonly<Record<AccountDialogKind, string>> = {
-  standard: styles.dialogPrimary ?? "",
+function toneOfKind(kind: AccountDialogKind): AccountDialogConfirmTone {
+  return kind === "destructive" ? "destructive" : "primary";
+}
+
+const CONFIRM_CLASS_BY_TONE: Readonly<
+  Record<AccountDialogConfirmTone, string>
+> = {
+  primary: styles.dialogPrimary ?? "",
   destructive: styles.dialogDestructive ?? "",
 };
 
 /** The act. Busy it stays reachable (`aria-disabled`, not `disabled`), so the focus the press left on it is not
  *  dropped outside the Tab ring, and it ignores a second press. */
 function ConfirmButton({
-  kind,
+  tone,
   confirm,
   buttonRef,
 }: {
-  readonly kind: AccountDialogKind;
+  readonly tone: AccountDialogConfirmTone;
   readonly confirm: DialogConfirm;
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
 }) {
@@ -191,7 +247,7 @@ function ConfirmButton({
     <button
       ref={buttonRef}
       type="button"
-      className={CONFIRM_CLASS_BY_KIND[kind]}
+      className={CONFIRM_CLASS_BY_TONE[tone]}
       aria-busy={confirm.isBusy ? true : undefined}
       aria-disabled={confirm.isBusy ? true : undefined}
       onClick={confirm.isBusy ? doNothingWhileBusy : confirm.onPress}
@@ -226,6 +282,19 @@ function CancelButton({
       {cancel.label}
     </button>
   );
+}
+
+/** What Escape and the scrim do: the cancel, or what the dialog without one says. */
+function wayOutOf(props: AccountDialogProps): () => void {
+  return props.cancel === undefined ? props.dismiss : props.cancel.onPress;
+}
+
+/** The ids of the elements that describe the dialog, in reading order; none when nothing does. */
+function describedByOf(
+  ...ids: readonly (string | undefined)[]
+): string | undefined {
+  const present = ids.filter((id) => id !== undefined);
+  return present.length === 0 ? undefined : present.join(" ");
 }
 
 function doNothingWhileBusy(): void {

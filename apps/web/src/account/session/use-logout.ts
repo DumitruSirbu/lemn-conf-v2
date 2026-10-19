@@ -5,8 +5,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 
-import { accountPathOf } from "../account-shell";
-import type { LoginArrival } from "../login-arrival";
+import { loginPathWithReason, type LoginArrival } from "../login-arrival";
 import { sendSignedInRequest } from "../send-account-request";
 import { markSignedOutByPerson } from "./use-account-session";
 
@@ -121,7 +120,7 @@ export function useSignOutEverywhere(): SignOutEverywhere {
 /** The document is anonymous from here on, whatever the page it is being replaced shows meanwhile. */
 function leaveForLogin(locale: AppLocale, arrival: LoginArrival): void {
   markSignedOutByPerson();
-  window.location.assign(`${accountPathOf(locale, "login")}?reason=${arrival}`);
+  window.location.assign(loginPathWithReason(locale, arrival));
 }
 
 /** `204` is every session of the account ended. `401` is no live session to name an account: nothing else was ended,

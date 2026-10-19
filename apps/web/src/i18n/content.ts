@@ -1212,6 +1212,25 @@ export function resolveLogoutEverywhereCopy(translate: ContentTranslator) {
   };
 }
 
+/** The question that attaches the browser's kitchens to the account just signed in, and its one answer. The count is a
+ *  value, never a sentence of its own: each language agrees the whole sentence with it in the catalogue. */
+export function resolveClaimDialogCopy(translate: ContentTranslator) {
+  return {
+    title: translate("claimDialog.title"),
+    question: (count: number, strong: RichTagRenderer) =>
+      translate.rich("claimDialog.question", { count, strong }),
+    warning: translate("claimDialog.warning"),
+    confirm: translate("claimDialog.confirm"),
+    busy: translate("claimDialog.busy"),
+    cancel: translate("claimDialog.cancel"),
+    claimedTitle: (count: number, check: RichTagRenderer) =>
+      translate.rich("claimDialog.claimedTitle", { count, check }),
+    continueOn: translate("claimDialog.continue"),
+  };
+}
+
+export type ClaimDialogCopy = ReturnType<typeof resolveClaimDialogCopy>;
+
 /** The screen after a registration was accepted. The address is the one the person typed, passed as a value. */
 export function resolveAccountCheckInboxCopy(translate: ContentTranslator) {
   return {

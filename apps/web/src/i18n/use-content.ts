@@ -15,6 +15,7 @@ import {
   resolveAccountResetCopy,
   resolveAccountShellCopy,
   resolveAccountVerifyCopy,
+  resolveClaimDialogCopy,
   resolveContent,
   resolveLogoutEverywhereCopy,
   type ContentTranslator,
@@ -66,6 +67,10 @@ export function useAccountControlCopy() {
 
 export function useLogoutEverywhereCopy() {
   return useResolved(resolveLogoutEverywhereCopy);
+}
+
+export function useClaimDialogCopy() {
+  return useResolved(resolveClaimDialogCopy);
 }
 
 export function useAccountCheckInboxCopy() {

@@ -234,6 +234,8 @@ export function PasswordField(props: PasswordFieldProps) {
 }
 
 export interface FormNoticeProps {
+  /** Set where a dialog names the notice among its descriptions (`aria-describedby`). */
+  readonly id?: string;
   readonly tone: "error" | "warning" | "info" | "success";
   readonly title?: string;
   readonly children: ReactNode;
@@ -242,9 +244,16 @@ export interface FormNoticeProps {
 }
 
 /** A form-level message in a live region. An error interrupts (`alert`); the other tones wait their turn (`status`). */
-export function FormNotice({ tone, title, children, ref }: FormNoticeProps) {
+export function FormNotice({
+  id,
+  tone,
+  title,
+  children,
+  ref,
+}: FormNoticeProps) {
   return (
     <div
+      id={id}
       ref={ref}
       className={styles.notice}
       data-tone={tone}
