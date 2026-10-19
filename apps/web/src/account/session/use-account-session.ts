@@ -77,6 +77,15 @@ export function isSessionAnswerDefinite(): boolean {
   return hasDefiniteAnswer;
 }
 
+/** Who is signed in, asked of the server now and kept nowhere: for a caller that has just changed who that is and must
+ *  not be handed the answer from before. `undefined` when the server did not say. */
+export async function askSessionOnce(): Promise<
+  AccountSessionState | undefined
+> {
+  const answer = await askServerWho();
+  return answer.isDefinite ? answer.state : undefined;
+}
+
 /** Asks the server again, whatever was answered before (a session may have ended or begun elsewhere). */
 export function refreshSession(): void {
   hasDefiniteAnswer = false;

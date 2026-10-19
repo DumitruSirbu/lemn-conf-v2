@@ -214,6 +214,7 @@ function SignedInMenu({
   readonly signOutHere: SignOutHere;
 }) {
   const copy = useAccountControlCopy();
+  const locale = useLocale();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { open, openMenu, close, askEverywhere } = useOpenSurface(triggerRef);
   const signOutAndClose = useCallback(() => {
@@ -239,6 +240,9 @@ function SignedInMenu({
         <MenuPortal
           open={open}
           email={email}
+          kitchensHref={
+            email === undefined ? undefined : accountPathOf(locale, "kitchens")
+          }
           isSignOutBusy={signOutHere.isSending}
           onClose={close}
           onSignOutHere={signOutAndClose}
@@ -254,6 +258,7 @@ function SignedInMenu({
 function MenuPortal({
   open,
   email,
+  kitchensHref,
   isSignOutBusy,
   onClose,
   onSignOutHere,
@@ -262,6 +267,7 @@ function MenuPortal({
 }: {
   readonly open: OpenState;
   readonly email: string | undefined;
+  readonly kitchensHref: string | undefined;
   readonly isSignOutBusy: boolean;
   readonly onClose: () => void;
   readonly onSignOutHere: () => void;
@@ -272,6 +278,7 @@ function MenuPortal({
     open.surface === "menu" ? (
       <AccountMenu
         email={email}
+        kitchensHref={kitchensHref}
         isSignOutBusy={isSignOutBusy}
         onClose={onClose}
         onSignOutHere={onSignOutHere}
@@ -291,6 +298,7 @@ function MenuPortal({
 /** The sheet on a phone and the popover on a desktop: one surface, which of the two is the stylesheet's to say. */
 function AccountMenu({
   email,
+  kitchensHref,
   isSignOutBusy,
   onClose,
   onSignOutHere,
@@ -298,6 +306,8 @@ function AccountMenu({
   returnFocusRef,
 }: {
   readonly email: string | undefined;
+  /** The client's list of kitchens; staff have none and are shown no row. */
+  readonly kitchensHref: string | undefined;
   /** A sign-out of this device is out: the rows wait for its answer. */
   readonly isSignOutBusy: boolean;
   readonly onClose: () => void;
@@ -343,6 +353,9 @@ function AccountMenu({
           </div>
         )}
         <div className={styles.menuRows}>
+          {kitchensHref === undefined ? null : (
+            <MenuLinkRow label={copy.myKitchens} href={kitchensHref} />
+          )}
           <MenuRow
             label={copy.signOutHere}
             isBusy={isSignOutBusy}
@@ -388,5 +401,21 @@ function MenuRow({
       {label}
       <span className={styles.menuRowMark} aria-hidden="true" />
     </button>
+  );
+}
+
+/** A row that leaves for a page of its own: a plain anchor, since an account page is a document with its own policy. */
+function MenuLinkRow({
+  label,
+  href,
+}: {
+  readonly label: string;
+  readonly href: string;
+}) {
+  return (
+    <a className={styles.menuRow} href={href}>
+      {label}
+      <span className={styles.menuRowMark} aria-hidden="true" />
+    </a>
   );
 }

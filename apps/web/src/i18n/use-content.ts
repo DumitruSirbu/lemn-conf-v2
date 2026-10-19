@@ -8,6 +8,7 @@ import {
   resolveAccountControlCopy,
   resolveAccountForbiddenCopy,
   resolveAccountForgotCopy,
+  resolveAccountKitchensCopy,
   resolveAccountKitCopy,
   resolveAccountLoginCopy,
   resolveAccountNotFoundCopy,
@@ -64,6 +65,10 @@ export function useAccountForbiddenCopy() {
 
 export function useAccountControlCopy() {
   return useResolved(resolveAccountControlCopy);
+}
+
+export function useAccountKitchensCopy() {
+  return useResolved(resolveAccountKitchensCopy);
 }
 
 export function useLogoutEverywhereCopy() {

@@ -30,8 +30,8 @@ export interface Claim {
   readonly status: ClaimStatus;
   /** "Atașează". Sends the claim; a second press while one is out, or after it was answered, does nothing. */
   readonly claim: () => void;
-  /** "Nu acum", and "Continuă" once the claim is made: a full load to the kitchen the person came from, else the start of
-   *  the configurator. */
+  /** "Nu acum", and "Deschide Bucătăriile mele" (or "Continuă", back to the kitchen the person came from) once the claim
+   *  is made: a full load to where a finished sign-in goes (`leaveAfterSignIn`). */
   readonly leave: () => void;
 }
 
