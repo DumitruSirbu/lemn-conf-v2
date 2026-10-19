@@ -20,7 +20,7 @@ import { useClaim, type ClaimStatus } from "./use-claim";
 //
 // Claiming cannot be undone, so the dialog opens on "Nu acum" (the kit's `alertdialog` opening) and draws "Atașează" as
 // the primary button the frame draws, not as the destructive one. Every way out of the question leaves for the kitchen
-// the person came from, or else the start of the configurator, by a full document load, never a router action: the
+// the person came from, or else the client's list of kitchens, by a full document load, never a router action: the
 // confirm page is a token page, whose address a router action would write back (Lot 1 review, criterion 15).
 //
 // It is drawn into the screen's `<main>`, as `AccountDialog` asks, so the card behind it goes inert.
@@ -59,6 +59,9 @@ function ClaimQuestion({ destination, count }: ClaimDialogProps) {
   const warningId = useId();
   const confirmRef = useRef<HTMLButtonElement>(null);
   const isClaimed = status.kind === "claimed";
+  const claimedConfirmLabel = isHeadedForKitchens(destination)
+    ? copy.openKitchens
+    : copy.continueOn;
   // The cancel button leaves with the question, and focus must not be left on nothing: the one that stays takes it.
   useEffect(() => {
     if (isClaimed) confirmRef.current?.focus();
@@ -70,8 +73,8 @@ function ClaimQuestion({ destination, count }: ClaimDialogProps) {
       {...CLAIM_DIALOG_KIND}
       title={copy.claimedTitle(status.count, renderDecorativeMark)}
       confirm={{
-        label: copy.continueOn,
-        busyLabel: copy.continueOn,
+        label: claimedConfirmLabel,
+        busyLabel: claimedConfirmLabel,
         isBusy: false,
         onPress: leave,
       }}
@@ -99,6 +102,12 @@ function ClaimQuestion({ destination, count }: ClaimDialogProps) {
       <RefusalNotice status={status} />
     </AccountDialog>
   );
+}
+
+/** Leaving lands on the list of kitchens unless the person came from a kitchen, which is where they go back to: only
+ *  then may the button say it opens the list. */
+function isHeadedForKitchens({ returnPath }: Destination): boolean {
+  return returnPath === undefined;
 }
 
 /** The check mark is for the eye: the sentence beside it says the same. */

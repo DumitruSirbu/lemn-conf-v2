@@ -6,12 +6,9 @@ import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitchensCopy } from "@/i18n/use-content";
 
 import type { ListedKitchen } from "./kitchens-answer";
-import {
-  formatRelativeAge,
-  IS_SENT_MARK_WRITTEN,
-  relativeAgeOf,
-} from "./kitchen-summary";
+import { formatRelativeAge, relativeAgeOf } from "./kitchen-summary";
 import styles from "./kitchens.module.css";
+import type { CardFocusRequest } from "./use-kitchens";
 
 // One kitchen of the list (ContBlocks2's card). It opens the kitchen by a full document load: the editor is a page with
 // a policy of its own, and an account page never makes a client-side navigation. The thumbnail is a placeholder until the
@@ -22,22 +19,23 @@ export interface KitchenCardProps {
   readonly locale: AppLocale;
   /** The moment the list was read, which "modified 2 days ago" is told against. */
   readonly readAtMs: number;
-  /** Takes focus once, when it appears: the first kitchen of a page the person asked for. */
-  readonly takesFocus: boolean;
+  /** Takes focus once per request: the first kitchen of a page the person asked for, or the last one shown when that
+   *  page added none. */
+  readonly focusRequest: CardFocusRequest | undefined;
 }
 
 export function KitchenCard({
   kitchen,
   locale,
   readAtMs,
-  takesFocus,
+  focusRequest,
 }: KitchenCardProps) {
   const copy = useAccountKitchensCopy();
   const nameId = useId();
   const openRef = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
-    if (takesFocus) openRef.current?.focus();
-  }, [takesFocus]);
+    if (focusRequest !== undefined) openRef.current?.focus();
+  }, [focusRequest]);
   const name = kitchen.name ?? copy.kitchenName(kitchen.summary);
   const age = relativeAgeOf(kitchen.updatedAtMs, readAtMs);
   return (
@@ -69,20 +67,17 @@ export function KitchenCard({
   );
 }
 
-/** "Trimisă" for a kitchen whose request was sent. A kitchen that was not sent is a draft only once the product can tell
- *  the two apart (`IS_SENT_MARK_WRITTEN`); before that it carries no badge. */
+/** "Trimisă" for a kitchen whose request was sent, "Ciornă" for every other. Kitchens sent before the sent mark was
+ *  written carry no mark and read as drafts until the owner-run backfill (see the Lot 2 plan, O11). */
 function StatusBadge({ isSent }: { readonly isSent: boolean }) {
   const copy = useAccountKitchensCopy();
-  if (isSent) {
-    return (
-      <span className={styles.badge} data-kind="sent">
-        {copy.sentBadge}
-      </span>
-    );
-  }
-  return IS_SENT_MARK_WRITTEN ? (
+  return isSent ? (
+    <span className={styles.badge} data-kind="sent">
+      {copy.sentBadge}
+    </span>
+  ) : (
     <span className={styles.badge} data-kind="draft">
       {copy.draftBadge}
     </span>
-  ) : null;
+  );
 }

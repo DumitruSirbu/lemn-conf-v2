@@ -18,6 +18,14 @@ import {
 // The account's kitchens, read a page at a time (Lot 2 frames A9A to A9C, A9I, A9J). The first page replaces the screen's
 // loading state; every later page is appended below the ones already shown, and a page that cannot be had leaves them
 // where they are. The person asks for the next page; nothing is loaded on scroll.
+//
+// A page can come back with nothing to show (the server skips documents it cannot read, and a kitchen already shown can
+// reappear) while it still names a next page. Such a page is never drawn: the next is asked for at once, so the person
+// is never left at an empty list or a button that adds nothing.
+
+/** The most pages in a row that may add nothing before the chain is given up. A server that keeps answering cursors
+ *  without kitchens would otherwise be asked for ever. */
+const MAX_CONSECUTIVE_EMPTY_PAGES = 10;
 
 /** Why a page could not be had, as the screen tells it. */
 export type ListFailure =
@@ -33,14 +41,20 @@ export type ListFailure =
 /** What the pages shown so far hold. */
 export interface Listing {
   readonly kitchens: readonly ListedKitchen[];
-  /** The account's count at the first page. Later pages do not change it, so the line above the list stays put. */
+  /** The account's count at the first page, including documents the server could not read. It is the line above the
+   *  list only while pages remain; the last page replaces it with the kitchens actually loaded. */
   readonly total: number;
   readonly nextCursor: string | undefined;
   /** When the newest page was read: the moment "modified 2 days ago" is told against. */
   readonly readAtMs: number;
-  /** The first kitchen of the page just appended, which takes focus so the person is not left at the button that
-   *  vanished with the last page. */
-  readonly focusKitchenId: string | undefined;
+  /** The card that takes focus so the person is not left at the button that vanished with the last page: the first
+   *  kitchen of the page just appended, or the last one shown when that page added none. */
+  readonly focusRequest: CardFocusRequest | undefined;
+}
+
+/** A new object for every page appended, so focus moves once per page even when it lands on the same card twice. */
+export interface CardFocusRequest {
+  readonly kitchenId: string;
 }
 
 export type MoreState =
@@ -69,6 +83,8 @@ export interface Kitchens {
 /** What a request for a page came to. */
 type PageStep =
   | { readonly kind: "page"; readonly page: KitchensPage }
+  /** The chain of empty pages was given up; `page` holds the account's total and the cursor to go on from. */
+  | { readonly kind: "stalled"; readonly page: KitchensPage }
   | { readonly kind: "failed"; readonly failure: ListFailure }
   | { readonly kind: "forbidden" }
   | { readonly kind: "sign-in" };
@@ -76,15 +92,26 @@ type PageStep =
 /** A step the screen draws: the person being sent to sign in leaves the document and draws nothing. */
 type DrawnStep = Exclude<PageStep, { readonly kind: "sign-in" }>;
 
+/** Which page to ask for, and the kitchens already shown, which a page must add to. */
+interface PageRead {
+  readonly cursor: string | undefined;
+  readonly shownIds: ReadonlySet<string>;
+}
+
+const NOTHING_SHOWN: ReadonlySet<string> = new Set();
+const IDLE: MoreState = { kind: "idle" };
+/** The chain of empty pages was given up: told as a page that could not be had, which the button asks for again. */
+const STALLED: MoreState = { kind: "failed", failure: { kind: "failed" } };
+
 export function useKitchens(locale: AppLocale): Kitchens {
   const [state, setState] = useState<KitchensState>({ phase: "loading" });
   const isRequestOutRef = useRef(false);
 
   const request = useCallback(
-    (cursor: string | undefined, settle: (step: DrawnStep) => void) => {
+    (pageRead: PageRead, settle: (step: DrawnStep) => void) => {
       if (isRequestOutRef.current) return;
       isRequestOutRef.current = true;
-      void readPage(cursor).then((step) => {
+      void readUntilKitchensAdded(pageRead).then((step) => {
         isRequestOutRef.current = false;
         if (step.kind === "sign-in") {
           // The document is on its way out; the guard is released but the screen is left as it is.
@@ -98,7 +125,7 @@ export function useKitchens(locale: AppLocale): Kitchens {
   );
 
   const loadFirstPage = useCallback(() => {
-    request(undefined, (step) => {
+    request({ cursor: undefined, shownIds: NOTHING_SHOWN }, (step) => {
       setState(firstPageState(step));
     });
   }, [request]);
@@ -116,8 +143,9 @@ export function useKitchens(locale: AppLocale): Kitchens {
     if (state.phase !== "listed") return;
     const { nextCursor } = state.listing;
     if (nextCursor === undefined || isRequestOutRef.current) return;
+    const shownIds = new Set(state.listing.kitchens.map(({ id }) => id));
     setState({ ...state, more: { kind: "loading" } });
-    request(nextCursor, (step) => {
+    request({ cursor: nextCursor, shownIds }, (step) => {
       setState((current) => withNextPage(current, step));
     });
   }, [request, state]);
@@ -128,22 +156,28 @@ export function useKitchens(locale: AppLocale): Kitchens {
 function firstPageState(step: DrawnStep): KitchensState {
   switch (step.kind) {
     case "page":
+      return { phase: "listed", listing: firstListing(step.page), more: IDLE };
+    case "stalled":
       return {
         phase: "listed",
-        listing: {
-          kitchens: step.page.kitchens,
-          total: step.page.total,
-          nextCursor: step.page.nextCursor,
-          readAtMs: Date.now(),
-          focusKitchenId: undefined,
-        },
-        more: { kind: "idle" },
+        listing: firstListing(step.page),
+        more: STALLED,
       };
     case "forbidden":
       return { phase: "forbidden" };
     case "failed":
       return { phase: "failed", failure: step.failure };
   }
+}
+
+function firstListing(page: KitchensPage): Listing {
+  return {
+    kitchens: page.kitchens,
+    total: page.total,
+    nextCursor: page.nextCursor,
+    readAtMs: Date.now(),
+    focusRequest: undefined,
+  };
 }
 
 /** The shown pages with the next one appended, or with the reason it could not be had. A page that repeats a kitchen
@@ -155,7 +189,13 @@ function withNextPage(current: KitchensState, step: DrawnStep): KitchensState {
       return {
         phase: "listed",
         listing: appended(current.listing, step.page),
-        more: { kind: "idle" },
+        more: IDLE,
+      };
+    case "stalled":
+      return {
+        phase: "listed",
+        listing: { ...current.listing, nextCursor: step.page.nextCursor },
+        more: STALLED,
       };
     case "forbidden":
       return { phase: "forbidden" };
@@ -168,15 +208,45 @@ function withNextPage(current: KitchensState, step: DrawnStep): KitchensState {
 }
 
 function appended(listing: Listing, page: KitchensPage): Listing {
-  const shownIds = new Set(listing.kitchens.map((kitchen) => kitchen.id));
-  const added = page.kitchens.filter((kitchen) => !shownIds.has(kitchen.id));
+  const added = kitchensNotIn(listing.kitchens, page.kitchens);
+  const focused = added[0] ?? listing.kitchens.at(-1);
   return {
     kitchens: [...listing.kitchens, ...added],
     total: listing.total,
     nextCursor: page.nextCursor,
     readAtMs: Date.now(),
-    focusKitchenId: added[0]?.id,
+    focusRequest: focused === undefined ? undefined : { kitchenId: focused.id },
   };
+}
+
+function kitchensNotIn(
+  shown: readonly ListedKitchen[],
+  candidates: readonly ListedKitchen[],
+): readonly ListedKitchen[] {
+  const shownIds = new Set(shown.map(({ id }) => id));
+  return candidates.filter(({ id }) => !shownIds.has(id));
+}
+
+/** The first page that adds a kitchen to the ones shown, or the last page there is. A page that adds none and names a next
+ *  one is not an answer: the next is asked for, up to `MAX_CONSECUTIVE_EMPTY_PAGES`. */
+async function readUntilKitchensAdded({
+  cursor,
+  shownIds,
+}: PageRead): Promise<PageStep> {
+  let emptyPages = 0;
+  let cursorToRead = cursor;
+  for (;;) {
+    const step = await readPage(cursorToRead);
+    if (step.kind !== "page") return step;
+    const { page } = step;
+    const addsKitchen = page.kitchens.some(({ id }) => !shownIds.has(id));
+    if (addsKitchen || page.nextCursor === undefined) return step;
+    emptyPages += 1;
+    if (emptyPages >= MAX_CONSECUTIVE_EMPTY_PAGES) {
+      return { kind: "stalled", page };
+    }
+    cursorToRead = page.nextCursor;
+  }
 }
 
 async function readPage(cursor: string | undefined): Promise<PageStep> {

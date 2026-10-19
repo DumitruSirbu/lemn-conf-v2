@@ -852,7 +852,8 @@ declare const messages: {
     "busy": "Se atașează…",
     "cancel": "Nu acum",
     "claimedTitle": "{count, plural, =0 {Nu mai era nimic de atașat} one {<check>✓</check> # bucătărie atașată} few {<check>✓</check> # bucătării atașate} other {<check>✓</check> # bucătării atașate}}",
-    "continue": "Continuă"
+    "continue": "Continuă",
+    "openKitchens": "Deschide Bucătăriile mele"
   },
   "accountKitchens": {
     "metaTitle": "Bucătăriile mele — {brand}",

@@ -1297,6 +1297,7 @@ export function resolveClaimDialogCopy(translate: ContentTranslator) {
     claimedTitle: (count: number, check: RichTagRenderer) =>
       translate.rich("claimDialog.claimedTitle", { count, check }),
     continueOn: translate("claimDialog.continue"),
+    openKitchens: translate("claimDialog.openKitchens"),
   };
 }
 

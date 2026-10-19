@@ -849,7 +849,8 @@
     "busy": "Прикрепляем…",
     "cancel": "Не сейчас",
     "claimedTitle": "{count, plural, =0 {Прикреплять было нечего} one {<check>✓</check> Прикреплена # кухня} few {<check>✓</check> Прикреплены # кухни} many {<check>✓</check> Прикреплено # кухонь} other {<check>✓</check> Прикреплены # кухни}}",
-    "continue": "Продолжить"
+    "continue": "Продолжить",
+    "openKitchens": "Открыть «Мои кухни»"
   },
   "accountKitchens": {
     "metaTitle": "Мои кухни — {brand}",

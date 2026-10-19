@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitCopy, useAccountKitchensCopy } from "@/i18n/use-content";
@@ -18,8 +18,10 @@ import {
 } from "../account-shell";
 import { ForbiddenScreen } from "../forbidden-screen";
 import { KitchenCard } from "./kitchen-card";
+import type { ListedKitchen } from "./kitchens-answer";
 import {
   useKitchens,
+  type CardFocusRequest,
   type KitchensState,
   type ListFailure,
   type Listing,
@@ -32,6 +34,10 @@ import styles from "./kitchens.module.css";
 // delete) is a later screen.
 
 const LOADING_PLACEHOLDER_COUNT = 4;
+
+/** How long the loading region stays empty before it is given its words: a live region is announced for a change made
+ *  after it is in the page, not for one it was drawn with. */
+const LIVE_REGION_FILL_DELAY_MS = 0;
 
 export function KitchensScreen({ locale }: { readonly locale: AppLocale }) {
   const { state, loadMore, retry } = useKitchens(locale);
@@ -122,11 +128,12 @@ function PageHeading() {
 /** The words are a live region for a screen reader; the placeholders are only for the eye. */
 function LoadingKitchens() {
   const copy = useAccountKitchensCopy();
+  const announcement = useTextAfterFirstPaint(copy.loading);
   return (
     <AccountPane>
       <PageHeading />
       <p role="status" className={styles.visuallyHidden}>
-        {copy.loading}
+        {announcement}
       </p>
       <ul className={styles.list} aria-hidden="true">
         {Array.from({ length: LOADING_PLACEHOLDER_COUNT }, (_, index) => (
@@ -135,6 +142,20 @@ function LoadingKitchens() {
       </ul>
     </AccountPane>
   );
+}
+
+/** Empty on the render that draws the region, the text on the next tick. */
+function useTextAfterFirstPaint(text: string): string {
+  const [isFilled, setIsFilled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsFilled(true);
+    }, LIVE_REGION_FILL_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []);
+  return isFilled ? text : "";
 }
 
 function KitchenPlaceholder() {
@@ -240,7 +261,9 @@ function ListedKitchens({
     <AccountPane>
       <PageHeading />
       <div className={styles.countRow}>
-        <span className={styles.count}>{copy.count(listing.total)}</span>
+        <span className={styles.count}>
+          {copy.count(shownCountOf(listing))}
+        </span>
         <span className={styles.sort}>{copy.sortNewestFirst}</span>
       </div>
       <ul className={styles.list}>
@@ -250,7 +273,7 @@ function ListedKitchens({
             kitchen={kitchen}
             locale={locale}
             readAtMs={listing.readAtMs}
-            takesFocus={kitchen.id === listing.focusKitchenId}
+            focusRequest={focusRequestFor(kitchen, listing)}
           />
         ))}
       </ul>
@@ -259,6 +282,23 @@ function ListedKitchens({
       )}
     </AccountPane>
   );
+}
+
+/** The account's count while pages remain; once the last is in, the cards actually loaded, since the server's count
+ *  includes documents it could not read. */
+function shownCountOf(listing: Listing): number {
+  return listing.nextCursor === undefined
+    ? listing.kitchens.length
+    : listing.total;
+}
+
+function focusRequestFor(
+  kitchen: ListedKitchen,
+  listing: Listing,
+): CardFocusRequest | undefined {
+  return listing.focusRequest?.kitchenId === kitchen.id
+    ? listing.focusRequest
+    : undefined;
 }
 
 /** "Încarcă mai multe". A page that could not be had says so beside the button, which asks for it again; the kitchens

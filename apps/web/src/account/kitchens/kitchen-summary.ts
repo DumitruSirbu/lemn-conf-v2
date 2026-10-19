@@ -1,15 +1,7 @@
 import type { AppLocale } from "@/i18n/routing";
 
-// What a kitchen's card says that is neither a name nor a sentence of the catalogue: how long ago it was changed, and
-// whether it may be called a draft. The words of "how long ago" are the platform's, per language (`Intl`); everything
-// else on the card is the catalogue's.
-
-/**
- * Whether a kitchen that was not sent may be called "Ciornă". The sent mark is written by the contact flow when a request
- * is stored (Lot 2 plan, S5); until that wave is merged no kitchen is ever `isSent`, so "Ciornă" would be a claim the
- * product cannot tell apart from "Trimisă" (plan C3). Set it once S5 is in. Widened to `boolean` so it stays a switch.
- */
-export const IS_SENT_MARK_WRITTEN = false as boolean;
+// What a kitchen's card says that is neither a name nor a sentence of the catalogue: how long ago it was changed. The
+// words of "how long ago" are the platform's, per language (`Intl`); everything else on the card is the catalogue's.
 
 const MS_PER_MINUTE = 60_000;
 const MS_PER_HOUR = 3_600_000;
