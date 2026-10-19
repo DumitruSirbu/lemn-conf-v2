@@ -1,7 +1,6 @@
 /**
- * Whether the e-mail change is reachable from the product: the profile's "Schimbă e-mailul" and the confirm page. It
- * stays off until the owner rules F1 and the `UPDATE (email, email_normal_form)` grant is made. It gates the pages only;
- * `POST /api/account/email-change` and `/confirm` answer whatever the flag says. Typed `boolean` so the branches it
- * guards are not read as dead code.
+ * Whether e-mail change is reachable: the profile control, the confirm page, `POST /api/account/email-change` and
+ * `/confirm`. Off until the owner rules O19 and the `UPDATE (email, email_normal_form)` grant is made (runbook step 4b).
+ * Typed `boolean` so the branches it guards are not read as dead code. Neither `"use client"` nor `"server-only"`.
  */
 export const EMAIL_CHANGE_ENABLED = false as boolean;

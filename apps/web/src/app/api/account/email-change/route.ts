@@ -5,6 +5,7 @@ import {
   readGuardedBody,
 } from "@/lib/server/account/account-request";
 import { requestEmailChange } from "@/lib/server/account/change-email";
+import { refuseWhileEmailChangeIsOff } from "@/lib/server/account/email-change-gate";
 import { sessionThatMayManageOwnAccount } from "@/lib/server/account/own-account-session";
 
 // Pinned, not defaulted: the Postgres driver and `node:crypto` cannot run on Edge.
@@ -15,8 +16,11 @@ export const runtime = "nodejs";
  * origin, media type, bounded body, then the session and `account.manage.own`. There is no challenge (a live session
  * and the current password are the proof) and no network bucket: the account's own buckets are counted by
  * `requestEmailChange` before any hash is computed. The answer is `202` for every address that can be asked for.
+ * While `EMAIL_CHANGE_ENABLED` is off nothing runs: the answer is the empty `404` of an address that does not exist.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const disabled = refuseWhileEmailChangeIsOff();
+  if (disabled !== undefined) return disabled;
   const body = await readGuardedBody(request);
   if (body.kind === "refused") return body.response;
   return answerUnavailableOnFailure("email-change", async () => {
