@@ -421,7 +421,8 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
     ],
     refusals: [wrongPasswordRefusal(), passwordChangedSignInRefusal()],
     isAboutOneKitchen: false,
-    placeableFields: [],
+    // The request members' own names, not reset's `password` (plan P13).
+    placeableFields: ["currentPassword", "newPassword"],
   },
   "email-change": {
     successes: [

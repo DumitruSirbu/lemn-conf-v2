@@ -895,6 +895,20 @@ declare const messages: {
     "privacyNotice": "Nota de confidențialitate",
     "privacyNoticeNewTab": "(se deschide într-o filă nouă)"
   },
+  "accountPassword": {
+    "metaTitle": "Schimbă parola — {brand}",
+    "title": "Schimbă parola",
+    "currentPasswordLabel": "Parola actuală",
+    "newPasswordLabel": "Parola nouă",
+    "currentPasswordWrong": "Parola actuală nu este corectă.",
+    "submit": "Schimbă parola",
+    "submitting": "Se schimbă…",
+    "changedTitle": "Parola a fost schimbată",
+    "changedBody": "Te-am deconectat de pe celelalte dispozitive.",
+    "backToProfile": "Înapoi la Profil",
+    "changedSignInBody": "Autentifică-te din nou, cu parola nouă.",
+    "logIn": "Intră în cont"
+  },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",
     "badge": "Pagină provizorie",
