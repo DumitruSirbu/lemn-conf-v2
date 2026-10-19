@@ -4,14 +4,17 @@ import {
   answerUnavailableOnFailure,
   readGuardedBody,
 } from "@/lib/server/account/account-request";
-import { crossSiteResponse } from "@/lib/server/account/account-responses";
+import {
+  answerOfReadJudgement,
+  crossSiteResponse,
+} from "@/lib/server/account/account-responses";
 import { sessionThatMayManageOwnAccount } from "@/lib/server/account/own-account-session";
 import {
   readOwnProfile,
   saveOwnProfile,
 } from "@/lib/server/account/update-profile";
 import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
-import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
+import { judgeReadRequest } from "@/lib/server/rate-limit/judge-read-request";
 
 // Pinned, not defaulted: the Postgres driver cannot run on Edge. Dynamic, since the answer is the cookies'.
 export const runtime = "nodejs";
@@ -24,7 +27,9 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isCrossSiteRequest(request)) return crossSiteResponse();
-  const limited = await refusalOfReadLimit(request.headers);
+  const limited = answerOfReadJudgement(
+    await judgeReadRequest(request.headers),
+  );
   if (limited !== undefined) return limited;
   return answerUnavailableOnFailure("profile", async () => {
     const own = await sessionThatMayManageOwnAccount({

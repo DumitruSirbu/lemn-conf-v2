@@ -10,6 +10,7 @@ import {
   FakeSentMarkStore,
   type ContactSubmissionStore,
   type SentKitchenViewRepository,
+  type SentMarkStore,
 } from "@lemnaria/persistence";
 import { vi } from "vitest";
 
@@ -91,6 +92,8 @@ export interface Harness {
   readonly sender: FakeMailSender;
   /** The frozen copies' fake, which takes a view only for a request the store holds, as the table's reference does. */
   readonly views: FakeSentKitchenViewRepository;
+  /** The kitchens the sent mark reaches: a test seeds the design's row here and reads `sentAt` back. */
+  readonly kitchens: FakeAccountKitchenStore;
   /** Every port call, in order: judge asks, lookups, loads, records, view records, sends, marks. */
   readonly calls: string[];
   readonly recorded: ReturnType<typeof spyOnCounters>;
@@ -114,6 +117,12 @@ export interface HarnessOptions {
   readonly views?: (
     inner: FakeSentKitchenViewRepository,
   ) => SentKitchenViewRepository;
+  /** The sent mark's port, made of the kitchens it marks and the harness's call log. Absent, the persistence package's
+   *  own fake, which logs nothing. */
+  readonly sentMarks?: (
+    kitchens: FakeAccountKitchenStore,
+    calls: string[],
+  ) => SentMarkStore;
 }
 
 /** Every port the orchestration is handed, made of fakes: the persistence package's fake store and frozen views, the
@@ -134,9 +143,11 @@ export function aHarness(options: HarnessOptions = {}): Harness {
     options.headers ?? new Headers({ "x-forwarded-for": "192.0.2.77" });
   const store = (options.store ?? ((inner) => inner))(innerStore);
   const views = (options.views ?? ((inner) => inner))(innerViews);
+  const kitchens = new FakeAccountKitchenStore();
   const ports: SubmitContactPorts = {
     store: loggedStore(store, calls),
-    sentMarks: new FakeSentMarkStore(new FakeAccountKitchenStore()),
+    sentMarks:
+      options.sentMarks?.(kitchens, calls) ?? new FakeSentMarkStore(kitchens),
     createSender:
       options.createSender ??
       (() => ({ kind: "sender", sender: loggedSender(sender, calls) })),
@@ -165,6 +176,7 @@ export function aHarness(options: HarnessOptions = {}): Harness {
     store: innerStore,
     sender,
     views: innerViews,
+    kitchens,
     calls,
     recorded: spyOnCounters(),
     submit: (body = bodyOf(), visitorHash) =>
