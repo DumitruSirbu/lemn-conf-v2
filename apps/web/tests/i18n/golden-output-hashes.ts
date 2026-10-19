@@ -120,6 +120,16 @@
  * **One key re-baselined by M8D wave W2** (ADR 0113 decision 4; ADR 0104 Amendment G, O-1) —
  * `presetChooser.selectLimitReached`, whose Romanian changed from "… Încearcă din nou mâine." to the owner-accepted
  * "… Încearcă mâine." (the Russian is unchanged). Its hash is the only one that moved; the other 574 are as before.
+ *
+ * **Grown by 1, never rebaselined, by the tests round of Lot 2** (ADR 0113 decision 2) — `designLoadError.bodyClient`
+ * (first in commit 8a066f7d), the sentence a signed-in client reads on the design-load error in place of the reason. Its Romanian is
+ * an agent's draft no owner approval of which is recorded, so it is held out of the approved copy lock and pinned in
+ * `tests/support/draft-romanian-copy.ts`; it is hashed here like every other rendered leaf. The fixture is built from the
+ * content resolver, which gained the leaf with the commit, so no fixture list was edited. The entry was read off the
+ * failing manifest assertion's diff, which showed one added key and no changed value, and not computed by hand.
+ * **No existing hash moved.** The account namespaces (`account*`, `claimDialog`, `logoutEverywhere`,
+ * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; they are pinned by digest
+ * in the draft manifest and not here.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -664,6 +674,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "044b94e8669ef281e8a9015474dd79e4f1ea0dc865b86b89401e14ecfe642e2c",
   "content.static.designLoadError.bodyUnavailable":
     "62e841d6fa2ad1cb1b76225f9fd56c1feb8fb7df598a4c1375057a2385ced330",
+  "content.static.designLoadError.bodyClient":
+    "db577ead559c57c58be0ffd14930668a76ba180eeab88c402dfcaa1a441b6574",
   "content.static.designLoadError.startOver":
     "f8bd1e318dbd3207ab51234b0fb230f5f56670d0076c392747c50bcaa5e53f66",
   "content.static.designLoadError.title":
