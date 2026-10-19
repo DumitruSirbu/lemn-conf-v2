@@ -127,6 +127,72 @@ describe("the stressed catalogue actually stresses", () => {
   });
 });
 
+/** Every rich-text tag a message holds, in order: the part of it a formatter's tag handlers are keyed on. */
+const RICH_TEXT_TAG = /<\/?[A-Za-z][\w-]*\/?>/g;
+
+function tagsOf(message: string): readonly string[] {
+  return message.match(RICH_TEXT_TAG) ?? [];
+}
+
+describe("the stressed catalogue keeps its rich-text tags", () => {
+  it.each(CATALOGUES)(
+    "carries every tag of every leaf of %s through unchanged and in order",
+    (_locale, messages) => {
+      let leavesWithTags = 0;
+      for (const [key, message] of catalogueLeaves(messages)) {
+        const expectedTags = tagsOf(message);
+        if (expectedTags.length === 0) continue;
+        leavesWithTags += 1;
+        expect(tagsOf(pseudoLocalizeMessage(message)), key).toEqual(
+          expectedTags,
+        );
+      }
+      // Non-vacuity: the catalogue must hold markup for this to prove anything.
+      expect(leavesWithTags).toBeGreaterThan(10);
+    },
+  );
+
+  it("stresses the text around a tag and the text inside it, and nothing of the tag itself", () => {
+    expect(pseudoLocalizeMessage("<strong>dulap</strong> nou<br/>")).toBe(
+      "⟦<strong>düläp</strong> ñöü<br/>····⟧",
+    );
+    expect(
+      pseudoLocalizeMessage("{count, plural, one {<b>#</b> dulap} other {#}}"),
+    ).toBe("⟦{count, plural, one {<b>#</b> düläp··} other {#}}⟧");
+  });
+
+  it("does not count a tag's name as a word to lengthen", () => {
+    expect(stressableLetterCountOf("<strong>dulap</strong>")).toBe(
+      stressableLetterCountOf("dulap"),
+    );
+  });
+
+  it("still lets a tag handler find the tag in the stressed sentence", () => {
+    const stressedTranslate = createTranslator({
+      locale: "ro",
+      messages: {
+        sentence: pseudoLocalizeMessage("Salut <strong>{name}</strong>!"),
+      },
+    });
+    const handled: unknown[] = [];
+
+    void stressedTranslate.rich("sentence", {
+      name: "Ana",
+      strong: (chunks) => {
+        handled.push(chunks);
+        return "";
+      },
+    });
+
+    expect(handled).toHaveLength(1);
+    expect(handled[0]).toEqual([expect.stringContaining("Ana")]);
+  });
+
+  it("leaves a lone angle bracket that is no tag as text", () => {
+    expect(pseudoLocalizeMessage("a<b")).toBe("⟦ä<b·⟧");
+  });
+});
+
 describe("the stressed catalogue is not a locale a customer can reach", () => {
   it("is refused in production whatever the flag says", () => {
     expect(

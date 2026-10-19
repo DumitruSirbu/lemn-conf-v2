@@ -11,6 +11,8 @@
  * The transform is ICU-aware, which is the whole of its correctness: argument names, formats,
  * skeletons and plural categories are structure, and padding `{widthMm, number, ::group-off}` would
  * throw at render. Only literal text is touched, at every nesting depth, plural branches included.
+ * Rich-text tags (`<strong>`, `</strong>`, `<br/>`) are structure too: an accented tag name is a different tag, which
+ * the formatter reads as an unmatched closing tag, so tags pass through and only the text around them is stressed.
  */
 
 /** The proportion of extra characters a stressed literal gains, from the 30-50 % spread between
@@ -63,8 +65,8 @@ export function isPseudoLocaleEnabled(
 /**
  * One message, lengthened without touching its ICU structure. Brace depth decides what is text: odd
  * depths are argument specifications (`name`, `count, plural, one `, `widthMm, number, ::group-off`)
- * and even depths are literal text. `#` and diacritics pass through; the catalogue must contain no
- * `'` escapes or markup tags, which would break this parity.
+ * and even depths are literal text. `#`, diacritics and rich-text tags pass through; the catalogue must contain no
+ * `'` escapes, which would break this parity.
  */
 export function pseudoLocalizeMessage(message: string): string {
   const parts = literalRunsOf(message).map(({ isLiteral, text }) =>
@@ -81,7 +83,7 @@ export function pseudoLocalizeMessage(message: string): string {
 export function stressableLetterCountOf(message: string): number {
   return literalRunsOf(message)
     .filter(({ isLiteral }) => isLiteral)
-    .reduce((total, { text }) => total + letterCountOf(text), 0);
+    .reduce((total, { text }) => total + letterCountOf(withoutTags(text)), 0);
 }
 
 interface MessageRun {
@@ -130,17 +132,35 @@ function stressNode(node: unknown): unknown {
   );
 }
 
-/** A literal run: accented, then padded in proportion to the letters it carries, so a run of
- *  punctuation alone (the `/` in the step pill) gains nothing. */
+/** A rich-text tag as the formatter reads one: the name is ASCII, so it cannot be accented and still be that tag.
+ *  The capture group makes `split` keep the tags, at the odd indices. */
+const MARKUP_TAG = /(<\/?[A-Za-z][\w-]*\/?>)/;
+
+function withoutTags(literal: string): string {
+  return literal
+    .split(MARKUP_TAG)
+    .filter((_, index) => index % 2 === 0)
+    .join("");
+}
+
+/** A literal run: its text accented, its tags untouched, then padded in proportion to the letters the text carries
+ *  (a tag name is not a word), so a run of punctuation alone (the `/` in the step pill) gains nothing. */
 function stressLiteral(literal: string): string {
-  const accented = Array.from(
-    literal,
-    (character) => ACCENTED_LOOKALIKES[character] ?? character,
-  ).join("");
+  const accented = literal
+    .split(MARKUP_TAG)
+    .map((segment, index) => (index % 2 === 0 ? accentedOf(segment) : segment))
+    .join("");
   const padding = PADDING_CHARACTER.repeat(
-    Math.ceil(letterCountOf(literal) * PSEUDO_LOCALE_EXPANSION),
+    Math.ceil(letterCountOf(withoutTags(literal)) * PSEUDO_LOCALE_EXPANSION),
   );
   return `${accented}${padding}`;
+}
+
+function accentedOf(text: string): string {
+  return Array.from(
+    text,
+    (character) => ACCENTED_LOOKALIKES[character] ?? character,
+  ).join("");
 }
 
 export function letterCountOf(text: string): number {

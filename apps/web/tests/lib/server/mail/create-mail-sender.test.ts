@@ -272,6 +272,8 @@ interface NamingRule {
 
 const MAIL_DIRECTORY = "lib/server/mail/";
 const FACTORY = `${MAIL_DIRECTORY}create-mail-sender.ts`;
+const CUSTOMER_FACTORY = `${MAIL_DIRECTORY}create-customer-mail-sender.ts`;
+const SENDER_FACTORIES = [FACTORY, CUSTOMER_FACTORY];
 const GMAIL_ADAPTER = `${MAIL_DIRECTORY}gmail-mail-sender.ts`;
 const SMTP_ADAPTER = `${MAIL_DIRECTORY}smtp-mail-sender.ts`;
 
@@ -282,25 +284,29 @@ function mayImportTheMailLibrary(path: string): boolean {
 const NAMING_RULES: readonly NamingRule[] = [
   {
     what: "the fake",
-    pattern: /fake-mail-sender|createFakeMailSender/,
+    pattern: /fake-mail-sender|createFake(Customer)?MailSender/,
     isAllowed: (path) =>
-      [`${MAIL_DIRECTORY}fake-mail-sender.ts`, FACTORY].includes(path),
+      [`${MAIL_DIRECTORY}fake-mail-sender.ts`, ...SENDER_FACTORIES].includes(
+        path,
+      ),
     mustBeFoundIn: FACTORY,
     mentions: [
       'import { x } from "@/lib/server/mail/fake-mail-sender";',
       "export * from './fake-mail-sender';",
       'const m = await import("./fake-mail-sender");',
       "const sender = createFakeMailSender();",
+      "const sender = createFakeCustomerMailSender();",
     ],
   },
   {
     what: "the adapter",
-    pattern: /gmail-mail-sender|createGmailMailSender/,
-    isAllowed: (path) => [GMAIL_ADAPTER, FACTORY].includes(path),
+    pattern: /gmail-mail-sender|createGmail(Customer)?MailSender/,
+    isAllowed: (path) => [GMAIL_ADAPTER, ...SENDER_FACTORIES].includes(path),
     mustBeFoundIn: FACTORY,
     mentions: [
       'import { x } from "@/lib/server/mail/gmail-mail-sender";',
       "const sender = createGmailMailSender(configuration);",
+      "const sender = createGmailCustomerMailSender(configuration);",
     ],
   },
   {
