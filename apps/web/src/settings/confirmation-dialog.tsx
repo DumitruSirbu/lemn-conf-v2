@@ -1,30 +1,15 @@
 "use client";
 
 // The dialog the application asks "are you sure" in: one shell, two askers (the settings sheet's material-change
-// confirm step, and the back-to-room link's `ConfirmationDialog`). Look, focus trap, Escape and inert background
-// are written once, here, so the two cannot drift into two modals.
+// confirm step, and the back-to-room link's `ConfirmationDialog`). Look is written once, here; focus trap, Escape and
+// inert background are written once in `components/use-modal-focus.ts`, so the two cannot drift into two modals.
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-  type RefObject,
-} from "react";
+import { useId, useRef, type ReactNode } from "react";
 
+import { trapTab, useModalFocus } from "@/components/use-modal-focus";
 import type { Editability } from "@/store/editability";
 
 import styles from "./global-settings.module.css";
-
-/** The tab ring inside the dialog. A radio group contributes exactly its checked member (the browser's own rule),
- *  so unchecked radios are not listed: they would put the trap's first and last stops on elements Tab never
- *  visits. `:not([disabled])` is on every part because a disabled radio is no more tabbable than a disabled
- *  button. Any other input is a stop of its own (the preset dialog's name field): left out, Tab would skip the field
- *  and the trap's first stop would be wrong. *Renunță* is never disabled, so the ring is never empty: leaving must
- *  stay possible on every surface. */
-const TAB_STOP_SELECTOR =
-  'button:not([disabled]), input[type="radio"]:checked:not([disabled]), input:not([type="radio"]):not([disabled])';
 
 const SETTINGS_TEST_ID_PREFIX = "global-settings";
 
@@ -85,11 +70,11 @@ export function ConfirmationDialog({
   const titleId = useId();
   const bodyId = useId();
 
-  useEffect(() => {
-    surfaceRef.current?.focus();
-  }, []);
-  useEscapeToDismiss(true, onStay);
-  useBackgroundInert(true, hostRef);
+  useModalFocus({
+    hostRef,
+    initialFocusRef: surfaceRef,
+    dismiss: onStay,
+  });
 
   return (
     <div className={styles.dialogHost} ref={hostRef}>
@@ -129,50 +114,6 @@ export function ConfirmationDialog({
       </div>
     </div>
   );
-}
-
-/**
- * Escape dismisses wherever focus has got to, so this listens on the document rather than the surface
- * (`price-breakdown.tsx` records what binding it to the dialog cost). Registered only while open; the topmost
- * surface registers last and no handler calls `stopPropagation`. It calls whatever `dismiss` its asker hands it
- * (the sheet steps back one step at a time, ADR 0081 decision 3; the back confirmation's is Stay): a second
- * document-level handler inside either is what that decision refuses.
- */
-export function useEscapeToDismiss(isOpen: boolean, dismiss: () => void): void {
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    function dismissOnEscape(event: KeyboardEvent): void {
-      if (event.key === "Escape") dismiss();
-    }
-    document.addEventListener("keydown", dismissOnEscape);
-    return () => {
-      document.removeEventListener("keydown", dismissOnEscape);
-    };
-  }, [isOpen, dismiss]);
-}
-
-/**
- * Marks the rest of the screen inert while the dialog is open: the half of "modal" a scrim cannot do, because a
- * keyboard can activate controls a pointer cannot. Applied to the screen's own children rather than a named list
- * of components, so a later change to where this mounts cannot leave a band operable. The band holding the
- * anchor stays live; every sibling band goes inert.
- */
-export function useBackgroundInert(
-  isOpen: boolean,
-  anchorRef: RefObject<HTMLDivElement | null>,
-): void {
-  useEffect(() => {
-    const anchor = anchorRef.current;
-    const screenElement = anchor?.closest("main");
-    if (!isOpen || !anchor || !screenElement) return undefined;
-    const behind = [...screenElement.children].filter(
-      (band) => !band.contains(anchor),
-    );
-    for (const band of behind) band.setAttribute("inert", "");
-    return () => {
-      for (const band of behind) band.removeAttribute("inert");
-    };
-  }, [isOpen, anchorRef]);
 }
 
 /**
@@ -239,38 +180,4 @@ export function ConfirmStep({
       </div>
     </>
   );
-}
-
-/** The focus trap, bound to the dialog rather than the document because it is about where focus *is*, which is
- *  what made a document listener right for Escape and wrong here. */
-export function trapTab(event: ReactKeyboardEvent<HTMLDivElement>): void {
-  if (event.key !== "Tab") return;
-  const stops = [
-    ...event.currentTarget.querySelectorAll<HTMLElement>(TAB_STOP_SELECTOR),
-  ];
-  const landing = whereTabMustLand(stops, event.shiftKey);
-  if (landing === undefined) return;
-  event.preventDefault();
-  landing.focus();
-}
-
-/**
- * Where this keypress has to be sent, or `undefined` where the browser's own answer is already inside the ring.
- * The question is "would this keypress leave the dialog", not "is focus at an end": opening focuses the dialog
- * container (`tabIndex={-1}`, not a tab stop), and Shift+Tab from there reaches the trigger, which sits in the one
- * band `useBackgroundInert` leaves live. So focus on none of the dialog's own stops takes the end the direction
- * implies. It cannot fire once focus has left the dialog (it hangs off `onKeyDown`); the step-change effect in
- * `GlobalSettings` is what keeps focus inside when the confirm step unmounts the focused button.
- */
-function whereTabMustLand(
-  stops: readonly HTMLElement[],
-  isBackwards: boolean,
-): HTMLElement | undefined {
-  const first = stops.at(0);
-  const last = stops.at(-1);
-  if (first === undefined || last === undefined) return undefined;
-  const at = stops.findIndex((stop) => stop === document.activeElement);
-  if (at === -1) return isBackwards ? last : first;
-  if (isBackwards) return at === 0 ? last : undefined;
-  return at === stops.length - 1 ? first : undefined;
 }

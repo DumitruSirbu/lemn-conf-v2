@@ -817,3 +817,216 @@
 .stubScreen {
   composes: screen scope;
 }
+
+/* The dialog layer. `7` is the settings dialog's own (`.dialogHost` in `settings/global-settings.module.css`, from the
+ * stacking table at the head of `configure.module.css`), above the page's sticky foot at 3; keep the two in step. Fixed
+ * and out of flow, so it claims no cell of the screen. `.dialogScrim` is that file's `.scrim` rule for rule; the
+ * surface, grabber and title are this frame's own sizes. */
+.dialogHost {
+  composes: scope;
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+}
+
+.dialogScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  background: rgb(28 24 20 / 30%);
+}
+
+/* The phone's sheet (frame `mSheet`): on the bottom edge, with the home indicator's strip added to the sheet once. */
+.dialogSurface {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 90dvh;
+  padding: 10px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--paper);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+}
+
+/* A destructive question is centred on a phone too (frame `mDialog`): a sheet is for choosing, this is for stopping. */
+.dialogSurface[data-kind="destructive"] {
+  top: 50%;
+  right: 14px;
+  bottom: auto;
+  left: 14px;
+  padding: 20px 18px 18px;
+  border-radius: 18px;
+  box-shadow: 0 18px 44px rgb(28 24 20 / 22%);
+  transform: translateY(-50%);
+}
+
+.dialogGrabber {
+  align-self: center;
+  flex: 0 0 4px;
+  width: 40px;
+  height: 4px;
+  margin-block: 0 -2px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.dialogTitle {
+  margin: 0;
+  font: 700 18px/1.25 var(--font-ui);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.dialogBody {
+  margin: 0;
+  font: 400 14px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* The two actions wrap rather than squeeze: side by side where there is room for both, one above the other where not. */
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* What the three actions share: the frame's 48 px box, which wraps rather than squeezes. */
+.dialogAction {
+  display: flex;
+  flex: 1 1 200px;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  min-height: 48px;
+  padding: 12px 16px;
+  font: 700 14px/1.25 var(--font-ui);
+  text-align: center;
+  cursor: pointer;
+  background: var(--paper);
+  border-radius: 12px;
+}
+
+.dialogAction:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dialogPrimary {
+  composes: dialogAction;
+  font-size: 15px;
+  color: var(--paper);
+  background: var(--accent);
+  border: 0;
+}
+
+.dialogDestructive {
+  composes: dialogAction;
+  color: var(--refusal-ink);
+  border: 1px solid var(--refusal);
+}
+
+.dialogSecondary {
+  composes: dialogAction;
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+}
+
+.dialogPrimary[aria-busy="true"],
+.dialogDestructive[aria-busy="true"] {
+  cursor: progress;
+}
+
+.dialogSecondary[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* The page's `.spinner`, on the destructive action in its own colours. Its end margin is the gap to the label. */
+.dialogSpinner {
+  composes: spinner;
+  flex: none;
+}
+
+.dialogDestructive .dialogSpinner {
+  border-color: var(--refusal-edge);
+  border-top-color: var(--refusal);
+}
+
+/* The message region fills no box of its own: it is the live region, and the line inside it is the toast. Above the
+ * dialog (7, see `.dialogHost`), so the answer to an act made in a dialog is not hidden by the dialog that closes under it. */
+.toastRegion {
+  position: fixed;
+  right: 18px;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  left: 18px;
+  z-index: 8;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.toast {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 16px;
+  margin: 0;
+  font: 700 13.5px/1.35 var(--font-ui);
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* The desktop dialog (frame `dDialog`): 480 px, centred, on both kinds, and no grabber because it is never a sheet. */
+@media (min-width: 900px) {
+  .dialogSurface,
+  .dialogSurface[data-kind="destructive"] {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    gap: 16px;
+    width: 480px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+    padding: 28px 28px 24px;
+    border-radius: 18px;
+    box-shadow: 0 18px 44px rgb(28 24 20 / 22%);
+    transform: translate(-50%, -50%);
+  }
+
+  .dialogGrabber {
+    display: none;
+  }
+
+  .dialogTitle {
+    font-size: 20px;
+  }
+
+  .toastRegion {
+    right: auto;
+    bottom: 32px;
+    left: 50%;
+    width: max-content;
+    max-width: min(560px, calc(100vw - 36px));
+    transform: translateX(-50%);
+  }
+
+  .toast {
+    flex: none;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+}

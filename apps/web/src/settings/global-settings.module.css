@@ -740,7 +740,8 @@
  * head of `configure.module.css`): a modal must cover the price bar, the rail and the breakdown's
  * popover, and its scrim and surface can only paint as high as the context they stand in. Fixed and
  * out of flow, so it claims no cell of the screen's grid; it is also what `useBackgroundInert` leaves
- * live. */
+ * live. The account dialog's `.dialogHost` (`account/account.module.css`) takes the same `7`: keep the
+ * two in step. */
 .dialogHost {
   position: fixed;
   inset: 0;

@@ -5,7 +5,7 @@
 // ends, a position reads "2 / 5" (and is absent for one preset), and Select acts on the slide on screen. It draws the
 // stored image and no live 3D. Frames: `Presete.dc.html#1g-first` … `#1g-ru-320`, `#d1g` … `#d1g-ru`.
 //
-// It is a modal dialog built from the pieces `settings/confirmation-dialog.tsx` exports (the Tab ring, Escape, the inert
+// It is a modal dialog built from the pieces `components/use-modal-focus.ts` exports (the Tab ring, Escape, the inert
 // background), not from `ConfirmationDialog` itself, whose shell is one sentence and two buttons. It must stand as a
 // direct child of `<main>` so that `useBackgroundInert` can mark every other band of the screen inert; the caller
 // returns focus to the card that opened it once this has unmounted and the bands are live again.
@@ -23,16 +23,16 @@ import {
   type RefObject,
 } from "react";
 
+import {
+  trapTab,
+  useBackgroundInert,
+  useEscapeToDismiss,
+} from "@/components/use-modal-focus";
 import { useContent } from "@/i18n/use-content";
 import {
   PresetStatusNotice,
   type PresetStatus,
 } from "@/preset/preset-status-notice";
-import {
-  trapTab,
-  useBackgroundInert,
-  useEscapeToDismiss,
-} from "@/settings/confirmation-dialog";
 
 import styles from "./preset-chooser.module.css";
 import { AdjustedNote, PresetImage } from "./preset-image";
