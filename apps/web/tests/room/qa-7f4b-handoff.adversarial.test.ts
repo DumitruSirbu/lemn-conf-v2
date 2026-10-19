@@ -70,6 +70,8 @@ const OTHER_ROOM_QUERY =
 const DECLARED_CABINET_DEPTH_MM = 600;
 const DESIGNS_ENDPOINT = "/api/designs";
 const PRESET_LISTING_ENDPOINT = "/api/presets";
+/** The header's account control asks who is signed in with one GET; it is not a design request. */
+const ACCOUNT_SESSION_ENDPOINT = "/api/account/session";
 
 const MINTED_ID: DesignId = "design 1";
 const MINTED_REVISION = "1";
@@ -140,6 +142,11 @@ function installStubbedServer(): void {
       // design requests, which is what these criteria count, so the listing is answered "unavailable" (read as
       // "no presets") and stays out of it.
       if (String(url).startsWith(PRESET_LISTING_ENDPOINT)) {
+        return Promise.resolve(jsonResponse(404, {}));
+      }
+      // The header's account control reads the session with this one GET, exactly: any other request to it, by any
+      // other method, is still a call.
+      if (method === "GET" && String(url) === ACCOUNT_SESSION_ENDPOINT) {
         return Promise.resolve(jsonResponse(404, {}));
       }
       calls.push({ method, url: String(url), body: jsonBodyOf(init) });

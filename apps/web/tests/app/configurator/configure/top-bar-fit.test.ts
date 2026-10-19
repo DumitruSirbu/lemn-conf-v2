@@ -38,6 +38,14 @@ const WORDMARK_PX = 105.56;
  * track`, measured at a width where each configuration is on screen (1440 as drawn, 1000 gaps closed, 900 wordmark
  * gone). The price column carries frame D2A's inline "de la 101 000 MDL". The differences between configurations
  * match the frames' own gaps exactly.
+ *
+ * **STALE since the header's account control joined the row (M8B Lot 2 U3), and owed a re-measurement.** These figures were
+ * taken before the control stood in the row: they omit its width, its divider and its two row gaps, so
+ * `asDrawn - gapsClosed` is still 105 where the model, and the stylesheet that `top-bar-box.test.ts` reads, now return 121
+ * (four dividers, eight row gaps). The six assertions that compare the model with these figures are red by exactly 16 px
+ * (2 x (14 - 6)) for that reason alone. They are left red rather than re-derived: a figure computed from the old
+ * measurement is one no browser has produced. Re-measure `viewport - the settings track` at the three configurations
+ * (1440, 1000, 900) with the control showing, then replace the three numbers and `MEASURED_WITHOUT_WORDMARK_PX`.
  */
 const DEMAND_PX = {
   /** Frame D2A as drawn: gaps `28`/`14`, the wordmark in the row. */
@@ -78,9 +86,10 @@ function fitAt(
   });
 }
 
-/** What closing the gaps returns to the pill, written out from the two frames: three nav gaps going 28 → 9 and six
- *  row gaps going 14 → 6, `3 × 19 + 6 × 8`. A literal, so the model's own composition is not what it is checked against. */
-const GAPS_RETURNED_TO_THE_PILL_PX = 105;
+/** What closing the gaps returns to the pill, written out from the two frames: three nav gaps going 28 → 9 and eight
+ *  row gaps going 14 → 6 (four dividers, a gap on each side), `3 × 19 + 8 × 8`. The eight is read off the stylesheet by
+ *  `top-bar-box.test.ts`. A literal, so the model's own composition is not what it is checked against. */
+const GAPS_RETURNED_TO_THE_PILL_PX = 121;
 
 const D2A_AS_DRAWN: TopBarConfiguration = {
   isWordmarkDrawn: true,
@@ -278,7 +287,7 @@ describe("give B — the row's gaps close, and both numbers are the reference's"
     },
   );
 
-  it("returns 105 px to the pill when it does, composed from the two frames' own gaps", () => {
+  it("returns 121 px to the pill when it does, composed from the two frames' own gaps", () => {
     // One pixel short of every name fitting, measured as frame D2A draws the row: the gaps close, and with them
     // closed every name fits, so the wordmark stays and the gaps are the only thing the track gains.
     const trackAsDrawnPx = atEveryLabel - 1;
