@@ -5,7 +5,7 @@ import { useEffect, useId, useMemo, useRef } from "react";
 import type { Content } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitchensCopy } from "@/i18n/use-content";
-import { priceFloorOf } from "@/price/use-priced-design";
+import { priceFloorOf } from "@/price/price-book-root";
 
 import type { ListedKitchen } from "./kitchens-answer";
 import {

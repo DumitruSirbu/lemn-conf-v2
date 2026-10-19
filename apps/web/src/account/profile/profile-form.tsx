@@ -168,6 +168,7 @@ function NameField({ save, inputRef }: FieldProps) {
       type="text"
       autoComplete="name"
       autoCapitalize="words"
+      spellCheck
       placeholder={copy.namePlaceholder}
       value={save.values.name}
       onChange={(value) => {
@@ -190,6 +191,7 @@ function AddressField({ save, inputRef }: FieldProps) {
       type="text"
       autoComplete="street-address"
       autoCapitalize="words"
+      spellCheck
       placeholder={copy.addressPlaceholder}
       value={save.values.address}
       onChange={(value) => {
@@ -256,8 +258,9 @@ function PrivacyNoticeRow({ locale }: { readonly locale: AppLocale }) {
   );
 }
 
-/** The form-level message: "Salvat", the summary of several refused fields, a limit, an unavailable service, a request
- *  that got no answer or one that failed. A single refused field is said beside the field and needs no summary. */
+/** The form-level message: "Salvat", "Nimic de salvat", the summary of several refused fields, a limit, an unavailable
+ *  service, a request that got no answer or one that failed. A single refused field is said beside the field and
+ *  needs no summary. */
 function FeedbackNotice({
   feedback,
   noticeRef,
@@ -270,6 +273,8 @@ function FeedbackNotice({
   switch (feedback.kind) {
     case "saved":
       return <FormNotice tone="success">{copy.saved}</FormNotice>;
+    case "unchanged":
+      return <FormNotice tone="info">{copy.nothingToSave}</FormNotice>;
     case "fields-refused": {
       const count = new Set(feedback.issues.map((issue) => issue.field)).size;
       return count > 1 ? (

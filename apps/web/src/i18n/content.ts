@@ -1296,6 +1296,7 @@ export function resolveAccountProfileCopy(translate: ContentTranslator) {
     submit: translate("accountProfile.submit"),
     submitting: translate("accountProfile.submitting"),
     saved: translate("accountProfile.saved"),
+    nothingToSave: translate("accountProfile.nothingToSave"),
     privacyNotice: translate("accountProfile.privacyNotice"),
     privacyNoticeNewTab: translate("accountProfile.privacyNoticeNewTab"),
   };

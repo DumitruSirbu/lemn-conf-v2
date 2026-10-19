@@ -17,18 +17,21 @@ import { sendSignedInRequest, type ProfileBody } from "../send-account-request";
 import {
   changesBetween,
   PROFILE_FIELDS,
+  trimmedValuesOf,
   type ProfileField,
   type ProfileValues,
 } from "./profile-values";
 
 // What the profile page remembers, and the one thing it does with it: saves the details that changed (Lot 2 frames A10A
 // to A10D and A10H). Every value lives in memory here. What the server holds is kept beside what the person has typed,
-// so a save sends only the difference, and "Salvat" stays true until the next edit.
+// so a save sends only the difference, and "Salvat" stays true until the next edit. Both are held trimmed, as the server
+// keeps them, and a save with nothing different sends no request and says so rather than "Salvat".
 
 /** What the last attempt left on the page. Everything but `forbidden` stays until the next edit or save. */
 export type ProfileFeedback =
   | { readonly kind: "none" }
   | { readonly kind: "saved" }
+  | { readonly kind: "unchanged" }
   | {
       readonly kind: "fields-refused";
       readonly issues: readonly AccountFieldIssue[];
@@ -47,6 +50,7 @@ export type ProfileFeedback =
 
 const NO_FEEDBACK: ProfileFeedback = { kind: "none" };
 const SAVED_FEEDBACK: ProfileFeedback = { kind: "saved" };
+const UNCHANGED_FEEDBACK: ProfileFeedback = { kind: "unchanged" };
 
 /** Where focus goes after an answer: the one refused field, or the notice that now heads the form. */
 export type ProfileFocusTarget = ProfileField | "notice";
@@ -71,8 +75,8 @@ export function useProfileSave(
   stored: ProfileValues,
   locale: AppLocale,
 ): ProfileSave {
-  const [savedValues, setSavedValues] = useState(stored);
-  const [values, setValues] = useState(stored);
+  const [savedValues, setSavedValues] = useState(() => trimmedValuesOf(stored));
+  const [values, setValues] = useState(() => trimmedValuesOf(stored));
   const [feedback, setFeedback] = useState(NO_FEEDBACK);
   const [focusRequest, setFocusRequest] = useState<ProfileFocusRequest>();
   const [isBusy, setIsBusy] = useState(false);
@@ -90,9 +94,11 @@ export function useProfileSave(
 
   const submit = useCallback(() => {
     if (isSendingRef.current) return;
-    const changes = changesBetween(savedValues, values);
+    const trimmed = trimmedValuesOf(values);
+    const changes = changesBetween(savedValues, trimmed);
+    setValues(trimmed);
     if (!hasChanges(changes)) {
-      showAnswer(SAVED_FEEDBACK);
+      showAnswer(UNCHANGED_FEEDBACK);
       return;
     }
     isSendingRef.current = true;
@@ -164,12 +170,15 @@ function isProfileField(field: string): field is ProfileField {
   return PROFILE_FIELDS.some((profileField) => profileField === field);
 }
 
-/** Editing a field takes back that field's refusal and leaves the others standing; any edit makes "Salvat" stale. */
+/** Editing a field takes back that field's refusal and leaves the others standing; any edit makes "Salvat" and
+ *  "Nimic de salvat" stale. */
 function withoutRefusalOf(
   feedback: ProfileFeedback,
   field: ProfileField,
 ): ProfileFeedback {
-  if (feedback.kind === "saved") return NO_FEEDBACK;
+  if (feedback.kind === "saved" || feedback.kind === "unchanged") {
+    return NO_FEEDBACK;
+  }
   if (feedback.kind !== "fields-refused") return feedback;
   const remaining = feedback.issues.filter((issue) => issue.field !== field);
   return remaining.length === 0

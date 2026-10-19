@@ -891,6 +891,7 @@ declare const messages: {
     "submit": "Salvează modificările",
     "submitting": "Se salvează…",
     "saved": "Salvat",
+    "nothingToSave": "Nimic de salvat",
     "privacyNotice": "Nota de confidențialitate",
     "privacyNoticeNewTab": "(se deschide într-o filă nouă)"
   },
