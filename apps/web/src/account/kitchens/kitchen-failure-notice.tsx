@@ -1,8 +1,9 @@
 "use client";
 
-import { useAccountKitCopy } from "@/i18n/use-content";
+import { useAccountKitCopy, useAccountKitchensCopy } from "@/i18n/use-content";
 
 import { FormNotice, RateLimitNotice } from "../account-form-parts";
+import styles from "./kitchens.module.css";
 import type { ListFailure } from "./use-kitchens";
 
 /** Why a request about the kitchens could not be had, as the notice that tells it: the wait of a limit, the service not
@@ -31,4 +32,27 @@ export function FailureNotice({ failure }: { readonly failure: ListFailure }) {
         </FormNotice>
       );
   }
+}
+
+/** A failure that stays until the person closes it or the next act succeeds: the one a toast is too short to tell. */
+export function DismissibleFailureNotice({
+  failure,
+  onDismiss,
+}: {
+  readonly failure: ListFailure;
+  readonly onDismiss: () => void;
+}) {
+  const copy = useAccountKitchensCopy();
+  return (
+    <div className={styles.dismissibleNotice}>
+      <FailureNotice failure={failure} />
+      <button
+        type="button"
+        className={styles.noticeDismiss}
+        onClick={onDismiss}
+      >
+        {copy.actions.close}
+      </button>
+    </div>
+  );
 }

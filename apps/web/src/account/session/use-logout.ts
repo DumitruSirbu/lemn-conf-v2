@@ -27,6 +27,8 @@ export type SignOutHereOutcome = "signed-out" | "failed";
 
 export interface SignOutHere {
   readonly outcome: SignOutHereOutcome | undefined;
+  /** The number of the attempt that came to `outcome`, so the toast tells a second failure as a new message. */
+  readonly outcomeId: number;
   /** Whether a request is out. The menu's two rows do nothing meanwhile: a second sign-out would race the first. */
   readonly isSending: boolean;
   readonly signOut: () => void;
@@ -40,18 +42,19 @@ export function useSignOutHere(): SignOutHere {
   const [outcome, setOutcome] = useState<SignOutHereOutcome | undefined>(
     undefined,
   );
+  const [outcomeId, setOutcomeId] = useState(0);
 
   const signOut = useCallback(() => {
     if (isSendingRef.current) return;
     isSendingRef.current = true;
     setIsSending(true);
-    // A repeated failure must read as a new message, so the toast announces it again and restarts its clock.
     setOutcome(undefined);
     void endThisDevice().then((result) => {
       isSendingRef.current = false;
       setIsSending(false);
       settleSignOut(result);
       setOutcome(result);
+      setOutcomeId((previous) => previous + 1);
     });
   }, []);
 
@@ -59,7 +62,7 @@ export function useSignOutHere(): SignOutHere {
     setOutcome(undefined);
   }, []);
 
-  return { outcome, isSending, signOut, clearOutcome };
+  return { outcome, outcomeId, isSending, signOut, clearOutcome };
 }
 
 /** A sign-out the server confirmed makes the document anonymous before the confirmation is set, so no e-mail is in the

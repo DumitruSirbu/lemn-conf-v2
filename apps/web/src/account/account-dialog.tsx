@@ -16,8 +16,10 @@ import styles from "./account.module.css";
 export type AccountDialogKind = "standard" | "destructive";
 
 /** How the confirmation is drawn, apart from what the dialog is. A claim is irreversible and so asks as a destructive
- *  dialog does, but what it does is not harmful and its button is the primary one. */
-export type AccountDialogConfirmTone = "primary" | "destructive";
+ *  dialog does, but what it does is not harmful and its button is the primary one. A dialog whose confirmation only
+ *  closes it (the share sheet's "Închide") draws it quiet: a line of text, no fill, so the sheet's own act is the one
+ *  filled button. */
+export type AccountDialogConfirmTone = "primary" | "destructive" | "quiet";
 
 /** The way out. It is the name of what is kept, so it is also what Escape and the scrim do. */
 export interface DialogCancel {
@@ -230,6 +232,7 @@ const CONFIRM_CLASS_BY_TONE: Readonly<
 > = {
   primary: styles.dialogPrimary ?? "",
   destructive: styles.dialogDestructive ?? "",
+  quiet: styles.dialogQuiet ?? "",
 };
 
 /** The act. Busy it stays reachable (`aria-disabled`, not `disabled`), so the focus the press left on it is not

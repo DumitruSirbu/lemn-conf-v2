@@ -18,6 +18,7 @@ import { useAccountControlCopy } from "@/i18n/use-content";
 import { accountPathOf } from "../account-shell";
 import styles from "../account.module.css";
 import { StatusToast } from "../status-toast";
+import type { ToastMessage } from "../use-toast-message";
 import { LogoutEverywhereDialog } from "./logout-everywhere-dialog";
 import {
   useAccountSession,
@@ -65,6 +66,7 @@ export function AccountControl({ cellClassName }: AccountControlProps) {
       </div>
       <SignOutHereToast
         outcome={signOutHere.outcome}
+        outcomeId={signOutHere.outcomeId}
         onElapsed={signOutHere.clearOutcome}
       />
     </>
@@ -110,9 +112,11 @@ function ControlFor({
  *  render on and only its words come and go, which is what a live region needs to be announced. */
 function SignOutHereToast({
   outcome,
+  outcomeId,
   onElapsed,
 }: {
   readonly outcome: SignOutHereOutcome | undefined;
+  readonly outcomeId: number;
   readonly onElapsed: () => void;
 }) {
   const copy = useAccountControlCopy();
@@ -120,7 +124,7 @@ function SignOutHereToast({
   if (!isHydrated) return null;
   return createPortal(
     <StatusToast
-      message={toastMessageOf(outcome, copy)}
+      message={toastMessageOf(outcome, outcomeId, copy)}
       onElapsed={onElapsed}
     />,
     document.body,
@@ -129,13 +133,14 @@ function SignOutHereToast({
 
 function toastMessageOf(
   outcome: SignOutHereOutcome | undefined,
+  outcomeId: number,
   copy: AccountControlCopy,
-): string | undefined {
+): ToastMessage | undefined {
   switch (outcome) {
     case "signed-out":
-      return copy.signedOutToast;
+      return { id: outcomeId, text: copy.signedOutToast };
     case "failed":
-      return copy.signOutFailed;
+      return { id: outcomeId, text: copy.signOutFailed };
     case undefined:
       return undefined;
   }

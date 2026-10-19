@@ -14,6 +14,7 @@ import {
   sendSignedInRequest,
   type KitchenAction,
 } from "../send-account-request";
+import { useToastMessage, type ToastMessage } from "../use-toast-message";
 import { copyNameOf } from "./kitchen-copy-name";
 import type { ListedKitchen } from "./kitchens-answer";
 import type { ListingChange } from "./listing-change";
@@ -64,10 +65,12 @@ export interface KitchenActions {
 /** What the screen draws of the acts that are not a form's or a dialog's own. */
 export interface KitchenActionFeedback {
   /** What was done, in a sentence; `undefined` while nothing has been. */
-  readonly toast: string | undefined;
+  readonly toast: ToastMessage | undefined;
   readonly clearToast: () => void;
-  /** Why a copy could not be made, where a toast is too short to tell it. */
+  /** Why a copy could not be made, where a toast is too short to tell it. It stays until dismissed, or until the list
+   *  next changes (any act that succeeds). */
   readonly copyFailure: ListFailure | undefined;
+  readonly dismissCopyFailure: () => void;
   readonly pendingCopy: PendingCopy | undefined;
 }
 
@@ -86,7 +89,11 @@ export function useKitchenActions({
   readonly feedback: KitchenActionFeedback;
 } {
   const copy = useAccountKitchensCopy();
-  const [toast, setToast] = useState<string | undefined>(undefined);
+  const {
+    message: toast,
+    tell: setToast,
+    clear: clearToast,
+  } = useToastMessage();
   const [copyFailure, setCopyFailure] = useState<ListFailure | undefined>(
     undefined,
   );
@@ -95,9 +102,27 @@ export function useKitchenActions({
   );
   const isCopyOutRef = useRef(false);
 
+  const dismissCopyFailure = useCallback(() => {
+    setCopyFailure(undefined);
+  }, []);
+
+  const changeListingAndClearNotice = useCallback(
+    (change: ListingChange) => {
+      setCopyFailure(undefined);
+      changeListing(change);
+    },
+    [changeListing],
+  );
+
   const environment = useMemo<ActionEnvironment>(
-    () => ({ locale, copy, changeListing, forbid, tell: setToast }),
-    [locale, copy, changeListing, forbid],
+    () => ({
+      locale,
+      copy,
+      changeListing: changeListingAndClearNotice,
+      forbid,
+      tell: setToast,
+    }),
+    [locale, copy, changeListingAndClearNotice, forbid, setToast],
   );
 
   const duplicate = useCallback(
@@ -111,15 +136,17 @@ export function useKitchenActions({
       isCopyOutRef.current = true;
       setCopyFailure(undefined);
       setPendingCopy({ name });
-      void duplicateKitchen(environment, kitchen, name).then((result) => {
-        isCopyOutRef.current = false;
-        setPendingCopy(undefined);
-        if (result.kind === "failed") {
-          tellCopyFailure(result.failure, setToast, setCopyFailure, copy);
-        }
-      });
+      void duplicateKitchen(environment, kitchen, name)
+        .catch((): CopyResult => COPY_REQUEST_FAILED)
+        .then((result) => {
+          isCopyOutRef.current = false;
+          setPendingCopy(undefined);
+          if (result.kind === "failed") {
+            tellCopyFailure(result.failure, setToast, setCopyFailure, copy);
+          }
+        });
     },
-    [environment, copy],
+    [environment, copy, setToast],
   );
 
   const actions = useMemo<KitchenActions>(
@@ -133,13 +160,15 @@ export function useKitchenActions({
     [environment, duplicate, pendingCopy],
   );
 
-  const clearToast = useCallback(() => {
-    setToast(undefined);
-  }, []);
-
   return {
     actions,
-    feedback: { toast, clearToast, copyFailure, pendingCopy },
+    feedback: {
+      toast,
+      clearToast,
+      copyFailure,
+      dismissCopyFailure,
+      pendingCopy,
+    },
   };
 }
 
@@ -173,6 +202,12 @@ async function renameKitchen(
 }
 
 type CopyResult = { readonly kind: "created" } | CommonResult;
+
+/** What a copy that threw comes to, so the busy mark and the one-copy-at-a-time guard are always released. */
+const COPY_REQUEST_FAILED: CopyResult = {
+  kind: "failed",
+  failure: { kind: "failed" },
+};
 
 async function duplicateKitchen(
   environment: ActionEnvironment,

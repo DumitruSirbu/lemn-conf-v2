@@ -95,6 +95,7 @@ function ShareDialog({
       }}
       dismiss={onClose}
       confirmRef={closeRef}
+      confirmTone="quiet"
       returnFocusFallbackRef={returnFocusRef}
     >
       <ShareBody share={share} onAskStop={onAskStop} primaryRef={primaryRef} />
@@ -129,8 +130,17 @@ function StopShareDialog({
   );
 }
 
-/** The sheet opens before the status is known, so it opens on its close button. When the answer comes and nothing else has
- *  been pressed, focus goes to the act the sheet is for: create the link, or copy the one just made. */
+/** The states that draw the sheet's primary act: create the link, copy the one just made, or retry the request that
+ *  failed. An active link draws none: it cannot be shown again, and the acts it offers (a new link, stop) end the old one. */
+const STATES_WITH_PRIMARY: readonly ShareControlState["kind"][] = [
+  "none",
+  "just-issued",
+  "error",
+];
+
+/** The sheet opens before the status is known, so it opens on its close button. When an answer comes and nothing else
+ *  has been pressed, focus goes to the primary act the answer draws. The same holds after a press: the button that was
+ *  pressed went with the request. Focus the person has put elsewhere is theirs. */
 function useFocusPrimaryWhenReady(
   kind: ShareControlState["kind"],
   primaryRef: RefObject<HTMLButtonElement | null>,
@@ -140,7 +150,7 @@ function useFocusPrimaryWhenReady(
   useEffect(() => {
     const wasChecking = previousKind.current === "checking";
     previousKind.current = kind;
-    if (!wasChecking || (kind !== "none" && kind !== "just-issued")) return;
+    if (!wasChecking || !STATES_WITH_PRIMARY.includes(kind)) return;
     if (isFocusAdrift(closeRef.current)) primaryRef.current?.focus();
   }, [kind, primaryRef, closeRef]);
 }

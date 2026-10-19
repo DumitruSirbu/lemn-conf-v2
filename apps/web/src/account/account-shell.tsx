@@ -8,6 +8,7 @@ import { routing, type AppLocale } from "@/i18n/routing";
 import { useAccountShellCopy } from "@/i18n/use-content";
 
 import styles from "./account.module.css";
+import { useToastClearance } from "./use-toast-clearance";
 
 // The frame of every account page: the phone's header and the desktop's card, and the pieces a page lays out inside it.
 // Every link here is a plain anchor. An account page is a document of its own with a policy of its own (the Turnstile
@@ -138,6 +139,7 @@ export function AccountHeading({
 export function AccountActions({ children }: { readonly children: ReactNode }) {
   const regionRef = useRef<HTMLDivElement>(null);
   useKeepFocusAbove(regionRef);
+  useToastClearance(regionRef);
   return (
     <div ref={regionRef} className={styles.actions}>
       {children}

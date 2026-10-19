@@ -972,6 +972,13 @@
   border: 1px solid var(--line);
 }
 
+.dialogQuiet {
+  composes: dialogAction;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+}
+
 .dialogPrimary[aria-busy="true"],
 .dialogDestructive[aria-busy="true"] {
   cursor: progress;
@@ -992,7 +999,8 @@
   border-top-color: var(--refusal);
 }
 
-/* `--toast-clear-bottom` (0 unless a screen sets it) lifts the toast clear of a bar the screen keeps at the foot. The
+/* `--toast-clear-bottom` (0 unless a screen sets it; `useToastClearance` does for the pinned page foot) lifts the toast
+ * clear of a bar the screen keeps at the foot. The
  * message region fills no box of its own: it is the live region, and the line inside it is the toast. Above the
  * dialog (7, see `.dialogHost`), so the answer to an act made in a dialog is not hidden by the dialog that closes under it. */
 .toastRegion {

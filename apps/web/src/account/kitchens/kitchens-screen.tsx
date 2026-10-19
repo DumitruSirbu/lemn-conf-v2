@@ -27,7 +27,10 @@ import {
 } from "../account-shell";
 import { ForbiddenScreen } from "../forbidden-screen";
 import { KitchenCard } from "./kitchen-card";
-import { FailureNotice } from "./kitchen-failure-notice";
+import {
+  DismissibleFailureNotice,
+  FailureNotice,
+} from "./kitchen-failure-notice";
 import type { ListedKitchen } from "./kitchens-answer";
 import { PendingCopyCard } from "./pending-copy-card";
 import {
@@ -317,7 +320,13 @@ function ListedKitchens({
     <AccountPane>
       <PageHeading />
       {feedback.copyFailure === undefined ? null : (
-        <FailureNotice failure={feedback.copyFailure} />
+        <DismissibleFailureNotice
+          failure={feedback.copyFailure}
+          onDismiss={() => {
+            feedback.dismissCopyFailure();
+            listFocus.ref.current?.focus();
+          }}
+        />
       )}
       <div ref={listFocus.attach} tabIndex={-1} className={styles.countRow}>
         <span className={styles.count}>
