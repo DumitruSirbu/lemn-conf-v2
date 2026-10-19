@@ -1,12 +1,16 @@
 import { isRole } from "@lemnaria/configurator-domain";
 
+import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   AccountStoreError,
+  profileColumnWritesOf,
   requireValidEmailConfirmation,
   requireValidLiveTokenLookup,
   requireValidNewAccount,
+  requireValidPasswordChange,
   requireValidPasswordRehash,
   requireValidPasswordReset,
+  requireValidProfileUpdate,
   requireValidRegistrationReplacement,
   requireValidTokenToIssue,
 } from "./account-store.js";
@@ -19,13 +23,19 @@ import type {
   EmailConfirmationOutcome,
   LiveTokenLookup,
   NewAccount,
+  PasswordChange,
+  PasswordChangeOutcome,
   PasswordRehash,
   PasswordRehashOutcome,
   PasswordReset,
   PasswordResetOutcome,
+  ProfileLookup,
+  ProfileUpdate,
+  ProfileUpdateOutcome,
   RegistrationReplacement,
   RegistrationReplacementOutcome,
   StoredAccount,
+  StoredProfile,
   TokenIssueOutcome,
   TokenToIssue,
 } from "./account-store.js";
@@ -41,12 +51,13 @@ const RESET_PASSWORD = "reset-password";
  * `AccountStore` on Neon Postgres, over `accounts` and `account_email_tokens` (migrations `0012`, `0014`). Every query
  * is a tagged-template `sql`, which parameterises values. Each method is **one statement**, so it is atomic without
  * `sql.transaction` (a batch of statements cannot branch on an earlier one): a token's `update … returning` is the
- * gate, and the other writes are driven from its `returning`. The one exception is `completeReset`, a two-statement
- * transaction whose second statement needs a snapshot taken after the first has finished waiting.
+ * gate, and the other writes are driven from its `returning`. The two exceptions are `completeReset` and
+ * `changePassword`, two-statement transactions whose second statement needs a snapshot taken after the first has
+ * finished waiting.
  *
  * The statements write only columns the application role is granted: `accounts` INSERT of the eight registration
- * columns and UPDATE of the verification, password, phone, locale and notice columns; `account_email_tokens` UPDATE of
- * `used_at` alone. None writes `role`, `email`, `email_normal_form` or `id` after insert, and none deletes.
+ * columns and UPDATE of the verification, password, phone, name, address, locale and notice columns;
+ * `account_email_tokens` UPDATE of `used_at` alone. None writes `role`, `email`, `email_normal_form` or `id` after insert, and none deletes.
  *
  * A "newest live token" is unused, unexpired by the database's clock, and has no newer unused token of the same
  * account and purpose, ties broken by `token_hash`. Using one marks its unused siblings used, so retiring a newer
@@ -72,6 +83,64 @@ export class NeonAccountStore implements AccountStore {
       ),
     );
     return lookupFrom(rows);
+  }
+
+  async findById(accountId: string): Promise<AccountLookup> {
+    requireAccountIdShape(accountId, "look up an account");
+    const rows = await queryRows("look up an account", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          select a.id, a.email, a.password_hash, a.role, a.locale,
+            (a.email_verified_at is not null) as is_email_verified
+          from accounts a
+          where a.id = ${accountId}
+        `,
+      ),
+    );
+    return lookupFrom(rows);
+  }
+
+  /** Reads the three profile columns and nothing else of the row, so no credential can reach the caller. */
+  async findProfile(accountId: string): Promise<ProfileLookup> {
+    requireAccountIdShape(accountId, "read a profile");
+    const rows = await queryRows("read a profile", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          select a.name, a.address, a.phone from accounts a where a.id = ${accountId}
+        `,
+      ),
+    );
+    return profileLookupFrom(rows);
+  }
+
+  /**
+   * One statement. A column the request did not name is set to itself and keeps its value; a named one is set to the
+   * given text, or to `null` to clear it. `phone` and `phone_normal_form` share one flag, so they are never written
+   * apart. Only the four profile columns and `updated_at` are written, all inside the application role's column grant
+   * (`0017` and `0012`). Repeating it after a lost acknowledgement writes the same values.
+   */
+  async updateProfile(update: ProfileUpdate): Promise<ProfileUpdateOutcome> {
+    requireValidProfileUpdate(update);
+    const { accountId } = update;
+    const writes = profileColumnWritesOf(update.changes);
+    const rows = await queryRows("update a profile", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+          update accounts
+          set name = case when ${writes.name !== undefined}::boolean then ${writes.name ?? null}::text else name end,
+            address = case when ${writes.address !== undefined}::boolean then ${writes.address ?? null}::text else address end,
+            phone = case when ${writes.phone !== undefined}::boolean then ${writes.phone ?? null}::text else phone end,
+            phone_normal_form = case when ${writes.phoneNormalForm !== undefined}::boolean
+              then ${writes.phoneNormalForm ?? null}::text else phone_normal_form end,
+            updated_at = now()
+          where id = ${accountId}
+          returning id
+        `,
+      ),
+    );
+    return onlyIdOf(rows, "update a profile") === undefined
+      ? { kind: "none" }
+      : { kind: "saved" };
   }
 
   async findByLiveToken({
@@ -420,6 +489,73 @@ export class NeonAccountStore implements AccountStore {
       ? { kind: "replaced" }
       : { kind: "stale" };
   }
+
+  /**
+   * The same two-statement shape as `completeReset`, at READ COMMITTED, for a password changed from a live session.
+   * Statement 1 is a compare-and-set: the hash is replaced only while it is still `expectedPasswordHash`, and
+   * `password_changed_at` is set to `clock_timestamp()` (see `completeReset` for why not `now()`). It holds the account
+   * row until the commit, so a `SessionStore.create` waiting on it finds the hash replaced. Statement 2 revokes the
+   * account's unrevoked sessions in a fresh snapshot, so a session a racing login committed is revoked too.
+   *
+   * Statement 2 revokes only when the account holds this call's new hash **and** was updated in this transaction
+   * (`updated_at = now()`, the transaction's one instant, which a retry's transaction cannot share): a retry after a
+   * lost acknowledgement of a commit revokes nothing, so a sign-in made under the new password meanwhile stands. On a
+   * retry only, an account already holding exactly this call's new hash (a PHC string holds a random salt) is the first
+   * attempt's own write. The caller's replacing session is created after this returns, so it is not revoked here.
+   */
+  async changePassword({
+    accountId,
+    expectedPasswordHash,
+    passwordHash,
+  }: PasswordChange): Promise<PasswordChangeOutcome> {
+    requireValidPasswordChange({
+      accountId,
+      expectedPasswordHash,
+      passwordHash,
+    });
+    const rows = await queryRows("change a password", async () => {
+      const [changeRows] = await retryOnTransientFailure(({ isRetry }) =>
+        this.sql.transaction(
+          [
+            this.sql`
+                with changed as (
+                  update accounts
+                  set password_hash = ${passwordHash}, password_changed_at = clock_timestamp(), updated_at = now()
+                  where id = ${accountId} and password_hash = ${expectedPasswordHash}
+                  returning id
+                )
+                select (
+                  exists (select 1 from changed)
+                  or (
+                    ${isRetry}::boolean
+                    and exists (
+                      select 1 from accounts where id = ${accountId} and password_hash = ${passwordHash}
+                    )
+                  )
+                ) as is_done
+              `,
+            this.sql`
+                update account_sessions
+                set revoked_at = now()
+                where revoked_at is null
+                  and account_id = ${accountId}
+                  and exists (
+                    select 1 from accounts a
+                    where a.id = ${accountId}
+                      and a.password_hash = ${passwordHash}
+                      and a.updated_at = now()
+                  )
+              `,
+          ],
+          { isolationLevel: "ReadCommitted" },
+        ),
+      );
+      return changeRows;
+    });
+    return isDone(rows, "change a password")
+      ? { kind: "changed" }
+      : { kind: "stale" };
+  }
 }
 
 /** The rows of a statement, or the store error. A failure leaves as a store error holding a built cause (ADR 0146 B3),
@@ -484,6 +620,27 @@ function storedAccountFrom(row: Record<string, unknown>): StoredAccount {
     role,
     locale,
   };
+}
+
+function profileLookupFrom(
+  rows: readonly Record<string, unknown>[],
+): ProfileLookup {
+  const [row, ...others] = rows;
+  if (row === undefined) return { kind: "none" };
+  if (others.length > 0) throw new AccountStoreError("read a profile");
+  return { kind: "found", profile: storedProfileFrom(row) };
+}
+
+function storedProfileFrom(row: Record<string, unknown>): StoredProfile {
+  const { name, address, phone } = row;
+  if (!isTextOrNull(name) || !isTextOrNull(address) || !isTextOrNull(phone)) {
+    throw new AccountStoreError("read a profile");
+  }
+  return { name, address, phone };
+}
+
+function isTextOrNull(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
 }
 
 /** The id of the one row an `update … returning id` changed, or `undefined` when it changed none. */

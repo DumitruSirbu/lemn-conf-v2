@@ -1,11 +1,15 @@
 import type { Role } from "@lemnaria/configurator-domain";
 
+import { requireAccountIdShape } from "./account-id-shape.js";
 import {
+  profileColumnWritesOf,
   requireValidEmailConfirmation,
   requireValidLiveTokenLookup,
   requireValidNewAccount,
+  requireValidPasswordChange,
   requireValidPasswordRehash,
   requireValidPasswordReset,
+  requireValidProfileUpdate,
   requireValidRegistrationReplacement,
   requireValidTokenToIssue,
 } from "./account-store.js";
@@ -18,10 +22,15 @@ import type {
   EmailTokenPurpose,
   LiveTokenLookup,
   NewAccount,
+  PasswordChange,
+  PasswordChangeOutcome,
   PasswordRehash,
   PasswordRehashOutcome,
   PasswordReset,
   PasswordResetOutcome,
+  ProfileLookup,
+  ProfileUpdate,
+  ProfileUpdateOutcome,
   RegistrationReplacement,
   RegistrationReplacementOutcome,
   StoredAccount,
@@ -42,6 +51,8 @@ interface HeldAccount {
   readonly locale: string;
   readonly privacyNoticeVersion: string;
   readonly phone: NewAccount["phone"];
+  readonly name: string | undefined;
+  readonly address: string | undefined;
   readonly emailVerifiedAt: Date | undefined;
   readonly passwordChangedAt: Date;
 }
@@ -88,6 +99,68 @@ export class FakeAccountStore implements AccountStore {
 
   findByNormalForm(emailNormalForm: string): Promise<AccountLookup> {
     return settle(() => lookupOf(this.accountWithNormalForm(emailNormalForm)));
+  }
+
+  findById(accountId: string): Promise<AccountLookup> {
+    return settle(() => {
+      requireAccountIdShape(accountId, "look up an account");
+      return lookupOf(this.accountsById.get(accountId));
+    });
+  }
+
+  findProfile(accountId: string): Promise<ProfileLookup> {
+    return settle(() => {
+      requireAccountIdShape(accountId, "read a profile");
+      const held = this.accountsById.get(accountId);
+      if (held === undefined) return { kind: "none" };
+      return {
+        kind: "found",
+        profile: {
+          name: held.name ?? null,
+          address: held.address ?? null,
+          phone: held.phone?.entered ?? null,
+        },
+      };
+    });
+  }
+
+  updateProfile(update: ProfileUpdate): Promise<ProfileUpdateOutcome> {
+    return settle(() => {
+      requireValidProfileUpdate(update);
+      const held = this.accountsById.get(update.accountId);
+      if (held === undefined) return { kind: "none" };
+      const writes = profileColumnWritesOf(update.changes);
+      const { phone } = update.changes;
+      this.accountsById.set(held.id, {
+        ...held,
+        name:
+          writes.name === undefined ? held.name : (writes.name ?? undefined),
+        address:
+          writes.address === undefined
+            ? held.address
+            : (writes.address ?? undefined),
+        phone: phone === undefined ? held.phone : heldPhoneOf(phone),
+      });
+      return { kind: "saved" };
+    });
+  }
+
+  changePassword(change: PasswordChange): Promise<PasswordChangeOutcome> {
+    return settle(() => {
+      requireValidPasswordChange(change);
+      const held = this.accountsById.get(change.accountId);
+      if (held?.passwordHash !== change.expectedPasswordHash) {
+        return { kind: "stale" };
+      }
+      const at = this.now();
+      this.accountsById.set(held.id, {
+        ...held,
+        passwordHash: change.passwordHash,
+        passwordChangedAt: at,
+      });
+      this.revokeSessionsOf(held.id, at);
+      return { kind: "changed" };
+    });
   }
 
   findByLiveToken(lookup: LiveTokenLookup): Promise<AccountLookup> {
@@ -338,9 +411,21 @@ function heldAccountOf(id: string, account: NewAccount, at: Date): HeldAccount {
     locale: account.locale,
     privacyNoticeVersion: account.privacyNoticeVersion,
     phone: account.phone,
+    name: undefined,
+    address: undefined,
     emailVerifiedAt: undefined,
     passwordChangedAt: at,
   };
+}
+
+/** Both columns set or both cleared: the store has already refused a pair that is half of one. */
+function heldPhoneOf(
+  change: NonNullable<ProfileUpdate["changes"]["phone"]>,
+): NewAccount["phone"] {
+  if (change.phone === null || change.phoneNormalForm === null) {
+    return undefined;
+  }
+  return { entered: change.phone, normalForm: change.phoneNormalForm };
 }
 
 /** The table's `on conflict do nothing`: a hash already held answers issued only for the very same token. */

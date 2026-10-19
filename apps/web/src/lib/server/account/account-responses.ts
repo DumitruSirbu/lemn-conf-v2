@@ -6,7 +6,9 @@ import type {
   AccountField,
   Capability,
   AccountFieldCode,
+  PasswordChangeIssue,
   PasswordRefusalCode,
+  ProfileTextIssue,
 } from "@lemnaria/configurator-domain";
 
 import { LONGEST_DAY_SECONDS } from "@/lib/server/rate-limit/chisinau-day";
@@ -28,10 +30,18 @@ export type PasswordIssueCode =
   | "PASSWORD_BREACHED"
   | "PASSWORD_NOT_TEXT";
 
-/** One field and one code, never the value that was refused. */
+/** One field and one code, never the value that was refused. A field is named as the request member that carried it. */
 export interface AccountInputIssue {
-  readonly field: AccountField | "password";
-  readonly code: AccountFieldCode | PasswordIssueCode;
+  readonly field:
+    | AccountField
+    | "password"
+    | PasswordChangeIssue["field"]
+    | ProfileTextIssue["field"];
+  readonly code:
+    | AccountFieldCode
+    | PasswordIssueCode
+    | PasswordChangeIssue["code"]
+    | ProfileTextIssue["code"];
 }
 
 /** `403`: the request came from another site; nothing was read. */
@@ -89,6 +99,39 @@ export function linkInvalidResponse(): NextResponse {
  *  the client signs in with the new password. */
 export function passwordChangedResponse(): NextResponse {
   return statusResponse(200, "password-changed");
+}
+
+/** `200`: a signed-in account replaced its password and every session ended; the route sets the replacing session's
+ *  cookie on this very response, so this device stays signed in. Never given without that cookie. */
+export function passwordChangedKeepingSessionResponse(): NextResponse {
+  return statusResponse(200, "password-changed");
+}
+
+/** `400`: the current password did not verify, because it was wrong or because it is a text no password can be. The
+ *  person's own password is the one thing the answer may speak of. */
+export function wrongPasswordResponse(): NextResponse {
+  return statusResponse(400, "wrong-password");
+}
+
+/** `200`: the profile fields the request named were saved. */
+export function profileSavedResponse(): NextResponse {
+  return statusResponse(200, "saved");
+}
+
+/** `200`: the signed-in account's own optional details, `null` for one never given. No address, hash or id. */
+export function profileResponse(profile: {
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+}): NextResponse {
+  return NextResponse.json(
+    {
+      name: profile.name,
+      address: profile.address,
+      phone: profile.phone,
+    },
+    { status: 200, headers: ACCOUNT_RESPONSE_HEADERS },
+  );
 }
 
 /** `200`: the client is signed in. The route sets the session cookie on this very response. */

@@ -53,10 +53,13 @@ export interface AccountBlockAsk {
   readonly headers: HeaderReader;
 }
 
+/** The purposes an account's own id is counted for: its claims, its password checks and its profile saves. */
+export type AccountKeyedPurpose = "claim" | "password-check" | "profile";
+
 /**
  * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
- * address's purposes require the address in its counted form, and `claim` requires the account's id. There is no
- * request without its subject.
+ * address's purposes require the address in its counted form, and an account's purposes require the account's id.
+ * There is no request without its subject.
  */
 export type AccountSubjectAsk =
   | {
@@ -65,7 +68,7 @@ export type AccountSubjectAsk =
       readonly address: string;
     }
   | {
-      readonly purpose: "claim";
+      readonly purpose: AccountKeyedPurpose;
       readonly headers: HeaderReader;
       readonly accountId: string;
     };
@@ -120,6 +123,14 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
   },
   mail: { event: "mail", buckets: ["account-login-resend-by-address"] },
   claim: { event: "claim", buckets: ["account-claim-by-account"] },
+  "password-check": {
+    event: "password-change",
+    buckets: [
+      "account-password-check-by-account-hour",
+      "account-password-check-by-account-day",
+    ],
+  },
+  profile: { event: "profile", buckets: ["account-profile-by-account"] },
 };
 
 const UNJUDGED: WriteJudgement = Object.freeze({
@@ -174,7 +185,7 @@ export async function judgeAccountSubject(
 /** The subject is made through its constructor only when a step is asked, so a text it refuses is a failed judgement.
  */
 function subjectMakerOf(ask: AccountSubjectAsk): () => BucketSubject {
-  if (ask.purpose === "claim") {
+  if ("accountId" in ask) {
     const { accountId } = ask;
     return () => subjectOfAccountId(accountId);
   }

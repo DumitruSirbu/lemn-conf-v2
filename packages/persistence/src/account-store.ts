@@ -1,9 +1,11 @@
 import type {
+  ProfileTextChanges,
   RegisteredPhone,
   RegistrationFields,
   Role,
 } from "@lemnaria/configurator-domain";
 
+import { requireAccountIdShape } from "./account-id-shape.js";
 import { requirePasswordHashShape } from "./password-hash-shape.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
@@ -19,7 +21,10 @@ export type AccountStoreOperation =
   | "issue an e-mail token"
   | "confirm an e-mail address"
   | "complete a password reset"
-  | "replace a password hash";
+  | "replace a password hash"
+  | "read a profile"
+  | "update a profile"
+  | "change a password";
 
 /** The database refused, did not answer, or answered with something that is not the row this port reads. Its `cause`
  *  is a `ReducedCause` (ADR 0146 B3), never the driver's own error, and its message holds no address or hash. */
@@ -124,6 +129,43 @@ export type PasswordRehashOutcome =
   | { readonly kind: "replaced" }
   | { readonly kind: "stale" };
 
+/** The optional details an account keeps; `null` is "not given". The phone is as the person typed it, and unverified.
+ *  The account's address and password hash are not here: this is what a profile screen may show. */
+export interface StoredProfile {
+  readonly name: string | null;
+  readonly address: string | null;
+  readonly phone: string | null;
+}
+
+export type ProfileLookup =
+  | { readonly kind: "found"; readonly profile: StoredProfile }
+  | { readonly kind: "none" };
+
+/** `changes` is the domain's: a field is a key only when the request named it, `""` clears a text field, and the two
+ *  phone columns travel together. Nothing else of the account can be named. */
+export interface ProfileUpdate {
+  readonly accountId: string;
+  readonly changes: ProfileTextChanges;
+}
+
+/** `none` is an account that does not exist. */
+export type ProfileUpdateOutcome =
+  | { readonly kind: "saved" }
+  | { readonly kind: "none" };
+
+/** A signed-in password change is a compare-and-set on the hash the caller verified, so it cannot overwrite a password
+ *  that a reset or another change replaced meanwhile. */
+export interface PasswordChange {
+  readonly accountId: string;
+  readonly expectedPasswordHash: string;
+  readonly passwordHash: string;
+}
+
+/** `stale`: the account no longer holds `expectedPasswordHash` (or is gone); nothing was written. */
+export type PasswordChangeOutcome =
+  | { readonly kind: "changed" }
+  | { readonly kind: "stale" };
+
 /**
  * The port for accounts and their e-mail tokens (ADR 0172 decisions 1, 2, 5, 10). A token works once, and only while
  * it is the newest unused, unexpired token of its purpose for its account; using one retires its older siblings.
@@ -131,6 +173,17 @@ export type PasswordRehashOutcome =
  */
 export interface AccountStore {
   findByNormalForm(emailNormalForm: string): Promise<AccountLookup>;
+  /** The account a session has just shown to exist. `accountId` is the session's, never a request's. */
+  findById(accountId: string): Promise<AccountLookup>;
+  /** The profile of the account a session names, with no credential in it. */
+  findProfile(accountId: string): Promise<ProfileLookup>;
+  /** One statement that writes `name`, `address`, `phone` and `phone_normal_form` for the fields `changes` names and
+   *  nothing else: an empty text is stored as `null`, and the phone pair is set or cleared together. */
+  updateProfile(update: ProfileUpdate): Promise<ProfileUpdateOutcome>;
+  /** One transaction: the hash replaced if it is still `expectedPasswordHash`, `password_changed_at` set, then every
+   *  session of the account revoked (a second statement, so a session a racing login committed is revoked too). The
+   *  caller starts the replacing session afterwards, bound to the new hash. */
+  changePassword(change: PasswordChange): Promise<PasswordChangeOutcome>;
   /** The account a live token names, for the confirmation page, which knows a token and a password and no address.
    *  A read only: it uses nothing up. */
   findByLiveToken(token: LiveTokenLookup): Promise<AccountLookup>;
@@ -153,6 +206,9 @@ const LOCALE_SHAPE = /^[a-z]{2}(-[a-z]{2})?$/;
 const PRIVACY_NOTICE_VERSION_SHAPE = /^[a-z0-9.-]{1,32}$/;
 const EMAIL_LENGTH_RANGE = { least: 3, most: 254 } as const;
 const PHONE_MAX_LENGTH = 32;
+/** The bounds `0017`'s checks enforce. The domain's own limits are tighter and are the rule; these are the backstop. */
+const PROFILE_NAME_COLUMN_MAX = 120;
+const PROFILE_ADDRESS_COLUMN_MAX = 200;
 
 /** Every check `0012` makes on a registration's columns, and the hash's. A message names the field, never its value. */
 export function requireValidNewAccount(account: NewAccount): void {
@@ -235,6 +291,63 @@ export function requireValidPasswordRehash(rehash: PasswordRehash): void {
   );
 }
 
+export function requireValidProfileUpdate(update: ProfileUpdate): void {
+  const operation = "update a profile";
+  requireAccountIdShape(update.accountId, operation);
+  const { name, address, phone } = update.changes;
+  requireField(
+    name === undefined || isLengthWithin(name, 0, PROFILE_NAME_COLUMN_MAX),
+    "name",
+    `empty or at most ${String(PROFILE_NAME_COLUMN_MAX)} characters`,
+    operation,
+  );
+  requireField(
+    address === undefined ||
+      isLengthWithin(address, 0, PROFILE_ADDRESS_COLUMN_MAX),
+    "address",
+    `empty or at most ${String(PROFILE_ADDRESS_COLUMN_MAX)} characters`,
+    operation,
+  );
+  requireField(
+    phone === undefined || isStorablePhoneChange(phone),
+    "phone",
+    `both columns null or both 1 to ${String(PHONE_MAX_LENGTH)} characters`,
+    operation,
+  );
+}
+
+export function requireValidPasswordChange(change: PasswordChange): void {
+  requireAccountIdShape(change.accountId, "change a password");
+  requirePasswordHashShape(change.passwordHash, "change a password");
+  requirePasswordHashShape(change.expectedPasswordHash, "change a password");
+}
+
+/** One account column's write: the value to store (`null` clears it), or `undefined` to leave the column as it is. */
+export type ColumnWrite = string | null | undefined;
+
+export interface ProfileColumnWrites {
+  readonly name: ColumnWrite;
+  readonly address: ColumnWrite;
+  readonly phone: ColumnWrite;
+  readonly phoneNormalForm: ColumnWrite;
+}
+
+/** The columns a validated update writes. The table refuses an empty text, so an empty one is stored as `null`. */
+export function profileColumnWritesOf(
+  changes: ProfileTextChanges,
+): ProfileColumnWrites {
+  return {
+    name: nullWhenEmpty(changes.name),
+    address: nullWhenEmpty(changes.address),
+    phone: changes.phone?.phone,
+    phoneNormalForm: changes.phone?.phoneNormalForm,
+  };
+}
+
+function nullWhenEmpty(text: string | undefined): ColumnWrite {
+  return text === "" ? null : text;
+}
+
 export function isEmailTokenPurpose(
   value: unknown,
 ): value is EmailTokenPurpose {
@@ -282,6 +395,18 @@ function isStorablePhone(phone: RegisteredPhone | undefined): boolean {
   return (
     isLengthWithin(phone.entered, 1, PHONE_MAX_LENGTH) &&
     isLengthWithin(phone.normalForm, 1, PHONE_MAX_LENGTH)
+  );
+}
+
+function isStorablePhoneChange(
+  phone: NonNullable<ProfileTextChanges["phone"]>,
+): boolean {
+  if (phone.phone === null || phone.phoneNormalForm === null) {
+    return phone.phone === null && phone.phoneNormalForm === null;
+  }
+  return (
+    isLengthWithin(phone.phone, 1, PHONE_MAX_LENGTH) &&
+    isLengthWithin(phone.phoneNormalForm, 1, PHONE_MAX_LENGTH)
   );
 }
 
