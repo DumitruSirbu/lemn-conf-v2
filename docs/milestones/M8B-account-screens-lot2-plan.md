@@ -9,6 +9,14 @@
 > residuals and the tests owed are in the new §12; the new owner questions O19-O24 are in §9. The text above this line
 > and §§1-11 are the plan as written on 2026-10-19 and are kept unchanged.
 >
+> **Update 2026-10-20, later [coordinator's brief, relayed; the scribe read the repository, ran no command]: every UI
+> wave U5-U13 is built and committed (branch HEAD `aa09a1e0`, from the worktree's `.git/worktrees/.../logs/HEAD`).** U7,
+> U8, U9b, U11, U12 and U13 are now BUILT and reviewed by reading (a logic and a security agent each; no browser, no
+> database run). U11's page, sheet **and the E8/E9 routes** are gated by `EMAIL_CHANGE_ENABLED = false` (the routes answer
+> an empty `404` while it is off; an earlier line here and in STATUS/ADR 0172 said only the UI was gated, and is
+> corrected in §12.7). New owner questions O25-O27 are in §9. **D12 was lifted by the owner for the tests round on
+> 2026-10-20**; the tests round is recorded in §13, results to be recorded.
+>
 > - Branch `feat/login-register`, worktree `lemnaria-configurator-login`.
 > - This file adds to [`M8B-login-register-plan.md`](M8B-login-register-plan.md) and to
 >   [`M8B-account-screens-lot1-review.md`](M8B-account-screens-lot1-review.md).
@@ -877,6 +885,22 @@ Raised by the wave reviews. None is ruled. Evidence tier of every row: **source-
 | **O23** | Password change and reset completion now retire **every** unused e-mail token, including verify-email. Accept that side effect? | Not stated | S8 |
 | **O24** | The 429 wait shown inside the notice (mock A11F / SB10) is being implemented once, in the shared `account-form-parts`. Confirm | Not stated | U-wave copy |
 
+**Correction 2026-10-20 (later) to the O19 row above.** Its "Blocks" cell reads "E8/E9 are gated (below)" as a future
+condition. At HEAD `aa09a1e0` the confirm page exists (U11) and E8/E9 **are** gated: both routes call
+`refuseWhileEmailChangeIsOff()` first and answer an empty `404` (**source-verified**:
+`apps/web/src/lib/server/account/email-change-gate.ts:12-18`, and the comment at the top of
+`api/account/email-change/route.ts:19` and `.../confirm/route.ts:19`). The grant stays blocked on F1 (O19) alone.
+
+### New open owner questions, 2026-10-20 (later) [coordinator's brief, relayed]
+
+Raised by the U7-U13 reviews and the tests round. None is ruled. O1-O18 and O19-O24 keep the states recorded above.
+
+| # | Question | Recommendation | Blocks |
+| --- | --- | --- | --- |
+| **O25** | **Client-session load-error body wording.** On `/d/{id}` a signed-in client now reads a different body than a visitor: "Bucătăria nu este disponibilă. Poate a fost ștearsă sau ascunsă, sau a fost creată în alt browser fără cont." (RO) and its RU twin, leaf `designLoadError.bodyClient` (**source-verified**: `messages/ro.json:358`, `messages/ru.json:358`, `app/d/[id]/design-load-error.tsx:59`). RO and RU are agent drafts | Owner approves or rewrites both | copy lock; U9b |
+| **O26** | **Export size bound.** The cap is a 200-kitchen **count**, not a byte bound, and the platform's response-size limit is **unknown** (not measured). Should the bound be bytes? **Source-verified:** an account over the count is refused before the bucket is counted (`lib/server/account/export-account.ts:45-46`), but an attempt that fails after the bucket is counted (a kitchen added between the measure and the read, or, **inference** and untested, a response the platform refuses) spends one of the 5 UTC-day downloads. Each download spends one of 5 per day | Not stated | U13 / S10 |
+| **O27** | **Approve all RO and RU draft copy** of Lot 2: `accountKitchens`, `accountProfile`, `accountPassword`, `accountEmailChange`, `accountExport`, the `accountMail` e-mail-change mails, `claimDialog`, `sessionExpiredSheet`. All are agent drafts (ADR 0095 decision 2); O13 and O14 above are the older forms of this question | Owner approves, or rewrites, per leaf | the copy lock; milestone close |
+
 ### Future work
 
 - **Data-erasure / retention policy ADR** (needed later; there is currently no policy on user-data erasure). Owner:
@@ -968,6 +992,9 @@ question O20.
 
 ### 12.2 UI waves
 
+*Superseded 2026-10-20 (later) by §12.7: the "in progress" and "not built" bullets below were true at HEAD `a47db452`
+and are kept as written.*
+
 - **Committed and merged into the branch:** U5 kitchens list; U6 card price (one price-book module,
   `price/price-book-root.ts`); U10 profile page; U12 password page. U12 follow-ups are in progress.
 - **In progress, not committed:** U7 / U8 (card menu and dialogs); U11 (confirm-email page) and the E8 request page.
@@ -1003,3 +1030,54 @@ question O20.
 - Persistence statement tests.
 - `top-bar-box.test.ts`.
 - The §8.3 list above stands.
+
+*Update 2026-10-20 (later): this list is now the tests round's brief, §13.*
+
+### 12.7 Built state at HEAD `aa09a1e0` (added 2026-10-20, later)
+
+**Evidence.** Wave commits: **doc-quoted** from the worktree reflog (`.git/worktrees/lemnaria-configurator-login-lane-{a,b,c}/logs/HEAD`
+and the main worktree's `logs/HEAD`, read by the scribe; hashes are the lane commits, merged into the branch at the
+merge lines of that log). Review claims ("each by a logic and a security reviewer") are the coordinator's relay. File and
+line facts are **source-verified** where a path is cited. **No browser, no database, and no gate command was run by the
+scribe.** The commit messages say "review pass" for each fix commit below; nothing here says a test was run.
+
+| Wave | Commits (lane reflog) | What is built |
+| --- | --- | --- |
+| U7 / U8 | `18d621c9` feat, `449cb4e7` review fix | Card menu; inline rename; duplicate with the name composed by the client; share sheet through a new shared hook `share/use-share-link.ts` extracted from the editor's share control (**source-verified:** `share/share-design.tsx:19-22,47` and `account/kitchens/share-kitchen-sheet.tsx:14-17,44` both import `useShareLink`); delete and hide dialogs. Review fixes: keyed toast, quiet dialog confirm tone, toast clearance above the sticky bar (CSS variable `--toast-clear-bottom`, set by `useToastClearance`; **source-verified:** `account/use-toast-clearance.ts:6`, `account.module.css:1002-1010`), share sheet focus on error, dismissible copy failure, copy guard reset |
+| U9b / U13 | `725a0a21` feat, `8a066f7d` review fix | U9b: the design load error offers "Bucătăriile mele" to a client session and swaps the body copy for a client session (`designLoadError.bodyClient`, O25). U13: the export screen downloads a blob; an over-cap `409 export-too-large` is shown as non-retryable; each download spends one of 5 per UTC day. Review fixes: save hand-over guarded, 60 s object-URL life, server errors read as "request failed", confirm lead warning |
+| U12 | `b79eed6e` | Password page; profile rows for password and sign-out-everywhere |
+| U11 | `62d9fbb8` | Confirm-email page and change-email sheet, **all gated by `EMAIL_CHANGE_ENABLED = false`** (`account/profile/email-change-enabled.ts:6`); the shared 429 wait is a live countdown in the notice (SB10) for all account forms; login arrival reason `password-maybe-changed` (`account/login-arrival.ts:11,16`) |
+| E8 / E9 gate | `37ef5a64` | **E8 and E9 answer an empty `404` while `EMAIL_CHANGE_ENABLED` is off**, before anything is read, logged or counted (`lib/server/account/email-change-gate.ts:12-18`). The confirm page itself calls `notFound()` while the flag is off (`app/[locale]/account/confirm-email/page.tsx:20,38`) |
+
+The 12.2 statement that "only the UI is gated" is corrected: the **routes are gated too**. With the flag off, nothing
+about e-mail change is reachable from the product. Turning it on is the owner's call and waits on O19 (grant 4b).
+
+### 12.8 Choices made in the U7-U13 reviews (architect or coordinator, **not owner rulings**)
+
+Recorded as ADR 0172 Amendment G, addendum. Labels: all are **inference** by the reviewers or the coordinator, relayed;
+none was put to the owner.
+
+- **E3 copy name is composed by the client** (ADR 0095: the server writes no sentence). Already the plan's E3 text; now
+  built that way.
+- **Hide and delete are never physical** (P8, ADR 0172 D10): both set a mark; no `DELETE` is issued.
+- **Share reissue has no confirmation.** "Creează un link nou" replaces the active link at once, with the warning line
+  only. A product decision, left as built.
+- **The share-link client collapses its errors** into one failure state. Left as built.
+- **The card menu is a dialog of rows, not an ARIA menu** (no `role="menu"` arrow-key model).
+- **Staff get a "Profil" row** in the header menu (O16: `account.manage.own` for every role), a departure from A19C.
+
+## 13. The tests round (added 2026-10-20, later)
+
+**D12 was lifted by the owner for this round on 2026-10-20**, in the owner's words as relayed by the coordinator: "run
+the scribe pass and then the tests round and commit" [relayed, not a verbatim transcript]. The scope of the lift is this
+round only; D12's other lines are unchanged.
+
+Tests are being added in **three lanes**, each with mutation proofs (a test counts only if a deliberate break of the code
+under test turns it red):
+
+1. persistence and domain;
+2. web server routes;
+3. web client / UI and i18n.
+
+The brief for each lane is §12.6 and §8.3. **Results: to be recorded** by the coordinator (counts, mutation proofs,
+gate output). Nothing in this section is a result.

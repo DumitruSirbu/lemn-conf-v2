@@ -950,3 +950,39 @@ backfill statement is its repair.
 byte-identity; copy lock `approved-romanian-messages.ts` plus golden hashes for `accountKitchens`, `accountProfile`,
 `accountPassword`, `accountMail` and `claimDialog`; `limit-policy.test.ts` (the length 20 assertion is already stale);
 persistence statement tests; `top-bar-box.test.ts`.
+
+### Amendment G, addendum — 2026-10-20 (later): U7-U13 built, E8/E9 gated, review-driven choices, O25-O27, tests round
+
+Source: the coordinator's brief, relaying the U7-U13 reviews (a logic and a security agent per wave) at branch HEAD
+`aa09a1e0`; commits read in the worktree reflogs. File facts below were read in the repository by the scribe
+(**source-verified**). No command, browser or database was run by the scribe. The text above is kept as written; where it
+differs, this addendum governs.
+
+**1. Built and reviewed by reading** (plan §12.7): U7 and U8 (card menu, inline rename, duplicate, share sheet on the new
+shared hook `share/use-share-link.ts` extracted from the editor's share control, delete and hide dialogs), U9b (the
+design load error offers "Bucătăriile mele" to a client; client-session body copy), U11, U12, U13 (export screen with
+blob download), the shared live 429 countdown in the notice (SB10) for all account forms, the login arrival reason
+`password-maybe-changed`, the keyed toast, the quiet dialog confirm tone and the toast clearance variable.
+
+**2. Correction to item 2's last bullet and to the "only the UI" wording.** Item 2 said the e-mail-change UI "is to be
+gated behind `EMAIL_CHANGE_ENABLED = false` (in progress, not committed)". It is committed, and the gate is wider than the
+UI: **E8 and E9 also answer an empty `404` while the flag is off**, before anything is read, logged or counted
+(`apps/web/src/lib/server/account/email-change-gate.ts:12-18`); the confirm page calls `notFound()` while it is off. O19's
+"E8/E9 are gated" condition for the grant is therefore met; the grant stays blocked on F1 alone (runbook step 4b).
+
+**3. Choices made in review (architect or coordinator, not owner rulings).** (a) The duplicate's copy name is composed by
+the client (ADR 0095). (b) Hide and delete are never physical. (c) Share reissue has no confirmation (a product decision,
+left). (d) The share-link client collapses its errors (left). (e) The card menu is a dialog of rows, not an ARIA menu.
+(f) Staff get a "Profil" row (O16).
+
+**4. New open owner questions (none ruled).** **O25** client-session load-error body wording, RO and RU
+(`designLoadError.bodyClient`). **O26** export size bound by bytes against the 200-kitchen count; the platform
+response-size limit is unknown; an attempt that fails after the bucket is counted spends one of the 5 daily downloads
+(an over-count account is refused before the bucket, `lib/server/account/export-account.ts:45-46`). **O27** approval of
+all RO and RU draft copy: `accountKitchens`, `accountProfile`, `accountPassword`, `accountEmailChange`, `accountExport`,
+the `accountMail` e-mail-change mails, `claimDialog`, `sessionExpiredSheet`. O1-O24 keep their recorded states.
+
+**5. D12 lifted for the tests round.** On 2026-10-20 the owner lifted D12 for this round ("run the scribe pass and then the
+tests round and commit", relayed). Tests are being added in three lanes (persistence and domain; web server routes; web
+client, UI and i18n) with mutation proofs. D12 is unchanged for anything outside this round. **Results: to be recorded**
+(plan §13).

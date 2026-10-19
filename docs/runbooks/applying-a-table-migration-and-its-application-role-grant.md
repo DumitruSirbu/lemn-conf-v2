@@ -855,6 +855,11 @@ and no recovery point is written that night (`docs/runbooks/design-db-restore.md
   confirmation (E9) routes should stay unreachable from the product. Without the grant E9 answers `503`, so an early
   deploy fails safe; running the grant early would make a half-built flow live.
 
+  *Note 2026-10-20 (later), source-verified by the scribe, nothing run:* the confirm page now exists (U11), and E8 and E9
+  answer an empty `404` while the constant `EMAIL_CHANGE_ENABLED` (`apps/web/src/account/profile/email-change-enabled.ts`)
+  is `false` (`lib/server/account/email-change-gate.ts`). Condition (b) holds and the routes are unreachable; condition (a)
+  is still open on F1 (owner question O19). Turning the constant on is a code change, not part of this step.
+
   After it, the older section's probes `email update` and `email_normal_form update` read **true** and its expectation
   "none of them id (UPDATE), email (UPDATE), email_normal_form (UPDATE)" no longer holds: the `accounts` UPDATE columns are
   then the 8 of the older step 4, plus `name`, `address`, `email`, `email_normal_form` (12). `role`, `id` and `created_at`

@@ -74,6 +74,11 @@ figure already read `60.000`, and the application's grouping is not decided by t
   M8B, not the preset work. Open them as the others: serve `docs/design/mockups/` over HTTP (see *Opening the mockups*
   above) and visit `http://localhost:8000/Lemnaria%20Cont%20Lot%201.dc.html` or `…/ContBlocks.dc.html`. Not rendered
   or verified by the scribe, and they are not yet in the file table above.
+- `Lemnaria Cont Lot 2.dc.html` and `ContBlocks2.dc.html` (client dashboard, frames `A9`-`A20` and `DA…`) are also in
+  `docs/design/mockups/` (**source-verified 2026-10-20 by a file listing; the commit is named `docs(m8b): Lot 2 account
+  screens (A9-A20) mockups and port plan` in the branch reflog**). They belong to M8B, and the plan that reads them is
+  [`M8B-account-screens-lot2-plan.md`](../milestones/M8B-account-screens-lot2-plan.md). Not rendered by the scribe, and not
+  yet in the file table above.
 
 `support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
 date the tracked mockups could not render on their own; it is now copied because the v2 preset
