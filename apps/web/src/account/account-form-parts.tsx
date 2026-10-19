@@ -145,7 +145,7 @@ export interface TextFieldProps {
   readonly label: string;
   readonly name: string;
   readonly type: "email" | "tel" | "text";
-  readonly autoComplete: "email" | "tel" | "name" | "street-address";
+  readonly autoComplete: "email" | "tel" | "name" | "street-address" | "off";
   /** Capitals a name or an address begins its words with; an address, a number and the like stay as typed. */
   readonly autoCapitalize?: "off" | "words";
   /** Underlines misspellings; on for a name and an address, off for an e-mail address and a number. */

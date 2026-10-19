@@ -1301,6 +1301,90 @@ export function resolveAccountKitchensCopy(translate: ContentTranslator) {
     emptyTitle: translate("accountKitchens.emptyTitle"),
     emptyBody: translate("accountKitchens.emptyBody"),
     startKitchen: translate("accountKitchens.startKitchen"),
+    actions: resolveKitchenActionsCopy(translate),
+    rename: resolveKitchenRenameCopy(translate),
+    duplicate: resolveKitchenDuplicateCopy(translate),
+    remove: resolveKitchenRemoveCopy(translate),
+    share: resolveKitchenShareCopy(translate),
+    alreadyGone: translate("accountKitchens.alreadyGone"),
+  };
+}
+
+function resolveKitchenActionsCopy(translate: ContentTranslator) {
+  return {
+    moreFor: (name: string) =>
+      translate("accountKitchens.moreActions", { name }),
+    close: translate("accountKitchens.close"),
+    rename: translate("accountKitchens.menuRename"),
+    duplicate: translate("accountKitchens.menuDuplicate"),
+    share: translate("accountKitchens.menuShare"),
+    delete: translate("accountKitchens.menuDelete"),
+    hide: translate("accountKitchens.menuHide"),
+  };
+}
+
+function resolveKitchenRenameCopy(translate: ContentTranslator) {
+  return {
+    label: translate("accountKitchens.renameLabel"),
+    save: translate("accountKitchens.renameSave"),
+    saving: translate("accountKitchens.renameSaving"),
+    cancel: translate("accountKitchens.cancel"),
+    fieldError: (code: AccountIssueCode) =>
+      code === "REQUIRED"
+        ? translate("accountKitchens.renameRequired")
+        : resolveAccountFieldError(translate, { field: "name", code }),
+  };
+}
+
+function resolveKitchenDuplicateCopy(translate: ContentTranslator) {
+  return {
+    nameOf: (name: string) => translate("accountKitchens.copyName", { name }),
+    pending: translate("accountKitchens.copying"),
+    created: translate("accountKitchens.copyCreated"),
+    failed: translate("accountKitchens.copyFailed"),
+  };
+}
+
+/** The two ways a kitchen leaves the list: a draft is deleted, a sent kitchen is hidden. */
+function resolveKitchenRemoveCopy(translate: ContentTranslator) {
+  return {
+    cancel: translate("accountKitchens.cancel"),
+    deleteTitle: (name: string) =>
+      translate("accountKitchens.deleteTitle", { name }),
+    deleteBody: translate("accountKitchens.deleteBody"),
+    deleteConfirm: translate("accountKitchens.deleteConfirm"),
+    deleteBusy: translate("accountKitchens.deleteBusy"),
+    deleted: translate("accountKitchens.deleted"),
+    sentMeanwhile: translate("accountKitchens.sentMeanwhile"),
+    hideTitle: translate("accountKitchens.hideTitle"),
+    hideBody: (strong: RichTagRenderer) =>
+      translate.rich("accountKitchens.hideBody", { strong }),
+    hideConfirm: translate("accountKitchens.hideConfirm"),
+    hideBusy: translate("accountKitchens.hideBusy"),
+    hidden: translate("accountKitchens.hidden"),
+    notSentMeanwhile: translate("accountKitchens.notSentMeanwhile"),
+  };
+}
+
+function resolveKitchenShareCopy(translate: ContentTranslator) {
+  return {
+    title: translate("accountKitchens.shareTitle"),
+    body: translate("accountKitchens.shareBody"),
+    linkLabel: translate("accountKitchens.shareLinkLabel"),
+    active: translate("accountKitchens.shareActive"),
+    create: translate("accountKitchens.shareCreate"),
+    reissue: translate("accountKitchens.shareReissue"),
+    reissueWarning: translate("accountKitchens.shareReissueWarning"),
+    shownOnce: translate("accountKitchens.shareShownOnce"),
+    copy: translate("accountKitchens.shareCopy"),
+    copied: translate("accountKitchens.shareCopied"),
+    stop: translate("accountKitchens.shareStop"),
+    stopWarning: translate("accountKitchens.shareStopWarning"),
+    stopping: translate("accountKitchens.shareStopping"),
+    stopped: translate("accountKitchens.shareStopped"),
+    error: translate("accountKitchens.shareError"),
+    close: translate("accountKitchens.close"),
+    cancel: translate("accountKitchens.cancel"),
   };
 }
 

@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 
+import { useIsHydrated } from "@/components/use-is-hydrated";
 import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitCopy, useAccountKitchensCopy } from "@/i18n/use-content";
 
 import accountStyles from "../account.module.css";
-import { FormNotice, RateLimitNotice } from "../account-form-parts";
+import { StatusToast } from "../status-toast";
 import {
   AccountActions,
   AccountHeading,
@@ -18,7 +27,17 @@ import {
 } from "../account-shell";
 import { ForbiddenScreen } from "../forbidden-screen";
 import { KitchenCard } from "./kitchen-card";
+import {
+  DismissibleFailureNotice,
+  FailureNotice,
+} from "./kitchen-failure-notice";
 import type { ListedKitchen } from "./kitchens-answer";
+import { PendingCopyCard } from "./pending-copy-card";
+import {
+  useKitchenActions,
+  type KitchenActionFeedback,
+  type KitchenActions,
+} from "./use-kitchen-actions";
 import {
   useKitchens,
   type CardFocusRequest,
@@ -29,9 +48,9 @@ import {
 } from "./use-kitchens";
 import styles from "./kitchens.module.css";
 
-// "Bucătăriile mele" (Lot 2 frames A9A to A9C, A9I, A9J): the signed-in client's kitchens, newest change first, a page at
-// a time. It is read-only here: opening a kitchen is a link, and everything that changes one (rename, copy, share, hide,
-// delete) is a later screen.
+// "Bucătăriile mele" (Lot 2 frames A9A to A9K, A17): the signed-in client's kitchens, newest change first, a page at a time.
+// Opening a kitchen is a link; what changes one (rename, copy, share, delete, hide) is the card's menu, and its answer is
+// told by the list following it, a toast, or a notice above the cards.
 
 const LOADING_PLACEHOLDER_COUNT = 4;
 
@@ -40,17 +59,65 @@ const LOADING_PLACEHOLDER_COUNT = 4;
 const LIVE_REGION_FILL_DELAY_MS = 0;
 
 export function KitchensScreen({ locale }: { readonly locale: AppLocale }) {
-  const { state, loadMore, retry } = useKitchens(locale);
+  const { state, loadMore, retry, change, forbid } = useKitchens(locale);
+  const { actions, feedback } = useKitchenActions({
+    locale,
+    changeListing: change,
+    forbid,
+  });
+  const listFocus = useListFocusAnchor();
   if (state.phase === "forbidden") return <ForbiddenScreen locale={locale} />;
   return (
-    <KitchensFrame locale={locale}>
-      <KitchensContent
-        state={state}
-        locale={locale}
-        loadMore={loadMore}
-        retry={retry}
-      />
-    </KitchensFrame>
+    <>
+      <KitchensFrame locale={locale}>
+        <KitchensContent
+          state={state}
+          locale={locale}
+          loadMore={loadMore}
+          retry={retry}
+          interaction={{ actions, feedback, listFocus }}
+        />
+      </KitchensFrame>
+      <ActionToast feedback={feedback} />
+    </>
+  );
+}
+
+/** What the cards act through, and what the list shows of the acts. */
+interface ListInteraction {
+  readonly actions: KitchenActions;
+  readonly feedback: KitchenActionFeedback;
+  readonly listFocus: ListFocusAnchor;
+}
+
+/** The list's own anchor for focus: where it goes when an act removes the card that had it. Whichever element the screen
+ *  draws as its head (the count line, or the empty state's title) attaches itself, so the ref follows the screen. */
+interface ListFocusAnchor {
+  readonly ref: RefObject<HTMLElement | null>;
+  readonly attach: (element: HTMLElement | null) => void;
+}
+
+function useListFocusAnchor(): ListFocusAnchor {
+  const ref = useRef<HTMLElement | null>(null);
+  const attach = useCallback((element: HTMLElement | null) => {
+    ref.current = element;
+  }, []);
+  return { ref, attach };
+}
+
+/** The sentence that says what an act did. It stands in the document's body, not in the screen's `<main>`: the main's
+ *  bands go inert under a dialog, and an inert band is not in the accessibility tree, so a live region there would not be
+ *  heard. */
+function ActionToast({
+  feedback,
+}: {
+  readonly feedback: KitchenActionFeedback;
+}) {
+  const isHydrated = useIsHydrated();
+  if (!isHydrated) return null;
+  return createPortal(
+    <StatusToast message={feedback.toast} onElapsed={feedback.clearToast} />,
+    document.body,
   );
 }
 
@@ -92,6 +159,7 @@ interface KitchensContentProps {
   readonly locale: AppLocale;
   readonly loadMore: () => void;
   readonly retry: () => void;
+  readonly interaction: ListInteraction;
 }
 
 function KitchensContent({
@@ -99,6 +167,7 @@ function KitchensContent({
   locale,
   loadMore,
   retry,
+  interaction,
 }: KitchensContentProps) {
   switch (state.phase) {
     case "loading":
@@ -108,13 +177,14 @@ function KitchensContent({
     case "listed":
       return state.listing.kitchens.length === 0 &&
         state.listing.nextCursor === undefined ? (
-        <NoKitchens locale={locale} />
+        <NoKitchens locale={locale} listFocus={interaction.listFocus} />
       ) : (
         <ListedKitchens
           listing={state.listing}
           more={state.more}
           locale={locale}
           loadMore={loadMore}
+          interaction={interaction}
         />
       );
   }
@@ -194,34 +264,14 @@ function FailedKitchens({
   );
 }
 
-function FailureNotice({ failure }: { readonly failure: ListFailure }) {
-  const kit = useAccountKitCopy();
-  switch (failure.kind) {
-    case "rate-limited":
-      return <RateLimitNotice notice={failure.notice} />;
-    case "unavailable":
-      return (
-        <FormNotice tone="error" title={kit.unavailable.title}>
-          {kit.unavailable.body}
-        </FormNotice>
-      );
-    case "offline":
-      return (
-        <FormNotice tone="error" title={kit.offline.title}>
-          {kit.offline.body}
-        </FormNotice>
-      );
-    case "failed":
-      return (
-        <FormNotice tone="error" title={kit.requestFailed.title}>
-          {kit.requestFailed.body}
-        </FormNotice>
-      );
-  }
-}
-
-/** Frame A9B: one way on, to the start of the configurator. */
-function NoKitchens({ locale }: { readonly locale: AppLocale }) {
+/** Frame A9B: one way on, to the start of the configurator. Its title takes focus when the last kitchen was just removed. */
+function NoKitchens({
+  locale,
+  listFocus,
+}: {
+  readonly locale: AppLocale;
+  readonly listFocus: ListFocusAnchor;
+}) {
   const copy = useAccountKitchensCopy();
   return (
     <>
@@ -229,7 +279,13 @@ function NoKitchens({ locale }: { readonly locale: AppLocale }) {
         <PageHeading />
         <section className={styles.empty}>
           <span className={styles.emptyMark} aria-hidden="true" />
-          <h2 className={styles.emptyTitle}>{copy.emptyTitle}</h2>
+          <h2
+            ref={listFocus.attach}
+            tabIndex={-1}
+            className={styles.emptyTitle}
+          >
+            {copy.emptyTitle}
+          </h2>
           <p className={styles.emptyBody}>{copy.emptyBody}</p>
         </section>
       </AccountPane>
@@ -247,26 +303,41 @@ interface ListedKitchensProps {
   readonly more: MoreState;
   readonly locale: AppLocale;
   readonly loadMore: () => void;
+  readonly interaction: ListInteraction;
 }
 
-/** Frame A9C. */
+/** Frame A9C. The count line takes focus when the last act removed the card that had it, so the new count is read. */
 function ListedKitchens({
   listing,
   more,
   locale,
   loadMore,
+  interaction,
 }: ListedKitchensProps) {
   const copy = useAccountKitchensCopy();
+  const { actions, feedback, listFocus } = interaction;
   return (
     <AccountPane>
       <PageHeading />
-      <div className={styles.countRow}>
+      {feedback.copyFailure === undefined ? null : (
+        <DismissibleFailureNotice
+          failure={feedback.copyFailure}
+          onDismiss={() => {
+            feedback.dismissCopyFailure();
+            listFocus.ref.current?.focus();
+          }}
+        />
+      )}
+      <div ref={listFocus.attach} tabIndex={-1} className={styles.countRow}>
         <span className={styles.count}>
           {copy.count(shownCountOf(listing))}
         </span>
         <span className={styles.sort}>{copy.sortNewestFirst}</span>
       </div>
       <ul className={styles.list}>
+        {feedback.pendingCopy === undefined ? null : (
+          <PendingCopyCard pending={feedback.pendingCopy} />
+        )}
         {listing.kitchens.map((kitchen) => (
           <KitchenCard
             key={kitchen.id}
@@ -274,6 +345,8 @@ function ListedKitchens({
             locale={locale}
             readAtMs={listing.readAtMs}
             focusRequest={focusRequestFor(kitchen, listing)}
+            actions={actions}
+            listFocusRef={listFocus.ref}
           />
         ))}
       </ul>
