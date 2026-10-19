@@ -1,6 +1,7 @@
 import type { AppLocale } from "@/i18n/routing";
 
-import { startPathOf } from "./account-shell";
+import { accountPathOf, startPathOf } from "./account-shell";
+import { askSessionOnce } from "./session/use-account-session";
 
 // The one way out of a successful sign-in, for every page that ends in one (the login now; the confirm page after it).
 
@@ -36,11 +37,25 @@ export function onSignedIn(
   leaveAfterSignIn(destination);
 }
 
-/** A full document load to where a finished sign-in goes: the kitchen the person came from when there is one, else the
- *  start of the configurator. The load means the new session is read by a page with no stale state. A router action is
- *  never used on these pages: a token page's address is rewritten by it (Lot 1 review, criterion 15). */
+/** A full document load to where a finished sign-in goes: the kitchen the person came from when there is one; else, for
+ *  a client, their list of kitchens; else the start of the configurator. The load means the new session is read by a page
+ *  with no stale state. A router action is never used on these pages: a token page's address is rewritten by it (Lot 1
+ *  review, criterion 15). */
 export function leaveAfterSignIn({ locale, returnPath }: Destination): void {
-  leaveFor(returnPath ?? startPathOf(locale));
+  if (returnPath !== undefined) {
+    leaveFor(returnPath);
+    return;
+  }
+  void defaultLandingPathOf(locale).then(leaveFor);
+}
+
+/** The sign-in answer says nothing of the role, so the session is asked who just signed in. Only a client has a list of
+ *  kitchens to land on; anyone else, and a session that cannot be read, lands on the start of the configurator. */
+async function defaultLandingPathOf(locale: AppLocale): Promise<string> {
+  const session = await askSessionOnce();
+  return session?.kind === "client"
+    ? accountPathOf(locale, "kitchens")
+    : startPathOf(locale);
 }
 
 /** The same full load to any path. */

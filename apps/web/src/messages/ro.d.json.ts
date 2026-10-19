@@ -822,6 +822,7 @@ declare const messages: {
     "signIn": "Intră în cont",
     "menuName": "Contul meu",
     "signedInAs": "Conectat ca",
+    "myKitchens": "Bucătăriile mele",
     "close": "Închide",
     "signOutHere": "Ieși din cont",
     "signOutEverywhere": "Ieși de pe toate dispozitivele",
@@ -852,6 +853,24 @@ declare const messages: {
     "cancel": "Nu acum",
     "claimedTitle": "{count, plural, =0 {Nu mai era nimic de atașat} one {<check>✓</check> # bucătărie atașată} few {<check>✓</check> # bucătării atașate} other {<check>✓</check> # bucătării atașate}}",
     "continue": "Continuă"
+  },
+  "accountKitchens": {
+    "metaTitle": "Bucătăriile mele — {brand}",
+    "title": "Bucătăriile mele",
+    "loading": "Se încarcă bucătăriile",
+    "count": "{count, plural, one {# bucătărie} few {# bucătării} other {# bucătării}}",
+    "sortNewestFirst": "Cele mai recente întâi",
+    "sentBadge": "Trimisă",
+    "draftBadge": "Ciornă",
+    "modified": "Modificată {when}",
+    "meta": "{shape} · {walls} mm",
+    "open": "Deschide",
+    "openNamed": "Deschide {name}",
+    "loadMore": "Încarcă mai multe",
+    "loadingMore": "Se încarcă…",
+    "emptyTitle": "Nu ai încă nicio bucătărie salvată.",
+    "emptyBody": "Când salvezi una, o găsești aici, pe orice dispozitiv.",
+    "startKitchen": "Începe o bucătărie"
   },
   "privacyNotice": {
     "metaTitle": "Notă de confidențialitate — {brand}",

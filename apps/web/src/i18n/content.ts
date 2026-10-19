@@ -12,9 +12,11 @@ import type {
   ContactChannel,
   ContactFieldCode,
   CornerDirection,
+  DesignRoomShape,
   DesignWall,
   EmptySpaceSide,
   Finish,
+  KitchenSummary,
   PaletteEntryId,
   PasswordRefusalCode,
   PresetNameFacts,
@@ -1189,6 +1191,7 @@ export function resolveAccountControlCopy(translate: ContentTranslator) {
     signIn: translate("accountControl.signIn"),
     menuName: translate("accountControl.menuName"),
     signedInAs: translate("accountControl.signedInAs"),
+    myKitchens: translate("accountControl.myKitchens"),
     close: translate("accountControl.close"),
     signOutHere: translate("accountControl.signOutHere"),
     signOutEverywhere: translate("accountControl.signOutEverywhere"),
@@ -1198,6 +1201,58 @@ export function resolveAccountControlCopy(translate: ContentTranslator) {
 }
 
 export type AccountControlCopy = ReturnType<typeof resolveAccountControlCopy>;
+
+/**
+ * The list of the account's kitchens. A kitchen the person never named is called by the name its facts generate
+ * (`resolvePresetName`), so the list and the preset chooser say the same thing of the same room.
+ */
+export function resolveAccountKitchensCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountKitchens.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountKitchens.title"),
+    loading: translate("accountKitchens.loading"),
+    count: (count: number) => translate("accountKitchens.count", { count }),
+    sortNewestFirst: translate("accountKitchens.sortNewestFirst"),
+    sentBadge: translate("accountKitchens.sentBadge"),
+    draftBadge: translate("accountKitchens.draftBadge"),
+    modified: (when: string) => translate("accountKitchens.modified", { when }),
+    kitchenName: (summary: KitchenSummary) =>
+      resolvePresetName(translate, summary),
+    meta: (summary: KitchenSummary) =>
+      translate("accountKitchens.meta", {
+        shape: resolveShapeShortName(translate, summary.shape),
+        walls: summary.wallsMm.join(PRESET_WALL_JOINER),
+      }),
+    open: translate("accountKitchens.open"),
+    openNamed: (name: string) =>
+      translate("accountKitchens.openNamed", { name }),
+    loadMore: translate("accountKitchens.loadMore"),
+    loadingMore: translate("accountKitchens.loadingMore"),
+    emptyTitle: translate("accountKitchens.emptyTitle"),
+    emptyBody: translate("accountKitchens.emptyBody"),
+    startKitchen: translate("accountKitchens.startKitchen"),
+  };
+}
+
+export type AccountKitchensCopy = ReturnType<typeof resolveAccountKitchensCopy>;
+
+function resolveShapeShortName(
+  translate: ContentTranslator,
+  shape: DesignRoomShape,
+): string {
+  switch (shape) {
+    case "linear":
+      return translate("room.shapes.linear.short");
+    case "L":
+      return translate("room.shapes.L.short");
+    case "U":
+      return translate("room.shapes.U.short");
+    default:
+      return assertNever(shape);
+  }
+}
 
 /** The question that signs the person out of every device, and the sentence for the one failure it names itself. A
  *  connection that dropped is told by the form kit's offline notice, which every account screen shares. */

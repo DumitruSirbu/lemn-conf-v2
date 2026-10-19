@@ -15,13 +15,14 @@ import styles from "./account.module.css";
 // policy and a nonce the new page's script does not hold. The site's shared start link, language menu and router link
 // are all soft navigations, so none is used here.
 
-/** The five account pages, as the path segment each is served under. */
+/** The account pages that have a counterpart in the other language, as the path segment each is served under. */
 export type AccountPage =
   | "register"
   | "login"
   | "forgot-password"
   | "verify-email"
-  | "reset-password";
+  | "reset-password"
+  | "kitchens";
 
 export function accountPathOf(locale: AppLocale, page: AccountPage): string {
   return `/${locale}/account/${page}`;
@@ -40,6 +41,9 @@ export interface AccountShellProps {
   /** The phone header's title. It wraps, so a longer language loses none of its words. Left out, the wordmark stands
    *  alone. */
   readonly headerTitle?: string;
+  /** A page of content that needs the desktop's width (the kitchens grid) takes the full-width frame instead of the
+   *  440 px card. On a phone the two are the same. */
+  readonly isWide?: boolean;
   readonly children: ReactNode;
 }
 
@@ -47,6 +51,7 @@ export function AccountShell({
   locale,
   page,
   headerTitle,
+  isWide = false,
   children,
 }: AccountShellProps) {
   const copy = useAccountShellCopy();
@@ -74,8 +79,8 @@ export function AccountShell({
           </nav>
         )}
       </header>
-      <main className={styles.stage}>
-        <div className={styles.card}>{children}</div>
+      <main className={isWide ? styles.stageWide : styles.stage}>
+        <div className={isWide ? styles.cardWide : styles.card}>{children}</div>
       </main>
     </div>
   );

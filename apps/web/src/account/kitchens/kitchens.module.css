@@ -1,0 +1,362 @@
+/* The kitchens list (Lot 2 frames A9A to A9C and ContBlocks2's card, skeleton and grid). A phone draws one column of
+ * cards, each a thumbnail beside its facts; a desktop draws a grid of cards, each a thumbnail above them. The page's
+ * tokens are `globals.css`'s; the few colours the frames add are scoped to the list and the empty state. */
+.list,
+.empty {
+  --sent-surface: #eef1ea;
+  --sent-edge: #d3dccb;
+  --sent-ink: #2d5016;
+  --tint: #ece7dd;
+  --stripe-a: #e9e4da;
+  --stripe-b: #f1ede5;
+}
+
+/* Read by a screen reader and seen by nobody: the loading line and the like. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+.countRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.count {
+  font: 700 13px/1.3 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.sort {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+}
+
+.card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.cardMain {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* The stripes stand in for a picture of the kitchen, which the product does not render yet (plan C2): decorative, and
+ * labelled with nothing. */
+.thumb {
+  flex: 0 0 104px;
+  box-sizing: border-box;
+  width: 104px;
+  height: 78px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--stripe-a) 0 8px,
+    var(--stripe-b) 8px 16px
+  );
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.cardInfo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.badge {
+  align-self: flex-start;
+  padding: 4px 8px;
+  font: 700 11.5px/1 var(--font-ui);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.badge[data-kind="sent"] {
+  color: var(--sent-ink);
+  background: var(--sent-surface);
+  border-color: var(--sent-edge);
+}
+
+.badge[data-kind="sent"]::before {
+  margin-inline-end: 5px;
+  content: "\2713";
+}
+
+.badge[data-kind="draft"] {
+  color: var(--accent-strong);
+  background: var(--tint);
+}
+
+/* Two lines of the name, then cut: the whole name is still the card's accessible name and the link's. */
+.name {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font: 700 14.5px/1.3 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.meta,
+.modified {
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target);
+  padding: 0 16px;
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  text-decoration: none;
+  background: var(--accent);
+  border-radius: 12px;
+}
+
+.open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.skeleton {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+}
+
+.skeletonThumb {
+  flex: 0 0 104px;
+  height: 78px;
+  background: var(--tint);
+  border-radius: 8px;
+}
+
+.skeletonLines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.skeletonLine {
+  display: block;
+  height: 10px;
+  background: var(--tint);
+  border-radius: 4px;
+}
+
+.skeletonLine[data-size="badge"] {
+  width: 56px;
+  height: 16px;
+  border-radius: 999px;
+}
+
+.skeletonLine[data-size="name"] {
+  width: 90%;
+  height: 12px;
+}
+
+.skeletonLine[data-size="meta"] {
+  width: 60%;
+}
+
+.skeletonLine[data-size="modified"] {
+  width: 40%;
+}
+
+/* A phone shows three placeholders; the desktop's grid shows four. */
+.skeleton:nth-child(n + 4) {
+  display: none;
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.moreButton {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The wait of the "load more" button, in the button's own colours: the page's spinner is drawn for an accent ground. */
+.spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 10px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loadingMore 1s linear infinite;
+}
+
+@keyframes loadingMore {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+.emptyMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font: 700 20px/1 var(--font-ui);
+  color: var(--accent);
+  background: var(--tint);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.emptyMark::before {
+  content: "\25EB";
+}
+
+.emptyTitle {
+  margin: 0;
+  font: 700 19px/1.28 var(--font-ui);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.emptyBody {
+  margin: 0;
+  font: 400 13.5px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+@media (min-width: 900px) {
+  .list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  .card {
+    gap: 8px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .cardMain {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .thumb {
+    flex: none;
+    width: auto;
+    height: 200px;
+    margin-bottom: 4px;
+    border-radius: 10px;
+  }
+
+  .badge {
+    padding: 5px 9px;
+    font-size: 12px;
+  }
+
+  .name {
+    min-height: 2.6em;
+    font-size: 16px;
+  }
+
+  .meta,
+  .modified {
+    font-size: 13px;
+  }
+
+  .open {
+    margin-top: 4px;
+  }
+
+  .skeleton {
+    flex-direction: column;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .skeletonThumb {
+    flex: none;
+    height: 200px;
+    border-radius: 10px;
+  }
+
+  .skeleton:nth-child(n + 4) {
+    display: flex;
+  }
+
+  .moreButton {
+    width: 100%;
+    max-width: 320px;
+    margin-inline: auto;
+  }
+}

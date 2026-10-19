@@ -819,6 +819,7 @@
     "signIn": "Войти",
     "menuName": "Мой аккаунт",
     "signedInAs": "Вход выполнен как",
+    "myKitchens": "Мои кухни",
     "close": "Закрыть",
     "signOutHere": "Выйти из аккаунта",
     "signOutEverywhere": "Выйти на всех устройствах",
@@ -849,6 +850,24 @@
     "cancel": "Не сейчас",
     "claimedTitle": "{count, plural, =0 {Прикреплять было нечего} one {<check>✓</check> Прикреплена # кухня} few {<check>✓</check> Прикреплены # кухни} many {<check>✓</check> Прикреплено # кухонь} other {<check>✓</check> Прикреплены # кухни}}",
     "continue": "Продолжить"
+  },
+  "accountKitchens": {
+    "metaTitle": "Мои кухни — {brand}",
+    "title": "Мои кухни",
+    "loading": "Загружаем кухни",
+    "count": "{count, plural, one {# кухня} few {# кухни} many {# кухонь} other {# кухни}}",
+    "sortNewestFirst": "Сначала новые",
+    "sentBadge": "Отправлена",
+    "draftBadge": "Черновик",
+    "modified": "Изменена {when}",
+    "meta": "{shape} · {walls} мм",
+    "open": "Открыть",
+    "openNamed": "Открыть: {name}",
+    "loadMore": "Показать ещё",
+    "loadingMore": "Загружаем…",
+    "emptyTitle": "У тебя пока нет сохранённых кухонь.",
+    "emptyBody": "Когда сохранишь кухню, она появится здесь, на любом устройстве.",
+    "startKitchen": "Начать кухню"
   },
   "privacyNotice": {
     "metaTitle": "Уведомление о конфиденциальности — {brand}",
