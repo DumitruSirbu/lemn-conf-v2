@@ -900,7 +900,8 @@
   gap: 10px;
 }
 
-/* What the three actions share: the frame's 48 px box, which wraps rather than squeezes. */
+/* What the three actions share: the frame's 48 px box, which wraps rather than squeezes. No underline: the session
+   sheet draws its primary action as a link. */
 .dialogAction {
   display: flex;
   flex: 1 1 200px;
@@ -911,6 +912,7 @@
   padding: 12px 16px;
   font: 700 14px/1.25 var(--font-ui);
   text-align: center;
+  text-decoration: none;
   cursor: pointer;
   background: var(--paper);
   border-radius: 12px;

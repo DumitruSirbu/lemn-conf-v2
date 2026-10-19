@@ -6,7 +6,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { rateLimitNoticeOf } from "./account-answer";
 import { startPathOf } from "./account-shell";
 import { loginPathWithReason } from "./login-arrival";
-import { leaveFor, leaveForStart } from "./on-signed-in";
+import { leaveAfterSignIn, leaveFor, type Destination } from "./on-signed-in";
 import { sendSignedInRequest } from "./send-account-request";
 
 // The one act of the claim dialog (Lot 2 frames A18A to A18E): asking the server to give this browser's designs to the
@@ -30,7 +30,8 @@ export interface Claim {
   readonly status: ClaimStatus;
   /** "Atașează". Sends the claim; a second press while one is out, or after it was answered, does nothing. */
   readonly claim: () => void;
-  /** "Nu acum", and "Continuă" once the claim is made: a full load to the start of the configurator. */
+  /** "Nu acum", and "Continuă" once the claim is made: a full load to the kitchen the person came from, else the start of
+   *  the configurator. */
   readonly leave: () => void;
 }
 
@@ -39,7 +40,8 @@ type ClaimStep =
   | { readonly kind: "stay"; readonly status: ClaimStatus }
   | { readonly kind: "leave"; readonly path: string };
 
-export function useClaim(locale: AppLocale): Claim {
+export function useClaim(destination: Destination): Claim {
+  const { locale } = destination;
   const [status, setStatus] = useState<ClaimStatus>({ kind: "asking" });
   const isSendingRef = useRef(false);
   const isLeavingRef = useRef(false);
@@ -67,8 +69,8 @@ export function useClaim(locale: AppLocale): Claim {
   // must stay possible. Leaving only closes the claim, which must never be sent from a page on its way out.
   const leave = useCallback(() => {
     isLeavingRef.current = true;
-    leaveForStart(locale);
-  }, [locale]);
+    leaveAfterSignIn(destination);
+  }, [destination]);
 
   return { status, claim, leave };
 }

@@ -4,8 +4,15 @@ import { startPathOf } from "./account-shell";
 
 // The one way out of a successful sign-in, for every page that ends in one (the login now; the confirm page after it).
 
-export interface SignedIn {
+/** Where a finished sign-in goes. */
+export interface Destination {
   readonly locale: AppLocale;
+  /** The design the person was sent here from, as `returnPathOf` parsed it; `undefined` for the start of the
+   *  configurator. */
+  readonly returnPath: string | undefined;
+}
+
+export interface SignedIn extends Destination {
   /** How many designs made before signing in the account could claim. */
   readonly claimable: number;
 }
@@ -16,23 +23,24 @@ export type AskToClaim = (claimable: number) => void;
 /**
  * Where a successful sign-in goes next. Designs the account could claim are asked about first, on this page, before it
  * leaves, because the session is already set and claiming is the person's to confirm (ADR 0172 D8, Amendment B).
- * Nothing to claim leaves at once.
+ * Nothing to claim leaves at once. The way back to the open kitchen is taken only after that question is answered.
  */
 export function onSignedIn(
-  { locale, claimable }: SignedIn,
+  { claimable, ...destination }: SignedIn,
   askToClaim: AskToClaim,
 ): void {
   if (claimable > 0) {
     askToClaim(claimable);
     return;
   }
-  leaveForStart(locale);
+  leaveAfterSignIn(destination);
 }
 
-/** A full document load to the start of the configurator, so the new session is read by a page with no stale state. A
- *  router action is never used on these pages: a token page's address is rewritten by it (Lot 1 review, criterion 15). */
-export function leaveForStart(locale: AppLocale): void {
-  leaveFor(startPathOf(locale));
+/** A full document load to where a finished sign-in goes: the kitchen the person came from when there is one, else the
+ *  start of the configurator. The load means the new session is read by a page with no stale state. A router action is
+ *  never used on these pages: a token page's address is rewritten by it (Lot 1 review, criterion 15). */
+export function leaveAfterSignIn({ locale, returnPath }: Destination): void {
+  leaveFor(returnPath ?? startPathOf(locale));
 }
 
 /** The same full load to any path. */

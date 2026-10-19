@@ -71,6 +71,12 @@ export function isSignedOutByPerson(): boolean {
   return wasSignedOutByPerson;
 }
 
+/** Whether the state on show is something the server said, or the stand-in for a request that failed. A failed request
+ *  reads as anonymous, which grants less but must not be taken for "the session has ended". */
+export function isSessionAnswerDefinite(): boolean {
+  return hasDefiniteAnswer;
+}
+
 /** Asks the server again, whatever was answered before (a session may have ended or begun elsewhere). */
 export function refreshSession(): void {
   hasDefiniteAnswer = false;

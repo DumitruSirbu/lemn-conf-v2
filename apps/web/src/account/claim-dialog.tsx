@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
-import type { AppLocale } from "@/i18n/routing";
 import { useAccountKitCopy, useClaimDialogCopy } from "@/i18n/use-content";
 
 import { AccountDialog, type AccountDialogProps } from "./account-dialog";
@@ -12,6 +11,7 @@ import {
   RateLimitNotice,
   renderStrong,
 } from "./account-form-parts";
+import type { Destination } from "./on-signed-in";
 import { useClaim, type ClaimStatus } from "./use-claim";
 
 // "Atașezi bucătăriile din acest browser?" (Lot 2 frames A18A to A18E). Opened by a sign-in that found designs this
@@ -19,9 +19,9 @@ import { useClaim, type ClaimStatus } from "./use-claim";
 // many: the server tells nothing else of them yet (plan O2).
 //
 // Claiming cannot be undone, so the dialog opens on "Nu acum" (the kit's `alertdialog` opening) and draws "Atașează" as
-// the primary button the frame draws, not as the destructive one. Every way out of the question leaves for the start
-// of the configurator by a full document load, never a router action: the confirm page is a token page, whose address a
-// router action would write back (Lot 1 review, criterion 15).
+// the primary button the frame draws, not as the destructive one. Every way out of the question leaves for the kitchen
+// the person came from, or else the start of the configurator, by a full document load, never a router action: the
+// confirm page is a token page, whose address a router action would write back (Lot 1 review, criterion 15).
 //
 // It is drawn into the screen's `<main>`, as `AccountDialog` asks, so the card behind it goes inert.
 //
@@ -31,15 +31,16 @@ import { useClaim, type ClaimStatus } from "./use-claim";
 // what it attaches.
 
 export interface ClaimDialogProps {
-  readonly locale: AppLocale;
+  /** Where both ways out of the question go: the kitchen the person came from, or the start of the configurator. */
+  readonly destination: Destination;
   /** How many designs the sign-in said could be claimed. */
   readonly count: number;
 }
 
 /** Mount it only once there is something to ask about, which is after an interaction, so it is never server-rendered. */
-export function ClaimDialog({ locale, count }: ClaimDialogProps) {
+export function ClaimDialog({ destination, count }: ClaimDialogProps) {
   return createPortal(
-    <ClaimQuestion locale={locale} count={count} />,
+    <ClaimQuestion destination={destination} count={count} />,
     document.querySelector("main") ?? document.body,
   );
 }
@@ -52,9 +53,9 @@ const CLAIM_DIALOG_KIND = {
   announcesTitleChange: true,
 } as const satisfies Partial<AccountDialogProps>;
 
-function ClaimQuestion({ locale, count }: ClaimDialogProps) {
+function ClaimQuestion({ destination, count }: ClaimDialogProps) {
   const copy = useClaimDialogCopy();
-  const { status, claim, leave } = useClaim(locale);
+  const { status, claim, leave } = useClaim(destination);
   const warningId = useId();
   const confirmRef = useRef<HTMLButtonElement>(null);
   const isClaimed = status.kind === "claimed";

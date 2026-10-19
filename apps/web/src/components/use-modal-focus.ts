@@ -119,31 +119,86 @@ function hasFocusableOpener(opener: Element | null): opener is HTMLElement {
   );
 }
 
+/** One open modal's way out of Escape. The object is the modal's place in `openEscapeHandlers`, and its `dismiss` is
+ *  replaced in place as the modal redraws, so a new function never moves the modal in the stack. */
+interface EscapeHandler {
+  dismiss: () => void;
+}
+
+/** The open modals in the order they opened: the last is the topmost, and the only one Escape reaches. */
+const openEscapeHandlers: EscapeHandler[] = [];
+
+function dismissTopmostOnEscape(event: KeyboardEvent): void {
+  if (event.key !== "Escape") return;
+  openEscapeHandlers.at(-1)?.dismiss();
+}
+
+function pushEscapeHandler(handler: EscapeHandler): void {
+  if (openEscapeHandlers.length === 0) {
+    document.addEventListener("keydown", dismissTopmostOnEscape);
+  }
+  openEscapeHandlers.push(handler);
+}
+
+function removeEscapeHandler(handler: EscapeHandler): void {
+  const at = openEscapeHandlers.indexOf(handler);
+  if (at !== -1) openEscapeHandlers.splice(at, 1);
+  if (openEscapeHandlers.length === 0) {
+    document.removeEventListener("keydown", dismissTopmostOnEscape);
+  }
+}
+
 /**
  * Escape dismisses wherever focus has got to, so this listens on the document rather than the surface
- * (`price-breakdown.tsx` records what binding it to the dialog cost). Registered only while open; the topmost
- * surface registers last and no handler calls `stopPropagation`. It calls whatever `dismiss` its asker hands it
- * (the sheet steps back one step at a time, ADR 0081 decision 3; the back confirmation's is Stay): a second
- * document-level handler inside either is what that decision refuses.
+ * (`price-breakdown.tsx` records what binding it to the dialog cost). Registered only while open, and shared: one
+ * document listener serves every open modal and reaches only the topmost, so a second modal opened over the first
+ * (the session sheet over a settings sheet) is closed by Escape alone and the first by the next press. It calls whatever
+ * `dismiss` its asker hands it (the sheet steps back one step at a time, ADR 0081 decision 3; the back confirmation's
+ * is Stay): a second document-level handler inside either is what that decision refuses.
  */
 export function useEscapeToDismiss(isOpen: boolean, dismiss: () => void): void {
+  const handlerRef = useRef<EscapeHandler>({ dismiss });
+  useLayoutEffect(() => {
+    handlerRef.current.dismiss = dismiss;
+  });
   useEffect(() => {
     if (!isOpen) return undefined;
-    function dismissOnEscape(event: KeyboardEvent): void {
-      if (event.key === "Escape") dismiss();
-    }
-    document.addEventListener("keydown", dismissOnEscape);
+    const handler = handlerRef.current;
+    pushEscapeHandler(handler);
     return () => {
-      document.removeEventListener("keydown", dismissOnEscape);
+      removeEscapeHandler(handler);
     };
-  }, [isOpen, dismiss]);
+  }, [isOpen]);
+}
+
+/** How many open modals hold each band inert. A band is let go only by the last of them. */
+const inertHoldCounts = new Map<Element, number>();
+
+function holdInert(bands: readonly Element[]): void {
+  for (const band of bands) {
+    inertHoldCounts.set(band, (inertHoldCounts.get(band) ?? 0) + 1);
+    band.setAttribute("inert", "");
+  }
+}
+
+function releaseInert(bands: readonly Element[]): void {
+  for (const band of bands) {
+    const remaining = (inertHoldCounts.get(band) ?? 1) - 1;
+    if (remaining > 0) {
+      inertHoldCounts.set(band, remaining);
+      continue;
+    }
+    inertHoldCounts.delete(band);
+    band.removeAttribute("inert");
+  }
 }
 
 /**
  * Marks the rest of the screen inert while the dialog is open: the half of "modal" a scrim cannot do, because a
  * keyboard can activate controls a pointer cannot. Applied to the screen's own children rather than a named list
  * of components, so a later change to where this mounts cannot leave a band operable. The band holding the
- * anchor stays live; every sibling band goes inert.
+ * anchor stays live; every sibling band goes inert. Holds are counted per band, so a modal that closes while another
+ * still needs a band inert does not lift it.
  */
 export function useBackgroundInert(
   isOpen: boolean,
@@ -157,9 +212,9 @@ export function useBackgroundInert(
     const behind = [...screenElement.children].filter(
       (band) => !band.contains(anchor),
     );
-    for (const band of behind) band.setAttribute("inert", "");
+    holdInert(behind);
     return () => {
-      for (const band of behind) band.removeAttribute("inert");
+      releaseInert(behind);
     };
   }, [isOpen, anchorRef]);
 }

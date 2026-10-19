@@ -833,6 +833,13 @@
     "cancel": "Anulează",
     "unavailable": "Nu am putut închide sesiunile. Nu am schimbat nimic. Încearcă din nou."
   },
+  "sessionExpiredSheet": {
+    "title": "Sesiunea a expirat",
+    "body": "Intră din nou în cont ca să poți salva. Bucătăria rămâne deschisă aici.",
+    "returnNote": "După ce intri, te ducem înapoi la bucătărie. Modificările nesalvate nu se păstrează.",
+    "signIn": "Intră în cont",
+    "later": "Mai târziu"
+  },
   "claimDialog": {
     "title": "Atașezi bucătăriile din acest browser?",
     "question": "{count, plural, one {Am găsit <strong># bucătărie</strong> făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?} few {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?} other {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?}}",

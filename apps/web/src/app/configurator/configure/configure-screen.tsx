@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { useMemo } from "react";
 
 import { AccountControl } from "@/account/session/account-control";
+import { SessionExpiredSheet } from "@/account/session/session-expired-sheet";
+import { useSessionExpiry } from "@/account/session/use-session-expiry";
 import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
 import { PriceBar } from "@/price/price-bar";
@@ -76,6 +78,7 @@ export function ConfigureScreen({
   // names, and what the row gives up to leave room for them. See `use-top-bar-fit.ts`.
   const topBar = useTopBarFit();
   const backConfirmation = useBackConfirmation();
+  const sessionExpiry = useSessionExpiry();
   const savePreset = useSaveAsPresetControl(variant === "owner");
   const backGuard = useBackGuard({
     isOwner: variant === "owner",
@@ -312,6 +315,11 @@ export function ConfigureScreen({
           the band that holds it stays live. */}
       {savePreset.isOffered && savePreset.isOpen && (
         <SaveAsPresetDialog onClose={savePreset.close} />
+      )}
+      {/* A direct child of the screen too. It is drawn when a save is refused and the session behind the editor is found
+          to have ended (`use-session-expiry.ts`); nothing leaves this page until the person presses its link. */}
+      {sessionExpiry.isSheetOpen && (
+        <SessionExpiredSheet onLater={sessionExpiry.closeSheet} />
       )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the

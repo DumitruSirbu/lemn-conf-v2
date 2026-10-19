@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 import {
@@ -97,15 +97,20 @@ function ConfirmedScreen({
   const copy = useAccountVerifyCopy();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [claimableCount, askToClaim] = useState<number>();
+  // The confirm page is reached from an e-mail, so there is no kitchen to go back to.
+  const destination = useMemo(
+    () => ({ locale, returnPath: undefined }),
+    [locale],
+  );
   useFocusOnMount(headingRef);
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      onSignedIn({ locale, claimable }, askToClaim);
+      onSignedIn({ ...destination, claimable }, askToClaim);
     }, CONFIRMED_SCREEN_MS);
     return () => {
       window.clearTimeout(timerId);
     };
-  }, [locale, claimable]);
+  }, [destination, claimable]);
   return (
     <>
       <AccountPane>
@@ -118,7 +123,7 @@ function ConfirmedScreen({
         </OutcomeHero>
       </AccountPane>
       {claimableCount === undefined ? null : (
-        <ClaimDialog locale={locale} count={claimableCount} />
+        <ClaimDialog destination={destination} count={claimableCount} />
       )}
     </>
   );

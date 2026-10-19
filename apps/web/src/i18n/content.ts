@@ -1212,6 +1212,22 @@ export function resolveLogoutEverywhereCopy(translate: ContentTranslator) {
   };
 }
 
+/** The sheet that tells the editor its signed-in session ended. `returnNote` is said only beside a way back to a saved
+ *  kitchen, and it promises nothing about edits that were not saved. */
+export function resolveSessionExpiredSheetCopy(translate: ContentTranslator) {
+  return {
+    title: translate("sessionExpiredSheet.title"),
+    body: translate("sessionExpiredSheet.body"),
+    returnNote: translate("sessionExpiredSheet.returnNote"),
+    signIn: translate("sessionExpiredSheet.signIn"),
+    later: translate("sessionExpiredSheet.later"),
+  };
+}
+
+export type SessionExpiredSheetCopy = ReturnType<
+  typeof resolveSessionExpiredSheetCopy
+>;
+
 /** The question that attaches the browser's kitchens to the account just signed in, and its one answer. The count is a
  *  value, never a sentence of its own: each language agrees the whole sentence with it in the catalogue. */
 export function resolveClaimDialogCopy(translate: ContentTranslator) {

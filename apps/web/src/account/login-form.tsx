@@ -1,6 +1,6 @@
 "use client";
 
-import { createRef, useState, type RefObject } from "react";
+import { createRef, useMemo, useState, type RefObject } from "react";
 
 import type { AccountFieldIssue, AccountLoginCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
@@ -49,11 +49,18 @@ export interface LoginFormProps {
   readonly nonce: string | undefined;
   /** Why the person was sent here, if something did (frame A4G). */
   readonly arrival: LoginArrival | undefined;
+  /** Where to go once signed in, if the person came from a saved kitchen: parsed on the server (`returnPathOf`). */
+  readonly returnPath: string | undefined;
 }
 
 export function LoginForm(props: LoginFormProps) {
   const [claimableCount, askToClaim] = useState<number>();
-  const signIn = useSignIn(props.locale, askToClaim);
+  const { locale, returnPath } = props;
+  const destination = useMemo(
+    () => ({ locale, returnPath }),
+    [locale, returnPath],
+  );
+  const signIn = useSignIn(destination, askToClaim);
   const copy = useAccountLoginCopy();
   return (
     <AccountShell
@@ -67,7 +74,7 @@ export function LoginForm(props: LoginFormProps) {
         <AskingScreen signIn={signIn} {...props} />
       )}
       {claimableCount === undefined ? null : (
-        <ClaimDialog locale={props.locale} count={claimableCount} />
+        <ClaimDialog destination={destination} count={claimableCount} />
       )}
     </AccountShell>
   );

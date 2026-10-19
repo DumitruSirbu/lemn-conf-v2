@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 
 import { LoginForm } from "@/account/login-form";
 import { loginArrivalOf } from "@/account/login-arrival";
+import { returnPathOf } from "@/account/return-path";
 import { resolveAccountLoginCopy } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import { readChallengePageProps } from "@/lib/server/account/challenge-page-props";
@@ -25,8 +26,9 @@ export async function generateMetadata({
 
 /**
  * The sign-in page: a shell and one client screen, dynamic and a plain document load for the reasons given at
- * `readChallengePageProps`. The only query it reads is `reason`, matched against a closed list; no value the person
- * typed is ever put in an address.
+ * `readChallengePageProps`. It reads two queries: `reason`, matched against a closed list, and `returnTo`, parsed
+ * against the closed list of a design's own address (`returnPathOf`), where anything else is no value. No value the
+ * person typed is ever put in an address.
  */
 export default async function LoginPage({
   params,
@@ -34,7 +36,7 @@ export default async function LoginPage({
 }: LoginPageProps) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
-  const { reason } = await searchParams;
+  const { reason, returnTo } = await searchParams;
   const { siteKey, nonce } = await readChallengePageProps();
   return (
     <LoginForm
@@ -42,6 +44,7 @@ export default async function LoginPage({
       siteKey={siteKey}
       nonce={nonce}
       arrival={loginArrivalOf(reason)}
+      returnPath={returnPathOf(returnTo)}
     />
   );
 }

@@ -6,14 +6,13 @@ import type {
   AccountIssueField,
   AccountRateLimitNotice,
 } from "@/i18n/content";
-import type { AppLocale } from "@/i18n/routing";
 
 import {
   countdownSecondsOf,
   rateLimitNoticeOf,
   type AccountOutcome,
 } from "./account-answer";
-import { onSignedIn, type AskToClaim } from "./on-signed-in";
+import { onSignedIn, type AskToClaim, type Destination } from "./on-signed-in";
 import { sendAccountRequest } from "./send-account-request";
 
 // What the login page remembers, and the one thing it does with it: asks the server to sign the person in. Both values
@@ -82,8 +81,12 @@ export interface SignIn {
 
 const EMPTY_VALUES = { email: "", password: "" };
 
-/** `askToClaim` is how the page draws the claim dialog, when the sign-in found designs the account could claim. */
-export function useSignIn(locale: AppLocale, askToClaim: AskToClaim): SignIn {
+/** `askToClaim` is how the page draws the claim dialog, when the sign-in found designs the account could claim.
+ *  `destination` is where a finished sign-in goes. */
+export function useSignIn(
+  destination: Destination,
+  askToClaim: AskToClaim,
+): SignIn {
   const [values, setValues] = useState(EMPTY_VALUES);
   const [token, setToken] = useState<string | null>(null);
   const [resetCount, setResetCount] = useState(0);
@@ -134,7 +137,7 @@ export function useSignIn(locale: AppLocale, askToClaim: AskToClaim): SignIn {
         // and the guard stays shut until the document is replaced, and the challenge is not reset because no widget is
         // drawn again.
         setValues((current) => ({ ...current, password: "" }));
-        onSignedIn({ locale, claimable: answer.claimable }, askToClaim);
+        onSignedIn({ ...destination, claimable: answer.claimable }, askToClaim);
         return;
       }
       isSendingRef.current = false;
@@ -145,7 +148,7 @@ export function useSignIn(locale: AppLocale, askToClaim: AskToClaim): SignIn {
         setValues((current) => ({ ...current, password: "" }));
       }
     });
-  }, [askToClaim, locale, showAnswer, token, values]);
+  }, [askToClaim, destination, showAnswer, token, values]);
 
   const clearFeedback = useCallback(() => {
     setFeedback(NO_FEEDBACK);
