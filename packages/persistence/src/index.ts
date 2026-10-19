@@ -201,6 +201,34 @@ export type {
   FakeSessionStoreOptions,
   HeldSession,
 } from "./fake-session-store.js";
+export {
+  AccountKitchenStoreError,
+  MAX_KITCHEN_NAME_CHARACTERS,
+  MAX_KITCHEN_PAGE_SIZE,
+  isKitchenCursor,
+} from "./account-kitchen-store.js";
+export type {
+  AccountKitchenStore,
+  AccountKitchenStoreOperation,
+  KitchenCursor,
+  KitchenDeleteOutcome,
+  KitchenDuplication,
+  KitchenDuplicationOutcome,
+  KitchenHideOutcome,
+  KitchenMark,
+  KitchenPage,
+  KitchenPageRequest,
+  KitchenRename,
+  KitchenRenameOutcome,
+  ListedKitchen,
+} from "./account-kitchen-store.js";
+export { NeonAccountKitchenStore } from "./neon-account-kitchen-store.js";
+export { FakeAccountKitchenStore } from "./fake-account-kitchen-store.js";
+export type {
+  FakeAccountKitchenStoreOptions,
+  HeldKitchen,
+  SeededKitchen,
+} from "./fake-account-kitchen-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {
