@@ -17,6 +17,7 @@ import {
   requireValidPasswordReset,
   requireValidProfileUpdate,
   requireValidRegistrationReplacement,
+  requireValidRevertAddressLookup,
   requireValidTokenToIssue,
 } from "./account-store.js";
 import type {
@@ -45,6 +46,7 @@ import type {
   ProfileUpdateOutcome,
   RegistrationReplacement,
   RegistrationReplacementOutcome,
+  RevertAddressLookup,
   StoredAccount,
   TokenIssueOutcome,
   TokenToIssue,
@@ -230,7 +232,10 @@ export class FakeAccountStore implements AccountStore {
       requireValidTokenToIssue(token);
       const existing = this.tokensByHash.get(token.tokenHash);
       if (existing !== undefined) return issuedIfSameToken(existing, token);
-      if (!this.accountsById.has(token.accountId)) return { kind: "refused" };
+      const account = this.accountsById.get(token.accountId);
+      if (account === undefined || !isHolding(account, token)) {
+        return { kind: "refused" };
+      }
       this.tokensByHash.set(token.tokenHash, {
         tokenHash: token.tokenHash,
         accountId: token.accountId,
@@ -374,6 +379,22 @@ export class FakeAccountStore implements AccountStore {
         accountId: account.id,
         email: token.newEmail ?? account.email,
         locale: account.locale,
+      };
+    });
+  }
+
+  findRevertAddress(tokenHash: string): Promise<RevertAddressLookup> {
+    return settle(() => {
+      requireValidRevertAddressLookup(tokenHash);
+      const token = this.liveRevertToken(tokenHash);
+      const account = token && this.accountsById.get(token.accountId);
+      if (account === undefined || !this.isRevertableBy(token, account)) {
+        return { kind: "none" };
+      }
+      return {
+        kind: "found",
+        accountId: account.id,
+        email: token.newEmail ?? account.email,
       };
     });
   }
@@ -622,6 +643,17 @@ function settle<Outcome>(compute: () => Outcome): Promise<Outcome> {
       failure instanceof Error ? failure : new Error("Unknown failure"),
     );
   }
+}
+
+/** An issue that names the address its caller looked the account up by is made only while the account holds it. */
+function isHolding(
+  account: HeldAccount,
+  { holdingEmailNormalForm }: Pick<TokenToIssue, "holdingEmailNormalForm">,
+): boolean {
+  return (
+    holdingEmailNormalForm === undefined ||
+    account.emailNormalForm === holdingEmailNormalForm
+  );
 }
 
 function lookupOf(held: HeldAccount | undefined): AccountLookup {

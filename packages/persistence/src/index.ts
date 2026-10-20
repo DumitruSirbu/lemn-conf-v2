@@ -180,6 +180,7 @@ export type {
   ProfileUpdateOutcome,
   RegistrationReplacement,
   RegistrationReplacementOutcome,
+  RevertAddressLookup,
   StoredAccount,
   StoredProfile,
   TokenIssueOutcome,

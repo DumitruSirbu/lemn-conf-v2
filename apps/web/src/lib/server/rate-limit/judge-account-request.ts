@@ -29,8 +29,8 @@ import {
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
 /** What a route is limited for at the block stage (M8B plan section 5, common order step 4): the purposes whose first
- *  bucket counts the network. `confirm-email`, `password-reset-complete` and `email-change-confirm` count in one bucket,
- *  since the plan bounds the cost of using a mailed link together, and have no other stage. `kitchen-duplicate` counts
+ *  bucket counts the network. `confirm-email`, `password-reset-complete`, `email-change-confirm` and `email-change-revert`
+ *  count in one bucket, since the plan bounds the cost of using a mailed link together, and have no other stage. `kitchen-duplicate` counts
  *  the mint's own per-network bucket (a copy is a mint, ADR 0147's intent) and is followed by the account's copy bucket
  *  at the subject stage. */
 export type AccountBlockPurpose =
@@ -40,6 +40,7 @@ export type AccountBlockPurpose =
   | "confirm-email"
   | "password-reset-complete"
   | "email-change-confirm"
+  | "email-change-revert"
   | "kitchen-duplicate";
 
 /** The purposes that count an address's buckets at the subject stage. `mail` is one mail bucket for a route that sends
@@ -121,6 +122,10 @@ const BLOCK_PLAN_OF_PURPOSE: Readonly<Record<AccountBlockPurpose, StagePlan>> =
     },
     "email-change-confirm": {
       event: "email-change-confirm",
+      buckets: ["account-token-complete-by-block"],
+    },
+    "email-change-revert": {
+      event: "email-change-revert",
       buckets: ["account-token-complete-by-block"],
     },
     "kitchen-duplicate": { event: "kitchen-duplicate", buckets: ["mint"] },

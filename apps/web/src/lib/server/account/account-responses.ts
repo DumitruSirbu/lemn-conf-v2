@@ -132,6 +132,13 @@ export function emailChangedResponse(): NextResponse {
   return statusResponse(200, "email-changed");
 }
 
+/** `200`: the address of the account was put back to the one the undo link carried, the password was replaced by the one
+ *  the request chose, and every session ended; no session is started, so the person signs in with the restored address
+ *  and the new password. */
+export function emailRevertedResponse(): NextResponse {
+  return statusResponse(200, "email-reverted");
+}
+
 /** `200`: the profile fields the request named were saved. */
 export function profileSavedResponse(): NextResponse {
   return statusResponse(200, "saved");

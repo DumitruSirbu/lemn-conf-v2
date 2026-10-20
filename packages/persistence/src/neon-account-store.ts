@@ -41,6 +41,7 @@ import type {
   ProfileUpdateOutcome,
   RegistrationReplacement,
   RegistrationReplacementOutcome,
+  RevertAddressLookup,
   StoredAccount,
   StoredProfile,
   TokenIssueOutcome,
@@ -49,6 +50,7 @@ import type {
 import { generateAccountId } from "./generate-account-id.js";
 import {
   confirmEmailChange,
+  findRevertAddress,
   isAddressReserved,
   issueEmailChangeToken,
   retireEmailChangeTokens,
@@ -274,11 +276,21 @@ export class NeonAccountStore implements AccountStore {
       : { kind: "replaced", accountId };
   }
 
-  /** The token is inserted from a `select` of its account, so an account that is gone inserts nothing and raises no
-   *  foreign-key error. Repeating it after a lost acknowledgement finds its own row and answers issued. */
+  /**
+   * The token is inserted from a `select` of its account, so an account that is gone inserts nothing and raises no
+   * foreign-key error. Repeating it after a lost acknowledgement finds its own row and answers issued.
+   *
+   * The account row is locked `for share`, and `holdingEmailNormalForm`, when given, is a predicate **on that locked
+   * row** (a subquery would be read from the snapshot and miss the change). A confirmed address change or a revert in
+   * flight holds the row `for update` until its commit, so this statement waits, and when it resumes the row is
+   * re-checked against the address the caller looked the account up by: an account that has moved off it gets no
+   * token, and the link is not mailed to the address it just left (`reset-password.ts`; the same shape as
+   * `issueEmailChangeToken`'s password predicate).
+   */
   async issueToken(token: TokenToIssue): Promise<TokenIssueOutcome> {
     requireValidTokenToIssue(token);
     const { accountId, purpose, tokenHash } = token;
+    const holdingEmailNormalForm = token.holdingEmailNormalForm ?? null;
     const expiresAt = token.expiresAt.toISOString();
     const rows = await queryRows("issue an e-mail token", () =>
       retryOnTransientFailure(
@@ -286,7 +298,10 @@ export class NeonAccountStore implements AccountStore {
           with inserted as (
             insert into account_email_tokens (token_hash, account_id, purpose, expires_at)
             select ${tokenHash}, a.id, ${purpose}, ${expiresAt}::timestamptz
-            from accounts a where a.id = ${accountId}
+            from accounts a
+            where a.id = ${accountId}
+              and (${holdingEmailNormalForm}::text is null or a.email_normal_form = ${holdingEmailNormalForm}::text)
+            for share of a
             on conflict (token_hash) do nothing
             returning token_hash
           )
@@ -643,6 +658,11 @@ export class NeonAccountStore implements AccountStore {
     revert: EmailChangeRevert,
   ): Promise<EmailChangeRevertOutcome> {
     return revertEmailChange(this.sql, revert);
+  }
+
+  /** One read, using nothing up; see `neon-account-email-change.ts`. */
+  findRevertAddress(tokenHash: string): Promise<RevertAddressLookup> {
+    return findRevertAddress(this.sql, tokenHash);
   }
 
   /** One read; see `neon-account-email-change.ts`. */

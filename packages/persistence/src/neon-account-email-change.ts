@@ -8,6 +8,7 @@ import {
   requireValidEmailChangeRetirement,
   requireValidEmailChangeRevert,
   requireValidEmailChangeTokenToIssue,
+  requireValidRevertAddressLookup,
 } from "./account-store.js";
 import type {
   AddressReservationQuestion,
@@ -16,6 +17,7 @@ import type {
   EmailChangeRevert,
   EmailChangeRevertOutcome,
   EmailChangeTokenToIssue,
+  RevertAddressLookup,
   TokenIssueOutcome,
 } from "./account-store.js";
 import { isDone, queryRows } from "./neon-account-rows.js";
@@ -512,4 +514,70 @@ function isReservedFrom(rows: readonly Record<string, unknown>[]): boolean {
     throw new AccountStoreError("look up an address reservation");
   }
   return isReserved;
+}
+
+/**
+ * One read, for the screen that must judge a new password against the address the link restores before it spends the
+ * link. It asks what `revertEmailChange`'s consuming statement asks, **without** consuming: the `email-change-revert`
+ * purpose bound as a constant (the generic `findByLiveToken` refuses it, and stays so), unused, unexpired by the
+ * database's clock, a row that carries an address, an account that is verified, an address no other account holds and
+ * no other account's live undo link names. It has **not** the newest-token rule: every live undo link is valid, so an
+ * earlier one is found while a later one exists (oldest wins).
+ *
+ * It is not an oracle. One `none` answers every miss, and a hit returns the address of the link's own account to the
+ * holder of its 256-bit value, who is the one person the address is meant for. The row is found by hash alone and
+ * nothing else of it leaves the store.
+ */
+export async function findRevertAddress(
+  sql: ApplicationSql,
+  tokenHash: string,
+): Promise<RevertAddressLookup> {
+  requireValidRevertAddressLookup(tokenHash);
+  const rows = await queryRows("look up an undo link", () =>
+    retryOnTransientFailure(
+      () => sql`
+          select a.id as account_id, t.new_email as restored_email
+          from account_email_tokens t
+          join accounts a on a.id = t.account_id
+          where t.token_hash = ${tokenHash}
+            and t.purpose = ${EMAIL_CHANGE_REVERT}
+            and t.used_at is null
+            and t.expires_at > now()
+            and t.new_email is not null
+            and t.new_email_normal_form is not null
+            and a.email_verified_at is not null
+            and not exists (
+              select 1 from accounts holder
+              where holder.email_normal_form = t.new_email_normal_form and holder.id <> t.account_id
+            )
+            and not exists (
+              select 1 from account_email_tokens reservation
+              where reservation.purpose = ${EMAIL_CHANGE_REVERT}
+                and reservation.used_at is null
+                and reservation.expires_at > now()
+                and reservation.new_email_normal_form = t.new_email_normal_form
+                and reservation.account_id <> t.account_id
+            )
+        `,
+    ),
+  );
+  return revertAddressFrom(rows);
+}
+
+function revertAddressFrom(
+  rows: readonly Record<string, unknown>[],
+): RevertAddressLookup {
+  const operation = "look up an undo link";
+  const [row, ...others] = rows;
+  if (row === undefined) return { kind: "none" };
+  const accountId = row["account_id"];
+  const email = row["restored_email"];
+  if (
+    others.length > 0 ||
+    typeof accountId !== "string" ||
+    typeof email !== "string"
+  ) {
+    throw new AccountStoreError(operation);
+  }
+  return { kind: "found", accountId, email };
 }

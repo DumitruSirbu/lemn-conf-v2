@@ -47,6 +47,7 @@ describe("the lists", () => {
       "password-change",
       "email-change",
       "email-change-confirm",
+      "email-change-revert",
       "export",
       "session-read",
       "session-revoke",

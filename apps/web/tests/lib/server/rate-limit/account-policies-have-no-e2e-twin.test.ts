@@ -156,6 +156,7 @@ describe("the e2e notice and the account judges", () => {
       "confirm-email",
       "password-reset-complete",
       "email-change-confirm",
+      "email-change-revert",
     ] as const) {
       await judgeAccountBlock({ purpose, headers: HEADERS });
     }

@@ -1280,3 +1280,154 @@ describe("isAddressReserved: one read of the live undo rows of other accounts", 
     expect(queryDriver.statements).toEqual([]);
   });
 });
+
+describe("issueToken: a reset link is issued only while the account still holds the address it was looked up by", () => {
+  const HELD_NORMAL_FORM = "ana@example.md";
+  const issue = (holdingEmailNormalForm?: string) => () =>
+    newStore().issueToken({
+      accountId: ACCOUNT_ID,
+      purpose: "reset-password",
+      tokenHash: TOKEN_HASH,
+      expiresAt: EXPIRES_AT,
+      ...(holdingEmailNormalForm === undefined
+        ? {}
+        : { holdingEmailNormalForm }),
+    });
+
+  it("puts the address predicate on the locked row itself and locks that row for share, before the conflict clause", async () => {
+    const text = normalised(
+      await loneStatementOf(issue(HELD_NORMAL_FORM), [
+        { token_hash: TOKEN_HASH },
+      ]),
+    );
+
+    expect(text).toContain(
+      "from accounts a where a.id = ? and (?::text is null or a.email_normal_form = ?::text) for share of a on conflict (token_hash) do nothing",
+    );
+  });
+
+  it("binds the address to both of its places, in order, and the account and the hash as before", async () => {
+    const statement = await loneStatementOf(issue(HELD_NORMAL_FORM), [
+      { token_hash: TOKEN_HASH },
+    ]);
+
+    expect(statement.values).toEqual([
+      TOKEN_HASH,
+      "reset-password",
+      EXPIRES_AT.toISOString(),
+      ACCOUNT_ID,
+      HELD_NORMAL_FORM,
+      HELD_NORMAL_FORM,
+      TOKEN_HASH,
+      ACCOUNT_ID,
+      "reset-password",
+    ]);
+  });
+
+  it("binds no address, and so conditions on none, when the caller names none", async () => {
+    const statement = await loneStatementOf(issue(), [
+      { token_hash: TOKEN_HASH },
+    ]);
+
+    expect(statement.values.slice(3, 6)).toEqual([ACCOUNT_ID, null, null]);
+  });
+
+  it("answers refused when the predicate matched no row and nothing was found", async () => {
+    resetQueryDriver();
+    answerQueryWith([]);
+
+    expect(await issue(HELD_NORMAL_FORM)()).toEqual({ kind: "refused" });
+  });
+
+  it("sends nothing for an address of the wrong length", async () => {
+    resetQueryDriver();
+
+    await expect(issue("x")()).rejects.toThrow();
+
+    expect(queryDriver.statements).toEqual([]);
+  });
+});
+
+describe("findRevertAddress: one read of a live undo row, which uses nothing up", () => {
+  const find = () => newStore().findRevertAddress(REVERT_HASH);
+  const ROW = { account_id: ACCOUNT_ID, restored_email: "Ana@Example.md" };
+
+  it("is one lone select, with no write and no lock", async () => {
+    const text = normalised(await loneStatementOf(find, [ROW]));
+
+    expect(text.startsWith("select a.id as account_id, t.new_email as")).toBe(
+      true,
+    );
+    expect(text).not.toMatch(/\b(insert|update|delete|for update|for share)\b/);
+  });
+
+  it("finds the row by its hash alone, bound to the undo purpose as a value, unused, unexpired and carrying an address", async () => {
+    const statement = await loneStatementOf(find, [ROW]);
+    const text = normalised(statement);
+
+    expect(text).toContain(
+      "where t.token_hash = ? and t.purpose = ? and t.used_at is null and t.expires_at > now() and t.new_email is not null and t.new_email_normal_form is not null and a.email_verified_at is not null",
+    );
+    expect(statement.values.slice(0, 2)).toEqual([
+      REVERT_HASH,
+      "email-change-revert",
+    ]);
+  });
+
+  it("is refused for an address another account holds or a live undo link of another account names", async () => {
+    const text = normalised(await loneStatementOf(find, [ROW]));
+
+    expect(text).toContain(
+      "and not exists ( select 1 from accounts holder where holder.email_normal_form = t.new_email_normal_form and holder.id <> t.account_id )",
+    );
+    expect(text).toContain(RESERVED_BY_ANOTHER_ACCOUNT);
+  });
+
+  it("does not apply the newest-token rule: an earlier undo link is found while a later one exists", async () => {
+    const text = normalised(await loneStatementOf(find, [ROW]));
+
+    expect(text).not.toContain("newer");
+  });
+
+  it("answers the link's account and the address it restores", async () => {
+    resetQueryDriver();
+    answerQueryWith([ROW]);
+
+    expect(await find()).toEqual({
+      kind: "found",
+      accountId: ACCOUNT_ID,
+      email: "Ana@Example.md",
+    });
+  });
+
+  it("answers none, and only none, when no row matched", async () => {
+    resetQueryDriver();
+    answerQueryWith([]);
+
+    expect(await find()).toEqual({ kind: "none" });
+  });
+
+  it.each([
+    ["two rows", [ROW, ROW]],
+    ["a row without an address", [{ account_id: ACCOUNT_ID }]],
+    ["a row whose account is not text", [{ ...ROW, account_id: 7 }]],
+  ])("is the store error for %s", async (_label, reply) => {
+    resetQueryDriver();
+    answerQueryWith(reply);
+
+    const rejection = await rejectionOf(find());
+
+    expect(rejection).toBeInstanceOf(AccountStoreError);
+    expect((rejection as AccountStoreError).operation).toBe(
+      "look up an undo link",
+    );
+  });
+
+  it("sends nothing for a token hash of the wrong shape", async () => {
+    resetQueryDriver();
+
+    await expect(newStore().findRevertAddress("short")).rejects.toThrow();
+
+    expect(queryDriver.statements).toEqual([]);
+  });
+});

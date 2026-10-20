@@ -48,6 +48,7 @@ export type AccountStoreOperation =
   | "change an e-mail address"
   | "revert an e-mail address change"
   | "look up an address reservation"
+  | "look up an undo link"
   | "replace a password hash"
   | "read a profile"
   | "update a profile"
@@ -108,12 +109,21 @@ export type RegistrationReplacementOutcome =
   | { readonly kind: "replaced"; readonly accountId: string }
   | { readonly kind: "not-replaceable" };
 
-/** `tokenHash` is the SHA-256 of the value in the link; the value itself never reaches the store. */
+/**
+ * `tokenHash` is the SHA-256 of the value in the link; the value itself never reaches the store.
+ *
+ * `holdingEmailNormalForm` is the address the caller looked the account up by and will mail the link to. When it is
+ * set, the token is issued only if the account **still holds** that address, with the account's row locked `for share`
+ * so a change of address or a revert that is in flight is waited for and then seen. Without it, a lookup followed by an
+ * issue is two statements, and an address change that commits between them has the link mailed to the address the
+ * account has just left (ADR 0172 Amendment H). A reset link must always set it.
+ */
 export interface TokenToIssue {
   readonly accountId: string;
   readonly purpose: PlainEmailTokenPurpose;
   readonly tokenHash: string;
   readonly expiresAt: Date;
+  readonly holdingEmailNormalForm?: string;
 }
 
 /** `refused` is an account that does not exist, or a token hash already held by another account or purpose. */
@@ -191,6 +201,20 @@ export type EmailChangeRevertOutcome =
       readonly locale: string;
     }
   | { readonly kind: "invalid" };
+
+/**
+ * What a live undo link restores, for the screen that asks for a new password before it spends the link. `none` is the
+ * one answer for every miss: an unknown, used, expired or retired token, a token of another purpose, an account that is
+ * not verified, and an address another account holds or a live undo link of another account names. The id and address
+ * are the link's own account's; nothing else of the row leaves the store.
+ */
+export type RevertAddressLookup =
+  | {
+      readonly kind: "found";
+      readonly accountId: string;
+      readonly email: string;
+    }
+  | { readonly kind: "none" };
 
 /** Whether `emailNormalForm` is reserved against every account but `exceptAccountId`. */
 export interface AddressReservationQuestion {
@@ -338,6 +362,13 @@ export interface AccountStore {
   revertEmailChange(
     revert: EmailChangeRevert,
   ): Promise<EmailChangeRevertOutcome>;
+  /**
+   * A read only. The address a live `email-change-revert` token would restore, for the policy that refuses a password
+   * equal to the address. It applies exactly the rules `revertEmailChange` consumes under, **except that it uses
+   * nothing up**: any live undo link is found (the newest-token rule of `findByLiveToken` does not apply to it), and
+   * every miss is one `none`.
+   */
+  findRevertAddress(tokenHash: string): Promise<RevertAddressLookup>;
   /** True when a live `email-change-revert` row of an account other than `exceptAccountId` names the address. */
   isAddressReserved(question: AddressReservationQuestion): Promise<boolean>;
   /** One atomic step: the newest live token, marked used, and the address verified. */
@@ -388,6 +419,17 @@ export function requireValidTokenToIssue(token: TokenToIssue): void {
     isPlainEmailTokenPurpose(token.purpose),
     "purpose",
     "one of the closed list that carries no address",
+    "issue an e-mail token",
+  );
+  requireField(
+    token.holdingEmailNormalForm === undefined ||
+      isLengthWithin(
+        token.holdingEmailNormalForm,
+        EMAIL_LENGTH_RANGE.least,
+        EMAIL_LENGTH_RANGE.most,
+      ),
+    "held e-mail normal form",
+    "absent or 3 to 254 characters",
     "issue an e-mail token",
   );
   requireField(
@@ -477,6 +519,10 @@ export function requireValidAddressReservationQuestion(
     operation,
   );
   requireAccountIdShape(question.exceptAccountId, operation);
+}
+
+export function requireValidRevertAddressLookup(tokenHash: string): void {
+  requireSha256Digest(tokenHash, "token hash", "look up an undo link");
 }
 
 export function requireValidLiveTokenLookup(lookup: LiveTokenLookup): void {

@@ -2,10 +2,7 @@ import "server-only";
 
 import { after, type NextResponse } from "next/server";
 
-import {
-  judgeAccountEmail,
-  judgePassword,
-} from "@lemnaria/configurator-domain";
+import { judgeAccountEmail } from "@lemnaria/configurator-domain";
 import type {
   PasswordResetOutcome,
   StoredAccount,
@@ -25,15 +22,14 @@ import {
   linkInvalidResponse,
   passwordChangedResponse,
   unavailableResponse,
-  type AccountInputIssue,
 } from "@/lib/server/account/account-responses";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
-import { isBreachedPassword } from "@/lib/server/account/breached-password";
 import {
   isWellFormedEmailToken,
   mintEmailToken,
   resetPasswordTokenExpiry,
 } from "@/lib/server/account/email-token";
+import { judgeNewPassword } from "@/lib/server/account/judge-new-password";
 import { hashPassword } from "@/lib/server/account/password-hash";
 import { schedulePasswordChangedNotice } from "@/lib/server/account/password-changed-notice";
 import {
@@ -141,7 +137,11 @@ interface IssuedResetToken {
 }
 
 /** The lookup and the token insert, with a failure of the store written as the reset request's own, apart from a
- *  failure of the mail. Nothing for an address that is unknown, unconfirmed, or whose token the store refused. */
+ *  failure of the mail. Nothing for an address that is unknown, unconfirmed, or whose token the store refused.
+ *  The lookup and the insert are two statements, and an address change or a revert can commit between them: the token
+ *  would be made after `password_changed_at`, so honoured, and mailed to the address the account has just left. The
+ *  insert therefore names the address it looked the account up by, and the store issues only while the account holds
+ *  it. */
 async function issueResetTokenToVerifiedAccount(
   emailNormalForm: string,
 ): Promise<IssuedResetToken | undefined> {
@@ -156,6 +156,7 @@ async function issueResetTokenToVerifiedAccount(
       purpose: "reset-password",
       tokenHash: token.hash,
       expiresAt: resetPasswordTokenExpiry(),
+      holdingEmailNormalForm: emailNormalForm,
     });
     return issue.kind === "refused"
       ? undefined
@@ -168,10 +169,6 @@ async function issueResetTokenToVerifiedAccount(
     return undefined;
   }
 }
-
-type NewPasswordJudgement =
-  | { readonly ok: true; readonly password: string }
-  | { readonly ok: false; readonly issue: AccountInputIssue };
 
 /**
  * Flow 7. The token's shape is checked before anything is hashed, and the account it names is read before the password
@@ -192,6 +189,7 @@ export async function completePasswordReset({
   const judgement = await judgeNewPassword({
     password: textMemberOf(body, NEW_PASSWORD_MEMBER),
     email: account.email,
+    field: PASSWORD_FIELD,
   });
   if (!judgement.ok) return invalidInputResponse([judgement.issue]);
   const passwordHash = await hashPassword(judgement.password);
@@ -270,30 +268,6 @@ async function findAccountOfLiveResetToken(
   return lookup.kind === "found" && lookup.account.isEmailVerified
     ? lookup.account
     : undefined;
-}
-
-/** The registration's rules: NFKC and the length cap first, then the policy, then the breach corpus. When the corpus
- *  cannot be reached the length rule alone decides (owner decision Q-L2). */
-async function judgeNewPassword({
-  password,
-  email,
-}: {
-  password: string | undefined;
-  email: string;
-}): Promise<NewPasswordJudgement> {
-  if (password === undefined) {
-    return refusalOf("PASSWORD_NOT_TEXT");
-  }
-  const judgement = judgePassword({ password, email });
-  if (!judgement.ok) return refusalOf(judgement.code);
-  if ((await isBreachedPassword(judgement.password)) === "breached") {
-    return refusalOf("PASSWORD_BREACHED");
-  }
-  return judgement;
-}
-
-function refusalOf(code: AccountInputIssue["code"]): NewPasswordJudgement {
-  return { ok: false, issue: { field: PASSWORD_FIELD, code } };
 }
 
 /**

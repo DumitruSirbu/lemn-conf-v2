@@ -79,6 +79,7 @@ describe("the block stage: the network's buckets alone", () => {
       ["confirm-email", [ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY]],
       ["password-reset-complete", [ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY]],
       ["email-change-confirm", [ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY]],
+      ["email-change-revert", [ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY]],
       ["kitchen-duplicate", [MINT_POLICY]],
     ];
 
@@ -96,17 +97,18 @@ describe("the block stage: the network's buckets alone", () => {
     },
   );
 
-  it("counts the three link-completing flows in one bucket, since the cost of using a mailed link is bounded together", async () => {
+  it("counts the four link-completing flows in one bucket, since the cost of using a mailed link is bounded together", async () => {
     for (const purpose of [
       "confirm-email",
       "password-reset-complete",
       "email-change-confirm",
+      "email-change-revert",
     ] as const) {
       await judgeAccountBlock({ purpose, headers: HEADERS });
     }
 
     expect(new Set(limiterLedger.counted).size).toBe(1);
-    expect(limiterLedger.counted).toHaveLength(3);
+    expect(limiterLedger.counted).toHaveLength(4);
   });
 
   it("stops at the first bucket that refuses, counting none after it, and names that bucket's policy", async () => {
@@ -497,6 +499,20 @@ describe("what a judgement writes down", () => {
 
     expect(console_.accountLines().map((line) => line.event)).toEqual([
       "email-change-confirm",
+    ]);
+  });
+
+  it("names the undo link's flow by its own event, not the confirmation's", async () => {
+    const console_ = captureConsole();
+    limiterLedger.refusing.set(ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY.name, 5);
+
+    await judgeAccountBlock({
+      purpose: "email-change-revert",
+      headers: HEADERS,
+    });
+
+    expect(console_.accountLines().map((line) => line.event)).toEqual([
+      "email-change-revert",
     ]);
   });
 });

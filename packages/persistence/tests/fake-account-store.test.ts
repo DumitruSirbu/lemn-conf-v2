@@ -1212,6 +1212,187 @@ describe("FakeAccountStore.revertEmailChange and the reservation (ADR 0172 Amend
       expect((await confirmChange(token)).kind).toBe("changed");
     });
   });
+
+  describe("findRevertAddress: the address a live undo link restores, read without using the link up", () => {
+    it("finds the address left and the link's account, and uses nothing up", async () => {
+      const account = await registerVerified("Ana@Example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      const before = JSON.stringify(accounts.heldTokens());
+
+      const found = await accounts.findRevertAddress(undo);
+
+      expect(found).toEqual({
+        kind: "found",
+        accountId: account.accountId,
+        email: "Ana@Example.md",
+      });
+      expect(JSON.stringify(accounts.heldTokens())).toBe(before);
+      expect(isUnused(undo)).toBe(true);
+    });
+
+    it("finds an earlier link while a later one exists: the newest-token rule does not apply to it (oldest wins)", async () => {
+      const account = await registerVerified("a0@example.md", "first");
+      const oldest = await leaveFor(account, "a1@example.md", "one");
+      const newest = await leaveFor(account, "a2@example.md", "two");
+
+      expect(await accounts.findRevertAddress(oldest)).toMatchObject({
+        kind: "found",
+        email: "a0@example.md",
+      });
+      expect(await accounts.findRevertAddress(newest)).toMatchObject({
+        kind: "found",
+        email: "a1@example.md",
+      });
+    });
+
+    it("finds a link the account's later password change would have refused at the confirmation (the binding is exempt)", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      await accounts.changePassword({
+        accountId: account.accountId,
+        expectedPasswordHash: account.passwordHash,
+        passwordHash: passwordHashOf("second"),
+      });
+      advanceClock();
+
+      expect((await accounts.findRevertAddress(undo)).kind).toBe("found");
+    });
+
+    describe("answers none, the same one, for", () => {
+      it("an unknown token", async () => {
+        await registerVerified("ana@example.md", "first");
+
+        expect(await accounts.findRevertAddress(sha256Of("unknown"))).toEqual({
+          kind: "none",
+        });
+      });
+
+      it("an expired link", async () => {
+        const account = await registerVerified("ana@example.md", "first");
+        const undo = await leaveFor(account, "new@example.md", "one");
+        advanceClock(REVERT_LIFETIME_MS);
+
+        expect(await accounts.findRevertAddress(undo)).toEqual({
+          kind: "none",
+        });
+      });
+
+      it("a link already used", async () => {
+        const account = await registerVerified("ana@example.md", "first");
+        const undo = await leaveFor(account, "new@example.md", "one");
+        await revert(undo);
+
+        expect(await accounts.findRevertAddress(undo)).toEqual({
+          kind: "none",
+        });
+      });
+
+      it("a later link retired by the use of an earlier one", async () => {
+        const account = await registerVerified("ana@example.md", "first");
+        const oldest = await leaveFor(account, "second@example.md", "one");
+        const later = await leaveFor(account, "third@example.md", "two");
+        await revert(oldest);
+
+        expect(await accounts.findRevertAddress(later)).toEqual({
+          kind: "none",
+        });
+      });
+
+      it.each([
+        [
+          "an email-change token",
+          (a: Registered) => issueEmailChange(a, "x@example.md", "x"),
+        ],
+        ["a reset-password token", (a: Registered) => issueReset(a, "x")],
+      ])("%s", async (_label, issue) => {
+        const account = await registerVerified("ana@example.md", "first");
+        const tokenHash = await issue(account);
+
+        expect(await accounts.findRevertAddress(tokenHash)).toEqual({
+          kind: "none",
+        });
+      });
+    });
+
+    it("refuses a token hash of the wrong shape before reading", async () => {
+      await expect(accounts.findRevertAddress("short")).rejects.toThrow(
+        /token hash/,
+      );
+    });
+  });
+});
+
+describe("FakeAccountStore.issueToken with holdingEmailNormalForm", () => {
+  async function issueFor(
+    account: Registered,
+    holdingEmailNormalForm: string | undefined,
+  ) {
+    const tokenHash = sha256Of(`reset-holding-${holdingEmailNormalForm ?? ""}`);
+    const outcome = await accounts.issueToken({
+      accountId: account.accountId,
+      purpose: "reset-password",
+      tokenHash,
+      expiresAt: new Date(currentTime.getTime() + ONE_DAY_MS),
+      ...(holdingEmailNormalForm === undefined
+        ? {}
+        : { holdingEmailNormalForm }),
+    });
+    return { outcome, tokenHash };
+  }
+
+  it("issues while the account still holds the address", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+
+    const { outcome, tokenHash } = await issueFor(account, "ana@example.md");
+
+    expect(outcome).toEqual({ kind: "issued" });
+    expect(tokenState(tokenHash)).toEqual({ isUsed: false });
+  });
+
+  it("refuses, and writes no row, once a confirmed change has moved the account off the address", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    await expect(
+      confirmChange(await issueEmailChange(account, "new@example.md", "one")),
+    ).resolves.toMatchObject({ kind: "changed" });
+    const rowsBefore = accounts.heldTokens().length;
+
+    const { outcome, tokenHash } = await issueFor(account, "ana@example.md");
+
+    expect(outcome).toEqual({ kind: "refused" });
+    expect(tokenState(tokenHash)).toBeUndefined();
+    expect(accounts.heldTokens()).toHaveLength(rowsBefore);
+  });
+
+  it("refuses, and writes no row, once a revert has moved the account off the address", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const change = await issueEmailChange(account, "new@example.md", "one");
+    await confirmChange(change);
+    advanceClock();
+    await accounts.revertEmailChange({
+      tokenHash: revertHashOf(change),
+      passwordHash: passwordHashOf("after"),
+    });
+    advanceClock();
+
+    const { outcome, tokenHash } = await issueFor(account, "new@example.md");
+
+    expect(outcome).toEqual({ kind: "refused" });
+    expect(tokenState(tokenHash)).toBeUndefined();
+  });
+
+  it("is not conditioned on an address when none is given", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+
+    const { outcome } = await issueFor(account, undefined);
+
+    expect(outcome).toEqual({ kind: "issued" });
+  });
+
+  it("refuses an address of the wrong length before writing", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+
+    await expect(issueFor(account, "x")).rejects.toThrow(/held e-mail/);
+  });
 });
 
 describe("FakeAccountStore.issueEmailChangeToken", () => {
