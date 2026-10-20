@@ -129,9 +129,9 @@ run_gate test pnpm test
 # After `test` on purpose: listing loads the specs, which import the workspace packages' built `dist/`.
 run_gate e2e-shard-budget sh -c \
     'node --test scripts/gates/e2e-shard-budget.test.mjs && pnpm gate:e2e-shard-budget'
-# CI runs this as shards per Playwright project (`--shard=i/N`: three desktop, nine mobile), behind the
+# CI runs this as shards per Playwright project (`--shard=i/N`: five desktop, nine mobile), behind the
 # `e2e (desktop)` and `e2e (mobile)` summary jobs. The shards partition the suite by whole files, so
-# running everything here covers exactly the tests the eleven CI legs cover between them; a local run
+# running everything here covers exactly the tests the fourteen CI legs cover between them; a local run
 # gains nothing from sharding and would pay a production build per shard.
 #
 # `CI=1` is set for this step alone, on purpose (owner ruling Q42, 2026-10-12): playwright.config.ts reads

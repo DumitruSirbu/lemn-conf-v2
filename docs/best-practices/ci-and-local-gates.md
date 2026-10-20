@@ -486,7 +486,7 @@ machine carries. Read the workflow's own comments for the history; this section 
 
 | Job id | Name in the checks list | Runs | On a pull request |
 | --- | --- | --- | --- |
-| `e2e-desktop-shard` | `e2e shard (desktop) (i, 3)` | `playwright test --project=desktop --shard=i/3` | skipped |
+| `e2e-desktop-shard` | `e2e shard (desktop) (i, 5)` | `playwright test --project=desktop --shard=i/5` | skipped |
 | `e2e-mobile-shard` | `e2e shard (mobile) (i, 9)` | `playwright test --project=mobile --shard=i/9` | skipped |
 | `e2e-desktop` | **`e2e (desktop)`** | the summary over the desktop shards | skipped |
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
@@ -515,10 +515,11 @@ says. The shard names are free to change and must **not** be required checks.
   skipped required check counts as passing.) On a pull request it carries the shards' own
   `github.event_name != 'pull_request'` condition and reports **skipped**, as the old job did; GitHub
   counts a skipped required check as passing, so nothing new can block a pull request.
-- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ eleven-leg matrix** (corrected 2026-10-13 at M8 wave 8M's
-  close: 3 desktop plus 9 mobile legs, read from `.github/workflows/ci.yml` `shard: [1, 2, 3]` at line 338 and
-  `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]` at line 535, and `SHARDS_PER_PROJECT = { desktop: 3, mobile: 9 }` in
-  `scripts/gates/e2e-shard-budget.mjs:48`; it was nine at 3 + 6 on 2026-10-08, and six when mobile had three
+- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ ~~eleven-leg~~ fourteen-leg matrix** (corrected 2026-10-21 for
+  the desktop raise from three to five shards: 5 desktop plus 9 mobile legs, read from `.github/workflows/ci.yml`
+  `shard: [1, 2, 3, 4, 5]` in `e2e-desktop-shard` and `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]` in `e2e-mobile-shard`, and
+  `SHARDS_PER_PROJECT = { desktop: 5, mobile: 9 }` in `scripts/gates/e2e-shard-budget.mjs`; it was eleven at 3 + 9 on
+  2026-10-13, nine at 3 + 6 on 2026-10-08, and six when mobile had three
   shards; the count moves with `SHARDS_PER_PROJECT`, so read it there), because a job's `needs` names whole jobs and a
   matrix job's result aggregates all its legs: one matrix could feed only one summary, and
   `e2e (desktop)` would go red for a mobile failure. Two jobs also let each project carry its own
