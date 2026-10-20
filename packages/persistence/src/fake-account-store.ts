@@ -393,9 +393,11 @@ export class FakeAccountStore implements AccountStore {
       requireValidPasswordReset(reset);
       const token = this.liveToken(reset.tokenHash, "reset-password");
       const account = token && this.accountsById.get(token.accountId);
-      if (token === undefined || account?.emailVerifiedAt === undefined) {
-        return { kind: "invalid" };
-      }
+      const isResettable =
+        token !== undefined &&
+        account?.emailVerifiedAt !== undefined &&
+        token.issuedAt.getTime() >= account.passwordChangedAt.getTime();
+      if (!isResettable) return { kind: "invalid" };
       const at = this.now();
       this.retireEmailTokensOf(account.id, at);
       this.accountsById.set(account.id, {

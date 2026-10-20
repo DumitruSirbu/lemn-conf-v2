@@ -46,6 +46,12 @@ const ADDRESS_TAKEN_ROWS: readonly Record<string, unknown>[] = Object.freeze([
  * that still holds the hash the caller verified gets one. Inserted from a `select` of its account, so an account that
  * is gone inserts nothing and raises no foreign-key error. Repeating it after a lost acknowledgement finds its own
  * row and answers issued.
+ *
+ * The account row is locked `for share`, as `SessionStore.create` does: a password change in flight (`revertEmailChange`
+ * holds the row `for update` until its commit) makes this statement wait, and when it resumes the row is re-checked
+ * against `password_hash = verifiedPasswordHash`, which the change has replaced, so nothing is inserted. Without the
+ * lock a request whose snapshot predates that commit would insert a token, stamped later than `password_changed_at`,
+ * that the revert's sweep never saw.
  */
 export async function issueEmailChangeToken(
   sql: ApplicationSql,
@@ -72,6 +78,7 @@ export async function issueEmailChangeToken(
             from accounts a
             where a.id = ${accountId} and a.email_verified_at is not null
               and a.password_hash = ${verifiedPasswordHash}
+            for share of a
             on conflict (token_hash) do nothing
             returning token_hash
           )
@@ -307,17 +314,27 @@ function emailChangeOutcomeFrom(
 }
 
 /**
- * The undo link's transaction, at READ COMMITTED, the token alone as the subject (ADR 0172 Amendment H). Statement 1
- * locks the token's account row (`for update`, as `confirmEmailChange` does) and consumes the token under: the
- * `email-change-revert` purpose, unused, unexpired, a row that carries an address, an account that is verified, an
- * address no other account holds, and an address no **other** account's live undo link reserves. It has **neither** of
- * the two rules every other token obeys: it need not be the newest of its purpose (any live undo link is valid), and it
- * need not be issued after the last password change (a change of password is no reason to lose the way back). It then
- * retires every other unused token of the account that is not an undo link, **and every undo link created after this
- * one** (`(created_at, token_hash) >`, as everywhere else): the oldest wins, so using a later link never kills an
- * earlier one. It replaces `email` and `email_normal_form` from the row and sets the new hash, `password_changed_at`
- * (`clock_timestamp()`, see `completeReset`) and `updated_at`. Statement 2 revokes every unrevoked session of the
- * account in a fresh snapshot, only for a token **this transaction** consumed (`used_at = now()`).
+ * The undo link's transaction, at READ COMMITTED, the token alone as the subject (ADR 0172 Amendment H). **Three
+ * statements.** Statement 1 only locks the token's account row (`for update`, as `confirmEmailChange` does), and it
+ * stands alone on purpose: a statement reads the snapshot taken when it **starts**, before it waits on a row lock, so
+ * the oldest-wins retirement below, were it in the same statement as the lock, could not see an undo link that a
+ * concurrent `confirmEmailChange` (which holds the row, and writes one while it does) committed during the wait. That
+ * undo link, mailed to whoever confirmed, would survive this revert and take the account back. The lock is held to
+ * the commit, and no confirm writes an undo link without first taking it, so statement 2's fresh snapshot is the last
+ * word on the account's tokens. It is the reason `completeReset` gives for revoking sessions in a statement of its own.
+ * The same lock is why `issueEmailChangeToken` locks the row `for share`: a request that began after this transaction
+ * took it waits, and finds the hash replaced.
+ *
+ * Statement 2 consumes the token under: the `email-change-revert` purpose, unused, unexpired, a row that carries an
+ * address, an account that is verified, an address no other account holds, and an address no **other** account's live
+ * undo link reserves. It has **neither** of the two rules every other token obeys: it need not be the newest of its
+ * purpose (any live undo link is valid), and it need not be issued after the last password change (a change of
+ * password is no reason to lose the way back). It then retires every other unused token of the account that is not an
+ * undo link, **and every undo link created after this one** (`(created_at, token_hash) >`, as everywhere else): the
+ * oldest wins, so using a later link never kills an earlier one. It replaces `email` and `email_normal_form` from the
+ * row and sets the new hash, `password_changed_at` (`clock_timestamp()`, see `completeReset`) and `updated_at`.
+ * Statement 3 revokes every unrevoked session of the account in a fresh snapshot, only for a token **this
+ * transaction** consumed (`used_at = now()`).
  *
  * A unique violation (an address another account took after the snapshot) rolls the transaction back and answers
  * `invalid`, as for any refusal. Any other failure propagates.
@@ -333,9 +350,17 @@ export async function revertEmailChange(
   const { tokenHash, passwordHash } = revert;
   const rows = await queryRows("revert an e-mail address change", async () => {
     try {
-      const [revertRows] = await retryOnTransientFailure(({ isRetry }) =>
+      const [, revertRows] = await retryOnTransientFailure(({ isRetry }) =>
         sql.transaction(
           [
+            sql`
+                select a.id from accounts a
+                where a.id in (
+                  select t.account_id from account_email_tokens t
+                  where t.token_hash = ${tokenHash} and t.purpose = ${EMAIL_CHANGE_REVERT}
+                )
+                for update
+              `,
             sql`
                 with locked as (
                   select a.id, a.locale, a.email_verified_at

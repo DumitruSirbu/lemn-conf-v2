@@ -736,24 +736,27 @@ decision 10). The accounts backup is a later wave.
 **The test database.** The live persistence suite applies every migration to the test database through each live file's
 `beforeAll`; no grant is needed there.
 
-## For `0016`–`0018`, the client dashboard columns (M8B Lot 2 wave S1, added 2026-10-19)
+## For `0016`–`0019`, the client dashboard columns and the reservation index (M8B Lot 2 wave S1, added 2026-10-19; `0019` added 2026-10-20)
 
 The steps above stand. No table is created: `0016` adds four columns to `designs`, `0017` adds two to `accounts`, and
-`0018` adds two to `account_email_tokens`. The ledger goes from **15 to 18**. The decision and its reasons: ADR 0172
+`0018` adds two to `account_email_tokens`, and `0019` adds one partial index to the same table (the lookup of a reserved
+address, security review finding F3 of wave S13b; **no grant**, an index is not a privilege). The ledger goes from **15 to 19**. The decision and its reasons: ADR 0172
 Amendment F (P6, P8, P12) and the plan `docs/milestones/M8B-account-screens-lot2-plan.md`, section 2.4 step 2.
 **Nothing in this section has been executed anywhere** [written in wave S1 by its developer; the SQL and the grants
 below have not been run against any database, and the privilege test has no arms for them: no tests this round,
-ADR 0172 D12]. **The numbers `0016`–`0018` are provisional** until the M8C merge settles which migration numbers the
+ADR 0172 D12]. **The numbers `0016`–`0019` are provisional** until the M8C merge settles which migration numbers the
 base holds (ADR 0172, Remaining items 1 and 9); if a number changes, the file names, the ledger readings below and the
 headers' ledger sentences change with it, **before** any of them is applied. **Order of environments: preview first,
 then production**, every step on one database before the next.
 
-**Apply order.** `0016`–`0018` come **after `0015`** and the runner refuses a gap, so a database whose ledger reads
+**Apply order.** `0016`–`0019` come **after `0015`** and the runner refuses a gap, so a database whose ledger reads
 fewer than 15 takes `0012`–`0015` first (section above), including their own grants. Then, in this order: the
 migrations (step 1), the checks (step 2), the grants (step 4), the code. The migrations are additive, so applying them
 before the code is harmless; the code naming a column the database lacks answers 500. `0016`–`0018` pass the
 unattended screen [executed in wave S1: `pnpm --filter @lemnaria/persistence run migrate:unattended-check` printed
-"every migration file is additive and idempotent" and exited 0], but applying them stays the owner's step.
+"every migration file is additive and idempotent" and exited 0; executed again on 2026-10-20 with `0019` present, same
+answer], but applying them stays the owner's step. `0019` can be applied before or after the code that reads the
+reservation: the queries are the same with or without the index.
 
 **The nightly `designs` backup names `0016`'s columns.** Its select reads `sent_at`, `hidden_by_client_at` and
 `deleted_by_client_at`, so `0016` (and `0015` before it, which the runner requires) must be applied in each
@@ -770,9 +773,21 @@ and no recovery point is written that night (`docs/runbooks/design-db-restore.md
 | `designs` | none | `app_designs` holds table-level `UPDATE` (ADR 0019 decision 11), which covers all four new columns | — |
 
 - **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
-  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **18** (1 to 15 before). For
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **19** (1 to 15 before). For
   preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
   ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0019`:** `create index if not exists` passes over an older index of the same name, so confirm it is the one
+  the file describes. Read-only, with the migration credential:
+
+  ```sql
+  -- Expect 1 row: the index on account_email_tokens (new_email_normal_form), partial on purpose and used_at.
+  select indexname, indexdef from pg_indexes
+  where schemaname = 'public' and tablename = 'account_email_tokens'
+    and indexname = 'account_email_tokens_live_reservation_idx';
+  ```
+
+  `indexdef` must read `… USING btree (new_email_normal_form) WHERE ((purpose = 'email-change-revert'::text) AND (used_at IS NULL))`
+  [inference from the SQL, never run]. Any other answer means stop and report.
 - **Step 2, for `0016`–`0018`:** `add column if not exists` passes over an older column of the same name, so confirm the
   columns and checks are the ones the files describe. Read-only, with the migration credential:
 

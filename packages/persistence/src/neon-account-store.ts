@@ -196,7 +196,9 @@ export class NeonAccountStore implements AccountStore {
    * ADR 0172 Amendment H). That snapshot shows an address change and the undo row it writes together or not at all, so
    * a registration that began while the change was committing is refused whichever side of the commit it read. The
    * unique index alone would not do it: it waits for the change to commit and then lets the insert through, with the
-   * undo row unseen. `on conflict do nothing` takes no target and stays as the backstop for a racing registration; the
+   * undo row unseen. The reservation is read in one `materialized` CTE that the insert and the answer both refer to, so
+   * `account_email_tokens` is scanned at most once by the statement (`0019`'s partial index serves that scan): twice,
+   * without an index, was a cost a caller could time. `on conflict do nothing` takes no target and stays as the backstop for a racing registration; the
    * final `select` finds the row by this call's own id, which is what tells a retry that landed from an address that
    * was already taken, and tells a reserved address from a taken one. No `on conflict do update` appears, so the grant
    * never needs more than INSERT.
@@ -207,7 +209,15 @@ export class NeonAccountStore implements AccountStore {
     const rows = await queryRows("create an account", () =>
       retryOnTransientFailure(
         () => this.sql`
-          with inserted as (
+          with reservation as materialized (
+            select exists (
+              select 1 from account_email_tokens r
+              where r.purpose = ${EMAIL_CHANGE_REVERT}
+                and r.used_at is null
+                and r.expires_at > now()
+                and r.new_email_normal_form = ${account.emailNormalForm}
+            ) as is_live
+          ), inserted as (
             insert into accounts (
               id, email, email_normal_form, password_hash, locale, phone, phone_normal_form, privacy_notice_version
             )
@@ -217,13 +227,7 @@ export class NeonAccountStore implements AccountStore {
             where not exists (
                 select 1 from accounts holder where holder.email_normal_form = ${account.emailNormalForm}
               )
-              and not exists (
-                select 1 from account_email_tokens reservation
-                where reservation.purpose = ${EMAIL_CHANGE_REVERT}
-                  and reservation.used_at is null
-                  and reservation.expires_at > now()
-                  and reservation.new_email_normal_form = ${account.emailNormalForm}
-              )
+              and not (select is_live from reservation)
             on conflict do nothing
             returning id
           )
@@ -234,13 +238,7 @@ export class NeonAccountStore implements AccountStore {
             ) as account_id,
             (
               not exists (select 1 from accounts holder where holder.email_normal_form = ${account.emailNormalForm})
-              and exists (
-                select 1 from account_email_tokens reservation
-                where reservation.purpose = ${EMAIL_CHANGE_REVERT}
-                  and reservation.used_at is null
-                  and reservation.expires_at > now()
-                  and reservation.new_email_normal_form = ${account.emailNormalForm}
-              )
+              and (select is_live from reservation)
             ) as is_reserved
         `,
       ),
@@ -403,10 +401,12 @@ export class NeonAccountStore implements AccountStore {
    * The same gate over a `reset-password` token of a **verified** account; the account comes from the token. It is one
    * transaction of two statements, at READ COMMITTED (pinned: the second statement's fresh snapshot is load-bearing).
    *
-   * Statement 1 consumes the token, retires every other unused token of the account (any purpose but
-   * `email-change-revert`, so a mailed link cannot outlive the password it was issued under, while the undo link of an
-   * address change survives: ADR 0172 Amendment H) and sets the password and `password_changed_at`, and answers
-   * whether the token was consumed. Its `accounts` update waits for any `SessionStore.create` holding the account row
+   * Statement 1 consumes the token, which must have been **issued no earlier than the account's last password change**
+   * (as an `email-change` token must, ADR 0172 Amendment G item 2): a link whose request was in flight when a revert or a
+   * change of password committed is refused even though the sweep that retires such links never saw it. It retires every
+   * other unused token of the account (any purpose but `email-change-revert`, so a mailed link cannot outlive the
+   * password it was issued under, while the undo link of an address change survives: ADR 0172 Amendment H) and sets
+   * the password and `password_changed_at`, and answers whether the token was consumed. Its `accounts` update waits for any `SessionStore.create` holding the account row
    * `for share`, and then holds the row until the transaction commits, so a later `create` waits and finds the hash
    * replaced. Statement 2 revokes the account's unrevoked sessions. It cannot be a CTE of statement 1: a CTE reads the
    * snapshot taken before that wait, and so misses the session a login committed while the update waited. A separate
@@ -446,6 +446,7 @@ export class NeonAccountStore implements AccountStore {
                     and exists (
                       select 1 from accounts a
                       where a.id = t.account_id and a.email_verified_at is not null
+                        and t.created_at >= a.password_changed_at
                     )
                     and not exists (
                       select 1 from account_email_tokens newer

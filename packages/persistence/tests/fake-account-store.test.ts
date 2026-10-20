@@ -1375,6 +1375,89 @@ describe("FakeAccountStore.completeReset retires every unused token and ends eve
   });
 });
 
+describe("FakeAccountStore.completeReset refuses a token issued before the account's last password change", () => {
+  // The sweep that follows a change of password retires every token it can see. A request that was in flight when the
+  // change committed is the one it cannot, so the test issues the token with the clock set back to before the change.
+  const NEW_HASH = passwordHashOf("after-the-change");
+
+  async function changePasswordThen(account: Registered): Promise<Date> {
+    advanceClock(60_000);
+    const outcome = await accounts.changePassword({
+      accountId: account.accountId,
+      expectedPasswordHash: account.passwordHash,
+      passwordHash: NEW_HASH,
+    });
+    expect(outcome).toEqual({ kind: "changed" });
+    return new Date(currentTime);
+  }
+
+  async function revertThen(account: Registered): Promise<Date> {
+    const change = await issueEmailChange(account, "new@example.md", "one");
+    await confirmChange(change);
+    advanceClock(60_000);
+    const outcome = await accounts.revertEmailChange({
+      tokenHash: revertHashOf(change),
+      passwordHash: NEW_HASH,
+    });
+    expect(outcome.kind).toBe("reverted");
+    return new Date(currentTime);
+  }
+
+  it.each([
+    ["a change of password", changePasswordThen],
+    ["a revert of an address change", revertThen],
+  ])(
+    "after %s: a token issued an instant earlier answers invalid",
+    async (_label, change) => {
+      const account = await registerVerified("ana@example.md", "first");
+      const changedAt = await change(account);
+      currentTime = new Date(changedAt.getTime() - 1);
+      const inFlight = await issueReset(account, "in-flight");
+      currentTime = new Date(changedAt.getTime() + 1_000);
+
+      const outcome = await accounts.completeReset({
+        tokenHash: inFlight,
+        passwordHash: passwordHashOf("attacker-chosen"),
+      });
+
+      expect(outcome).toEqual({ kind: "invalid" });
+      expect(accounts.passwordHashOf(account.accountId)).toBe(NEW_HASH);
+    },
+  );
+
+  it.each([
+    ["a change of password", changePasswordThen],
+    ["a revert of an address change", revertThen],
+  ])(
+    "after %s: a token issued in the same instant, or later, is honoured",
+    async (_label, change) => {
+      const account = await registerVerified("ana@example.md", "first");
+      const changedAt = await change(account);
+      currentTime = new Date(changedAt);
+      const sameInstant = await issueReset(account, "same-instant");
+
+      const outcome = await accounts.completeReset({
+        tokenHash: sameInstant,
+        passwordHash: passwordHashOf("after-reset"),
+      });
+
+      expect(outcome).toEqual({ kind: "password-changed" });
+    },
+  );
+
+  it("a first reset after registration and verification is honoured: the token is issued after the account's creation", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const reset = await issueReset(account, "first");
+
+    expect(
+      await accounts.completeReset({
+        tokenHash: reset,
+        passwordHash: passwordHashOf("fresh"),
+      }),
+    ).toEqual({ kind: "password-changed" });
+  });
+});
+
 describe("FakeAccountStore.updateProfile and findProfile", () => {
   async function profileOf(accountId: string) {
     const lookup = await accounts.findProfile(accountId);

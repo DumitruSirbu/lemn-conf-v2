@@ -761,6 +761,18 @@ describe("issueEmailChangeToken and retireEmailChangeTokens", () => {
     ]);
   });
 
+  // Serial mock driver: the revert holding the row cannot be interleaved here, so the lock clause is asserted in the
+  // text, where it must sit between the predicate it re-checks and the insert it guards.
+  it("locks the account row for share, after the hash predicate it re-checks and before the insert's conflict clause, so a revert in flight is waited for", async () => {
+    const text = normalised(
+      await loneStatementOf(issue, [{ token_hash: TOKEN_HASH }]),
+    );
+
+    expect(text).toContain(
+      "and a.password_hash = ? for share of a on conflict (token_hash) do nothing",
+    );
+  });
+
   it("finds a row its own earlier attempt inserted only under the same account and the e-mail-change purpose", async () => {
     const text = normalised(
       await loneStatementOf(issue, [{ token_hash: TOKEN_HASH }]),
@@ -828,6 +840,23 @@ describe("the other token-retiring statement Lot 2 changed", () => {
     );
   });
 
+  it("completeReset consumes only a token issued no earlier than the account's last password change, inside the verified-account test", async () => {
+    resetQueryDriver();
+    answerTransactionWith([[{ is_done: true }], []]);
+
+    await newStore().completeReset({
+      tokenHash: TOKEN_HASH,
+      passwordHash: NEW_PASSWORD_HASH,
+    });
+
+    const [consume] = statementsOf(
+      queryDriver.transactions[0] ?? { statements: [], options: undefined },
+    );
+    expect(consume).toContain(
+      "and exists ( select 1 from accounts a where a.id = t.account_id and a.email_verified_at is not null and t.created_at >= a.password_changed_at )",
+    );
+  });
+
   it("completeReset stamps password_changed_at with the wall clock, as changePassword does, not the transaction's now()", async () => {
     resetQueryDriver();
     answerTransactionWith([[{ is_done: true }], []]);
@@ -864,16 +893,24 @@ describe("createUnverified: one statement, the address refused when held or rese
   it("is one lone statement, not a transaction: the count of statements a registration costs does not change", async () => {
     const statement = await loneStatementOf(create, CREATED);
 
-    expect(statement.text).toContain("with inserted as");
+    expect(statement.text).toContain("inserted as (");
+  });
+
+  it("reads the reservation once, in a materialized CTE, and no other part of the statement touches the token table", async () => {
+    const text = normalised(await loneStatementOf(create, CREATED));
+
+    expect(text).toMatch(
+      /^with reservation as materialized \( select exists \( select 1 from account_email_tokens r where r\.purpose = \? and r\.used_at is null and r\.expires_at > now\(\) and r\.new_email_normal_form = \? \) as is_live \), inserted as \(/,
+    );
+    expect(text.match(/account_email_tokens/g)).toHaveLength(1);
+    expect(text.match(/from reservation/g)).toHaveLength(2);
   });
 
   it("inserts from a select that holds both predicates in the statement's one snapshot: no holder, no live undo row", async () => {
     const text = normalised(await loneStatementOf(create, CREATED));
 
     expect(text).toContain(
-      "where not exists ( select 1 from accounts holder where holder.email_normal_form = ? ) and not exists ( select 1 from account_email_tokens reservation where " +
-        LIVE_RESERVATION_ROW +
-        " ) on conflict do nothing returning id",
+      "where not exists ( select 1 from accounts holder where holder.email_normal_form = ? ) and not (select is_live from reservation) on conflict do nothing returning id",
     );
     expect(text).not.toContain("values (");
   });
@@ -889,18 +926,16 @@ describe("createUnverified: one statement, the address refused when held or rese
     const text = normalised(await loneStatementOf(create, CREATED));
 
     expect(text).toContain(
-      "( not exists (select 1 from accounts holder where holder.email_normal_form = ?) and exists ( select 1 from account_email_tokens reservation where " +
-        LIVE_RESERVATION_ROW +
-        " ) ) as is_reserved",
+      "( not exists (select 1 from accounts holder where holder.email_normal_form = ?) and (select is_live from reservation) ) as is_reserved",
     );
   });
 
-  it("binds the undo purpose and the address, never an address in the text", async () => {
+  it("binds the undo purpose once and the address, never an address in the text", async () => {
     const statement = await loneStatementOf(create, CREATED);
 
     expect(
       statement.values.filter((value) => value === "email-change-revert"),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(statement.text).not.toContain(NORMAL_FORM);
   });
 
@@ -959,7 +994,7 @@ describe("createUnverified: one statement, the address refused when held or rese
   });
 });
 
-describe("revertEmailChange: two statements in one ReadCommitted transaction", () => {
+describe("revertEmailChange: three statements in one ReadCommitted transaction", () => {
   const REVERTED = [
     {
       is_done: true,
@@ -973,51 +1008,46 @@ describe("revertEmailChange: two statements in one ReadCommitted transaction", (
       tokenHash: TOKEN_HASH,
       passwordHash: NEW_PASSWORD_HASH,
     });
+  const lockOf = async () =>
+    statementsOf(await transactionOf(revert, [[], REVERTED, []]))[0] ?? "";
   const consumeOf = async () =>
-    statementsOf(await transactionOf(revert, [REVERTED, []]))[0] ?? "";
+    statementsOf(await transactionOf(revert, [[], REVERTED, []]))[1] ?? "";
 
-  it("consumes the undo link and restores the address, then revokes the sessions", async () => {
-    const transaction = await transactionOf(revert, [REVERTED, []]);
-    const [consume, revoke] = statementsOf(transaction);
+  it("locks the account, then consumes the undo link and restores the address, then revokes the sessions", async () => {
+    const transaction = await transactionOf(revert, [[], REVERTED, []]);
+    const [lock, consume, revoke] = statementsOf(transaction);
 
     expect(transaction.options).toEqual({ isolationLevel: "ReadCommitted" });
-    expect(transaction.statements).toHaveLength(2);
+    expect(transaction.statements).toHaveLength(3);
+    expect(lock).toMatch(/^select a\.id from accounts a where /);
     expect(consume).toMatch(/^with locked as \(/);
     expect(revoke).toMatch(/^update account_sessions set revoked_at = now\(\)/);
   });
 
-  it("locks the token's account row before it consumes anything", async () => {
-    expect(await consumeOf()).toContain(
-      "from accounts a where a.id in (select t.account_id from account_email_tokens t where t.token_hash = ?) for update )",
-    );
-  });
+  // The mock driver and the fake are serial: neither can commit a second transaction while the first waits on a row
+  // lock, so the interleaving below cannot be run here, only its precondition asserted. A statement reads the snapshot
+  // taken when it starts, and the lock wait happens inside it; the oldest-wins sweep sees an undo link a concurrent
+  // confirm committed during that wait only if it starts after the wait is over, that is, in a later statement.
+  describe("oldest wins against a confirm that commits while the revert waits for the account row", () => {
+    it("takes the account row lock in a statement of its own, which does nothing else", async () => {
+      expect(await lockOf()).toBe(
+        "select a.id from accounts a where a.id in ( select t.account_id from account_email_tokens t where t.token_hash = ? and t.purpose = ? ) for update",
+      );
+    });
 
-  describe("the token is consumed only under every rule at once", () => {
-    const RULES = [
-      [
-        "it is found by its hash and tied to the locked account",
-        "where t.token_hash = ? and t.account_id = l.id",
-      ],
-      ["its purpose is email-change-revert", "t.purpose = ?"],
-      ["it is unused", "t.used_at is null"],
-      ["it is unexpired by the database's clock", "t.expires_at > now()"],
-      [
-        "it carries an address",
-        "t.new_email is not null and t.new_email_normal_form is not null",
-      ],
-      ["the account is verified", "l.email_verified_at is not null"],
-      [
-        "no other account holds the address",
-        "not exists ( select 1 from accounts holder where holder.email_normal_form = t.new_email_normal_form and holder.id <> t.account_id )",
-      ],
-      [
-        "no other account's live undo link reserves the address",
-        RESERVED_BY_ANOTHER_ACCOUNT,
-      ],
-    ] as const;
+    it("sweeps the later undo links in a later statement than the one that locks, and locks once, first", async () => {
+      const statements = statementsOf(
+        await transactionOf(revert, [[], REVERTED, []]),
+      );
 
-    it.each(RULES)("%s", async (_label, predicate) => {
-      expect(await consumeOf()).toContain(predicate);
+      const lockPositions = statements.flatMap((text, position) =>
+        text.startsWith("select a.id from accounts a") ? [position] : [],
+      );
+      const sweepPosition = statements.findIndex((text) =>
+        text.includes("(s.created_at, s.token_hash) > (c.created_at, ?::text)"),
+      );
+      expect(lockPositions).toEqual([0]);
+      expect(sweepPosition).toBeGreaterThan(0);
     });
   });
 
@@ -1045,9 +1075,13 @@ describe("revertEmailChange: two statements in one ReadCommitted transaction", (
   });
 
   it("binds the caller's hashes and the undo purpose, and no address", async () => {
-    const transaction = await transactionOf(revert, [REVERTED, []]);
+    const transaction = await transactionOf(revert, [[], REVERTED, []]);
 
     expect(transaction.statements[0]?.values).toEqual([
+      TOKEN_HASH,
+      "email-change-revert",
+    ]);
+    expect(transaction.statements[1]?.values).toEqual([
       TOKEN_HASH,
       TOKEN_HASH,
       "email-change-revert",
@@ -1073,13 +1107,13 @@ describe("revertEmailChange: two statements in one ReadCommitted transaction", (
   });
 
   it("the second statement revokes only the sessions of an account whose undo link this transaction used (used_at = now())", async () => {
-    const transaction = await transactionOf(revert, [REVERTED, []]);
-    const [, revoke] = statementsOf(transaction);
+    const transaction = await transactionOf(revert, [[], REVERTED, []]);
+    const [, , revoke] = statementsOf(transaction);
 
     expect(revoke).toBe(
       "update account_sessions set revoked_at = now() where revoked_at is null and account_id in ( select t.account_id from account_email_tokens t where t.token_hash = ? and t.purpose = ? and t.used_at = now() ) returning token_hash",
     );
-    expect(transaction.statements[1]?.values).toEqual([
+    expect(transaction.statements[2]?.values).toEqual([
       TOKEN_HASH,
       "email-change-revert",
     ]);
@@ -1094,7 +1128,7 @@ describe("revertEmailChange: two statements in one ReadCommitted transaction", (
 
   it("answers reverted with the restored address and the account's language", async () => {
     resetQueryDriver();
-    answerTransactionWith([REVERTED, []]);
+    answerTransactionWith([[], REVERTED, []]);
 
     expect(await revert()).toEqual({
       kind: "reverted",
@@ -1107,6 +1141,7 @@ describe("revertEmailChange: two statements in one ReadCommitted transaction", (
   it("answers invalid, the one answer, for a token the statement did not consume", async () => {
     resetQueryDriver();
     answerTransactionWith([
+      [],
       [
         {
           is_done: false,
@@ -1124,6 +1159,7 @@ describe("revertEmailChange: two statements in one ReadCommitted transaction", (
   it("is the store error for a done answer that names no address", async () => {
     resetQueryDriver();
     answerTransactionWith([
+      [],
       [
         {
           is_done: true,

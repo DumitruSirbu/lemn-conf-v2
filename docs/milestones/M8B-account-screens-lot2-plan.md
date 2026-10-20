@@ -1417,7 +1417,11 @@ residual stated as such.
 2. **Mail is best-effort.** If the process dies after the confirm commits and before the mail is queued, the revert
    link is lost. The request-time notice is the backstop.
 3. **Not undone:** §14.3.3 item 6.
-4. **The register-against-confirm reservation race** (§14.3.4), if not closed by a lock.
+4. ~~**The register-against-confirm reservation race** (§14.3.4), if not closed by a lock.~~ **Struck 2026-10-20
+   (source-verified when F1 to F3 of the S13b review were fixed, `createUnverified` and `confirmEmailChange`): closed
+   without a lock.** The holder test and the reservation test sit in one statement's one snapshot, and the move off
+   address A and the undo row that reserves it commit together. A registration whose snapshot predates the confirm sees A held; one whose snapshot
+   follows it sees A reserved. No snapshot shows A as free, so there is nothing for a lock to add.
 5. **One more mail per E8** on the shared Gmail quota (D6), bounded at 5 a day per account.
 
 **The security reviewer must judge, by name:**

@@ -76,6 +76,7 @@ const ALL_MIGRATION_FILE_NAMES = [
   "0016_add_design_dashboard_columns.sql",
   "0017_add_account_profile_columns.sql",
   "0018_add_email_token_new_address.sql",
+  "0019_add_email_token_reservation_index.sql",
 ];
 
 /** Every version after the first, read from disk. Forgetting a *suffix* of the ledger is the only
