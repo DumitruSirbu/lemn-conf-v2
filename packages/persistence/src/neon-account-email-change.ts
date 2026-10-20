@@ -2,6 +2,7 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 import {
   AccountStoreError,
+  EMAIL_CHANGE_REVERT_PURPOSE,
   requireValidEmailChangeConfirmation,
   requireValidEmailChangeRetirement,
   requireValidEmailChangeTokenToIssue,
@@ -19,6 +20,7 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 type ApplicationSql = NeonQueryFunction<false, false>;
 
 const EMAIL_CHANGE = "email-change";
+const EMAIL_CHANGE_REVERT = EMAIL_CHANGE_REVERT_PURPOSE;
 
 const UNIQUE_VIOLATION = "23505";
 /** `0012`'s unique constraint on `accounts.email_normal_form`. */
@@ -104,23 +106,33 @@ export async function retireEmailChangeTokens(
  * newest live of its account, a row that carries an address, an account that is verified, **issued no earlier than the
  * account's last password change** (a link mailed before a change of password is refused even if it was never
  * retired), and a new address no other account holds. It then retires every other unused token of the account of any
- * purpose, so a reset link mailed to the old address cannot outlive it, and replaces `email` and `email_normal_form`.
- * Statement 2 revokes the account's unrevoked sessions in a fresh snapshot, only for a token **this transaction**
- * consumed (`used_at = now()`).
+ * purpose **except `email-change-revert`**, so a reset link mailed to the old address cannot outlive it but an earlier
+ * undo link can (ADR 0172 Amendment H), and replaces `email` and `email_normal_form`. Statement 2 revokes the account's
+ * unrevoked sessions in a fresh snapshot, only for a token **this transaction** consumed (`used_at = now()`).
+ *
+ * The undo link is written by statement 1 as well: one `email-change-revert` row, holding the address being left, the
+ * caller's `revertTokenHash` and `revertExpiresAt`, inserted `from consumed`. It is **not** inserted from `locked`
+ * alone: `locked` matches the account of any hash submitted, valid or not, so a refused confirmation (a used link
+ * clicked again) would write a row that reserves the account's current address. A rolled-back confirmation leaves no
+ * row either. The value is minted by the caller once, outside the retry, so every attempt names the same hash.
  *
  * A new address another account took after statement 1's snapshot raises the unique violation of
  * `accounts_email_normal_form_is_unique`; the transaction rolls back, the token stays whole, and the answer is
- * `invalid`, the same as for an expired link. Any other failure propagates.
+ * `invalid`, the same as for an expired link. Any other failure propagates, a revert hash already held included.
  *
  * The old address and language are read from the locked row, for the notice to the old address. On a retry only, a
- * used token whose account already holds its new address is the first attempt's own write: it answers `changed`
- * without them, since the first attempt had replaced them.
+ * used token whose account already holds its new address is the first attempt's own write: it answers `changed`, and
+ * the old address comes from the revert row **by this call's hash** (the language from the account, which a change of
+ * address leaves alone). No such row means another call made the change: `previous` is absent, so no notice and no
+ * link whose hash is in no row is sent.
  */
 export async function confirmEmailChange(
   sql: ApplicationSql,
-  { tokenHash }: EmailChangeConfirmation,
+  confirmation: EmailChangeConfirmation,
 ): Promise<EmailChangeOutcome> {
-  requireValidEmailChangeConfirmation({ tokenHash });
+  requireValidEmailChangeConfirmation(confirmation);
+  const { tokenHash, revertTokenHash } = confirmation;
+  const revertExpiresAt = confirmation.revertExpiresAt.toISOString();
   const rows = await queryRows("change an e-mail address", async () => {
     try {
       const [changeRows] = await retryOnTransientFailure(({ isRetry }) =>
@@ -128,7 +140,7 @@ export async function confirmEmailChange(
           [
             sql`
                 with locked as (
-                  select a.id, a.email, a.locale, a.email_verified_at, a.password_changed_at
+                  select a.id, a.email, a.email_normal_form, a.locale, a.email_verified_at, a.password_changed_at
                   from accounts a
                   where a.id in (select t.account_id from account_email_tokens t where t.token_hash = ${tokenHash})
                   for update
@@ -163,7 +175,27 @@ export async function confirmEmailChange(
                   where s.account_id in (select account_id from consumed)
                     and s.used_at is null
                     and s.token_hash <> ${tokenHash}
+                    and s.purpose <> ${EMAIL_CHANGE_REVERT}
                   returning s.token_hash
+                ), reverted as (
+                  insert into account_email_tokens (
+                    token_hash, account_id, purpose, expires_at, new_email, new_email_normal_form
+                  )
+                  select ${revertTokenHash}, c.account_id, ${EMAIL_CHANGE_REVERT}, ${revertExpiresAt}::timestamptz,
+                    l.email, l.email_normal_form
+                  from consumed c
+                  join locked l on l.id = c.account_id
+                  returning token_hash
+                ), previous_address as (
+                  select l.email, l.locale from locked l where exists (select 1 from consumed)
+                  union all
+                  select r.new_email, l.locale
+                  from account_email_tokens r
+                  join locked l on l.id = r.account_id
+                  where ${isRetry}::boolean
+                    and r.token_hash = ${revertTokenHash}
+                    and r.purpose = ${EMAIL_CHANGE_REVERT}
+                    and not exists (select 1 from consumed)
                 ), changed as (
                   update accounts a
                   set email = c.new_email, email_normal_form = c.new_email_normal_form, updated_at = now()
@@ -187,8 +219,8 @@ export async function confirmEmailChange(
                     )
                   ) as is_done,
                   (select t.account_id from account_email_tokens t where t.token_hash = ${tokenHash}) as account_id,
-                  (select l.email from locked l where exists (select 1 from consumed)) as previous_email,
-                  (select l.locale from locked l where exists (select 1 from consumed)) as previous_locale
+                  (select p.email from previous_address p) as previous_email,
+                  (select p.locale from previous_address p) as previous_locale
               `,
             sql`
                 update account_sessions

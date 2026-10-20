@@ -2,6 +2,7 @@ import type { Role } from "@lemnaria/configurator-domain";
 
 import { requireAccountIdShape } from "./account-id-shape.js";
 import {
+  EMAIL_CHANGE_REVERT_PURPOSE,
   profileColumnWritesOf,
   requireValidEmailChangeConfirmation,
   requireValidEmailChangeRetirement,
@@ -63,7 +64,8 @@ interface HeldAccount {
   readonly passwordChangedAt: Date;
 }
 
-/** A token row. `issuedAt` stands for `created_at`. The address pair is set on an `email-change` row alone. */
+/** A token row. `issuedAt` stands for `created_at`. The address pair is set on an `email-change` row (the address to
+ *  change to) and on an `email-change-revert` row (the address left). */
 export interface HeldEmailToken {
   readonly tokenHash: string;
   readonly accountId: string;
@@ -308,8 +310,23 @@ export class FakeAccountStore implements AccountStore {
       if (account === undefined || !this.isChangeableBy(token, account)) {
         return { kind: "invalid" };
       }
+      if (this.tokensByHash.has(confirmation.revertTokenHash)) {
+        throw new Error(
+          "FakeAccountStore: the revert token hash is already held.",
+        );
+      }
       const at = this.now();
       this.retireEmailTokensOf(account.id, at);
+      this.tokensByHash.set(confirmation.revertTokenHash, {
+        tokenHash: confirmation.revertTokenHash,
+        accountId: account.id,
+        purpose: EMAIL_CHANGE_REVERT_PURPOSE,
+        issuedAt: at,
+        expiresAt: confirmation.revertExpiresAt,
+        newEmail: account.email,
+        newEmailNormalForm: account.emailNormalForm,
+        usedAt: undefined,
+      });
       this.accountsById.set(account.id, {
         ...account,
         email: token.newEmail ?? account.email,
@@ -449,10 +466,13 @@ export class FakeAccountStore implements AccountStore {
     );
   }
 
-  /** Every unused token of the account, of any purpose, is marked used. */
+  /** Every unused token of the account, of any purpose but the undo link of an address change, is marked used. */
   private retireEmailTokensOf(accountId: string, at: Date): void {
     for (const token of this.tokensByHash.values()) {
-      if (token.accountId === accountId) token.usedAt ??= at;
+      const isRetirable =
+        token.accountId === accountId &&
+        token.purpose !== EMAIL_CHANGE_REVERT_PURPOSE;
+      if (isRetirable) token.usedAt ??= at;
     }
   }
 

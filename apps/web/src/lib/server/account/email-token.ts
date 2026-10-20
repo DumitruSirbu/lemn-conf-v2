@@ -29,6 +29,12 @@ const RESET_PASSWORD_TOKEN_LIFETIME_MINUTES = 30;
  */
 const EMAIL_CHANGE_TOKEN_LIFETIME_HOURS = 24;
 
+/**
+ * How long the undo link of an address change works: the owner's ruling of 2026-10-20 (O28c), 24 hours and not the
+ * architect's 7 days. Hours, since the figure is far shorter than a day count could express.
+ */
+const EMAIL_CHANGE_REVERT_TOKEN_LIFETIME_HOURS = 24;
+
 export interface MintedEmailToken {
   /** The value for the link. It is never stored, logged or returned to the client. */
   readonly value: string;
@@ -62,5 +68,12 @@ export function resetPasswordTokenExpiry(): Date {
 export function emailChangeTokenExpiry(): Date {
   return new Date(
     Date.now() + EMAIL_CHANGE_TOKEN_LIFETIME_HOURS * MILLISECONDS_PER_HOUR,
+  );
+}
+
+export function emailChangeRevertTokenExpiry(): Date {
+  return new Date(
+    Date.now() +
+      EMAIL_CHANGE_REVERT_TOKEN_LIFETIME_HOURS * MILLISECONDS_PER_HOUR,
   );
 }

@@ -122,6 +122,21 @@ async function isLive(tokenHash: string): Promise<boolean> {
   return lookup.kind === "live";
 }
 
+const REVERT_LIFETIME_MS = ONE_DAY_MS;
+
+/** A confirmation that names its own undo link, as the caller mints one per call: the hash follows the token's. */
+function revertHashOf(tokenHash: string): string {
+  return sha256Of(`revert-of-${tokenHash}`);
+}
+
+function confirmChange(tokenHash: string) {
+  return accounts.confirmEmailChange({
+    tokenHash,
+    revertTokenHash: revertHashOf(tokenHash),
+    revertExpiresAt: new Date(currentTime.getTime() + REVERT_LIFETIME_MS),
+  });
+}
+
 async function issueEmailChange(
   account: Registered,
   newEmail: string,
@@ -354,7 +369,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
     const session = await startSession(account, "device");
     const token = await issueEmailChange(account, "Ana.New@Example.md", "one");
 
-    const outcome = await accounts.confirmEmailChange({ tokenHash: token });
+    const outcome = await confirmChange(token);
 
     expect(outcome).toEqual({
       kind: "changed",
@@ -378,7 +393,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
     const account = await registerVerified("ana@example.md", "first");
     const token = await issueEmailChange(account, "new@example.md", "one");
 
-    await accounts.confirmEmailChange({ tokenHash: token });
+    await confirmChange(token);
 
     const found = await accounts.findById(account.accountId);
     expect(found.kind === "found" ? found.account : undefined).toMatchObject({
@@ -393,10 +408,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
     const account = await registerVerified("ana@example.md", "first");
     const token = await issueEmailChange(account, "new@example.md", "one");
 
-    const outcomes = [
-      await accounts.confirmEmailChange({ tokenHash: token }),
-      await accounts.confirmEmailChange({ tokenHash: token }),
-    ];
+    const outcomes = [await confirmChange(token), await confirmChange(token)];
 
     expect(outcomes.map((outcome) => outcome.kind)).toEqual([
       "changed",
@@ -410,18 +422,16 @@ describe("FakeAccountStore.confirmEmailChange", () => {
     advanceClock();
     const token = await issueEmailChange(account, "new@example.md", "one");
 
-    await accounts.confirmEmailChange({ tokenHash: token });
+    await confirmChange(token);
 
     expect(tokenState(reset)).toEqual({ isUsed: true });
   });
 
   describe("invalid, with one outcome, for", () => {
     it("an unknown token", async () => {
-      expect(
-        await accounts.confirmEmailChange({
-          tokenHash: sha256Of("never-issued"),
-        }),
-      ).toEqual({ kind: "invalid" });
+      expect(await confirmChange(sha256Of("never-issued"))).toEqual({
+        kind: "invalid",
+      });
     });
 
     it("an expired token, at the expiry instant itself", async () => {
@@ -443,7 +453,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
       ).toBe("found");
       advanceClock(1);
 
-      expect(await accounts.confirmEmailChange({ tokenHash: token })).toEqual({
+      expect(await confirmChange(token)).toEqual({
         kind: "invalid",
       });
     });
@@ -462,12 +472,10 @@ describe("FakeAccountStore.confirmEmailChange", () => {
         "newer",
       );
 
-      expect(await accounts.confirmEmailChange({ tokenHash: older })).toEqual({
+      expect(await confirmChange(older)).toEqual({
         kind: "invalid",
       });
-      expect(
-        (await accounts.confirmEmailChange({ tokenHash: newer })).kind,
-      ).toBe("changed");
+      expect((await confirmChange(newer)).kind).toBe("changed");
     });
 
     it("a token issued before the account's last password change", async () => {
@@ -480,7 +488,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
         passwordHash: passwordHashOf("second"),
       });
 
-      expect(await accounts.confirmEmailChange({ tokenHash: token })).toEqual({
+      expect(await confirmChange(token)).toEqual({
         kind: "invalid",
       });
       expect(await accounts.findByNormalForm("new@example.md")).toEqual({
@@ -503,7 +511,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
           })
         ).kind,
       ).toBe("found");
-      expect(await accounts.confirmEmailChange({ tokenHash: token })).toEqual({
+      expect(await confirmChange(token)).toEqual({
         kind: "invalid",
       });
       expect(tokenState(token)).toEqual({ isUsed: false });
@@ -513,7 +521,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
       const account = await registerVerified("ana@example.md", "first");
       const reset = await issueReset(account, "one");
 
-      expect(await accounts.confirmEmailChange({ tokenHash: reset })).toEqual({
+      expect(await confirmChange(reset)).toEqual({
         kind: "invalid",
       });
       expect(tokenState(reset)).toEqual({ isUsed: false });
@@ -533,7 +541,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
         "holder",
       );
 
-      const outcome = await accounts.confirmEmailChange({ tokenHash: token });
+      const outcome = await confirmChange(token);
 
       expect(outcome).toEqual({ kind: "invalid" });
       expect(tokenState(token)).toEqual({ isUsed: false });
@@ -548,7 +556,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
       const token = await issueEmailChange(account, "Taken@Example.md", "one");
       await register("taken@example.md", "holder");
 
-      expect(await accounts.confirmEmailChange({ tokenHash: token })).toEqual({
+      expect(await confirmChange(token)).toEqual({
         kind: "invalid",
       });
     });
@@ -558,9 +566,7 @@ describe("FakeAccountStore.confirmEmailChange", () => {
     const account = await registerVerified("ana@example.md", "first");
     const token = await issueEmailChange(account, "ANA@example.md", "one");
 
-    expect((await accounts.confirmEmailChange({ tokenHash: token })).kind).toBe(
-      "changed",
-    );
+    expect((await confirmChange(token)).kind).toBe("changed");
   });
 
   it("refuses an account that is not verified", async () => {
@@ -576,6 +582,236 @@ describe("FakeAccountStore.confirmEmailChange", () => {
     });
 
     expect(issued).toEqual({ kind: "refused" });
+  });
+});
+
+describe("FakeAccountStore: the undo link written by confirmEmailChange (ADR 0172 Amendment H)", () => {
+  function revertRows() {
+    return accounts
+      .heldTokens()
+      .filter((held) => held.purpose === "email-change-revert");
+  }
+
+  async function confirmedChange(
+    account: Registered,
+    newEmail: string,
+    seed: string,
+  ): Promise<string> {
+    const token = await issueEmailChange(account, newEmail, seed);
+    expect((await confirmChange(token)).kind).toBe("changed");
+    advanceClock();
+    return token;
+  }
+
+  it("writes exactly one row holding the address being left, the caller's hash and the caller's expiry", async () => {
+    const account = await registerVerified("Ana@Example.md", "first");
+    const token = await issueEmailChange(account, "new@example.md", "one");
+    const confirmedAt = new Date(currentTime);
+
+    await confirmChange(token);
+
+    expect(revertRows()).toEqual([
+      {
+        tokenHash: revertHashOf(token),
+        accountId: account.accountId,
+        purpose: "email-change-revert",
+        issuedAt: confirmedAt,
+        expiresAt: new Date(confirmedAt.getTime() + REVERT_LIFETIME_MS),
+        newEmail: "Ana@Example.md",
+        newEmailNormalForm: "ana@example.md",
+        usedAt: undefined,
+      },
+    ]);
+  });
+
+  it.each([
+    ["an unknown token", () => sha256Of("never-issued")],
+    ["a token of another purpose", async (a: Registered) => issueReset(a, "r")],
+  ])("%s writes no row", async (_label, tokenFor) => {
+    const account = await registerVerified("ana@example.md", "first");
+
+    const outcome = await confirmChange(await tokenFor(account));
+
+    expect(outcome).toEqual({ kind: "invalid" });
+    expect(revertRows()).toEqual([]);
+  });
+
+  it("a link clicked again writes no second row and leaves the account's address unreserved", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const token = await issueEmailChange(account, "new@example.md", "one");
+    await confirmChange(token);
+
+    const again = await confirmChange(token);
+
+    expect(again).toEqual({ kind: "invalid" });
+    expect(revertRows().map((row) => row.tokenHash)).toEqual([
+      revertHashOf(token),
+    ]);
+  });
+
+  it("a new address another account holds writes no row", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const token = await issueEmailChange(account, "taken@example.md", "one");
+    await register("taken@example.md", "holder");
+
+    expect(await confirmChange(token)).toEqual({ kind: "invalid" });
+    expect(revertRows()).toEqual([]);
+  });
+
+  it("a token issued before the last password change writes no row", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const token = await issueEmailChange(account, "new@example.md", "one");
+    advanceClock();
+    await accounts.changePassword({
+      accountId: account.accountId,
+      expectedPasswordHash: account.passwordHash,
+      passwordHash: passwordHashOf("second"),
+    });
+
+    expect(await confirmChange(token)).toEqual({ kind: "invalid" });
+    expect(revertRows()).toEqual([]);
+  });
+
+  it("refuses a malformed revert hash or expiry before touching anything", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const token = await issueEmailChange(account, "new@example.md", "one");
+
+    await expect(
+      accounts.confirmEmailChange({
+        tokenHash: token,
+        revertTokenHash: "short",
+        revertExpiresAt: new Date(currentTime),
+      }),
+    ).rejects.toThrow(/revert token hash/);
+    await expect(
+      accounts.confirmEmailChange({
+        tokenHash: token,
+        revertTokenHash: revertHashOf(token),
+        revertExpiresAt: new Date(Number.NaN),
+      }),
+    ).rejects.toThrow(/revert expiry/);
+    expect(tokenState(token)).toEqual({ isUsed: false });
+  });
+
+  it("a revert hash that is already held changes nothing, the token whole", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const token = await issueEmailChange(account, "new@example.md", "one");
+
+    await expect(
+      accounts.confirmEmailChange({
+        tokenHash: token,
+        revertTokenHash: token,
+        revertExpiresAt: new Date(currentTime.getTime() + ONE_DAY_MS),
+      }),
+    ).rejects.toThrow(/already held/);
+
+    expect(tokenState(token)).toEqual({ isUsed: false });
+    expect((await accounts.findByNormalForm("ana@example.md")).kind).toBe(
+      "found",
+    );
+  });
+
+  describe("an earlier undo link stays unused through", () => {
+    async function accountWithEarlierRevert() {
+      const account = await registerVerified("ana@example.md", "first");
+      const firstToken = await confirmedChange(
+        account,
+        "second@example.md",
+        "one",
+      );
+      return { account, earlier: revertHashOf(firstToken) };
+    }
+
+    function isUnused(tokenHash: string): boolean {
+      return tokenState(tokenHash)?.isUsed === false;
+    }
+
+    it("a second confirmed change, which retires every other token", async () => {
+      const { account, earlier } = await accountWithEarlierRevert();
+      const reset = await issueReset(account, "pending");
+
+      const secondToken = await confirmedChange(
+        account,
+        "third@example.md",
+        "two",
+      );
+
+      expect(isUnused(earlier)).toBe(true);
+      expect(isUnused(revertHashOf(secondToken))).toBe(true);
+      expect(tokenState(reset)).toEqual({ isUsed: true });
+    });
+
+    it("a signed-in password change, which retires every other token", async () => {
+      const { account, earlier } = await accountWithEarlierRevert();
+      const pending = await issueEmailChange(
+        account,
+        "pending@example.md",
+        "p",
+      );
+
+      await accounts.changePassword({
+        accountId: account.accountId,
+        expectedPasswordHash: account.passwordHash,
+        passwordHash: passwordHashOf("second"),
+      });
+
+      expect(isUnused(earlier)).toBe(true);
+      expect(tokenState(pending)).toEqual({ isUsed: true });
+    });
+
+    it("a completed reset, which retires every other token", async () => {
+      const { account, earlier } = await accountWithEarlierRevert();
+      const pending = await issueEmailChange(
+        account,
+        "pending@example.md",
+        "p",
+      );
+      advanceClock();
+      const reset = await issueReset(account, "now");
+
+      await accounts.completeReset({
+        tokenHash: reset,
+        passwordHash: passwordHashOf("after-reset"),
+      });
+
+      expect(isUnused(earlier)).toBe(true);
+      expect(tokenState(pending)).toEqual({ isUsed: true });
+    });
+
+    it("retireEmailChangeTokens, which names the email-change purpose alone", async () => {
+      const { account, earlier } = await accountWithEarlierRevert();
+
+      await accounts.retireEmailChangeTokens(account.accountId);
+
+      expect(isUnused(earlier)).toBe(true);
+    });
+  });
+
+  it("is not a plain token: issueToken refuses the purpose, and writes nothing", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+
+    await expect(
+      accounts.issueToken({
+        accountId: account.accountId,
+        purpose: "email-change-revert" as never,
+        tokenHash: sha256Of("forged"),
+        expiresAt: new Date(currentTime.getTime() + ONE_DAY_MS),
+      }),
+    ).rejects.toThrow(/purpose/);
+    expect(revertRows()).toEqual([]);
+  });
+
+  it("is not asked by findByLiveToken, whose newest-token rule an earlier undo link would fail", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const token = await issueEmailChange(account, "new@example.md", "one");
+    await confirmChange(token);
+
+    await expect(
+      accounts.findByLiveToken({
+        tokenHash: revertHashOf(token),
+        purpose: "email-change-revert" as never,
+      }),
+    ).rejects.toThrow(/purpose/);
   });
 });
 
@@ -736,9 +972,7 @@ describe("FakeAccountStore.completeReset retires every unused token and ends eve
     expect(tokenState(emailChange)).toEqual({ isUsed: true });
     expect(tokenState(reset)).toEqual({ isUsed: true });
     expect(await isLive(session)).toBe(false);
-    expect(
-      await accounts.confirmEmailChange({ tokenHash: emailChange }),
-    ).toEqual({ kind: "invalid" });
+    expect(await confirmChange(emailChange)).toEqual({ kind: "invalid" });
   });
 });
 

@@ -31,6 +31,8 @@ const TOKEN_HASH = "c".repeat(64);
 const PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"A".repeat(22)}$${"B".repeat(43)}`;
 const NEW_PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"C".repeat(22)}$${"D".repeat(43)}`;
 const EXPIRES_AT = new Date("2030-01-01T00:00:00.000Z");
+const REVERT_HASH = "d".repeat(64);
+const REVERT_EXPIRES_AT = new Date("2030-01-02T00:00:00.000Z");
 
 function normalised(statement: SentQuery): string {
   return statement.text.replace(/\s+/g, " ").trim().toLowerCase();
@@ -87,7 +89,11 @@ const changePassword = () =>
     passwordHash: NEW_PASSWORD_HASH,
   });
 const confirmEmailChange = () =>
-  newStore().confirmEmailChange({ tokenHash: TOKEN_HASH });
+  newStore().confirmEmailChange({
+    tokenHash: TOKEN_HASH,
+    revertTokenHash: REVERT_HASH,
+    revertExpiresAt: REVERT_EXPIRES_AT,
+  });
 const DONE = [{ is_done: true }];
 
 beforeEach(resetQueryDriver);
@@ -302,9 +308,18 @@ describe("changePassword: three statements in one ReadCommitted transaction", ()
     );
 
     expect(retire).toBe(
-      "update account_email_tokens set used_at = now() where used_at is null and account_id = ? and exists ( select 1 from accounts a where a.id = ? and a.password_hash = ? and a.updated_at = now() )",
+      "update account_email_tokens set used_at = now() where used_at is null and purpose <> ? and account_id = ? and exists ( select 1 from accounts a where a.id = ? and a.password_hash = ? and a.updated_at = now() )",
     );
-    expect(retire).not.toContain("purpose");
+  });
+
+  it("spares the undo link of an address change: the retire excludes the email-change-revert purpose, bound and not inlined", async () => {
+    const transaction = await transactionOf(changePassword, [DONE, [], []]);
+    const [, , retire] = transaction.statements;
+
+    expect(retire?.values[0]).toBe("email-change-revert");
+    expect(normalised(retire ?? { text: "", values: [] })).not.toContain(
+      "email-change-revert",
+    );
   });
 
   it("binds the new hash and the account in the revoke and the retire, never the expected one", async () => {
@@ -312,7 +327,12 @@ describe("changePassword: three statements in one ReadCommitted transaction", ()
     const [, revoke, retire] = transaction.statements;
 
     expect(revoke?.values).toEqual([ACCOUNT_ID, ACCOUNT_ID, NEW_PASSWORD_HASH]);
-    expect(retire?.values).toEqual([ACCOUNT_ID, ACCOUNT_ID, NEW_PASSWORD_HASH]);
+    expect(retire?.values).toEqual([
+      "email-change-revert",
+      ACCOUNT_ID,
+      ACCOUNT_ID,
+      NEW_PASSWORD_HASH,
+    ]);
   });
 
   it("answers changed when the first statement is done, and stale when it is not", async () => {
@@ -430,14 +450,95 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     });
   });
 
-  it("retires every other unused token of the account, of any purpose", async () => {
+  it("retires every other unused token of the account, of any purpose but email-change-revert (an earlier undo link survives)", async () => {
     const [consume] = statementsOf(
       await transactionOf(confirmEmailChange, [CONFIRMED, []]),
     );
 
     expect(consume).toContain(
-      "superseded as ( update account_email_tokens s set used_at = now() where s.account_id in (select account_id from consumed) and s.used_at is null and s.token_hash <> ? returning s.token_hash )",
+      "superseded as ( update account_email_tokens s set used_at = now() where s.account_id in (select account_id from consumed) and s.used_at is null and s.token_hash <> ? and s.purpose <> ? returning s.token_hash )",
     );
+  });
+
+  describe("the undo link row", () => {
+    it("is inserted from the consumed token, not from the locked account, so a refused confirmation writes none", async () => {
+      const [consume] = statementsOf(
+        await transactionOf(confirmEmailChange, [CONFIRMED, []]),
+      );
+
+      expect(consume).toContain(
+        "reverted as ( insert into account_email_tokens ( token_hash, account_id, purpose, expires_at, new_email, new_email_normal_form ) select ?, c.account_id, ?, ?::timestamptz, l.email, l.email_normal_form from consumed c join locked l on l.id = c.account_id returning token_hash )",
+      );
+    });
+
+    it("holds the address being left, read from the locked row before the change, never a bound value", async () => {
+      const transaction = await transactionOf(confirmEmailChange, [
+        CONFIRMED,
+        [],
+      ]);
+      const [consume] = statementsOf(transaction);
+
+      expect(consume).toContain("l.email, l.email_normal_form from consumed c");
+      expect(consume).toContain(
+        "select a.id, a.email, a.email_normal_form, a.locale, a.email_verified_at, a.password_changed_at from accounts a",
+      );
+      expect(
+        transaction.statements[0]?.values.filter(
+          (value) => typeof value === "string" && value.includes("@"),
+        ),
+      ).toEqual([]);
+    });
+
+    it("is the caller's hash, the revert purpose and the caller's expiry, as bound values", async () => {
+      const transaction = await transactionOf(confirmEmailChange, [
+        CONFIRMED,
+        [],
+      ]);
+
+      expect(transaction.statements[0]?.values).toEqual([
+        TOKEN_HASH,
+        TOKEN_HASH,
+        "email-change",
+        TOKEN_HASH,
+        "email-change-revert",
+        REVERT_HASH,
+        "email-change-revert",
+        REVERT_EXPIRES_AT.toISOString(),
+        false,
+        REVERT_HASH,
+        "email-change-revert",
+        false,
+        TOKEN_HASH,
+        "email-change",
+        TOKEN_HASH,
+      ]);
+    });
+
+    it("is written without `on conflict`, so a revert hash already held fails the transaction instead of a silent no-op", async () => {
+      const [consume] = statementsOf(
+        await transactionOf(confirmEmailChange, [CONFIRMED, []]),
+      );
+
+      expect(consume).not.toContain("on conflict");
+    });
+
+    it.each([
+      ["a revert hash of the wrong shape", { revertTokenHash: "short" }],
+      ["an invalid revert expiry", { revertExpiresAt: new Date(Number.NaN) }],
+    ])("sends nothing for %s", async (_label, override) => {
+      resetQueryDriver();
+
+      await expect(
+        newStore().confirmEmailChange({
+          tokenHash: TOKEN_HASH,
+          revertTokenHash: REVERT_HASH,
+          revertExpiresAt: REVERT_EXPIRES_AT,
+          ...override,
+        }),
+      ).rejects.toThrow();
+
+      expect(queryDriver.transactions).toEqual([]);
+    });
   });
 
   it("writes the address and its normal form from the token's row, never from the request", async () => {
@@ -463,10 +564,20 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     );
 
     expect(consume).toContain(
-      "(select l.email from locked l where exists (select 1 from consumed)) as previous_email",
+      "previous_address as ( select l.email, l.locale from locked l where exists (select 1 from consumed) union all",
     );
     expect(consume).toContain(
-      "(select l.locale from locked l where exists (select 1 from consumed)) as previous_locale",
+      "(select p.email from previous_address p) as previous_email, (select p.locale from previous_address p) as previous_locale",
+    );
+  });
+
+  it("on a retry, reads the old address back from the revert row of this call's hash, for the same account, and only when nothing was consumed", async () => {
+    const [consume] = statementsOf(
+      await transactionOf(confirmEmailChange, [CONFIRMED, []]),
+    );
+
+    expect(consume).toContain(
+      "union all select r.new_email, l.locale from account_email_tokens r join locked l on l.id = r.account_id where ?::boolean and r.token_hash = ? and r.purpose = ? and not exists (select 1 from consumed) )",
     );
   });
 
@@ -590,7 +701,11 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     resetQueryDriver();
 
     await expect(
-      newStore().confirmEmailChange({ tokenHash: "short" }),
+      newStore().confirmEmailChange({
+        tokenHash: "short",
+        revertTokenHash: REVERT_HASH,
+        revertExpiresAt: REVERT_EXPIRES_AT,
+      }),
     ).rejects.toThrow();
 
     expect(queryDriver.transactions).toEqual([]);
@@ -681,7 +796,25 @@ describe("the other token-retiring statement Lot 2 changed", () => {
     expect(consume).toMatch(
       /update account_email_tokens s set used_at = now\(\) where s\.account_id in \(select account_id from consumed\) and s\.used_at is null/,
     );
-    expect(consume).not.toMatch(/s\.purpose = /);
+    expect(consume).toMatch(
+      /and s\.token_hash <> \? and s\.purpose <> \? returning s\.token_hash/,
+    );
+  });
+
+  it("completeReset spares the undo link of an address change: the retire excludes email-change-revert, bound", async () => {
+    resetQueryDriver();
+    answerTransactionWith([[{ is_done: true }], []]);
+
+    await newStore().completeReset({
+      tokenHash: TOKEN_HASH,
+      passwordHash: NEW_PASSWORD_HASH,
+    });
+
+    const [consume] = queryDriver.transactions[0]?.statements ?? [];
+    expect(consume?.values).toContain("email-change-revert");
+    expect(normalised(consume ?? { text: "", values: [] })).not.toContain(
+      "email-change-revert",
+    );
   });
 
   it("completeReset stamps password_changed_at with the wall clock, as changePassword does, not the transaction's now()", async () => {

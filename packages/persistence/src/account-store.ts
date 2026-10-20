@@ -9,18 +9,32 @@ import { requireAccountIdShape } from "./account-id-shape.js";
 import { requirePasswordHashShape } from "./password-hash-shape.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
+/** The undo link to the address an account has left. It is not a plain token: it carries that address. */
+export const EMAIL_CHANGE_REVERT_PURPOSE = "email-change-revert";
+
 /** The links the mail carries. The closed list lives here and not in the table, so a later purpose drops no
  *  constraint (`0014`). */
 export const EMAIL_TOKEN_PURPOSES = [
   "verify-email",
   "reset-password",
   "email-change",
+  EMAIL_CHANGE_REVERT_PURPOSE,
 ] as const;
 export type EmailTokenPurpose = (typeof EMAIL_TOKEN_PURPOSES)[number];
 
-/** The purposes whose row carries no address. An `email-change` row holds the new address (`0018`), so it is issued
- *  only through `issueEmailChangeToken`, and no row of that purpose can exist without one. */
-export type PlainEmailTokenPurpose = Exclude<EmailTokenPurpose, "email-change">;
+/** The purposes whose row carries an address (`0018`). An `email-change` row holds the new address and is issued only
+ *  through `issueEmailChangeToken`; an `email-change-revert` row holds the address being left and is written only
+ *  inside `confirmEmailChange`'s transaction. Neither can exist without one. */
+const ADDRESS_CARRYING_PURPOSES = [
+  "email-change",
+  EMAIL_CHANGE_REVERT_PURPOSE,
+] as const satisfies readonly EmailTokenPurpose[];
+
+/** The purposes whose row carries no address, and so the only ones `issueToken` writes. */
+export type PlainEmailTokenPurpose = Exclude<
+  EmailTokenPurpose,
+  (typeof ADDRESS_CARRYING_PURPOSES)[number]
+>;
 
 export type AccountStoreOperation =
   | "look up an account"
@@ -115,14 +129,22 @@ export interface EmailChangeTokenToIssue {
   readonly expiresAt: Date;
 }
 
-/** The token alone is the subject of a confirmation: no account is named, and the address comes from the token's row. */
+/**
+ * The token alone is the subject of a confirmation: no account is named, and the address comes from the token's row.
+ * `revertTokenHash` and `revertExpiresAt` are the undo link the caller minted **once** for this call (ADR 0172
+ * Amendment H): the store writes that row, holding the address being left, in the same transaction and from the token
+ * it actually consumed, so a refused confirmation writes none.
+ */
 export interface EmailChangeConfirmation {
   readonly tokenHash: string;
+  readonly revertTokenHash: string;
+  readonly revertExpiresAt: Date;
 }
 
 /**
- * `changed` carries the address and language the account had before, for the notice to the old address. They are
- * `undefined` only for a retry after a lost acknowledgement, whose first attempt had already replaced them.
+ * `changed` carries the address and language the account had before, for the notice to the old address and its revert
+ * link. A retry after a lost acknowledgement reads them back from the revert row it was asked to write, so they are
+ * `undefined` only when that row does not exist: another call made the change, and no link of this call's is stored.
  * `invalid` covers an unknown, used, expired or superseded token, a token issued before the account's last password
  * change, an account that is not verified, and a new address another account now holds.
  */
@@ -139,10 +161,14 @@ export interface PreviousAddress {
   readonly locale: string;
 }
 
-/** A token as the link carried it, asked of a purpose. */
+/** A token as the link carried it, asked of a purpose. An `email-change-revert` token is not asked this way: any live
+ *  one is valid, so the newest-token rule this lookup applies would wrongly refuse an earlier one. */
 export interface LiveTokenLookup {
   readonly tokenHash: string;
-  readonly purpose: EmailTokenPurpose;
+  readonly purpose: Exclude<
+    EmailTokenPurpose,
+    typeof EMAIL_CHANGE_REVERT_PURPOSE
+  >;
 }
 
 /**
@@ -251,9 +277,11 @@ export interface AccountStore {
   retireEmailChangeTokens(accountId: string): Promise<void>;
   /**
    * One transaction: the newest live `email-change` token consumed, `email` and `email_normal_form` replaced by the
-   * row's new address, every other unused token of the account retired (a link mailed to the old address cannot outlive
-   * it), then every session revoked in a second statement. A token issued before the account's last password change is
-   * refused, and so is a new address another account holds, which writes nothing and leaves the token whole.
+   * row's new address, an `email-change-revert` row holding the address left, every other unused token of the account
+   * retired **except earlier `email-change-revert` rows** (a link mailed to the old address cannot outlive it, but the
+   * undo link can), then every session revoked in a second statement. A token issued before the account's last
+   * password change is refused, and so is a new address another account holds, which writes nothing, leaves the token
+   * whole and writes no revert row.
    */
   confirmEmailChange(
     confirmation: EmailChangeConfirmation,
@@ -358,19 +386,29 @@ export function requireValidEmailChangeRetirement(accountId: string): void {
 export function requireValidEmailChangeConfirmation(
   confirmation: EmailChangeConfirmation,
 ): void {
+  const operation = "change an e-mail address";
+  requireSha256Digest(confirmation.tokenHash, "token hash", operation);
   requireSha256Digest(
-    confirmation.tokenHash,
-    "token hash",
-    "change an e-mail address",
+    confirmation.revertTokenHash,
+    "revert token hash",
+    operation,
+  );
+  requireField(
+    confirmation.revertExpiresAt instanceof Date &&
+      !Number.isNaN(confirmation.revertExpiresAt.getTime()),
+    "revert expiry",
+    "a valid instant",
+    operation,
   );
 }
 
 export function requireValidLiveTokenLookup(lookup: LiveTokenLookup): void {
   requireSha256Digest(lookup.tokenHash, "token hash", "look up an account");
   requireField(
-    isEmailTokenPurpose(lookup.purpose),
+    isEmailTokenPurpose(lookup.purpose) &&
+      !isEmailChangeRevertPurpose(lookup.purpose),
     "purpose",
-    "one of the closed list",
+    "one of the closed list that is subject to the newest-token rule",
     "look up an account",
   );
 }
@@ -469,11 +507,18 @@ export function isEmailTokenPurpose(
   return EMAIL_TOKEN_PURPOSES.some((purpose) => purpose === value);
 }
 
+function isEmailChangeRevertPurpose(value: unknown): boolean {
+  return value === EMAIL_CHANGE_REVERT_PURPOSE;
+}
+
 /** A purpose whose row carries no address; a cast can hand `issueToken` the other kind, and it is refused. */
 function isPlainEmailTokenPurpose(
   value: unknown,
 ): value is PlainEmailTokenPurpose {
-  return isEmailTokenPurpose(value) && value !== "email-change";
+  return (
+    isEmailTokenPurpose(value) &&
+    !ADDRESS_CARRYING_PURPOSES.some((purpose) => purpose === value)
+  );
 }
 
 function requireValidRegistrationFields(

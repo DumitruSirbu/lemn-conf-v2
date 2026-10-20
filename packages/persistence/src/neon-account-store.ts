@@ -3,6 +3,7 @@ import { isRole } from "@lemnaria/configurator-domain";
 import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   AccountStoreError,
+  EMAIL_CHANGE_REVERT_PURPOSE,
   profileColumnWritesOf,
   requireValidEmailConfirmation,
   requireValidLiveTokenLookup,
@@ -54,6 +55,7 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 const VERIFY_EMAIL = "verify-email";
 const RESET_PASSWORD = "reset-password";
+const EMAIL_CHANGE_REVERT = EMAIL_CHANGE_REVERT_PURPOSE;
 
 /**
  * `AccountStore` on Neon Postgres, over `accounts` and `account_email_tokens` (migrations `0012`, `0014`, `0018`). Every query
@@ -371,8 +373,9 @@ export class NeonAccountStore implements AccountStore {
    * The same gate over a `reset-password` token of a **verified** account; the account comes from the token. It is one
    * transaction of two statements, at READ COMMITTED (pinned: the second statement's fresh snapshot is load-bearing).
    *
-   * Statement 1 consumes the token, retires every other unused token of the account (any purpose, so a mailed link
-   * cannot outlive the password it was issued under) and sets the password and `password_changed_at`, and answers
+   * Statement 1 consumes the token, retires every other unused token of the account (any purpose but
+   * `email-change-revert`, so a mailed link cannot outlive the password it was issued under, while the undo link of an
+   * address change survives: ADR 0172 Amendment H) and sets the password and `password_changed_at`, and answers
    * whether the token was consumed. Its `accounts` update waits for any `SessionStore.create` holding the account row
    * `for share`, and then holds the row until the transaction commits, so a later `create` waits and finds the hash
    * replaced. Statement 2 revokes the account's unrevoked sessions. It cannot be a CTE of statement 1: a CTE reads the
@@ -428,6 +431,7 @@ export class NeonAccountStore implements AccountStore {
                   where s.account_id in (select account_id from consumed)
                     and s.used_at is null
                     and s.token_hash <> ${tokenHash}
+                    and s.purpose <> ${EMAIL_CHANGE_REVERT}
                   returning s.token_hash
                 ), changed as (
                   update accounts
@@ -525,8 +529,9 @@ export class NeonAccountStore implements AccountStore {
    * retry only, an account already holding exactly this call's new hash (a PHC string holds a random salt) is the first
    * attempt's own write. The caller's replacing session is created after this returns, so it is not revoked here.
    *
-   * Statement 3 retires every unused e-mail token of the account, of any purpose, under the same condition as
-   * statement 2, so a link mailed before the change cannot be used after it.
+   * Statement 3 retires every unused e-mail token of the account, of any purpose but `email-change-revert`, under the
+   * same condition as statement 2, so a link mailed before the change cannot be used after it. The undo link of an
+   * address change is exempt: a password change by whoever holds the account must not kill it (ADR 0172 Amendment H).
    */
   async changePassword({
     accountId,
@@ -575,6 +580,7 @@ export class NeonAccountStore implements AccountStore {
                 update account_email_tokens
                 set used_at = now()
                 where used_at is null
+                  and purpose <> ${EMAIL_CHANGE_REVERT}
                   and account_id = ${accountId}
                   and exists (
                     select 1 from accounts a

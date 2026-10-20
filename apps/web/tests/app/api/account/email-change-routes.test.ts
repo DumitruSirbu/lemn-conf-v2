@@ -181,6 +181,12 @@ function changeTokens() {
     .filter(({ purpose }) => purpose === "email-change");
 }
 
+function revertTokens() {
+  return world.accounts
+    .heldTokens()
+    .filter(({ purpose }) => purpose === "email-change-revert");
+}
+
 describe("while EMAIL_CHANGE_ENABLED is off", () => {
   beforeEach(() => {
     flag.on = false;
@@ -963,6 +969,34 @@ describe("E9 with the flag on: a link that works", () => {
     expect(changeTokens().every(({ usedAt }) => usedAt !== undefined)).toBe(
       true,
     );
+  });
+
+  it("writes one undo link row for the confirm, holding the address left, valid for 24 hours", async () => {
+    const token = await issueLink();
+
+    await confirm({ token });
+
+    const [revert, ...others] = revertTokens();
+    expect(others).toEqual([]);
+    expect(revert).toMatchObject({
+      accountId: client.id,
+      newEmail: client.email,
+      usedAt: undefined,
+    });
+    const lifetimeMs = (revert?.expiresAt.getTime() ?? 0) - Date.now();
+    expect(lifetimeMs).toBeGreaterThan(24 * 3_600_000 - 60_000);
+    expect(lifetimeMs).toBeLessThanOrEqual(24 * 3_600_000);
+  });
+
+  it("writes no undo link row for a link that does not work", async () => {
+    const token = await issueLink();
+    await confirm({ token });
+    const rowsAfterFirst = revertTokens();
+
+    const again = await confirm({ token });
+
+    expect(again.status).toBe(400);
+    expect(revertTokens()).toEqual(rowsAfterFirst);
   });
 
   it("ends every session of the account, the one that carried the request included, and starts none", async () => {

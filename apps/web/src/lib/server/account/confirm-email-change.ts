@@ -16,7 +16,11 @@ import {
   linkInvalidResponse,
 } from "@/lib/server/account/account-responses";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
-import { isWellFormedEmailToken } from "@/lib/server/account/email-token";
+import {
+  emailChangeRevertTokenExpiry,
+  isWellFormedEmailToken,
+  mintEmailToken,
+} from "@/lib/server/account/email-token";
 import {
   prepareAccountMail,
   queueAccountMail,
@@ -44,8 +48,13 @@ export async function completeEmailChange({
   if (body === undefined) return invalidRequestResponse();
   const token = textMemberOf(body, TOKEN_MEMBER);
   if (!isWellFormedEmailToken(token)) return linkInvalidResponse();
+  // Minted once, here, so every attempt inside the store's retry names the same row. The value is not yet mailed (the
+  // link joins the notice in the next wave); the store writes the row only if it consumes `token`.
+  const revertToken = mintEmailToken();
   const outcome = await getAccountStore().confirmEmailChange({
     tokenHash: sha256Hex(token),
+    revertTokenHash: revertToken.hash,
+    revertExpiresAt: emailChangeRevertTokenExpiry(),
   });
   if (outcome.kind === "invalid") return linkInvalidResponse();
   await endEverySessionBestEffort(outcome.accountId);
