@@ -219,6 +219,67 @@ test("allows a package.json that declares neither driver", () => {
   assertPassed(outcome);
 });
 
+// A hook runs in a linked worktree: its GIT_DIR is a directory under the shared `.git`, and a
+// `git init` that inherits it writes `core.bare` into the shared config. The clone is built in a
+// temporary directory so the test can watch that config without risking a real one.
+test("a GIT_DIR exported by a git hook neither misleads the gate nor marks the clone bare", () => {
+  const clone = createCloneWithLinkedWorktree();
+  try {
+    const hookEnvironment = { ...process.env, GIT_DIR: clone.worktreeGitDir };
+
+    const refused = runGateUnder(hookEnvironment, {
+      trackedFiles: { "apps/web/src/sample.ts": 'import { a } from "DRIVER";' },
+      untrackedFiles: {},
+    });
+    const passed = runGateUnder(hookEnvironment, {
+      trackedFiles: { "apps/web/src/sample.ts": "export const a = 1;" },
+      untrackedFiles: {},
+    });
+
+    assertRefusedOnlyFor(refused, DRIVER_IMPORTED);
+    assertPassed(passed);
+    assert.equal(readSharedConfigBare(clone), "false");
+  } finally {
+    rmSync(clone.root, { recursive: true, force: true });
+  }
+});
+
+function createCloneWithLinkedWorktree() {
+  const root = mkdtempSync(join(tmpdir(), "boundary-gate-hook-"));
+  const main = join(root, "main");
+  const environment = withoutGitVariables(process.env);
+  const git = (cwd, ...args) =>
+    execFileSync("git", args, { cwd, env: environment, stdio: "pipe" });
+  mkdirSync(main);
+  git(main, "init", "--quiet");
+  git(
+    main,
+    "-c",
+    "user.name=boundary-test",
+    "-c",
+    "user.email=boundary-test@example.invalid",
+    "commit",
+    "--quiet",
+    "--allow-empty",
+    "--message",
+    "root",
+  );
+  git(main, "worktree", "add", "--quiet", join(root, "linked"), "-b", "linked");
+  return {
+    root,
+    sharedConfig: join(main, ".git", "config"),
+    worktreeGitDir: join(main, ".git", "worktrees", "linked"),
+  };
+}
+
+function readSharedConfigBare(clone) {
+  return execFileSync(
+    "git",
+    ["config", "--file", clone.sharedConfig, "core.bare"],
+    { encoding: "utf8" },
+  ).trim();
+}
+
 function assertRefusedOnlyFor(outcome, expectedViolation) {
   assert.equal(outcome.status, GATE_REFUSED, outcome.stdout);
   assert.deepEqual(violationsIn(outcome), [expectedViolation]);
@@ -236,20 +297,42 @@ function violationsIn(outcome) {
 }
 
 function runGateWith(trackedFiles, untrackedFiles = {}) {
+  return runGateUnder(process.env, { trackedFiles, untrackedFiles });
+}
+
+// `callerEnvironment` is what the process that started the tests exported. A git hook exports
+// GIT_DIR; handed on to `git init`, that variable points the "scratch" repository at the real one,
+// which `git init` then rewrites as bare. Every git command a hook runs after that, in every
+// worktree of the clone, stops with "this operation must be run in a work tree".
+function runGateUnder(callerEnvironment, { trackedFiles, untrackedFiles }) {
+  const environment = withoutGitVariables(callerEnvironment);
   const repository = mkdtempSync(join(tmpdir(), "boundary-gate-"));
   try {
-    execFileSync("git", ["init", "--quiet"], { cwd: repository });
+    execFileSync("git", ["init", "--quiet"], {
+      cwd: repository,
+      env: environment,
+    });
     cpSync(GATE_SCRIPT, join(repository, "boundary.sh"));
     writeSamples(repository, trackedFiles);
-    execFileSync("git", ["add", "--all"], { cwd: repository });
+    execFileSync("git", ["add", "--all"], {
+      cwd: repository,
+      env: environment,
+    });
     writeSamples(repository, untrackedFiles);
     return spawnSync("sh", ["boundary.sh"], {
       cwd: repository,
       encoding: "utf8",
+      env: environment,
     });
   } finally {
     rmSync(repository, { recursive: true, force: true });
   }
+}
+
+function withoutGitVariables(environment) {
+  return Object.fromEntries(
+    Object.entries(environment).filter(([name]) => !name.startsWith("GIT_")),
+  );
 }
 
 function writeSamples(repository, files) {
