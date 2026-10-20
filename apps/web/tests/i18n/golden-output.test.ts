@@ -256,7 +256,8 @@ describe("golden-output fixture coverage", () => {
     // M8C P8: +11 for Step 1's preset wait, list and Preview pop-up (`presetChooser.*`).
     // +2 for the carousel Select's own failure sentences, `presetChooser.selectFailed` and `.selectLimitReached`.
     // Lot 2 tests round: +1 for `designLoadError.bodyClient`, the design-load error's sentence for a signed-in client.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(259);
+    // Lot 2 U15c: +1 net for `configure.backConfirm.body`, replaced by `.bodyClient` and `.bodyVisitor`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(260);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
@@ -300,7 +301,8 @@ describe("golden-output fixture coverage", () => {
     // M8C P8: +11 static fixtures for `presetChooser.*`.
     // +2 static fixtures for `presetChooser.selectFailed` and `.selectLimitReached`.
     // Lot 2 tests round: +1 static fixture for `designLoadError.bodyClient`.
-    expect(GOLDEN_FIXTURES).toHaveLength(576);
+    // Lot 2 U15c: +1 net static fixture for `configure.backConfirm.bodyClient` and `.bodyVisitor` replacing `.body`.
+    expect(GOLDEN_FIXTURES).toHaveLength(577);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

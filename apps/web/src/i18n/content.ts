@@ -1715,7 +1715,8 @@ export function resolveContent(translate: ContentTranslator) {
       backAction: translate("configure.backAction"),
       backConfirm: {
         title: translate("configure.backConfirm.title"),
-        body: translate("configure.backConfirm.body"),
+        bodyClient: translate("configure.backConfirm.bodyClient"),
+        bodyVisitor: translate("configure.backConfirm.bodyVisitor"),
         confirm: translate("configure.backConfirm.confirm"),
         stay: translate("configure.backConfirm.stay"),
       },

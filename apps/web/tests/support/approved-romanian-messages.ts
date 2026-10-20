@@ -29,10 +29,17 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     overflowWarning:
       "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
     backAction: "Înapoi",
-    // Owner's wording for the confirmation both back links open.
+    // The confirmation both back links open. Heading and the two bodies re-drafted for autosave and approved as drafted
+    // by the owner on 2026-10-20 (relayed; plan M8B Lot 2 section 14, CG12 and U15c; ADR 0113 decision 2): nothing is
+    // lost on leaving, so neither body says "pierdute". The client body is shown only on a definite signed-in client
+    // answer, the visitor body on every other state. The owner's earlier wording ("Modificările vor fi pierdute …")
+    // is withdrawn.
     backConfirm: {
-      title: "Modificările vor fi pierdute",
-      body: "Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei?",
+      title: "Te întorci la pasul anterior?",
+      bodyClient:
+        "Modificările tale se salvează automat. Dacă te întorci la pasul anterior, bucătăria rămâne salvată și poți începe una nouă.",
+      bodyVisitor:
+        "Modificările se păstrează automat în acest browser. Dacă te întorci la pasul anterior, bucătăria rămâne păstrată și poți începe una nouă.",
       confirm: "Înapoi la cameră",
       stay: "Rămân aici",
     },

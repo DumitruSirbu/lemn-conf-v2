@@ -26,8 +26,9 @@ declare const messages: {
     "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
     "backAction": "Înapoi",
     "backConfirm": {
-      "title": "Modificările vor fi pierdute",
-      "body": "Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei?",
+      "title": "Te întorci la pasul anterior?",
+      "bodyClient": "Modificările tale se salvează automat. Dacă te întorci la pasul anterior, bucătăria rămâne salvată și poți începe una nouă.",
+      "bodyVisitor": "Modificările se păstrează automat în acest browser. Dacă te întorci la pasul anterior, bucătăria rămâne păstrată și poți începe una nouă.",
       "confirm": "Înapoi la cameră",
       "stay": "Rămân aici"
     },

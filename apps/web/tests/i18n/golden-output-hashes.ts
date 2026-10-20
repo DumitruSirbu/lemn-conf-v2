@@ -130,6 +130,12 @@
  * **No existing hash moved.** The account namespaces (`account*`, `claimDialog`, `logoutEverywhere`,
  * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; all are in the
  * approved copy lock and none is hashed here.
+ *
+ * **Rebaselined over exactly two and grown by 1 by Lot 2 wave U15c** (ADR 0113 decision 2; plan M8B Lot 2 section 14,
+ * CG12) — the back confirmation, re-drafted for autosave and approved as drafted by the owner on 2026-10-20 (relayed):
+ * `configure.backConfirm.title` moved; `configure.backConfirm.body` is replaced by `.bodyClient` and `.bodyVisitor`,
+ * one of which the dialog shows by session. The new hashes were read off the failing manifest assertion's diff. **No
+ * other hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -517,9 +523,11 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.configure.backAction":
     "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
   "content.static.configure.backConfirm.title":
-    "525c38050e04a71ce9ace1ae03e06392d837f991307a638dd9968c25800e6b9d",
-  "content.static.configure.backConfirm.body":
-    "2a9f2b0b07cf27e5d33c33c03ae0e0ec9b119457fcaf31d7dfa0b8c9830377b7",
+    "bbfaf5ca44d630a682af906e8c8af494cf1b1eabdc7082a88e5f7f399f22e789",
+  "content.static.configure.backConfirm.bodyClient":
+    "7a1a4222e0793e3f4100f41d28bb79a9a377e408ceddb1778558f5c278ad1a9c",
+  "content.static.configure.backConfirm.bodyVisitor":
+    "fa6a33a56c725ac03450ebf6ff3e3b6eb4935068247900f454240b6b3222a55c",
   "content.static.configure.backConfirm.confirm":
     "9f9aeea8945cfe0f0aef5568c8c2ebaddae1aa440d0619932106f2474ec94277",
   "content.static.configure.backConfirm.stay":
