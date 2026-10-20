@@ -131,11 +131,11 @@
  * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; all are in the
  * approved copy lock and none is hashed here.
  *
- * **Rebaselined over exactly two and grown by 1 by Lot 2 wave U15c** (ADR 0113 decision 2; plan M8B Lot 2 section 14,
+ * **One moved, one removed and two added (net +1) by Lot 2 wave U15c** (ADR 0113 decision 2; plan M8B Lot 2 section 14,
  * CG12) — the back confirmation, re-drafted for autosave and approved as drafted by the owner on 2026-10-20 (relayed):
- * `configure.backConfirm.title` moved; `configure.backConfirm.body` is replaced by `.bodyClient` and `.bodyVisitor`,
- * one of which the dialog shows by session. The new hashes were read off the failing manifest assertion's diff. **No
- * other hash moved.**
+ * `configure.backConfirm.title` moved; `configure.backConfirm.body` is removed and replaced by `.bodyClient` and
+ * `.bodyVisitor`, one of which the dialog shows by session. The new hashes were read off the failing manifest assertion's
+ * diff. **No other hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":

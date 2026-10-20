@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { ROLES, hasCapability } from "@lemnaria/configurator-domain";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -210,6 +211,28 @@ describe("what the two bodies promise", () => {
       );
     },
   );
+});
+
+describe("the client check stands for design.edit.own", () => {
+  // The session state tells a client by `design.read.own` (`describeSession`), while the criterion names
+  // `design.edit.own`. The two are one pair in the domain (`CLIENT_DESIGN_CAPABILITIES`): this pins that no role holds
+  // one without the other, so the check cannot grant the client body to a holder of only one.
+  it.each(Object.keys(ROLES))(
+    "role %s holds design.read.own if and only if it holds design.edit.own",
+    (role) => {
+      expect(hasCapability(role, "design.read.own")).toBe(
+        hasCapability(role, "design.edit.own"),
+      );
+    },
+  );
+
+  it("is held by one role at least, so the pairing above is not about nothing", () => {
+    expect(
+      Object.keys(ROLES).filter((role) =>
+        hasCapability(role, "design.edit.own"),
+      ),
+    ).toEqual(["client"]);
+  });
 });
 
 describe("the guard's mechanism", () => {
