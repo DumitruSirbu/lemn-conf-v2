@@ -194,7 +194,10 @@ async function refusalOfMailLimits({
 }
 
 interface ChangeMailJob {
-  readonly requester: Pick<StoredAccount, "id" | "locale" | "passwordHash">;
+  readonly requester: Pick<
+    StoredAccount,
+    "id" | "email" | "locale" | "passwordHash"
+  >;
   readonly target: AcceptedAddress;
   readonly readiness: AccountMailReadiness;
 }
@@ -210,14 +213,18 @@ function scheduleChangeMail(job: ChangeMailJob): void {
 
 /**
  * Both mail buckets were counted before the answer, so nothing here counts them again. The account's earlier unused
- * links are retired first, whatever the address is, so the token table does not tell the three cases apart. The
- * account's own address then gets nothing. An address another account holds gets a notice, sent to that account's own
- * address and language. A free address gets the link, in the requester's language.
+ * links are retired first, whatever the address is, so the token table does not tell the cases apart. The account's own
+ * address then gets nothing. Every other address first gets the requester a notice naming it (ADR 0172 Amendment H),
+ * queued before the address is looked up so that what is looked up cannot change it. An address another account holds
+ * then gets a notice, sent to that account's own address and language. A free address gets the link, in the
+ * requester's language. An address that a live undo link of another account reserves gets no link, since it could
+ * never be confirmed.
  */
 async function sendChangeMail(job: ChangeMailJob): Promise<void> {
   try {
     await getAccountStore().retireEmailChangeTokens(job.requester.id);
     if (job.target.isCurrentAddress) return;
+    sendChangeRequestedNotice(job);
     const holder = await getAccountStore().findByNormalForm(
       job.target.emailNormalForm,
     );
@@ -225,10 +232,36 @@ async function sendChangeMail(job: ChangeMailJob): Promise<void> {
       sendAddressInUseNotice(job.readiness, holder.account);
       return;
     }
+    if (await isReservedAgainstRequester(job)) return;
     await sendChangeLink(job);
   } catch {
     reportAccountEvent({ event: "email-change", outcome: "unavailable" });
   }
+}
+
+/** The same notice for a free, a held and a reserved address: it carries the address as typed and a plain link to the
+ *  password reset, and nothing the lookups find. */
+function sendChangeRequestedNotice({
+  requester,
+  target,
+  readiness,
+}: ChangeMailJob): void {
+  queueAccountMail(readiness, {
+    kind: "email-change-requested",
+    recipient: requester.email,
+    locale: requester.locale,
+    requestedAddress: target.email,
+  });
+}
+
+function isReservedAgainstRequester({
+  requester,
+  target,
+}: ChangeMailJob): Promise<boolean> {
+  return getAccountStore().isAddressReserved({
+    emailNormalForm: target.emailNormalForm,
+    exceptAccountId: requester.id,
+  });
 }
 
 /** Only an account that confirmed its address is told: an unconfirmed one cannot sign in, and its holder may be nobody. */

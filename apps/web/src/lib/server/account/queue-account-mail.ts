@@ -33,17 +33,27 @@ export type AccountMailPreparation =
 /** One message to one person. A token travels as its value, which this module hashes for the idempotency key. */
 export type AccountMailOrder =
   | {
-      readonly kind: "confirm-email" | "reset-password" | "email-change";
+      readonly kind:
+        | "confirm-email"
+        | "reset-password"
+        | "email-change"
+        | "email-changed";
       readonly recipient: string;
       readonly locale: string;
       readonly token: string;
     }
   | {
+      readonly kind: "email-change-requested";
+      readonly recipient: string;
+      readonly locale: string;
+      /** The address that was typed, which the mail names. */
+      readonly requestedAddress: string;
+    }
+  | {
       readonly kind:
         | "already-registered"
         | "password-changed"
-        | "email-change-address-in-use"
-        | "email-changed";
+        | "email-change-address-in-use";
       readonly recipient: string;
       readonly locale: string;
     };
@@ -114,12 +124,19 @@ function requestOf(
     case "confirm-email":
     case "reset-password":
     case "email-change":
+    case "email-changed":
       return { kind, locale, link: { origin, token: order.token } };
     case "already-registered":
     case "email-change-address-in-use":
       return { kind, locale, link: { origin } };
+    case "email-change-requested":
+      return {
+        kind,
+        locale,
+        link: { origin },
+        requestedAddress: order.requestedAddress,
+      };
     case "password-changed":
-    case "email-changed":
       return { kind, locale };
   }
 }

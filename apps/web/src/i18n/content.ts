@@ -804,9 +804,9 @@ export function resolveNoticePreheader(
 
 /**
  * The wording of the account e-mails, resolved in one locale. `action` is the label of the link's button.
- * DRAFT, pending the owner's approval (plan O8): `emailChange`, `emailChangeAddressInUse` and `emailChanged`, in both
- * locales. `emailChanged` goes to the OLD address and points the reader to "write to us" without an address, since the
- * shop's contact address for this is not ruled (plan O5). None is in the approved-copy table.
+ * `emailChanged` goes to the OLD address and carries the undo link; `emailChangeRequested` goes to the same address
+ * when a change is asked for, names the address that was typed, and so is a function of it. Both were approved as
+ * drafted (ADR 0113 decision 2; plan O28b).
  */
 export function resolveAccountMailCopy(translate: ContentTranslator) {
   return {
@@ -850,8 +850,15 @@ export function resolveAccountMailCopy(translate: ContentTranslator) {
     emailChanged: {
       subject: translate("accountMail.emailChanged.subject"),
       intro: translate("accountMail.emailChanged.intro"),
+      action: translate("accountMail.emailChanged.action"),
       note: translate("accountMail.emailChanged.note"),
     },
+    emailChangeRequested: (address: string) => ({
+      subject: translate("accountMail.emailChangeRequested.subject"),
+      intro: translate("accountMail.emailChangeRequested.intro", { address }),
+      action: translate("accountMail.emailChangeRequested.action"),
+      note: translate("accountMail.emailChangeRequested.note"),
+    }),
   };
 }
 

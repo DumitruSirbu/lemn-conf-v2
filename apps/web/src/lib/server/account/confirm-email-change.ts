@@ -49,7 +49,7 @@ export async function completeEmailChange({
   const token = textMemberOf(body, TOKEN_MEMBER);
   if (!isWellFormedEmailToken(token)) return linkInvalidResponse();
   // Minted once, here, so every attempt inside the store's retry names the same row. The store writes the row only if
-  // it consumes `token`. The value is not mailed yet.
+  // it consumes `token`. The value goes to the old address, in the undo link, and nowhere else.
   const revertToken = mintEmailToken();
   const outcome = await getAccountStore().confirmEmailChange({
     tokenHash: sha256Hex(token),
@@ -58,9 +58,14 @@ export async function completeEmailChange({
   });
   if (outcome.kind === "invalid") return linkInvalidResponse();
   await endEverySessionBestEffort(outcome.accountId);
-  // Best-effort: `previous` is undefined on the retry arm, so that arm sends no notice to the old address.
-  if (outcome.previous !== undefined)
-    scheduleOldAddressNotice(outcome.previous);
+  // `previous` is undefined only when no undo row of this call exists (another call made the change), and then there
+  // is no link of ours to mail. A retry after a lost acknowledgement reads it back from the row, so it mails too.
+  if (outcome.previous !== undefined) {
+    scheduleOldAddressNotice({
+      previous: outcome.previous,
+      revertToken: revertToken.value,
+    });
+  }
   reportAccountEvent({ event: "email-change-confirm", outcome: "succeeded" });
   return emailChangedResponse();
 }
@@ -78,13 +83,22 @@ async function endEverySessionBestEffort(accountId: string): Promise<void> {
   }
 }
 
+interface OldAddressNotice {
+  readonly previous: PreviousAddress;
+  /** The value of the undo link whose hash the store holds. It is never logged. */
+  readonly revertToken: string;
+}
+
 /**
- * The notice to the address the account has just left, in the account's language. It is earned, not asked for (a live
- * link, bounded by the request's own buckets), so it counts no bucket. A stored address that the policy no longer
- * accepts, an unavailable mailer or a failed send drops the notice and changes no answer; each is written down,
- * without the address.
+ * The notice to the address the account has just left, in the account's language, with the link that undoes the change
+ * (ADR 0172 Amendment H). It is earned, not asked for (a live link, bounded by the request's own buckets), so it counts
+ * no bucket. A stored address that the policy no longer accepts, an unavailable mailer or a failed send drops the
+ * notice and changes no answer; each is written down, without the address or the link.
  */
-function scheduleOldAddressNotice(previous: PreviousAddress): void {
+function scheduleOldAddressNotice({
+  previous,
+  revertToken,
+}: OldAddressNotice): void {
   try {
     if (!judgeAccountEmail(previous.email).ok) {
       reportAccountEvent({ event: "mail", outcome: "refused" });
@@ -96,6 +110,7 @@ function scheduleOldAddressNotice(previous: PreviousAddress): void {
       kind: "email-changed",
       recipient: previous.email,
       locale: previous.locale,
+      token: revertToken,
     });
   } catch {
     reportAccountEvent({ event: "mail", outcome: "unavailable" });

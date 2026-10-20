@@ -18,6 +18,7 @@ export type AccountMailKind =
   | "password-changed"
   | "email-change"
   | "email-change-address-in-use"
+  | "email-change-requested"
   | "email-changed";
 
 /**
@@ -36,7 +37,11 @@ export interface AccountMailPlainLink {
 
 export type AccountMailRequest =
   | {
-      readonly kind: "confirm-email" | "reset-password" | "email-change";
+      readonly kind:
+        | "confirm-email"
+        | "reset-password"
+        | "email-change"
+        | "email-changed";
       readonly locale: string;
       readonly link: AccountMailTokenLink;
     }
@@ -46,7 +51,14 @@ export type AccountMailRequest =
       readonly link: AccountMailPlainLink;
     }
   | {
-      readonly kind: "password-changed" | "email-changed";
+      readonly kind: "email-change-requested";
+      readonly locale: string;
+      readonly link: AccountMailPlainLink;
+      /** The address that was typed, as the mail names it. Never in the subject. */
+      readonly requestedAddress: string;
+    }
+  | {
+      readonly kind: "password-changed";
       readonly locale: string;
     };
 
@@ -94,6 +106,8 @@ const PAGE_BY_KIND = {
   "already-registered": "login",
   "email-change": "confirm-email",
   "email-change-address-in-use": "login",
+  "email-change-requested": "forgot-password",
+  "email-changed": "revert-email",
 } as const;
 
 /**
@@ -161,8 +175,14 @@ function partsOf(
       return withAction(copy.emailChange, request, locale);
     case "email-change-address-in-use":
       return withAction(copy.emailChangeAddressInUse, request, locale);
+    case "email-change-requested":
+      return withAction(
+        copy.emailChangeRequested(request.requestedAddress),
+        request,
+        locale,
+      );
     case "email-changed":
-      return copy.emailChanged;
+      return withAction(copy.emailChanged, request, locale);
   }
 }
 

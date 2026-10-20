@@ -691,8 +691,15 @@
     },
     "emailChanged": {
       "subject": "Adresa contului Lemnaria s-a schimbat",
-      "intro": "Adresa de e-mail a contului tău Lemnaria a fost schimbată, iar sesiunile deschise au fost închise. De acum contul nu mai folosește această adresă.",
-      "note": "Dacă nu ai făcut tu schimbarea, scrie-ne cât mai repede, ca să te ajutăm să recuperezi contul."
+      "intro": "Adresa de e-mail a contului tău Lemnaria a fost schimbată, iar sesiunile deschise au fost închise. De acum contul nu mai folosește această adresă. Dacă nu ai făcut tu schimbarea, o poți anula cu link-ul de mai jos, alegând o parolă nouă.",
+      "action": "Anulează schimbarea",
+      "note": "Link-ul se poate folosi o singură dată și expiră. După anulare, adresa contului redevine aceasta, parola se schimbă, iar sesiunile deschise se închid. Dacă schimbarea e a ta, nu trebuie să faci nimic."
+    },
+    "emailChangeRequested": {
+      "subject": "Cineva a cerut schimbarea adresei contului Lemnaria",
+      "intro": "Cineva a cerut ca adresa contului tău Lemnaria să devină {address}. Dacă ai fost tu, nu trebuie să faci nimic.",
+      "action": "Resetează parola",
+      "note": "Dacă nu ai fost tu, resetează parola cu link-ul de mai sus: o resetare anulează schimbarea cât timp ea nu a fost confirmată. Dacă schimbarea a fost deja confirmată, îți trimitem un al doilea mesaj, cu un link prin care o poți anula."
     }
   },
   "accountForm": {

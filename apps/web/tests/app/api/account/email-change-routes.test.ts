@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as catchAllPost } from "@/app/api/[...unmatched]/route";
 import { buildAccountMail } from "@/lib/server/mail/account-mail-messages";
+import { readPublicOrigin } from "@/lib/server/public-origin";
 import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 
 import {
@@ -85,6 +86,7 @@ const { POST: confirmChange } = await import(
  */
 
 const NEW_ADDRESS = "New.Address@Example.test";
+const SOME_TOKEN_VALUE = "a".repeat(43);
 const TOKEN_LINK = /\/account\/confirm-email#t=([A-Za-z0-9_-]{43})/;
 
 let world: AccountWorld;
@@ -139,6 +141,16 @@ function confirm(
       ...init,
     }),
   );
+}
+
+function anUndoNotice(locale: string) {
+  const origin = readPublicOrigin({ LEMNARIA_PUBLIC_ORIGIN: PUBLIC_ORIGIN });
+  if (origin.status !== "configured") throw new Error("origin not accepted");
+  return {
+    kind: "email-changed",
+    locale,
+    link: { origin: origin.origin, token: SOME_TOKEN_VALUE },
+  } as const;
 }
 
 function aTokenValue(): string {
@@ -597,6 +609,12 @@ describe("E8 with the flag on: what the queued job does", () => {
     await drainAfterTasks();
   }
 
+  function mailsOfKind(kind: string) {
+    return world.mail.sent.filter(({ key }) =>
+      key.startsWith(`account-mail/${kind}/`),
+    );
+  }
+
   it("for a free address issues one token holding the address as typed and its counted form, and mails the link to that address in the requester's language", async () => {
     await runAndDrain(NEW_ADDRESS);
 
@@ -608,10 +626,10 @@ describe("E8 with the flag on: what the queued job does", () => {
       newEmailNormalForm: NEW_ADDRESS.toLowerCase(),
     });
     expect(row?.usedAt).toBeUndefined();
-    expect(world.mail.sent).toHaveLength(1);
-    const [mail] = world.mail.sent;
+    expect(world.mail.sent).toHaveLength(2);
+    const [mail, ...otherLinks] = mailsOfKind("email-change");
+    expect(otherLinks).toEqual([]);
     expect(mail?.recipient).toBe(NEW_ADDRESS);
-    expect(mail?.key).toMatch(/^account-mail\/email-change\//);
     const token = TOKEN_LINK.exec(mail?.text ?? "")?.[1];
     expect(token).toBeDefined();
     expect(sha256Hex(token ?? "")).toBe(row?.tokenHash);
@@ -633,23 +651,23 @@ describe("E8 with the flag on: what the queued job does", () => {
     await runAndDrain("Holder@Example.test");
 
     expect(changeTokens()).toEqual([]);
-    expect(world.mail.sent).toHaveLength(1);
-    expect(world.mail.sent[0]).toMatchObject({
-      recipient: "holder@example.test",
-    });
-    expect(world.mail.sent[0]?.key).toMatch(
-      /^account-mail\/email-change-address-in-use\//,
-    );
-    expect(world.mail.sent[0]?.text).not.toContain(client.email);
+    const [notice, ...others] = mailsOfKind("email-change-address-in-use");
+    expect(others).toEqual([]);
+    expect(notice).toMatchObject({ recipient: "holder@example.test" });
+    expect(notice?.text).not.toContain(client.email);
+    expect(world.mail.sent).toHaveLength(2);
   });
 
-  it("for an address an unconfirmed account holds issues no token and sends nothing: its holder may be nobody", async () => {
+  it("for an address an unconfirmed account holds issues no token and sends the holder nothing: its holder may be nobody", async () => {
     await seedUnverifiedAccount("pending@example.test");
 
     await runAndDrain("pending@example.test");
 
     expect(changeTokens()).toEqual([]);
-    expect(world.mail.sent).toEqual([]);
+    expect(world.mail.sent.map(({ recipient }) => recipient)).toEqual([
+      client.email,
+    ]);
+    expect(mailsOfKind("email-change-requested")).toHaveLength(1);
   });
 
   it.each([
@@ -692,7 +710,7 @@ describe("E8 with the flag on: what the queued job does", () => {
     expect(row?.usedAt).toBeUndefined();
   });
 
-  it("binds the token to the password verified: a change of password after the request and before the job issues nothing and sends nothing", async () => {
+  it("binds the token to the password verified: a change of password after the request and before the job issues and mails no link (the request notice to the requester was already queued)", async () => {
     const answer = await ask(anAsk());
     expect(answer.status).toBe(202);
     world.advance(1000);
@@ -706,7 +724,10 @@ describe("E8 with the flag on: what the queued job does", () => {
     await drainAfterTasks();
 
     expect(changeTokens()).toEqual([]);
-    expect(world.mail.sent).toEqual([]);
+    expect(mailsOfKind("email-change")).toEqual([]);
+    expect(world.mail.sent.map(({ recipient }) => recipient)).toEqual([
+      client.email,
+    ]);
   });
 
   it("sends nothing and throws nothing when the job's store fails", async () => {
@@ -1061,14 +1082,8 @@ describe("E9 with the flag on: a link that works", () => {
     expect(world.mail.sent[0]).toMatchObject({ recipient: client.email });
     expect(world.mail.sent[0]?.key).toMatch(/^account-mail\/email-changed\//);
     expect(world.mail.sent[0]?.text).not.toContain(NEW_ADDRESS);
-    const inTheirLanguage = buildAccountMail({
-      kind: "email-changed",
-      locale: "ru",
-    });
-    const inTheOtherOne = buildAccountMail({
-      kind: "email-changed",
-      locale: "ro",
-    });
+    const inTheirLanguage = buildAccountMail(anUndoNotice("ru"));
+    const inTheOtherOne = buildAccountMail(anUndoNotice("ro"));
     expect(inTheirLanguage.subject).not.toBe(inTheOtherOne.subject);
     expect(world.mail.sent[0]?.subject).toBe(inTheirLanguage.subject);
   });
