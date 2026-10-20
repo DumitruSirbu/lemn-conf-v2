@@ -80,17 +80,18 @@ Throughout:
 - no response tells a stranger whether an address, an account or a kitchen exists (brief 0.6-1 [doc]);
 - no screen promises a page, button or feature that does not exist (brief 0.3-6 [doc]).
 
-**In scope:** S1 (shell, both menus, 403, session expired), S2, S3 (without the request-contact block until O-L3-1),
-S8, the account control's "Zona personalului" entry, the preset authoring gate swap; S5 and S4 **after** their owner
-answers and decision record.
+**In scope:** S1 (shell, both menus, 403, session expired), S2, S3 (the request line is O-L3-1 option (c): profile
+contact, the request's reference and date, the as-sent kitchen; no request contact), S8, notes in the client export
+(O-L3-6), the account control's "Zona personalului" entry, the preset authoring gate swap; S5 and S4 are owner-answered
+but **in outline only**, until their decision record and a security review exist (§5.3, §7.3).
 
 **Out of scope, each with its reason:**
 
 | Item | Why it is out |
 | --- | --- |
-| S6 Prețuri | Contradicts ADR 0062 (no dashboard in M8) and the price book's real shape; recommended deferred (CG-L3-2, O-L3-2) |
-| S7 Traduceri | Contradicts ADR 0095 decision 2 (copy in message files, build-time translation gates); recommended deferred (CG-L3-3, O-L3-3) |
-| S3's "Cererea trimisă către magazin" contact block | ADR 0153 d1: the application role reads no personal column of a request (CG-L3-1, O-L3-1) |
+| S6 Prețuri | **Deferred by the owner (O-L3-2, 2026-10-20).** Contradicts ADR 0062 (no dashboard in M8) and the price book's real shape (CG-L3-2) |
+| S7 Traduceri | **Deferred by the owner (O-L3-3, 2026-10-20).** Contradicts ADR 0095 decision 2 (copy in message files, build-time translation gates) (CG-L3-3) |
+| S3's "Cererea trimisă către magazin" contact block | **Not shown, by the owner's ruling (O-L3-1 (c)).** ADR 0153 d1 is unchanged: the application role reads no personal column of a request (CG-L3-1) |
 | Staff role change, deactivation, removal, invitation resend | Not drawn by design (CD answer 5 [mock]); the owner's console runbook stays the path [doc: runbook *Making the first administrator* step 4] |
 | The statistics dashboard staff land on | O10: "not yet planned" [doc: Lot 2 plan §9] |
 | Account erasure, the retention job | O5 and ADR 0172 *Consequences* [doc]: no erasure record exists |
@@ -153,7 +154,7 @@ answers and decision record.
 
 | Frames [mock] | What the design adds | Built today | Port |
 | --- | --- | --- | --- |
-| S3A, S3B, S3B2 | Three columns: a read-only 3D view ("randare 3D · doar citire") and "Configurația trimisă" (shape, walls, material, hardware, finish, cabinet counts, "de la … MDL") (`SUMM`, `:202`); status select + "Salvează" + "Ultima schimbare: {who}, {when}" (`ST`, `:206`); "Cererea trimisă către magazin" (name, phone, locality, channel, sent at; "Din cererea trimisă") (`REQ`, `:203`); "Contul clientului" (e-mail, name, phone neverificat; "Din profil") (`PROF`, `:204`); the caption "Accesul este înregistrat în jurnal." (`:208`); notes (`NOTECOL`, `:207`) | Read-only viewer exists: `app/s/[token]/shared-design-view.tsx` mounts `ConfigureScreen variant="shared"` with `canWrite: false` [src]; the mount guard admits exactly two files (`tests/app/configure-screen-single-mount.test.ts:23-26`) [src]. The frozen "as sent" copy lives in `contact_submission_views.design_document`, readable by the app role [src: `0010` header] | `GET /api/staff/kitchens/{id}` (E-L3-2), audited fail closed. The request block waits on O-L3-1. The 3D column is P-L3-6 |
+| S3A, S3B, S3B2 | Three columns: a read-only 3D view ("randare 3D · doar citire") and "Configurația trimisă" (shape, walls, material, hardware, finish, cabinet counts, "de la … MDL") (`SUMM`, `:202`); status select + "Salvează" + "Ultima schimbare: {who}, {when}" (`ST`, `:206`); "Cererea trimisă către magazin" (name, phone, locality, channel, sent at; "Din cererea trimisă") (`REQ`, `:203`); "Contul clientului" (e-mail, name, phone neverificat; "Din profil") (`PROF`, `:204`); the caption "Accesul este înregistrat în jurnal." (`:208`); notes (`NOTECOL`, `:207`) | Read-only viewer exists: `app/s/[token]/shared-design-view.tsx` mounts `ConfigureScreen variant="shared"` with `canWrite: false` [src]; the mount guard admits exactly two files (`tests/app/configure-screen-single-mount.test.ts:23-26`) [src]. The frozen "as sent" copy lives in `contact_submission_views.design_document`, readable by the app role [src: `0010` header] | `GET /api/staff/kitchens/{id}` (E-L3-2), audited fail closed. The request block is the O-L3-1 (c) line (C-L3-2); nothing waits on it. The 3D column is P-L3-6 |
 | S3C | Draft: no status, no request block, notes allowed; "Ciorna nu are cerere trimisă, deci nu are status." | — | Status control absent when `sent_at` is null |
 | S3D, S3E | Hidden: banner "Clientul a ascuns această bucătărie și nu o mai poate deschide." + "Fă-o din nou vizibilă"; confirm with "Anulează" focused, Tab ① Anulează ② Fă-o vizibilă, not red (`HIDB`, `UNHIDE`, `:211`, `:214`) | `hidden_by_client_at` exists (`0016`) [src]; `design.unhide` is held by operator and administrator, wired to nothing (`capabilities.ts`) [src] | `POST /api/staff/kitchens/{id}/unhide` (E-L3-5) |
 | S3F–S3F3, S3G | Note saving / saved (appears on top, field cleared) / error (text kept); status saved ("✓ Status salvat"); notes are never edited or deleted (CD answer 4) | No notes table, no status store | E-L3-3, E-L3-4; migrations `0021`, `0022` (provisional) |
@@ -163,19 +164,19 @@ answers and decision record.
 
 | Frames [mock] | What the design adds | Built today | Port |
 | --- | --- | --- | --- |
-| S4A–S4E, S4K | Staff list (e-mail, name, role, "Invitat de", Invitație trimisă / Activ, date; "Contul tău" on the first row); invite drawer: E-mail, Rol (nothing preselected), Tab ① E-mail ② Rol ③ Trimite ④ Anulează; errors (MALFORMED, role missing, focus to the summary); neutral answer "Dacă adresa poate primi o invitație, i-am trimis-o." | **Nothing.** Staff exist only by the owner's console seed (runbook *Making the first administrator*) [doc]; the app role holds no `INSERT`/`UPDATE` on `accounts.role` (runbook step 4 for `0012`–`0015`) [doc] | Blocked on O-L3-4 and a decision record (CG-L3-4) |
+| S4A–S4E, S4K | Staff list (e-mail, name, role, "Invitat de", Invitație trimisă / Activ, date; "Contul tău" on the first row); invite drawer: E-mail, Rol (nothing preselected), Tab ① E-mail ② Rol ③ Trimite ④ Anulează; errors (MALFORMED, role missing, focus to the summary); neutral answer "Dacă adresa poate primi o invitație, i-am trimis-o." | **Nothing.** Staff exist only by the owner's console seed (runbook *Making the first administrator*) [doc]; the app role holds no `INSERT`/`UPDATE` on `accounts.role` (runbook step 4 for `0012`–`0015`) [doc] | O-L3-4 ruled (narrow `INSERT (role)`); outline until the decision record and a security review exist (CG-L3-4) |
 | S4F–S4J, S4K2 | Plain token page "Activează contul": new password (12–128, breach check, `new-password`), busy, done "Contul este gata" + "Intră în cont", invalid "Invitația nu mai este valabilă", 503 keeps the token | The reset and revert token pages are the pattern (`reset-password-form.tsx`, `revert-email-form.tsx`, `fragment-token.ts`) [src] | Same pattern, after S4's server waves |
 
 ### S5 — Presete (`/[locale]/staff/presets`)
 
 | Frames [mock] | What the design adds | Built today | Port |
 | --- | --- | --- | --- |
-| S5A–S5G | Grid of presets (thumbnail, generated or typed name, shape and size, badge Vizibil / Ascuns); "Ascunde" / "Arată" with a toast and **no confirm** (CD answer 7); reorder by a 44 px drag handle **and** "Mută mai sus" / "Mută mai jos"; order saving / saved / error-reverts; preview reuses 1G; no delete; the line "Presetele noi se creează din editor, cu „Salvează ca preset”." | `presets.status` is `published`/`hidden`; **the app role has no `UPDATE`; the owner hides by hand** (`0011` header) [src]. No position column; Step 1 lists `order by created_at desc, id` within the ±600 mm window, at most 8 (`preset-statements.ts:61-85`) [src]. The 1G preview is `room/preset-carousel-dialog.tsx` (M8D W2) [src] | Blocked on O-L3-5 (CG-L3-5) |
+| S5A–S5G | Grid of presets (thumbnail, generated or typed name, shape and size, badge Vizibil / Ascuns); "Ascunde" / "Arată" with a toast and **no confirm** (CD answer 7); reorder by a 44 px drag handle **and** "Mută mai sus" / "Mută mai jos"; order saving / saved / error-reverts; preview reuses 1G; no delete; the line "Presetele noi se creează din editor, cu „Salvează ca preset”." | `presets.status` is `published`/`hidden`; **the app role has no `UPDATE`; the owner hides by hand** (`0011` header) [src]. No position column; Step 1 lists `order by created_at desc, id` within the ±600 mm window, at most 8 (`preset-statements.ts:61-85`) [src]. The 1G preview is `room/preset-carousel-dialog.tsx` (M8D W2) [src] | O-L3-5 ruled yes; outline until the ADR 0112 amendment and a security review exist (CG-L3-5) |
 | (editor 3S/3T) | "Salvează ca preset" shows only for `preset.create` (brief Part 3) | `preset-authoring-policy.ts`: `WIRED_PRESET_AUTHORING_POLICY = ungatedUntilLaunch`, with the comment "Fix 3 … wires the administrator capability `preset.create` here and the route does not change" [src] | Wave L3-A1, buildable now |
 
 ### S6 — Prețuri, S7 — Traduceri
 
-Drawn in full (S6: 8 frames, S7: 7) [mock]. **Not ported** in this lot; see CG-L3-2, CG-L3-3 and O-L3-2, O-L3-3. Their
+Drawn in full (S6: 8 frames, S7: 7) [mock]. **Not ported**: deferred by the owner on 2026-10-20 (O-L3-2, O-L3-3; §5.3); see CG-L3-2 and CG-L3-3. Their
 nav items are omitted until a page exists (C-L3-4).
 
 ### S8 — Jurnal de audit (`/[locale]/staff/audit`)
@@ -256,6 +257,10 @@ E-L3-7 waits on O-L3-5, E-L3-8 on O-L3-4. The notes list rides E-L3-2 (newest fi
 
 Every row is a **contract gap** (the design and a record, or two records, disagree, or a record is silent). None is an
 implementation defect or a test-fidelity problem: nothing is built.
+
+**Settled 2026-10-20 (§5.3; ADR 0174):** CG-L3-1 by O-L3-1 (c); CG-L3-2 and CG-L3-3 by deferral (O-L3-2, O-L3-3); CG-L3-6 by
+O-L3-6. CG-L3-4 and CG-L3-5 have their owner answer (O-L3-4, O-L3-5) and stay open until a decision record and a
+security review exist. Where a "Default" or "Blocks" cell below reads as pending, §5.3 governs.
 
 | # | Gap | Evidence | Default | Blocks |
 | --- | --- | --- | --- | --- |
@@ -608,7 +613,7 @@ and item 8 (retention and erasure) remain open and are not answered by any rulin
 3. **S4 Personal**: needs O-L3-4 and a decision record with a security review (D7). The S4A list versus the S4E
    neutral answer is a recorded inconsistency (CG-L3-4), not fixed.
 4. **S5 Presete**: needs O-L3-5 and an ADR 0112 amendment.
-5. **S3's request contact**: needs O-L3-1 (a) or (b); under (c) it is not shown.
+5. **S3's request contact**: settled by O-L3-1 (c); it is not shown.
 6. **Undrawn states**: the no-account row ("Fără cont"), "Varianta actuală", the invitation e-mail, a 429 on any staff
    write, offline on S3 notes (the Lot 2 notice pattern is used), the S2 "Toate" sort.
 7. **Owner-console only, unchanged**: role change, deactivation, removal of staff, revoking a staff member's sessions
@@ -636,9 +641,10 @@ and item 8 (retention and erasure) remain open and are not answered by any rulin
   the page gate, the sent mark, the hide mark, the read-only 3D viewer; **nothing** under `/staff`, no audit, notes,
   status, staff read, preset write or invitation.
 - **Buildable now** (Phases 0, A, B): the records, the preset gate swap, migrations `0020`–`0022`, the audit and staff
-  stores and routes, and the S1, S2, S3 (without the request contact), S8 screens and the header entry: 17 waves, one of which (L3-S9) waits on O-L3-6.
-- **Blocked:** S4 (O-L3-4 + record), S5 (O-L3-5 + amendment), S3's request contact (O-L3-1); **recommended deferred**:
-  S6 (O-L3-2) and S7 (O-L3-3), each contradicting an accepted record.
+  stores and routes, and the S1, S2, S3 (without the request contact), S8 screens and the header entry: 17 waves; L3-S9 (notes in the export) is unconditional since O-L3-6.
+- **Outline only, owner-answered, waiting on a decision record and a security review (§5.3, §7.3):** S4 (O-L3-4: narrow
+  `INSERT (role)`) and S5 (O-L3-5: `UPDATE (status, sort_position)`). **Settled:** S3's request line is option (c)
+  (O-L3-1). **Deferred by the owner:** S6 (O-L3-2, naming ADR 0062) and S7 (O-L3-3, naming ADR 0095 decision 2).
 - **Seven owner questions**, O-L3-1 to O-L3-7, **all ruled 2026-10-20** (§5.3). Phase C (S4, S5) is unblocked in
   principle but stays outline until its decision record and security review exist; S6 and S7 are deferred.
 - **Every code wave** has adversarial QA and Full review with security; every UI wave adds visual review.

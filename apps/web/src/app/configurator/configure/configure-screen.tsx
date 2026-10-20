@@ -4,7 +4,10 @@ import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 
-import { AccountControl } from "@/account/session/account-control";
+import {
+  AccountControl,
+  AccountFormProbes,
+} from "@/account/session/account-control";
 import { SessionExpiredSheet } from "@/account/session/session-expired-sheet";
 import { useSessionExpiry } from "@/account/session/use-session-expiry";
 import { EditorPanel } from "@/panel/editor-panel";
@@ -180,7 +183,10 @@ export function ConfigureScreen({
           order. The cell is the band's; the control's menu is not in it but rendered into this `<main>`, so it is a direct
           child of the screen as the dialogs below are and marks the whole header inert. Drawn in the shared variant too:
           who is signed in has nothing to do with whose design is on screen. */}
-      <AccountControl cellClassName={styles.account ?? ""} />
+      <AccountControl
+        cellClassName={styles.account ?? ""}
+        signInForm={topBar.isAccountCompact ? "icon" : "icon-below-desktop"}
+      />
       {/* Frames 2A / D2A draw this chip exactly as it is drawn here, and the owner's 2026-09-10
           ruling gives the caret its meaning: it opens a menu of every locale `routing.locales`
           declares. The cell itself is the component's, because the popover is positioned against it
@@ -323,12 +329,13 @@ export function ConfigureScreen({
       )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the
-          measurement that would put it back. */}
+          measurement that would put it back, and the account control's two forms are not in its cell. */}
       <div className={styles.measure} aria-hidden="true">
         <span className={styles.wordmark} ref={topBar.wordmarkProbeRef}>
           {content.brand}
         </span>
       </div>
+      <AccountFormProbes {...topBar.accountProbeRefs} />
       <SettingsPillMeasurement
         labels={topBar.pill.settings.map((setting) => setting.label)}
         widestCounter={widestCounterFor(topBar.pill)}

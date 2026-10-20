@@ -105,6 +105,13 @@ client export; Lot 3 copy pre-approved as drafted. **Still blocked:** the S4 and
 and security reviews exist; the undrawn states (plan §10 item 6, §11); retention and erasure for notes, audit rows and
 invitations (plan §10 item 8). No wave dispatched.
 
+**2026-10-20 update, wave L3-W0 (records) [scribe; docs only; no shell, nothing run].** Written: ADR 0173 (staff area **Update (coordinator, ran): the two mockups were copied to docs/design/mockups/ and their sha256 matched the plan; the Lot 2 re-render check is still owed.**
+P-rows, **Proposed**, awaits coordinator acceptance and a security read) and ADR 0174 (owner rulings O-L3-1 to O-L3-7,
+Accepted; S6 deferred naming ADR 0062, S7 naming ADR 0095 decision 2); the plan's scope list, §1/§3/§10/§12 wording
+aligned to §5.3. **Not done:** the copy of `Lemnaria Cont Lot 3.dc.html` and the updated `ContBlocks2.dc.html` into
+`docs/design/mockups/`, their sha256 check, and the Lot 2 re-render (no shell; `docs/design/README.md` says so). **Not
+written, by instruction:** the staff-invitation record (O-L3-4) and the ADR 0112 amendment (O-L3-5).
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left

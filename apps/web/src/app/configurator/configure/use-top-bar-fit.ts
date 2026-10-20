@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 
+import type { AccountFormProbeRefs } from "@/account/session/account-control";
 import { useContent } from "@/i18n/use-content";
 import { useWholeKitchenTierOffer } from "@/price/use-priced-design";
 import { chooseVisibleSettingLabels } from "@/settings/settings-pill-fit";
@@ -38,9 +39,13 @@ export interface TopBarFitState {
   /** Goes on the settings grid item: **the pill's track is what is measured**, not the pill, so the
    *  ladder can see room the pill is not currently using. */
   readonly settingsTrackRef: RefObject<HTMLDivElement | null>;
+  /** Give D: the visitor's link is its glyph alone. */
+  readonly isAccountCompact: boolean;
   /** Goes on the hidden wordmark probe, which stands **outside** the nav so dropping the wordmark
    *  does not destroy the measurement that would put it back. */
   readonly wordmarkProbeRef: RefObject<HTMLSpanElement | null>;
+  /** Go on the account control's two hidden probes, which stand outside its cell for the same reason. */
+  readonly accountProbeRefs: AccountFormProbeRefs;
   readonly onPillMeasured: (measurements: SettingsPillMeasurements) => void;
 }
 
@@ -54,6 +59,7 @@ interface MeasuredTrack {
 const D2A_AS_DRAWN: TopBarConfiguration = {
   isWordmarkDrawn: true,
   isSpacingClosed: false,
+  isAccountCompact: false,
 };
 
 export function useTopBarFit(): TopBarFitState {
@@ -67,6 +73,8 @@ export function useTopBarFit(): TopBarFitState {
 
   const settingsTrackRef = useRef<HTMLDivElement>(null);
   const wordmarkProbeRef = useRef<HTMLSpanElement>(null);
+  const accountTextProbeRef = useRef<HTMLSpanElement>(null);
+  const accountIconProbeRef = useRef<HTMLSpanElement>(null);
   const [measurements, setMeasurements] = useState<
     SettingsPillMeasurements | undefined
   >(undefined);
@@ -96,6 +104,13 @@ export function useTopBarFit(): TopBarFitState {
       });
     });
     observer.observe(trackElement);
+    // The probes change width when the session answers, and the cell may not (a compact link and a client's glyph are
+    // both 44 px), so the track alone would leave the answer standing on the old widths.
+    for (const probe of [
+      accountTextProbeRef.current,
+      accountIconProbeRef.current,
+    ])
+      if (probe) observer.observe(probe);
     return () => {
       observer.disconnect();
     };
@@ -114,16 +129,22 @@ export function useTopBarFit(): TopBarFitState {
         measuredIn: track.measuredIn,
         labelWidthsPx: measurements.labelWidthsPx,
         fixedWidthsPx: measurements.fixedWidthsPx,
+        accountWidthsPx: {
+          textPx: widthOf(accountTextProbeRef.current),
+          iconPx: widthOf(accountIconProbeRef.current),
+        },
       },
       track.measuredIn,
     );
     if (
       fit.isWordmarkDrawn !== configuration.isWordmarkDrawn ||
-      fit.isSpacingClosed !== configuration.isSpacingClosed
+      fit.isSpacingClosed !== configuration.isSpacingClosed ||
+      fit.isAccountCompact !== configuration.isAccountCompact
     ) {
       setConfiguration({
         isWordmarkDrawn: fit.isWordmarkDrawn,
         isSpacingClosed: fit.isSpacingClosed,
+        isAccountCompact: fit.isAccountCompact,
       });
     }
     const chosen = chooseVisibleSettingLabels({
@@ -145,16 +166,25 @@ export function useTopBarFit(): TopBarFitState {
     pill,
     visibleCount,
     isWordmarkDrawn: configuration.isWordmarkDrawn,
+    isAccountCompact: configuration.isAccountCompact,
     spacingMetrics: {
       "--top-bar-nav-gap": `${String(spacing.navGapPx)}px`,
       "--top-bar-row-gap": `${String(spacing.rowGapPx)}px`,
     } as CSSProperties,
     settingsTrackRef,
     wordmarkProbeRef,
+    accountProbeRefs: {
+      textRef: accountTextProbeRef,
+      iconRef: accountIconProbeRef,
+    },
     onPillMeasured: useCallback((next: SettingsPillMeasurements) => {
       setMeasurements(next);
     }, []),
   };
+}
+
+function widthOf(probe: HTMLElement | null): number {
+  return probe?.getBoundingClientRect().width ?? 0;
 }
 
 /**

@@ -1,8 +1,9 @@
 // What the top bar gives up as the window narrows, decided from the same measurement the pill's ladder uses
 // (ADR 0104 decisions 8 and 9), with no width threshold anywhere. The order is ruled:
 // A the pill's ladder (`settings/settings-pill-fit.ts`); B the row's gaps close, frame D2A's 28/14 to frame 2A's 9/6
-// (both numbers the reference's); C the wordmark leaves the row.
-// Both decisions compare against measured widths, never constants; the one composed number, what closing the gaps
+// (both numbers the reference's); C the wordmark leaves the row; D the visitor's "Intră în cont" becomes its glyph alone
+// (the owner's ruling of 2026-10-20, appended after C so the ruled order above is untouched).
+// Every decision compares against measured widths, never constants; the one composed number, what closing the gaps
 // returns to the pill, is derived from the two frames' gap declarations and the number of gaps drawn.
 import {
   visibleCountThatFitsWithin,
@@ -27,10 +28,10 @@ export interface TopBarSpacing {
  * the one between nav and pill (the settings item's margin makes it up to the nav's gap). `ROW_GAP_COUNT`: the
  * four 28 px dividers (price, actions, the account control, locale), each taking the row's `column-gap` on either side.
  *
- * **The account control is one more fixed item of the row, and its width is not here.** The pill's track is measured
- * with the control in place, whatever it is showing (a visitor's pill, a client's 44 px icon, the invisible stand-in
- * before the answer), so what it costs the ladder is already in `pillTrackPx`. What the measurement cannot carry is
- * how much of the row the gives return, and that is the control's two gaps: its own divider and the padding before it.
+ * **The account control is one more fixed item of the row.** The pill's track is measured with the control in place,
+ * whatever it is showing, so what it costs the ladder is already in `pillTrackPx`. What the measurement cannot carry is
+ * how much of the row the gives return: the control's two gaps (its own divider and the padding before it) here, and
+ * what compacting the visitor's link returns in `accountWidthsPx`, measured from the two forms of the link.
  *
  * **The count assumes the control is drawn, and errs on the safe side where it is not.** Every session draws it now
  * (staff's menu holds the ways out), so the count is exact; a screen that mounted no control would leave the row with
@@ -51,11 +52,23 @@ export interface TopBarFitInput {
   readonly measuredIn: TopBarConfiguration;
   readonly labelWidthsPx: readonly number[];
   readonly fixedWidthsPx: SettingsPillFixedWidths;
+  /** The account control's two forms as the row would draw them, measured. A signed-in session is the glyph in both,
+   *  so the two are equal and the give returns nothing. */
+  readonly accountWidthsPx: AccountControlWidths;
+}
+
+export interface AccountControlWidths {
+  /** The visitor's link with its words: "Intră în cont". */
+  readonly textPx: number;
+  /** The glyph alone. */
+  readonly iconPx: number;
 }
 
 export interface TopBarConfiguration {
   readonly isWordmarkDrawn: boolean;
   readonly isSpacingClosed: boolean;
+  /** Give D: the visitor's link is its glyph alone. */
+  readonly isAccountCompact: boolean;
 }
 
 export interface TopBarFit extends TopBarConfiguration {
@@ -66,56 +79,83 @@ export interface TopBarFit extends TopBarConfiguration {
 }
 
 /**
- * The row's configuration, as a fixed point rather than a step: the two gives are undone to recover the reference
- * residue, both decisions are taken against it, and the track handed to the ladder is the one the chosen
+ * The row's configuration, as a fixed point rather than a step: the gives are undone to recover the reference
+ * residue, every decision is taken against it, and the track handed to the ladder is the one the chosen
  * configuration will produce. Measured again in that configuration, this function answers the same, so it cannot
  * oscillate.
  */
 export function describeTopBarFit(input: TopBarFitInput): TopBarFit {
   const referenceTrackPx = withoutTheGives(input);
-  const atEveryLabel = widthNeededForVisibleLabels(
+
+  // Give B: D2A's own spacing for as long as the pill can still name every setting inside it.
+  const isSpacingClosed = referenceTrackPx < widthNeededForEveryLabel(input);
+  const spacing = isSpacingClosed ? FRAME_2A_SPACING : D2A_SPACING;
+  const trackWithWordmark =
+    referenceTrackPx + (isSpacingClosed ? gapSavingsPx() : 0);
+
+  // The gives come back in the reverse of the order they were spent, each only where it costs the pill no name: the
+  // link's words first, on the row with no wordmark in it, then the wordmark, and only once the words are back.
+  const wordmarkCostPx = wordmarkCostOf(input.wordmarkWidthPx, spacing);
+  const accountReturnedPx = accountCompactingReturnsPx(input.accountWidthsPx);
+  const isAccountCompact =
+    accountReturnedPx > 0 &&
+    !costsNoSettingName({
+      input,
+      trackWithItPx: trackWithWordmark + wordmarkCostPx,
+      returnedIfDroppedPx: accountReturnedPx,
+    });
+  const isWordmarkDrawn =
+    !isAccountCompact &&
+    costsNoSettingName({
+      input,
+      trackWithItPx: trackWithWordmark,
+      returnedIfDroppedPx: wordmarkCostPx,
+    });
+  return {
+    isWordmarkDrawn,
+    isSpacingClosed,
+    isAccountCompact,
+    spacing,
+    pillTrackPx:
+      trackWithWordmark +
+      (isWordmarkDrawn ? 0 : wordmarkCostPx) +
+      (isAccountCompact ? accountReturnedPx : 0),
+  };
+}
+
+function widthNeededForEveryLabel(input: TopBarFitInput): number {
+  return widthNeededForVisibleLabels(
     input.labelWidthsPx.length,
     input.labelWidthsPx,
     input.fixedWidthsPx,
   );
-
-  // Give B: D2A's own spacing for as long as the pill can still name every setting inside it.
-  const isSpacingClosed = referenceTrackPx < atEveryLabel;
-  const trackWithWordmark =
-    referenceTrackPx + (isSpacingClosed ? gapSavingsPx() : 0);
-  const spacing = isSpacingClosed ? FRAME_2A_SPACING : D2A_SPACING;
-  const isWordmarkDrawn = theWordmarkCostsNoName({
-    input,
-    trackWithWordmark,
-    spacing,
-  });
-  return {
-    isWordmarkDrawn,
-    isSpacingClosed,
-    spacing,
-    pillTrackPx:
-      trackWithWordmark +
-      (isWordmarkDrawn ? 0 : wordmarkCostPx(input.wordmarkWidthPx, spacing)),
-  };
 }
 
 /**
- * Give C's width: the wordmark comes back at the first width where drawing it costs the pill no setting name
- * (the owner's ruling, ADR 0104 decision 8). A fixed name count cannot carry this: it removes the label count
- * falling as the window widens only while a third name costs more than the wordmark, which fails at the Blum
- * hardware tier and on the three-setting pill an undeclared material leaves. So the condition is the property
- * itself: count what the track buys with and without the wordmark and draw it only when they are equal. The count
- * the pill settles on is then always the one the wider track buys, non-decreasing in width whatever the labels measure.
+ * Whether keeping a give's item costs the pill no setting name: the wordmark (give C, the owner's ruling, ADR 0104
+ * decision 8) and the visitor's link with its words (give D) are both drawn at the first width where they do. A fixed
+ * name count cannot carry this: it removes the label count falling as the window widens only while a third name costs
+ * more than the item, which fails at the Blum hardware tier and on the three-setting pill an undeclared material
+ * leaves. So the condition is the property itself: count what the track buys with and without the item and keep it
+ * only when they are equal. The count the pill settles on is then always the one the wider track buys,
+ * non-decreasing in width whatever the labels measure.
  *
- * It depends on give B: without the wordmark the track drops by 86 px where the gaps close (`reference + 105 +
+ * Give C depends on give B: without the wordmark the track drops by 86 px where the gaps close (`reference + 105 +
  * wordmark + 9` below, `reference + wordmark + 28` above). That is harmless only because `isSpacingClosed` means
  * every label fits, so the count is pinned at the whole ladder across the boundary; loosening that threshold below
  * "every name fits" would make the count fall with width without changing this function.
+ *
+ * **The gives return as a chain, and the order of the tests is what keeps the count monotone.** Each test compares
+ * two tracks that differ by that give alone, and a give is tested only on the row where the gives spent after it are
+ * still spent. Then every give that is back cost no name, so the count the pill settles on is the one the row with
+ * everything spent buys: a function of the width alone. Testing the wordmark with the link's words assumed, then the
+ * words afterwards, keeps the wordmark where dropping both would have named a setting more (measured: one name fewer
+ * at the width where the wordmark came back).
  */
-function theWordmarkCostsNoName(query: {
+function costsNoSettingName(query: {
   readonly input: TopBarFitInput;
-  readonly trackWithWordmark: number;
-  readonly spacing: TopBarSpacing;
+  readonly trackWithItPx: number;
+  readonly returnedIfDroppedPx: number;
 }): boolean {
   const namesAt = (availableWidthPx: number): number =>
     visibleCountThatFitsWithin({
@@ -123,43 +163,46 @@ function theWordmarkCostsNoName(query: {
       labelWidthsPx: query.input.labelWidthsPx,
       fixedWidthsPx: query.input.fixedWidthsPx,
     });
-  const withoutIt =
-    query.trackWithWordmark +
-    wordmarkCostPx(query.input.wordmarkWidthPx, query.spacing);
   return (
-    oneWholeNameFitsBesideIt(query.input, query.trackWithWordmark) &&
-    namesAt(query.trackWithWordmark) >= namesAt(withoutIt)
+    oneWholeNameFitsBesideIt(query.input, query.trackWithItPx) &&
+    namesAt(query.trackWithItPx) >=
+      namesAt(query.trackWithItPx + query.returnedIfDroppedPx)
   );
 }
 
 /**
- * The owner's first ruling, kept as give C's floor: the wordmark comes back only where at least one setting name
- * fits beside it whole. Not redundant beside the cost comparison: the ladder floors at one label and ellipsises
+ * The owner's first ruling, kept as give C's floor (and give D's): the wordmark comes back only where at least one
+ * setting name fits beside it whole. Not redundant beside the cost comparison: the ladder floors at one label and ellipsises
  * below it (`settings-pill-fit.ts`), so at 900 px the comparison alone would draw the wordmark although the name
  * beside it is `P…`. Neither condition breaks monotonicity: below this floor the wordmark is absent, above it the
  * count is the one the wider track buys.
  */
 function oneWholeNameFitsBesideIt(
   input: TopBarFitInput,
-  trackWithWordmark: number,
+  trackWithItPx: number,
 ): boolean {
   return (
-    trackWithWordmark >=
+    trackWithItPx >=
     widthNeededForVisibleLabels(1, input.labelWidthsPx, input.fixedWidthsPx)
   );
 }
 
-/** The residue frame D2A itself leaves the pill: the measurement with both gives undone, in the
- *  order they were spent — the wordmark at the spacing it was dropped under, then the gaps. */
+/** The residue frame D2A itself leaves the pill: the measurement with every give undone, in the order they were
+ *  spent in reverse — the link's words, the wordmark at the spacing it was dropped under, then the gaps. */
 function withoutTheGives(input: TopBarFitInput): number {
   const spacing = input.measuredIn.isSpacingClosed
     ? FRAME_2A_SPACING
     : D2A_SPACING;
-  const withWordmark =
+  const withAccountText =
     input.pillTrackPx -
+    (input.measuredIn.isAccountCompact
+      ? accountCompactingReturnsPx(input.accountWidthsPx)
+      : 0);
+  const withWordmark =
+    withAccountText -
     (input.measuredIn.isWordmarkDrawn
       ? 0
-      : wordmarkCostPx(input.wordmarkWidthPx, spacing));
+      : wordmarkCostOf(input.wordmarkWidthPx, spacing));
   return withWordmark - (input.measuredIn.isSpacingClosed ? gapSavingsPx() : 0);
 }
 
@@ -173,9 +216,14 @@ function gapSavingsPx(): number {
 }
 
 /** What give C returns: the wordmark's own width and the gap that stood beside it. */
-function wordmarkCostPx(
+function wordmarkCostOf(
   wordmarkWidthPx: number,
   spacing: TopBarSpacing,
 ): number {
   return wordmarkWidthPx + spacing.navGapPx;
+}
+
+/** What give D returns: the link's words, measured. Never negative: a form no wider than the glyph has nothing to give. */
+function accountCompactingReturnsPx(widths: AccountControlWidths): number {
+  return Math.max(0, widths.textPx - widths.iconPx);
 }

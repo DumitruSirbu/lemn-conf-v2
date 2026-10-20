@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin:0; background:#e7e3da; -webkit-font-smoothing:antialiased; }
+  a { color:#7c5c3d; }
+  a:hover { color:#5a3e25; }
+</style>
+</helmet>
+<div style="padding:56px 56px 96px;font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1c1d1f;display:flex;flex-direction:column;gap:64px">
+  <header style="max-width:820px;display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:14px"><span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span><span style="width:1px;height:16px;background:#dcd8ce"></span><span style="font:400 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7d7a72">Cont · lotul 3 · operator și administrator · desktop 1920 + mobil 390</span></div>
+    <h1 style="margin:0;font:700 34px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;max-width:26ch">Zona personalului: bucătăriile clienților, personal, presete, prețuri, traduceri, jurnal</h1>
+    <p style="margin:0;font:400 14.5px/1.6 Helvetica,Arial,sans-serif;color:#6b5e52;max-width:70ch;text-wrap:pretty">S1–S8, desktop întâi. Fiecare ecran: stările pe desktop 1920 × 1080, apoi cadrele mobile 390 × 844 și cardul RU. Operatorul nu editează niciodată o bucătărie; starea cererii există doar pe bucătăriile trimise; cele două surse de contact sunt etichetate, nu amestecate. Țintele sunt ≥ 44 px, nicio elipsă pe titluri sau butoane, nicio „Reîncarcă pagina” pe pagini cu token. Inelele de focus și ordinea Tab sunt desenate în S1B, S2B, S3E, S4C, S5D, S6H.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#b45309;background:#f7ecdc;border:1px solid #e6cfa8;padding:9px 11px;border-radius:5px">Paletă provizorie — nu este brandul final</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Fără Turnstile în lotul 3</span>
+      <span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.06em;color:#6b5e52;background:#f2f0ea;border:1px solid #dcd8ce;padding:9px 11px;border-radius:5px">Textele sunt provizorii · Server: de stabilit</span>
+    </div>
+  </header>
+
+  <sc-for list="{{screens}}" as="sc" hint-placeholder-count="2">
+  <section id="{{sc.idl}}" style="display:flex;flex-direction:column;gap:28px">
+    <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:14px;border-bottom:1px solid #d5d0c5;padding-bottom:12px">
+      <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#7c5c3d">Ecran {{sc.id}}</span>
+      <span style="font:700 22px/1 Helvetica,Arial,sans-serif;letter-spacing:-.01em">{{sc.name}}</span>
+      <span style="font:400 13px/1 Helvetica,Arial,sans-serif;color:#7d7a72">{{sc.route}}</span>
+    </div>
+    <sc-if value="{{showDesktop}}">
+    <div style="display:flex;align-items:center;gap:16px;padding:12px 18px;background:#1c1814;border-radius:10px;align-self:flex-start"><span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#faf8f4">Desktop 1920 × 1080</span><span style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#dcd8ce">{{sc.id}} · toate stările</span></div>
+    <div style="display:flex;flex-direction:column;gap:56px">
+      <sc-for list="{{sc.dFrames}}" as="f" hint-placeholder-count="1">
+      <div id="d{{f.idl}}" style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:8px">
+          <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">D{{f.id}}</span>
+          <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{f.cap}} · desktop</span>
+          <sc-if value="{{f.plain}}"><span style="font:700 9.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6b5e52;border:1px solid #c9c2b6;padding:4px 6px;border-radius:4px">Pagină simplă · fără terți</span></sc-if>
+        </div>
+        <div style="position:relative;width:1920px;height:1080px;box-sizing:border-box;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;overflow:hidden;box-shadow:0 18px 44px rgba(28,24,20,.10)">
+          <div style="height:76px;flex:0 0 76px;padding:0 40px;display:flex;align-items:center;gap:20px;border-bottom:1px solid #e4dfd5">
+            <span style="font:700 15px/1 Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase">Lemnaria</span>
+            <sc-if value="{{f.shell}}"><span style="font:700 12.5px/1 Helvetica,Arial,sans-serif;color:#5a3e25;background:#ece7dd;border:1px solid #dcd8ce;border-radius:999px;padding:9px 13px">{{f.roleLabel}}</span></sc-if>
+            <span style="flex:1"></span>
+            <sc-if value="{{f.shell}}"><span aria-label="Contul meu" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid #dcd8ce;border-radius:50%;background:#f5f3f0;outline:{{f.acOl}};outline-offset:2px"><span style="position:relative;width:28px;height:28px;box-sizing:border-box;border-radius:50%;border:1.5px solid #7c5c3d;overflow:hidden"><span style="position:absolute;left:8px;top:4px;width:8px;height:8px;border-radius:50%;background:#7c5c3d"></span><span style="position:absolute;left:4px;top:15px;width:16px;height:16px;border-radius:50%;background:#7c5c3d"></span></span></span>
+            <span aria-label="Limba: română" style="display:flex;align-items:center;gap:5px;height:44px;box-sizing:border-box;padding:0 14px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:22px"><span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">RO</span><span style="font:400 11px/1 Helvetica,Arial,sans-serif;color:#6b5e52">▾</span></span></sc-if>
+          </div>
+          <sc-if value="{{f.shell}}"><div style="flex:1;display:flex;min-height:0">
+            <nav aria-label="Zona personalului" style="flex:0 0 264px;box-sizing:border-box;padding:20px 16px;border-right:1px solid #e4dfd5;background:#f5f3f0;display:flex;flex-direction:column;gap:6px">
+              <sc-for list="{{f.nav}}" as="n"><div style="min-height:48px;box-sizing:border-box;padding:0 14px;border-radius:10px;display:flex;align-items:center;background:{{n.bg}};color:{{n.fg}};font:{{n.font}};outline:{{n.ol}};outline-offset:2px">{{n.label}}</div></sc-for>
+            </nav>
+            <main style="flex:1;min-width:0;display:flex;flex-direction:column;padding:28px 56px 0;gap:20px">
+              <sc-if value="{{f.hasBack}}"><span style="align-self:flex-start;min-height:44px;display:flex;align-items:center;gap:8px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#7c5c3d;margin-bottom:-8px"><span style="font:400 24px/1 Helvetica,Arial,sans-serif">‹</span>{{f.back}}</span></sc-if>
+              <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px">
+                <div style="display:flex;flex-direction:column;gap:6px;min-width:0"><h1 style="margin:0;font:700 28px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.02em;color:#1c1814;text-wrap:pretty;max-width:1000px">{{f.title}}</h1><sc-if value="{{f.sub}}"><span style="font:400 14px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.sub}}</span></sc-if></div>
+                <sc-if value="{{f.act}}"><div role="button" style="flex:0 0 auto;min-height:48px;box-sizing:border-box;padding:0 22px;border-radius:12px;background:#7c5c3d;display:flex;align-items:center;font:700 14.5px/1 Helvetica,Arial,sans-serif;color:#faf8f4">{{f.act}}</div></sc-if>
+              </div>
+              <sc-if value="{{f.hasTop}}"><dc-import name="ContBlocks2" blocks="{{f.dTop}}" hint-size="100%,80px" style="width:100%"></dc-import></sc-if>
+              <div style="flex:1;min-height:0;overflow:hidden"><div style="display:grid;grid-template-columns:{{f.dGrid}};gap:24px;align-items:start">
+                <sc-for list="{{f.dCols}}" as="c"><dc-import name="ContBlocks2" blocks="{{c}}" hint-size="100%,300px" style="width:100%"></dc-import></sc-for>
+              </div></div>
+              <sc-if value="{{f.hasFoot}}"><div style="flex:0 0 auto;border-top:1px solid #dcd8ce;padding:14px 0 18px;background:#faf8f4"><div style="max-width:{{f.footW}}"><dc-import name="ContBlocks2" blocks="{{f.dFoot}}" hint-size="100%,52px" style="width:100%"></dc-import></div></div></sc-if>
+            </main>
+          </div></sc-if>
+          <sc-if value="{{f.plain}}"><div style="flex:1;display:flex;align-items:center;justify-content:center;background:#f5f3f0;overflow:hidden">
+            <div style="width:440px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px;padding:36px 36px 30px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:18px;box-shadow:0 14px 34px rgba(28,24,20,.06)">
+              <sc-if value="{{f.title}}"><div style="display:flex;flex-direction:column;gap:8px"><h1 style="margin:0;font:700 28px/1.15 Helvetica,Arial,sans-serif;letter-spacing:-.02em;color:#1c1814">{{f.title}}</h1><sc-if value="{{f.body}}"><p style="margin:0;font:400 14px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.body}}</p></sc-if></div></sc-if>
+              <dc-import name="ContBlocks2" blocks="{{f.mBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import>
+              <sc-if value="{{f.hasBar}}"><dc-import name="ContBlocks2" blocks="{{f.bar}}" hint-size="100%,52px" style="width:100%"></dc-import></sc-if>
+            </div></div></sc-if>
+          <sc-if value="{{f.dov}}"><div style="position:absolute;inset:0;background:rgba(28,24,20,.30)"></div></sc-if>
+          <sc-if value="{{f.oDlg}}"><div role="dialog" aria-modal="true" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;box-sizing:border-box;padding:28px 28px 24px;background:#faf8f4;border-radius:18px;box-shadow:0 18px 44px rgba(28,24,20,.22)"><dc-import name="ContBlocks2" blocks="{{f.dovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.oBig}}"><div role="dialog" aria-modal="true" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:1100px;box-sizing:border-box;padding:28px;background:#faf8f4;border-radius:18px;box-shadow:0 18px 44px rgba(28,24,20,.22)"><dc-import name="ContBlocks2" blocks="{{f.dovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.oDrawer}}"><div role="dialog" aria-modal="true" style="position:absolute;top:0;right:0;bottom:0;width:560px;box-sizing:border-box;padding:24px 32px;background:#faf8f4;box-shadow:-16px 0 36px rgba(28,24,20,.18);display:flex;flex-direction:column;gap:16px"><div style="display:flex;justify-content:flex-end;margin-bottom:-12px"><span role="button" aria-label="Închide" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;font:400 24px/1 Helvetica,Arial,sans-serif;color:#6b5e52">×</span></div><dc-import name="ContBlocks2" blocks="{{f.dovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.oMenu}}"><div role="menu" style="position:absolute;right:40px;top:68px;width:340px;box-sizing:border-box;padding:16px 16px 8px;background:#faf8f4;border:1px solid #dcd8ce;border-radius:14px;box-shadow:0 14px 34px rgba(28,24,20,.18)"><dc-import name="ContBlocks2" blocks="{{f.dovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.toast}}"><div role="status" style="position:absolute;left:50%;transform:translateX(-50%);bottom:32px;min-height:48px;box-sizing:border-box;padding:12px 20px;border-radius:12px;background:#1c1814;color:#faf8f4;font:700 14px/1.35 Helvetica,Arial,sans-serif;display:flex;align-items:center">{{f.toast}}</div></sc-if>
+        </div>
+        <sc-if value="{{showNotes}}"><div style="display:flex;flex-direction:column;gap:5px;max-width:900px"><span style="font:700 11px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#5a3e25">Server: {{f.server}}</span><span style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.note}}</span></div></sc-if>
+      </div>
+      </sc-for>
+    </div>
+    </sc-if>
+
+    <div style="display:flex;align-items:center;gap:16px;padding:12px 18px;background:#1c1814;border-radius:10px;align-self:flex-start"><span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#faf8f4">Mobil 390 × 844</span><span style="font:400 12px/1.4 Helvetica,Arial,sans-serif;color:#dcd8ce">{{sc.id}} · cadrele marcate „mobil”, plus RU</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start">
+      <sc-for list="{{sc.mFrames}}" as="f" hint-placeholder-count="2">
+      <div id="{{f.idl}}" style="display:flex;flex-direction:column;gap:12px;width:390px">
+        <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:8px">
+          <span style="font:700 10px/1 Helvetica,Arial,sans-serif;letter-spacing:.14em;color:#fff;background:#7c5c3d;padding:5px 7px;border-radius:4px">{{f.id}}</span>
+          <span style="font:700 13px/1.3 Helvetica,Arial,sans-serif">{{f.cap}}</span>
+          <sc-if value="{{f.plain}}"><span style="font:700 9.5px/1 Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6b5e52;border:1px solid #c9c2b6;padding:4px 6px;border-radius:4px">Pagină simplă · fără terți</span></sc-if>
+        </div>
+        <div style="position:relative;width:390px;height:844px;box-sizing:border-box;display:flex;flex-direction:column;background:#faf8f4;border:1px solid #dcd8ce;border-radius:26px;overflow:hidden;box-shadow:0 14px 34px rgba(28,24,20,.09)">
+          <div style="padding:0 6px 0 2px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #e4dfd5;flex:0 0 auto">
+            <sc-if value="{{f.shell}}"><span aria-label="Meniu" role="button" style="flex:0 0 44px;width:44px;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px"><span style="width:20px;height:2px;background:#7c5c3d"></span><span style="width:20px;height:2px;background:#7c5c3d"></span><span style="width:20px;height:2px;background:#7c5c3d"></span></span></sc-if>
+            <span style="font:700 12px/1 Helvetica,Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;flex:1;padding-left:{{f.hpad}}">Lemnaria</span>
+            <sc-if value="{{f.shell}}"><span aria-label="Limba: română" style="display:flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:44px;min-height:44px;box-sizing:border-box;padding:0 8px"><span style="display:flex;align-items:center;gap:4px;padding:8px 9px;background:#ece7dd;border:1px solid #dcd8ce;border-radius:8px"><span style="font:700 11px/1 Helvetica,Arial,sans-serif;letter-spacing:.08em;color:#5a3e25">RO</span><span style="font:400 10px/1 Helvetica,Arial,sans-serif;color:#6b5e52">▾</span></span></span></sc-if>
+            <sc-if value="{{f.plain}}"><span style="min-height:44px"></span></sc-if>
+          </div>
+          <div style="flex:1;min-height:0;overflow:hidden;padding:0 18px"><div style="margin-top:{{f.sy}};padding:18px 0 20px;display:flex;flex-direction:column;gap:16px">
+            <sc-if value="{{f.hasBack}}"><span style="align-self:flex-start;min-height:44px;display:flex;align-items:center;gap:8px;font:700 14px/1 Helvetica,Arial,sans-serif;color:#7c5c3d;margin:-8px 0 -10px"><span style="font:400 24px/1 Helvetica,Arial,sans-serif">‹</span>{{f.back}}</span></sc-if>
+            <sc-if value="{{f.title}}"><div style="display:flex;flex-direction:column;gap:7px"><h1 style="margin:0;font:700 22px/1.2 Helvetica,Arial,sans-serif;letter-spacing:-.015em;color:#1c1814;text-wrap:pretty;overflow-wrap:anywhere">{{f.title}}</h1><sc-if value="{{f.sub}}"><p style="margin:0;font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.sub}}</p></sc-if><sc-if value="{{f.body}}"><p style="margin:0;font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.body}}</p></sc-if></div></sc-if>
+            <dc-import name="ContBlocks2" blocks="{{f.mBlocks}}" hint-size="100%,240px" style="width:100%"></dc-import>
+          </div></div>
+          <sc-if value="{{f.hasBar}}"><div style="border-top:1px solid #dcd8ce;padding:12px 18px 18px;flex:0 0 auto;background:#faf8f4"><dc-import name="ContBlocks2" blocks="{{f.bar}}" hint-size="100%,52px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.ov}}"><div style="position:absolute;inset:0;background:rgba(28,24,20,.30)"></div></sc-if>
+          <sc-if value="{{f.mSheet}}"><div role="dialog" aria-modal="true" style="position:absolute;left:0;right:0;bottom:0;max-height:92%;overflow:hidden;box-sizing:border-box;padding:10px 18px 22px;background:#faf8f4;border-radius:20px 20px 0 0;box-shadow:0 -16px 36px rgba(28,24,20,.18)"><dc-import name="ContBlocks2" blocks="{{f.ovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.mDialog}}"><div role="alertdialog" aria-modal="true" style="position:absolute;left:14px;right:14px;top:50%;transform:translateY(-50%);box-sizing:border-box;padding:20px 18px 18px;background:#faf8f4;border-radius:18px;box-shadow:0 18px 44px rgba(28,24,20,.22)"><dc-import name="ContBlocks2" blocks="{{f.ovBlocks}}" hint-size="100%,200px" style="width:100%"></dc-import></div></sc-if>
+          <sc-if value="{{f.toast}}"><div role="status" style="position:absolute;left:18px;right:18px;bottom:22px;min-height:48px;box-sizing:border-box;padding:12px 16px;border-radius:12px;background:#1c1814;color:#faf8f4;font:700 13.5px/1.35 Helvetica,Arial,sans-serif;display:flex;align-items:center">{{f.toast}}</div></sc-if>
+        </div>
+        <sc-if value="{{showNotes}}"><div style="display:flex;flex-direction:column;gap:5px;max-width:390px"><span style="font:700 11px/1.4 Helvetica,Arial,sans-serif;letter-spacing:.04em;color:#5a3e25">Server: {{f.server}}</span><span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{f.note}}</span></div></sc-if>
+      </div>
+      </sc-for>
+      <sc-if value="{{showNotes}}">
+      <div style="width:300px;display:flex;flex-direction:column;gap:10px;padding:16px 18px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:14px;margin-top:30px">
+        <span style="font:700 10.5px/1.3 Helvetica,Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7d7a72">RU · traducere de lucru — de verificat de un vorbitor nativ</span>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Titlu</span><span style="font:700 14px/1.35 Helvetica,Arial,sans-serif;color:#1c1814">{{sc.ru.title}}</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Buton principal</span><span style="font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#1c1814">{{sc.ru.primary}}</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px"><span style="font:700 11px/1.3 Helvetica,Arial,sans-serif;color:#6b5e52">Eroarea principală</span><span style="font:400 13px/1.45 Helvetica,Arial,sans-serif;color:#1c1814;text-wrap:pretty">{{sc.ru.error}}</span></div>
+        <sc-for list="{{sc.ru.extra}}" as="x"><span style="font:400 12.5px/1.45 Helvetica,Arial,sans-serif;color:#1c1814;text-wrap:pretty">{{x}}</span></sc-for>
+        <span style="font:400 11.5px/1.45 Helvetica,Arial,sans-serif;color:#6b5e52">Loc pentru ~30% text în plus.</span>
+      </div>
+      </sc-if>
+    </div>
+  </section>
+  </sc-for>
+
+  <section id="raspunsuri" style="display:flex;flex-direction:column;gap:20px;max-width:900px">
+    <div style="border-bottom:1px solid #d5d0c5;padding-bottom:12px"><span style="font:700 22px/1 Helvetica,Arial,sans-serif">Răspunsuri la întrebările 0.9</span></div>
+    <sc-for list="{{answers}}" as="a"><div style="display:flex;flex-direction:column;gap:5px;padding:14px 16px;background:#f5f3f0;border:1px solid #dcd8ce;border-radius:12px"><span style="font:700 13.5px/1.35 Helvetica,Arial,sans-serif;color:#1c1814">{{a.q}}</span><span style="font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{a.a}}</span></div></sc-for>
+    <div style="border-bottom:1px solid #d5d0c5;padding-bottom:12px;margin-top:12px"><span style="font:700 22px/1 Helvetica,Arial,sans-serif">Plurale (RO / RU) · 1, 2, 5, 20</span></div>
+    <div style="display:flex;flex-direction:column;gap:6px"><sc-for list="{{plurals}}" as="p"><span style="font:400 13px/1.5 Helvetica,Arial,sans-serif;color:#1c1814;font-variant-numeric:tabular-nums">{{p}}</span></sc-for></div>
+    <div style="border-bottom:1px solid #d5d0c5;padding-bottom:12px;margin-top:12px"><span style="font:700 22px/1 Helvetica,Arial,sans-serif">Blocuri noi (ContBlocks2) și copy adăugat</span></div>
+    <sc-for list="{{lists}}" as="l"><span style="font:400 13px/1.55 Helvetica,Arial,sans-serif;color:#6b5e52;text-wrap:pretty">{{l}}</span></sc-for>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Afișare&quot;},&quot;showDesktop&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Afișare&quot;}}">
+const OL='2px solid #7c5c3d',SV='de stabilit';
+const EOP='mihai.rusu@lemnaria.md',EAD='elena.munteanu@lemnaria.md',E='ana.popescu@mail.md';
+const UNAV='Serviciul nu este disponibil acum. Nu am schimbat nimic. Încearcă din nou în câteva minute.';
+const PWH='Cel puțin 12 caractere. Poți folosi o frază; spațiile sunt permise.';
+const SHORT='Parola trebuie să aibă cel puțin 12 caractere.';
+const BREACH='Această parolă apare în scurgeri de date publice, așa că nu e sigură. Alege alta — de exemplu o frază din câteva cuvinte.';
+const K1='În L, 3200 × 2400 mm, alb mat',K2='În U, 4100 × 2800 mm, stejar natural',K3='Bucătăria de la țară pentru bunici, cu insulă și măsuță de scris pentru copii, varianta a treia, cu blat închis',K4='Cu insulă, 3600 × 3000 mm, negru mat',K5='În I, 2800 mm, gri grafit',K6='În L, 3000 × 2200 mm, nuc',K7='În U, 3800 × 2600 mm, alb lucios';
+const rod=n=>(n%100===0||n%100>=20)?n+' de ':n+' ';
+const roK=n=>n===1?'1 bucătărie':rod(n)+'bucătării',roN=n=>n===1?'1 notă':rod(n)+'note',roP=n=>n===1?'1 preț':rod(n)+'prețuri';
+const ru3=(n,a,b,c)=>n+' '+((n%10===1&&n%100!==11)?a:(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?b:c);
+const ruK=n=>ru3(n,'кухня','кухни','кухонь'),ruN=n=>ru3(n,'заметка','заметки','заметок'),ruP=n=>ru3(n,'цену','цены','цен');
+const fmt=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
+const kp=(label,o)=>({k:'kp',label,...o}),kpb=label=>({k:'kpb',label}),ks=(label,o)=>({k:'ks',label,...o}),kd=(label,o)=>({k:'kd',label,...o}),kdb=label=>({k:'kdb',label}),kok=label=>({k:'kok',label});
+const BT=(...items)=>({t:'btns',items}),H=v=>({t:'H',v}),P=text=>({t:'p',text}),N=(tone,text,o={})=>({t:'notice',tone,text,...o});
+const field=o=>({t:'field',label:'',...o}),hero=(tone,title,text,glyph)=>({t:'hero',tone,title,text,glyph});
+const pw=(label,o={})=>field({label,pw:true,...o});
+const UN=N('err',UNAV,{title:'Serviciul nu este disponibil acum'});
+const BDS={sent:['✓ Trimisă','#eef1ea','#d3dccb','#2d5016','solid'],draft:['Ciornă','#ece7dd','#dcd8ce','#5a3e25','solid'],hid:['⊘ Ascunsă de client','#faf8f4','#6b5e52','#1c1814','dashed'],new:['Nouă','#f7ecdc','#e6cfa8','#5a3e25','solid'],contact:['Contactat','#f5f3f0','#7c5c3d','#5a3e25','solid'],offer:['Ofertă trimisă','#ece7dd','#7c5c3d','#5a3e25','solid'],closed:['Închisă','#faf8f4','#dcd8ce','#6b5e52','solid'],inv:['Invitație trimisă','#f7ecdc','#e6cfa8','#5a3e25','solid'],act:['✓ Activ','#eef1ea','#d3dccb','#2d5016','solid'],op:['Operator','#ece7dd','#dcd8ce','#5a3e25','solid'],adm:['Administrator','#ece7dd','#dcd8ce','#5a3e25','solid']};
+const bdg=k=>{const[t,bg,bd,fg,bs]=BDS[k];return{t,bg,bd,fg,bs};};
+const STAT={new:'Nouă',contact:'Contactat',offer:'Ofertă trimisă',closed:'Închisă'};
+const T=(t,o={})=>({k:'t',t,...o}),BDc=(...ks)=>({k:'bd',bds:ks.map(bdg)}),SK=(w,o={})=>({k:'sk',w,...o}),BTc=(label,v,o={})=>({k:'bt',v,label,aria:label,...o}),INc=o=>({k:'in',...o});
+const tbl=(label,grid,heads,rows,o={})=>({t:'tbl',label,grid,cols:heads.map((h,i)=>({h,al:(o.ral||[]).includes(i)?'right':'left'})),rows,...o});
+const kv=(title,tag,rows,note,kw)=>({t:'kv',title,tag,rows:rows.map(([k,v,sub,big])=>({k,v,sub,big})),note,kw});
+const MONO='400 13px/1.4 ui-monospace,Menlo,monospace';
+
+/* S2 data */
+const SR=[
+{mail:E,cn:'Ana Popescu',ph:'078 900 555',name:K1,stat:'new',sent:'17.10.2026',mod:'acum 2 zile'},
+{mail:'ion.ceban@gmail.com',cn:'Ion Ceban',ph:'078 554 210',name:K2,stat:'contact',sent:'16.10.2026',mod:'ieri'},
+{mail:'maria.rotaru@mail.md',name:K3,stat:'offer',sent:'14.10.2026',mod:'acum 5 zile'},
+{mail:'v.sidorov@mail.ru',cn:'Виктор Сидоров',ph:'+373 79 888 120',name:K4,stat:'new',sent:'13.10.2026',mod:'acum 6 zile'},
+{mail:'dumitru.lungu@yahoo.com',ph:'060 345 678',name:K5,stat:'closed',sent:'02.10.2026',mod:'acum 2 săpt.',hid:1},
+{mail:'olga.munteanu@inbox.md',cn:'Olga Munteanu',ph:'068 220 904',name:K6,stat:'contact',sent:'29.09.2026',mod:'acum 3 săpt.'},
+{mail:'nicu.gutu@mail.md',cn:'Nicolae Guțu',ph:'069 700 311',name:K7,stat:'closed',sent:'21.09.2026',mod:'acum 4 săpt.'}];
+const DR=[
+{mail:'tudor.lisnic@gmail.com',cn:'Tudor Lisnic',ph:'079 411 072',name:'Cu insulă, 4200 × 3200 mm, stejar',mod:'acum 3 zile'},
+{mail:'maria.rotaru@mail.md',name:'În I, 2400 mm, alb mat',mod:'ieri'},
+{mail:E,cn:'Ana Popescu',ph:'078 900 555',name:K2,mod:'acum 5 zile'}];
+const kr=(r,foc)=>({cells:[{k:'th'},T(r.name,{b:1,clamp:1}),T(r.mail,{sub:r.cn||null}),T(r.ph||'—',{sub:r.ph?'neverificat':null}),BDc(r.stat?'sent':'draft',...(r.hid?['hid']:[])),r.stat?BDc(r.stat):T('—'),T(r.sent||'—'),T(r.mod),BTc('Deschide','ks',{aria:'Deschide '+r.name,focus:foc})]});
+const rcm=r=>({t:'rc',th:1,bds:[bdg(r.stat?'sent':'draft'),...(r.hid?[bdg('hid')]:[]),...(r.stat?[bdg(r.stat)]:[])],title:r.name,lines:[r.mail+(r.cn?' · '+r.cn:''),r.ph?r.ph+' · neverificat':'fără telefon',r.stat?'Trimisă '+r.sent:'Modificată '+r.mod],act:'Deschide',aria:'Deschide '+r.name});
+const S2G='88px minmax(0,1.5fr) minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,.95fr) 104px 128px 124px';
+const S2H=['Imagine','Bucătărie','Client (profil)','Telefon (profil)','Stare','Status cerere','Trimisă la','Ultima modificare','Acțiune'];
+const S2TBL=rows=>tbl('Bucătării clienți',S2G,S2H,rows);
+const S2SK=n=>[...Array(n)].map(()=>({cells:[SK('72px',{h:'54px'}),SK('80%',{w2:'50%'}),SK('75%',{w2:'55%'}),SK('70%',{w2:'45%'}),SK('90px',{h:'22px'}),SK('70px',{h:'22px'}),SK('70px'),SK('70px'),SK('90px',{h:'44px'})]}));
+const S2T=(o={})=>({t:'tb',segLabel:'Afișează',segs:['Trimise','Ciorne','Toate'].map((label,i)=>({label,on:(o.seg||0)===i,focus:o.segFocus===i})),segW:o.m?'96px':'120px',ctls:[{label:'Caută după e-mail sau nume',ph:'ex.: ana.popescu@mail.md',w:o.m?'100%':'380px',value:o.q,focus:o.qf,clear:!!o.q},{label:'Status cerere',value:o.stat||'Toate stările',caret:1,w:o.m?'100%':'240px',dis:(o.seg||0)>0,hint:(o.seg||0)>0?'Disponibil doar la „Trimise”':null,focus:o.sf}]});
+const PG=(txt)=>({t:'pg',text:txt||'Se afișează 1–20 din 143',items:[{l:'‹',aria:'Pagina anterioară',dis:1},...[1,2,3,4,5,6,7,8].map(n=>({l:String(n),aria:'Pagina '+n,on:n===1})),{l:'›',aria:'Pagina următoare'}]});
+const CNT=(t)=>({t:'cnt',v:t||roK(143)+' trimise',sort:'Cele mai recent trimise întâi'});
+const S2COLS=(o={})=>[[S2T(o),S2TBL((o.rows||SR).map((r,i)=>kr(r,o.foc&&i===0)))]];
+const S2M=(o={})=>[S2T({...o,m:1}),CNT(o.cnt),...(o.rows||SR).slice(0,4).map(rcm),BT(ks('Încarcă mai multe'))];
+const SESS0=[H('Sesiunea a expirat'),P('Intră din nou în cont.'),BT(kp('Intră în cont',{focus:1}))];
+const ACCT=[{t:'acct',v:EOP},{t:'rows',items:[{label:'Ieși din cont',focus:1},{label:'Ieși de pe toate dispozitivele'}]}];
+const MENU_OP=[{t:'grab'},{t:'acct',v:EOP},P('Rol: **Operator**'),{t:'rows',items:[{label:'Bucătării clienți',focus:1}]},{t:'rows',items:[{label:'Ieși din cont'},{label:'Ieși de pe toate dispozitivele'}]}];
+const MENU_AD=[{t:'grab'},{t:'acct',v:EAD},P('Rol: **Administrator**'),{t:'rows',items:[{label:'Bucătării clienți'},{label:'Personal'},{label:'Presete'},{label:'Prețuri'},{label:'Traduceri'},{label:'Jurnal de audit'}]},{t:'rows',items:[{label:'Ieși din cont'},{label:'Ieși de pe toate dispozitivele'}]}];
+
+/* S3 data */
+const PREV=h=>({t:'prev',h,cap:'randare 3D · doar citire'});
+const SUMM=()=>kv('Configurația trimisă',null,[['Formă','În L'],['Pereți','A 3200 mm · B 2400 mm'],['Material','PAL melaminat'],['Feronerie','Hettich'],['Finisaj fronturi','Alb mat'],['Corpuri','9 (5 jos, 4 sus)'],['Preț estimat','de la 28 400 MDL',null,1]],'Preț „de la”, nu ofertă. Oferta exactă se face în alt instrument.');
+const REQ=()=>kv('Cererea trimisă către magazin','Din cererea trimisă',[['Nume','Ana Popescu'],['Telefon','069 123 456'],['Localitate','Orhei'],['Canal preferat','Telefon'],['Trimisă la','17.10.2026, 14:08']],'Telefonul din cerere diferă de cel din profil. Le arătăm pe amândouă, fără să le unim.');
+const PROF=()=>kv('Contul clientului','Din profil',[['E-mail',E],['Nume','Ana Popescu'],['Telefon','078 900 555','neverificat']]);
+const NOTES=[{who:'Mihai Rusu',when:'18.10.2026, 14:20',text:'Am sunat: revin joi cu oferta. Preferă seara, după 18:00.'},{who:'Elena Munteanu',when:'17.10.2026, 16:05',text:'Blatul compact de 38 mm nu este în stoc. Propun 28 mm.'},{who:'Mihai Rusu',when:'17.10.2026, 15:12',text:'Cerere nouă din Orhei.'}];
+const ST=(o={})=>({t:'st',label:'Status cerere',value:o.v||'Nouă',btn:o.btn||'Salvează',kk:o.kk||'kp',hint:o.hint===undefined?'Ultima schimbare: Mihai Rusu, 18.10.2026, 14:22':o.hint,focus:o.f});
+const NOTECOL=(o={})=>[H('Note'),{t:'cnt',v:roN((o.items||NOTES).length),sort:'Cele mai noi întâi'},...(o.ok?[N('ok','Nota a fost salvată')]:[]),...(o.err?[N('err','Nu am putut salva nota. Textul a rămas în câmp. Încearcă din nou.',{title:'Nota nu a fost salvată'})]:[]),{t:'nt',items:o.items||NOTES},{t:'ta',label:'Adaugă o notă',value:o.v,ph:'ex.: Am sunat; revin joi.',count:(o.v?o.v.length:0)+' / 2000',focus:o.f,h:'104px'},BT(o.busy?kpb('Se salvează…'):kp('Salvează nota')),P('Notele fac parte din datele clientului: apar în exportul datelor clientului și se șterg odată cu contul.')];
+const CAPLOG={t:'cap',v:'Accesul este înregistrat în jurnal.'};
+const S3COLS=(o={})=>[[PREV('400px'),SUMM()],o.draft?[P('Ciorna nu are cerere trimisă, deci nu are status.'),PROF(),CAPLOG]:[ST(o.st),REQ(),PROF(),CAPLOG],NOTECOL(o.note)];
+const S3M=(o={})=>{const c=S3COLS(o);return[...(o.top||[]),{...c[0][0],h:'220px'},...c[1],c[0][1],...c[2]];};
+const HIDB=(f)=>({t:'bn',tone:'warn',text:'Clientul a ascuns această bucătărie și nu o mai poate deschide.',btn:'Fă-o din nou vizibilă',focus:f});
+const S3F=(id,cap,o={})=>({id,cap,role:'op',nav:'k',back:'Bucătării clienți',title:o.title===undefined?K1:o.title,sub:o.sub===undefined?'Trimisă de '+E+' · 17.10.2026':o.sub,dTop:o.top,dCols:o.cols||S3COLS(o),dGrid:'minmax(0,640px) minmax(0,440px) minmax(0,460px)',blocks:o.blocks||S3M(o),server:o.server,note:o.nt,ov:o.ov,dOv:o.dOv,sy:o.sy,toast:o.toast});
+const SKC=[[{t:'skel'},{t:'skel'}],[{t:'skel'},{t:'skel'}],[{t:'skel'}]];
+const UNHIDE=[H('Faci bucătăria din nou vizibilă?'),P('Clientul o va vedea din nou în Bucătăriile mele și o va putea edita. Acțiunea apare în jurnal.'),BT(kp('Fă-o vizibilă',{tab:2}),ks('Anulează',{focus:1,tab:1}))];
+
+/* S4 */
+const STR=[[EAD,'Elena Munteanu','adm','—','act','03.02.2026','Contul tău'],[EOP,'Mihai Rusu','op',EAD,'act','12.03.2026'],['sergiu.botnaru@lemnaria.md','—','op',EAD,'inv','15.10.2026']];
+const S4G='minmax(0,1.7fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,1.1fr) 130px';
+const S4TBL=n=>tbl('Personal',S4G,['E-mail','Nume','Rol','Invitat de','Stare','Data'],STR.slice(0,n).map(r=>({cells:[T(r[0],{b:1,sub:r[6]||null}),T(r[1]),BDc(r[2]),T(r[3]),BDc(r[4]),T(r[5])]})));
+const S4M=n=>STR.slice(0,n).map(r=>({t:'rc',bds:[bdg(r[2]),bdg(r[4])],title:r[0],lines:[(r[1]!=='—'?r[1]+' · ':'')+'Invitat de: '+r[3],r[5]+(r[6]?' · '+r[6]:'')]}));
+const ROLE=(o={})=>({t:'segf',label:'Rol',items:[{label:'Operator',on:o.r===0},{label:'Administrator',on:o.r===1}],err:o.err,hint:'Operatorul vede bucătăriile clienților, adaugă note și schimbă statusul. Administratorul le face pe toate, plus personal, presete, prețuri, traduceri și jurnal.'});
+const INV=(o={})=>[H('Invită o persoană'),P('Persoana primește pe e-mail o invitație ca să-și aleagă parola. Nu există alt mod de a crea un cont de personal.'),...(o.top||[]),field({label:'E-mail',ph:'nume@lemnaria.md',value:o.e,err:o.eErr,focus:o.f}),ROLE(o),BT(o.busy?kpb('Se trimite…'):kp('Trimite invitația',{tab:3}),ks('Anulează',{tab:4}))];
+const ACC=(o={})=>[...(o.top||[]),pw('Parolă nouă',{value:o.v,err:o.err,hint:PWH,focus:o.f})];
+
+/* S5 */
+const PSL=[['În L, 3200 × 2400 mm, alb mat','În L · 3200 × 2400 mm'],['În U, 4100 × 2800 mm, stejar natural','În U · 4100 × 2800 mm'],['Compactă pentru garsonieră','În I · 2400 mm'],['Cu insulă, 3600 × 3000 mm, negru mat','Cu insulă · 3600 × 3000 mm'],['În L, 3000 × 2200 mm, nuc','În L · 3000 × 2200 mm'],['În I, 2800 mm, gri grafit','În I · 2800 mm',1],['În U, 3800 × 2600 mm, alb lucios','În U · 3800 × 2600 mm'],['Familială, cu insulă mare','Cu insulă · 4200 × 3200 mm']];
+const PSI=(list,o={})=>list.map(([name,meta,hid],i)=>({name,meta,hid,pos:'#'+(i+1),first:i===0,last:i===list.length-1,f:o.foc&&o.foc[0]===i?o.foc[1]:null,busy:o.busy===i?'Se mută…':null,sel:o.busy===i}));
+const PSG=(o={})=>({t:'psg',cols:o.cols||4,th:o.th||'150px',items:o.items||PSI(PSL,o)});
+const SWAP=(a,b)=>{const l=[...PSL];[l[a],l[b]]=[l[b],l[a]];return l;};
+
+/* S6 */
+const PR=[['Materiale',[['Front MDF vopsit, alb mat','m²',1850],['Front furnir stejar','m²',2640],['Blat compact 38 mm, gri grafit','m liniar',1420],['Corp PAL melaminat','m²',640]]],['Feronerie',[['Balama cu amortizor','buc.',38],['Șină de sertar cu închidere lină','pereche',210],['Mâner profil aluminiu','m',95]]],['Extra',[['Bandă LED sub corp','m',180],['Priză încorporată în blat','buc.',260]]]];
+const S6G='minmax(0,2fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,.9fr)';
+const PRROWS=(o={},m)=>{const out=[];PR.forEach(([g,items])=>{out.push({grp:g});items.forEach(([name,unit,cur])=>{const nv=o.edits&&o.edits[name],er=o.errs&&o.errs[name],has=nv!==undefined,shown=has?nv:cur,d=has&&typeof nv==='number'?nv-cur:null;const inp=INc({value:typeof shown==='number'?fmt(shown):String(shown),al:'right',suffix:m?null:'MDL',mod:has&&!er,err:er,aria:'Preț nou pentru '+name,focus:o.focus===name,lab:m?'Preț nou (MDL)':null});out.push(m?{bg:has?'#f7ecdc':'transparent',cells:[T(name,{b:1,sub:'Acum '+fmt(cur)+' MDL / '+unit}),inp]}:{bg:has?'#f7ecdc':'transparent',cells:[T(name,{b:1}),T(unit),T((o.saved&&has?fmt(nv):fmt(cur))+' MDL',{al:'right'}),inp,T(d===null?'—':(d>0?'+':'−')+fmt(Math.abs(d))+' MDL',{al:'right',b:d!==null})]});});});return out;};
+const PRTBL=(o,m)=>m?tbl('Prețuri','minmax(0,1fr) 132px',['Articol','Preț nou (MDL)'],PRROWS(o,1),{noHead:true}):tbl('Prețuri',S6G,['Articol','Unitate','Preț actual (MDL)','Preț nou (MDL)','Diferență'],PRROWS(o),{ral:[2,3,4]});
+const ED3={'Front furnir stejar':2780,'Șină de sertar cu închidere lină':225,'Blat compact 38 mm, gri grafit':1390};
+const SAVEBAR=[kp('Salvează modificările'),ks('Renunță')];
+const S6SK=n=>[...Array(n)].map(()=>({cells:[SK('60%',{w2:'30%'}),SK('50px'),SK('80px'),SK('100%',{h:'48px'}),SK('60px')]}));
+
+/* S7 */
+const TR=[['step1.title','Alege forma încăperii','Выбери форму комнаты'],['step1.next','Continuă','Продолжить'],['review.price','de la {price} MDL','от {price} MDL'],['review.send','Trimite magazinului',''],['editor.savePreset','Salvează ca preset',''],['account.empty','Nu ai încă nicio bucătărie salvată.','У тебя пока нет сохранённых кухонь.'],['send.done','Cererea a fost trimisă.','Заявка отправлена.']];
+const S7G='230px minmax(0,1.4fr) minmax(0,1.8fr) 156px';
+const TRROW=(r,o={})=>{const[key,ro,ru]=r;const st=o.st||{};return{cells:[T(key,{font:MONO}),T(ro),INc({value:st.v!==undefined?st.v:ru,ph:'Lipsește: scrie traducerea',aria:'Rusă pentru '+key,lab:(!ru&&st.v===undefined)?'Lipsă':null,focus:st.focus,mod:st.mod,err:st.err,warn:st.warn,h:'48px'}),st.btn?BTc(st.btn[0],st.btn[1],{aria:st.btn[0]+' '+key,focus:st.bf}):BTc('Salvează','ks',{aria:'Salvează '+key})]};};
+const TRTBL=rows=>tbl('Traduceri',S7G,['Cheie','Română (sursă, doar citire)','Rusă (editabil)','Acțiune'],rows);
+const TRT=(o={})=>({t:'tb',segLabel:'Afișează',segs:['Toate','Doar lipsă'].map((label,i)=>({label,on:(o.seg||0)===i})),segW:o.m?'120px':'130px',ctls:[{label:'Caută cheie sau text',ph:'ex.: step1.title',w:o.m?'100%':'380px',value:o.q}]});
+const TRM=(r,st)=>{const row=TRROW(r,{st});return{cells:[row.cells[0],{...row.cells[1],lab:'Română (sursă)'},{...row.cells[2],lab:row.cells[2].lab||'Rusă'},{...row.cells[3],jc:'flex-start'}]};};
+const TRSK=n=>[...Array(n)].map(()=>({cells:[SK('70%'),SK('80%',{w2:'40%'}),SK('100%',{h:'48px'}),SK('90px',{h:'44px'})]}));
+
+/* S8 */
+const AU=[['19.10.2026, 14:32',EOP,'a deschis bucătăria',K1,E],['19.10.2026, 14:20',EAD,'a schimbat prețurile','3 prețuri','Front furnir stejar, Șină de sertar, +1'],['19.10.2026, 11:05',EOP,'a schimbat statusul',K2,'ion.ceban@gmail.com · Nouă → Contactat'],['18.10.2026, 16:40',EOP,'a adăugat o notă',K1,E],['18.10.2026, 10:12',EAD,'a făcut vizibilă',K5,'dumitru.lungu@yahoo.com'],['17.10.2026, 17:30',EAD,'a invitat','sergiu.botnaru@lemnaria.md','Operator'],['17.10.2026, 09:48',EAD,'a ascuns presetul',K5,'Preset']];
+const S8G='170px minmax(0,1.3fr) minmax(0,1.2fr) minmax(0,2.2fr)';
+const AUTBL=rows=>tbl('Jurnal de audit',S8G,['Când','Cine','Acțiune','Obiect'],rows);
+const AUR=AU.map(r=>({cells:[T(r[0]),T(r[1]),T(r[2],{b:1}),T(r[3],{sub:r[4]})]}));
+const AUM=AU.slice(0,4).map(r=>({cells:[T(r[0],{lab:'Când'}),T(r[1],{lab:'Cine'}),T(r[2],{b:1,lab:'Acțiune'}),T(r[3],{sub:r[4],lab:'Obiect'})]}));
+const AUT=(o={})=>({t:'tb',ctls:[{label:'Persoană',value:'Toate persoanele',caret:1,w:o.m?'100%':'280px'},{label:'Acțiune',value:o.act||'Toate acțiunile',caret:1,w:o.m?'100%':'280px',focus:o.af},{label:'De la',ph:'zz.ll.aaaa',w:o.m?'47%':'170px'},{label:'Până la',ph:'zz.ll.aaaa',w:o.m?'47%':'170px'}]});
+const AUSK=n=>[...Array(n)].map(()=>({cells:[SK('80%'),SK('75%'),SK('60%'),SK('85%',{w2:'45%'})]}));
+const NOLOG={t:'cap',v:'Jurnalul nu poate fi modificat.'};
+
+const SCREENS=[
+{id:'S1',name:'Zona personalului · cadru',route:'/[locale]/staff/… (propusă)',ru:{title:'Сеанс истёк',primary:'Войти',error:'У тебя нет доступа к этой странице.',extra:['Меню оператора: Кухни клиентов','Меню администратора: + Персонал · Пресеты · Цены · Переводы · Журнал аудита','Сеанс истёк. Войди снова.']},frames:[
+{id:'S1A',cap:'Operator · meniu (doar „Bucătării clienți”)',server:'sesiune activă, capabilități operator',note:'Pe desktop navigarea stă în stânga; pe mobil se deschide ca foaie. Operatorul nu are niciun element de administrator. Antetul mobil: meniu (44), sigla, chip RO; rolul se vede în foaie.',role:'op',nav:'k',title:'Bucătării clienți',dCols:S2COLS(),dFoot:[PG()],footW:'100%',blocks:S2M(),ov:{k:'menu',mk:'sheet',blocks:MENU_OP},dOv:null},
+{id:'S1B',cap:'Administrator · meniu complet · focus pe element',server:'sesiune activă, capabilități administrator',note:'Șase elemente. Inelul de focus: 2px #7c5c3d, offset 2px. Pe mobil, foaia are focus prins și Esc o închide; focusul revine pe butonul „Meniu”.',role:'adm',nav:'k',navFocus:'t',title:'Bucătării clienți',dCols:S2COLS(),dFoot:[PG()],footW:'100%',blocks:S2M(),ov:{k:'menu',mk:'sheet',blocks:MENU_AD},dOv:null},
+{id:'S1C',cap:'Sesiune expirată · nota deschisă rămâne în câmp',server:'401 unauthenticated',note:'Sesiunea de personal expiră după 12 ore (maximum 7 zile). Fereastra deschide A4 într-o filă nouă ca pagina și nota să rămână; după intrare, „Salvează nota” funcționează din nou. Întrebare pentru proprietar: filă nouă sau reautentificare pe loc?',role:'op',nav:'k',back:'Bucătării clienți',title:K1,sub:'Trimisă de '+E+' · 17.10.2026',dCols:S3COLS({note:{v:'Clientul vrea fronturi din nuc; verific stocul până joi.',f:1}}),dGrid:'minmax(0,640px) minmax(0,440px) minmax(0,460px)',blocks:S3M({note:{v:'Clientul vrea fronturi din nuc; verific stocul până joi.'}}),ov:{k:'dlg',mk:'sheet',blocks:[{t:'grab'},H('Sesiunea a expirat'),P('Intră din nou în cont. Ce ai scris în notă rămâne în câmp.'),BT(kp('Intră în cont',{focus:1})),P('Se deschide într-o filă nouă. Această pagină rămâne neschimbată.')]}},
+{id:'S1D',cap:'403 · fără acces (operator pe o pagină de administrator)',server:'403 forbidden',note:'Nu spune „sesiune expirată”. Navigarea rămâne, fără elemente de administrator.',role:'op',nav:'',title:null,dCols:[[hero('err','Nu ai acces la această pagină','Contul cu care ești conectat nu poate deschide această pagină.'),BT(kp('Înapoi la Bucătării clienți'))]],blocks:[hero('err','Nu ai acces la această pagină','Contul cu care ești conectat nu poate deschide această pagină.'),BT(kp('Înapoi la Bucătării clienți'))]},
+{id:'S1E',cap:'Controlul de cont · meniu (variantă staff)',server:'sesiune activă',note:'Doar desktop aici; pe mobil contul este în foaia S1A. Fără „Bucătăriile mele”. Elementele cer ≥ 44 px.',role:'adm',nav:'k',acFocus:1,title:'Bucătării clienți',dCols:S2COLS(),dFoot:[PG()],footW:'100%',ov:{k:'menu',blocks:[{t:'acct',v:EAD},{t:'rows',items:[{label:'Ieși din cont',focus:1},{label:'Ieși de pe toate dispozitivele'}]}]}},
+]},
+{id:'S2',name:'Bucătării clienți',route:'/[locale]/staff/kitchens (propusă)',ru:{title:'Кухни клиентов',primary:'Открыть',error:'Кухня недоступна.',extra:['Фильтры: Отправленные · Черновики · Все','Статусы (черновик): Новая · Связались · КП отправлено · Закрыта','Бейджи: Отправлена · Черновик · Скрыта клиентом','Нет результатов по запросу «{text}». · Сбросить поиск','Количество: '+[1,2,5,20].map(ruK).join(' · ')]},frames:[
+{id:'S2A',cap:'Se încarcă',server:'GET listă: de stabilit',note:'Rânduri-schelet; filtrele rămân active. Regiune live „Se încarcă bucătăriile”.',role:'op',nav:'k',title:'Bucătării clienți',dCols:[[S2T(),S2TBL(S2SK(7))]],blocks:[S2T({m:1}),{t:'skel'},{t:'skel'},{t:'skel'}]},
+{id:'S2B',cap:'Rezultate · „Trimise” · un rând ascuns de client · focus în listă',server:'GET listă: de stabilit',note:'Paginare cu numere de pagină pe desktop (personalul sare la pagina dorită și revine în același loc); pe mobil „Încarcă mai multe”. Bara de paginare este lipită jos. Ascunsele apar cu badge. Implicit: „Trimise”, cele mai recent trimise întâi. Numele lung se taie după 2 rânduri; numele complet = nume accesibil.',role:'op',nav:'k',title:'Bucătării clienți',dCols:S2COLS({foc:1}),dFoot:[PG()],footW:'100%',blocks:S2M()},
+{id:'S2B2',cap:'„Toate” · ciorne amestecate cu trimise · fără status la ciorne',server:'GET listă: de stabilit',note:'Ciornele au „—” la status și la data trimiterii. Filtrul de status este dezactivat (text în ajutor, nu doar culoare).',role:'op',nav:'k',title:'Bucătării clienți',dCols:S2COLS({seg:2,rows:[SR[0],DR[0],SR[1],DR[1],SR[4],DR[2],SR[2]]}),dFoot:[PG('Se afișează 1–20 din 211')],footW:'100%',blocks:S2M({seg:2,cnt:roK(211),rows:[SR[0],DR[0],SR[4],DR[1]]})},
+{id:'S2B3',cap:'Filtru de status „Nouă” · focus pe selector',server:'GET listă: de stabilit',note:'Activ doar la „Trimise”. Lista de statusuri este un proiect pentru proprietar.',role:'op',nav:'k',title:'Bucătării clienți',dCols:S2COLS({stat:'Nouă',sf:1,rows:[SR[0],SR[3]]}),dFoot:[PG('Se afișează 1–2 din 2')],footW:'100%'},
+{id:'S2C',cap:'Gol · „Trimise”',server:'200 listă goală (de stabilit)',note:'Un text, fără apel la acțiune.',role:'op',nav:'k',title:'Bucătării clienți',dCols:[[S2T(),hero('neu','Nicio bucătărie trimisă încă.','Când un client trimite o bucătărie, o vezi aici.','◫')]],blocks:[S2T({m:1}),hero('neu','Nicio bucătărie trimisă încă.','Când un client trimite o bucătărie, o vezi aici.','◫')]},
+{id:'S2C2',cap:'Gol · „Ciorne”',server:'200 listă goală (de stabilit)',note:'',role:'op',nav:'k',title:'Bucătării clienți',dCols:[[S2T({seg:1}),hero('neu','Nicio ciornă.','Ciornele clienților apar aici.','◫')]],blocks:[S2T({seg:1,m:1}),hero('neu','Nicio ciornă.','Ciornele clienților apar aici.','◫')]},
+{id:'S2D',cap:'Căutare fără rezultate',server:'200 listă goală (de stabilit)',note:'Câmpul păstrează textul; „Șterge căutarea” are 44 px.',role:'op',nav:'k',title:'Bucătării clienți',dCols:[[S2T({q:'popa.vasile',qf:1}),hero('neu','Niciun rezultat pentru „popa.vasile”.','Verifică e-mailul sau numele.','⌕'),BT(ks('Șterge căutarea'))]],blocks:[S2T({q:'popa.vasile',m:1}),hero('neu','Niciun rezultat pentru „popa.vasile”.','Verifică e-mailul sau numele.','⌕'),BT(ks('Șterge căutarea'))]},
+{id:'S2E',cap:'Serviciu indisponibil',server:'503 unavailable',note:'Notificare în ecran; filtrele rămân.',role:'op',nav:'k',title:'Bucătării clienți',dCols:[[S2T(),UN,BT(kp('Încearcă din nou'))]],blocks:[S2T({m:1}),UN,BT(kp('Încearcă din nou'))]},
+{id:'S2F',cap:'Sesiune expirată · fereastra S1C',server:'401 unauthenticated',note:'La fel ca S1C; aici nu există text de păstrat.',role:'op',nav:'k',title:'Bucătării clienți',dCols:S2COLS(),dFoot:[PG()],footW:'100%',blocks:S2M(),ov:{k:'dlg',mk:'sheet',blocks:[{t:'grab'},...SESS0]}},
+]},
+{id:'S3',name:'Bucătăria clientului · doar citire',route:'/[locale]/staff/kitchens/[id] (propusă)',ru:{title:'Кухня клиента',primary:'Сохранить заметку',error:'Кухня недоступна.',extra:['Только просмотр','Статус заявки · Сохранить · ✓ Статус сохранён','Клиент скрыл эту кухню и больше не может её открыть. · Сделать снова видимой','Заметки входят в данные клиента: попадают в экспорт данных и удаляются вместе с аккаунтом.','Доступ фиксируется в журнале.','Заметки: '+[1,2,5,20].map(ruN).join(' · ')]},frames:[
+S3F('S3A','Se încarcă',{title:'Bucătăria clientului',sub:'Se încarcă…',cols:SKC,blocks:[{t:'skel'},{t:'skel'},{t:'skel'}],nt:'Schelet pe trei coloane; fără control activ.',server:'GET bucătărie: de stabilit'}),
+S3F('S3B','Trimisă · status, două surse de contact, note',{note:{},nt:'Doar „Doar vizualizare”: nicio comandă de editare și niciun „Deschide în editor”. Contactul vine din două surse etichetate („Din cererea trimisă”, „Din profil”); când diferă, o spune. Starea cererii există doar la bucătăriile trimise. Linia de jurnal este discretă. Aceeași pagină pentru operator și administrator.',server:'GET bucătărie + note: de stabilit'}),
+S3F('S3B2','Trimisă · mobil, derulat (note)',{sy:'-640px',nt:'Al doilea cadru pentru starea lungă: partea de jos, cu notele și câmpul de adăugare. Nimic nu stă sub un buton fix.',server:'—',cols:S3COLS()}),
+S3F('S3C','Ciornă · fără status, note permise',{draft:1,sub:'Ciornă a '+E+' · modificată acum 2 zile',nt:'O ciornă nu are cerere, deci nu are status și nici bloc de cerere. Notele rămân permise.',server:'GET bucătărie: de stabilit'}),
+S3F('S3D','Ascunsă de client · banner + „Fă-o din nou vizibilă”',{top:[HIDB(1)],nt:'Acțiune pentru operator și administrator. Bucătăria rămâne vizibilă personalului, citire. Statusul se poate schimba în continuare.',server:'GET bucătărie: de stabilit'}),
+S3F('S3E','Confirmare: faci vizibilă · focus pe „Anulează”',{top:[HIDB()],ov:{k:'dlg',mk:'dlg',blocks:UNHIDE},nt:'Tab: ① Anulează (focus implicit) → ② Fă-o vizibilă. Nu este roșu: acțiunea nu șterge nimic. Focus prins; Esc închide; focusul revine pe butonul din banner.',server:'de stabilit · acțiunea se scrie în jurnal'}),
+S3F('S3F','Notă · se salvează',{note:{v:'Clientul vrea fronturi din nuc; verific stocul până joi.',busy:1,f:1},nt:'Butonul își păstrează lățimea; aria-busy; textul rămâne în câmp.',server:'de stabilit'}),
+S3F('S3F2','Notă · salvată',{note:{ok:1,items:[{who:'Mihai Rusu',when:'19.10.2026, 14:41',text:'Clientul vrea fronturi din nuc; verific stocul până joi.',bg:'#eef1ea'},...NOTES]},nt:'Nota apare sus; câmpul se golește. Nu există editare sau ștergere (vezi răspunsul 4).',server:'de stabilit'}),
+S3F('S3F3','Notă · eroare, textul rămâne',{note:{v:'Clientul vrea fronturi din nuc; verific stocul până joi.',err:1},nt:'Cazul 503 și cazul „fără conexiune” folosesc aceleași cuvinte ca la 0.3-5; textul scris nu se pierde.',server:'503 unavailable (sau niciun răspuns)'}),
+S3F('S3G','Status schimbat · „✓ Status salvat”',{st:{v:'Contactat',kk:'kok',btn:'Status salvat',hint:'Ultima schimbare: Mihai Rusu, 19.10.2026, 14:44'},nt:'Butonul devine confirmare; „Ultima schimbare” se actualizează.',server:'de stabilit'}),
+S3F('S3H','Bucătărie indisponibilă · lipsă sau a altcuiva',{title:null,sub:null,cols:[[hero('err','Bucătăria nu este disponibilă.','Poate nu există sau nu ai voie să o vezi.'),BT(kp('Înapoi la Bucătării clienți'))]],blocks:[hero('err','Bucătăria nu este disponibilă.','Poate nu există sau nu ai voie să o vezi.'),BT(kp('Înapoi la Bucătării clienți'))],dTop:null,nt:'Un singur răspuns pentru id lipsă și pentru acces refuzat, ca la 0.7.',server:'bucătărie lipsă sau a altcuiva (același răspuns)'}),
+S3F('S3I','Serviciu indisponibil',{title:'Bucătăria clientului',sub:null,cols:[[UN,BT(kp('Încearcă din nou'))]],blocks:[UN,BT(kp('Încearcă din nou'))],nt:'Nimic nu s-a schimbat.',server:'503 unavailable'}),
+]},
+{id:'S4',name:'Personal',route:'/[locale]/staff/team · invitație: /[locale]/staff/accept#t=… (propuse)',ru:{title:'Персонал',primary:'Отправить приглашение',error:'Приглашение больше не действует. Запроси новое у администратора.',extra:['Если адрес может получить приглашение, оно отправлено.','Роль: Оператор / Администратор · «Приглашение отправлено» / «Активен»','Страница приглашения: Активировать аккаунт · ✓ Аккаунт готов · Войти']},frames:[
+{id:'S4A',cap:'Listă de personal',server:'GET personal: de stabilit',note:'Fără schimbare de rol, dezactivare sau eliminare (vezi răspunsul 5). Primul rând are „Contul tău”.',role:'adm',nav:'t',title:'Personal',act:'Invită o persoană',dCols:[[S4TBL(3)]],dGrid:'minmax(0,1300px)',blocks:[BT(kp('Invită o persoană')),...S4M(3)]},
+{id:'S4B',cap:'Gol · doar tu',server:'GET personal: de stabilit',note:'',role:'adm',nav:'t',title:'Personal',act:'Invită o persoană',dCols:[[S4TBL(1),P('Nu ai invitat încă pe nimeni.')]],dGrid:'minmax(0,1300px)',blocks:[BT(kp('Invită o persoană')),...S4M(1),P('Nu ai invitat încă pe nimeni.')]},
+{id:'S4C',cap:'Foaie de invitație · focus + Tab',server:'—',note:'Tab: ① E-mail → ② Rol (nimic preselectat) → ③ Trimite invitația → ④ Anulează. Pe desktop foaia vine din dreapta. Focus prins; Esc închide; focusul revine pe „Invită o persoană”.',role:'adm',nav:'t',title:'Personal',act:'Invită o persoană',dCols:[[S4TBL(3)]],dGrid:'minmax(0,1300px)',blocks:[...S4M(3)],ov:{k:'drawer',blocks:INV({f:1})}},
+{id:'S4D',cap:'Erori: e-mail și rol lipsă',server:'400 invalid-input · MALFORMED',note:'Mai multe câmpuri: focusul merge în regiunea de sus, apoi pe primul câmp.',role:'adm',nav:'t',title:'Personal',act:'Invită o persoană',dCols:[[S4TBL(3)]],dGrid:'minmax(0,1300px)',blocks:S4M(3),ov:{k:'drawer',blocks:INV({e:'ana@',eErr:'Adresa nu pare corectă. Verifică „@” și domeniul (ex.: nume@exemplu.md).',err:'Alege un rol.',top:[N('err','Două câmpuri au nevoie de atenție.')]})}},
+{id:'S4E',cap:'Răspuns neutru',server:'de stabilit · același răspuns pentru adresă cu cont existent',note:'Nu spune „are deja cont”.',role:'adm',nav:'t',title:'Personal',act:'Invită o persoană',dCols:[[S4TBL(3)]],dGrid:'minmax(0,1300px)',blocks:S4M(3),ov:{k:'drawer',blocks:[H('Invită o persoană'),N('info','Dacă adresa poate primi o invitație, i-am trimis-o.'),BT(ks('Închide',{focus:1}))]}},
+{id:'S4F',plain:1,cap:'Acceptă invitația · pregătit',server:'— (token în #t=, scos din bara de adrese)',note:'Pagină simplă: fără Turnstile, terți sau chip de limbă. autocomplete=new-password; fără „repetă parola”, fără indicator de putere.',role:'adm',title:'Activează contul',body:'Ți-am trimis o invitație în echipa Lemnaria. Alege o parolă ca să-ți activezi contul de personal.',blocks:ACC({f:1}),bar:[kp('Activează contul')]},
+{id:'S4G',plain:1,cap:'Parolă prea scurtă',server:'400 PASSWORD_TOO_SHORT (alte coduri: 0.7)',note:'',title:'Activează contul',blocks:ACC({v:'primavara',err:SHORT}),bar:[kp('Activează contul')]},
+{id:'S4G2',plain:1,cap:'Parolă din scurgeri publice',server:'400 PASSWORD_BREACHED',note:'',title:'Activează contul',blocks:ACC({v:'parola123456',err:BREACH}),bar:[kp('Activează contul')]},
+{id:'S4H',plain:1,cap:'Se activează',server:'în așteptare',note:'aria-busy; lățime păstrată.',title:'Activează contul',blocks:ACC({v:'pădure de stejar lângă Orhei'}),bar:[kpb('Se activează…')]},
+{id:'S4I',plain:1,cap:'Contul este gata',server:'de stabilit',note:'',title:null,blocks:[hero('ok','Contul este gata','Poți intra în cont.')],bar:[kp('Intră în cont')]},
+{id:'S4J',plain:1,cap:'Invitație nevalabilă',server:'de stabilit',note:'Nu spune „Reîncarcă pagina”: reîncărcarea pierde token-ul. Nu spune de ce (expirată, folosită).',title:null,blocks:[hero('err','Invitația nu mai este valabilă','Cere una nouă administratorului.')]},
+{id:'S4K',cap:'Serviciu indisponibil · lista',server:'503 unavailable',note:'',role:'adm',nav:'t',title:'Personal',act:'Invită o persoană',dCols:[[UN,BT(kp('Încearcă din nou'))]],blocks:[UN,BT(kp('Încearcă din nou'))]},
+{id:'S4K2',plain:1,cap:'Serviciu indisponibil · pagina de invitație',server:'503 unavailable',note:'„Încearcă din nou” retrimite cu același token; textul cere deschiderea link-ului din e-mail doar dacă pagina a fost reîncărcată.',title:'Activează contul',blocks:[N('err',UNAV+' Dacă pagina se reîncarcă, deschide din nou link-ul din e-mail.',{title:'Serviciul nu este disponibil acum'}),...ACC({v:'pădure de stejar lângă Orhei'})],bar:[kp('Încearcă din nou')]},
+]},
+{id:'S5',name:'Presete',route:'/[locale]/staff/presets (propusă)',ru:{title:'Пресеты',primary:'Скрыть / Показать',error:'Не удалось сохранить порядок. Порядок возвращён.',extra:['Новые пресеты создаются в редакторе: «Сохранить как пресет».','Переместить выше · Переместить ниже · Предпросмотр','✓ Порядок сохранён','Видим / Скрыт']},frames:[
+{id:'S5A',cap:'Se încarcă',server:'GET presete: de stabilit',note:'',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',dCols:[[PSG({items:[{skel:1},{skel:1},{skel:1},{skel:1}]})]],blocks:[{t:'skel'},{t:'skel'}]},
+{id:'S5B',cap:'Grilă · vizibile și ascunse',server:'GET presete: de stabilit',note:'Numele generat `{formă}, {pereți} mm, {finisaj}` sau cel tastat. „Ascunde” scoate presetul din Pasul 1 și îl păstrează aici. Mânerul de tragere are 44 px, iar „Mută mai sus / mai jos” sunt alternativa pentru tastatură și atingere. Nu există „Șterge”.',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',dCols:[[PSG()]],blocks:[PSG({cols:1,th:'120px',items:PSI(PSL.slice(0,3))})]},
+{id:'S5B2',cap:'Mobil · derulat',server:'—',note:'Al doilea cadru pentru lista lungă.',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',sy:'-560px',dCols:[[PSG()]],blocks:[PSG({cols:1,th:'120px',items:PSI(PSL.slice(0,4))})]},
+{id:'S5C',cap:'Gol',server:'GET presete: de stabilit',note:'',role:'adm',nav:'p',title:'Presete',dCols:[[hero('neu','Niciun preset încă. Creează unul din editor.','Presetele noi se creează din editor, cu „Salvează ca preset”.','◫')]],blocks:[hero('neu','Niciun preset încă. Creează unul din editor.','Presetele noi se creează din editor, cu „Salvează ca preset”.','◫')]},
+{id:'S5D',cap:'Ordine · se salvează · focus pe „Mută mai jos”',server:'de stabilit',note:'Cardul mutat arată „Se mută…”. Mutarea cu tastatura: Tab la butonul „Mută mai jos”, Enter. Starea se anunță într-o regiune live.',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',dCols:[[N('info','Se salvează ordinea…'),PSG({items:PSI(SWAP(1,2),{busy:2,foc:[2,'dn']})})]],blocks:[N('info','Se salvează ordinea…'),PSG({cols:1,th:'120px',items:PSI(SWAP(1,2).slice(0,3),{busy:2,foc:[2,'dn']})})]},
+{id:'S5D2',cap:'Ordine · salvată',server:'de stabilit',note:'',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',dCols:[[N('ok','Ordinea a fost salvată'),PSG({items:PSI(SWAP(1,2))})]],blocks:[N('ok','Ordinea a fost salvată'),PSG({cols:1,th:'120px',items:PSI(SWAP(1,2).slice(0,3))})]},
+{id:'S5E',cap:'Eroare · ordinea revine',server:'503 unavailable',note:'Textul spune ce s-a întâmplat cu ordinea, nu doar culoarea.',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',dCols:[[N('err','Nu am putut salva ordinea. Ordinea a revenit la cea de dinainte. Încearcă din nou în câteva minute.',{title:'Ordinea nu a fost schimbată'}),PSG()]],blocks:[N('err','Nu am putut salva ordinea. Ordinea a revenit la cea de dinainte. Încearcă din nou în câteva minute.',{title:'Ordinea nu a fost schimbată'}),PSG({cols:1,th:'120px',items:PSI(PSL.slice(0,2))})]},
+{id:'S5F',cap:'Ascunzi: fără confirmare',server:'de stabilit',note:'Nu cerem confirmare: „Ascunde” nu șterge nimic și „Arată” este la un clic distanță, pe același card. Confirmarea ar fi doar un obstacol (vezi răspunsul 7). Mesajul nu promite „anulează”.',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',dCols:[[PSG({items:PSI(PSL.map((p,i)=>i===2?[p[0],p[1],1]:p),{foc:[2,'tog']})})]],toast:'„Compactă pentru garsonieră” este ascuns. Nu mai apare în Pasul 1.'},
+{id:'S5G',cap:'Previzualizare · reutilizează 1G',server:'—',note:'Este fereastra 1G din Presete.dc.html, nu una nouă.',role:'adm',nav:'p',title:'Presete',sub:'Presetele noi se creează din editor, cu „Salvează ca preset”.',dCols:[[PSG()]],ov:{k:'big',blocks:[H('Previzualizare: În L, 3200 × 2400 mm, alb mat'),{t:'prev',h:'500px',cap:'1G · previzualizare preset (Presete.dc.html)'},BT(ks('Închide',{focus:1}))]}},
+]},
+{id:'S6',name:'Prețuri',route:'/[locale]/staff/prices (propusă)',ru:{title:'Цены',primary:'Сохранить изменения',error:'Цена должна быть положительным числом.',extra:['Цены в конфигураторе — цены «от».','Изменить '+[3].map(ruP).join('')+' · старая → новая','Есть несохранённые цены. Уйти без сохранения? · Остаться / Уйти','Изменить: '+[1,2,5,20].map(ruP).join(' · ')]},frames:[
+{id:'S6A',cap:'Se încarcă',server:'GET prețuri: de stabilit',note:'',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[tbl('Prețuri',S6G,['Articol','Unitate','Preț actual (MDL)','Preț nou (MDL)','Diferență'],S6SK(7),{ral:[2,3,4]})]],dGrid:'minmax(0,1180px)',blocks:[{t:'skel'},{t:'skel'},{t:'skel'}]},
+{id:'S6B',cap:'Tabel · neschimbat',server:'GET prețuri: de stabilit',note:'Câmpurile sunt completate cu prețul curent; fiecare are numele articolului ca nume accesibil („Preț nou pentru …”) și, pe mobil, etichetă vizibilă. Cifre tabulare, aliniate la dreapta.',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[PRTBL({})]],dGrid:'minmax(0,1180px)',blocks:[PRTBL({},1)]},
+{id:'S6C',cap:'Trei rânduri modificate · bara de salvare',server:'—',note:'Rândul modificat are fundal cald, chenar îngroșat și coloana „Diferență” cu semn (nu doar culoare). Bara este lipită jos, nu fixă; câmpul focusat nu stă sub ea.',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[PRTBL({edits:ED3,focus:'Șină de sertar cu închidere lină'})]],dGrid:'minmax(0,1180px)',dFoot:SAVEBAR,footW:'560px',blocks:[PRTBL({edits:ED3},1)],bar:SAVEBAR},
+{id:'S6D',cap:'Erori de validare',server:'400 invalid-input (cod: de stabilit)',note:'Mai multe câmpuri: focus în regiunea de sus, apoi pe primul.',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[N('err','Două prețuri au nevoie de atenție.'),PRTBL({edits:{'Front furnir stejar':'abc','Șină de sertar cu închidere lină':'−50'},errs:{'Front furnir stejar':'Prețul trebuie să fie un număr pozitiv.','Șină de sertar cu închidere lină':'Prețul trebuie să fie un număr pozitiv.'}})]],dGrid:'minmax(0,1180px)',dFoot:SAVEBAR,footW:'560px'},
+{id:'S6E',cap:'Rezumat înainte de salvare',server:'—',note:'Vechi → nou pentru fiecare preț. „Anulează” are focusul (modificarea afectează ce văd clienții). Tab: ① Anulează → ② Confirmă.',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[PRTBL({edits:ED3})]],dGrid:'minmax(0,1180px)',blocks:[PRTBL({edits:ED3},1)],ov:{k:'dlg',mk:'sheet',blocks:[{t:'grab'},H('Schimbi '+roP(3)),kv('Vechi → nou (MDL)',null,[['Front furnir stejar','2\u00a0640 → 2\u00a0780'],['Șină de sertar cu închidere lină','210 → 225'],['Blat compact 38 mm, gri grafit','1\u00a0420 → 1\u00a0390']],null,'200px'),BT(kp('Confirmă',{tab:2}),ks('Anulează',{focus:1,tab:1}))]}},
+{id:'S6F',cap:'Salvat',server:'de stabilit',note:'',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[N('ok','Prețurile au fost salvate'),PRTBL({edits:ED3,saved:1})]],dGrid:'minmax(0,1180px)',blocks:[N('ok','Prețurile au fost salvate'),PRTBL({},1)]},
+{id:'S6G',cap:'Serviciu indisponibil · modificările rămân',server:'503 unavailable',note:'Nu s-a schimbat nimic; valorile scrise rămân în câmpuri.',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[UN,PRTBL({edits:ED3})]],dGrid:'minmax(0,1180px)',dFoot:[kp('Încearcă din nou'),ks('Renunță')],footW:'560px',blocks:[UN,PRTBL({edits:ED3},1)],bar:[kp('Încearcă din nou')]},
+{id:'S6H',cap:'Plecare cu prețuri nesalvate · „Rămân” focusat',server:'—',note:'Apare când personalul apasă un link din navigare. Tab: ① Rămân → ② Pleacă. „Pleacă” este butonul distructiv (contur roșu).',role:'adm',nav:'pr',title:'Prețuri',sub:'Prețurile din configurator sunt prețuri „de la”.',dCols:[[PRTBL({edits:ED3})]],dGrid:'minmax(0,1180px)',dFoot:SAVEBAR,footW:'560px',ov:{k:'dlg',blocks:[H('Ai prețuri nesalvate. Pleci fără să le salvezi?'),P('Cele '+roP(3)+' modificate nu se salvează.'),BT(kd('Pleacă',{tab:2}),ks('Rămân',{focus:1,tab:1}))]}},
+]},
+{id:'S7',name:'Traduceri',route:'/[locale]/staff/translations (propusă)',ru:{title:'Переводы',primary:'Сохранить',error:'Русский текст намного длиннее; проверь, поместится ли он.',extra:['Только пропущенные · Поиск','✓ Сохранено','Ничего не пропущено.']},frames:[
+{id:'S7A',cap:'Se încarcă',server:'GET traduceri: de stabilit',note:'',role:'adm',nav:'tr',title:'Traduceri',dCols:[[TRT(),TRTBL(TRSK(6))]],blocks:[TRT({m:1}),{t:'skel'},{t:'skel'}]},
+{id:'S7B',cap:'Listă · „Toate”',server:'GET traduceri: de stabilit',note:'Română este sursă, doar citire. Rândurile fără rusă au eticheta „Lipsă” (text, nu doar culoare). Traducerile se salvează pe rând.',role:'adm',nav:'tr',title:'Traduceri',sub:'Lipsă în rusă: 2',dCols:[[TRT(),TRTBL(TR.map(r=>TRROW(r)))]],blocks:[TRT({m:1}),tbl('Traduceri','1fr',['Traducere'],TR.slice(0,3).map(r=>TRM(r,{})),{noHead:true})]},
+{id:'S7C',cap:'Se editează · focus în câmp',server:'—',note:'Rândul editat primește „Salvează” principal; restul rămân secundare.',role:'adm',nav:'tr',title:'Traduceri',sub:'Lipsă în rusă: 2',dCols:[[TRT(),TRTBL(TR.map((r,i)=>TRROW(r,{st:i===3?{v:'Отправить в магазин',focus:1,mod:1,btn:['Salvează','kp'],bf:0}:i===1?{}:{}})))]],blocks:[TRT({m:1}),tbl('Traduceri','1fr',['Traducere'],[TRM(TR[3],{v:'Отправить в магазин',focus:1,mod:1,btn:['Salvează','kp']})],{noHead:true})]},
+{id:'S7C2',cap:'Se editează · text rusesc mult mai lung',server:'—',note:'Avertizare, nu blocare: „Salvează” rămâne activ.',role:'adm',nav:'tr',title:'Traduceri',sub:'Lipsă în rusă: 2',dCols:[[TRT(),TRTBL(TR.map((r,i)=>TRROW(r,{st:i===3?{v:'Отправить заявку в магазин для расчёта стоимости кухни',focus:1,mod:1,h:'72px',warn:'Textul rusesc e mult mai lung; verifică dacă încape.',btn:['Salvează','kp']}:{}})))]]},
+{id:'S7D',cap:'Rând salvat',server:'de stabilit',note:'',role:'adm',nav:'tr',title:'Traduceri',sub:'Lipsă în rusă: 1',dCols:[[TRT(),TRTBL(TR.map((r,i)=>TRROW(r,{st:i===3?{v:'Отправить в магазин',btn:['Salvat','kok']}:{}})))]],blocks:[TRT({m:1}),tbl('Traduceri','1fr',['Traducere'],[TRM(TR[3],{v:'Отправить в магазин',btn:['Salvat','kok']})],{noHead:true})]},
+{id:'S7E',cap:'Eroare la salvare · textul rămâne',server:'503 unavailable',note:'Eroarea stă la rând; textul scris nu se pierde.',role:'adm',nav:'tr',title:'Traduceri',sub:'Lipsă în rusă: 2',dCols:[[TRT(),TRTBL(TR.map((r,i)=>TRROW(r,{st:i===3?{v:'Отправить в магазин',mod:1,err:'Nu am putut salva. Textul a rămas aici. Încearcă din nou în câteva minute.',btn:['Salvează','kp']}:{}})))]],blocks:[TRT({m:1}),tbl('Traduceri','1fr',['Traducere'],[TRM(TR[3],{v:'Отправить в магазин',mod:1,err:'Nu am putut salva. Textul a rămas aici. Încearcă din nou în câteva minute.',btn:['Salvează','kp']})],{noHead:true})]},
+{id:'S7F',cap:'„Doar lipsă” · nimic de arătat',server:'200 listă goală (de stabilit)',note:'',role:'adm',nav:'tr',title:'Traduceri',sub:'Lipsă în rusă: 0',dCols:[[TRT({seg:1}),hero('ok','Nu lipsește nicio traducere.','Toate textele au variantă în rusă.'),BT(ks('Arată toate'))]],blocks:[TRT({seg:1,m:1}),hero('ok','Nu lipsește nicio traducere.','Toate textele au variantă în rusă.'),BT(ks('Arată toate'))]},
+]},
+{id:'S8',name:'Jurnal de audit',route:'/[locale]/staff/audit (propusă)',ru:{title:'Журнал аудита',primary:'—  (только чтение)',error:'Сервис сейчас недоступен. Ничего не изменено. Повтори через несколько минут.',extra:['Журнал нельзя изменить.','Действия: открыл(а) кухню → «Кухня открыта» · «Заметка добавлена» · «Статус изменён» · «Сделана видимой» · «Приглашение отправлено» · «Цены изменены» · «Пресет скрыт»']},frames:[
+{id:'S8A',cap:'Se încarcă',server:'GET jurnal: de stabilit',note:'',role:'adm',nav:'au',title:'Jurnal de audit',sub:'Jurnalul nu poate fi modificat.',dCols:[[AUT(),AUTBL(AUSK(7))]],blocks:[AUT({m:1}),{t:'skel'},{t:'skel'}]},
+{id:'S8B',cap:'Listă · doar citire',server:'GET jurnal: de stabilit',note:'Nicio comandă de editare, ștergere sau golire. Se arată e-mailul clientului și numele bucătăriei, fără telefon, adresă sau textul notelor (vezi răspunsul 6). Paginare cu numere.',role:'adm',nav:'au',title:'Jurnal de audit',sub:'Jurnalul nu poate fi modificat.',dCols:[[AUT(),AUTBL(AUR)]],dFoot:[PG('Se afișează 1–25 din 1\u00a0204')],footW:'100%',blocks:[AUT({m:1}),tbl('Jurnal','1fr',['Jurnal'],AUM,{noHead:true}),BT(ks('Încarcă mai multe')),NOLOG]},
+{id:'S8C',cap:'Gol',server:'200 listă goală (de stabilit)',note:'',role:'adm',nav:'au',title:'Jurnal de audit',sub:'Jurnalul nu poate fi modificat.',dCols:[[AUT(),hero('neu','Nicio acțiune înregistrată încă.','Accesul personalului la bucătării apare aici.','◫')]],blocks:[AUT({m:1}),hero('neu','Nicio acțiune înregistrată încă.','Accesul personalului la bucătării apare aici.','◫')]},
+{id:'S8D',cap:'Fără rezultate pentru filtre',server:'200 listă goală (de stabilit)',note:'',role:'adm',nav:'au',title:'Jurnal de audit',sub:'Jurnalul nu poate fi modificat.',dCols:[[AUT({act:'a ascuns presetul',af:1}),hero('neu','Nicio acțiune pentru filtrele alese.','Schimbă persoana, acțiunea sau intervalul.','⌕'),BT(ks('Șterge filtrele'))]],blocks:[AUT({act:'a ascuns presetul',m:1}),hero('neu','Nicio acțiune pentru filtrele alese.','Schimbă persoana, acțiunea sau intervalul.','⌕'),BT(ks('Șterge filtrele'))]},
+{id:'S8E',cap:'Serviciu indisponibil',server:'503 unavailable',note:'',role:'adm',nav:'au',title:'Jurnal de audit',sub:'Jurnalul nu poate fi modificat.',dCols:[[UN,BT(kp('Încearcă din nou'))]],blocks:[UN,BT(kp('Încearcă din nou'))]},
+]},
+];
+
+function rich(s){const out=[];const re=/\*\*(.+?)\*\*|\[(.+?)\]/g;let i=0,m;while((m=re.exec(s))){if(m.index>i)out.push({plain:true,v:s.slice(i,m.index)});out.push(m[1]?{bold:true,v:m[1]}:{link:true,v:m[2]});i=re.lastIndex;}if(i<s.length)out.push({plain:true,v:s.slice(i)});return out;}
+function L1(b){const o={...b};
+if(b.t==='p'){o.isP=true;o.segs=rich(b.text);}
+if(b.t==='notice'){o.segs=rich(b.text);o.nErr=b.tone==='err';o.nWarn=b.tone==='warn';o.nOk=b.tone==='ok';o.nInfo=b.tone==='info';}
+if(b.t==='field'){o.isField=true;o.noErr=!b.err;o.hasVal=!!b.value;o.isPh=!b.value;o.disp=b.value?(b.pw?'•'.repeat(Math.min(b.value.length,22)):b.value):(b.ph||'');o.toggle=b.pw?'Arată':null;o.boxErr=!!b.err;o.boxFocus=!b.err&&!!b.focus;o.boxNorm=!b.err&&!b.focus;}
+if(b.t==='hero'){o.isHero=true;o.segs=rich(b.text||'');o.hOk=b.tone==='ok';o.hErr=b.tone==='err';o.hNeu=b.tone==='neu';}
+return o;}
+const BNT={info:{bg:'#f5f3f0',bd:'#dcd8ce',fg:'#1c1814',gb:'#7c5c3d',g:'i'},warn:{bg:'#f7ecdc',bd:'#e6cfa8',fg:'#5a3e25',gb:'#b45309',g:'!'}};
+function C(c){const o={...c},k=c.k;
+if(k==='t'){o.isT=true;o.font=c.font||(c.b?'700 14px/1.35 Helvetica,Arial,sans-serif':'400 14px/1.4 Helvetica,Arial,sans-serif');o.color=c.b?'#1c1814':'#1c1d1f';o.al=c.al||'left';o.clamp=c.clamp?'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden':'';}
+if(k==='bd')o.isBd=true;
+if(k==='th')o.isTh=true;
+if(k==='sk'){o.isSk=true;o.h=c.h||'14px';o.w=c.w||'70%';}
+if(k==='in'){const e=!!c.err;o.isIn=true;o.h=c.h||'48px';o.bw=(e||c.mod)?'2px':'1px';o.bd=e?'#dc2626':(c.focus||c.mod)?'#7c5c3d':'#dcd8ce';o.bg=e?'#fdf3f3':'#faf8f4';o.ol=c.focus?OL:'none';o.ai=c.h&&c.h!=='48px'?'flex-start':'center';o.jc=c.al==='right'?'flex-end':'flex-start';o.fg=c.value?'#1c1d1f':'#a89c8e';o.value=c.value||c.ph||'';o.labc=c.lab==='Lipsă'?'#5a3e25':e?'#8f2020':'#6b5e52';}
+if(k==='bt'){o.isBt=true;o[c.v]=true;o.jc=c.jc||'flex-end';o.ol=c.focus?OL:'none';}
+return o;}
+function B(b){
+if(['p','notice','field','hero','links'].includes(b.t))return{legacy:true,one:[L1(b)]};
+const o={...b};
+const flags={H:'isH',grab:'isGrab',cnt:'isCount',skel:'isSkel',text:'isText',thumb:'isThumb',acct:'isAcct',rows:'isRows'};
+if(flags[b.t])o[flags[b.t]]=true;
+if(['tb','tbl','rc','kv','bn','nt','ta','st','segf','prev','pg','cap','psg'].includes(b.t))o['is_'+b.t]=true;
+if(b.t==='btns')o.isBtns=true,o.items=b.items.map(it=>({...it,[it.k]:true,ol:it.focus?OL:'none'}));
+if(b.t==='rows')o.items=b.items.map(r=>({...r,font:'700 15px/1.3 Helvetica,Arial,sans-serif',color:r.danger?'#8f2020':'#1c1814',ol:r.focus?OL:'none',arrow:r.sub?'↗':'›'}));
+if(b.t==='tb'){o.segs=b.segs?b.segs.map(s=>({...s,bg:s.on?'#7c5c3d':'#faf8f4',fg:s.on?'#faf8f4':'#5a3e25',ol:s.focus?OL:'none'})):null;o.ctls=(b.ctls||[]).map(c=>({...c,text:c.value||c.ph||'',fg:c.value?(c.dis?'#6b5e52':'#1c1d1f'):'#a89c8e',bg:c.dis?'#ece7dd':'#faf8f4',bd:c.focus?'#7c5c3d':'#dcd8ce',bw:'1px',ol:c.focus?OL:'none'}));}
+if(b.t==='tbl'){o.head=!b.noHead;o.rows=b.rows.map(r=>r.grp?{isGrp:true,grp:r.grp}:{isRow:true,bg:r.bg||'transparent',ol:r.focus?OL:'none',cells:r.cells.map(C)});}
+if(b.t==='rc'){o.ol='none';}
+if(b.t==='kv'){o.kw=b.kw||'132px';o.rows=b.rows.map(r=>({...r,font:r.big?'700 20px/1.3 Helvetica,Arial,sans-serif':'400 14px/1.45 Helvetica,Arial,sans-serif'}));}
+if(b.t==='bn'){Object.assign(o,BNT[b.tone]||BNT.info);o.ol=b.focus?OL:'none';}
+if(b.t==='nt')o.items=b.items.map(n=>({bg:'transparent',...n}));
+if(b.t==='ta'){const e=!!b.err;o.labc=e?'#dc2626':'#1c1814';o.bw=e?'2px':'1px';o.bd=e?'#dc2626':b.focus?'#7c5c3d':'#dcd8ce';o.bg=e?'#fdf3f3':'#faf8f4';o.ol=b.focus?OL:'none';o.fg=b.value?'#1c1d1f':'#a89c8e';o.text=b.value||b.ph||'';o.h=b.h||'120px';o.isErr=e;}
+if(b.t==='st'){o.bd=b.focus?'#7c5c3d':'#dcd8ce';o.bw='1px';o.ol=b.focus?OL:'none';o[b.kk]=true;}
+if(b.t==='segf'){const e=!!b.err;o.labc=e?'#dc2626':'#1c1814';o.items=b.items.map(s=>({...s,bg:s.on?'#7c5c3d':'#faf8f4',fg:s.on?'#faf8f4':'#5a3e25',bd:e&&!s.on?'#dc2626':s.on?'#7c5c3d':'#dcd8ce',bw:e&&!s.on?'2px':'1px',ol:s.focus?OL:'none'}));}
+if(b.t==='pg')o.items=b.items.map(p=>({...p,bg:p.on?'#7c5c3d':'#faf8f4',fg:p.on?'#faf8f4':p.dis?'#6b5e52':'#5a3e25',bd:p.on?'#7c5c3d':'#dcd8ce'}));
+if(b.t==='psg'){o.cols=b.cols||4;o.th=b.th||'150px';o.items=b.items.map(p=>p.skel?{skel:1}:{...p,real:1,badge:p.hid?'⊘ Ascuns':'✓ Vizibil',bg:p.hid?'#faf8f4':'#eef1ea',bbd:p.hid?'#6b5e52':'#d3dccb',bbs:p.hid?'dashed':'solid',fg:p.hid?'#1c1814':'#2d5016',bs:p.hid?'dashed':'solid',bc:p.hid?'#6b5e52':'#dcd8ce',tog:p.hid?'Arată':'Ascunde',upDis:!!p.first,dnDis:!!p.last,ubg:p.first?'#ece7dd':'#faf8f4',ufg:p.first?'#6b5e52':'#5a3e25',dbg:p.last?'#ece7dd':'#faf8f4',dfg:p.last?'#6b5e52':'#5a3e25',ol:p.sel?OL:'none',olUp:p.f==='up'?OL:'none',olDn:p.f==='dn'?OL:'none',olTog:p.f==='tog'?OL:'none',olDrag:p.f==='drag'?OL:'none'});}
+return o;}
+function F(f){
+const role=f.role||'op',adm=role==='adm',ov=f.ov||null,dov=f.dOv===undefined?ov:f.dOv;
+const navItems=[['k','Bucătării clienți'],...(adm?[['t','Personal'],['p','Presete'],['pr','Prețuri'],['tr','Traduceri'],['au','Jurnal de audit']]:[])];
+const nav=navItems.map(([k,label])=>({label,bg:f.nav===k?'#ece7dd':'transparent',fg:f.nav===k?'#5a3e25':'#1c1814',font:f.nav===k?'700 14.5px/1.2 Helvetica,Arial,sans-serif':'400 14.5px/1.2 Helvetica,Arial,sans-serif',ol:f.navFocus===k?OL:'none'}));
+const mb=(f.blocks||[]).map(B),dk=dov&&dov.k;
+const dCols=f.dCols?f.dCols.map(c=>c.map(B)):[mb];
+const mk=ov&&(ov.mk||ov.k);
+return{id:f.id,idl:f.id.toLowerCase(),cap:f.cap,server:f.server||SV,note:f.note||'',plain:!!f.plain,shell:!f.plain,roleLabel:adm?'Administrator':'Operator',nav,acOl:f.acFocus?OL:'none',
+title:f.title===undefined?null:f.title,sub:f.sub||null,body:f.body||null,back:f.back,hasBack:!!f.back,act:f.act||null,
+dTop:f.dTop?f.dTop.map(B):null,hasTop:!!f.dTop,dCols,dGrid:f.dGrid||'minmax(0,1fr)',dFoot:f.dFoot?(f.dFoot[0]&&f.dFoot[0].k?[B(BT(...f.dFoot))]:f.dFoot.map(B)):null,hasFoot:!!f.dFoot,footW:f.footW||'560px',
+hasM:!!f.blocks,mBlocks:mb,bar:f.bar?[B(BT(...f.bar))]:null,hasBar:!!f.bar,sy:f.sy||'0px',hpad:f.plain?'16px':'0px',
+dov:!!dov,dovBlocks:dov?dov.blocks.filter(b=>b.t!=='grab').map(B):null,oDlg:dk==='dlg',oBig:dk==='big',oDrawer:dk==='drawer'||dk==='sheet',oMenu:dk==='menu',
+ov:!!ov,ovBlocks:ov?ov.blocks.map(B):null,mSheet:!!ov&&mk!=='dlg',mDialog:!!ov&&mk==='dlg',toast:f.toast||null};}
+const BUILT=SCREENS.map(sc=>{const frames=sc.frames.map(F);return{id:sc.id,idl:sc.id.toLowerCase(),name:sc.name,route:sc.route,ru:{extra:[],...sc.ru},dFrames:frames.filter(f=>!['S3B2','S5B2'].includes(f.id)),mFrames:frames.filter(f=>f.hasM)};});
+const ANS=[
+['1 · S3: bucătăria „așa cum a fost trimisă” sau „așa cum este acum”?','Implicit așa cum a fost trimisă: cererea este un angajament către magazin și operatorul discută oferta pe baza ei. Dacă clientul a modificat bucătăria după trimitere, banner informativ: „Clientul a modificat bucătăria după trimitere.” și un comutator „Varianta trimisă / Varianta actuală” (două segmente de 48 px). Nu l-am desenat ca să nu adaug material nepedit; spune-mi dacă îl vrei.'],
+['2 · Ce contact conduce când profilul și cererea diferă?','Cererea trimisă conduce pe pagina bucătăriei (coloana de contact începe cu ea), pentru că este ce a ales clientul pentru acea ofertă. Profilul este al doilea bloc. Când diferă, un rând discret o spune („Telefonul din cerere diferă de cel din profil”) și arată ambele valori. În listă (S2) apare doar telefonul din profil, cu „neverificat”.'],
+['3 · S2: lista și ordinea statusurilor; ascunde „Închisă” un rând?','Ordine: Nouă → Contactat → Ofertă trimisă → Închisă. „Închisă” nu ascunde rândul: lista implicită arată toate trimisele, cele mai recente primele; filtrul de status le restrânge. Dacă listele devin lungi, o opțiune „Fără închise” poate veni mai târziu.'],
+['4 · S3: notele se pot edita/șterge? Le vede clientul?','Nu: notele sunt un jurnal de lucru, nu se editează și nu se șterg (o greșeală se corectează cu o notă nouă). Autorul nu are control special. Clientul nu le vede în aplicație; ele apar totuși în exportul datelor (S3 spune asta) și se șterg odată cu contul.'],
+['5 · S4: schimbare de rol, dezactivare, retrimitere','Lăsate pentru mai târziu: neluate încă în decizii, deci nedesenate. Pentru „Invitație trimisă” nu există „Retrimite”; administratorul invită din nou.'],
+['6 · S8: cât din datele clientului arată jurnalul?','E-mailul clientului și numele bucătăriei, atât: suficient ca să găsești cazul, fără telefon, adresă sau text de notă. Pentru acțiuni de personal: e-mailul invitat și rolul, sau numărul de prețuri.'],
+['7 · S5: confirmare la ascunderea unui preset?','Nu. „Ascunde” nu șterge nimic, iar „Arată” este un clic pe același card. Confirmarea ar adăuga doar un pas.'],
+['8 · Alte observații','Pe mobil, antetul staff are meniul (44 px) în locul lui ‹, deoarece navigarea este o foaie. Sesiunea expirată: S1C deschide autentificarea într-o filă nouă ca să nu se piardă nota; de confirmat cu proprietarul.']].map(a=>({q:a[0],a:a[1]}));
+const PLUR=[1,2,5,20].map(n=>`${n} → bucătării RO: ${roK(n)} · RU: ${ruK(n)} · note RO: ${roN(n)} · RU: ${ruN(n)} · prețuri RO: ${roP(n)} · RU: ${ruP(n)}`);
+const LISTS=['Blocuri noi în ContBlocks2: bară de filtre (segmente de 48 px + câmpuri etichetate), tabel (rând, rând de grup, celule: text, badge-uri, miniatură, câmp, buton, schelet), card de rând pe mobil, bloc de contact cu etichetă de sursă, banner, listă de note, câmp text lung cu contor, selector de status cu buton, grup de segmente cu eroare, previzualizare „Doar vizualizare”, paginare cu numere, linie discretă, grilă de presete (mâner 44 px, „Mută mai sus/jos”).','Copy adăugat peste brief: „Afișează”, „Caută după e-mail sau nume”, „Toate stările”, „Disponibil doar la „Trimise””, „Cele mai recent trimise întâi”, „Se afișează 1–20 din 143”, „Imagine · Acțiune”, „Contul tău”, „Cererea trimisă către magazin”, „Contul clientului”, „Din cererea trimisă / Din profil”, „Configurația trimisă”, „Preț „de la”, nu ofertă…”, „Nota a fost salvată”, „Nota nu a fost salvată”, „Ciorna nu are cerere trimisă, deci nu are status.”, „Faci bucătăria din nou vizibilă?”, „Nu am putut salva ordinea…”, „Se mută…”, „Vechi → nou (MDL)”, „Diferență”, „Lipsă”, „Lipsă în rusă: n”, „Nu lipsește nicio traducere.”, „Persoană / Acțiune / De la / Până la”, „Șterge filtrele”, „Rol: Operator / Administrator” în foaia mobilă, „Se deschide într-o filă nouă.”, „Nu ai invitat încă pe nimeni.”, „Ți-am trimis o invitație în echipa Lemnaria.”, „Activează contul”. Restul vine din brief.','Server: ce nu e în brief este marcat „de stabilit”. Nu s-a inventat niciun cuvânt HTTP în afara celor din 0.7.'];
+class Component extends DCLogic{renderVals(){return{screens:BUILT,answers:ANS,plurals:PLUR,lists:LISTS,showNotes:this.props.showNotes??true,showDesktop:this.props.showDesktop??true};}}
+</script>
+</body>
+</html>

@@ -45,12 +45,21 @@ import {
 // with the signed-in state it was drawn for, and it must be neither inert while a dialog is open elsewhere nor held under
 // the cell's stacking number (the cell is a grid item of the editor, so its `z-index` caps whatever it contains).
 
+/** The visitor's link: `text` is the words, `icon` the glyph alone, and `icon-below-desktop` the glyph on the phone shell
+ *  and the words from the desktop shell up (the stylesheet's fork, so the first paint is already right). */
+export type SignInForm = "text" | "icon" | "icon-below-desktop";
+
 export interface AccountControlProps {
   /** The host's cell: where it stands in the bar, and the band's paper and rule it draws. */
   readonly cellClassName: string;
+  /** The form of the visitor's link. A signed-in person's control is the glyph whatever is asked here. */
+  readonly signInForm?: SignInForm;
 }
 
-export function AccountControl({ cellClassName }: AccountControlProps) {
+export function AccountControl({
+  cellClassName,
+  signInForm = "text",
+}: AccountControlProps) {
   const session = useAccountSession();
   const signOutHere = useSignOutHere();
   const cellRef = useRef<HTMLDivElement>(null);
@@ -62,7 +71,11 @@ export function AccountControl({ cellClassName }: AccountControlProps) {
         className={cellClassName}
         data-testid="top-bar-account"
       >
-        <ControlFor session={session} signOutHere={signOutHere} />
+        <ControlFor
+          session={session}
+          signInForm={signInForm}
+          signOutHere={signOutHere}
+        />
       </div>
       <SignOutHereToast
         outcome={signOutHere.outcome}
@@ -90,16 +103,18 @@ function useFocusSignInAfterSignOut(
 
 function ControlFor({
   session,
+  signInForm,
   signOutHere,
 }: {
   readonly session: AccountSessionState;
+  readonly signInForm: SignInForm;
   readonly signOutHere: SignOutHere;
 }) {
   switch (session.kind) {
     case "pending":
-      return <PendingSlot />;
+      return <PendingSlot form={signInForm} />;
     case "anonymous":
-      return <SignInLink />;
+      return <SignInLink form={signInForm} />;
     case "client":
       return <SignedInMenu email={session.email} signOutHere={signOutHere} />;
     case "staff":
@@ -148,26 +163,71 @@ function toastMessageOf(
 
 /** What stands in the cell until the server has answered: the visitor's link, invisible. Most sessions are visitors,
  *  so the widest state is the one reserved, and the answer moves the bar only for someone signed in. */
-function PendingSlot() {
-  const copy = useAccountControlCopy();
+function PendingSlot({ form }: { readonly form: SignInForm }) {
   return (
-    <span className={styles.accountPending} aria-hidden="true">
-      {copy.signIn}
+    <span className={styles.accountPending} data-form={form} aria-hidden="true">
+      <SignInFace />
     </span>
   );
 }
 
-function SignInLink() {
+function SignInLink({ form }: { readonly form: SignInForm }) {
   const copy = useAccountControlCopy();
   const locale = useLocale();
   return (
     <a
       className={styles.accountSignIn}
       href={accountPathOf(locale, "login")}
+      aria-label={copy.signIn}
+      data-form={form}
       data-testid="top-bar-account-sign-in"
     >
-      {copy.signIn}
+      <SignInFace />
     </a>
+  );
+}
+
+/** Both faces of the link; the stylesheet shows the one `data-form` asks for. The name is on the element that holds
+ *  them, so the face that is shown or hidden changes nothing a screen reader is told. */
+function SignInFace() {
+  const copy = useAccountControlCopy();
+  return (
+    <>
+      <span className={styles.accountSignInText}>{copy.signIn}</span>
+      <span className={styles.accountGlyph} aria-hidden="true" />
+    </>
+  );
+}
+
+export interface AccountFormProbeRefs {
+  readonly textRef: RefObject<HTMLSpanElement | null>;
+  readonly iconRef: RefObject<HTMLSpanElement | null>;
+}
+
+/** The control's two forms, drawn hidden and outside the cell, for a host that decides between them from their measured
+ *  widths: dropping the words cannot destroy the measurement that would bring them back. A signed-in person's control
+ *  is the glyph in both, so the two measure alike and choosing between them returns nothing. Boxes of its own, because
+ *  a probe sharing the host's would stretch every block-level probe in it to the widest. */
+export function AccountFormProbes({ textRef, iconRef }: AccountFormProbeRefs) {
+  const session = useAccountSession();
+  const isSignedIn = session.kind === "client" || session.kind === "staff";
+  return (
+    <div className={styles.accountProbes} aria-hidden="true">
+      <span className={styles.accountProbe}>
+        <span
+          ref={textRef}
+          className={styles.accountSignIn}
+          data-form={isSignedIn ? "icon" : "text"}
+        >
+          <SignInFace />
+        </span>
+      </span>
+      <span className={styles.accountProbe}>
+        <span ref={iconRef} className={styles.accountSignIn} data-form="icon">
+          <SignInFace />
+        </span>
+      </span>
+    </div>
   );
 }
 

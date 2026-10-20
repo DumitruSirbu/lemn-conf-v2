@@ -480,6 +480,54 @@ describe("the row the refreshed frames replaced", () => {
   });
 });
 
+describe("the visitor's link has a glyph form and the words, and no width threshold of its own", () => {
+  const SIGN_IN_ICON_FORMS = [
+    '.accountSignIn[data-form="icon"]',
+    '.accountSignIn[data-form="icon-below-desktop"]',
+  ];
+
+  /** The body of the rule whose selector list is exactly `selectors`, comments stripped. */
+  function ruleBodyOf(css: string, selectors: readonly string[]): string {
+    const uncommented = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    const found = [...uncommented.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(
+      ([, list]) =>
+        (list ?? "")
+          .split(",")
+          .map((selector) => selector.trim())
+          .join("|") === selectors.join("|"),
+    );
+    if (found === undefined)
+      throw new Error(`no rule for ${selectors.join(", ")}`);
+    return found[2] ?? "";
+  }
+
+  it("takes the touch target's whole width for the glyph, on the phone shell where it starts", () => {
+    // `top-bar-fit.ts` measures this form's width off a probe; the 44 px is the target the owner kept on a phone.
+    const glyphForms = ruleBodyOf(accountStylesheet, SIGN_IN_ICON_FORMS);
+
+    expect(glyphForms).toContain("width: var(--touch-target);");
+    expect(glyphForms).toContain("padding: 0;");
+  });
+
+  it("gives the words back from the desktop shell up, when the host asked for the glyph on a phone only", () => {
+    const wordsBack = ruleBodyOf(accountStylesheet, [
+      '.accountSignIn[data-form="icon-below-desktop"]',
+    ]);
+
+    expect(wordsBack).toContain("width: auto;");
+  });
+
+  it("declares no @media width of its own: the shell's 900 is the only one in the account stylesheet", () => {
+    // ADR 0094 criterion 4i and ADR 0104 decision 9, kept for the control: it is the fit model that decides the glyph.
+    const widths = [
+      ...accountStylesheet.matchAll(/@media \(min-width: (\d+)px\)/g),
+    ].map(([, width]) => width);
+
+    expect(widths.length).toBeGreaterThan(0);
+    expect(new Set(widths)).toEqual(new Set(["900"]));
+  });
+});
+
 describe("the step number has one source", () => {
   it("resolves the pill and the sentence from one pair of step arguments", () => {
     // Both catalogue leaves are resolved with the same `{ step, totalSteps }`, so the pill and the caption cannot state

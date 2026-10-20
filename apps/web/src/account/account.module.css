@@ -1045,7 +1045,9 @@
   margin-block: calc((var(--account-band-line) - var(--touch-target)) / 2);
 }
 
-/* The visitor's way in: a text link on a phone. */
+/* The visitor's way in: a text link on a phone. `data-form` asks for the glyph alone, and the editor's top bar asks for
+ * it when the row has no room for the words: `icon` always, `icon-below-desktop` on this shell and the words from 900 px.
+ * Both forms are in the markup and this stylesheet shows one, so the first paint is already right on a phone. */
 .accountSignIn {
   composes: accountTarget;
   padding: 0 8px;
@@ -1053,6 +1055,42 @@
   color: var(--accent);
   text-decoration: none;
   white-space: nowrap;
+}
+
+.accountSignIn .accountGlyph {
+  display: none;
+}
+
+.accountSignIn[data-form="icon"],
+.accountSignIn[data-form="icon-below-desktop"] {
+  justify-content: center;
+  width: var(--touch-target);
+  padding: 0;
+}
+
+.accountSignIn[data-form="icon"] .accountSignInText,
+.accountSignIn[data-form="icon-below-desktop"] .accountSignInText {
+  display: none;
+}
+
+.accountSignIn[data-form="icon"] .accountGlyph,
+.accountSignIn[data-form="icon-below-desktop"] .accountGlyph {
+  display: block;
+}
+
+/* The hidden probes of the control's two forms: off to the left, as the screen's own probes are, so rightward overflow
+ * never reaches the document's scrollWidth. Each probe is a flex box, which fills its parent, so it stands in a wrapper
+ * that is as wide as the probe is. */
+.accountProbes {
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.accountProbe {
+  display: inline-block;
 }
 
 /* The same box before the answer is known: it takes the room and paints nothing. */
@@ -1225,6 +1263,23 @@
     font-size: 14px;
     border: 1px solid var(--accent);
     border-radius: 22px;
+  }
+
+  .accountSignIn[data-form="icon-below-desktop"] {
+    width: auto;
+    padding: 0 16px;
+  }
+
+  .accountSignIn[data-form="icon-below-desktop"] .accountSignInText {
+    display: inline;
+  }
+
+  .accountSignIn[data-form="icon-below-desktop"] .accountGlyph {
+    display: none;
+  }
+
+  .accountSignIn[data-form="icon"] {
+    border-radius: 50%;
   }
 
   .accountIcon {
