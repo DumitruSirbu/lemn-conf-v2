@@ -141,6 +141,18 @@ describe("when the card is shown", () => {
     expect(isCardShown()).toBe(true);
   });
 
+  it("appears when a definite anonymous answer follows a failed read (a change of definiteness alone)", async () => {
+    leaveAnEditedEditor();
+    await mountCard(() => Promise.resolve(new Response("{}", { status: 503 })));
+    expect(isCardShown()).toBe(false);
+
+    vi.stubGlobal("fetch", vi.fn(answerWith(ANONYMOUS_SESSION)));
+    refreshSession();
+    await flushPromises(5);
+
+    expect(isCardShown()).toBe(true);
+  });
+
   it.each(LOCALES)(
     "%s: its way in is a plain link to the register page in the same language, with no return path",
     async (locale) => {
@@ -218,6 +230,21 @@ describe("when the card is not shown", () => {
 
     markSignedOut();
     await flushPromises(3);
+
+    expect(isCardShown()).toBe(false);
+  });
+
+  it("when a fresh read of the session fails while the card is on show: the answer is no longer the server's", async () => {
+    leaveAnEditedEditor();
+    await mountCard(answerWith(ANONYMOUS_SESSION));
+    expect(isCardShown()).toBe(true);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("{}", { status: 503 }))),
+    );
+    refreshSession();
+    await flushPromises(5);
 
     expect(isCardShown()).toBe(false);
   });

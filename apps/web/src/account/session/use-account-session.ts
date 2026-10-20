@@ -158,7 +158,10 @@ function publish(next: AccountSessionState): void {
     wasSignedOutByPerson = false;
     hasSeenSignedInAnswer = true;
   }
-  current = next;
+  // A copy, so that every answer is a new snapshot: `useSyncExternalStore` compares by identity, and the anonymous
+  // answer is one shared object whether the server said it or a failed read stood in for it. Without the copy a
+  // change of definiteness alone (a 503 after a definite answer, a definite answer after a 503) re-renders nobody.
+  current = { ...next };
   for (const listener of listeners) listener();
 }
 
