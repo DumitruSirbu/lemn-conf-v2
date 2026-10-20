@@ -22,6 +22,11 @@
   background: var(--paper);
 }
 
+/* The screen takes focus from script (the visitor's card hands it over on dismissal) and is not a control: no ring. */
+.screen:focus {
+  outline: none;
+}
+
 /**
  * **The band's rule is drawn by the cells rather than by the bar**, which is
  * `configure.module.css`'s own mechanism and its head comment carries the argument. It is load

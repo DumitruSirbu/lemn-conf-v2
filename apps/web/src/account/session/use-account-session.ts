@@ -42,6 +42,7 @@ let isReading = false;
 let latestReadId = 0;
 let isListeningForPageRestore = false;
 let wasSignedOutByPerson = false;
+let hasSeenSignedInAnswer = false;
 const listeners = new Set<() => void>();
 
 export function useAccountSession(): AccountSessionState {
@@ -71,6 +72,13 @@ export function isSignedOutByPerson(): boolean {
   return wasSignedOutByPerson;
 }
 
+/** Whether the server has said, on this document, that someone was signed in, a client or staff. It is never withdrawn:
+ *  an anonymous answer after it is a sign-out or an expiry, not a visitor who was never signed in. The Step 1 card reads
+ *  it, since the kitchen a person left while signed in is already their account's. */
+export function wasSignedInOnThisDocument(): boolean {
+  return hasSeenSignedInAnswer;
+}
+
 /** Whether the state on show is something the server said, or the stand-in for a request that failed. A failed request
  *  reads as anonymous, which grants less but must not be taken for "the session has ended". */
 export function isSessionAnswerDefinite(): boolean {
@@ -98,6 +106,7 @@ export function resetAccountSessionForTests(): void {
   hasDefiniteAnswer = false;
   isReading = false;
   wasSignedOutByPerson = false;
+  hasSeenSignedInAnswer = false;
   latestReadId += 1;
 }
 
@@ -147,6 +156,7 @@ async function readSession(): Promise<void> {
 function publish(next: AccountSessionState): void {
   if (next.kind === "client" || next.kind === "staff") {
     wasSignedOutByPerson = false;
+    hasSeenSignedInAnswer = true;
   }
   current = next;
   for (const listener of listeners) listener();

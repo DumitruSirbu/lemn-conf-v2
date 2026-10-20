@@ -134,6 +134,8 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
     // screen, derived from the live query, so they cannot disagree with the branch taken below.
     <main
       className={styles.screen}
+      // Focusable by script only: where focus goes when the visitor's card is dismissed and its button goes with it.
+      tabIndex={-1}
       data-room-substate={liveState.substate}
       data-marked-fields={liveState.markedFields.join(",")}
     >

@@ -133,4 +133,19 @@ describe("Step 1 with the card owed to an anonymous visitor", () => {
     ).not.toBeNull();
     expect(container.querySelector(CARD)).toBeNull();
   });
+
+  it("hands focus to the screen when the card is dismissed, instead of dropping it to the document", async () => {
+    await renderStepOne("");
+    const dismiss = container.querySelector<HTMLButtonElement>(
+      '[data-testid="visitor-account-card-not-now"]',
+    );
+    dismiss?.focus();
+
+    act(() => {
+      dismiss?.click();
+    });
+
+    expect(container.querySelector(CARD)).toBeNull();
+    expect(document.activeElement).toBe(container.querySelector("main"));
+  });
 });

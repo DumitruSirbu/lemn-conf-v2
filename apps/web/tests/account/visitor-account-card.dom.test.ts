@@ -10,7 +10,9 @@ import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  markSignedOut,
   markSignedOutByPerson,
+  refreshSession,
   resetAccountSessionForTests,
 } from "@/account/session/use-account-session";
 import { VisitorAccountCard } from "@/account/session/visitor-account-card";
@@ -179,6 +181,42 @@ describe("when the card is not shown", () => {
     await mountCard(answerWith(CLIENT_SESSION));
 
     markSignedOutByPerson();
+    await flushPromises(3);
+
+    expect(isCardShown()).toBe(false);
+  });
+
+  it("when the person's sign-out is the only thing known against it (the mark is a condition of its own)", async () => {
+    leaveAnEditedEditor();
+    markSignedOutByPerson();
+
+    await mountCard(answerWith(ANONYMOUS_SESSION));
+
+    expect(isCardShown()).toBe(false);
+  });
+
+  it.each([
+    ["a client", CLIENT_SESSION],
+    ["a staff member", STAFF_SESSION],
+  ])(
+    "after the session of %s ended by expiry on this document: the server now says anonymous, and the person did not sign out",
+    async (_label, signedInSession) => {
+      leaveAnEditedEditor();
+      await mountCard(answerWith(signedInSession));
+
+      vi.stubGlobal("fetch", vi.fn(answerWith(ANONYMOUS_SESSION)));
+      refreshSession();
+      await flushPromises(5);
+
+      expect(isCardShown()).toBe(false);
+    },
+  );
+
+  it("after a sign-out that was not the person's (the session was cleared, not chosen away)", async () => {
+    leaveAnEditedEditor();
+    await mountCard(answerWith(CLIENT_SESSION));
+
+    markSignedOut();
     await flushPromises(3);
 
     expect(isCardShown()).toBe(false);

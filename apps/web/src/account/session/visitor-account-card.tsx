@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useState, type MouseEvent } from "react";
 
 import {
   readStepOneAccountCardLatch,
@@ -15,6 +15,7 @@ import {
   isSessionAnswerDefinite,
   isSignedOutByPerson,
   useAccountSession,
+  wasSignedInOnThisDocument,
   type AccountSessionState,
 } from "./use-account-session";
 
@@ -39,7 +40,10 @@ export function VisitorAccountCard() {
 
   if (isDismissed || !isOwedTo(session)) return null;
 
-  function dismiss(): void {
+  function dismiss(event: MouseEvent<HTMLButtonElement>): void {
+    // The button is about to unmount, which would drop focus to the document: it goes to the screen, the stable thing
+    // that stays (`room-screen.tsx` makes its `<main>` focusable for this).
+    event.currentTarget.closest("main")?.focus();
     recordStepOneAccountCardOffered();
     setIsDismissed(true);
   }
@@ -78,14 +82,16 @@ export function VisitorAccountCard() {
 /**
  * Whether the card is owed to whoever is on this screen: an edited editor was left and the card has not had its showing,
  * and the server has said, on this document, that nobody is signed in. A signed-in client or staff member, a session
- * not yet answered, a read that failed (it reads as anonymous and says nothing) and a person who signed out here (the
- * kitchen they left is already their account's, so "can be attached" would be false) are all refused.
+ * not yet answered, a read that failed (it reads as anonymous and says nothing) and anyone who was signed in on this
+ * document are all refused. The last covers a person's own sign-out and a session that expired: the kitchen they left is
+ * already their account's, so "can be attached" would be false.
  */
 function isOwedTo(session: AccountSessionState): boolean {
   return (
     readStepOneAccountCardLatch() === "due" &&
     session.kind === "anonymous" &&
     isSessionAnswerDefinite() &&
-    !isSignedOutByPerson()
+    !isSignedOutByPerson() &&
+    !wasSignedInOnThisDocument()
   );
 }
