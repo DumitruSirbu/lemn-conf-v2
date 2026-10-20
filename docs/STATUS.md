@@ -41,7 +41,7 @@ v2's *"… Încearcă mâine."* by O-1, in code in W2). Backlog 263 is resolved 
 **2026-10-19 update (M8B Lot 2 built, branch `feat/login-register`, HEAD `a47db452`) [coordinator's brief, relayed; the
 scribe ran nothing].** Server waves S1-S10 and UI waves U5, U6, U10, U12 are committed; each wave was reviewed by reading
 (a logic and a security agent). **No tests were written (ADR 0172 D12); nothing was run against a database or in a
-browser.** Migrations `0016`-`0018` are **unapplied anywhere**. In progress, uncommitted: U7/U8 and U11 plus the E8 page
+browser.** Migrations `0016`-`0018` are **unapplied anywhere** (corrected 2026-10-20 below: now `0016`-`0019`, still unapplied anywhere). In progress, uncommitted: U7/U8 and U11 plus the E8 page
 (the e-mail-change UI sits behind `EMAIL_CHANGE_ENABLED = false`; **corrected below: the E8/E9 routes are gated too**). Detail: plan
 [§12](milestones/M8B-account-screens-lot2-plan.md); decisions: ADR 0172 Amendment G. **New open owner questions O19-O24:**
 O19 (e-mail change takeover recovery; blocks the `UPDATE (email, email_normal_form)` grant, runbook step 4b), O20 (keep
@@ -70,6 +70,19 @@ S13-0 to U16, none built. O20-O27 are ruled; the backup export will carry `accou
 pre-approved as drafted (O28b); Lot 1 Romanian copy is approved. **D12 stays lifted for all remaining Lot 2 waves** (QA
 and review per tier). Grant 4b (runbook) still waits: it follows S13-0 to U16 reviewed, then the owner, then a separate
 flag-flip commit. Detail: plan §9 *(later)* and §14; ADR 0172 Amendment H.
+
+**2026-10-20 update, later (M8B Lot 2, waves S13-0 to U16 built and reviewed) [coordinator's brief, relayed; hashes
+quoted from it; the scribe had no shell, saw no gate output and ran nothing].** This supersedes "none built" in the H0
+update above and the "O1 blocks U15" wording. Built: H0 `0b3f5ed8`; U15c `1c1dbf0d`, `f80d5d76`; U15d `a573720f`,
+`12d1b9ec`, `44f6fda7` (QA `e6b4f55b`); S13-0 `981d165c`; S13a `067c6f41`, `55cb3738`; S13b `6c38bd13`, `779b3b1e`; S13b
+security fixes `38d9e780` (migration `0019`, an additive partial index); S13c `fa653ec4`, `6245ea89`; S13d `987992a8`,
+`818f94ea`, `45de9d56`, `3d3ca2cd`; U16 `ed4787c7`, `6682af15`; O21 `e4c3fb5a`. All Romanian copy of Lot 1 and Lot 2 is
+owner-approved (`883f9372`, `f38815ee`); later copy is pre-approved (O28b). Save / Discard is dropped; nothing pends on
+O1. **Migrations `0016`-`0019` are unapplied anywhere. All new SQL has never run against Postgres.** **S13e
+(enablement) is NOT done**, blocked on: the owner running grant 4b (preview first), a live or preview SQL check, the
+visual pass for U15d and U16 (Step 1 at 390x844 and the back-guard Playwright specs are unverified), and the separate
+flag-flip commit. Twelve dated residuals and departures: plan [§14.7.1](milestones/M8B-account-screens-lot2-plan.md);
+ADR 0172 Amendment H, addendum.
 
 ## 2. Phase table
 

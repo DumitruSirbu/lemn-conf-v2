@@ -485,8 +485,8 @@ one. The default is the recommendation.
 | C16 | A12D, A13F, A11F, A18D | The waits | Built `AccountWait` [src] | Keep |
 | C17 | A13A–F | The whole erasure text (profile, contacts, kitchens, share links, requests, notes, the shop's view link, 14-day backups) | Nothing: no grant, no credential, no frozen-link revocation, no record [doc] | **Do not ship A13 this milestone.** The row stays hidden (C8). Interim: the GDPR request by e-mail and the runbook process (`OWNER_FIXES.md` item 14). O5 decides whether an interim row "Pentru ștergerea contului, scrie-ne la {adresă}" appears |
 | C18 | A15A, CD answer 1 | "Modificările de la ultima salvare se pierd." / "Păstrează versiunea salvată … Modificările de după se pierd." | Autosave: no "last save", no versions [src] | **Blocked on O1.** CD answer 1's second case is rejected under any option: it promises a version the product does not keep |
-| C19 | A15C | "✓ Salvată în Bucătăriile mele" | — | Blocked on O1 |
-| C20 | A16B | "Am păstrat bucătăria. … o poți atașa contului." | Claim exists (D8) [doc]. "Am păstrat" is true today without any action, because of autosave | Blocked on O1 |
+| C19 | A15C | "✓ Salvată în Bucătăriile mele" | — | ~~Blocked on O1~~ O1 ruled 2026-10-20: dropped (§14.2) |
+| C20 | A16B | "Am păstrat bucătăria. … o poți atașa contului." | Claim exists (D8) [doc]. "Am păstrat" is true today without any action, because of autosave | ~~Blocked on O1~~ O1 ruled 2026-10-20: the card survives on Step 1, built as U15d (§14.7) |
 | C21 | A16C | Occasional card, "frecvență de stabilit" | — | **Defer.** If built: at most once per document load after the first edit, dismissal held in memory only (no `localStorage`, plan §3). O9 |
 | C22 | A18F | List of the kitchens to attach | No API | O2 |
 | C23 | A18C | "Deschide Bucătăriile mele" | A9 page from U5 | Until U5 ships, the button reads "Continuă" and goes to `/{locale}` |
@@ -650,7 +650,7 @@ decides.
 | **U13, A12 export** | Page, `export-screen.tsx`, `use-export.ts` (POST, blob, `a.download`); the profile row appears | `app/[locale]/account/export/page.tsx`, `account/profile/export-screen.tsx`, `account/profile/use-export.ts`, `account/profile/profile-form.tsx` (mod) | §1 A12, §3 C15 | U10, S10 | Full + security + visual |
 | **S11, claim detail** | E11 (only if O2 = b) | `claim/route.ts` (mod), `claimable-designs.ts` (mod), `neon-configuration-repository.ts` (mod), the fake | §2.2 E11; plan L14b criterion 5; ADR 0172 Amendment B residual | O2 | Full + security |
 | **S12 / U14, delete account** | **Blocked** on the erasure record (plan §12 "GDPR export and erasure") | — | — | O5 | — |
-| **U15, A15 / A16 / A16C** | **Blocked** on O1 and its record. Once ruled, ≤ 2 waves: the server mark (if any) and the sheet | — | §2.3 CG1, §3 C18–C21 | O1, O9 | Full + security + visual |
+| **U15, A15 / A16 / A16C** | ~~**Blocked** on O1~~ **Superseded 2026-10-20: O1 is ruled (autosave only); U15c and U15d are built (§14.7).** Original text: **Blocked** on O1 and its record. Once ruled, ≤ 2 waves: the server mark (if any) and the sheet | — | §2.3 CG1, §3 C18–C21 | O1, O9 | Full + security + visual |
 
 **Order.**
 
@@ -1324,7 +1324,8 @@ The steps:
    argon2id hash. **This order mirrors `reset-password.ts`**, including how it applies the not-the-address rule
    [src: `reset-password.ts:287` `judgePassword({password, email})`]. The address compared is the one the token
    restores. A refused password consumes nothing.
-3. **One transaction (`revertEmailChange`, READ COMMITTED, the `completeReset` shape).**
+3. **One transaction (`revertEmailChange`, READ COMMITTED).** ~~"the `completeReset` shape"~~ **Struck 2026-10-20:** as built
+   it is lock the account row, consume the token, revoke sessions (§14.7), not `completeReset`'s shape.
    - Lock the account row (`for update`).
    - Consume the token: purpose `email-change-revert`, unused, unexpired, carries an address, account verified.
    - Check that no **other** account holds the target, and that no other account's live revert token reserves it.
@@ -1385,9 +1386,10 @@ residual stated as such.
   - No new limiter purpose.
 - **No membership oracle.** E8 and register stay byte-identical across free, held and reserved targets, with the same
   pre-response statement count. The revert has one refusal.
-- **Migration: none.** The purpose fits `0014`'s shape and the address rides `0018`'s columns. A partial index for the
-  reservation lookup is **deferred**: `account_email_tokens` is small pre-launch [inf]. If one is wanted, it is a new
-  migration, never an edit of `0014` / `0018`.
+- **Migration: none.** The purpose fits `0014`'s shape and the address rides `0018`'s columns. ~~A partial index for the
+  reservation lookup is **deferred** … If one is wanted, it is a new migration.~~ **Corrected 2026-10-20:** the S13b
+  security fixes (commit `38d9e780`) added migration `0019`, an additive partial index, as a new file and not an edit of
+  `0014` / `0018`. `0019` is **unapplied anywhere** (§14.7).
 - **Grants.**
   - The revert writes `email`, `email_normal_form` (step 4b), and `password_hash`, `password_changed_at`, `updated_at`
     (held since step 4).
@@ -1574,6 +1576,65 @@ for U-waves `browser-and-visual-qa.md`. **Mutation proof per criterion**, as §1
      [src: `design-db-restore.md:361`, uncommitted].
 8. **O22.** Confirmed: the frozen `/s/<token>` copy outlives hide. CG9 and criterion 3 are final as qualified.
 9. **O24, O25, O26, O27.** Approved or kept as in §9. O26's bucket-spend residual stays. O27 covers existing leaves only.
+
+### 14.7 Built state, 2026-10-20 (added by the scribe)
+
+**Evidence.** Commit hashes are **doc-quoted from the coordinator's brief** of 2026-10-20 (the scribe had no shell and
+ran no `git log`). Each wave below is "built and reviewed" by that brief. The scribe saw no gate output, no test count
+and no browser or database run, and claims none. Only U15d's brief names a QA commit (`e6b4f55b`); the QA state of the
+other waves was not given and is not claimed.
+
+| Wave | Commits (from the brief) | Note |
+| --- | --- | --- |
+| H0, records | `0b3f5ed8` | ADR 0172 Amendment H and the notes of §14.4 |
+| U15c, back-guard body | `1c1dbf0d`, `f80d5d76` | Body chosen by session (§14.2) |
+| U15d, A16B card | `a573720f`, `12d1b9ec`, `44f6fda7`; QA `e6b4f55b` | `44f6fda7` is the snapshot-publishing change |
+| S13-0, store split | `981d165c` | `neon-account-email-change.ts` |
+| S13a, revert token at confirm | `067c6f41`, `55cb3738` | |
+| S13b, revert and reservation | `6c38bd13`, `779b3b1e` | |
+| S13b security fixes | `38d9e780` | Migration `0019` (additive partial index, **unapplied**); `revertEmailChange` is lock / consume / revoke; reset tokens are bound to `password_changed_at`; E8 issue takes `for share` |
+| S13c, notices and revert link | `fa653ec4`, `6245ea89` | |
+| S13d, revert route | `987992a8`, `818f94ea`, `45de9d56`, `3d3ca2cd` | |
+| U16, revert page | `ed4787c7`, `6682af15` | |
+
+**Copy lock.** All Romanian copy of Lot 1 and Lot 2 was approved by the owner on 2026-10-20 (`883f9372`, `f38815ee`);
+later copy is pre-approved under O28b. **O21** is built in `e4c3fb5a`. Save / Discard is dropped (O1); nothing is
+pending on it.
+
+**S13e (enablement) is NOT done.** It is blocked on: (1) the owner running grant 4b, preview first; (2) a live or
+preview run of the new SQL (residual 12 below); (3) the visual pass for U15d and U16; (4) the separate flag-flip commit.
+
+#### 14.7.1 Dated residuals and departures (2026-10-20)
+
+1. **`PASSWORD_UNCHANGED`.** Owner ruled 2026-10-20: the revert refuses the current password and the copy warns; no
+   migration. It does **not** catch an intruder who changed the password first. The full fix is a migration that stores
+   the password hash held at confirm time on the revert row. The code comment saying the owner accepted this is backed by
+   this record.
+2. **One silent guess** (or a short parallel burst) at the current password for a token holder (reviewer F3). A possible
+   future account-keyed bucket.
+3. **Departure from §14.3.3 item 4 (restored address only):** a notice also goes to the address **left**. It is a
+   dedicated kind `email-change-reverted`, has no reset remedy, and is skipped when the normal forms are equal (R-7
+   chained case). Copy pre-approved under O28b.
+4. **Reset issuance** now carries `holdingEmailNormalForm` and takes `for share` on **every** `issueToken` (the register
+   verify link and the sign-in resend too). The reset race is narrowed, not closed, in the sense described in the
+   `TokenToIssue` doc.
+5. **The E8 request notice is sent even when the password binding refuses the token.** Accepted by the security review:
+   otherwise the four target cases would differ.
+6. **The revert page** keeps the typed password on 503 (reset clears it) and offers no way to request a new undo link
+   after 24 hours (a reset mail goes to the address the account now holds).
+7. **Back-confirmation copy** promises autosave unconditionally, while the editor has save-stopped, conflict and
+   read-only states (U15c logic review, minor, backlog).
+8. **U15d.** The card re-shows on any remount of Step 1 until "Nu acum" or hand-over (a language switch is deliberate).
+   It is hidden after a non-person session end (`wasSignedInOnThisDocument`). Snapshot publishing changed in `44f6fda7`.
+   **Not verified:** the Step 1 layout at 390x844 and the back-guard Playwright specs (the card may overlay the last
+   shape card in RU).
+9. **Revert-email proxy header probe** for escaped and case variants is an **inference** from the Lot 1 probe, not
+   re-probed on a built server.
+10. **`neon-account-email-change.ts`** is past the ~25 KiB split trigger.
+11. **`createUnverified`'s reservation scan** is served by index `0019` only if the planner uses it [inference; no
+    `EXPLAIN`].
+12. **All new SQL has never run against Postgres:** the `createUnverified` `INSERT ... SELECT`, the revert statements,
+    the confirm lock statement and `issueToken` for share. **A live or preview check is required before S13e.**
 
 ### 14.6 Still needing an owner decision
 

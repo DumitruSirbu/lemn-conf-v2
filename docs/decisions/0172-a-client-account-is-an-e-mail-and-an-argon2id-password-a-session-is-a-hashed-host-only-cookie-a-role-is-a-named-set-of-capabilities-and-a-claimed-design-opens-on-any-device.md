@@ -1056,3 +1056,42 @@ all Romanian copy is in the approved lock. Russian is never pinned by literal (A
 placeholders stay open and are unrelated.
 
 **11. QA regime.** D12 stays lifted for all remaining Lot 2 waves: each gets adversarial QA tests and reviews per its tier.
+
+### Amendment H, addendum — 2026-10-20 (later): as built, corrections and dated residuals
+
+**Evidence.** Commit hashes are doc-quoted from the coordinator's brief; the scribe had no shell and saw no gate output.
+The full table is plan §14.7. Built and reviewed: H0 `0b3f5ed8`; U15c `1c1dbf0d`, `f80d5d76`; U15d `a573720f`,
+`12d1b9ec`, `44f6fda7` (QA `e6b4f55b`); S13-0 `981d165c`; S13a `067c6f41`, `55cb3738`; S13b `6c38bd13`, `779b3b1e`; S13b
+security fixes `38d9e780`; S13c `fa653ec4`, `6245ea89`; S13d `987992a8`, `818f94ea`, `45de9d56`, `3d3ca2cd`; U16
+`ed4787c7`, `6682af15`; O21 `e4c3fb5a`. All Romanian copy of Lot 1 and Lot 2 is owner-approved (`883f9372`, `f38815ee`).
+
+**Corrections to item 2 above.**
+- "**No migration**" is superseded: `38d9e780` added migration `0019`, an additive partial index for the reservation
+  lookup. `0016`-`0019` are unapplied anywhere.
+- Residual 4 of item 5 (the register-against-confirm race) is closed without a lock (plan §14.3.6 item 4, struck).
+- `revertEmailChange` is lock / consume / revoke, not `completeReset`'s shape. Reset tokens are bound to
+  `password_changed_at`, and the E8 issue takes `for share`.
+
+**Departures and residuals recorded (detail: plan §14.7.1).**
+1. `PASSWORD_UNCHANGED`, owner ruling 2026-10-20: refuse the current password and warn in copy, no migration. An
+   intruder who changed the password first is not caught; the full fix is a migration storing the hash held at confirm
+   time on the revert row.
+2. One silent guess, or a short parallel burst, at the current password for a token holder; a possible account-keyed
+   bucket later.
+3. A new departure from plan §14.3.3 item 4: a notice to the address **left**, kind `email-change-reverted`, no reset
+   remedy, skipped when normal forms are equal; copy pre-approved under O28b.
+4. Reset issuance carries `holdingEmailNormalForm` and takes `for share` on every `issueToken`; the reset race is
+   narrowed, not closed.
+5. The E8 request notice is sent even when the password binding refuses the token (security review: the four target
+   cases would otherwise differ).
+6. The revert page keeps the typed password on 503 and offers no new undo link after 24 hours.
+7. Back-confirmation copy promises autosave unconditionally despite save-stopped, conflict and read-only states.
+8. U15d re-shows on any remount of Step 1 until dismissed or handed over; hidden after a non-person session end; Step 1
+   at 390x844 and the back-guard Playwright specs are not verified.
+9. The revert-email proxy header probe for escaped and case variants is an inference from Lot 1.
+10. `neon-account-email-change.ts` is past the ~25 KiB split trigger.
+11. `createUnverified`'s reservation scan uses `0019` only if the planner does [inference].
+12. All new SQL has never run against Postgres; a live or preview check is required before S13e.
+
+**S13e is not done.** Blocked on: the owner running grant 4b (preview first), the live or preview SQL check, the visual
+pass for U15d and U16, and the separate flag-flip commit.
