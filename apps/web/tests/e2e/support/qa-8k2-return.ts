@@ -20,6 +20,7 @@ import {
   typeDigits,
   type Locale,
 } from "./step-one-by-touch";
+import { expectEditorTopBarShown } from "./editor-top-bar";
 
 export const ANY_ROOM_URL = /\/(ro|ru)\/configurator\/room/;
 const ANY_EDITOR_URL = /\/(ro|ru)\/d\/[^/]+$/;
@@ -75,7 +76,7 @@ export async function backToStepOne(page: Page): Promise<void> {
 
 /** The editor's frame is drawn; says nothing of write access, which a held or refused probe leaves unanswered. */
 export async function expectEditorDrawn(page: Page): Promise<void> {
-  await expect(page.getByTestId("top-bar-title")).toBeVisible({
+  await expectEditorTopBarShown(page, {
     timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
   });
 }

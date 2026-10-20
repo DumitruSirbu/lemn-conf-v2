@@ -123,6 +123,20 @@ test.describe("the band the refreshed frame draws", () => {
     expect(band.emptySpans).toBe(0);
   });
 
+  // Held red on purpose, and the only place the title's visibility is asked (`support/editor-top-bar.ts` is why no
+  // other spec asks it). Frame 2A draws "Configurare" at `flex: 1; min-width: 0` and ADR 0104 decision 9 makes it the
+  // row's last give, "not reached on the seeded design once A and B are spent". Since M8B Lot 2 U3 (`b2590ced`) the
+  // visitor's "Intră în cont" link takes 93.5 px of the 390 px row and the title's box measures 0 px wide, so it is
+  // in the DOM and on no one's screen. Frame A19D draws the phone's editor header without a title; whether that
+  // settles it is the owner's call, and this test is deleted or inverted by that ruling, not by a green run.
+  test("draws its title: the box is not squeezed to nothing by the account control", async ({
+    page,
+  }) => {
+    await expect(page.getByTestId("top-bar-account-sign-in")).toBeVisible();
+
+    await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  });
+
   test("truncates a title three times the shipped one instead of wrapping or evicting the chip", async ({
     page,
   }) => {

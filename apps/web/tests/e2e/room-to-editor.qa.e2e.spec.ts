@@ -19,6 +19,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 const ROOM = "/ro/configurator/room";
 
@@ -75,7 +76,7 @@ test("a composed kitchen opens in the editor, and the editor leads back to the r
 
   // The editor is genuinely on that design: its own top bar is drawn, which happens only after
   // `GET /api/designs/{id}` came back with a document the schema accepted.
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
 
   // **7E2 criterion 5, now with fields to fill.** The back control's href is built from the design's
   // own room, so this is the room the customer typed making the full round trip through the

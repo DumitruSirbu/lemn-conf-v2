@@ -33,6 +33,7 @@ import {
   test,
   type Locale,
 } from "./support/seeded-design";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 const PHONE_BACK_LINKS: readonly BackLinkTestId[] = [
   "top-bar-back",
@@ -111,7 +112,7 @@ for (const linkTestId of PHONE_BACK_LINKS) {
 
     await page.goto("/ro");
     await expect(page).toHaveURL(designUrl);
-    await expect(page.getByTestId("top-bar-title")).toBeVisible();
+    await expectEditorTopBarShown(page);
   });
 }
 
@@ -204,7 +205,7 @@ test("the shared variant draws neither back link and no dialog", async ({
     const visitor = await stranger.newPage();
     await openSharedDesign(visitor, sharePath);
 
-    await expect(visitor.getByTestId("top-bar-title")).toBeVisible();
+    await expectEditorTopBarShown(visitor);
     await expect(visitor.getByTestId("top-bar-back")).toHaveCount(0);
     await expect(visitor.getByTestId("bottom-bar-back")).toHaveCount(0);
     await expect(visitor.getByTestId("review-cta")).toHaveCount(0);

@@ -29,6 +29,7 @@ import {
   recordsByPlacementId,
   seedDesign,
 } from "./support/u-design";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 /** Long enough for an arrival effect to have acted, were it going to. */
 const ARRIVAL_SETTLE_MS = 1200;
@@ -757,7 +758,7 @@ for (const [name, arrange, reason] of BROWSERS_THAT_MAY_NOT_WRITE) {
     await arrange(page, seededDesign.id);
 
     await page.goto(`/ro/d/${seededDesign.id}?select=p8&settings=open`);
-    await expect(page.getByTestId("top-bar-title")).toBeVisible({
+    await expectEditorTopBarShown(page, {
       timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
     });
 

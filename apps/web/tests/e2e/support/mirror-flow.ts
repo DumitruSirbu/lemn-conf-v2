@@ -9,6 +9,7 @@ import {
   openSharedDesign,
   FIRST_FRAME_FREEZE_TIMEOUT_MS,
 } from "./seeded-design";
+import { expectEditorTopBarShown } from "./editor-top-bar";
 
 const ROOM = "/ro/configurator/room";
 
@@ -50,7 +51,7 @@ function idInEditorUrl(url: string): string {
 
 /**
  * Types `ROOM_DIMENSIONS` through the real Step 1 → *Continuă* → composition flow and returns the
- * minted design's id, once the editor has actually opened on it (`top-bar-title` visible, which
+ * minted design's id, once the editor has actually opened on it (the editor top bar shown, which
  * only draws after `GET /api/designs/{id}` came back with a document the schema accepted — the same
  * proof `room-to-editor.qa.e2e.spec.ts` reads).
  *
@@ -81,7 +82,7 @@ export async function composeRoomThroughStepOne(
 
   await page.waitForURL(/\/ro\/d\/[^/]+$/);
   const designId = idInEditorUrl(page.url());
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
 
   return { designId };
 }

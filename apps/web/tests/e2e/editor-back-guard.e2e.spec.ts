@@ -35,6 +35,7 @@ import {
   test as stepOneTest,
   typeDigits,
 } from "./support/step-one-by-touch";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 const test = mergeTests(stepOneTest, seededTest);
 
@@ -79,7 +80,7 @@ async function openTheEditorFromStepOne(page: Page): Promise<EditorVisit> {
 }
 
 async function expectTheEditorToBeReady(page: Page): Promise<void> {
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   if ((await page.getByTestId("global-settings-trigger").count()) > 0) {
     await expectWriteAccessApplied(page);
   }
@@ -207,7 +208,7 @@ test("Back after an edit asks without moving the address bar; Stay and Escape pu
 
   await page.goto("/ro");
   await expect(page).toHaveURL(designUrl);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
 });
 
 function isNotRead(request: Request): boolean {

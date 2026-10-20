@@ -10,6 +10,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 import { ro } from "../../support/romanian-content.e2e";
 import { standAt, waitForSettleAfter } from "./mirror-flow";
+import { expectEditorTopBarShown } from "./editor-top-bar";
 
 const CAPTURE_DIR =
   process.env.QA_7J_CAPTURE_DIR ?? path.join(tmpdir(), "qa-7j-captures");
@@ -67,7 +68,7 @@ async function composeLinearThroughStepOne(
   await page.getByTestId("room-continue").click();
   await page.waitForURL(/\/ro\/d\/[^/]+$/);
   const designId = idInEditorUrl(page.url());
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   return { designId };
 }
 

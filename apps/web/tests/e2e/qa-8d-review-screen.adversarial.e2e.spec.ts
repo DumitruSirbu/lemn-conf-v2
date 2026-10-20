@@ -41,6 +41,7 @@ import {
   type KitchenSpec,
 } from "./support/ssr-html";
 import { seedDesign } from "./support/u-design";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 const PHONE = { width: 390, height: 844 };
 const TOUCH_TARGET_PX = 44;
@@ -610,7 +611,7 @@ for (const [name, build] of KITCHENS_WITH_NOTHING_TO_OFFER) {
 
       await page.getByTestId("review-unavailable-back").tap();
       await page.waitForURL(`/ro/d/${kitchen.id}`);
-      await expect(page.getByTestId("top-bar-title")).toBeVisible();
+      await expectEditorTopBarShown(page);
     } finally {
       await deleteMintedDesigns(minted);
     }
