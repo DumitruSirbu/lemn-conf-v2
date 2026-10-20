@@ -34,6 +34,8 @@ function buildRow(
     sent_at: null,
     hidden_by_client_at: null,
     deleted_by_client_at: null,
+    account_id: null,
+    name: null,
     ...overrides,
   };
 }

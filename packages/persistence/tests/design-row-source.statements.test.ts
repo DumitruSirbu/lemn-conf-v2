@@ -21,8 +21,9 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 /**
  * What the scheduled backup reads out of `designs`, as the text that leaves for the database, with no database. A
  * restore can only bring back what was exported, so the column list is the contract: the access-control marks of `0015`
- * and `0016` are in it (a restore without them reopens every kitchen a client hid or deleted), and `account_id` and
- * `name` are not (ADR 0172 D10: they wait for the accounts export).
+ * and `0016` are in it (a restore without them reopens every kitchen a client hid or deleted), and so are `account_id`
+ * and `name` (owner ruling O21, 2026-10-20, reversing ADR 0172 D10: a full-loss restore without them brings every
+ * claimed kitchen back unclaimed and unnamed).
  */
 const BACKUP_COLUMNS = [
   "id",
@@ -35,13 +36,17 @@ const BACKUP_COLUMNS = [
   "sent_at",
   "hidden_by_client_at",
   "deleted_by_client_at",
+  "account_id",
+  "name",
 ];
 const COLUMNS_ADDED_BY_LOT_2 = [
   "sent_at",
   "hidden_by_client_at",
   "deleted_by_client_at",
 ];
-const COLUMNS_THAT_STAY_OUT = ["account_id", "name"];
+const COLUMNS_KEPT_BY_COALESCE_ON_RE_RUN = [...COLUMNS_ADDED_BY_LOT_2, "name"];
+const COLUMNS_ADDED_BY_O21 = ["account_id", "name"];
+const A_COLUMN_THAT_STAYS_OUT = "revision";
 const PAGE_SIZE = 7;
 const AFTER_ID = "an-id-from-the-previous-page";
 const RUNBOOK = join(
@@ -109,14 +114,24 @@ describe("the backup row source's statements", () => {
     }
   });
 
-  it("does not export account_id or name, in the select list or anywhere else in the statement", async () => {
+  it("adds account_id and name, so a full-loss restore does not bring every claimed kitchen back unclaimed and unnamed", async () => {
+    for (const statement of [
+      await firstPageStatement(),
+      await laterPageStatement(),
+    ]) {
+      const columns = selectedColumnsOf(statement);
+      for (const column of COLUMNS_ADDED_BY_O21)
+        expect(columns).toContain(column);
+    }
+  });
+
+  it("selects no column the export does not name, revision for one", async () => {
     for (const statement of [
       await firstPageStatement(),
       await laterPageStatement(),
     ]) {
       const words = new Set(normalised(statement).match(/[a-z_][a-z0-9_]*/g));
-      for (const column of COLUMNS_THAT_STAY_OUT)
-        expect(words.has(column)).toBe(false);
+      expect(words.has(A_COLUMN_THAT_STAYS_OUT)).toBe(false);
     }
   });
 
@@ -130,14 +145,14 @@ describe("the backup row source's statements", () => {
     }
   });
 
-  it("reads every row, hidden and deleted ones included: no predicate on a mark, no account, no sent state", async () => {
+  it("reads every row, hidden, deleted and unclaimed ones included: no predicate on a mark, no account, no sent state", async () => {
     for (const statement of [
       await firstPageStatement(),
       await laterPageStatement(),
     ]) {
       const text = normalised(statement);
       expect(text).not.toMatch(/\bis (?:not )?null\b/);
-      expect(text).not.toContain("account_id");
+      expect(text).not.toMatch(/\bwhere\b.*\baccount_id\b/);
       expect(text.match(/\bwhere\b/g) ?? []).toHaveLength(
         text.includes("where id > ?") ? 1 : 0,
       );
@@ -179,6 +194,8 @@ describe("the backup row source's statements", () => {
       sent_at: "2026-01-03T00:00:00.000Z",
       hidden_by_client_at: null,
       deleted_by_client_at: null,
+      account_id: null,
+      name: null,
     };
     resetQueryDriver();
     answerQueryWith([row]);
@@ -205,12 +222,15 @@ function problemsInRestoreOf(markdown: string): string[] {
     ...inserted
       .filter((column) => !BACKUP_COLUMNS.includes(column))
       .map((column) => `inserts ${column}, which is not exported`),
-    ...COLUMNS_ADDED_BY_LOT_2.filter(
+    ...COLUMNS_KEPT_BY_COALESCE_ON_RE_RUN.filter(
       (column) =>
         !conflictClause.includes(
           `${column} = coalesce(designs.${column}, excluded.${column})`,
         ),
     ).map((column) => `a re-run can overwrite ${column}`),
+    ...(/\baccount_id\s*=/.test(conflictClause)
+      ? ["a re-run can move or grant a claim"]
+      : []),
     ...["write_token_hash", "visitor_hash"]
       .filter(
         (column) => !conflictClause.includes(`${column} = excluded.${column}`),
@@ -231,8 +251,8 @@ describe("the restore runbook restores every column the backup exports", () => {
       expect(
         problemsInRestoreOf(
           runbook.replace(
-            "sent_at, hidden_by_client_at, deleted_by_client_at)",
-            "hidden_by_client_at, deleted_by_client_at)",
+            "sent_at, hidden_by_client_at, deleted_by_client_at,",
+            "hidden_by_client_at, deleted_by_client_at,",
           ),
         ),
       ).toContain("does not insert sent_at");
@@ -253,11 +273,42 @@ describe("the restore runbook restores every column the backup exports", () => {
       expect(
         problemsInRestoreOf(
           runbook.replace(
-            "deleted_by_client_at)\n",
-            "deleted_by_client_at, account_id)\n",
+            "account_id, name)\n",
+            "account_id, name, revision)\n",
           ),
         ),
-      ).toContain("inserts account_id, which is not exported");
+      ).toContain("inserts revision, which is not exported");
+    });
+
+    it("when account_id or name is not inserted", () => {
+      const problems = problemsInRestoreOf(
+        runbook.replace("account_id, name)\n", "deleted_by_client_at)\n"),
+      );
+
+      expect(problems).toContain("does not insert account_id");
+      expect(problems).toContain("does not insert name");
+    });
+
+    it("when a re-run overwrites the live name with the dump's", () => {
+      expect(
+        problemsInRestoreOf(
+          runbook.replace(
+            "name = coalesce(designs.name, excluded.name)",
+            "name = excluded.name",
+          ),
+        ),
+      ).toEqual(["a re-run can overwrite name"]);
+    });
+
+    it("when a re-run moves a claim to the dump's account", () => {
+      expect(
+        problemsInRestoreOf(
+          runbook.replace(
+            "name = coalesce(designs.name, excluded.name)",
+            "name = coalesce(designs.name, excluded.name),\n              account_id = excluded.account_id",
+          ),
+        ),
+      ).toEqual(["a re-run can move or grant a claim"]);
     });
   });
 });

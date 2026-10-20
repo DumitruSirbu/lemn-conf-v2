@@ -74,7 +74,7 @@ describe(SUITE_NAME, () => {
   }
 
   /**
-   * The runbook's restore statement (`docs/runbooks/design-db-restore.md`, "Restore"), marks included. Not verbatim in
+   * The runbook's restore statement (`docs/runbooks/design-db-restore.md`, "Restore"), marks, owner link and name included. Not verbatim in
    * two respects: the runbook script migrates each row with `migrateDesign` and stores `CURRENT_SCHEMA_VERSION`, where
    * this stores the dump's document at version 1 as the earlier copy did; and it runs inside the script's own loop.
    * The statement text itself, columns and conflict clause, is the runbook's, and
@@ -93,13 +93,16 @@ describe(SUITE_NAME, () => {
       sent_at?: string | null;
       hidden_by_client_at?: string | null;
       deleted_by_client_at?: string | null;
+      account_id?: string | null;
+      name?: string | null;
     };
     await sql`
       insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
-                            visitor_hash, sent_at, hidden_by_client_at, deleted_by_client_at)
+                            visitor_hash, sent_at, hidden_by_client_at, deleted_by_client_at, account_id, name)
       values (${row.id}, 1, ${row.document as Design}, ${row.created_at}, ${row.updated_at},
               ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null}, ${row.sent_at ?? null},
-              ${row.hidden_by_client_at ?? null}, ${row.deleted_by_client_at ?? null})
+              ${row.hidden_by_client_at ?? null}, ${row.deleted_by_client_at ?? null},
+              ${row.account_id ?? null}, ${row.name ?? null})
       on conflict (id) do update
         set schema_version = excluded.schema_version,
             document = excluded.document,
@@ -108,7 +111,8 @@ describe(SUITE_NAME, () => {
             visitor_hash = excluded.visitor_hash,
             sent_at = coalesce(designs.sent_at, excluded.sent_at),
             hidden_by_client_at = coalesce(designs.hidden_by_client_at, excluded.hidden_by_client_at),
-            deleted_by_client_at = coalesce(designs.deleted_by_client_at, excluded.deleted_by_client_at)
+            deleted_by_client_at = coalesce(designs.deleted_by_client_at, excluded.deleted_by_client_at),
+            name = coalesce(designs.name, excluded.name)
     `;
   }
 
@@ -395,7 +399,7 @@ describe(SUITE_NAME, () => {
     }
 
     it.skipIf(!hasLiveDatabase)(
-      "exports sent_at, hidden_by_client_at and deleted_by_client_at, and neither account_id nor name",
+      "exports sent_at, hidden_by_client_at and deleted_by_client_at, and account_id and name beside them",
       async () => {
         const { id } = await mintMarked({
           sent_at: true,
@@ -410,8 +414,9 @@ describe(SUITE_NAME, () => {
         expect(Object.keys(row)).toEqual(
           expect.arrayContaining([...MARK_COLUMNS]),
         );
-        expect(Object.keys(row)).not.toContain("account_id");
-        expect(Object.keys(row)).not.toContain("name");
+        expect(Object.keys(row)).toEqual(
+          expect.arrayContaining(["account_id", "name"]),
+        );
       },
       30_000,
     );
@@ -524,6 +529,182 @@ describe(SUITE_NAME, () => {
           sent_at: true,
           hidden_by_client_at: true,
           deleted_by_client_at: false,
+        });
+      },
+      30_000,
+    );
+  });
+
+  // Owner ruling O21 (2026-10-20), reversing ADR 0172 D10: `account_id` and `name` are exported, and a full-loss
+  // restore brings them back. `designs.account_id` has no foreign key (`0015`), so any well-formed id is storable here.
+  describe("the owner link and the kitchen's name survive export, loss and restore", () => {
+    const ACCOUNT_ID = "A".repeat(21);
+    const OTHER_ACCOUNT_ID = "B".repeat(21);
+    const KITCHEN_NAME = "Küche am See";
+    const NAME_LIMIT = 120;
+
+    async function mintClaimedAndNamed(claim: {
+      accountId: string | null;
+      name: string | null;
+    }): Promise<DesignId> {
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(
+          `qa-o21-token-${String(mintedIds.length)}`,
+        ),
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+      });
+      mintedIds.push(id);
+      if (!sql) return id;
+      await sql`
+        update designs set account_id = ${claim.accountId}, name = ${claim.name} where id = ${id}
+      `;
+      return id;
+    }
+
+    async function ownerLinkAndNameOf(
+      id: DesignId,
+    ): Promise<{ account_id: string | null; name: string | null }> {
+      if (!sql) return { account_id: null, name: null };
+      const rows = (await sql`
+        select account_id, name from designs where id = ${id}
+      `) as { account_id: string | null; name: string | null }[];
+      return rows[0] ?? { account_id: null, name: null };
+    }
+
+    it.skipIf(!hasLiveDatabase)(
+      "brings back both account_id and name exactly, after the row is deleted",
+      async () => {
+        const id = await mintClaimedAndNamed({
+          accountId: ACCOUNT_ID,
+          name: KITCHEN_NAME,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: ACCOUNT_ID,
+          name: KITCHEN_NAME,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "exports an unclaimed, unnamed kitchen with null for both and restores it as null, not as an empty string",
+      async () => {
+        const id = await mintClaimedAndNamed({ accountId: null, name: null });
+        const line = await exportedLineFor(id);
+        const exported = JSON.parse(line.trim()) as Record<string, unknown>;
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(exported["account_id"]).toBeNull();
+        expect(exported["name"]).toBeNull();
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: null,
+          name: null,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "restores a name of exactly 120 characters, the limit the table's check allows",
+      async () => {
+        const longestName = "n".repeat(NAME_LIMIT);
+        const id = await mintClaimedAndNamed({
+          accountId: null,
+          name: longestName,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect((await ownerLinkAndNameOf(id)).name).toBe(longestName);
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "refuses a dumped name of 121 characters or an empty one: designs_name_length still applies to a restore",
+      async () => {
+        const id = await mintClaimedAndNamed({ accountId: null, name: null });
+        const line = JSON.parse((await exportedLineFor(id)).trim()) as Record<
+          string,
+          unknown
+        >;
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        for (const refusedName of ["n".repeat(NAME_LIMIT + 1), ""]) {
+          await expect(
+            restoreRow(`${JSON.stringify({ ...line, name: refusedName })}\n`),
+          ).rejects.toThrow();
+        }
+
+        const survivors = await sql`select id from designs where id = ${id}`;
+        expect(survivors).toHaveLength(0);
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a dump from before the export carried them restores as unclaimed and unnamed",
+      async () => {
+        const id = `qa-o21-legacy-${String(Date.now())}`;
+        mintedIds.push(id);
+        const dumpBeforeO21 = `${JSON.stringify({
+          id,
+          schema_version: 1,
+          document: KITCHEN_L_DESIGN,
+          created_at: "2026-08-01T00:00:00.000Z",
+          updated_at: "2026-08-01T00:00:00.000Z",
+        })}\n`;
+
+        await restoreRow(dumpBeforeO21);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: null,
+          name: null,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a restore over a live row never moves or grants a claim, and keeps the live name",
+      async () => {
+        const id = await mintClaimedAndNamed({
+          accountId: ACCOUNT_ID,
+          name: KITCHEN_NAME,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`
+          update designs set account_id = ${OTHER_ACCOUNT_ID}, name = 'Renamed since the dump' where id = ${id}
+        `;
+
+        await restoreRow(line);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: OTHER_ACCOUNT_ID,
+          name: "Renamed since the dump",
+        });
+
+        await sql`update designs set account_id = null, name = null where id = ${id}`;
+        await restoreRow(line);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: null,
+          name: KITCHEN_NAME,
         });
       },
       30_000,
