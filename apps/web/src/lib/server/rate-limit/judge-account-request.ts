@@ -29,10 +29,10 @@ import {
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
 /** What a route is limited for at the block stage (M8B plan section 5, common order step 4): the purposes whose first
- *  bucket counts the network. `confirm-email`, `password-reset-complete`, `email-change-confirm` and `email-change-revert`
- *  count in one bucket, since the plan bounds the cost of using a mailed link together, and have no other stage. `kitchen-duplicate` counts
- *  the mint's own per-network bucket (a copy is a mint, ADR 0147's intent) and is followed by the account's copy bucket
- *  at the subject stage. */
+ *  bucket counts the network. `confirm-email`, `password-reset-complete`, `email-change-confirm` and
+ *  `email-change-revert` count in one bucket, since the plan bounds the cost of using a mailed link together, and have
+ *  no other stage. `kitchen-duplicate` counts the mint's own per-network bucket (a copy is a mint, ADR 0147's intent)
+ *  and is followed by the account's copy bucket at the subject stage. */
 export type AccountBlockPurpose =
   | "register"
   | "login"

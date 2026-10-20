@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildAccountMail } from "@/lib/server/mail/account-mail-messages";
 import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 
 import {
@@ -152,6 +153,38 @@ async function leaveFor(
   return undoValue;
 }
 
+/** One live token of each other purpose, all outliving the undo link's day, so only their purpose can refuse them. */
+async function issueTokensOfOtherPurposes(): Promise<{
+  reset: string;
+  change: string;
+  verify: string;
+}> {
+  const expiresAt = new Date(world.now().getTime() + 2 * 86_400_000);
+  const values = {
+    reset: aTokenValue(),
+    change: aTokenValue(),
+    verify: aTokenValue(),
+  };
+  for (const purpose of ["reset-password", "verify-email"] as const) {
+    const value = purpose === "reset-password" ? values.reset : values.verify;
+    await world.accounts.issueToken({
+      accountId: owner.id,
+      purpose,
+      tokenHash: sha256Hex(value),
+      expiresAt,
+    });
+  }
+  await world.accounts.issueEmailChangeToken({
+    accountId: owner.id,
+    verifiedPasswordHash: world.accounts.passwordHashOf(owner.id) ?? "",
+    newEmail: "fifth@example.test",
+    newEmailNormalForm: "fifth@example.test",
+    tokenHash: sha256Hex(values.change),
+    expiresAt,
+  });
+  return values;
+}
+
 async function isLive(tokenHash: string): Promise<boolean> {
   const lookup = await world.sessions.findLive({
     tokenHash,
@@ -227,7 +260,16 @@ describe("a revert", () => {
     );
     expect(notices).toHaveLength(1);
     expect(notices[0]?.recipient).toBe(LEFT_ADDRESS);
-    expect(notices[0]?.subject).toBeDefined();
+    const inTheirLanguage = buildAccountMail({
+      kind: "password-changed",
+      locale: "ru",
+    });
+    const inTheOtherOne = buildAccountMail({
+      kind: "password-changed",
+      locale: "ro",
+    });
+    expect(inTheirLanguage.subject).not.toBe(inTheOtherOne.subject);
+    expect(notices[0]?.subject).toBe(inTheirLanguage.subject);
     expect(world.mail.sent).toHaveLength(1);
   });
 
@@ -275,17 +317,28 @@ describe("a revert", () => {
     expect(answers.map(({ status }) => status)).toEqual([200, 400]);
   });
 
-  it("lets the earlier of two links be used, which retires the later (oldest wins)", async () => {
+  it("lets the earlier of two links be used after the later one was (oldest wins)", async () => {
     const first = await leaveFor(owner, NEW_ADDRESS);
     const second = await leaveFor(owner, "third@example.test");
 
     const answers = [
       await revert(aRevert(second)),
       await revert(aRevert(first)),
+    ];
+
+    expect(answers.map(({ status }) => status)).toEqual([200, 200]);
+  });
+
+  it("retires the later link when the earlier one is used", async () => {
+    const first = await leaveFor(owner, NEW_ADDRESS);
+    const second = await leaveFor(owner, "third@example.test");
+
+    const answers = [
+      await revert(aRevert(first)),
       await revert(aRevert(second)),
     ];
 
-    expect(answers.map(({ status }) => status)).toEqual([200, 200, 400]);
+    expect(answers.map(({ status }) => status)).toEqual([200, 400]);
   });
 });
 
@@ -395,43 +448,31 @@ describe("one refusal, link-invalid, for every link that does not work (R-8)", (
     );
   });
 
-  it("answers the same bytes for a used link, an expired one, one retired by an earlier link's use, and a token of another purpose", async () => {
+  it("answers the same bytes for a used link, one retired by an earlier link's use, an expired one, and a token of another purpose", async () => {
     const expected = await reference();
     const used = await leaveFor(owner, NEW_ADDRESS);
     await revert(aRevert(used));
-    const expiring = await leaveFor(owner, "second@example.test");
-    const later = await leaveFor(owner, "third@example.test");
-    const earlier = await leaveFor(owner, "fourth@example.test");
-    world.advance(86_400_000);
-    const resetValue = aTokenValue();
-    await world.accounts.issueToken({
-      accountId: owner.id,
-      purpose: "reset-password",
-      tokenHash: sha256Hex(resetValue),
-      expiresAt: new Date(world.now().getTime() + 1_800_000),
-    });
-    const changeValue = aTokenValue();
-    await world.accounts.issueEmailChangeToken({
-      accountId: owner.id,
-      verifiedPasswordHash: world.accounts.passwordHashOf(owner.id) ?? "",
-      newEmail: "fifth@example.test",
-      newEmailNormalForm: "fifth@example.test",
-      tokenHash: sha256Hex(changeValue),
-      expiresAt: new Date(world.now().getTime() + 1_800_000),
-    });
+    const earlier = await leaveFor(owner, "second@example.test");
+    const retired = await leaveFor(owner, "third@example.test");
+    await revert(aRevert(earlier));
+    const expiring = await leaveFor(owner, "fourth@example.test");
+    const otherPurposes = await issueTokensOfOtherPurposes();
     const before = heldSnapshot();
 
     for (const [label, token] of [
       ["used", used],
-      ["expired", expiring],
-      ["expired later", later],
-      ["expired earlier", earlier],
-      ["reset-password", resetValue],
-      ["email-change", changeValue],
+      ["retired", retired],
+      ["reset-password", otherPurposes.reset],
+      ["email-change", otherPurposes.change],
+      ["verify-email", otherPurposes.verify],
     ] as const) {
       expect(await wireOf(await revert(aRevert(token))), label).toBe(expected);
     }
     expect(heldSnapshot()).toBe(before);
+    world.advance(86_400_000);
+    expect(await wireOf(await revert(aRevert(expiring))), "expired").toBe(
+      expected,
+    );
   });
 
   it("answers the same bytes when the store itself refuses (an address another account holds or has reserved)", async () => {
