@@ -245,6 +245,8 @@ export type PasswordChangeOutcome =
 /**
  * The port for accounts and their e-mail tokens (ADR 0172 decisions 1, 2, 5, 10). A token works once, and only while
  * it is the newest unused, unexpired token of its purpose for its account; using one retires its older siblings.
+ * `email-change-revert` is the one exception (Amendment H): every unused, unexpired one is valid, and a password
+ * change, a reset or an address change retires none.
  * No method writes `role` or `id` after insert; only `confirmEmailChange` writes `email` and `email_normal_form`.
  */
 export interface AccountStore {

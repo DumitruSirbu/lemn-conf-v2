@@ -48,8 +48,8 @@ export async function completeEmailChange({
   if (body === undefined) return invalidRequestResponse();
   const token = textMemberOf(body, TOKEN_MEMBER);
   if (!isWellFormedEmailToken(token)) return linkInvalidResponse();
-  // Minted once, here, so every attempt inside the store's retry names the same row. The value is not yet mailed (the
-  // link joins the notice in the next wave); the store writes the row only if it consumes `token`.
+  // Minted once, here, so every attempt inside the store's retry names the same row. The store writes the row only if
+  // it consumes `token`. The value is not mailed yet.
   const revertToken = mintEmailToken();
   const outcome = await getAccountStore().confirmEmailChange({
     tokenHash: sha256Hex(token),
