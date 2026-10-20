@@ -1558,6 +1558,17 @@ export type SessionExpiredSheetCopy = ReturnType<
   typeof resolveSessionExpiredSheetCopy
 >;
 
+/** The card Step 1 shows once to a visitor who has just left an edited editor. It says the kitchen is kept in this
+ *  browser and can be attached to an account, and never that it is saved in one (plan M8B Lot 2 section 14.2, U15-5). */
+export function resolveVisitorAccountCardCopy(translate: ContentTranslator) {
+  return {
+    title: translate("visitorAccountCard.title"),
+    body: translate("visitorAccountCard.body"),
+    createAccount: translate("visitorAccountCard.createAccount"),
+    notNow: translate("visitorAccountCard.notNow"),
+  };
+}
+
 /** The question that attaches the browser's kitchens to the account just signed in, and its one answer. The count is a
  *  value, never a sentence of its own: each language agrees the whole sentence with it in the catalogue. */
 export function resolveClaimDialogCopy(translate: ContentTranslator) {

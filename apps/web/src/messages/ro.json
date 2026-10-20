@@ -867,6 +867,12 @@
     "signIn": "Intră în cont",
     "later": "Mai târziu"
   },
+  "visitorAccountCard": {
+    "title": "Am păstrat bucătăria.",
+    "body": "Bucătăria rămâne păstrată în acest browser, dar fără cont nu o poți deschide de pe alt dispozitiv. Dacă îți creezi un cont din acest browser, o poți atașa contului.",
+    "createAccount": "Creează cont",
+    "notNow": "Nu acum"
+  },
   "claimDialog": {
     "title": "Atașezi bucătăriile din acest browser?",
     "question": "{count, plural, one {Am găsit <strong># bucătărie</strong> făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?} few {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?} other {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?}}",

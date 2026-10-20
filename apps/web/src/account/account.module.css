@@ -1269,3 +1269,58 @@
   border: 0;
   clip-path: inset(50%);
 }
+
+/* ── The visitor's card on Step 1 (Lot 2 frames A16B / DA16B, re-triggered; `visitor-account-card.tsx`) ─────────────
+ * Non-modal: it floats above Step 1's pinned foot and leaves everything else operable, so there is no scrim and no
+ * `inert`. `--visitor-card-foot-clearance` is the foot's height (87 px on a phone, 88 px from 900 px: `room.module.css`'s
+ * `.footer` and `.dimensionsFooter`) plus a gap, so the card never covers the *Continuă* control. The toast's layer (8)
+ * is above it. Its two actions are `.dialogPrimary` and `.dialogSecondary`, whose 48 px box is past the 44 px target
+ * and which wrap rather than squeeze. */
+.visitorCard {
+  --visitor-card-foot-clearance: 100px;
+
+  position: fixed;
+  right: 14px;
+  bottom: calc(
+    var(--visitor-card-foot-clearance) + env(safe-area-inset-bottom, 0px)
+  );
+  left: 14px;
+  z-index: 6;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 26px rgb(28 24 20 / 12%);
+}
+
+.visitorCardTitle {
+  margin: 0;
+  font: 700 15px/1.3 var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+.visitorCardBody {
+  margin: 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.visitorCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+@media (min-width: 900px) {
+  .visitorCard {
+    right: 40px;
+    left: auto;
+    width: 380px;
+  }
+}

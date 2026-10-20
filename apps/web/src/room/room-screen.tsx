@@ -28,6 +28,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { AccountControl } from "@/account/session/account-control";
+import { VisitorAccountCard } from "@/account/session/visitor-account-card";
 
 // A temporary cross-route import of the editor's locale menu. Moving it to `src/chrome/` is not a
 // relocation: `top-bar-box.test.ts` and `qa-w4-top-bar.adversarial.test.ts` are ADR 0104 structural
@@ -148,6 +149,9 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
           presetCopy={presetCopy}
         />
       )}
+      {/* Fixed over Step 1's foot and out of the layout; it keeps to the lengths form and the shapes, where the foot is the
+          one it clears, and not to the presets and the composition, which have their own. */}
+      {isComposing ? null : <VisitorAccountCard />}
     </main>
   );
 }

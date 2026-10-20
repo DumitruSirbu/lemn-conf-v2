@@ -7,6 +7,9 @@ import {
 import { ConfirmationDialog } from "@/settings/confirmation-dialog";
 import { useContent } from "@/i18n/use-content";
 import { useRouter } from "@/i18n/navigation";
+import { useConfiguratorStore } from "@/store/configurator-store";
+
+import { recordEditedEditorLeft } from "./back-guard";
 
 const TEST_ID_PREFIX = "back-confirm";
 
@@ -43,6 +46,9 @@ export function BackConfirmation({
  * Leaving loses nothing under autosave, so the body says what is kept, and what is kept differs by who is asking
  * (plan M8B Lot 2 section 14.2, U15-3): `bodyClient` only on a definite signed-in client answer, `bodyVisitor` on every
  * other state, the pending, the failed and the signed-out ones included.
+ *
+ * Confirming also tells Step 1 that an edited editor has been left (`recordEditedEditorLeft`, U15-4), whichever way the
+ * customer leaves: the link's navigation and the browser's Back both end here.
  */
 export function BackConfirmationDialog({
   onConfirm,
@@ -65,7 +71,10 @@ export function BackConfirmationDialog({
         backLabel: backConfirm.stay,
       }}
       testIdPrefix={TEST_ID_PREFIX}
-      onConfirm={onConfirm}
+      onConfirm={() => {
+        recordEditedEditorLeft(useConfiguratorStore.getState());
+        onConfirm();
+      }}
       onStay={onStay}
     />
   );

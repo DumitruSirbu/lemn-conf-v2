@@ -24,6 +24,7 @@ import {
   resolveContent,
   resolveLogoutEverywhereCopy,
   resolveSessionExpiredSheetCopy,
+  resolveVisitorAccountCardCopy,
   type ContentTranslator,
 } from "./content";
 
@@ -81,6 +82,10 @@ export function useLogoutEverywhereCopy() {
 
 export function useSessionExpiredSheetCopy() {
   return useResolved(resolveSessionExpiredSheetCopy);
+}
+
+export function useVisitorAccountCardCopy() {
+  return useResolved(resolveVisitorAccountCardCopy);
 }
 
 export function useClaimDialogCopy() {

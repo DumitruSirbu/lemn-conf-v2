@@ -1152,6 +1152,17 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     signIn: "Intră în cont",
     later: "Mai târziu",
   },
+  // The card Step 1 shows once to a visitor who has just left an edited editor (Lot 2 frame A16B / DA16B, re-triggered
+  // under autosave; plan M8B Lot 2 section 14.2, U15-4 and U15-5). Drafted by the agent and approved as drafted by the
+  // owner on 2026-10-20 (relayed; O28a, O28b; ADR 0113 decision 2). The title and the buttons are the frame's own
+  // wording. It says the kitchen is kept in this browser and can be attached to an account; it never says the kitchen is
+  // saved in an account.
+  visitorAccountCard: {
+    title: "Am păstrat bucătăria.",
+    body: "Bucătăria rămâne păstrată în acest browser, dar fără cont nu o poți deschide de pe alt dispozitiv. Dacă îți creezi un cont din acest browser, o poți atașa contului.",
+    createAccount: "Creează cont",
+    notNow: "Nu acum",
+  },
   claimDialog: {
     title: "Atașezi bucătăriile din acest browser?",
     question:
