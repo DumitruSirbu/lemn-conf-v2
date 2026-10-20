@@ -86,6 +86,11 @@ figure already read `60.000`, and the application's grouping is not decided by t
   `637e7aec…39b182` for Lot 3, `8be0fd0b…7623ea` for `ContBlocks2`, both matching). The Lot 2 page renders identically with the old and the
   new `ContBlocks2` (DOM and PNG hashes equal at 1440x900 and 390x844; run 2026-10-20; the 60 added lines add `is_tb`/`is_tbl` blocks Lot 2 does not use). The plan that reads them is [`M8B-account-screens-lot3-plan.md`](../milestones/M8B-account-screens-lot3-plan.md).
   S6 (Prețuri) and S7 (Traduceri) are **deferred by the owner**; do not build them (ADR 0174).
+- **Dated note 2026-10-21, frame `A19A` (`Lemnaria Cont Lot 2.dc.html`, "Deconectat", note *„Intră în cont”, 44 px.*)
+  [owner ruling of 2026-10-20 given directly, relayed by the coordinator; the scribe read no source].** `A19A` shows the
+  words on the phone. The owner ruled the signed-out link **icon-only on narrow widths**, drawn the same as the signed-in
+  icon, so `A19A` is **superseded on that point**; the words remain on wide widths and in the room's bar. Record: ADR 0104
+  Amendment H. The mockup file is not edited.
 
 `support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
 date the tracked mockups could not render on their own; it is now copied because the v2 preset

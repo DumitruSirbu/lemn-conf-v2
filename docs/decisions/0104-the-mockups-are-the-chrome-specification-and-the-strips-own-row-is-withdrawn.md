@@ -1024,3 +1024,46 @@ frame copy "Modificările vor fi pierdute" and its sentence, as Amendment D's D4
 mechanism does not change**; only the dialog's title and body do. The client body is chosen only on a definite signed-in
 answer holding `design.edit.own`; every other state gets the visitor body. Neither says "pierdute". The new copy is
 pre-approved as the developers draft it (O28b). Plan: `docs/milestones/M8B-account-screens-lot2-plan.md` §14.2, wave U15c.
+
+## Amendment H, 2026-10-21 — decision 8's order of gives is extended; the visitor's link yields to its glyph; the title yields at 900 px; the price popover is clamped
+
+**Evidence tiers.** *[doc]* quoted from this repository. *[src]* read at source by the developer (the three commits
+`a05440ce`, `419b7a69`, `1e55d0d1`, relayed by the coordinator). *[relayed-owner]* the owner's rulings of 2026-10-20, given
+directly through AskUserQuestion and relayed. *[relayed-measured]* figures the developer measured in Chromium on the
+Romanian seeded design; the scribe ran nothing and read no source, so every figure below is relayed, not re-run. The
+numbering "A to E" and the mechanism text are the developer's, recorded as relayed [src].
+
+**Owner rulings, 2026-10-20 [relayed-owner].** (1) The signed-out link is icon-only on narrow widths. (2) At 900 px the
+title yields so the pill keeps its whole first name. (3) The price popover is clamped to the viewport.
+
+**The order the top bar gives, extended [src].** A the pill's ladder; B the row's gaps close (frame D2A's 28/14 to frame
+2A's 9/6); C the wordmark leaves; D the visitor's "Intră în cont" becomes its glyph alone (the account give); E the title
+leaves the row, dropped whole. (The nav's own title ellipsis in `configure.module.css`, long called "give D", is the same
+mechanism's mobile counterpart and is renumbered E.) Each is decided from the one measured settings-track against measured
+widths, never a constant (ADR 0094 §4i, decision 9 of this record).
+
+- **The account give** is spent where the row without the wordmark cannot name every setting beside the words; the link
+  then changes form once as the window widens. It is measured from two hidden probes of the control's own forms; a
+  signed-in control measures alike in both, so it never compacts. The phone shell draws the glyph from the stylesheet so
+  the first paint is right. The room's bar keeps the words.
+- **The title give** is spent where the track with every other give spent is narrower than one whole name. Only the room
+  one whole name needs is offered to the ladder while the title is away, so the label count is non-decreasing in width.
+- **Return order.** The gives return as a chain in the reverse of the order they were spent: the words are tested before
+  the wordmark, and the wordmark only once the words are back.
+- **Supersession note.** Decision 9's refusal of a numeric min-width and of any breakpoint chosen from a measurement is
+  honoured; nothing here declares one.
+
+**The signed-out glyph departs from mockup A19A.** The glyph is drawn the same as the signed-in icon. Frame `A19A` shows
+the words on the phone; by ruling (1) it is superseded on that point (dated note in `docs/design/README.md`). Decision 1
+holds: the mockup file is not edited and the departure is the owner's.
+
+**The popover clamp [src].** `useKeepSurfaceInsideViewport` keeps `--safe-gap` (16 px) of the left edge through a
+`--popover-shift` translate, in the desktop branch only.
+
+**Measured figures [relayed-measured; Chromium, Romanian seeded design].** The glyph is drawn from 1250 px down and the
+words from 1280 px. The title is dropped from 900 to 956 px and drawn from 957 px. The wordmark returns at 1386 px. The
+title at 390 px is 42.84 px in Romanian and 90 px in Russian. These are measurements of one design in one browser, not
+constants; by the rule above, the code measures and does not hard-code them.
+
+**Decision 8's widths.** Dated note D3 above already marks decision 8's table as superseded by measurement; the order is now
+A to E and the figures above are the latest relayed ones. Nothing in decisions 1 to 9 is otherwise changed.

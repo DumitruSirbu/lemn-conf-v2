@@ -112,6 +112,12 @@ aligned to §5.3. **Not done:** the copy of `Lemnaria Cont Lot 3.dc.html` and th
 `docs/design/mockups/`, their sha256 check, and the Lot 2 re-render (no shell; `docs/design/README.md` says so). **Not
 written, by instruction:** the staff-invitation record (O-L3-4) and the ADR 0112 amendment (O-L3-5).
 
+**2026-10-21 update (top bar: signed-out link, title give, popover clamp; branch `feat/login-register`) [developer's
+measurements and owner rulings of 2026-10-20 relayed; commits `a05440ce`, `419b7a69`, `1e55d0d1`; the scribe ran nothing].**
+Recorded as [ADR 0104 Amendment H](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md):
+the top bar's order of gives is extended (A to E), the visitor's "Intră în cont" is icon-only on narrow widths (departs from
+mockup A19A, dated note in `docs/design/README.md`), the title yields at 900 px, and the price popover is clamped to the viewport.
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
