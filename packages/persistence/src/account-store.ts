@@ -46,6 +46,8 @@ export type AccountStoreOperation =
   | "issue an e-mail change token"
   | "retire e-mail change tokens"
   | "change an e-mail address"
+  | "revert an e-mail address change"
+  | "look up an address reservation"
   | "replace a password hash"
   | "read a profile"
   | "update a profile"
@@ -90,10 +92,15 @@ export type AccountLookup =
   | { readonly kind: "found"; readonly account: StoredAccount }
   | { readonly kind: "none" };
 
-/** `address-taken` covers a verified and an unverified account alike: the caller decides what to do about each. */
+/**
+ * `address-taken` covers a verified and an unverified account alike: the caller decides what to do about each.
+ * `address-reserved` is an address no account holds but a live `email-change-revert` row names: nothing was created,
+ * and the caller must not mail it (ADR 0172 Amendment H).
+ */
 export type AccountCreation =
   | { readonly kind: "created"; readonly accountId: string }
-  | { readonly kind: "address-taken" };
+  | { readonly kind: "address-taken" }
+  | { readonly kind: "address-reserved" };
 
 /** `not-replaceable` is a verified account, or none at all: the predicate holds `email_verified_at is null`, so a
  *  verified account is never touched. */
@@ -146,7 +153,7 @@ export interface EmailChangeConfirmation {
  * link. A retry after a lost acknowledgement reads them back from the revert row it was asked to write, so they are
  * `undefined` only when that row does not exist: another call made the change, and no link of this call's is stored.
  * `invalid` covers an unknown, used, expired or superseded token, a token issued before the account's last password
- * change, an account that is not verified, and a new address another account now holds.
+ * change, an account that is not verified, and a new address another account now holds or has reserved.
  */
 export type EmailChangeOutcome =
   | {
@@ -159,6 +166,36 @@ export type EmailChangeOutcome =
 export interface PreviousAddress {
   readonly email: string;
   readonly locale: string;
+}
+
+/**
+ * The undo link is the subject: the token and the new password, and no account named. `passwordHash` is the PHC string
+ * the caller made from the new password, and it is minted once, before the call, so a retry names the same hash.
+ */
+export interface EmailChangeRevert {
+  readonly tokenHash: string;
+  readonly passwordHash: string;
+}
+
+/**
+ * `reverted` carries the restored address and the account's language, for the password-changed notice to the restored
+ * address; a retry after a lost acknowledgement reads them back from the account. `invalid` is one answer for every
+ * refusal: an unknown, used, expired or retired token, a token of another purpose, an account that is not verified, and
+ * an address another account holds or a live undo link of another account names.
+ */
+export type EmailChangeRevertOutcome =
+  | {
+      readonly kind: "reverted";
+      readonly accountId: string;
+      readonly email: string;
+      readonly locale: string;
+    }
+  | { readonly kind: "invalid" };
+
+/** Whether `emailNormalForm` is reserved against every account but `exceptAccountId`. */
+export interface AddressReservationQuestion {
+  readonly emailNormalForm: string;
+  readonly exceptAccountId: string;
 }
 
 /** A token as the link carried it, asked of a purpose. An `email-change-revert` token is not asked this way: any live
@@ -246,8 +283,10 @@ export type PasswordChangeOutcome =
  * The port for accounts and their e-mail tokens (ADR 0172 decisions 1, 2, 5, 10). A token works once, and only while
  * it is the newest unused, unexpired token of its purpose for its account; using one retires its older siblings.
  * `email-change-revert` is the one exception (Amendment H): every unused, unexpired one is valid, and a password
- * change, a reset or an address change retires none.
- * No method writes `role` or `id` after insert; only `confirmEmailChange` writes `email` and `email_normal_form`.
+ * change, a reset or an address change retires none. While one is live, the address it names is **reserved**: no other
+ * account can register it, be changed to it or be reverted to it.
+ * No method writes `role` or `id` after insert; only `confirmEmailChange` and `revertEmailChange` write `email` and
+ * `email_normal_form`.
  */
 export interface AccountStore {
   findByNormalForm(emailNormalForm: string): Promise<AccountLookup>;
@@ -282,12 +321,25 @@ export interface AccountStore {
    * row's new address, an `email-change-revert` row holding the address left, every other unused token of the account
    * retired **except earlier `email-change-revert` rows** (a link mailed to the old address cannot outlive it, but the
    * undo link can), then every session revoked in a second statement. A token issued before the account's last
-   * password change is refused, and so is a new address another account holds, which writes nothing, leaves the token
-   * whole and writes no revert row.
+   * password change is refused, and so is a new address another account holds or a live `email-change-revert` row of
+   * another account names, which writes nothing, leaves the token whole and writes no revert row.
    */
   confirmEmailChange(
     confirmation: EmailChangeConfirmation,
   ): Promise<EmailChangeOutcome>;
+  /**
+   * One transaction: the `email-change-revert` token consumed (unused, unexpired, address-carrying, of a verified
+   * account; **not** subject to the newest-token rule or to the password-change binding), `email` and
+   * `email_normal_form` restored from its row, the new hash and `password_changed_at` set, every other unused token of
+   * the account retired **and every undo link created after this one** (the oldest wins: earlier links stay usable),
+   * then every session revoked in a second statement. Refused with one answer, and nothing written, when another
+   * account holds the address or another account's live undo link names it.
+   */
+  revertEmailChange(
+    revert: EmailChangeRevert,
+  ): Promise<EmailChangeRevertOutcome>;
+  /** True when a live `email-change-revert` row of an account other than `exceptAccountId` names the address. */
+  isAddressReserved(question: AddressReservationQuestion): Promise<boolean>;
   /** One atomic step: the newest live token, marked used, and the address verified. */
   confirmEmail(
     confirmation: EmailConfirmation,
@@ -402,6 +454,29 @@ export function requireValidEmailChangeConfirmation(
     "a valid instant",
     operation,
   );
+}
+
+export function requireValidEmailChangeRevert(revert: EmailChangeRevert): void {
+  const operation = "revert an e-mail address change";
+  requireSha256Digest(revert.tokenHash, "token hash", operation);
+  requirePasswordHashShape(revert.passwordHash, operation);
+}
+
+export function requireValidAddressReservationQuestion(
+  question: AddressReservationQuestion,
+): void {
+  const operation = "look up an address reservation";
+  requireField(
+    isLengthWithin(
+      question.emailNormalForm,
+      EMAIL_LENGTH_RANGE.least,
+      EMAIL_LENGTH_RANGE.most,
+    ),
+    "e-mail normal form",
+    "3 to 254 characters",
+    operation,
+  );
+  requireAccountIdShape(question.exceptAccountId, operation);
 }
 
 export function requireValidLiveTokenLookup(lookup: LiveTokenLookup): void {

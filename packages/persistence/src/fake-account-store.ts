@@ -4,8 +4,10 @@ import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   EMAIL_CHANGE_REVERT_PURPOSE,
   profileColumnWritesOf,
+  requireValidAddressReservationQuestion,
   requireValidEmailChangeConfirmation,
   requireValidEmailChangeRetirement,
+  requireValidEmailChangeRevert,
   requireValidEmailChangeTokenToIssue,
   requireValidEmailConfirmation,
   requireValidLiveTokenLookup,
@@ -21,8 +23,11 @@ import type {
   AccountCreation,
   AccountLookup,
   AccountStore,
+  AddressReservationQuestion,
   EmailChangeConfirmation,
   EmailChangeOutcome,
+  EmailChangeRevert,
+  EmailChangeRevertOutcome,
   EmailChangeTokenToIssue,
   EmailConfirmation,
   EmailConfirmationOutcome,
@@ -188,6 +193,9 @@ export class FakeAccountStore implements AccountStore {
       if (this.accountWithNormalForm(account.emailNormalForm) !== undefined) {
         return { kind: "address-taken" };
       }
+      if (this.isReservedExcept(account.emailNormalForm, undefined)) {
+        return { kind: "address-reserved" };
+      }
       const accountId = generateAccountId();
       this.accountsById.set(
         accountId,
@@ -341,6 +349,45 @@ export class FakeAccountStore implements AccountStore {
     });
   }
 
+  revertEmailChange(
+    revert: EmailChangeRevert,
+  ): Promise<EmailChangeRevertOutcome> {
+    return settle(() => {
+      requireValidEmailChangeRevert(revert);
+      const token = this.liveRevertToken(revert.tokenHash);
+      const account = token && this.accountsById.get(token.accountId);
+      if (account === undefined || !this.isRevertableBy(token, account)) {
+        return { kind: "invalid" };
+      }
+      const at = this.now();
+      this.retireTokensForRevertWith(token, at);
+      this.accountsById.set(account.id, {
+        ...account,
+        email: token.newEmail ?? account.email,
+        emailNormalForm: token.newEmailNormalForm ?? account.emailNormalForm,
+        passwordHash: revert.passwordHash,
+        passwordChangedAt: at,
+      });
+      this.revokeSessionsOf(account.id, at);
+      return {
+        kind: "reverted",
+        accountId: account.id,
+        email: token.newEmail ?? account.email,
+        locale: account.locale,
+      };
+    });
+  }
+
+  isAddressReserved(question: AddressReservationQuestion): Promise<boolean> {
+    return settle(() => {
+      requireValidAddressReservationQuestion(question);
+      return this.isReservedExcept(
+        question.emailNormalForm,
+        question.exceptAccountId,
+      );
+    });
+  }
+
   completeReset(reset: PasswordReset): Promise<PasswordResetOutcome> {
     return settle(() => {
       requireValidPasswordReset(reset);
@@ -425,7 +472,7 @@ export class FakeAccountStore implements AccountStore {
   }
 
   /** Neon's consume predicate beyond liveness: a verified account, a token issued no earlier than its last password
-   *  change, an address on the row, and no other account holding that address. */
+   *  change, an address on the row, and no other account holding or having reserved that address. */
   private isChangeableBy(
     token: HeldEmailToken | undefined,
     account: HeldAccount,
@@ -436,12 +483,64 @@ export class FakeAccountStore implements AccountStore {
     ) {
       return false;
     }
-    const holder = this.accountWithNormalForm(token.newEmailNormalForm);
     return (
       account.emailVerifiedAt !== undefined &&
       token.issuedAt.getTime() >= account.passwordChangedAt.getTime() &&
-      (holder === undefined || holder.id === account.id)
+      this.isAddressFreeFor(token.newEmailNormalForm, account.id)
     );
+  }
+
+  /** Neon's revert predicate beyond liveness: a verified account, an address on the row, and no other account holding or
+   *  having reserved that address. Neither the newest-token rule nor the password-change binding applies. */
+  private isRevertableBy(
+    token: HeldEmailToken | undefined,
+    account: HeldAccount,
+  ): token is HeldEmailToken {
+    if (
+      token?.newEmail === undefined ||
+      token.newEmailNormalForm === undefined
+    ) {
+      return false;
+    }
+    return (
+      account.emailVerifiedAt !== undefined &&
+      this.isAddressFreeFor(token.newEmailNormalForm, account.id)
+    );
+  }
+
+  private isAddressFreeFor(
+    emailNormalForm: string,
+    accountId: string,
+  ): boolean {
+    const holder = this.accountWithNormalForm(emailNormalForm);
+    const isHeldByAnother = holder !== undefined && holder.id !== accountId;
+    return (
+      !isHeldByAnother && !this.isReservedExcept(emailNormalForm, accountId)
+    );
+  }
+
+  /** A live undo link of an account other than `exceptAccountId` names the address. `undefined` excepts no account. */
+  private isReservedExcept(
+    emailNormalForm: string,
+    exceptAccountId: string | undefined,
+  ): boolean {
+    const nowMs = this.now().getTime();
+    return [...this.tokensByHash.values()].some(
+      (token) =>
+        token.purpose === EMAIL_CHANGE_REVERT_PURPOSE &&
+        token.usedAt === undefined &&
+        token.expiresAt.getTime() > nowMs &&
+        token.newEmailNormalForm === emailNormalForm &&
+        token.accountId !== exceptAccountId,
+    );
+  }
+
+  /** An undo link is valid while unused and unexpired, however many newer tokens of its purpose the account holds. */
+  private liveRevertToken(tokenHash: string): HeldEmailToken | undefined {
+    const token = this.tokensByHash.get(tokenHash);
+    if (token?.purpose !== EMAIL_CHANGE_REVERT_PURPOSE) return undefined;
+    if (token.usedAt !== undefined) return undefined;
+    return token.expiresAt.getTime() > this.now().getTime() ? token : undefined;
   }
 
   /** Unused, unexpired, of this purpose, and with no newer unused token of its account and purpose. */
@@ -473,6 +572,19 @@ export class FakeAccountStore implements AccountStore {
         token.accountId === accountId &&
         token.purpose !== EMAIL_CHANGE_REVERT_PURPOSE;
       if (isRetirable) token.usedAt ??= at;
+    }
+  }
+
+  /** The oldest wins: the used link, every other unused token that is not an undo link, and every undo link issued
+   *  after it are marked used; an earlier undo link stays valid. */
+  private retireTokensForRevertWith(used: HeldEmailToken, at: Date): void {
+    for (const token of this.tokensByHash.values()) {
+      const isSameAccount = token.accountId === used.accountId;
+      const isRetirable =
+        token.purpose !== EMAIL_CHANGE_REVERT_PURPOSE ||
+        token === used ||
+        isIssuedAfter(token, used);
+      if (isSameAccount && isRetirable) token.usedAt ??= at;
     }
   }
 

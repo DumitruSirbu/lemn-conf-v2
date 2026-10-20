@@ -66,10 +66,12 @@ type RegistrationInputJudgement =
     }
   | { readonly ok: false; readonly issues: readonly AccountInputIssue[] };
 
-/** The one mail the three statements decide on. `nothing-to-mail` is an account that vanished between them. */
+/** The one mail the three statements decide on. `nothing-to-mail` is an account that vanished between them;
+ *  `reserved` is an address that no account holds but a live undo link of an address change names, which gets nothing. */
 type AddressRegistration =
   | AccountMailOrder
-  | { readonly kind: "nothing-to-mail" };
+  | { readonly kind: "nothing-to-mail" }
+  | { readonly kind: "reserved" };
 
 export async function registerAccount({
   bodyText,
@@ -160,6 +162,10 @@ async function registerAddress({
     reportAccountEvent({ event: "register", outcome: "unavailable" });
     return;
   }
+  if (registration.kind === "reserved") {
+    reportAccountEvent({ event: "register", outcome: "refused" });
+    return;
+  }
   queueAccountMail(readiness, registration);
 }
 
@@ -178,27 +184,42 @@ async function storeRegistration(
     await store.findByNormalForm(account.emailNormalForm);
     return alreadyRegistered(found.account.email, found.account.locale);
   }
-  const accountId = await writeUnverifiedRegistration(found.kind, account);
-  if (accountId === undefined) {
+  const written = await writeUnverifiedRegistration(found.kind, account);
+  if (written.kind === "reserved") {
+    await store.findByNormalForm(account.emailNormalForm);
+    return written;
+  }
+  if (written.kind === "not-written") {
     await store.findByNormalForm(account.emailNormalForm);
     return alreadyRegistered(account.email, account.locale);
   }
-  return issueConfirmationToken(accountId, account);
+  return issueConfirmationToken(written.accountId, account);
 }
 
+type UnverifiedRegistrationWrite =
+  | { readonly kind: "written"; readonly accountId: string }
+  | { readonly kind: "not-written" }
+  | { readonly kind: "reserved" };
+
 /** One statement; a second only when a racing registration took the address between the lookup and the insert. Answers
- *  the account's id, or `undefined` when the address belongs to a confirmed account, which is never touched. */
+ *  the account's id, `not-written` when the address belongs to a confirmed account, which is never touched, or
+ *  `reserved` when a live undo link of an address change names it: nothing was created, and nothing is mailed. */
 async function writeUnverifiedRegistration(
   lookup: "found" | "none",
   account: NewAccount,
-): Promise<string | undefined> {
+): Promise<UnverifiedRegistrationWrite> {
   const store = getAccountStore();
   if (lookup === "none") {
     const creation = await store.createUnverified(account);
-    if (creation.kind === "created") return creation.accountId;
+    if (creation.kind === "created") {
+      return { kind: "written", accountId: creation.accountId };
+    }
+    if (creation.kind === "address-reserved") return { kind: "reserved" };
   }
   const replacement = await store.replaceUnverifiedRegistration(account);
-  return replacement.kind === "replaced" ? replacement.accountId : undefined;
+  return replacement.kind === "replaced"
+    ? { kind: "written", accountId: replacement.accountId }
+    : { kind: "not-written" };
 }
 
 async function issueConfirmationToken(

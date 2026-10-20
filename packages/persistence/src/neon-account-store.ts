@@ -20,8 +20,11 @@ import type {
   AccountLookup,
   AccountStore,
   AccountStoreOperation,
+  AddressReservationQuestion,
   EmailChangeConfirmation,
   EmailChangeOutcome,
+  EmailChangeRevert,
+  EmailChangeRevertOutcome,
   EmailChangeTokenToIssue,
   EmailConfirmation,
   EmailConfirmationOutcome,
@@ -46,8 +49,10 @@ import type {
 import { generateAccountId } from "./generate-account-id.js";
 import {
   confirmEmailChange,
+  isAddressReserved,
   issueEmailChangeToken,
   retireEmailChangeTokens,
+  revertEmailChange,
 } from "./neon-account-email-change.js";
 import { isDone, queryRows } from "./neon-account-rows.js";
 import { openApplicationDatabase } from "./open-application-database.js";
@@ -61,15 +66,15 @@ const EMAIL_CHANGE_REVERT = EMAIL_CHANGE_REVERT_PURPOSE;
  * `AccountStore` on Neon Postgres, over `accounts` and `account_email_tokens` (migrations `0012`, `0014`, `0018`). Every query
  * is a tagged-template `sql`, which parameterises values. Each method is **one statement**, so it is atomic without
  * `sql.transaction` (a batch of statements cannot branch on an earlier one): a token's `update … returning` is the
- * gate, and the other writes are driven from its `returning`. The three exceptions are `completeReset`,
- * `changePassword` and `confirmEmailChange`, transactions whose later statements need a snapshot taken after the first
- * has finished waiting.
+ * gate, and the other writes are driven from its `returning`. The four exceptions are `completeReset`,
+ * `changePassword`, `confirmEmailChange` and `revertEmailChange`, transactions whose later statements need a snapshot
+ * taken after the first has finished waiting.
  *
  * The statements write only columns the application role is granted: `accounts` INSERT of the eight registration
  * columns and UPDATE of the verification, password, phone, name, address, locale and notice columns, and (only once the
  * runbook's separate, security-reviewed grant is made) `email` and `email_normal_form`; `account_email_tokens` INSERT
- * and UPDATE of `used_at` alone. Only `confirmEmailChange` writes `email` and `email_normal_form`; none writes `role`
- * or `id` after insert, and none deletes.
+ * and UPDATE of `used_at` alone. Only `confirmEmailChange` and `revertEmailChange` write `email` and
+ * `email_normal_form`; none writes `role` or `id` after insert, and none deletes.
  *
  * A "newest live token" is unused, unexpired by the database's clock, and has no newer unused token of the same
  * account and purpose, ties broken by `token_hash`. Using one marks its unused siblings used, so retiring a newer
@@ -186,9 +191,15 @@ export class NeonAccountStore implements AccountStore {
 
   /**
    * The id is minted before the retried callback: a new one per attempt would insert a second account when only an
-   * acknowledgement was lost. `on conflict do nothing` takes no target, so it answers both the id and the address; the
+   * acknowledgement was lost. The row is inserted from a `select` that holds two predicates over the statement's one
+   * snapshot: no account holds the address, and no live `email-change-revert` row names it (the address is reserved,
+   * ADR 0172 Amendment H). That snapshot shows an address change and the undo row it writes together or not at all, so
+   * a registration that began while the change was committing is refused whichever side of the commit it read. The
+   * unique index alone would not do it: it waits for the change to commit and then lets the insert through, with the
+   * undo row unseen. `on conflict do nothing` takes no target and stays as the backstop for a racing registration; the
    * final `select` finds the row by this call's own id, which is what tells a retry that landed from an address that
-   * was already taken. No `on conflict do update` appears, so the grant never needs more than INSERT.
+   * was already taken, and tells a reserved address from a taken one. No `on conflict do update` appears, so the grant
+   * never needs more than INSERT.
    */
   async createUnverified(account: NewAccount): Promise<AccountCreation> {
     requireValidNewAccount(account);
@@ -199,23 +210,42 @@ export class NeonAccountStore implements AccountStore {
           with inserted as (
             insert into accounts (
               id, email, email_normal_form, password_hash, locale, phone, phone_normal_form, privacy_notice_version
-            ) values (
-              ${accountId}, ${account.email}, ${account.emailNormalForm}, ${account.passwordHash}, ${account.locale},
+            )
+            select ${accountId}, ${account.email}, ${account.emailNormalForm}, ${account.passwordHash}, ${account.locale},
               ${account.phone?.entered ?? null}::text, ${account.phone?.normalForm ?? null}::text,
               ${account.privacyNoticeVersion}
-            )
+            where not exists (
+                select 1 from accounts holder where holder.email_normal_form = ${account.emailNormalForm}
+              )
+              and not exists (
+                select 1 from account_email_tokens reservation
+                where reservation.purpose = ${EMAIL_CHANGE_REVERT}
+                  and reservation.used_at is null
+                  and reservation.expires_at > now()
+                  and reservation.new_email_normal_form = ${account.emailNormalForm}
+              )
             on conflict do nothing
             returning id
           )
-          select id from inserted
-          union
-          select id from accounts where id = ${accountId} and email_normal_form = ${account.emailNormalForm}
+          select
+            coalesce(
+              (select id from inserted),
+              (select id from accounts where id = ${accountId} and email_normal_form = ${account.emailNormalForm})
+            ) as account_id,
+            (
+              not exists (select 1 from accounts holder where holder.email_normal_form = ${account.emailNormalForm})
+              and exists (
+                select 1 from account_email_tokens reservation
+                where reservation.purpose = ${EMAIL_CHANGE_REVERT}
+                  and reservation.used_at is null
+                  and reservation.expires_at > now()
+                  and reservation.new_email_normal_form = ${account.emailNormalForm}
+              )
+            ) as is_reserved
         `,
       ),
     );
-    return rows.length === 0
-      ? { kind: "address-taken" }
-      : { kind: "created", accountId };
+    return creationFrom(rows, accountId);
   }
 
   /** `email_verified_at is null` is in the predicate, so a verified account matches nothing and is never touched.
@@ -606,6 +636,35 @@ export class NeonAccountStore implements AccountStore {
   ): Promise<EmailChangeOutcome> {
     return confirmEmailChange(this.sql, confirmation);
   }
+
+  /** One transaction over an `email-change-revert` token; see `neon-account-email-change.ts` for the gate. */
+  revertEmailChange(
+    revert: EmailChangeRevert,
+  ): Promise<EmailChangeRevertOutcome> {
+    return revertEmailChange(this.sql, revert);
+  }
+
+  /** One read; see `neon-account-email-change.ts`. */
+  isAddressReserved(question: AddressReservationQuestion): Promise<boolean> {
+    return isAddressReserved(this.sql, question);
+  }
+}
+
+/** The one row `createUnverified` answers: this call's id when the account is there, else why it is not. */
+function creationFrom(
+  rows: readonly Record<string, unknown>[],
+  accountId: string,
+): AccountCreation {
+  const [row, ...others] = rows;
+  const found = row?.["account_id"];
+  const isReserved = row?.["is_reserved"];
+  const isReadable =
+    others.length === 0 &&
+    (found === null || typeof found === "string") &&
+    typeof isReserved === "boolean";
+  if (!isReadable) throw new AccountStoreError("create an account");
+  if (found !== null) return { kind: "created", accountId };
+  return isReserved ? { kind: "address-reserved" } : { kind: "address-taken" };
 }
 
 function lookupFrom(rows: readonly Record<string, unknown>[]): AccountLookup {

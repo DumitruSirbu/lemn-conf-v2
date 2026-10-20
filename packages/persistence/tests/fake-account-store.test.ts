@@ -815,6 +815,405 @@ describe("FakeAccountStore: the undo link written by confirmEmailChange (ADR 017
   });
 });
 
+describe("FakeAccountStore.revertEmailChange and the reservation (ADR 0172 Amendment H)", () => {
+  const NEW_HASH = passwordHashOf("after-revert");
+
+  function revert(tokenHash: string, passwordHash = NEW_HASH) {
+    return accounts.revertEmailChange({ tokenHash, passwordHash });
+  }
+
+  function isUnused(tokenHash: string): boolean {
+    return tokenState(tokenHash)?.isUsed === false;
+  }
+
+  /** Confirms a change and returns the undo link's hash, with the clock moved on so the next row is later. */
+  async function leaveFor(
+    account: Registered,
+    newEmail: string,
+    seed: string,
+  ): Promise<string> {
+    const token = await issueEmailChange(account, newEmail, seed);
+    expect((await confirmChange(token)).kind).toBe("changed");
+    advanceClock();
+    return revertHashOf(token);
+  }
+
+  async function addressOf(account: Registered): Promise<string | undefined> {
+    const found = await accounts.findById(account.accountId);
+    return found.kind === "found" ? found.account.email : undefined;
+  }
+
+  describe("a revert", () => {
+    it("restores the address, sets the new hash and the clock as password_changed_at, and answers the restored address", async () => {
+      const account = await registerVerified("Ana@Example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      const changedAt = accounts.passwordChangedAtOf(account.accountId);
+
+      const outcome = await revert(undo);
+
+      expect(outcome).toEqual({
+        kind: "reverted",
+        accountId: account.accountId,
+        email: "Ana@Example.md",
+        locale: "ro",
+      });
+      expect(await accounts.findByNormalForm("ana@example.md")).toMatchObject({
+        kind: "found",
+        account: { id: account.accountId, passwordHash: NEW_HASH },
+      });
+      expect(await accounts.findByNormalForm("new@example.md")).toEqual({
+        kind: "none",
+      });
+      expect(accounts.passwordChangedAtOf(account.accountId)).toEqual(
+        currentTime,
+      );
+      expect(currentTime.getTime()).toBeGreaterThan(changedAt?.getTime() ?? 0);
+    });
+
+    it("keeps the verification and the role", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+
+      await revert(undo);
+
+      const found = await accounts.findById(account.accountId);
+      expect(found.kind === "found" ? found.account : undefined).toMatchObject({
+        isEmailVerified: true,
+        role: "client",
+      });
+    });
+
+    it("ends every session, one created between the confirmation and the revert included", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const before = await startSession(account, "before");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      const between = await startSession(account, "between");
+
+      await revert(undo);
+
+      expect(await isLive(before)).toBe(false);
+      expect(await isLive(between)).toBe(false);
+    });
+
+    it("works once", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+
+      const outcomes = [await revert(undo), await revert(undo)];
+
+      expect(outcomes.map((outcome) => outcome.kind)).toEqual([
+        "reverted",
+        "invalid",
+      ]);
+    });
+
+    it("retires a pending email-change link and any reset link, so neither works after it", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      const reset = await issueReset(account, "pending");
+      const change = await issueEmailChange(account, "next@example.md", "two");
+
+      await revert(undo);
+
+      expect(tokenState(reset)).toEqual({ isUsed: true });
+      expect(tokenState(change)).toEqual({ isUsed: true });
+      expect(await confirmChange(change)).toEqual({ kind: "invalid" });
+    });
+
+    it("is not refused for a password changed since the link was written (the binding is exempt)", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      await accounts.changePassword({
+        accountId: account.accountId,
+        expectedPasswordHash: account.passwordHash,
+        passwordHash: passwordHashOf("second"),
+      });
+      advanceClock();
+
+      expect((await revert(undo)).kind).toBe("reverted");
+    });
+
+    it("is not refused for a newer undo link of the account (the newest-token rule is exempt)", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const oldest = await leaveFor(account, "second@example.md", "one");
+      await leaveFor(account, "third@example.md", "two");
+
+      expect((await revert(oldest)).kind).toBe("reverted");
+      expect(await addressOf(account)).toBe("ana@example.md");
+    });
+
+    it("may be used by an account that is in the middle of its own later change", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "second@example.md", "one");
+      const pending = await issueEmailChange(account, "next@example.md", "two");
+
+      await revert(undo);
+
+      expect(tokenState(pending)).toEqual({ isUsed: true });
+    });
+  });
+
+  describe("one answer, invalid, and nothing written, for", () => {
+    async function expectRefusedAndUntouched(tokenHash: string) {
+      const before = JSON.stringify(accounts.heldTokens());
+      const heldBefore = JSON.stringify(accounts.heldAccounts());
+
+      expect(await revert(tokenHash)).toEqual({ kind: "invalid" });
+
+      expect(JSON.stringify(accounts.heldTokens())).toBe(before);
+      expect(JSON.stringify(accounts.heldAccounts())).toBe(heldBefore);
+    }
+
+    it("an unknown token", async () => {
+      await registerVerified("ana@example.md", "first");
+
+      await expectRefusedAndUntouched(sha256Of("never-issued"));
+    });
+
+    it("an expired link", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      advanceClock(REVERT_LIFETIME_MS);
+
+      await expectRefusedAndUntouched(undo);
+    });
+
+    it.each([
+      [
+        "an email-change token",
+        (a: Registered) => issueEmailChange(a, "x@example.md", "x"),
+      ],
+      ["a reset-password token", (a: Registered) => issueReset(a, "x")],
+    ])("%s", async (_label, issue) => {
+      const account = await registerVerified("ana@example.md", "first");
+      const tokenHash = await issue(account);
+
+      await expectRefusedAndUntouched(tokenHash);
+    });
+
+    it("a link already used up by a revert", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      await revert(undo);
+
+      await expectRefusedAndUntouched(undo);
+    });
+
+    it("a link retired by an earlier link's use (a later one, created after the oldest)", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const oldest = await leaveFor(account, "second@example.md", "one");
+      const later = await leaveFor(account, "third@example.md", "two");
+      await revert(oldest);
+
+      await expectRefusedAndUntouched(later);
+    });
+  });
+
+  it("refuses a malformed token hash or password hash before touching anything", async () => {
+    const account = await registerVerified("ana@example.md", "first");
+    const undo = await leaveFor(account, "new@example.md", "one");
+
+    await expect(revert("short")).rejects.toThrow(/token hash/);
+    await expect(revert(undo, "plain")).rejects.toThrow(/hash/);
+    expect(isUnused(undo)).toBe(true);
+  });
+
+  describe("the oldest wins", () => {
+    const CHAIN_LENGTHS = [1, 2, 3, 4];
+
+    /** A chain A0 to A1 to ... to Ak by one account; returns each link's hash, the one for A(i) at index i. */
+    async function chainOf(length: number) {
+      const account = await registerVerified("a0@example.md", "first");
+      const undos: string[] = [];
+      for (let step = 1; step <= length; step += 1) {
+        undos.push(
+          await leaveFor(
+            account,
+            `a${String(step)}@example.md`,
+            `s${String(step)}`,
+          ),
+        );
+      }
+      return { account, undos };
+    }
+
+    const CASES = CHAIN_LENGTHS.flatMap((length) =>
+      Array.from({ length }, (_, used) => [length, used] as const),
+    );
+
+    it.each(CASES)(
+      "in a chain of %i changes, using the link for address %i restores that address, spares earlier links and retires later ones",
+      async (length, used) => {
+        const { account, undos } = await chainOf(length);
+        const pending = await issueEmailChange(
+          account,
+          "pending@example.md",
+          "p",
+        );
+
+        const outcome = await revert(undos[used] ?? "");
+
+        expect(outcome.kind).toBe("reverted");
+        expect(await addressOf(account)).toBe(`a${String(used)}@example.md`);
+        expect(tokenState(pending)).toEqual({ isUsed: true });
+        undos.forEach((undo, index) => {
+          expect([index, isUnused(undo)]).toEqual([index, index < used]);
+        });
+      },
+    );
+
+    it("keeps the first link usable after a later one was used, until it expires", async () => {
+      const { undos } = await chainOf(3);
+      const [first, , third] = undos;
+
+      expect((await revert(third ?? "")).kind).toBe("reverted");
+      advanceClock();
+
+      expect((await revert(first ?? "")).kind).toBe("reverted");
+    });
+  });
+
+  describe("the reservation of the address a live undo link names", () => {
+    const REGISTRATION_OF_LEFT_ADDRESS = newAccount(
+      "Ana@Example.md",
+      passwordHashOf("squatter"),
+    );
+
+    it("refuses a registration of it, creating nothing", async () => {
+      const account = await registerVerified("Ana@Example.md", "first");
+      await leaveFor(account, "new@example.md", "one");
+      const before = accounts.heldAccounts().length;
+
+      expect(
+        await accounts.createUnverified(REGISTRATION_OF_LEFT_ADDRESS),
+      ).toEqual({ kind: "address-reserved" });
+
+      expect(accounts.heldAccounts()).toHaveLength(before);
+      expect(await accounts.findByNormalForm("ana@example.md")).toEqual({
+        kind: "none",
+      });
+    });
+
+    it("answers a held address as taken, not reserved, even when an undo link also names it", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      await leaveFor(account, "new@example.md", "one");
+      const back = await issueEmailChange(account, "ana@example.md", "back");
+      expect((await confirmChange(back)).kind).toBe("changed");
+
+      expect(
+        await accounts.createUnverified(REGISTRATION_OF_LEFT_ADDRESS),
+      ).toEqual({ kind: "address-taken" });
+    });
+
+    it("ends when the link is used", async () => {
+      const account = await registerVerified("Ana@Example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      await revert(undo);
+      await accounts.changePassword({
+        accountId: account.accountId,
+        expectedPasswordHash: NEW_HASH,
+        passwordHash: passwordHashOf("third"),
+      });
+      const other = await registerVerified("other@example.md", "other");
+
+      expect(
+        await accounts.isAddressReserved({
+          emailNormalForm: "new@example.md",
+          exceptAccountId: other.accountId,
+        }),
+      ).toBe(false);
+      expect(
+        (
+          await accounts.createUnverified(
+            newAccount("new@example.md", NEW_HASH),
+          )
+        ).kind,
+      ).toBe("created");
+    });
+
+    it("ends when the link expires, to the instant", async () => {
+      const account = await registerVerified("Ana@Example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      const other = await registerVerified("other@example.md", "other");
+      const expiresAt =
+        accounts.heldTokens().find((held) => held.tokenHash === undo)
+          ?.expiresAt ?? new Date(0);
+      const isReservedAt = () =>
+        accounts.isAddressReserved({
+          emailNormalForm: "ana@example.md",
+          exceptAccountId: other.accountId,
+        });
+
+      currentTime = new Date(expiresAt.getTime() - 1);
+      expect(await isReservedAt()).toBe(true);
+      currentTime = new Date(expiresAt);
+      expect(await isReservedAt()).toBe(false);
+      expect(
+        (await accounts.createUnverified(REGISTRATION_OF_LEFT_ADDRESS)).kind,
+      ).toBe("created");
+    });
+
+    it("is read against every account but the asking one", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      await leaveFor(account, "new@example.md", "one");
+      const other = await registerVerified("other@example.md", "other");
+
+      const askedBy = (exceptAccountId: string) =>
+        accounts.isAddressReserved({
+          emailNormalForm: "ana@example.md",
+          exceptAccountId,
+        });
+
+      expect(await askedBy(other.accountId)).toBe(true);
+      expect(await askedBy(account.accountId)).toBe(false);
+    });
+
+    it("refuses another account's confirmed change to it, leaving the token whole and writing no undo row", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      await leaveFor(account, "new@example.md", "one");
+      const other = await registerVerified("other@example.md", "other");
+      const token = await issueEmailChange(other, "ana@example.md", "grab");
+      const undoRows = accounts
+        .heldTokens()
+        .filter((held) => held.purpose === "email-change-revert").length;
+
+      expect(await confirmChange(token)).toEqual({ kind: "invalid" });
+
+      expect(tokenState(token)).toEqual({ isUsed: false });
+      expect(await addressOf(other)).toBe("other@example.md");
+      expect(
+        accounts
+          .heldTokens()
+          .filter((held) => held.purpose === "email-change-revert"),
+      ).toHaveLength(undoRows);
+    });
+
+    it("does not stop the account's own change back to it", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      await leaveFor(account, "new@example.md", "one");
+      const back = await issueEmailChange(account, "ana@example.md", "back");
+
+      expect((await confirmChange(back)).kind).toBe("changed");
+      expect(await addressOf(account)).toBe("ana@example.md");
+    });
+
+    it("lets another account's confirmed change to it through once the link is used", async () => {
+      const account = await registerVerified("ana@example.md", "first");
+      const undo = await leaveFor(account, "new@example.md", "one");
+      await revert(undo);
+      await accounts.changePassword({
+        accountId: account.accountId,
+        expectedPasswordHash: NEW_HASH,
+        passwordHash: passwordHashOf("third"),
+      });
+      const other = await registerVerified("other@example.md", "other");
+      const token = await issueEmailChange(other, "new@example.md", "take");
+
+      expect((await confirmChange(token)).kind).toBe("changed");
+    });
+  });
+});
+
 describe("FakeAccountStore.issueEmailChangeToken", () => {
   it("is bound to the hash the caller verified: a password changed since issues nothing", async () => {
     const account = await registerVerified("ana@example.md", "first");

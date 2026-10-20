@@ -3,13 +3,18 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 import {
   AccountStoreError,
   EMAIL_CHANGE_REVERT_PURPOSE,
+  requireValidAddressReservationQuestion,
   requireValidEmailChangeConfirmation,
   requireValidEmailChangeRetirement,
+  requireValidEmailChangeRevert,
   requireValidEmailChangeTokenToIssue,
 } from "./account-store.js";
 import type {
+  AddressReservationQuestion,
   EmailChangeConfirmation,
   EmailChangeOutcome,
+  EmailChangeRevert,
+  EmailChangeRevertOutcome,
   EmailChangeTokenToIssue,
   TokenIssueOutcome,
 } from "./account-store.js";
@@ -105,7 +110,10 @@ export async function retireEmailChangeTokens(
  * until the commit) and consumes the token under every rule at once: `email-change` purpose, unused, unexpired, the
  * newest live of its account, a row that carries an address, an account that is verified, **issued no earlier than the
  * account's last password change** (a link mailed before a change of password is refused even if it was never
- * retired), and a new address no other account holds. It then retires every other unused token of the account of any
+ * retired), and a new address no other account holds **or has reserved** (a live `email-change-revert` row of another
+ * account names it: ADR 0172 Amendment H; the account's own undo link does not block its own change). Both address
+ * rules read the statement's one snapshot, in which the move off an address and the undo row that reserves it are
+ * either both visible or both absent. It then retires every other unused token of the account of any
  * purpose **except `email-change-revert`**, so a reset link mailed to the old address cannot outlive it but an earlier
  * undo link can (ADR 0172 Amendment H), and replaces `email` and `email_normal_form`. Statement 2 revokes the account's
  * unrevoked sessions in a fresh snapshot, only for a token **this transaction** consumed (`used_at = now()`).
@@ -167,6 +175,14 @@ export async function confirmEmailChange(
                     and not exists (
                       select 1 from accounts holder
                       where holder.email_normal_form = t.new_email_normal_form and holder.id <> t.account_id
+                    )
+                    and not exists (
+                      select 1 from account_email_tokens reservation
+                      where reservation.purpose = ${EMAIL_CHANGE_REVERT}
+                        and reservation.used_at is null
+                        and reservation.expires_at > now()
+                        and reservation.new_email_normal_form = t.new_email_normal_form
+                        and reservation.account_id <> t.account_id
                     )
                   returning t.account_id, t.new_email, t.new_email_normal_form
                 ), superseded as (
@@ -247,6 +263,17 @@ export async function confirmEmailChange(
   return emailChangeOutcomeFrom(rows);
 }
 
+/** What `revertEmailChange` answers when the address was taken between the predicate's snapshot and the update. */
+const REVERT_ADDRESS_TAKEN_ROWS: readonly Record<string, unknown>[] =
+  Object.freeze([
+    Object.freeze({
+      is_done: false,
+      account_id: null,
+      restored_email: null,
+      restored_locale: null,
+    }),
+  ]);
+
 /** Asked once, of one failure: an error that cannot be read answers no. */
 function isAddressTakenViolation(failure: unknown): boolean {
   try {
@@ -277,4 +304,187 @@ function emailChangeOutcomeFrom(
     throw new AccountStoreError(operation);
   }
   return { kind: "changed", accountId, previous: { email, locale } };
+}
+
+/**
+ * The undo link's transaction, at READ COMMITTED, the token alone as the subject (ADR 0172 Amendment H). Statement 1
+ * locks the token's account row (`for update`, as `confirmEmailChange` does) and consumes the token under: the
+ * `email-change-revert` purpose, unused, unexpired, a row that carries an address, an account that is verified, an
+ * address no other account holds, and an address no **other** account's live undo link reserves. It has **neither** of
+ * the two rules every other token obeys: it need not be the newest of its purpose (any live undo link is valid), and it
+ * need not be issued after the last password change (a change of password is no reason to lose the way back). It then
+ * retires every other unused token of the account that is not an undo link, **and every undo link created after this
+ * one** (`(created_at, token_hash) >`, as everywhere else): the oldest wins, so using a later link never kills an
+ * earlier one. It replaces `email` and `email_normal_form` from the row and sets the new hash, `password_changed_at`
+ * (`clock_timestamp()`, see `completeReset`) and `updated_at`. Statement 2 revokes every unrevoked session of the
+ * account in a fresh snapshot, only for a token **this transaction** consumed (`used_at = now()`).
+ *
+ * A unique violation (an address another account took after the snapshot) rolls the transaction back and answers
+ * `invalid`, as for any refusal. Any other failure propagates.
+ *
+ * On a retry only, a used undo link whose account already holds exactly this call's new hash is the first attempt's own
+ * write (a PHC string holds a random salt): it answers `reverted`, the address and language read from the account.
+ */
+export async function revertEmailChange(
+  sql: ApplicationSql,
+  revert: EmailChangeRevert,
+): Promise<EmailChangeRevertOutcome> {
+  requireValidEmailChangeRevert(revert);
+  const { tokenHash, passwordHash } = revert;
+  const rows = await queryRows("revert an e-mail address change", async () => {
+    try {
+      const [revertRows] = await retryOnTransientFailure(({ isRetry }) =>
+        sql.transaction(
+          [
+            sql`
+                with locked as (
+                  select a.id, a.locale, a.email_verified_at
+                  from accounts a
+                  where a.id in (select t.account_id from account_email_tokens t where t.token_hash = ${tokenHash})
+                  for update
+                ), consumed as (
+                  update account_email_tokens t
+                  set used_at = now()
+                  from locked l
+                  where t.token_hash = ${tokenHash}
+                    and t.account_id = l.id
+                    and t.purpose = ${EMAIL_CHANGE_REVERT}
+                    and t.used_at is null
+                    and t.expires_at > now()
+                    and t.new_email is not null
+                    and t.new_email_normal_form is not null
+                    and l.email_verified_at is not null
+                    and not exists (
+                      select 1 from accounts holder
+                      where holder.email_normal_form = t.new_email_normal_form and holder.id <> t.account_id
+                    )
+                    and not exists (
+                      select 1 from account_email_tokens reservation
+                      where reservation.purpose = ${EMAIL_CHANGE_REVERT}
+                        and reservation.used_at is null
+                        and reservation.expires_at > now()
+                        and reservation.new_email_normal_form = t.new_email_normal_form
+                        and reservation.account_id <> t.account_id
+                    )
+                  returning t.account_id, t.created_at, t.new_email, t.new_email_normal_form
+                ), superseded as (
+                  update account_email_tokens s
+                  set used_at = now()
+                  from consumed c
+                  where s.account_id = c.account_id
+                    and s.used_at is null
+                    and s.token_hash <> ${tokenHash}
+                    and (
+                      s.purpose <> ${EMAIL_CHANGE_REVERT}
+                      or (s.created_at, s.token_hash) > (c.created_at, ${tokenHash}::text)
+                    )
+                  returning s.token_hash
+                ), changed as (
+                  update accounts a
+                  set email = c.new_email, email_normal_form = c.new_email_normal_form,
+                    password_hash = ${passwordHash}, password_changed_at = clock_timestamp(), updated_at = now()
+                  from consumed c
+                  where a.id = c.account_id
+                  returning a.id
+                ), restored as (
+                  select c.account_id, c.new_email as email, l.locale
+                  from consumed c
+                  join locked l on l.id = c.account_id
+                  union all
+                  select a.id, a.email, a.locale
+                  from account_email_tokens t
+                  join accounts a on a.id = t.account_id
+                  where ${isRetry}::boolean
+                    and t.token_hash = ${tokenHash}
+                    and t.purpose = ${EMAIL_CHANGE_REVERT}
+                    and t.used_at is not null
+                    and a.password_hash = ${passwordHash}
+                    and not exists (select 1 from consumed)
+                )
+                select
+                  exists (select 1 from restored) as is_done,
+                  (select r.account_id from restored r) as account_id,
+                  (select r.email from restored r) as restored_email,
+                  (select r.locale from restored r) as restored_locale
+              `,
+            sql`
+                update account_sessions
+                set revoked_at = now()
+                where revoked_at is null
+                  and account_id in (
+                    select t.account_id from account_email_tokens t
+                    where t.token_hash = ${tokenHash}
+                      and t.purpose = ${EMAIL_CHANGE_REVERT}
+                      and t.used_at = now()
+                  )
+                returning token_hash
+              `,
+          ],
+          { isolationLevel: "ReadCommitted" },
+        ),
+      );
+      return revertRows;
+    } catch (failure) {
+      if (isAddressTakenViolation(failure)) return REVERT_ADDRESS_TAKEN_ROWS;
+      throw failure;
+    }
+  });
+  return revertOutcomeFrom(rows);
+}
+
+function revertOutcomeFrom(
+  rows: readonly Record<string, unknown>[],
+): EmailChangeRevertOutcome {
+  const operation = "revert an e-mail address change";
+  if (!isDone(rows, operation)) return { kind: "invalid" };
+  const accountId = rows[0]?.["account_id"];
+  const email = rows[0]?.["restored_email"];
+  const locale = rows[0]?.["restored_locale"];
+  if (
+    typeof accountId !== "string" ||
+    typeof email !== "string" ||
+    typeof locale !== "string"
+  ) {
+    throw new AccountStoreError(operation);
+  }
+  return { kind: "reverted", accountId, email, locale };
+}
+
+/**
+ * One read: whether a live (unused, unexpired by the database's clock) `email-change-revert` row of an account other
+ * than `exceptAccountId` names the address. The account's own row does not reserve the address against it.
+ */
+export async function isAddressReserved(
+  sql: ApplicationSql,
+  question: AddressReservationQuestion,
+): Promise<boolean> {
+  requireValidAddressReservationQuestion(question);
+  const { emailNormalForm, exceptAccountId } = question;
+  const rows = await queryRows("look up an address reservation", () =>
+    retryOnTransientFailure(
+      () => sql`
+          select exists (
+            select 1 from account_email_tokens reservation
+            where reservation.purpose = ${EMAIL_CHANGE_REVERT}
+              and reservation.used_at is null
+              and reservation.expires_at > now()
+              and reservation.new_email_normal_form = ${emailNormalForm}
+              and reservation.account_id <> ${exceptAccountId}
+          ) as is_reserved
+        `,
+    ),
+  );
+  return isReservedFrom(rows);
+}
+
+function isReservedFrom(rows: readonly Record<string, unknown>[]): boolean {
+  const [row, ...others] = rows;
+  if (row === undefined || others.length > 0) {
+    throw new AccountStoreError("look up an address reservation");
+  }
+  const isReserved = row["is_reserved"];
+  if (typeof isReserved !== "boolean") {
+    throw new AccountStoreError("look up an address reservation");
+  }
+  return isReserved;
 }
