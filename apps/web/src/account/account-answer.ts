@@ -300,8 +300,8 @@ function asIssueCode(code: string): AccountFieldIssue["code"] {
   return code as AccountFieldIssue["code"];
 }
 
-/** The requests of the signed-in area, one per route family. `confirm-email` is the area's token page: it has no
- *  session, and the link it carries is its subject. */
+/** The requests of the signed-in area, one per route family. `confirm-email` and `revert-email` are the area's token
+ *  pages: they have no session, and the link they carry is their subject. */
 export type SignedInFlow =
   | "kitchens"
   | "kitchen-action"
@@ -309,6 +309,7 @@ export type SignedInFlow =
   | "password"
   | "email-change"
   | "confirm-email"
+  | "revert-email"
   | "export"
   | "claim"
   | "logout";
@@ -328,6 +329,8 @@ export type SignedInOutcome =
   | { readonly kind: "counted"; readonly count: number }
   | { readonly kind: "saved" }
   | { readonly kind: "email-changed" }
+  /** `200`: the undo link restored the old address, set the new password and ended every session. */
+  | { readonly kind: "email-reverted" }
   /** `401`: no live session. The page that asked sends the person to sign in. */
   | { readonly kind: "unauthenticated" }
   /** `403`: a live session whose account may not do this. It is never "the session expired". */
@@ -463,6 +466,25 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
     ],
     isAboutOneKitchen: false,
     placeableFields: [],
+  },
+  "revert-email": {
+    successes: [
+      {
+        status: OK_STATUS,
+        word: "email-reverted",
+        outcomeOf: () => ({ kind: "email-reverted" }),
+      },
+    ],
+    refusals: [
+      {
+        status: INVALID_INPUT_STATUS,
+        word: "link-invalid",
+        outcome: { kind: "link-invalid" },
+      },
+    ],
+    isAboutOneKitchen: false,
+    // The request member's own name, as the password change names it (plan P13); reset's `password` is not this route's.
+    placeableFields: ["newPassword"],
   },
   export: {
     // The file is not JSON-read: `sendExportRequest` takes a successful answer as a blob before this runs, so a `200`

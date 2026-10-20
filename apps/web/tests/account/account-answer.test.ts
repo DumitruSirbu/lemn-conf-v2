@@ -143,6 +143,32 @@ describe("signed-in answers: the successes of each flow", () => {
     ).toEqual({ kind: "email-changed" });
   });
 
+  it("an undo of an address change is `email-reverted` on 200 with its word, and no other flow's success word", () => {
+    expect(
+      classifySignedInAnswer(
+        "revert-email",
+        answer(200, word("email-reverted")),
+      ),
+    ).toEqual({ kind: "email-reverted" });
+    for (const other of ["email-changed", "password-changed", "saved"]) {
+      expect(
+        classifySignedInAnswer("revert-email", answer(200, word(other))).kind,
+      ).toBe("request-failed");
+    }
+    expect(
+      classifySignedInAnswer(
+        "revert-email",
+        answer(201, word("email-reverted")),
+      ).kind,
+    ).toBe("request-failed");
+    expect(
+      classifySignedInAnswer(
+        "confirm-email",
+        answer(200, word("email-reverted")),
+      ).kind,
+    ).toBe("request-failed");
+  });
+
   it("an export's 200 is never classified as a success here: the file is taken as a blob before this runs", () => {
     expect(classifySignedInAnswer("export", answer(200, {})).kind).toBe(
       "request-failed",
@@ -341,6 +367,22 @@ describe("conflicts and refusals of a flow", () => {
     ).toBe("request-failed");
   });
 
+  it("an unknown, used, expired or retired undo link is 400 `link-invalid` on the undo, and nowhere it is not named", () => {
+    expect(
+      classifySignedInAnswer("revert-email", answer(400, word("link-invalid"))),
+    ).toEqual({ kind: "link-invalid" });
+    expect(
+      classifySignedInAnswer(
+        "revert-email",
+        answer(400, word("link-or-password-invalid")),
+      ).kind,
+    ).toBe("request-failed");
+    expect(
+      classifySignedInAnswer("password", answer(400, word("link-invalid")))
+        .kind,
+    ).toBe("request-failed");
+  });
+
   it("an unknown, used, expired or taken e-mail link is 400 `link-invalid`, on the confirmation only", () => {
     expect(
       classifySignedInAnswer(
@@ -413,6 +455,30 @@ describe("invalid input: only the fields a flow can draw are placed", () => {
         { field: "newPassword", code: "PASSWORD_TOO_SHORT" },
       ],
     });
+  });
+
+  it("places an undo's refused password under the request member's name `newPassword`, not reset's `password`", () => {
+    expect(
+      classifySignedInAnswer(
+        "revert-email",
+        answer(400, issues(["newPassword", "PASSWORD_BREACHED"])),
+      ),
+    ).toEqual({
+      kind: "invalid-input",
+      issues: [{ field: "newPassword", code: "PASSWORD_BREACHED" }],
+    });
+    expect(
+      classifySignedInAnswer(
+        "revert-email",
+        answer(400, issues(["password", "PASSWORD_BREACHED"])),
+      ).kind,
+    ).toBe("request-failed");
+    expect(
+      classifySignedInAnswer(
+        "revert-email",
+        answer(400, issues(["currentPassword", "PASSWORD_REQUIRED"])),
+      ).kind,
+    ).toBe("request-failed");
   });
 
   it("places an e-mail change under `newEmail` and `currentPassword`", () => {
@@ -507,6 +573,7 @@ describe("limits and outages say the same in every flow", () => {
     "password",
     "email-change",
     "confirm-email",
+    "revert-email",
     "export",
     "claim",
     "logout",

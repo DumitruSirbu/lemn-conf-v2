@@ -36,6 +36,7 @@ const ACCOUNT_TOKEN_PAGES: readonly string[] = [
   "verify-email",
   "reset-password",
   "confirm-email",
+  "revert-email",
 ];
 const ACCOUNT_SIGNED_IN_PAGES: readonly string[] = [
   "kitchens",

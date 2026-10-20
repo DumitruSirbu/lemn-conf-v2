@@ -25,7 +25,12 @@ const ACCOUNT_PAGES_DIRECTORY = join(
   "../src/app/[locale]/account",
 );
 
-const TOKEN_PAGES = ["verify-email", "reset-password", "confirm-email"];
+const TOKEN_PAGES = [
+  "verify-email",
+  "reset-password",
+  "confirm-email",
+  "revert-email",
+];
 const CHALLENGE_PAGES = ["register", "login", "forgot-password"];
 const SIGNED_IN_PAGES = ["kitchens", "profile", "password", "export"];
 /** Named by the proxy ahead of its page: the erase-account screen is blocked on a record that does not exist yet. */
@@ -117,12 +122,35 @@ describe.each(routing.locales)("in locale %s", (locale) => {
   });
 });
 
+describe.each(routing.locales)("the undo page in locale %s", (locale) => {
+  it("is a token page: no-referrer, never indexed, never cached and no third-party frame", () => {
+    const response = respondTo(`/${locale}/account/revert-email`);
+
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(frameSourceOf(response)).toBe("'none'");
+  });
+
+  it.each([
+    ["with a trailing slash", `/${locale}/account/revert-email/`],
+    ["with a query", `/${locale}/account/revert-email?x=1`],
+  ])("keeps no-referrer %s", (_label, path) => {
+    expect(respondTo(path).headers.get("referrer-policy")).toBe("no-referrer");
+  });
+});
+
 describe("what is not an account page", () => {
   it.each([
     ["the family's own address", "/ro/account"],
     ["an address the family has no page for", "/ro/account/email-change"],
     ["the session address of the API's name", "/ro/account/session"],
     ["a page in another case", "/ro/account/KITCHENS"],
+    ["the undo page in another case", "/ro/account/Revert-Email"],
+    ["the undo page with a longer path", "/ro/account/revert-email/extra"],
+    ["the undo page with no locale", "/account/revert-email"],
+    ["the undo page with an escaped family", "/ro/%61ccount/revert-email"],
+    ["the undo page with an escaped hyphen", "/ro/account/revert%2Demail"],
     ["a page with a longer path", "/ro/account/kitchens/12"],
     ["a page with a deeper path", "/ro/account/profile/extra/path"],
     ["a page with no locale", "/account/kitchens"],

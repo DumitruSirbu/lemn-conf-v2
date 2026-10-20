@@ -1312,6 +1312,25 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Dacă adresa poate fi folosită, ți-am trimis un link la ea. Până confirmi, contul folosește adresa veche.",
     close: "Închide",
   },
+  // The undo page the old address's `email-changed` notice links to (Lot 2 plan section 14.3.3, R-13; ADR 0172
+  // Amendment H). Drafted by the agent and approved as drafted by the owner on 2026-10-20 (relayed; O28b; ADR 0113
+  // decision 2). The lead warns against reusing the old password because the person who moved the account knows it; the
+  // done screen says the address is restored and every session ended; the invalid-link screen offers no reset, since a
+  // reset mail goes to the address the account now holds.
+  accountRevertEmail: {
+    metaTitle: "Anulează schimbarea adresei — {brand}",
+    title: "Anulează schimbarea adresei",
+    lead: "Adresa contului revine la cea veche. Alege o parolă nouă, nu o refolosi pe cea veche: cine a schimbat adresa o poate cunoaște. Dacă schimbarea e a ta, închide pagina.",
+    submit: "Anulează schimbarea",
+    submitting: "Se anulează…",
+    doneTitle: "Adresa a fost restabilită",
+    doneBody:
+      "Contul folosește din nou adresa veche. Te-am deconectat de pe toate dispozitivele, pentru siguranță. Intră în cont cu adresa veche și cu parola nouă.",
+    logIn: "Intră în cont",
+    linkInvalidTitle: "Link-ul nu mai este valabil",
+    linkInvalidBody:
+      "A expirat, a fost folosit sau a fost înlocuit. Dacă ai anulat deja schimbarea, intră în cont cu adresa veche și cu parola nouă.",
+  },
   accountExport: {
     metaTitle: "Exportă datele mele — {brand}",
     title: "Exportă datele mele",

@@ -18,6 +18,7 @@ import {
   resolveAccountProfileCopy,
   resolveAccountRegisterCopy,
   resolveAccountResetCopy,
+  resolveAccountRevertEmailCopy,
   resolveAccountShellCopy,
   resolveAccountVerifyCopy,
   resolveClaimDialogCopy,
@@ -114,6 +115,10 @@ export function useAccountPasswordCopy() {
 
 export function useAccountEmailChangeCopy() {
   return useResolved(resolveAccountEmailChangeCopy);
+}
+
+export function useAccountRevertEmailCopy() {
+  return useResolved(resolveAccountRevertEmailCopy);
 }
 
 export function useAccountExportCopy() {

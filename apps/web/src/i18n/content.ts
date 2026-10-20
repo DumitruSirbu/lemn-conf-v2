@@ -1498,6 +1498,29 @@ export type AccountEmailChangeCopy = ReturnType<
   typeof resolveAccountEmailChangeCopy
 >;
 
+/** The undo page's own text: the form that asks for a new password, the restored screen and the one screen for a link
+ *  that is no longer good. The field refusals and the service notices are the forms' own. */
+export function resolveAccountRevertEmailCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountRevertEmail.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountRevertEmail.title"),
+    lead: translate("accountRevertEmail.lead"),
+    submit: translate("accountRevertEmail.submit"),
+    submitting: translate("accountRevertEmail.submitting"),
+    doneTitle: translate("accountRevertEmail.doneTitle"),
+    doneBody: translate("accountRevertEmail.doneBody"),
+    logIn: translate("accountRevertEmail.logIn"),
+    linkInvalidTitle: translate("accountRevertEmail.linkInvalidTitle"),
+    linkInvalidBody: translate("accountRevertEmail.linkInvalidBody"),
+  };
+}
+
+export type AccountRevertEmailCopy = ReturnType<
+  typeof resolveAccountRevertEmailCopy
+>;
+
 /** The data-export page's own text. The refusal for an account too large to export is the profile namespace's leaf; the
  *  limit, offline and unavailable notices are the forms' own. */
 export function resolveAccountExportCopy(translate: ContentTranslator) {

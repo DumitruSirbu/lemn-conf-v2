@@ -29,6 +29,7 @@ const PROFILE_ENDPOINT = "/api/account/profile";
 const PASSWORD_ENDPOINT = "/api/account/password";
 const EMAIL_CHANGE_ENDPOINT = "/api/account/email-change";
 const CONFIRM_EMAIL_ENDPOINT = "/api/account/email-change/confirm";
+const REVERT_EMAIL_ENDPOINT = "/api/account/email-change/revert";
 const EXPORT_ENDPOINT = "/api/account/export";
 const CLAIM_ENDPOINT = "/api/account/claim";
 const LOGOUT_ENDPOINT = "/api/account/logout";
@@ -102,6 +103,11 @@ export interface ConfirmEmailBody {
   readonly token: string;
 }
 
+export interface RevertEmailBody {
+  readonly token: string;
+  readonly newPassword: string;
+}
+
 export interface LogoutBody {
   readonly scope: "this-device" | "everywhere";
 }
@@ -125,6 +131,7 @@ export type SignedInRequest =
   | { readonly flow: "password"; readonly body: ChangePasswordBody }
   | { readonly flow: "email-change"; readonly body: ChangeEmailBody }
   | { readonly flow: "confirm-email"; readonly body: ConfirmEmailBody }
+  | { readonly flow: "revert-email"; readonly body: RevertEmailBody }
   | { readonly flow: "export" }
   | { readonly flow: "claim"; readonly intent: "count" | "claim" }
   | { readonly flow: "logout"; readonly body: LogoutBody };
@@ -265,6 +272,12 @@ function signedInRequestPlan(request: SignedInRequest): PlannedRequest {
       return {
         method: "POST",
         path: CONFIRM_EMAIL_ENDPOINT,
+        body: request.body,
+      };
+    case "revert-email":
+      return {
+        method: "POST",
+        path: REVERT_EMAIL_ENDPOINT,
         body: request.body,
       };
     case "export":
