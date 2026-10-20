@@ -9,11 +9,12 @@ import {
 import { withoutDraftCopy } from "../support/draft-romanian-copy";
 
 describe("Romanian catalogue copy lock", () => {
-  // **The lock is held to the catalogue's approved part, and only that.** The account screens' wording is owner-unapproved
-  // draft copy (open questions O13 and O27): it is not pasted into the lock, which would record an approval nobody gave,
-  // and it is not left to turn this test red for ever, which hides every real change. It is named, unit by unit, in
-  // `draft-romanian-copy.ts` and pinned by digest in `romanian-draft-copy.test.ts`. A namespace that is in neither place
-  // fails there, so this carve-out cannot swallow copy that nobody classified.
+  // **The lock is held to the catalogue's approved part, and only that.** Lot 2's wording and
+  // `designLoadError.bodyClient` are approved (2026-10-20, O27 and O25) and are in the lock. Lot 1's account wording is
+  // owner-unapproved draft copy (O1 of the Lot 1 review): it is not pasted into the lock, which would record an approval
+  // nobody gave, and it is not left to turn this test red for ever, which hides every real change. It is named,
+  // namespace by namespace, in `draft-romanian-copy.ts` and pinned by digest in `romanian-draft-copy.test.ts`. A
+  // namespace that is in neither place fails there, so this carve-out cannot swallow copy that nobody classified.
   //
   // Not *"every approved leaf"*: the assertion is a deep equality in both directions, and the corpus
   // carries a few marked-drafted leaves alongside the approved ones so that it can be one (see
@@ -24,7 +25,7 @@ describe("Romanian catalogue copy lock", () => {
     expect(withoutDraftCopy(ro)).toEqual(APPROVED_ROMANIAN_MESSAGES);
   });
 
-  it("does not take the whole catalogue for approved: its draft units are outside the lock", () => {
+  it("does not take the whole catalogue for approved: its Lot 1 draft copy is outside the lock", () => {
     expect(isRomanianCopyApproved(ro)).toBe(false);
     expect(isRomanianCopyApproved(withoutDraftCopy(ro))).toBe(true);
   });

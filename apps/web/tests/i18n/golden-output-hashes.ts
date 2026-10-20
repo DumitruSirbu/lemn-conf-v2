@@ -122,14 +122,14 @@
  * "… Încearcă mâine." (the Russian is unchanged). Its hash is the only one that moved; the other 574 are as before.
  *
  * **Grown by 1, never rebaselined, by the tests round of Lot 2** (ADR 0113 decision 2) — `designLoadError.bodyClient`
- * (first in commit 8a066f7d), the sentence a signed-in client reads on the design-load error in place of the reason. Its Romanian is
- * an agent's draft no owner approval of which is recorded, so it is held out of the approved copy lock and pinned in
- * `tests/support/draft-romanian-copy.ts`; it is hashed here like every other rendered leaf. The fixture is built from the
+ * (first in commit 8a066f7d), the sentence a signed-in client reads on the design-load error in place of the reason. Its Romanian was
+ * an agent's draft until the owner approved it as drafted on 2026-10-20 (O25, relayed); it is now in the approved copy
+ * lock, and is hashed here like every other rendered leaf. The fixture is built from the
  * content resolver, which gained the leaf with the commit, so no fixture list was edited. The entry was read off the
  * failing manifest assertion's diff, which showed one added key and no changed value, and not computed by hand.
  * **No existing hash moved.** The account namespaces (`account*`, `claimDialog`, `logoutEverywhere`,
- * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; they are pinned by digest
- * in the draft manifest and not here.
+ * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; Lot 2's are in the
+ * approved copy lock and Lot 1's are pinned by digest in the draft manifest, and neither is hashed here.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":

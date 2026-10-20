@@ -503,6 +503,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Prea multe cereri într-un timp scurt. Încearcă din nou peste puțin timp.",
     // Drafted, not approved: the label of the one link on that page, the same words as the share control's own.
     tryAgain: "Încearcă din nou",
+    // Approved by the owner, 2026-10-20 (relayed; O25), as drafted: the sentence a signed-in client reads in place of the
+    // reason. The Russian twin was approved in the same ruling.
+    bodyClient:
+      "Bucătăria nu este disponibilă. Poate a fost ștearsă sau ascunsă, sau a fost creată în alt browser fără cont.",
   },
   // Drafted, approved as drafted (ADR 0113); the owner may reword later.
   share: {
@@ -888,6 +892,235 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     DEPENDENT_MEMBER_NOT_REBUILDABLE:
       "„{label}” nu poate fi adăugat aici: „{memberLabel}”, care stă deasupra, nu poate fi reconstruit la adâncimea coloanei.",
+  },
+  // Approved by the owner, 2026-10-20 (relayed; open questions O27 and O25 of the Lot 2 plan, section 9), as drafted: all
+  // the Romanian wording Lot 2 added (ADR 0113 decision 2). Whole namespaces, then the Lot 2 leaves that stand inside the
+  // Lot 1 namespaces `accountMail`, `accountForm`, `accountFieldErrors` and `accountLogin` (their other leaves are Lot 1's
+  // and unapproved, see `draft-romanian-copy.ts`). `designLoadError.bodyClient` (O25) is in its own namespace's block above.
+  // The Russian was approved in the same ruling; it is never pinned by literal (ADR 0095 decision 2, layer 4).
+  accountMail: {
+    emailChange: {
+      subject: "Confirmă noua adresă de e-mail a contului Lemnaria",
+      intro:
+        "Ai cerut ca această adresă să devină adresa contului tău Lemnaria. Deschide link-ul de mai jos ca să confirmi schimbarea.",
+      action: "Confirmă adresa nouă",
+      note: "Link-ul se poate folosi o singură dată. După confirmare vei intra în cont cu noua adresă, iar sesiunile deschise pe toate dispozitivele se închid. Dacă nu ai cerut tu schimbarea, ignoră acest mesaj: adresa contului nu se schimbă.",
+    },
+    emailChangeAddressInUse: {
+      subject: "Această adresă are deja un cont Lemnaria",
+      intro:
+        "Cineva a cerut ca un alt cont Lemnaria să folosească această adresă, dar ea are deja un cont. Poți intra în cont; dacă ai uitat parola, o poți reseta de acolo.",
+      action: "Intră în cont",
+      note: "Dacă nu ai nicio legătură cu această cerere, nu trebuie să faci nimic: contul tău nu s-a schimbat.",
+    },
+    emailChanged: {
+      subject: "Adresa contului Lemnaria s-a schimbat",
+      intro:
+        "Adresa de e-mail a contului tău Lemnaria a fost schimbată, iar sesiunile deschise au fost închise. De acum contul nu mai folosește această adresă.",
+      note: "Dacă nu ai făcut tu schimbarea, scrie-ne cât mai repede, ca să te ajutăm să recuperezi contul.",
+    },
+  },
+  accountForm: {
+    rateLimitedCountdown:
+      "<strong>Prea multe încercări.</strong> Încearcă din nou peste {minutes, number}:{seconds}",
+    rateLimitedReady: "Poți încerca din nou.",
+  },
+  accountFieldErrors: {
+    nameTooLong: "Numele este prea lung.",
+    nameForbiddenCharacter: "Numele conține caractere care nu sunt permise.",
+    addressTooLong: "Adresa este prea lungă.",
+    addressForbiddenCharacter: "Adresa conține caractere care nu sunt permise.",
+  },
+  accountLogin: {
+    signedOutEverywhere: "Te-am deconectat de pe toate dispozitivele.",
+    passwordMaybeChanged:
+      "Dacă ți-ai schimbat parola, autentifică-te cu parola nouă.",
+  },
+  accountForbidden: {
+    title: "Nu ai acces la această pagină",
+    body: "Contul cu care ești conectat nu poate deschide această pagină.",
+  },
+  accountControl: {
+    signIn: "Intră în cont",
+    menuName: "Contul meu",
+    signedInAs: "Conectat ca",
+    myKitchens: "Bucătăriile mele",
+    profile: "Profil",
+    close: "Închide",
+    signOutHere: "Ieși din cont",
+    signOutEverywhere: "Ieși de pe toate dispozitivele",
+    signedOutToast: "Ai ieșit din cont.",
+    signOutFailed: "Nu am putut încheia sesiunea. Încearcă din nou.",
+  },
+  logoutEverywhere: {
+    title: "Ieși de pe toate dispozitivele?",
+    description: "Te deconectăm de pe toate dispozitivele, inclusiv acesta.",
+    confirm: "Ieși peste tot",
+    busy: "Se deconectează…",
+    cancel: "Anulează",
+    unavailable:
+      "Nu am putut închide sesiunile. Nu am schimbat nimic. Încearcă din nou.",
+  },
+  sessionExpiredSheet: {
+    title: "Sesiunea a expirat",
+    body: "Intră din nou în cont ca să poți salva. Bucătăria rămâne deschisă aici.",
+    returnNote:
+      "După ce intri, te ducem înapoi la bucătărie. Modificările nesalvate nu se păstrează.",
+    signIn: "Intră în cont",
+    later: "Mai târziu",
+  },
+  claimDialog: {
+    title: "Atașezi bucătăriile din acest browser?",
+    question:
+      "{count, plural, one {Am găsit <strong># bucătărie</strong> făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?} few {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?} other {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?}}",
+    warning:
+      "Odată atașate, rămân în contul tău și nu pot fi mutate în alt cont. Dacă nu este dispozitivul tău, alege „Nu acum”.",
+    confirm: "Atașează",
+    busy: "Se atașează…",
+    cancel: "Nu acum",
+    claimedTitle:
+      "{count, plural, =0 {Nu mai era nimic de atașat} one {<check>✓</check> # bucătărie atașată} few {<check>✓</check> # bucătării atașate} other {<check>✓</check> # bucătării atașate}}",
+    continue: "Continuă",
+    openKitchens: "Deschide Bucătăriile mele",
+  },
+  accountKitchens: {
+    metaTitle: "Bucătăriile mele — {brand}",
+    title: "Bucătăriile mele",
+    loading: "Se încarcă bucătăriile",
+    count:
+      "{count, plural, one {# bucătărie} few {# bucătării} other {# bucătării}}",
+    sortNewestFirst: "Cele mai recente întâi",
+    sentBadge: "Trimisă",
+    draftBadge: "Ciornă",
+    modified: "Modificată {when}",
+    meta: "{shape} · {walls} mm",
+    open: "Deschide",
+    openNamed: "Deschide {name}",
+    loadMore: "Încarcă mai multe",
+    loadingMore: "Se încarcă…",
+    emptyTitle: "Nu ai încă nicio bucătărie salvată.",
+    emptyBody: "Când salvezi una, o găsești aici, pe orice dispozitiv.",
+    startKitchen: "Începe o bucătărie",
+    moreActions: "Mai multe acțiuni pentru {name}",
+    close: "Închide",
+    cancel: "Anulează",
+    menuRename: "Redenumește",
+    menuDuplicate: "Duplică",
+    menuShare: "Link de partajare",
+    menuDelete: "Șterge",
+    menuHide: "Ascunde",
+    renameLabel: "Nume",
+    renameRequired: "Scrie un nume.",
+    renameSave: "Salvează",
+    renameSaving: "Se salvează…",
+    copyName: "{name} (copie)",
+    copying: "Se creează copia…",
+    copyCreated: "✓ Copie creată",
+    copyFailed: "Nu am putut crea copia. Încearcă din nou.",
+    alreadyGone: "Bucătăria nu mai este în lista ta.",
+    sentMeanwhile:
+      "Bucătăria a fost trimisă între timp, așa că nu se mai poate șterge. O poți ascunde.",
+    notSentMeanwhile:
+      "Bucătăria nu a fost trimisă, așa că nu se poate ascunde. O poți șterge.",
+    deleteTitle: "Ștergi bucătăria „{name}”?",
+    deleteBody:
+      "O ștergem din lista ta și nu o vei mai putea deschide sau recupera.",
+    deleteConfirm: "Șterge",
+    deleteBusy: "Se șterge…",
+    deleted: "Bucătăria a fost ștearsă.",
+    hideTitle: "Ascunzi o bucătărie trimisă?",
+    hideBody:
+      "Ai trimis-o deja magazinului. Dacă o ascunzi, dispare din lista ta și <strong>nu o vei mai putea deschide sau edita</strong>. Nu este o ștergere: echipa Lemnaria o vede în continuare. <strong>Doar personalul magazinului o poate face din nou vizibilă.</strong> Dacă ai un link de partajare activ, se oprește.",
+    hideConfirm: "Ascunde",
+    hideBusy: "Se ascunde…",
+    hidden: "Bucătăria a fost ascunsă.",
+    shareTitle: "Link de partajare",
+    shareBody:
+      "Oricine are link-ul poate vedea bucătăria, fără s-o poată modifica.",
+    shareLinkLabel: "Link",
+    shareActive: "Link-ul este activ.",
+    shareCreate: "Creează link-ul",
+    shareReissue: "Creează un link nou",
+    shareReissueWarning: "Link-ul vechi nu va mai funcționa.",
+    shareShownOnce: "Copiază link-ul acum — nu îl vom mai putea afișa.",
+    shareCopy: "Copiază link-ul",
+    shareCopied: "Copiat",
+    shareStop: "Oprește link-ul",
+    shareStopWarning: "Cine are link-ul nu va mai putea vedea bucătăria.",
+    shareStopping: "Se oprește…",
+    shareStopped: "Link-ul a fost oprit.",
+    shareError: "Nu am putut actualiza link-ul. Încearcă din nou.",
+  },
+  accountProfile: {
+    metaTitle: "Profil — {brand}",
+    title: "Profil",
+    nameLabel: "Nume (opțional)",
+    namePlaceholder: "ex.: Ana Popescu",
+    addressLabel: "Adresă / localitate (opțional)",
+    addressPlaceholder: "ex.: Orhei",
+    phoneLabel: "Telefon (opțional, neverificat)",
+    phonePlaceholder: "069 123 456",
+    phoneHint:
+      "Îl folosim doar ca să te putem suna despre oferta ta. Nu îl verificăm prin SMS. Îl poți șterge oricând.",
+    submit: "Salvează modificările",
+    submitting: "Se salvează…",
+    saved: "Salvat",
+    nothingToSave: "Nimic de salvat",
+    privacyNotice: "Nota de confidențialitate",
+    privacyNoticeNewTab: "(se deschide într-o filă nouă)",
+    exportTooLarge:
+      "Contul tău are prea multe bucătării pentru o singură descărcare. Nu am pregătit niciun fișier.",
+  },
+  accountPassword: {
+    metaTitle: "Schimbă parola — {brand}",
+    title: "Schimbă parola",
+    currentPasswordLabel: "Parola actuală",
+    newPasswordLabel: "Parola nouă",
+    currentPasswordWrong: "Parola actuală nu este corectă.",
+    submit: "Schimbă parola",
+    submitting: "Se schimbă…",
+    changedTitle: "Parola a fost schimbată",
+    changedBody: "Te-am deconectat de pe celelalte dispozitive.",
+    backToProfile: "Înapoi la Profil",
+    changedSignInBody: "Autentifică-te din nou, cu parola nouă.",
+    logIn: "Intră în cont",
+  },
+  accountEmailChange: {
+    metaTitle: "Confirmă adresa nouă — {brand}",
+    title: "Confirmă adresa nouă",
+    lead: "Apasă „Confirmă” ca să folosești noua adresă pentru cont. Dacă nu ai cerut această schimbare, închide pagina.",
+    confirm: "Confirmă",
+    confirming: "Se confirmă…",
+    changedTitle: "Adresa a fost schimbată.",
+    changedBody: "Folosește noua adresă ca să intri în cont.",
+    logIn: "Intră în cont",
+    linkInvalidTitle: "Link-ul nu mai este valabil",
+    linkInvalidBody:
+      "A expirat, a fost folosit sau a fost înlocuit. Dacă ai confirmat deja adresa, intră în cont cu adresa nouă. Altfel, cere un link nou din Profil.",
+    openProfile: "Deschide Profilul",
+    changeControl: "Schimbă e-mailul",
+    sheetTitle: "Schimbă e-mailul",
+    newEmailLabel: "E-mail nou",
+    passwordHint: "Ne trebuie ca să confirmăm că ești tu.",
+    send: "Trimite link-ul de confirmare",
+    sending: "Se trimite…",
+    cancel: "Anulează",
+    sentTitle: "Verifică e-mailul",
+    sentBody:
+      "Dacă adresa poate fi folosită, ți-am trimis un link la ea. Până confirmi, contul folosește adresa veche.",
+    close: "Închide",
+  },
+  accountExport: {
+    metaTitle: "Exportă datele mele — {brand}",
+    title: "Exportă datele mele",
+    lead: "Primești un fișier JSON cu profilul tău și toate bucătăriile (inclusiv cele trimise și cele ascunse).",
+    submit: "Descarcă datele",
+    submitting: "Se pregătește…",
+    preparing: "Se pregătește fișierul…",
+    downloaded: "Fișierul este gata. Descărcarea a început.",
+    downloadedHint: "Dacă descărcarea nu a pornit, încearcă din nou.",
+    downloadAgain: "Descarcă din nou",
+    backToProfile: "Înapoi la Profil",
   },
 } as const;
 
