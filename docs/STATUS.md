@@ -89,8 +89,10 @@ coordinator; records only, nothing run].** O2 (claim dialog: count, dates and na
 keeps profile and kitchens), O7 (hide revokes the share link), O9 (A16C deferred), O11 (**no `sent_at` backfill**; the
 owner-run backfill is cancelled, the S5 replay residual has no repair, older requests are deletable and missed by the
 operator "sent" filter), O12 ("Anulează" scoped exception to ADR 0086), O13 (by O27), O14 and O17 (counts take «de» from
-twenty up, overriding the 2026-09-10 ruling) are ruled; O15 was not asked. O8 is ruled but its point 1 (a notice to the
-owner of an address that already has an account) is **to be verified against the code**. No owner question of Lot 2
+twenty up, overriding the 2026-09-10 ruling) are ruled; O15 was not asked. O8 is ruled and its point 1 (a notice to the
+owner of an address that already has an account) is source-verified at
+`apps/web/src/lib/server/account/change-email.ts` (`sendAddressInUseNotice`: a verified holder gets
+`email-change-address-in-use`, an unverified holder nothing). No owner question of Lot 2
 is otherwise open. Detail: plan §9 *final round*; ADR 0172 Amendment H, addendum.
 
 ## 2. Phase table

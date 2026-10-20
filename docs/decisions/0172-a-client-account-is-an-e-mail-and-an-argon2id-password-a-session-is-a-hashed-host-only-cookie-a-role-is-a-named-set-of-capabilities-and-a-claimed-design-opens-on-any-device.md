@@ -1109,8 +1109,9 @@ G item 5's matching line, except as marked. Earlier text is kept.
   kitchens; requests and notes may be added if the privacy notice needs it. Why it exists is an **inference** (design
   mocks and Fix 3 asked for it; GDPR access / portability is the likely reason), to be confirmed with whoever owns the
   privacy notice.
-- **O8:** a notice to the owner of an address that already has an account, mirroring D1 (**to be verified against the
-  code:** whether built E8 already does this for a verified holder); old-address notice copy approved under O28b;
+- **O8:** a notice to the owner of an address that already has an account, mirroring D1 (**source-verified 2026-10-20**
+  at `apps/web/src/lib/server/account/change-email.ts`, `sendAddressInUseNotice`: a verified holder gets the kind
+  `email-change-address-in-use`, an unverified holder nothing); old-address notice copy approved under O28b;
   every session is revoked on confirm.
 - **O9:** A16C deferred, not built. **O12:** "Anulează" is allowed on account dialogs, a scoped exception to ADR 0086
   (P19). **O13:** ruled by O27. **O14:** account wording as built in `accountFieldErrors`. **O15:** not asked; one file

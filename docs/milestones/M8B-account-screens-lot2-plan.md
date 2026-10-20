@@ -153,7 +153,7 @@ apart from a refusal. Throughout:
 | --- | --- | --- | --- |
 | A9A + DA9A | Loading: skeleton (3 mobile, 4-card grid on desktop) | "GET listă: de stabilit" → `GET /api/account/kitchens` (new) | Live region "Se încarcă bucătăriile". The skeleton is `aria-hidden` |
 | A9B | Empty: hero + "Începe o bucătărie" | 200, `total: 0` | One CTA, a full-load `<a href="/{locale}">`. No "show hidden" |
-| A9C + DA9C | List mixing sent and draft; a long name on 2 lines; "3 bucătării · Cele mai recente întâi"; "Încarcă mai multe" | 200 page plus `nextCursor` | Name clamped after 2 lines; the full name is the accessible name. The count uses ICU plurals (owner's "without «de»", §3 C30). Price and thumbnail: P5, P6 |
+| A9C + DA9C | List mixing sent and draft; a long name on 2 lines; "3 bucătării · Cele mai recente întâi"; "Încarcă mai multe" | 200 page plus `nextCursor` | Name clamped after 2 lines; the full name is the accessible name. The count uses ICU plurals (owner's "without «de»", §3 C30; **superseded 2026-10-20 by the O17 ruling: «de» from twenty up**). Price and thumbnail: P5, P6 |
 | A9D | "⋯" menu open on a draft | — | Items: Redenumește, Duplică, Link de partajare, separator, Șterge. On a sent kitchen the last item is **Ascunde**. 44 px items; Esc returns focus to "⋯"; `aria-expanded` |
 | A9E | Inline rename, error "Scrie un nume." | "de stabilit" → `PATCH /api/account/kitchens/{id}` (new) | Error tied to the field (`aria-invalid`, `aria-describedby`). "Numele este prea lung." for `TOO_LONG`. Copy gap for `FORBIDDEN_CHARACTER` / `NOT_TEXT` (§3 C31) |
 | A9F | Duplicate busy (card on top, "Se creează copia…"), then toast "✓ Copie creată" | "de stabilit" → `POST /api/account/kitchens/{id}/duplicate` (new) | Busy card has `role="status"`. The failure state is not drawn: notice pattern (§10 SB-L2-9) |
@@ -304,7 +304,7 @@ A dialog on A9.
 
 | Frame | State [mock] | Server, drawn → port | Port note |
 | --- | --- | --- | --- |
-| A18A + DA18A, A18A2, A18A3, A18A4 | n = 1, 2, 5, 20: text + warning + "Atașează" / "Nu acum" (focused) | `GET claim → {claimable:n}` [src: built] | `claimable` already arrives in the sign-in answer [src: `on-signed-in.ts`]. 20 → "20 bucătării" (C30). The mock draws the dialog over a "Bucătăriile mele" page; the port opens it on the login or verify page (P10) |
+| A18A + DA18A, A18A2, A18A3, A18A4 | n = 1, 2, 5, 20: text + warning + "Atașează" / "Nu acum" (focused) | `GET claim → {claimable:n}` [src: built] | `claimable` already arrives in the sign-in answer [src: `on-signed-in.ts`]. 20 → "20 bucătării" (C30) **[superseded 2026-10-20 by O17: "20 de bucătării"]**. The mock draws the dialog over a "Bucătăriile mele" page; the port opens it on the login or verify page (P10) |
 | A18B | Busy "Se atașează…" | pending | — |
 | A18C | "✓ 2 bucătării atașate" + "Deschide Bucătăriile mele" | `{claimed:2}` [src] | Shows the server's count. The button targets A9, which exists only after U5 (§3 C23) |
 | A18D | 429, "peste 25 min" | `429` (`account-claim-by-account`, 10 / 60 min) [doc: plan §5] | — |
@@ -496,7 +496,7 @@ one. The default is the recommendation.
 | C27 | A9K | "Poate a fost ștearsă sau ascunsă." | True after S4 | Keep |
 | C28 | A9C | "Încarcă mai multe", "Cele mai recente întâi" | E1 | Keep |
 | C29 | A14 all | — | Built | Keep |
-| C30 | A9C, A18A4, plural table | "20 de bucătării" | Two owner positions conflict. The ruling of 2026-09-10, "without «de» on plural" [doc: `docs/i18n/ro-catalogue-notes.md:55-67`], against the owner-approved Lot 2 and this repository's own brief (0.4: "20 de bucătării") | **O17.** Default **"20 bucătării"**: the dated ruling is the explicit one, and the brief did not cite or reverse it. The three CLDR bands stay declared either way |
+| C30 | A9C, A18A4, plural table | "20 de bucătării" | Two owner positions conflict. The ruling of 2026-09-10, "without «de» on plural" [doc: `docs/i18n/ro-catalogue-notes.md:55-67`], against the owner-approved Lot 2 and this repository's own brief (0.4: "20 de bucătării") | **O17.** Default **"20 bucătării"**: the dated ruling is the explicit one, and the brief did not cite or reverse it. The three CLDR bands stay declared either way. **SUPERSEDED 2026-10-20:** the owner's O17 ruling takes «de» from twenty up ("20 de bucătării"), implemented in `182fa35e` via the ICU `other` arm of `accountKitchens.count`, `claimDialog.question` and `claimDialog.claimedTitle`; cabinets unchanged. The default in this row is kept as history |
 | C31 | A9E, A10A | Rename `FORBIDDEN_CHARACTER` / `NOT_TEXT`; name and address `TOO_LONG` etc. | **No copy drawn** | Gap: draft leaves on the e-mail pattern, owner to approve |
 
 ---
@@ -777,7 +777,7 @@ each is a test owed (§8.3).
     - **No `403` ever renders "sesiune expirată".**
     - No raw server word is ever rendered.
 19. **Plurals.** The count renders through ICU one / few / other, at 1, 2, 5 and 20, in **the form O17 rules**: default
-    "20 bucătării" (C30). RU uses one / few / many.
+    "20 bucătării" (C30). **Superseded 2026-10-20 (O17): "20 de bucătării".** RU uses one / few / many.
 20. **Names.** A kitchen name wraps to 2 lines and clamps only after that. The card's accessible name and "Deschide
     {nume}" carry the full name.
 21. **Header control.** Anonymous shows "Intră în cont". A client shows no role and no initials. Staff see no
@@ -858,7 +858,7 @@ The method is Lot 1's (§6 common). Two additions:
 | **O14** | Lot 1's O3 (phone wording: account against the locked contact copy) is still open and now also governs A10D | Account wording, as built in `accountFieldErrors` | copy lock |
 | **O15** | Keep one file per lot (`Lemnaria Cont Lot 2.dc.html`), as Lot 1 did? | Yes | S0b README |
 | **O16** | Add a capability `account.manage.own` (every role) for the self-service routes (P4)? It extends the capability list the owner ruled (Fix 3 item 9, ADR 0172 D7) | Yes. The alternative is a named `requireSignedIn` check recorded as an exception to D7's "one function" | S7, S8 |
-| **O17** | Plural with twenty: the 2026-09-10 ruling "without «de»", or the approved Lot 2 / brief's "20 de bucătării" (C30)? | "20 bucătării" (the dated ruling) | U5, U9a copy |
+| **O17** | Plural with twenty: the 2026-09-10 ruling "without «de»", or the approved Lot 2 / brief's "20 de bucătării" (C30)? | "20 bucătării" (the dated ruling) **[superseded: owner ruled «de» from twenty up, 2026-10-20]** | U5, U9a copy |
 | **O18** | HTTP 200 vs 403 for the forbidden page (needs experimental authInterrupts) | — | A20C |
 
 ### Answered by the owner, 2026-10-19 [owner, relayed by the coordinator]
@@ -962,9 +962,9 @@ The rows above keep their original text. These rulings close the older O-rows th
   Fix 3 asked for it, and GDPR access / portability is the likely reason; **to be confirmed with whoever owns the
   privacy notice.* What would falsify it: the privacy notice (or the owner) naming a different purpose.
 - **O7 — RULED.** Hiding a sent kitchen **revokes its share link**, as built (E5).
-- **O8 — RULED, with one item to verify.** (1) A notice goes to the owner of an address that already has an account,
-  mirroring D1. **To be verified against the code:** whether the built E8 already sends it for a verified holder; until
-  the coordinator reports, this item stays flagged and is not recorded as built. (2) The old-address notice copy is
+- **O8 — RULED.** (1) A notice goes to the owner of an address that already has an account, mirroring D1.
+  **Source-verified 2026-10-20** at `apps/web/src/lib/server/account/change-email.ts` (`sendAddressInUseNotice`): a
+  verified holder gets the mail kind `email-change-address-in-use`; an unverified holder gets nothing. (2) The old-address notice copy is
   approved under O28b. (3) Revoke every session on confirm: **yes**.
 - **O9 — RULED.** A16C (the occasional "De ce un cont?" card) is **deferred and not built**.
 - **O11 — RULED.** **Do not backfill `sent_at`** for requests stored before S5; older kitchens stay unmarked. The
@@ -979,8 +979,9 @@ The rows above keep their original text. These rulings close the older O-rows th
 - **O17 — RULED, overriding the owner's own 2026-09-10 ruling.** Counts are written **with «de» from twenty up**
   ("20 de bucătării"): the standard Romanian rule is «de» when the last two digits are 20-99 or 00. This **overrides**
   "without «de» on plural" of 2026-09-10 (`docs/i18n/ro-catalogue-notes.md`, which carries a dated note; the earlier
-  text is kept). C30's default "20 bucătării" is superseded. A developer is implementing the grammar rule now
-  [relayed; not verified]. The three CLDR bands stay declared.
+  text is kept). C30's default "20 bucătării" is superseded. Implemented in `182fa35e` via the ICU `other` arm of
+  `accountKitchens.count`, `claimDialog.question` and `claimDialog.claimedTitle`; cabinets are unchanged [relayed by the
+  coordinator, 2026-10-20]. The three CLDR bands stay declared.
 - **O21 restore semantics — RULED BY DEFAULT [developer's choice, unless the owner objects].** On a conflict a restore
   never changes `account_id`; `name` becomes `coalesce(live, restored)`. There is no foreign key on `account_id`
   (`0015`), so the runbook rule "restore accounts before designs" and an orphan-claim query are operator rules. No
@@ -1008,7 +1009,7 @@ coordinator's to rule. They are not owner questions.
 | --- | --- | --- |
 | SB-L2-1 | Token-page frames with `hdr:'plain'` still draw the RO chip, against rule 0.3-7 and their own note | A10T1–T5 |
 | SB-L2-2 | Share URL drawn as `/ro/v/…`; the product's is `/s/{12 chars}`, and it is shown only at issue (C5) | A9G, A9G2 |
-| SB-L2-3 | "20 de bucătării": the owner ruled "without «de»" (C30) | plural table, A18A4 |
+| SB-L2-3 | "20 de bucătării": the owner ruled "without «de»" (C30) **[superseded 2026-10-20 by O17: the mock's «de» form is right from twenty up]** | plural table, A18A4 |
 | SB-L2-4 | Step pill "3/5": the app has 4 steps on the room screen [src] | A19, editor frames |
 | SB-L2-5 | Claim dialog drawn over "Bucătăriile mele"; the brief and plan put it on the login or verify page (P10) | A18 |
 | SB-L2-6 | Secondary button and "⋯" borders `#dcd8ce` on `#faf8f4` measure 1.34:1 [run]. The label identifies the control, so this is noted for WCAG 1.4.11 rather than failed | ContBlocks2 `ks`, "⋯" |
@@ -1045,7 +1046,7 @@ coordinator's to rule. They are not owner questions.
   - change the share sheet, the delete-draft line and the export body;
   - hide unbuilt rows;
   - omit "Zona personalului";
-  - "20 bucătării" per the owner's 2026-09-10 ruling.
+  - "20 bucătării" per the owner's 2026-09-10 ruling (**superseded 2026-10-20 by O17: "20 de bucătării"**).
 
 ---
 
@@ -1676,6 +1677,7 @@ owner, 2026-10-20 (later)*). The copy named in O28b is pre-approved as the devel
 afterwards.
 
 - **Earlier rows O2, O3, O4, O7, O9, O11, O12, O13, O14 and O17 were ruled on 2026-10-20 (final round) and are
-  removed from this list** (§9, *Answered by the owner, 2026-10-20 (final round)*). O8 is ruled too, except point 1,
-  which is **to be verified against the code** (does the built E8 already notify a verified holder?). O15 was not
+  removed from this list** (§9, *Answered by the owner, 2026-10-20 (final round)*). O8 is ruled too; its point 1 is
+  source-verified (`change-email.ts`, `sendAddressInUseNotice`: a verified holder gets `email-change-address-in-use`,
+  an unverified holder nothing). O15 was not
   asked; its default stands.

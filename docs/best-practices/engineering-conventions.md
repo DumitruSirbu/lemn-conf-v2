@@ -101,7 +101,10 @@ Never branch a plural in TypeScript, and never add a `=0` arm because zero feels
 and a `=0` arm written from that comment would have shipped *"0 de dulapuri"*. A second owner ruling
 on 2026-09-10 (*"without «de» on plural"*) put the bare noun in `other` too, so 20 and 100 read
 *"20 dulapuri"*. Both rulings are properties of the CLDR arms, which is exactly why they survive:
-there is no branch left to get wrong. Numbers are `{n, number, ::group-off}` where the mockups show
+there is no branch left to get wrong. **Note, 2026-10-20 (owner ruling O17): kitchens now differ from
+cabinets.** Cabinets stay the bare noun in every arm; kitchens take *"de"* from twenty up (*"20 de
+bucătării"*), written in the ICU `other` arm. The 2026-09-10 ruling above is kept as history for
+cabinets. Numbers are `{n, number, ::group-off}` where the mockups show
 no group separator; money is joined by `price.amountWithCurrency` and by nothing else.
 
 **4. A new key lands in `ro.json` *and* `ru.json` in the same commit.** This is the bullet above's
