@@ -526,18 +526,11 @@ describe("the write-token migration actually executes", () => {
       expect(await writeTokenColumns()).toHaveLength(0);
 
       const summary = await runMigrations(testDatabaseUrl);
-      expect(summary.applied).toEqual([
-        "0002_add_write_token_hash.sql",
-        "0003_check_write_token_hash_shape.sql",
-        "0004_add_design_revision.sql",
-        "0005_add_design_visitor_hash.sql",
-        "0006_create_design_share_links.sql",
-        "0007_create_rate_limit_counters.sql",
-        "0008_create_contact_submissions.sql",
-        "0009_create_csp_reports.sql",
-        "0010_create_contact_submission_views.sql",
-        "0011_create_presets.sql",
-      ]);
+      expect(summary.applied).toEqual(
+        readMigrationFiles()
+          .slice(1)
+          .map((migration) => migration.fileName),
+      );
 
       const columns = await writeTokenColumns();
       expect(columns).toHaveLength(1);
