@@ -2,7 +2,8 @@
 // (ADR 0104 decisions 8 and 9), with no width threshold anywhere. The order is ruled:
 // A the pill's ladder (`settings/settings-pill-fit.ts`); B the row's gaps close, frame D2A's 28/14 to frame 2A's 9/6
 // (both numbers the reference's); C the wordmark leaves the row. The visitor's "Intră în cont" then becomes its glyph
-// alone (the account give), after C and before the title's ellipsis, so the ruled order above is untouched.
+// alone (the account give), after C; last, the title leaves the row where the pill cannot otherwise name one whole
+// setting. The ruled order above is untouched.
 // Every decision compares against measured widths, never constants; the one composed number, what closing the gaps
 // returns to the pill, is derived from the two frames' gap declarations and the number of gaps drawn.
 import {
@@ -55,6 +56,9 @@ export interface TopBarFitInput {
   /** The account control's two forms as the row would draw them, measured. A signed-in session is the glyph in both,
    *  so the two are equal and the give returns nothing. */
   readonly accountWidthsPx: AccountControlWidths;
+  /** The title's whole width, measured in its own typography on a probe outside the nav, so that dropping the title
+   *  does not destroy the measurement that would put it back. */
+  readonly titleWidthPx: number;
 }
 
 export interface AccountControlWidths {
@@ -69,12 +73,16 @@ export interface TopBarConfiguration {
   readonly isSpacingClosed: boolean;
   /** The account give: the visitor's link is its glyph alone. */
   readonly isAccountCompact: boolean;
+  /** The title has left the row so that the pill keeps one whole setting name. */
+  readonly isTitleDropped: boolean;
 }
 
 export interface TopBarFit extends TopBarConfiguration {
   readonly spacing: TopBarSpacing;
   /** The track the pill will have once this configuration is drawn, so the ladder and the row settle
-   *  on **one** observation rather than chasing each other across frames. */
+   *  on **one** observation rather than chasing each other across frames. Where the title has left, the room it
+   *  returns is offered only up to one whole name: offering all of it would name more settings than the track
+   *  does the moment the title comes back, a count that falls as the window widens. */
   readonly pillTrackPx: number;
 }
 
@@ -103,15 +111,31 @@ export function describeTopBarFit(input: TopBarFitInput): TopBarFit {
   const isWordmarkDrawn =
     !isAccountCompact &&
     theWordmarkCostsNoName({ input, trackWithWordmark, wordmarkCostPx });
+  const trackWithTitle =
+    trackWithWordmark +
+    (isWordmarkDrawn ? 0 : wordmarkCostPx) +
+    (isAccountCompact ? accountReturnedPx : 0);
+
+  // The last give: the title, only where the pill cannot otherwise name one whole setting.
+  const oneWholeNamePx = widthNeededForVisibleLabels(
+    1,
+    input.labelWidthsPx,
+    input.fixedWidthsPx,
+  );
+  const isTitleDropped =
+    input.titleWidthPx > 0 && trackWithTitle < oneWholeNamePx;
   return {
     isWordmarkDrawn,
     isSpacingClosed,
     isAccountCompact,
+    isTitleDropped,
     spacing,
-    pillTrackPx:
-      trackWithWordmark +
-      (isWordmarkDrawn ? 0 : wordmarkCostPx) +
-      (isAccountCompact ? accountReturnedPx : 0),
+    pillTrackPx: isTitleDropped
+      ? Math.min(
+          trackWithTitle + titleCostOf(input.titleWidthPx, spacing),
+          oneWholeNamePx,
+        )
+      : trackWithTitle,
   };
 }
 
@@ -188,13 +212,18 @@ function oneWholeNameFitsBesideIt(
 }
 
 /** The residue frame D2A itself leaves the pill: the measurement with every give undone, in the order they were
- *  spent in reverse — the link's words, the wordmark at the spacing it was dropped under, then the gaps. */
+ *  spent in reverse — the title, the link's words, the wordmark at the spacing it was dropped under, then the gaps. */
 function withoutTheGives(input: TopBarFitInput): number {
   const spacing = input.measuredIn.isSpacingClosed
     ? FRAME_2A_SPACING
     : D2A_SPACING;
-  const withAccountText =
+  const withTitle =
     input.pillTrackPx -
+    (input.measuredIn.isTitleDropped
+      ? titleCostOf(input.titleWidthPx, spacing)
+      : 0);
+  const withAccountText =
+    withTitle -
     (input.measuredIn.isAccountCompact
       ? accountCompactingReturnsPx(input.accountWidthsPx)
       : 0);
@@ -221,6 +250,11 @@ function wordmarkCostOf(
   spacing: TopBarSpacing,
 ): number {
   return wordmarkWidthPx + spacing.navGapPx;
+}
+
+/** What the last give returns: the title's own width and the gap that stood beside it. */
+function titleCostOf(titleWidthPx: number, spacing: TopBarSpacing): number {
+  return titleWidthPx + spacing.navGapPx;
 }
 
 /** What the account give returns: the link's words, measured. Never negative: a form no wider than the glyph has nothing to give. */

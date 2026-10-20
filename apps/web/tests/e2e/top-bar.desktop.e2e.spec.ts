@@ -284,3 +284,31 @@ for (const { viewport, form } of VISITOR_LINK_FORMS)
       expect(await paintedTextOf(link)).toBe(roAccountControl.signIn);
     }
   });
+
+/** The title is the last give, so it is the first thing a tight row hands back; like the link's form it is decided by
+ *  the same measurement as the pill's ladder, and these two widths are well clear of where it changes. */
+const TITLE_FORMS = [
+  { viewport: { width: 900, height: 500 }, form: "dropped" },
+  { viewport: { width: 1440, height: 900 }, form: "drawn" },
+] as const;
+
+for (const { viewport, form } of TITLE_FORMS)
+  test(`${form === "dropped" ? "drops" : "draws"} the title at ${String(viewport.width)} x ${String(viewport.height)}, and the pill keeps a whole name either way`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await waitForTheViewportToReachTheCanvas(page, viewport);
+
+    const title = page.getByTestId("top-bar-title");
+    if (form === "dropped") await expect(title).toBeHidden();
+    else await expect(title).toBeVisible();
+    const cutLabels = await page.evaluate(
+      () =>
+        [
+          ...document.querySelectorAll(
+            '[data-testid="global-settings-pill-label"]',
+          ),
+        ].filter((label) => label.scrollWidth - label.clientWidth > 1).length,
+    );
+    expect(cutLabels).toBe(0);
+  });

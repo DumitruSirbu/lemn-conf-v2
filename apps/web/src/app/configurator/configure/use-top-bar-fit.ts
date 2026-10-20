@@ -41,9 +41,13 @@ export interface TopBarFitState {
   readonly settingsTrackRef: RefObject<HTMLDivElement | null>;
   /** The account give: the visitor's link is its glyph alone. */
   readonly isAccountCompact: boolean;
+  /** The last give: the title has left the row so that the pill keeps one whole setting name. */
+  readonly isTitleDropped: boolean;
   /** Goes on the hidden wordmark probe, which stands **outside** the nav so dropping the wordmark
    *  does not destroy the measurement that would put it back. */
   readonly wordmarkProbeRef: RefObject<HTMLSpanElement | null>;
+  /** Goes on the hidden title probe, outside the nav for the same reason. */
+  readonly titleProbeRef: RefObject<HTMLSpanElement | null>;
   /** Go on the account control's two hidden probes, which stand outside its cell for the same reason. */
   readonly accountProbeRefs: AccountFormProbeRefs;
   readonly onPillMeasured: (measurements: SettingsPillMeasurements) => void;
@@ -60,6 +64,7 @@ const D2A_AS_DRAWN: TopBarConfiguration = {
   isWordmarkDrawn: true,
   isSpacingClosed: false,
   isAccountCompact: false,
+  isTitleDropped: false,
 };
 
 export function useTopBarFit(): TopBarFitState {
@@ -73,6 +78,7 @@ export function useTopBarFit(): TopBarFitState {
 
   const settingsTrackRef = useRef<HTMLDivElement>(null);
   const wordmarkProbeRef = useRef<HTMLSpanElement>(null);
+  const titleProbeRef = useRef<HTMLSpanElement>(null);
   const accountTextProbeRef = useRef<HTMLSpanElement>(null);
   const accountIconProbeRef = useRef<HTMLSpanElement>(null);
   const [measurements, setMeasurements] = useState<
@@ -133,18 +139,21 @@ export function useTopBarFit(): TopBarFitState {
           textPx: widthOf(accountTextProbeRef.current),
           iconPx: widthOf(accountIconProbeRef.current),
         },
+        titleWidthPx: widthOf(titleProbeRef.current),
       },
       track.measuredIn,
     );
     if (
       fit.isWordmarkDrawn !== configuration.isWordmarkDrawn ||
       fit.isSpacingClosed !== configuration.isSpacingClosed ||
-      fit.isAccountCompact !== configuration.isAccountCompact
+      fit.isAccountCompact !== configuration.isAccountCompact ||
+      fit.isTitleDropped !== configuration.isTitleDropped
     ) {
       setConfiguration({
         isWordmarkDrawn: fit.isWordmarkDrawn,
         isSpacingClosed: fit.isSpacingClosed,
         isAccountCompact: fit.isAccountCompact,
+        isTitleDropped: fit.isTitleDropped,
       });
     }
     const chosen = chooseVisibleSettingLabels({
@@ -167,12 +176,14 @@ export function useTopBarFit(): TopBarFitState {
     visibleCount,
     isWordmarkDrawn: configuration.isWordmarkDrawn,
     isAccountCompact: configuration.isAccountCompact,
+    isTitleDropped: configuration.isTitleDropped,
     spacingMetrics: {
       "--top-bar-nav-gap": `${String(spacing.navGapPx)}px`,
       "--top-bar-row-gap": `${String(spacing.rowGapPx)}px`,
     } as CSSProperties,
     settingsTrackRef,
     wordmarkProbeRef,
+    titleProbeRef,
     accountProbeRefs: {
       textRef: accountTextProbeRef,
       iconRef: accountIconProbeRef,

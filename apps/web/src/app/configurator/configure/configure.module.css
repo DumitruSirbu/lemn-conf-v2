@@ -758,6 +758,12 @@
     display: none;
   }
 
+  /* The title is the last give: it leaves the nav where the pill cannot otherwise name one whole setting, and the
+   * fit model decides it from the same measurement (`configure/top-bar-fit.ts`). Scoped to the nav for the same reason. */
+  .screen[data-title="dropped"] .nav .title {
+    display: none;
+  }
+
   .stepPill {
     padding: 7px 8px;
     font-size: 12px;

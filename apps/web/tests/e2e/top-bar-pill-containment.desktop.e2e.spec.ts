@@ -11,11 +11,17 @@ import {
 
 const SCENE_SETTLE_MS = 2000;
 
-/** The widths the row is measured at. 1025 and 1035 straddle the width where the wordmark returns (about 1033);
- *  none is a threshold, they are widths a measurement is taken at (ADR 0104 decision 9). */
+/** The widths the row is measured at. 1380 and 1390 straddle the width where the wordmark returns on the seeded design
+ *  (1386, measured); none is a threshold, they are widths a measurement is taken at (ADR 0104 decision 9). */
 const DESKTOP_WIDTHS = [
-  900, 930, 1025, 1035, 1100, 1200, 1300, 1440, 1920,
+  900, 930, 1380, 1390, 1100, 1200, 1300, 1440, 1920,
 ] as const;
+
+/** The two boundaries the row's measured gives produce on the seeded design, in Romanian, found in Chromium: the title
+ *  returns at 957 and the wordmark at 1386. A sweep a pixel at a time across each is centred on it. */
+const TITLE_RETURNS_AT_PX = 957;
+const WORDMARK_RETURNS_AT_PX = 1386;
+const SWEEP_HALF_WIDTH_PX = 10;
 
 const TOUCH_TARGET_PX = 44;
 const SUB_PIXEL_SLACK = 0.5;
@@ -94,11 +100,13 @@ async function rungOf(page: Page): Promise<{
   readonly labels: readonly string[];
   readonly counter: string | null;
   readonly isWordmarkDrawn: boolean;
+  readonly isTitleDrawn: boolean;
 }> {
   return page.evaluate(() => {
     const wordmark = document.querySelector(
       "main > header > span:nth-child(2)",
     );
+    const title = document.querySelector('[data-testid="top-bar-title"]');
     return {
       labels: [
         ...document.querySelectorAll(
@@ -110,6 +118,8 @@ async function rungOf(page: Page): Promise<{
           ?.textContent ?? null,
       isWordmarkDrawn:
         wordmark !== null && getComputedStyle(wordmark).display !== "none",
+      isTitleDrawn:
+        title !== null && getComputedStyle(title).display !== "none",
     };
   });
 }
@@ -443,44 +453,60 @@ test.describe("the row gives way in the ruled order and no further", () => {
     }
   });
 
-  test("settles at every width it is dragged through, and clips nothing on the way", async ({
-    page,
-  }) => {
-    // 1 px sweep across the width where the wordmark returns. The answer at a width must be a property of that
-    // width, so it is read twice and must agree: a track measured in one configuration and read in another holds
-    // a label the row has no room for.
-    const seen: string[] = [];
-    for (let width = 1024; width <= 1044; width += 1) {
-      await atWidth(page, width);
-      const first = await rungOf(page);
-      const clipped = await clippedPillParts(page);
-      const again = await rungOf(page);
+  for (const sweep of [
+    { gave: "title", centre: TITLE_RETURNS_AT_PX },
+    { gave: "wordmark", centre: WORDMARK_RETURNS_AT_PX },
+  ] as const)
+    test(`settles at every width it is dragged through across the ${sweep.gave}'s return, and clips nothing on the way`, async ({
+      page,
+    }) => {
+      // 1 px sweep across the width where the give returns. The answer at a width must be a property of that
+      // width, so it is read twice and must agree: a track measured in one configuration and read in another holds
+      // a label the row has no room for.
+      const seen: string[] = [];
+      const drawnAcross = new Set<boolean>();
+      for (
+        let width = sweep.centre - SWEEP_HALF_WIDTH_PX;
+        width <= sweep.centre + SWEEP_HALF_WIDTH_PX;
+        width += 1
+      ) {
+        await atWidth(page, width);
+        const first = await rungOf(page);
+        const clipped = await clippedPillParts(page);
+        const again = await rungOf(page);
 
-      expect(clipped.length, `at ${String(width)} px`).toBe(0);
-      expect(
-        first.labels.length,
-        `at ${String(width)} px`,
-      ).toBeGreaterThanOrEqual(1);
-      if (first.labels.length < 4)
-        expect(first.counter, `at ${String(width)} px`).toMatch(/^\+\d+$/);
-      expect(again, `at ${String(width)} px`).toEqual(first);
+        expect(clipped.length, `at ${String(width)} px`).toBe(0);
+        expect(
+          first.labels.length,
+          `at ${String(width)} px`,
+        ).toBeGreaterThanOrEqual(1);
+        if (first.labels.length < 4)
+          expect(first.counter, `at ${String(width)} px`).toMatch(/^\+\d+$/);
+        expect(again, `at ${String(width)} px`).toEqual(first);
 
-      seen.push(
-        `${String(width)}:${String(first.labels.length)}${first.isWordmarkDrawn ? "W" : "-"}`,
-      );
-    }
-
-    // The label count never falls as the window widens (ADR 0104 decision 8); recorded as a sequence so a moved
-    // boundary shows in the failure text.
-    const counts = seen.map((entry) => Number(entry.split(":")[1]?.trim()[0]));
-
-    expect(seen.length).toBe(21);
-    for (const [index, count] of counts.entries())
-      if (index > 0)
-        expect(count, seen.join(" | ")).toBeGreaterThanOrEqual(
-          counts[index - 1] ?? 0,
+        drawnAcross.add(
+          sweep.gave === "title" ? first.isTitleDrawn : first.isWordmarkDrawn,
         );
-  });
+        seen.push(
+          `${String(width)}:${String(first.labels.length)}${first.isWordmarkDrawn ? "W" : "-"}${first.isTitleDrawn ? "T" : "-"}`,
+        );
+      }
+
+      // The label count never falls as the window widens (ADR 0104 decision 8); recorded as a sequence so a moved
+      // boundary shows in the failure text.
+      const counts = seen.map((entry) =>
+        Number(entry.split(":")[1]?.trim()[0]),
+      );
+
+      expect(seen.length).toBe(2 * SWEEP_HALF_WIDTH_PX + 1);
+      for (const [index, count] of counts.entries())
+        if (index > 0)
+          expect(count, seen.join(" | ")).toBeGreaterThanOrEqual(
+            counts[index - 1] ?? 0,
+          );
+      // Non-vacuity: the sweep really straddles the give, which is absent at its narrow end and drawn at its wide one.
+      expect([...drawnAcross].sort()).toEqual([false, true]);
+    });
 
   test("draws the wordmark above the width two setting names need beside it, and not below", async ({
     page,

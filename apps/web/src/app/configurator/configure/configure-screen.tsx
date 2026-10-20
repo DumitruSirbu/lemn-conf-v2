@@ -118,6 +118,7 @@ export function ConfigureScreen({
       className={styles.screen}
       style={topBar.spacingMetrics}
       data-wordmark={topBar.isWordmarkDrawn ? "drawn" : "dropped"}
+      data-title={topBar.isTitleDropped ? "dropped" : "drawn"}
     >
       {/* Frames 2A / D2A's top bar, as **five grid items of the screen** rather than one header
           element: the settings pill, the price, the actions and the locale each have to stand in a
@@ -333,6 +334,11 @@ export function ConfigureScreen({
       <div className={styles.measure} aria-hidden="true">
         <span className={styles.wordmark} ref={topBar.wordmarkProbeRef}>
           {content.brand}
+        </span>
+      </div>
+      <div className={styles.measure} aria-hidden="true">
+        <span className={styles.title} ref={topBar.titleProbeRef}>
+          {content.configure.title}
         </span>
       </div>
       <AccountFormProbes {...topBar.accountProbeRefs} />

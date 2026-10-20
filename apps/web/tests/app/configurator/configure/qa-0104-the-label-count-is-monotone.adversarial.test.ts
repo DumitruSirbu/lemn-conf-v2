@@ -44,6 +44,7 @@ interface SettledRow {
   readonly visibleCount: number;
   readonly isWordmarkDrawn: boolean;
   readonly isAccountCompact: boolean;
+  readonly isTitleDropped: boolean;
 }
 
 /**
@@ -80,11 +81,13 @@ function settleAt(
       fit.isWordmarkDrawn === configuration.isWordmarkDrawn &&
       fit.isSpacingClosed === configuration.isSpacingClosed &&
       fit.isAccountCompact === configuration.isAccountCompact &&
+      fit.isTitleDropped === configuration.isTitleDropped &&
       chosen.visibleCount === visibleCount;
     configuration = {
       isWordmarkDrawn: fit.isWordmarkDrawn,
       isSpacingClosed: fit.isSpacingClosed,
       isAccountCompact: fit.isAccountCompact,
+      isTitleDropped: fit.isTitleDropped,
     };
     visibleCount = chosen.visibleCount;
     if (isSettled) break;
@@ -93,6 +96,7 @@ function settleAt(
     visibleCount,
     isWordmarkDrawn: configuration.isWordmarkDrawn,
     isAccountCompact: configuration.isAccountCompact,
+    isTitleDropped: configuration.isTitleDropped,
   };
 }
 
@@ -126,6 +130,7 @@ function settledFitAt(
       labelWidthsPx,
     }).isSpacingClosed,
     isAccountCompact: settled.isAccountCompact,
+    isTitleDropped: settled.isTitleDropped,
   };
   const fit = fitAtViewport({
     viewportPx,

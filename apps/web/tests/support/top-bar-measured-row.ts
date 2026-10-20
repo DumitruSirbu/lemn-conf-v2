@@ -27,6 +27,10 @@ export const SEEDED_LABELS = [83.39, 18.08, 107.7, 79.92];
 /** `Lemnaria` at `700 15px/1` with `letter-spacing: .22em`, measured on the wordmark's hidden probe. */
 export const WORDMARK_PX = 105.56;
 
+/** `Configurare` at `700 15px/1`, measured on the title's hidden probe: it is also the width the nav gave it in the
+ *  rows below. */
+export const TITLE_PX = 105.59;
+
 /** The visitor's link in its two forms, measured on the control's hidden probes: the words with their 16 px of padding
  *  and 1 px borders on each side, and the 44 px glyph box. */
 export const VISITOR_LINK_WIDTHS_PX: AccountControlWidths = {
@@ -66,6 +70,10 @@ export const DEMAND_PX = {
 export const MEASURED_WITHOUT_WORDMARK_PX = 846.13;
 export const MEASURED_WITHOUT_WORDMARK_COMPACT_PX = 776;
 
+/** What dropping the title returned, measured at 900 (title dropped, otherwise as at 1000 with the glyph) against the
+ *  row with the title in it at the same spacing. */
+export const MEASURED_TITLE_RETURNED_PX = 114.59;
+
 /** Every configuration the row can be drawn in. */
 export const EVERY_CONFIGURATION: readonly TopBarConfiguration[] = [false, true]
   .flatMap((isWordmarkDrawn) =>
@@ -79,6 +87,12 @@ export const EVERY_CONFIGURATION: readonly TopBarConfiguration[] = [false, true]
       ...configuration,
       isAccountCompact,
     })),
+  )
+  .flatMap((configuration) =>
+    [false, true].map((isTitleDropped) => ({
+      ...configuration,
+      isTitleDropped,
+    })),
   );
 
 /** Frame D2A as drawn: the configuration the hook starts in. */
@@ -86,6 +100,7 @@ export const D2A_AS_DRAWN: TopBarConfiguration = {
   isWordmarkDrawn: true,
   isSpacingClosed: false,
   isAccountCompact: false,
+  isTitleDropped: false,
 };
 
 /**
@@ -106,10 +121,17 @@ export function demandOf(
   const controlPx = configuration.isAccountCompact
     ? widths.iconPx
     : widths.textPx;
+  const navGapPx = configuration.isSpacingClosed
+    ? FRAME_2A_SPACING.navGapPx
+    : D2A_SPACING.navGapPx;
+  const titleGoneSavingPx = configuration.isTitleDropped
+    ? TITLE_PX + navGapPx
+    : 0;
   return (
     (configuration.isWordmarkDrawn ? withTheWordmark : withTheWordmarkGone) -
     VISITOR_LINK_WIDTHS_PX.textPx +
-    controlPx
+    controlPx -
+    titleGoneSavingPx
   );
 }
 
@@ -128,5 +150,6 @@ export function fitAtViewport(query: {
     labelWidthsPx: query.labelWidthsPx,
     fixedWidthsPx: DESKTOP_PILL,
     accountWidthsPx,
+    titleWidthPx: TITLE_PX,
   });
 }
