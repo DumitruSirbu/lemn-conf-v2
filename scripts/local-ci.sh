@@ -49,7 +49,7 @@ failed=""
 # .nvmrc and ci.yml's NODE_VERSION already state it twice more.
 require_supported_node() {
     required_major=$(awk '/"engines"/,/}/' package.json |
-        sed -n 's/.*"node"[^"]*">=\([0-9][0-9]*\).*/\1/p' | head -1)
+        sed -n 's/.*"node"[^0-9]*\([0-9][0-9]*\).*/\1/p' | head -1)
 
     if [ -z "$required_major" ]; then
         printf 'Cannot read engines.node from package.json; refusing to guess a version.\n' >&2
