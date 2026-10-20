@@ -134,3 +134,46 @@ describe("accountMailKey", () => {
     );
   });
 });
+
+describe("email-change-reverted", () => {
+  const notice = (locale: string) =>
+    buildAccountMail({ kind: "email-change-reverted", locale });
+
+  it.each(["ro", "ru"])(
+    "carries no link, no button and no remedy: a reset at the address left would reach no account (%s)",
+    (locale) => {
+      const mail = notice(locale);
+
+      for (const part of [mail.subject, mail.text, mail.html]) {
+        expect(part).not.toContain("http");
+        expect(part).not.toContain("forgot-password");
+        expect(part).not.toContain("#t=");
+      }
+      expect(mail.html).not.toContain("<a ");
+    },
+  );
+
+  it.each([
+    ["ro", roMessages],
+    ["ru", ruMessages],
+  ])("reads from its own leaves in the catalogue (%s)", (locale, messages) => {
+    const leaves = messages.accountMail.emailChangeReverted;
+
+    const mail = notice(locale);
+
+    expect(mail.subject).toBe(leaves.subject);
+    expect(mail.text).toContain(leaves.intro);
+    expect(mail.text).toContain(leaves.note);
+  });
+
+  it("is told apart from the password-changed notice in both languages and in its idempotency key", () => {
+    for (const locale of ["ro", "ru"]) {
+      expect(notice(locale).subject).not.toBe(
+        buildAccountMail({ kind: "password-changed", locale }).subject,
+      );
+    }
+    expect(accountMailKey("email-change-reverted")).toMatch(
+      /^account-mail\/email-change-reverted\/[0-9a-f]{32}$/,
+    );
+  });
+});

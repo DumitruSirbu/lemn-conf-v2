@@ -22,6 +22,7 @@ import {
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import { isWellFormedEmailToken } from "@/lib/server/account/email-token";
 import { judgeNewPassword } from "@/lib/server/account/judge-new-password";
+import { scheduleEmailChangeRevertedNotice } from "@/lib/server/account/email-change-reverted-notice";
 import { schedulePasswordChangedNotice } from "@/lib/server/account/password-changed-notice";
 import {
   checkPassword,
@@ -88,7 +89,7 @@ export async function completeEmailRevert({
   if (reverted.kind === "invalid") return linkInvalidResponse();
   await endEverySessionBestEffort(reverted.accountId);
   schedulePasswordChangedNotice(reverted);
-  scheduleNoticeToAddressLeft(reverted);
+  scheduleLeftAddressNotice(reverted);
   reportAccountEvent({
     event: "email-change-revert",
     outcome: "succeeded",
@@ -185,19 +186,21 @@ async function revertAlreadyTakenEffect({
 }
 
 /**
- * The address the account has just left is told too, in the account's language: the person who moved the account there
- * may have been the owner or not, and either should learn that the way back was taken. Best-effort like the notice to
- * the restored address; it is absent after a lost acknowledgement, when the store can no longer say what was left.
+ * The address the account has just left is told too, in the account's language, with its own notice (not the
+ * password-changed one, whose remedy leads nowhere there). Best-effort, like the notice to the restored address. The
+ * store cannot say what was left after a lost acknowledgement, and then no notice is sent.
  */
-function scheduleNoticeToAddressLeft({
+function scheduleLeftAddressNotice({
   leftEmail,
+  email,
   locale,
-}: {
-  readonly leftEmail: string | undefined;
-  readonly locale: string;
-}): void {
+}: Extract<EmailChangeRevertOutcome, { kind: "reverted" }>): void {
   if (leftEmail === undefined) return;
-  schedulePasswordChangedNotice({ email: leftEmail, locale });
+  scheduleEmailChangeRevertedNotice({
+    leftEmail,
+    restoredEmail: email,
+    locale,
+  });
 }
 
 /**

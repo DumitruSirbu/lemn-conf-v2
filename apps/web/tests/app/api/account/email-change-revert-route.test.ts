@@ -85,6 +85,7 @@ const NEW_PASSWORD = "a brand new passphrase 77";
 /** A second revert by the same account cannot reuse the first one's password: that is the one it holds by then. */
 const ANOTHER_PASSWORD = "yet another passphrase 88";
 const PASSWORD_CHANGED_KEY_PREFIX = "account-mail/password-changed/";
+const REVERTED_KEY_PREFIX = "account-mail/email-change-reverted/";
 const LINK_INVALID_WIRE_SAMPLE = { status: "link-invalid" };
 
 let world: AccountWorld;
@@ -248,7 +249,7 @@ describe("a revert", () => {
     ]);
   });
 
-  it("queues a password-changed notice to the restored address and one to the address just left, in the account's language, after the response", async () => {
+  it("queues a password-changed notice to the restored address and its own notice to the address just left, in the account's language, after the response", async () => {
     const undo = await leaveFor(owner, NEW_ADDRESS);
 
     const answer = await revert(aRevert(undo));
@@ -259,27 +260,66 @@ describe("a revert", () => {
     expect(answer.status).toBe(200);
     expect(queued).toBe(2);
     expect(sentBefore).toBe(0);
+    const [restoredNotice, leftNotice, ...others] = world.mail.sent;
+    expect(others).toEqual([]);
+    expect(restoredNotice?.recipient).toBe(LEFT_ADDRESS);
+    expect(restoredNotice?.key.startsWith(PASSWORD_CHANGED_KEY_PREFIX)).toBe(
+      true,
+    );
+    expect(leftNotice?.recipient).toBe(NEW_ADDRESS);
+    expect(leftNotice?.key.startsWith(REVERTED_KEY_PREFIX)).toBe(true);
+    const inTheirLanguage = (
+      kind: "password-changed" | "email-change-reverted",
+    ) => buildAccountMail({ kind, locale: "ru" }).subject;
+    const inTheOtherOne = (
+      kind: "password-changed" | "email-change-reverted",
+    ) => buildAccountMail({ kind, locale: "ro" }).subject;
+    for (const [mail, kind] of [
+      [restoredNotice, "password-changed"],
+      [leftNotice, "email-change-reverted"],
+    ] as const) {
+      expect(inTheirLanguage(kind)).not.toBe(inTheOtherOne(kind));
+      expect(mail?.subject).toBe(inTheirLanguage(kind));
+    }
+  });
+
+  it("offers the address just left no remedy and no link: a reset there would reach no account", async () => {
+    const undo = await leaveFor(owner, NEW_ADDRESS);
+
+    await revert(aRevert(undo));
+    await drainAfterTasks();
+
+    const leftNotice = world.mail.sent.find(
+      ({ recipient }) => recipient === NEW_ADDRESS,
+    );
+    const everything = [
+      leftNotice?.subject,
+      leftNotice?.text,
+      leftNotice?.html,
+    ].join("\n");
+    expect(everything).not.toContain(PUBLIC_ORIGIN);
+    expect(everything).not.toContain("forgot-password");
+    expect(everything.toLowerCase()).not.toMatch(/сброс|resetea/);
+    expect(everything).not.toContain("http");
+    expect(everything).not.toContain(LEFT_ADDRESS);
+  });
+
+  it("sends the restored address one notice, and the address left none, when a chain makes the revert land on the address it leaves (A to B, B to A, then the first undo link)", async () => {
+    const first = await leaveFor(owner, NEW_ADDRESS);
+    await leaveFor(owner, LEFT_ADDRESS.toUpperCase());
+
+    const answer = await revert(aRevert(first));
+    const queued = pendingAfterTasks();
+    await drainAfterTasks();
+
+    expect(answer.status).toBe(200);
+    expect(queued).toBe(1);
     expect(world.mail.sent.map(({ recipient }) => recipient)).toEqual([
       LEFT_ADDRESS,
-      NEW_ADDRESS,
     ]);
     expect(
-      world.mail.sent.every((mail) =>
-        mail.key.startsWith(PASSWORD_CHANGED_KEY_PREFIX),
-      ),
+      world.mail.sent[0]?.key.startsWith(PASSWORD_CHANGED_KEY_PREFIX),
     ).toBe(true);
-    const inTheirLanguage = buildAccountMail({
-      kind: "password-changed",
-      locale: "ru",
-    });
-    const inTheOtherOne = buildAccountMail({
-      kind: "password-changed",
-      locale: "ro",
-    });
-    expect(inTheirLanguage.subject).not.toBe(inTheOtherOne.subject);
-    for (const mail of world.mail.sent) {
-      expect(mail.subject).toBe(inTheirLanguage.subject);
-    }
   });
 
   it("names neither address in the answer", async () => {

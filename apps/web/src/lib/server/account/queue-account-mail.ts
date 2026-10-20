@@ -53,6 +53,7 @@ export type AccountMailOrder =
       readonly kind:
         | "already-registered"
         | "password-changed"
+        | "email-change-reverted"
         | "email-change-address-in-use";
       readonly recipient: string;
       readonly locale: string;
@@ -137,6 +138,7 @@ function requestOf(
         requestedAddress: order.requestedAddress,
       };
     case "password-changed":
+    case "email-change-reverted":
       return { kind, locale };
   }
 }

@@ -952,6 +952,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       action: "Anulează schimbarea",
       note: "Link-ul se poate folosi o singură dată și expiră. După anulare, adresa contului redevine aceasta, parola se schimbă, iar sesiunile deschise se închid. Dacă schimbarea e a ta, nu trebuie să faci nimic.",
     },
+    // The notice to the address an account has just left by an undo (2026-10-20, S13d security review; drafted by the
+    // agent, pre-approved as drafted by the owner, O28b, ADR 0113 decision 2). It names no remedy: a reset there
+    // would reach no account, since the address is neither held nor reserved after the revert.
+    emailChangeReverted: {
+      subject: "Contul Lemnaria a revenit la adresa anterioară",
+      intro:
+        "Adresa unui cont Lemnaria, care folosea această adresă, a fost schimbată înapoi la cea anterioară, la cererea proprietarului contului, prin link-ul de anulare.",
+      note: "Contul nu mai folosește această adresă. Nu trebuie să faci nimic.",
+    },
     emailChangeRequested: {
       subject: "Cineva a cerut schimbarea adresei contului Lemnaria",
       intro:

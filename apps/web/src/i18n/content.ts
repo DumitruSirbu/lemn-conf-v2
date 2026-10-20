@@ -853,6 +853,11 @@ export function resolveAccountMailCopy(translate: ContentTranslator) {
       action: translate("accountMail.emailChanged.action"),
       note: translate("accountMail.emailChanged.note"),
     },
+    emailChangeReverted: {
+      subject: translate("accountMail.emailChangeReverted.subject"),
+      intro: translate("accountMail.emailChangeReverted.intro"),
+      note: translate("accountMail.emailChangeReverted.note"),
+    },
     emailChangeRequested: (address: string) => ({
       subject: translate("accountMail.emailChangeRequested.subject"),
       intro: translate("accountMail.emailChangeRequested.intro", { address }),

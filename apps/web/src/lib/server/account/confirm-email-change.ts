@@ -78,7 +78,7 @@ export async function completeEmailChange({
 }
 
 /**
- * `confirmEmailChange` already revoked the account's sessions in its second statement; this pass catches a session that
+ * `confirmEmailChange` already revoked the account's sessions in its third statement; this pass catches a session that
  * committed after it. The address is changed either way, so a failure here is written down and does not change the
  * answer: telling the client "unavailable" for a change that took effect would send it to a link that no longer works.
  */

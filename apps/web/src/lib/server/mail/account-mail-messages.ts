@@ -19,7 +19,8 @@ export type AccountMailKind =
   | "email-change"
   | "email-change-address-in-use"
   | "email-change-requested"
-  | "email-changed";
+  | "email-changed"
+  | "email-change-reverted";
 
 /**
  * A link under the site's public origin, with the single-use token after `#`. The origin is a `PublicOrigin`, which
@@ -58,7 +59,7 @@ export type AccountMailRequest =
       readonly requestedAddress: string;
     }
   | {
-      readonly kind: "password-changed";
+      readonly kind: "password-changed" | "email-change-reverted";
       readonly locale: string;
     };
 
@@ -183,6 +184,8 @@ function partsOf(
       );
     case "email-changed":
       return withAction(copy.emailChanged, request, locale);
+    case "email-change-reverted":
+      return copy.emailChangeReverted;
   }
 }
 
