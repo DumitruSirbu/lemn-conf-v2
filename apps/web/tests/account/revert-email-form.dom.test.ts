@@ -464,6 +464,29 @@ describe("what the page loads and what it may call", () => {
     ).toBeNull();
   });
 
+  it.each([
+    ["the form", `#t=${TOKEN}`],
+    ["the invalid-link screen", ""],
+  ])(
+    "draws no language chip on %s: the other language's document would have no token to read",
+    async (_, hash) => {
+      setAddress(hash);
+      const page = mountPage();
+      await flushPromises();
+      expect(
+        page.container.querySelector(
+          `[aria-label="${roMessages.accountShell.localeMenu}"]`,
+        ),
+      ).toBeNull();
+      expect(page.container.querySelector("a[lang]")).toBeNull();
+      expect(
+        allIn<HTMLAnchorElement>(page.container, "a").map((anchor) =>
+          anchor.getAttribute("href"),
+        ),
+      ).not.toContain("/ru/account/revert-email");
+    },
+  );
+
   it.each(["use-revert-email.ts", "revert-email-form.tsx"])(
     "%s makes no router action and keeps nothing in storage (Lot 1 criterion 15)",
     (file) => {
