@@ -890,12 +890,12 @@ declare const messages: {
   },
   "claimDialog": {
     "title": "Atașezi bucătăriile din acest browser?",
-    "question": "{count, plural, one {Am găsit <strong># bucătărie</strong> făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?} few {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?} other {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?}}",
+    "question": "{count, plural, one {Am găsit <strong># bucătărie</strong> făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?} few {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?} other {Am găsit <strong># de bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?}}",
     "warning": "Odată atașate, rămân în contul tău și nu pot fi mutate în alt cont. Dacă nu este dispozitivul tău, alege „Nu acum”.",
     "confirm": "Atașează",
     "busy": "Se atașează…",
     "cancel": "Nu acum",
-    "claimedTitle": "{count, plural, =0 {Nu mai era nimic de atașat} one {<check>✓</check> # bucătărie atașată} few {<check>✓</check> # bucătării atașate} other {<check>✓</check> # bucătării atașate}}",
+    "claimedTitle": "{count, plural, =0 {Nu mai era nimic de atașat} one {<check>✓</check> # bucătărie atașată} few {<check>✓</check> # bucătării atașate} other {<check>✓</check> # de bucătării atașate}}",
     "continue": "Continuă",
     "openKitchens": "Deschide Bucătăriile mele"
   },
@@ -903,7 +903,7 @@ declare const messages: {
     "metaTitle": "Bucătăriile mele — {brand}",
     "title": "Bucătăriile mele",
     "loading": "Se încarcă bucătăriile",
-    "count": "{count, plural, one {# bucătărie} few {# bucătării} other {# bucătării}}",
+    "count": "{count, plural, one {# bucătărie} few {# bucătării} other {# de bucătării}}",
     "sortNewestFirst": "Cele mai recente întâi",
     "sentBadge": "Trimisă",
     "draftBadge": "Ciornă",

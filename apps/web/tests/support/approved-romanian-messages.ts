@@ -1180,17 +1180,22 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     createAccount: "Creează cont",
     notNow: "Nu acum",
   },
+  // The three kitchen-count plurals (claimDialog.question, claimDialog.claimedTitle, accountKitchens.count) put "de" in
+  // `other`, so 20, 21, 99, 100, 120 and 200 read "N de bucătării" while 2 to 19 and 101 to 119 read "N bucătării" (CLDR
+  // Romanian: few is 0 and n mod 100 from 2 to 19; other is n mod 100 of 0 or 20 to 99). Owner ruling 2026-10-20 (O17,
+  // C30), which overrides the 2026-09-10 "without de" ruling for kitchens only and approves this wording (ADR 0113
+  // decision 2). The cabinet plurals are untouched.
   claimDialog: {
     title: "Atașezi bucătăriile din acest browser?",
     question:
-      "{count, plural, one {Am găsit <strong># bucătărie</strong> făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?} few {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?} other {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?}}",
+      "{count, plural, one {Am găsit <strong># bucătărie</strong> făcută în acest browser fără cont. O atașezi contului ca s-o deschizi de pe orice dispozitiv?} few {Am găsit <strong># bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?} other {Am găsit <strong># de bucătării</strong> făcute în acest browser fără cont. Le atașezi contului ca să le deschizi de pe orice dispozitiv?}}",
     warning:
       "Odată atașate, rămân în contul tău și nu pot fi mutate în alt cont. Dacă nu este dispozitivul tău, alege „Nu acum”.",
     confirm: "Atașează",
     busy: "Se atașează…",
     cancel: "Nu acum",
     claimedTitle:
-      "{count, plural, =0 {Nu mai era nimic de atașat} one {<check>✓</check> # bucătărie atașată} few {<check>✓</check> # bucătării atașate} other {<check>✓</check> # bucătării atașate}}",
+      "{count, plural, =0 {Nu mai era nimic de atașat} one {<check>✓</check> # bucătărie atașată} few {<check>✓</check> # bucătării atașate} other {<check>✓</check> # de bucătării atașate}}",
     continue: "Continuă",
     openKitchens: "Deschide Bucătăriile mele",
   },
@@ -1199,7 +1204,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     title: "Bucătăriile mele",
     loading: "Se încarcă bucătăriile",
     count:
-      "{count, plural, one {# bucătărie} few {# bucătării} other {# bucătării}}",
+      "{count, plural, one {# bucătărie} few {# bucătării} other {# de bucătării}}",
     sortNewestFirst: "Cele mai recente întâi",
     sentBadge: "Trimisă",
     draftBadge: "Ciornă",
