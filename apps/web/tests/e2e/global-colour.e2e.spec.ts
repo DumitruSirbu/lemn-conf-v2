@@ -148,8 +148,15 @@ function globalSwatch(page: Page, entryId: string) {
 async function applyGlobalColour(page: Page, entryId: string): Promise<void> {
   await openSheet(page);
   await globalSwatch(page, entryId).tap();
+  // The sheet closes before the save has answered, and a reload that beats the write reads the old document.
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname.startsWith("/api/designs/"),
+  );
   await page.getByTestId("global-settings-apply").tap();
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
+  await saved;
 }
 
 test("offers the colour group after the material group, from the material's own palette", async ({
