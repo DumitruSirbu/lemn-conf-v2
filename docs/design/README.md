@@ -83,8 +83,8 @@ figure already read `60.000`, and the application's grouping is not decided by t
   frames is untrue. A16B and DA16B survive, re-triggered as a Step-1 card (plan §14.2). Do not build the dropped frames.
 - `Lemnaria Cont Lot 3.dc.html` (staff area, screens S1-S8, 68 frames) and the **extended** `ContBlocks2.dc.html`
   (replaces the Lot 2 copy; a superset of it per the plan) are in `docs/design/mockups/` (copied 2026-10-20; sha256 checked against the plan:
-  `637e7aec…39b182` for Lot 3, `8be0fd0b…7623ea` for `ContBlocks2`, both matching). The Lot 2 page is not yet re-rendered to
-  confirm its frames are unchanged. The plan that reads them is [`M8B-account-screens-lot3-plan.md`](../milestones/M8B-account-screens-lot3-plan.md).
+  `637e7aec…39b182` for Lot 3, `8be0fd0b…7623ea` for `ContBlocks2`, both matching). The Lot 2 page renders identically with the old and the
+  new `ContBlocks2` (DOM and PNG hashes equal at 1440x900 and 390x844; run 2026-10-20; the 60 added lines add `is_tb`/`is_tbl` blocks Lot 2 does not use). The plan that reads them is [`M8B-account-screens-lot3-plan.md`](../milestones/M8B-account-screens-lot3-plan.md).
   S6 (Prețuri) and S7 (Traduceri) are **deferred by the owner**; do not build them (ADR 0174).
 
 `support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
