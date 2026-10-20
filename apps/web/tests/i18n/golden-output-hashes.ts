@@ -128,8 +128,8 @@
  * content resolver, which gained the leaf with the commit, so no fixture list was edited. The entry was read off the
  * failing manifest assertion's diff, which showed one added key and no changed value, and not computed by hand.
  * **No existing hash moved.** The account namespaces (`account*`, `claimDialog`, `logoutEverywhere`,
- * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; Lot 2's are in the
- * approved copy lock and Lot 1's are pinned by digest in the draft manifest, and neither is hashed here.
+ * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; all are in the
+ * approved copy lock and none is hashed here.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":

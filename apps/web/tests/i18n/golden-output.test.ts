@@ -29,7 +29,6 @@ import {
 } from "./golden-output-fixtures";
 import { GOLDEN_OUTPUT_SHA256 } from "./golden-output-hashes";
 import { isRomanianCopyApproved } from "../support/approved-romanian-messages";
-import { withoutDraftCopy } from "../support/draft-romanian-copy";
 import { catalogueLeaves } from "../support/catalogues";
 
 const GATE_O1_SEMANTIC_CORRECTION_KEYS = [
@@ -313,14 +312,10 @@ describe("golden-output fixture coverage", () => {
  *
  *  **Asserted rather than skipped on.** It used to be an early `return`, which made a red copy lock
  *  render both gates below green in the same run — one failure hiding whatever the other would have
- *  said. Fix the copy lock first, then rebaseline the hashes explicitly.
- *
- *  The check is made on the approved part of the catalogue: the owner-unapproved draft units (`draft-romanian-copy.ts`)
- *  are pinned by digest in `romanian-draft-copy.test.ts`, and a fixture that renders one of them is gated by its hash
- *  below like any other, so a draft edit still moves a hash and is seen. */
+ *  said. Fix the copy lock first, then rebaseline the hashes explicitly. */
 function expectApprovedRomanianCopy(): void {
   expect(
-    isRomanianCopyApproved(withoutDraftCopy(correctedRomanian)),
+    isRomanianCopyApproved(correctedRomanian),
     "Romanian copy is unapproved: settle it against the copy lock before reading these hashes",
   ).toBe(true);
 }

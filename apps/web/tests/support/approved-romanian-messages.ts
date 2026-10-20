@@ -1,12 +1,9 @@
 import { isDeepStrictEqual } from "node:util";
 
-// Gate O1: the sole Romanian wording corpus for the APPROVED part of `ro.json`: approved copy plus the leaves marked
-// `Drafted` in a comment that sit inside an approved namespace (grep `Drafted`; carrying a leaf is not approval).
-// `romanian-copy-lock.test.ts` holds `withoutDraftCopy(ro)` to this object by deep equality, so a leaf of the approved part
-// missing here fails it. The account screens' wording is NOT here: it is owner-unapproved draft copy named unit by unit in
-// `draft-romanian-copy.ts` and pinned there by digest. Two draft conventions therefore coexist: a comment on a leaf that
-// this file carries (the M8C precedent), and the manifest for whole namespaces. `isRomanianCopyApproved` takes either as
-// approved, so its answer is about this object's shape, not about who approved the words.
+// Gate O1: the sole Romanian wording corpus for `ro.json`: approved copy plus the leaves marked `Drafted` in a comment
+// (grep `Drafted`; carrying a leaf is not approval). `romanian-copy-lock.test.ts` holds the whole catalogue to this object
+// by deep equality, so a leaf missing here, or one that differs, fails it. `isRomanianCopyApproved` answers about this
+// object's shape, not about who approved the words.
 export const APPROVED_ROMANIAN_MESSAGES = {
   brand: "Lemnaria",
   meta: {
@@ -893,12 +890,40 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     DEPENDENT_MEMBER_NOT_REBUILDABLE:
       "„{label}” nu poate fi adăugat aici: „{memberLabel}”, care stă deasupra, nu poate fi reconstruit la adâncimea coloanei.",
   },
-  // Approved by the owner, 2026-10-20 (relayed; open questions O27 and O25 of the Lot 2 plan, section 9), as drafted: all
-  // the Romanian wording Lot 2 added (ADR 0113 decision 2). Whole namespaces, then the Lot 2 leaves that stand inside the
-  // Lot 1 namespaces `accountMail`, `accountForm`, `accountFieldErrors` and `accountLogin` (their other leaves are Lot 1's
-  // and unapproved, see `draft-romanian-copy.ts`). `designLoadError.bodyClient` (O25) is in its own namespace's block above.
-  // The Russian was approved in the same ruling; it is never pinned by literal (ADR 0095 decision 2, layer 4).
+  // The account screens' wording, approved by the owner as drafted on 2026-10-20 (ADR 0113 decision 2): Lot 2's (relayed;
+  // open questions O27 and O25) and Lot 1's, including `privacyNotice` (answered by the owner directly). The Russian was
+  // approved in the same rulings; it is never pinned by literal (ADR 0095 decision 2, layer 4).
   accountMail: {
+    noReply: "Trimis din configuratorul Lemnaria. Nu răspunde la acest e-mail.",
+    linkFallback:
+      "Dacă butonul nu se deschide, copiază această adresă în browser:",
+    confirmEmail: {
+      subject: "Confirmă adresa de e-mail pentru contul Lemnaria",
+      intro:
+        "Ai creat un cont Lemnaria. Deschide link-ul de mai jos și introdu parola contului ca să confirmi adresa de e-mail.",
+      action: "Confirmă adresa",
+      note: "Link-ul se poate folosi o singură dată. Dacă nu ai creat tu contul, ignoră acest mesaj.",
+    },
+    alreadyRegistered: {
+      subject: "Ai deja un cont Lemnaria",
+      intro:
+        "Cineva a încercat să creeze un cont Lemnaria cu această adresă, dar ea are deja un cont. Poți intra în cont; dacă ai uitat parola, o poți reseta de acolo.",
+      action: "Intră în cont",
+      note: "Dacă nu ai încercat tu, nu trebuie să faci nimic.",
+    },
+    resetPassword: {
+      subject: "Resetează parola contului Lemnaria",
+      intro:
+        "Am primit o cerere de resetare a parolei. Deschide link-ul de mai jos și alege o parolă nouă.",
+      action: "Alege o parolă nouă",
+      note: "Link-ul se poate folosi o singură dată. Dacă nu ai cerut tu resetarea, ignoră acest mesaj: parola ta nu s-a schimbat.",
+    },
+    passwordChanged: {
+      subject: "Parola contului Lemnaria a fost schimbată",
+      intro:
+        "Parola contului tău a fost schimbată, iar sesiunile deschise au fost închise.",
+      note: "Dacă nu ai făcut tu schimbarea, resetează imediat parola din pagina de autentificare.",
+    },
     emailChange: {
       subject: "Confirmă noua adresă de e-mail a contului Lemnaria",
       intro:
@@ -921,20 +946,171 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
   },
   accountForm: {
+    emailLabel: "E-mail",
+    emailPlaceholder: "nume@exemplu.md",
+    passwordLabel: "Parolă",
+    newPasswordLabel: "Parolă nouă",
+    passwordHint:
+      "Cel puțin {min, number} caractere. Poți folosi o frază; spațiile sunt permise.",
+    passwordCount: "{count, number} / {min, number}",
+    showPassword: "Arată",
+    hidePassword: "Ascunde",
+    showPasswordName: "Arată parola",
+    hidePasswordName: "Ascunde parola",
+    fieldSummary:
+      "{count, plural, one {Verifică câmpul marcat.} few {Verifică cele # câmpuri marcate.} other {Verifică cele # câmpuri marcate.}}",
+    rateLimitedMinutes:
+      "<strong>Prea multe încercări.</strong> Încearcă din nou peste {minutes, number} min.",
+    rateLimitedAt:
+      "<strong>Prea multe încercări.</strong> Încearcă din nou după ora {time}.",
+    rateLimitedTomorrowAt:
+      "<strong>Prea multe încercări.</strong> Încearcă din nou mâine, după ora {time}.",
+    rateLimitedFallback:
+      "<strong>Prea multe încercări.</strong> Încearcă din nou puțin mai târziu.",
     rateLimitedCountdown:
       "<strong>Prea multe încercări.</strong> Încearcă din nou peste {minutes, number}:{seconds}",
     rateLimitedReady: "Poți încerca din nou.",
+    unavailableTitle: "Serviciul nu este disponibil acum",
+    unavailableBody: "Nu am schimbat nimic. Încearcă din nou în câteva minute.",
+    retry: "Încearcă din nou",
+    requestFailedTitle: "Cererea nu a putut fi trimisă",
+    requestFailedBody: "Reîncarcă pagina și încearcă din nou.",
+    requestFailedTokenBody:
+      "Deschide din nou link-ul din e-mail și încearcă din nou.",
+    reloadPage: "Reîncarcă pagina",
+    offlineTitle: "Conexiunea s-a întrerupt",
+    offlineBody: "Nu ai pierdut nimic din ce ai scris.",
+    challengeLoading: "Se verifică dacă ești om…",
+    challengeFailed: "Verificarea anti-robot nu a reușit. Încearcă din nou.",
+    challengeUnavailable:
+      "Verificarea nu se poate încărca acum. Încearcă din nou mai târziu.",
+    challengeWaiting: "Butonul se activează după verificarea de securitate.",
+    checkInboxHelpTitle: "Nu a ajuns e-mailul?",
+    checkInboxSpam: "Verifică folderul Spam sau Promoții.",
+    checkInboxNewest:
+      "Folosește cel mai recent e-mail: un link nou îl anulează pe cel vechi.",
   },
   accountFieldErrors: {
+    emailRequired: "Scrie adresa de e-mail.",
+    emailMalformed:
+      "Adresa nu pare corectă. Verifică „@” și domeniul (ex.: nume@exemplu.md).",
+    emailTooLong: "Adresa este prea lungă.",
+    emailForbiddenCharacter: "Adresa conține caractere care nu sunt permise.",
+    passwordTooShort:
+      "Parola trebuie să aibă cel puțin {min, number} caractere.",
+    passwordTooLong: "Parola poate avea cel mult {max, number} de caractere.",
+    passwordIsEmail: "Parola nu poate fi adresa ta de e-mail.",
+    passwordBreached:
+      "Această parolă apare în scurgeri de date publice, așa că nu e sigură. Alege alta — de exemplu o frază din câteva cuvinte.",
+    passwordNotText: "Parola nu a putut fi citită. Scrie-o din nou.",
+    passwordRequired: "Scrie parola.",
+    phoneMoldovanIncomplete:
+      "Numărul pare incomplet. Un număr din Moldova are 9 cifre (ex.: 069 123 456).",
+    phoneMoldovanTooManyDigits: "Numărul are prea multe cifre.",
+    phoneMoldovanSecondZero: "După 0 urmează codul operatorului, nu încă un 0.",
+    phoneInternationalIncomplete: "Numărul internațional pare incomplet.",
+    phoneInternationalTooManyDigits:
+      "Numărul internațional are prea multe cifre.",
+    phoneFormatUnrecognised:
+      "Nu recunoaștem formatul. Scrie numărul cu prefixul țării (ex.: +373 69 123 456).",
+    phoneTooLong: "Numărul este prea lung.",
+    phoneForbiddenCharacter: "Numărul conține caractere care nu sunt permise.",
     nameTooLong: "Numele este prea lung.",
     nameForbiddenCharacter: "Numele conține caractere care nu sunt permise.",
     addressTooLong: "Adresa este prea lungă.",
     addressForbiddenCharacter: "Adresa conține caractere care nu sunt permise.",
   },
+  accountShell: {
+    backToConfigurator: "Înapoi la configurator",
+    localeMenu: "Limba",
+  },
+  accountForgot: {
+    metaTitle: "Parolă uitată — {brand}",
+    headerTitle: "Parolă uitată",
+    title: "Ai uitat parola?",
+    body: "Scrie adresa contului. Îți trimitem un link pentru o parolă nouă.",
+    submit: "Trimite link-ul de resetare",
+    submitting: "Se trimite…",
+    remembered: "Ți-ai amintit?",
+    logIn: "Intră în cont",
+    sentTitle: "Verifică-ți e-mailul",
+    sentBody:
+      "Dacă există un cont confirmat cu această adresă, ți-am trimis un link pentru o parolă nouă. Link-ul este valabil 30 de minute.",
+  },
+  accountRegister: {
+    metaTitle: "Cont nou — {brand}",
+    headerTitle: "Cont nou",
+    title: "Creează un cont",
+    body: "Cu un cont îți deschizi bucătăriile de pe orice dispozitiv.",
+    phoneLabel: "Telefon (opțional, neverificat)",
+    phonePlaceholder: "069 123 456",
+    phoneHint:
+      "Îl folosim doar ca să te putem suna despre oferta ta. Nu îl verificăm prin SMS.",
+    legal:
+      "Contul este un contract pentru serviciu; vezi cum folosim datele în <notice>Nota de confidențialitate</notice>. Personalul Lemnaria poate vedea bucătăriile salvate în cont.",
+    noticeNewTab: "(se deschide într-o filă nouă)",
+    submit: "Creează contul",
+    submitting: "Se creează…",
+    haveAccount: "Ai deja cont?",
+    logIn: "Intră în cont",
+  },
+  accountCheckInbox: {
+    headerTitle: "Verifică e-mailul",
+    title: "Verifică-ți e-mailul",
+    body: "Dacă datele sunt corecte, ți-am trimis un e-mail la <strong>{email}</strong>. Deschide link-ul din el și introdu parola ca să confirmi adresa.",
+    validity: "Link-ul este valabil 24 de ore.",
+    retryOrLogIn:
+      "Poți încerca din nou înregistrarea cu aceeași adresă, sau <link>intră în cont</link> dacă ai confirmat deja.",
+    wrongAddress: "Am greșit adresa",
+  },
   accountLogin: {
+    metaTitle: "Intră în cont — {brand}",
+    headerTitle: "Intră în cont",
+    title: "Intră în cont",
+    submit: "Intră în cont",
+    submitting: "Se verifică…",
+    forgot: "Ai uitat parola?",
+    noAccount: "Nu ai cont?",
+    createOne: "Creează unul",
+    invalidCredentials:
+      "E-mailul sau parola nu se potrivesc. Dacă datele sunt corecte, verifică-ți e-mailul: s-ar putea să trebuiască întâi să confirmi adresa.",
+    sessionExpired:
+      "Sesiunea ta a expirat. Intră din nou în cont ca să continui.",
     signedOutEverywhere: "Te-am deconectat de pe toate dispozitivele.",
     passwordMaybeChanged:
       "Dacă ți-ai schimbat parola, autentifică-te cu parola nouă.",
+  },
+  accountVerify: {
+    metaTitle: "Confirmă adresa — {brand}",
+    headerTitle: "Confirmă adresa",
+    title: "Confirmă adresa de e-mail",
+    lead: "Introdu parola pe care ai ales-o la crearea contului.",
+    submit: "Confirmă și intră în cont",
+    submitting: "Se confirmă…",
+    invalidLink:
+      "Link-ul sau parola nu sunt valabile. Verifică parola și folosește cel mai recent e-mail primit de la noi. Dacă ai confirmat deja adresa, <link>intră în cont</link>.",
+    confirmedTitle: "Adresa este confirmată",
+    confirmedBody: "Te-am conectat. Te ducem înapoi la configurator…",
+  },
+  accountReset: {
+    metaTitle: "Parolă nouă — {brand}",
+    headerTitle: "Parolă nouă",
+    title: "Alege o parolă nouă",
+    body: "O vei folosi de acum ca să intri în cont.",
+    submit: "Salvează parola nouă",
+    submitting: "Se salvează…",
+    changedTitle: "Parola a fost schimbată",
+    changedBody:
+      "Te-am deconectat de pe toate dispozitivele, pentru siguranță. Intră în cont cu parola nouă.",
+    logIn: "Intră în cont",
+    linkInvalidTitle: "Link-ul nu mai este valabil",
+    linkInvalidBody:
+      "A expirat, a fost folosit sau a fost înlocuit de unul mai nou.",
+    requestNewLink: "Cere un link nou",
+  },
+  accountNotFound: {
+    title: "Pagina nu există",
+    body: "Adresa nu duce la nicio pagină din cont.",
   },
   accountForbidden: {
     title: "Nu ai acces la această pagină",
@@ -1121,6 +1297,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     downloadedHint: "Dacă descărcarea nu a pornit, încearcă din nou.",
     downloadAgain: "Descarcă din nou",
     backToProfile: "Înapoi la Profil",
+  },
+  privacyNotice: {
+    metaTitle: "Notă de confidențialitate — {brand}",
+    badge: "Pagină provizorie",
+    title: "Notă de confidențialitate",
+    placeholder:
+      "Textul notei de confidențialitate nu este încă publicat. Această pagină ține locul versiunii {version}.",
   },
 } as const;
 
