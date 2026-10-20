@@ -342,6 +342,15 @@ describe("E8: the request notice to the requester's current address", () => {
     expect(mailsOfKey(/^account-mail\/email-change\//)).toEqual([]);
   });
 
+  it("sends neither the notice nor the link when the account's earlier links cannot be retired: that comes first", async () => {
+    world.failOn("accounts.retireEmailChangeTokens");
+
+    await ask(anAsk());
+    await drainAfterTasks();
+
+    expect(world.mail.sent).toEqual([]);
+  });
+
   it("sends a reserved address no change link, issues no token for it, and asks the reservation of the requester's own exception", async () => {
     await reserveAddress("left-behind@example.test");
     let asked: unknown;
@@ -511,6 +520,25 @@ describe("E9: the undo link in the notice to the address the account has left", 
     expect(everything).not.toContain("revert-email");
     expect(everything).not.toContain("client@example.test");
     expect(everything).not.toContain(TYPED_ADDRESS.toLowerCase());
+  });
+
+  it("answers 503 before anything changes when no mail can be written: the token stays unconsumed, no undo row, no new address", async () => {
+    const token = await issueLink(client, TYPED_ADDRESS);
+    vi.stubEnv("LEMNARIA_PUBLIC_ORIGIN", "");
+    world.calls.length = 0;
+
+    const unavailable = await confirm(token);
+
+    expect(unavailable.status).toBe(503);
+    expect(world.calls).toEqual([]);
+    expect(revertTokens()).toEqual([]);
+    expect(await world.accounts.findById(client.id)).toMatchObject({
+      account: { email: client.email },
+    });
+    vi.stubEnv("LEMNARIA_PUBLIC_ORIGIN", PUBLIC_ORIGIN);
+    expect((await confirm(token)).status).toBe(200);
+    await drainAfterTasks();
+    expect(mailsOfKey(UNDO_NOTICE_KEY)).toHaveLength(1);
   });
 
   it("mails no undo link for a link that does not work", async () => {

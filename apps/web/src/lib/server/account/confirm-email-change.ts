@@ -14,6 +14,7 @@ import {
   emailChangedResponse,
   invalidRequestResponse,
   linkInvalidResponse,
+  unavailableResponse,
 } from "@/lib/server/account/account-responses";
 import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import {
@@ -24,6 +25,7 @@ import {
 import {
   prepareAccountMail,
   queueAccountMail,
+  type AccountMailReadiness,
 } from "@/lib/server/account/queue-account-mail";
 import { getSessionStore } from "@/lib/server/account/session-store-instance";
 import { sha256Hex } from "@/lib/server/sha256-hex";
@@ -48,6 +50,10 @@ export async function completeEmailChange({
   if (body === undefined) return invalidRequestResponse();
   const token = textMemberOf(body, TOKEN_MEMBER);
   if (!isWellFormedEmailToken(token)) return linkInvalidResponse();
+  // Before any row changes, as E8 does: once the address has moved, an undo link that cannot be written is lost for good,
+  // and a reset at the old address reaches no account. The token is still unconsumed, so the person can click again.
+  const mail = prepareAccountMail();
+  if (mail.kind === "unavailable") return unavailableResponse();
   // Minted once, here, so every attempt inside the store's retry names the same row. The store writes the row only if
   // it consumes `token`. The value goes to the old address, in the undo link, and nowhere else.
   const revertToken = mintEmailToken();
@@ -62,6 +68,7 @@ export async function completeEmailChange({
   // is no link of ours to mail. A retry after a lost acknowledgement reads it back from the row, so it mails too.
   if (outcome.previous !== undefined) {
     scheduleOldAddressNotice({
+      readiness: mail.readiness,
       previous: outcome.previous,
       revertToken: revertToken.value,
     });
@@ -84,6 +91,7 @@ async function endEverySessionBestEffort(accountId: string): Promise<void> {
 }
 
 interface OldAddressNotice {
+  readonly readiness: AccountMailReadiness;
   readonly previous: PreviousAddress;
   /** The value of the undo link whose hash the store holds. It is never logged. */
   readonly revertToken: string;
@@ -96,6 +104,7 @@ interface OldAddressNotice {
  * notice and changes no answer; each is written down, without the address or the link.
  */
 function scheduleOldAddressNotice({
+  readiness,
   previous,
   revertToken,
 }: OldAddressNotice): void {
@@ -104,9 +113,7 @@ function scheduleOldAddressNotice({
       reportAccountEvent({ event: "mail", outcome: "refused" });
       return;
     }
-    const mail = prepareAccountMail();
-    if (mail.kind === "unavailable") return;
-    queueAccountMail(mail.readiness, {
+    queueAccountMail(readiness, {
       kind: "email-changed",
       recipient: previous.email,
       locale: previous.locale,
