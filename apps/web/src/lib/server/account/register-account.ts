@@ -44,7 +44,9 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 // Flow 1 of the M8B plan: registering an address. From step 5 of the common order on. The route has already checked
 // the request's origin, media type and size and the network's limit (steps 1 to 4). Whatever the address is, the
 // answer is the same `202`, the work takes the same three store statements and one hash, and one mail is queued after
-// the response, so nothing the caller can observe tells an unknown address from a pending or a confirmed one.
+// the response, so nothing the caller can observe tells an unknown address from a pending or a confirmed one. The one
+// address that gets no mail is a reserved one (no account holds it, a live undo link of an address change names it):
+// nothing is created for it, and the mail is not observable by the caller either (ADR 0172 Amendment H).
 
 const PASSWORD_MEMBER = "password";
 const TURNSTILE_ACTION = "register";
