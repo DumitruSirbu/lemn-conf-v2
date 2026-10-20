@@ -166,7 +166,8 @@ function AskingScreen({ revert }: { readonly revert: RevertEmail }) {
   );
 }
 
-/** The password is chosen here, so its length is counted live while it is shorter than the rule asks. */
+/** The password is chosen here, so its length is counted live while it is shorter than the rule asks. The one refusal
+ *  only this page can get, the password the account holds now, is told in the page's own words. */
 function NewPasswordField({
   revert,
   inputRef,
@@ -175,6 +176,7 @@ function NewPasswordField({
   readonly inputRef: RefObject<HTMLInputElement | null>;
 }) {
   const kit = useAccountKitCopy();
+  const copy = useAccountRevertEmailCopy();
   const { feedback } = revert;
   const length = countPasswordCharacters(revert.password);
   const isCounting = length > 0 && length < PASSWORD_MIN_LENGTH;
@@ -190,7 +192,12 @@ function NewPasswordField({
         ? { count: kit.passwordCount(length, PASSWORD_MIN_LENGTH) }
         : {})}
       {...(feedback.kind === "password-refused"
-        ? { error: kit.fieldError(feedback.issue) }
+        ? {
+            error:
+              feedback.issue.code === "PASSWORD_UNCHANGED"
+                ? copy.passwordUnchanged
+                : kit.fieldError(feedback.issue),
+          }
         : {})}
       inputRef={inputRef}
     />

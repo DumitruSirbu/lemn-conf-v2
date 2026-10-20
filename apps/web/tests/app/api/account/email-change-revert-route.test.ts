@@ -17,6 +17,7 @@ import {
   captureConsole,
   expectAWaitWithinTheWindowOf,
   freshAccountWorld,
+  hashOf,
   hashingLedger,
   jsonOf,
   limiterLedger,
@@ -81,6 +82,8 @@ const { POST: revertChange } = await import(
 const LEFT_ADDRESS = "Ana.Left@Example.test";
 const NEW_ADDRESS = "ana.new@example.test";
 const NEW_PASSWORD = "a brand new passphrase 77";
+/** A second revert by the same account cannot reuse the first one's password: that is the one it holds by then. */
+const ANOTHER_PASSWORD = "yet another passphrase 88";
 const PASSWORD_CHANGED_KEY_PREFIX = "account-mail/password-changed/";
 const LINK_INVALID_WIRE_SAMPLE = { status: "link-invalid" };
 
@@ -239,12 +242,13 @@ describe("a revert", () => {
 
     expect(world.calls).toEqual([
       "accounts.findRevertAddress",
+      "accounts.findById",
       "accounts.revertEmailChange",
       "sessions.revokeAllForAccount",
     ]);
   });
 
-  it("queues one password-changed notice to the restored address, in the account's language, after the response", async () => {
+  it("queues a password-changed notice to the restored address and one to the address just left, in the account's language, after the response", async () => {
     const undo = await leaveFor(owner, NEW_ADDRESS);
 
     const answer = await revert(aRevert(undo));
@@ -253,13 +257,17 @@ describe("a revert", () => {
     await drainAfterTasks();
 
     expect(answer.status).toBe(200);
-    expect(queued).toBe(1);
+    expect(queued).toBe(2);
     expect(sentBefore).toBe(0);
-    const notices = world.mail.sent.filter((mail) =>
-      mail.key.startsWith(PASSWORD_CHANGED_KEY_PREFIX),
-    );
-    expect(notices).toHaveLength(1);
-    expect(notices[0]?.recipient).toBe(LEFT_ADDRESS);
+    expect(world.mail.sent.map(({ recipient }) => recipient)).toEqual([
+      LEFT_ADDRESS,
+      NEW_ADDRESS,
+    ]);
+    expect(
+      world.mail.sent.every((mail) =>
+        mail.key.startsWith(PASSWORD_CHANGED_KEY_PREFIX),
+      ),
+    ).toBe(true);
     const inTheirLanguage = buildAccountMail({
       kind: "password-changed",
       locale: "ru",
@@ -269,8 +277,19 @@ describe("a revert", () => {
       locale: "ro",
     });
     expect(inTheirLanguage.subject).not.toBe(inTheOtherOne.subject);
-    expect(notices[0]?.subject).toBe(inTheirLanguage.subject);
-    expect(world.mail.sent).toHaveLength(1);
+    for (const mail of world.mail.sent) {
+      expect(mail.subject).toBe(inTheirLanguage.subject);
+    }
+  });
+
+  it("names neither address in the answer", async () => {
+    const undo = await leaveFor(owner, NEW_ADDRESS);
+
+    const answer = await revert(aRevert(undo));
+
+    const wire = await wireOf(answer);
+    expect(wire).not.toContain(NEW_ADDRESS);
+    expect(wire.toLowerCase()).not.toContain(LEFT_ADDRESS.toLowerCase());
   });
 
   it("refuses a pending change link made before it, even one the revert did not need to retire (R-7)", async () => {
@@ -323,7 +342,7 @@ describe("a revert", () => {
 
     const answers = [
       await revert(aRevert(second)),
-      await revert(aRevert(first)),
+      await revert(aRevert(first, ANOTHER_PASSWORD)),
     ];
 
     expect(answers.map(({ status }) => status)).toEqual([200, 200]);
@@ -421,6 +440,83 @@ describe("the new password is judged against the address the link restores", () 
   });
 });
 
+describe("the password the account holds now is not accepted as the new one", () => {
+  const FULLWIDTH_A = "\uFF41";
+
+  it("is refused on the new password's field, spends nothing and keeps the link usable", async () => {
+    const undo = await leaveFor(owner, NEW_ADDRESS);
+    const before = heldSnapshot();
+
+    const answer = await revert(aRevert(undo, owner.password));
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "newPassword", code: "PASSWORD_UNCHANGED" }],
+    });
+    expect(heldSnapshot()).toBe(before);
+    expect(hashingLedger.hashes).toBe(0);
+    expect(setCookieLinesOf(answer)).toEqual([]);
+    expect((await revert(aRevert(undo))).status).toBe(200);
+  });
+
+  it("is refused in the form the password is verified in: a different spelling of the same NFKC text is the same password", async () => {
+    const undo = await leaveFor(owner, NEW_ADDRESS);
+    const sameAfterNfkc = owner.password.replaceAll("a", FULLWIDTH_A);
+    expect(sameAfterNfkc).not.toBe(owner.password);
+
+    const answer = await revert(aRevert(undo, sameAfterNfkc));
+
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "newPassword", code: "PASSWORD_UNCHANGED" }],
+    });
+  });
+
+  it("verifies once, after the policy and the breach check and before anything is hashed, and only for a live link", async () => {
+    const undo = await leaveFor(owner, NEW_ADDRESS);
+
+    await revert(aRevert(aTokenValue(), owner.password));
+    await revert(aRevert(undo, "short"));
+    expect(hashingLedger.checks).toBe(0);
+
+    await revert(aRevert(undo, owner.password));
+    expect(hashingLedger.checks).toBe(1);
+    expect(hashingLedger.hashes).toBe(0);
+
+    await revert(aRevert(undo));
+    expect(hashingLedger.checks).toBe(2);
+    expect(hashingLedger.hashes).toBe(1);
+  });
+
+  it("is the same whether or not the password was used before the change: only the current hash is compared", async () => {
+    const undo = await leaveFor(owner, NEW_ADDRESS);
+    await world.accounts.changePassword({
+      accountId: owner.id,
+      expectedPasswordHash: world.accounts.passwordHashOf(owner.id) ?? "",
+      passwordHash: await hashOf("a second passphrase 9"),
+    });
+    world.advance(1_000);
+
+    const answer = await revert(aRevert(undo, owner.password));
+
+    expect(answer.status).toBe(200);
+  });
+
+  it("answers 503 and keeps the link whole when the platform cannot compute the verification", async () => {
+    const undo = await leaveFor(owner, NEW_ADDRESS);
+    hashingLedger.failChecks = true;
+    const before = heldSnapshot();
+
+    const answer = await revert(aRevert(undo));
+
+    expect(answer.status).toBe(503);
+    expect(heldSnapshot()).toBe(before);
+    hashingLedger.failChecks = false;
+    expect((await revert(aRevert(undo))).status).toBe(200);
+  });
+});
+
 describe("one refusal, link-invalid, for every link that does not work (R-8)", () => {
   async function reference(): Promise<string> {
     return wireOf(await revert(aRevert(aTokenValue())));
@@ -454,7 +550,7 @@ describe("one refusal, link-invalid, for every link that does not work (R-8)", (
     await revert(aRevert(used));
     const earlier = await leaveFor(owner, "second@example.test");
     const retired = await leaveFor(owner, "third@example.test");
-    await revert(aRevert(earlier));
+    await revert(aRevert(earlier, ANOTHER_PASSWORD));
     const expiring = await leaveFor(owner, "fourth@example.test");
     const otherPurposes = await issueTokensOfOtherPurposes();
     const before = heldSnapshot();
@@ -619,6 +715,7 @@ describe("when the store fails", () => {
 
     expect(answer.status).toBe(200);
     expect(await jsonOf(answer)).toEqual({ status: "email-reverted" });
+    // the address that was left cannot be known after a lost acknowledgement, so only the restored one is told
     expect(world.mail.sent.map(({ recipient }) => recipient)).toEqual([
       LEFT_ADDRESS,
     ]);

@@ -114,26 +114,30 @@ export async function retireEmailChangeTokens(
 }
 
 /**
- * The same shape as `completeReset`, at READ COMMITTED, with the token alone as the subject. Statement 1 locks the
- * token's account row (`for update`: it waits for a `SessionStore.create` holding it `for share`, and holds the row
- * until the commit) and consumes the token under every rule at once: `email-change` purpose, unused, unexpired, the
- * newest live of its account, a row that carries an address, an account that is verified, **issued no earlier than the
+ * The same shape as `completeReset`, at READ COMMITTED, with the token alone as the subject. **Three statements.**
+ * Statement 1 only locks the token's account row (`for update`: it waits for a `SessionStore.create` or an `issueToken`
+ * holding it `for share`, and holds the row until the commit), and it stands alone on purpose, as in `revertEmailChange`:
+ * a statement reads the snapshot taken when it **starts**, before it waits on a row lock, so the sweep below, were it in
+ * the same statement as the lock, could not see a reset token that `issueToken` committed during the wait, and that
+ * token, mailed to the address being left, would survive the change. The statement after the lock takes its snapshot
+ * once the lock is held. Statement 2 consumes the token under every rule at once: `email-change` purpose, unused,
+ * unexpired, the newest live of its account, a row that carries an address, an account that is verified, **issued no earlier than the
  * account's last password change** (a link mailed before a change of password is refused even if it was never
  * retired), and a new address no other account holds **or has reserved** (a live `email-change-revert` row of another
  * account names it: ADR 0172 Amendment H; the account's own undo link does not block its own change). Both address
  * rules read the statement's one snapshot, in which the move off an address and the undo row that reserves it are
  * either both visible or both absent. It then retires every other unused token of the account of any
  * purpose **except `email-change-revert`**, so a reset link mailed to the old address cannot outlive it but an earlier
- * undo link can (ADR 0172 Amendment H), and replaces `email` and `email_normal_form`. Statement 2 revokes the account's
+ * undo link can (ADR 0172 Amendment H), and replaces `email` and `email_normal_form`. Statement 3 revokes the account's
  * unrevoked sessions in a fresh snapshot, only for a token **this transaction** consumed (`used_at = now()`).
  *
- * The undo link is written by statement 1 as well: one `email-change-revert` row, holding the address being left, the
+ * The undo link is written by statement 2 as well: one `email-change-revert` row, holding the address being left, the
  * caller's `revertTokenHash` and `revertExpiresAt`, inserted `from consumed`. It is **not** inserted from `locked`
  * alone: `locked` matches the account of any hash submitted, valid or not, so a refused confirmation (a used link
  * clicked again) would write a row that reserves the account's current address. A rolled-back confirmation leaves no
  * row either. The value is minted by the caller once, outside the retry, so every attempt names the same hash.
  *
- * A new address another account took after statement 1's snapshot raises the unique violation of
+ * A new address another account took after statement 2's snapshot raises the unique violation of
  * `accounts_email_normal_form_is_unique`; the transaction rolls back, the token stays whole, and the answer is
  * `invalid`, the same as for an expired link. Any other failure propagates, a revert hash already held included.
  *
@@ -152,9 +156,17 @@ export async function confirmEmailChange(
   const revertExpiresAt = confirmation.revertExpiresAt.toISOString();
   const rows = await queryRows("change an e-mail address", async () => {
     try {
-      const [changeRows] = await retryOnTransientFailure(({ isRetry }) =>
+      const [, changeRows] = await retryOnTransientFailure(({ isRetry }) =>
         sql.transaction(
           [
+            sql`
+                select a.id from accounts a
+                where a.id in (
+                  select t.account_id from account_email_tokens t
+                  where t.token_hash = ${tokenHash} and t.purpose = ${EMAIL_CHANGE}
+                )
+                for update
+              `,
             sql`
                 with locked as (
                   select a.id, a.email, a.email_normal_form, a.locale, a.email_verified_at, a.password_changed_at
@@ -280,6 +292,7 @@ const REVERT_ADDRESS_TAKEN_ROWS: readonly Record<string, unknown>[] =
       account_id: null,
       restored_email: null,
       restored_locale: null,
+      left_email: null,
     }),
   ]);
 
@@ -365,7 +378,7 @@ export async function revertEmailChange(
               `,
             sql`
                 with locked as (
-                  select a.id, a.locale, a.email_verified_at
+                  select a.id, a.email, a.locale, a.email_verified_at
                   from accounts a
                   where a.id in (select t.account_id from account_email_tokens t where t.token_hash = ${tokenHash})
                   for update
@@ -414,11 +427,11 @@ export async function revertEmailChange(
                   where a.id = c.account_id
                   returning a.id
                 ), restored as (
-                  select c.account_id, c.new_email as email, l.locale
+                  select c.account_id, c.new_email as email, l.locale, l.email as left_email
                   from consumed c
                   join locked l on l.id = c.account_id
                   union all
-                  select a.id, a.email, a.locale
+                  select a.id, a.email, a.locale, null::text
                   from account_email_tokens t
                   join accounts a on a.id = t.account_id
                   where ${isRetry}::boolean
@@ -432,7 +445,8 @@ export async function revertEmailChange(
                   exists (select 1 from restored) as is_done,
                   (select r.account_id from restored r) as account_id,
                   (select r.email from restored r) as restored_email,
-                  (select r.locale from restored r) as restored_locale
+                  (select r.locale from restored r) as restored_locale,
+                  (select r.left_email from restored r) as left_email
               `,
             sql`
                 update account_sessions
@@ -467,14 +481,22 @@ function revertOutcomeFrom(
   const accountId = rows[0]?.["account_id"];
   const email = rows[0]?.["restored_email"];
   const locale = rows[0]?.["restored_locale"];
+  const leftEmail = rows[0]?.["left_email"];
   if (
     typeof accountId !== "string" ||
     typeof email !== "string" ||
-    typeof locale !== "string"
+    typeof locale !== "string" ||
+    (typeof leftEmail !== "string" && leftEmail !== null)
   ) {
     throw new AccountStoreError(operation);
   }
-  return { kind: "reverted", accountId, email, locale };
+  return {
+    kind: "reverted",
+    accountId,
+    email,
+    locale,
+    leftEmail: leftEmail ?? undefined,
+  };
 }
 
 /**

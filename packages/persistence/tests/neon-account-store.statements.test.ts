@@ -96,6 +96,26 @@ const confirmEmailChange = () =>
   });
 const DONE = [{ is_done: true }];
 
+const CONFIRM_ANSWERED = [
+  {
+    is_done: true,
+    account_id: ACCOUNT_ID,
+    previous_email: "old@example.md",
+    previous_locale: "ro",
+  },
+];
+
+/** The confirmation's transaction as the statements after its lock send it: the lock statement is read by its own
+ *  test, so that every other claim names the consuming statement as the first. */
+async function confirmTransactionOf(): Promise<SentTransaction> {
+  const transaction = await transactionOf(confirmEmailChange, [
+    [],
+    CONFIRM_ANSWERED,
+    [],
+  ]);
+  return { ...transaction, statements: transaction.statements.slice(1) };
+}
+
 /** The one predicate every statement that could give an address away asks, in the snapshot of its own statement. */
 const LIVE_RESERVATION_ROW =
   "reservation.purpose = ? and reservation.used_at is null and reservation.expires_at > now() and reservation.new_email_normal_form = ?";
@@ -380,7 +400,7 @@ describe("changePassword: three statements in one ReadCommitted transaction", ()
   });
 });
 
-describe("confirmEmailChange: two statements in one ReadCommitted transaction", () => {
+describe("confirmEmailChange: three statements in one ReadCommitted transaction", () => {
   const CONFIRMED = [
     {
       is_done: true,
@@ -390,23 +410,55 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     },
   ];
 
-  it("consumes the token and changes the address, then revokes the sessions", async () => {
+  it("locks the account row, then consumes the token and changes the address, then revokes the sessions", async () => {
     const transaction = await transactionOf(confirmEmailChange, [
+      [],
       CONFIRMED,
       [],
     ]);
-    const [consume, revoke] = statementsOf(transaction);
+    const [lock, consume, revoke] = statementsOf(transaction);
 
     expect(transaction.options).toEqual({ isolationLevel: "ReadCommitted" });
-    expect(transaction.statements).toHaveLength(2);
+    expect(transaction.statements).toHaveLength(3);
+    expect(lock).toMatch(/^select a\.id from accounts a where/);
     expect(consume).toMatch(/^with locked as \(/);
     expect(revoke).toMatch(/^update account_sessions set revoked_at = now\(\)/);
   });
 
-  it("locks the token's account row before it consumes anything", async () => {
-    const [consume] = statementsOf(
-      await transactionOf(confirmEmailChange, [CONFIRMED, []]),
+  // Serial mock driver: the interleaving cannot be run here. A statement reads the snapshot taken when it starts, before
+  // it waits on a row lock, so the sweep of the account's other tokens (`superseded`) must not share a statement with the
+  // lock. A reset token that `issueToken` committed while this transaction waited would be missing from that snapshot and
+  // would survive the sweep, mailed to the address being left. The lock is therefore a statement of its own, and the
+  // statement after it takes its snapshot once the lock is held.
+  it("takes the account row lock in a statement of its own, bound to the token's hash and the e-mail-change purpose, and holds it to the commit", async () => {
+    const transaction = await transactionOf(confirmEmailChange, [
+      [],
+      CONFIRMED,
+      [],
+    ]);
+    const [lock] = statementsOf(transaction);
+
+    expect(lock).toBe(
+      "select a.id from accounts a where a.id in ( select t.account_id from account_email_tokens t where t.token_hash = ? and t.purpose = ? ) for update",
     );
+    expect(transaction.statements[0]?.values).toEqual([
+      TOKEN_HASH,
+      "email-change",
+    ]);
+  });
+
+  it("does not sweep in the statement that locks: the sweep is in a later statement than the lock", async () => {
+    const [lock, consume] = statementsOf(
+      await transactionOf(confirmEmailChange, [[], CONFIRMED, []]),
+    );
+
+    expect(lock).not.toContain("superseded");
+    expect(lock).not.toContain("update account_email_tokens");
+    expect(consume).toContain("superseded as ( update account_email_tokens s");
+  });
+
+  it("locks the token's account row again in the consuming statement, for the update it makes (no wait: it is held)", async () => {
+    const [consume] = statementsOf(await confirmTransactionOf());
 
     expect(consume).toContain(
       "from accounts a where a.id in (select t.account_id from account_email_tokens t where t.token_hash = ?) for update )",
@@ -442,17 +494,13 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     ] as const;
 
     it.each(RULES)("%s", async (_label, predicate) => {
-      const [consume] = statementsOf(
-        await transactionOf(confirmEmailChange, [CONFIRMED, []]),
-      );
+      const [consume] = statementsOf(await confirmTransactionOf());
 
       expect(consume).toContain(predicate);
     });
 
     it("and the token is found by its hash and tied to the locked account", async () => {
-      const [consume] = statementsOf(
-        await transactionOf(confirmEmailChange, [CONFIRMED, []]),
-      );
+      const [consume] = statementsOf(await confirmTransactionOf());
 
       expect(consume).toContain(
         "where t.token_hash = ? and t.account_id = l.id",
@@ -461,9 +509,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   });
 
   it("retires every other unused token of the account, of any purpose but email-change-revert (an earlier undo link survives)", async () => {
-    const [consume] = statementsOf(
-      await transactionOf(confirmEmailChange, [CONFIRMED, []]),
-    );
+    const [consume] = statementsOf(await confirmTransactionOf());
 
     expect(consume).toContain(
       "superseded as ( update account_email_tokens s set used_at = now() where s.account_id in (select account_id from consumed) and s.used_at is null and s.token_hash <> ? and s.purpose <> ? returning s.token_hash )",
@@ -472,9 +518,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
 
   describe("the undo link row", () => {
     it("is inserted from the consumed token, not from the locked account, so a refused confirmation writes none", async () => {
-      const [consume] = statementsOf(
-        await transactionOf(confirmEmailChange, [CONFIRMED, []]),
-      );
+      const [consume] = statementsOf(await confirmTransactionOf());
 
       expect(consume).toContain(
         "reverted as ( insert into account_email_tokens ( token_hash, account_id, purpose, expires_at, new_email, new_email_normal_form ) select ?, c.account_id, ?, ?::timestamptz, l.email, l.email_normal_form from consumed c join locked l on l.id = c.account_id returning token_hash )",
@@ -482,10 +526,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     });
 
     it("holds the address being left, read from the locked row before the change, never a bound value", async () => {
-      const transaction = await transactionOf(confirmEmailChange, [
-        CONFIRMED,
-        [],
-      ]);
+      const transaction = await confirmTransactionOf();
       const [consume] = statementsOf(transaction);
 
       expect(consume).toContain("l.email, l.email_normal_form from consumed c");
@@ -500,10 +541,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     });
 
     it("is the caller's hash, the revert purpose and the caller's expiry, as bound values", async () => {
-      const transaction = await transactionOf(confirmEmailChange, [
-        CONFIRMED,
-        [],
-      ]);
+      const transaction = await confirmTransactionOf();
 
       expect(transaction.statements[0]?.values).toEqual([
         TOKEN_HASH,
@@ -526,9 +564,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
     });
 
     it("is written without `on conflict`, so a revert hash already held fails the transaction instead of a silent no-op", async () => {
-      const [consume] = statementsOf(
-        await transactionOf(confirmEmailChange, [CONFIRMED, []]),
-      );
+      const [consume] = statementsOf(await confirmTransactionOf());
 
       expect(consume).not.toContain("on conflict");
     });
@@ -553,10 +589,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   });
 
   it("writes the address and its normal form from the token's row, never from the request", async () => {
-    const transaction = await transactionOf(confirmEmailChange, [
-      CONFIRMED,
-      [],
-    ]);
+    const transaction = await confirmTransactionOf();
     const [consume] = statementsOf(transaction);
 
     expect(consume).toContain(
@@ -570,9 +603,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   });
 
   it("takes the old address and language from the locked row, and only for a token this transaction consumed", async () => {
-    const [consume] = statementsOf(
-      await transactionOf(confirmEmailChange, [CONFIRMED, []]),
-    );
+    const [consume] = statementsOf(await confirmTransactionOf());
 
     expect(consume).toContain(
       "previous_address as ( select l.email, l.locale from locked l where exists (select 1 from consumed) union all",
@@ -583,9 +614,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   });
 
   it("on a retry, reads the old address back from the revert row of this call's hash, for the same account, and only when nothing was consumed", async () => {
-    const [consume] = statementsOf(
-      await transactionOf(confirmEmailChange, [CONFIRMED, []]),
-    );
+    const [consume] = statementsOf(await confirmTransactionOf());
 
     expect(consume).toContain(
       "union all select r.new_email, l.locale from account_email_tokens r join locked l on l.id = r.account_id where ?::boolean and r.token_hash = ? and r.purpose = ? and not exists (select 1 from consumed) )",
@@ -593,10 +622,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   });
 
   it("the retry arm answers done only for a used token whose account already holds its new address, and never on a first attempt", async () => {
-    const transaction = await transactionOf(confirmEmailChange, [
-      CONFIRMED,
-      [],
-    ]);
+    const transaction = await confirmTransactionOf();
     const [consume] = transaction.statements;
 
     expect(normalised(consume ?? { text: "", values: [] })).toContain(
@@ -606,10 +632,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   });
 
   it("the second statement revokes only the sessions of an account whose e-mail-change token this transaction used (used_at = now())", async () => {
-    const transaction = await transactionOf(confirmEmailChange, [
-      CONFIRMED,
-      [],
-    ]);
+    const transaction = await confirmTransactionOf();
     const [, revoke] = statementsOf(transaction);
 
     expect(revoke).toBe(
@@ -623,7 +646,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
 
   it("answers changed with the old address and language the locked row held", async () => {
     resetQueryDriver();
-    answerTransactionWith([CONFIRMED, []]);
+    answerTransactionWith([[], CONFIRMED, []]);
 
     expect(await confirmEmailChange()).toEqual({
       kind: "changed",
@@ -635,6 +658,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   it("answers changed with no previous address for a retry whose first attempt already replaced it", async () => {
     resetQueryDriver();
     answerTransactionWith([
+      [],
       [
         {
           is_done: true,
@@ -656,6 +680,7 @@ describe("confirmEmailChange: two statements in one ReadCommitted transaction", 
   it("answers invalid for a token the statement did not consume", async () => {
     resetQueryDriver();
     answerTransactionWith([
+      [],
       [
         {
           is_done: false,
@@ -1001,6 +1026,7 @@ describe("revertEmailChange: three statements in one ReadCommitted transaction",
       account_id: ACCOUNT_ID,
       restored_email: "old@example.md",
       restored_locale: "ro",
+      left_email: "left@example.md",
     },
   ];
   const revert = () =>
@@ -1101,7 +1127,7 @@ describe("revertEmailChange: three statements in one ReadCommitted transaction",
     const consume = await consumeOf();
 
     expect(consume).toContain(
-      "union all select a.id, a.email, a.locale from account_email_tokens t join accounts a on a.id = t.account_id where ?::boolean and t.token_hash = ? and t.purpose = ? and t.used_at is not null and a.password_hash = ? and not exists (select 1 from consumed) )",
+      "union all select a.id, a.email, a.locale, null::text from account_email_tokens t join accounts a on a.id = t.account_id where ?::boolean and t.token_hash = ? and t.purpose = ? and t.used_at is not null and a.password_hash = ? and not exists (select 1 from consumed) )",
     );
     expect(consume).toContain("exists (select 1 from restored) as is_done");
   });
@@ -1126,7 +1152,7 @@ describe("revertEmailChange: three statements in one ReadCommitted transaction",
     expect(consume).not.toContain("set id =");
   });
 
-  it("answers reverted with the restored address and the account's language", async () => {
+  it("answers reverted with the restored address, the account's language and the address just left", async () => {
     resetQueryDriver();
     answerTransactionWith([[], REVERTED, []]);
 
@@ -1135,7 +1161,42 @@ describe("revertEmailChange: three statements in one ReadCommitted transaction",
       accountId: ACCOUNT_ID,
       email: "old@example.md",
       locale: "ro",
+      leftEmail: "left@example.md",
     });
+  });
+
+  it("answers no address left for a retry whose first attempt had already made the change: the left address is unknown then", async () => {
+    resetQueryDriver();
+    answerTransactionWith([[], [{ ...REVERTED[0], left_email: null }], []]);
+
+    expect(await revert()).toEqual({
+      kind: "reverted",
+      accountId: ACCOUNT_ID,
+      email: "old@example.md",
+      locale: "ro",
+      leftEmail: undefined,
+    });
+  });
+
+  it("reads the address left from the locked row before the change, never a bound value", async () => {
+    const consume = await consumeOf();
+
+    expect(consume).toContain(
+      "select a.id, a.email, a.locale, a.email_verified_at from accounts a",
+    );
+    expect(consume).toContain(
+      "select c.account_id, c.new_email as email, l.locale, l.email as left_email from consumed c join locked l on l.id = c.account_id",
+    );
+    expect(consume).toContain(
+      "(select r.left_email from restored r) as left_email",
+    );
+  });
+
+  it("is the store error for a left address that is neither text nor null", async () => {
+    resetQueryDriver();
+    answerTransactionWith([[], [{ ...REVERTED[0], left_email: 5 }], []]);
+
+    expect(await rejectionOf(revert())).toBeInstanceOf(AccountStoreError);
   });
 
   it("answers invalid, the one answer, for a token the statement did not consume", async () => {

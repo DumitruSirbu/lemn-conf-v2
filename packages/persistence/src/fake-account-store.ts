@@ -379,6 +379,7 @@ export class FakeAccountStore implements AccountStore {
         accountId: account.id,
         email: token.newEmail ?? account.email,
         locale: account.locale,
+        leftEmail: account.email,
       };
     });
   }

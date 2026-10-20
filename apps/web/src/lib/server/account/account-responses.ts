@@ -28,11 +28,13 @@ const ACCOUNT_RESPONSE_HEADERS = {
 
 const SHORTEST_WAIT_SECONDS = 1;
 
-/** The password's own refusals: the domain's three, the breach check's, and a password that was not text. */
+/** The password's own refusals: the domain's three, the breach check's, a password that was not text, and (the undo
+ *  link's route alone) the password the account holds now. */
 export type PasswordIssueCode =
   | PasswordRefusalCode
   | "PASSWORD_BREACHED"
-  | "PASSWORD_NOT_TEXT";
+  | "PASSWORD_NOT_TEXT"
+  | "PASSWORD_UNCHANGED";
 
 /** One field and one code, never the value that was refused. A field is named as the request member that carried it. */
 export interface AccountInputIssue {

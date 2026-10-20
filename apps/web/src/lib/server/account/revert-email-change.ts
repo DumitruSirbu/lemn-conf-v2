@@ -3,7 +3,10 @@ import "server-only";
 import type { NextResponse } from "next/server";
 
 import { judgeAccountEmail } from "@lemnaria/configurator-domain";
-import type { EmailChangeRevertOutcome } from "@lemnaria/persistence";
+import type {
+  EmailChangeRevertOutcome,
+  StoredAccount,
+} from "@lemnaria/persistence";
 
 import { reportAccountEvent } from "@/lib/server/account/account-log";
 import {
@@ -20,7 +23,10 @@ import { getAccountStore } from "@/lib/server/account/account-store-instance";
 import { isWellFormedEmailToken } from "@/lib/server/account/email-token";
 import { judgeNewPassword } from "@/lib/server/account/judge-new-password";
 import { schedulePasswordChangedNotice } from "@/lib/server/account/password-changed-notice";
-import { hashPassword } from "@/lib/server/account/password-hash";
+import {
+  checkPassword,
+  hashPassword,
+} from "@/lib/server/account/password-hash";
 import { getSessionStore } from "@/lib/server/account/session-store-instance";
 import { sha256Hex } from "@/lib/server/sha256-hex";
 
@@ -60,12 +66,19 @@ export async function completeEmailRevert({
   const tokenHash = sha256Hex(token);
   const lookup = await getAccountStore().findRevertAddress(tokenHash);
   if (lookup.kind === "none") return linkInvalidResponse();
+  const holder = await getAccountStore().findById(lookup.accountId);
+  if (holder.kind === "none") return linkInvalidResponse();
   const judgement = await judgeNewPassword({
     password: textMemberOf(body, NEW_PASSWORD_MEMBER),
     email: lookup.email,
     field: NEW_PASSWORD_MEMBER,
   });
   if (!judgement.ok) return invalidInputResponse([judgement.issue]);
+  if (await isPasswordHeldBy(holder.account, judgement.password)) {
+    return invalidInputResponse([
+      { field: NEW_PASSWORD_MEMBER, code: "PASSWORD_UNCHANGED" },
+    ]);
+  }
   const passwordHash = await hashPassword(judgement.password);
   const reverted = await revertOrRecover({
     restored: lookup,
@@ -75,11 +88,35 @@ export async function completeEmailRevert({
   if (reverted.kind === "invalid") return linkInvalidResponse();
   await endEverySessionBestEffort(reverted.accountId);
   schedulePasswordChangedNotice(reverted);
+  scheduleNoticeToAddressLeft(reverted);
   reportAccountEvent({
     event: "email-change-revert",
     outcome: "succeeded",
   });
   return emailRevertedResponse();
+}
+
+/**
+ * Whoever moved the account knows its password, so a revert that kept it would hand the account straight back. The
+ * password the account holds now is refused as the new one: one more argon2 verification, behind the limiter and the
+ * live link, and a refusal consumes nothing. It does not catch an intruder who changed the password before the revert
+ * (the hash held then is theirs, and the person's old password is not stored anywhere); the owner accepted that.
+ * A platform that cannot compute the verification throws, which the route answers `503` with the token whole.
+ */
+async function isPasswordHeldBy(
+  account: StoredAccount,
+  password: string,
+): Promise<boolean> {
+  const check = await checkPassword({ password, phc: account.passwordHash });
+  if (check === "failed") throw new PasswordCheckFailedError();
+  return check === "match";
+}
+
+class PasswordCheckFailedError extends Error {
+  constructor() {
+    super("The password check could not be computed.");
+    this.name = "PasswordCheckFailedError";
+  }
 }
 
 interface RevertToComplete {
@@ -135,10 +172,32 @@ async function revertAlreadyTakenEffect({
       return undefined;
     }
     const { id, email, locale } = lookup.account;
-    return { kind: "reverted", accountId: id, email, locale };
+    return {
+      kind: "reverted",
+      accountId: id,
+      email,
+      locale,
+      leftEmail: undefined,
+    };
   } catch {
     return undefined;
   }
+}
+
+/**
+ * The address the account has just left is told too, in the account's language: the person who moved the account there
+ * may have been the owner or not, and either should learn that the way back was taken. Best-effort like the notice to
+ * the restored address; it is absent after a lost acknowledgement, when the store can no longer say what was left.
+ */
+function scheduleNoticeToAddressLeft({
+  leftEmail,
+  locale,
+}: {
+  readonly leftEmail: string | undefined;
+  readonly locale: string;
+}): void {
+  if (leftEmail === undefined) return;
+  schedulePasswordChangedNotice({ email: leftEmail, locale });
 }
 
 /**

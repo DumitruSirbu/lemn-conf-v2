@@ -1317,6 +1317,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
   // decision 2). The lead warns against reusing the old password because the person who moved the account knows it; the
   // done screen says the address is restored and every session ended; the invalid-link screen offers no reset, since a
   // reset mail goes to the address the account now holds.
+  //
+  // `passwordUnchanged` (2026-10-20, S13d security review F1; drafted by the agent, pre-approved as drafted by the
+  // owner, ADR 0113 decision 2): the field error beside the new password when it is the one the account holds now. It
+  // does not catch a password an intruder set first; the owner accepted that residual.
   accountRevertEmail: {
     metaTitle: "Anulează schimbarea adresei — {brand}",
     title: "Anulează schimbarea adresei",
@@ -1330,6 +1334,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     linkInvalidTitle: "Link-ul nu mai este valabil",
     linkInvalidBody:
       "A expirat, a fost folosit sau a fost înlocuit. Dacă ai anulat deja schimbarea, intră în cont cu adresa veche și cu parola nouă.",
+    passwordUnchanged:
+      "Aceasta este parola pe care o are acum contul. Alege una pe care nu ai folosit-o niciodată aici.",
   },
   accountExport: {
     metaTitle: "Exportă datele mele — {brand}",

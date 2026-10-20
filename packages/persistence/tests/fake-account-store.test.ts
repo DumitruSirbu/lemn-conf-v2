@@ -856,6 +856,7 @@ describe("FakeAccountStore.revertEmailChange and the reservation (ADR 0172 Amend
         accountId: account.accountId,
         email: "Ana@Example.md",
         locale: "ro",
+        leftEmail: "new@example.md",
       });
       expect(await accounts.findByNormalForm("ana@example.md")).toMatchObject({
         kind: "found",

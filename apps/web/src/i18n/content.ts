@@ -884,7 +884,8 @@ export type AccountIssueCode =
   | PasswordRefusalCode
   | "PASSWORD_BREACHED"
   | "PASSWORD_NOT_TEXT"
-  | "PASSWORD_REQUIRED";
+  | "PASSWORD_REQUIRED"
+  | "PASSWORD_UNCHANGED";
 
 /** One field and one code, never the value that was refused. */
 export interface AccountFieldIssue {
@@ -1514,6 +1515,7 @@ export function resolveAccountRevertEmailCopy(translate: ContentTranslator) {
     logIn: translate("accountRevertEmail.logIn"),
     linkInvalidTitle: translate("accountRevertEmail.linkInvalidTitle"),
     linkInvalidBody: translate("accountRevertEmail.linkInvalidBody"),
+    passwordUnchanged: translate("accountRevertEmail.passwordUnchanged"),
   };
 }
 

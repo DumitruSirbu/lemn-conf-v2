@@ -113,10 +113,14 @@ export type RegistrationReplacementOutcome =
  * `tokenHash` is the SHA-256 of the value in the link; the value itself never reaches the store.
  *
  * `holdingEmailNormalForm` is the address the caller looked the account up by and will mail the link to. When it is
- * set, the token is issued only if the account **still holds** that address, with the account's row locked `for share`
- * so a change of address or a revert that is in flight is waited for and then seen. Without it, a lookup followed by an
- * issue is two statements, and an address change that commits between them has the link mailed to the address the
- * account has just left (ADR 0172 Amendment H). A reset link must always set it.
+ * set, the token is issued only if the account holds that address **when the statement has locked the account row**
+ * (`for share`). A lookup followed by an issue is two statements, and an address change or a revert can commit between
+ * them (ADR 0172 Amendment H). The two orders are closed differently:
+ * - the change commits **before** the issue's lock: the issue waits for it, finds the address gone and writes nothing;
+ * - the issue commits **before** the change's lock: the change locks the row in a statement of its own and then retires
+ *   every other unused token of the account (this one included), so the link, though mailed, no longer works.
+ * A reset link must always set it. Nothing here covers a link issued and honoured before any change commits: that link
+ * went to the address the account then held.
  */
 export interface TokenToIssue {
   readonly accountId: string;
@@ -189,7 +193,9 @@ export interface EmailChangeRevert {
 
 /**
  * `reverted` carries the restored address and the account's language, for the password-changed notice to the restored
- * address; a retry after a lost acknowledgement reads them back from the account. `invalid` is one answer for every
+ * address, and `leftEmail`, the address the account held until this revert, for the same notice to the address that has
+ * just been left. A retry after a lost acknowledgement reads the restored address back from the account, and cannot
+ * know the left one: `leftEmail` is then absent. `invalid` is one answer for every
  * refusal: an unknown, used, expired or retired token, a token of another purpose, an account that is not verified, and
  * an address another account holds or a live undo link of another account names.
  */
@@ -199,6 +205,7 @@ export type EmailChangeRevertOutcome =
       readonly accountId: string;
       readonly email: string;
       readonly locale: string;
+      readonly leftEmail: string | undefined;
     }
   | { readonly kind: "invalid" };
 

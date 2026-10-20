@@ -476,6 +476,15 @@ describe("invalid input: only the fields a flow can draw are placed", () => {
     expect(
       classifySignedInAnswer(
         "revert-email",
+        answer(400, issues(["newPassword", "PASSWORD_UNCHANGED"])),
+      ),
+    ).toEqual({
+      kind: "invalid-input",
+      issues: [{ field: "newPassword", code: "PASSWORD_UNCHANGED" }],
+    });
+    expect(
+      classifySignedInAnswer(
+        "revert-email",
         answer(400, issues(["currentPassword", "PASSWORD_REQUIRED"])),
       ).kind,
     ).toBe("request-failed");

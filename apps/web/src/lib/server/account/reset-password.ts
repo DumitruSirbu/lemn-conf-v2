@@ -138,10 +138,11 @@ interface IssuedResetToken {
 
 /** The lookup and the token insert, with a failure of the store written as the reset request's own, apart from a
  *  failure of the mail. Nothing for an address that is unknown, unconfirmed, or whose token the store refused.
- *  The lookup and the insert are two statements, and an address change or a revert can commit between them: the token
- *  would be made after `password_changed_at`, so honoured, and mailed to the address the account has just left. The
- *  insert therefore names the address it looked the account up by, and the store issues only while the account holds
- *  it. */
+ *  The lookup and the insert are two statements, and an address change or a revert can commit between them. The insert
+ *  therefore names the address it looked the account up by, and the store issues only while the account still holds it
+ *  once it has locked the row: a change that committed first leaves nothing issued, and one that commits after the
+ *  insert retires the token itself, so a link is never left working for the address an account has just left. Only
+ *  the mail of a token that is already retired can still go out. */
 async function issueResetTokenToVerifiedAccount(
   emailNormalForm: string,
 ): Promise<IssuedResetToken | undefined> {

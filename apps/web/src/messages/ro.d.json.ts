@@ -1021,7 +1021,8 @@ declare const messages: {
     "doneBody": "Contul folosește din nou adresa veche. Te-am deconectat de pe toate dispozitivele, pentru siguranță. Intră în cont cu adresa veche și cu parola nouă.",
     "logIn": "Intră în cont",
     "linkInvalidTitle": "Link-ul nu mai este valabil",
-    "linkInvalidBody": "A expirat, a fost folosit sau a fost înlocuit. Dacă ai anulat deja schimbarea, intră în cont cu adresa veche și cu parola nouă."
+    "linkInvalidBody": "A expirat, a fost folosit sau a fost înlocuit. Dacă ai anulat deja schimbarea, intră în cont cu adresa veche și cu parola nouă.",
+    "passwordUnchanged": "Aceasta este parola pe care o are acum contul. Alege una pe care nu ai folosit-o niciodată aici."
   },
   "accountExport": {
     "metaTitle": "Exportă datele mele — {brand}",

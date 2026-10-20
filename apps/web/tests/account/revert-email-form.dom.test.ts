@@ -431,6 +431,43 @@ describe("an answer a retry can mend keeps the token", () => {
   });
 });
 
+describe("the password the account holds now", () => {
+  it("is refused in the page's own words beside the field, not in the generic request-failed sentence, and the token is kept", async () => {
+    setAddress(`#t=${TOKEN}`);
+    sendSignedInRequest.mockResolvedValueOnce({
+      kind: "invalid-input",
+      issues: [{ field: "newPassword", code: "PASSWORD_UNCHANGED" }],
+    });
+    const page = mountPage();
+    await pressWith(page, "password1234567");
+    expect(page.container.textContent).toContain(copy.passwordUnchanged);
+    expect(page.container.textContent).not.toContain(
+      roMessages.accountForm.requestFailedBody,
+    );
+    expect(document.activeElement).toBe(passwordInput(page));
+    expect(page.container.textContent).not.toContain(copy.linkInvalidTitle);
+    await pressWith(page, FRESH_PASSWORD);
+    expect(tokensSent()).toEqual([TOKEN, TOKEN]);
+    expect(page.container.textContent).toContain(copy.doneTitle);
+  });
+
+  it("is said in Russian from the Russian catalogue's own leaf", async () => {
+    setAddress(`#t=${TOKEN}`);
+    sendSignedInRequest.mockResolvedValueOnce({
+      kind: "invalid-input",
+      issues: [{ field: "newPassword", code: "PASSWORD_UNCHANGED" }],
+    });
+    const page = mountPage("ru");
+    await pressWith(page, "password1234567");
+    expect(ruMessages.accountRevertEmail.passwordUnchanged).not.toBe(
+      copy.passwordUnchanged,
+    );
+    expect(page.container.textContent).toContain(
+      ruMessages.accountRevertEmail.passwordUnchanged,
+    );
+  });
+});
+
 describe("a refusal no retry mends", () => {
   it("replaces the form with the token-page failure screen, which offers no reload, and sends no more", async () => {
     setAddress(`#t=${TOKEN}`);
