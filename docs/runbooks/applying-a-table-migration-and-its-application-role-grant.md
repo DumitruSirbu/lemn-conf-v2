@@ -917,7 +917,8 @@ changing and surviving a later password reset. That is why 4b waits for its own 
 
 **`sent_at` is not backfilled.** Every design that existed before the contact flow writes it (wave S5) has `sent_at`
 NULL and so reads as an unsent draft, even if a request for it was stored earlier. The backfill is open question O11;
-`0016` does not guess.
+`0016` does not guess. *Update 2026-10-20: the owner ruled O11 as no backfill; older kitchens stay unmarked and no
+backfill statement is to be run.*
 
 **Rollback.** None by command: the migrations are additive and nothing here drops a column. A wrong column is fixed by a
 new migration, never by editing a file that has been applied.

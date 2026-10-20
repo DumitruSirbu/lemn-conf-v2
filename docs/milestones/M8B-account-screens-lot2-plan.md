@@ -948,6 +948,39 @@ These rulings override §14 where they differ. §14 was updated in place, and it
 - **Lot 1's O1 — RULED.** The owner approved Lot 1's Romanian copy, `privacyNotice` included, as drafted, directly on
   2026-10-20. All Romanian copy is now in the approved lock (commits `883f9372`, `f38815ee` [relayed; the scribe ran no
   `git show`]). The privacy-notice placeholders are open and unrelated.
+
+### Answered by the owner, 2026-10-20 (final round) [owner, answered directly, relayed by the coordinator]
+
+The rows above keep their original text. These rulings close the older O-rows that §14.6 listed as still open.
+
+- **O2 — RULED.** The claim dialog shows **count, dates and names**, as built. Plan L14b criterion 5 is amended to
+  "count, dates and names". No thumbnails (they do not exist). CG6 is closed; E11 and U9a stand as built.
+- **O3 — RULED (accepted).** C6's wording stands: "O ștergem din lista ta și nu o vei mai putea deschide sau recupera."
+- **O4 — RULED.** The client's own data download (Profile → Export, route `GET /api/account/export`; **not** the
+  operator's database restore export) keeps **profile and kitchens** now. Requests and notes may be added later if the
+  privacy notice needs it. The owner asked why the download exists. *Rationale, **inference**:* the design mocks and
+  Fix 3 asked for it, and GDPR access / portability is the likely reason; **to be confirmed with whoever owns the
+  privacy notice.* What would falsify it: the privacy notice (or the owner) naming a different purpose.
+- **O7 — RULED.** Hiding a sent kitchen **revokes its share link**, as built (E5).
+- **O8 — RULED, with one item to verify.** (1) A notice goes to the owner of an address that already has an account,
+  mirroring D1. **To be verified against the code:** whether the built E8 already sends it for a verified holder; until
+  the coordinator reports, this item stays flagged and is not recorded as built. (2) The old-address notice copy is
+  approved under O28b. (3) Revoke every session on confirm: **yes**.
+- **O9 — RULED.** A16C (the occasional "De ce un cont?" card) is **deferred and not built**.
+- **O11 — RULED.** **Do not backfill `sent_at`** for requests stored before S5; older kitchens stay unmarked. The
+  owner-run backfill is **cancelled everywhere it was mentioned** (P6, the S5 row of §14.7, ADR 0172 Amendment F and
+  Amendment G item 4, the runbook note on `sent_at`). Consequences: the S5 already-notified-replay residual **now has
+  no repair**; requests stored before S5 are not marked sent, so the client can **delete** those kitchens rather than
+  only hide them; and the operator "sent" filter misses them.
+- **O12 — RULED.** "Anulează" is allowed on account dialogs, a **scoped exception to ADR 0086** (P19).
+- **O13 — RULED by O27.** All Lot 1 and Lot 2 Romanian copy is approved.
+- **O14 — RULED.** Account wording as built in `accountFieldErrors` (also governs A10D).
+- **O15 — not asked.** The default stands: one file per lot.
+- **O17 — RULED, overriding the owner's own 2026-09-10 ruling.** Counts are written **with «de» from twenty up**
+  ("20 de bucătării"): the standard Romanian rule is «de» when the last two digits are 20-99 or 00. This **overrides**
+  "without «de» on plural" of 2026-09-10 (`docs/i18n/ro-catalogue-notes.md`, which carries a dated note; the earlier
+  text is kept). C30's default "20 bucătării" is superseded. A developer is implementing the grammar rule now
+  [relayed; not verified]. The three CLDR bands stay declared.
 - **O21 restore semantics — RULED BY DEFAULT [developer's choice, unless the owner objects].** On a conflict a restore
   never changes `account_id`; `name` becomes `coalesce(live, restored)`. There is no foreign key on `account_id`
   (`0015`), so the runbook rule "restore accounts before designs" and an orphan-claim query are operator rules. No
@@ -1031,7 +1064,7 @@ not exercised. §§1-11 are unchanged; where they differ, this section records w
 | S2 | Domain rules: kitchen name normalised **NFC, not NFKC** (the plan's S2 said NFKC); profile name, address and phone validation; password-change and e-mail-change validators; `readExistingPassword`: the is-the-address rule now applies only to a **new** password, and sign-in no longer applies it |
 | S3 | Account kitchen store: list by keyset with a total, rename, duplicate, hide and `markDeleted` (each with an atomic share-link revoke), `SentMarkStore` split into its own port. Documents that cannot be read are skipped and counted as `skippedCount` |
 | S4 | Gate exclusion of hidden and deleted kitchens on load, resume, save, preset read, share issue / revoke / status, and the public share read (reviewers counted about 20 predicate sites) |
-| S5 | `sent_at` is set when the request is **stored**, before the shop notice, bounded at 1 s and non-fatal. A retry before the notice repairs a missed mark. **The already-notified-replay case is not repaired**; the owner-run O11 backfill statement is its repair |
+| S5 | `sent_at` is set when the request is **stored**, before the shop notice, bounded at 1 s and non-fatal. A retry before the notice repairs a missed mark. **The already-notified-replay case is not repaired**; the owner-run O11 backfill statement is its repair *(2026-10-20: O11 ruled, no backfill; the case now has no repair)* |
 | S6a | `GET /api/account/kitchens`: 12 per page, opaque base64url cursor, returns summary plus document |
 | S6b | E2 rename `PATCH`; E3 duplicate `POST` (the client composes the full "{name} (copie)" and truncates by code points, the server never truncates); E4 delete `DELETE` (unsent only); E5 hide `POST` (sent only). The 404 is identical for every unreachable case; `409` words `sent` / `not-sent` are answered only after ownership |
 | S7 / S8 | Account store; capability `account.manage.own` for all roles; `GET` and `PATCH /api/account/profile`; `POST /api/account/password` (replaces the session; if the new session cannot start the answer is `401 password-changed-sign-in`). Password change and reset completion now retire **every** unused e-mail token (O23) |
@@ -1642,6 +1675,7 @@ O28a, O28b and O28c, and Lot 1's O1, were answered on 2026-10-20 and are removed
 owner, 2026-10-20 (later)*). The copy named in O28b is pre-approved as the developers draft it; the owner may edit it
 afterwards.
 
-- **Still open from earlier rows, not touched by today's rulings:** O2, O3, O4, O7, O8 (points 1 and 3; point 2's
-  notice copy is under O27), O9, O11, O12, O17. Whether O27 also answers O13 and O14 is for the coordinator to confirm
-  with the owner [inf: their drafts are among the approved leaves].
+- **Earlier rows O2, O3, O4, O7, O9, O11, O12, O13, O14 and O17 were ruled on 2026-10-20 (final round) and are
+  removed from this list** (§9, *Answered by the owner, 2026-10-20 (final round)*). O8 is ruled too, except point 1,
+  which is **to be verified against the code** (does the built E8 already notify a verified holder?). O15 was not
+  asked; its default stands.

@@ -1095,3 +1095,30 @@ security fixes `38d9e780`; S13c `fa653ec4`, `6245ea89`; S13d `987992a8`, `818f94
 
 **S13e is not done.** Blocked on: the owner running grant 4b (preview first), the live or preview SQL check, the visual
 pass for U15d and U16, and the separate flag-flip commit.
+
+### Amendment H, addendum — 2026-10-20 (final round): the older owner questions are ruled
+
+**Evidence.** *[relayed]*: the owner answered directly on 2026-10-20 and the coordinator relayed it (plan §9, *final
+round*). The scribe read no application source. This closes Amendment F's "O1, O2, O8, O12, O17 stay open" and Amendment
+G item 5's matching line, except as marked. Earlier text is kept.
+
+- **O2:** the claim dialog shows count, dates and names, as built. Criterion 5 of plan L14b is amended to "count, dates
+  and names". No thumbnails.
+- **O3:** C6's wording is accepted. **O7:** hide revokes the share link, as built.
+- **O4:** the client's own download (`GET /api/account/export`, not the operator restore export) keeps profile and
+  kitchens; requests and notes may be added if the privacy notice needs it. Why it exists is an **inference** (design
+  mocks and Fix 3 asked for it; GDPR access / portability is the likely reason), to be confirmed with whoever owns the
+  privacy notice.
+- **O8:** a notice to the owner of an address that already has an account, mirroring D1 (**to be verified against the
+  code:** whether built E8 already does this for a verified holder); old-address notice copy approved under O28b;
+  every session is revoked on confirm.
+- **O9:** A16C deferred, not built. **O12:** "Anulează" is allowed on account dialogs, a scoped exception to ADR 0086
+  (P19). **O13:** ruled by O27. **O14:** account wording as built in `accountFieldErrors`. **O15:** not asked; one file
+  per lot stands.
+- **O11: no backfill of `sent_at`.** Requests stored before S5 stay unmarked. This **cancels** the owner-run backfill
+  named in Amendment F and in Amendment G item 4. Consequences: the S5 already-notified-replay residual (Amendment G
+  item 4) **now has no repair**; older requests are not marked sent, so the client can delete those kitchens rather than
+  only hide them; the operator "sent" filter misses them.
+- **O17: «de» from twenty up** ("20 de bucătării"; standard Romanian: «de» when the last two digits are 20-99 or 00).
+  This **overrides** the owner's own 2026-09-10 ruling "without «de» on plural" (`docs/i18n/ro-catalogue-notes.md`, dated
+  note added there). A developer is implementing it [relayed; not verified].
