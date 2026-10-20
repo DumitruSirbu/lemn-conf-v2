@@ -1,4 +1,4 @@
-// Sweeps ADR 0104's give C, and the visitor's link (give D) beside it, at all three hardware tiers the book offers and from a previous count, which
+// Sweeps ADR 0104's give C, and the visitor's link beside it, at all three hardware tiers the book offers and from a previous count, which
 // `top-bar-fit.test.ts` (one label set, no previous count) does not.
 // Widths are measured in Chromium at the pill's declared typography (`400 12.5px/1 Helvetica, Arial, sans-serif`); the
 // four seeded figures reproduce `top-bar-fit.test.ts`'s, so the two added tiers are comparable.
@@ -371,8 +371,7 @@ describe("the visitor's link beside the wordmark — the order the gives come ba
   const NARROWEST_SWEPT_PX = 700;
   const WIDEST_SWEPT_LINK_PX = 1700;
 
-  /** The Standard-tier pill at the width the wordmark returns: testing the wordmark with the words assumed kept it where
-   *  dropping both would have named a third setting, one name fewer at a wider window. */
+  /** The wordmark stays out wherever the row without it, and without the link's words, would name another setting. */
   it("does not keep the wordmark where the row without it and without the link's words names more", () => {
     const labels = labelsWithHardware(HARDWARE_PX.Standard);
     const dearer: string[] = [];
@@ -402,6 +401,26 @@ describe("the visitor's link beside the wordmark — the order the gives come ba
     }
 
     expect(dearer).toEqual([]);
+  });
+
+  it("changes the link's form once as the window widens, on every pill the application can draw", () => {
+    const flipsByPill = everyPill.map((labels) => {
+      const flips: number[] = [];
+      let previous: boolean | undefined;
+      for (
+        let viewportPx = NARROWEST_SWEPT_PX;
+        viewportPx <= WIDEST_SWEPT_LINK_PX;
+        viewportPx += 1
+      ) {
+        const { isAccountCompact } = onFirstPaintAt(labels, viewportPx);
+        if (previous !== undefined && isAccountCompact !== previous)
+          flips.push(viewportPx);
+        previous = isAccountCompact;
+      }
+      return flips.length;
+    });
+
+    expect(flipsByPill).toEqual(everyPill.map(() => 1));
   });
 
   it.each([

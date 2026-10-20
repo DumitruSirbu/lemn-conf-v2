@@ -132,8 +132,8 @@ test.describe("the band the refreshed frame draws", () => {
     expect(band.emptySpans).toBe(0);
   });
 
-  // The visitor's "Intră în cont" is its glyph on this shell (the owner's ruling of 2026-10-20), so the 390 px row keeps
-  // room for the title. Frame 2A draws "Configurare" at `flex: 1; min-width: 0`, ADR 0104 decision 9's last give.
+  // The visitor's link is its glyph on this shell, so the 390 px row keeps room for the title, which frame 2A draws
+  // at `flex: 1; min-width: 0` (ADR 0104 decision 9).
   test("draws its title: the box is not squeezed to nothing by the account control", async ({
     page,
   }) => {

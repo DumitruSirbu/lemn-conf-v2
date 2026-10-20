@@ -71,7 +71,9 @@ const atTwoWholeLabels = widthNeededForVisibleLabels(
 const WORDMARK_LEAVES_BELOW_PX = DEMAND_PX.gapsClosed + atEveryLabel;
 const GAPS_CLOSE_BELOW_PX = DEMAND_PX.asDrawn + atEveryLabel;
 
-const EVERY_DESKTOP_WIDTH = [900, 950, 1000, 1033, 1034, 1100, 1440, 1920];
+const EVERY_DESKTOP_WIDTH = [
+  900, 950, 1000, 1033, 1034, 1100, 1272, 1386, 1440, 1920,
+];
 
 /** How many names the pill draws in a track for a stated label set: the ladder's own function, not a second model. */
 function visibleLabelsIn(
@@ -190,14 +192,14 @@ describe("give C — the wordmark leaves the row, and only where it buys a name"
 
   it("gives the pill exactly the wordmark's own width and its gap when it goes", () => {
     const kept = fitAt(1400, D2A_AS_DRAWN);
-    // 1100 is a width where the wordmark has gone and the link still has its words, so give D adds nothing to the track.
-    const dropped = fitAt(1100, D2A_AS_DRAWN);
+    // 1300 is a width where the wordmark has gone and the link has its words back, so the account give adds nothing.
+    const dropped = fitAt(1300, D2A_AS_DRAWN);
 
     expect(dropped.isWordmarkDrawn).toBe(false);
     expect(dropped.isAccountCompact).toBe(false);
     expect(kept.pillTrackPx).toBeCloseTo(1400 - DEMAND_PX.gapsClosed, 6);
     expect(dropped.pillTrackPx).toBeCloseTo(
-      1100 - DEMAND_PX.gapsClosedWithoutWordmark,
+      1300 - DEMAND_PX.gapsClosedWithoutWordmark,
       6,
     );
     expect(
@@ -343,12 +345,51 @@ function trackWithTheWordsAt(
   );
 }
 
-describe("give D — the visitor's link becomes its glyph, and only where the words would cost a setting name", () => {
+describe("the account give — the visitor's link becomes its glyph, and its words return once the pill names every setting without the wordmark", () => {
   const NARROWEST_SWEPT_PX = 700;
   const WIDEST_SWEPT_PX = 1700;
 
+  /** The width at which the row without the wordmark names every setting beside the words, derived from the measured
+   *  row and the pill's own rung, so no width is declared. */
+  function wordsReturnAt(accountWidthsPx: AccountControlWidths): number {
+    return (
+      widthNeededForVisibleLabels(4, SEEDED_LABELS, DESKTOP_PILL) +
+      demandOf(
+        {
+          isWordmarkDrawn: false,
+          isSpacingClosed: true,
+          isAccountCompact: false,
+        },
+        accountWidthsPx,
+      )
+    );
+  }
+
+  /** The viewport widths at which the link changes form as the window widens, with the form it takes. */
+  function flipsOf(accountWidthsPx: AccountControlWidths): readonly string[] {
+    const flips: string[] = [];
+    let previous: boolean | undefined;
+    for (
+      let viewportPx = NARROWEST_SWEPT_PX;
+      viewportPx <= WIDEST_SWEPT_PX;
+      viewportPx += 1
+    ) {
+      const { isAccountCompact } = fitAt(
+        viewportPx,
+        D2A_AS_DRAWN,
+        accountWidthsPx,
+      );
+      if (previous !== undefined && isAccountCompact !== previous)
+        flips.push(
+          `${String(viewportPx)}: ${isAccountCompact ? "glyph" : "words"}`,
+        );
+      previous = isAccountCompact;
+    }
+    return flips;
+  }
+
   it("agrees with the row the browser measured with the glyph in it", () => {
-    // Gives B, C and D spent, measured at 1000; the model's glyph form is the words' width less the two forms' difference.
+    // Gives B, C and the account give spent, measured at 1000: the words' width less the two forms' difference.
     expect(
       demandOf({
         isWordmarkDrawn: false,
@@ -364,49 +405,34 @@ describe("give D — the visitor's link becomes its glyph, and only where the wo
     );
   });
 
-  it("keeps the words wherever the pill names every setting, and drops them where the pill is down to one name", () => {
+  it.each([
+    ["Romanian", VISITOR_LINK_WIDTHS_PX],
+    ["Russian", RUSSIAN_VISITOR_LINK_WIDTHS_PX],
+  ] as const)(
+    "changes form exactly once as the window widens, from the glyph to the words, in %s",
+    (_name, accountWidthsPx) => {
+      const flips = flipsOf(accountWidthsPx);
+
+      expect(flips).toHaveLength(1);
+      expect(flips[0]).toMatch(/: words$/);
+      // The one flip is where the row without the wordmark names every setting beside the words, and not a pixel earlier.
+      const returnAt = wordsReturnAt(accountWidthsPx);
+      expect(
+        fitAt(Math.ceil(returnAt) - 1, D2A_AS_DRAWN, accountWidthsPx)
+          .isAccountCompact,
+      ).toBe(true);
+      expect(
+        fitAt(Math.ceil(returnAt), D2A_AS_DRAWN, accountWidthsPx)
+          .isAccountCompact,
+      ).toBe(false);
+    },
+  );
+
+  it("keeps the words wherever the pill names every setting, and draws the glyph where it is down to fewer", () => {
     expect(fitAt(1920, D2A_AS_DRAWN).isAccountCompact).toBe(false);
     expect(fitAt(1440, D2A_AS_DRAWN).isAccountCompact).toBe(false);
+    expect(fitAt(1100, D2A_AS_DRAWN).isAccountCompact).toBe(true);
     expect(fitAt(900, D2A_AS_DRAWN).isAccountCompact).toBe(true);
-    expect(fitAt(1000, D2A_AS_DRAWN).isAccountCompact).toBe(true);
-  });
-
-  it("is chosen exactly where the glyph's room buys the pill a name, or the pill has no room for one name beside the words", () => {
-    const widthsByArm = { boughtAName: 0, belowTheFloor: 0, kept: 0 };
-    for (
-      let viewportPx = NARROWEST_SWEPT_PX;
-      viewportPx <= WIDEST_SWEPT_PX;
-      viewportPx += 1
-    ) {
-      const fit = fitAt(viewportPx, D2A_AS_DRAWN);
-      const trackWithWords = trackWithTheWordsAt(fit, VISITOR_LINK_WIDTHS_PX);
-      const trackWithGlyph =
-        trackWithWords +
-        VISITOR_LINK_WIDTHS_PX.textPx -
-        VISITOR_LINK_WIDTHS_PX.iconPx;
-      const isBelowTheFloor =
-        trackWithWords <
-        widthNeededForVisibleLabels(1, SEEDED_LABELS, DESKTOP_PILL);
-      const glyphBuysAName = [2, 3, 4].some(
-        (names) =>
-          widthNeededForVisibleLabels(names, SEEDED_LABELS, DESKTOP_PILL) >
-            trackWithWords &&
-          widthNeededForVisibleLabels(names, SEEDED_LABELS, DESKTOP_PILL) <=
-            trackWithGlyph,
-      );
-
-      expect(fit.isAccountCompact, `at ${String(viewportPx)}`).toBe(
-        isBelowTheFloor || glyphBuysAName,
-      );
-      if (!fit.isAccountCompact) widthsByArm.kept += 1;
-      else if (isBelowTheFloor) widthsByArm.belowTheFloor += 1;
-      else widthsByArm.boughtAName += 1;
-    }
-
-    // A floor per arm: a sweep that only ever reached the arm nobody changed would certify nothing about the others.
-    expect(widthsByArm.kept).toBeGreaterThan(100);
-    expect(widthsByArm.belowTheFloor).toBeGreaterThan(100);
-    expect(widthsByArm.boughtAName).toBeGreaterThan(20);
   });
 
   it("returns the words' width to the pill and nothing else when it compacts", () => {
@@ -419,12 +445,16 @@ describe("give D — the visitor's link becomes its glyph, and only where the wo
 
     expect(compact.isAccountCompact).toBe(true);
     expect(compact.pillTrackPx).toBeCloseTo(
-      900 - demandOf(wordmarkGoneAndGapsClosed) + 70.13,
+      900 -
+        demandOf(wordmarkGoneAndGapsClosed) +
+        VISITOR_LINK_WIDTHS_PX.textPx -
+        VISITOR_LINK_WIDTHS_PX.iconPx,
       6,
     );
   });
 
   it("never compacts a signed-in control, whose two forms measure alike, and leaves the other gives as they were", () => {
+    expect(flipsOf(SIGNED_IN_WIDTHS_PX)).toEqual([]);
     for (
       let viewportPx = NARROWEST_SWEPT_PX;
       viewportPx <= WIDEST_SWEPT_PX;
@@ -440,7 +470,7 @@ describe("give D — the visitor's link becomes its glyph, and only where the wo
     }
   });
 
-  it("returns less for the shorter Russian words, and decides by the same property", () => {
+  it("returns less for the shorter Russian words", () => {
     const romanian = fitAt(1000, D2A_AS_DRAWN);
     const russian = fitAt(1000, D2A_AS_DRAWN, RUSSIAN_VISITOR_LINK_WIDTHS_PX);
 
@@ -449,10 +479,17 @@ describe("give D — the visitor's link becomes its glyph, and only where the wo
     expect(
       romanian.pillTrackPx -
         trackWithTheWordsAt(romanian, VISITOR_LINK_WIDTHS_PX),
-    ).toBeCloseTo(70.13, 2);
+    ).toBeCloseTo(
+      VISITOR_LINK_WIDTHS_PX.textPx - VISITOR_LINK_WIDTHS_PX.iconPx,
+      2,
+    );
     expect(
       russian.pillTrackPx -
         trackWithTheWordsAt(russian, RUSSIAN_VISITOR_LINK_WIDTHS_PX),
-    ).toBeCloseTo(32.78, 2);
+    ).toBeCloseTo(
+      RUSSIAN_VISITOR_LINK_WIDTHS_PX.textPx -
+        RUSSIAN_VISITOR_LINK_WIDTHS_PX.iconPx,
+      2,
+    );
   });
 });

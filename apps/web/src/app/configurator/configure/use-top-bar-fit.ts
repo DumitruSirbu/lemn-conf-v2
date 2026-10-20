@@ -39,7 +39,7 @@ export interface TopBarFitState {
   /** Goes on the settings grid item: **the pill's track is what is measured**, not the pill, so the
    *  ladder can see room the pill is not currently using. */
   readonly settingsTrackRef: RefObject<HTMLDivElement | null>;
-  /** Give D: the visitor's link is its glyph alone. */
+  /** The account give: the visitor's link is its glyph alone. */
   readonly isAccountCompact: boolean;
   /** Goes on the hidden wordmark probe, which stands **outside** the nav so dropping the wordmark
    *  does not destroy the measurement that would put it back. */
