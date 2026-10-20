@@ -63,6 +63,14 @@ three lanes (persistence and domain; web server routes; web client, UI and i18n)
 recorded** by the coordinator (plan [§13](milestones/M8B-account-screens-lot2-plan.md)). Detail: plan §12.7-§13; ADR 0172
 Amendment G, addendum.
 
+**2026-10-20 update (M8B Lot 2, owner rulings; wave H0, records only) [owner rulings relayed by the coordinator; nothing
+built or run].** O1 is ruled: autosave only, no Save / Discard (A15 and A16A dropped; the A16B card survives on Step 1,
+O28a). O19 is ruled: request-time notice plus a revert link of **24 hours** (O28c); the plan's §14 designs it as waves
+S13-0 to U16, none built. O20-O27 are ruled; the backup export will carry `account_id` and `name` (O21). New copy is
+pre-approved as drafted (O28b); Lot 1 Romanian copy is approved. **D12 stays lifted for all remaining Lot 2 waves** (QA
+and review per tier). Grant 4b (runbook) still waits: it follows S13-0 to U16 reviewed, then the owner, then a separate
+flag-flip commit. Detail: plan §9 *(later)* and §14; ADR 0172 Amendment H.
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left

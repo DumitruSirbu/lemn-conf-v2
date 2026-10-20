@@ -1015,3 +1015,12 @@ the two leaves above, which O-1 settles.
 
 **Citing a frame.** By chip and element id, e.g. `Presete.dc.html#1g-single` (chip *1G · d*). Citations of the two screen
 files written before this copy shift by five lines (`docs/design/README.md`).
+
+## Dated note, 2026-10-20 — D4's back-confirmation body is chosen by session (copy only)
+
+Written by the scribe from the owner's ruling O1 [relayed by the coordinator]; the scribe read no source and ran nothing.
+Nothing above is changed. The owner ruled **autosave only**, so the left kitchen is not lost (ADR 0172 Amendment H). The
+frame copy "Modificările vor fi pierdute" and its sentence, as Amendment D's D4 adopted them, become untrue. **The
+mechanism does not change**; only the dialog's title and body do. The client body is chosen only on a definite signed-in
+answer holding `design.edit.own`; every other state gets the visitor body. Neither says "pierdute". The new copy is
+pre-approved as the developers draft it (O28b). Plan: `docs/milestones/M8B-account-screens-lot2-plan.md` §14.2, wave U15c.

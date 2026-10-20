@@ -17,6 +17,14 @@
 > corrected in §12.7). New owner questions O25-O27 are in §9. **D12 was lifted by the owner for the tests round on
 > 2026-10-19**; the tests round is recorded in §13, results to be recorded.
 >
+> **Update 2026-10-20 [owner rulings relayed by the coordinator; architect].** O1 and O19-O27 are ruled (§9, *Answered
+> by the owner, 2026-10-20*). §14 redesigns U15 for autosave only, designs the O19 recovery path (request-time notice
+> and revert link), and lists the waves that follow and the ADR 0172 Amendment H points. Nothing in §14 is built.
+>
+> **Update 2026-10-20, later [owner rulings relayed by the coordinator; scribe].** O28a (the A16B card survives), O28b
+> (new copy pre-approved as drafted), O28c (revert link lives 24 hours) and Lot 1's O1 are ruled; D12 stays lifted for
+> all remaining Lot 2 waves. See §9, *Answered by the owner, 2026-10-20 (later)*. §14 was updated in place.
+>
 > - Branch `feat/login-register`, worktree `lemnaria-configurator-login`.
 > - This file adds to [`M8B-login-register-plan.md`](M8B-login-register-plan.md) and to
 >   [`M8B-account-screens-lot1-review.md`](M8B-account-screens-lot1-review.md).
@@ -901,6 +909,53 @@ Raised by the U7-U13 reviews and the tests round. None is ruled. O1-O18 and O19-
 | **O26** | **Export size bound.** The cap is a 200-kitchen **count**, not a byte bound, and the platform's response-size limit is **unknown** (not measured). Should the bound be bytes? **Source-verified:** an account over the count is refused before the bucket is counted (`lib/server/account/export-account.ts:45-46`), but an attempt that fails after the bucket is counted (a kitchen added between the measure and the read, or, **inference** and untested, a response the platform refuses) spends one of the 5 UTC-day downloads. Each download spends one of 5 per day | Not stated | U13 / S10 |
 | **O27** | **Approve all RO and RU draft copy** of Lot 2: `accountKitchens`, `accountProfile`, `accountPassword`, `accountEmailChange`, `accountExport`, the `accountMail` e-mail-change mails, `claimDialog`, `sessionExpiredSheet`. All are agent drafts (ADR 0095 decision 2); O13 and O14 above are the older forms of this question | Owner approves, or rewrites, per leaf | the copy lock; milestone close |
 
+### Answered by the owner, 2026-10-20 [owner, relayed by the coordinator]
+
+The rows above keep their original text. Design consequences are in §14.
+
+- **O1 — ANSWERED.** No Save / Discard buttons; autosave only. A15 and A16A are dropped (§14.2). **This reverses part
+  of the owner's own 2026-10-17 rulings** (`OWNER_FIXES.md` Fix 3): Q-F3-5's "Save or Discard" pop-up and Q-F3-8's
+  "the same Save / Discard pop-up … on Save, always told". Q-F3-5's "the client keeps all kitchens they generated"
+  stands, and autosave is what delivers it.
+- **O19 — ANSWERED.** Both: a notice to the **old** address when the change is requested, and a revert link in the
+  confirm notice (sent to the old address after confirm). Design: §14.3.
+- **O20 — ANSWERED.** Keep `GET /api/account/profile`. §12.1's deviation becomes the contract.
+- **O21 — ANSWERED.** The backup export **does** carry `account_id` and `name`. This reverses ADR 0172 D10's last
+  bullet ("`account_id` joins the design export only with the accounts export") and Amendment G item 2's backup
+  bullet. The restore export is the designs-table row source (`packages/persistence/src/design-row-source.ts`) and
+  `docs/runbooks/design-db-restore.md`. *Observed 2026-10-20 [run: `git status --short` in this worktree]:
+  uncommitted edits to both files, and to the backup tests, by another agent. This plan did not review them.*
+- **O22 — ANSWERED (confirmed).** The frozen shop copy at `/s/<token>` (`contact_submission_views`) stays reachable
+  after hide (ADR 0165). CG9's and criterion 3's qualifying notes become the rule.
+- **O23 — ANSWERED (accepted).** Password reset and change retire every unused e-mail token, verify-email included.
+  §14.3 narrows "every" by one purpose: the new revert token is exempt.
+- **O24 — ANSWERED (approved).** The 429 countdown in the notice (SB10), as built once in `account-form-parts`.
+- **O25 — ANSWERED (approved).** A separate client wording for `designLoadError.bodyClient`.
+- **O26 — ANSWERED.** Keep the 200-kitchen export count cap for now. The bucket-spend residual of O26 stays recorded.
+- **O27 — ANSWERED.** All RO and RU draft copy is approved as drafted. **This covers only leaves that existed on
+  2026-10-20.** The new copy of §14 (back-guard bodies, the A16B card, the request notice, the revert line, the revert
+  page) is not covered by O27; O28b (below) pre-approves it.
+
+### Answered by the owner, 2026-10-20 (later) [owner, relayed by the coordinator; the O21 row is the developer's choice]
+
+These rulings override §14 where they differ. §14 was updated in place, and its changed lines say so.
+
+- **O28a — ANSWERED (yes).** The A16B Step-1 card survives (§14.2).
+- **O28b — ANSWERED (pre-approved).** New copy is approved as the developers draft it, the same as O27: the two
+  back-guard bodies and the new title, the A16B card, the request-time notice, the revert line of the `email-changed`
+  notice, and the revert page. The owner may edit it afterwards. RU is never pinned by literal (ADR 0095 decision 2).
+- **O28c — ANSWERED.** The revert link lives **24 hours**, not 7 days. Every mention in §14 is changed.
+- **Lot 1's O1 — RULED.** The owner approved Lot 1's Romanian copy, `privacyNotice` included, as drafted, directly on
+  2026-10-20. All Romanian copy is now in the approved lock (commits `883f9372`, `f38815ee` [relayed; the scribe ran no
+  `git show`]). The privacy-notice placeholders are open and unrelated.
+- **O21 restore semantics — RULED BY DEFAULT [developer's choice, unless the owner objects].** On a conflict a restore
+  never changes `account_id`; `name` becomes `coalesce(live, restored)`. There is no foreign key on `account_id`
+  (`0015`), so the runbook rule "restore accounts before designs" and an orphan-claim query are operator rules. No
+  accounts export exists.
+- **QA regime — D12 stays lifted** for every remaining Lot 2 wave. Each wave gets adversarial QA tests and reviews per
+  its tier. This answers the regime question at the head of §14, and supersedes the "D12 still applies" block at the
+  top of this file for those waves.
+
 ### Future work
 
 - **Data-erasure / retention policy ADR** (needed later; there is currently no policy on user-data erasure). Owner:
@@ -1081,3 +1136,447 @@ under test turns it red):
 
 The brief for each lane is §12.6 and §8.3. **Results: to be recorded** by the coordinator (counts, mutation proofs,
 gate output). Nothing in this section is a result.
+
+## 14. After the owner's rulings of 2026-10-20: U15 under autosave, the O19 recovery path, and their waves (architect, 2026-10-20)
+
+**Evidence.** Rulings are the owner's, relayed by the coordinator (§9, *Answered 2026-10-20*). File and SQL facts are
+**[src]**: read by the architect in this worktree on 2026-10-20 (`neon-account-store.ts:592-773`, `change-email.ts`,
+`confirm-email-change.ts`, `email-token.ts`, `visitor.ts:44-73`, `visitor-resume.ts:41-68`, `back-confirmation.tsx`,
+`use-back-guard.ts`, `use-session-expiry.ts`, `0014`, `0018`, runbook step 4/4b). **Nothing below is built or run.**
+Everything not marked is **[inf]**, the architect's design.
+
+**Review tier and QA.** *Ruled 2026-10-20 (§9, later):* D12 stays lifted for all remaining Lot 2 waves, and every wave
+gets adversarial QA tests and reviews per its tier. The criteria are written as tests, and QA and reviewer *Reading*
+lines are given (§14.4). (The draft of this paragraph said D12 was lifted for the tests round only and left the regime
+to each dispatch; the ruling replaces that.)
+
+### 14.1 Classification
+
+| Issue | Class | Resolution |
+| --- | --- | --- |
+| CG1 (Save / Discard under autosave) | Contract gap | Closed by O1. U15 is redesigned (§14.2) |
+| **CG12 (new).** The back-guard dialog says "Modificările vor fi pierdute … modificările efectuate vor fi pierdute" (`configure.backConfirm`, ADR 0104 Amendment D4, ADR 0139 d6) [src: `messages/ro.json:25-30`]. Under autosave the left kitchen is not lost. For a client it is in "Bucătăriile mele". For a visitor it stays in the browser's rows and can be claimed, although resume opens only the most recent design [src: `visitor-resume.ts:41-52`] | Contract gap (mock copy against the autosave ruling) | U15c changes the copy, not the mechanism. Copy pre-approved as drafted (O28b) |
+| F1 (e-mail change takeover, no way back) | Contract gap | Closed by O19 (§14.3) |
+| §12.5 residual "a lost acknowledgement on the E9 confirm drops the old-address notice" | Implementation residual | Repaired by S13a: the retry arm reads the old address back from the revert row |
+
+### 14.2 U15 under autosave only
+
+**What each surface does now.**
+
+- **A client starting a new kitchen over an open one.** No pop-up. The open kitchen is already a list entry: it was
+  minted with `account_id` (L11, D8), or it was claimed. Leaving the editor for Step 1 goes through the existing
+  back-guard (ADR 0139 d6) with a truthful body (U15c). Generating or copying a preset mints a new row, which is a new
+  list entry. **Consequence to state, not a blocker:** every generation and every preset copy adds an entry to
+  "Bucătăriile mele". Clean-up is by delete (E4) or hide (E5).
+- **A visitor starting a new kitchen over an open one.** No pop-up. The same back-guard, with the visitor body (U15c).
+  On arriving at Step 1 after confirming, the visitor sees the A16B card once (U15d); the owner ruled yes (O28a).
+- **The mint is unchanged.** Rotation moves every row of the carried visitor hash to the new one [src: `visitor.ts:44-73`,
+  ADR 0114 H1], so all of one browser's kitchens stay under one visitor hash and are claimable together.
+
+**Frames.**
+
+| Frame | Fate | Why |
+| --- | --- | --- |
+| A15A, DA15A, A15B, A15C, A15D | **Dropped** | O1: no Save / Discard. Nothing is unsaved, so there is nothing to save or fail to save |
+| A16A, DA16A | **Dropped** | Same |
+| A16B, DA16B | **Survives, re-triggered** (O28a: ruled yes) | Its message is still true: the kitchen is kept (autosave), it is not viewable without an account (Q-F3-8), and it can be attached by claim. It is no longer shown "after Save". It becomes a non-modal card on Step 1, shown after the visitor confirms leaving an edited editor. Buttons as drawn: "Creează cont" / "Nu acum" |
+| A16C | **Unchanged: deferred** | O9 is still open (default: defer) |
+| C18, C19 | **Withdrawn** | No "last save", no "Salvată în Bucătăriile mele" toast |
+| C20 | **Kept** in the A16B card | "Am păstrat bucătăria" is true under autosave |
+| C21 | O9 | — |
+| CD answer 1 ("versiunea salvată") | **Rejected** | It promises a version the product does not keep (unchanged from C18) |
+
+**Claim flow (unchanged).** The A16B card's "Creează cont" is a full-load `<a href>` to `/{locale}/account/register`
+(M1). Then: register, then confirm (which signs in, D1), then the built claim dialog when `claimable > 0` (U9a, P10).
+"Atașează" claims every unclaimed row of the browser's visitor hash (D8). The landing is "Bucătăriile mele" (O10). No
+`returnTo` is set, because nothing was refused. O2 (claim detail) is still open and does not block U15.
+
+**Server, capabilities, S4.** **None.**
+
+- No route, no column, no migration, no port member, no "kept" mark.
+- No capability. The card is gated on a **definite anonymous** session answer only.
+- S4's predicates and ADR 0019 d11's scope do not change.
+- The back-guard mechanism (ADR 0139 d6 rules 1-3, the guard entry, `forward()` on Stay) does not change. Only its
+  body text is chosen by session state.
+
+**Criteria.**
+
+- **U15-1. No keep-kitchen surface.** The diffs of U15c and U15d contain:
+  - no file named `keep-kitchen*`;
+  - no new file under `app/api`;
+  - no migration;
+  - no change to `create-design.ts`, `use-generation.ts`, the mint route, the claim route, `claimable-designs.ts`,
+    `claim-dialog.tsx`, `on-signed-in.ts`, `neon-configuration-repository.ts` or `share-link-repository.ts`.
+
+  No rendered control reads "Nu o păstra", or "Salvează" in a keep-kitchen context.
+- **U15-2. Leaving loses nothing.**
+  - For a client: open a Step-1 kitchen, edit, confirm Back, then generate. E1 then lists both kitchens. The first
+    keeps its last saved `document` and `revision`.
+  - The confirmation itself sends no request to any design route.
+  - **Must not:** leaving deletes, hides or marks a design, or changes its revision.
+- **U15-3. Back-guard body honesty.**
+  - Every sentence of each body holds for every design the guard can be shown on:
+    - (a) minted while signed in as a client;
+    - (b) minted signed out;
+    - (c) minted signed out, with a client signed in later in another tab (unclaimed).
+  - The client body is chosen only on a **definite** signed-in answer holding `design.edit.own`
+    (`isSessionAnswerDefinite`, `use-account-session.ts`). Any other state gets the visitor body.
+  - Neither body contains "pierdute" / "se pierd", or the RU equivalent.
+  - ADR 0139 d6 rules 1-3 still hold: the guard is pushed on the first edit, Stay does `forward()`, one guard per
+    visit.
+- **U15-4. The A16B card's conditions.** It renders only when all three hold:
+  1. the session answer is definite and anonymous;
+  2. this document confirmed Back from an edited editor reached from Step 1 (a module-scope record, as `back-guard.ts`
+     holds its origin);
+  3. it has not been dismissed in this document.
+
+  It renders at most once per document.
+  - **Must not render:** for a signed-in client or staff; on an indefinite answer (a failed session read reads as
+    anonymous, which is not enough); after the person's own sign-out in this document (P16's `isSignedOutByPerson`
+    mark, `use-account-session.ts`), because the kitchen they left is already account-owned and "can be attached" would
+    be false; on a first arrival at Step 1; after "Nu acum"; after a reload; on the editor; on an account page.
+  - **Non-modal:** focus does not move, Step 1 stays operable, there is no `aria-modal` and no inert background.
+  - It writes no cookie, `localStorage` or `sessionStorage`.
+  - "Creează cont" produces a document request.
+  - At 390 × 844 both buttons measure at least 44 × 44, with no truncation in RO or RU.
+- **U15-5. Card copy.**
+  - It says the kitchen is kept **in this browser** and can be attached to an account once one is created.
+  - It never says the kitchen is saved in an account. It never offers visitors a list (Q-F3-8). It never promises
+    kitchens from another browser.
+- **U15-6. Claim count over generations** (a property owed to the tests round, pinning built behaviour). For n from 1
+  to 5 kitchens generated in one browser context, after register and confirm, `GET /api/account/claim` answers
+  `claimable: n`. If it does not, A16B's "o poți atașa" is false and U15d does not ship.
+
+### 14.3 O19: the e-mail change recovery path
+
+**The threat [src: built flow].** Someone holding a live session and the password moves the account to an address
+they control (E8, then E9). Today:
+
+- E9 revokes every session (`confirmEmailChange` statement 2);
+- E9 mails the old address an `email-changed` notice;
+- E9 retires every other unused token of the account, **of any purpose** (`superseded` CTE, `neon-account-store.ts:717-723`).
+
+The attacker can then sign in at the new address with the password they know. Three existing statements would destroy
+any recovery token that is not exempted:
+
+- `changePassword` statement 3, retire-all (`:635-646`);
+- `completeReset`'s retire-all (`:435`);
+- `confirmEmailChange`'s `superseded`.
+
+A further rule would refuse it: `created_at >= password_changed_at` (`:704`).
+
+#### 14.3.1 The request-time notice (to the old address)
+
+- **When.** In `sendChangeMail`, after `retireEmailChangeTokens` and **before** the holder lookup, for every verified
+  E8 request whose target differs from the current address. That covers a free target, one a verified account holds,
+  one an unverified account holds, and a reserved one (§14.3.4). The account's own address gets nothing, since no
+  change is possible.
+- **To whom.** The requester's current address, in the account's locale. `ChangeMailJob.requester` today picks `id`,
+  `locale` and `passwordHash` only [src: `change-email.ts:197`]. It gains `email`.
+- **Content** (new copy, pre-approved as drafted, O28b). Someone asked to change this account's address to `{the typed address}`.
+  - If it was you, nothing to do.
+  - If not, reset your password at `/{locale}/account/forgot-password` (a plain link, no token). **Resetting cancels the
+    change while it is unconfirmed**, which is true by the built code: `completeReset` retires every unused token, and
+    E9 refuses a token issued before `password_changed_at` (O23).
+  - **The notice must also say what happens if the change was already confirmed.** An intruder who controls the target
+    inbox will usually confirm within seconds. After that, a reset requested for the old address reaches no account:
+    the address is reserved, not held (§14.3.4), and gets the silent same answer. So the notice says that if the change
+    has already gone through, a second message from us carries a link to undo it (§14.3.2). Without that line, the
+    notice's only remedy would lead nowhere in the likely ordering (rule 0.3-6).
+  - The body is identical for all four target cases, apart from the typed address.
+- **Buckets.** None new. The request has already counted `account-email-change-by-account` (5 a day) and the
+  per-target mail bucket, before the answer [src: `change-email.ts:174-194`]. So at most 5 notices a day reach one
+  account.
+- **No oracle.** It is sent after the response (`after()`), to the account's own inbox, the same for every target case.
+
+#### 14.3.2 The revert token
+
+| Property | Rule |
+| --- | --- |
+| Kind | New purpose **`email-change-revert`** in the code's closed list (`account-store.ts` `EMAIL_TOKEN_PURPOSES`). It fits `0014`'s shape check `^[a-z-]{1,32}$` [src]. It is excluded from `PlainEmailTokenPurpose`, because it carries an address. `issueToken` refuses it, as it refuses `email-change` |
+| What the row holds | `new_email` / `new_email_normal_form` = **the address being left**, which is the address the revert changes to. `0018` makes "which purposes carry them" the code's rule [src: `0018` header]. **No migration** |
+| Issued | **Inside `confirmEmailChange`'s statement 1**: one `insert … select` **from `consumed`**, joined to `locked` only for the old address and locale, in the transaction that changes the address. **Not from `locked` alone:** `locked` matches the account any submitted token hash names, valid or not, so an insert keyed on it would write a revert row on a refused E9 (a re-clicked used link, say), and that row would reserve the account's current address for 24 hours. A rolled-back confirm (unique violation) leaves no revert row either |
+| Minted | The value is minted **once per E9 call, outside `retryOnTransientFailure`**. Its hash and expiry are passed into the store |
+| Lifetime | **24 hours, ruled by the owner (O28c, 2026-10-20)**, not 7 days. The constant is hours, not days: `EMAIL_CHANGE_REVERT_TOKEN_LIFETIME_HOURS` in `email-token.ts` [inf: the architect's name; the draft's `_DAYS` cannot express it] |
+| Link | `{LEMNARIA_PUBLIC_ORIGIN}/{locale}/account/revert-email#t={token}` (fragment, D1, D6), added to the existing `email-changed` notice to the old address |
+| Single use | `used_at` set on use, like every token |
+| **Exempt from** | (1) the "newest unused of its purpose" rule (D5); (2) the `created_at >= password_changed_at` refusal (the S9 F3 binding); (3) `changePassword` statement 3; (4) `completeReset`'s retire-all; (5) `confirmEmailChange`'s `superseded` sweep. (3) and (4) narrow O23's "every unused token" by this one purpose |
+| **Oldest wins** | Any unused, unexpired revert token of the account is valid. Using token R marks used: every other unused token of the account of any non-revert purpose, **and** every revert token created after R. Revert tokens created before R stay valid. So a later change, made by whoever holds the account, cannot retire an earlier revert link, and an attacker who uses their own later revert link does not kill the victim's earlier one |
+| Retry arm | When the first attempt committed and its acknowledgement was lost, the retry reads `previous` (address and locale) from the revert row by its hash. The notice **and** the revert link are still queued. This repairs §12.5 bullet 1 |
+
+**Chaining: exemption, not cooldown.** The alternative was to refuse E8 while any revert token of the account is
+live. It was rejected because the exemption is needed anyway: a password change must not kill the link. With "oldest
+wins", a cooldown adds nothing, and it would block a legitimate second change for 24 hours.
+
+#### 14.3.3 What a revert does
+
+`POST /api/account/email-change/revert` with body `{token, newPassword}`. **New password required.** The attacker
+knows the old password and the old address, so a revert that only restores the address would let them sign straight
+back in.
+
+The steps:
+
+1. The route's common steps: cross-site refusal, JSON media type and bounded body,
+   `account-token-complete-by-block`. There is no session and no Turnstile; the token is the subject. **The route is
+   not behind `EMAIL_CHANGE_ENABLED`**: switching the feature off later must not strand a live revert link. Before any
+   change has been confirmed, no revert row exists, and every call answers `link-invalid`.
+2. Token shape (`isWellFormedEmailToken`), then the password rules, then the breached-password check, then the
+   argon2id hash. **This order mirrors `reset-password.ts`**, including how it applies the not-the-address rule
+   [src: `reset-password.ts:287` `judgePassword({password, email})`]. The address compared is the one the token
+   restores. A refused password consumes nothing.
+3. **One transaction (`revertEmailChange`, READ COMMITTED, the `completeReset` shape).**
+   - Lock the account row (`for update`).
+   - Consume the token: purpose `email-change-revert`, unused, unexpired, carries an address, account verified.
+   - Check that no **other** account holds the target, and that no other account's live revert token reserves it.
+   - Set `email` and `email_normal_form` from the row.
+   - Set `password_hash`, `password_changed_at = clock_timestamp()` and `updated_at`.
+   - Retire per "oldest wins".
+   - Statement 2 revokes every unrevoked session of the account, in a fresh snapshot, guarded on this transaction's
+     consumption (`used_at = now()`), as statement 2 of `confirmEmailChange` is.
+   - A unique violation folds into `invalid`, never a 500.
+4. **Start no session**, which is D3's reset rule. Answer `200 {status:"email-reverted"}`. After the response, queue the
+   built password-changed notice to the restored address. It is earned, so it counts no bucket.
+5. **Effects, stated so they can be tested:**
+   - every session is dead (revoked, and refused by `findLive` via `password_changed_at`);
+   - every pending `email-change` token is retired, and refused even if not;
+   - `email_verified_at` is unchanged.
+6. **What a revert does not undo** (an owner-visible residual): profile edits (name, address, phone), hidden or deleted
+   kitchens, share links issued or stopped, downloaded exports, and claims made meanwhile. It restores the address and
+   ends the intruder's access. Nothing else.
+
+**Answers.**
+
+- `200 {status:"email-reverted"}`.
+- **One** byte-identical `400 link-invalid` for each of: unknown, used, expired, retired, a token of another purpose,
+  and a target held or reserved by another account.
+- `400 invalid-input` on field `newPassword` (P13), with the built password codes.
+- `429` with `Retry-After`.
+- `503`. A retry with the same token must still work, because a refusal or failure before the commit consumes nothing.
+
+#### 14.3.4 Reserving the old address while a revert link lives
+
+**Attack.** After moving the account off address A, the intruder registers A. The account stays unverified, but it
+holds `email_normal_form` A. Every revert then hits the unique constraint and answers `link-invalid` until the unbuilt
+30-day cleanup. That is longer than the revert window, so recovery is lost. This is P12(6)'s residual turned against
+recovery.
+
+**Rule.** While an unused, unexpired `email-change-revert` row of account P names normal form X:
+
+- (a) **Register X.** The same `202`, the same three store statements and one hash as every other case
+  [src: `register-account.ts` header]. The reservation predicate sits **inside** the existing statements, so their count
+  does not change. No account is created and no mail is queued.
+- (b) **Another account's E9 to X.** `link-invalid`. A new `not exists` predicate sits beside the existing holder
+  predicate (`neon-account-store.ts:712-715`).
+- (c) **Another account's E8 to X.** The identical `202`. The request notice is still sent to that requester (§14.3.1).
+  No change link is sent, since it could never be confirmed.
+- (d) **P's own E8 / E9 to X** is not blocked by P's own reservation.
+
+The reservation ends when the token is used or expires. **Security reviewer:** the race between a register snapshot
+taken just before the confirm commits and the revert row becoming visible. An advisory lock on the normal form, or a
+residual stated as such.
+
+#### 14.3.5 Rate limits, oracle, migration, grants
+
+- **Buckets.**
+  - The request notice is covered by the existing per-account cap (§14.3.1).
+  - The revert counts `account-token-complete-by-block` before any read or argon2, as reset and confirm do.
+  - The revert link and the post-revert notice are earned mail and count no bucket, as the built `email-changed`
+    notice does [src: `confirm-email-change.ts:73-76`].
+  - No new limiter purpose.
+- **No membership oracle.** E8 and register stay byte-identical across free, held and reserved targets, with the same
+  pre-response statement count. The revert has one refusal.
+- **Migration: none.** The purpose fits `0014`'s shape and the address rides `0018`'s columns. A partial index for the
+  reservation lookup is **deferred**: `account_email_tokens` is small pre-launch [inf]. If one is wanted, it is a new
+  migration, never an edit of `0014` / `0018`.
+- **Grants.**
+  - The revert writes `email`, `email_normal_form` (step 4b), and `password_hash`, `password_changed_at`, `updated_at`
+    (held since step 4).
+  - On tokens it writes `INSERT` (held, table-level) and `UPDATE (used_at)` (held).
+  - Sessions: `UPDATE (revoked_at)` (held).
+  - **No grant beyond 4b.**
+- **Grant 4b timing.**
+  1. S13-0 through U16 are committed, with green QA (or the coordinator's named regime) and a security review that
+     closes F1.
+  2. The scribe rewrites runbook 4b gate (a) to say so.
+  3. The owner runs 4b, preview first.
+  4. Only then, a **separate commit** flips `EMAIL_CHANGE_ENABLED` to `true` (the one constant both the UI and
+     `email-change-gate.ts` read [src]). That is the owner's call, and nothing ships mid-milestone (WORKFLOW).
+
+  Running 4b earlier exposes nothing while the flag is off, but it widens the injection surface D7 named. So it waits.
+
+#### 14.3.6 Residuals (to record), and what the security reviewer must judge
+
+**Residuals.**
+
+1. **A compromised old inbox wins within the window.** If the owner changed address *because* the old inbox was
+   compromised, whoever holds that inbox can revert and set a password for 24 hours. This is inherent in O19's choice
+   of the old inbox as the recovery authority. The lifetime is the only dial, and the owner set it to 24 hours (O28c).
+   **The other side of that dial [inf]:** a victim who does not read the confirm notice within 24 hours has no undo
+   link. After expiry a reset at the old address reaches no account (§14.3.4 reserves nothing once the token is gone,
+   and the address is no longer held). The 24 hours is the owner's ruling; the residual is recorded, not argued.
+2. **Mail is best-effort.** If the process dies after the confirm commits and before the mail is queued, the revert
+   link is lost. The request-time notice is the backstop.
+3. **Not undone:** §14.3.3 item 6.
+4. **The register-against-confirm reservation race** (§14.3.4), if not closed by a lock.
+5. **One more mail per E8** on the shared Gmail quota (D6), bounded at 5 a day per account.
+
+**The security reviewer must judge, by name:**
+
+- every departure from D5 and the S9 F3 binding in §14.3.2's "Exempt from" row;
+- "oldest wins";
+- a 24-hour link that sets a password without the old one, against reset's 30 minutes;
+- the revert route outside the feature flag;
+- the reservation, its statement-count parity and the race;
+- the request notice carrying the typed address;
+- the retry arm's read-back.
+
+#### 14.3.7 Criteria
+
+- **R-1. The request notice.**
+  - For each verified E8 whose target is not the current address (free, held verified, held unverified, reserved),
+    exactly one `email-change-requested` mail is queued to the current address, in its locale, after the response. Its
+    body is identical across the four cases except for the typed address.
+  - None is queued for the own address, or for a refused request (malformed, wrong password, 429).
+  - Criterion 9's byte-identity of the response still holds.
+  - **Every remedy the notice names works both before and after the confirm.** Before: a reset at the old address
+    makes the pending E9 answer `link-invalid`. After: the revert link from the confirm notice succeeds (R-7).
+- **R-2. The cap.** A 6th verified E8 in one UTC day for one account sends neither the notice nor the link.
+- **R-3. Issued with the change.**
+  - After a successful E9, exactly one unused `email-change-revert` row exists for that confirm. Its `new_email` equals
+    the left address, and its `expires_at` is the confirm time plus the lifetime.
+  - After a confirm that rolled back (unique violation), none exists.
+  - A refused E9 that did not roll back (used, expired or superseded token, or any other predicate miss) inserts no
+    revert row, and the account's current address is not reserved by it.
+- **R-4. Retry arm.**
+  - With the first attempt committed and its acknowledgement lost, the notice is still queued with a revert link whose
+    hash is the stored row's.
+  - **Must not:** a link whose hash is in no row, or two revert rows for one confirm.
+- **R-5. Survival (fast-check).**
+  - Setup: after a confirm A to B.
+  - Draw any sequence of length 0 to 8 from: `changePassword`, `completeReset`, sign-in, logout-everywhere, an E8
+    request, an E9 confirm of a fresh change, a profile update, an export, all by the current holder.
+  - Then a revert with the A-token, before expiry, succeeds, and `email_normal_form` equals A's.
+- **R-6. Oldest wins (fast-check).**
+  - Setup: any chain of k confirms, k from 1 to 4, A0 to A1 to … to Ak.
+  - Using the revert token for Ai sets the address to Ai, retires every revert token created after it and every other
+    non-revert unused token, and leaves every revert token created before it usable.
+  - A0's token is usable throughout, until it expires.
+- **R-7. Revert effects.** After a successful revert:
+  - the address is the row's;
+  - the password hash is new;
+  - `password_changed_at` has advanced;
+  - `findLive` refuses every session of the account that existed before, including one created between the confirm and
+    the revert;
+  - the response carries no session `Set-Cookie`;
+  - a previously issued `email-change` token is refused at E9;
+  - one password-changed notice is queued to the restored address.
+- **R-8. Revert refusals.**
+  - One byte-identical `400 link-invalid` for: unknown, malformed, used, expired, retired, a `verify-email` /
+    `reset-password` / `email-change` token, and a target held or reserved by another account.
+  - Never a `500` on the unique constraint.
+  - A refused revert writes nothing.
+  - A password refusal (`400 invalid-input`, field `newPassword`) leaves the token usable.
+- **R-9. Not behind the flag.** With `EMAIL_CHANGE_ENABLED = false`, a well-formed unknown token gets `400
+  link-invalid`, not `404`.
+- **R-10. The reservation.** §14.3.4 (a) to (d) each hold.
+  - Register's pre-response statement count and its answer (status, body, headers) are identical for a free, a
+    pending, a verified and a reserved address.
+  - After the token is used or expires, X registers as before.
+- **R-11. Limiter order.** The revert's block bucket is counted before any token read or hash. At the limit it answers
+  `429` with `Retry-After` and no argon2 runs.
+- **R-12. Scope of a revert.** It changes no `designs` column, no `accounts.name` / `address` / `phone` /
+  `phone_normal_form`, and no share-link row.
+- **R-13. The revert page** meets Lot 1 criteria 4 (fragment) and 15 (no router action).
+  - It is in `ACCOUNT_TOKEN_PAGES` (`no-referrer`, no third party), shows no chip, and makes zero third-party requests.
+  - A `GET` changes nothing (D4).
+  - A `503` keeps the token for a retry.
+  - Done shows "Intră în cont" as a full load to login.
+  - It is **not** `notFound()` while the flag is off.
+- **R-14. Order of enablement.** No commit sets `EMAIL_CHANGE_ENABLED = true` before S13-0 to U16 are committed and
+  reviewed, and the owner reports 4b run. The flip is a commit of its own.
+
+### 14.4 Waves
+
+Each wave has at most 5 items and at most 5 production files. Catalogues and docs are listed but not counted (§2.4).
+Shared files land in sequence (§6).
+
+| Wave | Items | Production files | Reading (implementer) | Depends | Tier |
+| --- | --- | --- | --- | --- | --- |
+| **H0, records** (scribe; no code) | 1. ADR 0172 Amendment H (§14.5). 2. `OWNER_FIXES.md` Fix 3: a dated note on Q-F3-5 / Q-F3-8 (O1). 3. Runbook step 4b gate (a) rewritten per §14.3.5. 4. ADR 0104 D4 / ADR 0139 d6: a dated note that the back-guard body is chosen by session (copy only) | docs only | §9 *Answered 2026-10-20*, §14 | coordinator's acceptance | Security-reviewed docs |
+| **U15c, back-guard body** | 1. `back-confirmation.tsx` chooses the client body only on a definite signed-in `design.edit.own` answer, else the visitor body. 2. New title and body leaves, RO and RU (catalogues). 3. No change to `use-back-guard.ts` | `app/configurator/configure/back-confirmation.tsx` (mod); `configure-screen.tsx` (mod) only if the session must be passed down | §14.1 CG12, §14.2 U15-3; ADR 0104 D4; ADR 0139 d6; `use-back-guard.ts` header; `use-account-session.ts` (`isSessionAnswerDefinite`) | H0; copy pre-approved as drafted (O28b) | Full + security + visual (P20) |
+| **U15d, A16B card** | 1. `visitor-account-card.tsx` (non-modal; "Creează cont" `<a href>`, "Nu acum"). 2. `back-guard.ts`: a module-scope record "left an edited editor in this document", set on confirm. 3. `back-confirmation.tsx` sets it on confirm. 4. Mount in `room-screen.tsx`. 5. CSS | `account/session/visitor-account-card.tsx`, `app/configurator/configure/back-guard.ts` (mod), `back-confirmation.tsx` (mod), `room/room-screen.tsx` (mod), `account/account.module.css` (mod) | §14.2 U15-4 to U15-6, §3 C20; Lot 2 frames A16B / DA16B; `back-guard.ts`; ADR 0139 d6 rule 3; criterion 14 (M1), 15, 16 | U15c; O28a ruled yes | Full + security + visual |
+| **S13-0, store split** (mechanical) | Move the e-mail-change methods (`issueEmailChangeToken`, `retireEmailChangeTokens`, `confirmEmailChange`) into `neon-account-email-change.ts`, called by the class. SQL text byte-identical. `neon-account-store.ts` is 39.2 KB [run: `wc -c`], against §6 S7's ~25 KiB split trigger | `neon-account-store.ts` (mod), `neon-account-email-change.ts` (new) | `neon-account-store.ts:288-345,658-773`; §6 S7 | H0 | Light; one security reviewer confirms the SQL is unchanged |
+| **S13a, revert token at confirm** | 1. Purpose `email-change-revert` (closed list; not plain; `issueToken` refuses it). 2. `confirmEmailChange` takes `revertTokenHash` and `revertExpiresAt`, and inserts the row in statement 1; `superseded` excludes the purpose. 3. Retry arm reads `previous` from the revert row. 4. `changePassword` statement 3 and `completeReset` exclude the purpose. 5. The fake, same semantics | `account-store.ts`, `neon-account-email-change.ts`, `neon-account-store.ts`, `fake-account-store.ts` | §14.3.2; `0014`, `0018` headers; D5; Amendment G item 2 (S9 F3); `neon-account-store.ts:430-530,592-656` | S13-0 | Full + security |
+| **S13b, revert and reservation in the store** | 1. `revertEmailChange` (§14.3.3 item 3). 2. Reservation predicate in the register statements (same count). 3. Reservation predicate in `confirmEmailChange`. 4. `isAddressReserved` read for E8's after-job. 5. The fake | `account-store.ts`, `neon-account-email-change.ts`, `neon-account-store.ts`, `fake-account-store.ts` | §14.3.3, §14.3.4; `register-account.ts` header and `storeRegistration`; plan §9 L4a/L4b race list | S13a | Full + security |
+| **S13c, notices and revert link** | 1. `emailChangeRevertTokenExpiry()`. 2. E9 mints the revert token outside the retry and passes it in; the `email-changed` notice carries the revert link. 3. E8 after-job: `requester.email`; the request notice before the holder lookup; a reserved target gets no link. 4. Mail kinds `email-change-requested` and `email-changed` + token. 5. The mail order type | `lib/server/account/email-token.ts`, `confirm-email-change.ts`, `change-email.ts`, `lib/server/mail/account-mail-messages.ts`, `lib/server/account/queue-account-mail.ts` (all mod) | §14.3.1, §14.3.2; D1, D6; Amendment A item 2; `queue-account-mail.ts`; `password-changed-notice.ts` | S13b | Full + security |
+| **S13d, revert route** | 1. `revert-email-change.ts` orchestration (§14.3.3 items 1, 2, 4), mirroring `reset-password.ts`. 2. `POST /api/account/email-change/revert` (no flag gate). 3. `emailRevertedResponse`. 4. Best-effort session revoke and the password-changed notice | `lib/server/account/revert-email-change.ts`, `app/api/account/email-change/revert/route.ts`, `lib/server/account/account-responses.ts` (mod) | §14.3.3, §14.3.5; `reset-password.ts`; `confirm-email-change.ts`; `email-change-gate.ts`; P13 | S13c | Full + security |
+| **U16, revert page** | 1. Page (`connection()`; not behind the flag). 2. `proxy.ts`: add `revert-email` to `ACCOUNT_TOKEN_PAGES`. 3. `revert-email-form.tsx` (new password, autocomplete `new-password`; ready / busy / done / link-invalid / 429 / 503 keeping the token). 4. `use-revert-email.ts` (reuses `fragment-token.ts`). 5. Classifier flow `revert-email`, class `email-reverted` | `app/[locale]/account/revert-email/page.tsx`, `proxy.ts` (mod), `account/profile/revert-email-form.tsx`, `account/profile/use-revert-email.ts`, `account/account-answer.ts` (mod) | §14.3.3, R-13; Lot 1 review §3.3 and criteria 4, 13, 15; `reset-password-form.tsx`, `use-reset-password.ts`, `confirm-email-form.tsx` | S13d; U15d if CSS is touched | Full + security + visual (fragment) |
+| **S13e, enablement** | 1. The owner runs 4b, preview then production; the scribe records it. 2. One commit: `EMAIL_CHANGE_ENABLED = true` | `account/profile/email-change-enabled.ts` (mod) | §14.3.5; runbook 4b | all of the above, reviewed; owner | Security review of the one-line diff and the runbook record |
+
+**Order.** H0, then S13-0, S13a, S13b, S13c, S13d, U16, then S13e. U15c and then U15d form a parallel lane: they share
+no file with the S13 waves. U16 runs after U15d only if it touches `account.module.css`.
+
+**QA reading** (every wave above, unless the coordinator records D12 for it): this file §14.2 or §14.3 for the wave's
+criteria; `docs/best-practices/engineering-conventions.md` *Tests*; `javascript-testing-expert` for R-5, R-6, U15-6;
+for S-waves the persistence fakes and the statement-test pattern (`packages/persistence/tests/*.statements.test.ts`);
+for U-waves `browser-and-visual-qa.md`. **Mutation proof per criterion**, as §13 requires.
+
+**Reviewer reading.**
+
+- **Security:** §14.3 entire; ADR 0172 D1, D3, D5, D7, D10, Amendments A, F (P12), G and its addendum; `0014`,
+  `0018`; `neon-account-store.ts` / `neon-account-email-change.ts` as changed; `register-account.ts`;
+  `reset-password.ts`; runbook step 4 / 4b. For U-waves: §14.2 and `proxy.ts`.
+- **Logic:** the wave's §14 subsection and criteria; `account-answer.ts`, `account-responses.ts`; the orchestration file
+  the wave names.
+- **Clean code:** `engineering-conventions.md` *Code and domain boundaries*, *UI and content*, *Localised copy*;
+  `~/.claude/rules/clean-code.md`.
+- **Visual (U15c, U15d, U16):** §14.2 or R-13; Lot 2 frames A16B / DA16B and A10T for the token-page pattern;
+  `browser-and-visual-qa.md`; ADR 0104 (D4 for the back-guard); `account.module.css`; Lot 1 review §2.6.
+
+### 14.5 ADR 0172 Amendment H: points for the scribe
+
+1. **O1 ruled.**
+   - Autosave only. A15 and A16A are dropped. A16B survives as a Step-1 card (O28a ruled yes). A16C stays O9.
+   - It **explicitly reverses** Q-F3-5's Save / Discard pop-up and Q-F3-8's "on Save, always told". Q-F3-5's "keeps all
+     kitchens they generated" stands.
+   - CG1 is closed. CG12 (back-guard copy) is opened, and U15c answers it.
+   - No server, capability, S4 or ADR 0019 d11 change.
+2. **O19 ruled, and its design (§14.3):**
+   - the request-time notice;
+   - the purpose `email-change-revert` on `0018`'s columns, with no migration;
+   - a 24-hour lifetime (owner, O28c);
+   - the five exemptions;
+   - "oldest wins";
+   - a revert that sets a new password, revokes every session and starts none (beside D3's reset rule);
+   - the old-address reservation;
+   - the route outside the flag.
+
+   These are **dated departures** from D5 ("only the newest unused token of its purpose works") and from Amendment G
+   item 2's binding of tokens to `password_changed_at`, scoped to this one purpose.
+3. **O23 accepted, narrowed by point 2.** "Every unused e-mail token" now means every one except `email-change-revert`.
+4. **Grant 4b.**
+   - F1 closes when S13-0 to U16 are built and reviewed.
+   - Then the owner runs 4b, then a separate commit flips the flag.
+   - Amendment G item 5's O19 bullet and the addendum's item 2 are superseded on this point.
+5. **Residuals.**
+   - §12.5 bullet 1 (lost acknowledgement drops the notice) is **repaired** by S13a once built.
+   - New residuals: §14.3.6 items 1 to 5. Item 1 and §14.3.3 item 6 are owner-visible.
+6. **O20.** `GET /api/account/profile` is kept. §12.1's deviation is closed.
+7. **O21.**
+   - The backup export carries `account_id` and `name`. This **reverses D10's last bullet** and Amendment G item 2's
+     backup bullet.
+   - The sources are `design-row-source.ts` and `design-db-restore.md`.
+   - Note that the export file now links kitchens to accounts. It is personal data, and the runbook says so
+     [src: `design-db-restore.md:361`, uncommitted].
+8. **O22.** Confirmed: the frozen `/s/<token>` copy outlives hide. CG9 and criterion 3 are final as qualified.
+9. **O24, O25, O26, O27.** Approved or kept as in §9. O26's bucket-spend residual stays. O27 covers existing leaves only.
+
+### 14.6 Still needing an owner decision
+
+O28a, O28b and O28c, and Lot 1's O1, were answered on 2026-10-20 and are removed from this list (§9, *Answered by the
+owner, 2026-10-20 (later)*). The copy named in O28b is pre-approved as the developers draft it; the owner may edit it
+afterwards.
+
+- **Still open from earlier rows, not touched by today's rulings:** O2, O3, O4, O7, O8 (points 1 and 3; point 2's
+  notice copy is under O27), O9, O11, O12, O17. Whether O27 also answers O13 and O14 is for the coordinator to confirm
+  with the owner [inf: their drafts are among the approved leaves].

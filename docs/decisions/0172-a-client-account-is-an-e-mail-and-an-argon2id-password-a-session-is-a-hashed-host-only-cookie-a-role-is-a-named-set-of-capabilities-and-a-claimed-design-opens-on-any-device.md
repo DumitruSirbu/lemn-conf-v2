@@ -986,3 +986,73 @@ the `accountMail` e-mail-change mails, `claimDialog`, `sessionExpiredSheet`. O1-
 tests round and commit", relayed). Tests are being added in three lanes (persistence and domain; web server routes; web
 client, UI and i18n) with mutation proofs. D12 is unchanged for anything outside this round. **Results: to be recorded**
 (plan §13).
+
+## Amendment H — 2026-10-20: autosave only (O1), the e-mail change recovery path (O19), the backup export carries `account_id` and `name` (O21), and the rulings O20 to O28
+
+**Evidence tiers.** *[relayed]* the owner's rulings of 2026-10-20 as the coordinator relayed them (plan §9, *Answered by
+the owner, 2026-10-20* and *(later)*); *[doc]* the plan's §14 (the architect's design, which cites the source it read
+on 2026-10-20); *[dev]* a developer's choice recorded as ruled by default, which stands unless the owner objects. The
+scribe read no application source and ran no command for this amendment. **Nothing in the design below is built.** The
+text above is kept as written; where it differs, this amendment governs.
+
+**1. O1 ruled: autosave only.**
+- No Save / Discard buttons. A15 and A16A are dropped. A16B survives as a non-modal Step-1 card shown to a visitor
+  after confirming Back from an edited editor (O28a, ruled yes). A16C stays under O9 (deferred).
+- This **explicitly reverses** part of the owner's own 2026-10-17 rulings: Q-F3-5's "Save or Discard" pop-up and Q-F3-8's
+  "the same Save / Discard pop-up … on Save, always told" (`docs/OWNER_FIXES.md`, Fix 3; dated note added there). Q-F3-5's
+  "the client keeps all kitchens they generated" **stands**, and autosave delivers it.
+- CG1 is closed. CG12 is opened and answered by U15c: the back-guard dialog's "Modificările vor fi pierdute" is untrue
+  under autosave, so its body is chosen by session state (dated notes on ADR 0104 D4 and ADR 0139 decision 6; copy only,
+  the mechanism is unchanged).
+- No server, capability, S4 or ADR 0019 d11 change.
+
+**2. O19 ruled, with its design (plan §14.3) [doc].**
+- A notice to the **old** address when a change is requested, and a revert link in the `email-changed` notice sent to
+  the old address after the confirm.
+- A new purpose `email-change-revert` on `0018`'s columns. **No migration.**
+- **Lifetime: 24 hours** (O28c, ruled; the architect's draft said 7 days, provisional).
+- The five exemptions of the plan's §14.3.2: the token is exempt from D5's "newest unused of its purpose" rule, from the
+  `created_at >= password_changed_at` refusal, from `changePassword`'s retire-all, from `completeReset`'s retire-all and
+  from `confirmEmailChange`'s `superseded` sweep. "Oldest wins" decides between several live revert tokens.
+- A revert sets a new password, revokes every session and starts none (beside D3's reset rule). The route is outside
+  the `EMAIL_CHANGE_ENABLED` flag.
+- While a revert token lives, its address is reserved against registration and against another account's confirm.
+- These are **dated departures** from D5 and from Amendment G item 2's binding of tokens to `password_changed_at`,
+  scoped to this one purpose.
+
+**3. O23 accepted, narrowed by item 2.** "Every unused e-mail token" now means every one except `email-change-revert`.
+
+**4. Grant 4b.** F1 closes when waves S13-0 to U16 are built and reviewed (a security review that closes F1). The scribe
+rewrites the runbook's step 4b gate (a) to say so (done in this wave); the owner then runs 4b, preview first; and only
+then a **separate commit** flips `EMAIL_CHANGE_ENABLED` to `true`. Amendment G item 5's O19 bullet and its addendum's
+item 2 are superseded on this point.
+
+**5. Residuals** [doc]. §12.5 bullet 1 (a lost acknowledgement drops the old-address notice) is repaired by S13a once
+built. New: a compromised old inbox wins within the 24 hours; a victim who reads the confirm notice later has no undo
+link; mail is best-effort; the register-against-confirm reservation race (unless closed by a lock); one more mail per E8
+on the shared quota, bounded at 5 a day per account; and what a revert does not undo (profile edits, hidden or deleted
+kitchens, share links, exports downloaded, claims made meanwhile). The owner-visible ones are the first two and the last.
+
+**6. O20.** `GET /api/account/profile` is kept; §12.1's deviation becomes the contract.
+
+**7. O21: the backup export carries `account_id` and `name`.**
+- This **reverses D10's last bullet** and Amendment G item 2's backup bullet.
+- The restore source is `packages/persistence/src/design-row-source.ts` and `docs/runbooks/design-db-restore.md`. The
+  export file now links kitchens to accounts, so it is personal data.
+- **Restore semantics [dev, ruled by default unless the owner objects]:** on a conflict a restore **never changes
+  `account_id`**, and `name` becomes `coalesce(live, restored)`. `0015` puts no foreign key on `account_id`, so the
+  rule "restore accounts before designs" and an orphan-claim query are **operator rules**, not database guarantees. No
+  accounts export exists.
+
+**8. O22.** Confirmed: the frozen `/s/<token>` copy outlives hide (ADR 0165). CG9 and criterion 3 are final as qualified.
+
+**9. O24, O25, O26, O27.** Approved or kept as in plan §9. O26's bucket-spend residual stays. O27 covers the leaves that
+existed on 2026-10-20 only.
+
+**10. New copy pre-approved (O28b).** The back-guard titles and bodies, the A16B card, the request-time notice, the revert
+line of the `email-changed` notice and the revert page are approved as the developers draft them, as O27 was; the owner
+may edit afterwards. Lot 1's Romanian copy, `privacyNotice` included, was approved as drafted on 2026-10-20 (Lot 1 O1), so
+all Romanian copy is in the approved lock. Russian is never pinned by literal (ADR 0095 decision 2). The privacy-notice
+placeholders stay open and are unrelated.
+
+**11. QA regime.** D12 stays lifted for all remaining Lot 2 waves: each gets adversarial QA tests and reviews per its tier.

@@ -376,6 +376,21 @@ it does not replace either. The new rulings below need ADR 0115 amended and M8B 
   erasure request** removes it. A draft (not sent) the client deletes may be removed for real after the same kind of
   confirmation.
 
+### Dated note, 2026-10-20: Q-F3-5 and Q-F3-8 are reversed in part by the owner (O1) [owner, relayed by the coordinator]
+
+The rulings above are kept as written. On 2026-10-20 the owner ruled that the configurator has **no Save / Discard
+buttons: autosave only**. Consequences, recorded in ADR 0172 Amendment H:
+
+- **Q-F3-5.** The "Save or Discard" pop-up is **withdrawn**. "The client keeps all kitchens they generated" **stands**,
+  and autosave is what delivers it: every kitchen is a list entry from its first save, and generating or copying a
+  preset adds an entry.
+- **Q-F3-8.** The "same Save / Discard pop-up" for a visitor is **withdrawn**, and so is "on Save, always told". The
+  intent, motivating registration, is kept differently: a non-modal card on Step 1, shown once per document to a
+  visitor after confirming Back from an edited editor (frame A16B, owner ruling O28a). Visitors still have no list of
+  kitchens.
+- The "Consequences" bullet below, "A new 'My kitchens' behaviour: generate-new from an open kitchen asks Save /
+  Discard", no longer holds.
+
 ### Consequences [inference]
 
 - **The wording "this can be undone" in the dictation is read as "cannot be undone by the client"** (the warning

@@ -855,6 +855,15 @@ and no recovery point is written that night (`docs/runbooks/design-db-restore.md
   confirmation (E9) routes should stay unreachable from the product. Without the grant E9 answers `503`, so an early
   deploy fails safe; running the grant early would make a half-built flow live.
 
+  **Gate (a), rewritten 2026-10-20 (ADR 0172 Amendment H, plan §14.3.5).** The gate above is superseded on (a). Do not
+  run this statement before all of these hold: (1) waves S13-0 through U16 of the M8B Lot 2 plan (§14.4) are committed,
+  with green QA and a security review that closes F1; the recovery path they build is the request-time notice to the old
+  address and the revert link (`email-change-revert`, 24 hours); (2) F2 and F3 stay closed; (3) the confirm page and the
+  revert page exist; (4) the owner runs this step, **preview first**. Only after that, **a separate commit** flips
+  `EMAIL_CHANGE_ENABLED` to `true` (the owner's call; nothing ships mid-milestone). The revert needs no grant beyond this
+  step. Running 4b earlier exposes nothing while the flag is off, but it widens the injection surface described below.
+  Gate (b) is unchanged.
+
   *Note 2026-10-19 (later), source-verified by the scribe, nothing run:* the confirm page now exists (U11), and E8 and E9
   answer an empty `404` while the constant `EMAIL_CHANGE_ENABLED` (`apps/web/src/account/profile/email-change-enabled.ts`)
   is `false` (`lib/server/account/email-change-gate.ts`). Condition (b) holds and the routes are unreachable; condition (a)

@@ -78,7 +78,9 @@ figure already read `60.000`, and the application's grouping is not decided by t
   `docs/design/mockups/` (**source-verified 2026-10-19 by a file listing; the commit is named `docs(m8b): Lot 2 account
   screens (A9-A20) mockups and port plan` in the branch reflog**). They belong to M8B, and the plan that reads them is
   [`M8B-account-screens-lot2-plan.md`](../milestones/M8B-account-screens-lot2-plan.md). Not rendered by the scribe, and not
-  yet in the file table above.
+  yet in the file table above. **Dated note 2026-10-20 [owner ruling O1, relayed]:** the frames A15A-A15D, A16A and their
+  desktop twins are **dropped** (autosave only, no Save / Discard), and "Modificările vor fi pierdute" in the back-guard
+  frames is untrue. A16B and DA16B survive, re-triggered as a Step-1 card (plan §14.2). Do not build the dropped frames.
 
 `support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
 date the tracked mockups could not render on their own; it is now copied because the v2 preset
