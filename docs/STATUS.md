@@ -95,6 +95,16 @@ owner of an address that already has an account) is source-verified at
 `email-change-address-in-use`, an unverified holder nothing). No owner question of Lot 2
 is otherwise open. Detail: plan §9 *final round*; ADR 0172 Amendment H, addendum.
 
+**2026-10-20 update (M8B Lot 3, staff area: planned, owner rulings recorded) [owner answered directly through
+AskUserQuestion; relayed by the coordinator; records only, nothing built or run].** Plan:
+[`M8B-account-screens-lot3-plan.md`](milestones/M8B-account-screens-lot3-plan.md), rulings in its §5.3. O-L3-1 to O-L3-7
+are ruled: S3 shows profile contact, request reference and date, and the as-sent kitchen (ADR 0153 d1 unchanged); S6
+Prețuri and S7 Traduceri deferred; narrow `INSERT (role)` grant for staff invitations, no `UPDATE (role)` (reverses the
+ADR 0172 D7 position for role writes); the app may `UPDATE` only `status` and `sort_position` on presets; notes join the
+client export; Lot 3 copy pre-approved as drafted. **Still blocked:** the S4 and S5 waves, until their decision records
+and security reviews exist; the undrawn states (plan §10 item 6, §11); retention and erasure for notes, audit rows and
+invitations (plan §10 item 8). No wave dispatched.
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left

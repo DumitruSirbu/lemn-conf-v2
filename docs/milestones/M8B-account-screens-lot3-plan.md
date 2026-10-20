@@ -14,6 +14,10 @@
 >   ADR 0153 decision 1. What is buildable now is the shell (S1), the kitchens list (S2), the read-only kitchen with
 >   notes, status and unhide (S3, without the request contact block), the audit log (S8), and the preset authoring gate
 >   swap that Fix 3 already ordered.
+> - **2026-10-20, later: the owner ruled O-L3-1 to O-L3-7** (each given directly by the owner through AskUserQuestion;
+>   see [§5.3](#53-owner-answers-2026-10-20)). S6 and S7 are deferred; S3 takes option (c); S4 and S5 are unblocked **in
+>   principle** but wait on a decision record and a security review; notes join the export; Lot 3 copy is pre-approved as
+>   drafted. Still nothing dispatched or built.
 > - **QA regime.** ADR 0172 D12 ("no tests") was scoped to the first M8B round and its lift covered the Lot 2 waves
 >   (Amendment H item 11). **Lot 3 follows `docs/WORKFLOW.md` in full:** paired tests per behaviour change, adversarial
 >   QA that gates review, the review tier named per wave. Nothing in this plan inherits "no tests".
@@ -327,9 +331,10 @@ Run on 2026-10-20 in this worktree [run: `rtk proxy grep -rn` over `docs/decisio
 | **P-L3-13** | Search | Case-insensitive substring of the client's `email_normal_form` or profile `name`; `%`, `_` and `\` in the query are literals; at most 100 code points; empty means no search | architect |
 | **P-L3-14** | Preset authoring gate | Wire `WIRED_PRESET_AUTHORING_POLICY` to "the session holds `preset.create`" (Fix 3 *Order* item 3, ADR 0172 *Consequences* [doc]). Owner-visible: once wired, only a seeded administrator can author presets on any environment; the launch-gate line for the ungated policy is closed by it | architect; security |
 
-### 5.2 Open owner questions
+### 5.2 Owner questions (all seven ruled on 2026-10-20; rulings in §5.3)
 
-Each has a recommended default. The owner answers one at a time; a later question does not depend on an earlier answer
+The table below is kept as asked, with the default recommended at the time; where a ruling differs from or settles it,
+§5.3 governs. Each had a recommended default. The owner answers one at a time; a later question does not depend on an earlier answer
 except where stated.
 
 | # | Question | Default (recommended) | Blocks |
@@ -345,6 +350,36 @@ except where stated.
 The designer's other §0.9 answers are taken as defaults by the architect, not asked: 3 ("Închisă" does not hide a row),
 4 (notes are immutable), 5 (no role change, deactivation or resend), 6 (the log shows client e-mail and kitchen name
 only), 7 (no confirm to hide a preset), 8 (new tab on expiry; the mobile "Meniu") [mock: `:399-404`].
+
+### 5.3 Owner answers, 2026-10-20
+
+Each ruling below was **given directly by the owner through AskUserQuestion** (relayed by the coordinator to the scribe;
+the scribe ran nothing). They settle O-L3-1 to O-L3-7. None is a decision record yet: where a record is owed, it is
+named, and no wave builds on the ruling before it exists.
+
+| # | Ruling | Consequence for this plan |
+| --- | --- | --- |
+| **O-L3-1** | **Option (c).** The staff view shows the account's profile contact, the request's reference and date, and the as-sent kitchen. **ADR 0153 d1 is unchanged**: the application still reads no personal column of a request | CG-L3-1 settled by its default. L3-U3's request line is the (c) line (C-L3-2 wording); no wave waits on this any more |
+| **O-L3-2** | **S6 Prețuri deferred**, under its own record that names ADR 0062, plus a redraw against the price book's real shape | S6 stays out (§10 item 1); "Prețuri" nav item not shown. The record and the redraw are owed, unscheduled |
+| **O-L3-3** | **S7 Traduceri deferred** | S7 stays out (§10 item 2); "Traduceri" nav item not shown. It needs its own record (CG-L3-3), unscheduled |
+| **O-L3-4** | The owner chose the **narrow `INSERT (role)` grant** (a database permission to set a role when an account is created), **no `UPDATE (role)`**. The default stood, the owner not ruling otherwise: **no invitation to an address that already has an account**. Role change and deactivation stay owner-console steps | Unblocks Phase C waves **L3-S12a, L3-S12b, L3-U8, L3-U9 in principle only**; they **stay outline until a new decision record exists** and a **security review** has read it, before any wave builds them. See the flags below |
+| **O-L3-5** | **Yes.** The application may `UPDATE` only `status` and `sort_position` on `presets`; a new `sort_position` column; Step 1 follows the administrator's order (unordered presets after, newest first) | Unblocks Phase C preset waves (L3-S10, L3-S11, L3-U7) **in principle**; needs the ADR 0112 amendment as a **decision record** and a **security review** before any wave builds it |
+| **O-L3-6** | **Yes.** Notes appear in the client's data export (text and date, **no staff author**). The S3 line **drops "se șterg odată cu contul"** and reads "Notele fac parte din datele clientului: apar în exportul datelor clientului." | CG-L3-6 settled; C-L3-1 as recommended; L3-S9 is no longer conditional |
+| **O-L3-7** | Lot 3 **RO and RU copy, the status list ("Nouă → Contactat → Ofertă trimisă → Închisă") and the invitation e-mail are pre-approved as drafted**, as O28b did for Lot 2 | New leaves enter the copy lock marked **`Drafted`** (the owner may edit afterwards); RU stays an agent draft, never pinned (ADR 0095) |
+
+**Flags on O-L3-4 and O-L3-5.**
+
+- **O-L3-4 reverses the ADR 0172 D7 position for role writes.** D7 says the application cannot write `role` and that the
+  staff-management wave must choose its mechanism explicitly with its own review; the owner has now chosen a mechanism
+  that makes the application able to write `role` on insert for the first time. D7 is not edited here; the new decision
+  record supersedes that point by name, and until it exists D7 stands.
+- **Residual risk, as the architect wrote it (O-L3-4 (a)):** "The database cannot tie that to an invitation: under (a)
+  only the application's code and its review stop a bug or an injection from creating an administrator. That is the same
+  order of risk ADR 0172 D7 already accepted (an injection could insert a session row for an existing administrator)."
+  The alternative (b), a separate login used only by the accept step, "protects little if both secrets leak together"
+  and was not chosen.
+- **O-L3-5 reverses `0011`'s "the owner hides a preset by hand; the application role has no `UPDATE`"** and supersedes
+  ADR 0112's "newest first" Step 1 order by name.
 
 ---
 
@@ -421,23 +456,29 @@ fakes and `packages/persistence/tests/*.statements.test.ts`; for U-waves `browse
 | --- | --- | --- | --- | --- | --- |
 | **L3-U1, shell** | 1. `proxy.ts`: the staff family (P-L3-2). 2. `staff-page.ts` gate (capability per page; nav items computed from held capabilities and built pages). 3. `staff-shell.tsx` (top bar with role chip, account control, chip; desktop nav). 4. `staff-nav-sheet.tsx` (mobile "Meniu", trapped focus, Esc, return to opener). 5. `staff.module.css` | `proxy.ts` (mod), `lib/server/staff/staff-page.ts`, `staff/staff-shell.tsx`, `staff/staff-nav-sheet.tsx`, `staff/staff.module.css` | §1 S1; §4 C-L3-4; P-L3-2, 9; `proxy.ts:20-50,295-323`; `signed-in-page.ts`; `forbidden-screen.tsx`; `use-modal-focus.ts`; frames S1A, S1B, S1D, DS1A, DS1B, DS1D | L3-W0 | Full + security + visual |
 | **L3-U2, S2 list** | 1. Page shell. 2. `staff-kitchens-list.tsx` (table desktop, cards mobile, badges with text, 2-line clamp with full accessible name). 3. `use-staff-kitchens.ts`. 4. `staff-kitchen-filters.tsx` (segments, search with 44 px clear, status select disabled with its hint off "Trimise"). 5. `staff-pagination.tsx` | `app/[locale]/staff/kitchens/page.tsx`, `staff/staff-kitchens-list.tsx`, `staff/use-staff-kitchens.ts`, `staff/staff-kitchen-filters.tsx`, `staff/staff-pagination.tsx` | §1 S2; §5.1 P-L3-4, 12, 13; `account-answer.ts`; frames S2A–S2F, DS2A–DS2F; catalogue `staffKitchens` | L3-U1, L3-S6 | Full + security + visual |
-| **L3-U3, S3 read-only** | 1. Page shell. 2. `staff-kitchen-page.tsx` (three columns; summary via `priceFloorOf`; profile block; request reference line per O-L3-1; caption "Accesul este înregistrat în jurnal."). 3. `use-staff-kitchen.ts`. 4. `staff-kitchen-view.tsx` (P-L3-6; admitted in the mount guard test). 5. S3H, S3I states | `app/[locale]/staff/kitchens/[id]/page.tsx`, `staff/staff-kitchen-page.tsx`, `staff/use-staff-kitchen.ts`, `staff/staff-kitchen-view.tsx` | §1 S3; P-L3-6; C-L3-2; `app/s/[token]/shared-design-view.tsx`; `configure-screen-single-mount.test.ts`; `price/price-book-root.ts`; the review summary model the review page uses; frames S3A, S3B, S3B2, S3C, S3H, S3I | L3-U2; O-L3-1 for the request line only | Full + security + visual |
+| **L3-U3, S3 read-only** | 1. Page shell. 2. `staff-kitchen-page.tsx` (three columns; summary via `priceFloorOf`; profile block; request reference line per O-L3-1; caption "Accesul este înregistrat în jurnal."). 3. `use-staff-kitchen.ts`. 4. `staff-kitchen-view.tsx` (P-L3-6; admitted in the mount guard test). 5. S3H, S3I states | `app/[locale]/staff/kitchens/[id]/page.tsx`, `staff/staff-kitchen-page.tsx`, `staff/use-staff-kitchen.ts`, `staff/staff-kitchen-view.tsx` | §1 S3; P-L3-6; C-L3-2; `app/s/[token]/shared-design-view.tsx`; `configure-screen-single-mount.test.ts`; `price/price-book-root.ts`; the review summary model the review page uses; frames S3A, S3B, S3B2, S3C, S3H, S3I | L3-U2; O-L3-1 ruled (c), no longer waits | Full + security + visual |
 | **L3-U4, S3 actions** | 1. `staff-notes.tsx` (list, textarea with label and "{n} / 2000", busy keeps width, saved on top, error keeps text). 2. `staff-status-control.tsx` (select, "Salvează" → "✓ Status salvat", last change). 3. `unhide-banner.tsx` + dialog (Anulează focused, not red). 4. `use-staff-kitchen-actions.ts`. 5. `staff-session-sheet.tsx` (P-L3-7) | five files under `staff/` | §1 S1C, S3D–S3G; P-L3-5, 7, 8; C-L3-1, 6; `account-dialog.tsx`; `session-expired-sheet.tsx`; frames S1C, S3D–S3G | L3-U3, L3-S7 | Full + security + visual |
 | **L3-U5, header entry** | 1. `account-control.tsx`: "Zona personalului" for a session holding `design.read.any`, linking to `/{locale}/staff/kitchens`, full load. 2. S1E menu at 44 px | `account/session/account-control.tsx` (mod) | P-L3-9; Lot 2 §1 A19, C24; frame S1E | L3-U2 | Full + security + visual |
 | **L3-S8, audit read + L3-U6, S8 page** | S8: 1. `GET /api/staff/audit` (`audit.read`; filters; dates are Chișinău local days turned into UTC bounds). 2. Resolution of ids to addresses and names at read. U6: 3. Page shell and `staff-audit-page.tsx` (table, filters, "Șterge filtrele", page numbers). 4. `use-staff-audit.ts` | `lib/server/staff/staff-audit-log.ts`, route file; then `app/[locale]/staff/audit/page.tsx`, `staff/staff-audit-page.tsx`, `staff/use-staff-audit.ts` (two waves: S8 Full + security, U6 Full + security + visual) | §1 S8; P-L3-3; CD answer 6; frames S8A–S8E | L3-S3, L3-U1 | as stated |
-| **L3-S9, notes in the export** (if O-L3-6 yes) | 1. `export-account.ts`: notes per kitchen (text, `createdAt`; no author). 2. A reader method on the notes store. 3. The bound counted against O26's cap | `lib/server/account/export-account.ts` (mod), the notes reader (mod) | Lot 2 §2.2 E10, §9 O4, O26; P-L3-5 | L3-S5; O-L3-6 | Full + security |
+| **L3-S9, notes in the export** (if O-L3-6 yes) | 1. `export-account.ts`: notes per kitchen (text, `createdAt`; no author). 2. A reader method on the notes store. 3. The bound counted against O26's cap | `lib/server/account/export-account.ts` (mod), the notes reader (mod) | Lot 2 §2.2 E10, §9 O4, O26; P-L3-5 | L3-S5; O-L3-6 ruled yes | Full + security |
 
 ### 7.3 Phase C: after an owner answer and a decision record (outline)
 
+**Status after the 2026-10-20 rulings (§5.3).** O-L3-4 and O-L3-5 are answered, so L3-S10, L3-S11, L3-U7, L3-S12a,
+L3-S12b, L3-U8 and L3-U9 are **unblocked in principle** and **remain outline**: none is written in full or dispatched
+until (1) the decision record for each (the ADR 0112 amendment for presets; the staff-invitation record that supersedes
+ADR 0172 D7's role-write point) exists and (2) a security review has read it. O-L3-6 is answered, so L3-S9 is
+unconditional. S6 and S7 have no wave (deferred, O-L3-2, O-L3-3).
+
 These rows are an outline. The rows the *Order* paragraph names separately (L3-S11, L3-S12a, L3-S12b) are written in
-full, with items, files, reading and tier, once O-L3-4 and O-L3-5 are answered and their records exist; a split is
+full, with items, files, reading and tier, once their records exist (O-L3-4 and O-L3-5 are answered); a split is
 named where a row below would pass 5 files.
 
 | Wave | Items | Production files | Reading | Depends | Tier |
 | --- | --- | --- | --- | --- | --- |
-| **L3-S10, presets server** | 1. `0023` (§2.3) and its runbook section. 2. `staff-preset-store.ts` (+ Neon, fake): list incl. hidden, set visibility, move up/down, each with its audit row. A move is one transaction of three statements, because the partial unique index on `sort_position` is checked per statement: set A to null, set B to A's old position, set A to B's old position; an unpositioned preset is given positions first, in the grid's current order. 3. `preset-statements.ts`: Step 1 `order by sort_position asc nulls last, created_at desc, id`. 4. Routes E-L3-7 | migration, three store files, `preset-statements.ts` (mod); routes in **L3-S11** (≤ 5 files) | §2.3 `0023`; CG-L3-5; ADR 0112 (amended per O-L3-5); `0011` header; `preset-statements.ts:61-85` | O-L3-5; ADR 0112 amendment | Full + security |
+| **L3-S10, presets server** | 1. `0023` (§2.3) and its runbook section. 2. `staff-preset-store.ts` (+ Neon, fake): list incl. hidden, set visibility, move up/down, each with its audit row. A move is one transaction of three statements, because the partial unique index on `sort_position` is checked per statement: set A to null, set B to A's old position, set A to B's old position; an unpositioned preset is given positions first, in the grid's current order. 3. `preset-statements.ts`: Step 1 `order by sort_position asc nulls last, created_at desc, id`. 4. Routes E-L3-7 | migration, three store files, `preset-statements.ts` (mod); routes in **L3-S11** (≤ 5 files) | §2.3 `0023`; CG-L3-5; ADR 0112 (amended per O-L3-5); `0011` header; `preset-statements.ts:61-85` | O-L3-5 ruled yes; ADR 0112 amendment (record + security review owed) | Full + security |
 | **L3-U7, S5 page** | 1. Page. 2. `staff-presets-grid.tsx` (badge with text; Ascunde / Arată with a toast that promises no undo; Mută mai sus / jos, disabled at the edges; a drag handle of 44 px with the buttons as its keyboard alternative). 3. `use-staff-presets.ts` (saving, saved, error reverts the order in place and says so). 4. Preview: `room/preset-carousel-dialog.tsx` reused | page, two `staff/` files | §1 S5; frames S5A–S5G; M8D W2 | L3-S11, L3-U1 | Full + security + visual |
-| **L3-S12, invitations server** | 1. `0024` and its runbook section, including the `accounts INSERT (role)` grant (O-L3-4 (a)). 2. Domain `staff-invitation.ts` (role closed to operator / administrator; lifetime 72 h, provisional). 3. Store: create (refused silently when any account holds the address), list team, accept (one transaction: insert the account with the invitation's role and `email_verified_at`, mark used; a unique violation is `link-invalid`, never `500`). 4. Mail kind `staff-invitation` through the customer port (D6), sent after the response. 5. Flip the runbook's `0012`–`0015` step-7 probe `role insert` and the privilege test's arm to expect `true`, keeping `role update` `false` | migration, domain file, store port + Neon + fake (split into **L3-S12a** store and **L3-S12b** routes + mail if over 5 files) | CG-L3-4; O-L3-4; ADR 0172 D1, D2, D5, D6, D7; `register-account.ts` (neutral answer and statement parity); `reset-password.ts`; runbook *Making the first administrator* | O-L3-4; the decision record | Full + security |
+| **L3-S12, invitations server** | 1. `0024` and its runbook section, including the `accounts INSERT (role)` grant (O-L3-4 (a)). 2. Domain `staff-invitation.ts` (role closed to operator / administrator; lifetime 72 h, provisional). 3. Store: create (refused silently when any account holds the address), list team, accept (one transaction: insert the account with the invitation's role and `email_verified_at`, mark used; a unique violation is `link-invalid`, never `500`). 4. Mail kind `staff-invitation` through the customer port (D6), sent after the response. 5. Flip the runbook's `0012`–`0015` step-7 probe `role insert` and the privilege test's arm to expect `true`, keeping `role update` `false` | migration, domain file, store port + Neon + fake (split into **L3-S12a** store and **L3-S12b** routes + mail if over 5 files) | CG-L3-4; O-L3-4; ADR 0172 D1, D2, D5, D6, D7; `register-account.ts` (neutral answer and statement parity); `reset-password.ts`; runbook *Making the first administrator* | O-L3-4 ruled (narrow `INSERT (role)`); the decision record and its security review (owed) | Full + security |
 | **L3-U8, S4 list and invite** | 1. Page. 2. `staff-team-list.tsx` ("Contul tău"). 3. `invite-drawer.tsx` (Tab order; no role preselected; summary-first errors; neutral answer). 4. `use-staff-invite.ts` | page, three `staff/` files | §1 S4; frames S4A–S4E, S4K | L3-S12b, L3-U1 | Full + security + visual |
 | **L3-U9, accept page** | 1. Page (`connection()`). 2. `proxy.ts`: `staff/accept` gets the token headers. 3. `accept-invitation-form.tsx` (`new-password`, no repeat, no meter; busy; done → full load to login; invalid; 503 keeps token). 4. `use-accept-invitation.ts` (reuses `fragment-token.ts`) | page, `proxy.ts` (mod), two `staff/` files | §1 S4; Lot 1 review criteria 4, 13, 15; `reset-password-form.tsx`; frames S4F–S4J, S4K2 | L3-S12b | Full + security + visual |
 
@@ -555,6 +596,10 @@ verified by reading alone.
 
 ## 10. Residuals, and what cannot be built without an owner decision or a missing design
 
+*Updated 2026-10-20 after the owner's rulings (§5.3): items 1 and 2 are deferred by the owner; items 3 and 4 have their
+owner answer and now wait on a decision record and a security review; item 5 is settled by (c). Item 6 (undrawn states)
+and item 8 (retention and erasure) remain open and are not answered by any ruling.*
+
 1. **S6 Prețuri**: needs O-L3-2, a record superseding ADR 0062's timing, a price-book-in-database design (versions,
    ADR 0072; the depth multiplier, ADR 0100; the contact retry rule, ADR 0157), and **a redraw against the book's real
    shape**. Not buildable from Lot 3.
@@ -594,5 +639,6 @@ verified by reading alone.
   stores and routes, and the S1, S2, S3 (without the request contact), S8 screens and the header entry: 17 waves, one of which (L3-S9) waits on O-L3-6.
 - **Blocked:** S4 (O-L3-4 + record), S5 (O-L3-5 + amendment), S3's request contact (O-L3-1); **recommended deferred**:
   S6 (O-L3-2) and S7 (O-L3-3), each contradicting an accepted record.
-- **Seven owner questions**, O-L3-1 to O-L3-7, each with a default.
+- **Seven owner questions**, O-L3-1 to O-L3-7, **all ruled 2026-10-20** (§5.3). Phase C (S4, S5) is unblocked in
+  principle but stays outline until its decision record and security review exist; S6 and S7 are deferred.
 - **Every code wave** has adversarial QA and Full review with security; every UI wave adds visual review.
