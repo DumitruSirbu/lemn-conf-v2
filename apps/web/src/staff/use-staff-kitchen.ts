@@ -61,11 +61,22 @@ type KitchenStep =
   | { readonly kind: "sign-in" }
   | { readonly kind: "aborted" };
 
+/** What was read, and for which kitchen: an answer is shown only beside the id it answered. */
+interface StateOfKitchen {
+  readonly designId: string;
+  readonly state: StaffKitchenState;
+}
+
+const LOADING: StaffKitchenState = { phase: "loading" };
+
 export function useStaffKitchen(
   locale: AppLocale,
   designId: string,
 ): StaffKitchenReading {
-  const [state, setState] = useState<StaffKitchenState>({ phase: "loading" });
+  const [held, setHeld] = useState<StateOfKitchen>({
+    designId,
+    state: LOADING,
+  });
   const controllerRef = useRef<AbortController | undefined>(undefined);
 
   const read = useCallback(() => {
@@ -78,7 +89,7 @@ export function useStaffKitchen(
         leaveFor(loginPathWithReason(locale, "session-expired"));
         return;
       }
-      setState(stateAfter(step));
+      setHeld({ designId, state: stateAfter(step) });
     });
   }, [designId, locale]);
 
@@ -90,10 +101,12 @@ export function useStaffKitchen(
   }, [read]);
 
   const retry = useCallback(() => {
-    setState({ phase: "loading" });
+    setHeld({ designId, state: LOADING });
     read();
-  }, [read]);
+  }, [designId, read]);
 
+  // A kitchen read for another id is never drawn under this one, whether or not the page remounts for the change.
+  const state = held.designId === designId ? held.state : LOADING;
   return { state, retry };
 }
 
@@ -194,6 +207,8 @@ export function staffKitchenFrom(body: unknown): StaffKitchenWire | undefined {
   if (notes === undefined || typeof notesTruncated !== "boolean") {
     return undefined;
   }
+  const hasSentOnlyMembers = request.value !== null || status.value !== null;
+  if (!kitchen.isSent && hasSentOnlyMembers) return undefined;
   return {
     kitchen,
     client: client.value,
@@ -218,11 +233,17 @@ function kitchenFrom(raw: unknown): StaffKitchenWire["kitchen"] | undefined {
   }
   if (sentAt !== null && !isInstant(sentAt)) return undefined;
   if (!isInstant(updatedAt)) return undefined;
+  // A kitchen is sent exactly when it has a sent day, and only a sent kitchen has a copy as sent.
+  if (isSent !== (sentAt !== null)) return undefined;
+  const rawAsSent = ownValueOf(raw, "asSent");
+  if (!isSent && rawAsSent !== null && rawAsSent !== undefined) {
+    return undefined;
+  }
   return {
     id,
     name,
     design: designFrom(ownValueOf(raw, "design")),
-    asSent: designFrom(ownValueOf(raw, "asSent")),
+    asSent: designFrom(rawAsSent),
     isSent,
     isHidden,
     sentAt,
@@ -283,7 +304,19 @@ function statusFrom(
 function notesFrom(raw: unknown): readonly StaffKitchenNoteWire[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const notes = (raw as readonly unknown[]).map(noteFrom);
-  return notes.every(isNote) ? notes : undefined;
+  return notes.every(isNote) ? withoutRepeatedIds(notes) : undefined;
+}
+
+/** A note named twice is drawn once, where it first stands (the newest-first order is the server's). */
+function withoutRepeatedIds(
+  notes: readonly StaffKitchenNoteWire[],
+): readonly StaffKitchenNoteWire[] {
+  const seen = new Set<string>();
+  return notes.filter(({ id }) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 function noteFrom(raw: unknown): StaffKitchenNoteWire | undefined {
@@ -315,8 +348,12 @@ function personFrom(
   return { value: { email, name } };
 }
 
+/** An instant in the one form the server writes, `toISOString()`'s: it must read back as itself, so a day that does not
+ *  exist (`2026-02-30`), an offset, a missing millisecond and a bare number are all refused. */
 function isInstant(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
+  if (typeof value !== "string") return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 /** Only what the body's own object holds; anything that is not an object holds nothing. */

@@ -192,6 +192,18 @@ describe("what the answers of the route become", () => {
   it.each([
     ["a body that is not JSON", undefined],
     ["a body that is not an object", "kitchen"],
+    [
+      "a sent kitchen with no sent day",
+      wireKitchen({ kitchen: { sentAt: null } }),
+    ],
+    [
+      "a draft that has a request",
+      wireKitchen({ kitchen: { isSent: false, sentAt: null, asSent: null } }),
+    ],
+    [
+      "a day that does not exist",
+      wireKitchen({ kitchen: { updatedAt: "2026-02-30T00:00:00.000Z" } }),
+    ],
     ["a kitchen with no id", wireKitchen({ kitchen: { id: undefined } })],
     [
       "a kitchen that is another's than the one asked for",
@@ -438,5 +450,59 @@ describe("the kitchen as it is read", () => {
     }) as unknown;
 
     expect(staffKitchenFrom(inherited)).toBeUndefined();
+  });
+});
+
+describe("a change of the kitchen asked for", () => {
+  const OTHER_ID = "o".repeat(21);
+
+  async function mountChangingId(): Promise<{ setId: (id: string) => void }> {
+    let id = STAFF_KITCHEN_ID;
+    hook = renderHook(() => useStaffKitchen("ro", id));
+    await settle();
+    return {
+      setId: (next) => {
+        id = next;
+        hook?.rerender();
+      },
+    };
+  }
+
+  it("is loading again at once, and never shows the first kitchen under the second id", async () => {
+    server.script((request) =>
+      request.url.pathname.endsWith(OTHER_ID)
+        ? "hold"
+        : { body: wireKitchen() },
+    );
+    const page = await mountChangingId();
+    expect(current().state.phase).toBe("ready");
+
+    page.setId(OTHER_ID);
+
+    expect(current().state).toEqual({ phase: "loading" });
+    await settle();
+    expect(current().state).toEqual({ phase: "loading" });
+    expect(server.requests.map(({ url }) => url.pathname)).toEqual([
+      `/api/staff/kitchens/${STAFF_KITCHEN_ID}`,
+      `/api/staff/kitchens/${OTHER_ID}`,
+    ]);
+  });
+
+  it("drops the late answer of the first kitchen after the second was asked for", async () => {
+    server.script(() => "hold");
+    server.honoursAbort = false;
+    const page = await mountChangingId();
+    page.setId(OTHER_ID);
+    await settle();
+    const [first, second] = server.held;
+
+    second?.answer({
+      body: wireKitchen({ kitchen: { id: OTHER_ID, name: "Second" } }),
+    });
+    await settle();
+    first?.answer({ body: wireKitchen({ kitchen: { name: "First" } }) });
+    await settle();
+
+    expect(readyKitchen().kitchen.name).toBe("Second");
   });
 });

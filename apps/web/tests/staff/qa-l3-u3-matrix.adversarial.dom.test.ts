@@ -97,6 +97,18 @@ const DOCUMENTS: readonly Documents[] = [
 const STATUSES: readonly Statuses[] = ["none", "listed", "unrecognised"];
 const NOTE_LOADS: readonly NoteLoad[] = ["none", "hundred", "truncated"];
 
+/** A body the page can be handed: only a sent kitchen has a request, a status or a copy as sent (the reading refuses a body
+ *  that says otherwise, and `wire-reading` holds it to that). */
+function isConsistent(combination: Combination): boolean {
+  if (combination.isSent) return true;
+  return (
+    !combination.hasRequest &&
+    combination.status === "none" &&
+    (combination.documents === "current-only" ||
+      combination.documents === "neither")
+  );
+}
+
 function everyCombination(notes: readonly NoteLoad[]): Combination[] {
   const combinations: Combination[] = [];
   for (const isSent of IS_SENT) {
@@ -106,7 +118,7 @@ function everyCombination(notes: readonly NoteLoad[]): Combination[] {
           for (const documents of DOCUMENTS) {
             for (const status of STATUSES) {
               for (const load of notes) {
-                combinations.push({
+                const combination: Combination = {
                   isSent,
                   isHidden,
                   client,
@@ -114,7 +126,8 @@ function everyCombination(notes: readonly NoteLoad[]): Combination[] {
                   documents,
                   status,
                   notes: load,
-                });
+                };
+                if (isConsistent(combination)) combinations.push(combination);
               }
             }
           }

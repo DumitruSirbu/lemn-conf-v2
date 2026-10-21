@@ -117,12 +117,6 @@ const WALL: readonly (readonly [string, string, string, string])[] = [
     "01.01.2027, 00:00",
     "01.01.2027",
   ],
-  [
-    "an offset instead of Z",
-    "2026-10-21T12:00:00+03:00",
-    "21.10.2026, 12:00",
-    "21.10.2026",
-  ],
 ];
 
 /** The words that tell an age that lies ahead, not behind: "in" and "within" in each language. */

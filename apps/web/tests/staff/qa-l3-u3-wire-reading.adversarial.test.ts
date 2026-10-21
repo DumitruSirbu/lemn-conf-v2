@@ -221,7 +221,7 @@ describe("the null members the contract allows", () => {
       client: null,
       request: null,
       status: null,
-      kitchen: { name: null, sentAt: null },
+      kitchen: { name: null, isSent: false, sentAt: null, asSent: null },
     });
 
     const kitchen = staffKitchenFrom(body);
@@ -308,7 +308,7 @@ describe("instants", () => {
     "+275760-09-13T00:00:00.000Z",
     "2026-03-29T01:00:00.000Z",
     "2026-10-25T01:30:00.000Z",
-    "2026-10-21T12:00:00+03:00",
+    "2024-02-29T00:00:00.000Z",
   ])("%s is read, in every place an instant is carried", (instant) => {
     const kitchen = staffKitchenFrom(
       wireKitchen({
@@ -331,6 +331,110 @@ describe("instants", () => {
     );
 
     expect(kitchen).toBeDefined();
+  });
+});
+
+// The server writes every instant with `toISOString()`: a date and a time to the millisecond, in UTC, of a day that exists.
+// Anything else is not the server's, and is refused rather than read as some other moment.
+describe("instants the server does not write", () => {
+  it.each([
+    "1",
+    "0",
+    "",
+    "2026-02-30T00:00:00.000Z",
+    "2026-13-01T00:00:00.000Z",
+    "2026-10-21T25:00:00.000Z",
+    "2026-10-21T12:00:00+03:00",
+    "2026-10-21T12:00:00Z",
+    "2026-10-21 12:00:00.000Z",
+    "+275761-01-01T00:00:00.000Z",
+    "Oct 21 2026",
+    "2026-10-21T12:00:00.000Z ",
+  ])("%j is refused, in every place an instant is carried", (instant) => {
+    const carried = {
+      sentAt: wireKitchen({ kitchen: { sentAt: instant } }),
+      updatedAt: wireKitchen({ kitchen: { updatedAt: instant } }),
+      request: wireKitchen({ request: { reference: "L", sentAt: instant } }),
+      changedAt: wireKitchen({
+        status: {
+          value: "closed",
+          changedBy: { email: null, name: null },
+          changedAt: instant,
+        },
+      }),
+      createdAt: wireKitchen({
+        notes: [
+          {
+            id: "n",
+            text: "t",
+            createdAt: instant,
+            author: { email: null, name: null },
+          },
+        ],
+      }),
+    };
+
+    for (const body of Object.values(carried)) {
+      expect(staffKitchenFrom(body)).toBeUndefined();
+    }
+  });
+});
+
+describe("a body that contradicts itself", () => {
+  const SENT_AT = "2026-10-17T11:08:00.000Z";
+
+  it.each([
+    [
+      "a sent kitchen with no sent day",
+      wireKitchen({ kitchen: { sentAt: null } }),
+    ],
+    [
+      "a kitchen with a sent day that is not sent",
+      wireKitchen({
+        kitchen: { isSent: false, asSent: null, sentAt: SENT_AT },
+      }),
+    ],
+    [
+      "a draft with a request",
+      wireKitchen({ kitchen: { isSent: false, sentAt: null, asSent: null } }),
+    ],
+    [
+      "a draft with a copy as sent",
+      wireKitchen({
+        kitchen: { isSent: false, sentAt: null },
+        request: null,
+        status: null,
+      }),
+    ],
+    [
+      "a draft with a status",
+      wireKitchen({
+        kitchen: { isSent: false, sentAt: null, asSent: null },
+        request: null,
+      }),
+    ],
+    [
+      "a kitchen hidden or not by a word",
+      wireKitchen({ kitchen: { isHidden: "yes" } }),
+    ],
+    [
+      "a sent flag that is a word",
+      wireKitchen({ kitchen: { isSent: "true" } }),
+    ],
+  ])("is refused: %s", (_, body) => {
+    expect(staffKitchenFrom(body)).toBeUndefined();
+  });
+
+  it("reads a draft with nothing that only a sent kitchen has", () => {
+    const kitchen = staffKitchenFrom(
+      wireKitchen({
+        kitchen: { isSent: false, sentAt: null, asSent: null },
+        request: null,
+        status: null,
+      }),
+    );
+
+    expect(kitchen?.kitchen.isSent).toBe(false);
   });
 });
 
@@ -388,12 +492,18 @@ describe("notes", () => {
     expect(kitchen?.notes.map(({ text }) => text)).toEqual(hostile);
   });
 
-  it("reads a note id repeated, so a later wave that keys by id must not trust it to be unique", () => {
+  it("reads a note id repeated once, where it first stands, so a later wave that keys by id can trust it to be unique", () => {
+    const first = noteNumbered(1);
     const kitchen = staffKitchenFrom(
-      wireKitchen({ notes: [noteNumbered(1), noteNumbered(1)] }),
+      wireKitchen({
+        notes: [first, noteNumbered(2), { ...noteNumbered(3), id: first.id }],
+      }),
     );
 
-    expect(kitchen?.notes).toHaveLength(2);
+    expect(kitchen?.notes.map(({ id, text }) => [id, text])).toEqual([
+      [first.id, first.text],
+      ["note-2", "Nota 2"],
+    ]);
   });
 });
 
