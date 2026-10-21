@@ -1075,7 +1075,7 @@ describe("prepareStaffAuditRecord holds what it validated", () => {
     },
   );
 
-  it("copies the idle lifetimes it checked, so the caller changing them later cannot change the statement", () => {
+  it("holds the idle lifetimes it checked, so a value the check refuses cannot reach the statement by the caller changing them later", () => {
     const lifetimes = { ...IDLE_LIFETIMES };
     const prepared = prepareStaffAuditRecord({
       sessionTokenHash: "0".repeat(64),
@@ -1085,7 +1085,7 @@ describe("prepareStaffAuditRecord holds what it validated", () => {
       subjectAccountId: null,
     });
 
-    lifetimes.operator = 1e9;
+    lifetimes.operator = -1;
 
     expect(prepared.idleLifetimeSeconds.operator).toBe(IDLE_LIFETIMES.operator);
   });
