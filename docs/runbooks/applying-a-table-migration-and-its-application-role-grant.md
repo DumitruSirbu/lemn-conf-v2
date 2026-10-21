@@ -972,6 +972,9 @@ missing `design_request_states` grant makes **every** staff list fail, because t
 - [ ] `design_request_states`: `SELECT`, `INSERT (design_id, status, changed_by_account_id)` and
   `UPDATE (status, changed_by_account_id, changed_at)` (the `0022` header).
 - [ ] `staff_audit_events`: `SELECT` and `INSERT (id, actor_account_id, action, design_id, subject_account_id, detail)`.
+- [ ] `account_sessions`: `SELECT (token_hash, account_id, revoked_at, absolute_expires_at, created_at, last_seen_at)`. The
+  audit statement takes the actor from the live session the cookie names, by this read, and every staff route reads the
+  session first; a missing grant makes every staff route answer `503`, before any staff table is touched.
 
 **Owner to confirm first:** the grants of `0008`, `0010` and `0012`/`0017` are recorded in other documents as **not applied**
 on preview and production. Confirm them before L3-S6 is deployed; the staff reader depends on them.

@@ -69,6 +69,25 @@ The owner chose **"Audit each list view + hard page limit"**. This closes the OP
 
 Pointer: the account-to-contact read this list sits beside is recorded in ADR 0172 D11 (dated note 2026-10-21).
 
+## Residuals and rulings of the L3-S6 review, 2026-10-21 [relayed from the reviewers and the coordinator; the scribe ran nothing]
+
+- **The search text travels in the URL.** The list is `GET /api/staff/kitchens?q=...`, so a search reaches the platform's
+  request logs and any proxy log between the browser and the server, though never the audit log, the application log or a
+  response. **Accepted** as a residual of a GET list. Obligations on the screen that calls it (wave L3-U2): keep `q` out of
+  the page's own URL and history, wait at least 500 ms after the last keystroke before asking, and never retry a `429` or
+  `503` by itself.
+- **Opening a kitchen is capped per account, and fails closed**, like the list: `staff-kitchen-open-by-account`, 600 an
+  hour, counted after the id's shape and before the reader, so a malformed id costs nothing. Both figures are provisional
+  and the owner's to retune. The 600 equals the network read bucket's figure and window, so behind one network block that
+  bucket can refuse first; it fails open only when it cannot be judged.
+- **`HEAD` on a staff read is refused with `405` and does nothing**: the framework would otherwise run `GET` for it, with
+  its audit row and its bucket.
+- **Every admitted staff request, read or write, marks the session seen** (best-effort, never changes the answer), so the
+  12-hour idle lifetime measures inactivity and not the absence of writes.
+- **Legacy ids.** The list serves a kitchen whatever the length of its id (1 to 64), but opening one answers the one `404`,
+  because the audit row's id has the 21-character shape. Count the rows first with the owner's read-only
+  `select count(*) from designs where length(id) <> 21`.
+
 ## Not covered
 
 - The staff-invitation mechanism (O-L3-4) and the preset visibility and order grant (O-L3-5). Each needs its own record

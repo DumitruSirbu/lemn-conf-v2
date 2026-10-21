@@ -653,6 +653,14 @@ Each states an invariant and what must not happen. "Property" means a `fast-chec
 | Offset pagination on a moving list | A row can repeat or be skipped between pages | Accepted (P-L3-12); K-9 states the condition |
 | Numbers collide on merge | 0169 → 0172 happened [doc] | §2.3 re-list in L3-S1 and L3-W0 |
 
+**Production readiness, staff read routes** [added 2026-10-21 after the L3-S6 review; nothing was run]. The list serves a
+kitchen whatever the length of its design id (the reader admits 1 to 64 characters), but `GET /api/staff/kitchens/{id}`
+refuses an id that is not 21 characters with the one `404`, because the audit row's design id has that shape: a legacy
+kitchen is listed and cannot be opened. Before staff use it on production, the owner counts them with the read-only
+`select count(*) from designs where length(id) <> 21`; a count above zero needs a decision (widen the audit id shape, or
+migrate the ids). The search text of the list travels in the URL and so reaches platform request logs (ADR 0173,
+residuals).
+
 **Verification method.** Per wave: §7 *Common*. Per phase: the coordinator runs `pnpm check` and quotes it; before any
 push, `pnpm ci:local`. The owner applies `0020`+ and their grants, preview first, by the runbook; until then every staff
 state is verified through `page.route` mocks and the persistence live suite on the test database only. Nothing here is
