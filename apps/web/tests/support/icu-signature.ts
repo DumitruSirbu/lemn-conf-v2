@@ -162,5 +162,6 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
  *
  *  Seven before the account screens, plus the four they added: `accountForm.fieldSummary`, `claimDialog.question`,
  *  `claimDialog.claimedTitle` and `accountKitchens.count`. Commit de0aa867 (Lot 1, wave L13b.1) raised it from 7 to 8 for
- *  the first of them; it was not raised for the other three, and the walk itself counts 11 in both catalogues. */
-export const PLURAL_NODES_PER_CATALOGUE = 11;
+ *  the first of them; it was not raised for the other three, and the walk itself counts 11 in both catalogues. The staff
+ *  list added three: `staffKitchens.countSent`, `countDrafts` and `countAll`. */
+export const PLURAL_NODES_PER_CATALOGUE = 14;

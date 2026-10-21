@@ -1323,6 +1323,118 @@ export function resolveStaffShellCopy(translate: ContentTranslator) {
 
 export type StaffShellCopy = ReturnType<typeof resolveStaffShellCopy>;
 
+/** The staff list of every client's kitchens. A kitchen nobody named is called by the name its facts generate, as the
+ *  client's own list calls it. */
+export function resolveStaffKitchensCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("staffKitchens.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("staffKitchens.title"),
+    loading: translate("staffKitchens.loading"),
+    filters: {
+      segmentLabel: translate("staffKitchens.filterSegment"),
+      segments: {
+        sent: translate("staffKitchens.segmentSent"),
+        drafts: translate("staffKitchens.segmentDrafts"),
+        all: translate("staffKitchens.segmentAll"),
+      },
+      searchLabel: translate("staffKitchens.searchLabel"),
+      searchPlaceholder: translate("staffKitchens.searchPlaceholder"),
+      searchClear: translate("staffKitchens.searchClear"),
+      searchTooLong: (max: number) =>
+        translate("staffKitchens.searchTooLong", { max }),
+      searchRefused: translate("staffKitchens.searchRefused"),
+      statusLabel: translate("staffKitchens.statusLabel"),
+      statusAll: translate("staffKitchens.statusAll"),
+      statusOnlyForSent: translate("staffKitchens.statusOnlyForSent"),
+    },
+    statuses: {
+      new: translate("staffKitchens.statusNew"),
+      contacted: translate("staffKitchens.statusContacted"),
+      "offer-sent": translate("staffKitchens.statusOfferSent"),
+      closed: translate("staffKitchens.statusClosed"),
+      unrecognised: translate("staffKitchens.statusUnrecognised"),
+    },
+    counts: {
+      sent: (count: number) => translate("staffKitchens.countSent", { count }),
+      drafts: (count: number) =>
+        translate("staffKitchens.countDrafts", { count }),
+      all: (count: number) => translate("staffKitchens.countAll", { count }),
+    },
+    sorts: {
+      sent: translate("staffKitchens.sortSent"),
+      modified: translate("staffKitchens.sortModified"),
+    },
+    columns: {
+      image: translate("staffKitchens.columnImage"),
+      kitchen: translate("staffKitchens.columnKitchen"),
+      client: translate("staffKitchens.columnClient"),
+      phone: translate("staffKitchens.columnPhone"),
+      state: translate("staffKitchens.columnState"),
+      status: translate("staffKitchens.statusLabel"),
+      sentAt: translate("staffKitchens.columnSentAt"),
+      modified: translate("staffKitchens.columnModified"),
+      action: translate("staffKitchens.columnAction"),
+    },
+    badges: {
+      sent: translate("staffKitchens.badgeSent"),
+      draft: translate("staffKitchens.badgeDraft"),
+      hidden: translate("staffKitchens.badgeHidden"),
+    },
+    noAccount: translate("staffKitchens.noAccount"),
+    noValue: translate("staffKitchens.noValue"),
+    phoneUnverified: translate("staffKitchens.phoneUnverified"),
+    noPhone: translate("staffKitchens.noPhone"),
+    unnamedKitchen: translate("staffKitchens.unnamedKitchen"),
+    kitchenName: (facts: PresetNameFacts) =>
+      resolvePresetName(translate, facts),
+    sentOn: (date: string) => translate("staffKitchens.sentOn", { date }),
+    modifiedAgo: (when: string) =>
+      translate("staffKitchens.modifiedAgo", { when }),
+    open: translate("staffKitchens.open"),
+    openNamed: (name: string) => translate("staffKitchens.openNamed", { name }),
+    empty: {
+      sent: {
+        title: translate("staffKitchens.emptySentTitle"),
+        body: translate("staffKitchens.emptySentBody"),
+      },
+      drafts: {
+        title: translate("staffKitchens.emptyDraftsTitle"),
+        body: translate("staffKitchens.emptyDraftsBody"),
+      },
+      all: {
+        title: translate("staffKitchens.emptyAllTitle"),
+        body: translate("staffKitchens.emptyAllBody"),
+      },
+    },
+    noResults: {
+      forSearch: (query: string) => ({
+        title: translate("staffKitchens.noResultsTitle", { query }),
+        body: translate("staffKitchens.noResultsBody"),
+      }),
+      forStatus: {
+        title: translate("staffKitchens.noResultsStatusTitle"),
+        body: translate("staffKitchens.noResultsStatusBody"),
+      },
+      clearStatus: translate("staffKitchens.clearStatus"),
+    },
+    pagination: {
+      loadMore: translate("staffKitchens.loadMore"),
+      loadingMore: translate("staffKitchens.loadingMore"),
+      showing: (range: { from: number; to: number; total: number }) =>
+        translate("staffKitchens.showing", range),
+      pagesLabel: translate("staffKitchens.pagesLabel"),
+      previous: translate("staffKitchens.previousPage"),
+      next: translate("staffKitchens.nextPage"),
+      pageNumber: (page: number) =>
+        translate("staffKitchens.pageNumber", { page }),
+    },
+  };
+}
+
+export type StaffKitchensCopy = ReturnType<typeof resolveStaffKitchensCopy>;
+
 /**
  * The list of the account's kitchens. A kitchen the person never named is called by the name its facts generate
  * (`resolvePresetName`), so the list and the preset chooser say the same thing of the same room.
