@@ -12,7 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { STAFF_AUDIT_ACTIONS } from "@lemnaria/configurator-domain";
 
 import { resetAccountSessionForTests } from "@/account/session/use-account-session";
-import { StaffAuditScreen } from "@/staff/staff-audit-page";
+import {
+  StaffAuditScreen,
+  StaffAuditUnavailableScreen,
+} from "@/staff/staff-audit-page";
 import {
   resetStaffSessionExpiryForTests,
   resolveStaffSessionExpired,
@@ -505,6 +508,24 @@ describe.each(LOCALES)("in %s", (locale) => {
       expect(requireIn(container(), '[role="alert"]').textContent).toContain(
         account.offlineTitle,
       );
+    });
+
+    it("tells a 400 that names a field and a code as a failed request, with no row, and asks nothing again", async () => {
+      auditAnswers(() => ({
+        status: 400,
+        body: {
+          status: "invalid-input",
+          issues: [{ field: "range", code: "RANGE_INVERTED" }],
+        },
+      }));
+      await mount({ locale });
+
+      expect(requireIn(container(), '[role="alert"]').textContent).toContain(
+        account.requestFailedTitle,
+      );
+      expect(container().querySelector(ROWS)).toBeNull();
+      await pass(30 * 60 * 1000);
+      expect(auditRequests()).toHaveLength(1);
     });
 
     it("tells an answer it cannot read as a failed request, never as a log", async () => {
@@ -1049,7 +1070,7 @@ describe("the filters", () => {
     expect(lastQuery()).toEqual({ page: "1", actor: ADMINISTRATOR.id });
   });
 
-  it("asks for nothing when the value offered is not a person it has seen", async () => {
+  it("takes a value that is not a person it has seen for all persons, and asks for no actor", async () => {
     const option = document.createElement("option");
     option.value = auditAccountIdOf(7);
     personSelect().append(option);
@@ -1135,14 +1156,28 @@ describe("the filters", () => {
     expect(rowTexts()).toHaveLength(2);
   });
 
-  it("keeps the people it has seen when the filters are cleared", async () => {
-    await choose(personSelect(), OPERATOR.id);
+  it("keeps the people it has seen when the filters are dropped with one press, though the page that follows names only one of them", async () => {
+    auditAnswers((request) => {
+      if (request.url.searchParams.has("action")) return pageOf([]);
+      return pageOf([wireAuditEvent(1, { actor: OPERATOR })]);
+    });
     await choose(actionSelect(), "audit-viewed");
-    await choose(actionSelect(), "");
-    await choose(personSelect(), "");
+
+    click(
+      byWords(
+        requireIn(container(), '[data-testid="staff-audit-no-results"]'),
+        "button",
+        roMessages.staffAudit.clearFilters,
+      ),
+    );
+    await settle();
 
     expect(lastQuery()).toEqual({ page: "1" });
-    expect(personOptions()).toHaveLength(3);
+    expect(personOptions()).toEqual([
+      roMessages.staffAudit.filterPersonAll,
+      `${ISOLATE_OPEN}${ADMINISTRATOR_ADDRESS}${ISOLATE_CLOSE}`,
+      `${ISOLATE_OPEN}${OPERATOR_ADDRESS}${ISOLATE_CLOSE}`,
+    ]);
   });
 
   it("keeps the filters out of the address, the history and the browser's storage", async () => {
@@ -1198,3 +1233,41 @@ describe("a page restored from the back-forward cache", () => {
     expect(reloads).toBe(1);
   });
 });
+
+describe.each(LOCALES)(
+  "the page when the session store cannot be read, in %s",
+  (locale) => {
+    const words = auditWords(locale);
+    const account = CATALOGUES[locale].accountForm;
+
+    async function mountUnavailable(): Promise<void> {
+      useWidth("phone");
+      screen = mountInCatalogue(
+        createElement(StaffAuditUnavailableScreen, { locale }),
+        locale,
+      );
+      await settle();
+    }
+
+    it("is headed by the log's title, tells the service is not there, and draws no staff frame and asks nothing", async () => {
+      await mountUnavailable();
+
+      expect(requireIn(container(), "h1").textContent).toBe(words.title);
+      expect(requireIn(container(), '[role="alert"]').textContent).toContain(
+        account.unavailableTitle,
+      );
+      expect(
+        container().querySelector('[data-testid="staff-role-chip"]'),
+      ).toBeNull();
+      expect(auditRequests()).toHaveLength(0);
+    });
+
+    it("asks for the page itself again when the one button is pressed", async () => {
+      await mountUnavailable();
+
+      click(byWords(container(), "button", account.retry));
+
+      expect(reloads).toBe(1);
+    });
+  },
+);

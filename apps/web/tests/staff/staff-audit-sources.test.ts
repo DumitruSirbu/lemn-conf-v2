@@ -110,6 +110,10 @@ describe.each(SCREEN_FILES)("%s", (relative) => {
     }
   });
 
+  it("logs nothing: a row of the log is a person's doing and is not written anywhere but the screen", () => {
+    expect(identifiersIn(file)).not.toContain("console");
+  });
+
   it("keeps nothing in the browser, reads no cookie, and writes to neither the address nor the history", () => {
     const names = identifiersIn(file);
     const cookieReads = collect(file, (node) =>
