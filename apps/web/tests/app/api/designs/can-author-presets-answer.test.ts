@@ -1,10 +1,13 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
-import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ownerVisitorCookiePair } from "../../../support/owned-design-lookup";
 import {
+  AUTHOR_DESIGN_ID as DESIGN_ID,
+  AUTHOR_WRITE_COOKIE_NAME,
+  AUTHOR_WRITE_TOKEN,
   freshPresetAuthorWorld,
+  requestCarrying,
   type PresetAuthorWorld,
 } from "../../../support/preset-author-world";
 
@@ -28,13 +31,12 @@ vi.mock("@/lib/server/repository", () => ({
 const { GET } = await import("../../../../src/app/api/designs/[id]/route");
 
 /**
- * `canAuthorPresets` in `GET /api/designs/{id}` (plan K-14, item 4): the same answer the preset save route acts on, so
+ * `canAuthorPresets` in `GET /api/designs/{id}`: the same answer the preset save route acts on, so
  * the editor shows "Salvează ca preset" to exactly the requests the save would accept. A design's write token alone is
  * not enough any more, and a session alone never is.
  */
 
-const DESIGN_ID = "V1StGXR8Z5jdHi6BmyT_a";
-const WRITE_TOKEN_COOKIE = `lemnaria_write_token_${DESIGN_ID}=write-token-for-the-design-under-test`;
+const WRITE_TOKEN_COOKIE = `${AUTHOR_WRITE_COOKIE_NAME}=${AUTHOR_WRITE_TOKEN}`;
 
 let world: PresetAuthorWorld;
 
@@ -44,9 +46,10 @@ beforeEach(() => {
 
 async function canAuthorPresetsFor(cookies: string[]): Promise<unknown> {
   const response = await GET(
-    new NextRequest(`https://example.test/api/designs/${DESIGN_ID}`, {
-      headers: { cookie: cookies.join("; ") },
-    }),
+    requestCarrying(
+      cookies.join("; "),
+      `https://example.test/api/designs/${DESIGN_ID}`,
+    ),
     { params: Promise.resolve({ id: DESIGN_ID }) },
   );
   expect(response.status).toBe(200);

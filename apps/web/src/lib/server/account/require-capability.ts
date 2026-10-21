@@ -9,13 +9,12 @@ import type { CurrentSession } from "@/lib/server/account/current-session";
 // built from the session cookie and nothing the client sent: a role or capability in a body or a header is never an
 // input.
 
-/** The capabilities that touch a design. An account whose address is not confirmed holds none of them, whatever its
- *  role. */
-const DESIGN_CAPABILITIES: readonly Capability[] = [
-  "design.read.own",
-  "design.edit.own",
-  "design.read.any",
-  "design.unhide",
+/** The one capability an account whose address is not confirmed still holds: it must reach its own sign-in details to
+ *  confirm, change or reset that address. Every other capability, the client's designs and all of staff's, needs a
+ *  confirmed address, so a capability added to the domain is withheld from an unconfirmed account until it is listed
+ *  here. */
+const CAPABILITIES_HELD_WITHOUT_CONFIRMED_ADDRESS: readonly Capability[] = [
+  "account.manage.own",
 ];
 
 /** What a signed-in account is judged on: its current role and whether its address is confirmed. */
@@ -37,7 +36,10 @@ export function isCapabilityHeld(
   capability: Capability,
 ): boolean {
   if (!hasCapability(holder.role, capability)) return false;
-  return holder.isEmailVerified || !DESIGN_CAPABILITIES.includes(capability);
+  return (
+    holder.isEmailVerified ||
+    CAPABILITIES_HELD_WITHOUT_CONFIRMED_ADDRESS.includes(capability)
+  );
 }
 
 /** Every capability the holder holds, in the domain's order. */

@@ -12,33 +12,31 @@ import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-inst
 import { designNotFoundResponse } from "@/lib/server/design-errors";
 
 import {
+  ADMINISTRATOR_IDLE_LIFETIME_MS,
+  AUTHOR_CREDENTIALS_COOKIE,
+  AUTHOR_DESIGN_ID as DESIGN_ID,
+  AUTHOR_VISITOR_COOKIE_NAME as VISITOR_COOKIE_NAME,
+  AUTHOR_VISITOR_VALUE as VISITOR_VALUE,
+  AUTHOR_WRITE_COOKIE_NAME as WRITE_COOKIE_NAME,
+  AUTHOR_WRITE_TOKEN as WRITE_TOKEN,
   freshPresetAuthorWorld,
+  requestCarrying,
   type PresetAuthorWorld,
   type SeededPresetSession,
 } from "../../../support/preset-author-world";
 
 /**
- * QA of wave L3-A1 (plan 8B Lot 3, P-L3-14): the preset authoring gate through the real save route and the real
- * `GET /api/designs/{id}`. The developer's tests check that a refused caller is answered with the design-not-found
- * response; they do not check that the gate is asked FIRST, which is what makes a refusal an oracle-free, cost-free
- * answer: a policy moved after the body read, the load or the limiter keeps every one of those assertions green. The
- * cases below fix the order by what a refused caller can observe (the body's rules, the design's existence, the
- * credential's limiter), and re-run the credential refusals the developer's table now runs without a session (so that
- * table passes on the policy's refusal and no longer proves the credential check).
+ * The preset authoring gate through the real save route and the real `GET /api/designs/{id}`, and above all that it is
+ * asked FIRST. That order is what makes a refusal an oracle-free, cost-free answer, and a policy moved after the body
+ * read, the load or the limiter would still answer the design-not-found response. The cases fix the order by what a
+ * refused caller can observe: the body's rules, the design's existence and the credential's limiter.
  */
 
 function hashOf(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-const DESIGN_ID = "V1StGXR8Z5jdHi6BmyT_a";
-const WRITE_TOKEN = "write-token-for-the-design-under-test";
-const WRITE_COOKIE_NAME = `lemnaria_write_token_${DESIGN_ID}`;
-const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
-const VISITOR_VALUE = "a".repeat(43);
 const STORED_REVISION = "7";
-const HOURS = 60 * 60 * 1000;
-const ADMINISTRATOR_IDLE_LIFETIME_MS = 12 * HOURS;
 
 const presets = vi.hoisted(() => ({ current: undefined as unknown }));
 const loadAuthorized = vi.hoisted(() => vi.fn());
@@ -103,8 +101,6 @@ beforeEach(() => {
 
 // ---- The request ----
 
-const AUTHOR_CREDENTIALS = `${WRITE_COOKIE_NAME}=${WRITE_TOKEN}; ${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`;
-
 function validFields(): Record<string, unknown> {
   const png = new Uint8Array(64);
   png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
@@ -129,7 +125,7 @@ interface SaveAttempt {
 }
 
 function save({
-  cookie = AUTHOR_CREDENTIALS,
+  cookie = AUTHOR_CREDENTIALS_COOKIE,
   body,
   fields,
   id = DESIGN_ID,
@@ -145,7 +141,7 @@ function save({
 }
 
 function withSession(session: SeededPresetSession): string {
-  return `${AUTHOR_CREDENTIALS}; ${session.cookie}`;
+  return `${AUTHOR_CREDENTIALS_COOKIE}; ${session.cookie}`;
 }
 
 interface Fingerprint {
@@ -168,9 +164,7 @@ async function notFoundFingerprint(id = DESIGN_ID): Promise<Fingerprint> {
 
 async function canAuthorPresetsAnswer(cookie: string): Promise<unknown> {
   const response = await readDesign(
-    new NextRequest(`https://example.test/api/designs/${DESIGN_ID}`, {
-      headers: { cookie },
-    }),
+    requestCarrying(cookie, `https://example.test/api/designs/${DESIGN_ID}`),
     { params: Promise.resolve({ id: DESIGN_ID }) },
   );
   expect(response.status).toBe(200);
@@ -194,7 +188,7 @@ const REFUSED_CALLERS: readonly RefusedCaller[] = [
     "a signed-in operator",
     async (w) => withSession(await w.signIn({ role: "operator" })),
   ],
-  ["no session", () => Promise.resolve(AUTHOR_CREDENTIALS)],
+  ["no session", () => Promise.resolve(AUTHOR_CREDENTIALS_COOKIE)],
   [
     "an administrator whose address is not confirmed",
     async (w) =>

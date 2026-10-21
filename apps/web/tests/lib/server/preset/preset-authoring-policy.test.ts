@@ -1,11 +1,14 @@
 import { ROLES, type Role } from "@lemnaria/configurator-domain";
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 
 import {
+  ADMINISTRATOR_IDLE_LIFETIME_MS,
+  AUTHOR_CREDENTIALS_COOKIE,
   freshPresetAuthorWorld,
+  requestCarrying,
   type PresetAuthorWorld,
 } from "../../../support/preset-author-world";
 
@@ -22,13 +25,10 @@ const {
 } = await import("@/lib/server/preset/preset-authoring-policy");
 
 /**
- * Who may save a kitchen as a preset (plan K-14, ADR 0112 Amendment A, ADR 0172 D7): the session the request's cookie
+ * Who may save a kitchen as a preset (ADR 0112 Amendment A, ADR 0172 D7): the session the request's cookie
  * names, over the real session read and the real capability table, and nothing the request states about itself. Every
  * refusal below sits beside the control that answers yes, without which a refusal could pass for the wrong reason.
  */
-
-const HOURS = 60 * 60 * 1000;
-const ADMINISTRATOR_IDLE_LIFETIME_MS = 12 * HOURS;
 
 let world: PresetAuthorWorld;
 
@@ -36,14 +36,12 @@ beforeEach(() => {
   world = freshPresetAuthorWorld();
 });
 
-function requestWith(headers: Record<string, string> = {}): NextRequest {
-  return new NextRequest("https://example.test/api/designs/any/preset", {
-    headers,
-  });
-}
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
-function asking(cookie: string): NextRequest {
-  return requestWith({ cookie });
+function requestWithoutCookie(): NextRequest {
+  return new NextRequest("https://example.test/api/designs/any/preset");
 }
 
 describe("who the domain gives preset.create to", () => {
@@ -66,7 +64,9 @@ describe("mayAuthorPresets: the accounts that may", () => {
   it("answers yes to a live, confirmed administrator session (the control)", async () => {
     const administrator = await world.signIn({ role: "administrator" });
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(true);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      true,
+    );
   });
 
   it("still answers yes to an administrator idle for just under the 12 hours", async () => {
@@ -74,7 +74,9 @@ describe("mayAuthorPresets: the accounts that may", () => {
 
     world.advance(ADMINISTRATOR_IDLE_LIFETIME_MS - 60_000);
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(true);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      true,
+    );
   });
 });
 
@@ -84,18 +86,20 @@ describe("mayAuthorPresets: everyone else answers no", () => {
     async (role) => {
       const session = await world.signIn({ role });
 
-      expect(await mayAuthorPresets(asking(session.cookie))).toBe(false);
+      expect(await mayAuthorPresets(requestCarrying(session.cookie))).toBe(
+        false,
+      );
     },
   );
 
   it("a request with no cookie at all", async () => {
-    expect(await mayAuthorPresets(requestWith())).toBe(false);
+    expect(await mayAuthorPresets(requestWithoutCookie())).toBe(false);
   });
 
   it("a request whose only credential is the design's own (no session)", async () => {
-    const cookie = "lemnaria_write_token_abc=token; __Host-lemnaria_visitor=v";
-
-    expect(await mayAuthorPresets(asking(cookie))).toBe(false);
+    expect(
+      await mayAuthorPresets(requestCarrying(AUTHOR_CREDENTIALS_COOKIE)),
+    ).toBe(false);
   });
 
   it.each([
@@ -107,7 +111,9 @@ describe("mayAuthorPresets: everyone else answers no", () => {
     await world.signIn({ role: "administrator" });
 
     expect(
-      await mayAuthorPresets(asking(`${SESSION_COOKIE_NAME}=${value}`)),
+      await mayAuthorPresets(
+        requestCarrying(`${SESSION_COOKIE_NAME}=${value}`),
+      ),
     ).toBe(false);
   });
 
@@ -115,7 +121,9 @@ describe("mayAuthorPresets: everyone else answers no", () => {
     const administrator = await world.signIn({ role: "administrator" });
     await world.sessions.revoke(administrator.tokenHash);
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(false);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      false,
+    );
   });
 
   it("an administrator session idle for longer than the 12 hours", async () => {
@@ -123,14 +131,18 @@ describe("mayAuthorPresets: everyone else answers no", () => {
 
     world.advance(ADMINISTRATOR_IDLE_LIFETIME_MS + 1_000);
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(false);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      false,
+    );
   });
 
   it("an administrator demoted after the session began: the role is the account's current one", async () => {
     const administrator = await world.signIn({ role: "administrator" });
     world.accounts.setRoleOf(administrator.accountId, "operator");
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(false);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      false,
+    );
   });
 
   it("an administrator whose address is not confirmed", async () => {
@@ -139,7 +151,9 @@ describe("mayAuthorPresets: everyone else answers no", () => {
       isEmailConfirmed: false,
     });
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(false);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      false,
+    );
   });
 
   it("a client who states a role of administrator in a header, a cookie or the query", async () => {
@@ -162,7 +176,7 @@ describe("mayAuthorPresets: everyone else answers no", () => {
 describe("mayAuthorPresets: a session read that fails", () => {
   it("answers no to an administrator whose session the store cannot be asked about", async () => {
     const administrator = await world.signIn({ role: "administrator" });
-    const request = asking(administrator.cookie);
+    const request = requestCarrying(administrator.cookie);
     expect(await mayAuthorPresets(request)).toBe(true);
 
     world.breakSessionLookups();
@@ -170,12 +184,32 @@ describe("mayAuthorPresets: a session read that fails", () => {
     expect(await mayAuthorPresets(request)).toBe(false);
   });
 
-  it("is the catch that closes it: the policy itself rejects, and does not answer yes", async () => {
+  it("reports the unavailable session read, as readCurrentSession does, so an outage is not mistaken for a refusal", async () => {
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const administrator = await world.signIn({ role: "administrator" });
     world.breakSessionLookups();
 
-    await expect(
-      sessionHoldsPresetCreate(asking(administrator.cookie)),
-    ).rejects.toThrow("session store is down");
+    await mayAuthorPresets(requestCarrying(administrator.cookie));
+
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith("[account]", {
+      event: "session-read",
+      outcome: "unavailable",
+    });
+  });
+
+  it("reports nothing when the answer is a plain refusal", async () => {
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const client = await world.signIn({ role: "client" });
+
+    await mayAuthorPresets(requestCarrying(client.cookie));
+
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 });

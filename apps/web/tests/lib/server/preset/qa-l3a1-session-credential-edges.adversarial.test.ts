@@ -6,7 +6,10 @@ import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 import { sha256Hex } from "@/lib/server/sha256-hex";
 
 import {
+  ADMINISTRATOR_IDLE_LIFETIME_MS,
+  MILLISECONDS_PER_DAY,
   freshPresetAuthorWorld,
+  requestCarrying,
   type PresetAuthorWorld,
   type SeededPresetSession,
 } from "../../../support/preset-author-world";
@@ -22,13 +25,11 @@ const { mayAuthorPresets } = await import(
 );
 
 /**
- * QA of wave L3-A1: what else a request can carry that is not "the administrator's session value under the session
+ * What else a request can carry that is not "the administrator's session value under the session
  * cookie's name", and must not be taken for it. Each refusal is asked beside the same administrator's real cookie in
  * the same test, so a refusal cannot pass because the administrator never was one. Covers other credentials of the
  * session value's shape, a stored hash, cookies of another spelling, and which of two cookies of one name is read.
  */
-
-const ONE_DAY_MS = 86_400_000;
 
 let world: PresetAuthorWorld;
 let administrator: SeededPresetSession;
@@ -41,12 +42,6 @@ beforeEach(async () => {
     `${SESSION_COOKIE_NAME}=`.length,
   );
 });
-
-function asking(cookie: string): NextRequest {
-  return new NextRequest("https://example.test/api/designs/any/preset", {
-    headers: { cookie },
-  });
-}
 
 /** A request whose cookies are exactly the given pairs, which `Cookie` header parsing would trim or refuse. */
 function carrying(
@@ -63,7 +58,9 @@ function carrying(
 }
 
 async function expectControlThenRefusal(refused: PresetAuthoringRequest) {
-  expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(true);
+  expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+    true,
+  );
   expect(await mayAuthorPresets(refused)).toBe(false);
 }
 
@@ -72,7 +69,7 @@ describe("a credential of another purpose presented as the session cookie", () =
     const visitorValue = "v".repeat(43);
 
     await expectControlThenRefusal(
-      asking(
+      requestCarrying(
         `${SESSION_COOKIE_NAME}=${visitorValue}; __Host-lemnaria_visitor=${visitorValue}`,
       ),
     );
@@ -86,11 +83,11 @@ describe("a credential of another purpose presented as the session cookie", () =
         accountId: administrator.accountId,
         purpose,
         tokenHash: sha256Hex(tokenValue),
-        expiresAt: new Date(Date.now() + ONE_DAY_MS),
+        expiresAt: new Date(Date.now() + MILLISECONDS_PER_DAY),
       });
 
       await expectControlThenRefusal(
-        asking(`${SESSION_COOKIE_NAME}=${tokenValue}`),
+        requestCarrying(`${SESSION_COOKIE_NAME}=${tokenValue}`),
       );
     },
   );
@@ -99,10 +96,10 @@ describe("a credential of another purpose presented as the session cookie", () =
     const { tokenHash } = administrator;
 
     await expectControlThenRefusal(
-      asking(`${SESSION_COOKIE_NAME}=${tokenHash}`),
+      requestCarrying(`${SESSION_COOKIE_NAME}=${tokenHash}`),
     );
     await expectControlThenRefusal(
-      asking(`${SESSION_COOKIE_NAME}=${tokenHash.slice(0, 43)}`),
+      requestCarrying(`${SESSION_COOKIE_NAME}=${tokenHash.slice(0, 43)}`),
     );
   });
 
@@ -136,7 +133,7 @@ describe("a session cookie that is not exactly the value the server minted", () 
     ["a percent-encoded newline after it", (value: string) => `${value}%0A`],
   ])("%s", async (_name, alter) => {
     await expectControlThenRefusal(
-      asking(`${SESSION_COOKIE_NAME}=${alter(administratorValue)}`),
+      requestCarrying(`${SESSION_COOKIE_NAME}=${alter(administratorValue)}`),
     );
   });
 
@@ -161,16 +158,20 @@ describe("a session cookie that is not exactly the value the server minted", () 
 
   it("the cookie name in another case or with spaces around the equals sign", async () => {
     await expectControlThenRefusal(
-      asking(`${SESSION_COOKIE_NAME.toLowerCase()}=${administratorValue}`),
+      requestCarrying(
+        `${SESSION_COOKIE_NAME.toLowerCase()}=${administratorValue}`,
+      ),
     );
     await expectControlThenRefusal(
-      asking(`${SESSION_COOKIE_NAME.toUpperCase()}=${administratorValue}`),
+      requestCarrying(
+        `${SESSION_COOKIE_NAME.toUpperCase()}=${administratorValue}`,
+      ),
     );
     await expectControlThenRefusal(
-      asking(`${SESSION_COOKIE_NAME} = ${administratorValue}`),
+      requestCarrying(`${SESSION_COOKIE_NAME} = ${administratorValue}`),
     );
     await expectControlThenRefusal(
-      asking(`Host-lemnaria_session=${administratorValue}`),
+      requestCarrying(`Host-lemnaria_session=${administratorValue}`),
     );
   });
 });
@@ -186,7 +187,7 @@ describe("two session cookies in one request: the one the server reads decides, 
   });
 
   function duplicated(first: string, second: string): NextRequest {
-    return asking(
+    return requestCarrying(
       `${SESSION_COOKIE_NAME}=${first}; ${SESSION_COOKIE_NAME}=${second}`,
     );
   }
@@ -205,7 +206,7 @@ describe("two session cookies in one request: the one the server reads decides, 
 
       const answerForPair = await mayAuthorPresets(duplicated(first, second));
       const answerForLastAlone = await mayAuthorPresets(
-        asking(`${SESSION_COOKIE_NAME}=${second}`),
+        requestCarrying(`${SESSION_COOKIE_NAME}=${second}`),
       );
 
       expect(answerForPair).toBe(answerForLastAlone);
@@ -223,8 +224,8 @@ describe("the policy reads the session and writes nothing", () => {
   it("a request that carries no well-formed session value does not ask the store at all", async () => {
     const lookup = vi.spyOn(world.sessions, "findLive");
 
-    await mayAuthorPresets(asking("lemnaria_write_token_x=y"));
-    await mayAuthorPresets(asking(`${SESSION_COOKIE_NAME}=short`));
+    await mayAuthorPresets(requestCarrying("lemnaria_write_token_x=y"));
+    await mayAuthorPresets(requestCarrying(`${SESSION_COOKIE_NAME}=short`));
     await mayAuthorPresets(carrying(`${administratorValue}\n`));
 
     expect(lookup).not.toHaveBeenCalled();
@@ -234,28 +235,34 @@ describe("the policy reads the session and writes nothing", () => {
     const lookup = vi.spyOn(world.sessions, "findLive");
     const touch = vi.spyOn(world.sessions, "touch");
 
-    await mayAuthorPresets(asking(administrator.cookie));
+    await mayAuthorPresets(requestCarrying(administrator.cookie));
 
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(touch).not.toHaveBeenCalled();
   });
 
   it("an idle-expired administrator is not revived by being asked, however often", async () => {
-    world.advance(12 * 60 * 60 * 1000 + 1_000);
+    world.advance(ADMINISTRATOR_IDLE_LIFETIME_MS + 1_000);
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(false);
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(false);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      false,
+    );
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      false,
+    );
   });
 });
 
 describe("an administrator is not lost to a stale answer", () => {
   it("a client promoted to administrator after the session began is an administrator on the next request", async () => {
     const promoted = await world.signIn({ role: "client" });
-    expect(await mayAuthorPresets(asking(promoted.cookie))).toBe(false);
+    expect(await mayAuthorPresets(requestCarrying(promoted.cookie))).toBe(
+      false,
+    );
 
     world.accounts.setRoleOf(promoted.accountId, "administrator");
 
-    expect(await mayAuthorPresets(asking(promoted.cookie))).toBe(true);
+    expect(await mayAuthorPresets(requestCarrying(promoted.cookie))).toBe(true);
   });
 
   it("a store that failed once answers yes again when it recovers: a failure is not remembered", async () => {
@@ -263,8 +270,12 @@ describe("an administrator is not lost to a stale answer", () => {
       .spyOn(world.sessions, "findLive")
       .mockRejectedValueOnce(new Error("session store is down"));
 
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(false);
-    expect(await mayAuthorPresets(asking(administrator.cookie))).toBe(true);
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      false,
+    );
+    expect(await mayAuthorPresets(requestCarrying(administrator.cookie))).toBe(
+      true,
+    );
     expect(failing).toHaveBeenCalledTimes(2);
   });
 });

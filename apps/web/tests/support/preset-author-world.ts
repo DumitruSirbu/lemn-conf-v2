@@ -4,12 +4,14 @@ import {
   type FakeAccountStore,
   type FakeSessionStore,
 } from "@lemnaria/persistence";
+import { NextRequest } from "next/server";
 import { vi } from "vitest";
 
 import {
   SESSION_COOKIE_NAME,
   mintSessionValue,
 } from "@/lib/server/account/session-cookie";
+import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 import { sha256Hex } from "@/lib/server/sha256-hex";
 
 /**
@@ -38,11 +40,32 @@ export interface SeededPresetSession {
   readonly tokenHash: string;
 }
 
-const MILLISECONDS_PER_DAY = 86_400_000;
+export const MILLISECONDS_PER_DAY = 86_400_000;
+/** Unseen this long, an administrator's session ends: the production table's own figure, so a change to it is seen. */
+export const ADMINISTRATOR_IDLE_LIFETIME_MS =
+  IDLE_LIFETIME_SECONDS_BY_ROLE.administrator * 1000;
 const ABSOLUTE_LIFETIME_MS = 7 * MILLISECONDS_PER_DAY;
 /** The argon2id shape the stores demand, of no password: nothing here checks one. */
 const PASSWORD_HASH_STAND_IN =
   "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+export const AUTHOR_DESIGN_ID = "V1StGXR8Z5jdHi6BmyT_a";
+export const AUTHOR_WRITE_TOKEN = "write-token-for-the-design-under-test";
+export const AUTHOR_VISITOR_VALUE = "a".repeat(43);
+export const AUTHOR_WRITE_COOKIE_NAME = `lemnaria_write_token_${AUTHOR_DESIGN_ID}`;
+export const AUTHOR_VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
+/** The `Cookie` pairs that prove a design's own write token and visitor, with no session beside them. */
+export const AUTHOR_CREDENTIALS_COOKIE = `${AUTHOR_WRITE_COOKIE_NAME}=${AUTHOR_WRITE_TOKEN}; ${AUTHOR_VISITOR_COOKIE_NAME}=${AUTHOR_VISITOR_VALUE}`;
+
+const PRESET_ROUTE_URL = "https://example.test/api/designs/any/preset";
+
+/** A request whose only header is this `Cookie` value. */
+export function requestCarrying(
+  cookie: string,
+  url: string = PRESET_ROUTE_URL,
+): NextRequest {
+  return new NextRequest(url, { headers: { cookie } });
+}
 
 let current: PresetAuthorWorld | undefined;
 

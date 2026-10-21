@@ -1,5 +1,6 @@
 import "server-only";
 
+import { reportAccountEvent } from "@/lib/server/account/account-log";
 import { isCapabilityHeld } from "@/lib/server/account/require-capability";
 import { readCurrentSessionOrThrow } from "@/lib/server/account/current-session";
 
@@ -25,20 +26,16 @@ export type PresetAuthoringPolicy = (
 ) => Promise<boolean>;
 
 /**
- * A signed-in session with a confirmed address whose account's current role holds `preset.create` (ADR 0172 decision
- * 7), which the domain gives to the administrator alone. The role is read from the account on every request, so a
- * demotion ends this at once. The confirmed address is asked here and not left to the capability table, which waives it
- * for every capability that is not a design's (K-14: a verified administrator only). The session is read by the variant
- * that throws: a store that is down is `mayAuthorPresets`'s refusal, never a guess.
+ * A signed-in session whose account's current role holds `preset.create` (ADR 0172 decision 7), which needs a confirmed
+ * address. The session is read by the variant that throws: a store that is down is `mayAuthorPresets`'s refusal, never
+ * a guess.
  */
 export const sessionHoldsPresetCreate: PresetAuthoringPolicy = async (
   request,
 ) => {
   const session = await readCurrentSessionOrThrow(request.cookies);
   return (
-    session.kind === "signed-in" &&
-    session.isEmailVerified &&
-    isCapabilityHeld(session, "preset.create")
+    session.kind === "signed-in" && isCapabilityHeld(session, "preset.create")
   );
 };
 
@@ -55,6 +52,7 @@ export async function mayAuthorPresets(
   try {
     return await WIRED_PRESET_AUTHORING_POLICY(request);
   } catch {
+    reportAccountEvent({ event: "session-read", outcome: "unavailable" });
     return false;
   }
 }

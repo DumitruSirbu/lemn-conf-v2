@@ -13,8 +13,15 @@ import { designNotFoundResponse } from "@/lib/server/design-errors";
 import { PRESET_CREATIONS_PER_DAY_FIGURE } from "@/lib/server/rate-limit/limit-policy";
 
 import {
+  AUTHOR_CREDENTIALS_COOKIE,
+  AUTHOR_DESIGN_ID as DESIGN_ID,
+  AUTHOR_VISITOR_COOKIE_NAME as VISITOR_COOKIE_NAME,
+  AUTHOR_VISITOR_VALUE as VISITOR_VALUE,
+  AUTHOR_WRITE_COOKIE_NAME as WRITE_COOKIE_NAME,
+  AUTHOR_WRITE_TOKEN as WRITE_TOKEN,
   freshPresetAuthorWorld,
   type PresetAuthorWorld,
+  type SeededPresetSession,
 } from "../../../support/preset-author-world";
 
 /**
@@ -28,10 +35,6 @@ function hashOf(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-const DESIGN_ID = "V1StGXR8Z5jdHi6BmyT_a";
-const WRITE_TOKEN = "write-token-for-the-design-under-test";
-const VISITOR_VALUE = "a".repeat(43);
-const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const STORED_REVISION = "7";
 
 const WIDTH_PX = 1280;
@@ -81,14 +84,14 @@ const { POST: savePreset } = await import(
 
 let fakePresets: FakePresetRepository;
 let world: PresetAuthorWorld;
+let administrator: SeededPresetSession;
 
 beforeEach(async () => {
   fakePresets = new FakePresetRepository();
   presets.current = fakePresets;
   storedDesign.current = KITCHEN_L_DESIGN;
   world = freshPresetAuthorWorld();
-  const administrator = await world.signIn({ role: "administrator" });
-  VALID_HEADERS.cookie = `${AUTHOR_CREDENTIALS_COOKIE}; ${administrator.cookie}`;
+  administrator = await world.signIn({ role: "administrator" });
 });
 
 // ---- Images: only their headers are real, which is all the route reads ----
@@ -119,14 +122,23 @@ interface SaveRequest {
   readonly fields?: Record<string, unknown>;
 }
 
-const AUTHOR_CREDENTIALS_COOKIE = `lemnaria_write_token_${DESIGN_ID}=${WRITE_TOKEN}; ${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`;
+const SAME_ORIGIN = "same-origin";
 
-/** The one valid request: the design's own credentials and a live administrator session (`beforeEach` adds the
- *  session, which only the policy reads). Mutated there because a session value is minted per test. */
-const VALID_HEADERS: Record<string, string> = {
-  "sec-fetch-site": "same-origin",
-  cookie: AUTHOR_CREDENTIALS_COOKIE,
-};
+/** Headers of a same-origin request carrying these credential cookies, then the session's. */
+function headersCarrying(
+  credentials: string,
+  session: SeededPresetSession,
+): Record<string, string> {
+  return {
+    "sec-fetch-site": SAME_ORIGIN,
+    cookie: `${credentials}; ${session.cookie}`,
+  };
+}
+
+/** The one valid request's headers: the design's own credentials and the session's. */
+function validHeaders(session: SeededPresetSession): Record<string, string> {
+  return headersCarrying(AUTHOR_CREDENTIALS_COOKIE, session);
+}
 
 function validFields(): Record<string, unknown> {
   return {
@@ -142,7 +154,7 @@ function save(request: SaveRequest = {}): Promise<Response> {
   return savePreset(
     new NextRequest(`https://example.test/api/designs/${id}/preset`, {
       method: "POST",
-      headers: request.headers ?? VALID_HEADERS,
+      headers: request.headers ?? validHeaders(administrator),
       body:
         request.body ?? JSON.stringify({ ...validFields(), ...request.fields }),
     }),
@@ -192,7 +204,7 @@ describe("POST /api/designs/{id}/preset: the valid request, the control for ever
 describe("POST /api/designs/{id}/preset: a holder of the design's credentials who may not author presets answers the design-not-found response and stores nothing", () => {
   function withSession(sessionCookie: string | undefined) {
     return {
-      ...VALID_HEADERS,
+      "sec-fetch-site": SAME_ORIGIN,
       cookie:
         sessionCookie === undefined
           ? AUTHOR_CREDENTIALS_COOKIE
@@ -221,7 +233,6 @@ describe("POST /api/designs/{id}/preset: a holder of the design's credentials wh
   });
 
   it("an administrator whose session the store cannot be asked about", async () => {
-    const administrator = await world.signIn({ role: "administrator" });
     world.breakSessionLookups();
 
     await expectRefusedAsNotFound(withSession(administrator.cookie));
@@ -230,52 +241,42 @@ describe("POST /api/designs/{id}/preset: a holder of the design's credentials wh
 
 describe("POST /api/designs/{id}/preset: a request that is not its author's answers the design-not-found response and stores nothing", () => {
   const otherVisitor = `${VISITOR_COOKIE_NAME}=${"b".repeat(43)}`;
-  const writeCookie = `lemnaria_write_token_${DESIGN_ID}=${WRITE_TOKEN}`;
-  const sameOrigin = "same-origin";
+  const writeCookie = `${WRITE_COOKIE_NAME}=${WRITE_TOKEN}`;
+  const visitorCookie = `${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`;
+  const wrongWriteCookie = `${WRITE_COOKIE_NAME}=not-the-token`;
 
-  it.each([
+  type HeadersOf = (session: SeededPresetSession) => Record<string, string>;
+  const carrying =
+    (credentials: string): HeadersOf =>
+    (session) =>
+      headersCarrying(credentials, session);
+
+  // Each row holds the administrator's session, so the policy admits it and only the design's own check can refuse.
+  it.each<[string, HeadersOf]>([
     [
       "a cross-site request",
-      { ...VALID_HEADERS, "sec-fetch-site": "cross-site" },
+      (session) => ({
+        ...validHeaders(session),
+        "sec-fetch-site": "cross-site",
+      }),
     ],
     [
       "a foreign Origin without Sec-Fetch-Site",
-      { cookie: VALID_HEADERS.cookie ?? "", origin: "https://evil.test" },
+      (session) => ({
+        cookie: validHeaders(session).cookie ?? "",
+        origin: "https://evil.test",
+      }),
     ],
-    [
-      "no write token",
-      {
-        "sec-fetch-site": sameOrigin,
-        cookie: `${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`,
-      },
-    ],
-    [
-      "a wrong write token",
-      {
-        "sec-fetch-site": sameOrigin,
-        cookie: `lemnaria_write_token_${DESIGN_ID}=not-the-token; ${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`,
-      },
-    ],
-    [
-      "no visitor cookie",
-      { "sec-fetch-site": sameOrigin, cookie: writeCookie },
-    ],
+    ["no write token", carrying(visitorCookie)],
+    ["a wrong write token", carrying(`${wrongWriteCookie}; ${visitorCookie}`)],
+    ["no visitor cookie", carrying(writeCookie)],
     [
       "a malformed visitor cookie",
-      {
-        "sec-fetch-site": sameOrigin,
-        cookie: `${writeCookie}; ${VISITOR_COOKIE_NAME}=short`,
-      },
+      carrying(`${writeCookie}; ${VISITOR_COOKIE_NAME}=short`),
     ],
-    [
-      "another browser's visitor",
-      {
-        "sec-fetch-site": sameOrigin,
-        cookie: `${writeCookie}; ${otherVisitor}`,
-      },
-    ],
-  ])("%s", async (_name, headers) => {
-    const response = await save({ headers });
+    ["another browser's visitor", carrying(`${writeCookie}; ${otherVisitor}`)],
+  ])("%s", async (_name, headersOf) => {
+    const response = await save({ headers: headersOf(administrator) });
 
     const expected = designNotFoundResponse(DESIGN_ID);
     expect(response.status).toBe(404);
@@ -285,10 +286,10 @@ describe("POST /api/designs/{id}/preset: a request that is not its author's answ
   });
 
   it("a wrong write token beside an image and a name that fail their rules: the same 404, the body's rules never asked", async () => {
-    const headers = {
-      "sec-fetch-site": sameOrigin,
-      cookie: `lemnaria_write_token_${DESIGN_ID}=not-the-token; ${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`,
-    };
+    const headers = headersCarrying(
+      `${wrongWriteCookie}; ${visitorCookie}`,
+      administrator,
+    );
 
     const response = await save({
       headers,
@@ -304,10 +305,10 @@ describe("POST /api/designs/{id}/preset: a request that is not its author's answ
 
   it("an id that names no design", async () => {
     const id = "no-such-design-00000x";
-    const headers = {
-      ...VALID_HEADERS,
-      cookie: `lemnaria_write_token_${id}=${WRITE_TOKEN}; ${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`,
-    };
+    const headers = headersCarrying(
+      `lemnaria_write_token_${id}=${WRITE_TOKEN}; ${visitorCookie}`,
+      administrator,
+    );
 
     const response = await save({ id, headers });
 
