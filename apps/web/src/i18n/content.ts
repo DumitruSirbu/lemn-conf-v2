@@ -23,6 +23,7 @@ import type {
   PresetNameFacts,
   RejectionDetail,
   RequestStatusRefusalCode,
+  StaffAuditAction,
 } from "@lemnaria/configurator-domain";
 
 export type ContentTranslator = _Translator<Messages>;
@@ -1490,6 +1491,75 @@ export function resolveStaffKitchensCopy(translate: ContentTranslator) {
 }
 
 export type StaffKitchensCopy = ReturnType<typeof resolveStaffKitchensCopy>;
+
+/** The audit log page. The action labels are a closed `Map` that is asked, never indexed: an unrecognised row carries
+ *  any code the table allows, `constructor` and `__proto__` included. The statuses and the page numbers a row or the
+ *  foot says are the kitchens list's own words and are not said twice. */
+export function resolveStaffAuditCopy(translate: ContentTranslator) {
+  const actionLabels: Readonly<Record<StaffAuditAction, string>> = {
+    "kitchen-opened": translate("staffAudit.actionKitchenOpened"),
+    "note-added": translate("staffAudit.actionNoteAdded"),
+    "status-changed": translate("staffAudit.actionStatusChanged"),
+    "kitchen-unhidden": translate("staffAudit.actionKitchenUnhidden"),
+    "kitchens-listed": translate("staffAudit.actionKitchensListed"),
+    "audit-viewed": translate("staffAudit.actionAuditViewed"),
+  };
+  const rows = (count: number) => translate("staffAudit.detailRows", { count });
+  return {
+    title: translate("staffAudit.title"),
+    readOnlyNote: translate("staffAudit.readOnlyNote"),
+    loading: translate("staffAudit.loading"),
+    filters: {
+      person: translate("staffAudit.filterPerson"),
+      personAll: translate("staffAudit.filterPersonAll"),
+      action: translate("staffAudit.filterAction"),
+      actionAll: translate("staffAudit.filterActionAll"),
+      from: translate("staffAudit.filterFrom"),
+      to: translate("staffAudit.filterTo"),
+      dayInvalid: (years: { first: number; last: number }) =>
+        translate("staffAudit.dayInvalid", years),
+      rangeInverted: translate("staffAudit.rangeInverted"),
+      clear: translate("staffAudit.clearFilters"),
+    },
+    columns: {
+      when: translate("staffAudit.columnWhen"),
+      who: translate("staffAudit.columnWho"),
+      action: translate("staffAudit.columnAction"),
+      object: translate("staffAudit.columnObject"),
+    },
+    actionLabels: new Map<string, string>(Object.entries(actionLabels)),
+    unknownAction: translate("staffAudit.actionUnknown"),
+    details: {
+      statusChanged: (change: { from: string; to: string }) =>
+        translate("staffAudit.detailStatusChanged", change),
+      page: (page: { page: number; rowCount: number }) =>
+        translate("staffAudit.detailPage", {
+          page: page.page,
+          rows: rows(page.rowCount),
+        }),
+      pageWithSearch: (page: { page: number; rowCount: number }) =>
+        translate("staffAudit.detailPageSearch", {
+          page: page.page,
+          rows: rows(page.rowCount),
+        }),
+      pageWithFilters: (page: { page: number; rowCount: number }) =>
+        translate("staffAudit.detailPageFilters", {
+          page: page.page,
+          rows: rows(page.rowCount),
+        }),
+    },
+    empty: {
+      title: translate("staffAudit.emptyTitle"),
+      body: translate("staffAudit.emptyBody"),
+    },
+    noResults: {
+      title: translate("staffAudit.noResultsTitle"),
+      body: translate("staffAudit.noResultsBody"),
+    },
+  };
+}
+
+export type StaffAuditCopy = ReturnType<typeof resolveStaffAuditCopy>;
 
 /** One client's kitchen as staff read it: the view's labels, the summary's rows, the lines of the client and of the request,
  *  the caption, and the words of a kitchen that is not there or cannot be shown. The words the list already has (the

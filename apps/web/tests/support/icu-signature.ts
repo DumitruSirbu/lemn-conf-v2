@@ -164,5 +164,5 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
  *  `claimDialog.claimedTitle` and `accountKitchens.count`. Commit de0aa867 (Lot 1, wave L13b.1) raised it from 7 to 8 for
  *  the first of them; it was not raised for the other three, and the walk itself counts 11 in both catalogues. The staff
  *  list added three: `staffKitchens.countSent`, `countDrafts` and `countAll`; the staff notes added two:
- *  `staffNotes.count` and `staffNotes.truncated`. */
-export const PLURAL_NODES_PER_CATALOGUE = 16;
+ *  `staffNotes.count` and `staffNotes.truncated`; the audit page added one: `staffAudit.detailRows`. */
+export const PLURAL_NODES_PER_CATALOGUE = 17;

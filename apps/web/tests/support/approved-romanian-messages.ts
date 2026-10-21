@@ -1598,6 +1598,47 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Încă nu ești în cont. Intră în fila nouă, apoi apasă din nou.",
     sessionRecheckFailed: "Nu am putut verifica acum. Încearcă din nou.",
   },
+  // Drafted, approved as drafted by the owner (O-L3-7, relayed 2026-10-20; ADR 0174 decision 5): the audit log page
+  // (Lot 3 frames S8A to S8E and DS8A to DS8E). The action labels, the column names, the filters and the empty and
+  // no-result texts are the frames' own; the row, page and filter-error sentences are new. The owner may reword later.
+  staffAudit: {
+    title: "Jurnal de audit",
+    readOnlyNote: "Jurnalul nu poate fi modificat.",
+    loading: "Se încarcă jurnalul",
+    filterPerson: "Persoană",
+    filterPersonAll: "Toate persoanele",
+    filterAction: "Acțiune",
+    filterActionAll: "Toate acțiunile",
+    filterFrom: "De la",
+    filterTo: "Până la",
+    dayInvalid:
+      "Alege o zi din anii {first, number, ::group-off}–{last, number, ::group-off}.",
+    rangeInverted: "„De la” nu poate fi după „Până la”.",
+    clearFilters: "Șterge filtrele",
+    columnWhen: "Când",
+    columnWho: "Cine",
+    columnAction: "Acțiune",
+    columnObject: "Obiect",
+    actionKitchenOpened: "a deschis bucătăria",
+    actionNoteAdded: "a adăugat o notă",
+    actionStatusChanged: "a schimbat statusul",
+    actionKitchenUnhidden: "a făcut vizibilă bucătăria",
+    actionKitchensListed: "a deschis lista",
+    actionAuditViewed: "a deschis jurnalul",
+    actionUnknown: "Acțiune necunoscută",
+    detailStatusChanged: "{from} → {to}",
+    detailRows:
+      "{count, plural, one {# rând} few {# rânduri} other {# de rânduri}}",
+    detailPage: "pagina {page, number, ::group-off} · {rows}",
+    detailPageSearch:
+      "pagina {page, number, ::group-off} · {rows} · cu căutare",
+    detailPageFilters:
+      "pagina {page, number, ::group-off} · {rows} · cu filtre",
+    emptyTitle: "Nicio acțiune înregistrată încă.",
+    emptyBody: "Accesul personalului la bucătării apare aici.",
+    noResultsTitle: "Nicio acțiune pentru filtrele alese.",
+    noResultsBody: "Schimbă persoana, acțiunea sau intervalul.",
+  },
 } as const;
 
 export function isRomanianCopyApproved(actual: unknown): boolean {
