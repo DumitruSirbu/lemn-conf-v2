@@ -18,13 +18,22 @@ const SESSION_ENDPOINT = "/api/account/session";
 /** The capability only a client holds (ADR 0172 D7): a session without it is staff's. */
 const CLIENT_CAPABILITY: Capability = "design.read.own";
 
+/** The capability that opens the staff area. The list it is read from is advisory: it decides only whether the header
+ *  offers the way in, and the server's gate on every staff page and route decides who gets through it. */
+const STAFF_AREA_CAPABILITY: Capability = "design.read.any";
+
 /** What the header knows of the session. The role is never part of it: a client is told apart by the capability, and
  *  staff are not told apart from each other. */
 export type AccountSessionState =
   | { readonly kind: "pending" }
   | { readonly kind: "anonymous" }
   | { readonly kind: "client"; readonly email: string }
-  | { readonly kind: "staff" };
+  | {
+      readonly kind: "staff";
+      /** Whether the session lists the capability that opens the staff area. Absent reads as no: an unverified
+       *  account lists only its own sign-in details. */
+      readonly canEnterStaffArea?: boolean;
+    };
 
 /** What a request came to: the state to show, and whether the server said it (a failure is shown but not kept). */
 interface SessionAnswer {
@@ -188,7 +197,10 @@ export function describeSession(body: unknown): AccountSessionState {
   if (typeof email !== "string" || !Array.isArray(capabilities)) {
     return ANONYMOUS;
   }
-  return capabilities.includes(CLIENT_CAPABILITY)
-    ? { kind: "client", email }
-    : { kind: "staff" };
+  if (capabilities.includes(CLIENT_CAPABILITY))
+    return { kind: "client", email };
+  return {
+    kind: "staff",
+    canEnterStaffArea: capabilities.includes(STAFF_AREA_CAPABILITY),
+  };
 }

@@ -109,6 +109,7 @@ export function StaffShell({
         <AccountControl
           cellClassName={styles.account ?? ""}
           afterSignOut="leave-for-start"
+          staffAreaEntry="omitted"
         />
         <nav className={styles.localeNav} aria-label={accountShell.localeMenu}>
           {otherLocalesThan(locale).map((other) => (

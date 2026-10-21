@@ -37,6 +37,10 @@ import {
 // The way in is a plain anchor, never the router's link: an account page is a document of its own, with a policy and a
 // nonce of its own, so a soft navigation would carry the wrong ones.
 //
+// The way into the staff area is a plain anchor too, and for the same reason: the staff area is a frame of its own.
+// Whether to offer it is read from the capabilities the session lists, which is advisory: the server's gate on each staff
+// page decides who gets in.
+//
 // The menu, and the "sign out everywhere" question it leads to, are not drawn inside the cell but rendered into the
 // screen's own `<main>`. The modal behaviour marks every band of the `<main>` but the one holding the dialog inert, and
 // both top bars are bands of it (the room's is a single one): a dialog nested in the bar would leave the whole bar
@@ -58,7 +62,12 @@ export interface AccountControlProps {
   /** What "Ieși din cont" does once the server has ended the session. The configurator keeps its screen and says so;
    *  a page that holds a client's data leaves for the start of the configurator. */
   readonly afterSignOut?: AfterSignOut;
+  /** Whether a staff session's menu offers the way into the staff area. The staff area's own frame omits it: it is
+   *  already there, and its navigation is the way around. */
+  readonly staffAreaEntry?: StaffAreaEntry;
 }
+
+export type StaffAreaEntry = "offered" | "omitted";
 
 export type AfterSignOut = "stay-on-screen" | "leave-for-start";
 
@@ -66,6 +75,7 @@ export function AccountControl({
   cellClassName,
   signInForm = "text",
   afterSignOut = "stay-on-screen",
+  staffAreaEntry = "offered",
 }: AccountControlProps) {
   const session = useAccountSession();
   const signOutHere = useSignOutHere();
@@ -83,6 +93,7 @@ export function AccountControl({
           session={session}
           signInForm={signInForm}
           signOutHere={signOutHere}
+          staffAreaEntry={staffAreaEntry}
         />
       </div>
       <SignOutHereToast
@@ -123,10 +134,12 @@ function ControlFor({
   session,
   signInForm,
   signOutHere,
+  staffAreaEntry,
 }: {
   readonly session: AccountSessionState;
   readonly signInForm: SignInForm;
   readonly signOutHere: SignOutHere;
+  readonly staffAreaEntry: StaffAreaEntry;
 }) {
   switch (session.kind) {
     case "pending":
@@ -136,8 +149,17 @@ function ControlFor({
     case "client":
       return <SignedInMenu email={session.email} signOutHere={signOutHere} />;
     case "staff":
-      // Staff are not told apart from each other: their menu holds the profile and the way out only.
-      return <SignedInMenu email={undefined} signOutHere={signOutHere} />;
+      // Staff are not told apart from each other: their menu holds the profile, the way into the staff area where the
+      // session lists the capability and the host offers it, and the way out.
+      return (
+        <SignedInMenu
+          email={undefined}
+          signOutHere={signOutHere}
+          hasStaffAreaEntry={
+            staffAreaEntry === "offered" && session.canEnterStaffArea === true
+          }
+        />
+      );
   }
 }
 
@@ -292,9 +314,11 @@ function useOpenSurface(
 function SignedInMenu({
   email,
   signOutHere,
+  hasStaffAreaEntry = false,
 }: {
   readonly email: string | undefined;
   readonly signOutHere: SignOutHere;
+  readonly hasStaffAreaEntry?: boolean;
 }) {
   const copy = useAccountControlCopy();
   const locale = useLocale();
@@ -327,6 +351,9 @@ function SignedInMenu({
             email === undefined ? undefined : accountPathOf(locale, "kitchens")
           }
           profileHref={accountPathOf(locale, "profile")}
+          staffAreaHref={
+            hasStaffAreaEntry ? staffAreaPathOf(locale) : undefined
+          }
           isSignOutBusy={signOutHere.isSending}
           onClose={close}
           onSignOutHere={signOutAndClose}
@@ -338,12 +365,19 @@ function SignedInMenu({
   );
 }
 
+/** The staff area's first page. Not `staffPathOf`: the staff frame imports this control, so importing it back would be
+ *  a cycle (a test holds the two equal). */
+function staffAreaPathOf(locale: string): string {
+  return `/${locale}/staff/kitchens`;
+}
+
 /** Whichever surface is open, rendered into the screen it was opened on. */
 function MenuPortal({
   open,
   email,
   kitchensHref,
   profileHref,
+  staffAreaHref,
   isSignOutBusy,
   onClose,
   onSignOutHere,
@@ -354,6 +388,7 @@ function MenuPortal({
   readonly email: string | undefined;
   readonly kitchensHref: string | undefined;
   readonly profileHref: string;
+  readonly staffAreaHref: string | undefined;
   readonly isSignOutBusy: boolean;
   readonly onClose: () => void;
   readonly onSignOutHere: () => void;
@@ -366,6 +401,7 @@ function MenuPortal({
         email={email}
         kitchensHref={kitchensHref}
         profileHref={profileHref}
+        staffAreaHref={staffAreaHref}
         isSignOutBusy={isSignOutBusy}
         onClose={onClose}
         onSignOutHere={onSignOutHere}
@@ -387,6 +423,7 @@ function AccountMenu({
   email,
   kitchensHref,
   profileHref,
+  staffAreaHref,
   isSignOutBusy,
   onClose,
   onSignOutHere,
@@ -398,6 +435,8 @@ function AccountMenu({
   readonly kitchensHref: string | undefined;
   /** The account's own details, which every role keeps. */
   readonly profileHref: string;
+  /** The way into the staff area, for a session that may enter it; everyone else is shown no row. */
+  readonly staffAreaHref: string | undefined;
   /** A sign-out of this device is out: the rows wait for its answer. */
   readonly isSignOutBusy: boolean;
   readonly onClose: () => void;
@@ -447,6 +486,9 @@ function AccountMenu({
             <MenuLinkRow label={copy.myKitchens} href={kitchensHref} />
           )}
           <MenuLinkRow label={copy.profile} href={profileHref} />
+          {staffAreaHref === undefined ? null : (
+            <MenuLinkRow label={copy.staffArea} href={staffAreaHref} />
+          )}
           <MenuRow
             label={copy.signOutHere}
             isBusy={isSignOutBusy}
