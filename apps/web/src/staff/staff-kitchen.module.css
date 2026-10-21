@@ -55,6 +55,11 @@
   unicode-bidi: isolate;
 }
 
+.title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 .sub {
   margin: 0;
   font: 400 13px/1.55 var(--font-ui);

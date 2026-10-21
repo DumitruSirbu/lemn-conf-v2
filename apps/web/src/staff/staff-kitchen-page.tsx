@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import { kitchenSummaryOf, type Design } from "@lemnaria/configurator-domain";
 
@@ -34,7 +41,11 @@ import {
   type StaffShellContext,
 } from "./staff-shell";
 import shellStyles from "./staff.module.css";
-import { useStaffKitchen, type StaffKitchenState } from "./use-staff-kitchen";
+import {
+  useStaffKitchen,
+  type StaffKitchenReading,
+  type StaffKitchenState,
+} from "./use-staff-kitchen";
 
 // One client's kitchen, read-only (Lot 3 frames S3A to S3C, S3H and S3I; the desktop frames are the same page in three
 // columns). Three columns on a desktop: the kitchen and what it is made of; the status, the request, the client and the
@@ -55,22 +66,60 @@ export function StaffKitchenScreen({
   readonly designId: string;
 }) {
   const reading = useStaffKitchen(locale, designId);
+  const heading = useHeadingFocusAfterRetry(reading);
   if (reading.state.phase === "forbidden") {
     return (
-      <StaffForbiddenScreen locale={locale} page="kitchens" context={context} />
+      <StaffForbiddenScreen
+        locale={locale}
+        page="kitchens"
+        kitchenId={designId}
+        context={context}
+      />
     );
   }
   return (
-    <StaffShell locale={locale} page="kitchens" context={context}>
-      <section className={styles.page} data-testid="staff-kitchen-page">
+    <StaffShell
+      locale={locale}
+      page="kitchens"
+      kitchenId={designId}
+      context={context}
+    >
+      <section
+        ref={heading.pageRef}
+        className={styles.page}
+        data-testid="staff-kitchen-page"
+      >
         <StaffKitchenStates
           locale={locale}
           state={reading.state}
-          onRetry={reading.retry}
+          onRetry={heading.retry}
         />
       </section>
     </StaffShell>
   );
+}
+
+/**
+ * The retry button is gone once the kitchen is asked for again, and focus would fall to the document. When the answer is
+ * in, whatever it is, focus goes to the page's heading, which every state draws (a heading takes focus by script only).
+ */
+function useHeadingFocusAfterRetry(reading: StaffKitchenReading): {
+  readonly pageRef: RefObject<HTMLElement | null>;
+  readonly retry: () => void;
+} {
+  const pageRef = useRef<HTMLElement>(null);
+  const isWatching = useRef(false);
+  const { retry: askAgain, state } = reading;
+  const retry = useCallback(() => {
+    isWatching.current = true;
+    askAgain();
+  }, [askAgain]);
+  useEffect(() => {
+    if (!isWatching.current || state.phase === "loading") return;
+    isWatching.current = false;
+    pageRef.current?.querySelector("h1")?.focus();
+  }, [state]);
+  return { pageRef, retry };
 }
 
 function StaffKitchenStates({
@@ -122,7 +171,9 @@ function KitchenHeader({
       <a className={styles.back} href={staffPathOf(locale, "kitchens")}>
         {shell.pages.kitchens}
       </a>
-      <h1 className={styles.title}>{title}</h1>
+      <h1 className={styles.title} tabIndex={-1}>
+        {title}
+      </h1>
       {sub === undefined ? null : <p className={styles.sub}>{sub}</p>}
     </header>
   );

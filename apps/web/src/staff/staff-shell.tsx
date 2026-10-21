@@ -2,6 +2,8 @@
 
 import { useCallback, useRef, useState, type ReactNode } from "react";
 
+import { isDesignId } from "@lemnaria/configurator-domain";
+
 import { OutcomeHero } from "@/account/account-form-parts";
 import { startPathOf } from "@/account/account-shell";
 import { AccountControl } from "@/account/session/account-control";
@@ -50,10 +52,30 @@ export function staffPathOf(locale: AppLocale, page: StaffPage): string {
   return `/${locale}/staff/${page}`;
 }
 
+/**
+ * Where the language links lead: the page being shown, or the one kitchen of the "kitchens" page when the page shows one.
+ * The kitchen's id is part of the address only if it has the shape of a design id, so nothing but a design id is ever
+ * written into a link, whatever the caller was handed.
+ */
+export function pathForLanguageLink(
+  locale: AppLocale,
+  page: StaffPage,
+  kitchenId: string | undefined,
+): string {
+  const isKitchen =
+    page === "kitchens" && kitchenId !== undefined && isDesignId(kitchenId);
+  return isKitchen
+    ? `${staffPathOf(locale, page)}/${kitchenId}`
+    : staffPathOf(locale, page);
+}
+
 export interface StaffShellProps {
   readonly locale: AppLocale;
   /** The page being shown, so the navigation marks it and the language links lead to the same page. */
   readonly page: StaffPage;
+  /** The kitchen the "kitchens" page shows, so the language links lead to that kitchen and not to the list. Used only if
+   *  it is shaped like a design id. */
+  readonly kitchenId?: string;
   readonly context: StaffShellContext;
   readonly children: ReactNode;
 }
@@ -63,6 +85,7 @@ type OpenSurface = "none" | "menu" | "logout-everywhere";
 export function StaffShell({
   locale,
   page,
+  kitchenId,
   context,
   children,
 }: StaffShellProps) {
@@ -113,7 +136,11 @@ export function StaffShell({
         />
         <nav className={styles.localeNav} aria-label={accountShell.localeMenu}>
           {otherLocalesThan(locale).map((other) => (
-            <LocaleLink key={other} locale={other} page={page} />
+            <LocaleLink
+              key={other}
+              locale={other}
+              href={pathForLanguageLink(other, page, kitchenId)}
+            />
           ))}
         </nav>
       </div>
@@ -196,15 +223,15 @@ function otherLocalesThan(locale: AppLocale): readonly AppLocale[] {
 /** This page in another language: a full load, so nothing typed travels. */
 function LocaleLink({
   locale,
-  page,
+  href,
 }: {
   readonly locale: AppLocale;
-  readonly page: StaffPage;
+  readonly href: string;
 }) {
   return (
     <a
       className={styles.localeChip}
-      href={staffPathOf(locale, page)}
+      href={href}
       lang={locale}
       hrefLang={locale}
     >

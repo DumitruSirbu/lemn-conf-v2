@@ -77,6 +77,10 @@ const CONTEXT: StaffShellContext = {
   navigation: ["kitchens"],
 };
 const NOW = "2026-10-21T12:00:00.000Z";
+const REFUSAL_OF_ONE_KITCHEN = {
+  status: 404,
+  body: { error: "Design not found" },
+} as const;
 /** The sender's address as the sentence under the title carries it: between isolate marks. */
 const isolatedAddress = "\u2068ana.popescu@mail.md\u2069";
 const KITCHEN_ADDRESS = `/api/staff/kitchens/${STAFF_KITCHEN_ID}`;
@@ -300,6 +304,15 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
 
     it("says the access is logged", () => {
       expect(page().textContent).toContain(words.accessLogged);
+    });
+
+    it("leads the language links to this kitchen in the other language, not to the list", () => {
+      const other = locale === "ro" ? "ru" : "ro";
+      const links = allIn<HTMLAnchorElement>(container(), "a[hreflang]");
+
+      expect(links.map((link) => link.getAttribute("href"))).toEqual([
+        `/${other}/staff/kitchens/${STAFF_KITCHEN_ID}`,
+      ]);
     });
 
     it("draws no hidden banner for a kitchen its client has not hidden", () => {
@@ -658,6 +671,69 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       click(retry);
       await settle();
       expect(kitchenRequests()).toHaveLength(2);
+    });
+
+    it.each([
+      ["whole minutes", 600],
+      ["a clock time", 7200],
+    ])(
+      "keeps the retry button off for the whole of a limit told as %s",
+      async (_, seconds) => {
+        kitchenAnswers(() => RATE_LIMITED_ANSWER(seconds));
+        await mount(locale);
+        const retry = byWords(
+          page(),
+          "button",
+          CATALOGUES[locale].accountForm.retry,
+        );
+
+        await pass((seconds - 1) * 1000);
+        click(retry);
+        await settle();
+        expect(retry.getAttribute("aria-disabled")).toBe("true");
+        expect(kitchenRequests()).toHaveLength(1);
+
+        await pass(2000);
+        expect(retry.getAttribute("aria-disabled")).toBeNull();
+        click(retry);
+        await settle();
+        expect(kitchenRequests()).toHaveLength(2);
+      },
+    );
+
+    it.each([
+      ["the kitchen", () => ({ body: wireKitchen() })],
+      ["the one refusal", () => REFUSAL_OF_ONE_KITCHEN],
+      ["another failure", () => UNAVAILABLE_ANSWER],
+    ])(
+      "puts focus on the page's heading when the retry is answered with %s, the button having gone",
+      async (_, answer) => {
+        kitchenAnswers(() => UNAVAILABLE_ANSWER);
+        await mount(locale);
+        const retry = byWords(
+          page(),
+          "button",
+          CATALOGUES[locale].accountForm.retry,
+        );
+        retry.focus();
+        kitchenAnswers(answer);
+
+        click(retry);
+        await settle();
+
+        expect(document.activeElement).toBe(requireIn(page(), "h1"));
+      },
+    );
+
+    it("moves focus only after a retry: a page that opens does not take it", async () => {
+      const outside = document.createElement("button");
+      document.body.append(outside);
+      outside.focus();
+      kitchenAnswers(() => ({ body: wireKitchen() }));
+
+      await mount(locale);
+
+      expect(document.activeElement).toBe(outside);
     });
 
     it("tells an answer with no connection as the account's offline notice", async () => {

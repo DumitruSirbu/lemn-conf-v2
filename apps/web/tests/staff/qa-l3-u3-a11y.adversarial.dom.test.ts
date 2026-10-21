@@ -37,7 +37,9 @@ vi.mock("@/scene/webgl-support", () => ({
 
 const CATALOGUES = { ro: roMessages, ru: ruMessages } as const;
 const LOCALES: readonly TestLocale[] = ["ro", "ru"];
-const FOCUSABLE = "a[href], button, input, select, textarea, [tabindex]";
+// Tab order: an element that takes focus by script only (`tabindex="-1"`, the heading) is not in it.
+const FOCUSABLE =
+  'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
 const UNREADABLE_DOCUMENT = { room: "?" };
 
 const STATES: readonly (readonly [string, () => KitchenAnswer, boolean])[] = [
