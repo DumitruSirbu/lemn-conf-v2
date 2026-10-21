@@ -51,6 +51,9 @@ const AUDIT_POLICY_NAME = "staff-audit-page-by-account-per-60-utc-minutes";
 const SESSION_TOUCH = "sessions.touch";
 const PAGE_SIZE = 25;
 const A_VALUE_NO_ONE_ELSE_TYPES = "Zorila-Quasar-9917";
+/** The route writes an `audit-viewed` row for each page it serves, so a test that reads twice and counts rows asks for
+ *  the action it planted. */
+const ONLY_PLANTED = "?action=kitchen-opened";
 
 let world: AccountWorld;
 let auditWorld: AuditPageWorld;
@@ -91,7 +94,6 @@ interface EventWire {
   kitchen: {
     id: string;
     name: string | null;
-    client: Record<string, unknown> | null;
   } | null;
 }
 
@@ -210,7 +212,7 @@ describe("who may read the log (K-1)", () => {
     );
 
     expect([asOperator.status, asAdministrator.status]).toEqual([403, 200]);
-    expect(auditWorld.calls).toEqual(["audit.page"]);
+    expect(auditWorld.calls).toEqual(["audit.page", "audit.record"]);
   });
 });
 
@@ -254,7 +256,7 @@ describe("the order of the checks", () => {
       READ_POLICY_NAME,
       AUDIT_POLICY_NAME,
     ]);
-    expect(auditWorld.calls).toEqual(["audit.page"]);
+    expect(auditWorld.calls).toEqual(["audit.page", "audit.record"]);
   });
 });
 
@@ -392,7 +394,9 @@ describe("the days are Chisinau days (K-15)", () => {
   });
 
   async function daysOf(search: string): Promise<string[]> {
-    const answer = await route.GET(auditRequest({ cookie, search }));
+    const answer = await route.GET(
+      auditRequest({ cookie, search: `${search}&action=kitchen-opened` }),
+    );
     expect(answer.status).toBe(200);
     return (await pageOf(answer)).events.map(({ occurredAt }) => occurredAt);
   }
@@ -483,16 +487,24 @@ describe("the page", () => {
     }
 
     const first = await pageOf(
-      await route.GET(auditRequest({ cookie: session.cookie })),
+      await route.GET(
+        auditRequest({ cookie: session.cookie, search: ONLY_PLANTED }),
+      ),
     );
     const second = await pageOf(
       await route.GET(
-        auditRequest({ cookie: session.cookie, search: "?page=2" }),
+        auditRequest({
+          cookie: session.cookie,
+          search: `${ONLY_PLANTED}&page=2`,
+        }),
       ),
     );
     const beyond = await pageOf(
       await route.GET(
-        auditRequest({ cookie: session.cookie, search: "?page=3" }),
+        auditRequest({
+          cookie: session.cookie,
+          search: `${ONLY_PLANTED}&page=3`,
+        }),
       ),
     );
 
@@ -721,9 +733,19 @@ describe("what a row holds", () => {
           hasSearch: true,
         },
       ],
+      [
+        "audit-viewed",
+        {
+          page: 3,
+          rowCount: 25,
+          hasActorFilter: true,
+          hasActionFilter: false,
+          hasDateFilter: true,
+        },
+      ],
     ];
     rows.forEach(([action, detail], index) => {
-      const names = action !== "kitchens-listed";
+      const names = action !== "kitchens-listed" && action !== "audit-viewed";
       plantEvent(auditWorld, {
         actorAccountId: account.id,
         action,
@@ -789,18 +811,16 @@ describe("what a row holds", () => {
         "occurredAt",
         "subject",
       ]);
-      expect(Object.keys(event.actor).sort()).toEqual(["email", "id", "name"]);
+      expect(Object.keys(event.actor).sort()).toEqual(["email", "id"]);
       expect(Object.keys(event.subject ?? { email: 1 })).toEqual(["email"]);
-      expect(
-        Object.keys(event.kitchen ?? { client: 1, id: 1, name: 1 }).sort(),
-      ).toEqual(["client", "id", "name"]);
-      expect(Object.keys(event.kitchen?.client ?? { email: 1 })).toEqual([
-        "email",
+      expect(Object.keys(event.kitchen ?? { id: 1, name: 1 }).sort()).toEqual([
+        "id",
+        "name",
       ]);
     }
   });
 
-  it("names the actor by id, address and name, the client by address alone, and the kitchen by id and name", async () => {
+  it("names the actor by id and address, the client by address alone, and the kitchen by id and name, with one client address per row", async () => {
     const { answer, account, designId } = await plantEveryShape();
 
     const body = await pageOf(answer);
@@ -811,25 +831,27 @@ describe("what a row holds", () => {
     expect(opened?.actor).toEqual({
       id: account.id,
       email: "administrator@example.test",
-      name: "Ana Administrator",
     });
     expect(opened?.subject).toEqual({ email: "client@example.test" });
     expect(opened?.kitchen).toEqual({
       id: designId,
       name: "Bucataria din Botanica",
-      client: { email: "owner@example.test" },
     });
   });
 
   it("leaves a list view without a subject or a kitchen", async () => {
     const { answer } = await plantEveryShape();
 
-    const listed = (await pageOf(answer)).events.find(
+    const { events } = await pageOf(answer);
+    const listed = events.find(
       ({ entry }) => entry.action === "kitchens-listed",
     );
+    const viewed = events.find(({ entry }) => entry.action === "audit-viewed");
 
     expect(listed?.subject).toBeNull();
     expect(listed?.kitchen).toBeNull();
+    expect(viewed?.subject).toBeNull();
+    expect(viewed?.kitchen).toBeNull();
   });
 
   it("shapes each action's entry by that action's detail, member by member", async () => {
@@ -838,6 +860,17 @@ describe("what a row holds", () => {
     const entries = (await pageOf(answer)).events.map(({ entry }) => entry);
 
     expect(entries).toEqual([
+      {
+        kind: "recognised",
+        action: "audit-viewed",
+        detail: {
+          page: 3,
+          rowCount: 25,
+          hasActorFilter: true,
+          hasActionFilter: false,
+          hasDateFilter: true,
+        },
+      },
       {
         kind: "recognised",
         action: "kitchens-listed",
@@ -865,7 +898,15 @@ describe("what a row holds", () => {
 
     const text = await answer.clone().text();
 
-    for (const secret of [SECRET_PHONE, SECRET_POSTAL_ADDRESS, SECRET_HASH]) {
+    for (const secret of [
+      SECRET_PHONE,
+      SECRET_POSTAL_ADDRESS,
+      SECRET_HASH,
+      "Ana Administrator",
+      "Cristi Client",
+      "Olga Owner",
+      "owner@example.test",
+    ]) {
       expect(text).not.toContain(secret);
     }
     expect(text).not.toMatch(
@@ -887,7 +928,7 @@ describe("what a row holds", () => {
     expect(text).not.toContain(ownerId);
   });
 
-  it("reads an actor that no longer resolves as a null address and name, not as a missing row", async () => {
+  it("reads an actor that no longer resolves as a null address with its id kept, not as a missing row", async () => {
     const { session, account } = await signedInAdministrator();
     plantEvent(auditWorld, { actorAccountId: account.id });
 
@@ -898,11 +939,10 @@ describe("what a row holds", () => {
     expect(body.events[0]?.actor).toEqual({
       id: account.id,
       email: null,
-      name: null,
     });
   });
 
-  it("reads a kitchen that is gone, deleted, or owned by no account without a name or a client", async () => {
+  it("reads a kitchen that is gone, deleted, or owned by no account without a name", async () => {
     const { session, account } = await signedInAdministrator();
     const deleted = aDesignId();
     const orphan = aDesignId();
@@ -928,24 +968,211 @@ describe("what a row holds", () => {
     const names = body.events.map(({ kitchen }) => kitchen?.name ?? null);
     expect(names.filter((name) => name === null)).toHaveLength(2);
     expect(names.filter((name) => name !== null)).toEqual(["Lead"]);
-    expect(body.events.every(({ kitchen }) => kitchen?.client === null)).toBe(
-      true,
-    );
   });
 });
 
-describe("reading the log writes nothing", () => {
-  it("writes no audit row for a page served, and never asks the store to record", async () => {
+describe("reading the log is itself audited", () => {
+  function heldViews() {
+    return auditWorld.store
+      .heldEvents()
+      .filter(({ action }) => action === "audit-viewed");
+  }
+
+  it("commits one audit-viewed row naming the actor and the page, before the body is returned, and no kitchen or client", async () => {
     const { session, account } = await signedInAdministrator();
     plantEvent(auditWorld, { actorAccountId: account.id });
 
+    const answer = await route.GET(auditRequest({ cookie: session.cookie }));
+
+    expect(answer.status).toBe(200);
+    expect(heldViews()).toEqual([
+      expect.objectContaining({
+        actorAccountId: account.id,
+        action: "audit-viewed",
+        designId: null,
+        subjectAccountId: null,
+        detail: {
+          page: 1,
+          rowCount: 1,
+          hasActorFilter: false,
+          hasActionFilter: false,
+          hasDateFilter: false,
+        },
+      }),
+    ]);
+  });
+
+  it("reads the page, then writes the row, and asks for nothing else", async () => {
+    const { session } = await signedInAdministrator();
+
     await route.GET(auditRequest({ cookie: session.cookie }));
-    await route.GET(
-      auditRequest({ cookie: session.cookie, search: "?page=2" }),
+
+    expect(auditWorld.calls).toEqual(["audit.page", "audit.record"]);
+  });
+
+  it.each([
+    ["no filter", "", [false, false, false]],
+    ["an actor", `?actor=${aDesignId()}`, [true, false, false]],
+    ["an action", "?action=note-added", [false, true, false]],
+    ["a from day alone", "?from=2026-10-01", [false, false, true]],
+    ["a to day alone", "?to=2026-10-01", [false, false, true]],
+    ["both days", "?from=2026-10-01&to=2026-10-02", [false, false, true]],
+    [
+      "all three filters",
+      `?actor=${aDesignId()}&action=note-added&from=2026-10-01`,
+      [true, true, true],
+    ],
+  ])(
+    "records which filters %s set, and never their values",
+    async (_title, search, [hasActor, hasAction, hasDate]) => {
+      const { session } = await signedInAdministrator();
+
+      await route.GET(auditRequest({ cookie: session.cookie, search }));
+
+      const [view] = heldViews();
+      expect(view?.detail).toEqual({
+        page: 1,
+        rowCount: 0,
+        hasActorFilter: hasActor,
+        hasActionFilter: hasAction,
+        hasDateFilter: hasDate,
+      });
+      const row = JSON.stringify(view);
+      for (const value of search.matchAll(/=([^&]+)/g)) {
+        expect(row).not.toContain(value[1] ?? "unreachable");
+      }
+    },
+  );
+
+  it("counts the rows the page returned, not the rows the filters match: 25 on a full page, 1 on the next, 0 past the last", async () => {
+    const { session, account } = await signedInAdministrator();
+    for (let minute = 0; minute <= PAGE_SIZE; minute += 1) {
+      plantEvent(auditWorld, {
+        actorAccountId: account.id,
+        occurredAt: new Date(Date.UTC(2026, 9, 19, 9, minute)),
+      });
+    }
+
+    for (const page of [1, 2, 3]) {
+      await route.GET(
+        auditRequest({
+          cookie: session.cookie,
+          search: `${ONLY_PLANTED}&page=${String(page)}`,
+        }),
+      );
+    }
+
+    expect(heldViews().map(({ detail }) => detail)).toEqual([
+      expect.objectContaining({ page: 1, rowCount: 25 }),
+      expect.objectContaining({ page: 2, rowCount: 1 }),
+      expect.objectContaining({ page: 3, rowCount: 0 }),
+    ]);
+  });
+
+  it("shows the next reader the earlier views as rows of the log, and the action filter leaves them out", async () => {
+    const { session, account } = await signedInAdministrator();
+    await route.GET(auditRequest({ cookie: session.cookie }));
+
+    const everything = await pageOf(
+      await route.GET(auditRequest({ cookie: session.cookie })),
+    );
+    const withoutViews = await pageOf(
+      await route.GET(
+        auditRequest({ cookie: session.cookie, search: ONLY_PLANTED }),
+      ),
     );
 
-    expect(auditWorld.store.heldEvents()).toHaveLength(1);
-    expect(auditWorld.calls).toEqual(["audit.page", "audit.page"]);
+    expect(everything.events.map(({ entry }) => entry.action)).toEqual([
+      "audit-viewed",
+    ]);
+    expect(everything.events[0]?.actor.id).toBe(account.id);
+    expect(withoutViews.total).toBe(0);
+  });
+
+  it("answers 503 with no page, no address and no cause, and commits no row, when the row cannot be written", async () => {
+    const { session, account } = await signedInAdministrator();
+    const console_ = captureConsole();
+    auditWorld.nameAccount(account.id, {
+      email: "seen-only-in-a-page@example.test",
+      name: "Seen Only In A Page",
+    });
+    plantEvent(auditWorld, { actorAccountId: account.id });
+    auditWorld.failRecord = true;
+
+    const answer = await route.GET(auditRequest({ cookie: session.cookie }));
+
+    expect(answer.status).toBe(503);
+    expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+    const text = await answer.clone().text();
+    expect(text).not.toContain("seen-only-in-a-page");
+    expect(text).not.toContain(DRIVER_FAILURE_MARKER);
+    expect(answer.headers.get("cache-control")).toBe("private, no-store");
+    expect(answer.headers.get("retry-after")).toBeNull();
+    expect(heldViews()).toEqual([]);
+    expect(console_.accountLines()).toContainEqual({
+      event: "staff-audit",
+      outcome: "unavailable",
+    });
+    expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
+  });
+
+  it("answers 503 and commits no row when the actor's session ended before the row was written", async () => {
+    const { session, account } = await signedInAdministrator();
+    auditWorld.decoratePage = (page) => {
+      void world.sessions.revokeAllForAccount(account.id);
+      return page;
+    };
+
+    const answer = await route.GET(auditRequest({ cookie: session.cookie }));
+
+    expect(answer.status).toBe(503);
+    expect(heldViews()).toEqual([]);
+  });
+
+  it("writes no row for a request that does not read a page: refused, malformed, rate-limited, or a store that fails", async () => {
+    const administrator = await signedInAdministrator();
+    const operator = await signedInAs({ role: "operator" });
+    const answers = [
+      await route.GET(auditRequest()),
+      await route.GET(auditRequest({ cookie: operator.session.cookie })),
+      await route.GET(
+        auditRequest({
+          cookie: administrator.session.cookie,
+          search: "?page=0",
+        }),
+      ),
+    ];
+    limiterLedger.refusing.set(AUDIT_POLICY_NAME, 1);
+    answers.push(
+      await route.GET(auditRequest({ cookie: administrator.session.cookie })),
+    );
+    limiterLedger.refusing.delete(AUDIT_POLICY_NAME);
+    limiterLedger.unavailable.add(AUDIT_POLICY_NAME);
+    answers.push(
+      await route.GET(auditRequest({ cookie: administrator.session.cookie })),
+    );
+    limiterLedger.unavailable.delete(AUDIT_POLICY_NAME);
+    auditWorld.failPage = true;
+    answers.push(
+      await route.GET(auditRequest({ cookie: administrator.session.cookie })),
+    );
+
+    expect(answers.map(({ status }) => status)).toEqual([
+      401, 403, 400, 429, 503, 503,
+    ]);
+    expect(auditWorld.store.heldEvents()).toEqual([]);
+    expect(auditWorld.calls).toEqual(["audit.page"]);
+  });
+
+  it("is bounded by the page bucket: the rows a reader adds are at most the pages the bucket serves", async () => {
+    const { session } = await signedInAdministrator();
+    for (let served = 1; served <= 5; served += 1) {
+      await route.GET(auditRequest({ cookie: session.cookie }));
+    }
+    limiterLedger.refusing.set(AUDIT_POLICY_NAME, 1);
+    await route.GET(auditRequest({ cookie: session.cookie }));
+
+    expect(heldViews()).toHaveLength(5);
   });
 });
 

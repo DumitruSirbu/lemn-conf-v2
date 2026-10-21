@@ -2,6 +2,12 @@ import "server-only";
 
 import type { NextResponse } from "next/server";
 
+import type { StaffAuditEntry } from "@lemnaria/configurator-domain";
+import type {
+  StaffAuditPage,
+  StaffAuditPageRequest,
+} from "@lemnaria/persistence";
+
 import { reportAccountEvent } from "@/lib/server/account/account-log";
 import {
   answerOfJudgement,
@@ -12,6 +18,7 @@ import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-reque
 import { judgeReadRequest } from "@/lib/server/rate-limit/judge-read-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { admitStaff } from "@/lib/server/staff/staff-admission";
+import { commitAuditRow } from "@/lib/server/staff/staff-audit-commit";
 import { readStaffAuditQuery } from "@/lib/server/staff/staff-audit-query";
 import { getStaffAuditStore } from "@/lib/server/staff/staff-audit-store-instance";
 import {
@@ -19,14 +26,17 @@ import {
   staffAuditPageResponse,
 } from "@/lib/server/staff/staff-responses";
 
-// What an administrator reads of the staff audit log (E-L3-6, ADR 0173). Reading the log is not itself logged: the plan
-// names the list and the audit page as the two reads that write no row (P-L3-3), and a row for each page would make the
-// log grow by being read. The page is bounded instead, by its own bucket, which **fails closed**. Everything here runs
-// inside the route's `answerUnavailableOnFailure`, so anything thrown is a `503` with no cause and no row.
+// What an administrator reads of the staff audit log (ADR 0173). Reading it is itself audited, like every staff read
+// of clients' data: the page is read and its body shaped, then an `audit-viewed` row is written and awaited, and only
+// then is the body returned. It fails closed: a row that cannot be committed is a `503` with no page, and a request
+// that is refused or fails before the page is read writes none. The row holds the page number, the rows returned and
+// which filters were set, never the actor id, the action or the dates. An administrator reading the log therefore adds
+// rows to it, at most as many as the account's page bucket allows; the action filter can leave them out.
 //
-// The actor filter takes an account id, because looking an address up would read `accounts` for a filter. No id is
-// on the wire (`staff-responses.ts`), so which id to send, and where the page learns it, is an open decision for the
-// page's wave.
+// The actor filter takes an account id, because looking an address up would read `accounts` for a filter. The page
+// learns the ids from the actors of the rows it shows.
+//
+// Everything here runs inside the route's `answerUnavailableOnFailure`, so anything thrown is a `503` with no cause.
 
 export interface StaffAuditReadRequest {
   readonly cookies: SessionCookieReader;
@@ -39,7 +49,7 @@ const AUDIT_EVENT = "staff-audit" as const;
 /**
  * One page of the log, newest first. The network's read limit comes first (it fails open), then the session and
  * `audit.read`, which only an administrator with a confirmed address holds, then the query, then the account's own page
- * bucket, which **fails closed**; only then is the store asked.
+ * bucket, which **fails closed**; only then is the store asked, and the page is served after its audit row commits.
  */
 export async function readAuditLogForStaff({
   cookies,
@@ -64,11 +74,39 @@ export async function readAuditLogForStaff({
     }),
   );
   if (refusal !== undefined) return refusal;
-  const response = staffAuditPageResponse(
-    await getStaffAuditStore().page(reading.request),
-  );
+  return servePage(cookies, reading.request);
+}
+
+async function servePage(
+  cookies: SessionCookieReader,
+  request: StaffAuditPageRequest,
+): Promise<NextResponse> {
+  const page = await getStaffAuditStore().page(request);
+  const response = staffAuditPageResponse(page);
+  await commitAuditRow(cookies, {
+    entry: auditViewedEntryOf(request, page),
+    designId: null,
+    subjectAccountId: null,
+  });
   reportAccountEvent({ event: AUDIT_EVENT, outcome: "succeeded" });
   return response;
+}
+
+function auditViewedEntryOf(
+  request: StaffAuditPageRequest,
+  page: StaffAuditPage,
+): StaffAuditEntry {
+  return {
+    action: "audit-viewed" as const,
+    detail: {
+      page: request.page,
+      rowCount: page.events.length,
+      hasActorFilter: request.actorAccountId !== null,
+      hasActionFilter: request.action !== null,
+      hasDateFilter:
+        request.occurredFrom !== null || request.occurredBefore !== null,
+    },
+  };
 }
 
 function refusedQuery(

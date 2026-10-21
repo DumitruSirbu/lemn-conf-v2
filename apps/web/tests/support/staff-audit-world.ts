@@ -24,12 +24,17 @@ import {
 
 export interface AuditPageWorld {
   readonly store: FakeStaffAuditStore;
-  /** Every port call the route made, as `audit.page` or `audit.record`. */
+  /** Every port call the route made, in order, as `audit.page` or `audit.record`. */
   readonly calls: string[];
   /** The request each `audit.page` call carried, as the route built it. */
   readonly pageRequests: StaffAuditPageRequest[];
   /** Makes `page` reject with `DRIVER_FAILURE_MARKER`. */
   failPage: boolean;
+  /** Makes `record` reject with `DRIVER_FAILURE_MARKER`, so the row of a served page cannot be committed. */
+  failRecord: boolean;
+  /** Commits nothing for a served page's own row (the call is still recorded), for a test that reads several pages of a
+   *  planted log and must not see its own earlier views in it. The rule that a row is written is pinned elsewhere. */
+  discardRecords: boolean;
   /** Rewrites the page the store answers, so a test can hand the route members the port does not declare. */
   decoratePage: ((page: StaffAuditPage) => StaffAuditPage) | undefined;
   readonly port: StaffAuditStore;
@@ -65,6 +70,8 @@ export function freshAuditPageWorld(): AuditPageWorld {
     calls,
     pageRequests,
     failPage: false,
+    failRecord: false,
+    discardRecords: false,
     decoratePage: undefined,
     port: {
       page: async (request) => {
@@ -76,9 +83,10 @@ export function freshAuditPageWorld(): AuditPageWorld {
           ? page
           : world.decoratePage(page);
       },
-      record: (record) => {
+      record: async (record) => {
         calls.push("audit.record");
-        return store.record(record);
+        if (world.failRecord) throw new Error(DRIVER_FAILURE_MARKER);
+        if (!world.discardRecords) await store.record(record);
       },
     },
     nameAccount: (accountId, account) => accounts.set(accountId, account),

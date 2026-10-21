@@ -1,4 +1,5 @@
 import type {
+  AuditViewedDetail,
   Design,
   KitchensListedDetail,
   NoteTextRefusalCode,
@@ -12,7 +13,8 @@ import type {
 
 // What `GET /api/staff/kitchens` and `GET /api/staff/kitchens/{id}` answer and the staff pages that read them expect,
 // once. It lives outside `lib/server` because the client bundle may not import a server-only module, and holds types
-// only. No account id appears anywhere in it: a person is named by the e-mail and the name staff see (ADR 0173).
+// only. The audit actor's id is the only account id on the wire (ADR 0173, the audit page's residuals): every other
+// person is named by the e-mail and the name staff see.
 
 /** The kitchen's document as far as a list thumbnail draws it: the room, the cabinets and the colour. It is a `Pick`
  *  of `Design`, not a `Design`: the stored document's identity and timestamps stay behind. A renderer that needs a
@@ -157,19 +159,21 @@ export interface StaffStatusSavedWire {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// `GET /api/staff/audit` (E-L3-6)
+// `GET /api/staff/audit`
 
-/** A kitchen's client as the log names it: the address alone (CD answer 6). No name, phone, postal address or id. */
+/** The client a row concerns, as the log names it: the address alone. No name, phone, postal address or id. It is the
+ *  one client address a row carries, and the one that outlives the kitchen: the store reads it from the row's own
+ *  subject, while a kitchen's owner stops resolving when the kitchen is deleted. */
 export interface StaffAuditClientWire {
   readonly email: string | null;
 }
 
-/** The kitchen a row names, as it reads now. `name` and `client` are `null` when the kitchen is gone, was deleted by its
- *  client, has no name, or no account owns it. The id is the design's, for a link to the staff kitchen page. */
+/** The kitchen a row names, as it reads now. `name` is `null` when the kitchen is gone, was deleted by its client, or
+ *  has no name. The id is the design's, for a link to the staff kitchen page. Its owner is not named: the row's
+ *  `subject` is the one client address. */
 export interface StaffAuditKitchenWire {
   readonly id: string;
   readonly name: string | null;
-  readonly client: StaffAuditClientWire | null;
 }
 
 /** What the row's action carries, in the shape of that action. Built member by member from the domain's reading. */
@@ -186,21 +190,27 @@ export type StaffAuditEntryWire =
     }
   | {
       readonly kind: "recognised";
+      readonly action: "audit-viewed";
+      readonly detail: AuditViewedDetail;
+    }
+  | {
+      readonly kind: "recognised";
       readonly action: Exclude<
         StaffAuditAction,
-        "status-changed" | "kitchens-listed"
+        "status-changed" | "kitchens-listed" | "audit-viewed"
       >;
       readonly detail: null;
     }
   /** A row this build's domain refuses: its action code and nothing of its stored detail. */
   | { readonly kind: "unrecognised"; readonly action: string };
 
-/** The staff member who acted. Its `id` is the one account id the audit answer carries: the page offers actors from the
- *  rows it shows and sends `actor=<id>` back as a filter. Only an administrator reaches this answer, the route fails
- *  closed, and ids are unguessable, so it exposes no account a reader could not already name. The client, the subject
- *  and the kitchen's owner are named by address alone. */
-export interface StaffAuditActorWire extends StaffPersonWire {
+/** The staff member who acted, by id and address. The `id` is the one account id the audit answer carries: the page
+ *  offers actors from the rows it shows and sends `actor=<id>` back as a filter. Only an administrator reaches this
+ *  answer, the route fails closed, and ids are unguessable. The name is not sent: the page draws the address. */
+export interface StaffAuditActorWire {
   readonly id: string;
+  /** `null` when the account no longer resolves. */
+  readonly email: string | null;
 }
 
 export interface StaffAuditEventWire {
@@ -208,7 +218,7 @@ export interface StaffAuditEventWire {
   /** ISO 8601, UTC, milliseconds. */
   readonly occurredAt: string;
   readonly entry: StaffAuditEntryWire;
-  /** The staff member who acted: `email` and `name` are `null` when the account no longer resolves, `id` is the row's. */
+  /** The staff member who acted; `id` is the row's even when the account no longer resolves. */
   readonly actor: StaffAuditActorWire;
   /** The client account the action concerned, by address as it reads now; `null` when the row names none. */
   readonly subject: StaffAuditClientWire | null;

@@ -52,8 +52,8 @@ export type { StaffWriteConflict, StaffWriteIssue };
 // The answers of the staff kitchen read and write routes that the account routes do not already give. The refusals
 // (401, 403, 404, 429, 503) are `account-responses.ts`'s and `design-errors.ts`'s own, so a staff route words them as
 // every other does. Every body here is shaped member by member from what the reader or the store returned: such an
-// object is never spread, so a column it later gains reaches no response until it is named here, and no account id
-// leaves the server.
+// object is never spread, so a column it later gains reaches no response until it is named here. The audit actor's id is
+// the only account id that leaves the server (ADR 0173, the audit page's residuals).
 
 /** `400`: the query's members that the person can correct, as the member and a code. Never the value that was refused:
  *  the search text is a client's name or address. */
@@ -141,7 +141,7 @@ export function staffKitchenResponse(
   return jsonResponse(staffKitchenWireOf(kitchen), 200);
 }
 
-/** `200`: one page of the audit log. Reading it writes no audit row (P-L3-3). */
+/** `200`: one page of the audit log. Built before the audit row is written and sent only after it commits. */
 export function staffAuditPageResponse(page: StaffAuditPage): NextResponse {
   return jsonResponse(staffAuditPageWireOf(page), 200);
 }
@@ -245,8 +245,8 @@ function staffAuditPageWireOf(page: StaffAuditPage): StaffAuditPageWire {
 }
 
 // An audit row is shaped member by member, and the actor's account id is the only account id that leaves with it (the
-// page offers actors from the rows it shows; see `StaffAuditActorWire`). A row the build's domain refuses carries
-// its action code and nothing of its stored detail.
+// page offers actors from the rows it shows; see `StaffAuditActorWire`). One client address leaves with a row, the
+// subject's. A row the build's domain refuses carries its action code and nothing of its stored detail.
 function auditEventWireOf(row: StaffAuditPageRow): StaffAuditEventWire {
   return {
     id: row.id,
@@ -282,6 +282,18 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
           hasSearch: entry.detail.hasSearch,
         },
       };
+    case "audit-viewed":
+      return {
+        kind: "recognised",
+        action: entry.action,
+        detail: {
+          page: entry.detail.page,
+          rowCount: entry.detail.rowCount,
+          hasActorFilter: entry.detail.hasActorFilter,
+          hasActionFilter: entry.detail.hasActionFilter,
+          hasDateFilter: entry.detail.hasDateFilter,
+        },
+      };
     case "kitchen-opened":
     case "note-added":
     case "kitchen-unhidden":
@@ -306,12 +318,11 @@ function auditKitchenWireOf(
   return {
     id: design.id,
     name: design.name,
-    client: design.client === null ? null : auditClientWireOf(design.client),
   };
 }
 
 function auditActorWireOf(account: StaffAuditAccountRef): StaffAuditActorWire {
-  return { id: account.id, email: account.email, name: account.name };
+  return { id: account.id, email: account.email };
 }
 
 function auditClientWireOf(

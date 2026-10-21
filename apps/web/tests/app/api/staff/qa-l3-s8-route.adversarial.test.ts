@@ -103,7 +103,6 @@ interface EventWire {
   kitchen: {
     id: string;
     name: string | null;
-    client: Record<string, unknown> | null;
   } | null;
 }
 
@@ -213,7 +212,7 @@ describe("a refused caller is refused with nothing counted for the page and noth
     );
 
     expect([asOperator.status, asAdministrator.status]).toEqual([403, 200]);
-    expect(auditWorld.calls).toEqual(["audit.page"]);
+    expect(auditWorld.calls).toEqual(["audit.page", "audit.record"]);
     expect(auditWorld.pageRequests).toEqual([
       {
         actorAccountId: null,
@@ -290,7 +289,7 @@ describe("a demotion", () => {
     const next = await route.GET(auditRequest({ cookie: session.cookie }));
 
     expect([inFlight.status, next.status]).toEqual([200, 403]);
-    expect(auditWorld.calls).toEqual(["audit.page"]);
+    expect(auditWorld.calls).toEqual(["audit.page", "audit.record"]);
   });
 
   it("is also the other way: an operator made an administrator is served by the next request", async () => {
@@ -546,6 +545,9 @@ describe("ties, seams and rows the build does not read", () => {
   let actorId = "";
 
   beforeEach(async () => {
+    // These tests count the rows of a planted log across several requests; the page's own `audit-viewed` rows are
+    // pinned in the developer's file.
+    auditWorld.discardRecords = true;
     const administrator = await signedInAdministrator();
     cookie = administrator.session.cookie;
     actorId = administrator.account.id;
@@ -699,12 +701,9 @@ describe("ties, seams and rows the build does not read", () => {
 
     expect(event).toMatchObject({
       subject: { email: "client@example.test" },
-      kitchen: {
-        id: designId,
-        name: "Bucatarie",
-        client: { email: "client@example.test" },
-      },
+      kitchen: { id: designId, name: "Bucatarie" },
     });
+    expect(Object.keys(event?.kitchen ?? {}).sort()).toEqual(["id", "name"]);
     expect(await answer.clone().text()).not.toContain("37369123456");
   });
 
@@ -748,7 +747,7 @@ describe("ties, seams and rows the build does not read", () => {
     ]);
   });
 
-  it("reads a subject that no longer resolves as a null address, a kitchen with no name but an owner with the owner, and keeps the kitchen's id", async () => {
+  it("reads a subject that no longer resolves as a null address and a kitchen with no name, keeps the kitchen's id, and names its owner nowhere", async () => {
     const goneSubject = aDesignId();
     const owner = aDesignId();
     const designId = aDesignId();
@@ -767,14 +766,11 @@ describe("ties, seams and rows the build does not read", () => {
     const [event] = (await pageAt(1)).events;
 
     expect(event?.subject).toEqual({ email: null });
-    expect(event?.kitchen).toEqual({
-      id: designId,
-      name: null,
-      client: { email: "owner@example.test" },
-    });
+    expect(event?.kitchen).toEqual({ id: designId, name: null });
+    expect(JSON.stringify(event)).not.toContain("owner@example.test");
   });
 
-  it("reads an actor with an address and no name as an address and a null name, the id kept", async () => {
+  it("reads an actor with an address and no name as its id and address, and sends no name member", async () => {
     auditWorld.nameAccount(actorId, {
       email: "administrator@example.test",
       name: null,
@@ -786,7 +782,6 @@ describe("ties, seams and rows the build does not read", () => {
     expect(event?.actor).toEqual({
       id: actorId,
       email: "administrator@example.test",
-      name: null,
     });
   });
 });
@@ -1012,8 +1007,8 @@ describe("a store that answers with more than the port declares leaks none of it
 
   it("answers a stored address, name or kitchen name as text only, so one made of markup or JSON stays a string", async () => {
     auditWorld.nameAccount(actorId, {
-      email: "a@example.test",
-      name: "</script><img src=x onerror=alert(1)>",
+      email: "</script><img src=x onerror=alert(1)>",
+      name: "A Name That Is Never Sent",
     });
     const designId = aDesignId();
     auditWorld.nameDesign(designId, {
@@ -1026,7 +1021,9 @@ describe("a store that answers with more than the port declares leaks none of it
     const answer = await route.GET(auditRequest({ cookie }));
     const [event] = (await pageOf(answer)).events;
 
-    expect(event?.actor.name).toBe("</script><img src=x onerror=alert(1)>");
+    expect(event?.actor.email).toBe("</script><img src=x onerror=alert(1)>");
+    expect(event?.actor).not.toHaveProperty("name");
+    expect(await answer.clone().text()).not.toContain("Never Sent");
     expect(event?.kitchen?.name).toBe('{"__proto__":{"admin":true}}');
     expect(answer.headers.get("content-type")).toMatch(/^application\/json/);
   });
@@ -1111,6 +1108,11 @@ describe("what the log holds for each way a request can end", () => {
         return route.GET(
           auditRequest({ cookie: administrator.session.cookie }),
         );
+      case "audit row down":
+        auditWorld.failRecord = true;
+        return route.GET(
+          auditRequest({ cookie: administrator.session.cookie }),
+        );
       default:
         throw new Error(name);
     }
@@ -1144,10 +1146,11 @@ describe("what the log holds for each way a request can end", () => {
       503,
       [{ event: "staff-audit", outcome: "unavailable" }],
     ],
+    ["audit row down", 503, [{ event: "staff-audit", outcome: "unavailable" }]],
   ];
 
   it.each(ENDS)(
-    "ends '%s' as %i with the log lines %j, every answer private and no-store with no cookie set, and no audit row written",
+    "ends '%s' as %i with the log lines %j, every answer private and no-store with no cookie set, and an audit row only for the page that was served",
     async (name, status, lines) => {
       const console_ = captureConsole();
 
@@ -1157,8 +1160,13 @@ describe("what the log holds for each way a request can end", () => {
       expect(console_.accountLines()).toEqual(lines);
       expect(answer.headers.get("cache-control")).toBe(PRIVATE);
       expect(answer.headers.get("set-cookie")).toBeNull();
-      expect(auditWorld.store.heldEvents()).toEqual([]);
-      expect(auditWorld.calls).not.toContain("audit.record");
+      const isServed = status === 200;
+      expect(auditWorld.store.heldEvents().map(({ action }) => action)).toEqual(
+        isServed ? ["audit-viewed"] : [],
+      );
+      expect(auditWorld.calls.includes("audit.record")).toBe(
+        isServed || name === "audit row down",
+      );
       const everything = console_.everything();
       for (const secret of [
         "log-admin@example.test",

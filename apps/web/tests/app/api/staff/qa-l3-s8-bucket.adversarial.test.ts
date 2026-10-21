@@ -126,7 +126,9 @@ describe("the figure is exact and the refusal is the whole of the wait", () => {
       expect(answer.headers.get("content-type")).toMatch(/^application\/json/);
       expect(await jsonOf(answer)).toEqual({ status: "rate-limited" });
     }
-    expect(auditWorld.calls).toHaveLength(PAGES_PER_HOUR);
+    // each served page is one read and one `audit-viewed` row; the refused two read and write nothing
+    expect(auditWorld.calls).toHaveLength(PAGES_PER_HOUR * 2);
+    expect(auditWorld.store.heldEvents()).toHaveLength(PAGES_PER_HOUR);
   });
 
   it("is the page's bucket and no other: 300 pages spend no list, save, export or mint bucket of the account", async () => {
