@@ -16,7 +16,7 @@ import { markSignedOutByPerson } from "./use-account-session";
 // place, and a screen that already showed the person as anonymous would be lying about a session that still opens their
 // kitchens.
 //
-// A page that holds the person's or a client's data does not stay on screen after "Ieși din cont" (plan P14): the
+// A page that holds the person's or a client's data does not stay on screen after "Ieși din cont": the
 // document leaves for the start of the configurator, which `useLeaveForStartAfterSignOut` does for the staff area.
 
 /** Whether the person ended the session on this document, for the editor's session-expiry notice: a session that is

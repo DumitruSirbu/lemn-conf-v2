@@ -47,7 +47,7 @@ const ACCOUNT_SIGNED_IN_PAGES: readonly string[] = [
 ];
 
 /** The staff area, `/{locale}/staff/{page}` and `/{locale}/staff/kitchens/{id}`. Every page holds clients' data, so each
- *  gets the account pages' headers; none loads a third-party script, frame or image (ADR 0173, P-L3-2). */
+ *  gets the account pages' headers; none loads a third-party script, frame or image. */
 const STAFF_FAMILY_SEGMENT = "staff";
 const STAFF_KITCHENS_PAGE = "kitchens";
 const STAFF_SIGNED_IN_PAGES: readonly string[] = [

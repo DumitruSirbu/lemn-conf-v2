@@ -14,7 +14,7 @@ import type {
   StaffShellContext,
 } from "@/staff/staff-shell";
 
-// The gate of every staff page (M8B Lot 3 plan, L3-U1; ADR 0173, P-L3-2 and P-L3-9). It stands on the signed-in page
+// The gate of every staff page (see ADR 0173). It stands on the signed-in page
 // gate, so a visitor, an expired session and an unreadable session store leave exactly as they do from an account page,
 // and adds the page's own capability and the navigation that goes with the person's role. It reads and never writes.
 
@@ -27,8 +27,8 @@ const CAPABILITY_OF_PAGE: Readonly<Record<StaffPage, Capability>> = {
 /** The pages in the order the navigation lists them. */
 const NAVIGATION_ORDER: readonly StaffPage[] = ["kitchens", "audit"];
 
-/** The pages that have a screen. A page joins this list in the wave that adds its directory under
- *  `app/[locale]/staff`, never before: the navigation must not link to a page that answers 404. */
+/** The pages that have a screen. A page joins this list when its directory under
+ *  `app/[locale]/staff` exists, never before: the navigation must not link to a page that answers 404. */
 export const BUILT_STAFF_PAGES: readonly StaffPage[] = [];
 
 /** Held by every live session, an unconfirmed address included, so the signed-in gate answers the redirect, the outage

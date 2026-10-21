@@ -56,7 +56,7 @@ export interface AccountControlProps {
   /** The form of the visitor's link. A signed-in person's control is the glyph whatever is asked here. */
   readonly signInForm?: SignInForm;
   /** What "Ieși din cont" does once the server has ended the session. The configurator keeps its screen and says so;
-   *  a page that holds a client's data leaves for the start of the configurator (plan P14). */
+   *  a page that holds a client's data leaves for the start of the configurator. */
   readonly afterSignOut?: AfterSignOut;
 }
 
