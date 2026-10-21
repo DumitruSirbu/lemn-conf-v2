@@ -290,16 +290,16 @@ describe("requireValidKitchenName: what the table would refuse is refused before
       ["a tab", "a\tb"],
       ["a C1 control", "a\u0085b"],
       ["a DEL", "a\u007Fb"],
-      ["a zero-width space", "a​b"],
-      ["a zero-width joiner", "a‍b"],
-      ["a bidi override (RLO)", "a‮b"],
-      ["a bidi isolate (RLI)", "a⁧b"],
-      ["a left-to-right mark", "a‎b"],
-      ["a soft hyphen", "a­b"],
-      ["a byte order mark", "a﻿b"],
+      ["a zero-width space", "a\u200bb"],
+      ["a zero-width joiner", "a\u200db"],
+      ["a bidi override (RLO)", "a\u202eb"],
+      ["a bidi isolate (RLI)", "a\u2067b"],
+      ["a left-to-right mark", "a\u200eb"],
+      ["a soft hyphen", "a\u00adb"],
+      ["a byte order mark", "a\ufeffb"],
       ["a tag character", "a\u{E0041}b"],
-      ["a line separator", "a b"],
-      ["a paragraph separator", "a b"],
+      ["a line separator", "a\u2028b"],
+      ["a paragraph separator", "a\u2029b"],
       ["a lone high surrogate", "a\uD800b"],
       ["a lone low surrogate", "a\uDC00b"],
     ])("refuses %s", (_label, name) => {
@@ -308,7 +308,7 @@ describe("requireValidKitchenName: what the table would refuse is refused before
 
     it("accepts a well-formed surrogate pair and an ordinary no-break space", () => {
       expect(throwsFor("a\u{1F373}b")).not.toThrow();
-      expect(throwsFor("a b")).not.toThrow();
+      expect(throwsFor("a\u00a0b")).not.toThrow();
     });
   });
 

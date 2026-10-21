@@ -423,7 +423,7 @@ describe("PATCH: the fields", () => {
   });
 
   it("stores the trimmed, NFC form", async () => {
-    await save({ name: "  Ana​ Mariá  " });
+    await save({ name: "  Ana\u200b Mariá  " });
 
     expect((await profileNow()).name).toBe("Ana Mariá");
   });

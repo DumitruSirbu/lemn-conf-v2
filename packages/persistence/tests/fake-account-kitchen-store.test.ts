@@ -413,7 +413,7 @@ describe("FakeAccountKitchenStore.rename", () => {
     expect(store.held("missing")).toBeUndefined();
   });
 
-  it.each(["", "a\nb", "a​b", "a\u0000b", "a".repeat(121), "\uD800"])(
+  it.each(["", "a\nb", "a\u200bb", "a\u0000b", "a".repeat(121), "\uD800"])(
     "refuses the name %j with a rejection and leaves the kitchen alone",
     async (name) => {
       seed("k", { name: "Ramas" });

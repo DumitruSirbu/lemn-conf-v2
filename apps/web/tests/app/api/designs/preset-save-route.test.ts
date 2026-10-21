@@ -450,7 +450,7 @@ describe("POST /api/designs/{id}/preset: an image that is not the capture is ref
 describe("POST /api/designs/{id}/preset: a name that fails the rule is refused", () => {
   it.each([
     ["81 characters", "a".repeat(81)],
-    ["a right-to-left override", "Nume‮gol"],
+    ["a right-to-left override", "Nume\u202egol"],
     ["a NUL", "Nume\u0000"],
     ["a newline inside", "Nume\nnou"],
     ["a name far past any bound", "a".repeat(5000)],

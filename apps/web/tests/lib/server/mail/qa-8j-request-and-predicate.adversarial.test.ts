@@ -74,7 +74,7 @@ const UNSENDABLE_KEYS = [
   "key\u0000",
   "key\u007f",
   "ключ",
-  "key ",
+  "key\u2028",
 ];
 
 const unsendableMessage = fc.oneof(
@@ -90,8 +90,8 @@ const unsendableMessage = fc.oneof(
       "two\nlines",
       "two\r\nlines",
       "tab\there",
-      "separated here",
-      "paragraph here",
+      "separated\u2028here",
+      "paragraph\u2029here",
       "next\u0085line",
     ),
     text: sendableText,

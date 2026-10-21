@@ -437,7 +437,11 @@ describe.each(BODIED)("$label: the body", (mutation) => {
       "REQUIRED",
     ],
     ["a name with a tab", { name: "a\tb" }, "FORBIDDEN_CHARACTER"],
-    ["a name of zero-width characters only", { name: "​‍﻿" }, "REQUIRED"],
+    [
+      "a name of zero-width characters only",
+      { name: "\u200b\u200d\ufeff" },
+      "REQUIRED",
+    ],
     [
       "an inherited name only",
       JSON.parse('{"__proto__":{"name":"inherited"}}') as object,
@@ -518,7 +522,7 @@ describe.each(BODIED)("$label: the body", (mutation) => {
     seedActionable(mutation);
 
     const answer = await mutation.send(KITCHEN_ID, {
-      json: { name: "  Café​ de la mama  " },
+      json: { name: "  Café\u200b de la mama  " },
     });
 
     expect([200, 201]).toContain(answer.status);

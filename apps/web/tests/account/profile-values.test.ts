@@ -32,7 +32,9 @@ describe("trimmedValuesOf", () => {
   });
 
   it("turns a field of spaces into an emptied one", () => {
-    expect(trimmedValuesOf({ name: "   ", address: "  ", phone: "" })).toEqual({
+    expect(
+      trimmedValuesOf({ name: "   ", address: "\u00a0 ", phone: "" }),
+    ).toEqual({
       name: "",
       address: "",
       phone: "",

@@ -22,7 +22,7 @@ const PATTERNS = CATALOGUES.map(([locale, messages]) => ({
     .duplicate.nameOf,
 }));
 
-const FAMILY_EMOJI = "\u{1F469}‍\u{1F469}‍\u{1F467}‍\u{1F466}";
+const FAMILY_EMOJI = "\u{1F469}\u200d\u{1F469}\u200d\u{1F467}\u200d\u{1F466}";
 const COMBINING_ACUTE = "́";
 const LATIN_E_WITH_COMBINING_ACUTE = `e${COMBINING_ACUTE}`;
 const COMPOSED_E_ACUTE = "é";
