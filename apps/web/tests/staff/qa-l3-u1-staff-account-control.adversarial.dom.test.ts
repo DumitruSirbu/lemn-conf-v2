@@ -1,11 +1,8 @@
 // @vitest-environment happy-dom
 //
-// **Adversarial QA of wave L3-U1: the desktop bar's account control inside the staff frame (frame S1E).**
-//
-// The phone's sheet leaves for the start of the configurator once the server has ended the session, "so no staff page
-// stays on screen with clients' data after it" (`staff-nav-sheet.tsx`). On a desktop the person signs out through the
-// bar's `AccountControl`, whose "Ieși din cont" keeps the screen and shows a toast (`account-control.tsx`): the
-// configurator's behaviour, which `use-logout.ts` says an account page must replace with the full load (plan P14).
+// Signing out through the bar's account control inside the staff frame leaves for the start of the configurator, as the
+// phone's sheet does, instead of keeping the page of clients' data on screen.
+
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

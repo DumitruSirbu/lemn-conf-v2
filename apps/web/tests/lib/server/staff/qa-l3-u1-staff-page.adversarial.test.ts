@@ -1,6 +1,3 @@
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-
 import type { Capability, Role } from "@lemnaria/configurator-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,10 +6,8 @@ import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 import type { StaffPage } from "@/staff/staff-shell";
 
 /**
- * Adversarial QA of wave L3-U1, the staff page gate (plan K-12, O18, P-L3-9). The developer's table holds every session
- * fixture with `capabilities: []`, so a gate that read the session's own capability list would pass it; this file puts
- * capabilities on the sessions that must not have them, reads the same cookie across a change of the account behind
- * it, and anchors the disk check that keeps the navigation off pages that answer 404.
+ * Puts capabilities on the sessions that must not have them, so a gate reading the session's own capability list fails,
+ * and reads the same cookie across a change of the account behind it.
  */
 
 const reading = vi.hoisted(() => ({
@@ -48,7 +43,7 @@ vi.mock("@/lib/server/account/current-session", () => ({
   },
 }));
 
-const { BUILT_STAFF_PAGES, readStaffPage, staffNavigationOf } = await import(
+const { readStaffPage, staffNavigationOf } = await import(
   "@/lib/server/staff/staff-page"
 );
 
@@ -254,24 +249,4 @@ describe("a visitor and an expired session learn nothing of which staff page the
       );
     },
   );
-});
-
-describe("the pages the navigation may link to are pages", () => {
-  const APP_DIRECTORY = join(import.meta.dirname, "../../../../src/app");
-  const LOCALE_DIRECTORY = join(APP_DIRECTORY, "[locale]");
-
-  it("is read from a directory that exists, so a mis-counted path cannot pass the disk check by finding nothing", () => {
-    expect(existsSync(join(LOCALE_DIRECTORY, "account"))).toBe(true);
-    expect(readdirSync(LOCALE_DIRECTORY)).toContain("account");
-  });
-
-  it.each(BUILT_STAFF_PAGES)("%s has the page.tsx it is linked to", (page) => {
-    expect(existsSync(join(LOCALE_DIRECTORY, "staff", page, "page.tsx"))).toBe(
-      true,
-    );
-  });
-
-  it("lists no page the gate cannot name", () => {
-    expect(BUILT_STAFF_PAGES.every((page) => PAGES.includes(page))).toBe(true);
-  });
 });

@@ -10,9 +10,8 @@ import {
 } from "../src/lib/security-headers";
 
 /**
- * The staff area's headers (M8B Lot 3 plan, P-L3-2 and criterion K-11; ADR 0173). Every staff page shows clients' data,
- * so each is never indexed, never cached and names no third-party frame. A path written any other way is not a staff
- * page, so it must not borrow the headers: the probe is Lot 1's criterion 13 (case, escape, locale, length).
+ * Every staff page shows clients' data, so each is never indexed, never cached and names no third-party frame. A path
+ * written any other way (case, escape, locale, length) is not a staff page and must not borrow the headers.
  */
 
 const LIVE_POLICY_HEADER = cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE);

@@ -11,13 +11,9 @@ import {
 } from "../src/lib/security-headers";
 
 /**
- * Adversarial QA of wave L3-U1, the staff family in `proxy.ts` (plan K-11, P-L3-2). The developer's file pins fixed
- * examples with one id; this one sweeps the kitchen's id, which is the only caller-chosen text in a staff address, and
- * the static extensions the first matcher drops.
- *
- * What it does not claim: `%2e%2e` and `.` are folded by the URL parser before `proxy()` ever sees a path, so a
- * property over them would test the folded path; the generator discards an id that folds the address away from the
- * staff family instead of pretending to have covered it.
+ * Sweeps the staff kitchen's id, the only caller-chosen text in a staff address, and the static extensions the first
+ * matcher drops. `%2e%2e` and `.` are folded by the URL parser before `proxy()` sees a path, so the generator discards an
+ * id that folds the address away from the staff family.
  */
 
 const ORIGIN = "https://lemnaria.test";

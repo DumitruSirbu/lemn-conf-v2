@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import type { Role } from "@lemnaria/configurator-domain";
@@ -9,10 +9,9 @@ import { SESSION_COOKIE_NAME } from "@/lib/server/account/session-cookie";
 import type { StaffPage } from "@/staff/staff-shell";
 
 /**
- * The gate of every staff page (M8B Lot 3 plan, K-12; ADR 0173 P-L3-2 and P-L3-9). It stands on the signed-in page gate:
- * for a visitor, an expired session, an unreadable store, a client and an unconfirmed staff address it must answer what
- * that gate answers for the same page, so the staff area is not a second, looser door. The session read and the
- * framework's redirect are replaced; the capability table, the cookie name and both gates are the real ones.
+ * The staff gate must answer what the signed-in page gate answers for the same page, so the staff area is not a second,
+ * looser door. The session read and the framework's redirect are replaced; the capability table, the cookie name and
+ * both gates are the real ones.
  */
 
 const reading = vi.hoisted(() => ({
@@ -298,26 +297,25 @@ describe("staffNavigationOf", () => {
 });
 
 describe("the pages the navigation may link to", () => {
-  const STAFF_PAGES_DIRECTORY = join(
+  const LOCALE_DIRECTORY = join(
     import.meta.dirname,
-    "../../../../src/app/[locale]/staff",
+    "../../../../src/app/[locale]",
   );
+  const STAFF_PAGES_DIRECTORY = join(LOCALE_DIRECTORY, "staff");
 
   function navigablePagesOnDisk(): string[] {
-    try {
-      return readdirSync(STAFF_PAGES_DIRECTORY, { withFileTypes: true })
-        .filter(
-          (entry) =>
-            entry.isDirectory() && PAGES.some((page) => page === entry.name),
-        )
-        .map((entry) => entry.name)
-        .sort();
-    } catch {
-      return [];
-    }
+    if (!existsSync(STAFF_PAGES_DIRECTORY)) return [];
+    return readdirSync(STAFF_PAGES_DIRECTORY, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isDirectory() && PAGES.some((page) => page === entry.name),
+      )
+      .map((entry) => entry.name)
+      .sort();
   }
 
   it("are exactly those with a page directory, so the navigation never links to a 404", () => {
+    expect(existsSync(join(LOCALE_DIRECTORY, "account"))).toBe(true);
     expect([...BUILT_STAFF_PAGES].sort()).toEqual(navigablePagesOnDisk());
   });
 });

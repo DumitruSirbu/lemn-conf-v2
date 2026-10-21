@@ -1,11 +1,8 @@
 // @vitest-environment happy-dom
 //
-// **Adversarial QA of wave L3-U1, the staff frame (plan M8B Lot 3, K-12, frames S1B, S1D).**
-//
-// The developer's file holds the sheet's happy path. This one holds what happens around it: a sign-out that is still
-// out when the sheet closes, the second dialog the sheet hands over to, a retry after a refused sign-out, the Tab ring
-// across the sheet's three possible sizes, and an unmount in the middle of it all. Declared CSS (the 44 and 48 px
-// targets) is checked as written in the developer's file, not here: no layout runs in this environment.
+// What happens around the sheet's happy path: a sign-out still out when the sheet closes, the dialog the sheet hands
+// over to, a retry after a refusal, the Tab ring across the sheet's possible sizes, and an unmount mid-request.
+
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
