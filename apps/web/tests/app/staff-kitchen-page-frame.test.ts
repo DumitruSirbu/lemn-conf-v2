@@ -168,17 +168,12 @@ describe("an id that cannot name a kitchen", () => {
 });
 
 describe("the page's title", () => {
-  it.each([
-    ["ro", roMessages.staffKitchen.metaTitle],
-    ["ru", ruMessages.staffKitchen.metaTitle],
-  ] as const)(
-    "is the generic one in %s, naming no kitchen and holding no id",
-    async (locale, template) => {
+  it.each(["ro", "ru"] as const)(
+    "is the brand alone in %s: it is built before the gate, so it names neither the staff area nor a kitchen",
+    async (locale) => {
       const metadata = await generateMetadata(paramsOf(locale));
 
-      expect(metadata.title).toBe(
-        template.replace("{brand}", roMessages.brand),
-      );
+      expect(metadata.title).toBe(roMessages.brand);
       expect(JSON.stringify(metadata.title)).not.toContain(KITCHEN_ID);
     },
   );

@@ -25,8 +25,10 @@ import {
   resolveContent,
   resolveLogoutEverywhereCopy,
   resolveSessionExpiredSheetCopy,
+  resolveStaffActionsCopy,
   resolveStaffKitchenCopy,
   resolveStaffKitchensCopy,
+  resolveStaffNotesCopy,
   resolveStaffShellCopy,
   resolveVisitorAccountCardCopy,
   type ContentTranslator,
@@ -86,6 +88,14 @@ export function useStaffKitchensCopy() {
 
 export function useStaffKitchenCopy() {
   return useResolved(resolveStaffKitchenCopy);
+}
+
+export function useStaffNotesCopy() {
+  return useResolved(resolveStaffNotesCopy);
+}
+
+export function useStaffActionsCopy() {
+  return useResolved(resolveStaffActionsCopy);
 }
 
 export function useAccountKitchensCopy() {

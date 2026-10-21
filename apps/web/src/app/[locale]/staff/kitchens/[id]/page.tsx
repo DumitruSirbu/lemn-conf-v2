@@ -7,7 +7,6 @@ import type { Metadata } from "next";
 import { isDesignId } from "@lemnaria/configurator-domain";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
-import { resolveStaffKitchenCopy } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import { readStaffPage } from "@/lib/server/staff/staff-page";
 import { StaffKitchenScreen } from "@/staff/staff-kitchen-page";
@@ -18,14 +17,15 @@ interface StaffKitchenPageProps {
   readonly params: Promise<{ locale: string; id: string }>;
 }
 
-/** A title that names no kitchen: the address bar, the history and a shared screen must not carry a client's name. */
+/** The brand and nothing else: the title is built before the gate runs, so it must not name the staff area or a kitchen to
+ *  someone who is then shown the forbidden screen or the notice. */
 export async function generateMetadata({
   params,
 }: StaffKitchenPageProps): Promise<Metadata> {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   const translate = await getTranslations({ locale });
-  return { title: resolveStaffKitchenCopy(translate).metaTitle };
+  return { title: translate("brand") };
 }
 
 /**

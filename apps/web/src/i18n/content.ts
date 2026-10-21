@@ -1,4 +1,5 @@
 import {
+  NOTE_TEXT_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
 } from "@lemnaria/configurator-domain";
@@ -16,10 +17,12 @@ import type {
   EmptySpaceSide,
   Finish,
   KitchenSummary,
+  NoteTextRefusalCode,
   PaletteEntryId,
   PasswordRefusalCode,
   PresetNameFacts,
   RejectionDetail,
+  RequestStatusRefusalCode,
 } from "@lemnaria/configurator-domain";
 
 export type ContentTranslator = _Translator<Messages>;
@@ -871,7 +874,8 @@ export type AccountMailCopy = ReturnType<typeof resolveAccountMailCopy>;
 
 /** The fields of an account form that a server answer can mark. `locale` and the notice version are the page's own
  *  values, so a refusal of either is the request failing, not a field to correct. `currentPassword` and `newPassword`
- *  are the password change's own request members, named as the body names them (plan P13). */
+ *  are the password change's own request members, named as the body names them (plan P13). `text` is a staff note's and
+ *  `status` a staff request status's, as the staff writes name them. */
 export type AccountIssueField =
   | "email"
   | "newEmail"
@@ -880,7 +884,9 @@ export type AccountIssueField =
   | "currentPassword"
   | "newPassword"
   | "name"
-  | "address";
+  | "address"
+  | "text"
+  | "status";
 
 /** The password's refusals: the domain's three, the breach check's, a password that was not text, and the empty
  *  password the form refuses before sending. */
@@ -890,7 +896,10 @@ export type AccountIssueCode =
   | "PASSWORD_BREACHED"
   | "PASSWORD_NOT_TEXT"
   | "PASSWORD_REQUIRED"
-  | "PASSWORD_UNCHANGED";
+  | "PASSWORD_UNCHANGED"
+  | NoteTextRefusalCode
+  | RequestStatusRefusalCode
+  | "NOTE_TEXT_NOT_JUDGED";
 
 /** One field and one code, never the value that was refused. */
 export interface AccountFieldIssue {
@@ -950,6 +959,10 @@ export function resolveAccountFieldError(
       return resolveNameError(translate, code);
     case "address":
       return resolveAddressError(translate, code);
+    case "text":
+      return resolveNoteTextError(translate, code);
+    case "status":
+      return resolveStatusError(translate, code);
     default:
       return assertNever(field);
   }
@@ -1026,6 +1039,44 @@ function resolveAddressError(
     case "FORBIDDEN_CHARACTER":
     case "NOT_TEXT":
       return translate("accountFieldErrors.addressForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveNoteTextError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("accountFieldErrors.noteRequired");
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.noteNotText");
+    case "TOO_LONG":
+      return translate("accountFieldErrors.noteTooLong", {
+        max: NOTE_TEXT_MAX_LENGTH,
+      });
+    case "FORBIDDEN_CHARACTER":
+      return translate("accountFieldErrors.noteForbiddenCharacter");
+    case "NOTE_TEXT_NOT_JUDGED":
+      return translate("accountFieldErrors.noteNotJudged");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveStatusError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("accountFieldErrors.statusRequired");
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.statusNotText");
+    case "STATUS_NOT_IN_LIST":
+      return translate("accountFieldErrors.statusNotInList");
     default:
       return translate("accountForm.requestFailedBody");
   }
@@ -1445,9 +1496,6 @@ export type StaffKitchensCopy = ReturnType<typeof resolveStaffKitchensCopy>;
  *  statuses, "Fără cont", the phone's "neverificat") are the list's own and are not said twice. */
 export function resolveStaffKitchenCopy(translate: ContentTranslator) {
   return {
-    metaTitle: translate("staffKitchen.metaTitle", {
-      brand: translate("brand"),
-    }),
     title: translate("staffKitchen.title"),
     loading: translate("staffKitchen.loading"),
     view: {
@@ -1512,6 +1560,80 @@ export function resolveStaffKitchenCopy(translate: ContentTranslator) {
 }
 
 export type StaffKitchenCopy = ReturnType<typeof resolveStaffKitchenCopy>;
+
+/** The notes of one client's kitchen: the list, the field that adds one and the words of its answers. The sentences of a
+ *  refused text are the shared field errors', found by the code. */
+export function resolveStaffNotesCopy(translate: ContentTranslator) {
+  return {
+    title: translate("staffNotes.title"),
+    count: (count: number) => translate("staffNotes.count", { count }),
+    newestFirst: translate("staffNotes.newestFirst"),
+    truncated: (count: number) => translate("staffNotes.truncated", { count }),
+    empty: translate("staffNotes.empty"),
+    when: (details: { date: string; ago: string }) =>
+      translate("staffNotes.when", details),
+    fieldLabel: translate("staffNotes.fieldLabel"),
+    fieldPlaceholder: translate("staffNotes.fieldPlaceholder"),
+    counter: (count: number) =>
+      translate("staffNotes.counter", { count, max: NOTE_TEXT_MAX_LENGTH }),
+    submit: translate("staffNotes.submit"),
+    submitting: translate("staffNotes.submitting"),
+    saved: translate("staffNotes.saved"),
+    errorTitle: translate("staffNotes.errorTitle"),
+    errorBody: translate("staffNotes.errorBody"),
+    forbiddenBody: translate("staffNotes.forbiddenBody"),
+    kitchenGoneBody: translate("staffNotes.kitchenGoneBody"),
+    dataLine: translate("staffNotes.dataLine"),
+  };
+}
+
+export type StaffNotesCopy = ReturnType<typeof resolveStaffNotesCopy>;
+
+/** What staff do to one client's kitchen besides noting: set the request's status, make a hidden kitchen visible again,
+ *  and the sheet that says the session ended. */
+export function resolveStaffActionsCopy(translate: ContentTranslator) {
+  return {
+    status: {
+      selectLabel: translate("staffActions.statusSelectLabel"),
+      placeholder: translate("staffActions.statusPlaceholder"),
+      save: translate("staffActions.statusSave"),
+      saving: translate("staffActions.statusSaving"),
+      saved: translate("staffActions.statusSaved"),
+      errorTitle: translate("staffActions.statusErrorTitle"),
+      errorBody: translate("staffActions.statusErrorBody"),
+      changedMeanwhile: translate("staffActions.statusChangedMeanwhile"),
+      notRecognised: translate("staffActions.statusNotRecognised"),
+      notSent: translate("staffActions.statusNotSent"),
+      forbiddenBody: translate("staffActions.statusForbiddenBody"),
+      kitchenGoneBody: translate("staffActions.statusKitchenGoneBody"),
+    },
+    unhide: {
+      action: translate("staffActions.unhideAction"),
+      title: translate("staffActions.unhideTitle"),
+      body: translate("staffActions.unhideBody"),
+      shareNote: translate("staffActions.unhideShareNote"),
+      confirm: translate("staffActions.unhideConfirm"),
+      busy: translate("staffActions.unhideBusy"),
+      cancel: translate("staffActions.unhideCancel"),
+      done: translate("staffActions.unhideDone"),
+      notHidden: translate("staffActions.unhideNotHidden"),
+      forbiddenBody: translate("staffActions.unhideForbiddenBody"),
+    },
+    session: {
+      title: translate("staffActions.sessionTitle"),
+      body: translate("staffActions.sessionBody"),
+      bodyKeepsText: translate("staffActions.sessionBodyKeepsText"),
+      signIn: translate("staffActions.sessionSignIn"),
+      newTab: translate("staffActions.sessionNewTab"),
+      recheck: translate("staffActions.sessionRecheck"),
+      rechecking: translate("staffActions.sessionRechecking"),
+      stillSignedOut: translate("staffActions.sessionStillSignedOut"),
+      recheckFailed: translate("staffActions.sessionRecheckFailed"),
+    },
+  };
+}
+
+export type StaffActionsCopy = ReturnType<typeof resolveStaffActionsCopy>;
 
 /**
  * The list of the account's kitchens. A kitchen the person never named is called by the name its facts generate
