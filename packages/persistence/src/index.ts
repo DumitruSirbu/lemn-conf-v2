@@ -255,6 +255,43 @@ export type {
   HeldKitchen,
   SeededKitchen,
 } from "./fake-account-kitchen-store.js";
+export {
+  MAX_STAFF_AUDIT_PAGE,
+  STAFF_AUDIT_PAGE_SIZE,
+  StaffAuditStoreError,
+  detailTextOf,
+  prepareStaffAuditRecord,
+} from "./staff-audit-store.js";
+export type {
+  PreparedStaffAuditRecord,
+  StaffAuditAccountRef,
+  StaffAuditDesignRef,
+  StaffAuditPage,
+  StaffAuditPageRequest,
+  StaffAuditPageRow,
+  StaffAuditReading,
+  StaffAuditRecord,
+  StaffAuditRecordRefusal,
+  StaffAuditStore,
+  StaffAuditStoreFailure,
+  StaffAuditStoreOperation,
+} from "./staff-audit-store.js";
+export {
+  NeonStaffAuditStore,
+  requireOneAuditRowInserted,
+  staffAuditInsertStatement,
+  staffAuditStoreErrorFrom,
+} from "./neon-staff-audit-store.js";
+export { FakeStaffAuditStore } from "./fake-staff-audit-store.js";
+export type {
+  FakeStaffAuditStoreOptions,
+  HeldStaffAuditEvent,
+  PlantedStaffAuditEvent,
+  StagedStaffAuditEvent,
+  StaffAuditDirectory,
+  StaffAuditDirectoryAccount,
+  StaffAuditDirectoryDesign,
+} from "./fake-staff-audit-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {
