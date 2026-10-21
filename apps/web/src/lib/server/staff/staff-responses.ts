@@ -32,10 +32,11 @@ import type {
   StaffThumbnailDesign,
 } from "@/staff/staff-kitchens-wire-contract";
 
-// The answers of the staff kitchen read routes that the account routes do not already give. The refusals (401, 403,
-// 404, 429, 503) are `account-responses.ts`'s and `design-errors.ts`'s own, so a staff route words them as every other
-// does. Every body here is shaped member by member from what the reader returned: a reader object is never spread, so
-// a column the reader later gains reaches no response until it is named here, and no account id leaves the server.
+// The answers of the staff kitchen read and write routes that the account routes do not already give. The refusals
+// (401, 403, 404, 429, 503) are `account-responses.ts`'s and `design-errors.ts`'s own, so a staff route words them as
+// every other does. Every body here is shaped member by member from what the reader or the store returned: such an
+// object is never spread, so a column it later gains reaches no response until it is named here, and no account id
+// leaves the server.
 
 /** `400`: the query's members that the person can correct, as the member and a code. Never the value that was refused:
  *  the search text is a client's name or address. */
