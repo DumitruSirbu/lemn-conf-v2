@@ -29,7 +29,7 @@ const NAVIGATION_ORDER: readonly StaffPage[] = ["kitchens", "audit"];
 
 /** The pages that have a screen. A page joins this list when its directory under
  *  `app/[locale]/staff` exists, never before: the navigation must not link to a page that answers 404. */
-export const BUILT_STAFF_PAGES: readonly StaffPage[] = ["kitchens"];
+export const BUILT_STAFF_PAGES: readonly StaffPage[] = ["kitchens", "audit"];
 
 /** Held by every live session, an unconfirmed address included, so the signed-in gate answers the redirect, the outage
  *  and the unknown role, and the staff gate alone judges what the page asks. */

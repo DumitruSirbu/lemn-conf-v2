@@ -81,9 +81,12 @@ async function signInAs(
 }
 
 describe("a person who is signed in as staff", () => {
-  it.each(["operator", "administrator"] as const)(
-    "gets the list for a verified %s, in the staff frame with the kitchens page in its navigation",
-    async (role) => {
+  it.each([
+    ["operator", ["kitchens"]],
+    ["administrator", ["kitchens", "audit"]],
+  ] as const)(
+    "gets the list for a verified %s, in the staff frame with the pages the role opens in its navigation",
+    async (role, navigation) => {
       await signInAs({ role });
 
       const page = await StaffKitchensPage(paramsOf("ro"));
@@ -94,7 +97,7 @@ describe("a person who is signed in as staff", () => {
         context: {
           role,
           email: `${role}@example.test`,
-          navigation: ["kitchens"],
+          navigation,
         },
       });
     },

@@ -255,7 +255,7 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
     });
   });
 
-  it("opens the audit page to a verified administrator", async () => {
+  it("opens the audit page to a verified administrator, whose navigation now lists it after the kitchens", async () => {
     become(callerNamed("a verified administrator"));
 
     expect(await readStaffPage({ locale: "ro", page: "audit" })).toEqual({
@@ -263,7 +263,7 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
       shell: {
         role: "administrator",
         email: STAFF_ADDRESS,
-        navigation: ["kitchens"],
+        navigation: ["kitchens", "audit"],
       },
     });
   });
