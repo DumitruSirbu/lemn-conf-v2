@@ -75,18 +75,20 @@ describe("a page past the end of a list that shrank (a client deleted a kitchen 
     });
   }
 
-  /** The ways out the foot or the empty-state words offer: an enabled button, or an empty state. */
-  function waysBackToTheList(): HTMLElement[] {
+  /** Anything that leaves the person somewhere to go: kitchens drawn, a control in the foot, or an empty state. */
+  function somethingToDo(): HTMLElement[] {
     const container = harness.container();
-    const inFoot = allIn(container, `${FOOT} button:not(:disabled)`);
-    const emptyStates = allIn(
-      container,
-      '[data-testid="staff-kitchens-empty"], [data-testid="staff-kitchens-no-results"]',
-    );
-    return [...inFoot, ...emptyStates];
+    return [
+      ...allIn(container, '[data-testid="staff-kitchen-row"]'),
+      ...allIn(container, `${FOOT} button:not(:disabled)`),
+      ...allIn(
+        container,
+        '[data-testid="staff-kitchens-empty"], [data-testid="staff-kitchens-no-results"]',
+      ),
+    ];
   }
 
-  it("leaves the person on a desktop a way back to the first page", async () => {
+  it("does not leave the person on a desktop with a count over no kitchens and nothing to press", async () => {
     shrinkAfterFirstPage();
     await harness.mount({ width: "desktop" });
 
@@ -94,8 +96,8 @@ describe("a page past the end of a list that shrank (a client deleted a kitchen 
     await harness.settle();
 
     expect(
-      waysBackToTheList(),
-      "the page answered no rows, yet the foot offers no way to page 1 and no empty state is drawn",
+      somethingToDo(),
+      "the page answered no rows, yet no kitchen is drawn, the foot offers no control and no empty state is drawn",
     ).not.toHaveLength(0);
   });
 });
@@ -173,7 +175,7 @@ describe("clearing the search", () => {
     expect(document.activeElement).toBe(input);
   });
 
-  it("returns focus to the search box when the clear button of an empty result is pressed", async () => {
+  it("does not drop focus to the page when the clear button of an empty result is pressed", async () => {
     harness.answers((request) => ({
       body: wireList(
         request.url.searchParams.has("q")
@@ -199,7 +201,10 @@ describe("clearing the search", () => {
     click(clear);
     await harness.settle();
 
-    expect(document.activeElement).toBe(input);
+    expect(
+      harness.container().contains(document.activeElement),
+      "the button took focus with it when it left, and focus is now on the document",
+    ).toBe(true);
   });
 });
 
