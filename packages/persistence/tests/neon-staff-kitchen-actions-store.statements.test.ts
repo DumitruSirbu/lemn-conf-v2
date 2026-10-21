@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NeonSessionStore } from "../src/neon-session-store.js";
 import { NeonStaffKitchenActionsStore } from "../src/neon-staff-kitchen-actions-store.js";
 import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
+import { STAFF_VISIBLE_PREDICATE } from "../src/staff-kitchen-statements.js";
 import {
   StaffKitchenActionError,
   type StaffKitchenActionFailure,
@@ -55,8 +56,11 @@ const SESSION = {
   sessionTokenHash: SESSION_HASH,
   idleLifetimeSeconds: LIFETIMES,
 };
-const VISIBLE_TO_STAFF =
-  "d.deleted_by_client_at is null and (d.sent_at is not null or d.account_id is not null)";
+/** The predicate as normalised statement text, and the two forms it takes where the statement has no alias or is a list. */
+const VISIBLE_TO_STAFF = STAFF_VISIBLE_PREDICATE.toLowerCase();
+const VISIBLE_WITHOUT_ALIAS = VISIBLE_TO_STAFF.replace(/\bd\./g, "");
+const VISIBLE_DELETED_TEST = "d.deleted_by_client_at is null";
+const VISIBLE_SENT_OR_OWNED = /\((.*)\)$/.exec(VISIBLE_TO_STAFF)?.[1] ?? "";
 const NOTE_ID = "000000000000000000002";
 const AUDIT_ONE_ROW = [{ recorded: 1 }];
 const EMPTY_PRESENT_STATUS_ROW = {
@@ -715,13 +719,38 @@ describe("an unhide", () => {
 });
 
 describe("the reader's visibility test, repeated", () => {
-  it("is the same text in the reader, the note, the status and the unhide statements", async () => {
+  it("is held in one constant whose two parts the list's all segment also spells", () => {
+    expect(VISIBLE_SENT_OR_OWNED).toBe(
+      "d.sent_at is not null or d.account_id is not null",
+    );
+    expect(VISIBLE_TO_STAFF).toBe(
+      `${VISIBLE_DELETED_TEST} and (${VISIBLE_SENT_OR_OWNED})`,
+    );
+  });
+
+  it("ends the reader's readOne where clause, and is the other form in its list, so a one-sided change to the reader fails", async () => {
     resetQueryDriver();
     answerQueryWith([]);
     await new NeonStaffKitchenReader(WELL_FORMED_UNREACHABLE_VALUE).readOne(
       DESIGN_ID,
     );
-    const reader = normalised(loneStatement());
+    const readOne = normalised(loneStatement());
+    resetQueryDriver();
+    answerQueryWith([{ total: 0, id: null }]);
+    await new NeonStaffKitchenReader(WELL_FORMED_UNREACHABLE_VALUE).listPage({
+      segment: "all",
+      status: null,
+      search: null,
+      page: 1,
+    });
+    const list = normalised(loneStatement());
+
+    expect(readOne.endsWith(VISIBLE_TO_STAFF)).toBe(true);
+    expect(list).toContain(`where ${VISIBLE_DELETED_TEST} and (case`);
+    expect(list).toContain(`when 'all' then ${VISIBLE_SENT_OR_OWNED} end)`);
+  });
+
+  it("is contained, word for word, by the note, status, status-read and unhide statements", async () => {
     const note = normalised((await noteBatch()).write);
     const status = normalised(
       (await saveStatusAndCapture("closed", "contacted")).write,
@@ -731,14 +760,11 @@ describe("the reader's visibility test, repeated", () => {
     );
     const unhide = normalised((await unhideBatch()).write);
 
-    expect(reader).toContain(VISIBLE_TO_STAFF);
     expect(note).toContain(VISIBLE_TO_STAFF);
     expect(status).toContain(VISIBLE_TO_STAFF);
     expect(facts).toContain(VISIBLE_TO_STAFF);
     expect(unhide).toContain(VISIBLE_TO_STAFF);
-    expect(unhide).toContain(
-      "and deleted_by_client_at is null and (sent_at is not null or account_id is not null) returning id",
-    );
+    expect(unhide).toContain(`and ${VISIBLE_WITHOUT_ALIAS} returning id`);
   });
 
   async function noteBatch() {

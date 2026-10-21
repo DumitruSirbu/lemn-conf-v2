@@ -23,6 +23,16 @@ import {
  */
 
 /**
+ * Which kitchens staff can see, over `designs d`: the client has not deleted it, and it is sent or owned by an account
+ * (a visitor's unsent draft is neither). A tagged template cannot interpolate SQL, so this is the one reference the
+ * statements repeat as text: the reader's `readOne` ends its `where` with it, the list's `all` segment is its other
+ * form, and the four write statements of `staff-kitchen-actions-statements.ts` contain it (aliased `d`, or bare in the
+ * unhide update). Tests assert every copy against this constant, both ways, so a one-sided change fails.
+ */
+export const STAFF_VISIBLE_PREDICATE =
+  "d.deleted_by_client_at is null and (d.sent_at is not null or d.account_id is not null)";
+
+/**
  * The page and the count in one statement, so `total` and the kitchens come from one snapshot. The accounts, the status
  * row and the document are left joins; the document is joined back for the page's kitchens only, so the count's rows
  * carry none. The lateral join promises no order, so the outer query repeats it.

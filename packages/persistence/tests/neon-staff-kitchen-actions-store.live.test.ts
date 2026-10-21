@@ -5,12 +5,12 @@ import { neon } from "@neondatabase/serverless";
 import { nanoid } from "nanoid";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { NeonStaffKitchenActionsStore } from "../src/neon-staff-kitchen-actions-store.js";
 import {
-  NeonStaffKitchenActionsStore,
   addNoteStatement,
   saveStatusStatement,
   unhideStatement,
-} from "../src/neon-staff-kitchen-actions-store.js";
+} from "../src/staff-kitchen-actions-statements.js";
 import { staffAuditInsertStatement } from "../src/neon-staff-audit-store.js";
 import { prepareStaffAuditRecord } from "../src/staff-audit-store.js";
 import type { PreparedStaffAuditRecord } from "../src/staff-audit-store.js";
@@ -67,6 +67,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   afterAll(async () => {
     if (!isLiveTestDatabaseConfigured) return;
     await sql()`delete from staff_audit_events where actor_account_id = any(${accountIds}) or design_id = any(${designIds})`;
+    await sql()`delete from design_share_links where design_id = any(${designIds})`;
     await sql()`delete from design_notes where design_id = any(${designIds})`;
     await sql()`delete from design_request_states where design_id = any(${designIds})`;
     await sql()`delete from designs where id = any(${designIds})`;
@@ -302,6 +303,32 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         });
       },
     );
+
+    it("leaves an active share link on a hidden kitchen active after the unhide: the unhide writes the kitchen's hide alone", async () => {
+      const world = await newWorld();
+      const staff = await signIn();
+      const designId = await world.aKitchen({
+        client: await world.aClient(),
+        isSent: true,
+        isHidden: true,
+      });
+      const tokenHash = randomBytes(32).toString("hex");
+      await sql()`
+        insert into design_share_links (token_hash, design_id, created_at)
+        values (${tokenHash}, ${designId}, now() - interval '1 hour')
+      `;
+
+      const result = await world.store.unhide({
+        session: staff.session,
+        designId,
+      });
+
+      const links = await sql()`
+        select (revoked_at is null) as is_active from design_share_links where token_hash = ${tokenHash}
+      `;
+      expect(result).toEqual({ kind: "unhidden" });
+      expect(links).toEqual([{ is_active: true }]);
+    });
 
     it("rolls the caller's write back when the audit statement raises, so a note never outlives its audit row", async () => {
       const world = await newWorld();

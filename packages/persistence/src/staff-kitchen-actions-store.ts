@@ -110,8 +110,13 @@ export interface UnhideKitchenRequest {
   readonly designId: string;
 }
 
-/** `kitchen-not-found` answers an unknown id, a malformed id, a kitchen its client deleted, and a visitor's unsent draft
- *  alike: the one kitchen refusal. */
+/**
+ * `kitchen-not-found` answers an unknown id, a malformed id, a kitchen its client deleted, and a visitor's unsent draft
+ * alike: the one kitchen refusal.
+ *
+ * The answer a route gives: `added` is `201` with the note; `kitchen-not-found` is the byte-identical kitchen refusal
+ * every staff route gives.
+ */
 export type AddStaffNoteResult =
   | { readonly kind: "added"; readonly note: StaffKitchenNote }
   | { readonly kind: "kitchen-not-found" };
@@ -134,6 +139,17 @@ export interface SavedRequestStatus {
  *   must be a listed code) and the stored text is **not** read as `new`. Nothing was written.
  * - `changed-meanwhile`: the status was saved by someone else between the read and the write. Nothing was written; the
  *   audit row's `from` is always the status the write replaced, so the call does not guess.
+ *
+ * The answer a route gives:
+ * - `saved`: `200 {status, changedBy, changedAt}`.
+ * - `unchanged`: `200` with the same body; with `current` null it is `{status: "new", changedBy: null, changedAt: null}`,
+ *   and the page shows a null last change as nothing.
+ * - `changed-meanwhile`: `409 {status: "changed-meanwhile"}`. The route does not retry; the page keeps the selection and
+ *   reads the kitchen again.
+ * - `status-not-recognised`: `409 {status: "status-not-recognised"}`. A data condition and not an outage: the person is
+ *   told to contact an administrator.
+ * - `not-sent`: `409 {status: "not-sent"}`.
+ * - `kitchen-not-found`: the byte-identical kitchen refusal.
  */
 export type SetRequestStatusResult =
   | { readonly kind: "saved"; readonly saved: SavedRequestStatus }
@@ -146,27 +162,42 @@ export type SetRequestStatusResult =
   | { readonly kind: "status-not-recognised" }
   | { readonly kind: "changed-meanwhile" };
 
-/** `not-hidden`: the kitchen is visible to staff but its client has not hidden it (or a first call already unhid it);
- *  nothing was written and no audit row either. */
+/**
+ * `not-hidden`: the kitchen is visible to staff but its client has not hidden it (or a first call already unhid it);
+ * nothing was written and no audit row either.
+ *
+ * The answer a route gives: `unhidden` is `204`; `not-hidden` is `409 {status: "not-hidden"}`; `kitchen-not-found` is the
+ * byte-identical kitchen refusal.
+ *
+ * What an unhide does not do: it clears `hidden_by_client_at` and nothing else. A share link the client's hide revoked
+ * stays revoked, and the shop's copy of the kitchen as sent (`contact_submission_views`) is never touched.
+ */
 export type UnhideKitchenResult =
   | { readonly kind: "unhidden" }
   | { readonly kind: "kitchen-not-found" }
   | { readonly kind: "not-hidden" };
 
 /**
- * The staff arm for writing on kitchens (plan CG-L3-10, P-L3-3), apart from the client arm so no predicate of theirs is
- * shared or loosened. Every method writes its audit row **in the same transaction** as the change, so neither exists
+ * The staff arm for writing on kitchens, apart from the client arm so no predicate of theirs is shared or loosened. Every method writes its audit row **in the same transaction** as the change, so neither exists
  * without the other, and takes the actor from the session in the same statement. A kitchen is visible to staff on the
  * reader's two tests, and the writes use the same two: a client-deleted kitchen and a visitor's unsent draft are
  * `kitchen-not-found`, so a note can never be written on a kitchen that can never be read.
  *
  * None of the writes is retried: the audit event's id is minted once, and a repeat after a lost acknowledgement would
  * insert a second row or hit the primary key.
+ *
+ * **A live session is not an authorised one.** The store proves the session is live and takes the actor from it; it does
+ * not ask what the account may do. A route must call `requireCapability` (`note.write`, `contact.update-status`,
+ * `design.unhide`) before it calls any method here.
+ *
+ * What a thrown `StaffKitchenActionError` becomes at a route, by `failure`: `not-recorded` is `401`; `invalid-request` is
+ * `400` naming the field (`text` or `status`); `unavailable`, `unexpected-answer` and `database` are `503` with no
+ * detail.
  */
 export interface StaffKitchenActionsStore {
-  /** Throws `StaffKitchenActionError`. Allowed on drafts and hidden kitchens (P-L3-5). */
+  /** Throws `StaffKitchenActionError`. Allowed on drafts and hidden kitchens. */
   addNote(request: AddStaffNoteRequest): Promise<AddStaffNoteResult>;
-  /** Throws `StaffKitchenActionError`. Any status may follow any (P-L3-8). */
+  /** Throws `StaffKitchenActionError`. Any status may follow any. */
   setStatus(request: SetRequestStatusRequest): Promise<SetRequestStatusResult>;
   /** Throws `StaffKitchenActionError`. Writes `hidden_by_client_at` alone, so the kitchen keeps its place in a list. */
   unhide(request: UnhideKitchenRequest): Promise<UnhideKitchenResult>;

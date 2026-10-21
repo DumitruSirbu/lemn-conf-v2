@@ -320,10 +320,7 @@ export type {
   PlantedStaffSentCopy,
   PlantedStaffStatus,
 } from "./fake-staff-kitchen-reader.js";
-export {
-  StaffKitchenActionError,
-  decideStatusSave,
-} from "./staff-kitchen-actions-store.js";
+export { StaffKitchenActionError } from "./staff-kitchen-actions-store.js";
 export type {
   AddStaffNoteRequest,
   AddStaffNoteResult,

@@ -16,11 +16,11 @@ import { FakeSessionStore } from "../src/fake-session-store.js";
 import { FakeStaffAuditStore } from "../src/fake-staff-audit-store.js";
 import { FakeStaffKitchenActionsStore } from "../src/fake-staff-kitchen-actions-store.js";
 import { staffAuditInsertStatement } from "../src/neon-staff-audit-store.js";
+import { NeonStaffKitchenActionsStore } from "../src/neon-staff-kitchen-actions-store.js";
 import {
-  NeonStaffKitchenActionsStore,
   addNoteStatement,
   saveStatusStatement,
-} from "../src/neon-staff-kitchen-actions-store.js";
+} from "../src/staff-kitchen-actions-statements.js";
 import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
 import { prepareStaffAuditRecord } from "../src/staff-audit-store.js";
 import type { PreparedStaffAuditRecord } from "../src/staff-audit-store.js";
