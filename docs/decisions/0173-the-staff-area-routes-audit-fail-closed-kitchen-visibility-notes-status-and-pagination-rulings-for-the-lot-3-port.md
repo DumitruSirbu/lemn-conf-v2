@@ -41,7 +41,8 @@ Appended; the status line above is unchanged. These are recorded as **accepted**
 - **F6, the application role reads note free text in full.** This goes beyond ADR 0153 decision 1 the way ADR 0172 D11 did
   for accounts. There is no erasure path, notes on client-deleted designs are orphaned, and there is no retention rule.
   Accepted for now. **OPEN owner question: retention for audit rows and notes (not answered).** **OPEN question for wave
-  L3-S9: do hidden or client-deleted designs' notes go into the client's export? (not answered).**
+  L3-S9: do hidden or client-deleted designs' notes go into the client's export? (not answered; the coordinator's default
+  is built and recorded in the L3-S9 note below).**
 
 **Plan-level observation, CLOSED 2026-10-21 by the owner ruling below.** E-L3-1 (the kitchens list) returns client e-mail,
 name and phone in bulk and was not itself audited, so the audit trail did not show bulk harvesting of contacts.
@@ -116,6 +117,44 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
   are unguessable.
 - **Unrecognised actions appear only on unfiltered pages.** The action filter accepts the five closed codes only, while
   the store would accept any table-shaped code; a row the build does not know is therefore found by paging, not by filter.
+
+## L3-S9: the notes in the client's own export, 2026-10-21 [written by the wave's implementer from the dispatch and the code; no owner ruling, no review yet]
+
+**Evidence tier.** Source-verified in this worktree (the files named below, read and run); the owner's O-L3-6 is
+doc-quoted from [ADR 0174](0174-the-owner-rulings-o-l3-1-to-o-l3-7-defer-the-price-and-translation-screens-and-fix-the-staff-request-line-the-notes-export-and-the-lot-3-copy.md)
+decision 4.
+
+**Built.** `POST /api/account/export` now carries, on each exported kitchen, `notes: [{ text, createdAt }]` (newest
+first) and `notesTruncated`; `formatVersion` is 2. The read is `AccountKitchenStore.exportNotes(accountId, designIds)`:
+one statement (`packages/persistence/src/account-kitchen-notes-statement.ts`) that joins `designs` for ownership alone
+(`account_id = $1 and deleted_by_client_at is null`), selects the design id, the text and the instant, and joins neither
+`accounts` nor reads `author_account_id`. A notes read that fails is a `503` with no file, never a download without them.
+
+**Still OPEN for the owner, with the coordinator's default built.** *Do the notes of kitchens the client hid, or deleted,
+go into the export?* The default (owner-visible, **not owner-ruled**): the notes of a kitchen that still exists for the
+client are included, **hidden ones too**, because hidden means "not listed" and the shop still holds the data; the notes
+of a kitchen the client **deleted** are excluded, consistent with the deleted kitchen not being exported. The cost of the
+second half is the one F6 already names: those notes stay held and are in no download, with no retention rule. The
+default is two predicates (`deleted_by_client_at is null`; no `hidden_by_client_at`) pinned by the statement test.
+
+**Residuals recorded with it.**
+
+- **The bounds are counts, provisional, and not bytes.** Per kitchen `MAX_EXPORTED_NOTES_PER_KITCHEN` = 100 (the staff
+  view's own 100) and, over the whole export, `MAX_EXPORTED_NOTES_IN_TOTAL` = 2000, newest first; a kitchen cut by either
+  is marked `notesTruncated`. At the largest a note can be (2000 code points, 4 UTF-8 bytes each) 2000 notes are about
+  16 MB of note text, on top of up to 200 designs. O26 kept the kitchen bound a count and the platform's response limit
+  has not been measured, so nothing here claims the file fits the platform. The figures are the engineer's, to be set
+  against a measured size.
+- **The export can drop real notes, not only the staff view.** The L3-S7 residual (120 notes an hour per staff session,
+  no delete path) pushes real notes out of the newest 100 of a kitchen in the client's own file too. The marker says the
+  kitchen was cut; no path in the export returns the older notes.
+- **A failed notes read spends the day's bucket,** like a failed kitchen read (O26's residual): the bucket is counted
+  before the reads.
+- **The `design_notes` `SELECT` grant** is in the runbook's `0021` list and the privilege test now plans the export's
+  statement as the application role; that test needs `DATABASE_URL` as the application role and was not run by the
+  implementer.
+- **Free text goes to the client.** A note is staff free text about a person; the ruling is that the person receives it
+  with no author. Nothing screens a note for what a staff member chose to write.
 
 ## Not covered
 
