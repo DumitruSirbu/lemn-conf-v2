@@ -479,6 +479,11 @@ residuals*; runbook `0020`–`0022` section, *Conditions on the store*.
 | **L3-S8, audit read + L3-U6, S8 page** | S8: 1. `GET /api/staff/audit` (`audit.read`; filters; dates are Chișinău local days turned into UTC bounds). 2. Resolution of ids to addresses and names at read. U6: 3. Page shell and `staff-audit-page.tsx` (table, filters, "Șterge filtrele", page numbers). 4. `use-staff-audit.ts` | `lib/server/staff/staff-audit-log.ts`, route file; then `app/[locale]/staff/audit/page.tsx`, `staff/staff-audit-page.tsx`, `staff/use-staff-audit.ts` (two waves: S8 Full + security, U6 Full + security + visual) | §1 S8; P-L3-3; CD answer 6; frames S8A–S8E | L3-S3, L3-U1 | as stated |
 | **L3-S9, notes in the export** (if O-L3-6 yes) | 1. `export-account.ts`: notes per kitchen (text, `createdAt`; no author). 2. A reader method on the notes store. 3. The bound counted against O26's cap | `lib/server/account/export-account.ts` (mod), the notes reader (mod) | Lot 2 §2.2 E10, §9 O4, O26; P-L3-5 | L3-S5; O-L3-6 ruled yes | Full + security |
 
+**L3-U2 notes carried from the L3-U1 reviews.**
+
+- L3-U2 must add a built-server probe asserting a 404 for the escaped-family (`/ro/st%61ff/kitchens`), escaped-page (`/ro/staff/%6Bitchens`) and case-variant (`/ro/Staff/kitchens`, `/ro/staff/KITCHENS`) spellings once a staff `page.tsx` exists. The same gap exists for the account family (`/ro/%61ccount/...`).
+- L3-U2 must recheck K-12's "O18: 200 plus the marker" on the real page, which no U1 test can reach.
+
 ### 7.3 Phase C: after an owner answer and a decision record (outline)
 
 **Status after the 2026-10-20 rulings (§5.3).** O-L3-4 and O-L3-5 are answered, so L3-S10, L3-S11, L3-U7, L3-S12a,
