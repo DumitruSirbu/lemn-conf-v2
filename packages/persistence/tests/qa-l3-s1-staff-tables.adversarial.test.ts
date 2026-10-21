@@ -2,8 +2,12 @@ import { fc } from "@fast-check/vitest";
 import {
   REQUEST_STATUSES,
   STAFF_AUDIT_ACTIONS,
+  STAFF_AUDIT_PAGE_SIZE,
+  STAFF_KITCHEN_SEGMENTS,
+  auditActionNamesDesign,
   judgeNoteText,
   readStaffAuditEntry,
+  type StaffAuditAction,
 } from "@lemnaria/configurator-domain";
 import type { Client } from "@neondatabase/serverless";
 import {
@@ -729,9 +733,43 @@ async function expectServerAgreesWithOracle(
 // ---------------------------------------------------------------------------------------------------------------------
 
 interface AuditEntryCandidate {
-  readonly action: string;
-  readonly detail: { readonly from: string; readonly to: string } | null;
+  readonly action: StaffAuditAction;
+  readonly detail: object | null;
 }
+
+/** Every detail shape the domain reads as valid for each action; a new action does not compile until it is listed. */
+const DETAILS_THE_DOMAIN_ACCEPTS: Readonly<
+  Record<StaffAuditAction, readonly (object | null)[]>
+> = {
+  "kitchen-opened": [null],
+  "note-added": [null],
+  "kitchen-unhidden": [null],
+  "status-changed": REQUEST_STATUSES.flatMap((from) =>
+    REQUEST_STATUSES.map((to) => ({ from, to })),
+  ),
+  "kitchens-listed": STAFF_KITCHEN_SEGMENTS.flatMap((segment) =>
+    [null, ...REQUEST_STATUSES].flatMap((status) =>
+      [true, false].map((hasSearch) => ({
+        segment,
+        status,
+        page: 1,
+        rowCount: 0,
+        hasSearch,
+      })),
+    ),
+  ),
+  "audit-viewed": [true, false].flatMap((hasActorFilter) =>
+    [true, false].flatMap((hasActionFilter) =>
+      [true, false].map((hasDateFilter) => ({
+        page: 1,
+        rowCount: STAFF_AUDIT_PAGE_SIZE,
+        hasActorFilter,
+        hasActionFilter,
+        hasDateFilter,
+      })),
+    ),
+  ),
+};
 
 describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   beforeAll(async () => {
@@ -1008,17 +1046,13 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       expect(refused).toEqual([]);
     });
 
-    it("every entry the domain reads as valid (each action, each from-to pair) is stored with its detail as it is", async () => {
+    it("every entry the domain reads as valid (each action, each detail shape it accepts) is stored with its detail as it is", async () => {
       const entries = STAFF_AUDIT_ACTIONS.flatMap(
         (action): AuditEntryCandidate[] =>
-          action === "status-changed"
-            ? REQUEST_STATUSES.flatMap((from) =>
-                REQUEST_STATUSES.map((to) => ({
-                  action,
-                  detail: { from, to },
-                })),
-              )
-            : [{ action, detail: null }],
+          DETAILS_THE_DOMAIN_ACCEPTS[action].map((detail) => ({
+            action,
+            detail,
+          })),
       );
 
       for (const [index, candidate] of entries.entries()) {
@@ -1031,6 +1065,9 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           ...AUDIT.validRow,
           id,
           action: candidate.action,
+          design_id: auditActionNamesDesign(candidate.action)
+            ? (AUDIT.validRow["design_id"] ?? null)
+            : null,
           detail,
         });
         expect(outcome, JSON.stringify(candidate)).toBe("accepted");

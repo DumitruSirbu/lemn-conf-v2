@@ -113,13 +113,28 @@ const KITCHENS_LISTED: StaffAuditEntry = {
   },
 };
 
+const AUDIT_VIEWED: StaffAuditEntry = {
+  action: "audit-viewed",
+  detail: {
+    page: 2,
+    rowCount: 25,
+    hasActorFilter: true,
+    hasActionFilter: false,
+    hasDateFilter: true,
+  },
+};
+
 const ACTIONS_NAMING_A_DESIGN = STAFF_AUDIT_ACTIONS.filter(
   auditActionNamesDesign,
+);
+const ACTIONS_NAMING_NO_DESIGN = STAFF_AUDIT_ACTIONS.filter(
+  (action) => !auditActionNamesDesign(action),
 );
 
 function entryOf(action: string): StaffAuditEntry {
   if (action === "status-changed") return STATUS_CHANGED;
   if (action === "kitchens-listed") return KITCHENS_LISTED;
+  if (action === "audit-viewed") return AUDIT_VIEWED;
   return { action, detail: null } as StaffAuditEntry;
 }
 
@@ -209,14 +224,9 @@ export function describeStaffAuditStoreContract(
           designId: auditActionNamesDesign(action) ? kitchen.designId : null,
           subjectAccountId: null,
         });
-        if (action === "status-changed") {
-          expect(stored?.detail).toEqual({ from: "new", to: "contacted" });
-        } else if (action === "kitchens-listed") {
-          expect(stored?.isDetailSqlNull).toBe(false);
-          expect(stored?.detail).toEqual(KITCHENS_LISTED.detail);
-        } else {
-          expect(stored?.isDetailSqlNull).toBe(true);
-        }
+        const { detail } = entryOf(action);
+        expect(stored?.isDetailSqlNull).toBe(detail === null);
+        if (detail !== null) expect(stored?.detail).toEqual(detail);
       },
     );
 
@@ -244,27 +254,30 @@ export function describeStaffAuditStoreContract(
       },
     );
 
-    it("refuses a design id on the kitchens list, which names none, and stores nothing", async () => {
-      const world = await newWorld();
-      const actor = await world.aStaffMember();
-      const kitchen = await world.aKitchen({ client: null, name: null });
+    it.each(ACTIONS_NAMING_NO_DESIGN)(
+      "refuses a design id on %s, which names none, and stores nothing",
+      async (action) => {
+        const world = await newWorld();
+        const actor = await world.aStaffMember();
+        const kitchen = await world.aKitchen({ client: null, name: null });
 
-      const failure = await failureOf(
-        world.store.record({
-          sessionTokenHash: actor.sessionTokenHash,
-          idleLifetimeSeconds: actor.idleLifetimeSeconds,
-          entry: KITCHENS_LISTED,
-          designId: kitchen.designId,
-          subjectAccountId: null,
-        }),
-      );
+        const failure = await failureOf(
+          world.store.record({
+            sessionTokenHash: actor.sessionTokenHash,
+            idleLifetimeSeconds: actor.idleLifetimeSeconds,
+            entry: entryOf(action),
+            designId: kitchen.designId,
+            subjectAccountId: null,
+          }),
+        );
 
-      expect([failure.failure, failure.refusal]).toEqual([
-        "invalid-record",
-        "DESIGN_ID_NOT_ALLOWED",
-      ]);
-      expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
-    });
+        expect([failure.failure, failure.refusal]).toEqual([
+          "invalid-record",
+          "DESIGN_ID_NOT_ALLOWED",
+        ]);
+        expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
+      },
+    );
 
     it("refuses a list entry carrying a key beyond its five codes (search text), and stores nothing", async () => {
       const world = await newWorld();

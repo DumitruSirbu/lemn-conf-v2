@@ -4,7 +4,9 @@ import { join } from "node:path";
 import type { StaffAuditEntry } from "@lemnaria/configurator-domain";
 import {
   STAFF_AUDIT_ACTIONS,
+  STAFF_AUDIT_PAGE_SIZE as DOMAIN_STAFF_AUDIT_PAGE_SIZE,
   auditActionNamesDesign,
+  readStaffAuditEntry,
 } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -80,6 +82,19 @@ const KITCHENS_LISTED: Extract<StaffAuditEntry, { action: "kitchens-listed" }> =
       hasSearch: true,
     },
   };
+const AUDIT_VIEWED: Extract<StaffAuditEntry, { action: "audit-viewed" }> = {
+  action: "audit-viewed",
+  detail: {
+    page: 3,
+    rowCount: 25,
+    hasActorFilter: true,
+    hasActionFilter: false,
+    hasDateFilter: true,
+  },
+};
+const ACTIONS_WITHOUT_DETAIL = STAFF_AUDIT_ACTIONS.filter(
+  (action) => readStaffAuditEntry(action, null).ok,
+);
 const STATUS_CHANGED: StaffAuditEntry = {
   action: "status-changed",
   detail: { from: "new", to: "closed" },
@@ -246,11 +261,21 @@ describe("the audit insert (record)", () => {
     );
   });
 
-  it.each(
-    STAFF_AUDIT_ACTIONS.filter(
-      (action) => action !== "status-changed" && action !== "kitchens-listed",
-    ),
-  )(
+  it("pages the audit log by the same figure the domain publishes for an audit view's row count", () => {
+    expect(STAFF_AUDIT_PAGE_SIZE).toBe(DOMAIN_STAFF_AUDIT_PAGE_SIZE);
+  });
+
+  it("writes an audit view as the exact text of the domain's reading, with its flags and counts", async () => {
+    const { values } = await sentByRecord(
+      aRecord({ entry: AUDIT_VIEWED, designId: null }),
+    );
+
+    expect(values[4]).toBe(
+      '{"page":3,"rowCount":25,"hasActorFilter":true,"hasActionFilter":false,"hasDateFilter":true}',
+    );
+  });
+
+  it.each(ACTIONS_WITHOUT_DETAIL)(
     "writes SQL null, not JSON null and not {}, as the detail of %s",
     async (action) => {
       const entry = { action, detail: null } as StaffAuditEntry;
@@ -361,6 +386,33 @@ describe("a record the code refuses before any statement", () => {
       "a kitchens list that names a design",
       { entry: KITCHENS_LISTED, designId: DESIGN_ID },
       "DESIGN_ID_NOT_ALLOWED",
+    ],
+    [
+      "an audit view that names a design",
+      { entry: AUDIT_VIEWED, designId: DESIGN_ID },
+      "DESIGN_ID_NOT_ALLOWED",
+    ],
+    [
+      "an audit view with an actor id beyond its five codes",
+      {
+        entry: {
+          action: "audit-viewed",
+          detail: { ...AUDIT_VIEWED.detail, actorId: ACTOR_ID },
+        } as unknown as StaffAuditEntry,
+        designId: null,
+      },
+      "ENTRY_NOT_RECOGNISED",
+    ],
+    [
+      "an audit view of 26 rows",
+      {
+        entry: {
+          action: "audit-viewed",
+          detail: { ...AUDIT_VIEWED.detail, rowCount: 26 },
+        } as unknown as StaffAuditEntry,
+        designId: null,
+      },
+      "ENTRY_NOT_RECOGNISED",
     ],
     [
       "a kitchens list with a key beyond its five codes",
