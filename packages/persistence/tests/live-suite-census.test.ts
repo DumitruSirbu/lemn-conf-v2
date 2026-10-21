@@ -207,6 +207,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S3: writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3 QA)",
   },
+  "qa-l3-s4-statements-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, writes nothing that survives, asserts only the difference between a total read before planting and one read after (one snapshot) and needs the schema intact (M8B Lot 3 L3-S4 QA)",
+  },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",
     lock: "shared",
