@@ -28,6 +28,7 @@ import {
   E2E_RATE_LIMIT_POLICY_FLAG,
   MINT_POLICY,
   SAVE_BY_ACCOUNT_POLICY,
+  STAFF_AUDIT_PAGE_BY_ACCOUNT_POLICY,
   STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY,
   STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
   STAFF_NOTE_BY_ACCOUNT_POLICY,
@@ -267,6 +268,14 @@ describe("the subject stage: an address's or an account's own buckets", () => {
         [STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY],
       ],
       [
+        {
+          purpose: "staff-audit-page",
+          headers: HEADERS,
+          accountId: ACCOUNT_ID,
+        },
+        [STAFF_AUDIT_PAGE_BY_ACCOUNT_POLICY],
+      ],
+      [
         { purpose: "staff-note", headers: HEADERS, accountId: ACCOUNT_ID },
         [STAFF_NOTE_BY_ACCOUNT_POLICY],
       ],
@@ -479,6 +488,7 @@ describe("what a judgement writes down", () => {
     ["profile", "profile"],
     ["staff-kitchens-list", "staff-kitchens"],
     ["staff-kitchen-open", "staff-kitchen"],
+    ["staff-audit-page", "staff-audit"],
     ["staff-note", "staff-note"],
     ["staff-status", "staff-status"],
     ["staff-unhide", "staff-unhide"],
@@ -496,6 +506,7 @@ describe("what a judgement writes down", () => {
         profile: ACCOUNT_PROFILE_BY_ACCOUNT_POLICY,
         "staff-kitchens-list": STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
         "staff-kitchen-open": STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY,
+        "staff-audit-page": STAFF_AUDIT_PAGE_BY_ACCOUNT_POLICY,
         "staff-note": STAFF_NOTE_BY_ACCOUNT_POLICY,
         "staff-status": STAFF_STATUS_BY_ACCOUNT_POLICY,
         "staff-unhide": STAFF_UNHIDE_BY_ACCOUNT_POLICY,

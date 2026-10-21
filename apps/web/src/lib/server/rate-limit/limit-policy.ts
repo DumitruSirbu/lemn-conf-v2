@@ -197,6 +197,14 @@ export const STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE = 300;
  */
 export const STAFF_KITCHEN_OPEN_PER_ACCOUNT_HOUR_FIGURE = 600;
 /**
+ * PROVISIONAL: how many pages of the audit log one administrator may be served in an hour. A page names staff and
+ * clients by e-mail, so the bucket caps harvesting even when the general read limiter is down, and, like the kitchens
+ * list, **fails closed**: a count above the figure, or one that cannot be made, serves no page. The plan names no
+ * figure of its own for the audit page (P-L3-11), so it equals the list's 300, about one page every 12 seconds for the
+ * whole hour. The owner's answer changes this constant and no code; see ADR 0173.
+ */
+export const STAFF_AUDIT_PAGE_PER_ACCOUNT_HOUR_FIGURE = 300;
+/**
  * PROVISIONAL: how many writes one staff account may make on the clients' kitchens. Notes and status saves are counted
  * by the clock hour, 120 each. Unhides are counted by the UTC day, 60, not the Chisinau day: a refusal can tell a wait
  * of up to about 24 hours, and the classifier's clock-time wording covers it. A request that cannot be counted is
@@ -500,6 +508,14 @@ export const STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_AUDIT_PAGE_BY_ACCOUNT_POLICY = policyOf(
+  "staff-audit-page-by-account",
+  {
+    figure: STAFF_AUDIT_PAGE_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
 export const STAFF_NOTE_BY_ACCOUNT_POLICY = policyOf("staff-note-by-account", {
   figure: STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE,
   window: utcMinutes(ACCOUNT_HOUR_MINUTES),
@@ -591,6 +607,7 @@ export type PolicyPurpose =
   | "duplicate-by-account"
   | "staff-kitchens-list-by-account"
   | "staff-kitchen-open-by-account"
+  | "staff-audit-page-by-account"
   | "staff-note-by-account"
   | "staff-status-by-account"
   | "staff-unhide-by-account";
@@ -699,6 +716,9 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   ),
   "staff-kitchen-open-by-account": sameInProduction(
     STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY,
+  ),
+  "staff-audit-page-by-account": sameInProduction(
+    STAFF_AUDIT_PAGE_BY_ACCOUNT_POLICY,
   ),
   "staff-note-by-account": sameInProduction(STAFF_NOTE_BY_ACCOUNT_POLICY),
   "staff-status-by-account": sameInProduction(STAFF_STATUS_BY_ACCOUNT_POLICY),

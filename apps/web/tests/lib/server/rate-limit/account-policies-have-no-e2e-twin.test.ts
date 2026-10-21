@@ -47,6 +47,7 @@ const ACCOUNT_PURPOSES: Record<
     | "duplicate-by-account"
     | "staff-kitchens-list-by-account"
     | "staff-kitchen-open-by-account"
+    | "staff-audit-page-by-account"
   >,
   true
 > = {
@@ -71,6 +72,7 @@ const ACCOUNT_PURPOSES: Record<
   "duplicate-by-account": true,
   "staff-kitchens-list-by-account": true,
   "staff-kitchen-open-by-account": true,
+  "staff-audit-page-by-account": true,
 };
 const ACCOUNT_PURPOSE_NAMES = Object.keys(ACCOUNT_PURPOSES) as PolicyPurpose[];
 
