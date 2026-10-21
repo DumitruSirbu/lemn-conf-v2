@@ -1,4 +1,4 @@
-// Wave L3-S2 adversarial QA, criteria K-9 and K-10, plan P-L3-4, P-L3-12 and P-L3-13. `staff-kitchen-query.test.ts`
+// Adversarial tests of the kitchens list query. `staff-kitchen-query.test.ts`
 // pins the listed examples. This file adds what a plausible mutant survives: the query carries exactly four
 // members (so a caller's key can never reach the store), the page bound across the whole numeric range (the
 // existing property draws `fc.nat()`, at most 2**31 - 1, so its "offset is a safe integer" assertion cannot fail),
@@ -212,7 +212,7 @@ describe("page across the whole numeric range", () => {
     ["the largest safe integer", "9007199254740991"],
     ["the first integer past it", "9007199254740992"],
     ["a 25-digit number", "1".repeat(25)],
-    ["the last page, plus one", "450359962737050"],
+    ["the last page, plus one", (LAST_ACCEPTED_PAGE + 1n).toString()],
   ])("refuses %s", (_label, page) => {
     expect(issuesOf({ page })).toEqual([
       { field: "page", code: "NOT_A_PAGE_NUMBER" },
@@ -220,9 +220,11 @@ describe("page across the whole numeric range", () => {
   });
 
   it("accepts the last page whose rows are countable, and its offset is exact", () => {
-    const query = queryOf({ page: "450359962737049" });
+    const query = queryOf({ page: LAST_ACCEPTED_PAGE.toString() });
 
-    expect(staffKitchenOffsetOf(query.page)).toBe(9007199254740960);
+    expect(BigInt(staffKitchenOffsetOf(query.page))).toBe(
+      (LAST_ACCEPTED_PAGE - 1n) * BigInt(STAFF_KITCHEN_PAGE_SIZE),
+    );
   });
 
   it.each([
@@ -262,7 +264,7 @@ describe("search bound is in the stored form", () => {
   const COMPOSED = "\u00E9";
   const DECOMPOSED = "e\u0301";
 
-  it("accepts 100 characters however they are written and refuses 101 however they are written", () => {
+  it("counts the stored form: 100 characters written composed or decomposed fit, and 101 of either do not", () => {
     for (const letter of [COMPOSED, DECOMPOSED]) {
       expect(queryOf({ q: letter.repeat(100) }).search).toBe(
         COMPOSED.repeat(100),
@@ -287,7 +289,7 @@ describe("search bound is in the stored form", () => {
     ]);
   });
 
-  it("measures the bound on the trimmed text, not on the padding", () => {
+  it("trims no-break and ideographic whitespace before it measures", () => {
     expect(queryOf({ q: `\u00A0\u3000${"a".repeat(100)}\u3000` }).search).toBe(
       "a".repeat(100),
     );

@@ -1,4 +1,4 @@
-// Wave L3-S2 adversarial QA, criterion K-8 and plan P-L3-5. `note-text.test.ts` pins the listed examples; this
+// Adversarial tests of the note rule. `note-text.test.ts` pins the listed examples; this
 // file adds what a plausible mutant would survive: every one of the 1,114,112 code points judged in a note,
 // composition that GROWS a string (so a count taken before NFC under-counts), the uncomposed-length ceiling
 // against real decompositions, and an independent oracle over structured text.

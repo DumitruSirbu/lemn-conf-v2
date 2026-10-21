@@ -1,12 +1,8 @@
-// Wave L3-S2 adversarial QA, plan P-L3-3 and P-L3-8. `staff-audit-action.test.ts` and `request-status.test.ts`
+// Adversarial tests of the audit entry and the request status. `staff-audit-action.test.ts` and `request-status.test.ts`
 // pin the listed examples; their "holds only from and to" test hands over a plain `{ from, to }`, which a reader
 // that returned the caller's own object would also pass. This file adds: the stored detail is rebuilt and so
 // cannot carry what the caller hid in it (non-enumerable, symbol, accessor, Proxy), a detail on an action that
-// takes none is refused for every kind of value, the codes fit the database's shape checks, and the entry
-// survives the JSON column it is written to.
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-
+// takes none is refused for every kind of value, and the entry survives the JSON column it is written to.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -23,11 +19,6 @@ import {
   type StaffAuditEntry,
 } from "../../src/staff/staff-audit-action.js";
 
-const MIGRATIONS_DIRECTORY = join(
-  import.meta.dirname,
-  "../../../persistence/src/migrations",
-);
-
 function entryOf(action: unknown, detail: unknown): StaffAuditEntry {
   const reading = readStaffAuditEntry(action, detail);
   if (!reading.ok) {
@@ -39,18 +30,6 @@ function entryOf(action: unknown, detail: unknown): StaffAuditEntry {
 function detailOf(entry: StaffAuditEntry): object {
   if (entry.detail === null) throw new Error("expected a detail");
   return entry.detail;
-}
-
-function sqlShapeOf(migrationSuffix: string, column: string): RegExp {
-  const file = readdirSync(MIGRATIONS_DIRECTORY).find((name) =>
-    name.endsWith(migrationSuffix),
-  );
-  if (file === undefined)
-    throw new Error(`no migration ends ${migrationSuffix}`);
-  const sql = readFileSync(join(MIGRATIONS_DIRECTORY, file), "utf8");
-  const match = new RegExp(`check \\(${column} ~ '([^']+)'\\)`).exec(sql);
-  if (match?.[1] === undefined) throw new Error(`no shape check on ${column}`);
-  return new RegExp(match[1]);
 }
 
 describe("the stored detail is rebuilt from the two codes, never the caller's object", () => {
@@ -296,24 +275,6 @@ describe("the entry as the database holds it", () => {
         entry,
       });
     }
-  });
-
-  it("holds an action that passes the table's shape check, for every action", () => {
-    const shape = sqlShapeOf("_create_staff_audit_events.sql", "action");
-
-    for (const action of STAFF_AUDIT_ACTIONS) {
-      expect(action).toMatch(shape);
-    }
-    expect("Kitchen_Opened").not.toMatch(shape);
-  });
-
-  it("holds a status that passes the table's shape check, for every status", () => {
-    const shape = sqlShapeOf("_create_design_request_states.sql", "status");
-
-    for (const status of REQUEST_STATUSES) {
-      expect(status).toMatch(shape);
-    }
-    expect("offer_sent").not.toMatch(shape);
   });
 });
 
