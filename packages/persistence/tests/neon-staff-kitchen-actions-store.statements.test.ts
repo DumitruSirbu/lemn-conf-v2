@@ -423,6 +423,49 @@ describe("a status", () => {
     expect(queryDriver.transactions).toHaveLength(0);
   });
 
+  it("reads the stamp of a saved status clamped to what a Date holds, and tested for null first", async () => {
+    const { read } = await saveStatusAndCapture("closed", "contacted");
+
+    expect(normalised(read)).toContain(
+      "case when s.changed_at is null then null else floor(least( greatest(extract(epoch from s.changed_at) * 1000, -8640000000000000), 8640000000000000 ))::bigint::text end as changed_ms",
+    );
+  });
+
+  it.each([
+    ["before 1970", "-2208988800000", new Date(-2_208_988_800_000)],
+    [
+      "at the earliest instant a Date holds",
+      "-8640000000000000",
+      new Date(-8.64e15),
+    ],
+    [
+      "at the latest instant a Date holds",
+      "8640000000000000",
+      new Date(8.64e15),
+    ],
+  ])("reads a status changed %s", async (_name, changedMs, expected) => {
+    resetQueryDriver();
+    answerQueryWith([
+      {
+        ...EMPTY_PRESENT_STATUS_ROW,
+        ...savedStatusRow("closed"),
+        stored_status: "closed",
+        changed_ms: changedMs,
+      },
+    ]);
+
+    const result = await newStore().setStatus({
+      session: SESSION,
+      designId: DESIGN_ID,
+      status: "closed",
+    });
+
+    expect(result).toMatchObject({
+      kind: "unchanged",
+      current: { at: expected },
+    });
+  });
+
   it("sends no batch for new on a kitchen with no saved status", async () => {
     resetQueryDriver();
     answerQueryWith([EMPTY_PRESENT_STATUS_ROW]);
@@ -939,31 +982,133 @@ describe("how a failure leaves the store", () => {
     expect(failure.cause).not.toHaveProperty("constraint");
     expect(markersFoundOn(failure, [SECRET_NOTE])).toEqual([]);
   });
+});
 
-  it("logs nothing", async () => {
-    const written: unknown[] = [];
-    const spies = (["log", "warn", "error", "info", "debug"] as const).map(
-      (method) =>
+describe("the store logs nothing, whatever the call comes to", () => {
+  const WRITE_METHODS = ["log", "warn", "error", "info", "debug"] as const;
+  const THE_NOTE = {
+    session: SESSION,
+    designId: DESIGN_ID,
+    text: SECRET_NOTE,
+  } as const;
+  const STATUS = {
+    session: SESSION,
+    designId: DESIGN_ID,
+    status: "closed",
+  } as const;
+  const UNHIDE = { session: SESSION, designId: DESIGN_ID } as const;
+
+  const CALLS: readonly (readonly [
+    string,
+    () => void,
+    () => Promise<unknown>,
+  ])[] = [
+    [
+      "a note that is added",
+      () => {
+        answerBatchWith([noteRow({ body: SECRET_NOTE })]);
+      },
+      () => newStore().addNote(THE_NOTE),
+    ],
+    [
+      "a note on a kitchen staff cannot see",
+      () => {
+        failQueryWith(aDriverError("22003"));
+      },
+      () => newStore().addNote(THE_NOTE),
+    ],
+    [
+      "a note a check refused",
+      () => {
+        failQueryWith(
+          aDriverError("23514", {
+            constraint: "design_notes_body_length",
+            detail: `Failing row contains (${SECRET_NOTE}).`,
+          }),
+        );
+      },
+      () => newStore().addNote(THE_NOTE),
+    ],
+    [
+      "a note the code refuses before any statement",
+      () => undefined,
+      () => newStore().addNote({ ...THE_NOTE, text: ` ${SECRET_NOTE} ` }),
+    ],
+    [
+      "a status that is saved",
+      () => {
+        answerQueryWith([EMPTY_PRESENT_STATUS_ROW]);
+        answerBatchWith([savedStatusRow("closed")]);
+      },
+      () => newStore().setStatus(STATUS),
+    ],
+    [
+      "a status that moved meanwhile",
+      () => {
+        answerQueryWith([EMPTY_PRESENT_STATUS_ROW]);
+        failQueryWith(aDriverError("2201F"));
+      },
+      () => newStore().setStatus(STATUS),
+    ],
+    [
+      "a status the database failed on",
+      () => {
+        failQueryWith(aDriverError("08006"));
+      },
+      () => newStore().setStatus(STATUS),
+    ],
+    [
+      "an unhide that is done",
+      () => {
+        answerBatchWith([{ id: DESIGN_ID }]);
+      },
+      () => newStore().unhide(UNHIDE),
+    ],
+    [
+      "an unhide of a kitchen that is not hidden",
+      () => {
+        failQueryWith(aDriverError("2201E"));
+      },
+      () => newStore().unhide(UNHIDE),
+    ],
+    [
+      "an unhide the database failed on",
+      () => {
+        failQueryWith(aDriverError("42501"));
+      },
+      () => newStore().unhide(UNHIDE),
+    ],
+  ];
+
+  it.each(CALLS)(
+    "writes nothing to the console or the streams for %s",
+    async (_name, queueReplies, call) => {
+      const written: unknown[] = [];
+      const spies = WRITE_METHODS.map((method) =>
         vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
           written.push(args);
         }),
-    );
-    resetQueryDriver();
-    failQueryWith(
-      aDriverError("23514", { constraint: "design_notes_body_length" }),
-    );
+      );
+      const streams = [process.stdout, process.stderr].map((stream) =>
+        vi.spyOn(stream, "write").mockImplementation((chunk: unknown) => {
+          written.push(chunk);
+          return true;
+        }),
+      );
+      resetQueryDriver();
+      queueReplies();
 
-    await rejectionOf(
-      newStore().addNote({
-        session: SESSION,
-        designId: DESIGN_ID,
-        text: SECRET_NOTE,
-      }),
-    );
+      try {
+        await call();
+      } catch {
+        // A refusal or a failure is the answer under test; what it wrote is checked below.
+      } finally {
+        [...spies, ...streams].forEach((spy) => {
+          spy.mockRestore();
+        });
+      }
 
-    spies.forEach((spy) => {
-      spy.mockRestore();
-    });
-    expect(written).toEqual([]);
-  });
+      expect(written).toEqual([]);
+    },
+  );
 });

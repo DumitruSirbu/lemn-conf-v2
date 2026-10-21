@@ -270,6 +270,39 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       expect(rows).toEqual([{ is_just_now: true }]);
     });
 
+    it.each([
+      ["infinity", 8.64e15],
+      ["-infinity", -8.64e15],
+      ["1900-01-01T00:00:00Z", Date.UTC(1900, 0, 1)],
+    ])(
+      "reads a status stamped %s, which a script around the store could write, as an instant and does not fail",
+      async (stamp, expectedMs) => {
+        const world = await newWorld();
+        const staff = await signIn();
+        const designId = await world.aKitchen({
+          client: await world.aClient(),
+          isSent: true,
+        });
+        await world.aStoredStatus({
+          designId,
+          status: "closed",
+          changedBy: staff,
+        });
+        await sql()`update design_request_states set changed_at = ${stamp}::timestamptz where design_id = ${designId}`;
+
+        const result = await world.store.setStatus({
+          session: staff.session,
+          designId,
+          status: "closed",
+        });
+
+        expect(result).toMatchObject({
+          kind: "unchanged",
+          current: { at: new Date(expectedMs) },
+        });
+      },
+    );
+
     it("rolls the caller's write back when the audit statement raises, so a note never outlives its audit row", async () => {
       const world = await newWorld();
       const staff = await signIn();

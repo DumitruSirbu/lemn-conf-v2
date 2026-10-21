@@ -429,7 +429,9 @@ export function unhideStatement(
 
 /**
  * The status a save is decided on, with the session test of the writes: one row always, so a missing kitchen and a dead
- * session are told apart. `is_sent` is null when staff cannot see the kitchen.
+ * session are told apart. `is_sent` is null when staff cannot see the kitchen. The stamp of a saved status is read clamped
+ * to what a `Date` holds, because the grant lets a credential write `infinity` or a year before 1970 into it (ADR 0173
+ * residual F1) and a save on that kitchen must still answer.
  */
 export function statusFactsStatement(
   sql: ApplicationSql,
@@ -452,7 +454,11 @@ export function statusFactsStatement(
     from (select 1) one
     left join (
       select (d.sent_at is not null) as is_sent, s.status as stored_status, s.changed_by_account_id,
-        floor(extract(epoch from s.changed_at) * 1000)::bigint::text as changed_ms,
+        case when s.changed_at is null then null
+          else floor(least(
+            greatest(extract(epoch from s.changed_at) * 1000, -8640000000000000),
+            8640000000000000
+          ))::bigint::text end as changed_ms,
         changer.email as changed_by_email, changer.name as changed_by_name
       from designs d
       left join design_request_states s on s.design_id = d.id
@@ -702,7 +708,7 @@ function instantOf(
 ): Date {
   const milliseconds =
     typeof epochMilliseconds === "string" &&
-    /^[0-9]{1,16}$/.test(epochMilliseconds)
+    /^-?[0-9]{1,16}$/.test(epochMilliseconds)
       ? Number(epochMilliseconds)
       : Number.NaN;
   if (!Number.isSafeInteger(milliseconds)) throw unexpectedAnswer(operation);
