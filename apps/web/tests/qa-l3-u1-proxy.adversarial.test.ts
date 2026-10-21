@@ -57,7 +57,7 @@ function decisionsOf(rawPath: string): Record<string, string> {
   const headers: Record<string, string> = {};
   respondTo(rawPath).headers.forEach((value, key) => {
     const isNoncePlumbing = key.startsWith("x-middleware");
-    const isPolicy = key.includes("content-security-policy");
+    const isPolicy = key.includes("security-policy");
     if (!isNoncePlumbing && !isPolicy) headers[key] = value;
   });
   return headers;
