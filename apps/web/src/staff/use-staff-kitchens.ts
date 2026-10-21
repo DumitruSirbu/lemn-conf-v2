@@ -12,12 +12,10 @@ import {
   classifySignedInAnswer,
   rateLimitNoticeOf,
 } from "@/account/account-answer";
-import { loginPathWithReason } from "@/account/login-arrival";
-import { leaveFor } from "@/account/on-signed-in";
 import { NO_REFERRER_POLICY } from "@/account/send-account-request";
 import type { AccountRateLimitNotice } from "@/i18n/content";
-import type { AppLocale } from "@/i18n/routing";
 
+import { raiseStaffSessionExpired } from "./staff-session-expiry";
 import type {
   StaffKitchenListWire,
   StaffListedKitchenWire,
@@ -30,7 +28,9 @@ import { staffKitchenListFrom } from "./staff-kitchens-wire-reading";
 //
 // Requests are made from the person's actions (the first draw, a filter, the settled search, Enter, a page, "Încearcă din
 // nou"), never from an effect that watches the query, and nothing is ever asked again on its own: a `429` or `503` waits
-// for the person. A newer request aborts the one before it, and an answer that is not the newest one's is dropped.
+// for the person. A newer request aborts the one before it, and an answer that is not the newest one's is dropped. A
+// refused session is not a failure of the list: the staff frame tells it, the list stays as it is, and the request that was
+// refused is made again once the person has said they are signed in.
 
 /** The pause after the last keystroke before the typed search is asked for. */
 export const SEARCH_SETTLE_DELAY_MS = 500;
@@ -180,7 +180,7 @@ interface Flight {
   settleTimer: ReturnType<typeof setTimeout> | undefined;
 }
 
-export function useStaffKitchens(locale: AppLocale): StaffKitchens {
+export function useStaffKitchens(): StaffKitchens {
   const [filters, setFilters] = useState<StaffKitchenFilters>(INITIAL_FILTERS);
   const [searchProblem, setSearchProblem] = useState<SearchProblem>();
   const [state, setState] = useState<StaffKitchensState>({ phase: "loading" });
@@ -196,39 +196,41 @@ export function useStaffKitchens(locale: AppLocale): StaffKitchens {
     setFilters(next);
   }, []);
 
-  const read = useCallback(
-    function read(query: StaffListQuery, mode: ReadMode): void {
-      const flight = flightRef.current;
-      flight.controller?.abort();
-      const controller = new AbortController();
-      flight.controller = controller;
-      if (mode !== "append") queryRef.current = query;
-      if (MODE_RULES[mode].showsLoading) setState({ phase: "loading" });
-      if (mode === "append") setState(withMore({ kind: "loading" }));
-      void readPage(query, controller.signal).then((step) => {
-        // Interim: frame S2F draws a session-expired sheet; until the staff sheet exists (L3-U4, `staff-session-sheet.tsx`,
-        // which replaces this) the list leaves for the login page as the account pages do.
-        if (step.kind === "sign-in") {
-          leaveFor(loginPathWithReason(locale, "session-expired"));
-          return;
-        }
-        if (step.kind === "aborted") return;
-        if (mode === "append" && step.kind === "page") {
-          queryRef.current = query;
-        }
-        const lastPage = pageAfterTheEnd(step, mode);
-        if (lastPage !== undefined) {
-          read({ ...query, page: lastPage }, "correct");
-          return;
-        }
-        const readAtMs = Date.now();
-        setState((current) =>
-          stateAfter({ current, step, query, mode, readAtMs }),
-        );
-      });
-    },
-    [locale],
-  );
+  const read = useCallback(function read(
+    query: StaffListQuery,
+    mode: ReadMode,
+  ): void {
+    const flight = flightRef.current;
+    flight.controller?.abort();
+    const controller = new AbortController();
+    flight.controller = controller;
+    if (mode !== "append") queryRef.current = query;
+    if (MODE_RULES[mode].showsLoading) setState({ phase: "loading" });
+    if (mode === "append") setState(withMore({ kind: "loading" }));
+    void readPage(query, controller.signal).then((step) => {
+      if (step.kind === "aborted") return;
+      if (step.kind === "sign-in") {
+        raiseStaffSessionExpired({
+          askAgain: () => {
+            read(query, mode);
+          },
+        });
+        return;
+      }
+      if (mode === "append" && step.kind === "page") {
+        queryRef.current = query;
+      }
+      const lastPage = pageAfterTheEnd(step, mode);
+      if (lastPage !== undefined) {
+        read({ ...query, page: lastPage }, "correct");
+        return;
+      }
+      const readAtMs = Date.now();
+      setState((current) =>
+        stateAfter({ current, step, query, mode, readAtMs }),
+      );
+    });
+  }, []);
 
   useEffect(() => {
     const flight = flightRef.current;

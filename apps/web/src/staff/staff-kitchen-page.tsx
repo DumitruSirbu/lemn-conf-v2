@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -33,19 +34,24 @@ import type {
   StaffKitchenStatusWire,
   StaffKitchenWire,
 } from "./staff-kitchens-wire-contract";
+import { dayAndTimeOf, dayOf, isolated } from "./staff-display";
 import { StaffKitchenSummary, StaffKitchenView } from "./staff-kitchen-view";
+import { StaffNotes } from "./staff-notes";
 import {
   StaffForbiddenScreen,
   StaffShell,
   staffPathOf,
   type StaffShellContext,
 } from "./staff-shell";
+import { StaffStatusControl } from "./staff-status-control";
 import shellStyles from "./staff.module.css";
+import { HiddenBanner, UnhideAnnouncement } from "./unhide-banner";
 import {
   useStaffKitchen,
   type StaffKitchenReading,
   type StaffKitchenState,
 } from "./use-staff-kitchen";
+import { useUnhide, type KitchenEditing } from "./use-staff-kitchen-actions";
 
 // One client's kitchen, read-only (Lot 3 frames S3A to S3C, S3H and S3I; the desktop frames are the same page in three
 // columns). Three columns on a desktop: the kitchen and what it is made of; the status, the request, the client and the
@@ -53,8 +59,9 @@ import {
 // the client. Every string a client or a staff member typed (a name, an address, a phone, a reference, a note) is a React
 // text child: nothing here builds markup from one, and no address or phone is made a link.
 //
-// The status control, the notes and the button that makes a hidden kitchen visible again belong to the next wave (L3-U4):
-// the three slots at the foot of this file are where they go, and until then this page only reads.
+// What staff write here (a note, a request status, making a hidden kitchen visible again) is the three components the page
+// mounts in its columns and its banner; each makes its own request and hands the page the kitchen's new shape (`edit`) or asks
+// for it again behind the page (`refresh`), so the page is never replaced under what a person is typing.
 
 export function StaffKitchenScreen({
   locale,
@@ -65,8 +72,10 @@ export function StaffKitchenScreen({
   readonly context: StaffShellContext;
   readonly designId: string;
 }) {
-  const reading = useStaffKitchen(locale, designId);
+  const reading = useStaffKitchen(designId);
   const heading = useHeadingFocusAfterRetry(reading);
+  const { edit, refresh } = reading;
+  const editing = useMemo(() => ({ edit, refresh }), [edit, refresh]);
   if (reading.state.phase === "forbidden") {
     return (
       <StaffForbiddenScreen
@@ -93,6 +102,7 @@ export function StaffKitchenScreen({
           locale={locale}
           state={reading.state}
           onRetry={heading.retry}
+          editing={editing}
         />
       </section>
     </StaffShell>
@@ -126,10 +136,12 @@ function StaffKitchenStates({
   locale,
   state,
   onRetry,
+  editing,
 }: {
   readonly locale: AppLocale;
   readonly state: StaffKitchenState;
   readonly onRetry: () => void;
+  readonly editing: KitchenEditing;
 }) {
   const copy = useStaffKitchenCopy();
   switch (state.phase) {
@@ -150,7 +162,13 @@ function StaffKitchenStates({
     case "not-found":
       return <KitchenNotAvailable locale={locale} />;
     case "ready":
-      return <ReadyKitchen locale={locale} kitchen={state.kitchen} />;
+      return (
+        <ReadyKitchen
+          locale={locale}
+          kitchen={state.kitchen}
+          editing={editing}
+        />
+      );
     case "forbidden":
       return null;
   }
@@ -160,10 +178,12 @@ function KitchenHeader({
   locale,
   title,
   sub,
+  titleRef,
 }: {
   readonly locale: AppLocale;
   readonly title: string;
   readonly sub?: string | undefined;
+  readonly titleRef?: RefObject<HTMLHeadingElement | null>;
 }) {
   const shell = useStaffShellCopy();
   return (
@@ -171,7 +191,7 @@ function KitchenHeader({
       <a className={styles.back} href={staffPathOf(locale, "kitchens")}>
         {shell.pages.kitchens}
       </a>
-      <h1 className={styles.title} tabIndex={-1}>
+      <h1 ref={titleRef} className={styles.title} tabIndex={-1}>
         {title}
       </h1>
       {sub === undefined ? null : <p className={styles.sub}>{sub}</p>}
@@ -242,13 +262,17 @@ function shownDesignOf(
 function ReadyKitchen({
   locale,
   kitchen: wire,
+  editing,
 }: {
   readonly locale: AppLocale;
   readonly kitchen: StaffKitchenWire;
+  readonly editing: KitchenEditing;
 }) {
   const copy = useStaffKitchenCopy();
   const lists = useStaffKitchensCopy();
   const [readAtMs] = useState(Date.now);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const unhide = useUnhide(wire.kitchen.id, editing);
   const { kitchen } = wire;
   const shown = shownDesignOf(kitchen);
   const sentAt = kitchen.isSent ? kitchen.sentAt : null;
@@ -265,8 +289,12 @@ function ReadyKitchen({
           readAtMs,
           locale,
         })}
+        titleRef={titleRef}
       />
-      {kitchen.isHidden ? <HiddenBanner /> : null}
+      {kitchen.isHidden ? (
+        <HiddenBanner unhide={unhide} returnFocusFallbackRef={titleRef} />
+      ) : null}
+      <UnhideAnnouncement announcement={unhide.announcement} />
       <div className={styles.columns}>
         <div className={styles.viewCell}>
           {shown === undefined ? (
@@ -284,8 +312,10 @@ function ReadyKitchen({
         <div className={styles.contactColumn}>
           <RequestStatus
             locale={locale}
+            designId={kitchen.id}
             isSent={sentAt !== null}
             status={wire.status}
+            editing={editing}
           />
           <RequestLine locale={locale} request={wire.request} />
           <ClientProfile client={wire.client} />
@@ -304,7 +334,13 @@ function ReadyKitchen({
             />
           )}
         </div>
-        <StaffKitchenNotesSlot />
+        <StaffNotes
+          locale={locale}
+          designId={kitchen.id}
+          notes={wire.notes}
+          isTruncated={wire.notesTruncated}
+          editing={editing}
+        />
       </div>
     </>
   );
@@ -351,21 +387,6 @@ function subOf({
     : copy.sub.draft({ email: isolated(client.email), when });
 }
 
-function HiddenBanner() {
-  const copy = useStaffKitchenCopy();
-  return (
-    <div
-      role="status"
-      className={styles.banner}
-      data-testid="staff-kitchen-hidden-banner"
-    >
-      <span className={styles.bannerMark} aria-hidden="true" />
-      <span className={styles.bannerText}>{copy.hiddenBanner}</span>
-      <StaffKitchenUnhideSlot />
-    </div>
-  );
-}
-
 /** A kitchen whose document this build cannot read: said once, in place of the picture, with the rest still shown. */
 function CannotShowNotice() {
   const copy = useStaffKitchenCopy();
@@ -382,12 +403,16 @@ function CannotShowNotice() {
  *  takes the look of a new request. A draft has no request, so it has none, and says why. */
 function RequestStatus({
   locale,
+  designId,
   isSent,
   status,
+  editing,
 }: {
   readonly locale: AppLocale;
+  readonly designId: string;
   readonly isSent: boolean;
   readonly status: StaffKitchenStatusWire | null;
+  readonly editing: KitchenEditing;
 }) {
   const copy = useStaffKitchenCopy();
   const lists = useStaffKitchensCopy();
@@ -412,7 +437,11 @@ function RequestStatus({
         </span>
       )}
       <LastChange locale={locale} status={status} lists={lists} copy={copy} />
-      <StaffKitchenStatusControlSlot />
+      <StaffStatusControl
+        designId={designId}
+        status={status}
+        editing={editing}
+      />
     </Card>
   );
 }
@@ -546,54 +575,4 @@ function Card({
       {children}
     </section>
   );
-}
-
-const FIRST_STRONG_ISOLATE = "\u2068";
-const POP_DIRECTIONAL_ISOLATE = "\u2069";
-
-/** A string somebody typed, fenced between isolate marks where it stands inside a sentence, so a right-to-left run left open
- *  in it cannot reorder the date or the minute beside it. (A value in an element of its own is isolated by the stylesheet.) */
-export function isolated(typed: string): string {
-  return `${FIRST_STRONG_ISOLATE}${typed}${POP_DIRECTIONAL_ISOLATE}`;
-}
-
-/** The day as dd.mm.yyyy on the shop's clock, whatever clock the browser keeps. */
-function dayOf(instant: string, locale: AppLocale): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "Europe/Chisinau",
-  }).format(new Date(instant));
-}
-
-/** The day and the minute, as the frames write them ("18.10.2026, 14:22"), on the shop's clock. */
-function dayAndTimeOf(instant: string, locale: AppLocale): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: "Europe/Chisinau",
-  }).format(new Date(instant));
-}
-
-// The three places the next wave (L3-U4) fills. Each is an empty, named region today, so nothing on this page promises a
-// control that does not exist yet.
-
-/** The status select with "Salvează" and its saved word (frames S3B, S3G), under the status the page reads. */
-function StaffKitchenStatusControlSlot() {
-  return <div data-slot="staff-kitchen-status-control" />;
-}
-
-/** "Fă-o din nou vizibilă" (frames S3D, S3E), in the hidden banner. */
-function StaffKitchenUnhideSlot() {
-  return <div data-slot="staff-kitchen-unhide" />;
-}
-
-/** The notes: the list newest first, the field, "Salvează nota" (frames S3B, S3F to S3F3), in the third column. */
-function StaffKitchenNotesSlot() {
-  return <div className={styles.notesColumn} data-slot="staff-kitchen-notes" />;
 }

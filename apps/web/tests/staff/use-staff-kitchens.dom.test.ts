@@ -6,6 +6,11 @@
 // nothing the person typed leaves the hook but in the request's own query. The server is a stand-in for `fetch`.
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getStaffSessionExpiry,
+  resetStaffSessionExpiryForTests,
+  resolveStaffSessionExpired,
+} from "@/staff/staff-session-expiry";
 
 import {
   SEARCH_SETTLE_DELAY_MS,
@@ -34,6 +39,7 @@ let assigned: string[];
 
 beforeEach(() => {
   vi.useFakeTimers();
+  resetStaffSessionExpiryForTests();
   assigned = [];
   vi.stubGlobal("location", {
     assign: (address: string) => assigned.push(address),
@@ -66,7 +72,7 @@ async function pass(milliseconds: number): Promise<void> {
 }
 
 async function mount(): Promise<StaffKitchens> {
-  hook = renderHook(() => useStaffKitchens("ro"));
+  hook = renderHook(() => useStaffKitchens());
   await settle();
   return current();
 }
@@ -504,13 +510,29 @@ describe("a page that cannot be had waits for the person", () => {
 });
 
 describe("the session", () => {
-  it("sends a 401 to the login page as an expired session, and draws nothing", async () => {
+  it("tells the staff frame the session ended on a 401, draws nothing and navigates nowhere", async () => {
     server.script(() => UNAUTHENTICATED_ANSWER);
 
     await mount();
 
-    expect(assigned).toEqual(["/ro/account/login?reason=session-expired"]);
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+    expect(assigned).toEqual([]);
     expect(current().state).toEqual({ phase: "loading" });
+  });
+
+  it("asks for the same page once more, and draws it, when the person has signed in again", async () => {
+    server.script(() => UNAUTHENTICATED_ANSWER);
+    await mount();
+    server.script(() => ({ body: wireList([wireRow(1)]) }));
+
+    act(() => {
+      resolveStaffSessionExpired();
+    });
+    await settle();
+
+    expect(server.requests).toHaveLength(2);
+    expect(server.requests[1]?.url.search).toBe(server.requests[0]?.url.search);
+    expect(current().state.phase).toBe("ready");
   });
 
   it("tells a 403 as the forbidden screen, never as an expired session", async () => {

@@ -24,9 +24,12 @@ import {
 
 import styles from "./staff.module.css";
 import { StaffNavSheet, type StaffNavItem } from "./staff-nav-sheet";
+import { useStaffSessionExpiry } from "./staff-session-expiry";
+import { StaffSessionSheet } from "./staff-session-sheet";
 
 // The frame of every staff page: the bar with the role the person acts
-// under, the account control and the language links, the navigation on a desktop and the "Meniu" sheet on a phone.
+// under, the account control and the language links, the navigation on a desktop and the "Meniu" sheet on a phone, and, when
+// a staff request was refused because the session ended, the sheet that says so over the page.
 //
 // The whole frame is one `<main>` whose direct children are the bar, the body and whatever dialog is open. That shape is
 // what the modal behaviour needs (`useBackgroundInert` makes every sibling band of the dialog inert), and the account
@@ -108,6 +111,7 @@ export function StaffShell({
     setOpen("logout-everywhere");
   }, []);
   const items = navigationItemsOf({ locale, page, context, copy });
+  const sessionExpiry = useStaffSessionExpiry();
 
   return (
     <main className={styles.screen}>
@@ -193,6 +197,9 @@ export function StaffShell({
           returnFocusFallbackRef={menuButtonRef}
         />
       ) : null}
+      {sessionExpiry === undefined ? null : (
+        <StaffSessionSheet locale={locale} expiry={sessionExpiry} />
+      )}
     </main>
   );
 }

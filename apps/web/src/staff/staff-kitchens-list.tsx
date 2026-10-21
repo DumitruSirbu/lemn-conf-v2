@@ -45,7 +45,7 @@ export function StaffKitchensScreen({
   readonly locale: AppLocale;
   readonly context: StaffShellContext;
 }) {
-  const kitchens = useStaffKitchens(locale);
+  const kitchens = useStaffKitchens();
   useReloadOnPageRestore();
   if (kitchens.state.phase === "forbidden") {
     return (

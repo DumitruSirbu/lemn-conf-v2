@@ -12,6 +12,7 @@ import { useCameraPreset } from "@/scene/camera-preset-store";
 import { StaffKitchenScreen } from "@/staff/staff-kitchen-page";
 import type { StaffShellContext } from "@/staff/staff-shell";
 import { useConfiguratorStore } from "@/store/configurator-store";
+import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
@@ -79,6 +80,7 @@ export function setUpScreenHarness(): ScreenHarness {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(NOW));
   resetAccountSessionForTests();
+  resetStaffSessionExpiryForTests();
   resetSharedStores();
   const assigned: string[] = [];
   vi.stubGlobal("location", {

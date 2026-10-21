@@ -88,6 +88,9 @@ afterEach(() => {
 function nameOf(element: HTMLElement, root: ParentNode): string {
   const direct = element.getAttribute("aria-label");
   if (direct !== null && direct.trim() !== "") return direct.trim();
+  const labelFor = root.querySelector(`label[for="${element.id}"]`);
+  if (element.id !== "" && labelFor !== null)
+    return labelFor.textContent.trim();
   const labelledBy = element.getAttribute("aria-labelledby");
   if (labelledBy !== null) {
     return labelledBy
@@ -168,7 +171,10 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
         ).toBeLessThanOrEqual(0);
       }
       for (const button of allIn(container, "button")) {
-        expect(button.getAttribute("type")).toBe("button");
+        // The note's "Salvează nota" is the one submit button of the page, and it stands in a form of its own.
+        const expectedType =
+          button.closest("form") === null ? "button" : "submit";
+        expect(button.getAttribute("type")).toBe(expectedType);
       }
       for (const region of allIn(
         container,
@@ -207,7 +213,7 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       await harness.mount({ locale });
     });
 
-    it("is the way back, then the camera chips, in the order they are drawn, after the frame's own controls", () => {
+    it("is the way back, the camera chips, the status select and its button, then the note field and its button, in the order they are drawn, after the frame's own controls", () => {
       const container = harness.container();
       const page = requireIn(container, PAGE);
       const everything = allIn(container, FOCUSABLE);
@@ -217,6 +223,10 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
         "A",
         "BUTTON",
         "BUTTON",
+        "BUTTON",
+        "SELECT",
+        "BUTTON",
+        "TEXTAREA",
         "BUTTON",
       ]);
       expect(inPage[0]?.textContent).toBe(

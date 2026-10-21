@@ -104,14 +104,15 @@ describe("run twice, as the development build runs a page", () => {
     expect(harness.kitchenRequests()).toHaveLength(2);
   });
 
-  it("leaves the page once for a 401 and draws nothing of a kitchen while it goes", async () => {
+  it("draws the session sheet once for a 401, navigates nowhere and draws nothing of a kitchen", async () => {
     harness.answers(() => UNAUTHENTICATED_ANSWER);
 
     await harness.mount({ isStrict: true, locale: "ru" });
 
-    expect(harness.assigned).toEqual([
-      "/ru/account/login?reason=session-expired",
-    ]);
+    expect(harness.assigned).toEqual([]);
+    expect(
+      allIn(harness.container(), '[data-testid="staff-session-sheet"]'),
+    ).toHaveLength(1);
     expect(
       allIn(harness.container(), '[data-testid="staff-kitchen-profile"]'),
     ).toHaveLength(0);
@@ -120,15 +121,20 @@ describe("run twice, as the development build runs a page", () => {
   it("ends on the same page as a run that was not doubled, for the same answer", async () => {
     harness.answers(() => ({ body: wireKitchen() }));
     await harness.mount();
-    const once = page().innerHTML;
+    const once = withoutGeneratedIds(page().innerHTML);
     harness.unmount();
     useConfiguratorStore.setState(useConfiguratorStore.getInitialState(), true);
 
     await harness.mount({ isStrict: true });
 
-    expect(page().innerHTML).toBe(once);
+    expect(withoutGeneratedIds(page().innerHTML)).toBe(once);
   });
 });
+
+/** React's generated ids differ between two mounts of one page; nothing else may. */
+function withoutGeneratedIds(markup: string): string {
+  return markup.replace(/_r_[a-z0-9]+_/g, "_r_");
+}
 
 describe("moved from one kitchen to another while the page is up", () => {
   it("draws the loading state at once for the new kitchen, and nothing of the one it left", async () => {
@@ -344,7 +350,12 @@ describe("what the page does with a kitchen over a whole visit", () => {
     harness.answers(() => ({ body: wireKitchen(TYPED) }));
 
     await harness.mount();
-    for (const chip of allIn<HTMLButtonElement>(page(), "button")) click(chip);
+    for (const chip of allIn<HTMLButtonElement>(
+      page(),
+      '[role="group"] button',
+    )) {
+      click(chip);
+    }
     await harness.pass(10 * 60 * 1000);
 
     expect(harness.kitchenRequests()).toHaveLength(1);

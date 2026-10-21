@@ -6,6 +6,11 @@
 // a status it does not name is `unrecognised`. The server is a stand-in for `fetch`.
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getStaffSessionExpiry,
+  resetStaffSessionExpiryForTests,
+  resolveStaffSessionExpired,
+} from "@/staff/staff-session-expiry";
 
 import {
   staffKitchenFrom,
@@ -41,6 +46,7 @@ let assigned: string[];
 
 beforeEach(() => {
   vi.useFakeTimers();
+  resetStaffSessionExpiryForTests();
   assigned = [];
   vi.stubGlobal("location", {
     assign: (address: string) => assigned.push(address),
@@ -72,7 +78,7 @@ async function pass(milliseconds: number): Promise<void> {
 }
 
 async function mount(id: string = STAFF_KITCHEN_ID): Promise<void> {
-  hook = renderHook(() => useStaffKitchen("ro", id));
+  hook = renderHook(() => useStaffKitchen(id));
   await settle();
 }
 
@@ -132,12 +138,29 @@ describe("what the answers of the route become", () => {
     });
   });
 
-  it("sends the person to sign in again on a 401, by a full load of the login page", async () => {
+  it("tells the staff frame the session ended on a 401, and leaves the page where it was: no navigation, still loading", async () => {
     server.script(() => UNAUTHENTICATED_ANSWER);
 
     await mount();
 
-    expect(assigned).toEqual(["/ro/account/login?reason=session-expired"]);
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+    expect(assigned).toEqual([]);
+    expect(current().state).toEqual({ phase: "loading" });
+  });
+
+  it("asks for the kitchen once more, and shows it, when the person has signed in again", async () => {
+    server.script(() => UNAUTHENTICATED_ANSWER);
+    await mount();
+    server.script(() => ({ body: wireKitchen() }));
+
+    act(() => {
+      resolveStaffSessionExpired();
+    });
+    await settle();
+
+    expect(server.requests).toHaveLength(2);
+    expect(current().state.phase).toBe("ready");
+    expect(getStaffSessionExpiry()).toBeUndefined();
   });
 
   it("is forbidden on a 403, which is never an expired session", async () => {
@@ -458,7 +481,7 @@ describe("a change of the kitchen asked for", () => {
 
   async function mountChangingId(): Promise<{ setId: (id: string) => void }> {
     let id = STAFF_KITCHEN_ID;
-    hook = renderHook(() => useStaffKitchen("ro", id));
+    hook = renderHook(() => useStaffKitchen(id));
     await settle();
     return {
       setId: (next) => {

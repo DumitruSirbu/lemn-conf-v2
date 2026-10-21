@@ -221,6 +221,18 @@ afterEach(() => {
   harness.tearDown();
 });
 
+/** React's generated ids differ between two mounts of one page; nothing else may. */
+function withoutGeneratedIds(markup: string): string {
+  return markup.replace(/_r_[a-z0-9]+_/g, "_r_");
+}
+
+/** What a card says, apart from the options of the select it holds. */
+function textOutsideTheSelect(card: Element): string {
+  const copy = card.cloneNode(true) as Element;
+  for (const select of copy.querySelectorAll("select")) select.remove();
+  return copy.textContent;
+}
+
 function has(testId: string): boolean {
   return (
     harness.container().querySelector(`[data-testid="${testId}"]`) !== null
@@ -241,6 +253,11 @@ describe.each(LOCALES)(
       locale,
       messages: CATALOGUES[locale] as typeof roMessages,
       namespace: "staffKitchen",
+    });
+    const sayNotes = createTranslator({
+      locale,
+      messages: CATALOGUES[locale] as typeof roMessages,
+      namespace: "staffNotes",
     });
     const summaryPrice = (container: HTMLElement): string =>
       requireIn(container, '[data-fact="price"] dd').textContent;
@@ -266,8 +283,8 @@ describe.each(LOCALES)(
       }
     }
 
-    it("draws without a failure, one title, one way back, the caption, no editor, no link to write or to call", async () => {
-      await drawEach(everyCombination(["none"]), () => {
+    it("draws without a failure, one title, one way back, the caption, no editor, no link to write or to call, and a field only where a staff member can act", async () => {
+      await drawEach(everyCombination(["none"]), (combination) => {
         const container = harness.container();
         const page = requireIn(container, PAGE);
 
@@ -278,7 +295,9 @@ describe.each(LOCALES)(
         expect(
           allIn(container, "a[href^='mailto:' i], a[href^='tel:' i]"),
         ).toHaveLength(0);
-        expect(allIn(page, "select, textarea, input")).toHaveLength(0);
+        expect(allIn(page, "input")).toHaveLength(0);
+        expect(allIn(page, "textarea")).toHaveLength(1);
+        expect(allIn(page, "select")).toHaveLength(combination.isSent ? 1 : 0);
         expect(requireIn(page, "h1").textContent).toBe("Casa din Orhei");
         expect(has("staff-kitchen-skeleton")).toBe(false);
       });
@@ -378,10 +397,12 @@ describe.each(LOCALES)(
           '[data-testid="staff-kitchen-status"]',
         );
         const badge = card.querySelector('[data-kind="status"]');
+        // The select lists every status, "Nouă" among them: what the card says of the status is what stands outside it.
+        const cardWords = textOutsideTheSelect(card);
         if (combination.status === "none") {
           expect(badge).toBeNull();
-          expect(card.textContent).toContain(lists.noValue);
-          expect(card.textContent).not.toContain(lists.statusNew);
+          expect(cardWords).toContain(lists.noValue);
+          expect(cardWords).not.toContain(lists.statusNew);
           expect(has("staff-kitchen-last-change")).toBe(false);
           return;
         }
@@ -391,7 +412,7 @@ describe.each(LOCALES)(
             : { word: lists.statusUnrecognised, code: "unrecognised" };
         expect(badge?.textContent).toBe(expected.word);
         expect(badge?.getAttribute("data-status")).toBe(expected.code);
-        expect(card.textContent).not.toContain(lists.statusNew);
+        expect(cardWords).not.toContain(lists.statusNew);
         expect(has("staff-kitchen-last-change")).toBe(true);
       });
     });
@@ -421,7 +442,7 @@ describe.each(LOCALES)(
         expect(has("staff-kitchen-hidden-banner")).toBe(combination.isHidden);
         if (combination.isHidden) {
           expect(textOf("staff-kitchen-hidden-banner")).toBe(
-            words.hiddenBanner,
+            `${words.hiddenBanner}${CATALOGUES[locale].staffActions.unhideAction}`,
           );
         }
         const profile = textOf("staff-kitchen-profile");
@@ -466,7 +487,7 @@ describe.each(LOCALES)(
       });
     });
 
-    it("shows the notes no way yet whatever they hold, and draws no field, select or button but the camera's", async () => {
+    it("lists the notes it is handed, says so when the kitchen holds more, and draws one field to add a note and no other", async () => {
       await drawEach(
         everyCombination(NOTE_LOADS).filter(
           (combination) =>
@@ -474,18 +495,30 @@ describe.each(LOCALES)(
             combination.client === "full" &&
             combination.documents === "both",
         ),
-        () => {
+        (combination) => {
           const page = requireIn(harness.container(), PAGE);
+          const notes = requireIn(page, '[data-testid="staff-notes"]');
 
-          expect(allIn(page, "select, textarea, input")).toHaveLength(0);
-          for (const button of allIn(page, "button")) {
-            expect(button.closest('[role="group"]')).not.toBeNull();
-          }
-          expect(page.textContent).not.toContain("Nota 0");
+          expect(allIn(page, "input")).toHaveLength(0);
+          expect(allIn(notes, "textarea")).toHaveLength(1);
+          expect(allIn(notes, "li")).toHaveLength(NOTES_AT_THE_LIMIT);
+          expect(notes.textContent).toContain("Nota 0");
           expect(
-            page.querySelector('[data-slot="staff-kitchen-notes"]')
-              ?.textContent,
-          ).toBe("");
+            requireIn(notes, '[data-testid="staff-notes-count"]').textContent,
+          ).toBe(
+            combination.notes === "truncated"
+              ? sayNotes("truncated", { count: NOTES_AT_THE_LIMIT })
+              : sayNotes("count", { count: NOTES_AT_THE_LIMIT }),
+          );
+          for (const button of allIn(page, "button")) {
+            const isKnown =
+              button.closest('[role="group"]') !== null ||
+              button.closest('[data-testid="staff-status-control"]') !== null ||
+              button.closest("form") !== null ||
+              button.closest('[data-testid="staff-kitchen-hidden-banner"]') !==
+                null;
+            expect(isKnown, button.outerHTML.slice(0, 80)).toBe(true);
+          }
         },
       );
     });
@@ -495,12 +528,12 @@ describe.each(LOCALES)(
       if (combination === undefined) throw new Error("no combination");
       harness.answers(() => ({ body: wireOf(combination) }));
       await harness.mount({ locale });
-      const first = harness.container().innerHTML;
+      const first = withoutGeneratedIds(harness.container().innerHTML);
       harness.unmount();
       resetSharedStores();
       await harness.mount({ locale });
 
-      expect(harness.container().innerHTML).toBe(first);
+      expect(withoutGeneratedIds(harness.container().innerHTML)).toBe(first);
     });
   },
 );

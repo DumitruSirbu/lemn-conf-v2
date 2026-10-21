@@ -11,6 +11,11 @@ import {
   useStaffKitchen,
   type StaffKitchenReading,
 } from "@/staff/use-staff-kitchen";
+import {
+  getStaffSessionExpiry,
+  resetStaffSessionExpiryForTests,
+  resolveStaffSessionExpired,
+} from "@/staff/staff-session-expiry";
 
 import { renderHook, type RenderedHook } from "../support/render-hook";
 import { STAFF_KITCHEN_ID, wireKitchen } from "../support/staff-kitchen-wire";
@@ -37,6 +42,7 @@ let assigned: string[];
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(NOW));
+  resetStaffSessionExpiryForTests();
   assigned = [];
   vi.stubGlobal("location", {
     assign: (address: string) => assigned.push(address),
@@ -65,7 +71,7 @@ function mount(
   wrap?: (children: React.ReactNode) => React.ReactNode,
 ): { setId: (next: string) => Promise<void> } {
   let current = id;
-  hook = renderHook(() => useStaffKitchen("ro", current), wrap);
+  hook = renderHook(() => useStaffKitchen(current), wrap);
   return {
     setId: async (next) => {
       current = next;
@@ -295,13 +301,21 @@ describe("the page run twice, as the development build does", () => {
     );
   });
 
-  it("leaves for the login page exactly once on a 401", async () => {
+  it("tells the staff frame the session ended once, and navigates nowhere, on a 401", async () => {
     server.script(() => UNAUTHENTICATED_ANSWER);
 
     mount(STAFF_KITCHEN_ID, strictly);
     await settle();
 
-    expect(assigned).toEqual(["/ro/account/login?reason=session-expired"]);
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+    expect(assigned).toEqual([]);
+    server.script(() => ({ body: kitchenWire(STAFF_KITCHEN_ID, "Once") }));
+    const asked = server.requests.length;
+    act(() => {
+      resolveStaffSessionExpired();
+    });
+    await settle();
+    expect(server.requests.length - asked).toBe(1);
   });
 
   it("is ready from the one answer that counts when the server answers at once", async () => {

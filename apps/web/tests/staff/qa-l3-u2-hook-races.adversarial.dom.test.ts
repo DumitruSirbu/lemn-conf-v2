@@ -13,6 +13,11 @@ import {
   useStaffKitchens,
   type StaffKitchens,
 } from "@/staff/use-staff-kitchens";
+import {
+  getStaffSessionExpiry,
+  resetStaffSessionExpiryForTests,
+  resolveStaffSessionExpired,
+} from "@/staff/staff-session-expiry";
 
 import { renderHook, type RenderedHook } from "../support/render-hook";
 import {
@@ -33,6 +38,7 @@ let assigned: string[];
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-21T12:00:00.000Z"));
+  resetStaffSessionExpiryForTests();
   assigned = [];
   vi.stubGlobal("location", {
     assign: (address: string) => assigned.push(address),
@@ -65,7 +71,7 @@ async function pass(milliseconds: number): Promise<void> {
 
 async function mount(wrapStrictly = false): Promise<void> {
   hook = renderHook(
-    () => useStaffKitchens("ro"),
+    () => useStaffKitchens(),
     wrapStrictly
       ? (children) => createElement(StrictMode, null, children)
       : undefined,
@@ -573,7 +579,7 @@ describe("an answer that is not a page", () => {
     });
   });
 
-  it("leaves for the login page on a 401 given to 'load more', and draws nothing else", async () => {
+  it("tells the staff frame the session ended on a 401 given to 'load more', keeps the pages shown, and asks for the page again when the person is signed in", async () => {
     server.script(({ url }) =>
       url.searchParams.get("page") === "1"
         ? { body: wireList(rowsOfPage(1, 20), { total: 60 }) }
@@ -586,7 +592,22 @@ describe("an answer that is not a page", () => {
     });
     await settle();
 
-    expect(assigned).toEqual(["/ro/account/login?reason=session-expired"]);
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+    expect(assigned).toEqual([]);
+    const { state } = current();
+    expect(state.phase === "ready" && state.listing.rows).toHaveLength(20);
+    server.script(({ url }) => ({
+      body: wireList(rowsOfPage(Number(url.searchParams.get("page")), 20), {
+        total: 60,
+        page: Number(url.searchParams.get("page")),
+      }),
+    }));
+    act(() => {
+      resolveStaffSessionExpired();
+    });
+    await settle();
+    const after = current().state;
+    expect(after.phase === "ready" && after.listing.rows).toHaveLength(40);
   });
 
   it("tells a 403 given to 'load more' as the forbidden screen", async () => {

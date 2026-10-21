@@ -16,6 +16,7 @@ import {
 import { resetAccountSessionForTests } from "@/account/session/use-account-session";
 import { StaffKitchenScreen } from "@/staff/staff-kitchen-page";
 import type { StaffShellContext } from "@/staff/staff-shell";
+import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
@@ -94,6 +95,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(NOW));
   resetAccountSessionForTests();
+  resetStaffSessionExpiryForTests();
   canvases.viewOnlyMounts = 0;
   canvases.editorMounts = 0;
   assigned = [];
@@ -170,6 +172,13 @@ function page(): HTMLElement {
 
 function textOf(testId: string): string {
   return requireIn(container(), `[data-testid="${testId}"]`).textContent;
+}
+
+/** What a card says, apart from the options of the select it holds. */
+function textOutsideTheSelect(card: Element): string {
+  const copy = card.cloneNode(true) as Element;
+  for (const select of copy.querySelectorAll("select")) select.remove();
+  return copy.textContent;
 }
 
 function has(testId: string): boolean {
@@ -319,8 +328,8 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       expect(has("staff-kitchen-hidden-banner")).toBe(false);
     });
 
-    it("asks for nothing but to read: every request is a GET of this kitchen or of the session, whatever is pressed", async () => {
-      for (const chip of allIn(page(), "button")) click(chip);
+    it("asks for nothing but to read until a staff member acts: every request is a GET of this kitchen or of the session, whatever camera is pressed", async () => {
+      for (const chip of allIn(page(), '[role="group"] button')) click(chip);
       await settle();
 
       const asked = server.requests.map(({ url, init }) => [
@@ -334,19 +343,18 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       }
     });
 
-    it("keeps the next wave's controls out: no field, no select, no button but the camera's and the way back", () => {
-      expect(allIn(page(), "select, textarea, input")).toHaveLength(0);
-      const buttons = allIn(page(), "button");
-      expect(buttons.length).toBeGreaterThan(0);
-      for (const button of buttons) {
-        expect(button.closest('[role="group"]')).not.toBeNull();
+    it("offers exactly the controls staff act with: the cameras, the status select and its button, the note field and its button, and no other field", () => {
+      expect(allIn(page(), "input")).toHaveLength(0);
+      expect(allIn(page(), "select")).toHaveLength(1);
+      expect(allIn(page(), "textarea")).toHaveLength(1);
+      for (const button of allIn(page(), "button")) {
+        const isKnown =
+          button.closest('[role="group"]') !== null ||
+          button.closest('[data-testid="staff-status-control"]') !== null ||
+          button.closest('[data-testid="staff-notes"]') !== null;
+        expect(isKnown, button.outerHTML.slice(0, 80)).toBe(true);
       }
-      for (const slot of ["notes", "status-control", "unhide"]) {
-        expect(
-          container().querySelector(`[data-slot="staff-kitchen-${slot}"]`)
-            ?.textContent ?? "",
-        ).toBe("");
-      }
+      expect(container().querySelector("[data-slot]")).toBeNull();
     });
   });
 
@@ -410,7 +418,12 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       );
       expect(status.textContent).toBe(lists.statusUnrecognised);
       expect(status.getAttribute("data-status")).toBe("unrecognised");
-      expect(textOf("staff-kitchen-status")).not.toContain(lists.statusNew);
+      const card = requireIn(
+        container(),
+        '[data-testid="staff-kitchen-status"]',
+      );
+      expect(textOutsideTheSelect(card)).not.toContain(lists.statusNew);
+      expect(requireIn<HTMLSelectElement>(card, "select").value).toBe("");
     });
   });
 
@@ -521,9 +534,12 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
         '[data-testid="staff-kitchen-hidden-banner"]',
       );
       expect(banner.getAttribute("role")).toBe("status");
-      expect(banner.textContent).toBe(words.hiddenBanner);
+      expect(banner.textContent).toBe(
+        `${words.hiddenBanner}${CATALOGUES[locale].staffActions.unhideAction}`,
+      );
       expect(has("staff-kitchen-view")).toBe(true);
-      expect(allIn(banner, "button, a")).toHaveLength(0);
+      expect(allIn(banner, "button")).toHaveLength(1);
+      expect(allIn(banner, "a")).toHaveLength(0);
     });
   });
 
@@ -759,14 +775,20 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
   });
 
   describe("the session", () => {
-    it("leaves for the login page of the page's own language as an expired session on a 401", async () => {
+    it("draws the session sheet in the page's own language on a 401, and leaves nowhere", async () => {
       kitchenAnswers(() => UNAUTHENTICATED_ANSWER);
 
       await mount(locale);
 
-      expect(assigned).toEqual([
+      expect(assigned).toEqual([]);
+      const link = requireIn(
+        container(),
+        '[data-testid="staff-session-sign-in"]',
+      );
+      expect(link.getAttribute("href")).toBe(
         `/${locale}/account/login?reason=session-expired`,
-      ]);
+      );
+      expect(has("staff-session-sheet")).toBe(true);
       expect(has("staff-kitchen-profile")).toBe(false);
     });
 

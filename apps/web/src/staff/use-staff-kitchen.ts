@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DesignSchema,
   isDesignId,
-  isRequestStatus,
   type Design,
 } from "@lemnaria/configurator-domain";
 
@@ -13,27 +12,33 @@ import {
   classifySignedInAnswer,
   rateLimitNoticeOf,
 } from "@/account/account-answer";
-import { loginPathWithReason } from "@/account/login-arrival";
-import { leaveFor } from "@/account/on-signed-in";
 import { NO_REFERRER_POLICY } from "@/account/send-account-request";
-import type { AppLocale } from "@/i18n/routing";
 
+import { withoutRepeatedNotes } from "./staff-note-rules";
+import { raiseStaffSessionExpired } from "./staff-session-expiry";
 import type {
-  StaffClientWire,
   StaffKitchenNoteWire,
   StaffKitchenRequestWire,
   StaffKitchenStatusWire,
   StaffKitchenWire,
-  StaffPersonWire,
 } from "./staff-kitchens-wire-contract";
+import {
+  clientFrom,
+  isCanonicalInstant,
+  noteFrom,
+  ownValueOf,
+  personFrom,
+  recognisedStatusOf,
+} from "./staff-kitchens-wire-reading";
 import type { ListFailure } from "./use-staff-kitchens";
 
 // One client's kitchen for staff (Lot 3 frames S3A to S3I). The kitchen is asked for once when the page opens and again
-// only when the person presses "Încearcă din nou": a `429` or `503` waits for them, and nothing is retried on its own. The
-// answer is never kept anywhere but in this component's state: not in the address, the browser's storage or a log.
+// only when the person presses "Încearcă din nou", or when a write of the page found the kitchen no longer as the page
+// shows it (`refresh`): a `429` or `503` waits for them, and nothing is retried on its own. The answer is never kept
+// anywhere but in this component's state: not in the address, the browser's storage or a log. A refused session is not
+// a failure of the page: the staff frame tells it (`raiseStaffSessionExpired`) and the page stays as it is.
 
 const STAFF_KITCHENS_ENDPOINT = "/api/staff/kitchens";
-const UNRECOGNISED_STATUS = "unrecognised";
 
 /** Why the kitchen could not be had, as the screen tells it (the list's own words for the same four causes). */
 export type StaffKitchenFailure = ListFailure;
@@ -47,10 +52,18 @@ export type StaffKitchenState =
   | { readonly phase: "forbidden" }
   | { readonly phase: "ready"; readonly kitchen: StaffKitchenWire };
 
+/** A change the page makes to the kitchen it shows, from the answer of one of its writes. */
+export type StaffKitchenEdit = (kitchen: StaffKitchenWire) => StaffKitchenWire;
+
 export interface StaffKitchenReading {
   readonly state: StaffKitchenState;
   /** "Încearcă din nou" after a failure: asks for the kitchen again. */
   readonly retry: () => void;
+  /** Asks for the kitchen again and leaves what is shown (and what the person typed) in place until it comes. Only a
+   *  kitchen replaces it, or the answer that there is none; a failure changes nothing. */
+  readonly refresh: () => void;
+  /** Shows the kitchen as a write of this page left it, without asking for it again. */
+  readonly edit: (change: StaffKitchenEdit) => void;
 }
 
 type KitchenStep =
@@ -61,6 +74,10 @@ type KitchenStep =
   | { readonly kind: "sign-in" }
   | { readonly kind: "aborted" };
 
+/** `page` is the read the page opens with and "Încearcă din nou" repeats; `quiet` is a refresh behind a page that is
+ *  already showing the kitchen. */
+type ReadMode = "page" | "quiet";
+
 /** What was read, and for which kitchen: an answer is shown only beside the id it answered. */
 interface StateOfKitchen {
   readonly designId: string;
@@ -69,32 +86,41 @@ interface StateOfKitchen {
 
 const LOADING: StaffKitchenState = { phase: "loading" };
 
-export function useStaffKitchen(
-  locale: AppLocale,
-  designId: string,
-): StaffKitchenReading {
+export function useStaffKitchen(designId: string): StaffKitchenReading {
   const [held, setHeld] = useState<StateOfKitchen>({
     designId,
     state: LOADING,
   });
   const controllerRef = useRef<AbortController | undefined>(undefined);
+  const editCountRef = useRef(0);
 
-  const read = useCallback(() => {
-    controllerRef.current?.abort();
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    void readKitchen(designId, controller.signal).then((step) => {
-      if (step.kind === "aborted") return;
-      if (step.kind === "sign-in") {
-        leaveFor(loginPathWithReason(locale, "session-expired"));
-        return;
-      }
-      setHeld({ designId, state: stateAfter(step) });
-    });
-  }, [designId, locale]);
+  const read = useCallback(
+    function read(mode: ReadMode): void {
+      controllerRef.current?.abort();
+      const controller = new AbortController();
+      controllerRef.current = controller;
+      const editsAtAsking = editCountRef.current;
+      void readKitchen(designId, controller.signal).then((step) => {
+        if (step.kind === "aborted") return;
+        if (step.kind === "sign-in") {
+          raiseStaffSessionExpired({
+            askAgain: () => {
+              read(mode);
+            },
+          });
+          return;
+        }
+        // A write answered while this read was out is newer than the read's picture of the kitchen.
+        if (mode === "quiet" && editCountRef.current !== editsAtAsking) return;
+        if (mode === "quiet" && step.kind === "failed") return;
+        setHeld({ designId, state: stateAfter(step) });
+      });
+    },
+    [designId],
+  );
 
   useEffect(() => {
-    read();
+    read("page");
     return () => {
       controllerRef.current?.abort();
     };
@@ -102,12 +128,31 @@ export function useStaffKitchen(
 
   const retry = useCallback(() => {
     setHeld({ designId, state: LOADING });
-    read();
+    read("page");
   }, [designId, read]);
+
+  const refresh = useCallback(() => {
+    read("quiet");
+  }, [read]);
+
+  const edit = useCallback(
+    (change: StaffKitchenEdit) => {
+      editCountRef.current += 1;
+      setHeld((current) =>
+        current.designId === designId && current.state.phase === "ready"
+          ? {
+              designId,
+              state: { phase: "ready", kitchen: change(current.state.kitchen) },
+            }
+          : current,
+      );
+    },
+    [designId],
+  );
 
   // A kitchen read for another id is never drawn under this one, whether or not the page remounts for the change.
   const state = held.designId === designId ? held.state : LOADING;
-  return { state, retry };
+  return { state, retry, refresh, edit };
 }
 
 function stateAfter(
@@ -231,8 +276,8 @@ function kitchenFrom(raw: unknown): StaffKitchenWire["kitchen"] | undefined {
   if (typeof isSent !== "boolean" || typeof isHidden !== "boolean") {
     return undefined;
   }
-  if (sentAt !== null && !isInstant(sentAt)) return undefined;
-  if (!isInstant(updatedAt)) return undefined;
+  if (sentAt !== null && !isCanonicalInstant(sentAt)) return undefined;
+  if (!isCanonicalInstant(updatedAt)) return undefined;
   // A kitchen is sent exactly when it has a sent day, and only a sent kitchen has a copy as sent.
   if (isSent !== (sentAt !== null)) return undefined;
   const rawAsSent = ownValueOf(raw, "asSent");
@@ -256,20 +301,6 @@ function designFrom(raw: unknown): Design | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** `undefined` for a client the contract does not allow; `{ value: null }` for a sent kitchen no account owns. */
-function clientFrom(
-  raw: unknown,
-): { readonly value: StaffClientWire | null } | undefined {
-  if (raw === null) return { value: null };
-  const email = ownValueOf(raw, "email");
-  const name = ownValueOf(raw, "name");
-  const phone = ownValueOf(raw, "phone");
-  if (typeof email !== "string") return undefined;
-  if (name !== null && typeof name !== "string") return undefined;
-  if (phone !== null && typeof phone !== "string") return undefined;
-  return { value: { email, name, phone } };
-}
-
 function requestFrom(
   raw: unknown,
 ): { readonly value: StaffKitchenRequestWire | null } | undefined {
@@ -277,7 +308,7 @@ function requestFrom(
   const reference = ownValueOf(raw, "reference");
   const sentAt = ownValueOf(raw, "sentAt");
   if (typeof reference !== "string" || reference === "") return undefined;
-  if (!isInstant(sentAt)) return undefined;
+  if (!isCanonicalInstant(sentAt)) return undefined;
   return { value: { reference, sentAt } };
 }
 
@@ -291,10 +322,10 @@ function statusFrom(
   if (typeof word !== "string") return undefined;
   const by = changedBy === null ? { value: null } : personFrom(changedBy);
   if (by === undefined) return undefined;
-  if (changedAt !== null && !isInstant(changedAt)) return undefined;
+  if (changedAt !== null && !isCanonicalInstant(changedAt)) return undefined;
   return {
     value: {
-      value: isRequestStatus(word) ? word : UNRECOGNISED_STATUS,
+      value: recognisedStatusOf(word),
       changedBy: by.value,
       changedAt,
     },
@@ -304,62 +335,11 @@ function statusFrom(
 function notesFrom(raw: unknown): readonly StaffKitchenNoteWire[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const notes = (raw as readonly unknown[]).map(noteFrom);
-  return notes.every(isNote) ? withoutRepeatedIds(notes) : undefined;
-}
-
-/** A note named twice is drawn once, where it first stands (the newest-first order is the server's). */
-function withoutRepeatedIds(
-  notes: readonly StaffKitchenNoteWire[],
-): readonly StaffKitchenNoteWire[] {
-  const seen = new Set<string>();
-  return notes.filter(({ id }) => {
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-}
-
-function noteFrom(raw: unknown): StaffKitchenNoteWire | undefined {
-  const id = ownValueOf(raw, "id");
-  const text = ownValueOf(raw, "text");
-  const createdAt = ownValueOf(raw, "createdAt");
-  const author = personFrom(ownValueOf(raw, "author"));
-  if (typeof id !== "string" || id === "" || typeof text !== "string") {
-    return undefined;
-  }
-  if (!isInstant(createdAt) || author === undefined) return undefined;
-  return { id, text, createdAt, author: author.value };
+  return notes.every(isNote) ? withoutRepeatedNotes(notes) : undefined;
 }
 
 function isNote(
   note: StaffKitchenNoteWire | undefined,
 ): note is StaffKitchenNoteWire {
   return note !== undefined;
-}
-
-/** A person as it reads now: `null` members are an account that no longer resolves, not a failure. */
-function personFrom(
-  raw: unknown,
-): { readonly value: StaffPersonWire } | undefined {
-  const email = ownValueOf(raw, "email");
-  const name = ownValueOf(raw, "name");
-  if (email !== null && typeof email !== "string") return undefined;
-  if (name !== null && typeof name !== "string") return undefined;
-  return { value: { email, name } };
-}
-
-/** An instant in the one form the server writes, `toISOString()`'s: it must read back as itself, so a day that does not
- *  exist (`2026-02-30`), an offset, a missing millisecond and a bare number are all refused. */
-function isInstant(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  const parsed = new Date(value);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
-}
-
-/** Only what the body's own object holds; anything that is not an object holds nothing. */
-function ownValueOf(value: unknown, name: string): unknown {
-  if (typeof value !== "object" || value === null) return undefined;
-  return Object.hasOwn(value, name)
-    ? (value as Readonly<Record<string, unknown>>)[name]
-    : undefined;
 }

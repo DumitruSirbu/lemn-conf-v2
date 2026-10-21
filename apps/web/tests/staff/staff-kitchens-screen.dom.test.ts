@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAccountSessionForTests } from "@/account/session/use-account-session";
 import { StaffKitchensScreen } from "@/staff/staff-kitchens-list";
 import type { StaffShellContext } from "@/staff/staff-shell";
+import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
@@ -67,6 +68,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-21T12:00:00.000Z"));
   resetAccountSessionForTests();
+  resetStaffSessionExpiryForTests();
   assigned = [];
   vi.stubGlobal("location", {
     assign: (address: string) => assigned.push(address),
@@ -664,21 +666,32 @@ describe("a page that cannot be had (frame S2E)", () => {
 });
 
 describe("the session (frame S2F)", () => {
-  it("leaves for the login page as an expired session on a 401, and draws no list", async () => {
+  it("draws the session sheet over the page on a 401 (frame S2F), leaves nowhere and draws no list", async () => {
     listAnswers(() => UNAUTHENTICATED_ANSWER);
 
     await mount();
 
-    expect(assigned).toEqual(["/ro/account/login?reason=session-expired"]);
+    expect(assigned).toEqual([]);
+    expect(
+      container().querySelector('[data-testid="staff-session-sheet"]'),
+    ).not.toBeNull();
     expect(container().querySelector(ROWS)).toBeNull();
   });
 
-  it("leaves for the login page of the page's own language", async () => {
+  it("opens the login page of the page's own language from the sheet, in a new tab", async () => {
     listAnswers(() => UNAUTHENTICATED_ANSWER);
 
     await mount({ locale: "ru" });
 
-    expect(assigned).toEqual(["/ru/account/login?reason=session-expired"]);
+    const link = requireIn(
+      container(),
+      '[data-testid="staff-session-sign-in"]',
+    );
+    expect(link.getAttribute("href")).toBe(
+      "/ru/account/login?reason=session-expired",
+    );
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
   });
 
   it("draws the forbidden screen inside the staff frame on a 403, never an expired session", async () => {

@@ -7,6 +7,7 @@ import { vi } from "vitest";
 import { resetAccountSessionForTests } from "@/account/session/use-account-session";
 import { StaffKitchensScreen } from "@/staff/staff-kitchens-list";
 import type { StaffShellContext } from "@/staff/staff-shell";
+import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
 import { flushPromises } from "../support/render-hook";
 import {
@@ -70,6 +71,7 @@ export function setUpListHarness(): ListHarness {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-21T12:00:00.000Z"));
   resetAccountSessionForTests();
+  resetStaffSessionExpiryForTests();
   const assigned: string[] = [];
   vi.stubGlobal("location", {
     assign: (address: string) => assigned.push(address),
