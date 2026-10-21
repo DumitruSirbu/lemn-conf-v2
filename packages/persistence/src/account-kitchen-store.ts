@@ -14,11 +14,22 @@ export const MAX_KITCHEN_PAGE_SIZE = 50;
  *  measured document size. */
 export const MAX_EXPORTED_KITCHENS = 200;
 
+/** The most notes one exported kitchen carries: the newest ones. A kitchen with more is exported with its newest
+ *  `MAX_EXPORTED_NOTES_PER_KITCHEN` and `isTruncated` set, never with the older ones passed off as all of them.
+ *  PROVISIONAL, like `MAX_EXPORTED_KITCHENS`: the staff view reads the same 100 (`NOTES_READ_LIMIT`). */
+export const MAX_EXPORTED_NOTES_PER_KITCHEN = 100;
+
+/** The most notes one whole export carries, across its kitchens, newest first. Notes past it are left out and their
+ *  kitchens are marked truncated. A count, as O26 keeps the kitchen bound a count; PROVISIONAL, to be set against a
+ *  measured response size, which the platform has not given. */
+export const MAX_EXPORTED_NOTES_IN_TOTAL = 2000;
+
 export type AccountKitchenStoreOperation =
   | "list kitchens"
   | "count kitchens"
   | "measure an export"
   | "export kitchens"
+  | "export kitchen notes"
   | "rename a kitchen"
   | "duplicate a kitchen"
   | "hide a kitchen"
@@ -148,6 +159,22 @@ export interface ExportedKitchen {
   readonly design: Design | null;
 }
 
+/**
+ * A staff note as the client's own data export holds it: the text and the day it was written, and nothing else. No
+ * note id, author id, e-mail or name is in it: the export tells the client what the shop wrote about them, not who.
+ */
+export interface ExportedNote {
+  readonly text: string;
+  readonly createdAt: Date;
+}
+
+/** The notes one kitchen carries in the export, newest first. */
+export interface ExportedKitchenNotes {
+  readonly notes: readonly ExportedNote[];
+  /** True when the kitchen holds notes that `notes` leaves out (its per-kitchen or the export's total bound). */
+  readonly isTruncated: boolean;
+}
+
 /** `too-many` is more than `MAX_EXPORTED_KITCHENS` kitchens, counted in the same statement; nothing is returned. */
 export type KitchenExport =
   | { readonly kind: "exported"; readonly kitchens: readonly ExportedKitchen[] }
@@ -184,6 +211,18 @@ export interface AccountKitchenStore {
    * `(updated_at desc, id desc)`, for the owner's own data export. Reads only; at most `MAX_EXPORTED_KITCHENS`.
    */
   exportAll(accountId: string): Promise<KitchenExport>;
+  /**
+   * The staff notes on the account's own kitchens among `designIds`, for the owner's data export: text and instant
+   * only, newest first, at most `MAX_EXPORTED_NOTES_PER_KITCHEN` per kitchen and `MAX_EXPORTED_NOTES_IN_TOTAL` in all.
+   * `designIds` only narrows the read; ownership is the statement's own predicate, so an id the account does not own,
+   * or one it has deleted, contributes nothing (a kitchen it has hidden does). A kitchen with no note is absent from
+   * the map. Throws on a malformed account or id, on more than `MAX_EXPORTED_KITCHENS` ids, and on a database that
+   * gave no trustworthy answer; it never returns part of the notes as if it were all of them without saying so.
+   */
+  exportNotes(
+    accountId: string,
+    designIds: readonly DesignId[],
+  ): Promise<ReadonlyMap<DesignId, ExportedKitchenNotes>>;
   /** Copies a listed kitchen to a new row of the same account, with no write token, no visitor and no marks. */
   duplicate(
     duplication: KitchenDuplication,
@@ -267,6 +306,25 @@ export function requireValidKitchenPageRequest({
  *  it removes: a name reaching the store has been judged, so none can remain, and a NUL or lone surrogate would be a
  *  driver error rather than a refusal. */
 const UNSTORABLE_NAME_CHARACTER = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
+
+/** Refuses an id list the notes read would answer wrongly or not at all: too many, or one that is no design id. */
+export function requireValidKitchenIdsForExport(
+  designIds: readonly unknown[],
+): void {
+  if (
+    designIds.length <= MAX_EXPORTED_KITCHENS &&
+    designIds.every(isKitchenId)
+  ) {
+    return;
+  }
+  throw new Error(
+    `Refusing to export kitchen notes: at most ${String(MAX_EXPORTED_KITCHENS)} kitchen ids, each a design id.`,
+  );
+}
+
+function isKitchenId(value: unknown): boolean {
+  return typeof value === "string" && CURSOR_ID_SHAPE.test(value);
+}
 
 export function requireValidKitchenName(
   name: unknown,

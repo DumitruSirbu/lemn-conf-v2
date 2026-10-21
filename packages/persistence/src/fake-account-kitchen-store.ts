@@ -3,12 +3,16 @@ import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   MAX_EXPORTED_KITCHENS,
+  MAX_EXPORTED_NOTES_IN_TOTAL,
+  MAX_EXPORTED_NOTES_PER_KITCHEN,
   cursorTextOf,
+  requireValidKitchenIdsForExport,
   requireValidKitchenName,
   requireValidKitchenPageRequest,
 } from "./account-kitchen-store.js";
 import type {
   AccountKitchenStore,
+  ExportedKitchenNotes,
   KitchenCursor,
   KitchenDeleteOutcome,
   KitchenDuplication,
@@ -60,6 +64,25 @@ export interface SeededKitchen {
   readonly deletedAt?: Date;
 }
 
+/** A row of `design_notes` a test plants. The author is held, and never read by a method of the port. */
+export interface SeededNote {
+  readonly designId: DesignId;
+  readonly text: string;
+  readonly createdAt: Date;
+  /** Breaks a tie in `createdAt`, larger first. Defaults to a fresh id. */
+  readonly id?: string;
+  /** The staff member who wrote it. Held so a test can prove the export leaves it out. */
+  readonly authorAccountId?: string;
+}
+
+interface HeldNote {
+  readonly id: string;
+  readonly designId: DesignId;
+  readonly text: string;
+  readonly createdAt: Date;
+  readonly authorAccountId: string | undefined;
+}
+
 /**
  * In-memory `AccountKitchenStore` with `NeonAccountKitchenStore`'s contract: the same refusals, the same listed
  * predicate, the same `(updated_at desc, id desc)` order and keyset, and the same one outcome for a missing,
@@ -70,6 +93,7 @@ export interface SeededKitchen {
  */
 export class FakeAccountKitchenStore implements AccountKitchenStore {
   private readonly kitchensById = new Map<DesignId, HeldKitchen>();
+  private readonly notes: HeldNote[] = [];
   private readonly now: () => Date;
   private readonly revokeShareLinksOf: (designId: DesignId, at: Date) => void;
 
@@ -92,6 +116,17 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
       sentAt: kitchen.sentAt,
       hiddenAt: kitchen.hiddenAt,
       deletedAt: kitchen.deletedAt,
+    });
+  }
+
+  /** Test setup: plants a note on any design id, owned or not, as a script around the store would. */
+  seedNote(note: SeededNote): void {
+    this.notes.push({
+      id: note.id ?? generateDesignId(),
+      designId: note.designId,
+      text: note.text,
+      createdAt: new Date(note.createdAt),
+      authorAccountId: note.authorAccountId,
     });
   }
 
@@ -153,6 +188,28 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
           design: structuredClone(kitchen.design),
         })),
       };
+    });
+  }
+
+  exportNotes(
+    accountId: string,
+    designIds: readonly DesignId[],
+  ): Promise<ReadonlyMap<DesignId, ExportedKitchenNotes>> {
+    return settle(() => {
+      requireAccountIdShape(accountId, "export kitchen notes");
+      requireValidKitchenIdsForExport(designIds);
+      const asked = new Set<string>(designIds);
+      const ownedIds = new Set(
+        this.exportableOf(accountId)
+          .map(({ id }) => id)
+          .filter((id) => asked.has(id)),
+      );
+      const windowed = newestKitchenNotes(
+        this.notes
+          .filter((note) => ownedIds.has(note.designId))
+          .sort(newestNoteFirst),
+      );
+      return exportedNotesByKitchen(windowed);
     });
   }
 
@@ -277,6 +334,51 @@ function newestFirst(first: HeldKitchen, second: HeldKitchen): number {
   const byInstant = second.updatedAt.getTime() - first.updatedAt.getTime();
   if (byInstant !== 0) return byInstant;
   return first.id < second.id ? 1 : -1;
+}
+
+function newestNoteFirst(first: HeldNote, second: HeldNote): number {
+  const byInstant = second.createdAt.getTime() - first.createdAt.getTime();
+  if (byInstant !== 0) return byInstant;
+  return first.id < second.id ? 1 : -1;
+}
+
+/** The newest `MAX_EXPORTED_NOTES_PER_KITCHEN + 1` notes of each kitchen, from notes that are newest first. */
+function newestKitchenNotes(newestFirst: readonly HeldNote[]): HeldNote[] {
+  const seen = new Map<DesignId, number>();
+  return newestFirst.filter((note) => {
+    const position = seen.get(note.designId) ?? 0;
+    seen.set(note.designId, position + 1);
+    return position <= MAX_EXPORTED_NOTES_PER_KITCHEN;
+  });
+}
+
+/** What the Neon statement's second window does: the first `MAX_EXPORTED_NOTES_IN_TOTAL` of the notes keep their text. */
+function exportedNotesByKitchen(
+  windowed: readonly HeldNote[],
+): ReadonlyMap<DesignId, ExportedKitchenNotes> {
+  const windowedByKitchen = new Map<DesignId, HeldNote[]>();
+  const kept = new Map<DesignId, HeldNote[]>();
+  windowed.forEach((note, rank) => {
+    pushTo(windowedByKitchen, note);
+    if (rank < MAX_EXPORTED_NOTES_IN_TOTAL) pushTo(kept, note);
+  });
+  return new Map(
+    [...windowedByKitchen].map(([designId, inWindow]) => {
+      const notes = (kept.get(designId) ?? [])
+        .slice(0, MAX_EXPORTED_NOTES_PER_KITCHEN)
+        .map(({ text, createdAt }) => ({
+          text,
+          createdAt: new Date(createdAt),
+        }));
+      return [designId, { notes, isTruncated: notes.length < inWindow.length }];
+    }),
+  );
+}
+
+function pushTo(byKitchen: Map<DesignId, HeldNote[]>, note: HeldNote): void {
+  const held = byKitchen.get(note.designId) ?? [];
+  held.push(note);
+  byKitchen.set(note.designId, held);
 }
 
 /** The row comparison `(updated_at, id) < (cursor.updated_at, cursor.id)` of the Neon statement. */

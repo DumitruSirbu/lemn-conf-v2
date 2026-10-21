@@ -6,8 +6,10 @@ import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   AccountKitchenStoreError,
   MAX_EXPORTED_KITCHENS,
+  MAX_EXPORTED_NOTES_PER_KITCHEN,
   instantOfCursorText,
   isKitchenCursor,
+  requireValidKitchenIdsForExport,
   requireValidKitchenName,
   requireValidKitchenPageRequest,
 } from "./account-kitchen-store.js";
@@ -15,6 +17,8 @@ import type {
   AccountKitchenStore,
   AccountKitchenStoreOperation,
   ExportedKitchen,
+  ExportedKitchenNotes,
+  ExportedNote,
   ExportSize,
   KitchenCursor,
   KitchenDeleteOutcome,
@@ -30,6 +34,10 @@ import type {
   ListedKitchen,
   SentMarkStore,
 } from "./account-kitchen-store.js";
+import {
+  exportedKitchenNotesRowBound,
+  exportedKitchenNotesStatement,
+} from "./account-kitchen-notes-statement.js";
 import { generateDesignId } from "./generate-design-id.js";
 import { reducedCauseOf } from "./migration-errors.js";
 import { openApplicationDatabase } from "./open-application-database.js";
@@ -193,6 +201,28 @@ export class NeonAccountKitchenStore implements AccountKitchenStore {
       ),
     );
     return kitchenExportFrom(rows);
+  }
+
+  /**
+   * One statement for all the export's kitchens (`exportedKitchenNotesStatement`): ownership by the account's own
+   * predicate, no author or account column read. A reply that is not that statement's (a kitchen not asked for, more
+   * rows than its windows yield, a row of the wrong shape) is the store error, never a download.
+   */
+  async exportNotes(
+    accountId: string,
+    designIds: readonly DesignId[],
+  ): Promise<ReadonlyMap<DesignId, ExportedKitchenNotes>> {
+    requireAccountIdShape(accountId, "export kitchen notes");
+    requireValidKitchenIdsForExport(designIds);
+    const kitchenIds = [...new Set(designIds)];
+    if (kitchenIds.length === 0) return new Map();
+    const rowBound = exportedKitchenNotesRowBound(kitchenIds);
+    const rows = await queryRows("export kitchen notes", () =>
+      retryOnTransientFailure(() =>
+        exportedKitchenNotesStatement(this.sql, { accountId, kitchenIds }),
+      ),
+    );
+    return kitchenNotesExportFrom(rows, { kitchenIds, rowBound });
   }
 
   /** Idempotent, so a repeat after a lost acknowledgement ends in the same row and the same answer. */
@@ -526,6 +556,59 @@ function exportedKitchenFrom(row: Row): ExportedKitchen {
     isHidden: is_hidden,
     design: migratedDesignOrUndefined(schema_version, document) ?? null,
   };
+}
+
+const EPOCH_MILLISECONDS_SHAPE = /^-?\d{1,16}$/;
+
+/**
+ * The notes of each kitchen from the statement's rows, which arrive newest first over all kitchens. A row naming a
+ * kitchen that was not asked for, more rows than the statement can yield, or a row of the wrong shape is the store
+ * error: a reply that is not the statement's is never turned into a download.
+ */
+function kitchenNotesExportFrom(
+  rows: readonly Row[],
+  { kitchenIds, rowBound }: { kitchenIds: readonly string[]; rowBound: number },
+): ReadonlyMap<DesignId, ExportedKitchenNotes> {
+  if (rows.length > rowBound) {
+    throw new AccountKitchenStoreError("export kitchen notes");
+  }
+  const asked = new Set(kitchenIds);
+  const rowsOfKitchen = new Map<DesignId, Row[]>();
+  for (const row of rows) {
+    const designId = row["design_id"];
+    if (typeof designId !== "string" || !asked.has(designId)) {
+      throw new AccountKitchenStoreError("export kitchen notes");
+    }
+    const held = rowsOfKitchen.get(designId) ?? [];
+    held.push(row);
+    rowsOfKitchen.set(designId, held);
+  }
+  return new Map(
+    [...rowsOfKitchen].map(([designId, held]) => [
+      designId,
+      exportedKitchenNotesFrom(held),
+    ]),
+  );
+}
+
+function exportedKitchenNotesFrom(rows: readonly Row[]): ExportedKitchenNotes {
+  const readable = rows.flatMap(exportedNoteFrom);
+  const notes = readable.slice(0, MAX_EXPORTED_NOTES_PER_KITCHEN);
+  return { notes, isTruncated: notes.length < rows.length };
+}
+
+/** The note of a row, or none for a row whose text the total bound withheld. A half-withheld row is the store error. */
+function exportedNoteFrom(row: Row): readonly ExportedNote[] {
+  const { body, created_ms } = row;
+  if (body === null && created_ms === null) return [];
+  if (
+    typeof body !== "string" ||
+    typeof created_ms !== "string" ||
+    !EPOCH_MILLISECONDS_SHAPE.test(created_ms)
+  ) {
+    throw new AccountKitchenStoreError("export kitchen notes");
+  }
+  return [{ text: body, createdAt: new Date(Number(created_ms)) }];
 }
 
 /** The kitchen of a row, or none when its document is unreadable. A row of the wrong shape is the store error. */

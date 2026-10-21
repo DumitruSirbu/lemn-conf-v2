@@ -225,6 +225,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes accounts, kitchens, requests, sent copies, statuses and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S4)",
   },
+  "neon-account-kitchen-store.notes.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, kitchens and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S9)",
+  },
   "neon-staff-kitchen-actions-store.live.test.ts": {
     gate: "live test database",
     lock: "shared",

@@ -219,6 +219,8 @@ export type {
 export {
   AccountKitchenStoreError,
   MAX_EXPORTED_KITCHENS,
+  MAX_EXPORTED_NOTES_IN_TOTAL,
+  MAX_EXPORTED_NOTES_PER_KITCHEN,
   MAX_KITCHEN_NAME_CHARACTERS,
   MAX_KITCHEN_PAGE_SIZE,
   isKitchenCursor,
@@ -227,6 +229,8 @@ export type {
   AccountKitchenStore,
   AccountKitchenStoreOperation,
   ExportedKitchen,
+  ExportedKitchenNotes,
+  ExportedNote,
   ExportSize,
   KitchenCursor,
   KitchenDeleteOutcome,
@@ -254,6 +258,7 @@ export type {
   FakeAccountKitchenStoreOptions,
   HeldKitchen,
   SeededKitchen,
+  SeededNote,
 } from "./fake-account-kitchen-store.js";
 export {
   MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS,

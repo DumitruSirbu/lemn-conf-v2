@@ -7,6 +7,7 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
 import type { TestContext } from "vitest";
 
+import { exportedKitchenNotesStatement } from "../src/account-kitchen-notes-statement.js";
 import {
   insertUnlessHeldStatement,
   selectPublishedNearStatement,
@@ -1042,6 +1043,26 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       },
     );
   });
+
+  // The client's data export reads the notes on its own kitchens in one statement, the store's own text built by the
+  // same function, planned and never run. It reads `design_notes` and `designs` and selects no author column, so a
+  // missing `design_notes` `SELECT` grant is a 42501 here and not at the first export. Red until the owner has issued
+  // the `0021` grants.
+  guardedTest(
+    "can have the export's notes statement planned, once the notes table exists",
+    async (context) => {
+      await skipUnlessTheTableExists(context, "public.design_notes");
+
+      await expect(
+        explainOfThePresetStatement(
+          exportedKitchenNotesStatement(recordedStatement, {
+            accountId: "0".repeat(21),
+            kitchenIds: ["0".repeat(21), "k".repeat(21)],
+          }),
+        ),
+      ).resolves.toBeDefined();
+    },
+  );
 
   // The staff kitchen reader's three statements, the reader's own text built by the same functions, planned and never
   // run. They read six tables, three of them through column grants, so a column the reader names that the role was not
