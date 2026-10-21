@@ -372,10 +372,12 @@ export {
   readStaffAuditEntry,
   STAFF_AUDIT_ACTION_NAMES_DESIGN,
   STAFF_AUDIT_ACTIONS,
+  STAFF_AUDIT_PAGE_SIZE,
   type StaffAuditAction,
   type StaffAuditEntry,
   type StaffAuditEntryReading,
   type StaffAuditRefusalCode,
+  type AuditViewedDetail,
   type KitchensListedDetail,
   type StatusChangedDetail,
 } from "./staff/staff-audit-action.js";

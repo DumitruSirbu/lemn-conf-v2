@@ -21,6 +21,7 @@ export const STAFF_AUDIT_ACTIONS = Object.freeze([
   "status-changed",
   "kitchen-unhidden",
   "kitchens-listed",
+  "audit-viewed",
 ] as const);
 export type StaffAuditAction = (typeof STAFF_AUDIT_ACTIONS)[number];
 
@@ -41,12 +42,27 @@ export interface KitchensListedDetail {
   readonly hasSearch: boolean;
 }
 
+/** Rows the audit page shows at most. The persistence package keeps its own page size, which must equal this. */
+export const STAFF_AUDIT_PAGE_SIZE = 25;
+
+/** What one served page of the audit log was: which filters were set, never their values. */
+export interface AuditViewedDetail {
+  /** From 1. */
+  readonly page: number;
+  /** Rows on the page, 0 to the page size. */
+  readonly rowCount: number;
+  readonly hasActorFilter: boolean;
+  readonly hasActionFilter: boolean;
+  readonly hasDateFilter: boolean;
+}
+
 interface StaffAuditDetailByAction {
   readonly "kitchen-opened": null;
   readonly "note-added": null;
   readonly "status-changed": StatusChangedDetail;
   readonly "kitchen-unhidden": null;
   readonly "kitchens-listed": KitchensListedDetail;
+  readonly "audit-viewed": AuditViewedDetail;
 }
 
 export type StaffAuditEntry = {
@@ -71,6 +87,14 @@ const KITCHENS_LISTED_KEYS = Object.freeze([
   "hasSearch",
 ]);
 
+const AUDIT_VIEWED_KEYS = Object.freeze([
+  "page",
+  "rowCount",
+  "hasActorFilter",
+  "hasActionFilter",
+  "hasDateFilter",
+]);
+
 /** Whether the row names a design. A new action must be classified here before it compiles. */
 export const STAFF_AUDIT_ACTION_NAMES_DESIGN: Readonly<
   Record<StaffAuditAction, boolean>
@@ -80,13 +104,14 @@ export const STAFF_AUDIT_ACTION_NAMES_DESIGN: Readonly<
   "status-changed": true,
   "kitchen-unhidden": true,
   "kitchens-listed": false,
+  "audit-viewed": false,
 });
 
 export function auditActionNamesDesign(action: StaffAuditAction): boolean {
   return STAFF_AUDIT_ACTION_NAMES_DESIGN[action];
 }
 
-/** A row names a design exactly when its action does: the list names none, every other action names one. */
+/** A row names a design exactly when its action does: the two list views name none, every other action names one. */
 export function auditActionAcceptsDesignId(
   action: StaffAuditAction,
   designId: string | null,
@@ -109,6 +134,8 @@ export function readStaffAuditEntry(
       return readStatusChangedEntry(detail);
     case "kitchens-listed":
       return readKitchensListedEntry(detail);
+    case "audit-viewed":
+      return readAuditViewedEntry(detail);
     default:
       return isAbsent(detail)
         ? { ok: true, entry: { action, detail: null } }
@@ -144,7 +171,7 @@ function readKitchensListedEntry(detail: unknown): StaffAuditEntryReading {
     !isStaffKitchenSegment(segment) ||
     !(status === null || isRequestStatus(status)) ||
     !isPositiveSafeInteger(page) ||
-    !isRowCount(rowCount) ||
+    !isRowCountUpTo(rowCount, STAFF_KITCHEN_PAGE_SIZE) ||
     typeof hasSearch !== "boolean"
   ) {
     return refused("INVALID_DETAIL");
@@ -158,16 +185,49 @@ function readKitchensListedEntry(detail: unknown): StaffAuditEntryReading {
   };
 }
 
+function readAuditViewedEntry(detail: unknown): StaffAuditEntryReading {
+  if (!isPlainObject(detail) || holdsUnknownKey(detail, AUDIT_VIEWED_KEYS)) {
+    return refused("INVALID_DETAIL");
+  }
+  const page = ownValueOf(detail, "page");
+  const rowCount = ownValueOf(detail, "rowCount");
+  const hasActorFilter = ownValueOf(detail, "hasActorFilter");
+  const hasActionFilter = ownValueOf(detail, "hasActionFilter");
+  const hasDateFilter = ownValueOf(detail, "hasDateFilter");
+  if (
+    !isPositiveSafeInteger(page) ||
+    !isRowCountUpTo(rowCount, STAFF_AUDIT_PAGE_SIZE) ||
+    typeof hasActorFilter !== "boolean" ||
+    typeof hasActionFilter !== "boolean" ||
+    typeof hasDateFilter !== "boolean"
+  ) {
+    return refused("INVALID_DETAIL");
+  }
+  return {
+    ok: true,
+    entry: {
+      action: "audit-viewed",
+      detail: Object.freeze({
+        page,
+        rowCount,
+        hasActorFilter,
+        hasActionFilter,
+        hasDateFilter,
+      }),
+    },
+  };
+}
+
 function isPositiveSafeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 1;
 }
 
-function isRowCount(value: unknown): value is number {
+function isRowCountUpTo(value: unknown, pageSize: number): value is number {
   return (
     typeof value === "number" &&
     Number.isInteger(value) &&
     value >= 0 &&
-    value <= STAFF_KITCHEN_PAGE_SIZE
+    value <= pageSize
   );
 }
 

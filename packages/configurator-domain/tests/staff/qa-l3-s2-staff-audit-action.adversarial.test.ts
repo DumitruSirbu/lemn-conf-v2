@@ -27,7 +27,11 @@ function entryOf(action: unknown, detail: unknown): StaffAuditEntry {
   return reading.entry;
 }
 
-const HAS_DETAIL: readonly string[] = ["status-changed", "kitchens-listed"];
+const HAS_DETAIL: readonly string[] = [
+  "status-changed",
+  "kitchens-listed",
+  "audit-viewed",
+];
 
 function detailOf(entry: StaffAuditEntry): object {
   if (entry.detail === null) throw new Error("expected a detail");
@@ -254,7 +258,7 @@ describe("an action that is not one of the four", () => {
         ]);
         expect(REQUEST_STATUSES).toContain(reading.entry.detail.from);
         expect(REQUEST_STATUSES).toContain(reading.entry.detail.to);
-      } else if (reading.entry.action !== "kitchens-listed") {
+      } else if (!HAS_DETAIL.includes(reading.entry.action)) {
         expect(reading.entry.detail).toBeNull();
       }
     },
