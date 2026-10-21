@@ -1410,11 +1410,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     statusUnrecognised: "Status necunoscut",
     statusOnlyForSent: "Disponibil doar la „Trimise”",
     countSent:
-      "{count, plural, one {# bucătărie trimisă} few {# bucătării trimise} other {# de bucătării trimise}}",
+      "{count, plural, one {{count, number, ::group-off} bucătărie trimisă} few {{count, number, ::group-off} bucătării trimise} other {{count, number, ::group-off} de bucătării trimise}}",
     countDrafts:
-      "{count, plural, one {# ciornă} few {# ciorne} other {# de ciorne}}",
+      "{count, plural, one {{count, number, ::group-off} ciornă} few {{count, number, ::group-off} ciorne} other {{count, number, ::group-off} de ciorne}}",
     countAll:
-      "{count, plural, one {# bucătărie} few {# bucătării} other {# de bucătării}}",
+      "{count, plural, one {{count, number, ::group-off} bucătărie} few {{count, number, ::group-off} bucătării} other {{count, number, ::group-off} de bucătării}}",
     sortSent: "Cele mai recent trimise întâi",
     sortModified: "Cele mai recent modificate întâi",
     columnImage: "Imagine",

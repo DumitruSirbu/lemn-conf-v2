@@ -51,7 +51,7 @@ function sentenceOf(locale: "ro" | "ru", key: string, count: number): string {
 }
 
 function numberOf(locale: "ro" | "ru", count: number): string {
-  return new Intl.NumberFormat(locale).format(count);
+  return new Intl.NumberFormat(locale, { useGrouping: false }).format(count);
 }
 
 describe.each(MESSAGES)("the count sentence %s", (key) => {
