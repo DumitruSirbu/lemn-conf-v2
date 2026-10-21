@@ -301,6 +301,21 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       expect(has("staff-kitchen-hidden-banner")).toBe(false);
     });
 
+    it("asks for nothing but to read: every request is a GET of this kitchen or of the session, whatever is pressed", async () => {
+      for (const chip of allIn(page(), "button")) click(chip);
+      await settle();
+
+      const asked = server.requests.map(({ url, init }) => [
+        init.method ?? "GET",
+        url.pathname,
+      ]);
+      expect(asked.length).toBeGreaterThan(0);
+      for (const [method, path] of asked) {
+        expect(method).toBe("GET");
+        expect([KITCHEN_ADDRESS, "/api/account/session"]).toContain(path);
+      }
+    });
+
     it("keeps the next wave's controls out: no field, no select, no button but the camera's and the way back", () => {
       expect(allIn(page(), "select, textarea, input")).toHaveLength(0);
       const buttons = allIn(page(), "button");
