@@ -19,9 +19,9 @@ import {
   unhideRequest,
 } from "./staff-actions-world";
 
-// The three staff write routes as one table for the adversarial QA of wave L3-S7: what each is called, which
-// capability and bucket it names, what a request that succeeds looks like and which kitchen it needs. The test file
-// that uses it mocks the session store and the staff actions store instance, as the developer's files do.
+// The three staff write routes as one table for their tests: what each is called, which capability and bucket it
+// names, what a request that succeeds looks like and which kitchen it needs. A test file that uses it mocks the session
+// store and the staff actions store instance.
 
 export type WriteRouteName = "notes" | "status" | "unhide";
 export type WriteEvent = "staff-note" | "staff-status" | "staff-unhide";

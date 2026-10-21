@@ -20,7 +20,7 @@ import {
   type StaffCaller,
 } from "./staff-world";
 
-// The staff write routes' world for a test (M8B Lot 3, L3-S7): the persistence package's staff actions store fake, joined
+// The staff write routes' world for a test: the persistence package's staff actions store fake, joined
 // to the account world's sessions and to the staff world's audit store the way the database joins them (the actor is the
 // account of the live session the cookie names, and the audit row commits with the change or not at all). A test mocks
 // the instance module with `staffKitchenActionsStoreModule()` and calls `freshStaffActionsWorld()` after

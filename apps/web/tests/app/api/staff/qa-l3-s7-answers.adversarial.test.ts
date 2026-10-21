@@ -20,7 +20,7 @@ import {
   WRITE_ROUTES,
   type AskInit,
   type WriteRoute,
-} from "../../../support/qa-l3-s7-write-routes";
+} from "../../../support/staff-write-routes";
 import {
   freshStaffActionsWorld,
   plantActionKitchen,

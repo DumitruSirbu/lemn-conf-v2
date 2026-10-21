@@ -37,7 +37,7 @@ const route = await import("@/app/api/staff/kitchens/[id]/status/route");
 const { PUT } = route;
 
 /**
- * `PUT /api/staff/kitchens/{id}/status` (M8B Lot 3, E-L3-4, K-7; ADR 0173). Each answer of the store maps to the one
+ * `PUT /api/staff/kitchens/{id}/status` (ADR 0173). Each answer of the store maps to the one
  * the port documents: saved and unchanged are `200`, a status that cannot be saved is a `409` with a word, and a
  * kitchen staff cannot see gets the one refusal.
  */
@@ -198,7 +198,7 @@ describe("a status the kitchen already shows (unchanged)", () => {
 });
 
 describe("a status that cannot be saved", () => {
-  it("is 409 not-sent for a draft, and writes nothing (K-7)", async () => {
+  it("is 409 not-sent for a draft, and writes nothing", async () => {
     const { session } = await signedInOperator();
     const { id } = plantActionKitchen({ isSent: false });
 
@@ -322,24 +322,9 @@ describe("the status member", () => {
     expect(await jsonOf(answer)).toEqual({ status: "invalid-request" });
     expect(actions.calls).toEqual([]);
   });
-
-  it("is 415 for a body that is not JSON and 413 for one past 8 KiB", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantActionKitchen();
-
-    const notJson = await setStatus(id, session.cookie, '{"status":"closed"}', {
-      contentType: "text/plain",
-    });
-    const huge = await setStatus(id, session.cookie, {
-      status: "x".repeat(8 * 1024),
-    });
-
-    expect([notJson.status, huge.status]).toEqual([415, 413]);
-    expect(actions.calls).toEqual([]);
-  });
 });
 
-describe("the one kitchen refusal (K-4)", () => {
+describe("the one kitchen refusal", () => {
   it("is byte-identical for an unknown id, a client-deleted kitchen and a visitor's unsent draft, and a hidden kitchen is not refused", async () => {
     const { session } = await signedInOperator();
     const unknown = "U".repeat(21);
@@ -386,7 +371,7 @@ describe("the one kitchen refusal (K-4)", () => {
   });
 });
 
-describe("a write and its audit row are one thing (K-3, at the route)", () => {
+describe("a write and its audit row are one thing (at the route)", () => {
   it("answers 503 with no detail when the audit row cannot be staged, and the status is not visible", async () => {
     const { session } = await signedInOperator();
     const { id } = plantActionKitchen();
@@ -429,30 +414,5 @@ describe("a write and its audit row are one thing (K-3, at the route)", () => {
     expect(answer.status).toBe(401);
     expect(actions.store.heldStatus(id)).toBeUndefined();
     expect(heldEvents()).toEqual([]);
-  });
-});
-
-describe("the route's inventory and order", () => {
-  it("answers to PUT alone", () => {
-    expect(Object.keys(route).sort()).toEqual(["PUT", "dynamic", "runtime"]);
-  });
-
-  it("refuses a cross-site request first: no session is read and no store is asked", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantActionKitchen();
-    world.calls.length = 0;
-
-    for (const secFetchSite of ["cross-site", "same-site", "none"]) {
-      const answer = await setStatus(
-        id,
-        session.cookie,
-        { status: "closed" },
-        { secFetchSite },
-      );
-      expect(answer.status).toBe(403);
-      expect(await jsonOf(answer)).toEqual({ status: "cross-site" });
-    }
-    expect(world.calls).toEqual([]);
-    expect(actions.calls).toEqual([]);
   });
 });

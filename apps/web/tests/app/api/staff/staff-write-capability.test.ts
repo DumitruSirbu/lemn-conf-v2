@@ -11,12 +11,9 @@ import {
 } from "../../../support/account-world";
 import {
   freshStaffActionsWorld,
-  noteRequest,
-  plantActionKitchen,
-  statusRequest,
-  unhideRequest,
   type StaffActionsWorld,
 } from "../../../support/staff-actions-world";
+import { BODY_ROUTES, WRITE_ROUTES } from "../../../support/staff-write-routes";
 import {
   freshStaffWorld,
   signedInAs,
@@ -51,18 +48,8 @@ vi.mock("@/lib/server/staff/staff-kitchen-actions-store-instance", () =>
   ),
 );
 
-const { POST: NOTES } = await import(
-  "@/app/api/staff/kitchens/[id]/notes/route"
-);
-const { PUT: STATUS } = await import(
-  "@/app/api/staff/kitchens/[id]/status/route"
-);
-const { POST: UNHIDE } = await import(
-  "@/app/api/staff/kitchens/[id]/unhide/route"
-);
-
 /**
- * K-1 of the Lot 3 plan for the three staff write routes: the answer is `401` without a live session, `403` for a
+ * The three staff write routes: the answer is `401` without a live session, `403` for a
  * session that does not hold the route's capability (a client, or a staff address not yet confirmed), and the route's
  * success otherwise. A client's session reaches no store and leaves no row. The table is written out, not derived from
  * `isCapabilityHeld`, so a change to who may write on a client's kitchen has to be made here on purpose.
@@ -153,84 +140,19 @@ function slug(name: string): string {
   return name.replaceAll(/[^a-z]+/g, "-");
 }
 
-type Ask = (
-  id: string,
-  cookie: string | undefined,
-  claims?: Claims,
-) => Promise<Response>;
-
-interface Claims {
-  readonly body?: Readonly<Record<string, unknown>>;
-  readonly headers?: Record<string, string>;
-}
-
-interface StaffWriteRoute {
-  readonly title: string;
-  readonly capability: string;
-  readonly success: 200 | 201 | 204;
-  /** A kitchen the route's success needs: a note needs any, a status a sent one, an unhide a hidden one. */
-  readonly plant: () => string;
-  readonly ask: Ask;
-}
-
-const ROUTES: readonly StaffWriteRoute[] = [
-  {
-    title: "adding a note",
-    capability: "note.write",
-    success: 201,
-    plant: () => plantActionKitchen().id,
-    ask: (id, cookie, claims = {}) =>
-      NOTES(
-        noteRequest(id, {
-          json: { text: "Called the client", ...claims.body },
-          ...(cookie === undefined ? {} : { cookie }),
-          ...(claims.headers === undefined ? {} : { headers: claims.headers }),
-        }),
-        { params: Promise.resolve({ id }) },
-      ),
-  },
-  {
-    title: "setting a status",
-    capability: "contact.update-status",
-    success: 200,
-    plant: () => plantActionKitchen({ isSent: true }).id,
-    ask: (id, cookie, claims = {}) =>
-      STATUS(
-        statusRequest(id, {
-          json: { status: "contacted", ...claims.body },
-          ...(cookie === undefined ? {} : { cookie }),
-          ...(claims.headers === undefined ? {} : { headers: claims.headers }),
-        }),
-        { params: Promise.resolve({ id }) },
-      ),
-  },
-  {
-    title: "unhiding a kitchen",
-    capability: "design.unhide",
-    success: 204,
-    plant: () => plantActionKitchen({ isHidden: true }).id,
-    ask: (id, cookie, claims = {}) =>
-      UNHIDE(
-        unhideRequest(id, {
-          ...(cookie === undefined ? {} : { cookie }),
-          ...(claims.headers === undefined ? {} : { headers: claims.headers }),
-        }),
-        { params: Promise.resolve({ id }) },
-      ),
-  },
-];
-
 function nothingWasWritten(): void {
   expect(actions.calls).toEqual([]);
   expect(staffWorld.audit.heldEvents()).toEqual([]);
 }
 
-describe.each(ROUTES)("$title", (route) => {
+describe.each(WRITE_ROUTES)("$name", (route) => {
   it.each(EXPECTED)("answers %s with %s", async (name, expected) => {
-    const kitchenId = route.plant();
+    const kitchenId = route.plantReady();
     const cookie = await cookieOf(name);
 
-    const answer = await route.ask(kitchenId, cookie);
+    const answer = await route.ask(kitchenId, {
+      ...(cookie === undefined ? {} : { cookie }),
+    });
 
     if (expected === "success") {
       expect(answer.status).toBe(route.success);
@@ -244,18 +166,18 @@ describe.each(ROUTES)("$title", (route) => {
     nothingWasWritten();
   });
 
-  it("asks for the capability the plan assigns to the route, and for no other", async () => {
-    const kitchenId = route.plant();
+  it("asks for the capability that names the route, and for no other", async () => {
+    const kitchenId = route.plantReady();
     const { session } = await signedInAs({ role: "operator" });
     capabilitiesAsked.length = 0;
 
-    await route.ask(kitchenId, session.cookie);
+    await route.ask(kitchenId, { cookie: session.cookie });
 
     expect(capabilitiesAsked).toEqual([route.capability]);
   });
 
   it("lets no role, capability or account in a header change the answer", async () => {
-    const kitchenId = route.plant();
+    const kitchenId = route.plantReady();
     const client = await signedInAs({ role: "client" });
     const operator = await signedInAs({ role: "operator" });
     const headers = {
@@ -265,14 +187,14 @@ describe.each(ROUTES)("$title", (route) => {
       authorization: `Bearer ${operator.account.id}`,
     };
 
-    const asClient = await route.ask(kitchenId, client.session.cookie, {
+    const asClient = await route.ask(kitchenId, {
+      cookie: client.session.cookie,
       headers,
     });
-    const asOperatorClaiming = await route.ask(
-      kitchenId,
-      operator.session.cookie,
-      { headers: { "x-role": "client" } },
-    );
+    const asOperatorClaiming = await route.ask(kitchenId, {
+      cookie: operator.session.cookie,
+      headers: { "x-role": "client" },
+    });
 
     expect(asClient.status).toBe(403);
     expect(asOperatorClaiming.status).toBe(route.success);
@@ -280,38 +202,31 @@ describe.each(ROUTES)("$title", (route) => {
   });
 });
 
-describe("a member of the body that names an account, a role or a capability", () => {
-  it.each([
-    ["adding a note", ROUTES[0]],
-    ["setting a status", ROUTES[1]],
-  ] as const)(
-    "gives a client 403 and an operator 400 on %s, and writes nothing for either",
-    async (_title, route) => {
-      if (route === undefined) throw new Error("no route");
-      const kitchenId = route.plant();
+describe.each(BODY_ROUTES)(
+  "a body member that names an account, a role or a capability on $name",
+  (route) => {
+    it("gives a client 403 and an operator 400, and writes nothing for either", async () => {
+      const kitchenId = route.plantReady();
       const client = await signedInAs({ role: "client" });
       const operator = await signedInAs({ role: "operator" });
-      const claims = {
-        body: {
-          role: "administrator",
-          capabilities: [route.capability],
-          accountId: operator.account.id,
-        },
+      const json = {
+        ...route.validBody,
+        role: "administrator",
+        capabilities: [route.capability],
+        accountId: operator.account.id,
       };
 
-      const asClient = await route.ask(
-        kitchenId,
-        client.session.cookie,
-        claims,
-      );
-      const asOperator = await route.ask(
-        kitchenId,
-        operator.session.cookie,
-        claims,
-      );
+      const asClient = await route.ask(kitchenId, {
+        cookie: client.session.cookie,
+        json,
+      });
+      const asOperator = await route.ask(kitchenId, {
+        cookie: operator.session.cookie,
+        json,
+      });
 
       expect([asClient.status, asOperator.status]).toEqual([403, 400]);
       nothingWasWritten();
-    },
-  );
-});
+    });
+  },
+);

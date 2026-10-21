@@ -35,7 +35,7 @@ const route = await import("@/app/api/staff/kitchens/[id]/notes/route");
 const { POST } = route;
 
 /**
- * `POST /api/staff/kitchens/{id}/notes` (M8B Lot 3, E-L3-3, K-8; ADR 0173). A note is judged by the domain before the
+ * `POST /api/staff/kitchens/{id}/notes` (ADR 0173). A note is judged by the domain before the
  * store is asked, is written with its audit row or not at all, and is answered, text included, only in the `201`.
  */
 
@@ -333,25 +333,6 @@ describe("a body that is not the one member the route takes", () => {
     );
   });
 
-  it("is 415 for a body that is not JSON, before any session is read", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantActionKitchen();
-    world.calls.length = 0;
-
-    for (const contentType of [
-      "text/plain",
-      "application/x-www-form-urlencoded",
-      null,
-    ]) {
-      const answer = await addNote(id, session.cookie, '{"text":"x"}', {
-        contentType,
-      });
-      expect(answer.status).toBe(415);
-    }
-    expect(world.calls).toEqual([]);
-    expect(actions.calls).toEqual([]);
-  });
-
   it("reads the media type by its type alone, whatever parameters follow and in whatever case", async () => {
     const { session } = await signedInOperator();
     const { id } = plantActionKitchen();
@@ -367,22 +348,9 @@ describe("a body that is not the one member the route takes", () => {
 
     expect(answer.status).toBe(201);
   });
-
-  it("is 413 for a body past 8 KiB, and writes nothing", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantActionKitchen();
-
-    const answer = await addNote(id, session.cookie, {
-      text: "a".repeat(8 * 1024),
-    });
-
-    expect(answer.status).toBe(413);
-    expect(await jsonOf(answer)).toEqual({ status: "body-too-large" });
-    expect(actions.calls).toEqual([]);
-  });
 });
 
-describe("the one kitchen refusal (K-4)", () => {
+describe("the one kitchen refusal", () => {
   it("is byte-identical for an unknown id, a malformed id, a client-deleted kitchen and a visitor's unsent draft", async () => {
     const { session } = await signedInOperator();
     const unknown = "U".repeat(21);
@@ -457,7 +425,7 @@ describe("what the note's text reaches", () => {
   });
 });
 
-describe("a write and its audit row are one thing (K-3, at the route)", () => {
+describe("a write and its audit row are one thing (at the route)", () => {
   it("answers 503 with no detail when the audit row cannot be staged, and no note is visible", async () => {
     const { session } = await signedInOperator();
     const { id } = plantActionKitchen();
@@ -516,29 +484,6 @@ describe("a write and its audit row are one thing (K-3, at the route)", () => {
 });
 
 describe("the route's inventory and headers", () => {
-  it("answers to POST alone: no PATCH, PUT or DELETE (a note is not edited or removed)", () => {
-    expect(Object.keys(route).sort()).toEqual(["POST", "dynamic", "runtime"]);
-  });
-
-  it("refuses a cross-site request first: no session is read and no store is asked", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantActionKitchen();
-    world.calls.length = 0;
-
-    for (const secFetchSite of ["cross-site", "same-site", "none"]) {
-      const answer = await addNote(
-        id,
-        session.cookie,
-        { text: "x" },
-        { secFetchSite },
-      );
-      expect(answer.status).toBe(403);
-      expect(await jsonOf(answer)).toEqual({ status: "cross-site" });
-    }
-    expect(world.calls).toEqual([]);
-    expect(actions.calls).toEqual([]);
-  });
-
   it.each([
     ["a success", { text: "x" }, 201],
     ["a refused text", { text: "" }, 400],

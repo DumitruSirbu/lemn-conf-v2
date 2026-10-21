@@ -35,9 +35,9 @@ const route = await import("@/app/api/staff/kitchens/[id]/unhide/route");
 const { POST } = route;
 
 /**
- * `POST /api/staff/kitchens/{id}/unhide` (M8B Lot 3, E-L3-5, K-6; ADR 0173, ADR 0019 d11, ADR 0172 Amendment G item 3).
- * The route clears the hide mark and nothing else, commits it with its audit row, and says `409 not-hidden` to a kitchen
- * that is not hidden. The route is built in full; the owner must accept hide and unhide again before production.
+ * `POST /api/staff/kitchens/{id}/unhide` (ADR 0173). The route clears the hide mark and nothing else, commits it with
+ * its audit row, and says `409 not-hidden` to a kitchen that is not hidden. The owner must accept hide and unhide again
+ * before production (ADR 0172 Amendment G item 3).
  */
 
 let world: AccountWorld;
@@ -186,7 +186,7 @@ describe("a kitchen that is not hidden", () => {
   });
 });
 
-describe("the one kitchen refusal (K-4)", () => {
+describe("the one kitchen refusal", () => {
   it("is byte-identical for an unknown id, a client-deleted kitchen and a visitor's unsent draft", async () => {
     const { session } = await signedInOperator();
     const unknown = "U".repeat(21);
@@ -228,7 +228,7 @@ describe("the one kitchen refusal (K-4)", () => {
   });
 });
 
-describe("a write and its audit row are one thing (K-3, at the route)", () => {
+describe("a write and its audit row are one thing (at the route)", () => {
   it("answers 503 with no detail when the audit row cannot be staged, and the kitchen stays hidden", async () => {
     const { session } = await signedInOperator();
     const { id } = plantActionKitchen({ isHidden: true });
@@ -271,25 +271,5 @@ describe("a write and its audit row are one thing (K-3, at the route)", () => {
     expect(answer.status).toBe(401);
     expect(actions.store.heldKitchen(id)?.isHidden).toBe(true);
     expect(heldEvents()).toEqual([]);
-  });
-});
-
-describe("the route's inventory and order", () => {
-  it("answers to POST alone", () => {
-    expect(Object.keys(route).sort()).toEqual(["POST", "dynamic", "runtime"]);
-  });
-
-  it("refuses a cross-site request first: no session is read and no store is asked", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantActionKitchen({ isHidden: true });
-    world.calls.length = 0;
-
-    for (const secFetchSite of ["cross-site", "same-site", "none"]) {
-      const answer = await unhide(id, session.cookie, { secFetchSite });
-      expect(answer.status).toBe(403);
-      expect(await jsonOf(answer)).toEqual({ status: "cross-site" });
-    }
-    expect(world.calls).toEqual([]);
-    expect(actions.calls).toEqual([]);
   });
 });

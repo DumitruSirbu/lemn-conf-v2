@@ -17,13 +17,17 @@ import {
 } from "../../../support/account-world";
 import {
   freshStaffActionsWorld,
-  noteRequest,
-  plantActionKitchen,
   signedInStaffNamed,
-  statusRequest,
-  unhideRequest,
   type StaffActionsWorld,
 } from "../../../support/staff-actions-world";
+import {
+  NOTES_ROUTE,
+  STATUS_ROUTE,
+  UNHIDE_ROUTE,
+  WRITE_ROUTES,
+  type WriteRoute,
+  type WriteRouteName,
+} from "../../../support/staff-write-routes";
 import { freshStaffWorld } from "../../../support/staff-world";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
@@ -36,23 +40,6 @@ vi.mock("@/lib/server/staff/staff-kitchen-actions-store-instance", () =>
     world.staffKitchenActionsStoreModule(),
   ),
 );
-
-const { POST: NOTES } = await import(
-  "@/app/api/staff/kitchens/[id]/notes/route"
-);
-const { PUT: STATUS } = await import(
-  "@/app/api/staff/kitchens/[id]/status/route"
-);
-const { POST: UNHIDE } = await import(
-  "@/app/api/staff/kitchens/[id]/unhide/route"
-);
-
-/**
- * What a thrown `StaffKitchenActionError` becomes at each staff write route, by the port's documented mapping:
- * `not-recorded` is 401; `invalid-request` is 400 naming the field (`text` or `status`); `unavailable`,
- * `unexpected-answer` and `database` are 503 with no detail. An `invalid-request` for the audit record (no field a
- * person can correct) and any error that is not the store's are 503 too.
- */
 
 let actions: StaffActionsWorld;
 let console_: ReturnType<typeof captureConsole>;
@@ -70,51 +57,16 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-interface FailingRoute {
-  readonly title: string;
+interface StoreSeam {
   readonly operation: StaffKitchenActionOperation;
-  /** Makes the fake's method throw `failure`, then asks the route once. */
-  readonly askWhenStoreThrows: (
-    failure: unknown,
-    cookie: string,
-    id: string,
-  ) => Promise<Response>;
+  readonly method: "addNote" | "setStatus" | "unhide";
 }
 
-const NOTE_ROUTE: FailingRoute = {
-  title: "adding a note",
-  operation: "add a staff note",
-  askWhenStoreThrows: (failure, cookie, id) => {
-    vi.spyOn(actions.store, "addNote").mockRejectedValue(failure);
-    return NOTES(noteRequest(id, { cookie, json: { text: "A note" } }), {
-      params: Promise.resolve({ id }),
-    });
-  },
+const STORE_SEAM_OF_ROUTE: Readonly<Record<WriteRouteName, StoreSeam>> = {
+  notes: { operation: "add a staff note", method: "addNote" },
+  status: { operation: "set a request status", method: "setStatus" },
+  unhide: { operation: "unhide a kitchen", method: "unhide" },
 };
-
-const STATUS_ROUTE: FailingRoute = {
-  title: "setting a status",
-  operation: "set a request status",
-  askWhenStoreThrows: (failure, cookie, id) => {
-    vi.spyOn(actions.store, "setStatus").mockRejectedValue(failure);
-    return STATUS(statusRequest(id, { cookie, json: { status: "closed" } }), {
-      params: Promise.resolve({ id }),
-    });
-  },
-};
-
-const UNHIDE_ROUTE: FailingRoute = {
-  title: "unhiding a kitchen",
-  operation: "unhide a kitchen",
-  askWhenStoreThrows: (failure, cookie, id) => {
-    vi.spyOn(actions.store, "unhide").mockRejectedValue(failure);
-    return UNHIDE(unhideRequest(id, { cookie }), {
-      params: Promise.resolve({ id }),
-    });
-  },
-};
-
-const ROUTES = [NOTE_ROUTE, STATUS_ROUTE, UNHIDE_ROUTE] as const;
 
 function failureOf(
   operation: StaffKitchenActionOperation,
@@ -127,18 +79,31 @@ function failureOf(
   });
 }
 
-async function ask(route: FailingRoute, failure: unknown): Promise<Response> {
+/** Makes the fake's method for the route throw `failure`, then asks the route once. */
+async function ask(route: WriteRoute, failure: unknown): Promise<Response> {
   const { session } = await signedInStaffNamed(
     { role: "operator" },
     "operator@example.test",
   );
-  const { id } = plantActionKitchen({ isHidden: true });
-  return route.askWhenStoreThrows(failure, session.cookie, id);
+  const id = route.plantReady();
+  vi.spyOn(
+    actions.store,
+    STORE_SEAM_OF_ROUTE[route.name].method,
+  ).mockRejectedValue(failure);
+  return route.ask(id, { cookie: session.cookie });
 }
 
-describe.each(ROUTES)("$title", (route) => {
+function failureOfRoute(
+  route: WriteRoute,
+  kind: StaffKitchenActionFailure,
+  refusal?: StaffKitchenActionRefusal,
+): StaffKitchenActionError {
+  return failureOf(STORE_SEAM_OF_ROUTE[route.name].operation, kind, refusal);
+}
+
+describe.each(WRITE_ROUTES)("$name", (route) => {
   it("answers 401 for a call that had no live session behind it", async () => {
-    const answer = await ask(route, failureOf(route.operation, "not-recorded"));
+    const answer = await ask(route, failureOfRoute(route, "not-recorded"));
 
     expect(answer.status).toBe(401);
     expect(await jsonOf(answer)).toEqual({ status: "unauthenticated" });
@@ -147,7 +112,7 @@ describe.each(ROUTES)("$title", (route) => {
   it.each(["unavailable", "unexpected-answer", "database"] as const)(
     "answers 503 with no detail for %s",
     async (kind) => {
-      const answer = await ask(route, failureOf(route.operation, kind));
+      const answer = await ask(route, failureOfRoute(route, kind));
 
       expect(answer.status).toBe(503);
       expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
@@ -160,7 +125,7 @@ describe.each(ROUTES)("$title", (route) => {
   it("answers 503 for a refusal of the audit record: that is not a field a person can correct", async () => {
     const answer = await ask(
       route,
-      failureOf(route.operation, "invalid-request", "SESSION_NOT_WELL_FORMED"),
+      failureOfRoute(route, "invalid-request", "SESSION_NOT_WELL_FORMED"),
     );
 
     expect(answer.status).toBe(503);
@@ -174,17 +139,21 @@ describe.each(ROUTES)("$title", (route) => {
     expect(await answer.clone().text()).not.toContain(DRIVER_FAILURE_MARKER);
     expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
   });
+
+  it("writes one log line naming the route's own event and the outcome unavailable", async () => {
+    await ask(route, failureOfRoute(route, "database"));
+
+    expect(console_.accountLines()).toEqual([
+      { event: route.event, outcome: "unavailable" },
+    ]);
+  });
 });
 
 describe("a refusal the store makes of what the route judged", () => {
   it("is 400 naming the field text when the store would not have stored the note as given", async () => {
     const answer = await ask(
-      NOTE_ROUTE,
-      failureOf(
-        NOTE_ROUTE.operation,
-        "invalid-request",
-        "NOTE_TEXT_NOT_JUDGED",
-      ),
+      NOTES_ROUTE,
+      failureOfRoute(NOTES_ROUTE, "invalid-request", "NOTE_TEXT_NOT_JUDGED"),
     );
 
     expect(answer.status).toBe(400);
@@ -197,11 +166,7 @@ describe("a refusal the store makes of what the route judged", () => {
   it("is 400 naming the field status when the store finds the status outside the list", async () => {
     const answer = await ask(
       STATUS_ROUTE,
-      failureOf(
-        STATUS_ROUTE.operation,
-        "invalid-request",
-        "STATUS_NOT_IN_LIST",
-      ),
+      failureOfRoute(STATUS_ROUTE, "invalid-request", "STATUS_NOT_IN_LIST"),
     );
 
     expect(answer.status).toBe(400);
@@ -210,4 +175,22 @@ describe("a refusal the store makes of what the route judged", () => {
       issues: [{ field: "status", code: "STATUS_NOT_IN_LIST" }],
     });
   });
+
+  it.each([
+    ["the note route", NOTES_ROUTE, "STATUS_NOT_IN_LIST"],
+    ["the status route", STATUS_ROUTE, "NOTE_TEXT_NOT_JUDGED"],
+    ["the unhide route", UNHIDE_ROUTE, "NOTE_TEXT_NOT_JUDGED"],
+    ["the unhide route", UNHIDE_ROUTE, "STATUS_NOT_IN_LIST"],
+  ] as const)(
+    "is 503 on %s for a refusal that belongs to another write: %s",
+    async (_title, route, refusal) => {
+      const answer = await ask(
+        route,
+        failureOfRoute(route, "invalid-request", refusal),
+      );
+
+      expect(answer.status).toBe(503);
+      expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+    },
+  );
 });
