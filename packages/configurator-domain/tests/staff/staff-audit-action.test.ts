@@ -27,12 +27,13 @@ function entryOf(action: unknown, detail: unknown): StaffAuditEntry {
 }
 
 describe("the staff audit actions", () => {
-  it("are the four that Lot 3 builds, each a code and not a sentence", () => {
+  it("are the five that Lot 3 builds, each a code and not a sentence", () => {
     expect(STAFF_AUDIT_ACTIONS).toEqual([
       "kitchen-opened",
       "note-added",
       "status-changed",
       "kitchen-unhidden",
+      "kitchens-listed",
     ]);
   });
 

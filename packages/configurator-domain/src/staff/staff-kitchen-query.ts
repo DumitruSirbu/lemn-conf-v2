@@ -138,6 +138,12 @@ function statusOutsideSentConflicts(
     : [];
 }
 
+export function isStaffKitchenSegment(
+  value: unknown,
+): value is StaffKitchenSegment {
+  return STAFF_KITCHEN_SEGMENTS.some((segment) => segment === value);
+}
+
 function readSegment(value: unknown): FieldReading<StaffKitchenSegment> {
   if (isAbsent(value)) return accepted(DEFAULT_STAFF_KITCHEN_SEGMENT);
   if (typeof value !== "string") return refused("segment", "NOT_TEXT");

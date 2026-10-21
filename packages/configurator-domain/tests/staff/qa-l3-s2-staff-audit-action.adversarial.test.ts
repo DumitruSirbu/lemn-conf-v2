@@ -27,6 +27,8 @@ function entryOf(action: unknown, detail: unknown): StaffAuditEntry {
   return reading.entry;
 }
 
+const HAS_DETAIL: readonly string[] = ["status-changed", "kitchens-listed"];
+
 function detailOf(entry: StaffAuditEntry): object {
   if (entry.detail === null) throw new Error("expected a detail");
   return entry.detail;
@@ -159,7 +161,7 @@ describe("the stored detail is rebuilt from the two codes, never the caller's ob
 
 describe("an action that takes no detail refuses every kind of value that is not absent", () => {
   const ACTIONS_WITHOUT_DETAIL = STAFF_AUDIT_ACTIONS.filter(
-    (action) => action !== "status-changed",
+    (action) => !HAS_DETAIL.includes(action),
   );
 
   it.each([
@@ -245,13 +247,15 @@ describe("an action that is not one of the four", () => {
       }
       expect(STAFF_AUDIT_ACTIONS).toContain(reading.entry.action);
       expect(Object.keys(reading.entry).sort()).toEqual(["action", "detail"]);
-      if (reading.entry.detail !== null) {
+      if (reading.entry.action === "status-changed") {
         expect(Object.keys(reading.entry.detail).sort()).toEqual([
           "from",
           "to",
         ]);
         expect(REQUEST_STATUSES).toContain(reading.entry.detail.from);
         expect(REQUEST_STATUSES).toContain(reading.entry.detail.to);
+      } else if (reading.entry.action !== "kitchens-listed") {
+        expect(reading.entry.detail).toBeNull();
       }
     },
   );
@@ -261,7 +265,7 @@ describe("the entry as the database holds it", () => {
   it("reads back as itself after the JSON column", () => {
     const entries: StaffAuditEntry[] = [
       ...STAFF_AUDIT_ACTIONS.filter(
-        (action) => action !== "status-changed",
+        (action) => !HAS_DETAIL.includes(action),
       ).map((action) => entryOf(action, null)),
       ...REQUEST_STATUSES.flatMap((from) =>
         REQUEST_STATUSES.map((to) => entryOf("status-changed", { from, to })),

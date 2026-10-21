@@ -363,13 +363,17 @@ export {
   type RequestStatusFacts,
 } from "./staff/request-status.js";
 export {
+  auditActionAcceptsDesignId,
+  auditActionNamesDesign,
   isStaffAuditAction,
   readStaffAuditEntry,
+  STAFF_AUDIT_ACTION_NAMES_DESIGN,
   STAFF_AUDIT_ACTIONS,
   type StaffAuditAction,
   type StaffAuditEntry,
   type StaffAuditEntryReading,
   type StaffAuditRefusalCode,
+  type KitchensListedDetail,
   type StatusChangedDetail,
 } from "./staff/staff-audit-action.js";
 export {
@@ -380,6 +384,7 @@ export {
 } from "./staff/note-text.js";
 export {
   DEFAULT_STAFF_KITCHEN_SEGMENT,
+  isStaffKitchenSegment,
   readStaffKitchenQuery,
   STAFF_KITCHEN_PAGE_SIZE,
   STAFF_KITCHEN_SEARCH_MAX_LENGTH,
