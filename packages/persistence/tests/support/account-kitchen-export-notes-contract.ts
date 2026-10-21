@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAX_EXPORTED_KITCHENS,
+  MAX_EXPORTED_NOTE_BYTES,
   MAX_EXPORTED_NOTES_IN_TOTAL,
   MAX_EXPORTED_NOTES_PER_KITCHEN,
 } from "../../src/account-kitchen-store.js";
@@ -38,6 +39,8 @@ export interface NoteSpec {
 
 /** `count` notes `note 0` to `note {count - 1}`, one minute apart from `firstAt`, so a higher number is newer. */
 export interface SomeNotesSpec {
+  /** When given, every note has exactly this text instead of `note {index}`. */
+  readonly text?: string;
   readonly designId: DesignId;
   readonly author: StaffWriter;
   readonly count: number;
@@ -418,6 +421,199 @@ export function describeAccountKitchenNotesContract(
         },
         LIVE_TEST_TIMEOUT_MS,
       );
+
+      it(
+        "ships the full MAX_EXPORTED_NOTES_IN_TOTAL real notes from kitchens that each hold more than the per-kitchen cap, none lost to a marker row",
+        async () => {
+          const world = await newWorld();
+          const owner = await world.aClient();
+          const staff = await world.aStaffWriter();
+          const kitchens: DesignId[] = [];
+          for (let index = 0; index < 25; index += 1) {
+            const designId = await world.aKitchen({ accountId: owner });
+            await world.someNotes({
+              designId,
+              author: staff,
+              count: 150,
+              firstAt: instantAt(1000 + index * 1000),
+            });
+            kitchens.push(designId);
+          }
+
+          const notes = await world.store.exportNotes(owner, kitchens);
+
+          expect(totalOf(notes)).toBe(MAX_EXPORTED_NOTES_IN_TOTAL);
+          for (const designId of kitchens) {
+            expect(notes.get(designId)?.notes.length).toBeLessThanOrEqual(
+              MAX_EXPORTED_NOTES_PER_KITCHEN,
+            );
+            expect(notes.get(designId)?.isTruncated).toBe(true);
+          }
+        },
+        LIVE_TEST_TIMEOUT_MS,
+      );
+
+      describe("the byte budget", () => {
+        const BIG_NOTE = "x".repeat(2000);
+        const BIG_NOTES_IN_BUDGET = 524;
+        const SMALL_NOTE_FITS =
+          MAX_EXPORTED_NOTE_BYTES - BIG_NOTES_IN_BUDGET * BIG_NOTE.length;
+
+        /** 524 big notes of 2000 bytes over six kitchens, then one oldest note of `lastNoteBytes` bytes in a seventh. */
+        async function budgetWorld(lastNoteBytes: number) {
+          const world = await newWorld();
+          const owner = await world.aClient();
+          const staff = await world.aStaffWriter();
+          const kitchens: DesignId[] = [];
+          for (const [index, count] of [
+            100, 100, 100, 100, 100, 24,
+          ].entries()) {
+            const designId = await world.aKitchen({ accountId: owner });
+            await world.someNotes({
+              designId,
+              author: staff,
+              count,
+              text: BIG_NOTE,
+              firstAt: instantAt(10_000 + index * 1000),
+            });
+            kitchens.push(designId);
+          }
+          const oldest = await world.aKitchen({ accountId: owner });
+          await world.aNote({
+            designId: oldest,
+            author: staff,
+            text: "y".repeat(lastNoteBytes),
+            createdAt: instantAt(1),
+          });
+          const notes = await world.store.exportNotes(owner, [
+            ...kitchens,
+            oldest,
+          ]);
+          return { notes, kitchens, oldest };
+        }
+
+        function bytesOf(
+          notes: ReadonlyMap<DesignId, ExportedKitchenNotes>,
+        ): number {
+          return [...notes.values()]
+            .flatMap(({ notes: held }) => held)
+            .reduce(
+              (sum, { text }) => sum + new TextEncoder().encode(text).length,
+              0,
+            );
+        }
+
+        it(
+          "carries notes that add up to exactly MAX_EXPORTED_NOTE_BYTES, with no kitchen marked",
+          async () => {
+            const { notes, kitchens, oldest } =
+              await budgetWorld(SMALL_NOTE_FITS);
+
+            expect(bytesOf(notes)).toBe(MAX_EXPORTED_NOTE_BYTES);
+            expect(notes.get(oldest)).toMatchObject({ isTruncated: false });
+            expect(notes.get(oldest)?.notes).toHaveLength(1);
+            expect(kitchens.filter((id) => notes.get(id)?.isTruncated)).toEqual(
+              [],
+            );
+          },
+          LIVE_TEST_TIMEOUT_MS,
+        );
+
+        it(
+          "withholds the oldest note one byte past it, and marks that kitchen alone",
+          async () => {
+            const { notes, kitchens, oldest } = await budgetWorld(
+              SMALL_NOTE_FITS + 1,
+            );
+
+            expect(bytesOf(notes)).toBe(BIG_NOTES_IN_BUDGET * BIG_NOTE.length);
+            expect(notes.get(oldest)).toEqual({ notes: [], isTruncated: true });
+            expect(kitchens.filter((id) => notes.get(id)?.isTruncated)).toEqual(
+              [],
+            );
+          },
+          LIVE_TEST_TIMEOUT_MS,
+        );
+
+        it(
+          "keeps a pathological history under the budget: 100 notes of 2000 four-byte characters in each of 4 kitchens",
+          async () => {
+            const world = await newWorld();
+            const owner = await world.aClient();
+            const staff = await world.aStaffWriter();
+            const hugeNote = "\u{1F600}".repeat(2000);
+            const kitchens: DesignId[] = [];
+            for (let index = 0; index < 4; index += 1) {
+              const designId = await world.aKitchen({ accountId: owner });
+              await world.someNotes({
+                designId,
+                author: staff,
+                count: MAX_EXPORTED_NOTES_PER_KITCHEN,
+                text: hugeNote,
+                firstAt: instantAt(10_000 + index * 1000),
+              });
+              kitchens.push(designId);
+            }
+
+            const notes = await world.store.exportNotes(owner, kitchens);
+
+            const hugeBytes = new TextEncoder().encode(hugeNote).length;
+            expect(hugeBytes).toBe(8000);
+            expect(bytesOf(notes)).toBe(
+              Math.floor(MAX_EXPORTED_NOTE_BYTES / hugeBytes) * hugeBytes,
+            );
+            expect(kitchens.map((id) => notes.get(id)?.isTruncated)).toEqual([
+              true,
+              true,
+              true,
+              false,
+            ]);
+          },
+          LIVE_TEST_TIMEOUT_MS,
+        );
+
+        it(
+          "withholds a small old note behind a large newer one that was withheld: the running sum never lets it slip past",
+          async () => {
+            const world = await newWorld();
+            const owner = await world.aClient();
+            const staff = await world.aStaffWriter();
+            const filler = await world.aKitchen({ accountId: owner });
+            await world.someNotes({
+              designId: filler,
+              author: staff,
+              count: MAX_EXPORTED_NOTES_PER_KITCHEN,
+              text: "\u{1F600}".repeat(LONG_TEXT_LENGTH),
+              firstAt: instantAt(10_000),
+            });
+            const refill = await world.aKitchen({ accountId: owner });
+            await world.someNotes({
+              designId: refill,
+              author: staff,
+              count: 32,
+              text: "\u{1F600}".repeat(LONG_TEXT_LENGTH),
+              firstAt: instantAt(5000),
+            });
+            const tiny = await world.aKitchen({ accountId: owner });
+            await world.aNote({
+              designId: tiny,
+              author: staff,
+              text: "tiny",
+              createdAt: instantAt(1),
+            });
+
+            const notes = await world.store.exportNotes(owner, [
+              filler,
+              refill,
+              tiny,
+            ]);
+
+            expect(notes.get(tiny)).toEqual({ notes: [], isTruncated: true });
+            expect(notes.get(refill)?.isTruncated).toBe(true);
+          },
+          LIVE_TEST_TIMEOUT_MS,
+        );
+      });
     });
 
     it("refuses a malformed account id, a malformed kitchen id and more than MAX_EXPORTED_KITCHENS ids, answering none of them", async () => {

@@ -24,6 +24,17 @@ export const MAX_EXPORTED_NOTES_PER_KITCHEN = 100;
  *  measured response size, which the platform has not given. */
 export const MAX_EXPORTED_NOTES_IN_TOTAL = 2000;
 
+/**
+ * The most note text, in UTF-8 bytes (`octet_length`), one whole export carries: 1 MiB. The counts alone do not bound
+ * the file: 2000 notes of 2000 four-byte characters are about 16 MB, and the export also holds up to
+ * `MAX_EXPORTED_KITCHENS` design documents. The Neon HTTP reply limit and the host's response limit have not been
+ * measured, so this figure is the engineer's and PROVISIONAL; what it settles is that notes can never make an export
+ * unservable on their own. The notes are taken newest first and the first one that would pass the budget, and every
+ * older one, is withheld and its kitchen marked truncated (a running sum, so a small old note never slips past a large
+ * newer one that was withheld).
+ */
+export const MAX_EXPORTED_NOTE_BYTES = 1_048_576;
+
 export type AccountKitchenStoreOperation =
   | "list kitchens"
   | "count kitchens"
@@ -213,7 +224,9 @@ export interface AccountKitchenStore {
   exportAll(accountId: string): Promise<KitchenExport>;
   /**
    * The staff notes on the account's own kitchens among `designIds`, for the owner's data export: text and instant
-   * only, newest first, at most `MAX_EXPORTED_NOTES_PER_KITCHEN` per kitchen and `MAX_EXPORTED_NOTES_IN_TOTAL` in all.
+   * only, newest first, at most `MAX_EXPORTED_NOTES_PER_KITCHEN` per kitchen, `MAX_EXPORTED_NOTES_IN_TOTAL` in all and
+   * `MAX_EXPORTED_NOTE_BYTES` of text in all, a kitchen from which any note was left out by any of the three being marked
+   * `isTruncated`. It is a read apart from `exportAll`: a kitchen deleted between the two is exported with no notes.
    * `designIds` only narrows the read; ownership is the statement's own predicate, so an id the account does not own,
    * or one it has deleted, contributes nothing (a kitchen it has hidden does). A kitchen with no note is absent from
    * the map. Throws on a malformed account or id, on more than `MAX_EXPORTED_KITCHENS` ids, and on a database that

@@ -106,7 +106,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         await sql()`
           insert into design_notes (id, design_id, author_account_id, body, created_at)
           select substr(md5(random()::text || n::text), 1, 21), ${spec.designId}, ${spec.author.accountId},
-            'note ' || n::text, ${spec.firstAt.toISOString()}::timestamptz + n * interval '1 minute'
+            coalesce(${spec.text ?? null}::text, 'note ' || n::text), ${spec.firstAt.toISOString()}::timestamptz + n * interval '1 minute'
           from generate_series(0, ${spec.count - 1}::int) as n
         `;
       },

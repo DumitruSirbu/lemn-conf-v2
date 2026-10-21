@@ -53,7 +53,7 @@ function newFakeWorld(): Promise<NotesWorld> {
         store.seedNote({
           designId: spec.designId,
           authorAccountId: spec.author.accountId,
-          text: `note ${String(index)}`,
+          text: spec.text ?? `note ${String(index)}`,
           createdAt: new Date(spec.firstAt.getTime() + index * 60_000),
         });
       }

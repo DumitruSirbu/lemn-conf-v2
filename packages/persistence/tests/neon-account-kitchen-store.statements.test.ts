@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AccountKitchenStoreError,
   MAX_EXPORTED_KITCHENS,
+  MAX_EXPORTED_NOTE_BYTES,
   MAX_EXPORTED_NOTES_IN_TOTAL,
   MAX_EXPORTED_NOTES_PER_KITCHEN,
 } from "../src/account-kitchen-store.js";
@@ -63,7 +64,12 @@ const WRITABLE_COLUMNS = [
   "revoked_at",
 ];
 const NO_KITCHEN_ROW = { total: 0, id: null };
-const NOTE_ROW = { design_id: DESIGN_ID, body: "A text", created_ms: "1000" };
+const NOTE_ROW = {
+  design_id: DESIGN_ID,
+  has_more: false,
+  body: "A text",
+  created_ms: "1000",
+};
 const MARKED_REPORT = [
   { is_marked: true, is_sent: true, is_already_marked: false },
 ];
@@ -239,7 +245,7 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
       "select",
       "select",
       "select",
-      "select",
+      "with",
       "update",
       "with",
       "update",
@@ -423,42 +429,54 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
   });
 
   describe("the export's notes", () => {
-    const PER_KITCHEN_WINDOW = MAX_EXPORTED_NOTES_PER_KITCHEN + 1;
+    const BOUND = MAX_EXPORTED_NOTES_PER_KITCHEN;
 
-    it("reads design_notes joined to designs for ownership alone, under the account and not-deleted, and not the hidden mark", async () => {
+    it("reads design_notes of the owned, not-deleted kitchens only, joined to designs for ownership alone, and not the hidden mark", async () => {
       const { exportNotes } = await everyStatementTheStoresSend();
       const text = normalised(exportNotes);
 
       expect(text).toContain(
-        "from design_notes n join designs d on d.id = n.design_id",
+        "from unnest(?::text[]) as wanted(id) join designs d on d.id = wanted.id where d.account_id = ? and d.deleted_by_client_at is null",
       );
-      expect(text).toContain(
-        "where d.account_id = ? and d.deleted_by_client_at is null and n.design_id = any(?::text[])",
-      );
+      expect(text).toContain("from design_notes n where n.design_id = a.id");
       expect(text).not.toContain("hidden_by_client_at");
     });
 
-    it("binds the account, the asked ids, the two windows and the row bound as parameters", async () => {
+    it("reads each kitchen through a lateral window of its newest notes, so no history is scanned past it", async () => {
+      const { exportNotes } = await everyStatementTheStoresSend();
+      const text = normalised(exportNotes);
+
+      expect(text).toContain("cross join lateral (");
+      expect(text).toContain(
+        "where n.design_id = a.id order by n.created_at desc, n.id desc limit ?::int ) w",
+      );
+    });
+
+    it("binds the asked ids, the account, the window, the cap, the total, the byte budget and the row bound as parameters", async () => {
       const { exportNotes } = await everyStatementTheStoresSend();
 
       expect(exportNotes.values).toEqual([
-        MAX_EXPORTED_NOTES_IN_TOTAL,
-        MAX_EXPORTED_NOTES_IN_TOTAL,
-        ACCOUNT_ID,
         [DESIGN_ID],
-        PER_KITCHEN_WINDOW,
-        PER_KITCHEN_WINDOW,
+        ACCOUNT_ID,
+        BOUND + 1,
+        BOUND,
+        BOUND,
+        MAX_EXPORTED_NOTES_IN_TOTAL,
+        MAX_EXPORTED_NOTE_BYTES,
+        MAX_EXPORTED_NOTES_IN_TOTAL,
+        MAX_EXPORTED_NOTE_BYTES,
+        BOUND,
       ]);
     });
 
-    it("selects the design, the text and the instant, and no note id, author, account or e-mail", async () => {
+    it("selects the design, the marker, the text and the instant, and no note id, author, account or e-mail", async () => {
       const { exportNotes } = await everyStatementTheStoresSend();
       const text = normalised(exportNotes);
       const compact = text.replace(/\( /g, "(").replace(/ \)/g, ")");
       const words = new Set(text.match(/[a-z_][a-z0-9_]*/g));
 
-      expect(compact).toMatch(
-        /^select r\.design_id, case when r\.overall <= \?::int then r\.body end as body, case when r\.overall <= \?::int then floor\(least\(greatest\(extract\(epoch from r\.created_at\) \* 1000, -8640000000000000\), 8640000000000000\)\)::bigint::text end as created_ms from \(/,
+      expect(compact).toContain(
+        "select r.design_id, r.has_more, case when r.overall <= ?::int and r.running_bytes <= ?::bigint then r.body end as body, case when r.overall <= ?::int and r.running_bytes <= ?::bigint then floor(least(greatest(extract(epoch from r.created_at) * 1000, -8640000000000000), 8640000000000000))::bigint::text end as created_ms from kept r",
       );
       for (const word of [
         "author_account_id",
@@ -475,20 +493,31 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
       }
     });
 
-    it("ranks each kitchen's notes newest first with the id as tie-break, then all of them the same way", async () => {
+    it("ranks each kitchen's notes newest first with the id as tie-break, then the kept ones globally, with a running byte sum in that order", async () => {
       const { exportNotes } = await everyStatementTheStoresSend();
       const text = normalised(exportNotes);
 
       expect(text).toContain(
-        "row_number() over (partition by n.design_id order by n.created_at desc, n.id desc) as in_kitchen",
+        "row_number() over (partition by a.id order by w.created_at desc, w.note_id desc) as in_kitchen",
       );
       expect(text).toContain(
-        "row_number() over (order by k.created_at desc, k.id desc) as overall",
+        "row_number() over (order by x.created_at desc, x.note_id desc) as overall",
       );
-      expect(text).toContain("where k.in_kitchen <= ?::int");
+      expect(text).toContain(
+        "sum(octet_length(x.body)) over ( order by x.created_at desc, x.note_id desc rows between unbounded preceding and current row ) as running_bytes",
+      );
       expect(text).toMatch(
-        /order by r\.created_at desc, r\.id desc limit \?::int$/,
+        /order by r\.created_at desc, r\.note_id desc limit \?::int$/,
       );
+    });
+
+    it("lets only the per-kitchen cap's rows take a global rank, and marks a kitchen that holds more apart from them", async () => {
+      const { exportNotes } = await everyStatementTheStoresSend();
+      const text = normalised(exportNotes);
+
+      expect(text).toContain("where x.in_kitchen <= ?::int");
+      expect(text).toContain("(x.in_window > ?::int) as has_more");
+      expect(text).toContain("count(*) over (partition by a.id) as in_window");
     });
 
     it("sends no statement for no ids, and none for a malformed account, a malformed id or too many ids", async () => {
@@ -519,19 +548,15 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
 
       await newStore().exportNotes(ACCOUNT_ID, [DESIGN_ID, DESIGN_ID]);
 
-      expect(queryDriver.statements[0]?.values[3]).toEqual([DESIGN_ID]);
-      expect(queryDriver.statements[0]?.values[5]).toBe(PER_KITCHEN_WINDOW);
+      expect(queryDriver.statements[0]?.values[0]).toEqual([DESIGN_ID]);
+      expect(queryDriver.statements[0]?.values.at(-1)).toBe(BOUND);
     });
 
     it("reads a note as its text and its instant, grouped under its kitchen", async () => {
       resetQueryDriver();
       answerQueryWith([
         NOTE_ROW,
-        {
-          design_id: DESIGN_ID,
-          body: "Older note\nsecond line",
-          created_ms: "-5",
-        },
+        { ...NOTE_ROW, body: "Older note\nsecond line", created_ms: "-5" },
       ]);
 
       const notes = await newStore().exportNotes(ACCOUNT_ID, [DESIGN_ID]);
@@ -550,37 +575,31 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
       ]);
     });
 
-    it("marks a kitchen truncated at the extra row, keeps its newest bound, and does not mark one that holds exactly the bound", async () => {
+    it("marks a kitchen truncated when the statement says it holds more, and not one that holds exactly the cap", async () => {
       resetQueryDriver();
       answerQueryWith(
-        Array.from({ length: PER_KITCHEN_WINDOW }, (_, index) => ({
+        Array.from({ length: BOUND }, (_, index) => ({
           ...NOTE_ROW,
+          has_more: true,
           body: `n${String(index)}`,
         })),
       );
       const over = await newStore().exportNotes(ACCOUNT_ID, [DESIGN_ID]);
 
       resetQueryDriver();
-      answerQueryWith(
-        Array.from({ length: MAX_EXPORTED_NOTES_PER_KITCHEN }, () => NOTE_ROW),
-      );
+      answerQueryWith(Array.from({ length: BOUND }, () => NOTE_ROW));
       const exactly = await newStore().exportNotes(ACCOUNT_ID, [DESIGN_ID]);
 
       expect(over.get(DESIGN_ID)?.isTruncated).toBe(true);
-      expect(over.get(DESIGN_ID)?.notes).toHaveLength(
-        MAX_EXPORTED_NOTES_PER_KITCHEN,
-      );
-      expect(over.get(DESIGN_ID)?.notes.at(-1)?.text).toBe(
-        `n${String(MAX_EXPORTED_NOTES_PER_KITCHEN - 1)}`,
-      );
+      expect(over.get(DESIGN_ID)?.notes).toHaveLength(BOUND);
       expect(exactly.get(DESIGN_ID)?.isTruncated).toBe(false);
     });
 
-    it("marks a kitchen truncated when the total bound withheld its notes, even when it kept none", async () => {
+    it("marks a kitchen truncated when the total or the byte bound withheld a note of it, even when it kept none", async () => {
       resetQueryDriver();
       answerQueryWith([
         NOTE_ROW,
-        { design_id: "other", body: null, created_ms: null },
+        { ...NOTE_ROW, design_id: "other", body: null, created_ms: null },
       ]);
 
       const notes = await newStore().exportNotes(ACCOUNT_ID, [
@@ -595,6 +614,21 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
       expect(notes.get("other")).toEqual({ notes: [], isTruncated: true });
     });
 
+    it("marks a kitchen truncated when only its oldest note was withheld, and keeps the notes before it", async () => {
+      resetQueryDriver();
+      answerQueryWith([
+        NOTE_ROW,
+        { ...NOTE_ROW, body: null, created_ms: null },
+      ]);
+
+      const notes = await newStore().exportNotes(ACCOUNT_ID, [DESIGN_ID]);
+
+      expect(notes.get(DESIGN_ID)).toEqual({
+        notes: [{ text: "A text", createdAt: new Date(1000) }],
+        isTruncated: true,
+      });
+    });
+
     it.each([
       ["a kitchen that was not asked for", [{ ...NOTE_ROW, design_id: "x-1" }]],
       ["a half-withheld row", [{ ...NOTE_ROW, created_ms: null }]],
@@ -604,9 +638,10 @@ describe("the statements of NeonAccountKitchenStore and NeonSentMarkStore", () =
         [{ ...NOTE_ROW, created_ms: "tomorrow" }],
       ],
       ["a row with no kitchen", [{ ...NOTE_ROW, design_id: null }]],
+      ["a row with no marker", [{ ...NOTE_ROW, has_more: undefined }]],
       [
         "more rows than the statement can yield",
-        Array.from({ length: PER_KITCHEN_WINDOW + 1 }, () => NOTE_ROW),
+        Array.from({ length: BOUND + 1 }, () => NOTE_ROW),
       ],
     ])(
       "is the store error for %s, and returns no notes",

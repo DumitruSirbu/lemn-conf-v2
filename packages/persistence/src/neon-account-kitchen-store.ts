@@ -592,12 +592,16 @@ function kitchenNotesExportFrom(
 }
 
 function exportedKitchenNotesFrom(rows: readonly Row[]): ExportedKitchenNotes {
+  const hasMore = rows.some(({ has_more }) => has_more === true);
+  if (rows.some(({ has_more }) => typeof has_more !== "boolean")) {
+    throw new AccountKitchenStoreError("export kitchen notes");
+  }
   const readable = rows.flatMap(exportedNoteFrom);
   const notes = readable.slice(0, MAX_EXPORTED_NOTES_PER_KITCHEN);
-  return { notes, isTruncated: notes.length < rows.length };
+  return { notes, isTruncated: hasMore || notes.length < rows.length };
 }
 
-/** The note of a row, or none for a row whose text the total bound withheld. A half-withheld row is the store error. */
+/** The note of a row, or none for a row whose text the total or the byte bound withheld. A half-withheld row is the store error. */
 function exportedNoteFrom(row: Row): readonly ExportedNote[] {
   const { body, created_ms } = row;
   if (body === null && created_ms === null) return [];

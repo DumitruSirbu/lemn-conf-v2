@@ -3,6 +3,7 @@ import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { requireAccountIdShape } from "./account-id-shape.js";
 import {
   MAX_EXPORTED_KITCHENS,
+  MAX_EXPORTED_NOTE_BYTES,
   MAX_EXPORTED_NOTES_IN_TOTAL,
   MAX_EXPORTED_NOTES_PER_KITCHEN,
   cursorTextOf,
@@ -13,6 +14,7 @@ import {
 import type {
   AccountKitchenStore,
   ExportedKitchenNotes,
+  ExportedNote,
   KitchenCursor,
   KitchenDeleteOutcome,
   KitchenDuplication,
@@ -204,12 +206,11 @@ export class FakeAccountKitchenStore implements AccountKitchenStore {
           .map(({ id }) => id)
           .filter((id) => asked.has(id)),
       );
-      const windowed = newestKitchenNotes(
+      return exportedNotesByKitchen(
         this.notes
           .filter((note) => ownedIds.has(note.designId))
           .sort(newestNoteFirst),
       );
-      return exportedNotesByKitchen(windowed);
     });
   }
 
@@ -342,43 +343,60 @@ function newestNoteFirst(first: HeldNote, second: HeldNote): number {
   return first.id < second.id ? 1 : -1;
 }
 
-/** The newest `MAX_EXPORTED_NOTES_PER_KITCHEN + 1` notes of each kitchen, from notes that are newest first. */
-function newestKitchenNotes(newestFirst: readonly HeldNote[]): HeldNote[] {
+/** The newest `MAX_EXPORTED_NOTES_PER_KITCHEN` notes of each kitchen, from notes that are newest first, and the
+ *  kitchens that hold more (the Neon statement's `windowed` and `has_more`). */
+function newestKitchenNotes(newestFirst: readonly HeldNote[]): {
+  readonly kept: readonly HeldNote[];
+  readonly kitchensWithMore: ReadonlySet<DesignId>;
+} {
   const seen = new Map<DesignId, number>();
-  return newestFirst.filter((note) => {
-    const position = seen.get(note.designId) ?? 0;
-    seen.set(note.designId, position + 1);
+  const kitchensWithMore = new Set<DesignId>();
+  const kept = newestFirst.filter((note) => {
+    const position = (seen.get(note.designId) ?? 0) + 1;
+    seen.set(note.designId, position);
+    if (position > MAX_EXPORTED_NOTES_PER_KITCHEN) {
+      kitchensWithMore.add(note.designId);
+    }
     return position <= MAX_EXPORTED_NOTES_PER_KITCHEN;
   });
+  return { kept, kitchensWithMore };
 }
 
-/** What the Neon statement's second window does: the first `MAX_EXPORTED_NOTES_IN_TOTAL` of the notes keep their text. */
+/**
+ * What the Neon statement's last step does: the first notes, newest first over all kitchens, keep their text while
+ * they are within `MAX_EXPORTED_NOTES_IN_TOTAL` notes and `MAX_EXPORTED_NOTE_BYTES` of text (a running sum, so the
+ * first note over the budget and every older one are withheld). A kitchen is truncated when it holds more than its
+ * window or when any of its windowed notes was withheld.
+ */
 function exportedNotesByKitchen(
-  windowed: readonly HeldNote[],
+  newestFirst: readonly HeldNote[],
 ): ReadonlyMap<DesignId, ExportedKitchenNotes> {
-  const windowedByKitchen = new Map<DesignId, HeldNote[]>();
-  const kept = new Map<DesignId, HeldNote[]>();
-  windowed.forEach((note, rank) => {
-    pushTo(windowedByKitchen, note);
-    if (rank < MAX_EXPORTED_NOTES_IN_TOTAL) pushTo(kept, note);
+  const { kept, kitchensWithMore } = newestKitchenNotes(newestFirst);
+  const carried = new Map<DesignId, ExportedNote[]>();
+  const withheld = new Set<DesignId>();
+  let runningBytes = 0;
+  kept.forEach((note, rank) => {
+    runningBytes += new TextEncoder().encode(note.text).length;
+    const held = carried.get(note.designId) ?? [];
+    carried.set(note.designId, held);
+    if (
+      rank < MAX_EXPORTED_NOTES_IN_TOTAL &&
+      runningBytes <= MAX_EXPORTED_NOTE_BYTES
+    ) {
+      held.push({ text: note.text, createdAt: new Date(note.createdAt) });
+    } else {
+      withheld.add(note.designId);
+    }
   });
   return new Map(
-    [...windowedByKitchen].map(([designId, inWindow]) => {
-      const notes = (kept.get(designId) ?? [])
-        .slice(0, MAX_EXPORTED_NOTES_PER_KITCHEN)
-        .map(({ text, createdAt }) => ({
-          text,
-          createdAt: new Date(createdAt),
-        }));
-      return [designId, { notes, isTruncated: notes.length < inWindow.length }];
-    }),
+    [...carried].map(([designId, notes]) => [
+      designId,
+      {
+        notes,
+        isTruncated: kitchensWithMore.has(designId) || withheld.has(designId),
+      },
+    ]),
   );
-}
-
-function pushTo(byKitchen: Map<DesignId, HeldNote[]>, note: HeldNote): void {
-  const held = byKitchen.get(note.designId) ?? [];
-  held.push(note);
-  byKitchen.set(note.designId, held);
 }
 
 /** The row comparison `(updated_at, id) < (cursor.updated_at, cursor.id)` of the Neon statement. */
