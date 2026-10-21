@@ -1,10 +1,13 @@
 import type {
   Design,
+  KitchensListedDetail,
   NoteTextRefusalCode,
   RequestStatus,
   RequestStatusRefusalCode,
+  StaffAuditAction,
   StaffKitchenQueryField,
   StaffKitchenQueryRefusalCode,
+  StatusChangedDetail,
 } from "@lemnaria/configurator-domain";
 
 // What `GET /api/staff/kitchens` and `GET /api/staff/kitchens/{id}` answer and the staff pages that read them expect,
@@ -151,4 +154,89 @@ export interface StaffStatusSavedWire {
   readonly status: RequestStatus;
   readonly changedBy: StaffPersonWire | null;
   readonly changedAt: string | null;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// `GET /api/staff/audit` (E-L3-6)
+
+/** A kitchen's client as the log names it: the address alone (CD answer 6). No name, phone, postal address or id. */
+export interface StaffAuditClientWire {
+  readonly email: string | null;
+}
+
+/** The kitchen a row names, as it reads now. `name` and `client` are `null` when the kitchen is gone, was deleted by its
+ *  client, has no name, or no account owns it. The id is the design's, for a link to the staff kitchen page. */
+export interface StaffAuditKitchenWire {
+  readonly id: string;
+  readonly name: string | null;
+  readonly client: StaffAuditClientWire | null;
+}
+
+/** What the row's action carries, in the shape of that action. Built member by member from the domain's reading. */
+export type StaffAuditEntryWire =
+  | {
+      readonly kind: "recognised";
+      readonly action: "status-changed";
+      readonly detail: StatusChangedDetail;
+    }
+  | {
+      readonly kind: "recognised";
+      readonly action: "kitchens-listed";
+      readonly detail: KitchensListedDetail;
+    }
+  | {
+      readonly kind: "recognised";
+      readonly action: Exclude<
+        StaffAuditAction,
+        "status-changed" | "kitchens-listed"
+      >;
+      readonly detail: null;
+    }
+  /** A row this build's domain refuses: its action code and nothing of its stored detail. */
+  | { readonly kind: "unrecognised"; readonly action: string };
+
+export interface StaffAuditEventWire {
+  readonly id: string;
+  /** ISO 8601, UTC, milliseconds. */
+  readonly occurredAt: string;
+  readonly entry: StaffAuditEntryWire;
+  /** The staff member who acted, as the account reads now: either member is `null` when it no longer resolves. */
+  readonly actor: StaffPersonWire;
+  /** The client account the action concerned, by address as it reads now; `null` when the row names none. */
+  readonly subject: StaffAuditClientWire | null;
+  readonly kitchen: StaffAuditKitchenWire | null;
+}
+
+export interface StaffAuditPageWire {
+  readonly total: number;
+  readonly page: number;
+  readonly pageSize: number;
+  /** Newest first. */
+  readonly events: readonly StaffAuditEventWire[];
+}
+
+/** The members of the audit page's query that a person can get wrong. `range` is the two days together. */
+export type StaffAuditQueryField =
+  | "page"
+  | "action"
+  | "actor"
+  | "from"
+  | "to"
+  | "range";
+
+export type StaffAuditQueryRefusalCode =
+  | "NOT_A_PAGE_NUMBER"
+  | "UNKNOWN_VALUE"
+  | "NOT_AN_ACCOUNT_ID"
+  | "NOT_A_DATE"
+  | "DATE_OUT_OF_RANGE"
+  | "RANGE_INVERTED";
+
+/** `400` of the audit page: a member of the query and a code for it. Never the value that was refused. */
+export interface StaffAuditInvalidQueryWire {
+  readonly status: "invalid-input";
+  readonly issues: readonly {
+    readonly field: StaffAuditQueryField;
+    readonly code: StaffAuditQueryRefusalCode;
+  }[];
 }

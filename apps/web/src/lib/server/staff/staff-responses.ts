@@ -6,6 +6,10 @@ import type { StaffKitchenQueryIssue } from "@lemnaria/configurator-domain";
 import type {
   SavedRequestStatus,
   StaffAuditAccountRef,
+  StaffAuditDesignRef,
+  StaffAuditPage,
+  StaffAuditPageRow,
+  StaffAuditReading,
   StaffKitchenClient,
   StaffKitchenDetail,
   StaffKitchenNote,
@@ -16,7 +20,14 @@ import type {
 } from "@lemnaria/persistence";
 
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
+import type { StaffAuditQueryIssue } from "@/lib/server/staff/staff-audit-query";
 import type {
+  StaffAuditClientWire,
+  StaffAuditEntryWire,
+  StaffAuditEventWire,
+  StaffAuditInvalidQueryWire,
+  StaffAuditKitchenWire,
+  StaffAuditPageWire,
   StaffClientWire,
   StaffConflictWire,
   StaffInvalidInputWire,
@@ -49,6 +60,17 @@ export function staffInvalidQueryResponse(
   issues: readonly StaffKitchenQueryIssue[],
 ): NextResponse {
   const body: StaffInvalidQueryWire = {
+    status: "invalid-input",
+    issues: issues.map(({ field, code }) => ({ field, code })),
+  };
+  return jsonResponse(body, 400);
+}
+
+/** `400` of the audit page: the query's members that the person can correct, as the member and a code. */
+export function staffAuditInvalidQueryResponse(
+  issues: readonly StaffAuditQueryIssue[],
+): NextResponse {
+  const body: StaffAuditInvalidQueryWire = {
     status: "invalid-input",
     issues: issues.map(({ field, code }) => ({ field, code })),
   };
@@ -118,8 +140,15 @@ export function staffKitchenResponse(
   return jsonResponse(staffKitchenWireOf(kitchen), 200);
 }
 
+/** `200`: one page of the audit log. Reading it writes no audit row (P-L3-3). */
+export function staffAuditPageResponse(page: StaffAuditPage): NextResponse {
+  return jsonResponse(staffAuditPageWireOf(page), 200);
+}
+
 type StaffWireBody =
   | StaffInvalidQueryWire
+  | StaffAuditInvalidQueryWire
+  | StaffAuditPageWire
   | StaffInvalidInputWire
   | StaffNoteAddedWire
   | StaffStatusSavedWire
@@ -203,6 +232,75 @@ function staffKitchenWireOf(kitchen: StaffKitchenDetail): StaffKitchenWire {
     notes: kitchen.notes.map(noteWireOf),
     notesTruncated: kitchen.notesTruncated,
   };
+}
+
+function staffAuditPageWireOf(page: StaffAuditPage): StaffAuditPageWire {
+  return {
+    total: page.total,
+    page: page.page,
+    pageSize: page.pageSize,
+    events: page.events.map(auditEventWireOf),
+  };
+}
+
+// An audit row is shaped member by member, and no account id leaves with it. A row the build's domain refuses carries
+// its action code and nothing of its stored detail.
+function auditEventWireOf(row: StaffAuditPageRow): StaffAuditEventWire {
+  return {
+    id: row.id,
+    occurredAt: row.occurredAt.toISOString(),
+    entry: auditEntryWireOf(row.reading),
+    actor: personWireOf(row.actor),
+    subject: row.subject === null ? null : auditClientWireOf(row.subject),
+    kitchen: row.design === null ? null : auditKitchenWireOf(row.design),
+  };
+}
+
+function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
+  if (reading.kind === "unrecognised") {
+    return { kind: "unrecognised", action: reading.action };
+  }
+  const { entry } = reading;
+  switch (entry.action) {
+    case "status-changed":
+      return {
+        kind: "recognised",
+        action: entry.action,
+        detail: { from: entry.detail.from, to: entry.detail.to },
+      };
+    case "kitchens-listed":
+      return {
+        kind: "recognised",
+        action: entry.action,
+        detail: {
+          segment: entry.detail.segment,
+          status: entry.detail.status,
+          page: entry.detail.page,
+          rowCount: entry.detail.rowCount,
+          hasSearch: entry.detail.hasSearch,
+        },
+      };
+    case "kitchen-opened":
+    case "note-added":
+    case "kitchen-unhidden":
+      return { kind: "recognised", action: entry.action, detail: null };
+  }
+}
+
+function auditKitchenWireOf(
+  design: StaffAuditDesignRef,
+): StaffAuditKitchenWire {
+  return {
+    id: design.id,
+    name: design.name,
+    client: design.client === null ? null : auditClientWireOf(design.client),
+  };
+}
+
+function auditClientWireOf(
+  account: StaffAuditAccountRef,
+): StaffAuditClientWire {
+  return { email: account.email };
 }
 
 function clientWireOf(
