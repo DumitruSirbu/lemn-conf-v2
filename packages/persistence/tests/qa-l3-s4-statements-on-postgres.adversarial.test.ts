@@ -38,7 +38,7 @@ import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 holdSharedTestSchemaLock();
 
 /**
- * Adversarial QA of wave L3-S4 (the staff kitchen reader), against the statements it really sends, on a real Postgres.
+ * Adversarial QA of the staff kitchen reader, against the statements it really sends, on a real Postgres.
  *
  * **How the production SQL runs here.** `NeonStaffKitchenReader` takes its `sql` from the driver's tagged template. This
  * file swaps in a tag of its own that sends the same text (built from the same strings array) and parameters over a
@@ -1255,7 +1255,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       readonly isFoundByDatabase: boolean;
     }
 
-    /** The comma-below and cedilla forms of S are different letters; each folds to its own lower case only. */
+    /** The comma-below and cedilla forms of S and T are folded to each other; no other letter folds beyond case. */
     const FOLDS: readonly FoldCase[] = [
       {
         stored: `${S_COMMA_BELOW_UPPER}tefan`,
@@ -1275,7 +1275,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       {
         stored: `${S_COMMA_BELOW_UPPER}tefan`,
         typed: `${S_CEDILLA_LOWER}tefan`,
-        isFoundByDatabase: false,
+        isFoundByDatabase: true,
       },
       {
         stored: `${S_COMMA_BELOW_UPPER}tefan`,

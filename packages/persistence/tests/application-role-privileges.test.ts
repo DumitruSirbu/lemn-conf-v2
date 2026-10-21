@@ -15,6 +15,11 @@ import { requireValidPresetToRecord } from "../src/preset-validation.js";
 import type { StatementTag } from "../src/preset-statements.js";
 import type { PresetToRecord } from "../src/preset-repository.js";
 import { readDatabaseUrl } from "../src/read-database-url.js";
+import {
+  staffKitchenListStatement,
+  staffKitchenNotesStatement,
+  staffKitchenStatement,
+} from "../src/staff-kitchen-statements.js";
 import { columnsHolding, columnsOf } from "./support/column-privileges.js";
 import {
   READABLE_COLUMNS,
@@ -428,6 +433,16 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
       "on conflict (design_id) do update set status = excluded.status, " +
       "changed_by_account_id = excluded.changed_by_account_id, changed_at = now()",
   },
+];
+
+/** The tables the staff kitchen reader's statements read. */
+const STAFF_READER_TABLES = [
+  "public.designs",
+  "public.accounts",
+  "public.contact_submissions",
+  "public.contact_submission_views",
+  "public.design_request_states",
+  "public.design_notes",
 ];
 
 /** Skips, with the reason the Lot 3 plan (section 2.3) names, until the owner has applied the table's migration: never a
@@ -1027,4 +1042,42 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       },
     );
   });
+
+  // The staff kitchen reader's three statements, the reader's own text built by the same functions, planned and never
+  // run. They read six tables, three of them through column grants, so a column the reader names that the role was not
+  // granted is a 42501 here and not at the first staff request. Red until the owner has issued the `0021` and `0022`
+  // grants, which is the runbook step that proves them. The control shows `explain` is what checks the columns: a column
+  // of a request the role may not select is refused.
+  guardedTest(
+    "can have the staff kitchen reader's list, kitchen and notes statements planned, and cannot have a personal column of a request planned, once the tables exist",
+    async (context) => {
+      for (const table of STAFF_READER_TABLES) {
+        await skipUnlessTheTableExists(context, table);
+      }
+
+      for (const statement of [
+        staffKitchenListStatement(recordedStatement, {
+          segment: "all",
+          status: null,
+          search: "ana",
+          page: 1,
+        }),
+        staffKitchenListStatement(recordedStatement, {
+          segment: "sent",
+          status: "new",
+          search: null,
+          page: 2,
+        }),
+        staffKitchenStatement(recordedStatement, "0".repeat(21)),
+        staffKitchenNotesStatement(recordedStatement, "0".repeat(21)),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
+      expect(
+        await failureOf(`explain select name from ${CONTACT_SUBMISSIONS}`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
 });

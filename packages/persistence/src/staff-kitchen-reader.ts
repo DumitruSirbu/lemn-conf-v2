@@ -80,6 +80,11 @@ export interface StaffKitchenClient {
 export interface StaffListedKitchen {
   readonly id: string;
   readonly name: string | null;
+  /**
+   * The kitchen's document, for the list's thumbnail; `null` when this build cannot read it. It is a whole kitchen,
+   * so a route sends only what the thumbnail needs and never the document as stored.
+   */
+  readonly design: Design | null;
   /** `null` for a kitchen no account owns, and for one whose account no longer resolves. */
   readonly client: StaffKitchenClient | null;
   readonly isSent: boolean;
@@ -137,8 +142,10 @@ export interface StaffKitchenDetail {
   readonly asSent: Design | null;
   /** `null` for a draft. */
   readonly status: StaffKitchenStatus | null;
-  /** Newest first. */
+  /** The newest `NOTES_READ_LIMIT` notes, newest first. */
   readonly notes: readonly StaffKitchenNote[];
+  /** True when the kitchen holds more notes than `notes` carries. */
+  readonly notesTruncated: boolean;
 }
 
 /** `none` answers an unknown id, a malformed id, a kitchen its client deleted, and a visitor's unsent draft alike. */
@@ -147,11 +154,17 @@ export type StaffKitchenReading =
   | { readonly kind: "none" };
 
 /**
- * The staff arm for reading kitchens (plan CG-L3-10), apart from the client and visitor arms so no predicate of theirs
- * is shared or loosened. A kitchen its client hid is included; one its client deleted is not. No method writes.
+ * The staff arm for reading kitchens, apart from the client and visitor arms so no predicate of theirs is shared or
+ * loosened. A kitchen its client hid is included; one its client deleted is not. No method writes.
  */
 export interface StaffKitchenReader {
-  /** Throws `StaffKitchenReaderError`. Sent kitchens newest sent first, the others newest changed first; ties by id. */
+  /**
+   * Throws `StaffKitchenReaderError`. Sent kitchens newest sent first, the others newest changed first; ties by id.
+   *
+   * The search is over the CLIENT's e-mail (its stored normal form) and profile name, never the kitchen's own name or
+   * a request reference, so the screen's label must say the client's name. It is case-insensitive, and folds the
+   * Romanian cedilla letters to their comma-below forms (`foldRomanianSearchText`) and nothing else.
+   */
   listPage(query: StaffKitchenQuery): Promise<StaffKitchenPage>;
   /** Throws `StaffKitchenReaderError`. */
   readOne(designId: string): Promise<StaffKitchenReading>;
@@ -161,6 +174,24 @@ export interface StaffKitchenReader {
 const DESIGN_ID_SHAPE = /^[A-Za-z0-9_-]{1,64}$/;
 
 const LIKE_METACHARACTERS = /[\\%_]/g;
+
+/** The most notes `readOne` returns; the newest ones, with `notesTruncated` set when there are more. */
+export const NOTES_READ_LIMIT = 100;
+
+/** The cedilla forms of S and T (S, s, T, t) that older keyboards and files type for the comma-below letters. */
+export const ROMANIAN_CEDILLA_LETTERS = String.fromCodePoint(
+  0x15e,
+  0x15f,
+  0x162,
+  0x163,
+);
+/** The comma-below forms, in the same order, that the cedilla letters fold to. */
+export const ROMANIAN_COMMA_BELOW_LETTERS = String.fromCodePoint(
+  0x218,
+  0x219,
+  0x21a,
+  0x21b,
+);
 
 export function isWellFormedDesignId(value: unknown): value is string {
   return typeof value === "string" && DESIGN_ID_SHAPE.test(value);
@@ -205,6 +236,20 @@ function isCountablePage(page: unknown): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * The text with each cedilla letter written as its comma-below letter, one code point for one, so its length is
+ * unchanged. Applied to the search here and to the name by the statement's `translate`, it makes the two spellings
+ * match; no other letter folds.
+ */
+export function foldRomanianSearchText(text: string): string {
+  return Array.from(text, (character) => {
+    const index = ROMANIAN_CEDILLA_LETTERS.indexOf(character);
+    return index < 0
+      ? character
+      : (ROMANIAN_COMMA_BELOW_LETTERS[index] ?? character);
+  }).join("");
 }
 
 /**

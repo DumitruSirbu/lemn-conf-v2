@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
 import {
   StaffKitchenReaderError,
+  foldRomanianSearchText,
   likePatternContaining,
 } from "../src/staff-kitchen-reader.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
@@ -35,7 +36,7 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 );
 
 /**
- * Adversarial QA of wave L3-S4, with no database: what the reader's statements may name, whatever the query, and what
+ * Adversarial QA of the staff kitchen reader, with no database: what the reader's statements may name, whatever the query, and what
  * the reader does with a driver or a reply it cannot trust. It adds to `neon-staff-kitchen-reader.statements.test.ts`
  * what that file does not hold: **every** table and column reference of the three statements (the developer's file
  * pins the columns of five aliases; a column named without an alias, a table joined in, or a column of `designs`
@@ -263,9 +264,14 @@ const INTENDED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
     "design_document",
     "revoked_at",
     "created_at",
+    "token_hash",
   ],
   design_notes: ["id", "design_id", "author_account_id", "body", "created_at"],
 };
+
+/** The one place `token_hash` may be named: breaking a tie between two copies. It is never selected. */
+const ORDER_BY_THE_VIEW_TOKEN_HASH_TIE_BREAK =
+  /order by csv\.created_at desc, csv\.token_hash desc/g;
 
 /** Columns that must never be named by a statement of this reader, whatever alias they sit behind. */
 const COLUMNS_THE_READER_NEVER_NAMES = [
@@ -337,7 +343,9 @@ describe("the tables and columns the three statements name", () => {
 
     for (const [which, text] of Object.entries(statements)) {
       const tokens = new Set(
-        withoutStringLiterals(text).match(/[a-z_][a-z0-9_]*/g) ?? [],
+        withoutStringLiterals(text)
+          .replace(ORDER_BY_THE_VIEW_TOKEN_HASH_TIE_BREAK, " ")
+          .match(/[a-z_][a-z0-9_]*/g) ?? [],
       );
       for (const forbidden of COLUMNS_THE_READER_NEVER_NAMES) {
         expect(tokens.has(forbidden), `${which}: ${forbidden}`).toBe(false);
@@ -382,6 +390,11 @@ describe("the tables and columns the three statements name", () => {
 
 /** Words other than a column behind an alias. Anything else in a statement is a column named bare, and fails. */
 const SQL_WORDS_THE_STATEMENTS_USE = new Set([
+  "translate",
+  "author_id",
+  "least",
+  "greatest",
+  "kitchen",
   "with",
   "as",
   "select",
@@ -604,11 +617,14 @@ describe("a list statement that is the same text for every query", () => {
         const [statement, ...others] = queryDriver.statements;
         expect(others).toEqual([]);
         expect(statement?.text).toBe(baseline);
-        expect(statement?.values).toHaveLength(10);
+        expect(statement?.values).toHaveLength(12);
         expect(statement?.values.at(-1)).toBe(staffKitchenOffsetOf(query.page));
         if (query.search !== null) {
-          expect(statement?.values.slice(5, 8)).toEqual(
-            Array<string>(3).fill(likePatternContaining(query.search)),
+          expect(statement?.values.slice(5, 7)).toEqual(
+            Array<string>(2).fill(likePatternContaining(query.search)),
+          );
+          expect(statement?.values[9]).toBe(
+            likePatternContaining(foldRomanianSearchText(query.search)),
           );
         }
       }),
@@ -758,6 +774,7 @@ const KEYS_OF_A_READING = new Set([
   "kitchens",
   "name",
   "notes",
+  "notesTruncated",
   "page",
   "pageSize",
   "phone",

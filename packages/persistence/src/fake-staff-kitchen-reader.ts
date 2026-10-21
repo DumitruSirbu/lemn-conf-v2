@@ -7,6 +7,8 @@ import type { Design, StaffKitchenQuery } from "@lemnaria/configurator-domain";
 
 import type { StaffAuditAccountRef } from "./staff-audit-store.js";
 import {
+  NOTES_READ_LIMIT,
+  foldRomanianSearchText,
   isWellFormedDesignId,
   requireValidStaffKitchenQuery,
   shownStaffStatusOf,
@@ -26,6 +28,8 @@ import type {
 export interface PlantedStaffAccount {
   readonly id: string;
   readonly email: string;
+  /** What the e-mail search reads. Defaults to the e-mail in lower case, which the real normal form need not equal. */
+  readonly emailNormalForm?: string;
   readonly name: string | null;
   readonly phone: string | null;
 }
@@ -54,6 +58,8 @@ export interface PlantedStaffRequest {
 export interface PlantedStaffSentCopy {
   readonly clientRequestId: string;
   readonly createdAt: Date;
+  /** Breaks a tie in `createdAt`, larger first. */
+  readonly tokenHash?: string;
   readonly isRevoked: boolean;
   /** `null` for a copy this build cannot read. */
   readonly design: Design | null;
@@ -77,12 +83,12 @@ export interface PlantedStaffNote {
 }
 
 /**
- * In-memory `StaffKitchenReader` with `NeonStaffKitchenReader`'s contract: client-deleted kitchens and visitors' unsent
- * drafts are never listed or read, hidden kitchens are, a stored status outside the list reads as `unrecognised`, and the
- * latest request and its newest unrevoked copy are the ones shown. It cannot stand for the database's text collation (ties
- * break by code-unit order of `id`), for its case folding (the search lower-cases in JavaScript), or for the
- * microsecond clock (it holds milliseconds). Nothing here is written by a method of the port; a test plants rows the way
- * a script around the store would.
+ * In-memory `StaffKitchenReader` with `NeonStaffKitchenReader`'s contract: client-deleted kitchens and visitors'
+ * unsent drafts are never listed or read, hidden kitchens are, a stored status outside the list reads as
+ * `unrecognised`, and the latest request and its newest unrevoked copy are the ones shown. It cannot stand for the
+ * database's text collation (ties break by code-unit order of `id`), for its case folding (the search lower-cases in
+ * JavaScript), or for the microsecond clock (it holds milliseconds). Nothing here is written by a method of the
+ * port; a test plants rows the way a script around the store would.
  */
 export class FakeStaffKitchenReader implements StaffKitchenReader {
   private readonly accounts = new Map<string, PlantedStaffAccount>();
@@ -175,6 +181,7 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
     return {
       id: kitchen.id,
       name: kitchen.name,
+      design: kitchen.design,
       client: clientOf(this.accountOf(kitchen)),
       isSent,
       isHidden: kitchen.isHidden,
@@ -209,6 +216,7 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
       asSent: this.asSentOf(latestRequest),
       status: this.statusOf(kitchen.id, isSent),
       notes: this.notesOf(kitchen.id),
+      notesTruncated: this.heldNotesOf(kitchen.id).length > NOTES_READ_LIMIT,
     };
   }
 
@@ -220,7 +228,9 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
           copy.clientRequestId === request.clientRequestId && !copy.isRevoked,
       )
       .sort(
-        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+        (left, right) =>
+          right.createdAt.getTime() - left.createdAt.getTime() ||
+          compareText(right.tokenHash ?? "", left.tokenHash ?? ""),
       )[0];
     return newest?.design ?? null;
   }
@@ -247,10 +257,15 @@ export class FakeStaffKitchenReader implements StaffKitchenReader {
     };
   }
 
-  private notesOf(designId: string): readonly StaffKitchenNote[] {
+  private heldNotesOf(designId: string): readonly PlantedStaffNote[] {
     return this.notes
       .filter((note) => note.designId === designId)
-      .sort(newestNoteFirst)
+      .sort(newestNoteFirst);
+  }
+
+  private notesOf(designId: string): readonly StaffKitchenNote[] {
+    return this.heldNotesOf(designId)
+      .slice(0, NOTES_READ_LIMIT)
       .map((note) => ({
         id: note.id,
         text: note.text,
@@ -318,10 +333,11 @@ function isFoundBy(
   account: PlantedStaffAccount | undefined,
 ): boolean {
   if (account === undefined) return false;
-  const needle = search.toLowerCase();
+  const emailNormalForm = account.emailNormalForm ?? account.email;
+  const foldedName = foldRomanianSearchText(account.name ?? "").toLowerCase();
   return (
-    account.email.toLowerCase().includes(needle) ||
-    (account.name?.toLowerCase().includes(needle) ?? false)
+    emailNormalForm.toLowerCase().includes(search.toLowerCase()) ||
+    foldedName.includes(foldRomanianSearchText(search).toLowerCase())
   );
 }
 

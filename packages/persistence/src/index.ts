@@ -286,7 +286,11 @@ export type {
   StaffAuditDirectoryDesign,
 } from "./fake-staff-audit-store.js";
 export {
+  NOTES_READ_LIMIT,
+  ROMANIAN_CEDILLA_LETTERS,
+  ROMANIAN_COMMA_BELOW_LETTERS,
   StaffKitchenReaderError,
+  foldRomanianSearchText,
   isWellFormedDesignId,
   likePatternContaining,
   requireValidStaffKitchenQuery,

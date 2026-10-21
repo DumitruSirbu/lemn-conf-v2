@@ -3,6 +3,9 @@ import { REQUEST_STATUSES } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
+  ROMANIAN_CEDILLA_LETTERS,
+  ROMANIAN_COMMA_BELOW_LETTERS,
+  foldRomanianSearchText,
   isWellFormedDesignId,
   likePatternContaining,
   shownStaffStatusOf,
@@ -136,5 +139,48 @@ describe("isWellFormedDesignId", () => {
     undefined,
   ])("refuses %j", (id) => {
     expect(isWellFormedDesignId(id)).toBe(false);
+  });
+});
+
+describe("foldRomanianSearchText", () => {
+  it.each([0, 1, 2, 3])(
+    "writes cedilla letter %i as the comma-below letter in the same place and no other",
+    (index) => {
+      const cedilla = ROMANIAN_CEDILLA_LETTERS.charAt(index);
+      const commaBelow = ROMANIAN_COMMA_BELOW_LETTERS.charAt(index);
+
+      expect(foldRomanianSearchText(`a${cedilla}b`)).toBe(`a${commaBelow}b`);
+      expect(foldRomanianSearchText(commaBelow)).toBe(commaBelow);
+    },
+  );
+
+  it("keeps every other letter, including the plain S and T and the breve, circumflex and sharp letters", () => {
+    const others = `STst${String.fromCodePoint(0x103, 0xe2, 0xee, 0xdf)} %_\\`;
+
+    expect(foldRomanianSearchText(others)).toBe(others);
+  });
+
+  it("keeps the length in code points for any text, so the cap on a search is unchanged", () => {
+    fc.assert(
+      fc.property(
+        fc.string({
+          unit: fc.constantFrom(
+            ...Array.from(ROMANIAN_CEDILLA_LETTERS),
+            ...Array.from(ROMANIAN_COMMA_BELOW_LETTERS),
+            "a",
+            "S",
+            "\u{1F373}",
+          ),
+        }),
+        (text) => {
+          expect(Array.from(foldRomanianSearchText(text))).toHaveLength(
+            Array.from(text).length,
+          );
+          expect(foldRomanianSearchText(foldRomanianSearchText(text))).toBe(
+            foldRomanianSearchText(text),
+          );
+        },
+      ),
+    );
   });
 });

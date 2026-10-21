@@ -71,6 +71,7 @@ function newFakeWorld(): KitchenWorld & {
       fake.plantAccount({
         id: accountId,
         email: client.email,
+        emailNormalForm: spec.emailNormalForm ?? client.email.toLowerCase(),
         name: client.name,
         phone: client.phone,
       });
@@ -120,6 +121,7 @@ function newFakeWorld(): KitchenWorld & {
       fake.plantSentCopy({
         clientRequestId: spec.clientRequestId,
         createdAt: spec.createdAt,
+        tokenHash: spec.tokenHash ?? nanoid(),
         isRevoked: spec.isRevoked ?? false,
         design: spec.design === "unreadable" ? null : spec.design,
       });
@@ -145,6 +147,18 @@ function newFakeWorld(): KitchenWorld & {
       });
       return Promise.resolve(id);
     },
+    someNotes(spec): Promise<void> {
+      for (let index = 0; index < spec.count; index += 1) {
+        fake.plantNote({
+          id: nanoid(),
+          designId: spec.designId,
+          authorAccountId: spec.author.accountId,
+          text: `note ${String(index)}`,
+          createdAt: new Date(spec.firstAt.getTime() + index * 60_000),
+        });
+      }
+      return Promise.resolve();
+    },
     removeAccount(accountId): Promise<void> {
       fake.removeAccount(accountId);
       return Promise.resolve();
@@ -157,7 +171,7 @@ describeStaffKitchenReaderContract("FakeStaffKitchenReader", () =>
 );
 
 describe("FakeStaffKitchenReader: the whole list of an isolated world", () => {
-  /** Every combination of the four marks a design can carry, as K-9 draws them. */
+  /** Every combination of the four marks a design can carry. */
   const designMarks: fc.Arbitrary<DesignMarks> = fc.record({
     hasAccount: fc.boolean(),
     isSent: fc.boolean(),

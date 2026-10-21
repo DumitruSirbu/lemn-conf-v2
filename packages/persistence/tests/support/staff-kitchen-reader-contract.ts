@@ -6,7 +6,10 @@ import type {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { StaffKitchenReaderError } from "../../src/staff-kitchen-reader.js";
+import {
+  NOTES_READ_LIMIT,
+  StaffKitchenReaderError,
+} from "../../src/staff-kitchen-reader.js";
 import type {
   StaffKitchenDetail,
   StaffKitchenPage,
@@ -52,6 +55,8 @@ export interface RequestSpec {
 export interface SentCopySpec {
   readonly clientRequestId: string;
   readonly createdAt: Date;
+  /** Sixty-four lower-case hex digits; defaults to a random one. */
+  readonly tokenHash?: string;
   readonly isRevoked?: boolean;
   readonly design: Design | "unreadable";
 }
@@ -89,6 +94,8 @@ export interface KitchenWorld {
   aClient(spec?: {
     readonly name?: string | null;
     readonly phone?: string | null;
+    /** What the e-mail search reads. Defaults to the e-mail in lower case. */
+    readonly emailNormalForm?: string;
   }): Promise<ClientAccount>;
   aStaffMember(): Promise<StaffAccount>;
   aKitchen(spec: KitchenSpec): Promise<string>;
@@ -100,6 +107,13 @@ export interface KitchenWorld {
   aSentCopy(spec: SentCopySpec): Promise<void>;
   aStatus(spec: StatusSpec): Promise<void>;
   aNote(spec: NoteSpec): Promise<string>;
+  /** `count` notes, the nth (from 0) written at `firstAt` plus n minutes with the text `note n`. */
+  someNotes(spec: {
+    readonly designId: string;
+    readonly author: StaffAccount;
+    readonly count: number;
+    readonly firstAt: Date;
+  }): Promise<void>;
   /** Removes the account's row, as an erasure would, leaving every row that names it. */
   removeAccount(accountId: string): Promise<void>;
 }
@@ -610,6 +624,131 @@ export function describeStaffKitchenReaderContract(
     });
   });
 
+  describe(`${suiteName}: Romanian letters in the search`, () => {
+    const S_COMMA_BELOW = String.fromCodePoint(0x218);
+    const S_COMMA_BELOW_LOWER = String.fromCodePoint(0x219);
+    const S_CEDILLA = String.fromCodePoint(0x15e);
+    const S_CEDILLA_LOWER = String.fromCodePoint(0x15f);
+    const T_COMMA_BELOW = String.fromCodePoint(0x21a);
+    const T_CEDILLA = String.fromCodePoint(0x162);
+    const T_CEDILLA_LOWER = String.fromCodePoint(0x163);
+    const A_BREVE = String.fromCodePoint(0x103);
+    const I_CIRCUMFLEX = String.fromCodePoint(0xee);
+
+    it.each([
+      [
+        "a stored comma-below S, typed as a cedilla S",
+        `${S_COMMA_BELOW}tefan`,
+        `${S_CEDILLA}tefan`,
+      ],
+      [
+        "a stored cedilla S, typed as a comma-below S",
+        `${S_CEDILLA}tefan`,
+        `${S_COMMA_BELOW}tefan`,
+      ],
+      [
+        "a stored lower-case comma-below s, typed as a lower-case cedilla s",
+        `Ma${S_COMMA_BELOW_LOWER}ina`,
+        `MA${S_CEDILLA_LOWER}ina`,
+      ],
+      [
+        "a stored cedilla t, typed as a comma-below T",
+        `Ro${T_CEDILLA_LOWER}u`,
+        `RO${T_COMMA_BELOW}U`,
+      ],
+      [
+        "a stored comma-below T, typed as a cedilla t",
+        `${T_COMMA_BELOW}ara`,
+        `${T_CEDILLA_LOWER}ara`,
+      ],
+    ])("finds %s", async (_label, stored, typed) => {
+      const world = await newWorld();
+      const client = await world.aClient({ name: `${stored} ${world.marker}` });
+      const era = world.nextEra();
+      const kitchen = await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+
+      const page = await world.reader.listPage(
+        queryOf({ search: `${typed} ${world.marker}` }),
+      );
+
+      expect(idsOf(page)).toEqual([kitchen]);
+    });
+
+    it.each([
+      ["S for a comma-below S", "Stefan", `${S_COMMA_BELOW}tefan`],
+      ["T for a cedilla T", "Tara", `${T_CEDILLA}ara`],
+      ["a for a breve a", `Pa${A_BREVE}un`, "Paun"],
+      ["i for a circumflex i", `Ro${I_CIRCUMFLEX}u`, "Roiu"],
+    ])("keeps %s distinct", async (_label, typedLetter, storedLetter) => {
+      const world = await newWorld();
+      const client = await world.aClient({
+        name: `${storedLetter} ${world.marker}`,
+      });
+      const era = world.nextEra();
+      await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+
+      const page = await world.reader.listPage(
+        queryOf({ search: `${typedLetter} ${world.marker}` }),
+      );
+
+      expect(page.kitchens).toEqual([]);
+    });
+
+    it("searches the stored e-mail normal form and not the e-mail as typed", async () => {
+      const world = await newWorld();
+      const client = await world.aClient({
+        emailNormalForm: `normal-${world.marker}@example.invalid`,
+      });
+      const era = world.nextEra();
+      const kitchen = await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+
+      const byNormalForm = await world.reader.listPage(
+        queryOf({ search: `normal-${world.marker}` }),
+      );
+      const byTypedForm = await world.reader.listPage(
+        queryOf({ search: client.email.slice(0, client.email.indexOf("@")) }),
+      );
+
+      expect(idsOf(byNormalForm)).toEqual([kitchen]);
+      expect(idsOf(byTypedForm).includes(kitchen)).toBe(false);
+    });
+  });
+
+  describe(`${suiteName}: the document of a listed kitchen`, () => {
+    it("is the stored design, and null where this build cannot read it", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const readable = await world.aKitchen({ client, updatedAt: at(era, 1) });
+      const unreadable = await world.aKitchen({
+        client,
+        updatedAt: at(era, 2),
+        document: "unreadable",
+      });
+
+      const page = await world.reader.listPage(
+        queryOf({ segment: "drafts", search: world.marker }),
+      );
+
+      expect(listedOf(page, readable).design?.createdAt).toBe(
+        CURRENT_DESIGN.createdAt,
+      );
+      expect(listedOf(page, unreadable).design).toBeNull();
+    });
+  });
+
   describe(`${suiteName}: the status a row shows`, () => {
     it("shows null for a draft, new for a sent kitchen with no saved status, the saved status, and unrecognised for a stored text outside the list", async () => {
       const world = await newWorld();
@@ -660,6 +799,10 @@ export function describeStaffKitchenReaderContract(
         queryOf({ segment: "all", search: world.marker }),
       );
 
+      expect(listedOf(page, draft).sentAt).toBeNull();
+      expect(listedOf(page, untouched).sentAt?.getTime()).toBe(
+        at(era, 3).getTime(),
+      );
       expect(listedOf(page, draft).requestStatus).toBeNull();
       expect(listedOf(page, draftWithStrayRow).requestStatus).toBeNull();
       expect(listedOf(page, untouched).requestStatus).toBe("new");
@@ -997,6 +1140,71 @@ export function describeStaffKitchenReaderContract(
     });
   });
 
+  describe(`${suiteName}: two copies of one request made at the same time`, () => {
+    const HASHES = ["1", "7", "8", "9"].map((digit) => digit.repeat(64));
+    const [HASH_1, HASH_7, HASH_8, HASH_9] = HASHES as [
+      string,
+      string,
+      string,
+      string,
+    ];
+
+    it("shows the copy with the larger token hash, whichever was stored first", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const instant = at(era, 5);
+      const storedSmallerFirst = await world.aKitchen({
+        client,
+        sentAt: at(era, 1),
+        updatedAt: at(era, 1),
+      });
+      const storedLargerFirst = await world.aKitchen({
+        client,
+        sentAt: at(era, 2),
+        updatedAt: at(era, 2),
+      });
+      const first = await world.aRequest({
+        designId: storedSmallerFirst,
+        createdAt: at(era, 3),
+      });
+      const second = await world.aRequest({
+        designId: storedLargerFirst,
+        createdAt: at(era, 3),
+      });
+      await world.aSentCopy({
+        clientRequestId: first.clientRequestId,
+        createdAt: instant,
+        tokenHash: HASH_1,
+        design: OLDER_SENT_DESIGN,
+      });
+      await world.aSentCopy({
+        clientRequestId: first.clientRequestId,
+        createdAt: instant,
+        tokenHash: HASH_9,
+        design: SENT_DESIGN,
+      });
+      await world.aSentCopy({
+        clientRequestId: second.clientRequestId,
+        createdAt: instant,
+        tokenHash: HASH_8,
+        design: SENT_DESIGN,
+      });
+      await world.aSentCopy({
+        clientRequestId: second.clientRequestId,
+        createdAt: instant,
+        tokenHash: HASH_7,
+        design: OLDER_SENT_DESIGN,
+      });
+
+      const smallerFirst = await foundKitchen(world, storedSmallerFirst);
+      const largerFirst = await foundKitchen(world, storedLargerFirst);
+
+      expect(smallerFirst.asSent?.updatedAt).toBe(SENT_DESIGN.updatedAt);
+      expect(largerFirst.asSent?.updatedAt).toBe(SENT_DESIGN.updatedAt);
+    });
+  });
+
   describe(`${suiteName}: the status of one kitchen`, () => {
     it("is null for a draft, even with a stray row, and new with no change for a sent kitchen with none saved", async () => {
       const world = await newWorld();
@@ -1186,6 +1394,39 @@ export function describeStaffKitchenReaderContract(
         email: null,
         name: null,
       });
+    });
+
+    it("returns the newest hundred notes and says so when there are more, and all of them when there are not", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const staff = await world.aStaffMember();
+      const era = world.nextEra();
+      const exactly = await world.aKitchen({ client, updatedAt: at(era, 1) });
+      const over = await world.aKitchen({ client, updatedAt: at(era, 2) });
+      await world.someNotes({
+        designId: exactly,
+        author: staff,
+        count: NOTES_READ_LIMIT,
+        firstAt: at(era, 10),
+      });
+      await world.someNotes({
+        designId: over,
+        author: staff,
+        count: NOTES_READ_LIMIT + 1,
+        firstAt: at(era, 10),
+      });
+
+      const exactDetail = await foundKitchen(world, exactly);
+      const overDetail = await foundKitchen(world, over);
+
+      expect(exactDetail.notes).toHaveLength(NOTES_READ_LIMIT);
+      expect(exactDetail.notesTruncated).toBe(false);
+      expect(overDetail.notes).toHaveLength(NOTES_READ_LIMIT);
+      expect(overDetail.notesTruncated).toBe(true);
+      expect(overDetail.notes[0]?.text).toBe(
+        `note ${String(NOTES_READ_LIMIT)}`,
+      );
+      expect(overDetail.notes.at(-1)?.text).toBe("note 1");
     });
 
     it("reads the notes of a kitchen its client hid", async () => {

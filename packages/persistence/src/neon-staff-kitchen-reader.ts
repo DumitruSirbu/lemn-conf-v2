@@ -1,21 +1,26 @@
 import {
-  INITIAL_REQUEST_STATUS,
   STAFF_KITCHEN_PAGE_SIZE,
   migrateDesign,
-  staffKitchenOffsetOf,
 } from "@lemnaria/configurator-domain";
 import type { Design, StaffKitchenQuery } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 import { reducedCauseOf } from "./migration-errors.js";
 import type { ReducedCause } from "./migration-errors.js";
+import {
+  instantFromEpochMilliseconds,
+  isMissingGrantOrTable,
+  isRecord,
+  pagedRowsFrom,
+} from "./neon-row-guards.js";
+import type { Row } from "./neon-row-guards.js";
 import { openApplicationDatabase } from "./open-application-database.js";
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import type { StaffAuditAccountRef } from "./staff-audit-store.js";
 import {
+  NOTES_READ_LIMIT,
   StaffKitchenReaderError,
   isWellFormedDesignId,
-  likePatternContaining,
   requireValidStaffKitchenQuery,
   shownStaffStatusOf,
 } from "./staff-kitchen-reader.js";
@@ -32,12 +37,13 @@ import type {
   StaffKitchenStatus,
   StaffListedKitchen,
 } from "./staff-kitchen-reader.js";
+import {
+  staffKitchenListStatement,
+  staffKitchenNotesStatement,
+  staffKitchenStatement,
+} from "./staff-kitchen-statements.js";
 
 type ApplicationSql = NeonQueryFunction<false, false>;
-type Row = Record<string, unknown>;
-
-const MISSING_GRANT = "42501";
-const MISSING_TABLE = "42P01";
 
 const LIST_OPERATION = "list staff kitchens";
 const READ_OPERATION = "read a staff kitchen";
@@ -45,11 +51,12 @@ const READ_OPERATION = "read a staff kitchen";
 /**
  * `StaffKitchenReader` on Neon Postgres, over `designs`, joined to `accounts`, `design_request_states`,
  * `contact_submissions` and `contact_submission_views`, and reading `design_notes` (migrations `0008`, `0010`, `0012`,
- * `0015`-`0017`, `0021`, `0022`). Every statement is a read, in a tagged-template `sql`, which parameterises values.
+ * `0015`-`0017`, `0021`, `0022`). Every statement is a read, written in `staff-kitchen-statements.ts`.
  *
- * A kitchen its client deleted is excluded by every statement; one it hid is not. The `contact_submissions` clause names
- * only the seven columns the application role may select (`reference`, `client_request_id`, `design_id`, `created_at`
- * among them), never a column the client typed, and `accounts` is read for its e-mail, name and phone alone.
+ * A kitchen its client deleted is excluded by every statement; one it hid is not. The `contact_submissions` clause
+ * names only the seven columns the application role may select, among them `reference`, `client_request_id`,
+ * `design_id` and `created_at`, never a column the client typed, and `accounts` is read for its e-mail, name and phone
+ * alone.
  */
 export class NeonStaffKitchenReader implements StaffKitchenReader {
   private readonly sql: ApplicationSql;
@@ -59,16 +66,11 @@ export class NeonStaffKitchenReader implements StaffKitchenReader {
     this.sql = openApplicationDatabase(connectionUrl);
   }
 
-  /**
-   * One statement carries the page and the count, so `total` and the kitchens come from one snapshot, and an empty page
-   * still reports the total. The accounts and the status row are **left** joins: a kitchen with no account stays, with
-   * a null client. The sent segment walks `sent_at`, the others `updated_at`; ties break by `id`, and the outer query
-   * repeats the order because a lateral join promises none.
-   */
+  /** One statement carries the page and the count, so `total` and the kitchens come from one snapshot. */
   async listPage(query: StaffKitchenQuery): Promise<StaffKitchenPage> {
     requireValidStaffKitchenQuery(query);
     const rows = await queryRows(LIST_OPERATION, () =>
-      retryOnTransientFailure(() => this.pageRows(query)),
+      retryOnTransientFailure(() => staffKitchenListStatement(this.sql, query)),
     );
     return pageFrom(rows, query.page);
   }
@@ -80,107 +82,16 @@ export class NeonStaffKitchenReader implements StaffKitchenReader {
   async readOne(designId: string): Promise<StaffKitchenReading> {
     if (!isWellFormedDesignId(designId)) return { kind: "none" };
     const kitchenRows = await queryRows(READ_OPERATION, () =>
-      retryOnTransientFailure(() => this.kitchenRows(designId)),
+      retryOnTransientFailure(() => staffKitchenStatement(this.sql, designId)),
     );
     const row = oneRowOrNone(kitchenRows);
     if (row === undefined) return { kind: "none" };
     const noteRows = await queryRows(READ_OPERATION, () =>
-      retryOnTransientFailure(() => this.noteRows(designId)),
+      retryOnTransientFailure(() =>
+        staffKitchenNotesStatement(this.sql, designId),
+      ),
     );
     return { kind: "found", kitchen: detailFrom(row, noteRows) };
-  }
-
-  private pageRows(query: StaffKitchenQuery) {
-    const { segment, status, search, page } = query;
-    const pattern = search === null ? null : likePatternContaining(search);
-    return this.sql`
-      with matching as (
-        select d.id, d.name, d.sent_at, d.updated_at, d.hidden_by_client_at,
-          case when ${segment}::text = 'sent' then d.sent_at else d.updated_at end as sorted_at,
-          a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
-          s.status as stored_status
-        from designs d
-        left join accounts a on a.id = d.account_id
-        left join design_request_states s on s.design_id = d.id
-        where d.deleted_by_client_at is null
-          and (case ${segment}::text
-            when 'sent' then d.sent_at is not null
-            when 'drafts' then d.sent_at is null and d.account_id is not null
-            when 'all' then d.sent_at is not null or d.account_id is not null
-          end)
-          and (${status}::text is null or coalesce(s.status, ${INITIAL_REQUEST_STATUS}::text) = ${status}::text)
-          and (${pattern}::text is null
-            or a.email_normal_form ilike ${pattern}::text escape '\\'
-            or a.name ilike ${pattern}::text escape '\\')
-      )
-      select t.total, p.id, p.name, p.is_sent, p.is_hidden, p.sent_ms, p.updated_ms, p.sorted_at,
-        p.client_id, p.client_email, p.client_name, p.client_phone, p.stored_status
-      from (select count(*)::int as total from matching) t
-      left join lateral (
-        select m.id, m.name, (m.sent_at is not null) as is_sent, (m.hidden_by_client_at is not null) as is_hidden,
-          floor(extract(epoch from m.sent_at) * 1000)::bigint::text as sent_ms,
-          floor(extract(epoch from m.updated_at) * 1000)::bigint::text as updated_ms,
-          m.sorted_at, m.client_id, m.client_email, m.client_name, m.client_phone, m.stored_status
-        from matching m
-        order by m.sorted_at desc, m.id desc
-        limit ${STAFF_KITCHEN_PAGE_SIZE}::int offset ${staffKitchenOffsetOf(page)}::bigint
-      ) p on true
-      order by p.sorted_at desc nulls last, p.id desc
-    `;
-  }
-
-  /**
-   * A kitchen is readable unless its client deleted it, and unless it is a visitor's unsent draft, which no list shows
-   * (the same two tests as the lists' `all` segment). `contact_submissions` is read through `cs` for the columns the
-   * application role may select, and its newest row for the design is the latest request. The as-sent copy is the newest
-   * unrevoked view of that request.
-   */
-  private kitchenRows(designId: string) {
-    return this.sql`
-      select d.id, d.name, d.schema_version, d.document,
-        (d.sent_at is not null) as is_sent, (d.hidden_by_client_at is not null) as is_hidden,
-        floor(extract(epoch from d.sent_at) * 1000)::bigint::text as sent_ms,
-        floor(extract(epoch from d.updated_at) * 1000)::bigint::text as updated_ms,
-        a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
-        request.reference as request_reference, request.created_ms as request_ms,
-        sent_copy.schema_version as sent_schema_version, sent_copy.design_document as sent_document,
-        s.status as stored_status, s.changed_by_account_id as changed_by_id,
-        floor(extract(epoch from s.changed_at) * 1000)::bigint::text as changed_ms,
-        changer.email as changed_by_email, changer.name as changed_by_name
-      from designs d
-      left join accounts a on a.id = d.account_id
-      left join lateral (
-        select cs.reference, cs.client_request_id,
-          floor(extract(epoch from cs.created_at) * 1000)::bigint::text as created_ms
-        from contact_submissions cs
-        where cs.design_id = d.id
-        order by cs.created_at desc, cs.client_request_id desc
-        limit 1
-      ) request on true
-      left join lateral (
-        select csv.schema_version, csv.design_document
-        from contact_submission_views csv
-        where csv.client_request_id = request.client_request_id and csv.revoked_at is null
-        order by csv.created_at desc
-        limit 1
-      ) sent_copy on true
-      left join design_request_states s on s.design_id = d.id
-      left join accounts changer on changer.id = s.changed_by_account_id
-      where d.id = ${designId}
-        and d.deleted_by_client_at is null
-        and (d.sent_at is not null or d.account_id is not null)
-    `;
-  }
-
-  private noteRows(designId: string) {
-    return this.sql`
-      select n.id, n.body, floor(extract(epoch from n.created_at) * 1000)::bigint::text as created_ms,
-        n.author_account_id, author.email as author_email, author.name as author_name
-      from design_notes n
-      left join accounts author on author.id = n.author_account_id
-      where n.design_id = ${designId}
-      order by n.created_at desc, n.id desc
-    `;
   }
 }
 
@@ -212,8 +123,7 @@ function readerErrorFrom(
 function failureKindOf(
   sqlState: string | undefined,
 ): StaffKitchenReaderFailure {
-  const isMissing = sqlState === MISSING_GRANT || sqlState === MISSING_TABLE;
-  return isMissing ? "unavailable" : "database";
+  return isMissingGrantOrTable(sqlState) ? "unavailable" : "database";
 }
 
 /** Each row is copied in one guarded step, so a row that throws when read is the store error with no cause. */
@@ -231,44 +141,30 @@ function plainRowsOf(
   }
 }
 
-function isRecord(value: unknown): value is Row {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function unexpectedAnswer(
   operation: StaffKitchenReaderOperation,
 ): StaffKitchenReaderError {
   return new StaffKitchenReaderError(operation, "unexpected-answer");
 }
 
-/** The statement's rows: the matching total, then one row per kitchen, or one row with no kitchen when the page is empty.
- *  A row count above a page, or an empty reply, is a statement that did not answer as it was written. */
 function pageFrom(rows: readonly Row[], page: number): StaffKitchenPage {
-  const total = rows[0]?.["total"];
-  if (rows.length === 0 || !isCount(total))
-    throw unexpectedAnswer(LIST_OPERATION);
-  const found = rows.filter((row) => row["id"] !== null);
-  const isEmptyPage = found.length === 0 && rows.length === 1;
-  const isFullReply = found.length === rows.length;
-  if (!isEmptyPage && !isFullReply) throw unexpectedAnswer(LIST_OPERATION);
-  if (found.length > STAFF_KITCHEN_PAGE_SIZE) {
-    throw unexpectedAnswer(LIST_OPERATION);
-  }
+  const paged = pagedRowsFrom(rows, STAFF_KITCHEN_PAGE_SIZE);
+  if (paged === undefined) throw unexpectedAnswer(LIST_OPERATION);
   return {
-    total,
+    total: paged.total,
     page,
     pageSize: STAFF_KITCHEN_PAGE_SIZE,
-    kitchens: found.map(listedKitchenFrom),
+    kitchens: paged.found.map(listedKitchenFrom),
   };
 }
 
 function listedKitchenFrom(row: Row): StaffListedKitchen {
   const operation = LIST_OPERATION;
-  const id = requiredText(row["id"], operation);
   const isSent = requiredBoolean(row["is_sent"], operation);
   return {
-    id,
+    id: requiredText(row["id"], operation),
     name: optionalText(row["name"], operation),
+    design: readableDesignOrNull(row["schema_version"], row["document"]),
     client: clientFrom(row, operation),
     isSent,
     isHidden: requiredBoolean(row["is_hidden"], operation),
@@ -287,14 +183,14 @@ function oneRowOrNone(rows: readonly Row[]): Row | undefined {
   return row;
 }
 
+/** The statement asks for one note more than the limit; that extra row only says that some were left out. */
 function detailFrom(row: Row, noteRows: readonly Row[]): StaffKitchenDetail {
   const operation = READ_OPERATION;
   const isSent = requiredBoolean(row["is_sent"], operation);
-  const schemaVersion = row["schema_version"];
   return {
     id: requiredText(row["id"], operation),
     name: optionalText(row["name"], operation),
-    design: readableDesignOrNull(schemaVersion, row["document"]),
+    design: readableDesignOrNull(row["schema_version"], row["document"]),
     isSent,
     isHidden: requiredBoolean(row["is_hidden"], operation),
     sentAt: optionalInstant(row["sent_ms"], operation),
@@ -306,7 +202,8 @@ function detailFrom(row: Row, noteRows: readonly Row[]): StaffKitchenDetail {
       row["sent_document"],
     ),
     status: statusFrom(row, isSent, operation),
-    notes: noteRows.map(noteFrom),
+    notes: noteRows.slice(0, NOTES_READ_LIMIT).map(noteFrom),
+    notesTruncated: noteRows.length > NOTES_READ_LIMIT,
   };
 }
 
@@ -343,22 +240,13 @@ function statusFrom(
   if (value === null) return null;
   return {
     value,
-    change: storedStatus === null ? null : statusChangeFrom(row, operation),
-  };
-}
-
-function statusChangeFrom(
-  row: Row,
-  operation: StaffKitchenReaderOperation,
-): NonNullable<StaffKitchenStatus["change"]> {
-  return {
-    by: accountRefFrom(
-      requiredText(row["changed_by_id"], operation),
-      row["changed_by_email"],
-      row["changed_by_name"],
-      operation,
-    ),
-    at: requiredInstant(row["changed_ms"], operation),
+    change:
+      storedStatus === null
+        ? null
+        : {
+            by: accountRefFrom(row, "changed_by", operation),
+            at: requiredInstant(row["changed_ms"], operation),
+          },
   };
 }
 
@@ -368,25 +256,20 @@ function noteFrom(row: Row): StaffKitchenNote {
     id: requiredText(row["id"], operation),
     text: requiredText(row["body"], operation),
     createdAt: requiredInstant(row["created_ms"], operation),
-    author: accountRefFrom(
-      requiredText(row["author_account_id"], operation),
-      row["author_email"],
-      row["author_name"],
-      operation,
-    ),
+    author: accountRefFrom(row, "author", operation),
   };
 }
 
+/** The account named by the row's `<prefix>_id`, `<prefix>_email` and `<prefix>_name`; the id is always there. */
 function accountRefFrom(
-  id: string,
-  email: unknown,
-  name: unknown,
+  row: Row,
+  prefix: string,
   operation: StaffKitchenReaderOperation,
 ): StaffAuditAccountRef {
   return {
-    id,
-    email: optionalText(email, operation),
-    name: optionalText(name, operation),
+    id: requiredText(row[`${prefix}_id`], operation),
+    email: optionalText(row[`${prefix}_email`], operation),
+    name: optionalText(row[`${prefix}_name`], operation),
   };
 }
 
@@ -440,15 +323,7 @@ function requiredInstant(
   epochMilliseconds: unknown,
   operation: StaffKitchenReaderOperation,
 ): Date {
-  const milliseconds =
-    typeof epochMilliseconds === "string" &&
-    /^[0-9]{1,16}$/.test(epochMilliseconds)
-      ? Number(epochMilliseconds)
-      : Number.NaN;
-  if (!Number.isSafeInteger(milliseconds)) throw unexpectedAnswer(operation);
-  return new Date(milliseconds);
-}
-
-function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+  const instant = instantFromEpochMilliseconds(epochMilliseconds);
+  if (instant === undefined) throw unexpectedAnswer(operation);
+  return instant;
 }

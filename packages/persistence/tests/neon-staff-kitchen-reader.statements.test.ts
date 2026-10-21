@@ -6,11 +6,17 @@ import {
   STAFF_KITCHEN_PAGE_SIZE,
   staffKitchenOffsetOf,
 } from "@lemnaria/configurator-domain";
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import type { StaffKitchenQuery } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
-import { StaffKitchenReaderError } from "../src/staff-kitchen-reader.js";
+import {
+  NOTES_READ_LIMIT,
+  ROMANIAN_CEDILLA_LETTERS,
+  ROMANIAN_COMMA_BELOW_LETTERS,
+  StaffKitchenReaderError,
+} from "../src/staff-kitchen-reader.js";
 import type { StaffKitchenReaderFailure } from "../src/staff-kitchen-reader.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
@@ -36,6 +42,10 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
  * column the application role may not select, that none writes, and that the visibility clauses are in the text.
  */
 const DESIGN_ID = "D".repeat(21);
+const CEDILLA_S = ROMANIAN_CEDILLA_LETTERS.charAt(0);
+const CEDILLA_T = ROMANIAN_CEDILLA_LETTERS.charAt(2);
+const COMMA_BELOW_S = ROMANIAN_COMMA_BELOW_LETTERS.charAt(0);
+const COMMA_BELOW_T = ROMANIAN_COMMA_BELOW_LETTERS.charAt(2);
 const OPERATIONS = ["listPage", "readOne"] as const;
 const NOTHING_FOUND = [{ total: 0, id: null }];
 const READABLE_ACCOUNT_COLUMNS = ["id", "email", "name", "phone"];
@@ -229,7 +239,7 @@ describe("the list statement", () => {
     const text = normalised(await sentByList(aQuery({ search: "ana" })));
 
     expect(text).toContain(
-      "a.email_normal_form ilike ?::text escape '\\' or a.name ilike ?::text escape '\\'",
+      "a.email_normal_form ilike ?::text escape '\\' or translate(a.name, ?::text, ?::text) ilike ?::text escape '\\'",
     );
     expect(text).not.toContain("d.name ilike");
     expect(text).not.toContain("reference");
@@ -246,7 +256,11 @@ describe("the list statement", () => {
     async (_label, search, pattern) => {
       const { values } = await sentByList(aQuery({ search }));
 
-      expect(values.filter((value) => value === pattern)).toHaveLength(3);
+      const [emailPattern, namePattern] = [values[5], values[9]];
+
+      expect(values[6]).toBe(emailPattern);
+      expect(emailPattern).toBe(pattern);
+      expect(namePattern).toBe(pattern);
       expect(values).not.toContain(search);
     },
   );
@@ -262,6 +276,8 @@ describe("the list statement", () => {
       null,
       null,
       null,
+      ROMANIAN_CEDILLA_LETTERS,
+      ROMANIAN_COMMA_BELOW_LETTERS,
       null,
       STAFF_KITCHEN_PAGE_SIZE,
       0,
@@ -281,6 +297,8 @@ describe("the list statement", () => {
       "closed",
       "%ana%",
       "%ana%",
+      ROMANIAN_CEDILLA_LETTERS,
+      ROMANIAN_COMMA_BELOW_LETTERS,
       "%ana%",
       STAFF_KITCHEN_PAGE_SIZE,
       staffKitchenOffsetOf(3),
@@ -300,7 +318,45 @@ describe("the list statement", () => {
     expect(statement.values.at(-1)).toBe(staffKitchenOffsetOf(lastPage));
   });
 
-  it("reads the client's id, e-mail, name and phone, and no postal address, credential, document or token", async () => {
+  it("folds the cedilla letters of the typed search and of the stored name by parameters, not literals", async () => {
+    const search = `${CEDILLA_S}erban ${CEDILLA_T}aru`;
+    const statement = await sentByList(aQuery({ search }));
+
+    expect(statement.values[9]).toBe(
+      `%${COMMA_BELOW_S}erban ${COMMA_BELOW_T}aru%`,
+    );
+    expect(statement.values.slice(7, 9)).toEqual([
+      ROMANIAN_CEDILLA_LETTERS,
+      ROMANIAN_COMMA_BELOW_LETTERS,
+    ]);
+    expect(statement.text).not.toMatch(
+      new RegExp(
+        `[${ROMANIAN_CEDILLA_LETTERS}${ROMANIAN_COMMA_BELOW_LETTERS}]`,
+      ),
+    );
+    expect(statement.values[5]).toBe(`%${search}%`);
+  });
+
+  it("reads each kitchen's document for the page only, joined back after the count", async () => {
+    const text = normalised(await sentByList(aQuery()));
+
+    expect(text).toContain("left join designs kitchen on kitchen.id = m.id");
+    expect(text).toContain("kitchen.schema_version, kitchen.document");
+    expect(text).not.toContain("d.document");
+  });
+
+  it("reads each instant as epoch milliseconds clamped to what a Date holds", async () => {
+    const text = normalised(await sentByList(aQuery()));
+
+    const clamp = (column: string) =>
+      `floor(least( greatest(extract(epoch from ${column}) * 1000, -8640000000000000), 8640000000000000 ))::bigint::text`;
+    expect(text).toContain(clamp("m.updated_at"));
+    expect(text).toContain(
+      `case when m.sent_at is null then null else ${clamp("m.sent_at")} end as sent_ms`,
+    );
+  });
+
+  it("reads the client's id, e-mail, name and phone, and no postal address, credential or token", async () => {
     const text = normalised(await sentByList(aQuery({ search: "ana" })));
 
     expect(columnsReferencedThrough("a", text)).toEqual(
@@ -312,7 +368,6 @@ describe("the list statement", () => {
       "role",
       "token",
       "visitor",
-      "document",
       "hash",
     ]) {
       expect(text).not.toContain(forbidden);
@@ -356,8 +411,10 @@ describe("the statements for one kitchen", () => {
     const text = normalised(notes);
 
     expect(text).toContain("where n.design_id = ?");
-    expect(text).toContain("order by n.created_at desc, n.id desc");
-    expect(notes.values).toEqual([DESIGN_ID]);
+    expect(text).toContain(
+      "order by n.created_at desc, n.id desc limit ?::int",
+    );
+    expect(notes.values).toEqual([DESIGN_ID, NOTES_READ_LIMIT + 1]);
   });
 
   it("names only columns of contact_submissions that the application role may select", async () => {
@@ -409,7 +466,7 @@ describe("the statements for one kitchen", () => {
       "from contact_submissions cs where cs.design_id = d.id order by cs.created_at desc, cs.client_request_id desc limit 1",
     );
     expect(text).toContain(
-      "from contact_submission_views csv where csv.client_request_id = request.client_request_id and csv.revoked_at is null order by csv.created_at desc limit 1",
+      "from contact_submission_views csv where csv.client_request_id = request.client_request_id and csv.revoked_at is null order by csv.created_at desc, csv.token_hash desc limit 1",
     );
   });
 
@@ -424,9 +481,12 @@ describe("the statements for one kitchen", () => {
         "client_request_id",
         "revoked_at",
         "created_at",
+        "token_hash",
       ]),
     );
-    expect(text).not.toContain("token_hash");
+    const selectList = text.slice(0, text.indexOf(" from designs d "));
+    expect(selectList).not.toContain("token_hash");
+    expect(text.match(/token_hash/g)).toHaveLength(1);
   });
 
   it("reads the client's and the account-behind-a-change's e-mail, name and phone only", async () => {
@@ -673,5 +733,102 @@ describe("the operations the reader offers", () => {
         ),
       ),
     ).toEqual([]);
+  });
+});
+
+describe("the notes a kitchen reads", () => {
+  function notesRows(count: number) {
+    return Array.from({ length: count }, (_unused, index) => ({
+      id: `note-${String(index)}`,
+      body: `text ${String(index)}`,
+      created_ms: String(1_790_000_000_000 - index),
+      author_id: "S".repeat(21),
+      author_email: null,
+      author_name: null,
+    }));
+  }
+
+  async function readWithNotes(count: number) {
+    answerQueryWith([aKitchenRow()]);
+    answerQueryWith(notesRows(count));
+    const reading = await newReader().readOne(DESIGN_ID);
+    if (reading.kind !== "found") throw new Error("not found");
+    return reading.kitchen;
+  }
+
+  it("keeps the statement's first hundred and says none were left out when it returned exactly a hundred", async () => {
+    const kitchen = await readWithNotes(NOTES_READ_LIMIT);
+
+    expect(kitchen.notes).toHaveLength(NOTES_READ_LIMIT);
+    expect(kitchen.notesTruncated).toBe(false);
+  });
+
+  it("drops the one note more than the limit and says some were left out", async () => {
+    const kitchen = await readWithNotes(NOTES_READ_LIMIT + 1);
+
+    expect(kitchen.notes).toHaveLength(NOTES_READ_LIMIT);
+    expect(kitchen.notes.at(-1)?.id).toBe(
+      `note-${String(NOTES_READ_LIMIT - 1)}`,
+    );
+    expect(kitchen.notesTruncated).toBe(true);
+  });
+
+  it("says none were left out of a kitchen with no notes", async () => {
+    const kitchen = await readWithNotes(0);
+
+    expect(kitchen.notes).toEqual([]);
+    expect(kitchen.notesTruncated).toBe(false);
+  });
+});
+
+describe("the instants a row can hold", () => {
+  it.each([
+    ["before 1970", "-2208988800000", -2_208_988_800_000],
+    ["the latest a Date holds", "8640000000000000", 8.64e15],
+    ["the earliest a Date holds", "-8640000000000000", -8.64e15],
+  ])(
+    "reads an instant %s on the list and on one kitchen",
+    async (_label, text, milliseconds) => {
+      answerQueryWith([aListedRow({ sent_ms: text, updated_ms: text })]);
+      answerQueryWith([aKitchenRow({ sent_ms: text, updated_ms: text })]);
+      answerQueryWith([]);
+
+      const page = await newReader().listPage(aQuery());
+      const reading = await newReader().readOne(DESIGN_ID);
+
+      expect(page.kitchens[0]?.sentAt?.getTime()).toBe(milliseconds);
+      expect(page.kitchens[0]?.updatedAt.getTime()).toBe(milliseconds);
+      expect(
+        reading.kind === "found" && reading.kitchen.updatedAt.getTime(),
+      ).toBe(milliseconds);
+    },
+  );
+
+  it("holds an instant past what a Date holds to the nearest one rather than failing", async () => {
+    answerQueryWith([aListedRow({ updated_ms: "9999999999999999" })]);
+
+    const page = await newReader().listPage(aQuery());
+
+    expect(page.kitchens[0]?.updatedAt.getTime()).toBe(8.64e15);
+  });
+});
+
+describe("the document of a listed kitchen", () => {
+  it("is the migrated design, and null when the stored document cannot be read", async () => {
+    answerQueryWith([
+      aListedRow({
+        id: "A".repeat(21),
+        schema_version: 5,
+        document: KITCHEN_L_DESIGN,
+      }),
+      aListedRow({ id: "B".repeat(21), schema_version: 5, document: {} }),
+    ]);
+
+    const page = await newReader().listPage(aQuery());
+
+    expect(page.kitchens[0]?.design?.createdAt).toBe(
+      KITCHEN_L_DESIGN.createdAt,
+    );
+    expect(page.kitchens[1]?.design).toBeNull();
   });
 });

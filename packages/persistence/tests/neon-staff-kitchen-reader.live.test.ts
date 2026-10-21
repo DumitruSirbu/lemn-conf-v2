@@ -90,6 +90,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       readonly role: "client" | "operator";
       readonly name: string | null;
       readonly phone: string | null;
+      readonly emailNormalForm?: string;
     }): Promise<{ accountId: string; email: string }> {
       const accountId = nanoid();
       accountCount += 1;
@@ -98,7 +99,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       await sql()`
         insert into accounts (id, email, email_normal_form, password_hash, role, locale, privacy_notice_version,
           phone, phone_normal_form, address, name)
-        values (${accountId}, ${email}, ${email.toLowerCase()}, ${PASSWORD_HASH}, ${spec.role}, 'ro', '1',
+        values (${accountId}, ${email}, ${spec.emailNormalForm ?? email.toLowerCase()}, ${PASSWORD_HASH}, ${spec.role}, 'ro', '1',
           ${spec.phone}, ${spec.phone}, ${ADDRESS_MARKER}, ${spec.name})
       `;
       return { accountId, email };
@@ -116,6 +117,9 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           role: "client",
           name,
           phone,
+          ...(spec.emailNormalForm === undefined
+            ? {}
+            : { emailNormalForm: spec.emailNormalForm }),
         });
         return { accountId, email, name, phone };
       },
@@ -169,7 +173,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         await sql()`
           insert into contact_submission_views (token_hash, client_request_id, schema_version, design_document,
             created_at, revoked_at)
-          values (${randomBytes(32).toString("hex")}, ${spec.clientRequestId}, ${CURRENT_SCHEMA_VERSION},
+          values (${spec.tokenHash ?? randomBytes(32).toString("hex")}, ${spec.clientRequestId}, ${CURRENT_SCHEMA_VERSION},
             ${document}::jsonb, ${spec.createdAt.toISOString()}::timestamptz,
             case when ${spec.isRevoked ?? false}::boolean then now() end)
         `;
@@ -191,6 +195,14 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         `;
         return id;
       },
+      async someNotes(spec): Promise<void> {
+        await sql()`
+          insert into design_notes (id, design_id, author_account_id, body, created_at)
+          select substr(md5(random()::text || n::text), 1, 21), ${spec.designId}, ${spec.author.accountId},
+            'note ' || n::text, ${spec.firstAt.toISOString()}::timestamptz + n * interval '1 minute'
+          from generate_series(0, ${spec.count - 1}::int) as n
+        `;
+      },
       async removeAccount(accountId): Promise<void> {
         await sql()`delete from accounts where id = ${accountId}`;
       },
@@ -199,7 +211,85 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
   describeStaffKitchenReaderContract("NeonStaffKitchenReader", newWorld);
 
+  async function foundOne(world: KitchenWorld, designId: string) {
+    const reading = await world.reader.readOne(designId);
+    if (reading.kind !== "found") throw new Error("the kitchen was not found");
+    return reading.kitchen;
+  }
+
   describe("what only the database can show", () => {
+    const LATEST_INSTANT_MS = 8.64e15;
+    const START_OF_1900_MS = Date.UTC(1900, 0, 1);
+
+    it("reads an instant of infinity, minus infinity, before 1970 or past year 275760 as the nearest instant a Date holds", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const staff = await world.aStaffMember();
+      const era = world.nextEra();
+      const unbounded = await world.aKitchen({
+        client,
+        sentAt: era,
+        updatedAt: era,
+      });
+      const oldAndFar = await world.aKitchen({
+        client,
+        sentAt: era,
+        updatedAt: era,
+      });
+      const request = await world.aRequest({
+        designId: unbounded,
+        createdAt: era,
+      });
+      await world.aStatus({
+        designId: unbounded,
+        status: "closed",
+        changedBy: staff,
+        changedAt: era,
+      });
+      const note = await world.aNote({
+        designId: unbounded,
+        author: staff,
+        text: "odd",
+        createdAt: era,
+      });
+      await sql()`update designs set sent_at = 'infinity', updated_at = '-infinity' where id = ${unbounded}`;
+      await sql()`update designs set sent_at = '1900-01-01T00:00:00Z', updated_at = '280000-01-01T00:00:00Z' where id = ${oldAndFar}`;
+      await sql()`update contact_submissions set created_at = 'infinity' where client_request_id = ${request.clientRequestId}`;
+      await sql()`update design_request_states set changed_at = '-infinity' where design_id = ${unbounded}`;
+      await sql()`update design_notes set created_at = '280000-01-01T00:00:00Z' where id = ${note}`;
+
+      const page = await world.reader.listPage({
+        segment: "all",
+        status: null,
+        search: world.marker,
+        page: 1,
+      });
+      const unboundedDetail = await foundOne(world, unbounded);
+      const oldAndFarDetail = await foundOne(world, oldAndFar);
+
+      const times = (id: string) => {
+        const row = page.kitchens.find((kitchen) => kitchen.id === id);
+        return [row?.sentAt?.getTime(), row?.updatedAt.getTime()];
+      };
+      expect(times(unbounded)).toEqual([LATEST_INSTANT_MS, -LATEST_INSTANT_MS]);
+      expect(times(oldAndFar)).toEqual([START_OF_1900_MS, LATEST_INSTANT_MS]);
+      expect([
+        unboundedDetail.sentAt?.getTime(),
+        unboundedDetail.updatedAt.getTime(),
+      ]).toEqual([LATEST_INSTANT_MS, -LATEST_INSTANT_MS]);
+      expect([
+        oldAndFarDetail.sentAt?.getTime(),
+        oldAndFarDetail.updatedAt.getTime(),
+      ]).toEqual([START_OF_1900_MS, LATEST_INSTANT_MS]);
+      expect(unboundedDetail.request?.sentAt.getTime()).toBe(LATEST_INSTANT_MS);
+      expect(unboundedDetail.status?.change?.at.getTime()).toBe(
+        -LATEST_INSTANT_MS,
+      );
+      expect(unboundedDetail.notes[0]?.createdAt.getTime()).toBe(
+        LATEST_INSTANT_MS,
+      );
+    });
+
     it("reads nothing the client typed into a request, no postal address and no credential", async () => {
       const world = await newWorld();
       const client = await world.aClient({ phone: "+37360111000" });
