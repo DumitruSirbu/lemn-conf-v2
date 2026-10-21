@@ -183,8 +183,10 @@ describe("the audit write gates the body", () => {
 
     const pending = askList({ cookie: session.cookie });
 
+    await vi.waitFor(() => {
+      expect(record).toHaveBeenCalledTimes(1);
+    });
     expect(await isSettledAfterAWhile(pending)).toBe(false);
-    expect(record).toHaveBeenCalledTimes(1);
     gate.release();
     expect((await pending).status).toBe(200);
   });
@@ -199,8 +201,10 @@ describe("the audit write gates the body", () => {
 
     const pending = askOne(kitchen.id, { cookie: session.cookie });
 
+    await vi.waitFor(() => {
+      expect(record).toHaveBeenCalledTimes(1);
+    });
     expect(await isSettledAfterAWhile(pending)).toBe(false);
-    expect(record).toHaveBeenCalledTimes(1);
     gate.release();
     expect((await pending).status).toBe(200);
   });
