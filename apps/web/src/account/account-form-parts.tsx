@@ -530,6 +530,25 @@ export function waitOfFeedback(feedback: {
   return { endsAtMs: feedback.notice.endsAtMs };
 }
 
+/**
+ * The whole of the limit a feedback states, whatever form the notice tells it in: a countdown, whole minutes or a clock
+ * time. A control that must not be pressed before the limit ends (the staff screens' retry and "load more") stays off for
+ * all of it; the account forms' submit buttons keep to `waitOfFeedback`, which holds them for a short wait only. An
+ * unreadable `Retry-After` states no end and holds nothing.
+ */
+export function fullWaitOfFeedback(feedback: {
+  readonly kind: string;
+  readonly notice?: AccountRateLimitNotice;
+}): SubmitWait | undefined {
+  const { notice } = feedback;
+  if (feedback.kind !== "rate-limited" || notice?.kind === "unreadable") {
+    return undefined;
+  }
+  return notice?.endsAtMs === undefined
+    ? undefined
+    : { endsAtMs: notice.endsAtMs };
+}
+
 export interface SubmitButtonProps {
   readonly label: string;
   readonly busyLabel: string;

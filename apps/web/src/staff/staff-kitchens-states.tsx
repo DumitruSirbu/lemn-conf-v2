@@ -6,7 +6,7 @@ import {
   FormNotice,
   RateLimitNotice,
   useSecondsUntil,
-  waitOfFeedback,
+  fullWaitOfFeedback,
 } from "@/account/account-form-parts";
 import {
   AccountActions,
@@ -69,7 +69,7 @@ export function FailedKitchens({
   readonly onRetry: () => void;
 }) {
   const kit = useAccountKitCopy();
-  const isWaiting = useSecondsUntil(waitOfFeedback(failure)?.endsAtMs) > 0;
+  const isWaiting = useSecondsUntil(fullWaitOfFeedback(failure)?.endsAtMs) > 0;
   return (
     <div className={styles.state}>
       <ListFailureNotice failure={failure} />

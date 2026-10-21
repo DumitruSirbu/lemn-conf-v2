@@ -1,6 +1,9 @@
 "use client";
 
-import { useSecondsUntil, waitOfFeedback } from "@/account/account-form-parts";
+import {
+  useSecondsUntil,
+  fullWaitOfFeedback,
+} from "@/account/account-form-parts";
 import { useStaffKitchensCopy } from "@/i18n/use-content";
 
 import styles from "./staff-kitchens.module.css";
@@ -172,7 +175,7 @@ function LoadMore({
 }) {
   const copy = useStaffKitchensCopy().pagination;
   const wait =
-    more.kind === "failed" ? waitOfFeedback(more.failure) : undefined;
+    more.kind === "failed" ? fullWaitOfFeedback(more.failure) : undefined;
   const isWaiting = useSecondsUntil(wait?.endsAtMs) > 0;
   if (!hasMore) return null;
   const isLoading = more.kind === "loading";

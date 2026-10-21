@@ -813,6 +813,7 @@ describe("rateLimitNoticeOf: the wait as the notice needs it", () => {
       {
         kind: "minutes",
         minutes: 12,
+        endsAtMs: NOW_MS + 12 * 60_000,
       },
     );
   });
@@ -825,6 +826,28 @@ describe("rateLimitNoticeOf: the wait as the notice needs it", () => {
     expect(notice.kind).toBe("at");
     if (notice.kind !== "at") return;
     expect(notice.time).toMatch(/^\d{1,2}:\d{2}$/);
+  });
+
+  it("carries the instant every readable wait ends at, and none for an unreadable one", () => {
+    expect(
+      rateLimitNoticeOf({ kind: "clock-time", seconds: 7200 }, NOW_MS),
+    ).toMatchObject({ kind: "at", endsAtMs: NOW_MS + 7_200_000 });
+    expect(rateLimitNoticeOf({ kind: "unreadable" }, NOW_MS)).toEqual({
+      kind: "unreadable",
+    });
+  });
+
+  it("never ends a wait before the seconds `Retry-After` stated (property over the readable range)", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 90_000 }), (seconds) => {
+        const notice = rateLimitNoticeOf(waitFrom(String(seconds)), NOW_MS);
+
+        if (notice.kind === "unreadable") throw new Error("a readable wait");
+        expect(notice.endsAtMs).toBeGreaterThanOrEqual(NOW_MS + seconds * 1000);
+        expect(notice.endsAtMs).toBeLessThan(NOW_MS + seconds * 1000 + 60_000);
+      }),
+      { numRuns: 500 },
+    );
   });
 
   it("says `isTomorrow` only when the wait ends on a later calendar day than now", () => {

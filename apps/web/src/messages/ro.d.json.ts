@@ -1033,7 +1033,7 @@ declare const messages: {
   "accountExport": {
     "metaTitle": "Exportă datele mele — {brand}",
     "title": "Exportă datele mele",
-    "lead": "Primești un fișier JSON cu profilul tău și toate bucătăriile (inclusiv cele trimise și cele ascunse).",
+    "lead": "Primești un fișier JSON cu profilul tău, toate bucătăriile (inclusiv cele trimise și cele ascunse) și notele personalului despre ele.",
     "submit": "Descarcă datele",
     "submitting": "Se pregătește…",
     "preparing": "Se pregătește fișierul…",
@@ -1059,7 +1059,6 @@ declare const messages: {
     "backTo": "Înapoi la {name}"
   },
   "staffKitchens": {
-    "metaTitle": "Bucătării clienți — {brand}",
     "title": "Bucătării clienți",
     "loading": "Se încarcă bucătăriile",
     "filterSegment": "Afișează",

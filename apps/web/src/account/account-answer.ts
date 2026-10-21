@@ -651,7 +651,9 @@ export function waitFrom(retryAfter: string | null): AccountWait {
 /**
  * The wait as the notice needs it. A countdown is anchored to the instant it ends, so the notice and the button, which
  * each read the clock, agree without sharing a timer. A clock time is never earlier than `nowMs` plus the wait, since
- * `clockTimeOf` rounds up; it carries its day when that is not today's.
+ * `clockTimeOf` rounds up; it carries its day when that is not today's. Every wait the answer states ends at an instant,
+ * which the notice carries beside its sentence: whole minutes are the wait as told (rounded up, so never short of it).
+ * Only an unreadable `Retry-After` has no end to carry.
  */
 export function rateLimitNoticeOf(
   wait: AccountWait,
@@ -664,13 +666,18 @@ export function rateLimitNoticeOf(
         endsAtMs: nowMs + wait.seconds * MS_PER_SECOND,
       };
     case "minutes":
-      return { kind: "minutes", minutes: wait.minutes };
+      return {
+        kind: "minutes",
+        minutes: wait.minutes,
+        endsAtMs: nowMs + wait.minutes * SECONDS_PER_MINUTE * MS_PER_SECOND,
+      };
     case "clock-time": {
       const endsAtMs = nowMs + wait.seconds * MS_PER_SECOND;
       return {
         kind: "at",
         time: clockTimeOf(endsAtMs),
         isTomorrow: isToldOnALaterDay(endsAtMs, nowMs),
+        endsAtMs,
       };
     }
     case "unreadable":

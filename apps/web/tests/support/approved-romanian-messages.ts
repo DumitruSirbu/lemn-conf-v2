@@ -1358,7 +1358,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
   accountExport: {
     metaTitle: "Exportă datele mele — {brand}",
     title: "Exportă datele mele",
-    lead: "Primești un fișier JSON cu profilul tău și toate bucătăriile (inclusiv cele trimise și cele ascunse).",
+    // Drafted, approved as drafted by the owner (O-L3-7, relayed 2026-10-20; ADR 0174 decisions 4 and 5): the sentence
+    // names what the download holds. It is the Lot 2 frame A12A's own sentence without "cererile tale către magazin", which
+    // stay out; the staff notes on the person's kitchens join the file as text and date, with no staff author (O-L3-6,
+    // wave L3-S9). The owner may reword later.
+    lead: "Primești un fișier JSON cu profilul tău, toate bucătăriile (inclusiv cele trimise și cele ascunse) și notele personalului despre ele.",
     submit: "Descarcă datele",
     submitting: "Se pregătește…",
     preparing: "Se pregătește fișierul…",
@@ -1392,7 +1396,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
   // names the client (ADR 0173), the sort of "Ciorne" and "Toate", the "Fără cont" cell, the unrecognised status and
   // the empty and no-result texts the frames do not draw. The owner may reword later.
   staffKitchens: {
-    metaTitle: "Bucătării clienți — {brand}",
     title: "Bucătării clienți",
     loading: "Se încarcă bucătăriile",
     filterSegment: "Afișează",

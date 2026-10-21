@@ -899,13 +899,20 @@ export interface AccountFieldIssue {
 }
 
 /** A limit told by a sentence that does not change as the page lives, with the one value it carries already read:
- *  whole minutes, or the clock time and whether it is tomorrow's. `unreadable` carries no number. */
+ *  whole minutes, or the clock time and whether it is tomorrow's. `unreadable` carries no number. `endsAtMs` is the instant
+ *  the wait ends, worked out when the answer came, for a control that stays off for the whole of it; the sentence does not
+ *  read it, and a notice built by hand may leave it out. */
 export type AccountRateLimitSentence =
-  | { readonly kind: "minutes"; readonly minutes: number }
+  | {
+      readonly kind: "minutes";
+      readonly minutes: number;
+      readonly endsAtMs?: number;
+    }
   | {
       readonly kind: "at";
       readonly time: string;
       readonly isTomorrow: boolean;
+      readonly endsAtMs?: number;
     }
   | { readonly kind: "unreadable" };
 
@@ -1328,9 +1335,6 @@ export type StaffShellCopy = ReturnType<typeof resolveStaffShellCopy>;
  *  client's own list calls it. */
 export function resolveStaffKitchensCopy(translate: ContentTranslator) {
   return {
-    metaTitle: translate("staffKitchens.metaTitle", {
-      brand: translate("brand"),
-    }),
     title: translate("staffKitchens.title"),
     loading: translate("staffKitchens.loading"),
     filters: {

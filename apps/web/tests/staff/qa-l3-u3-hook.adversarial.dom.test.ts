@@ -452,9 +452,30 @@ describe("the wait of a 429", () => {
       "599",
       { kind: "countdown", endsAtMs: Date.parse(NOW) + 599 * MS_PER_SECOND },
     ],
-    ["600", { kind: "minutes", minutes: 10 }],
-    ["601", { kind: "minutes", minutes: 11 }],
-    ["3600", { kind: "minutes", minutes: 60 }],
+    [
+      "600",
+      {
+        kind: "minutes",
+        minutes: 10,
+        endsAtMs: Date.parse(NOW) + 10 * 60 * MS_PER_SECOND,
+      },
+    ],
+    [
+      "601",
+      {
+        kind: "minutes",
+        minutes: 11,
+        endsAtMs: Date.parse(NOW) + 11 * 60 * MS_PER_SECOND,
+      },
+    ],
+    [
+      "3600",
+      {
+        kind: "minutes",
+        minutes: 60,
+        endsAtMs: Date.parse(NOW) + 60 * 60 * MS_PER_SECOND,
+      },
+    ],
     ["90000", undefined],
     ["0", NOT_TOLD],
     ["-1", NOT_TOLD],
