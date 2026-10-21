@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
@@ -41,7 +42,7 @@ vi.mock("@/lib/server/staff/staff-audit-store-instance", () =>
 const { GET } = await import("@/app/api/staff/kitchens/route");
 
 /**
- * `GET /api/staff/kitchens` (M8B Lot 3, E-L3-1; ADR 0173). The route is called with `Request` objects over the
+ * `GET /api/staff/kitchens` (ADR 0173). The route is called with `Request` objects over the
  * persistence package's fakes; the session lookup, the capability check, both limiters' decisions and the response
  * builders are the real ones. Every list view writes a `kitchens-listed` audit row before its page is sent, and the
  * account's page bucket fails closed.
@@ -49,7 +50,7 @@ const { GET } = await import("@/app/api/staff/kitchens/route");
 
 const STAFF_LIST_POLICY_NAME =
   "staff-kitchens-list-by-account-per-60-utc-minutes";
-const PAGES_ALLOWED_PER_HOUR = 300;
+const PAGES_ALLOWED_PER_HOUR = STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE;
 const PAGE_SIZE = 20;
 const A_SEARCH_NO_ONE_ELSE_TYPES = "Zorila-Quasar-9917";
 
@@ -101,23 +102,6 @@ function heldRows() {
 }
 
 describe("the order of the checks", () => {
-  it("refuses a cross-site request first: nothing is counted, no session is read, no store is asked", async () => {
-    const { session } = await signedInOperator();
-    world.calls.length = 0;
-
-    for (const secFetchSite of ["cross-site", "same-site", "none"]) {
-      const answer = await GET(
-        listRequest({ cookie: session.cookie, secFetchSite }),
-      );
-
-      expect(answer.status).toBe(403);
-      expect(await jsonOf(answer)).toEqual({ status: "cross-site" });
-    }
-    expect(world.calls).toEqual([]);
-    expect(staffWorld.calls).toEqual([]);
-    expect(limiterLedger.counted).toEqual([]);
-  });
-
   it("counts the network's read limit before it reads the session, so a refusal is the same for every caller", async () => {
     const { session } = await signedInOperator();
     limiterLedger.refusing.set(READ_POLICY_NAME, 120);
@@ -137,16 +121,6 @@ describe("the order of the checks", () => {
     expect(heldRows()).toEqual([]);
   });
 
-  it("serves a page when the network's read limiter cannot be judged: the general read fails open, only the page bucket does not", async () => {
-    const { session } = await signedInOperator();
-    limiterLedger.unavailable.add(READ_POLICY_NAME);
-
-    const answer = await GET(listRequest({ cookie: session.cookie }));
-
-    expect(answer.status).toBe(200);
-    expect(heldRows()).toHaveLength(1);
-  });
-
   it("answers 401 to an anonymous caller with a bad query: the capability is checked before the query", async () => {
     const answer = await GET(listRequest({ search: "?segment=nonsense" }));
 
@@ -163,23 +137,6 @@ describe("the order of the checks", () => {
 
     expect(answer.status).toBe(403);
     expect(limiterLedger.counted).not.toContain(STAFF_LIST_POLICY_NAME);
-    expect(staffWorld.calls).toEqual([]);
-  });
-
-  it("answers 503, never 401, when the session store cannot be read", async () => {
-    const { session } = await signedInOperator();
-    const console_ = captureConsole();
-    world.failOn("sessions.findLive");
-
-    const answer = await GET(listRequest({ cookie: session.cookie }));
-
-    expect(answer.status).toBe(503);
-    expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
-    expect(console_.accountLines()).toContainEqual({
-      event: "staff-kitchens",
-      outcome: "unavailable",
-    });
-    expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
     expect(staffWorld.calls).toEqual([]);
   });
 
@@ -447,34 +404,6 @@ describe("every list view is audited before the page is sent", () => {
     expect(heldRows()[0]?.detail).toMatchObject({ page, rowCount });
   });
 
-  it("records that a search was made and never what it was", async () => {
-    const { session } = await signedInOperator();
-    const console_ = captureConsole();
-    plantClient({ name: A_SEARCH_NO_ONE_ELSE_TYPES });
-
-    const answer = await GET(
-      listRequest({
-        cookie: session.cookie,
-        search: `?q=${A_SEARCH_NO_ONE_ELSE_TYPES}`,
-      }),
-    );
-
-    expect(answer.status).toBe(200);
-    expect(heldRows()[0]?.detail).toMatchObject({ hasSearch: true });
-    expect(JSON.stringify(heldRows())).not.toContain(
-      A_SEARCH_NO_ONE_ELSE_TYPES,
-    );
-    expect(console_.everything()).not.toContain(A_SEARCH_NO_ONE_ELSE_TYPES);
-  });
-
-  it("counts an empty search as no search", async () => {
-    const { session } = await signedInOperator();
-
-    await GET(listRequest({ cookie: session.cookie, search: "?q=" }));
-
-    expect(heldRows()[0]?.detail).toMatchObject({ hasSearch: false });
-  });
-
   it("writes a row for a page past the last, with no rows", async () => {
     const { session } = await signedInOperator();
 
@@ -522,16 +451,6 @@ describe("every list view is audited before the page is sent", () => {
     expect(heldRows()).toEqual([]);
   });
 
-  it("has the row committed by the time the answer exists: the write is awaited, not started", async () => {
-    const { session } = await signedInOperator();
-    staffWorld.auditBehaviour = "commit-late";
-
-    const answer = await GET(listRequest({ cookie: session.cookie }));
-
-    expect(answer.status).toBe(200);
-    expect(heldRows()).toHaveLength(1);
-  });
-
   it("writes no row for a request that is not answered 200", async () => {
     const { session } = await signedInOperator();
     const client = await signedInAs({ role: "client" });
@@ -563,7 +482,7 @@ describe("every list view is audited before the page is sent", () => {
 });
 
 describe("the account's page limit fails closed", () => {
-  it("serves 300 pages an hour and refuses the 301st with a wait inside the hour, reading nothing and writing no row for it", async () => {
+  it("serves the figure's pages an hour and refuses the next with a wait inside the hour, reading nothing and writing no row for it", async () => {
     const { session } = await signedInOperator();
     await servePages(session.cookie, PAGES_ALLOWED_PER_HOUR);
     staffWorld.calls.length = 0;

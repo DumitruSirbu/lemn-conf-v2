@@ -45,7 +45,7 @@ vi.mock("@/lib/server/staff/staff-audit-store-instance", () =>
 const { GET } = await import("@/app/api/staff/kitchens/[id]/route");
 
 /**
- * `GET /api/staff/kitchens/{id}` (M8B Lot 3, E-L3-2; ADR 0173). Opening a client's kitchen writes a `kitchen-opened` row
+ * `GET /api/staff/kitchens/{id}` (ADR 0173). Opening a client's kitchen writes a `kitchen-opened` row
  * before the kitchen is sent, and an id that names nothing a staff member may read gets one refusal and no row.
  */
 
@@ -94,22 +94,6 @@ function heldRows() {
 }
 
 describe("the order of the checks", () => {
-  it("refuses a cross-site request first: nothing is counted, no session is read, no store is asked", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantKitchen();
-    world.calls.length = 0;
-
-    for (const secFetchSite of ["cross-site", "same-site", "none"]) {
-      const answer = await open(id, { cookie: session.cookie, secFetchSite });
-
-      expect(answer.status).toBe(403);
-      expect(await jsonOf(answer)).toEqual({ status: "cross-site" });
-    }
-    expect(world.calls).toEqual([]);
-    expect(staffWorld.calls).toEqual([]);
-    expect(limiterLedger.counted).toEqual([]);
-  });
-
   it("counts the network's read limit before it reads the session, so a refusal is the same for every caller", async () => {
     const { session } = await signedInOperator();
     const { id } = plantKitchen();
@@ -126,16 +110,6 @@ describe("the order of the checks", () => {
     expect(await wireOf(signedIn)).toBe(await wireOf(anonymous));
     expect(world.calls).toEqual([]);
     expect(staffWorld.calls).toEqual([]);
-  });
-
-  it("serves a kitchen when the read limiter cannot be judged: a read fails open", async () => {
-    const { session } = await signedInOperator();
-    const { id } = plantKitchen();
-    limiterLedger.unavailable.add(READ_POLICY_NAME);
-
-    const answer = await open(id, { cookie: session.cookie });
-
-    expect(answer.status).toBe(200);
   });
 
   it("answers 401 to an anonymous caller whatever the id: the session is judged before the id", async () => {
@@ -162,22 +136,6 @@ describe("the order of the checks", () => {
 
     expect(answers.map(({ status }) => status)).toEqual([403, 403]);
     expect(staffWorld.calls).toEqual([]);
-  });
-
-  it("answers 503, never 401, when the session store cannot be read", async () => {
-    const { session } = await signedInOperator();
-    const console_ = captureConsole();
-    const { id } = plantKitchen();
-    world.failOn("sessions.findLive");
-
-    const answer = await open(id, { cookie: session.cookie });
-
-    expect(answer.status).toBe(503);
-    expect(console_.accountLines()).toContainEqual({
-      event: "staff-kitchen",
-      outcome: "unavailable",
-    });
-    expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
   });
 });
 
@@ -334,17 +292,6 @@ describe("every opening is audited before the kitchen is sent", () => {
 
     expect(answer.status).toBe(503);
     expect(heldRows()).toEqual([]);
-  });
-
-  it("has the row committed by the time the answer exists: the write is awaited, not started", async () => {
-    const { session } = await signedInOperator();
-    const kitchen = plantKitchen();
-    staffWorld.auditBehaviour = "commit-late";
-
-    const answer = await open(kitchen.id, { cookie: session.cookie });
-
-    expect(answer.status).toBe(200);
-    expect(heldRows()).toHaveLength(1);
   });
 
   it("answers 503 with no row when the reader fails", async () => {

@@ -38,7 +38,7 @@ const { GET: LIST } = await import("@/app/api/staff/kitchens/route");
 const { GET: ONE } = await import("@/app/api/staff/kitchens/[id]/route");
 
 /**
- * K-1 of the Lot 3 plan: for each staff read route and each caller, the answer is `401` without a live session, `403`
+ * For each staff read route and each caller, the answer is `401` without a live session, `403`
  * for a session that does not hold `design.read.any` (a client, or a staff address not yet confirmed), and the route's
  * success otherwise. The table is written out, not derived from `isCapabilityHeld`, so a change to who may read a
  * client's kitchen has to be made here on purpose.

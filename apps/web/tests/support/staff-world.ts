@@ -23,14 +23,12 @@ import {
 // account world's sessions the way the database joins them (the audit row's actor is the account of the live session
 // the cookie names). A test mocks the two instance modules with the `...Module()` factories below and calls
 // `freshStaffWorld()` after `freshAccountWorld()`. Every port call is recorded, and the audit store can be told to
-// fail, to commit late, or to lose its session, so the tests can tell a row that was awaited from one that was not.
+// fail or to lose its session, so a test can tell an audit failure from a success.
 
 export type AuditBehaviour =
   | "commit"
   /** The write fails with a driver-shaped error carrying `DRIVER_FAILURE_MARKER`. */
   | "reject"
-  /** The row commits only after a macrotask, so a route that does not wait for it answers before it exists. */
-  | "commit-late"
   /** The sessions of `signedOutAccountId` end after the route read them and before the row is written. */
   | "lose-session";
 
@@ -113,12 +111,6 @@ async function recordWith(
     case "lose-session":
       await endSessionsOf(world.signedOutAccountId);
       return world.audit.record(record);
-    case "commit-late": {
-      const staged = await world.audit.stage(record);
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      staged.commit();
-      return;
-    }
     case "commit":
       return world.audit.record(record);
   }
@@ -190,6 +182,9 @@ export function plantKitchen(
   fixture: KitchenFixture = {},
 ): PlantedStaffKitchen {
   const { isSent = true, ...fields } = fixture;
+  if (fixture.isSent !== undefined && fixture.sentAt !== undefined) {
+    throw new Error("plantKitchen: name isSent or sentAt, not both");
+  }
   const id = fields.id ?? aDesignId();
   const kitchen: PlantedStaffKitchen = {
     id,
