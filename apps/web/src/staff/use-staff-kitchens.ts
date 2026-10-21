@@ -79,6 +79,10 @@ export interface RowFocusRequest {
   readonly rowId: string;
 }
 
+export interface PageLanding {
+  readonly page: number;
+}
+
 /** The rows on screen: one page, or, on a phone, the pages loaded one after another. */
 export interface StaffKitchensListing {
   /** The query that produced the newest page, so the screen can tell an empty list from an empty search. */
@@ -93,6 +97,9 @@ export interface StaffKitchensListing {
   /** When the newest page was read: the moment "modified 2 days ago" is told against. */
   readonly readAtMs: number;
   readonly focusRequest: RowFocusRequest | undefined;
+  /** A new object when the page the person chose by number has landed, so focus moves once; `undefined` for every
+   *  other page, whatever replaced or outlived the jump. */
+  readonly landedJump?: PageLanding | undefined;
 }
 
 export type MoreState =
@@ -127,7 +134,9 @@ export interface StaffKitchens {
   readonly retry: () => void;
 }
 
-type ReadMode = "first" | "replace" | "append";
+/** `jump` is a page chosen by number; `correct` is the one request that follows a jump past the end of a list that
+ *  shrank. Both draw one page in place of the rows, as `replace` does, and both land. */
+type ReadMode = "first" | "replace" | "append" | "jump" | "correct";
 
 type PageStep =
   | { readonly kind: "page"; readonly list: StaffKitchenListWire }
@@ -174,13 +183,15 @@ export function useStaffKitchens(locale: AppLocale): StaffKitchens {
   }, []);
 
   const read = useCallback(
-    (query: StaffListQuery, mode: ReadMode) => {
+    function read(query: StaffListQuery, mode: ReadMode): void {
       const flight = flightRef.current;
       flight.controller?.abort();
       const controller = new AbortController();
       flight.controller = controller;
       if (mode !== "append") queryRef.current = query;
-      if (mode === "replace") setState({ phase: "loading" });
+      if (mode !== "append" && mode !== "first") {
+        setState({ phase: "loading" });
+      }
       if (mode === "append") setState(withMore({ kind: "loading" }));
       void readPage(query, controller.signal).then((step) => {
         if (step.kind === "sign-in") {
@@ -190,6 +201,11 @@ export function useStaffKitchens(locale: AppLocale): StaffKitchens {
         if (step.kind === "aborted") return;
         if (mode === "append" && step.kind === "page") {
           queryRef.current = query;
+        }
+        const lastPage = pageAfterTheEnd(step, mode);
+        if (lastPage !== undefined) {
+          read({ ...query, page: lastPage }, "correct");
+          return;
         }
         setState((current) => stateAfter(current, step, query, mode));
       });
@@ -288,7 +304,7 @@ export function useStaffKitchens(locale: AppLocale): StaffKitchens {
 
   const goToPage = useCallback(
     (page: number) => {
-      read({ ...queryRef.current, page }, "replace");
+      read({ ...queryRef.current, page }, "jump");
     },
     [read],
   );
@@ -346,7 +362,7 @@ function stateAfter(
         listing:
           mode === "append" && current.phase === "ready"
             ? appended(current.listing, step.list)
-            : firstListing(step.list, query),
+            : firstListing(step.list, query, mode),
         more: IDLE,
       };
   }
@@ -355,6 +371,7 @@ function stateAfter(
 function firstListing(
   list: StaffKitchenListWire,
   query: StaffListQuery,
+  mode: ReadMode,
 ): StaffKitchensListing {
   return {
     search: query.search,
@@ -367,7 +384,33 @@ function firstListing(
     rows: list.kitchens,
     readAtMs: Date.now(),
     focusRequest: undefined,
+    landedJump: isLanding(mode) ? { page: list.page } : undefined,
   };
+}
+
+function isLanding(mode: ReadMode): boolean {
+  return mode === "jump" || mode === "correct";
+}
+
+/** The number of pages a list of `total` kitchens makes: at least one, so an empty list still has a first page. */
+export function pageCountOf(total: number, pageSize: number): number {
+  return Math.max(1, Math.ceil(total / pageSize));
+}
+
+/**
+ * The last page that exists, when the page asked for is past the end of a list that has shrunk since the person saw
+ * it (a client deleted a kitchen): the answer holds no rows under a count that is not nought. It is asked for once, and
+ * only after a page was chosen by number; a correction is never itself corrected.
+ */
+function pageAfterTheEnd(step: PageStep, mode: ReadMode): number | undefined {
+  if (step.kind !== "page" || (mode !== "jump" && mode !== "replace")) {
+    return undefined;
+  }
+  const { list } = step;
+  const lastPage = pageCountOf(list.total, list.pageSize);
+  const isPastTheEnd =
+    list.kitchens.length === 0 && list.total > 0 && list.page > lastPage;
+  return isPastTheEnd ? lastPage : undefined;
 }
 
 /** The shown pages with the next one after them. A kitchen that moved between two requests is shown once. */
@@ -386,6 +429,7 @@ function appended(
     rows: [...listing.rows, ...added],
     readAtMs: Date.now(),
     focusRequest: focused === undefined ? undefined : { rowId: focused.id },
+    landedJump: undefined,
   };
 }
 
@@ -497,7 +541,19 @@ export function staffKitchenListFrom(
   }
   const kitchens = (rawKitchens as readonly unknown[]).map(kitchenFrom);
   if (!kitchens.every(isListedKitchen)) return undefined;
-  return { total, page, pageSize, kitchens };
+  return { total, page, pageSize, kitchens: withoutRepeats(kitchens) };
+}
+
+/** A kitchen named twice in one page is drawn once, where it first stands. */
+function withoutRepeats(
+  kitchens: readonly StaffListedKitchenWire[],
+): readonly StaffListedKitchenWire[] {
+  const seen = new Set<string>();
+  return kitchens.filter(({ id }) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
 }
 
 function kitchenFrom(raw: unknown): StaffListedKitchenWire | undefined {

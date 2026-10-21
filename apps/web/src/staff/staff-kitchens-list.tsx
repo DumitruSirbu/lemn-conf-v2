@@ -76,21 +76,28 @@ function StaffKitchensContent({
 }) {
   const copy = useStaffKitchensCopy();
   const countRef = useRef<HTMLParagraphElement>(null);
-  const isPageJumpPending = useRef(false);
-  const { state, goToPage } = kitchens;
-  useEffect(() => {
-    if (state.phase === "loading" || !isPageJumpPending.current) return;
-    isPageJumpPending.current = false;
-    if (state.phase === "ready") countRef.current?.focus();
-  }, [state]);
-  const jumpToPage = (page: number) => {
-    isPageJumpPending.current = true;
-    goToPage(page);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const statusRef = useRef<HTMLSelectElement>(null);
+  const { state } = kitchens;
+  const withFocusKept: StaffKitchens = {
+    ...kitchens,
+    clearSearch: () => {
+      kitchens.clearSearch();
+      searchRef.current?.focus();
+    },
+    chooseStatus: (status) => {
+      kitchens.chooseStatus(status);
+      if (status === null) statusRef.current?.focus();
+    },
   };
   return (
     <section className={styles.page} data-testid="staff-kitchens-page">
       <h1 className={styles.heading}>{copy.title}</h1>
-      <StaffKitchenFilters {...kitchens} />
+      <StaffKitchenFilters
+        {...withFocusKept}
+        searchRef={searchRef}
+        statusRef={statusRef}
+      />
       <div className={styles.results}>
         {state.phase === "loading" ? <LoadingKitchens /> : null}
         {state.phase === "failed" ? (
@@ -102,7 +109,7 @@ function StaffKitchensContent({
             listing={state.listing}
             more={state.more}
             countRef={countRef}
-            kitchens={{ ...kitchens, goToPage: jumpToPage }}
+            kitchens={withFocusKept}
           />
         ) : null}
       </div>
@@ -125,7 +132,9 @@ function ListedKitchens({
 }) {
   const copy = useStaffKitchensCopy();
   const isDesktop = useIsDesktop();
-  if (listing.total === 0) {
+  useFocusAfterLanding(listing, countRef);
+  useFocusOnFirstAppendedRow(listing.focusRequest);
+  if (listing.total === 0 || listing.rows.length === 0) {
     return listing.search !== null || listing.status !== null ? (
       <NoResults
         listing={listing}
@@ -168,6 +177,38 @@ function ListedKitchens({
       />
     </>
   );
+}
+
+/**
+ * Once the page the person chose by number has landed, focus goes to the count so the new place is read. Only for that
+ * very jump (the hook marks nothing else as landed), and only while focus is still on the document, where the button
+ * that held it was left when the old rows went. Anything the person did since stays where they put it.
+ */
+function useFocusAfterLanding(
+  { landedJump }: StaffKitchensListing,
+  countRef: RefObject<HTMLParagraphElement | null>,
+): void {
+  useEffect(() => {
+    if (landedJump === undefined) return;
+    const focused = document.activeElement;
+    const isFocusLeftBehind = focused === null || focused === document.body;
+    if (isFocusLeftBehind) countRef.current?.focus();
+  }, [landedJump, countRef]);
+}
+
+/** The first kitchen a page of "Încarcă mai multe" added takes focus, once: the request is the listing's own, so a change
+ *  of width that draws the rows again does not make it again. */
+function useFocusOnFirstAppendedRow(
+  focusRequest: RowFocusRequest | undefined,
+): void {
+  useEffect(() => {
+    if (focusRequest === undefined) return;
+    document
+      .querySelector<HTMLAnchorElement>(
+        `a[data-row-id="${focusRequest.rowId}"]`,
+      )
+      ?.focus();
+  }, [focusRequest]);
 }
 
 function useIsDesktop(): boolean {
@@ -287,7 +328,6 @@ function KitchensTable({
           <TableRow
             key={row.id}
             facts={factsOf({ row, locale, copy, readAtMs: listing.readAtMs })}
-            focusRequest={focusRequestFor(row, listing)}
           />
         ))}
       </tbody>
@@ -295,13 +335,7 @@ function KitchensTable({
   );
 }
 
-function TableRow({
-  facts,
-  focusRequest,
-}: {
-  readonly facts: RowFacts;
-  readonly focusRequest: RowFocusRequest | undefined;
-}) {
+function TableRow({ facts }: { readonly facts: RowFacts }) {
   const copy = useStaffKitchensCopy();
   const { row } = facts;
   return (
@@ -331,7 +365,7 @@ function TableRow({
         <time dateTime={facts.modifiedAtIso}>{facts.modifiedAgo}</time>
       </td>
       <td>
-        <OpenLink facts={facts} focusRequest={focusRequest} />
+        <OpenLink facts={facts} />
       </td>
     </tr>
   );
@@ -351,20 +385,13 @@ function KitchenCards({
         <KitchenCard
           key={row.id}
           facts={factsOf({ row, locale, copy, readAtMs: listing.readAtMs })}
-          focusRequest={focusRequestFor(row, listing)}
         />
       ))}
     </ul>
   );
 }
 
-function KitchenCard({
-  facts,
-  focusRequest,
-}: {
-  readonly facts: RowFacts;
-  readonly focusRequest: RowFocusRequest | undefined;
-}) {
+function KitchenCard({ facts }: { readonly facts: RowFacts }) {
   const copy = useStaffKitchensCopy();
   const { row } = facts;
   const phone = row.client?.phone ?? null;
@@ -398,7 +425,7 @@ function KitchenCard({
           </span>
         </div>
       </div>
-      <OpenLink facts={facts} focusRequest={focusRequest} />
+      <OpenLink facts={facts} />
     </li>
   );
 }
@@ -485,35 +512,16 @@ function StatusBadges({ status }: { readonly status: StaffRequestStatusWire }) {
   );
 }
 
-function OpenLink({
-  facts,
-  focusRequest,
-}: {
-  readonly facts: RowFacts;
-  readonly focusRequest: RowFocusRequest | undefined;
-}) {
+function OpenLink({ facts }: { readonly facts: RowFacts }) {
   const copy = useStaffKitchensCopy();
-  const linkRef = useRef<HTMLAnchorElement>(null);
-  useEffect(() => {
-    if (focusRequest !== undefined) linkRef.current?.focus();
-  }, [focusRequest]);
   return (
     <a
-      ref={linkRef}
       className={styles.open}
       href={facts.href}
+      data-row-id={facts.row.id}
       aria-label={copy.openNamed(facts.name)}
     >
       {copy.open}
     </a>
   );
-}
-
-function focusRequestFor(
-  row: StaffListedKitchenWire,
-  listing: StaffKitchensListing,
-): RowFocusRequest | undefined {
-  return listing.focusRequest?.rowId === row.id
-    ? listing.focusRequest
-    : undefined;
 }

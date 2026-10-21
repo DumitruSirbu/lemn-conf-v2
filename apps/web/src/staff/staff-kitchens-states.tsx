@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-import { FormNotice, RateLimitNotice } from "@/account/account-form-parts";
+import {
+  FormNotice,
+  RateLimitNotice,
+  useSecondsUntil,
+  waitOfFeedback,
+} from "@/account/account-form-parts";
 import {
   AccountActions,
   AccountHeading,
@@ -54,7 +59,8 @@ export function ListFailureNotice({
   }
 }
 
-/** The failure and the one action that asks again. Nothing asks again on its own. */
+/** The failure and the one action that asks again. Nothing asks again on its own, and while a limit's wait is counted
+ *  down the action is off (`aria-disabled`, so it stays reachable) and ignores a press; it wakes when the wait ends. */
 export function FailedKitchens({
   failure,
   onRetry,
@@ -63,6 +69,7 @@ export function FailedKitchens({
   readonly onRetry: () => void;
 }) {
   const kit = useAccountKitCopy();
+  const isWaiting = useSecondsUntil(waitOfFeedback(failure)?.endsAtMs) > 0;
   return (
     <div className={styles.state}>
       <ListFailureNotice failure={failure} />
@@ -70,7 +77,8 @@ export function FailedKitchens({
         type="button"
         className={styles.stateAction}
         data-tone="primary"
-        onClick={onRetry}
+        aria-disabled={isWaiting ? true : undefined}
+        onClick={isWaiting ? undefined : onRetry}
       >
         {kit.retry}
       </button>

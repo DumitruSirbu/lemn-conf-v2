@@ -3,6 +3,7 @@
 import {
   useId,
   type ChangeEvent,
+  type RefObject,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
@@ -24,16 +25,23 @@ import type { StaffKitchens } from "./use-staff-kitchens";
 // request status, which only "Trimise" has. The search is a text the person types and a client's own data: it has no
 // `name`, so a browser keeps no history of it, and the form never submits to an address.
 
-export type StaffKitchenFiltersProps = Pick<
-  StaffKitchens,
-  | "filters"
-  | "searchProblem"
-  | "chooseSegment"
-  | "chooseStatus"
-  | "typeSearch"
-  | "submitSearch"
-  | "clearSearch"
->;
+/** The two fields a press can take away the button that held focus beside: the screen sends focus back to them. */
+export interface FilterFocusTargets {
+  readonly searchRef: RefObject<HTMLInputElement | null>;
+  readonly statusRef: RefObject<HTMLSelectElement | null>;
+}
+
+export type StaffKitchenFiltersProps = FilterFocusTargets &
+  Pick<
+    StaffKitchens,
+    | "filters"
+    | "searchProblem"
+    | "chooseSegment"
+    | "chooseStatus"
+    | "typeSearch"
+    | "submitSearch"
+    | "clearSearch"
+  >;
 
 export function StaffKitchenFilters(props: StaffKitchenFiltersProps) {
   return (
@@ -44,6 +52,7 @@ export function StaffKitchenFilters(props: StaffKitchenFiltersProps) {
       />
       <SearchBox {...props} />
       <StatusChoice
+        selectRef={props.statusRef}
         isEnabled={props.filters.segment === "sent"}
         status={props.filters.status}
         onChoose={props.chooseStatus}
@@ -90,6 +99,7 @@ function SegmentChoice({
 }
 
 function SearchBox({
+  searchRef,
   filters,
   searchProblem,
   typeSearch,
@@ -122,6 +132,7 @@ function SearchBox({
         data-invalid={searchProblem !== undefined}
       >
         <input
+          ref={searchRef}
           id={inputId}
           type="search"
           className={styles.searchInput}
@@ -161,10 +172,12 @@ function SearchBox({
 }
 
 function StatusChoice({
+  selectRef,
   isEnabled,
   status,
   onChoose,
 }: {
+  readonly selectRef: FilterFocusTargets["statusRef"];
   readonly isEnabled: boolean;
   readonly status: StaffKitchens["filters"]["status"];
   readonly onChoose: StaffKitchens["chooseStatus"];
@@ -178,6 +191,7 @@ function StatusChoice({
         {copy.filters.statusLabel}
       </label>
       <select
+        ref={selectRef}
         id={selectId}
         className={styles.statusSelect}
         disabled={!isEnabled}

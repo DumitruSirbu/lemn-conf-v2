@@ -620,7 +620,7 @@ function secondsUntil(endsAtMs: number | undefined): number {
 
 /** Whole seconds left, counted against the clock rather than by ticks, so a background tab catches up. Every reader of
  *  one instant agrees without sharing a timer. */
-function useSecondsUntil(endsAtMs: number | undefined): number {
+export function useSecondsUntil(endsAtMs: number | undefined): number {
   const [remaining, setRemaining] = useState(() => secondsUntil(endsAtMs));
 
   useEffect(() => {

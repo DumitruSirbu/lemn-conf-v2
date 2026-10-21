@@ -4,7 +4,11 @@ import { useStaffKitchensCopy } from "@/i18n/use-content";
 
 import styles from "./staff-kitchens.module.css";
 import { ListFailureNotice } from "./staff-kitchens-states";
-import type { MoreState, StaffKitchensListing } from "./use-staff-kitchens";
+import {
+  pageCountOf,
+  type MoreState,
+  type StaffKitchensListing,
+} from "./use-staff-kitchens";
 
 // The foot of the list (frame S2B): "Se afișează a–b din n" and, on a desktop, the page numbers the person jumps by; on a
 // phone, "Încarcă mai multe" in place of the numbers. Every target is at least 44 px; the arrows are drawn by the
@@ -63,7 +67,7 @@ export function StaffPagination({
   onLoadMore,
 }: StaffPaginationProps) {
   const copy = useStaffKitchensCopy().pagination;
-  const pageCount = Math.max(1, Math.ceil(listing.total / listing.pageSize));
+  const pageCount = pageCountOf(listing.total, listing.pageSize);
   const from = (listing.firstPage - 1) * listing.pageSize + 1;
   const to = from + listing.rows.length - 1;
   return (
