@@ -195,11 +195,29 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S1: inserts into the three staff tables only inside a rolled-back transaction, creates temporary tables and functions of its own, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S1 QA)",
   },
+  "qa-l3-s3-statements-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S3: runs the audit store's statements inside a transaction it rolls back, writes nothing that survives, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3 QA)",
+  },
+  "qa-l3-s3-contract-parity.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S3: writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3 QA)",
+  },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",
     lock: "shared",
     reason:
       "writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3)",
+  },
+  "neon-staff-kitchen-reader.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, kitchens, requests, sent copies, statuses and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S4)",
   },
   "table-privileges.test.ts": {
     gate: "live test database",
