@@ -1675,6 +1675,10 @@ export function resolveStaffActionsCopy(translate: ContentTranslator) {
       changedMeanwhile: translate("staffActions.statusChangedMeanwhile"),
       notRecognised: translate("staffActions.statusNotRecognised"),
       notSent: translate("staffActions.statusNotSent"),
+      changedMeanwhileUnread: translate(
+        "staffActions.statusChangedMeanwhileUnread",
+      ),
+      notSentUnread: translate("staffActions.statusNotSentUnread"),
       forbiddenBody: translate("staffActions.statusForbiddenBody"),
       kitchenGoneBody: translate("staffActions.statusKitchenGoneBody"),
     },

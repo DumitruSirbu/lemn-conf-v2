@@ -1175,7 +1175,7 @@
     "empty": "Nu există nicio notă încă.",
     "when": "{date} · {ago}",
     "fieldLabel": "Adaugă o notă",
-    "fieldPlaceholder": "ex.: Am sunat; revin joi.",
+    "fieldPlaceholder": "Scrie nota aici",
     "counter": "{count, number, ::group-off} / {max, number, ::group-off}",
     "submit": "Salvează nota",
     "submitting": "Se salvează…",
@@ -1184,7 +1184,7 @@
     "errorBody": "Nu am putut salva nota. Textul a rămas în câmp. Încearcă din nou.",
     "forbiddenBody": "Contul tău nu poate adăuga note. Textul a rămas în câmp.",
     "kitchenGoneBody": "Bucătăria nu mai este disponibilă, deci nota nu a fost salvată. Textul a rămas în câmp.",
-    "dataLine": "Notele fac parte din datele clientului: apar în exportul datelor clientului."
+    "dataLine": "Notele fac parte din datele clientului: apar în exportul datelor clientului. Nu pot fi șterse și nu trebuie să conțină datele personale ale altor persoane."
   },
   "staffActions": {
     "statusSelectLabel": "Schimbă statusul",
@@ -1217,7 +1217,9 @@
     "sessionRecheck": "Am intrat din nou",
     "sessionRechecking": "Se verifică…",
     "sessionStillSignedOut": "Încă nu ești în cont. Intră în fila nouă, apoi apasă din nou.",
-    "sessionRecheckFailed": "Nu am putut verifica acum. Încearcă din nou."
+    "sessionRecheckFailed": "Nu am putut verifica acum. Încearcă din nou.",
+    "statusChangedMeanwhileUnread": "Statusul a fost schimbat între timp de altcineva. Alegerea ta a rămas; dacă starea afișată nu se schimbă, reîncarcă pagina.",
+    "statusNotSentUnread": "Cererea nu a fost trimisă, deci nu are status. Dacă starea afișată nu se schimbă, reîncarcă pagina."
   },
   "staffAudit": {
     "title": "Jurnal de audit",

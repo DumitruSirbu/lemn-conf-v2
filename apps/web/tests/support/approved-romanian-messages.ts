@@ -1538,7 +1538,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     empty: "Nu există nicio notă încă.",
     when: "{date} · {ago}",
     fieldLabel: "Adaugă o notă",
-    fieldPlaceholder: "ex.: Am sunat; revin joi.",
+    fieldPlaceholder: "Scrie nota aici",
     counter: "{count, number, ::group-off} / {max, number, ::group-off}",
     submit: "Salvează nota",
     submitting: "Se salvează…",
@@ -1550,7 +1550,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     kitchenGoneBody:
       "Bucătăria nu mai este disponibilă, deci nota nu a fost salvată. Textul a rămas în câmp.",
     dataLine:
-      "Notele fac parte din datele clientului: apar în exportul datelor clientului.",
+      "Notele fac parte din datele clientului: apar în exportul datelor clientului. Nu pot fi șterse și nu trebuie să conțină datele personale ale altor persoane.",
   },
   // Drafted, approved as drafted by the owner (O-L3-7): the status control and the unhide dialog of the staff kitchen page
   // (Lot 3 frames S3D, S3E and S3G) and the session sheet of the staff frame (frames S1C and S2F). The words are the frames'
@@ -1568,6 +1568,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Statusul a fost schimbat între timp de altcineva. Am citit din nou bucătăria; alegerea ta a rămas.",
     statusNotRecognised:
       "Statusul salvat acum nu este recunoscut de această versiune a aplicației, așa că nu poate fi schimbat de aici. Anunță un administrator.",
+    statusChangedMeanwhileUnread:
+      "Statusul a fost schimbat între timp de altcineva. Alegerea ta a rămas; dacă starea afișată nu se schimbă, reîncarcă pagina.",
+    statusNotSentUnread:
+      "Cererea nu a fost trimisă, deci nu are status. Dacă starea afișată nu se schimbă, reîncarcă pagina.",
     statusNotSent:
       "Cererea nu a fost trimisă, deci nu are status. Am citit din nou bucătăria.",
     statusForbiddenBody: "Contul tău nu poate schimba statusul.",
