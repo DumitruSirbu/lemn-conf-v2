@@ -155,7 +155,8 @@ describe("the kitchen page with its writes, in each state a screen reader can re
     await harness.settle();
 
     const field = requireIn<HTMLTextAreaElement>(notes, "textarea");
-    expect(field.getAttribute("aria-describedby")?.split(" ")).toHaveLength(2);
+    // The data line, the counter and the refusal.
+    expect(field.getAttribute("aria-describedby")?.split(" ")).toHaveLength(3);
     expect(unresolvedReferences()).toEqual([]);
     expect(unnamedControls()).toEqual([]);
   });
