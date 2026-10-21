@@ -316,6 +316,33 @@ export type {
   PlantedStaffSentCopy,
   PlantedStaffStatus,
 } from "./fake-staff-kitchen-reader.js";
+export {
+  StaffKitchenActionError,
+  decideStatusSave,
+} from "./staff-kitchen-actions-store.js";
+export type {
+  AddStaffNoteRequest,
+  AddStaffNoteResult,
+  SavedRequestStatus,
+  SetRequestStatusRequest,
+  SetRequestStatusResult,
+  StaffActingSession,
+  StaffKitchenActionFailure,
+  StaffKitchenActionOperation,
+  StaffKitchenActionRefusal,
+  StaffKitchenActionsStore,
+  UnhideKitchenRequest,
+  UnhideKitchenResult,
+} from "./staff-kitchen-actions-store.js";
+export { NeonStaffKitchenActionsStore } from "./neon-staff-kitchen-actions-store.js";
+export { FakeStaffKitchenActionsStore } from "./fake-staff-kitchen-actions-store.js";
+export type {
+  ActionAccountDirectory,
+  FakeStaffKitchenActionsStoreOptions,
+  HeldActionKitchen,
+  HeldDesignNote,
+  HeldRequestState,
+} from "./fake-staff-kitchen-actions-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {
