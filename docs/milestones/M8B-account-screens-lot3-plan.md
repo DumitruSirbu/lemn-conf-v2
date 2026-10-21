@@ -221,15 +221,17 @@ and **the one kitchen refusal** for unknown, malformed and client-deleted ids.
 | E-L3-3 | `POST /api/staff/kitchens/{id}/notes` | `{text}` | `201 {note}`; `400 invalid-input` (field `text`); refusal | `note.write` | `note-added`, same transaction |
 | E-L3-4 | `PUT /api/staff/kitchens/{id}/status` | `{status}` | `200 {status, changedBy, changedAt}`; `409 {status:"not-sent"}`; `400` | `contact.update-status` | `status-changed` (from, to), same transaction |
 | E-L3-5 | `POST /api/staff/kitchens/{id}/unhide` | — | `204`; `409 {status:"not-hidden"}`; refusal | `design.unhide` | `kitchen-unhidden`, same transaction |
-| E-L3-6 | `GET /api/staff/audit?actor=&action=&from=&to=&page=` | — | `200 {total, page, pageSize, events:[{id, occurredAt, entry, actor:{id, email, name}, subject, kitchen}]}`; `400 invalid-input` | `audit.read` | none |
+| E-L3-6 | `GET /api/staff/audit?actor=&action=&from=&to=&page=` | — | `200 {total, page, pageSize, events:[{id, occurredAt, entry, actor:{id, email}, subject, kitchen}]}`; `400 invalid-input` | `audit.read` | `audit-viewed` |
 | E-L3-7 | `GET /api/staff/presets`, `POST /api/staff/presets/{id}/visibility {visible}`, `POST /api/staff/presets/{id}/move {direction}` | — | `200` list incl. hidden; `204`; `409 {status:"at-edge"}` | `preset.manage` | `preset-hidden`, `preset-shown`, `preset-moved` |
 | E-L3-8 | `POST /api/staff/invitations {email, role}`; `GET /api/staff/team`; `POST /api/staff/invitations/accept {token, newPassword}` | — | `202 {status:"invitation-queued"}` for every well-formed address; list; `200 {status:"account-ready"}` / one `400 link-invalid` | `user.manage`; accept: none (the token is the subject) | `staff-invited` (role; the invitation id, no address) |
 
 **E-L3-6 as built (L3-S8).** `entry` is `{kind:"recognised", action, detail}` (`detail` is `{from, to}` for `status-changed`, the
-five `kitchens-listed` counts, or `null`) or `{kind:"unrecognised", action}`, which carries nothing of the stored detail.
-`actor` is `{id, email, name}` (the only account id on the wire, ADR 0173 residuals; `email` and `name` are `null` when the
-account is gone), `subject` is `{email}|null`, `kitchen` is `{id, name|null, client:{email}|null}|null`. The `400` names a
-field and a code, never the value.
+five `kitchens-listed` counts, the five `audit-viewed` members, or `null`) or `{kind:"unrecognised", action}`, which
+carries nothing of the stored detail. `actor` is `{id, email}` (the only account id on the wire, ADR 0173 residuals;
+`email` is `null` when the account is gone), `subject` is `{email}|null` (the one client address of a row), `kitchen` is
+`{id, name|null}|null`. The `400` names a field and a code, never the value. **The audit column changed on 2026-10-21 by
+an owner ruling:** P-L3-3's "the audit page is not logged" no longer holds; the page is read, shaped, then an
+`audit-viewed` row is committed and awaited before the body is sent, fail closed (ADR 0173).
 
 E-L3-7 waits on O-L3-5, E-L3-8 on O-L3-4. The notes list rides E-L3-2 (newest first, P-L3-5).
 
@@ -537,6 +539,20 @@ pending.
 
 - **P-L3-6 departure.** The staff kitchen view is `KitchenPicture` (the review's view-only canvas) over a read-only store, not `ConfigureScreen variant="shared"`: that screen is a full-page `<main>` with its own account control, language menu, price bar and editor panel, which cannot sit in the staff frame. The single-mount guard is unchanged. The cost is that the picture cannot be orbited by dragging, only by the camera chips; visual review is to confirm that is acceptable.
 - **"Load older notes" is not buildable in a UI wave.** ADR 0173 (the note-spam residual of the L3-S7 review) asks L3-U3 for it, but `GET /api/staff/kitchens/{id}` has no paging parameter and returns the newest 100 with `notesTruncated`. L3-U3 parses and carries both and draws no notes; U4 cannot offer an older page until a server item adds one.
+
+**Brief notes for L3-U6, from the L3-S8 reviews** [implementer's report; not run by the scribe].
+
+- **Labels are looked up by `Object.hasOwn` or a `Map`, never `LABELS[action]`.** An unrecognised row carries any action
+  code the table allows, `constructor` or `__proto__` included. The page needs a label for every action of the closed
+  list, `audit-viewed` too ("a deschis jurnalul" and its Russian), and a fallback for an unrecognised code.
+- **Kitchen names and e-mail addresses are hostile text.** Render each inside the first-strong isolate (U+2068 ... U+2069),
+  after stripping the bidi controls inside the isolating function, as the U3 reviewers asked.
+- **A page that comes back empty under a non-zero `total` is clamped to the last page** (the log shrinks, or the person
+  typed a page past the end); the answer is `200` with `events: []`.
+- **The "Persoana" options come from the actors in the rows shown** (`actor.id` and `actor.email`), and the page keeps the
+  options it has seen, so filtering by one actor does not remove the others from the list. Send `actor=<id>`.
+- **Every served page adds an `audit-viewed` row to the log**, so a reader sees their own earlier views; the action filter
+  leaves them out.
 
 ### 7.3 Phase C: after an owner answer and a decision record (outline)
 

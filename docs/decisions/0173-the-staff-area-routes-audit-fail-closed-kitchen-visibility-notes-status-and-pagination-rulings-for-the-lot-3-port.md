@@ -107,14 +107,25 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
   list's 300 an hour per account and, like the list, fails closed. The owner's to retune; it is a constant.
 - **The date filter's bounds are ours.** A day filter accepts the years 2000 to 9998: below 2000 is before the product, and
   `Date.UTC` reads a year under 100 as 19xx; above 9998 the day after is past the last instant the table reads back.
-- **The page returns staff and client e-mails in bulk and is not itself audited**, per P-L3-3 ("The list (E-L3-1) and the
-  audit page (E-L3-6) are not logged"; the 2026-10-21 owner ruling above changed only the kitchens list). It is bounded by
-  `audit.read` (administrator with a confirmed address), the fail-closed bucket and the network read limit. **The owner may
-  revisit**, as the same bulk-harvest reasoning that got the list audited applies.
+- **Owner ruling, 2026-10-21 (direct): reading the audit page is itself audited. This replaces the earlier residual that
+  it was not** (P-L3-3: "The list (E-L3-1) and the audit page (E-L3-6) are not logged"). As built, the page is read from the
+  store and its body shaped, then an `audit-viewed` row is committed and awaited, and only then is the body returned. It
+  fails closed: a row that cannot be committed is a `503` with no page, and a request that is refused or fails before the
+  page is read writes none. The row names the actor (taken from the session), no kitchen and no client, and its detail is
+  exactly `{page, rowCount, hasActorFilter, hasActionFilter, hasDateFilter}`: the page number, the rows returned (0 to 25)
+  and which filters the query carried (a date filter is `from` or `to`), never the actor id, the action or the dates.
+  **Consequence:** an administrator reading the log adds rows to it, at most as many as the provisional 300 an hour per
+  account bucket serves, and the action filter can leave them out (`?action=...` with any other code). The page still
+  returns staff and client e-mails in bulk, bounded by `audit.read` (administrator with a confirmed address), the
+  fail-closed bucket and the network read limit.
+- **One client address per row; the actor's id and address only (security review, Low, fixed).** The answer's `actor` is
+  `{id, email}` (the S8B frame draws the address only, so the name is not sent) and a row's client is named once, by
+  `subject.email`; the kitchen is `{id, name}` and its owner is not named. The subject is the row's own
+  `subject_account_id`, so it still resolves after the client deletes the kitchen, whereas the port reads a kitchen's owner
+  through the kitchen and answers `null` for a deleted one.
 - **The actor's account id is on the wire.** The coordinator ruled that each row's `actor.id` is sent, so the "Persoana"
-  filter can offer actors from the rows already shown and send `actor=<id>`. No other account id is (the subject, the
-  kitchen's owner and the client are named by address alone). The answer is administrator-only and fail-closed, and ids
-  are unguessable.
+  filter can offer actors from the rows already shown and send `actor=<id>`. No other account id is. The answer is
+  administrator-only and fail-closed, and ids are unguessable.
 - **Unrecognised actions appear only on unfiltered pages.** The action filter accepts the five closed codes only, while
   the store would accept any table-shaped code; a row the build does not know is therefore found by paging, not by filter.
 
@@ -130,8 +141,8 @@ one statement (`packages/persistence/src/account-kitchen-notes-statement.ts`) th
 (`account_id = $1 and deleted_by_client_at is null`), selects the design id, the text and the instant, and joins neither
 `accounts` nor reads `author_account_id`. A notes read that fails is a `503` with no file, never a download without them.
 
-**Still OPEN for the owner, with the coordinator's default built.** *Do the notes of kitchens the client hid, or deleted,
-go into the export?* The default (owner-visible, **not owner-ruled**): the notes of a kitchen that still exists for the
+**Still OPEN for the owner, with the coordinator's default built.** _Do the notes of kitchens the client hid, or deleted,
+go into the export?_ The default (owner-visible, **not owner-ruled**): the notes of a kitchen that still exists for the
 client are included, **hidden ones too**, because hidden means "not listed" and the shop still holds the data; the notes
 of a kitchen the client **deleted** are excluded, consistent with the deleted kitchen not being exported. The cost of the
 second half is the one F6 already names: those notes stay held and are in no download, with no retention rule. The
