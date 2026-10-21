@@ -4,7 +4,10 @@ import {
   answerUnavailableOnFailure,
   readGuardedBody,
 } from "@/lib/server/account/account-request";
-import { setStatusAsStaff } from "@/lib/server/staff/staff-kitchen-actions";
+import {
+  STAFF_WRITE_EVENTS,
+  setStatusAsStaff,
+} from "@/lib/server/staff/staff-kitchen-actions";
 
 // Pinned, not defaulted: the Postgres driver cannot run on Edge. Dynamic, since the answer is the cookie's.
 export const runtime = "nodejs";
@@ -15,7 +18,7 @@ interface RouteParams {
 }
 
 /**
- * Sets the status of a sent kitchen's request, for staff (M8B Lot 3 plan, E-L3-4; ADR 0173). Steps 1 and 2 of the common
+ * Sets the status of a sent kitchen's request, for staff (ADR 0173). Steps 1 and 2 of the common
  * order are the route's: origin, media type and bounded body. `setStatusAsStaff` owns the rest, and a changed status is
  * committed with its audit row or not at all. A `PUT` because the request carries the whole status and a repeat of it
  * changes nothing.
@@ -27,7 +30,7 @@ export async function PUT(
   const body = await readGuardedBody(request);
   if (body.kind === "refused") return body.response;
   const { id } = await params;
-  return answerUnavailableOnFailure("staff-status", () =>
+  return answerUnavailableOnFailure(STAFF_WRITE_EVENTS.status, () =>
     setStatusAsStaff({
       cookies: request.cookies,
       headers: request.headers,

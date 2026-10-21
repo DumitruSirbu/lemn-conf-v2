@@ -2,6 +2,7 @@ import type {
   Design,
   NoteTextRefusalCode,
   RequestStatus,
+  RequestStatusRefusalCode,
   StaffKitchenQueryField,
   StaffKitchenQueryRefusalCode,
 } from "@lemnaria/configurator-domain";
@@ -109,8 +110,8 @@ export interface StaffInvalidQueryWire {
   }[];
 }
 
-/** What a staff write's body can be refused for: the note's text, by the domain's own codes and the store's repeat of its
- *  check, and the status, by whether it was given, was text and is in the list. */
+/** What a staff write's body can be refused for, by the domain's own codes. `NOTE_TEXT_NOT_JUDGED` is the store's
+ *  refusal of a text the domain accepted: the two disagree, which is a defect of ours. */
 export type StaffWriteIssue =
   | {
       readonly field: "text";
@@ -118,7 +119,7 @@ export type StaffWriteIssue =
     }
   | {
       readonly field: "status";
-      readonly code: "REQUIRED" | "NOT_TEXT" | "STATUS_NOT_IN_LIST";
+      readonly code: RequestStatusRefusalCode;
     };
 
 /** `400` of a staff write: the member the person can correct and a code. Never the value, because a note is a client's

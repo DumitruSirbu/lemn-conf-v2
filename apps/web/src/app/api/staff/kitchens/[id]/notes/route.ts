@@ -4,7 +4,10 @@ import {
   answerUnavailableOnFailure,
   readGuardedBody,
 } from "@/lib/server/account/account-request";
-import { addNoteAsStaff } from "@/lib/server/staff/staff-kitchen-actions";
+import {
+  STAFF_WRITE_EVENTS,
+  addNoteAsStaff,
+} from "@/lib/server/staff/staff-kitchen-actions";
 
 // Pinned, not defaulted: the Postgres driver cannot run on Edge. Dynamic, since the answer is the cookie's.
 export const runtime = "nodejs";
@@ -15,9 +18,9 @@ interface RouteParams {
 }
 
 /**
- * Adds a note to a client's kitchen, for staff (M8B Lot 3 plan, E-L3-3; ADR 0173). Steps 1 and 2 of the common order are
+ * Adds a note to a client's kitchen, for staff (ADR 0173). Steps 1 and 2 of the common order are
  * the route's: origin, media type and bounded body. `addNoteAsStaff` owns the rest, and the note is committed with its
- * audit row or not at all. There is no `PATCH` and no `DELETE`: a note is not edited or removed (P-L3-5).
+ * audit row or not at all. There is no `PATCH` and no `DELETE`: a note is not edited or removed.
  */
 export async function POST(
   request: NextRequest,
@@ -26,7 +29,7 @@ export async function POST(
   const body = await readGuardedBody(request);
   if (body.kind === "refused") return body.response;
   const { id } = await params;
-  return answerUnavailableOnFailure("staff-note", () =>
+  return answerUnavailableOnFailure(STAFF_WRITE_EVENTS.note, () =>
     addNoteAsStaff({
       cookies: request.cookies,
       headers: request.headers,

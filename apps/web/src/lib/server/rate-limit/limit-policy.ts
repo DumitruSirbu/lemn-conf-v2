@@ -197,10 +197,10 @@ export const STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE = 300;
  */
 export const STAFF_KITCHEN_OPEN_PER_ACCOUNT_HOUR_FIGURE = 600;
 /**
- * PROVISIONAL (M8B Lot 3 plan P-L3-11): how many writes one staff account may make on the clients' kitchens. Notes and
- * status saves are counted by the hour, 120 each; an unhide by the UTC day (as every account day is), 60. A request
- * that cannot be counted is refused, as every account write is (ADR 0156). The owner's answer changes these constants
- * and no code.
+ * PROVISIONAL: how many writes one staff account may make on the clients' kitchens. Notes and status saves are counted
+ * by the clock hour, 120 each. Unhides are counted by the UTC day, 60, not the Chisinau day: a refusal can tell a wait
+ * of up to about 24 hours, and the classifier's clock-time wording covers it. A request that cannot be counted is
+ * refused, as every account write is (ADR 0156). The owner's answer changes these constants and no code; see ADR 0173.
  */
 export const STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE = 120;
 export const STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE = 120;

@@ -4,8 +4,8 @@ import type { NextResponse } from "next/server";
 
 import {
   isDesignId,
-  isRequestStatus,
   judgeNoteText,
+  judgeRequestStatus,
   type Capability,
   type RequestStatus,
 } from "@lemnaria/configurator-domain";
@@ -14,6 +14,8 @@ import {
   type AddStaffNoteResult,
   type SetRequestStatusResult,
   type StaffActingSession,
+  type StaffKitchenActionRefusal,
+  type StaffKitchenActionsStore,
   type UnhideKitchenResult,
 } from "@lemnaria/persistence";
 
@@ -48,13 +50,23 @@ import {
   type StaffWriteIssue,
 } from "@/lib/server/staff/staff-responses";
 
-// E-L3-3, E-L3-4 and E-L3-5 of the Lot 3 plan: what a staff member writes on a client's kitchen (ADR 0173). The route
-// has checked the origin, the media type and the body's size. From there the common order is: the session, the
-// capability the write names, the id's shape, the body's members, the account's own bucket (which **fails closed**),
-// and only then the store, which commits the change and its audit row together or neither. A live session is not an
-// authorised one, so `requireCapability` runs before any store method: a client's session reaches no store and leaves
-// no row. Everything here is called inside the route's `answerUnavailableOnFailure`, so anything thrown that this file
-// does not map is a `503` that carries no cause, no note text and no kitchen data.
+// What a staff member writes on a client's kitchen (ADR 0173). The route has checked the origin, the media type and the
+// body's size. From there the order is the same for every write: the session, the capability the write names, the id's
+// shape, the body's members, the account's own bucket (which **fails closed**), and only then the store, which commits
+// the change and its audit row together or neither. A live session is not an authorised one, so the capability is
+// checked before any store method: a client's session reaches no store and leaves no row. Everything here runs inside
+// the route's `answerUnavailableOnFailure`, so anything thrown that this file does not map is a `503` that carries no
+// cause, no note text and no kitchen data.
+
+/** The log event of each write, defined once: the routes name their failure wrapper by it too. */
+export const STAFF_WRITE_EVENTS = {
+  note: "staff-note",
+  status: "staff-status",
+  unhide: "staff-unhide",
+} as const satisfies Record<string, AccountEvent>;
+
+type StaffWriteEvent =
+  (typeof STAFF_WRITE_EVENTS)[keyof typeof STAFF_WRITE_EVENTS];
 
 interface StaffActionRequest {
   readonly cookies: SessionCookieReader;
@@ -68,95 +80,125 @@ export interface StaffBodyActionRequest extends StaffActionRequest {
   readonly bodyText: string;
 }
 
-type StaffWriteEvent = Extract<
-  AccountEvent,
-  "staff-note" | "staff-status" | "staff-unhide"
->;
-
 type Judged<Value> =
   | { readonly kind: "judged"; readonly value: Value }
   | { readonly kind: "refused"; readonly response: NextResponse };
 
-type StatusIssueCode = Extract<StaffWriteIssue, { field: "status" }>["code"];
+interface StoreTarget {
+  readonly session: StaffActingSession;
+  readonly designId: string;
+}
 
-/** E-L3-3. The text is judged by the domain (NFC, trimmed, 1 to 2000 characters, no control or bidi-override
- *  character) and the judged form is what the store writes and the `201` answers. */
-export async function addNoteAsStaff(
+/** The one refusal of its input a store may throw for this write, and the field it is answered under. Both mean the
+ *  domain and the store disagree about what was judged, which is a defect of ours; the store's documented mapping
+ *  still answers them `400` naming the field. */
+interface StoreRefusalAnswer {
+  readonly refusal: StaffKitchenActionRefusal;
+  readonly issue: StaffWriteIssue;
+}
+
+interface StaffWrite<Input, Result> {
+  readonly event: StaffWriteEvent;
+  readonly capability: Capability;
+  readonly judge: (bodyText: string) => Judged<Input>;
+  readonly call: (
+    store: StaffKitchenActionsStore,
+    target: StoreTarget,
+    input: Input,
+  ) => Promise<Result>;
+  readonly answer: (result: Result, designId: string) => NextResponse;
+  readonly storeRefusal: StoreRefusalAnswer | undefined;
+}
+
+const NOTE_WRITE: StaffWrite<string, AddStaffNoteResult> = {
+  event: STAFF_WRITE_EVENTS.note,
+  capability: "note.write",
+  judge: judgedNoteText,
+  call: (store, target, text) => store.addNote({ ...target, text }),
+  answer: answerOfNote,
+  storeRefusal: {
+    refusal: "NOTE_TEXT_NOT_JUDGED",
+    issue: { field: "text", code: "NOTE_TEXT_NOT_JUDGED" },
+  },
+};
+
+const STATUS_WRITE: StaffWrite<RequestStatus, SetRequestStatusResult> = {
+  event: STAFF_WRITE_EVENTS.status,
+  capability: "contact.update-status",
+  judge: judgedStatus,
+  call: (store, target, status) => store.setStatus({ ...target, status }),
+  answer: answerOfStatus,
+  storeRefusal: {
+    refusal: "STATUS_NOT_IN_LIST",
+    issue: { field: "status", code: "STATUS_NOT_IN_LIST" },
+  },
+};
+
+const UNHIDE_WRITE: StaffWrite<undefined, UnhideKitchenResult> = {
+  event: STAFF_WRITE_EVENTS.unhide,
+  capability: "design.unhide",
+  judge: () => ({ kind: "judged", value: undefined }),
+  call: (store, target) => store.unhide(target),
+  answer: answerOfUnhide,
+  storeRefusal: undefined,
+};
+
+/** The text is judged by the domain (NFC, trimmed, 1 to 2000 characters, no control or bidi-override character) and the
+ *  judged form is what the store writes and the `201` answers. */
+export function addNoteAsStaff(
   request: StaffBodyActionRequest,
 ): Promise<NextResponse> {
-  const event = "staff-note";
-  return withAdmittedStaff(request, event, "note.write", async (session) => {
-    const judged = judgedNoteText(request.bodyText);
-    if (judged.kind === "refused") return refusal(event, judged.response);
-    const limited = await refusalOfWriteLimit(event, session, request.headers);
-    if (limited !== undefined) return limited;
-    const result = await getStaffKitchenActionsStore().addNote({
-      session: actingSessionOf(request.cookies),
-      designId: request.designId,
-      text: judged.value,
-    });
-    return answerOfNote(result, request.designId);
-  });
+  return runStaffWrite(NOTE_WRITE, request, request.bodyText);
 }
 
-/** E-L3-4. Any listed status may follow any; the store decides sent, unchanged and moved-meanwhile. */
-export async function setStatusAsStaff(
+/** Any listed status may follow any; the store decides sent, unchanged and moved-meanwhile. */
+export function setStatusAsStaff(
   request: StaffBodyActionRequest,
 ): Promise<NextResponse> {
-  const event = "staff-status";
-  const capability = "contact.update-status";
-  return withAdmittedStaff(request, event, capability, async (session) => {
-    const judged = judgedStatus(request.bodyText);
-    if (judged.kind === "refused") return refusal(event, judged.response);
-    const limited = await refusalOfWriteLimit(event, session, request.headers);
-    if (limited !== undefined) return limited;
-    const result = await getStaffKitchenActionsStore().setStatus({
-      session: actingSessionOf(request.cookies),
-      designId: request.designId,
-      status: judged.value,
-    });
-    return answerOfStatus(result, request.designId);
-  });
+  return runStaffWrite(STATUS_WRITE, request, request.bodyText);
 }
 
-/** E-L3-5. It takes no body: the request's body is never read. */
-export async function unhideKitchenAsStaff(
+/** It takes no body: the request's body is never read. */
+export function unhideKitchenAsStaff(
   request: StaffActionRequest,
 ): Promise<NextResponse> {
-  const event = "staff-unhide";
-  return withAdmittedStaff(request, event, "design.unhide", async (session) => {
-    const limited = await refusalOfWriteLimit(event, session, request.headers);
-    if (limited !== undefined) return limited;
-    const result = await getStaffKitchenActionsStore().unhide({
-      session: actingSessionOf(request.cookies),
-      designId: request.designId,
-    });
-    return answerOfUnhide(result, request.designId);
-  });
+  return runStaffWrite(UNHIDE_WRITE, request, "");
 }
 
-/**
- * Steps 3 to 5 of the common order, then the write's own work. An id that is not a design id's shape gets the one
- * kitchen refusal without a store being asked.
- */
-async function withAdmittedStaff(
+async function runStaffWrite<Input, Result>(
+  write: StaffWrite<Input, Result>,
   request: StaffActionRequest,
-  event: StaffWriteEvent,
-  capability: Capability,
-  work: (session: SignedInSession) => Promise<NextResponse>,
+  bodyText: string,
 ): Promise<NextResponse> {
-  const admission = await admitStaff({
-    cookies: request.cookies,
-    event,
-    capability,
-  });
+  const { cookies, designId } = request;
+  const { event, capability } = write;
+  const admission = await admitStaff({ cookies, event, capability });
   if (admission.kind === "refused") return admission.response;
-  if (!isDesignId(request.designId)) return notFound(event, request.designId);
+  if (!isDesignId(designId)) return notFound(event, designId);
   try {
-    return await work(admission.session);
+    return await performWrite(write, request, admission.session, bodyText);
   } catch (failure) {
-    return answerOfStoreFailure(event, failure);
+    return answerOfStoreFailure(write, failure);
   }
+}
+
+async function performWrite<Input, Result>(
+  write: StaffWrite<Input, Result>,
+  { cookies, headers, designId }: StaffActionRequest,
+  session: SignedInSession,
+  bodyText: string,
+): Promise<NextResponse> {
+  const judged = write.judge(bodyText);
+  if (judged.kind === "refused") return refusal(write.event, judged.response);
+  const limited = await refusalOfWriteLimit(write.event, session, headers);
+  if (limited !== undefined) return limited;
+  const target = { session: actingSessionOf(cookies), designId };
+  const result = await write.call(
+    getStaffKitchenActionsStore(),
+    target,
+    judged.value,
+  );
+  return write.answer(result, designId);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -173,13 +215,9 @@ function judgedNoteText(bodyText: string): Judged<string> {
 function judgedStatus(bodyText: string): Judged<RequestStatus> {
   const member = onlyMemberOf(bodyText, "status");
   if (member.kind === "refused") return member;
-  if (isRequestStatus(member.value)) {
-    return { kind: "judged", value: member.value };
-  }
-  return refusedInput({
-    field: "status",
-    code: statusIssueCodeOf(member.value),
-  });
+  const judgement = judgeRequestStatus(member.value);
+  if (judgement.ok) return { kind: "judged", value: judgement.status };
+  return refusedInput({ field: "status", code: judgement.code });
 }
 
 /** The body is an object whose only member, if it has one, is the one this route takes. Any other member, whatever its
@@ -193,11 +231,6 @@ function onlyMemberOf(bodyText: string, name: string): Judged<unknown> {
   }
   const value = Object.hasOwn(body, name) ? body[name] : undefined;
   return { kind: "judged", value };
-}
-
-function statusIssueCodeOf(value: unknown): StatusIssueCode {
-  if (value === undefined) return "REQUIRED";
-  return typeof value === "string" ? "STATUS_NOT_IN_LIST" : "NOT_TEXT";
 }
 
 function refusedRequest(): Judged<never> {
@@ -247,7 +280,7 @@ function answerOfNote(
   result: AddStaffNoteResult,
   designId: string,
 ): NextResponse {
-  const event = "staff-note";
+  const event = STAFF_WRITE_EVENTS.note;
   if (result.kind === "kitchen-not-found") return notFound(event, designId);
   return succeeded(event, staffNoteAddedResponse(result.note));
 }
@@ -256,7 +289,7 @@ function answerOfStatus(
   result: SetRequestStatusResult,
   designId: string,
 ): NextResponse {
-  const event = "staff-status";
+  const event = STAFF_WRITE_EVENTS.status;
   switch (result.kind) {
     case "saved":
       return succeeded(event, staffStatusResponse(result.saved));
@@ -275,7 +308,7 @@ function answerOfUnhide(
   result: UnhideKitchenResult,
   designId: string,
 ): NextResponse {
-  const event = "staff-unhide";
+  const event = STAFF_WRITE_EVENTS.unhide;
   switch (result.kind) {
     case "unhidden":
       return succeeded(event, staffUnhiddenResponse());
@@ -287,38 +320,29 @@ function answerOfUnhide(
 }
 
 /**
- * What a thrown store error becomes (the port's documented mapping): no live session behind the call is `401`, and a
- * refusal of the note's text or the status is `400` naming that field. Every other failure, and anything that is not a
- * store error, is thrown on to the route's wrapper, which answers `503` with no detail. A refusal of the audit record
- * (a malformed session hash, say) is a defect of ours and not a field a person can correct, so it is a `503` too.
+ * What a thrown store error becomes (the port's documented mapping): no live session behind the call is `401`, and the
+ * one refusal of its input that this write's store can make is `400` naming that field. Every other failure, a refusal
+ * that belongs to another write included, and anything that is not a store error, is thrown on to the route's wrapper,
+ * which answers `503` with no detail. A refusal of the audit record (a malformed session hash, say) is a defect of ours
+ * and not a field a person can correct, so it is a `503` too.
  */
 function answerOfStoreFailure(
-  event: StaffWriteEvent,
+  {
+    event,
+    storeRefusal,
+  }: Pick<StaffWrite<unknown, unknown>, "event" | "storeRefusal">,
   failure: unknown,
 ): NextResponse {
   if (!(failure instanceof StaffKitchenActionError)) throw failure;
   if (failure.failure === "not-recorded") {
     return refusal(event, unauthenticatedResponse());
   }
-  if (failure.failure === "invalid-request") {
-    if (failure.refusal === "NOTE_TEXT_NOT_JUDGED") {
-      return refusal(
-        event,
-        staffInvalidInputResponse([
-          { field: "text", code: "NOTE_TEXT_NOT_JUDGED" },
-        ]),
-      );
-    }
-    if (failure.refusal === "STATUS_NOT_IN_LIST") {
-      return refusal(
-        event,
-        staffInvalidInputResponse([
-          { field: "status", code: "STATUS_NOT_IN_LIST" },
-        ]),
-      );
-    }
-  }
-  throw failure;
+  const isOwnRefusal =
+    failure.failure === "invalid-request" &&
+    storeRefusal !== undefined &&
+    failure.refusal === storeRefusal.refusal;
+  if (!isOwnRefusal) throw failure;
+  return refusal(event, staffInvalidInputResponse([storeRefusal.issue]));
 }
 
 function notFound(event: StaffWriteEvent, designId: string): NextResponse {
