@@ -357,10 +357,13 @@ export * from "./account/index.js";
 export {
   INITIAL_REQUEST_STATUS,
   isRequestStatus,
+  judgeRequestStatus,
   REQUEST_STATUSES,
   shownRequestStatus,
   type RequestStatus,
   type RequestStatusFacts,
+  type RequestStatusJudgement,
+  type RequestStatusRefusalCode,
 } from "./staff/request-status.js";
 export {
   auditActionAcceptsDesignId,

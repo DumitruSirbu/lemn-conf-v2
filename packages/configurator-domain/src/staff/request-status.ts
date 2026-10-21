@@ -17,6 +17,25 @@ export function isRequestStatus(value: unknown): value is RequestStatus {
   return REQUEST_STATUSES.some((status) => status === value);
 }
 
+export type RequestStatusRefusalCode =
+  | "REQUIRED"
+  | "NOT_TEXT"
+  | "STATUS_NOT_IN_LIST";
+
+export type RequestStatusJudgement =
+  | { readonly ok: true; readonly status: RequestStatus }
+  | { readonly ok: false; readonly code: RequestStatusRefusalCode };
+
+/** Exactly one of the listed codes, as written: nothing is trimmed, case-folded or coerced. */
+export function judgeRequestStatus(raw: unknown): RequestStatusJudgement {
+  if (raw === undefined) return { ok: false, code: "REQUIRED" };
+  if (typeof raw !== "string") return { ok: false, code: "NOT_TEXT" };
+  const status = REQUEST_STATUSES.find((listed) => listed === raw);
+  return status === undefined
+    ? { ok: false, code: "STATUS_NOT_IN_LIST" }
+    : { ok: true, status };
+}
+
 export interface RequestStatusFacts {
   readonly isSent: boolean;
   /** The saved status, or `null` while none has been saved. */
