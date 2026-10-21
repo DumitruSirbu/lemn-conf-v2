@@ -354,3 +354,41 @@ export * from "./generation/generate-kitchen.js";
 export * from "./commands/reconcile-command-result.js";
 export * from "./contact/index.js";
 export * from "./account/index.js";
+export {
+  INITIAL_REQUEST_STATUS,
+  isRequestStatus,
+  REQUEST_STATUSES,
+  shownRequestStatus,
+  type RequestStatus,
+  type RequestStatusFacts,
+} from "./staff/request-status.js";
+export {
+  isStaffAuditAction,
+  readStaffAuditEntry,
+  STAFF_AUDIT_ACTIONS,
+  type StaffAuditAction,
+  type StaffAuditEntry,
+  type StaffAuditEntryReading,
+  type StaffAuditRefusalCode,
+  type StatusChangedDetail,
+} from "./staff/staff-audit-action.js";
+export {
+  judgeNoteText,
+  NOTE_TEXT_MAX_LENGTH,
+  type NoteTextJudgement,
+  type NoteTextRefusalCode,
+} from "./staff/note-text.js";
+export {
+  DEFAULT_STAFF_KITCHEN_SEGMENT,
+  readStaffKitchenQuery,
+  STAFF_KITCHEN_PAGE_SIZE,
+  STAFF_KITCHEN_SEARCH_MAX_LENGTH,
+  STAFF_KITCHEN_SEGMENTS,
+  staffKitchenOffsetOf,
+  type StaffKitchenQuery,
+  type StaffKitchenQueryField,
+  type StaffKitchenQueryIssue,
+  type StaffKitchenQueryReading,
+  type StaffKitchenQueryRefusalCode,
+  type StaffKitchenSegment,
+} from "./staff/staff-kitchen-query.js";
