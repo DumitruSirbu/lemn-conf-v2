@@ -14,6 +14,7 @@ import type { StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useStaffKitchensCopy } from "@/i18n/use-content";
 
+import { dayOf } from "./staff-kitchen-dates";
 import styles from "./staff-kitchens.module.css";
 import type {
   StaffListedKitchenWire,
@@ -76,16 +77,6 @@ function documentOfThumbnail(
   updatedAt: string,
 ): Design {
   return { ...design, presetId: null, createdAt: updatedAt, updatedAt };
-}
-
-/** The day as dd.mm.yyyy on the shop's clock, whatever clock the browser keeps. */
-function dayOf(instant: string, locale: AppLocale): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "Europe/Chisinau",
-  }).format(new Date(instant));
 }
 
 export function KitchensTable({

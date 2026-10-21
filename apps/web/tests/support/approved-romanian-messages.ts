@@ -1483,6 +1483,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
   staffKitchen: {
     title: "Bucătăria clientului",
     loading: "Se încarcă bucătăria",
+    loadingSub: "Se încarcă…",
     viewOnly: "Doar vizualizare",
     viewLabel: "Vizualizarea 3D a bucătăriei",
     viewCurrent: "Varianta actuală",
@@ -1507,7 +1508,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Preț „de la”, nu ofertă. Oferta exactă se face în alt instrument.",
     statusLastChange: "Ultima schimbare: {name}, {when}",
     draftNoStatus: "Ciorna nu are cerere trimisă, deci nu are status.",
-    requestTitle: "Cererea trimisă",
+    requestTitle: "Cerere",
     requestLine: "Cererea trimisă: {reference}, {date}.",
     requestContactNote:
       "Datele de contact din cerere sunt în e-mailul trimis magazinului.",

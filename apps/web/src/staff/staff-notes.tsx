@@ -23,7 +23,7 @@ import {
 } from "@/i18n/use-content";
 
 import styles from "./staff-kitchen.module.css";
-import { dayAndTimeOf } from "./staff-display";
+import { dayAndTimeOf } from "./staff-kitchen-dates";
 import { noteLengthOf } from "./staff-note-rules";
 import type { StaffKitchenNoteWire } from "./staff-kitchens-wire-contract";
 import {

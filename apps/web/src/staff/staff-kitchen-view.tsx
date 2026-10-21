@@ -30,7 +30,7 @@ import {
 
 import styles from "./staff-kitchen.module.css";
 
-// The first column of the staff kitchen page (Lot 3 frames S3B, S3C): the kitchen to look at, and what it is made of.
+// The first column of the staff kitchen page (frames S3B, S3C): the kitchen to look at, and what it is made of.
 //
 // The view is the review's own picture, `KitchenPicture` over the view-only canvas: it mounts no orbit controls and picks
 // nothing, so no gesture on it can select a body or change the document, and it mounts no editor screen (the single-mount

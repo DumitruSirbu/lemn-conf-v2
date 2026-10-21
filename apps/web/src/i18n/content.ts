@@ -1498,6 +1498,7 @@ export function resolveStaffKitchenCopy(translate: ContentTranslator) {
   return {
     title: translate("staffKitchen.title"),
     loading: translate("staffKitchen.loading"),
+    loadingSub: translate("staffKitchen.loadingSub"),
     view: {
       readOnly: translate("staffKitchen.viewOnly"),
       label: translate("staffKitchen.viewLabel"),

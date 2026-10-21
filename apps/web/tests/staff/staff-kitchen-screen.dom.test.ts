@@ -866,7 +866,107 @@ describe("a right-to-left override left open in a draft's sender", () => {
     await mount("ro");
 
     expect(requireIn(page(), "header p").textContent).toContain(
-      `\u2068${typed}\u2069`,
+      "\u2068evil@mail.md\u2069",
     );
   });
+});
+
+describe("a closing isolate mark inside a colleague's name", () => {
+  it("cannot end the fence early: the name is shown without the controls and fenced once, beside the minute", async () => {
+    kitchenAnswers(() => ({
+      body: wireKitchen({
+        status: wireChangedStatus("contacted", {
+          email: null,
+          name: "Mihai\u2069\u202Eevil",
+        }),
+      }),
+    }));
+
+    await mount("ro");
+
+    const line = textOf("staff-kitchen-last-change");
+    expect(line).toContain("\u2068Mihaievil\u2069");
+    expect(line).not.toContain("\u202E");
+    expect(line.split("\u2069")).toHaveLength(2);
+  });
+});
+
+describe("a page restored from the browser's cache", () => {
+  function restore(isPersisted: boolean): void {
+    const event = new Event("pageshow");
+    Object.defineProperty(event, "persisted", { value: isPersisted });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+  }
+
+  it("is loaded again, once, so a kitchen shown to a person who has since signed out is not shown from memory", async () => {
+    const reload = vi.fn();
+    vi.stubGlobal("location", { assign: () => undefined, reload });
+    kitchenAnswers(() => ({ body: wireKitchen() }));
+    await mount("ro");
+
+    restore(true);
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("is left alone when it was not restored from the cache", async () => {
+    const reload = vi.fn();
+    vi.stubGlobal("location", { assign: () => undefined, reload });
+    kitchenAnswers(() => ({ body: wireKitchen() }));
+    await mount("ro");
+
+    restore(false);
+
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("listens no more once the page is left", async () => {
+    const reload = vi.fn();
+    vi.stubGlobal("location", { assign: () => undefined, reload });
+    kitchenAnswers(() => ({ body: wireKitchen() }));
+    await mount("ro");
+    screen?.unmount();
+    screen = undefined;
+
+    restore(true);
+
+    expect(reload).not.toHaveBeenCalled();
+  });
+});
+
+describe("the loading header (frame S3A)", () => {
+  it.each(LOCALES)(
+    "draws the line under the title that says the kitchen is loading, in %s",
+    async (locale) => {
+      kitchenAnswers(() => "hold");
+
+      await mount(locale);
+
+      expect(requireIn(page(), "header p").textContent).toBe(
+        CATALOGUES[locale].staffKitchen.loadingSub,
+      );
+    },
+  );
+});
+
+describe("the request card's title", () => {
+  it.each(LOCALES)(
+    "does not repeat the line under it, in %s",
+    async (locale) => {
+      kitchenAnswers(() => ({ body: wireKitchen() }));
+
+      await mount(locale);
+
+      const card = requireIn(
+        container(),
+        '[data-testid="staff-kitchen-request"]',
+      );
+      const title = requireIn(card, "h2").textContent;
+      expect(title).toBe(CATALOGUES[locale].staffKitchen.requestTitle);
+      const echoesTheTitle = new RegExp(`^${title}(?!\\p{L})`, "iu");
+      expect(echoesTheTitle.test(requireIn(card, "p").textContent)).toBe(false);
+    },
+  );
 });

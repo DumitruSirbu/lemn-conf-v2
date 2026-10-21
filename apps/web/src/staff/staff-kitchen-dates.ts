@@ -1,17 +1,9 @@
 import type { AppLocale } from "@/i18n/routing";
 
-// How the staff screens write a typed string and an instant. The shop's clock is Chișinău's, whatever clock the browser
-// keeps.
+// How the staff screens write an instant. The shop's clock is Chișinău's, whatever clock the browser keeps. Client-safe:
+// the server's own Chișinău day (`lib/server/rate-limit/chisinau-day.ts`) is a server module the browser may not import.
 
 const SHOP_TIME_ZONE = "Europe/Chisinau";
-const FIRST_STRONG_ISOLATE = "⁨";
-const POP_DIRECTIONAL_ISOLATE = "⁩";
-
-/** A string somebody typed, fenced between isolate marks where it stands inside a sentence, so a right-to-left run left open
- *  in it cannot reorder the date or the minute beside it. (A value in an element of its own is isolated by the stylesheet.) */
-export function isolated(typed: string): string {
-  return `${FIRST_STRONG_ISOLATE}${typed}${POP_DIRECTIONAL_ISOLATE}`;
-}
 
 /** The day as dd.mm.yyyy on the shop's clock. */
 export function dayOf(instant: string, locale: AppLocale): string {

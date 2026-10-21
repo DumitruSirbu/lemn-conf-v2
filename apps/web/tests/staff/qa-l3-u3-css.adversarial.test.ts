@@ -12,6 +12,10 @@ import { describe, expect, it } from "vitest";
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const COMPONENTS = [
   "staff/staff-kitchen-page.tsx",
+  "staff/staff-kitchen-states.tsx",
+  "staff/staff-kitchen-request.tsx",
+  "staff/staff-kitchen-client.tsx",
+  "staff/staff-kitchen-card.tsx",
   "staff/staff-kitchen-view.tsx",
 ] as const;
 const TOUCH_TARGET =

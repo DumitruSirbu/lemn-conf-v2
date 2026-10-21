@@ -11,8 +11,16 @@ import { describe, expect, it } from "vitest";
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const SCREEN_FILES = [
   "staff/staff-kitchen-page.tsx",
+  "staff/staff-kitchen-states.tsx",
+  "staff/staff-kitchen-request.tsx",
+  "staff/staff-kitchen-client.tsx",
+  "staff/staff-kitchen-card.tsx",
+  "staff/staff-kitchen-facts.ts",
+  "staff/staff-kitchen-dates.ts",
+  "staff/bidi-isolate.ts",
   "staff/staff-kitchen-view.tsx",
   "staff/use-staff-kitchen.ts",
+  "staff/staff-read-request.ts",
   "app/[locale]/staff/kitchens/[id]/page.tsx",
   "staff/staff-notes.tsx",
   "staff/staff-status-control.tsx",
@@ -23,6 +31,7 @@ const SCREEN_FILES = [
   "staff/staff-note-rules.ts",
 ] as const;
 const HOOK_FILE = "staff/use-staff-kitchen.ts";
+const READ_FILE = "staff/staff-read-request.ts";
 /** The files that make a request or hold what was typed: none of them may ask again, wait, or keep a note. */
 const WRITING_FILES = [
   "staff/use-staff-kitchen-actions.ts",
@@ -168,15 +177,13 @@ describe("the hook", () => {
     expect(names.filter((name) => TIMER_NAMES.has(name))).toEqual([]);
   });
 
-  it("asks with `fetch` once, in one place, and always states the referrer policy", () => {
-    const calls = collect(file, (node) =>
-      ts.isCallExpression(node) && node.expression.getText() === "fetch"
-        ? node.getText()
-        : undefined,
+  it("asks for nothing itself: the one module that reads for staff does, and it is a GET", () => {
+    const names = collect(file, (node) =>
+      ts.isIdentifier(node) ? node.text : undefined,
     );
 
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain("referrerPolicy: NO_REFERRER_POLICY");
+    expect(names).not.toContain("fetch");
+    expect(importsOf(file)).toContain("./staff-read-request");
   });
 });
 
@@ -214,6 +221,30 @@ describe.each(WRITING_FILES)(
     });
   },
 );
+
+describe("the module that reads for staff", () => {
+  const file = parse(READ_FILE);
+
+  it("asks with `fetch` once, in one place, always by GET and always stating the referrer policy", () => {
+    const calls = collect(file, (node) =>
+      ts.isCallExpression(node) && node.expression.getText() === "fetch"
+        ? node.getText()
+        : undefined,
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain('method: "GET"');
+    expect(calls[0]).toContain("referrerPolicy: NO_REFERRER_POLICY");
+  });
+
+  it("has no timer, so nothing it does can ask again on its own", () => {
+    const names = collect(file, (node) =>
+      ts.isIdentifier(node) ? node.text : undefined,
+    );
+
+    expect(names.filter((name) => TIMER_NAMES.has(name))).toEqual([]);
+  });
+});
 
 describe("the picture", () => {
   const file = parse(VIEW_FILE);

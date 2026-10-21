@@ -74,6 +74,14 @@ const FIRST_STRONG_ISOLATE = "\u2068";
 const POP_DIRECTIONAL_ISOLATE = "\u2069";
 const RIGHT_TO_LEFT_OVERRIDE = "\u202E";
 
+/** The characters that reorder or isolate the text around them. A typed part of a sentence is shown without them, between
+ *  isolate marks of the page's own, so a closing mark inside it cannot end the fence early. */
+const BIDI_CONTROLS = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu;
+
+function withoutBidiControls(text: string): string {
+  return text.replace(BIDI_CONTROLS, "");
+}
+
 /** The marks that fence a typed part of a sentence from its neighbours; a page may add them, and the words stay the same. */
 function withoutIsolates(text: string): string {
   return text
@@ -182,7 +190,10 @@ describe.each(LOCALES)(
         });
 
         expect(withoutIsolates(requireIn(page, "header p").textContent)).toBe(
-          say("subSent", { email: typed, date: "17.10.2026" }),
+          say("subSent", {
+            email: withoutBidiControls(typed),
+            date: "17.10.2026",
+          }),
         );
         expect(
           withoutIsolates(
@@ -202,7 +213,7 @@ describe.each(LOCALES)(
           ),
         ).toBe(
           say("statusLastChange", {
-            name: typed,
+            name: withoutBidiControls(typed),
             when: when.format(new Date("2026-10-18T11:22:00.000Z")),
           }),
         );
@@ -237,7 +248,8 @@ describe.each(LOCALES)(
       return requireIn(harness.container(), PAGE);
     }
 
-    function isFenced(box: Element, typed: string): boolean {
+    function isFenced(box: Element, typedValue: string): boolean {
+      const typed = withoutBidiControls(typedValue);
       const text = box.textContent;
       const fencedInText = text.includes(
         `${FIRST_STRONG_ISOLATE}${typed}${POP_DIRECTIONAL_ISOLATE}`,
