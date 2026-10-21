@@ -53,10 +53,10 @@ const listModule = await import("@/app/api/staff/kitchens/route");
 const oneModule = await import("@/app/api/staff/kitchens/[id]/route");
 
 /**
- * Adversarial QA of wave L3-S6 (`GET /api/staff/kitchens` and `/api/staff/kitchens/{id}`, ADR 0173). What the
+ * Adversarial QA of the staff read routes (`GET /api/staff/kitchens` and `/api/staff/kitchens/{id}`, ADR 0173). What the
  * developer's files do not reach: the order and the awaiting of the audit write against a stalled store, a body that
  * cannot be shaped, a hostile reader against the wire contract's key sets, every answer's headers, the log's closed
- * shape, the query parser's edges and the id route's one refusal over hostile ids. The 300-an-hour bucket's own
+ * shape, the query parser's edges and the id route's one refusal over hostile ids. The list page bucket's own
  * edges are in `qa-l3-s6-list-bucket.adversarial.test.ts`.
  */
 
@@ -500,10 +500,11 @@ describe("the cross-site guard on both routes", () => {
     expect(answer.status).toBe(200);
   });
 
-  it("exports GET alone and the two route options, so no other method is a handler of ours", () => {
+  it("exports GET, a HEAD that refuses, and the two route options, so no other method is a handler of ours", () => {
     for (const routeModule of [listModule, oneModule]) {
       expect(Object.keys(routeModule).sort()).toEqual([
         "GET",
+        "HEAD",
         "dynamic",
         "runtime",
       ]);
@@ -993,7 +994,6 @@ describe("what the log and the audit rows may hold", () => {
     for (let index = 0; index < 45; index += 1) {
       plantKitchen({
         accountId: index % 3 === 0 ? null : client.id,
-        isSent: index % 2 === 0,
         updatedAt: new Date(Date.UTC(2026, 9, 1, 0, 0, index)),
         sentAt:
           index % 2 === 0 ? new Date(Date.UTC(2026, 9, 1, 0, 0, index)) : null,

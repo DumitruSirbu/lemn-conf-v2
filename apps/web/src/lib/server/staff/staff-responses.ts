@@ -2,11 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import type {
-  NoteTextRefusalCode,
-  RequestStatus,
-  StaffKitchenQueryIssue,
-} from "@lemnaria/configurator-domain";
+import type { StaffKitchenQueryIssue } from "@lemnaria/configurator-domain";
 import type {
   SavedRequestStatus,
   StaffAuditAccountRef,
@@ -22,15 +18,24 @@ import type {
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type {
   StaffClientWire,
+  StaffConflictWire,
+  StaffInvalidInputWire,
+  StaffInvalidQueryWire,
   StaffKitchenListWire,
   StaffKitchenNoteWire,
   StaffKitchenRequestWire,
   StaffKitchenStatusWire,
   StaffKitchenWire,
   StaffListedKitchenWire,
+  StaffNoteAddedWire,
   StaffPersonWire,
+  StaffStatusSavedWire,
   StaffThumbnailDesign,
+  StaffWriteConflict,
+  StaffWriteIssue,
 } from "@/staff/staff-kitchens-wire-contract";
+
+export type { StaffWriteConflict, StaffWriteIssue };
 
 // The answers of the staff kitchen read and write routes that the account routes do not already give. The refusals
 // (401, 403, 404, 429, 503) are `account-responses.ts`'s and `design-errors.ts`'s own, so a staff route words them as
@@ -43,55 +48,39 @@ import type {
 export function staffInvalidQueryResponse(
   issues: readonly StaffKitchenQueryIssue[],
 ): NextResponse {
-  return NextResponse.json(
-    {
-      status: "invalid-input",
-      issues: issues.map(({ field, code }) => ({ field, code })),
-    },
-    { status: 400, headers: ACCOUNT_RESPONSE_HEADERS },
-  );
+  const body: StaffInvalidQueryWire = {
+    status: "invalid-input",
+    issues: issues.map(({ field, code }) => ({ field, code })),
+  };
+  return jsonResponse(body, 400);
 }
 
-/** What a staff write's body can be refused for: the text, by the domain's own codes and the store's repeat of its
- *  check, and the status, by whether it was given, was text and is in the list. */
-export type StaffWriteIssue =
-  | {
-      readonly field: "text";
-      readonly code: NoteTextRefusalCode | "NOTE_TEXT_NOT_JUDGED";
-    }
-  | {
-      readonly field: "status";
-      readonly code: "REQUIRED" | "NOT_TEXT" | "STATUS_NOT_IN_LIST";
-    };
-
-/** The words of a staff write's `409`: each is a state of the data, never a failure to answer. */
-export type StaffWriteConflict =
-  | "not-sent"
-  | "not-hidden"
-  | "changed-meanwhile"
-  | "status-not-recognised";
+/** `405`: the answer to `HEAD` on a staff read. The framework would otherwise run `GET` for it, with its audit row and
+ *  its bucket, and send no body; this runs nothing. */
+export function staffHeadRefusedResponse(): NextResponse {
+  return new NextResponse(null, {
+    status: 405,
+    headers: { ...ACCOUNT_RESPONSE_HEADERS, Allow: "GET" },
+  });
+}
 
 /** `400`: the member the person can correct, as the member and a code. Never the value that was refused: a note is a
  *  client's personal data. */
 export function staffInvalidInputResponse(
   issues: readonly StaffWriteIssue[],
 ): NextResponse {
-  return NextResponse.json(
-    {
-      status: "invalid-input",
-      issues: issues.map(({ field, code }) => ({ field, code })),
-    },
-    { status: 400, headers: ACCOUNT_RESPONSE_HEADERS },
-  );
+  const body: StaffInvalidInputWire = {
+    status: "invalid-input",
+    issues: issues.map((issue) => ({ ...issue })),
+  };
+  return jsonResponse(body, 400);
 }
 
 /** `201`: the note as it was stored, the one place its text is answered. Its author is named by address and name, never
  *  by account id. */
 export function staffNoteAddedResponse(note: StaffKitchenNote): NextResponse {
-  return NextResponse.json(
-    { note: noteWireOf(note) },
-    { status: 201, headers: ACCOUNT_RESPONSE_HEADERS },
-  );
+  const body: StaffNoteAddedWire = { note: noteWireOf(note) };
+  return jsonResponse(body, 201);
 }
 
 /** `200`: the status the kitchen shows after the save, with who set it and when. `null` is a kitchen that shows `new`
@@ -99,18 +88,13 @@ export function staffNoteAddedResponse(note: StaffKitchenNote): NextResponse {
 export function staffStatusResponse(
   saved: SavedRequestStatus | null,
 ): NextResponse {
-  return NextResponse.json(statusSavedWireOf(saved), {
-    status: 200,
-    headers: ACCOUNT_RESPONSE_HEADERS,
-  });
+  return jsonResponse(statusSavedWireOf(saved), 200);
 }
 
 /** `409`: the write is not one the kitchen's state allows. Nothing was written. */
 export function staffConflictResponse(word: StaffWriteConflict): NextResponse {
-  return NextResponse.json(
-    { status: word },
-    { status: 409, headers: ACCOUNT_RESPONSE_HEADERS },
-  );
+  const body: StaffConflictWire = { status: word };
+  return jsonResponse(body, 409);
 }
 
 /** `204`: the kitchen is no longer hidden from its client. */
@@ -123,7 +107,7 @@ export function staffUnhiddenResponse(): NextResponse {
 
 /** `200`: one page of the staff kitchens list. Built before the audit row is written and sent only after it commits. */
 export function staffKitchenListResponse(page: StaffKitchenPage): NextResponse {
-  return jsonResponse(staffKitchenListWireOf(page));
+  return jsonResponse(staffKitchenListWireOf(page), 200);
 }
 
 /** `200`: one kitchen with its client, request, status and notes. Built before the audit row is written and sent only
@@ -131,23 +115,28 @@ export function staffKitchenListResponse(page: StaffKitchenPage): NextResponse {
 export function staffKitchenResponse(
   kitchen: StaffKitchenDetail,
 ): NextResponse {
-  return jsonResponse(staffKitchenWireOf(kitchen));
+  return jsonResponse(staffKitchenWireOf(kitchen), 200);
 }
 
-function jsonResponse(body: object): NextResponse {
+type StaffWireBody =
+  | StaffInvalidQueryWire
+  | StaffInvalidInputWire
+  | StaffNoteAddedWire
+  | StaffStatusSavedWire
+  | StaffConflictWire
+  | StaffKitchenListWire
+  | StaffKitchenWire;
+
+function jsonResponse(body: StaffWireBody, status: number): NextResponse {
   return NextResponse.json(body, {
-    status: 200,
+    status,
     headers: ACCOUNT_RESPONSE_HEADERS,
   });
 }
 
-interface StatusSavedWire {
-  readonly status: RequestStatus;
-  readonly changedBy: StaffPersonWire | null;
-  readonly changedAt: string | null;
-}
-
-function statusSavedWireOf(saved: SavedRequestStatus | null): StatusSavedWire {
+function statusSavedWireOf(
+  saved: SavedRequestStatus | null,
+): StaffStatusSavedWire {
   if (saved === null) {
     return { status: "new", changedBy: null, changedAt: null };
   }
@@ -237,10 +226,11 @@ function statusWireOf(
   status: StaffKitchenStatus | null,
 ): StaffKitchenStatusWire | null {
   if (status === null) return null;
+  const { change } = status;
   return {
     value: status.value,
-    changedBy: status.change === null ? null : personWireOf(status.change.by),
-    changedAt: status.change === null ? null : status.change.at.toISOString(),
+    changedBy: change === null ? null : personWireOf(change.by),
+    changedAt: change === null ? null : change.at.toISOString(),
   };
 }
 

@@ -1,7 +1,10 @@
 import type { RateLimitStore } from "@lemnaria/persistence";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE } from "@/lib/server/rate-limit/limit-policy";
+import {
+  STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
+  STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE,
+} from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
@@ -40,16 +43,16 @@ vi.mock("@/lib/server/staff/staff-audit-store-instance", () =>
 const { GET } = await import("@/app/api/staff/kitchens/route");
 
 /**
- * Adversarial QA of the staff list's page bucket (wave L3-S6, ADR 0173 owner ruling of 2026-10-21): 300 pages an hour per
- * account, which fails closed. The edges the developer's file leaves: the bucket is the account's and nobody else's
+ * Adversarial QA of the staff list's page bucket (ADR 0173): a number of pages an hour per account,
+ * which fails closed. The edges the developer's file leaves: the bucket is the account's and nobody else's
  * (two sessions, three networks), the hour turns over at its edge, a store that answers nonsense or nothing serves no
- * page, and which requests the bucket counts. Its own file, because a test that serves 300 pages must not share a
+ * page, and which requests the bucket counts. Its own file, because a test that serves a whole hour of pages must not share a
  * network block's read count with another that serves as many.
  */
 
 const STAFF_LIST_POLICY_NAME =
   "staff-kitchens-list-by-account-per-60-utc-minutes";
-const PAGES_ALLOWED_PER_HOUR = 300;
+const PAGES_ALLOWED_PER_HOUR = STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE;
 const RATE_LIMIT_DEADLINE_MS = 3000;
 
 let staffWorld: StaffWorld;
@@ -174,10 +177,15 @@ describe("the bucket is the account's, whatever session or network asks", () => 
 });
 
 describe("the figure and the hour", () => {
-  it("is 300, the figure the ruling proposed", () => {
-    expect(STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE).toBe(
-      PAGES_ALLOWED_PER_HOUR,
+  it("is a positive whole number of pages counted over one UTC hour, so a retune of the figure breaks no test", () => {
+    expect(Number.isInteger(STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE)).toBe(
+      true,
     );
+    expect(STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE).toBeGreaterThan(0);
+    expect(STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY.window).toEqual({
+      kind: "utc-minutes",
+      minutes: 60,
+    });
   });
 
   it("turns over at the clock hour: the 301st page waits one second at 10:59:59, and the hour that follows has its own 300", async () => {

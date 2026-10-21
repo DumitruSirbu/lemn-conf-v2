@@ -21,14 +21,8 @@ import {
 import {
   answerOfJudgement,
   answerOfReadJudgement,
-  forbiddenResponse,
-  unauthenticatedResponse,
 } from "@/lib/server/account/account-responses";
-import {
-  readCurrentSessionOrThrow,
-  type SignedInSession,
-} from "@/lib/server/account/current-session";
-import { requireCapability } from "@/lib/server/account/require-capability";
+import type { SignedInSession } from "@/lib/server/account/current-session";
 import {
   readSessionCookie,
   type SessionCookieReader,
@@ -39,6 +33,10 @@ import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-reque
 import { judgeReadRequest } from "@/lib/server/rate-limit/judge-read-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { sha256Hex } from "@/lib/server/sha256-hex";
+import {
+  admitStaff,
+  type StaffAdmission,
+} from "@/lib/server/staff/staff-admission";
 import { getStaffAuditStore } from "@/lib/server/staff/staff-audit-store-instance";
 import { getStaffKitchenReader } from "@/lib/server/staff/staff-kitchen-reader-instance";
 import {
@@ -47,11 +45,10 @@ import {
   staffKitchenResponse,
 } from "@/lib/server/staff/staff-responses";
 
-// E-L3-1 and E-L3-2 of the Lot 3 plan: what a staff member reads of the clients' kitchens (ADR 0173). The invariant is
-// that **no `200` leaves without a committed audit row, and no row is committed for a request that is not answered
-// `200`**. So the body is shaped first, the row is written and awaited next, and only then is the shaped body returned:
-// a failure to shape costs no row, and a failure to record costs the body. Everything here is called inside the route's
-// `answerUnavailableOnFailure`, so anything thrown is a `503` that carries no cause and no kitchen data.
+// What a staff member reads of the clients' kitchens (ADR 0173). No `200` leaves without a committed audit row, and no
+// row is committed for any other answer: the body is shaped first, the row is written and awaited next, and only then
+// is the body returned. Everything here runs inside the route's `answerUnavailableOnFailure`, so anything thrown is a
+// `503` with no cause and no kitchen data.
 
 interface StaffReadRequest {
   readonly cookies: SessionCookieReader;
@@ -70,38 +67,45 @@ export interface StaffOpenRequest extends StaffReadRequest {
 const LIST_EVENT = "staff-kitchens" as const satisfies AccountEvent;
 const ONE_EVENT = "staff-kitchen" as const satisfies AccountEvent;
 
-type StaffAdmission =
-  | { readonly kind: "admitted"; readonly session: SignedInSession }
-  | { readonly kind: "refused"; readonly response: NextResponse };
-
 /**
- * E-L3-1. The network's read limit is counted first (it fails open, ADR 0156), then the session, `design.read.any`, the
- * query, and the account's own page bucket, which **fails closed**; only then is the reader asked. The audit row for the
- * view names the query's codes and counts, never the search text.
+ * One page of the list. The network's read limit comes first (it fails open), then the session, `design.read.any` and
+ * the query, then the account's page bucket, which **fails closed**; only then is the reader asked. The audit row
+ * names the query's codes and counts, never the search text.
  */
 export async function listKitchensForStaff(
   request: StaffListRequest,
 ): Promise<NextResponse> {
-  const admission = await admitStaff(request, LIST_EVENT);
+  const admission = await admitReader(request, LIST_EVENT);
   if (admission.kind === "refused") return admission.response;
   const reading = readStaffKitchenQuery(queryMembersOf(request.searchParams));
   if (!reading.ok) return refusedQuery(reading.issues);
-  const limited = await refusalOfListLimit(admission.session, request.headers);
+  const limited = await refusalOfBucket(
+    "staff-kitchens-list",
+    admission.session,
+    request.headers,
+  );
   if (limited !== undefined) return limited;
   return servePage(request.cookies, reading.query);
 }
 
 /**
- * E-L3-2. An id that is not a design id's shape, an unknown id, a kitchen its client deleted and a visitor's unsent
- * draft get one answer, `designNotFoundResponse`, and write no row. A kitchen its client hid is read. The row names the
- * kitchen and, when it has one, the client's account.
+ * One kitchen. An id that is not a design id's shape, an unknown id, a kitchen its client deleted and a visitor's
+ * unsent draft get one answer, `designNotFoundResponse`, and write no row. A kitchen its client hid is read. The
+ * account's opening bucket, which also **fails closed**, is counted after the id's shape and before the reader, so a
+ * malformed id costs nothing. The row names the kitchen and, when it has one, the client's account.
  */
 export async function openKitchenForStaff(
   request: StaffOpenRequest,
 ): Promise<NextResponse> {
-  const admission = await admitStaff(request, ONE_EVENT);
+  const admission = await admitReader(request, ONE_EVENT);
   if (admission.kind === "refused") return admission.response;
   if (!isDesignId(request.designId)) return notFound(request.designId);
+  const limited = await refusalOfBucket(
+    "staff-kitchen-open",
+    admission.session,
+    request.headers,
+  );
+  if (limited !== undefined) return limited;
   const reading = await getStaffKitchenReader().readOne(request.designId);
   if (reading.kind === "none") return notFound(request.designId);
   return serveKitchen(request.cookies, reading.kitchen);
@@ -136,28 +140,14 @@ async function serveKitchen(
   return response;
 }
 
-/**
- * Steps 3 and 4 of the common order, after the read limit. The session is read by the variant that throws: a store that
- * is down is the caller's `503` and never an anonymous reading. `401` is no live session, `403` a live session without
- * `design.read.any` (a client, or a staff address not yet confirmed).
- */
-async function admitStaff(
+/** The network's read limit (fails open), then the shared staff admission for `design.read.any`. */
+async function admitReader(
   { cookies, headers }: StaffReadRequest,
   event: AccountEvent,
 ): Promise<StaffAdmission> {
   const limited = answerOfReadJudgement(await judgeReadRequest(headers));
   if (limited !== undefined) return { kind: "refused", response: limited };
-  const session = await readCurrentSessionOrThrow(cookies);
-  const check = requireCapability(session, "design.read.any");
-  if (check.kind === "allowed" && session.kind === "signed-in") {
-    return { kind: "admitted", session };
-  }
-  reportAccountEvent({ event, outcome: "refused" });
-  const isForbidden = check.kind === "refused" && check.refusal === "forbidden";
-  return {
-    kind: "refused",
-    response: isForbidden ? forbiddenResponse() : unauthenticatedResponse(),
-  };
+  return admitStaff({ cookies, event, capability: "design.read.any" });
 }
 
 function queryMembersOf(
@@ -171,15 +161,16 @@ function queryMembersOf(
   };
 }
 
-/** One page counted in the account's own bucket, once, before the reader is asked. A bucket that cannot be counted is
- *  `503` and serves no page: the list is the one read that fails closed. */
-async function refusalOfListLimit(
+/** One request counted in the account's own bucket, once, before the reader is asked. A bucket that cannot be counted is
+ *  `503` and serves nothing: these two reads fail closed, where every other read fails open. */
+async function refusalOfBucket(
+  purpose: "staff-kitchens-list" | "staff-kitchen-open",
   session: SignedInSession,
   headers: HeaderReader,
 ): Promise<NextResponse | undefined> {
   return answerOfJudgement(
     await judgeAccountSubject({
-      purpose: "staff-kitchens-list",
+      purpose,
       headers,
       accountId: session.accountId,
     }),

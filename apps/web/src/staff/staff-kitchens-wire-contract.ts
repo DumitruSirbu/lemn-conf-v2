@@ -1,11 +1,19 @@
-import type { Design, RequestStatus } from "@lemnaria/configurator-domain";
+import type {
+  Design,
+  NoteTextRefusalCode,
+  RequestStatus,
+  StaffKitchenQueryField,
+  StaffKitchenQueryRefusalCode,
+} from "@lemnaria/configurator-domain";
 
 // What `GET /api/staff/kitchens` and `GET /api/staff/kitchens/{id}` answer and the staff pages that read them expect,
 // once. It lives outside `lib/server` because the client bundle may not import a server-only module, and holds types
 // only. No account id appears anywhere in it: a person is named by the e-mail and the name staff see (ADR 0173).
 
-/** The kitchen's document as far as a list thumbnail draws it: the room, the cabinets and the colour. The stored
- *  document's identity and timestamps stay behind. */
+/** The kitchen's document as far as a list thumbnail draws it: the room, the cabinets and the colour. It is a `Pick`
+ *  of `Design`, not a `Design`: the stored document's identity and timestamps stay behind. A renderer that needs a
+ *  whole `Design` synthesises `presetId`, `createdAt` and `updatedAt` as placeholders in one adapter of its own; the
+ *  wire does not widen. */
 export type StaffThumbnailDesign = Pick<
   Design,
   "room" | "placements" | "emptyColumns" | "columnExtents" | "settings"
@@ -89,4 +97,57 @@ export interface StaffKitchenWire {
   readonly notes: readonly StaffKitchenNoteWire[];
   /** True when the kitchen holds more notes than `notes` carries. */
   readonly notesTruncated: boolean;
+}
+
+/** `400` of the list: a member of the query and the domain's code for it. Never the value that was refused, because the
+ *  search text is a client's name or address. */
+export interface StaffInvalidQueryWire {
+  readonly status: "invalid-input";
+  readonly issues: readonly {
+    readonly field: StaffKitchenQueryField;
+    readonly code: StaffKitchenQueryRefusalCode;
+  }[];
+}
+
+/** What a staff write's body can be refused for: the note's text, by the domain's own codes and the store's repeat of its
+ *  check, and the status, by whether it was given, was text and is in the list. */
+export type StaffWriteIssue =
+  | {
+      readonly field: "text";
+      readonly code: NoteTextRefusalCode | "NOTE_TEXT_NOT_JUDGED";
+    }
+  | {
+      readonly field: "status";
+      readonly code: "REQUIRED" | "NOT_TEXT" | "STATUS_NOT_IN_LIST";
+    };
+
+/** `400` of a staff write: the member the person can correct and a code. Never the value, because a note is a client's
+ *  personal data. */
+export interface StaffInvalidInputWire {
+  readonly status: "invalid-input";
+  readonly issues: readonly StaffWriteIssue[];
+}
+
+/** The words of a staff write's `409`: each is a state of the data, never a failure to answer. */
+export type StaffWriteConflict =
+  | "not-sent"
+  | "not-hidden"
+  | "changed-meanwhile"
+  | "status-not-recognised";
+
+export interface StaffConflictWire {
+  readonly status: StaffWriteConflict;
+}
+
+/** `201` of a note: the note as it was stored. */
+export interface StaffNoteAddedWire {
+  readonly note: StaffKitchenNoteWire;
+}
+
+/** `200` of a status save: the status the kitchen shows after it, with who set it and when. A kitchen that shows `new`
+ *  because no status was ever saved has no last change. */
+export interface StaffStatusSavedWire {
+  readonly status: RequestStatus;
+  readonly changedBy: StaffPersonWire | null;
+  readonly changedAt: string | null;
 }

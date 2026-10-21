@@ -73,6 +73,7 @@ export type AccountKeyedPurpose =
   | "kitchen-hide"
   | "kitchen-delete"
   | "staff-kitchens-list"
+  | "staff-kitchen-open"
   | "staff-note"
   | "staff-status"
   | "staff-unhide";
@@ -182,6 +183,10 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
   "staff-kitchens-list": {
     event: "staff-kitchens",
     buckets: ["staff-kitchens-list-by-account"],
+  },
+  "staff-kitchen-open": {
+    event: "staff-kitchen",
+    buckets: ["staff-kitchen-open-by-account"],
   },
   "staff-note": { event: "staff-note", buckets: ["staff-note-by-account"] },
   "staff-status": {

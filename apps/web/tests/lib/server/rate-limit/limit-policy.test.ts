@@ -76,6 +76,7 @@ const PURPOSE_RECORD: Record<PolicyPurpose, true> = {
   "account-export-by-account": true,
   "duplicate-by-account": true,
   "staff-kitchens-list-by-account": true,
+  "staff-kitchen-open-by-account": true,
   "staff-note-by-account": true,
   "staff-status-by-account": true,
   "staff-unhide-by-account": true,

@@ -12,6 +12,7 @@ import {
   staffKitchenListResponse,
   staffKitchenResponse,
 } from "@/lib/server/staff/staff-responses";
+import type { StaffInvalidQueryWire } from "@/staff/staff-kitchens-wire-contract";
 
 /**
  * The staff answers are shaped member by member. These tests hand the builders reader objects that carry members the
@@ -258,9 +259,10 @@ describe("the refused query answer", () => {
 
     expect(response.status).toBe(400);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(await bodyOf(response)).toEqual({
+    const expected = {
       status: "invalid-input",
       issues: [{ field: "q", code: "TOO_LONG" }],
-    });
+    } satisfies StaffInvalidQueryWire;
+    expect(await bodyOf(response)).toEqual(expected);
   });
 });

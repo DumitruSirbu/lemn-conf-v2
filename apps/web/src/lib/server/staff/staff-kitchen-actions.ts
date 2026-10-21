@@ -24,15 +24,10 @@ import {
 import { parseJsonObject } from "@/lib/server/account/account-request";
 import {
   answerOfJudgement,
-  forbiddenResponse,
   invalidRequestResponse,
   unauthenticatedResponse,
 } from "@/lib/server/account/account-responses";
-import {
-  readCurrentSessionOrThrow,
-  type SignedInSession,
-} from "@/lib/server/account/current-session";
-import { requireCapability } from "@/lib/server/account/require-capability";
+import type { SignedInSession } from "@/lib/server/account/current-session";
 import {
   readSessionCookie,
   type SessionCookieReader,
@@ -42,6 +37,7 @@ import { designNotFoundResponse } from "@/lib/server/design-errors";
 import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { sha256Hex } from "@/lib/server/sha256-hex";
+import { admitStaff } from "@/lib/server/staff/staff-admission";
 import { getStaffKitchenActionsStore } from "@/lib/server/staff/staff-kitchen-actions-store-instance";
 import {
   staffConflictResponse,
@@ -76,10 +72,6 @@ type StaffWriteEvent = Extract<
   AccountEvent,
   "staff-note" | "staff-status" | "staff-unhide"
 >;
-
-type StaffAdmission =
-  | { readonly kind: "admitted"; readonly session: SignedInSession }
-  | { readonly kind: "refused"; readonly response: NextResponse };
 
 type Judged<Value> =
   | { readonly kind: "judged"; readonly value: Value }
@@ -144,10 +136,8 @@ export async function unhideKitchenAsStaff(
 }
 
 /**
- * Steps 3 to 5 of the common order, then the write's own work. The session is read by the variant that throws: a store
- * that is down is the caller's `503` and never an anonymous reading. `401` is no live session, `403` a live session
- * without the capability (a client, or a staff address not yet confirmed). An id that is not a design id's shape gets
- * the one kitchen refusal without a store being asked.
+ * Steps 3 to 5 of the common order, then the write's own work. An id that is not a design id's shape gets the one
+ * kitchen refusal without a store being asked.
  */
 async function withAdmittedStaff(
   request: StaffActionRequest,
@@ -155,7 +145,11 @@ async function withAdmittedStaff(
   capability: Capability,
   work: (session: SignedInSession) => Promise<NextResponse>,
 ): Promise<NextResponse> {
-  const admission = await admitStaff(request.cookies, event, capability);
+  const admission = await admitStaff({
+    cookies: request.cookies,
+    event,
+    capability,
+  });
   if (admission.kind === "refused") return admission.response;
   if (!isDesignId(request.designId)) return notFound(event, request.designId);
   try {
@@ -163,24 +157,6 @@ async function withAdmittedStaff(
   } catch (failure) {
     return answerOfStoreFailure(event, failure);
   }
-}
-
-async function admitStaff(
-  cookies: SessionCookieReader,
-  event: StaffWriteEvent,
-  capability: Capability,
-): Promise<StaffAdmission> {
-  const session = await readCurrentSessionOrThrow(cookies);
-  const check = requireCapability(session, capability);
-  if (check.kind === "allowed" && session.kind === "signed-in") {
-    return { kind: "admitted", session };
-  }
-  reportAccountEvent({ event, outcome: "refused" });
-  const isForbidden = check.kind === "refused" && check.refusal === "forbidden";
-  return {
-    kind: "refused",
-    response: isForbidden ? forbiddenResponse() : unauthenticatedResponse(),
-  };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

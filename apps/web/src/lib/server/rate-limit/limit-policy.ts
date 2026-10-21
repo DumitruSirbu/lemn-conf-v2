@@ -182,13 +182,20 @@ export const ACCOUNT_EMAIL_CHANGE_PER_ACCOUNT_DAY_FIGURE = 5;
 /** How often an account may download its data: the file is the whole account, built per request. */
 export const ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE = 5;
 /**
- * PROVISIONAL, the owner's ruling of 2026-10-21 (ADR 0173) with the figure proposed at wave L3-S6: how many pages of the
- * staff kitchens list one staff account may be served in an hour. The list returns clients' e-mail, name and phone in
- * bulk, so this bucket caps harvesting even when the general read limiter is down. Unlike every other read it **fails
- * closed**: a count above this figure, or a count that cannot be made, serves no page. 300 is about one page every
- * twelve seconds for the whole hour. The owner's answer changes this constant and no code.
+ * PROVISIONAL: how many pages of the staff kitchens list one staff account may be served in an hour. The list returns
+ * clients' e-mail, name and phone in bulk, so this bucket caps harvesting even when the general read limiter is down.
+ * Unlike every other read it **fails closed**: a count above the figure, or a count that cannot be made, serves no
+ * page. 300 is about one page every 12 seconds for the whole hour. The owner's answer changes this constant and no
+ * code; see ADR 0173.
  */
 export const STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE = 300;
+/**
+ * PROVISIONAL: how many kitchens one staff account may open in an hour, counted apart from the list's pages. Each
+ * opening reads one client's whole kitchen, its notes and its profile, so it is capped on its own and, like the list,
+ * **fails closed**. 600 is one a 6 seconds for the whole hour, far above reading kitchens by hand. The owner's answer
+ * changes this constant and no code; see ADR 0173.
+ */
+export const STAFF_KITCHEN_OPEN_PER_ACCOUNT_HOUR_FIGURE = 600;
 /**
  * PROVISIONAL (M8B Lot 3 plan P-L3-11): how many writes one staff account may make on the clients' kitchens. Notes and
  * status saves are counted by the hour, 120 each; an unhide by the UTC day (as every account day is), 60. A request
@@ -485,6 +492,14 @@ export const STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY = policyOf(
+  "staff-kitchen-open-by-account",
+  {
+    figure: STAFF_KITCHEN_OPEN_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
 export const STAFF_NOTE_BY_ACCOUNT_POLICY = policyOf("staff-note-by-account", {
   figure: STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE,
   window: utcMinutes(ACCOUNT_HOUR_MINUTES),
@@ -575,6 +590,7 @@ export type PolicyPurpose =
   | "account-export-by-account"
   | "duplicate-by-account"
   | "staff-kitchens-list-by-account"
+  | "staff-kitchen-open-by-account"
   | "staff-note-by-account"
   | "staff-status-by-account"
   | "staff-unhide-by-account";
@@ -680,6 +696,9 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "duplicate-by-account": sameInProduction(DESIGN_DUPLICATE_BY_ACCOUNT_POLICY),
   "staff-kitchens-list-by-account": sameInProduction(
     STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
+  ),
+  "staff-kitchen-open-by-account": sameInProduction(
+    STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY,
   ),
   "staff-note-by-account": sameInProduction(STAFF_NOTE_BY_ACCOUNT_POLICY),
   "staff-status-by-account": sameInProduction(STAFF_STATUS_BY_ACCOUNT_POLICY),
