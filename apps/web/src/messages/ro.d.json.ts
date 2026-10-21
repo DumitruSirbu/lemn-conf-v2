@@ -771,7 +771,7 @@ declare const messages: {
     "noteRequired": "Scrie ceva în notă înainte să o salvezi.",
     "noteNotText": "Nota nu a putut fi citită ca text. Scrie-o din nou.",
     "noteTooLong": "Nota poate avea cel mult {max, number, ::group-off} de caractere.",
-    "noteForbiddenCharacter": "Nota conține un caracter care nu se poate salva: o tabulare, un retur de car sau alt caracter de control. Rândurile noi sunt permise. Scoate caracterul și încearcă din nou.",
+    "noteForbiddenCharacter": "Nota conține un caracter care nu se poate salva: o tabulare, un retur de car, un caracter de control sau un marcaj invizibil de direcție. Rândurile noi sunt permise. Scoate caracterul și încearcă din nou.",
     "noteNotJudged": "Nota nu a putut fi salvată din cauza unei neconcordanțe a aplicației. Încearcă din nou; dacă se repetă, anunță un administrator.",
     "statusRequired": "Alege un status.",
     "statusNotText": "Statusul nu a putut fi citit. Alege-l din nou.",
@@ -1205,7 +1205,7 @@ declare const messages: {
     "unhideAction": "Fă-o din nou vizibilă",
     "unhideTitle": "Faci bucătăria din nou vizibilă?",
     "unhideBody": "Clientul o va vedea din nou în Bucătăriile mele și o va putea edita. Acțiunea apare în jurnal.",
-    "unhideShareNote": "Linkul de partajare revocat când a ascuns bucătăria nu se reactivează; clientul poate crea unul nou.",
+    "unhideShareNote": "Dacă clientul avea un link de partajare, acesta nu este reactivat.",
     "unhideConfirm": "Fă-o vizibilă",
     "unhideBusy": "Se face vizibilă…",
     "unhideCancel": "Anulează",
@@ -1222,7 +1222,10 @@ declare const messages: {
     "sessionStillSignedOut": "Încă nu ești în cont. Intră în fila nouă, apoi apasă din nou.",
     "sessionRecheckFailed": "Nu am putut verifica acum. Încearcă din nou.",
     "statusChangedMeanwhileUnread": "Statusul a fost schimbat între timp de altcineva. Alegerea ta a rămas; dacă starea afișată nu se schimbă, reîncarcă pagina.",
-    "statusNotSentUnread": "Cererea nu a fost trimisă, deci nu are status. Dacă starea afișată nu se schimbă, reîncarcă pagina."
+    "statusNotSentUnread": "Cererea nu a fost trimisă, deci nu are status. Dacă starea afișată nu se schimbă, reîncarcă pagina.",
+    "unhideNotHiddenUnread": "Bucătăria nu mai este ascunsă.",
+    "unhideGone": "Bucătăria nu mai este disponibilă. Dacă pagina nu se schimbă, reîncarcă-o.",
+    "sessionOtherAccount": "Dacă intri cu alt cont, pagina se reîncarcă și ce ai scris în ea se pierde."
   },
   "staffAudit": {
     "title": "Jurnal de audit",

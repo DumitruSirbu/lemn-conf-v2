@@ -1048,7 +1048,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     noteTooLong:
       "Nota poate avea cel mult {max, number, ::group-off} de caractere.",
     noteForbiddenCharacter:
-      "Nota conține un caracter care nu se poate salva: o tabulare, un retur de car sau alt caracter de control. Rândurile noi sunt permise. Scoate caracterul și încearcă din nou.",
+      "Nota conține un caracter care nu se poate salva: o tabulare, un retur de car, un caracter de control sau un marcaj invizibil de direcție. Rândurile noi sunt permise. Scoate caracterul și încearcă din nou.",
     noteNotJudged:
       "Nota nu a putut fi salvată din cauza unei neconcordanțe a aplicației. Încearcă din nou; dacă se repetă, anunță un administrator.",
     statusRequired: "Alege un status.",
@@ -1581,8 +1581,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     unhideTitle: "Faci bucătăria din nou vizibilă?",
     unhideBody:
       "Clientul o va vedea din nou în Bucătăriile mele și o va putea edita. Acțiunea apare în jurnal.",
+    unhideNotHiddenUnread: "Bucătăria nu mai este ascunsă.",
+    unhideGone:
+      "Bucătăria nu mai este disponibilă. Dacă pagina nu se schimbă, reîncarcă-o.",
+    sessionOtherAccount:
+      "Dacă intri cu alt cont, pagina se reîncarcă și ce ai scris în ea se pierde.",
     unhideShareNote:
-      "Linkul de partajare revocat când a ascuns bucătăria nu se reactivează; clientul poate crea unul nou.",
+      "Dacă clientul avea un link de partajare, acesta nu este reactivat.",
     unhideConfirm: "Fă-o vizibilă",
     unhideBusy: "Se face vizibilă…",
     unhideCancel: "Anulează",

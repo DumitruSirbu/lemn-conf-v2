@@ -1692,6 +1692,8 @@ export function resolveStaffActionsCopy(translate: ContentTranslator) {
       cancel: translate("staffActions.unhideCancel"),
       done: translate("staffActions.unhideDone"),
       notHidden: translate("staffActions.unhideNotHidden"),
+      notHiddenUnread: translate("staffActions.unhideNotHiddenUnread"),
+      gone: translate("staffActions.unhideGone"),
       forbiddenBody: translate("staffActions.unhideForbiddenBody"),
     },
     session: {
@@ -1704,6 +1706,7 @@ export function resolveStaffActionsCopy(translate: ContentTranslator) {
       rechecking: translate("staffActions.sessionRechecking"),
       stillSignedOut: translate("staffActions.sessionStillSignedOut"),
       recheckFailed: translate("staffActions.sessionRecheckFailed"),
+      otherAccount: translate("staffActions.sessionOtherAccount"),
     },
   };
 }
