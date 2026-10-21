@@ -533,6 +533,58 @@ describe("a prepared record holds what was checked", () => {
   });
 });
 
+describe("the audit insert statement refuses a record that was not prepared", () => {
+  it("throws before any batch is sent, for a literal that looks like a prepared record", () => {
+    const sql = openApplicationDatabase(WELL_FORMED_UNREACHABLE_VALUE);
+    const {
+      id,
+      sessionTokenHash,
+      idleLifetimeSeconds,
+      entry,
+      designId,
+      subjectAccountId,
+    } = prepareStaffAuditRecord(aRecord());
+    const literal = {
+      id,
+      sessionTokenHash,
+      idleLifetimeSeconds,
+      entry,
+      designId,
+      subjectAccountId,
+    };
+
+    const attempt = () => staffAuditInsertStatement(sql, literal as never);
+
+    expect(attempt).toThrow(StaffAuditStoreError);
+    expect(attempt).toThrow(/could not record a staff audit event/);
+    expect(queryDriver.statements).toHaveLength(0);
+  });
+
+  it("names the refusal RECORD_NOT_PREPARED", () => {
+    const sql = openApplicationDatabase(WELL_FORMED_UNREACHABLE_VALUE);
+    let refusal: unknown;
+
+    try {
+      void staffAuditInsertStatement(sql, { id: "x" } as never);
+    } catch (failure) {
+      refusal = (failure as StaffAuditStoreError).refusal;
+    }
+
+    expect(refusal).toBe("RECORD_NOT_PREPARED");
+  });
+
+  it("builds the statement for a record the preparer produced", () => {
+    const sql = openApplicationDatabase(WELL_FORMED_UNREACHABLE_VALUE);
+
+    const statement = staffAuditInsertStatement(
+      sql,
+      prepareStaffAuditRecord(aRecord()),
+    );
+
+    expect(typeof (statement as { then?: unknown }).then).toBe("function");
+  });
+});
+
 describe("the reply to the audit insert", () => {
   it.each([
     ["no row", []],
@@ -686,7 +738,7 @@ describe("the audit page (page)", () => {
   it("is one lone select that writes nothing", async () => {
     const text = normalised(await sentByPage(aPageRequest()));
 
-    expect(text).toMatch(/^with filtered as \( select /);
+    expect(text).toMatch(/^with filtered as not materialized \( select /);
     expect(text).not.toMatch(/\b(insert|update|delete|truncate)\b/);
     expect(text).not.toContain("on conflict");
   });
@@ -892,6 +944,36 @@ describe("the rows the page reads", () => {
     const page = await pageOf([eventRow({ occurred_ms: text })]);
 
     expect(page.events[0]?.occurredAt.getTime()).toBe(milliseconds);
+  });
+
+  it.each([
+    ["a finite stamp past what a Date holds", "8800000000000000", 8.64e15],
+    ["a 16-digit stamp past what a Date holds", "9999999999999999", 8.64e15],
+    ["a negative stamp past what a Date holds", "-8800000000000000", -8.64e15],
+  ])(
+    "reads %s as the nearest instant a Date holds, not as an Invalid Date",
+    async (_label, text, milliseconds) => {
+      const page = await pageOf([eventRow({ occurred_ms: text })]);
+
+      expect(page.events[0]?.occurredAt.getTime()).toBe(milliseconds);
+    },
+  );
+
+  it("refuses a stamp of seventeen digits", async () => {
+    const failure = await failureOf(() =>
+      pageOf([eventRow({ occurred_ms: "10000000000000000" })]),
+    );
+
+    expect(failure.failure).toBe("unexpected-answer");
+  });
+
+  it("clamps a finite stamp to the instants a Date holds in the statement itself, at the figure the reader clamps to", async () => {
+    const text = normalised(await sentByPage(aPageRequest()));
+
+    expect(text).toContain(
+      "least( greatest(floor(extract(epoch from f.occurred_at) * 1000), -8640000000000000), 8640000000000000 )::bigint::text",
+    );
+    expect(String(8.64e15)).toBe("8640000000000000");
   });
 
   it("reads a stamp of infinity or -infinity as the latest or earliest instant, in the statement", async () => {

@@ -40,7 +40,7 @@ import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 holdSharedTestSchemaLock();
 
 /**
- * Adversarial QA of wave L3-S3: cases the shared contract suite (`tests/support/staff-audit-store-contract.ts`) does
+ * Adversarial QA of the staff audit store: cases the shared contract suite (`tests/support/staff-audit-store-contract.ts`) does
  * not hold, run over **both** arms, the fake and the live test database, so a difference between the two is a failing
  * test. The suites that own the contract cannot be edited from QA, so the cases live here, each against a world built
  * as the developer's two files build theirs.

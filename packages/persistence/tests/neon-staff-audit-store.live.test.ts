@@ -354,6 +354,30 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       });
     });
 
+    describe("a finite stamp past what a Date holds (the server holds years up to 294276)", () => {
+      it("is listed as the latest instant a Date holds, and does not fail page 1 or read as an Invalid Date", async () => {
+        const member = await signIn();
+        const id = nanoid();
+        eventIds.push(id);
+        await sql()`
+          insert into staff_audit_events (id, occurred_at, actor_account_id, action)
+          values (${id}, '290000-01-01 00:00:00+00'::timestamptz, ${member.accountId}, 'kitchen-opened')
+        `;
+
+        const page = await store().page({
+          actorAccountId: member.accountId,
+          action: null,
+          occurredFrom: null,
+          occurredBefore: null,
+          page: 1,
+        });
+
+        expect(
+          page.events.map((event) => [event.id, event.occurredAt.getTime()]),
+        ).toEqual([[id, 8.64e15]]);
+      });
+    });
+
     describe("the page does not carry what the client keeps private", () => {
       it("reads neither the client's postal address nor phone", async () => {
         const world = await newWorld();

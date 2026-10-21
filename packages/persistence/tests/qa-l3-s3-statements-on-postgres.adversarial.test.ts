@@ -41,7 +41,7 @@ import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 holdSharedTestSchemaLock();
 
 /**
- * Adversarial QA of wave L3-S3 (the staff audit store), against the statements the store really sends, on a real
+ * Adversarial QA of the staff audit store, against the statements the store really sends, on a real
  * Postgres.
  *
  * **How the production SQL runs here.** Both Neon stores take their `sql` from the driver's tagged template. This file

@@ -1,6 +1,8 @@
 import type { SessionStore } from "./session-store.js";
 import {
   STAFF_AUDIT_PAGE_SIZE,
+  STORED_ACTION_SHAPE,
+  STORED_ID_SHAPE,
   StaffAuditStoreError,
   offsetOfStaffAuditPage,
   prepareStaffAuditRecord,
@@ -16,9 +18,6 @@ import type {
   StaffAuditRecord,
   StaffAuditStore,
 } from "./staff-audit-store.js";
-
-const STORED_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
-const STORED_ACTION_SHAPE = /^[a-z0-9-]{1,32}$/;
 
 /** A row of `staff_audit_events` as it is held. `detail` is `null` for SQL null. */
 export interface HeldStaffAuditEvent {

@@ -8,7 +8,7 @@ import { nanoid } from "nanoid";
 import { requireValidSessionLookupRequest } from "./session-store.js";
 import type { IdleLifetimeSecondsByRole } from "./session-store.js";
 
-/** The audit page's size (plan P-L3-12: "1-25 din 1 204"). */
+/** The audit page's size: the page footer counts 25 to a page ("1-25 din 1 204"). */
 export const STAFF_AUDIT_PAGE_SIZE = 25;
 
 /** The last page a request may name, so an offset stays far inside what the server counts in. A bound on a request, not
@@ -33,9 +33,9 @@ const EARLIEST_BOUND_MS = Date.parse("0001-01-01T00:00:00.000Z");
 const LATEST_BOUND_MS = Date.parse("9999-12-31T23:59:59.999Z");
 
 /** The shape `staff_audit_events_*_shape` (`0020`) checks for an event id and for each id it holds. */
-const STORED_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
+export const STORED_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
 /** `staff_audit_events_action_shape` (`0020`): the table checks the shape of an action and code owns the list. */
-const STORED_ACTION_SHAPE = /^[a-z0-9-]{1,32}$/;
+export const STORED_ACTION_SHAPE = /^[a-z0-9-]{1,32}$/;
 const SESSION_TOKEN_HASH_SHAPE = /^[0-9a-f]{64}$/;
 
 /**
@@ -76,7 +76,8 @@ export type StaffAuditRecordRefusal =
   | "ENTRY_NOT_RECOGNISED"
   | "DESIGN_ID_MISSING"
   | "DESIGN_ID_NOT_WELL_FORMED"
-  | "SUBJECT_ACCOUNT_ID_NOT_WELL_FORMED";
+  | "SUBJECT_ACCOUNT_ID_NOT_WELL_FORMED"
+  | "RECORD_NOT_PREPARED";
 
 const FAILURE_REASON: Readonly<Record<StaffAuditStoreFailure, string>> = {
   unavailable: "the audit table or the grant to write it is not in place",
@@ -134,13 +135,22 @@ export interface StaffAuditRecord {
 }
 
 /**
- * The port for the staff audit log (plan P-L3-3, ADR 0173). The log is append-only: no method updates or deletes, and
- * the application role holds neither grant.
+ * The port for the staff audit log (ADR 0173). The log is append-only: no method updates or deletes, and the
+ * application role holds neither grant.
  *
  * `record` is the standalone write, for an action that has no write of its own (`kitchen-opened`). A staff write
- * commits its row in the same transaction as the change, so its store cannot call this method: it builds the insert
- * with `prepareStaffAuditRecord` and the Neon module's `staffAuditInsertStatement` and puts it in its own batch (the
- * fake: `FakeStaffAuditStore.stage`).
+ * commits its row in the same transaction as the change, so its store cannot call this method: it puts the Neon
+ * module's `staffAuditInsertStatement(sql, record)` in its own `sql.transaction([...])` batch (the fake:
+ * `FakeStaffAuditStore.stage`). Four things a store that does so must know, because the statement cannot do them:
+ * - **The audit insert is unconditional on the caller's write.** A write that changes nothing (an unhide of a kitchen
+ *   that is not hidden, a status on an unsent one) still commits an audit row in a `[write, audit]` batch, and a
+ *   batch cannot branch on a row count. So the caller's own write must raise, with a SQLSTATE other than 22012, when
+ *   it changes nothing, and the store maps that raise to its 409.
+ * - **22012 means `not-recorded` for any batch.** `staffAuditStoreErrorFrom` reads that SQLSTATE as the audit
+ *   statement's own refusal, so the caller classifies its own raise before it calls that function.
+ * - **No retry.** The event id is minted once, and a repeat after a lost acknowledgement would insert a second row or
+ *   hit the primary key (there is no `on conflict`). Do not wrap the batch in `retryOnTransientFailure`.
+ * - **`requireOneAuditRowInserted` takes the audit statement's own element of the batch reply**, not the reply.
  */
 export interface StaffAuditStore {
   /** Writes exactly one row or throws a `StaffAuditStoreError`. */
@@ -149,8 +159,13 @@ export interface StaffAuditStore {
   page(request: StaffAuditPageRequest): Promise<StaffAuditPage>;
 }
 
-/** Every filter is optional (`null`). The time bounds are the half-open UTC window of the Chisinau days the route turned
- *  the person's dates into; this package keeps no time zone. */
+/**
+ * Every filter is optional (`null`). This package keeps no time zone: the route validates `actorAccountId`, `action`
+ * and the dates the person typed, and turns them into the half-open UTC window `[occurredFrom, occurredBefore)` with
+ * `chisinauDayOf` (`apps/web/src/lib/server/rate-limit/chisinau-day.ts`). `occurredBefore` is the **start of the next
+ * Chisinau day**, never `occurredFrom` plus 24 hours: 29 March and 25 October 2026 are days of 23 and 25 hours. A
+ * window that is empty or inverted is not an error; it answers an empty page with a total of 0.
+ */
 export interface StaffAuditPageRequest {
   readonly actorAccountId: string | null;
   /** A code of the shape the table allows, not only one the domain lists: the page also shows rows it does not know. */
@@ -206,8 +221,18 @@ export interface StaffAuditPage {
   readonly events: readonly StaffAuditPageRow[];
 }
 
+/**
+ * Marks a record `prepareStaffAuditRecord` produced, so a statement can refuse a literal. It is not exported from the
+ * package: only code inside it can reach it, and a spread of a prepared record keeps it (a test builds hostile
+ * records that way).
+ */
+export const PREPARED_RECORD: unique symbol = Symbol(
+  "prepared staff audit record",
+);
+
 /** A record the code has checked, ready for a statement. Built only by `prepareStaffAuditRecord`. */
 export interface PreparedStaffAuditRecord {
+  readonly [PREPARED_RECORD]: true;
   readonly id: string;
   readonly sessionTokenHash: string;
   readonly idleLifetimeSeconds: IdleLifetimeSecondsByRole;
@@ -221,7 +246,8 @@ export interface PreparedStaffAuditRecord {
  * Checks a record and mints its row's id, or throws an `invalid-record` error. Each member of the request is read
  * once, and what is checked is what is held: the prepared record owns frozen copies, so a getter or a later write by
  * the caller cannot change a value after its check. The entry is read again by `readStaffAuditEntry` and the reading's
- * entry, not the request's, is what the prepared record holds.
+ * entry, not the request's, is what the prepared record holds. Read the port's notes (`StaffAuditStore`) before putting
+ * a statement built from it into a batch.
  */
 export function prepareStaffAuditRecord(
   record: StaffAuditRecord,
@@ -244,6 +270,7 @@ export function prepareStaffAuditRecord(
     "SUBJECT_ACCOUNT_ID_NOT_WELL_FORMED",
   );
   return Object.freeze({
+    [PREPARED_RECORD]: true as const,
     id: nanoid(),
     sessionTokenHash,
     idleLifetimeSeconds: Object.freeze(idleLifetimeSeconds),
@@ -251,6 +278,17 @@ export function prepareStaffAuditRecord(
     designId,
     subjectAccountId,
   });
+}
+
+/** Whether a value is a record `prepareStaffAuditRecord` produced, as opposed to one built by hand. */
+export function isPreparedStaffAuditRecord(
+  value: unknown,
+): value is PreparedStaffAuditRecord {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as Partial<PreparedStaffAuditRecord>)[PREPARED_RECORD] === true
+  );
 }
 
 /** The `detail` column's value: SQL null (here `null`) for an entry without one, never the text `null` or `{}`. */

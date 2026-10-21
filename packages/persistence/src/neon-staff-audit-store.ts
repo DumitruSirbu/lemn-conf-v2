@@ -5,12 +5,19 @@ import type {
 
 import { reducedCauseOf } from "./migration-errors.js";
 import type { ReducedCause } from "./migration-errors.js";
+import {
+  isMissingGrantOrTable,
+  isRecord,
+  pagedRowsFrom,
+} from "./neon-row-guards.js";
+import type { Row } from "./neon-row-guards.js";
 import { openApplicationDatabase } from "./open-application-database.js";
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import {
   STAFF_AUDIT_PAGE_SIZE,
   StaffAuditStoreError,
   detailTextOf,
+  isPreparedStaffAuditRecord,
   offsetOfStaffAuditPage,
   prepareStaffAuditRecord,
   readingOfStoredEvent,
@@ -30,12 +37,13 @@ import type {
 } from "./staff-audit-store.js";
 
 type ApplicationSql = NeonQueryFunction<false, false>;
-type Row = Record<string, unknown>;
 
-const MISSING_GRANT = "42501";
-const MISSING_TABLE = "42P01";
 /** Raised by `staffAuditInsertStatement` itself, and by nothing else in it, when it inserted no row. */
 const DIVISION_BY_ZERO = "22012";
+
+/** The latest and earliest instants a `Date` holds, in epoch milliseconds. The page reads a stamp beyond them (a year
+ *  past 275760, which the server holds up to 294276, or `infinity`) as the nearest one. The SQL repeats the figure. */
+const MAX_DATE_EPOCH_MS = 8.64e15;
 
 const RECORD_OPERATION = "record a staff audit event";
 const READ_OPERATION = "read the staff audit log";
@@ -74,9 +82,11 @@ export class NeonStaffAuditStore implements StaffAuditStore {
   /**
    * One statement carries the page and the count, so `total` and the rows come from one snapshot, and an empty page
    * still reports the total. The accounts and the kitchen are **left** joins: a row whose actor, subject or kitchen no
-   * longer resolves stays, with nulls. A kitchen its client deleted is not resolved (plan P-L3-4). A stamp of `infinity` reads as the
-   * latest instant a `Date` holds and `-infinity` as the earliest, so such a row is listed and the page does not fail. The walk is
-   * `staff_audit_events_newest_first_idx` (`0020`).
+   * longer resolves stays, with nulls. A kitchen its client deleted is not resolved, as the staff area refuses it
+   * everywhere. A stamp of `infinity`, or a finite one past what a `Date` holds, reads as the latest instant a `Date`
+   * holds, and `-infinity` or one before it as the earliest, so such a row is listed and the page does not fail. The
+   * walk is `staff_audit_events_newest_first_idx` (`0020`); `not materialized` lets the page's `limit` use that
+   * index (measured: an index scan of 25 rows against a scan and top-N sort of every row) while the count scans.
    */
   async page(request: StaffAuditPageRequest): Promise<StaffAuditPage> {
     requireValidPageRequest(request);
@@ -91,7 +101,7 @@ export class NeonStaffAuditStore implements StaffAuditStore {
     const from = request.occurredFrom?.toISOString() ?? null;
     const before = request.occurredBefore?.toISOString() ?? null;
     return this.sql`
-      with filtered as (
+      with filtered as not materialized (
         select e.id, e.occurred_at, e.actor_account_id, e.action, e.design_id, e.subject_account_id, e.detail
         from staff_audit_events e
         where (${actorAccountId}::text is null or e.actor_account_id = ${actorAccountId}::text)
@@ -110,7 +120,10 @@ export class NeonStaffAuditStore implements StaffAuditStore {
           case
             when f.occurred_at = 'infinity'::timestamptz then '8640000000000000'
             when f.occurred_at = '-infinity'::timestamptz then '-8640000000000000'
-            else floor(extract(epoch from f.occurred_at) * 1000)::bigint::text
+            else least(
+              greatest(floor(extract(epoch from f.occurred_at) * 1000), -8640000000000000),
+              8640000000000000
+            )::bigint::text
           end as occurred_ms,
           f.action, f.detail,
           f.actor_account_id, actor_account.email as actor_email, actor_account.name as actor_name,
@@ -150,6 +163,11 @@ export function staffAuditInsertStatement(
   sql: ApplicationSql,
   prepared: PreparedStaffAuditRecord,
 ): NeonQueryPromise<false, false> {
+  if (!isPreparedStaffAuditRecord(prepared)) {
+    throw new StaffAuditStoreError(RECORD_OPERATION, "invalid-record", {
+      refusal: "RECORD_NOT_PREPARED",
+    });
+  }
   const { id, sessionTokenHash, entry, designId, subjectAccountId } = prepared;
   const lifetimes = JSON.stringify(prepared.idleLifetimeSeconds);
   return sql`
@@ -198,9 +216,7 @@ export function staffAuditStoreErrorFrom(
 }
 
 function failureKindOf(sqlState: string | undefined): StaffAuditStoreFailure {
-  if (sqlState === MISSING_GRANT || sqlState === MISSING_TABLE) {
-    return "unavailable";
-  }
+  if (isMissingGrantOrTable(sqlState)) return "unavailable";
   return sqlState === DIVISION_BY_ZERO ? "not-recorded" : "database";
 }
 
@@ -244,27 +260,18 @@ function plainRowsOf(reply: unknown): readonly Row[] {
   }
 }
 
-function isRecord(value: unknown): value is Row {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
  * The statement's rows: the filtered total, then one row per event, or one row with no event when the page is empty. A
  * row count above a page, or an empty reply, is a statement that did not answer as it was written.
  */
 function pageFrom(rows: readonly Row[], page: number): StaffAuditPage {
-  const total = rows[0]?.["total"];
-  if (rows.length === 0 || !isCount(total)) throw unexpectedAnswer();
-  const found = rows.filter((row) => row["id"] !== null);
-  const isEmptyPage = found.length === 0 && rows.length === 1;
-  const isFullReply = found.length === rows.length;
-  if (!isEmptyPage && !isFullReply) throw unexpectedAnswer();
-  if (found.length > STAFF_AUDIT_PAGE_SIZE) throw unexpectedAnswer();
+  const paged = pagedRowsFrom(rows, STAFF_AUDIT_PAGE_SIZE);
+  if (paged === undefined) throw unexpectedAnswer();
   return {
-    total,
+    total: paged.total,
     page,
     pageSize: STAFF_AUDIT_PAGE_SIZE,
-    events: found.map(eventFrom),
+    events: paged.found.map(eventFrom),
   };
 }
 
@@ -324,20 +331,24 @@ function textOf(value: unknown): string | null {
   return value;
 }
 
-/** The row's instant, from epoch milliseconds in text, with a minus sign for an instant before 1970. Any other text
- *  is not this statement's reply. */
+/**
+ * The row's instant, from epoch milliseconds in text, with a minus sign for an instant before 1970, and no further
+ * from 1970 than a `Date` holds. At most 16 digits: the statement's own clamp is 8640000000000000, which has 16. Any
+ * other text is not this statement's reply.
+ */
 function instantOf(epochMilliseconds: unknown): Date {
-  const milliseconds =
-    typeof epochMilliseconds === "string" &&
-    /^-?[0-9]{1,16}$/.test(epochMilliseconds)
-      ? Number(epochMilliseconds)
-      : Number.NaN;
-  if (!Number.isSafeInteger(milliseconds)) throw unexpectedAnswer();
-  return new Date(milliseconds);
-}
-
-function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+  if (
+    typeof epochMilliseconds !== "string" ||
+    !/^-?[0-9]{1,16}$/.test(epochMilliseconds)
+  ) {
+    throw unexpectedAnswer();
+  }
+  const milliseconds = Number(epochMilliseconds);
+  const clamped = Math.min(
+    Math.max(milliseconds, -MAX_DATE_EPOCH_MS),
+    MAX_DATE_EPOCH_MS,
+  );
+  return new Date(clamped);
 }
 
 function unexpectedAnswer(): StaffAuditStoreError {

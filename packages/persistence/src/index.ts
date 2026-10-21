@@ -260,11 +260,8 @@ export {
   MAX_STAFF_AUDIT_PAGE,
   STAFF_AUDIT_PAGE_SIZE,
   StaffAuditStoreError,
-  detailTextOf,
-  prepareStaffAuditRecord,
 } from "./staff-audit-store.js";
 export type {
-  PreparedStaffAuditRecord,
   StaffAuditAccountRef,
   StaffAuditDesignRef,
   StaffAuditPage,
@@ -277,12 +274,7 @@ export type {
   StaffAuditStoreFailure,
   StaffAuditStoreOperation,
 } from "./staff-audit-store.js";
-export {
-  NeonStaffAuditStore,
-  requireOneAuditRowInserted,
-  staffAuditInsertStatement,
-  staffAuditStoreErrorFrom,
-} from "./neon-staff-audit-store.js";
+export { NeonStaffAuditStore } from "./neon-staff-audit-store.js";
 export { FakeStaffAuditStore } from "./fake-staff-audit-store.js";
 export type {
   FakeStaffAuditStoreOptions,
