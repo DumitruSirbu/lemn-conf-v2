@@ -117,6 +117,8 @@ written, by instruction:** the staff-invitation record (O-L3-4) and the ADR 0112
 
 **2026-10-21 (Lot 3 staff area, waves L3-A1 to L3-S5 and L3-U1 built; branch `feat/login-register`; docs only) [relayed from the coordinator; the scribe ran nothing].** Owner ruling "Audit each list view + hard page limit" recorded in ADR 0173 (closes the E-L3-1 audit question; `kitchens-listed` row plus a fail-closed per-account page limiter, both to build in L3-S6; domain `d76963d3` built). ADR 0172 D11's lead-to-account revisit trigger fired in L3-S4 (remedy unbuilt, accepted), with pointers in ADR 0153 and 0174. Runbook `0020`–`0022`: grant timing is now "before the first staff route (L3-S6) ships", plus a grants checklist; the owner must confirm `0008`/`0010`/`0012`/`0017` grants before L3-S6 deploys. Plan section 7.1 carries the built-state table and L3-S6 brief notes.
 
+**2026-10-21 (Lot 3 staff list, wave L3-U2; branch `feat/login-register`) [relayed; docs only].** Interim deviation: frame S2F (session-expired sheet over the list) is not drawn; a `401` on the staff list does a full load to the login page, and L3-U4's `staff-session-sheet.tsx` replaces it (plan §7.2, L3-U4 note).
+
 **2026-10-21 update (top bar: signed-out link, title give, popover clamp; branch `feat/login-register`) [developer's
 measurements and owner rulings of 2026-10-20 relayed; commits `a05440ce`, `419b7a69`, `1e55d0d1`; the scribe ran nothing].**
 Recorded as [ADR 0104 Amendment H](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md):

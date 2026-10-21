@@ -508,6 +508,7 @@ pending.
 - Product decisions (coordinator, not owner-ruled): no postal address in the staff profile block; search over the client's
   e-mail and name with Ş/Ţ folding and the label "numele clientului"; notes read returns the newest 100 plus `truncated`.
 - **L3-U4 (notes UI).** A tab or CR in a note makes the domain refuse it; the UI must name that cause in its error.
+- **L3-U2 interim deviation, frame S2F.** The staff list answers a `401` with a full load to the login page (`?reason=session-expired`), not the drawn session-expired sheet; L3-U4's `staff-session-sheet.tsx` must replace that redirect in `use-staff-kitchens.ts`.
 
 ### 7.2 Phase B: the staff UI on built endpoints
 
