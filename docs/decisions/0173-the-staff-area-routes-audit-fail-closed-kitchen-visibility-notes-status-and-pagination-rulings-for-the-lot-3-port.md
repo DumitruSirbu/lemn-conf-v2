@@ -139,12 +139,27 @@ default is two predicates (`deleted_by_client_at is null`; no `hidden_by_client_
 
 **Residuals recorded with it.**
 
-- **The bounds are counts, provisional, and not bytes.** Per kitchen `MAX_EXPORTED_NOTES_PER_KITCHEN` = 100 (the staff
-  view's own 100) and, over the whole export, `MAX_EXPORTED_NOTES_IN_TOTAL` = 2000, newest first; a kitchen cut by either
-  is marked `notesTruncated`. At the largest a note can be (2000 code points, 4 UTF-8 bytes each) 2000 notes are about
-  16 MB of note text, on top of up to 200 designs. O26 kept the kitchen bound a count and the platform's response limit
-  has not been measured, so nothing here claims the file fits the platform. The figures are the engineer's, to be set
-  against a measured size.
+- **The bounds are provisional, and now include bytes (security review of L3-S9, Medium, fixed).** Per kitchen
+  `MAX_EXPORTED_NOTES_PER_KITCHEN` = 100 (the staff view's own 100); over the whole export `MAX_EXPORTED_NOTES_IN_TOTAL` =
+  2000 notes and `MAX_EXPORTED_NOTE_BYTES` = 1 MiB (1,048,576) of note text, taken newest first by a running
+  `octet_length` sum, so the first note past the budget and every older one are withheld (a small old note never slips
+  past a large newer one that was withheld). Counts alone had left the worst case near 16 MB (2000 notes x 2000 code
+  points x 4 bytes); the byte budget makes notes unable to make the export unservable on their own, and is why the
+  pre-bucket guard still counts kitchens only. A kitchen from which any note was left out, by the per-kitchen cap, the
+  total or the bytes, is `notesTruncated`. **Every figure stays PROVISIONAL**: the Neon HTTP reply limit and the host's
+  response limit have not been measured, and the file also holds up to 200 design documents. They are the engineer's
+  figures, to be set against a measurement. JSON writes a line break in two bytes, so the file's notes can weigh up to
+  twice the budget plus about 64 bytes of keys and date per note; a test states that bound.
+- **Statement shape (security review, Low, fixed).** A lateral subselect per kitchen reads at most 101 of its newest notes
+  through `design_notes_by_design_newest_idx`, so a kitchen's history is never scanned past that window; the 101st row
+  only sets the kitchen's `has_more` and takes no global rank, so the full 2000 real notes ship when the kitchens hold
+  more than their window.
+- **Two reads, not one snapshot (Info).** `exportAll` and `exportNotes` are separate statements: a kitchen the client
+  deletes between them is exported with no notes. Accepted.
+- **The export screen's lead sentence overclaims slightly, for the owner's wording.** It reads "…toate bucătăriile
+  (inclusiv cele trimise și cele ascunse) și notele personalului despre ele." but notes past the caps, and the notes of a
+  kitchen the client deleted (which is not in the file either), are not included. The file itself carries
+  `notesTruncated` per kitchen; the sentence does not. Not changed here.
 - **The export can drop real notes, not only the staff view.** The L3-S7 residual (120 notes an hour per staff session,
   no delete path) pushes real notes out of the newest 100 of a kitchen in the client's own file too. The marker says the
   kitchen was cut; no path in the export returns the older notes.
