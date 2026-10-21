@@ -976,6 +976,12 @@ missing `design_request_states` grant makes **every** staff list fail, because t
   audit statement takes the actor from the live session the cookie names, by this read, and every staff route reads the
   session first; a missing grant makes every staff route answer `503`, before any staff table is touched.
 
+**Owner re-acceptance before production** [added 2026-10-21 from the L3-S7 security review; nothing was run]: ADR 0019 d11's
+scope growth (`hidden_by_client_at`, `deleted_by_client_at`, `sent_at`) must be re-accepted for hide, delete **and staff
+unhide** together before `0020` reaches production. Staff unhide (`/api/staff/kitchens/[id]/unhide`) is a second
+production writer of `designs.hidden_by_client_at` under the table-level `UPDATE`; no new grant is needed (ADR 0172
+Amendment G item 3, dated note 2026-10-21).
+
 **Owner to confirm first:** the grants of `0008`, `0010` and `0012`/`0017` are recorded in other documents as **not applied**
 on preview and production. Confirm them before L3-S6 is deployed; the staff reader depends on them.
 

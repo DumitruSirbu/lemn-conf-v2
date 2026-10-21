@@ -935,6 +935,11 @@ status stays as Amendment F left it. The built state, wave by wave, is in
 under the table-level `UPDATE` on `designs`, as `account_id` did. **The owner's re-acceptance is needed before hide and
 delete are used in production.** Column-scoping stays the named revisit.
 
+*Dated note, 2026-10-21 [relayed from the L3-S7 security review; the scribe ran nothing].* The owner's re-acceptance covers
+hide, delete **and unhide**. Staff unhide (`POST /api/staff/kitchens/[id]/unhide`, wave L3-S7) is a second production
+writer of `designs.hidden_by_client_at`, under the same table-level `UPDATE`; it adds no grant. The owner re-accepts all
+three together, before migration `0020` reaches production.
+
 **4. Accepted residuals (reviewers' findings).** A lost acknowledgement on the E9 confirm drops the old-address notice;
 a login-versus-confirm race sliver; an E9 `503` followed by `link-invalid`; duplicate has no lifetime cap; `markSent` is
 not scoped by account on its own port; the S5 already-notified-replay case is not repaired, and the owner-run O11

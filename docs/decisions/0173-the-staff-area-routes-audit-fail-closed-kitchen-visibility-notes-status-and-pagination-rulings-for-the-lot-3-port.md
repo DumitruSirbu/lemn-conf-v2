@@ -88,6 +88,18 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
   because the audit row's id has the 21-character shape. Count the rows first with the owner's read-only
   `select count(*) from designs where length(id) <> 21`.
 
+## Residuals of the L3-S7 review, 2026-10-21 [relayed from the L3-S7 security review; the scribe ran nothing]
+
+- **Unhide takes no body and no content type**, so only the cross-site check and `SameSite=Lax` protect it. This is the
+  same residual as the client's hide route. The only path is a legacy browser that sends neither `Sec-Fetch-Site` nor
+  `Origin`, together with a takeover of a same-site sibling. Hardening: require a JSON content type on **both** routes.
+  **Accepted.**
+- **Note spam.** One staff session can post 120 notes an hour to one kitchen, pushing real notes out of the newest-100
+  view; there is no delete path. Every note is attributable by its audit row. **Accepted**, next to F6. Wave L3-U3 must
+  provide a "load older" path so that the truncation cannot hide notes.
+- **The 8 KiB body cap** rejects roughly 910 or more decomposed Hangul syllables (each is three code points). Wave L3-U4
+  must normalise a note to NFC before sending it.
+
 ## Not covered
 
 - The staff-invitation mechanism (O-L3-4) and the preset visibility and order grant (O-L3-5). Each needs its own record

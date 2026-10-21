@@ -47,7 +47,8 @@ browser.** Migrations `0016`-`0018` are **unapplied anywhere** (corrected 2026-1
 O19 (e-mail change takeover recovery; blocks the `UPDATE (email, email_normal_form)` grant, runbook step 4b), O20 (keep
 `GET /api/account/profile`), O21 (backup export and `account_id`/`name`), O22 (`/s/<token>` frozen copy after hide), O23
 (password change retires all unused tokens), O24 (429 wait in the notice). **Owner re-acceptance needed** of ADR 0019 d11's
-scope growth (`hidden_by_client_at`, `deleted_by_client_at`, `sent_at`) before hide and delete are used in production.
+scope growth (`hidden_by_client_at`, `deleted_by_client_at`, `sent_at`) before hide, delete **and staff unhide** are used in production
+(ADR 0172 Amendment G item 3, dated note 2026-10-21).
 
 **2026-10-19 update, later (M8B Lot 2 UI built, branch `feat/login-register`, HEAD `aa09a1e0`) [coordinator's brief,
 relayed; commits read by the scribe in the worktree reflogs; nothing run].** This supersedes the "in progress,
