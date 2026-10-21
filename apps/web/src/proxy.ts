@@ -46,6 +46,17 @@ const ACCOUNT_SIGNED_IN_PAGES: readonly string[] = [
   "delete",
 ];
 
+/** The staff area, `/{locale}/staff/{page}` and `/{locale}/staff/kitchens/{id}`. Every page holds clients' data, so each
+ *  gets the account pages' headers; none loads a third-party script, frame or image (ADR 0173, P-L3-2). */
+const STAFF_FAMILY_SEGMENT = "staff";
+const STAFF_KITCHENS_PAGE = "kitchens";
+const STAFF_SIGNED_IN_PAGES: readonly string[] = [
+  STAFF_KITCHENS_PAGE,
+  "team",
+  "presets",
+  "audit",
+];
+
 /** The one status of a response the interceptor passes on to its page: not the locale's redirect and not a `404`. */
 const PASSED_ON_STATUS = 200;
 
@@ -58,7 +69,8 @@ const LIMITER_UNAVAILABLE_EVENT = "design-read-limiter-unavailable";
  * Everything except the immutable build output and static files, which carry no scripts and already receive the static
  * headers from `next.config.ts`; and, whatever their last segment ends in, the design and share families. The
  * framework routes `/ro/d/abc.png` to the design's page with the id `abc.png`, so an address of either family that
- * ends in a static extension must still reach this file, or its lookup runs uncounted. The patterns are literals:
+ * ends in a static extension must still reach this file, or its lookup runs uncounted. A staff kitchen's address is
+ * the same: it must carry the staff headers whatever its id ends in. The patterns are literals:
  * the framework reads a matcher at build time.
  */
 export const config = {
@@ -66,6 +78,7 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|glb|gltf|hdr|bin|woff|woff2)$).*)",
     "/:locale/d/:id",
     "/:locale/s/:token",
+    "/:locale/staff/kitchens/:id",
   ],
 };
 
@@ -117,7 +130,9 @@ function applyPageHeaders(
     policy,
   );
   if (isSharePath(pathname)) applySharedViewHeaders(response);
-  if (isAccountPath(pathname)) applyAccountPageHeaders(response);
+  if (isAccountPath(pathname) || isStaffPath(pathname)) {
+    applyAccountPageHeaders(response);
+  }
   if (isAccountTokenPath(pathname)) applyAccountTokenPageHeaders(response);
 }
 
@@ -298,6 +313,19 @@ function isAccountPath(pathname: string): boolean {
     ...ACCOUNT_TOKEN_PAGES,
     ...ACCOUNT_SIGNED_IN_PAGES,
   ]);
+}
+
+/** A staff page: a real locale, then `staff/{page}` for a page named above, or `staff/kitchens/{id}` with a non-empty
+ *  id. A path written any other way (no locale, a case variant, an escaped segment, a longer path) is not one. */
+function isStaffPath(pathname: string): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  const [locale, family, page] = segments;
+  if (!hasLocale(routing.locales, locale) || family !== STAFF_FAMILY_SEGMENT) {
+    return false;
+  }
+  if (page === undefined || !STAFF_SIGNED_IN_PAGES.includes(page)) return false;
+  const isKitchenWithId = page === STAFF_KITCHENS_PAGE && segments.length === 4;
+  return segments.length === 3 || isKitchenWithId;
 }
 
 /** The account screens that read a single-use token: the only ones that answer `Referrer-Policy: no-referrer`. */
