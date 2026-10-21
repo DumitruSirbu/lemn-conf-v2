@@ -60,8 +60,9 @@ export interface StaffKitchenReading {
   /** "Încearcă din nou" after a failure: asks for the kitchen again. */
   readonly retry: () => void;
   /** Asks for the kitchen again and leaves what is shown (and what the person typed) in place until it comes. Only a
-   *  kitchen replaces it, or the answer that there is none; a failure changes nothing. */
-  readonly refresh: () => void;
+   *  kitchen replaces it, or the answer that there is none; a failure changes nothing. Answers whether what is shown now
+   *  is that answer: `false` for a read that failed, was overtaken by a write of the page, or was refused. */
+  readonly refresh: () => Promise<boolean>;
   /** Shows the kitchen as a write of this page left it, without asking for it again. */
   readonly edit: (change: StaffKitchenEdit) => void;
 }
@@ -95,32 +96,36 @@ export function useStaffKitchen(designId: string): StaffKitchenReading {
   const editCountRef = useRef(0);
 
   const read = useCallback(
-    function read(mode: ReadMode): void {
+    function read(mode: ReadMode): Promise<boolean> {
       controllerRef.current?.abort();
       const controller = new AbortController();
       controllerRef.current = controller;
       const editsAtAsking = editCountRef.current;
-      void readKitchen(designId, controller.signal).then((step) => {
-        if (step.kind === "aborted") return;
+      return readKitchen(designId, controller.signal).then((step) => {
+        if (step.kind === "aborted") return false;
         if (step.kind === "sign-in") {
           raiseStaffSessionExpired({
             askAgain: () => {
-              read(mode);
+              // A page that has gone, or a newer read, has aborted this one: nothing is asked on its behalf.
+              if (!controller.signal.aborted) void read(mode);
             },
           });
-          return;
+          return false;
         }
         // A write answered while this read was out is newer than the read's picture of the kitchen.
-        if (mode === "quiet" && editCountRef.current !== editsAtAsking) return;
-        if (mode === "quiet" && step.kind === "failed") return;
+        if (mode === "quiet" && editCountRef.current !== editsAtAsking) {
+          return false;
+        }
+        if (mode === "quiet" && step.kind === "failed") return false;
         setHeld({ designId, state: stateAfter(step) });
+        return true;
       });
     },
     [designId],
   );
 
   useEffect(() => {
-    read("page");
+    void read("page");
     return () => {
       controllerRef.current?.abort();
     };
@@ -128,12 +133,10 @@ export function useStaffKitchen(designId: string): StaffKitchenReading {
 
   const retry = useCallback(() => {
     setHeld({ designId, state: LOADING });
-    read("page");
+    void read("page");
   }, [designId, read]);
 
-  const refresh = useCallback(() => {
-    read("quiet");
-  }, [read]);
+  const refresh = useCallback(() => read("quiet"), [read]);
 
   const edit = useCallback(
     (change: StaffKitchenEdit) => {

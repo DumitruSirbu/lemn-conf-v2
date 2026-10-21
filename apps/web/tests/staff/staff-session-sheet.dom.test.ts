@@ -12,6 +12,7 @@ import { resetAccountSessionForTests } from "@/account/session/use-account-sessi
 import {
   getStaffSessionExpiry,
   resetStaffSessionExpiryForTests,
+  resolveStaffSessionExpired,
 } from "@/staff/staff-session-expiry";
 import { StaffKitchensScreen } from "@/staff/staff-kitchens-list";
 import type { StaffShellContext } from "@/staff/staff-shell";
@@ -429,6 +430,24 @@ describe.each(LOCALES)(
       expect(
         allIn(screen.container, '[data-testid="staff-kitchen-row"]'),
       ).toHaveLength(2);
+    });
+
+    it("asks for no page on behalf of a list that has gone when the person has signed in again", async () => {
+      screen = mountInCatalogue(
+        createElement(StaffKitchensScreen, { locale, context: CONTEXT }),
+        locale,
+      );
+      await settle();
+      screen.unmount();
+      screen = undefined;
+      const asked = listAsks().length;
+
+      act(() => {
+        resolveStaffSessionExpired();
+      });
+      await settle();
+
+      expect(listAsks()).toHaveLength(asked);
     });
 
     it("does not ask again by itself while the sheet is up", async () => {

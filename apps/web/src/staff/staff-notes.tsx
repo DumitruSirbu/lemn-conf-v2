@@ -78,7 +78,6 @@ export function StaffNotes({
         }
       />
       <NoteField composer={composer} />
-      <p className={styles.hint}>{copy.dataLine}</p>
     </section>
   );
 }
@@ -190,6 +189,7 @@ function NoteField({ composer }: { readonly composer: NoteComposer }) {
   const fieldId = useId();
   const counterId = useId();
   const errorId = useId();
+  const dataLineId = useId();
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   useFocusOnRequest(composer.focusRequest, fieldRef);
   const { feedback } = composer;
@@ -219,6 +219,9 @@ function NoteField({ composer }: { readonly composer: NoteComposer }) {
           {copy.counter(length)}
         </span>
       </div>
+      <p id={dataLineId} className={styles.hint}>
+        {copy.dataLine}
+      </p>
       <textarea
         ref={fieldRef}
         id={fieldId}
@@ -230,9 +233,11 @@ function NoteField({ composer }: { readonly composer: NoteComposer }) {
         value={composer.text}
         readOnly={composer.isBusy}
         aria-invalid={issue === undefined ? undefined : true}
-        aria-describedby={
-          issue === undefined ? counterId : `${errorId} ${counterId}`
-        }
+        aria-describedby={describedBy(
+          issue === undefined ? undefined : errorId,
+          dataLineId,
+          counterId,
+        )}
         data-invalid={issue === undefined ? undefined : "true"}
         onChange={(event) => {
           composer.typeText(event.target.value);
@@ -260,4 +265,9 @@ function useFocusOnRequest(
   useEffect(() => {
     if (focusRequest > 0) fieldRef.current?.focus();
   }, [focusRequest, fieldRef]);
+}
+
+/** The ids that describe the field, in reading order: the refusal first, then what a note is, then the counter. */
+function describedBy(...ids: readonly (string | undefined)[]): string {
+  return ids.filter((id) => id !== undefined).join(" ");
 }

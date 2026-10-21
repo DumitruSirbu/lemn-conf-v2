@@ -477,6 +477,24 @@ describe.each(LOCALES)("making a hidden kitchen visible in %s", (locale) => {
       expect(dialog()).toBeNull();
     });
 
+    it("shows the warning again when the dialog is closed and opened within the wait, and wakes at its end without sending", async () => {
+      serve(() => RATE_LIMITED_ANSWER(30));
+      await harness.mount({ locale });
+      await open();
+      await confirm();
+      click(cancelButton());
+      await harness.settle();
+
+      await open();
+
+      expect(requireIn(theDialog(), '[data-tone="warning"]')).not.toBeNull();
+      await confirm();
+      expect(writesOf(harness.server)).toHaveLength(1);
+      await harness.pass(31_000);
+      await harness.pass(A_DAY_MS);
+      expect(writesOf(harness.server)).toHaveLength(1);
+    });
+
     it("draws the session sheet for a 401, leaves the dialog open under it, and navigates nowhere", async () => {
       serve(() => UNAUTHENTICATED_ANSWER);
       await harness.mount({ locale });

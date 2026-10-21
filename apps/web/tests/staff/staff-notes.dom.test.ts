@@ -577,6 +577,63 @@ describe.each(LOCALES)("the notes in %s", (locale) => {
 
       expect(writesOf(harness.server)).toHaveLength(1);
     });
+
+    it("keeps the warning on screen while the person types during the wait, and lets typing clear it once the wait is over", async () => {
+      typeIntoTextarea(field(), `${TYPED} Si apoi.`);
+
+      expect(requireIn(notes(), '[data-tone="warning"]')).not.toBeNull();
+      expect(saveButton().getAttribute("aria-disabled")).toBe("true");
+
+      await harness.pass(31_000);
+      typeIntoTextarea(field(), `${TYPED} Si apoi, iar.`);
+
+      expect(allIn(notes(), "[data-tone]")).toHaveLength(0);
+      expect(saveButton().getAttribute("aria-disabled")).toBeNull();
+    });
+  });
+
+  describe("what a note is, said above the field", () => {
+    beforeEach(async () => {
+      serve(() => noteCreated());
+      await harness.mount({ locale });
+    });
+
+    it("stands between the label and the field, in the form, and is in the field's description with the counter", () => {
+      const line = allIn(notes(), "p").find(
+        (paragraph) => paragraph.textContent === copy.dataLine,
+      );
+      if (line === undefined) throw new Error("no data line");
+      const form = requireIn(notes(), "form");
+
+      expect(form.contains(line)).toBe(true);
+      expect(
+        line.compareDocumentPosition(field()) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeGreaterThan(0);
+      expect(
+        requireIn(form, "label").compareDocumentPosition(line) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeGreaterThan(0);
+      const described = (field().getAttribute("aria-describedby") ?? "").split(
+        " ",
+      );
+      expect(described).toContain(line.id);
+      expect(line.id).not.toBe("");
+    });
+
+    it("says a note cannot be deleted and must not hold other people's data, besides that it is in the export", () => {
+      const patterns =
+        locale === "ro"
+          ? [/exportul datelor/, /terse/, /altor persoane/]
+          : [/экспорт/, /удалить/, /других людей/];
+
+      for (const pattern of patterns) expect(copy.dataLine).toMatch(pattern);
+    });
+
+    it("has a placeholder that reads as no one's call log", () => {
+      expect(field().getAttribute("placeholder")).toBe(copy.fieldPlaceholder);
+      expect(copy.fieldPlaceholder).not.toMatch(/sunat|revin|позвон|вернусь/i);
+    });
   });
 
   describe("the session ends (401, frame S1C)", () => {

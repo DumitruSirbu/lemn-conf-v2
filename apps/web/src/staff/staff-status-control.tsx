@@ -157,7 +157,7 @@ function StatusNotice({ feedback }: { readonly feedback: StatusFeedback }) {
     case "conflict":
       return (
         <FormNotice tone="warning">
-          {conflictSentence(copy.status, feedback.conflict)}
+          {conflictSentence(copy.status, feedback)}
         </FormNotice>
       );
     case "rate-limited":
@@ -186,17 +186,18 @@ function StatusNotice({ feedback }: { readonly feedback: StatusFeedback }) {
   }
 }
 
+/** The sentence that says the kitchen was read again is told only when it was; else the one that sends the person to the page. */
 function conflictSentence(
   status: ReturnType<typeof useStaffActionsCopy>["status"],
-  conflict: Extract<StatusFeedback, { kind: "conflict" }>["conflict"],
+  { conflict, isReread }: Extract<StatusFeedback, { kind: "conflict" }>,
 ): string {
   switch (conflict) {
     case "changed-meanwhile":
-      return status.changedMeanwhile;
+      return isReread ? status.changedMeanwhile : status.changedMeanwhileUnread;
     case "status-not-recognised":
       return status.notRecognised;
     case "not-sent":
-      return status.notSent;
+      return isReread ? status.notSent : status.notSentUnread;
   }
 }
 

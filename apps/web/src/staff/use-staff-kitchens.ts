@@ -204,7 +204,8 @@ export function useStaffKitchens(): StaffKitchens {
       if (step.kind === "sign-in") {
         raiseStaffSessionExpired({
           askAgain: () => {
-            read(query, mode);
+            // A page that has gone, or a newer request, has aborted this one: nothing is asked on its behalf.
+            if (!controller.signal.aborted) read(query, mode);
           },
         });
         return;

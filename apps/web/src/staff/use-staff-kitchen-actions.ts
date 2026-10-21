@@ -70,6 +70,21 @@ function writeFailureOf(outcome: SignedInOutcome): WriteFailure {
 /** What `fullWaitOfFeedback` reads of a feedback: a `429` states the instant it ends. */
 type WaitingFeedback = Parameters<typeof fullWaitOfFeedback>[0];
 
+/** Whether a `429` is still being waited out. A change of the field, the choice or the dialog must not end it: the button and
+ *  its notice say so for the whole wait, whatever the person does meanwhile. */
+function isWaitingOut(feedback: WaitingFeedback): boolean {
+  const wait = fullWaitOfFeedback(feedback);
+  return wait !== undefined && wait.endsAtMs > Date.now();
+}
+
+/** What a change leaves of the feedback: a wait still running stays, anything else is cleared. */
+function afterChange<Feedback extends WaitingFeedback>(
+  current: Feedback,
+  cleared: Feedback,
+): Feedback {
+  return isWaitingOut(current) ? current : cleared;
+}
+
 /**
  * One write at a time. `begin` answers `false` while a request is out or a `429` has not run out, and the press then does
  * nothing; `settle` ends the request. It is a ref, not state, so two presses in one tick cannot both pass.
@@ -123,7 +138,7 @@ export function useNoteComposer(
 
   const typeText = useCallback((next: string) => {
     setText(next);
-    setFeedback({ kind: "none" });
+    setFeedback((current) => afterChange(current, { kind: "none" }));
   }, []);
 
   const submit = useCallback(() => {
@@ -193,7 +208,12 @@ export type StatusFeedback =
   | { readonly kind: "none" }
   | { readonly kind: "saved" }
   | { readonly kind: "status-refused"; readonly issue: AccountFieldIssue }
-  | { readonly kind: "conflict"; readonly conflict: StatusConflict }
+  | {
+      readonly kind: "conflict";
+      readonly conflict: StatusConflict;
+      /** The kitchen was read again and the page now shows that reading. Until it is, the sentence promises nothing. */
+      readonly isReread: boolean;
+    }
   | WriteFailure;
 
 export interface StatusControl {
@@ -228,7 +248,7 @@ export function useStatusControl({
   const choose = useCallback((value: string) => {
     if (!isRequestStatus(value)) return;
     setSelected(value);
-    setFeedback({ kind: "none" });
+    setFeedback((current) => afterChange(current, { kind: "none" }));
   }, []);
 
   const save = useCallback(() => {
@@ -255,7 +275,8 @@ export function useStatusControl({
         edit((kitchen) => withStatusSaved(kitchen, outcome.saved));
       }
       if (outcome.kind === "unauthenticated") raiseStaffSessionExpired();
-      if (isStaleKitchen(next)) refresh();
+      if (isStaleKitchen(next))
+        void markRereadWhenShown(refresh(), setFeedback);
       if (next.kind === "status-refused") {
         setFocusRequest((count) => count + 1);
       }
@@ -266,6 +287,17 @@ export function useStatusControl({
   return { selected, feedback, isBusy, focusRequest, choose, save };
 }
 
+/** The conflict's sentence says the kitchen was read again only once the page shows that reading. */
+async function markRereadWhenShown(
+  reread: Promise<boolean>,
+  setFeedback: (change: (current: StatusFeedback) => StatusFeedback) => void,
+): Promise<void> {
+  if (!(await reread)) return;
+  setFeedback((current) =>
+    current.kind === "conflict" ? { ...current, isReread: true } : current,
+  );
+}
+
 function statusFeedbackAfter(outcome: SignedInOutcome): StatusFeedback {
   switch (outcome.kind) {
     case "status-saved":
@@ -273,11 +305,19 @@ function statusFeedbackAfter(outcome: SignedInOutcome): StatusFeedback {
     case "unauthenticated":
       return { kind: "none" };
     case "conflict-changed-meanwhile":
-      return { kind: "conflict", conflict: "changed-meanwhile" };
+      return {
+        kind: "conflict",
+        conflict: "changed-meanwhile",
+        isReread: false,
+      };
     case "conflict-status-not-recognised":
-      return { kind: "conflict", conflict: "status-not-recognised" };
+      return {
+        kind: "conflict",
+        conflict: "status-not-recognised",
+        isReread: false,
+      };
     case "conflict-not-sent":
-      return { kind: "conflict", conflict: "not-sent" };
+      return { kind: "conflict", conflict: "not-sent", isReread: false };
     case "invalid-input": {
       const issue = outcome.issues.find(({ field }) => field === "status");
       return issue === undefined
@@ -339,7 +379,9 @@ export function useUnhide(
   const { begin, settle } = useOneWriteAtATime();
 
   const openDialog = useCallback(() => {
-    setFailure(undefined);
+    setFailure((current) =>
+      current !== undefined && isWaitingOut(current) ? current : undefined,
+    );
     setIsDialogOpen(true);
   }, []);
   const closeDialog = useCallback(() => {
@@ -361,12 +403,12 @@ export function useUnhide(
         setIsDialogOpen(false);
       }
       if (next.kind === "already-visible") {
-        refresh();
+        void refresh();
         setAnnouncement("not-hidden");
         setIsDialogOpen(false);
       }
       if (next.kind === "gone") {
-        refresh();
+        void refresh();
         setIsDialogOpen(false);
       }
       if (next.kind === "session-ended") raiseStaffSessionExpired();

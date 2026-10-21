@@ -24,7 +24,9 @@ import {
   ONE_REFUSAL,
   readsOf,
   routeKitchen,
+  noteCreated,
   statusSaved,
+  typeIntoTextarea,
   theOnly,
   writesOf,
 } from "../support/staff-kitchen-actions-screen";
@@ -412,6 +414,81 @@ describe.each(LOCALES)("the status control in %s", (locale) => {
       expect(readsOf(harness.server)).toHaveLength(2);
     });
 
+    it.each([
+      [
+        "changed-meanwhile",
+        copy.statusChangedMeanwhile,
+        copy.statusChangedMeanwhileUnread,
+      ],
+      ["not-sent", copy.statusNotSent, copy.statusNotSentUnread],
+    ])(
+      "says %s without a promise of a re-read until the page shows one, then with it",
+      async (word, reread, unread) => {
+        let reads = 0;
+        harness.answers(
+          routeKitchen({
+            read: () => {
+              reads += 1;
+              return reads === 1 ? { body: wireKitchen() } : "hold";
+            },
+            status: () => conflict(word),
+          }),
+        );
+        await harness.mount({ locale });
+        await choose("contacted");
+
+        await save();
+        const whileOut = requireIn(
+          control(),
+          '[data-tone="warning"]',
+        ).textContent;
+        harness.server.held[0]?.answer({ body: wireKitchen() });
+        await harness.settle();
+        const afterwards = requireIn(
+          control(),
+          '[data-tone="warning"]',
+        ).textContent;
+
+        expect(whileOut).toContain(unread);
+        expect(whileOut).not.toContain(reread);
+        expect(afterwards).toContain(reread);
+        expect(afterwards).not.toContain(unread);
+      },
+    );
+
+    it("does not say the kitchen was read again when the read was overtaken by a note the page added meanwhile", async () => {
+      let reads = 0;
+      harness.answers(
+        routeKitchen({
+          read: () => {
+            reads += 1;
+            return reads === 1 ? { body: wireKitchen() } : "hold";
+          },
+          status: () => conflict("changed-meanwhile"),
+          note: () => noteCreated(),
+        }),
+      );
+      await harness.mount({ locale });
+      await choose("contacted");
+      await save();
+      typeIntoTextarea(
+        requireIn<HTMLTextAreaElement>(harness.container(), "textarea"),
+        "a note",
+      );
+      click(requireIn(harness.container(), 'button[type="submit"]'));
+      await harness.settle();
+
+      harness.server.held[0]?.answer({ body: wireKitchen() });
+      await harness.settle();
+
+      const sentence = requireIn(
+        control(),
+        '[data-tone="warning"]',
+      ).textContent;
+      expect(sentence).toContain(copy.statusChangedMeanwhileUnread);
+      expect(sentence).not.toContain(copy.statusChangedMeanwhile);
+    });
+
     it("keeps the page as it was when the read behind it fails", async () => {
       let reads = 0;
       harness.answers(
@@ -577,6 +654,13 @@ describe.each(LOCALES)("the status control in %s", (locale) => {
 
       expect(writesOf(harness.server)).toHaveLength(1);
       expect(select().value).toBe("closed");
+    });
+
+    it("keeps the warning on screen while the person chooses another status during the wait", async () => {
+      await choose("contacted");
+
+      expect(requireIn(control(), '[data-tone="warning"]')).not.toBeNull();
+      expect(saveButton().getAttribute("aria-disabled")).toBe("true");
     });
 
     it("sends one request for the first press after the wait, and nothing by itself", async () => {
