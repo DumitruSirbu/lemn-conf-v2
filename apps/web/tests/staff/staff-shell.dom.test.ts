@@ -1,11 +1,9 @@
 // @vitest-environment happy-dom
 //
-// **Lot 3 L3-U1: the staff area's frame (plan M8B Lot 3, K-12, frames S1A, S1B, S1D).**
-//
-// The navigation is the server's decision, handed to the frame as page codes: this file holds that the frame draws
-// exactly those, as plain anchors in the page's language, and that the phone's "Meniu" sheet is a modal that traps Tab,
-// closes on Escape and the scrim, and gives focus back to the button that opened it. The session route and the logout
-// route are a stubbed `fetch`; the catalogue is the shipped one.
+// The navigation is the server's decision, handed to the frame as page codes: the frame draws exactly those, as plain
+// anchors in the page's language, and the phone's "Meniu" sheet is a modal that traps Tab, closes on Escape and the
+// scrim, and gives focus back to its opener. The session and logout routes are a stubbed `fetch`.
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -471,6 +469,57 @@ describe("the phone's Meniu sheet", () => {
     );
   });
 
+  it("tells the person the session is still live when the sheet was closed while the sign-out was out and the server refused", async () => {
+    let refuse: () => void = () => undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((address: string) =>
+        address === "/api/account/logout"
+          ? new Promise<Response>((resolve) => {
+              refuse = () => {
+                resolve(new Response("{}", { status: 503 }));
+              };
+            })
+          : serverAnswer(address),
+      ),
+    );
+    await mountShell();
+    click(
+      byWords(openSheet(), "button", roMessages.accountControl.signOutHere),
+    );
+
+    press("Escape");
+    refuse();
+    await flushPromises(5);
+
+    expect(container().querySelector(SHEET)).toBeNull();
+    expect(assignedAddresses).toEqual([]);
+    expect(requireIn(container(), '[role="alert"]').textContent).toBe(
+      roMessages.accountControl.signOutFailed,
+    );
+  });
+
+  it("shows the refusal once: in the sheet while it is open, not also behind it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((address: string) =>
+        address === "/api/account/logout"
+          ? Promise.resolve(new Response("{}", { status: 503 }))
+          : serverAnswer(address),
+      ),
+    );
+    await mountShell();
+    click(
+      byWords(openSheet(), "button", roMessages.accountControl.signOutHere),
+    );
+    await flushPromises(5);
+
+    expect(allIn(container(), '[role="alert"]')).toHaveLength(1);
+    expect(
+      requireIn(container(), SHEET).querySelector('[role="alert"]'),
+    ).not.toBeNull();
+  });
+
   it("hands 'sign out everywhere' to the question the screen draws, which is a dialog of its own", async () => {
     await mountShell();
     const sheet = openSheet();
@@ -554,7 +603,7 @@ describe("the 403 inside the frame (S1D)", () => {
   });
 });
 
-describe("the targets a thumb must hit", () => {
+describe("the stylesheet source declares the targets a thumb must hit (reads the CSS text; no layout runs here)", () => {
   const staffCss = readFileSync(
     join(import.meta.dirname, "../../src/staff/staff.module.css"),
     "utf8",
@@ -565,7 +614,7 @@ describe("the targets a thumb must hit", () => {
   );
   const TOUCH_TARGET = "var(--touch-target)";
 
-  it("makes the Meniu button at least a touch target wide and tall", () => {
+  it("declares the Meniu button at least a touch target wide and tall", () => {
     expect(valuesFor(staffCss, "menuButton", "min-width")).toEqual([
       TOUCH_TARGET,
     ]);
@@ -574,7 +623,7 @@ describe("the targets a thumb must hit", () => {
     ]);
   });
 
-  it("makes a language link at least a touch target wide and tall", () => {
+  it("declares a language link at least a touch target wide and tall", () => {
     expect(valuesFor(staffCss, "localeChip", "min-width")).toEqual([
       TOUCH_TARGET,
     ]);
@@ -583,19 +632,19 @@ describe("the targets a thumb must hit", () => {
     ]);
   });
 
-  it("makes a navigation item and the way back at least 48 px tall", () => {
+  it("declares a navigation item and the way back at least 48 px tall", () => {
     expect(valuesFor(staffCss, "navItem", "min-height")).toEqual(["48px"]);
     expect(valuesFor(staffCss, "primaryLink", "min-height")).toEqual(["48px"]);
   });
 
-  it("makes the sheet's rows and its close button at least 48 px tall", () => {
+  it("declares the sheet's rows and its close button at least 48 px tall", () => {
     expect(valuesFor(accountCss, "menuRow", "min-height")).toEqual(["48px"]);
     expect(valuesFor(accountCss, "dialogAction", "min-height")).toEqual([
       "48px",
     ]);
   });
 
-  it("takes the Meniu button out of the desktop bar and the navigation out of the phone's, and not the reverse", () => {
+  it("declares the Meniu button off the desktop bar and the navigation off the phone's, and not the reverse", () => {
     expect(
       declarationsFor(staffCss, "menuButton", "display").map(
         ({ media, value }) => [media, value],

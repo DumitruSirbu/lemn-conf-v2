@@ -1,4 +1,4 @@
-/* The staff area's frame (Lot 3 frames S1A, S1B, S1D and their desktop twins): the phone's bar with the "Meniu" button, and
+/* The staff area's frame: the phone's bar with the "Meniu" button, and
  * the desktop's 76 px bar over a 264 px navigation. Every interactive box is at least `--touch-target` tall; the marks are
  * drawn with `::before`, so no glyph is text. The dialog layer (the sheet, the scrim) is the account stylesheet's. */
 .screen {
@@ -222,7 +222,7 @@
   color: var(--ink);
 }
 
-.sheetFailure {
+.signOutFailure {
   margin: 0;
   font: 400 13.5px/1.45 var(--font-ui);
   color: var(--staff-refusal-ink);

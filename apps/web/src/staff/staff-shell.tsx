@@ -14,6 +14,7 @@ import type { StaffShellCopy } from "@/i18n/content";
 import { endonymOf } from "@/i18n/locale-endonyms";
 import { routing, type AppLocale } from "@/i18n/routing";
 import {
+  useAccountControlCopy,
   useAccountForbiddenCopy,
   useAccountShellCopy,
   useStaffShellCopy,
@@ -22,7 +23,7 @@ import {
 import styles from "./staff.module.css";
 import { StaffNavSheet, type StaffNavItem } from "./staff-nav-sheet";
 
-// The frame of every staff page (M8B Lot 3 plan, L3-U1; frames S1A, S1B, S1D): the bar with the role the person acts
+// The frame of every staff page: the bar with the role the person acts
 // under, the account control and the language links, the navigation on a desktop and the "Meniu" sheet on a phone.
 //
 // The whole frame is one `<main>` whose direct children are the bar, the body and whatever dialog is open. That shape is
@@ -67,18 +68,19 @@ export function StaffShell({
 }: StaffShellProps) {
   const copy = useStaffShellCopy();
   const accountShell = useAccountShellCopy();
+  const accountControl = useAccountControlCopy();
   const [open, setOpen] = useState<OpenSurface>("none");
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const signOutHere = useSignOutHere();
   useLeaveForStartAfterSignOut(signOutHere.outcome);
-  const openMenu = useCallback(() => {
-    setOpen("menu");
-  }, []);
   const { clearOutcome } = signOutHere;
+  const openMenu = useCallback(() => {
+    clearOutcome();
+    setOpen("menu");
+  }, [clearOutcome]);
   const close = useCallback(() => {
     setOpen("none");
-    clearOutcome();
-  }, [clearOutcome]);
+  }, []);
   const askSignOutEverywhere = useCallback(() => {
     setOpen("logout-everywhere");
   }, []);
@@ -136,7 +138,14 @@ export function StaffShell({
             </ul>
           </nav>
         )}
-        <div className={styles.content}>{children}</div>
+        <div className={styles.content}>
+          {open !== "menu" && signOutHere.outcome === "failed" ? (
+            <p role="alert" className={styles.signOutFailure}>
+              {accountControl.signOutFailed}
+            </p>
+          ) : null}
+          {children}
+        </div>
       </div>
       {open === "menu" ? (
         <StaffNavSheet

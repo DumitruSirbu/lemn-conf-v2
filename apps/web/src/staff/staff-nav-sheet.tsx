@@ -9,12 +9,12 @@ import { useAccountControlCopy, useStaffShellCopy } from "@/i18n/use-content";
 
 import styles from "./staff.module.css";
 
-// The phone's "Meniu" (Lot 3 frames S1A, S1B): a sheet holding who is signed in, the role, the pages and the ways out.
+// The phone's "Meniu": a sheet holding who is signed in, the role, the pages and the ways out.
 // It is modal: focus lands on the sheet and stays in it, Escape and the scrim close it, and focus goes back to the
 // button that opened it (the fallback is the button itself, for the browsers that do not focus a button on press).
 //
 // Mount it as a direct child of the screen's `<main>`, as `useBackgroundInert` asks. Its sign-out is the account
-// pages' (plan P14); the screen owns it and leaves for the start of the configurator once the server has ended the
+// pages': the screen owns it and leaves for the start of the configurator once the server has ended the
 // session, so no staff page stays on screen with clients' data after it.
 
 export interface StaffNavItem {
@@ -117,7 +117,7 @@ export function StaffNavSheet({
           />
         </div>
         {signOutHere.outcome === "failed" ? (
-          <p role="alert" className={styles.sheetFailure}>
+          <p role="alert" className={styles.signOutFailure}>
             {account.signOutFailed}
           </p>
         ) : null}
