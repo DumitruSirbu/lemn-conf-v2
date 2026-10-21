@@ -533,6 +533,11 @@ pending.
 - L3-U2 must add a built-server probe asserting a 404 for the escaped-family (`/ro/st%61ff/kitchens`), escaped-page (`/ro/staff/%6Bitchens`) and case-variant (`/ro/Staff/kitchens`, `/ro/staff/KITCHENS`) spellings once a staff `page.tsx` exists. The same gap exists for the account family (`/ro/%61ccount/...`).
 - L3-U2 must recheck K-12's "O18: 200 plus the marker" on the real page, which no U1 test can reach.
 
+**Brief notes for L3-U4, from the L3-U3 build** [implementer's report; not run by the scribe].
+
+- **P-L3-6 departure.** The staff kitchen view is `KitchenPicture` (the review's view-only canvas) over a read-only store, not `ConfigureScreen variant="shared"`: that screen is a full-page `<main>` with its own account control, language menu, price bar and editor panel, which cannot sit in the staff frame. The single-mount guard is unchanged. The cost is that the picture cannot be orbited by dragging, only by the camera chips; visual review is to confirm that is acceptable.
+- **"Load older notes" is not buildable in a UI wave.** ADR 0173 (the note-spam residual of the L3-S7 review) asks L3-U3 for it, but `GET /api/staff/kitchens/{id}` has no paging parameter and returns the newest 100 with `notesTruncated`. L3-U3 parses and carries both and draws no notes; U4 cannot offer an older page until a server item adds one.
+
 ### 7.3 Phase C: after an owner answer and a decision record (outline)
 
 **Status after the 2026-10-20 rulings (§5.3).** O-L3-4 and O-L3-5 are answered, so L3-S10, L3-S11, L3-U7, L3-S12a,
