@@ -19,7 +19,8 @@ import {
   type StaffAreaEntry,
 } from "@/account/session/account-control";
 import { resetAccountSessionForTests } from "@/account/session/use-account-session";
-import { StaffShell, staffPathOf } from "@/staff/staff-shell";
+import { staffPathOf } from "@/staff/staff-paths";
+import { StaffShell } from "@/staff/staff-shell";
 
 import roMessages from "../../../src/messages/ro.json";
 import ruMessages from "../../../src/messages/ru.json";
@@ -165,7 +166,7 @@ describe("who is offered the way into the staff area", () => {
     ["a list whose capability is in capitals", signedIn(["DESIGN.READ.ANY"])],
     [
       "a list whose capability is hidden behind a right-to-left override",
-      signedIn(["‮design.read.any"]),
+      signedIn(["\u202Edesign.read.any"]),
     ],
     [
       "a list with the capability inside a list",
@@ -234,7 +235,7 @@ describe("the entry", () => {
   );
 
   it.each(["ro", "ru"] as const)(
-    "%s: leads where the staff frame's own link to its first page leads",
+    "%s: leads where the staff frame's own link to its first page leads (one leaf module writes both)",
     async (locale) => {
       const menu = await openedMenuFor(OPERATOR, locale);
 
@@ -404,5 +405,44 @@ describe("the width of the control the top bar's fit is measured with", () => {
       document.body.replaceChildren();
       resetAccountSessionForTests();
     }
+  });
+});
+
+describe("who the menu says is signed in (frame S1E)", () => {
+  const IDENTITY_LABEL = {
+    ro: roMessages.accountControl.signedInAs,
+    ru: ruMessages.accountControl.signedInAs,
+  } as const;
+
+  it.each(["ro", "ru"] as const)(
+    "%s: names a staff member by address above the rows, as a client is named",
+    async (locale) => {
+      const menu = await openedMenuFor(OPERATOR, locale);
+
+      expect(menu.textContent).toContain(IDENTITY_LABEL[locale]);
+      expect(menu.textContent).toContain(ADDRESS);
+    },
+  );
+
+  it("names a staff member who may not enter the staff area too", async () => {
+    const menu = await openedMenuFor(UNVERIFIED_OPERATOR);
+
+    expect(menu.textContent).toContain(ADDRESS);
+  });
+
+  it("gives staff no row for 'my kitchens', which a staff account has none of, and a client keeps it", async () => {
+    const staffMenu = await openedMenuFor(OPERATOR);
+    expect(staffMenu.textContent).not.toContain(
+      roMessages.accountControl.myKitchens,
+    );
+    screen?.unmount();
+    resetAccountSessionForTests();
+
+    const clientMenu = await openedMenuFor(CLIENT);
+
+    expect(clientMenu.textContent).toContain(
+      roMessages.accountControl.myKitchens,
+    );
+    expect(clientMenu.textContent).toContain(ADDRESS);
   });
 });

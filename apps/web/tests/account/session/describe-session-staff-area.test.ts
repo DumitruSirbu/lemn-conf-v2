@@ -19,6 +19,7 @@ describe("the capability that opens the staff area", () => {
     (role) => {
       expect(describeSession(signedInWith([...ROLES[role]]))).toEqual({
         kind: "staff",
+        email: ADDRESS,
         canEnterStaffArea: true,
       });
     },
@@ -34,6 +35,7 @@ describe("the capability that opens the staff area", () => {
   it("is not in an unverified staff account's list, which holds only the account's own sign-in details", () => {
     expect(describeSession(signedInWith(["account.manage.own"]))).toEqual({
       kind: "staff",
+      email: ADDRESS,
       canEnterStaffArea: false,
     });
   });
@@ -46,10 +48,12 @@ describe("the capability that opens the staff area", () => {
 
     expect(describeSession(signedInWith(everythingElse))).toEqual({
       kind: "staff",
+      email: ADDRESS,
       canEnterStaffArea: false,
     });
     expect(describeSession(signedInWith(["design.read.any"]))).toEqual({
       kind: "staff",
+      email: ADDRESS,
       canEnterStaffArea: true,
     });
   });
@@ -57,6 +61,7 @@ describe("the capability that opens the staff area", () => {
   it("is not in an empty list", () => {
     expect(describeSession(signedInWith([]))).toEqual({
       kind: "staff",
+      email: ADDRESS,
       canEnterStaffArea: false,
     });
   });
@@ -72,14 +77,15 @@ describe("the capability that opens the staff area", () => {
     ["a leading space", " design.read.any"],
     ["capitals", "DESIGN.READ.ANY"],
     ["a trailing NUL", "design.read.any\u0000"],
-    ["a trailing zero-width space", "design.read.any​"],
-    ["a leading right-to-left override", "‮design.read.any"],
+    ["a trailing zero-width space", "design.read.any\u200B"],
+    ["a leading right-to-left override", "\u202Edesign.read.any"],
     ["a dash for the dot", "design-read-any"],
     ["only the prefix", "design.read"],
     ["a longer capability", "design.read.any.extra"],
   ])("is not in a list that holds %s instead", (_name, lookalike) => {
     expect(describeSession(signedInWith([lookalike]))).toEqual({
       kind: "staff",
+      email: ADDRESS,
       canEnterStaffArea: false,
     });
   });
@@ -97,6 +103,7 @@ describe("the capability that opens the staff area", () => {
   ])("is not in a list that holds %s", (_name, capabilities) => {
     expect(describeSession(signedInWith(capabilities))).toEqual({
       kind: "staff",
+      email: ADDRESS,
       canEnterStaffArea: false,
     });
   });

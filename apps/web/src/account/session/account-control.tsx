@@ -14,6 +14,7 @@ import { useIsHydrated } from "@/components/use-is-hydrated";
 import { trapTab, useModalFocus } from "@/components/use-modal-focus";
 import type { AccountControlCopy } from "@/i18n/content";
 import { useAccountControlCopy } from "@/i18n/use-content";
+import { staffPathOf } from "@/staff/staff-paths";
 
 import { accountPathOf } from "../account-shell";
 import styles from "../account.module.css";
@@ -147,13 +148,20 @@ function ControlFor({
     case "anonymous":
       return <SignInLink form={signInForm} />;
     case "client":
-      return <SignedInMenu email={session.email} signOutHere={signOutHere} />;
-    case "staff":
-      // Staff are not told apart from each other: their menu holds the profile, the way into the staff area where the
-      // session lists the capability and the host offers it, and the way out.
       return (
         <SignedInMenu
-          email={undefined}
+          email={session.email}
+          signOutHere={signOutHere}
+          hasKitchensEntry
+        />
+      );
+    case "staff":
+      // Staff's menu names who is signed in (frame S1E) above the profile, the way into the staff area where the session
+      // lists the capability and the host offers it, and the way out. It holds no "Bucătăriile mele": a staff account
+      // has none.
+      return (
+        <SignedInMenu
+          email={session.email}
           signOutHere={signOutHere}
           hasStaffAreaEntry={
             staffAreaEntry === "offered" && session.canEnterStaffArea === true
@@ -309,15 +317,16 @@ function useOpenSurface(
   return { open, openMenu, close, askEverywhere };
 }
 
-/** The icon and, once it is pressed, the menu in the screen's `<main>`. A client's menu names who is signed in; staff's
- *  does not, since the control is not told who they are. */
+/** The icon and, once it is pressed, the menu in the screen's `<main>`. The menu names who is signed in. */
 function SignedInMenu({
   email,
   signOutHere,
+  hasKitchensEntry = false,
   hasStaffAreaEntry = false,
 }: {
-  readonly email: string | undefined;
+  readonly email: string;
   readonly signOutHere: SignOutHere;
+  readonly hasKitchensEntry?: boolean;
   readonly hasStaffAreaEntry?: boolean;
 }) {
   const copy = useAccountControlCopy();
@@ -348,11 +357,11 @@ function SignedInMenu({
           open={open}
           email={email}
           kitchensHref={
-            email === undefined ? undefined : accountPathOf(locale, "kitchens")
+            hasKitchensEntry ? accountPathOf(locale, "kitchens") : undefined
           }
           profileHref={accountPathOf(locale, "profile")}
           staffAreaHref={
-            hasStaffAreaEntry ? staffAreaPathOf(locale) : undefined
+            hasStaffAreaEntry ? staffPathOf(locale, "kitchens") : undefined
           }
           isSignOutBusy={signOutHere.isSending}
           onClose={close}
@@ -363,12 +372,6 @@ function SignedInMenu({
       )}
     </>
   );
-}
-
-/** The staff area's first page. Not `staffPathOf`: the staff frame imports this control, so importing it back would be
- *  a cycle (a test holds the two equal). */
-function staffAreaPathOf(locale: string): string {
-  return `/${locale}/staff/kitchens`;
 }
 
 /** Whichever surface is open, rendered into the screen it was opened on. */
@@ -385,7 +388,7 @@ function MenuPortal({
   returnFocusRef,
 }: {
   readonly open: OpenState;
-  readonly email: string | undefined;
+  readonly email: string;
   readonly kitchensHref: string | undefined;
   readonly profileHref: string;
   readonly staffAreaHref: string | undefined;
@@ -430,7 +433,7 @@ function AccountMenu({
   onSignOutEverywhere,
   returnFocusRef,
 }: {
-  readonly email: string | undefined;
+  readonly email: string;
   /** The client's list of kitchens; staff have none and are shown no row. */
   readonly kitchensHref: string | undefined;
   /** The account's own details, which every role keeps. */
@@ -475,12 +478,10 @@ function AccountMenu({
         onKeyDown={trapTab}
       >
         <span className={styles.dialogGrabber} aria-hidden="true" />
-        {email === undefined ? null : (
-          <div className={styles.menuIdentity}>
-            <span className={styles.menuIdentityLabel}>{copy.signedInAs}</span>
-            <span className={styles.menuIdentityEmail}>{email}</span>
-          </div>
-        )}
+        <div className={styles.menuIdentity}>
+          <span className={styles.menuIdentityLabel}>{copy.signedInAs}</span>
+          <span className={styles.menuIdentityEmail}>{email}</span>
+        </div>
         <div className={styles.menuRows}>
           {kitchensHref === undefined ? null : (
             <MenuLinkRow label={copy.myKitchens} href={kitchensHref} />

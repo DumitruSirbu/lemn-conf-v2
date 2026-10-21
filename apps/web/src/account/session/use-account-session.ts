@@ -22,14 +22,15 @@ const CLIENT_CAPABILITY: Capability = "design.read.own";
  *  offers the way in, and the server's gate on every staff page and route decides who gets through it. */
 const STAFF_AREA_CAPABILITY: Capability = "design.read.any";
 
-/** What the header knows of the session. The role is never part of it: a client is told apart by the capability, and
- *  staff are not told apart from each other. */
+/** What the header knows of the session. The role is never part of it: a client is told apart by the capability. Both
+ *  kinds carry the address, which the menu names the person by. */
 export type AccountSessionState =
   | { readonly kind: "pending" }
   | { readonly kind: "anonymous" }
   | { readonly kind: "client"; readonly email: string }
   | {
       readonly kind: "staff";
+      readonly email: string;
       /** Whether the session lists the capability that opens the staff area. Absent reads as no: an unverified
        *  account lists only its own sign-in details. */
       readonly canEnterStaffArea?: boolean;
@@ -201,6 +202,7 @@ export function describeSession(body: unknown): AccountSessionState {
     return { kind: "client", email };
   return {
     kind: "staff",
+    email,
     canEnterStaffArea: capabilities.includes(STAFF_AREA_CAPABILITY),
   };
 }

@@ -2,8 +2,6 @@
 
 import { useCallback, useRef, useState, type ReactNode } from "react";
 
-import { isDesignId } from "@lemnaria/configurator-domain";
-
 import { OutcomeHero } from "@/account/account-form-parts";
 import { startPathOf } from "@/account/account-shell";
 import { AccountControl } from "@/account/session/account-control";
@@ -24,6 +22,7 @@ import {
 
 import styles from "./staff.module.css";
 import { StaffNavSheet, type StaffNavItem } from "./staff-nav-sheet";
+import { staffPathOf, type StaffPage } from "./staff-paths";
 import { useStaffSessionExpiry } from "./staff-session-expiry";
 import { StaffSessionSheet } from "./staff-session-sheet";
 
@@ -38,8 +37,8 @@ import { StaffSessionSheet } from "./staff-session-sheet";
 // Every link is a plain anchor: a staff page is a document of its own with a policy of its own, so a soft navigation
 // would carry the wrong nonce (the account pages' rule).
 
-/** The staff pages that have a screen to name in the navigation. */
-export type StaffPage = "kitchens" | "audit";
+/** The staff pages that have a screen to name in the navigation (their addresses are `staff-paths.ts`). */
+export type { StaffPage };
 
 export type StaffRole = "operator" | "administrator";
 
@@ -49,27 +48,6 @@ export interface StaffShellContext {
   readonly email: string;
   /** The pages the person's capabilities open and that have a screen, in the order the navigation lists them. */
   readonly navigation: readonly StaffPage[];
-}
-
-export function staffPathOf(locale: AppLocale, page: StaffPage): string {
-  return `/${locale}/staff/${page}`;
-}
-
-/**
- * Where the language links lead: the page being shown, or the one kitchen of the "kitchens" page when the page shows one.
- * The kitchen's id is part of the address only if it has the shape of a design id, so nothing but a design id is ever
- * written into a link, whatever the caller was handed.
- */
-export function pathForLanguageLink(
-  locale: AppLocale,
-  page: StaffPage,
-  kitchenId: string | undefined,
-): string {
-  const isKitchen =
-    page === "kitchens" && kitchenId !== undefined && isDesignId(kitchenId);
-  return isKitchen
-    ? `${staffPathOf(locale, page)}/${kitchenId}`
-    : staffPathOf(locale, page);
 }
 
 export interface StaffShellProps {
@@ -143,7 +121,7 @@ export function StaffShell({
             <LocaleLink
               key={other}
               locale={other}
-              href={pathForLanguageLink(other, page, kitchenId)}
+              href={staffPathOf(other, page, kitchenId)}
             />
           ))}
         </nav>

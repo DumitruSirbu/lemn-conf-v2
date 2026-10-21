@@ -79,7 +79,7 @@ describe("leaveAfterSignIn: the way back wins over the role", () => {
   });
 
   it("does so for a staff session too: precedence is the path's, not the role's", async () => {
-    answerSessionWith({ kind: "staff" });
+    answerSessionWith({ kind: "staff", email: "staff@lemnaria.md" });
     leaveAfterSignIn({
       locale: "ru",
       returnPath: "/ru/d/k00000000000000000002",
@@ -107,7 +107,10 @@ describe("leaveAfterSignIn without a way back: the session says where", () => {
   );
 
   it.each([
-    ["staff", { kind: "staff" } as AccountSessionState],
+    [
+      "staff",
+      { kind: "staff", email: "staff@lemnaria.md" } as AccountSessionState,
+    ],
     ["an anonymous answer", { kind: "anonymous" } as AccountSessionState],
     ["a pending answer", { kind: "pending" } as AccountSessionState],
     ["an answer the server did not give", undefined],
