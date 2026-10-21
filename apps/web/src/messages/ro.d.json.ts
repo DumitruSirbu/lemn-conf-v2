@@ -861,6 +861,7 @@ declare const messages: {
     "signedInAs": "Conectat ca",
     "myKitchens": "Bucătăriile mele",
     "profile": "Profil",
+    "staffArea": "Zona personalului",
     "close": "Închide",
     "signOutHere": "Ieși din cont",
     "signOutEverywhere": "Ieși de pe toate dispozitivele",

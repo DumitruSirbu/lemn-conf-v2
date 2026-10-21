@@ -1146,6 +1146,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     signedInAs: "Conectat ca",
     myKitchens: "Bucătăriile mele",
     profile: "Profil",
+    // Drafted, approved as drafted by the owner (O-L3-7, relayed 2026-10-20; ADR 0174 decision 5): the staff menu row that
+    // leaves the configurator for the staff area (plan P-L3-9). The same words as `staffShell.areaName`. The owner may
+    // reword later.
+    staffArea: "Zona personalului",
     close: "Închide",
     signOutHere: "Ieși din cont",
     signOutEverywhere: "Ieși de pe toate dispozitivele",

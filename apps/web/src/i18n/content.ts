@@ -1292,6 +1292,7 @@ export function resolveAccountControlCopy(translate: ContentTranslator) {
     signedInAs: translate("accountControl.signedInAs"),
     myKitchens: translate("accountControl.myKitchens"),
     profile: translate("accountControl.profile"),
+    staffArea: translate("accountControl.staffArea"),
     close: translate("accountControl.close"),
     signOutHere: translate("accountControl.signOutHere"),
     signOutEverywhere: translate("accountControl.signOutEverywhere"),
