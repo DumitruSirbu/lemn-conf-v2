@@ -34,7 +34,7 @@ import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 holdSharedTestSchemaLock();
 
 /**
- * Adversarial QA of M8B Lot 3 wave L3-S1 (migrations `0020` to `0022`), on a real Postgres. The wave's own tests read
+ * Adversarial QA of the staff tables (migrations `0020` to `0022`), on a real Postgres. The migration tests read
  * the migration files as text and stand a JavaScript regular expression in for the server's; what they cannot show is
  * what the server does with a row. Every probe below is an `insert` inside `begin` ... `rollback`, sent over the
  * owner's test-database connection, so a table is left exactly as it was found.
@@ -44,7 +44,7 @@ holdSharedTestSchemaLock();
  *   does not pass for the right one;
  * - differential sweeps of the server's shape checks against an oracle written here by hand, over strings that mix the
  *   alphabet with look-alikes (accents, full-width, Kelvin sign, astral, bidi) and lengths on both sides of each bound;
- * - the domain's own closed lists and note rule (wave L3-S2) fed through the server's checks;
+ * - the domain's own closed lists and note rule fed through the server's checks;
  * - the upper bound on what the application role holds, asked of the catalog from the owner's connection.
  *
  * **Mutation controls live in the file.** A weakened twin of a table is built from the migration's own text with one
