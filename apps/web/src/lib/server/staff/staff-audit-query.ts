@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isStaffAuditAction } from "@lemnaria/configurator-domain";
+import { isAccountId, isStaffAuditAction } from "@lemnaria/configurator-domain";
 import {
   MAX_STAFF_AUDIT_PAGE,
   type StaffAuditPageRequest,
@@ -38,8 +38,6 @@ const NOON_UTC_HOUR = 12;
 
 /** Digits only, no sign, no leading zero: the one way a page number is written. */
 const PAGE_NUMBER_TEXT = /^[1-9][0-9]*$/;
-/** The shape every account id has (`accounts.id`, a 21-character nanoid). */
-const ACCOUNT_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
 /** `YYYY-MM-DD`: the Chisinau calendar day as the page's date field sends it. */
 const DAY_TEXT = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/;
 
@@ -63,28 +61,60 @@ interface DayWindow {
 export function readStaffAuditQuery(
   searchParams: URLSearchParams,
 ): StaffAuditQueryReading {
-  const page = readPage(searchParams.get("page"));
-  const action = readAction(searchParams.get("action"));
-  const actor = readActor(searchParams.get("actor"));
-  const from = readDay("from", searchParams.get("from"));
-  const to = readDay("to", searchParams.get("to"));
-  const issues = [
+  const members = readMembers(searchParams);
+  const issues = issuesOfMembers(members);
+  const request = issues.length === 0 ? requestOf(members) : undefined;
+  return request === undefined ? { ok: false, issues } : { ok: true, request };
+}
+
+interface QueryMembers {
+  readonly page: FieldReading<number>;
+  readonly action: FieldReading<string | null>;
+  readonly actor: FieldReading<string | null>;
+  readonly from: FieldReading<DayWindow | null>;
+  readonly to: FieldReading<DayWindow | null>;
+}
+
+function readMembers(searchParams: URLSearchParams): QueryMembers {
+  return {
+    page: readPage(searchParams.get("page")),
+    action: readAction(searchParams.get("action")),
+    actor: readActor(searchParams.get("actor")),
+    from: readDay("from", searchParams.get("from")),
+    to: readDay("to", searchParams.get("to")),
+  };
+}
+
+function issuesOfMembers({
+  page,
+  action,
+  actor,
+  from,
+  to,
+}: QueryMembers): readonly StaffAuditQueryIssue[] {
+  return [
     ...[page, action, actor, from, to].flatMap(issueOf),
     ...invertedRangeIssues(from, to),
   ];
-  const isRefused = issues.length > 0;
-  if (isRefused || !page.ok || !action.ok || !actor.ok || !from.ok || !to.ok) {
-    return { ok: false, issues };
+}
+
+/** The port's request, or `undefined` when a member was refused (the caller has already reported it). */
+function requestOf({
+  page,
+  action,
+  actor,
+  from,
+  to,
+}: QueryMembers): StaffAuditPageRequest | undefined {
+  if (!page.ok || !action.ok || !actor.ok || !from.ok || !to.ok) {
+    return undefined;
   }
   return {
-    ok: true,
-    request: {
-      actorAccountId: actor.value,
-      action: action.value,
-      occurredFrom: from.value?.startsAt ?? null,
-      occurredBefore: to.value?.endsAt ?? null,
-      page: page.value,
-    },
+    actorAccountId: actor.value,
+    action: action.value,
+    occurredFrom: from.value?.startsAt ?? null,
+    occurredBefore: to.value?.endsAt ?? null,
+    page: page.value,
   };
 }
 
@@ -116,7 +146,7 @@ function readAction(text: string | null): FieldReading<string | null> {
 
 function readActor(text: string | null): FieldReading<string | null> {
   if (isAbsent(text)) return accepted(null);
-  return ACCOUNT_ID_SHAPE.test(text)
+  return isAccountId(text)
     ? accepted(text)
     : refused("actor", "NOT_AN_ACCOUNT_ID");
 }

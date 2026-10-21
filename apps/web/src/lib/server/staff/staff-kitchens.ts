@@ -23,21 +23,16 @@ import {
   answerOfReadJudgement,
 } from "@/lib/server/account/account-responses";
 import type { SignedInSession } from "@/lib/server/account/current-session";
-import {
-  readSessionCookie,
-  type SessionCookieReader,
-} from "@/lib/server/account/session-cookie";
-import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
+import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { designNotFoundResponse } from "@/lib/server/design-errors";
 import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
 import { judgeReadRequest } from "@/lib/server/rate-limit/judge-read-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
-import { sha256Hex } from "@/lib/server/sha256-hex";
 import {
   admitStaff,
   type StaffAdmission,
 } from "@/lib/server/staff/staff-admission";
-import { getStaffAuditStore } from "@/lib/server/staff/staff-audit-store-instance";
+import { commitAuditRow } from "@/lib/server/staff/staff-audit-commit";
 import { getStaffKitchenReader } from "@/lib/server/staff/staff-kitchen-reader-instance";
 import {
   staffInvalidQueryResponse,
@@ -191,35 +186,6 @@ function kitchensListedEntryOf(
       hasSearch: query.search !== null,
     },
   };
-}
-
-interface AuditedRead {
-  readonly entry: StaffAuditEntry;
-  readonly designId: string | null;
-  readonly subjectAccountId: string | null;
-}
-
-/** Writes the row and waits for its commit. The store takes the actor from the live session the cookie names, so no
- *  caller can name another account; any failure is thrown, and the caller's wrapper answers `503`. */
-async function commitAuditRow(
-  cookies: SessionCookieReader,
-  { entry, designId, subjectAccountId }: AuditedRead,
-): Promise<void> {
-  await getStaffAuditStore().record({
-    sessionTokenHash: sessionTokenHashOf(cookies),
-    idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
-    entry,
-    designId,
-    subjectAccountId,
-  });
-}
-
-function sessionTokenHashOf(cookies: SessionCookieReader): string {
-  const sessionValue = readSessionCookie(cookies);
-  if (sessionValue === undefined) {
-    throw new Error("A staff read has no session cookie to name its actor.");
-  }
-  return sha256Hex(sessionValue);
 }
 
 function refusedQuery(issues: readonly StaffKitchenQueryIssue[]): NextResponse {

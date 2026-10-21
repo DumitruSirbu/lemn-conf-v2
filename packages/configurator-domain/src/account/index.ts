@@ -1,3 +1,4 @@
+export { isAccountId } from "./account-id.js";
 export {
   ACCOUNT_FIELDS,
   PRIVACY_NOTICE_VERSION_MAX_LENGTH,
