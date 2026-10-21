@@ -21,7 +21,8 @@ describe("readMigrationFiles", () => {
     const migrations = readMigrationFiles();
 
     expect(migrations.map((migration) => migration.version)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22,
     ]);
     expect(migrations.map((migration) => migration.fileName)).toEqual([
       "0001_create_designs.sql",
@@ -43,6 +44,9 @@ describe("readMigrationFiles", () => {
       "0017_add_account_profile_columns.sql",
       "0018_add_email_token_new_address.sql",
       "0019_add_email_token_reservation_index.sql",
+      "0020_create_staff_audit_events.sql",
+      "0021_create_design_notes.sql",
+      "0022_create_design_request_states.sql",
     ]);
   });
 

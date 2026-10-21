@@ -358,6 +358,97 @@ function explainOfTheStoresStatement(): Promise<unknown> {
   );
 }
 
+/**
+ * What the application role is granted on one of the staff tables of migrations `0020` to `0022` (M8B Lot 3 wave L3-S1),
+ * written out here and not read from a migration or a repository, so a column added to a table or to a grant is
+ * unnoticed until someone names it. The lists are sorted in the test, because the catalog's order depends on the
+ * collation.
+ */
+interface StaffTableGrant {
+  readonly table: string;
+  /** Every column the table has. */
+  readonly columns: readonly string[];
+  /** The columns of the `INSERT` grant. */
+  readonly insertable: readonly string[];
+  /** The columns of the `UPDATE` grant. */
+  readonly updatable: readonly string[];
+  /** A column left out of the `INSERT` grant on purpose, so that a leaked credential cannot stamp it. */
+  readonly notInsertable: string;
+  /** A column left out of the `UPDATE` grant. */
+  readonly notUpdatable: string;
+  /** The tail of an insert of the shape the store will send, naming only granted columns. */
+  readonly insertTail: string;
+}
+
+const A_PROBE_ID = "0".repeat(21);
+
+const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
+  {
+    table: "public.staff_audit_events",
+    columns: [
+      "id",
+      "occurred_at",
+      "actor_account_id",
+      "action",
+      "design_id",
+      "subject_account_id",
+      "detail",
+    ],
+    insertable: [
+      "id",
+      "actor_account_id",
+      "action",
+      "design_id",
+      "subject_account_id",
+      "detail",
+    ],
+    updatable: [],
+    notInsertable: "occurred_at",
+    notUpdatable: "action",
+    insertTail: `(id, actor_account_id, action) values ('${A_PROBE_ID}', '${A_PROBE_ID}', 'kitchen-opened')`,
+  },
+  {
+    table: "public.design_notes",
+    columns: ["id", "design_id", "author_account_id", "body", "created_at"],
+    insertable: ["id", "design_id", "author_account_id", "body"],
+    updatable: [],
+    notInsertable: "created_at",
+    notUpdatable: "body",
+    insertTail: `(id, design_id, author_account_id, body) values ('${A_PROBE_ID}', '${A_PROBE_ID}', '${A_PROBE_ID}', 'a probe')`,
+  },
+  {
+    table: "public.design_request_states",
+    columns: ["design_id", "status", "changed_by_account_id", "changed_at"],
+    insertable: ["design_id", "status", "changed_by_account_id"],
+    updatable: ["status", "changed_by_account_id", "changed_at"],
+    notInsertable: "changed_at",
+    notUpdatable: "design_id",
+    insertTail:
+      `(design_id, status, changed_by_account_id) values ('${A_PROBE_ID}', 'new', '${A_PROBE_ID}') ` +
+      "on conflict (design_id) do update set status = excluded.status, " +
+      "changed_by_account_id = excluded.changed_by_account_id, changed_at = now()",
+  },
+];
+
+/** Skips, with the reason the Lot 3 plan (section 2.3) names, until the owner has applied the table's migration: never a
+ *  failure, never a pass. */
+async function skipUnlessTheTableExists(
+  context: TestContext,
+  tableName: string,
+): Promise<void> {
+  const [probe] = (await neon(readDatabaseUrl())`
+    select to_regclass(${tableName}::text) is not null as exists
+  `) as { exists: boolean }[];
+  context.skip(
+    probe?.exists !== true,
+    `${tableName} does not exist yet on this database`,
+  );
+}
+
+function sorted(columns: readonly string[]): string[] {
+  return [...columns].sort();
+}
+
 describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
   guardedTest(
     "is not the database owner and inherits no other role",
@@ -870,4 +961,70 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       }
     },
   );
+
+  // M8B Lot 3 wave L3-S1: the runbook's grant proof for migrations `0020` to `0022`. The tables come from the
+  // migrations; the grants are the owner's, so these skip with the reason until the tables exist. With a table present
+  // and nothing granted, `SELECT` is not held and the first arm is red, which is the runbook's step 3; with exactly the
+  // prescribed grants it is green. Asked of the catalog, `PUBLIC` and inherited roles included. Nothing is inserted,
+  // updated or deleted: the second arm sends `explain`, which plans a statement and never runs it, and a refusal with
+  // 42501 shows `explain` checks privileges at all.
+  describe.each(STAFF_TABLE_GRANTS)("the staff table $table", (grant) => {
+    guardedTest(
+      "effectively holds select, insert and update on exactly its named columns, nothing through PUBLIC and no grant option, once it exists",
+      async (context) => {
+        await skipUnlessTheTableExists(context, grant.table);
+        const sql = neon(readDatabaseUrl());
+
+        const known = await tablePrivilegesTheServerKnows(sql);
+        expect(known).toEqual(
+          expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+        );
+        expect(await privilegesHeldOn(sql, grant.table, known)).toEqual([
+          "SELECT",
+        ]);
+        const columns = await columnsOf(sql, grant.table);
+        expect(sorted(columns)).toEqual(sorted(grant.columns));
+        expect(await columnsHolding(sql, grant.table, "SELECT")).toEqual(
+          columns,
+        );
+        expect(
+          sorted(await columnsHolding(sql, grant.table, "INSERT")),
+        ).toEqual(sorted(grant.insertable));
+        expect(
+          sorted(await columnsHolding(sql, grant.table, "UPDATE")),
+        ).toEqual(sorted(grant.updatable));
+        expect(await columnsHolding(sql, grant.table, "REFERENCES")).toEqual(
+          [],
+        );
+        await expectNothingHeldWithGrantOption(sql, grant.table, known);
+        expect(await grantsToPublicOn(sql, grant.table)).toBe(0);
+      },
+    );
+
+    guardedTest(
+      "can have the store's insert planned, and cannot have a delete, an insert naming the stamped column or an update of an ungranted column planned, once it exists",
+      async (context) => {
+        await skipUnlessTheTableExists(context, grant.table);
+        const sql = neon(readDatabaseUrl());
+
+        await expect(
+          sql.query(`explain insert into ${grant.table} ${grant.insertTail}`),
+        ).resolves.toBeDefined();
+
+        expect(
+          await failureOf(`explain delete from ${grant.table}`),
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        expect(
+          await failureOf(
+            `explain insert into ${grant.table} (${grant.notInsertable}) values (now())`,
+          ),
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        expect(
+          await failureOf(
+            `explain update ${grant.table} set ${grant.notUpdatable} = ${grant.notUpdatable}`,
+          ),
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+      },
+    );
+  });
 });

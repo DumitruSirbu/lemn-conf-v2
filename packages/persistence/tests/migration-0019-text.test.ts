@@ -28,14 +28,13 @@ function statementText(): string {
 }
 
 describe("0019: the partial index of the live address reservations", () => {
-  it("is the next version after 0018, with a checksum of its own bytes", () => {
+  it("is version 19, with a checksum of its own bytes", () => {
     const migration = indexMigration();
 
     expect(migration.version).toBe(19);
     expect(migration.fileName).toBe(
       "0019_add_email_token_reservation_index.sql",
     );
-    expect(migrations.at(-1)).toBe(migration);
     expect(migration.checksum).toBe(checksumOfMigration(migration.sql));
     expect(checksumOfMigration(`${migration.sql} `)).not.toBe(
       migration.checksum,
