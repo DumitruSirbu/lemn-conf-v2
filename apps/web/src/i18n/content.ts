@@ -1302,6 +1302,27 @@ export function resolveAccountControlCopy(translate: ContentTranslator) {
 
 export type AccountControlCopy = ReturnType<typeof resolveAccountControlCopy>;
 
+/** The staff area's frame: the navigation's name, the "Meniu" button, the role the person is shown under and the
+ *  navigation's items, one per staff page that has a screen. */
+export function resolveStaffShellCopy(translate: ContentTranslator) {
+  return {
+    areaName: translate("staffShell.areaName"),
+    menu: translate("staffShell.menu"),
+    roleLabel: translate("staffShell.roleLabel"),
+    roles: {
+      operator: translate("staffShell.roleOperator"),
+      administrator: translate("staffShell.roleAdministrator"),
+    },
+    pages: {
+      kitchens: translate("staffShell.navKitchens"),
+      audit: translate("staffShell.navAudit"),
+    },
+    backTo: (name: string) => translate("staffShell.backTo", { name }),
+  };
+}
+
+export type StaffShellCopy = ReturnType<typeof resolveStaffShellCopy>;
+
 /**
  * The list of the account's kitchens. A kitchen the person never named is called by the name its facts generate
  * (`resolvePresetName`), so the list and the preset chooser say the same thing of the same room.

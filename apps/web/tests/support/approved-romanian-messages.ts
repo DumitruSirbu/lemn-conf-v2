@@ -1370,6 +1370,19 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     placeholder:
       "Textul notei de confidențialitate nu este încă publicat. Această pagină ține locul versiunii {version}.",
   },
+  // Drafted, approved as drafted by the owner (O-L3-7, relayed 2026-10-20; ADR 0174 decision 5): the staff area's frame
+  // (Lot 3 frames S1A, S1B, S1D). The words are the frames' own, bar `backTo`, which makes the frame's button label ("Înapoi
+  // la Bucătării clienți") follow the first page the person can open. The owner may reword later.
+  staffShell: {
+    areaName: "Zona personalului",
+    menu: "Meniu",
+    roleLabel: "Rol:",
+    roleOperator: "Operator",
+    roleAdministrator: "Administrator",
+    navKitchens: "Bucătării clienți",
+    navAudit: "Jurnal de audit",
+    backTo: "Înapoi la {name}",
+  },
 } as const;
 
 export function isRomanianCopyApproved(actual: unknown): boolean {

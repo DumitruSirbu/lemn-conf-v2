@@ -25,6 +25,7 @@ import {
   resolveContent,
   resolveLogoutEverywhereCopy,
   resolveSessionExpiredSheetCopy,
+  resolveStaffShellCopy,
   resolveVisitorAccountCardCopy,
   type ContentTranslator,
 } from "./content";
@@ -71,6 +72,10 @@ export function useAccountForbiddenCopy() {
 
 export function useAccountControlCopy() {
   return useResolved(resolveAccountControlCopy);
+}
+
+export function useStaffShellCopy() {
+  return useResolved(resolveStaffShellCopy);
 }
 
 export function useAccountKitchensCopy() {

@@ -1046,6 +1046,16 @@ declare const messages: {
     "badge": "Pagină provizorie",
     "title": "Notă de confidențialitate",
     "placeholder": "Textul notei de confidențialitate nu este încă publicat. Această pagină ține locul versiunii {version}."
+  },
+  "staffShell": {
+    "areaName": "Zona personalului",
+    "menu": "Meniu",
+    "roleLabel": "Rol:",
+    "roleOperator": "Operator",
+    "roleAdministrator": "Administrator",
+    "navKitchens": "Bucătării clienți",
+    "navAudit": "Jurnal de audit",
+    "backTo": "Înapoi la {name}"
   }
 };
 export default messages;
