@@ -6,6 +6,7 @@ import {
   judgeNoteText,
 } from "../../src/staff/note-text.js";
 
+const UNCOMPOSED_CEILING = NOTE_TEXT_MAX_LENGTH * 8;
 const ASTRAL_CHARACTER = "\u{1F373}";
 const LONE_HIGH_SURROGATE = "\uD800";
 const LONE_LOW_SURROGATE = "\uDC00";
@@ -149,13 +150,16 @@ describe("judgeNoteText: what a staff note needs to be stored", () => {
         form?: string,
       ) {
         normalisedLengths.push(this.length);
-        return normalise.call(this, form);
+        // Skipping the real work past the ceiling lets a regression fail the assertion instead of hanging.
+        return this.length > UNCOMPOSED_CEILING
+          ? this
+          : normalise.call(this, form);
       });
 
       judgeNoteText(`e${COMBINING_ACUTE.repeat(100_000)}`);
 
       expect(Math.max(0, ...normalisedLengths)).toBeLessThanOrEqual(
-        NOTE_TEXT_MAX_LENGTH * 8,
+        UNCOMPOSED_CEILING,
       );
     });
   });

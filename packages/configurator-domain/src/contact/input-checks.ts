@@ -55,15 +55,34 @@ export function holdsForbiddenCharacter(text: string): boolean {
   return FORBIDDEN_CHARACTER.test(text);
 }
 
+export type ComposedTextReading =
+  | { readonly ok: true; readonly composed: string }
+  | { readonly ok: false; readonly code: "TOO_LONG" };
+
+/**
+ * The first half of reading typed text, for a value already known to be well-formed: format characters are
+ * removed, a value far past the field's bound is refused before anything is composed, and the rest is composed
+ * to NFC (not the compatibility form, which would change letters the customer chose).
+ */
+export function composeVisibleText(
+  raw: string,
+  maxLength: number,
+): ComposedTextReading {
+  const visible = raw.replace(FORMAT_CHARACTER, "");
+  if (visible.length > maxLength * UNCOMPOSED_LENGTH_FACTOR) {
+    return { ok: false, code: "TOO_LONG" };
+  }
+  return { ok: true, composed: visible.normalize("NFC") };
+}
+
 /**
  * Typed text as it is stored, or the one reason it is not. The order is the contract, and no step costs
  * more than the value's length before the bound is applied:
  * 1. ill-formed text is refused on the value as it arrived, because removing a format character between
  *    two halves would join them into a character that is then invisible;
- * 2. format characters are removed;
- * 3. what remains is refused if it is far past the field's bound, before anything is composed;
- * 4. it is composed to NFC (not the compatibility form, which would change letters the customer chose),
- *    checked for forbidden characters, trimmed (a trailing line feed is refused, not dropped) and measured.
+ * 2. `composeVisibleText` removes format characters, refuses what is far past the bound, and composes;
+ * 3. the composed form is checked for forbidden characters, trimmed (a trailing line feed is refused, not
+ *    dropped) and measured.
  * Reading a stored value gives that value again.
  */
 export function readTypedText(
@@ -73,13 +92,12 @@ export function readTypedText(
   if (raw === undefined) return { ok: true, value: "" };
   if (typeof raw !== "string") return refused("NOT_TEXT");
   if (ILL_FORMED_TEXT.test(raw)) return refused("FORBIDDEN_CHARACTER");
-  const visible = raw.replace(FORMAT_CHARACTER, "");
-  if (visible.length > maxLength * UNCOMPOSED_LENGTH_FACTOR) {
-    return refused("TOO_LONG");
+  const reading = composeVisibleText(raw, maxLength);
+  if (!reading.ok) return refused(reading.code);
+  if (FORBIDDEN_CHARACTER.test(reading.composed)) {
+    return refused("FORBIDDEN_CHARACTER");
   }
-  const composed = visible.normalize("NFC");
-  if (FORBIDDEN_CHARACTER.test(composed)) return refused("FORBIDDEN_CHARACTER");
-  const trimmed = composed.trim();
+  const trimmed = reading.composed.trim();
   return countCharacters(trimmed) > maxLength
     ? refused("TOO_LONG")
     : { ok: true, value: trimmed };
