@@ -14,8 +14,24 @@ const SCREEN_FILES = [
   "staff/staff-kitchen-view.tsx",
   "staff/use-staff-kitchen.ts",
   "app/[locale]/staff/kitchens/[id]/page.tsx",
+  "staff/staff-notes.tsx",
+  "staff/staff-status-control.tsx",
+  "staff/unhide-banner.tsx",
+  "staff/staff-session-sheet.tsx",
+  "staff/staff-session-expiry.ts",
+  "staff/use-staff-kitchen-actions.ts",
+  "staff/staff-note-rules.ts",
 ] as const;
 const HOOK_FILE = "staff/use-staff-kitchen.ts";
+/** The files that make a request or hold what was typed: none of them may ask again, wait, or keep a note. */
+const WRITING_FILES = [
+  "staff/use-staff-kitchen-actions.ts",
+  "staff/staff-session-expiry.ts",
+  "staff/staff-notes.tsx",
+  "staff/staff-status-control.tsx",
+  "staff/unhide-banner.tsx",
+  "staff/staff-session-sheet.tsx",
+] as const;
 const VIEW_FILE = "staff/staff-kitchen-view.tsx";
 
 /** Attributes whose value a person reads or hears. */
@@ -163,6 +179,41 @@ describe("the hook", () => {
     expect(calls[0]).toContain("referrerPolicy: NO_REFERRER_POLICY");
   });
 });
+
+describe.each(WRITING_FILES)(
+  "%s, which writes or holds what was typed",
+  (relative) => {
+    const file = parse(relative);
+
+    it("has no timer, so nothing it does can be asked again on its own", () => {
+      const names = collect(file, (node) =>
+        ts.isIdentifier(node) ? node.text : undefined,
+      );
+
+      expect(names.filter((name) => TIMER_NAMES.has(name))).toEqual([]);
+    });
+
+    it("calls `fetch` nowhere: a write goes through the one sender, which states the referrer policy", () => {
+      const calls = collect(file, (node) =>
+        ts.isCallExpression(node) && node.expression.getText() === "fetch"
+          ? node.getText()
+          : undefined,
+      );
+
+      expect(calls).toEqual([]);
+    });
+
+    it("writes to neither the address nor the history", () => {
+      const names = collect(file, (node) =>
+        ts.isIdentifier(node) ? node.text : undefined,
+      );
+
+      for (const forbidden of ["pushState", "replaceState", "hash", "search"]) {
+        expect(names).not.toContain(forbidden);
+      }
+    });
+  },
+);
 
 describe("the picture", () => {
   const file = parse(VIEW_FILE);

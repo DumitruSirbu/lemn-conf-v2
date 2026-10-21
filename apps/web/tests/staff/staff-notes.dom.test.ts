@@ -600,6 +600,41 @@ describe.each(LOCALES)("the notes in %s", (locale) => {
       expect(allIn(notes(), '[role="alert"]')).toHaveLength(0);
     });
 
+    it("gives focus back to the button the person pressed once they have said they are signed in again", async () => {
+      serve(() => UNAUTHENTICATED_ANSWER);
+      await harness.mount({ locale });
+      typeIntoTextarea(field(), TYPED);
+      saveButton().focus();
+      click(saveButton());
+      await harness.settle();
+      expect(document.activeElement).toBe(
+        requireIn(harness.container(), '[data-testid="staff-session-sign-in"]'),
+      );
+      harness.server.script((request) =>
+        request.url.pathname === "/api/account/session"
+          ? {
+              body: {
+                state: "signed-in",
+                email: "mihai.rusu@lemnaria.md",
+                capabilities: ["design.read.any"],
+              },
+            }
+          : routeKitchen({ read: () => ({ body: wireKitchen() }) })(request),
+      );
+
+      click(
+        byWords(
+          harness.container(),
+          "button",
+          CATALOGUES[locale].staffActions.sessionRecheck,
+        ),
+      );
+      await harness.settle();
+
+      expect(document.activeElement).toBe(saveButton());
+      expect(field().value).toBe(TYPED);
+    });
+
     it("sends nothing by itself, and saves the note once when the person says they are signed in and presses again", async () => {
       serve(() => UNAUTHENTICATED_ANSWER);
       await harness.mount({ locale });
