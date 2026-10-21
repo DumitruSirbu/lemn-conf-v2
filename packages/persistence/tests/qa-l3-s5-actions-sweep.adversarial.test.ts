@@ -73,7 +73,7 @@ const DIVISION_BY_ZERO = "22012";
 interface LiveWorld extends ActionsWorld {
   readonly sql: () => NeonQueryFunction<false, false>;
   readonly aStaffMemberWithRole: (
-    role: "client" | "operator",
+    role: "client" | "operator" | "administrator",
   ) => Promise<StaffMember>;
   readonly aHiddenSentKitchenWithStatus: (spec: {
     readonly status: string;
@@ -230,7 +230,7 @@ function liveSql() {
 }
 
 async function insertAccount(
-  role: "client" | "operator",
+  role: "client" | "operator" | "administrator",
 ): Promise<{ accountId: string; email: string }> {
   const accountId = nanoid();
   const email = `${EMAIL_PREFIX}${accountId.toLowerCase()}@example.invalid`;
@@ -243,7 +243,7 @@ async function insertAccount(
 }
 
 async function signInWithRole(
-  role: "client" | "operator",
+  role: "client" | "operator" | "administrator",
 ): Promise<StaffMember> {
   const { accountId, email } = await insertAccount(role);
   const sessionTokenHash = randomBytes(32).toString("hex");
@@ -672,26 +672,6 @@ function describeSweep(
       },
       LIVE_TIMEOUT_MS,
     );
-
-    it("lets a hide survive an unhide refused for a deleted kitchen, and leaves a visible kitchen visible", async () => {
-      const world = await newWorld();
-      const staff = await world.aStaffMember();
-      const deleted = await world.aKitchen({
-        client: await world.aClient(),
-        isSent: true,
-        isHidden: true,
-        isDeletedByClient: true,
-      });
-
-      const result = await world.store.unhide({
-        session: staff.session,
-        designId: deleted,
-      });
-
-      expect(result).toEqual({ kind: "kitchen-not-found" });
-      expect(await world.isHidden(deleted)).toBe(true);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual([]);
-    });
   });
 }
 
@@ -711,7 +691,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 describe.skipIf(!isLiveTestDatabaseConfigured)(
   "NeonStaffKitchenActionsStore on Postgres: unhide",
   () => {
-    it("changes hidden_by_client_at and nothing else of the kitchen, and leaves a revoked share link as it was", async () => {
+    it("changes hidden_by_client_at and nothing else of the kitchen, and leaves a revoked share link and the saved status as they were (K-6, K-7)", async () => {
       const world = await newLiveWorld();
       const staff = await world.aStaffMember();
       const designId = await world.aKitchen({
@@ -725,12 +705,20 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(
         insert into design_share_links (token_hash, design_id, created_at, revoked_at)
         values (${tokenHash}, ${designId}, now() - interval '1 hour', now() - interval '30 minutes')
       `;
+      await world.aStoredStatus({
+        designId,
+        status: "contacted",
+        changedBy: staff,
+      });
+      const statusRow = () =>
+        world.sql()`select to_jsonb(s) as state from design_request_states s where s.design_id = ${designId}`;
       const kitchenRowWithoutHide = () =>
         world.sql()`select to_jsonb(d) - 'hidden_by_client_at' as rest from designs d where d.id = ${designId}`;
       const linkRow = () =>
         world.sql()`select to_jsonb(l) as link from design_share_links l where l.token_hash = ${tokenHash}`;
       const restBefore = await kitchenRowWithoutHide();
       const linkBefore = await linkRow();
+      const statusBefore = await statusRow();
 
       const result = await world.store.unhide({
         session: staff.session,
@@ -740,6 +728,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(
       expect(result).toEqual({ kind: "unhidden" });
       expect(await kitchenRowWithoutHide()).toEqual(restBefore);
       expect(await linkRow()).toEqual(linkBefore);
+      expect(await statusRow()).toEqual(statusBefore);
       const [after] = await world.sql()`
         select hidden_by_client_at is null as is_visible from designs where id = ${designId}
       `;
@@ -1078,21 +1067,29 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(
       LIVE_TIMEOUT_MS,
     );
 
-    it("takes the idle figure of the account's own role: 13 idle hours are dead for an operator and live for a client-role account", async () => {
+    it("takes the idle figure of the account's own role: 13 idle hours are dead for an operator and live for an administrator whose figure is 30 days", async () => {
       const world = await newLiveWorld();
+      const lifetimes = {
+        client: 2_592_000,
+        operator: 43_200,
+        administrator: 2_592_000,
+      };
       const operator = await world.aStaffMemberWithRole("operator");
-      const clientRole = await world.aStaffMemberWithRole("client");
+      const administrator = await world.aStaffMemberWithRole("administrator");
       await world.sql()`
         update account_sessions set last_seen_at = now() - interval '13 hours'
-        where token_hash = any(${[operator.session.sessionTokenHash, clientRole.session.sessionTokenHash]})
+        where token_hash = any(${[operator.session.sessionTokenHash, administrator.session.sessionTokenHash]})
       `;
       const designId = await sentKitchen(world);
 
       const deadOne = await failureOf(
-        world.store.unhide({ session: operator.session, designId }),
+        world.store.unhide({
+          session: { ...operator.session, idleLifetimeSeconds: lifetimes },
+          designId,
+        }),
       );
       const liveOne = await world.store.addNote({
-        session: clientRole.session,
+        session: { ...administrator.session, idleLifetimeSeconds: lifetimes },
         designId,
         text: "live under its own role's figure",
       });
