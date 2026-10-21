@@ -626,6 +626,32 @@ describe("rows the build does not recognise", () => {
     },
   );
 
+  it("keeps a row the store reads as recognised under a code this build does not list as unrecognised: its action, no detail, and the page still 200", async () => {
+    const { session, account } = await signedInAdministrator();
+    plantEvent(auditWorld, { actorAccountId: account.id });
+    auditWorld.decoratePage = (page) => ({
+      ...page,
+      events: page.events.map((row) => ({
+        ...row,
+        reading: {
+          kind: "recognised" as const,
+          entry: {
+            action: "preset-hidden",
+            detail: { note: "SECRET-DETAIL" },
+          } as never,
+        },
+      })),
+    });
+
+    const answer = await route.GET(auditRequest({ cookie: session.cookie }));
+
+    expect(answer.status).toBe(200);
+    expect((await pageOf(answer)).events.map(({ entry }) => entry)).toEqual([
+      { kind: "unrecognised", action: "preset-hidden" },
+    ]);
+    expect(await answer.clone().text()).not.toContain("SECRET");
+  });
+
   it("filters by an action it recognises without dropping the unrecognised rows of an unfiltered page", async () => {
     const { session, account } = await signedInAdministrator();
     plantEvent(auditWorld, {

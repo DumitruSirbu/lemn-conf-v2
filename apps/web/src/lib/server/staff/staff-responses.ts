@@ -286,7 +286,18 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
     case "note-added":
     case "kitchen-unhidden":
       return { kind: "recognised", action: entry.action, detail: null };
+    default:
+      return degradedEntryOf(entry);
   }
+}
+
+// `entry` is `never` here while the switch names every action the domain lists, so a new domain action is a compile
+// error until its arm is written. At run time a reading under a code the switch does not name (a build whose domain
+// and store disagree) still degrades: the row is kept as unrecognised, with its action and no detail, never dropped
+// and never a reason to fail the page.
+function degradedEntryOf(entry: never): StaffAuditEntryWire {
+  const { action } = entry as { readonly action: unknown };
+  return { kind: "unrecognised", action: String(action) };
 }
 
 function auditKitchenWireOf(
