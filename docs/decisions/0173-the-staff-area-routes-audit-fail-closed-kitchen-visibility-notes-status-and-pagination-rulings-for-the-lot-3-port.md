@@ -100,6 +100,23 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
 - **The 8 KiB body cap** rejects roughly 910 or more decomposed Hangul syllables (each is three code points). Wave L3-U4
   must normalise a note to NFC before sending it.
 
+## Residuals of the L3-S8 audit page, 2026-10-21 [relayed by the coordinator; the scribe ran nothing]
+
+- **The audit page's bucket is PROVISIONAL.** P-L3-11 names no figure for it; `staff-audit-page-by-account` borrows the
+  list's 300 an hour per account and, like the list, fails closed. The owner's to retune; it is a constant.
+- **The date filter's bounds are ours.** A day filter accepts the years 2000 to 9998: below 2000 is before the product, and
+  `Date.UTC` reads a year under 100 as 19xx; above 9998 the day after is past the last instant the table reads back.
+- **The page returns staff and client e-mails in bulk and is not itself audited**, per P-L3-3 ("The list (E-L3-1) and the
+  audit page (E-L3-6) are not logged"; the 2026-10-21 owner ruling above changed only the kitchens list). It is bounded by
+  `audit.read` (administrator with a confirmed address), the fail-closed bucket and the network read limit. **The owner may
+  revisit**, as the same bulk-harvest reasoning that got the list audited applies.
+- **The actor's account id is on the wire.** The coordinator ruled that each row's `actor.id` is sent, so the "Persoana"
+  filter can offer actors from the rows already shown and send `actor=<id>`. No other account id is (the subject, the
+  kitchen's owner and the client are named by address alone). The answer is administrator-only and fail-closed, and ids
+  are unguessable.
+- **Unrecognised actions appear only on unfiltered pages.** The action filter accepts the five closed codes only, while
+  the store would accept any table-shaped code; a row the build does not know is therefore found by paging, not by filter.
+
 ## Not covered
 
 - The staff-invitation mechanism (O-L3-4) and the preset visibility and order grant (O-L3-5). Each needs its own record

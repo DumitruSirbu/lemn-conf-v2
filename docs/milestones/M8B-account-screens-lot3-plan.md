@@ -221,9 +221,15 @@ and **the one kitchen refusal** for unknown, malformed and client-deleted ids.
 | E-L3-3 | `POST /api/staff/kitchens/{id}/notes` | `{text}` | `201 {note}`; `400 invalid-input` (field `text`); refusal | `note.write` | `note-added`, same transaction |
 | E-L3-4 | `PUT /api/staff/kitchens/{id}/status` | `{status}` | `200 {status, changedBy, changedAt}`; `409 {status:"not-sent"}`; `400` | `contact.update-status` | `status-changed` (from, to), same transaction |
 | E-L3-5 | `POST /api/staff/kitchens/{id}/unhide` | — | `204`; `409 {status:"not-hidden"}`; refusal | `design.unhide` | `kitchen-unhidden`, same transaction |
-| E-L3-6 | `GET /api/staff/audit?actor=&action=&from=&to=&page=` | — | `200 {total, page, events:[{at, actor:{email}, action, object}]}` | `audit.read` | none |
+| E-L3-6 | `GET /api/staff/audit?actor=&action=&from=&to=&page=` | — | `200 {total, page, pageSize, events:[{id, occurredAt, entry, actor:{id, email, name}, subject, kitchen}]}`; `400 invalid-input` | `audit.read` | none |
 | E-L3-7 | `GET /api/staff/presets`, `POST /api/staff/presets/{id}/visibility {visible}`, `POST /api/staff/presets/{id}/move {direction}` | — | `200` list incl. hidden; `204`; `409 {status:"at-edge"}` | `preset.manage` | `preset-hidden`, `preset-shown`, `preset-moved` |
 | E-L3-8 | `POST /api/staff/invitations {email, role}`; `GET /api/staff/team`; `POST /api/staff/invitations/accept {token, newPassword}` | — | `202 {status:"invitation-queued"}` for every well-formed address; list; `200 {status:"account-ready"}` / one `400 link-invalid` | `user.manage`; accept: none (the token is the subject) | `staff-invited` (role; the invitation id, no address) |
+
+**E-L3-6 as built (L3-S8).** `entry` is `{kind:"recognised", action, detail}` (`detail` is `{from, to}` for `status-changed`, the
+five `kitchens-listed` counts, or `null`) or `{kind:"unrecognised", action}`, which carries nothing of the stored detail.
+`actor` is `{id, email, name}` (the only account id on the wire, ADR 0173 residuals; `email` and `name` are `null` when the
+account is gone), `subject` is `{email}|null`, `kitchen` is `{id, name|null, client:{email}|null}|null`. The `400` names a
+field and a code, never the value.
 
 E-L3-7 waits on O-L3-5, E-L3-8 on O-L3-4. The notes list rides E-L3-2 (newest first, P-L3-5).
 
