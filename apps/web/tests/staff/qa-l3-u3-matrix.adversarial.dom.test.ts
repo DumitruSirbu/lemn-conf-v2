@@ -401,6 +401,7 @@ describe.each(LOCALES)(
         const cardWords = textOutsideTheSelect(card);
         if (combination.status === "none") {
           expect(badge).toBeNull();
+          expect(requireIn<HTMLSelectElement>(card, "select").value).toBe("");
           expect(cardWords).toContain(lists.noValue);
           expect(cardWords).not.toContain(lists.statusNew);
           expect(has("staff-kitchen-last-change")).toBe(false);

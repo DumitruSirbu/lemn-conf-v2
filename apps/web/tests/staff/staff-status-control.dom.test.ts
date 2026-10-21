@@ -163,6 +163,17 @@ describe.each(LOCALES)("the status control in %s", (locale) => {
       expect(saveButton().getAttribute("type")).toBe("button");
     });
 
+    it("holds nothing, like the badge, for a sent kitchen the read gives no status at all", async () => {
+      serve(() => statusSaved("new"), wireKitchen({ status: null }));
+      await harness.mount({ locale });
+
+      expect(select().value).toBe("");
+      expect(requireIn(select(), 'option[value=""]').textContent).toBe(
+        copy.statusPlaceholder,
+      );
+      expect(card().textContent).toContain(lists.noValue);
+    });
+
     it("holds the new status for a kitchen no status was ever saved for", async () => {
       serve(() => statusSaved("new"));
       await harness.mount({ locale });
@@ -378,6 +389,28 @@ describe.each(LOCALES)("the status control in %s", (locale) => {
         expect(badge().textContent).toBe(labelOf.closed);
       },
     );
+
+    it("leaves the draft's own explanation, and no control, when the re-read finds the kitchen is no request", async () => {
+      serve(
+        () => conflict("not-sent"),
+        wireKitchen(),
+        () => wireDraftKitchen(),
+      );
+      await harness.mount({ locale });
+
+      await save();
+
+      expect(
+        allIn(harness.container(), '[data-testid="staff-status-control"]'),
+      ).toHaveLength(0);
+      expect(
+        requireIn(
+          harness.container(),
+          '[data-testid="staff-kitchen-no-status"]',
+        ).textContent,
+      ).toBe(CATALOGUES[locale].staffKitchen.draftNoStatus);
+      expect(readsOf(harness.server)).toHaveLength(2);
+    });
 
     it("keeps the page as it was when the read behind it fails", async () => {
       let reads = 0;

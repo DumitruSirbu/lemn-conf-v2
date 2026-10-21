@@ -56,13 +56,13 @@ export function StaffStatusControl({
   );
 }
 
-/** The status the select holds at first: the one the page read when this build names it, new while none was saved, and
- *  nothing for a stored text it does not name. */
+/** The status the select holds at first: the one the page read when this build names it, and nothing for a stored text it
+ *  does not name or for none at all, so the select never says what the badge beside it does not. */
 function listedStatusOf(
   status: StaffKitchenStatusWire | null,
 ): StatusControl["selected"] {
-  if (status === null) return "new";
-  return status.value === "unrecognised" ? null : status.value;
+  if (status === null || status.value === "unrecognised") return null;
+  return status.value;
 }
 
 function StatusFields({ control }: { readonly control: StatusControl }) {
