@@ -12,6 +12,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { designNotFoundResponse } from "@/lib/server/design-errors";
 import { PRESET_CREATIONS_PER_DAY_FIGURE } from "@/lib/server/rate-limit/limit-policy";
 
+import {
+  freshPresetAuthorWorld,
+  type PresetAuthorWorld,
+} from "../../../support/preset-author-world";
+
 /**
  * M8C wave P3 (plan section 4, exception 2): every refusal of `POST /api/designs/{id}/preset` through the real route,
  * the real limiters (counted in the shared setup's in-memory store) and the persistence package's fake preset
@@ -64,16 +69,26 @@ vi.mock("@/lib/server/repository", () => ({
   getPresetRepository: () => presets.current,
 }));
 
+vi.mock("@/lib/server/account/session-store-instance", () =>
+  import("../../../support/preset-author-world").then((world) =>
+    world.presetAuthorSessionStoreModule(),
+  ),
+);
+
 const { POST: savePreset } = await import(
   "../../../../src/app/api/designs/[id]/preset/route"
 );
 
 let fakePresets: FakePresetRepository;
+let world: PresetAuthorWorld;
 
-beforeEach(() => {
+beforeEach(async () => {
   fakePresets = new FakePresetRepository();
   presets.current = fakePresets;
   storedDesign.current = KITCHEN_L_DESIGN;
+  world = freshPresetAuthorWorld();
+  const administrator = await world.signIn({ role: "administrator" });
+  VALID_HEADERS.cookie = `${AUTHOR_CREDENTIALS_COOKIE}; ${administrator.cookie}`;
 });
 
 // ---- Images: only their headers are real, which is all the route reads ----
@@ -104,9 +119,13 @@ interface SaveRequest {
   readonly fields?: Record<string, unknown>;
 }
 
+const AUTHOR_CREDENTIALS_COOKIE = `lemnaria_write_token_${DESIGN_ID}=${WRITE_TOKEN}; ${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`;
+
+/** The one valid request: the design's own credentials and a live administrator session (`beforeEach` adds the
+ *  session, which only the policy reads). Mutated there because a session value is minted per test. */
 const VALID_HEADERS: Record<string, string> = {
   "sec-fetch-site": "same-origin",
-  cookie: `lemnaria_write_token_${DESIGN_ID}=${WRITE_TOKEN}; ${VISITOR_COOKIE_NAME}=${VISITOR_VALUE}`,
+  cookie: AUTHOR_CREDENTIALS_COOKIE,
 };
 
 function validFields(): Record<string, unknown> {
@@ -167,6 +186,45 @@ describe("POST /api/designs/{id}/preset: the valid request, the control for ever
 
     const names = fakePresets.heldPresets().map((held) => held.typedName);
     expect(names).toEqual(["Café", undefined, undefined]);
+  });
+});
+
+describe("POST /api/designs/{id}/preset: a holder of the design's credentials who may not author presets answers the design-not-found response and stores nothing", () => {
+  function withSession(sessionCookie: string | undefined) {
+    return {
+      ...VALID_HEADERS,
+      cookie:
+        sessionCookie === undefined
+          ? AUTHOR_CREDENTIALS_COOKIE
+          : `${AUTHOR_CREDENTIALS_COOKIE}; ${sessionCookie}`,
+    };
+  }
+
+  async function expectRefusedAsNotFound(headers: Record<string, string>) {
+    const response = await save({ headers });
+
+    const expected = designNotFoundResponse(DESIGN_ID);
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe(await expected.text());
+    expect([...response.headers]).toEqual([...expected.headers]);
+    expect(fakePresets.heldPresets()).toHaveLength(0);
+  }
+
+  it.each(["client", "operator"] as const)("a signed-in %s", async (role) => {
+    const session = await world.signIn({ role });
+
+    await expectRefusedAsNotFound(withSession(session.cookie));
+  });
+
+  it("no session at all", async () => {
+    await expectRefusedAsNotFound(withSession(undefined));
+  });
+
+  it("an administrator whose session the store cannot be asked about", async () => {
+    const administrator = await world.signIn({ role: "administrator" });
+    world.breakSessionLookups();
+
+    await expectRefusedAsNotFound(withSession(administrator.cookie));
   });
 });
 
