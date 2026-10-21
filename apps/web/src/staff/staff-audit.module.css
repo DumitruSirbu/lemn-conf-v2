@@ -1,0 +1,234 @@
+/* The audit log (Lot 3 frames S8A to S8E, DS8A to DS8E: the filter bar, the table, the row card and the skeleton). The page,
+ * the heading, the count, the foot, the page numbers and the state blocks are the kitchens list's own classes. A phone
+ * draws cards and "Încarcă mai multe"; from 900 px the log is a table with numbered pages. Every interactive box is at
+ * least `--touch-target` tall. */
+.note {
+  margin: -8px 0 0;
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 12px;
+  align-items: flex-start;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.field[data-width="wide"] {
+  flex: 1 1 100%;
+}
+
+.field[data-width="day"] {
+  flex: 1 1 calc(50% - 6px);
+}
+
+.dayInput {
+  min-height: 48px;
+  padding: 0 14px;
+  font: 400 15px/1.3 var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.dayInput:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dayInput[aria-invalid="true"] {
+  border-color: var(--staff-refusal-ink);
+}
+
+.problem {
+  flex: 1 1 100%;
+  margin: 0;
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--staff-refusal-ink);
+}
+
+.when {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.action {
+  display: block;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.card {
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.card:focus {
+  outline: none;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cardFacts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.cardFact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardLabel {
+  font: 700 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.cardValue {
+  margin: 0;
+  font: 400 14px/1.35 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.table {
+  width: 100%;
+  min-width: 760px;
+  table-layout: fixed;
+  border-spacing: 0;
+  border-collapse: separate;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.table th,
+.table td {
+  padding: 12px 10px;
+  font: 400 14px/1.35 var(--font-ui);
+  color: var(--ink);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line-soft);
+  overflow-wrap: anywhere;
+}
+
+.table thead th {
+  font: 700 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--surface);
+}
+
+.table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.skeletonRows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.skeletonRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.skeletonLine {
+  display: block;
+  height: 12px;
+  background: var(--tint);
+  border-radius: 4px;
+}
+
+.skeletonLine[data-size="when"] {
+  width: 80%;
+}
+
+.skeletonLine[data-size="who"] {
+  width: 75%;
+}
+
+.skeletonLine[data-size="action"] {
+  width: 60%;
+}
+
+.skeletonLine[data-size="object"] {
+  width: 85%;
+}
+
+@media (min-width: 900px) {
+  .note {
+    margin-top: -12px;
+  }
+
+  .field[data-width="wide"] {
+    flex: 0 0 280px;
+  }
+
+  .field[data-width="day"] {
+    flex: 0 0 170px;
+  }
+
+  .filters {
+    gap: 16px 20px;
+    align-items: flex-end;
+  }
+
+  .problem {
+    flex-basis: 100%;
+  }
+
+  /* The frame's grid: 170 px, 1.3fr 1.2fr 2.2fr. The fixed column is 170 px and the fluid ones share exactly what is left. */
+  .table thead th:nth-child(1) {
+    width: 170px;
+  }
+
+  .table thead th:nth-child(2) {
+    width: calc((100% - 170px) * 1.3 / 4.7);
+  }
+
+  .table thead th:nth-child(3) {
+    width: calc((100% - 170px) * 1.2 / 4.7);
+  }
+
+  .table thead th:nth-child(4) {
+    width: calc((100% - 170px) * 2.2 / 4.7);
+  }
+}

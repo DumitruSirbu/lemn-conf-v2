@@ -213,7 +213,7 @@ function useFocusOnFirstAppendedRow(
   }, [focusRequest]);
 }
 
-function useIsDesktop(): boolean {
+export function useIsDesktop(): boolean {
   return useSyncExternalStore(
     subscribeToDesktopWidth,
     () => matchesMedia(DESKTOP_MEDIA_QUERY),

@@ -130,7 +130,7 @@ export function LoadingKitchens() {
 
 /** Empty on the render that draws the region, the text on the next tick: a live region announces a change, not what it
  *  was drawn with. */
-function useTextAfterFirstPaint(text: string): string {
+export function useTextAfterFirstPaint(text: string): string {
   const [isFilled, setIsFilled] = useState(false);
   useEffect(() => {
     const timer = setTimeout(() => {

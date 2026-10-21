@@ -98,7 +98,7 @@ export function StaffPagination({
   );
 }
 
-function PageNumbers({
+export function PageNumbers({
   current,
   pageCount,
   onGoToPage,
@@ -164,7 +164,7 @@ function PageNumbers({
 
 /** The button stays reachable while a page is out or a limit's wait is counted down (`aria-disabled`, not `disabled`), so
  *  focus is never dropped from it; it ignores a press then and wakes when the wait ends. Nothing asks on its own. */
-function LoadMore({
+export function LoadMore({
   hasMore,
   more,
   onLoadMore,
