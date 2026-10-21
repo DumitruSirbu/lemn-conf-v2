@@ -1435,6 +1435,79 @@ export function resolveStaffKitchensCopy(translate: ContentTranslator) {
 
 export type StaffKitchensCopy = ReturnType<typeof resolveStaffKitchensCopy>;
 
+/** One client's kitchen as staff read it: the view's labels, the summary's rows, the lines of the client and of the request,
+ *  the caption, and the words of a kitchen that is not there or cannot be shown. The words the list already has (the
+ *  statuses, "Fără cont", the phone's "neverificat") are the list's own and are not said twice. */
+export function resolveStaffKitchenCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("staffKitchen.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("staffKitchen.title"),
+    loading: translate("staffKitchen.loading"),
+    view: {
+      readOnly: translate("staffKitchen.viewOnly"),
+      label: translate("staffKitchen.viewLabel"),
+      current: translate("staffKitchen.viewCurrent"),
+      noWebGl: translate("staffKitchen.viewNoWebgl"),
+    },
+    sub: {
+      sent: (details: { email: string; date: string }) =>
+        translate("staffKitchen.subSent", details),
+      sentNoAccount: (date: string) =>
+        translate("staffKitchen.subSentNoAccount", { date }),
+      draft: (details: { email: string; when: string }) =>
+        translate("staffKitchen.subDraft", details),
+      draftNoAccount: (when: string) =>
+        translate("staffKitchen.subDraftNoAccount", { when }),
+    },
+    hiddenBanner: translate("staffKitchen.hiddenBanner"),
+    summary: {
+      titleSent: translate("staffKitchen.summaryTitleSent"),
+      titleCurrent: translate("staffKitchen.summaryTitleCurrent"),
+      shape: translate("staffKitchen.summaryShape"),
+      shapeName: (shape: DesignRoomShape) =>
+        resolvePresetShapeName(translate, shape),
+      walls: translate("staffKitchen.summaryWalls"),
+      wallsValue: (walls: string) =>
+        translate("staffKitchen.summaryWallsValue", { walls }),
+      material: translate("staffKitchen.summaryMaterial"),
+      hardware: translate("staffKitchen.summaryHardware"),
+      finish: translate("staffKitchen.summaryFinish"),
+      bodies: translate("staffKitchen.summaryBodies"),
+      price: translate("staffKitchen.summaryPrice"),
+      priceNote: translate("staffKitchen.summaryPriceNote"),
+    },
+    statusLastChange: (details: { name: string; when: string }) =>
+      translate("staffKitchen.statusLastChange", details),
+    draftNoStatus: translate("staffKitchen.draftNoStatus"),
+    request: {
+      title: translate("staffKitchen.requestTitle"),
+      line: (details: { reference: string; date: string }) =>
+        translate("staffKitchen.requestLine", details),
+      contactNote: translate("staffKitchen.requestContactNote"),
+    },
+    profile: {
+      title: translate("staffKitchen.profileTitle"),
+      tag: translate("staffKitchen.profileTag"),
+      email: translate("staffKitchen.profileEmail"),
+      name: translate("staffKitchen.profileName"),
+      phone: translate("staffKitchen.profilePhone"),
+    },
+    accessLogged: translate("staffKitchen.accessLogged"),
+    notFound: {
+      title: translate("staffKitchen.notFoundTitle"),
+      body: translate("staffKitchen.notFoundBody"),
+    },
+    cannotShow: {
+      title: translate("staffKitchen.cannotShowTitle"),
+      body: translate("staffKitchen.cannotShowBody"),
+    },
+  };
+}
+
+export type StaffKitchenCopy = ReturnType<typeof resolveStaffKitchenCopy>;
+
 /**
  * The list of the account's kitchens. A kitchen the person never named is called by the name its facts generate
  * (`resolvePresetName`), so the list and the preset chooser say the same thing of the same room.

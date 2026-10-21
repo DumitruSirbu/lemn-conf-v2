@@ -1457,6 +1457,55 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     nextPage: "Pagina următoare",
     pageNumber: "Pagina {page, number, ::group-off}",
   },
+  // Drafted, approved as drafted by the owner (O-L3-7, relayed 2026-10-20; ADR 0174 decision 5): the staff kitchen page
+  // (Lot 3 frames S3A, S3B, S3C, S3H and S3I). The words are the frames' own, bar the request line, which is the plan's C-L3-2
+  // wording under the owner's option (c) (the request's reference and date; its contact is in the shop's e-mail), the
+  // summary headings and "Varianta actuală", which tell which copy of the kitchen is on screen, and the texts of a kitchen
+  // whose document this build cannot read and of a browser without WebGL. The owner may reword later.
+  staffKitchen: {
+    metaTitle: "Bucătăria clientului — {brand}",
+    title: "Bucătăria clientului",
+    loading: "Se încarcă bucătăria",
+    viewOnly: "Doar vizualizare",
+    viewLabel: "Vizualizarea 3D a bucătăriei",
+    viewCurrent: "Varianta actuală",
+    viewNoWebgl: "Vizualizarea 3D nu este disponibilă în acest browser.",
+    subSent: "Trimisă de {email} · {date}",
+    subSentNoAccount: "Trimisă fără cont · {date}",
+    subDraft: "Ciornă a {email} · modificată {when}",
+    subDraftNoAccount: "Ciornă fără cont · modificată {when}",
+    hiddenBanner:
+      "Clientul a ascuns această bucătărie și nu o mai poate deschide.",
+    summaryTitleSent: "Configurația trimisă",
+    summaryTitleCurrent: "Configurația actuală",
+    summaryShape: "Formă",
+    summaryWalls: "Pereți",
+    summaryWallsValue: "{walls} mm",
+    summaryMaterial: "Material",
+    summaryHardware: "Feronerie",
+    summaryFinish: "Finisaj fronturi",
+    summaryBodies: "Corpuri",
+    summaryPrice: "Preț estimat",
+    summaryPriceNote:
+      "Preț „de la”, nu ofertă. Oferta exactă se face în alt instrument.",
+    statusLastChange: "Ultima schimbare: {name}, {when}",
+    draftNoStatus: "Ciorna nu are cerere trimisă, deci nu are status.",
+    requestTitle: "Cererea trimisă",
+    requestLine: "Cererea trimisă: {reference}, {date}.",
+    requestContactNote:
+      "Datele de contact din cerere sunt în e-mailul trimis magazinului.",
+    profileTitle: "Contul clientului",
+    profileTag: "Din profil",
+    profileEmail: "E-mail",
+    profileName: "Nume",
+    profilePhone: "Telefon",
+    accessLogged: "Accesul este înregistrat în jurnal.",
+    notFoundTitle: "Bucătăria nu este disponibilă.",
+    notFoundBody: "Poate nu există sau nu ai voie să o vezi.",
+    cannotShowTitle: "Nu putem afișa bucătăria",
+    cannotShowBody:
+      "Documentul ei nu poate fi citit de această versiune a aplicației. Datele clientului și ale cererii rămân afișate.",
+  },
 } as const;
 
 export function isRomanianCopyApproved(actual: unknown): boolean {
