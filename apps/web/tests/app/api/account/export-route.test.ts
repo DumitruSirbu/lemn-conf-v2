@@ -88,6 +88,8 @@ interface ExportFile {
     isSent: boolean;
     isHidden: boolean;
     design: unknown;
+    notes: { text: string; createdAt: string }[];
+    notesTruncated: boolean;
   }[];
 }
 
@@ -173,11 +175,12 @@ describe("the order of the checks", () => {
       "sessions.findLive",
       "kitchens.measureExport",
     ]);
-    expect([...world.calls.slice(2)].sort()).toEqual([
+    expect([...world.calls.slice(2, -1)].sort()).toEqual([
       "accounts.findById",
       "accounts.findProfile",
       "kitchens.exportAll",
     ]);
+    expect(world.calls.at(-1)).toBe("kitchens.exportNotes");
     expect(limiterLedger.counted).toEqual([EXPORT_POLICY_NAME]);
   });
 
@@ -229,6 +232,7 @@ describe("the order of the checks", () => {
     for (const method of [
       "kitchens.measureExport",
       "kitchens.exportAll",
+      "kitchens.exportNotes",
       "accounts.findById",
       "accounts.findProfile",
     ]) {
@@ -369,7 +373,7 @@ describe("the file", () => {
       "formatVersion",
       "kitchens",
     ]);
-    expect(file.formatVersion).toBe(1);
+    expect(file.formatVersion).toBe(2);
     expect(Math.abs(Date.parse(file.exportedAt) - Date.now())).toBeLessThan(
       10_000,
     );
@@ -388,6 +392,8 @@ describe("the file", () => {
         isSent: true,
         isHidden: false,
         design: world.kitchens.held(id)?.design,
+        notes: [],
+        notesTruncated: false,
       },
     ]);
   });
