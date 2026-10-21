@@ -1306,6 +1306,10 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       "select * from staff_audit_events where (occurred_at, id) < ('2026-02-01T00:00:00Z'::timestamptz, 'x') order by occurred_at desc, id desc limit 20";
     const NOTES_OF_A_KITCHEN = `select * from design_notes where design_id = '${"0".repeat(20)}7' order by created_at desc limit 50`;
 
+    /** A few hundred rows: planner switches, not statistics, decide the plan, so nothing is analysed and a rolled-back
+     *  run leaves next to nothing for the database to clean up. */
+    const SEEDED_ROWS = 300;
+
     async function seed(table: string): Promise<void> {
       const columns =
         table === "design_notes"
@@ -1313,12 +1317,11 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           : "id, occurred_at, actor_account_id, action, design_id";
       const values =
         table === "design_notes"
-          ? "lpad(g::text, 21, '0'), lpad((g % 400)::text, 21, '0'), repeat('a', 21), 'n', timestamptz '2026-01-01' + g * interval '1 minute'"
-          : "lpad(g::text, 21, '0'), timestamptz '2026-01-01' + (g % 3000) * interval '1 minute', repeat('a', 21), 'kitchen-opened', lpad((g % 200)::text, 21, '0')";
+          ? "lpad(g::text, 21, '0'), lpad((g % 20)::text, 21, '0'), repeat('a', 21), 'n', timestamptz '2026-01-01' + g * interval '1 minute'"
+          : "lpad(g::text, 21, '0'), timestamptz '2026-01-01' + (g % 3000) * interval '1 minute', repeat('a', 21), 'kitchen-opened', lpad((g % 20)::text, 21, '0')";
       await client.query(
-        `insert into ${table} (${columns}) select ${values} from generate_series(1, 20000) as g`,
+        `insert into ${table} (${columns}) select ${values} from generate_series(1, ${String(SEEDED_ROWS)}) as g`,
       );
-      await client.query(`analyze ${table}`);
     }
 
     /** Planner switches that leave an index scan as the only way to deliver the order without a sort node. */
@@ -1372,7 +1375,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         ),
       );
       await client.query(
-        "insert into qa_unindexed (id, occurred_at, actor_account_id, action) select lpad(g::text, 21, '0'), timestamptz '2026-01-01' + g * interval '1 minute', repeat('a', 21), 'kitchen-opened' from generate_series(1, 5000) as g",
+        "insert into qa_unindexed (id, occurred_at, actor_account_id, action) select lpad(g::text, 21, '0'), timestamptz '2026-01-01' + g * interval '1 minute', repeat('a', 21), 'kitchen-opened' from generate_series(1, 300) as g",
       );
       await client.query("analyze qa_unindexed");
 
