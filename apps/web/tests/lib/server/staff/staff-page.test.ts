@@ -234,7 +234,11 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
 
     expect(await readStaffPage({ locale: "ro", page: "kitchens" })).toEqual({
       kind: "signed-in",
-      shell: { role: "operator", email: STAFF_ADDRESS, navigation: [] },
+      shell: {
+        role: "operator",
+        email: STAFF_ADDRESS,
+        navigation: ["kitchens"],
+      },
     });
   });
 
@@ -243,7 +247,11 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
 
     expect(await readStaffPage({ locale: "ro", page: "audit" })).toEqual({
       kind: "staff-forbidden",
-      shell: { role: "operator", email: STAFF_ADDRESS, navigation: [] },
+      shell: {
+        role: "operator",
+        email: STAFF_ADDRESS,
+        navigation: ["kitchens"],
+      },
     });
   });
 
@@ -252,7 +260,11 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
 
     expect(await readStaffPage({ locale: "ro", page: "audit" })).toEqual({
       kind: "signed-in",
-      shell: { role: "administrator", email: STAFF_ADDRESS, navigation: [] },
+      shell: {
+        role: "administrator",
+        email: STAFF_ADDRESS,
+        navigation: ["kitchens"],
+      },
     });
   });
 });
