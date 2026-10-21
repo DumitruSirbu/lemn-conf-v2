@@ -464,6 +464,17 @@ residuals*; runbook `0020`–`0022` section, *Conditions on the store*.
 - **L3-S5 (actions store).** Add `, id desc` to the notes `order by`. An unknown stored status must not be coerced to
   "Nouă"; acceptance test required. The audit row's `from` must come from the same locked read, or the upsert's returning
   clause, as the write. Decide whether a no-op status save (same status) writes an audit row.
+- **L3-S5 (the audit statement, from the L3-S3 reviews).** The audit insert is **unconditional on the caller's write**: in a
+  `[write, audit]` batch a write that changes nothing still commits an audit row, so S5's own write must raise (a
+  SQLSTATE other than 22012) when it changes nothing, and S5 maps that to its 409; `staffAuditStoreErrorFrom` reads 22012
+  as `not-recorded` for any batch, so S5 classifies its own raise first; the batch is not retried (the event id is minted
+  once; a repeat after a lost acknowledgement double-inserts or hits the primary key); `requireOneAuditRowInserted` takes
+  the audit statement's own element of the batch reply. The port's doc comments (`staff-audit-store.ts`) carry the same four.
+- **L3-S8 (audit page).** The "Persoană" dropdown has no data source (the team list is deferred): S8 uses a typed filter
+  or adds a staff-accounts listing, an owner decision at S8. S8 validates actor, action and the dates and turns each day
+  into the half-open window with `chisinauDayOf`, where `occurredBefore` is the start of the next Chisinau day (never +24 h).
+  Residual, measured on the test database: the page's count scans every matching row, as any total must; the page itself
+  walks the newest-first index (`not materialized`).
 - **L3-S6.** Owner question (open): E-L3-1 returns e-mail, name and phone in bulk and is not itself audited (ADR 0173).
 - **L3-U4 (notes UI).** A tab or CR in a note makes the domain refuse it; the UI must name that cause in its error.
 
