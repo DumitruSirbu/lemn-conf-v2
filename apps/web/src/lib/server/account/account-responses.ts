@@ -22,7 +22,7 @@ import type { ReadJudgement } from "@/lib/server/rate-limit/judge-read-request";
 // of a `status` word and nothing else but what that status needs, and none holds a password, a token, an address or
 // a number that tells a count. A route builds no `NextResponse` of its own, so this file is the whole list.
 
-const ACCOUNT_RESPONSE_HEADERS = {
+export const ACCOUNT_RESPONSE_HEADERS = {
   "Cache-Control": "private, no-store",
 } as const;
 
