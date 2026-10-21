@@ -289,7 +289,7 @@ function subOf({
     const date = dayOf(sentAt, locale);
     return client === null
       ? copy.sub.sentNoAccount(date)
-      : copy.sub.sent({ email: client.email, date });
+      : copy.sub.sent({ email: isolated(client.email), date });
   }
   const when = formatRelativeAge(
     locale,
@@ -297,7 +297,7 @@ function subOf({
   );
   return client === null
     ? copy.sub.draftNoAccount(when)
-    : copy.sub.draft({ email: client.email, when });
+    : copy.sub.draft({ email: isolated(client.email), when });
 }
 
 function HiddenBanner() {
@@ -380,7 +380,8 @@ function LastChange({
 }) {
   if (status?.changedAt == null) return null;
   const who = status.changedBy;
-  const name = who?.name ?? who?.email ?? lists.noValue;
+  const typedName = who?.name ?? who?.email ?? null;
+  const name = typedName === null ? lists.noValue : isolated(typedName);
   return (
     <p className={styles.hint} data-testid="staff-kitchen-last-change">
       {copy.statusLastChange({
@@ -494,6 +495,15 @@ function Card({
       {children}
     </section>
   );
+}
+
+const FIRST_STRONG_ISOLATE = "\u2068";
+const POP_DIRECTIONAL_ISOLATE = "\u2069";
+
+/** A string somebody typed, fenced between isolate marks where it stands inside a sentence, so a right-to-left run left open
+ *  in it cannot reorder the date or the minute beside it. (A value in an element of its own is isolated by the stylesheet.) */
+export function isolated(typed: string): string {
+  return `${FIRST_STRONG_ISOLATE}${typed}${POP_DIRECTIONAL_ISOLATE}`;
 }
 
 /** The day as dd.mm.yyyy on the shop's clock, whatever clock the browser keeps. */

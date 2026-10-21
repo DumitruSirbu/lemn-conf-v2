@@ -206,7 +206,7 @@ describe("ids the list may name", () => {
     ["markup", '"><img src=x onerror=alert(1)>'],
     ["a selector", "a],a[href"],
     ["a line break", "a\nb"],
-    ["a right-to-left override", "a‮b"],
+    ["a right-to-left override", "a\u202Eb"],
   ])("refuses the whole page when a row's id holds %s", (_label, id) => {
     expect(
       staffKitchenListFrom(

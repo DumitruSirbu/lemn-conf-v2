@@ -77,6 +77,8 @@ const CONTEXT: StaffShellContext = {
   navigation: ["kitchens"],
 };
 const NOW = "2026-10-21T12:00:00.000Z";
+/** The sender's address as the sentence under the title carries it: between isolate marks. */
+const isolatedAddress = "\u2068ana.popescu@mail.md\u2069";
 const KITCHEN_ADDRESS = `/api/staff/kitchens/${STAFF_KITCHEN_ID}`;
 const PAGE = '[data-testid="staff-kitchen-page"]';
 
@@ -245,7 +247,10 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
     it("names the kitchen by what the client called it, and the sender and the day beneath", () => {
       expect(requireIn(page(), "h1").textContent).toBe("Casa din Orhei");
       expect(page().textContent).toContain(
-        say("subSent", { email: "ana.popescu@mail.md", date: "17.10.2026" }),
+        say("subSent", {
+          email: isolatedAddress,
+          date: "17.10.2026",
+        }),
       );
     });
 
@@ -342,7 +347,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
 
       expect(textOf("staff-kitchen-last-change")).toBe(
         say("statusLastChange", {
-          name: "Mihai Rusu",
+          name: "\u2068Mihai Rusu\u2069",
           when: "18.10.2026, 14:22",
         }),
       );
@@ -481,7 +486,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
       );
 
       expect(page().textContent).toContain(
-        say("subDraft", { email: "ana.popescu@mail.md", when }),
+        say("subDraft", { email: isolatedAddress, when }),
       );
     });
 
@@ -708,7 +713,7 @@ describe.each(LOCALES)("the kitchen page in %s", (locale) => {
 
 describe("what a client or a colleague typed", () => {
   const MARKUP = '<img src=x onerror="globalThis.pwned=1">';
-  const BIDI = "‮evil⁦";
+  const BIDI = "\u202Eevil\u2066";
   const HOSTILE_WIRE = wireKitchen({
     kitchen: { name: `Casa ${MARKUP} ${BIDI}` },
     client: {
@@ -748,5 +753,22 @@ describe("what a client or a colleague typed", () => {
 
   it("keeps a right-to-left override that was typed inside its own text, drawn as typed", () => {
     expect(requireIn(page(), "h1").textContent).toBe(`Casa ${MARKUP} ${BIDI}`);
+  });
+});
+
+describe("a right-to-left override left open in a draft's sender", () => {
+  it("is fenced between isolate marks in the line under the title, beside the day it was changed", async () => {
+    const typed = "\u202Eevil@mail.md";
+    kitchenAnswers(() => ({
+      body: wireDraftKitchen({
+        client: { email: typed, name: null, phone: null },
+      }),
+    }));
+
+    await mount("ro");
+
+    expect(requireIn(page(), "header p").textContent).toContain(
+      `\u2068${typed}\u2069`,
+    );
   });
 });

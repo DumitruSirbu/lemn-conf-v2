@@ -429,10 +429,10 @@ describe.each(LOCALES)(
     it("tells the owner and the day on the line under the title, by whether it was sent and whether it has an account", async () => {
       await drawEach(everyCombination(["none"]), (combination) => {
         const sub = requireIn(harness.container(), "header p").textContent;
-        const email =
-          combination.client === "full"
-            ? "ana.popescu@mail.md"
-            : "bare@mail.md";
+        // The address stands between isolate marks inside the sentence (so a right-to-left run in it cannot reorder the day).
+        const email = `\u2068${
+          combination.client === "full" ? "ana.popescu@mail.md" : "bare@mail.md"
+        }\u2069`;
         const when = formatRelativeAge(
           locale,
           relativeAgeOf(Date.parse(UPDATED_AT), Date.parse(NOW)),
