@@ -42,6 +42,20 @@ describe("signed-in answers: the successes of each flow", () => {
     ).toBe("request-failed");
   });
 
+  it("a staff kitchen is `received` with its body untouched, for a 200 only", () => {
+    const body = { kitchen: {}, notes: [] };
+    expect(classifySignedInAnswer("staff-kitchen", answer(200, body))).toEqual({
+      kind: "received",
+      body,
+    });
+    expect(
+      classifySignedInAnswer("staff-kitchen", answer(201, body)).kind,
+    ).toBe("request-failed");
+    expect(
+      classifySignedInAnswer("staff-kitchen", answer(204, undefined)).kind,
+    ).toBe("request-failed");
+  });
+
   describe("a rename (200 with the name the server kept)", () => {
     it("is `renamed` with that name", () => {
       expect(
@@ -216,6 +230,7 @@ describe("a claim's number", () => {
 describe("the refusals of a session", () => {
   const flows: readonly SignedInFlow[] = [
     "kitchens",
+    "staff-kitchen",
     "kitchen-action",
     "profile",
     "password",
@@ -290,6 +305,22 @@ describe("a kitchen that is not the account's (criterion 1: one refusal)", () =>
   ])("is a failed request for a 404 that is %s", (_, body) => {
     expect(
       classifySignedInAnswer("kitchen-action", answer(404, body)).kind,
+    ).toBe("request-failed");
+  });
+
+  it("is the same `kitchen-unavailable` for a staff kitchen the route refuses, and a failed request for a 404 that is not its refusal", () => {
+    expect(
+      classifySignedInAnswer(
+        "staff-kitchen",
+        answer(404, { error: "Design not found" }),
+      ),
+    ).toBe(KITCHEN_UNAVAILABLE_OUTCOME);
+    expect(
+      classifySignedInAnswer("staff-kitchen", answer(404, undefined)).kind,
+    ).toBe("request-failed");
+    expect(
+      classifySignedInAnswer("staff-kitchen", answer(404, word("not-found")))
+        .kind,
     ).toBe("request-failed");
   });
 

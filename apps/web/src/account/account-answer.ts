@@ -304,6 +304,7 @@ function asIssueCode(code: string): AccountFieldIssue["code"] {
  *  pages: they have no session, and the link they carry is their subject. */
 export type SignedInFlow =
   | "kitchens"
+  | "staff-kitchen"
   | "kitchen-action"
   | "profile"
   | "password"
@@ -387,6 +388,12 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
     successes: [{ status: OK_STATUS, outcomeOf: received }],
     refusals: [],
     isAboutOneKitchen: false,
+    placeableFields: [],
+  },
+  "staff-kitchen": {
+    successes: [{ status: OK_STATUS, outcomeOf: received }],
+    refusals: [],
+    isAboutOneKitchen: true,
     placeableFields: [],
   },
   "kitchen-action": {
