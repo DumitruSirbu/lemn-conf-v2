@@ -13,6 +13,7 @@ const FILES = [
   "staff/staff-kitchen-page.tsx",
   "staff/staff-kitchen-view.tsx",
   "staff/use-staff-kitchen.ts",
+  "staff/staff-read-request.ts",
   "app/[locale]/staff/kitchens/[id]/page.tsx",
 ] as const;
 const SERVER_PAGE = "app/[locale]/staff/kitchens/[id]/page.tsx";
@@ -197,10 +198,12 @@ describe.each(FILES)("%s", (relativePath) => {
     expect(calls).toEqual([]);
   });
 
-  it("makes a request only in the hook, only by `fetch`, and a page or a view makes none", () => {
+  it("makes a request only in the one module that reads for staff, only by `fetch`, and a page, a view or a hook makes none", () => {
     const fetches = namesIn(file).filter((name) => name === "fetch").length;
 
-    expect(fetches).toBe(relativePath === "staff/use-staff-kitchen.ts" ? 1 : 0);
+    expect(fetches).toBe(
+      relativePath === "staff/staff-read-request.ts" ? 1 : 0,
+    );
   });
 
   it("reads no part of the address or the cookie jar to carry a kitchen in or out", () => {

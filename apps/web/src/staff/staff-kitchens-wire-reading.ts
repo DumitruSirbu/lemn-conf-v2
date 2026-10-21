@@ -149,7 +149,7 @@ export function noteFrom(raw: unknown): StaffKitchenNoteWire | undefined {
   if (typeof id !== "string" || id === "" || typeof text !== "string") {
     return undefined;
   }
-  if (!isCanonicalInstant(createdAt) || author === undefined) return undefined;
+  if (!isInstant(createdAt) || author === undefined) return undefined;
   return { id, text, createdAt, author: author.value };
 }
 
@@ -170,14 +170,14 @@ export function statusSavedFrom(
   const by = changedBy === null ? { value: null } : personFrom(changedBy);
   if (typeof status !== "string" || !isRequestStatus(status)) return undefined;
   if (by === undefined) return undefined;
-  if (changedAt !== null && !isCanonicalInstant(changedAt)) return undefined;
+  if (changedAt !== null && !isInstant(changedAt)) return undefined;
   return { status, changedBy: by.value, changedAt };
 }
 
 /** An instant in the one form the server writes, `toISOString()`'s: it must read back as itself, so a day that does not
- *  exist (`2026-02-30`), an offset, a missing millisecond and a bare number are all refused. The list reads an instant
- *  more loosely (`isInstant`). */
-export function isCanonicalInstant(value: unknown): value is string {
+ *  exist (`2026-02-30`), an offset, a missing millisecond and a bare number are all refused. The list and the kitchen read
+ *  an instant by this one rule. */
+export function isInstant(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const parsed = new Date(value);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
@@ -187,10 +187,6 @@ function isListedKitchen(
   kitchen: StaffListedKitchenWire | undefined,
 ): kitchen is StaffListedKitchenWire {
   return kitchen !== undefined;
-}
-
-function isInstant(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
 function isCount(value: unknown): value is number {

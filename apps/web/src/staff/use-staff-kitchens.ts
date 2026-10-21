@@ -8,14 +8,14 @@ import {
   type StaffKitchenSegment,
 } from "@lemnaria/configurator-domain";
 
-import {
-  classifySignedInAnswer,
-  rateLimitNoticeOf,
-} from "@/account/account-answer";
-import { NO_REFERRER_POLICY } from "@/account/send-account-request";
-import type { AccountRateLimitNotice } from "@/i18n/content";
+import { classifySignedInAnswer } from "@/account/account-answer";
 
 import { raiseStaffSessionExpired } from "./staff-session-expiry";
+import {
+  askStaffRoute,
+  failureOf,
+  type StaffReadFailure,
+} from "./staff-read-request";
 import type {
   StaffKitchenListWire,
   StaffListedKitchenWire,
@@ -58,15 +58,7 @@ interface StaffListQuery {
 export type SearchProblem = "too-long" | "refused";
 
 /** Why a page could not be had, as the screen tells it. */
-export type ListFailure =
-  | { readonly kind: "unavailable" }
-  | { readonly kind: "offline" }
-  | {
-      readonly kind: "rate-limited";
-      /** Told once, when the answer came, so the sentence does not drift as the page redraws. */
-      readonly notice: AccountRateLimitNotice;
-    }
-  | { readonly kind: "failed" };
+export type ListFailure = StaffReadFailure;
 
 /** A new object for every page appended, so focus moves once per page. */
 export interface RowFocusRequest {
@@ -482,23 +474,14 @@ async function readPage(
   query: StaffListQuery,
   signal: AbortSignal,
 ): Promise<PageStep> {
-  try {
-    const response = await fetch(addressOf(query), {
-      method: "GET",
-      referrerPolicy: NO_REFERRER_POLICY,
-      signal,
-    });
-    const body = await readJsonOrNothing(response);
-    if (signal.aborted) return { kind: "aborted" };
-    return stepOf({
-      status: response.status,
-      retryAfter: response.headers.get("retry-after"),
-      body,
-    });
-  } catch {
-    return signal.aborted
-      ? { kind: "aborted" }
-      : { kind: "failed", failure: { kind: "offline" } };
+  const reading = await askStaffRoute(addressOf(query), signal);
+  switch (reading.kind) {
+    case "aborted":
+      return { kind: "aborted" };
+    case "offline":
+      return failedStep({ kind: "offline" });
+    case "answered":
+      return stepOf(reading.answer);
   }
 }
 
@@ -508,14 +491,6 @@ function addressOf(query: StaffListQuery): string {
   if (query.search !== null) members.set("q", query.search);
   members.set("page", String(query.page));
   return `${STAFF_KITCHENS_ENDPOINT}?${members.toString()}`;
-}
-
-async function readJsonOrNothing(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return undefined;
-  }
 }
 
 function stepOf(
@@ -533,15 +508,8 @@ function stepOf(
       return { kind: "sign-in" };
     case "forbidden":
       return { kind: "forbidden" };
-    case "rate-limited":
-      return failedStep({
-        kind: "rate-limited",
-        notice: rateLimitNoticeOf(outcome.wait, Date.now()),
-      });
-    case "unavailable":
-      return failedStep({ kind: "unavailable" });
     default:
-      return failedStep({ kind: "failed" });
+      return failedStep(failureOf(outcome));
   }
 }
 

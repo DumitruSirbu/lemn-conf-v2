@@ -8,13 +8,14 @@ import {
   type Design,
 } from "@lemnaria/configurator-domain";
 
-import {
-  classifySignedInAnswer,
-  rateLimitNoticeOf,
-} from "@/account/account-answer";
-import { NO_REFERRER_POLICY } from "@/account/send-account-request";
+import { classifySignedInAnswer } from "@/account/account-answer";
 
 import { withoutRepeatedNotes } from "./staff-note-rules";
+import {
+  askStaffRoute,
+  failureOf,
+  type StaffReadFailure,
+} from "./staff-read-request";
 import { raiseStaffSessionExpired } from "./staff-session-expiry";
 import type {
   StaffKitchenNoteWire,
@@ -24,15 +25,14 @@ import type {
 } from "./staff-kitchens-wire-contract";
 import {
   clientFrom,
-  isCanonicalInstant,
+  isInstant,
   noteFrom,
   ownValueOf,
   personFrom,
   recognisedStatusOf,
 } from "./staff-kitchens-wire-reading";
-import type { ListFailure } from "./use-staff-kitchens";
 
-// One client's kitchen for staff (Lot 3 frames S3A to S3I). The kitchen is asked for once when the page opens and again
+// One client's kitchen for staff (frames S3A to S3I). The kitchen is asked for once when the page opens and again
 // only when the person presses "Încearcă din nou", or when a write of the page found the kitchen no longer as the page
 // shows it (`refresh`): a `429` or `503` waits for them, and nothing is retried on its own. The answer is never kept
 // anywhere but in this component's state: not in the address, the browser's storage or a log. A refused session is not
@@ -41,7 +41,7 @@ import type { ListFailure } from "./use-staff-kitchens";
 const STAFF_KITCHENS_ENDPOINT = "/api/staff/kitchens";
 
 /** Why the kitchen could not be had, as the screen tells it (the list's own words for the same four causes). */
-export type StaffKitchenFailure = ListFailure;
+export type StaffKitchenFailure = StaffReadFailure;
 
 export type StaffKitchenState =
   | { readonly phase: "loading" }
@@ -174,30 +174,17 @@ async function readKitchen(
   designId: string,
   signal: AbortSignal,
 ): Promise<KitchenStep> {
-  try {
-    const response = await fetch(
-      `${STAFF_KITCHENS_ENDPOINT}/${encodeURIComponent(designId)}`,
-      { method: "GET", referrerPolicy: NO_REFERRER_POLICY, signal },
-    );
-    const body = await readJsonOrNothing(response);
-    if (signal.aborted) return { kind: "aborted" };
-    return stepOf(designId, {
-      status: response.status,
-      retryAfter: response.headers.get("retry-after"),
-      body,
-    });
-  } catch {
-    return signal.aborted
-      ? { kind: "aborted" }
-      : failedStep({ kind: "offline" });
-  }
-}
-
-async function readJsonOrNothing(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return undefined;
+  const reading = await askStaffRoute(
+    `${STAFF_KITCHENS_ENDPOINT}/${encodeURIComponent(designId)}`,
+    signal,
+  );
+  switch (reading.kind) {
+    case "aborted":
+      return { kind: "aborted" };
+    case "offline":
+      return failedStep({ kind: "offline" });
+    case "answered":
+      return stepOf(designId, reading.answer);
   }
 }
 
@@ -219,15 +206,8 @@ function stepOf(
       return { kind: "forbidden" };
     case "kitchen-unavailable":
       return { kind: "not-found" };
-    case "rate-limited":
-      return failedStep({
-        kind: "rate-limited",
-        notice: rateLimitNoticeOf(outcome.wait, Date.now()),
-      });
-    case "unavailable":
-      return failedStep({ kind: "unavailable" });
     default:
-      return failedStep({ kind: "failed" });
+      return failedStep(failureOf(outcome));
   }
 }
 
@@ -276,8 +256,8 @@ function kitchenFrom(raw: unknown): StaffKitchenWire["kitchen"] | undefined {
   if (typeof isSent !== "boolean" || typeof isHidden !== "boolean") {
     return undefined;
   }
-  if (sentAt !== null && !isCanonicalInstant(sentAt)) return undefined;
-  if (!isCanonicalInstant(updatedAt)) return undefined;
+  if (sentAt !== null && !isInstant(sentAt)) return undefined;
+  if (!isInstant(updatedAt)) return undefined;
   // A kitchen is sent exactly when it has a sent day, and only a sent kitchen has a copy as sent.
   if (isSent !== (sentAt !== null)) return undefined;
   const rawAsSent = ownValueOf(raw, "asSent");
@@ -308,7 +288,7 @@ function requestFrom(
   const reference = ownValueOf(raw, "reference");
   const sentAt = ownValueOf(raw, "sentAt");
   if (typeof reference !== "string" || reference === "") return undefined;
-  if (!isCanonicalInstant(sentAt)) return undefined;
+  if (!isInstant(sentAt)) return undefined;
   return { value: { reference, sentAt } };
 }
 
@@ -322,7 +302,7 @@ function statusFrom(
   if (typeof word !== "string") return undefined;
   const by = changedBy === null ? { value: null } : personFrom(changedBy);
   if (by === undefined) return undefined;
-  if (changedAt !== null && !isCanonicalInstant(changedAt)) return undefined;
+  if (changedAt !== null && !isInstant(changedAt)) return undefined;
   return {
     value: {
       value: recognisedStatusOf(word),
