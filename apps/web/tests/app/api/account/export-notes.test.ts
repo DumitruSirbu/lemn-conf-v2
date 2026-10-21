@@ -1,6 +1,7 @@
 import { fc } from "@fast-check/vitest";
 import {
   MAX_EXPORTED_KITCHENS,
+  MAX_EXPORTED_NOTE_BYTES,
   MAX_EXPORTED_NOTES_IN_TOTAL,
   MAX_EXPORTED_NOTES_PER_KITCHEN,
 } from "@lemnaria/persistence";
@@ -281,6 +282,102 @@ describe("the bound on the notes", () => {
   });
 });
 
+describe("the size of the file when the notes are at their largest", () => {
+  const FOUR_BYTE_CHARACTER = "\u{1F600}";
+  const NOTE_JSON_OVERHEAD_BYTES = 64;
+  const UTF8 = new TextEncoder();
+
+  interface FileWithNotes {
+    kitchens: { notes: { text: string }[] }[];
+  }
+
+  function seedMaximalNotes(text: string): void {
+    for (let index = 0; index < MAX_EXPORTED_KITCHENS; index += 1) {
+      const id = seedKitchen({ accountId: client.id });
+      for (
+        let minute = 0;
+        minute < MAX_EXPORTED_NOTES_PER_KITCHEN;
+        minute += 1
+      ) {
+        writeNote(id, text, minute);
+      }
+    }
+  }
+
+  /** The file's bytes, and what the file would weigh with every note taken out (the designs and the rest). */
+  async function sizesOf(answer: Response) {
+    const text = await answer.text();
+    const file = JSON.parse(text) as FileWithNotes;
+    const noteBytes = file.kitchens
+      .flatMap(({ notes }) => notes)
+      .reduce(
+        (sum, { text: noteText }) => sum + UTF8.encode(noteText).length,
+        0,
+      );
+    const withoutNotes = JSON.stringify({
+      ...file,
+      kitchens: file.kitchens.map((kitchen) => ({ ...kitchen, notes: [] })),
+    });
+    const noteCount = file.kitchens.reduce(
+      (sum, { notes }) => sum + notes.length,
+      0,
+    );
+    return {
+      total: UTF8.encode(text).length,
+      outsideNotes: UTF8.encode(withoutNotes).length,
+      noteBytes,
+      noteCount,
+    };
+  }
+
+  it("is served with 200 kitchens of 100 four-byte-character notes of 2000 characters, the notes within the byte budget", async () => {
+    seedMaximalNotes(FOUR_BYTE_CHARACTER.repeat(2000));
+
+    const answer = await download();
+    const sizes = await sizesOf(answer);
+
+    expect(answer.status).toBe(200);
+    expect(sizes.noteBytes).toBeLessThanOrEqual(MAX_EXPORTED_NOTE_BYTES);
+    expect(sizes.noteBytes).toBe(
+      Math.floor(MAX_EXPORTED_NOTE_BYTES / 8000) * 8000,
+    );
+    expect(sizes.total).toBeLessThanOrEqual(
+      sizes.outsideNotes +
+        MAX_EXPORTED_NOTE_BYTES +
+        sizes.noteCount * NOTE_JSON_OVERHEAD_BYTES,
+    );
+  });
+
+  it("is served with notes of nothing but line breaks, which JSON writes in two bytes each, within twice the budget and the per-note overhead", async () => {
+    seedMaximalNotes("\n".repeat(2000));
+
+    const answer = await download();
+    const sizes = await sizesOf(answer);
+
+    expect(answer.status).toBe(200);
+    expect(sizes.noteBytes).toBeLessThanOrEqual(MAX_EXPORTED_NOTE_BYTES);
+    expect(sizes.noteCount).toBeLessThanOrEqual(MAX_EXPORTED_NOTES_IN_TOTAL);
+    expect(sizes.total).toBeLessThanOrEqual(
+      sizes.outsideNotes +
+        2 * MAX_EXPORTED_NOTE_BYTES +
+        sizes.noteCount * NOTE_JSON_OVERHEAD_BYTES,
+    );
+  });
+
+  it("marks every kitchen that lost a note to the byte budget as truncated, and none that lost nothing", async () => {
+    seedMaximalNotes(FOUR_BYTE_CHARACTER.repeat(2000));
+
+    const kitchens = await kitchensOf(await download());
+
+    for (const kitchen of kitchens) {
+      expect(kitchen.notesTruncated).toBe(
+        kitchen.notes.length < MAX_EXPORTED_NOTES_PER_KITCHEN,
+      );
+    }
+    expect(kitchens.some(({ notesTruncated }) => notesTruncated)).toBe(true);
+  });
+});
+
 describe("a notes read that does not answer", () => {
   it("is a 503 with no file, and says nothing of the failure", async () => {
     const console_ = captureConsole();
@@ -297,6 +394,24 @@ describe("a notes read that does not answer", () => {
     expect(text).not.toContain("NOTE-THAT-MUST-NOT-LEAK");
     expect(text).not.toContain(DRIVER_FAILURE_MARKER);
     expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
+    expect(console_.accountLines()).not.toContainEqual({
+      event: "export",
+      outcome: "succeeded",
+    });
+  });
+
+  it("is not logged as succeeded when the file cannot be built", async () => {
+    const console_ = captureConsole();
+    const id = seedKitchen({ accountId: client.id });
+    world.kitchens.seedNote({
+      designId: id,
+      text: "a note with no date",
+      createdAt: new Date(Number.NaN),
+    });
+
+    const answer = await download();
+
+    expect(answer.status).toBe(503);
     expect(console_.accountLines()).not.toContainEqual({
       event: "export",
       outcome: "succeeded",

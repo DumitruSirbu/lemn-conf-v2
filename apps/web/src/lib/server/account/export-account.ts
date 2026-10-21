@@ -39,6 +39,10 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 // The notes are read after the kitchens, only for an export that will be served, so an account over the kitchen bound
 // is refused (409) without a note read. A notes read that fails is a thrown store error, which the route answers 503:
 // there is no download without them. Like a failed kitchen read, it follows the spent bucket (O26's residual).
+// The kitchens and the notes are two reads, not one snapshot: a kitchen the person deletes between them is in the file
+// with no notes, which is acceptable. The notes are bounded by count and by bytes (`MAX_EXPORTED_NOTE_BYTES`), so they
+// alone can never make the file unservable; that is why the pre-bucket size guard counts kitchens only. `succeeded` is
+// logged once the body is built, never before.
 
 /** Bumped when the file's shape changes, so a reader of an old download can tell which shape it holds. Version 2 adds
  *  `notes` and `notesTruncated` to every kitchen. */
@@ -78,21 +82,21 @@ export async function exportOwnAccount({
     session.accountId,
     kitchens.kitchens.map(({ id }) => id),
   );
+  const body = JSON.stringify({
+    formatVersion: EXPORT_FORMAT_VERSION,
+    exportedAt: new Date().toISOString(),
+    account: {
+      email: account.account.email,
+      language: account.account.locale,
+      ...profile.profile,
+    },
+    kitchens: kitchens.kitchens.map((kitchen) =>
+      exportedKitchenOf(kitchen, notes.get(kitchen.id) ?? NO_NOTES),
+    ),
+  });
+  const response = accountExportResponse(body);
   reportAccountEvent({ event: "export", outcome: "succeeded" });
-  return accountExportResponse(
-    JSON.stringify({
-      formatVersion: EXPORT_FORMAT_VERSION,
-      exportedAt: new Date().toISOString(),
-      account: {
-        email: account.account.email,
-        language: account.account.locale,
-        ...profile.profile,
-      },
-      kitchens: kitchens.kitchens.map((kitchen) =>
-        exportedKitchenOf(kitchen, notes.get(kitchen.id) ?? NO_NOTES),
-      ),
-    }),
-  );
+  return response;
 }
 
 function answerTooLarge(): NextResponse {
