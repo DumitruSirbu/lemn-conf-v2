@@ -995,12 +995,13 @@ exited 0], but applying them stays the owner's step.
   `…_author_account_id_shape`, `…_body_length` (4); `design_request_states_design_id_shape`, `…_status_shape`,
   `…_changed_by_account_id_shape` (3). The two secondary indexes must read `… USING btree (occurred_at DESC, id DESC)` for
   `staff_audit_events_newest_first_idx` and `… USING btree (design_id, created_at DESC)` for
-  `design_notes_by_design_newest_idx` [inference from the SQL, never run]. Any other answer means stop and report.
-  **Behaviour of the checks, to confirm on preview once and not assume** [inference from the SQL, never run]: an `id` of 20
-  or 22 characters is refused, a `body` of 0 or 2001 characters is refused, a non-object `detail` is refused, and `NULL`
-  passes every nullable column's check.
-- **Step 3, before the grants: read `pg_default_acl`, then run the probes.** A default privilege grants without anyone
-  issuing it; anything that would reach one of the three tables is a stop-and-report, as in the older step 3. Then, read-only
+  `design_notes_by_design_newest_idx` [verified on the test database by the L3-S1 QA run (5781729b), read-only]. Any other
+  answer means stop and report. **Behaviour of the checks:** an `id` of 20 or 22 characters is refused, a `body` of 0 or
+  2001 characters is refused, a non-object `detail` is refused, and `NULL` passes every nullable column's check [verified
+  on the test database by the L3-S1 QA run (5781729b), read-only]. Preview and production are not yet confirmed.
+- **Step 3, before the grants: read `pg_default_acl` with the query in the `0009` section, then run the probes.** A default
+  privilege grants without anyone issuing it; anything that would reach one of the three tables is a stop-and-report, as in
+  the older step 3. Then, read-only
   and in its own query (not appended to an older section's block, whose expectation it would break), **before step 4**:
 
   ```sql
@@ -1029,7 +1030,23 @@ exited 0], but applying them stays the owner's step.
     ('states update design_id', 'column', 'public.design_request_states', 'design_id',          'UPDATE'),
     ('states delete',           'table',  'public.design_request_states', null,                 'DELETE')
   ) as p(probe, kind, relation, column_name, privilege);
+
+  -- Further pre-grant probes (security review L3-S1), expect false on all of them, before and after step 4:
+  select t.relation, t.privilege, has_table_privilege('app_designs', t.relation, t.privilege) as held
+  from (values
+    ('public.staff_audit_events', 'TRUNCATE'), ('public.staff_audit_events', 'TRIGGER'),
+    ('public.design_notes', 'TRUNCATE'), ('public.design_notes', 'TRIGGER'),
+    ('public.design_request_states', 'TRUNCATE'), ('public.design_request_states', 'TRIGGER')
+  ) as t(relation, privilege);
+
+  select r.relation, has_any_column_privilege('app_designs', r.relation, 'UPDATE') as held
+  from (values ('public.staff_audit_events'), ('public.design_notes')) as r(relation);
   ```
+
+  `has_any_column_privilege(…, 'UPDATE')` is expected **false** on the audit and notes tables, before and after step 4. On
+  `design_request_states` it is false before step 4 and **true** after (the column `UPDATE` grant is intended there).
+  `TRUNCATE` and `TRIGGER` are false on all three tables at every point [doc-quoted from the security review, relayed; not run
+  by the author of this edit].
 
   | Probe | Before step 4 | After step 4 |
   | --- | --- | --- |
@@ -1045,8 +1062,13 @@ exited 0], but applying them stays the owner's step.
 - **Step 3 (continued), the privilege test, red with nothing held.** With the tables created and nothing granted, run the
   three new arms of `packages/persistence/tests/application-role-privileges.test.ts` (their titles begin "the staff table")
   with `DATABASE_URL` set to the application role's URL for that environment, never the migration URL. Expect the first arm
-  of each table **red** (`SELECT` is not held). A table that does not exist yet makes the arm **skip**, never pass. If an arm
-  is green before step 4, something other than the owner's grant gave the role a privilege: stop and report.
+  of each table **red at the table-level assertion, with received `[]`** (nothing held). "Red" alone is not enough: if a
+  default ACL or a `PUBLIC` `SELECT` were present, arm 1 would fail later, on the `INSERT` column list, and still be a
+  privilege held before the grant. Read where it failed and what it received. **Arm 2 is also red with nothing granted**
+  (verified by catalog emulation on the test database by the L3-S1 QA run, relayed [doc-quoted]); the earlier sentence that
+  only the first arm is red understated it. A table that does not exist yet makes the arm **skip**, never pass. If an arm
+  is green before step 4, or arm 1 fails anywhere but at the table-level assertion with `[]`, something other than the owner's
+  grant gave the role a privilege: stop and report.
 - **Step 4 (the grants), preview first.** Exactly these statements, one table at a time:
 
   ```sql
@@ -1110,6 +1132,17 @@ exited 0], but applying them stays the owner's step.
   `changed_at`. The audit row of the same change carries the true time, and the credential cannot backdate that row.
 - Neither `staff_audit_events` nor `design_notes` has a size bound on its free-form column beyond `body`'s 2000
   characters: `detail` is an object with no ceiling, which `0011`'s `design_document` has and this plan has not ruled.
+
+**Conditions on the store (security review L3-S1)** [doc-quoted, relayed from the security review; not run here]. The grants
+are safe only if the store code keeps these:
+
+- The status upsert writes the literal `changed_at = now()` in SQL and never binds it as a parameter.
+- `changed_by_account_id` and the audit `actor_account_id` come from the session **in the same statement**, with an
+  exactly-one-row check.
+- The audit row is written in the same transaction as the change.
+- A dispute is settled from the audit row, not from the status row.
+- The store logs the SQLSTATE and the constraint name only: a `23514` error `DETAIL` contains the failing row, including note
+  text.
 
 **Not in the nightly export.** The export covers `designs` only. A restore of `designs` does not restore the audit log,
 the notes or the request states, and nothing here adds them to a backup. Notes are the client's personal data and join the

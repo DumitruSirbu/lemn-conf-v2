@@ -27,6 +27,26 @@ Once accepted, the following plan rulings bind the Lot 3 waves:
   classifier, limiter figures, pagination, search).
 - **P-L3-14** the preset authoring gate wired to `preset.create`.
 
+## Accepted residuals, 2026-10-21 (wave L3-S1 security review) [relayed from the reviewer; the scribe ran nothing]
+
+Appended; the status line above is unchanged. These are recorded as **accepted** residuals, not as defects to fix.
+
+- **F1, re-attribution or backdating of the status row.** A holder of the application credential can rewrite the status
+  row's `changed_by_account_id` and `changed_at` (the `UPDATE` grant covers both). Accepted; the true time and actor are in
+  the audit row, which the credential cannot backdate.
+- **F2, the database cannot bind the actor to the session.** Forging an `actor_account_id` needs the leaked credential.
+  Accepted under ADR 0019 decision 11 and ADR 0172 D7.
+- **F5, no size cap on audit `detail` and no schema stop for personal data.** The domain closes it (the action's allowed
+  detail shape); the schema does not.
+- **F6, the application role reads note free text in full.** This goes beyond ADR 0153 decision 1 the way ADR 0172 D11 did
+  for accounts. There is no erasure path, notes on client-deleted designs are orphaned, and there is no retention rule.
+  Accepted for now. **OPEN owner question: retention for audit rows and notes (not answered).** **OPEN question for wave
+  L3-S9: do hidden or client-deleted designs' notes go into the client's export? (not answered).**
+
+**OPEN plan-level observation, not a residual.** E-L3-1 (the kitchens list) returns client e-mail, name and phone in bulk
+and is not itself audited, so the audit trail does not show bulk harvesting of contacts. **Owner question to ask at wave
+L3-S6 (not answered).**
+
 ## Not covered
 
 - The staff-invitation mechanism (O-L3-4) and the preset visibility and order grant (O-L3-5). Each needs its own record

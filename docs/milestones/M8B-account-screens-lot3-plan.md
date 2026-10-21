@@ -333,7 +333,7 @@ Run on 2026-10-20 in this worktree [run: `rtk proxy grep -rn` over `docs/decisio
 | **P-L3-10** | Classifier | `account/account-answer.ts` is **extended** with the staff flows and classes (`not-sent`, `not-hidden`, `at-edge`, `invitation-queued`, `account-ready`), not duplicated (the Lot 2 rule [doc: §5]) | architect |
 | **P-L3-11** | Limiter purposes (figures provisional, constants only) | Staff reads use the built read limiter (fails open). Writes: `staff-note-by-account` 120 / hour; `staff-status-by-account` 120 / hour; `staff-unhide-by-account` 60 / day; `staff-preset-by-account` 200 / day; `staff-invite-by-account` 20 / day plus `staff-invite-mail-by-address` 3 / day; accept: the built `account-token-complete-by-block`, before any read or argon2 | architect; owner may change figures |
 | **P-L3-12** | Pagination | Desktop: page numbers over `limit/offset` with a total (the design's choice, CD S2B note); page size 20 for S2 ("1–20 din 143") and 25 for S8 ("1–25 din 1 204") [mock]. Mobile: the same pages, appended. Offset on a moving list may repeat or skip a row between requests; accepted for staff, stated in criterion K-9 | architect |
-| **P-L3-13** | Search | Case-insensitive substring of the client's `email_normal_form` or profile `name`; `%`, `_` and `\` in the query are literals; at most 100 code points; empty means no search | architect |
+| **P-L3-13** | Search | Case-insensitive substring of the client's `email_normal_form` or profile `name`; `%`, `_` and `\` in the query are literals; at most 100 code points, counted after NFC and format-character stripping; empty means no search | architect |
 | **P-L3-14** | Preset authoring gate | Wire `WIRED_PRESET_AUTHORING_POLICY` to "the session holds `preset.create`" (Fix 3 *Order* item 3, ADR 0172 *Consequences* [doc]). Owner-visible: once wired, only a seeded administrator can author presets on any environment; the launch-gate line for the ungated policy is closed by it | architect; security |
 
 ### 5.2 Owner questions (all seven ruled on 2026-10-20; rulings in §5.3)
@@ -455,6 +455,18 @@ fakes and `packages/persistence/tests/*.statements.test.ts`; for U-waves `browse
 | **L3-S6, read routes** | 1. `staff-kitchens.ts` orchestration (list; one, with the audit write awaited before the body). 2. `GET /api/staff/kitchens`. 3. `GET /api/staff/kitchens/{id}`. 4. `staff-responses.ts`. 5. Limiter wiring | `lib/server/staff/staff-kitchens.ts`, `lib/server/staff/staff-responses.ts`, two route files, `rate-limit/limit-policy.ts` (mod) | §2.2 *Common*, E-L3-1/2; P-L3-3, 11; `account-responses.ts`; `design-errors.ts`; ADR 0156 | L3-S4, L3-S3 | Full + security |
 | **L3-S7, write routes** | 1. `staff-kitchen-actions.ts`. 2. Notes route. 3. Status route. 4. Unhide route. 5. Limiter purposes | `lib/server/staff/staff-kitchen-actions.ts`, three route files, `limit-policy.ts` (mod) | §2.2 E-L3-3/4/5; P-L3-10, 11 | L3-S5, L3-S6 | Full + security |
 
+**Brief notes from the L3-S1 security review, 2026-10-21** [relayed; not run by the scribe]. Details: ADR 0173, *Accepted
+residuals*; runbook `0020`–`0022` section, *Conditions on the store*.
+
+- **L3-S3 / L3-S8 (audit).** An action with no detail stores SQL `NULL`, not JSON `null`. The audit page must render rows
+  whose `action` or `detail` the domain refuses (it must not drop or throw on them). Page by offset: keyset paging would
+  miss rows that commit late.
+- **L3-S5 (actions store).** Add `, id desc` to the notes `order by`. An unknown stored status must not be coerced to
+  "Nouă"; acceptance test required. The audit row's `from` must come from the same locked read, or the upsert's returning
+  clause, as the write. Decide whether a no-op status save (same status) writes an audit row.
+- **L3-S6.** Owner question (open): E-L3-1 returns e-mail, name and phone in bulk and is not itself audited (ADR 0173).
+- **L3-U4 (notes UI).** A tab or CR in a note makes the domain refuse it; the UI must name that cause in its error.
+
 ### 7.2 Phase B: the staff UI on built endpoints
 
 | Wave | Items | Production files | Reading (implementer) | Depends | Tier |
@@ -548,7 +560,7 @@ Each states an invariant and what must not happen. "Property" means a `fast-chec
   set's size; no deleted design appears in any page; a no-account sent design appears under "Trimise" and "Toate" only.
   A `status` filter with a segment other than "sent" is `400`.
 - **K-10. Search.** Case-insensitive on address and profile name; a query of `%`, `_` or `\` matches only those literal
-  characters; 101 code points is `400`.
+  characters; 101 code points is `400` (counted after NFC and format-character stripping).
 - **K-11. Proxy.** `/{ro,ru}/staff/{kitchens,team,presets,audit}` and `/{ro,ru}/staff/kitchens/{id}` carry the account
   page headers; `/{ro,ru}/staff/accept` carries `no-referrer`. A percent-encoded, case-varied, unlocalised or longer
   variant carries **neither** and is not a staff page (Lot 1 criterion 13's probe).

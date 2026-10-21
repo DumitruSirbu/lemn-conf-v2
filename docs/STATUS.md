@@ -112,6 +112,8 @@ aligned to §5.3. **Not done:** the copy of `Lemnaria Cont Lot 3.dc.html` and th
 `docs/design/mockups/`, their sha256 check, and the Lot 2 re-render (no shell; `docs/design/README.md` says so). **Not
 written, by instruction:** the staff-invitation record (O-L3-4) and the ADR 0112 amendment (O-L3-5).
 
+**2026-10-21 (L3-S1 security-review follow-up, branch `feat/login-register`; docs only) [relayed from the reviewer and QA run 5781729b; the scribe ran nothing].** Runbook `0020`–`0022` section corrected (privilege-test arm red at the table-level assertion with `[]`, arm 2 also red, extra probes, store conditions); ADR 0173 records accepted residuals F1, F2, F5, F6 and open owner questions (retention; E-L3-1 bulk contacts at L3-S6; export of hidden notes at L3-S9), none answered; plan gains brief notes for L3-S3/S5/S8/U4.
+
 **2026-10-21 update (top bar: signed-out link, title give, popover clamp; branch `feat/login-register`) [developer's
 measurements and owner rulings of 2026-10-20 relayed; commits `a05440ce`, `419b7a69`, `1e55d0d1`; the scribe ran nothing].**
 Recorded as [ADR 0104 Amendment H](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md):
