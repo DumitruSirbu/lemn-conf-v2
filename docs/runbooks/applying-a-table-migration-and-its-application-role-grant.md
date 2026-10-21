@@ -952,13 +952,29 @@ exited 0], but applying them stays the owner's step.
 | --- | --- | --- | --- |
 | `staff_audit_events` | `SELECT` | The audit page reads it | With the L3-S3 code |
 | `staff_audit_events` | `INSERT (id, actor_account_id, action, design_id, subject_account_id, detail)` | Every staff read of a kitchen and every staff write adds a row. **No `INSERT (occurred_at)`**: a credential cannot backdate or forward-date a row (`0011`'s `created_at` reasoning) | With the L3-S3 code |
-| `design_notes` | `SELECT` | The kitchen page and the client's data export read the notes | With the L3-S5 code |
-| `design_notes` | `INSERT (id, design_id, author_account_id, body)` | A staff member adds a note. **No `UPDATE`, no `DELETE`**: a note cannot be edited or deleted (the designer's answer 4; P-L3-5). No `INSERT (created_at)` | With the L3-S5 code |
-| `design_request_states` | `SELECT` | The kitchen page and the list read the status | With the L3-S5 code |
-| `design_request_states` | `INSERT (design_id, status, changed_by_account_id)` and `UPDATE (status, changed_by_account_id, changed_at)` | The status is one row per design, upserted. No `INSERT (changed_at)`; no `UPDATE (design_id)` | With the L3-S5 code |
+| `design_notes` | `SELECT` | The kitchen page and the client's data export read the notes | Before the first staff route (L3-S6) ships |
+| `design_notes` | `INSERT (id, design_id, author_account_id, body)` | A staff member adds a note. **No `UPDATE`, no `DELETE`**: a note cannot be edited or deleted (the designer's answer 4; P-L3-5). No `INSERT (created_at)` | Before the first staff route (L3-S6) ships |
+| `design_request_states` | `SELECT` | The kitchen page and the list read the status. **The S4 list left-joins this table, so a missing grant makes EVERY staff list answer 503** | Before the first staff route (L3-S6) ships |
+| `design_request_states` | `INSERT (design_id, status, changed_by_account_id)` and `UPDATE (status, changed_by_account_id, changed_at)` | The status is one row per design, upserted. No `INSERT (changed_at)`; no `UPDATE (design_id)` | Before the first staff route (L3-S6) ships |
 | `accounts` | **none in this section** | The staff-invitation grant `INSERT (role)` is `0024` and a later wave (O-L3-4; a decision record and a security review first). The runbook's `role insert` probe stays **false** | — |
 | `presets` | **none in this section** | The preset visibility and position grant is `0023` and a later wave (O-L3-5; an ADR 0112 amendment and a security review first). The `presets` probes stay as the older section has them | — |
 | `designs` | none | `app_designs` already holds table-level `UPDATE` (ADR 0019 decision 11); unhide clears `hidden_by_client_at` under it and the scope does not grow again (plan section 2.3) | — |
+
+**Grants the staff routes need, before the first staff route (L3-S6) ships** [added 2026-10-21 from the coordinator's brief and
+the `0020`-`0022` headers, read by the scribe; nothing was run]. Missing any one makes the staff routes answer `503`; a
+missing `design_request_states` grant makes **every** staff list fail, because the list left-joins it.
+
+- [ ] `designs`: `SELECT`; `UPDATE` (`hidden_by_client_at`) already holds via the table-level `UPDATE`.
+- [ ] `accounts`: `SELECT`, table-wide.
+- [ ] `contact_submissions`: `SELECT` on `reference`, `client_request_id`, `design_id`, `created_at`.
+- [ ] `contact_submission_views`: `SELECT`.
+- [ ] `design_notes`: `SELECT` and `INSERT (id, design_id, author_account_id, body)` (the `0021` header's columns).
+- [ ] `design_request_states`: `SELECT`, `INSERT (design_id, status, changed_by_account_id)` and
+  `UPDATE (status, changed_by_account_id, changed_at)` (the `0022` header).
+- [ ] `staff_audit_events`: `SELECT` and `INSERT (id, actor_account_id, action, design_id, subject_account_id, detail)`.
+
+**Owner to confirm first:** the grants of `0008`, `0010` and `0012`/`0017` are recorded in other documents as **not applied**
+on preview and production. Confirm them before L3-S6 is deployed; the staff reader depends on them.
 
 - **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
   `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **22** (1 to 19 before). For

@@ -475,7 +475,38 @@ residuals*; runbook `0020`–`0022` section, *Conditions on the store*.
   into the half-open window with `chisinauDayOf`, where `occurredBefore` is the start of the next Chisinau day (never +24 h).
   Residual, measured on the test database: the page's count scans every matching row, as any total must; the page itself
   walks the newest-first index (`not materialized`).
-- **L3-S6.** Owner question (open): E-L3-1 returns e-mail, name and phone in bulk and is not itself audited (ADR 0173).
+- **L3-S6.** ~~Owner question (open): E-L3-1 is not itself audited.~~ **Answered 2026-10-21**, see the brief below.
+
+**Built state, 2026-10-21** [commit hashes relayed by the coordinator; the scribe ran no `git` command and no test].
+
+| Wave | State | Commits |
+| --- | --- | --- |
+| L3-A1 | Built, committed | `4a0c27c9`, `f305691d` |
+| L3-S1 | Built, committed | `c19dffc4`, `00a71cf8` |
+| L3-S2 (plus `kitchens-listed`) | Built, committed | `c2c47a85` and fixes |
+| L3-S3 | Built, committed | `6c260504`, `4c89688d`, `fbee54ef`, `c91cfbf7` |
+| L3-S4 | Built, committed | `d17f8cef`, `584dd322` |
+| L3-S5 | Built, committed | `243efc0b`, `8804188e` |
+| L3-U1 | Built | `63d591ff`, `5368e46a`, `00ec0637`, `ae55f8a1`, `b74379cb` and later |
+| L3-S6 onward | Not built | -- |
+
+Domain commit `d76963d3` (the `kitchens-listed` action and page-limit domain) is built; the audit-store adoption of it is
+pending.
+
+**Brief notes for L3-S6** [owner ruling and coordinator decisions, 2026-10-21; ADR 0173, *Owner ruling, 2026-10-21*].
+
+- **The list view is audited and page-limited.** Every list view writes a `kitchens-listed` audit row (detail: `segment`,
+  `status|null`, `page`, `rowCount`, `hasSearch`; never the search text; no design id), failing closed like E-L3-2. A
+  per-account page limiter for the list fails closed above its ceiling (about 300 pages per hour proposed; S6 fixes the
+  figure), independent of the general read limiter.
+- **Shape the response field by field.** Do not spread reader objects; do not forward `client.id`; `changedBy` and note
+  author e-mails are intended.
+- **Amendment to E-L3-1 and E-L3-2.** Each E-L3-1 row now also carries `design`, a **migrated `Design | null`**, for the S2
+  thumbnail; E-L3-2's `document` is likewise the migrated `Design | null`. An unreadable document answers `200` with a
+  "cannot show" notice that keeps the profile, request and notes. The notice's copy is a decision for L3-U3.
+- **Store-level role check on the audit insert** (optional) is deferred to S6's `requireCapability`.
+- Product decisions (coordinator, not owner-ruled): no postal address in the staff profile block; search over the client's
+  e-mail and name with Ş/Ţ folding and the label "numele clientului"; notes read returns the newest 100 plus `truncated`.
 - **L3-U4 (notes UI).** A tab or CR in a note makes the domain refuse it; the UI must name that cause in its error.
 
 ### 7.2 Phase B: the staff UI on built endpoints

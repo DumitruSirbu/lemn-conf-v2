@@ -36,6 +36,13 @@ coordinator. The scribe ran nothing. Nothing is built.
   administrator's order) reverses `0011`'s "the owner hides by hand" and supersedes ADR 0112's "newest first". **No
   amendment exists yet.** Waves L3-S10, L3-S11 and L3-U7 stay outline until it exists and a security review has read it.
 
+## Dated pointers, 2026-10-21
+
+- O-L3-1 (c) settles what the staff kitchen reader displays. ADR 0172 D11 records that its revisit trigger (a feature
+  reading `accounts.email` with `contact_submissions.reference`) fired in wave L3-S4; remedy unbuilt, accepted.
+- The owner's later ruling "Audit each list view + hard page limit" (2026-10-21) is recorded in ADR 0173 and does not
+  alter O-L3-1 to O-L3-7.
+
 ## Consequences
 
 - No ADR, migration or grant is changed by this record. ADR 0062, 0095, 0112, 0153 and 0172 keep their text.

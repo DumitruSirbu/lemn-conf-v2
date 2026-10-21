@@ -43,9 +43,31 @@ Appended; the status line above is unchanged. These are recorded as **accepted**
   Accepted for now. **OPEN owner question: retention for audit rows and notes (not answered).** **OPEN question for wave
   L3-S9: do hidden or client-deleted designs' notes go into the client's export? (not answered).**
 
-**OPEN plan-level observation, not a residual.** E-L3-1 (the kitchens list) returns client e-mail, name and phone in bulk
-and is not itself audited, so the audit trail does not show bulk harvesting of contacts. **Owner question to ask at wave
-L3-S6 (not answered).**
+**Plan-level observation, CLOSED 2026-10-21 by the owner ruling below.** E-L3-1 (the kitchens list) returns client e-mail,
+name and phone in bulk and was not itself audited, so the audit trail did not show bulk harvesting of contacts.
+
+## Owner ruling, 2026-10-21: audit each list view, and a hard page limit [relayed by the coordinator as given directly by the owner via AskUserQuestion; the scribe ran nothing]
+
+The owner chose **"Audit each list view + hard page limit"**. This closes the OPEN question above (auditing E-L3-1).
+
+- **Every staff kitchens LIST view writes an audit row.** Action `kitchens-listed`. The detail carries codes and counts
+  only: `segment`, `status` (or null), `page`, `rowCount`, `hasSearch`. **Never the search text; no design id.** It fails
+  closed like E-L3-2: if the audit row cannot be written, the list is not served.
+- **A per-account page limiter for the list fails closed above its ceiling**, so harvesting is capped even if the general
+  read limiter is down. About **300 pages per hour is proposed**; the exact figure is decided at wave L3-S6.
+- **Build state** [relayed]: the domain commit `d76963d3` is **built**. The audit-store adoption and the L3-S6 route plus
+  limiter are **pending**.
+
+### Product decisions taken by the coordinator on reviewers' recommendation (owner-visible, NOT owner-ruled)
+
+- The staff profile block does **not** show the client's postal address; only e-mail, name and phone (shown as
+  "neverificat").
+- Search is over the **client's** e-mail (normal form) and profile name, with Romanian cedilla/comma-below folding
+  (Ş ş Ţ ţ become Ș ș Ț ț, on both sides). The UI label must say "numele clientului".
+- The list rows carry a migrated design, for the S2 thumbnail.
+- The notes read returns the newest 100 plus a `truncated` flag.
+
+Pointer: the account-to-contact read this list sits beside is recorded in ADR 0172 D11 (dated note 2026-10-21).
 
 ## Not covered
 

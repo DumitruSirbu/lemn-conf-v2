@@ -385,6 +385,13 @@ the wrong way:
   about who a lead is; for a claimed design it now can. Accepted [inf, plan §10]. *Trigger to revisit:* the first
   feature that reads both together, or the database being shared with another service. The remedy would be to stop
   readers joining them (a view, or removing `design_id` from the readable seven); it is not built.
+  - **Dated note, 2026-10-21: the trigger FIRED in wave L3-S4** [relayed by the coordinator; the scribe ran nothing and
+    did not open the code]. The staff kitchen reader (`neon-staff-kitchen-reader`, `staff-kitchen-statements.ts`) reads
+    `accounts.email` together with `contact_submissions.reference` in one statement. What is displayed is settled by
+    owner ruling O-L3-1 (c): the profile contact plus the request's reference and date only, no request personal
+    columns; ADR 0153 d1 is unchanged for contact requests. The remedy (a view, or dropping `design_id` from the readable
+    seven) stays **unbuilt and accepted for now**; this note records that the trigger fired and the acceptance was
+    renewed, it does not build anything.
 - **Turnstile is not the Cloudflare proxy that ADR 0019 d9 rejected.** Nothing sits in the request path. The
   widget is a third-party script and frame on the account pages only, and the CSP widens there alone (ADR 0161
   gets a dated note).

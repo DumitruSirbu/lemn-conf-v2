@@ -275,6 +275,8 @@ shop's notice) is 8J's.
   ([ADR 0157](0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md)
   decision 9). **No route opens anything by a reference**, which stays a must-not.)*
 - **The delivery milestone (M9):** the limits under R6, and the consent text (backlog 155).
+- **Dated pointer, 2026-10-21:** the staff kitchen reader now reads `accounts.email` with `contact_submissions.reference`
+  in one statement; decision 1 is unchanged for contact requests. See ADR 0172 D11, dated note 2026-10-21.
 
 ## Evidence
 
