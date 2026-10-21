@@ -532,23 +532,33 @@ function describeSetStatus(
       },
     );
 
-    it("refuses a status outside the domain's list before any write", async () => {
-      const world = await newWorld();
-      const staff = await world.aStaffMember();
-      const designId = await sentKitchen(world);
+    it.each([
+      ["a status outside the list", "won"],
+      ["a listed status in another case", "Closed"],
+      ["a listed status with a space", " closed"],
+      ["a missing status", undefined],
+      ["a status that is not text", 42],
+    ])(
+      "refuses %s with the one published code before any write",
+      async (_name, status) => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const designId = await sentKitchen(world);
 
-      const failure = await failureOf(
-        world.store.setStatus({
-          session: staff.session,
-          designId,
-          status: "won" as "new",
-        }),
-      );
+        const failure = await failureOf(
+          world.store.setStatus({
+            session: staff.session,
+            designId,
+            status: status as "new",
+          }),
+        );
 
-      expect(failure.failure).toBe("invalid-request");
-      expect(failure.refusal).toBe("STATUS_NOT_IN_LIST");
-      expect(await world.statusRowOf(designId)).toBeNull();
-    });
+        expect(failure.failure).toBe("invalid-request");
+        expect(failure.refusal).toBe("STATUS_NOT_IN_LIST");
+        expect(await world.statusRowOf(designId)).toBeNull();
+        expect(await world.auditEventsOf(staff.accountId)).toEqual([]);
+      },
+    );
 
     it.each([
       ["a sent kitchen", { isSent: true }],

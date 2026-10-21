@@ -2,6 +2,7 @@ import {
   INITIAL_REQUEST_STATUS,
   isRequestStatus,
   judgeNoteText,
+  judgeRequestStatus,
 } from "@lemnaria/configurator-domain";
 import type { RequestStatus } from "@lemnaria/configurator-domain";
 
@@ -216,11 +217,15 @@ export function requireJudgedNoteText(text: unknown): asserts text is string {
   throw refusedRequest("add a staff note", "NOTE_TEXT_NOT_JUDGED");
 }
 
-/** Refuses a status outside the domain's list; throws an `invalid-request` error. */
+/**
+ * Refuses a status the domain's `judgeRequestStatus` does not accept, so the route and the store cannot disagree about
+ * what a status is; throws an `invalid-request` error. The store is only reached with a judged status, so every refusal
+ * (missing, not text, not listed) is a defect in the caller and carries the one published code, `STATUS_NOT_IN_LIST`.
+ */
 export function requireListedRequestStatus(
   status: unknown,
 ): asserts status is RequestStatus {
-  if (isRequestStatus(status)) return;
+  if (judgeRequestStatus(status).ok) return;
   throw refusedRequest("set a request status", "STATUS_NOT_IN_LIST");
 }
 
