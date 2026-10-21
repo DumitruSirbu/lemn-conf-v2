@@ -943,6 +943,27 @@ describe("the pages on a desktop (frame S2B)", () => {
     );
   });
 
+  it("does not carry the move of focus over to a later answer when the page chosen could not be had", async () => {
+    const nav = requireIn(
+      container(),
+      `nav[aria-label="${roMessages.staffKitchens.pagesLabel}"]`,
+    );
+    listAnswers(() => UNAVAILABLE_ANSWER);
+    click(byWords(nav, "button", wordsOf("ro")("pageNumber", { page: 3 })));
+    await settle();
+    listAnswers((request) => ({
+      body: wireList(rowsOfPage(1, STAFF_KITCHENS_PAGE_SIZE), {
+        total: 143,
+        page: Number(request.url.searchParams.get("page")),
+      }),
+    }));
+
+    click(byWords(container(), "button", roMessages.accountForm.retry));
+    await settle();
+
+    expect(document.activeElement).not.toBe(requireIn(container(), COUNT));
+  });
+
   it("goes to the next page by the arrow", async () => {
     click(byWords(container(), "button", roMessages.staffKitchens.nextPage));
     await settle();

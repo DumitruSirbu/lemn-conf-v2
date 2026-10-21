@@ -79,9 +79,9 @@ function StaffKitchensContent({
   const isPageJumpPending = useRef(false);
   const { state, goToPage } = kitchens;
   useEffect(() => {
-    if (state.phase !== "ready" || !isPageJumpPending.current) return;
+    if (state.phase === "loading" || !isPageJumpPending.current) return;
     isPageJumpPending.current = false;
-    countRef.current?.focus();
+    if (state.phase === "ready") countRef.current?.focus();
   }, [state]);
   const jumpToPage = (page: number) => {
     isPageJumpPending.current = true;
