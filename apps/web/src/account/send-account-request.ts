@@ -1,4 +1,4 @@
-import { isDesignId } from "@lemnaria/configurator-domain";
+import { isDesignId, type RequestStatus } from "@lemnaria/configurator-domain";
 
 import {
   classifyAccountAnswer,
@@ -25,6 +25,7 @@ const ACCOUNT_ENDPOINTS: Readonly<Record<AccountFlow, string>> = {
 };
 
 const KITCHENS_ENDPOINT = "/api/account/kitchens";
+const STAFF_KITCHENS_ENDPOINT = "/api/staff/kitchens";
 const PROFILE_ENDPOINT = "/api/account/profile";
 const PASSWORD_ENDPOINT = "/api/account/password";
 const EMAIL_CHANGE_ENDPOINT = "/api/account/email-change";
@@ -134,12 +135,24 @@ export type SignedInRequest =
   | { readonly flow: "revert-email"; readonly body: RevertEmailBody }
   | { readonly flow: "export" }
   | { readonly flow: "claim"; readonly intent: "count" | "claim" }
-  | { readonly flow: "logout"; readonly body: LogoutBody };
+  | { readonly flow: "logout"; readonly body: LogoutBody }
+  /** What staff write on a client's kitchen. The text is sent as given: the caller has judged it. */
+  | {
+      readonly flow: "staff-note";
+      readonly id: string;
+      readonly text: string;
+    }
+  | {
+      readonly flow: "staff-status";
+      readonly id: string;
+      readonly status: RequestStatus;
+    }
+  | { readonly flow: "staff-unhide"; readonly id: string };
 
 /** One request as the browser sends it. Every method but `GET` sends a JSON body, `{}` when the request has none of
  *  its own: the account routes refuse a `POST`, `PATCH` or `DELETE` that is not JSON (plan lot 2, section 2.2). */
 interface PlannedRequest {
-  readonly method: "GET" | "POST" | "PATCH" | "DELETE";
+  readonly method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   readonly path: string;
   readonly body?: object;
 }
@@ -172,13 +185,20 @@ export async function sendSignedInRequest(
   request: SignedInRequest,
   fetchAccount: FetchAccount = browserFetch,
 ): Promise<SignedInOutcome> {
-  if (request.flow === "kitchen-action" && !isDesignId(request.id)) {
+  if (namesAKitchen(request) && !isDesignId(request.id)) {
     return KITCHEN_UNAVAILABLE_OUTCOME;
   }
   const answer = await answerTo(signedInRequestPlan(request), fetchAccount);
   return answer === undefined
     ? UNANSWERED_OUTCOME
     : classifySignedInAnswer(request.flow, answer);
+}
+
+/** The requests that put a kitchen's id in the address. */
+function namesAKitchen(
+  request: SignedInRequest,
+): request is Extract<SignedInRequest, { readonly id: string }> {
+  return "id" in request;
 }
 
 /** What the export request came to: the file to hand the person, or an outcome the page draws. */
@@ -289,7 +309,31 @@ function signedInRequestPlan(request: SignedInRequest): PlannedRequest {
       };
     case "logout":
       return { method: "POST", path: LOGOUT_ENDPOINT, body: request.body };
+    case "staff-note":
+      return {
+        method: "POST",
+        path: staffKitchenPathOf(request.id, "notes"),
+        body: { text: request.text },
+      };
+    case "staff-status":
+      return {
+        method: "PUT",
+        path: staffKitchenPathOf(request.id, "status"),
+        body: { status: request.status },
+      };
+    case "staff-unhide":
+      return {
+        method: "POST",
+        path: staffKitchenPathOf(request.id, "unhide"),
+      };
   }
+}
+
+function staffKitchenPathOf(
+  id: string,
+  member: "notes" | "status" | "unhide",
+): string {
+  return `${STAFF_KITCHENS_ENDPOINT}/${encodeURIComponent(id)}/${member}`;
 }
 
 function kitchensPathOf(cursor: string | undefined): string {

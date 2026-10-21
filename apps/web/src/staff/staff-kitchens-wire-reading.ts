@@ -1,19 +1,28 @@
-import { DesignSchema, isRequestStatus } from "@lemnaria/configurator-domain";
+import {
+  DesignSchema,
+  isRequestStatus,
+  type RequestStatus,
+} from "@lemnaria/configurator-domain";
 
 import type {
   StaffClientWire,
   StaffKitchenListWire,
+  StaffKitchenNoteWire,
   StaffListedKitchenWire,
+  StaffNoteAddedWire,
+  StaffPersonWire,
   StaffRequestStatusWire,
+  StaffStatusSavedWire,
   StaffThumbnailDesign,
 } from "./staff-kitchens-wire-contract";
 
-// What `GET /api/staff/kitchens` answers, as the list screen reads it. The body arrives as untyped data, and every member is
-// checked here: an id goes into an address and a selector, a text is drawn, and a page that does not have the shape of the
+// What the staff routes answer, as the staff screens read it: the list, and the members the kitchen page and the staff
+// writes share (a client, a person, a note, a saved status). The body arrives as untyped data, and every member is checked
+// here: an id goes into an address and a selector, a text is drawn, and an answer that does not have the shape of the
 // contract is told as a failed request, never drawn half-understood. Client-safe: no server module is imported.
 
 const FIRST_PAGE = 1;
-const UNRECOGNISED_STATUS = "unrecognised";
+export const UNRECOGNISED_STATUS = "unrecognised";
 
 /** The ids the list route may name: the server lists ids of one to 64 characters. Only a design id of the usual length can be
  *  opened (see `canOpenKitchen`); any other is a row to read and not a link to follow. */
@@ -93,7 +102,7 @@ function designFrom(raw: unknown): StaffThumbnailDesign | null {
 }
 
 /** `undefined` for a client the contract does not allow; `{ value: null }` for a sent kitchen no account owns. */
-function clientFrom(
+export function clientFrom(
   raw: unknown,
 ): { readonly value: StaffClientWire | null } | undefined {
   if (raw === null) return { value: null };
@@ -107,12 +116,71 @@ function clientFrom(
 }
 
 /** A status this build does not name is told as unrecognised, never as one it does: a new kitchen is a claim. */
+export function recognisedStatusOf(
+  word: string,
+): RequestStatus | "unrecognised" {
+  return isRequestStatus(word) ? word : UNRECOGNISED_STATUS;
+}
+
 function requestStatusFrom(
   raw: unknown,
 ): { readonly value: StaffRequestStatusWire } | undefined {
   if (raw === null) return { value: null };
   if (typeof raw !== "string") return undefined;
-  return { value: isRequestStatus(raw) ? raw : UNRECOGNISED_STATUS };
+  return { value: recognisedStatusOf(raw) };
+}
+
+/** A person as it reads now: `null` members are an account that no longer resolves, not a failure. */
+export function personFrom(
+  raw: unknown,
+): { readonly value: StaffPersonWire } | undefined {
+  const email = ownValueOf(raw, "email");
+  const name = ownValueOf(raw, "name");
+  if (email !== null && typeof email !== "string") return undefined;
+  if (name !== null && typeof name !== "string") return undefined;
+  return { value: { email, name } };
+}
+
+export function noteFrom(raw: unknown): StaffKitchenNoteWire | undefined {
+  const id = ownValueOf(raw, "id");
+  const text = ownValueOf(raw, "text");
+  const createdAt = ownValueOf(raw, "createdAt");
+  const author = personFrom(ownValueOf(raw, "author"));
+  if (typeof id !== "string" || id === "" || typeof text !== "string") {
+    return undefined;
+  }
+  if (!isCanonicalInstant(createdAt) || author === undefined) return undefined;
+  return { id, text, createdAt, author: author.value };
+}
+
+/** `201` of a note: the note as it was stored, or nothing when the body is not what the contract says. */
+export function noteAddedFrom(body: unknown): StaffNoteAddedWire | undefined {
+  const note = noteFrom(ownValueOf(body, "note"));
+  return note === undefined ? undefined : { note };
+}
+
+/** `200` of a status save: a status this build names, who set it and when. A status it does not name is not one it can
+ *  show as saved. */
+export function statusSavedFrom(
+  body: unknown,
+): StaffStatusSavedWire | undefined {
+  const status = ownValueOf(body, "status");
+  const changedBy = ownValueOf(body, "changedBy");
+  const changedAt = ownValueOf(body, "changedAt");
+  const by = changedBy === null ? { value: null } : personFrom(changedBy);
+  if (typeof status !== "string" || !isRequestStatus(status)) return undefined;
+  if (by === undefined) return undefined;
+  if (changedAt !== null && !isCanonicalInstant(changedAt)) return undefined;
+  return { status, changedBy: by.value, changedAt };
+}
+
+/** An instant in the one form the server writes, `toISOString()`'s: it must read back as itself, so a day that does not
+ *  exist (`2026-02-30`), an offset, a missing millisecond and a bare number are all refused. The list reads an instant
+ *  more loosely (`isInstant`). */
+export function isCanonicalInstant(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 function isListedKitchen(
@@ -134,7 +202,7 @@ function isPositiveCount(value: unknown): value is number {
 }
 
 /** Only what the body's own object holds; anything that is not an object holds nothing. */
-function ownValueOf(value: unknown, name: string): unknown {
+export function ownValueOf(value: unknown, name: string): unknown {
   if (typeof value !== "object" || value === null) return undefined;
   return Object.hasOwn(value, name)
     ? (value as Readonly<Record<string, unknown>>)[name]

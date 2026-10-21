@@ -6,6 +6,14 @@ import type {
   AccountRateLimitNotice,
 } from "@/i18n/content";
 import { clockTimeOf, isToldOnALaterDay } from "@/i18n/clock-time";
+import type {
+  StaffKitchenNoteWire,
+  StaffStatusSavedWire,
+} from "@/staff/staff-kitchens-wire-contract";
+import {
+  noteAddedFrom,
+  statusSavedFrom,
+} from "@/staff/staff-kitchens-wire-reading";
 
 // What an account route answered, as the one state the screen draws. The class is read from the HTTP status and the
 // body's `status` word together, because one status carries several words (`400` is `invalid-input`,
@@ -13,6 +21,9 @@ import { clockTimeOf, isToldOnALaterDay } from "@/i18n/clock-time";
 // class, the fields to mark, a claimable count or a wait in seconds. The exceptions are the successes whose answer is
 // the data itself: `received` (the kitchens list), whose screen's own reader checks the shape, and the
 // two one-member answers of a kitchen action, `renamed` (the stored name) and `created` (the copy's design id).
+//
+// The staff flows (the kitchen, a note, a status, an unhide) are signed-in flows with outcomes of their own; the staff
+// screens' readers of their bodies are `staff/staff-kitchens-wire-reading.ts`.
 //
 // The form flows and the signed-in flows are two unions with one classifier module. They are separate so that every
 // hook that switches over the form flows' outcomes stays exhaustive without learning classes it can never be given.
@@ -305,6 +316,9 @@ function asIssueCode(code: string): AccountFieldIssue["code"] {
 export type SignedInFlow =
   | "kitchens"
   | "staff-kitchen"
+  | "staff-note"
+  | "staff-status"
+  | "staff-unhide"
   | "kitchen-action"
   | "profile"
   | "password"
@@ -342,7 +356,18 @@ export type SignedInOutcome =
   /** `401`: the password was changed but this device's new session could not be started; the person signs in again. */
   | { readonly kind: "password-changed-sign-in" }
   | { readonly kind: "conflict-sent" }
+  /** `409 not-sent`: a design routes' and a staff status route's word alike; the kitchen is no sent request. */
   | { readonly kind: "conflict-not-sent" }
+  /** `409`: the kitchen is not hidden (any more). */
+  | { readonly kind: "conflict-not-hidden" }
+  /** `409`: the status the save was made against is not the one now stored. */
+  | { readonly kind: "conflict-changed-meanwhile" }
+  /** `409`: the stored status is one this build does not name, so a save cannot be judged against it. */
+  | { readonly kind: "conflict-status-not-recognised" }
+  /** `201`: the note as it was stored, in the form it is shown. */
+  | { readonly kind: "note-added"; readonly note: StaffKitchenNoteWire }
+  /** `200`: the status the kitchen shows after the save, with who set it and when. */
+  | { readonly kind: "status-saved"; readonly saved: StaffStatusSavedWire }
   /** `409`: the account holds more than one export carries. Final: repeating the request cannot succeed. */
   | { readonly kind: "export-too-large" };
 
@@ -393,6 +418,33 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
   "staff-kitchen": {
     successes: [{ status: OK_STATUS, outcomeOf: received }],
     refusals: [],
+    isAboutOneKitchen: true,
+    placeableFields: [],
+  },
+  "staff-note": {
+    successes: [{ status: CREATED_STATUS, outcomeOf: noteAddedOutcomeFrom }],
+    refusals: [],
+    isAboutOneKitchen: true,
+    placeableFields: ["text"],
+  },
+  "staff-status": {
+    // The body's own `status` is the saved status (`new`, ...), not a word of the answer's class, so no word is asked.
+    successes: [{ status: OK_STATUS, outcomeOf: statusSavedOutcomeFrom }],
+    refusals: [
+      conflictRefusal("not-sent", { kind: "conflict-not-sent" }),
+      conflictRefusal("changed-meanwhile", {
+        kind: "conflict-changed-meanwhile",
+      }),
+      conflictRefusal("status-not-recognised", {
+        kind: "conflict-status-not-recognised",
+      }),
+    ],
+    isAboutOneKitchen: true,
+    placeableFields: ["status"],
+  },
+  "staff-unhide": {
+    successes: [{ status: NO_CONTENT_STATUS, outcomeOf: succeeded }],
+    refusals: [conflictRefusal("not-hidden", { kind: "conflict-not-hidden" })],
     isAboutOneKitchen: true,
     placeableFields: [],
   },
@@ -521,6 +573,13 @@ const SIGNED_IN_FLOW_RULES: Readonly<Record<SignedInFlow, SignedInFlowRule>> = {
   },
 };
 
+function conflictRefusal(
+  word: string,
+  outcome: SignedInOutcome,
+): SignedInRefusalRule {
+  return { status: CONFLICT_STATUS, word, outcome };
+}
+
 function wrongPasswordRefusal(): SignedInRefusalRule {
   return {
     status: INVALID_INPUT_STATUS,
@@ -543,6 +602,22 @@ function renamedFrom(body: unknown): SignedInOutcome {
   return typeof name === "string" && name !== ""
     ? { kind: "renamed", name }
     : REQUEST_FAILED_OUTCOME;
+}
+
+/** A note answered without the shape of one is not one the list can show. */
+function noteAddedOutcomeFrom(body: unknown): SignedInOutcome {
+  const added = noteAddedFrom(body);
+  return added === undefined
+    ? REQUEST_FAILED_OUTCOME
+    : { kind: "note-added", note: added.note };
+}
+
+/** A save answered with a status this build does not name is not one the control can show as saved. */
+function statusSavedOutcomeFrom(body: unknown): SignedInOutcome {
+  const saved = statusSavedFrom(body);
+  return saved === undefined
+    ? REQUEST_FAILED_OUTCOME
+    : { kind: "status-saved", saved };
 }
 
 /** A copy answered without a design id is not one the list can open. */
