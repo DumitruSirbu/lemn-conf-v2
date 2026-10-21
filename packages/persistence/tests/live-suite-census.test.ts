@@ -189,6 +189,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of 8I: writes contact submission rows under ids that carry its own marker and needs the schema intact (M8 8I QA)",
   },
+  "qa-l3-s1-staff-tables.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S1: inserts into the three staff tables only inside a rolled-back transaction, creates temporary tables and functions of its own, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S1 QA)",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",
