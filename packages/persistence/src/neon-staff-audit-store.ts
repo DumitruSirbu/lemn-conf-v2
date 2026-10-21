@@ -74,7 +74,8 @@ export class NeonStaffAuditStore implements StaffAuditStore {
   /**
    * One statement carries the page and the count, so `total` and the rows come from one snapshot, and an empty page
    * still reports the total. The accounts and the kitchen are **left** joins: a row whose actor, subject or kitchen no
-   * longer resolves stays, with nulls. A kitchen its client deleted is not resolved (plan P-L3-4). The walk is
+   * longer resolves stays, with nulls. A kitchen its client deleted is not resolved (plan P-L3-4). A stamp of `infinity` reads as the
+   * latest instant a `Date` holds and `-infinity` as the earliest, so such a row is listed and the page does not fail. The walk is
    * `staff_audit_events_newest_first_idx` (`0020`).
    */
   async page(request: StaffAuditPageRequest): Promise<StaffAuditPage> {
@@ -106,7 +107,11 @@ export class NeonStaffAuditStore implements StaffAuditStore {
       from (select count(*)::int as total from filtered) t
       left join lateral (
         select f.id, f.occurred_at,
-          floor(extract(epoch from f.occurred_at) * 1000)::bigint::text as occurred_ms,
+          case
+            when f.occurred_at = 'infinity'::timestamptz then '8640000000000000'
+            when f.occurred_at = '-infinity'::timestamptz then '-8640000000000000'
+            else floor(extract(epoch from f.occurred_at) * 1000)::bigint::text
+          end as occurred_ms,
           f.action, f.detail,
           f.actor_account_id, actor_account.email as actor_email, actor_account.name as actor_name,
           f.subject_account_id, subject_account.email as subject_email, subject_account.name as subject_name,
@@ -319,10 +324,12 @@ function textOf(value: unknown): string | null {
   return value;
 }
 
+/** The row's instant, from epoch milliseconds in text, with a minus sign for an instant before 1970. Any other text
+ *  is not this statement's reply. */
 function instantOf(epochMilliseconds: unknown): Date {
   const milliseconds =
     typeof epochMilliseconds === "string" &&
-    /^[0-9]{1,16}$/.test(epochMilliseconds)
+    /^-?[0-9]{1,16}$/.test(epochMilliseconds)
       ? Number(epochMilliseconds)
       : Number.NaN;
   if (!Number.isSafeInteger(milliseconds)) throw unexpectedAnswer();

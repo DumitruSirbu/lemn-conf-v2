@@ -1,4 +1,4 @@
-import { readStaffAuditEntry } from "@lemnaria/configurator-domain";
+import { ROLES, readStaffAuditEntry } from "@lemnaria/configurator-domain";
 import type {
   StaffAuditAction,
   StaffAuditEntry,
@@ -14,6 +14,23 @@ export const STAFF_AUDIT_PAGE_SIZE = 25;
 /** The last page a request may name, so an offset stays far inside what the server counts in. A bound on a request, not
  *  on the log. */
 export const MAX_STAFF_AUDIT_PAGE = 100_000;
+
+const SECONDS_PER_DAY = 24 * 60 * 60;
+
+/**
+ * The longest idle lifetime a caller may state for any role: the client's 30 days, the largest figure
+ * `IDLE_LIFETIME_SECONDS_BY_ROLE` holds (`apps/web/src/lib/server/account/session-lifetimes.ts`). The figures are the
+ * caller's, so without a bound a caller could keep an idle-expired session live (1e9) or send one no interval can
+ * hold (1e16, SQLSTATE 22008). A test in the web app fails if that table outgrows this figure.
+ */
+export const MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS = 30 * SECONDS_PER_DAY;
+
+/**
+ * `timestamptz` text the server accepts from `Date.prototype.toISOString`: years 1 to 9999. Year 0 does not exist
+ * for the server, and a year of five or more digits is written with a sign it refuses (SQLSTATE 22007, 22008).
+ */
+const EARLIEST_BOUND_MS = Date.parse("0001-01-01T00:00:00.000Z");
+const LATEST_BOUND_MS = Date.parse("9999-12-31T23:59:59.999Z");
 
 /** The shape `staff_audit_events_*_shape` (`0020`) checks for an event id and for each id it holds. */
 const STORED_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
@@ -172,7 +189,8 @@ export type StaffAuditReading =
 
 export interface StaffAuditPageRow {
   readonly id: string;
-  /** Millisecond precision, for display. */
+  /** Millisecond precision, for display. A stamp of `infinity` or `-infinity`, which no write of this package makes
+   *  and a script around it could, reads as the latest or earliest instant a `Date` holds. */
   readonly occurredAt: Date;
   readonly actor: StaffAuditAccountRef;
   readonly subject: StaffAuditAccountRef | null;
@@ -200,28 +218,39 @@ export interface PreparedStaffAuditRecord {
 }
 
 /**
- * Checks a record and mints its row's id, or throws an `invalid-record` error. The entry is read again by
- * `readStaffAuditEntry` and the reading's entry, not the request's, is what the prepared record holds.
+ * Checks a record and mints its row's id, or throws an `invalid-record` error. Each member of the request is read
+ * once, and what is checked is what is held: the prepared record owns frozen copies, so a getter or a later write by
+ * the caller cannot change a value after its check. The entry is read again by `readStaffAuditEntry` and the reading's
+ * entry, not the request's, is what the prepared record holds.
  */
 export function prepareStaffAuditRecord(
   record: StaffAuditRecord,
 ): PreparedStaffAuditRecord {
-  requireWellFormedSession(record);
-  const entry = requireRecognisedEntry(record.entry);
-  requireDesignIdWhereTheActionNamesOne(entry.action, record.designId);
+  const {
+    sessionTokenHash,
+    entry: requestedEntry,
+    designId,
+    subjectAccountId,
+  } = record;
+  const idleLifetimeSeconds = snapshotOfIdleLifetimes(
+    record.idleLifetimeSeconds,
+  );
+  requireWellFormedSession(sessionTokenHash, idleLifetimeSeconds);
+  const entry = requireRecognisedEntry(requestedEntry);
+  requireDesignIdWhereTheActionNamesOne(entry.action, designId);
   requireShapeOrNull(
-    record.subjectAccountId,
+    subjectAccountId,
     STORED_ID_SHAPE,
     "SUBJECT_ACCOUNT_ID_NOT_WELL_FORMED",
   );
-  return {
+  return Object.freeze({
     id: nanoid(),
-    sessionTokenHash: record.sessionTokenHash,
-    idleLifetimeSeconds: record.idleLifetimeSeconds,
+    sessionTokenHash,
+    idleLifetimeSeconds: Object.freeze(idleLifetimeSeconds),
     entry,
-    designId: record.designId,
-    subjectAccountId: record.subjectAccountId,
-  };
+    designId,
+    subjectAccountId,
+  });
 }
 
 /** The `detail` column's value: SQL null (here `null`) for an entry without one, never the text `null` or `{}`. */
@@ -273,13 +302,28 @@ export function offsetOfStaffAuditPage(page: number): number {
   return (page - 1) * STAFF_AUDIT_PAGE_SIZE;
 }
 
-function requireWellFormedSession(record: StaffAuditRecord): void {
-  const { sessionTokenHash, idleLifetimeSeconds } = record;
+function requireWellFormedSession(
+  sessionTokenHash: string,
+  idleLifetimeSeconds: IdleLifetimeSecondsByRole,
+): void {
   const isWellFormed =
     typeof sessionTokenHash === "string" &&
     SESSION_TOKEN_HASH_SHAPE.test(sessionTokenHash) &&
     hasIdleLifetimes(sessionTokenHash, idleLifetimeSeconds);
   if (!isWellFormed) throw refusedRecord("SESSION_NOT_WELL_FORMED");
+}
+
+/** One figure per role, each read once from the caller's object; anything unreadable leaves the role without one. */
+function snapshotOfIdleLifetimes(source: unknown): IdleLifetimeSecondsByRole {
+  const snapshot: Record<string, unknown> = {};
+  try {
+    for (const role of Object.keys(ROLES)) {
+      snapshot[role] = (source as Record<string, unknown>)[role];
+    }
+  } catch {
+    return {} as IdleLifetimeSecondsByRole;
+  }
+  return snapshot as unknown as IdleLifetimeSecondsByRole;
 }
 
 function hasIdleLifetimes(
@@ -291,10 +335,12 @@ function hasIdleLifetimes(
       { tokenHash, idleLifetimeSeconds },
       "look up a session",
     );
-    return true;
   } catch {
     return false;
   }
+  return Object.values(idleLifetimeSeconds).every(
+    (seconds) => seconds <= MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS,
+  );
 }
 
 function requireRecognisedEntry(entry: StaffAuditEntry): StaffAuditEntry {
@@ -324,10 +370,12 @@ function isShapeOrNull(value: unknown, shape: RegExp): boolean {
   return value === null || (typeof value === "string" && shape.test(value));
 }
 
+/** A date the server can read back from `toISOString`: a valid instant within years 1 to 9999. */
 function isInstantOrNull(value: unknown): boolean {
-  return (
-    value === null || (value instanceof Date && !Number.isNaN(value.getTime()))
-  );
+  if (value === null) return true;
+  if (!(value instanceof Date)) return false;
+  const milliseconds = value.getTime();
+  return milliseconds >= EARLIEST_BOUND_MS && milliseconds <= LATEST_BOUND_MS;
 }
 
 function refusedRecord(refusal: StaffAuditRecordRefusal): StaffAuditStoreError {

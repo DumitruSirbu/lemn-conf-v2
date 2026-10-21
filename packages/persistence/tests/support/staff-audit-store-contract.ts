@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { describe, expect, it } from "vitest";
 
 import {
+  MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS,
   MAX_STAFF_AUDIT_PAGE,
   STAFF_AUDIT_PAGE_SIZE,
   StaffAuditStoreError,
@@ -242,6 +243,38 @@ export function describeStaffAuditStoreContract(
       );
       expect(await world.storedEventsOf(revoked.accountId)).toHaveLength(0);
     });
+
+    it.each([
+      ["one second beyond the cap", MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS + 1],
+      ["a billion seconds", 1e9],
+      ["a figure no interval holds", 1e16],
+    ])(
+      "refuses an idle lifetime of %s and stores nothing",
+      async (_label, seconds) => {
+        const world = await newWorld();
+        const actor = await world.aStaffMember();
+        const kitchen = await world.aKitchen({ client: null, name: null });
+
+        const failure = await failureOf(
+          world.store.record({
+            sessionTokenHash: actor.sessionTokenHash,
+            idleLifetimeSeconds: {
+              ...actor.idleLifetimeSeconds,
+              operator: seconds,
+            },
+            entry: entryOf("kitchen-opened"),
+            designId: kitchen.designId,
+            subjectAccountId: null,
+          }),
+        );
+
+        expect([failure.failure, failure.refusal]).toEqual([
+          "invalid-record",
+          "SESSION_NOT_WELL_FORMED",
+        ]);
+        expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
+      },
+    );
 
     it("throws not-recorded for a session hash no session holds", async () => {
       const world = await newWorld();
@@ -573,6 +606,40 @@ export function describeStaffAuditStoreContract(
       expect(page.events.map(({ reading }) => reading)).toEqual([
         { kind: "recognised", entry: STATUS_CHANGED },
       ]);
+    });
+
+    it.each([
+      ["year 0", "occurredFrom", new Date("0000-01-01T00:00:00.000Z")],
+      ["year 10000", "occurredBefore", new Date("+010000-01-01T00:00:00.000Z")],
+      ["the smallest instant a Date holds", "occurredFrom", new Date(-8.64e15)],
+      ["the largest instant a Date holds", "occurredBefore", new Date(8.64e15)],
+    ] as const)(
+      "refuses a time bound in %s as a request, not as a database failure",
+      async (_label, member, bound) => {
+        const world = await newWorld();
+        const actor = await world.aStaffMember();
+
+        const failure = await failureOf(
+          world.store.page(pageRequestFor(actor, { [member]: bound })),
+        );
+
+        expect(failure.failure).toBe("invalid-record");
+      },
+    );
+
+    it("accepts the first instant of year 1 and the last millisecond of year 9999 as a window", async () => {
+      const world = await newWorld();
+      const actor = await world.aStaffMember();
+      const id = await plant(world, actor, new Date(FIRST_INSTANT));
+
+      const page = await world.store.page(
+        pageRequestFor(actor, {
+          occurredFrom: new Date("0001-01-01T00:00:00.000Z"),
+          occurredBefore: new Date("9999-12-31T23:59:59.999Z"),
+        }),
+      );
+
+      expect(page.events.map((event) => event.id)).toEqual([id]);
     });
 
     it.each([

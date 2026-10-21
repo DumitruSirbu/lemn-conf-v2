@@ -321,6 +321,39 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       }
     });
 
+    describe("a row stamped infinity or -infinity (a script around the store could write one)", () => {
+      it("is listed, as the latest or earliest instant a Date holds, and the page does not fail", async () => {
+        const member = await signIn();
+        const plantedAt = async (stamp: string) => {
+          const id = nanoid();
+          eventIds.push(id);
+          await sql()`
+            insert into staff_audit_events (id, occurred_at, actor_account_id, action)
+            values (${id}, ${stamp}::timestamptz, ${member.accountId}, 'kitchen-opened')
+          `;
+          return id;
+        };
+        const latest = await plantedAt("infinity");
+        const earliest = await plantedAt("-infinity");
+
+        const page = await store().page({
+          actorAccountId: member.accountId,
+          action: null,
+          occurredFrom: null,
+          occurredBefore: null,
+          page: 1,
+        });
+
+        expect(page.total).toBe(2);
+        expect(
+          page.events.map(({ id, occurredAt }) => [id, occurredAt.getTime()]),
+        ).toEqual([
+          [latest, 8.64e15],
+          [earliest, -8.64e15],
+        ]);
+      });
+    });
+
     describe("the page does not carry what the client keeps private", () => {
       it("reads neither the client's postal address nor phone", async () => {
         const world = await newWorld();

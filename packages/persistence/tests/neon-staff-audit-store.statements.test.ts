@@ -14,6 +14,7 @@ import {
 import { NeonSessionStore } from "../src/neon-session-store.js";
 import { openApplicationDatabase } from "../src/open-application-database.js";
 import {
+  MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS,
   MAX_STAFF_AUDIT_PAGE,
   STAFF_AUDIT_PAGE_SIZE,
   StaffAuditStoreError,
@@ -402,6 +403,136 @@ describe("a record the code refuses before any statement", () => {
   });
 });
 
+describe("the idle lifetimes a record may state", () => {
+  const ROLES_STATED = ["client", "operator", "administrator"] as const;
+
+  it.each(ROLES_STATED)(
+    "accepts the cap itself for the %s role",
+    async (role) => {
+      const idleLifetimeSeconds = {
+        ...LIFETIMES,
+        [role]: MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS,
+      };
+
+      const { values } = await sentByRecord(aRecord({ idleLifetimeSeconds }));
+
+      expect(values[6]).toBe(JSON.stringify(idleLifetimeSeconds));
+    },
+  );
+
+  it.each(ROLES_STATED)(
+    "refuses a figure above the cap for the %s role before any statement",
+    async (role) => {
+      resetQueryDriver();
+      const idleLifetimeSeconds = {
+        ...LIFETIMES,
+        [role]: MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS + 1,
+      };
+
+      const failure = await failureOf(() =>
+        newStore().record(aRecord({ idleLifetimeSeconds })),
+      );
+
+      expect([failure.failure, failure.refusal]).toEqual([
+        "invalid-record",
+        "SESSION_NOT_WELL_FORMED",
+      ]);
+      expect(queryDriver.statements).toHaveLength(0);
+    },
+  );
+
+  it("refuses a figure no interval can hold", async () => {
+    resetQueryDriver();
+
+    const failure = await failureOf(() =>
+      newStore().record(
+        aRecord({ idleLifetimeSeconds: { ...LIFETIMES, operator: 1e16 } }),
+      ),
+    );
+
+    expect(failure.refusal).toBe("SESSION_NOT_WELL_FORMED");
+  });
+});
+
+describe("a prepared record holds what was checked", () => {
+  it("reads each member of the request once, so the checked value is the held value", () => {
+    const reads: Record<string, number> = {};
+    const request = {} as StaffAuditRecord;
+    const values: Record<string, unknown> = {
+      sessionTokenHash: SESSION_HASH,
+      idleLifetimeSeconds: LIFETIMES,
+      entry: KITCHEN_OPENED,
+      designId: DESIGN_ID,
+      subjectAccountId: SUBJECT_ID,
+    };
+    for (const [name, value] of Object.entries(values)) {
+      Object.defineProperty(request, name, {
+        enumerable: true,
+        get: () => {
+          reads[name] = (reads[name] ?? 0) + 1;
+          return value;
+        },
+      });
+    }
+
+    prepareStaffAuditRecord(request);
+
+    expect(reads).toEqual({
+      sessionTokenHash: 1,
+      idleLifetimeSeconds: 1,
+      entry: 1,
+      designId: 1,
+      subjectAccountId: 1,
+    });
+  });
+
+  it("reads each role's figure once", () => {
+    const reads = { client: 0, operator: 0, administrator: 0 };
+    const idleLifetimeSeconds = {} as typeof LIFETIMES;
+    for (const role of Object.keys(reads) as (keyof typeof reads)[]) {
+      Object.defineProperty(idleLifetimeSeconds, role, {
+        enumerable: true,
+        get: () => {
+          reads[role] += 1;
+          return LIFETIMES[role];
+        },
+      });
+    }
+
+    prepareStaffAuditRecord(aRecord({ idleLifetimeSeconds }));
+
+    expect(reads).toEqual({ client: 1, operator: 1, administrator: 1 });
+  });
+
+  it("is frozen, and its lifetimes are a copy of the caller's object", () => {
+    const lifetimes = { ...LIFETIMES };
+
+    const prepared = prepareStaffAuditRecord(
+      aRecord({ idleLifetimeSeconds: lifetimes }),
+    );
+    lifetimes.operator = 1;
+
+    expect(Object.isFrozen(prepared)).toBe(true);
+    expect(Object.isFrozen(prepared.idleLifetimeSeconds)).toBe(true);
+    expect(prepared.idleLifetimeSeconds).toEqual(LIFETIMES);
+  });
+
+  it("refuses lifetimes that cannot be read", () => {
+    const hostile = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new Error("trap");
+        },
+      },
+    ) as typeof LIFETIMES;
+
+    expect(() =>
+      prepareStaffAuditRecord(aRecord({ idleLifetimeSeconds: hostile })),
+    ).toThrow(StaffAuditStoreError);
+  });
+});
+
 describe("the reply to the audit insert", () => {
   it.each([
     ["no row", []],
@@ -670,6 +801,16 @@ describe("the audit page (page)", () => {
     ["an actor of the wrong shape", { actorAccountId: "nobody" }],
     ["an action outside the table's shape", { action: "Kitchen Opened" }],
     ["a bound that is not a date", { occurredFrom: new Date(Number.NaN) }],
+    [
+      "a lower bound before year 1",
+      { occurredFrom: new Date("0000-01-01T00:00:00.000Z") },
+    ],
+    [
+      "an upper bound in year 10000",
+      { occurredBefore: new Date("+010000-01-01T00:00:00.000Z") },
+    ],
+    ["the largest instant a Date holds", { occurredBefore: new Date(8.64e15) }],
+    ["the smallest instant a Date holds", { occurredFrom: new Date(-8.64e15) }],
   ] satisfies readonly (readonly [string, Partial<StaffAuditPageRequest>])[])(
     "refuses %s before any statement",
     async (_label, overrides) => {
@@ -741,6 +882,44 @@ describe("the rows the page reads", () => {
         },
       ],
     });
+  });
+
+  it.each([
+    ["one millisecond before 1970", "-1", -1],
+    ["the earliest instant a Date holds", "-8640000000000000", -8.64e15],
+    ["the latest instant a Date holds", "8640000000000000", 8.64e15],
+  ])("reads a stamp of %s", async (_label, text, milliseconds) => {
+    const page = await pageOf([eventRow({ occurred_ms: text })]);
+
+    expect(page.events[0]?.occurredAt.getTime()).toBe(milliseconds);
+  });
+
+  it("reads a stamp of infinity or -infinity as the latest or earliest instant, in the statement", async () => {
+    const text = normalised(await sentByPage(aPageRequest()));
+
+    expect(text).toContain(
+      "when f.occurred_at = 'infinity'::timestamptz then '8640000000000000'",
+    );
+    expect(text).toContain(
+      "when f.occurred_at = '-infinity'::timestamptz then '-8640000000000000'",
+    );
+  });
+
+  it.each([
+    [
+      "the first instant of year 1",
+      { occurredFrom: new Date("0001-01-01T00:00:00.000Z") },
+    ],
+    [
+      "the last millisecond of year 9999",
+      { occurredBefore: new Date("9999-12-31T23:59:59.999Z") },
+    ],
+  ])("sends %s as a bound", async (_label, overrides) => {
+    const { values } = await sentByPage(aPageRequest(overrides));
+
+    expect(values.slice(0, 8).filter((value) => value !== null)).toHaveLength(
+      2,
+    );
   });
 
   it("reports the total of an empty page and no events", async () => {
@@ -828,6 +1007,12 @@ describe("the rows the page reads", () => {
     ["no row at all", []],
     ["a reply that is not rows", "ok"],
     ["a total that is not a count", [eventRow({ total: "61" })]],
+    ["a stamp with two minus signs", [eventRow({ occurred_ms: "--1" })]],
+    ["a stamp that is only a minus sign", [eventRow({ occurred_ms: "-" })]],
+    ["a stamp with a plus sign", [eventRow({ occurred_ms: "+1" })]],
+    ["an empty stamp", [eventRow({ occurred_ms: "" })]],
+    ["a stamp with whitespace", [eventRow({ occurred_ms: " 1" })]],
+    ["a null stamp", [eventRow({ occurred_ms: null })]],
     [
       "a millisecond stamp that is not digits",
       [eventRow({ occurred_ms: "yesterday" })],

@@ -256,6 +256,7 @@ export type {
   SeededKitchen,
 } from "./fake-account-kitchen-store.js";
 export {
+  MAX_STAFF_AUDIT_IDLE_LIFETIME_SECONDS,
   MAX_STAFF_AUDIT_PAGE,
   STAFF_AUDIT_PAGE_SIZE,
   StaffAuditStoreError,
@@ -292,6 +293,37 @@ export type {
   StaffAuditDirectoryAccount,
   StaffAuditDirectoryDesign,
 } from "./fake-staff-audit-store.js";
+export {
+  StaffKitchenReaderError,
+  isWellFormedDesignId,
+  likePatternContaining,
+  requireValidStaffKitchenQuery,
+  shownStaffStatusOf,
+} from "./staff-kitchen-reader.js";
+export type {
+  ShownStaffStatus,
+  StaffKitchenClient,
+  StaffKitchenDetail,
+  StaffKitchenNote,
+  StaffKitchenPage,
+  StaffKitchenReader,
+  StaffKitchenReaderFailure,
+  StaffKitchenReaderOperation,
+  StaffKitchenReading,
+  StaffKitchenRequest,
+  StaffKitchenStatus,
+  StaffListedKitchen,
+} from "./staff-kitchen-reader.js";
+export { NeonStaffKitchenReader } from "./neon-staff-kitchen-reader.js";
+export { FakeStaffKitchenReader } from "./fake-staff-kitchen-reader.js";
+export type {
+  PlantedStaffAccount,
+  PlantedStaffKitchen,
+  PlantedStaffNote,
+  PlantedStaffRequest,
+  PlantedStaffSentCopy,
+  PlantedStaffStatus,
+} from "./fake-staff-kitchen-reader.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {
