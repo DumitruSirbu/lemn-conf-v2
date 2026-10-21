@@ -1,4 +1,4 @@
-// Where a sent request stands. Staff set it to any value from any other; the list is the only rule (plan P-L3-8).
+// Where a sent request stands. Staff set it to any value from any other; the list is the only rule.
 // The domain publishes the codes and the UI maps them to words (ADR 0095 decision 3).
 
 /** In the order staff work a request: the status select lists them as written. */

@@ -274,7 +274,10 @@ describe("readStaffKitchenQuery: what staff ask the kitchens list for", () => {
       ["10", 10],
       ["20", 20],
       ["143", 143],
-      [LAST_PAGE_WHOSE_ROWS_ARE_COUNTABLE, 450359962737049],
+      [
+        LAST_PAGE_WHOSE_ROWS_ARE_COUNTABLE,
+        Number(LAST_PAGE_WHOSE_ROWS_ARE_COUNTABLE),
+      ],
     ])("accepts %s", (text, page) => {
       expect(queryOf({ page: text }).page).toBe(page);
     });
@@ -408,7 +411,26 @@ describe("staffKitchenOffsetOf: the rows before a page", () => {
     [1, 0],
     [2, 20],
     [8, 140],
+    [Number(LAST_PAGE_WHOSE_ROWS_ARE_COUNTABLE), 9007199254740960],
   ])("page %i skips %i rows", (page, offset) => {
     expect(staffKitchenOffsetOf(page)).toBe(offset);
   });
+
+  it.each([
+    ["zero", 0],
+    ["a negative page", -1],
+    ["NaN", Number.NaN],
+    ["a fraction", 1.5],
+    ["infinity", Number.POSITIVE_INFINITY],
+    [
+      "the largest safe integer, whose rows cannot be counted",
+      Number.MAX_SAFE_INTEGER,
+    ],
+    ["the first page past the countable ones", Number(FIRST_PAGE_PAST_IT)],
+  ])(
+    "throws a RangeError for %s, so no caller sends a negative or rounded offset",
+    (_label, page) => {
+      expect(() => staffKitchenOffsetOf(page)).toThrow(RangeError);
+    },
+  );
 });

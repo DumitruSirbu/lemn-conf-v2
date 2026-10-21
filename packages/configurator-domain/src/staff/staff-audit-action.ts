@@ -8,7 +8,7 @@ import { isRequestStatus, type RequestStatus } from "./request-status.js";
 
 // What a staff member did, as a code and the few codes that qualify it. The closed list lives here and not in
 // the database (ADR 0172 D10). A detail holds codes only, so an address, a name or a note's text has no field
-// to be written into (plan P-L3-3).
+// to be written into.
 
 export const STAFF_AUDIT_ACTIONS = Object.freeze([
   "kitchen-opened",
