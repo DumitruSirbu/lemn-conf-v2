@@ -181,6 +181,14 @@ export const ACCOUNT_EMAIL_CHANGE_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
 export const ACCOUNT_EMAIL_CHANGE_PER_ACCOUNT_DAY_FIGURE = 5;
 /** How often an account may download its data: the file is the whole account, built per request. */
 export const ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE = 5;
+/**
+ * PROVISIONAL, the owner's ruling of 2026-10-21 (ADR 0173) with the figure proposed at wave L3-S6: how many pages of the
+ * staff kitchens list one staff account may be served in an hour. The list returns clients' e-mail, name and phone in
+ * bulk, so this bucket caps harvesting even when the general read limiter is down. Unlike every other read it **fails
+ * closed**: a count above this figure, or a count that cannot be made, serves no page. 300 is about one page every
+ * twelve seconds for the whole hour. The owner's answer changes this constant and no code.
+ */
+export const STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE = 300;
 /** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
  *  ADR 0147's intent). */
 export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
@@ -460,6 +468,14 @@ export const ACCOUNT_EMAIL_CHANGE_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY = policyOf(
+  "staff-kitchens-list-by-account",
+  {
+    figure: STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
 export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
   "account-export-by-account",
   {
@@ -527,7 +543,8 @@ export type PolicyPurpose =
   | "account-email-change-mail-by-address"
   | "account-email-change-by-account"
   | "account-export-by-account"
-  | "duplicate-by-account";
+  | "duplicate-by-account"
+  | "staff-kitchens-list-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -628,6 +645,9 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
     ACCOUNT_EXPORT_BY_ACCOUNT_POLICY,
   ),
   "duplicate-by-account": sameInProduction(DESIGN_DUPLICATE_BY_ACCOUNT_POLICY),
+  "staff-kitchens-list-by-account": sameInProduction(
+    STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
+  ),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */

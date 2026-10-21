@@ -71,7 +71,8 @@ export type AccountKeyedPurpose =
   | "kitchen-rename"
   | "kitchen-duplicate"
   | "kitchen-hide"
-  | "kitchen-delete";
+  | "kitchen-delete"
+  | "staff-kitchens-list";
 
 /**
  * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
@@ -175,6 +176,10 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
   },
   "kitchen-hide": { event: "kitchen-hide", buckets: ["save-by-account"] },
   "kitchen-delete": { event: "kitchen-delete", buckets: ["save-by-account"] },
+  "staff-kitchens-list": {
+    event: "staff-kitchens",
+    buckets: ["staff-kitchens-list-by-account"],
+  },
 };
 
 const UNJUDGED: WriteJudgement = Object.freeze({

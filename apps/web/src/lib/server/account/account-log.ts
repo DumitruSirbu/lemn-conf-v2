@@ -14,6 +14,8 @@ export const ACCOUNT_EVENTS = [
   "password-reset-complete",
   "claim",
   "kitchens",
+  "staff-kitchens",
+  "staff-kitchen",
   "kitchen-rename",
   "kitchen-duplicate",
   "kitchen-hide",

@@ -45,6 +45,7 @@ const ACCOUNT_PURPOSES: Record<
     | "account-email-change-by-account"
     | "account-export-by-account"
     | "duplicate-by-account"
+    | "staff-kitchens-list-by-account"
   >,
   true
 > = {
@@ -67,6 +68,7 @@ const ACCOUNT_PURPOSES: Record<
   "account-email-change-by-account": true,
   "account-export-by-account": true,
   "duplicate-by-account": true,
+  "staff-kitchens-list-by-account": true,
 };
 const ACCOUNT_PURPOSE_NAMES = Object.keys(ACCOUNT_PURPOSES) as PolicyPurpose[];
 

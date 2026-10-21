@@ -60,6 +60,7 @@ async function freshJudges() {
     "account-email-change-by-account": () => Promise.resolve(undefined),
     "account-export-by-account": () => Promise.resolve(undefined),
     "duplicate-by-account": () => Promise.resolve(undefined),
+    "staff-kitchens-list-by-account": () => Promise.resolve(undefined),
   };
   return askers;
 }

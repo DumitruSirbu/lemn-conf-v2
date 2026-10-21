@@ -28,6 +28,7 @@ import {
   E2E_RATE_LIMIT_POLICY_FLAG,
   MINT_POLICY,
   SAVE_BY_ACCOUNT_POLICY,
+  STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
   type LimitPolicy,
 } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
@@ -245,6 +246,14 @@ describe("the subject stage: an address's or an account's own buckets", () => {
         },
         [DESIGN_DUPLICATE_BY_ACCOUNT_POLICY],
       ],
+      [
+        {
+          purpose: "staff-kitchens-list",
+          headers: HEADERS,
+          accountId: ACCOUNT_ID,
+        },
+        [STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY],
+      ],
     ];
 
   it.each(SUBJECT_TABLE)(
@@ -444,6 +453,7 @@ describe("what a judgement writes down", () => {
     ["kitchen-duplicate", "kitchen-duplicate"],
     ["email-change", "email-change"],
     ["profile", "profile"],
+    ["staff-kitchens-list", "staff-kitchens"],
   ] as const)("names the flow of %s as %s", async (purpose, event) => {
     const console_ = captureConsole();
     limiterLedger.refusing.set(
@@ -456,6 +466,7 @@ describe("what a judgement writes down", () => {
         "kitchen-duplicate": DESIGN_DUPLICATE_BY_ACCOUNT_POLICY,
         "email-change": ACCOUNT_EMAIL_CHANGE_BY_ACCOUNT_POLICY,
         profile: ACCOUNT_PROFILE_BY_ACCOUNT_POLICY,
+        "staff-kitchens-list": STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
       }[purpose].name,
       5,
     );

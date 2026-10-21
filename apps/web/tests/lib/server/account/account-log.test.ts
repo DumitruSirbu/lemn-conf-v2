@@ -39,6 +39,8 @@ describe("the lists", () => {
       "password-reset-complete",
       "claim",
       "kitchens",
+      "staff-kitchens",
+      "staff-kitchen",
       "kitchen-rename",
       "kitchen-duplicate",
       "kitchen-hide",
