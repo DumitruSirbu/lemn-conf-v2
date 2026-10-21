@@ -447,6 +447,9 @@ describe("only these modules may go near a price, and only one of them may round
       "review/use-review.ts",
       "settings/global-settings-model.ts",
       "settings/global-settings.tsx",
+      // The staff kitchen's summary card prints the price line `describeKitchenPrice` makes, as the kitchen card does,
+      // and names the book's two tiers from the same priced design; it derives and rounds nothing.
+      "staff/staff-kitchen-view.tsx",
     ]);
   });
 

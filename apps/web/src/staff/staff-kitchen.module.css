@@ -1,0 +1,404 @@
+/* The staff kitchen page (Lot 3 frames S3A to S3I): a phone stacks the picture, the client's column, the summary and the notes;
+ * from 900 px they stand as three columns, the picture over the summary in the first. Every interactive box is at least
+ * `--touch-target` tall. The marks are drawn here, so no glyph is text, and a string a client typed is isolated from the text
+ * around it so a right-to-left run cannot reorder its neighbours. */
+.page {
+  --warm-surface: #f7ecdc;
+  --warm-edge: #e6cfa8;
+  --warm-ink: #5a3e25;
+  --tint: #ece7dd;
+  --stripe-a: #e9e4da;
+  --stripe-b: #f1ede5;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 14px/1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.back::before {
+  font: 400 24px/1 var(--font-ui);
+  content: "\2039" / "";
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.title {
+  max-width: 1000px;
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  color: var(--ink);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.sub {
+  margin: 0;
+  font: 400 13px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-edge);
+  border-radius: 12px;
+}
+
+.bannerMark {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  background: var(--accent-strong);
+  border-radius: 50%;
+}
+
+.bannerMark::before {
+  display: block;
+  font: 700 12px/20px var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  content: "!" / "";
+}
+
+.bannerText {
+  flex: 1 1 240px;
+  min-width: 0;
+  font: 400 13.5px/1.5 var(--font-ui);
+  color: var(--warm-ink);
+  text-wrap: pretty;
+}
+
+/* The grid is the phone's single column; the areas name where each cell stands once the columns are three. The DOM order is
+ * the phone's reading order, so the Tab order follows what the person sees. */
+.columns {
+  display: grid;
+  grid-template-areas:
+    "view"
+    "contact"
+    "summary"
+    "notes";
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.viewCell {
+  grid-area: view;
+  min-width: 0;
+}
+
+.contactColumn {
+  display: flex;
+  flex-direction: column;
+  grid-area: contact;
+  gap: 16px;
+  min-width: 0;
+}
+
+.summaryCell {
+  grid-area: summary;
+  min-width: 0;
+}
+
+.notesColumn {
+  grid-area: notes;
+  min-width: 0;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.picture {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background: var(--stage);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.sceneNote {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  margin: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.viewBadges {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.viewBadge {
+  padding: 8px 12px;
+  font: 700 12.5px/1 var(--font-ui);
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 8px;
+}
+
+.viewBadge[data-kind="current"] {
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-edge);
+}
+
+.cameraChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cameraChip {
+  min-height: var(--touch-target);
+  padding: 8px 12px;
+  font: 400 12px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+}
+
+.cameraChip[aria-pressed="true"] {
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--surface);
+}
+
+.cameraChip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cardTitle {
+  margin: 0;
+  font: 700 15px/1.3 var(--font-ui);
+  color: var(--ink);
+}
+
+.cardTag {
+  padding: 5px 9px;
+  font: 700 11.5px/1.2 var(--font-ui);
+  color: var(--warm-ink);
+  background: var(--tint);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.cardNote {
+  margin: 0;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.factLabel {
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.factValue {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  margin: 0;
+  font: 400 14px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.factSub {
+  font: 400 12px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.requestLine {
+  margin: 0;
+  font: 400 14px/1.45 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.hint {
+  margin: 0;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.draftNote {
+  margin: 0;
+  font: 400 14px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.muted {
+  margin: 0;
+  font: 400 14px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.caption {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.caption::before {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  content: "" / "";
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.skeletonColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.skeletonView,
+.skeletonBox {
+  display: block;
+  height: 160px;
+  background: var(--tint);
+  border-radius: 14px;
+}
+
+.skeletonView {
+  height: 220px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--stripe-a) 0 12px,
+    var(--stripe-b) 12px 24px
+  );
+}
+
+@media (min-width: 900px) {
+  .title {
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+
+  .sub {
+    font-size: 14px;
+  }
+
+  .columns {
+    grid-template-areas:
+      "view contact notes"
+      "summary contact notes";
+    grid-template-rows: auto 1fr;
+    grid-template-columns:
+      minmax(0, 640px) minmax(0, 440px)
+      minmax(0, 460px);
+    gap: 24px;
+  }
+
+  .picture {
+    height: 400px;
+  }
+
+  .skeletonColumns {
+    grid-template-columns:
+      minmax(0, 640px) minmax(0, 440px)
+      minmax(0, 460px);
+    gap: 24px;
+  }
+
+  .skeletonView {
+    height: 400px;
+  }
+}
