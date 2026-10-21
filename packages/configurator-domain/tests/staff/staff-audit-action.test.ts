@@ -36,6 +36,10 @@ describe("the staff audit actions", () => {
     ]);
   });
 
+  it("cannot be edited by a caller that imports the list", () => {
+    expect(Object.isFrozen(STAFF_AUDIT_ACTIONS)).toBe(true);
+  });
+
   it.each(STAFF_AUDIT_ACTIONS)("isStaffAuditAction accepts %s", (action) => {
     expect(isStaffAuditAction(action)).toBe(true);
   });

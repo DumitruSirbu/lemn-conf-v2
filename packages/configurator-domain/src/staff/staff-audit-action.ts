@@ -10,12 +10,12 @@ import { isRequestStatus, type RequestStatus } from "./request-status.js";
 // the database (ADR 0172 D10). A detail holds codes only, so an address, a name or a note's text has no field
 // to be written into (plan P-L3-3).
 
-export const STAFF_AUDIT_ACTIONS = [
+export const STAFF_AUDIT_ACTIONS = Object.freeze([
   "kitchen-opened",
   "note-added",
   "status-changed",
   "kitchen-unhidden",
-] as const;
+] as const);
 export type StaffAuditAction = (typeof STAFF_AUDIT_ACTIONS)[number];
 
 /** `from` is `new` when no status had been saved. */
@@ -44,7 +44,7 @@ export type StaffAuditEntryReading =
   | { readonly ok: true; readonly entry: StaffAuditEntry }
   | { readonly ok: false; readonly code: StaffAuditRefusalCode };
 
-const STATUS_CHANGE_KEYS = ["from", "to"];
+const STATUS_CHANGE_KEYS = Object.freeze(["from", "to"]);
 
 export function isStaffAuditAction(value: unknown): value is StaffAuditAction {
   return STAFF_AUDIT_ACTIONS.some((action) => action === value);

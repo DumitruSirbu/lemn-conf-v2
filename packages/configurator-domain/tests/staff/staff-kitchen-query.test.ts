@@ -39,6 +39,10 @@ describe("readStaffKitchenQuery: what staff ask the kitchens list for", () => {
     expect(STAFF_KITCHEN_SEARCH_MAX_LENGTH).toBe(100);
   });
 
+  it("cannot have its segment list edited by a caller that imports it", () => {
+    expect(Object.isFrozen(STAFF_KITCHEN_SEGMENTS)).toBe(true);
+  });
+
   it("reads no members as the sent kitchens, unfiltered, first page", () => {
     expect(queryOf({})).toEqual({
       segment: "sent",

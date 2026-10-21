@@ -11,7 +11,11 @@ import { isRequestStatus, type RequestStatus } from "./request-status.js";
 // members arrive as URL text; this reads them to a value or to the fields that are wrong, as codes (plan P-L3-4,
 // P-L3-12, P-L3-13). Escaping the search for a SQL pattern, and case folding, belong to the store that runs it.
 
-export const STAFF_KITCHEN_SEGMENTS = ["sent", "drafts", "all"] as const;
+export const STAFF_KITCHEN_SEGMENTS = Object.freeze([
+  "sent",
+  "drafts",
+  "all",
+] as const);
 export type StaffKitchenSegment = (typeof STAFF_KITCHEN_SEGMENTS)[number];
 
 const SENT_SEGMENT = "sent" as const satisfies StaffKitchenSegment;
@@ -104,11 +108,6 @@ export function staffKitchenOffsetOf(page: number): number {
   return (page - FIRST_PAGE) * STAFF_KITCHEN_PAGE_SIZE;
 }
 
-const STATUS_OUTSIDE_SENT_ISSUE: StaffKitchenQueryIssue = {
-  field: "status",
-  code: "STATUS_NEEDS_SENT_SEGMENT",
-};
-
 /** A status filter means something only under "sent": drafts and the union have no request to hold one. */
 function statusOutsideSentConflicts(
   segment: FieldReading<StaffKitchenSegment>,
@@ -119,7 +118,9 @@ function statusOutsideSentConflicts(
     status.ok &&
     status.value !== null &&
     segment.value !== SENT_SEGMENT;
-  return isOutsideSent ? [STATUS_OUTSIDE_SENT_ISSUE] : [];
+  return isOutsideSent
+    ? [{ field: "status", code: "STATUS_NEEDS_SENT_SEGMENT" }]
+    : [];
 }
 
 function readSegment(value: unknown): FieldReading<StaffKitchenSegment> {

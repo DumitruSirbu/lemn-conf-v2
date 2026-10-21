@@ -18,6 +18,10 @@ describe("the request statuses", () => {
     ]);
   });
 
+  it("cannot be edited by a caller that imports the list", () => {
+    expect(Object.isFrozen(REQUEST_STATUSES)).toBe(true);
+  });
+
   describe("isRequestStatus accepts exactly those four codes", () => {
     it.each(REQUEST_STATUSES)("accepts %s", (status) => {
       expect(isRequestStatus(status)).toBe(true);

@@ -2,12 +2,12 @@
 // The domain publishes the codes and the UI maps them to words (ADR 0095 decision 3).
 
 /** In the order staff work a request: the status select lists them as written. */
-export const REQUEST_STATUSES = [
+export const REQUEST_STATUSES = Object.freeze([
   "new",
   "contacted",
   "offer-sent",
   "closed",
-] as const;
+] as const);
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 /** What a sent kitchen shows while no status has been saved for it. */
@@ -23,7 +23,10 @@ export interface RequestStatusFacts {
   readonly recorded: RequestStatus | null;
 }
 
-/** A draft has no request and so no status; a sent kitchen with none saved is `new`. */
+/**
+ * A draft has no request and so no status; a sent kitchen with none saved is `new`. A saved status is returned
+ * as given: a store passes the stored text through `isRequestStatus` before it can call this.
+ */
 export function shownRequestStatus(
   facts: RequestStatusFacts,
 ): RequestStatus | null {
