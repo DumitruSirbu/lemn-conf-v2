@@ -1,4 +1,8 @@
-import { ROLES, readStaffAuditEntry } from "@lemnaria/configurator-domain";
+import {
+  ROLES,
+  auditActionAcceptsDesignId,
+  readStaffAuditEntry,
+} from "@lemnaria/configurator-domain";
 import type {
   StaffAuditAction,
   StaffAuditEntry,
@@ -38,17 +42,6 @@ export const STORED_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
 export const STORED_ACTION_SHAPE = /^[a-z0-9-]{1,32}$/;
 const SESSION_TOKEN_HASH_SHAPE = /^[0-9a-f]{64}$/;
 
-/**
- * The actions that name the kitchen they concern. `0020` leaves `design_id` nullable because a later action (a preset,
- * an invitation) concerns none, so the table cannot say this; the store does, and refuses the entry that omits it.
- */
-const ACTIONS_NAMING_A_DESIGN = [
-  "kitchen-opened",
-  "note-added",
-  "status-changed",
-  "kitchen-unhidden",
-] as const satisfies readonly StaffAuditAction[];
-
 export type StaffAuditStoreOperation =
   | "record a staff audit event"
   | "read the staff audit log";
@@ -75,6 +68,7 @@ export type StaffAuditRecordRefusal =
   | "SESSION_NOT_WELL_FORMED"
   | "ENTRY_NOT_RECOGNISED"
   | "DESIGN_ID_MISSING"
+  | "DESIGN_ID_NOT_ALLOWED"
   | "DESIGN_ID_NOT_WELL_FORMED"
   | "SUBJECT_ACCOUNT_ID_NOT_WELL_FORMED"
   | "RECORD_NOT_PREPARED";
@@ -129,7 +123,7 @@ export interface StaffAuditRecord {
   readonly idleLifetimeSeconds: IdleLifetimeSecondsByRole;
   /** Its detail is read again by the domain; the store writes what that reading returns, never this object. */
   readonly entry: StaffAuditEntry;
-  /** Required by every action the domain lists today. */
+  /** Exactly when the action names a kitchen (`auditActionNamesDesign`): required for those, refused for the others. */
   readonly designId: string | null;
   readonly subjectAccountId: string | null;
 }
@@ -387,12 +381,20 @@ function requireRecognisedEntry(entry: StaffAuditEntry): StaffAuditEntry {
   return reading.entry;
 }
 
+/**
+ * `0020` leaves `design_id` nullable, so the table cannot say which action names a kitchen; the domain does
+ * (`auditActionAcceptsDesignId`), and the store refuses a row that disagrees: a missing id for an action that names
+ * a kitchen, an id for one that names none.
+ */
 function requireDesignIdWhereTheActionNamesOne(
   action: StaffAuditAction,
   designId: string | null,
 ): void {
-  const isNamed = ACTIONS_NAMING_A_DESIGN.some((named) => named === action);
-  if (isNamed && designId === null) throw refusedRecord("DESIGN_ID_MISSING");
+  if (!auditActionAcceptsDesignId(action, designId)) {
+    throw refusedRecord(
+      designId === null ? "DESIGN_ID_MISSING" : "DESIGN_ID_NOT_ALLOWED",
+    );
+  }
   requireShapeOrNull(designId, STORED_ID_SHAPE, "DESIGN_ID_NOT_WELL_FORMED");
 }
 

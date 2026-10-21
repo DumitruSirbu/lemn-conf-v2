@@ -1,4 +1,7 @@
-import { STAFF_AUDIT_ACTIONS } from "@lemnaria/configurator-domain";
+import {
+  STAFF_AUDIT_ACTIONS,
+  auditActionNamesDesign,
+} from "@lemnaria/configurator-domain";
 import type { StaffAuditEntry } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 import { describe, expect, it } from "vitest";
@@ -99,10 +102,25 @@ function letterId(letter: string): string {
   return letter.repeat(21);
 }
 
+const KITCHENS_LISTED: StaffAuditEntry = {
+  action: "kitchens-listed",
+  detail: {
+    segment: "sent",
+    status: "contacted",
+    page: 2,
+    rowCount: 20,
+    hasSearch: true,
+  },
+};
+
+const ACTIONS_NAMING_A_DESIGN = STAFF_AUDIT_ACTIONS.filter(
+  auditActionNamesDesign,
+);
+
 function entryOf(action: string): StaffAuditEntry {
-  return action === "status-changed"
-    ? STATUS_CHANGED
-    : ({ action, detail: null } as StaffAuditEntry);
+  if (action === "status-changed") return STATUS_CHANGED;
+  if (action === "kitchens-listed") return KITCHENS_LISTED;
+  return { action, detail: null } as StaffAuditEntry;
 }
 
 function pageRequestFor(
@@ -171,7 +189,7 @@ export function describeStaffAuditStoreContract(
     });
 
     it.each(STAFF_AUDIT_ACTIONS)(
-      "stores %s with its design and, where it has none, a SQL-null detail",
+      "stores %s with the design it names (none for the list) and a detail that is SQL null or the object of its codes",
       async (action) => {
         const world = await newWorld();
         const actor = await world.aStaffMember();
@@ -181,25 +199,28 @@ export function describeStaffAuditStoreContract(
           sessionTokenHash: actor.sessionTokenHash,
           idleLifetimeSeconds: actor.idleLifetimeSeconds,
           entry: entryOf(action),
-          designId: kitchen.designId,
+          designId: auditActionNamesDesign(action) ? kitchen.designId : null,
           subjectAccountId: null,
         });
 
         const [stored] = await world.storedEventsOf(actor.accountId);
         expect(stored).toMatchObject({
           action,
-          designId: kitchen.designId,
+          designId: auditActionNamesDesign(action) ? kitchen.designId : null,
           subjectAccountId: null,
         });
         if (action === "status-changed") {
           expect(stored?.detail).toEqual({ from: "new", to: "contacted" });
+        } else if (action === "kitchens-listed") {
+          expect(stored?.isDetailSqlNull).toBe(false);
+          expect(stored?.detail).toEqual(KITCHENS_LISTED.detail);
         } else {
           expect(stored?.isDetailSqlNull).toBe(true);
         }
       },
     );
 
-    it.each(STAFF_AUDIT_ACTIONS)(
+    it.each(ACTIONS_NAMING_A_DESIGN)(
       "refuses %s without a design and stores nothing",
       async (action) => {
         const world = await newWorld();
@@ -222,6 +243,53 @@ export function describeStaffAuditStoreContract(
         expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
       },
     );
+
+    it("refuses a design id on the kitchens list, which names none, and stores nothing", async () => {
+      const world = await newWorld();
+      const actor = await world.aStaffMember();
+      const kitchen = await world.aKitchen({ client: null, name: null });
+
+      const failure = await failureOf(
+        world.store.record({
+          sessionTokenHash: actor.sessionTokenHash,
+          idleLifetimeSeconds: actor.idleLifetimeSeconds,
+          entry: KITCHENS_LISTED,
+          designId: kitchen.designId,
+          subjectAccountId: null,
+        }),
+      );
+
+      expect([failure.failure, failure.refusal]).toEqual([
+        "invalid-record",
+        "DESIGN_ID_NOT_ALLOWED",
+      ]);
+      expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
+    });
+
+    it("refuses a list entry carrying a key beyond its five codes (search text), and stores nothing", async () => {
+      const world = await newWorld();
+      const actor = await world.aStaffMember();
+      const smuggled = {
+        action: "kitchens-listed",
+        detail: { ...KITCHENS_LISTED.detail, searchText: "ana@example.com" },
+      } as unknown as StaffAuditEntry;
+
+      const failure = await failureOf(
+        world.store.record({
+          sessionTokenHash: actor.sessionTokenHash,
+          idleLifetimeSeconds: actor.idleLifetimeSeconds,
+          entry: smuggled,
+          designId: null,
+          subjectAccountId: null,
+        }),
+      );
+
+      expect([failure.failure, failure.refusal]).toEqual([
+        "invalid-record",
+        "ENTRY_NOT_RECOGNISED",
+      ]);
+      expect(await world.storedEventsOf(actor.accountId)).toHaveLength(0);
+    });
 
     it("throws not-recorded for a session that is not live and stores nothing", async () => {
       const world = await newWorld();
@@ -588,6 +656,91 @@ export function describeStaffAuditStoreContract(
       ]);
       expect(JSON.stringify(page)).not.toContain(FORGED);
     });
+
+    it("reads back a recorded kitchens list as a recognised entry that names no kitchen and no client", async () => {
+      const world = await newWorld();
+      const actor = await world.aStaffMember();
+      await world.store.record({
+        sessionTokenHash: actor.sessionTokenHash,
+        idleLifetimeSeconds: actor.idleLifetimeSeconds,
+        entry: KITCHENS_LISTED,
+        designId: null,
+        subjectAccountId: null,
+      });
+
+      const page = await world.store.page(pageRequestFor(actor));
+
+      expect(page.events.map(({ reading }) => reading)).toEqual([
+        { kind: "recognised", entry: KITCHENS_LISTED },
+      ]);
+      expect(page.events[0]).toMatchObject({ design: null, subject: null });
+    });
+
+    it("finds a kitchens list by the action filter", async () => {
+      const world = await newWorld();
+      const actor = await world.aStaffMember();
+      await plant(
+        world,
+        actor,
+        new Date(FIRST_INSTANT),
+        undefined,
+        "kitchen-opened",
+      );
+      await world.store.record({
+        sessionTokenHash: actor.sessionTokenHash,
+        idleLifetimeSeconds: actor.idleLifetimeSeconds,
+        entry: KITCHENS_LISTED,
+        designId: null,
+        subjectAccountId: null,
+      });
+
+      const page = await world.store.page(
+        pageRequestFor(actor, { action: "kitchens-listed" }),
+      );
+
+      expect(page.total).toBe(1);
+      expect(page.events.map(({ reading }) => reading)).toEqual([
+        { kind: "recognised", entry: KITCHENS_LISTED },
+      ]);
+    });
+
+    it.each([
+      ["a row count below zero", { ...KITCHENS_LISTED.detail, rowCount: -1 }],
+      [
+        "a segment the domain does not list",
+        { ...KITCHENS_LISTED.detail, segment: "everything" },
+      ],
+      [
+        "a search flag that is text",
+        { ...KITCHENS_LISTED.detail, hasSearch: "yes" },
+      ],
+      [
+        "a key beyond the five codes",
+        { ...KITCHENS_LISTED.detail, searchText: "FORGED-LIST-MARKER" },
+      ],
+    ])(
+      "reads a stored kitchens list with %s as unrecognised, naming no kitchen",
+      async (_label, detail) => {
+        const world = await newWorld();
+        const actor = await world.aStaffMember();
+        await world.plantEvent({
+          occurredAt: new Date(FIRST_INSTANT),
+          actorAccountId: actor.accountId,
+          action: "kitchens-listed",
+          detail,
+        });
+
+        const page = await world.store.page(pageRequestFor(actor));
+
+        expect(page.total).toBe(1);
+        expect(page.events[0]?.reading).toEqual({
+          kind: "unrecognised",
+          action: "kitchens-listed",
+        });
+        expect(page.events[0]?.design).toBeNull();
+        expect(JSON.stringify(page)).not.toContain("FORGED-LIST-MARKER");
+      },
+    );
 
     it("reads back what record wrote as the recognised entry", async () => {
       const world = await newWorld();

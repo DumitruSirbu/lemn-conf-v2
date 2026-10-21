@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { StaffAuditEntry } from "@lemnaria/configurator-domain";
-import { STAFF_AUDIT_ACTIONS } from "@lemnaria/configurator-domain";
+import {
+  STAFF_AUDIT_ACTIONS,
+  auditActionNamesDesign,
+} from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -66,6 +69,17 @@ const KITCHEN_OPENED: StaffAuditEntry = {
   action: "kitchen-opened",
   detail: null,
 };
+const KITCHENS_LISTED: Extract<StaffAuditEntry, { action: "kitchens-listed" }> =
+  {
+    action: "kitchens-listed",
+    detail: {
+      segment: "sent",
+      status: null,
+      page: 1,
+      rowCount: 20,
+      hasSearch: true,
+    },
+  };
 const STATUS_CHANGED: StaffAuditEntry = {
   action: "status-changed",
   detail: { from: "new", to: "closed" },
@@ -232,7 +246,11 @@ describe("the audit insert (record)", () => {
     );
   });
 
-  it.each(STAFF_AUDIT_ACTIONS.filter((action) => action !== "status-changed"))(
+  it.each(
+    STAFF_AUDIT_ACTIONS.filter(
+      (action) => action !== "status-changed" && action !== "kitchens-listed",
+    ),
+  )(
     "writes SQL null, not JSON null and not {}, as the detail of %s",
     async (action) => {
       const entry = { action, detail: null } as StaffAuditEntry;
@@ -283,6 +301,31 @@ describe("the audit insert (record)", () => {
     expect(values[1]).toBe("kitchen-opened");
   });
 
+  it("writes a kitchens list with no design and its five codes as the exact JSON object, never SQL null or {}", async () => {
+    const { values } = await sentByRecord(
+      aRecord({ entry: KITCHENS_LISTED, designId: null }),
+    );
+
+    expect(values[2]).toBeNull();
+    expect(values[4]).toBe(
+      '{"segment":"sent","status":null,"page":1,"rowCount":20,"hasSearch":true}',
+    );
+  });
+
+  it("writes only the five codes of a list, whatever else the caller's detail holds", async () => {
+    const detail = { ...KITCHENS_LISTED.detail };
+    Object.defineProperty(detail, "searchText", {
+      value: "ana",
+      enumerable: false,
+    });
+
+    const { values } = await sentByRecord(
+      aRecord({ entry: { action: "kitchens-listed", detail }, designId: null }),
+    );
+
+    expect(String(values[4])).not.toContain("searchText");
+  });
+
   it("is not retried after a lost acknowledgement: the fail-closed answer is one statement", async () => {
     resetQueryDriver();
     failQueryWith(new SyntaxError("Unexpected end of JSON input"));
@@ -300,7 +343,7 @@ describe("a record the code refuses before any statement", () => {
     Partial<StaffAuditRecord>,
     StaffAuditRecordRefusal,
   ])[] = [
-    ...STAFF_AUDIT_ACTIONS.map(
+    ...STAFF_AUDIT_ACTIONS.filter(auditActionNamesDesign).map(
       (action) =>
         [
           `${action} without a design id`,
@@ -314,6 +357,44 @@ describe("a record the code refuses before any statement", () => {
           "DESIGN_ID_MISSING",
         ] as const,
     ),
+    [
+      "a kitchens list that names a design",
+      { entry: KITCHENS_LISTED, designId: DESIGN_ID },
+      "DESIGN_ID_NOT_ALLOWED",
+    ],
+    [
+      "a kitchens list with a key beyond its five codes",
+      {
+        entry: {
+          action: "kitchens-listed",
+          detail: { ...KITCHENS_LISTED.detail, searchText: "ana" },
+        } as unknown as StaffAuditEntry,
+        designId: null,
+      },
+      "ENTRY_NOT_RECOGNISED",
+    ],
+    [
+      "a kitchens list whose search flag is not a boolean",
+      {
+        entry: {
+          action: "kitchens-listed",
+          detail: { ...KITCHENS_LISTED.detail, hasSearch: "ana" },
+        } as unknown as StaffAuditEntry,
+        designId: null,
+      },
+      "ENTRY_NOT_RECOGNISED",
+    ],
+    [
+      "a kitchens list with no detail",
+      {
+        entry: {
+          action: "kitchens-listed",
+          detail: null,
+        } as unknown as StaffAuditEntry,
+        designId: null,
+      },
+      "ENTRY_NOT_RECOGNISED",
+    ],
     [
       "a design id of the wrong shape",
       { designId: "short" },
@@ -1067,6 +1148,44 @@ describe("the rows the page reads", () => {
     ]);
     expect(JSON.stringify(page)).not.toContain(FORGED);
   });
+
+  it("reads a kitchens list row as a recognised entry with no kitchen", async () => {
+    const page = await pageOf([
+      eventRow({
+        action: "kitchens-listed",
+        detail: KITCHENS_LISTED.detail,
+        design_id: null,
+        design_name: null,
+        client_account_id: null,
+        client_email: null,
+        client_name: null,
+      }),
+    ]);
+
+    expect(page.events[0]).toMatchObject({
+      design: null,
+      reading: { kind: "recognised", entry: KITCHENS_LISTED },
+    });
+  });
+
+  it.each([
+    ["a count below zero", { ...KITCHENS_LISTED.detail, rowCount: -1 }],
+    ["an extra key", { ...KITCHENS_LISTED.detail, searchText: "FORGED-LIST" }],
+    ["no detail at all", null],
+  ])(
+    "reads a stored kitchens list with %s as unrecognised and returns no detail",
+    async (_label, detail) => {
+      const page = await pageOf([
+        eventRow({ action: "kitchens-listed", detail, design_id: null }),
+      ]);
+
+      expect(page.events[0]?.reading).toEqual({
+        kind: "unrecognised",
+        action: "kitchens-listed",
+      });
+      expect(JSON.stringify(page)).not.toContain("FORGED-LIST");
+    },
+  );
 
   it("reads a status change with its two codes", async () => {
     const page = await pageOf([
