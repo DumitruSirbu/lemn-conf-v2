@@ -189,6 +189,15 @@ export const ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE = 5;
  * twelve seconds for the whole hour. The owner's answer changes this constant and no code.
  */
 export const STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE = 300;
+/**
+ * PROVISIONAL (M8B Lot 3 plan P-L3-11): how many writes one staff account may make on the clients' kitchens. Notes and
+ * status saves are counted by the hour, 120 each; an unhide by the UTC day (as every account day is), 60. A request
+ * that cannot be counted is refused, as every account write is (ADR 0156). The owner's answer changes these constants
+ * and no code.
+ */
+export const STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE = 120;
+export const STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE = 120;
+export const STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE = 60;
 /** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
  *  ADR 0147's intent). */
 export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
@@ -476,6 +485,27 @@ export const STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_NOTE_BY_ACCOUNT_POLICY = policyOf("staff-note-by-account", {
+  figure: STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE,
+  window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+});
+
+export const STAFF_STATUS_BY_ACCOUNT_POLICY = policyOf(
+  "staff-status-by-account",
+  {
+    figure: STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_UNHIDE_BY_ACCOUNT_POLICY = policyOf(
+  "staff-unhide-by-account",
+  {
+    figure: STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
 export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
   "account-export-by-account",
   {
@@ -544,7 +574,10 @@ export type PolicyPurpose =
   | "account-email-change-by-account"
   | "account-export-by-account"
   | "duplicate-by-account"
-  | "staff-kitchens-list-by-account";
+  | "staff-kitchens-list-by-account"
+  | "staff-note-by-account"
+  | "staff-status-by-account"
+  | "staff-unhide-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -648,6 +681,9 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "staff-kitchens-list-by-account": sameInProduction(
     STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
   ),
+  "staff-note-by-account": sameInProduction(STAFF_NOTE_BY_ACCOUNT_POLICY),
+  "staff-status-by-account": sameInProduction(STAFF_STATUS_BY_ACCOUNT_POLICY),
+  "staff-unhide-by-account": sameInProduction(STAFF_UNHIDE_BY_ACCOUNT_POLICY),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */

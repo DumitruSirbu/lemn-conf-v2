@@ -72,7 +72,10 @@ export type AccountKeyedPurpose =
   | "kitchen-duplicate"
   | "kitchen-hide"
   | "kitchen-delete"
-  | "staff-kitchens-list";
+  | "staff-kitchens-list"
+  | "staff-note"
+  | "staff-status"
+  | "staff-unhide";
 
 /**
  * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
@@ -179,6 +182,15 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
   "staff-kitchens-list": {
     event: "staff-kitchens",
     buckets: ["staff-kitchens-list-by-account"],
+  },
+  "staff-note": { event: "staff-note", buckets: ["staff-note-by-account"] },
+  "staff-status": {
+    event: "staff-status",
+    buckets: ["staff-status-by-account"],
+  },
+  "staff-unhide": {
+    event: "staff-unhide",
+    buckets: ["staff-unhide-by-account"],
   },
 };
 
