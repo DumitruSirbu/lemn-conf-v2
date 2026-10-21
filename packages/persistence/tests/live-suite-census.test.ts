@@ -231,6 +231,18 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes accounts, sessions, kitchens, notes, statuses and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S5)",
   },
+  "qa-l3-s5-actions-sweep.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S5: writes accounts, sessions, kitchens, share links, notes, statuses and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S5 QA)",
+  },
+  "qa-l3-s5-atomicity-and-errors.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "adversarial QA of L3-S5: adds a NOT VALID check constraint, a deferred constraint trigger and a function named qa_l3_s5_* to the staff tables for the length of one test each and drops them in a finally, so no other run may write those tables meanwhile (M8B Lot 3 L3-S5 QA)",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",
