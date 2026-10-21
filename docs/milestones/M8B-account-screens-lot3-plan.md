@@ -596,6 +596,8 @@ Each states an invariant and what must not happen. "Property" means a `fast-chec
 - **K-6. Unhide.** After `204`: the client's E1 lists the kitchen and `/d/{id}` opens it for its account; the share link
   revoked at hide is **still revoked**; one `kitchen-unhidden` row exists. A second call answers `409 not-hidden` and
   writes no audit row. A deleted design is refused (K-4).
+  Residual (security review of L3-S5): unhide never touches the share-link table, so a link still active on a hidden
+  kitchen (the hide revokes it; a script around the store could leave one) stays active after unhide; a live test pins it.
 - **K-7. Status only where sent.** On a design with `sent_at` null, E-L3-4 answers `409 not-sent` and writes nothing. A
   value outside the closed list is `400` with field `status`. The status survives hide and unhide.
 - **K-8. Notes.** 1 to 2000 code points after NFC; 0 and 2001 are refused with field `text`; a newline is kept; a
