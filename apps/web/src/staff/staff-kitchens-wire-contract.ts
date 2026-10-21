@@ -195,13 +195,21 @@ export type StaffAuditEntryWire =
   /** A row this build's domain refuses: its action code and nothing of its stored detail. */
   | { readonly kind: "unrecognised"; readonly action: string };
 
+/** The staff member who acted. Its `id` is the one account id the audit answer carries: the page offers actors from the
+ *  rows it shows and sends `actor=<id>` back as a filter. Only an administrator reaches this answer, the route fails
+ *  closed, and ids are unguessable, so it exposes no account a reader could not already name. The client, the subject
+ *  and the kitchen's owner are named by address alone. */
+export interface StaffAuditActorWire extends StaffPersonWire {
+  readonly id: string;
+}
+
 export interface StaffAuditEventWire {
   readonly id: string;
   /** ISO 8601, UTC, milliseconds. */
   readonly occurredAt: string;
   readonly entry: StaffAuditEntryWire;
-  /** The staff member who acted, as the account reads now: either member is `null` when it no longer resolves. */
-  readonly actor: StaffPersonWire;
+  /** The staff member who acted: `email` and `name` are `null` when the account no longer resolves, `id` is the row's. */
+  readonly actor: StaffAuditActorWire;
   /** The client account the action concerned, by address as it reads now; `null` when the row names none. */
   readonly subject: StaffAuditClientWire | null;
   readonly kitchen: StaffAuditKitchenWire | null;

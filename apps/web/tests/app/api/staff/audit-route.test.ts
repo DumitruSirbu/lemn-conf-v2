@@ -661,7 +661,12 @@ describe("what a row holds", () => {
   async function plantEveryShape() {
     const { session, account } = await signedInAdministrator();
     const clientId = aDesignId();
+    const ownerId = aDesignId();
     const designId = aDesignId();
+    auditWorld.nameAccount(ownerId, {
+      email: "owner@example.test",
+      name: "Olga Owner",
+    });
     auditWorld.nameAccount(account.id, {
       email: "administrator@example.test",
       name: "Ana Administrator",
@@ -672,7 +677,7 @@ describe("what a row holds", () => {
     });
     auditWorld.nameDesign(designId, {
       name: "Bucataria din Botanica",
-      ownerAccountId: clientId,
+      ownerAccountId: ownerId,
       isDeletedByClient: false,
     });
     const rows: [string, Record<string, unknown> | null][] = [
@@ -735,7 +740,7 @@ describe("what a row holds", () => {
       total: page.total,
     });
     const answer = await route.GET(auditRequest({ cookie: session.cookie }));
-    return { answer, account, clientId, designId };
+    return { answer, account, clientId, ownerId, designId };
   }
 
   it("holds exactly total, page, pageSize and events, and each event exactly its members", async () => {
@@ -758,11 +763,19 @@ describe("what a row holds", () => {
         "occurredAt",
         "subject",
       ]);
+      expect(Object.keys(event.actor).sort()).toEqual(["email", "id", "name"]);
+      expect(Object.keys(event.subject ?? { email: 1 })).toEqual(["email"]);
+      expect(
+        Object.keys(event.kitchen ?? { client: 1, id: 1, name: 1 }).sort(),
+      ).toEqual(["client", "id", "name"]);
+      expect(Object.keys(event.kitchen?.client ?? { email: 1 })).toEqual([
+        "email",
+      ]);
     }
   });
 
-  it("names the actor by address and name, the client by address alone, and the kitchen by id and name", async () => {
-    const { answer, designId } = await plantEveryShape();
+  it("names the actor by id, address and name, the client by address alone, and the kitchen by id and name", async () => {
+    const { answer, account, designId } = await plantEveryShape();
 
     const body = await pageOf(answer);
     const opened = body.events.find(
@@ -770,6 +783,7 @@ describe("what a row holds", () => {
     );
 
     expect(opened?.actor).toEqual({
+      id: account.id,
       email: "administrator@example.test",
       name: "Ana Administrator",
     });
@@ -777,7 +791,7 @@ describe("what a row holds", () => {
     expect(opened?.kitchen).toEqual({
       id: designId,
       name: "Bucataria din Botanica",
-      client: { email: "client@example.test" },
+      client: { email: "owner@example.test" },
     });
   });
 
@@ -820,23 +834,31 @@ describe("what a row holds", () => {
     ]);
   });
 
-  it("sends no phone, postal address, password hash, session hash or account id at any depth", async () => {
-    const { answer, account, clientId } = await plantEveryShape();
+  it("sends no phone, postal address, password hash or session hash at any depth", async () => {
+    const { answer } = await plantEveryShape();
 
     const text = await answer.clone().text();
 
-    for (const secret of [
-      SECRET_PHONE,
-      SECRET_POSTAL_ADDRESS,
-      SECRET_HASH,
-      account.id,
-      clientId,
-    ]) {
+    for (const secret of [SECRET_PHONE, SECRET_POSTAL_ADDRESS, SECRET_HASH]) {
       expect(text).not.toContain(secret);
     }
     expect(text).not.toMatch(
       /phone|postalAddress|passwordHash|sessionToken|accountId/i,
     );
+  });
+
+  it("sends the actor's account id on every row and no other account id: not the client's, the subject's or the kitchen owner's", async () => {
+    const { answer, account, clientId, ownerId } = await plantEveryShape();
+
+    const body = await pageOf(answer);
+    const text = await answer.clone().text();
+
+    expect(body.events.map(({ actor }) => actor.id)).toEqual(
+      body.events.map(() => account.id),
+    );
+    expect(text.split(account.id)).toHaveLength(body.events.length + 1);
+    expect(text).not.toContain(clientId);
+    expect(text).not.toContain(ownerId);
   });
 
   it("reads an actor that no longer resolves as a null address and name, not as a missing row", async () => {
@@ -847,7 +869,11 @@ describe("what a row holds", () => {
       await route.GET(auditRequest({ cookie: session.cookie })),
     );
 
-    expect(body.events[0]?.actor).toEqual({ email: null, name: null });
+    expect(body.events[0]?.actor).toEqual({
+      id: account.id,
+      email: null,
+      name: null,
+    });
   });
 
   it("reads a kitchen that is gone, deleted, or owned by no account without a name or a client", async () => {

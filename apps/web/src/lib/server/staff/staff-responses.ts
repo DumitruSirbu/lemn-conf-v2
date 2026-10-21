@@ -22,6 +22,7 @@ import type {
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type { StaffAuditQueryIssue } from "@/lib/server/staff/staff-audit-query";
 import type {
+  StaffAuditActorWire,
   StaffAuditClientWire,
   StaffAuditEntryWire,
   StaffAuditEventWire,
@@ -243,14 +244,15 @@ function staffAuditPageWireOf(page: StaffAuditPage): StaffAuditPageWire {
   };
 }
 
-// An audit row is shaped member by member, and no account id leaves with it. A row the build's domain refuses carries
+// An audit row is shaped member by member, and the actor's account id is the only account id that leaves with it (the
+// page offers actors from the rows it shows; see `StaffAuditActorWire`). A row the build's domain refuses carries
 // its action code and nothing of its stored detail.
 function auditEventWireOf(row: StaffAuditPageRow): StaffAuditEventWire {
   return {
     id: row.id,
     occurredAt: row.occurredAt.toISOString(),
     entry: auditEntryWireOf(row.reading),
-    actor: personWireOf(row.actor),
+    actor: auditActorWireOf(row.actor),
     subject: row.subject === null ? null : auditClientWireOf(row.subject),
     kitchen: row.design === null ? null : auditKitchenWireOf(row.design),
   };
@@ -295,6 +297,10 @@ function auditKitchenWireOf(
     name: design.name,
     client: design.client === null ? null : auditClientWireOf(design.client),
   };
+}
+
+function auditActorWireOf(account: StaffAuditAccountRef): StaffAuditActorWire {
+  return { id: account.id, email: account.email, name: account.name };
 }
 
 function auditClientWireOf(
