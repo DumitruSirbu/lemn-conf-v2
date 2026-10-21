@@ -1,4 +1,4 @@
-/* The staff kitchens list (Lot 3 frames S2A to S2F, DS2A to DS2F and ContBlocks2's bar, table, row card and foot). A phone
+/* The staff kitchens list (Lot 3 frames S2A to S2F, DS2A to DS2F: the bar, the table, the row card and the foot). A phone
  * draws cards and "Încarcă mai multe"; from 900 px the list is a table with numbered pages. Every interactive box is at
  * least `--touch-target` tall and wide. The marks on the badges, the arrows and the clear button are drawn here, so
  * no glyph is text. */
@@ -174,7 +174,7 @@
 }
 
 .searchClear::before {
-  content: "\2715";
+  content: "\2715" / "";
 }
 
 .searchClear:focus-visible {
@@ -313,7 +313,7 @@
 }
 
 .badge[data-kind="sent"]::before {
-  content: "\2713\00a0";
+  content: "\2713\00a0" / "";
 }
 
 .badge[data-kind="hidden"] {
@@ -324,7 +324,7 @@
 }
 
 .badge[data-kind="hidden"]::before {
-  content: "\2298\00a0";
+  content: "\2298\00a0" / "";
 }
 
 .badge[data-status="new"] {
@@ -403,6 +403,13 @@
   align-items: flex-start;
 }
 
+/* The table's image column is 88 px with 10 px of padding on each side: the picture fills what is left. */
+.table .thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+
 .card .thumb {
   width: 84px;
   height: 64px;
@@ -437,11 +444,24 @@
 
 .afterDot::before {
   white-space: pre;
-  content: " \00b7 ";
+  content: " \00b7 " / "";
+}
+
+/* The table never wider than the space it is given: it scrolls inside this box when the window is too narrow for the
+ * columns to be readable (the box takes focus so the keyboard can scroll it). */
+.tableScroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tableScroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .table {
   width: 100%;
+  min-width: 1000px;
   table-layout: fixed;
   border-spacing: 0;
   border-collapse: separate;
@@ -534,11 +554,11 @@
 }
 
 .pageButton[data-arrow="previous"]::before {
-  content: "\2039";
+  content: "\2039" / "";
 }
 
 .pageButton[data-arrow="next"]::before {
-  content: "\203a";
+  content: "\203a" / "";
 }
 
 .pageGap {
@@ -551,7 +571,7 @@
 }
 
 .pageGap::before {
-  content: "\2026";
+  content: "\2026" / "";
 }
 
 .more {
@@ -605,11 +625,11 @@
 }
 
 .stateMark::before {
-  content: "\25eb";
+  content: "\25eb" / "";
 }
 
 .stateMark[data-mark="search"]::before {
-  content: "\2315";
+  content: "\2315" / "";
 }
 
 .stateTitle {
@@ -718,28 +738,30 @@
     width: 240px;
   }
 
+  /* The frame's grid: 88 px, 1.5fr 1.5fr 1fr 1.1fr .95fr, 104 px 128 px 124 px. The fixed columns come to 444 px and the
+   * fluid ones share exactly what is left of the table, so the five shares add up to the whole of it. */
   .table thead th:nth-child(1) {
     width: 88px;
   }
 
   .table thead th:nth-child(2) {
-    width: 17%;
+    width: calc((100% - 444px) * 1.5 / 6.05);
   }
 
   .table thead th:nth-child(3) {
-    width: 17%;
+    width: calc((100% - 444px) * 1.5 / 6.05);
   }
 
   .table thead th:nth-child(4) {
-    width: 12%;
+    width: calc((100% - 444px) * 1 / 6.05);
   }
 
   .table thead th:nth-child(5) {
-    width: 12%;
+    width: calc((100% - 444px) * 1.1 / 6.05);
   }
 
   .table thead th:nth-child(6) {
-    width: 11%;
+    width: calc((100% - 444px) * 0.95 / 6.05);
   }
 
   .table thead th:nth-child(7) {

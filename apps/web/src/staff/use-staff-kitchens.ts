@@ -3,9 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  DesignSchema,
-  isDesignId,
-  isRequestStatus,
   readStaffKitchenQuery,
   type RequestStatus,
   type StaffKitchenSegment,
@@ -22,12 +19,10 @@ import type { AccountRateLimitNotice } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 
 import type {
-  StaffClientWire,
   StaffKitchenListWire,
   StaffListedKitchenWire,
-  StaffRequestStatusWire,
-  StaffThumbnailDesign,
 } from "./staff-kitchens-wire-contract";
+import { staffKitchenListFrom } from "./staff-kitchens-wire-reading";
 
 // The staff list of every client's kitchens (Lot 3 frames S2A to S2F). The filters live in this component's state and
 // nowhere else: the address, the browser's storage and the log never hold a search, because it is a client's name or
@@ -42,7 +37,6 @@ export const SEARCH_SETTLE_DELAY_MS = 500;
 
 const STAFF_KITCHENS_ENDPOINT = "/api/staff/kitchens";
 const FIRST_PAGE = 1;
-const UNRECOGNISED_STATUS = "unrecognised";
 
 export interface StaffKitchenFilters {
   readonly segment: StaffKitchenSegment;
@@ -138,6 +132,26 @@ export interface StaffKitchens {
  *  shrank. Both draw one page in place of the rows, as `replace` does, and both land. */
 type ReadMode = "first" | "replace" | "append" | "jump" | "correct";
 
+/** What each way of reading does: whether the rows give way to the loading state, whether the page landed on takes the
+ *  person's focus, and whether an answer past the end of a shrunk list is corrected. The first read finds the screen
+ *  already loading, and an appended page keeps the rows. */
+const MODE_RULES: Readonly<
+  Record<
+    ReadMode,
+    {
+      readonly showsLoading: boolean;
+      readonly lands: boolean;
+      readonly isCorrectable: boolean;
+    }
+  >
+> = {
+  first: { showsLoading: false, lands: false, isCorrectable: false },
+  replace: { showsLoading: true, lands: false, isCorrectable: true },
+  jump: { showsLoading: true, lands: true, isCorrectable: true },
+  correct: { showsLoading: true, lands: true, isCorrectable: false },
+  append: { showsLoading: false, lands: false, isCorrectable: false },
+};
+
 type PageStep =
   | { readonly kind: "page"; readonly list: StaffKitchenListWire }
   | { readonly kind: "failed"; readonly failure: ListFailure }
@@ -189,11 +203,11 @@ export function useStaffKitchens(locale: AppLocale): StaffKitchens {
       const controller = new AbortController();
       flight.controller = controller;
       if (mode !== "append") queryRef.current = query;
-      if (mode !== "append" && mode !== "first") {
-        setState({ phase: "loading" });
-      }
+      if (MODE_RULES[mode].showsLoading) setState({ phase: "loading" });
       if (mode === "append") setState(withMore({ kind: "loading" }));
       void readPage(query, controller.signal).then((step) => {
+        // Interim: frame S2F draws a session-expired sheet; until the staff sheet exists (L3-U4, `staff-session-sheet.tsx`,
+        // which replaces this) the list leaves for the login page as the account pages do.
         if (step.kind === "sign-in") {
           leaveFor(loginPathWithReason(locale, "session-expired"));
           return;
@@ -207,7 +221,10 @@ export function useStaffKitchens(locale: AppLocale): StaffKitchens {
           read({ ...query, page: lastPage }, "correct");
           return;
         }
-        setState((current) => stateAfter(current, step, query, mode));
+        const readAtMs = Date.now();
+        setState((current) =>
+          stateAfter({ current, step, query, mode, readAtMs }),
+        );
       });
     },
     [locale],
@@ -343,12 +360,20 @@ function withMore(
 }
 
 /** The state an answer leaves. A page that could not be had leaves the pages already shown where they are. */
-function stateAfter(
-  current: StaffKitchensState,
-  step: Exclude<PageStep, { kind: "sign-in" | "aborted" }>,
-  query: StaffListQuery,
-  mode: ReadMode,
-): StaffKitchensState {
+function stateAfter({
+  current,
+  step,
+  query,
+  mode,
+  readAtMs,
+}: {
+  readonly current: StaffKitchensState;
+  readonly step: Exclude<PageStep, { kind: "sign-in" | "aborted" }>;
+  readonly query: StaffListQuery;
+  readonly mode: ReadMode;
+  /** Taken when the answer came, not inside the update, which React may run twice. */
+  readonly readAtMs: number;
+}): StaffKitchensState {
   switch (step.kind) {
     case "forbidden":
       return { phase: "forbidden" };
@@ -361,18 +386,24 @@ function stateAfter(
         phase: "ready",
         listing:
           mode === "append" && current.phase === "ready"
-            ? appended(current.listing, step.list)
-            : firstListing(step.list, query, mode),
+            ? appended(current.listing, step.list, readAtMs)
+            : firstListing({ list: step.list, query, mode, readAtMs }),
         more: IDLE,
       };
   }
 }
 
-function firstListing(
-  list: StaffKitchenListWire,
-  query: StaffListQuery,
-  mode: ReadMode,
-): StaffKitchensListing {
+function firstListing({
+  list,
+  query,
+  mode,
+  readAtMs,
+}: {
+  readonly list: StaffKitchenListWire;
+  readonly query: StaffListQuery;
+  readonly mode: ReadMode;
+  readonly readAtMs: number;
+}): StaffKitchensListing {
   return {
     search: query.search,
     segment: query.segment,
@@ -382,14 +413,10 @@ function firstListing(
     firstPage: list.page,
     lastPage: list.page,
     rows: list.kitchens,
-    readAtMs: Date.now(),
+    readAtMs,
     focusRequest: undefined,
-    landedJump: isLanding(mode) ? { page: list.page } : undefined,
+    landedJump: MODE_RULES[mode].lands ? { page: list.page } : undefined,
   };
-}
-
-function isLanding(mode: ReadMode): boolean {
-  return mode === "jump" || mode === "correct";
 }
 
 /** The number of pages a list of `total` kitchens makes: at least one, so an empty list still has a first page. */
@@ -403,7 +430,7 @@ export function pageCountOf(total: number, pageSize: number): number {
  * only after a page was chosen by number; a correction is never itself corrected.
  */
 function pageAfterTheEnd(step: PageStep, mode: ReadMode): number | undefined {
-  if (step.kind !== "page" || (mode !== "jump" && mode !== "replace")) {
+  if (step.kind !== "page" || !MODE_RULES[mode].isCorrectable) {
     return undefined;
   }
   const { list } = step;
@@ -417,6 +444,7 @@ function pageAfterTheEnd(step: PageStep, mode: ReadMode): number | undefined {
 function appended(
   listing: StaffKitchensListing,
   list: StaffKitchenListWire,
+  readAtMs: number,
 ): StaffKitchensListing {
   const shownIds = new Set(listing.rows.map(({ id }) => id));
   const added = list.kitchens.filter(({ id }) => !shownIds.has(id));
@@ -427,7 +455,7 @@ function appended(
     pageSize: list.pageSize,
     lastPage: list.page,
     rows: [...listing.rows, ...added],
-    readAtMs: Date.now(),
+    readAtMs,
     focusRequest: focused === undefined ? undefined : { rowId: focused.id },
     landedJump: undefined,
   };
@@ -517,126 +545,4 @@ function stepOf(
 
 function failedStep(failure: ListFailure): PageStep {
   return { kind: "failed", failure };
-}
-
-const THUMBNAIL_DESIGN_SCHEMA = DesignSchema.pick({
-  room: true,
-  placements: true,
-  emptyColumns: true,
-  columnExtents: true,
-  settings: true,
-});
-
-/** The page the body holds, or nothing when any part of it is not what the contract says. */
-export function staffKitchenListFrom(
-  body: unknown,
-): StaffKitchenListWire | undefined {
-  const total = ownValueOf(body, "total");
-  const page = ownValueOf(body, "page");
-  const pageSize = ownValueOf(body, "pageSize");
-  const rawKitchens = ownValueOf(body, "kitchens");
-  if (!isCount(total) || !isPositiveCount(page)) return undefined;
-  if (!isPositiveCount(pageSize) || !Array.isArray(rawKitchens)) {
-    return undefined;
-  }
-  const kitchens = (rawKitchens as readonly unknown[]).map(kitchenFrom);
-  if (!kitchens.every(isListedKitchen)) return undefined;
-  return { total, page, pageSize, kitchens: withoutRepeats(kitchens) };
-}
-
-/** A kitchen named twice in one page is drawn once, where it first stands. */
-function withoutRepeats(
-  kitchens: readonly StaffListedKitchenWire[],
-): readonly StaffListedKitchenWire[] {
-  const seen = new Set<string>();
-  return kitchens.filter(({ id }) => {
-    if (seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
-}
-
-function kitchenFrom(raw: unknown): StaffListedKitchenWire | undefined {
-  const id = ownValueOf(raw, "id");
-  const name = ownValueOf(raw, "name");
-  const isSent = ownValueOf(raw, "isSent");
-  const isHidden = ownValueOf(raw, "isHidden");
-  const sentAt = ownValueOf(raw, "sentAt");
-  const updatedAt = ownValueOf(raw, "updatedAt");
-  const client = clientFrom(ownValueOf(raw, "client"));
-  const requestStatus = requestStatusFrom(ownValueOf(raw, "requestStatus"));
-  if (typeof id !== "string" || !isDesignId(id)) return undefined;
-  if (name !== null && typeof name !== "string") return undefined;
-  if (typeof isSent !== "boolean" || typeof isHidden !== "boolean") {
-    return undefined;
-  }
-  if (sentAt !== null && !isInstant(sentAt)) return undefined;
-  if (!isInstant(updatedAt)) return undefined;
-  if (client === undefined || requestStatus === undefined) return undefined;
-  return {
-    id,
-    name,
-    design: designFrom(ownValueOf(raw, "design")),
-    client: client.value,
-    isSent,
-    isHidden,
-    sentAt,
-    updatedAt,
-    requestStatus: requestStatus.value,
-  };
-}
-
-/** A kitchen whose document this build cannot read has no thumbnail and no generated name, and is listed all the same. */
-function designFrom(raw: unknown): StaffThumbnailDesign | null {
-  const parsed = THUMBNAIL_DESIGN_SCHEMA.safeParse(raw);
-  return parsed.success ? parsed.data : null;
-}
-
-/** `undefined` for a client the contract does not allow; `{ value: null }` for a sent kitchen no account owns. */
-function clientFrom(
-  raw: unknown,
-): { readonly value: StaffClientWire | null } | undefined {
-  if (raw === null) return { value: null };
-  const email = ownValueOf(raw, "email");
-  const name = ownValueOf(raw, "name");
-  const phone = ownValueOf(raw, "phone");
-  if (typeof email !== "string") return undefined;
-  if (name !== null && typeof name !== "string") return undefined;
-  if (phone !== null && typeof phone !== "string") return undefined;
-  return { value: { email, name, phone } };
-}
-
-/** A status this build does not name is told as unrecognised, never as one it does: a new kitchen is a claim. */
-function requestStatusFrom(
-  raw: unknown,
-): { readonly value: StaffRequestStatusWire } | undefined {
-  if (raw === null) return { value: null };
-  if (typeof raw !== "string") return undefined;
-  return { value: isRequestStatus(raw) ? raw : UNRECOGNISED_STATUS };
-}
-
-function isListedKitchen(
-  kitchen: StaffListedKitchenWire | undefined,
-): kitchen is StaffListedKitchenWire {
-  return kitchen !== undefined;
-}
-
-function isInstant(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
-}
-
-function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-}
-
-function isPositiveCount(value: unknown): value is number {
-  return isCount(value) && value >= FIRST_PAGE;
-}
-
-/** Only what the body's own object holds; anything that is not an object holds nothing. */
-function ownValueOf(value: unknown, name: string): unknown {
-  if (typeof value !== "object" || value === null) return undefined;
-  return Object.hasOwn(value, name)
-    ? (value as Readonly<Record<string, unknown>>)[name]
-    : undefined;
 }

@@ -5,7 +5,6 @@ import { connection } from "next/server";
 import type { Metadata } from "next";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
-import { resolveStaffKitchensCopy } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import { readStaffPage } from "@/lib/server/staff/staff-page";
 import { StaffKitchensScreen } from "@/staff/staff-kitchens-list";
@@ -16,13 +15,15 @@ interface StaffKitchensPageProps {
   readonly params: Promise<{ locale: string }>;
 }
 
+/** The brand and nothing else: the title is built before the gate runs, so it must not name the staff area or a kitchen to
+ *  someone who is then shown the forbidden screen or the notice. */
 export async function generateMetadata({
   params,
 }: StaffKitchensPageProps): Promise<Metadata> {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   const translate = await getTranslations({ locale });
-  return { title: resolveStaffKitchensCopy(translate).metaTitle };
+  return { title: translate("brand") };
 }
 
 /**

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSecondsUntil, waitOfFeedback } from "@/account/account-form-parts";
 import { useStaffKitchensCopy } from "@/i18n/use-content";
 
 import styles from "./staff-kitchens.module.css";
@@ -158,7 +159,8 @@ function PageNumbers({
   );
 }
 
-/** The button stays reachable while a page is out (`aria-disabled`, not `disabled`), so focus is never dropped from it. */
+/** The button stays reachable while a page is out or a limit's wait is counted down (`aria-disabled`, not `disabled`), so
+ *  focus is never dropped from it; it ignores a press then and wakes when the wait ends. Nothing asks on its own. */
 function LoadMore({
   hasMore,
   more,
@@ -169,8 +171,12 @@ function LoadMore({
   readonly onLoadMore: () => void;
 }) {
   const copy = useStaffKitchensCopy().pagination;
+  const wait =
+    more.kind === "failed" ? waitOfFeedback(more.failure) : undefined;
+  const isWaiting = useSecondsUntil(wait?.endsAtMs) > 0;
   if (!hasMore) return null;
   const isLoading = more.kind === "loading";
+  const isOff = isLoading || isWaiting;
   return (
     <div className={styles.more}>
       {more.kind === "failed" ? (
@@ -180,8 +186,8 @@ function LoadMore({
         type="button"
         className={styles.moreButton}
         aria-busy={isLoading ? true : undefined}
-        aria-disabled={isLoading ? true : undefined}
-        onClick={isLoading ? undefined : onLoadMore}
+        aria-disabled={isOff ? true : undefined}
+        onClick={isOff ? undefined : onLoadMore}
       >
         {isLoading ? copy.loadingMore : copy.loadMore}
       </button>

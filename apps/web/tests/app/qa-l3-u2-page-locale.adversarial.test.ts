@@ -103,12 +103,10 @@ describe.each([
     expect(page.props).toMatchObject({ locale });
   });
 
-  it("has a title of the list's own words and the brand, and no member that could carry a kitchen", async () => {
+  it("has the brand alone for a title, and no member that could carry a kitchen", async () => {
     const metadata = await generateMetadata(paramsOf(locale));
 
-    expect(metadata.title).toBe(
-      messages.staffKitchens.metaTitle.replace("{brand}", messages.brand),
-    );
+    expect(metadata.title).toBe(messages.brand);
     expect(
       Object.keys(metadata).filter((member) => member !== "title"),
       "a description or a share card would be a place for a kitchen's words",

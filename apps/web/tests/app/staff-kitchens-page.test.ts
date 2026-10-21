@@ -196,11 +196,9 @@ describe("a locale the site does not serve", () => {
 });
 
 describe("the page's title", () => {
-  it("is the list's own, with the brand", async () => {
+  it("is the brand alone: it is built before the gate, so it names neither the staff area nor a kitchen", async () => {
     const metadata = await generateMetadata(paramsOf("ro"));
 
-    expect(metadata.title).toBe(
-      roMessages.staffKitchens.metaTitle.replace("{brand}", roMessages.brand),
-    );
+    expect(metadata.title).toBe(roMessages.brand);
   });
 });

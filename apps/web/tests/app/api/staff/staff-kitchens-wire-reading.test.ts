@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { staffKitchenListFrom } from "@/staff/use-staff-kitchens";
+import { staffKitchenListFrom } from "@/staff/staff-kitchens-wire-reading";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {

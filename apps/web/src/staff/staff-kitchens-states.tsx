@@ -86,6 +86,20 @@ export function FailedKitchens({
   );
 }
 
+/** A page that holds no kitchen though the list holds some, which neither an empty segment nor a search that matched
+ *  nothing can be called: the page could not be shown, and the way on is the first page. */
+export function PageWithoutKitchens({
+  onShowFirstPage,
+}: {
+  readonly onShowFirstPage: () => void;
+}) {
+  return (
+    <div data-testid="staff-kitchens-page-unshown">
+      <FailedKitchens failure={{ kind: "failed" }} onRetry={onShowFirstPage} />
+    </div>
+  );
+}
+
 /** The words are a live region for a screen reader; the rows are only for the eye. */
 export function LoadingKitchens() {
   const copy = useStaffKitchensCopy();

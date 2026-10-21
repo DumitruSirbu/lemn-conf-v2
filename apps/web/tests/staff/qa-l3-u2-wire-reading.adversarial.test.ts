@@ -4,7 +4,7 @@
 // cannot pass.
 import { describe, expect, it } from "vitest";
 
-import { staffKitchenListFrom } from "@/staff/use-staff-kitchens";
+import { staffKitchenListFrom } from "@/staff/staff-kitchens-wire-reading";
 
 import {
   staffKitchenIdOf,

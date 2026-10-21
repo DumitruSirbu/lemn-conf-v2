@@ -77,7 +77,7 @@ export function useClaim(destination: Destination): Claim {
 
 /** A page restored from the back-forward cache keeps this dialog's state, whose exits have already been taken and whose
  *  claim would still be live. It is loaded again instead, so the dialog is never shown in that half-spent state. */
-function useReloadOnPageRestore(): void {
+export function useReloadOnPageRestore(): void {
   useEffect(() => {
     function reloadWhenRestored(event: PageTransitionEvent): void {
       if (event.persisted) window.location.reload();

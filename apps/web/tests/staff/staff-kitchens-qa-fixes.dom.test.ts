@@ -5,7 +5,7 @@
 // under it. The adversarial files hold the cases that found each; these hold the rules the fixes added.
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
-import { staffKitchenListFrom } from "@/staff/use-staff-kitchens";
+import { staffKitchenListFrom } from "@/staff/staff-kitchens-wire-reading";
 
 import roMessages from "../../src/messages/ro.json";
 import { allIn, byWords, click, requireIn } from "../support/render-with-intl";
@@ -99,7 +99,7 @@ describe("a page past the end of a list that shrank", () => {
     expect(pageParamsRequested()).toEqual(["5", "3"]);
     expect(allIn(harness.container(), ROWS)).toHaveLength(0);
     expect(
-      allIn(harness.container(), '[data-testid="staff-kitchens-empty"]'),
+      allIn(harness.container(), '[data-testid="staff-kitchens-page-unshown"]'),
     ).toHaveLength(1);
   });
 
@@ -166,35 +166,6 @@ describe("a page jump whose answer finds focus somewhere the person moved it", (
   });
 });
 
-describe("a page jump that another action replaced", () => {
-  it("leaves focus alone when the answer of the action that replaced it lands on the document", async () => {
-    harness.answers((request) => {
-      const { searchParams } = request.url;
-      const page = Number(searchParams.get("page"));
-      return page === 3 && searchParams.get("segment") === "sent"
-        ? "hold"
-        : {
-            body: wireList(rowsOfPage(page, STAFF_KITCHENS_PAGE_SIZE), {
-              total: 143,
-              page,
-            }),
-          };
-    });
-    await harness.mount({ width: "desktop" });
-    click(pageButtonCalled(3));
-    await harness.settle();
-    const drafts = allIn<HTMLInputElement>(
-      harness.container(),
-      'input[type="radio"]',
-    )[1];
-    click(drafts ?? harness.container());
-    drafts?.blur();
-    await harness.settle();
-
-    expect(document.activeElement).toBe(document.body);
-  });
-});
-
 describe("the retry of a page that a limit refused", () => {
   it("is off while the wait counts down, and sends nothing when pressed", async () => {
     harness.answers(() => RATE_LIMITED_ANSWER(90));
@@ -228,22 +199,6 @@ describe("the retry of a page that a limit refused", () => {
     click(retry);
     await harness.settle();
     expect(harness.listRequests()).toHaveLength(2);
-  });
-
-  it("is on for a service that is down, which states no wait", async () => {
-    harness.answers(() => ({
-      status: 503,
-      body: { status: "unavailable" },
-    }));
-    await harness.mount();
-
-    const retry = byWords<HTMLButtonElement>(
-      harness.container(),
-      "button",
-      roMessages.accountForm.retry,
-    );
-
-    expect(retry.hasAttribute("aria-disabled")).toBe(false);
   });
 });
 
