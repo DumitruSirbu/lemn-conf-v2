@@ -1,10 +1,11 @@
 "use client";
 
 import { useLocale } from "next-intl";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AppLocale } from "@/i18n/routing";
 
+import { startPathOf } from "../account-shell";
 import { loginPathWithReason, type LoginArrival } from "../login-arrival";
 import { sendSignedInRequest } from "../send-account-request";
 import { markSignedOutByPerson } from "./use-account-session";
@@ -15,8 +16,8 @@ import { markSignedOutByPerson } from "./use-account-session";
 // place, and a screen that already showed the person as anonymous would be lying about a session that still opens their
 // kitchens.
 //
-// Sign-out from an account page (a full load to the start of the configurator, plan P14) is not here: no account page
-// mounts the control yet, and the wave that adds one writes that variant against a caller.
+// A page that holds the person's or a client's data does not stay on screen after "Ieși din cont" (plan P14): the
+// document leaves for the start of the configurator, which `useLeaveForStartAfterSignOut` does for the staff area.
 
 /** Whether the person ended the session on this document, for the editor's session-expiry notice: a session that is
  *  gone because its owner chose so has not expired. The mark itself lives with the session it describes. */
@@ -63,6 +64,17 @@ export function useSignOutHere(): SignOutHere {
   }, []);
 
   return { outcome, outcomeId, isSending, signOut, clearOutcome };
+}
+
+/** The server has ended this device's session: the document leaves for the start, whose page is a document of its own.
+ *  The caller keeps the hook mounted for as long as the sign-out can be out, or the leave dies with it. */
+export function useLeaveForStartAfterSignOut(
+  outcome: SignOutHereOutcome | undefined,
+): void {
+  const locale = useLocale();
+  useEffect(() => {
+    if (outcome === "signed-out") window.location.assign(startPathOf(locale));
+  }, [outcome, locale]);
 }
 
 /** A sign-out the server confirmed makes the document anonymous before the confirmation is set, so no e-mail is in the

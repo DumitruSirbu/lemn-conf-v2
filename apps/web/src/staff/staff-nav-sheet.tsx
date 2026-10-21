@@ -1,14 +1,9 @@
 "use client";
 
-import { useLocale } from "next-intl";
-import { useEffect, useRef, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 
 import accountStyles from "@/account/account.module.css";
-import { startPathOf } from "@/account/account-shell";
-import {
-  useSignOutHere,
-  type SignOutHereOutcome,
-} from "@/account/session/use-logout";
+import type { SignOutHere } from "@/account/session/use-logout";
 import { trapTab, useModalFocus } from "@/components/use-modal-focus";
 import { useAccountControlCopy, useStaffShellCopy } from "@/i18n/use-content";
 
@@ -19,8 +14,8 @@ import styles from "./staff.module.css";
 // button that opened it (the fallback is the button itself, for the browsers that do not focus a button on press).
 //
 // Mount it as a direct child of the screen's `<main>`, as `useBackgroundInert` asks. Its sign-out is the account
-// pages' (plan P14): a full load to the start of the configurator once the server has ended the session, so no staff
-// page stays on screen with clients' data after it.
+// pages' (plan P14); the screen owns it and leaves for the start of the configurator once the server has ended the
+// session, so no staff page stays on screen with clients' data after it.
 
 export interface StaffNavItem {
   readonly key: string;
@@ -34,6 +29,9 @@ export interface StaffNavSheetProps {
   readonly roleName: string;
   readonly items: readonly StaffNavItem[];
   readonly profileHref: string;
+  /** This device's sign-out, owned by the screen: the sheet can be dismissed while the request is out, and the leave
+   *  that follows must outlive it. */
+  readonly signOutHere: SignOutHere;
   readonly onClose: () => void;
   /** From the sheet to the question "Ieși de pe toate dispozitivele?", which the screen draws. */
   readonly onSignOutEverywhere: () => void;
@@ -45,6 +43,7 @@ export function StaffNavSheet({
   roleName,
   items,
   profileHref,
+  signOutHere,
   onClose,
   onSignOutEverywhere,
   returnFocusRef,
@@ -53,8 +52,6 @@ export function StaffNavSheet({
   const account = useAccountControlCopy();
   const hostRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const signOutHere = useSignOutHere();
-  useLeaveForStartAfterSignOut(signOutHere.outcome);
   useModalFocus({
     hostRef,
     initialFocusRef: surfaceRef,
@@ -136,16 +133,6 @@ export function StaffNavSheet({
       </div>
     </div>
   );
-}
-
-/** The server has ended this device's session: the document leaves for the start, whose page is a document of its own. */
-function useLeaveForStartAfterSignOut(
-  outcome: SignOutHereOutcome | undefined,
-): void {
-  const locale = useLocale();
-  useEffect(() => {
-    if (outcome === "signed-out") window.location.assign(startPathOf(locale));
-  }, [outcome, locale]);
 }
 
 function SheetLinkRow({

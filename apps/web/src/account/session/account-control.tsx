@@ -25,6 +25,7 @@ import {
   type AccountSessionState,
 } from "./use-account-session";
 import {
+  useLeaveForStartAfterSignOut,
   useSignOutHere,
   type SignOutHere,
   type SignOutHereOutcome,
@@ -54,14 +55,21 @@ export interface AccountControlProps {
   readonly cellClassName: string;
   /** The form of the visitor's link. A signed-in person's control is the glyph whatever is asked here. */
   readonly signInForm?: SignInForm;
+  /** What "Ieși din cont" does once the server has ended the session. The configurator keeps its screen and says so;
+   *  a page that holds a client's data leaves for the start of the configurator (plan P14). */
+  readonly afterSignOut?: AfterSignOut;
 }
+
+export type AfterSignOut = "stay-on-screen" | "leave-for-start";
 
 export function AccountControl({
   cellClassName,
   signInForm = "text",
+  afterSignOut = "stay-on-screen",
 }: AccountControlProps) {
   const session = useAccountSession();
   const signOutHere = useSignOutHere();
+  useLeaveAfterSignOutWhenAsked(signOutHere.outcome, afterSignOut);
   const cellRef = useRef<HTMLDivElement>(null);
   useFocusSignInAfterSignOut(cellRef, signOutHere.outcome);
   return (
@@ -83,6 +91,16 @@ export function AccountControl({
         onElapsed={signOutHere.clearOutcome}
       />
     </>
+  );
+}
+
+/** The hook is called either way, as hooks must be; it does nothing unless the host asked for the leave. */
+function useLeaveAfterSignOutWhenAsked(
+  outcome: SignOutHereOutcome | undefined,
+  afterSignOut: AfterSignOut,
+): void {
+  useLeaveForStartAfterSignOut(
+    afterSignOut === "leave-for-start" ? outcome : undefined,
   );
 }
 
@@ -118,7 +136,7 @@ function ControlFor({
     case "client":
       return <SignedInMenu email={session.email} signOutHere={signOutHere} />;
     case "staff":
-      // Staff are not told apart from each other, and the staff area is not built: their menu holds the profile and the way out only.
+      // Staff are not told apart from each other: their menu holds the profile and the way out only.
       return <SignedInMenu email={undefined} signOutHere={signOutHere} />;
   }
 }

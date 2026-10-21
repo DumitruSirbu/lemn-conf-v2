@@ -6,6 +6,10 @@ import { OutcomeHero } from "@/account/account-form-parts";
 import { startPathOf } from "@/account/account-shell";
 import { AccountControl } from "@/account/session/account-control";
 import { LogoutEverywhereDialog } from "@/account/session/logout-everywhere-dialog";
+import {
+  useLeaveForStartAfterSignOut,
+  useSignOutHere,
+} from "@/account/session/use-logout";
 import type { StaffShellCopy } from "@/i18n/content";
 import { endonymOf } from "@/i18n/locale-endonyms";
 import { routing, type AppLocale } from "@/i18n/routing";
@@ -65,12 +69,16 @@ export function StaffShell({
   const accountShell = useAccountShellCopy();
   const [open, setOpen] = useState<OpenSurface>("none");
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const signOutHere = useSignOutHere();
+  useLeaveForStartAfterSignOut(signOutHere.outcome);
   const openMenu = useCallback(() => {
     setOpen("menu");
   }, []);
+  const { clearOutcome } = signOutHere;
   const close = useCallback(() => {
     setOpen("none");
-  }, []);
+    clearOutcome();
+  }, [clearOutcome]);
   const askSignOutEverywhere = useCallback(() => {
     setOpen("logout-everywhere");
   }, []);
@@ -96,7 +104,10 @@ export function StaffShell({
           {copy.roles[context.role]}
         </span>
         <span className={styles.spacer} />
-        <AccountControl cellClassName={styles.account ?? ""} />
+        <AccountControl
+          cellClassName={styles.account ?? ""}
+          afterSignOut="leave-for-start"
+        />
         <nav className={styles.localeNav} aria-label={accountShell.localeMenu}>
           {otherLocalesThan(locale).map((other) => (
             <LocaleLink key={other} locale={other} page={page} />
@@ -133,6 +144,7 @@ export function StaffShell({
           roleName={copy.roles[context.role]}
           items={items}
           profileHref={`/${locale}/account/profile`}
+          signOutHere={signOutHere}
           onClose={close}
           onSignOutEverywhere={askSignOutEverywhere}
           returnFocusRef={menuButtonRef}
