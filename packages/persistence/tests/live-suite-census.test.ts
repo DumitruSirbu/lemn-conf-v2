@@ -195,6 +195,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S1: inserts into the three staff tables only inside a rolled-back transaction, creates temporary tables and functions of its own, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S1 QA)",
   },
+  "neon-staff-audit-store.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3)",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",
