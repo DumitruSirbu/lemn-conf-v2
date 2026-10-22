@@ -25,13 +25,25 @@ export interface RelativeAge {
  * dated after `nowMs` (the server's clock ahead of the browser's) is "now".
  */
 export function relativeAgeOf(updatedAtMs: number, nowMs: number): RelativeAge {
+  return relativeAgeByCalendar(updatedAtMs, nowMs, localDayNumberOf);
+}
+
+/** A whole number that rises by one at each midnight of some calendar, so two instants' difference is their days apart. */
+export type DayNumberOf = (ms: number) => number;
+
+/** `relativeAgeOf` with the calendar a caller names: the shop's wall rather than the browser's. */
+export function relativeAgeByCalendar(
+  updatedAtMs: number,
+  nowMs: number,
+  dayNumberOf: DayNumberOf,
+): RelativeAge {
   const elapsedMs = Math.max(0, nowMs - updatedAtMs);
   const minutes = Math.floor(elapsedMs / MS_PER_MINUTE);
   if (minutes < 1) return { value: 0, unit: "second" };
   if (minutes < MINUTES_BELOW_ONE_HOUR) return ago(minutes, "minute");
   const hours = Math.floor(elapsedMs / MS_PER_HOUR);
   if (hours < HOURS_BELOW_ONE_DAY) return ago(hours, "hour");
-  return agoInDays(calendarDaysBetween(updatedAtMs, nowMs));
+  return agoInDays(calendarDaysBetween(updatedAtMs, nowMs, dayNumberOf));
 }
 
 function agoInDays(days: number): RelativeAge {
@@ -43,21 +55,24 @@ function agoInDays(days: number): RelativeAge {
   return ago(Math.floor(days / DAYS_PER_YEAR), "year");
 }
 
-/** Whole local calendar days from the change's date to now's, at least one (the change is over a day old). */
-function calendarDaysBetween(updatedAtMs: number, nowMs: number): number {
-  const days = Math.round(
-    (startOfLocalDayMs(nowMs) - startOfLocalDayMs(updatedAtMs)) / MS_PER_DAY,
-  );
-  return Math.max(1, days);
+/** Whole calendar days from the change's date to now's, at least one (the change is over a day old). */
+function calendarDaysBetween(
+  updatedAtMs: number,
+  nowMs: number,
+  dayNumberOf: DayNumberOf,
+): number {
+  return Math.max(1, dayNumberOf(nowMs) - dayNumberOf(updatedAtMs));
 }
 
-function startOfLocalDayMs(ms: number): number {
+/** The browser's calendar day, counted as if every day were 24 hours so a clock change does not shift the count. */
+function localDayNumberOf(ms: number): number {
   const date = new Date(ms);
-  return new Date(
+  const utcMidnightMs = Date.UTC(
     date.getFullYear(),
     date.getMonth(),
     date.getDate(),
-  ).getTime();
+  );
+  return Math.round(utcMidnightMs / MS_PER_DAY);
 }
 
 function ago(count: number, unit: Intl.RelativeTimeFormatUnit): RelativeAge {

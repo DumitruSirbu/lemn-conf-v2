@@ -2,16 +2,13 @@
 
 import type { ReactNode } from "react";
 
-import {
-  formatRelativeAge,
-  relativeAgeOf,
-} from "@/account/kitchens/relative-age";
+import { formatRelativeAge } from "@/account/kitchens/relative-age";
 import type { StaffAuditCopy, StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useStaffAuditCopy, useStaffKitchensCopy } from "@/i18n/use-content";
 
 import { isolated } from "./bidi-isolate";
-import { dayAndTimeOf } from "./staff-kitchen-dates";
+import { dayAndTimeOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import styles from "./staff-audit.module.css";
 import listStyles from "./staff-kitchens.module.css";
 import type {
@@ -65,7 +62,7 @@ function factsOf({
     whenIso: event.occurredAt,
     ago: formatRelativeAge(
       locale,
-      relativeAgeOf(Date.parse(event.occurredAt), readAtMs),
+      shopRelativeAgeOf(Date.parse(event.occurredAt), readAtMs),
     ),
     who:
       event.actor.email === null

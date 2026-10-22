@@ -220,6 +220,7 @@ export function useStaffAudit(): StaffAudit {
         if (step.kind === "sign-in") {
           raiseStaffSessionExpired({
             askAgain: () => {
+              if (controller.signal.aborted) return;
               read(query, mode);
             },
           });
