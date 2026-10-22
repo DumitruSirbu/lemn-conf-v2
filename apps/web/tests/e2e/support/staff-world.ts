@@ -16,7 +16,7 @@ import type {
   RequestStatus,
   StaffAuditAction,
 } from "@lemnaria/configurator-domain";
-import type { BrowserContext } from "@playwright/test";
+import { expect, type BrowserContext } from "@playwright/test";
 import { createTranslator, type Messages } from "next-intl";
 
 import { ACCOUNT_KIND } from "../../../src/lib/server/rate-limit/bucket-subject";
@@ -153,6 +153,15 @@ export async function removeStaffWorld(world: StaffWorld): Promise<{
   const scope = { rateLimitKeys: world.rateLimitKeys };
   const removed = await removeStaffFixturesForTests(world.marker, scope);
   const left = await countStaffFixturesForTests(world.marker, scope);
+  console.log(
+    `staff world ${world.marker}: removed ${JSON.stringify(removed)}; left ${JSON.stringify(left)}`,
+  );
+  // Removing and then counting with the same keys cannot show the keys are the server's: a wrong key removes nothing and
+  // counts nothing. Every world's staff asked the server for a page, so the server's counters for them must have been found.
+  expect(
+    removed.rateLimitCounters,
+    "the staff accounts' counters were found under the keys computed here, so they are the server's",
+  ).toBeGreaterThan(0);
   return { removed, left };
 }
 

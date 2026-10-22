@@ -106,7 +106,7 @@ test("the table lists twenty rows, the numbered pages lead to the last six, and 
   await shootForReview(page, "desktop-list-page-2-1920");
 });
 
-test("at every width from 1920 to 900 the page never scrolls sideways and the table stays inside its own region", async ({
+test("at every width from 1920 to 900 the page never scrolls sideways and the table's region ends inside the window (the region itself may scroll)", async ({
   page,
 }) => {
   await openStaffList(page);
