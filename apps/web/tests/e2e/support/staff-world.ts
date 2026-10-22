@@ -137,6 +137,27 @@ async function plantMember(
   };
 }
 
+/** An administrator with a live session and nothing else, for a spec that needs a signed-in person and no staff screens. */
+export interface SignedInAdministrator {
+  readonly marker: string;
+  readonly administrator: WorldMember;
+}
+
+/** The preset save is the administrator's alone (ADR 0172 decision 7), so a spec that saves a preset signs one in. */
+export async function plantSignedInAdministrator(): Promise<SignedInAdministrator> {
+  const marker = newStaffFixtureMarker();
+  return { marker, administrator: await plantMember(marker, "administrator") };
+}
+
+/** Removes the administrator's rows and answers what is left, which a spec asserts is nothing. A design the person's
+ *  browser minted holds no marker: the spec deletes those first, or the account row has them to wait for. */
+export async function removeSignedInAdministrator(
+  signedIn: SignedInAdministrator,
+): Promise<StaffFixtureCounts> {
+  await removeStaffFixturesForTests(signedIn.marker);
+  return countStaffFixturesForTests(signedIn.marker);
+}
+
 /** Signs a browser context in as this person, as the server's own cookie would: it holds the cookie and nothing else. */
 export async function signIn(
   context: BrowserContext,
