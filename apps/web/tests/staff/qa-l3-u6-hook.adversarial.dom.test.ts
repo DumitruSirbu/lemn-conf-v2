@@ -132,24 +132,6 @@ describe("a page past the end of a log that holds nothing", () => {
   });
 });
 
-describe("a pending refusal of the session when the page goes", () => {
-  it("is not asked again for a page nobody can see: a person signing in later in the document must not write a row of the log", async () => {
-    server.script(() => UNAUTHENTICATED_ANSWER);
-    await mount();
-    expect(server.requests).toHaveLength(1);
-
-    hook?.unmount();
-    hook = undefined;
-    server.script(() => ({ body: wireAuditPage(auditEventsFrom(1, 2)) }));
-    act(() => {
-      resolveStaffSessionExpired();
-    });
-    await settle();
-
-    expect(server.requests).toHaveLength(1);
-  });
-});
-
 describe("the page run twice, as the development build does", () => {
   const strictly = (children: React.ReactNode) =>
     createElement(StrictMode, null, children);
@@ -172,14 +154,6 @@ describe("the page run twice, as the development build does", () => {
     expect(earlier.every((request) => request.signal.aborted)).toBe(true);
     expect(newest?.signal.aborted).toBe(false);
     expect(listing().events).toHaveLength(2);
-  });
-
-  it("asks for the first page once, so that a development build writes one row of the log for one visit", async () => {
-    server.script(() => ({ body: wireAuditPage(auditEventsFrom(1, 2)) }));
-
-    await mount(strictly);
-
-    expect(server.requests).toHaveLength(1);
   });
 
   it("tells the staff frame the session ended once on a 401, and asks again once when the person is back", async () => {

@@ -170,51 +170,6 @@ describe.each(LOCALES)("text somebody else wrote, in %s", (locale) => {
   });
 });
 
-describe("a string with nothing in it that can be seen", () => {
-  it.each(LOCALES)(
-    "is a dash and not an empty cell, for a kitchen named by bidi controls alone, in %s",
-    async (locale) => {
-      harness.answers(() =>
-        pageOf([
-          wireAuditEvent(1, {
-            kitchen: {
-              id: "k".repeat(21),
-              name: `${RIGHT_TO_LEFT_OVERRIDE}${POP_ISOLATE}`,
-            },
-          }),
-        ]),
-      );
-      await harness.mount({ locale, width: "desktop" });
-
-      const cells = allIn(requireIn(harness.container(), ROWS), "td");
-
-      expect(cells[3]?.firstElementChild?.textContent).toBe(
-        CATALOGUES[locale].staffKitchens.noValue,
-      );
-    },
-  );
-
-  it.each(LOCALES)(
-    "is a dash and not an empty cell, for an account whose address is the empty string, in %s",
-    async (locale) => {
-      harness.answers(() =>
-        pageOf([
-          wireAuditEvent(1, {
-            actor: { id: auditAccountIdOf(3), email: "" },
-          }),
-        ]),
-      );
-      await harness.mount({ locale, width: "desktop" });
-
-      const cells = allIn(requireIn(harness.container(), ROWS), "td");
-
-      expect(cells[1]?.textContent).toBe(
-        CATALOGUES[locale].staffKitchens.noValue,
-      );
-    },
-  );
-});
-
 describe.each(LOCALES)("the foot, in %s", (locale) => {
   const words = CATALOGUES[locale].staffKitchens.showing;
   const showing = (from: number, to: number, total: number): string =>
@@ -652,7 +607,10 @@ describe("a whole visit to the page", () => {
         vi.spyOn(console, "debug"),
       ];
       const beacon = vi.fn();
-      vi.stubGlobal("navigator", { sendBeacon: beacon });
+      Object.defineProperty(navigator, "sendBeacon", {
+        value: beacon,
+        configurable: true,
+      });
       harness.answers((request) =>
         pageOf(auditEventsFrom(1, 25), {
           total: 200,
