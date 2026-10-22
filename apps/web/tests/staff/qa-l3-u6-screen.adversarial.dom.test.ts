@@ -389,7 +389,8 @@ describe("the days a person types", () => {
 
     expect(harness.queries()).toEqual([{ page: "1" }]);
     expect(
-      requireIn(harness.container(), '[role="alert"]').textContent,
+      requireIn(harness.container(), '[data-testid="staff-audit-date-problem"]')
+        .textContent,
     ).toContain("2000–9998");
   });
 

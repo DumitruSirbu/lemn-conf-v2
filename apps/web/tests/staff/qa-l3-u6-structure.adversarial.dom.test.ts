@@ -247,12 +247,20 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       }
     });
 
-    it("raises one alert for a failure or a refused day, and none for anything else", () => {
+    it("raises one alert for a failure and none for anything else, and tells a refused day in a status region, never an alert", () => {
       const alerts = allIn(harness.container(), "[role='alert']").length;
+      const dayProblems = allIn(
+        harness.container(),
+        "[data-testid='staff-audit-date-problem']",
+      );
       const isDayProblem =
         state.label.startsWith("days") || state.label.startsWith("a range");
 
-      expect(alerts).toBe(state.isFailure || isDayProblem ? 1 : 0);
+      expect(alerts).toBe(state.isFailure ? 1 : 0);
+      expect(dayProblems).toHaveLength(isDayProblem ? 1 : 0);
+      for (const problem of dayProblems) {
+        expect(problem.getAttribute("role")).toBe("status");
+      }
     });
 
     it("labels each of the four filters with a label that is attached to it", () => {
@@ -280,11 +288,11 @@ describe.each(LOCALES)("the structure of the page in %s", (locale) => {
       await harness.mount({ locale, width: "desktop" });
     });
 
-    it("is a table with a name, four column headers that say they are for their column, and a region that scrolls and is named", () => {
+    it("is a table with a name, four column headers that say they are for their column, and a region that scrolls and is the one that is named", () => {
       const table = requireIn(harness.container(), TABLE);
       const words = CATALOGUES[locale].staffAudit;
 
-      expect(table.getAttribute("aria-label")).toBe(words.title);
+      expect(table.getAttribute("aria-label")).toBeNull();
       const headers = allIn(table, "th");
       expect(headers.map(({ textContent }) => textContent)).toEqual([
         words.columnWhen,

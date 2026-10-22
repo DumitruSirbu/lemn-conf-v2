@@ -189,11 +189,11 @@ function isListedKitchen(
   return kitchen !== undefined;
 }
 
-function isCount(value: unknown): value is number {
+export function isCount(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
-function isPositiveCount(value: unknown): value is number {
+export function isPositiveCount(value: unknown): value is number {
   return isCount(value) && value >= FIRST_PAGE;
 }
 

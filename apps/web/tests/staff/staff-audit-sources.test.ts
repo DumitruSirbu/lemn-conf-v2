@@ -16,6 +16,11 @@ const SCREEN_FILES = [
   "staff/staff-audit-rows.tsx",
   "staff/staff-audit-filters.tsx",
   "staff/use-staff-audit.ts",
+  "staff/staff-audit-states.tsx",
+  "staff/staff-audit-days.ts",
+  "staff/staff-audit-listing.ts",
+  "staff/staff-audit-request.ts",
+  "staff/staff-audit-wire-reading.ts",
 ] as const;
 const HOOK_FILE = "staff/use-staff-audit.ts";
 const ROWS_FILE = "staff/staff-audit-rows.tsx";

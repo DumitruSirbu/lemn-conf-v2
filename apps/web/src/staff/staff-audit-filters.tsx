@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type RefObject } from "react";
+import { useId, useRef, useState, type RefObject } from "react";
 
 import {
   STAFF_AUDIT_ACTIONS,
@@ -15,11 +15,13 @@ import listStyles from "./staff-kitchens.module.css";
 import {
   EARLIEST_FILTER_YEAR,
   LATEST_FILTER_YEAR,
-  type StaffAudit,
-} from "./use-staff-audit";
+  isProblemOnField,
+} from "./staff-audit-days";
+import type { StaffAudit } from "./use-staff-audit";
 
-// The bar over the log (frames S8B and S8D): the person, the action and the two days, each asked for the moment it is
-// chosen. The people offered are the ones the rows shown so far named, and they stay offered when one is chosen. A day is
+// The bar over the log (frames S8B and S8D): the person, the action and the two days. The person and the action are asked
+// for the moment they are chosen; a day typed by keyboard is asked for when the field is left or Enter is pressed (see
+// `DayField`). The people offered are the ones the rows shown so far named, and they stay offered when one is chosen. A day is
 // a Chișinău calendar day, both ends included, in the form a date field holds (`YYYY-MM-DD`); what the field cannot say
 // the page says before asking, so a request that the server would refuse is not made.
 
@@ -31,16 +33,7 @@ export interface AuditFilterFocusTargets {
 }
 
 export type StaffAuditFiltersProps = AuditFilterFocusTargets &
-  Pick<
-    StaffAudit,
-    | "filters"
-    | "dateProblem"
-    | "actors"
-    | "chooseActor"
-    | "chooseAction"
-    | "chooseFrom"
-    | "chooseTo"
-  >;
+  Pick<StaffAudit, "filters" | "dateProblem" | "actors" | "patchFilters">;
 
 export function StaffAuditFilters(props: StaffAuditFiltersProps) {
   return (
@@ -56,7 +49,7 @@ function PersonChoice({
   personRef,
   filters,
   actors,
-  chooseActor,
+  patchFilters,
 }: StaffAuditFiltersProps) {
   const copy = useStaffAuditCopy().filters;
   const selectId = useId();
@@ -72,7 +65,7 @@ function PersonChoice({
         value={filters.actorId ?? ""}
         onChange={(event) => {
           const chosen = actors.find(({ id }) => id === event.target.value);
-          chooseActor(chosen === undefined ? null : chosen.id);
+          patchFilters({ actorId: chosen === undefined ? null : chosen.id });
         }}
       >
         <option value="">{copy.personAll}</option>
@@ -88,8 +81,8 @@ function PersonChoice({
 
 function ActionChoice({
   filters,
-  chooseAction,
-}: Pick<StaffAuditFiltersProps, "filters" | "chooseAction">) {
+  patchFilters,
+}: Pick<StaffAuditFiltersProps, "filters" | "patchFilters">) {
   const copy = useStaffAuditCopy();
   const selectId = useId();
   return (
@@ -103,7 +96,7 @@ function ActionChoice({
         value={filters.action ?? ""}
         onChange={(event) => {
           const chosen = event.target.value;
-          chooseAction(isStaffAuditAction(chosen) ? chosen : null);
+          patchFilters({ action: isStaffAuditAction(chosen) ? chosen : null });
         }}
       >
         <option value="">{copy.filters.actionAll}</option>
@@ -120,16 +113,11 @@ function ActionChoice({
 function DayChoices({
   filters,
   dateProblem,
-  chooseFrom,
-  chooseTo,
-}: Pick<
-  StaffAuditFiltersProps,
-  "filters" | "dateProblem" | "chooseFrom" | "chooseTo"
->) {
+  patchFilters,
+}: Pick<StaffAuditFiltersProps, "filters" | "dateProblem" | "patchFilters">) {
   const copy = useStaffAuditCopy().filters;
-  const fromId = useId();
-  const toId = useId();
   const problemId = useId();
+  const describedBy = dateProblem === undefined ? undefined : problemId;
   const problemText =
     dateProblem?.kind === "inverted"
       ? copy.rangeInverted
@@ -137,55 +125,98 @@ function DayChoices({
           first: EARLIEST_FILTER_YEAR,
           last: LATEST_FILTER_YEAR,
         });
-  const isInvalid = (field: "from" | "to"): true | undefined =>
-    dateProblem?.kind === "inverted" ||
-    (dateProblem?.kind === "invalid-day" && dateProblem.field === field)
-      ? true
-      : undefined;
-  const describedBy = dateProblem === undefined ? undefined : problemId;
   return (
     <>
-      <div className={styles.field} data-width="day">
-        <label htmlFor={fromId} className={listStyles.fieldLabel}>
-          {copy.from}
-        </label>
-        <input
-          id={fromId}
-          type="date"
-          className={styles.dayInput}
-          min={FIRST_DAY_ALLOWED}
-          max={LAST_DAY_ALLOWED}
-          value={filters.from}
-          aria-invalid={isInvalid("from")}
-          aria-describedby={describedBy}
-          onChange={(event) => {
-            chooseFrom(event.target.value);
-          }}
-        />
-      </div>
-      <div className={styles.field} data-width="day">
-        <label htmlFor={toId} className={listStyles.fieldLabel}>
-          {copy.to}
-        </label>
-        <input
-          id={toId}
-          type="date"
-          className={styles.dayInput}
-          min={FIRST_DAY_ALLOWED}
-          max={LAST_DAY_ALLOWED}
-          value={filters.to}
-          aria-invalid={isInvalid("to")}
-          aria-describedby={describedBy}
-          onChange={(event) => {
-            chooseTo(event.target.value);
-          }}
-        />
-      </div>
+      <DayField
+        label={copy.from}
+        value={filters.from}
+        isInvalid={isProblemOnField(dateProblem, "from")}
+        describedBy={describedBy}
+        onCommit={(from) => {
+          patchFilters({ from });
+        }}
+      />
+      <DayField
+        label={copy.to}
+        value={filters.to}
+        isInvalid={isProblemOnField(dateProblem, "to")}
+        describedBy={describedBy}
+        onCommit={(to) => {
+          patchFilters({ to });
+        }}
+      />
       {dateProblem === undefined ? null : (
-        <p id={problemId} role="alert" className={styles.problem}>
+        <p
+          id={problemId}
+          role="status"
+          className={styles.problem}
+          data-testid="staff-audit-date-problem"
+        >
           {problemText}
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * A date field whose typed days are asked for when the person is done with them, not at each keystroke: every page the
+ * server serves writes a row of the log, and a year typed digit by digit is a valid day at three of its four digits. A day
+ * typed with the keyboard is held until the field is left or Enter is pressed; a day chosen from the browser's picker, or
+ * set from outside (the clear button), is asked for at once.
+ */
+function DayField({
+  label,
+  value,
+  isInvalid,
+  describedBy,
+  onCommit,
+}: {
+  readonly label: string;
+  /** The day the log was last asked for, `""` for none. */
+  readonly value: string;
+  readonly isInvalid: boolean;
+  readonly describedBy: string | undefined;
+  readonly onCommit: (day: string) => void;
+}) {
+  const inputId = useId();
+  const [draft, setDraft] = useState(value);
+  const [seenValue, setSeenValue] = useState(value);
+  const isKeyboardTypingRef = useRef(false);
+  if (value !== seenValue) {
+    setSeenValue(value);
+    setDraft(value);
+  }
+  const commit = (day: string) => {
+    isKeyboardTypingRef.current = false;
+    if (day !== value) onCommit(day);
+  };
+  return (
+    <div className={styles.field} data-width="day">
+      <label htmlFor={inputId} className={listStyles.fieldLabel}>
+        {label}
+      </label>
+      <input
+        id={inputId}
+        type="date"
+        className={styles.dayInput}
+        min={FIRST_DAY_ALLOWED}
+        max={LAST_DAY_ALLOWED}
+        value={draft}
+        aria-invalid={isInvalid ? true : undefined}
+        aria-describedby={describedBy}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") commit(draft);
+          else isKeyboardTypingRef.current = true;
+        }}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (!isKeyboardTypingRef.current) commit(event.target.value);
+        }}
+        onBlur={() => {
+          commit(draft);
+        }}
+      />
+    </div>
   );
 }

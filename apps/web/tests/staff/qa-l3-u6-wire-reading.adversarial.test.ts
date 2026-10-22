@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { STAFF_AUDIT_ACTIONS } from "@lemnaria/configurator-domain";
 
-import { staffAuditPageFrom } from "@/staff/use-staff-audit";
+import { staffAuditPageFrom } from "@/staff/staff-audit-wire-reading";
 
 import { required } from "./qa-l3-u6-required.adversarial";
 import {

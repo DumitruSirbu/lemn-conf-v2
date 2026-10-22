@@ -15,7 +15,7 @@ import type {
   StaffAuditEntryWire,
   StaffAuditEventWire,
 } from "./staff-kitchens-wire-contract";
-import type { StaffAuditListing } from "./use-staff-audit";
+import type { StaffAuditListing } from "./staff-audit-listing";
 
 // The rows of the audit log (frames S8B and DS8B): a table on a desktop, cards on a phone, both drawn from the same facts.
 // Every string a person typed (an address, a kitchen's name) or the database holds (an action code this build does not
@@ -36,6 +36,18 @@ interface RowFacts {
   readonly object: string;
   /** The client's address and the action's codes and counts, in that order. */
   readonly objectDetails: readonly string[];
+}
+
+/** The facts of every row of the listing, with the words they are told in. */
+function useRowFacts(
+  locale: AppLocale,
+  { events, readAtMs }: StaffAuditListing,
+): readonly RowFacts[] {
+  const copy = useStaffAuditCopy();
+  const kitchensCopy = useStaffKitchensCopy();
+  return events.map((event) =>
+    factsOf({ event, locale, readAtMs, copy, kitchensCopy }),
+  );
 }
 
 function factsOf({
@@ -147,7 +159,7 @@ export function AuditTable({
   readonly listing: StaffAuditListing;
 }) {
   const copy = useStaffAuditCopy();
-  const kitchensCopy = useStaffKitchensCopy();
+  const rows = useRowFacts(locale, listing);
   return (
     <div
       className={listStyles.tableScroll}
@@ -155,11 +167,7 @@ export function AuditTable({
       tabIndex={0}
       aria-label={copy.title}
     >
-      <table
-        className={styles.table}
-        aria-label={copy.title}
-        data-testid="staff-audit-table"
-      >
+      <table className={styles.table} data-testid="staff-audit-table">
         <thead>
           <tr>
             <th scope="col">{copy.columns.when}</th>
@@ -169,31 +177,22 @@ export function AuditTable({
           </tr>
         </thead>
         <tbody>
-          {listing.events.map((event) => {
-            const facts = factsOf({
-              event,
-              locale,
-              readAtMs: listing.readAtMs,
-              copy,
-              kitchensCopy,
-            });
-            return (
-              <tr key={event.id} data-testid="staff-audit-row">
-                <td>
-                  <WhenWords facts={facts} />
-                </td>
-                <td>
-                  <span className={listStyles.breakable}>{facts.who}</span>
-                </td>
-                <td>
-                  <ActionWords facts={facts} />
-                </td>
-                <td>
-                  <ObjectWords facts={facts} />
-                </td>
-              </tr>
-            );
-          })}
+          {rows.map((facts) => (
+            <tr key={facts.event.id} data-testid="staff-audit-row">
+              <td>
+                <WhenWords facts={facts} />
+              </td>
+              <td>
+                <span className={listStyles.breakable}>{facts.who}</span>
+              </td>
+              <td>
+                <ActionWords facts={facts} />
+              </td>
+              <td>
+                <ObjectWords facts={facts} />
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -208,42 +207,33 @@ export function AuditCards({
   readonly listing: StaffAuditListing;
 }) {
   const copy = useStaffAuditCopy();
-  const kitchensCopy = useStaffKitchensCopy();
+  const rows = useRowFacts(locale, listing);
   return (
     <ul className={styles.cards} data-testid="staff-audit-cards">
-      {listing.events.map((event) => {
-        const facts = factsOf({
-          event,
-          locale,
-          readAtMs: listing.readAtMs,
-          copy,
-          kitchensCopy,
-        });
-        return (
-          <li
-            key={event.id}
-            className={styles.card}
-            tabIndex={-1}
-            data-event-id={event.id}
-            data-testid="staff-audit-row"
-          >
-            <dl className={styles.cardFacts}>
-              <CardFact label={copy.columns.when}>
-                <WhenWords facts={facts} />
-              </CardFact>
-              <CardFact label={copy.columns.who}>
-                <span className={listStyles.breakable}>{facts.who}</span>
-              </CardFact>
-              <CardFact label={copy.columns.action}>
-                <ActionWords facts={facts} />
-              </CardFact>
-              <CardFact label={copy.columns.object}>
-                <ObjectWords facts={facts} />
-              </CardFact>
-            </dl>
-          </li>
-        );
-      })}
+      {rows.map((facts) => (
+        <li
+          key={facts.event.id}
+          className={styles.card}
+          tabIndex={-1}
+          data-event-id={facts.event.id}
+          data-testid="staff-audit-row"
+        >
+          <dl className={styles.cardFacts}>
+            <CardFact label={copy.columns.when}>
+              <WhenWords facts={facts} />
+            </CardFact>
+            <CardFact label={copy.columns.who}>
+              <span className={listStyles.breakable}>{facts.who}</span>
+            </CardFact>
+            <CardFact label={copy.columns.action}>
+              <ActionWords facts={facts} />
+            </CardFact>
+            <CardFact label={copy.columns.object}>
+              <ObjectWords facts={facts} />
+            </CardFact>
+          </dl>
+        </li>
+      ))}
     </ul>
   );
 }

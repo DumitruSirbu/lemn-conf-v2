@@ -69,6 +69,7 @@ const TABLE = '[data-testid="staff-audit-table"]';
 const CARDS = '[data-testid="staff-audit-cards"]';
 const ROWS = '[data-testid="staff-audit-row"]';
 const SHOWING = '[data-testid="staff-audit-showing"]';
+const DATE_PROBLEM = '[data-testid="staff-audit-date-problem"]';
 const NOW = new Date("2026-10-21T12:00:00.000Z");
 
 let screen: MountedScreen | undefined;
@@ -246,6 +247,32 @@ async function typeDay(input: HTMLInputElement, day: string): Promise<void> {
   await settle();
 }
 
+function pressKey(input: HTMLInputElement, key: string): void {
+  act(() => {
+    input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  });
+}
+
+/** Digits typed into a date field one at a time: each keystroke can leave a day the field could already be asked for. */
+async function typeDayByKeyboard(
+  input: HTMLInputElement,
+  days: readonly string[],
+): Promise<void> {
+  for (const day of days) {
+    pressKey(input, "0");
+    typeInto(input, day);
+    await settle();
+  }
+}
+
+async function leave(input: HTMLInputElement): Promise<void> {
+  act(() => {
+    input.focus();
+    input.blur();
+  });
+  await settle();
+}
+
 function rowTexts(): string[] {
   return allIn(container(), ROWS).map((row) => row.textContent);
 }
@@ -298,7 +325,7 @@ describe.each(LOCALES)("in %s", (locale) => {
       await mount({ locale, width: "desktop" });
     });
 
-    it("draws a table named for the log with the four columns of the frame and no cards", () => {
+    it("draws a table in a region named for the log, with the four columns of the frame and no cards", () => {
       const headings = allIn(requireIn(container(), TABLE), "th").map(
         (heading) => heading.textContent,
       );
@@ -309,9 +336,12 @@ describe.each(LOCALES)("in %s", (locale) => {
         words.columnAction,
         words.columnObject,
       ]);
-      expect(requireIn(container(), TABLE).getAttribute("aria-label")).toBe(
-        words.title,
-      );
+      expect(
+        requireIn(container(), TABLE).getAttribute("aria-label"),
+      ).toBeNull();
+      expect(
+        requireIn(container(), TABLE).parentElement?.getAttribute("aria-label"),
+      ).toBe(words.title);
       expect(container().querySelector(CARDS)).toBeNull();
     });
 
@@ -1010,6 +1040,44 @@ describe("the pages of a phone log", () => {
     expect(container().querySelector(TABLE)).toBeNull();
   });
 
+  it("counts the rows it shows, not the rows its pages hold, when each page served adds a row to the log", async () => {
+    auditAnswers((request) =>
+      request.url.searchParams.get("page") === "2"
+        ? pageOf(auditEventsFrom(25, 25), { total: 51, page: 2 })
+        : pageOf(auditEventsFrom(1, 25), { total: 50 }),
+    );
+    await mount();
+
+    click(byWords(container(), "button", roMessages.staffKitchens.loadMore));
+    await settle();
+
+    expect(requireIn(container(), SHOWING).textContent).toBe(
+      showingLine("ro", { from: 1, to: 49, total: 51 }),
+    );
+    expect(
+      byWords(container(), "button", roMessages.staffKitchens.loadMore),
+    ).not.toBeNull();
+  });
+
+  it("takes 'load more' away when a press brought no row that was not already shown, though the count says rows are left", async () => {
+    auditAnswers((request) =>
+      request.url.searchParams.get("page") === "2"
+        ? pageOf(auditEventsFrom(1, 25), { total: 75, page: 2 })
+        : pageOf(auditEventsFrom(1, 25), { total: 75 }),
+    );
+    await mount();
+
+    click(byWords(container(), "button", roMessages.staffKitchens.loadMore));
+    await settle();
+
+    expect(allIn(container(), ROWS)).toHaveLength(25);
+    expect(
+      allIn(container(), "button").some(
+        (button) => button.textContent === roMessages.staffKitchens.loadMore,
+      ),
+    ).toBe(false);
+  });
+
   it("offers no 'load more' once every row is shown", async () => {
     auditAnswers(() => pageOf(auditEventsFrom(1, 3)));
     await mount();
@@ -1101,7 +1169,7 @@ describe("the filters", () => {
       from: "2026-10-01",
       to: "2026-10-01",
     });
-    expect(screen?.container.querySelector('[role="alert"]')).toBeNull();
+    expect(screen?.container.querySelector(DATE_PROBLEM)).toBeNull();
   });
 
   it("refuses a range that ends before it begins, says so on both fields, and asks for nothing until it is mended", async () => {
@@ -1112,7 +1180,7 @@ describe("the filters", () => {
     await typeDay(from, "2026-10-05");
 
     expect(auditRequests()).toHaveLength(0);
-    expect(requireIn(container(), '[role="alert"]').textContent).toBe(
+    expect(requireIn(container(), DATE_PROBLEM).textContent).toBe(
       roMessages.staffAudit.rangeInverted,
     );
     expect(from.getAttribute("aria-invalid")).toBe("true");
@@ -1120,7 +1188,7 @@ describe("the filters", () => {
 
     await typeDay(from, "2026-09-30");
 
-    expect(container().querySelector('[role="alert"]')).toBeNull();
+    expect(container().querySelector(DATE_PROBLEM)).toBeNull();
     expect(lastQuery()).toEqual({
       page: "1",
       from: "2026-09-30",
@@ -1139,7 +1207,7 @@ describe("the filters", () => {
       await typeDay(from, day);
 
       expect(auditRequests()).toHaveLength(0);
-      expect(requireIn(container(), '[role="alert"]').textContent).toBe(
+      expect(requireIn(container(), DATE_PROBLEM).textContent).toBe(
         translatorFor("ro", "staffAudit")("dayInvalid", {
           first: 2000,
           last: 9998,
@@ -1148,12 +1216,149 @@ describe("the filters", () => {
     },
   );
 
-  it("keeps the rows that are on screen while the days are refused", async () => {
+  it("keeps the rows that are on screen while the days are refused, dimmed and out of reach, as the answer to an older question", async () => {
     const [from] = dayInputs();
 
     await typeDay(from, "1999-12-31");
 
     expect(rowTexts()).toHaveLength(2);
+    const results = requireIn(container(), '[data-stale="true"]');
+    expect(results.hasAttribute("inert")).toBe(true);
+    expect(results.querySelector(ROWS)).not.toBeNull();
+  });
+
+  it("draws the rows live again, and asks once, when the days are mended", async () => {
+    const [from] = dayInputs();
+    await typeDay(from, "1999-12-31");
+    server.requests.length = 0;
+
+    await typeDay(from, "2026-10-01");
+
+    expect(auditRequests()).toHaveLength(1);
+    expect(container().querySelector("[data-stale]")).toBeNull();
+    expect(container().querySelector("[inert]")).toBeNull();
+    expect(allIn(container(), ROWS)).toHaveLength(2);
+  });
+
+  it("tells a refused day in a status region the screen reader reads politely, not in an alert", async () => {
+    const [from] = dayInputs();
+
+    await typeDay(from, "1999-12-31");
+
+    const problem = requireIn(container(), DATE_PROBLEM);
+    expect(problem.getAttribute("role")).toBe("status");
+    expect(from.getAttribute("aria-describedby")).toBe(problem.id);
+    expect(container().querySelector('[role="alert"]')).toBeNull();
+  });
+
+  describe("a day typed with the keyboard", () => {
+    it("is not asked for at a keystroke: a year typed digit by digit passes through days the log has", async () => {
+      const [from] = dayInputs();
+
+      await typeDayByKeyboard(from, ["2002-10-01", "2020-10-01", "2026-10-01"]);
+
+      expect(auditRequests()).toHaveLength(0);
+    });
+
+    it("is asked for once, when the field is left", async () => {
+      const [from] = dayInputs();
+      await typeDayByKeyboard(from, ["2002-10-01", "2026-10-01"]);
+
+      await leave(from);
+
+      expect(auditRequests()).toHaveLength(1);
+      expect(lastQuery()).toEqual({ page: "1", from: "2026-10-01" });
+    });
+
+    it("is asked for once, when Enter is pressed, and not again when the field is left", async () => {
+      const [from] = dayInputs();
+      await typeDayByKeyboard(from, ["2026-10-01"]);
+
+      pressKey(from, "Enter");
+      await settle();
+      expect(auditRequests()).toHaveLength(1);
+      await leave(from);
+
+      expect(auditRequests()).toHaveLength(1);
+      expect(lastQuery()).toEqual({ page: "1", from: "2026-10-01" });
+    });
+
+    it("asks for nothing when the field is left with the day it was already asked with", async () => {
+      const [from] = dayInputs();
+
+      await leave(from);
+
+      expect(auditRequests()).toHaveLength(0);
+    });
+
+    it("is followed by a day chosen from the picker, which is asked for at once", async () => {
+      const [from] = dayInputs();
+      await typeDayByKeyboard(from, ["2026-10-01"]);
+      await leave(from);
+      server.requests.length = 0;
+
+      await typeDay(from, "2026-10-09");
+
+      expect(lastQuery()).toEqual({ page: "1", from: "2026-10-09" });
+    });
+
+    it("shows the refused day once the field is left, not while it is typed", async () => {
+      const [from] = dayInputs();
+      await typeDayByKeyboard(from, ["1999-12-31"]);
+      expect(container().querySelector(DATE_PROBLEM)).toBeNull();
+
+      await leave(from);
+
+      expect(requireIn(container(), DATE_PROBLEM)).not.toBeNull();
+    });
+  });
+
+  it("leaves the press that drops the filters within reach while the days are refused and no row matched", async () => {
+    auditAnswers((request) =>
+      request.url.searchParams.has("action")
+        ? pageOf([])
+        : pageOf(auditEventsFrom(1, 2)),
+    );
+    await choose(actionSelect(), "audit-viewed");
+    const [from] = dayInputs();
+    await typeDay(from, "1999-12-31");
+    server.requests.length = 0;
+
+    const clear = byWords(
+      requireIn(container(), '[data-testid="staff-audit-no-results"]'),
+      "button",
+      roMessages.staffAudit.clearFilters,
+    );
+    expect(clear.closest("[inert]")).toBeNull();
+    click(clear);
+    await settle();
+
+    expect(lastQuery()).toEqual({ page: "1" });
+    expect(container().querySelector(DATE_PROBLEM)).toBeNull();
+  });
+
+  it("empties both fields when the filters are dropped, whatever was typed into them", async () => {
+    auditAnswers((request) =>
+      request.url.searchParams.has("from")
+        ? pageOf([])
+        : pageOf(auditEventsFrom(1, 2)),
+    );
+    const [from, to] = dayInputs();
+    await typeDay(from, "2026-10-01");
+    await typeDayByKeyboard(to, ["2026-10-31"]);
+    await leave(to);
+
+    click(
+      byWords(
+        requireIn(container(), '[data-testid="staff-audit-no-results"]'),
+        "button",
+        roMessages.staffAudit.clearFilters,
+      ),
+    );
+    await settle();
+
+    expect([from.value, to.value]).toEqual(["", ""]);
+    expect(lastQuery()).toEqual({ page: "1" });
   });
 
   it("keeps the people it has seen when the filters are dropped with one press, though the page that follows names only one of them", async () => {

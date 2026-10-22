@@ -59,9 +59,10 @@ export function ListFailureNotice({
   }
 }
 
-/** The failure and the one action that asks again. Nothing asks again on its own, and while a limit's wait is counted
- *  down the action is off (`aria-disabled`, so it stays reachable) and ignores a press; it wakes when the wait ends. */
-export function FailedKitchens({
+/** The failure and the one action that asks again, for any staff list. Nothing asks again on its own, and while a
+ *  limit's wait is counted down the action is off (`aria-disabled`, so it stays reachable) and ignores a press; it wakes
+ *  when the wait ends. */
+export function FailedList({
   failure,
   onRetry,
 }: {
@@ -86,6 +87,9 @@ export function FailedKitchens({
   );
 }
 
+/** `FailedList` under the name the kitchens screens already import. */
+export const FailedKitchens = FailedList;
+
 /** A page that holds no kitchen though the list holds some, which neither an empty segment nor a search that matched
  *  nothing can be called: the page could not be shown, and the way on is the first page. */
 export function PageWithoutKitchens({
@@ -95,7 +99,7 @@ export function PageWithoutKitchens({
 }) {
   return (
     <div data-testid="staff-kitchens-page-unshown">
-      <FailedKitchens failure={{ kind: "failed" }} onRetry={onShowFirstPage} />
+      <FailedList failure={{ kind: "failed" }} onRetry={onShowFirstPage} />
     </div>
   );
 }

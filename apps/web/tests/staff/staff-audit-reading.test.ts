@@ -11,8 +11,8 @@ import {
   EARLIEST_FILTER_YEAR,
   LATEST_FILTER_YEAR,
   problemOfDays,
-  staffAuditPageFrom,
-} from "@/staff/use-staff-audit";
+} from "@/staff/staff-audit-days";
+import { staffAuditPageFrom } from "@/staff/staff-audit-wire-reading";
 
 import {
   auditAccountIdOf,

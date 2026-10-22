@@ -1,5 +1,5 @@
 // What the audit page's sources may not hold, read as syntax (wave L3-U6), beyond what the developer's source test asks of
-// the hook alone: no timer, no listener and no transport of any kind in any of the five files, one GET with no referrer in
+// the hook alone: no timer, no listener and no transport of any kind in any of the audit page files, one GET with no referrer in
 // the shared reader, every typed string passing through the isolating function at the sites that draw one, and every control
 // the screen draws as tall as a thumb needs.
 import { readFileSync } from "node:fs";
@@ -19,6 +19,11 @@ const AUDIT_FILES = [
   "staff/staff-audit-rows.tsx",
   "staff/staff-audit-filters.tsx",
   "staff/use-staff-audit.ts",
+  "staff/staff-audit-states.tsx",
+  "staff/staff-audit-days.ts",
+  "staff/staff-audit-listing.ts",
+  "staff/staff-audit-request.ts",
+  "staff/staff-audit-wire-reading.ts",
 ] as const;
 const READER_FILE = "staff/staff-read-request.ts";
 const TOUCH_TARGET_PX = 44;
@@ -207,7 +212,7 @@ describe("the controls the screen draws", () => {
     expect(globals).toContain(`--touch-target: ${String(TOUCH_TARGET_PX)}px`);
   });
 
-  it.each(["staff/staff-audit-page.tsx", "staff/staff-audit-filters.tsx"])(
+  it.each(["staff/staff-audit-states.tsx", "staff/staff-audit-filters.tsx"])(
     "gives every button, select and field of %s a class that is at least 44 px tall wherever it is declared",
     (relative) => {
       const controls = controlClassesIn(relative);

@@ -13,6 +13,7 @@ import {
   resetStaffSessionExpiryForTests,
   resolveStaffSessionExpired,
 } from "@/staff/staff-session-expiry";
+import { hasMoreRows, rowsReachedBy } from "@/staff/staff-audit-listing";
 import { useStaffAudit, type StaffAudit } from "@/staff/use-staff-audit";
 
 import { renderHook, type RenderedHook } from "../support/render-hook";
@@ -129,13 +130,13 @@ describe("what a request carries", () => {
 
   it("names a member only when a filter sets it", async () => {
     await doing((audit) => {
-      audit.chooseAction("note-added");
+      audit.patchFilters({ action: "note-added" });
     });
     await doing((audit) => {
-      audit.chooseFrom("2026-10-01");
+      audit.patchFilters({ from: "2026-10-01" });
     });
     await doing((audit) => {
-      audit.chooseTo("2026-10-31");
+      audit.patchFilters({ to: "2026-10-31" });
     });
 
     expect(queries()).toEqual([
@@ -154,7 +155,7 @@ describe("what a request carries", () => {
     });
 
     await doing((audit) => {
-      audit.chooseAction("audit-viewed");
+      audit.patchFilters({ action: "audit-viewed" });
     });
 
     expect(queries().at(-1)).toEqual({ page: "1", action: "audit-viewed" });
@@ -162,7 +163,7 @@ describe("what a request carries", () => {
 
   it("asks for a page by number with the filters of the page on screen", async () => {
     await doing((audit) => {
-      audit.chooseAction("kitchen-opened");
+      audit.patchFilters({ action: "kitchen-opened" });
     });
     await doing((audit) => {
       audit.goToPage(3);
@@ -173,12 +174,12 @@ describe("what a request carries", () => {
 
   it("keeps a refused range out of the request and the page it asked for last on screen", async () => {
     await doing((audit) => {
-      audit.chooseFrom("2026-10-05");
+      audit.patchFilters({ from: "2026-10-05" });
     });
     server.requests.length = 0;
 
     const audit = await doing((again) => {
-      again.chooseTo("2026-10-01");
+      again.patchFilters({ to: "2026-10-01" });
     });
 
     expect(queries()).toEqual([]);
@@ -189,7 +190,7 @@ describe("what a request carries", () => {
 
   it("asks for the same page again, with the same filters, when the person presses retry after a failure", async () => {
     await doing((audit) => {
-      audit.chooseAction("note-added");
+      audit.patchFilters({ action: "note-added" });
     });
     server.script(() => UNAVAILABLE_ANSWER);
     await doing((audit) => {
@@ -215,7 +216,7 @@ describe("a newer request", () => {
     await mount();
 
     await doing((audit) => {
-      audit.chooseAction("note-added");
+      audit.patchFilters({ action: "note-added" });
     });
     const [first, second] = server.held;
     act(() => {
@@ -293,7 +294,7 @@ describe("the session", () => {
     }));
     await mount();
     await doing((audit) => {
-      audit.chooseAction("note-added");
+      audit.patchFilters({ action: "note-added" });
     });
     server.script(() => UNAUTHENTICATED_ANSWER);
     await doing((audit) => {
@@ -370,7 +371,7 @@ describe("the people the rows name", () => {
     expect(current().actors).toEqual([ADMINISTRATOR, OPERATOR]);
 
     await doing((audit) => {
-      audit.chooseActor(ADMINISTRATOR.id);
+      audit.patchFilters({ actorId: ADMINISTRATOR.id });
     });
 
     expect(current().actors).toEqual([ADMINISTRATOR, OPERATOR]);
@@ -463,5 +464,230 @@ describe("loading more", () => {
     const { state } = current();
     expect(state.phase === "ready" && state.more.kind).toBe("failed");
     expect(listing().events).toHaveLength(25);
+  });
+});
+
+describe("while the days cannot be asked for", () => {
+  beforeEach(async () => {
+    server.script(() => ({
+      body: wireAuditPage(auditEventsFrom(1, 25), { total: 200 }),
+    }));
+    await mount();
+    await doing((audit) => {
+      audit.patchFilters({ from: "2026-10-05" });
+    });
+    await doing((audit) => {
+      audit.patchFilters({ to: "2026-10-01" });
+    });
+    server.requests.length = 0;
+  });
+
+  it("keeps the rows of the older question on screen and asks nothing when the person or the action changes", async () => {
+    await doing((audit) => {
+      audit.patchFilters({ actorId: OPERATOR.id });
+    });
+    await doing((audit) => {
+      audit.patchFilters({ action: "note-added" });
+    });
+
+    expect(current().dateProblem).toEqual({ kind: "inverted" });
+    expect(current().filters).toMatchObject({ action: "note-added" });
+    expect(queries()).toEqual([]);
+    expect(listing().events).toHaveLength(25);
+  });
+
+  it.each([
+    [
+      "a page by number",
+      (audit: StaffAudit) => {
+        audit.goToPage(2);
+      },
+    ],
+    [
+      "more rows",
+      (audit: StaffAudit) => {
+        audit.loadMore();
+      },
+    ],
+    [
+      "the retry",
+      (audit: StaffAudit) => {
+        audit.retry();
+      },
+    ],
+  ])("does nothing when %s is asked for", async (_label, press) => {
+    await doing(press);
+
+    expect(queries()).toEqual([]);
+    expect(current().state.phase).toBe("ready");
+  });
+
+  it("asks once, with the person and the action chosen meanwhile, when the days are mended", async () => {
+    await doing((audit) => {
+      audit.patchFilters({ action: "note-added" });
+    });
+
+    await doing((audit) => {
+      audit.patchFilters({ from: "2026-09-30" });
+    });
+
+    expect(queries()).toEqual([
+      {
+        page: "1",
+        action: "note-added",
+        from: "2026-09-30",
+        to: "2026-10-01",
+      },
+    ]);
+    expect(current().dateProblem).toBeUndefined();
+  });
+
+  it("goes back to answering the paging once the days are mended", async () => {
+    await doing((audit) => {
+      audit.patchFilters({ to: "2026-10-31" });
+    });
+    server.requests.length = 0;
+
+    await doing((audit) => {
+      audit.goToPage(2);
+    });
+
+    expect(queries()).toEqual([
+      { page: "2", from: "2026-10-05", to: "2026-10-31" },
+    ]);
+  });
+});
+
+describe("the rows a phone has reached while the log grows under it", () => {
+  it("counts the distinct rows shown, and offers more only while rows are left", async () => {
+    server.script((request) => {
+      const page = request.url.searchParams.get("page");
+      if (page === "2") {
+        // One row was added at the top since page 1: its last row is page 2's first, and the log is one longer.
+        return {
+          body: wireAuditPage(auditEventsFrom(25, 25), { total: 51, page: 2 }),
+        };
+      }
+      return {
+        body: wireAuditPage(auditEventsFrom(1, 25), { total: 50 }),
+      };
+    });
+    await mount();
+    expect(rowsReachedBy(listing())).toBe(25);
+    expect(hasMoreRows(listing())).toBe(true);
+
+    await doing((audit) => {
+      audit.loadMore();
+    });
+
+    expect(listing().events).toHaveLength(49);
+    expect(rowsReachedBy(listing())).toBe(49);
+    expect(hasMoreRows(listing())).toBe(true);
+  });
+
+  it("stops offering more when a press added no row that was not shown, however many the count says are left", async () => {
+    server.script((request) =>
+      request.url.searchParams.get("page") === "2"
+        ? {
+            body: wireAuditPage(auditEventsFrom(1, 25), { total: 75, page: 2 }),
+          }
+        : { body: wireAuditPage(auditEventsFrom(1, 25), { total: 75 }) },
+    );
+    await mount();
+    await doing((audit) => {
+      audit.loadMore();
+    });
+    server.requests.length = 0;
+
+    expect(listing().events).toHaveLength(25);
+    expect(hasMoreRows(listing())).toBe(false);
+    await doing((audit) => {
+      audit.loadMore();
+    });
+    expect(queries()).toEqual([]);
+  });
+
+  it("stops offering more when the rows shown reach the count", async () => {
+    server.script(() => ({
+      body: wireAuditPage(auditEventsFrom(1, 25), { total: 25 }),
+    }));
+    await mount();
+
+    expect(hasMoreRows(listing())).toBe(false);
+  });
+});
+
+describe("a refused session on a request that had rows on screen", () => {
+  beforeEach(async () => {
+    server.script(() => ({
+      body: wireAuditPage(auditEventsFrom(1, 25), { total: 80 }),
+    }));
+    await mount();
+  });
+
+  it.each([
+    [
+      "a filter",
+      (audit: StaffAudit) => {
+        audit.patchFilters({ action: "note-added" });
+      },
+    ],
+    [
+      "a page jump",
+      (audit: StaffAudit) => {
+        audit.goToPage(3);
+      },
+    ],
+    [
+      "more rows",
+      (audit: StaffAudit) => {
+        audit.loadMore();
+      },
+    ],
+  ])("keeps the rows, and no skeleton, for %s", async (_label, ask) => {
+    const before = listing();
+    server.script(() => UNAUTHENTICATED_ANSWER);
+
+    await doing(ask);
+
+    const { state } = current();
+    expect(state.phase).toBe("ready");
+    expect(listing().events).toEqual(before.events);
+    expect(state.phase === "ready" && state.more).toEqual({ kind: "idle" });
+    expect(getStaffSessionExpiry()).toEqual({ keepsTypedText: false });
+  });
+
+  it("keeps the rows when the one correction after a jump past the end is the request refused", async () => {
+    server.script((request) => {
+      const page = request.url.searchParams.get("page");
+      if (page === "49")
+        return { body: wireAuditPage([], { total: 80, page: 49 }) };
+      return UNAUTHENTICATED_ANSWER;
+    });
+    server.requests.length = 0;
+
+    await doing((audit) => {
+      audit.goToPage(49);
+    });
+
+    expect(queries().map((query) => query.page)).toEqual(["49", "4"]);
+    expect(current().state.phase).toBe("ready");
+    expect(listing().events).toHaveLength(25);
+  });
+
+  it("asks the refused request again, and shows its answer, once the person is back", async () => {
+    server.script(() => UNAUTHENTICATED_ANSWER);
+    await doing((audit) => {
+      audit.goToPage(3);
+    });
+    server.script(() => ({
+      body: wireAuditPage(auditEventsFrom(51, 25), { total: 80, page: 3 }),
+    }));
+
+    await doing(() => {
+      resolveStaffSessionExpired();
+    });
+
+    expect(listing().firstPage).toBe(3);
   });
 });

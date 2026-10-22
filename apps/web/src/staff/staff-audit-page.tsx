@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import { useReloadOnPageRestore } from "@/account/use-claim";
 import {
@@ -18,36 +18,37 @@ import {
 } from "@/i18n/use-content";
 
 import { StaffAuditFilters } from "./staff-audit-filters";
+import {
+  hasFilters,
+  hasMoreRows,
+  rowsReachedBy,
+  type MoreState,
+  type RowFocusRequest,
+  type StaffAuditListing,
+} from "./staff-audit-listing";
 import { AuditCards, AuditTable } from "./staff-audit-rows";
+import {
+  EmptyLog,
+  LoadingAudit,
+  NoResults,
+  PageWithoutEvents,
+} from "./staff-audit-states";
 import styles from "./staff-audit.module.css";
 import listStyles from "./staff-kitchens.module.css";
 import { useIsDesktop } from "./staff-kitchens-list";
-import {
-  FailedKitchens,
-  ListFailureNotice,
-  useTextAfterFirstPaint,
-} from "./staff-kitchens-states";
+import { FailedList, ListFailureNotice } from "./staff-kitchens-states";
 import { LoadMore, PageNumbers } from "./staff-pagination";
 import {
   StaffForbiddenScreen,
   StaffShell,
   type StaffShellContext,
 } from "./staff-shell";
-import {
-  hasFilters,
-  useStaffAudit,
-  type MoreState,
-  type RowFocusRequest,
-  type StaffAudit,
-  type StaffAuditListing,
-} from "./use-staff-audit";
+import { useStaffAudit, type StaffAudit } from "./use-staff-audit";
 import { pageCountOf } from "./use-staff-kitchens";
 
 // "Jurnal de audit" (Lot 3 frames S8A to S8E, DS8A to DS8E): what every staff member did with a client's kitchen, newest
 // first, a page at a time. A desktop draws a table and numbered pages, a phone draws cards and "Încarcă mai multe"; both
 // draw the same rows. The page only reads: no control here changes the log, and the log says so.
-
-const SKELETON_ROW_COUNT = 7;
 
 export function StaffAuditScreen({
   locale,
@@ -80,6 +81,7 @@ function StaffAuditContent({
   const copy = useStaffAuditCopy();
   const personRef = useRef<HTMLSelectElement>(null);
   const { state } = audit;
+  const isStale = audit.dateProblem !== undefined;
   const clearFilters = () => {
     audit.clearFilters();
     personRef.current?.focus();
@@ -92,7 +94,9 @@ function StaffAuditContent({
       <div className={listStyles.results}>
         {state.phase === "loading" ? <LoadingAudit /> : null}
         {state.phase === "failed" ? (
-          <FailedKitchens failure={state.failure} onRetry={audit.retry} />
+          <HeldBack isHeld={isStale}>
+            <FailedList failure={state.failure} onRetry={audit.retry} />
+          </HeldBack>
         ) : null}
         {state.phase === "ready" ? (
           <LoggedEvents
@@ -100,6 +104,7 @@ function StaffAuditContent({
             listing={state.listing}
             more={state.more}
             audit={audit}
+            isHeldBack={isStale}
             onClearFilters={clearFilters}
           />
         ) : null}
@@ -108,17 +113,39 @@ function StaffAuditContent({
   );
 }
 
+/**
+ * While the days cannot be asked for, the rows, the count and the foot on screen answer an older question: they are
+ * dimmed and cannot be reached (`inert`: no press, no focus, and not read aloud), so nothing is read against what the
+ * filters say now. The words of an empty log or of no results are not held: the press that drops the filters is the way out.
+ */
+function HeldBack({
+  isHeld,
+  children,
+}: {
+  readonly isHeld: boolean;
+  readonly children: ReactNode;
+}) {
+  if (!isHeld) return <>{children}</>;
+  return (
+    <div className={styles.stale} data-stale="true" inert>
+      {children}
+    </div>
+  );
+}
+
 function LoggedEvents({
   locale,
   listing,
   more,
   audit,
+  isHeldBack,
   onClearFilters,
 }: {
   readonly locale: AppLocale;
   readonly listing: StaffAuditListing;
   readonly more: MoreState;
   readonly audit: StaffAudit;
+  readonly isHeldBack: boolean;
   readonly onClearFilters: () => void;
 }) {
   const showingRef = useRef<HTMLParagraphElement>(null);
@@ -127,14 +154,13 @@ function LoggedEvents({
   useFocusOnFirstAppendedRow(listing.focusRequest);
   if (listing.total > 0 && listing.events.length === 0) {
     return (
-      <div data-testid="staff-audit-page-unshown">
-        <FailedKitchens
-          failure={{ kind: "failed" }}
-          onRetry={() => {
+      <HeldBack isHeld={isHeldBack}>
+        <PageWithoutEvents
+          onShowFirstPage={() => {
             audit.goToPage(1);
           }}
         />
-      </div>
+      </HeldBack>
     );
   }
   if (listing.total === 0) {
@@ -145,7 +171,7 @@ function LoggedEvents({
     );
   }
   return (
-    <>
+    <HeldBack isHeld={isHeldBack}>
       {isDesktop ? (
         <AuditTable locale={locale} listing={listing} />
       ) : (
@@ -159,7 +185,7 @@ function LoggedEvents({
         onGoToPage={audit.goToPage}
         onLoadMore={audit.loadMore}
       />
-    </>
+    </HeldBack>
   );
 }
 
@@ -183,7 +209,7 @@ function AuditFoot({
   const copy = useStaffKitchensCopy().pagination;
   const pageCount = pageCountOf(listing.total, listing.pageSize);
   const from = (listing.firstPage - 1) * listing.pageSize + 1;
-  const to = from + listing.events.length - 1;
+  const to = rowsReachedBy(listing);
   return (
     <div className={listStyles.foot} data-testid="staff-audit-foot">
       <p
@@ -203,7 +229,7 @@ function AuditFoot({
         />
       ) : (
         <LoadMore
-          hasMore={listing.lastPage < pageCount}
+          hasMore={hasMoreRows(listing)}
           more={more}
           onLoadMore={onLoadMore}
         />
@@ -242,72 +268,6 @@ function useFocusOnFirstAppendedRow(
       .find((row) => row.dataset.eventId === focusRequest.eventId)
       ?.focus();
   }, [focusRequest]);
-}
-
-/** The words are a live region for a screen reader; the rows are only for the eye (frame S8A). */
-function LoadingAudit() {
-  const copy = useStaffAuditCopy();
-  const announcement = useTextAfterFirstPaint(copy.loading);
-  return (
-    <>
-      <p role="status" className={listStyles.visuallyHidden}>
-        {announcement}
-      </p>
-      <ul
-        className={styles.skeletonRows}
-        aria-hidden="true"
-        data-testid="staff-audit-skeleton"
-      >
-        {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-          <li key={index} className={styles.skeletonRow}>
-            <span className={styles.skeletonLine} data-size="when" />
-            <span className={styles.skeletonLine} data-size="who" />
-            <span className={styles.skeletonLine} data-size="action" />
-            <span className={styles.skeletonLine} data-size="object" />
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
-
-/** A log with nothing in it, at all (frame S8C): one sentence and no call to action. */
-function EmptyLog() {
-  const copy = useStaffAuditCopy().empty;
-  return (
-    <section className={listStyles.state} data-testid="staff-audit-empty">
-      <span className={listStyles.stateMark} aria-hidden="true" />
-      <h2 className={listStyles.stateTitle}>{copy.title}</h2>
-      <p className={listStyles.stateBody}>{copy.body}</p>
-    </section>
-  );
-}
-
-/** Filters that matched nothing, and the one press that drops them (frame S8D). */
-function NoResults({
-  onClearFilters,
-}: {
-  readonly onClearFilters: () => void;
-}) {
-  const copy = useStaffAuditCopy();
-  return (
-    <section className={listStyles.state} data-testid="staff-audit-no-results">
-      <span
-        className={listStyles.stateMark}
-        data-mark="search"
-        aria-hidden="true"
-      />
-      <h2 className={listStyles.stateTitle}>{copy.noResults.title}</h2>
-      <p className={listStyles.stateBody}>{copy.noResults.body}</p>
-      <button
-        type="button"
-        className={listStyles.stateAction}
-        onClick={onClearFilters}
-      >
-        {copy.filters.clear}
-      </button>
-    </section>
-  );
 }
 
 /** The page when the server gate could not read the session store: nothing is known of the person, so no staff frame is

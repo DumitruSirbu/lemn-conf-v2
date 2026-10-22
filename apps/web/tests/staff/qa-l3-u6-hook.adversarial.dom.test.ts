@@ -13,7 +13,11 @@ import {
   resetStaffSessionExpiryForTests,
   resolveStaffSessionExpired,
 } from "@/staff/staff-session-expiry";
-import { useStaffAudit, type StaffAudit } from "@/staff/use-staff-audit";
+import {
+  useStaffAudit,
+  type StaffAudit,
+  type StaffAuditFilters,
+} from "@/staff/use-staff-audit";
 
 import { renderHook, type RenderedHook } from "../support/render-hook";
 import {
@@ -259,7 +263,7 @@ describe("a page jumped to, and then a filter chosen", () => {
               audit.goToPage(page);
             });
             await doing((audit) => {
-              audit.chooseAction(action);
+              audit.patchFilters({ action: action });
             });
 
             expect(server.requests.at(-1)?.url.searchParams.get("page")).toBe(
@@ -367,16 +371,16 @@ describe("a phone log whose total moves under it", () => {
 });
 
 describe("the controls and the rows when the days are refused", () => {
-  it("continues the log that is on screen, with the filters it was asked with, when a page is pressed", async () => {
+  it("leaves the log that is on screen alone, and asks for nothing, when a page is pressed", async () => {
     server.script(() => ({
       body: wireAuditPage(auditEventsFrom(1, 25), { total: 200 }),
     }));
     await mount();
     await doing((audit) => {
-      audit.chooseAction("note-added");
+      audit.patchFilters({ action: "note-added" });
     });
     await doing((audit) => {
-      audit.chooseFrom("2026-13-45");
+      audit.patchFilters({ from: "2026-13-45" });
     });
     server.requests.length = 0;
 
@@ -388,9 +392,8 @@ describe("the controls and the rows when the days are refused", () => {
       kind: "invalid-day",
       field: "from",
     });
-    expect(
-      server.requests.map(({ url }) => Object.fromEntries(url.searchParams)),
-    ).toEqual([{ page: "2", action: "note-added" }]);
+    expect(server.requests).toEqual([]);
+    expect(listing().firstPage).toBe(1);
   });
 });
 
@@ -401,7 +404,7 @@ describe("whatever the person does, in any order", () => {
   const ACTORS = [auditAccountIdOf(1), auditAccountIdOf(2)];
 
   type Operation =
-    | { kind: "action"; value: Parameters<StaffAudit["chooseAction"]>[0] }
+    | { kind: "action"; value: StaffAuditFilters["action"] }
     | { kind: "actor"; value: string | null }
     | { kind: "from" | "to"; value: string }
     | { kind: "clear" | "more" | "retry" }
@@ -462,16 +465,16 @@ describe("whatever the person does, in any order", () => {
   function perform(audit: StaffAudit, operation: Operation): void {
     switch (operation.kind) {
       case "action":
-        audit.chooseAction(operation.value);
+        audit.patchFilters({ action: operation.value });
         return;
       case "actor":
-        audit.chooseActor(operation.value);
+        audit.patchFilters({ actorId: operation.value });
         return;
       case "from":
-        audit.chooseFrom(operation.value);
+        audit.patchFilters({ from: operation.value });
         return;
       case "to":
-        audit.chooseTo(operation.value);
+        audit.patchFilters({ to: operation.value });
         return;
       case "clear":
         audit.clearFilters();
