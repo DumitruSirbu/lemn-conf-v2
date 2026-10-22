@@ -6,15 +6,12 @@ import {
   type Design,
 } from "@lemnaria/configurator-domain";
 
-import {
-  formatRelativeAge,
-  relativeAgeOf,
-} from "@/account/kitchens/relative-age";
+import { formatRelativeAge } from "@/account/kitchens/relative-age";
 import type { StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useStaffKitchensCopy } from "@/i18n/use-content";
 
-import { dayOf } from "./staff-kitchen-dates";
+import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import styles from "./staff-kitchens.module.css";
 import type {
   StaffListedKitchenWire,
@@ -48,7 +45,7 @@ function factsOf({
   readonly copy: StaffKitchensCopy;
   readonly readAtMs: number;
 }): RowFacts {
-  const age = relativeAgeOf(Date.parse(row.updatedAt), readAtMs);
+  const age = shopRelativeAgeOf(Date.parse(row.updatedAt), readAtMs);
   return {
     row,
     name: nameOf(row, copy),

@@ -1,14 +1,11 @@
 import { kitchenSummaryOf, type Design } from "@lemnaria/configurator-domain";
 
-import {
-  formatRelativeAge,
-  relativeAgeOf,
-} from "@/account/kitchens/relative-age";
+import { formatRelativeAge } from "@/account/kitchens/relative-age";
 import type { StaffKitchenCopy, StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 
 import { isolated } from "./bidi-isolate";
-import { dayOf } from "./staff-kitchen-dates";
+import { dayOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import type { StaffKitchenWire } from "./staff-kitchens-wire-contract";
 
 // What the kitchen page says about the kitchen in a line: which copy of it is on screen, what it is called, and the sentence
@@ -73,7 +70,7 @@ export function subLineOf({
   }
   const when = formatRelativeAge(
     locale,
-    relativeAgeOf(Date.parse(kitchen.updatedAt), readAtMs),
+    shopRelativeAgeOf(Date.parse(kitchen.updatedAt), readAtMs),
   );
   return client === null
     ? copy.sub.draftNoAccount(when)

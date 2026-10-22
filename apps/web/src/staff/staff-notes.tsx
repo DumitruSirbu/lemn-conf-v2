@@ -11,10 +11,7 @@ import {
   SubmitButton,
   fullWaitOfFeedback,
 } from "@/account/account-form-parts";
-import {
-  formatRelativeAge,
-  relativeAgeOf,
-} from "@/account/kitchens/relative-age";
+import { formatRelativeAge } from "@/account/kitchens/relative-age";
 import type { AppLocale } from "@/i18n/routing";
 import {
   useAccountKitCopy,
@@ -23,7 +20,7 @@ import {
 } from "@/i18n/use-content";
 
 import styles from "./staff-kitchen.module.css";
-import { dayAndTimeOf } from "./staff-kitchen-dates";
+import { dayAndTimeOf, shopRelativeAgeOf } from "./staff-kitchen-dates";
 import { noteLengthOf } from "./staff-note-rules";
 import type { StaffKitchenNoteWire } from "./staff-kitchens-wire-contract";
 import {
@@ -180,7 +177,7 @@ function NoteList({
                 date: dayAndTimeOf(note.createdAt, locale),
                 ago: formatRelativeAge(
                   locale,
-                  relativeAgeOf(Date.parse(note.createdAt), readAtMs),
+                  shopRelativeAgeOf(Date.parse(note.createdAt), readAtMs),
                 ),
               })}
             </time>
