@@ -336,6 +336,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "none",
     reason: "unit test with the driver mocked: connects nowhere",
   },
+  "staff-fixtures-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, sessions, kitchens, requests, statuses, notes, audit rows and counters under markers it mints, removes them only through the guarded helper, asserts no whole-table figure and needs the schema intact",
+  },
   "test-database-connection-errors.test.ts": {
     gate: "none",
     lock: "none",

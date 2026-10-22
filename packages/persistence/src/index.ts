@@ -369,6 +369,30 @@ export { countCspReportsForTests } from "./count-csp-reports-for-tests.js";
 export { deleteCspReportsForTests } from "./delete-csp-reports-for-tests.js";
 export { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
 export type { RemovedRateLimitCounters } from "./delete-rate-limit-counters-for-tests.js";
+export {
+  countStaffFixturesForTests,
+  newStaffFixtureMarker,
+  plantStaffAccountForTests,
+  plantStaffAuditEventForTests,
+  plantStaffDesignForTests,
+  plantStaffNoteForTests,
+  plantStaffRequestForTests,
+  plantStaffRequestStateForTests,
+  removeStaffFixturesForTests,
+} from "./staff-fixtures-for-tests.js";
+export type {
+  PlantedStaffFixtureAccount,
+  PlantedStaffFixtureRequest,
+  StaffFixtureAccountSpec,
+  StaffFixtureAuditEventSpec,
+  StaffFixtureCounts,
+  StaffFixtureDesignKind,
+  StaffFixtureDesignSpec,
+  StaffFixtureNoteSpec,
+  StaffFixtureRequestStateSpec,
+  StaffFixtureRole,
+  StaffFixtureScope,
+} from "./staff-fixtures-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,
