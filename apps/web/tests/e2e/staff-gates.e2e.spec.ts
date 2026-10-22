@@ -89,45 +89,52 @@ test.describe("an address that is not a staff page", () => {
     }
   });
 
-  for (const address of NOT_STAFF_PAGES) {
-    test(`${address}: the framework's own 404, with the headers of any other 404 and no staff page`, async ({
-      request,
-    }) => {
+  test("every escaped, case-varied, unlocalised or longer spelling is the framework's own 404, with the headers of any other 404 and no staff page", async ({
+    request,
+  }) => {
+    for (const address of NOT_STAFF_PAGES) {
       const answer = await answerOf(request, address);
 
-      expect(answer.status).toBe(404);
-      expect(answer.headers[ROBOTS_HEADER], "an account-page header").toBe(
-        undefined,
-      );
-      expect(
-        answer.headers[CACHE_HEADER],
-        "the account pages' cache rule",
-      ).not.toBe(ACCOUNT_CACHE_CONTROL);
-      expect(answer.headers.location, "a redirect to the login").toBe(
-        undefined,
-      );
-    });
-  }
+      expect.soft(answer.status, `${address}: status`).toBe(404);
+      expect
+        .soft(
+          answer.headers[ROBOTS_HEADER],
+          `${address}: an account-page header`,
+        )
+        .toBeUndefined();
+      expect
+        .soft(
+          answer.headers[CACHE_HEADER],
+          `${address}: the account pages' cache rule`,
+        )
+        .not.toBe(ACCOUNT_CACHE_CONTROL);
+      expect
+        .soft(answer.headers.location, `${address}: a redirect to the login`)
+        .toBeUndefined();
+    }
+  });
 });
 
 test.describe("a staff page asked by a visitor", () => {
   test.skip(process.env.CI === undefined, RUN_UNDER_CI);
 
-  for (const address of STAFF_PAGES) {
-    test(`${address}: a redirect to the plain login page, and the account-page headers`, async ({
-      request,
-    }) => {
+  test("every staff page is a redirect to the plain login page that carries the account-page headers", async ({
+    request,
+  }) => {
+    for (const address of STAFF_PAGES) {
       const answer = await answerOf(request, address);
 
-      expect(answer.status).toBe(307);
-      expect(loginAddressOf(answer)).toBe(
-        `/${localeOf(address)}/account/login`,
-      );
+      expect.soft(answer.status, `${address}: status`).toBe(307);
+      expect
+        .soft(loginAddressOf(answer), `${address}: where it leaves for`)
+        .toBe(`/${localeOf(address)}/account/login`);
       for (const { key, value } of ACCOUNT_PAGE_HEADERS) {
-        expect(answer.headers[key.toLowerCase()], key).toBe(value);
+        expect
+          .soft(answer.headers[key.toLowerCase()], `${address}: ${key}`)
+          .toBe(value);
       }
-    });
-  }
+    }
+  });
 
   test("the browser ends on the login page, with no staff word on it", async ({
     page,
@@ -144,20 +151,20 @@ test.describe("a staff page asked by a visitor", () => {
 test.describe("a staff page asked with a cookie that names no session", () => {
   test.skip(process.env.CI === undefined, RUN_UNDER_CI);
 
-  for (const address of STAFF_PAGES) {
-    test(`${address}: a well-formed value the server never minted is sent on to the login page as an expired session`, async ({
-      request,
-    }) => {
+  test("a well-formed value the server never minted sends every staff page on to the login page as an expired session", async ({
+    request,
+  }) => {
+    for (const address of STAFF_PAGES) {
       const answer = await answerOf(request, address, {
         cookie: `${SESSION_COOKIE_NAME}=${mintSessionValue()}`,
       });
 
-      expect(answer.status).toBe(307);
-      expect(loginAddressOf(answer)).toBe(
-        `/${localeOf(address)}/account/login?${SESSION_EXPIRED_REASON}`,
-      );
-    });
-  }
+      expect.soft(answer.status, `${address}: status`).toBe(307);
+      expect
+        .soft(loginAddressOf(answer), `${address}: where it leaves for`)
+        .toBe(`/${localeOf(address)}/account/login?${SESSION_EXPIRED_REASON}`);
+    }
+  });
 
   test("a malformed value is read the same way", async ({ request }) => {
     const answer = await answerOf(request, "/ro/staff/kitchens", {
@@ -190,20 +197,24 @@ test.describe("a staff page asked with a cookie that names no session", () => {
 test.describe("a staff route asked without a session", () => {
   test.skip(process.env.CI === undefined, RUN_UNDER_CI);
 
-  for (const address of STAFF_ROUTES_THAT_NEED_A_SESSION) {
-    test(`${address}: 401 to a visitor and to a cookie that names no session`, async ({
-      request,
-    }) => {
+  test("every staff route answers 401 to a visitor and to a cookie that names no session", async ({
+    request,
+  }) => {
+    for (const address of STAFF_ROUTES_THAT_NEED_A_SESSION) {
       const visitor = await answerOf(request, address);
       const forged = await answerOf(request, address, {
         cookie: `${SESSION_COOKIE_NAME}=${mintSessionValue()}`,
       });
 
-      expect(visitor.status).toBe(401);
-      expect(forged.status).toBe(401);
-      expect(visitor.body).not.toMatch(/"(kitchens|events|document)"/);
-    });
-  }
+      expect.soft(visitor.status, `${address}: a visitor`).toBe(401);
+      expect
+        .soft(forged.status, `${address}: a cookie naming no session`)
+        .toBe(401);
+      expect
+        .soft(visitor.body, `${address}: a body`)
+        .not.toMatch(/"(kitchens|events|document)"/);
+    }
+  });
 });
 
 function localeOf(address: string): string {
