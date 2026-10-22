@@ -272,9 +272,74 @@ describe.each(LOCALES)("the status control in %s", (locale) => {
       const sent = theOnly(writesOf(harness.server));
       expect(sent.url.pathname).toBe(STATUS_ADDRESS);
       expect(sent.init.method).toBe("PUT");
-      expect(bodyOf(sent)).toEqual({
-        status: "offer-sent",
-      });
+      expect(bodyOf(sent)).toEqual({ status: "offer-sent", from: "new" });
+    });
+
+    it.each([
+      ["a status that was saved", wireChangedStatus("contacted"), "contacted"],
+      ["no saved status, which the page shows as new", null, "new"],
+      [
+        "a stored status this build does not name, which has no word and goes as new",
+        wireChangedStatus("unrecognised"),
+        "new",
+      ],
+    ])(
+      "names, as the status the page saw, what the page read: %s",
+      async (_title, status, expected) => {
+        serve(() => "hold", wireKitchen({ status }));
+        await harness.mount({ locale });
+        await choose("closed");
+
+        await save();
+
+        expect(bodyOf(theOnly(writesOf(harness.server)))).toEqual({
+          status: "closed",
+          from: expected,
+        });
+      },
+    );
+
+    it("names the status it just saved as the one it saw, on a second save in a row", async () => {
+      serve((request) =>
+        statusSaved((bodyOf(request) as { status: string }).status),
+      );
+      await harness.mount({ locale });
+      await choose("contacted");
+      await save();
+
+      await choose("closed");
+      await save();
+
+      expect(writesOf(harness.server).map(bodyOf)).toEqual([
+        { status: "contacted", from: "new" },
+        { status: "closed", from: "contacted" },
+      ]);
+    });
+
+    it("names the status the re-read found, and not the one it first read, when the next save follows a 409", async () => {
+      let saves = 0;
+      serve(
+        (request) => {
+          saves += 1;
+          return saves === 1
+            ? conflict("changed-meanwhile")
+            : statusSaved((bodyOf(request) as { status: string }).status);
+        },
+        wireKitchen(),
+        () => wireKitchen({ status: wireChangedStatus("offer-sent") }),
+      );
+      await harness.mount({ locale });
+      await choose("closed");
+      await save();
+      await harness.pass(A_DAY_MS);
+      expect(badge().textContent).toBe(labelOf["offer-sent"]);
+
+      await save();
+
+      expect(writesOf(harness.server).map(bodyOf)).toEqual([
+        { status: "closed", from: "new" },
+        { status: "closed", from: "offer-sent" },
+      ]);
     });
 
     it("shows the request out on the same button, busy, and keeps the choice", async () => {

@@ -125,7 +125,7 @@ export const STATUS_ROUTE = routeOf({
   policy: STAFF_STATUS_BY_ACCOUNT_POLICY,
   takesBody: true,
   success: 200,
-  validBody: { status: "contacted" },
+  validBody: { status: "contacted", from: "new" },
   plantReady: () => plantActionKitchen().id,
   handler: STATUS,
   build: statusRequest,

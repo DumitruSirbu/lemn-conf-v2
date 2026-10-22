@@ -19,6 +19,7 @@ import {
   isActionableDesignId,
   requireJudgedNoteText,
   requireListedRequestStatus,
+  requireListedSeenStatus,
 } from "./staff-kitchen-actions-store.js";
 import type {
   AddStaffNoteRequest,
@@ -162,8 +163,9 @@ export class FakeStaffKitchenActionsStore implements StaffKitchenActionsStore {
   async setStatus(
     request: SetRequestStatusRequest,
   ): Promise<SetRequestStatusResult> {
-    const { session, designId, status } = request;
+    const { session, designId, status, seenStatus } = request;
     requireListedRequestStatus(status);
+    requireListedSeenStatus(seenStatus);
     if (!isActionableDesignId(designId)) return { kind: "kitchen-not-found" };
     const probe = recordOf(session, designId, {
       action: "status-changed",
@@ -176,6 +178,7 @@ export class FakeStaffKitchenActionsStore implements StaffKitchenActionsStore {
     const decision = decideStatusSave({
       kitchen: this.statusFactsOf(designId),
       requested: status,
+      seen: seenStatus,
     });
     if (decision.kind === "unchanged") {
       return { kind: "unchanged", current: this.savedStatusOf(designId) };

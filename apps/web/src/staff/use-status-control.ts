@@ -60,6 +60,12 @@ export interface StatusControlSeed {
   readonly designId: string;
   /** What the select shows at first: the status the page read, when it is one this build names. */
   readonly initial: RequestStatus | null;
+  /**
+   * The status the page shows for the kitchen **now**, as the word a save is made against (`from`). It is read on every
+   * render and never kept, so a save after a saved status or a re-read goes against what the page then shows, and a
+   * kitchen someone else changed meanwhile is refused instead of overwritten.
+   */
+  readonly seen: RequestStatus;
   readonly editing: KitchenEditing;
 }
 
@@ -68,6 +74,7 @@ const NO_FEEDBACK: StatusFeedback = { kind: "none" };
 export function useStatusControl({
   designId,
   initial,
+  seen,
   editing,
 }: StatusControlSeed): StatusControl {
   const [selected, setSelected] = useState<RequestStatus | null>(initial);
@@ -107,8 +114,9 @@ export function useStatusControl({
       flow: "staff-status",
       id: designId,
       status: selected,
+      from: seen,
     }).then(answer);
-  }, [answer, askFocus, begin, designId, isHeld, selected]);
+  }, [answer, askFocus, begin, designId, isHeld, seen, selected]);
 
   return { selected, feedback, isBusy, focusRequest, choose, save };
 }

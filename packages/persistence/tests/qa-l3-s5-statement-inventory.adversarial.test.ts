@@ -119,7 +119,12 @@ async function sendEachWriteOnce(): Promise<void> {
   ]);
   failQueryWith(DRIVER_FAILURE);
   await newStore()
-    .setStatus({ session: SESSION, designId: DESIGN_ID, status: "contacted" })
+    .setStatus({
+      session: SESSION,
+      designId: DESIGN_ID,
+      status: "contacted",
+      seenStatus: "new",
+    })
     .catch(() => undefined);
 }
 

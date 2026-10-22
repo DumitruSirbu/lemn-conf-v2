@@ -142,14 +142,21 @@ test("a status chosen and saved reads 'Status salvat' and names who changed it",
   );
 });
 
-test("a status saved from a page that read an older one is saved, and the latest save is the one that stands", async ({
+test("a status saved from a page that read an older one is refused as changed meanwhile, the other member's status stands, and the page then saves from what it re-read", async ({
   browser,
   page,
   context,
 }) => {
-  // The page does not send what it read, so a save is refused as changed-meanwhile only when two saves meet inside the
-  // server's own read and write: a stale page is not that, and the later save wins.
+  // The page sends the status it last read, so the server refuses a save made against a status that has moved on: the
+  // other member's status is not overwritten, the page reads the kitchen again, and the choice stays.
   await openStaffKitchen(page, conflictId);
+  const storedStatus = async (): Promise<string> => {
+    const stored = await context.request.get(
+      `/api/staff/kitchens/${conflictId}`,
+    );
+    return ((await stored.json()) as { status: { value: string } }).status
+      .value;
+  };
   const otherContext = await browser.newContext();
   try {
     await signIn(otherContext, world.operator);
@@ -164,15 +171,28 @@ test("a status saved from a page that read an older one is saved, and the latest
     await statusSelect(page).selectOption("closed");
     await statusSaveButton(page).click();
 
+    await expect(page.getByTestId("staff-status-control")).toContainText(
+      romanian("staffActions.statusChangedMeanwhile"),
+    );
+    expect(await storedStatus(), "the other member's status stands").toBe(
+      "offer-sent",
+    );
+    await expect(page.getByTestId("staff-kitchen-status")).toContainText(
+      romanian("staffKitchens.statusOfferSent"),
+    );
+    await expect(statusSelect(page)).toHaveValue("closed");
+    await expect(statusSaveButton(page)).toHaveText(
+      romanian("staffActions.statusSave"),
+    );
+
+    await statusSaveButton(page).click();
+
     await expect(statusSaveButton(page)).toHaveText(
       romanian("staffActions.statusSaved"),
     );
-    const stored = await context.request.get(
-      `/api/staff/kitchens/${conflictId}`,
+    expect(await storedStatus(), "the save from the re-read page").toBe(
+      "closed",
     );
-    expect(
-      ((await stored.json()) as { status: { value: string } }).status.value,
-    ).toBe("closed");
   } finally {
     await otherContext.close();
   }

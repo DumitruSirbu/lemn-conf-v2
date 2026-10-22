@@ -338,6 +338,7 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
 
       expect(result).toMatchObject({
@@ -364,12 +365,14 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
 
       await world.store.setStatus({
         session: staff.session,
         designId,
         status: "closed",
+        seenStatus: "contacted",
       });
 
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
@@ -396,12 +399,14 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "closed",
+        seenStatus: "new",
       });
 
       const result = await world.store.setStatus({
         session: staff.session,
         designId,
         status: "offer-sent",
+        seenStatus: "closed",
       });
 
       expect(result.kind).toBe("saved");
@@ -416,6 +421,7 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
 
       expect(result.kind).toBe("saved");
@@ -433,6 +439,7 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
 
       expect(result).toEqual({ kind: "not-sent" });
@@ -460,6 +467,7 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
 
       expect(result).toEqual({ kind: "kitchen-not-found" });
@@ -474,6 +482,7 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
       const before = await world.statusRowOf(designId);
 
@@ -481,6 +490,7 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "contacted",
       });
 
       expect(result).toMatchObject({
@@ -500,6 +510,7 @@ function describeSetStatus(
         session: staff.session,
         designId,
         status: "new",
+        seenStatus: "new",
       });
 
       expect(result).toEqual({ kind: "unchanged", current: null });
@@ -524,6 +535,7 @@ function describeSetStatus(
           session: staff.session,
           designId,
           status: requested,
+          seenStatus: "new",
         });
 
         expect(result).toEqual({ kind: "status-not-recognised" });
@@ -550,6 +562,7 @@ function describeSetStatus(
             session: staff.session,
             designId,
             status: status as "new",
+            seenStatus: "new",
           }),
         );
 
@@ -582,6 +595,7 @@ function describeSetStatus(
             session: gone.session,
             designId,
             status: "contacted",
+            seenStatus: "new",
           }),
         );
 
@@ -590,6 +604,179 @@ function describeSetStatus(
         expect(await world.auditEventsOf(gone.accountId)).toEqual([]);
       },
     );
+
+    describe("a save made against the status the person saw", () => {
+      async function kitchenSavedByAnother(
+        world: ActionsWorld,
+        status: "contacted" | "offer-sent",
+      ) {
+        const other = await world.aStaffMember();
+        const designId = await sentKitchen(world);
+        await world.store.setStatus({
+          session: other.session,
+          designId,
+          status,
+          seenStatus: "new",
+        });
+        return { other, designId };
+      }
+
+      it.each(["closed", "offer-sent", "new"] as const)(
+        "answers changed-meanwhile when the page saw new and another saved contacted, whatever %s is asked, and writes nothing",
+        async (requested) => {
+          const world = await newWorld();
+          const staff = await world.aStaffMember();
+          const { other, designId } = await kitchenSavedByAnother(
+            world,
+            "contacted",
+          );
+          const before = await world.statusRowOf(designId);
+
+          const result = await world.store.setStatus({
+            session: staff.session,
+            designId,
+            status: requested,
+            seenStatus: "new",
+          });
+
+          expect(result).toEqual({ kind: "changed-meanwhile" });
+          expect(await world.statusRowOf(designId)).toEqual(before);
+          expect(before).toMatchObject({
+            status: "contacted",
+            changedByAccountId: other.accountId,
+          });
+          expect(await world.auditEventsOf(staff.accountId)).toEqual([]);
+          expect(await world.auditEventsOf(other.accountId)).toHaveLength(1);
+        },
+      );
+
+      it("answers changed-meanwhile, and not unchanged, for the status now stored when the page saw another", async () => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const { designId } = await kitchenSavedByAnother(world, "offer-sent");
+
+        const result = await world.store.setStatus({
+          session: staff.session,
+          designId,
+          status: "offer-sent",
+          seenStatus: "contacted",
+        });
+
+        expect(result).toEqual({ kind: "changed-meanwhile" });
+      });
+
+      it("answers changed-meanwhile when the page saw a saved status and no row was ever written", async () => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const designId = await sentKitchen(world);
+
+        const result = await world.store.setStatus({
+          session: staff.session,
+          designId,
+          status: "closed",
+          seenStatus: "contacted",
+        });
+
+        expect(result).toEqual({ kind: "changed-meanwhile" });
+        expect(await world.statusRowOf(designId)).toBeNull();
+        expect(await world.auditEventsOf(staff.accountId)).toEqual([]);
+      });
+
+      it("saves once the page has read the status that is stored, and audits that status as its from", async () => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const { designId } = await kitchenSavedByAnother(world, "contacted");
+
+        const result = await world.store.setStatus({
+          session: staff.session,
+          designId,
+          status: "closed",
+          seenStatus: "contacted",
+        });
+
+        expect(result.kind).toBe("saved");
+        expect(await world.auditEventsOf(staff.accountId)).toEqual([
+          auditOf("status-changed", designId, {
+            from: "contacted",
+            to: "closed",
+          }),
+        ]);
+      });
+
+      it("answers status-not-recognised before it compares: a stored text outside the list wins over any seen status", async () => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const designId = await sentKitchen(world);
+        await world.aStoredStatus({
+          designId,
+          status: "later-build-status",
+          changedBy: staff,
+        });
+
+        const result = await world.store.setStatus({
+          session: staff.session,
+          designId,
+          status: "closed",
+          seenStatus: "contacted",
+        });
+
+        expect(result).toEqual({ kind: "status-not-recognised" });
+      });
+
+      it("answers not-sent and the one kitchen refusal before it compares, so a stale page learns nothing from them", async () => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const draft = await world.aKitchen({
+          client: await world.aClient(),
+          isSent: false,
+        });
+
+        const notSent = await world.store.setStatus({
+          session: staff.session,
+          designId: draft,
+          status: "closed",
+          seenStatus: "contacted",
+        });
+        const unknown = await world.store.setStatus({
+          session: staff.session,
+          designId: nanoid(),
+          status: "closed",
+          seenStatus: "contacted",
+        });
+
+        expect(notSent).toEqual({ kind: "not-sent" });
+        expect(unknown).toEqual({ kind: "kitchen-not-found" });
+      });
+
+      it.each([
+        ["a status outside the list", "won"],
+        ["a listed status in another case", "Closed"],
+        ["a missing status", undefined],
+        ["a status that is not text", 42],
+        ["the word the page shows for a status it cannot name", "unrecognised"],
+      ])(
+        "refuses %s as the seen status with its own code before any write",
+        async (_name, seen) => {
+          const world = await newWorld();
+          const staff = await world.aStaffMember();
+          const designId = await sentKitchen(world);
+
+          const failure = await failureOf(
+            world.store.setStatus({
+              session: staff.session,
+              designId,
+              status: "closed",
+              seenStatus: seen as "new",
+            }),
+          );
+
+          expect(failure.failure).toBe("invalid-request");
+          expect(failure.refusal).toBe("SEEN_STATUS_NOT_IN_LIST");
+          expect(await world.statusRowOf(designId)).toBeNull();
+          expect(await world.auditEventsOf(staff.accountId)).toEqual([]);
+        },
+      );
+    });
 
     it("never logs a stale from when two saves race: the audit rows chain through the statuses really replaced", async () => {
       const world = await newWorld();
@@ -601,11 +788,13 @@ function describeSetStatus(
           session: staff.session,
           designId,
           status: "contacted",
+          seenStatus: "new",
         }),
         world.store.setStatus({
           session: staff.session,
           designId,
           status: "closed",
+          seenStatus: "new",
         }),
       ]);
 

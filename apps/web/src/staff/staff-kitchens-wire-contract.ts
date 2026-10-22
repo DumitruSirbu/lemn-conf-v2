@@ -125,6 +125,12 @@ export type StaffWriteIssue =
   | {
       readonly field: "status";
       readonly code: RequestStatusRefusalCode;
+    }
+  | {
+      /** The status the page last saw, which a save is made against. A page sends what it read, so a refusal of it is a
+       *  defect of the page's and not a field a person can correct. */
+      readonly field: "from";
+      readonly code: RequestStatusRefusalCode;
     };
 
 /** `400` of a staff write: the member the person can correct and a code. Never the value, because a note is a client's

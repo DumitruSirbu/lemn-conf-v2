@@ -146,6 +146,8 @@ export type SignedInRequest =
       readonly flow: "staff-status";
       readonly id: string;
       readonly status: RequestStatus;
+      /** The status the page last saw: the save is made against it, and a kitchen that has moved on refuses it. */
+      readonly from: RequestStatus;
     }
   | { readonly flow: "staff-unhide"; readonly id: string };
 
@@ -319,7 +321,7 @@ function signedInRequestPlan(request: SignedInRequest): PlannedRequest {
       return {
         method: "PUT",
         path: staffKitchenPathOf(request.id, "status"),
-        body: { status: request.status },
+        body: { status: request.status, from: request.from },
       };
     case "staff-unhide":
       return {

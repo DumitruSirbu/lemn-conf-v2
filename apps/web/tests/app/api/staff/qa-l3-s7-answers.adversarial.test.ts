@@ -306,7 +306,8 @@ const SCENARIOS: readonly Scenario[] = [
     appliesTo: takesBody,
     run: async (route) => {
       const { session } = await signedInOperator();
-      const refused = route.name === "notes" ? { text: "" } : { status: "x" };
+      const refused =
+        route.name === "notes" ? { text: "" } : { status: "x", from: "new" };
       return askWith(route, route.plantReady(), {
         cookie: session.cookie,
         json: refused,
@@ -469,7 +470,7 @@ describe("the answers' members, at every depth", () => {
 
     const answer = await STATUS_ROUTE.ask(kitchen.id, {
       cookie: session.cookie,
-      json: { status: "offer-sent" },
+      json: { status: "offer-sent", from: "new" },
     });
 
     const body = await jsonOf(answer);
@@ -489,12 +490,12 @@ describe("the answers' members, at every depth", () => {
     const kitchen = plantActionKitchen();
     await STATUS_ROUTE.ask(kitchen.id, {
       cookie: first.session.cookie,
-      json: { status: "closed" },
+      json: { status: "closed", from: "new" },
     });
 
     const answer = await STATUS_ROUTE.ask(kitchen.id, {
       cookie: second.session.cookie,
-      json: { status: "closed" },
+      json: { status: "closed", from: "closed" },
     });
 
     expect(answer.status).toBe(200);
@@ -511,7 +512,7 @@ describe("the answers' members, at every depth", () => {
 
     const answer = await STATUS_ROUTE.ask(kitchen.id, {
       cookie: session.cookie,
-      json: { status: "new" },
+      json: { status: "new", from: "new" },
     });
 
     expect(await jsonOf(answer)).toEqual({
@@ -635,7 +636,7 @@ describe("any listed status may follow any other", () => {
 
       const answer = await STATUS_ROUTE.ask(kitchen.id, {
         cookie: session.cookie,
-        json: { status: to },
+        json: { status: to, from },
       });
 
       expect(answer.status).toBe(200);
@@ -667,7 +668,7 @@ describe("a status the kitchen cannot take is a conflict whatever the word", () 
 
       const answer = await STATUS_ROUTE.ask(draft.id, {
         cookie: session.cookie,
-        json: { status },
+        json: { status, from: "new" },
       });
 
       expect(answer.status).toBe(409);
@@ -692,7 +693,7 @@ describe("a status the kitchen cannot take is a conflict whatever the word", () 
 
       const answer = await STATUS_ROUTE.ask(kitchen.id, {
         cookie: session.cookie,
-        json: { status },
+        json: { status, from: "new" },
       });
 
       expect(answer.status).toBe(409);

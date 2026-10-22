@@ -188,6 +188,47 @@ default is two predicates (`deleted_by_client_at is null`; no `hidden_by_client_
 - **Free text goes to the client.** A note is staff free text about a person; the ruling is that the person receives it
   with no author. Nothing screens a note for what a staff member chose to write.
 
+## Dated note, 2026-10-22: a status save carries the status the page last saw [written by the wave's implementer from the dispatch and the code; the owner's report of a lost update is relayed by the coordinator; no owner ruling, no review yet]
+
+**Evidence tier.** Source-verified in this worktree: the store, the route, the page's hook and the e2e spec named below
+were read and run; the commands and their results are in the wave's report, not here.
+
+**The defect.** The page sent only `{status}`, and the store's compare-and-set guarded only between its own read and its own
+write. A kitchen page left open while another staff member saved a status therefore overwrote theirs without a word, and
+the `409 changed-meanwhile` sentence ("Statusul a fost schimbat între timp de altcineva") could not be reached from a stale
+page. The end-to-end spec that pinned "the later save wins" described the defect as the behaviour.
+
+**The route contract, as built.** `PUT /api/staff/kitchens/{id}/status` takes `{status, from}`. `from` is the status the
+page last saw: one of the four listed words, `new` when no status was ever saved. Both members are required and no other
+member is allowed. The body is judged before the limiter and the store, and every refusal is answered at once: `400
+invalid-input` with issues under field `status` and/or field `from`, each carrying the domain's code (`REQUIRED`,
+`NOT_TEXT`, `STATUS_NOT_IN_LIST`), never the value. A body of the status alone is `400`.
+
+**The store.** `SetRequestStatusRequest` gains `seenStatus` (the wire's `from`, named apart because the audit row's `from`
+means the status the write really replaced). The store refuses a seen status outside the list with its own code,
+`SEEN_STATUS_NOT_IN_LIST`, answered by the route as `400` field `from` (a refusal that should never be reached from the
+page, which sends what it read). `decideStatusSave` compares it with the **current** status, in this order: kitchen not
+found, not sent, stored text outside the list (`status-not-recognised`), **seen is not current (`changed-meanwhile`)**,
+requested equals current (`unchanged`), write. The write keeps its own guard (the `expectedStored` condition), which still
+answers `changed-meanwhile` for two saves that meet between the read and the write. A refused save writes nothing and no
+audit row.
+
+**Ruled by the implementer, owner-visible, not owner-ruled.** A save whose requested status equals the stored one, from a
+page that saw another, is `409 changed-meanwhile` and not `200 unchanged`: the person is told the status moved and the page
+reads it again, where `200` would have reported a save they did not make. The brief's wording ("answers changed-meanwhile
+when they differ") is read literally. The `unchanged` answer is for a page whose view is current. **Unchanged-save and audit
+`from` semantics are as before.**
+
+**The page.** The hook derives `from` from the status the page shows **on each render** and never keeps it: a save after a
+saved status, or after the re-read that follows a `409`, goes against what the page then shows. A kitchen with no saved
+status sends `new`. **Residual:** a page that read a stored text this build does not name has no word to send and sends
+`new`; the store answers a stored text outside the list first, so that save is refused as not recognised, but a status that
+an administrator repairs to exactly `new` (or removes) while that page is open is overwritten by its next save. Accepted as
+too small to widen the closed list for.
+
+**Not changed.** The 409 words, their copy, the re-read on a conflict and the select keeping the person's choice are as
+built. The plan's row E-L3-4 carries the new request body.
+
 ## Not covered
 
 - The staff-invitation mechanism (O-L3-4) and the preset visibility and order grant (O-L3-5). Each needs its own record

@@ -332,6 +332,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
               session: staff.session,
               designId,
               status: "closed",
+              seenStatus: stored ?? "new",
             }),
           )) as StaffKitchenActionError;
 
@@ -411,6 +412,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
                 session: staff.session,
                 designId: scoped,
                 status: "closed",
+                seenStatus: "contacted",
               }),
             ),
             rejectionOf(
@@ -463,6 +465,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           session: staff.session,
           designId,
           status: "contacted",
+          seenStatus: "new",
         });
         await store().unhide({ session: staff.session, designId });
         await store().unhide({ session: staff.session, designId });

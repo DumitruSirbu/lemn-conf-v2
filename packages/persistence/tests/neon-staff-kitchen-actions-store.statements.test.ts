@@ -418,6 +418,7 @@ describe("a status", () => {
       session: SESSION,
       designId: DESIGN_ID,
       status: "closed",
+      seenStatus: "closed",
     });
 
     expect(result).toMatchObject({
@@ -462,6 +463,7 @@ describe("a status", () => {
       session: SESSION,
       designId: DESIGN_ID,
       status: "closed",
+      seenStatus: "closed",
     });
 
     expect(result).toMatchObject({
@@ -478,6 +480,7 @@ describe("a status", () => {
       session: SESSION,
       designId: DESIGN_ID,
       status: "new",
+      seenStatus: "new",
     });
 
     expect(result).toEqual({ kind: "unchanged", current: null });
@@ -496,9 +499,66 @@ describe("a status", () => {
         session: SESSION,
         designId: DESIGN_ID,
         status: requested,
+        seenStatus: "new",
       });
 
       expect(result).toEqual({ kind: "status-not-recognised" });
+      expect(queryDriver.transactions).toHaveLength(0);
+    },
+  );
+
+  it.each([
+    ["a saved status the page did not see", "contacted", "new", "closed"],
+    [
+      "the status asked for, which the page did not see",
+      "closed",
+      "new",
+      "closed",
+    ],
+    ["no row, for a page that saw a saved status", null, "contacted", "closed"],
+  ] as const)(
+    "answers changed-meanwhile from the read, with no batch and no audit row, for %s",
+    async (_name, stored, seen, requested) => {
+      resetQueryDriver();
+      answerQueryWith([
+        stored === null
+          ? EMPTY_PRESENT_STATUS_ROW
+          : {
+              ...EMPTY_PRESENT_STATUS_ROW,
+              ...savedStatusRow(stored),
+              stored_status: stored,
+            },
+      ]);
+
+      const result = await newStore().setStatus({
+        session: SESSION,
+        designId: DESIGN_ID,
+        status: requested,
+        seenStatus: seen,
+      });
+
+      expect(result).toEqual({ kind: "changed-meanwhile" });
+      expect(queryDriver.transactions).toHaveLength(0);
+    },
+  );
+
+  it.each([undefined, "won", "Closed", 42])(
+    "refuses the seen status %j with its own code before any statement",
+    async (seen) => {
+      resetQueryDriver();
+
+      const failure = await failureOf(() =>
+        newStore().setStatus({
+          session: SESSION,
+          designId: DESIGN_ID,
+          status: "closed",
+          seenStatus: seen as "new",
+        }),
+      );
+
+      expect(failure.failure).toBe("invalid-request");
+      expect(failure.refusal).toBe("SEEN_STATUS_NOT_IN_LIST");
+      expect(queryDriver.statements).toHaveLength(0);
       expect(queryDriver.transactions).toHaveLength(0);
     },
   );
@@ -512,11 +572,13 @@ describe("a status", () => {
       session: SESSION,
       designId: DESIGN_ID,
       status: "closed",
+      seenStatus: "new",
     });
     const unseen = await newStore().setStatus({
       session: SESSION,
       designId: DESIGN_ID,
       status: "closed",
+      seenStatus: "new",
     });
 
     expect([notSent, unseen]).toEqual([
@@ -537,6 +599,7 @@ describe("a status", () => {
         session: SESSION,
         designId: DESIGN_ID,
         status: "closed",
+        seenStatus: "new",
       }),
     );
 
@@ -553,6 +616,7 @@ describe("a status", () => {
       session: SESSION,
       designId: DESIGN_ID,
       status: "new",
+      seenStatus: "new",
     });
 
     expect(result.kind).toBe("unchanged");
@@ -574,6 +638,7 @@ describe("a status", () => {
         session: SESSION,
         designId: DESIGN_ID,
         status: "closed",
+        seenStatus: "new",
       });
 
       expect(result).toEqual(expected);
@@ -590,6 +655,7 @@ describe("a status", () => {
         session: SESSION,
         designId: DESIGN_ID,
         status: "closed",
+        seenStatus: "new",
       }),
     );
 
@@ -605,6 +671,7 @@ describe("a status", () => {
       session: SESSION,
       designId: DESIGN_ID,
       status: "closed",
+      seenStatus: "new",
     });
 
     expect(result).toEqual({
@@ -618,7 +685,10 @@ describe("a status", () => {
   });
 });
 
-async function saveStatusAndCapture(status: "closed", stored: string | null) {
+async function saveStatusAndCapture(
+  status: "closed",
+  stored: "contacted" | null,
+) {
   resetQueryDriver();
   answerQueryWith([
     stored === null
@@ -630,7 +700,12 @@ async function saveStatusAndCapture(status: "closed", stored: string | null) {
         },
   ]);
   answerBatchWith([savedStatusRow(status)]);
-  await newStore().setStatus({ session: SESSION, designId: DESIGN_ID, status });
+  await newStore().setStatus({
+    session: SESSION,
+    designId: DESIGN_ID,
+    status,
+    seenStatus: stored ?? "new",
+  });
   const [read] = queryDriver.statements;
   if (read === undefined) throw new Error("the status was not read");
   return { read, ...onlyBatch() };
@@ -804,6 +879,7 @@ describe("nothing is sent for a request the code refuses", () => {
           session: SESSION,
           designId: DESIGN_ID,
           status: "won" as "new",
+          seenStatus: "new",
         }),
     ],
     [
@@ -850,6 +926,7 @@ describe("nothing is sent for a request the code refuses", () => {
           session: SESSION,
           designId: "short",
           status: "closed",
+          seenStatus: "new",
         }),
     ],
     [
@@ -912,6 +989,7 @@ describe("the batch is never retried", () => {
         session: SESSION,
         designId: DESIGN_ID,
         status: "closed",
+        seenStatus: "new",
       }),
     );
 
@@ -959,6 +1037,7 @@ describe("how a failure leaves the store", () => {
           session: SESSION,
           designId: DESIGN_ID,
           status: "closed",
+          seenStatus: "new",
         }),
       );
 
@@ -1021,6 +1100,7 @@ describe("the store logs nothing, whatever the call comes to", () => {
     session: SESSION,
     designId: DESIGN_ID,
     status: "closed",
+    seenStatus: "new",
   } as const;
   const UNHIDE = { session: SESSION, designId: DESIGN_ID } as const;
 

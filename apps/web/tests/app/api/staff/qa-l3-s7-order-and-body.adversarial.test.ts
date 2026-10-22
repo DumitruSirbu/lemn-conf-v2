@@ -398,23 +398,25 @@ describe("what the store is handed", () => {
     expect(JSON.stringify(request)).not.toContain(session.value);
   });
 
-  it("is, for a status, the listed word and the kitchen, with no account member", async () => {
+  it("is, for a status, the listed word, the listed word the page saw and the kitchen, with no account member", async () => {
     const { session } = await signedInOperator();
     const { id } = plantActionKitchen();
     const setStatus = vi.spyOn(actions.store, "setStatus");
 
     await STATUS_ROUTE.ask(id, {
       cookie: session.cookie,
-      json: { status: "offer-sent" },
+      json: { status: "offer-sent", from: "new" },
     });
 
     const [request] = setStatus.mock.calls[0] ?? [];
     expect(Object.keys(request ?? {}).sort()).toEqual([
       "designId",
+      "seenStatus",
       "session",
       "status",
     ]);
     expect(request?.status).toBe("offer-sent");
+    expect(request?.seenStatus).toBe("new");
     expect(JSON.stringify(request)).not.toContain(session.value);
   });
 
@@ -437,7 +439,7 @@ describe("what the store is handed", () => {
 
 describe("the body's size, counted in bytes as they are read", () => {
   const NOTE_JSON = JSON.stringify({ text: "A note" });
-  const STATUS_JSON = JSON.stringify({ status: "closed" });
+  const STATUS_JSON = JSON.stringify({ status: "closed", from: "new" });
 
   it.each([
     ["notes", NOTES_ROUTE, NOTE_JSON, 201],
@@ -582,11 +584,11 @@ describe("a body that is JSON but not what the route takes", () => {
   );
 
   it.each([
-    ["notes", NOTES_ROUTE, "text"],
-    ["status", STATUS_ROUTE, "status"],
+    ["notes", NOTES_ROUTE, ["text"]],
+    ["status", STATUS_ROUTE, ["status", "from"]],
   ] as const)(
-    "%s: takes an empty object as a missing member, not as an invalid request",
-    async (_name, route, field) => {
+    "%s: takes an empty object as missing members, not as an invalid request",
+    async (_name, route, fields) => {
       const { session } = await signedInOperator();
       const { id } = plantActionKitchen();
 
@@ -598,7 +600,7 @@ describe("a body that is JSON but not what the route takes", () => {
       expect(answer.status).toBe(400);
       expect(await jsonOf(answer)).toEqual({
         status: "invalid-input",
-        issues: [{ field, code: "REQUIRED" }],
+        issues: fields.map((field) => ({ field, code: "REQUIRED" })),
       });
     },
   );
@@ -712,16 +714,21 @@ describe("a body that is JSON but not what the route takes", () => {
     async (route) => {
       const { session } = await signedInOperator();
       const { id } = plantActionKitchen();
-      const field = Object.keys(route.validBody ?? {})[0] ?? "";
-      const valid = JSON.stringify(Object.values(route.validBody ?? {})[0]);
+      const [[field = "", first] = [], ...others] = Object.entries(
+        route.validBody ?? {},
+      );
+      const valid = JSON.stringify(first);
+      const rest = others
+        .map(([name, value]) => `,"${name}":${JSON.stringify(value)}`)
+        .join("");
 
       const lastIsValid = await route.ask(id, {
         cookie: session.cookie,
-        json: `{"${field}":5,"${field}":${valid}}`,
+        json: `{"${field}":5,"${field}":${valid}${rest}}`,
       });
       const lastIsNot = await route.ask(id, {
         cookie: session.cookie,
-        json: `{"${field}":${valid},"${field}":5}`,
+        json: `{"${field}":${valid},"${field}":5${rest}}`,
       });
 
       expect(lastIsValid.status).toBe(route.success);
@@ -842,7 +849,6 @@ describe("the media type", () => {
     "$name: takes the type alone, whatever its case, its spaces and its parameters",
     async (route) => {
       const { session } = await signedInOperator();
-      const { id } = plantActionKitchen();
       const json = JSON.stringify(route.validBody);
 
       for (const contentType of [
@@ -854,6 +860,8 @@ describe("the media type", () => {
         "application/json; boundary=something; q=0.5",
         "application/json;",
       ]) {
+        // A kitchen of its own for each, since a second save of the same body is a page that read an older status.
+        const { id } = plantActionKitchen();
         const answer = await route.ask(id, {
           cookie: session.cookie,
           json,
@@ -962,7 +970,7 @@ describe("a status word that is nearly a listed one", () => {
 
       const answer = await STATUS_ROUTE.ask(id, {
         cookie: session.cookie,
-        json: { status },
+        json: { status, from: "new" },
       });
 
       expect(answer.status).toBe(400);

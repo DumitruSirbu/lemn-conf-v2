@@ -176,7 +176,26 @@ describe("a refusal the store makes of what the route judged", () => {
     });
   });
 
+  it("is 400 naming the field from when the store finds the status the page saw outside the list", async () => {
+    const answer = await ask(
+      STATUS_ROUTE,
+      failureOfRoute(
+        STATUS_ROUTE,
+        "invalid-request",
+        "SEEN_STATUS_NOT_IN_LIST",
+      ),
+    );
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "from", code: "STATUS_NOT_IN_LIST" }],
+    });
+  });
+
   it.each([
+    ["the note route", NOTES_ROUTE, "SEEN_STATUS_NOT_IN_LIST"],
+    ["the unhide route", UNHIDE_ROUTE, "SEEN_STATUS_NOT_IN_LIST"],
     ["the note route", NOTES_ROUTE, "STATUS_NOT_IN_LIST"],
     ["the status route", STATUS_ROUTE, "NOTE_TEXT_NOT_JUDGED"],
     ["the unhide route", UNHIDE_ROUTE, "NOTE_TEXT_NOT_JUDGED"],

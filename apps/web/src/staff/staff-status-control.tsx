@@ -8,7 +8,11 @@ import {
   type RefObject,
 } from "react";
 
-import { REQUEST_STATUSES } from "@lemnaria/configurator-domain";
+import {
+  INITIAL_REQUEST_STATUS,
+  REQUEST_STATUSES,
+  type RequestStatus,
+} from "@lemnaria/configurator-domain";
 
 import {
   FormNotice,
@@ -52,6 +56,7 @@ export function StaffStatusControl({
   const control = useStatusControl({
     designId,
     initial: listedStatusOf(status),
+    seen: seenStatusOf(status),
     editing,
   });
   return (
@@ -68,6 +73,19 @@ function listedStatusOf(
   status: StaffKitchenStatusWire | null,
 ): StatusControl["selected"] {
   if (status === null || status.value === "unrecognised") return null;
+  return status.value;
+}
+
+/**
+ * The word a save names as the status the page saw: the listed status the page shows, and `new` for a kitchen with no saved
+ * status, which shows as new. A stored text this build does not name has no word, so it is sent as `new`: the store
+ * answers a stored text outside its list before it compares, so that save is refused as not recognised, and a status
+ * repaired meanwhile to any listed word but `new` is refused as changed.
+ */
+function seenStatusOf(status: StaffKitchenStatusWire | null): RequestStatus {
+  if (status === null || status.value === "unrecognised") {
+    return INITIAL_REQUEST_STATUS;
+  }
   return status.value;
 }
 

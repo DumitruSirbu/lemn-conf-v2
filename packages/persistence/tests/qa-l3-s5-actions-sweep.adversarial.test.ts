@@ -608,6 +608,7 @@ function describeSweep(
                   session: staff.session,
                   designId,
                   status,
+                  seenStatus: shown,
                 });
                 if (status === shown) {
                   expect(result.kind).toBe("unchanged");
@@ -839,11 +840,13 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(
                 session: staff.session,
                 designId,
                 status: targetA,
+                seenStatus: replaced,
               }),
               world.store.setStatus({
                 session: other.session,
                 designId,
                 status: targetB,
+                seenStatus: replaced,
               }),
             ]);
           } finally {
@@ -888,6 +891,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(
         session: first.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
 
       vi.useFakeTimers({ toFake: ["Date"] });
@@ -898,6 +902,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(
           session: second.session,
           designId,
           status: "closed",
+          seenStatus: "contacted",
         });
       } finally {
         vi.useRealTimers();
@@ -1000,6 +1005,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(
               session: staff.session,
               designId,
               status: "closed",
+              seenStatus: "new",
             }),
           ),
           failureOf(world.store.unhide({ session: staff.session, designId })),

@@ -215,11 +215,13 @@ describe("FakeStaffKitchenActionsStore beyond the contract", () => {
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       }),
       world.store.setStatus({
         session: staff.session,
         designId,
         status: "closed",
+        seenStatus: "new",
       }),
     ]);
 

@@ -263,15 +263,16 @@ describe("which requests a bucket counts", () => {
     const conflict = await countedAfter(STATUS_ROUTE, sent.id);
     const unknown = await countedAfter(UNHIDE_ROUTE, UNKNOWN_ID);
     const notHidden = await countedAfter(UNHIDE_ROUTE, kitchen.id);
-    const unchanged = await countedAfter(STATUS_ROUTE, kitchen.id);
-    const unchangedAgain = await countedAfter(STATUS_ROUTE, kitchen.id);
+    const saved = await countedAfter(STATUS_ROUTE, kitchen.id);
+    const staleAgain = await countedAfter(STATUS_ROUTE, kitchen.id);
 
     expect(storeFails).toEqual([503, [NOTES_ROUTE.policy.name]]);
     expect(conflict).toEqual([409, [STATUS_ROUTE.policy.name]]);
     expect(unknown).toEqual([404, [UNHIDE_ROUTE.policy.name]]);
     expect(notHidden).toEqual([409, [UNHIDE_ROUTE.policy.name]]);
-    expect(unchanged).toEqual([200, [STATUS_ROUTE.policy.name]]);
-    expect(unchangedAgain).toEqual([200, [STATUS_ROUTE.policy.name]]);
+    expect(saved).toEqual([200, [STATUS_ROUTE.policy.name]]);
+    // The same page asks again from `new`, which the save moved on: a conflict, counted once like any other.
+    expect(staleAgain).toEqual([409, [STATUS_ROUTE.policy.name]]);
   });
 
   it("counts a request whose session ended after the route read it", async () => {
@@ -308,9 +309,11 @@ describe("which requests a bucket counts", () => {
     expect(
       (await UNHIDE_ROUTE.ask(hidden.id, { cookie: session.cookie })).status,
     ).toBe(429);
+    // The same page asks again from `new`, which the first save has moved on: a 409 is the status bucket answering, a 429
+    // would be it full.
     expect(
       (await STATUS_ROUTE.ask(sent.id, { cookie: session.cookie })).status,
-    ).toBe(200);
+    ).toBe(409);
     expect(
       (await NOTES_ROUTE.ask(sent.id, { cookie: session.cookie })).status,
     ).toBe(429);
@@ -506,7 +509,7 @@ describe("writes made at once", () => {
             sends.map(([status, who]) =>
               STATUS_ROUTE.ask(id, {
                 cookie: operators[who]?.session.cookie ?? "",
-                json: { status },
+                json: { status, from: "new" },
               }),
             ),
           );

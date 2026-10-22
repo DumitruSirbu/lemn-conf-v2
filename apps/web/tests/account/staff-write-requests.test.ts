@@ -54,7 +54,7 @@ describe("the staff note request", () => {
 });
 
 describe("the staff status request", () => {
-  it("is a JSON PUT to the kitchen's status route, with the status in the body only", async () => {
+  it("is a JSON PUT to the kitchen's status route, with the status and the status the page saw in the body only", async () => {
     const fetchAccount = answering(200, {
       status: "closed",
       changedBy: null,
@@ -62,7 +62,12 @@ describe("the staff status request", () => {
     });
 
     const outcome = await sendSignedInRequest(
-      { flow: "staff-status", id: KITCHEN, status: "closed" },
+      {
+        flow: "staff-status",
+        id: KITCHEN,
+        status: "closed",
+        from: "contacted",
+      },
       fetchAccount,
     );
 
@@ -72,7 +77,10 @@ describe("the staff status request", () => {
     expect(init.method).toBe("PUT");
     expect(init.headers).toEqual({ "content-type": "application/json" });
     expect(init.referrerPolicy).toBe("same-origin");
-    expect(JSON.parse(init.body as string)).toEqual({ status: "closed" });
+    expect(JSON.parse(init.body as string)).toEqual({
+      status: "closed",
+      from: "contacted",
+    });
   });
 });
 
@@ -105,7 +113,7 @@ describe("an id that names no kitchen", () => {
   ])("sends nothing for %j and tells it as the one refusal", async (id) => {
     for (const request of [
       { flow: "staff-note", id, text: "x" },
-      { flow: "staff-status", id, status: "new" },
+      { flow: "staff-status", id, status: "new", from: "new" },
       { flow: "staff-unhide", id },
     ] as const) {
       const fetchAccount = answering(204);
@@ -125,7 +133,7 @@ describe("a request that got no answer", () => {
 
     for (const request of [
       { flow: "staff-note", id: KITCHEN, text: "x" },
-      { flow: "staff-status", id: KITCHEN, status: "new" },
+      { flow: "staff-status", id: KITCHEN, status: "new", from: "new" },
       { flow: "staff-unhide", id: KITCHEN },
     ] as const) {
       expect((await sendSignedInRequest(request, offline)).kind).toBe(

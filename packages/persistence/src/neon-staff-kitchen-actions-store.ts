@@ -45,6 +45,7 @@ import {
   isActionableDesignId,
   requireJudgedNoteText,
   requireListedRequestStatus,
+  requireListedSeenStatus,
 } from "./staff-kitchen-actions-store.js";
 import type {
   AddStaffNoteRequest,
@@ -139,13 +140,16 @@ export class NeonStaffKitchenActionsStore implements StaffKitchenActionsStore {
    * Reads the kitchen's status first (a plain read, retried like any other), decides on it, and then writes with the
    * status it read as a condition of the write, so the audit row's `from` is the status the write replaced and not one
    * a concurrent save changed in between: a save that finds the status moved writes nothing and answers
-   * `changed-meanwhile`. A save of the status the kitchen already shows writes nothing and no audit row.
+   * `changed-meanwhile`. So does a save made against a status (`seenStatus`) other than the one it read, which is a
+   * change made since the page read the kitchen. A save of the status the kitchen already shows writes nothing and no
+   * audit row.
    */
   async setStatus(
     request: SetRequestStatusRequest,
   ): Promise<SetRequestStatusResult> {
-    const { session, designId, status } = request;
+    const { session, designId, status, seenStatus } = request;
     requireListedRequestStatus(status);
+    requireListedSeenStatus(seenStatus);
     if (!isActionableDesignId(designId)) return { kind: "kitchen-not-found" };
     const checked = prepareAudit(SET_STATUS, session, designId, {
       action: "status-changed",
@@ -155,6 +159,7 @@ export class NeonStaffKitchenActionsStore implements StaffKitchenActionsStore {
     const decision = decideStatusSave({
       kitchen: found.kitchen,
       requested: status,
+      seen: seenStatus,
     });
     if (decision.kind === "unchanged") {
       return { kind: "unchanged", current: found.current };

@@ -42,7 +42,8 @@ export type StaffKitchenActionFailure =
 export type StaffKitchenActionRefusal =
   | StaffAuditRecordRefusal
   | "NOTE_TEXT_NOT_JUDGED"
-  | "STATUS_NOT_IN_LIST";
+  | "STATUS_NOT_IN_LIST"
+  | "SEEN_STATUS_NOT_IN_LIST";
 
 const FAILURE_REASON: Readonly<Record<StaffKitchenActionFailure, string>> = {
   unavailable: "a table it writes, or the grant to write it, is not in place",
@@ -104,6 +105,12 @@ export interface SetRequestStatusRequest {
   readonly session: StaffActingSession;
   readonly designId: string;
   readonly status: RequestStatus;
+  /**
+   * The status the person last saw on the kitchen (`new` while none was saved). A save is made against it: when the
+   * kitchen's current status is another, someone else changed it since, and nothing is written. Not the audit row's
+   * `from`, which is always the status the write really replaced.
+   */
+  readonly seenStatus: RequestStatus;
 }
 
 export interface UnhideKitchenRequest {
@@ -138,15 +145,17 @@ export interface SavedRequestStatus {
  * - `not-sent`: the kitchen is not sent, so it has no request to give a status.
  * - `status-not-recognised`: the stored status is outside this build's list, so the change cannot be audited (its `from`
  *   must be a listed code) and the stored text is **not** read as `new`. Nothing was written.
- * - `changed-meanwhile`: the status was saved by someone else between the read and the write. Nothing was written; the
- *   audit row's `from` is always the status the write replaced, so the call does not guess.
+ * - `changed-meanwhile`: the status is not the one the person saw (`seenStatus`), or was saved by someone else between the
+ *   store's read and its write. Nothing was written and no audit row either; the audit row's `from` is always the status
+ *   the write replaced, so the call does not guess. It wins over `unchanged`: a save of the status now stored is still
+ *   refused when the person saw another, so the page reads the kitchen again instead of reporting a save it did not make.
  *
  * The answer a route gives:
  * - `saved`: `200 {status, changedBy, changedAt}`.
  * - `unchanged`: `200` with the same body; with `current` null it is `{status: "new", changedBy: null, changedAt: null}`,
  *   and the page shows a null last change as nothing.
  * - `changed-meanwhile`: `409 {status: "changed-meanwhile"}`. The route does not retry; the page keeps the selection and
- *   reads the kitchen again.
+ *   reads the kitchen again. A stale page, which sends the status it last saw, gets this and not a silent overwrite.
  * - `status-not-recognised`: `409 {status: "status-not-recognised"}`. A data condition and not an outage: the person is
  *   told to contact an administrator.
  * - `not-sent`: `409 {status: "not-sent"}`.
@@ -229,6 +238,14 @@ export function requireListedRequestStatus(
   throw refusedRequest("set a request status", "STATUS_NOT_IN_LIST");
 }
 
+/** The same test for the status the person saw, under a code of its own so a route answers it against its own member. */
+export function requireListedSeenStatus(
+  seenStatus: unknown,
+): asserts seenStatus is RequestStatus {
+  if (judgeRequestStatus(seenStatus).ok) return;
+  throw refusedRequest("set a request status", "SEEN_STATUS_NOT_IN_LIST");
+}
+
 /** What `setStatus` finds before it writes: `null` for a kitchen staff cannot see, else whether it is sent and the
  *  stored status text, whatever it is (`null` while none was saved). */
 export interface StatusSaveFacts {
@@ -237,6 +254,8 @@ export interface StatusSaveFacts {
     readonly storedStatus: string | null;
   } | null;
   readonly requested: RequestStatus;
+  /** The status the person saw when they chose. */
+  readonly seen: RequestStatus;
 }
 
 /**
@@ -248,6 +267,7 @@ export type StatusSaveDecision =
   | { readonly kind: "kitchen-not-found" }
   | { readonly kind: "not-sent" }
   | { readonly kind: "status-not-recognised" }
+  | { readonly kind: "changed-meanwhile" }
   | { readonly kind: "unchanged" }
   | {
       readonly kind: "write";
@@ -257,11 +277,12 @@ export type StatusSaveDecision =
 
 /**
  * The rules of a status save, apart from where the facts are kept. A stored text outside the list is never read as
- * `new`. A save for the status the kitchen already shows is `unchanged`, and that includes `new` on a kitchen with no
- * saved status: no row is created for it.
+ * `new`, and so is judged before the seen status is compared with it. A kitchen whose current status is not the one the
+ * person saw is `changed-meanwhile`, whatever was asked for. Only then is a save for the status the kitchen already shows
+ * `unchanged`, and that includes `new` on a kitchen with no saved status: no row is created for it.
  */
 export function decideStatusSave(facts: StatusSaveFacts): StatusSaveDecision {
-  const { kitchen, requested } = facts;
+  const { kitchen, requested, seen } = facts;
   if (kitchen === null) return { kind: "kitchen-not-found" };
   if (!kitchen.isSent) return { kind: "not-sent" };
   const { storedStatus } = kitchen;
@@ -269,6 +290,7 @@ export function decideStatusSave(facts: StatusSaveFacts): StatusSaveDecision {
     return { kind: "status-not-recognised" };
   }
   const from = storedStatus ?? INITIAL_REQUEST_STATUS;
+  if (from !== seen) return { kind: "changed-meanwhile" };
   if (from === requested) return { kind: "unchanged" };
   return { kind: "write", from, expectedStored: storedStatus };
 }

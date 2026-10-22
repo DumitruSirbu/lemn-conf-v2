@@ -233,6 +233,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         session: staff.session,
         designId,
         status: "contacted",
+        seenStatus: "new",
       });
 
       const rows = await sql()`
@@ -263,6 +264,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         session: staff.session,
         designId,
         status: "closed",
+        seenStatus: "new",
       });
 
       const rows = await sql()`
@@ -295,6 +297,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           session: staff.session,
           designId,
           status: "closed",
+          seenStatus: "closed",
         });
 
         expect(result).toMatchObject({
