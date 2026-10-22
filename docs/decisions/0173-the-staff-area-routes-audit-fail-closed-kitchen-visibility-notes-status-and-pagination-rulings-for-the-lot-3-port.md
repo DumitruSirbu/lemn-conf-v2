@@ -72,6 +72,9 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
 
 ## Residuals and rulings of the L3-S6 review, 2026-10-21 [relayed from the reviewers and the coordinator; the scribe ran nothing]
 
+- **The audit filters travel in the URL.** `GET /api/staff/audit` carries the actor account id, the action and the `from`
+  and `to` days in its query string, so they can reach the platform's request logs, exactly as the kitchens list's `?q=`
+  does. The page address, history and storage never hold them. **Accepted.**
 - **The search text travels in the URL.** The list is `GET /api/staff/kitchens?q=...`, so a search reaches the platform's
   request logs and any proxy log between the browser and the server, though never the audit log, the application log or a
   response. **Accepted** as a residual of a GET list. Obligations on the screen that calls it (wave L3-U2): keep `q` out of
@@ -129,7 +132,7 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
 - **The actor's account id is on the wire.** The coordinator ruled that each row's `actor.id` is sent, so the "Persoana"
   filter can offer actors from the rows already shown and send `actor=<id>`. No other account id is. The answer is
   administrator-only and fail-closed, and ids are unguessable.
-- **Unrecognised actions appear only on unfiltered pages.** The action filter accepts the five closed codes only, while
+- **Unrecognised actions appear only on unfiltered pages.** The action filter accepts the six closed codes only (`audit-viewed` included), while
   the store would accept any table-shaped code; a row the build does not know is therefore found by paging, not by filter.
 
 ## L3-S9: the notes in the client's own export, 2026-10-21 [written by the wave's implementer from the dispatch and the code; no owner ruling, no review yet]
