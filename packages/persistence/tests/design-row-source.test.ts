@@ -193,7 +193,7 @@ describe(SUITE_NAME, () => {
         repository.saveAuthorized({
           id,
           design: { ...KITCHEN_L_DESIGN, presetId: "edited-after-restore" },
-          writeTokenHash: WRITE_TOKEN_HASH,
+          credential: { kind: "write-token", hash: WRITE_TOKEN_HASH },
           // A restored row carries whatever revision the dump held; this suite restores rows the
           // export wrote before the column existed, so the migration's backfill is the revision.
           expectedRevision: "1",

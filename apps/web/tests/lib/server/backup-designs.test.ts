@@ -31,6 +31,11 @@ function buildRow(
     updated_at: "2026-08-01T00:00:00.000Z",
     write_token_hash: "a".repeat(64),
     visitor_hash: null,
+    sent_at: null,
+    hidden_by_client_at: null,
+    deleted_by_client_at: null,
+    account_id: null,
+    name: null,
     ...overrides,
   };
 }

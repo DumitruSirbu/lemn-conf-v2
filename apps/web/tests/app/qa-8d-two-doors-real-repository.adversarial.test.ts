@@ -34,6 +34,10 @@ const UNROUTABLE_DATABASE_URL =
 /** Where the driver posts a query for that host: it swaps the host's first label for `api.`. */
 const SQL_ENDPOINT = "https://api.invalid/sql";
 
+/** A browser with no session reads as its visitor alone: `loadOwned` binds the account arm as `null` (ADR 0172 D9),
+ *  twice (the owner flag and the `where`), and `account_id = null` matches no row. */
+const NO_ACCOUNT = null;
+
 const DOORS = ["editor", "review"] as const;
 type Door = (typeof DOORS)[number];
 
@@ -295,14 +299,19 @@ describe("a visitor's request, as each door sends it to the database", () => {
   });
 
   it.each(WELL_FORMED_DESIGN_IDS)(
-    "for the id %j: both doors send the same single statement, with the id and the cookie's hash as parameters and neither in its text",
+    "for the id %j: both doors send the same single statement, with the id and the cookie's hash as parameters, no account bound, and neither in its text",
     async (id) => {
       const [editorQuery, reviewQuery] = await sentBy(id);
 
       expect(reviewQuery).toEqual(editorQuery);
-      expect(editorQuery?.params).toEqual([id, sha256Hex(OWNER_VALUE)]);
+      expect(editorQuery?.params).toEqual([
+        NO_ACCOUNT,
+        id,
+        sha256Hex(OWNER_VALUE),
+        NO_ACCOUNT,
+      ]);
       expect(editorQuery?.query).toMatch(
-        /where id = \$1 and visitor_hash = \$2/,
+        /where id = \$2 and \(visitor_hash = \$3 or account_id = \$4\)/,
       );
     },
   );

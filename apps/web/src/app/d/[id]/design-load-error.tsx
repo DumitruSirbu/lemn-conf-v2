@@ -1,7 +1,14 @@
 "use client";
 
-import { useContent } from "@/i18n/use-content";
+import { useLocale } from "next-intl";
+
+import { accountPathOf } from "@/account/account-shell";
+import {
+  useAccountSession,
+  type AccountSessionState,
+} from "@/account/session/use-account-session";
 import { Link } from "@/i18n/navigation";
+import { useAccountControlCopy, useContent } from "@/i18n/use-content";
 
 import styles from "./design-load-error.module.css";
 
@@ -34,20 +41,48 @@ function assertNever(value: never): never {
 }
 
 /** The recoverable, visible failure state the load-by-link route falls back to instead of a
- *  partial hydration or a silent redirect (M2 "Loading is fail-whole" acceptance criterion). */
+ *  partial hydration or a silent redirect (M2 "Loading is fail-whole" acceptance criterion). A signed-in client is also
+ *  offered their kitchens, and is told the kitchen is unavailable in one sentence that names no cause. Both depend on
+ *  the session alone, never on the reason, so what is drawn tells nothing about why the design was refused. The server
+ *  draws the reason's own sentence, since the session is unknown until the page has hydrated. */
 export function DesignLoadError({
   reason,
 }: {
   reason: DesignLoadFailureReason;
 }) {
   const copy = useContent().designLoadError;
+  const session = useAccountSession();
   return (
     <main className={styles.screen} data-testid="design-load-error">
       <h1 className={styles.title}>{copy.title}</h1>
-      <p className={styles.text}>{bodyFor(reason, copy)}</p>
+      <p className={styles.text}>
+        {session.kind === "client" ? copy.bodyClient : bodyFor(reason, copy)}
+      </p>
+      <MyKitchensAction session={session} />
       <Link className={styles.startOver} href="/configurator/room">
         {copy.startOver}
       </Link>
     </main>
+  );
+}
+
+/** Only a client has a list of kitchens to go to. Until the session is known the action's height is kept, so it
+ *  appearing moves nothing; for a visitor or staff nothing is drawn. A plain anchor: the account pages are documents of
+ *  their own. */
+function MyKitchensAction({
+  session,
+}: {
+  readonly session: AccountSessionState;
+}) {
+  const locale = useLocale();
+  const copy = useAccountControlCopy();
+  if (session.kind === "pending") {
+    return <div className={styles.myKitchensPlaceholder} aria-hidden="true" />;
+  }
+  if (session.kind !== "client") return null;
+  return (
+    <a className={styles.myKitchens} href={accountPathOf(locale, "kitchens")}>
+      {copy.myKitchens}
+    </a>
   );
 }

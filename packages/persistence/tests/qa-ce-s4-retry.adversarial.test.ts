@@ -25,7 +25,7 @@ import {
   retryOnTransientFailure,
 } from "../src/retry-on-transient-failure.js";
 import { NeonShareLinkRepository } from "../src/share-link-repository.js";
-import type { ShareLinkCredentials } from "../src/share-link-repository.js";
+import { flatShareRepository } from "./support/flat-share-repository.js";
 import {
   announceSkippedLiveSuite,
   isLiveTestDatabaseConfigured,
@@ -137,7 +137,8 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
   const visitorHashes: string[] = [];
 
   const configurations = () => new NeonConfigurationRepository(testDatabaseUrl);
-  const shareLinks = () => new NeonShareLinkRepository(testDatabaseUrl);
+  const shareLinks = () =>
+    flatShareRepository(new NeonShareLinkRepository(testDatabaseUrl));
 
   function newVisitorHash(): string {
     const visitorHash = randomDigest();
@@ -156,21 +157,28 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     return { id: minted.id, writeTokenHash };
   }
 
-  async function freshDesign(): Promise<ShareLinkCredentials> {
+  /** A minted design's own credentials, as one flat bag. */
+  interface MintedCredentials {
+    readonly designId: DesignId;
+    readonly writeTokenHash: string;
+    readonly visitorHash: string;
+  }
+
+  async function freshDesign(): Promise<MintedCredentials> {
     const visitorHash = newVisitorHash();
     const { id, writeTokenHash } = await mint({ kind: "fresh", visitorHash });
     return { designId: id, writeTokenHash, visitorHash };
   }
 
   function saveOf(
-    credentials: ShareLinkCredentials,
+    credentials: MintedCredentials,
     design: Design,
     expectedRevision: string,
   ): AuthorizedSave {
     return {
       id: credentials.designId,
       design,
-      writeTokenHash: credentials.writeTokenHash,
+      credential: { kind: "write-token", hash: credentials.writeTokenHash },
       expectedRevision,
       requestVisitor: { kind: "present", visitorHash: credentials.visitorHash },
     };
@@ -346,7 +354,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         const run = await withInterception({ reply, doesLand: false }, () =>
           saveAnswer({
             ...saveOf(credentials, documentA, "1"),
-            writeTokenHash: randomDigest(),
+            credential: { kind: "write-token", hash: randomDigest() },
           }),
         );
 

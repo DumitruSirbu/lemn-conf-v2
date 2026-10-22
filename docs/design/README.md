@@ -74,6 +74,23 @@ figure already read `60.000`, and the application's grouping is not decided by t
   M8B, not the preset work. Open them as the others: serve `docs/design/mockups/` over HTTP (see *Opening the mockups*
   above) and visit `http://localhost:8000/Lemnaria%20Cont%20Lot%201.dc.html` or `…/ContBlocks.dc.html`. Not rendered
   or verified by the scribe, and they are not yet in the file table above.
+- `Lemnaria Cont Lot 2.dc.html` and `ContBlocks2.dc.html` (client dashboard, frames `A9`-`A20` and `DA…`) are also in
+  `docs/design/mockups/` (**source-verified 2026-10-19 by a file listing; the commit is named `docs(m8b): Lot 2 account
+  screens (A9-A20) mockups and port plan` in the branch reflog**). They belong to M8B, and the plan that reads them is
+  [`M8B-account-screens-lot2-plan.md`](../milestones/M8B-account-screens-lot2-plan.md). Not rendered by the scribe, and not
+  yet in the file table above. **Dated note 2026-10-20 [owner ruling O1, relayed]:** the frames A15A-A15D, A16A and their
+  desktop twins are **dropped** (autosave only, no Save / Discard), and "Modificările vor fi pierdute" in the back-guard
+  frames is untrue. A16B and DA16B survive, re-triggered as a Step-1 card (plan §14.2). Do not build the dropped frames.
+- `Lemnaria Cont Lot 3.dc.html` (staff area, screens S1-S8, 68 frames) and the **extended** `ContBlocks2.dc.html`
+  (replaces the Lot 2 copy; a superset of it per the plan) are in `docs/design/mockups/` (copied 2026-10-20; sha256 checked against the plan:
+  `637e7aec…39b182` for Lot 3, `8be0fd0b…7623ea` for `ContBlocks2`, both matching). The Lot 2 page renders identically with the old and the
+  new `ContBlocks2` (DOM and PNG hashes equal at 1440x900 and 390x844; run 2026-10-20; the 60 added lines add `is_tb`/`is_tbl` blocks Lot 2 does not use). The plan that reads them is [`M8B-account-screens-lot3-plan.md`](../milestones/M8B-account-screens-lot3-plan.md).
+  S6 (Prețuri) and S7 (Traduceri) are **deferred by the owner**; do not build them (ADR 0174).
+- **Dated note 2026-10-21, frame `A19A` (`Lemnaria Cont Lot 2.dc.html`, "Deconectat", note *„Intră în cont”, 44 px.*)
+  [owner ruling of 2026-10-20 given directly, relayed by the coordinator; the scribe read no source].** `A19A` shows the
+  words on the phone. The owner ruled the signed-out link **icon-only on narrow widths**, drawn the same as the signed-in
+  icon, so `A19A` is **superseded on that point**; the words remain on wide widths and in the room's bar. Record: ADR 0104
+  Amendment H. The mockup file is not edited.
 
 `support.js` was in this list until 2026-10-18. The screen files already loaded it, so before that
 date the tracked mockups could not render on their own; it is now copied because the v2 preset

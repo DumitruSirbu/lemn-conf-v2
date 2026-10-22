@@ -218,3 +218,12 @@ Nothing above is changed.
 - **Select's attempt (departs from decision 5's wording).** P8's Select copies a preset into a new private design through
   the existing mint path, with **one attempt per preset id** (decision 5 says one attempt per composition). The owner is
   to confirm this. See ADR 0167 Amendment B item 11.
+
+## Dated note, 2026-10-20 — decision 6's confirmation body is chosen by session (copy only)
+
+Written by the scribe from the owner's ruling O1 [relayed by the coordinator]; the scribe read no source and ran nothing.
+Nothing above is changed. Under autosave-only (ADR 0172 Amendment H) the left kitchen is not lost, so the confirmation's
+"modificările efectuate vor fi pierdute" wording is untrue. **Rules 1 to 3 and the guard entry do not change**; only the
+body text does, chosen by session state: the client body only on a definite signed-in answer holding `design.edit.own`,
+the visitor body otherwise. After a visitor confirms leaving an edited editor, Step 1 shows the A16B card once
+(plan §14.2, waves U15c and U15d). Copy is pre-approved as drafted (O28b). See ADR 0104's note of the same date.

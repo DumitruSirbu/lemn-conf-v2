@@ -56,6 +56,11 @@ vi.mock("nodemailer", () => ({
 vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
   getContactSubmissionStore: () => fakes.store,
 }));
+vi.mock("@/lib/server/contact/sent-mark-store-instance", () =>
+  import("../../../support/sent-mark-store-fake").then((fake) =>
+    fake.fakeSentMarkStoreModule(),
+  ),
+);
 vi.mock("@/lib/server/load-owned-design", () => ({
   loadOwnedDesign: (): Promise<unknown> =>
     Promise.resolve({

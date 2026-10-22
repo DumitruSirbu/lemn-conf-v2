@@ -251,6 +251,8 @@ describe("the other mail modules", () => {
     "fake-mail-sender.ts",
     "select-mail-sender.ts",
     "gmail-mail-sender.ts",
+    "smtp-mail-sender.ts",
+    "smtp-transport.ts",
     "smtp-answer.ts",
     "plain-mailbox.ts",
     "lead-notification.ts",
@@ -270,37 +272,48 @@ interface NamingRule {
 
 const MAIL_DIRECTORY = "lib/server/mail/";
 const FACTORY = `${MAIL_DIRECTORY}create-mail-sender.ts`;
+const CUSTOMER_FACTORY = `${MAIL_DIRECTORY}create-customer-mail-sender.ts`;
+const SENDER_FACTORIES = [FACTORY, CUSTOMER_FACTORY];
 const GMAIL_ADAPTER = `${MAIL_DIRECTORY}gmail-mail-sender.ts`;
+const SMTP_ADAPTER = `${MAIL_DIRECTORY}smtp-mail-sender.ts`;
+
+function mayImportTheMailLibrary(path: string): boolean {
+  return [GMAIL_ADAPTER, SMTP_ADAPTER].includes(path);
+}
 
 const NAMING_RULES: readonly NamingRule[] = [
   {
     what: "the fake",
-    pattern: /fake-mail-sender|createFakeMailSender/,
+    pattern: /fake-mail-sender|createFake(Customer)?MailSender/,
     isAllowed: (path) =>
-      [`${MAIL_DIRECTORY}fake-mail-sender.ts`, FACTORY].includes(path),
+      [`${MAIL_DIRECTORY}fake-mail-sender.ts`, ...SENDER_FACTORIES].includes(
+        path,
+      ),
     mustBeFoundIn: FACTORY,
     mentions: [
       'import { x } from "@/lib/server/mail/fake-mail-sender";',
       "export * from './fake-mail-sender';",
       'const m = await import("./fake-mail-sender");',
       "const sender = createFakeMailSender();",
+      "const sender = createFakeCustomerMailSender();",
     ],
   },
   {
     what: "the adapter",
-    pattern: /gmail-mail-sender|createGmailMailSender/,
-    isAllowed: (path) => [GMAIL_ADAPTER, FACTORY].includes(path),
+    pattern: /gmail-mail-sender|createGmail(Customer)?MailSender/,
+    isAllowed: (path) => [GMAIL_ADAPTER, ...SENDER_FACTORIES].includes(path),
     mustBeFoundIn: FACTORY,
     mentions: [
       'import { x } from "@/lib/server/mail/gmail-mail-sender";',
       "const sender = createGmailMailSender(configuration);",
+      "const sender = createGmailCustomerMailSender(configuration);",
     ],
   },
   {
     what: "the mail library",
     pattern:
       /from\s+["']nodemailer["']|import\(\s*["']nodemailer["']|require\(\s*["']nodemailer["']/,
-    isAllowed: (path) => path === GMAIL_ADAPTER,
+    isAllowed: mayImportTheMailLibrary,
     mustBeFoundIn: GMAIL_ADAPTER,
     mentions: [
       'import { createTransport } from "nodemailer";',
@@ -336,6 +349,17 @@ describe.each(NAMING_RULES)(
     });
   },
 );
+
+describe("the mail-library fence", () => {
+  it.each([
+    FACTORY,
+    `${MAIL_DIRECTORY}smtp-transport.ts`,
+    `${MAIL_DIRECTORY}select-mail-sender.ts`,
+    `${MAIL_DIRECTORY}create-customer-mail-sender.ts`,
+  ])("control: still refuses %s", (path) => {
+    expect(mayImportTheMailLibrary(path)).toBe(false);
+  });
+});
 
 describe("the previous provider", () => {
   const PROVIDER_CODE =

@@ -1,5 +1,7 @@
 import { expect } from "@playwright/test";
 
+import { roAccountControl } from "../support/romanian-content.e2e";
+import { paintedTextOf } from "./support/painted-text";
 import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
@@ -252,4 +254,61 @@ for (const viewport of DESKTOP_VIEWPORTS)
       );
       expect(measured.canvas).toBeGreaterThan(canvasAtBaseCommit);
     });
+  });
+
+/** The visitor's link is decided by the same measurement as the pill's ladder (ADR 0104 decision 8), so these two widths
+ *  are chosen well clear of where it changes: 900 is the branch's first pixel, 1440 the width the project runs at. */
+const VISITOR_LINK_FORMS = [
+  { viewport: { width: 900, height: 500 }, form: "glyph" },
+  { viewport: { width: 1440, height: 900 }, form: "words" },
+] as const;
+
+const TOUCH_TARGET_PX = 44;
+
+for (const { viewport, form } of VISITOR_LINK_FORMS)
+  test(`draws the visitor's link as ${form} at ${String(viewport.width)} x ${String(viewport.height)}, named by its words`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await waitForTheViewportToReachTheCanvas(page, viewport);
+    const link = page.getByTestId("top-bar-account-sign-in");
+
+    await expect(link).toHaveAccessibleName(roAccountControl.signIn);
+    const box = await link.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
+    if (form === "glyph") {
+      expect(box?.width ?? 0).toBeCloseTo(TOUCH_TARGET_PX, 0);
+      expect(await paintedTextOf(link)).toBe("");
+    } else {
+      expect(box?.width ?? 0).toBeGreaterThan(TOUCH_TARGET_PX);
+      expect(await paintedTextOf(link)).toBe(roAccountControl.signIn);
+    }
+  });
+
+/** The title is the last give, so it is the first thing a tight row hands back; like the link's form it is decided by
+ *  the same measurement as the pill's ladder, and these two widths are well clear of where it changes. */
+const TITLE_FORMS = [
+  { viewport: { width: 900, height: 500 }, form: "dropped" },
+  { viewport: { width: 1440, height: 900 }, form: "drawn" },
+] as const;
+
+for (const { viewport, form } of TITLE_FORMS)
+  test(`${form === "dropped" ? "drops" : "draws"} the title at ${String(viewport.width)} x ${String(viewport.height)}, and the pill keeps a whole name either way`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await waitForTheViewportToReachTheCanvas(page, viewport);
+
+    const title = page.getByTestId("top-bar-title");
+    if (form === "dropped") await expect(title).toBeHidden();
+    else await expect(title).toBeVisible();
+    const cutLabels = await page.evaluate(
+      () =>
+        [
+          ...document.querySelectorAll(
+            '[data-testid="global-settings-pill-label"]',
+          ),
+        ].filter((label) => label.scrollWidth - label.clientWidth > 1).length,
+    );
+    expect(cutLabels).toBe(0);
   });

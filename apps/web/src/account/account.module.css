@@ -1,0 +1,1389 @@
+/* The shared parts of the account forms, in the language of the Lot 1 frames and the contact page's conventions:
+ * `globals.css` tokens, the form's own colours scoped here rather than added to the site's. Every interactive box is
+ * at least `--touch-target` tall; marks are drawn with `::before`, so no glyph is text and none is read aloud. */
+.scope {
+  --refusal-surface: #fdf3f3;
+  --refusal-edge: #f0cfcf;
+  --refusal-ink: #8f2020;
+  --warning-surface: #f7ecdc;
+  --warning-edge: #e6cfa8;
+  --warning-mark: #b45309;
+  --success-surface: #eef1ea;
+  --success-edge: #d3dccb;
+  --success-ink: #2d5016;
+  --selected-surface: #ece7dd;
+}
+
+/* The form is the page below the bar: its pane grows and its actions end it. */
+.form {
+  composes: scope;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.field {
+  composes: scope;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.label {
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.field[data-invalid="true"] .label {
+  color: var(--refusal);
+}
+
+.count {
+  font: 400 11.5px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/* The box is the wrapper, so the show / hide control sits inside the same edge as the text and the ring is drawn once,
+ * around both. */
+.control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 54px;
+  padding: 0 6px 0 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.control:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.field[data-invalid="true"] .control {
+  padding: 0 5px 0 13px;
+  background: var(--refusal-surface);
+  border: 2px solid var(--refusal);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  font: 400 15px/1.2 var(--font-ui);
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.input::placeholder {
+  color: var(--ink-faint);
+}
+
+.toggle {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  min-height: var(--touch-target);
+  padding: 0 8px;
+  font: 700 12.5px/1 var(--font-ui);
+  color: var(--accent);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.hint {
+  margin: 0;
+  font: 400 11.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.fieldError {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  padding: 11px 12px;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--refusal-ink);
+  background: var(--refusal-surface);
+  border-radius: 10px;
+  text-wrap: pretty;
+}
+
+.fieldErrorMark {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  background: var(--refusal);
+  border-radius: 50%;
+}
+
+.fieldErrorMark::before {
+  content: "!";
+}
+
+/* A form-level message. The text colour of each tone is the Lot 1 frame's, every pair above 4.5:1. */
+.notice {
+  composes: scope;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-wrap: pretty;
+}
+
+.notice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.notice[data-tone="error"] {
+  color: var(--refusal-ink);
+  background: var(--refusal-surface);
+  border-color: var(--refusal-edge);
+}
+
+.notice[data-tone="warning"] {
+  color: var(--accent-strong);
+  background: var(--warning-surface);
+  border-color: var(--warning-edge);
+}
+
+.notice[data-tone="success"] {
+  color: var(--success-ink);
+  background: var(--success-surface);
+  border-color: var(--success-edge);
+}
+
+.notice[data-tone="info"] {
+  background: var(--surface);
+}
+
+.noticeMark {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  font: 700 12px/18px var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  border-radius: 50%;
+}
+
+.notice[data-tone="error"] .noticeMark {
+  background: var(--refusal);
+}
+
+.notice[data-tone="warning"] .noticeMark {
+  background: var(--warning-mark);
+}
+
+.notice[data-tone="success"] .noticeMark {
+  background: var(--success-ink);
+}
+
+.notice[data-tone="info"] .noticeMark {
+  background: var(--accent);
+}
+
+.notice[data-tone="error"] .noticeMark::before,
+.notice[data-tone="warning"] .noticeMark::before {
+  content: "!";
+}
+
+.notice[data-tone="success"] .noticeMark::before {
+  content: "\2713";
+}
+
+.notice[data-tone="info"] .noticeMark::before {
+  content: "i";
+}
+
+.noticeText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.noticeTitle {
+  font: 700 14px/1.3 var(--font-ui);
+}
+
+.noticeBody {
+  overflow-wrap: anywhere;
+}
+
+.noticeBody strong {
+  font-weight: 700;
+}
+
+/* The page's end state: a mark, a title and a sentence, drawn once for every screen that stops the form. */
+.hero {
+  composes: scope;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+.heroMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font: 700 20px/1 var(--font-ui);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.hero[data-tone="success"] .heroMark {
+  color: var(--success-ink);
+  background: var(--success-surface);
+  border-color: var(--success-edge);
+}
+
+.hero[data-tone="error"] .heroMark {
+  color: var(--refusal);
+  background: var(--refusal-surface);
+  border-color: var(--refusal-edge);
+}
+
+.hero[data-tone="neutral"] .heroMark {
+  color: var(--accent);
+  background: var(--selected-surface);
+}
+
+.hero[data-tone="success"] .heroMark::before {
+  content: "\2713";
+}
+
+.hero[data-tone="error"] .heroMark::before {
+  content: "!";
+}
+
+.hero[data-tone="neutral"][data-glyph="mail"] .heroMark::before {
+  content: "@";
+}
+
+.hero[data-tone="neutral"][data-glyph="question"] .heroMark::before {
+  content: "?";
+}
+
+.heroTitle {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.heroBody {
+  margin: 0;
+  font: 400 13.5px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.heroBody strong {
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.help {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.helpTitle {
+  margin: 0;
+  font: 700 13px/1.3 var(--font-ui);
+  color: var(--ink);
+}
+
+.helpItems {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.helpItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.helpItem::before {
+  flex: 0 0 5px;
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
+  content: "";
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+/* A link inside a form or a sentence: a plain anchor, at least as tall as a touch target. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  font: 700 13px/1.3 var(--font-ui);
+  color: var(--accent);
+}
+
+.link:hover {
+  color: var(--accent-strong);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A link set inside a sentence keeps the sentence's size and line; the surrounding text is what is read as the target. */
+.inlineLink {
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inlineLink:hover {
+  color: var(--accent-strong);
+}
+
+.inlineLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The link that is an action of the page itself, not an address: a button drawn as `.link`. */
+.linkButton {
+  composes: link;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+/* The links that belong to the fields above them (the login's "forgot password"): tucked up under the last field, as the
+   mock-up draws them, since a link is at least 44px tall and the pane's own gap would double the space. */
+.fieldLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-block: -8px;
+}
+
+/* The sentence above the primary action that names the notice the person is shown. */
+.legal {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* The frame's 52 px primary. Off is a pale ground with readable ink, because the label of an off button is still
+ * information: `--ink-muted` on the selected ground is 5.09:1. */
+.submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 22px;
+  font: 700 15px/1.15 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--paper);
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+}
+
+.submit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.submit[aria-disabled="true"],
+.submit:disabled {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+  background: var(--selected-surface);
+  border: 1px solid var(--line);
+}
+
+/* A request is out: the accent ground stays, as the busy frames draw it, and the spinner says so. */
+.submit[aria-busy="true"] {
+  color: var(--paper);
+  cursor: progress;
+  background: var(--accent);
+  border: 0;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 10px;
+  border: 2px solid rgb(250 248 244 / 35%);
+  border-top-color: var(--paper);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* The frame every account page sits in (Lot 1's phone header and desktop card). The document scrolls and nothing here is
+ * `position: fixed`, so nothing can cover a field. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100dvh;
+  background: var(--paper);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px 2px 4px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.back {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  font: 700 14px/1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.back:focus-visible,
+.localeChip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.backMark {
+  font: 400 26px/1 var(--font-ui);
+}
+
+/* On the phone only the mark shows; the words are still the link's name. The chip's endonym stays hidden: the code is
+ * what shows, and the name read aloud is "RU Русский". */
+.backText,
+.chipName {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+.wordmark {
+  flex: 0 0 auto;
+  font: 700 12px/1 var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.navDivider {
+  flex: 0 0 1px;
+  align-self: center;
+  height: 14px;
+  background: var(--line);
+}
+
+/* The title wraps rather than truncates: a longer language must not lose its words. */
+.navTitle {
+  flex: 1;
+  min-width: 0;
+  padding-block: 4px;
+  font: 700 15px/1.2 var(--font-ui);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.localeNav {
+  display: flex;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.localeChip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 10px;
+  font: 700 11px/1 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  background: var(--selected-surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.stage {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+}
+
+.stageWide {
+  composes: stage;
+}
+
+.cardWide {
+  composes: card;
+}
+
+.pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 18px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.heading {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.lead {
+  margin: 0;
+  font: 400 13px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* The foot of the page: sticky and in the flow, so it ends the page and never covers the last field. */
+.actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 13px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.actionsLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 5px;
+  font: 400 13px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 22px;
+  font: 700 14px/1.15 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+  text-decoration: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.secondary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The challenge's slot is Cloudflare's widget size, reserved before its script runs so nothing moves when it appears. */
+.challengeSlot {
+  position: relative;
+  width: 300px;
+  max-width: 100%;
+  min-height: 65px;
+}
+
+.challengeLoading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font: 400 13px/1.3 var(--font-ui);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.challengeArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.challengeArea > p {
+  max-width: 300px;
+}
+
+/* The desktop card: a centred 440 px column on the quiet ground, and the actions inside the card. */
+@media (min-width: 900px) {
+  .nav {
+    gap: 28px;
+    height: 76px;
+    padding: 0 40px;
+  }
+
+  .back {
+    gap: 8px;
+    padding: 0;
+  }
+
+  .backText {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .backMark {
+    font-size: 22px;
+  }
+
+  .wordmark {
+    order: -1;
+    font-size: 15px;
+    letter-spacing: 0.22em;
+  }
+
+  .navDivider {
+    display: none;
+  }
+
+  .navTitle {
+    display: none;
+  }
+
+  .localeChip {
+    padding: 0 12px;
+    border-radius: 22px;
+    font-size: 12px;
+  }
+
+  .stage {
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    background: var(--surface);
+  }
+
+  .card {
+    flex: none;
+    gap: 22px;
+    width: 440px;
+    padding: 38px 36px 32px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 14px 34px rgb(28 24 20 / 6%);
+  }
+
+  /* The full-width frame (the kitchens grid): the page's own ground, no card, a column as wide as the grid wants. On a
+   * phone `.stageWide` and `.cardWide` are `.stage` and `.card` as they stand. */
+  .stageWide {
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0;
+    background: var(--paper);
+  }
+
+  .cardWide {
+    flex: none;
+    gap: 24px;
+    width: 100%;
+    max-width: 1360px;
+    padding: 40px 64px 48px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .form {
+    flex: none;
+    gap: 22px;
+  }
+
+  .pane {
+    flex: none;
+    gap: 22px;
+    padding: 0;
+  }
+
+  .heading {
+    font-size: 28px;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .lead {
+    font-size: 14px;
+  }
+
+  .actions {
+    position: static;
+    padding: 4px 0 0;
+    background: transparent;
+    border-top: 0;
+  }
+}
+
+/* Marks the privacy-notice stand-in as provisional, so it is never taken for the notice. */
+.badge {
+  align-self: flex-start;
+  margin: 0;
+  padding: 4px 10px;
+  font: 700 11.5px/1.3 var(--font-ui);
+  color: var(--ink);
+  background: var(--selected-surface);
+  border-radius: 999px;
+}
+
+/* The stand-in page's whole screen: the account screen with the form's colour tokens in scope. */
+.stubScreen {
+  composes: screen scope;
+}
+
+/* The dialog layer. `7` is the settings dialog's own (`.dialogHost` in `settings/global-settings.module.css`, from the
+ * stacking table at the head of `configure.module.css`), above the page's sticky foot at 3; keep the two in step. Fixed
+ * and out of flow, so it claims no cell of the screen. `.dialogScrim` is that file's `.scrim` rule for rule; the
+ * surface, grabber and title are this frame's own sizes. */
+.dialogHost {
+  composes: scope;
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+}
+
+.dialogScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  background: rgb(28 24 20 / 30%);
+}
+
+/* The phone's sheet (frame `mSheet`): on the bottom edge, with the home indicator's strip added to the sheet once. */
+.dialogSurface {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 90dvh;
+  padding: 10px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--paper);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -16px 36px rgb(28 24 20 / 18%);
+}
+
+/* A destructive question is centred on a phone too (frame `mDialog`): a sheet is for choosing, this is for stopping. */
+.dialogSurface[data-kind="destructive"] {
+  top: 50%;
+  right: 14px;
+  bottom: auto;
+  left: 14px;
+  padding: 20px 18px 18px;
+  border-radius: 18px;
+  box-shadow: 0 18px 44px rgb(28 24 20 / 22%);
+  transform: translateY(-50%);
+}
+
+.dialogGrabber {
+  align-self: center;
+  flex: 0 0 4px;
+  width: 40px;
+  height: 4px;
+  margin-block: 0 -2px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.dialogTitle {
+  margin: 0;
+  font: 700 18px/1.25 var(--font-ui);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.dialogBody {
+  margin: 0;
+  font: 400 14px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* The two actions wrap rather than squeeze: side by side where there is room for both, one above the other where not. */
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* What the three actions share: the frame's 48 px box, which wraps rather than squeezes. No underline: the session
+   sheet draws its primary action as a link. */
+.dialogAction {
+  display: flex;
+  flex: 1 1 200px;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  min-height: 48px;
+  padding: 12px 16px;
+  font: 700 14px/1.25 var(--font-ui);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--paper);
+  border-radius: 12px;
+}
+
+.dialogAction:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.dialogPrimary {
+  composes: dialogAction;
+  font-size: 15px;
+  color: var(--paper);
+  background: var(--accent);
+  border: 0;
+}
+
+.dialogDestructive {
+  composes: dialogAction;
+  color: var(--refusal-ink);
+  border: 1px solid var(--refusal);
+}
+
+.dialogSecondary {
+  composes: dialogAction;
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+}
+
+.dialogQuiet {
+  composes: dialogAction;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+}
+
+.dialogPrimary[aria-busy="true"],
+.dialogDestructive[aria-busy="true"] {
+  cursor: progress;
+}
+
+.dialogSecondary[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.dialogPrimary[aria-disabled="true"]:not([aria-busy="true"]),
+.dialogDestructive[aria-disabled="true"]:not([aria-busy="true"]) {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+  background: var(--selected-surface);
+  border: 1px solid var(--line);
+}
+
+/* The page's `.spinner`, on the destructive action in its own colours. Its end margin is the gap to the label. */
+.dialogSpinner {
+  composes: spinner;
+  flex: none;
+}
+
+.dialogDestructive .dialogSpinner {
+  border-color: var(--refusal-edge);
+  border-top-color: var(--refusal);
+}
+
+/* `--toast-clear-bottom` (0 unless a screen sets it; `useToastClearance` does for the pinned page foot) lifts the toast
+ * clear of a bar the screen keeps at the foot. The
+ * message region fills no box of its own: it is the live region, and the line inside it is the toast. Above the
+ * dialog (7, see `.dialogHost`), so the answer to an act made in a dialog is not hidden by the dialog that closes under it. */
+.toastRegion {
+  position: fixed;
+  right: 18px;
+  bottom: calc(
+    22px + env(safe-area-inset-bottom, 0px) + var(--toast-clear-bottom, 0px)
+  );
+  left: 18px;
+  z-index: 8;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.toast {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 16px;
+  margin: 0;
+  font: 700 13.5px/1.35 var(--font-ui);
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* The account control in the top bar. The target is `--touch-target` high, and its negative block margin
+ * gives back what the band does not have: the bar's height is its tallest control (the settings chip's 27 px in the editor,
+ * the locale chip's 25 px in the room, so 25 is the lower), so a 44 px box that took its full height would lift the
+ * whole band. Vertical only, so no clip check reads it as cut. */
+.accountTarget {
+  --account-band-line: 25px;
+
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: var(--touch-target);
+  margin-block: calc((var(--account-band-line) - var(--touch-target)) / 2);
+}
+
+/* The visitor's way in: a text link on a phone. `data-form` asks for the glyph alone, and the editor's top bar asks for
+ * it when the row has no room for the words: `icon` always, `icon-below-desktop` on this shell and the words from 900 px.
+ * Both forms are in the markup and this stylesheet shows one, so the first paint is already right on a phone. */
+.accountSignIn {
+  composes: accountTarget;
+  padding: 0 8px;
+  font: 700 12.5px/1.1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.accountSignIn .accountGlyph {
+  display: none;
+}
+
+.accountSignIn[data-form="icon"],
+.accountSignIn[data-form="icon-below-desktop"] {
+  justify-content: center;
+  width: var(--touch-target);
+  padding: 0;
+}
+
+.accountSignIn[data-form="icon"] .accountSignInText,
+.accountSignIn[data-form="icon-below-desktop"] .accountSignInText {
+  display: none;
+}
+
+.accountSignIn[data-form="icon"] .accountGlyph,
+.accountSignIn[data-form="icon-below-desktop"] .accountGlyph {
+  display: block;
+}
+
+/* The hidden probes of the control's two forms: off to the left, as the screen's own probes are, so rightward overflow
+ * never reaches the document's scrollWidth. Each probe is a flex box, which fills its parent, so it stands in a wrapper
+ * that is as wide as the probe is. */
+.accountProbes {
+  position: absolute;
+  top: 0;
+  left: -9999px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.accountProbe {
+  display: inline-block;
+}
+
+/* The same box before the answer is known: it takes the room and paints nothing. */
+.accountPending {
+  composes: accountSignIn;
+  visibility: hidden;
+}
+
+/* The client's icon: no initials and no name beside it, the glyph alone (the accessible name is on the button). */
+.accountIcon {
+  composes: accountTarget;
+  justify-content: center;
+  width: var(--touch-target);
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+}
+
+.accountSignIn:focus-visible,
+.accountIcon:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.accountGlyph {
+  position: relative;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+}
+
+.accountGlyph::before,
+.accountGlyph::after {
+  position: absolute;
+  content: "";
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.accountGlyph::before {
+  top: 4px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+}
+
+.accountGlyph::after {
+  top: 15px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+}
+
+/* The menu's contents: who is signed in, in two lines. */
+.menuIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menuIdentityLabel {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.menuIdentityEmail {
+  font: 700 15px/1.4 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* The menu's ways out, as rows (frame `isRows`): 48 px high, the text at the start and a mark at the end, ruled apart. */
+.menuRows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-soft);
+}
+
+.menuRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 12px 0;
+  font: 700 15px/1.3 var(--font-ui);
+  color: var(--ink);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.menuRow[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.menuRow:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.menuRowMark {
+  flex: none;
+  color: var(--ink-faint);
+}
+
+.menuRowMark::before {
+  content: "›";
+}
+
+/* The desktop dialog (frame `dDialog`): 480 px, centred, on both kinds, and no grabber because it is never a sheet. */
+@media (min-width: 900px) {
+  .dialogSurface,
+  .dialogSurface[data-kind="destructive"] {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    gap: 16px;
+    width: 480px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+    padding: 28px 28px 24px;
+    border-radius: 18px;
+    box-shadow: 0 18px 44px rgb(28 24 20 / 22%);
+    transform: translate(-50%, -50%);
+  }
+
+  .dialogGrabber {
+    display: none;
+  }
+
+  .dialogTitle {
+    font-size: 20px;
+  }
+
+  .toastRegion {
+    right: auto;
+    bottom: calc(32px + var(--toast-clear-bottom, 0px));
+    left: 50%;
+    width: max-content;
+    max-width: min(560px, calc(100vw - 36px));
+    transform: translateX(-50%);
+  }
+
+  .toast {
+    flex: none;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  /* The control's desktop form: an outlined pill for a visitor and a bordered circle for a client. The band is
+   * 76 px, so the 44 px box needs nothing given back. */
+  .accountTarget {
+    margin-block: 0;
+  }
+
+  .accountSignIn {
+    padding: 0 16px;
+    font-size: 14px;
+    border: 1px solid var(--accent);
+    border-radius: 22px;
+  }
+
+  .accountSignIn[data-form="icon-below-desktop"] {
+    width: auto;
+    padding: 0 16px;
+  }
+
+  .accountSignIn[data-form="icon-below-desktop"] .accountSignInText {
+    display: inline;
+  }
+
+  .accountSignIn[data-form="icon-below-desktop"] .accountGlyph {
+    display: none;
+  }
+
+  .accountSignIn[data-form="icon"] {
+    border-radius: 50%;
+  }
+
+  .accountIcon {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 50%;
+  }
+
+  .accountSignIn:focus-visible,
+  .accountIcon:focus-visible {
+    outline-offset: 2px;
+  }
+
+  /* The menu is a popover under the bar here, not a sheet: 340 px wide, on the right, the bar's height
+   * down. Two classes, so it wins over the dialog rule above whatever the order. */
+  .dialogSurface.menuSurface {
+    top: 68px;
+    right: 40px;
+    bottom: auto;
+    left: auto;
+    gap: 12px;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 84px);
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 14px 34px rgb(28 24 20 / 18%);
+    transform: none;
+  }
+}
+
+/* Text for assistive technology only: out of sight, still in the accessibility tree. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+/* ── The visitor's card on Step 1 (Lot 2 frames A16B / DA16B, re-triggered; `visitor-account-card.tsx`) ─────────────
+ * Non-modal: it floats above Step 1's pinned foot and leaves everything else operable, so there is no scrim and no
+ * `inert`. `--visitor-card-foot-clearance` is the foot's height (87 px on a phone, 88 px from 900 px: `room.module.css`'s
+ * `.footer` and `.dimensionsFooter`) plus a gap, so the card never covers the *Continuă* control. The toast's layer (8)
+ * is above it. Its two actions are `.dialogPrimary` and `.dialogSecondary`, whose 48 px box is past the 44 px target
+ * and which wrap rather than squeeze. */
+.visitorCard {
+  --visitor-card-foot-clearance: 100px;
+
+  position: fixed;
+  right: 14px;
+  bottom: calc(
+    var(--visitor-card-foot-clearance) + env(safe-area-inset-bottom, 0px)
+  );
+  left: 14px;
+  z-index: 6;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 26px rgb(28 24 20 / 12%);
+}
+
+.visitorCardTitle {
+  margin: 0;
+  font: 700 15px/1.3 var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+.visitorCardBody {
+  margin: 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.visitorCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+@media (min-width: 900px) {
+  .visitorCard {
+    right: 40px;
+    left: auto;
+    width: 380px;
+  }
+}

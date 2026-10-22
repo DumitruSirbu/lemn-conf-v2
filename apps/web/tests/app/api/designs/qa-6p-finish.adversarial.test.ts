@@ -52,11 +52,15 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
   saveAuthorized({
     id,
     design,
-    writeTokenHash,
+    credential,
     expectedRevision,
   }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
-    if (!row || row.writeTokenHash !== writeTokenHash) {
+    if (
+      !row ||
+      credential.kind !== "write-token" ||
+      row.writeTokenHash !== credential.hash
+    ) {
       return Promise.reject(new DesignWriteForbiddenError(id));
     }
     if (row.revision !== expectedRevision) {

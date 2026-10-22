@@ -32,7 +32,29 @@ async function freshJudge() {
     "@/lib/server/rate-limit/rate-limit-store-instance"
   );
   const store = getRateLimitStore();
-  return { ...judge, store, recorded: vi.spyOn(store, "recordHits") };
+  return {
+    ...judge,
+    ...writeTokenCasesOf(judge),
+    store,
+    recorded: vi.spyOn(store, "recordHits"),
+  };
+}
+
+/** The judge as these cases were written: a write-token hash stated bare, wrapped into the credential union at the
+ *  seam, so each case still names the hash it counts. */
+function writeTokenCasesOf(
+  judge: typeof import("@/lib/server/rate-limit/judge-save-request"),
+) {
+  const asCredential = (hash: string) => ({
+    kind: "write-token" as const,
+    hash,
+  });
+  return {
+    judgeSaveRequest: (headers: Headers, hash: string) =>
+      judge.judgeSaveRequest(headers, asCredential(hash)),
+    refusalOfSaveLimit: (headers: Headers, hash: string) =>
+      judge.refusalOfSaveLimit(headers, asCredential(hash)),
+  };
 }
 
 function theConsole() {
@@ -458,12 +480,16 @@ describe("judge-save-request.ts", () => {
     );
   });
 
-  it("reads source: makes the credential's subject inside the second step, from the hash it was handed", () => {
-    expect(source).toMatch(
-      /subjectStep\(\s*credential,\s*\(\) =>\s*subjectOfWriteCredentialHash\(writeTokenHash\)/,
-    );
+  it("reads source: makes the credential's subject inside the second step, from the hash or the account id it was handed", () => {
+    expect(source).toMatch(/subjectStep\(credentialRequest,\s*makeSubject\)/);
     expect(source).toMatch(
       /judgeStepsInSequence\(\[\s*blockStep\(block\),\s*subjectStep\(/,
+    );
+    expect(source).toMatch(
+      /purpose: "save-by-credential",\s*makeSubject: \(\) =>\s*subjectOfWriteCredentialHash\(credential\.hash\)/,
+    );
+    expect(source).toMatch(
+      /purpose: "save-by-account",\s*makeSubject: \(\) => subjectOfAccountId\(credential\.accountId\)/,
     );
   });
 });

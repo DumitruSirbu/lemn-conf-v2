@@ -269,6 +269,9 @@
     width: 520px;
     max-height: min(640px, calc(100dvh - var(--popover-top) - var(--safe-gap)));
     margin-top: 16px;
+    /* Set by `use-keep-surface-inside-viewport.ts` where the price cell stands too far left for this box to keep
+     * `--safe-gap` of the screen's left edge; `0px` wherever it does not. */
+    translate: var(--popover-shift, 0px) 0;
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: 16px;

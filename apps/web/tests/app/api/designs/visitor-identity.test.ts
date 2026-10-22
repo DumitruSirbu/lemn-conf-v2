@@ -71,12 +71,16 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
   saveAuthorized({
     id,
     design,
-    writeTokenHash,
+    credential,
     expectedRevision,
     requestVisitor,
   }: AuthorizedSave): Promise<SaveOutcome> {
     const row = this.rows.get(id);
-    if (!row || row.writeTokenHash !== writeTokenHash) {
+    if (
+      !row ||
+      credential.kind !== "write-token" ||
+      row.writeTokenHash !== credential.hash
+    ) {
       return Promise.reject(new DesignWriteForbiddenError(id));
     }
     if (row.revision !== expectedRevision) {
@@ -99,15 +103,20 @@ class RecordingRepository implements AuthorizedConfigurationRepository {
 
   loadOwned({
     id,
-    visitorHash,
+    accessor,
   }: {
     id: DesignId;
-    visitorHash: string;
+    accessor: { visitorHash?: string; accountId?: string };
   }): Promise<
     { kind: "found"; design: Design; revision: string } | { kind: "none" }
   > {
     const row = this.rows.get(id);
-    if (!row || row.visitorHash !== visitorHash)
+    // An absent member matches no row, as `x = null` is never true in the real statement.
+    if (
+      !row ||
+      accessor.visitorHash === undefined ||
+      row.visitorHash !== accessor.visitorHash
+    )
       return Promise.resolve({ kind: "none" });
     return Promise.resolve({
       kind: "found",

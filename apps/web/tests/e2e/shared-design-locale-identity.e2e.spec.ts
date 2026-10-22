@@ -1,6 +1,7 @@
 import type { Design } from "@lemnaria/configurator-domain";
 import { expect, type Page, type Response } from "@playwright/test";
 
+import { isAccountSessionRead } from "./support/account-session-reads";
 import { policyOf } from "./support/csp-violations";
 import {
   issueShareLink,
@@ -61,11 +62,16 @@ test("Romanian and Russian share links load one unchanged design identity", asyn
   // deliberately excluded — they are the owner's authenticated reads, not requests the share view
   // itself makes.
   const apiRequests: string[] = [];
-  const recordApiRequest = (url: string): void => {
-    if (new URL(url).pathname.startsWith("/api/")) apiRequests.push(url);
+  const accountSessionReads: string[] = [];
+  const recordApiRequest = (method: string, url: string): void => {
+    if (!new URL(url).pathname.startsWith("/api/")) return;
+    (isAccountSessionRead(method, url)
+      ? accountSessionReads
+      : apiRequests
+    ).push(url);
   };
   page.on("request", (request) => {
-    recordApiRequest(request.url());
+    recordApiRequest(request.method(), request.url());
   });
 
   for (const locale of ["ro", "ru"] as const) {
@@ -94,6 +100,8 @@ test("Romanian and Russian share links load one unchanged design identity", asyn
 
   page.removeAllListeners("request");
   expect(apiRequests).toEqual([]);
+  // The header asks who is signed in once per document, and the loop above loaded two.
+  expect(accountSessionReads.length).toBeLessThanOrEqual(2);
 
   const after = await loadStoredDesign(page, seededDesign.id);
   expect(after).toEqual(before);

@@ -316,3 +316,36 @@ points correct are struck in place.
    report now costs one more statement (ADR 0162 decision 5 and its Amendment A). On a database without migration
    `0009` the sink answers as before and logs `csp-report-unstored`. *Owner's questions*' *"a future change, not
    built here"* for Q46 is likewise overtaken.
+
+**Amendment D - dated 2026-10-18, at M8B wave L13a (code HEAD `1a261b90`, plus the review fixes of the same wave).**
+**Ratified 2026-10-18:** ADR 0172 was accepted by the owner that day, so this change to the enforced policy now stands
+on an Accepted record. (It was marked *PROVISIONAL pending ADR 0172* when written.)
+[ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+D11 widens the policy on three paths, and decision 1's *"`frame-src 'none'`"* is read through it:
+
+1. **`frame-src` names one host on `/{locale}/account/{register,login,forgot-password}`.** `buildContentSecurityPolicy`
+   takes an optional `frameSources` list (`TURNSTILE_FRAME_SOURCES`, `https://challenges.cloudflare.com`); with none
+   given it returns the site policy byte for byte, and every other path, `verify-email` and `reset-password` included,
+   keeps `frame-src 'none'`. `script-src` is unchanged: the widget's script is loaded with the request's nonce and
+   `'strict-dynamic'` covers what it loads.
+2. **Evidence tier: implementer-cited, not L0-verified.** That Turnstile needs only that `frame-src` host, and
+   propagates the nonce, is from Cloudflare's CSP page [doc: developers.cloudflare.com/turnstile/reference/
+   content-security-policy, "Last updated May 5, 2026", read by the implementer 2026-10-18]. L0's read did not verify
+   it, and no Turnstile widget has yet been loaded under the enforced policy in a browser. The `connect-src`,
+   `img-src` and `style-src` requirements of the frame are not claimed. The first real-key preview walk (M8B plan,
+   L13a security-review obligations) is what turns this from cited into observed.
+3. **`securitypolicyviolation` is the widget's detector.** `turnstile-widget.tsx` treats a violation whose `blockedURI`
+   starts with `https://challenges.cloudflare.com` as "challenge unavailable", so a policy gap shows the form's
+   unavailable copy and the enforced policy's own report reaches the endpoint of decision 2.
+4. **`Referrer-Policy: no-referrer` is set on `verify-email` and `reset-password` only**, with `X-Robots-Tag` and
+   `Cache-Control` on all five account pages. The three challenge pages keep the site default
+   (`strict-origin-when-cross-origin`): the challenge may need the `Referer`, and an old browser's same-origin `POST`
+   under `no-referrer` sends `Origin: null`.
+
+   **Note, dated 2026-10-19 (Lot 2 wave U1, ADR 0172 Amendment F, P3).** Item 4's "only" and "all five account
+   pages" no longer describe the headers. `Referrer-Policy: no-referrer` now also applies to `confirm-email`, so it
+   covers the three token pages (`verify-email`, `reset-password`, `confirm-email`). The account headers
+   (`X-Robots-Tag`, `Cache-Control`) now cover ten account pages: the five above plus the signed-in pages
+   kitchens, profile, password, export and delete. Both changes tighten policy. The signed-in pages stay out of
+   the Turnstile set (`frame-src 'none'`). The basis is P3, a coordinator-accepted default pending owner
+   confirmation. The original text of item 4 is left as written.

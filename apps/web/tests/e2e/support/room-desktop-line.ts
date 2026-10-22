@@ -242,13 +242,19 @@ export async function expectTheTopBarOfD1A(
   ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
   expect(bar.chip.left, detail).toBeGreaterThan(bar.titleTextRight);
   expect(bar.chipIsLastInTheBand, detail).toBe(true);
+  // The account control (frame DA19A) is the one thing the owner put between the title and the chip: it stands after
+  // the title, and the chip is still the band's last item and not behind it.
+  expect(bar.account.left, detail).toBeGreaterThan(bar.titleTextRight);
+  expect(bar.account.right, detail).toBeLessThanOrEqual(
+    bar.chip.left + LAYOUT_TOLERANCE_PX,
+  );
 
-  // **Nothing painted between the title and the chip** — the borrowed divider is gone. Every pixel
+  // **Nothing painted between the title and the account control** — the borrowed divider is gone. Every pixel
   // of the strip, above the band's own bottom rule, is the band's paper.
   const strip = {
     x: Math.ceil(bar.titleTextRight) + 2,
     y: Math.ceil(bar.band.top) + 2,
-    width: Math.floor(bar.chip.left) - Math.ceil(bar.titleTextRight) - 4,
+    width: Math.floor(bar.account.left) - Math.ceil(bar.titleTextRight) - 4,
     height: Math.floor(height(bar.band)) - 6,
   };
   expect(strip.width, detail).toBeGreaterThan(0);
@@ -857,6 +863,8 @@ export interface TopBarReadout {
   readonly viewportWidth: number;
   readonly band: Rect;
   readonly chip: Rect;
+  /** The account control's cell, which stands between the title and the chip since M8B Lot 2 U3 (frame DA19A). */
+  readonly account: Rect;
   readonly titleTextRight: number;
   readonly chipIsLastInTheBand: boolean;
   readonly paper: readonly [number, number, number];
@@ -879,6 +887,10 @@ export async function readTopBar(page: Page): Promise<TopBarReadout> {
       document.querySelector("[data-testid='top-bar-locale']"),
       "the locale chip",
     );
+    const account = need(
+      document.querySelector("[data-testid='top-bar-account']"),
+      "the account control's cell",
+    );
     const range = document.createRange();
     range.selectNodeContents(title);
     const chipBox = chip.getBoundingClientRect();
@@ -898,6 +910,7 @@ export async function readTopBar(page: Page): Promise<TopBarReadout> {
       viewportWidth: document.documentElement.clientWidth,
       band: rectOf(band),
       chip: rectOf(chip),
+      account: rectOf(account),
       titleTextRight: range.getBoundingClientRect().right,
       chipIsLastInTheBand: everythingInTheBand.every(
         (element) =>

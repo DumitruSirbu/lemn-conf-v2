@@ -235,3 +235,30 @@ D7). **Not a secret, not a mail variable**; its absence never makes the contact 
 - **One value per environment, add-only:** the production domain for Production and the matching origin for Preview,
   because each environment's links resolve against its own database. Never the request's `Host`, never a code constant.
 - **Owner step:** add it per environment; nothing existing is changed.
+
+### `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (M8B, 2026-10-18; names only; the owner's)
+
+For the login and register pages ([ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+D5, *Consequences*; the number changes at merge). **Add-only; the owner provisions both; no agent creates, reads or prints
+either.** No agent knows whether they are set in any environment. The repo-root `.env.example` names both, commented, with no
+value [src: `.env.example:162-163`].
+
+- **`TURNSTILE_SITE_KEY`**: the widget's public key. Read **on the server, per request**, and handed to the page; it is not a
+  build-time or `NEXT_PUBLIC_` variable [src: the comment at `apps/web/src/account/turnstile-widget.tsx:13`; the per-request
+  read was stated by the coordinator, not traced]. Unset or blank: the account pages show the widget's unavailable content,
+  never a widget.
+- **`TURNSTILE_SECRET_KEY`** (a secret): used for Cloudflare's siteverify on the server, read from `process.env` when a
+  challenge is checked [src: `turnstile-verification.ts:199`, one line]. Never printed, logged, read at build or bundled.
+  Unset or empty: every challenge is refused as not configured (`503`), loudly. A documented Cloudflare **test** secret is
+  honoured only beside `LEMNARIA_E2E_FAKE_MAIL=1` with a loopback `LEMNARIA_PUBLIC_ORIGIN`; set anywhere else it is refused
+  as not configured (ADR 0172 D5, dated note). The production secret must be the real widget's (plan §10, M9 gate line 1).
+- **`LEMNARIA_PUBLIC_ORIGIN`** (above) is also required for the check: the hostname Cloudflare reports is compared with it.
+
+### Planned mail variables for the `lemnaria.md` sender: PLANNED, NOT SET
+
+[`M8B-mail-sender-lemnaria-md.md`](../milestones/M8B-mail-sender-lemnaria-md.md) plans a provider-neutral SMTP path:
+`MAIL_TRANSPORT` (exactly `smtp`; the opt-in), `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT` (`465` or `587`), `MAIL_SMTP_USER`,
+`MAIL_SMTP_PASSWORD` (a secret) and `MAIL_SMTP_FROM_ADDRESS` [doc: that plan's variable table]. **They are a plan.** An SMTP adapter
+exists, unwired; nothing reads these names, nothing is set in any environment, and the provider is not chosen. When
+they exist they follow the same rules: add-only, the owner provisions, and `GOOGLE_*` is not removed until the owner decides.
+`MAIL_FROM_ADDRESS` stays the retired Resend name and is not reused.

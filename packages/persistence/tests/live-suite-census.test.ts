@@ -189,6 +189,66 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of 8I: writes contact submission rows under ids that carry its own marker and needs the schema intact (M8 8I QA)",
   },
+  "qa-l3-s1-staff-tables.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S1: inserts into the three staff tables only inside a rolled-back transaction, creates temporary tables and functions of its own, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S1 QA)",
+  },
+  "qa-l3-s3-statements-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S3: runs the audit store's statements inside a transaction it rolls back, writes nothing that survives, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3 QA)",
+  },
+  "qa-l3-s3-contract-parity.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S3: writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3 QA)",
+  },
+  "qa-l3-s4-statements-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, writes nothing that survives, asserts only the difference between a total read before planting and one read after (one snapshot) and needs the schema intact (M8B Lot 3 L3-S4 QA)",
+  },
+  "neon-staff-audit-store.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, sessions, kitchens and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S3)",
+  },
+  "neon-staff-kitchen-reader.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, kitchens, requests, sent copies, statuses and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S4)",
+  },
+  "neon-account-kitchen-store.notes.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, kitchens and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S9)",
+  },
+  "neon-staff-kitchen-actions-store.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, sessions, kitchens, notes, statuses and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S5)",
+  },
+  "qa-l3-s5-actions-sweep.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of L3-S5: writes accounts, sessions, kitchens, share links, notes, statuses and audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S5 QA)",
+  },
+  "qa-l3-s5-atomicity-and-errors.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "adversarial QA of L3-S5: adds a NOT VALID check constraint, a deferred constraint trigger and a function named qa_l3_s5_* to the staff tables for the length of one test each and drops them in a finally, so no other run may write those tables meanwhile (M8B Lot 3 L3-S5 QA)",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",
@@ -275,6 +335,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     gate: "none",
     lock: "none",
     reason: "unit test with the driver mocked: connects nowhere",
+  },
+  "staff-fixtures-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes accounts, sessions, kitchens, requests, statuses, notes, audit rows and counters under markers it mints, removes them only through the guarded helper, asserts no whole-table figure and needs the schema intact",
   },
   "test-database-connection-errors.test.ts": {
     gate: "none",

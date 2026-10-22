@@ -425,6 +425,36 @@ describe("a mark that failed after an accepted send: each time, the reference", 
   });
 });
 
+describe("a design whose sent mark could not be made after the request was stored: each time, the reference", () => {
+  it("writes the reference alone", async () => {
+    const { reportContactSentMarkFailed, error } = await freshLog();
+
+    reportContactSentMarkFailed(A_REFERENCE);
+    reportContactSentMarkFailed(A_REFERENCE);
+
+    expect(error.mock.calls).toEqual([
+      [
+        "[contact]",
+        { event: "contact-sent-mark-failed", reference: A_REFERENCE },
+      ],
+      [
+        "[contact]",
+        { event: "contact-sent-mark-failed", reference: A_REFERENCE },
+      ],
+    ]);
+  });
+
+  it("writes no reference of another shape", async () => {
+    const { reportContactSentMarkFailed, error } = await freshLog();
+
+    reportContactSentMarkFailed(UNSHAPED);
+
+    expect(error.mock.calls[0]?.[1]).toEqual({
+      event: "contact-sent-mark-failed",
+    });
+  });
+});
+
 describe("what no line holds, and a transport that fails", () => {
   it("lets nothing escape when the transport throws, for every kind of line", async () => {
     const {
@@ -433,6 +463,7 @@ describe("what no line holds, and a transport that fails", () => {
       reportContactUnavailable,
       reportContactNoticeNotSent,
       reportContactMarkFailed,
+      reportContactSentMarkFailed,
       warn,
       error,
     } = await freshLog();
@@ -453,6 +484,7 @@ describe("what no line holds, and a transport that fails", () => {
         reference: A_REFERENCE,
       });
       reportContactMarkFailed(A_REFERENCE);
+      reportContactSentMarkFailed(A_REFERENCE);
     }).not.toThrow();
   });
 
@@ -470,6 +502,7 @@ describe("what no line holds, and a transport that fails", () => {
       log.reportContactUnavailable(text as never);
       log.reportContactRefused(text as never);
       log.reportContactMarkFailed(text);
+      log.reportContactSentMarkFailed(text);
       log.reportContactNoticeNotSent({
         code: "CONTACT_NOTICE_NOT_SENT",
         failure: {

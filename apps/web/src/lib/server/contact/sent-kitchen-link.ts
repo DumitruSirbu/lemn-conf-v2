@@ -73,7 +73,7 @@ function kitchenUrlOf(origin: string, token: string): string {
 class RecordDeadlineExceeded extends Error {}
 
 /** The record's own outcome if it comes in time, else a rejection; the timer is cleared whichever side wins. */
-async function beforeDeadline<Answer>(
+export async function beforeDeadline<Answer>(
   pending: Promise<Answer>,
   deadlineMs: number,
 ): Promise<Answer> {

@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { routing } from "@/i18n/routing";
 import { selectNetworkSource } from "@/lib/server/rate-limit/network-source";
 import {
+  ACCOUNT_PAGE_HEADERS,
+  ACCOUNT_TOKEN_PAGE_HEADERS,
   buildContentSecurityPolicy,
   CONTENT_SECURITY_POLICY_MODE,
   CSP_ENFORCED_HEADER,
@@ -12,12 +14,48 @@ import {
   NONCE_HEADER,
   PRESET_IMAGE_CONTENT_SECURITY_POLICY,
   SHARE_VIEW_HEADERS,
+  TURNSTILE_FRAME_SOURCES,
 } from "@/lib/security-headers";
 
 const handleLocaleRouting = createMiddleware(routing);
 
 /** The pages after a design's editor, in the order the customer meets them: `/d/{id}/review`, `/contact`, `/done`. */
 const DESIGN_STEP_SEGMENTS: readonly string[] = ["review", "contact", "done"];
+
+/** The account screens, `/{locale}/account/{page}`. Only the three challenge pages show a Turnstile challenge (ADR 0172
+ *  D5: on register, login and the reset request). The token pages read a single-use token from the address fragment
+ *  and the signed-in pages hold the person's own data; none of them loads a third-party script, frame or image at
+ *  all, so their policy is the site's (L8 obligation, plan L13; Lot 2 plan, P3). */
+const ACCOUNT_FAMILY_SEGMENT = "account";
+const ACCOUNT_CHALLENGE_PAGES: readonly string[] = [
+  "register",
+  "login",
+  "forgot-password",
+];
+const ACCOUNT_TOKEN_PAGES: readonly string[] = [
+  "verify-email",
+  "reset-password",
+  "confirm-email",
+  "revert-email",
+];
+const ACCOUNT_SIGNED_IN_PAGES: readonly string[] = [
+  "kitchens",
+  "profile",
+  "password",
+  "export",
+  "delete",
+];
+
+/** The staff area, `/{locale}/staff/{page}` and `/{locale}/staff/kitchens/{id}`. Every page holds clients' data, so each
+ *  gets the account pages' headers; none loads a third-party script, frame or image. */
+const STAFF_FAMILY_SEGMENT = "staff";
+const STAFF_KITCHENS_PAGE = "kitchens";
+const STAFF_SIGNED_IN_PAGES: readonly string[] = [
+  STAFF_KITCHENS_PAGE,
+  "team",
+  "presets",
+  "audit",
+];
 
 /** The one status of a response the interceptor passes on to its page: not the locale's redirect and not a `404`. */
 const PASSED_ON_STATUS = 200;
@@ -31,7 +69,8 @@ const LIMITER_UNAVAILABLE_EVENT = "design-read-limiter-unavailable";
  * Everything except the immutable build output and static files, which carry no scripts and already receive the static
  * headers from `next.config.ts`; and, whatever their last segment ends in, the design and share families. The
  * framework routes `/ro/d/abc.png` to the design's page with the id `abc.png`, so an address of either family that
- * ends in a static extension must still reach this file, or its lookup runs uncounted. The patterns are literals:
+ * ends in a static extension must still reach this file, or its lookup runs uncounted. A staff kitchen's address is
+ * the same: it must carry the staff headers whatever its id ends in. The patterns are literals:
  * the framework reads a matcher at build time.
  */
 export const config = {
@@ -39,6 +78,7 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|glb|gltf|hdr|bin|woff|woff2)$).*)",
     "/:locale/d/:id",
     "/:locale/s/:token",
+    "/:locale/staff/kitchens/:id",
   ],
 };
 
@@ -54,6 +94,9 @@ export function proxy(
   const policy = buildContentSecurityPolicy({
     nonce,
     isDevelopment: process.env.NODE_ENV !== "production",
+    frameSources: isAccountChallengePath(request.nextUrl.pathname)
+      ? TURNSTILE_FRAME_SOURCES
+      : [],
   });
   const requestHeaders = withNonce(request.headers, nonce, policy);
   const securedRequest = new NextRequest(request, { headers: requestHeaders });
@@ -87,6 +130,10 @@ function applyPageHeaders(
     policy,
   );
   if (isSharePath(pathname)) applySharedViewHeaders(response);
+  if (isAccountPath(pathname) || isStaffPath(pathname)) {
+    applyAccountPageHeaders(response);
+  }
+  if (isAccountTokenPath(pathname)) applyAccountTokenPageHeaders(response);
 }
 
 /**
@@ -167,6 +214,18 @@ function applySharedViewHeaders(response: NextResponse): void {
   }
 }
 
+function applyAccountPageHeaders(response: NextResponse): void {
+  for (const { key, value } of ACCOUNT_PAGE_HEADERS) {
+    response.headers.set(key, value);
+  }
+}
+
+function applyAccountTokenPageHeaders(response: NextResponse): void {
+  for (const { key, value } of ACCOUNT_TOKEN_PAGE_HEADERS) {
+    response.headers.set(key, value);
+  }
+}
+
 /**
  * A locale is written one way, and anything else that reads as one is refused as a case variant always was: a first
  * segment that is not itself a locale but is one once decoded and lowered (`RO`, `%72o`, `r%6F`). The framework matches
@@ -243,6 +302,51 @@ function isSharePath(pathname: string): boolean {
     routeSegments.length === 2 &&
     routeSegments[0] === "s" &&
     routeSegments[1] !== ""
+  );
+}
+
+/** An account screen: a real locale first, then exactly `account/{page}` for a page named above. A path written any
+ *  other way (no locale, a case variant, a longer path) is not one and gets the site's policy. */
+function isAccountPath(pathname: string): boolean {
+  return isAccountPageIn(pathname, [
+    ...ACCOUNT_CHALLENGE_PAGES,
+    ...ACCOUNT_TOKEN_PAGES,
+    ...ACCOUNT_SIGNED_IN_PAGES,
+  ]);
+}
+
+/** A staff page: a real locale, then `staff/{page}` for a page named above, or `staff/kitchens/{id}` with a non-empty
+ *  id. A path written any other way (no locale, a case variant, an escaped segment, a longer path) is not one. */
+function isStaffPath(pathname: string): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  const [locale, family, page] = segments;
+  if (!hasLocale(routing.locales, locale) || family !== STAFF_FAMILY_SEGMENT) {
+    return false;
+  }
+  if (page === undefined || !STAFF_SIGNED_IN_PAGES.includes(page)) return false;
+  const isKitchenWithId = page === STAFF_KITCHENS_PAGE && segments.length === 4;
+  return segments.length === 3 || isKitchenWithId;
+}
+
+/** The account screens that read a single-use token: the only ones that answer `Referrer-Policy: no-referrer`. */
+function isAccountTokenPath(pathname: string): boolean {
+  return isAccountPageIn(pathname, ACCOUNT_TOKEN_PAGES);
+}
+
+/** The account screens that show a Turnstile challenge, and the only paths whose policy names its frame. */
+function isAccountChallengePath(pathname: string): boolean {
+  return isAccountPageIn(pathname, ACCOUNT_CHALLENGE_PAGES);
+}
+
+function isAccountPageIn(pathname: string, pages: readonly string[]): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  const [locale, family, page] = segments;
+  return (
+    segments.length === 3 &&
+    hasLocale(routing.locales, locale) &&
+    family === ACCOUNT_FAMILY_SEGMENT &&
+    page !== undefined &&
+    pages.includes(page)
   );
 }
 

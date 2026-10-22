@@ -27,6 +27,11 @@ import {
   type Ref,
 } from "react";
 
+import {
+  trapTab,
+  useBackgroundInert,
+  useEscapeToDismiss,
+} from "@/components/use-modal-focus";
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection } from "@/panel/panel-model";
 import {
@@ -38,12 +43,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 import { describeEditability, type Editability } from "@/store/editability";
 import { useContent } from "@/i18n/use-content";
 
-import {
-  ConfirmStep,
-  trapTab,
-  useBackgroundInert,
-  useEscapeToDismiss,
-} from "./confirmation-dialog";
+import { ConfirmStep } from "./confirmation-dialog";
 import {
   chooseDepthIn,
   chooseFinishIn,

@@ -29,6 +29,7 @@ import {
 } from "./support/qa-8d-review";
 import { openSeededDesign, test as seededTest } from "./support/seeded-design";
 import { roomScreen, test as stepOneTest } from "./support/step-one-by-touch";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 stepOneTest(
   "from an edited editor the link opens the review; Back returns to the editor as left without the question, the next Back asks, and after Stay the same holds again",
@@ -148,7 +149,7 @@ seededTest(
 
     await goBackAndSettle(page);
     expect(page.url()).toBe(editorUrl);
-    await expect(page.getByTestId("top-bar-title")).toBeVisible();
+    await expectEditorTopBarShown(page);
     await expect(page.getByTestId(BACK_QUESTION)).toHaveCount(0);
     expect(await isGuardEntryUnderTheCustomer(page)).toBe(false);
 

@@ -5,6 +5,10 @@ import {
   KITCHEN_L_DESIGN,
   MalformedPriceCoefficientError,
   findOverflowingPlacementIds,
+  judgeNoteText,
+  readStaffAuditEntry,
+  readStaffKitchenQuery,
+  shownRequestStatus,
   type PriceCoefficientField,
 } from "@lemnaria/configurator-domain";
 
@@ -28,5 +32,14 @@ describe("configurator-domain package", () => {
 
     expect(error).toBeInstanceOf(MalformedPriceCoefficientError);
     expect(error).toBeInstanceOf(Error);
+  });
+
+  it("publishes the four staff-area readers", () => {
+    expect(judgeNoteText("a\nb")).toEqual({ ok: true, text: "a\nb" });
+    expect(readStaffKitchenQuery({ page: "2" })).toMatchObject({ ok: true });
+    expect(readStaffAuditEntry("kitchen-opened", null)).toMatchObject({
+      ok: true,
+    });
+    expect(shownRequestStatus({ isSent: true, recorded: null })).toBe("new");
   });
 });

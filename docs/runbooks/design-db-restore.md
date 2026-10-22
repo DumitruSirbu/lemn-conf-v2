@@ -79,6 +79,8 @@ This project is on Neon's Free plan — **6 hours**. Past that, skip to Path 2.
    neon branches delete main_pre_restore_2026-08-25 --project-id <neon-project-id>
    ```
 
+   Deleting a branch is destructive and the human's step: an agent does not run it.
+
 6. **If `design_share_links` exists (M7 wave 7E3c), revoke every link before declaring the
    incident resolved.** Unlike Path 2's row-level restore below — which excludes share rows
    deliberately, so an older export can never resurrect a link revoked since (D8) — a PITR restore
@@ -91,6 +93,23 @@ This project is on Neon's Free plan — **6 hours**. Past that, skip to Path 2.
 
    Every outstanding link dies, including any the restore did not actually resurrect — the query
    cannot distinguish the two, and the owner re-issues.
+
+7. **If `account_sessions` and `account_email_tokens` exist (`0013`, `0014`), revoke every session and invalidate
+   every e-mail token before declaring the incident resolved.** The same reasoning applies: a PITR restore moves the
+   whole database backward, so a session revoked, or a confirmation or reset token used, between the restore point
+   and the incident comes back live. Revocation and use are timestamps, never deletes:
+
+   ```bash
+   psql "$DATABASE_URL" -c "update account_sessions set revoked_at = now() where revoked_at is null;"
+   psql "$DATABASE_URL" -c "update account_email_tokens set used_at = now() where used_at is null;"
+   ```
+
+   Every client is signed out and every unused link in a mail stops working, including any the restore did not
+   resurrect; clients sign in again and ask for a new link.
+
+   A restore that moves the database backward also cannot know about what happened after the restore point: a kitchen
+   a client hid or deleted, and a request stored, in that gap are open or unsent again (`hidden_by_client_at`,
+   `deleted_by_client_at` and `sent_at` are rows like any other). See Path 2, step 4, for the same limit of a dump.
 
 ## Path 2 — Restore from a dated Blob export
 
@@ -215,6 +234,16 @@ interface BackupRow {
   // available in this browser" page is all that loads. Older dumps predate the column the same way
   // `write_token_hash` above does, and land as NULL for the same reason: unowned, not an error.
   visitor_hash?: string | null;
+  // The access-control marks of `0016`. A restore that drops them brings every kitchen a client hid or deleted back
+  // open to every arm. Dumps written before that migration carry `undefined`, which lands as NULL: unsent, not hidden,
+  // not deleted — exactly what such a row was.
+  sent_at?: string | null;
+  hidden_by_client_at?: string | null;
+  deleted_by_client_at?: string | null;
+  // The owner link (`0015`) and the kitchen's name (`0016`), exported since owner ruling O21 (2026-10-20). Dumps
+  // written before then carry `undefined`, which lands as NULL: unclaimed and unnamed, exactly what such a row was.
+  account_id?: string | null;
+  name?: string | null;
 }
 
 async function main(): Promise<void> {
@@ -239,15 +268,21 @@ async function main(): Promise<void> {
 
       await sql`
         insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
-                              visitor_hash)
+                              visitor_hash, sent_at, hidden_by_client_at, deleted_by_client_at, account_id, name)
         values (${row.id}, ${CURRENT_SCHEMA_VERSION}, ${design}, ${row.created_at}, ${row.updated_at},
-                ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
+                ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null}, ${row.sent_at ?? null},
+                ${row.hidden_by_client_at ?? null}, ${row.deleted_by_client_at ?? null},
+                ${row.account_id ?? null}, ${row.name ?? null})
         on conflict (id) do update
           set schema_version = excluded.schema_version,
               document = excluded.document,
               updated_at = excluded.updated_at,
               write_token_hash = excluded.write_token_hash,
-              visitor_hash = excluded.visitor_hash
+              visitor_hash = excluded.visitor_hash,
+              sent_at = coalesce(designs.sent_at, excluded.sent_at),
+              hidden_by_client_at = coalesce(designs.hidden_by_client_at, excluded.hidden_by_client_at),
+              deleted_by_client_at = coalesce(designs.deleted_by_client_at, excluded.deleted_by_client_at),
+              name = coalesce(designs.name, excluded.name)
       `;
       restored += 1;
     } catch (error) {
@@ -276,6 +311,65 @@ RESTORE_DATABASE_URL="<restore-drill connection string>" \
 
 Use the workspace's own `tsx` rather than `npx tsx`: `npx` may resolve a globally installed copy
 running under a different Node version than the one `.nvmrc` pins.
+
+**The client's marks (`0016`), the owner link (`0015`) and the kitchen's name (`0016`) travel with the row.** The
+export carries `sent_at`, `hidden_by_client_at`, `deleted_by_client_at`, `account_id` and `name` (owner ruling O21,
+2026-10-20, which reverses ADR 0172 D10), and the script above writes them back. Six things to know before running it:
+
+- **The target must already hold `0016`** (ledger 1-16, or the number the M8C merge settles). The insert names these
+  columns, so a target without them refuses every row.
+- **A null means open, unclaimed or unnamed.** A dump taken before `0016` has no such member and restores every row as
+  unsent, not hidden or deleted, unclaimed and unnamed, which is what those rows were. A dump taken between `0016` and
+  O21 has the marks but not `account_id` or `name`, and restores those two as null.
+- **A restore over a row that already exists never loosens a mark.** `sent_at`, `hidden_by_client_at` and
+  `deleted_by_client_at` keep the live row's value and take the dump's only when the live one is null, so restoring an
+  older dump cannot reopen a kitchen a client hid or deleted after it was taken. The cost is that a mark staff cleared
+  after the dump (`design.unhide`) is set again by a restore over the live row; clear it again afterwards. A restore
+  into an empty target has no live row, so it writes the dump's marks exactly.
+- **A restore over a live row never moves or grants a claim.** `account_id` is deliberately absent from the `on conflict`
+  `set` list: the live row's owner link stays exactly as it is, null included, so an older dump cannot re-claim a design
+  for an account (an access arm) or move it between accounts. `name` is kept when the live row has one and filled from
+  the dump when it has none. A restore into an empty target writes both exactly. *This conflict behaviour is a choice
+  made when the columns were added to the export; the owner has not ruled on it.*
+- **A name that breaks `designs_name_length` skips that row.** `name` must be 1 to 120 characters or null. The check is
+  the table's own (`0016`), so a dump value outside it fails the insert, and the script's per-row `catch` counts the
+  row as skipped. Investigate every skipped row; do not loosen the check to make a restore pass.
+- **A full-loss restore cannot know what happened after the dump.** A kitchen a client hid or deleted, or a request
+  sent, after the export was taken is open or unsent again in a target that never held the live row, and a kitchen
+  claimed or renamed after it is back to the dump's owner and name. Only a restore over the live row keeps those marks
+  (the coalesce above).
+
+#### Restore order, and the export now holds personal data
+
+**Restore accounts before designs.** `designs.account_id` is **not** a foreign key: `0015` states "There is no foreign
+key to `accounts (id)`, on purpose", and `0016` adds none for `name`. So the database does not enforce this order, and a
+restore that runs out of order succeeds without error and leaves designs claimed by an account that does not exist.
+No account exists for those kitchens to open under. The order is a correctness rule for the operator. There is no accounts export (`backups/accounts/` does not
+exist), so the accounts table comes back only through Path 1 (PITR), within its window, or by hand from the owner. Check
+for orphan claims after every `designs` restore, on the drill target first:
+
+```sql
+select count(*) from designs d
+where d.account_id is not null
+  and not exists (select 1 from accounts a where a.id = d.account_id);
+```
+
+A non-zero count is the number of kitchens whose owner is missing. Do not clear their `account_id` automatically: the
+account may still be restored afterwards, and clearing it destroys the only record of who the owner was. Raise it with
+the owner.
+
+**The export file is personal data.** Since O21 each row carries `account_id`, which links a kitchen to a person's
+account, and `name`, free text a client typed. The file therefore sits under the stricter handling that
+`docs/decisions/0002-db-backed-shareable-persistence.md` ("Security and backups") promises contact data, not the
+handling a design document alone needed:
+
+- Download it only with `--access private` to a local path you control, never into the repository, a shared folder, a
+  ticket or a chat. Delete the local copy when the restore is verified.
+- Do not paste its rows, or the output of `select account_id, name from designs`, into a report or issue. Quote counts
+  and ids of rows, not names or account links.
+- Blob keeps it for the 14-day rotation like any export, so a person's owner link and kitchen names outlive a deletion
+  in the live table until the exports that held them have rotated out, and a restore from an older export can bring
+  their kitchens back with the link.
 
 ### 5. Verify the restored target
 

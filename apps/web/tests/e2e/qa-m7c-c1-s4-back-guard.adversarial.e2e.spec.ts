@@ -21,6 +21,7 @@ import {
   typeDigits,
 } from "./support/step-one-by-touch";
 import { expectWriteAccessApplied } from "./support/seeded-design";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 // Fixtures are lazy: asking for this one in every test is what deletes the rows a hand-over minted.
 test.beforeEach(async ({ designWrites }) => {
@@ -56,7 +57,7 @@ async function openTheEditorFromStepOne(page: Page): Promise<EditorVisit> {
 }
 
 async function expectTheEditorToBeReady(page: Page): Promise<void> {
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   await expectWriteAccessApplied(page);
 }
 

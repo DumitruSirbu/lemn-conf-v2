@@ -5,6 +5,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 import { ro } from "../../support/romanian-content.e2e";
 import { issueShareLink, openSharedDesign } from "./seeded-design";
+import { expectEditorTopBarShown } from "./editor-top-bar";
 
 const ROOM = "/ro/configurator/room";
 
@@ -102,12 +103,12 @@ export async function runLinearFlow(
   await page.waitForURL(/\/ro\/d\/[^/]+$/);
   const designId = idInEditorUrl(page.url());
   mintedIds.push(designId);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   await expectCameraPresetButtons(page, 2);
 
   // Reload on `/d/{id}` restores the same design.
   await page.reload();
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   await expectCameraPresetButtons(page, 2);
 
   // The back link returns Step 1 filled in with the room the customer typed.

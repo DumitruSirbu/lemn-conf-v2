@@ -10,6 +10,7 @@ import {
   type Browser,
 } from "@playwright/test";
 
+import { isAccountSessionRead } from "./support/account-session-reads";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { recordRequests } from "./support/qa-8d-review";
 import { mintSeededDesign, type Locale } from "./support/seeded-design";
@@ -433,10 +434,21 @@ for (const door of ["", "/review"] as const) {
       expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(
         address,
       );
+      const apiRequests = requests.filter((request) =>
+        request.pathname.startsWith("/api/"),
+      );
       expect(
-        requests.filter((request) => request.pathname.startsWith("/api/")),
+        apiRequests.filter(
+          (request) =>
+            !isAccountSessionRead(
+              request.method,
+              request.pathname + request.search,
+            ),
+        ),
         JSON.stringify(requests),
       ).toEqual([]);
+      // The refusal page's header asks who is signed in, once; that is not a request for the design.
+      expect(apiRequests.length).toBeLessThanOrEqual(1);
       expect(await context.cookies()).toEqual(jarBefore);
     } finally {
       await ownerContext.close();

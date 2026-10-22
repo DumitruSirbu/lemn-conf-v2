@@ -1,5 +1,7 @@
 import { expect } from "@playwright/test";
 
+import { roAccountControl } from "../support/romanian-content.e2e";
+import { paintedTextOf } from "./support/painted-text";
 import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
@@ -44,6 +46,13 @@ const STRIP_BAND_AT_BASE_COMMIT_PX = 76;
  *  measured against what was actually on screen rather than against a number from an older one. */
 const BAND_HEIGHT_BEFORE_THIS_WAVE_PX = 48;
 const CANVAS_BEFORE_THIS_WAVE_PX = 628;
+
+/** §10.1's touch target, which the visitor's link keeps as a glyph (`--touch-target` in `globals.css`). */
+const TOUCH_TARGET_PX = 44;
+
+/** What "the title is not squeezed to nothing" means in a box: an initial and the ellipsis, about 24 px at the title's
+ *  `700 15px`. A zero-width box satisfies "clipped" trivially, so the truncation case asserts this first. */
+const TITLE_FLOOR_PX = 24;
 
 /** Sub-pixel layout rounding: a box whose right edge lands at 390.0001 has not left the screen. */
 const SUB_PIXEL_SLACK = 0.5;
@@ -123,10 +132,39 @@ test.describe("the band the refreshed frame draws", () => {
     expect(band.emptySpans).toBe(0);
   });
 
+  // The visitor's link is its glyph on this shell, so the 390 px row keeps room for the title, which frame 2A draws
+  // at `flex: 1; min-width: 0` (ADR 0104 decision 9).
+  test("draws its title: the box is not squeezed to nothing by the account control", async ({
+    page,
+  }) => {
+    await expect(page.getByTestId("top-bar-account-sign-in")).toBeVisible();
+
+    await expect(page.getByTestId("top-bar-title")).toBeVisible();
+    const title = await page.getByTestId("top-bar-title").boundingBox();
+    expect(title?.width ?? 0).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
+  });
+
+  test("draws the visitor's link as a glyph in a 44 px target, named by its words", async ({
+    page,
+  }) => {
+    const link = page.getByTestId("top-bar-account-sign-in");
+
+    await expect(link).toHaveAccessibleName(roAccountControl.signIn);
+    const box = await link.boundingBox();
+    expect(box?.width ?? 0).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
+    // The words are in the markup for the desktop shell and are not painted here: `innerText` leaves out what the
+    // stylesheet hides.
+    expect(await paintedTextOf(link)).toBe("");
+  });
+
   test("truncates a title three times the shipped one instead of wrapping or evicting the chip", async ({
     page,
   }) => {
     const before = await measureScreen(page);
+    // Without a box to truncate into, `scrollWidth - clientWidth` is positive for any text at all.
+    const titleBefore = await page.getByTestId("top-bar-title").boundingBox();
+    expect(titleBefore?.width ?? 0).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
 
     const measured = await page.evaluate((title) => {
       const element = document.querySelector('[data-testid="top-bar-title"]');
@@ -147,6 +185,7 @@ test.describe("the band the refreshed frame draws", () => {
         titleHeight: element.getBoundingClientRect().height,
         // The truncation itself: the text is wider than the box that shows it.
         clipped: element.scrollWidth - element.clientWidth,
+        titleWidth: element.getBoundingClientRect().width,
         chipRight: chip.getBoundingClientRect().right,
         // The pill is in this row too since ADR 0104 decision 2, and a title that grew the row would
         // push it out before it reached the locale chip.
@@ -158,6 +197,7 @@ test.describe("the band the refreshed frame draws", () => {
       };
     }, OVERLONG_TITLE);
 
+    expect(measured.titleWidth).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
     expect(measured.clipped).toBeGreaterThan(0);
     expect(measured.titleHeight).toBeLessThanOrEqual(20);
     expect(measured.headerHeight).toBeCloseTo(before.header, 0);

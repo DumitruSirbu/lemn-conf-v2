@@ -7,6 +7,7 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
 import type { TestContext } from "vitest";
 
+import { exportedKitchenNotesStatement } from "../src/account-kitchen-notes-statement.js";
 import {
   insertUnlessHeldStatement,
   selectPublishedNearStatement,
@@ -15,6 +16,11 @@ import { requireValidPresetToRecord } from "../src/preset-validation.js";
 import type { StatementTag } from "../src/preset-statements.js";
 import type { PresetToRecord } from "../src/preset-repository.js";
 import { readDatabaseUrl } from "../src/read-database-url.js";
+import {
+  staffKitchenListStatement,
+  staffKitchenNotesStatement,
+  staffKitchenStatement,
+} from "../src/staff-kitchen-statements.js";
 import { columnsHolding, columnsOf } from "./support/column-privileges.js";
 import {
   READABLE_COLUMNS,
@@ -356,6 +362,107 @@ function explainOfTheStoresStatement(): Promise<unknown> {
     `explain ${withNumberedPlaceholders(RECORD_REPORT_STATEMENT_TEXT)}`,
     values,
   );
+}
+
+/**
+ * What the application role is granted on one of the staff tables of migrations `0020` to `0022` (M8B Lot 3 wave L3-S1),
+ * written out here and not read from a migration or a repository, so a column added to a table or to a grant is
+ * unnoticed until someone names it. The lists are sorted in the test, because the catalog's order depends on the
+ * collation.
+ */
+interface StaffTableGrant {
+  readonly table: string;
+  /** Every column the table has. */
+  readonly columns: readonly string[];
+  /** The columns of the `INSERT` grant. */
+  readonly insertable: readonly string[];
+  /** The columns of the `UPDATE` grant. */
+  readonly updatable: readonly string[];
+  /** A column left out of the `INSERT` grant on purpose, so that a leaked credential cannot stamp it. */
+  readonly notInsertable: string;
+  /** A column left out of the `UPDATE` grant. */
+  readonly notUpdatable: string;
+  /** The tail of an insert of the shape the store will send, naming only granted columns. */
+  readonly insertTail: string;
+}
+
+const A_PROBE_ID = "0".repeat(21);
+
+const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
+  {
+    table: "public.staff_audit_events",
+    columns: [
+      "id",
+      "occurred_at",
+      "actor_account_id",
+      "action",
+      "design_id",
+      "subject_account_id",
+      "detail",
+    ],
+    insertable: [
+      "id",
+      "actor_account_id",
+      "action",
+      "design_id",
+      "subject_account_id",
+      "detail",
+    ],
+    updatable: [],
+    notInsertable: "occurred_at",
+    notUpdatable: "action",
+    insertTail: `(id, actor_account_id, action) values ('${A_PROBE_ID}', '${A_PROBE_ID}', 'kitchen-opened')`,
+  },
+  {
+    table: "public.design_notes",
+    columns: ["id", "design_id", "author_account_id", "body", "created_at"],
+    insertable: ["id", "design_id", "author_account_id", "body"],
+    updatable: [],
+    notInsertable: "created_at",
+    notUpdatable: "body",
+    insertTail: `(id, design_id, author_account_id, body) values ('${A_PROBE_ID}', '${A_PROBE_ID}', '${A_PROBE_ID}', 'a probe')`,
+  },
+  {
+    table: "public.design_request_states",
+    columns: ["design_id", "status", "changed_by_account_id", "changed_at"],
+    insertable: ["design_id", "status", "changed_by_account_id"],
+    updatable: ["status", "changed_by_account_id", "changed_at"],
+    notInsertable: "changed_at",
+    notUpdatable: "design_id",
+    insertTail:
+      `(design_id, status, changed_by_account_id) values ('${A_PROBE_ID}', 'new', '${A_PROBE_ID}') ` +
+      "on conflict (design_id) do update set status = excluded.status, " +
+      "changed_by_account_id = excluded.changed_by_account_id, changed_at = now()",
+  },
+];
+
+/** The tables the staff kitchen reader's statements read. */
+const STAFF_READER_TABLES = [
+  "public.designs",
+  "public.accounts",
+  "public.contact_submissions",
+  "public.contact_submission_views",
+  "public.design_request_states",
+  "public.design_notes",
+];
+
+/** Skips, with the reason the Lot 3 plan (section 2.3) names, until the owner has applied the table's migration: never a
+ *  failure, never a pass. */
+async function skipUnlessTheTableExists(
+  context: TestContext,
+  tableName: string,
+): Promise<void> {
+  const [probe] = (await neon(readDatabaseUrl())`
+    select to_regclass(${tableName}::text) is not null as exists
+  `) as { exists: boolean }[];
+  context.skip(
+    probe?.exists !== true,
+    `${tableName} does not exist yet on this database`,
+  );
+}
+
+function sorted(columns: readonly string[]): string[] {
+  return [...columns].sort();
 }
 
 describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
@@ -868,6 +975,130 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
           ),
         ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
       }
+    },
+  );
+
+  // M8B Lot 3 wave L3-S1: the runbook's grant proof for migrations `0020` to `0022`. The tables come from the
+  // migrations; the grants are the owner's, so these skip with the reason until the tables exist. With a table present
+  // and nothing granted, `SELECT` is not held and the first arm is red, which is the runbook's step 3; with exactly the
+  // prescribed grants it is green. Asked of the catalog, `PUBLIC` and inherited roles included. Nothing is inserted,
+  // updated or deleted: the second arm sends `explain`, which plans a statement and never runs it, and a refusal with
+  // 42501 shows `explain` checks privileges at all.
+  describe.each(STAFF_TABLE_GRANTS)("the staff table $table", (grant) => {
+    guardedTest(
+      "effectively holds select, insert and update on exactly its named columns, nothing through PUBLIC and no grant option, once it exists",
+      async (context) => {
+        await skipUnlessTheTableExists(context, grant.table);
+        const sql = neon(readDatabaseUrl());
+
+        const known = await tablePrivilegesTheServerKnows(sql);
+        expect(known).toEqual(
+          expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+        );
+        expect(await privilegesHeldOn(sql, grant.table, known)).toEqual([
+          "SELECT",
+        ]);
+        const columns = await columnsOf(sql, grant.table);
+        expect(sorted(columns)).toEqual(sorted(grant.columns));
+        expect(await columnsHolding(sql, grant.table, "SELECT")).toEqual(
+          columns,
+        );
+        expect(
+          sorted(await columnsHolding(sql, grant.table, "INSERT")),
+        ).toEqual(sorted(grant.insertable));
+        expect(
+          sorted(await columnsHolding(sql, grant.table, "UPDATE")),
+        ).toEqual(sorted(grant.updatable));
+        expect(await columnsHolding(sql, grant.table, "REFERENCES")).toEqual(
+          [],
+        );
+        await expectNothingHeldWithGrantOption(sql, grant.table, known);
+        expect(await grantsToPublicOn(sql, grant.table)).toBe(0);
+      },
+    );
+
+    guardedTest(
+      "can have the store's insert planned, and cannot have a delete, an insert naming the stamped column or an update of an ungranted column planned, once it exists",
+      async (context) => {
+        await skipUnlessTheTableExists(context, grant.table);
+        const sql = neon(readDatabaseUrl());
+
+        await expect(
+          sql.query(`explain insert into ${grant.table} ${grant.insertTail}`),
+        ).resolves.toBeDefined();
+
+        expect(
+          await failureOf(`explain delete from ${grant.table}`),
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        expect(
+          await failureOf(
+            `explain insert into ${grant.table} (${grant.notInsertable}) values (now())`,
+          ),
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        expect(
+          await failureOf(
+            `explain update ${grant.table} set ${grant.notUpdatable} = ${grant.notUpdatable}`,
+          ),
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+      },
+    );
+  });
+
+  // The client's data export reads the notes on its own kitchens in one statement, the store's own text built by the
+  // same function, planned and never run. It reads `design_notes` and `designs` and selects no author column, so a
+  // missing `design_notes` `SELECT` grant is a 42501 here and not at the first export. Red until the owner has issued
+  // the `0021` grants.
+  guardedTest(
+    "can have the export's notes statement planned, once the notes table exists",
+    async (context) => {
+      await skipUnlessTheTableExists(context, "public.design_notes");
+
+      await expect(
+        explainOfThePresetStatement(
+          exportedKitchenNotesStatement(recordedStatement, {
+            accountId: "0".repeat(21),
+            kitchenIds: ["0".repeat(21), "k".repeat(21)],
+          }),
+        ),
+      ).resolves.toBeDefined();
+    },
+  );
+
+  // The staff kitchen reader's three statements, the reader's own text built by the same functions, planned and never
+  // run. They read six tables, three of them through column grants, so a column the reader names that the role was not
+  // granted is a 42501 here and not at the first staff request. Red until the owner has issued the `0021` and `0022`
+  // grants, which is the runbook step that proves them. The control shows `explain` is what checks the columns: a column
+  // of a request the role may not select is refused.
+  guardedTest(
+    "can have the staff kitchen reader's list, kitchen and notes statements planned, and cannot have a personal column of a request planned, once the tables exist",
+    async (context) => {
+      for (const table of STAFF_READER_TABLES) {
+        await skipUnlessTheTableExists(context, table);
+      }
+
+      for (const statement of [
+        staffKitchenListStatement(recordedStatement, {
+          segment: "all",
+          status: null,
+          search: "ana",
+          page: 1,
+        }),
+        staffKitchenListStatement(recordedStatement, {
+          segment: "sent",
+          status: "new",
+          search: null,
+          page: 2,
+        }),
+        staffKitchenStatement(recordedStatement, "0".repeat(21)),
+        staffKitchenNotesStatement(recordedStatement, "0".repeat(21)),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
+      expect(
+        await failureOf(`explain select name from ${CONTACT_SUBMISSIONS}`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
     },
   );
 });

@@ -1,4 +1,4 @@
-// Sweeps ADR 0104's give C at all three hardware tiers the book offers and from a previous count, which
+// Sweeps ADR 0104's give C, and the visitor's link beside it, at all three hardware tiers the book offers and from a previous count, which
 // `top-bar-fit.test.ts` (one label set, no previous count) does not.
 // Widths are measured in Chromium at the pill's declared typography (`400 12.5px/1 Helvetica, Arial, sans-serif`); the
 // four seeded figures reproduce `top-bar-fit.test.ts`'s, so the two added tiers are comparable.
@@ -6,36 +6,24 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
-  D2A_SPACING,
-  describeTopBarFit,
   FRAME_2A_SPACING,
+  type AccountControlWidths,
   type TopBarConfiguration,
 } from "@/app/configurator/configure/top-bar-fit";
 import {
   chooseVisibleSettingLabels,
   widthNeededForVisibleLabels,
-  type SettingsPillFixedWidths,
 } from "@/settings/settings-pill-fit";
 
-/** Frame D2A's pill as this application draws it — the declarations `top-bar-fit.test.ts` reads. */
-const DESKTOP_PILL: SettingsPillFixedWidths = {
-  framePx: 30,
-  swatchPx: 16,
-  separatorPx: 1,
-  counterPx: 14.27,
-  caretPx: 7.03,
-  gapPx: 10,
-};
-
-const WORDMARK_PX = 105.56;
-
-/** The row's fixed contents in each configuration the two gives produce — `top-bar-fit.test.ts`'s
- *  own measurement, reused so the two files cannot disagree about the row they describe. */
-const DEMAND_PX = {
-  asDrawn: 918.55,
-  gapsClosed: 813.55,
-  gapsClosedWithoutWordmark: 813.55 - (WORDMARK_PX + FRAME_2A_SPACING.navGapPx),
-};
+import {
+  D2A_AS_DRAWN,
+  DESKTOP_PILL,
+  fitAtViewport,
+  RUSSIAN_VISITOR_LINK_WIDTHS_PX,
+  SIGNED_IN_WIDTHS_PX,
+  VISITOR_LINK_WIDTHS_PX,
+  WORDMARK_PX,
+} from "../../../support/top-bar-measured-row";
 
 /** `PAL melaminat`, `Alb` and `Adâncime 600` — the seeded design's other three labels. */
 const MATERIAL_PX = 83.39;
@@ -49,28 +37,14 @@ const HARDWARE_PX = {
   Blum: 85.453125,
 } as const;
 
-const D2A_AS_DRAWN: TopBarConfiguration = {
-  isWordmarkDrawn: true,
-  isSpacingClosed: false,
-};
-
 /** How many observations the row may take to settle; `describeTopBarFit` is a fixed point, so it converges in one. */
 const OBSERVATIONS_ALLOWED = 8;
-
-function demandOf(configuration: TopBarConfiguration): number {
-  if (!configuration.isSpacingClosed) {
-    return configuration.isWordmarkDrawn
-      ? DEMAND_PX.asDrawn
-      : DEMAND_PX.asDrawn - (WORDMARK_PX + D2A_SPACING.navGapPx);
-  }
-  return configuration.isWordmarkDrawn
-    ? DEMAND_PX.gapsClosed
-    : DEMAND_PX.gapsClosedWithoutWordmark;
-}
 
 interface SettledRow {
   readonly visibleCount: number;
   readonly isWordmarkDrawn: boolean;
+  readonly isAccountCompact: boolean;
+  readonly isTitleDropped: boolean;
 }
 
 /**
@@ -82,6 +56,7 @@ function settleAt(
   labelWidthsPx: readonly number[],
   viewportPx: number,
   startingVisibleCount: number,
+  accountWidthsPx: AccountControlWidths = VISITOR_LINK_WIDTHS_PX,
 ): SettledRow {
   let configuration = D2A_AS_DRAWN;
   let visibleCount = startingVisibleCount;
@@ -90,12 +65,11 @@ function settleAt(
     observation < OBSERVATIONS_ALLOWED;
     observation += 1
   ) {
-    const fit = describeTopBarFit({
-      pillTrackPx: viewportPx - demandOf(configuration),
-      wordmarkWidthPx: WORDMARK_PX,
+    const fit = fitAtViewport({
+      viewportPx,
       measuredIn: configuration,
       labelWidthsPx,
-      fixedWidthsPx: DESKTOP_PILL,
+      accountWidthsPx,
     });
     const chosen = chooseVisibleSettingLabels({
       availableWidthPx: fit.pillTrackPx,
@@ -106,15 +80,24 @@ function settleAt(
     const isSettled =
       fit.isWordmarkDrawn === configuration.isWordmarkDrawn &&
       fit.isSpacingClosed === configuration.isSpacingClosed &&
+      fit.isAccountCompact === configuration.isAccountCompact &&
+      fit.isTitleDropped === configuration.isTitleDropped &&
       chosen.visibleCount === visibleCount;
     configuration = {
       isWordmarkDrawn: fit.isWordmarkDrawn,
       isSpacingClosed: fit.isSpacingClosed,
+      isAccountCompact: fit.isAccountCompact,
+      isTitleDropped: fit.isTitleDropped,
     };
     visibleCount = chosen.visibleCount;
     if (isSettled) break;
   }
-  return { visibleCount, isWordmarkDrawn: configuration.isWordmarkDrawn };
+  return {
+    visibleCount,
+    isWordmarkDrawn: configuration.isWordmarkDrawn,
+    isAccountCompact: configuration.isAccountCompact,
+    isTitleDropped: configuration.isTitleDropped,
+  };
 }
 
 /** A page opened at a width, with nothing behind it — the hook starts at every setting named and
@@ -122,8 +105,14 @@ function settleAt(
 function onFirstPaintAt(
   labelWidthsPx: readonly number[],
   viewportPx: number,
+  accountWidthsPx: AccountControlWidths = VISITOR_LINK_WIDTHS_PX,
 ): SettledRow {
-  return settleAt(labelWidthsPx, viewportPx, labelWidthsPx.length);
+  return settleAt(
+    labelWidthsPx,
+    viewportPx,
+    labelWidthsPx.length,
+    accountWidthsPx,
+  );
 }
 
 /** The settled row **and the track it settled on**, which `SettledRow` does not carry. Only the
@@ -135,20 +124,18 @@ function settledFitAt(
   const settled = onFirstPaintAt(labelWidthsPx, viewportPx);
   const configuration: TopBarConfiguration = {
     isWordmarkDrawn: settled.isWordmarkDrawn,
-    isSpacingClosed: describeTopBarFit({
-      pillTrackPx: viewportPx - demandOf(D2A_AS_DRAWN),
-      wordmarkWidthPx: WORDMARK_PX,
+    isSpacingClosed: fitAtViewport({
+      viewportPx,
       measuredIn: D2A_AS_DRAWN,
       labelWidthsPx,
-      fixedWidthsPx: DESKTOP_PILL,
     }).isSpacingClosed,
+    isAccountCompact: settled.isAccountCompact,
+    isTitleDropped: settled.isTitleDropped,
   };
-  const fit = describeTopBarFit({
-    pillTrackPx: viewportPx - demandOf(configuration),
-    wordmarkWidthPx: WORDMARK_PX,
+  const fit = fitAtViewport({
+    viewportPx,
     measuredIn: configuration,
     labelWidthsPx,
-    fixedWidthsPx: DESKTOP_PILL,
   });
   return { ...settled, pillTrackPx: fit.pillTrackPx };
 }
@@ -160,6 +147,7 @@ const WIDEST_SWEPT_PX = 1500;
  *  wordmark's arrival named so a failure says its own cause. */
 function widthsWhereAWiderPageNamesFewer(
   labelWidthsPx: readonly number[],
+  accountWidthsPx: AccountControlWidths = VISITOR_LINK_WIDTHS_PX,
 ): readonly string[] {
   const lost: string[] = [];
   for (
@@ -167,14 +155,20 @@ function widthsWhereAWiderPageNamesFewer(
     viewportPx < WIDEST_SWEPT_PX;
     viewportPx += 1
   ) {
-    const narrower = onFirstPaintAt(labelWidthsPx, viewportPx);
-    const wider = onFirstPaintAt(labelWidthsPx, viewportPx + 1);
+    const narrower = onFirstPaintAt(labelWidthsPx, viewportPx, accountWidthsPx);
+    const wider = onFirstPaintAt(
+      labelWidthsPx,
+      viewportPx + 1,
+      accountWidthsPx,
+    );
     if (wider.visibleCount >= narrower.visibleCount) continue;
     lost.push(
       `${String(viewportPx)} -> ${String(viewportPx + 1)} px: ` +
         `${String(narrower.visibleCount)} names -> ${String(wider.visibleCount)}, ` +
         `wordmark ${narrower.isWordmarkDrawn ? "kept" : "absent"} -> ` +
-        (wider.isWordmarkDrawn ? "drawn" : "absent"),
+        `${wider.isWordmarkDrawn ? "drawn" : "absent"}, ` +
+        `link ${narrower.isAccountCompact ? "glyph" : "words"} -> ` +
+        (wider.isAccountCompact ? "glyph" : "words"),
     );
   }
   return lost;
@@ -202,7 +196,9 @@ function widthsWhereWideningTakesAName(
       `${String(viewportPx)} -> ${String(viewportPx + 1)} px: ` +
         `${String(settled.visibleCount)} names -> ${String(widened.visibleCount)}, ` +
         `wordmark ${settled.isWordmarkDrawn ? "kept" : "absent"} -> ` +
-        (widened.isWordmarkDrawn ? "drawn" : "absent"),
+        `${widened.isWordmarkDrawn ? "drawn" : "absent"}, ` +
+        `link ${settled.isAccountCompact ? "glyph" : "words"} -> ` +
+        (widened.isAccountCompact ? "glyph" : "words"),
     );
   }
   return lost;
@@ -369,5 +365,134 @@ describe("what the boundary depends on, stated as the quantity rather than as a 
     expect(costly).toEqual([]);
     // Non-vacuity: the wordmark is drawn somewhere in the sweep; a give C that never drew it would pass vacuously.
     expect(widthsWithTheWordmark).toBeGreaterThan(0);
+  });
+});
+
+describe("the visitor's link beside the wordmark — the order the gives come back in", () => {
+  const everyPill = [
+    ...Object.values(HARDWARE_PX).map((px) => labelsWithHardware(px)),
+    [MATERIAL_PX, HARDWARE_PX.Standard, DEPTH_PX],
+  ];
+  const NARROWEST_SWEPT_PX = 700;
+  const WIDEST_SWEPT_LINK_PX = 1700;
+
+  /** The wordmark stays out wherever the row without it, and without the link's words, would name another setting. */
+  it("does not keep the wordmark where the row without it and without the link's words names more", () => {
+    const labels = labelsWithHardware(HARDWARE_PX.Standard);
+    const dearer: string[] = [];
+    for (
+      let viewportPx = NARROWEST_SWEPT_PX;
+      viewportPx <= WIDEST_SWEPT_LINK_PX;
+      viewportPx += 1
+    ) {
+      const settled = settledFitAt(labels, viewportPx);
+      const everythingSpentPx =
+        settled.pillTrackPx +
+        (settled.isWordmarkDrawn
+          ? WORDMARK_PX + FRAME_2A_SPACING.navGapPx
+          : 0) +
+        (settled.isAccountCompact
+          ? 0
+          : VISITOR_LINK_WIDTHS_PX.textPx - VISITOR_LINK_WIDTHS_PX.iconPx);
+      const bestCount = [1, 2, 3, 4].filter(
+        (names) =>
+          widthNeededForVisibleLabels(names, labels, DESKTOP_PILL) <=
+          everythingSpentPx,
+      ).length;
+      if (settled.visibleCount < Math.max(1, bestCount))
+        dearer.push(
+          `${String(viewportPx)} px: ${String(settled.visibleCount)} names where ${String(bestCount)} fit`,
+        );
+    }
+
+    expect(dearer).toEqual([]);
+  });
+
+  it("changes the link's form once as the window widens, on every pill the application can draw", () => {
+    const flipsByPill = everyPill.map((labels) => {
+      const flips: number[] = [];
+      let previous: boolean | undefined;
+      for (
+        let viewportPx = NARROWEST_SWEPT_PX;
+        viewportPx <= WIDEST_SWEPT_LINK_PX;
+        viewportPx += 1
+      ) {
+        const { isAccountCompact } = onFirstPaintAt(labels, viewportPx);
+        if (previous !== undefined && isAccountCompact !== previous)
+          flips.push(viewportPx);
+        previous = isAccountCompact;
+      }
+      return flips.length;
+    });
+
+    expect(flipsByPill).toEqual(everyPill.map(() => 1));
+  });
+
+  it.each([
+    ["the Romanian visitor's link", VISITOR_LINK_WIDTHS_PX],
+    ["the Russian visitor's link", RUSSIAN_VISITOR_LINK_WIDTHS_PX],
+    ["a signed-in control, which has no words to give", SIGNED_IN_WIDTHS_PX],
+  ] as const)(
+    "never names fewer settings at a wider window, with %s",
+    (_name, accountWidthsPx) => {
+      for (const labels of everyPill) {
+        expect(countsReachedAcrossTheSweep(labels).length).toBeGreaterThan(1);
+        expect(
+          widthsWhereAWiderPageNamesFewer(labels, accountWidthsPx),
+        ).toEqual([]);
+      }
+    },
+  );
+
+  propertyTest.prop([fc.double({ min: 45, max: 220, noNaN: true })])(
+    "names no fewer settings at a wider window, whatever the link's words measure",
+    (textPx) => {
+      expect(
+        widthsWhereAWiderPageNamesFewer(
+          labelsWithHardware(HARDWARE_PX.Standard),
+          { textPx, iconPx: VISITOR_LINK_WIDTHS_PX.iconPx },
+        ),
+      ).toEqual([]);
+    },
+  );
+
+  /** Symmetric to the wordmark's: the words stay only where the glyph's room would not have named one more setting. */
+  it("never draws the link's words at a width where the glyph would have named another setting", () => {
+    const costly: string[] = [];
+    let widthsWithTheWords = 0;
+    let widthsWithTheGlyph = 0;
+    for (const labels of everyPill) {
+      for (
+        let viewportPx = NARROWEST_SWEPT_PX;
+        viewportPx <= WIDEST_SWEPT_LINK_PX;
+        viewportPx += 1
+      ) {
+        const settled = settledFitAt(labels, viewportPx);
+        if (settled.isAccountCompact) {
+          widthsWithTheGlyph += 1;
+          continue;
+        }
+        widthsWithTheWords += 1;
+
+        const oneMore = settled.visibleCount + 1;
+        const trackWithTheGlyphPx =
+          settled.pillTrackPx +
+          VISITOR_LINK_WIDTHS_PX.textPx -
+          VISITOR_LINK_WIDTHS_PX.iconPx;
+        if (
+          oneMore <= labels.length &&
+          widthNeededForVisibleLabels(oneMore, labels, DESKTOP_PILL) <=
+            trackWithTheGlyphPx
+        )
+          costly.push(
+            `${String(viewportPx)} px: names ${String(settled.visibleCount)} with the words where ${String(oneMore)} would fit with the glyph`,
+          );
+      }
+    }
+
+    expect(costly).toEqual([]);
+    // A floor per arm: a sweep that only reached one of the two forms certifies nothing about the other.
+    expect(widthsWithTheWords).toBeGreaterThan(500);
+    expect(widthsWithTheGlyph).toBeGreaterThan(100);
   });
 });

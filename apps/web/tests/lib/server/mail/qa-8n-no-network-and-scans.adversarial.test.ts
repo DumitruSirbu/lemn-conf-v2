@@ -98,6 +98,13 @@ const CODE_ROOTS = [
   join(REPOSITORY_ROOT, "packages"),
 ];
 
+// Not preceded by a name character: the account's own `ACCOUNT_LOGIN_RESEND_…` limit names are not the provider's.
+const PROVIDER_VARIABLE_NAMES = /(?<![A-Z0-9_])RESEND_|MAIL_FROM_ADDRESS/;
+const PROVIDER_MODULE_HOST_OR_HEADER =
+  /resend-mail-sender|createResendMailSender|api\.resend\.com|Idempotency-Key/i;
+const PROVIDER_PROPER_NAME = /\bResend\b/;
+const BARE_WORD_RESEND = /\bresend\b/i;
+
 describe("what the tree names", () => {
   it("is scanned: the walk finds this file and the adapter, and skips an env file by name", () => {
     const files = CODE_ROOTS.flatMap(filesUnder).map((path) =>
@@ -134,32 +141,43 @@ describe("what the tree names", () => {
   });
 
   it("leaves the previous provider's variable names under apps/web/src only in the retired list", () => {
-    const providerNames = /RESEND_|MAIL_FROM_ADDRESS/;
-
-    expect(sourceFilesMatching(providerNames)).toEqual([
+    expect(sourceFilesMatching(PROVIDER_VARIABLE_NAMES)).toEqual([
       "lib/server/mail/mail-configuration.ts",
     ]);
   });
 
-  it("leaves no other trace of the previous provider under apps/web/src: no word, host, module or header", () => {
-    const providerTrace =
-      /\bresend\b|resend-mail-sender|createResendMailSender|api\.resend\.com|Idempotency-Key/i;
+  it("leaves no other trace of the previous provider under apps/web/src: no name, host, module or header", () => {
+    expect(sourceFilesMatching(PROVIDER_MODULE_HOST_OR_HEADER)).toEqual([]);
+    expect(sourceFilesMatching(PROVIDER_PROPER_NAME)).toEqual([]);
+  });
 
-    expect(sourceFilesMatching(providerTrace)).toEqual([]);
+  it("leaves not even the bare word in a mail file; the account's own resend of a confirmation is not a mail file", () => {
+    const mailFiles = sourceFilesMatching(BARE_WORD_RESEND).filter((path) =>
+      path.startsWith("lib/server/mail/"),
+    );
+
+    expect(mailFiles).toEqual([]);
   });
 
   it("recognises what it looks for: each needle matches a sample of itself", () => {
-    expect(/RESEND_|MAIL_FROM_ADDRESS/.test("process.env.RESEND_API_KEY")).toBe(
+    expect(PROVIDER_VARIABLE_NAMES.test("process.env.RESEND_API_KEY")).toBe(
       true,
     );
-    expect(/\bresend\b/i.test("the Resend adapter")).toBe(true);
-    expect(/\bresend\b/i.test("canPressResendUnansweredSend")).toBe(false);
+    expect(PROVIDER_VARIABLE_NAMES.test("RESEND_FROM")).toBe(true);
+    expect(PROVIDER_VARIABLE_NAMES.test("MAIL_FROM_ADDRESS")).toBe(true);
+    expect(
+      PROVIDER_VARIABLE_NAMES.test("ACCOUNT_LOGIN_RESEND_BY_ADDRESS"),
+    ).toBe(false);
+    expect(PROVIDER_PROPER_NAME.test("the Resend adapter")).toBe(true);
+    expect(PROVIDER_PROPER_NAME.test("scheduleConfirmationResend")).toBe(false);
+    expect(BARE_WORD_RESEND.test("the resend adapter")).toBe(true);
+    expect(BARE_WORD_RESEND.test("canPressResendUnansweredSend")).toBe(false);
   });
 });
 
 describe("every test file in the whole tree that can build a mail transport", () => {
   const BUILDS_A_TRANSPORT =
-    /(?:from|import\(|require\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/(?:gmail-mail-sender|create-mail-sender)|(?:\.{1,2}\/)+[\w./-]*(?:gmail-mail-sender|create-mail-sender))["']/;
+    /(?:from|import\(|require\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/(?:gmail-mail-sender|smtp-mail-sender|smtp-transport|create-mail-sender|create-customer-mail-sender)|(?:\.{1,2}\/)+[\w./-]*(?:gmail-mail-sender|smtp-mail-sender|smtp-transport|create-mail-sender|create-customer-mail-sender))["']/;
   const GUARDS_THE_NETWORK = (source: string) =>
     /\bforbidNetwork\(/.test(source) && /\breleaseNetwork\b/.test(source);
 

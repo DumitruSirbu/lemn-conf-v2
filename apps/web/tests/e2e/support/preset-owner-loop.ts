@@ -18,6 +18,7 @@ import { expect, type Page, type Route } from "@playwright/test";
 
 import { ro } from "../../support/romanian-content.e2e";
 import { chooseAnotherMaterialAndSave } from "./design-return";
+import { expectEditorTopBarShown } from "./editor-top-bar";
 
 const ROOM = "/ro/configurator/room";
 const SAVE_WALL_A_MM = 3700;
@@ -137,7 +138,7 @@ async function generateKitchenIn(page: Page, roomUrl: string): Promise<string> {
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1D");
   await page.getByTestId("room-continue").click();
   await page.waitForURL(DESIGN_URL);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   return designIdOf(page);
 }
 
@@ -204,7 +205,7 @@ async function chooseThePresetIn(
 
   await page.getByTestId("preset-carousel-select").click();
   await page.waitForURL(DESIGN_URL);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   return designIdOf(page);
 }
 

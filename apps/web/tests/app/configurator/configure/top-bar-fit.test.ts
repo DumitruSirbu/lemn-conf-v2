@@ -8,84 +8,50 @@ import {
   D2A_SPACING,
   describeTopBarFit,
   FRAME_2A_SPACING,
+  type AccountControlWidths,
   type TopBarConfiguration,
 } from "@/app/configurator/configure/top-bar-fit";
 import {
   chooseVisibleSettingLabels,
   widthNeededForVisibleLabels,
-  type SettingsPillFixedWidths,
 } from "@/settings/settings-pill-fit";
 
-/** Frame D2A's pill, measured in the application — the same declarations
- *  `settings-pill-fit.test.ts` reads, and for the same reason. */
-const DESKTOP_PILL: SettingsPillFixedWidths = {
-  framePx: 30,
-  swatchPx: 16,
-  separatorPx: 1,
-  counterPx: 14.27,
-  caretPx: 7.03,
-  gapPx: 10,
-};
-
-/** `PAL melaminat │ Alb │ Feronerie Standard │ Adâncime 600`, measured; the colour carries no category word. */
-const SEEDED_LABELS = [83.39, 18.08, 107.7, 79.92];
-
-/** `Lemnaria` at `700 15px/1` with `letter-spacing: .22em`, measured: 105.56. */
-const WORDMARK_PX = 105.56;
-
-/**
- * What the row's fixed contents cost, leaving the rest of the viewport to the pill's track: `viewport − the settings
- * track`, measured at a width where each configuration is on screen (1440 as drawn, 1000 gaps closed, 900 wordmark
- * gone). The price column carries frame D2A's inline "de la 101 000 MDL". The differences between configurations
- * match the frames' own gaps exactly.
- */
-const DEMAND_PX = {
-  /** Frame D2A as drawn: gaps `28`/`14`, the wordmark in the row. */
-  asDrawn: 918.55,
-  /** Give B spent: gaps closed to frame 2A's `9`/`6`. */
-  gapsClosed: 813.55,
-  /** Gives B and C spent: the wordmark gone as well, derived from the line above so the two agree to the last bit;
-   *  the browser measured 698.98. */
-  gapsClosedWithoutWordmark: 813.55 - (WORDMARK_PX + FRAME_2A_SPACING.navGapPx),
-};
-
-/** What the browser reported for the third configuration, held beside the derivation above so the
- *  derivation cannot drift away from the row it describes. */
-const MEASURED_WITHOUT_WORDMARK_PX = 698.98;
-
-function demandOf(configuration: TopBarConfiguration): number {
-  if (!configuration.isSpacingClosed) {
-    return configuration.isWordmarkDrawn
-      ? DEMAND_PX.asDrawn
-      : DEMAND_PX.asDrawn - (WORDMARK_PX + D2A_SPACING.navGapPx);
-  }
-  return configuration.isWordmarkDrawn
-    ? DEMAND_PX.gapsClosed
-    : DEMAND_PX.gapsClosedWithoutWordmark;
-}
+import {
+  D2A_AS_DRAWN,
+  DEMAND_PX,
+  demandOf,
+  DESKTOP_PILL,
+  EVERY_CONFIGURATION,
+  fitAtViewport,
+  MEASURED_TITLE_RETURNED_PX,
+  MEASURED_WITHOUT_WORDMARK_COMPACT_PX,
+  MEASURED_WITHOUT_WORDMARK_PX,
+  RUSSIAN_VISITOR_LINK_WIDTHS_PX,
+  SEEDED_LABELS,
+  SIGNED_IN_WIDTHS_PX,
+  TITLE_PX,
+  VISITOR_LINK_WIDTHS_PX,
+  WORDMARK_PX,
+} from "../../../support/top-bar-measured-row";
 
 /** The row as it stands at a viewport, in the configuration it is currently drawn in. */
 function fitAt(
   viewportPx: number,
   measuredIn: TopBarConfiguration,
+  accountWidthsPx: AccountControlWidths = VISITOR_LINK_WIDTHS_PX,
 ): ReturnType<typeof describeTopBarFit> {
-  return describeTopBarFit({
-    pillTrackPx: viewportPx - demandOf(measuredIn),
-    wordmarkWidthPx: WORDMARK_PX,
+  return fitAtViewport({
+    viewportPx,
     measuredIn,
     labelWidthsPx: SEEDED_LABELS,
-    fixedWidthsPx: DESKTOP_PILL,
+    accountWidthsPx,
   });
 }
 
-/** What closing the gaps returns to the pill, written out from the two frames: three nav gaps going 28 → 9 and six
- *  row gaps going 14 → 6, `3 × 19 + 6 × 8`. A literal, so the model's own composition is not what it is checked against. */
-const GAPS_RETURNED_TO_THE_PILL_PX = 105;
-
-const D2A_AS_DRAWN: TopBarConfiguration = {
-  isWordmarkDrawn: true,
-  isSpacingClosed: false,
-};
+/** What closing the gaps returns to the pill, written out from the two frames: three nav gaps going 28 → 9 and eight
+ *  row gaps going 14 → 6 (four dividers, a gap on each side), `3 × 19 + 8 × 8`. The eight is read off the stylesheet by
+ *  `top-bar-box.test.ts`. A literal, so the model's own composition is not what it is checked against. */
+const GAPS_RETURNED_TO_THE_PILL_PX = 121;
 
 /** The pill's own rungs, derived rather than pinned. */
 const atEveryLabel = widthNeededForVisibleLabels(
@@ -93,6 +59,7 @@ const atEveryLabel = widthNeededForVisibleLabels(
   SEEDED_LABELS,
   DESKTOP_PILL,
 );
+const atOneName = widthNeededForVisibleLabels(1, SEEDED_LABELS, DESKTOP_PILL);
 const atTwoWholeLabels = widthNeededForVisibleLabels(
   2,
   SEEDED_LABELS,
@@ -107,7 +74,9 @@ const atTwoWholeLabels = widthNeededForVisibleLabels(
 const WORDMARK_LEAVES_BELOW_PX = DEMAND_PX.gapsClosed + atEveryLabel;
 const GAPS_CLOSE_BELOW_PX = DEMAND_PX.asDrawn + atEveryLabel;
 
-const EVERY_DESKTOP_WIDTH = [900, 950, 1000, 1033, 1034, 1100, 1440, 1920];
+const EVERY_DESKTOP_WIDTH = [
+  900, 950, 1000, 1033, 1034, 1100, 1272, 1386, 1440, 1920,
+];
 
 /** How many names the pill draws in a track for a stated label set: the ladder's own function, not a second model. */
 function visibleLabelsIn(
@@ -171,29 +140,23 @@ function fitFor(
   viewportPx: number,
   measuredIn: TopBarConfiguration,
 ): ReturnType<typeof describeTopBarFit> {
-  return describeTopBarFit({
-    pillTrackPx: viewportPx - demandOf(measuredIn),
-    wordmarkWidthPx: WORDMARK_PX,
-    measuredIn,
-    labelWidthsPx,
-    fixedWidthsPx: DESKTOP_PILL,
-  });
+  return fitAtViewport({ viewportPx, measuredIn, labelWidthsPx });
 }
 
 describe("the boundaries the owner was given the ruling in terms of", () => {
   it("keeps the wordmark's departure above 900, which is what the ruling rested on", () => {
-    expect(WORDMARK_LEAVES_BELOW_PX).toBeCloseTo(1238.67, 2);
+    expect(WORDMARK_LEAVES_BELOW_PX).toBeCloseTo(1385.81, 2);
     // The superseded count-based boundary, kept as the size of the move: the property-based rule waits until the
     // wordmark
     // costs no name, which on these labels is all four, so the difference is the third and fourth names' own cost.
-    expect(DEMAND_PX.gapsClosed + atTwoWholeLabels).toBeCloseTo(1033.32, 2);
+    expect(DEMAND_PX.gapsClosed + atTwoWholeLabels).toBeCloseTo(1180.46, 2);
     expect(WORDMARK_LEAVES_BELOW_PX - (DEMAND_PX.gapsClosed + atTwoWholeLabels)) //
       .toBeCloseTo(atEveryLabel - atTwoWholeLabels, 6);
     expect(WORDMARK_LEAVES_BELOW_PX).toBeGreaterThan(900);
   });
 
   it("puts frame D2A's own spacing above the width every label needs inside it", () => {
-    expect(GAPS_CLOSE_BELOW_PX).toBeCloseTo(1343.68, 1);
+    expect(GAPS_CLOSE_BELOW_PX).toBeCloseTo(1506.81, 1);
   });
 });
 
@@ -203,7 +166,7 @@ describe("give C — the wordmark leaves the row, and only where it buys a name"
     // boundary is a floating-point knife-edge that no browser width lands on.
     for (const viewportPx of [
       WORDMARK_LEAVES_BELOW_PX + 0.01,
-      1300,
+      1400,
       1440,
       1920,
     ]) {
@@ -231,12 +194,15 @@ describe("give C — the wordmark leaves the row, and only where it buys a name"
   });
 
   it("gives the pill exactly the wordmark's own width and its gap when it goes", () => {
-    const kept = fitAt(1300, D2A_AS_DRAWN);
-    const dropped = fitAt(1000, D2A_AS_DRAWN);
+    const kept = fitAt(1400, D2A_AS_DRAWN);
+    // 1300 is a width where the wordmark has gone and the link has its words back, so the account give adds nothing.
+    const dropped = fitAt(1300, D2A_AS_DRAWN);
 
-    expect(kept.pillTrackPx).toBeCloseTo(1300 - DEMAND_PX.gapsClosed, 6);
+    expect(dropped.isWordmarkDrawn).toBe(false);
+    expect(dropped.isAccountCompact).toBe(false);
+    expect(kept.pillTrackPx).toBeCloseTo(1400 - DEMAND_PX.gapsClosed, 6);
     expect(dropped.pillTrackPx).toBeCloseTo(
-      1000 - DEMAND_PX.gapsClosedWithoutWordmark,
+      1300 - DEMAND_PX.gapsClosedWithoutWordmark,
       6,
     );
     expect(
@@ -248,7 +214,7 @@ describe("give C — the wordmark leaves the row, and only where it buys a name"
 describe("give B — the row's gaps close, and both numbers are the reference's", () => {
   it("keeps frame D2A's own spacing while every label fits inside it", () => {
     expect(fitAt(1920, D2A_AS_DRAWN).spacing).toEqual(D2A_SPACING);
-    expect(fitAt(1350, D2A_AS_DRAWN).spacing).toEqual(D2A_SPACING);
+    expect(fitAt(1550, D2A_AS_DRAWN).spacing).toEqual(D2A_SPACING);
   });
 
   it("closes them to frame 2A's when it cannot", () => {
@@ -278,7 +244,7 @@ describe("give B — the row's gaps close, and both numbers are the reference's"
     },
   );
 
-  it("returns 105 px to the pill when it does, composed from the two frames' own gaps", () => {
+  it("returns 121 px to the pill when it does, composed from the two frames' own gaps", () => {
     // One pixel short of every name fitting, measured as frame D2A draws the row: the gaps close, and with them
     // closed every name fits, so the wordmark stays and the gaps are the only thing the track gains.
     const trackAsDrawnPx = atEveryLabel - 1;
@@ -289,6 +255,8 @@ describe("give B — the row's gaps close, and both numbers are the reference's"
       measuredIn: D2A_AS_DRAWN,
       labelWidthsPx: SEEDED_LABELS,
       fixedWidthsPx: DESKTOP_PILL,
+      accountWidthsPx: VISITOR_LINK_WIDTHS_PX,
+      titleWidthPx: TITLE_PX,
     });
 
     expect(fit.isSpacingClosed).toBe(true);
@@ -316,9 +284,8 @@ describe("give B — the row's gaps close, and both numbers are the reference's"
 
 describe("the configuration is a fixed point, so the row cannot chase itself", () => {
   it("answers the same thing measured in the configuration it just chose", () => {
-    // One observation is enough because the answer is a fixed point: the track the model reads reacts to both gives, so
-    // an
-    // answer that changed when re-measured in its own configuration would oscillate.
+    // One observation is enough because the answer is a fixed point: the track the model reads reacts to every give, so
+    // an answer that changed when re-measured in its own configuration would oscillate.
     for (const viewportPx of EVERY_DESKTOP_WIDTH) {
       const first = fitAt(viewportPx, D2A_AS_DRAWN);
       const second = fitAt(viewportPx, first);
@@ -329,6 +296,9 @@ describe("the configuration is a fixed point, so the row cannot chase itself", (
       expect(second.isSpacingClosed, `at ${String(viewportPx)}`).toBe(
         first.isSpacingClosed,
       );
+      expect(second.isAccountCompact, `at ${String(viewportPx)}`).toBe(
+        first.isAccountCompact,
+      );
       expect(second.pillTrackPx, `at ${String(viewportPx)}`).toBeCloseTo(
         first.pillTrackPx,
         6,
@@ -338,19 +308,19 @@ describe("the configuration is a fixed point, so the row cannot chase itself", (
 
   it("reaches the same answer from every configuration it could have been drawn in", () => {
     // Whatever configuration the row was showing when the window was resized, the answer is a property of the width,
-    // not
-    // of the history.
-    const everyConfiguration: readonly TopBarConfiguration[] = [
-      { isWordmarkDrawn: true, isSpacingClosed: false },
-      { isWordmarkDrawn: true, isSpacingClosed: true },
-      { isWordmarkDrawn: false, isSpacingClosed: true },
-      { isWordmarkDrawn: false, isSpacingClosed: false },
-    ];
-
+    // not of the history. Sixteen configurations: the wordmark, the gaps, the link's words and the title each drawn or not.
+    expect(EVERY_CONFIGURATION).toHaveLength(16);
     for (const viewportPx of EVERY_DESKTOP_WIDTH) {
-      const answers = everyConfiguration.map((measuredIn) => {
+      const answers = EVERY_CONFIGURATION.map((measuredIn) => {
         const fit = fitAt(viewportPx, measuredIn);
-        return `${String(fit.isWordmarkDrawn)}/${String(fit.isSpacingClosed)}`;
+        return [
+          fit.isWordmarkDrawn,
+          fit.isSpacingClosed,
+          fit.isAccountCompact,
+          fit.isTitleDropped,
+        ]
+          .map(String)
+          .join("/");
       });
 
       expect(
@@ -365,10 +335,277 @@ describe("the configuration is a fixed point, so the row cannot chase itself", (
     for (const viewportPx of EVERY_DESKTOP_WIDTH) {
       const fit = fitAt(viewportPx, D2A_AS_DRAWN);
 
+      const rowPx = viewportPx - demandOf(fit);
+      // Where the title has left, only the room one whole name needs is offered (see `TopBarFit.pillTrackPx`).
+      const offeredPx = fit.isTitleDropped ? Math.min(rowPx, atOneName) : rowPx;
+
       expect(fit.pillTrackPx, `at ${String(viewportPx)}`).toBeCloseTo(
-        viewportPx - demandOf(fit),
+        offeredPx,
         6,
       );
     }
+  });
+});
+
+/** Where the pill's track stands with the link's words drawn, whatever the row currently draws. */
+function trackWithTheWordsAt(
+  fit: ReturnType<typeof describeTopBarFit>,
+  accountWidthsPx: AccountControlWidths,
+): number {
+  return (
+    fit.pillTrackPx -
+    (fit.isAccountCompact ? accountWidthsPx.textPx - accountWidthsPx.iconPx : 0)
+  );
+}
+
+describe("the account give — the visitor's link becomes its glyph, and its words return once the pill names every setting without the wordmark", () => {
+  const NARROWEST_SWEPT_PX = 700;
+  const WIDEST_SWEPT_PX = 1700;
+
+  /** The width at which the row without the wordmark names every setting beside the words, derived from the measured
+   *  row and the pill's own rung, so no width is declared. */
+  function wordsReturnAt(accountWidthsPx: AccountControlWidths): number {
+    return (
+      widthNeededForVisibleLabels(4, SEEDED_LABELS, DESKTOP_PILL) +
+      demandOf(
+        {
+          isWordmarkDrawn: false,
+          isSpacingClosed: true,
+          isAccountCompact: false,
+          isTitleDropped: false,
+        },
+        accountWidthsPx,
+      )
+    );
+  }
+
+  /** The viewport widths at which the link changes form as the window widens, with the form it takes. */
+  function flipsOf(accountWidthsPx: AccountControlWidths): readonly string[] {
+    const flips: string[] = [];
+    let previous: boolean | undefined;
+    for (
+      let viewportPx = NARROWEST_SWEPT_PX;
+      viewportPx <= WIDEST_SWEPT_PX;
+      viewportPx += 1
+    ) {
+      const { isAccountCompact } = fitAt(
+        viewportPx,
+        D2A_AS_DRAWN,
+        accountWidthsPx,
+      );
+      if (previous !== undefined && isAccountCompact !== previous)
+        flips.push(
+          `${String(viewportPx)}: ${isAccountCompact ? "glyph" : "words"}`,
+        );
+      previous = isAccountCompact;
+    }
+    return flips;
+  }
+
+  it("agrees with the row the browser measured with the glyph in it", () => {
+    // Gives B, C and the account give spent, measured at 1000: the words' width less the two forms' difference.
+    expect(
+      demandOf({
+        isWordmarkDrawn: false,
+        isSpacingClosed: true,
+        isAccountCompact: true,
+        isTitleDropped: false,
+      }),
+    ).toBeCloseTo(MEASURED_WITHOUT_WORDMARK_COMPACT_PX, 1);
+    expect(
+      MEASURED_WITHOUT_WORDMARK_PX - MEASURED_WITHOUT_WORDMARK_COMPACT_PX,
+    ).toBeCloseTo(
+      VISITOR_LINK_WIDTHS_PX.textPx - VISITOR_LINK_WIDTHS_PX.iconPx,
+      1,
+    );
+  });
+
+  it.each([
+    ["Romanian", VISITOR_LINK_WIDTHS_PX],
+    ["Russian", RUSSIAN_VISITOR_LINK_WIDTHS_PX],
+  ] as const)(
+    "changes form exactly once as the window widens, from the glyph to the words, in %s",
+    (_name, accountWidthsPx) => {
+      const flips = flipsOf(accountWidthsPx);
+
+      expect(flips).toHaveLength(1);
+      expect(flips[0]).toMatch(/: words$/);
+      // The one flip is where the row without the wordmark names every setting beside the words, and not a pixel earlier.
+      const returnAt = wordsReturnAt(accountWidthsPx);
+      expect(
+        fitAt(Math.ceil(returnAt) - 1, D2A_AS_DRAWN, accountWidthsPx)
+          .isAccountCompact,
+      ).toBe(true);
+      expect(
+        fitAt(Math.ceil(returnAt), D2A_AS_DRAWN, accountWidthsPx)
+          .isAccountCompact,
+      ).toBe(false);
+    },
+  );
+
+  it("keeps the words wherever the pill names every setting, and draws the glyph where it is down to fewer", () => {
+    expect(fitAt(1920, D2A_AS_DRAWN).isAccountCompact).toBe(false);
+    expect(fitAt(1440, D2A_AS_DRAWN).isAccountCompact).toBe(false);
+    expect(fitAt(1100, D2A_AS_DRAWN).isAccountCompact).toBe(true);
+    expect(fitAt(900, D2A_AS_DRAWN).isAccountCompact).toBe(true);
+  });
+
+  it("returns the words' width to the pill and nothing else when it compacts", () => {
+    const compact = fitAt(1000, D2A_AS_DRAWN);
+    const wordmarkGoneAndGapsClosed = {
+      isWordmarkDrawn: false,
+      isSpacingClosed: true,
+      isAccountCompact: false,
+      isTitleDropped: false,
+    };
+
+    expect(compact.isAccountCompact).toBe(true);
+    expect(compact.pillTrackPx).toBeCloseTo(
+      1000 -
+        demandOf(wordmarkGoneAndGapsClosed) +
+        VISITOR_LINK_WIDTHS_PX.textPx -
+        VISITOR_LINK_WIDTHS_PX.iconPx,
+      6,
+    );
+  });
+
+  it("never compacts a signed-in control, whose two forms measure alike, and leaves the other gives as they were", () => {
+    expect(flipsOf(SIGNED_IN_WIDTHS_PX)).toEqual([]);
+    for (
+      let viewportPx = NARROWEST_SWEPT_PX;
+      viewportPx <= WIDEST_SWEPT_PX;
+      viewportPx += 1
+    ) {
+      const fit = fitAt(viewportPx, D2A_AS_DRAWN, SIGNED_IN_WIDTHS_PX);
+
+      expect(fit.isAccountCompact, `at ${String(viewportPx)}`).toBe(false);
+      const rowPx = viewportPx - demandOf(fit, SIGNED_IN_WIDTHS_PX);
+      expect(fit.pillTrackPx, `at ${String(viewportPx)}`).toBeCloseTo(
+        fit.isTitleDropped ? Math.min(rowPx, atOneName) : rowPx,
+        6,
+      );
+    }
+  });
+
+  it("returns less for the shorter Russian words", () => {
+    const romanian = fitAt(1000, D2A_AS_DRAWN);
+    const russian = fitAt(1000, D2A_AS_DRAWN, RUSSIAN_VISITOR_LINK_WIDTHS_PX);
+
+    expect(romanian.isAccountCompact).toBe(true);
+    expect(russian.isAccountCompact).toBe(true);
+    expect(
+      romanian.pillTrackPx -
+        trackWithTheWordsAt(romanian, VISITOR_LINK_WIDTHS_PX),
+    ).toBeCloseTo(
+      VISITOR_LINK_WIDTHS_PX.textPx - VISITOR_LINK_WIDTHS_PX.iconPx,
+      2,
+    );
+    expect(
+      russian.pillTrackPx -
+        trackWithTheWordsAt(russian, RUSSIAN_VISITOR_LINK_WIDTHS_PX),
+    ).toBeCloseTo(
+      RUSSIAN_VISITOR_LINK_WIDTHS_PX.textPx -
+        RUSSIAN_VISITOR_LINK_WIDTHS_PX.iconPx,
+      2,
+    );
+  });
+});
+
+describe("the last give — the title leaves the row where the pill cannot otherwise name one whole setting", () => {
+  const NARROWEST_SWEPT_PX = 700;
+  const WIDEST_SWEPT_PX = 1700;
+
+  /** The width at which the row with every other give spent leaves the pill one whole name beside the title, derived
+   *  from the measured row (gaps closed, wordmark gone, the glyph) and the pill's own first rung. */
+  function titleReturnsAt(accountWidthsPx: AccountControlWidths): number {
+    return (
+      atOneName +
+      demandOf(
+        {
+          isWordmarkDrawn: false,
+          isSpacingClosed: true,
+          isAccountCompact: true,
+          isTitleDropped: false,
+        },
+        accountWidthsPx,
+      )
+    );
+  }
+
+  function droppedWidths(accountWidthsPx: AccountControlWidths): number {
+    let dropped = 0;
+    for (
+      let viewportPx = NARROWEST_SWEPT_PX;
+      viewportPx <= WIDEST_SWEPT_PX;
+      viewportPx += 1
+    )
+      if (fitAt(viewportPx, D2A_AS_DRAWN, accountWidthsPx).isTitleDropped)
+        dropped += 1;
+    return dropped;
+  }
+
+  it.each([
+    ["a visitor", VISITOR_LINK_WIDTHS_PX],
+    ["a signed-in client, whose control is the glyph", SIGNED_IN_WIDTHS_PX],
+  ] as const)(
+    "is dropped exactly below the width where one whole name fits beside it, for %s",
+    (_who, accountWidthsPx) => {
+      const returnAt = titleReturnsAt(accountWidthsPx);
+
+      expect(
+        fitAt(Math.ceil(returnAt) - 1, D2A_AS_DRAWN, accountWidthsPx)
+          .isTitleDropped,
+      ).toBe(true);
+      expect(
+        fitAt(Math.ceil(returnAt), D2A_AS_DRAWN, accountWidthsPx)
+          .isTitleDropped,
+      ).toBe(false);
+      // A floor per arm: the title is drawn at most of the swept widths and absent at some.
+      const dropped = droppedWidths(accountWidthsPx);
+      expect(dropped).toBeGreaterThan(50);
+      expect(
+        WIDEST_SWEPT_PX - NARROWEST_SWEPT_PX + 1 - dropped,
+      ).toBeGreaterThan(500);
+    },
+  );
+
+  it("leaves a visitor and a signed-in client alike at the same width, because the glyph is what both draw there", () => {
+    expect(titleReturnsAt(SIGNED_IN_WIDTHS_PX)).toBeCloseTo(
+      titleReturnsAt(VISITOR_LINK_WIDTHS_PX),
+      6,
+    );
+  });
+
+  it("offers the ladder the room one whole name needs and no more, so the count cannot fall when the title returns", () => {
+    const dropped = fitAt(900, D2A_AS_DRAWN);
+
+    expect(dropped.isTitleDropped).toBe(true);
+    expect(dropped.pillTrackPx).toBeCloseTo(atOneName, 6);
+    expect(visibleLabelsIn(SEEDED_LABELS, dropped.pillTrackPx)).toBe(1);
+    // The room the title returns would have named a second setting: that is why it is not offered.
+    expect(900 - demandOf(dropped) >= atTwoWholeLabels).toBe(true);
+  });
+
+  it("returns the title's width and its gap, as the browser measured", () => {
+    const withTitle = demandOf({
+      isWordmarkDrawn: false,
+      isSpacingClosed: true,
+      isAccountCompact: true,
+      isTitleDropped: false,
+    });
+    const without = demandOf({
+      isWordmarkDrawn: false,
+      isSpacingClosed: true,
+      isAccountCompact: true,
+      isTitleDropped: true,
+    });
+
+    expect(withTitle - without).toBeCloseTo(MEASURED_TITLE_RETURNED_PX, 1);
+  });
+
+  it("keeps the title wherever the pill names a whole setting beside it", () => {
+    expect(fitAt(1000, D2A_AS_DRAWN).isTitleDropped).toBe(false);
+    expect(fitAt(1440, D2A_AS_DRAWN).isTitleDropped).toBe(false);
+    expect(fitAt(900, D2A_AS_DRAWN).isTitleDropped).toBe(true);
   });
 });

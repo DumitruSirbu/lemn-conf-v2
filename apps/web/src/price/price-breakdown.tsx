@@ -31,6 +31,7 @@ import {
   type BreakdownRow,
 } from "./price-breakdown-model";
 import styles from "./price-breakdown.module.css";
+import { useKeepSurfaceInsideViewport } from "./use-keep-surface-inside-viewport";
 import { usePricedDesign } from "./use-priced-design";
 
 /** Frame 2D's note carries a round information mark. Decoration, like §9's banner's `!`. */
@@ -54,6 +55,7 @@ export function PriceBreakdown() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const surfaceId = useId();
+  useKeepSurfaceInsideViewport(surfaceRef, isOpen);
 
   const close = useCallback(() => {
     setIsOpen(false);

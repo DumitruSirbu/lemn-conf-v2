@@ -31,6 +31,11 @@ const fakes = vi.hoisted(() => ({
 vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
   getContactSubmissionStore: () => fakes.store,
 }));
+vi.mock("@/lib/server/contact/sent-mark-store-instance", () =>
+  import("../../../support/sent-mark-store-fake").then((fake) =>
+    fake.fakeSentMarkStoreModule(),
+  ),
+);
 vi.mock("@/lib/server/mail/create-mail-sender", () => ({
   createMailSender: () => ({ kind: "sender", sender: fakes.sender }),
 }));

@@ -45,7 +45,10 @@ const state = vi.hoisted(() => ({
 }));
 const loadOwned = vi.hoisted(() =>
   vi.fn<
-    (lookup: { id: string; visitorHash: string }) => Promise<LoadOwnedResult>
+    (lookup: {
+      id: string;
+      accessor: { visitorHash?: string; accountId?: string };
+    }) => Promise<LoadOwnedResult>
   >(),
 );
 const findSentReference = vi.hoisted(() => vi.fn());
@@ -95,8 +98,9 @@ function sha256Hex(value: string): string {
 /** What the real `loadOwned` answers: the owner's rows, the invalid one refused for its owner alone, `none` otherwise. */
 function ownerOnlyRepository(): void {
   const ownerHash = sha256Hex(OWNER_VALUE);
-  loadOwned.mockImplementation(({ id, visitorHash }) => {
-    if (visitorHash !== ownerHash) return Promise.resolve({ kind: "none" });
+  loadOwned.mockImplementation(({ id, accessor }) => {
+    if (accessor.visitorHash !== ownerHash)
+      return Promise.resolve({ kind: "none" });
     if (id === OWNED_INVALID_ROW_ID)
       return Promise.reject(
         new InvalidDesignError("stored document is invalid"),
@@ -280,7 +284,7 @@ describe("the owner is served the confirmation", () => {
     });
     expect(loadOwned).toHaveBeenCalledWith({
       id: OWNED_ROW_ID,
-      visitorHash: sha256Hex(OWNER_VALUE),
+      accessor: { visitorHash: sha256Hex(OWNER_VALUE) },
     });
   });
 

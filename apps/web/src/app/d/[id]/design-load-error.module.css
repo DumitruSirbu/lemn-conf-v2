@@ -36,3 +36,21 @@
   font: 700 14px/1 var(--font-ui);
   text-decoration: none;
 }
+
+.myKitchens {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target);
+  padding: 0 20px;
+  color: var(--paper);
+  background: var(--accent);
+  border-radius: var(--radius-card);
+  font: 700 14px/1 var(--font-ui);
+  text-decoration: none;
+}
+
+.myKitchensPlaceholder {
+  min-height: var(--touch-target);
+  visibility: hidden;
+}

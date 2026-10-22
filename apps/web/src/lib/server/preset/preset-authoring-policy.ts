@@ -1,9 +1,12 @@
+import "server-only";
+
+import { reportAccountEvent } from "@/lib/server/account/account-log";
+import { isCapabilityHeld } from "@/lib/server/account/require-capability";
+import { readCurrentSessionOrThrow } from "@/lib/server/account/current-session";
+
 // Who may save a kitchen as a preset: one swappable function (ADR 0112 Amendment A). Both the
 // save route and `GET /api/designs/{id}` ask `mayAuthorPresets`, so the server's answer decides whether the button is
 // shown (ADR 0112 decision 2, bullet 3: the client never decides) and the route cannot disagree with it.
-//
-// This module imports neither `server-only` nor a framework value: the launch gate runs it in a bare Vitest process
-// that carries neither alias, and what it reads is only which function is wired below.
 
 /** The part of a request a policy may read: its cookies and its headers, which is all a session lookup needs. A
  *  `NextRequest` satisfies it. */
@@ -23,19 +26,22 @@ export type PresetAuthoringPolicy = (
 ) => Promise<boolean>;
 
 /**
- * Anyone who holds a design's write token and visitor may publish it, in every environment, with no flag and no secret
- * (the owner's ruling of 2026-10-17, ADR 0112 Amendment A). The accepted, time-boxed risk: anyone who can reach an
- * environment can publish a preset onto every Step 1 screen in that environment's database.
- *
- * It ends at the first public deploy: `pnpm gate:launch-placeholders` refuses while this is the wired policy.
+ * A signed-in session whose account's current role holds `preset.create` (ADR 0172 decision 7), which needs a confirmed
+ * address. The session is read by the variant that throws: a store that is down is `mayAuthorPresets`'s refusal, never
+ * a guess.
  */
-export const ungatedUntilLaunch: PresetAuthoringPolicy = () =>
-  Promise.resolve(true);
+export const sessionHoldsPresetCreate: PresetAuthoringPolicy = async (
+  request,
+) => {
+  const session = await readCurrentSessionOrThrow(request.cookies);
+  return (
+    session.kind === "signed-in" && isCapabilityHeld(session, "preset.create")
+  );
+};
 
-/** The one place a policy is chosen. Fix 3 (accounts and roles) wires the administrator capability `preset.create`
- *  here and the route does not change. */
+/** The one place a policy is chosen. */
 export const WIRED_PRESET_AUTHORING_POLICY: PresetAuthoringPolicy =
-  ungatedUntilLaunch;
+  sessionHoldsPresetCreate;
 
 /**
  * The wired policy's answer, failing closed: a policy that throws or rejects does not let a request author a preset.
@@ -46,6 +52,7 @@ export async function mayAuthorPresets(
   try {
     return await WIRED_PRESET_AUTHORING_POLICY(request);
   } catch {
+    reportAccountEvent({ event: "session-read", outcome: "unavailable" });
     return false;
   }
 }
