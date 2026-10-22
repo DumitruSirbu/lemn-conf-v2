@@ -331,7 +331,33 @@ describe.each(LOCALES)("the status control in %s", (locale) => {
 
       expect(saveButton().textContent).toBe(copy.statusSave);
       expect(saveButton().getAttribute("aria-disabled")).toBeNull();
-      expect(allIn(control(), '[role="status"]')).toHaveLength(0);
+      expect(requireIn(control(), '[role="status"]').textContent).toBe("");
+    });
+
+    it("says it is saved in a status region that stood in the page, empty, before the save", async () => {
+      serve(() => statusSaved("contacted"));
+      await harness.mount({ locale });
+      const region = requireIn(control(), '[role="status"]');
+      expect(region.textContent).toBe("");
+
+      await choose("contacted");
+      await save();
+
+      expect(requireIn(control(), '[role="status"]')).toBe(region);
+      expect(region.textContent).toBe(copy.statusSaved);
+    });
+
+    it("says a conflict in that same region, and has no alert for it", async () => {
+      serve(() => conflict("changed-meanwhile"));
+      await harness.mount({ locale });
+      const region = requireIn(control(), '[role="status"]');
+
+      await choose("contacted");
+      await save();
+
+      expect(requireIn(control(), '[role="status"]')).toBe(region);
+      expect(region.textContent).toContain(copy.statusChangedMeanwhile);
+      expect(allIn(control(), '[role="alert"]')).toHaveLength(0);
     });
 
     it("tells a status saved again, unchanged, as saved too", async () => {
@@ -412,6 +438,21 @@ describe.each(LOCALES)("the status control in %s", (locale) => {
         ).textContent,
       ).toBe(CATALOGUES[locale].staffKitchen.draftNoStatus);
       expect(readsOf(harness.server)).toHaveLength(2);
+      expect(document.activeElement).toBe(requireIn(harness.container(), "h1"));
+    });
+
+    it("leaves focus where it was when the re-read still finds a sent request", async () => {
+      serve(
+        () => conflict("not-sent"),
+        wireKitchen(),
+        () => wireKitchen(),
+      );
+      await harness.mount({ locale });
+      saveButton().focus();
+
+      await save();
+
+      expect(document.activeElement).toBe(saveButton());
     });
 
     it.each([

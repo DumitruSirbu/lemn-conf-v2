@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, type RefObject } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import { REQUEST_STATUSES } from "@lemnaria/configurator-domain";
 
@@ -19,12 +25,12 @@ import {
 
 import styles from "./staff-kitchen.module.css";
 import type { StaffKitchenStatusWire } from "./staff-kitchens-wire-contract";
+import type { KitchenEditing } from "./use-one-write-at-a-time";
 import {
   useStatusControl,
-  type KitchenEditing,
   type StatusControl,
   type StatusFeedback,
-} from "./use-staff-kitchen-actions";
+} from "./use-status-control";
 
 // The select and the button that set a sent request's status (Lot 3 frames S3B and S3G). Any listed status may follow any
 // other. A status the stored text names but this build does not is shown by the page as the neutral badge, and the select
@@ -67,7 +73,6 @@ function listedStatusOf(
 
 function StatusFields({ control }: { readonly control: StatusControl }) {
   const copy = useStaffActionsCopy();
-  const lists = useStaffKitchensCopy();
   const kit = useAccountKitCopy();
   const selectId = useId();
   const errorId = useId();
@@ -96,16 +101,7 @@ function StatusFields({ control }: { readonly control: StatusControl }) {
             control.choose(event.target.value);
           }}
         >
-          {control.selected === null ? (
-            <option value="" disabled>
-              {copy.status.placeholder}
-            </option>
-          ) : null}
-          {REQUEST_STATUSES.map((value) => (
-            <option key={value} value={value}>
-              {lists.statuses[value]}
-            </option>
-          ))}
+          <StatusOptions hasNothingChosen={control.selected === null} />
         </select>
         <SaveButton control={control} />
       </div>
@@ -113,6 +109,29 @@ function StatusFields({ control }: { readonly control: StatusControl }) {
         <InlineRefusal id={errorId}>{kit.fieldError(issue)}</InlineRefusal>
       )}
     </div>
+  );
+}
+
+function StatusOptions({
+  hasNothingChosen,
+}: {
+  readonly hasNothingChosen: boolean;
+}) {
+  const copy = useStaffActionsCopy();
+  const lists = useStaffKitchensCopy();
+  return (
+    <>
+      {hasNothingChosen ? (
+        <option value="" disabled>
+          {copy.status.placeholder}
+        </option>
+      ) : null}
+      {REQUEST_STATUSES.map((value) => (
+        <option key={value} value={value}>
+          {lists.statuses[value]}
+        </option>
+      ))}
+    </>
   );
 }
 
@@ -129,61 +148,102 @@ function SaveButton({ control }: { readonly control: StatusControl }) {
     <button
       type="button"
       className={styles.statusButton}
-      data-state={isSaved ? "saved" : isBusy ? "busy" : "idle"}
+      data-state={stateOf({ isSaved, isBusy })}
       aria-disabled={isOff ? true : undefined}
       aria-busy={isBusy ? true : undefined}
       onClick={isOff ? undefined : control.save}
     >
       {isBusy ? <span className={styles.spinner} aria-hidden="true" /> : null}
-      {isSaved
-        ? copy.status.saved
-        : isBusy
-          ? copy.status.saving
-          : copy.status.save}
+      {copy.status[LABEL_OF_STATE[stateOf({ isSaved, isBusy })]]}
     </button>
   );
 }
 
-/** The words under the select: the saved confirmation for a screen reader, and every answer that is not about the choice. */
+type ButtonState = "saved" | "busy" | "idle";
+
+const LABEL_OF_STATE = {
+  saved: "saved",
+  busy: "saving",
+  idle: "save",
+} as const satisfies Record<ButtonState, string>;
+
+function stateOf({
+  isSaved,
+  isBusy,
+}: {
+  readonly isSaved: boolean;
+  readonly isBusy: boolean;
+}): ButtonState {
+  if (isSaved) return "saved";
+  return isBusy ? "busy" : "idle";
+}
+
+/**
+ * The words under the select. What is announced politely (the saved word, a conflict, a limit being waited out) stands in a
+ * status region that is mounted before any of it comes; a region that appears together with its words is not reliably
+ * announced. The refusals that are not about the choice are alerts.
+ */
 function StatusNotice({ feedback }: { readonly feedback: StatusFeedback }) {
+  return (
+    <>
+      <div
+        role="status"
+        className={
+          feedback.kind === "saved"
+            ? `${styles.liveRegion ?? ""} ${styles.visuallyHidden ?? ""}`
+            : styles.liveRegion
+        }
+      >
+        <StatusAnnouncement feedback={feedback} />
+      </div>
+      <StatusAlert feedback={feedback} />
+    </>
+  );
+}
+
+function StatusAnnouncement({
+  feedback,
+}: {
+  readonly feedback: StatusFeedback;
+}): ReactNode {
   const copy = useStaffActionsCopy();
   switch (feedback.kind) {
     case "saved":
-      return (
-        <p role="status" className={styles.visuallyHidden}>
-          {copy.status.saved}
-        </p>
-      );
+      return copy.status.saved;
     case "conflict":
       return (
-        <FormNotice tone="warning">
+        <FormNotice tone="warning" isInLiveRegion>
           {conflictSentence(copy.status, feedback)}
         </FormNotice>
       );
     case "rate-limited":
-      return <RateLimitNotice notice={feedback.notice} />;
-    case "failed":
-      return (
-        <FormNotice tone="error" title={copy.status.errorTitle}>
-          {copy.status.errorBody}
-        </FormNotice>
-      );
-    case "forbidden":
-      return (
-        <FormNotice tone="error" title={copy.status.errorTitle}>
-          {copy.status.forbiddenBody}
-        </FormNotice>
-      );
-    case "kitchen-unavailable":
-      return (
-        <FormNotice tone="error" title={copy.status.errorTitle}>
-          {copy.status.kitchenGoneBody}
-        </FormNotice>
-      );
-    case "none":
-    case "status-refused":
+      return <RateLimitNotice notice={feedback.notice} isInLiveRegion />;
+    default:
       return null;
   }
+}
+
+function StatusAlert({ feedback }: { readonly feedback: StatusFeedback }) {
+  const copy = useStaffActionsCopy();
+  switch (feedback.kind) {
+    case "failed":
+      return <ErrorNotice body={copy.status.errorBody} />;
+    case "forbidden":
+      return <ErrorNotice body={copy.status.forbiddenBody} />;
+    case "kitchen-unavailable":
+      return <ErrorNotice body={copy.status.kitchenGoneBody} />;
+    default:
+      return null;
+  }
+}
+
+function ErrorNotice({ body }: { readonly body: string }) {
+  const copy = useStaffActionsCopy();
+  return (
+    <FormNotice tone="error" title={copy.status.errorTitle}>
+      {body}
+    </FormNotice>
+  );
 }
 
 /** The sentence that says the kitchen was read again is told only when it was; else the one that sends the person to the page. */

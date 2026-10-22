@@ -27,14 +27,20 @@ const SCREEN_FILES = [
   "staff/unhide-banner.tsx",
   "staff/staff-session-sheet.tsx",
   "staff/staff-session-expiry.ts",
-  "staff/use-staff-kitchen-actions.ts",
+  "staff/use-note-composer.ts",
+  "staff/use-status-control.ts",
+  "staff/use-unhide.ts",
+  "staff/use-one-write-at-a-time.ts",
   "staff/staff-note-rules.ts",
 ] as const;
 const HOOK_FILE = "staff/use-staff-kitchen.ts";
 const READ_FILE = "staff/staff-read-request.ts";
 /** The files that make a request or hold what was typed: none of them may ask again, wait, or keep a note. */
 const WRITING_FILES = [
-  "staff/use-staff-kitchen-actions.ts",
+  "staff/use-note-composer.ts",
+  "staff/use-status-control.ts",
+  "staff/use-unhide.ts",
+  "staff/use-one-write-at-a-time.ts",
   "staff/staff-session-expiry.ts",
   "staff/staff-notes.tsx",
   "staff/staff-status-control.tsx",

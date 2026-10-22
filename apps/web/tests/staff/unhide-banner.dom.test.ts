@@ -322,6 +322,28 @@ describe.each(LOCALES)("making a hidden kitchen visible in %s", (locale) => {
       expect(writesOf(harness.server)).toHaveLength(1);
     });
 
+    it("says it in a status region that stood in the page, empty, before the act", async () => {
+      serve(() => NO_CONTENT);
+      await harness.mount({ locale });
+      const region = requireIn(
+        harness.container(),
+        '[data-testid="staff-kitchen-unhide-announcement"]',
+      );
+      expect(region.getAttribute("role")).toBe("status");
+      expect(region.textContent).toBe("");
+      await open();
+
+      await confirm();
+
+      expect(
+        requireIn(
+          harness.container(),
+          '[data-testid="staff-kitchen-unhide-announcement"]',
+        ),
+      ).toBe(region);
+      expect(region.textContent).toBe(copy.unhideDone);
+    });
+
     it("gives focus to the page's heading when the button it came from is gone", async () => {
       serve(() => NO_CONTENT);
       await harness.mount({ locale });
@@ -390,6 +412,84 @@ describe.each(LOCALES)("making a hidden kitchen visible in %s", (locale) => {
       expect(
         allIn(harness.container(), '[data-testid="staff-kitchen-not-found"]'),
       ).toHaveLength(1);
+    });
+  });
+
+  describe("a kitchen the server says is no longer hidden, or is gone", () => {
+    it("takes the banner away at once on a 409 not-hidden, whatever the re-read comes to", async () => {
+      serve(
+        () => conflict("not-hidden"),
+        () => UNAVAILABLE_ANSWER,
+      );
+      await harness.mount({ locale });
+      await open();
+
+      await confirm();
+
+      expect(
+        allIn(
+          harness.container(),
+          '[data-testid="staff-kitchen-hidden-banner"]',
+        ),
+      ).toHaveLength(0);
+    });
+
+    it("says it was not hidden, without a promise of a re-read, when the re-read fails", async () => {
+      serve(
+        () => conflict("not-hidden"),
+        () => UNAVAILABLE_ANSWER,
+      );
+      await harness.mount({ locale });
+      await open();
+
+      await confirm();
+
+      const said = requireIn(
+        harness.container(),
+        '[data-testid="staff-kitchen-unhide-announcement"]',
+      ).textContent;
+      expect(said).toBe(copy.unhideNotHiddenUnread);
+      expect(said).not.toBe(copy.unhideNotHidden);
+    });
+
+    it("says the kitchen was read again only once the page shows that reading", async () => {
+      serve(
+        () => conflict("not-hidden"),
+        () => "hold",
+      );
+      await harness.mount({ locale });
+      await open();
+      await confirm();
+      const announcement = () =>
+        requireIn(
+          harness.container(),
+          '[data-testid="staff-kitchen-unhide-announcement"]',
+        ).textContent;
+      expect(announcement()).toBe(copy.unhideNotHiddenUnread);
+
+      harness.server.held[0]?.answer({ body: wireKitchen() });
+      await harness.settle();
+
+      expect(announcement()).toBe(copy.unhideNotHidden);
+    });
+
+    it("says the kitchen is gone, and does not look like a no-op, when the re-read of a 404 fails", async () => {
+      serve(
+        () => ONE_REFUSAL,
+        () => UNAVAILABLE_ANSWER,
+      );
+      await harness.mount({ locale });
+      await open();
+
+      await confirm();
+
+      expect(dialog()).toBeNull();
+      expect(
+        requireIn(
+          harness.container(),
+          '[data-testid="staff-kitchen-unhide-announcement"]',
+        ).textContent,
+      ).toBe(copy.unhideGone);
     });
   });
 
@@ -488,11 +588,29 @@ describe.each(LOCALES)("making a hidden kitchen visible in %s", (locale) => {
       await open();
 
       expect(requireIn(theDialog(), '[data-tone="warning"]')).not.toBeNull();
+      expect(confirmButton().getAttribute("aria-disabled")).toBe("true");
+      expect(confirmButton().getAttribute("aria-busy")).toBeNull();
+      expect(confirmButton().textContent).toBe(copy.unhideConfirm);
       await confirm();
       expect(writesOf(harness.server)).toHaveLength(1);
       await harness.pass(31_000);
+      expect(confirmButton().getAttribute("aria-disabled")).toBeNull();
       await harness.pass(A_DAY_MS);
       expect(writesOf(harness.server)).toHaveLength(1);
+    });
+
+    it("draws the confirmation off, not busy, while a limit is waited out, and the dialog can still be left", async () => {
+      serve(() => RATE_LIMITED_ANSWER(30));
+      await harness.mount({ locale });
+      await open();
+
+      await confirm();
+
+      expect(confirmButton().getAttribute("aria-disabled")).toBe("true");
+      expect(confirmButton().getAttribute("aria-busy")).toBeNull();
+      click(cancelButton());
+      await harness.settle();
+      expect(dialog()).toBeNull();
     });
 
     it("draws the session sheet for a 401, leaves the dialog open under it, and navigates nowhere", async () => {

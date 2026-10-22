@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, type RefObject } from "react";
+
 import type { StaffKitchenCopy, StaffKitchensCopy } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useStaffKitchenCopy, useStaffKitchensCopy } from "@/i18n/use-content";
@@ -14,25 +16,28 @@ import type {
   StaffKitchenStatusWire,
 } from "./staff-kitchens-wire-contract";
 import { StaffStatusControl } from "./staff-status-control";
-import type { KitchenEditing } from "./use-staff-kitchen-actions";
+import type { KitchenEditing } from "./use-one-write-at-a-time";
 
 /** The request's status as a word. A stored status this build does not name is a neutral badge of its own and never
  *  takes the look of a new request. A draft has no request, so it has none, and says why. */
-export function RequestStatus({
+export function RequestStatusCard({
   locale,
   designId,
   isSent,
   status,
   editing,
+  titleRef,
 }: {
   readonly locale: AppLocale;
   readonly designId: string;
   readonly isSent: boolean;
   readonly status: StaffKitchenStatusWire | null;
   readonly editing: KitchenEditing;
+  readonly titleRef: RefObject<HTMLElement | null>;
 }) {
   const copy = useStaffKitchenCopy();
   const lists = useStaffKitchensCopy();
+  useFocusTitleWhenRequestGoes(isSent, titleRef);
   if (!isSent) {
     return (
       <p className={styles.draftNote} data-testid="staff-kitchen-no-status">
@@ -61,6 +66,19 @@ export function RequestStatus({
       />
     </Card>
   );
+}
+
+/** A re-read can show that the kitchen is no sent request, and the control the person was on goes with it: focus would fall to
+ *  the document, so it goes to the page's heading. */
+function useFocusTitleWhenRequestGoes(
+  isSent: boolean,
+  titleRef: RefObject<HTMLElement | null>,
+): void {
+  const wasSentRef = useRef(isSent);
+  useEffect(() => {
+    if (wasSentRef.current && !isSent) titleRef.current?.focus();
+    wasSentRef.current = isSent;
+  }, [isSent, titleRef]);
 }
 
 /** Who set the status and when. A kitchen that shows as new because no status was ever saved has no last change. */

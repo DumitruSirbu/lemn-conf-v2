@@ -394,6 +394,15 @@
   clip-path: inset(50%);
 }
 
+/* A status region the screen keeps mounted so that its words are announced when they arrive. Empty, it takes no room and
+ * adds no gap, but stays in the accessibility tree. */
+.liveRegion:empty {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 .bannerButton {
   display: flex;
   align-items: center;

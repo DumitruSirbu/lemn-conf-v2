@@ -12,7 +12,10 @@ import { declarationsFor, valuesFor } from "../support/css-declarations";
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const WRITING_FILES = [
-  "staff/use-staff-kitchen-actions.ts",
+  "staff/use-note-composer.ts",
+  "staff/use-status-control.ts",
+  "staff/use-unhide.ts",
+  "staff/use-one-write-at-a-time.ts",
   "staff/staff-session-expiry.ts",
   "staff/staff-notes.tsx",
   "staff/staff-status-control.tsx",

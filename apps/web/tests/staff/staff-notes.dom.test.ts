@@ -391,7 +391,20 @@ describe.each(LOCALES)("the notes in %s", (locale) => {
 
       typeIntoTextarea(field(), "a");
 
-      expect(allIn(notes(), '[role="status"]')).toHaveLength(0);
+      expect(requireIn(notes(), '[role="status"]').textContent).toBe("");
+    });
+
+    it("says it is saved in a status region that stood in the page, empty, before the save", async () => {
+      serve(() => noteCreated());
+      await harness.mount({ locale });
+      const region = requireIn(notes(), '[role="status"]');
+      expect(region.textContent).toBe("");
+
+      await typeAndSave(TYPED);
+
+      expect(requireIn(notes(), '[role="status"]')).toBe(region);
+      expect(region.textContent).toBe(copy.saved);
+      expect(allIn(notes(), '[role="status"]')).toHaveLength(1);
     });
 
     it("keeps the list at a hundred and says it is cut when a hundred and first is added", async () => {
@@ -578,6 +591,45 @@ describe.each(LOCALES)("the notes in %s", (locale) => {
       expect(writesOf(harness.server)).toHaveLength(1);
     });
 
+    it("keeps the wait through a refused text and a valid one submitted during it, and sends nothing until it is over", async () => {
+      const submitTheForm = (): void => {
+        act(() => {
+          requireIn<HTMLFormElement>(notes(), "form").dispatchEvent(
+            new Event("submit", { bubbles: true, cancelable: true }),
+          );
+        });
+      };
+
+      typeIntoTextarea(field(), "");
+      submitTheForm();
+      await harness.settle();
+      typeIntoTextarea(field(), TYPED);
+      submitTheForm();
+      await harness.settle();
+
+      expect(field().getAttribute("aria-invalid")).toBeNull();
+      expect(requireIn(notes(), '[data-tone="warning"]')).not.toBeNull();
+      expect(saveButton().getAttribute("aria-disabled")).toBe("true");
+      expect(writesOf(harness.server)).toHaveLength(1);
+      await harness.pass(31_000);
+      expect(saveButton().getAttribute("aria-disabled")).toBeNull();
+      expect(writesOf(harness.server)).toHaveLength(1);
+      click(saveButton());
+      await harness.settle();
+      expect(writesOf(harness.server)).toHaveLength(2);
+    });
+
+    it("says the wait in the status region that stood in the page before it, and nowhere else", () => {
+      const region = theOnly(allIn(notes(), '[role="status"]'));
+
+      expect(requireIn(region, "[data-tone]")).not.toBeNull();
+      expect(
+        allIn(notes(), "[data-tone]").every((notice) =>
+          region.contains(notice),
+        ),
+      ).toBe(true);
+    });
+
     it("keeps the warning on screen while the person types during the wait, and lets typing clear it once the wait is over", async () => {
       typeIntoTextarea(field(), `${TYPED} Si apoi.`);
 
@@ -619,6 +671,12 @@ describe.each(LOCALES)("the notes in %s", (locale) => {
       );
       expect(described).toContain(line.id);
       expect(line.id).not.toBe("");
+    });
+
+    it("names the direction mark among the characters that cannot be saved", () => {
+      const named = locale === "ro" ? /marcaj invizibil/ : /невидимый символ/;
+
+      expect(errors.noteForbiddenCharacter).toMatch(named);
     });
 
     it("says a note cannot be deleted and must not hold other people's data, besides that it is in the export", () => {

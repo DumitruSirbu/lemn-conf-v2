@@ -4,7 +4,12 @@ import { useId, useMemo, useRef, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
 import { AccountDialog } from "@/account/account-dialog";
-import { FormNotice, RateLimitNotice } from "@/account/account-form-parts";
+import {
+  FormNotice,
+  RateLimitNotice,
+  fullWaitOfFeedback,
+  useSecondsUntil,
+} from "@/account/account-form-parts";
 import {
   useAccountKitCopy,
   useStaffActionsCopy,
@@ -12,12 +17,10 @@ import {
 } from "@/i18n/use-content";
 
 import styles from "./staff-kitchen.module.css";
-import type { UnhideAction, WriteFailure } from "./use-staff-kitchen-actions";
+import type { UnhideAction, UnhideFailure } from "./use-unhide";
 
-// A kitchen its client hid is still read by staff, and either role may make it visible to the client again (Lot 3 frames
-// S3D and S3E). The banner says so and carries the button; the question is a dialog that opens on "Anulează" and confirms in
-// the primary colour, because nothing is deleted. Making it visible again does not bring back the share link that hiding
-// revoked, and the dialog says so.
+// A kitchen its client hid is still read by staff, and either role may make it visible to the client again (frames S3D and
+// S3E). The question opens on its cancel and confirms in the primary colour, because nothing is deleted.
 
 export interface HiddenBannerProps {
   readonly unhide: UnhideAction;
@@ -71,6 +74,7 @@ export function HiddenBanner({
 function UnhideDialog({ unhide, returnFocusFallbackRef }: HiddenBannerProps) {
   const copy = useStaffActionsCopy();
   const shareNoteId = useId();
+  const isOff = useIsWaitingOut(unhide.failure);
   return createPortal(
     <AccountDialog
       kind="destructive"
@@ -82,6 +86,7 @@ function UnhideDialog({ unhide, returnFocusFallbackRef }: HiddenBannerProps) {
         label: copy.unhide.confirm,
         busyLabel: copy.unhide.busy,
         isBusy: unhide.isBusy,
+        isOff,
         onPress: unhide.confirm,
       }}
       cancel={{ label: copy.unhide.cancel, onPress: unhide.closeDialog }}
@@ -90,33 +95,44 @@ function UnhideDialog({ unhide, returnFocusFallbackRef }: HiddenBannerProps) {
       <FormNotice id={shareNoteId} tone="info">
         {copy.unhide.shareNote}
       </FormNotice>
-      <UnhideFailure failure={unhide.failure} />
+      <UnhideFailureNotice failure={unhide.failure} />
     </AccountDialog>,
     document.querySelector("main") ?? document.body,
   );
 }
 
-function UnhideFailure({
+/** Whether a limit the last confirmation met is still being waited out: the confirmation is off for it, and wakes by itself
+ *  at the end of it without sending anything. */
+function useIsWaitingOut(failure: UnhideFailure | undefined): boolean {
+  const wait = failure === undefined ? undefined : fullWaitOfFeedback(failure);
+  return useSecondsUntil(wait?.endsAtMs) > 0;
+}
+
+/** A limit stands in a status region mounted with the dialog; the other failures are alerts. */
+function UnhideFailureNotice({
   failure,
 }: {
-  readonly failure: WriteFailure | undefined;
+  readonly failure: UnhideFailure | undefined;
 }) {
   const copy = useStaffActionsCopy();
   const kit = useAccountKitCopy();
-  if (failure === undefined) return null;
-  switch (failure.kind) {
-    case "rate-limited":
-      return <RateLimitNotice notice={failure.notice} />;
-    case "forbidden":
-      return <FormNotice tone="error">{copy.unhide.forbiddenBody}</FormNotice>;
-    case "failed":
-    case "kitchen-unavailable":
-      return (
+  return (
+    <>
+      <div role="status" className={styles.liveRegion}>
+        {failure?.kind === "rate-limited" ? (
+          <RateLimitNotice notice={failure.notice} isInLiveRegion />
+        ) : null}
+      </div>
+      {failure?.kind === "forbidden" ? (
+        <FormNotice tone="error">{copy.unhide.forbiddenBody}</FormNotice>
+      ) : null}
+      {failure?.kind === "failed" ? (
         <FormNotice tone="error" title={kit.unavailable.title}>
           {kit.unavailable.body}
         </FormNotice>
-      );
-  }
+      ) : null}
+    </>
+  );
 }
 
 /**
@@ -131,12 +147,16 @@ export function UnhideAnnouncement({
   const copy = useStaffActionsCopy();
   const sentences = {
     done: copy.unhide.done,
-    "not-hidden": copy.unhide.notHidden,
+    "was-visible": copy.unhide.notHiddenUnread,
+    "was-visible-reread": copy.unhide.notHidden,
+    gone: copy.unhide.gone,
   } as const;
   return (
     <div
       role="status"
-      className={announcement === undefined ? undefined : styles.announcement}
+      className={
+        announcement === undefined ? styles.liveRegion : styles.announcement
+      }
       data-testid="staff-kitchen-unhide-announcement"
     >
       {announcement === undefined ? null : sentences[announcement]}

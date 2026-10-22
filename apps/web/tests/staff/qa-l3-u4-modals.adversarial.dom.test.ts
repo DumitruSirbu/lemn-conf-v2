@@ -249,17 +249,34 @@ describe("the session sheet raised by several writes", () => {
 });
 
 describe("the re-check of the session sheet", () => {
-  it.each([
-    [
-      "a client",
-      {
-        body: {
-          state: "signed-in",
-          email: "ana@mail.md",
-          capabilities: ["design.read.own"],
-        },
+  it("loads the page again, and sends nothing, when the re-check meets a client's session (the page was built for a staff member)", async () => {
+    const reload = vi.fn();
+    vi.stubGlobal("location", { assign: () => undefined, reload });
+    serve({
+      read: () => ({ body: wireKitchen() }),
+      note: () => UNAUTHENTICATED_ANSWER,
+    });
+    await harness.mount();
+    const notes = requireIn(harness.container(), '[data-testid="staff-notes"]');
+    typeIntoTextarea(requireIn<HTMLTextAreaElement>(notes, "textarea"), TYPED);
+    click(requireIn(notes, 'button[type="submit"]'));
+    await harness.settle();
+    session = () => ({
+      body: {
+        state: "signed-in",
+        email: "ana@mail.md",
+        capabilities: ["design.read.own"],
       },
-    ],
+    });
+
+    click(recheck());
+    await harness.settle();
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(writesOf(harness.server)).toHaveLength(1);
+  });
+
+  it.each([
     ["a body that is not a session", { body: { state: 7 } }],
     ["a body that is a list", { body: [] }],
   ] as const)(

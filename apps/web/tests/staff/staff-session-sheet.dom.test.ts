@@ -160,6 +160,23 @@ describe.each(LOCALES)(
         expect(signIn().textContent).toBe(copy.sessionSignIn);
       });
 
+      it("describes itself by its body, the new-tab line and the other-account line, and the link by the new-tab line", () => {
+        const described = (
+          sheet().getAttribute("aria-describedby") ?? ""
+        ).split(" ");
+
+        expect(described).toHaveLength(3);
+        const texts = described.map(
+          (id) => requireIn(sheet(), `[id="${id}"]`).textContent,
+        );
+        expect(texts).toEqual([
+          copy.sessionBody,
+          copy.sessionNewTab,
+          copy.sessionOtherAccount,
+        ]);
+        expect(signIn().getAttribute("aria-describedby")).toBe(described[1]);
+      });
+
       it("opens on the sign-in link, and keeps Tab between the link and the button", () => {
         expect(document.activeElement).toBe(signIn());
 
@@ -239,6 +256,56 @@ describe.each(LOCALES)(
           expect(readsOf(harness.server)).toHaveLength(1);
         },
       );
+
+      describe.each([
+        [
+          "another staff member",
+          {
+            state: "signed-in",
+            email: "elena.munteanu@lemnaria.md",
+            capabilities: ["design.read.any"],
+          },
+        ],
+        [
+          "the same address, without the right to the staff area",
+          {
+            state: "signed-in",
+            email: "mihai.rusu@lemnaria.md",
+            capabilities: ["account.manage.own"],
+          },
+        ],
+        [
+          "a client",
+          {
+            state: "signed-in",
+            email: "ana@mail.md",
+            capabilities: ["design.read.own"],
+          },
+        ],
+      ])("when the re-check meets %s", (_, body) => {
+        it("loads the page again, so the server decides what that person sees, and asks for no kitchen itself", async () => {
+          const reload = vi.fn();
+          vi.stubGlobal("location", { assign: () => undefined, reload });
+          session = () => ({ body });
+
+          click(recheck());
+          await harness.settle();
+
+          expect(reload).toHaveBeenCalledTimes(1);
+          expect(readsOf(harness.server)).toHaveLength(1);
+        });
+      });
+
+      it("does not load the page again for the same staff member, who goes on where they were", async () => {
+        const reload = vi.fn();
+        vi.stubGlobal("location", { assign: () => undefined, reload });
+
+        click(recheck());
+        await harness.settle();
+
+        expect(reload).not.toHaveBeenCalled();
+        expect(hasSheet()).toBe(false);
+      });
 
       it("can be pressed again after an answer that was not signed in, and leaves when the next one is", async () => {
         session = () => ANONYMOUS;

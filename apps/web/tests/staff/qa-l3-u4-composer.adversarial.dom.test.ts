@@ -314,7 +314,10 @@ describe("an answer to a note that is not a stored note", () => {
 
       expect(field().value).toBe("Am sunat.");
       expect(allIn(notes(), "li")).toHaveLength(0);
-      expect(allIn(notes(), '[role="status"]')).toHaveLength(0);
+      // The status region is kept mounted, empty: nothing is said in it.
+      expect(
+        allIn(notes(), '[role="status"]').map(({ textContent }) => textContent),
+      ).toEqual([""]);
       expect(requireIn(notes(), '[role="alert"]').textContent).toContain(
         roMessages.staffNotes.errorBody,
       );

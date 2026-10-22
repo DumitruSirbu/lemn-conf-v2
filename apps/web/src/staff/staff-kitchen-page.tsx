@@ -22,7 +22,7 @@ import {
   subLineOf,
   titleOf,
 } from "./staff-kitchen-facts";
-import { RequestLine, RequestStatus } from "./staff-kitchen-request";
+import { RequestLine, RequestStatusCard } from "./staff-kitchen-request";
 import {
   CannotShowNotice,
   KitchenHeader,
@@ -43,7 +43,8 @@ import {
   type StaffKitchenReading,
   type StaffKitchenState,
 } from "./use-staff-kitchen";
-import { useUnhide, type KitchenEditing } from "./use-staff-kitchen-actions";
+import type { KitchenEditing } from "./use-one-write-at-a-time";
+import { useUnhide } from "./use-unhide";
 
 // One client's kitchen (frames S3A to S3C, S3H and S3I; the desktop frames are the same page in three columns). Three
 // columns on a desktop: the kitchen and what it is made of; the status, the request, the client and the line that says the
@@ -215,12 +216,13 @@ function ReadyKitchen({
           )}
         </div>
         <div className={styles.contactColumn}>
-          <RequestStatus
+          <RequestStatusCard
             locale={locale}
             designId={kitchen.id}
             isSent={sentAtOf(kitchen) !== null}
             status={wire.status}
             editing={editing}
+            titleRef={titleRef}
           />
           <RequestLine locale={locale} request={wire.request} />
           <ClientProfile client={wire.client} />

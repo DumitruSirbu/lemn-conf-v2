@@ -28,10 +28,10 @@ import { noteLengthOf } from "./staff-note-rules";
 import type { StaffKitchenNoteWire } from "./staff-kitchens-wire-contract";
 import {
   useNoteComposer,
-  type KitchenEditing,
   type NoteComposer,
   type NoteFeedback,
-} from "./use-staff-kitchen-actions";
+} from "./use-note-composer";
+import type { KitchenEditing } from "./use-one-write-at-a-time";
 
 // The notes of one client's kitchen (Lot 3 frames S3B, S3F, S3F2 and S3F3): the list, newest first, and the field that adds
 // one. A note is never edited or deleted, so the list has no control. Every note, name and address is a React text child in an
@@ -67,7 +67,7 @@ export function StaffNotes({
         {copy.title}
       </h2>
       <NotesSummary count={notes.length} isTruncated={isTruncated} />
-      <SavedOrFailedNotice feedback={composer.feedback} />
+      <NoteNotices feedback={composer.feedback} />
       <NoteList
         locale={locale}
         notes={notes}
@@ -103,40 +103,51 @@ function NotesSummary({
   );
 }
 
-/** "Nota a fost salvată" above the list, where the new note stands, and the refusals that are not about the text. */
-function SavedOrFailedNotice({
-  feedback,
-}: {
-  readonly feedback: NoteFeedback;
-}) {
+/**
+ * Above the list, where the new note stands: the saved word and a limit being waited out, in a status region that is mounted
+ * before either comes (a region that appears together with its words is not reliably announced), and the refusals that are
+ * not about the text, as alerts.
+ */
+function NoteNotices({ feedback }: { readonly feedback: NoteFeedback }) {
+  const copy = useStaffNotesCopy();
+  return (
+    <>
+      <div role="status" className={styles.liveRegion}>
+        {feedback.kind === "saved" ? (
+          <FormNotice tone="success" isInLiveRegion>
+            {copy.saved}
+          </FormNotice>
+        ) : null}
+        {feedback.kind === "rate-limited" ? (
+          <RateLimitNotice notice={feedback.notice} isInLiveRegion />
+        ) : null}
+      </div>
+      <NoteAlert feedback={feedback} />
+    </>
+  );
+}
+
+function NoteAlert({ feedback }: { readonly feedback: NoteFeedback }) {
   const copy = useStaffNotesCopy();
   switch (feedback.kind) {
-    case "saved":
-      return <FormNotice tone="success">{copy.saved}</FormNotice>;
-    case "rate-limited":
-      return <RateLimitNotice notice={feedback.notice} />;
     case "failed":
-      return (
-        <FormNotice tone="error" title={copy.errorTitle}>
-          {copy.errorBody}
-        </FormNotice>
-      );
+      return <ErrorNotice body={copy.errorBody} />;
     case "forbidden":
-      return (
-        <FormNotice tone="error" title={copy.errorTitle}>
-          {copy.forbiddenBody}
-        </FormNotice>
-      );
+      return <ErrorNotice body={copy.forbiddenBody} />;
     case "kitchen-unavailable":
-      return (
-        <FormNotice tone="error" title={copy.errorTitle}>
-          {copy.kitchenGoneBody}
-        </FormNotice>
-      );
-    case "none":
-    case "text-refused":
+      return <ErrorNotice body={copy.kitchenGoneBody} />;
+    default:
       return null;
   }
+}
+
+function ErrorNotice({ body }: { readonly body: string }) {
+  const copy = useStaffNotesCopy();
+  return (
+    <FormNotice tone="error" title={copy.errorTitle}>
+      {body}
+    </FormNotice>
+  );
 }
 
 function NoteList({
@@ -181,20 +192,26 @@ function NoteList({
   );
 }
 
+interface NoteFieldIds {
+  readonly field: string;
+  readonly counter: string;
+  readonly error: string;
+  readonly dataLine: string;
+}
+
 /** The label, the counter, the field, its refusal and the button. The field stays editable until a request is out, and keeps
  *  what was typed through every refusal. */
 function NoteField({ composer }: { readonly composer: NoteComposer }) {
   const copy = useStaffNotesCopy();
   const kit = useAccountKitCopy();
-  const fieldId = useId();
-  const counterId = useId();
-  const errorId = useId();
-  const dataLineId = useId();
-  const fieldRef = useRef<HTMLTextAreaElement>(null);
-  useFocusOnRequest(composer.focusRequest, fieldRef);
+  const ids: NoteFieldIds = {
+    field: useId(),
+    counter: useId(),
+    error: useId(),
+    dataLine: useId(),
+  };
   const { feedback } = composer;
   const issue = feedback.kind === "text-refused" ? feedback.issue : undefined;
-  const length = noteLengthOf(composer.text);
   const wait = fullWaitOfFeedback(feedback);
   return (
     <form
@@ -207,44 +224,17 @@ function NoteField({ composer }: { readonly composer: NoteComposer }) {
         composer.submit();
       }}
     >
-      <div className={styles.composerHead}>
-        <label htmlFor={fieldId} className={styles.composerLabel}>
-          {copy.fieldLabel}
-        </label>
-        <span
-          id={counterId}
-          className={styles.counter}
-          data-over={length > NOTE_TEXT_MAX_LENGTH ? "true" : undefined}
-        >
-          {copy.counter(length)}
-        </span>
-      </div>
-      <p id={dataLineId} className={styles.hint}>
+      <NoteFieldHead ids={ids} length={noteLengthOf(composer.text)} />
+      <p id={ids.dataLine} className={styles.hint}>
         {copy.dataLine}
       </p>
-      <textarea
-        ref={fieldRef}
-        id={fieldId}
-        name="text"
-        className={styles.textarea}
-        rows={4}
-        autoComplete="off"
-        placeholder={copy.fieldPlaceholder}
-        value={composer.text}
-        readOnly={composer.isBusy}
-        aria-invalid={issue === undefined ? undefined : true}
-        aria-describedby={describedBy(
-          issue === undefined ? undefined : errorId,
-          dataLineId,
-          counterId,
-        )}
-        data-invalid={issue === undefined ? undefined : "true"}
-        onChange={(event) => {
-          composer.typeText(event.target.value);
-        }}
+      <NoteTextarea
+        composer={composer}
+        ids={ids}
+        hasIssue={issue !== undefined}
       />
       {issue === undefined ? null : (
-        <InlineRefusal id={errorId}>{kit.fieldError(issue)}</InlineRefusal>
+        <InlineRefusal id={ids.error}>{kit.fieldError(issue)}</InlineRefusal>
       )}
       <SubmitButton
         label={copy.submit}
@@ -254,6 +244,67 @@ function NoteField({ composer }: { readonly composer: NoteComposer }) {
         {...(wait === undefined ? {} : { wait })}
       />
     </form>
+  );
+}
+
+function NoteFieldHead({
+  ids,
+  length,
+}: {
+  readonly ids: NoteFieldIds;
+  readonly length: number;
+}) {
+  const copy = useStaffNotesCopy();
+  return (
+    <div className={styles.composerHead}>
+      <label htmlFor={ids.field} className={styles.composerLabel}>
+        {copy.fieldLabel}
+      </label>
+      <span
+        id={ids.counter}
+        className={styles.counter}
+        data-over={length > NOTE_TEXT_MAX_LENGTH ? "true" : undefined}
+      >
+        {copy.counter(length)}
+      </span>
+    </div>
+  );
+}
+
+function NoteTextarea({
+  composer,
+  ids,
+  hasIssue,
+}: {
+  readonly composer: NoteComposer;
+  readonly ids: NoteFieldIds;
+  readonly hasIssue: boolean;
+}) {
+  const copy = useStaffNotesCopy();
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  useFocusOnRequest(composer.focusRequest, fieldRef);
+  return (
+    <textarea
+      ref={fieldRef}
+      id={ids.field}
+      name="text"
+      className={styles.textarea}
+      rows={4}
+      autoComplete="off"
+      placeholder={copy.fieldPlaceholder}
+      value={composer.text}
+      readOnly={composer.isBusy}
+      aria-invalid={hasIssue ? true : undefined}
+      aria-describedby={describedBy(
+        hasIssue ? ids.error : undefined,
+        ids.dataLine,
+        ids.counter,
+      )}
+      data-invalid={hasIssue ? "true" : undefined}
+      onChange={(event) => {
+        composer.typeText(event.target.value);
+      }}
+    />
   );
 }
 

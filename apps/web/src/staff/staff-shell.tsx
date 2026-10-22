@@ -176,7 +176,11 @@ export function StaffShell({
         />
       ) : null}
       {sessionExpiry === undefined ? null : (
-        <StaffSessionSheet locale={locale} expiry={sessionExpiry} />
+        <StaffSessionSheet
+          locale={locale}
+          email={context.email}
+          expiry={sessionExpiry}
+        />
       )}
     </main>
   );
