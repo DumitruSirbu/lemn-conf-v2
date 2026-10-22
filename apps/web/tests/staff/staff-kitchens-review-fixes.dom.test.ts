@@ -56,12 +56,12 @@ describe("the table's columns (reads the CSS text; no layout runs here)", () => 
   const FLUID_COLUMNS = [2, 3, 4, 5, 6];
   const FRAME_SHARES = [1.5, 1.5, 1, 1.1, 0.95];
 
-  it("fixes the image, sent, changed and action columns at the frame's 88, 104, 128 and 124 px", () => {
+  it("fixes the image, sent, changed and action columns at 80, 96, 116 and 112 px: the frame's 88, 104, 128 and 124 trimmed so the whole table fits what a 1280 px window leaves it", () => {
     expect(FIXED_COLUMNS.map(widthOfColumn)).toEqual([
-      "88px",
-      "104px",
-      "128px",
-      "124px",
+      "80px",
+      "96px",
+      "116px",
+      "112px",
     ]);
   });
 
@@ -82,7 +82,7 @@ describe("the table's columns (reads the CSS text; no layout runs here)", () => 
       };
     });
 
-    expect(fixedPx).toBe(444);
+    expect(fixedPx).toBe(404);
     expect(widths.map(({ left }) => left)).toEqual(widths.map(() => fixedPx));
     expect(widths.map(({ share }) => share)).toEqual(FRAME_SHARES);
     const sumOfShares = FRAME_SHARES.reduce((total, share) => total + share, 0);
@@ -92,7 +92,19 @@ describe("the table's columns (reads the CSS text; no layout runs here)", () => 
   it("keeps the table inside its container: it scrolls there when the room is narrower than the columns need", () => {
     expect(css).toMatch(/\.tableScroll \{[^}]*overflow-x: auto/);
     expect(css).toMatch(/\.tableScroll \{[^}]*max-width: 100%/);
-    expect(css).toMatch(/\.table \{[^}]*min-width: 1000px/);
+    expect(css).toMatch(/\.table \{[^}]*min-width: 880px/);
+  });
+
+  it("keeps the action column at the region's right edge while the rest scrolls, on an opaque face", () => {
+    expect(css).toMatch(
+      /\.table tbody td:last-child,\s*\.table thead th:last-child \{[^}]*position: sticky;[^}]*right: 0;/,
+    );
+    expect(css).toMatch(
+      /\.table tbody td:last-child \{[^}]*background: var\(--paper\)/,
+    );
+    expect(css).toMatch(
+      /\.table thead th:last-child \{[^}]*background: var\(--surface\)/,
+    );
   });
 
   it("draws the picture to fit the image column's room instead of past it", () => {

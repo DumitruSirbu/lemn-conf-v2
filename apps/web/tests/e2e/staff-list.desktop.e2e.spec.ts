@@ -106,7 +106,7 @@ test("the table lists twenty rows, the numbered pages lead to the last six, and 
   await shootForReview(page, "desktop-list-page-2-1920");
 });
 
-test("at every width from 1920 to 900 the page never scrolls sideways and the table's region ends inside the window (the region itself may scroll)", async ({
+test("at every width from 1920 to 900 the page never scrolls sideways, the table's region ends inside the window, and the way into the first kitchen is whole inside it, unscrolled (the region itself may scroll)", async ({
   page,
 }) => {
   await openStaffList(page);
@@ -130,6 +130,31 @@ test("at every width from 1920 to 900 the page never scrolls sideways and the ta
       measured.regionRight,
       `${String(size.width)} px: the table's region reaches past the window`,
     ).toBeLessThanOrEqual(size.width);
+    const action = await measureFirstAction(page);
+    expect
+      .soft(
+        action.isInsideRegion,
+        `${String(size.width)} px: the first row's action ${JSON.stringify(action.box)} is clipped by the region ${JSON.stringify(action.regionBox)}`,
+      )
+      .toBe(true);
+    expect
+      .soft(
+        action.isInsideWindow,
+        `${String(size.width)} px: the first row's action ${JSON.stringify(action.box)} is outside the window`,
+      )
+      .toBe(true);
+    expect
+      .soft(
+        action.isTheTopmostThingThere,
+        `${String(size.width)} px: something covers the first row's action`,
+      )
+      .toBe(true);
+    expect
+      .soft(
+        action.isHeadingInsideRegion,
+        `${String(size.width)} px: the action column's heading is clipped by the region`,
+      )
+      .toBe(true);
     test.info().annotations.push({
       type: "table-region",
       description: `${String(size.width)} px: the region ${measured.regionScrolls ? "scrolls" : "holds the whole table"}`,
@@ -142,6 +167,68 @@ test("at every width from 1920 to 900 the page never scrolls sideways and the ta
   expect(await pageScrollsSideways(page), "899 px, the cards").toBe(false);
   await shootForReview(page, "desktop-list-899-cards");
 });
+
+interface Box {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+interface ActionMeasure {
+  readonly box: Box;
+  readonly regionBox: Box;
+  /** Whole between the region's own edges, which is what an `overflow-x` clip would cut at. */
+  readonly isInsideRegion: boolean;
+  readonly isInsideWindow: boolean;
+  /** A point in the middle of it answers to it: nothing is drawn over it. */
+  readonly isTheTopmostThingThere: boolean;
+  readonly isHeadingInsideRegion: boolean;
+}
+
+/** The first row's link into the kitchen and its column's heading, measured with the region scrolled to its start. */
+function measureFirstAction(page: Page): Promise<ActionMeasure> {
+  return page.evaluate(() => {
+    const table = document.querySelector(
+      '[data-testid="staff-kitchens-table"]',
+    );
+    const region = table?.parentElement;
+    const link = table?.querySelector('[data-testid="staff-kitchen-row"] a');
+    const heading = table?.querySelector("thead th:last-child");
+    if (!region || !link || !heading) {
+      throw new Error(
+        "the table, its first row's link or its heading is not on the page",
+      );
+    }
+    region.scrollLeft = 0;
+    const boxOf = (element: Element): Box => {
+      const { left, right, top, bottom } = element.getBoundingClientRect();
+      return { left, right, top, bottom };
+    };
+    const regionBox = boxOf(region);
+    const box = boxOf(link);
+    const headingBox = boxOf(heading);
+    const hit = document.elementFromPoint(
+      (box.left + box.right) / 2,
+      (box.top + box.bottom) / 2,
+    );
+    return {
+      box,
+      regionBox,
+      isInsideRegion:
+        box.left >= regionBox.left && box.right <= regionBox.right,
+      isInsideWindow:
+        box.left >= 0 &&
+        box.right <= window.innerWidth &&
+        box.top >= 0 &&
+        box.bottom <= window.innerHeight,
+      isTheTopmostThingThere: hit !== null && link.contains(hit),
+      isHeadingInsideRegion:
+        headingBox.left >= regionBox.left &&
+        headingBox.right <= regionBox.right,
+    };
+  });
+}
 
 interface TableMeasure {
   readonly regionRight: number;
