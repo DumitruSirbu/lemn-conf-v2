@@ -11,8 +11,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * One page of the staff audit log, for an administrator (ADR 0173). It changes nothing and writes no audit row of its
- * own. The account's page bucket fails closed. A store that cannot be read is `503`, never `401`.
+ * One page of the staff audit log, for an administrator (ADR 0173). It changes no client data, but every page it serves
+ * commits an `audit-viewed` row of its own. The account's page bucket fails closed. A store that cannot be read is
+ * `503`, never `401`.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (isCrossSiteRequest(request)) return crossSiteResponse();
