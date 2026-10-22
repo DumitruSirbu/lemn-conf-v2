@@ -10,6 +10,10 @@ import {
 /** Characters, as code points, in the stored NFC form. The `design_notes.body` length check repeats it. */
 export const NOTE_TEXT_MAX_LENGTH = 2000;
 
+/** How many notes a read of one kitchen carries: the newest, and a flag that there are more. The reader of the persistence
+ *  package states the same figure (`NOTES_READ_LIMIT`), and a web test pins the two equal. */
+export const NOTES_SHOWN_AT_MOST = 100;
+
 const LINE_FEED = "\n";
 
 /** Embeddings, overrides and isolates: U+202A to U+202E and U+2066 to U+2069. */

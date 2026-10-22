@@ -1,4 +1,7 @@
-import { NOTE_TEXT_MAX_LENGTH } from "@lemnaria/configurator-domain";
+import {
+  NOTE_TEXT_MAX_LENGTH,
+  NOTES_SHOWN_AT_MOST,
+} from "@lemnaria/configurator-domain";
 
 import type {
   StaffKitchenNoteWire,
@@ -6,9 +9,6 @@ import type {
 } from "./staff-kitchens-wire-contract";
 
 // What the notes of a staff kitchen are made of on the screen, apart from how they are drawn.
-
-/** How many notes the kitchen read carries: the newest, and a flag for the rest (`NOTES_READ_LIMIT` of the reader). */
-export const NOTES_SHOWN_AT_MOST = 100;
 
 /** Characters invisible to the eye that the server removes before it counts: direction marks, zero-width, soft hyphen. */
 const FORMAT_CHARACTER = /\p{Cf}/gu;

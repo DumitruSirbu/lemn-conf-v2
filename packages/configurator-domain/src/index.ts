@@ -384,6 +384,7 @@ export {
 export {
   judgeNoteText,
   NOTE_TEXT_MAX_LENGTH,
+  NOTES_SHOWN_AT_MOST,
   type NoteTextJudgement,
   type NoteTextRefusalCode,
 } from "./staff/note-text.js";

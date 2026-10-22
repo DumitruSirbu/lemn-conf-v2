@@ -5,11 +5,11 @@ import { fc } from "@fast-check/vitest";
 import {
   judgeNoteText,
   NOTE_TEXT_MAX_LENGTH,
+  NOTES_SHOWN_AT_MOST,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
-  NOTES_SHOWN_AT_MOST,
   noteLengthOf,
   withNoteAdded,
   withoutRepeatedNotes,
