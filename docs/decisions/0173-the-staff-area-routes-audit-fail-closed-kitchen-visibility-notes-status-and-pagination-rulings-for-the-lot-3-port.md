@@ -94,7 +94,10 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
 - **Unhide takes no body and no content type**, so only the cross-site check and `SameSite=Lax` protect it. This is the
   same residual as the client's hide route. The only path is a legacy browser that sends neither `Sec-Fetch-Site` nor
   `Origin`, together with a takeover of a same-site sibling. Hardening: require a JSON content type on **both** routes.
-  **Accepted.**
+  **Accepted.** **Closed 2026-10-22 (L3-U4 review pass, security I1):** both routes (`POST /api/staff/kitchens/{id}/unhide`
+  and `POST /api/account/kitchens/{id}/hide`) now read their request through `readGuardedBody`: the cross-site check first,
+  then a `415` for any media type that is not JSON, then a bounded body that is read and not looked at. An empty body is
+  fine while the media type is JSON, and the browser sends `{}`. [relayed; the implementer ran the route tests]
 - **Note spam.** One staff session can post 120 notes an hour to one kitchen, pushing real notes out of the newest-100
   view; there is no delete path. Every note is attributable by its audit row. **Accepted**, next to F6. Wave L3-U3 must
   provide a "load older" path so that the truncation cannot hide notes.

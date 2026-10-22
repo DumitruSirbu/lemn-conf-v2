@@ -160,6 +160,7 @@ const MUTATIONS: readonly Mutation[] = [
       hideRoute(
         accountRequest(`/api/account/kitchens/${id}/hide`, {
           method: "POST",
+          json: {},
           cookie: session.cookie,
           ...init,
         }),
@@ -343,6 +344,53 @@ describe.each(MUTATIONS)("$label: the order of the checks", (mutation) => {
     expect(await answer.clone().text()).not.toContain(DRIVER_FAILURE_MARKER);
     expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
     expect(everyRow()).toEqual(before);
+  });
+});
+
+describe("hide: it takes no input, but it asks for a JSON media type like the other writes", () => {
+  const hide = mutationNamed("hide");
+
+  it("answers 415 to a media type that is not JSON, before the session is read, and hides nothing", async () => {
+    seedActionable(hide);
+    world.calls.length = 0;
+
+    for (const contentType of [
+      "text/plain",
+      "application/x-www-form-urlencoded",
+      "multipart/form-data; boundary=x",
+      null,
+    ]) {
+      const answer = await hide.send(KITCHEN_ID, { contentType, json: {} });
+
+      expect(answer.status).toBe(415);
+      expect(await jsonOf(answer)).toEqual({
+        status: "unsupported-media-type",
+      });
+    }
+    expect(world.calls).toEqual([]);
+    expect(world.kitchens.held(KITCHEN_ID)?.hiddenAt).toBeUndefined();
+  });
+
+  it("hides the kitchen for a JSON media type, whatever body it carries, which is never read", async () => {
+    seedActionable(hide);
+
+    const withBody = await hide.send(KITCHEN_ID, {
+      json: { name: "ignored" },
+    });
+
+    expect(withBody.status).toBe(204);
+  });
+
+  it("refuses a request from another site before it looks at the media type", async () => {
+    seedActionable(hide);
+
+    const answer = await hide.send(KITCHEN_ID, {
+      secFetchSite: "cross-site",
+      contentType: "text/plain",
+    });
+
+    expect(answer.status).toBe(403);
+    expect(world.kitchens.held(KITCHEN_ID)?.hiddenAt).toBeUndefined();
   });
 });
 

@@ -153,6 +153,10 @@ export function statusRequest(id: string, init: WriteRequestInit = {}) {
   return writeRequest(`/api/staff/kitchens/${id}/status`, "PUT", init);
 }
 
+/** The browser's unhide: a POST with an empty JSON object, since the route asks for a JSON media type. */
 export function unhideRequest(id: string, init: WriteRequestInit = {}) {
-  return writeRequest(`/api/staff/kitchens/${id}/unhide`, "POST", init);
+  return writeRequest(`/api/staff/kitchens/${id}/unhide`, "POST", {
+    ...init,
+    json: init.json ?? {},
+  });
 }

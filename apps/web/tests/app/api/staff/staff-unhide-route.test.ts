@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { designNotFoundResponse } from "@/lib/server/design-errors";
@@ -5,6 +6,7 @@ import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-
 
 import {
   DRIVER_FAILURE_MARKER,
+  ORIGIN,
   captureConsole,
   freshAccountWorld,
   jsonOf,
@@ -127,21 +129,71 @@ describe("a kitchen its client hid", () => {
     );
   });
 
-  it("takes no body: any body and any media type are unhidden alike and the request is never read as input", async () => {
+  it("takes no input: any body of a JSON media type, junk or claims or none, is unhidden alike and is never read as input", async () => {
     const { session } = await signedInOperator();
     const first = plantActionKitchen({ isHidden: true });
     const second = plantActionKitchen({ isHidden: true });
+    const third = plantActionKitchen({ isHidden: true });
 
     const withJunk = await unhide(first.id, session.cookie, {
       json: "{not json",
-      contentType: "text/plain",
     });
     const withClaims = await unhide(second.id, session.cookie, {
       json: { id: "someone-else", role: "administrator" },
     });
+    const withNone = await POST(
+      new NextRequest(`${ORIGIN}/api/staff/kitchens/${third.id}/unhide`, {
+        method: "POST",
+        headers: {
+          cookie: session.cookie,
+          "sec-fetch-site": "same-origin",
+          "content-type": "application/json",
+          "x-forwarded-for": "192.0.2.10",
+        },
+      }),
+      { params: Promise.resolve({ id: third.id }) },
+    );
 
-    expect([withJunk.status, withClaims.status]).toEqual([204, 204]);
+    expect([withJunk.status, withClaims.status, withNone.status]).toEqual([
+      204, 204, 204,
+    ]);
     expect(actions.store.heldKitchen(second.id)?.isHidden).toBe(false);
+    expect(actions.store.heldKitchen(third.id)?.isHidden).toBe(false);
+  });
+
+  it.each([
+    ["no media type", null],
+    ["text/plain", "text/plain"],
+    ["a form", "application/x-www-form-urlencoded"],
+    ["multipart", "multipart/form-data; boundary=x"],
+  ])(
+    "asks for a JSON media type: %s is 415, and nothing is written, counted or audited",
+    async (_, contentType) => {
+      const { session } = await signedInOperator();
+      const kitchen = plantActionKitchen({ isHidden: true });
+
+      const answer = await unhide(kitchen.id, session.cookie, {
+        json: {},
+        contentType,
+      });
+
+      expect(answer.status).toBe(415);
+      expect(actions.store.heldKitchen(kitchen.id)?.isHidden).toBe(true);
+      expect(heldEvents()).toEqual([]);
+    },
+  );
+
+  it("refuses a request from another site before it looks at the media type", async () => {
+    const { session } = await signedInOperator();
+    const kitchen = plantActionKitchen({ isHidden: true });
+
+    const answer = await unhide(kitchen.id, session.cookie, {
+      secFetchSite: "cross-site",
+      contentType: "text/plain",
+    });
+
+    expect(answer.status).toBe(403);
+    expect(actions.store.heldKitchen(kitchen.id)?.isHidden).toBe(true);
   });
 });
 
