@@ -33,6 +33,9 @@ export interface DialogConfirm {
   /** What the button says while the request is out: the act in the present tense. */
   readonly busyLabel: string;
   readonly isBusy: boolean;
+  /** The act is off for a reason the person is told beside the button (a limit being waited out): it is drawn off and
+   *  ignores a press, but shows no spinner and no busy label, and the dialog can still be left. */
+  readonly isOff?: boolean;
   readonly onPress: () => void;
 }
 
@@ -235,8 +238,8 @@ const CONFIRM_CLASS_BY_TONE: Readonly<
   quiet: styles.dialogQuiet ?? "",
 };
 
-/** The act. Busy it stays reachable (`aria-disabled`, not `disabled`), so the focus the press left on it is not
- *  dropped outside the Tab ring, and it ignores a second press. */
+/** The act. Busy or off it stays reachable (`aria-disabled`, not `disabled`), so the focus the press left on it is not
+ *  dropped outside the Tab ring, and it ignores a press. Only busy shows the spinner and the act in the present tense. */
 function ConfirmButton({
   tone,
   confirm,
@@ -246,14 +249,15 @@ function ConfirmButton({
   readonly confirm: DialogConfirm;
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
 }) {
+  const isUnavailable = confirm.isBusy || confirm.isOff === true;
   return (
     <button
       ref={buttonRef}
       type="button"
       className={CONFIRM_CLASS_BY_TONE[tone]}
       aria-busy={confirm.isBusy ? true : undefined}
-      aria-disabled={confirm.isBusy ? true : undefined}
-      onClick={confirm.isBusy ? doNothingWhileBusy : confirm.onPress}
+      aria-disabled={isUnavailable ? true : undefined}
+      onClick={isUnavailable ? doNothingWhileBusy : confirm.onPress}
     >
       {confirm.isBusy ? (
         <span className={styles.dialogSpinner} aria-hidden="true" />

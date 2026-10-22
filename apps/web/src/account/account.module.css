@@ -988,6 +988,14 @@
   cursor: not-allowed;
 }
 
+.dialogPrimary[aria-disabled="true"]:not([aria-busy="true"]),
+.dialogDestructive[aria-disabled="true"]:not([aria-busy="true"]) {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+  background: var(--selected-surface);
+  border: 1px solid var(--line);
+}
+
 /* The page's `.spinner`, on the destructive action in its own colours. Its end margin is the gap to the label. */
 .dialogSpinner {
   composes: spinner;

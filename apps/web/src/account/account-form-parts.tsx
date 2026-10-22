@@ -242,6 +242,9 @@ export interface FormNoticeProps {
   readonly children: ReactNode;
   /** The form moves focus here when the notice replaces the person's place: the summary of several refused fields. */
   readonly ref?: Ref<HTMLDivElement> | undefined;
+  /** The notice stands inside a live region that is mounted before its words come (a status region the screen keeps),
+   *  which does the announcing; it then carries no role of its own and is not announced twice. */
+  readonly isInLiveRegion?: boolean;
 }
 
 /** A form-level message in a live region. An error interrupts (`alert`); the other tones wait their turn (`status`). */
@@ -251,6 +254,7 @@ export function FormNotice({
   title,
   children,
   ref,
+  isInLiveRegion = false,
 }: FormNoticeProps) {
   return (
     <div
@@ -258,7 +262,7 @@ export function FormNotice({
       ref={ref}
       className={styles.notice}
       data-tone={tone}
-      role={tone === "error" ? "alert" : "status"}
+      role={roleOf(tone, isInLiveRegion)}
       tabIndex={-1}
     >
       <span className={styles.noticeMark} aria-hidden="true" />
@@ -272,32 +276,52 @@ export function FormNotice({
   );
 }
 
+function roleOf(
+  tone: FormNoticeProps["tone"],
+  isInLiveRegion: boolean,
+): "alert" | "status" | undefined {
+  if (isInLiveRegion) return undefined;
+  return tone === "error" ? "alert" : "status";
+}
+
 /** The sentence for a limited request, in the warning tone. The same words for every address (plan section 5). A short
  *  wait is counted down here and nowhere else: the submit button only stays off for it. */
 export function RateLimitNotice({
   notice,
   ref,
+  isInLiveRegion = false,
 }: {
   readonly notice: AccountRateLimitNotice;
   readonly ref?: Ref<HTMLDivElement> | undefined;
+  readonly isInLiveRegion?: boolean;
 }) {
   return notice.kind === "countdown" ? (
-    <CountdownRateLimitNotice endsAtMs={notice.endsAtMs} ref={ref} />
+    <CountdownRateLimitNotice
+      endsAtMs={notice.endsAtMs}
+      ref={ref}
+      isInLiveRegion={isInLiveRegion}
+    />
   ) : (
-    <SentenceRateLimitNotice sentence={notice} ref={ref} />
+    <SentenceRateLimitNotice
+      sentence={notice}
+      ref={ref}
+      isInLiveRegion={isInLiveRegion}
+    />
   );
 }
 
 function SentenceRateLimitNotice({
   sentence,
   ref,
+  isInLiveRegion,
 }: {
   readonly sentence: AccountRateLimitSentence;
   readonly ref?: Ref<HTMLDivElement> | undefined;
+  readonly isInLiveRegion: boolean;
 }) {
   const copy = useAccountKitCopy();
   return (
-    <FormNotice tone="warning" ref={ref}>
+    <FormNotice tone="warning" ref={ref} isInLiveRegion={isInLiveRegion}>
       {copy.rateLimit(sentence, renderStrong)}
     </FormNotice>
   );
@@ -311,9 +335,11 @@ function SentenceRateLimitNotice({
 function CountdownRateLimitNotice({
   endsAtMs,
   ref,
+  isInLiveRegion,
 }: {
   readonly endsAtMs: number;
   readonly ref?: Ref<HTMLDivElement> | undefined;
+  readonly isInLiveRegion: boolean;
 }) {
   const copy = useAccountKitCopy();
   const remaining = useSecondsUntil(endsAtMs);
@@ -322,7 +348,7 @@ function CountdownRateLimitNotice({
   );
   if (remaining === 0) {
     return (
-      <FormNotice tone="info" ref={ref}>
+      <FormNotice tone="info" ref={ref} isInLiveRegion={isInLiveRegion}>
         {copy.rateLimitReady}
       </FormNotice>
     );
@@ -333,7 +359,7 @@ function CountdownRateLimitNotice({
     "0",
   );
   return (
-    <FormNotice tone="warning" ref={ref}>
+    <FormNotice tone="warning" ref={ref} isInLiveRegion={isInLiveRegion}>
       <span aria-hidden="true">
         {copy.rateLimitCountdown(minutes, secondsPart, renderStrong)}
       </span>
