@@ -153,3 +153,86 @@ it still owes is the notice, the explicit recalculate action, and the retained-v
 Everything checked out against the tree. The seam claim, both cited precedents' quotations, the
 `UNKNOWN_TIER` failure mode for both tier groups, the `9_427_500` baseline, and wave 6G's
 pricing-independent tier list all matched what the code and the milestone plan state.
+
+## Amendment — 2026-10-25: a saved kitchen always prices at the current book; design items 2, 4 and 6 are reversed
+
+**Evidence tier: owner ruling 2026-10-25, coordinator-relayed** (given in conversation; the words in
+quotation marks are the owner's as relayed, not a verbatim transcript). The rest of this record stands
+as written; this amendment names what it supersedes.
+
+**What is reversed.** *Context* design item 2 (a saved kitchen keeps showing the price it was quoted
+at, indefinitely), item 4 (an explicit, customer-initiated "apply new prices" recalculation) and
+item 6 (the dashboard shows, per kitchen, the price list used at that time). Items 3 and 5 are
+changed in effect: item 3's "figure no longer reflects current prices" notice has no old figure left
+to qualify (see the one-time notice below), and item 5's *nothing auto-updates* no longer holds for
+customer pricing, because a kitchen is re-priced whenever it is opened. Item 1 (a design records its
+book version) is not needed for customer pricing either; see the sub-decisions below.
+
+**The owner's reasoning, as relayed.** Keeping and showing the earlier price is "counter
+manufacturer": a customer could go back, see that the kitchen was about 10% cheaper, and hold the
+manufacturer to it. The on-screen total is an estimate anyway: the real price is calculated at the
+shop and fixed in the contract, so the configurator's total "will not be so important anymore".
+
+**The ruling.**
+
+- A saved kitchen stores **only its configuration** and **always prices at the current published
+  book**. There is no per-design quoted price, no per-kitchen price version, no recalculate action
+  and no customer-visible old price.
+- When a customer opens a saved kitchen and **a price that kitchen uses has changed since they last
+  saw it**, they see a **one-time notice** that prices were updated: shown once, then not again. It is
+  informational, with no old amount and no before/after figures. **Where the "already shown" marker is
+  stored is open and not decided**: the owner named a cookie, the user's profile and the database.
+- **Versioning of the book is kept for the owner's own history** (what changed, and when), shown in
+  the dashboard. Customers never see versions.
+
+**Effect on the two open sub-decisions** (*Two sub-decisions the dashboard work inherits*):
+
+- **Version id or snapshot?** No longer needed for customer pricing. A per-design snapshot and a
+  per-design version id both existed to let a kitchen keep pricing against an old book; under this
+  ruling no kitchen does. The recommendation to keep books immutable and append-only survives only as
+  far as the owner's history needs it, and that need is the owner's change log, not a per-design
+  reference. The "every version retained forever" cost therefore no longer follows from customer
+  pricing; what the history retains is the dashboard wave's to size.
+- **Where books live** stays open, unchanged: a dashboard-edited book needs database storage, and that
+  is not designed here.
+
+**Consequence for the stored-tier observation.** *One observation worth recording on its own* said
+this design moved the withdrawn-tier question to the moment of "apply new prices". That moment no
+longer exists. A kitchen is re-priced on open, so a design carrying a tier the current book no longer
+offers will meet `UNKNOWN_TIER` (`price-design.ts:536-543`, as verified in *Decision* finding 3) on
+open rather than at a customer action. Wave 6G's pricing-independent tier list is the recovery path
+(`whole-kitchen-tiers.ts:111-113`); whether a withdrawn tier needs more (for example, the
+warn-before-apply shape of [ADR 0057](0057-a-material-change-resets-an-unavailable-finish.md)) is
+**not decided here** and is the dashboard wave's to settle. The dashboard's book validation is the
+natural place to refuse withdrawing a tier a saved kitchen may still use; that is an inference, not a
+ruling.
+
+**What this answers elsewhere.** [ADR 0062](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)
+seam 3's M8 bullet asked what happens to a design priced under a retired book version. Answer: **a
+design is never priced under a retired version; it is re-priced under the current one, with the
+notice above.** That answer concerns a saved kitchen's on-screen price. It does not by itself revisit
+a contact submission's stored figure (M8's D7 keeps the submitted snapshot); that is a separate
+record and is **not changed by this amendment**.
+
+**Follow-up, 2026-10-25 (second): the withdrawn-tier question is now the deactivation question.** The
+paragraph above named the dashboard's book validation as the place to settle what happens to a tier a
+saved kitchen uses. The owner has asked for the warning on deactivating or deleting such an item (a
+material, a hardware class, an accessory) to be designed again; deleting stays blocked while it is
+used. The design brief proposes that a deactivated item is hidden from new choices while saved kitchens
+that use it keep being priced with it, so they do not meet `UNKNOWN_TIER`. **That is a proposal,
+pending owner confirmation, not a ruling.** Recorded at the
+[ADR 0062 second Amendment of 2026-10-25](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md);
+backlog 285.
+
+**Superseded, 2026-10-25 (third).** The proposal above is **replaced by an owner ruling**, recorded at
+the [ADR 0062 third Amendment of 2026-10-25](0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md):
+a used item may be disabled but not deleted; a saved kitchen using a disabled item is **not** kept
+priced with it. The customer gets a notice and must choose a replacement from the remaining options,
+and the price recalculates after the choice. That makes the choice mandatory and resolves the
+`UNKNOWN_TIER`-on-open consequence above. Price changes keep applying to every kitchen, sent ones
+included (freezing rejected for now). Open points for the architect are listed in that amendment.
+
+**What does not change.** M6 and M8 still build nothing for this: no field, version, table, endpoint
+or notice. The dashboard remains after M8 per ADR 0062. The seam finding (`priceDesign` takes the
+book as a parameter) is untouched, and is what makes "price at the current book" a substitution
+rather than a refactor.

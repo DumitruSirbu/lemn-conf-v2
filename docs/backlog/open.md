@@ -998,6 +998,8 @@ list.
 
 **So: do not re-ask the owner what shape depth pricing takes — they answered.** What is still owed is the manufacturer's actual rate, which is the owner's to obtain when they return. Do not plan a wave. [ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) carries the ruling, the two rejected alternatives, and two implementation constraints measured on 2026-09-07 — the runtime parser's derived `MAX_PRICE_COEFFICIENT_MINOR` bound, and the fact that a multiplier is not a fifth linear term and needs a declared rounding rule at a named seam.
 
+**Note 2026-10-25: the postponement is lifted.** The owner un-postponed depth pricing and it is now backlog 283 ([ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) Amendment). The paragraph above ("Do not plan a wave") is superseded; the shape and the unapproved ~15% stand.
+
 **The original entry, unedited, follows.**
 
 **Observed by the owner, 2026-09-06**, reading the collected copy at Gate O1: *"changing kitchen
@@ -1030,7 +1032,7 @@ the book must not be extended before the answer arrives.
 
 **Where it lands.** The manufacturer price dashboard owns book authoring
 ([ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)
-seam 1, [ADR 0072](../decisions/0072-the-price-book-is-data-and-its-shapes-are-code.md)), so this is
+seam 1, [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md)), so this is
 a coefficient the dashboard's book validation and its authoring surface must both know about.
 Recorded here rather than scheduled: **no change to M6**, on the owner's explicit instruction.
 
@@ -3290,3 +3292,75 @@ four file names were not relayed to the scribe.
 ## 275. Generic 413/503 status constants live in a preset-named module; the listing byte cap grew — RECORDED 2026-10-18 FROM THE M8C CLEAN-CODE REVIEW
 
 **Evidence [source-verified by the reviewer].** The generic 413 and 503 status constants now live in the preset-named `apps/web/src/preset/preset-wire-contract.ts`. Also `MAX_LISTING_BYTES` grew from 1,153,434 to 1,179,648 bytes (8 × (128 KiB + 16 KiB)). **Cost of deciding:** move or rename the constants to a neutral module; the cap change is recorded only. **Owner:** unassigned.
+
+## 276. Manual insert takes the widest width, not the default width — RECORDED 2026-10-25 (OWNER OBSERVATION, COORDINATOR-RELAYED)
+
+**Observed (owner, relayed).** The owner's notion of a cabinet's "default width" is the width it takes when there is a lot of free space: most 600, the bottle cargo 300, perhaps a tall unit 800. A cabinet inserted by hand into a large empty space does not follow it.
+
+**What is true in the code [source-verified by the coordinator; not re-read by the scribe].** In `packages/configurator-domain/src/commands/insert-fit.ts`, `resolveFitWidth` returns `widestBuildableWidthMm(body)` when the opening is wider than the widest buildable width and the column can be divided, and `resolveFixedSetWidth` takes the widest fitting size. So a range cabinet inserted by hand into a large empty space is built at 800 mm. The generator plans most bodies at 600: `generation/generation-priorities.ts` (sink, 3-drawer and hob 600; fridge-free 700), `generation/optional-run-items.ts` (bottle cargo 300), `generation/leftover-rule.ts` (`STORAGE_BODY_WIDTH_MM` 600), `generation/dishwasher-beside-the-sink.ts` (600) and `generation/u-tall-layout.ts` (pantry 600). **No catalogue field declares a default width today.**
+
+**Open.** Whether manual insert should use a per-cabinet default width, and declaring that default once (in the catalogue) so the generator and insert read one value. **Owner to confirm** the proposed defaults for rows the generator does not place (`base-panbank`, `wall-lift`, `open-shelf`, `hood`: 600 proposed) and whether `tall-pantry` is 600 or 800. The dashboard brief shows these as "propus". **Cost of deciding:** a catalogue field plus changes to the insert path and the generator's constants; an owner question first. **Owner:** the owner, for the values; unassigned otherwise. Related: 255 (the commands still cut empty space at 800).
+
+## 277. Manufacturer dashboard: prices and whole-kitchen defaults — RECORDED 2026-10-25; AFTER M8 PER ADR 0062, NO MILESTONE YET
+
+Scope as ruled: [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) Amendment of 2026-10-25 (prices editable; sizes shown read-only; a default-settings screen; desktop-first; adding cabinets out of scope) and the [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) Amendment of 2026-10-25 (a saved kitchen always prices at the current book; version history is the owner's only). The design brief is `docs/design/claude-design-brief-cabinet-price-dashboard.md`. **Nothing is built and nothing is scheduled.** Trigger: M8's close. Inherits 176 (two price-book roots must become one first), 54 (depth multiplier) and the open question of where books live. **Owner:** unassigned.
+
+## 278. A whole-kitchen handle setting in the configurator — REQUESTED 2026-10-25 (OWNER RULING, COORDINATOR-RELAYED), NOT SCHEDULED
+
+The customer's global settings sheet should offer one handle choice that applies to every cabinet that takes a handle, as the kitchen colour already does. **What is true in the code [source-verified by the coordinator].** Handles are per cabinet only: `HandleSchema` is steel, black or push in `packages/configurator-domain/src/design.ts`, and the default is `steel` in `queries/describe-selection.ts`. The dashboard's default-settings screen (277) depends on this: its handle default has no whole-kitchen setting to feed until this exists. Open: how a whole-kitchen choice interacts with a per-cabinet override (not asked, not decided). **Owner:** unassigned; the brief draws one frame (C2).
+
+## 279. Cabinet enable / disable — FUTURE PLAN, DELIBERATELY POSTPONED BY THE OWNER 2026-10-25 (COORDINATOR-RELAYED)
+
+Disabling a cabinet type must hide it from the customer's list **and** make the generator never place it; the owner recognises this as a large change and postponed it on purpose. Default when built: everything enabled. Ruled at [ADR 0062](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md) Amendment of 2026-10-25. Related: ADR 0062 seam 3 (a preset naming a disabled build id must fail in a stated way). The brief leaves room for it and draws nothing. **Not to be started before the owner lifts the postponement.** **Owner:** the owner.
+
+## 280. One-time "prices updated" notice for saved kitchens — RULED 2026-10-25 (OWNER, COORDINATOR-RELAYED), NOT BUILT; STORAGE OF THE MARKER OPEN
+
+Ruled at the [ADR 0072](../decisions/0072-price-book-versioning-is-deferred-to-the-manufacturer-dashboard.md) Amendment of 2026-10-25. When a customer opens a saved kitchen and a price it uses has changed since they last saw it, show a calm notice once: informational, no old price. **Open, not decided:** where the "already shown" marker lives. The owner named a cookie, the user's profile, and the database. Also not decided: how "a price this kitchen uses has changed since last seen" is determined. Depends on the dashboard (277), since only a dashboard can change the book without a developer. The brief draws the customer frame as C1. **Owner:** unassigned.
+
+## 281. Pricing engine: the anchor-and-steps formula shapes — RULED 2026-10-25 ([ADR 0175](../decisions/0175-a-cabinet-is-priced-by-an-anchor-at-its-default-width-plus-steps-widths-and-heights-round-up-to-50-mm-and-prices-round-to-10-lei.md)), NOT BUILT, NOT SCHEDULED
+
+Part of 277's trigger (after M8). **Needs code, not data:** asymmetric width steps (a plus and a minus amount), round-up of width and height to the next 50 mm, and a per-size lookup for fixed-size rows. A symmetric step already fits the linear shape. Today a body built at 575 is priced at 575 (`price-book.ts:13`), so round-up changes customer-visible prices. Also owed: a **default width declared once in the catalogue** (the anchor is the price at it) — that is 276's owner question. Open (ADR 0175): whether the door count follows the actual or the rounded width. **Owner:** unassigned.
+
+## 282. Pricing engine: material as a percentage on cabinet prices — RULED 2026-10-25 ([ADR 0092](../decisions/0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md) Amendment), NOT BUILT, NOT SCHEDULED
+
+Replaces `MaterialTier.wholeKitchenMinor` (`price-book.ts:200-203`). PAL is the 0% reference; illustrative MDF +30-35%, veneer +70%; applies to cabinets only, not hardware or accessories; the customer still sees one "Material · <name>" line. Open: the rounding seam (283/284), and whether the material group's "keeps throwing" rule survives (ADR 0092 Amendment). Links 277, 281. **Owner:** unassigned.
+
+## 283. Pricing engine: depth 700 as a percentage, its customer line and the `depthNote` copy — RULED 2026-10-25 ([ADR 0100](../decisions/0100-depth-is-priced-by-a-dashboard-editable-multiplier-on-the-600-mm-base-and-it-is-deferred.md) Amendment), NOT BUILT, NOT SCHEDULED
+
+Un-postpones 54. One percentage as book data; base and tall cabinets only (including hob and sink); not wall cabinets, customer-supplied rows, hardware or accessories; applied at the cabinet's real width; multiplies with the material percentage. The customer sees its own line "Adâncime 700 mm". Edited in the "Price rules for all cabinets" card at the top of Dulapuri. **`globalSettings.depthNote` (`apps/web/src/messages/ro.json:324`, `ru.json:324`) must change in the same change that ships the coefficient** (ADR 0100 decision 5). The ~15% working figure is **not approved**. Re-derive `MAX_PRICE_COEFFICIENT_MINOR`. Links 54, 277, 282. **Owner:** unassigned.
+
+## 284. Pricing engine: 10-lei rounding — RULED 2026-10-25 ([ADR 0175](../decisions/0175-a-cabinet-is-priced-by-an-anchor-at-its-default-width-plus-steps-widths-and-heights-round-up-to-50-mm-and-prices-round-to-10-lei.md) decision 5); WHICH AMOUNT IS ROUNDED IS OPEN FOR THE ARCHITECT
+
+The design rounds to the nearest 10 lei (`Math.round(x/1000)*1000` in bani); the owner accepted it. **Open seam:** round each cabinet price after depth and material, or each customer-visible line — the totals differ. Tension: the pricing code is exact bani and says only presentation rounds (`price-book.ts:15`); ADR 0100 says the query is the one place rounding is forbidden. Percentages (282, 283) make the arithmetic non-integer. Needs an architect's ruling before any implementation. **Owner:** architect.
+
+## 285. Deactivating or deleting an item saved kitchens use — RULED 2026-10-25 (OWNER, COORDINATOR-RELAYED); NOT BUILT; ONE OPEN POINT FOR THE ARCHITECT (LONE COLOUR); SENT-KITCHEN EDITING: REVERSED, THEN REVERSED BACK (EDITABLE), SEE 286
+
+**Ruling, 2026-10-25 — supersedes the proposal below** ([ADR 0062 third Amendment](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)). Deleting an item any saved kitchen uses is forbidden ("Deleting no, disabling yes"). Disabling a used material, colour, hardware class, handle or accessory is allowed: the dashboard warns first, with the count of kitchens using it; a customer opening such a kitchen gets a notice that it "is not available anymore", must choose a replacement from the remaining options (the relevant global setting opens showing only those), and the price recalculates after the choice. Price changes apply to all kitchens, sent ones included; freezing is rejected for now (possible trigger: a "taken into production" status). **Further owner answers, 2026-10-25 (third Amendment):** ~~price before the choice (none, or default tier)~~ **ruled:** the price is hidden until a replacement is chosen for every disabled item. ~~an accessory with no alternative (removed with a notice?)~~ **ruled:** a disabled accessory is removed from the kitchen with a notice; nothing to choose. ~~whether a submitted kitchen is editable~~ ~~**ruled:** a sent kitchen stays editable, edits are not blocked, so the mandatory-replacement prompt also appears on sent kitchens. No lock found in M8's plan or ADRs 0150, 0158.~~ **Reversed later on 2026-10-25 (owner, [ADR 0062 fourth Amendment](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)): a sent kitchen is locked; to change it the customer creates a copy. The mandatory-replacement sheet on a locked kitchen is an open point, see 286.** **Reversed back the same day (fifth Amendment): no lock; a sent kitchen stays editable and gets the sheet like any kitchen.** ~~Open for the architect, inference: editing a sent kitchen does not change what the shop received (ADR 0154): should the customer be told their changes are not sent until they send again, and is re-sending supported?~~ **Dissolved:** a sent kitchen is not edited. **Still open for the architect:** a lone disabled colour vs ADRs 0057, 0081, 0086 (cross-reference only). **Owner:** architect.
+
+*Superseded text, kept:*
+
+Applies to a material, a hardware class and an accessory. **Ruled:** deleting stays blocked while the item is used. **Not ruled:** deactivation. The design blocks deleting a used hardware class but has no warning for deactivating one in use. **Proposal (brief), pending owner confirmation:** a deactivated item is hidden from new choices; saved kitchens that use it keep being priced with it, so they do not fail with `UNKNOWN_TIER` (ADR 0072 Amendment, *Consequence for the stored-tier observation*). Recorded at ADR 0062's second Amendment of 2026-10-25. Links 277, 280. **Owner:** the owner, to confirm; design after.
+
+## 286. A sent kitchen stays editable; changed-after-sending badge, side-by-side view, daily digest, review statuses — RULED 2026-10-25 (OWNER, COORDINATOR-RELAYED); NOT BUILT; FOUR ARCHITECT POINTS + REVIEWER ROLE OPEN
+
+**Ruling** ([ADR 0062 fifth Amendment](../decisions/0062-a-manufacturer-price-dashboard-comes-after-m8-and-shapes-seams-now.md)); it reverses the fourth Amendment's lock, which is kept below, struck through. Owner: "the most important part of the tool, the creating of the lead, the connection with the manufacturer and the starting on the project, will be achieved… This is 100% the goal of the tool, not keeping it always up to date… At the moment when the client sends his details, it's already a win."
+
+1. **No lock, no "create a copy".** ADR 0165's done-page link that opens the design for editing stays as it is; ADR 0165 lines 41-52 and `docs/OWNER_FIXES.md` Q-F3-9 no longer conflict.
+2. A sent kitchen shows the current price (ADR 0072 Amendment) and gets the mandatory-replacement sheet (ADR 0062 third Amendment).
+3. Soft, non-blocking note: „Ai trimis deja această bucătărie. Modificările se văd și la noi, dar spune-ne la telefon dacă e ceva important.”
+4. **Changed after sending** = `designs.revision` > the submission's `design_revision` (coordinator, source-verified: `0004_add_design_revision.sql` increments per save; `0008_create_contact_submissions.sql` stores snapshots and `design_revision`; no history of earlier versions). New per-submission **seen revision**, recorded when an operator or administrator opens the kitchen in "Bucătării clienți". Revision > seen revision: badge „Modificată după ce ai văzut-o" and a counter in the dashboard menu (always on). The kitchen page shows "Trimisă" and "Actuală" side by side.
+5. **Digest email** to administrators and operators: at most one a day; only if a kitchen changed since the previous digest; each kitchen once per round of changes (again only after seen and changed again); a kitchen drops out 30 days after sending or when its status becomes „Măsurare programată" or „În producție", whichever is first, then only the badge.
+6. **Statuses, set by hand by operators:** Trimisă → Văzută → Măsurare programată → În producție. *(Reconciled 2026-10-25, pending owner confirmation: `main` already ships Nouă / Contactat / Ofertă trimisă / Închisă (ADR 0173 P-L3-8); keep those, add none, "seen" is a separate marker, the digest stops at Ofertă trimisă / Închisă — see ADR 0062's reconciliation note.)* Roles are outside the dashboard's scope, so "who can review" stays open.
+7. Freezing prices stays postponed; „În producție" is a status a freeze could hang on.
+
+**Open for the architect (inference, not ruled):** (a) where the seen revision and the status live: columns on `contact_submissions` or a new table; (b) the digest's sending time and provider (ADR 0154's mail port); (c) whether the 30-day window counts from the first sending or the last; (d) a kitchen sent twice has two submissions: which seen revision applies. **Open:** who can review (roles).
+
+**Resolved or dissolved from the fourth Amendment:** price a sent kitchen shows (current price); the sheet on a locked kitchen (appears as normal); locked from sending versus from review (no lock).
+
+*Superseded text, kept:*
+
+~~**Ruling** (ADR 0062 fourth Amendment); reverses 285's "sent kitchens stay editable". A kitchen the customer has sent is locked: no editing, through and after review by an operator or administrator. **To confirm with the owner:** "locked from sending" (the coordinator's reading) versus "locked once reviewed". To change it, the customer creates a new kitchen from it: an editable, unsent copy. A sent kitchen shows a notice: wait for the manufacturer's answer; to discuss sooner, call the shop or refer to this design when asking for a consultation. This replaces the re-send question.~~
+
+~~**Open (inference, not ruled):** (1) the price a locked kitchen shows; recommended: no estimate, just "Prețul final îl primești de la producător". (2) The mandatory-replacement sheet on a locked kitchen; recommended: no sheet, the item shows as unavailable with "Creează o copie" to choose a replacement there. (3) Who can review: an operator or an administrator; roles are outside the dashboard's scope. (4) The review status (sent, reviewed, maybe "in production") does not exist; new work for the "Bucătării clienți" area.~~ (3) carried over; (4) ruled above.
+
+~~**Conflicting text, not edited:** ADR 0165 lines 41-42, 48-52 (done-page link opens for editing in the same browser); `docs/OWNER_FIXES.md` lines 373-377 (Q-F3-9).~~ No longer conflicts. Links 285, 277. **Owner:** architect.

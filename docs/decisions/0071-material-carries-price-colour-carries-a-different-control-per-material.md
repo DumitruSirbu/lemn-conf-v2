@@ -128,6 +128,13 @@ Everything checked out. The adapter's error string uses double quotes (`Finish "
 material…`) rather than the single quotes quoted in the brief; noted above as the only
 discrepancy, and it does not change any decision recorded here.
 
+## Note — 2026-10-25: the amount a material carries is now a percentage
+
+Decision 1 (only material carries price; colour never does) is unchanged. What the material carries
+changed shape: a percentage on cabinet prices instead of a flat per-kitchen amount, with PAL as the 0%
+reference. Ruled and recorded at the
+[ADR 0092 Amendment of 2026-10-25](0092-hardware-prices-three-mechanisms-and-a-sink-carries-two-extras.md).
+
 ## Amendment — 2026-09-04: each material's default finish is ruled, closing the input Consequences left owed
 
 Consequences' final bullet named this owed, not decided, and carried the recommendation forward as

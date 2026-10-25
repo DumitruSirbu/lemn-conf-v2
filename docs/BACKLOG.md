@@ -84,7 +84,7 @@ status corrections, in one of these two files:
 | 51 | Column chain-homogeneity is an invariant nothing enforces | open.md |
 | 52 | A resize or an insert carries the wall-end cap into the recorded map | resolved.md — closed 2026-09-07, ADR 0090 Amendment B addendum |
 | 53 | Russian is a supported locale — decided on day one, no milestone owns it | open.md |
-| 54 | Cabinet depth changes the material used and does not change the price | open.md — shape ruled 2026-09-07 (ADR 0100), implementation deferred by the owner |
+| 54 | Cabinet depth changes the material used and does not change the price | open.md — shape ruled 2026-09-07 (ADR 0100); deferral lifted 2026-10-25, now 283 |
 | 55 | The global settings actions are absent on a first visit and present after a reload | open.md |
 | 56 | An emptied column over a full-height member can lose 269 mm of depth after a depth round trip | open.md — ruled 2026-09-08 (ADR 0102), awaiting wave 6Y |
 | 57 | A depth change hands the hood a width control it is declared not to have | open.md — recorded 2026-09-08 (ADR 0103 decision 12), pre-existing, no owner |
@@ -306,6 +306,17 @@ status corrections, in one of these two files:
 | 273 | Comments still citing plans (4 files) | open.md — recorded 2026-10-18 (M8C clean-code review) |
 | 274 | No ADR home for the save-route check order and the "none fits" notice | open.md — recorded 2026-10-18 (M8C clean-code review); needs an ADR decision |
 | 275 | Generic 413/503 constants in the preset-named wire contract; `MAX_LISTING_BYTES` grew | open.md — recorded 2026-10-18 (M8C clean-code review) |
+| 276 | Manual insert takes the widest width, not the default width; no catalogue field declares a default width | open.md — recorded 2026-10-25 (owner observation, relayed); owner to confirm proposed defaults |
+| 277 | Manufacturer dashboard: prices and whole-kitchen defaults | open.md — recorded 2026-10-25; after M8 per ADR 0062 (Amendment 2026-10-25); no milestone yet |
+| 278 | A whole-kitchen handle setting in the configurator | open.md — requested 2026-10-25 (owner, relayed); not scheduled |
+| 279 | Cabinet enable / disable | open.md — future plan, postponed by the owner 2026-10-25 (relayed) |
+| 280 | One-time "prices updated" notice for saved kitchens | open.md — ruled 2026-10-25 (ADR 0072 Amendment); not built; marker storage open |
+| 281 | Pricing engine: anchor-and-steps formula shapes (asymmetric steps, round-up to 50, per-size lookup) | open.md — ruled 2026-10-25 (ADR 0175); not built; needs a catalogue default width (276) |
+| 282 | Pricing engine: material as a percentage on cabinet prices | open.md — ruled 2026-10-25 (ADR 0092 Amendment); not built |
+| 283 | Pricing engine: depth 700 percentage, "Adâncime 700 mm" line, `depthNote` copy | open.md — ruled 2026-10-25 (ADR 0100 Amendment, deferral lifted); not built; 15% not approved |
+| 284 | Pricing engine: 10-lei rounding | open.md — ruled 2026-10-25 (ADR 0175); which amount is rounded is open for the architect |
+| 285 | Deactivating or deleting an item saved kitchens use | open.md — ruled 2026-10-25: delete blocked, disable allowed with a mandatory replacement on open (price hidden until chosen; accessory removed with a notice; ~~sent kitchens stay editable~~ reversed, then reversed back: sent kitchens stay editable, see 286); architect point open: lone colour vs ADRs 0057/0081/0086 |
+| 286 | Sent kitchen stays editable; changed-after-sending badge, side-by-side view, daily digest, review statuses | open.md — ruled 2026-10-25 (ADR 0062 fifth Amendment; ~~lock and create-a-copy~~ of the fourth reversed): no lock, current price and replacement sheet as on any kitchen, soft note, seen-revision badge and menu counter, at most one digest a day, four hand-set statuses; 4 architect points and reviewer role open; not built |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 
