@@ -23,6 +23,7 @@ import {
   roomScreen,
   type LengthField,
 } from "./step-one-by-touch";
+import { expectEditorTopBarShown } from "./editor-top-bar";
 
 export const REVIEW_BOTTOM = "review-bottom";
 export const REVIEW_CTA = "review-cta";
@@ -374,7 +375,7 @@ async function typeLength(
 }
 
 export async function expectEditorReady(page: Page): Promise<void> {
-  await expect(page.getByTestId("top-bar-title")).toBeVisible({
+  await expectEditorTopBarShown(page, {
     timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
   });
   await expectWriteAccessApplied(page);

@@ -1,35 +1,36 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
-
 import { createTransport } from "nodemailer";
 
+import {
+  asciiMailboxOf,
+  CUSTOMER_AUDIENCE,
+  sendableCustomerCopyOf,
+  type CustomerMailMessage,
+  type CustomerMailSender,
+} from "@/lib/server/mail/customer-mail";
 import type { MailConfiguration } from "@/lib/server/mail/mail-configuration";
 import {
-  MAIL_REFUSED_UNSENT,
   sendableCopyOf,
   type MailMessage,
-  type MailOutcome,
   type MailSender,
 } from "@/lib/server/mail/mail-sender";
 import { asciiDomainOfPlainMailbox } from "@/lib/server/mail/plain-mailbox";
 import {
-  MAIL_TIMED_OUT,
-  outcomeOfSendFailure,
-  outcomeOfSendResult,
-} from "@/lib/server/mail/smtp-answer";
+  HARDENED_TRANSPORT_OPTIONS,
+  messageOptionsOf,
+  sendOnce,
+  UnusableRecipientError,
+  type MailTransport,
+  type SmtpMessageOptions,
+} from "@/lib/server/mail/smtp-transport";
 
-/** One bound over the whole send: the customer waits for it. */
-export const MAIL_REQUEST_TIMEOUT_MS = 10_000;
+export { MAIL_REQUEST_TIMEOUT_MS } from "@/lib/server/mail/smtp-transport";
+export { UnusableRecipientError };
+export type { MailTransport };
 
 export const GMAIL_SMTP_HOST = "smtp.gmail.com";
 export const GMAIL_SMTP_IMPLICIT_TLS_PORT = 465;
-
-// Each is a positive integer strictly below the bound: the library falls back to its own minutes-long default for 0.
-const DNS_TIMEOUT_MS = 2_000;
-const CONNECTION_TIMEOUT_MS = 4_000;
-const GREETING_TIMEOUT_MS = 3_000;
-const SOCKET_TIMEOUT_MS = 6_000;
 
 export interface GmailTransportOptions {
   readonly host: string;
@@ -47,21 +48,7 @@ export interface GmailTransportOptions {
   readonly socketTimeout: number;
 }
 
-/** Exactly what rides on the wire: no reply-to, no copy, no attachment, no header of its own. With `html` the
- *  library writes `multipart/alternative`, the text part first. */
-export interface GmailMessageOptions {
-  readonly from: string;
-  readonly to: string;
-  readonly subject: string;
-  readonly text: string;
-  readonly messageId: string;
-  readonly html?: string;
-}
-
-export interface MailTransport {
-  sendMail(options: GmailMessageOptions): Promise<unknown>;
-  close(): void;
-}
+export type GmailMessageOptions = SmtpMessageOptions;
 
 export type MakeMailTransport = (
   options: GmailTransportOptions,
@@ -92,15 +79,7 @@ export function buildGmailTransportOptions(
       user: configuration.senderAddress,
       pass: configuration.appPassword,
     },
-    pool: false,
-    logger: false,
-    debug: false,
-    disableFileAccess: true,
-    disableUrlAccess: true,
-    dnsTimeout: DNS_TIMEOUT_MS,
-    connectionTimeout: CONNECTION_TIMEOUT_MS,
-    greetingTimeout: GREETING_TIMEOUT_MS,
-    socketTimeout: SOCKET_TIMEOUT_MS,
+    ...HARDENED_TRANSPORT_OPTIONS,
   };
 }
 
@@ -118,15 +97,29 @@ export function buildGmailMessage(
   const { senderAddress, notificationAddress } = configuration;
   const senderDomain = plainDomainOf(senderAddress, "senderAddress");
   requirePlainMailbox(notificationAddress, "notificationAddress");
-  const options: GmailMessageOptions = {
+  return messageOptionsOf({
+    copy,
     from: senderAddress,
+    senderDomain,
     to: notificationAddress,
-    subject: copy.subject,
-    text: copy.text,
-    messageId: `<${digestOf(copy.key)}@${senderDomain}>`,
-  };
-  const { html } = copy;
-  return html === undefined ? options : { ...options, html };
+  });
+}
+
+/**
+ * As `buildGmailMessage`, except that the one recipient is the message's own, written as the transport takes it. The
+ * configured inbox is not consulted, so a customer's mail can never be addressed to the shop by this path.
+ * @throws UnusableMailAddressError when the sender address is not one plain mailbox;
+ *   UnusableRecipientError when the recipient is not.
+ */
+export function buildGmailCustomerMessage(
+  copy: CustomerMailMessage,
+  configuration: MailConfiguration,
+): GmailMessageOptions {
+  const { senderAddress } = configuration;
+  const senderDomain = plainDomainOf(senderAddress, "senderAddress");
+  const to = asciiMailboxOf(copy.recipient);
+  if (to === undefined) throw new UnusableRecipientError();
+  return messageOptionsOf({ copy, from: senderAddress, senderDomain, to });
 }
 
 /**
@@ -138,31 +131,29 @@ export function createGmailMailSender(
   configuration: MailConfiguration,
   makeTransport: MakeMailTransport = DEFAULT_MAKE_TRANSPORT,
 ): MailSender {
-  const setup: SenderSetup = { configuration, makeTransport };
   return {
-    send: (message) => sendOnce(message, setup),
+    send: (message) =>
+      sendOnce(tryBuildMessage(message, configuration), () =>
+        makeTransport(buildGmailTransportOptions(configuration)),
+      ),
   };
 }
 
-/** What every send of one sender shares, bound once when the sender is made. */
-interface SenderSetup {
-  readonly configuration: MailConfiguration;
-  readonly makeTransport: MakeMailTransport;
-}
-
-async function sendOnce(
-  message: MailMessage,
-  setup: SenderSetup,
-): Promise<MailOutcome> {
-  const options = tryBuildMessage(message, setup.configuration);
-  if (options === undefined) return MAIL_REFUSED_UNSENT;
-  const transport = tryMakeTransport(setup);
-  if ("outcome" in transport) return transport.outcome;
-  try {
-    return await answerWithinBound(attemptSend(transport.made, options));
-  } finally {
-    closeQuietly(transport.made);
-  }
+/**
+ * The shop's transport rules for a message addressed to a customer: one attempt, the seven kinds, no reply-to, copy,
+ * blind copy, header of its own or attachment. The recipient is the message's own and nothing else.
+ */
+export function createGmailCustomerMailSender(
+  configuration: MailConfiguration,
+  makeTransport: MakeMailTransport = DEFAULT_MAKE_TRANSPORT,
+): CustomerMailSender {
+  return {
+    audience: CUSTOMER_AUDIENCE,
+    send: (message) =>
+      sendOnce(tryBuildCustomerMessage(message, configuration), () =>
+        makeTransport(buildGmailTransportOptions(configuration)),
+      ),
+  };
 }
 
 function tryBuildMessage(
@@ -179,56 +170,17 @@ function tryBuildMessage(
   }
 }
 
-function tryMakeTransport(
-  setup: SenderSetup,
-): { readonly made: MailTransport } | { readonly outcome: MailOutcome } {
+function tryBuildCustomerMessage(
+  message: CustomerMailMessage,
+  configuration: MailConfiguration,
+): GmailMessageOptions | undefined {
   try {
-    return {
-      made: setup.makeTransport(
-        buildGmailTransportOptions(setup.configuration),
-      ),
-    };
-  } catch (thrown) {
-    return { outcome: outcomeOfSendFailure(thrown) };
-  }
-}
-
-/** Settles with an outcome whether `sendMail` resolves, rejects or throws, so a late rejection is never unhandled. */
-function attemptSend(
-  transport: MailTransport,
-  options: GmailMessageOptions,
-): Promise<MailOutcome> {
-  try {
-    return Promise.resolve(transport.sendMail(options)).then(
-      outcomeOfSendResult,
-      outcomeOfSendFailure,
-    );
-  } catch (thrown) {
-    return Promise.resolve(outcomeOfSendFailure(thrown));
-  }
-}
-
-async function answerWithinBound(
-  attempt: Promise<MailOutcome>,
-): Promise<MailOutcome> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const bound = new Promise<MailOutcome>((resolve) => {
-    timer = setTimeout(() => {
-      resolve(MAIL_TIMED_OUT);
-    }, MAIL_REQUEST_TIMEOUT_MS);
-  });
-  try {
-    return await Promise.race([attempt, bound]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function closeQuietly(transport: MailTransport): void {
-  try {
-    transport.close();
+    const copy = sendableCustomerCopyOf(message);
+    return copy === undefined
+      ? undefined
+      : buildGmailCustomerMessage(copy, configuration);
   } catch {
-    // The send's own answer stands: a failure to close changes nothing the caller can act on.
+    return undefined;
   }
 }
 
@@ -249,8 +201,4 @@ function plainDomainOf(
   const domain = asciiDomainOfPlainMailbox(address);
   if (domain === undefined) throw new UnusableMailAddressError(setting);
   return domain;
-}
-
-function digestOf(key: string): string {
-  return createHash("sha256").update(key, "utf8").digest("hex");
 }

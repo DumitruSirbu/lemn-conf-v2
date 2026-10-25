@@ -26,9 +26,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/i18n/use-content", async () => {
+// The header's account control reads its own copy through the real hook, resolved from the provider's messages below;
+// only `useContent` is the fixture, as before.
+vi.mock("@/i18n/use-content", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/i18n/use-content")>();
   const { ro } = await import("../support/romanian-content");
-  return { useContent: () => ro };
+  return { ...original, useContent: () => ro };
 });
 
 // The top bar's locale menu needs a locale and a path. The provider below supplies the first — a

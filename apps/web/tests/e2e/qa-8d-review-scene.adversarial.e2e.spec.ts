@@ -45,6 +45,7 @@ import {
 } from "./support/qa-8d-review";
 import { openSeededDesign, test } from "./support/seeded-design";
 import { seedDesign } from "./support/u-design";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 /** The scene's link to the editor, by the wording the copy lock holds for it. */
 const VIEW_IN_3D = APPROVED_ROMANIAN_MESSAGES.reviewScreen.view3d;
@@ -353,7 +354,7 @@ test("between the editor and the review there is never a second canvas, and each
   await expectOneLiveSceneOf(2);
 
   await goBackAndSettle(page);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   await expect(page.locator("canvas")).toHaveCount(1);
   await expectOneLiveSceneOf(3);
 

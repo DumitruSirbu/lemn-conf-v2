@@ -38,6 +38,93 @@ Russian copy (an unapproved agent draft, ADR 0095 decision 2), and the two leave
 drafted by O-1; whether the copy lock already holds it was not checked) and `presetChooser.selectLimitReached` (wording changed to
 v2's *"… Încearcă mâine."* by O-1, in code in W2). Backlog 263 is resolved by decision (delivery in W1).
 
+**2026-10-19 update (M8B Lot 2 built, branch `feat/login-register`, HEAD `a47db452`) [coordinator's brief, relayed; the
+scribe ran nothing].** Server waves S1-S10 and UI waves U5, U6, U10, U12 are committed; each wave was reviewed by reading
+(a logic and a security agent). **No tests were written (ADR 0172 D12); nothing was run against a database or in a
+browser.** Migrations `0016`-`0018` are **unapplied anywhere** (corrected 2026-10-20 below: now `0016`-`0019`, still unapplied anywhere). In progress, uncommitted: U7/U8 and U11 plus the E8 page
+(the e-mail-change UI sits behind `EMAIL_CHANGE_ENABLED = false`; **corrected below: the E8/E9 routes are gated too**). Detail: plan
+[§12](milestones/M8B-account-screens-lot2-plan.md); decisions: ADR 0172 Amendment G. **New open owner questions O19-O24:**
+O19 (e-mail change takeover recovery; blocks the `UPDATE (email, email_normal_form)` grant, runbook step 4b), O20 (keep
+`GET /api/account/profile`), O21 (backup export and `account_id`/`name`), O22 (`/s/<token>` frozen copy after hide), O23
+(password change retires all unused tokens), O24 (429 wait in the notice). **Owner re-acceptance needed** of ADR 0019 d11's
+scope growth (`hidden_by_client_at`, `deleted_by_client_at`, `sent_at`) before hide, delete **and staff unhide** are used in production
+(ADR 0172 Amendment G item 3, dated note 2026-10-21).
+
+**2026-10-19 update, later (M8B Lot 2 UI built, branch `feat/login-register`, HEAD `aa09a1e0`) [coordinator's brief,
+relayed; commits read by the scribe in the worktree reflogs; nothing run].** This supersedes the "in progress,
+uncommitted" sentence of the update above. U5-U13 are all committed and reviewed by reading (a logic and a security agent
+each; no browser, no database run): U7/U8 (card menu, inline rename, duplicate, share sheet on the shared
+`share/use-share-link.ts`, delete and hide dialogs), U9b, U11, U12, U13 (export, blob download), the live 429 countdown
+for all account forms, login arrival `password-maybe-changed`. **The e-mail change is gated whole:**
+`EMAIL_CHANGE_ENABLED = false` hides the UI **and** the E8/E9 routes answer an empty `404` (the earlier "only the UI"
+wording was wrong). **New open owner questions O25-O27:** O25 (client load-error wording, RO and RU), O26 (export bound by
+bytes against the 200-kitchen count; platform limit unknown), O27 (approve all RO and RU draft copy of Lot 2). O1-O24
+keep their recorded states. **D12 was lifted by the owner for the tests round (2026-10-19):** tests are being added in
+three lanes (persistence and domain; web server routes; web client, UI and i18n) with mutation proofs; **results to be
+recorded** by the coordinator (plan [§13](milestones/M8B-account-screens-lot2-plan.md)). Detail: plan §12.7-§13; ADR 0172
+Amendment G, addendum.
+
+**2026-10-20 update (M8B Lot 2, owner rulings; wave H0, records only) [owner rulings relayed by the coordinator; nothing
+built or run].** O1 is ruled: autosave only, no Save / Discard (A15 and A16A dropped; the A16B card survives on Step 1,
+O28a). O19 is ruled: request-time notice plus a revert link of **24 hours** (O28c); the plan's §14 designs it as waves
+S13-0 to U16, none built. O20-O27 are ruled; the backup export will carry `account_id` and `name` (O21). New copy is
+pre-approved as drafted (O28b); Lot 1 Romanian copy is approved. **D12 stays lifted for all remaining Lot 2 waves** (QA
+and review per tier). Grant 4b (runbook) still waits: it follows S13-0 to U16 reviewed, then the owner, then a separate
+flag-flip commit. Detail: plan §9 *(later)* and §14; ADR 0172 Amendment H.
+
+**2026-10-20 update, later (M8B Lot 2, waves S13-0 to U16 built and reviewed) [coordinator's brief, relayed; hashes
+quoted from it; the scribe had no shell, saw no gate output and ran nothing].** This supersedes "none built" in the H0
+update above and the "O1 blocks U15" wording. Built: H0 `0b3f5ed8`; U15c `1c1dbf0d`, `f80d5d76`; U15d `a573720f`,
+`12d1b9ec`, `44f6fda7` (QA `e6b4f55b`); S13-0 `981d165c`; S13a `067c6f41`, `55cb3738`; S13b `6c38bd13`, `779b3b1e`; S13b
+security fixes `38d9e780` (migration `0019`, an additive partial index); S13c `fa653ec4`, `6245ea89`; S13d `987992a8`,
+`818f94ea`, `45de9d56`, `3d3ca2cd`; U16 `ed4787c7`, `6682af15`; O21 `e4c3fb5a`. All Romanian copy of Lot 1 and Lot 2 is
+owner-approved (`883f9372`, `f38815ee`); later copy is pre-approved (O28b). Save / Discard is dropped; nothing pends on
+O1. **Migrations `0016`-`0019` are unapplied anywhere. All new SQL has never run against Postgres.** **S13e
+(enablement) is NOT done**, blocked on: the owner running grant 4b (preview first), a live or preview SQL check, the
+visual pass for U15d and U16 (Step 1 at 390x844 and the back-guard Playwright specs are unverified), and the separate
+flag-flip commit. Twelve dated residuals and departures: plan [§14.7.1](milestones/M8B-account-screens-lot2-plan.md);
+ADR 0172 Amendment H, addendum.
+
+**2026-10-20 update, final round (M8B Lot 2, older owner questions ruled) [owner answered directly; relayed by the
+coordinator; records only, nothing run].** O2 (claim dialog: count, dates and names, as built), O3, O4 (client export
+keeps profile and kitchens), O7 (hide revokes the share link), O9 (A16C deferred), O11 (**no `sent_at` backfill**; the
+owner-run backfill is cancelled, the S5 replay residual has no repair, older requests are deletable and missed by the
+operator "sent" filter), O12 ("Anulează" scoped exception to ADR 0086), O13 (by O27), O14 and O17 (counts take «de» from
+twenty up, overriding the 2026-09-10 ruling) are ruled; O15 was not asked. O8 is ruled and its point 1 (a notice to the
+owner of an address that already has an account) is source-verified at
+`apps/web/src/lib/server/account/change-email.ts` (`sendAddressInUseNotice`: a verified holder gets
+`email-change-address-in-use`, an unverified holder nothing). No owner question of Lot 2
+is otherwise open. Detail: plan §9 *final round*; ADR 0172 Amendment H, addendum.
+
+**2026-10-20 update (M8B Lot 3, staff area: planned, owner rulings recorded) [owner answered directly through
+AskUserQuestion; relayed by the coordinator; records only, nothing built or run].** Plan:
+[`M8B-account-screens-lot3-plan.md`](milestones/M8B-account-screens-lot3-plan.md), rulings in its §5.3. O-L3-1 to O-L3-7
+are ruled: S3 shows profile contact, request reference and date, and the as-sent kitchen (ADR 0153 d1 unchanged); S6
+Prețuri and S7 Traduceri deferred; narrow `INSERT (role)` grant for staff invitations, no `UPDATE (role)` (reverses the
+ADR 0172 D7 position for role writes); the app may `UPDATE` only `status` and `sort_position` on presets; notes join the
+client export; Lot 3 copy pre-approved as drafted. **Still blocked:** the S4 and S5 waves, until their decision records
+and security reviews exist; the undrawn states (plan §10 item 6, §11); retention and erasure for notes, audit rows and
+invitations (plan §10 item 8). No wave dispatched.
+
+**2026-10-20 update, wave L3-W0 (records) [scribe; docs only; no shell, nothing run].** Written: ADR 0173 (staff area **Update (coordinator, ran): the two mockups were copied to docs/design/mockups/ and their sha256 matched the plan; the Lot 2 re-render check ran: identical DOM and PNG hashes old vs new at 1440x900 and 390x844.**
+P-rows, **Proposed**, awaits coordinator acceptance and a security read) and ADR 0174 (owner rulings O-L3-1 to O-L3-7,
+Accepted; S6 deferred naming ADR 0062, S7 naming ADR 0095 decision 2); the plan's scope list, §1/§3/§10/§12 wording
+aligned to §5.3. **Not done:** the copy of `Lemnaria Cont Lot 3.dc.html` and the updated `ContBlocks2.dc.html` into
+`docs/design/mockups/`, their sha256 check, and the Lot 2 re-render (no shell; `docs/design/README.md` says so). **Not
+written, by instruction:** the staff-invitation record (O-L3-4) and the ADR 0112 amendment (O-L3-5).
+
+**2026-10-21 (L3-S1 security-review follow-up, branch `feat/login-register`; docs only) [relayed from the reviewer and QA run 5781729b; the scribe ran nothing].** Runbook `0020`–`0022` section corrected (privilege-test arm red at the table-level assertion with `[]`, arm 2 also red, extra probes, store conditions); ADR 0173 records accepted residuals F1, F2, F5, F6 and open owner questions (retention; E-L3-1 bulk contacts at L3-S6; export of hidden notes at L3-S9), none answered; plan gains brief notes for L3-S3/S5/S8/U4.
+
+**2026-10-21 (Lot 3 staff area, waves L3-A1 to L3-S5 and L3-U1 built; branch `feat/login-register`; docs only) [relayed from the coordinator; the scribe ran nothing].** Owner ruling "Audit each list view + hard page limit" recorded in ADR 0173 (closes the E-L3-1 audit question; `kitchens-listed` row plus a fail-closed per-account page limiter, both to build in L3-S6; domain `d76963d3` built). ADR 0172 D11's lead-to-account revisit trigger fired in L3-S4 (remedy unbuilt, accepted), with pointers in ADR 0153 and 0174. Runbook `0020`–`0022`: grant timing is now "before the first staff route (L3-S6) ships", plus a grants checklist; the owner must confirm `0008`/`0010`/`0012`/`0017` grants before L3-S6 deploys. Plan section 7.1 carries the built-state table and L3-S6 brief notes.
+
+**2026-10-21 (Lot 3 staff list, wave L3-U2; branch `feat/login-register`) [relayed; docs only].** Interim deviation: frame S2F (session-expired sheet over the list) is not drawn; a `401` on the staff list does a full load to the login page, and L3-U4's `staff-session-sheet.tsx` replaces it (plan §7.2, L3-U4 note).
+
+**2026-10-21 update (top bar: signed-out link, title give, popover clamp; branch `feat/login-register`) [developer's
+measurements and owner rulings of 2026-10-20 relayed; commits `a05440ce`, `419b7a69`, `1e55d0d1`; the scribe ran nothing].**
+Recorded as [ADR 0104 Amendment H](decisions/0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md):
+the top bar's order of gives is extended (A to E), the visitor's "Intră în cont" is icon-only on narrow widths (departs from
+mockup A19A, dated note in `docs/design/README.md`), the title yields at 900 px, and the price popover is clamped to the viewport.
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
@@ -60,7 +147,9 @@ for the owner to rule, not guessed; none is open now.
 | M8 Review, contact, success | In progress, not done | Open list in section 3 | Yes, [`M8-review-contact-success.md`](milestones/M8-review-contact-success.md) | doc-quoted H:614, 1215 |
 | 8M2, 8J2 (file `8N-`), 8Q2, 8V | Done, archived | M8 sub-waves | No (`milestones/done/`) | doc-quoted H:1210-1213; files in `milestones/done/` |
 | 8U Merge adjacent empty spaces | Built and reviewed; plan not archived; S5 not built | Close note lists code comments to repoint before archiving | Only for S5 / the repoint list, [`8U-...md`](milestones/8U-merge-adjacent-empty-spaces.md) | doc-quoted H:1212, 1219 |
-| M8B Customer profiles | Planned | After M8C by owner ruling, before launch; no wave dispatched | When started, [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) | doc-quoted H:615, 6-15 |
+| M8B Accounts: login and register (Lot 1 backend, waves L1-L13a) | Built, unexercised (no tests this round, ADR 0172 D12); ADR 0172 accepted by the owner 2026-10-18 | Branch `feat/login-register`, local, not pushed. `main` (M8C's `0011`, M8D) is merged into it; the accounts ADR was renumbered 0169 -> 0172 at that merge because `main` holds a different 0169 (migration commands), 0170 and 0171. Migrations `0012`-`0015` are **unapplied** and need `0011` applied first (owner step; order and grants in ADR 0172 *Remaining before production*); screens L13b-L14b wait for Claude Design | When started, [`M8B-login-register-plan.md`](milestones/M8B-login-register-plan.md) | doc-quoted (the branch's pre-merge STATUS, 2026-10-18; coordinator-relayed counts not re-run) |
+| M8B Account screens Lot 2 (client dashboard A9-A20) | **Update 2026-10-19 (later): S1-S10 and U5-U13 built and committed (HEAD `aa09a1e0`), reviewed by reading only, unrun; e-mail change gated whole by `EMAIL_CHANGE_ENABLED = false`; D12 lifted for the tests round, three lanes, results to be recorded; open questions O19-O27 (section 1); ADR 0172 Amendment G and addendum.** *Earlier 2026-10-19 text: S1-S10, U5, U6, U10, U12 built, U7/U8 and U11 in progress, no tests (D12).* Original row: designs received, port plan written 2026-10-19; draft, no wave dispatched | Architect rulings recorded as ADR 0172 Amendment F as coordinator-accepted defaults, pending owner confirmation; owner questions O1, O2, O8, O12, O17 open; O5, O6, O10, O16, O18 answered 2026-10-19 (ADR 0172 Amendment F, 2a). Waves U1-U4, U9a, U15a and U15b are committed on `feat/login-register`; commit `9d33cd6a` is the latest [coordinator-relayed, not re-run] | When started, [`M8B-account-screens-lot2-plan.md`](milestones/M8B-account-screens-lot2-plan.md) | doc-quoted (the branch's pre-merge STATUS) |
+| M8B Customer profiles (original plan) | Planned | After M8C by owner ruling, before launch; superseded in part by the two rows above | [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) | doc-quoted H:615, 6-15 |
 | M8C Generation fill and preset authoring | Waves F0-P9 committed, not closed | See the 2026-10-18 update in section 1; owner obligations open | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
 | M8D Preset screens to the v2 mockup | W0 done; W1 in progress (2026-10-18, relayed) | Runs on this branch before its PR and before M8B (owner O-5) | Yes, [`M8D-...md`](milestones/M8D-preset-screens-to-mockup.md) | coordinator's brief (relayed) + doc-quoted plan banner |
 | M9 Delivery preparation | Proposed stub | No plan, no waves; inherits 8R/8S and the launch gate | When started, [`M9-delivery-preparation.md`](milestones/M9-delivery-preparation.md) | doc-quoted H:616 |

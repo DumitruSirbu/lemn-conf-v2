@@ -501,6 +501,684 @@ server's clock and not the attacker's.
 4. **Check and purge,** as in *Hiding one preset*, steps 3 and the CDN purge. The rows stay in the table as `hidden`
    (the owner's own presets inside the range can be shown again one by one, step 4 above).
 
+## For `0012`–`0015`, the login and register tables (M8B wave L1, added 2026-10-17)
+
+The steps above stand. The tables are `accounts`, `account_sessions` and `account_email_tokens`; `0015` adds the column
+`designs.account_id`. The ledger goes from **11 to 15**. The decision and its reasons: [ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+(**Proposed** at the time of writing) and the plan `docs/milestones/M8B-login-register-plan.md`, §4. **Nothing in this
+section has been executed anywhere** [written in wave L1 by its developer; written, not run]. **Order of environments: preview first, then
+production**, every step on one database before the next.
+
+**Prerequisite.** Version **11** is M8C's `0011_create_presets.sql`, which `main` carries and this branch now contains
+(merged 2026-10-19; `packages/persistence/src/migrations/` holds `0001` to `0015` with no gap and no duplicate number
+[source-verified, directory listing, 2026-10-19]). The migration runner refuses a gap, so `0012` cannot be applied to a
+database whose ledger reads fewer than 11, and `0012`-`0015` must not be applied anywhere before `0011` is on that
+database. Production still needs `0009`, `0010` and `0011` first (sections above); apply them, then `0012`-`0015`.
+
+**Ledger and `0012` as built (update 2026-10-18, developer report; not run by the scribe).** `0011` is M8C's, so the ledger reads **1-11 before** and **1-12 after** applying `0012` alone. In
+`0012` the hash constraint is named `accounts_password_hash_is_phc` and checks only the generic PHC shape
+`^[$][a-z0-9-]{1,32}([$]v=[0-9]+)?[$][^$]+[$][A-Za-z0-9+/]{16,}[$][A-Za-z0-9+/]{16,}$` (strict argon2id is enforced in code,
+`password-hash-shape.ts`); the `locale` check is `^[a-z]{2}(-[a-z]{2})?$`. Any check that looks for the old name
+`accounts_password_hash_is_argon2id` will not find it. The unattended screen function returned `[]` on `0012` alone, but the
+CLI gate could not run until `0011` was present (it is now, after the merge; not re-run).
+
+**The order against the code matters.** Every account route and every session read names these tables. If the code ships
+before the migrations and the grants, those requests answer 500 (a failed session read reads as anonymous, which is less
+access, so a visitor still works). The order is the migrations, then the grants, then the code.
+
+**Production grants are blocked this round.** Steps 3 and 5 to 7 prove the grant with `application-role-privileges.test.ts`,
+and that file has **no arms for these three tables yet** (owed, M8B plan §9; no tests are written this round). Until the arms
+exist, use the read-only catalog checks in step 7 below on preview, and do not grant on production.
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **15** (1 to 11 before). For
+  preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
+  ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0012`–`0015`:** `create table if not exists` passes over an older table of the same name, so confirm the
+  tables are the ones the files describe. Read-only, in the database console, with the migration credential:
+
+  ```sql
+  -- Expect account_email_tokens = 6, account_sessions = 6, accounts = 13.
+  select table_name, count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name in ('accounts', 'account_sessions', 'account_email_tokens')
+  group by table_name order by table_name;
+
+  -- Expect account_email_tokens: c = 2, f = 1, p = 1; account_sessions: c = 1, f = 1, p = 1;
+  -- accounts: c = 9, p = 1, u = 1. (PostgreSQL 18 also lists NOT NULL as 'n'; the filter leaves it out.)
+  select conrelid::regclass::text as table_name, contype, count(*) as constraints
+  from pg_constraint
+  where conrelid in (
+      'public.accounts'::regclass, 'public.account_sessions'::regclass, 'public.account_email_tokens'::regclass
+    )
+    and contype in ('c', 'f', 'p', 'u')
+  group by 1, 2 order by 1, 2;
+
+  -- Expect two rows, both on accounts (id), both cascading ('c'): account_email_tokens and account_sessions.
+  select conrelid::regclass::text as referencing, confrelid::regclass::text as referenced, confdeltype
+  from pg_constraint
+  where contype = 'f'
+    and conrelid in ('public.account_sessions'::regclass, 'public.account_email_tokens'::regclass)
+  order by 1;
+
+  -- Expect one row: account_id, text, YES (nullable).
+  select column_name, data_type, is_nullable
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'designs' and column_name = 'account_id';
+
+  -- Expect designs_account_id_shape (c), and no foreign key from designs to accounts.
+  select conname, contype from pg_constraint
+  where conrelid = 'public.designs'::regclass and conname = 'designs_account_id_shape';
+
+  -- Expect: account_email_tokens_newest_unused_idx, account_sessions_live_by_account_idx, designs_account_id_updated_at_idx.
+  select indexname from pg_indexes
+  where schemaname = 'public'
+    and indexname in (
+      'account_email_tokens_newest_unused_idx', 'account_sessions_live_by_account_idx',
+      'designs_account_id_updated_at_idx'
+    )
+  order by indexname;
+  ```
+
+  That is **3 tables, 13 + 6 + 6 columns, 11 + 3 + 4 named constraints (the primary keys and the one unique included)**, the
+  new `designs` column, constraint and index. Any other answer means stop and report.
+- **Before step 4, on each database: read `pg_default_acl`** with the query in the `0009` section. A row that would reach
+  `accounts`, `account_sessions` or `account_email_tokens` for `app_designs` or `PUBLIC` is a stop-and-report, as in step 3.
+- **Before step 4, on each database: the pre-grant probes.** Read-only, with the migration credential. They prove that
+  nothing the grant will withhold is held already, through `PUBLIC`, a default privilege or a role membership. **Expect
+  `held = false` on every row.** One `true` is a stop-and-report; do not grant. The same query runs again after step 4 and
+  must still answer false on every row (the grant adds `SELECT`, `INSERT` and `UPDATE` on the named columns only):
+
+  ```sql
+  -- Pre-grant probes: expect false on all ten rows, before step 4 and again after it.
+  select 'accounts delete' as probe, has_table_privilege('app_designs', 'public.accounts', 'DELETE') as held
+  union all select 'accounts truncate', has_table_privilege('app_designs', 'public.accounts', 'TRUNCATE')
+  union all select 'account_sessions delete', has_table_privilege('app_designs', 'public.account_sessions', 'DELETE')
+  union all select 'account_sessions truncate', has_table_privilege('app_designs', 'public.account_sessions', 'TRUNCATE')
+  union all select 'account_email_tokens delete',
+    has_table_privilege('app_designs', 'public.account_email_tokens', 'DELETE')
+  union all select 'account_email_tokens truncate',
+    has_table_privilege('app_designs', 'public.account_email_tokens', 'TRUNCATE')
+  union all select 'accounts.created_at insert', has_column_privilege('app_designs', 'public.accounts', 'created_at', 'INSERT')
+  union all select 'accounts.email_verified_at insert',
+    has_column_privilege('app_designs', 'public.accounts', 'email_verified_at', 'INSERT')
+  union all select 'account_sessions.absolute_expires_at update',
+    has_column_privilege('app_designs', 'public.account_sessions', 'absolute_expires_at', 'UPDATE')
+  union all select 'account_sessions.account_id update',
+    has_column_privilege('app_designs', 'public.account_sessions', 'account_id', 'UPDATE');
+  ```
+
+  Before the grant they are false because nothing has been granted; after it, because the grant does not reach them. Either
+  way a `true` is a stop-and-report.
+- **Step 4, exactly these seven statements, preview first** (column-scoped, so that the application cannot write a role,
+  and every account it creates is a client. This does not make an SQL injection harmless: it could still insert an
+  `account_sessions` row for an administrator, update `password_hash`, or null `revoked_at` or `used_at`, and no grant can
+  prevent that. That risk is accepted, [ADR 0172](../decisions/0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) decision 7):
+
+  ```sql
+  GRANT SELECT ON TABLE public.accounts TO app_designs;
+  GRANT INSERT (id, email, email_normal_form, password_hash, locale, phone, phone_normal_form, privacy_notice_version)
+    ON TABLE public.accounts TO app_designs;
+  GRANT UPDATE (email_verified_at, password_hash, password_changed_at, updated_at, locale, phone, phone_normal_form,
+                privacy_notice_version)
+    ON TABLE public.accounts TO app_designs;
+
+  GRANT SELECT, INSERT ON TABLE public.account_sessions TO app_designs;
+  GRANT UPDATE (last_seen_at, revoked_at) ON TABLE public.account_sessions TO app_designs;
+
+  GRANT SELECT, INSERT ON TABLE public.account_email_tokens TO app_designs;
+  GRANT UPDATE (used_at) ON TABLE public.account_email_tokens TO app_designs;
+  ```
+
+  **No `DELETE`, no `TRUNCATE`, no `ALL`, no `WITH GRANT OPTION`, nothing to `PUBLIC`, nothing on
+  `ALL TABLES IN SCHEMA`.** On `accounts`, `role` and `created_at` get no `INSERT` or `UPDATE`; `id`, `email` and
+  `email_normal_form` get `INSERT` and never `UPDATE`. `SELECT` is table-wide, so `role` is readable (every request
+  reads it). Nothing on
+  `designs` changes: `app_designs` already holds table-level `UPDATE` there (ADR 0019 decision 11), which covers
+  `account_id`. That also means an SQL injection can reassign `account_id` on any design, which is an access-control column;
+  the risk is accepted and recorded in ADR 0019's note of 2026-10-18.
+- **Steps 5 to 7, until the test arms exist: read-only catalog checks with the migration credential.** These replace the
+  privilege test for these tables and prove less: they show what was granted, not that the application role's connection
+  behaves. Run them on preview after step 4.
+
+  ```sql
+  -- Table-level privileges. Expect: accounts SELECT; account_sessions INSERT, SELECT; account_email_tokens INSERT, SELECT.
+  -- No row for PUBLIC, no DELETE, TRUNCATE, REFERENCES or TRIGGER for app_designs, nothing with is_grantable = YES.
+  select table_name, grantee, privilege_type, is_grantable
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name in ('accounts', 'account_sessions', 'account_email_tokens')
+    and grantee in ('app_designs', 'PUBLIC')
+  order by table_name, grantee, privilege_type;
+
+  -- Column-level writes on accounts. Expect INSERT on exactly the 8 columns named in step 4 and UPDATE on exactly the 8
+  -- named in step 4; none of them role, id (UPDATE), email (UPDATE), email_normal_form (UPDATE), created_at.
+  select column_name, privilege_type
+  from information_schema.column_privileges
+  where table_schema = 'public' and table_name = 'accounts'
+    and grantee = 'app_designs' and privilege_type in ('INSERT', 'UPDATE')
+  order by privilege_type, column_name;
+
+  -- Expect: the only UPDATE columns are last_seen_at and revoked_at (sessions) and used_at (tokens).
+  select table_name, column_name, privilege_type
+  from information_schema.column_privileges
+  where table_schema = 'public' and table_name in ('account_sessions', 'account_email_tokens')
+    and grantee = 'app_designs' and privilege_type = 'UPDATE'
+  order by table_name, column_name;
+
+  -- Expect false on every row.
+  select 'role insert' as probe, has_column_privilege('app_designs', 'public.accounts', 'role', 'INSERT') as held
+  union all select 'role update', has_column_privilege('app_designs', 'public.accounts', 'role', 'UPDATE')
+  union all select 'id update', has_column_privilege('app_designs', 'public.accounts', 'id', 'UPDATE')
+  union all select 'email update', has_column_privilege('app_designs', 'public.accounts', 'email', 'UPDATE')
+  union all select 'email_normal_form update',
+    has_column_privilege('app_designs', 'public.accounts', 'email_normal_form', 'UPDATE')
+  union all select 'created_at update', has_column_privilege('app_designs', 'public.accounts', 'created_at', 'UPDATE');
+  ```
+
+  Any `DELETE`, any row for `PUBLIC`, any `true` in the last query, or any column outside the lists is a stop-and-report.
+  **Run the pre-grant probes above again here** and quote them: every row must still read false.
+- **Step 8:** `designs` is unchanged apart from the new column. On production, read it with `has_table_privilege`, not by
+  attempting a delete.
+
+### Making the first administrator (owner, by hand, console)
+
+The application cannot write `role`, so a staff account exists only by this step (ADR 0172 decision 7). No staff wave is
+built yet, so it is optional this round. **It needs the owner credential and cannot be done by the application role.**
+
+1. **Register and confirm the address in the application as an ordinary client**, so that the row carries a real argon2id
+   hash from the application. Do not insert an account by hand: nothing outside the application should make a password hash.
+2. **Read the row first, with the address in lower case** (the stored `email_normal_form`):
+
+   ```sql
+   -- Expect one row, role = client, email_verified_at set.
+   select id, role, email_verified_at from accounts where email_normal_form = '<lower-case address>';
+   ```
+
+   Not verified, or more than one row, or none: stop.
+3. **Promote, then end every session of that account in the same transaction**, because a role change takes effect at the
+   next request but a session that was already open should not outlive the decision (ADR 0172 decision 3):
+
+   ```sql
+   begin;
+   update accounts set role = 'administrator', updated_at = now() where id = '<id from step 2>' and role = 'client';
+   update account_sessions set revoked_at = now() where account_id = '<id from step 2>' and revoked_at is null;
+   commit;
+   ```
+
+   Expect `UPDATE 1` for the first statement. `UPDATE 0` means the id is wrong or the role is not the one the guard names: roll back and
+   re-check step 2. The second statement may be `UPDATE 0` if the account holds no live session.
+4. **Demoting or any later role change is the same two statements** with the new role, in the same transaction, **and the
+   first statement's guard names the account's current role, not `client`**: read the role in step 2, then write
+   `... where id = '<id>' and role = '<the role step 2 read>'`. Copied unchanged, `and role = 'client'` matches nothing for a
+   staff account and the statement answers `UPDATE 0`, which looks like a wrong id. The role column accepts only `client`,
+   `operator` and `administrator` (`accounts_role_is_known`).
+5. **Check:** the account signs in again and holds the new role's capabilities; the old session is refused.
+
+### Revoking one account's sessions by hand (owner)
+
+For a suspected compromise, with the owner credential: `update account_sessions set revoked_at = now() where account_id =
+'<id>' and revoked_at is null;`, then read it back with the same predicate on `select count(*)`. Do not delete rows:
+revocation is the operation.
+
+### The account tables are not in the nightly export
+
+The nightly export covers `designs` only (`BACKUP_BLOB_PREFIX = "backups/designs/"`). `accounts`, `account_sessions` and
+`account_email_tokens` are **not** in it, and **a restore of `designs` loses `account_id`**: the export's row type and both
+of its selects in `packages/persistence/src/design-row-source.ts` list `write_token_hash` and `visitor_hash` and omit
+`account_id` [source-verified, 2026-10-18]. Every restored design comes back unclaimed (`account_id` null), so the
+claim is lost and the design opens on other devices no longer (ADR 0172 decision 8) [inference from the column's meaning]. Adding `account_id`
+to the export is owed to a later wave; it must come with an accounts backup, or the restored values would name accounts a
+restore will not recreate. Sessions and tokens are never backed up on purpose, so a restore cannot revive one (ADR 0172
+decision 10). The accounts backup is a later wave.
+
+**The test database.** The live persistence suite applies every migration to the test database through each live file's
+`beforeAll`; no grant is needed there.
+
+## For `0016`–`0019`, the client dashboard columns and the reservation index (M8B Lot 2 wave S1, added 2026-10-19; `0019` added 2026-10-20)
+
+The steps above stand. No table is created: `0016` adds four columns to `designs`, `0017` adds two to `accounts`, and
+`0018` adds two to `account_email_tokens`, and `0019` adds one partial index to the same table (the lookup of a reserved
+address, security review finding F3 of wave S13b; **no grant**, an index is not a privilege). The ledger goes from **15 to 19**. The decision and its reasons: ADR 0172
+Amendment F (P6, P8, P12) and the plan `docs/milestones/M8B-account-screens-lot2-plan.md`, section 2.4 step 2.
+**Nothing in this section has been executed anywhere** [written in wave S1 by its developer; the SQL and the grants
+below have not been run against any database, and the privilege test has no arms for them: no tests this round,
+ADR 0172 D12]. **The numbers `0016`–`0019` are provisional** until the M8C merge settles which migration numbers the
+base holds (ADR 0172, Remaining items 1 and 9); if a number changes, the file names, the ledger readings below and the
+headers' ledger sentences change with it, **before** any of them is applied. **Order of environments: preview first,
+then production**, every step on one database before the next.
+
+**Apply order.** `0016`–`0019` come **after `0015`** and the runner refuses a gap, so a database whose ledger reads
+fewer than 15 takes `0012`–`0015` first (section above), including their own grants. Then, in this order: the
+migrations (step 1), the checks (step 2), the grants (step 4), the code. The migrations are additive, so applying them
+before the code is harmless; the code naming a column the database lacks answers 500. `0016`–`0018` pass the
+unattended screen [executed in wave S1: `pnpm --filter @lemnaria/persistence run migrate:unattended-check` printed
+"every migration file is additive and idempotent" and exited 0; executed again on 2026-10-20 with `0019` present, same
+answer], but applying them stays the owner's step. `0019` can be applied before or after the code that reads the
+reservation: the queries are the same with or without the index.
+
+**The nightly `designs` backup names `0016`'s columns.** Its select reads `sent_at`, `hidden_by_client_at` and
+`deleted_by_client_at`, so `0016` (and `0015` before it, which the runner requires) must be applied in each
+environment **before** the web code that contains that export ships. Until then the cron `/api/cron/backup-designs` answers `503` with status `export-failed`
+and no recovery point is written that night (`docs/runbooks/design-db-restore.md`, Path 2).
+
+**What is new to grant, and what is not.**
+
+| Table | Grant | Why | When |
+| --- | --- | --- | --- |
+| `accounts` | `UPDATE (name, address)` | The profile save (E6, wave S7) writes both; the phone it also writes is already granted by `0012` | With the S7 code |
+| `accounts` | `UPDATE (email, email_normal_form)` | The e-mail change confirm (E9, P12 point 2) rewrites the address. **This is the grant ADR 0172 D7 reserves for its own review**: until now `email` and `email_normal_form` were INSERT-only, so an injection could not change which address an account answers to | **Not before wave S9 ships and the security reviewer has accepted it**; see the risk note below |
+| `account_email_tokens` | `INSERT (new_email, new_email_normal_form)` | The request (E8) stores the new address on the token row | Step 4. Redundant beside `0014`'s table-level `INSERT`, which already covers a new column; granted by name so the privilege checks list each column |
+| `designs` | none | `app_designs` holds table-level `UPDATE` (ADR 0019 decision 11), which covers all four new columns | — |
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **19** (1 to 15 before). For
+  preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
+  ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0019`:** `create index if not exists` passes over an older index of the same name, so confirm it is the one
+  the file describes. Read-only, with the migration credential:
+
+  ```sql
+  -- Expect 1 row: the index on account_email_tokens (new_email_normal_form), partial on purpose and used_at.
+  select indexname, indexdef from pg_indexes
+  where schemaname = 'public' and tablename = 'account_email_tokens'
+    and indexname = 'account_email_tokens_live_reservation_idx';
+  ```
+
+  `indexdef` must read `… USING btree (new_email_normal_form) WHERE ((purpose = 'email-change-revert'::text) AND (used_at IS NULL))`
+  [inference from the SQL, never run]. Any other answer means stop and report.
+- **Step 2, for `0016`–`0018`:** `add column if not exists` passes over an older column of the same name, so confirm the
+  columns and checks are the ones the files describe. Read-only, with the migration credential:
+
+  ```sql
+  -- Expect 8 rows: designs.name text, designs.sent_at / hidden_by_client_at / deleted_by_client_at timestamptz,
+  -- accounts.name / accounts.address text, account_email_tokens.new_email / new_email_normal_form text; all YES (nullable).
+  select table_name, column_name, data_type, is_nullable
+  from information_schema.columns
+  where table_schema = 'public'
+    and ((table_name = 'designs' and column_name in ('name', 'sent_at', 'hidden_by_client_at', 'deleted_by_client_at'))
+      or (table_name = 'accounts' and column_name in ('name', 'address'))
+      or (table_name = 'account_email_tokens' and column_name in ('new_email', 'new_email_normal_form')))
+  order by table_name, column_name;
+
+  -- Expect these 6 check constraints, contype c, each present once.
+  select conrelid::regclass::text as table_name, conname
+  from pg_constraint
+  where contype = 'c'
+    and conname in (
+      'designs_name_length', 'accounts_name_length', 'accounts_address_length',
+      'account_email_tokens_new_email_length', 'account_email_tokens_new_email_normal_form_length',
+      'account_email_tokens_new_email_is_set_with_its_normal_form'
+    )
+  order by 1, 2;
+
+  -- Expect: accounts = 15 columns (it was 13); account_email_tokens = 8 columns (it was 6).
+  select table_name, count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public' and table_name in ('accounts', 'account_email_tokens')
+  group by table_name order by table_name;
+
+  -- Expect: accounts = 11 constraints of kind c (it was 9); account_email_tokens = 5 (it was 2). Other kinds unchanged.
+  select conrelid::regclass::text as table_name, count(*) as check_constraints
+  from pg_constraint
+  where contype = 'c'
+    and conrelid in ('public.accounts'::regclass, 'public.account_email_tokens'::regclass)
+  group by 1 order by 1;
+  ```
+
+  Any other answer means stop and report. **Behaviour of the checks, to confirm on preview once and not assume** [inference
+  from the SQL, never run]: an empty string is refused in `name` and `address`, a 121-character `name` is refused, a lone
+  `new_email` without its normal form is refused, and `NULL` passes every check.
+- **The probes for these grants**, read-only, in their own query and not appended to the older section's "false on every
+  row" block (whose expectation they would break). Run it before step 4, after step 4 and after step 4b:
+
+  ```sql
+  select 'accounts.name update' as probe, has_column_privilege('app_designs', 'public.accounts', 'name', 'UPDATE') as held
+  union all select 'accounts.address update', has_column_privilege('app_designs', 'public.accounts', 'address', 'UPDATE')
+  union all select 'account_email_tokens.new_email update',
+    has_column_privilege('app_designs', 'public.account_email_tokens', 'new_email', 'UPDATE');
+  ```
+
+  | When | `accounts.name update` | `accounts.address update` | `account_email_tokens.new_email update` |
+  | --- | --- | --- | --- |
+  | Before step 4 | false | false | false |
+  | After step 4 | **true** | **true** | false |
+  | After step 4b | true (unchanged) | true (unchanged) | false (unchanged) |
+
+  Step 4b changes none of these three: it grants `UPDATE` on `email` and `email_normal_form`, which the older section's
+  probes `email update` and `email_normal_form update` report. Any other reading means stop and report.
+- **Step 4 (profile), preview first.** Exactly these statements:
+
+  ```sql
+  GRANT UPDATE (name, address) ON TABLE public.accounts TO app_designs;
+  GRANT INSERT (new_email, new_email_normal_form) ON TABLE public.account_email_tokens TO app_designs;
+  ```
+
+  No `DELETE`, no `TRUNCATE`, no `ALL`, no `WITH GRANT OPTION`, nothing to `PUBLIC`. No `INSERT` on `accounts.name` or
+  `address`: registration writes neither.
+- **Step 4b (e-mail change), separately and later.** Run only when wave S9 is built and reviewed:
+
+  ```sql
+  GRANT UPDATE (email, email_normal_form) ON TABLE public.accounts TO app_designs;
+  ```
+
+  **Gate: do not run this statement before both of these hold.** (a) The S9 security-review findings F1 (the owner's
+  ruling on the notice and undo path for an address change), F2 (the `email-change` tokens retired on every request, so
+  the token table does not depend on whether the address exists) and F3 (the token bound to the password hash that was
+  checked) are closed. (b) The confirm page for the link exists. Until then the e-mail-change request (E8) and
+  confirmation (E9) routes should stay unreachable from the product. Without the grant E9 answers `503`, so an early
+  deploy fails safe; running the grant early would make a half-built flow live.
+
+  **Gate (a), rewritten 2026-10-20 (ADR 0172 Amendment H, plan §14.3.5).** The gate above is superseded on (a). Do not
+  run this statement before all of these hold: (1) waves S13-0 through U16 of the M8B Lot 2 plan (§14.4) are committed,
+  with green QA and a security review that closes F1; the recovery path they build is the request-time notice to the old
+  address and the revert link (`email-change-revert`, 24 hours); (2) F2 and F3 stay closed; (3) the confirm page and the
+  revert page exist; (4) the owner runs this step, **preview first**. Only after that, **a separate commit** flips
+  `EMAIL_CHANGE_ENABLED` to `true` (the owner's call; nothing ships mid-milestone). The revert needs no grant beyond this
+  step. Running 4b earlier exposes nothing while the flag is off, but it widens the injection surface described below.
+  Gate (b) is unchanged.
+
+  *Note 2026-10-19 (later), source-verified by the scribe, nothing run:* the confirm page now exists (U11), and E8 and E9
+  answer an empty `404` while the constant `EMAIL_CHANGE_ENABLED` (`apps/web/src/account/profile/email-change-enabled.ts`)
+  is `false` (`lib/server/account/email-change-gate.ts`). Condition (b) holds and the routes are unreachable; condition (a)
+  is still open on F1 (owner question O19). Turning the constant on is a code change, not part of this step.
+
+  After it, the older section's probes `email update` and `email_normal_form update` read **true** and its expectation
+  "none of them id (UPDATE), email (UPDATE), email_normal_form (UPDATE)" no longer holds: the `accounts` UPDATE columns are
+  then the 8 of the older step 4, plus `name`, `address`, `email`, `email_normal_form` (12). `role`, `id` and `created_at`
+  stay false.
+- **Step 5 to 7 for this section, read-only catalog checks with the migration credential**, after step 4 (and again after 4b):
+
+  ```sql
+  -- Expect UPDATE on accounts: the 8 columns of the older step 4, plus name and address (10); plus email and
+  -- email_normal_form (12) only after step 4b. Never role, id, created_at.
+  select column_name from information_schema.column_privileges
+  where table_schema = 'public' and table_name = 'accounts' and grantee = 'app_designs' and privilege_type = 'UPDATE'
+  order by column_name;
+
+  -- Expect: account_email_tokens UPDATE is still used_at alone.
+  select column_name from information_schema.column_privileges
+  where table_schema = 'public' and table_name = 'account_email_tokens' and grantee = 'app_designs'
+    and privilege_type = 'UPDATE'
+  order by column_name;
+  ```
+
+**Accepted risk, scope grown (ADR 0019 decision 11).** `app_designs` holds table-level `UPDATE` on `designs`, so an SQL
+injection can already reassign `write_token_hash` and `account_id` on any design. `0016` adds `hidden_by_client_at` and
+`deleted_by_client_at` (setting or clearing them makes any design unopenable or openable again once the gate, wave S4,
+honours them) and `sent_at` (marking any design sent). **That is two more access-control columns and one more flag under
+a risk accepted in 2026-08 for `write_token_hash`; the owner has not re-accepted it for these.** Narrowing the `designs`
+grant to column-level is the real fix and is not part of this round. An injection can already take over an account
+today, by the `UPDATE` on `password_hash` and the table-level `INSERT` on `account_sessions` and `account_email_tokens`
+(accepted under ADR 0172 D7). What step 4b adds is not a new route to takeover but a **silent, persistent rewrite of the
+recovery e-mail channel**: the address an account answers to, and where its reset links go, changed without the password
+changing and surviving a later password reset. That is why 4b waits for its own review.
+
+**`sent_at` is not backfilled.** Every design that existed before the contact flow writes it (wave S5) has `sent_at`
+NULL and so reads as an unsent draft, even if a request for it was stored earlier. The backfill is open question O11;
+`0016` does not guess. *Update 2026-10-20: the owner ruled O11 as no backfill; older kitchens stay unmarked and no
+backfill statement is to be run.*
+
+**Rollback.** None by command: the migrations are additive and nothing here drops a column. A wrong column is fixed by a
+new migration, never by editing a file that has been applied.
+
+## For `0020`–`0022`, the staff audit log, the kitchen notes and the request states (M8B Lot 3 wave L3-S1, added 2026-10-21)
+
+The steps above stand. Three tables are created, in this order: `staff_audit_events` (`0020`), `design_notes` (`0021`) and
+`design_request_states` (`0022`). The ledger goes from **19 to 22**. The decision and its reasons: the plan
+`docs/milestones/M8B-account-screens-lot3-plan.md`, section 2.3, and ADR 0173 (**Proposed**, not Accepted) and ADR 0174
+(Accepted, decision 4 for the notes). **Nothing in this section has been executed anywhere** [written in wave L3-S1 by its
+implementer; no SQL and no grant below has been run against any database, and no agent applies a migration or a grant].
+**The numbers `0020`–`0022` are provisional until Lot 3 merges**: they were re-listed on 2026-10-21 [run: `ls
+packages/persistence/src/migrations/` in the `feat/login-register` worktree ended at `0019`; `git ls-tree` of `origin/main`
+after `git fetch` ended at `0011`], and if `origin/main` gains a migration before the merge, the file names, the ledger
+readings below and the headers' ledger sentences change with it **before** any of them is applied. **Order of
+environments: preview first, then production**, every step on one database before the next. The test database is the
+coordinator's.
+
+**Apply order.** `0020`–`0022` come **after `0019`** and the runner refuses a gap, so a database whose ledger reads fewer than
+19 takes `0012`–`0019` first (the sections above), including their grants. Then, in this order: the migrations (step 1),
+the table checks (step 2), the pre-grant probes (step 3), the grants (step 4), the catalog checks (step 5), the privilege
+test (step 6), the code. The migrations are additive and create empty tables, so applying them before the code is harmless.
+The staff routes **fail closed**: against a database without a table they answer `503`, which is the intended behaviour
+(ADR 0173 P-L3-3). All three files pass the unattended screen [executed in wave L3-S1: `pnpm --filter @lemnaria/persistence
+run migrate:unattended-check` printed "every migration file is additive and idempotent; safe to apply unattended." and
+exited 0], but applying them stays the owner's step.
+
+**What is new to grant, and what is not.** Every grant is to `app_designs`, and none is table-level beyond `SELECT`.
+
+| Table | Grant | Why | When |
+| --- | --- | --- | --- |
+| `staff_audit_events` | `SELECT` | The audit page reads it | With the L3-S3 code |
+| `staff_audit_events` | `INSERT (id, actor_account_id, action, design_id, subject_account_id, detail)` | Every staff read of a kitchen and every staff write adds a row. **No `INSERT (occurred_at)`**: a credential cannot backdate or forward-date a row (`0011`'s `created_at` reasoning) | With the L3-S3 code |
+| `design_notes` | `SELECT` | The kitchen page and the client's data export read the notes | Before the first staff route (L3-S6) ships |
+| `design_notes` | `INSERT (id, design_id, author_account_id, body)` | A staff member adds a note. **No `UPDATE`, no `DELETE`**: a note cannot be edited or deleted (the designer's answer 4; P-L3-5). No `INSERT (created_at)` | Before the first staff route (L3-S6) ships |
+| `design_request_states` | `SELECT` | The kitchen page and the list read the status. **The S4 list left-joins this table, so a missing grant makes EVERY staff list answer 503** | Before the first staff route (L3-S6) ships |
+| `design_request_states` | `INSERT (design_id, status, changed_by_account_id)` and `UPDATE (status, changed_by_account_id, changed_at)` | The status is one row per design, upserted. No `INSERT (changed_at)`; no `UPDATE (design_id)` | Before the first staff route (L3-S6) ships |
+| `accounts` | **none in this section** | The staff-invitation grant `INSERT (role)` is `0024` and a later wave (O-L3-4; a decision record and a security review first). The runbook's `role insert` probe stays **false** | — |
+| `presets` | **none in this section** | The preset visibility and position grant is `0023` and a later wave (O-L3-5; an ADR 0112 amendment and a security review first). The `presets` probes stay as the older section has them | — |
+| `designs` | none | `app_designs` already holds table-level `UPDATE` (ADR 0019 decision 11); unhide clears `hidden_by_client_at` under it and the scope does not grow again (plan section 2.3) | — |
+
+**Grants the staff routes need, before the first staff route (L3-S6) ships** [added 2026-10-21 from the coordinator's brief and
+the `0020`-`0022` headers, read by the scribe; nothing was run]. Missing any one makes the staff routes answer `503`; a
+missing `design_request_states` grant makes **every** staff list fail, because the list left-joins it.
+
+- [ ] `designs`: `SELECT`; `UPDATE` (`hidden_by_client_at`) already holds via the table-level `UPDATE`.
+- [ ] `accounts`: `SELECT`, table-wide.
+- [ ] `contact_submissions`: `SELECT` on `reference`, `client_request_id`, `design_id`, `created_at`.
+- [ ] `contact_submission_views`: `SELECT`.
+- [ ] `design_notes`: `SELECT` and `INSERT (id, design_id, author_account_id, body)` (the `0021` header's columns).
+- [ ] `design_request_states`: `SELECT`, `INSERT (design_id, status, changed_by_account_id)` and
+  `UPDATE (status, changed_by_account_id, changed_at)` (the `0022` header).
+- [ ] `staff_audit_events`: `SELECT` and `INSERT (id, actor_account_id, action, design_id, subject_account_id, detail)`.
+- [ ] `account_sessions`: `SELECT (token_hash, account_id, revoked_at, absolute_expires_at, created_at, last_seen_at)`. The
+  audit statement takes the actor from the live session the cookie names, by this read, and every staff route reads the
+  session first; a missing grant makes every staff route answer `503`, before any staff table is touched.
+
+**Owner re-acceptance before production** [added 2026-10-21 from the L3-S7 security review; nothing was run]: ADR 0019 d11's
+scope growth (`hidden_by_client_at`, `deleted_by_client_at`, `sent_at`) must be re-accepted for hide, delete **and staff
+unhide** together before `0020` reaches production. Staff unhide (`/api/staff/kitchens/[id]/unhide`) is a second
+production writer of `designs.hidden_by_client_at` under the table-level `UPDATE`; no new grant is needed (ADR 0172
+Amendment G item 3, dated note 2026-10-21).
+
+**Owner to confirm first:** the grants of `0008`, `0010` and `0012`/`0017` are recorded in other documents as **not applied**
+on preview and production. Confirm them before L3-S6 is deployed; the staff reader depends on them.
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **22** (1 to 19 before). For
+  preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label `preview`
+  ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, confirm the tables are the ones the files describe**, because `create table if not exists` passes over an older
+  table of the same name. Read-only, with the migration credential:
+
+  ```sql
+  -- Expect 3 rows: design_notes 5 columns, design_request_states 4, staff_audit_events 7.
+  select table_name, count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name in ('staff_audit_events', 'design_notes', 'design_request_states')
+  group by table_name order by table_name;
+
+  -- Expect 13 check constraints (contype c) and 3 primary keys (contype p), each present once.
+  select conrelid::regclass::text as table_name, conname, contype
+  from pg_constraint
+  where conrelid in ('public.staff_audit_events'::regclass, 'public.design_notes'::regclass,
+                     'public.design_request_states'::regclass)
+    and contype in ('c', 'p')
+  order by 1, 3, 2;
+
+  -- Expect these 2 secondary indexes, and the 3 primary-key indexes.
+  select tablename, indexname, indexdef from pg_indexes
+  where schemaname = 'public'
+    and tablename in ('staff_audit_events', 'design_notes', 'design_request_states')
+  order by tablename, indexname;
+  ```
+
+  The 13 checks are `staff_audit_events_id_shape`, `…_actor_account_id_shape`, `…_action_shape`, `…_design_id_shape`,
+  `…_subject_account_id_shape`, `…_detail_is_an_object` (6); `design_notes_id_shape`, `…_design_id_shape`,
+  `…_author_account_id_shape`, `…_body_length` (4); `design_request_states_design_id_shape`, `…_status_shape`,
+  `…_changed_by_account_id_shape` (3). The two secondary indexes must read `… USING btree (occurred_at DESC, id DESC)` for
+  `staff_audit_events_newest_first_idx` and `… USING btree (design_id, created_at DESC)` for
+  `design_notes_by_design_newest_idx` [verified on the test database by the L3-S1 QA run (5781729b), read-only]. Any other
+  answer means stop and report. **Behaviour of the checks:** an `id` of 20 or 22 characters is refused, a `body` of 0 or
+  2001 characters is refused, a non-object `detail` is refused, and `NULL` passes every nullable column's check [verified
+  on the test database by the L3-S1 QA run (5781729b), read-only]. Preview and production are not yet confirmed.
+- **Step 3, before the grants: read `pg_default_acl` with the query in the `0009` section, then run the probes.** A default
+  privilege grants without anyone issuing it; anything that would reach one of the three tables is a stop-and-report, as in
+  the older step 3. Then, read-only
+  and in its own query (not appended to an older section's block, whose expectation it would break), **before step 4**:
+
+  ```sql
+  select p.probe,
+         case p.kind
+           when 'table' then has_table_privilege('app_designs', p.relation, p.privilege)
+           else has_column_privilege('app_designs', p.relation, p.column_name, p.privilege)
+         end as held
+  from (values
+    ('audit select',            'table',  'public.staff_audit_events',    null,                 'SELECT'),
+    ('audit insert id',         'column', 'public.staff_audit_events',    'id',                 'INSERT'),
+    ('audit insert detail',     'column', 'public.staff_audit_events',    'detail',             'INSERT'),
+    ('audit insert occurred_at','column', 'public.staff_audit_events',    'occurred_at',        'INSERT'),
+    ('audit update action',     'column', 'public.staff_audit_events',    'action',             'UPDATE'),
+    ('audit delete',            'table',  'public.staff_audit_events',    null,                 'DELETE'),
+    ('notes select',            'table',  'public.design_notes',          null,                 'SELECT'),
+    ('notes insert body',       'column', 'public.design_notes',          'body',               'INSERT'),
+    ('notes insert created_at', 'column', 'public.design_notes',          'created_at',         'INSERT'),
+    ('notes update body',       'column', 'public.design_notes',          'body',               'UPDATE'),
+    ('notes delete',            'table',  'public.design_notes',          null,                 'DELETE'),
+    ('states select',           'table',  'public.design_request_states', null,                 'SELECT'),
+    ('states insert status',    'column', 'public.design_request_states', 'status',             'INSERT'),
+    ('states insert changed_at','column', 'public.design_request_states', 'changed_at',         'INSERT'),
+    ('states update status',    'column', 'public.design_request_states', 'status',             'UPDATE'),
+    ('states update changed_at','column', 'public.design_request_states', 'changed_at',         'UPDATE'),
+    ('states update design_id', 'column', 'public.design_request_states', 'design_id',          'UPDATE'),
+    ('states delete',           'table',  'public.design_request_states', null,                 'DELETE')
+  ) as p(probe, kind, relation, column_name, privilege);
+
+  -- Further pre-grant probes (security review L3-S1), expect false on all of them, before and after step 4:
+  select t.relation, t.privilege, has_table_privilege('app_designs', t.relation, t.privilege) as held
+  from (values
+    ('public.staff_audit_events', 'TRUNCATE'), ('public.staff_audit_events', 'TRIGGER'),
+    ('public.design_notes', 'TRUNCATE'), ('public.design_notes', 'TRIGGER'),
+    ('public.design_request_states', 'TRUNCATE'), ('public.design_request_states', 'TRIGGER')
+  ) as t(relation, privilege);
+
+  select r.relation, has_any_column_privilege('app_designs', r.relation, 'UPDATE') as held
+  from (values ('public.staff_audit_events'), ('public.design_notes')) as r(relation);
+  ```
+
+  `has_any_column_privilege(…, 'UPDATE')` is expected **false** on the audit and notes tables, before and after step 4. On
+  `design_request_states` it is false before step 4 and **true** after (the column `UPDATE` grant is intended there).
+  `TRUNCATE` and `TRIGGER` are false on all three tables at every point [doc-quoted from the security review, relayed; not run
+  by the author of this edit].
+
+  | Probe | Before step 4 | After step 4 |
+  | --- | --- | --- |
+  | `audit select`, `notes select`, `states select` | false | **true** |
+  | `audit insert id`, `audit insert detail`, `notes insert body`, `states insert status` | false | **true** |
+  | `states update status`, `states update changed_at` | false | **true** |
+  | `audit insert occurred_at`, `notes insert created_at`, `states insert changed_at` | false | false |
+  | `audit update action`, `notes update body`, `states update design_id` | false | false |
+  | the three `delete` probes | false | false |
+
+  **Any `true` before step 4, or any reading after step 4 that differs from the table, means stop and report.** Anything
+  held before the grant came through `PUBLIC`, a default privilege or a role membership.
+- **Step 3 (continued), the privilege test, red with nothing held.** With the tables created and nothing granted, run the
+  three new arms of `packages/persistence/tests/application-role-privileges.test.ts` (their titles begin "the staff table")
+  with `DATABASE_URL` set to the application role's URL for that environment, never the migration URL. Expect the first arm
+  of each table **red at the table-level assertion, with received `[]`** (nothing held). "Red" alone is not enough: if a
+  default ACL or a `PUBLIC` `SELECT` were present, arm 1 would fail later, on the `INSERT` column list, and still be a
+  privilege held before the grant. Read where it failed and what it received. **Arm 2 is also red with nothing granted**
+  (verified by catalog emulation on the test database by the L3-S1 QA run, relayed [doc-quoted]); the earlier sentence that
+  only the first arm is red understated it. A table that does not exist yet makes the arm **skip**, never pass. If an arm
+  is green before step 4, or arm 1 fails anywhere but at the table-level assertion with `[]`, something other than the owner's
+  grant gave the role a privilege: stop and report.
+- **Step 4 (the grants), preview first.** Exactly these statements, one table at a time:
+
+  ```sql
+  GRANT SELECT ON TABLE public.staff_audit_events TO app_designs;
+  GRANT INSERT (id, actor_account_id, action, design_id, subject_account_id, detail)
+    ON TABLE public.staff_audit_events TO app_designs;
+
+  GRANT SELECT ON TABLE public.design_notes TO app_designs;
+  GRANT INSERT (id, design_id, author_account_id, body) ON TABLE public.design_notes TO app_designs;
+
+  GRANT SELECT ON TABLE public.design_request_states TO app_designs;
+  GRANT INSERT (design_id, status, changed_by_account_id) ON TABLE public.design_request_states TO app_designs;
+  GRANT UPDATE (status, changed_by_account_id, changed_at) ON TABLE public.design_request_states TO app_designs;
+  ```
+
+  No `DELETE`, no `TRUNCATE`, no `ALL`, no `WITH GRANT OPTION`, nothing to `PUBLIC`. No `INSERT` on `occurred_at`,
+  `created_at` or `changed_at`; no `UPDATE` on `staff_audit_events` or `design_notes`; no `UPDATE` of `design_id`.
+  Run the step 3 probes again and compare with the "After step 4" column.
+- **Step 5 to 7, read-only catalog checks with the migration credential**, after step 4:
+
+  ```sql
+  -- Expect, for each table, SELECT alone at table level (the role_table_grants list), and nothing for PUBLIC.
+  select table_name, privilege_type from information_schema.role_table_grants
+  where grantee = 'app_designs'
+    and table_name in ('staff_audit_events', 'design_notes', 'design_request_states')
+  order by table_name, privilege_type;
+
+  -- Expect INSERT: staff_audit_events 6 columns (all but occurred_at); design_notes 4 (all but created_at);
+  -- design_request_states 3 (all but changed_at). Expect UPDATE: design_request_states 3 (status,
+  -- changed_by_account_id, changed_at) and nothing on the other two.
+  select table_name, privilege_type, column_name from information_schema.column_privileges
+  where grantee = 'app_designs'
+    and table_name in ('staff_audit_events', 'design_notes', 'design_request_states')
+    and privilege_type in ('INSERT', 'UPDATE')
+  order by table_name, privilege_type, column_name;
+
+  -- Expect 0 rows: no grant with the right to grant it on, and no grant to PUBLIC (grantee 0). This reads the table-level
+  -- access list only; the privilege test asks the server per column.
+  select c.relname, a.privilege_type, a.is_grantable
+  from pg_class c, lateral aclexplode(c.relacl) a
+  where c.oid in ('public.staff_audit_events'::regclass, 'public.design_notes'::regclass,
+                  'public.design_request_states'::regclass)
+    and (a.grantee = 0 or a.is_grantable);
+  ```
+
+  `information_schema.column_privileges` also lists a column a table-level privilege covers, so a table-level `INSERT` or
+  `UPDATE` would show every column and fail the expectations above [inference from the view's definition, never run].
+- **Step 6 for this section: the privilege test, green with the exact grants.** Run the whole file with `DATABASE_URL` set to
+  the application role's URL, read the run's own line `reached database "…" as role "…"` and quote it with the result, as
+  in the older step 6. All six new arms (two per table) must be green and **not skipped**; a skip means the table is not on
+  the database reached. The second arm of each table also shows, by `explain`, that the store's insert is planned under
+  the grant, and that a delete, an insert naming the stamped column and an update of an ungranted column are refused with
+  `42501`. For `design_request_states` the planned insert is the upsert the status route sends. The same file's arms for
+  the older tables stay green.
+- **Step 8, `designs` is unchanged:** no statement in this section touches it; confirm with `has_table_privilege` that it
+  still holds `SELECT`, `INSERT` and `UPDATE` and not `DELETE`, as the older step 8.
+
+**Two properties to weigh before step 4, not defects** [inference from the grants; never run].
+
+- `UPDATE (changed_at)` on `design_request_states` (plan section 2.3) lets a leaked credential write any time into a row's
+  `changed_at`. The audit row of the same change carries the true time, and the credential cannot backdate that row.
+- Neither `staff_audit_events` nor `design_notes` has a size bound on its free-form column beyond `body`'s 2000
+  characters: `detail` is an object with no ceiling, which `0011`'s `design_document` has and this plan has not ruled.
+
+**Conditions on the store (security review L3-S1)** [doc-quoted, relayed from the security review; not run here]. The grants
+are safe only if the store code keeps these:
+
+- The status upsert writes the literal `changed_at = now()` in SQL and never binds it as a parameter.
+- `changed_by_account_id` and the audit `actor_account_id` come from the session **in the same statement**, with an
+  exactly-one-row check.
+- The audit row is written in the same transaction as the change.
+- A dispute is settled from the audit row, not from the status row.
+- The store logs the SQLSTATE and the constraint name only: a `23514` error `DETAIL` contains the failing row, including note
+  text.
+
+**Not in the nightly export.** The export covers `designs` only. A restore of `designs` does not restore the audit log,
+the notes or the request states, and nothing here adds them to a backup. Notes are the client's personal data and join the
+client's own data download (ADR 0174 decision 4, wave L3-S9); the audit log holds ids and codes and no personal data.
+
+**Rollback.** None by command: the migrations create tables and an index and nothing here drops anything. A wrong table is
+fixed by a new migration, never by editing a file that has been applied.
+
+**The test database.** The live persistence suite applies every migration to the test database through its `beforeAll`
+hooks; the coordinator applies `0020`–`0022` there, and no grant is needed there for the live suite.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

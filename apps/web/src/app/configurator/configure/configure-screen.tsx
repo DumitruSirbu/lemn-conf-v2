@@ -4,6 +4,12 @@ import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 
+import {
+  AccountControl,
+  AccountFormProbes,
+} from "@/account/session/account-control";
+import { SessionExpiredSheet } from "@/account/session/session-expired-sheet";
+import { useSessionExpiry } from "@/account/session/use-session-expiry";
 import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
 import { PriceBar } from "@/price/price-bar";
@@ -75,6 +81,7 @@ export function ConfigureScreen({
   // names, and what the row gives up to leave room for them. See `use-top-bar-fit.ts`.
   const topBar = useTopBarFit();
   const backConfirmation = useBackConfirmation();
+  const sessionExpiry = useSessionExpiry();
   const savePreset = useSaveAsPresetControl(variant === "owner");
   const backGuard = useBackGuard({
     isOwner: variant === "owner",
@@ -111,6 +118,7 @@ export function ConfigureScreen({
       className={styles.screen}
       style={topBar.spacingMetrics}
       data-wordmark={topBar.isWordmarkDrawn ? "drawn" : "dropped"}
+      data-title={topBar.isTitleDropped ? "dropped" : "drawn"}
     >
       {/* Frames 2A / D2A's top bar, as **five grid items of the screen** rather than one header
           element: the settings pill, the price, the actions and the locale each have to stand in a
@@ -172,6 +180,14 @@ export function ConfigureScreen({
       <div className={styles.settings} ref={topBar.settingsTrackRef}>
         <GlobalSettings visibleCount={topBar.visibleCount} />
       </div>
+      {/* The account control, after the settings pill and before the language chip in the bar and in the Tab
+          order. The cell is the band's; the control's menu is not in it but rendered into this `<main>`, so it is a direct
+          child of the screen as the dialogs below are and marks the whole header inert. Drawn in the shared variant too:
+          who is signed in has nothing to do with whose design is on screen. */}
+      <AccountControl
+        cellClassName={styles.account ?? ""}
+        signInForm={topBar.isAccountCompact ? "icon" : "icon-below-desktop"}
+      />
       {/* Frames 2A / D2A draw this chip exactly as it is drawn here, and the owner's 2026-09-10
           ruling gives the caret its meaning: it opens a menu of every locale `routing.locales`
           declares. The cell itself is the component's, because the popover is positioned against it
@@ -307,14 +323,25 @@ export function ConfigureScreen({
       {savePreset.isOffered && savePreset.isOpen && (
         <SaveAsPresetDialog onClose={savePreset.close} />
       )}
+      {/* A direct child of the screen too. It is drawn when a save is refused and the session behind the editor is found
+          to have ended (`use-session-expiry.ts`); nothing leaves this page until the person presses its link. */}
+      {sessionExpiry.isSheetOpen && (
+        <SessionExpiredSheet onLater={sessionExpiry.closeSheet} />
+      )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the
-          measurement that would put it back. */}
+          measurement that would put it back, and the account control's two forms are not in its cell. */}
       <div className={styles.measure} aria-hidden="true">
         <span className={styles.wordmark} ref={topBar.wordmarkProbeRef}>
           {content.brand}
         </span>
       </div>
+      <div className={styles.measure} aria-hidden="true">
+        <span className={styles.title} ref={topBar.titleProbeRef}>
+          {content.configure.title}
+        </span>
+      </div>
+      <AccountFormProbes {...topBar.accountProbeRefs} />
       <SettingsPillMeasurement
         labels={topBar.pill.settings.map((setting) => setting.label)}
         widestCounter={widestCounterFor(topBar.pill)}

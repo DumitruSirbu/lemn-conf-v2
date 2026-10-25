@@ -37,6 +37,13 @@ const outside = vi.hoisted(() => ({}) as Outside);
 vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
   getContactSubmissionStore: () => outside.store,
 }));
+// The sent mark's store is a fake: no database is reached, so no line about a mark that could not be made is among the
+// lines under test.
+vi.mock("@/lib/server/contact/sent-mark-store-instance", () =>
+  import("../../../support/sent-mark-store-fake").then((fake) =>
+    fake.fakeSentMarkStoreModule(),
+  ),
+);
 vi.mock("@/lib/server/mail/create-mail-sender", () => ({
   createMailSender: () => ({ kind: "sender", sender: outside.sender }),
 }));

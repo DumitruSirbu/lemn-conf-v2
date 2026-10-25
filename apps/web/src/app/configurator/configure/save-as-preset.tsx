@@ -12,6 +12,11 @@ import {
   type RefObject,
 } from "react";
 
+import {
+  trapTab,
+  useBackgroundInert,
+  useEscapeToDismiss,
+} from "@/components/use-modal-focus";
 import { useContent } from "@/i18n/use-content";
 import { matchesMedia } from "@/lib/matches-media";
 import { useCanAuthorPresetsFor } from "@/preset/preset-authoring-store";
@@ -19,11 +24,6 @@ import {
   PresetStatusNotice,
   type PresetStatus,
 } from "@/preset/preset-status-notice";
-import {
-  trapTab,
-  useBackgroundInert,
-  useEscapeToDismiss,
-} from "@/settings/confirmation-dialog";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";

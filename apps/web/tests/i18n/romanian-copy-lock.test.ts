@@ -17,6 +17,13 @@ describe("Romanian catalogue copy lock", () => {
     expect(ro).toEqual(APPROVED_ROMANIAN_MESSAGES);
   });
 
+  it("takes the whole catalogue for approved, and a catalogue with a namespace nobody locked for not", () => {
+    expect(isRomanianCopyApproved(ro)).toBe(true);
+    expect(
+      isRomanianCopyApproved({ ...ro, accountSurprise: { title: "new" } }),
+    ).toBe(false);
+  });
+
   it("uses the copy lock's structural equality for catalogue-shaped data", () => {
     const equalCatalogue: unknown = JSON.parse(
       JSON.stringify(APPROVED_ROMANIAN_MESSAGES),

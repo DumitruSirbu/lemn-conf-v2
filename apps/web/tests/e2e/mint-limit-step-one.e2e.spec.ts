@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 const THE_TYPED_ROOM =
   "/ro/configurator/room?shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left";
@@ -136,5 +137,5 @@ test("the same journey with nothing intercepted reaches the editor, so the state
   const id = new URL(page.url()).pathname.split("/").pop();
   if (id !== undefined) mintedDesignIds.push(decodeURIComponent(id));
 
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
 });

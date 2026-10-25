@@ -136,7 +136,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
       await testRepository().saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "authorised" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: FIRST_REVISION,
         requestVisitor: { kind: "absent" },
       });
@@ -159,7 +159,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           testRepository().saveAuthorized({
             id,
             design: ATTACKER_DESIGN,
-            writeTokenHash: hash,
+            credential: { kind: "write-token", hash: hash },
             expectedRevision: FIRST_REVISION,
             requestVisitor: { kind: "absent" },
           }),
@@ -189,7 +189,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           testRepository().saveAuthorized({
             id: "' or 1=1 --",
             design: ATTACKER_DESIGN,
-            writeTokenHash: hash,
+            credential: { kind: "write-token", hash: hash },
             expectedRevision: FIRST_REVISION,
             requestVisitor: { kind: "absent" },
           }),
@@ -318,7 +318,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
         testRepository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: "a".repeat(64),
+          credential: { kind: "write-token", hash: "a".repeat(64) },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -339,7 +339,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
         testRepository().saveAuthorized({
           id: first,
           design: ATTACKER_DESIGN,
-          writeTokenHash: otherHash,
+          credential: { kind: "write-token", hash: otherHash },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -348,7 +348,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
         testRepository().saveAuthorized({
           id: second,
           design: ATTACKER_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -369,14 +369,14 @@ describe("the write-authorisation predicate under attack (live test database)", 
         testRepository().saveAuthorized({
           id,
           design: authorised,
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
         testRepository().saveAuthorized({
           id,
           design: ATTACKER_DESIGN,
-          writeTokenHash: "e".repeat(64),
+          credential: { kind: "write-token", hash: "e".repeat(64) },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -407,7 +407,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
           testRepository().saveAuthorized({
             id,
             design: ATTACKER_DESIGN,
-            writeTokenHash: hash,
+            credential: { kind: "write-token", hash: hash },
             expectedRevision: FIRST_REVISION,
             requestVisitor: { kind: "absent" },
           }),
@@ -437,15 +437,40 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
     return source.slice(start, end);
   }
 
-  it("issues exactly one query, and that query is the conditional update", () => {
-    const body = bodyOfSaveAuthorized();
-    const queries = body.match(/this\.sql`/g) ?? [];
+  /** One credential arm's method, from its signature to the doc comment of the next member. */
+  function bodyOfArm(name: string): string {
+    const start = source.indexOf(`private async ${name}(`);
+    expect(start, `${name} must exist to be checked`).toBeGreaterThan(0);
+    const end = source.indexOf("\n  /**", start);
+    expect(end, `${name} must be followed by another member`).toBeGreaterThan(
+      start,
+    );
+    return source.slice(start, end);
+  }
 
-    expect(queries).toHaveLength(1);
-    expect(body).toMatch(/and write_token_hash = \$\{writeTokenHash\}/);
-    // The revision shares the credential's predicate: a second statement would reopen the read-then-write window.
-    expect(body).toMatch(/and revision::text = \$\{expectedRevision\}/);
-    expect(body).toMatch(/returning revision/);
+  // Re-scoped when the account arm was added (ADR 0172 D9): "one statement" became "one statement per credential arm",
+  // each carrying the credential and the revision in its own predicate.
+  it.each([
+    ["updateByWriteToken", /and write_token_hash = \$\{writeTokenHash\}/],
+    ["updateByAccount", /and account_id = \$\{accountId\}/],
+  ] as const)(
+    "%s issues exactly one query, and that query is the conditional update",
+    (arm, credentialPredicate) => {
+      const body = bodyOfArm(arm);
+      const queries = body.match(/this\.sql`/g) ?? [];
+
+      expect(queries).toHaveLength(1);
+      expect(body).toMatch(credentialPredicate);
+      // The revision shares the credential's predicate: a second statement would reopen the read-then-write window.
+      expect(body).toMatch(/and revision::text = \$\{expectedRevision\}/);
+      expect(body).toMatch(/returning revision/);
+    },
+  );
+
+  it("the whole save path sends two statements in the source, one per credential arm, and nothing else", () => {
+    expect(bodyOfSaveAuthorized().match(/this\.sql`/g) ?? []).toHaveLength(2);
+    expect(bodyOfArm("updateByWriteToken")).not.toContain("account_id");
+    expect(bodyOfArm("updateByAccount")).not.toContain("write_token_hash");
   });
 
   it("reads nothing before it writes", () => {
@@ -501,18 +526,11 @@ describe("the write-token migration actually executes", () => {
       expect(await writeTokenColumns()).toHaveLength(0);
 
       const summary = await runMigrations(testDatabaseUrl);
-      expect(summary.applied).toEqual([
-        "0002_add_write_token_hash.sql",
-        "0003_check_write_token_hash_shape.sql",
-        "0004_add_design_revision.sql",
-        "0005_add_design_visitor_hash.sql",
-        "0006_create_design_share_links.sql",
-        "0007_create_rate_limit_counters.sql",
-        "0008_create_contact_submissions.sql",
-        "0009_create_csp_reports.sql",
-        "0010_create_contact_submission_views.sql",
-        "0011_create_presets.sql",
-      ]);
+      expect(summary.applied).toEqual(
+        readMigrationFiles()
+          .slice(1)
+          .map((migration) => migration.fileName),
+      );
 
       const columns = await writeTokenColumns();
       expect(columns).toHaveLength(1);
@@ -930,7 +948,9 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         updatedHoursAgo: 2,
       });
 
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: `qa-7e3a-touched-late-${stamp}`,
       });
@@ -955,7 +975,9 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         from unnest(${ids}::text[]) as i
       `;
 
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: `qa-7e3a-tie-c-${stamp}`,
       });
@@ -971,7 +993,9 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
       await neon(testDatabaseUrl)`
         update designs set updated_at = now() - interval '1 hour' where id = ${first}
       `;
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: second,
       });
@@ -979,12 +1003,14 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
       await repository().saveAuthorized({
         id: first,
         design: KITCHEN_L_DESIGN,
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: FIRST_REVISION,
         requestVisitor: { kind: "absent" },
       });
 
-      await expect(repository().resumeVisitor(QA_VISITOR)).resolves.toEqual({
+      await expect(
+        repository().resume({ visitorHash: QA_VISITOR }),
+      ).resolves.toEqual({
         kind: "found",
         id: first,
       });
@@ -1016,7 +1042,7 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
         "null",
       ]) {
         await expect(
-          repository().resumeVisitor(hostile),
+          repository().resume({ visitorHash: hostile }),
           JSON.stringify(hostile),
         ).resolves.toEqual({ kind: "none" });
       }
@@ -1271,8 +1297,11 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
           expect(
             await shareLinks.issue({
               designId: firstId,
-              writeTokenHash: CORRECT_TOKEN_HASH,
-              visitorHash: hashes[0] ?? "",
+              credential: {
+                kind: "write-token",
+                writeTokenHash: CORRECT_TOKEN_HASH,
+                visitorHash: hashes[0] ?? "",
+              },
               tokenHash: shareTokenHash,
             }),
           ).toBe("issued");
@@ -1304,7 +1333,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
             for (let earlier = 0; earlier < k; earlier++)
               expect(await countUnder(hashes[earlier] ?? "")).toBe(0);
             await expect(
-              repository().resumeVisitor(hashes[k] ?? ""),
+              repository().resume({ visitorHash: hashes[k] ?? "" }),
             ).resolves.toEqual({ kind: "found", id });
             expect((await shareLinks.loadShared(shareTokenHash)).kind).toBe(
               "found",
@@ -1351,16 +1380,24 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
       ];
       for (const visitorHash of shapes)
         await expect(
-          repository().loadOwned({ id, visitorHash }),
+          repository().loadOwned({ id, accessor: { visitorHash } }),
           JSON.stringify(visitorHash),
         ).resolves.toEqual({ kind: "none" });
       for (const hostileId of ["%", "_".repeat(id.length), `${id}' or '1'='1`])
         await expect(
-          repository().loadOwned({ id: hostileId, visitorHash: ownerHash }),
+          repository().loadOwned({
+            id: hostileId,
+            accessor: { visitorHash: ownerHash },
+          }),
           hostileId,
         ).resolves.toEqual({ kind: "none" });
       expect(
-        (await repository().loadOwned({ id, visitorHash: ownerHash })).kind,
+        (
+          await repository().loadOwned({
+            id,
+            accessor: { visitorHash: ownerHash },
+          })
+        ).kind,
       ).toBe("found");
     },
   );
@@ -1441,7 +1478,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         const savePromise = repository().saveAuthorized({
           id: minted.id,
           design: { ...KITCHEN_L_DESIGN, presetId: "raced-save" },
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: minted.revision,
           requestVisitor: { kind: "present", visitorHash: oldHash },
         });
@@ -1495,7 +1532,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: first?.id ?? "",
-            visitorHash: firstHash,
+            accessor: { visitorHash: firstHash },
           })
         ).kind,
       ).toBe("found");
@@ -1503,7 +1540,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: second?.id ?? "",
-            visitorHash: secondHash,
+            accessor: { visitorHash: secondHash },
           })
         ).kind,
       ).toBe("found");
@@ -1545,7 +1582,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: victim.id,
-            visitorHash: attackerHash,
+            accessor: { visitorHash: attackerHash },
           })
         ).kind,
       ).toBe("none");
@@ -1553,7 +1590,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
         (
           await repository().loadOwned({
             id: attacker.id,
-            visitorHash: ownerHash,
+            accessor: { visitorHash: ownerHash },
           })
         ).kind,
       ).toBe("none");

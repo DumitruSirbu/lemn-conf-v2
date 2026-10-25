@@ -73,7 +73,13 @@ describe(SUITE_NAME, () => {
     return new NeonConfigurationRepository(testDatabaseUrl);
   }
 
-  /** The runbook's restore statement, verbatim. */
+  /**
+   * The runbook's restore statement (`docs/runbooks/design-db-restore.md`, "Restore"), marks, owner link and name included. Not verbatim in
+   * two respects: the runbook script migrates each row with `migrateDesign` and stores `CURRENT_SCHEMA_VERSION`, where
+   * this stores the dump's document at version 1 as the earlier copy did; and it runs inside the script's own loop.
+   * The statement text itself, columns and conflict clause, is the runbook's, and
+   * `design-row-source.statements.test.ts` pins that the runbook's text restores every column the backup exports.
+   */
   async function restoreRow(line: string): Promise<void> {
     if (!sql) return;
     const row = JSON.parse(line) as {
@@ -84,18 +90,29 @@ describe(SUITE_NAME, () => {
       updated_at: string;
       write_token_hash?: string | null;
       visitor_hash?: string | null;
+      sent_at?: string | null;
+      hidden_by_client_at?: string | null;
+      deleted_by_client_at?: string | null;
+      account_id?: string | null;
+      name?: string | null;
     };
     await sql`
       insert into designs (id, schema_version, document, created_at, updated_at, write_token_hash,
-                            visitor_hash)
+                            visitor_hash, sent_at, hidden_by_client_at, deleted_by_client_at, account_id, name)
       values (${row.id}, 1, ${row.document as Design}, ${row.created_at}, ${row.updated_at},
-              ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null})
+              ${row.write_token_hash ?? null}, ${row.visitor_hash ?? null}, ${row.sent_at ?? null},
+              ${row.hidden_by_client_at ?? null}, ${row.deleted_by_client_at ?? null},
+              ${row.account_id ?? null}, ${row.name ?? null})
       on conflict (id) do update
         set schema_version = excluded.schema_version,
             document = excluded.document,
             updated_at = excluded.updated_at,
             write_token_hash = excluded.write_token_hash,
-            visitor_hash = excluded.visitor_hash
+            visitor_hash = excluded.visitor_hash,
+            sent_at = coalesce(designs.sent_at, excluded.sent_at),
+            hidden_by_client_at = coalesce(designs.hidden_by_client_at, excluded.hidden_by_client_at),
+            deleted_by_client_at = coalesce(designs.deleted_by_client_at, excluded.deleted_by_client_at),
+            name = coalesce(designs.name, excluded.name)
     `;
   }
 
@@ -145,7 +162,7 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: edited,
-          writeTokenHash: hashWriteToken(token),
+          credential: { kind: "write-token", hash: hashWriteToken(token) },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -178,7 +195,10 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: hashWriteToken("a-different-token"),
+          credential: {
+            kind: "write-token",
+            hash: hashWriteToken("a-different-token"),
+          },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -262,7 +282,10 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: hashWriteToken("any-token-at-all"),
+          credential: {
+            kind: "write-token",
+            hash: hashWriteToken("any-token-at-all"),
+          },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -293,7 +316,7 @@ describe(SUITE_NAME, () => {
         repository().saveAuthorized({
           id,
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: hashWriteToken(token),
+          credential: { kind: "write-token", hash: hashWriteToken(token) },
           expectedRevision: RESTORED_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -318,16 +341,373 @@ describe(SUITE_NAME, () => {
       const line = await exportedLineFor(id);
 
       await sql`delete from designs where id = ${id}`;
-      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+      await expect(repository().resume({ visitorHash })).resolves.toEqual({
         kind: "none",
       });
       await restoreRow(line);
 
-      await expect(repository().resumeVisitor(visitorHash)).resolves.toEqual({
+      await expect(repository().resume({ visitorHash })).resolves.toEqual({
         kind: "found",
         id,
       });
     },
     30_000,
   );
+  // Lot 2 (plan S4, ADR 0172 D9, D10): a client's hide or delete is an access-control mark, and a restore that drops it
+  // reopens the kitchen to its browser and its account. These run the whole loop, as the tests above do for the token.
+  describe("the client's marks survive export, loss and restore", () => {
+    const MARK_COLUMNS = [
+      "sent_at",
+      "hidden_by_client_at",
+      "deleted_by_client_at",
+    ] as const;
+
+    async function mintMarked(
+      marks: Partial<Record<(typeof MARK_COLUMNS)[number], true>>,
+    ): Promise<{ id: DesignId; token: string; visitorHash: string }> {
+      const token = `qa-marks-token-${String(Date.now())}-${String(mintedIds.length)}`;
+      const visitorHash = createHash("sha256")
+        .update(token, "utf8")
+        .digest("hex");
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(token),
+        visitor: { kind: "fresh", visitorHash },
+      });
+      mintedIds.push(id);
+      if (!sql) return { id, token, visitorHash };
+      if (marks.sent_at)
+        await sql`update designs set sent_at = now() where id = ${id}`;
+      if (marks.hidden_by_client_at) {
+        await sql`update designs set hidden_by_client_at = now() where id = ${id}`;
+      }
+      if (marks.deleted_by_client_at) {
+        await sql`update designs set deleted_by_client_at = now() where id = ${id}`;
+      }
+      return { id, token, visitorHash };
+    }
+
+    async function marksOf(id: DesignId): Promise<Record<string, boolean>> {
+      if (!sql) return {};
+      const rows = (await sql`
+        select (sent_at is not null) as sent_at,
+               (hidden_by_client_at is not null) as hidden_by_client_at,
+               (deleted_by_client_at is not null) as deleted_by_client_at
+        from designs where id = ${id}
+      `) as Record<string, boolean>[];
+      return rows[0] ?? {};
+    }
+
+    it.skipIf(!hasLiveDatabase)(
+      "exports sent_at, hidden_by_client_at and deleted_by_client_at, and account_id and name beside them",
+      async () => {
+        const { id } = await mintMarked({
+          sent_at: true,
+          hidden_by_client_at: true,
+        });
+
+        const row = JSON.parse((await exportedLineFor(id)).trim()) as Record<
+          string,
+          unknown
+        >;
+
+        expect(Object.keys(row)).toEqual(
+          expect.arrayContaining([...MARK_COLUMNS]),
+        );
+        expect(Object.keys(row)).toEqual(
+          expect.arrayContaining(["account_id", "name"]),
+        );
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a hidden kitchen is still hidden after the restore, and its token and its browser are still refused",
+      async () => {
+        const { id, token, visitorHash } = await mintMarked({
+          sent_at: true,
+          hidden_by_client_at: true,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        const before = await marksOf(id);
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await marksOf(id)).toEqual(before);
+        expect(before).toEqual({
+          sent_at: true,
+          hidden_by_client_at: true,
+          deleted_by_client_at: false,
+        });
+        await expect(
+          repository().loadOwned({ id, accessor: { visitorHash } }),
+        ).resolves.toEqual({ kind: "none" });
+        await expect(
+          repository().saveAuthorized({
+            id,
+            design: KITCHEN_L_DESIGN,
+            credential: { kind: "write-token", hash: hashWriteToken(token) },
+            expectedRevision: RESTORED_REVISION,
+            requestVisitor: { kind: "absent" },
+          }),
+        ).rejects.toThrow(DesignWriteForbiddenError);
+        await expect(repository().resume({ visitorHash })).resolves.toEqual({
+          kind: "none",
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a deleted kitchen is still deleted after the restore",
+      async () => {
+        const { id, visitorHash } = await mintMarked({
+          deleted_by_client_at: true,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await marksOf(id)).toEqual({
+          sent_at: false,
+          hidden_by_client_at: false,
+          deleted_by_client_at: true,
+        });
+        await expect(
+          repository().loadOwned({ id, accessor: { visitorHash } }),
+        ).resolves.toEqual({ kind: "none" });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "an open kitchen stays open and unsent, so a restore marks nothing it was not told to",
+      async () => {
+        const { id, visitorHash } = await mintMarked({});
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await marksOf(id)).toEqual({
+          sent_at: false,
+          hidden_by_client_at: false,
+          deleted_by_client_at: false,
+        });
+        await expect(repository().resume({ visitorHash })).resolves.toEqual({
+          kind: "found",
+          id,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a dump from before the marks existed never reopens a kitchen hidden since: the re-run keeps the mark",
+      async () => {
+        const { id } = await mintMarked({
+          sent_at: true,
+          hidden_by_client_at: true,
+        });
+        if (!sql) return;
+        const dumpBeforeTheMarks = `${JSON.stringify({
+          id,
+          schema_version: 1,
+          document: KITCHEN_L_DESIGN,
+          created_at: "2026-08-01T00:00:00.000Z",
+          updated_at: "2026-08-01T00:00:00.000Z",
+        })}\n`;
+
+        await restoreRow(dumpBeforeTheMarks);
+
+        expect(await marksOf(id)).toEqual({
+          sent_at: true,
+          hidden_by_client_at: true,
+          deleted_by_client_at: false,
+        });
+      },
+      30_000,
+    );
+  });
+
+  // Owner ruling O21 (2026-10-20), reversing ADR 0172 D10: `account_id` and `name` are exported, and a full-loss
+  // restore brings them back. `designs.account_id` has no foreign key (`0015`), so any well-formed id is storable here.
+  describe("the owner link and the kitchen's name survive export, loss and restore", () => {
+    const ACCOUNT_ID = "A".repeat(21);
+    const OTHER_ACCOUNT_ID = "B".repeat(21);
+    const KITCHEN_NAME = "Küche am See";
+    const NAME_LIMIT = 120;
+
+    async function mintClaimedAndNamed(claim: {
+      accountId: string | null;
+      name: string | null;
+    }): Promise<DesignId> {
+      const { id } = await repository().mint({
+        design: KITCHEN_L_DESIGN,
+        writeTokenHash: hashWriteToken(
+          `qa-o21-token-${String(mintedIds.length)}`,
+        ),
+        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
+      });
+      mintedIds.push(id);
+      if (!sql) return id;
+      await sql`
+        update designs set account_id = ${claim.accountId}, name = ${claim.name} where id = ${id}
+      `;
+      return id;
+    }
+
+    async function ownerLinkAndNameOf(
+      id: DesignId,
+    ): Promise<{ account_id: string | null; name: string | null }> {
+      if (!sql) return { account_id: null, name: null };
+      const rows = (await sql`
+        select account_id, name from designs where id = ${id}
+      `) as { account_id: string | null; name: string | null }[];
+      return rows[0] ?? { account_id: null, name: null };
+    }
+
+    it.skipIf(!hasLiveDatabase)(
+      "brings back both account_id and name exactly, after the row is deleted",
+      async () => {
+        const id = await mintClaimedAndNamed({
+          accountId: ACCOUNT_ID,
+          name: KITCHEN_NAME,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: ACCOUNT_ID,
+          name: KITCHEN_NAME,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "exports an unclaimed, unnamed kitchen with null for both and restores it as null, not as an empty string",
+      async () => {
+        const id = await mintClaimedAndNamed({ accountId: null, name: null });
+        const line = await exportedLineFor(id);
+        const exported = JSON.parse(line.trim()) as Record<string, unknown>;
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect(exported["account_id"]).toBeNull();
+        expect(exported["name"]).toBeNull();
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: null,
+          name: null,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "restores a name of exactly 120 characters, the limit the table's check allows",
+      async () => {
+        const longestName = "n".repeat(NAME_LIMIT);
+        const id = await mintClaimedAndNamed({
+          accountId: null,
+          name: longestName,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        await restoreRow(line);
+
+        expect((await ownerLinkAndNameOf(id)).name).toBe(longestName);
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "refuses a dumped name of 121 characters or an empty one: designs_name_length still applies to a restore",
+      async () => {
+        const id = await mintClaimedAndNamed({ accountId: null, name: null });
+        const line = JSON.parse((await exportedLineFor(id)).trim()) as Record<
+          string,
+          unknown
+        >;
+        if (!sql) return;
+        await sql`delete from designs where id = ${id}`;
+
+        for (const refusedName of ["n".repeat(NAME_LIMIT + 1), ""]) {
+          await expect(
+            restoreRow(`${JSON.stringify({ ...line, name: refusedName })}\n`),
+          ).rejects.toThrow();
+        }
+
+        const survivors = await sql`select id from designs where id = ${id}`;
+        expect(survivors).toHaveLength(0);
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a dump from before the export carried them restores as unclaimed and unnamed",
+      async () => {
+        const id = `qa-o21-legacy-${String(Date.now())}`;
+        mintedIds.push(id);
+        const dumpBeforeO21 = `${JSON.stringify({
+          id,
+          schema_version: 1,
+          document: KITCHEN_L_DESIGN,
+          created_at: "2026-08-01T00:00:00.000Z",
+          updated_at: "2026-08-01T00:00:00.000Z",
+        })}\n`;
+
+        await restoreRow(dumpBeforeO21);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: null,
+          name: null,
+        });
+      },
+      30_000,
+    );
+
+    it.skipIf(!hasLiveDatabase)(
+      "a restore over a live row never moves or grants a claim, and keeps the live name",
+      async () => {
+        const id = await mintClaimedAndNamed({
+          accountId: ACCOUNT_ID,
+          name: KITCHEN_NAME,
+        });
+        const line = await exportedLineFor(id);
+        if (!sql) return;
+        await sql`
+          update designs set account_id = ${OTHER_ACCOUNT_ID}, name = 'Renamed since the dump' where id = ${id}
+        `;
+
+        await restoreRow(line);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: OTHER_ACCOUNT_ID,
+          name: "Renamed since the dump",
+        });
+
+        await sql`update designs set account_id = null, name = null where id = ${id}`;
+        await restoreRow(line);
+
+        expect(await ownerLinkAndNameOf(id)).toEqual({
+          account_id: null,
+          name: KITCHEN_NAME,
+        });
+      },
+      30_000,
+    );
+  });
 });

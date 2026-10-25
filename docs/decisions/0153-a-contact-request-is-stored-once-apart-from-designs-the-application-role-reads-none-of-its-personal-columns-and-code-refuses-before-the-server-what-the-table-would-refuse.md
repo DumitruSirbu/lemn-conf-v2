@@ -275,6 +275,8 @@ shop's notice) is 8J's.
   ([ADR 0157](0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md)
   decision 9). **No route opens anything by a reference**, which stays a must-not.)*
 - **The delivery milestone (M9):** the limits under R6, and the consent text (backlog 155).
+- **Dated pointer, 2026-10-21:** the staff kitchen reader now reads `accounts.email` with `contact_submissions.reference`
+  in one statement; decision 1 is unchanged for contact requests. See ADR 0172 D11, dated note 2026-10-21.
 
 ## Evidence
 
@@ -310,3 +312,16 @@ shop's notice) is 8J's.
 
 - **R6 (8J2, [ADR 0164](0164-the-shops-notice-leaves-through-gmail-smtp-by-nodemailer-behind-the-unchanged-port-and-the-stored-mark-is-the-only-guard-against-a-second-notice.md) decision 6).** SMTP has no idempotency key, so a cleared `notified_at` mark now re-notifies the shop **at once** on the next retry, not after a day. The stored mark is the only guard against a second notice.
 - **A sibling table (8V, [ADR 0165](0165-the-shops-notice-is-a-branded-html-email-with-a-plain-text-fallback-led-by-a-frozen-view-only-link-to-the-kitchen-as-sent-and-the-done-page-shows-the-customers-own-design-link.md) D3).** Migration `0010` adds `contact_submission_views`, which holds a **copy** of the non-personal snapshot per minted link and references `contact_submissions (client_request_id)` on delete cascade. **The grants on `contact_submissions` are unchanged**: the application role still reads its seven columns and no personal one; the new table gets `INSERT, SELECT` only. `0010` and its grant are applied on no deployed database yet (owner steps).
+
+## Dated note — 2026-10-18, M8B wave L11 (claim; reviewer finding F2, accepted)
+
+**Ratified 2026-10-18:** ADR 0172 was accepted by the owner that day, which ratifies this note. (It was marked
+*PROVISIONAL pending ADR 0172* when written.)
+
+**`designs.account_id` links a lead to an identified account through columns the application role can read.** Wave L11
+adds the column (migration `0015`) and stores it when a verified client claims or mints a design. `contact_submissions.design_id`
+is among the seven readable columns and `designs.account_id` is readable too, so a request can be joined to the account that owns its
+design. The personal columns stay unreadable and decision 1's grant is unchanged, but decision 1's intent (the
+application learns nothing about who a lead is) is eroded for a claimed design. Accepted risk, owner-visible; the
+plan (M8B §10) carries the row and [ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md) D11 (the named join and its revisit trigger) the rest. (The pointer first said
+Amendment B, which does not discuss the join.)

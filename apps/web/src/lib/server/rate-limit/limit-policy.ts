@@ -104,10 +104,11 @@ export const CSP_REPORTS_PER_BLOCK_FIGURE = 100;
 
 /**
  * 100 presets saved in a Chișinău calendar day, counted once over every caller (see ADR 0167 Amendment B item 8):
- * while authoring is ungated (ADR 0112 Amendment A) a flood of valid saves would fill the shared Blob
- * quota, hidden rows included, since the nightly export copies every row. The owner authors a library, a few kitchens
- * a day; a figure of this size bounds a flood and leaves the work room. 100 saves in a day lock authoring out until
- * the next Chișinău midnight, which is the intended failure. The owner's answer changes this constant and no code.
+ * only an administrator's session may save, but a flood of valid saves, from a stolen session say, would fill the
+ * shared Blob quota, hidden rows included, since the nightly export copies every row. The owner authors a library, a
+ * few kitchens a day; a figure of this size bounds a flood and leaves the work room. 100 saves in a day lock authoring
+ * out until the next Chișinău midnight, which is the intended failure. The owner's answer changes this constant and
+ * no code.
  */
 export const PRESET_CREATIONS_PER_DAY_FIGURE = 100;
 
@@ -145,6 +146,76 @@ export const CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE = 10;
  * what is compared, so it stops a careless sender only; the buckets are the bound.
  */
 export const CONTACT_LEAST_FORM_TIME_MS = 2000;
+
+/**
+ * PROVISIONAL, every figure below (M8B plan section 5, "Limiter policies"; ADR 0172 decision 5): the owner's answer
+ * changes these constants and no code. A row with two windows is two policies, since a name carries its window. A
+ * network block's rows bound the hashing cost and the solved challenges a network can spend; an address's rows bound
+ * the attempts at one account and the mail one inbox receives (the shared Gmail quota); an account's rows bound its
+ * own claims. None has an e2e twin: no test makes them often enough.
+ */
+const ACCOUNT_QUARTER_HOUR_MINUTES = 15;
+const ACCOUNT_HOUR_MINUTES = 60;
+const ACCOUNT_DAY_MINUTES = 1440;
+export const ACCOUNT_REGISTER_PER_BLOCK_HOUR_FIGURE = 5;
+export const ACCOUNT_REGISTER_PER_BLOCK_DAY_FIGURE = 20;
+export const ACCOUNT_LOGIN_PER_BLOCK_HOUR_FIGURE = 30;
+export const ACCOUNT_LOGIN_PER_ADDRESS_QUARTER_HOUR_FIGURE = 10;
+/** The ceiling on one address's attempts in a day, set at 100 and not lower: a hard cap that counts every attempt, a
+ *  stranger's too, locks the owner out of their own account for the day (NIST SP 800-63B-4 puts the ceiling on
+ *  consecutive failures at 100). The quarter-hour figure is what slows a guesser; this one only bounds a day. */
+export const ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE = 100;
+export const ACCOUNT_RESET_REQUEST_PER_BLOCK_HOUR_FIGURE = 10;
+export const ACCOUNT_TOKEN_COMPLETE_PER_BLOCK_HOUR_FIGURE = 20;
+export const ACCOUNT_REGISTER_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
+export const ACCOUNT_RESET_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
+export const ACCOUNT_LOGIN_RESEND_PER_ADDRESS_DAY_FIGURE = 5;
+export const ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE = 10;
+/** How often a signed-in account may have its current password checked: the guess budget of a stolen session. */
+export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_HOUR_FIGURE = 10;
+export const ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_DAY_FIGURE = 30;
+export const ACCOUNT_PROFILE_PER_ACCOUNT_HOUR_FIGURE = 30;
+/** The mail an address is sent for an e-mail change, counted by the address asked for whoever asks (it bounds one
+ *  inbox, and the shared Gmail quota), and the mail one account may ask for. The day is the UTC day. */
+export const ACCOUNT_EMAIL_CHANGE_MAIL_PER_ADDRESS_DAY_FIGURE = 5;
+export const ACCOUNT_EMAIL_CHANGE_PER_ACCOUNT_DAY_FIGURE = 5;
+/** How often an account may download its data: the file is the whole account, built per request. */
+export const ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE = 5;
+/**
+ * PROVISIONAL: how many pages of the staff kitchens list one staff account may be served in an hour. The list returns
+ * clients' e-mail, name and phone in bulk, so this bucket caps harvesting even when the general read limiter is down.
+ * Unlike every other read it **fails closed**: a count above the figure, or a count that cannot be made, serves no
+ * page. 300 is about one page every 12 seconds for the whole hour. The owner's answer changes this constant and no
+ * code; see ADR 0173.
+ */
+export const STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE = 300;
+/**
+ * PROVISIONAL: how many kitchens one staff account may open in an hour, counted apart from the list's pages. Each
+ * opening reads one client's whole kitchen, its notes and its profile, so it is capped on its own and, like the list,
+ * **fails closed**. 600 is one a 6 seconds for the whole hour, far above reading kitchens by hand. The owner's answer
+ * changes this constant and no code; see ADR 0173.
+ */
+export const STAFF_KITCHEN_OPEN_PER_ACCOUNT_HOUR_FIGURE = 600;
+/**
+ * PROVISIONAL: how many pages of the audit log one administrator may be served in an hour. A page names staff and
+ * clients by e-mail, so the bucket caps harvesting even when the general read limiter is down, and, like the kitchens
+ * list, **fails closed**: a count above the figure, or one that cannot be made, serves no page. The plan names no
+ * figure of its own for the audit page (P-L3-11), so it equals the list's 300, about one page every 12 seconds for the
+ * whole hour. The owner's answer changes this constant and no code; see ADR 0173.
+ */
+export const STAFF_AUDIT_PAGE_PER_ACCOUNT_HOUR_FIGURE = 300;
+/**
+ * PROVISIONAL: how many writes one staff account may make on the clients' kitchens. Notes and status saves are counted
+ * by the clock hour, 120 each. Unhides are counted by the UTC day, 60, not the Chisinau day: a refusal can tell a wait
+ * of up to about 24 hours, and the classifier's clock-time wording covers it. A request that cannot be counted is
+ * refused, as every account write is (ADR 0156). The owner's answer changes these constants and no code; see ADR 0173.
+ */
+export const STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE = 120;
+export const STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE = 120;
+export const STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE = 60;
+/** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
+ *  ADR 0147's intent). */
+export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
 
 /**
  * Three times what one whole e2e run sends of each of the three buckets the suite's one shared block counts, rounded up
@@ -283,6 +354,213 @@ export const CONTACT_TRIES_BY_REQUEST_POLICY = policyOf(
   },
 );
 
+export const ACCOUNT_REGISTER_BY_BLOCK_HOUR_POLICY = policyOf(
+  "account-register-by-block",
+  {
+    figure: ACCOUNT_REGISTER_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_REGISTER_BY_BLOCK_DAY_POLICY = policyOf(
+  "account-register-by-block",
+  {
+    figure: ACCOUNT_REGISTER_PER_BLOCK_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_LOGIN_BY_BLOCK_POLICY = policyOf(
+  "account-login-by-block",
+  {
+    figure: ACCOUNT_LOGIN_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_LOGIN_BY_ADDRESS_QUARTER_HOUR_POLICY = policyOf(
+  "account-login-by-address",
+  {
+    figure: ACCOUNT_LOGIN_PER_ADDRESS_QUARTER_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_QUARTER_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_LOGIN_BY_ADDRESS_DAY_POLICY = policyOf(
+  "account-login-by-address",
+  {
+    figure: ACCOUNT_LOGIN_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_RESET_REQUEST_BY_BLOCK_POLICY = policyOf(
+  "account-reset-request-by-block",
+  {
+    figure: ACCOUNT_RESET_REQUEST_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY = policyOf(
+  "account-token-complete-by-block",
+  {
+    figure: ACCOUNT_TOKEN_COMPLETE_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+/** The confirmation and already-registered mail of registration. Apart from the reset bucket and the login resend's,
+ *  so that traffic to register an address cannot use up that address's reset budget. */
+export const ACCOUNT_REGISTER_MAIL_BY_ADDRESS_POLICY = policyOf(
+  "account-register-mail-by-address",
+  {
+    figure: ACCOUNT_REGISTER_MAIL_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+/** The reset link. The "password changed" notice counts no bucket (ADR 0172 Amendment B, item 2). Registration traffic
+ *  never counts here. */
+export const ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY = policyOf(
+  "account-reset-mail-by-address",
+  {
+    figure: ACCOUNT_RESET_MAIL_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+/** A login's silent resend of the confirmation link, counted only inside the job that runs after the response and
+ *  never answered from. Apart from the registration bucket, so that signing in to an unconfirmed address cannot use up
+ *  that address's registration budget (ADR 0172 Amendment A, item 2). */
+export const ACCOUNT_LOGIN_RESEND_BY_ADDRESS_POLICY = policyOf(
+  "account-login-resend-by-address",
+  {
+    figure: ACCOUNT_LOGIN_RESEND_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_CLAIM_BY_ACCOUNT_POLICY = policyOf(
+  "account-claim-by-account",
+  {
+    figure: ACCOUNT_CLAIM_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+/** Counted before the current password is verified, whether it is right or wrong. The day is the UTC day. */
+export const ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_HOUR_POLICY = policyOf(
+  "account-password-check-by-account",
+  {
+    figure: ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_DAY_POLICY = policyOf(
+  "account-password-check-by-account",
+  {
+    figure: ACCOUNT_PASSWORD_CHECK_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_PROFILE_BY_ACCOUNT_POLICY = policyOf(
+  "account-profile-by-account",
+  {
+    figure: ACCOUNT_PROFILE_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+/** Counted for the address an e-mail change asks for, for a free, a taken and the account's own address alike. Apart from
+ *  the registration and reset buckets, so that change requests cannot use up an address's other budgets. */
+export const ACCOUNT_EMAIL_CHANGE_MAIL_BY_ADDRESS_POLICY = policyOf(
+  "account-email-change-mail-by-address",
+  {
+    figure: ACCOUNT_EMAIL_CHANGE_MAIL_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_EMAIL_CHANGE_BY_ACCOUNT_POLICY = policyOf(
+  "account-email-change-by-account",
+  {
+    figure: ACCOUNT_EMAIL_CHANGE_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY = policyOf(
+  "staff-kitchens-list-by-account",
+  {
+    figure: STAFF_KITCHENS_LIST_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY = policyOf(
+  "staff-kitchen-open-by-account",
+  {
+    figure: STAFF_KITCHEN_OPEN_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_AUDIT_PAGE_BY_ACCOUNT_POLICY = policyOf(
+  "staff-audit-page-by-account",
+  {
+    figure: STAFF_AUDIT_PAGE_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_NOTE_BY_ACCOUNT_POLICY = policyOf("staff-note-by-account", {
+  figure: STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE,
+  window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+});
+
+export const STAFF_STATUS_BY_ACCOUNT_POLICY = policyOf(
+  "staff-status-by-account",
+  {
+    figure: STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_UNHIDE_BY_ACCOUNT_POLICY = policyOf(
+  "staff-unhide-by-account",
+  {
+    figure: STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
+  "account-export-by-account",
+  {
+    figure: ACCOUNT_EXPORT_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+/** A copy of a kitchen, counted for the account that makes it; the mint's per-network bucket is counted beside it. */
+export const DESIGN_DUPLICATE_BY_ACCOUNT_POLICY = policyOf(
+  "design-duplicate-by-account",
+  {
+    figure: DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE,
+    window: utcMinutes(ACCOUNT_DAY_MINUTES),
+  },
+);
+
+/** The session twin of the write credential's bucket: the same figure and window, under a name of its own, so an
+ *  account's saves and a write token's are counted apart (ADR 0156). */
+export const SAVE_BY_ACCOUNT_POLICY = policyOf("design-save-by-account", {
+  figure: SAVES_PER_CREDENTIAL_FIGURE,
+  window: utcMinutes(SAVE_WINDOW_MINUTES),
+});
+
 export const MINT_POLICY_NAME = MINT_POLICY.name;
 export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
 
@@ -291,7 +569,8 @@ export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
  *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. A policy
  *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). The global
  *  cap on preset creation has none for the same reason: no test saves 100 presets in a day, and nor has the preset
- *  reads' bucket, which the suite's server counts no more than it counts the other reads. */
+ *  reads' bucket, which the suite's server counts no more than it counts the other reads. Nor has any account
+ *  purpose: the e2e round decides whether one needs it. */
 export type PolicyPurpose =
   | "mint"
   | "save-by-block"
@@ -306,7 +585,32 @@ export type PolicyPurpose =
   | "contact-new-by-block-day"
   | "contact-new-by-visitor"
   | "contact-new-by-address"
-  | "contact-tries-by-request";
+  | "contact-tries-by-request"
+  | "account-register-by-block-hour"
+  | "account-register-by-block-day"
+  | "account-login-by-block"
+  | "account-login-by-address-quarter-hour"
+  | "account-login-by-address-day"
+  | "account-reset-request-by-block"
+  | "account-token-complete-by-block"
+  | "account-register-mail-by-address"
+  | "account-reset-mail-by-address"
+  | "account-login-resend-by-address"
+  | "account-claim-by-account"
+  | "save-by-account"
+  | "account-password-check-by-account-hour"
+  | "account-password-check-by-account-day"
+  | "account-profile-by-account"
+  | "account-email-change-mail-by-address"
+  | "account-email-change-by-account"
+  | "account-export-by-account"
+  | "duplicate-by-account"
+  | "staff-kitchens-list-by-account"
+  | "staff-kitchen-open-by-account"
+  | "staff-audit-page-by-account"
+  | "staff-note-by-account"
+  | "staff-status-by-account"
+  | "staff-unhide-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -358,7 +662,73 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
     production: CONTACT_TRIES_BY_REQUEST_POLICY,
     e2e: CONTACT_TRIES_BY_REQUEST_POLICY,
   },
+  "account-register-by-block-hour": sameInProduction(
+    ACCOUNT_REGISTER_BY_BLOCK_HOUR_POLICY,
+  ),
+  "account-register-by-block-day": sameInProduction(
+    ACCOUNT_REGISTER_BY_BLOCK_DAY_POLICY,
+  ),
+  "account-login-by-block": sameInProduction(ACCOUNT_LOGIN_BY_BLOCK_POLICY),
+  "account-login-by-address-quarter-hour": sameInProduction(
+    ACCOUNT_LOGIN_BY_ADDRESS_QUARTER_HOUR_POLICY,
+  ),
+  "account-login-by-address-day": sameInProduction(
+    ACCOUNT_LOGIN_BY_ADDRESS_DAY_POLICY,
+  ),
+  "account-reset-request-by-block": sameInProduction(
+    ACCOUNT_RESET_REQUEST_BY_BLOCK_POLICY,
+  ),
+  "account-token-complete-by-block": sameInProduction(
+    ACCOUNT_TOKEN_COMPLETE_BY_BLOCK_POLICY,
+  ),
+  "account-register-mail-by-address": sameInProduction(
+    ACCOUNT_REGISTER_MAIL_BY_ADDRESS_POLICY,
+  ),
+  "account-reset-mail-by-address": sameInProduction(
+    ACCOUNT_RESET_MAIL_BY_ADDRESS_POLICY,
+  ),
+  "account-login-resend-by-address": sameInProduction(
+    ACCOUNT_LOGIN_RESEND_BY_ADDRESS_POLICY,
+  ),
+  "account-claim-by-account": sameInProduction(ACCOUNT_CLAIM_BY_ACCOUNT_POLICY),
+  "save-by-account": sameInProduction(SAVE_BY_ACCOUNT_POLICY),
+  "account-password-check-by-account-hour": sameInProduction(
+    ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_HOUR_POLICY,
+  ),
+  "account-password-check-by-account-day": sameInProduction(
+    ACCOUNT_PASSWORD_CHECK_BY_ACCOUNT_DAY_POLICY,
+  ),
+  "account-profile-by-account": sameInProduction(
+    ACCOUNT_PROFILE_BY_ACCOUNT_POLICY,
+  ),
+  "account-email-change-mail-by-address": sameInProduction(
+    ACCOUNT_EMAIL_CHANGE_MAIL_BY_ADDRESS_POLICY,
+  ),
+  "account-email-change-by-account": sameInProduction(
+    ACCOUNT_EMAIL_CHANGE_BY_ACCOUNT_POLICY,
+  ),
+  "account-export-by-account": sameInProduction(
+    ACCOUNT_EXPORT_BY_ACCOUNT_POLICY,
+  ),
+  "duplicate-by-account": sameInProduction(DESIGN_DUPLICATE_BY_ACCOUNT_POLICY),
+  "staff-kitchens-list-by-account": sameInProduction(
+    STAFF_KITCHENS_LIST_BY_ACCOUNT_POLICY,
+  ),
+  "staff-kitchen-open-by-account": sameInProduction(
+    STAFF_KITCHEN_OPEN_BY_ACCOUNT_POLICY,
+  ),
+  "staff-audit-page-by-account": sameInProduction(
+    STAFF_AUDIT_PAGE_BY_ACCOUNT_POLICY,
+  ),
+  "staff-note-by-account": sameInProduction(STAFF_NOTE_BY_ACCOUNT_POLICY),
+  "staff-status-by-account": sameInProduction(STAFF_STATUS_BY_ACCOUNT_POLICY),
+  "staff-unhide-by-account": sameInProduction(STAFF_UNHIDE_BY_ACCOUNT_POLICY),
 };
+
+/** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */
+function sameInProduction(policy: LimitPolicy): Twins {
+  return { production: policy, e2e: policy };
+}
 
 /** Every policy once, for a check that no two share a name. */
 export const ALL_LIMIT_POLICIES: readonly LimitPolicy[] = Object.freeze([

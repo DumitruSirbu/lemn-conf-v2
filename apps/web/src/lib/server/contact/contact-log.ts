@@ -155,6 +155,14 @@ export function reportContactMarkFailed(reference: string): void {
   });
 }
 
+/** The request is stored and marking its design sent failed: still a success, each time, with the reference. */
+export function reportContactSentMarkFailed(reference: string): void {
+  write("error", {
+    event: "contact-sent-mark-failed",
+    ...referenceField(reference),
+  });
+}
+
 function causeOnTheList(cause: unknown): ContactUnavailableCause {
   return (
     CONTACT_UNAVAILABLE_CAUSES.find((known) => known === cause) ??

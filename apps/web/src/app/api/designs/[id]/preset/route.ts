@@ -81,10 +81,10 @@ export async function POST(
     reportDesignRefusal("preset-save", PRESET_AUTHORING_REFUSED);
     return designNotFoundResponse(id);
   }
-  const limited = await refusalOfSaveLimit(
-    request.headers,
-    credentials.writeTokenHash,
-  );
+  const limited = await refusalOfSaveLimit(request.headers, {
+    kind: "write-token",
+    hash: credentials.writeTokenHash,
+  });
   if (limited) return limited;
 
   try {

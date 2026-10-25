@@ -85,7 +85,11 @@ class RotatingRepository {
     this.calls.push("saveAuthorized");
     if (this.failWith !== undefined) return Promise.reject(this.failWith);
     const row = this.rows.get(save.id);
-    if (!row || row.writeTokenHash !== save.writeTokenHash)
+    if (
+      !row ||
+      save.credential.kind !== "write-token" ||
+      row.writeTokenHash !== save.credential.hash
+    )
       return Promise.reject(new DesignWriteForbiddenError(save.id));
     if (row.revision !== save.expectedRevision)
       return Promise.reject(new DesignWriteConflictError(save.id));
@@ -101,11 +105,11 @@ class RotatingRepository {
     });
   }
 
-  loadOwned({ id, visitorHash }: OwnedDesignLookup): Promise<LoadOwnedOutcome> {
+  loadOwned({ id, accessor }: OwnedDesignLookup): Promise<LoadOwnedOutcome> {
     this.calls.push("loadOwned");
     if (this.failWith !== undefined) return Promise.reject(this.failWith);
     const row = this.rows.get(id);
-    if (row?.visitorHash !== visitorHash)
+    if (row === undefined || row.visitorHash !== accessor.visitorHash)
       return Promise.resolve({ kind: "none" });
     if (row.isDocumentInvalid)
       return Promise.reject(

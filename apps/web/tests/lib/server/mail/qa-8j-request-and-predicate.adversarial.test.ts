@@ -74,7 +74,7 @@ const UNSENDABLE_KEYS = [
   "key\u0000",
   "key\u007f",
   "ключ",
-  "key ",
+  "key\u2028",
 ];
 
 const unsendableMessage = fc.oneof(
@@ -90,8 +90,8 @@ const unsendableMessage = fc.oneof(
       "two\nlines",
       "two\r\nlines",
       "tab\there",
-      "separated here",
-      "paragraph here",
+      "separated\u2028here",
+      "paragraph\u2029here",
       "next\u0085line",
     ),
     text: sendableText,
@@ -239,6 +239,29 @@ describe("a message the predicate refuses", () => {
 /** A member of the port since it carries an HTML alternative: a message that answers it is sending one. */
 const HTML_MEMBER = "html";
 
+const NO_RECIPIENT = "recipient";
+
+/** A message that has every member but the named ones, and answers a stranger's address for each of them. */
+function proxyAnsweringEveryMember(withheldMember?: string): MailMessage {
+  const answerFor = (target: MailMessage, member: string | symbol) =>
+    member in target || member === HTML_MEMBER
+      ? target[member as keyof MailMessage]
+      : "proxied-recipient@example.com";
+  return new Proxy(QA_MESSAGE, {
+    get: (target, member) => answerFor(target, member),
+    has: () => true,
+    ownKeys: () => ["key", "subject", "text", "to", "bcc"],
+    getOwnPropertyDescriptor: (target, member) =>
+      member === withheldMember
+        ? undefined
+        : {
+            value: answerFor(target, member),
+            enumerable: true,
+            configurable: true,
+          },
+  });
+}
+
 describe("what a message can add to the options beyond its three fields", () => {
   class MessageWithInheritedExtras implements MailMessage {
     readonly key = QA_MESSAGE.key;
@@ -285,23 +308,8 @@ describe("what a message can add to the options beyond its three fields", () => 
       ) as unknown as MailMessage,
     ],
     [
-      "a proxy that answers any member asked of it",
-      new Proxy(QA_MESSAGE, {
-        get: (target, member) =>
-          member in target || member === HTML_MEMBER
-            ? target[member as keyof MailMessage]
-            : "proxied-recipient@example.com",
-        has: () => true,
-        ownKeys: () => ["key", "subject", "text", "to", "bcc"],
-        getOwnPropertyDescriptor: (target, member) => ({
-          value:
-            member in target || member === HTML_MEMBER
-              ? target[member as keyof MailMessage]
-              : "proxied-recipient@example.com",
-          enumerable: true,
-          configurable: true,
-        }),
-      }),
+      "a proxy that answers any member asked of it but a recipient",
+      proxyAnsweringEveryMember(NO_RECIPIENT),
     ],
   ];
 
@@ -325,6 +333,19 @@ describe("what a message can add to the options beyond its three fields", () => 
       expect(composed.raw).not.toContain("recipient@example.com");
     },
   );
+
+  it("refuses unsent a proxy that answers a recipient of its own: it is a customer's message, not the shop's", async () => {
+    const transports = acceptingTransports();
+
+    const outcome = await createGmailMailSender(
+      QA_CONFIGURATION,
+      transports.make,
+    ).send(proxyAnsweringEveryMember());
+
+    expect(outcome).toEqual({ ok: false, kind: "refused" });
+    expect(transports.made()).toBe(0);
+    expect(transports.sentOptions).toEqual([]);
+  });
 
   it("adds nothing a configuration carries beyond its three values: the options and the transport's are the same", async () => {
     const widened = {

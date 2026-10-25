@@ -10,6 +10,7 @@ import {
   type Page,
 } from "@playwright/test";
 
+import { isAccountSessionRead } from "./support/account-session-reads";
 import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
 import { nonceOfPolicy, policyOf } from "./support/csp-violations";
 import { deleteMintedDesigns } from "./support/minted-designs";
@@ -354,9 +355,16 @@ test.describe("criterion 9 — nothing leaks, nothing is requested, nothing is s
       const visitorPage = await visitorContext.newPage();
       const captured = captureEveryResponse(visitorPage);
       const apiRequests: string[] = [];
+      const accountSessionReads: string[] = [];
       visitorPage.on("request", (request) => {
-        if (new URL(request.url()).pathname.startsWith("/api/"))
-          apiRequests.push(`${request.method()} ${request.url()}`);
+        if (!new URL(request.url()).pathname.startsWith("/api/")) return;
+        if (isAccountSessionRead(request.method(), request.url()))
+          // Kept whole, address and headers: it is the one request the page makes that this criterion does not
+          // forbid, so it is the one that must be shown to carry no secret out (the referer is the usual way).
+          accountSessionReads.push(
+            JSON.stringify({ url: request.url(), headers: request.headers() }),
+          );
+        else apiRequests.push(`${request.method()} ${request.url()}`);
       });
 
       await openSharedDesign(visitorPage, sharePath, { locale: "ro" });
@@ -371,6 +379,16 @@ test.describe("criterion 9 — nothing leaks, nothing is requested, nothing is s
       await visitorPage.waitForTimeout(SETTLE_MS);
 
       expect(apiRequests).toEqual([]);
+      // The header's one read of who is signed in, asked once for the one document the visitor loaded: the
+      // language switch is a client navigation inside it and must not ask again (`use-account-session.ts`).
+      expect(accountSessionReads.length).toBeLessThanOrEqual(1);
+      for (const read of accountSessionReads) {
+        for (const [name, secret] of Object.entries(secrets)) {
+          expect(read.includes(secret), `${name} in the session read`).toBe(
+            false,
+          );
+        }
+      }
       expect(captured.length).toBeGreaterThan(0);
       for (const response of captured) {
         for (const [name, secret] of Object.entries(secrets)) {

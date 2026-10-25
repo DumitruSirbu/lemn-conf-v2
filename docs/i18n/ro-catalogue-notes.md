@@ -72,6 +72,12 @@ written without it. The three CLDR bands stay declared even where `few` and `oth
 same — the band structure is what a later locale and a later reviewer read, and collapsing it would
 hide the ruling rather than record it.
 
+**Overridden 2026-10-20 [owner, answered directly; relayed by the coordinator]:** the owner reversed this ruling
+(plan M8B Lot 2, O17). Counts are written **with «de» from twenty up** ("20 de bucătării"), by the standard Romanian
+rule: «de» when the last two digits are 20-99 or 00. The text above is kept as the record of the 2026-09-10 ruling; where
+it differs, this note governs. A developer is implementing the grammar rule [relayed; not verified]. The three CLDR
+bands stay declared.
+
 Rendered and verified at 0, 1, 2, 19, 20, 100 and 101.
 
 ## Romanian I would question — for the owner to rule on

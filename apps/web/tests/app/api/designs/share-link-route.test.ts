@@ -78,8 +78,9 @@ class FakeShareLinkRepository implements ShareLinkRepository {
     const row = this.designs.get(credentials.designId);
     return (
       row !== undefined &&
-      row.writeTokenHash === credentials.writeTokenHash &&
-      row.visitorHash === credentials.visitorHash
+      credentials.credential.kind === "write-token" &&
+      row.writeTokenHash === credentials.credential.writeTokenHash &&
+      row.visitorHash === credentials.credential.visitorHash
     );
   }
 

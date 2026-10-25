@@ -5,6 +5,7 @@ import {
   holdsForbiddenCharacter,
   ownValueOf,
   readTypedText,
+  type TextRefusalCode,
 } from "./input-checks.js";
 import { normalisePhoneNumber, type PhoneRefusalCode } from "./phone-number.js";
 
@@ -208,9 +209,24 @@ function judgeEmail(
   channel: Judgement<ContactChannel>,
 ): Judgement<string | undefined> {
   if (!channel.ok || channel.value !== "email") return accept(undefined);
-  const email = judgeRequiredText(raw, CONTACT_EMAIL_MAX_LENGTH);
+  return judgeEmailAddress(raw);
+}
+
+export type EmailAddressCode = TextRefusalCode | "REQUIRED" | "MALFORMED";
+
+export type EmailAddressJudgement =
+  | { readonly ok: true; readonly value: string }
+  | { readonly ok: false; readonly code: EmailAddressCode };
+
+/** The one rule for an e-mail address typed by a person, whatever it is for: required, bounded, free of
+ *  forbidden characters and shaped like an address. A contact request and an account both ask it. */
+export function judgeEmailAddress(raw: unknown): EmailAddressJudgement {
+  const email = readTypedText(raw, CONTACT_EMAIL_MAX_LENGTH);
   if (!email.ok) return email;
-  return z.email().safeParse(email.value).success ? email : refuse("MALFORMED");
+  if (email.value === "") return { ok: false, code: "REQUIRED" };
+  return z.email().safeParse(email.value).success
+    ? email
+    : { ok: false, code: "MALFORMED" };
 }
 
 function judgeConsent(raw: unknown): Judgement<true> {

@@ -1,0 +1,34 @@
+-- M8B Lot 2, security review of wave S13b, finding F3. ADR 0172 Amendment H: the lookup "does a live undo link name this
+-- address?" has no index to read. `0014`'s only index is `(account_id, purpose, created_at desc) where used_at is null`,
+-- which cannot serve a search by address, so registration (`createUnverified`), the e-mail change confirm and the undo
+-- link each scan `account_email_tokens` for the reservation, and the time of that scan is a cost a caller can time. The
+-- plan is `docs/milestones/M8B-account-screens-lot2-plan.md`, section 14.3.4.
+--
+-- The index is on the normal form of the address a token names (`0018`), partial on the one purpose that reserves an
+-- address and on rows not yet used, so it holds one entry per live-or-expired undo link and nothing else: every
+-- `verify-email`, `reset-password` and `email-change` row, and every used row, stays out of it. Expiry is **not** in the
+-- predicate: `now()` is not immutable, and the queries keep `expires_at > now()` as a filter over the few rows the index
+-- returns.
+--
+-- The queries bind `purpose` as a parameter. Whether the planner can match a bound purpose to this index's literal
+-- predicate depends on it planning each statement with the parameter values in view [inference: the driver sends unnamed
+-- statements, which Postgres plans with their values; no `EXPLAIN` has been read against any database]. If it does
+-- not, the index is unused and the queries are as slow as before, never wrong.
+--
+-- Additive and re-runnable: `create if not exists`, not `concurrent` (the runner wraps each migration in a transaction,
+-- and the table is small). **No grant is needed**: an index is not a privilege, and `app_designs` reads the table
+-- through the `SELECT` it already holds (`0014`).
+--
+-- **Apply order is free.** The code runs the same queries with or without the index; applying this first or last is
+-- harmless, so it is not tied to the code's release as `0018` is.
+--
+-- Check the target database's ledger reads 1-18 before running, and 1-19 after (ADR 0020: verify by reading the
+-- schema, never by this command's exit status). The number is provisional until the M8C merge settles which migration
+-- numbers the base holds (ADR 0172, Remaining items 1 and 9).
+--
+-- **Once this file has been applied anywhere, its bytes are frozen, comments included.** The ledger records a checksum
+-- over the whole file, so editing even a line of this header makes every later run refuse with
+-- `MigrationChecksumMismatchError` against every database that already ran it. The fix is a new migration, never an
+-- edit to this file and never relabelling the ledger.
+create index if not exists account_email_tokens_live_reservation_idx
+  on account_email_tokens (new_email_normal_form) where purpose = 'email-change-revert' and used_at is null;

@@ -120,6 +120,22 @@
  * **One key re-baselined by M8D wave W2** (ADR 0113 decision 4; ADR 0104 Amendment G, O-1) —
  * `presetChooser.selectLimitReached`, whose Romanian changed from "… Încearcă din nou mâine." to the owner-accepted
  * "… Încearcă mâine." (the Russian is unchanged). Its hash is the only one that moved; the other 574 are as before.
+ *
+ * **Grown by 1, never rebaselined, by the tests round of Lot 2** (ADR 0113 decision 2) — `designLoadError.bodyClient`
+ * (first in commit 8a066f7d), the sentence a signed-in client reads on the design-load error in place of the reason. Its Romanian was
+ * an agent's draft until the owner approved it as drafted on 2026-10-20 (O25, relayed); it is now in the approved copy
+ * lock, and is hashed here like every other rendered leaf. The fixture is built from the
+ * content resolver, which gained the leaf with the commit, so no fixture list was edited. The entry was read off the
+ * failing manifest assertion's diff, which showed one added key and no changed value, and not computed by hand.
+ * **No existing hash moved.** The account namespaces (`account*`, `claimDialog`, `logoutEverywhere`,
+ * `sessionExpiredSheet`, `privacyNotice`) are not content-resolver leaves and carry no fixture; all are in the
+ * approved copy lock and none is hashed here.
+ *
+ * **One moved, one removed and two added (net +1) by Lot 2 wave U15c** (ADR 0113 decision 2; plan M8B Lot 2 section 14,
+ * CG12) — the back confirmation, re-drafted for autosave and approved as drafted by the owner on 2026-10-20 (relayed):
+ * `configure.backConfirm.title` moved; `configure.backConfirm.body` is removed and replaced by `.bodyClient` and
+ * `.bodyVisitor`, one of which the dialog shows by session. The new hashes were read off the failing manifest assertion's
+ * diff. **No other hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -507,9 +523,11 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.configure.backAction":
     "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
   "content.static.configure.backConfirm.title":
-    "525c38050e04a71ce9ace1ae03e06392d837f991307a638dd9968c25800e6b9d",
-  "content.static.configure.backConfirm.body":
-    "2a9f2b0b07cf27e5d33c33c03ae0e0ec9b119457fcaf31d7dfa0b8c9830377b7",
+    "bbfaf5ca44d630a682af906e8c8af494cf1b1eabdc7082a88e5f7f399f22e789",
+  "content.static.configure.backConfirm.bodyClient":
+    "7a1a4222e0793e3f4100f41d28bb79a9a377e408ceddb1778558f5c278ad1a9c",
+  "content.static.configure.backConfirm.bodyVisitor":
+    "fa6a33a56c725ac03450ebf6ff3e3b6eb4935068247900f454240b6b3222a55c",
   "content.static.configure.backConfirm.confirm":
     "9f9aeea8945cfe0f0aef5568c8c2ebaddae1aa440d0619932106f2474ec94277",
   "content.static.configure.backConfirm.stay":
@@ -664,6 +682,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "044b94e8669ef281e8a9015474dd79e4f1ea0dc865b86b89401e14ecfe642e2c",
   "content.static.designLoadError.bodyUnavailable":
     "62e841d6fa2ad1cb1b76225f9fd56c1feb8fb7df598a4c1375057a2385ced330",
+  "content.static.designLoadError.bodyClient":
+    "db577ead559c57c58be0ffd14930668a76ba180eeab88c402dfcaa1a441b6574",
   "content.static.designLoadError.startOver":
     "f8bd1e318dbd3207ab51234b0fb230f5f56670d0076c392747c50bcaa5e53f66",
   "content.static.designLoadError.title":

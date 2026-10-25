@@ -19,20 +19,26 @@ export const VISITOR_KIND = "visitor";
 export const ADDRESS_KIND = "address";
 export const STORED_REQUEST_KIND = "contact-request";
 
+/** The kind of an account's subject. A design's id has the same shape as an account's, so the text alone cannot tell
+ *  them apart; this kind, digested with the text, does: equal text under another kind is another key. */
+export const ACCOUNT_KIND = "account";
+
 export type BucketSubjectKind =
   | NetworkBlockKind
   | typeof WRITE_CREDENTIAL_KIND
   | typeof VISITOR_KIND
   | typeof ADDRESS_KIND
-  | typeof STORED_REQUEST_KIND;
+  | typeof STORED_REQUEST_KIND
+  | typeof ACCOUNT_KIND;
 
 declare const MADE_BY_A_CONSTRUCTOR: unique symbol;
 
 /**
  * What a bucket counts, by a kind and a text. Only the constructors below make one, and each accepts text from one
  * source alone: a network address's parsed bits, a write credential's hash, a visitor's stored hash, an e-mail address
- * in its counted form, or a stored request's id. A design's id, a visitor's raw value, a share's token and any other
- * text a caller chooses is refused, so no caller can write a row for a subject it invents. The constructors remember
+ * in its counted form, a stored request's id or an account's id. A visitor's raw value, a share's token and any other
+ * text a caller chooses is refused, so no caller can write a row for a subject it invents (a design's id is not
+ * refused as an account's, being of its shape: the kind keeps the two keys apart). The constructors remember
  * what they made, so a cast or a copy is no subject: the type alone binds the compiler.
  */
 export interface BucketSubject {
@@ -53,6 +59,10 @@ export class BucketSubjectError extends Error {
 }
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+/** The shape of an account's id: what `accounts_id_shape` (migration `0012`) checks and `generateAccountId` makes, 21
+ *  characters of `A-Za-z0-9_-`. A second statement of it, tied to the first by this comment. */
+const ACCOUNT_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
 
 /** The block the address parser made: three decimal octets, four groups of four hexadecimal digits, or nothing. */
 export function subjectOfNetworkBlock(block: NetworkBlock): BucketSubject {
@@ -94,6 +104,14 @@ export function subjectOfStoredRequest(clientRequestId: string): BucketSubject {
     throw new BucketSubjectError(STORED_REQUEST_KIND);
   }
   return subjectOf(STORED_REQUEST_KIND, clientRequestId);
+}
+
+/** The id of an account a session has just shown to exist: the shape an account's id has, and no other text. */
+export function subjectOfAccountId(accountId: string): BucketSubject {
+  if (typeof accountId !== "string" || !ACCOUNT_ID_SHAPE.test(accountId)) {
+    throw new BucketSubjectError(ACCOUNT_KIND);
+  }
+  return subjectOf(ACCOUNT_KIND, accountId);
 }
 
 /** Whether a constructor of this module made `candidate`, by identity: a look-alike object or a copy is not. */

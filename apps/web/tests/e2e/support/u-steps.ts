@@ -9,6 +9,7 @@ import {
   roomPath,
   roomScreen,
 } from "./step-one-by-touch";
+import { expectEditorTopBarShown } from "./editor-top-bar";
 
 export const ROOM = roomPath("ro");
 
@@ -56,11 +57,11 @@ export async function composeAndReload(
   await page.waitForURL(/\/ro\/d\/[^/]+$/);
   const id = idInEditorUrl(page.url());
   mintedIds.push(id);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   await expect(cameraPresetButtons(page)).toHaveCount(U_CAMERA_PRESETS);
 
   await page.reload();
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   await expect(cameraPresetButtons(page)).toHaveCount(U_CAMERA_PRESETS);
   return id;
 }

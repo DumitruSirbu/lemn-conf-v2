@@ -1,0 +1,705 @@
+/* The staff kitchen page (Lot 3 frames S3A to S3I): a phone stacks the picture, the client's column, the summary and the notes;
+ * from 900 px they stand as three columns, the picture over the summary in the first. Every interactive box is at least
+ * `--touch-target` tall. The marks are drawn here, so no glyph is text, and a string a client typed is isolated from the text
+ * around it so a right-to-left run cannot reorder its neighbours. */
+.page {
+  --warm-surface: #f7ecdc;
+  --warm-edge: #e6cfa8;
+  --warm-ink: #5a3e25;
+  --tint: #ece7dd;
+  --stripe-a: #e9e4da;
+  --stripe-b: #f1ede5;
+  --success-surface: #eef1ea;
+  --success-edge: #d3dccb;
+  --success-ink: #2d5016;
+
+  /* The tokens the shared field refusal and notice read; the account pages define them on their own scope. */
+  --refusal-surface: #fdf3f3;
+  --refusal-ink: #8f2020;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 14px/1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.back::before {
+  font: 400 24px/1 var(--font-ui);
+  content: "\2039" / "";
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.title {
+  max-width: 1000px;
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  color: var(--ink);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.sub {
+  margin: 0;
+  font: 400 13px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-edge);
+  border-radius: 12px;
+}
+
+.bannerMark {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  background: var(--accent-strong);
+  border-radius: 50%;
+}
+
+.bannerMark::before {
+  display: block;
+  font: 700 12px/20px var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  content: "!" / "";
+}
+
+.bannerText {
+  flex: 1 1 240px;
+  min-width: 0;
+  font: 400 13.5px/1.5 var(--font-ui);
+  color: var(--warm-ink);
+  text-wrap: pretty;
+}
+
+/* The grid is the phone's single column; the areas name where each cell stands once the columns are three. The DOM order is
+ * the phone's reading order, so the Tab order follows what the person sees. */
+.columns {
+  display: grid;
+  grid-template-areas:
+    "view"
+    "contact"
+    "summary"
+    "notes";
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.viewCell {
+  grid-area: view;
+  min-width: 0;
+}
+
+.contactColumn {
+  display: flex;
+  flex-direction: column;
+  grid-area: contact;
+  gap: 16px;
+  min-width: 0;
+}
+
+.summaryCell {
+  grid-area: summary;
+  min-width: 0;
+}
+
+.notesColumn {
+  display: flex;
+  flex-direction: column;
+  grid-area: notes;
+  gap: 12px;
+  min-width: 0;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.picture {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  background: var(--stage);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.sceneNote {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  margin: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.viewBadges {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.viewBadge {
+  padding: 8px 12px;
+  font: 700 12.5px/1 var(--font-ui);
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: 8px;
+}
+
+.viewBadge[data-kind="current"] {
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-edge);
+}
+
+.cameraChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.cameraChip {
+  min-height: var(--touch-target);
+  padding: 8px 12px;
+  font: 400 12px/1 var(--font-ui);
+  color: var(--ink-muted);
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+}
+
+.cameraChip[aria-pressed="true"] {
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--surface);
+}
+
+.cameraChip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cardTitle {
+  margin: 0;
+  font: 700 15px/1.3 var(--font-ui);
+  color: var(--ink);
+}
+
+.cardTag {
+  padding: 5px 9px;
+  font: 700 11.5px/1.2 var(--font-ui);
+  color: var(--warm-ink);
+  background: var(--tint);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.cardNote {
+  margin: 0;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.factLabel {
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.factValue {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  margin: 0;
+  font: 400 14px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.factSub {
+  font: 400 12px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.requestLine {
+  margin: 0;
+  font: 400 14px/1.45 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.hint {
+  margin: 0;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.draftNote {
+  margin: 0;
+  font: 400 14px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.muted {
+  margin: 0;
+  font: 400 14px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.caption {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.caption::before {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  content: "" / "";
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.skeletonColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.skeletonView,
+.skeletonBox {
+  display: block;
+  height: 160px;
+  background: var(--tint);
+  border-radius: 14px;
+}
+
+.skeletonView {
+  height: 220px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--stripe-a) 0 12px,
+    var(--stripe-b) 12px 24px
+  );
+}
+
+/* Read by a screen reader and seen by nobody. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+/* A status region the screen keeps mounted so that its words are announced when they arrive. Empty, it takes no room and
+ * adds no gap, but stays in the accessibility tree. */
+.liveRegion:empty {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.bannerButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target);
+  padding: 0 16px;
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--warm-ink);
+  text-align: center;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--accent-strong);
+  border-radius: 12px;
+}
+
+.bannerButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The line that says the kitchen is visible again; empty, it takes no room. */
+.announcement {
+  padding: 12px 14px;
+  font: 700 13.5px/1.5 var(--font-ui);
+  color: var(--success-ink);
+  background: var(--success-surface);
+  border: 1px solid var(--success-edge);
+  border-radius: 12px;
+}
+
+.statusControl,
+.statusField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.select {
+  flex: 1 1 150px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  font: 400 15px/1.3 var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.select:disabled {
+  color: var(--ink-muted);
+  cursor: progress;
+  background: var(--surface);
+}
+
+.statusField[data-invalid="true"] .select {
+  background: var(--refusal-surface);
+  border: 2px solid var(--refusal);
+}
+
+.statusButton {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-width: 176px;
+  min-height: 48px;
+  padding: 0 20px;
+  font: 700 14px/1 var(--font-ui);
+  color: var(--paper);
+  cursor: pointer;
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+}
+
+.statusButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.statusButton[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.statusButton[data-state="busy"] {
+  cursor: progress;
+}
+
+.statusButton[data-state="saved"] {
+  color: var(--success-ink);
+  cursor: default;
+  background: var(--success-surface);
+  border: 1px solid var(--success-edge);
+}
+
+.statusButton[data-state="saved"]::before {
+  content: "\2713" / "";
+}
+
+.spinner {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgb(250 248 244 / 35%);
+  border-top-color: var(--paper);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.notesSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.notesCount {
+  font: 700 13px/1.3 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.notesSort {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.noteList {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.note[data-fresh="true"] {
+  padding-inline: 10px;
+  background: var(--success-surface);
+}
+
+.noteHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: baseline;
+}
+
+.noteAuthor {
+  font: 700 13px/1.3 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.noteWhen {
+  font: 400 12px/1.3 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/* The note as it was typed: its line feeds are kept, its long runs are broken, and a right-to-left run left open in it
+ * cannot reorder what is beside it. */
+.noteText {
+  margin: 0;
+  font: 400 14px/1.5 var(--font-ui);
+  color: var(--ink);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  unicode-bidi: isolate;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.composerHead {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.composerLabel {
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.counter {
+  font: 400 11.5px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.counter[data-over="true"] {
+  font-weight: 700;
+  color: var(--refusal-ink);
+}
+
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 104px;
+  padding: 12px 14px;
+  font: 400 14.5px/1.5 var(--font-ui);
+  color: var(--ink);
+  resize: vertical;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.textarea[readonly] {
+  color: var(--ink-muted);
+}
+
+.textarea[data-invalid="true"] {
+  background: var(--refusal-surface);
+  border: 2px solid var(--refusal);
+}
+
+@media (min-width: 900px) {
+  .title {
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+
+  .sub {
+    font-size: 14px;
+  }
+
+  .columns {
+    grid-template-areas:
+      "view contact notes"
+      "summary contact notes";
+    grid-template-rows: auto 1fr;
+    grid-template-columns:
+      minmax(0, 640px) minmax(0, 440px)
+      minmax(0, 460px);
+    gap: 24px;
+  }
+
+  .picture {
+    height: 400px;
+  }
+
+  .skeletonColumns {
+    grid-template-columns:
+      minmax(0, 640px) minmax(0, 440px)
+      minmax(0, 460px);
+    gap: 24px;
+  }
+
+  .skeletonView {
+    height: 400px;
+  }
+}

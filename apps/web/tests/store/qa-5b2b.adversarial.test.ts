@@ -159,6 +159,19 @@ const mutationArbitrary = fc.array(
 const SWEEP_EXAMPLES: [Mutation[]][] = [
   [Array.from({ length: 8 }, (_, at) => ({ kind: "delete" as const, at }))],
   [Array.from({ length: 8 }, (_, at) => ({ kind: "shrink" as const, at }))],
+  // Pinned from a failing seed (-122555610): two empty wall-cabinet spaces that merge onto the key a base still holds
+  // when the merge is run without the records.
+  [
+    [
+      { kind: "delete", at: 11 },
+      { kind: "shrink", at: 0 },
+      { kind: "delete", at: 4 },
+      { kind: "delete", at: 9 },
+      { kind: "delete", at: 14 },
+      { kind: "delete", at: 14 },
+      { kind: "delete", at: 0 },
+    ],
+  ],
   // Two pinned cases: a partial delete under a wall run, and a resize that rebuilds a member at a depth of its own.
   [[{ kind: "delete", at: 0 }]],
   [
@@ -430,7 +443,11 @@ describe("the seam writes one document per state, and nothing for an empty one",
     },
   );
 
-  // The projection must never write an entry at a key a placement holds, which would overwrite a column.
+  // The projection must never write an entry at a key a placement holds, which would overwrite a column. Asked of the
+  // entries' own keys, not of `deriveColumns([], { emptyColumns })`: that call merges adjacent empty columns with no
+  // records to forbid it, and a merged centre can key onto an occupied column that the real map (`columns.has(key)`
+  // declines the merge) never merges onto. It failed on [delete 11, shrink 0, delete 4, delete 9, delete 14,
+  // delete 14, ...] (seed -122555610): `A|0.30` and `A|0.75` merged to `A|0.45`, which the base `p25` holds.
   propertyTest.prop([mutationArbitrary], { examples: SWEEP_EXAMPLES })(
     "writes no entry at a key a placement is filed under",
     (mutations: readonly Mutation[]) => {
@@ -444,18 +461,12 @@ describe("the seam writes one document per state, and nothing for an empty one",
           design.placements.map((placement) => placement.id),
         );
         expect(occupied.size).toBe(design.placements.length);
-        const restored = deriveColumns(
-          [],
-          { emptyColumns: design.emptyColumns ?? [] },
-          design.room,
+        const placementKeys = new Set(
+          session.getState().records.map((record) => record.col),
         );
-        const fromPlacements = deriveColumns(
-          session.getState().records,
-          {},
-          design.room,
-        );
-        for (const key of restored.keys()) {
-          expect(fromPlacements.has(key)).toBe(false);
+        for (const entry of design.emptyColumns ?? []) {
+          const key = deriveColumnKeyAt(entry.wall, entry.alongMm / 1000);
+          expect(placementKeys.has(key)).toBe(false);
         }
         // And the document stays one both seams accept, at every step.
         expect(

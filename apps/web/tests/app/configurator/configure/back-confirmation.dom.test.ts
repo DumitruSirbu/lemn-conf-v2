@@ -23,6 +23,12 @@ vi.mock("@/i18n/use-content", async () => {
   return { useContent: () => ro };
 });
 vi.mock("@/i18n/navigation", () => ({ useRouter: () => router }));
+// The session is its own concern (`back-confirmation-body.dom.test.ts`); here the visitor is signed out and asking the
+// server is not part of what these tests count as a request.
+vi.mock("@/account/session/use-account-session", () => ({
+  useAccountSession: () => ({ kind: "anonymous" }),
+  isSessionAnswerDefinite: () => false,
+}));
 
 import { ConfirmStep } from "@/settings/confirmation-dialog";
 import settingsStyles from "@/settings/global-settings.module.css";
@@ -34,7 +40,12 @@ const footerClasses = {
   centred: settingsStyles.footerCentred ?? "",
 };
 const ROOM_HREF = "/room?shape=l&a=3600&b=2400";
-const { title, body, confirm, stay } = roMessages.configure.backConfirm;
+const {
+  title,
+  bodyVisitor: body,
+  confirm,
+  stay,
+} = roMessages.configure.backConfirm;
 
 function ScreenWithBackLink(): ReactElement {
   const backConfirmation = useBackConfirmation();
@@ -285,7 +296,7 @@ describe("the dialog's approved heading", () => {
   // The Romanian heading is held, with the rest of ro.json, by the copy lock; nothing else pins the Russian leaf.
   it("is exactly the owner's wording in ru", () => {
     expect(ruMessages.configure.backConfirm.title).toBe(
-      "Изменения будут потеряны",
+      "Вернуться к предыдущему шагу?",
     );
   });
 });

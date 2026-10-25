@@ -3,9 +3,154 @@
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
-import { resolveContent } from "./content";
+import {
+  resolveAccountCheckInboxCopy,
+  resolveAccountControlCopy,
+  resolveAccountEmailChangeCopy,
+  resolveAccountExportCopy,
+  resolveAccountForbiddenCopy,
+  resolveAccountForgotCopy,
+  resolveAccountKitchensCopy,
+  resolveAccountKitCopy,
+  resolveAccountLoginCopy,
+  resolveAccountNotFoundCopy,
+  resolveAccountPasswordCopy,
+  resolveAccountProfileCopy,
+  resolveAccountRegisterCopy,
+  resolveAccountResetCopy,
+  resolveAccountRevertEmailCopy,
+  resolveAccountShellCopy,
+  resolveAccountVerifyCopy,
+  resolveClaimDialogCopy,
+  resolveContent,
+  resolveLogoutEverywhereCopy,
+  resolveSessionExpiredSheetCopy,
+  resolveStaffActionsCopy,
+  resolveStaffAuditCopy,
+  resolveStaffKitchenCopy,
+  resolveStaffKitchensCopy,
+  resolveStaffNotesCopy,
+  resolveStaffShellCopy,
+  resolveVisitorAccountCardCopy,
+  type ContentTranslator,
+} from "./content";
+
+/** A resolver's copy for the current locale, resolved once per locale rather than once per render. */
+function useResolved<Copy>(
+  resolve: (translate: ContentTranslator) => Copy,
+): Copy {
+  const translate = useTranslations();
+  return useMemo(() => resolve(translate), [resolve, translate]);
+}
 
 export function useContent() {
-  const translate = useTranslations();
-  return useMemo(() => resolveContent(translate), [translate]);
+  return useResolved(resolveContent);
+}
+
+export function useAccountKitCopy() {
+  return useResolved(resolveAccountKitCopy);
+}
+
+export function useAccountShellCopy() {
+  return useResolved(resolveAccountShellCopy);
+}
+
+export function useAccountForgotCopy() {
+  return useResolved(resolveAccountForgotCopy);
+}
+
+export function useAccountRegisterCopy() {
+  return useResolved(resolveAccountRegisterCopy);
+}
+
+export function useAccountLoginCopy() {
+  return useResolved(resolveAccountLoginCopy);
+}
+
+export function useAccountNotFoundCopy() {
+  return useResolved(resolveAccountNotFoundCopy);
+}
+
+export function useAccountForbiddenCopy() {
+  return useResolved(resolveAccountForbiddenCopy);
+}
+
+export function useAccountControlCopy() {
+  return useResolved(resolveAccountControlCopy);
+}
+
+export function useStaffShellCopy() {
+  return useResolved(resolveStaffShellCopy);
+}
+
+export function useStaffKitchensCopy() {
+  return useResolved(resolveStaffKitchensCopy);
+}
+
+export function useStaffAuditCopy() {
+  return useResolved(resolveStaffAuditCopy);
+}
+
+export function useStaffKitchenCopy() {
+  return useResolved(resolveStaffKitchenCopy);
+}
+
+export function useStaffNotesCopy() {
+  return useResolved(resolveStaffNotesCopy);
+}
+
+export function useStaffActionsCopy() {
+  return useResolved(resolveStaffActionsCopy);
+}
+
+export function useAccountKitchensCopy() {
+  return useResolved(resolveAccountKitchensCopy);
+}
+
+export function useLogoutEverywhereCopy() {
+  return useResolved(resolveLogoutEverywhereCopy);
+}
+
+export function useSessionExpiredSheetCopy() {
+  return useResolved(resolveSessionExpiredSheetCopy);
+}
+
+export function useVisitorAccountCardCopy() {
+  return useResolved(resolveVisitorAccountCardCopy);
+}
+
+export function useClaimDialogCopy() {
+  return useResolved(resolveClaimDialogCopy);
+}
+
+export function useAccountCheckInboxCopy() {
+  return useResolved(resolveAccountCheckInboxCopy);
+}
+
+export function useAccountVerifyCopy() {
+  return useResolved(resolveAccountVerifyCopy);
+}
+
+export function useAccountResetCopy() {
+  return useResolved(resolveAccountResetCopy);
+}
+
+export function useAccountProfileCopy() {
+  return useResolved(resolveAccountProfileCopy);
+}
+
+export function useAccountPasswordCopy() {
+  return useResolved(resolveAccountPasswordCopy);
+}
+
+export function useAccountEmailChangeCopy() {
+  return useResolved(resolveAccountEmailChangeCopy);
+}
+
+export function useAccountRevertEmailCopy() {
+  return useResolved(resolveAccountRevertEmailCopy);
+}
+
+export function useAccountExportCopy() {
+  return useResolved(resolveAccountExportCopy);
 }

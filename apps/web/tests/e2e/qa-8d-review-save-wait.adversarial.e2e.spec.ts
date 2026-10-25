@@ -34,6 +34,7 @@ import {
 } from "./support/seeded-design";
 import { U_MIDDLE, seedKitchen } from "./support/ssr-html";
 import { seedDesign } from "./support/u-design";
+import { expectEditorTopBarShown } from "./support/editor-top-bar";
 
 const FIGURE = '[data-section="figure"]';
 const SETTINGS_ROW = '[data-section="settingsRow"]';
@@ -219,7 +220,7 @@ for (const [name, status, sentence] of REFUSED_SAVES) {
       await expectReviewDrawn(page);
       const text = await page.locator(SETTINGS_ROW).textContent();
       await page.goBack();
-      await expect(page.getByTestId("top-bar-title")).toBeVisible();
+      await expectEditorTopBarShown(page);
       return text;
     })();
     await answerSavesWith(page, seededDesign.id, refuseWith(status));
@@ -512,7 +513,7 @@ test("a review restored by Forward after a later save keeps the newer copy: the 
   const settingsBefore = (await page.locator(SETTINGS_ROW).textContent()) ?? "";
 
   await goBackAndSettle(page);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await expectEditorTopBarShown(page);
   await chooseAnotherHardwareTierAndSave(page, seededDesign.id);
   const priceAfterTheSave =
     (await page.getByTestId("price-bar-total").textContent()) ?? "";

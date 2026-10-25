@@ -135,3 +135,15 @@ plan's Part P) assumes M8 builds the limiter first; M8B inherits it after 8F and
 | [0002](0002-db-backed-shareable-persistence.md) | Shareable design links. | **Addressing stands; open read superseded**; sharing is the short share link (note updated). |
 | [0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md) Amendments A–C | A struck; B share link; C short token, editing pending. | **B and C stand; C's pending editing half is settled here** (Amendment D on 0114 points here). |
 | [0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md) | Owner-only preset authoring behind its own gate. | **Independent**: a customer profile never grants preset authoring; M8 must keep the two credentials separate. |
+
+## Dated note — 2026-10-18: ADR 0172 decides login and register (the scribe; this record's text is not edited)
+
+[ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+(**Accepted** by the owner, 2026-10-18) implements decisions 1 and 4 and **amends** decisions 2 and 3; its sweep marks
+nothing here as superseded. Decisions 2–3 (a design is editable only in the browser that made it) are **lifted for a
+design an account has claimed or minted while signed in** (ADR 0172 D8, D9), and **stand unchanged for a visitor with no
+account**. Of decision 4's obligations, ADR 0172 answers 1–7 and 10 (its D1–D9); 8 (the modal), 9 (personal data) and 11
+(the dashboard) are later waves, and 12 was already settled. The plan is
+[`M8B-login-register-plan.md`](../milestones/M8B-login-register-plan.md). **Status of the code: built but unexercised (no
+tests this round, ADR 0172 D12), and no migration is applied anywhere.** The accounts ADR was renumbered from 0169 to 0172 at the merge with `main` (ADR 0172,
+*Remaining before production*, item 9).

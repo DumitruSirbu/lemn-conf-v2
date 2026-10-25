@@ -118,7 +118,7 @@ describe("every mail test that builds a sender", () => {
   // The factory is named too: a test that calls `.send` on the sender it builds reaches the library's own
   // `createTransport` without ever importing the library.
   function usesTheLibraryOrTheAdapter(source: string): boolean {
-    return /(?:from|import\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/(?:gmail-mail-sender|create-mail-sender))["']/.test(
+    return /(?:from|import\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/(?:gmail-mail-sender|smtp-mail-sender|smtp-transport|create-mail-sender|create-customer-mail-sender))["']/.test(
       source,
     );
   }

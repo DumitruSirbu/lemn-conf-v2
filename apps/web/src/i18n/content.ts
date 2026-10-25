@@ -1,17 +1,29 @@
-import type { _Translator, Messages } from "next-intl";
+import {
+  NOTE_TEXT_MAX_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "@lemnaria/configurator-domain";
+import type { _Translator, Messages, RichTagsFunction } from "next-intl";
 
 import type {
+  AccountFieldCode,
   Band,
   BodyLabel,
   ContactChannel,
   ContactFieldCode,
   CornerDirection,
+  DesignRoomShape,
   DesignWall,
   EmptySpaceSide,
   Finish,
+  KitchenSummary,
+  NoteTextRefusalCode,
   PaletteEntryId,
+  PasswordRefusalCode,
   PresetNameFacts,
   RejectionDetail,
+  RequestStatusRefusalCode,
+  StaffAuditAction,
 } from "@lemnaria/configurator-domain";
 
 export type ContentTranslator = _Translator<Messages>;
@@ -794,6 +806,1273 @@ export function resolveNoticePreheader(
     : translate("leadNotice.preheaderWithLocality", { lead, name, locality });
 }
 
+/**
+ * The wording of the account e-mails, resolved in one locale. `action` is the label of the link's button.
+ * `emailChanged` goes to the OLD address and carries the undo link; `emailChangeRequested` goes to the same address
+ * when a change is asked for, names the address that was typed, and so is a function of it. Both were approved as
+ * drafted (ADR 0113 decision 2; plan O28b).
+ */
+export function resolveAccountMailCopy(translate: ContentTranslator) {
+  return {
+    noReply: translate("accountMail.noReply"),
+    linkFallback: translate("accountMail.linkFallback"),
+    confirmEmail: {
+      subject: translate("accountMail.confirmEmail.subject"),
+      intro: translate("accountMail.confirmEmail.intro"),
+      action: translate("accountMail.confirmEmail.action"),
+      note: translate("accountMail.confirmEmail.note"),
+    },
+    alreadyRegistered: {
+      subject: translate("accountMail.alreadyRegistered.subject"),
+      intro: translate("accountMail.alreadyRegistered.intro"),
+      action: translate("accountMail.alreadyRegistered.action"),
+      note: translate("accountMail.alreadyRegistered.note"),
+    },
+    resetPassword: {
+      subject: translate("accountMail.resetPassword.subject"),
+      intro: translate("accountMail.resetPassword.intro"),
+      action: translate("accountMail.resetPassword.action"),
+      note: translate("accountMail.resetPassword.note"),
+    },
+    passwordChanged: {
+      subject: translate("accountMail.passwordChanged.subject"),
+      intro: translate("accountMail.passwordChanged.intro"),
+      note: translate("accountMail.passwordChanged.note"),
+    },
+    emailChange: {
+      subject: translate("accountMail.emailChange.subject"),
+      intro: translate("accountMail.emailChange.intro"),
+      action: translate("accountMail.emailChange.action"),
+      note: translate("accountMail.emailChange.note"),
+    },
+    emailChangeAddressInUse: {
+      subject: translate("accountMail.emailChangeAddressInUse.subject"),
+      intro: translate("accountMail.emailChangeAddressInUse.intro"),
+      action: translate("accountMail.emailChangeAddressInUse.action"),
+      note: translate("accountMail.emailChangeAddressInUse.note"),
+    },
+    emailChanged: {
+      subject: translate("accountMail.emailChanged.subject"),
+      intro: translate("accountMail.emailChanged.intro"),
+      action: translate("accountMail.emailChanged.action"),
+      note: translate("accountMail.emailChanged.note"),
+    },
+    emailChangeReverted: {
+      subject: translate("accountMail.emailChangeReverted.subject"),
+      intro: translate("accountMail.emailChangeReverted.intro"),
+      note: translate("accountMail.emailChangeReverted.note"),
+    },
+    emailChangeRequested: (address: string) => ({
+      subject: translate("accountMail.emailChangeRequested.subject"),
+      intro: translate("accountMail.emailChangeRequested.intro", { address }),
+      action: translate("accountMail.emailChangeRequested.action"),
+      note: translate("accountMail.emailChangeRequested.note"),
+    }),
+  };
+}
+
+export type AccountMailCopy = ReturnType<typeof resolveAccountMailCopy>;
+
+/** The fields of an account form that a server answer can mark. `locale` and the notice version are the page's own
+ *  values, so a refusal of either is the request failing, not a field to correct. `currentPassword` and `newPassword`
+ *  are the password change's own request members, named as the body names them (plan P13). `text` is a staff note's and
+ *  `status` a staff request status's, as the staff writes name them. */
+export type AccountIssueField =
+  | "email"
+  | "newEmail"
+  | "phone"
+  | "password"
+  | "currentPassword"
+  | "newPassword"
+  | "name"
+  | "address"
+  | "text"
+  | "status";
+
+/** The password's refusals: the domain's three, the breach check's, a password that was not text, and the empty
+ *  password the form refuses before sending. */
+export type AccountIssueCode =
+  | AccountFieldCode
+  | PasswordRefusalCode
+  | "PASSWORD_BREACHED"
+  | "PASSWORD_NOT_TEXT"
+  | "PASSWORD_REQUIRED"
+  | "PASSWORD_UNCHANGED"
+  | NoteTextRefusalCode
+  | RequestStatusRefusalCode
+  | "NOTE_TEXT_NOT_JUDGED";
+
+/** One field and one code, never the value that was refused. */
+export interface AccountFieldIssue {
+  readonly field: AccountIssueField;
+  readonly code: AccountIssueCode;
+}
+
+/** A limit told by a sentence that does not change as the page lives, with the one value it carries already read:
+ *  whole minutes, or the clock time and whether it is tomorrow's. `unreadable` carries no number. `endsAtMs` is the instant
+ *  the wait ends, worked out when the answer came, for a control that stays off for the whole of it; the sentence does not
+ *  read it, and a notice built by hand may leave it out. */
+export type AccountRateLimitSentence =
+  | {
+      readonly kind: "minutes";
+      readonly minutes: number;
+      readonly endsAtMs?: number;
+    }
+  | {
+      readonly kind: "at";
+      readonly time: string;
+      readonly isTomorrow: boolean;
+      readonly endsAtMs?: number;
+    }
+  | { readonly kind: "unreadable" };
+
+/** How a limited account request is told. A short wait is a `countdown` the notice keeps live up to the instant it
+ *  ends; any other is a sentence. */
+export type AccountRateLimitNotice =
+  | AccountRateLimitSentence
+  | { readonly kind: "countdown"; readonly endsAtMs: number };
+
+/** Draws a tagged span of a message. The caller owns the element, so this module holds no markup. */
+export type RichTagRenderer = RichTagsFunction;
+
+/** What a rich message resolves to; taken from the translator's own type so this module names no React. */
+type RichMessage = ReturnType<RichTagsFunction>;
+
+/**
+ * The sentence for one field refusal, found by the field and the code: one code can be worded per field. A code
+ * arrives from the network, so one this build has no leaf for is told as the failed request it is.
+ */
+export function resolveAccountFieldError(
+  translate: ContentTranslator,
+  { field, code }: AccountFieldIssue,
+): string {
+  switch (field) {
+    case "email":
+    case "newEmail":
+      return resolveEmailError(translate, code);
+    case "phone":
+      return resolvePhoneError(translate, code);
+    case "password":
+    case "currentPassword":
+    case "newPassword":
+      return resolvePasswordError(translate, code);
+    case "name":
+      return resolveNameError(translate, code);
+    case "address":
+      return resolveAddressError(translate, code);
+    case "text":
+      return resolveNoteTextError(translate, code);
+    case "status":
+      return resolveStatusError(translate, code);
+    default:
+      return assertNever(field);
+  }
+}
+
+function resolveEmailError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("accountFieldErrors.emailRequired");
+    case "MALFORMED":
+      return translate("accountFieldErrors.emailMalformed");
+    case "TOO_LONG":
+      return translate("accountFieldErrors.emailTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.emailForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolvePhoneError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "PHONE_MOLDOVAN_INCOMPLETE":
+      return translate("accountFieldErrors.phoneMoldovanIncomplete");
+    case "PHONE_MOLDOVAN_TOO_MANY_DIGITS":
+      return translate("accountFieldErrors.phoneMoldovanTooManyDigits");
+    case "PHONE_MOLDOVAN_SECOND_ZERO":
+      return translate("accountFieldErrors.phoneMoldovanSecondZero");
+    case "PHONE_INTERNATIONAL_INCOMPLETE":
+      return translate("accountFieldErrors.phoneInternationalIncomplete");
+    case "PHONE_INTERNATIONAL_TOO_MANY_DIGITS":
+      return translate("accountFieldErrors.phoneInternationalTooManyDigits");
+    case "PHONE_FORMAT_UNRECOGNISED":
+      return translate("accountFieldErrors.phoneFormatUnrecognised");
+    case "TOO_LONG":
+      return translate("accountFieldErrors.phoneTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.phoneForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveNameError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "TOO_LONG":
+      return translate("accountFieldErrors.nameTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.nameForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveAddressError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "TOO_LONG":
+      return translate("accountFieldErrors.addressTooLong");
+    case "FORBIDDEN_CHARACTER":
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.addressForbiddenCharacter");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveNoteTextError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("accountFieldErrors.noteRequired");
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.noteNotText");
+    case "TOO_LONG":
+      return translate("accountFieldErrors.noteTooLong", {
+        max: NOTE_TEXT_MAX_LENGTH,
+      });
+    case "FORBIDDEN_CHARACTER":
+      return translate("accountFieldErrors.noteForbiddenCharacter");
+    case "NOTE_TEXT_NOT_JUDGED":
+      return translate("accountFieldErrors.noteNotJudged");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolveStatusError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("accountFieldErrors.statusRequired");
+    case "NOT_TEXT":
+      return translate("accountFieldErrors.statusNotText");
+    case "STATUS_NOT_IN_LIST":
+      return translate("accountFieldErrors.statusNotInList");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+function resolvePasswordError(
+  translate: ContentTranslator,
+  code: AccountIssueCode,
+): string {
+  switch (code) {
+    case "PASSWORD_TOO_SHORT":
+      return translate("accountFieldErrors.passwordTooShort", {
+        min: PASSWORD_MIN_LENGTH,
+      });
+    case "PASSWORD_TOO_LONG":
+      return translate("accountFieldErrors.passwordTooLong", {
+        max: PASSWORD_MAX_LENGTH,
+      });
+    case "PASSWORD_IS_EMAIL":
+      return translate("accountFieldErrors.passwordIsEmail");
+    case "PASSWORD_BREACHED":
+      return translate("accountFieldErrors.passwordBreached");
+    case "PASSWORD_NOT_TEXT":
+      return translate("accountFieldErrors.passwordNotText");
+    case "PASSWORD_REQUIRED":
+      return translate("accountFieldErrors.passwordRequired");
+    default:
+      return translate("accountForm.requestFailedBody");
+  }
+}
+
+/** The form-level sentence for a limited request. Its lead is a tagged span, drawn by the caller's renderer. */
+export function resolveAccountRateLimit(
+  translate: ContentTranslator,
+  notice: AccountRateLimitSentence,
+  strong: RichTagRenderer,
+): RichMessage {
+  switch (notice.kind) {
+    case "minutes":
+      return translate.rich("accountForm.rateLimitedMinutes", {
+        minutes: notice.minutes,
+        strong,
+      });
+    case "at":
+      return translate.rich(
+        notice.isTomorrow
+          ? "accountForm.rateLimitedTomorrowAt"
+          : "accountForm.rateLimitedAt",
+        { time: notice.time, strong },
+      );
+    case "unreadable":
+      return translate.rich("accountForm.rateLimitedFallback", { strong });
+    default:
+      return assertNever(notice);
+  }
+}
+
+/** The shared wording of the account forms, resolved in one locale: the fields, the notices every form can show and
+ *  the challenge slot. A page's own text is added here too: a component never reads the catalogue itself. */
+export function resolveAccountKitCopy(translate: ContentTranslator) {
+  return {
+    emailLabel: translate("accountForm.emailLabel"),
+    emailPlaceholder: translate("accountForm.emailPlaceholder"),
+    passwordLabel: translate("accountForm.passwordLabel"),
+    newPasswordLabel: translate("accountForm.newPasswordLabel"),
+    passwordHint: translate("accountForm.passwordHint", {
+      min: PASSWORD_MIN_LENGTH,
+    }),
+    passwordCount: (count: number, minimum: number) =>
+      translate("accountForm.passwordCount", { count, min: minimum }),
+    showPassword: translate("accountForm.showPassword"),
+    hidePassword: translate("accountForm.hidePassword"),
+    showPasswordName: translate("accountForm.showPasswordName"),
+    hidePasswordName: translate("accountForm.hidePasswordName"),
+    fieldSummary: (count: number) =>
+      translate("accountForm.fieldSummary", { count }),
+    rateLimitCountdown: (
+      minutes: number,
+      seconds: string,
+      strong: RichTagRenderer,
+    ) =>
+      translate.rich("accountForm.rateLimitedCountdown", {
+        minutes,
+        seconds,
+        strong,
+      }),
+    rateLimitReady: translate("accountForm.rateLimitedReady"),
+    unavailable: {
+      title: translate("accountForm.unavailableTitle"),
+      body: translate("accountForm.unavailableBody"),
+    },
+    retry: translate("accountForm.retry"),
+    requestFailed: {
+      title: translate("accountForm.requestFailedTitle"),
+      body: translate("accountForm.requestFailedBody"),
+      tokenBody: translate("accountForm.requestFailedTokenBody"),
+    },
+    reloadPage: translate("accountForm.reloadPage"),
+    offline: {
+      title: translate("accountForm.offlineTitle"),
+      body: translate("accountForm.offlineBody"),
+    },
+    challenge: {
+      loading: translate("accountForm.challengeLoading"),
+      failed: translate("accountForm.challengeFailed"),
+      unavailable: translate("accountForm.challengeUnavailable"),
+      waiting: translate("accountForm.challengeWaiting"),
+    },
+    checkInbox: {
+      helpTitle: translate("accountForm.checkInboxHelpTitle"),
+      spam: translate("accountForm.checkInboxSpam"),
+      newest: translate("accountForm.checkInboxNewest"),
+    },
+    fieldError: (issue: AccountFieldIssue) =>
+      resolveAccountFieldError(translate, issue),
+    rateLimit: (notice: AccountRateLimitSentence, strong: RichTagRenderer) =>
+      resolveAccountRateLimit(translate, notice, strong),
+  };
+}
+
+export type AccountKitCopy = ReturnType<typeof resolveAccountKitCopy>;
+
+/** The frame every account page sits in: the wordmark, the way back to the configurator and the language control. */
+export function resolveAccountShellCopy(translate: ContentTranslator) {
+  return {
+    brand: translate("brand"),
+    backToConfigurator: translate("accountShell.backToConfigurator"),
+    localeMenu: translate("accountShell.localeMenu"),
+  };
+}
+
+export type AccountShellCopy = ReturnType<typeof resolveAccountShellCopy>;
+
+/** The forgotten-password page's own text, on the screen that asks and on the screen that says it was sent. */
+export function resolveAccountForgotCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountForgot.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountForgot.headerTitle"),
+    title: translate("accountForgot.title"),
+    body: translate("accountForgot.body"),
+    submit: translate("accountForgot.submit"),
+    submitting: translate("accountForgot.submitting"),
+    remembered: translate("accountForgot.remembered"),
+    logIn: translate("accountForgot.logIn"),
+    sentTitle: translate("accountForgot.sentTitle"),
+    sentBody: translate("accountForgot.sentBody"),
+  };
+}
+
+export type AccountForgotCopy = ReturnType<typeof resolveAccountForgotCopy>;
+
+/** The register page's own text. The legal line carries a tagged span, drawn by the caller as the notice's link. */
+export function resolveAccountRegisterCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountRegister.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountRegister.headerTitle"),
+    title: translate("accountRegister.title"),
+    body: translate("accountRegister.body"),
+    phoneLabel: translate("accountRegister.phoneLabel"),
+    phonePlaceholder: translate("accountRegister.phonePlaceholder"),
+    phoneHint: translate("accountRegister.phoneHint"),
+    legal: (notice: RichTagRenderer) =>
+      translate.rich("accountRegister.legal", { notice }),
+    noticeNewTab: translate("accountRegister.noticeNewTab"),
+    submit: translate("accountRegister.submit"),
+    submitting: translate("accountRegister.submitting"),
+    haveAccount: translate("accountRegister.haveAccount"),
+    logIn: translate("accountRegister.logIn"),
+  };
+}
+
+export type AccountRegisterCopy = ReturnType<typeof resolveAccountRegisterCopy>;
+
+/** The login page's own text. One sentence answers every refused sign-in, so it is one leaf. */
+export function resolveAccountLoginCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountLogin.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountLogin.headerTitle"),
+    title: translate("accountLogin.title"),
+    submit: translate("accountLogin.submit"),
+    submitting: translate("accountLogin.submitting"),
+    forgot: translate("accountLogin.forgot"),
+    noAccount: translate("accountLogin.noAccount"),
+    createOne: translate("accountLogin.createOne"),
+    invalidCredentials: translate("accountLogin.invalidCredentials"),
+    sessionExpired: translate("accountLogin.sessionExpired"),
+    signedOutEverywhere: translate("accountLogin.signedOutEverywhere"),
+    passwordMaybeChanged: translate("accountLogin.passwordMaybeChanged"),
+  };
+}
+
+export type AccountLoginCopy = ReturnType<typeof resolveAccountLoginCopy>;
+
+/** The confirm-address page's own text. The invalid-link sentence carries a tagged span, drawn as the sign-in link. */
+export function resolveAccountVerifyCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountVerify.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountVerify.headerTitle"),
+    title: translate("accountVerify.title"),
+    lead: translate("accountVerify.lead"),
+    submit: translate("accountVerify.submit"),
+    submitting: translate("accountVerify.submitting"),
+    invalidLink: (link: RichTagRenderer) =>
+      translate.rich("accountVerify.invalidLink", { link }),
+    confirmedTitle: translate("accountVerify.confirmedTitle"),
+    confirmedBody: translate("accountVerify.confirmedBody"),
+  };
+}
+
+export type AccountVerifyCopy = ReturnType<typeof resolveAccountVerifyCopy>;
+
+/** The new-password page's own text: the form, the changed screen and the one screen for a link that is no longer good. */
+export function resolveAccountResetCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountReset.metaTitle", {
+      brand: translate("brand"),
+    }),
+    headerTitle: translate("accountReset.headerTitle"),
+    title: translate("accountReset.title"),
+    body: translate("accountReset.body"),
+    submit: translate("accountReset.submit"),
+    submitting: translate("accountReset.submitting"),
+    changedTitle: translate("accountReset.changedTitle"),
+    changedBody: translate("accountReset.changedBody"),
+    logIn: translate("accountReset.logIn"),
+    linkInvalidTitle: translate("accountReset.linkInvalidTitle"),
+    linkInvalidBody: translate("accountReset.linkInvalidBody"),
+    requestNewLink: translate("accountReset.requestNewLink"),
+  };
+}
+
+export type AccountResetCopy = ReturnType<typeof resolveAccountResetCopy>;
+
+/** The page an unknown address under the account family lands on. */
+export function resolveAccountNotFoundCopy(translate: ContentTranslator) {
+  return {
+    title: translate("accountNotFound.title"),
+    body: translate("accountNotFound.body"),
+  };
+}
+
+export type AccountNotFoundCopy = ReturnType<typeof resolveAccountNotFoundCopy>;
+
+/** The page a signed-in account lands on when its role does not hold the capability the page needs. It never says the
+ *  session expired: the session is live. */
+export function resolveAccountForbiddenCopy(translate: ContentTranslator) {
+  return {
+    title: translate("accountForbidden.title"),
+    body: translate("accountForbidden.body"),
+  };
+}
+
+export type AccountForbiddenCopy = ReturnType<
+  typeof resolveAccountForbiddenCopy
+>;
+
+/** The account control in the configurator's top bar: the way in, the name of the signed-in menu, what it says and the
+ *  two ways out of it. */
+export function resolveAccountControlCopy(translate: ContentTranslator) {
+  return {
+    signIn: translate("accountControl.signIn"),
+    menuName: translate("accountControl.menuName"),
+    signedInAs: translate("accountControl.signedInAs"),
+    myKitchens: translate("accountControl.myKitchens"),
+    profile: translate("accountControl.profile"),
+    staffArea: translate("accountControl.staffArea"),
+    close: translate("accountControl.close"),
+    signOutHere: translate("accountControl.signOutHere"),
+    signOutEverywhere: translate("accountControl.signOutEverywhere"),
+    signedOutToast: translate("accountControl.signedOutToast"),
+    signOutFailed: translate("accountControl.signOutFailed"),
+  };
+}
+
+export type AccountControlCopy = ReturnType<typeof resolveAccountControlCopy>;
+
+/** The staff area's frame: the navigation's name, the "Meniu" button, the role the person is shown under and the
+ *  navigation's items, one per staff page that has a screen. */
+export function resolveStaffShellCopy(translate: ContentTranslator) {
+  return {
+    areaName: translate("staffShell.areaName"),
+    menu: translate("staffShell.menu"),
+    roleLabel: translate("staffShell.roleLabel"),
+    roles: {
+      operator: translate("staffShell.roleOperator"),
+      administrator: translate("staffShell.roleAdministrator"),
+    },
+    pages: {
+      kitchens: translate("staffShell.navKitchens"),
+      audit: translate("staffShell.navAudit"),
+    },
+    backTo: (name: string) => translate("staffShell.backTo", { name }),
+  };
+}
+
+export type StaffShellCopy = ReturnType<typeof resolveStaffShellCopy>;
+
+/** The staff list of every client's kitchens. A kitchen nobody named is called by the name its facts generate, as the
+ *  client's own list calls it. */
+export function resolveStaffKitchensCopy(translate: ContentTranslator) {
+  return {
+    title: translate("staffKitchens.title"),
+    loading: translate("staffKitchens.loading"),
+    filters: {
+      segmentLabel: translate("staffKitchens.filterSegment"),
+      segments: {
+        sent: translate("staffKitchens.segmentSent"),
+        drafts: translate("staffKitchens.segmentDrafts"),
+        all: translate("staffKitchens.segmentAll"),
+      },
+      searchLabel: translate("staffKitchens.searchLabel"),
+      searchPlaceholder: translate("staffKitchens.searchPlaceholder"),
+      searchClear: translate("staffKitchens.searchClear"),
+      searchTooLong: (max: number) =>
+        translate("staffKitchens.searchTooLong", { max }),
+      searchRefused: translate("staffKitchens.searchRefused"),
+      statusLabel: translate("staffKitchens.statusLabel"),
+      statusAll: translate("staffKitchens.statusAll"),
+      statusOnlyForSent: translate("staffKitchens.statusOnlyForSent"),
+    },
+    statuses: {
+      new: translate("staffKitchens.statusNew"),
+      contacted: translate("staffKitchens.statusContacted"),
+      "offer-sent": translate("staffKitchens.statusOfferSent"),
+      closed: translate("staffKitchens.statusClosed"),
+      unrecognised: translate("staffKitchens.statusUnrecognised"),
+    },
+    counts: {
+      sent: (count: number) => translate("staffKitchens.countSent", { count }),
+      drafts: (count: number) =>
+        translate("staffKitchens.countDrafts", { count }),
+      all: (count: number) => translate("staffKitchens.countAll", { count }),
+    },
+    sorts: {
+      sent: translate("staffKitchens.sortSent"),
+      modified: translate("staffKitchens.sortModified"),
+    },
+    columns: {
+      image: translate("staffKitchens.columnImage"),
+      kitchen: translate("staffKitchens.columnKitchen"),
+      client: translate("staffKitchens.columnClient"),
+      phone: translate("staffKitchens.columnPhone"),
+      state: translate("staffKitchens.columnState"),
+      status: translate("staffKitchens.statusLabel"),
+      sentAt: translate("staffKitchens.columnSentAt"),
+      modified: translate("staffKitchens.columnModified"),
+      action: translate("staffKitchens.columnAction"),
+    },
+    badges: {
+      sent: translate("staffKitchens.badgeSent"),
+      draft: translate("staffKitchens.badgeDraft"),
+      hidden: translate("staffKitchens.badgeHidden"),
+    },
+    noAccount: translate("staffKitchens.noAccount"),
+    noValue: translate("staffKitchens.noValue"),
+    phoneUnverified: translate("staffKitchens.phoneUnverified"),
+    noPhone: translate("staffKitchens.noPhone"),
+    unnamedKitchen: translate("staffKitchens.unnamedKitchen"),
+    kitchenName: (facts: PresetNameFacts) =>
+      resolvePresetName(translate, facts),
+    sentOn: (date: string) => translate("staffKitchens.sentOn", { date }),
+    modifiedAgo: (when: string) =>
+      translate("staffKitchens.modifiedAgo", { when }),
+    open: translate("staffKitchens.open"),
+    openNamed: (name: string) => translate("staffKitchens.openNamed", { name }),
+    empty: {
+      sent: {
+        title: translate("staffKitchens.emptySentTitle"),
+        body: translate("staffKitchens.emptySentBody"),
+      },
+      drafts: {
+        title: translate("staffKitchens.emptyDraftsTitle"),
+        body: translate("staffKitchens.emptyDraftsBody"),
+      },
+      all: {
+        title: translate("staffKitchens.emptyAllTitle"),
+        body: translate("staffKitchens.emptyAllBody"),
+      },
+    },
+    noResults: {
+      forSearch: (query: string) => ({
+        title: translate("staffKitchens.noResultsTitle", { query }),
+        body: translate("staffKitchens.noResultsBody"),
+      }),
+      forStatus: {
+        title: translate("staffKitchens.noResultsStatusTitle"),
+        body: translate("staffKitchens.noResultsStatusBody"),
+      },
+      clearStatus: translate("staffKitchens.clearStatus"),
+    },
+    pagination: {
+      loadMore: translate("staffKitchens.loadMore"),
+      loadingMore: translate("staffKitchens.loadingMore"),
+      showing: (range: { from: number; to: number; total: number }) =>
+        translate("staffKitchens.showing", range),
+      pagesLabel: translate("staffKitchens.pagesLabel"),
+      previous: translate("staffKitchens.previousPage"),
+      next: translate("staffKitchens.nextPage"),
+      pageNumber: (page: number) =>
+        translate("staffKitchens.pageNumber", { page }),
+    },
+  };
+}
+
+export type StaffKitchensCopy = ReturnType<typeof resolveStaffKitchensCopy>;
+
+/** The audit log page. The action labels are a closed `Map` that is asked, never indexed: an unrecognised row carries
+ *  any code the table allows, `constructor` and `__proto__` included. The statuses and the page numbers a row or the
+ *  foot says are the kitchens list's own words and are not said twice. */
+export function resolveStaffAuditCopy(translate: ContentTranslator) {
+  const actionLabels: Readonly<Record<StaffAuditAction, string>> = {
+    "kitchen-opened": translate("staffAudit.actionKitchenOpened"),
+    "note-added": translate("staffAudit.actionNoteAdded"),
+    "status-changed": translate("staffAudit.actionStatusChanged"),
+    "kitchen-unhidden": translate("staffAudit.actionKitchenUnhidden"),
+    "kitchens-listed": translate("staffAudit.actionKitchensListed"),
+    "audit-viewed": translate("staffAudit.actionAuditViewed"),
+  };
+  const rows = (count: number) => translate("staffAudit.detailRows", { count });
+  return {
+    title: translate("staffAudit.title"),
+    readOnlyNote: translate("staffAudit.readOnlyNote"),
+    loading: translate("staffAudit.loading"),
+    filters: {
+      person: translate("staffAudit.filterPerson"),
+      personAll: translate("staffAudit.filterPersonAll"),
+      action: translate("staffAudit.filterAction"),
+      actionAll: translate("staffAudit.filterActionAll"),
+      from: translate("staffAudit.filterFrom"),
+      to: translate("staffAudit.filterTo"),
+      dayInvalid: (years: { first: number; last: number }) =>
+        translate("staffAudit.dayInvalid", years),
+      rangeInverted: translate("staffAudit.rangeInverted"),
+      clear: translate("staffAudit.clearFilters"),
+    },
+    columns: {
+      when: translate("staffAudit.columnWhen"),
+      who: translate("staffAudit.columnWho"),
+      action: translate("staffAudit.columnAction"),
+      object: translate("staffAudit.columnObject"),
+    },
+    actionLabels: new Map<string, string>(Object.entries(actionLabels)),
+    unknownAction: translate("staffAudit.actionUnknown"),
+    details: {
+      statusChanged: (change: { from: string; to: string }) =>
+        translate("staffAudit.detailStatusChanged", change),
+      page: (page: { page: number; rowCount: number }) =>
+        translate("staffAudit.detailPage", {
+          page: page.page,
+          rows: rows(page.rowCount),
+        }),
+      pageWithSearch: (page: { page: number; rowCount: number }) =>
+        translate("staffAudit.detailPageSearch", {
+          page: page.page,
+          rows: rows(page.rowCount),
+        }),
+      pageWithFilters: (page: { page: number; rowCount: number }) =>
+        translate("staffAudit.detailPageFilters", {
+          page: page.page,
+          rows: rows(page.rowCount),
+        }),
+    },
+    empty: {
+      title: translate("staffAudit.emptyTitle"),
+      body: translate("staffAudit.emptyBody"),
+    },
+    noResults: {
+      title: translate("staffAudit.noResultsTitle"),
+      body: translate("staffAudit.noResultsBody"),
+    },
+  };
+}
+
+export type StaffAuditCopy = ReturnType<typeof resolveStaffAuditCopy>;
+
+/** One client's kitchen as staff read it: the view's labels, the summary's rows, the lines of the client and of the request,
+ *  the caption, and the words of a kitchen that is not there or cannot be shown. The words the list already has (the
+ *  statuses, "Fără cont", the phone's "neverificat") are the list's own and are not said twice. */
+export function resolveStaffKitchenCopy(translate: ContentTranslator) {
+  return {
+    title: translate("staffKitchen.title"),
+    loading: translate("staffKitchen.loading"),
+    loadingSub: translate("staffKitchen.loadingSub"),
+    view: {
+      readOnly: translate("staffKitchen.viewOnly"),
+      label: translate("staffKitchen.viewLabel"),
+      current: translate("staffKitchen.viewCurrent"),
+      noWebGl: translate("staffKitchen.viewNoWebgl"),
+    },
+    sub: {
+      sent: (details: { email: string; date: string }) =>
+        translate("staffKitchen.subSent", details),
+      sentNoAccount: (date: string) =>
+        translate("staffKitchen.subSentNoAccount", { date }),
+      draft: (details: { email: string; when: string }) =>
+        translate("staffKitchen.subDraft", details),
+      draftNoAccount: (when: string) =>
+        translate("staffKitchen.subDraftNoAccount", { when }),
+    },
+    hiddenBanner: translate("staffKitchen.hiddenBanner"),
+    summary: {
+      titleSent: translate("staffKitchen.summaryTitleSent"),
+      titleCurrent: translate("staffKitchen.summaryTitleCurrent"),
+      shape: translate("staffKitchen.summaryShape"),
+      shapeName: (shape: DesignRoomShape) =>
+        resolvePresetShapeName(translate, shape),
+      walls: translate("staffKitchen.summaryWalls"),
+      wallsValue: (walls: string) =>
+        translate("staffKitchen.summaryWallsValue", { walls }),
+      material: translate("staffKitchen.summaryMaterial"),
+      hardware: translate("staffKitchen.summaryHardware"),
+      finish: translate("staffKitchen.summaryFinish"),
+      bodies: translate("staffKitchen.summaryBodies"),
+      price: translate("staffKitchen.summaryPrice"),
+      priceNote: translate("staffKitchen.summaryPriceNote"),
+    },
+    statusLastChange: (details: { name: string; when: string }) =>
+      translate("staffKitchen.statusLastChange", details),
+    draftNoStatus: translate("staffKitchen.draftNoStatus"),
+    request: {
+      title: translate("staffKitchen.requestTitle"),
+      line: (details: { reference: string; date: string }) =>
+        translate("staffKitchen.requestLine", details),
+      contactNote: translate("staffKitchen.requestContactNote"),
+    },
+    profile: {
+      title: translate("staffKitchen.profileTitle"),
+      tag: translate("staffKitchen.profileTag"),
+      email: translate("staffKitchen.profileEmail"),
+      name: translate("staffKitchen.profileName"),
+      phone: translate("staffKitchen.profilePhone"),
+    },
+    accessLogged: translate("staffKitchen.accessLogged"),
+    notFound: {
+      title: translate("staffKitchen.notFoundTitle"),
+      body: translate("staffKitchen.notFoundBody"),
+    },
+    cannotShow: {
+      title: translate("staffKitchen.cannotShowTitle"),
+      body: translate("staffKitchen.cannotShowBody"),
+    },
+  };
+}
+
+export type StaffKitchenCopy = ReturnType<typeof resolveStaffKitchenCopy>;
+
+/** The notes of one client's kitchen: the list, the field that adds one and the words of its answers. The sentences of a
+ *  refused text are the shared field errors', found by the code. */
+export function resolveStaffNotesCopy(translate: ContentTranslator) {
+  return {
+    title: translate("staffNotes.title"),
+    count: (count: number) => translate("staffNotes.count", { count }),
+    newestFirst: translate("staffNotes.newestFirst"),
+    truncated: (count: number) => translate("staffNotes.truncated", { count }),
+    empty: translate("staffNotes.empty"),
+    when: (details: { date: string; ago: string }) =>
+      translate("staffNotes.when", details),
+    fieldLabel: translate("staffNotes.fieldLabel"),
+    fieldPlaceholder: translate("staffNotes.fieldPlaceholder"),
+    counter: (count: number) =>
+      translate("staffNotes.counter", { count, max: NOTE_TEXT_MAX_LENGTH }),
+    submit: translate("staffNotes.submit"),
+    submitting: translate("staffNotes.submitting"),
+    saved: translate("staffNotes.saved"),
+    errorTitle: translate("staffNotes.errorTitle"),
+    errorBody: translate("staffNotes.errorBody"),
+    forbiddenBody: translate("staffNotes.forbiddenBody"),
+    kitchenGoneBody: translate("staffNotes.kitchenGoneBody"),
+    dataLine: translate("staffNotes.dataLine"),
+  };
+}
+
+export type StaffNotesCopy = ReturnType<typeof resolveStaffNotesCopy>;
+
+/** What staff do to one client's kitchen besides noting: set the request's status, make a hidden kitchen visible again,
+ *  and the sheet that says the session ended. */
+export function resolveStaffActionsCopy(translate: ContentTranslator) {
+  return {
+    status: {
+      selectLabel: translate("staffActions.statusSelectLabel"),
+      placeholder: translate("staffActions.statusPlaceholder"),
+      save: translate("staffActions.statusSave"),
+      saving: translate("staffActions.statusSaving"),
+      saved: translate("staffActions.statusSaved"),
+      errorTitle: translate("staffActions.statusErrorTitle"),
+      errorBody: translate("staffActions.statusErrorBody"),
+      changedMeanwhile: translate("staffActions.statusChangedMeanwhile"),
+      notRecognised: translate("staffActions.statusNotRecognised"),
+      notSent: translate("staffActions.statusNotSent"),
+      changedMeanwhileUnread: translate(
+        "staffActions.statusChangedMeanwhileUnread",
+      ),
+      notSentUnread: translate("staffActions.statusNotSentUnread"),
+      forbiddenBody: translate("staffActions.statusForbiddenBody"),
+      kitchenGoneBody: translate("staffActions.statusKitchenGoneBody"),
+    },
+    unhide: {
+      action: translate("staffActions.unhideAction"),
+      title: translate("staffActions.unhideTitle"),
+      body: translate("staffActions.unhideBody"),
+      shareNote: translate("staffActions.unhideShareNote"),
+      confirm: translate("staffActions.unhideConfirm"),
+      busy: translate("staffActions.unhideBusy"),
+      cancel: translate("staffActions.unhideCancel"),
+      done: translate("staffActions.unhideDone"),
+      notHidden: translate("staffActions.unhideNotHidden"),
+      notHiddenUnread: translate("staffActions.unhideNotHiddenUnread"),
+      gone: translate("staffActions.unhideGone"),
+      forbiddenBody: translate("staffActions.unhideForbiddenBody"),
+    },
+    session: {
+      title: translate("staffActions.sessionTitle"),
+      body: translate("staffActions.sessionBody"),
+      bodyKeepsText: translate("staffActions.sessionBodyKeepsText"),
+      signIn: translate("staffActions.sessionSignIn"),
+      newTab: translate("staffActions.sessionNewTab"),
+      recheck: translate("staffActions.sessionRecheck"),
+      rechecking: translate("staffActions.sessionRechecking"),
+      stillSignedOut: translate("staffActions.sessionStillSignedOut"),
+      recheckFailed: translate("staffActions.sessionRecheckFailed"),
+      otherAccount: translate("staffActions.sessionOtherAccount"),
+    },
+  };
+}
+
+export type StaffActionsCopy = ReturnType<typeof resolveStaffActionsCopy>;
+
+/**
+ * The list of the account's kitchens. A kitchen the person never named is called by the name its facts generate
+ * (`resolvePresetName`), so the list and the preset chooser say the same thing of the same room.
+ */
+export function resolveAccountKitchensCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountKitchens.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountKitchens.title"),
+    loading: translate("accountKitchens.loading"),
+    count: (count: number) => translate("accountKitchens.count", { count }),
+    sortNewestFirst: translate("accountKitchens.sortNewestFirst"),
+    sentBadge: translate("accountKitchens.sentBadge"),
+    draftBadge: translate("accountKitchens.draftBadge"),
+    modified: (when: string) => translate("accountKitchens.modified", { when }),
+    kitchenName: (summary: KitchenSummary) =>
+      resolvePresetName(translate, summary),
+    meta: (summary: KitchenSummary) =>
+      translate("accountKitchens.meta", {
+        shape: resolveShapeShortName(translate, summary.shape),
+        walls: summary.wallsMm.join(PRESET_WALL_JOINER),
+      }),
+    price: resolvePriceCopy(translate),
+    open: translate("accountKitchens.open"),
+    openNamed: (name: string) =>
+      translate("accountKitchens.openNamed", { name }),
+    loadMore: translate("accountKitchens.loadMore"),
+    loadingMore: translate("accountKitchens.loadingMore"),
+    emptyTitle: translate("accountKitchens.emptyTitle"),
+    emptyBody: translate("accountKitchens.emptyBody"),
+    startKitchen: translate("accountKitchens.startKitchen"),
+    actions: resolveKitchenActionsCopy(translate),
+    rename: resolveKitchenRenameCopy(translate),
+    duplicate: resolveKitchenDuplicateCopy(translate),
+    remove: resolveKitchenRemoveCopy(translate),
+    share: resolveKitchenShareCopy(translate),
+    alreadyGone: translate("accountKitchens.alreadyGone"),
+  };
+}
+
+function resolveKitchenActionsCopy(translate: ContentTranslator) {
+  return {
+    moreFor: (name: string) =>
+      translate("accountKitchens.moreActions", { name }),
+    close: translate("accountKitchens.close"),
+    rename: translate("accountKitchens.menuRename"),
+    duplicate: translate("accountKitchens.menuDuplicate"),
+    share: translate("accountKitchens.menuShare"),
+    delete: translate("accountKitchens.menuDelete"),
+    hide: translate("accountKitchens.menuHide"),
+  };
+}
+
+function resolveKitchenRenameCopy(translate: ContentTranslator) {
+  return {
+    label: translate("accountKitchens.renameLabel"),
+    save: translate("accountKitchens.renameSave"),
+    saving: translate("accountKitchens.renameSaving"),
+    cancel: translate("accountKitchens.cancel"),
+    fieldError: (code: AccountIssueCode) =>
+      code === "REQUIRED"
+        ? translate("accountKitchens.renameRequired")
+        : resolveAccountFieldError(translate, { field: "name", code }),
+  };
+}
+
+function resolveKitchenDuplicateCopy(translate: ContentTranslator) {
+  return {
+    nameOf: (name: string) => translate("accountKitchens.copyName", { name }),
+    pending: translate("accountKitchens.copying"),
+    created: translate("accountKitchens.copyCreated"),
+    failed: translate("accountKitchens.copyFailed"),
+  };
+}
+
+/** The two ways a kitchen leaves the list: a draft is deleted, a sent kitchen is hidden. */
+function resolveKitchenRemoveCopy(translate: ContentTranslator) {
+  return {
+    cancel: translate("accountKitchens.cancel"),
+    deleteTitle: (name: string) =>
+      translate("accountKitchens.deleteTitle", { name }),
+    deleteBody: translate("accountKitchens.deleteBody"),
+    deleteConfirm: translate("accountKitchens.deleteConfirm"),
+    deleteBusy: translate("accountKitchens.deleteBusy"),
+    deleted: translate("accountKitchens.deleted"),
+    sentMeanwhile: translate("accountKitchens.sentMeanwhile"),
+    hideTitle: translate("accountKitchens.hideTitle"),
+    hideBody: (strong: RichTagRenderer) =>
+      translate.rich("accountKitchens.hideBody", { strong }),
+    hideConfirm: translate("accountKitchens.hideConfirm"),
+    hideBusy: translate("accountKitchens.hideBusy"),
+    hidden: translate("accountKitchens.hidden"),
+    notSentMeanwhile: translate("accountKitchens.notSentMeanwhile"),
+  };
+}
+
+function resolveKitchenShareCopy(translate: ContentTranslator) {
+  return {
+    title: translate("accountKitchens.shareTitle"),
+    body: translate("accountKitchens.shareBody"),
+    linkLabel: translate("accountKitchens.shareLinkLabel"),
+    active: translate("accountKitchens.shareActive"),
+    create: translate("accountKitchens.shareCreate"),
+    reissue: translate("accountKitchens.shareReissue"),
+    reissueWarning: translate("accountKitchens.shareReissueWarning"),
+    shownOnce: translate("accountKitchens.shareShownOnce"),
+    copy: translate("accountKitchens.shareCopy"),
+    copied: translate("accountKitchens.shareCopied"),
+    stop: translate("accountKitchens.shareStop"),
+    stopWarning: translate("accountKitchens.shareStopWarning"),
+    stopping: translate("accountKitchens.shareStopping"),
+    stopped: translate("accountKitchens.shareStopped"),
+    error: translate("accountKitchens.shareError"),
+    close: translate("accountKitchens.close"),
+    cancel: translate("accountKitchens.cancel"),
+  };
+}
+
+export type AccountKitchensCopy = ReturnType<typeof resolveAccountKitchensCopy>;
+
+/** The profile page's own text: the optional details a signed-in account keeps. The e-mail label is the forms' own. */
+export function resolveAccountProfileCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountProfile.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountProfile.title"),
+    nameLabel: translate("accountProfile.nameLabel"),
+    namePlaceholder: translate("accountProfile.namePlaceholder"),
+    addressLabel: translate("accountProfile.addressLabel"),
+    addressPlaceholder: translate("accountProfile.addressPlaceholder"),
+    phoneLabel: translate("accountProfile.phoneLabel"),
+    phonePlaceholder: translate("accountProfile.phonePlaceholder"),
+    phoneHint: translate("accountProfile.phoneHint"),
+    submit: translate("accountProfile.submit"),
+    submitting: translate("accountProfile.submitting"),
+    saved: translate("accountProfile.saved"),
+    nothingToSave: translate("accountProfile.nothingToSave"),
+    privacyNotice: translate("accountProfile.privacyNotice"),
+    privacyNoticeNewTab: translate("accountProfile.privacyNoticeNewTab"),
+  };
+}
+
+export type AccountProfileCopy = ReturnType<typeof resolveAccountProfileCopy>;
+
+/** The password-change page's own text. The password policy hint and the field refusals are the forms' own. */
+export function resolveAccountPasswordCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountPassword.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountPassword.title"),
+    currentPasswordLabel: translate("accountPassword.currentPasswordLabel"),
+    newPasswordLabel: translate("accountPassword.newPasswordLabel"),
+    currentPasswordWrong: translate("accountPassword.currentPasswordWrong"),
+    submit: translate("accountPassword.submit"),
+    submitting: translate("accountPassword.submitting"),
+    changedTitle: translate("accountPassword.changedTitle"),
+    changedBody: translate("accountPassword.changedBody"),
+    backToProfile: translate("accountPassword.backToProfile"),
+    changedSignInBody: translate("accountPassword.changedSignInBody"),
+    logIn: translate("accountPassword.logIn"),
+  };
+}
+
+export type AccountPasswordCopy = ReturnType<typeof resolveAccountPasswordCopy>;
+
+/** The e-mail change's own text: the confirm page that the e-mailed link opens, and the sheet on the profile that asks
+ *  for the link. The field refusals and the service notices are the forms' own. */
+export function resolveAccountEmailChangeCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountEmailChange.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountEmailChange.title"),
+    lead: translate("accountEmailChange.lead"),
+    confirm: translate("accountEmailChange.confirm"),
+    confirming: translate("accountEmailChange.confirming"),
+    changedTitle: translate("accountEmailChange.changedTitle"),
+    changedBody: translate("accountEmailChange.changedBody"),
+    logIn: translate("accountEmailChange.logIn"),
+    linkInvalidTitle: translate("accountEmailChange.linkInvalidTitle"),
+    linkInvalidBody: translate("accountEmailChange.linkInvalidBody"),
+    openProfile: translate("accountEmailChange.openProfile"),
+    changeControl: translate("accountEmailChange.changeControl"),
+    sheetTitle: translate("accountEmailChange.sheetTitle"),
+    newEmailLabel: translate("accountEmailChange.newEmailLabel"),
+    passwordHint: translate("accountEmailChange.passwordHint"),
+    send: translate("accountEmailChange.send"),
+    sending: translate("accountEmailChange.sending"),
+    cancel: translate("accountEmailChange.cancel"),
+    sentTitle: translate("accountEmailChange.sentTitle"),
+    sentBody: translate("accountEmailChange.sentBody"),
+    close: translate("accountEmailChange.close"),
+  };
+}
+
+export type AccountEmailChangeCopy = ReturnType<
+  typeof resolveAccountEmailChangeCopy
+>;
+
+/** The undo page's own text: the form that asks for a new password, the restored screen and the one screen for a link
+ *  that is no longer good. The field refusals and the service notices are the forms' own. */
+export function resolveAccountRevertEmailCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountRevertEmail.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountRevertEmail.title"),
+    lead: translate("accountRevertEmail.lead"),
+    submit: translate("accountRevertEmail.submit"),
+    submitting: translate("accountRevertEmail.submitting"),
+    doneTitle: translate("accountRevertEmail.doneTitle"),
+    doneBody: translate("accountRevertEmail.doneBody"),
+    logIn: translate("accountRevertEmail.logIn"),
+    linkInvalidTitle: translate("accountRevertEmail.linkInvalidTitle"),
+    linkInvalidBody: translate("accountRevertEmail.linkInvalidBody"),
+    passwordUnchanged: translate("accountRevertEmail.passwordUnchanged"),
+  };
+}
+
+export type AccountRevertEmailCopy = ReturnType<
+  typeof resolveAccountRevertEmailCopy
+>;
+
+/** The data-export page's own text. The refusal for an account too large to export is the profile namespace's leaf; the
+ *  limit, offline and unavailable notices are the forms' own. */
+export function resolveAccountExportCopy(translate: ContentTranslator) {
+  return {
+    metaTitle: translate("accountExport.metaTitle", {
+      brand: translate("brand"),
+    }),
+    title: translate("accountExport.title"),
+    lead: translate("accountExport.lead"),
+    submit: translate("accountExport.submit"),
+    submitting: translate("accountExport.submitting"),
+    preparing: translate("accountExport.preparing"),
+    downloaded: translate("accountExport.downloaded"),
+    downloadedHint: translate("accountExport.downloadedHint"),
+    downloadAgain: translate("accountExport.downloadAgain"),
+    backToProfile: translate("accountExport.backToProfile"),
+    tooLarge: translate("accountProfile.exportTooLarge"),
+  };
+}
+
+export type AccountExportCopy = ReturnType<typeof resolveAccountExportCopy>;
+
+function resolveShapeShortName(
+  translate: ContentTranslator,
+  shape: DesignRoomShape,
+): string {
+  switch (shape) {
+    case "linear":
+      return translate("room.shapes.linear.short");
+    case "L":
+      return translate("room.shapes.L.short");
+    case "U":
+      return translate("room.shapes.U.short");
+    default:
+      return assertNever(shape);
+  }
+}
+
+/** The question that signs the person out of every device, and the sentence for the one failure it names itself. A
+ *  connection that dropped is told by the form kit's offline notice, which every account screen shares. */
+export function resolveLogoutEverywhereCopy(translate: ContentTranslator) {
+  return {
+    title: translate("logoutEverywhere.title"),
+    description: translate("logoutEverywhere.description"),
+    confirm: translate("logoutEverywhere.confirm"),
+    busy: translate("logoutEverywhere.busy"),
+    cancel: translate("logoutEverywhere.cancel"),
+    unavailable: translate("logoutEverywhere.unavailable"),
+  };
+}
+
+/** The sheet that tells the editor its signed-in session ended. `returnNote` is said only beside a way back to a saved
+ *  kitchen, and it promises nothing about edits that were not saved. */
+export function resolveSessionExpiredSheetCopy(translate: ContentTranslator) {
+  return {
+    title: translate("sessionExpiredSheet.title"),
+    body: translate("sessionExpiredSheet.body"),
+    returnNote: translate("sessionExpiredSheet.returnNote"),
+    signIn: translate("sessionExpiredSheet.signIn"),
+    later: translate("sessionExpiredSheet.later"),
+  };
+}
+
+export type SessionExpiredSheetCopy = ReturnType<
+  typeof resolveSessionExpiredSheetCopy
+>;
+
+/** The card Step 1 shows once to a visitor who has just left an edited editor. It says the kitchen is kept in this
+ *  browser and can be attached to an account, and never that it is saved in one (plan M8B Lot 2 section 14.2, U15-5). */
+export function resolveVisitorAccountCardCopy(translate: ContentTranslator) {
+  return {
+    title: translate("visitorAccountCard.title"),
+    body: translate("visitorAccountCard.body"),
+    createAccount: translate("visitorAccountCard.createAccount"),
+    notNow: translate("visitorAccountCard.notNow"),
+  };
+}
+
+/** The question that attaches the browser's kitchens to the account just signed in, and its one answer. The count is a
+ *  value, never a sentence of its own: each language agrees the whole sentence with it in the catalogue. */
+export function resolveClaimDialogCopy(translate: ContentTranslator) {
+  return {
+    title: translate("claimDialog.title"),
+    question: (count: number, strong: RichTagRenderer) =>
+      translate.rich("claimDialog.question", { count, strong }),
+    warning: translate("claimDialog.warning"),
+    confirm: translate("claimDialog.confirm"),
+    busy: translate("claimDialog.busy"),
+    cancel: translate("claimDialog.cancel"),
+    claimedTitle: (count: number, check: RichTagRenderer) =>
+      translate.rich("claimDialog.claimedTitle", { count, check }),
+    continueOn: translate("claimDialog.continue"),
+    openKitchens: translate("claimDialog.openKitchens"),
+  };
+}
+
+export type ClaimDialogCopy = ReturnType<typeof resolveClaimDialogCopy>;
+
+/** The screen after a registration was accepted. The address is the one the person typed, passed as a value. */
+export function resolveAccountCheckInboxCopy(translate: ContentTranslator) {
+  return {
+    headerTitle: translate("accountCheckInbox.headerTitle"),
+    title: translate("accountCheckInbox.title"),
+    body: (email: string, strong: RichTagRenderer) =>
+      translate.rich("accountCheckInbox.body", { email, strong }),
+    validity: translate("accountCheckInbox.validity"),
+    retryOrLogIn: (link: RichTagRenderer) =>
+      translate.rich("accountCheckInbox.retryOrLogIn", { link }),
+    wrongAddress: translate("accountCheckInbox.wrongAddress"),
+  };
+}
+
+export type AccountCheckInboxCopy = ReturnType<
+  typeof resolveAccountCheckInboxCopy
+>;
+
+/** The stand-in for the privacy notice. `version` is the notice version the stub holds the place of. */
+export function resolvePrivacyNoticeCopy(
+  translate: ContentTranslator,
+  version: string,
+) {
+  return {
+    metaTitle: translate("privacyNotice.metaTitle", {
+      brand: translate("brand"),
+    }),
+    badge: translate("privacyNotice.badge"),
+    title: translate("privacyNotice.title"),
+    placeholder: translate("privacyNotice.placeholder", { version }),
+    backToConfigurator: translate("accountShell.backToConfigurator"),
+  };
+}
+
+export type PrivacyNoticeCopy = ReturnType<typeof resolvePrivacyNoticeCopy>;
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 /** Walls are written in the order A, B, C and joined by the multiplication sign, which both shipped locales share. */
@@ -847,6 +2126,17 @@ function resolvePresetFinishName(
   return name.toLowerCase();
 }
 
+/** The words every price figure is made of, which the configurator's bar and the account's kitchen cards share. */
+export function resolvePriceCopy(translate: ContentTranslator) {
+  return {
+    startingPrefix: translate("price.startingPrefix"),
+    amountWithCurrency: (amount: string) =>
+      translate("price.amountWithCurrency", { amount }),
+    overflowingTotalWarning: translate("price.overflowingTotalWarning"),
+    emptyKitchenPrompt: translate("price.emptyKitchenPrompt"),
+  };
+}
+
 export function resolveContent(translate: ContentTranslator) {
   return {
     // `cornerDirection` stays the second positional argument, so existing two-argument calls keep their meaning.
@@ -884,7 +2174,8 @@ export function resolveContent(translate: ContentTranslator) {
       backAction: translate("configure.backAction"),
       backConfirm: {
         title: translate("configure.backConfirm.title"),
-        body: translate("configure.backConfirm.body"),
+        bodyClient: translate("configure.backConfirm.bodyClient"),
+        bodyVisitor: translate("configure.backConfirm.bodyVisitor"),
         confirm: translate("configure.backConfirm.confirm"),
         stay: translate("configure.backConfirm.stay"),
       },
@@ -1037,13 +2328,7 @@ export function resolveContent(translate: ContentTranslator) {
         corner: translate("panel.structuralReasons.corner"),
       },
     },
-    price: {
-      startingPrefix: translate("price.startingPrefix"),
-      amountWithCurrency: (amount: string) =>
-        translate("price.amountWithCurrency", { amount }),
-      overflowingTotalWarning: translate("price.overflowingTotalWarning"),
-      emptyKitchenPrompt: translate("price.emptyKitchenPrompt"),
-    },
+    price: resolvePriceCopy(translate),
     priceBreakdown: {
       title: translate("priceBreakdown.title"),
       disclaimer: translate("priceBreakdown.disclaimer"),
@@ -1158,6 +2443,8 @@ export function resolveContent(translate: ContentTranslator) {
       bodyInvalid: translate("designLoadError.bodyInvalid"),
       // The "wrong browser" refusal (ADR 0114 decision 5).
       bodyUnavailable: translate("designLoadError.bodyUnavailable"),
+      // A signed-in client's one sentence: it names no cause, so it tells nothing of why the design was refused.
+      bodyClient: translate("designLoadError.bodyClient"),
       startOver: translate("designLoadError.startOver"),
       // The sentence a refused page read is answered with: the interceptor reads it from the catalogue itself.
       tooManyRequests: translate("designLoadError.tooManyRequests"),

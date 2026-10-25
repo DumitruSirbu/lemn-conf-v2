@@ -141,7 +141,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
       const saved = await repository.saveAuthorized({
         id,
         design: updated,
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: FIRST_REVISION,
         requestVisitor: { kind: "absent" },
       });
@@ -181,7 +181,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         repository.saveAuthorized({
           id,
           design: { ...KITCHEN_L_DESIGN, presetId: "attacker-preset" },
-          writeTokenHash: WRONG_TOKEN_HASH,
+          credential: { kind: "write-token", hash: WRONG_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -204,7 +204,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         repository.saveAuthorized({
           id: "does-not-exist-00000000",
           design: KITCHEN_L_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -231,7 +231,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         repository.saveAuthorized({
           id,
           design: { ...KITCHEN_L_DESIGN, presetId: "legacy-overwrite" },
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: FIRST_REVISION,
           requestVisitor: { kind: "absent" },
         }),
@@ -415,7 +415,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
       const saved = await repository.saveAuthorized({
         id,
         design: firstTab,
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "absent" },
       });
@@ -423,7 +423,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         repository.saveAuthorized({
           id,
           design: secondTab,
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: revision,
           requestVisitor: { kind: "absent" },
         }),
@@ -447,21 +447,21 @@ describe("saveAuthorized revisions (WEB-003)", () => {
       const first = await repository.saveAuthorized({
         id,
         design: designNamed("first"),
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "absent" },
       });
       const second = await repository.saveAuthorized({
         id,
         design: designNamed("second"),
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: first.revision,
         requestVisitor: { kind: "absent" },
       });
       const third = await repository.saveAuthorized({
         id,
         design: designNamed("third"),
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: second.revision,
         requestVisitor: { kind: "absent" },
       });
@@ -485,7 +485,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         repository.saveAuthorized({
           id,
           design: designNamed("stale"),
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: "9999",
           requestVisitor: { kind: "absent" },
         }),
@@ -508,7 +508,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
           repository.saveAuthorized({
             id,
             design: designNamed("attacker"),
-            writeTokenHash: WRONG_TOKEN_HASH,
+            credential: { kind: "write-token", hash: WRONG_TOKEN_HASH },
             expectedRevision: claimed,
             requestVisitor: { kind: "absent" },
           }),
@@ -543,7 +543,7 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         repository.saveAuthorized({
           id,
           design: designNamed("malformed-revision"),
-          writeTokenHash: CORRECT_TOKEN_HASH,
+          credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
           expectedRevision: value,
           requestVisitor: { kind: "absent" },
         }),
@@ -599,7 +599,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const saved = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "owned-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "present", visitorHash: OWNER_HASH },
       });
@@ -622,7 +622,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const foreign = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "foreign-cookie-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "present", visitorHash: STRANGER_HASH },
       });
@@ -631,7 +631,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const cookieless = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "cookieless-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: foreign.revision,
         requestVisitor: { kind: "absent" },
       });
@@ -664,7 +664,7 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
       const staleSave = await repository.saveAuthorized({
         id,
         design: { ...KITCHEN_L_DESIGN, presetId: "stale-cookie-save" },
-        writeTokenHash: CORRECT_TOKEN_HASH,
+        credential: { kind: "write-token", hash: CORRECT_TOKEN_HASH },
         expectedRevision: revision,
         requestVisitor: { kind: "present", visitorHash: OWNER_HASH },
       });
@@ -713,7 +713,9 @@ describe("resumeVisitor (D3)", () => {
   it.skipIf(!hasLiveDatabase)(
     "answers none for a hash no row carries",
     async () => {
-      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+      const lookup = await testRepository().resume({
+        visitorHash: VISITOR_HASH,
+      });
 
       expect(lookup).toEqual({ kind: "none" });
     },
@@ -727,7 +729,9 @@ describe("resumeVisitor (D3)", () => {
       const newerId = await mintWithVisitor(VISITOR_HASH);
       await setUpdatedAt(newerId, 1);
 
-      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+      const lookup = await testRepository().resume({
+        visitorHash: VISITOR_HASH,
+      });
 
       expect(lookup).toEqual({ kind: "found", id: newerId });
     },
@@ -745,7 +749,9 @@ describe("resumeVisitor (D3)", () => {
       `;
       const mineId = await mintWithVisitor(VISITOR_HASH);
 
-      const lookup = await testRepository().resumeVisitor(VISITOR_HASH);
+      const lookup = await testRepository().resume({
+        visitorHash: VISITOR_HASH,
+      });
 
       expect(lookup).toEqual({ kind: "found", id: mineId });
     },
@@ -822,15 +828,19 @@ describe("mint rotation (Amendment H1)", () => {
       mintedIds.push(newId);
 
       expect((await rowFor(id)).visitor_hash).toBe(newHash);
-      await expect(testRepository().resumeVisitor(oldHash)).resolves.toEqual({
+      await expect(
+        testRepository().resume({ visitorHash: oldHash }),
+      ).resolves.toEqual({
         kind: "none",
       });
-      await expect(testRepository().resumeVisitor(newHash)).resolves.toEqual({
+      await expect(
+        testRepository().resume({ visitorHash: newHash }),
+      ).resolves.toEqual({
         kind: "found",
         id: newId,
       });
       await expect(
-        testRepository().loadOwned({ id, visitorHash: newHash }),
+        testRepository().loadOwned({ id, accessor: { visitorHash: newHash } }),
       ).resolves.toMatchObject({ kind: "found" });
     },
   );
@@ -907,7 +917,7 @@ describe("loadOwned (Amendment H2)", () => {
 
       const outcome = await testRepository().loadOwned({
         id,
-        visitorHash: OWNER_HASH,
+        accessor: { visitorHash: OWNER_HASH },
       });
 
       expect(outcome.kind).toBe("found");
@@ -930,7 +940,10 @@ describe("loadOwned (Amendment H2)", () => {
       mintedIds.push(id);
 
       await expect(
-        testRepository().loadOwned({ id, visitorHash: STRANGER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: STRANGER_HASH },
+        }),
       ).resolves.toEqual({ kind: "none" });
     },
   );
@@ -941,7 +954,10 @@ describe("loadOwned (Amendment H2)", () => {
       const id = await insertTokenlessOwnerlessRow();
 
       await expect(
-        testRepository().loadOwned({ id, visitorHash: OWNER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: OWNER_HASH },
+        }),
       ).resolves.toEqual({ kind: "none" });
     },
   );
@@ -952,7 +968,7 @@ describe("loadOwned (Amendment H2)", () => {
       await expect(
         testRepository().loadOwned({
           id: "does-not-exist-00000000",
-          visitorHash: OWNER_HASH,
+          accessor: { visitorHash: OWNER_HASH },
         }),
       ).resolves.toEqual({ kind: "none" });
     },
@@ -964,10 +980,16 @@ describe("loadOwned (Amendment H2)", () => {
       const id = await insertInvalidDocumentRow(OWNER_HASH);
 
       await expect(
-        testRepository().loadOwned({ id, visitorHash: OWNER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: OWNER_HASH },
+        }),
       ).rejects.toThrow(InvalidDesignError);
       await expect(
-        testRepository().loadOwned({ id, visitorHash: STRANGER_HASH }),
+        testRepository().loadOwned({
+          id,
+          accessor: { visitorHash: STRANGER_HASH },
+        }),
       ).resolves.toEqual({ kind: "none" });
     },
   );

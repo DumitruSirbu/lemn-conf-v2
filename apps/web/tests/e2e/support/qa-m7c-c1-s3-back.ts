@@ -14,15 +14,20 @@ import { APPROVED_ROMANIAN_MESSAGES } from "../../support/approved-romanian-mess
 
 import type { Locale } from "./seeded-design";
 
-/** Q1b's approved set and the heading the owner added on 2026-10-01
- *  (`docs/decisions/0104` Amendment D1 and D2), byte for byte. */
+/** The confirmation's wording as the owner approved it on 2026-10-20 (plan M8B Lot 2 section 14, U15c), byte for byte.
+ *  These specs run signed out, so `body` is the visitor's. */
 export const APPROVED_COPY: Readonly<
   Record<Locale, { title: string; body: string; confirm: string; stay: string }>
 > = {
-  ro: APPROVED_ROMANIAN_MESSAGES.configure.backConfirm,
+  ro: {
+    title: APPROVED_ROMANIAN_MESSAGES.configure.backConfirm.title,
+    body: APPROVED_ROMANIAN_MESSAGES.configure.backConfirm.bodyVisitor,
+    confirm: APPROVED_ROMANIAN_MESSAGES.configure.backConfirm.confirm,
+    stay: APPROVED_ROMANIAN_MESSAGES.configure.backConfirm.stay,
+  },
   ru: {
-    title: "Изменения будут потеряны",
-    body: "Если вернёшься к предыдущему шагу, внесённые изменения будут потеряны. Точно хочешь заново задать размеры кухни?",
+    title: "Вернуться к предыдущему шагу?",
+    body: "Изменения сохраняются в этом браузере автоматически. Если вернёшься к предыдущему шагу, кухня останется в этом браузере, и ты сможешь начать новую.",
     confirm: "Назад к комнате",
     stay: "Остаться здесь",
   },

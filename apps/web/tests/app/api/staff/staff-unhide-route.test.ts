@@ -1,0 +1,327 @@
+import { NextRequest } from "next/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { designNotFoundResponse } from "@/lib/server/design-errors";
+import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
+
+import {
+  DRIVER_FAILURE_MARKER,
+  ORIGIN,
+  captureConsole,
+  freshAccountWorld,
+  jsonOf,
+  wireOf,
+  type AccountWorld,
+} from "../../../support/account-world";
+import {
+  freshStaffActionsWorld,
+  plantActionKitchen,
+  signedInStaffNamed,
+  unhideRequest,
+  type StaffActionsWorld,
+} from "../../../support/staff-actions-world";
+import { freshStaffWorld, type StaffWorld } from "../../../support/staff-world";
+
+vi.mock("@/lib/server/account/session-store-instance", () =>
+  import("../../../support/account-world").then((world) =>
+    world.sessionStoreModule(),
+  ),
+);
+vi.mock("@/lib/server/staff/staff-kitchen-actions-store-instance", () =>
+  import("../../../support/staff-actions-world").then((world) =>
+    world.staffKitchenActionsStoreModule(),
+  ),
+);
+
+const route = await import("@/app/api/staff/kitchens/[id]/unhide/route");
+const { POST } = route;
+
+/**
+ * `POST /api/staff/kitchens/{id}/unhide` (ADR 0173). The route clears the hide mark and nothing else, commits it with
+ * its audit row, and says `409 not-hidden` to a kitchen that is not hidden. The owner must accept hide and unhide again
+ * before production (ADR 0172 Amendment G item 3).
+ */
+
+let world: AccountWorld;
+let staffWorld: StaffWorld;
+let actions: StaffActionsWorld;
+let console_: ReturnType<typeof captureConsole>;
+
+beforeEach(() => {
+  world = freshAccountWorld();
+  staffWorld = freshStaffWorld();
+  actions = freshStaffActionsWorld();
+  console_ = captureConsole();
+  vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
+
+async function signedInOperator(email = "operator@example.test") {
+  return signedInStaffNamed({ role: "operator" }, email, "Olga Operator");
+}
+
+async function unhide(
+  id: string,
+  cookie: string,
+  init: Parameters<typeof unhideRequest>[1] = {},
+) {
+  return POST(unhideRequest(id, { cookie, ...init }), {
+    params: Promise.resolve({ id }),
+  });
+}
+
+function heldEvents() {
+  return staffWorld.audit.heldEvents();
+}
+
+describe("a kitchen its client hid", () => {
+  it("is unhidden: 204 with no body, the hide mark cleared and nothing else of the kitchen changed", async () => {
+    const { session } = await signedInOperator();
+    const kitchen = plantActionKitchen({ isHidden: true });
+
+    const answer = await unhide(kitchen.id, session.cookie);
+
+    expect(answer.status).toBe(204);
+    expect(await answer.text()).toBe("");
+    expect(actions.store.heldKitchen(kitchen.id)).toEqual({
+      ...kitchen,
+      isHidden: false,
+    });
+    expect(answer.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("writes one kitchen-unhidden audit row naming the actor and the kitchen, with no detail", async () => {
+    const { session, account } = await signedInOperator();
+    const { id } = plantActionKitchen({ isHidden: true });
+
+    await unhide(id, session.cookie);
+
+    expect(heldEvents()).toEqual([
+      expect.objectContaining({
+        action: "kitchen-unhidden",
+        actorAccountId: account.id,
+        designId: id,
+        detail: null,
+      }),
+    ]);
+  });
+
+  it("keeps its request status and its share links: it touches neither", async () => {
+    const { session, account } = await signedInOperator();
+    const { id } = plantActionKitchen({ isHidden: true });
+    actions.store.plantStatus({
+      designId: id,
+      status: "offer-sent",
+      changedByAccountId: account.id,
+      changedAt: new Date("2026-10-19T10:00:00.000Z"),
+    });
+
+    await unhide(id, session.cookie);
+
+    expect(actions.store.heldStatus(id)?.status).toBe("offer-sent");
+    expect(world.revokedShareLinks).toEqual([]);
+    expect(world.calls.filter((call) => call.startsWith("kitchens."))).toEqual(
+      [],
+    );
+  });
+
+  it("takes no input: any body of a JSON media type, junk or claims or none, is unhidden alike and is never read as input", async () => {
+    const { session } = await signedInOperator();
+    const first = plantActionKitchen({ isHidden: true });
+    const second = plantActionKitchen({ isHidden: true });
+    const third = plantActionKitchen({ isHidden: true });
+
+    const withJunk = await unhide(first.id, session.cookie, {
+      json: "{not json",
+    });
+    const withClaims = await unhide(second.id, session.cookie, {
+      json: { id: "someone-else", role: "administrator" },
+    });
+    const withNone = await POST(
+      new NextRequest(`${ORIGIN}/api/staff/kitchens/${third.id}/unhide`, {
+        method: "POST",
+        headers: {
+          cookie: session.cookie,
+          "sec-fetch-site": "same-origin",
+          "content-type": "application/json",
+          "x-forwarded-for": "192.0.2.10",
+        },
+      }),
+      { params: Promise.resolve({ id: third.id }) },
+    );
+
+    expect([withJunk.status, withClaims.status, withNone.status]).toEqual([
+      204, 204, 204,
+    ]);
+    expect(actions.store.heldKitchen(second.id)?.isHidden).toBe(false);
+    expect(actions.store.heldKitchen(third.id)?.isHidden).toBe(false);
+  });
+
+  it.each([
+    ["no media type", null],
+    ["text/plain", "text/plain"],
+    ["a form", "application/x-www-form-urlencoded"],
+    ["multipart", "multipart/form-data; boundary=x"],
+  ])(
+    "asks for a JSON media type: %s is 415, and nothing is written, counted or audited",
+    async (_, contentType) => {
+      const { session } = await signedInOperator();
+      const kitchen = plantActionKitchen({ isHidden: true });
+
+      const answer = await unhide(kitchen.id, session.cookie, {
+        json: {},
+        contentType,
+      });
+
+      expect(answer.status).toBe(415);
+      expect(actions.store.heldKitchen(kitchen.id)?.isHidden).toBe(true);
+      expect(heldEvents()).toEqual([]);
+    },
+  );
+
+  it("refuses a request from another site before it looks at the media type", async () => {
+    const { session } = await signedInOperator();
+    const kitchen = plantActionKitchen({ isHidden: true });
+
+    const answer = await unhide(kitchen.id, session.cookie, {
+      secFetchSite: "cross-site",
+      contentType: "text/plain",
+    });
+
+    expect(answer.status).toBe(403);
+    expect(actions.store.heldKitchen(kitchen.id)?.isHidden).toBe(true);
+  });
+});
+
+describe("a kitchen that is not hidden", () => {
+  it("is 409 not-hidden and writes no audit row", async () => {
+    const { session } = await signedInOperator();
+    const { id } = plantActionKitchen({ isHidden: false });
+
+    const answer = await unhide(id, session.cookie);
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "not-hidden" });
+    expect(answer.headers.get("cache-control")).toBe("private, no-store");
+    expect(heldEvents()).toEqual([]);
+  });
+
+  it("is 409 for the second of two calls in a row, with one audit row for the first", async () => {
+    const { session } = await signedInOperator();
+    const { id } = plantActionKitchen({ isHidden: true });
+
+    const first = await unhide(id, session.cookie);
+    const second = await unhide(id, session.cookie);
+
+    expect([first.status, second.status]).toEqual([204, 409]);
+    expect(heldEvents()).toHaveLength(1);
+  });
+
+  it("is unhidden once by two calls made at once: one 204, one 409 not-hidden and one audit row", async () => {
+    const { session } = await signedInOperator();
+    const other = await signedInOperator("second@example.test");
+    const { id } = plantActionKitchen({ isHidden: true });
+
+    const answers = await Promise.all([
+      unhide(id, session.cookie),
+      unhide(id, other.session.cookie),
+    ]);
+
+    expect(answers.map(({ status }) => status).sort()).toEqual([204, 409]);
+    const refused = answers.find(({ status }) => status === 409);
+    expect(await jsonOf(refused as Response)).toEqual({ status: "not-hidden" });
+    expect(heldEvents()).toHaveLength(1);
+  });
+});
+
+describe("the one kitchen refusal", () => {
+  it("is byte-identical for an unknown id, a client-deleted kitchen and a visitor's unsent draft", async () => {
+    const { session } = await signedInOperator();
+    const unknown = "U".repeat(21);
+    const deleted = plantActionKitchen({
+      isDeletedByClient: true,
+      isHidden: true,
+    });
+    const visitorDraft = plantActionKitchen({
+      isSent: false,
+      accountId: null,
+      isHidden: true,
+    });
+
+    const refused = await unhide(unknown, session.cookie);
+    const asDeleted = await unhide(deleted.id, session.cookie);
+    const asDraft = await unhide(visitorDraft.id, session.cookie);
+
+    expect(refused.status).toBe(404);
+    expect(await wireOf(refused)).toBe(
+      await wireOf(designNotFoundResponse(unknown)),
+    );
+    expect(await wireOf(asDeleted)).toBe(
+      await wireOf(designNotFoundResponse(deleted.id)),
+    );
+    expect(await wireOf(asDraft)).toBe(
+      await wireOf(designNotFoundResponse(visitorDraft.id)),
+    );
+    expect(heldEvents()).toEqual([]);
+    expect(actions.store.heldKitchen(deleted.id)?.isHidden).toBe(true);
+  });
+
+  it("answers a malformed id without asking the store", async () => {
+    const { session } = await signedInOperator();
+
+    const answer = await unhide("not-an-id", session.cookie);
+
+    expect(answer.status).toBe(404);
+    expect(actions.calls).toEqual([]);
+  });
+});
+
+describe("a write and its audit row are one thing (at the route)", () => {
+  it("answers 503 with no detail when the audit row cannot be staged, and the kitchen stays hidden", async () => {
+    const { session } = await signedInOperator();
+    const { id } = plantActionKitchen({ isHidden: true });
+    vi.spyOn(staffWorld.audit, "stage").mockRejectedValue(
+      new Error(DRIVER_FAILURE_MARKER),
+    );
+
+    const answer = await unhide(id, session.cookie);
+
+    expect(answer.status).toBe(503);
+    expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+    expect(actions.store.heldKitchen(id)?.isHidden).toBe(true);
+    expect(heldEvents()).toEqual([]);
+    expect(actions.calls).toEqual(["actions.unhide"]);
+    expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
+  });
+
+  it("answers 503 when the store fails, with no second attempt", async () => {
+    const { session } = await signedInOperator();
+    const { id } = plantActionKitchen({ isHidden: true });
+    actions.failStore = true;
+
+    const answer = await unhide(id, session.cookie);
+
+    expect(answer.status).toBe(503);
+    expect(actions.calls).toEqual(["actions.unhide"]);
+  });
+
+  it("answers 401 when the session ended between the route's read and the store's write, and the kitchen stays hidden", async () => {
+    const { session, account } = await signedInOperator();
+    const { id } = plantActionKitchen({ isHidden: true });
+    const realUnhide = actions.store.unhide.bind(actions.store);
+    vi.spyOn(actions.store, "unhide").mockImplementation(async (request) => {
+      await world.sessions.revokeAllForAccount(account.id);
+      return realUnhide(request);
+    });
+
+    const answer = await unhide(id, session.cookie);
+
+    expect(answer.status).toBe(401);
+    expect(actions.store.heldKitchen(id)?.isHidden).toBe(true);
+    expect(heldEvents()).toEqual([]);
+  });
+});

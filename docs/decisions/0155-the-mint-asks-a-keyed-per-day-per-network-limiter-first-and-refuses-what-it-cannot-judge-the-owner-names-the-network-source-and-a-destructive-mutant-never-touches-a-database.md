@@ -304,3 +304,12 @@ runbook for replacing the secret: `runbooks/replacing-the-digest-secret.md`.
 ## Note — 2026-10-10 (wave 8G)
 
 **The mint's e2e twin is now 1,600, not 1,100**: the 8F rule (*twice, to the next hundred*) left a margin of four, so a twin's figure is **three times what one whole run makes, rounded up to the next hundred, and the teardown still fails above half**. Measured 510 to 528 designs a run; **the wave that passes 533 raises it**. The e2e notice's words changed, and are true of every twin: `rate limit: an e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); its figure is not the production one`. A **fourth port** (4325) was named beside 4322 to 4324. [ADR 0156](0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md) decision 9.
+
+## Dated note — 2026-10-18: the account purposes extend this limiter (ADR 0172 D5; the scribe; this record's text is not edited)
+
+[ADR 0172](0172-a-client-account-is-an-e-mail-and-an-argon2id-password-a-session-is-a-hashed-host-only-cookie-a-role-is-a-named-set-of-capabilities-and-a-claimed-design-opens-on-any-device.md)
+(**Accepted** 2026-10-18) *extends* this limiter with account purposes (register, login, reset request and token completion
+by network block; login by address; three per-address mail buckets; claim and session saves by account) and one new subject
+kind, an account id, under the same rules: they fail closed, and every figure is provisional. The login's per-address day
+figure is an interim 100; the failure-only back-off the owner approved is not built (ADR 0172 D5, *IMPLEMENTATION STATE*).
+Nothing in this record is superseded. Built but unexercised (ADR 0172 D12).

@@ -166,3 +166,72 @@ test("leaves the page behind it reachable to the pointer, as it already was to T
   await expect(page.getByTestId("price-breakdown-surface")).toHaveCount(0);
   expect(await focusedTestId(page)).toBe("price-breakdown-trigger");
 });
+
+/** The widths the popover is opened at: the branch's first pixel, where the price cell stands furthest left, up to
+ *  the width the project runs at. None is a threshold; the clamp is measured, not declared. */
+const CLAMP_WIDTHS = [900, 930, 1000, 1100, 1440] as const;
+
+const SUB_PIXEL_SLACK = 0.5;
+
+test("never lets the popover's left edge fall inside the screen's safe gap, at any width", async ({
+  page,
+}) => {
+  let widthsWhereTheClampMoved = 0;
+  for (const width of CLAMP_WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForFunction(
+      (expected) => document.documentElement.clientWidth === expected,
+      width,
+    );
+    await page.getByTestId("price-breakdown-trigger").click();
+    const surface = page.getByTestId("price-breakdown-surface");
+    await expect(surface).toBeVisible();
+
+    const measured = await surface.evaluate((element) => {
+      const cell = element instanceof HTMLElement ? element.offsetParent : null;
+      if (!(cell instanceof HTMLElement))
+        throw new Error("the popover has no positioned ancestor to hang from");
+      const box = element.getBoundingClientRect();
+      return {
+        left: box.left,
+        right: box.right,
+        shift: Number.parseFloat(
+          element.style.getPropertyValue("--popover-shift") || "0",
+        ),
+        cellRight: cell.getBoundingClientRect().right,
+        inset: Number.parseFloat(
+          getComputedStyle(element).getPropertyValue("--safe-gap"),
+        ),
+      };
+    });
+
+    expect(measured.left, `at ${String(width)} px`).toBeGreaterThanOrEqual(
+      measured.inset - SUB_PIXEL_SLACK,
+    );
+    // The anchor is kept: before the clamp moves it, the popover hangs from the cell's right edge as the stylesheet
+    // declares, and the clamp moves it by the least that keeps the inset.
+    const hungFromTheCell =
+      measured.cellRight - (measured.right - measured.shift);
+    expect(hungFromTheCell, `at ${String(width)} px`).toBeGreaterThanOrEqual(
+      -SUB_PIXEL_SLACK,
+    );
+    expect(hungFromTheCell, `at ${String(width)} px`).toBeLessThanOrEqual(
+      POPOVER_INSET_FROM_CELL_CEILING_PX,
+    );
+    if (measured.shift > 0) {
+      expect(measured.left, `at ${String(width)} px`).toBeCloseTo(
+        measured.inset,
+        1,
+      );
+      widthsWhereTheClampMoved += 1;
+    }
+
+    await page.keyboard.press("Escape");
+    await expect(surface).toBeHidden();
+  }
+
+  // Non-vacuity: the sweep reaches a width where the unclamped popover would have stood off the safe gap, and a width
+  // where it would not.
+  expect(widthsWhereTheClampMoved).toBeGreaterThan(0);
+  expect(widthsWhereTheClampMoved).toBeLessThan(CLAMP_WIDTHS.length);
+});

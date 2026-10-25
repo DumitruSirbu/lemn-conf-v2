@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { VisitorResumeLookup } from "@lemnaria/persistence";
+import type {
+  DesignAccessor,
+  VisitorResumeLookup,
+} from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -34,11 +37,11 @@ const ROUTES = {
 } as const;
 
 class StubResumeRepository {
-  readonly hashes: string[] = [];
+  readonly accessors: DesignAccessor[] = [];
   constructor(private readonly outcome: VisitorResumeLookup | Error) {}
 
-  resumeVisitor(visitorHash: string): Promise<VisitorResumeLookup> {
-    this.hashes.push(visitorHash);
+  resume(accessor: DesignAccessor): Promise<VisitorResumeLookup> {
+    this.accessors.push(accessor);
     return this.outcome instanceof Error
       ? Promise.reject(this.outcome)
       : Promise.resolve(this.outcome);
@@ -99,7 +102,10 @@ for (const [routeName, { GET }] of Object.entries(ROUTES)) {
       expect(response.headers.getSetCookie()).toEqual([]);
       expect(response.headers.get("cache-control")).toBe("private, no-store");
       expect(await response.text()).toBe("");
-      expect(stub.hashes).toEqual([sha256Hex(WELL_FORMED_VALUE)]);
+      // A request with no session asks as its browser alone: the accessor names no account.
+      expect(stub.accessors).toEqual([
+        { visitorHash: sha256Hex(WELL_FORMED_VALUE) },
+      ]);
     });
 
     it("well-formed matching nothing: the clear carries Secure, Path=/, Max-Age=0 and no Domain", async () => {
@@ -138,7 +144,7 @@ for (const [routeName, { GET }] of Object.entries(ROUTES)) {
           `/${locale}/configurator/room`,
         );
         expectTheClear(response);
-        expect(stub.hashes).toEqual([]);
+        expect(stub.accessors).toEqual([]);
       },
     );
 
@@ -155,7 +161,7 @@ for (const [routeName, { GET }] of Object.entries(ROUTES)) {
         `/${locale}/configurator/room`,
       );
       expect(visitorSetCookies(response)).toEqual([]);
-      expect(stub.hashes).toEqual([]);
+      expect(stub.accessors).toEqual([]);
     });
 
     it("a planted un-prefixed `lemnaria_visitor` is never read: no query, no clear", async () => {
@@ -171,7 +177,7 @@ for (const [routeName, { GET }] of Object.entries(ROUTES)) {
         `/${locale}/configurator/room`,
       );
       expect(response.headers.getSetCookie()).toEqual([]);
-      expect(stub.hashes).toEqual([]);
+      expect(stub.accessors).toEqual([]);
     });
 
     it("a lookup that throws leaves the cookie untouched and logs no value, hash or id", async () => {
@@ -248,7 +254,7 @@ for (const [routeName, { GET }] of Object.entries(ROUTES)) {
 
     expect(response.status).toBe(404);
     expect(response.headers.getSetCookie()).toEqual([]);
-    expect(stub.hashes).toEqual([]);
+    expect(stub.accessors).toEqual([]);
   });
 }
 

@@ -3,10 +3,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
+  ACCOUNT_KIND,
   ADDRESS_KIND,
   BucketSubjectError,
   isMadeSubject,
   STORED_REQUEST_KIND,
+  subjectOfAccountId,
   subjectOfAddress,
   subjectOfNetworkBlock,
   subjectOfStoredRequest,
@@ -320,17 +322,74 @@ describe("subjectOfStoredRequest: the shape of a request's id and nothing else",
   });
 });
 
-describe("the five kinds of subject keep every other's text out", () => {
-  it("is five different kinds, whatever the text", () => {
+describe("an account's id as a subject", () => {
+  const AN_ACCOUNT_ID = "A1b2C3d4E5f6G7h8I9j0_";
+
+  it.each([AN_ACCOUNT_ID, "-".repeat(21), "_".repeat(21), "a".repeat(21)])(
+    "accepts %s under a kind of its own",
+    (id) => {
+      const subject = subjectOfAccountId(id);
+
+      expect(subject.kind).toBe(ACCOUNT_KIND);
+      expect(subject.subject).toBe(id);
+      expect(isMadeSubject(subject)).toBe(true);
+    },
+  );
+
+  it.each([
+    ["twenty characters", "a".repeat(20)],
+    ["twenty-two characters", "a".repeat(22)],
+    ["a space", `${"a".repeat(20)} `],
+    ["a dot", `${"a".repeat(20)}.`],
+    ["a line break at the end", `${"a".repeat(21)}\n`],
+    ["a non-ASCII letter", `${"a".repeat(20)}\u00e9`],
+    ["an address", "ana@example.com"],
+    ["a hash", A_CREDENTIAL_HASH],
+    ["nothing", ""],
+    ["a number", 7 as never],
+    ["null", null as never],
+  ])("refuses %s", (_label, text) => {
+    expect(isRefusedAs(() => subjectOfAccountId(text), ACCOUNT_KIND)).toBe(
+      true,
+    );
+  });
+
+  it("does not put the refused text in the error", () => {
+    const refused = (() => {
+      try {
+        subjectOfAccountId("SECRET-TEXT-MARKER");
+      } catch (failure) {
+        return failure as Error;
+      }
+      return undefined;
+    })();
+
+    expect(refused?.message).not.toContain("SECRET");
+  });
+});
+
+describe("the six kinds of subject keep every other's text out", () => {
+  it("is six different kinds, whatever the text", () => {
     const kinds = [
       subjectOfNetworkBlock(block("ipv4-block", "192.0.2")).kind,
       subjectOfWriteCredentialHash(A_CREDENTIAL_HASH).kind,
       subjectOfVisitorHash(A_CREDENTIAL_HASH).kind,
       subjectOfAddress("ana@example.com").kind,
       subjectOfStoredRequest("0123456789abcdef").kind,
+      subjectOfAccountId("a".repeat(21)).kind,
     ];
 
-    expect(new Set(kinds).size).toBe(5);
+    expect(new Set(kinds).size).toBe(6);
+  });
+
+  it("keeps a design's id and an account's id of one text apart by their kind: the text alone cannot", () => {
+    const sameText = "a".repeat(21);
+
+    expect(subjectOfAccountId(sameText).subject).toBe(sameText);
+    expect(subjectOfAccountId(sameText).kind).toBe(ACCOUNT_KIND);
+    expect(subjectOfAccountId(sameText).kind).not.toBe(
+      subjectOfStoredRequest(sameText).kind,
+    );
   });
 });
 
@@ -497,7 +556,7 @@ describe("bucket-subject.ts", () => {
     );
   }
 
-  it("reads source: exports the five constructors and the question of what they made, and no sixth maker", () => {
+  it("reads source: exports the six constructors and the question of what they made, and no seventh maker", () => {
     const exportedFunctions = [
       ...readSource(SOURCE_FILE).matchAll(/^export function (\w+)\(/gm),
     ].map((match) => match[1]);
@@ -508,6 +567,7 @@ describe("bucket-subject.ts", () => {
       "subjectOfVisitorHash",
       "subjectOfAddress",
       "subjectOfStoredRequest",
+      "subjectOfAccountId",
       "isMadeSubject",
     ]);
   });
@@ -529,13 +589,26 @@ describe("bucket-subject.ts", () => {
     );
   });
 
-  it("reads source: only the save's judge makes a credential's subject, and from the hash the route read", () => {
+  it("reads source: only the save's judge makes a credential's subject, and from the hash the credential holds", () => {
     expect(callersOf("subjectOfWriteCredentialHash")).toEqual([
       "lib/server/rate-limit/judge-save-request.ts",
     ]);
     expect(readSource("lib/server/rate-limit/judge-save-request.ts")).toMatch(
-      /subjectOfWriteCredentialHash\(\s*writeTokenHash\s*\)/,
+      /subjectOfWriteCredentialHash\(\s*credential\.hash\s*\)/,
     );
+  });
+
+  it("reads source: only the save's judge and the account judge make an account's subject, each from an id the caller read from the session", () => {
+    expect(callersOf("subjectOfAccountId").sort()).toEqual([
+      "lib/server/rate-limit/judge-account-request.ts",
+      "lib/server/rate-limit/judge-save-request.ts",
+    ]);
+    expect(readSource("lib/server/rate-limit/judge-save-request.ts")).toMatch(
+      /subjectOfAccountId\(\s*credential\.accountId\s*\)/,
+    );
+    expect(
+      readSource("lib/server/rate-limit/judge-account-request.ts"),
+    ).toMatch(/subjectOfAccountId\(\s*accountId\s*\)/);
   });
 
   it("reads source: the evaluator takes a key's subject kind and text from the subject it is handed alone", () => {

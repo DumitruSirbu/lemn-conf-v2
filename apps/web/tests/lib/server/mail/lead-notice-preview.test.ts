@@ -23,6 +23,8 @@ const BUILDER = "lib/server/mail/lead-notification.ts";
 /** What can send, or read a mail setting: none of it may reach the preview. */
 const SENDING_MODULES = [
   "lib/server/mail/gmail-mail-sender.ts",
+  "lib/server/mail/smtp-mail-sender.ts",
+  "lib/server/mail/smtp-transport.ts",
   "lib/server/mail/create-mail-sender.ts",
   "lib/server/mail/select-mail-sender.ts",
   "lib/server/mail/fake-mail-sender.ts",

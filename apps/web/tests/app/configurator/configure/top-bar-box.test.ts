@@ -36,6 +36,16 @@ const settingsStylesheet = readFileSync(
   "utf8",
 );
 
+/** The account control's own stylesheet: a top-bar cell's child, drawn by the account feature rather than this screen. */
+const accountStylesheet = readFileSync(
+  resolve(import.meta.dirname, "../../../../src/account/account.module.css"),
+  "utf8",
+);
+const globalsStylesheet = readFileSync(
+  resolve(import.meta.dirname, "../../../../src/app/globals.css"),
+  "utf8",
+);
+
 const contentSource = readFileSync(
   resolve(import.meta.dirname, "../../../../src/i18n/content.ts"),
   "utf8",
@@ -47,6 +57,9 @@ const HEIGHT_AT_BASE_COMMIT_PX = 55;
 
 /** Frame D2A's own declaration, `height: 76px` on the band, taken as written (ADR 0104). */
 const RULED_DESKTOP_HEIGHT_PX = 76;
+
+/** What closing the row's gaps returns to the pill: `top-bar-fit.test.ts` holds the model to this same figure. */
+const GAPS_RETURNED_TO_THE_PILL_PX = 121;
 
 /** What the ruling spends on desktop, stated as a number so it cannot be spent twice. */
 const RULED_CANVAS_COST_PX = 21;
@@ -259,6 +272,23 @@ describe("the top bar's box, which the scene pays for", () => {
     expect(mobileHeaderHeight()).toBeLessThan(HEIGHT_AT_BASE_COMMIT_PX);
   });
 
+  it("lets the account control stand in the mobile band without making it taller than the room's tallest control", () => {
+    // The control's target is `--touch-target` high and its negative block margin gives back the difference, so the row
+    // lays out `--account-band-line`: not more than the locale chip (the room's tallest child), which would lift the band.
+    const target = declarationsOf(accountStylesheet, "accountTarget");
+    const touchTarget = pixelsOf(globalsStylesheet, "--touch-target");
+    const bandLine = pixelsOf(target, "--account-band-line");
+    if (touchTarget === undefined || bandLine === undefined)
+      throw new Error("the account control declares no band line to read");
+
+    expect(target).toContain(
+      "margin-block: calc((var(--account-band-line) - var(--touch-target)) / 2);",
+    );
+    expect(touchTarget + 2 * ((bandLine - touchTarget) / 2)).toBe(bandLine);
+    expect(bandLine).toBeLessThanOrEqual(localeChipHeight("mobile"));
+    expect(bandLine).toBeLessThanOrEqual(settingsPillHeight("mobile"));
+  });
+
   it("takes the settings chip as its tallest child on mobile, which is what sets that 53", () => {
     // Non-vacuity for the sum above: it is the band's height only while the settings chip is what the band sizes to.
     const heights = childHeights("mobile");
@@ -299,12 +329,19 @@ describe("the top bar's box, which the scene pays for", () => {
   });
 
   it("stretches every top-bar cell to the ruled band, so the bar keeps one unbroken rule", () => {
-    // A cell that centred itself would hang its rule at its own box's foot and break the one line the five cells draw.
+    // A cell that centred itself would hang its rule at its own box's foot and break the one line the six cells draw.
     expect(declarationsOf(DESKTOP_CSS, "priceRow")).toContain(
       "align-items: stretch;",
     );
-    // A grid item stretches by default; what would break the rule is a cell opting out, so none of the five may.
-    for (const cell of ["nav", "settings", "locale", "priceRow", "actions"]) {
+    // A grid item stretches by default; what would break the rule is a cell opting out, so none of the six may.
+    for (const cell of [
+      "nav",
+      "settings",
+      "account",
+      "locale",
+      "priceRow",
+      "actions",
+    ]) {
       const declarations = `${declarationsOf(MOBILE_CSS, cell)}${declarationsOf(DESKTOP_CSS, cell)}`;
       expect(declarations, cell).not.toContain("align-self:");
     }
@@ -313,7 +350,7 @@ describe("the top bar's box, which the scene pays for", () => {
   it("draws one rule under the whole band, from every cell that stands in it", () => {
     const rule = "border-bottom: 1px solid var(--line-soft);";
 
-    for (const cell of ["nav", "settings", "locale"])
+    for (const cell of ["nav", "settings", "account", "locale"])
       expect(declarationsOf(MOBILE_CSS, cell), cell).toContain(rule);
     // The price and the actions join the band on desktop only; on mobile they are the bottom bar.
     for (const cell of ["priceRow", "actions"])
@@ -327,7 +364,7 @@ describe("the top bar's box, which the scene pays for", () => {
       /(?:^|[;\s])(?:min-)?height:/,
     );
     for (const css of [MOBILE_CSS, DESKTOP_CSS]) {
-      for (const cell of ["nav", "settings", "locale"])
+      for (const cell of ["nav", "settings", "account", "locale"])
         expect(declarationsOf(css, cell), cell).not.toMatch(
           /overflow(?:-[xy])?:/,
         );
@@ -337,10 +374,10 @@ describe("the top bar's box, which the scene pays for", () => {
 
 describe("the row the refreshed frames replaced", () => {
   it("lays the band out as one row rather than a column", () => {
-    // The five cells are grid items of the screen, so "one row" is the screen's own template.
+    // The four cells of the mobile band are grid items of the screen, so "one row" is the screen's own template.
     const screen = declarationsOf(MOBILE_CSS, "screen");
 
-    expect(screen).toContain('"nav      settings locale"');
+    expect(screen).toContain('"nav      settings account  locale"');
     expect(screen).not.toContain("flex-direction: column;");
     expect(declarationsOf(MOBILE_CSS, "nav")).toContain("display: flex;");
     expect(declarationsOf(MOBILE_CSS, "nav")).toContain("align-items: center;");
@@ -358,13 +395,18 @@ describe("the row the refreshed frames replaced", () => {
   });
 
   it("keeps the locale chip out of the flexible space on both shells", () => {
-    // The chip is its own grid item; its track is `auto` on both shells while the settings track takes the residue.
+    // The chip is its own grid item; its track is `auto` on both shells while the settings track takes the residue, and
+    // the account control's track is `auto` beside it, so neither fixed cell can take the residue.
     expect(declarationsOf(MOBILE_CSS, "locale")).toContain("flex: 0 0 auto;");
+    expect(declarationsOf(MOBILE_CSS, "account")).toContain("flex: 0 0 auto;");
     expect(declarationsOf(MOBILE_CSS, "screen")).toContain(
-      "grid-template-columns: minmax(0, 1fr) auto auto;",
+      "grid-template-columns: minmax(0, 1fr) auto auto auto;",
     );
     expect(declarationsOf(DESKTOP_CSS, "screen")).toContain(
-      "grid-template-columns: auto minmax(0, 1fr) auto auto auto;",
+      "grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;",
+    );
+    expect(declarationsOf(DESKTOP_CSS, "screen")).toContain(
+      '"nav settings price actions account locale"',
     );
   });
 
@@ -399,11 +441,90 @@ describe("the row the refreshed frames replaced", () => {
     );
   });
 
+  it("draws the row gaps the fit model credits: four dividers, one gap before each and one after (a declaration pin; the measured effect is the e2e containment test's)", () => {
+    // `top-bar-fit.ts` credits give B with `3 × (28 - 9) + 8 × (14 - 6)` px, and `top-bar-fit.test.ts` holds the model
+    // to that figure. This reads the 8 off the stylesheet: each divider takes the row's gap as the padding of the cell it
+    // precedes and again as its own margin, so a fifth divider, or a cell without its gap, moves what give B returns.
+    const NAV_GAPS = 3;
+    const DIVIDED_CELLS = ["priceRow", "actions", "account", "locale"];
+    const gapBefore = DIVIDED_CELLS.filter((cell) =>
+      declarationsOf(DESKTOP_CSS, cell).includes(
+        "padding-left: var(--top-bar-row-gap);",
+      ),
+    );
+    const uncommented = DESKTOP_CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+    const dividers = [
+      ...uncommented.matchAll(/([^{}]*)::before\s*\{([^}]*)\}/g),
+    ].filter(([, , declarations]) =>
+      declarations?.includes("margin-right: var(--top-bar-row-gap);"),
+    );
+    const dividerSelectors = dividers.flatMap(([, selectors]) =>
+      (selectors ?? "").split(","),
+    );
+
+    expect(gapBefore).toEqual(DIVIDED_CELLS);
+    expect(dividerSelectors.length).toBe(DIVIDED_CELLS.length);
+    for (const cell of DIVIDED_CELLS)
+      expect(uncommented, cell).toMatch(new RegExp(`\\.${cell}::before`));
+    const rowGaps = 2 * DIVIDED_CELLS.length;
+    expect(NAV_GAPS * (28 - 9) + rowGaps * (14 - 6)).toBe(
+      GAPS_RETURNED_TO_THE_PILL_PX,
+    );
+  });
+
   it("declares no width threshold of its own, at any point in the file", () => {
     // ADR 0094 criterion 4i: the only `@media` is the shell fork the application already had; every other decision is a
     // comparison against a measured width.
     expect(stylesheet.match(/@media/g)).toHaveLength(1);
     expect(stylesheet).toContain(DESKTOP_BRANCH_OPENER);
+  });
+});
+
+describe("the visitor's link has a glyph form and the words, and no width threshold of its own", () => {
+  const SIGN_IN_ICON_FORMS = [
+    '.accountSignIn[data-form="icon"]',
+    '.accountSignIn[data-form="icon-below-desktop"]',
+  ];
+
+  /** The body of the rule whose selector list is exactly `selectors`, comments stripped. */
+  function ruleBodyOf(css: string, selectors: readonly string[]): string {
+    const uncommented = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    const found = [...uncommented.matchAll(/([^{}]+)\{([^}]*)\}/g)].find(
+      ([, list]) =>
+        (list ?? "")
+          .split(",")
+          .map((selector) => selector.trim())
+          .join("|") === selectors.join("|"),
+    );
+    if (found === undefined)
+      throw new Error(`no rule for ${selectors.join(", ")}`);
+    return found[2] ?? "";
+  }
+
+  it("takes the touch target's whole width for the glyph, on the phone shell where it starts", () => {
+    // `top-bar-fit.ts` measures this form's width off a probe; the 44 px is the target the owner kept on a phone.
+    const glyphForms = ruleBodyOf(accountStylesheet, SIGN_IN_ICON_FORMS);
+
+    expect(glyphForms).toContain("width: var(--touch-target);");
+    expect(glyphForms).toContain("padding: 0;");
+  });
+
+  it("gives the words back from the desktop shell up, when the host asked for the glyph on a phone only", () => {
+    const wordsBack = ruleBodyOf(accountStylesheet, [
+      '.accountSignIn[data-form="icon-below-desktop"]',
+    ]);
+
+    expect(wordsBack).toContain("width: auto;");
+  });
+
+  it("declares no @media width of its own: the shell's 900 is the only one in the account stylesheet", () => {
+    // ADR 0094 criterion 4i and ADR 0104 decision 9, kept for the control: it is the fit model that decides the glyph.
+    const widths = [
+      ...accountStylesheet.matchAll(/@media \(min-width: (\d+)px\)/g),
+    ].map(([, width]) => width);
+
+    expect(widths.length).toBeGreaterThan(0);
+    expect(new Set(widths)).toEqual(new Set(["900"]));
   });
 });
 

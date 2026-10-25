@@ -197,10 +197,25 @@ function outcomeOf(search: string, testId: string): Outcome {
     focusedTestId,
     replacesAfterActivation,
     pushes: browser.push.mock.calls.length,
-    fetches: fetchSpy.mock.calls.length,
+    fetches: requestsOtherThanTheSessionRead().length,
     backToL: draftOnScreen(),
     backToLQuery: settledQuery(),
   };
+}
+
+/** The header's account control asks who is signed in with this one GET; it is no part of what the card does. */
+const ACCOUNT_SESSION_ENDPOINT = "/api/account/session";
+
+function isTheSessionRead(args: readonly unknown[]): boolean {
+  const [url, init] = args as [unknown, RequestInit | undefined];
+  return (
+    String(url) === ACCOUNT_SESSION_ENDPOINT &&
+    (init?.method ?? "GET") === "GET"
+  );
+}
+
+function requestsOtherThanTheSessionRead(): readonly unknown[][] {
+  return fetchSpy.mock.calls.filter((args) => !isTheSessionRead(args));
 }
 
 function remount(): void {
@@ -215,7 +230,12 @@ function remount(): void {
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  fetchSpy = vi.fn(() => Promise.reject(new Error("no request is expected")));
+  // The session read is left unanswered, so it changes no state under the test; any other request is refused.
+  fetchSpy = vi.fn((...args: unknown[]) =>
+    isTheSessionRead(args)
+      ? new Promise<Response>(() => undefined)
+      : Promise.reject(new Error("no request is expected")),
+  );
   vi.stubGlobal("fetch", fetchSpy);
   browser.push.mockClear();
   browser.replace.mockClear();

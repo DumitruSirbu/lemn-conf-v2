@@ -27,6 +27,9 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
+import { AccountControl } from "@/account/session/account-control";
+import { VisitorAccountCard } from "@/account/session/visitor-account-card";
+
 // A temporary cross-route import of the editor's locale menu. Moving it to `src/chrome/` is not a
 // relocation: `top-bar-box.test.ts` and `qa-w4-top-bar.adversarial.test.ts` are ADR 0104 structural
 // guards asserting the locale cell's positioning lives in the component, which a `className` prop breaks.
@@ -131,6 +134,8 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
     // screen, derived from the live query, so they cannot disagree with the branch taken below.
     <main
       className={styles.screen}
+      // Focusable by script only: where focus goes when the visitor's card is dismissed and its button goes with it.
+      tabIndex={-1}
       data-room-substate={liveState.substate}
       data-marked-fields={liveState.markedFields.join(",")}
     >
@@ -146,6 +151,9 @@ export function RoomScreen({ policy = APPROVED_ROOM_POLICY }: RoomScreenProps) {
           presetCopy={presetCopy}
         />
       )}
+      {/* Fixed over Step 1's foot and out of the layout; it keeps to the lengths form and the shapes, where the foot is the
+          one it clears, and not to the presets and the composition, which have their own. */}
+      {isComposing ? null : <VisitorAccountCard />}
     </main>
   );
 }
@@ -180,6 +188,7 @@ function RoomTopBar({ isComposing }: { readonly isComposing: boolean }) {
           {translate(isComposing ? "room.compose.title" : "room.title")}
         </span>
       </header>
+      <AccountControl cellClassName={styles.account ?? ""} />
       <LocaleMenu />
     </div>
   );
