@@ -1,0 +1,11 @@
+<svg viewBox="0 0 80 310" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>Base cabinet, narrow bottle pull-out</title>
+<rect x="0" y="25" width="80" height="260" fill="#ffffff" stroke="#1c1814" stroke-width="10.1"></rect>
+  <rect x="8" y="33" width="64" height="244" fill="none" stroke="#1c1814" stroke-width="5.6"></rect>
+  <line x1="22" y1="62" x2="58" y2="62" stroke="#1c1814" stroke-width="5.1"></line>
+  <line x1="22" y1="70" x2="58" y2="70" stroke="#1c1814" stroke-width="5.1"></line>
+<rect x="0" y="285" width="80" height="25" fill="#ffffff" stroke="#1c1814" stroke-width="10.1"></rect>
+  <g><line x1="6" y1="310" x2="31" y2="285" stroke="#c7c7c7" stroke-width="2.8"></line><line x1="20" y1="310" x2="45" y2="285" stroke="#c7c7c7" stroke-width="2.8"></line><line x1="34" y1="310" x2="59" y2="285" stroke="#c7c7c7" stroke-width="2.8"></line><line x1="48" y1="310" x2="73" y2="285" stroke="#c7c7c7" stroke-width="2.8"></line><line x1="62" y1="310" x2="74" y2="285" stroke="#c7c7c7" stroke-width="2.8"></line><line x1="76" y1="310" x2="74" y2="285" stroke="#c7c7c7" stroke-width="2.8"></line></g>
+  <line x1="0" y1="285" x2="80" y2="285" stroke="#1c1814" stroke-width="5.1"></line><rect x="-4" y="0" width="88" height="25" fill="#e3d3b8" stroke="#1c1814" stroke-width="10.1"></rect>
+  <line x1="-4" y1="0" x2="84" y2="0" stroke="#1c1814" stroke-width="5.1"></line><rect x="0" y="25" width="80" height="260" fill="none" stroke="#1c1814" stroke-width="10.1"></rect>
+</svg>
