@@ -156,6 +156,9 @@ export interface BodyDefinition {
   /** §9's modular widths a customer picks from (ADR 0035); the bound, not this list, decides whether a width may be
    *  built. */
   readonly sizesMm?: readonly number[];
+  /** The width the generator plans this row at, and the width its anchor price is quoted at. Declared once on
+   *  every insertable row and never inferred; a parity test holds it to the generator (backlog 276). */
+  readonly defaultWidthMm?: number;
   /** Narrowest width this row permits; absent means `MIN_WIDTH_M`. Above it is a builder limitation (`base-sink`
    *  560); below it a product decision (`base-bottle-cargo` 200; ADR 0026). */
   readonly minWidthMm?: number;

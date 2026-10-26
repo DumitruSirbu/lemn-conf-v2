@@ -127,6 +127,9 @@ export type PricingFailureCode =
   | "NO_RULE_FOR_BODY"
   /** A rule carries a formula shape this build does not know. */
   | "UNKNOWN_FORMULA_SHAPE"
+  /** A fixed-size row is built wider than every size the book lists for it. Never priced at zero and never at
+   *  the nearest listed size (ADR 0177 A-7). */
+  | "NO_PRICE_FOR_SIZE"
   /** A selection, or a book's own default, names a tier the book does not hold. */
   | "UNKNOWN_TIER"
   /** The row a body is priced as declares no usable door-leaf count, so the door step cannot be taken
