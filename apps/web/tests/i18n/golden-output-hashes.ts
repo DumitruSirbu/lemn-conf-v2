@@ -1100,6 +1100,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "538ab545e753bb1ba790ecfbacefd4633a0424d016acd801ebcaf83bbcd050ba",
   "rejection.unknown-cabinet-depth":
     "6539446761c3ffd737a1d246bd752f1847c69da4f8914badcda054bf17cdd0bf",
+  "rejection.unknown-handle":
+    "ee02506c4bedf1b77878da875a28b04a77f94b777b1bdb2053c47abbaa5f90c6",
   "rejection.unknown-hardware-tier":
     "25a4bcbcca47736284e7410d37944605f6a56a920d914b118300f248e964c6dc",
   "rejection.unknown-material-tier":

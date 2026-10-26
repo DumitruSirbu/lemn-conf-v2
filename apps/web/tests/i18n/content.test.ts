@@ -369,12 +369,12 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "resolves all 35 rejection codes and 41 branch fixtures in %s",
+    "resolves all 36 rejection codes and 42 branch fixtures in %s",
     (locale, messages) => {
       const { content } = contentAndOracleFor(locale, messages);
       const codes = new Set<string>();
 
-      expect(REJECTION_FIXTURES).toHaveLength(41);
+      expect(REJECTION_FIXTURES).toHaveLength(42);
       for (const fixture of REJECTION_FIXTURES) {
         codes.add(fixture.code);
         const rendered = content.rejection(fixture.detail);
@@ -383,7 +383,7 @@ describe("the localized content resolver", () => {
         expect(rendered, fixture.id).not.toContain("NaN");
         expect(rendered, fixture.id).not.toContain(fixture.sourceKey);
       }
-      expect(codes.size).toBe(35);
+      expect(codes.size).toBe(36);
     },
   );
 

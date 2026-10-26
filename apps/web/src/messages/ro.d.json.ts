@@ -643,6 +643,7 @@ declare const messages: {
     "HANDLE_NOT_SUPPORTED": "„{label}” nu are mânere.",
     "UNKNOWN_MATERIAL_TIER": "Materialul ales nu mai este disponibil. Alege altă variantă.",
     "UNKNOWN_HARDWARE_TIER": "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.",
+    "UNKNOWN_HANDLE": "Acest tip de mâner nu există.",
     "UNKNOWN_CABINET_DEPTH": "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.",
     "parts": {
       "emptySpaceSide": "{sideReason, selectordinal, =0 {în dreapta nu este spațiu liber} =1 {în dreapta spațiul liber este insuficient} =2 {în dreapta s-ar obține un spațiu liber peste alte dulapuri} =3 {în dreapta dulapul nu se încadrează în acestă coloană} =4 {în stânga nu este spațiu liber} =5 {în stânga spațiul liber este insuficient} =6 {în stânga s-ar obține un spațiu liber peste alte dulapuri} other {în stânga dulapul nu se încadrează în acestă coloană}}",

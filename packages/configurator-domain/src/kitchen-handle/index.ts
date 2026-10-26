@@ -1,2 +1,15 @@
-// Lane H's sub-barrel (M10, C2): empty at the contract wave, filled by the kitchen-handle waves.
-export {};
+export {
+  setKitchenHandle,
+  type KitchenHandleInput,
+  type KitchenHandleResult,
+  type KitchenHandleSetEffect,
+  type KitchenHandleSetSuccess,
+} from "../commands/set-kitchen-handle.js";
+export {
+  DEFAULT_HANDLE,
+  defaultHandleOf,
+  resolvedHandleOf,
+  TOP_ROW_HANDLE,
+  type HandleResolutionQuery,
+  type KitchenHandleSettings,
+} from "./kitchen-handle.js";

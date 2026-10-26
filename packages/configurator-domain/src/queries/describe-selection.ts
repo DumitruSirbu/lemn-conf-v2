@@ -15,6 +15,11 @@ import {
 import type { CommandTarget } from "../commands/command-result.js";
 import type { DesignWall, Handle } from "../design.js";
 import type { Finish } from "../materials.js";
+import {
+  DEFAULT_HANDLE,
+  defaultHandleOf,
+  type KitchenHandleSettings,
+} from "../kitchen-handle/kitchen-handle.js";
 import { toMillimetres } from "../millimetres.js";
 import {
   VOID_KIND,
@@ -61,9 +66,10 @@ export interface SelectionMeta {
    *  the absent case cannot be collapsed into `"push"`. */
   readonly handle?: Handle;
   /** What §6.5 gives this body when `handle` is absent, decided by the module line it stands on, not its
-   *  catalogue band: a top-row body ships push-to-open with handles built and hidden (§11 row 13). Published
-   *  so §9's Mâner section can mark the chip the customer is looking at without re-deriving the rule from a
-   *  `y0` `meta` does not carry. */
+   *  catalogue band: a top-row body ships push-to-open with handles built and hidden (§11 row 13). Below it,
+   *  a body that takes a handle follows the kitchen's; one that takes none gets the slot's default.
+   *  Published so §9's Mâner section can mark the chip without re-deriving the rule from a `y0` `meta`
+   *  does not carry. */
   readonly defaultHandle: Handle;
   /** Present only when this body offers nothing structural (no swap list, delete, finish, handle or width)
    *  and says why (§11 row 16, §13.1). Read from the catalogue entry's declaration, not inferred from the
@@ -72,17 +78,13 @@ export interface SelectionMeta {
   readonly structuralReason?: StructuralReason;
 }
 
-/** §6.5's fallback for a body below the top row: a bar handle, which is what every non-top-row
- *  seeded body renders with. */
-const DEFAULT_HANDLE: Handle = "steel";
-/** §6.5: at or above the top module line, handles are built and hidden. */
-const TOP_ROW_HANDLE: Handle = "push";
-
 export interface DescribeSelectionInput {
   readonly records: readonly PlacementRecord[];
   readonly voids: readonly VoidRecord[];
   readonly catalog: BodyCatalog;
   readonly target: CommandTarget;
+  /** The design's kitchen handle settings. Absent reads as `{}`. */
+  readonly kitchenSettings?: KitchenHandleSettings;
 }
 
 /** `undefined` when the target no longer resolves — a stale void id after a recompute, which §9
@@ -99,7 +101,9 @@ export function describeSelection(
   const record = input.records.find(
     (candidate) => candidate.id === input.target.id,
   );
-  return record ? describeBody(record, input.catalog) : undefined;
+  return record
+    ? describeBody(record, input.catalog, input.kitchenSettings ?? {})
+    : undefined;
 }
 
 function describeVoid(record: VoidRecord): SelectionMeta {
@@ -136,6 +140,7 @@ function describeVoid(record: VoidRecord): SelectionMeta {
 function describeBody(
   record: PlacementRecord,
   catalog: BodyCatalog,
+  kitchenSettings: KitchenHandleSettings,
 ): SelectionMeta {
   const definition = catalog.get(record.buildId);
   // The chips are the widths this body can be built at, never its raw catalogue row: `offersFor` narrows by
@@ -174,9 +179,11 @@ function describeBody(
     canDelete: record.canDelete,
     ...(record.finishKey === undefined ? {} : { finish: record.finishKey }),
     ...(record.handleMode === undefined ? {} : { handle: record.handleMode }),
-    defaultHandle: isPushOpenByDefault(record.frame.y0)
-      ? TOP_ROW_HANDLE
-      : DEFAULT_HANDLE,
+    defaultHandle: defaultHandleOf({
+      kitchenSettings,
+      canHandle: record.canHandle,
+      isTopRow: isPushOpenByDefault(record.frame.y0),
+    }),
     ...(definition?.structuralReason === undefined
       ? {}
       : { structuralReason: definition.structuralReason }),

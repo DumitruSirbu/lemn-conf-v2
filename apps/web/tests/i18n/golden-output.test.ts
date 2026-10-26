@@ -166,15 +166,15 @@ describe("golden-output fixture coverage", () => {
     }
   });
 
-  it("covers every rejection code and all 38 top-level rejection messages", () => {
+  it("covers every rejection code and all 39 top-level rejection messages", () => {
     expect(
       sortedUnique(REJECTION_FIXTURES.map((fixture) => fixture.code)),
     ).toEqual([...REJECTION_CODES].sort());
     expect(
       sortedUnique(REJECTION_FIXTURES.map((fixture) => fixture.messageKey)),
     ).toEqual([...REJECTION_CATALOGUE_MESSAGE_KEYS].sort());
-    expect(REJECTION_CODES).toHaveLength(35);
-    expect(REJECTION_CATALOGUE_MESSAGE_KEYS).toHaveLength(38);
+    expect(REJECTION_CODES).toHaveLength(36);
+    expect(REJECTION_CATALOGUE_MESSAGE_KEYS).toHaveLength(39);
   });
 
   it("covers both band branches, all width-clause forms, and every side/reason branch", () => {
@@ -273,7 +273,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 7 outcomes.
     // M8 8M S4: -2 for the retired `contact.outcomes.sent` and `.failed`.
     expect(CONTACT_FIXTURES).toHaveLength(16);
-    expect(REJECTION_FIXTURES).toHaveLength(41);
+    // M10 H1: +1 for `UNKNOWN_HANDLE`.
+    expect(REJECTION_FIXTURES).toHaveLength(42);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
@@ -302,7 +303,8 @@ describe("golden-output fixture coverage", () => {
     // +2 static fixtures for `presetChooser.selectFailed` and `.selectLimitReached`.
     // Lot 2 tests round: +1 static fixture for `designLoadError.bodyClient`.
     // Lot 2 U15c: +1 net static fixture for `configure.backConfirm.bodyClient` and `.bodyVisitor` replacing `.body`.
-    expect(GOLDEN_FIXTURES).toHaveLength(577);
+    // M10 H1: +1 rejection fixture for `UNKNOWN_HANDLE`.
+    expect(GOLDEN_FIXTURES).toHaveLength(578);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

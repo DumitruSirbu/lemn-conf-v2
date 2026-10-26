@@ -360,12 +360,12 @@ describe("6B-f: a refusal's {label} resolves whatever descriptor case reaches it
       Object.hasOwn(fixture.detail.params, "label"),
     );
 
-    expect(REJECTION_FIXTURES).toHaveLength(41);
+    expect(REJECTION_FIXTURES).toHaveLength(42);
     expect(carryingALabel.length).toBeGreaterThan(25);
   });
 
   it.each(LOCALES)(
-    "renders all 41 refusals against all five descriptor cases in %s",
+    "renders all 42 refusals against all five descriptor cases in %s",
     (locale, messages) => {
       const translate = translatorFor(locale, messages);
       let rendered = 0;

@@ -191,6 +191,9 @@ export const DesignSettingsSchema = z.strictObject({
    * `setMaterialTier` and re-resolved at the load seam.
    */
   finish: FinishSchema.optional(),
+  /** The kitchen's handle, below a cabinet's own and never on the top row. Absent is valid (no schema
+   *  bump); like `finish`, a rollback to a build without this key makes documents carrying it unreadable. */
+  handle: HandleSchema.optional(),
 });
 export type DesignSettings = z.infer<typeof DesignSettingsSchema>;
 
