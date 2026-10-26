@@ -55,12 +55,16 @@ export function applyChanges(
   const groupCodes = judgeGroups(changes);
   const refusals: ChangeRefusal[] = [];
   let candidate = book;
-  changes.forEach((change, index) => {
-    const judged = judgeChange(candidate, change);
+  // An index loop, not `forEach`: a hole in a sparse list is a change that is not there, and is refused.
+  for (let index = 0; index < changes.length; index += 1) {
+    const judged =
+      index in changes
+        ? judgeChange(candidate, changes[index])
+        : ({ isOk: false, code: "MISSING_VALUE" } as const);
     const code = judged.isOk ? groupCodes.get(index) : judged.code;
     if (code !== undefined) refusals.push({ index, code });
     else if (judged.isOk) candidate = judged.value(candidate);
-  });
+  }
   if (refusals.length > 0)
     return { ok: false, reason: "changes-refused", refusals };
   return parseCandidate(candidate);
@@ -71,7 +75,14 @@ export function revertChange(
   changes: readonly DraftChange[],
   address: BookFieldAddress,
 ): readonly DraftChange[] {
-  return changes.filter((change) => !isSameAddress(change.address, address));
+  return changes.filter(
+    (change) => !isSameAddress(addressOfStored(change), address),
+  );
+}
+
+/** The address a stored change names, or `undefined` for a stored value that is not a change. */
+function addressOfStored(stored: unknown): unknown {
+  return isRecord(stored) ? stored["address"] : undefined;
 }
 
 function parseCandidate(candidate: PriceBook): ApplyChangesResult {
@@ -84,17 +95,23 @@ function parseCandidate(candidate: PriceBook): ApplyChangesResult {
 /** The updater that makes one change on `book`, or the code it is refused for. Takes `unknown`: a draft is stored and
  *  requested JSON. */
 function judgeChange(book: PriceBook, change: unknown): Judged<BookUpdater> {
-  if (!isRecord(change) || !isReadableAddress(change["address"]))
-    return { isOk: false, code: "UNKNOWN_ADDRESS" };
-  return prepareWrite(book, change["address"], change["value"]);
+  if (!isRecord(change)) return { isOk: false, code: "UNKNOWN_ADDRESS" };
+  const address = snapshotAddress(change["address"]);
+  if (address === undefined) return { isOk: false, code: "UNKNOWN_ADDRESS" };
+  return prepareWrite(book, address, change["value"]);
 }
 
-function isReadableAddress(address: unknown): address is BookFieldAddress {
-  return (
-    isRecord(address) &&
-    typeof address["kind"] === "string" &&
-    (BOOK_FIELD_ADDRESS_KINDS as readonly string[]).includes(address["kind"])
-  );
+/** A copy of the address, each member read once, so a value that changes between reads cannot move the write
+ *  away from what was judged. `undefined` unless it names a kind of address. The copy is the one cast in this
+ *  module: `prepareWrite` judges the members it needs. */
+function snapshotAddress(declared: unknown): BookFieldAddress | undefined {
+  if (!isRecord(declared)) return undefined;
+  const copy: Record<string, unknown> = { ...declared };
+  const kind = copy["kind"];
+  const isKnownKind =
+    typeof kind === "string" &&
+    (BOOK_FIELD_ADDRESS_KINDS as readonly string[]).includes(kind);
+  return isKnownKind ? (copy as unknown as BookFieldAddress) : undefined;
 }
 
 /**

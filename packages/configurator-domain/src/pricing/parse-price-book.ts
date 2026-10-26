@@ -345,8 +345,26 @@ function refuseUnreadableTier(
       `${kind}.ruleId`,
     ) ??
     refuseUnreadableWords(declared, named) ??
-    refuseOversizedAmount(declared, named)
+    refuseOversizedAmount(declared, named) ??
+    refuseNegativeRates(declared, named)
   );
+}
+
+/** A tier's or an accessory's rates, never below zero, as a cabinet's are. A rate that is absent or not a number is
+ *  the arithmetic's to refuse when it is priced. Runs after `refuseOversizedAmount`, which has enumerated the fields. */
+function refuseNegativeRates(
+  declared: Record<string, unknown>,
+  named: string,
+): PricingFailure | undefined {
+  for (const field of enumerableFieldsOf(declared) ?? []) {
+    if (!field.endsWith("Minor")) continue;
+    const read = readDeclared(declared, field);
+    if (typeof read === "number" && read < 0)
+      return invalidBook(
+        `The ${named} declares "${field}" as ${String(read)}, a price below zero`,
+      );
+  }
+  return undefined;
 }
 
 /**
@@ -388,7 +406,8 @@ function refuseUnreadableAccessoryRule(
       `${accessoryId}.ruleId`,
     ) ??
     refuseUnreadableWords(declared, named) ??
-    refuseOversizedAmount(declared, named)
+    refuseOversizedAmount(declared, named) ??
+    refuseNegativeRates(declared, named)
   );
 }
 

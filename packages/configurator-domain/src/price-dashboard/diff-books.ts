@@ -1,3 +1,4 @@
+import { isRecord } from "../pricing/book-reading.js";
 import type { PriceBook } from "../pricing/price-book.js";
 
 import type { DraftBulk, DraftChange } from "./book-field-address.js";
@@ -199,15 +200,18 @@ interface GroupMembership {
 function membershipOf(changes: readonly DraftChange[]): GroupMembership {
   const groupIdByAddress = new Map<string, string>();
   const bulkByGroup = new Map<string, DraftBulk>();
-  for (const change of changes) {
-    const key = addressKey(change.address);
-    if (change.groupId === undefined) {
+  for (const stored of changes as readonly unknown[]) {
+    if (!isRecord(stored)) continue;
+    const key = addressKey(stored["address"]);
+    const groupId = stored["groupId"];
+    if (typeof groupId !== "string") {
       groupIdByAddress.delete(key);
       continue;
     }
-    groupIdByAddress.set(key, change.groupId);
-    if (change.bulk !== undefined && !bulkByGroup.has(change.groupId))
-      bulkByGroup.set(change.groupId, change.bulk);
+    groupIdByAddress.set(key, groupId);
+    const bulk = stored["bulk"];
+    if (isRecord(bulk) && !bulkByGroup.has(groupId))
+      bulkByGroup.set(groupId, bulk as unknown as DraftBulk);
   }
   return { groupIdByAddress, bulkByGroup };
 }

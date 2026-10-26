@@ -371,7 +371,7 @@ describe("the accessory lines are book data, and the book is swept for them", ()
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.failure.code).toBe("INVALID_AMOUNT");
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
   });
 });
 

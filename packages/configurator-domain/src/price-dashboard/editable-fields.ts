@@ -5,7 +5,10 @@ import {
   type AnchoredFormula,
   type PricePerSizeFormula,
 } from "../pricing/anchored-price-formula.js";
-import { MAX_PRICE_COEFFICIENT_MINOR } from "../pricing/book-reading.js";
+import {
+  isRecord,
+  MAX_PRICE_COEFFICIENT_MINOR,
+} from "../pricing/book-reading.js";
 import {
   accessoryRuleOf,
   ACCESSORY_IDS,
@@ -21,11 +24,13 @@ import {
 
 import {
   ACCESSORY_FIELDS,
+  BOOK_FIELD_ADDRESS_KINDS,
   CABINET_RULE_FIELDS,
   HARDWARE_RATE_FIELDS,
   MATERIAL_FIELDS,
   type AddressOfKind,
   type BookFieldAddress,
+  type BookFieldAddressKind,
   type DraftChange,
 } from "./book-field-address.js";
 
@@ -166,48 +171,91 @@ export function changeFromReading(
   } as AppliedDraftChange;
 }
 
-/** A stable identity for an address, whatever order its members were written in. Equal keys are the same field. */
-export function addressKey(address: BookFieldAddress): string {
-  return JSON.stringify([address.kind, ...addressMembers(address)]);
+/**
+ * A stable identity for an address, whatever order its members were written in. Equal keys are the same field. Total
+ * over anything a draft may hold: a shape that is not a valid address (no kind, no `item`, a member of the wrong type)
+ * gets a key containing an object, which no valid address's key does, so it equals no valid address.
+ */
+export function addressKey(address: unknown): string {
+  if (!isRecord(address)) return INVALID_ADDRESS_KEY;
+  const kind = address["kind"];
+  const members = isAddressKind(kind)
+    ? addressMembers(kind, address)
+    : undefined;
+  return JSON.stringify([kind, ...(members ?? [INVALID_MEMBER])]);
 }
 
-export function isSameAddress(
-  left: BookFieldAddress,
-  right: BookFieldAddress,
-): boolean {
+export function isSameAddress(left: unknown, right: unknown): boolean {
   return addressKey(left) === addressKey(right);
 }
 
-function addressMembers(address: BookFieldAddress): readonly unknown[] {
-  switch (address.kind) {
+const INVALID_MEMBER = { invalid: true } as const;
+const INVALID_ADDRESS_KEY = JSON.stringify([INVALID_MEMBER]);
+
+function isAddressKind(kind: unknown): kind is BookFieldAddressKind {
+  return (
+    typeof kind === "string" &&
+    (BOOK_FIELD_ADDRESS_KINDS as readonly string[]).includes(kind)
+  );
+}
+
+function addressMembers(
+  kind: BookFieldAddressKind,
+  address: Record<string, unknown>,
+): readonly unknown[] | undefined {
+  switch (kind) {
     case "cabinet":
-      return [address.ruleId, address.field];
+      return validMembers(address, ["ruleId", "field"]);
     case "cabinet-size":
-      return [address.ruleId, address.widthMm];
+      return validMembers(address, ["ruleId", "widthMm"]);
     case "hardware":
     case "material":
-      return [address.tierId, address.field];
+      return validMembers(address, ["tierId", "field"]);
     case "accessory":
-      return [address.accessoryId, address.field];
+      return validMembers(address, ["accessoryId", "field"]);
     case "depth-rule":
     case "provisional":
       return [];
     case "hardware-tier-created":
-      return [address.tierId];
+      return validMembers(address, ["tierId"]);
     case "accessory-created":
-      return [address.accessoryId];
+      return validMembers(address, ["accessoryId"]);
     case "created-row-text":
-      return [address.item.kind, itemId(address.item), address.field];
+      return withItem(address, ["field"]);
     case "item-deleted":
-      return [address.item.kind, itemId(address.item)];
-    default:
-      return [];
+      return withItem(address, []);
   }
 }
 
-/** The one id an item names, whatever its kind calls it. */
-function itemId(item: AddressOfKind<"item-deleted">["item"]): string {
-  return item.kind === "accessory" ? item.accessoryId : item.tierId;
+/** The named members, each a string or a number, or `undefined` when one is missing or of another type. */
+function validMembers(
+  address: Record<string, unknown>,
+  names: readonly string[],
+): readonly unknown[] | undefined {
+  const members = names.map((name) => address[name]);
+  const isValid = members.every(
+    (member) => typeof member === "string" || typeof member === "number",
+  );
+  return isValid ? members : undefined;
+}
+
+/** An item reference flattened to its kind and id, then the named members. */
+function withItem(
+  address: Record<string, unknown>,
+  names: readonly string[],
+): readonly unknown[] | undefined {
+  const item = address["item"];
+  if (!isRecord(item)) return undefined;
+  const itemMembers = validMembers(item, ["kind", itemIdName(item["kind"])]);
+  const rest = validMembers(address, names);
+  return itemMembers === undefined || rest === undefined
+    ? undefined
+    : [...itemMembers, ...rest];
+}
+
+/** The member an item of this kind names its id in. */
+function itemIdName(kind: unknown): string {
+  return kind === "accessory" ? "accessoryId" : "tierId";
 }
 
 /** Finds the field an address names in this book, or says why it names none. Total over every address kind. */
@@ -315,24 +363,24 @@ function locateCabinetField(
   book: PriceBook,
   address: AddressOfKind<"cabinet">,
 ): Judged<LocatedField> {
-  if (!isListed(CABINET_RULE_FIELDS, address.field))
-    return refused("UNKNOWN_ADDRESS");
-  const rule = findRule(book, address.ruleId);
+  const { ruleId, field } = address;
+  if (!isListed(CABINET_RULE_FIELDS, field)) return refused("UNKNOWN_ADDRESS");
+  const rule = findRule(book, ruleId);
   if (rule === undefined) return refused("UNKNOWN_RULE");
   if (rule.suppliedBy === "customer") return refused("NOT_EDITABLE");
   const formula = anchoredFormulaOf(rule.formula);
-  if (formula === undefined || !isReadByShape(formula, address.field))
+  if (formula === undefined || !isReadByShape(formula, field))
     return refused("FIELD_NOT_ON_RULE");
-  const current: unknown = Reflect.get(formula, address.field);
+  const current: unknown = Reflect.get(formula, field);
   if (typeof current !== "number") return refused("FIELD_NOT_ON_RULE");
   return accepted({
     unit: "amount",
     current,
     maxValue: MAX_PRICE_COEFFICIENT_MINOR,
     settingTo: (value) => (target) =>
-      replaceRule(target, address.ruleId, (row) => ({
+      replaceRule(target, ruleId, (row) => ({
         ...row,
-        formula: { ...row.formula, [address.field]: value },
+        formula: { ...row.formula, [field]: value },
       })),
   });
 }
@@ -341,11 +389,12 @@ function locateCabinetSize(
   book: PriceBook,
   address: AddressOfKind<"cabinet-size">,
 ): Judged<LocatedField> {
-  const rule = findRule(book, address.ruleId);
+  const { ruleId, widthMm } = address;
+  const rule = findRule(book, ruleId);
   if (rule === undefined) return refused("UNKNOWN_RULE");
   if (rule.suppliedBy === "customer") return refused("NOT_EDITABLE");
   const size = perSizeFormulaOf(rule.formula)?.sizes.find(
-    (listed) => listed.widthMm === address.widthMm,
+    (listed) => listed.widthMm === widthMm,
   );
   if (size === undefined) return refused("FIELD_NOT_ON_RULE");
   return accepted({
@@ -353,9 +402,9 @@ function locateCabinetSize(
     current: size.amountMinor,
     maxValue: MAX_PRICE_COEFFICIENT_MINOR,
     settingTo: (value) => (target) =>
-      replaceRule(target, address.ruleId, (row) => ({
+      replaceRule(target, ruleId, (row) => ({
         ...row,
-        formula: withSizeAmount(row.formula, address.widthMm, value),
+        formula: withSizeAmount(row.formula, widthMm, value),
       })),
   });
 }
@@ -379,11 +428,11 @@ function locateHardwareRate(
   book: PriceBook,
   address: AddressOfKind<"hardware">,
 ): Judged<LocatedField> {
-  if (!isListed(HARDWARE_RATE_FIELDS, address.field))
-    return refused("UNKNOWN_ADDRESS");
-  const tier = book.hardware.tiers.find((row) => row.tierId === address.tierId);
+  const { tierId, field } = address;
+  if (!isListed(HARDWARE_RATE_FIELDS, field)) return refused("UNKNOWN_ADDRESS");
+  const tier = book.hardware.tiers.find((row) => row.tierId === tierId);
   if (tier === undefined) return refused("UNKNOWN_ITEM");
-  const current: unknown = Reflect.get(tier, address.field);
+  const current: unknown = Reflect.get(tier, field);
   if (typeof current !== "number") return refused("FIELD_NOT_ON_RULE");
   return accepted({
     unit: "amount",
@@ -393,7 +442,7 @@ function locateHardwareRate(
       ...target,
       hardware: {
         ...target.hardware,
-        tiers: withTierField(target.hardware.tiers, address, value),
+        tiers: withTierField(target.hardware.tiers, { tierId, field }, value),
       },
     }),
   });
@@ -403,13 +452,13 @@ function locateMaterialPercent(
   book: PriceBook,
   address: AddressOfKind<"material">,
 ): Judged<LocatedField> {
-  if (!isListed(MATERIAL_FIELDS, address.field))
-    return refused("UNKNOWN_ADDRESS");
-  const tier = book.material.tiers.find((row) => row.tierId === address.tierId);
+  const { tierId, field } = address;
+  if (!isListed(MATERIAL_FIELDS, field)) return refused("UNKNOWN_ADDRESS");
+  const tier = book.material.tiers.find((row) => row.tierId === tierId);
   if (tier === undefined) return refused("UNKNOWN_ITEM");
   if (tier.tierId === book.material.defaultTierId)
     return refused("NOT_EDITABLE");
-  const current: unknown = Reflect.get(tier, address.field);
+  const current: unknown = Reflect.get(tier, field);
   if (typeof current !== "number") return refused("FIELD_NOT_ON_RULE");
   return accepted({
     unit: "percent",
@@ -419,7 +468,7 @@ function locateMaterialPercent(
       ...target,
       material: {
         ...target.material,
-        tiers: withTierField(target.material.tiers, address, value),
+        tiers: withTierField(target.material.tiers, { tierId, field }, value),
       },
     }),
   });
@@ -443,9 +492,9 @@ function locateAccessoryPrice(
   book: PriceBook,
   address: AddressOfKind<"accessory">,
 ): Judged<LocatedField> {
-  if (!isListed(ACCESSORY_FIELDS, address.field))
-    return refused("UNKNOWN_ADDRESS");
-  const accessoryId = ACCESSORY_IDS.find((id) => id === address.accessoryId);
+  const { accessoryId: declaredId, field } = address;
+  if (!isListed(ACCESSORY_FIELDS, field)) return refused("UNKNOWN_ADDRESS");
+  const accessoryId = ACCESSORY_IDS.find((id) => id === declaredId);
   const rule =
     accessoryId === undefined ? undefined : accessoryRuleOf(book, accessoryId);
   if (accessoryId === undefined || rule === undefined)
@@ -503,8 +552,9 @@ function withTierField<Tier extends TierIdentity>(
   edit: { readonly tierId: string; readonly field: string },
   value: number,
 ): readonly Tier[] {
+  const { tierId, field } = edit;
   return tiers.map((tier) =>
-    tier.tierId === edit.tierId ? { ...tier, [edit.field]: value } : tier,
+    tier.tierId === tierId ? { ...tier, [field]: value } : tier,
   );
 }
 
