@@ -328,7 +328,7 @@ declare const messages: {
     "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
     "depthWarning": "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
     "depthNote": "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
-    "depthNotePriced": "Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile de bază și coloanele cu {percent} %.",
+    "depthNotePriced": "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile de bază și coloanele cu {percent} %.}}",
     "kitchenHandleHeading": "Mânere",
     "kitchenHandleHint": "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
     "colourHeading": "Culoarea bucătăriei",
@@ -1299,6 +1299,7 @@ declare const messages: {
       "percent": "{percent} %",
       "percentPlus": "+{percent} %",
       "priceSavedNotice": "Salvat. Prețul nou intră în vigoare când publici.",
+      "textSavedNotice": "Salvat. Textul nou intră în vigoare când publici.",
       "createdTextNote": "Textul se scrie doar în română. Rusa se adaugă mai târziu, din funcția de traduceri; până atunci, clienții care folosesc rusa văd româna.",
       "keyedTextNote": "Textul acestui rând vine din fișierele de traduceri și nu se editează aici."
     },
@@ -1372,7 +1373,7 @@ declare const messages: {
       "noEffectOnPrice": "nu influențează prețul",
       "editPriceAria": "Modifică prețul: {name}",
       "editPriceLabel": "Preț la {widthMm, number, ::group-off} mm",
-      "editHint": "Enter salvează în ciornă · Esc anulează",
+      "editHint": "Enter salvează la „De publicat” · Esc anulează",
       "selectRowAria": "Bifează {name}"
     },
     "rule": {
@@ -1472,7 +1473,7 @@ declare const messages: {
       "customerSupplied": "Clientul oferă acest obiect; nu influențează prețul.",
       "hoodNote": "Pentru hota încorporată lipsește încă dulapul ei din catalog. Până atunci, orice hotă rămâne în afara prețului.",
       "structuralNote": "Nu apare în catalogul clientului; este pus automat în bucătăriile în L și U, cu prețul de aici.",
-      "sinkNote": "Fiecare chiuvetă aduce automat accesoriile din Accesorii."
+      "sinkNote": "Dulapul pentru chiuvetă aduce automat accesoriile lui; regulile sunt în Accesorii."
     },
     "hardware": {
       "title": "Feronerie",
@@ -1503,7 +1504,7 @@ declare const messages: {
       "pricePush": "Preț pe mecanism push-to-open",
       "priceLift": "Preț pe mecanism rabatabil",
       "priceLiftHint": "Pentru dulapul suspendat rabatabil",
-      "newPricesNote": "Completează toate cele patru prețuri; un mecanism pe care clasa nu-l are se lasă la zero.",
+      "newPricesNote": "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
       "createAction": "Creează clasa",
       "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici."
     },
@@ -1551,6 +1552,7 @@ declare const messages: {
       "descriptionLabel": "Descriere",
       "linkLabel": "Se adaugă automat la",
       "linkHint": "Lista conține tipurile de dulap din Dulapuri pe care le furnizează producătorul.",
+      "linkFixedNote": "Tipul de dulap se alege la creare și nu se mai schimbă.",
       "linkRequired": "Alege tipul de dulap la care se adaugă accesoriul.",
       "activeLabel": "Activ",
       "activeHint": "Când e inactiv, accesoriul nu se mai adaugă în nicio bucătărie. Se aplică imediat.",
@@ -1566,7 +1568,7 @@ declare const messages: {
       "usedBy": "{count, plural, one {O bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} această opțiune.",
       "clientsCannotChoose": "Clienții nu mai pot alege această opțiune.",
       "replacementExplained": "Când un client deschide o bucătărie care folosește această opțiune, i se cere să aleagă altă opțiune dintre cele rămase. Prețul se recalculează după alegere.",
-      "accessoryRemovedExplained": "Când un client deschide o bucătărie care îl folosește, accesoriul este scos și i se spune. Prețul se recalculează.",
+      "accessoryRemovedExplained": "Accesoriul nu se mai adaugă; clientul este anunțat când își deschide bucătăria. Dacă îl activezi din nou, revine.",
       "appliesImmediately": "Se aplică imediat.",
       "remaining": "Rămân disponibile: {options}.",
       "deactivateConfirm": "Dezactivează",
@@ -1605,7 +1607,7 @@ declare const messages: {
       "bulkRowSummary": "{cabinetCount, plural, one {{cabinetCount, number, ::group-off} dulap} few {{cabinetCount, number, ::group-off} dulapuri} other {{cabinetCount, number, ::group-off} dulapuri}} · {priceCount, plural, one {{priceCount, number, ::group-off} preț} few {{priceCount, number, ::group-off} prețuri} other {{priceCount, number, ::group-off} de prețuri}}",
       "bulkRowHide": "ascunde",
       "bulkRowShow": "arată",
-      "exampleLine": "{name} {widthMm}: {before} → {after}",
+      "exampleLine": "{name} {widthMm, number, ::group-off}: {before} → {after}",
       "versionNameLabel": "Numele versiunii",
       "versionNameHint": "Îl vezi doar tu, în Istoric versiuni.",
       "provisionalLabel": "Sume provizorii",
@@ -1636,7 +1638,8 @@ declare const messages: {
       "failedTitle": "Versiunea nu a fost publicată",
       "failedBody": "Serverul nu a răspuns sau conexiunea s-a întrerupt. Prețurile active nu s-au schimbat, iar cele pregătite sunt păstrate.",
       "retry": "Încearcă din nou",
-      "blockedInUse": "Nimic nu a fost publicat. „{name}” a început să fie folosit în bucătării salvate și nu mai poate fi șters. Renunță la ștergere și publică din nou."
+      "blockedInUse": "Nimic nu a fost publicat. „{name}” a început să fie folosit în bucătării salvate și nu mai poate fi șters. Renunță la ștergere și publică din nou.",
+      "blockedIsDefault": "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou."
     },
     "history": {
       "subtitle": "Istoricul îl vezi doar tu. Bucătăriile folosesc mereu versiunea activă, niciodată una veche.",
@@ -1656,7 +1659,7 @@ declare const messages: {
       "restoreBody": "„Restaurează” compară prețurile din {versionId} cu cele active și adaugă diferențele la „De publicat”, lângă ce ai pregătit deja. Nimic nu se schimbă pentru clienți până nu publici.",
       "restoreAction": "Restaurează prețurile din {versionId}",
       "restoreTitle": "Restaurezi prețurile din {versionId}?",
-      "restoreDialogBody": "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”; dacă un preț e deja acolo, valoarea din {versionId} îl înlocuiește. Le verifici și le publici ca de obicei."
+      "restoreDialogBody": "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”. Le verifici și le publici ca de obicei."
     },
     "defaults": {
       "title": "Setări implicite",
@@ -1736,7 +1739,7 @@ declare const messages: {
     "chooserAppliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor {bodyCount, number, ::group-off} dulapuri} other {tuturor celor {bodyCount, number, ::group-off} dulapuri}}.",
     "chooseFromRemaining": "Alege dintre opțiunile rămase.",
     "strikethroughNote": "Nu mai este oferit.",
-    "settingsNoLongerOffered": "Nu mai este oferit pentru bucătării noi.",
+    "settingsNoLongerOffered": "Nu mai este oferit.",
     "accessoryRemoved": "{name} nu mai este oferit și a fost scos din bucătărie.",
     "changedMaterial": "Material schimbat în {name}. Prețul a fost actualizat.",
     "changedHardware": "Feronerie schimbată în {name}. Prețul a fost actualizat.",

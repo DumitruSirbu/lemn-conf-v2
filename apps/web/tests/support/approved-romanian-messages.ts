@@ -470,7 +470,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // wave Q1 switches to it, and `depthNote` above stays until wave T2 retires it. `kitchenHandle*` is the whole-kitchen handle
     // row (frame C2); its options are `panel.handleLabels`.
     depthNotePriced:
-      "Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile de bază și coloanele cu {percent} %.",
+      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile de bază și coloanele cu {percent} %.}}",
     kitchenHandleHeading: "Mânere",
     kitchenHandleHint:
       "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
@@ -1708,6 +1708,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       percent: "{percent} %",
       percentPlus: "+{percent} %",
       priceSavedNotice: "Salvat. Prețul nou intră în vigoare când publici.",
+      textSavedNotice: "Salvat. Textul nou intră în vigoare când publici.",
       createdTextNote:
         "Textul se scrie doar în română. Rusa se adaugă mai târziu, din funcția de traduceri; până atunci, clienții care folosesc rusa văd româna.",
       keyedTextNote:
@@ -1794,7 +1795,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       noEffectOnPrice: "nu influențează prețul",
       editPriceAria: "Modifică prețul: {name}",
       editPriceLabel: "Preț la {widthMm, number, ::group-off} mm",
-      editHint: "Enter salvează în ciornă · Esc anulează",
+      editHint: "Enter salvează la „De publicat” · Esc anulează",
       selectRowAria: "Bifează {name}",
     },
     rule: {
@@ -1919,7 +1920,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Pentru hota încorporată lipsește încă dulapul ei din catalog. Până atunci, orice hotă rămâne în afara prețului.",
       structuralNote:
         "Nu apare în catalogul clientului; este pus automat în bucătăriile în L și U, cu prețul de aici.",
-      sinkNote: "Fiecare chiuvetă aduce automat accesoriile din Accesorii.",
+      sinkNote:
+        "Dulapul pentru chiuvetă aduce automat accesoriile lui; regulile sunt în Accesorii.",
     },
     hardware: {
       title: "Feronerie",
@@ -1956,7 +1958,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       priceLift: "Preț pe mecanism rabatabil",
       priceLiftHint: "Pentru dulapul suspendat rabatabil",
       newPricesNote:
-        "Completează toate cele patru prețuri; un mecanism pe care clasa nu-l are se lasă la zero.",
+        "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
       createAction: "Creează clasa",
       createdNotice:
         "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
@@ -2020,6 +2022,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       linkLabel: "Se adaugă automat la",
       linkHint:
         "Lista conține tipurile de dulap din Dulapuri pe care le furnizează producătorul.",
+      linkFixedNote: "Tipul de dulap se alege la creare și nu se mai schimbă.",
       linkRequired: "Alege tipul de dulap la care se adaugă accesoriul.",
       activeLabel: "Activ",
       activeHint:
@@ -2040,7 +2043,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       replacementExplained:
         "Când un client deschide o bucătărie care folosește această opțiune, i se cere să aleagă altă opțiune dintre cele rămase. Prețul se recalculează după alegere.",
       accessoryRemovedExplained:
-        "Când un client deschide o bucătărie care îl folosește, accesoriul este scos și i se spune. Prețul se recalculează.",
+        "Accesoriul nu se mai adaugă; clientul este anunțat când își deschide bucătăria. Dacă îl activezi din nou, revine.",
       appliesImmediately: "Se aplică imediat.",
       remaining: "Rămân disponibile: {options}.",
       deactivateConfirm: "Dezactivează",
@@ -2086,7 +2089,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "{cabinetCount, plural, one {{cabinetCount, number, ::group-off} dulap} few {{cabinetCount, number, ::group-off} dulapuri} other {{cabinetCount, number, ::group-off} dulapuri}} · {priceCount, plural, one {{priceCount, number, ::group-off} preț} few {{priceCount, number, ::group-off} prețuri} other {{priceCount, number, ::group-off} de prețuri}}",
       bulkRowHide: "ascunde",
       bulkRowShow: "arată",
-      exampleLine: "{name} {widthMm}: {before} → {after}",
+      exampleLine: "{name} {widthMm, number, ::group-off}: {before} → {after}",
       versionNameLabel: "Numele versiunii",
       versionNameHint: "Îl vezi doar tu, în Istoric versiuni.",
       provisionalLabel: "Sume provizorii",
@@ -2130,6 +2133,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       retry: "Încearcă din nou",
       blockedInUse:
         "Nimic nu a fost publicat. „{name}” a început să fie folosit în bucătării salvate și nu mai poate fi șters. Renunță la ștergere și publică din nou.",
+      blockedIsDefault:
+        "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou.",
     },
     history: {
       subtitle:
@@ -2153,7 +2158,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       restoreAction: "Restaurează prețurile din {versionId}",
       restoreTitle: "Restaurezi prețurile din {versionId}?",
       restoreDialogBody:
-        "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”; dacă un preț e deja acolo, valoarea din {versionId} îl înlocuiește. Le verifici și le publici ca de obicei.",
+        "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”. Le verifici și le publici ca de obicei.",
     },
     defaults: {
       title: "Setări implicite",
@@ -2258,7 +2263,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor {bodyCount, number, ::group-off} dulapuri} other {tuturor celor {bodyCount, number, ::group-off} dulapuri}}.",
     chooseFromRemaining: "Alege dintre opțiunile rămase.",
     strikethroughNote: "Nu mai este oferit.",
-    settingsNoLongerOffered: "Nu mai este oferit pentru bucătării noi.",
+    settingsNoLongerOffered: "Nu mai este oferit.",
     accessoryRemoved: "{name} nu mai este oferit și a fost scos din bucătărie.",
     changedMaterial: "Material schimbat în {name}. Prețul a fost actualizat.",
     changedHardware: "Feronerie schimbată în {name}. Prețul a fost actualizat.",

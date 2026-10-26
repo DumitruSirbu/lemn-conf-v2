@@ -19,7 +19,7 @@ import {
   type Catalogue,
   type CatalogueLocale,
 } from "../support/catalogues";
-import { pluralNodesOf } from "../support/icu-signature";
+import { isExactValueSwitch, pluralNodesOf } from "../support/icu-signature";
 
 const M10_NAMESPACES = [
   "priceDashboard",
@@ -136,13 +136,12 @@ interface PluralSite {
   readonly text: string;
 }
 
+/** The grammatical plurals only: a `{percent, plural, =0 {…} other {…}}` is an exact-value switch, covered on its own. */
 function pluralSitesOf(locale: CatalogueLocale): readonly PluralSite[] {
   return leavesOf(locale).flatMap(([key, text]) =>
-    pluralNodesOf(parse(text)).map((node) => ({
-      key,
-      selector: node.value,
-      text,
-    })),
+    pluralNodesOf(parse(text))
+      .filter((node) => !isExactValueSwitch(Object.keys(node.options)))
+      .map((node) => ({ key, selector: node.value, text })),
   );
 }
 
@@ -341,6 +340,68 @@ describe("a Russian count reads the CLDR arm across 0 to 205", () => {
   });
 });
 
+describe("the priced depth sentence has a zero form (a 0 % rule must not read as a surcharge)", () => {
+  const KEY = "globalSettings.depthNotePriced";
+
+  it.each(CATALOGUES)(
+    "is an exact-value switch on percent with an =0 arm and an other arm in %s",
+    (_locale, messages) => {
+      const nodes = pluralNodesOf(parse(leafAt(messages, KEY) ?? ""));
+      const [node, ...rest] = nodes.filter((n) => n.value === "percent");
+
+      expect(rest).toEqual([]);
+      expect(Object.keys(node?.options ?? {}).sort()).toEqual(["=0", "other"]);
+      expect(isExactValueSwitch(Object.keys(node?.options ?? {}))).toBe(true);
+    },
+  );
+
+  it.each(CATALOGUES)(
+    "states no percent and no surcharge when the rule is zero, in %s",
+    (locale) => {
+      const zero = render(locale, KEY, { cabinetDepthMm: 700, percent: 0 });
+
+      expect(zero, locale).not.toContain("%");
+      expect(zero, locale).not.toMatch(/\d+\s*%/u);
+      expect(zero, locale).toContain("700");
+      expect(zero, locale).not.toMatch(
+        locale === "ro" ? /scump/iu : /удорожа/iu,
+      );
+    },
+  );
+
+  it.each(CATALOGUES)(
+    "carries the percent parameter in the other arm only, in %s",
+    (_locale, messages) => {
+      const [node] = pluralNodesOf(parse(leafAt(messages, KEY) ?? ""));
+      const armNames = (name: string): readonly string[] => {
+        const arm = node?.options[name]?.value ?? [];
+        const names: string[] = [];
+        walk(arm, (element) => {
+          if ("value" in element && typeof element.value === "string") {
+            names.push(element.value);
+          }
+        });
+        return names;
+      };
+
+      expect(armNames("=0")).not.toContain("percent");
+      expect(armNames("other")).toContain("percent");
+    },
+  );
+
+  it.each(["1", "7", "15", "100"])(
+    "keeps the surcharge sentence for a non-zero rule of %s %%",
+    (percent) => {
+      expect(render("ro", KEY, { cabinetDepthMm: 700, percent })).toContain(
+        `${percent} %`,
+      );
+      expect(render("ru", KEY, { cabinetDepthMm: 700, percent })).toContain(
+        `${percent} %`,
+      );
+    },
+  );
+});
+
 describe("availability applies immediately and the price line stays on publishing (plan A-17, A-18, S-15)", () => {
   const APPLIES_IMMEDIATELY = {
     ro: /se aplic. imediat/iu,
@@ -385,6 +446,7 @@ describe("availability applies immediately and the price line stays on publishin
     "priceDashboard.hardware.pricesHint",
     "priceDashboard.materials.surchargeHint",
     "priceDashboard.accessories.priceHint",
+    "priceDashboard.common.textSavedNotice",
   ] as const;
 
   it.each(CATALOGUES)(
@@ -445,6 +507,76 @@ describe("availability applies immediately and the price line stays on publishin
         .map(([key]) => key);
 
       expect(tabLabels).toEqual([]);
+    },
+  );
+});
+
+describe("the review-fix leaves keep their contracts", () => {
+  it("writes the group-off width in a publish example line (1200, never 1.200 or 1 200)", () => {
+    const values = { name: "X", widthMm: 1200, before: "1", after: "2" };
+
+    expect(
+      render("ro", "priceDashboard.publish.exampleLine", values),
+    ).toContain("X 1200:");
+    expect(
+      render("ru", "priceDashboard.publish.exampleLine", values),
+    ).toContain("X 1200:");
+  });
+
+  it.each(CATALOGUES)(
+    "names the blocked item and nothing else in the default-refusal sentence in %s",
+    (locale) => {
+      const sentence = render(
+        locale,
+        "priceDashboard.publish.blockedIsDefault",
+        {
+          name: "[item]",
+        },
+      );
+
+      expect(sentence).toContain("[item]");
+      expect(sentence).not.toMatch(/[{}]/u);
+    },
+  );
+
+  it.each(CATALOGUES)(
+    "keeps the zero-argument %s leaves free of parameters, so a caller passing one is the defect",
+    (locale, messages) => {
+      const keys = [
+        "priceDashboard.cabinets.editHint",
+        "priceDashboard.cabinet.sinkNote",
+        "priceDashboard.hardware.newPricesNote",
+        "priceDashboard.accessories.linkFixedNote",
+        "priceDashboard.lifecycle.accessoryRemovedExplained",
+        "priceDashboard.common.textSavedNotice",
+        "replacementSheet.settingsNoLongerOffered",
+      ] as const;
+
+      for (const key of keys) {
+        expect(
+          [...argumentKinds(parse(leafAt(messages, key) ?? ""))],
+          `${locale} ${key}`,
+        ).toEqual([]);
+      }
+    },
+  );
+
+  it.each(CATALOGUES)(
+    "takes only the count in the %s restore dialog body (the version id lives in the title and action)",
+    (locale, messages) => {
+      const names = (key: string): readonly string[] => [
+        ...argumentKinds(parse(leafAt(messages, key) ?? "")).keys(),
+      ];
+
+      expect(names("priceDashboard.history.restoreDialogBody"), locale).toEqual(
+        ["count"],
+      );
+      expect(names("priceDashboard.history.restoreTitle"), locale).toEqual([
+        "versionId",
+      ]);
+      expect(names("priceDashboard.history.restoreAction"), locale).toEqual([
+        "versionId",
+      ]);
     },
   );
 });

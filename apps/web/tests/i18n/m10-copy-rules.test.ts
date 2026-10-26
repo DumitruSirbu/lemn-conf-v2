@@ -65,7 +65,7 @@ function proseOf(message: string): string {
     .replace(/\{\w+, number, [^{}]*\}/gu, "")
     .replace(/\{\w+\}/gu, "")
     .replace(/\{\w+, (?:plural|select),/gu, "")
-    .replace(/\b(?:zero|one|two|few|many|other|f)\s*\{/gu, "")
+    .replace(/(?:=\d+|\b(?:zero|one|two|few|many|other|f))\s*\{/gu, "")
     .replace(/[{}#]/gu, "")
     .replaceAll("3D", "");
 }
