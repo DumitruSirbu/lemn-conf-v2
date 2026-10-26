@@ -26,6 +26,11 @@ is scaffolded.
 - Store transient screenshots/traces in the project-defined artifact directory and clean them when
   they are no longer needed. Keep intentional visual baselines only when the project adopts a
   visual-regression workflow.
+- **Running the app from a worktree for staff or account checks needs `DIGEST_SECRET`.** It must be 64 lowercase hex
+  characters (`openssl rand -hex 32`), unique per environment, set in the launching shell or as an added `.env.local`
+  entry (environment variables are add-only; see `environments-and-resources.md`). Without it the fail-closed account
+  routes (for example `/api/staff/kitchens` and `/api/staff/audit`) answer 503 while the pages still render, and the log
+  line does not say why (backlog 289). Name the variable only; never write or print its value.
 
 ## A trap that produces confident wrong measurements, not an error
 
