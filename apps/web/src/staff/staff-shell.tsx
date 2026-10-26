@@ -148,6 +148,7 @@ export function StaffShell({
             data-testid="staff-pending-prices"
           >
             {pendingPricesLink.text}
+            <span aria-hidden="true"> →</span>
           </a>
         )}
       </div>

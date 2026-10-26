@@ -1278,7 +1278,6 @@
       "note": "В меню только разделы, разрешённые твоей роли.",
       "pendingChip": "{count, plural, one {{count, number, ::group-off} цена к публикации} few {{count, number, ::group-off} цены к публикации} many {{count, number, ::group-off} цен к публикации} other {{count, number, ::group-off} цены к публикации}}",
       "allPublished": "Все цены опубликованы",
-      "pendingChipLink": "{label} →",
       "itemWithBadge": "{name}, {label}"
     },
     "common": {

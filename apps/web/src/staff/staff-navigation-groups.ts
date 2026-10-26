@@ -40,8 +40,6 @@ export interface PendingPrices {
   readonly label: string;
   /** What a screen reader says for the publish page's menu link. */
   readonly menuLinkName: (pageName: string) => string;
-  /** The bar's link to the publish page, with its arrow. */
-  readonly barLinkText: string;
 }
 
 export interface NavigationGroupsInput {
@@ -113,7 +111,6 @@ export function useStaffNavigation({
             name: pageName,
             label,
           }),
-        barLinkText: translate("priceDashboard.nav.pendingChipLink", { label }),
       };
     };
     const pendingPrices = isWaitingCount(pendingPriceCount)
@@ -140,7 +137,7 @@ export function useStaffNavigation({
           ? undefined
           : {
               href: staffPathOf(locale, "publish"),
-              text: pendingPrices.barLinkText,
+              text: pendingPrices.label,
             },
     };
   }, [locale, page, navigation, labelOf, pendingPriceCount, translate]);

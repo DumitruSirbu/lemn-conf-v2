@@ -662,3 +662,188 @@ function pluralArmsOf(locale: TestLocale): Record<string, string> {
 function ruMessagesTyped(): typeof roMessages {
   return ruMessagesImport as typeof roMessages;
 }
+
+describe("the empty states of the list", () => {
+  const COPY = roMessages.priceDashboard.cabinets;
+  const toggle = (container: HTMLElement) =>
+    requireIn<HTMLButtonElement>(container, "button[aria-pressed]");
+  const emptyOf = (container: HTMLElement) =>
+    requireIn(container, '[data-testid="cabinet-list-empty"]');
+
+  it("names the filter when 'Doar modificate' is on and the query matches only cabinets the draft leaves alone", async () => {
+    const container = await mount();
+    click(toggle(container));
+
+    typeInto(searchBox(container), "sertare");
+
+    expect(emptyOf(container).textContent).toContain(
+      COPY.emptyChangedTitle.replace("{query}", "sertare"),
+    );
+    expect(emptyOf(container).textContent).not.toContain(
+      COPY.emptySearchTitle.replace("{query}", "sertare"),
+    );
+  });
+
+  it("clears the query and the filter together, restores every cabinet and the focus, and unpresses the toggle", async () => {
+    const container = await mount();
+    const before = visibleRowCount(container);
+    click(toggle(container));
+    typeInto(searchBox(container), "sertare");
+
+    click(requireIn(emptyOf(container), "button"));
+
+    expect(searchBox(container).value).toBe("");
+    expect(toggle(container).getAttribute("aria-pressed")).toBe("false");
+    expect(visibleRowCount(container)).toBe(before);
+    expect(document.activeElement).toBe(searchBox(container));
+  });
+
+  it("says the plain search wording again once the filter is off", async () => {
+    const container = await mount();
+    typeInto(searchBox(container), "sertare zzz");
+
+    expect(emptyOf(container).textContent).toContain(
+      COPY.emptySearchTitle.replace("{query}", "sertare zzz"),
+    );
+  });
+
+  it.each(["", " ", "\u00a0\t"])(
+    "says there is no cabinet to show, with no button to press, for a book with none and the query %j",
+    async (query) => {
+      const container = await mount({
+        rules: [],
+        draft: { draftRevision: "1", changes: [] },
+      });
+      typeInto(searchBox(container), query);
+
+      expect(emptyOf(container).textContent).toContain(COPY.emptyListTitle);
+      expect(emptyOf(container).querySelector("button")).toBeNull();
+      expect(toggle(container).disabled).toBe(true);
+    },
+  );
+
+  it("offers the way out when a book with no cabinet is searched", async () => {
+    const container = await mount({
+      rules: [],
+      draft: { draftRevision: "1", changes: [] },
+    });
+    typeInto(searchBox(container), "x");
+
+    expect(emptyOf(container).querySelector("button")).not.toBeNull();
+  });
+});
+
+describe("only the amounts a row draws are checked", () => {
+  it("heads an unmodified row with its good active price when the pending one is garbage", async () => {
+    const container = await mount(
+      inputWithFirstRulePriced(200_000, Number.NaN, false),
+    );
+    const [first] = rowsIn(container);
+
+    expect(first?.textContent).toContain(`2${NBSP}000${NBSP}lei`);
+    expect(
+      first?.querySelector('[data-testid="cabinet-price-unreadable"]'),
+    ).toBeNull();
+  });
+
+  it.each([
+    ["an unmodified row with a bad active price", Number.NaN, 150_000, false],
+    ["a modified row with a bad active price", -5, 150_000, true],
+    ["a modified row with a bad pending price", 145_000, 0.5, true],
+    ["a modified row with both bad", Number.NaN, Number.NaN, true],
+  ])("draws %s as a dash", async (_label, active, pending, isModified) => {
+    const container = await mount(
+      inputWithFirstRulePriced(active, pending, isModified),
+    );
+    const [first] = rowsIn(container);
+
+    expect(
+      first?.querySelector('[data-testid="cabinet-price-unreadable"]'),
+    ).not.toBeNull();
+    expect(first?.textContent).not.toMatch(/lei|NaN/);
+  });
+});
+
+describe("what a screen reader says for the waiting-prices links", () => {
+  /** The accessible name by the usual computation: the label if there is one, else the text not hidden from it. */
+  function accessibleNameOf(element: Element): string {
+    const label = element.getAttribute("aria-label");
+    if (label !== null) return label;
+    return [...element.childNodes]
+      .map((node) =>
+        node instanceof Element
+          ? node.getAttribute("aria-hidden") === "true"
+            ? ""
+            : accessibleNameOf(node)
+          : (node.textContent ?? ""),
+      )
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  const ARROWS = /[\u2190-\u21ff\u2794\u27a1]|arrow|стрелк/i;
+
+  it.each(["ro", "ru"] as const)(
+    "names the bar's link by the number and the words, with no arrow in it, in %s",
+    async (locale) => {
+      screen = await mountInStaffFrame({
+        locale,
+        page: "cabinets",
+        context: contextOf(
+          "administrator",
+          ["kitchens", "cabinets", "publish"],
+          7,
+        ),
+        children: createElement("p", null, "content"),
+      });
+      const chip = requireIn(screen.container, PENDING_CHIP);
+
+      expect(accessibleNameOf(chip)).toMatch(/^7 /);
+      expect(accessibleNameOf(chip)).not.toMatch(ARROWS);
+    },
+  );
+
+  it.each(["ro", "ru"] as const)(
+    "names the menu link by the page, then the number and the words, and holds the drawn label and number, in %s",
+    async (locale) => {
+      screen = await mountInStaffFrame({
+        locale,
+        page: "cabinets",
+        context: contextOf(
+          "administrator",
+          ["kitchens", "cabinets", "publish"],
+          7,
+        ),
+        children: createElement("p", null, "content"),
+      });
+      const link = requireIn(
+        screen.container,
+        '[data-testid="staff-nav"] a[href$="/catalog/publish"]',
+      );
+      const drawnLabel = requireIn(link, "span").textContent.trim();
+
+      expect(accessibleNameOf(link).startsWith(drawnLabel)).toBe(true);
+      expect(accessibleNameOf(link)).toMatch(/\b7\b/);
+      expect(accessibleNameOf(link)).not.toMatch(ARROWS);
+    },
+  );
+
+  it("gives the other menu links their drawn label and nothing more", async () => {
+    screen = await mountInStaffFrame({
+      page: "cabinets",
+      context: contextOf(
+        "administrator",
+        ["kitchens", "cabinets", "publish"],
+        7,
+      ),
+      children: createElement("p", null, "content"),
+    });
+    const link = requireIn(
+      screen.container,
+      '[data-testid="staff-nav"] a[href$="/catalog/cabinets"]',
+    );
+
+    expect(link.hasAttribute("aria-label")).toBe(false);
+    expect(accessibleNameOf(link)).toBe(roMessages.priceDashboard.nav.cabinets);
+  });
+});

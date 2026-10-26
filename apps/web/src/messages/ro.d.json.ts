@@ -1281,7 +1281,6 @@ declare const messages: {
       "note": "Meniul arată doar secțiunile permise rolului tău.",
       "pendingChip": "{count, plural, one {{count, number, ::group-off} preț de publicat} few {{count, number, ::group-off} prețuri de publicat} other {{count, number, ::group-off} de prețuri de publicat}}",
       "allPublished": "Toate prețurile sunt publicate",
-      "pendingChipLink": "{label} →",
       "itemWithBadge": "{name}, {label}"
     },
     "common": {

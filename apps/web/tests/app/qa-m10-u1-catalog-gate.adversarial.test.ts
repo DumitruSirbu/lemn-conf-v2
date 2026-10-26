@@ -2,6 +2,9 @@
 // domain names and both states of the address. The session read and the framework's redirect are replaced; the
 // capability table, the cookie name and both gates are the real ones.
 import { ROLES, type Role } from "@lemnaria/configurator-domain";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentSession } from "@/lib/server/account/current-session";
@@ -83,7 +86,9 @@ describe("what the catalog gate shows each caller, held against the staff gate",
     "answers %s with a navigation holding a catalog page only when it opens the page",
     async (_label, session) => {
       reading.session = session;
-      const answer = await answerOf(() => readCatalogPage({ locale: "ro" }));
+      const answer = await answerOf(() =>
+        readCatalogPage({ locale: "ro", page: "cabinets" }),
+      );
       const navigation =
         "shell" in answer
           ? (answer.shell as { navigation: readonly string[] }).navigation
@@ -103,7 +108,9 @@ describe("what the catalog gate shows each caller, held against the staff gate",
       const staff = await answerOf(() =>
         readStaffPage({ locale: "ro", page: "kitchens" }),
       );
-      const catalog = await answerOf(() => readCatalogPage({ locale: "ro" }));
+      const catalog = await answerOf(() =>
+        readCatalogPage({ locale: "ro", page: "cabinets" }),
+      );
 
       const staffSeesNoFrame = !("shell" in staff);
       if (staffSeesNoFrame) {
@@ -122,7 +129,9 @@ describe("what the catalog gate shows each caller, held against the staff gate",
       const staff = await answerOf(() =>
         readStaffPage({ locale: "ro", page: "kitchens" }),
       );
-      const catalog = await answerOf(() => readCatalogPage({ locale: "ro" }));
+      const catalog = await answerOf(() =>
+        readCatalogPage({ locale: "ro", page: "cabinets" }),
+      );
 
       if (catalog.kind !== "signed-in" && catalog.kind !== "staff-forbidden") {
         expect(catalog.kind).toBe(
@@ -135,7 +144,9 @@ describe("what the catalog gate shows each caller, held against the staff gate",
   it("never lets a role that is not the administrator's open any catalog page", async () => {
     for (const role of ROLE_NAMES) {
       reading.session = signedIn(role, true);
-      const answer = await answerOf(() => readCatalogPage({ locale: "ro" }));
+      const answer = await answerOf(() =>
+        readCatalogPage({ locale: "ro", page: "cabinets" }),
+      );
 
       expect(answer.kind === "signed-in", role).toBe(role === "administrator");
     }
@@ -143,7 +154,10 @@ describe("what the catalog gate shows each caller, held against the staff gate",
 
   it("lists every catalog page only to the one role that may edit prices", async () => {
     reading.session = signedIn("administrator", true);
-    const answer = (await readCatalogPage({ locale: "ro" })) as {
+    const answer = (await readCatalogPage({
+      locale: "ro",
+      page: "cabinets",
+    })) as {
       shell: { navigation: readonly string[] };
     };
 
@@ -216,19 +230,24 @@ describe("the staff navigation, now that it lists the price dashboard's pages", 
     ).toEqual([]);
   });
 
-  it("lists only the catalog pages it is told are built, in the order it is told", () => {
+  it("lists the catalog pages in the closed list's order, whatever order the built list is given in", () => {
     expect(
       staffNavigationOf(holder("administrator"), ["publish", "cabinets"]),
-    ).toEqual(["publish", "cabinets"]);
+    ).toEqual(["cabinets", "publish"]);
+    expect(
+      staffNavigationOf(holder("administrator"), [...CATALOG_PAGES].reverse()),
+    ).toEqual([...CATALOG_PAGES]);
     expect(staffNavigationOf(holder("administrator"), [])).toEqual([]);
   });
 
-  it("is told the built pages in the closed list's order, which is the order the menu draws them in a group", () => {
-    const positions = BUILT_CATALOG_PAGES.map((page) =>
-      CATALOG_PAGES.indexOf(page),
-    );
-
-    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  it("puts the staff pages before the catalog pages whatever order the built list is given in", () => {
+    expect(
+      staffNavigationOf(holder("administrator"), [
+        "cabinets",
+        "audit",
+        "kitchens",
+      ]),
+    ).toEqual(["kitchens", "audit", "cabinets"]);
   });
 
   it("lists every page of the closed list to an administrator once all are built", () => {
@@ -245,5 +264,45 @@ describe("the staff navigation, now that it lists the price dashboard's pages", 
     const navigation = staffNavigationOf(holder("administrator"));
 
     expect(new Set(navigation).size).toBe(navigation.length);
+  });
+});
+
+describe("the catalog gate asked for each page", () => {
+  it.each(CATALOG_PAGES)(
+    "answers %s exactly as the staff gate does for that page, for every caller",
+    async (page) => {
+      for (const [label, session] of CALLERS) {
+        reading.session = session;
+        const staff = await answerOf(() =>
+          readStaffPage({ locale: "ro", page }),
+        );
+        const catalog = await answerOf(() =>
+          readCatalogPage({ locale: "ro", page }),
+        );
+
+        expect(catalog, `${label} on ${page}`).toEqual(staff);
+      }
+    },
+  );
+
+  it("maps every catalog page to price.edit in the staff gate's table, and no staff page to it", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "../../src/lib/server/staff/staff-page.ts"),
+      "utf8",
+    );
+    const table = /CAPABILITY_OF_PAGE[^{]*\{([^}]*)\}/.exec(source)?.[1] ?? "";
+    const entries: Record<string, string | undefined> = {};
+    for (const [, page, capability] of table.matchAll(/(\w+):\s*"([\w.]+)"/g)) {
+      if (page !== undefined) entries[page] = capability;
+    }
+
+    for (const page of CATALOG_PAGES) {
+      expect(entries[page], page).toBe("price.edit");
+    }
+    expect(entries.kitchens).toBe("design.read.any");
+    expect(entries.audit).toBe("audit.read");
+    expect(Object.keys(entries).sort()).toEqual(
+      ["kitchens", "audit", ...CATALOG_PAGES].sort(),
+    );
   });
 });

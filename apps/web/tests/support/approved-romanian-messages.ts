@@ -1690,8 +1690,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       pendingChip:
         "{count, plural, one {{count, number, ::group-off} preț de publicat} few {{count, number, ::group-off} prețuri de publicat} other {{count, number, ::group-off} de prețuri de publicat}}",
       allPublished: "Toate prețurile sunt publicate",
-      // Drafted, not approved: the join of the bar's link and the spoken name of the menu's link; both are separators.
-      pendingChipLink: "{label} →",
+      // Drafted, not approved: the spoken name of the menu's link to the publish page, a separator.
       itemWithBadge: "{name}, {label}",
     },
     common: {
