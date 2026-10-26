@@ -5,8 +5,6 @@
 // including their own frame on a swap in place. `top` is a *row*, not a catalogue band: it records
 // which module line a seeded instance stands on. Both the gate and the offer list therefore compare
 // normalised bands, and that normalisation lives here so the two cannot drift apart.
-import { toMillimetres } from "./millimetres.js";
-import { isTopRowFloorMm } from "./push-to-open.js";
 import type { Band } from "./void-engine.js";
 
 /** The bands §5.2 actually reasons about. `top` is absent by construction. */
@@ -18,10 +16,6 @@ export const COLUMN_SLOT_MIN_HEIGHT_M = 1.9;
 
 /** §5.2: a slot starting below this stands on the floor and targets `base`. */
 export const FLOOR_SLOT_MAX_Y0_M = 0.2;
-
-/** §6.5 / §11 row 13: a body placed at or above this module line ships push-to-open by default,
- *  with its handles built and hidden. Decided by the slot, not by the body's catalogue band. */
-export const TOP_ROW_Y0_M = 2.2;
 
 const NORMALISED_BANDS: Readonly<Record<Band, NormalisedBand>> = {
   base: "base",
@@ -55,11 +49,4 @@ export function isBandAccepted(
 ): boolean {
   if (bodyBand === "column" || slotBand === "column") return true;
   return bodyBand === slotBand;
-}
-
-/** §6.5: no recorded handle mode plus a top-row slot means push-to-open. The handles are still
- *  built and hidden, so `canHandle` stays true and the customer can turn them back on. Delegates to
- *  `isTopRowFloorMm`, the one derivation of the module line, so no reader keeps a second comparison. */
-export function isPushOpenByDefault(y0M: number): boolean {
-  return isTopRowFloorMm(toMillimetres(y0M));
 }

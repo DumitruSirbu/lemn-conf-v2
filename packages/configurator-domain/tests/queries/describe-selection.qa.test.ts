@@ -7,7 +7,6 @@
 // was checked and wrong one module line up.
 import { describe, expect, it } from "vitest";
 
-import { TOP_ROW_Y0_M } from "../../src/bands.js";
 import { setHandle } from "../../src/commands/set-appearance.js";
 import type { Design, DesignPlacement } from "../../src/design.js";
 import {
@@ -97,7 +96,8 @@ describe("§9's canWidth, over the whole seeded population", () => {
 });
 
 describe("§6.5's default handle at the module line itself", () => {
-  const line = Math.round(TOP_ROW_Y0_M * 1000);
+  /** §6.5's module line, written out: the oracle must not read a constant the readers share. */
+  const line = 2_200;
 
   function designAt(y0Mm: number): Design {
     const placement: DesignPlacement = {

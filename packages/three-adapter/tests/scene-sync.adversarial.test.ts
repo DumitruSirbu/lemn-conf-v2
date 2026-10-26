@@ -12,7 +12,6 @@ import {
   KITCHEN_L_DESIGN,
   NO_FRONT_ASSEMBLY_MM,
   shellPlusFrontMm,
-  TOP_ROW_Y0_M,
   type Frame,
   type PlacementRecord,
   type VoidRecord,
@@ -39,6 +38,8 @@ import {
 /** The room the void sets stand in: the seeded L, which is never cut. */
 const L_ROOM = KITCHEN_L_DESIGN.room;
 
+/** §6.5's module line in metres, written out: the scene's oracle does not read a constant the readers share. */
+const TOP_ROW_Y0_M = 2.2;
 const WALL_ROW_Y0_M = 1.5;
 const SIGNATURE_FLOW_CYCLES = 10;
 

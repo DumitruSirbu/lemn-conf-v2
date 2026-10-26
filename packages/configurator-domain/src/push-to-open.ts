@@ -20,8 +20,7 @@ import {
 const PUSH_TO_OPEN: Handle = "push";
 
 /** The top row's floor in millimetres: §6.5's module line in the document's unit (§12). The one place the
- *  line is written as a comparison; `bands.ts`'s metre restatement (`TOP_ROW_Y0_M`) is held to it by a sweep
- *  (`push-to-open.test.ts`), and `isPushOpenByDefault` there delegates to `isTopRowFloorMm`. */
+ *  line is written as a comparison; `push-to-open.test.ts` holds it to the literal 2200. */
 export const TOP_ROW_Y0_MM = 2_200;
 
 /** Whether a body standing on this floor is on the top row: §6.5's module line, derived here and nowhere else. Every
