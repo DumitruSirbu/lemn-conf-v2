@@ -281,7 +281,7 @@ declare const messages: {
     "included": "inclus",
     "notIncluded": "nu este inclus",
     "depthLine": "Adâncime {cabinetDepthMm, number, ::group-off} mm · adaos {percent} %",
-    "depthLineScope": "dulapurile de bază și coloanele"
+    "depthLineScope": "dulapurile care se adâncesc"
   },
   "review": {
     "title": "Verifică designul",
@@ -328,7 +328,7 @@ declare const messages: {
     "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
     "depthWarning": "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
     "depthNote": "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
-    "depthNotePriced": "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile de bază și coloanele cu {percent} %.}}",
+    "depthNotePriced": "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu {percent} %.}}",
     "kitchenHandleHeading": "Mânere",
     "kitchenHandleHint": "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
     "colourHeading": "Culoarea bucătăriei",
@@ -1390,8 +1390,8 @@ declare const messages: {
       "title": "Reguli de preț pentru toate dulapurile",
       "subtitle": "Se aplică întregului catalog. Se publică la fel ca orice preț.",
       "deepKitchenLabel": "Bucătărie adâncă ({depthMm, number, ::group-off} mm)",
-      "scope": "Dulapurile de bază și coloanele",
-      "hint": "Se aplică dulapurilor de bază și coloanelor. Dulapurile suspendate rămân la {wallDepthMm, number, ::group-off} mm și nu se scumpesc. Feroneria și accesoriile nu se schimbă. Prețurile finale se rotunjesc la {roundTo}.",
+      "scope": "Dulapurile care se adâncesc",
+      "hint": "Se aplică dulapurilor care se adâncesc. Feroneria și accesoriile nu se schimbă. Prețurile finale se rotunjesc la {roundTo}.",
       "activeValue": "Activ: +{percent} %.",
       "savedNotice": "Salvat în „De publicat”. Intră în vigoare când publici.",
       "isNew": "Regulă nouă"
@@ -1680,7 +1680,7 @@ declare const messages: {
       "hardware": "Feronerie",
       "hardwareHint": "Clasa de feronerie a unei bucătării noi.",
       "depth": "Adâncimea dulapurilor",
-      "depthHint": "Pentru dulapurile de jos și coloane.",
+      "depthHint": "Pentru dulapurile care se adâncesc.",
       "colour": "Culoarea bucătăriei",
       "colourHint": "Din paleta materialului implicit.",
       "colourReset": "Materialul ales nu are culoarea {unavailableColour}. Culoarea implicită devine {replacementColour}.",

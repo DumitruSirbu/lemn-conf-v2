@@ -160,9 +160,12 @@ published (decisions 1 and 3). Nothing is a constant in the tree.
 
 **Where it applies.**
 
-- Only to cabinets that actually get deeper: **base and tall, including the hob and sink cabinets**.
-- **Not** to wall cabinets (320 deep at both settings), **not** to customer-supplied rows, and **not**
-  to hardware or accessories.
+- To **every manufacturer-supplied cabinet that measures deeper** at 700 than at 600 (its priced-as row's finished depth,
+  `buildKitchenLBodyCatalog(700)` against `(600)`): base, tall, hob, sink, the base corners **and every wall-band row and
+  wall corner** (330 → 400, `worktop-depth.ts:29-32`). **Owner ruling 2026-10-26: "Surcharge every deeper cabinet."** The
+  earlier "not to wall cabinets (320 deep at both settings)" was wrong about the code and is superseded.
+- **Not** to customer-supplied rows, **not** to a row that does not deepen (`fridge-free`, 742 at both), and **not** to
+  hardware or accessories.
 - It is applied **at the cabinet's real width**.
 - It **multiplies with the material percentage** (ADR 0092 Amendment of 2026-10-25), for example
   1 500 × 1.15 × 1.35. The 1.15 and 1.35 are illustrative.

@@ -87,8 +87,7 @@ change without a new version, e.g. activating a linked accessory adds a line to 
   name the same design.
 - Opening the kitchen page sends the revision **the page displayed** (`POST …/seen`, audited), so a save landing between
   load and mark keeps the badge. A seen mark never lowers the stored seen revision: the store writes `seen_revision = greatest(existing, displayed)` in SQL, and `seen_by_account_id` and `seen_at` change only when the displayed revision is strictly greater, so they always describe the kept revision; a stale page marking R1 after R2 leaves R2, so neither the badge nor the digest's revision-based hold (A-13) can regress (K1 QA, coordinator's ruling, 2026-10-26). **Guards (F9):** the mark refuses a displayed revision greater than the current one, in
-  SQL (`where $displayed::bigint <= designs.revision`); ADR 0173 P-L3-4 visibility applies (404 for a client-deleted or
-  unsent design); the revision's digit shape is validated before SQL (400, not 500). The polled changed-count read is
+  SQL (`where $displayed::bigint <= designs.revision`); ADR 0173 P-L3-4's staff-list visibility applies — the mark is accepted for any design not deleted by the client that is sent or held by an account, and a design outside that is 404 (S1 QA, coordinator's ruling, 2026-10-26); the changed badge, the counter and the digest still consider sent designs only (`sent_at is not null`); the revision's digit shape is validated before SQL (400, not 500). The polled changed-count read is
   **exempt from per-poll audit**; every other staff read and write stays audited.
 
 ### A-13 — The digest
@@ -236,8 +235,8 @@ rule above).
 
 New closed-list entries in `staff-audit-action.ts`, written by X0. **Each has a closed key list: kind, ids, codes, counts
 (F4). Never created-row text, never a version label or note, never a name or free text.** The actions: `price-draft-changed` (the change kind, including created / text / deleted), `price-draft-reverted`,
-`price-bulk-changed`, `price-published`, `price-restored-to-draft`, `catalogue-item-activation-changed` (immediate, A-17),
-`kitchen-defaults-saved`, `kitchen-seen`, `price-catalogue-viewed`. The `action` column is a shape check (`0020` header,
+`price-bulk-changed`, `price-published`, `price-restored-to-draft`, `catalogue-item-active-changed` (renamed 2026-10-26: the stored action is capped at 32 characters by migration `0020`'s check and `STORED_ACTION_SHAPE`) (immediate, A-17),
+`kitchen-defaults-saved`, `kitchen-seen`, `price-catalogue-viewed`. The store fills `sequenceNumber` and `changeCount` (the length of the stored change summary) into the `price-published` detail; the caller's entry omits them (S1 QA, 2026-10-26). The `action` column is a shape check (`0020` header,
 per the plan), so no migration is owed.
 
 ## Alternatives considered

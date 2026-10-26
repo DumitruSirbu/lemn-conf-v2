@@ -9,6 +9,9 @@ import { resolveCatalogEquivalent } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
 import {
+  ContradictoryFrontDeclarationError,
+  doorLeafCount,
+  frontPopulationQueryFor,
   UnbuildableDoorBandError,
   UndeclaredFrontPopulationError,
 } from "../front-population.js";
@@ -24,6 +27,10 @@ import { findOverflowingPlacementIds } from "../queries/overflowing-placements.j
 import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
+import {
+  MissingAnchorLeafCountError,
+  NoPriceForSizeError,
+} from "./anchored-price-formula.js";
 import { parsePriceBook } from "./parse-price-book.js";
 import {
   ACCESSORY_IDS,
@@ -216,7 +223,7 @@ function priceOnePlacement(
     );
   }
 
-  const body = describePricedBody(entry, pricedAs);
+  const body = describePricedBody(entry, pricedAs, catalog);
   if (isRefused(body)) return body;
 
   const evaluated = evaluateFormula(rule, body.value, entry.placementId);
@@ -260,7 +267,9 @@ function priceOnePlacement(
 
 /** `amountForBody` **throws** for a coefficient that is not an exact count of minor units (ADR 0062
  *  seam 1); this query refuses with a code instead. `undefined` passes through untouched: an
- *  unimplemented formula shape is the caller's other refusal. */
+ *  unimplemented formula shape is the caller's other refusal. A width above every listed size, unreadable
+ *  fronts and an unbuildable door band have codes of their own; a defect leaves as itself, as in
+ *  `refuseUnreadFrontsCause`; every other cause is `INVALID_AMOUNT`. */
 function evaluateFormula(
   rule: CabinetPriceRule,
   body: PricedBody,
@@ -269,11 +278,31 @@ function evaluateFormula(
   try {
     return { value: amountForBody(rule.formula, body) };
   } catch (error) {
-    return refusal("INVALID_AMOUNT", describeError(error), {
+    if (isADefectNotARefusal(error)) throw error;
+    return refusal(failureCodeOf(error), describeError(error), {
       placementId,
       id: rule.ruleId,
     });
   }
+}
+
+/** A throw no book or design can cause: the query's own caller left out the anchor's leaf count, or the catalogue
+ *  declares fronts that contradict each other. Never a refusal a surface could render. */
+function isADefectNotARefusal(error: unknown): boolean {
+  return (
+    error instanceof MissingAnchorLeafCountError ||
+    error instanceof ContradictoryFrontDeclarationError
+  );
+}
+
+/** The refusal a formula's throw becomes: the three causes with a code of their own, else an unusable amount. */
+function failureCodeOf(error: unknown): PricingFailureCode {
+  if (error instanceof NoPriceForSizeError) return "NO_PRICE_FOR_SIZE";
+  if (error instanceof UndeclaredFrontPopulationError) {
+    return "UNDECLARED_FRONT_POPULATION";
+  }
+  if (error instanceof UnbuildableDoorBandError) return "UNBUILDABLE_DOOR_BAND";
+  return "INVALID_AMOUNT";
 }
 
 /**
@@ -327,25 +356,31 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * What a formula may know about a body: the placement's width and height (a body built to its
  * opening stands at a height its catalogue row does not state), and its door leaves.
  *
- * The leaf count is read from the **priced-as** row, the opposite of `countHardwareMechanisms`
- * (which counts the built body): seeded rows freeze `carriesHandles(n)` at their built size, so
- * reading the placement's own entry would give a resized seeded `wall-2door-600` no door step at
- * 800 mm while an inserted `wall-cabinet` beside it got one (ADR 0092 decision 1).
+ * Two leaf counts, for two questions. `doorLeafCount`, which the linear shapes' door step reads, comes from the
+ * **priced-as** row's width rule: seeded rows freeze `carriesHandles(n)` at their built size, so reading the
+ * placement's own entry would give a resized seeded `wall-2door-600` no door step at 800 mm while an inserted
+ * `wall-cabinet` beside it got one (ADR 0092 decision 1). An anchored door shape instead reads the leaves the body
+ * itself carries (`builtDoorLeafCount`, what `countHardwareMechanisms` bills hinges over) against the priced-as
+ * row's at the anchor width (`doorLeafCountAt`), so its panel step and its hinges count leaves alike (ADR 0177 A-3).
  */
 function describePricedBody(
   entry: DisplayEntry,
   pricedAs: PricingRow,
+  catalog: BodyCatalog,
 ): Attempt<PricedBody> {
   try {
     return {
       value: {
         widthMm: entry.widthMm,
         heightMm: entry.heightMm,
-        doorLeafCount: widthDerivedDoorLeafCount({
-          buildId: pricedAs.buildId,
-          rule: pricedAs.definition?.cabinetHandles,
-          widthMm: entry.widthMm,
-        }),
+        doorLeafCount: doorLeavesAt(pricedAs, entry.widthMm),
+        doorLeafCountAt: (widthMm) =>
+          hardwareDoorLeaves(pricedAs, { widthMm, heightMm: entry.heightMm }),
+        builtDoorLeafCount: () =>
+          hardwareDoorLeaves(
+            { buildId: entry.buildId, definition: catalog.get(entry.buildId) },
+            entry,
+          ),
       },
     };
   } catch (error) {
@@ -354,6 +389,33 @@ function describePricedBody(
       id: pricedAs.buildId,
     });
   }
+}
+
+/** The leaves a row's own front population gives a body of this size: the count `countHardwareMechanisms` bills
+ *  hinges over, so an anchored door term and hardware count leaves alike (ADR 0068 decision 1). Throws where the
+ *  fronts cannot be read; `evaluateFormula` converts it. */
+function hardwareDoorLeaves(
+  row: {
+    readonly buildId: string;
+    readonly definition: BodyDefinition | undefined;
+  },
+  size: { readonly widthMm: number; readonly heightMm: number },
+): number {
+  return doorLeafCount(
+    frontPopulationQueryFor({
+      body: { buildId: row.buildId, ...size },
+      definition: row.definition ?? {},
+    }),
+  );
+}
+
+/** The leaves the priced-as row's width rule derives at one width: what the linear shapes' door step reads. */
+function doorLeavesAt(pricedAs: PricingRow, widthMm: number): number {
+  return widthDerivedDoorLeafCount({
+    buildId: pricedAs.buildId,
+    rule: pricedAs.definition?.cabinetHandles,
+    widthMm,
+  });
 }
 
 /** Hardware, then material, after **all** placement lines, both always emitted. A free tier is a

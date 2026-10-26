@@ -10,7 +10,18 @@
 // the product (hence `pricedFlat`). A fifth axis, not a fourth combination, is the cue to revisit.
 //
 // Nothing here keys on a width and nothing under `pricing/` names the catalogue's width-step
-// constant (`pricing-seams.test.ts` reads the source for it): a body built at 575 is priced at 575.
+// constant (`pricing-seams.test.ts` reads the source for it). A linear shape prices a body built at 575
+// at 575; an anchored shape rounds width and height up to the pricing step first, so 575 prices as 600.
+
+import {
+  anchoredShapeReadsDoorLeaves,
+  anchoredShapeReadsHeight,
+  listedSizeFor,
+  stepsFromAnchor,
+  type AnchoredFormula,
+  type AnchoredSteps,
+  type PricePerSizeFormula,
+} from "./anchored-price-formula.js";
 
 /** The currency of every book. Minor units throughout (bani): only presentation may round. */
 export const PRICE_BOOK_CURRENCY = "MDL" as const;
@@ -85,41 +96,50 @@ export interface WidthHeightAndDoorLeafPriceFormula
   readonly shape: "linear-in-width-height-and-door-leaves";
 }
 
-export type PriceFormula =
+/** The linear shapes, retired when the sample book is converted to anchored form. Named apart so the book
+ *  that still states them keeps reading their coefficients. */
+export type LinearPriceFormula =
   | LinearWidthPriceFormula
   | DoorLeafSteppedPriceFormula
   | WidthAndHeightPriceFormula
   | WidthHeightAndDoorLeafPriceFormula;
 
+export type PriceFormula =
+  | LinearPriceFormula
+  | AnchoredFormula
+  | PricePerSizeFormula;
+
 /** A body whose price follows its width. */
-export function pricedByWidth(coefficients: WidthCoefficients): PriceFormula {
+export function pricedByWidth(
+  coefficients: WidthCoefficients,
+): LinearPriceFormula {
   return { shape: "linear-in-width", ...coefficients };
 }
 
 /** A body whose price follows its width and steps at every door its width adds. */
 export function pricedByWidthAndDoorLeaves(
   coefficients: WidthCoefficients & DoorLeafCoefficient,
-): PriceFormula {
+): LinearPriceFormula {
   return { shape: "linear-in-width-and-door-leaves", ...coefficients };
 }
 
 /** A body whose price follows its width and the height it was built to. */
 export function pricedByWidthAndHeight(
   coefficients: WidthCoefficients & HeightCoefficient,
-): PriceFormula {
+): LinearPriceFormula {
   return { shape: "linear-in-width-and-height", ...coefficients };
 }
 
 /** A body built to its opening whose door count also follows its width. */
 export function pricedByWidthHeightAndDoorLeaves(
   coefficients: WidthCoefficients & HeightCoefficient & DoorLeafCoefficient,
-): PriceFormula {
+): LinearPriceFormula {
   return { shape: "linear-in-width-height-and-door-leaves", ...coefficients };
 }
 
 /** A body that costs the same at every width — an appliance, a hood, a niche. Named so a rule reads
  *  as a statement about the product rather than an arithmetic no-op. */
-export function pricedFlat(amountMinor: number): PriceFormula {
+export function pricedFlat(amountMinor: number): LinearPriceFormula {
   return pricedByWidth({
     baseMinor: amountMinor,
     perWidthMillimetreMinor: 0,
@@ -155,10 +175,16 @@ export interface CabinetPriceRule {
   readonly suppliedBy?: CabinetSupplier | undefined;
 }
 
+/** A rule stating a linear formula: what the sample book still holds, so a reader of it keeps the coefficients
+ *  its shapes carry. */
+export interface LinearCabinetPriceRule extends CabinetPriceRule {
+  readonly formula: LinearPriceFormula;
+}
+
 /** A row the configurator draws and the manufacturer does not sell. Free and not-ours are written by
  *  one call so a book cannot state one without the other. */
 export function drawnButNotSupplied(): Pick<
-  CabinetPriceRule,
+  LinearCabinetPriceRule,
   "formula" | "suppliedBy"
 > {
   return { formula: pricedFlat(0), suppliedBy: "customer" };
@@ -268,6 +294,11 @@ export interface PriceBook {
   readonly accessories: BookAccessories;
 }
 
+/** A book whose cabinet rules all state a linear formula: the sample book's type until it is converted. */
+export type LinearPriceBook = Omit<PriceBook, "cabinetRules"> & {
+  readonly cabinetRules: readonly LinearCabinetPriceRule[];
+};
+
 /** Everything a formula may read about one body, and nothing else. Every field is derived by the
  *  query from the projection and the catalogue; none is stated by a book. */
 export interface PricedBody {
@@ -278,6 +309,13 @@ export interface PricedBody {
   /** The leaves this body's width decides — `widthDerivedDoorLeafCount`, per cabinet and not per
    *  band. Zero for a row whose front population is fixed. */
   readonly doorLeafCount: number;
+  /** The leaves the priced-as row would have at another width, counted as hardware counts them, so an
+   *  anchored door shape can set the body's count against the anchor's (ADR 0177 A-3). The linear shapes
+   *  never read it; an anchored door shape evaluated without it throws. */
+  readonly doorLeafCountAt?: (widthMm: number) => number;
+  /** The leaves the body itself carries at its built width, from its own front population: the count
+   *  hardware bills, which for a seeded body is not its priced-as row's. Absent means `doorLeafCount`. */
+  readonly builtDoorLeafCount?: () => number;
 }
 
 /** What one body costs, in minor units.
@@ -285,6 +323,8 @@ export interface PricedBody {
  *  `undefined` for a formula whose shape this build does not know. Never `NaN`, never partial.
  *  Throws `MalformedPriceCoefficientError` for a known shape with a coefficient that is not an exact
  *  count of minor units, and `InexactPriceArithmeticError` where a product or running sum is inexact.
+ *  An anchored shape also throws `MalformedPriceDimensionError` for an unusable dimension, and a
+ *  `price-per-size` row throws `NoPriceForSizeError` for a width above every listed size.
  *
  *  The parameter is typed wider than a rule declares: the book comes from outside TypeScript
  *  (ADR 0062 seam 1), so a formula can arrive carrying a shape nothing here implements. */
@@ -316,6 +356,13 @@ function termsOfFormula(
         heightTerm(formula, body),
         doorLeafTerm(formula, body),
       ];
+    case "anchored-width":
+    case "anchored-width-and-door-leaves":
+    case "anchored-width-and-height":
+    case "anchored-width-height-and-door-leaves":
+      return anchoredTerms(formula, body);
+    case "price-per-size":
+      return [sizeTerm(formula, body)];
     default:
       return undefined;
   }
@@ -379,6 +426,80 @@ function doorLeafTerm(
   };
 }
 
+/** The anchor, then each signed step against its rate. A rate is checked whatever its count: a malformed
+ *  `perStepNarrowerMinor` is a book fault on a body wider than the anchor too. */
+function anchoredTerms(
+  formula: AnchoredFormula,
+  body: PricedBody,
+): readonly PricedTerm[] {
+  const steps = stepsFromAnchor(formula, body);
+  return [
+    {
+      coefficientMinor: usableCoefficientOf(formula.anchorMinor, "anchorMinor"),
+      count: CHARGED_ONCE,
+      field: "anchorMinor",
+    },
+    {
+      coefficientMinor: usableCoefficientOf(
+        formula.perStepWiderMinor,
+        "perStepWiderMinor",
+      ),
+      count: Math.max(steps.widthSteps, 0),
+      field: "perStepWiderMinor",
+    },
+    {
+      coefficientMinor: usableCoefficientOf(
+        formula.perStepNarrowerMinor,
+        "perStepNarrowerMinor",
+      ),
+      count: Math.min(steps.widthSteps, 0),
+      field: "perStepNarrowerMinor",
+    },
+    ...anchoredDoorAndHeightTerms(formula, steps),
+  ];
+}
+
+/** Only the terms a shape reads: the others carry no rate to check and no count to charge. */
+function anchoredDoorAndHeightTerms(
+  formula: AnchoredFormula,
+  steps: AnchoredSteps,
+): readonly PricedTerm[] {
+  const terms: PricedTerm[] = [];
+  if (anchoredShapeReadsDoorLeaves(formula.shape)) {
+    terms.push({
+      coefficientMinor: usableCoefficientOf(
+        formula.perExtraDoorLeafMinor,
+        "perExtraDoorLeafMinor",
+      ),
+      count: steps.extraDoorLeaves,
+      field: "perExtraDoorLeafMinor",
+    });
+  }
+  if (anchoredShapeReadsHeight(formula.shape)) {
+    terms.push({
+      coefficientMinor: usableCoefficientOf(
+        formula.perHeightStepMinor,
+        "perHeightStepMinor",
+      ),
+      count: steps.heightSteps,
+      field: "perHeightStepMinor",
+    });
+  }
+  return terms;
+}
+
+/** The one price of the listed size a body is made at: a term charged once. */
+function sizeTerm(formula: PricePerSizeFormula, body: PricedBody): PricedTerm {
+  return {
+    coefficientMinor: usableCoefficientOf(
+      listedSizeFor(formula.sizes, body.widthMm).amountMinor,
+      "amountMinor",
+    ),
+    count: CHARGED_ONCE,
+    field: "amountMinor",
+  };
+}
+
 /** One rate the book states, against the quantity it is charged over. Cabinet coefficients and
  *  hardware rates share this shape so there is one arithmetic. */
 export interface PricedTerm {
@@ -401,9 +522,10 @@ export interface PricedTerm {
  * total reaches `1e16`. Every prefix of an accepted sum is safe, so an accepted total is the true
  * integer total.
  *
- * A cabinet formula is order-invariant: for a book `parsePriceBook` accepted, no prefix of a shape's
- * four terms exceeds `4 × MAX_PRICE_COEFFICIENT_MINOR × MAX_DESIGN_DIMENSION_MM` (9 007 199 254 720 000),
- * just under `2^53 − 1`. The hardware line is not proved: its count is a design's whole mechanism
+ * A cabinet formula is order-invariant: for a book `parsePriceBook` accepted, no prefix of a linear
+ * shape's four terms exceeds `4 × MAX_PRICE_COEFFICIENT_MINOR × MAX_DESIGN_DIMENSION_MM` (9 007 199 254 720 000),
+ * just under `2^53 − 1`. An anchored shape's five terms are multiplied by step and leaf counts, never by a
+ * millimetre figure, so its prefixes stay far below that ceiling. The hardware line is not proved: its count is a design's whole mechanism
  * count and nothing caps the mechanisms one body carries. A prefix leaves the safe range only past
  * 13 333 mechanisms; at `MAX_PLACEMENTS` (279) and an assumed twelve a body the ceiling is 3 348,
  * about 3.98× under. Closing it means a domain constant for that cap.
@@ -466,6 +588,12 @@ export class InexactPriceArithmeticError extends Error {
  *  The three hardware rates are separate fields so a refusal names the unusable one. */
 export type PriceCoefficientField =
   | "baseMinor"
+  | "anchorMinor"
+  | "perStepWiderMinor"
+  | "perStepNarrowerMinor"
+  | "perExtraDoorLeafMinor"
+  | "perHeightStepMinor"
+  | "amountMinor"
   | "perWidthMillimetreMinor"
   | "perHeightMillimetreMinor"
   | "perDoorLeafMinor"
