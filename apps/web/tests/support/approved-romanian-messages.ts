@@ -406,7 +406,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // the depth line of the price breakdown (frame C3); the percentage is the published rule's value.
     depthLine:
       "Adâncime {cabinetDepthMm, number, ::group-off} mm · adaos {percent} %",
-    depthLineScope: "dulapurile de bază și coloanele",
+    depthLineScope: "dulapurile care se adâncesc",
   },
   // Frames 3A and 3B as written; the room line gives millimetres where the frame draws metres (ADR 0126).
   review: {
@@ -470,7 +470,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // wave Q1 switches to it, and `depthNote` above stays until wave T2 retires it. `kitchenHandle*` is the whole-kitchen handle
     // row (frame C2); its options are `panel.handleLabels`.
     depthNotePriced:
-      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile de bază și coloanele cu {percent} %.}}",
+      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu {percent} %.}}",
     kitchenHandleHeading: "Mânere",
     kitchenHandleHint:
       "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
@@ -1804,8 +1804,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       subtitle:
         "Se aplică întregului catalog. Se publică la fel ca orice preț.",
       deepKitchenLabel: "Bucătărie adâncă ({depthMm, number, ::group-off} mm)",
-      scope: "Dulapurile de bază și coloanele",
-      hint: "Se aplică dulapurilor de bază și coloanelor. Dulapurile suspendate rămân la {wallDepthMm, number, ::group-off} mm și nu se scumpesc. Feroneria și accesoriile nu se schimbă. Prețurile finale se rotunjesc la {roundTo}.",
+      scope: "Dulapurile care se adâncesc",
+      hint: "Se aplică dulapurilor care se adâncesc. Feroneria și accesoriile nu se schimbă. Prețurile finale se rotunjesc la {roundTo}.",
       activeValue: "Activ: +{percent} %.",
       savedNotice: "Salvat în „De publicat”. Intră în vigoare când publici.",
       isNew: "Regulă nouă",
@@ -2172,7 +2172,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       hardware: "Feronerie",
       hardwareHint: "Clasa de feronerie a unei bucătării noi.",
       depth: "Adâncimea dulapurilor",
-      depthHint: "Pentru dulapurile de jos și coloane.",
+      depthHint: "Pentru dulapurile care se adâncesc.",
       colour: "Culoarea bucătăriei",
       colourHint: "Din paleta materialului implicit.",
       colourReset:

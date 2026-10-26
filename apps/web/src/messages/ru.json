@@ -278,7 +278,7 @@
     "included": "включено",
     "notIncluded": "не входит в цену",
     "depthLine": "Глубина {cabinetDepthMm, number, ::group-off} мм · надбавка {percent} %",
-    "depthLineScope": "нижние шкафы и колонны"
+    "depthLineScope": "шкафы, которые становятся глубже"
   },
   "review": {
     "title": "Проверить дизайн",
@@ -325,7 +325,7 @@
     "depthOption": "{cabinetDepthMm, number, ::group-off} мм",
     "depthWarning": "Изменение глубины столешницы перестроит все шкафы и изменит их цену.",
     "depthNote": "Глубина столешницы не влияет на цену кухни — меняются только размеры шкафов.",
-    "depthNotePriced": "{percent, plural, =0 {Глубина {cabinetDepthMm, number, ::group-off} мм не меняет цену.} other {Глубина {cabinetDepthMm, number, ::group-off} мм удорожает нижние шкафы и колонны на {percent} %.}}",
+    "depthNotePriced": "{percent, plural, =0 {Глубина {cabinetDepthMm, number, ::group-off} мм не меняет цену.} other {Глубина {cabinetDepthMm, number, ::group-off} мм удорожает шкафы, которые становятся глубже, на {percent} %.}}",
     "kitchenHandleHeading": "Ручки",
     "kitchenHandleHint": "Применяется ко всем шкафам, у которых есть ручка. Ручку одного шкафа можно потом изменить в его редакторе.",
     "colourHeading": "Цвет кухни",
@@ -1378,8 +1378,8 @@
       "title": "Правила цены для всех шкафов",
       "subtitle": "Действуют на весь каталог. Публикуются как любая цена.",
       "deepKitchenLabel": "Глубокая кухня ({depthMm, number, ::group-off} мм)",
-      "scope": "Нижние шкафы и колонны",
-      "hint": "Применяется к нижним шкафам и колоннам. Навесные шкафы остаются {wallDepthMm, number, ::group-off} мм и не дорожают. Фурнитура и аксессуары не меняются. Итоговые цены округляются до {roundTo}.",
+      "scope": "Шкафы, которые становятся глубже",
+      "hint": "Применяется к шкафам, которые становятся глубже. Фурнитура и аксессуары не меняются. Итоговые цены округляются до {roundTo}.",
       "activeValue": "Действует: +{percent} %.",
       "savedNotice": "Сохранено в «К публикации». Вступит в силу после публикации.",
       "isNew": "Новое правило"
@@ -1668,7 +1668,7 @@
       "hardware": "Фурнитура",
       "hardwareHint": "Класс фурнитуры новой кухни.",
       "depth": "Глубина шкафов",
-      "depthHint": "Для нижних шкафов и колонн.",
+      "depthHint": "Для шкафов, которые становятся глубже.",
       "colour": "Цвет кухни",
       "colourHint": "Из палитры материала по умолчанию.",
       "colourReset": "У выбранного материала нет цвета {unavailableColour}. Цвет по умолчанию станет {replacementColour}.",
