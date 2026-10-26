@@ -571,6 +571,7 @@ blocks a dispatch.
 | OQ-11 | Approve all M10 Romanian NEW COPY as drafted (as O28b and O-L3-7 did). **This now includes the replacement for the deactivation dialog's wrong "Intră în vigoare când publici"** (T1) | Approve. Russian stays an agent draft, marked and never pinned (ADR 0095) |
 | OQ-12 | Every figure: the 15 %, the material percentages, every amount, and now the lift rate | They stay placeholders. The first real book is the manufacturer's own entry, published from the dashboard. The `amountsProvisional` switch (D7C) is the owner's |
 | OQ-13 | Back up the price-book versions and the availability log in the scheduled export (ADR 0012's scoped select) | Yes: wave S6, before launch |
+| OQ-15 | A cabinet given its own handle has no way back to "follow the kitchen": `set-appearance.ts` has `setHandle` but no clear, while colour has `clearFinish` (ADR 0099 d8). The coordinator is asking the owner (2026-10-26) | **Mirror colour:** a `clearHandle` command and a "Ca restul bucătăriei" option (wave Q2b). It is built on this default unless the owner rules otherwise before Q2b is dispatched |
 | OQ-14 | **Who can review** (ADR 0062 Amendments 4–5, carried over as open: "roles are outside the dashboard's scope") | **Use the capabilities that already exist; no role work.** `contact.read` (operator and administrator) may open a kitchen, mark it seen, see the badge and counter, and receive the digest. `price.edit` (administrator only) may edit, publish, restore, switch items on or off and save defaults [src: `capabilities.ts:45-57`]. "Seen" is one marker per kitchen, shared by all staff (A-12). Recorded as A-12 and A-13; the owner confirms at close |
 
 **The rulings A-1 to A-21 are not questions.** They are recorded as architect rulings that the owner may overrule;
@@ -948,6 +949,8 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | `packages/configurator-domain/src/hardware-mechanisms.ts` | **H1b** first (one line: the push-to-open query passes the kitchen handle), then lane **P** for P5. P5 starts only after H1b merges | — |
 | `packages/configurator-domain/src/front-population.ts` | Lane **P**, P5 only (A-20) | — |
 | `packages/configurator-domain/src/queries/design-projection.ts` (`DisplayEntry` gains an optional kitchen-handle fact) | **H1b** | Every lane reads it only |
+| `packages/configurator-domain/src/push-to-open.ts`, `queries/describe-selection.ts` | **H1**, which makes `PushToOpenQuery`, `DescribeSelectionInput` and `HandleResolutionQuery` take a **required** `KitchenHandleSettings` object (`Pick<DesignSettings, "handle">`). H1b and H2 touch these files **only to widen that object** (H2 adds `topRowHandle`), never to change its shape otherwise (ruled 2026-10-26, H1 review) | — |
+| `packages/configurator-domain/src/commands/set-appearance.ts`; the panel's handle control | **Q2b**, only if the owner accepts (or does not answer) OQ-15 | — |
 | `packages/three-adapter/**` | **H1b** only. No other M10 wave touches the adapter | — |
 | `apps/web/src/panel/use-panel-view.ts` | **H1b** | — |
 | `packages/configurator-domain/src/commands/command-result.ts` (the `CommandEffect` union) and `apps/web/src/store/apply-command-result.ts` | **Q2**, in one change (H-6) | H1 keeps `KitchenHandleSetEffect` outside the union until Q2 |
@@ -1284,11 +1287,22 @@ thorough and cannot fail*. A sabotage run is owed for every new arm (R6).
   - a top-row body is unaffected by the kitchen handle.
 - **H1b-b:**
   - `PlacementRecord.handleMode` is still the cabinet's own handle;
+  - **a legacy `null` own handle is normalised to `undefined` in the PlacementRecord builder** (ruled 2026-10-26,
+    H1 review). The resolver's return type is not widened. A property: a document whose bodies carry `handle: null`
+    resolves, renders and prices exactly as one with the key absent;
+  - **`isTopRow` is derived in exactly one place**, a domain function every reader calls. Today `push-to-open.ts`
+    tests `≥ 2200` mm and `describe-selection.ts` tests `≥ 2.2` m. A sweep over every catalogue row and every body
+    height, ±1 mm around the boundary, shows the readers agree, and a sabotage of the one function moves them all;
   - a kitchen-handle change alone re-syncs the affected bodies (their `signBody` changes) and no others.
 - **H1b-c (visual, §13.3):**
   - at 390 × 844 and 1440 × 900, switching the kitchen handle steel → black → push repaints every handle-taking body,
     leaves top-row bodies alone, and moves the price;
   - captured, with the console read.
+- **H2-b (ruled 2026-10-26, H1 review; the coordinator's ruling, adopted):**
+  - `settings.topRowHandle` reaches **only top-row bodies whose catalogue row takes a handle** (`canHandle`);
+  - a top-row body with `canHandle: false` (for example `wall-corner-return-570-top`) stays push and latched exactly
+    as today (ADR 0092 Amendment C), whatever `topRowHandle` says;
+  - checked by a sweep over every top-row catalogue row.
 - **H2-a:**
   - every newly generated design carries explicit material, hardware, depth, colour, handle and top-row handle;
   - changing the defaults input never changes the output for an existing document.
@@ -1652,7 +1666,8 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | Wave | Must-fix items | Prod files | Depends on | Reading (in addition to the base) |
 | --- | --- | --- | --- | --- |
 | **Q1** depth line and copy | (1) the depth line in the breakdown ("Adâncime 700 mm · +{percent} %"); (2) the settings depth control switches from `globalSettings.depthNote` to T1's `depthNotePriced`, with `{percent}` from the published rule. This is a component edit only; no message file is touched | `price-breakdown.tsx`, `price-breakdown-model.ts` (depth line only), `settings/global-settings.tsx` | T1; **built on P3's branch after P3's QA is green; merged with P3 at MP-3** | ADR 0100 decision 5 and Amendment; A-1; frames C3, C3D, C3S, C3R [mock L784-790] |
-| **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint, offering only active handles; the store applies `setKitchenHandle`; `KitchenHandleSetEffect` joins `CommandEffect` together with `apply-command-result.ts`'s whole-kitchen branch (H-6) | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts`, `domain commands/command-result.ts`, `store/apply-command-result.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), **H1b**, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command; H-6 |
+| **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint, offering only active handles; the store applies `setKitchenHandle`; **Q2 folds `KitchenHandleSetEffect` into the `CommandEffect` union** (H1 leaves it outside, and its code comment saying so is being trimmed), together with `apply-command-result.ts`'s whole-kitchen branch, in one change (H-6) | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts`, `domain commands/command-result.ts`, `store/apply-command-result.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), **H1b**, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command; H-6 |
+| **Q2b** a cabinet follows the kitchen handle again (added 2026-10-26; **pending OQ-15**, default = mirror colour) | (1) a `clearHandle` command in `set-appearance.ts`, mirroring `clearFinish` (ADR 0099 d8): it removes the cabinet's own handle, so the kitchen handle applies again; (2) a panel option "Ca restul bucătăriei" in the cabinet's handle control, as the colour control has; (3) the copy leaf, requested from T | `commands/set-appearance.ts`, the panel handle control, `store/apply-command-result.ts` (if a new effect branch is needed) | Q2 | ADR 0099 d8 (`clearFinish`); `set-appearance.ts`; OQ-15 |
 | **Q3** forced replacement and merged notice | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17) | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |
 | **Q4** sent-kitchen note | C5A/C5AD: a closable, non-blocking note above the price when `isSent` | `sent-kitchen-note.tsx`, editor placement | R5, T1 | Frames C5A, C5AD [mock L805-807]; ADR 0062 Amendment 5, point 3; ADR 0165 |
 | **Q5** lone colour and handle replacement | A disabled colour or handle as a sheet row; choosing replaces it at every level where it appears (A-16); "Culoarea a revenit la Alb" when a material change resets it | `replacement-sheet.tsx` (mod), `store/whole-kitchen-apply.ts` (mod) | Q3, Q2, H1, P4a | A-16, A-17; ADR 0057, 0081, 0086, 0099; `chosen-finishes.ts`, `resolved-finish.ts` |
