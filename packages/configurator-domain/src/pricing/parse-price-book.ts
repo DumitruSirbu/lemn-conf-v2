@@ -30,6 +30,7 @@ import {
   refuseOversizedAmount,
   UNREADABLE,
 } from "./book-reading.js";
+import { refuseUnusablePercentageForm } from "./parse-percentage-form.js";
 import {
   MAX_SIZES_PER_RULE,
   refuseUnusableAnchoredFormula,
@@ -107,6 +108,10 @@ function refuseUnreadableBook(declared: unknown): PricingFailure | undefined {
     refuseUnreadableTierGroup(readDeclared(declared, "hardware"), "hardware") ??
     refuseUnreadableTierGroup(readDeclared(declared, "material"), "material") ??
     refuseUnreadableAccessories(readDeclared(declared, "accessories")) ??
+    refuseUnusablePercentageForm(declared, {
+      maxTiersPerGroup: MAX_TIERS_PER_GROUP,
+      maxCabinetRules: MAX_CABINET_RULES,
+    }) ??
     // Every section above is established, so the semantic sweeps may read the book as the shape it
     // declares; this double assertion is the only line in the package that has earned it.
     refuseRepeatedId(declared as unknown as PriceBook)

@@ -12,6 +12,10 @@
 // Nothing here keys on a width and nothing under `pricing/` names the catalogue's width-step
 // constant (`pricing-seams.test.ts` reads the source for it). A linear shape prices a body built at 575
 // at 575; an anchored shape rounds width and height up to the pricing step first, so 575 prices as 600.
+//
+// "Only presentation may round" no longer holds at one named seam (ADR 0177 A-1): a book in percentage form rounds
+// each cabinet's three stages to 10 lei in `percentage-lines.ts`, so every line is a whole number of ten lei and they
+// still add to the total exactly. Nothing else here rounds.
 
 import {
   anchoredShapeReadsDoorLeaves,
@@ -23,7 +27,7 @@ import {
   type PricePerSizeFormula,
 } from "./anchored-price-formula.js";
 
-/** The currency of every book. Minor units throughout (bani): only presentation may round. */
+/** The currency of every book. Minor units throughout (bani). Rounding to 10 lei happens at the percentage seam alone. */
 export const PRICE_BOOK_CURRENCY = "MDL" as const;
 export type PriceBookCurrency = typeof PRICE_BOOK_CURRENCY;
 
@@ -223,10 +227,29 @@ export interface HardwareTier extends TierIdentity {
   readonly perPushToOpenMinor: number;
 }
 
-/** A material tier, priced once for the whole kitchen. */
+/**
+ * A material tier. Two forms stand side by side until the cut-over (P3 removes the first): a flat amount for the whole
+ * kitchen, and a percentage on the cabinets (ADR 0092 Amendment of 2026-10-25). A tier states **one** of the two and a
+ * book states one form throughout, which `parsePriceBook` enforces: the book arrives outside TypeScript (ADR 0062
+ * seam 1), so the declaration cannot. A percentage tier carries no `wholeKitchenMinor`.
+ */
 export interface MaterialTier extends TierIdentity {
   readonly wholeKitchenMinor: number;
+  /** The whole percentage this material adds to the PAL cabinets' prices, `0` to `MAX_MATERIAL_PERCENT`. PAL is the
+   *  reference and is `0`. Never applied to hardware or accessories. */
+  readonly percentOfCabinets?: number | undefined;
 }
+
+/** The one percentage a 700 mm depth adds to the cabinets that get deeper (ADR 0100 Amendment, ADR 0177 A-1). Held as
+ *  book data and edited on the dashboard; a book that states it prices in percentage form. */
+export interface DepthRule {
+  /** Whole, `0` to `MAX_DEEP_CABINET_PERCENT`. At `0` the depth line is *inclus*. */
+  readonly deepCabinetPercent: number;
+}
+
+/** The rule id the depth line traces to. The book's depth rule carries no id of its own, so the id is reserved and
+ *  `listRuleIds` sweeps it with the rest: a rule that reuses it is a repeated id. */
+export const DEPTH_RULE_ID = "depth.deep-cabinets";
 
 /**
  * One extra a design earns rather than chooses (ADR 0070 decision 4): the aluminium sink cover and
@@ -291,6 +314,8 @@ export interface PriceBook {
   readonly cabinetRules: readonly CabinetPriceRule[];
   readonly hardware: TierGroup<HardwareTier>;
   readonly material: TierGroup<MaterialTier>;
+  /** Present exactly when the book states its materials as percentages (the percentage form). */
+  readonly depthRule?: DepthRule | undefined;
   readonly accessories: BookAccessories;
 }
 
@@ -525,7 +550,9 @@ export interface PricedTerm {
  * A cabinet formula is order-invariant: for a book `parsePriceBook` accepted, no prefix of a linear
  * shape's four terms exceeds `4 × MAX_PRICE_COEFFICIENT_MINOR × MAX_DESIGN_DIMENSION_MM` (9 007 199 254 720 000),
  * just under `2^53 − 1`. An anchored shape's five terms are multiplied by step and leaf counts, never by a
- * millimetre figure, so its prefixes stay far below that ceiling. The hardware line is not proved: its count is a design's whole mechanism
+ * millimetre figure, so its prefixes stay far below that ceiling; in the percentage form they are held to
+ * `MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR`, which the percentage seam's sums are derived from. The hardware line is
+ * not proved: its count is a design's whole mechanism
  * count and nothing caps the mechanisms one body carries. A prefix leaves the safe range only past
  * 13 333 mechanisms; at `MAX_PLACEMENTS` (279) and an assumed twelve a body the ceiling is 3 348,
  * about 3.98× under. Closing it means a domain constant for that cap.
@@ -601,7 +628,9 @@ export type PriceCoefficientField =
   | "perDrawerMinor"
   | "perPushToOpenMinor"
   | "perUnitMinor"
-  | "wholeKitchenMinor";
+  | "wholeKitchenMinor"
+  | "percentOfCabinets"
+  | "deepCabinetPercent";
 
 /**
  * A formula that declares a coefficient the arithmetic cannot be performed on: an error in the book,
@@ -647,7 +676,7 @@ export function usableCoefficientOf(
   throw new MalformedPriceCoefficientError({ field, declared });
 }
 
-/** Every rule id in a book: cabinet rules, then tiers, then accessories. `parse-price-book.ts` sweeps
+/** Every rule id in a book: cabinet rules, then tiers, then accessories, then the depth rule's reserved id. `parse-price-book.ts` sweeps
  *  it for duplicates, since a repeated id makes a line untraceable to one rule.
  *
  *  The three lists are dereferenced bare, which is safe only because the parser's section checks
@@ -658,6 +687,7 @@ export function listRuleIds(book: PriceBook): readonly string[] {
     ...book.hardware.tiers.map((tier) => tier.ruleId),
     ...book.material.tiers.map((tier) => tier.ruleId),
     ...listAccessoryRuleIds(book),
+    ...(book.depthRule === undefined ? [] : [DEPTH_RULE_ID]),
   ];
 }
 

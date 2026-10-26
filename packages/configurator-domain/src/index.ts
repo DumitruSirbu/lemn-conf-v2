@@ -240,7 +240,29 @@ export * from "./pricing/price-lines.js";
 // The book's ingress (ADR 0062 seam 1): a composition root parses once, so every consumer downstream
 // reads a shape something has established rather than a type somebody declared.
 export * from "./pricing/parse-price-book.js";
-export * from "./pricing/price-design.js";
+// Named, not `export *`: `priceDesignWithDeepening` is the percentage form's seam until A-6's answer is wired into
+// `priceDesign`, and stays out of the package's public contract.
+export {
+  priceDesign,
+  type PriceDesignRequest,
+  type WholeKitchenSelections,
+} from "./pricing/price-design.js";
+// The percentage seam's arithmetic (ADR 0177 A-1): the dashboard's cabinet preview imports the stage function rather
+// than restating it, so a preview cell and a customer's cabinet cannot disagree.
+export {
+  DEEP_CABINET_DEPTH_MM,
+  percentageStagesOf,
+  roundHalfUpToTenLei,
+  TEN_LEI_MINOR,
+  type CabinetPercentages,
+  type CabinetStages,
+  type DeepensAtDeepDepth,
+} from "./pricing/percentage-lines.js";
+export {
+  MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
+  PERCENT_BASE,
+} from "./pricing/price-bounds.js";
 // The one module that names the sample book (ADR 0062 seam 1): the query imports no book, so a
 // composition root picks it up here and a book from another source is a substitution.
 // `pricing-seams.test.ts` holds the import graph to that.

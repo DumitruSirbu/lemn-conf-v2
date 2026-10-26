@@ -6,10 +6,10 @@
 // them through the one checked arithmetic, so this file holds no amount and imports no value from the book.
 import { describeDeclared, isRecord, readDeclared } from "./book-reading.js";
 import type { PricedBody } from "./price-book.js";
+import { PRICE_STEP_MM } from "./price-bounds.js";
 
-/** The unit a width or height is rounded up to and a step is quoted per ("+ lei per 50 mm"). Declared here
- *  as a pricing unit and never derived from the catalogue's own width module (ADR 0177 A-4). */
-export const PRICE_STEP_MM = 50;
+// Declared in `price-bounds.ts`, which imports nothing, so the parser bound can be derived from it without a cycle.
+export { PRICE_STEP_MM };
 
 /** What an anchored shape may read beyond its anchor and its width steps. */
 type AnchoredTerm = "door-leaves" | "height";
