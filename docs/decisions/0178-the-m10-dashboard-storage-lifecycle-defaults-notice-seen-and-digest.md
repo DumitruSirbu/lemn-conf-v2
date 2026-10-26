@@ -94,7 +94,7 @@ change without a new version, e.g. activating a linked accessory adds a line to 
 ### A-13 — The digest
 
 At most one run per calendar day (Europe/Chisinau), claimed idempotently by a day key. A kitchen is eligible when it
-changed after seen; it has not been in a digest since it was last seen; `designs.sent_at` is within 30 days; and its
+changed after seen; it has not been in a digest since it was last seen — judged on **revisions in SQL**: no digest **entry** exists for the design with `revision >` its effective seen revision (the seen revision, else the latest submission's `design_revision`), so a claimed day with no entries holds nothing and a stale seen mark cannot re-send a digested revision; the domain receives this as `isDigestedSinceSeen` beside `isChangedSinceSeen` and holds no seen or digested instants (K1 review, coordinator's ruling, 2026-10-26); `designs.sent_at` is within the last 720 hours of the passed `now` (`DIGEST_WINDOW_MS`; an exact duration, never `interval '30 days'` or SQL `now()`); and its
 status is not `offer-sent` or `closed`. `designs.sent_at` keeps the **first** send's instant, which is why the 30 days
 count from it (OQ-10). No eligible kitchen, no e-mail. Recipients: accounts holding `contact.read` with a confirmed
 address. **Security tier (S-21):** the digest prints a customer name taken from the **account profile** (as S3 does), never
