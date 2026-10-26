@@ -30,6 +30,13 @@
 > - an address never carries a payload;
 > - five invented shapes are blessed or corrected;
 > - S1 gains the live-file skip fix.
+>
+> **Amended a fourth time 2026-10-26, for H1's open points H-1 to H-6** (lane H, §8.1, §9.1, Q2, P5, Z2):
+> - new wave **H1b** wires the kitchen handle into every reader together, and owns `packages/three-adapter`;
+> - H2 adds `settings.topRowHandle`;
+> - H1 owns its input-check code;
+> - Q2 adds the effect to `CommandEffect`;
+> - a no-rollback note is added.
 
 **Evidence tiers used below** (`docs/best-practices/documentation.md`, *Label the evidence tier*):
 
@@ -638,7 +645,7 @@ Below, only the additions to that rule are listed.
 | --- | --- | --- | --- | --- |
 | **X** | Contracts (X0; X1 withdrawn 2026-10-26, its parts are in X0) | The X0 files listed in §10 | Any behaviour; any existing test's assertions | Full (logic mini-review) |
 | **P** | Pricing engine | `configurator-domain/src/pricing/**`; `catalog.ts`; `hardware-mechanisms.ts` and `front-population.ts` (P5); the domain root `index.ts` after MP-0; the P3 window in §9.1 | `design.ts`, `generation/**`, `price-dashboard/**`, `staff-changes/**`; `apps/web` outside the P3 window | Full |
-| **H** | Whole-kitchen handle and new-kitchen stamping | `design.ts`; `queries/describe-selection.ts`; `push-to-open.ts`; `kitchen-handle/**`; `commands/set-kitchen-handle.ts`; `generation/shell-design.ts`; `generation/generate-kitchen.ts` (request type only) | `pricing/**`; `apps/web` | Full |
+| **H** | Whole-kitchen handle and new-kitchen stamping | `design.ts`; `queries/describe-selection.ts`; `push-to-open.ts`; `kitchen-handle/**`; `commands/set-kitchen-handle.ts`; `commands/rejection.ts` (H1, one code); `generation/shell-design.ts`; `generation/generate-kitchen.ts` (request type only). **H1b, added 2026-10-26:** `queries/design-projection.ts`, `hardware-mechanisms.ts` (an H1b window before P5), the PlacementRecord builder in the domain, `packages/three-adapter/src/scene-sync.ts`, and `apps/web/src/panel/use-panel-view.ts` | `pricing/**`; `apps/web` except H1b's one file | Full; H1b Full + visual |
 | **M** | Dashboard model (pure) | `configurator-domain/src/price-dashboard/**` (after X0) | `pricing/**` (reads and imports only); `apps/web` | Full |
 | **S** | Persistence, **the sole writer of `packages/persistence/` in M10** | `packages/persistence/**`, including the census, the privilege test, `index.ts` and migrations `0025`–`0031` | `packages/configurator-domain`; `apps/web` | Full + security |
 | **T** | Copy | `apps/web/src/messages/*`; `i18n/content.ts`; the copy-lock tests | Every component; the `depthNote` reference (Q1's) | Light |
@@ -651,11 +658,11 @@ Below, only the additions to that rule are listed.
 ### 8.2 Dependency graph (an arrow means "must be merged before it starts")
 
 ```
-W0 ─► X0 ═══ MP-0 (fan-out) ═══╦═► P1 ─► P2 ─► P3+Q1 (MP-3; P3 also needs R1) ─► P4a ─► P4b ─► P5
+W0 ─► X0 ═══ MP-0 (fan-out) ═══╦═► P1 ─► P2 ─► P3+Q1 (MP-3; P3 also needs R1) ─► P4a ─► P4b ─► P5 (also needs H1b)
                                ║         │       │                              │       │
                                ║         └► M1   ├► M2                          │       ├► M3 ─► S3 (also needs S5)
                                ║                 │                              │       ├► M4
-                               ╠═► H1 ─► H2      ├► Q2 (also needs H1, T1)      ├► Q3 (also needs R5, T1)
+                               ╠═► H1 ─► H1b ─► H2   ├► Q2 (also needs H1b, T1)     ├► Q3 (also needs R5, T1)
                                ║                 │                              └► Q5 (also needs Q3, Q2, H1)
                                ║                 └► T2 (deletes the old depthNote leaf)
                                ╠═► S1 ─► S2 (also needs X2) ─► S2b ─► S4 ─► S5 ─► S3 ─► S6
@@ -889,7 +896,13 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | `packages/configurator-domain/src/account/capabilities.ts` | Nobody; no change is needed | — |
 | `packages/configurator-domain/src/design.ts` | Lane **H** | P reads only |
 | `packages/configurator-domain/src/catalog.ts` | Lane **P** (P1: the default-width field; P5: the `liftUp` front declaration and the rewritten `wall-lift` comment) | — |
-| `packages/configurator-domain/src/hardware-mechanisms.ts`, `front-population.ts` | Lane **P**, P5 only (added 2026-10-26, A-20) | H reads `push-to-open.ts` only and does not touch these |
+| `packages/configurator-domain/src/hardware-mechanisms.ts` | **H1b** first (one line: the push-to-open query passes the kitchen handle), then lane **P** for P5. P5 starts only after H1b merges | — |
+| `packages/configurator-domain/src/front-population.ts` | Lane **P**, P5 only (A-20) | — |
+| `packages/configurator-domain/src/queries/design-projection.ts` (`DisplayEntry` gains an optional kitchen-handle fact) | **H1b** | Every lane reads it only |
+| `packages/three-adapter/**` | **H1b** only. No other M10 wave touches the adapter | — |
+| `apps/web/src/panel/use-panel-view.ts` | **H1b** | — |
+| `packages/configurator-domain/src/commands/command-result.ts` (the `CommandEffect` union) and `apps/web/src/store/apply-command-result.ts` | **Q2**, in one change (H-6) | H1 keeps `KitchenHandleSetEffect` outside the union until Q2 |
+| `packages/configurator-domain/src/commands/rejection.ts` | **H1** (one code, H-4) | — |
 | `apps/web/src/price-dashboard/item-dialogs.tsx` | **U4a**, then U4b, then U4c, in sequence (never two at once) | — |
 | `packages/persistence/**` (including `index.ts`, migrations, `application-role-privileges.test.ts`, `live-suite-census.test.ts`) | Lane **S**, all of it, for all of M10 | Others consume through ports and fakes |
 | `apps/web/src/messages/ro.json`, `ru.json`, `ro.d.json.ts`, `i18n/content.ts`, copy-lock tests | Lane **T**, always. `ro.d.json.ts` is generated by next-intl and carries every leaf's **literal value** [src: `ro.d.json.ts:1-2, 328`], so no other lane may change a leaf's text. **The `depthNote` route:** T1 adds a **new** leaf, `globalSettings.depthNotePriced` (ICU `{percent}`). Q1 switches the component to it, which is a component edit and no message-file edit. T2 deletes the old leaf after MP-3 | Missing keys are reported to the coordinator, and T runs a follow-up wave |
@@ -1064,7 +1077,7 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
 | **P3** cut-over (the hard serialisation point) | (1) the sample book converted to anchored, percentage and depth form (placeholders, still `amountsProvisional: true`); (2) the old linear shapes and `wholeKitchenMinor` removed; (3) every consumer updated: `whole-kitchen-tiers.ts`, `starting-price.ts`, the breakdown model's material line and new depth line, and the i18n tests naming `wholeKitchenMinor` (tests only: no message-file edit); (4) the `price-book.ts:12-13` comment rewritten; (5) QA is told which pins move (`pricing-seams.test.ts`, `qa-6b2-tier-amounts`, `qa-m6-wave-b-*`, `submission-snapshot.test.ts`) | `sample-price-book.ts`, `price-book.ts`, `apps/web/src/price/whole-kitchen-tiers.ts`, `starting-price.ts`, `price-breakdown-model.ts`. **About five, plus test fixtures; a mini-review is added because it crosses packages** | P2, R1 merged (so the root is already single) | ADR 0106 and Amendment A; `apps/web/tests/i18n/price-book-text.test.ts`; ADR 0154 d8 (stored snapshots are not touched); `apps/web/src/price/price-breakdown.tsx` |
 | **P4a** availability and replacement (amended 2026-10-26, A-17) | (1) `CatalogueAvailability` and `ItemRef` types, and `priceDesign`'s new `availability` input (no flag in the book); (2) `REPLACEMENT_REQUIRED` when a selection names a disabled material, hardware class, colour or handle, never `UNKNOWN_TIER`; (3) `replacementsRequired(design, book, availability, catalog)` → item refs plus remaining options; (4) a disabled accessory (built-in or linked) produces no line, and `removedAccessoriesSince(design, seenAvailability, currentAvailability)` supports the C4 info row | `price-design.ts`, `pricing/catalogue-availability.ts` (created types-only by X0; P4a adds its functions), new `pricing/replacements.ts`, `price-lines.ts` (code) | P3 merged | ADR 0062 Amendment 3 and the 2026-10-26 Amendment (W0); A-16, A-17; ADR 0072 Amendment; ADR 0057; ADR 0081; ADR 0086; ADR 0099; `materials.ts`; `queries/sink-accessories.ts` |
 | **P4b** linked accessories, created-row text, the price-change test (added 2026-10-26) | (1) `linkedAccessories` with the per-linked-placement earning shape (A-19), priced via `resolveCatalogEquivalent` like cabinet rules; (2) parser arms: unique ids across built-ins and linked rows, bounded list, `perUnitMinor` exact, a customer-supplied link refused when the book says so; (3) authored Romanian `name`/`description` on created rows only, with no Russian field accepted (A-21); (4) `pricesChangedBetween(design, catalog, {seenBook, seenAvailability}, {activeBook, currentAvailability})` (A-11) | `price-book.ts`, `parse-price-book.ts`, `price-design.ts`, new `pricing/linked-accessories.ts`, new `pricing/price-change-notice.ts` | P4a | A-11, A-19, A-21; ADR 0070 d4; ADR 0062 seam 1 and S-28; ADR 0106 and Amendment A; `price-book.ts:205-243`; `price-design.ts:613-708` |
-| **P5** lift mechanism and lift-door hinges (no longer conditional; ruled 2026-10-26) | (1) `HardwareTier.perLiftMinor` and its parser arm; (2) `HardwareMechanismCounts.lifts`, one per declared lift-up door; (3) the lift door's hinges: 2, or 3 when the door is **wider than 500 mm** (OQ-5a default, strict); its height rule does not apply; (4) the `liftUp` front declaration on `wall-lift` in `catalog.ts`, plus a sweep reporting every other front the catalogue calls a lift or flap (reported, not priced); (5) the ADR 0092 Amendment C quantifier gains its lift term, derived from the declared rates, and the code comments at `hardware-mechanisms.ts:27-29` and `catalog.ts:593-594` are rewritten | `hardware-mechanisms.ts`, `front-population.ts`, `catalog.ts`, `price-book.ts`, `price-design.ts`, `parse-price-book.ts`. **Six; over five, stated.** The arithmetic is two existing functions extended, and a mini-review is added | P4b (same files). **OQ-5a flags the boundary, without blocking** | ADR 0070 d1, d6; ADR 0092 d1, d2, d8 and Amendment C; A-20; S-29, S-30; `hardware-mechanisms.ts:27-160`; `front-population.ts:60-130`; frames D4A/B [mock L688-695]; the mockup's `hwOf` [mock L511] (illustrative only) |
+| **P5** lift mechanism and lift-door hinges (no longer conditional; ruled 2026-10-26) | (1) `HardwareTier.perLiftMinor` and its parser arm; (2) `HardwareMechanismCounts.lifts`, one per declared lift-up door; (3) the lift door's hinges: 2, or 3 when the door is **wider than 500 mm** (OQ-5a default, strict); its height rule does not apply; (4) the `liftUp` front declaration on `wall-lift` in `catalog.ts`, plus a sweep reporting every other front the catalogue calls a lift or flap (reported, not priced); (5) the ADR 0092 Amendment C quantifier gains its lift term, derived from the declared rates, and the code comments at `hardware-mechanisms.ts:27-29` and `catalog.ts:593-594` are rewritten | `hardware-mechanisms.ts`, `front-population.ts`, `catalog.ts`, `price-book.ts`, `price-design.ts`, `parse-price-book.ts`. **Six; over five, stated.** The arithmetic is two existing functions extended, and a mini-review is added | P4b (same files), **H1b** (it holds `hardware-mechanisms.ts` first). **OQ-5a flags the boundary, without blocking** | ADR 0070 d1, d6; ADR 0092 d1, d2, d8 and Amendment C; A-20; S-29, S-30; `hardware-mechanisms.ts:27-160`; `front-population.ts:60-130`; frames D4A/B [mock L688-695]; the mockup's `hwOf` [mock L511] (illustrative only) |
 
 **P acceptance.** Each item is a property where a range exists. Use `fast-check`; the javascript-testing-expert skill
 applies.
@@ -1166,7 +1179,31 @@ thorough and cannot fail*. A sabotage run is owed for every new arm (R6).
 | Wave | Must-fix items | Prod files | Depends on | Reading |
 | --- | --- | --- | --- | --- |
 | **H1** whole-kitchen handle | (1) `DesignSettings.handle` (optional, so no schema bump, per ADR 0099 d10's argument); (2) resolution: the cabinet's own handle, else the kitchen handle (excluding the top row), else today's defaults (`DEFAULT_HANDLE` / `TOP_ROW_HANDLE`); (3) a `setKitchenHandle` command; (4) `isPushToOpen` reads the resolved handle, so hardware latches follow it; (5) migration and load-seam tolerance | `design.ts`, `queries/describe-selection.ts`, new `kitchen-handle/kitchen-handle.ts`, `push-to-open.ts`, new `commands/set-kitchen-handle.ts` | MP-0; **OQ-7** | DEVELOPMENT-SPEC §5.5 and §6.5 (finish and handle); ADR 0061; ADR 0092 Amendment C; ADR 0099; backlog 278; `design.ts:44-70,170-195` |
-| **H2** stamping new-kitchen defaults | (1) the generation request takes `newKitchenSettings` (material, hardware, depth, colour, handle, top-row handle); (2) `shell-design.ts` stamps them explicitly; (3) a colour the default material does not offer resets to that material's default (ADR 0057, the D9B note); (4) absent settings on a legacy document keep the fixed fallback (A-9) | `generation/shell-design.ts`, `generation/generate-kitchen.ts` (request type), `kitchen-handle/…` | H1 | ADR 0111; ADR 0057; ADR 0071 Amendment; `migrate-design.ts:83` |
+| **H1b** the kitchen handle reaches every reader, together (added 2026-10-26) | (1) `projectDesignForDisplay` passes the design's kitchen-handle settings into each `DisplayEntry` (an optional fact); (2) `hardware-mechanisms.ts`'s push-to-open query passes it, so the **price** follows; (3) the scene follows: `scene-sync.ts`'s `hidesHandles` passes it, the black-bar check reads `resolvedHandleOf(…)` instead of the raw `record.handleMode`, and `signBody` includes the resolved handle so a kitchen-handle change re-syncs. `PlacementRecord.handleMode` stays the **cabinet's own** handle; (4) `use-panel-view.ts` passes it to `describeSelection`; (5) the readers take H's settings **object** (`{handle?, topRowHandle?}`), not a lone value, so H2's `topRowHandle` reaches them with no second pass | `queries/design-projection.ts`, `hardware-mechanisms.ts`, the domain PlacementRecord builder, `three-adapter/src/scene-sync.ts`, `apps/web/src/panel/use-panel-view.ts`. **Five, across three packages; a mini-review is stated** | H1 | ADR 0092 Amendment C (price and scene must not split); ADR 0099; DEVELOPMENT-SPEC §5.5, §6.5; `docs/best-practices/product-invariants.md`; `docs/skills/lemnaria-3d-reference/SKILL.md`; `scene-sync.ts:190-310`; `built-body.ts:87-88` |
+| **H2** stamping new-kitchen defaults, and the top-row handle | (1) the generation request takes `newKitchenSettings` (material, hardware, depth, colour, handle, top-row handle); (2) `shell-design.ts` stamps them explicitly; (3) a colour the default material does not offer resets to that material's default (ADR 0057, the D9B note); (4) absent settings on a legacy document keep the fixed fallback (A-9); (5) **`DesignSettings.topRowHandle`** (optional, the same no-bump argument), resolved for top-row bodies as cabinet's own → `settings.topRowHandle` → `TOP_ROW_HANDLE` (H-3) | `generation/shell-design.ts`, `generation/generate-kitchen.ts` (request type), `kitchen-handle/…`, `design.ts` | H1b | ADR 0111; ADR 0057; ADR 0071 Amendment; `migrate-design.ts:83` |
+
+**Rulings on H1's open points (2026-10-26):**
+
+- **H-1 — the readers belong to new wave H1b.** H1 adds the setting and the resolution and stops there. H1b wires
+  every reader together, because price without scene recreates the split that ADR 0092 Amendment C closed. No lane
+  owned `packages/three-adapter` until now; H1b does, and only it. H1b holds `hardware-mechanisms.ts` before P5.
+  Q2 and P5 wait for H1b.
+- **H-3 — `topRowHandle` is kept, as a stamped setting.** D9 draws "Rândul de sus" [mock L755], and A-9 forbids
+  saved kitchens from reading the live default. The top row therefore needs a per-design value, stamped at creation.
+  H2 adds optional `settings.topRowHandle`, which falls back to `TOP_ROW_HANDLE` (push) when absent. The customer gets
+  no kitchen-level top-row control (C2 draws only "Mânere"); a top-row cabinet's own handle still wins. **X0's
+  contract is unchanged:** `KitchenDefaultsWire.topRowHandle` and the `kitchen-defaults-saved` `changedFields` entry
+  stand.
+- **H-4 — H1 owns its input check.** `setKitchenHandle` refuses a value that is not a declared `Handle` with a new
+  code in `commands/rejection.ts`, inside H1's own QA round. A command must judge its input. **Availability is not the
+  command's:** Q2 offers only active handles, Q5 resolves a disabled one through the sheet, and the price refuses
+  `REPLACEMENT_REQUIRED` (P4a).
+- **H-5 — the rollback hazard is recorded.** `settings.handle` (and `settings.topRowHandle`, H2) in a `strictObject`
+  make a document unreadable after a rollback to a build without the key, exactly as `settings.finish` does (ADR 0099
+  d10). This is a **no-rollback release note** for Z2's close and the scribe, not a migration.
+- **H-6 — Q2 adds the effect to the union and its branch in one change.** H1 keeps `KitchenHandleSetEffect` outside
+  `CommandEffect`. Q2 holds `commands/command-result.ts` and `store/apply-command-result.ts` together and adds the
+  whole-kitchen branch, so `intendSelection` never reads `effect.placementId` from it.
 
 **H acceptance:**
 
@@ -1181,8 +1218,23 @@ thorough and cannot fail*. A sabotage run is owed for every new arm (R6).
   - This is a property over random designs.
 - **H1-c:** a document without `settings.handle` renders and prices exactly as before (golden comparison against
   `HEAD`).
+- **H1-d (H-4):** `setKitchenHandle` with any value outside `HandleSchema` (a sweep over strings, `null`,
+  `undefined`, numbers) is rejected with its code and leaves the document unchanged.
+- **H1b-a:**
+  - choosing a kitchen handle changes, together, the hardware line's push-to-open count, the scene's visible handle
+    bars (hidden for push, black bars for black) and the panel's described handle;
+  - must-not: any of the three follows while another does not. Each is checked against the same resolved handle per
+    body, and a sabotage of any one reader must go red;
+  - a top-row body is unaffected by the kitchen handle.
+- **H1b-b:**
+  - `PlacementRecord.handleMode` is still the cabinet's own handle;
+  - a kitchen-handle change alone re-syncs the affected bodies (their `signBody` changes) and no others.
+- **H1b-c (visual, §13.3):**
+  - at 390 × 844 and 1440 × 900, switching the kitchen handle steel → black → push repaints every handle-taking body,
+    leaves top-row bodies alone, and moves the price;
+  - captured, with the console read.
 - **H2-a:**
-  - every newly generated design carries explicit material, hardware, depth, colour and handle;
+  - every newly generated design carries explicit material, hardware, depth, colour, handle and top-row handle;
   - changing the defaults input never changes the output for an existing document.
   - This is a property: generate, then re-load under different defaults, and the design is byte-identical.
 
@@ -1523,7 +1575,7 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | Wave | Must-fix items | Prod files | Depends on | Reading (in addition to the base) |
 | --- | --- | --- | --- | --- |
 | **Q1** depth line and copy | (1) the depth line in the breakdown ("Adâncime 700 mm · +{percent} %"); (2) the settings depth control switches from `globalSettings.depthNote` to T1's `depthNotePriced`, with `{percent}` from the published rule. This is a component edit only; no message file is touched | `price-breakdown.tsx`, `price-breakdown-model.ts` (depth line only), `settings/global-settings.tsx` | T1; **built on P3's branch after P3's QA is green; merged with P3 at MP-3** | ADR 0100 decision 5 and Amendment; A-1; frames C3, C3D, C3S, C3R [mock L784-790] |
-| **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint; the store applies `setKitchenHandle` | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), H1, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command |
+| **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint, offering only active handles; the store applies `setKitchenHandle`; `KitchenHandleSetEffect` joins `CommandEffect` together with `apply-command-result.ts`'s whole-kitchen branch (H-6) | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts`, `domain commands/command-result.ts`, `store/apply-command-result.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), **H1b**, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command; H-6 |
 | **Q3** forced replacement and merged notice | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17) | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |
 | **Q4** sent-kitchen note | C5A/C5AD: a closable, non-blocking note above the price when `isSent` | `sent-kitchen-note.tsx`, editor placement | R5, T1 | Frames C5A, C5AD [mock L805-807]; ADR 0062 Amendment 5, point 3; ADR 0165 |
 | **Q5** lone colour and handle replacement | A disabled colour or handle as a sheet row; choosing replaces it at every level where it appears (A-16); "Culoarea a revenit la Alb" when a material change resets it | `replacement-sheet.tsx` (mod), `store/whole-kitchen-apply.ts` (mod) | Q3, Q2, H1, P4a | A-16, A-17; ADR 0057, 0081, 0086, 0099; `chosen-finishes.ts`, `resolved-finish.ts` |
@@ -1565,6 +1617,8 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
   - the visual pass of §13.3 is done;
   - every `[mock]` frame is reproduced or its deviation is recorded with a reason.
 - **Z2:**
+  - **release notes:** no rollback past the build that introduced `settings.handle` (H1) or `settings.topRowHandle`
+    (H2), because a `strictObject` refuses the unknown key (ADR 0099 d10's precedent; H-5);
   - the test audit (`configurator-test-auditor`, ADR 0152 d4) runs over every test M10 added;
   - a "cannot fail" finding keeps the milestone open;
   - then the scribe archives.
