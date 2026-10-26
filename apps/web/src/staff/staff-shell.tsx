@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 
 import { OutcomeHero } from "@/account/account-form-parts";
@@ -10,7 +11,6 @@ import {
   useLeaveForStartAfterSignOut,
   useSignOutHere,
 } from "@/account/session/use-logout";
-import type { StaffShellCopy } from "@/i18n/content";
 import { endonymOf } from "@/i18n/locale-endonyms";
 import { routing, type AppLocale } from "@/i18n/routing";
 import {
@@ -21,8 +21,13 @@ import {
 } from "@/i18n/use-content";
 
 import styles from "./staff.module.css";
-import { StaffNavSheet, type StaffNavItem } from "./staff-nav-sheet";
-import { staffPathOf, type StaffPage } from "./staff-paths";
+import { NavGroup } from "./staff-nav-group";
+import { StaffNavSheet } from "./staff-nav-sheet";
+import {
+  useStaffNavigation,
+  useStaffPageLabels,
+} from "./staff-navigation-groups";
+import { staffPathOf, type StaffAreaPage, type StaffPage } from "./staff-paths";
 import { useStaffSessionExpiry } from "./staff-session-expiry";
 import { StaffSessionSheet } from "./staff-session-sheet";
 
@@ -38,7 +43,7 @@ import { StaffSessionSheet } from "./staff-session-sheet";
 // would carry the wrong nonce (the account pages' rule).
 
 /** The staff pages that have a screen to name in the navigation (their addresses are `staff-paths.ts`). */
-export type { StaffPage };
+export type { StaffAreaPage, StaffPage };
 
 export type StaffRole = "operator" | "administrator";
 
@@ -47,13 +52,18 @@ export interface StaffShellContext {
   readonly role: StaffRole;
   readonly email: string;
   /** The pages the person's capabilities open and that have a screen, in the order the navigation lists them. */
-  readonly navigation: readonly StaffPage[];
+  readonly navigation: readonly StaffAreaPage[];
+  /**
+   * How many prices the draft holds, which the server read. Drawn beside "Publicare prețuri" and in the bar, and only
+   * while that page is in `navigation`: a page of this family that does not know it simply draws no number.
+   */
+  readonly pendingPriceCount?: number | undefined;
 }
 
 export interface StaffShellProps {
   readonly locale: AppLocale;
   /** The page being shown, so the navigation marks it and the language links lead to the same page. */
-  readonly page: StaffPage;
+  readonly page: StaffAreaPage;
   /** The kitchen the "kitchens" page shows, so the language links lead to that kitchen and not to the list. Used only if
    *  it is shaped like a design id. */
   readonly kitchenId?: string;
@@ -71,6 +81,7 @@ export function StaffShell({
   children,
 }: StaffShellProps) {
   const copy = useStaffShellCopy();
+  const navNote = useTranslations()("priceDashboard.nav.note");
   const accountShell = useAccountShellCopy();
   const accountControl = useAccountControlCopy();
   const [open, setOpen] = useState<OpenSurface>("none");
@@ -88,7 +99,12 @@ export function StaffShell({
   const askSignOutEverywhere = useCallback(() => {
     setOpen("logout-everywhere");
   }, []);
-  const items = navigationItemsOf({ locale, page, context, copy });
+  const { groups, pendingPricesLink } = useStaffNavigation({
+    locale,
+    page,
+    navigation: context.navigation,
+    pendingPriceCount: context.pendingPriceCount,
+  });
   const sessionExpiry = useStaffSessionExpiry();
 
   return (
@@ -125,27 +141,28 @@ export function StaffShell({
             />
           ))}
         </nav>
+        {pendingPricesLink === undefined ? null : (
+          <a
+            className={styles.pendingChip}
+            href={pendingPricesLink.href}
+            data-testid="staff-pending-prices"
+          >
+            {pendingPricesLink.text}
+            <span aria-hidden="true"> →</span>
+          </a>
+        )}
       </div>
       <div className={styles.body}>
-        {items.length === 0 ? null : (
+        {groups.length === 0 ? null : (
           <nav
             className={styles.nav}
             aria-label={copy.areaName}
             data-testid="staff-nav"
           >
-            <ul className={styles.navItems}>
-              {items.map((item) => (
-                <li key={item.key}>
-                  <a
-                    className={styles.navItem}
-                    href={item.href}
-                    aria-current={item.isCurrent ? "page" : undefined}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+            {groups.map((group) => (
+              <NavGroup key={group.key} group={group} />
+            ))}
+            <p className={styles.navNote}>{navNote}</p>
           </nav>
         )}
         <div className={styles.content}>
@@ -161,7 +178,7 @@ export function StaffShell({
         <StaffNavSheet
           email={context.email}
           roleName={copy.roles[context.role]}
-          items={items}
+          groups={groups}
           profileHref={`/${locale}/account/profile`}
           signOutHere={signOutHere}
           onClose={close}
@@ -184,25 +201,6 @@ export function StaffShell({
       )}
     </main>
   );
-}
-
-function navigationItemsOf({
-  locale,
-  page,
-  context,
-  copy,
-}: {
-  readonly locale: AppLocale;
-  readonly page: StaffPage;
-  readonly context: StaffShellContext;
-  readonly copy: StaffShellCopy;
-}): readonly StaffNavItem[] {
-  return context.navigation.map((navPage) => ({
-    key: navPage,
-    href: staffPathOf(locale, navPage),
-    label: copy.pages[navPage],
-    isCurrent: navPage === page,
-  }));
 }
 
 function otherLocalesThan(locale: AppLocale): readonly AppLocale[] {
@@ -238,6 +236,7 @@ function LocaleLink({
 export function StaffForbiddenScreen(props: Omit<StaffShellProps, "children">) {
   const forbidden = useAccountForbiddenCopy();
   const copy = useStaffShellCopy();
+  const pageLabels = useStaffPageLabels();
   const accountShell = useAccountShellCopy();
   const firstPage = props.context.navigation[0];
   const way =
@@ -248,7 +247,7 @@ export function StaffForbiddenScreen(props: Omit<StaffShellProps, "children">) {
         }
       : {
           href: staffPathOf(props.locale, firstPage),
-          label: copy.backTo(copy.pages[firstPage]),
+          label: copy.backTo(pageLabels[firstPage]),
         };
   return (
     <StaffShell {...props}>
