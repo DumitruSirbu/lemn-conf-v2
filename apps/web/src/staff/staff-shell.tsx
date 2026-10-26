@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 
 import { OutcomeHero } from "@/account/account-form-parts";
 import { startPathOf } from "@/account/account-shell";
@@ -19,18 +19,14 @@ import {
   useAccountShellCopy,
   useStaffShellCopy,
 } from "@/i18n/use-content";
-import {
-  useStaffNavigationGroups,
-  useStaffPageLabels,
-} from "@/price-dashboard/staff-navigation-groups";
 
 import styles from "./staff.module.css";
+import { NavGroup } from "./staff-nav-group";
+import { StaffNavSheet } from "./staff-nav-sheet";
 import {
-  NavBadge,
-  StaffNavSheet,
-  type StaffNavGroup,
-  type StaffNavItem,
-} from "./staff-nav-sheet";
+  useStaffNavigation,
+  useStaffPageLabels,
+} from "./staff-navigation-groups";
 import { staffPathOf, type StaffAreaPage, type StaffPage } from "./staff-paths";
 import { useStaffSessionExpiry } from "./staff-session-expiry";
 import { StaffSessionSheet } from "./staff-session-sheet";
@@ -103,13 +99,12 @@ export function StaffShell({
   const askSignOutEverywhere = useCallback(() => {
     setOpen("logout-everywhere");
   }, []);
-  const groups = useStaffNavigationGroups({
+  const { groups, pendingPricesLink } = useStaffNavigation({
     locale,
     page,
     navigation: context.navigation,
     pendingPriceCount: context.pendingPriceCount,
   });
-  const publishItem = publishItemOf(groups);
   const sessionExpiry = useStaffSessionExpiry();
 
   return (
@@ -146,14 +141,13 @@ export function StaffShell({
             />
           ))}
         </nav>
-        {publishItem?.badge === undefined ? null : (
+        {pendingPricesLink === undefined ? null : (
           <a
             className={styles.pendingChip}
-            href={publishItem.href}
+            href={pendingPricesLink.href}
             data-testid="staff-pending-prices"
           >
-            {publishItem.badge.label}
-            <span aria-hidden="true"> →</span>
+            {pendingPricesLink.text}
           </a>
         )}
       </div>
@@ -205,46 +199,6 @@ export function StaffShell({
         />
       )}
     </main>
-  );
-}
-
-function publishItemOf(
-  groups: readonly StaffNavGroup[],
-): StaffNavItem | undefined {
-  return groups
-    .flatMap((group) => group.items)
-    .find((item) => item.key === "publish");
-}
-
-function NavGroup({ group }: { readonly group: StaffNavGroup }) {
-  const headingId = useId();
-  return (
-    <div className={styles.navGroup}>
-      {group.heading === undefined ? null : (
-        <p id={headingId} className={styles.groupHeading}>
-          {group.heading}
-        </p>
-      )}
-      <ul
-        className={styles.navItems}
-        aria-labelledby={group.heading === undefined ? undefined : headingId}
-      >
-        {group.items.map((item) => (
-          <li key={item.key}>
-            <a
-              className={styles.navItem}
-              href={item.href}
-              aria-current={item.isCurrent ? "page" : undefined}
-            >
-              <span className={styles.rowLabel}>{item.label}</span>
-              {item.badge === undefined ? null : (
-                <NavBadge badge={item.badge} />
-              )}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

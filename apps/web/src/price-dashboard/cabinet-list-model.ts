@@ -4,12 +4,12 @@ import {
   type PriceGroupCode,
 } from "@lemnaria/configurator-domain";
 
+import { isCountOfBani } from "./format-lei";
 import type { DashboardDraftWire } from "./price-dashboard-wire-contract";
 
-// What the cabinet list (frames D2A, D2B, D2M) is drawn from, and the pure rules that turn it into rows. Nothing here
-// reads the price book or does arithmetic on a price: the amounts at the default size arrive already worked out (the
-// seam is `CabinetRuleFacts`, filled by the server), and this module only decides what is modified, what a search
-// matches and how the rows group.
+// What the cabinet list is drawn from, and the pure rules that turn it into rows. Nothing here reads the price book or
+// does arithmetic on a price: the amounts at the default size arrive already worked out in `CabinetRuleFacts`, and this
+// module only decides what is modified, what a search matches and how the rows group.
 
 /** How wide a cabinet can be made: any width between two bounds, or only the listed sizes. */
 export type CabinetWidthRange =
@@ -40,7 +40,7 @@ export interface CabinetDefaultPrice {
 export interface CabinetRuleFacts {
   readonly ruleId: string;
   readonly buildId: string;
-  /** The catalogue's Romanian name, in both locales until the official translation (frame D2R). */
+  /** The catalogue's Romanian name, shown as it is in both locales until the official translation. */
   readonly name: string;
   readonly group: PriceGroupCode;
   readonly widths: CabinetWidthFacts;
@@ -86,8 +86,8 @@ function namesRule(change: DraftChange, ruleId: string): boolean {
 }
 
 /**
- * The number the header and the menu show: every change the draft holds, whatever it changes. The depth rule counts
- * with the cabinet prices (frame D2E2: "Numărul din antet include regula"), and so does a bulk action's every field.
+ * The number the header and the menu show: every change the draft holds, whatever it changes (the depth rule and a
+ * bulk action's every field count with the cabinet prices).
  */
 export function pendingPriceCountOf(draft: DashboardDraftWire): number {
   return draft.changes.length;
@@ -157,19 +157,22 @@ export type RowPrice =
       readonly activeBesideMinor: number | undefined;
     };
 
+/** Only the amounts a row draws are checked: the active one while it is unmodified, both once it is modified. */
 export function priceOfRow(row: CabinetRow): RowPrice {
   const { price, isCustomerSupplied } = row.facts;
   if (isCustomerSupplied || price === undefined) return { kind: "none" };
+  if (!row.isModified) {
+    return isCountOfBani(price.activeMinor)
+      ? {
+          kind: "amount",
+          price,
+          headlineMinor: price.activeMinor,
+          activeBesideMinor: undefined,
+        }
+      : { kind: "unreadable", price };
+  }
   if (!isCountOfBani(price.activeMinor) || !isCountOfBani(price.pendingMinor)) {
     return { kind: "unreadable", price };
-  }
-  if (!row.isModified) {
-    return {
-      kind: "amount",
-      price,
-      headlineMinor: price.activeMinor,
-      activeBesideMinor: undefined,
-    };
   }
   return {
     kind: "amount",
@@ -178,14 +181,4 @@ export function priceOfRow(row: CabinetRow): RowPrice {
     activeBesideMinor:
       price.pendingMinor === price.activeMinor ? undefined : price.activeMinor,
   };
-}
-
-function isCountOfBani(amount: number): boolean {
-  return Number.isSafeInteger(amount) && amount >= 0;
-}
-
-/** Whether the price at the default size changes with the draft, so the row shows the new one and the active beside it. */
-export function hasPendingPrice(row: CabinetRow): boolean {
-  const price = priceOfRow(row);
-  return price.kind === "amount" && price.activeBesideMinor !== undefined;
 }

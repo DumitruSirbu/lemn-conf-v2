@@ -1690,6 +1690,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       pendingChip:
         "{count, plural, one {{count, number, ::group-off} preț de publicat} few {{count, number, ::group-off} prețuri de publicat} other {{count, number, ::group-off} de prețuri de publicat}}",
       allPublished: "Toate prețurile sunt publicate",
+      // Drafted, not approved: the join of the bar's link and the spoken name of the menu's link; both are separators.
+      pendingChipLink: "{label} →",
+      itemWithBadge: "{name}, {label}",
     },
     common: {
       save: "Salvează",
@@ -1772,6 +1775,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       searchClear: "Golește căutarea",
       emptySearchTitle: "Niciun dulap pentru „{query}”.",
       emptySearchBody: "Verifică denumirea sau golește căutarea.",
+      // Drafted, not approved: the empty list under "Doar modificate", and a book with no cabinet to draw.
+      emptyChangedTitle: "Niciun dulap modificat pentru „{query}”.",
+      emptyListTitle: "Niciun dulap de afișat.",
       filterChanged: "Doar modificate",
       bulkAction: "Modifică prețurile cu %",
       groupBase: "Dulapuri bază",
@@ -1785,6 +1791,12 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       columnWidth: "Lățime",
       columnPrice: "Preț la mărimea implicită",
       widthFixed: "fix {widths} mm",
+      // Drafted, not approved: separators of a row's widths and price, and the structural row's note without the chip's word.
+      widthsJoined: "{head} / {tail}",
+      widthRange:
+        "{minMm, number, ::group-off}–{maxMm, number, ::group-off} mm",
+      priceBasisWithActive: "{basis} · {active}",
+      structuralNote: "pus automat în bucătăriile în L și U",
       widthDefault: "implicit {widthMm, number, ::group-off}",
       widthFollowsBase: "implicit: după dulapul de jos",
       proposed: "propus",

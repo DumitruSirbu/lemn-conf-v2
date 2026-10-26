@@ -310,6 +310,32 @@ describe("staffNavigationOf", () => {
     ]);
   });
 
+  it("lists the catalog pages in the family's own order, after the staff pages, whatever order they were built in", () => {
+    expect(
+      staffNavigationOf(ADMINISTRATOR, [
+        "publish",
+        "hardware",
+        "cabinets",
+        "audit",
+        "kitchens",
+      ]),
+    ).toEqual(["kitchens", "audit", "cabinets", "hardware", "publish"]);
+  });
+
+  it("lists an operator no catalog page, each of which asks for price.edit", () => {
+    expect(
+      staffNavigationOf(OPERATOR, [
+        "kitchens",
+        "cabinets",
+        "hardware",
+        "materials",
+        "accessories",
+        "defaults",
+        "publish",
+      ]),
+    ).toEqual(["kitchens"]);
+  });
+
   it("leaves out a page that is not built, though the administrator holds its capability", () => {
     expect(staffNavigationOf(ADMINISTRATOR, ["kitchens"])).toEqual([
       "kitchens",

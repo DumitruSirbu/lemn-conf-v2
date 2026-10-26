@@ -17,13 +17,13 @@ import {
   type StaffShellContext,
 } from "@/staff/staff-shell";
 
-import type { CatalogPageRead } from "../../src/app/[locale]/staff/catalog/_lib/read-catalog-page";
+import type { StaffPageRead as CatalogPageRead } from "@/lib/server/staff/staff-page";
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
 
 const world = vi.hoisted(() => ({
   gate: undefined as CatalogPageRead | undefined,
-  gateAsked: [] as { locale: string }[],
+  gateAsked: [] as { locale: string; page: string }[],
   list: undefined as CabinetListRead | undefined,
   listAsked: 0,
 }));
@@ -46,7 +46,7 @@ vi.mock("next-intl/server", () => ({
     ),
 }));
 vi.mock("../../src/app/[locale]/staff/catalog/_lib/read-catalog-page", () => ({
-  readCatalogPage: (request: { locale: string }) => {
+  readCatalogPage: (request: { locale: string; page: string }) => {
     world.gateAsked.push(request);
     if (world.gate === undefined) throw new Error("no answer planned");
     return Promise.resolve(world.gate);
@@ -95,7 +95,7 @@ describe("the cabinets page for each answer of the catalog gate", () => {
   it("asks the gate in the page's language", async () => {
     await pageFor({ kind: "unavailable" });
 
-    expect(world.gateAsked).toEqual([{ locale: "ro" }]);
+    expect(world.gateAsked).toEqual([{ locale: "ro", page: "cabinets" }]);
   });
 
   it("draws the list for an administrator, handing the screen the frame the server worked out and the source's facts", async () => {

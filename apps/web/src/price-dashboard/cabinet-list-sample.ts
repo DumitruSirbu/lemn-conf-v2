@@ -12,10 +12,9 @@ import type {
   CabinetWidthFacts,
 } from "./cabinet-list-model";
 
-// Invented facts for the list while no route supplies the real ones (lane R). Every figure is made up, like
-// `SAMPLE_PRICE_BOOK`'s, and every name is the catalogue's Romanian one, read from the message file. It stands behind
-// `readCabinetList` outside a production build only, so a developer and the visual checks see a populated list; lane R
-// deletes it with the stub.
+// Invented facts for the list while nothing supplies the real ones. Every figure is made up, like `SAMPLE_PRICE_BOOK`'s,
+// and every name is the catalogue's Romanian one, read from the message file. It stands behind `readCabinetList` outside a
+// production build only, and goes with that stub.
 
 type CatalogEntryId = keyof typeof roMessages.catalog.entries;
 

@@ -1,6 +1,6 @@
-/* The dashboard's cabinet list (frames D2A, D2B, D2M). One markup, two layouts: a phone draws each row as a card, and from
- * 900 px, the staff frame's own breakpoint, the rows line up as a table. Every interactive box is at least
- * `--touch-target` tall and wide. The marks on the caret and the clear button are drawn here, so no glyph is text. */
+/* The cabinet list. One markup, two layouts: a phone draws each row as a card, and from 900 px, the staff frame's own
+ * breakpoint, the rows line up as a table. Every interactive box is at least `--touch-target` tall and wide. The marks on
+ * the caret and the clear button are drawn here, so no glyph is text. */
 .page {
   --warm-surface: #f7ecdc;
   --warm-row: #fbf5ea;

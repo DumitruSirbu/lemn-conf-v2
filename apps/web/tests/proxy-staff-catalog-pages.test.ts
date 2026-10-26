@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
@@ -81,6 +84,32 @@ describe.each(routing.locales)("the catalog pages in locale %s", (locale) => {
     ["an item with a trailing slash", `/${locale}/staff/catalog/cabinets/x/`],
   ])("still gets the headers %s", (_label, path) => {
     expect(isMarkedAsStaffPage(path)).toBe(true);
+  });
+});
+
+describe("the proxy's own list of catalog sections", () => {
+  const proxySource = readFileSync(
+    join(import.meta.dirname, "../src/proxy.ts"),
+    "utf8",
+  );
+  const spelled = [
+    ...(
+      /STAFF_CATALOG_SECTIONS: readonly string\[\] = \[([^\]]*)\]/.exec(
+        proxySource,
+      )?.[1] ?? ""
+    ).matchAll(/"([^"]+)"/g),
+  ].map((match) => match[1]);
+
+  it("holds every page of the family", () => {
+    for (const page of CATALOG_PAGES) expect(spelled).toContain(page);
+  });
+
+  it("holds nothing that is not a page of the family", () => {
+    for (const section of spelled) {
+      expect(CATALOG_PAGES as readonly (string | undefined)[]).toContain(
+        section,
+      );
+    }
   });
 });
 

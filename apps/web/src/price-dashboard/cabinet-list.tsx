@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState, type RefObject } from "react";
 
 import type { PriceGroupCode } from "@lemnaria/configurator-domain";
 
@@ -19,11 +19,11 @@ import {
 import { CabinetGroupSection } from "./cabinet-list-rows";
 import { CatalogUnavailableNotice } from "./catalog-states";
 
-// "Dulapuri" (frames D2A, D2B, D2M): the cabinet types of the configurator, in four groups, with the price at the default
-// size and, beside it, the active one while a change awaits publication. A search and "Doar modificate" narrow it. The
-// search is typed text that never leaves the page: it is not sent, stored or put in an address.
+// The cabinet types of the configurator, in four groups, with the price at the default size and, beside it, the active one
+// while a change awaits publication. A search and "Doar modificate" narrow it. The search is typed text that never leaves
+// the page: it is not sent, stored or put in an address.
 
-/** The group that starts closed: the structural corner pieces, which the manufacturer rarely prices by hand (frame D2A). */
+/** The group that starts closed: the structural corner pieces, which the manufacturer rarely prices by hand. */
 const GROUPS_CLOSED_AT_FIRST: readonly PriceGroupCode[] = ["corner"];
 
 export function CabinetListScreen({
@@ -46,8 +46,7 @@ export function CabinetListScreen({
   );
 }
 
-/** The list could not be read (no active price book, or the store is down): the frame stays, and the notice stands in the
- *  page's place. */
+/** The list could not be read: the frame stays, and the notice stands in the page's place. */
 export function CabinetListUnavailableScreen({
   locale,
   context,
@@ -64,7 +63,6 @@ export function CabinetListUnavailableScreen({
 
 function CabinetList({ input }: { readonly input: CabinetListInput }) {
   const translate = useTranslations();
-  const searchId = useId();
   const searchRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [isOnlyModifiedChosen, setIsOnlyModifiedChosen] = useState(false);
@@ -88,8 +86,9 @@ function CabinetList({ input }: { readonly input: CabinetListInput }) {
       return next;
     });
   };
-  const clearSearch = () => {
+  const clearSearchAndFilter = () => {
     setQuery("");
+    setIsOnlyModifiedChosen(false);
     searchRef.current?.focus();
   };
 
@@ -105,47 +104,22 @@ function CabinetList({ input }: { readonly input: CabinetListInput }) {
       </div>
 
       <div className={styles.tools}>
-        <div className={styles.searchField}>
-          <label className={styles.fieldLabel} htmlFor={searchId}>
-            {translate("priceDashboard.cabinets.searchLabel")}
-          </label>
-          <div className={styles.searchControl}>
-            <input
-              ref={searchRef}
-              id={searchId}
-              type="search"
-              className={styles.searchInput}
-              value={query}
-              placeholder={translate(
-                "priceDashboard.cabinets.searchPlaceholder",
-              )}
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(event) => {
-                setQuery(event.target.value);
-              }}
-            />
-            {query === "" ? null : (
-              <button
-                type="button"
-                className={styles.searchClear}
-                aria-label={translate("priceDashboard.cabinets.searchClear")}
-                onClick={clearSearch}
-              />
-            )}
-          </div>
-        </div>
-        <button
-          type="button"
-          className={styles.filterToggle}
-          aria-pressed={onlyModified}
-          disabled={modifiedCount === 0}
-          onClick={() => {
+        <SearchField
+          query={query}
+          inputRef={searchRef}
+          onChange={setQuery}
+          onClear={() => {
+            setQuery("");
+            searchRef.current?.focus();
+          }}
+        />
+        <ModifiedToggle
+          isPressed={onlyModified}
+          isAvailable={modifiedCount > 0}
+          onToggle={() => {
             setIsOnlyModifiedChosen((isChosen) => !isChosen);
           }}
-        >
-          {translate("priceDashboard.cabinets.filterChanged")}
-        </button>
+        />
       </div>
 
       <p className={styles.basisNote}>
@@ -158,7 +132,11 @@ function CabinetList({ input }: { readonly input: CabinetListInput }) {
       </p>
 
       {groups.length === 0 ? (
-        <EmptySearch query={query} onClear={clearSearch} />
+        <EmptyList
+          query={query}
+          onlyModified={onlyModified}
+          onClear={clearSearchAndFilter}
+        />
       ) : (
         <>
           <ColumnHeads />
@@ -182,6 +160,75 @@ function CabinetList({ input }: { readonly input: CabinetListInput }) {
   );
 }
 
+function SearchField({
+  query,
+  inputRef,
+  onChange,
+  onClear,
+}: {
+  readonly query: string;
+  readonly inputRef: RefObject<HTMLInputElement | null>;
+  readonly onChange: (query: string) => void;
+  readonly onClear: () => void;
+}) {
+  const translate = useTranslations();
+  const searchId = useId();
+  return (
+    <div className={styles.searchField}>
+      <label className={styles.fieldLabel} htmlFor={searchId}>
+        {translate("priceDashboard.cabinets.searchLabel")}
+      </label>
+      <div className={styles.searchControl}>
+        <input
+          ref={inputRef}
+          id={searchId}
+          type="search"
+          className={styles.searchInput}
+          value={query}
+          placeholder={translate("priceDashboard.cabinets.searchPlaceholder")}
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(event) => {
+            onChange(event.target.value);
+          }}
+        />
+        {query === "" ? null : (
+          <button
+            type="button"
+            className={styles.searchClear}
+            aria-label={translate("priceDashboard.cabinets.searchClear")}
+            onClick={onClear}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** "Doar modificate": off, and out of reach, while nothing awaits publication. */
+function ModifiedToggle({
+  isPressed,
+  isAvailable,
+  onToggle,
+}: {
+  readonly isPressed: boolean;
+  readonly isAvailable: boolean;
+  readonly onToggle: () => void;
+}) {
+  const translate = useTranslations();
+  return (
+    <button
+      type="button"
+      className={styles.filterToggle}
+      aria-pressed={isPressed}
+      disabled={!isAvailable}
+      onClick={onToggle}
+    >
+      {translate("priceDashboard.cabinets.filterChanged")}
+    </button>
+  );
+}
+
 /** The desktop's column titles. Each row's cells say what they are in their own words, so the titles are for the eye. */
 function ColumnHeads() {
   const translate = useTranslations();
@@ -195,19 +242,33 @@ function ColumnHeads() {
   );
 }
 
-function EmptySearch({
+/** What stands where the rows would: a search or the filter that matched nothing, or a book with no cabinet at all. */
+function EmptyList({
   query,
+  onlyModified,
   onClear,
 }: {
   readonly query: string;
+  readonly onlyModified: boolean;
   readonly onClear: () => void;
 }) {
   const translate = useTranslations();
-  if (query.trim() === "") return null;
+  const isSearching = query.trim() !== "";
+  if (!isSearching) {
+    return (
+      <div className={styles.empty} data-testid="cabinet-list-empty">
+        <p className={styles.emptyTitle}>
+          {translate("priceDashboard.cabinets.emptyListTitle")}
+        </p>
+      </div>
+    );
+  }
   return (
     <div className={styles.empty} data-testid="cabinet-list-empty">
       <p className={styles.emptyTitle}>
-        {translate("priceDashboard.cabinets.emptySearchTitle", { query })}
+        {onlyModified
+          ? translate("priceDashboard.cabinets.emptyChangedTitle", { query })
+          : translate("priceDashboard.cabinets.emptySearchTitle", { query })}
       </p>
       <p className={styles.emptyBody}>
         {translate("priceDashboard.cabinets.emptySearchBody")}

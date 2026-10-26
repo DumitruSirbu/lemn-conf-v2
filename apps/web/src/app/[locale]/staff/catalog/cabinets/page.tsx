@@ -32,18 +32,15 @@ export async function generateMetadata({
 }
 
 /**
- * "Dulapuri", the price dashboard's list of cabinet types: a shell and one client screen. The server gate decides who sees
- * it (`readCatalogPage`): a person who is not signed in leaves for the login page, a staff account without `price.edit`
- * (an operator) sees the forbidden screen inside the staff frame, any other account sees the account area's forbidden
- * screen, and a session store that could not be read draws a notice. Each of those answers HTTP 200 with the screen, never
- * `403`. What the list shows comes from `readCabinetList`, the seam lane R fills. Rendered per request: it depends on the
- * session.
+ * The list of cabinet types. `readCatalogPage` decides who sees it: a visitor leaves for the login page, an operator gets
+ * the forbidden screen inside the staff frame, any other account gets the account area's, and an unreadable session store
+ * draws a notice, all with HTTP 200. `readCabinetList` supplies what the list shows. Rendered per request.
  */
 export default async function CabinetsPage({ params }: CabinetsPageProps) {
   await connection();
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
-  const read = await readCatalogPage({ locale });
+  const read = await readCatalogPage({ locale, page: "cabinets" });
   switch (read.kind) {
     case "signed-in": {
       const list = await readCabinetList();

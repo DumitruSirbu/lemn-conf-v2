@@ -13,9 +13,8 @@ import {
 } from "./cabinet-list-model";
 import { formatLei, formatLeiAmount } from "./format-lei";
 
-// One group of the list and its rows (frames D2A, D2B, D2M). The same markup is the table on a desktop and the cards on a
-// phone: the stylesheet lays the row out, so no script chooses between two trees and nothing flips after hydration.
-// Every string here is the catalogue's or the message file's, drawn as a text child.
+// One group of the list and its rows. The same markup is the table on a desktop and the cards on a phone: the stylesheet
+// lays the row out, so no script chooses between two trees and nothing flips after hydration.
 
 const GROUP_HEADING_KEYS = {
   base: "priceDashboard.cabinets.groupBase",
@@ -141,37 +140,37 @@ function CabinetPicture({ url }: { readonly url: string | undefined }) {
   );
 }
 
-/** What the row says about the cabinet beyond its name: the two kinds that do not follow the price list. */
+/** What a structural row says beyond its chip. A customer-supplied row says all it has to in its chip and its price cell. */
 function RowNote({ row }: { readonly row: CabinetRow }) {
   const translate = useTranslations();
   const { facts } = row;
-  if (facts.isCustomerSupplied) {
-    return (
-      <span className={styles.note}>
-        {translate("priceDashboard.cabinets.customerSuppliedShort")}
-      </span>
-    );
-  }
-  if (!facts.isStructural) return null;
+  if (!facts.isStructural || facts.isCustomerSupplied) return null;
   return (
     <span className={styles.note}>
-      {translate("priceDashboard.cabinets.structuralShort")}
+      {translate("priceDashboard.cabinets.structuralNote")}
     </span>
   );
 }
 
 function CabinetWidths({ widths }: { readonly widths: CabinetWidthFacts }) {
   const translate = useTranslations();
-  const mm = translate("priceDashboard.units.mm");
   const { range } = widths;
   return (
     <div className={styles.rowWidth}>
       <span className={styles.strong}>
         {range.kind === "fixed"
           ? translate("priceDashboard.cabinets.widthFixed", {
-              widths: range.widthsMm.join(" / "),
+              widths: range.widthsMm.map(String).reduce((head, tail) =>
+                translate("priceDashboard.cabinets.widthsJoined", {
+                  head,
+                  tail,
+                }),
+              ),
             })
-          : `${String(range.minMm)}–${String(range.maxMm)} ${mm}`}
+          : translate("priceDashboard.cabinets.widthRange", {
+              minMm: range.minMm,
+              maxMm: range.maxMm,
+            })}
       </span>
       {range.kind === "fixed" ? null : (
         <span className={styles.muted}>
@@ -231,9 +230,12 @@ function CabinetPrice({ row }: { readonly row: CabinetRow }) {
       <span className={styles.muted}>
         {shown.activeBesideMinor === undefined
           ? basis
-          : `${basis} · ${translate("priceDashboard.common.activeShort", {
-              amount: formatLeiAmount(shown.activeBesideMinor),
-            })}`}
+          : translate("priceDashboard.cabinets.priceBasisWithActive", {
+              basis,
+              active: translate("priceDashboard.common.activeShort", {
+                amount: formatLeiAmount(shown.activeBesideMinor),
+              }),
+            })}
       </span>
     </div>
   );

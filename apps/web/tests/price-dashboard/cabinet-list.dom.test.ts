@@ -237,7 +237,7 @@ describe("a row (frames D2A, D2B)", () => {
     const row = rowOf(container, HOOD);
 
     expect(row.textContent).toContain(COPY.chips.customerSupplied);
-    expect(row.textContent).toContain(COPY.cabinets.customerSuppliedShort);
+    expect(row.textContent).not.toContain(COPY.cabinets.customerSuppliedShort);
     expect(row.textContent).toContain(COPY.cabinets.noEffectOnPrice);
     expect(requireIn(row, "[class*=noPrice]").getAttribute("aria-hidden")).toBe(
       "true",
@@ -245,12 +245,22 @@ describe("a row (frames D2A, D2B)", () => {
     expect(row.querySelector('[data-testid="cabinet-price"]')).toBeNull();
   });
 
-  it("marks a structural piece as one, with what it does", async () => {
+  it("marks a structural piece as one with a chip, and says what it does without saying 'structural' twice", async () => {
     const container = await mount();
     const row = rowOf(container, CORNER_900);
 
     expect(row.textContent).toContain(COPY.chips.structural);
-    expect(row.textContent).toContain(COPY.cabinets.structuralShort);
+    expect(row.textContent).toContain(COPY.cabinets.structuralNote);
+    expect(row.textContent).not.toContain(COPY.cabinets.structuralShort);
+    expect(row.textContent.split(COPY.chips.structural)).toHaveLength(2);
+  });
+
+  it("says 'Furnizat de client' once on a customer-supplied row", async () => {
+    const container = await mount();
+
+    expect(
+      rowOf(container, HOOD).textContent.split(COPY.chips.customerSupplied),
+    ).toHaveLength(2);
   });
 
   it("says how wide a cabinet can be, and what its default is", async () => {
@@ -436,7 +446,42 @@ describe("'Doar modificate'", () => {
 
     expect(
       requireIn(container, '[data-testid="cabinet-list-empty"]').textContent,
-    ).toContain("Niciun dulap pentru „sertare”.");
+    ).toContain(
+      roCopy("priceDashboard.cabinets.emptyChangedTitle", { query: "sertare" }),
+    );
+  });
+
+  it("is cleared with the search by the empty state's button", async () => {
+    const container = await mount();
+
+    click(filterToggle(container));
+    typeInto(searchBox(container), "sertare");
+    click(
+      requireIn(
+        requireIn(container, '[data-testid="cabinet-list-empty"]'),
+        "button",
+      ),
+    );
+
+    expect(searchBox(container).value).toBe("");
+    expect(filterToggle(container).getAttribute("aria-pressed")).toBe("false");
+    expect(rowsOf(container).length).toBeGreaterThan(1);
+  });
+});
+
+describe("a book with no cabinet", () => {
+  it("draws an empty state and no rows, and no way to clear what is not there", async () => {
+    const container = await mount({
+      rules: [],
+      draft: { draftRevision: "1", changes: [] },
+    });
+    const empty = requireIn(container, '[data-testid="cabinet-list-empty"]');
+
+    expect(empty.textContent).toBe(
+      roCopy("priceDashboard.cabinets.emptyListTitle"),
+    );
+    expect(empty.querySelector("button")).toBeNull();
+    expect(rowsOf(container)).toHaveLength(0);
   });
 });
 

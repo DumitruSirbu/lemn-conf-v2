@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   filterRows,
   groupRows,
-  hasPendingPrice,
   isRuleModified,
   normalisedForSearch,
   pendingPriceCountOf,
@@ -106,12 +105,17 @@ describe("the number the header and the menu show", () => {
   });
 });
 
+const activeBeside = (row: CabinetRow): number | undefined => {
+  const price = priceOfRow(row);
+  return price.kind === "amount" ? price.activeBesideMinor : undefined;
+};
+
 describe("a row shows the new price beside the active one", () => {
   it("only when the draft changes the price at the default size", () => {
     const rows = rowsOf(SAMPLE_CABINET_LIST);
 
-    expect(hasPendingPrice(rowOf(rows, BASE_CABINET))).toBe(true);
-    expect(hasPendingPrice(rowOf(rows, THREE_DRAWER))).toBe(false);
+    expect(activeBeside(rowOf(rows, BASE_CABINET))).toBe(145_000);
+    expect(activeBeside(rowOf(rows, THREE_DRAWER))).toBeUndefined();
   });
 
   it("not for a cabinet modified at a step only, whose default-size price is what it was", () => {
@@ -127,13 +131,13 @@ describe("a row shows the new price beside the active one", () => {
     );
 
     expect(rowOf(stepOnly, THREE_DRAWER).isModified).toBe(true);
-    expect(hasPendingPrice(rowOf(stepOnly, THREE_DRAWER))).toBe(false);
+    expect(activeBeside(rowOf(stepOnly, THREE_DRAWER))).toBeUndefined();
   });
 
   it("never for a cabinet the manufacturer does not supply, which has no price", () => {
-    expect(hasPendingPrice(rowOf(rowsOf(SAMPLE_CABINET_LIST), HOOD))).toBe(
-      false,
-    );
+    expect(priceOfRow(rowOf(rowsOf(SAMPLE_CABINET_LIST), HOOD))).toEqual({
+      kind: "none",
+    });
   });
 });
 
@@ -257,7 +261,22 @@ describe("what a row's price cell says", () => {
     };
 
     expect(priceOfRow(row)).toEqual({ kind: "none" });
-    expect(hasPendingPrice(row)).toBe(false);
+  });
+
+  it("checks only what the row draws: an unmodified row ignores a bad pending amount, a modified one needs both", () => {
+    const badPendingUnmodified = withPrice(
+      THREE_DRAWER,
+      { activeMinor: 100_000, pendingMinor: Number.NaN },
+      false,
+    );
+    const badPendingModified = withPrice(
+      THREE_DRAWER,
+      { activeMinor: 100_000, pendingMinor: Number.NaN },
+      true,
+    );
+
+    expect(priceOfRow(badPendingUnmodified).kind).toBe("amount");
+    expect(priceOfRow(badPendingModified).kind).toBe("unreadable");
   });
 
   it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 53])(

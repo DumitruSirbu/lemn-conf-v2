@@ -155,7 +155,9 @@ describe("readCatalogPage is no looser than the signed-in gate asked for price.e
     "opens the page for $label exactly when that gate does, and only for staff",
     async (caller) => {
       become(caller);
-      const catalog = await outcomeOf(() => readCatalogPage({ locale: "ro" }));
+      const catalog = await outcomeOf(() =>
+        readCatalogPage({ locale: "ro", page: "cabinets" }),
+      );
       const priceGate = await outcomeOf(() =>
         readSignedInPage({ locale: "ro", capability: "price.edit" }),
       );
@@ -170,9 +172,13 @@ describe("readCatalogPage is no looser than the signed-in gate asked for price.e
 
   it("sends a visitor to the plain login page and an expired session to the expired one", async () => {
     become(callerNamed("a visitor"));
-    const visitor = await outcomeOf(() => readCatalogPage({ locale: "ru" }));
+    const visitor = await outcomeOf(() =>
+      readCatalogPage({ locale: "ru", page: "cabinets" }),
+    );
     become(callerNamed("a cookie that names no live session"));
-    const expired = await outcomeOf(() => readCatalogPage({ locale: "ru" }));
+    const expired = await outcomeOf(() =>
+      readCatalogPage({ locale: "ru", page: "cabinets" }),
+    );
 
     expect(visitor).toBe("redirect:/ru/account/login");
     expect(expired).toBe("redirect:/ru/account/login?reason=session-expired");
@@ -181,17 +187,21 @@ describe("readCatalogPage is no looser than the signed-in gate asked for price.e
   it("answers an unreadable session store with unavailable, never with a sign-in", async () => {
     become(callerNamed("a session store that cannot be read"));
 
-    expect(await outcomeOf(() => readCatalogPage({ locale: "ro" }))).toBe(
-      "unavailable",
-    );
+    expect(
+      await outcomeOf(() =>
+        readCatalogPage({ locale: "ro", page: "cabinets" }),
+      ),
+    ).toBe("unavailable");
   });
 
   it("is the framework's not-found for a locale the site does not serve", async () => {
     become(callerNamed("a verified administrator"));
 
-    expect(await outcomeOf(() => readCatalogPage({ locale: "xx" }))).toBe(
-      "not-found",
-    );
+    expect(
+      await outcomeOf(() =>
+        readCatalogPage({ locale: "xx", page: "cabinets" }),
+      ),
+    ).toBe("not-found");
   });
 });
 
@@ -205,16 +215,18 @@ describe("what each kind of account is shown", () => {
     async (label) => {
       become(callerNamed(label));
 
-      expect(await readCatalogPage({ locale: "ro" })).toEqual({
-        kind: "forbidden",
-      });
+      expect(await readCatalogPage({ locale: "ro", page: "cabinets" })).toEqual(
+        {
+          kind: "forbidden",
+        },
+      );
     },
   );
 
   it("gives a verified operator the 403 inside the staff frame, with only the customers' page in the menu", async () => {
     become(callerNamed("a verified operator"));
 
-    expect(await readCatalogPage({ locale: "ro" })).toEqual({
+    expect(await readCatalogPage({ locale: "ro", page: "cabinets" })).toEqual({
       kind: "staff-forbidden",
       shell: {
         role: "operator",
@@ -229,16 +241,18 @@ describe("what each kind of account is shown", () => {
     async (label) => {
       become(callerNamed(label));
 
-      expect(await readCatalogPage({ locale: "ro" })).toEqual({
-        kind: "forbidden",
-      });
+      expect(await readCatalogPage({ locale: "ro", page: "cabinets" })).toEqual(
+        {
+          kind: "forbidden",
+        },
+      );
     },
   );
 
   it("opens the page for a verified administrator, whose menu lists the built catalog pages after the staff pages", async () => {
     become(callerNamed("a verified administrator"));
 
-    expect(await readCatalogPage({ locale: "ro" })).toEqual({
+    expect(await readCatalogPage({ locale: "ro", page: "cabinets" })).toEqual({
       kind: "signed-in",
       shell: {
         role: "administrator",

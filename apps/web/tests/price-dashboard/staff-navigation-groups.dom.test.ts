@@ -213,7 +213,12 @@ describe("the number of prices awaiting publication (frames D1C, D2B)", () => {
     expect(publishLink.querySelector('[aria-hidden="true"]')?.textContent).toBe(
       "7",
     );
-    expect(publishLink.textContent).toContain(pendingWords(7));
+    expect(publishLink.getAttribute("aria-label")).toBe(
+      roCopy("priceDashboard.nav.itemWithBadge", {
+        name: roMessages.priceDashboard.nav.publish,
+        label: pendingWords(7),
+      }),
+    );
   });
 
   it("is a link in the bar to the publish page, on any page of the area", async () => {
@@ -319,7 +324,7 @@ describe("the phone's menu sheet (frame D1M)", () => {
     const row = requireIn(sheet, 'a[href$="/catalog/publish"]');
 
     expect(row.querySelector('[aria-hidden="true"]')?.textContent).toBe("7");
-    expect(row.textContent).toContain(pendingWords(7));
+    expect(row.getAttribute("aria-label")).toContain(pendingWords(7));
   });
 
   it("keeps the operator's sheet to the customers' group", async () => {

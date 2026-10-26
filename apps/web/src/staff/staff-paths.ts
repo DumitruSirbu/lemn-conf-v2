@@ -8,9 +8,8 @@ import { isDesignId } from "@lemnaria/configurator-domain";
 export type StaffPage = "kitchens" | "audit";
 
 /**
- * The pages of the price dashboard, which live under `/staff/catalog/`. A separate closed list and not more members of
- * `StaffPage`: the server's gate keys its capability and its navigation on `StaffPage` and a page of this family is judged
- * by `price.edit` instead (M10 plan, lane U).
+ * The pages of the price dashboard, which live under `/staff/catalog/`. A closed list of their own: each is judged by
+ * `price.edit`, and the proxy spells the same list.
  */
 export const CATALOG_PAGES = [
   "cabinets",

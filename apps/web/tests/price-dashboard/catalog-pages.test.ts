@@ -3,11 +3,8 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  BUILT_CATALOG_PAGES,
-  catalogPagesOpenTo,
-} from "@/price-dashboard/catalog-pages";
 import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
+import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
 import { CATALOG_PAGES } from "@/staff/staff-paths";
 
 const CATALOG_DIRECTORY = join(
@@ -28,28 +25,9 @@ describe("which catalog pages the menu may link to", () => {
       BUILT_CATALOG_PAGES.every((page) => CATALOG_PAGES.includes(page)),
     ).toBe(true);
   });
-
-  it("lists the built pages to a person who may edit prices", () => {
-    expect(catalogPagesOpenTo({ canEditPrices: true })).toEqual(
-      BUILT_CATALOG_PAGES,
-    );
-  });
-
-  it("lists none to a person who may not", () => {
-    expect(catalogPagesOpenTo({ canEditPrices: false })).toEqual([]);
-  });
-
-  it("lists exactly the pages a wave has built, in the order it gave them", () => {
-    expect(
-      catalogPagesOpenTo({
-        canEditPrices: true,
-        builtPages: ["cabinets", "publish"],
-      }),
-    ).toEqual(["cabinets", "publish"]);
-  });
 });
 
-describe("the list's source, the seam lane R fills", () => {
+describe("the list's source", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });

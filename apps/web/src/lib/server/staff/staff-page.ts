@@ -8,11 +8,8 @@ import {
   type CapabilityHolder,
 } from "@/lib/server/account/require-capability";
 import { readSignedInPage } from "@/lib/server/account/signed-in-page";
-import {
-  BUILT_CATALOG_PAGES,
-  catalogPagesOpenTo,
-} from "@/price-dashboard/catalog-pages";
-import { isCatalogPage } from "@/staff/staff-paths";
+import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
+import { CATALOG_PAGES } from "@/staff/staff-paths";
 import type {
   StaffAreaPage,
   StaffPage,
@@ -36,8 +33,12 @@ const CAPABILITY_OF_PAGE: Readonly<Record<StaffAreaPage, Capability>> = {
   publish: "price.edit",
 };
 
-/** The staff pages in the order the navigation lists them; the price dashboard's pages follow them. */
-const NAVIGATION_ORDER: readonly StaffPage[] = ["kitchens", "audit"];
+/** The pages in the order the navigation lists them: the staff pages, then the price dashboard's. */
+const NAVIGATION_ORDER: readonly StaffAreaPage[] = [
+  "kitchens",
+  "audit",
+  ...CATALOG_PAGES,
+];
 
 /** The staff pages that have a screen. A page joins this list when its directory under
  *  `app/[locale]/staff` exists, never before: the navigation must not link to a page that answers 404. The price
@@ -97,16 +98,11 @@ export function staffNavigationOf(
   holder: CapabilityHolder,
   builtPages: readonly StaffAreaPage[] = BUILT_NAVIGATION_PAGES,
 ): readonly StaffAreaPage[] {
-  const staffPages = NAVIGATION_ORDER.filter(
+  return NAVIGATION_ORDER.filter(
     (page) =>
       builtPages.includes(page) &&
       isCapabilityHeld(holder, CAPABILITY_OF_PAGE[page]),
   );
-  const catalogPages = catalogPagesOpenTo({
-    canEditPrices: isCapabilityHeld(holder, CAPABILITY_OF_PAGE.cabinets),
-    builtPages: builtPages.filter(isCatalogPage),
-  });
-  return [...staffPages, ...catalogPages];
 }
 
 /** What the shell draws for a staff member, or nothing for anyone else: staff are the accounts that hold a capability
