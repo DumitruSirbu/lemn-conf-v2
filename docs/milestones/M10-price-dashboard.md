@@ -37,6 +37,13 @@
 > - H1 owns its input-check code;
 > - Q2 adds the effect to `CommandEffect`;
 > - a no-rollback note is added.
+>
+> **Amended a fifth time 2026-10-26, for X0's logic review** (5 Major, 11 minor, 2 doc conflicts):
+> - publish takes the availability head CAS and writes its created rows inactive (M1, M5);
+> - revert is by address (M2); the bulk group is a code (M3);
+> - the activation audit stamps the returned revision (M4);
+> - the minor shapes are pinned (m1–m11);
+> - the log-revision and digest-round texts are reconciled with ADR 0178.
 
 **Evidence tiers used below** (`docs/best-practices/documentation.md`, *Label the evidence tier*):
 
@@ -419,12 +426,26 @@ D7 and D8.
   - **One write is one statement.** It is a single CTE: `with h as (update catalogue_availability_head set revision =
     revision + 1 where revision = $expected returning revision) insert into catalogue_availability_changes
     (revision, …) select h.revision, … from h`. It runs in the same transaction as its audit row.
-  - **No trigger.** The log's `revision` is its **primary key** and is in the log's `INSERT` grant. Its value is only
+  - **No trigger** (pinned at the coordinator's request; it reconciles ADR 0178, see the doc-conflict note in §8.4).
+  The log's `revision` is its **primary key** and is in the log's `INSERT` grant. Its value is only
     ever the one the head update returned within the same statement. A stale `$expected` updates no head row, inserts
     nothing, and is answered `changed-meanwhile`.
   - **Accepted residual**, recorded beside ADR 0173's F1 and F2: a holder of the application credential could insert a
     log row at an unused higher revision without moving the head. The database cannot stop that; the audit row and
     the head mismatch reveal it.
+- **Publish takes the same CAS, and created rows start inactive** (X0 review M1 and M5, ruled 2026-10-26):
+  - `publish` carries `expectedAvailabilityRevision` and `createdItems: ItemRef[]` (the rows the publish creates).
+  - In its transaction it moves the head once per created item, chaining one CTE per item (the first at `$expected`,
+    each next at the value the previous returned). Each writes an `active = false` log row for its item.
+  - With no created items it still moves the head once, with no log row, so a publish always serialises with
+    availability writes and defaults saves.
+  - A stale `$expected` refuses the whole publish `availability-changed-meanwhile`.
+  - So a created class or accessory is **inactive the moment it is published**, and becomes live only by an explicit
+    activation (A-17's "activation requires the item in the active book").
+  - Rejected: a separate "activated" set with created rows off by default. It would give two rules for "current
+    state" (latest log row for shipped rows, set membership for created ones).
+- **The head is gap-free; the log is not.** A defaults save or a publish with no created rows moves the head without
+  writing a log row. "Gap-free and commit-ordered" describes the head's revisions, not the log's.
 - **The D9 defaults save takes the same CAS** (the coordinator: "both take that head-row lock"). It increments the head
   revision with the same `where revision = $expected` in its transaction. Defaults and availability writes therefore
   serialise through one compare-and-set:
@@ -779,8 +800,11 @@ New line kind: "depth" (A-1). The Material line keeps kind "material".
 { kind: "provisional", value: boolean }
 { kind: "hardware-tier-created", tierId }        value: { name, description }                  // RO only (A-21); inactive until published, then activated (A-17, A-18)
 { kind: "accessory-created", accessoryId }      value: { linkedBuildId, perUnitMinor, name, description? }   // A-19
-{ kind: "created-row-text", item: ItemRef, field: "name"|"description" }   value: string   // RO; created rows only
-{ kind: "item-deleted", item: ItemRef }         value: true                                    // unused and non-default; re-judged at publish (A-18)
+{ kind: "created-row-text", item: ItemRef, field: "name"|"description" }   value: string   // RO; created rows only.
+        // item.kind ∈ { hardware (a created tier), accessory (a linked accessory) } only (m9); keyed and built-in rows refused
+{ kind: "item-deleted", item: ItemRef }         value: true                                    // unused and non-default; re-judged at publish (A-18).
+        // item.kind ∈ { hardware, material, accessory (linked only) } (m9). Finish, handle and the two built-in accessories
+        // are code-declared: they can be disabled, never deleted
 // No "active" arm: availability is not a draft change (A-17).
 DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 ```
@@ -795,6 +819,13 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 - **A created class's rates are separate `hardware` changes** keyed by the server-minted `tierId`. They are written
   **in the same draft write** as the `hardware-tier-created` change, so the draft never holds a created class without
   its four rates. M4's `applyChanges` refuses a candidate book holding a created tier that lacks any rate.
+- **Revert names an address, never an index** (X0 review M2): `{kind: "change", address}`. `changeIndex` leaves
+  `DashboardRequestField`. A bulk group is reverted as `{kind: "group", groupId}`, where the id is the server-minted
+  one stored on the group's changes.
+- **The bulk target is `groupCode: PriceGroupCode`** (`base | wall | tall | corner`; X0 review M3), and joins
+  `DashboardRequestField`.
+- **`DraftChangeInputWire` carries no `groupId`** (m1). The bulk route mints it, and a single-change input never has
+  one.
 - **Editing a linked accessory's cabinet type after creation is out of scope.** The owner asked only for linking "on
   creating a new accessory". D6B shows the link read-only once created, and there is no arm for it. Its price is
   edited through `{ kind: "accessory", accessoryId, field: "perUnitMinor" }`.
@@ -819,11 +850,11 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 
 | Port | Operations |
 | --- | --- |
-| `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber}` or `changed-meanwhile`. One transaction: insert at `expectedActiveSequence + 1`, reset the draft row, write the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **Amended 2026-10-26 (F7, F10): `expectedActiveSequence` added; no archive update** |
-| `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED` (the seeded row holds `{}`); `save({expectedRevision, expectedAvailabilityRevision, defaults, audit})` → ok, `changed-meanwhile`, `availability-changed-meanwhile`, or `item-unavailable {item}`. It increments the availability head in the same transaction (A-17, F1). **Amended 2026-10-26: `expectedAvailabilityRevision` and two refusals added** |
+| `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, expectedAvailabilityRevision, createdItems, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber, availabilityRevision}`, `changed-meanwhile` or `availability-changed-meanwhile`. One transaction: the head CAS and the created items' inactive log rows (A-17), the insert at `expectedActiveSequence + 1`, the draft-row reset, and the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **`changeSummary` is pinned** (m8): the published `DraftChange[]` JSON array, with minted ids and group ids, from which `changeCount` is its length. **Refusals the store does not return:** `item-is-default` and a used deletion are judged by the domain **before** the call, against defaults and usage read at `expectedAvailabilityRevision`, which the CAS keeps current (M5). **Amended 2026-10-26: F7, F10, then X0 review M1, M5 and m8** |
+| `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED` (the seeded row holds `{}`); `save({expectedRevision, expectedAvailabilityRevision, defaults, audit})` → ok `{revision, availabilityRevision}` (m3), `changed-meanwhile` or `availability-changed-meanwhile`. It increments the availability head in the same transaction (A-17, F1). **The store returns only these two CAS refusals** (m2): `item-unavailable` is the domain's judgement under the CAS, made before the call, because the store cannot read `defaults` (`unknown`). **Amended 2026-10-26: F1, then X0 review m2 and m3** |
 | `KitchenUsageReader` | `count(itemRef)` → a count of designs not deleted by the client |
-| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (client-deleted or unsent, P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{claimed: roundId}` or `ALREADY_CLAIMED` (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
-| `CatalogueAvailabilityStore` | `readCurrent()` → `{revision, disabled}` (`revision` is the head's); `readAt(revision)` → the state at that revision, from the append-only log; `setActive({item, active, expectedRevision, audit})` → ok `{revision}` or `changed-meanwhile`, written as one CTE statement (A-17, F1). Signature unchanged |
+| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (client-deleted or unsent, P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{kind: "claimed", roundId}` or `ALREADY_CLAIMED`, **where `roundId` is the day key itself** (the round's identity is its day; doc-conflict pin) (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
+| `CatalogueAvailabilityStore` | `readCurrent()` → `{revision, disabled}` (`revision` is the head's); `readAt(revision)` → the state at that revision, from the append-only log; `setActive({item, active, expectedRevision, audit})` → ok `{revision}` or `changed-meanwhile`, written as one CTE statement (A-17, F1). **`audit` is an entry without `availabilityRevision`** (X0 review M4). The store stamps the revision its CTE returned into the detail, then runs its own `readStaffAuditEntry` re-check, then inserts, all in the one transaction. The expected revision is not recorded: two racing requests may share it, while the returned revision is the unique key joining the audit row to its log row |
 | `PriceNoticeStore` | `readAcknowledged(designId)` → `{versionId, availabilityRevision}` or `NEVER_RECORDED`; `recordIfAbsent(designId, pair)` (the first open, insert-if-absent; F8); `recordAcknowledged(designId, pair)` → ok, `unknown-version` or `revision-ahead` (validated in SQL against the versions table and the availability head; F8). No audit (F3). **Amended 2026-10-26: `recordIfAbsent` and the result union added** |
 
 **(d) Wire contract** (X0, `apps/web/src/price-dashboard/price-dashboard-wire-contract.ts`, plus additions to
@@ -840,12 +871,25 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
     column). The store or service computes it; nothing stores it twice.
 - **Amended 2026-10-26 (security):**
   - **creation requests carry no id**; the server mints it (F5);
-  - **the publish request carries no book** (`{expectedDraftRevision, expectedActiveSequence, label, note,
-    provisional}`; F10);
+  - **the publish request carries no book and no `provisional`** (`{expectedDraftRevision, expectedActiveSequence,
+    expectedAvailabilityRevision, label, note}`; F10 and X0 review m4). `provisional` has **one** source: the draft
+    change `{kind: "provisional"}`, which is versioned and shown in D7's diff. D7C's stronger confirmation shows
+    whenever the draft holds `provisional = false`;
   - draft and archived versions appear only in staff responses (F10);
   - the closed refusal list gains `displayed-revision-ahead`, `item-unavailable`, `availability-changed-meanwhile`,
     `unknown-version` and `revision-ahead`;
-  - the seen request's revision is a digit string, `400` otherwise (F9).
+  - the seen request's revision is a digit string, `400` otherwise (F9);
+  - **every revision shape check is bounded** (m6): 1–19 digits with no leading zero, and at 19 digits ≤
+    `9223372036854775807`, compared **as a string** (equal length, then lexicographic), never parsed into a number
+    (the revision stays opaque). This applies to seen (`NOT_A_REVISION`) and to availability revisions
+    (`AVAILABILITY_REVISION_SHAPE`);
+  - **the price-notice refusals are `400`** (A-11; m5): `unknown-version` and `revision-ahead` leave
+    `DASHBOARD_CONFLICTS` for a 400 list;
+  - **defaults naming an unavailable item is `409 item-unavailable`** (m2). `NOT_AVAILABLE` (400) is removed: the
+    refusal is a state conflict judged under the CAS, not malformed input;
+  - publish adds `409 item-is-default {item}` (M5);
+  - **the usage-count read is exempt from per-read audit** (m10), like the changed-count poll (A-12). It returns
+    counts only, and the screen that asks for it is audited as `price-catalogue-viewed`.
 - Refusal codes are a closed list.
 - Bodies carry codes, never sentences (ADR 0095 decision 3).
 
@@ -863,8 +907,13 @@ refused.
 - **Never:** created-row text, version label or note, search text, or any customer value.
 
 ```
-price-draft-changed        { changeKind, itemKind?, itemId?, field? }        // changeKind ∈ §8.4(b) kinds; no value, no text
-price-draft-reverted       { changeKind, itemKind?, itemId? }
+price-draft-changed        { changeKind, itemKind?, itemId?, field?, widthMm? } // changeKind ∈ §8.4(b) kinds; no value, no text
+price-draft-reverted       { changeKind, itemKind?, itemId?, field?, widthMm?, revertedCount }
+                           // m7: a group revert is changeKind "bulk-group" with revertedCount = n and no item keys; a single
+                           // revert has revertedCount 1. itemKind ∈ cabinet|hardware|material|accessory|finish|handle.
+                           // itemId = the ruleId for cabinet / cabinet-size (a book rule id), tierId, accessoryId, finishId or
+                           // handle code otherwise; widthMm only for cabinet-size. itemKind and itemId are both present or
+                           // both absent (depth-rule, provisional, bulk-group carry neither)
 price-bulk-changed         { scope: all|group|selection, groupCode? (iff scope = group), percent, ruleCount, amountCount }
                            // groupCode ∈ base|wall|tall|corner, the closed list of D2's four groups (derived in M2 from the
                            // catalogue band and structural-ness), NOT id-shaped; no selected ids, counts only (X0-5)
@@ -927,6 +976,7 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | 0028 | **Two tables, one file** (A-17, F1): `catalogue_availability_head`, a seeded singleton (`revision bigint not null check (>= 0)`, seeded 0), and `catalogue_availability_changes` (`revision bigint primary key`, item_kind, item_id, active boolean, `changed_at default now()`, changed_by_account_id). **No sequence and no trigger.** A row's revision comes from the head update in the same CTE statement (§5 A-17) | S2b | head: `SELECT, UPDATE (revision)`. log: `SELECT, INSERT (revision, item_kind, item_id, active, changed_by_account_id)`. No `DELETE`, no log `UPDATE` |
 | 0029 | `create_design_staff_seen`: design_id pk, seen_revision bigint, seen_by_account_id, `seen_at default now()` | S4 | `SELECT`; `INSERT (design_id, seen_revision, seen_by_account_id)`; `UPDATE (seen_revision, seen_by_account_id, seen_at)`. No PK update. **Also, with 0029, on the existing table (F2):** `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;`. This is a **runbook grant, not SQL in the migration file**: grants are never in a migration file, because the unattended screen does not recognise them [src: `0009_create_csp_reports.sql:32-34`]. **The first reader is S4's staff kitchen statement for the as-sent estimate, consumed by K2** |
 | 0030 | `create_staff_change_digest`, **two tables**: rounds (day_key pk, shape-checked; `claimed_at default now()`; sent_count int) and entries (round day_key, design_id, revision; pk (round, design)) | S4 | rounds: `SELECT; INSERT (day_key); UPDATE (sent_count)`. entries: `SELECT; INSERT (day_key, design_id, revision)` (F7) |
+| — | **Pinned 2026-10-26 (doc conflict with ADR 0178):** `rounds.day_key` is the primary key **and the round id**; there is no separate `round_id`. `entries` is `(day_key references rounds (day_key), design_id, revision)` with primary key `(day_key, design_id)`. `rounds.claimed_at default now()` (ADR 0178's `ran_at` is renamed `claimed_at`). `ClaimDigestDayResult.roundId` carries the day key | S4 | as the 0030 row |
 | 0031 | `create_design_price_notices`: design_id pk, acknowledged_version_id, acknowledged_availability_revision, `acknowledged_at default now()` | S5 | `SELECT`; `INSERT (design_id, acknowledged_version_id, acknowledged_availability_revision)`; `UPDATE (acknowledged_version_id, acknowledged_availability_revision, acknowledged_at)`. No PK update |
 
 **Rules across every M10 table (F7, 2026-10-26):**
@@ -984,6 +1034,8 @@ mini-review of contract against rulings.
   mockup's fields, frame by frame. **Except:** activation is deliberately absent (A-17), and RU text fields are absent
   (A-21). Each absence is listed in the test with its ruling.
 - No contract type carries an `active` flag inside the book or a Russian authored-text field.
+- **The coverage test cites the ruling** (X0 review m11): link editing after creation is "out of scope, ruled
+  2026-10-26 (X0-4)", not "unruled (reported)".
 - **No address carries a payload** (X0-4). `ItemRef` and `CatalogueAvailability` are declared in
   `pricing/catalogue-availability.ts`, and no file under `pricing/` imports `price-dashboard/**` (X0-3).
 - **The seams pin (X0-1, ruled 2026-10-26).** `pricing-seams.test.ts`'s "keeps every minor-unit amount in the sample
@@ -994,7 +1046,11 @@ mini-review of contract against rulings.
     fields;
   - add the positive replacement over that directory: no `…Minor` field is assigned a numeric literal
     (`/Minor\??\s*[:=]\s*-?\d/`);
-  - sabotage it: a planted `anchorMinor: 145000` must go red.
+  - sabotage it: a planted `anchorMinor: 145000` must go red;
+  - **(X0 review, QA pin gap)** QA adds a second pattern for an amount literal held in a `DraftChange` value next to
+    a `…Minor` field address (`{address: {field: "anchorMinor"}, value: 145000}`), with its own planted sabotage;
+  - heads-up for P4a: extending `pricing/catalogue-availability.ts` will trip the finish-never-prices pin and
+    `coverage.test.ts:657`. **QA re-scopes both at P4a**; the implementer does not edit them.
 
 **Reading:** this plan §5, §8.4 and §9; ADR 0173 P-L3-3; `staff/staff-audit-action.ts`; `persistence/src/staff-kitchen-actions-store.ts` (the port pattern); `apps/web/src/staff/staff-kitchens-wire-contract.ts`; mockup frames D2–D10 notes [mock L829-883].
 **QA reading:** the same, plus `persistence/tests/fake-staff-kitchen-actions-store.test.ts`.
@@ -1282,6 +1338,11 @@ ADR 0099, ADR 0092 Amendment C, this plan A-9. **(clean-code):** the diff.
 - **M4-b:** an authored name containing a digit-bearing amount, "%", or any of `inclus`/`inclusă`/`incluse` is refused
   with a code. A plain name passes.
 - **M4-c:** a link to a customer-supplied row, or to an id the catalogue does not hold, is refused.
+- **M4-e (X0 review M5, m9):**
+  - `judgeDeletionsAtPublish` takes the stored defaults too, and refuses a deletion of the D9 default with
+    `item-is-default`;
+  - a `created-row-text` change on a keyed or built-in row is refused;
+  - an `item-deleted` change on a finish, a handle or a built-in accessory is refused.
 - **M4-d (amended 2026-10-26, F5):**
   - created-row text is judged by the rule of migration `0021_create_design_notes.sql:15`, through `judgeNoteText`'s
     rules or a shared extraction of them (`staff/note-text.ts:29`): NFC; control and bidi-override characters
@@ -1320,6 +1381,13 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - **a racing pair of publishes** at the same `expectedActiveSequence` yields exactly one new version; the other is
     `changed-meanwhile` (the uniqueness of `sequence_number`);
   - `readActive` is the row with the greatest `sequence_number`;
+  - **(X0 review M1)** a publish creating *k* items moves the head by *k* (or by 1 when *k* = 0). Each created item's
+    latest log row is `active = false`, so the published book prices none of them until an explicit activation;
+  - **(M1/M5)** a publish at a stale `expectedAvailabilityRevision` is `availability-changed-meanwhile`, and nothing
+    is written (no version, no log row, the draft unchanged);
+  - **a racing pair of one publish and one defaults save** at the same `expectedAvailabilityRevision` yields exactly
+    one success;
+  - `change_summary` round-trips as the published `DraftChange[]` array (m8);
   - must-not: `UPDATE`, `DELETE` or `TRUNCATE` on `price_book_versions` is held;
   - must-not: `INSERT` on `price_book_draft` or `kitchen_defaults` is held (seeded singletons).
 - **S-b1 (S2, the seed; F3):**
@@ -1328,6 +1396,8 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - it writes no staff audit row.
 - **S-b2 (S2b; amended 2026-10-26, F1):**
   - an availability write and its audit row commit together or not at all;
+  - **(M4)** the audit row's `availabilityRevision` equals the log row's revision written in the same transaction, for
+    every write, including both writes of a racing pair;
   - **the log's revision always equals the head revision its statement produced.** A write with a stale
     `expectedRevision` inserts no log row, moves no head and answers `changed-meanwhile`;
   - **a racing pair** of availability writes at one `expectedRevision` yields exactly one log row and a head moved by
@@ -1359,9 +1429,11 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
     checked by the privilege test planning each statement as that role;
   - S4 adds the arm for exactly `SELECT (priced)`: green with the grant, red without;
   - **must-not: any `SELECT` on `contact_submissions` wider than the runbook's existing list plus `priced`.**
-- **S-h (S3; amended 2026-10-26, F1):**
-  - a defaults save naming a disabled item, or one absent from the active book, is `item-unavailable` and writes
-    nothing;
+- **S-h (S3; amended 2026-10-26, F1; X0 review m2, m3):**
+  - the store returns only `changed-meanwhile` and `availability-changed-meanwhile`. A defaults save naming a
+    disabled item, or one absent from the active book, is refused **by the service's domain judgement** under the CAS
+    (`409 item-unavailable`) before the store is called, and nothing is written;
+  - a success returns `{revision, availabilityRevision}`;
   - a save at a stale `expectedAvailabilityRevision` is `availability-changed-meanwhile`;
   - a successful save moves the availability head by exactly one, in its transaction.
 - **S-i (S5; amended 2026-10-26, F3, F8):**
@@ -1428,7 +1500,11 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - a test sweeps every route, and no detail contains created-row text, a version label or a note;
   - an operator session (no `price.edit`) gets `403` on every price route and sees no catalogue nav.
 - **R-d (amended 2026-10-26, F7, F10):**
-  - publish with a stale draft revision, or a stale `expectedActiveSequence`, gives `409 changed-meanwhile`;
+  - publish with a stale draft revision, or a stale `expectedActiveSequence`, gives `409 changed-meanwhile`; with a
+    stale `expectedAvailabilityRevision`, `409 availability-changed-meanwhile`;
+  - **(M5)** a publish whose draft deletes the current D9 default is `409 item-is-default {item}`, including the
+    sequence "draft deletes X → defaults save names X → publish", which is tested end to end;
+  - **(m4)** a publish request carrying `provisional` is `400`. The published book's flag is the draft's;
   - **a publish request carrying a `book` member is `400`**; the server computes `apply(activeBook, storedDraft)`
     itself;
   - a book the domain refuses is never stored;
@@ -1504,7 +1580,8 @@ Wave by wave:
   - the cabinet-type list holds no customer-supplied row.
 - **U5-a:**
   - publish is disabled when the draft equals the active book (D7D);
-  - turning "Sume provizorii" off needs the checkbox (D7C);
+  - turning "Sume provizorii" off needs the checkbox (D7C), shown whenever the draft holds a `provisional = false`
+    change (m4: the draft is the flag's only source);
   - a failed publish leaves the draft and the active version unchanged (D7G).
 - **U6-a:** after saving, the customer's next **new** kitchen starts with the saved values, and an already-saved
   kitchen is unchanged.
