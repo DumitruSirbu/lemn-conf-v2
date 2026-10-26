@@ -86,7 +86,7 @@ change without a new version, e.g. activating a linked accessory adds a line to 
   `0004` is never edited (its bytes are frozen once applied). Settles S-18. "Sent twice" needs no rule: both submissions
   name the same design.
 - Opening the kitchen page sends the revision **the page displayed** (`POST …/seen`, audited), so a save landing between
-  load and mark keeps the badge. **Guards (F9):** the mark refuses a displayed revision greater than the current one, in
+  load and mark keeps the badge. A seen mark never lowers the stored seen revision: the store writes `seen_revision = greatest(existing, displayed)` in SQL, and `seen_by_account_id` and `seen_at` change only when the displayed revision is strictly greater, so they always describe the kept revision; a stale page marking R1 after R2 leaves R2, so neither the badge nor the digest's revision-based hold (A-13) can regress (K1 QA, coordinator's ruling, 2026-10-26). **Guards (F9):** the mark refuses a displayed revision greater than the current one, in
   SQL (`where $displayed::bigint <= designs.revision`); ADR 0173 P-L3-4 visibility applies (404 for a client-deleted or
   unsent design); the revision's digit shape is validated before SQL (400, not 500). The polled changed-count read is
   **exempt from per-poll audit**; every other staff read and write stays audited.

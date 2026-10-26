@@ -346,6 +346,13 @@ every kitchen that earns it.
 - "Sent twice" needs no extra rule: both submissions name the same design.
 - Opening the kitchen page sends the revision **the page displayed** (`POST …/seen`, audited). A save landing between
   load and mark therefore keeps the badge.
+- **A seen mark never lowers the stored seen revision** (K1 QA, coordinator's ruling, 2026-10-26).
+  - S4 writes `seen_revision = greatest(existing, displayed)`, compared in SQL.
+  - `seen_by_account_id` and `seen_at` change only when the displayed revision is strictly greater, so they always
+    describe the kept revision.
+  - A stale page marking R1 after another page marked R2 leaves R2. The badge therefore cannot reappear for a revision
+    already seen, and the digest's hold (A-13, revisions in SQL) stays correct.
+  - The `kitchen-seen` audit row is still written for every admitted mark.
 - **Security amendment F9 (2026-10-26):**
   - the store refuses, in SQL, a displayed revision **greater than** the current one (`409`);
   - a displayed revision that is not a digit string of the revision's shape is `400`, before the store;
@@ -1430,6 +1437,15 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - `readAt(r)` equals the replay of the log up to `r` for every `r`. This is a property over random change sequences;
   - the migration file contains no `sequence`, `serial` or `trigger`;
   - must-not: `UPDATE` or `DELETE` on `catalogue_availability_changes`, or `INSERT` on the head, is held.
+- **S-c0 (S4; K1 QA ruling): seen never moves backwards.**
+  - `markSeen(R2)` then a stale `markSeen(R1 < R2)` leaves `seen_revision = R2`, with `seen_by_account_id` and
+    `seen_at` from the R2 mark;
+  - a racing pair (R1, R2) in either order ends at R2;
+  - with a digest entry at R2 and the kitchen at revision R2, the stale R1 mark leaves the kitchen **neither changed
+    nor held**. Lowering the seen revision to R1 would wrongly make it both changed (R2 ≠ R1) and held (entry R2 >
+    R1);
+  - a save to R3 then makes it changed and not held, so it is eligible;
+  - the comparison is in SQL; no revision is compared above SQL.
 - **S-c (S4; amended 2026-10-26, F9):**
   - `changed_since_seen` is computed only in SQL;
   - `markSeen` with a displayed revision greater than the current one is `displayed-revision-ahead` and writes
