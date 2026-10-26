@@ -1,5 +1,7 @@
 import type {
   AuditViewedDetail,
+  DashboardAuditAction,
+  DashboardAuditEntry,
   Design,
   KitchensListedDetail,
   NoteTextRefusalCode,
@@ -203,10 +205,14 @@ export type StaffAuditEntryWire =
       readonly kind: "recognised";
       readonly action: Exclude<
         StaffAuditAction,
-        "status-changed" | "kitchens-listed" | "audit-viewed"
+        | "status-changed"
+        | "kitchens-listed"
+        | "audit-viewed"
+        | DashboardAuditAction
       >;
       readonly detail: null;
     }
+  | ({ readonly kind: "recognised" } & DashboardAuditEntry)
   /** A row this build's domain refuses: its action code and nothing of its stored detail. */
   | { readonly kind: "unrecognised"; readonly action: string };
 

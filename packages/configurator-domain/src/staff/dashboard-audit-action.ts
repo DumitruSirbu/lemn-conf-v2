@@ -22,10 +22,9 @@ import {
 // The manufacturer price dashboard's audit actions (M10, plan §8.4 e, A-22; ADR 0173 P-L3-3: every staff read and
 // write is audited).
 //
-// A list of their own, and deliberately not members of `STAFF_AUDIT_ACTIONS`: that list is what the audit page offers
-// as a filter and labels, what the persistence stores accept and what the wire reading recognises, and growing it
-// changes all four at once. Wave X2 folds these nine in; until then a store cannot write them and the audit page does
-// not show them. Their detail shapes are fixed here so that step changes no shape.
+// A list of their own that `STAFF_AUDIT_ACTIONS` includes: the audit page offers and labels them, the persistence
+// stores accept them and the wire reading recognises them through `readStaffAuditEntry`, which defers to
+// `readDashboardAuditEntry` here.
 //
 // Every action has a closed detail key list (F4): kinds and codes from closed lists, server-minted ids and counts.
 // Never created-row text, a version's label or note, search text or any customer value: they have no field to be
@@ -37,7 +36,7 @@ export const DASHBOARD_AUDIT_ACTIONS = Object.freeze([
   "price-bulk-changed",
   "price-published",
   "price-restored-to-draft",
-  "catalogue-item-activation-changed",
+  "catalogue-item-active-changed",
   "kitchen-defaults-saved",
   "kitchen-seen",
   "price-catalogue-viewed",
@@ -156,7 +155,7 @@ export interface CatalogueItemActivationChangedDetail {
  * revision its statement returned, reads the entry again with `readDashboardAuditEntry`, then inserts (X0 review M4).
  */
 export interface CatalogueActivationAuditInput {
-  readonly action: "catalogue-item-activation-changed";
+  readonly action: "catalogue-item-active-changed";
   readonly detail: Omit<
     CatalogueItemActivationChangedDetail,
     "availabilityRevision"
@@ -181,7 +180,7 @@ interface DashboardAuditDetailByAction {
   readonly "price-bulk-changed": PriceBulkChangedDetail;
   readonly "price-published": PricePublishedDetail;
   readonly "price-restored-to-draft": PriceRestoredToDraftDetail;
-  readonly "catalogue-item-activation-changed": CatalogueItemActivationChangedDetail;
+  readonly "catalogue-item-active-changed": CatalogueItemActivationChangedDetail;
   readonly "kitchen-defaults-saved": KitchenDefaultsSavedDetail;
   readonly "kitchen-seen": KitchenSeenDetail;
   readonly "price-catalogue-viewed": PriceCatalogueViewedDetail;
@@ -207,7 +206,7 @@ export const DASHBOARD_AUDIT_ACTION_NAMES_DESIGN: Readonly<
   "price-bulk-changed": false,
   "price-published": false,
   "price-restored-to-draft": false,
-  "catalogue-item-activation-changed": false,
+  "catalogue-item-active-changed": false,
   "kitchen-defaults-saved": false,
   "kitchen-seen": true,
   "price-catalogue-viewed": false,
@@ -254,7 +253,7 @@ const DASHBOARD_DETAIL_KEYS: Readonly<
   ],
   "price-published": ["sequenceNumber", "changeCount", "provisional"],
   "price-restored-to-draft": ["fromSequenceNumber", "changeCount"],
-  "catalogue-item-activation-changed": [
+  "catalogue-item-active-changed": [
     "itemKind",
     "itemId",
     "active",
@@ -316,7 +315,7 @@ function readDashboardDetail(
       return readPublished(detail);
     case "price-restored-to-draft":
       return readRestoredToDraft(detail);
-    case "catalogue-item-activation-changed":
+    case "catalogue-item-active-changed":
       return readActivationChanged(detail);
     case "kitchen-defaults-saved":
       return readDefaultsSaved(detail);
@@ -413,8 +412,7 @@ function readBulkChanged(detail: PlainObject): DashboardAuditEntryReading {
     !isOneOf(BULK_CHANGE_SCOPES, scope) ||
     (groupCode !== undefined && !isOneOf(PRICE_GROUP_CODES, groupCode)) ||
     (scope === "group") !== (groupCode !== undefined) ||
-    typeof percent !== "number" ||
-    !Number.isSafeInteger(percent) ||
+    !isSignedWholeNumber(percent) ||
     !isCount(ruleCount) ||
     !isCount(amountCount)
   ) {
@@ -488,7 +486,7 @@ function readActivationChanged(
   return {
     ok: true,
     entry: {
-      action: "catalogue-item-activation-changed",
+      action: "catalogue-item-active-changed",
       detail: Object.freeze({
         itemKind,
         itemId,
@@ -554,8 +552,17 @@ function isOneOf<Member extends string>(
   return list.some((member) => member === value);
 }
 
+/** A safe integer that is not `-0`: a detail is stored as JSON, which writes `-0` as `0`, so it would not read back as given. */
+function isSignedWholeNumber(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    !Object.is(value, -0)
+  );
+}
+
 function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  return isSignedWholeNumber(value) && value >= 0;
 }
 
 function isAuditDetailId(value: unknown): value is string {

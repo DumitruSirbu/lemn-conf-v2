@@ -298,6 +298,16 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
     case "note-added":
     case "kitchen-unhidden":
       return { kind: "recognised", action: entry.action, detail: null };
+    case "price-draft-changed":
+    case "price-draft-reverted":
+    case "price-bulk-changed":
+    case "price-published":
+    case "price-restored-to-draft":
+    case "catalogue-item-active-changed":
+    case "kitchen-defaults-saved":
+    case "kitchen-seen":
+    case "price-catalogue-viewed":
+      return { kind: "recognised", ...entry };
     default:
       return degradedEntryOf(entry);
   }

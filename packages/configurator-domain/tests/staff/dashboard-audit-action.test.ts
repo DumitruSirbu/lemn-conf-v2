@@ -50,7 +50,7 @@ const VALID_DETAILS: Readonly<Record<DashboardAuditAction, object>> = {
   },
   "price-published": { sequenceNumber: 7, changeCount: 6, provisional: true },
   "price-restored-to-draft": { fromSequenceNumber: 5, changeCount: 4 },
-  "catalogue-item-activation-changed": {
+  "catalogue-item-active-changed": {
     itemKind: "material",
     itemId: "material.painted-mdf",
     active: false,
@@ -90,7 +90,7 @@ describe("the dashboard audit actions", () => {
       "price-bulk-changed",
       "price-published",
       "price-restored-to-draft",
-      "catalogue-item-activation-changed",
+      "catalogue-item-active-changed",
       "kitchen-defaults-saved",
       "kitchen-seen",
       "price-catalogue-viewed",
@@ -98,19 +98,35 @@ describe("the dashboard audit actions", () => {
     expect(Object.isFrozen(DASHBOARD_AUDIT_ACTIONS)).toBe(true);
   });
 
-  it("share no action with the six Lot 3 actions, whose list the audit page filters by", () => {
-    const lotThree: readonly string[] = STAFF_AUDIT_ACTIONS;
-
-    expect(
-      DASHBOARD_AUDIT_ACTIONS.filter((action) => lotThree.includes(action)),
-    ).toEqual([]);
+  it("follow the six Lot 3 actions in the staff audit list, each once", () => {
+    expect(STAFF_AUDIT_ACTIONS).toEqual([
+      "kitchen-opened",
+      "note-added",
+      "status-changed",
+      "kitchen-unhidden",
+      "kitchens-listed",
+      "audit-viewed",
+      ...DASHBOARD_AUDIT_ACTIONS,
+    ]);
+    expect(new Set(STAFF_AUDIT_ACTIONS).size).toBe(STAFF_AUDIT_ACTIONS.length);
   });
 
-  it("are refused by the Lot 3 reader, and the Lot 3 actions by this one", () => {
-    expect(readStaffAuditEntry("price-published", {})).toEqual({
-      ok: false,
-      code: "UNKNOWN_ACTION",
-    });
+  it.each(ALL_ACTIONS)(
+    "%s is read through the staff reader as this reader reads it",
+    (action) => {
+      expect(readStaffAuditEntry(action, VALID_DETAILS[action])).toEqual(
+        readDashboardAuditEntry(action, VALID_DETAILS[action]),
+      );
+    },
+  );
+
+  it("are refused by the staff reader for a key outside the list, and the Lot 3 actions by this reader", () => {
+    expect(
+      readStaffAuditEntry("price-published", {
+        ...VALID_DETAILS["price-published"],
+        label: "June",
+      }),
+    ).toEqual({ ok: false, code: "INVALID_DETAIL" });
     expect(refusalOf("kitchen-opened", null)).toBe("UNKNOWN_ACTION");
     expect(isDashboardAuditAction("kitchen-opened")).toBe(false);
   });
@@ -432,7 +448,7 @@ describe("the detail of the other actions", () => {
   });
 
   it("an activation names a listed kind, an id, a boolean and the availability revision it created", () => {
-    const valid = VALID_DETAILS["catalogue-item-activation-changed"];
+    const valid = VALID_DETAILS["catalogue-item-active-changed"];
     const refused: readonly object[] = [
       { ...valid, itemKind: "cabinet" },
       { ...valid, itemKind: "colour" },
@@ -445,14 +461,14 @@ describe("the detail of the other actions", () => {
     ];
 
     for (const detail of refused) {
-      expect(refusalOf("catalogue-item-activation-changed", detail)).toBe(
+      expect(refusalOf("catalogue-item-active-changed", detail)).toBe(
         "INVALID_DETAIL",
       );
     }
   });
 
   it("an availability revision is 0 or 1 to 19 digits with no leading zero, and at 19 digits at most the bigint's maximum, compared as text (m6)", () => {
-    const valid = VALID_DETAILS["catalogue-item-activation-changed"];
+    const valid = VALID_DETAILS["catalogue-item-active-changed"];
     const accepted = [
       "0",
       "1",
@@ -471,7 +487,7 @@ describe("the detail of the other actions", () => {
 
     for (const availabilityRevision of accepted) {
       expect(
-        refusalOf("catalogue-item-activation-changed", {
+        refusalOf("catalogue-item-active-changed", {
           ...valid,
           availabilityRevision,
         }),
@@ -479,7 +495,7 @@ describe("the detail of the other actions", () => {
     }
     for (const availabilityRevision of refused) {
       expect(
-        refusalOf("catalogue-item-activation-changed", {
+        refusalOf("catalogue-item-active-changed", {
           ...valid,
           availabilityRevision,
         }),
@@ -532,5 +548,39 @@ describe("which dashboard actions name a design", () => {
     expect(
       DASHBOARD_AUDIT_ACTIONS.filter(dashboardAuditActionNamesDesign),
     ).toEqual(["kitchen-seen"]);
+  });
+});
+
+describe("a negative zero in a dashboard audit detail", () => {
+  const NUMERIC_KEYS: readonly (readonly [DashboardAuditAction, string])[] = [
+    ["price-draft-changed", "widthMm"],
+    ["price-draft-reverted", "revertedCount"],
+    ["price-bulk-changed", "percent"],
+    ["price-bulk-changed", "ruleCount"],
+    ["price-bulk-changed", "amountCount"],
+    ["price-published", "sequenceNumber"],
+    ["price-published", "changeCount"],
+    ["price-restored-to-draft", "fromSequenceNumber"],
+    ["price-restored-to-draft", "changeCount"],
+  ];
+
+  it.each(NUMERIC_KEYS)(
+    "is refused for %s.%s, because JSON would store it as 0",
+    (action, key) => {
+      expect(refusalOf(action, { ...VALID_DETAILS[action], [key]: -0 })).toBe(
+        "INVALID_DETAIL",
+      );
+    },
+  );
+
+  it("still accepts a plain zero where zero is a legal count and percent", () => {
+    expect(
+      readDashboardAuditEntry("price-bulk-changed", {
+        ...VALID_DETAILS["price-bulk-changed"],
+        percent: 0,
+        ruleCount: 0,
+        amountCount: 0,
+      }).ok,
+    ).toBe(true);
   });
 });

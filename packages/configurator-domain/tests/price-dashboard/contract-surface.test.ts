@@ -211,11 +211,11 @@ describe("the domain barrels", () => {
     expect(barrel.PRICE_GROUP_CODES).toBe(auditModule.PRICE_GROUP_CODES);
   });
 
-  it("leave the Lot 3 list as it was: the six actions, so no store accepts a dashboard action until X2 folds it in", () => {
-    expect([...barrel.STAFF_AUDIT_ACTIONS]).toHaveLength(6);
-    for (const action of barrel.DASHBOARD_AUDIT_ACTIONS) {
-      expect(barrel.STAFF_AUDIT_ACTIONS).not.toContain(action);
-    }
+  it("fold the dashboard list into the staff list: the six Lot 3 actions, then the nine", () => {
+    expect([...barrel.STAFF_AUDIT_ACTIONS]).toHaveLength(15);
+    expect(barrel.STAFF_AUDIT_ACTIONS.slice(6)).toEqual([
+      ...barrel.DASHBOARD_AUDIT_ACTIONS,
+    ]);
   });
 });
 
@@ -281,7 +281,7 @@ describe("the activation the availability store is handed (M4)", () => {
     expectTypeOf<
       Extract<
         DashboardAuditEntry,
-        { action: "catalogue-item-activation-changed" }
+        { action: "catalogue-item-active-changed" }
       >["detail"]
     >().toHaveProperty("availabilityRevision");
   });
