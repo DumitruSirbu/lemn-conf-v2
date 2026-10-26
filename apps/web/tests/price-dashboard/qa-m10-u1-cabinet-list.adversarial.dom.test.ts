@@ -6,7 +6,7 @@
 // and the anti-invariants of a row (a cabinet the customer supplies carries no price; a row never shows a price it does
 // not own).
 import { createElement } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CabinetListScreen } from "@/price-dashboard/cabinet-list";
 import {
@@ -83,6 +83,22 @@ const groupHeaderButtons = (container: HTMLElement): HTMLButtonElement[] =>
   allIn<HTMLButtonElement>(container, "h2 button[aria-expanded]");
 const visibleRowCount = (container: HTMLElement): number =>
   rowsIn(container).filter((row) => row.closest("[hidden]") === null).length;
+
+/** The sample list drawn untouched, in a second root, to hold the other rows against. */
+async function mountedSample(): Promise<HTMLElement> {
+  const sample = mountInCatalogue(
+    createElement(CabinetListScreen, {
+      locale: "ro",
+      context: contextOf("administrator", ["kitchens", "cabinets", "publish"]),
+      input: SAMPLE_CABINET_LIST,
+    }),
+    "ro",
+  );
+  await flushPromises(5);
+  const reference = sample.container.cloneNode(true) as HTMLElement;
+  sample.unmount();
+  return reference;
+}
 
 function rowOf(container: HTMLElement, ruleId: string): HTMLElement {
   const found = rowsIn(container).find((row) => row.dataset.ruleId === ruleId);
@@ -421,13 +437,99 @@ describe("a row's anti-invariants, over every cabinet of the sample", () => {
     ).toContain(written);
   });
 
-  it("refuses to draw a negative price: nothing is written for it", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  it.each([
+    ["a negative amount", -100],
+    ["not a number", Number.NaN],
+    ["infinite", Number.POSITIVE_INFINITY],
+    ["a fraction of a ban", 150_000.5],
+    ["past the last exact integer", Number.MAX_SAFE_INTEGER + 1],
+  ])(
+    "draws %s as a dash with the size it is quoted at, in that row only, and every other row as it was",
+    async (_label, unreadable) => {
+      const container = await mount(
+        inputWithFirstRulePriced(unreadable, unreadable, false),
+      );
+      const [bad, ...others] = rowsIn(container);
+      const good = rowsIn(await mountedSample());
 
-    await expect(
-      mount(inputWithFirstRulePriced(-100, -100, false)),
-    ).rejects.toThrow(RangeError);
-    expect(document.body.textContent).not.toContain("-1");
+      expect(rowsIn(container)).toHaveLength(RULES.length);
+      expect(
+        bad?.querySelector('[data-testid="cabinet-price-unreadable"]'),
+      ).not.toBeNull();
+      expect(bad?.querySelector('[data-testid="cabinet-price"]')).toBeNull();
+      expect(bad?.textContent).toContain("600 mm");
+      expect(bad?.textContent).not.toMatch(/lei|NaN|Infinity|-\d|activ /);
+      expect(others.map((row) => row.textContent)).toEqual(
+        good.slice(1).map((row) => row.textContent),
+      );
+    },
+  );
+
+  it("draws minus zero as the zero it is, not as a defect", async () => {
+    const container = await mount(inputWithFirstRulePriced(-0, -0, false));
+
+    expect(
+      requireIn(
+        rowsIn(container)[0] ?? container,
+        '[data-testid="cabinet-price"]',
+      ).textContent,
+    ).toContain(`0${NBSP}lei`);
+  });
+
+  it("draws several bad rows among good ones without a failure, and keeps the page's one h1 and its groups", async () => {
+    const spoiled: CabinetListInput = {
+      rules: RULES.map((rule, position) =>
+        position % 2 === 0 && rule.price !== undefined
+          ? withPrice(rule, Number.NaN, -1)
+          : rule,
+      ),
+      draft: SAMPLE_CABINET_LIST.draft,
+    };
+
+    const container = await mount(spoiled);
+
+    expect(rowsIn(container)).toHaveLength(RULES.length);
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
+    expect(groupHeaderButtons(container)).toHaveLength(4);
+  });
+
+  it("draws a modified row whose new price is unreadable as a dash, and its active price nowhere", async () => {
+    const container = await mount(
+      inputWithFirstRulePriced(145_000, Number.NaN, true),
+    );
+    const [first] = rowsIn(container);
+
+    expect(
+      first?.querySelector('[data-testid="cabinet-price-unreadable"]'),
+    ).not.toBeNull();
+    expect(first?.textContent).not.toContain("activ ");
+  });
+
+  it("heads an unmodified row with its active price, whatever pending price the facts carry", async () => {
+    const container = await mount(
+      inputWithFirstRulePriced(200_000, 150_000, false),
+    );
+    const [first] = rowsIn(container);
+
+    expect(first?.textContent).toContain(`2${NBSP}000${NBSP}lei`);
+    expect(first?.textContent).not.toContain(`1${NBSP}500`);
+    expect(first?.textContent).not.toContain("activ ");
+  });
+
+  it("draws no price for a cabinet the customer supplies, even when its facts carry one", async () => {
+    const [first, ...rest] = RULES;
+    if (first === undefined) throw new Error("the sample holds no rule");
+    const container = await mount({
+      rules: [
+        withPrice({ ...first, isCustomerSupplied: true }, 145_000, 150_000),
+        ...rest,
+      ],
+      draft: NO_DRAFT.draft,
+    });
+    const [row] = rowsIn(container);
+
+    expect(row?.querySelector('[data-testid="cabinet-price"]')).toBeNull();
+    expect(row?.textContent).not.toContain("lei");
   });
 
   it("draws the frame and the title, and no row, for a book with no cabinet at all", async () => {
@@ -479,6 +581,39 @@ describe("the number of prices awaiting publication, over a sweep", () => {
     },
     60_000,
   );
+
+  it.each([
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    -1,
+    0,
+    1.5,
+    0.1,
+    Number.MAX_SAFE_INTEGER + 1,
+  ])(
+    "draws no chip and no badge for the count %s, which is not a count of prices",
+    async (count) => {
+      screen = await mountedFrame("ro", count);
+
+      expect(screen.container.querySelector(PENDING_CHIP)).toBeNull();
+      expect(
+        screen.container.querySelector(
+          'a[href$="/catalog/publish"] [aria-hidden]',
+        ),
+      ).toBeNull();
+      expect(screen.container.textContent).not.toMatch(/NaN|Infinity/);
+    },
+  );
+
+  it("puts the chip last among the bar's children, with the language links before it", async () => {
+    screen = await mountedFrame("ro", 3);
+    const chip = requireIn(screen.container, PENDING_CHIP);
+    const bar = chip.parentElement;
+
+    expect(bar?.lastElementChild).toBe(chip);
+    expect(bar?.querySelector("nav")).not.toBeNull();
+  });
 
   it("draws the chip in neither language, and in no menu, for a count below one", async () => {
     for (const count of [0, -1]) {

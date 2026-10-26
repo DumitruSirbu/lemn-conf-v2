@@ -37,7 +37,10 @@ vi.mock("@/lib/server/account/current-session", () => ({
 const { readCatalogPage } = await import(
   "../../src/app/[locale]/staff/catalog/_lib/read-catalog-page"
 );
-const { readStaffPage } = await import("@/lib/server/staff/staff-page");
+const { readStaffPage, staffNavigationOf } = await import(
+  "@/lib/server/staff/staff-page"
+);
+const { BUILT_CATALOG_PAGES } = await import("@/price-dashboard/catalog-pages");
 
 const ROLE_NAMES = Object.keys(ROLES) as Role[];
 
@@ -148,5 +151,99 @@ describe("what the catalog gate shows each caller, held against the staff gate",
       CATALOG_PAGES.some((catalogPage) => catalogPage === page),
     );
     expect(listed).toEqual(["cabinets"]);
+  });
+});
+
+describe("the staff gate asked for each catalog page", () => {
+  it.each(CATALOG_PAGES)(
+    "judges %s by price.edit: an administrator opens it, an operator is shown the 403 in the frame, every other caller the account area's",
+    async (page) => {
+      const answerFor = async (session: CurrentSession) => {
+        reading.session = session;
+        return (await readStaffPage({ locale: "ro", page })).kind;
+      };
+
+      expect(await answerFor(signedIn("administrator", true))).toBe(
+        "signed-in",
+      );
+      expect(await answerFor(signedIn("operator", true))).toBe(
+        "staff-forbidden",
+      );
+      expect(await answerFor(signedIn("administrator", false))).toBe(
+        "forbidden",
+      );
+      expect(await answerFor(signedIn("operator", false))).toBe("forbidden");
+      expect(await answerFor(signedIn("client", true))).toBe("forbidden");
+      expect(await answerFor(signedIn("ghost", true))).toBe("forbidden");
+    },
+  );
+});
+
+describe("the staff navigation, now that it lists the price dashboard's pages", () => {
+  const holder = (role: Role, isEmailVerified = true) => ({
+    role,
+    isEmailVerified,
+  });
+
+  it("lists the administrator the staff pages and then the built catalog pages, and nothing unbuilt", () => {
+    expect(staffNavigationOf(holder("administrator"))).toEqual([
+      "kitchens",
+      "audit",
+      ...BUILT_CATALOG_PAGES,
+    ]);
+  });
+
+  it.each(ROLE_NAMES.filter((role) => role !== "administrator"))(
+    "lists a %s no catalog page, whatever pages are built",
+    (role) => {
+      const navigation = staffNavigationOf(holder(role), [
+        "kitchens",
+        "audit",
+        ...CATALOG_PAGES,
+      ]);
+
+      expect(navigation.filter((page) => isCatalogPage(page))).toEqual([]);
+    },
+  );
+
+  it("lists an unconfirmed administrator nothing at all", () => {
+    expect(
+      staffNavigationOf(holder("administrator", false), [
+        "kitchens",
+        "audit",
+        ...CATALOG_PAGES,
+      ]),
+    ).toEqual([]);
+  });
+
+  it("lists only the catalog pages it is told are built, in the order it is told", () => {
+    expect(
+      staffNavigationOf(holder("administrator"), ["publish", "cabinets"]),
+    ).toEqual(["publish", "cabinets"]);
+    expect(staffNavigationOf(holder("administrator"), [])).toEqual([]);
+  });
+
+  it("is told the built pages in the closed list's order, which is the order the menu draws them in a group", () => {
+    const positions = BUILT_CATALOG_PAGES.map((page) =>
+      CATALOG_PAGES.indexOf(page),
+    );
+
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("lists every page of the closed list to an administrator once all are built", () => {
+    expect(
+      staffNavigationOf(holder("administrator"), [
+        "kitchens",
+        "audit",
+        ...CATALOG_PAGES,
+      ]),
+    ).toEqual(["kitchens", "audit", ...CATALOG_PAGES]);
+  });
+
+  it("never lists a page of the built list twice", () => {
+    const navigation = staffNavigationOf(holder("administrator"));
+
+    expect(new Set(navigation).size).toBe(navigation.length);
   });
 });
