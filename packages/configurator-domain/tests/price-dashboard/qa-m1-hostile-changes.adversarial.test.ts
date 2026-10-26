@@ -1077,3 +1077,59 @@ describe("a group row carries the bulk as stored, never one derived from the amo
     expect(rows[0]).not.toHaveProperty("bulk");
   });
 });
+
+describe("the fixes of the QA round hold their edges", () => {
+  const draft: DraftChange[] = [
+    { address: COVER, value: 1 },
+    { address: { kind: "provisional" }, value: false },
+  ];
+
+  it("refuses a hole in a sparse list by its index and applies nothing", () => {
+    const sparse: unknown[] = [];
+    sparse[0] = draft[0];
+    sparse[2] = draft[1];
+
+    const result = applyChanges(BOOK, sparse as DraftChange[]);
+
+    expect(refusalsOf(result)).toEqual(["1:MISSING_VALUE"]);
+  });
+
+  it("reverts by an invalid address without removing any valid change", () => {
+    const invalid = [
+      undefined,
+      null,
+      "cabinet",
+      {},
+      { kind: "item-deleted" },
+      { kind: "cabinet", ruleId: 7 },
+    ] as unknown as BookFieldAddress[];
+
+    for (const address of invalid) {
+      expect(revertChange(draft, address)).toEqual(draft);
+    }
+  });
+
+  it("keeps two addresses of different kinds apart when both are incomplete", () => {
+    const changes = [
+      { address: { kind: "item-deleted" }, value: true },
+      { address: { kind: "created-row-text", field: "name" }, value: "x" },
+    ] as unknown as DraftChange[];
+
+    expect(revertChange(changes, { kind: "item-deleted" } as never)).toEqual([
+      changes[1],
+    ]);
+  });
+
+  it("takes an address with inherited members as it did not before: only own members are read", () => {
+    const rule = anyAnchoredRule(BOOK);
+    const inherited = Object.create({
+      kind: "cabinet",
+      ruleId: rule.ruleId,
+      field: "anchorMinor",
+    }) as BookFieldAddress;
+
+    expect(codeOf(BOOK, { address: inherited, value: 5 })).toBe(
+      "0:UNKNOWN_ADDRESS",
+    );
+  });
+});
