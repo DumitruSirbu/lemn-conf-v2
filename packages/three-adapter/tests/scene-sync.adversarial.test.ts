@@ -81,6 +81,7 @@ function makeRecord(overrides: RecordOverrides): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
+    kitchenSettings: {},
     // `buildBody` rebuilds from `frame.d` through `rebuildDepthM`; nothing in a scene-sync fixture
     // reads an occupied depth, so the record declares the frame it states.
     occupiedDepth: shellPlusFrontMm(NO_FRONT_ASSEMBLY_MM),

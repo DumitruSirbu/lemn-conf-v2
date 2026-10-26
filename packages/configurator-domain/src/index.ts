@@ -67,6 +67,7 @@ export {
   NO_DRAWERS,
   NO_OPENING_FRONTS,
   oneBandInsetFromFrameMm,
+  openingFrontCount,
   refuseContradictoryFrontDeclarations,
   OVEN_TOWER_DOOR_BAND_HEIGHTS_MM,
   PANTRY_DOOR_BAND_HEIGHTS_MM,
@@ -89,7 +90,9 @@ export {
   isTopRowFloorMm,
   resolvedHandleAt,
   TOP_ROW_Y0_MM,
+  wornHandleAt,
   type PushToOpenQuery,
+  type WornHandleQuery,
 } from "./push-to-open.js";
 export {
   countHardwareMechanisms,

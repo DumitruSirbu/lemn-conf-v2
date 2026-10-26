@@ -10,7 +10,6 @@ import {
   type DesignRoom,
   type Finish,
   type Handle,
-  type KitchenHandleSettings,
   type PushToOpenQuery,
   type PlacementRecord,
   type VoidRecord,
@@ -298,13 +297,10 @@ function handleQueryOn(record: PlacementRecord): PushToOpenQuery {
   return {
     y0Mm: toMillimetres(record.frame.y0),
     recordedHandle: record.handleMode,
-    kitchenSettings: record.kitchenSettings ?? NO_KITCHEN_HANDLE,
+    kitchenSettings: record.kitchenSettings,
     canHandle: record.canHandle,
   };
 }
-
-/** What a record built by hand, stating no kitchen settings, means: the kitchen has no handle of its own. */
-const NO_KITCHEN_HANDLE: KitchenHandleSettings = {};
 
 function signBody(record: PlacementRecord): string {
   return [

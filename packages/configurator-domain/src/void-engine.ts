@@ -219,8 +219,8 @@ export interface PlacementRecord {
    *  Never the resolved handle: that is `resolvedHandleAt`'s answer. */
   readonly handleMode?: Handle;
   /** The design's kitchen handle settings, carried so the scene resolves a handle by the same call as the price and
-   *  the panel (ADR 0092 Amendment C). Absent reads as `{}`: a record built by hand states none. */
-  readonly kitchenSettings?: KitchenHandleSettings;
+   *  the panel (ADR 0092 Amendment C). `{}` when the kitchen has none. */
+  readonly kitchenSettings: KitchenHandleSettings;
 }
 
 export interface Column {

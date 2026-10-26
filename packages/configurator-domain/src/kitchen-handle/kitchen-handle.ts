@@ -7,11 +7,11 @@ export const DEFAULT_HANDLE: Handle = "steel";
 
 export const TOP_ROW_HANDLE: Handle = "push";
 
-/** The whole-kitchen settings the handle readers take, as an object so a new key reaches them unchanged. */
+/** The whole-kitchen settings the handle readers take, as one object rather than a lone value. */
 export type KitchenHandleSettings = Pick<DesignSettings, "handle">;
 
-/** The kitchen's handle settings as the readers take them. Built in one place so a key H2 adds reaches the price, the
- *  scene and the panel through the same object, never a second hand-copied pair. */
+/** The kitchen's handle settings as the readers take them, built here so the price, the scene and the panel read one
+ *  object and never a hand-copied pair. */
 export function kitchenHandleSettingsOf(
   settings: DesignSettings | undefined,
 ): KitchenHandleSettings {

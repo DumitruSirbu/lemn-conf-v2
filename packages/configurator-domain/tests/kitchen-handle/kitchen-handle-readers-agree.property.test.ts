@@ -118,7 +118,7 @@ function recordWears(record: PlacementRecord): Handle | undefined {
   return resolvedHandleAt({
     y0Mm: Math.round(record.frame.y0 * 1000),
     recordedHandle: record.handleMode,
-    kitchenSettings: record.kitchenSettings ?? {},
+    kitchenSettings: record.kitchenSettings,
     canHandle: record.canHandle,
   });
 }

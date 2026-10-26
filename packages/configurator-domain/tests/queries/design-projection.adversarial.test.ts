@@ -446,6 +446,7 @@ describe("the id tie-break rests on a validated uniqueness, not on luck", () => 
       y0Mm: 1500,
       widthMm: 600,
       heightMm: 700,
+      kitchenSettings: {},
     });
 
     expect(compareDisplayOrder(entry("B"), entry("a"))).toBeLessThan(0);

@@ -13,7 +13,12 @@ import {
   type KitchenHandleSettings,
 } from "../kitchen-handle/kitchen-handle.js";
 import type { Finish } from "../materials.js";
+import {
+  frontPopulationQueryFor,
+  openingFrontCount,
+} from "../front-population.js";
 import { compareOpaqueIds } from "../opaque-id-order.js";
+import { wornHandleAt } from "../push-to-open.js";
 import {
   UnknownBodyError,
   type Band,
@@ -48,9 +53,11 @@ export interface DisplayEntry {
    *  placement, for the same reason as `finish`. */
   readonly handle?: Handle;
   /** The design's kitchen handle settings, which a cabinet with no handle of its own follows (ADR 0099). The same
-   *  object on every entry of one projection. Optional only so a hand-built entry need not state it: absent reads as
-   *  `{}`, which is no kitchen handle. */
-  readonly kitchenSettings?: KitchenHandleSettings;
+   *  object on every entry of one projection; `{}` when the kitchen has none. */
+  readonly kitchenSettings: KitchenHandleSettings;
+  /** The handle this body is read as wearing, `wornHandleAt`'s answer: absent for a body that wears none, and never
+   *  the cabinet's own alone. What a customer-facing list names, so it cannot omit a latch the price bills. */
+  readonly wornHandle?: Handle;
 }
 
 /** One heading and the bodies under it — the mockup's *Perete A · suspendate*. A group is never
@@ -129,6 +136,16 @@ function toDisplayEntry(
 ): DisplayEntry {
   const definition = lookupDefinition(catalog, placement.body.buildId);
   const ownHandle = ownHandleOf(placement.body.handle);
+  const wornHandle = wornHandleAt({
+    y0Mm: placement.y0Mm,
+    recordedHandle: ownHandle,
+    kitchenSettings,
+    canHandle: definition.canHandle,
+    countOpeningFronts: () =>
+      openingFrontCount(
+        frontPopulationQueryFor({ body: placement.body, definition }),
+      ),
+  });
   return {
     placementId: placement.id,
     buildId: placement.body.buildId,
@@ -150,6 +167,7 @@ function toDisplayEntry(
       : { finish: placement.body.finish }),
     ...(ownHandle === undefined ? {} : { handle: ownHandle }),
     kitchenSettings,
+    ...(wornHandle === undefined ? {} : { wornHandle }),
   };
 }
 

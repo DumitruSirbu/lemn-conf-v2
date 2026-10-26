@@ -192,6 +192,7 @@ function declaredOccupiedMm(
     canReplace: definition.canReplace,
     canDelete: definition.canDelete,
     fixedWidth: definition.fixedWidth,
+    kitchenSettings: {},
   };
   return toMillimetres(occupiedDepthM(record));
 }

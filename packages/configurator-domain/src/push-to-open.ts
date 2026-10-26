@@ -80,3 +80,22 @@ export function resolvedHandleAt(front: PushToOpenQuery): Handle | undefined {
     isTopRow: isTopRowFloorMm(front.y0Mm),
   });
 }
+
+/** `PushToOpenQuery` plus how many fronts open, asked only when it decides the answer: counting fronts refuses a body
+ *  whose declaration cannot be read, and a list of bodies must stay total over one (the price names that failure). */
+export interface WornHandleQuery extends PushToOpenQuery {
+  readonly countOpeningFronts: () => number;
+}
+
+/**
+ * The handle this body is read as wearing: the resolved one, else push-to-open when the body is latched and has a front
+ * to latch. A body with nothing that opens (an open shelf on the top row) is billed no latch and draws no bar, so it
+ * wears nothing; a top-row body that takes no handle but has doors (`wall-corner-return-570-top`) wears push.
+ */
+export function wornHandleAt(front: WornHandleQuery): Handle | undefined {
+  const resolved = resolvedHandleAt(front);
+  if (resolved !== undefined) return resolved;
+  return isPushToOpen(front) && front.countOpeningFronts() > 0
+    ? PUSH_TO_OPEN
+    : undefined;
+}

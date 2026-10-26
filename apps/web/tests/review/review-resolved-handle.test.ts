@@ -126,6 +126,36 @@ describe("a body on the top row", () => {
   });
 });
 
+describe("a body with no front that opens, moved onto the top row", () => {
+  const OPEN_SHELF = "p12";
+  const HOOD = "p13";
+  const FRIDGE_FREE = "p7";
+
+  function onTheTopRow(id: string): Design {
+    return {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.map((placement) =>
+        placement.id === id ? { ...placement, y0Mm: 2200 } : placement,
+      ),
+    };
+  }
+
+  it.each([OPEN_SHELF, HOOD, FRIDGE_FREE])(
+    "%s names no handle, and the price bills it no latch",
+    (id) => {
+      const design = onTheTopRow(id);
+      const { groups } = priceAndProject(design);
+      const [entry] = groups
+        .flatMap((group) => group.entries)
+        .filter((candidate) => candidate.placementId === id);
+
+      expect(entry?.y0Mm).toBe(2200);
+      expect(handleFactsOf(design, id)).toEqual([]);
+      expect(entry && latchesThePriceBillsFor([entry], design)).toBe(0);
+    },
+  );
+});
+
 describe("a body below the top row whose definition takes no handle", () => {
   it.each(KITCHEN_HANDLES)(
     "names none under the kitchen handle %s, though one is recorded on it",
@@ -168,11 +198,18 @@ function openingFrontsOf(
 /** The latches the price bills: the count `priceDesign` multiplies by the book's rate. */
 function latchesThePriceBills(design: Design): number {
   const { groups } = priceAndProject(design);
-  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
-  return countHardwareMechanisms(
+  return latchesThePriceBillsFor(
     groups.flatMap((group) => group.entries),
-    catalog,
-  ).pushToOpen;
+    design,
+  );
+}
+
+function latchesThePriceBillsFor(
+  entries: readonly DisplayEntry[],
+  design: Design,
+): number {
+  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
+  return countHardwareMechanisms(entries, catalog).pushToOpen;
 }
 
 describe("the review against the price's latch count", () => {

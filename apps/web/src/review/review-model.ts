@@ -8,21 +8,14 @@
 // module's own question (see `describePricedReview`). The design, its price and its projection must be one
 // design's, or `describeReview` throws.
 import {
-  buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
   cornerDirectionOf,
   findOverflowingPlacementIds,
   holdsNothingLemnariaSupplies,
-  isPushToOpen,
   judgeSubmissionEligibility,
-  resolvedHandleAt,
-  TOP_ROW_HANDLE,
-  type BodyCatalog,
   type Design,
   type DisplayEntry,
   type DisplayGroup,
   type Finish,
-  type Handle,
   type PricedDesign,
   type PricingResult,
   type SubmissionEligibility,
@@ -54,9 +47,9 @@ export interface ReviewSettingsRow {
 /**
  * What a body's row says under the frame's two lines: its name without the width, then the facts that follow it, in
  * order. The width always; the body's own finish exactly when it carries one (ADR 0099: a body on the kitchen's colour
- * names none); and the handle it wears, resolved as the price and the scene resolve it (its own, else the kitchen's,
- * else the slot's), whenever it wears one or is latched. The row's `label` stays the breakdown's, the name and the width together, which is
- * what a refusal calls the body, so the two lines state what the label says and more.
+ * names none); and the handle it wears (`DisplayEntry.wornHandle`: its own, else the kitchen's, else the slot's, as
+ * the price resolves it) exactly when it wears one. The row's `label` stays the breakdown's, the name and the width
+ * together, which is what a refusal calls the body, so the two lines state what the label says and more.
  */
 export interface ReviewRowDetail {
   readonly name: string;
@@ -239,7 +232,7 @@ function describeAvailableReview(
     ),
     settingsRow: describeSettingsRow(priced, content),
     groups: rows.groups,
-    rowDetails: describeRowDetails(groups, content, design),
+    rowDetails: describeRowDetails(groups, content),
     wholeKitchenRows: rows.wholeKitchenRows,
     notIncluded: describeNotIncludedSlot(content),
     disclaimer: describeDisclaimer(content),
@@ -271,29 +264,18 @@ export function rowDetailOf(
 function describeRowDetails(
   groups: readonly DisplayGroup[],
   content: Content,
-  design: Design,
 ): Readonly<Record<string, ReviewRowDetail>> {
-  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
   return Object.fromEntries(
     groups
       .flatMap((group) => group.entries)
-      .map((entry) => [
-        entry.placementId,
-        describeRowDetail(entry, { content, catalog }),
-      ]),
+      .map((entry) => [entry.placementId, describeRowDetail(entry, content)]),
   );
-}
-
-interface RowDetailReading {
-  readonly content: Content;
-  readonly catalog: BodyCatalog;
 }
 
 function describeRowDetail(
   entry: DisplayEntry,
-  { content, catalog }: RowDetailReading,
+  content: Content,
 ): ReviewRowDetail {
-  const handle = wornHandleOf(entry, catalog);
   return {
     name: describePlacementName(entry, content),
     facts: [
@@ -301,28 +283,11 @@ function describeRowDetail(
       ...(entry.finish === undefined
         ? []
         : [describeFinish(entry.finish, content)]),
-      ...(handle === undefined ? [] : [content.panel.handleLabels[handle]]),
+      ...(entry.wornHandle === undefined
+        ? []
+        : [content.panel.handleLabels[entry.wornHandle]]),
     ],
   };
-}
-
-/** The handle the price bills and the scene draws for this body, never the cabinet's own alone. A body whose
- *  definition takes none but whose slot is the top row opens by a latch, so it reads as the push-to-open it is billed
- *  as. */
-function wornHandleOf(
-  entry: DisplayEntry,
-  catalog: BodyCatalog,
-): Handle | undefined {
-  const query = {
-    y0Mm: entry.y0Mm,
-    recordedHandle: entry.handle,
-    kitchenSettings: entry.kitchenSettings ?? {},
-    canHandle: catalog.get(entry.buildId)?.canHandle === true,
-  };
-  return (
-    resolvedHandleAt(query) ??
-    (isPushToOpen(query) ? TOP_ROW_HANDLE : undefined)
-  );
 }
 
 /** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks it. */
