@@ -1,5 +1,8 @@
 import { readDashboardAuditEntry } from "@lemnaria/configurator-domain";
-import type { DashboardAuditAction } from "@lemnaria/configurator-domain";
+import type {
+  DashboardAuditAction,
+  ItemRef,
+} from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
 import { DashboardStoreError } from "./m10-ports.js";
@@ -11,6 +14,7 @@ import type {
 } from "./m10-ports.js";
 import { SessionStoreError } from "./session-store.js";
 import type { SessionStore } from "./session-store.js";
+import { STORED_ACTION_SHAPE } from "./staff-audit-store.js";
 
 /** The audit records a write hands over: whole entries, or entries missing what only the store knows. */
 type StagedAuditRecord =
@@ -18,7 +22,55 @@ type StagedAuditRecord =
   | ActivationAuditRecord
   | PublishAuditRecord;
 
-// What the M10 fakes share: the audit log a staff write commits to, and the stand-ins for what SQL does to a revision.
+// What the M10 fakes share: the audit log a staff write commits to, the stand-ins for what SQL does to a revision, and
+// the small judgements every fake repeats.
+
+/**
+ * Runs a fake's judgement as a driver's answer: a refusal is a rejection, never a throw out of a method that returns a
+ * promise. Anything but a `DashboardStoreError` is the database failing.
+ */
+export function settle<Answer>(
+  operation: DashboardStoreOperation,
+  judge: () => Answer,
+): Promise<Answer> {
+  try {
+    return Promise.resolve(judge());
+  } catch (failure) {
+    return Promise.reject(
+      failure instanceof DashboardStoreError
+        ? failure
+        : new DashboardStoreError(operation, "database", { cause: failure }),
+    );
+  }
+}
+
+/** The id an item is known by within its kind, as the audit detail names it. */
+export function itemIdOf(item: ItemRef): string {
+  switch (item.kind) {
+    case "material":
+    case "hardware":
+      return item.tierId;
+    case "finish":
+      return item.finishId;
+    case "handle":
+      return item.handle;
+    case "accessory":
+      return item.accessoryId;
+  }
+}
+
+export function itemKeyOf(item: ItemRef): string {
+  return `${item.kind}:${itemIdOf(item)}`;
+}
+
+export function isNamedItem(item: ItemRef): boolean {
+  const id: unknown = itemIdOf(item);
+  return typeof id === "string" && id !== "";
+}
+
+export function isJsonObject(value: unknown): boolean {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 /** A revision as a head or a row holds it: a digit run from 0, no leading zero, as wide as a `bigint`. */
 const REVISION_SHAPE = /^(0|[1-9][0-9]{0,18})$/;
@@ -165,6 +217,7 @@ export class FakeDashboardAuditLedger {
     if (
       !reading.ok ||
       !accepts.includes(reading.entry.action) ||
+      !STORED_ACTION_SHAPE.test(reading.entry.action) ||
       namesDesign !== (designId !== undefined)
     ) {
       throw new DashboardStoreError(operation, "invalid-request");

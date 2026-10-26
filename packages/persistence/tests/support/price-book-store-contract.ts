@@ -1,11 +1,10 @@
-import type { DraftChange, ItemRef } from "@lemnaria/configurator-domain";
+import type { DraftChange } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
-  INITIAL_REVISION,
-  NO_ACTIVE_VERSION,
+  PRICE_VERSION_PAGE_SIZE,
   VERSION_NOT_FOUND,
 } from "../../src/m10-ports.js";
 import type {
@@ -18,29 +17,31 @@ import type {
 import {
   A_BOOK,
   DRAFT_CHANGED,
+  aNewItem,
+  aNewItemPair,
   activationEntryFor,
   auditRecordOf,
   dashboardFailureOf,
+  itemsSwitchedOffBetween,
+  newestSequenceOf,
   publishNextVersion,
+  publishRequestFor,
   publishedEntry,
-  sortedItems,
 } from "./dashboard-contract-support.js";
 import type {
   DashboardStaffMember,
   DashboardStaffWorld,
 } from "./dashboard-contract-support.js";
 
+// These suites also run against a shared test database that earlier runs have written to (ADR 0151). They therefore
+// assert what a step changed, from a read taken before it, and never what the table held to begin with. What only a
+// table with no rows can promise is asserted in the fake's own test file.
+
 export interface PriceBookWorld extends DashboardStaffWorld {
   readonly store: PriceBookStore;
   /** The log whose head a publish takes its compare-and-set on and writes its created items to. */
   readonly availability: CatalogueAvailabilityStore;
 }
-
-/** What a publish creates: a hardware class and a linked accessory. */
-const CREATED_ITEMS: readonly [ItemRef, ItemRef] = [
-  { kind: "hardware", tierId: "created-class" },
-  { kind: "accessory", accessoryId: "created-light" },
-];
 
 /** The widest revision a `bigint` holds: a valid shape no head has reached. */
 const WIDEST_REVISION = "9223372036854775807";
@@ -55,7 +56,7 @@ export function describePriceBookStoreContract(
   suiteName: string,
   newWorld: () => Promise<PriceBookWorld>,
 ): void {
-  describeNothingPublished(suiteName, newWorld);
+  describeReadingVersions(suiteName, newWorld);
   describeDraft(suiteName, newWorld);
   describePublish(suiteName, newWorld);
   describeHistory(suiteName, newWorld);
@@ -81,44 +82,36 @@ async function publish(
   staff: DashboardStaffMember,
   overrides: Partial<PublishPriceBookRequest> = {},
 ) {
-  const draft = await world.store.readDraft();
-  const active = await world.store.readActive();
-  const newest = active.kind === "found" ? active.version.sequenceNumber : 0;
-  return world.store.publish({
-    expectedDraftRevision: draft.draftRevision,
-    expectedActiveSequence: newest,
-    expectedAvailabilityRevision: (await world.availability.readCurrent())
-      .revision,
-    createdItems: [],
-    label: "November",
-    note: "Prices for November.",
-    book: A_BOOK,
-    changeSummary: [DEPTH_TO_40],
-    audit: auditRecordOf(staff, publishedEntry()),
-    ...overrides,
-  });
+  return world.store.publish(
+    await publishRequestFor(world.store, world.availability, staff, {
+      label: "November",
+      note: "Prices for November.",
+      changeSummary: [DEPTH_TO_40],
+      ...overrides,
+    }),
+  );
 }
 
-function describeNothingPublished(
+async function draftRevisionOf(world: PriceBookWorld): Promise<string> {
+  return (await world.store.readDraft()).draftRevision;
+}
+
+/** Everything a refused call must leave as it found it. */
+async function stateOf(world: PriceBookWorld, staff: DashboardStaffMember) {
+  return {
+    draft: await world.store.readDraft(),
+    active: await world.store.readActive(),
+    versions: (await world.store.listVersions({ page: 1 })).total,
+    availability: await world.availability.readCurrent(),
+    audited: await world.auditEventsOf(staff.accountId),
+  };
+}
+
+function describeReadingVersions(
   suiteName: string,
   newWorld: () => Promise<PriceBookWorld>,
 ): void {
-  describe(`${suiteName}: before anything is published`, () => {
-    it("has no active version, no history and an empty draft at the initial revision", async () => {
-      const world = await newWorld();
-
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
-      expect(await world.store.readDraft()).toEqual({
-        draftRevision: INITIAL_REVISION,
-        changes: [],
-      });
-      expect(await world.store.listVersions({ page: 1 })).toMatchObject({
-        total: 0,
-        page: 1,
-        versions: [],
-      });
-    });
-
+  describe(`${suiteName}: reading a version`, () => {
     it("knows no version by an id it is handed, whatever the id", async () => {
       const world = await newWorld();
 
@@ -139,6 +132,7 @@ function describeDraft(
     it("stores the changes as given, in order, at a new revision, and writes the audit row for the account of the session", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const revisionBefore = await draftRevisionOf(world);
 
       const result = await writeDraft(world, staff, [
         DEPTH_TO_40,
@@ -151,7 +145,7 @@ function describeDraft(
       });
       const draft = await world.store.readDraft();
       expect(draft.changes).toEqual([DEPTH_TO_40, ANCHOR_TO_5000]);
-      expect(draft.draftRevision).not.toBe(INITIAL_REVISION);
+      expect(draft.draftRevision).not.toBe(revisionBefore);
       expect(result.kind === "ok" && result.draftRevision).toBe(
         draft.draftRevision,
       );
@@ -181,29 +175,24 @@ function describeDraft(
     it("refuses a write made against a revision that is not current, changing nothing and writing no audit row", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const stale = await draftRevisionOf(world);
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const before = await world.store.readDraft();
-      const auditedBefore = await world.auditEventsOf(staff.accountId);
+      const before = await stateOf(world, staff);
 
-      const stale = await writeDraft(
-        world,
-        staff,
-        [ANCHOR_TO_5000],
-        INITIAL_REVISION,
-      );
+      const result = await writeDraft(world, staff, [ANCHOR_TO_5000], stale);
 
-      expect(stale).toBe(CHANGED_MEANWHILE);
-      expect(await world.store.readDraft()).toEqual(before);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
+      expect(result).toBe(CHANGED_MEANWHILE);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("lets exactly one of two writes racing at one revision win", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const raced = await draftRevisionOf(world);
 
       const answers = await Promise.all([
-        writeDraft(world, staff, [DEPTH_TO_40], INITIAL_REVISION),
-        writeDraft(world, staff, [ANCHOR_TO_5000], INITIAL_REVISION),
+        writeDraft(world, staff, [DEPTH_TO_40], raced),
+        writeDraft(world, staff, [ANCHOR_TO_5000], raced),
       ]);
 
       expect(answers.map((answer) => answer.kind).sort()).toEqual([
@@ -215,27 +204,27 @@ function describeDraft(
 
     it("writes nothing when no live session stands behind the call", async () => {
       const world = await newWorld();
+      const staff = await world.aStaffMember();
       const gone = await world.aStaffMemberWhoseSessionIsRevoked();
+      const before = await stateOf(world, staff);
 
       await dashboardFailureOf(
         writeDraft(world, gone, [DEPTH_TO_40]),
         "not-recorded",
       );
 
-      expect(await world.store.readDraft()).toEqual({
-        draftRevision: INITIAL_REVISION,
-        changes: [],
-      });
+      expect(await stateOf(world, staff)).toEqual(before);
       expect(await world.auditEventsOf(gone.accountId)).toEqual([]);
     });
 
     it("refuses an audit entry that is not a draft entry, before it writes", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const before = await stateOf(world, staff);
 
       await dashboardFailureOf(
         world.store.writeDraft({
-          expectedDraftRevision: INITIAL_REVISION,
+          expectedDraftRevision: before.draft.draftRevision,
           changes: [DEPTH_TO_40],
           audit: auditRecordOf(
             staff,
@@ -245,23 +234,20 @@ function describeDraft(
         "invalid-request",
       );
 
-      expect(await world.store.readDraft()).toEqual({
-        draftRevision: INITIAL_REVISION,
-        changes: [],
-      });
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("refuses a write made against a revision ahead of the current one, which no write has produced", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const before = await world.store.readDraft();
-      const auditedBefore = await world.auditEventsOf(staff.accountId);
+      const before = await stateOf(world, staff);
+      const oneAhead = await world.aRevisionAfter(
+        before.draft.draftRevision,
+        1,
+      );
 
-      for (const expectedDraftRevision of [
-        String(BigInt(before.draftRevision) + 1n),
-        WIDEST_REVISION,
-      ]) {
+      for (const expectedDraftRevision of [oneAhead, WIDEST_REVISION]) {
         expect(
           await writeDraft(
             world,
@@ -272,16 +258,14 @@ function describeDraft(
         ).toBe(CHANGED_MEANWHILE);
       }
 
-      expect(await world.store.readDraft()).toEqual(before);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("refuses a draft revision that is not a revision's shape as an invalid request, before it writes", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const before = await world.store.readDraft();
-      const auditedBefore = await world.auditEventsOf(staff.accountId);
+      const before = await stateOf(world, staff);
 
       for (const expectedDraftRevision of [
         "",
@@ -301,9 +285,7 @@ function describeDraft(
         );
       }
 
-      expect(await world.store.readDraft()).toEqual(before);
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("can empty the draft, which is a write like another", async () => {
@@ -324,28 +306,36 @@ function describePublish(
   newWorld: () => Promise<PriceBookWorld>,
 ) {
   describe(`${suiteName}: publish`, () => {
-    it("appends version 1 as the active version, with the book as given, and writes the audit row", async () => {
+    it("appends the next version as the active version, with the book as given, and writes the audit row", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const newestBefore = await newestSequenceOf(world.store);
 
       const result = await publish(world, staff);
 
       expect(result).toEqual({
         kind: "ok",
         versionId: expect.any(String) as string,
-        sequenceNumber: 1,
+        sequenceNumber: newestBefore + 1,
         availabilityRevision: (await world.availability.readCurrent()).revision,
       });
-      const active = await world.store.readActive();
-      expect(active).toMatchObject({
+      expect(await world.store.readActive()).toMatchObject({
         kind: "found",
-        version: { sequenceNumber: 1, label: "November", book: A_BOOK },
+        version: {
+          sequenceNumber: newestBefore + 1,
+          label: "November",
+          book: A_BOOK,
+        },
       });
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         {
           action: "price-published",
           designId: undefined,
-          detail: { sequenceNumber: 1, changeCount: 1, provisional: true },
+          detail: {
+            sequenceNumber: newestBefore + 1,
+            changeCount: 1,
+            provisional: true,
+          },
         },
       ]);
     });
@@ -353,6 +343,7 @@ function describePublish(
     it("records the sequence it inserted and the length of the summary it stored in the audit row, whatever a cast put there", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const newestBefore = await newestSequenceOf(world.store);
       const forged = {
         session: staff.session,
         entry: {
@@ -378,7 +369,11 @@ function describePublish(
         {
           action: "price-published",
           designId: undefined,
-          detail: { provisional: false, sequenceNumber: 1, changeCount: 2 },
+          detail: {
+            provisional: false,
+            sequenceNumber: newestBefore + 1,
+            changeCount: 2,
+          },
         },
       ]);
     });
@@ -386,43 +381,35 @@ function describePublish(
     it("resets the draft to no changes at a revision it has not held before, so a revision read before the publish is stale", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const heldBefore = [await draftRevisionOf(world)];
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const beforePublish = await world.store.readDraft();
+      heldBefore.push(await draftRevisionOf(world));
 
       await publish(world, staff);
 
       const after = await world.store.readDraft();
       expect(after.changes).toEqual([]);
-      expect(after.draftRevision).not.toBe(beforePublish.draftRevision);
-      expect(after.draftRevision).not.toBe(INITIAL_REVISION);
-      expect(
-        await writeDraft(
-          world,
-          staff,
-          [ANCHOR_TO_5000],
-          beforePublish.draftRevision,
-        ),
-      ).toBe(CHANGED_MEANWHILE);
-      expect(
-        await writeDraft(world, staff, [ANCHOR_TO_5000], INITIAL_REVISION),
-      ).toBe(CHANGED_MEANWHILE);
+      expect(heldBefore).not.toContain(after.draftRevision);
+      for (const stale of heldBefore) {
+        expect(await writeDraft(world, staff, [ANCHOR_TO_5000], stale)).toBe(
+          CHANGED_MEANWHILE,
+        );
+      }
     });
 
     it("refuses a stale draft revision, appending nothing, leaving the draft and writing no audit row", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const stale = await draftRevisionOf(world);
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const draft = await world.store.readDraft();
-      const auditedBefore = await world.auditEventsOf(staff.accountId);
+      const before = await stateOf(world, staff);
 
       const result = await publish(world, staff, {
-        expectedDraftRevision: INITIAL_REVISION,
+        expectedDraftRevision: stale,
       });
 
       expect(result).toBe(CHANGED_MEANWHILE);
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
-      expect(await world.store.readDraft()).toEqual(draft);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("refuses an expected active sequence that is not the newest: one behind it and one ahead of it alike", async () => {
@@ -430,32 +417,33 @@ function describePublish(
       const staff = await world.aStaffMember();
       await publishNextVersion(world.store, world.availability, staff);
       await publishNextVersion(world.store, world.availability, staff);
+      const newest = await newestSequenceOf(world.store);
+      const before = await stateOf(world, staff);
 
-      for (const expectedActiveSequence of [0, 1, 3, 4]) {
-        const result = await publish(world, staff, {
-          expectedActiveSequence,
-          audit: auditRecordOf(staff, publishedEntry()),
-        });
+      for (const expectedActiveSequence of [
+        newest - 2,
+        newest - 1,
+        newest + 1,
+        newest + 2,
+      ]) {
+        const result = await publish(world, staff, { expectedActiveSequence });
         expect(result).toBe(CHANGED_MEANWHILE);
       }
 
-      expect((await world.store.listVersions({ page: 1 })).total).toBe(2);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("lets exactly one of two publishes racing at one sequence win, leaving the other changed-meanwhile", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const request = {
-        expectedDraftRevision: INITIAL_REVISION,
-        expectedActiveSequence: 0,
-        expectedAvailabilityRevision: INITIAL_REVISION,
-        createdItems: [],
-        label: "Race",
-        note: "",
-        book: A_BOOK,
-        changeSummary: [],
-        audit: auditRecordOf(staff, publishedEntry()),
-      };
+      const versionsBefore = (await world.store.listVersions({ page: 1 }))
+        .total;
+      const request = await publishRequestFor(
+        world.store,
+        world.availability,
+        staff,
+        { label: "Race", note: "" },
+      );
 
       const answers = await Promise.all([
         world.store.publish(request),
@@ -466,51 +454,50 @@ function describePublish(
         "changed-meanwhile",
         "ok",
       ]);
-      expect((await world.store.listVersions({ page: 1 })).total).toBe(1);
+      expect((await world.store.listVersions({ page: 1 })).total).toBe(
+        versionsBefore + 1,
+      );
       expect(await world.auditEventsOf(staff.accountId)).toHaveLength(1);
     });
 
     it.each([
       {
         refusal: "a stale draft revision",
-        overrides: { expectedDraftRevision: INITIAL_REVISION },
-        answer: CHANGED_MEANWHILE,
+        overrides: (facts: PublishFacts) => ({
+          expectedDraftRevision: facts.staleDraftRevision,
+        }),
       },
       {
         refusal: "an active sequence behind the newest",
-        overrides: { expectedActiveSequence: 0 },
-        answer: CHANGED_MEANWHILE,
+        overrides: (facts: PublishFacts) => ({
+          expectedActiveSequence: facts.newestSequence - 1,
+        }),
       },
       {
         refusal: "an active sequence ahead of the newest",
-        overrides: { expectedActiveSequence: 2 },
-        answer: CHANGED_MEANWHILE,
+        overrides: (facts: PublishFacts) => ({
+          expectedActiveSequence: facts.newestSequence + 1,
+        }),
       },
     ])(
       "moves nothing when it is refused for $refusal: not the availability head, no log row for a created item, not the draft, and no audit row",
-      async ({ overrides, answer }) => {
+      async ({ overrides }) => {
         const world = await newWorld();
         const staff = await world.aStaffMember();
         await publishNextVersion(world.store, world.availability, staff);
+        const staleDraftRevision = await draftRevisionOf(world);
         await writeDraft(world, staff, [DEPTH_TO_40]);
         await writeDraft(world, staff, [ANCHOR_TO_5000]);
-        const head = await world.availability.readCurrent();
-        const draft = await world.store.readDraft();
-        const active = await world.store.readActive();
-        const auditedBefore = await world.auditEventsOf(staff.accountId);
+        const newestSequence = await newestSequenceOf(world.store);
+        const before = await stateOf(world, staff);
 
         const result = await publish(world, staff, {
-          ...overrides,
-          createdItems: CREATED_ITEMS,
+          ...overrides({ staleDraftRevision, newestSequence }),
+          createdItems: aNewItemPair(),
         });
 
-        expect(result).toBe(answer);
-        expect(await world.availability.readCurrent()).toEqual(head);
-        expect(await world.store.readDraft()).toEqual(draft);
-        expect(await world.store.readActive()).toEqual(active);
-        expect(await world.auditEventsOf(staff.accountId)).toEqual(
-          auditedBefore,
-        );
+        expect(result).toBe(CHANGED_MEANWHILE);
+        expect(await stateOf(world, staff)).toEqual(before);
       },
     );
 
@@ -518,67 +505,58 @@ function describePublish(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const head = await world.availability.readCurrent();
-      const draft = await world.store.readDraft();
-      const auditedBefore = await world.auditEventsOf(staff.accountId);
+      const before = await stateOf(world, staff);
+      const oneAhead = await world.aRevisionAfter(
+        before.availability.revision,
+        1,
+      );
 
-      for (const expectedAvailabilityRevision of [
-        String(BigInt(head.revision) + 1n),
-        WIDEST_REVISION,
-      ]) {
+      for (const expectedAvailabilityRevision of [oneAhead, WIDEST_REVISION]) {
         expect(
           await publish(world, staff, {
             expectedAvailabilityRevision,
-            createdItems: CREATED_ITEMS,
+            createdItems: aNewItemPair(),
           }),
         ).toBe(AVAILABILITY_CHANGED_MEANWHILE);
       }
 
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
-      expect(await world.store.readDraft()).toEqual(draft);
-      expect(await world.availability.readCurrent()).toEqual(head);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("writes nothing when both the draft revision and the availability revision are stale, and answers one of the two refusals", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const staleDraftRevision = await draftRevisionOf(world);
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const head = await world.availability.readCurrent();
-      const draft = await world.store.readDraft();
-      const auditedBefore = await world.auditEventsOf(staff.accountId);
-      const aheadOfHead = String(BigInt(head.revision) + 1n);
+      const before = await stateOf(world, staff);
+      const aheadOfHead = await world.aRevisionAfter(
+        before.availability.revision,
+        1,
+      );
 
       const result = await publish(world, staff, {
-        expectedDraftRevision: INITIAL_REVISION,
+        expectedDraftRevision: staleDraftRevision,
         expectedAvailabilityRevision: aheadOfHead,
-        createdItems: CREATED_ITEMS,
+        createdItems: aNewItemPair(),
       });
 
       expect([CHANGED_MEANWHILE, AVAILABILITY_CHANGED_MEANWHILE]).toContain(
         result,
       );
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
-      expect(await world.store.readDraft()).toEqual(draft);
-      expect(await world.availability.readCurrent()).toEqual(head);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("lets a racing pair of publishes that create items move the head by the winner's items alone, and log each item once", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const head = await world.availability.readCurrent();
-      const request = {
-        expectedDraftRevision: INITIAL_REVISION,
-        expectedActiveSequence: 0,
-        expectedAvailabilityRevision: head.revision,
-        createdItems: CREATED_ITEMS,
-        label: "Race",
-        note: "",
-        book: A_BOOK,
-        changeSummary: [],
-        audit: auditRecordOf(staff, publishedEntry()),
-      };
+      const items = aNewItemPair();
+      const request = await publishRequestFor(
+        world.store,
+        world.availability,
+        staff,
+        { createdItems: items, label: "Race", note: "" },
+      );
 
       const answers = await Promise.all([
         world.store.publish(request),
@@ -590,29 +568,29 @@ function describePublish(
         "ok",
       ]);
       const after = await world.availability.readCurrent();
-      expect(after.revision).toBe(String(BigInt(head.revision) + 2n));
-      expect(sortedItems(after.disabled)).toEqual(sortedItems(CREATED_ITEMS));
+      expect(after.revision).toBe(
+        await world.aRevisionAfter(head.revision, items.length),
+      );
+      expect(itemsSwitchedOffBetween(head.disabled, after.disabled)).toEqual(
+        itemsSwitchedOffBetween([], items),
+      );
     });
 
     it("lets exactly one of a publish and an availability write racing at one head revision succeed, the head moved by whichever won", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const head = await world.availability.readCurrent();
-      const [created] = CREATED_ITEMS;
-      const other: ItemRef = { kind: "material", tierId: "mdf" };
+      const [created] = aNewItemPair();
+      const other = aNewItem("material");
+      const request = await publishRequestFor(
+        world.store,
+        world.availability,
+        staff,
+        { createdItems: [created], label: "Race", note: "" },
+      );
 
       const [published, switched] = await Promise.all([
-        world.store.publish({
-          expectedDraftRevision: INITIAL_REVISION,
-          expectedActiveSequence: 0,
-          expectedAvailabilityRevision: head.revision,
-          createdItems: [created],
-          label: "Race",
-          note: "",
-          book: A_BOOK,
-          changeSummary: [],
-          audit: auditRecordOf(staff, publishedEntry()),
-        }),
+        world.store.publish(request),
         world.availability.setActive({
           item: other,
           active: false,
@@ -625,7 +603,7 @@ function describePublish(
         [published.kind === "ok", switched.kind === "ok"].filter(Boolean),
       ).toHaveLength(1);
       expect((await world.availability.readCurrent()).revision).toBe(
-        String(BigInt(head.revision) + 1n),
+        await world.aRevisionAfter(head.revision, 1),
       );
       expect(await world.auditEventsOf(staff.accountId)).toHaveLength(1);
     });
@@ -635,12 +613,11 @@ function describePublish(
       const staff = await world.aStaffMember();
       const gone = await world.aStaffMemberWhoseSessionIsRevoked();
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const head = await world.availability.readCurrent();
-      const draft = await world.store.readDraft();
+      const before = await stateOf(world, staff);
 
       await dashboardFailureOf(
         publish(world, staff, {
-          createdItems: CREATED_ITEMS,
+          createdItems: aNewItemPair(),
           audit: auditRecordOf(
             staff,
             DRAFT_CHANGED,
@@ -649,46 +626,55 @@ function describePublish(
         "invalid-request",
       );
       await dashboardFailureOf(
-        publish(world, gone, { createdItems: CREATED_ITEMS }),
+        publish(world, gone, { createdItems: aNewItemPair() }),
         "not-recorded",
       );
 
-      expect(await world.availability.readCurrent()).toEqual(head);
-      expect(await world.store.readDraft()).toEqual(draft);
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("moves the availability head once for each created item, logging each switched off, and answers the head it left", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const before = await world.availability.readCurrent();
+      const items = aNewItemPair();
+      const newestBefore = await newestSequenceOf(world.store);
 
-      const result = await publish(world, staff, {
-        createdItems: CREATED_ITEMS,
-      });
+      const result = await publish(world, staff, { createdItems: items });
 
-      const afterFirst = String(BigInt(before.revision) + 1n);
-      const afterBoth = String(BigInt(before.revision) + 2n);
+      const afterFirst = await world.aRevisionAfter(before.revision, 1);
+      const afterBoth = await world.aRevisionAfter(
+        before.revision,
+        items.length,
+      );
       expect(result).toEqual({
         kind: "ok",
         versionId: expect.any(String) as string,
-        sequenceNumber: 1,
+        sequenceNumber: newestBefore + 1,
         availabilityRevision: afterBoth,
       });
       const current = await world.availability.readCurrent();
       expect(current.revision).toBe(afterBoth);
-      expect(sortedItems(current.disabled)).toEqual(sortedItems(CREATED_ITEMS));
-      expect(await world.availability.readAt(afterFirst)).toMatchObject({
-        kind: "found",
-        availability: { disabled: [CREATED_ITEMS[0]] },
-      });
+      expect(
+        itemsSwitchedOffBetween(before.disabled, current.disabled),
+      ).toEqual(itemsSwitchedOffBetween([], items));
+      const midway = await world.availability.readAt(afterFirst);
+      expect(midway.kind).toBe("found");
+      expect(
+        midway.kind === "found"
+          ? itemsSwitchedOffBetween(
+              before.disabled,
+              midway.availability.disabled,
+            )
+          : [],
+      ).toEqual([items[0]]);
     });
 
     it("moves the availability head once, with no row in the log, when it creates no item", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const before = await world.availability.readCurrent();
-      const afterOne = String(BigInt(before.revision) + 1n);
+      const afterOne = await world.aRevisionAfter(before.revision, 1);
 
       const result = await publish(world, staff);
 
@@ -706,7 +692,7 @@ function describePublish(
       const world = await newWorld();
       const staff = await world.aStaffMember();
 
-      await publish(world, staff, { createdItems: CREATED_ITEMS });
+      await publish(world, staff, { createdItems: aNewItemPair() });
 
       expect(
         (await world.auditEventsOf(staff.accountId)).map(
@@ -719,35 +705,32 @@ function describePublish(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const [first, second] = CREATED_ITEMS;
+      const [first, second] = aNewItemPair();
+      const stale = (await world.availability.readCurrent()).revision;
       const moved = await world.availability.setActive({
         item: first,
         active: false,
-        expectedRevision: INITIAL_REVISION,
+        expectedRevision: stale,
         audit: auditRecordOf(staff, activationEntryFor(first, false)),
       });
       if (moved.kind !== "ok") {
         throw new Error("the availability write was refused");
       }
-      const draft = await world.store.readDraft();
-      const head = await world.availability.readCurrent();
-      const auditedBefore = await world.auditEventsOf(staff.accountId);
+      const before = await stateOf(world, staff);
 
       const result = await publish(world, staff, {
-        expectedAvailabilityRevision: INITIAL_REVISION,
+        expectedAvailabilityRevision: stale,
         createdItems: [second],
       });
 
       expect(result).toBe(AVAILABILITY_CHANGED_MEANWHILE);
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
-      expect(await world.store.readDraft()).toEqual(draft);
-      expect(await world.availability.readCurrent()).toEqual(head);
-      expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("refuses an availability revision that is not a revision's shape and a created item that names nothing, before it writes", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const before = await stateOf(world, staff);
 
       await dashboardFailureOf(
         publish(world, staff, { expectedAvailabilityRevision: "01" }),
@@ -760,7 +743,7 @@ function describePublish(
         "invalid-request",
       );
 
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("appends nothing and leaves the draft when no live session stands behind the call", async () => {
@@ -768,17 +751,17 @@ function describePublish(
       const staff = await world.aStaffMember();
       const gone = await world.aStaffMemberWhoseSessionIsRevoked();
       await writeDraft(world, staff, [DEPTH_TO_40]);
-      const draft = await world.store.readDraft();
+      const before = await stateOf(world, staff);
 
       await dashboardFailureOf(publish(world, gone), "not-recorded");
 
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
-      expect(await world.store.readDraft()).toEqual(draft);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("refuses a book that is not a JSON object and a change summary that is not a JSON array, appending nothing", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const before = await stateOf(world, staff);
 
       for (const book of ["a book", 4, [], undefined]) {
         await dashboardFailureOf(
@@ -791,12 +774,13 @@ function describePublish(
         "invalid-request",
       );
 
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("refuses an audit entry that is not a publish entry", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const before = await stateOf(world, staff);
 
       await dashboardFailureOf(
         publish(world, staff, {
@@ -808,7 +792,7 @@ function describePublish(
         "invalid-request",
       );
 
-      expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
+      expect(await stateOf(world, staff)).toEqual(before);
     });
 
     it("hands out a book that is its own, so changing what was read or what was given changes no version", async () => {
@@ -831,6 +815,12 @@ function describePublish(
   });
 }
 
+/** What a refused-publish arm read before it wrote, for the override that names the refusal. */
+interface PublishFacts {
+  readonly staleDraftRevision: string;
+  readonly newestSequence: number;
+}
+
 function describeHistory(
   suiteName: string,
   newWorld: () => Promise<PriceBookWorld>,
@@ -839,6 +829,8 @@ function describeHistory(
     it("keeps every version, lists them newest first with only the newest active, and reads each whole", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const totalBefore = (await world.store.listVersions({ page: 1 })).total;
+      const newestBefore = await newestSequenceOf(world.store);
       const first = await publish(world, staff, {
         label: "One",
         note: "First.",
@@ -860,24 +852,41 @@ function describeHistory(
 
       const page = await world.store.listVersions({ page: 1 });
 
-      expect(page.total).toBe(3);
+      expect(page.total).toBe(totalBefore + 3);
       expect(
-        page.versions.map(({ sequenceNumber, label, state, changeCount }) => ({
-          sequenceNumber,
-          label,
-          state,
-          changeCount,
-        })),
+        page.versions
+          .slice(0, 3)
+          .map(({ sequenceNumber, label, state, changeCount }) => ({
+            sequenceNumber,
+            label,
+            state,
+            changeCount,
+          })),
       ).toEqual([
-        { sequenceNumber: 3, label: "Three", state: "active", changeCount: 2 },
-        { sequenceNumber: 2, label: "Two", state: "archived", changeCount: 0 },
-        { sequenceNumber: 1, label: "One", state: "archived", changeCount: 1 },
+        {
+          sequenceNumber: newestBefore + 3,
+          label: "Three",
+          state: "active",
+          changeCount: 2,
+        },
+        {
+          sequenceNumber: newestBefore + 2,
+          label: "Two",
+          state: "archived",
+          changeCount: 0,
+        },
+        {
+          sequenceNumber: newestBefore + 1,
+          label: "One",
+          state: "archived",
+          changeCount: 1,
+        },
       ]);
       expect(await world.store.readVersion(first.versionId)).toMatchObject({
         kind: "found",
         version: {
           versionId: first.versionId,
-          sequenceNumber: 1,
+          sequenceNumber: newestBefore + 1,
           label: "One",
           note: "First.",
           state: "archived",
@@ -887,7 +896,10 @@ function describeHistory(
       });
       expect(await world.store.readActive()).toMatchObject({
         kind: "found",
-        version: { versionId: third.versionId, sequenceNumber: 3 },
+        version: {
+          versionId: third.versionId,
+          sequenceNumber: newestBefore + 3,
+        },
       });
     });
 
@@ -921,10 +933,12 @@ function describeHistory(
         world.availability,
         await world.aStaffMember(),
       );
+      const { total } = await world.store.listVersions({ page: 1 });
+      const pastTheLast = Math.ceil(total / PRICE_VERSION_PAGE_SIZE) + 1;
 
-      const page = await world.store.listVersions({ page: 1_000 });
+      const page = await world.store.listVersions({ page: pastTheLast });
 
-      expect(page).toMatchObject({ total: 1, page: 1_000, versions: [] });
+      expect(page).toMatchObject({ total, page: pastTheLast, versions: [] });
     });
 
     it("refuses a page that is not a whole number from 1", async () => {

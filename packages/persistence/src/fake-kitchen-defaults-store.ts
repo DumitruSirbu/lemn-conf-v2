@@ -1,8 +1,14 @@
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
-import { itemIdOf, itemKeyOf } from "./fake-catalogue-availability-store.js";
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
-import { FakeRevisionHead, isRevisionShape } from "./fake-dashboard-support.js";
+import {
+  FakeRevisionHead,
+  isJsonObject,
+  isRevisionShape,
+  itemIdOf,
+  itemKeyOf,
+  settle,
+} from "./fake-dashboard-support.js";
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
@@ -33,17 +39,10 @@ export interface FakeKitchenDefaultsStoreOptions {
 }
 
 /**
- * In-memory `KitchenDefaultsStore` and `KitchenUsageReader` with the contract the Neon stores must honour.
- *
- * Defaults: a row never saved reads as `NONE_SAVED`, and a row saved with `{}` does not, because it holds a revision
- * the next save needs. A save judges the defaults revision (`changed-meanwhile`) and then the availability head
- * (`availability-changed-meanwhile`), and those are the only refusals the store has: it cannot read `defaults`, so an
- * item that is switched off or not in the book is the caller's judgement under the head's compare-and-set. A refusal
- * writes nothing and no audit row; a save advances the defaults revision and the availability head together, with no
- * row in the availability log.
- *
- * Usage: counts the planted designs, not deleted by their client, that use the item. What "uses" means in a design's
- * document is the Neon reader's to get right (a parity test against the domain); here a design states its items.
+ * In-memory `KitchenDefaultsStore` and `KitchenUsageReader` (ADR 0178). A row saved with `{}` is saved, not `NONE_SAVED`:
+ * it holds the revision the next save needs. A save advances the defaults revision and the availability head together,
+ * with no row in the availability log; it cannot read the book, so whether an item may be the default is the caller's
+ * judgement under the head's compare-and-set. Usage counts the planted designs their client has not deleted.
  */
 export class FakeKitchenDefaultsStore
   implements KitchenDefaultsStore, KitchenUsageReader
@@ -71,14 +70,16 @@ export class FakeKitchenDefaultsStore
   }
 
   read(): Promise<ReadKitchenDefaultsResult> {
-    if (this.savedAt === undefined) return Promise.resolve(NONE_SAVED);
-    return Promise.resolve({
-      kind: "saved",
-      saved: {
-        revision: this.revision.current(),
-        defaults: structuredClone(this.defaults),
-        savedAt: new Date(this.savedAt),
-      },
+    return settle("read the kitchen defaults", () => {
+      if (this.savedAt === undefined) return NONE_SAVED;
+      return {
+        kind: "saved",
+        saved: {
+          revision: this.revision.current(),
+          defaults: structuredClone(this.defaults),
+          savedAt: new Date(this.savedAt),
+        },
+      };
     });
   }
 
@@ -108,21 +109,20 @@ export class FakeKitchenDefaultsStore
   }
 
   count(item: ItemRef): Promise<number> {
-    if (itemIdOf(item) === "") {
-      return Promise.reject(
-        new DashboardStoreError(
+    return settle("count the kitchens using an item", () => {
+      if (itemIdOf(item) === "") {
+        throw new DashboardStoreError(
           "count the kitchens using an item",
           "invalid-request",
-        ),
-      );
-    }
-    const key = itemKeyOf(item);
-    const using = [...this.designs.values()].filter(
-      (design) =>
-        !design.isDeletedByClient &&
-        design.uses.some((used) => itemKeyOf(used) === key),
-    );
-    return Promise.resolve(using.length);
+        );
+      }
+      const key = itemKeyOf(item);
+      return [...this.designs.values()].filter(
+        (design) =>
+          !design.isDeletedByClient &&
+          design.uses.some((used) => itemKeyOf(used) === key),
+      ).length;
+    });
   }
 }
 
@@ -134,9 +134,7 @@ function requireSavable({
   const isWellFormed =
     isRevisionShape(expectedRevision) &&
     isRevisionShape(expectedAvailabilityRevision) &&
-    typeof defaults === "object" &&
-    defaults !== null &&
-    !Array.isArray(defaults);
+    isJsonObject(defaults);
   if (!isWellFormed) {
     throw new DashboardStoreError(
       "save the kitchen defaults",

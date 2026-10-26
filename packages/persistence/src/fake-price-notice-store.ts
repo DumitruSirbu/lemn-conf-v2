@@ -1,5 +1,9 @@
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
-import { isRevisionAhead, isRevisionShape } from "./fake-dashboard-support.js";
+import {
+  isRevisionAhead,
+  isRevisionShape,
+  settle,
+} from "./fake-dashboard-support.js";
 import type { FakePriceBookStore } from "./fake-price-book-store.js";
 import {
   DashboardStoreError,
@@ -42,7 +46,7 @@ export class FakePriceNoticeStore implements PriceNoticeStore {
   }
 
   readAcknowledged(designId: string): Promise<ReadAcknowledgedPricesResult> {
-    return this.settle("read a design's acknowledged prices", () => {
+    return settle("read a design's acknowledged prices", () => {
       requireDesignId(designId, "read a design's acknowledged prices");
       const held = this.markers.get(designId);
       return held === undefined
@@ -53,7 +57,7 @@ export class FakePriceNoticeStore implements PriceNoticeStore {
 
   recordIfAbsent(designId: string, pair: AcknowledgedPrices): Promise<void> {
     const operation = "record a design's first-open prices";
-    return this.settle(operation, () => {
+    return settle(operation, () => {
       requireWritable(designId, pair, operation);
       if (!this.markers.has(designId)) this.markers.set(designId, { ...pair });
     });
@@ -64,7 +68,7 @@ export class FakePriceNoticeStore implements PriceNoticeStore {
     pair: AcknowledgedPrices,
   ): Promise<RecordAcknowledgedPricesResult> {
     const operation = "record a design's acknowledged prices";
-    return this.settle(operation, () => {
+    return settle(operation, () => {
       requireWritable(designId, pair, operation);
       if (!this.priceBook.hasHeldVersion(pair.versionId))
         return UNKNOWN_VERSION;
@@ -79,22 +83,6 @@ export class FakePriceNoticeStore implements PriceNoticeStore {
       this.markers.set(designId, { ...pair });
       return { kind: "ok" };
     });
-  }
-
-  /** Every refusal is a rejection, as a driver's is, never a throw out of a method that returns a promise. */
-  private settle<Answer>(
-    operation: DashboardStoreOperation,
-    judge: () => Answer,
-  ): Promise<Answer> {
-    try {
-      return Promise.resolve(judge());
-    } catch (failure) {
-      return Promise.reject(
-        failure instanceof DashboardStoreError
-          ? failure
-          : new DashboardStoreError(operation, "database", { cause: failure }),
-      );
-    }
   }
 }
 

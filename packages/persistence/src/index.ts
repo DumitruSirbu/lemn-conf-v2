@@ -398,6 +398,7 @@ export {
   ALREADY_CLAIMED,
   AVAILABILITY_CHANGED_MEANWHILE,
   AVAILABILITY_REVISION_NOT_FOUND,
+  CATALOGUE_ACTIVATION_ACTION,
   CHANGED_MEANWHILE,
   DashboardStoreError,
   DISPLAYED_REVISION_AHEAD,
@@ -405,6 +406,7 @@ export {
   NEVER_RECORDED,
   NO_ACTIVE_VERSION,
   NONE_SAVED,
+  PRICE_VERSION_PAGE_SIZE,
   REVISION_AHEAD,
   UNKNOWN_VERSION,
   VERSION_NOT_FOUND,
@@ -475,10 +477,7 @@ export type {
   StageDashboardAuditRequest,
   StagedDashboardAudit,
 } from "./fake-dashboard-support.js";
-export {
-  FakePriceBookStore,
-  PRICE_VERSION_PAGE_SIZE,
-} from "./fake-price-book-store.js";
+export { FakePriceBookStore } from "./fake-price-book-store.js";
 export type { FakePriceBookStoreOptions } from "./fake-price-book-store.js";
 export { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 export type { FakeCatalogueAvailabilityStoreOptions } from "./fake-catalogue-availability-store.js";

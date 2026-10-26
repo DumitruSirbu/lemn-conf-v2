@@ -11,6 +11,7 @@ import {
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
+  CATALOGUE_ACTIVATION_ACTION,
   INITIAL_REVISION,
   type ActivationAuditRecord,
   type CatalogueAvailabilityStore,
@@ -272,15 +273,12 @@ describe("no answer is absent", () => {
   });
 
   it("reads a never-written revision as the one value the domain's audit shape also accepts", () => {
-    const reading = readDashboardAuditEntry(
-      "catalogue-item-activation-changed",
-      {
-        itemKind: "material",
-        itemId: "material.painted-mdf",
-        active: true,
-        availabilityRevision: INITIAL_REVISION,
-      },
-    );
+    const reading = readDashboardAuditEntry(CATALOGUE_ACTIVATION_ACTION, {
+      itemKind: "material",
+      itemId: "material.painted-mdf",
+      active: true,
+      availabilityRevision: INITIAL_REVISION,
+    });
 
     expect(reading.ok).toBe(true);
   });

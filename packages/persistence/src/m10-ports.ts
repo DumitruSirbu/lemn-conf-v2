@@ -1,3 +1,4 @@
+import { DASHBOARD_AUDIT_ACTIONS } from "@lemnaria/configurator-domain";
 import type {
   CatalogueActivationAuditInput,
   CatalogueAvailability,
@@ -140,6 +141,9 @@ export interface PriceVersionPageRequest {
   /** From 1. */
   readonly page: number;
 }
+
+/** How many versions the history page lists. */
+export const PRICE_VERSION_PAGE_SIZE = 20;
 
 export interface PriceVersionPage {
   readonly total: number;
@@ -415,6 +419,23 @@ export type ReadAvailabilityAtResult =
   | { readonly kind: "found"; readonly availability: CatalogueAvailability }
   | AvailabilityRevisionNotFound;
 
+/**
+ * The audit action of an availability write, taken from the domain's list rather than restated: the stored action is
+ * limited to 32 characters (migration 0020), so a rename there must reach every store and contract at once.
+ */
+export const CATALOGUE_ACTIVATION_ACTION = findCatalogueActivationAction();
+
+function findCatalogueActivationAction(): CatalogueActivationAuditInput["action"] {
+  const action = DASHBOARD_AUDIT_ACTIONS.find(
+    (candidate): candidate is CatalogueActivationAuditInput["action"] =>
+      candidate.startsWith("catalogue-item-"),
+  );
+  if (action === undefined) {
+    throw new Error("The domain lists no catalogue-item audit action.");
+  }
+  return action;
+}
+
 /** The staff member who acts, and the activation **without** the revision it will create (M4). */
 export interface ActivationAuditRecord {
   readonly session: StaffActingSession;
@@ -426,7 +447,7 @@ export interface SetItemActiveRequest {
   readonly active: boolean;
   readonly expectedRevision: string;
   /**
-   * `catalogue-item-activation-changed` without `availabilityRevision`. The store stamps the revision its statement
+   * `CATALOGUE_ACTIVATION_ACTION` without `availabilityRevision`. The store stamps the revision its statement
    * returned into the detail, reads the entry again with the domain, and inserts, all in the one transaction. The
    * expected revision is not recorded: two racing requests may share it, while the returned revision is the unique key
    * joining the audit row to its log row.

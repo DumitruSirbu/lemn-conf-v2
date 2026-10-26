@@ -3,14 +3,20 @@ import type {
   DashboardAuditEntry,
   ItemRef,
 } from "@lemnaria/configurator-domain";
+import { nanoid } from "nanoid";
 import { expect } from "vitest";
 
-import { DashboardStoreError } from "../../src/m10-ports.js";
+import { itemIdOf } from "../../src/fake-dashboard-support.js";
+import {
+  CATALOGUE_ACTIVATION_ACTION,
+  DashboardStoreError,
+} from "../../src/m10-ports.js";
 import type {
-  PricePublishedAuditInput,
   CatalogueAvailabilityStore,
   DashboardStoreFailure,
   PriceBookStore,
+  PricePublishedAuditInput,
+  PublishPriceBookRequest,
 } from "../../src/m10-ports.js";
 import type { StaffActingSession } from "../../src/staff-kitchen-actions-store.js";
 import { rejectionOf } from "./rejection-of.js";
@@ -39,6 +45,11 @@ export interface DashboardStaffWorld {
   auditEventsOf(
     accountId: string,
   ): Promise<readonly StoredDashboardAuditEvent[]>;
+  /**
+   * The revision `steps` writes after `revision`. Contracts never do arithmetic on a revision (A-12): the fake counts
+   * and the live world asks the database, so "ahead of the head" and "moved by exactly n" read the same in both.
+   */
+  aRevisionAfter(revision: string, steps: number): Promise<string>;
 }
 
 export function auditRecordOf<Entry>(
@@ -63,29 +74,44 @@ export function publishedEntry(): PricePublishedAuditInput {
   return { action: "price-published", detail: { provisional: true } };
 }
 
-/** The audit entry of an availability write: without the revision, which only the store knows (X0 review M4). */
+/** The audit entry of an availability write: without the revision, which only the store knows. */
 export function activationEntryFor(
   item: ItemRef,
   active: boolean,
 ): CatalogueActivationAuditInput {
   return {
-    action: "catalogue-item-activation-changed",
+    action: CATALOGUE_ACTIVATION_ACTION,
     detail: { itemKind: item.kind, itemId: itemIdOf(item), active },
   };
 }
 
-function itemIdOf(item: ItemRef): string {
-  switch (item.kind) {
+/**
+ * An item no earlier test or run has switched, so that what a contract reads of it is its own doing. The catalogue log
+ * is append-only and a shared test database keeps every row.
+ */
+export function aNewItem(kind: "material" | "hardware" | "accessory"): ItemRef {
+  const id = `item-${nanoid(10)}`;
+  switch (kind) {
     case "material":
     case "hardware":
-      return item.tierId;
-    case "finish":
-      return item.finishId;
-    case "handle":
-      return item.handle;
+      return { kind, tierId: id };
     case "accessory":
-      return item.accessoryId;
+      return { kind, accessoryId: id };
   }
+}
+
+/** What a publish creates: a hardware class and a linked accessory, both new. */
+export function aNewItemPair(): readonly [ItemRef, ItemRef] {
+  return [aNewItem("hardware"), aNewItem("accessory")];
+}
+
+/** The items switched off in `after` and not in `before`, in one order: what a write added to the switched-off set. */
+export function itemsSwitchedOffBetween(
+  before: readonly ItemRef[],
+  after: readonly ItemRef[],
+): ItemRef[] {
+  const wasOff = new Set(before.map((item) => JSON.stringify(item)));
+  return sortedItems(after.filter((item) => !wasOff.has(JSON.stringify(item))));
 }
 
 /** A book as the fakes and the Neon stores read one: tiers by `tierId`, the two built-in accessories as named fields. */
@@ -103,10 +129,37 @@ export const A_BOOK = Object.freeze({
   linkedAccessories: [{ accessoryId: "plinth-light" }],
 });
 
+/** The sequence number of the active version, or 0 when none is published. */
+export async function newestSequenceOf(store: PriceBookStore): Promise<number> {
+  const active = await store.readActive();
+  return active.kind === "found" ? active.version.sequenceNumber : 0;
+}
+
 /**
- * Publishes the next version from the draft as it stands, taking every revision from the stores themselves, creating
- * no items, and answers the version. A seed for the contracts that need an active book, not a thing under test.
+ * A publish that is right in every respect: each expected revision and sequence is read from the stores, no item is
+ * created and the draft is taken as it stands. A caller names what it means to get wrong in `overrides`.
  */
+export async function publishRequestFor(
+  store: PriceBookStore,
+  availability: CatalogueAvailabilityStore,
+  staff: DashboardStaffMember,
+  overrides: Partial<PublishPriceBookRequest> = {},
+): Promise<PublishPriceBookRequest> {
+  return {
+    expectedDraftRevision: (await store.readDraft()).draftRevision,
+    expectedActiveSequence: await newestSequenceOf(store),
+    expectedAvailabilityRevision: (await availability.readCurrent()).revision,
+    createdItems: [],
+    label: "Test version",
+    note: "A version a contract seeded.",
+    book: A_BOOK,
+    changeSummary: [],
+    audit: auditRecordOf(staff, publishedEntry()),
+    ...overrides,
+  };
+}
+
+/** Publishes the next version as the stores stand. A seed for the contracts that need an active book, not a test. */
 export async function publishNextVersion(
   store: PriceBookStore,
   availability: CatalogueAvailabilityStore,
@@ -117,21 +170,9 @@ export async function publishNextVersion(
   readonly sequenceNumber: number;
   readonly availabilityRevision: string;
 }> {
-  const draft = await store.readDraft();
-  const active = await store.readActive();
-  const expectedActiveSequence =
-    active.kind === "found" ? active.version.sequenceNumber : 0;
-  const result = await store.publish({
-    expectedDraftRevision: draft.draftRevision,
-    expectedActiveSequence,
-    expectedAvailabilityRevision: (await availability.readCurrent()).revision,
-    createdItems: [],
-    label: "Test version",
-    note: "A version a contract seeded.",
-    book,
-    changeSummary: [],
-    audit: auditRecordOf(staff, publishedEntry()),
-  });
+  const result = await store.publish(
+    await publishRequestFor(store, availability, staff, { book }),
+  );
   if (result.kind !== "ok") {
     throw new Error(`the seed publish was refused: ${result.kind}`);
   }

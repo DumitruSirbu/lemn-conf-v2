@@ -1,3 +1,8 @@
+import {
+  DIGEST_STOPPING_STATUSES,
+  DIGEST_WINDOW_MS,
+  REQUEST_STATUSES,
+} from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -63,14 +68,15 @@ export interface SeenMark {
 
 const NOW = new Date("2026-10-26T05:00:00.000Z");
 const DAY_MS = 86_400_000;
-const WINDOW_MS = 30 * DAY_MS;
 
 /** The widest revision a `bigint` holds: a valid shape no kitchen has reached. */
 const WIDEST_REVISION = "9223372036854775807";
 
-/** The statuses staff may set; the digest stops at the last two. */
-const STATUSES_THAT_CONTINUE = ["new", "contacted"];
-const STATUSES_THAT_STOP = ["offer-sent", "closed"];
+/** The statuses the digest stops at, and every other status staff may set. */
+const STATUSES_THAT_STOP: readonly string[] = DIGEST_STOPPING_STATUSES;
+const STATUSES_THAT_CONTINUE: readonly string[] = REQUEST_STATUSES.filter(
+  (status) => !STATUSES_THAT_STOP.includes(status),
+);
 const WHEN_SENT = new Date(NOW.getTime() - 2 * DAY_MS);
 
 export function describeKitchenChangeStoreContract(
@@ -105,6 +111,28 @@ function describeMarkSeen(
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         { action: "kitchen-seen", designId: kitchen.designId, detail: {} },
       ]);
+    });
+
+    it("marks a kitchen an account holds and never sent as seen, and the digest never lists it", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({});
+      const saved = await world.saveKitchen(kitchen.designId);
+
+      const result = await world.store.markSeen({
+        designId: kitchen.designId,
+        displayedRevision: saved,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+
+      expect(result).toEqual({ kind: "ok" });
+      expect(await world.seenRevisionOf(kitchen.designId)).toBe(saved);
+      expect(await world.auditEventsOf(staff.accountId)).toEqual([
+        { action: "kitchen-seen", designId: kitchen.designId, detail: {} },
+      ]);
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
+      await world.saveKitchen(kitchen.designId);
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
     });
 
     it("records a displayed revision older than the current one as it is, so the badge stays on", async () => {
@@ -603,7 +631,7 @@ function describeDigestEligibility(
         const sentAt = new Date(start);
         const kitchen = await world.aKitchen({ sentAt });
         await world.saveKitchen(kitchen.designId);
-        const edge = sentAt.getTime() + WINDOW_MS;
+        const edge = sentAt.getTime() + DIGEST_WINDOW_MS;
 
         const listedAt = async (instant: number) =>
           (await world.store.listDigestEligible(new Date(instant))).some(
@@ -702,7 +730,7 @@ function describeDigestEligibility(
       const world = await newWorld();
       const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
       await world.saveKitchen(kitchen.designId);
-      const thirtyDaysAfter = new Date(WHEN_SENT.getTime() + 30 * DAY_MS);
+      const thirtyDaysAfter = new Date(WHEN_SENT.getTime() + DIGEST_WINDOW_MS);
       const justBefore = new Date(thirtyDaysAfter.getTime() - 1);
 
       const beforeIt = await world.store.listDigestEligible(justBefore);
@@ -712,7 +740,7 @@ function describeDigestEligibility(
       expect(atIt.map((row) => row.designId)).not.toContain(kitchen.designId);
     });
 
-    it.each(["offer-sent", "closed"])(
+    it.each([...STATUSES_THAT_STOP])(
       "does not list a kitchen whose request status is %s",
       async (status) => {
         const world = await newWorld();
@@ -723,16 +751,16 @@ function describeDigestEligibility(
       },
     );
 
-    it("lists a kitchen whose status is one that continues", async () => {
-      const world = await newWorld();
-      const kitchen = await world.aKitchen({
-        sentAt: WHEN_SENT,
-        status: "contacted",
-      });
-      await world.saveKitchen(kitchen.designId);
+    it.each([...STATUSES_THAT_CONTINUE])(
+      "lists a kitchen whose request status is %s",
+      async (status) => {
+        const world = await newWorld();
+        const kitchen = await world.aKitchen({ sentAt: WHEN_SENT, status });
+        await world.saveKitchen(kitchen.designId);
 
-      expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
-    });
+        expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
+      },
+    );
 
     it("does not list a kitchen its client deleted, nor one never sent", async () => {
       const world = await newWorld();

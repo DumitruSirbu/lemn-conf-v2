@@ -2,8 +2,10 @@ import type { ItemRef } from "@lemnaria/configurator-domain";
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
+import { itemIdOf } from "../../src/fake-dashboard-support.js";
 import {
   AVAILABILITY_REVISION_NOT_FOUND,
+  CATALOGUE_ACTIVATION_ACTION,
   CHANGED_MEANWHILE,
   INITIAL_REVISION,
 } from "../../src/m10-ports.js";
@@ -12,15 +14,21 @@ import type {
   CatalogueAvailabilityStore,
 } from "../../src/m10-ports.js";
 import {
+  aNewItem,
   activationEntryFor,
   auditRecordOf,
   dashboardFailureOf,
+  itemsSwitchedOffBetween,
   sortedItems,
 } from "./dashboard-contract-support.js";
 import type {
   DashboardStaffMember,
   DashboardStaffWorld,
 } from "./dashboard-contract-support.js";
+
+// These suites also run against a shared test database whose log earlier runs have written to (ADR 0151, and the log is
+// append-only). Each arm therefore switches items no earlier run has touched and asserts what its writes changed, from
+// a read taken before them. What only an empty log can promise is asserted in the fake's own test file.
 
 export interface AvailabilityWorld extends DashboardStaffWorld {
   readonly store: CatalogueAvailabilityStore;
@@ -67,21 +75,28 @@ async function currentRevision(world: AvailabilityWorld): Promise<string> {
   return (await world.store.readCurrent()).revision;
 }
 
+/** Switches the item off at the head, which the arm needs done and does not test. */
+async function switchOff(
+  world: AvailabilityWorld,
+  staff: DashboardStaffMember,
+  item: ItemRef,
+): Promise<string> {
+  const result = await setActive(world, staff, {
+    item,
+    active: false,
+    expectedRevision: await currentRevision(world),
+  });
+  if (result.kind !== "ok")
+    throw new Error("the availability write was refused");
+  return result.revision;
+}
+
 function describeReading(
   suiteName: string,
   newWorld: () => Promise<AvailabilityWorld>,
 ): void {
   describe(`${suiteName}: reading`, () => {
-    it("reads nothing switched off, at the revision a table with no row has", async () => {
-      const world = await newWorld();
-
-      expect(await world.store.readCurrent()).toEqual({
-        revision: INITIAL_REVISION,
-        disabled: [],
-      });
-    });
-
-    it("answers the state at the initial revision as nothing switched off", async () => {
+    it("answers the state at the initial revision as nothing switched off, whatever the log holds since", async () => {
       const world = await newWorld();
 
       expect(await world.store.readAt(INITIAL_REVISION)).toEqual({
@@ -93,13 +108,10 @@ function describeReading(
     it("knows no revision beyond the head, and none that is not a revision's shape", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      await setActive(world, staff, {
-        item: MDF,
-        active: false,
-        expectedRevision: await currentRevision(world),
-      });
+      const head = await switchOff(world, staff, aNewItem("material"));
 
       for (const revision of [
+        await world.aRevisionAfter(head, 1),
         "9223372036854775807",
         "9223372036854775808",
         "01",
@@ -125,12 +137,13 @@ function describeSetActive(
     it("switches an item off at the revision it produced, and writes the audit row with that revision, for the account of the session", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const before = await currentRevision(world);
+      const item = aNewItem("material");
+      const before = await world.store.readCurrent();
 
       const result = await setActive(world, staff, {
-        item: MDF,
+        item,
         active: false,
-        expectedRevision: before,
+        expectedRevision: before.revision,
       });
 
       expect(result).toEqual({
@@ -138,18 +151,19 @@ function describeSetActive(
         revision: expect.any(String) as string,
       });
       const revision = result.kind === "ok" ? result.revision : "";
-      expect(revision).not.toBe(before);
-      expect(await world.store.readCurrent()).toEqual({
-        revision,
-        disabled: [MDF],
-      });
+      expect(revision).not.toBe(before.revision);
+      const after = await world.store.readCurrent();
+      expect(after.revision).toBe(revision);
+      expect(itemsSwitchedOffBetween(before.disabled, after.disabled)).toEqual([
+        item,
+      ]);
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         {
-          action: "catalogue-item-activation-changed",
+          action: CATALOGUE_ACTIVATION_ACTION,
           designId: undefined,
           detail: {
-            itemKind: "material",
-            itemId: "mdf",
+            itemKind: item.kind,
+            itemId: itemIdOf(item),
             active: false,
             availabilityRevision: revision,
           },
@@ -160,60 +174,51 @@ function describeSetActive(
     it("switches an item back on, which leaves it out of what is off", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const off = await setActive(world, staff, {
-        item: FENIX,
-        active: false,
-        expectedRevision: await currentRevision(world),
-      });
-      if (off.kind !== "ok") throw new Error("the first write was refused");
+      const item = aNewItem("material");
+      const off = await switchOff(world, staff, item);
 
       await setActive(world, staff, {
-        item: FENIX,
+        item,
         active: true,
-        expectedRevision: off.revision,
+        expectedRevision: off,
       });
 
-      expect((await world.store.readCurrent()).disabled).toEqual([]);
+      expect((await world.store.readCurrent()).disabled).not.toContainEqual(
+        item,
+      );
     });
 
     it("keeps an item of one kind apart from an item of another that has the same id", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const sameId: ItemRef = { kind: "hardware", tierId: "mdf" };
+      const material = aNewItem("material");
+      const sameId: ItemRef = { kind: "hardware", tierId: itemIdOf(material) };
+      const before = await world.store.readCurrent();
 
+      await switchOff(world, staff, material);
+      await switchOff(world, staff, sameId);
       await setActive(world, staff, {
-        item: MDF,
-        active: false,
-        expectedRevision: await currentRevision(world),
-      });
-      await setActive(world, staff, {
-        item: sameId,
-        active: false,
-        expectedRevision: await currentRevision(world),
-      });
-      await setActive(world, staff, {
-        item: MDF,
+        item: material,
         active: true,
         expectedRevision: await currentRevision(world),
       });
 
-      expect((await world.store.readCurrent()).disabled).toEqual([sameId]);
+      const after = await world.store.readCurrent();
+      expect(itemsSwitchedOffBetween(before.disabled, after.disabled)).toEqual([
+        sameId,
+      ]);
     });
 
     it("refuses a stale expected revision, appending no row, moving no head and writing no audit row", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const stale = await currentRevision(world);
-      await setActive(world, staff, {
-        item: MDF,
-        active: false,
-        expectedRevision: stale,
-      });
+      await switchOff(world, staff, aNewItem("material"));
       const before = await world.store.readCurrent();
       const auditedBefore = await world.auditEventsOf(staff.accountId);
 
       const result = await setActive(world, staff, {
-        item: FENIX,
+        item: aNewItem("material"),
         active: false,
         expectedRevision: stale,
       });
@@ -226,12 +231,17 @@ function describeSetActive(
     it("lets exactly one of two writes racing at one revision win, and moves the head by one", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const expectedRevision = await currentRevision(world);
+      const before = await world.store.readCurrent();
+      const expectedRevision = before.revision;
 
       const answers = await Promise.all([
-        setActive(world, staff, { item: MDF, active: false, expectedRevision }),
         setActive(world, staff, {
-          item: FENIX,
+          item: aNewItem("material"),
+          active: false,
+          expectedRevision,
+        }),
+        setActive(world, staff, {
+          item: aNewItem("material"),
           active: false,
           expectedRevision,
         }),
@@ -242,10 +252,15 @@ function describeSetActive(
         "ok",
       ]);
       const after = await world.store.readCurrent();
-      expect(after.disabled).toHaveLength(1);
+      expect(after.revision).toBe(
+        await world.aRevisionAfter(expectedRevision, 1),
+      );
+      expect(
+        itemsSwitchedOffBetween(before.disabled, after.disabled),
+      ).toHaveLength(1);
       expect(await world.auditEventsOf(staff.accountId)).toHaveLength(1);
       const next = await setActive(world, staff, {
-        item: WALNUT,
+        item: aNewItem("accessory"),
         active: false,
         expectedRevision: after.revision,
       });
@@ -255,23 +270,27 @@ function describeSetActive(
     it("moves the head by exactly one for each write, and the audit row of each names the revision its own write produced, never the one it expected", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const items = [MDF, FENIX, WALNUT];
+      const items = [
+        aNewItem("material"),
+        aNewItem("material"),
+        aNewItem("hardware"),
+      ];
       const produced: string[] = [];
-      let head = BigInt(await currentRevision(world));
-      const start = head;
+      let head = await currentRevision(world);
 
       for (const item of items) {
+        const expectedProduced = await world.aRevisionAfter(head, 1);
         const result = await setActive(world, staff, {
           item,
           active: false,
-          expectedRevision: String(head),
+          expectedRevision: head,
         });
-        expect(result).toEqual({ kind: "ok", revision: String(head + 1n) });
-        head += 1n;
-        produced.push(String(head));
+        expect(result).toEqual({ kind: "ok", revision: expectedProduced });
+        head = expectedProduced;
+        produced.push(head);
       }
 
-      expect(String(start + 3n)).toBe(await currentRevision(world));
+      expect(await currentRevision(world)).toBe(head);
       const audited = (await world.auditEventsOf(staff.accountId)).map(
         (event) =>
           (event.detail as { availabilityRevision: string })
@@ -283,15 +302,12 @@ function describeSetActive(
     it("refuses an expected revision ahead of the head, or the widest one there is, appending no row, moving no head and writing no audit row", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const head = await currentRevision(world);
       const before = await world.store.readCurrent();
+      const oneAhead = await world.aRevisionAfter(before.revision, 1);
 
-      for (const expectedRevision of [
-        String(BigInt(head) + 1n),
-        WIDEST_REVISION,
-      ]) {
+      for (const expectedRevision of [oneAhead, WIDEST_REVISION]) {
         const result = await setActive(world, staff, {
-          item: MDF,
+          item: aNewItem("material"),
           active: false,
           expectedRevision,
         });
@@ -305,11 +321,13 @@ function describeSetActive(
     it("lets exactly one of three writes racing at one revision win, moving the head by one, with one audit row naming the winner's revision", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const expectedRevision = await currentRevision(world);
+      const before = await world.store.readCurrent();
+      const expectedRevision = before.revision;
 
       const answers = await Promise.all(
-        [MDF, FENIX, WALNUT].map((item) =>
-          setActive(world, staff, { item, active: false, expectedRevision }),
+        [aNewItem("material"), aNewItem("material"), aNewItem("hardware")].map(
+          (item) =>
+            setActive(world, staff, { item, active: false, expectedRevision }),
         ),
       );
 
@@ -319,8 +337,12 @@ function describeSetActive(
         answers.filter((answer) => answer === CHANGED_MEANWHILE),
       ).toHaveLength(2);
       const after = await world.store.readCurrent();
-      expect(after.revision).toBe(String(BigInt(expectedRevision) + 1n));
-      expect(after.disabled).toHaveLength(1);
+      expect(after.revision).toBe(
+        await world.aRevisionAfter(expectedRevision, 1),
+      );
+      expect(
+        itemsSwitchedOffBetween(before.disabled, after.disabled),
+      ).toHaveLength(1);
       expect(await world.auditEventsOf(staff.accountId)).toMatchObject([
         { detail: { availabilityRevision: after.revision } },
       ]);
@@ -333,7 +355,7 @@ function describeSetActive(
 
       await dashboardFailureOf(
         setActive(world, gone, {
-          item: MDF,
+          item: aNewItem("material"),
           active: false,
           expectedRevision: before.revision,
         }),
@@ -348,19 +370,23 @@ function describeSetActive(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const expectedRevision = await currentRevision(world);
+      const item = aNewItem("material");
 
       await dashboardFailureOf(
         world.store.setActive({
-          item: MDF,
+          item,
           active: false,
           expectedRevision,
-          audit: auditRecordOf(staff, activationEntryFor(FENIX, false)),
+          audit: auditRecordOf(
+            staff,
+            activationEntryFor(aNewItem("material"), false),
+          ),
         }),
         "invalid-request",
       );
       await dashboardFailureOf(
         world.store.setActive({
-          item: MDF,
+          item,
           active: false,
           expectedRevision,
           audit: auditRecordOf(staff, {
@@ -388,7 +414,7 @@ function describeSetActive(
       ]) {
         await dashboardFailureOf(
           setActive(world, staff, {
-            item: MDF,
+            item: aNewItem("material"),
             active: false,
             expectedRevision,
           }),
@@ -457,10 +483,13 @@ function describeReplay(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const sequence = replaySequence();
+      const start = await world.store.readCurrent();
+      const off = new Map<string, ItemRef>(
+        start.disabled.map((item) => [JSON.stringify(item), item]),
+      );
       const expectedStates = new Map<string, ItemRef[]>([
-        [INITIAL_REVISION, []],
+        [start.revision, [...off.values()]],
       ]);
-      const off = new Map<string, ItemRef>();
 
       for (const { item, active } of sequence) {
         const result = await setActive(world, staff, {

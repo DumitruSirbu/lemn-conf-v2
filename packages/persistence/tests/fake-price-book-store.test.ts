@@ -1,12 +1,17 @@
 import type { DraftChange } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { PRICE_VERSION_PAGE_SIZE } from "../src/fake-price-book-store.js";
-import { INITIAL_REVISION } from "../src/m10-ports.js";
 import {
+  INITIAL_REVISION,
+  NO_ACTIVE_VERSION,
+  PRICE_VERSION_PAGE_SIZE,
+} from "../src/m10-ports.js";
+import {
+  A_BOOK,
   DRAFT_CHANGED,
   auditRecordOf,
   publishNextVersion,
+  publishedEntry,
 } from "./support/dashboard-contract-support.js";
 import { newFakeDashboardWorld } from "./support/fake-dashboard-world.js";
 import { describePriceBookStoreContract } from "./support/price-book-store-contract.js";
@@ -22,6 +27,42 @@ function newPriceBookWorld(): PriceBookWorld &
 describePriceBookStoreContract("FakePriceBookStore", () =>
   Promise.resolve(newPriceBookWorld()),
 );
+
+describe("FakePriceBookStore, before anything is published (a table with no rows)", () => {
+  it("has no active version, no history and an empty draft at the initial revision", async () => {
+    const world = newPriceBookWorld();
+
+    expect(await world.store.readActive()).toBe(NO_ACTIVE_VERSION);
+    expect(await world.store.readDraft()).toEqual({
+      draftRevision: INITIAL_REVISION,
+      changes: [],
+    });
+    expect(await world.store.listVersions({ page: 1 })).toMatchObject({
+      total: 0,
+      page: 1,
+      versions: [],
+    });
+  });
+
+  it("appends version 1 to a publish that expects sequence 0 and the initial revisions", async () => {
+    const world = newPriceBookWorld();
+    const staff = await world.aStaffMember();
+
+    const result = await world.store.publish({
+      expectedDraftRevision: INITIAL_REVISION,
+      expectedActiveSequence: 0,
+      expectedAvailabilityRevision: INITIAL_REVISION,
+      createdItems: [],
+      label: "First",
+      note: "",
+      book: A_BOOK,
+      changeSummary: [],
+      audit: auditRecordOf(staff, publishedEntry()),
+    });
+
+    expect(result).toMatchObject({ kind: "ok", sequenceNumber: 1 });
+  });
+});
 
 describe("FakePriceBookStore, beyond what the Neon store must also do", () => {
   it("pages the history by its page size, newest first, and no version is on two pages", async () => {

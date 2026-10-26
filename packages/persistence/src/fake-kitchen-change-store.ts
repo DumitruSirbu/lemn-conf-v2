@@ -3,10 +3,14 @@ import {
   DIGEST_WINDOW_MS,
 } from "@lemnaria/configurator-domain";
 
-import { isRevisionAhead, isRevisionShape } from "./fake-dashboard-support.js";
-import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
 import { isDesignRevision } from "./design-revision.js";
 import type { DesignRevision } from "./design-revision.js";
+import {
+  isRevisionAhead,
+  isRevisionShape,
+  settle,
+} from "./fake-dashboard-support.js";
+import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
 import {
   ALREADY_CLAIMED,
   DISPLAYED_REVISION_AHEAD,
@@ -71,22 +75,11 @@ interface HeldDigestEntry {
 }
 
 /**
- * In-memory `KitchenChangeStore` with the contract the Neon store must honour.
- *
- * A seen mark records the revision the page displayed, not the kitchen's current one, so a save landing between load
- * and mark leaves the kitchen changed; a displayed revision ahead of the current is refused and writes nothing and no
- * audit row; a client-deleted kitchen, a visitor's unsent draft, an unknown or malformed id are all `not-found`; a mark
- * changes the seen row, its revision, who set it and when, only when the displayed revision is strictly greater than
- * the held one; an equal or lower one answers ok and leaves the row as it was, and still writes its audit row. A day is claimed once, and a second claim is
- * `ALREADY_CLAIMED`; the round a claim answers is its day, and an entry is keyed by the day and the kitchen.
- *
- * A kitchen is digest-eligible when it changed since it was seen (its revision is not the effective seen revision: the
- * seen mark's, else its latest submission's), is not held, was sent less than `DIGEST_WINDOW_MS` (720 h) before `now`, has
- * no `offer-sent` or `closed` status and was not deleted by its client. It is held when a digest entry, not merely a
- * claimed day, names it at a revision above the effective seen one: judged on revisions, never instants, so a stale seen
- * mark does not send a digested revision again. The digest names the customer by the account's name with its spaces trimmed, else (a blank name
- * included) the request's reference, and carries no contact detail. It cannot stand for two racing claims meeting a unique index
- * (every call judges and writes in one turn of the event loop).
+ * In-memory `KitchenChangeStore` (ADR 0178 A-12, A-13). Judged on revisions, never instants: a seen mark records the
+ * revision the page displayed and only ever rises, and a kitchen is held by a digest entry (not merely a claimed day)
+ * above the effective seen revision, so a stale mark does not send a digested revision again. The customer is named by
+ * `btrim`, which strips spaces only. Every call judges and writes in one turn of the event loop, so the fake cannot
+ * stand for two claims racing at a unique index.
  */
 export class FakeKitchenChangeStore implements KitchenChangeStore {
   private readonly kitchens = new Map<string, HeldChangeKitchen>();
@@ -169,28 +162,28 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
   }
 
   claimDigestDay(dayKey: DigestDayKey): Promise<ClaimDigestDayResult> {
-    if (!isCalendarDay(dayKey)) {
-      return Promise.reject(
-        new DashboardStoreError("claim a digest day", "invalid-request"),
-      );
-    }
-    if (this.rounds.some((round) => round.dayKey === dayKey)) {
-      return Promise.resolve(ALREADY_CLAIMED);
-    }
-    this.rounds.push({ dayKey, claimedAt: this.now() });
-    return Promise.resolve({ kind: "claimed", roundId: dayKey });
+    return settle("claim a digest day", () => {
+      if (!isCalendarDay(dayKey)) {
+        throw new DashboardStoreError("claim a digest day", "invalid-request");
+      }
+      if (this.rounds.some((round) => round.dayKey === dayKey)) {
+        return ALREADY_CLAIMED;
+      }
+      this.rounds.push({ dayKey, claimedAt: this.now() });
+      return { kind: "claimed", roundId: dayKey };
+    });
   }
 
   listDigestEligible(now: Date): Promise<readonly DigestEligibleKitchen[]> {
-    const eligible = [...this.kitchens.values()]
-      .filter((kitchen) => this.isDigestEligible(kitchen, now))
-      .sort(bySentThenId);
-    return Promise.resolve(
-      eligible.flatMap((kitchen) =>
-        kitchen.sentAt === undefined
-          ? []
-          : [digestRowOf(kitchen, kitchen.sentAt)],
-      ),
+    return settle("list the kitchens a digest holds", () =>
+      [...this.kitchens.values()]
+        .filter((kitchen) => this.isDigestEligible(kitchen, now))
+        .sort(bySentThenId)
+        .flatMap((kitchen) =>
+          kitchen.sentAt === undefined
+            ? []
+            : [digestRowOf(kitchen, kitchen.sentAt)],
+        ),
     );
   }
 
@@ -198,22 +191,21 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     roundId: string,
     entries: readonly DigestedKitchen[],
   ): Promise<void> {
-    const isWellFormed =
-      this.rounds.some((round) => round.dayKey === roundId) &&
-      entries.every((entry) => isDesignRevision(entry.revision));
-    if (!isWellFormed) {
-      return Promise.reject(
-        new DashboardStoreError("record a digest", "invalid-request"),
-      );
-    }
-    for (const { designId, revision } of entries) {
-      const isRecorded = this.entries.some(
-        (held) => held.dayKey === roundId && held.designId === designId,
-      );
-      if (!isRecorded)
-        this.entries.push({ dayKey: roundId, designId, revision });
-    }
-    return Promise.resolve();
+    return settle("record a digest", () => {
+      const isWellFormed =
+        this.rounds.some((round) => round.dayKey === roundId) &&
+        entries.every((entry) => isDesignRevision(entry.revision));
+      if (!isWellFormed) {
+        throw new DashboardStoreError("record a digest", "invalid-request");
+      }
+      for (const { designId, revision } of entries) {
+        const isRecorded = this.entries.some(
+          (held) => held.dayKey === roundId && held.designId === designId,
+        );
+        if (!isRecorded)
+          this.entries.push({ dayKey: roundId, designId, revision });
+      }
+    });
   }
 
   /** The staff kitchens' visibility: not deleted by its client, and sent or held by an account (ADR 0173 P-L3-4). */

@@ -1,15 +1,21 @@
 import type { ItemRef } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
-import { itemIdOf } from "./fake-catalogue-availability-store.js";
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
-import { FakeRevisionHead, isRevisionShape } from "./fake-dashboard-support.js";
+import {
+  FakeRevisionHead,
+  isJsonObject,
+  isNamedItem,
+  isRevisionShape,
+  settle,
+} from "./fake-dashboard-support.js";
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
   DashboardStoreError,
   NO_ACTIVE_VERSION,
+  PRICE_VERSION_PAGE_SIZE,
   VERSION_NOT_FOUND,
 } from "./m10-ports.js";
 import type {
@@ -25,9 +31,6 @@ import type {
   WriteDraftRequest,
   WriteDraftResult,
 } from "./m10-ports.js";
-
-/** How many versions the history page lists. */
-export const PRICE_VERSION_PAGE_SIZE = 20;
 
 const DRAFT_WRITE_ACTIONS = Object.freeze([
   "price-draft-changed",
@@ -56,19 +59,11 @@ export interface FakePriceBookStoreOptions {
 }
 
 /**
- * In-memory `PriceBookStore` with the contract the Neon store must honour: the newest version is the active one and
- * versions are only ever appended; a draft write and a publish are made against the draft revision the caller read and
- * a stale one writes nothing and no audit row; a publish also names the sequence it saw as active and is refused unless
- * that is the newest (a number ahead of it too, so the sequence has no gap); a publish resets the draft to no changes at
- * a revision that has never been the draft's before, so no earlier reader's revision fits it again. What a store is
- * given and what it returns are copies. A publish also takes the availability head's compare-and-set: a stale
- * `expectedAvailabilityRevision` refuses the whole publish as `availability-changed-meanwhile`; otherwise it moves the
- * head once for each created item, each logged switched off, or once with no row when it creates none, and answers the
- * head it left. It cannot stand for two racing transactions meeting a unique index (every write
- * judges and writes in one turn of the event loop), or for the database's clock.
- *
- * A stored `changeSummary` is a JSON array of the changes the version carried, and its length is the `changeCount`
- * the history lists. A `book` must be a JSON object. A write given anything else is refused as `invalid-request`.
+ * In-memory `PriceBookStore` (ADR 0178). The invariants a reader would not guess: a publish resets the draft to a
+ * revision it has never held, so no earlier reader's revision fits it again; an expected active sequence ahead of the
+ * newest is refused like one behind it, so the sequence has no gap; a publish also takes the availability head's
+ * compare-and-set. Every write judges and writes in one turn of the event loop, so the fake cannot stand for two
+ * transactions racing at a unique index.
  */
 export class FakePriceBookStore implements PriceBookStore {
   private readonly versions: HeldVersion[] = [];
@@ -94,60 +89,64 @@ export class FakePriceBookStore implements PriceBookStore {
   }
 
   readActive(): Promise<ReadActiveVersionResult> {
-    const newest = this.versions.at(-1);
-    if (newest === undefined) return Promise.resolve(NO_ACTIVE_VERSION);
-    return Promise.resolve({
-      kind: "found",
-      version: {
-        versionId: newest.versionId,
-        sequenceNumber: newest.sequenceNumber,
-        label: newest.label,
-        publishedAt: new Date(newest.publishedAt),
-        book: copyOf(newest.book),
-      },
+    return settle("read the active price version", () => {
+      const newest = this.versions.at(-1);
+      if (newest === undefined) return NO_ACTIVE_VERSION;
+      return {
+        kind: "found",
+        version: {
+          versionId: newest.versionId,
+          sequenceNumber: newest.sequenceNumber,
+          label: newest.label,
+          publishedAt: new Date(newest.publishedAt),
+          book: structuredClone(newest.book),
+        },
+      };
     });
   }
 
   readVersion(versionId: string): Promise<ReadVersionResult> {
-    const held = this.versions.find(
-      (version) => version.versionId === versionId,
-    );
-    if (held === undefined) return Promise.resolve(VERSION_NOT_FOUND);
-    return Promise.resolve({
-      kind: "found",
-      version: this.storedVersionOf(held),
+    return settle("read a price version", () => {
+      const held = this.versions.find(
+        (version) => version.versionId === versionId,
+      );
+      if (held === undefined) return VERSION_NOT_FOUND;
+      return { kind: "found", version: this.storedVersionOf(held) };
     });
   }
 
   listVersions({ page }: PriceVersionPageRequest): Promise<PriceVersionPage> {
-    if (!Number.isSafeInteger(page) || page < 1) {
-      return Promise.reject(
-        new DashboardStoreError("list the price versions", "invalid-request"),
-      );
-    }
-    const newestFirst = [...this.versions].reverse();
-    const first = (page - 1) * PRICE_VERSION_PAGE_SIZE;
-    const listed = newestFirst.slice(first, first + PRICE_VERSION_PAGE_SIZE);
-    return Promise.resolve({
-      total: this.versions.length,
-      page,
-      pageSize: PRICE_VERSION_PAGE_SIZE,
-      versions: listed.map((held) => ({
-        versionId: held.versionId,
-        sequenceNumber: held.sequenceNumber,
-        label: held.label,
-        state: this.stateOf(held),
-        publishedAt: new Date(held.publishedAt),
-        changeCount: held.changeSummary.length,
-      })),
+    return settle("list the price versions", () => {
+      if (!Number.isSafeInteger(page) || page < 1) {
+        throw new DashboardStoreError(
+          "list the price versions",
+          "invalid-request",
+        );
+      }
+      const newestFirst = [...this.versions].reverse();
+      const first = (page - 1) * PRICE_VERSION_PAGE_SIZE;
+      const listed = newestFirst.slice(first, first + PRICE_VERSION_PAGE_SIZE);
+      return {
+        total: this.versions.length,
+        page,
+        pageSize: PRICE_VERSION_PAGE_SIZE,
+        versions: listed.map((held) => ({
+          versionId: held.versionId,
+          sequenceNumber: held.sequenceNumber,
+          label: held.label,
+          state: this.stateOf(held),
+          publishedAt: new Date(held.publishedAt),
+          changeCount: held.changeSummary.length,
+        })),
+      };
     });
   }
 
   readDraft(): Promise<PriceDraft> {
-    return Promise.resolve({
+    return settle("read the price draft", () => ({
       draftRevision: this.draftRevision.current(),
-      changes: copyOf(this.draftChanges),
-    });
+      changes: structuredClone(this.draftChanges),
+    }));
   }
 
   async writeDraft(request: WriteDraftRequest): Promise<WriteDraftResult> {
@@ -162,7 +161,7 @@ export class FakePriceBookStore implements PriceBookStore {
     if (request.expectedDraftRevision !== this.draftRevision.current()) {
       return CHANGED_MEANWHILE;
     }
-    this.draftChanges = copyOf(request.changes);
+    this.draftChanges = structuredClone(request.changes);
     const draftRevision = this.draftRevision.advance();
     staged.commit();
     return { kind: "ok", draftRevision };
@@ -200,8 +199,10 @@ export class FakePriceBookStore implements PriceBookStore {
       label: request.label,
       note: request.note,
       publishedAt: this.now(),
-      book: copyOf(request.book),
-      changeSummary: copyOf(request.changeSummary as readonly unknown[]),
+      book: structuredClone(request.book),
+      changeSummary: structuredClone(
+        request.changeSummary as readonly unknown[],
+      ),
     };
     this.versions.push(held);
     this.draftChanges = [];
@@ -234,10 +235,10 @@ export class FakePriceBookStore implements PriceBookStore {
       sequenceNumber: held.sequenceNumber,
       label: held.label,
       publishedAt: new Date(held.publishedAt),
-      book: copyOf(held.book),
+      book: structuredClone(held.book),
       state: this.stateOf(held),
       note: held.note,
-      changeSummary: copyOf(held.changeSummary),
+      changeSummary: structuredClone(held.changeSummary),
     };
   }
 
@@ -261,17 +262,4 @@ function requirePublishable(request: PublishPriceBookRequest): void {
   if (!isWellFormed) {
     throw new DashboardStoreError("publish the price book", "invalid-request");
   }
-}
-
-function isNamedItem(item: ItemRef): boolean {
-  const id: unknown = itemIdOf(item);
-  return typeof id === "string" && id !== "";
-}
-
-function isJsonObject(value: unknown): boolean {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function copyOf<Value>(value: Value): Value {
-  return value === undefined ? value : structuredClone(value);
 }

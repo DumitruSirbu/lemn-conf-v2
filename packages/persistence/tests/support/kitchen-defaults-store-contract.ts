@@ -5,7 +5,6 @@ import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
   INITIAL_REVISION,
-  NONE_SAVED,
 } from "../../src/m10-ports.js";
 import type {
   CatalogueAvailabilityStore,
@@ -14,16 +13,20 @@ import type {
   PriceBookStore,
 } from "../../src/m10-ports.js";
 import {
-  A_BOOK,
+  aNewItem,
   activationEntryFor,
   auditRecordOf,
   dashboardFailureOf,
-  publishedEntry,
+  publishRequestFor,
 } from "./dashboard-contract-support.js";
 import type {
   DashboardStaffMember,
   DashboardStaffWorld,
 } from "./dashboard-contract-support.js";
+
+// These suites also run against a shared test database that earlier runs have written to (ADR 0151). They therefore
+// assert what a step changed, from a read taken before it, and never what the tables held to begin with. What only
+// tables with no rows can promise (none saved yet) is asserted in the fake's own test file.
 
 export interface DefaultsWorld extends DashboardStaffWorld {
   readonly store: KitchenDefaultsStore;
@@ -38,9 +41,6 @@ export interface DefaultsWorld extends DashboardStaffWorld {
     readonly isDeletedByClient?: boolean;
   }): Promise<void>;
 }
-
-const MDF: ItemRef = { kind: "material", tierId: "mdf" };
-const WALNUT: ItemRef = { kind: "finish", finishId: "walnut" };
 
 const DEFAULTS = {
   materialTierId: "mdf",
@@ -72,6 +72,12 @@ export function describeKitchenDefaultsStoreContract(
   describeUsage(suiteName, newWorld);
 }
 
+/** The revision the next save must expect: the saved row's, or the one a row never saved reads as. */
+async function savedRevisionOf(world: DefaultsWorld): Promise<string> {
+  const saved = await world.store.read();
+  return saved.kind === "saved" ? saved.saved.revision : INITIAL_REVISION;
+}
+
 async function save(
   world: DefaultsWorld,
   staff: DashboardStaffMember,
@@ -81,11 +87,9 @@ async function save(
     readonly expectedAvailabilityRevision?: string;
   } = {},
 ) {
-  const saved = await world.store.read();
   return world.store.save({
     expectedRevision:
-      overrides.expectedRevision ??
-      (saved.kind === "saved" ? saved.saved.revision : INITIAL_REVISION),
+      overrides.expectedRevision ?? (await savedRevisionOf(world)),
     expectedAvailabilityRevision:
       overrides.expectedAvailabilityRevision ??
       (await world.availability.readCurrent()).revision,
@@ -99,15 +103,10 @@ function describeSaving(
   newWorld: () => Promise<DefaultsWorld>,
 ): void {
   describe(`${suiteName}: save`, () => {
-    it("reads as none saved until the first save", async () => {
-      const world = await newWorld();
-
-      expect(await world.store.read()).toBe(NONE_SAVED);
-    });
-
     it("stores the defaults as given at a new revision and writes the audit row for the account of the session", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const revisionBefore = await savedRevisionOf(world);
 
       const result = await save(world, staff);
 
@@ -125,7 +124,7 @@ function describeSaving(
           savedAt: expect.any(Date) as Date,
         },
       });
-      expect(revision).not.toBe(INITIAL_REVISION);
+      expect(revision).not.toBe(revisionBefore);
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         {
           action: "kitchen-defaults-saved",
@@ -151,14 +150,13 @@ function describeSaving(
     it("refuses a save made against a revision that is not current, changing nothing and writing no audit row", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const stale = await savedRevisionOf(world);
       await save(world, staff, { defaults: {} });
       const before = await world.store.read();
       const availabilityBefore = await world.availability.readCurrent();
       const auditedBefore = await world.auditEventsOf(staff.accountId);
 
-      const result = await save(world, staff, {
-        expectedRevision: INITIAL_REVISION,
-      });
+      const result = await save(world, staff, { expectedRevision: stale });
 
       expect(result).toBe(CHANGED_MEANWHILE);
       expect(await world.store.read()).toEqual(before);
@@ -172,8 +170,9 @@ function describeSaving(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const stale = (await world.availability.readCurrent()).revision;
-      await switchOff(world, staff, MDF);
+      await switchOff(world, staff, aNewItem("material"));
       const availabilityMoved = await world.availability.readCurrent();
+      const savedBefore = await world.store.read();
       const auditedBefore = await world.auditEventsOf(staff.accountId);
 
       const result = await save(world, staff, {
@@ -181,7 +180,7 @@ function describeSaving(
       });
 
       expect(result).toBe(AVAILABILITY_CHANGED_MEANWHILE);
-      expect(await world.store.read()).toBe(NONE_SAVED);
+      expect(await world.store.read()).toEqual(savedBefore);
       expect(await world.availability.readCurrent()).toEqual(availabilityMoved);
       expect(await world.auditEventsOf(staff.accountId)).toEqual(auditedBefore);
     });
@@ -189,7 +188,7 @@ function describeSaving(
     it("moves the availability head by exactly one, and returns the head it left and a revision no earlier save held", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const before = BigInt((await world.availability.readCurrent()).revision);
+      const before = (await world.availability.readCurrent()).revision;
 
       const first = await save(world, staff);
       const second = await save(world, staff, {
@@ -198,11 +197,11 @@ function describeSaving(
 
       expect(first).toMatchObject({
         kind: "ok",
-        availabilityRevision: String(before + 1n),
+        availabilityRevision: await world.aRevisionAfter(before, 1),
       });
       expect(second).toMatchObject({
         kind: "ok",
-        availabilityRevision: String(before + 2n),
+        availabilityRevision: await world.aRevisionAfter(before, 2),
       });
       expect(
         first.kind === "ok" &&
@@ -210,7 +209,7 @@ function describeSaving(
           first.revision !== second.revision,
       ).toBe(true);
       expect((await world.availability.readCurrent()).revision).toBe(
-        String(before + 2n),
+        await world.aRevisionAfter(before, 2),
       );
     });
 
@@ -220,11 +219,11 @@ function describeSaving(
       await save(world, staff, { defaults: {} });
       const saved = await world.store.read();
       const head = await world.availability.readCurrent();
-      const savedRevision = saved.kind === "saved" ? saved.saved.revision : "";
+      const savedRevision = await savedRevisionOf(world);
       const auditedBefore = await world.auditEventsOf(staff.accountId);
 
       for (const expectedRevision of [
-        String(BigInt(savedRevision) + 1n),
+        await world.aRevisionAfter(savedRevision, 1),
         WIDEST_REVISION,
       ]) {
         expect(await save(world, staff, { expectedRevision })).toBe(
@@ -232,7 +231,7 @@ function describeSaving(
         );
       }
       for (const expectedAvailabilityRevision of [
-        String(BigInt(head.revision) + 1n),
+        await world.aRevisionAfter(head.revision, 1),
         WIDEST_REVISION,
       ]) {
         expect(await save(world, staff, { expectedAvailabilityRevision })).toBe(
@@ -248,18 +247,24 @@ function describeSaving(
     it("writes nothing when both revisions are stale, answers one of the two refusals, and leaves the revision it refused still the current one", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      await switchOff(world, staff, MDF);
+      const staleAvailability = (await world.availability.readCurrent())
+        .revision;
+      await switchOff(world, staff, aNewItem("material"));
       const head = await world.availability.readCurrent();
+      const savedBefore = await world.store.read();
 
       const result = await save(world, staff, {
-        expectedRevision: String(BigInt(INITIAL_REVISION) + 1n),
-        expectedAvailabilityRevision: INITIAL_REVISION,
+        expectedRevision: await world.aRevisionAfter(
+          await savedRevisionOf(world),
+          1,
+        ),
+        expectedAvailabilityRevision: staleAvailability,
       });
 
       expect([CHANGED_MEANWHILE, AVAILABILITY_CHANGED_MEANWHILE]).toContain(
         result,
       );
-      expect(await world.store.read()).toBe(NONE_SAVED);
+      expect(await world.store.read()).toEqual(savedBefore);
       expect(await world.availability.readCurrent()).toEqual(head);
       expect((await save(world, staff)).kind).toBe("ok");
     });
@@ -268,7 +273,7 @@ function describeSaving(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const stale = (await world.availability.readCurrent()).revision;
-      await switchOff(world, staff, MDF);
+      await switchOff(world, staff, aNewItem("material"));
       await save(world, staff, { expectedAvailabilityRevision: stale });
 
       const retried = await save(world, staff);
@@ -279,11 +284,12 @@ function describeSaving(
     it("writes nothing when no live session stands behind the call", async () => {
       const world = await newWorld();
       const gone = await world.aStaffMemberWhoseSessionIsRevoked();
+      const savedBefore = await world.store.read();
       const availabilityBefore = await world.availability.readCurrent();
 
       await dashboardFailureOf(save(world, gone), "not-recorded");
 
-      expect(await world.store.read()).toBe(NONE_SAVED);
+      expect(await world.store.read()).toEqual(savedBefore);
       expect(await world.availability.readCurrent()).toEqual(
         availabilityBefore,
       );
@@ -293,6 +299,8 @@ function describeSaving(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const head = (await world.availability.readCurrent()).revision;
+      const savedBefore = await world.store.read();
+      const savedRevision = await savedRevisionOf(world);
 
       for (const expectedRevision of ["01", "", PAST_THE_WIDEST_REVISION]) {
         await dashboardFailureOf(
@@ -312,7 +320,7 @@ function describeSaving(
       for (const defaults of ["defaults", 4, [], undefined]) {
         await dashboardFailureOf(
           world.store.save({
-            expectedRevision: INITIAL_REVISION,
+            expectedRevision: savedRevision,
             expectedAvailabilityRevision: head,
             defaults,
             audit: auditRecordOf(staff, SAVED_ENTRY),
@@ -322,7 +330,7 @@ function describeSaving(
       }
       await dashboardFailureOf(
         world.store.save({
-          expectedRevision: INITIAL_REVISION,
+          expectedRevision: savedRevision,
           expectedAvailabilityRevision: head,
           defaults: DEFAULTS,
           audit: auditRecordOf(staff, { action: "kitchen-seen", detail: {} }),
@@ -330,7 +338,7 @@ function describeSaving(
         "invalid-request",
       );
 
-      expect(await world.store.read()).toBe(NONE_SAVED);
+      expect(await world.store.read()).toEqual(savedBefore);
     });
   });
 }
@@ -350,11 +358,12 @@ function describeSharedHead(
       const after = await world.availability.readCurrent();
       expect(after.revision).not.toBe(before.revision);
       expect(after.disabled).toEqual(before.disabled);
+      const item = aNewItem("material");
       const lateWrite = await world.availability.setActive({
-        item: MDF,
+        item,
         active: false,
         expectedRevision: before.revision,
-        audit: auditRecordOf(staff, activationEntryFor(MDF, false)),
+        audit: auditRecordOf(staff, activationEntryFor(item, false)),
       });
       expect(lateWrite).toBe(CHANGED_MEANWHILE);
       expect(await world.availability.readAt(after.revision)).toMatchObject({
@@ -366,6 +375,7 @@ function describeSharedHead(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const head = (await world.availability.readCurrent()).revision;
+      const item = aNewItem("material");
 
       const [saved, switched] = await Promise.all([
         save(world, staff, {
@@ -373,10 +383,10 @@ function describeSharedHead(
           expectedAvailabilityRevision: head,
         }),
         world.availability.setActive({
-          item: MDF,
+          item,
           active: false,
           expectedRevision: head,
-          audit: auditRecordOf(staff, activationEntryFor(MDF, false)),
+          audit: auditRecordOf(staff, activationEntryFor(item, false)),
         }),
       ]);
 
@@ -384,7 +394,7 @@ function describeSharedHead(
         [saved.kind === "ok", switched.kind === "ok"].filter(Boolean),
       ).toHaveLength(1);
       expect((await world.availability.readCurrent()).revision).toBe(
-        String(BigInt(head) + 1n),
+        await world.aRevisionAfter(head, 1),
       );
       expect(await world.auditEventsOf(staff.accountId)).toHaveLength(1);
     });
@@ -400,20 +410,16 @@ function describeSharedHeadWithPublish(
       const world = await newWorld();
       const staff = await world.aStaffMember();
       const head = (await world.availability.readCurrent()).revision;
+      const publishRequest = await publishRequestFor(
+        world.priceBook,
+        world.availability,
+        staff,
+        { label: "Race", note: "" },
+      );
 
       const [saved, published] = await Promise.all([
         save(world, staff, { expectedAvailabilityRevision: head }),
-        world.priceBook.publish({
-          expectedDraftRevision: INITIAL_REVISION,
-          expectedActiveSequence: 0,
-          expectedAvailabilityRevision: head,
-          createdItems: [],
-          label: "Race",
-          note: "",
-          book: A_BOOK,
-          changeSummary: [],
-          audit: auditRecordOf(staff, publishedEntry()),
-        }),
+        world.priceBook.publish(publishRequest),
       ]);
 
       expect(
@@ -441,9 +447,9 @@ function describeUsage(
       };
       const before = await world.usage.count(item);
 
-      await world.aDesignUsing({ uses: [item, MDF] });
+      await world.aDesignUsing({ uses: [item, aNewItem("material")] });
       await world.aDesignUsing({ uses: [item] });
-      await world.aDesignUsing({ uses: [WALNUT] });
+      await world.aDesignUsing({ uses: [aNewItem("hardware")] });
 
       expect(await world.usage.count(item)).toBe(before + 2);
     });
@@ -479,10 +485,13 @@ function describeUsage(
       const world = await newWorld();
       const material: ItemRef = { kind: "material", tierId: "usage-same-id" };
       const hardware: ItemRef = { kind: "hardware", tierId: "usage-same-id" };
+      const hardwareBefore = await world.usage.count(hardware);
+      const materialBefore = await world.usage.count(material);
+
       await world.aDesignUsing({ uses: [material] });
 
-      expect(await world.usage.count(hardware)).toBe(0);
-      expect(await world.usage.count(material)).toBeGreaterThanOrEqual(1);
+      expect(await world.usage.count(hardware)).toBe(hardwareBefore);
+      expect(await world.usage.count(material)).toBe(materialBefore + 1);
     });
   });
 }

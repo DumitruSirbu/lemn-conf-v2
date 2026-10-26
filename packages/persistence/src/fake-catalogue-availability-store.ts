@@ -5,12 +5,17 @@ import type {
 
 import {
   FakeRevisionHead,
+  isNamedItem,
   isRevisionAhead,
   isRevisionShape,
+  itemIdOf,
+  itemKeyOf,
+  settle,
 } from "./fake-dashboard-support.js";
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
 import {
   AVAILABILITY_REVISION_NOT_FOUND,
+  CATALOGUE_ACTIVATION_ACTION,
   CHANGED_MEANWHILE,
   DashboardStoreError,
 } from "./m10-ports.js";
@@ -67,25 +72,27 @@ export class FakeCatalogueAvailabilityStore
   }
 
   readCurrent(): Promise<CatalogueAvailability> {
-    return Promise.resolve({
+    return settle("read the catalogue availability", () => ({
       revision: this.head.current(),
       disabled: this.heldDisabled(),
-    });
+    }));
   }
 
   readAt(revision: string): Promise<ReadAvailabilityAtResult> {
-    if (
-      !isRevisionShape(revision) ||
-      isRevisionAhead(revision, this.head.current())
-    ) {
-      return Promise.resolve(AVAILABILITY_REVISION_NOT_FOUND);
-    }
-    const upToRevision = this.changes.filter(
-      (change) => !isRevisionAhead(change.revision, revision),
-    );
-    return Promise.resolve({
-      kind: "found",
-      availability: { revision, disabled: disabledAfter(upToRevision) },
+    return settle("read the catalogue availability", () => {
+      if (
+        !isRevisionShape(revision) ||
+        isRevisionAhead(revision, this.head.current())
+      ) {
+        return AVAILABILITY_REVISION_NOT_FOUND;
+      }
+      const upToRevision = this.changes.filter(
+        (change) => !isRevisionAhead(change.revision, revision),
+      );
+      return {
+        kind: "found",
+        availability: { revision, disabled: disabledAfter(upToRevision) },
+      };
     });
   }
 
@@ -94,7 +101,7 @@ export class FakeCatalogueAvailabilityStore
     const staged = await this.ledger.stage({
       operation: "set an item's availability",
       record: request.audit,
-      accepts: ["catalogue-item-activation-changed"],
+      accepts: [CATALOGUE_ACTIVATION_ACTION],
       provisional: { availabilityRevision: this.head.next() },
     });
     if (request.expectedRevision !== this.head.current()) {
@@ -120,25 +127,6 @@ export class FakeCatalogueAvailabilityStore
   }
 }
 
-/** The id an item is known by within its kind, as the audit detail names it. */
-export function itemIdOf(item: ItemRef): string {
-  switch (item.kind) {
-    case "material":
-    case "hardware":
-      return item.tierId;
-    case "finish":
-      return item.finishId;
-    case "handle":
-      return item.handle;
-    case "accessory":
-      return item.accessoryId;
-  }
-}
-
-export function itemKeyOf(item: ItemRef): string {
-  return `${item.kind}:${itemIdOf(item)}`;
-}
-
 function disabledAfter(changes: readonly HeldAvailabilityChange[]): ItemRef[] {
   const latestByItem = new Map<string, HeldAvailabilityChange>();
   for (const change of changes)
@@ -160,11 +148,6 @@ function requireWritable(request: SetItemActiveRequest): void {
       "invalid-request",
     );
   }
-}
-
-function isNamedItem(item: ItemRef): boolean {
-  const id: unknown = itemIdOf(item);
-  return typeof id === "string" && id !== "";
 }
 
 function isDescribedBy({ item, active, audit }: SetItemActiveRequest): boolean {

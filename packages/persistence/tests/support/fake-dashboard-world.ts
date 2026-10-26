@@ -3,12 +3,14 @@ import { randomBytes } from "node:crypto";
 import { nanoid } from "nanoid";
 
 import { FakeCatalogueAvailabilityStore } from "../../src/fake-catalogue-availability-store.js";
-import { FakeDashboardAuditLedger } from "../../src/fake-dashboard-support.js";
+import {
+  FakeDashboardAuditLedger,
+  FakeRevisionHead,
+} from "../../src/fake-dashboard-support.js";
 import { FakeKitchenChangeStore } from "../../src/fake-kitchen-change-store.js";
 import { FakeKitchenDefaultsStore } from "../../src/fake-kitchen-defaults-store.js";
 import { FakePriceBookStore } from "../../src/fake-price-book-store.js";
 import { FakePriceNoticeStore } from "../../src/fake-price-notice-store.js";
-import { FakeRevisionHead } from "../../src/fake-dashboard-support.js";
 import { FakeSessionStore } from "../../src/fake-session-store.js";
 import type {
   DashboardStaffMember,
@@ -102,6 +104,9 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
       await sessions.revoke(member.session.sessionTokenHash);
       return member;
     },
+    // The stand-in for `revision::bigint + n` in the live world's SQL; a contract never does this itself.
+    aRevisionAfter: (revision, steps) =>
+      Promise.resolve(String(BigInt(revision) + BigInt(steps))),
     auditEventsOf: (accountId) =>
       Promise.resolve(
         ledger

@@ -187,7 +187,7 @@ export function describePriceNoticeStoreContract(
 
       const result = await world.store.recordAcknowledged(designId, {
         versionId,
-        availabilityRevision: String(BigInt(head) + 1n),
+        availabilityRevision: await world.aRevisionAfter(head, 1),
       });
 
       expect(result).toBe(REVISION_AHEAD);
@@ -251,13 +251,16 @@ export function describePriceNoticeStoreContract(
         world.availability,
         staff,
       );
-      const head = BigInt((await world.availability.readCurrent()).revision);
+      const head = (await world.availability.readCurrent()).revision;
       const versionIds = [first.versionId, second.versionId];
+      const revisionsAtOrBelowHead = [
+        INITIAL_REVISION,
+        first.availabilityRevision,
+        head,
+      ];
       const pair = fc.record({
         versionId: fc.constantFrom(...versionIds),
-        availabilityRevision: fc
-          .bigInt({ min: 0n, max: head })
-          .map((revision) => String(revision)),
+        availabilityRevision: fc.constantFrom(...revisionsAtOrBelowHead),
       });
       const step = fc.record({
         isFirstOpen: fc.boolean(),

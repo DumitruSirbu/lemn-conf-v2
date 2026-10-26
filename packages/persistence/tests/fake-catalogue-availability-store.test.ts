@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { INITIAL_REVISION } from "../src/m10-ports.js";
 import { describeCatalogueAvailabilityStoreContract } from "./support/catalogue-availability-store-contract.js";
 import type { AvailabilityWorld } from "./support/catalogue-availability-store-contract.js";
 import {
@@ -19,6 +20,17 @@ describeCatalogueAvailabilityStoreContract(
   "FakeCatalogueAvailabilityStore",
   () => Promise.resolve(newAvailabilityWorld()),
 );
+
+describe("FakeCatalogueAvailabilityStore, with an empty log", () => {
+  it("reads nothing switched off, at the revision a table with no row has", async () => {
+    const world = newAvailabilityWorld();
+
+    expect(await world.store.readCurrent()).toEqual({
+      revision: INITIAL_REVISION,
+      disabled: [],
+    });
+  });
+});
 
 describe("FakeCatalogueAvailabilityStore, beyond what the Neon store must also do", () => {
   it("compares revisions of different lengths by their value, as bigint does", async () => {
