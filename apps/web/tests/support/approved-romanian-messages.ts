@@ -1657,7 +1657,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     actionPriceDraftReverted: "a anulat o modificare de preț pregătită",
     actionPriceBulkChanged: "a schimbat prețurile în bloc",
     actionPricePublished: "a publicat prețurile",
-    actionPriceRestoredToDraft: "a restaurat prețurile dintr-o versiune",
+    // Reworded in X2 review: the action only brings a version's prices into the draft. Owner approval pending (OQ-11).
+    actionPriceRestoredToDraft: "a adus în ciornă prețurile unei versiuni",
     actionCatalogueItemActiveChanged: "a activat sau a dezactivat un articol",
     actionKitchenDefaultsSaved: "a salvat setările implicite",
     actionKitchenSeen: "a marcat bucătăria ca văzută",

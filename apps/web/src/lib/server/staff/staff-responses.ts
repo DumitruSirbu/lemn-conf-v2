@@ -2,10 +2,10 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import type {
-  DashboardAuditEntry,
-  DraftChangeTarget,
-  StaffKitchenQueryIssue,
+import {
+  DASHBOARD_DETAIL_KEYS,
+  type DashboardAuditEntry,
+  type StaffKitchenQueryIssue,
 } from "@lemnaria/configurator-domain";
 import type {
   SavedRequestStatus,
@@ -317,90 +317,21 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
   }
 }
 
-// The domain's closed key table (`DASHBOARD_DETAIL_KEYS`) is untyped and not exported, so each action's detail is
-// named here member by member and checked by the compiler against the domain's detail type. An optional member is
-// copied only when present; a member beyond the declared shape never leaves the server.
+// A dashboard action's detail is copied key by key from the domain's closed list for that action, so a member beyond
+// the declared shape never leaves the server. An optional key is copied only when present, and a list is copied as a
+// new array.
 function dashboardEntryWireOf(entry: DashboardAuditEntry): DashboardAuditEntry {
-  switch (entry.action) {
-    case "price-draft-changed":
-      return {
-        action: entry.action,
-        detail: {
-          changeKind: entry.detail.changeKind,
-          ...changeTargetWireOf(entry.detail),
-        },
-      };
-    case "price-draft-reverted":
-      return {
-        action: entry.action,
-        detail: {
-          changeKind: entry.detail.changeKind,
-          ...changeTargetWireOf(entry.detail),
-          revertedCount: entry.detail.revertedCount,
-        },
-      };
-    case "price-bulk-changed":
-      return {
-        action: entry.action,
-        detail: {
-          scope: entry.detail.scope,
-          ...(entry.detail.groupCode === undefined
-            ? {}
-            : { groupCode: entry.detail.groupCode }),
-          percent: entry.detail.percent,
-          ruleCount: entry.detail.ruleCount,
-          amountCount: entry.detail.amountCount,
-        },
-      };
-    case "price-published":
-      return {
-        action: entry.action,
-        detail: {
-          sequenceNumber: entry.detail.sequenceNumber,
-          changeCount: entry.detail.changeCount,
-          provisional: entry.detail.provisional,
-        },
-      };
-    case "price-restored-to-draft":
-      return {
-        action: entry.action,
-        detail: {
-          fromSequenceNumber: entry.detail.fromSequenceNumber,
-          changeCount: entry.detail.changeCount,
-        },
-      };
-    case "catalogue-item-active-changed":
-      return {
-        action: entry.action,
-        detail: {
-          itemKind: entry.detail.itemKind,
-          itemId: entry.detail.itemId,
-          active: entry.detail.active,
-          availabilityRevision: entry.detail.availabilityRevision,
-        },
-      };
-    case "kitchen-defaults-saved":
-      return {
-        action: entry.action,
-        detail: { changedFields: [...entry.detail.changedFields] },
-      };
-    case "kitchen-seen":
-      return { action: entry.action, detail: {} };
-    case "price-catalogue-viewed":
-      return {
-        action: entry.action,
-        detail: { section: entry.detail.section },
-      };
-  }
+  const source: Readonly<Record<string, unknown>> = { ...entry.detail };
+  const detail = Object.fromEntries(
+    DASHBOARD_DETAIL_KEYS[entry.action]
+      .filter((key) => source[key] !== undefined)
+      .map((key) => [key, copiedValueOf(source[key])]),
+  );
+  return { action: entry.action, detail } as DashboardAuditEntry;
 }
 
-function changeTargetWireOf(target: DraftChangeTarget): DraftChangeTarget {
-  return {
-    ...(target.itemKind === undefined ? {} : { itemKind: target.itemKind }),
-    ...(target.itemId === undefined ? {} : { itemId: target.itemId }),
-    ...(target.field === undefined ? {} : { field: target.field }),
-    ...(target.widthMm === undefined ? {} : { widthMm: target.widthMm }),
-  };
+function copiedValueOf(value: unknown): unknown {
+  return Array.isArray(value) ? Array.from<unknown>(value) : value;
 }
 
 // `entry` is `never` here while the switch names every action the domain lists, so a new domain action is a compile

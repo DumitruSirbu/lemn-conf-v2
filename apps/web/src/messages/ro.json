@@ -1257,7 +1257,7 @@
     "actionPriceDraftReverted": "a anulat o modificare de preț pregătită",
     "actionPriceBulkChanged": "a schimbat prețurile în bloc",
     "actionPricePublished": "a publicat prețurile",
-    "actionPriceRestoredToDraft": "a restaurat prețurile dintr-o versiune",
+    "actionPriceRestoredToDraft": "a adus în ciornă prețurile unei versiuni",
     "actionCatalogueItemActiveChanged": "a activat sau a dezactivat un articol",
     "actionKitchenDefaultsSaved": "a salvat setările implicite",
     "actionKitchenSeen": "a marcat bucătăria ca văzută",

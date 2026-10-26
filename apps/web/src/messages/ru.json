@@ -1257,7 +1257,7 @@
     "actionPriceDraftReverted": "Подготовленное изменение цены отменено",
     "actionPriceBulkChanged": "Цены изменены массово",
     "actionPricePublished": "Цены опубликованы",
-    "actionPriceRestoredToDraft": "Цены версии восстановлены",
+    "actionPriceRestoredToDraft": "Цены версии перенесены в черновик",
     "actionCatalogueItemActiveChanged": "Позиция активирована или деактивирована",
     "actionKitchenDefaultsSaved": "Настройки по умолчанию сохранены",
     "actionKitchenSeen": "Кухня отмечена как просмотренная",
