@@ -26,6 +26,7 @@ const SOURCE_ROOT = path.resolve(
   "../../src",
 );
 const PRICING_ROOT = path.join(SOURCE_ROOT, "pricing");
+const PRICE_DASHBOARD_ROOT = path.join(SOURCE_ROOT, "price-dashboard");
 
 function sourcesUnder(root: string): readonly string[] {
   return readdirSync(root, { recursive: true, withFileTypes: true })
@@ -272,13 +273,49 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
   it("keeps every minor-unit amount in the sample book file", () => {
     // ADR 0062's third prohibition: an amount in a catalogue row or a rejection sentence would be a second authority
     // for a price; the sheet's delta must be this data rendered.
+    // `price-dashboard/` is exempt as a directory: it names the book's fields (`anchorMinor`, `perHingeMinor`) to
+    // address them, which is not an amount. The test after this one holds that directory to naming and never to
+    // valuing.
     const carriers = sourcesUnder(SOURCE_ROOT)
       .filter((file) => !file.startsWith(PRICING_ROOT))
+      .filter((file) => !file.startsWith(PRICE_DASHBOARD_ROOT + path.sep))
       .filter((file) => /Minor\b/.test(read(file)));
 
     expect(carriers.map((file) => path.relative(SOURCE_ROOT, file))).toEqual(
       [],
     );
+  });
+
+  it("assigns no minor-unit field a number anywhere under price-dashboard/", () => {
+    // The replacement for the exemption above (M10 X0-1): the dashboard may name an amount's field, never state one.
+    const files = sourcesUnder(PRICE_DASHBOARD_ROOT);
+    const assigners = files.filter((file) =>
+      /Minor\??\s*[:=]\s*-?\d/.test(read(file)),
+    );
+
+    expect(files.length).toBeGreaterThan(0);
+    expect(assigners.map((file) => path.relative(SOURCE_ROOT, file))).toEqual(
+      [],
+    );
+  });
+
+  it("states no amount as the value of a draft change under price-dashboard/", () => {
+    // The second pattern (X0 review, QA pin gap): a `DraftChange` holds its amount in `value`, not in a `…Minor` member,
+    // so `{address: {field: "anchorMinor"}, value: 145000}` slips past the pin above. Two shapes catch it: a number of
+    // four digits or more in a `value` position (a percentage is at most `100`), and
+    // any number in the `value` of an object whose address names a `…Minor` field.
+    const amountInValuePosition =
+      /\bvalue"?\s*:\s*-?(?:\d[\d_]{3,}|0x[\da-f]{3,})/i;
+    const numberBesideAMinorAddress =
+      /Minor"?\s*[,}\s]*\}[,\s]*value"?\s*:\s*-?(?:\d|0x)/i;
+    const stating = sourcesUnder(PRICE_DASHBOARD_ROOT).filter((file) => {
+      const code = read(file);
+      return (
+        amountInValuePosition.test(code) || numberBesideAMinorAddress.test(code)
+      );
+    });
+
+    expect(stating.map((file) => path.relative(SOURCE_ROOT, file))).toEqual([]);
   });
 
   /** What a row may publish besides its amounts (ADR 0106 decision 1): a rendered text and nothing else. Each row

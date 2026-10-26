@@ -4,6 +4,13 @@ import {
   ownValueOf,
 } from "../contact/input-checks.js";
 
+import {
+  isAbsent,
+  isPositiveSafeInteger,
+  refused,
+  type StaffAuditRefusal,
+  type StaffAuditRefusalCode,
+} from "./audit-refusal.js";
 import { isRequestStatus, type RequestStatus } from "./request-status.js";
 import {
   STAFF_KITCHEN_PAGE_SIZE,
@@ -72,11 +79,11 @@ export type StaffAuditEntry = {
   };
 }[StaffAuditAction];
 
-export type StaffAuditRefusalCode = "UNKNOWN_ACTION" | "INVALID_DETAIL";
+export type { StaffAuditRefusalCode };
 
 export type StaffAuditEntryReading =
   | { readonly ok: true; readonly entry: StaffAuditEntry }
-  | { readonly ok: false; readonly code: StaffAuditRefusalCode };
+  | StaffAuditRefusal;
 
 const STATUS_CHANGE_KEYS = Object.freeze(["from", "to"]);
 const KITCHENS_LISTED_KEYS = Object.freeze([
@@ -218,10 +225,6 @@ function readAuditViewedEntry(detail: unknown): StaffAuditEntryReading {
   };
 }
 
-function isPositiveSafeInteger(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 1;
-}
-
 function isRowCountUpTo(value: unknown, pageSize: number): value is number {
   return (
     typeof value === "number" &&
@@ -229,12 +232,4 @@ function isRowCountUpTo(value: unknown, pageSize: number): value is number {
     value >= 0 &&
     value <= pageSize
   );
-}
-
-function isAbsent(detail: unknown): boolean {
-  return detail === null || detail === undefined;
-}
-
-function refused(code: StaffAuditRefusalCode): StaffAuditEntryReading {
-  return { ok: false, code };
 }
