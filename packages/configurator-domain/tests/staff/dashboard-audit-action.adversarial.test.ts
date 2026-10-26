@@ -37,7 +37,7 @@ const VALID_DETAILS: Readonly<Record<DashboardAuditAction, object>> = {
   },
   "price-published": { sequenceNumber: 7, changeCount: 6, provisional: true },
   "price-restored-to-draft": { fromSequenceNumber: 5, changeCount: 4 },
-  "catalogue-item-activation-changed": {
+  "catalogue-item-active-changed": {
     itemKind: "material",
     itemId: "material.painted-mdf",
     active: false,
@@ -74,7 +74,7 @@ const PLAN_KEYS: Readonly<Record<DashboardAuditAction, readonly string[]>> = {
   ],
   "price-published": ["sequenceNumber", "changeCount", "provisional"],
   "price-restored-to-draft": ["fromSequenceNumber", "changeCount"],
-  "catalogue-item-activation-changed": [
+  "catalogue-item-active-changed": [
     "itemKind",
     "itemId",
     "active",
@@ -518,7 +518,7 @@ describe("the target of a draft change (m7): kind and id together, a width only 
 describe("an availability revision in the activation audit (m6)", () => {
   const BIGINT_MAX = 2n ** 63n - 1n;
   const activation = (availabilityRevision: unknown) =>
-    readDashboardAuditEntry("catalogue-item-activation-changed", {
+    readDashboardAuditEntry("catalogue-item-active-changed", {
       itemKind: "material",
       itemId: "material.painted-mdf",
       active: false,
@@ -579,7 +579,7 @@ describe("an availability revision in the activation audit (m6)", () => {
 
   it("is required by the reader: the activation the caller hands the store has none and is refused here", () => {
     expect(
-      readDashboardAuditEntry("catalogue-item-activation-changed", {
+      readDashboardAuditEntry("catalogue-item-active-changed", {
         itemKind: "material",
         itemId: "material.painted-mdf",
         active: true,
@@ -589,7 +589,7 @@ describe("an availability revision in the activation audit (m6)", () => {
 
   it("names an item kind from the five a switch can name, never a cabinet", () => {
     const withKind = (itemKind: string) =>
-      readDashboardAuditEntry("catalogue-item-activation-changed", {
+      readDashboardAuditEntry("catalogue-item-active-changed", {
         itemKind,
         itemId: "x",
         active: true,

@@ -769,6 +769,44 @@ const DETAILS_THE_DOMAIN_ACCEPTS: Readonly<
       })),
     ),
   ),
+  "price-draft-changed": [
+    { changeKind: "depth-rule" },
+    {
+      changeKind: "material",
+      itemKind: "material",
+      itemId: "material.painted-mdf",
+      field: "percentOfCabinets",
+    },
+  ],
+  "price-draft-reverted": [
+    { changeKind: "provisional", revertedCount: 1 },
+    { changeKind: "bulk-group", revertedCount: 7 },
+  ],
+  "price-bulk-changed": [
+    { scope: "all", percent: -5, ruleCount: 12, amountCount: 40 },
+    {
+      scope: "group",
+      groupCode: "wall",
+      percent: 3,
+      ruleCount: 0,
+      amountCount: 0,
+    },
+  ],
+  "price-published": [
+    { sequenceNumber: 2, changeCount: 3, provisional: false },
+  ],
+  "price-restored-to-draft": [{ fromSequenceNumber: 1, changeCount: 2 }],
+  "catalogue-item-active-changed": [
+    {
+      itemKind: "material",
+      itemId: "material.painted-mdf",
+      active: false,
+      availabilityRevision: "4",
+    },
+  ],
+  "kitchen-defaults-saved": [{ changedFields: ["finish", "handle"] }],
+  "kitchen-seen": [{}],
+  "price-catalogue-viewed": [{ section: "history" }],
 };
 
 describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
