@@ -601,22 +601,89 @@ describe("the rows a change may never set are refused on every generated book", 
   });
 });
 
-describe("M1-b: a diff of identical books is empty", () => {
-  it("holds for any book, also with changes that name groups", () => {
+describe("M1-b: a diff of identical books is empty, unless a change names a field", () => {
+  it("is empty for any book when no change is given", () => {
+    fc.assert(
+      fc.property(bookArb, (book) => {
+        expect(diffBooks(book, book)).toEqual([]);
+        expect(diffBooks(book, book, { changes: [] })).toEqual([]);
+      }),
+      RUN,
+    );
+  });
+
+  it("draws exactly one no-op row, before = after with delta 0, for each field a lone change names, and none for any other", () => {
     fc.assert(
       fc.property(bookWithEditsArb, ({ book, edits }) => {
-        const grouped = edits
-          .filter((edit) => edit.slot.address.kind.startsWith("cabinet"))
-          .map((edit) =>
+        const named = lastWins(edits);
+        const changes = named.map((edit) => changeFor(edit));
+
+        const rows = diffBooks(book, book, { changes });
+
+        expect(rows.every((row) => row.kind === "field")).toBe(true);
+        expect(
+          rows.map((row) => addressKeyOf((row as FieldDiffRow).address)).sort(),
+        ).toEqual(named.map((edit) => edit.slot.key).sort());
+        for (const row of fieldRowsOf(rows)) {
+          expect(row.before).toBe(row.after);
+          if (row.unit !== "flag") expect(row.delta).toBe(0);
+        }
+      }),
+      RUN,
+    );
+  });
+
+  it("draws no row for an address no change names, nor for a named address neither book states", () => {
+    fc.assert(
+      fc.property(bookArb, bookArb, (before, after) => {
+        const ghost = {
+          address: {
+            kind: "hardware",
+            tierId: "hardware.nowhere",
+            field: "perHingeMinor",
+          },
+          value: 1,
+        } as unknown as DraftChange;
+        const rows = diffBooks(before, after, { changes: [ghost] });
+
+        expect(rows).toEqual(diffBooks(before, after));
+      }),
+      RUN,
+    );
+  });
+
+  it("counts every member a group's changes name, in a group of no-ops too", () => {
+    fc.assert(
+      fc.property(
+        bookArb.filter((book) => cabinetSlotsOf(book).length >= 2),
+        (book) => {
+          const members = cabinetSlotsOf(book).map((found) => ({
+            slot: found,
+            value: valueAt(book, found),
+          }));
+          const changes = members.map((edit) =>
             changeFor(edit, {
               groupId: "g",
-              bulk: { percent: 5, scope: "all" },
+              bulk: { percent: 0, scope: "all" },
             }),
           );
 
-        expect(diffBooks(book, book)).toEqual([]);
-        expect(diffBooks(book, book, { changes: grouped })).toEqual([]);
-      }),
+          const rows = diffBooks(book, book, { changes });
+
+          expect(rows).toHaveLength(1);
+          const [row] = rows;
+          if (row?.kind !== "group") throw new Error("expected a group row");
+          expect(row.items).toHaveLength(members.length);
+          expect(row.amountCount).toBe(members.length);
+          expect(row.ruleCount).toBe(
+            new Set(
+              members.map(
+                (edit) => (edit.slot.address as { ruleId: string }).ruleId,
+              ),
+            ).size,
+          );
+        },
+      ),
       RUN,
     );
   });
@@ -782,7 +849,7 @@ describe("M1-b: a bulk group of n changes diffs as one row expanding to n", () =
               (valueIterator.next().value as number) % (found.max + 1);
             return {
               slot: found,
-              value: next === current ? (current + 1) % found.max : next,
+              value: next % 3 === 0 ? current : next,
             };
           });
           const groupOf = edits.map(() => groupIterator.next().value as number);
@@ -802,7 +869,7 @@ describe("M1-b: a bulk group of n changes diffs as one row expanding to n", () =
 
           for (const groupNumber of [1, 2, 3]) {
             const members = edits.filter(
-              (edit, index) => groupOf[index] === groupNumber && differs(edit),
+              (_, index) => groupOf[index] === groupNumber,
             );
             const groupRows = rows.filter(
               (row) =>
@@ -828,14 +895,13 @@ describe("M1-b: a bulk group of n changes diffs as one row expanding to n", () =
             );
             expect(groupRow.section).toBe("cabinets");
           }
-          const ungrouped = edits.filter(
-            (edit, index) => groupOf[index] === 0 && differs(edit),
-          );
+          const ungrouped = edits.filter((_, index) => groupOf[index] === 0);
           const looseRows = rows.filter((row) => row.kind === "field");
           expect(looseRows).toHaveLength(ungrouped.length);
           const grouped = rows.filter((row) => row.kind === "group");
           expect(rows).toHaveLength(looseRows.length + grouped.length);
-          expect(fieldRowsOf(rows)).toHaveLength(edits.filter(differs).length);
+          expect(fieldRowsOf(rows)).toHaveLength(edits.length);
+          expect(edits.some(differs)).toBe(true);
         },
       ),
       RUN,

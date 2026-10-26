@@ -1133,3 +1133,60 @@ describe("the fixes of the QA round hold their edges", () => {
     );
   });
 });
+
+describe("a tier rate the parser refuses is named by its tier and its field (the intent of the moved pricing tests)", () => {
+  it.each(["perHingeMinor", "perDrawerMinor", "perPushToOpenMinor"])(
+    "names the default hardware tier and %s when the rate is fractional or negative",
+    (field) => {
+      for (const amount of [0.25, -1]) {
+        const tiers = BOOK.hardware.tiers.map((tier) =>
+          tier.tierId === BOOK.hardware.defaultTierId
+            ? { ...tier, [field]: amount }
+            : tier,
+        );
+
+        const result = parsePriceBook({
+          ...BOOK,
+          hardware: { ...BOOK.hardware, tiers },
+        });
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.detail).toContain(field);
+        expect(result.failure.detail).toContain(BOOK.hardware.defaultTierId);
+      }
+    },
+  );
+
+  it("refuses a fractional accessory price, naming the accessory", () => {
+    const result = parsePriceBook({
+      ...BOOK,
+      accessories: {
+        ...BOOK.accessories,
+        sinkProtectiveCover: {
+          ...BOOK.accessories.sinkProtectiveCover,
+          perUnitMinor: 0.5,
+        },
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.failure.detail).toContain("sinkProtectiveCover");
+  });
+});
+
+describe("a stored -0 is restored as 0", () => {
+  it("applies the restore of an archived book that holds -0 in a rate, and the result holds 0", () => {
+    const slot = must(
+      slotsOf(BOOK).find((found) => found.address.kind === "hardware"),
+    );
+    const archived = written(BOOK, [{ slot, value: -0 }]);
+
+    const restored = applyChanges(BOOK, restoreChanges(archived, BOOK));
+
+    expect(restored.ok).toBe(true);
+    if (restored.ok)
+      expect(Object.is(valueAt(restored.book, slot), -0)).toBe(false);
+  });
+});
