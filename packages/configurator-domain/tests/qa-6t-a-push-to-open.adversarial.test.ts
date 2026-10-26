@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import { kindLabel } from "../src/catalog.js";
 
-import { isPushOpenByDefault } from "../src/bands.js";
 import { cabinetHandleCount } from "../src/cabinet-handles.js";
 import {
   CABINET_SIZED_OPENING_MAX_M,
@@ -415,7 +414,8 @@ describe("the metre frame and the millimetre predicate survive the trip between 
         canHandle: true,
       });
 
-      expect(asDocumented).toBe(isPushOpenByDefault(toMetres(y0Mm)));
+      // the literal line, not a second restatement of the function under test
+      expect(asDocumented).toBe(y0Mm >= 2_200);
       expect(asTheSceneAsksIt).toBe(asDocumented);
     },
   );

@@ -7,7 +7,7 @@
 // was checked and wrong one module line up.
 import { describe, expect, it } from "vitest";
 
-import { isPushOpenByDefault, TOP_ROW_Y0_M } from "../../src/bands.js";
+import { TOP_ROW_Y0_M } from "../../src/bands.js";
 import { setHandle } from "../../src/commands/set-appearance.js";
 import type { Design, DesignPlacement } from "../../src/design.js";
 import {
@@ -133,9 +133,8 @@ describe("§6.5's default handle at the module line itself", () => {
         (candidate) => candidate.id === placement.id,
       );
       const meta = metaFor(world, placement.id);
-      const rendered = isPushOpenByDefault(record?.frame.y0 ?? 0)
-        ? "push"
-        : "steel";
+      const rendered =
+        Math.round((record?.frame.y0 ?? 0) * 1000) >= line ? "push" : "steel";
       expect([placement.id, meta?.defaultHandle]).toEqual([
         placement.id,
         rendered,

@@ -1,7 +1,8 @@
-// The latch count is per opening front, not per body (ADR 0092 decision 3). `countHardwareMechanisms` cannot
-// yet see `design.settings`, so the count goes through `isPushToOpen` and is anchored to the real counter:
-// equal with no kitchen handle, and equal to the real counter on the design with the handle stamped on
-// the bodies that follow it.
+// The latch count is per opening front, not per body (ADR 0092 decision 3). Since wave H1b
+// `countHardwareMechanisms` reads the kitchen handle from the entries it is handed (`DisplayEntry.kitchenSettings`), so
+// this file asks it two things: with no kitchen handle it equals the count by `isPushToOpen` front by front, and with
+// the handle stamped on the design it equals the count by `isPushToOpen` with that handle stamped on the bodies that
+// follow it.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
