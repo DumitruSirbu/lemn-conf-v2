@@ -373,6 +373,7 @@ describe("ADR 0069's 'never', against the clip that declines", () => {
  *  exists to satisfy `PlacementRecord`'s shape, exactly as the example file's own does. */
 function recordIn(col: string): PlacementRecord {
   return {
+    kitchenSettings: {},
     id: "p0",
     buildId: "base-600",
     kind: "base_cabinet",

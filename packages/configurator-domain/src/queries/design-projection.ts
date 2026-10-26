@@ -16,6 +16,8 @@ import type { Finish } from "../materials.js";
 import {
   frontPopulationQueryFor,
   openingFrontCount,
+  UnbuildableDoorBandError,
+  UndeclaredFrontPopulationError,
 } from "../front-population.js";
 import { compareOpaqueIds } from "../opaque-id-order.js";
 import { wornHandleAt } from "../push-to-open.js";
@@ -136,16 +138,11 @@ function toDisplayEntry(
 ): DisplayEntry {
   const definition = lookupDefinition(catalog, placement.body.buildId);
   const ownHandle = ownHandleOf(placement.body.handle);
-  const wornHandle = wornHandleAt({
-    y0Mm: placement.y0Mm,
-    recordedHandle: ownHandle,
+  const wornHandle = wornHandleOrNothing(
+    placement,
+    definition,
     kitchenSettings,
-    canHandle: definition.canHandle,
-    countOpeningFronts: () =>
-      openingFrontCount(
-        frontPopulationQueryFor({ body: placement.body, definition }),
-      ),
-  });
+  );
   return {
     placementId: placement.id,
     buildId: placement.body.buildId,
@@ -169,6 +166,40 @@ function toDisplayEntry(
     kitchenSettings,
     ...(wornHandle === undefined ? {} : { wornHandle }),
   };
+}
+
+/**
+ * `wornHandleAt`, kept total over a body whose fronts cannot be read: the list still shows the body, wearing nothing,
+ * and the price keeps the refusal it already gives for it (`UNDECLARED_FRONT_POPULATION`, `UNBUILDABLE_DOOR_BAND`).
+ * Only those two refusals are caught; any other error is a defect and propagates.
+ */
+function wornHandleOrNothing(
+  placement: DesignPlacement,
+  definition: BodyDefinition,
+  kitchenSettings: KitchenHandleSettings,
+): Handle | undefined {
+  try {
+    return wornHandleAt({
+      y0Mm: placement.y0Mm,
+      recordedHandle: ownHandleOf(placement.body.handle),
+      kitchenSettings,
+      canHandle: definition.canHandle,
+      countOpeningFronts: () =>
+        openingFrontCount(
+          frontPopulationQueryFor({ body: placement.body, definition }),
+        ),
+    });
+  } catch (error) {
+    if (isUnreadableFrontsError(error)) return undefined;
+    throw error;
+  }
+}
+
+function isUnreadableFrontsError(error: unknown): boolean {
+  return (
+    error instanceof UndeclaredFrontPopulationError ||
+    error instanceof UnbuildableDoorBandError
+  );
 }
 
 /** The entries arrive in display order (wall-major, then band-major), so one pass that starts a group

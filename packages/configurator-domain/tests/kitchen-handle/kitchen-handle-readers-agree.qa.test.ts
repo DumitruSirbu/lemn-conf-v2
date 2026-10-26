@@ -183,7 +183,7 @@ describe("the readers are held to the rule written out, not to each other", () =
         const recorded = resolvedHandleAt({
           y0Mm: toMillimetres(record.frame.y0),
           recordedHandle: record.handleMode,
-          kitchenSettings: record.kitchenSettings ?? {},
+          kitchenSettings: record.kitchenSettings,
           canHandle: record.canHandle,
         });
         if (marked !== expected || recorded !== expected) {

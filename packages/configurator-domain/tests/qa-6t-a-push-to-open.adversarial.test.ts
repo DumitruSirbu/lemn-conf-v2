@@ -441,6 +441,7 @@ function entryAt(
   overrides: Partial<DisplayEntry> & { readonly buildId: string },
 ): DisplayEntry {
   return {
+    kitchenSettings: {},
     placementId: "under-test",
     label: kindLabel("under_test"),
     wall: "A",

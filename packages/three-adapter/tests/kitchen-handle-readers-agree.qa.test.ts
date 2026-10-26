@@ -64,11 +64,13 @@ interface Document {
 }
 
 let kit: Kit;
+let kit700: Kit;
 let documents: readonly Document[];
 
 beforeAll(() => {
   installHeadlessDocument();
   kit = makeKit({ createCanvas: createHeadlessCanvas });
+  kit700 = makeKit({ createCanvas: createHeadlessCanvas, cabinetDepthMm: 700 });
   documents = [
     {
       name: "seeded",
@@ -136,7 +138,13 @@ function mount(
   into: THREE.Group = new THREE.Group(),
 ): Mounted {
   const records = derivePlacementRecords(design, catalog);
-  syncSolidBodies({ kit, solidsRoot: into, records, room: design.room });
+  const sceneKit = cabinetDepthMmOf(design) === 700 ? kit700 : kit;
+  syncSolidBodies({
+    kit: sceneKit,
+    solidsRoot: into,
+    records,
+    room: design.room,
+  });
   return { solidsRoot: into, records };
 }
 
@@ -339,6 +347,7 @@ describe("a body standing within 1 mm of the module line, on every catalogue row
     y0Mm: number,
     own: Handle | undefined,
     kitchen: Handle | undefined,
+    depthMm = 600,
   ): Design {
     const definition = required(
       KITCHEN_L_BODY_CATALOG.get(buildId),
@@ -347,6 +356,7 @@ describe("a body standing within 1 mm of the module line, on every catalogue row
     return withKitchenHandle(
       {
         ...KITCHEN_L_DESIGN,
+        settings: { ...KITCHEN_L_DESIGN.settings, cabinetDepthMm: depthMm },
         placements: [
           {
             id: "solo",
@@ -366,30 +376,34 @@ describe("a body standing within 1 mm of the module line, on every catalogue row
     );
   }
 
-  it("is drawn and billed as the rule says at 2199, 2200 and 2201 under each kitchen handle", () => {
-    const disagreements: string[] = [];
+  it.each([600, 700])(
+    "is drawn and billed as the rule says at 2199, 2200 and 2201 under each kitchen handle, at cabinet depth %s",
+    (depthMm) => {
+      const catalog = buildKitchenLBodyCatalog(depthMm);
+      const disagreements: string[] = [];
 
-    for (const buildId of KITCHEN_L_BODY_CATALOG.keys()) {
-      for (const y0Mm of FLOORS_MM) {
-        for (const kitchen of KITCHEN_CHOICES) {
-          for (const own of [undefined, "steel"] as const) {
-            disagreements.push(
-              ...disagreementsOf(
-                soloAt(buildId, y0Mm, own, kitchen),
-                KITCHEN_L_BODY_CATALOG,
-                kitchen,
-              ).map(
-                (line) =>
-                  `${line} [own ${String(own)}, kitchen ${String(kitchen)}]`,
-              ),
-            );
+      for (const buildId of catalog.keys()) {
+        for (const y0Mm of FLOORS_MM) {
+          for (const kitchen of KITCHEN_CHOICES) {
+            for (const own of [undefined, "steel"] as const) {
+              disagreements.push(
+                ...disagreementsOf(
+                  soloAt(buildId, y0Mm, own, kitchen, depthMm),
+                  catalog,
+                  kitchen,
+                ).map(
+                  (line) =>
+                    `${line} [own ${String(own)}, kitchen ${String(kitchen)}]`,
+                ),
+              );
+            }
           }
         }
       }
-    }
 
-    expect(disagreements).toEqual([]);
-  });
+      expect(disagreements).toEqual([]);
+    },
+  );
 
   it("is not vacuous: most rows draw cabinet bars, and the kitchen's choice moves them across the line", () => {
     const buildIds = [...KITCHEN_L_BODY_CATALOG.keys()];

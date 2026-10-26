@@ -133,16 +133,20 @@ function reviewOf(design: Design): AvailableReview | undefined {
   return view.kind === "available" ? view : undefined;
 }
 
-/** What the row's second line must say of this body, from the rule's words. */
-function expectedWord(
-  placement: DesignPlacement,
-  catalog: BodyCatalog,
-  kitchen: Handle | undefined,
-): string | undefined {
+/**
+ * What the row's second line must say of this body, from the rule's words: a body taking a handle wears its own, else
+ * push on the top row, else the kitchen's, else steel; a body taking none wears push-to-open only when it is on the top
+ * row and has a front that opens (the price bills a latch per such front), and nothing otherwise.
+ */
+function expectedWord(args: {
+  readonly placement: DesignPlacement;
+  readonly canHandle: boolean;
+  readonly fronts: number;
+  readonly kitchen: Handle | undefined;
+}): string | undefined {
+  const { placement, canHandle, fronts, kitchen } = args;
   const isTopRow = placement.y0Mm >= MODULE_LINE_MM;
-  if (catalog.get(placement.body.buildId)?.canHandle !== true) {
-    return isTopRow ? WORDS.push : undefined;
-  }
+  if (!canHandle) return isTopRow && fronts > 0 ? WORDS.push : undefined;
   const wears =
     placement.body.handle ?? (isTopRow ? "push" : (kitchen ?? "steel"));
   return WORDS[wears];
@@ -231,9 +235,21 @@ describe("the review's rows, the price and the scene never split on a body's han
       const view = reviewOf(design);
       if (!view) return;
       const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
+      const entries = priceAndProject(design).groups.flatMap(
+        (group) => group.entries,
+      );
 
       const wrong = design.placements.flatMap((placement) => {
-        const expected = expectedWord(placement, catalog, vary.kitchen);
+        const entry = entries.find(
+          (candidate) => candidate.placementId === placement.id,
+        );
+        if (!entry) throw new Error(`no entry for ${placement.id}`);
+        const expected = expectedWord({
+          placement,
+          canHandle: catalog.get(placement.body.buildId)?.canHandle === true,
+          fronts: frontsOf(entry, catalog),
+          kitchen: vary.kitchen,
+        });
         const said = handleWordsOf(view, placement.id);
         return JSON.stringify(said) ===
           JSON.stringify(expected ? [expected] : [])

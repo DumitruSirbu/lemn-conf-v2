@@ -73,6 +73,7 @@ type RecordOverrides = Partial<Omit<PlacementRecord, "frame">> & {
 
 function makeRecord(overrides: RecordOverrides): PlacementRecord {
   return {
+    kitchenSettings: {},
     buildId: "wall-cabinet",
     kind: "wall_cabinet",
     col: "A|2.00",
