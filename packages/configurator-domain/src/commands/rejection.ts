@@ -230,6 +230,11 @@ export type RejectionDetail =
    *  domain imports no book to name it from (ADR 0062 seam 1). */
   | { readonly code: "UNKNOWN_MATERIAL_TIER"; readonly params: NoParams }
   | { readonly code: "UNKNOWN_HARDWARE_TIER"; readonly params: NoParams }
+  /** The whole-kitchen handle asked for is not one of the declared `Handle`s (M10 ruling H-4). Distinct from
+   *  `HANDLE_NOT_SUPPORTED`, which says a *body* takes no handle: no cabinet is involved here, so there is no
+   *  label to name, and the control offers the set, so the value the customer did not choose tells them nothing.
+   *  Not an availability refusal: a withdrawn but declared handle is the caller's to judge. */
+  | { readonly code: "UNKNOWN_HANDLE"; readonly params: NoParams }
   /** The depth asked for is not a declared manufactured depth, or is under the floor the dishwasher sets
    *  (ADR 0059). `NoParams`: the control offers the set, so the millimetre the customer did not choose
    *  tells them nothing. */

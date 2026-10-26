@@ -1153,6 +1153,10 @@ export const REJECTION_FIXTURES: readonly RejectionFixture[] = [
     code: "UNKNOWN_HARDWARE_TIER",
     params: noParams,
   }),
+  rejectionFixture("unknown-handle", "UNKNOWN_HANDLE", {
+    code: "UNKNOWN_HANDLE",
+    params: noParams,
+  }),
   rejectionFixture("unknown-cabinet-depth", "UNKNOWN_CABINET_DEPTH", {
     code: "UNKNOWN_CABINET_DEPTH",
     params: noParams,
@@ -1283,6 +1287,7 @@ export const REJECTION_CODES = [
   "HANDLE_NOT_SUPPORTED",
   "UNKNOWN_MATERIAL_TIER",
   "UNKNOWN_HARDWARE_TIER",
+  "UNKNOWN_HANDLE",
   "UNKNOWN_CABINET_DEPTH",
 ] as const satisfies readonly RejectionCode[];
 

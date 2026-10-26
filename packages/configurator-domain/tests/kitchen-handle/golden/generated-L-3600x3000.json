@@ -1,0 +1,976 @@
+{
+  "name": "generated-L-3600x3000",
+  "records": [
+    {
+      "id": "p25",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 0
+    },
+    {
+      "id": "p26",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 0
+    },
+    {
+      "id": "p9",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 1.5
+    },
+    {
+      "id": "p21",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 2.2
+    },
+    {
+      "id": "p27",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 1.5
+    },
+    {
+      "id": "p28",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 2.2
+    },
+    {
+      "id": "n0",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 0
+    },
+    {
+      "id": "n1",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 0
+    },
+    {
+      "id": "n2",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 0
+    },
+    {
+      "id": "n3",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 0
+    },
+    {
+      "id": "n4",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 0
+    },
+    {
+      "id": "n5",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 0
+    },
+    {
+      "id": "n6",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 0
+    },
+    {
+      "id": "n7",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 0
+    },
+    {
+      "id": "n8",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 1.5
+    },
+    {
+      "id": "n9",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 1.5
+    },
+    {
+      "id": "n10",
+      "handleMode": null,
+      "canHandle": false,
+      "y0": 1.5
+    },
+    {
+      "id": "n11",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 1.5
+    },
+    {
+      "id": "n12",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 1.5
+    },
+    {
+      "id": "n13",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 1.5
+    },
+    {
+      "id": "n14",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 2.2
+    },
+    {
+      "id": "n15",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 2.2
+    },
+    {
+      "id": "n16",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 2.2
+    },
+    {
+      "id": "n17",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 2.2
+    },
+    {
+      "id": "n18",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 2.2
+    },
+    {
+      "id": "n19",
+      "handleMode": null,
+      "canHandle": true,
+      "y0": 2.2
+    }
+  ],
+  "selections": [
+    {
+      "id": "p25",
+      "label": {
+        "kind": "bodyKind",
+        "bodyKind": "corner_base_x"
+      },
+      "empty": false,
+      "kind": "corner_base_x",
+      "band": "base",
+      "wall": "A",
+      "widthMm": 900,
+      "heightMm": 820,
+      "openWmm": 900,
+      "openHmm": 820,
+      "spanHmm": 820,
+      "sizesMm": [],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": false,
+      "canWidth": false,
+      "canReplace": false,
+      "canDelete": false,
+      "defaultHandle": "steel",
+      "structuralReason": "corner"
+    },
+    {
+      "id": "p26",
+      "label": {
+        "kind": "bodyKind",
+        "bodyKind": "corner_base_return"
+      },
+      "empty": false,
+      "kind": "corner_base_return",
+      "band": "base",
+      "wall": "B",
+      "widthMm": 330,
+      "heightMm": 820,
+      "openWmm": 330,
+      "openHmm": 820,
+      "spanHmm": 820,
+      "sizesMm": [],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": false,
+      "canWidth": false,
+      "canReplace": false,
+      "canDelete": false,
+      "defaultHandle": "steel",
+      "structuralReason": "corner"
+    },
+    {
+      "id": "p9",
+      "label": {
+        "kind": "bodyKind",
+        "bodyKind": "corner_wall_return"
+      },
+      "empty": false,
+      "kind": "corner_wall_return",
+      "band": "wall",
+      "wall": "B",
+      "widthMm": 570,
+      "heightMm": 700,
+      "openWmm": 570,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": false,
+      "canWidth": false,
+      "canReplace": false,
+      "canDelete": false,
+      "defaultHandle": "steel",
+      "structuralReason": "corner"
+    },
+    {
+      "id": "p21",
+      "label": {
+        "kind": "bodyKind",
+        "bodyKind": "corner_wall_return_top"
+      },
+      "empty": false,
+      "kind": "corner_wall_return_top",
+      "band": "top",
+      "wall": "B",
+      "widthMm": 570,
+      "heightMm": 400,
+      "openWmm": 570,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": false,
+      "canWidth": false,
+      "canReplace": false,
+      "canDelete": false,
+      "defaultHandle": "push",
+      "structuralReason": "corner"
+    },
+    {
+      "id": "p27",
+      "label": {
+        "kind": "bodyKind",
+        "bodyKind": "corner_wall_return"
+      },
+      "empty": false,
+      "kind": "corner_wall_return",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 900,
+      "heightMm": 700,
+      "openWmm": 900,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": false,
+      "canWidth": false,
+      "canReplace": false,
+      "canDelete": false,
+      "defaultHandle": "steel",
+      "structuralReason": "corner"
+    },
+    {
+      "id": "p28",
+      "label": {
+        "kind": "bodyKind",
+        "bodyKind": "corner_wall_return_top"
+      },
+      "empty": false,
+      "kind": "corner_wall_return_top",
+      "band": "top",
+      "wall": "A",
+      "widthMm": 900,
+      "heightMm": 400,
+      "openWmm": 900,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": false,
+      "canWidth": false,
+      "canReplace": false,
+      "canDelete": false,
+      "defaultHandle": "push",
+      "structuralReason": "corner"
+    },
+    {
+      "id": "n0",
+      "label": {
+        "kind": "entry",
+        "buildId": "fridge-free"
+      },
+      "empty": false,
+      "kind": "fridge_freestanding",
+      "band": "column",
+      "wall": "B",
+      "widthMm": 700,
+      "heightMm": 1850,
+      "openWmm": 700,
+      "openHmm": 1850,
+      "spanHmm": 1850,
+      "sizesMm": [700],
+      "fixedWidth": true,
+      "canFinish": false,
+      "canHandle": false,
+      "canWidth": false,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n1",
+      "label": {
+        "kind": "entry",
+        "buildId": "base-sink"
+      },
+      "empty": false,
+      "kind": "base_cabinet",
+      "band": "base",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 860,
+      "openWmm": 600,
+      "openHmm": 860,
+      "spanHmm": 860,
+      "sizesMm": [600, 650, 700, 750, 800],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n2",
+      "label": {
+        "kind": "entry",
+        "buildId": "base-3drawer"
+      },
+      "empty": false,
+      "kind": "base_cabinet",
+      "band": "base",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 860,
+      "openWmm": 600,
+      "openHmm": 860,
+      "spanHmm": 860,
+      "sizesMm": [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n3",
+      "label": {
+        "kind": "entry",
+        "buildId": "base-hob-2drawer"
+      },
+      "empty": false,
+      "kind": "base_cabinet",
+      "band": "base",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 860,
+      "openWmm": 600,
+      "openHmm": 860,
+      "spanHmm": 860,
+      "sizesMm": [600],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": false,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n4",
+      "label": {
+        "kind": "entry",
+        "buildId": "base-bottle-cargo"
+      },
+      "empty": false,
+      "kind": "base_cabinet",
+      "band": "base",
+      "wall": "A",
+      "widthMm": 300,
+      "heightMm": 860,
+      "openWmm": 300,
+      "openHmm": 860,
+      "spanHmm": 860,
+      "sizesMm": [200, 300],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n5",
+      "label": {
+        "kind": "entry",
+        "buildId": "tall-oven-tower"
+      },
+      "empty": false,
+      "kind": "tall_unit",
+      "band": "column",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 2200,
+      "openWmm": 600,
+      "openHmm": 2200,
+      "spanHmm": 2200,
+      "sizesMm": [600],
+      "fixedWidth": true,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": false,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n6",
+      "label": {
+        "kind": "entry",
+        "buildId": "base-dishwasher"
+      },
+      "empty": false,
+      "kind": "dishwasher_housing",
+      "band": "base",
+      "wall": "B",
+      "widthMm": 600,
+      "heightMm": 860,
+      "openWmm": 600,
+      "openHmm": 860,
+      "spanHmm": 860,
+      "sizesMm": [450, 600],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n7",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "base-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "base_cabinet",
+      "band": "base",
+      "wall": "B",
+      "widthMm": 700,
+      "heightMm": 860,
+      "openWmm": 700,
+      "openHmm": 860,
+      "spanHmm": 860,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n8",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 700,
+      "openWmm": 600,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n9",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 700,
+      "openWmm": 600,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n10",
+      "label": {
+        "kind": "entry",
+        "buildId": "hood"
+      },
+      "empty": false,
+      "kind": "extractor_hood",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 700,
+      "openWmm": 600,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [600, 650, 700, 750, 800],
+      "fixedWidth": false,
+      "canFinish": false,
+      "canHandle": false,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n11",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 1
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 300,
+      "heightMm": 700,
+      "openWmm": 300,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n12",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "B",
+      "widthMm": 600,
+      "heightMm": 700,
+      "openWmm": 600,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n13",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "B",
+      "widthMm": 700,
+      "heightMm": 700,
+      "openWmm": 700,
+      "openHmm": 700,
+      "spanHmm": 700,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "steel"
+    },
+    {
+      "id": "n14",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 400,
+      "openWmm": 600,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "push"
+    },
+    {
+      "id": "n15",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 400,
+      "openWmm": 600,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "push"
+    },
+    {
+      "id": "n16",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 600,
+      "heightMm": 400,
+      "openWmm": 600,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "push"
+    },
+    {
+      "id": "n17",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 1
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "A",
+      "widthMm": 300,
+      "heightMm": 400,
+      "openWmm": 300,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "push"
+    },
+    {
+      "id": "n18",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "B",
+      "widthMm": 600,
+      "heightMm": 400,
+      "openWmm": 600,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "push"
+    },
+    {
+      "id": "n19",
+      "label": {
+        "kind": "withDoors",
+        "name": {
+          "kind": "entry",
+          "buildId": "wall-cabinet"
+        },
+        "doors": 2
+      },
+      "empty": false,
+      "kind": "wall_cabinet",
+      "band": "wall",
+      "wall": "B",
+      "widthMm": 700,
+      "heightMm": 400,
+      "openWmm": 700,
+      "openHmm": 400,
+      "spanHmm": 400,
+      "sizesMm": [
+        200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800
+      ],
+      "fixedWidth": false,
+      "canFinish": true,
+      "canHandle": true,
+      "canWidth": true,
+      "canReplace": true,
+      "canDelete": true,
+      "defaultHandle": "push"
+    }
+  ],
+  "latches": [
+    {
+      "id": "p25",
+      "pushToOpen": false
+    },
+    {
+      "id": "n1",
+      "pushToOpen": false
+    },
+    {
+      "id": "n2",
+      "pushToOpen": false
+    },
+    {
+      "id": "n3",
+      "pushToOpen": false
+    },
+    {
+      "id": "n4",
+      "pushToOpen": false
+    },
+    {
+      "id": "p27",
+      "pushToOpen": false
+    },
+    {
+      "id": "n8",
+      "pushToOpen": false
+    },
+    {
+      "id": "n9",
+      "pushToOpen": false
+    },
+    {
+      "id": "n10",
+      "pushToOpen": false
+    },
+    {
+      "id": "n11",
+      "pushToOpen": false
+    },
+    {
+      "id": "p28",
+      "pushToOpen": true
+    },
+    {
+      "id": "n14",
+      "pushToOpen": true
+    },
+    {
+      "id": "n15",
+      "pushToOpen": true
+    },
+    {
+      "id": "n16",
+      "pushToOpen": true
+    },
+    {
+      "id": "n17",
+      "pushToOpen": true
+    },
+    {
+      "id": "n5",
+      "pushToOpen": false
+    },
+    {
+      "id": "p26",
+      "pushToOpen": false
+    },
+    {
+      "id": "n6",
+      "pushToOpen": false
+    },
+    {
+      "id": "n7",
+      "pushToOpen": false
+    },
+    {
+      "id": "p9",
+      "pushToOpen": false
+    },
+    {
+      "id": "n12",
+      "pushToOpen": false
+    },
+    {
+      "id": "n13",
+      "pushToOpen": false
+    },
+    {
+      "id": "p21",
+      "pushToOpen": true
+    },
+    {
+      "id": "n18",
+      "pushToOpen": true
+    },
+    {
+      "id": "n19",
+      "pushToOpen": true
+    },
+    {
+      "id": "n0",
+      "pushToOpen": false
+    }
+  ],
+  "mechanisms": {
+    "hinges": 64,
+    "drawers": 6,
+    "pushToOpen": 13
+  }
+}

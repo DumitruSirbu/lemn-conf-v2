@@ -882,6 +882,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Materialul ales nu mai este disponibil. Alege altă variantă.",
     UNKNOWN_HARDWARE_TIER:
       "Feroneria aleasă nu mai este disponibilă. Alege altă variantă.",
+    UNKNOWN_HANDLE: "Acest tip de mâner nu există.",
     UNKNOWN_CABINET_DEPTH:
       "Adâncimea aleasă nu este disponibilă. Alege una dintre adâncimile oferite.",
     parts: {

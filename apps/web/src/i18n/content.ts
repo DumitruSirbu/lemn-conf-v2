@@ -574,6 +574,8 @@ export function resolveRejection(
       return translate("rejection.UNKNOWN_MATERIAL_TIER");
     case "UNKNOWN_HARDWARE_TIER":
       return translate("rejection.UNKNOWN_HARDWARE_TIER");
+    case "UNKNOWN_HANDLE":
+      return translate("rejection.UNKNOWN_HANDLE");
     case "UNKNOWN_CABINET_DEPTH":
       return translate("rejection.UNKNOWN_CABINET_DEPTH");
     default:

@@ -13,10 +13,14 @@ import type { RejectionCode } from "../../src/commands/rejection.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
 import {
+  setKitchenHandle,
+  type KitchenHandleResult,
+} from "../../src/commands/set-kitchen-handle.js";
+import {
   setHardwareTier,
   setMaterialTier,
 } from "../../src/commands/set-whole-kitchen-settings.js";
-import type { Design } from "../../src/design.js";
+import type { Design, Handle } from "../../src/design.js";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
@@ -125,7 +129,8 @@ function worldWithOpenShelf(): { world: KitchenWorld; placementId: string } {
 interface SweepCase {
   readonly code: RejectionCode;
   readonly design: Design;
-  readonly run: () => CommandResult;
+  /** `setKitchenHandle` answers its own result type: its effect is kept outside `CommandEffect` (M10 H-6). */
+  readonly run: () => CommandResult | KitchenHandleResult;
 }
 
 function voidTarget(world: KitchenWorld, col: string, y0: number) {
@@ -475,6 +480,16 @@ function buildCases(): SweepCase[] {
         }),
     },
     {
+      code: "UNKNOWN_HANDLE",
+      design: world.design,
+      run: () =>
+        setKitchenHandle({
+          design: world.design,
+          handle: "gold" as unknown as Handle,
+          occurredAt: OCCURRED_AT,
+        }),
+    },
+    {
       code: "UNKNOWN_HARDWARE_TIER",
       design: world.design,
       run: () =>
@@ -564,6 +579,7 @@ const ALL_REJECTION_CODES: Readonly<Record<RejectionCode, true>> = {
   COLUMN_HOOD_FLOOR: true,
   UNKNOWN_MATERIAL_TIER: true,
   UNKNOWN_HARDWARE_TIER: true,
+  UNKNOWN_HANDLE: true,
   UNKNOWN_CABINET_DEPTH: true,
 };
 
