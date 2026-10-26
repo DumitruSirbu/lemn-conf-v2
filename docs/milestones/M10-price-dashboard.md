@@ -30,6 +30,20 @@
 > - an address never carries a payload;
 > - five invented shapes are blessed or corrected;
 > - S1 gains the live-file skip fix.
+>
+> **Amended a fourth time 2026-10-26, for H1's open points H-1 to H-6** (lane H, §8.1, §9.1, Q2, P5, Z2):
+> - new wave **H1b** wires the kitchen handle into every reader together, and owns `packages/three-adapter`;
+> - H2 adds `settings.topRowHandle`;
+> - H1 owns its input-check code;
+> - Q2 adds the effect to `CommandEffect`;
+> - a no-rollback note is added.
+>
+> **Amended a fifth time 2026-10-26, for X0's logic review** (5 Major, 11 minor, 2 doc conflicts):
+> - publish takes the availability head CAS and writes its created rows inactive (M1, M5);
+> - revert is by address (M2); the bulk group is a code (M3);
+> - the activation audit stamps the returned revision (M4);
+> - the minor shapes are pinned (m1–m11);
+> - the log-revision and digest-round texts are reconciled with ADR 0178.
 
 **Evidence tiers used below** (`docs/best-practices/documentation.md`, *Label the evidence tier*):
 
@@ -412,12 +426,26 @@ D7 and D8.
   - **One write is one statement.** It is a single CTE: `with h as (update catalogue_availability_head set revision =
     revision + 1 where revision = $expected returning revision) insert into catalogue_availability_changes
     (revision, …) select h.revision, … from h`. It runs in the same transaction as its audit row.
-  - **No trigger.** The log's `revision` is its **primary key** and is in the log's `INSERT` grant. Its value is only
+  - **No trigger** (pinned at the coordinator's request; it reconciles ADR 0178, see the doc-conflict note in §8.4).
+  The log's `revision` is its **primary key** and is in the log's `INSERT` grant. Its value is only
     ever the one the head update returned within the same statement. A stale `$expected` updates no head row, inserts
     nothing, and is answered `changed-meanwhile`.
   - **Accepted residual**, recorded beside ADR 0173's F1 and F2: a holder of the application credential could insert a
     log row at an unused higher revision without moving the head. The database cannot stop that; the audit row and
     the head mismatch reveal it.
+- **Publish takes the same CAS, and created rows start inactive** (X0 review M1 and M5, ruled 2026-10-26):
+  - `publish` carries `expectedAvailabilityRevision` and `createdItems: ItemRef[]` (the rows the publish creates).
+  - In its transaction it moves the head once per created item, chaining one CTE per item (the first at `$expected`,
+    each next at the value the previous returned). Each writes an `active = false` log row for its item.
+  - With no created items it still moves the head once, with no log row, so a publish always serialises with
+    availability writes and defaults saves.
+  - A stale `$expected` refuses the whole publish `availability-changed-meanwhile`.
+  - So a created class or accessory is **inactive the moment it is published**, and becomes live only by an explicit
+    activation (A-17's "activation requires the item in the active book").
+  - Rejected: a separate "activated" set with created rows off by default. It would give two rules for "current
+    state" (latest log row for shipped rows, set membership for created ones).
+- **The head is gap-free; the log is not.** A defaults save or a publish with no created rows moves the head without
+  writing a log row. "Gap-free and commit-ordered" describes the head's revisions, not the log's.
 - **The D9 defaults save takes the same CAS** (the coordinator: "both take that head-row lock"). It increments the head
   revision with the same `where revision = $expected` in its transaction. Defaults and availability writes therefore
   serialise through one compare-and-set:
@@ -638,7 +666,7 @@ Below, only the additions to that rule are listed.
 | --- | --- | --- | --- | --- |
 | **X** | Contracts (X0; X1 withdrawn 2026-10-26, its parts are in X0) | The X0 files listed in §10 | Any behaviour; any existing test's assertions | Full (logic mini-review) |
 | **P** | Pricing engine | `configurator-domain/src/pricing/**`; `catalog.ts`; `hardware-mechanisms.ts` and `front-population.ts` (P5); the domain root `index.ts` after MP-0; the P3 window in §9.1 | `design.ts`, `generation/**`, `price-dashboard/**`, `staff-changes/**`; `apps/web` outside the P3 window | Full |
-| **H** | Whole-kitchen handle and new-kitchen stamping | `design.ts`; `queries/describe-selection.ts`; `push-to-open.ts`; `kitchen-handle/**`; `commands/set-kitchen-handle.ts`; `generation/shell-design.ts`; `generation/generate-kitchen.ts` (request type only) | `pricing/**`; `apps/web` | Full |
+| **H** | Whole-kitchen handle and new-kitchen stamping | `design.ts`; `queries/describe-selection.ts`; `push-to-open.ts`; `kitchen-handle/**`; `commands/set-kitchen-handle.ts`; `commands/rejection.ts` (H1, one code); `generation/shell-design.ts`; `generation/generate-kitchen.ts` (request type only). **H1b, added 2026-10-26:** `queries/design-projection.ts`, `hardware-mechanisms.ts` (an H1b window before P5), the PlacementRecord builder in the domain, `packages/three-adapter/src/scene-sync.ts`, and `apps/web/src/panel/use-panel-view.ts` | `pricing/**`; `apps/web` except H1b's one file | Full; H1b Full + visual |
 | **M** | Dashboard model (pure) | `configurator-domain/src/price-dashboard/**` (after X0) | `pricing/**` (reads and imports only); `apps/web` | Full |
 | **S** | Persistence, **the sole writer of `packages/persistence/` in M10** | `packages/persistence/**`, including the census, the privilege test, `index.ts` and migrations `0025`–`0031` | `packages/configurator-domain`; `apps/web` | Full + security |
 | **T** | Copy | `apps/web/src/messages/*`; `i18n/content.ts`; the copy-lock tests | Every component; the `depthNote` reference (Q1's) | Light |
@@ -651,11 +679,11 @@ Below, only the additions to that rule are listed.
 ### 8.2 Dependency graph (an arrow means "must be merged before it starts")
 
 ```
-W0 ─► X0 ═══ MP-0 (fan-out) ═══╦═► P1 ─► P2 ─► P3+Q1 (MP-3; P3 also needs R1) ─► P4a ─► P4b ─► P5
+W0 ─► X0 ═══ MP-0 (fan-out) ═══╦═► P1 ─► P2 ─► P3+Q1 (MP-3; P3 also needs R1) ─► P4a ─► P4b ─► P5 (also needs H1b)
                                ║         │       │                              │       │
                                ║         └► M1   ├► M2                          │       ├► M3 ─► S3 (also needs S5)
                                ║                 │                              │       ├► M4
-                               ╠═► H1 ─► H2      ├► Q2 (also needs H1, T1)      ├► Q3 (also needs R5, T1)
+                               ╠═► H1 ─► H1b ─► H2   ├► Q2 (also needs H1b, T1)     ├► Q3 (also needs R5, T1)
                                ║                 │                              └► Q5 (also needs Q3, Q2, H1)
                                ║                 └► T2 (deletes the old depthNote leaf)
                                ╠═► S1 ─► S2 (also needs X2) ─► S2b ─► S4 ─► S5 ─► S3 ─► S6
@@ -772,8 +800,11 @@ New line kind: "depth" (A-1). The Material line keeps kind "material".
 { kind: "provisional", value: boolean }
 { kind: "hardware-tier-created", tierId }        value: { name, description }                  // RO only (A-21); inactive until published, then activated (A-17, A-18)
 { kind: "accessory-created", accessoryId }      value: { linkedBuildId, perUnitMinor, name, description? }   // A-19
-{ kind: "created-row-text", item: ItemRef, field: "name"|"description" }   value: string   // RO; created rows only
-{ kind: "item-deleted", item: ItemRef }         value: true                                    // unused and non-default; re-judged at publish (A-18)
+{ kind: "created-row-text", item: ItemRef, field: "name"|"description" }   value: string   // RO; created rows only.
+        // item.kind ∈ { hardware (a created tier), accessory (a linked accessory) } only (m9); keyed and built-in rows refused
+{ kind: "item-deleted", item: ItemRef }         value: true                                    // unused and non-default; re-judged at publish (A-18).
+        // item.kind ∈ { hardware, material, accessory (linked only) } (m9). Finish, handle and the two built-in accessories
+        // are code-declared: they can be disabled, never deleted
 // No "active" arm: availability is not a draft change (A-17).
 DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 ```
@@ -788,6 +819,13 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 - **A created class's rates are separate `hardware` changes** keyed by the server-minted `tierId`. They are written
   **in the same draft write** as the `hardware-tier-created` change, so the draft never holds a created class without
   its four rates. M4's `applyChanges` refuses a candidate book holding a created tier that lacks any rate.
+- **Revert names an address, never an index** (X0 review M2): `{kind: "change", address}`. `changeIndex` leaves
+  `DashboardRequestField`. A bulk group is reverted as `{kind: "group", groupId}`, where the id is the server-minted
+  one stored on the group's changes.
+- **The bulk target is `groupCode: PriceGroupCode`** (`base | wall | tall | corner`; X0 review M3), and joins
+  `DashboardRequestField`.
+- **`DraftChangeInputWire` carries no `groupId`** (m1). The bulk route mints it, and a single-change input never has
+  one.
 - **Editing a linked accessory's cabinet type after creation is out of scope.** The owner asked only for linking "on
   creating a new accessory". D6B shows the link read-only once created, and there is no arm for it. Its price is
   edited through `{ kind: "accessory", accessoryId, field: "perUnitMinor" }`.
@@ -812,11 +850,11 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 
 | Port | Operations |
 | --- | --- |
-| `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber}` or `changed-meanwhile`. One transaction: insert at `expectedActiveSequence + 1`, reset the draft row, write the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **Amended 2026-10-26 (F7, F10): `expectedActiveSequence` added; no archive update** |
-| `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED` (the seeded row holds `{}`); `save({expectedRevision, expectedAvailabilityRevision, defaults, audit})` → ok, `changed-meanwhile`, `availability-changed-meanwhile`, or `item-unavailable {item}`. It increments the availability head in the same transaction (A-17, F1). **Amended 2026-10-26: `expectedAvailabilityRevision` and two refusals added** |
+| `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, expectedAvailabilityRevision, createdItems, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber, availabilityRevision}`, `changed-meanwhile` or `availability-changed-meanwhile`. One transaction: the head CAS and the created items' inactive log rows (A-17), the insert at `expectedActiveSequence + 1`, the draft-row reset, and the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **`changeSummary` is pinned** (m8): the published `DraftChange[]` JSON array, with minted ids and group ids, from which `changeCount` is its length. **Refusals the store does not return:** `item-is-default` and a used deletion are judged by the domain **before** the call, against defaults and usage read at `expectedAvailabilityRevision`, which the CAS keeps current (M5). **Amended 2026-10-26: F7, F10, then X0 review M1, M5 and m8** |
+| `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED` (the seeded row holds `{}`); `save({expectedRevision, expectedAvailabilityRevision, defaults, audit})` → ok `{revision, availabilityRevision}` (m3), `changed-meanwhile` or `availability-changed-meanwhile`. It increments the availability head in the same transaction (A-17, F1). **The store returns only these two CAS refusals** (m2): `item-unavailable` is the domain's judgement under the CAS, made before the call, because the store cannot read `defaults` (`unknown`). **Amended 2026-10-26: F1, then X0 review m2 and m3** |
 | `KitchenUsageReader` | `count(itemRef)` → a count of designs not deleted by the client |
-| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (client-deleted or unsent, P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{claimed: roundId}` or `ALREADY_CLAIMED` (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
-| `CatalogueAvailabilityStore` | `readCurrent()` → `{revision, disabled}` (`revision` is the head's); `readAt(revision)` → the state at that revision, from the append-only log; `setActive({item, active, expectedRevision, audit})` → ok `{revision}` or `changed-meanwhile`, written as one CTE statement (A-17, F1). Signature unchanged |
+| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (client-deleted or unsent, P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{kind: "claimed", roundId}` or `ALREADY_CLAIMED`, **where `roundId` is the day key itself** (the round's identity is its day; doc-conflict pin) (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
+| `CatalogueAvailabilityStore` | `readCurrent()` → `{revision, disabled}` (`revision` is the head's); `readAt(revision)` → the state at that revision, from the append-only log; `setActive({item, active, expectedRevision, audit})` → ok `{revision}` or `changed-meanwhile`, written as one CTE statement (A-17, F1). **`audit` is an entry without `availabilityRevision`** (X0 review M4). The store stamps the revision its CTE returned into the detail, then runs its own `readStaffAuditEntry` re-check, then inserts, all in the one transaction. The expected revision is not recorded: two racing requests may share it, while the returned revision is the unique key joining the audit row to its log row |
 | `PriceNoticeStore` | `readAcknowledged(designId)` → `{versionId, availabilityRevision}` or `NEVER_RECORDED`; `recordIfAbsent(designId, pair)` (the first open, insert-if-absent; F8); `recordAcknowledged(designId, pair)` → ok, `unknown-version` or `revision-ahead` (validated in SQL against the versions table and the availability head; F8). No audit (F3). **Amended 2026-10-26: `recordIfAbsent` and the result union added** |
 
 **(d) Wire contract** (X0, `apps/web/src/price-dashboard/price-dashboard-wire-contract.ts`, plus additions to
@@ -833,12 +871,25 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
     column). The store or service computes it; nothing stores it twice.
 - **Amended 2026-10-26 (security):**
   - **creation requests carry no id**; the server mints it (F5);
-  - **the publish request carries no book** (`{expectedDraftRevision, expectedActiveSequence, label, note,
-    provisional}`; F10);
+  - **the publish request carries no book and no `provisional`** (`{expectedDraftRevision, expectedActiveSequence,
+    expectedAvailabilityRevision, label, note}`; F10 and X0 review m4). `provisional` has **one** source: the draft
+    change `{kind: "provisional"}`, which is versioned and shown in D7's diff. D7C's stronger confirmation shows
+    whenever the draft holds `provisional = false`;
   - draft and archived versions appear only in staff responses (F10);
   - the closed refusal list gains `displayed-revision-ahead`, `item-unavailable`, `availability-changed-meanwhile`,
     `unknown-version` and `revision-ahead`;
-  - the seen request's revision is a digit string, `400` otherwise (F9).
+  - the seen request's revision is a digit string, `400` otherwise (F9);
+  - **every revision shape check is bounded** (m6): 1–19 digits with no leading zero, and at 19 digits ≤
+    `9223372036854775807`, compared **as a string** (equal length, then lexicographic), never parsed into a number
+    (the revision stays opaque). This applies to seen (`NOT_A_REVISION`) and to availability revisions
+    (`AVAILABILITY_REVISION_SHAPE`);
+  - **the price-notice refusals are `400`** (A-11; m5): `unknown-version` and `revision-ahead` leave
+    `DASHBOARD_CONFLICTS` for a 400 list;
+  - **defaults naming an unavailable item is `409 item-unavailable`** (m2). `NOT_AVAILABLE` (400) is removed: the
+    refusal is a state conflict judged under the CAS, not malformed input;
+  - publish adds `409 item-is-default {item}` (M5);
+  - **the usage-count read is exempt from per-read audit** (m10), like the changed-count poll (A-12). It returns
+    counts only, and the screen that asks for it is audited as `price-catalogue-viewed`.
 - Refusal codes are a closed list.
 - Bodies carry codes, never sentences (ADR 0095 decision 3).
 
@@ -856,8 +907,13 @@ refused.
 - **Never:** created-row text, version label or note, search text, or any customer value.
 
 ```
-price-draft-changed        { changeKind, itemKind?, itemId?, field? }        // changeKind ∈ §8.4(b) kinds; no value, no text
-price-draft-reverted       { changeKind, itemKind?, itemId? }
+price-draft-changed        { changeKind, itemKind?, itemId?, field?, widthMm? } // changeKind ∈ §8.4(b) kinds; no value, no text
+price-draft-reverted       { changeKind, itemKind?, itemId?, field?, widthMm?, revertedCount }
+                           // m7: a group revert is changeKind "bulk-group" with revertedCount = n and no item keys; a single
+                           // revert has revertedCount 1. itemKind ∈ cabinet|hardware|material|accessory|finish|handle.
+                           // itemId = the ruleId for cabinet / cabinet-size (a book rule id), tierId, accessoryId, finishId or
+                           // handle code otherwise; widthMm only for cabinet-size. itemKind and itemId are both present or
+                           // both absent (depth-rule, provisional, bulk-group carry neither)
 price-bulk-changed         { scope: all|group|selection, groupCode? (iff scope = group), percent, ruleCount, amountCount }
                            // groupCode ∈ base|wall|tall|corner, the closed list of D2's four groups (derived in M2 from the
                            // catalogue band and structural-ness), NOT id-shaped; no selected ids, counts only (X0-5)
@@ -889,7 +945,13 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | `packages/configurator-domain/src/account/capabilities.ts` | Nobody; no change is needed | — |
 | `packages/configurator-domain/src/design.ts` | Lane **H** | P reads only |
 | `packages/configurator-domain/src/catalog.ts` | Lane **P** (P1: the default-width field; P5: the `liftUp` front declaration and the rewritten `wall-lift` comment) | — |
-| `packages/configurator-domain/src/hardware-mechanisms.ts`, `front-population.ts` | Lane **P**, P5 only (added 2026-10-26, A-20) | H reads `push-to-open.ts` only and does not touch these |
+| `packages/configurator-domain/src/hardware-mechanisms.ts` | **H1b** first (one line: the push-to-open query passes the kitchen handle), then lane **P** for P5. P5 starts only after H1b merges | — |
+| `packages/configurator-domain/src/front-population.ts` | Lane **P**, P5 only (A-20) | — |
+| `packages/configurator-domain/src/queries/design-projection.ts` (`DisplayEntry` gains an optional kitchen-handle fact) | **H1b** | Every lane reads it only |
+| `packages/three-adapter/**` | **H1b** only. No other M10 wave touches the adapter | — |
+| `apps/web/src/panel/use-panel-view.ts` | **H1b** | — |
+| `packages/configurator-domain/src/commands/command-result.ts` (the `CommandEffect` union) and `apps/web/src/store/apply-command-result.ts` | **Q2**, in one change (H-6) | H1 keeps `KitchenHandleSetEffect` outside the union until Q2 |
+| `packages/configurator-domain/src/commands/rejection.ts` | **H1** (one code, H-4) | — |
 | `apps/web/src/price-dashboard/item-dialogs.tsx` | **U4a**, then U4b, then U4c, in sequence (never two at once) | — |
 | `packages/persistence/**` (including `index.ts`, migrations, `application-role-privileges.test.ts`, `live-suite-census.test.ts`) | Lane **S**, all of it, for all of M10 | Others consume through ports and fakes |
 | `apps/web/src/messages/ro.json`, `ru.json`, `ro.d.json.ts`, `i18n/content.ts`, copy-lock tests | Lane **T**, always. `ro.d.json.ts` is generated by next-intl and carries every leaf's **literal value** [src: `ro.d.json.ts:1-2, 328`], so no other lane may change a leaf's text. **The `depthNote` route:** T1 adds a **new** leaf, `globalSettings.depthNotePriced` (ICU `{percent}`). Q1 switches the component to it, which is a component edit and no message-file edit. T2 deletes the old leaf after MP-3 | Missing keys are reported to the coordinator, and T runs a follow-up wave |
@@ -914,6 +976,7 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | 0028 | **Two tables, one file** (A-17, F1): `catalogue_availability_head`, a seeded singleton (`revision bigint not null check (>= 0)`, seeded 0), and `catalogue_availability_changes` (`revision bigint primary key`, item_kind, item_id, active boolean, `changed_at default now()`, changed_by_account_id). **No sequence and no trigger.** A row's revision comes from the head update in the same CTE statement (§5 A-17) | S2b | head: `SELECT, UPDATE (revision)`. log: `SELECT, INSERT (revision, item_kind, item_id, active, changed_by_account_id)`. No `DELETE`, no log `UPDATE` |
 | 0029 | `create_design_staff_seen`: design_id pk, seen_revision bigint, seen_by_account_id, `seen_at default now()` | S4 | `SELECT`; `INSERT (design_id, seen_revision, seen_by_account_id)`; `UPDATE (seen_revision, seen_by_account_id, seen_at)`. No PK update. **Also, with 0029, on the existing table (F2):** `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;`. This is a **runbook grant, not SQL in the migration file**: grants are never in a migration file, because the unattended screen does not recognise them [src: `0009_create_csp_reports.sql:32-34`]. **The first reader is S4's staff kitchen statement for the as-sent estimate, consumed by K2** |
 | 0030 | `create_staff_change_digest`, **two tables**: rounds (day_key pk, shape-checked; `claimed_at default now()`; sent_count int) and entries (round day_key, design_id, revision; pk (round, design)) | S4 | rounds: `SELECT; INSERT (day_key); UPDATE (sent_count)`. entries: `SELECT; INSERT (day_key, design_id, revision)` (F7) |
+| — | **Pinned 2026-10-26 (doc conflict with ADR 0178):** `rounds.day_key` is the primary key **and the round id**; there is no separate `round_id`. `entries` is `(day_key references rounds (day_key), design_id, revision)` with primary key `(day_key, design_id)`. `rounds.claimed_at default now()` (ADR 0178's `ran_at` is renamed `claimed_at`). `ClaimDigestDayResult.roundId` carries the day key | S4 | as the 0030 row |
 | 0031 | `create_design_price_notices`: design_id pk, acknowledged_version_id, acknowledged_availability_revision, `acknowledged_at default now()` | S5 | `SELECT`; `INSERT (design_id, acknowledged_version_id, acknowledged_availability_revision)`; `UPDATE (acknowledged_version_id, acknowledged_availability_revision, acknowledged_at)`. No PK update |
 
 **Rules across every M10 table (F7, 2026-10-26):**
@@ -971,6 +1034,8 @@ mini-review of contract against rulings.
   mockup's fields, frame by frame. **Except:** activation is deliberately absent (A-17), and RU text fields are absent
   (A-21). Each absence is listed in the test with its ruling.
 - No contract type carries an `active` flag inside the book or a Russian authored-text field.
+- **The coverage test cites the ruling** (X0 review m11): link editing after creation is "out of scope, ruled
+  2026-10-26 (X0-4)", not "unruled (reported)".
 - **No address carries a payload** (X0-4). `ItemRef` and `CatalogueAvailability` are declared in
   `pricing/catalogue-availability.ts`, and no file under `pricing/` imports `price-dashboard/**` (X0-3).
 - **The seams pin (X0-1, ruled 2026-10-26).** `pricing-seams.test.ts`'s "keeps every minor-unit amount in the sample
@@ -981,7 +1046,11 @@ mini-review of contract against rulings.
     fields;
   - add the positive replacement over that directory: no `…Minor` field is assigned a numeric literal
     (`/Minor\??\s*[:=]\s*-?\d/`);
-  - sabotage it: a planted `anchorMinor: 145000` must go red.
+  - sabotage it: a planted `anchorMinor: 145000` must go red;
+  - **(X0 review, QA pin gap)** QA adds a second pattern for an amount literal held in a `DraftChange` value next to
+    a `…Minor` field address (`{address: {field: "anchorMinor"}, value: 145000}`), with its own planted sabotage;
+  - heads-up for P4a: extending `pricing/catalogue-availability.ts` will trip the finish-never-prices pin and
+    `coverage.test.ts:657`. **QA re-scopes both at P4a**; the implementer does not edit them.
 
 **Reading:** this plan §5, §8.4 and §9; ADR 0173 P-L3-3; `staff/staff-audit-action.ts`; `persistence/src/staff-kitchen-actions-store.ts` (the port pattern); `apps/web/src/staff/staff-kitchens-wire-contract.ts`; mockup frames D2–D10 notes [mock L829-883].
 **QA reading:** the same, plus `persistence/tests/fake-staff-kitchen-actions-store.test.ts`.
@@ -1064,7 +1133,7 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
 | **P3** cut-over (the hard serialisation point) | (1) the sample book converted to anchored, percentage and depth form (placeholders, still `amountsProvisional: true`); (2) the old linear shapes and `wholeKitchenMinor` removed; (3) every consumer updated: `whole-kitchen-tiers.ts`, `starting-price.ts`, the breakdown model's material line and new depth line, and the i18n tests naming `wholeKitchenMinor` (tests only: no message-file edit); (4) the `price-book.ts:12-13` comment rewritten; (5) QA is told which pins move (`pricing-seams.test.ts`, `qa-6b2-tier-amounts`, `qa-m6-wave-b-*`, `submission-snapshot.test.ts`) | `sample-price-book.ts`, `price-book.ts`, `apps/web/src/price/whole-kitchen-tiers.ts`, `starting-price.ts`, `price-breakdown-model.ts`. **About five, plus test fixtures; a mini-review is added because it crosses packages** | P2, R1 merged (so the root is already single) | ADR 0106 and Amendment A; `apps/web/tests/i18n/price-book-text.test.ts`; ADR 0154 d8 (stored snapshots are not touched); `apps/web/src/price/price-breakdown.tsx` |
 | **P4a** availability and replacement (amended 2026-10-26, A-17) | (1) `CatalogueAvailability` and `ItemRef` types, and `priceDesign`'s new `availability` input (no flag in the book); (2) `REPLACEMENT_REQUIRED` when a selection names a disabled material, hardware class, colour or handle, never `UNKNOWN_TIER`; (3) `replacementsRequired(design, book, availability, catalog)` → item refs plus remaining options; (4) a disabled accessory (built-in or linked) produces no line, and `removedAccessoriesSince(design, seenAvailability, currentAvailability)` supports the C4 info row | `price-design.ts`, `pricing/catalogue-availability.ts` (created types-only by X0; P4a adds its functions), new `pricing/replacements.ts`, `price-lines.ts` (code) | P3 merged | ADR 0062 Amendment 3 and the 2026-10-26 Amendment (W0); A-16, A-17; ADR 0072 Amendment; ADR 0057; ADR 0081; ADR 0086; ADR 0099; `materials.ts`; `queries/sink-accessories.ts` |
 | **P4b** linked accessories, created-row text, the price-change test (added 2026-10-26) | (1) `linkedAccessories` with the per-linked-placement earning shape (A-19), priced via `resolveCatalogEquivalent` like cabinet rules; (2) parser arms: unique ids across built-ins and linked rows, bounded list, `perUnitMinor` exact, a customer-supplied link refused when the book says so; (3) authored Romanian `name`/`description` on created rows only, with no Russian field accepted (A-21); (4) `pricesChangedBetween(design, catalog, {seenBook, seenAvailability}, {activeBook, currentAvailability})` (A-11) | `price-book.ts`, `parse-price-book.ts`, `price-design.ts`, new `pricing/linked-accessories.ts`, new `pricing/price-change-notice.ts` | P4a | A-11, A-19, A-21; ADR 0070 d4; ADR 0062 seam 1 and S-28; ADR 0106 and Amendment A; `price-book.ts:205-243`; `price-design.ts:613-708` |
-| **P5** lift mechanism and lift-door hinges (no longer conditional; ruled 2026-10-26) | (1) `HardwareTier.perLiftMinor` and its parser arm; (2) `HardwareMechanismCounts.lifts`, one per declared lift-up door; (3) the lift door's hinges: 2, or 3 when the door is **wider than 500 mm** (OQ-5a default, strict); its height rule does not apply; (4) the `liftUp` front declaration on `wall-lift` in `catalog.ts`, plus a sweep reporting every other front the catalogue calls a lift or flap (reported, not priced); (5) the ADR 0092 Amendment C quantifier gains its lift term, derived from the declared rates, and the code comments at `hardware-mechanisms.ts:27-29` and `catalog.ts:593-594` are rewritten | `hardware-mechanisms.ts`, `front-population.ts`, `catalog.ts`, `price-book.ts`, `price-design.ts`, `parse-price-book.ts`. **Six; over five, stated.** The arithmetic is two existing functions extended, and a mini-review is added | P4b (same files). **OQ-5a flags the boundary, without blocking** | ADR 0070 d1, d6; ADR 0092 d1, d2, d8 and Amendment C; A-20; S-29, S-30; `hardware-mechanisms.ts:27-160`; `front-population.ts:60-130`; frames D4A/B [mock L688-695]; the mockup's `hwOf` [mock L511] (illustrative only) |
+| **P5** lift mechanism and lift-door hinges (no longer conditional; ruled 2026-10-26) | (1) `HardwareTier.perLiftMinor` and its parser arm; (2) `HardwareMechanismCounts.lifts`, one per declared lift-up door; (3) the lift door's hinges: 2, or 3 when the door is **wider than 500 mm** (OQ-5a default, strict); its height rule does not apply; (4) the `liftUp` front declaration on `wall-lift` in `catalog.ts`, plus a sweep reporting every other front the catalogue calls a lift or flap (reported, not priced); (5) the ADR 0092 Amendment C quantifier gains its lift term, derived from the declared rates, and the code comments at `hardware-mechanisms.ts:27-29` and `catalog.ts:593-594` are rewritten | `hardware-mechanisms.ts`, `front-population.ts`, `catalog.ts`, `price-book.ts`, `price-design.ts`, `parse-price-book.ts`. **Six; over five, stated.** The arithmetic is two existing functions extended, and a mini-review is added | P4b (same files), **H1b** (it holds `hardware-mechanisms.ts` first). **OQ-5a flags the boundary, without blocking** | ADR 0070 d1, d6; ADR 0092 d1, d2, d8 and Amendment C; A-20; S-29, S-30; `hardware-mechanisms.ts:27-160`; `front-population.ts:60-130`; frames D4A/B [mock L688-695]; the mockup's `hwOf` [mock L511] (illustrative only) |
 
 **P acceptance.** Each item is a property where a range exists. Use `fast-check`; the javascript-testing-expert skill
 applies.
@@ -1166,7 +1235,31 @@ thorough and cannot fail*. A sabotage run is owed for every new arm (R6).
 | Wave | Must-fix items | Prod files | Depends on | Reading |
 | --- | --- | --- | --- | --- |
 | **H1** whole-kitchen handle | (1) `DesignSettings.handle` (optional, so no schema bump, per ADR 0099 d10's argument); (2) resolution: the cabinet's own handle, else the kitchen handle (excluding the top row), else today's defaults (`DEFAULT_HANDLE` / `TOP_ROW_HANDLE`); (3) a `setKitchenHandle` command; (4) `isPushToOpen` reads the resolved handle, so hardware latches follow it; (5) migration and load-seam tolerance | `design.ts`, `queries/describe-selection.ts`, new `kitchen-handle/kitchen-handle.ts`, `push-to-open.ts`, new `commands/set-kitchen-handle.ts` | MP-0; **OQ-7** | DEVELOPMENT-SPEC §5.5 and §6.5 (finish and handle); ADR 0061; ADR 0092 Amendment C; ADR 0099; backlog 278; `design.ts:44-70,170-195` |
-| **H2** stamping new-kitchen defaults | (1) the generation request takes `newKitchenSettings` (material, hardware, depth, colour, handle, top-row handle); (2) `shell-design.ts` stamps them explicitly; (3) a colour the default material does not offer resets to that material's default (ADR 0057, the D9B note); (4) absent settings on a legacy document keep the fixed fallback (A-9) | `generation/shell-design.ts`, `generation/generate-kitchen.ts` (request type), `kitchen-handle/…` | H1 | ADR 0111; ADR 0057; ADR 0071 Amendment; `migrate-design.ts:83` |
+| **H1b** the kitchen handle reaches every reader, together (added 2026-10-26) | (1) `projectDesignForDisplay` passes the design's kitchen-handle settings into each `DisplayEntry` (an optional fact); (2) `hardware-mechanisms.ts`'s push-to-open query passes it, so the **price** follows; (3) the scene follows: `scene-sync.ts`'s `hidesHandles` passes it, the black-bar check reads `resolvedHandleOf(…)` instead of the raw `record.handleMode`, and `signBody` includes the resolved handle so a kitchen-handle change re-syncs. `PlacementRecord.handleMode` stays the **cabinet's own** handle; (4) `use-panel-view.ts` passes it to `describeSelection`; (5) the readers take H's settings **object** (`{handle?, topRowHandle?}`), not a lone value, so H2's `topRowHandle` reaches them with no second pass | `queries/design-projection.ts`, `hardware-mechanisms.ts`, the domain PlacementRecord builder, `three-adapter/src/scene-sync.ts`, `apps/web/src/panel/use-panel-view.ts`. **Five, across three packages; a mini-review is stated** | H1 | ADR 0092 Amendment C (price and scene must not split); ADR 0099; DEVELOPMENT-SPEC §5.5, §6.5; `docs/best-practices/product-invariants.md`; `docs/skills/lemnaria-3d-reference/SKILL.md`; `scene-sync.ts:190-310`; `built-body.ts:87-88` |
+| **H2** stamping new-kitchen defaults, and the top-row handle | (1) the generation request takes `newKitchenSettings` (material, hardware, depth, colour, handle, top-row handle); (2) `shell-design.ts` stamps them explicitly; (3) a colour the default material does not offer resets to that material's default (ADR 0057, the D9B note); (4) absent settings on a legacy document keep the fixed fallback (A-9); (5) **`DesignSettings.topRowHandle`** (optional, the same no-bump argument), resolved for top-row bodies as cabinet's own → `settings.topRowHandle` → `TOP_ROW_HANDLE` (H-3) | `generation/shell-design.ts`, `generation/generate-kitchen.ts` (request type), `kitchen-handle/…`, `design.ts` | H1b | ADR 0111; ADR 0057; ADR 0071 Amendment; `migrate-design.ts:83` |
+
+**Rulings on H1's open points (2026-10-26):**
+
+- **H-1 — the readers belong to new wave H1b.** H1 adds the setting and the resolution and stops there. H1b wires
+  every reader together, because price without scene recreates the split that ADR 0092 Amendment C closed. No lane
+  owned `packages/three-adapter` until now; H1b does, and only it. H1b holds `hardware-mechanisms.ts` before P5.
+  Q2 and P5 wait for H1b.
+- **H-3 — `topRowHandle` is kept, as a stamped setting.** D9 draws "Rândul de sus" [mock L755], and A-9 forbids
+  saved kitchens from reading the live default. The top row therefore needs a per-design value, stamped at creation.
+  H2 adds optional `settings.topRowHandle`, which falls back to `TOP_ROW_HANDLE` (push) when absent. The customer gets
+  no kitchen-level top-row control (C2 draws only "Mânere"); a top-row cabinet's own handle still wins. **X0's
+  contract is unchanged:** `KitchenDefaultsWire.topRowHandle` and the `kitchen-defaults-saved` `changedFields` entry
+  stand.
+- **H-4 — H1 owns its input check.** `setKitchenHandle` refuses a value that is not a declared `Handle` with a new
+  code in `commands/rejection.ts`, inside H1's own QA round. A command must judge its input. **Availability is not the
+  command's:** Q2 offers only active handles, Q5 resolves a disabled one through the sheet, and the price refuses
+  `REPLACEMENT_REQUIRED` (P4a).
+- **H-5 — the rollback hazard is recorded.** `settings.handle` (and `settings.topRowHandle`, H2) in a `strictObject`
+  make a document unreadable after a rollback to a build without the key, exactly as `settings.finish` does (ADR 0099
+  d10). This is a **no-rollback release note** for Z2's close and the scribe, not a migration.
+- **H-6 — Q2 adds the effect to the union and its branch in one change.** H1 keeps `KitchenHandleSetEffect` outside
+  `CommandEffect`. Q2 holds `commands/command-result.ts` and `store/apply-command-result.ts` together and adds the
+  whole-kitchen branch, so `intendSelection` never reads `effect.placementId` from it.
 
 **H acceptance:**
 
@@ -1181,8 +1274,23 @@ thorough and cannot fail*. A sabotage run is owed for every new arm (R6).
   - This is a property over random designs.
 - **H1-c:** a document without `settings.handle` renders and prices exactly as before (golden comparison against
   `HEAD`).
+- **H1-d (H-4):** `setKitchenHandle` with any value outside `HandleSchema` (a sweep over strings, `null`,
+  `undefined`, numbers) is rejected with its code and leaves the document unchanged.
+- **H1b-a:**
+  - choosing a kitchen handle changes, together, the hardware line's push-to-open count, the scene's visible handle
+    bars (hidden for push, black bars for black) and the panel's described handle;
+  - must-not: any of the three follows while another does not. Each is checked against the same resolved handle per
+    body, and a sabotage of any one reader must go red;
+  - a top-row body is unaffected by the kitchen handle.
+- **H1b-b:**
+  - `PlacementRecord.handleMode` is still the cabinet's own handle;
+  - a kitchen-handle change alone re-syncs the affected bodies (their `signBody` changes) and no others.
+- **H1b-c (visual, §13.3):**
+  - at 390 × 844 and 1440 × 900, switching the kitchen handle steel → black → push repaints every handle-taking body,
+    leaves top-row bodies alone, and moves the price;
+  - captured, with the console read.
 - **H2-a:**
-  - every newly generated design carries explicit material, hardware, depth, colour and handle;
+  - every newly generated design carries explicit material, hardware, depth, colour, handle and top-row handle;
   - changing the defaults input never changes the output for an existing document.
   - This is a property: generate, then re-load under different defaults, and the design is byte-identical.
 
@@ -1230,6 +1338,11 @@ ADR 0099, ADR 0092 Amendment C, this plan A-9. **(clean-code):** the diff.
 - **M4-b:** an authored name containing a digit-bearing amount, "%", or any of `inclus`/`inclusă`/`incluse` is refused
   with a code. A plain name passes.
 - **M4-c:** a link to a customer-supplied row, or to an id the catalogue does not hold, is refused.
+- **M4-e (X0 review M5, m9):**
+  - `judgeDeletionsAtPublish` takes the stored defaults too, and refuses a deletion of the D9 default with
+    `item-is-default`;
+  - a `created-row-text` change on a keyed or built-in row is refused;
+  - an `item-deleted` change on a finish, a handle or a built-in accessory is refused.
 - **M4-d (amended 2026-10-26, F5):**
   - created-row text is judged by the rule of migration `0021_create_design_notes.sql:15`, through `judgeNoteText`'s
     rules or a shared extraction of them (`staff/note-text.ts:29`): NFC; control and bidi-override characters
@@ -1268,6 +1381,13 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - **a racing pair of publishes** at the same `expectedActiveSequence` yields exactly one new version; the other is
     `changed-meanwhile` (the uniqueness of `sequence_number`);
   - `readActive` is the row with the greatest `sequence_number`;
+  - **(X0 review M1)** a publish creating *k* items moves the head by *k* (or by 1 when *k* = 0). Each created item's
+    latest log row is `active = false`, so the published book prices none of them until an explicit activation;
+  - **(M1/M5)** a publish at a stale `expectedAvailabilityRevision` is `availability-changed-meanwhile`, and nothing
+    is written (no version, no log row, the draft unchanged);
+  - **a racing pair of one publish and one defaults save** at the same `expectedAvailabilityRevision` yields exactly
+    one success;
+  - `change_summary` round-trips as the published `DraftChange[]` array (m8);
   - must-not: `UPDATE`, `DELETE` or `TRUNCATE` on `price_book_versions` is held;
   - must-not: `INSERT` on `price_book_draft` or `kitchen_defaults` is held (seeded singletons).
 - **S-b1 (S2, the seed; F3):**
@@ -1276,6 +1396,8 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - it writes no staff audit row.
 - **S-b2 (S2b; amended 2026-10-26, F1):**
   - an availability write and its audit row commit together or not at all;
+  - **(M4)** the audit row's `availabilityRevision` equals the log row's revision written in the same transaction, for
+    every write, including both writes of a racing pair;
   - **the log's revision always equals the head revision its statement produced.** A write with a stale
     `expectedRevision` inserts no log row, moves no head and answers `changed-meanwhile`;
   - **a racing pair** of availability writes at one `expectedRevision` yields exactly one log row and a head moved by
@@ -1307,9 +1429,11 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
     checked by the privilege test planning each statement as that role;
   - S4 adds the arm for exactly `SELECT (priced)`: green with the grant, red without;
   - **must-not: any `SELECT` on `contact_submissions` wider than the runbook's existing list plus `priced`.**
-- **S-h (S3; amended 2026-10-26, F1):**
-  - a defaults save naming a disabled item, or one absent from the active book, is `item-unavailable` and writes
-    nothing;
+- **S-h (S3; amended 2026-10-26, F1; X0 review m2, m3):**
+  - the store returns only `changed-meanwhile` and `availability-changed-meanwhile`. A defaults save naming a
+    disabled item, or one absent from the active book, is refused **by the service's domain judgement** under the CAS
+    (`409 item-unavailable`) before the store is called, and nothing is written;
+  - a success returns `{revision, availabilityRevision}`;
   - a save at a stale `expectedAvailabilityRevision` is `availability-changed-meanwhile`;
   - a successful save moves the availability head by exactly one, in its transaction.
 - **S-i (S5; amended 2026-10-26, F3, F8):**
@@ -1376,7 +1500,11 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - a test sweeps every route, and no detail contains created-row text, a version label or a note;
   - an operator session (no `price.edit`) gets `403` on every price route and sees no catalogue nav.
 - **R-d (amended 2026-10-26, F7, F10):**
-  - publish with a stale draft revision, or a stale `expectedActiveSequence`, gives `409 changed-meanwhile`;
+  - publish with a stale draft revision, or a stale `expectedActiveSequence`, gives `409 changed-meanwhile`; with a
+    stale `expectedAvailabilityRevision`, `409 availability-changed-meanwhile`;
+  - **(M5)** a publish whose draft deletes the current D9 default is `409 item-is-default {item}`, including the
+    sequence "draft deletes X → defaults save names X → publish", which is tested end to end;
+  - **(m4)** a publish request carrying `provisional` is `400`. The published book's flag is the draft's;
   - **a publish request carrying a `book` member is `400`**; the server computes `apply(activeBook, storedDraft)`
     itself;
   - a book the domain refuses is never stored;
@@ -1452,7 +1580,8 @@ Wave by wave:
   - the cabinet-type list holds no customer-supplied row.
 - **U5-a:**
   - publish is disabled when the draft equals the active book (D7D);
-  - turning "Sume provizorii" off needs the checkbox (D7C);
+  - turning "Sume provizorii" off needs the checkbox (D7C), shown whenever the draft holds a `provisional = false`
+    change (m4: the draft is the flag's only source);
   - a failed publish leaves the draft and the active version unchanged (D7G).
 - **U6-a:** after saving, the customer's next **new** kitchen starts with the saved values, and an already-saved
   kitchen is unchanged.
@@ -1523,7 +1652,7 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | Wave | Must-fix items | Prod files | Depends on | Reading (in addition to the base) |
 | --- | --- | --- | --- | --- |
 | **Q1** depth line and copy | (1) the depth line in the breakdown ("Adâncime 700 mm · +{percent} %"); (2) the settings depth control switches from `globalSettings.depthNote` to T1's `depthNotePriced`, with `{percent}` from the published rule. This is a component edit only; no message file is touched | `price-breakdown.tsx`, `price-breakdown-model.ts` (depth line only), `settings/global-settings.tsx` | T1; **built on P3's branch after P3's QA is green; merged with P3 at MP-3** | ADR 0100 decision 5 and Amendment; A-1; frames C3, C3D, C3S, C3R [mock L784-790] |
-| **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint; the store applies `setKitchenHandle` | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), H1, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command |
+| **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint, offering only active handles; the store applies `setKitchenHandle`; `KitchenHandleSetEffect` joins `CommandEffect` together with `apply-command-result.ts`'s whole-kitchen branch (H-6) | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts`, `domain commands/command-result.ts`, `store/apply-command-result.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), **H1b**, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command; H-6 |
 | **Q3** forced replacement and merged notice | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17) | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |
 | **Q4** sent-kitchen note | C5A/C5AD: a closable, non-blocking note above the price when `isSent` | `sent-kitchen-note.tsx`, editor placement | R5, T1 | Frames C5A, C5AD [mock L805-807]; ADR 0062 Amendment 5, point 3; ADR 0165 |
 | **Q5** lone colour and handle replacement | A disabled colour or handle as a sheet row; choosing replaces it at every level where it appears (A-16); "Culoarea a revenit la Alb" when a material change resets it | `replacement-sheet.tsx` (mod), `store/whole-kitchen-apply.ts` (mod) | Q3, Q2, H1, P4a | A-16, A-17; ADR 0057, 0081, 0086, 0099; `chosen-finishes.ts`, `resolved-finish.ts` |
@@ -1565,6 +1694,8 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
   - the visual pass of §13.3 is done;
   - every `[mock]` frame is reproduced or its deviation is recorded with a reason.
 - **Z2:**
+  - **release notes:** no rollback past the build that introduced `settings.handle` (H1) or `settings.topRowHandle`
+    (H2), because a `strictObject` refuses the unknown key (ADR 0099 d10's precedent; H-5);
   - the test audit (`configurator-test-auditor`, ADR 0152 d4) runs over every test M10 added;
   - a "cannot fail" finding keeps the milestone open;
   - then the scribe archives.
