@@ -25,6 +25,7 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import {
   pricedFlat,
   type CabinetPriceRule,
+  type LinearCabinetPriceRule,
   type PriceBook,
 } from "../../src/pricing/price-book.js";
 import type {
@@ -125,7 +126,7 @@ function lineFor(priced: PricedDesign, placementId: string): CabinetPriceLine {
   return line;
 }
 
-function ruleFor(buildId: string): CabinetPriceRule {
+function ruleFor(buildId: string): LinearCabinetPriceRule {
   const rule = BOOK.cabinetRules.find(
     (candidate) => candidate.buildId === buildId,
   );

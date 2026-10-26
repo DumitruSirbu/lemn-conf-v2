@@ -15,6 +15,7 @@ import {
   type Band,
   type BodyCatalog,
   type BodyDefinition,
+  type DefaultWidthSource,
   type WidthFlex,
   type WidthRangeMm,
 } from "./void-engine.js";
@@ -77,6 +78,72 @@ export const WIDTH_STEP_MM = 50;
  *  but not `MAX_EMPTY_COLUMN_WIDTH_MM`, which must never exceed it and is not read from here, as `module-grid.ts` is a
  *  leaf and this module is not (ADR 0052). */
 export const CABINETRY_MAX_WIDTH_MM = 800;
+
+/** A row's default width and where the value comes from. */
+interface DefaultWidth {
+  readonly widthMm: number;
+  readonly source: DefaultWidthSource;
+}
+
+/** The module the generator plans a cabinet at, and the width most rows are made at when there is room. */
+const STANDARD_DEFAULT_WIDTH_MM = 600;
+
+const GENERATED_AT_THE_STANDARD_MODULE: DefaultWidth = {
+  widthMm: STANDARD_DEFAULT_WIDTH_MM,
+  source: "generator",
+};
+const ONLY_WIDTH_IS_THE_STANDARD_MODULE: DefaultWidth = {
+  widthMm: STANDARD_DEFAULT_WIDTH_MM,
+  source: "only-width",
+};
+const PROPOSED_AT_THE_STANDARD_MODULE: DefaultWidth = {
+  widthMm: STANDARD_DEFAULT_WIDTH_MM,
+  source: "proposed",
+};
+
+/**
+ * Every insertable row's default width and where the value comes from (ADR 0175; backlog 276; the dashboard shows
+ * "propus" on a `proposed` one, which is the owner's to confirm). Declared once here, beside the rows, so the
+ * generator, the anchor price and the dashboard read one figure. A parity test holds each `generator` row to what the
+ * generator plans.
+ */
+const DEFAULT_WIDTHS: ReadonlyMap<string, DefaultWidth> = new Map([
+  ["base-cabinet", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-3drawer", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-sink", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-hob-oven", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-dishwasher", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-bottle-cargo", { widthMm: 300, source: "generator" }],
+  ["fridge-free", { widthMm: 700, source: "generator" }],
+  ["wall-cabinet", GENERATED_AT_THE_STANDARD_MODULE],
+  ["tall-pantry", GENERATED_AT_THE_STANDARD_MODULE],
+  // The hob role's other body: planned at the hob's width wherever an oven tower stands, so both hob bases carry
+  // one source.
+  ["base-hob-2drawer", GENERATED_AT_THE_STANDARD_MODULE],
+  ["tall-oven-tower", ONLY_WIDTH_IS_THE_STANDARD_MODULE],
+  ["base-panbank", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["hood", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["wall-lift", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["open-shelf", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["tall-fridge-housing", PROPOSED_AT_THE_STANDARD_MODULE],
+]);
+
+/** The definition with its default width and the source of it. Throws for a row with none, so a new insertable row
+ *  cannot be added without saying what width it is quoted at. */
+function withDefaultWidth(
+  buildId: string,
+  definition: BodyDefinition,
+): BodyDefinition {
+  const declared = DEFAULT_WIDTHS.get(buildId);
+  if (declared === undefined) {
+    throw new Error(`The catalogue declares no default width for "${buildId}"`);
+  }
+  return {
+    ...definition,
+    defaultWidthMm: declared.widthMm,
+    defaultWidthSource: declared.source,
+  };
+}
 
 /** Every multiple of `WIDTH_STEP_MM` inside these ranges, derived so the chips cannot drift from the bound (ADR 0035
  *  decision 2). */
@@ -441,7 +508,7 @@ export type CatalogEntry = readonly [string, BodyDefinition];
 export function buildInsertableBodyDefinitions(
   cabinetDepthMm: number,
 ): readonly CatalogEntry[] {
-  return [
+  const rows: readonly CatalogEntry[] = [
     // ADR 0033: one row for both door counts; the count follows the width, so the customer chooses a cabinet and a
     // width.
     [
@@ -742,6 +809,10 @@ export function buildInsertableBodyDefinitions(
       },
     ],
   ];
+  return rows.map(([buildId, definition]) => [
+    buildId,
+    withDefaultWidth(buildId, definition),
+  ]);
 }
 
 /** §7's catalogue at the shipped depth, for readers not yet depth-aware (`design-bounds.ts`, the seeded fixture, the
