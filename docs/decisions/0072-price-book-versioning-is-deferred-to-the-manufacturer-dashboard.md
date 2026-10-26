@@ -236,3 +236,15 @@ included (freezing rejected for now). Open points for the architect are listed i
 or notice. The dashboard remains after M8 per ADR 0062. The seam finding (`priceDesign` takes the
 book as a parameter) is untouched, and is what makes "price at the current book" a substitution
 rather than a refactor.
+
+**Dated note, 2026-10-26: the marker is decided, and the "builds nothing" sentence above is superseded.** Evidence tier:
+doc-quoted from `docs/milestones/M10-price-dashboard.md` §5 (A-11, A-17); nothing is built.
+
+- "M6 and M8 still build nothing for this … The dashboard remains after M8" is superseded by
+  [ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md): the dashboard is milestone M10.
+- *Where the "already shown" marker is stored is open* is decided by [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md)
+  A-11: a database row per design holding the last **(book version, availability revision) pair** the owner of the design
+  acknowledged. A pair, not a version alone, because under the owner's 2026-10-26 ruling (OQ-2) availability changes
+  immediately and outside the published book, so a kitchen's price can change without a new version. A cookie and the
+  profile are rejected there. Recorded as an architect ruling; the owner may overrule it.
+- Snapshots are still never re-priced: this record's "what this answers elsewhere" stands.

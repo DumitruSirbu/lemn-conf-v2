@@ -48,3 +48,13 @@ coordinator. The scribe ran nothing. Nothing is built.
 - No ADR, migration or grant is changed by this record. ADR 0062, 0095, 0112, 0153 and 0172 keep their text.
 - Residual risk the owner accepted with O-L3-4, as the architect stated it: the database cannot tie a role insert to an
   invitation; only the application's code and its review stop an injection from creating an administrator.
+
+## Dated note, 2026-10-26: O-L3-2 is satisfied; O-L3-3 is unchanged [doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 S-2, S-4; relayed owner answer; nothing built]
+
+- **O-L3-2.** The record it required now exists: [ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md)
+  names and supersedes ADR 0062's "after M8" timing, and the redraw is `docs/design/mockups/Lemnaria Dashboard.dc.html`.
+  The "Prețuri" nav item is shown from M10 wave U1 on. The Consequences line above that ADR 0062 "keeps [its] text" is
+  superseded as to timing only, by the same record.
+- **O-L3-3 (S7 Traduceri) is unchanged.** On 2026-10-26 the owner (relayed, OQ-3) named it as where Russian comes from:
+  "all the translations should be done through files and a separate functionality for this". Until it exists, a row the
+  dashboard creates renders its Romanian in both locales ([ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-21).

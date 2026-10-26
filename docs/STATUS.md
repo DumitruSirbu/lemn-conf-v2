@@ -125,6 +125,21 @@ Recorded as [ADR 0104 Amendment H](decisions/0104-the-mockups-are-the-chrome-spe
 the top bar's order of gives is extended (A to E), the visitor's "Intră în cont" is icon-only on narrow widths (departs from
 mockup A19A, dated note in `docs/design/README.md`), the title yields at 900 px, and the price popover is clamped to the viewport.
 
+**2026-10-26 update (M10, manufacturer price dashboard: W0 records) [coordinator's brief, relayed; the scribe ran nothing,
+had no shell and saw no gate output].** Branch `m10-price-dashboard`, local, not pushed; the plan
+[`M10-price-dashboard.md`](milestones/M10-price-dashboard.md) is committed (`730458bd`, per the coordinator). The owner
+instructed on 2026-10-26 that M10 be planned and implemented now, in parallel waves (relayed). Written in W0, **uncommitted
+at the time of writing**: ADR [0176](decisions/0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md)
+(timing; supersedes ADR 0062's "after M8"; satisfies ADR 0174 O-L3-2), ADR
+[0177](decisions/0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+(pricing seams) and ADR [0178](decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md)
+(storage and lifecycle; **Proposed, awaits a security read**), dated amendments to ADRs 0062, 0068, 0070, 0072, 0092, 0100,
+0106, 0173, 0174 and 0175, and notes on backlog 54, 176 and 276-286. **Nothing is built; no code wave is dispatched until
+W0 and X0 merge (MP-0).** Migrations `0025`-`0031` are planned and **unapplied anywhere**. **Open owner flags, blocking
+nothing:** OQ-5a (is a lift door's third hinge from 500 mm or above it; built strict, `> 500`) and OQ-4a (the
+coordinator's reading that creating an accessory linked to a cabinet type is in scope). Close-only questions: plan §6.2.
+**No amount or percentage in the plan, mockup or briefs is approved.** ADR 0173 stays Proposed; its acceptance is owed.
+
 ## 2. Phase table
 
 Read column: **No** = do not open. A row marked **UNCLEAR** would be a contradiction inside the history, left
@@ -152,6 +167,7 @@ for the owner to rule, not guessed; none is open now.
 | M8B Customer profiles (original plan) | Planned | After M8C by owner ruling, before launch; superseded in part by the two rows above | [`M8B-customer-profiles.md`](milestones/M8B-customer-profiles.md) | doc-quoted H:615, 6-15 |
 | M8C Generation fill and preset authoring | Waves F0-P9 committed, not closed | See the 2026-10-18 update in section 1; owner obligations open | Yes, [`M8C-...md`](milestones/M8C-generation-fill-and-preset-authoring.md) | git log (coordinator) + doc-quoted H:6-29 |
 | M8D Preset screens to the v2 mockup | W0 done; W1 in progress (2026-10-18, relayed) | Runs on this branch before its PR and before M8B (owner O-5) | Yes, [`M8D-...md`](milestones/M8D-preset-screens-to-mockup.md) | coordinator's brief (relayed) + doc-quoted plan banner |
+| M10 Manufacturer price dashboard | **In progress, W0 (records)**; nothing built | Branch `m10-price-dashboard`, local, not pushed; runs in parallel with the open M8 work by owner instruction of 2026-10-26 (ADR 0176) | Yes, [`M10-price-dashboard.md`](milestones/M10-price-dashboard.md) | coordinator's brief (relayed) + doc-quoted plan |
 | M9 Delivery preparation | Proposed stub | No plan, no waves; inherits 8R/8S and the launch gate | When started, [`M9-delivery-preparation.md`](milestones/M9-delivery-preparation.md) | doc-quoted H:616 |
 | Adversarial review remediation | Done (S1-S12 shipped, commits db9c4024..); only SEC-001 stays open, as a launch gate tracked in `docs/backlog/open.md` and M9 | Plan archived at `milestones/done/adversarial-review-remediation.md` | No | doc-quoted H:617, 625-642; shipped state verified in git/source by a read-only analyst (coordinator-relayed) |
 | dom-003 set-width split | Done (shipped in 30283571) | Nine-module `set-width.ts` split; plan archived at `milestones/done/dom-003-set-width-split.md` | No | doc-quoted H:617, 630; commit verified in git by a read-only analyst (coordinator-relayed) |

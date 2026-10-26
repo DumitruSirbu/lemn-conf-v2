@@ -235,3 +235,13 @@ built. The plan's row E-L3-4 carries the new request body.
   and security review; see ADR 0174.
 - Migration numbers `0020`-`0024` are provisional (plan §2.3); wave L3-S1 re-lists them.
 - Nothing here reverses an accepted record. ADR 0172 D7, D9-D12, ADR 0153 d1 and ADR 0019 d11 stand.
+
+## Dated note, 2026-10-26: M10 builds on the Proposed P-rows [doc-quoted from `docs/milestones/M10-price-dashboard.md` §3 and §7; nothing built; the scribe ran nothing]
+
+Milestone M10 ([ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md)) builds on this
+record's P-rows: every staff read and write is audited and fails closed (P-L3-3), and the request statuses are the
+reconciled four (P-L3-8; owner-confirmed for M10's purposes as OQ-9 on 2026-10-26, relayed). **This record's status is
+still Proposed.** Its acceptance (the coordinator's, after a security read) is owed before M10's persistence and route
+lanes merge. M10's own storage, grants and audit actions are in
+[ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md), which also awaits a security read.
+M10 claims migrations `0025`-`0031`; `0023` and `0024` stay reserved by this plan (§2.3).

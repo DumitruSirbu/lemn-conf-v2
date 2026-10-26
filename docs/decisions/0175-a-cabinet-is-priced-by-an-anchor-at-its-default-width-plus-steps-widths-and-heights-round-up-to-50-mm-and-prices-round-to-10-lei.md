@@ -130,3 +130,19 @@ have one size per row.
   apply to the cabinet price this record defines.
 - The dashboard's inline anchor editing and bulk "change prices by %" action, and the deactivation
   behaviour, are recorded at ADR 0062's second Amendment of 2026-10-25.
+
+## Amendment — 2026-10-26: the timing is superseded and the open seams are settled
+
+**Evidence tier: owner answer of 2026-10-26, coordinator-relayed (words as relayed); doc-quoted from
+`docs/milestones/M10-price-dashboard.md` §4 and §5. Nothing is built.** The earlier text is kept.
+
+- **Status line and timing.** "Nothing built, nothing scheduled — the dashboard still comes after M8" is superseded by
+  [ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md): the work is milestone M10 and
+  starts now.
+- **Decision 5's open seam (which amount rounds): settled** by [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+  A-1: three per-cabinet stages round half-up to 10 lei, and every line is a sum of those rounded stages. This is an
+  architect's ruling and the owner may overrule it.
+- **Open, door count: ruled by the owner** (OQ-6): the **actual** width (A-3). **Open, height rounding:** round up, relative
+  to a book-stated reference height (A-2); owner-visible. **Open, a negative or zero price at the narrow end:** the
+  dashboard's validation rule is wave M2's, as the decision said.
+- No amount or percentage in M10's plan, mockup, briefs or sample book is approved.

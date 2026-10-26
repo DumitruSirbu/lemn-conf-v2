@@ -128,3 +128,11 @@ The door-leaf step and the height term remain, expressed as the "+ lei per extra
 The door field covers the door panel only; hinges are counted under hardware. Height is still an
 additive input, not an area. Whether the door count follows the actual or the rounded width is open
 (ADR 0175, *Open*).
+
+## Note — 2026-10-26: the door count follows the actual built width
+
+**Evidence tier: owner answer of 2026-10-26, coordinator-relayed (OQ-6: "count the doors as it really has"; words as
+relayed); doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-8) and §5 (A-3). Nothing is built.** The open
+question in the note above is ruled: the door step counts leaves at the **actual** width, not the width rounded up to 50 mm.
+The carcass door step and the hardware hinge count therefore count leaves the same way, as this decision requires.
+Recorded in [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md) A-3.

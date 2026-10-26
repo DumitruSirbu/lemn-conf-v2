@@ -189,3 +189,21 @@ decision 5 records which amount is rounded as an open seam for the architect. Th
 **Effect on the backlog.** Entry 54 stays open and is superseded in part by backlog 283, which carries
 the pricing-engine work. Entry 54's "do not plan a wave" no longer holds; nothing is scheduled by this
 amendment, and the dashboard still comes after M8 (ADR 0062).
+
+## Amendment — 2026-10-26: the timing, the rounding seam, the real-width reading and a line number
+
+**Evidence tier: doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-7, S-10, S-11, S-22) and §5; the line
+number in S-22 is the plan's source reading, not re-read by the scribe. Nothing is built.**
+
+- **Timing.** "The dashboard still comes after M8" is superseded by
+  [ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md): M10 starts now.
+- **The rounding seam is settled** by [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+  A-1, which reverses "the query is the one place this wave forbids rounding" at one named seam. The parser bound
+  `MAX_PRICE_COEFFICIENT_MINOR` is **re-derived, not widened** (A-5).
+- **"Applied at the cabinet's real width"** is read as the cabinet's own width, not the anchor width: the percentage
+  multiplies the cabinet's **priced amount**, which already reflects round-up (A-1).
+- **"Where it applies"** is keyed on a **measured** catalogue fact, not on `depthFollowsSetting()` (which answers `true` for
+  the wall corner returns), with a parity test over every row (A-6).
+- **Line drift.** `globalSettings.depthNote` is at line **325** in `ro.json` and `ru.json`, not 324 (the plan's source
+  reading). Decision 5 still binds: the copy and the depth term ship together (M10 merge point MP-3).
+- The ~15 % figure remains a placeholder and is not approved.

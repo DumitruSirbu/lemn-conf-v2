@@ -1196,3 +1196,27 @@ decided here.
 **A percentage is not an exact count of bani.** It is non-integer arithmetic against a book whose every
 coefficient is an exact integer (`usableCoefficientOf`, `price-book.ts:512-520`). Where it rounds is the
 open rounding seam in ADR 0175 decision 5 and is not settled here.
+
+## Amendment — 2026-10-26: the lift mechanism is priced; a lift door counts 2 hinges, or 3 above 500 mm; the keeps-throwing rule is settled
+
+**Evidence tier: owner answer of 2026-10-26, coordinator-relayed (words as relayed, not a verbatim transcript);
+doc-quoted from `docs/milestones/M10-price-dashboard.md` §4 (S-5, S-13) and §5 (A-8, A-20). Nothing is built.** Decisions
+above stand as written; this names what it supersedes.
+
+- **Decision 8, `wall-lift`: superseded in part.** Decision 8 priced `wall-lift` as an ordinary hinged leaf at 2 hinges
+  and left its lift arm "not priced at all". The owner (OQ-5): "you need to add pricing for lift up mechanisms, and every
+  lift up have at least two hinges. But if the door is wide, I think more than 500, let's say, there should be already
+  three hinges. So everything should be priced." A **fourth per-tier rate** (`perLiftMinor`) and a fourth count are
+  added; each lift-up door counts one lift and 2 hinges, or 3 when the door is wider than 500 mm. Decision 8's "Its band
+  is `one-band-under-frame`, so it can never exceed 894 mm and never takes a third hinge" no longer holds for a lift door:
+  the width rule replaces the height rule. The "fourth mechanism kind" row of the rejected-alternatives table (line 804)
+  is superseded. The boundary is built strict (`> 500`); **OQ-5a**, 500 mm inclusive or not, is an open owner flag.
+  Amendment C's quantifier for Hettich below Standard gains a lift term derived from the declared rates. Record:
+  [ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+  A-20. The cargo pull-out part of decision 8 (priced as one drawer, understatement recorded) is **unchanged**.
+- **Decision 12 and the 2026-10-25 Amendment's "keeps throwing" question: settled (S-5).** With material percentages
+  whole and ≥ 0 and PAL fixed at 0 %, the material group's refuse rule stays a genuine book fault, **provided** the D9
+  new-kitchen default never reaches the delta baseline ([ADR 0177](0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
+  A-8; [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md) A-9). The rounding seam
+  that Amendment left open is ADR 0177 A-1.
+- No amount is approved by this amendment; the lift rate is a placeholder (plan OQ-12).

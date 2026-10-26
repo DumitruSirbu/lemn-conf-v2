@@ -250,6 +250,10 @@ E-L3-7 waits on O-L3-5, E-L3-8 on O-L3-4. The notes list rides E-L3-2 (newest fi
 | `0023_add_preset_sort_position.sql` | `presets.sort_position integer` (nullable; null sorts after every positioned preset); a partial unique index on `sort_position` where not null | `GRANT UPDATE (status, sort_position) ON TABLE public.presets TO app_designs;` — **reverses `0011`'s "the owner hides a preset by hand … the application role has no `UPDATE`"** | O-L3-5; ADR 0112 amendment |
 | `0024_create_staff_invitations.sql` | `id text pk`, `email text not null`, `email_normal_form text not null`, `role text not null` check `role in ('operator','administrator')`, `token_hash text not null unique` (sha256 shape), `invited_by_account_id text not null`, `created_at default now()`, `expires_at timestamptz not null`, `used_at`, `accepted_account_id` | `SELECT`; `INSERT (id, email, email_normal_form, role, token_hash, invited_by_account_id, expires_at)`; `UPDATE (used_at, accepted_account_id)`; **plus, on `accounts`, `INSERT (role)`** under O-L3-4's default — the first grant that lets the application write a role (ADR 0172 D7 "temporary") | O-L3-4; a decision record; security review |
 
+- **Note 2026-10-26 (W0 of M10): `0023` and `0024` stay reserved for this lot.** The manufacturer price dashboard
+  ([`M10-price-dashboard.md`](M10-price-dashboard.md) §9.2, [ADR 0178](../decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md))
+  claims `0025`-`0031`; M10's are unapplied anywhere. If this lot adds a migration, it takes the next
+  free number after M10's and re-lists it (as L3-S1 did for `0020`-`0022`).
 - `designs` needs **no grant**: unhide clears `hidden_by_client_at`, already under the table-level `UPDATE` of ADR 0019 d11
   whose scope Amendment G grew to that column [doc]. The scope does not grow again.
 - **No index is added on `designs` for the staff list.** "Trimise, newest sent first" across every design and the search

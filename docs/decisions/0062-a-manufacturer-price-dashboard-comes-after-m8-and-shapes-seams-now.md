@@ -392,3 +392,34 @@ yet written.
 
 Backlog 286 (rewritten), 285, 277. Cross-references only: ADRs 0150, 0154, 0165.
 
+## Amendment — 2026-10-26: M10 starts now; availability is immediate; the owner's answers to the open points
+
+**Evidence tier: owner answers of 2026-10-26, coordinator-relayed (quotation marks hold the owner's words as relayed, not a
+verbatim transcript); doc-quoted from `docs/milestones/M10-price-dashboard.md` §6.1 and §4. Nothing is built.**
+
+1. **Timing superseded.** The "after M8" timing of the Decision and of every Amendment above is **superseded by
+   [ADR 0176](0176-the-manufacturer-price-dashboard-is-milestone-m10-and-starts-now.md)** (OQ-1): the dashboard is milestone
+   M10 and starts now, while M8 is open. The earlier text is kept.
+2. **OQ-2, availability is immediate.** Owner: "switching off, it's not the pricing changes, so it should take effect
+   immediately." Disabling and enabling a catalogue item is written on save, outside the draft. This **supersedes the
+   deactivation-goes-through-publish text of the fix-round briefs** (`…-v2-fixes.md:75`, `…-v2-fixes-2.md:32`) and the
+   mockup dialogs' "Intră în vigoare când publici". **Correction to the coordinator's brief:** that text is in the briefs
+   and the mockup, not in this ADR or backlog 285. The second Amendment's "Both write to the draft" concerns inline anchor
+   edits and bulk %, and stands. The third Amendment's mandatory replacement is unchanged. Record: ADR 0178 A-17.
+3. **OQ-3, Romanian-only authoring.** Owner: "all the translations should be done through files and a separate
+   functionality for this … need only to set the title … in Romanian." Created rows carry Romanian only; keyed rows are
+   read-only. ADR 0178 A-21; note on ADR 0106.
+4. **OQ-4, linked accessories.** Owner: "keep this link between accessory and a type of cabinet, and now we need only the
+   functionality of adding this link between them on creating a new accessory." **The reading that creating a new accessory
+   linked to a cabinet type is in scope is the coordinator's, flagged as OQ-4a and open for the owner.** ADR 0177 A-19.
+5. **OQ-7, OQ-9, OQ-10.** Whole-kitchen handle: nothing changes from the recommendation. The status reconciliation (the
+   note above) is **accepted**: Nouă / Contactat / Ofertă trimisă / Închisă, the digest stops at *Ofertă trimisă* or
+   *Închisă*. The digest runs at 08:00 Europe/Chisinau and counts 30 days from the first send. ADR 0178 A-12, A-13.
+6. **The fifth Amendment's open points for the architect are answered** by ADR 0178 A-12 and A-13 (storage in its own
+   table; the seen marker shared by all staff; the 30 days from the first send; both submissions of a twice-sent kitchen
+   name the same design). "Who can review" is answered by the existing capabilities (`contact.read` for D10, `price.edit`
+   for prices); the owner confirms at close (plan OQ-14).
+7. **Seam 1, dated note (S-28).** Seam 1 says an array of accessories "would let a book declare one nothing implements".
+   ADR 0177 A-19 adds a list of linked accessories whose rows share **one** implemented earning shape, so no entry can
+   declare behaviour the code lacks. The intent is preserved, not overturned; the two built-ins stay named fields.
+

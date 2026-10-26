@@ -23,6 +23,7 @@ it open. Deviating is a decision to record in `../decisions/`.
 | [8U](8U-merge-adjacent-empty-spaces.md) | Merge adjacent empty spaces (an M8 sub-wave plan). | Built and reviewed; S5 not built; plan not archived |
 | [M8C](M8C-generation-fill-and-preset-authoring.md) | Generation fills every free wall-run end; the owner saves, lists and uses presets. Mobile-gated (P4, P8). | Waves F0 to P9 committed (2026-10-18); not closed: owner obligations open (plan banner) |
 | [M8B](M8B-customer-profiles.md) | Customer profiles: e-mail and password, a dashboard, claiming anonymous designs. Mobile-gated. | Planned; no wave dispatched |
+| [M10](M10-price-dashboard.md) | Manufacturer price dashboard and the pricing model behind it (ADR 0176). Desktop dashboard plus the customer-side notice and forced replacement. Branch `m10-price-dashboard`, local, not pushed. | In progress, W0 (records); nothing built |
 | [M9](M9-delivery-preparation.md) | Delivery preparation: hosting, providers, the launch gate. Inherits M8's waves 8R, 8S. | Proposed stub; no plan, no waves |
 | [8q-s0-measurements](8q-s0-measurements.md) | Measurement record for the 8Q wave. | No status in STATUS; 8Q2 is done |
 | [migration-environment-safety-check](migration-environment-safety-check.md) | Standalone plan: migration environment safety check. | No status in STATUS |
