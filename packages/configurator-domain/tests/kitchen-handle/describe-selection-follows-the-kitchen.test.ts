@@ -125,9 +125,9 @@ describe("describeSelection with a kitchen handle", () => {
     for (const record of world.records) {
       const target = { kind: "placement", id: record.id } as const;
 
-      expect(describeSelection({ ...world, target })).toEqual(
-        describeSelection({ ...world, target, kitchenSettings: {} }),
-      );
+      expect(
+        describeSelection({ kitchenSettings: {}, ...world, target }),
+      ).toEqual(describeSelection({ ...world, target, kitchenSettings: {} }));
       expect(metaOf(record).defaultHandle).toBe(
         isTopRow(record) ? "push" : "steel",
       );

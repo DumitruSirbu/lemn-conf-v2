@@ -403,11 +403,13 @@ describe("the metre frame and the millimetre predicate survive the trip between 
     "answers the same in millimetres, in metres, and through the scene's frame",
     (y0Mm) => {
       const asDocumented = isPushToOpen({
+        kitchenSettings: {},
         y0Mm,
         recordedHandle: undefined,
         canHandle: true,
       });
       const asTheSceneAsksIt = isPushToOpen({
+        kitchenSettings: {},
         y0Mm: toMillimetres(toMetres(y0Mm)),
         recordedHandle: undefined,
         canHandle: true,
@@ -421,6 +423,7 @@ describe("the metre frame and the millimetre predicate survive the trip between 
   it("puts the flip between 2199 and 2200 on the scene's own path too", () => {
     const throughTheFrame = (y0Mm: number): boolean =>
       isPushToOpen({
+        kitchenSettings: {},
         y0Mm: toMillimetres(toMetres(y0Mm)),
         recordedHandle: undefined,
         canHandle: true,

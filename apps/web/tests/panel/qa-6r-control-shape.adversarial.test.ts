@@ -123,6 +123,7 @@ function panelFor(material: MaterialLookup, target: CommandTarget): PanelView {
     content: ro,
     material,
     meta: describeSelection({
+      kitchenSettings: {},
       records: state.records,
       voids: state.voids,
       catalog: state.catalog,

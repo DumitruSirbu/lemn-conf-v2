@@ -10,11 +10,26 @@ export const TOP_ROW_HANDLE: Handle = "push";
 /** The whole-kitchen settings the handle readers take, as an object so a new key reaches them unchanged. */
 export type KitchenHandleSettings = Pick<DesignSettings, "handle">;
 
+/** The kitchen's handle settings as the readers take them. Built in one place so a key H2 adds reaches the price, the
+ *  scene and the panel through the same object, never a second hand-copied pair. */
+export function kitchenHandleSettingsOf(
+  settings: DesignSettings | undefined,
+): KitchenHandleSettings {
+  return settings?.handle === undefined ? {} : { handle: settings.handle };
+}
+
+/** A legacy `null` own handle is no choice: absent. Applied where a document becomes a record or a display entry, so
+ *  no reader meets it and the resolver's return type stays `Handle | undefined`. */
+export function ownHandleOf(recorded: Handle | undefined): Handle | undefined {
+  const stored: unknown = recorded;
+  return stored === null ? undefined : recorded;
+}
+
 export interface HandleResolutionQuery {
   readonly ownHandle: Handle | undefined;
   readonly kitchenSettings: KitchenHandleSettings;
   readonly canHandle: boolean;
-  /** Decided by the caller from its own floor: the module line lives in `push-to-open.ts` and `bands.ts`. */
+  /** Decided by the caller from `isTopRowFloorMm` (`push-to-open.ts`), the one derivation of the module line. */
   readonly isTopRow: boolean;
 }
 
@@ -23,7 +38,7 @@ export function resolvedHandleOf(
   query: HandleResolutionQuery,
 ): Handle | undefined {
   if (!takesAHandle(query.canHandle)) return undefined;
-  // `!== undefined`, not `??`: a `null` from an untyped route has always counted as a recorded mode.
+  // `!== undefined`, not `??`. Builders turn a legacy `null` into absence (`ownHandleOf`) before it gets here.
   if (query.ownHandle !== undefined) return query.ownHandle;
   return followedHandleOf(query);
 }

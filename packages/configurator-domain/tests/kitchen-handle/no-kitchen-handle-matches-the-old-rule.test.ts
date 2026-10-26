@@ -74,7 +74,9 @@ describe.each(documentsWithNoKitchenHandle().map((d) => [d.name, d] as const))(
           canHandle: canHandleOf(entry, document),
         };
 
-        expect(isPushToOpen(front)).toBe(oldIsPushToOpen(front));
+        expect(isPushToOpen({ ...front, kitchenSettings: {} })).toBe(
+          oldIsPushToOpen(front),
+        );
         expect(isPushToOpen({ ...front, kitchenSettings: {} })).toBe(
           oldIsPushToOpen(front),
         );
@@ -107,7 +109,11 @@ describe.each(documentsWithNoKitchenHandle().map((d) => [d.name, d] as const))(
 
       for (const record of world.records) {
         const target = { kind: "placement", id: record.id } as const;
-        const meta = describeSelection({ ...world, target });
+        const meta = describeSelection({
+          kitchenSettings: {},
+          ...world,
+          target,
+        });
 
         expect(meta?.handle).toBe(record.handleMode);
         expect(meta?.defaultHandle).toBe(

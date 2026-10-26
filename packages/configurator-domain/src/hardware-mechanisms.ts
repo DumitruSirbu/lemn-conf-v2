@@ -20,6 +20,7 @@ import {
   frontPopulationQueryFor,
   type DeclaresFronts,
 } from "./front-population.js";
+import type { KitchenHandleSettings } from "./kitchen-handle/kitchen-handle.js";
 import { isPushToOpen, type PushToOpenQuery } from "./push-to-open.js";
 import type { DisplayEntry } from "./queries/design-projection.js";
 import type { BodyCatalog } from "./void-engine.js";
@@ -111,8 +112,12 @@ interface DeclaresMechanismFacts extends DeclaresFronts {
  *  price. */
 const DECLARES_NOTHING: DeclaresMechanismFacts = {};
 
+/** What a hand-built `DisplayEntry` that states no kitchen settings means: the kitchen has no handle of its own. */
+const NO_KITCHEN_HANDLE: KitchenHandleSettings = {};
+
 /** The facts `isPushToOpen` reads: the floor and the recorded mode are the **placement's** (§6.5: two
- *  `base-sink-800`s can carry different handles), the permission is the **catalogue row's**. A row
+ *  `base-sink-800`s can carry different handles), the kitchen's handle is the **design's**, the permission is the
+ *  **catalogue row's**. A row
  *  declaring no permission reads as permitting none, which decides nothing on any reachable path:
  *  `doorLeafHeightsMm` has already refused an uncatalogued body. */
 function pushToOpenQueryFor(
@@ -122,6 +127,7 @@ function pushToOpenQueryFor(
   return {
     y0Mm: entry.y0Mm,
     recordedHandle: entry.handle,
+    kitchenSettings: entry.kitchenSettings ?? NO_KITCHEN_HANDLE,
     canHandle: declared.canHandle === true,
   };
 }

@@ -86,6 +86,8 @@ export {
 // three-adapter's `scene-sync.ts` hides bars by this, so the scene and the price cannot differ.
 export {
   isPushToOpen,
+  isTopRowFloorMm,
+  resolvedHandleAt,
   TOP_ROW_Y0_MM,
   type PushToOpenQuery,
 } from "./push-to-open.js";

@@ -311,7 +311,7 @@ describe("the unit is structural (ADR 0021): fixed, not editable, nothing insert
     "%s offers nothing, refuses deletion and every width",
     (id) => {
       const target = { kind: "placement", id } as const;
-      const meta = describeSelection({ ...world, target });
+      const meta = describeSelection({ kitchenSettings: {}, ...world, target });
       const removal = removePlacement({
         design: world.design,
         catalog: world.catalog,

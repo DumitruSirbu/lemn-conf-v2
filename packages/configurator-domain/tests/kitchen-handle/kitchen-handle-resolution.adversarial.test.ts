@@ -187,7 +187,7 @@ describe("a cabinet whose own handle is the legacy null keeps the base answer (q
             ...query,
             kitchenSettings: { handle: kitchenHandle },
           }),
-        ).toBe(isPushToOpen(query));
+        ).toBe(isPushToOpen({ ...query, kitchenSettings: {} }));
         expect(
           resolvedHandleOf({
             ownHandle: nullHandle,

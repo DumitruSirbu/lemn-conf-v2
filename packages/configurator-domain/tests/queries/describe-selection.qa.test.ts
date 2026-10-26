@@ -22,7 +22,11 @@ import { advance, createWorld } from "../support/kitchen-world.js";
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
 function metaFor(world: ReturnType<typeof seeded>, id: string) {
-  return describeSelection({ ...world, target: { kind: "placement", id } });
+  return describeSelection({
+    kitchenSettings: {},
+    ...world,
+    target: { kind: "placement", id },
+  });
 }
 
 describe("§9's canWidth, over the whole seeded population", () => {
@@ -74,6 +78,7 @@ describe("§9's canWidth, over the whole seeded population", () => {
     let swept = 0;
     for (const record of world.voids) {
       const meta = describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "void", id: record.id },
       });
@@ -169,7 +174,7 @@ describe("§6.5's default handle at the module line itself", () => {
         id: record.id,
       })),
     ]) {
-      const meta = describeSelection({ ...world, target });
+      const meta = describeSelection({ kitchenSettings: {}, ...world, target });
       expect(["steel", "black", "push"]).toContain(meta?.defaultHandle);
       swept += 1;
     }

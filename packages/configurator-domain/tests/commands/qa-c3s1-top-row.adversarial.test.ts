@@ -338,6 +338,7 @@ describe.each(ROOMS)("%s: where the top row does not stand", (_label, room) => {
       ]);
       expect(
         isPushToOpen({
+          kitchenSettings: {},
           y0Mm: top.y0Mm,
           recordedHandle: top.body.handle,
           canHandle: record?.canHandle === true,
@@ -533,6 +534,7 @@ describe.each(ROOMS)(
         );
         expect(
           isPushToOpen({
+            kitchenSettings: {},
             y0Mm: TOP_ROW_FLOOR_MM,
             recordedHandle: withABar?.body.handle,
             canHandle: true,

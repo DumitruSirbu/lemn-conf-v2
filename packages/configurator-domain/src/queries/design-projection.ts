@@ -7,6 +7,11 @@
 import { normaliseBand, type NormalisedBand } from "../bands.js";
 import { describeBodyLabelAt, type BodyLabel } from "../catalog.js";
 import type { Design, DesignPlacement, DesignWall, Handle } from "../design.js";
+import {
+  kitchenHandleSettingsOf,
+  ownHandleOf,
+  type KitchenHandleSettings,
+} from "../kitchen-handle/kitchen-handle.js";
 import type { Finish } from "../materials.js";
 import { compareOpaqueIds } from "../opaque-id-order.js";
 import {
@@ -39,9 +44,13 @@ export interface DisplayEntry {
   /** The finish currently applied, absent when the body ships in its default — a real state, and
    *  a per-cabinet choice, so a list that shows it must read the placement, not the catalogue. */
   readonly finish?: Finish;
-  /** The handle mode currently applied, absent when none was chosen (§6.5). Per placement, for the
-   *  same reason as `finish`. */
+  /** The handle mode this cabinet chose itself, absent when none was chosen (§6.5): never the resolved handle. Per
+   *  placement, for the same reason as `finish`. */
   readonly handle?: Handle;
+  /** The design's kitchen handle settings, which a cabinet with no handle of its own follows (ADR 0099). The same
+   *  object on every entry of one projection. Optional only so a hand-built entry need not state it: absent reads as
+   *  `{}`, which is no kitchen handle. */
+  readonly kitchenSettings?: KitchenHandleSettings;
 }
 
 /** One heading and the bodies under it — the mockup's *Perete A · suspendate*. A group is never
@@ -106,8 +115,9 @@ export function projectDesignForDisplay(
   design: Design,
   catalog: BodyCatalog,
 ): readonly DisplayGroup[] {
+  const kitchenSettings = kitchenHandleSettingsOf(design.settings);
   const entries = design.placements
-    .map((placement) => toDisplayEntry(placement, catalog))
+    .map((placement) => toDisplayEntry(placement, catalog, kitchenSettings))
     .sort(compareDisplayOrder);
   return groupInDisplayOrder(entries);
 }
@@ -115,8 +125,10 @@ export function projectDesignForDisplay(
 function toDisplayEntry(
   placement: DesignPlacement,
   catalog: BodyCatalog,
+  kitchenSettings: KitchenHandleSettings,
 ): DisplayEntry {
   const definition = lookupDefinition(catalog, placement.body.buildId);
+  const ownHandle = ownHandleOf(placement.body.handle);
   return {
     placementId: placement.id,
     buildId: placement.body.buildId,
@@ -136,9 +148,8 @@ function toDisplayEntry(
     ...(placement.body.finish === undefined
       ? {}
       : { finish: placement.body.finish }),
-    ...(placement.body.handle === undefined
-      ? {}
-      : { handle: placement.body.handle }),
+    ...(ownHandle === undefined ? {} : { handle: ownHandle }),
+    kitchenSettings,
   };
 }
 

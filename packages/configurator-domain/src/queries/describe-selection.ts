@@ -4,7 +4,7 @@
 // §8's rule is the point of this projection: "everything the panel disables, it disables from these
 // numbers — never by trying and catching a refusal". Nothing enters `meta` that the panel could not
 // derive from the selection itself.
-import { deriveSlotBand, isPushOpenByDefault } from "../bands.js";
+import { deriveSlotBand } from "../bands.js";
 import {
   describeBodyLabelAt,
   EMPTY_SLOT_LABEL,
@@ -21,6 +21,7 @@ import {
   type KitchenHandleSettings,
 } from "../kitchen-handle/kitchen-handle.js";
 import { toMillimetres } from "../millimetres.js";
+import { isTopRowFloorMm } from "../push-to-open.js";
 import {
   VOID_KIND,
   type Band,
@@ -83,8 +84,8 @@ export interface DescribeSelectionInput {
   readonly voids: readonly VoidRecord[];
   readonly catalog: BodyCatalog;
   readonly target: CommandTarget;
-  /** The design's kitchen handle settings. Absent reads as `{}`. */
-  readonly kitchenSettings?: KitchenHandleSettings;
+  /** The design's kitchen handle settings, which a body with no handle of its own follows. */
+  readonly kitchenSettings: KitchenHandleSettings;
 }
 
 /** `undefined` when the target no longer resolves — a stale void id after a recompute, which §9
@@ -102,7 +103,7 @@ export function describeSelection(
     (candidate) => candidate.id === input.target.id,
   );
   return record
-    ? describeBody(record, input.catalog, input.kitchenSettings ?? {})
+    ? describeBody(record, input.catalog, input.kitchenSettings)
     : undefined;
 }
 
@@ -182,7 +183,7 @@ function describeBody(
     defaultHandle: defaultHandleOf({
       kitchenSettings,
       canHandle: record.canHandle,
-      isTopRow: isPushOpenByDefault(record.frame.y0),
+      isTopRow: isTopRowFloorMm(toMillimetres(record.frame.y0)),
     }),
     ...(definition?.structuralReason === undefined
       ? {}

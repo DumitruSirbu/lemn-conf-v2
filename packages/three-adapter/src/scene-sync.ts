@@ -4,10 +4,14 @@
 import { buildAnyBody } from "./build-any-body.js";
 import {
   isPushToOpen,
+  resolvedHandleAt,
   toMetres,
   toMillimetres,
   type DesignRoom,
   type Finish,
+  type Handle,
+  type KitchenHandleSettings,
+  type PushToOpenQuery,
   type PlacementRecord,
   type VoidRecord,
 } from "@lemnaria/configurator-domain";
@@ -252,7 +256,7 @@ function applyRecordedAppearance(
   if (record.drawnFinish) {
     applyBodyFinish(body, kit.M, record.drawnFinish);
   }
-  if (record.handleMode === "black" && record.canHandle) {
+  if (resolvedHandleOn(record) === "black") {
     applyBlackHandleMaterial(body, kit.M);
   }
 }
@@ -280,12 +284,27 @@ function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
  *  hand-edited or migrated design could record `push` on `fridge-free`, hiding bars no panel section can turn back on.
  *  The predicate reads millimetres and the scene keeps metres, so this converts. */
 function hidesHandles(record: PlacementRecord): boolean {
-  return isPushToOpen({
+  return isPushToOpen(handleQueryOn(record));
+}
+
+/** The handle this body wears, resolved by the domain from the cabinet's own handle, else the kitchen's (ADR 0099). The
+ *  same call the price makes, so the bar's colour and the latch it replaces cannot name different handles. The
+ *  `canHandle` guard is inside the resolver: it answers `undefined` for a body that takes none. */
+function resolvedHandleOn(record: PlacementRecord): Handle | undefined {
+  return resolvedHandleAt(handleQueryOn(record));
+}
+
+function handleQueryOn(record: PlacementRecord): PushToOpenQuery {
+  return {
     y0Mm: toMillimetres(record.frame.y0),
     recordedHandle: record.handleMode,
+    kitchenSettings: record.kitchenSettings ?? NO_KITCHEN_HANDLE,
     canHandle: record.canHandle,
-  });
+  };
 }
+
+/** What a record built by hand, stating no kitchen settings, means: the kitchen has no handle of its own. */
+const NO_KITCHEN_HANDLE: KitchenHandleSettings = {};
 
 function signBody(record: PlacementRecord): string {
   return [
@@ -297,7 +316,9 @@ function signBody(record: PlacementRecord): string {
     record.frame.z,
     record.frame.ry,
     record.frame.d,
-    record.handleMode ?? "",
+    // The handle this body wears, not the one it chose: a kitchen-handle change then re-signs exactly the bodies that
+    // follow it, and a cabinet with its own handle, a top-row body or one that takes none keeps its body.
+    resolvedHandleOn(record) ?? "",
     // The drawn colour, not the chosen one, and the pair must not be split: `applyRecordedAppearance` paints
     // `drawnFinish`, so signing `finishKey` would leave every signature unchanged on a whole-kitchen colour change and
     // the scene would keep the old colour (ADR 0099).

@@ -64,6 +64,7 @@ function pushToOpenWith(input: {
   readonly canHandle: unknown;
 }): boolean {
   return isPushToOpen({
+    kitchenSettings: {},
     y0Mm: input.y0Mm,
     recordedHandle: input.recordedHandle,
     canHandle: input.canHandle as boolean,

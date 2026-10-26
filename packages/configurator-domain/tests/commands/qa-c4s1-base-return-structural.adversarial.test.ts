@@ -98,7 +98,7 @@ describe.each(CASES)(
     });
 
     it("offers a colour and nothing else, with the corner's explanation", () => {
-      const meta = describeSelection({ ...world, target });
+      const meta = describeSelection({ kitchenSettings: {}, ...world, target });
 
       expect({
         canReplace: meta?.canReplace,

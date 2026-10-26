@@ -78,7 +78,7 @@ function panelAt(
   target: CommandTarget,
   rejection = null as Parameters<typeof describePanel>[0]["rejection"],
 ) {
-  const meta = describeSelection({ ...world, target });
+  const meta = describeSelection({ kitchenSettings: {}, ...world, target });
   return describePanel({
     content: ro,
     material: PAL_KITCHEN,
@@ -149,6 +149,7 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
     let swept = 0;
     for (const placement of KITCHEN_L_PLACEMENTS) {
       const meta = describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "placement", id: placement.id },
       });

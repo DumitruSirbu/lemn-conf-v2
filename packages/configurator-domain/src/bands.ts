@@ -5,6 +5,8 @@
 // including their own frame on a swap in place. `top` is a *row*, not a catalogue band: it records
 // which module line a seeded instance stands on. Both the gate and the offer list therefore compare
 // normalised bands, and that normalisation lives here so the two cannot drift apart.
+import { toMillimetres } from "./millimetres.js";
+import { isTopRowFloorMm } from "./push-to-open.js";
 import type { Band } from "./void-engine.js";
 
 /** The bands §5.2 actually reasons about. `top` is absent by construction. */
@@ -56,7 +58,8 @@ export function isBandAccepted(
 }
 
 /** §6.5: no recorded handle mode plus a top-row slot means push-to-open. The handles are still
- *  built and hidden, so `canHandle` stays true and the customer can turn them back on. */
+ *  built and hidden, so `canHandle` stays true and the customer can turn them back on. Delegates to
+ *  `isTopRowFloorMm`, the one derivation of the module line, so no reader keeps a second comparison. */
 export function isPushOpenByDefault(y0M: number): boolean {
-  return y0M >= TOP_ROW_Y0_M;
+  return isTopRowFloorMm(toMillimetres(y0M));
 }

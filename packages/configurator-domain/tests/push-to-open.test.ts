@@ -26,6 +26,7 @@ function pushToOpenAt(
   recorded?: { readonly handle: Handle; readonly canHandle: boolean },
 ): boolean {
   return isPushToOpen({
+    kitchenSettings: {},
     y0Mm,
     recordedHandle: recorded?.handle,
     canHandle: recorded?.canHandle ?? true,

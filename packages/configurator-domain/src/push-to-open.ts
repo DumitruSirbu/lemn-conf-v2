@@ -19,10 +19,16 @@ import {
  *  wherever the customer has one. */
 const PUSH_TO_OPEN: Handle = "push";
 
-/** The top row's floor in millimetres: §6.5's module line in the document's unit (§12). A literal, not
- *  derived from `bands.ts`'s `TOP_ROW_Y0_M`: the two units are held together by a sweep over every floor
- *  a body can stand on (`push-to-open.test.ts`), which a derived constant would make vacuous. */
+/** The top row's floor in millimetres: §6.5's module line in the document's unit (§12). The one place the
+ *  line is written as a comparison; `bands.ts`'s metre restatement (`TOP_ROW_Y0_M`) is held to it by a sweep
+ *  (`push-to-open.test.ts`), and `isPushOpenByDefault` there delegates to `isTopRowFloorMm`. */
 export const TOP_ROW_Y0_MM = 2_200;
+
+/** Whether a body standing on this floor is on the top row: §6.5's module line, derived here and nowhere else. Every
+ *  reader (price, scene, panel) asks it, so a change to the line moves them all together. */
+export function isTopRowFloorMm(y0Mm: number): boolean {
+  return y0Mm >= TOP_ROW_Y0_MM;
+}
 
 /**
  * The three facts the answer is made of: where the front's floor is, what mode the *document* records,
@@ -35,9 +41,8 @@ export interface PushToOpenQuery {
   readonly y0Mm: number;
   /** The mode the placement records, absent when the customer has chosen none (§6.5). */
   readonly recordedHandle: Handle | undefined;
-  /** The design's kitchen handle settings, followed by a cabinet with none of its own below the top row.
-   *  Absent reads as `{}`. */
-  readonly kitchenSettings?: KitchenHandleSettings;
+  /** The design's kitchen handle settings, followed by a cabinet with none of its own below the top row. */
+  readonly kitchenSettings: KitchenHandleSettings;
   /** Whether this body's own definition permits a recorded mode (`BodyDefinition.canHandle`). */
   readonly canHandle: boolean;
 }
@@ -58,12 +63,21 @@ export interface PushToOpenQuery {
  * and takes one.
  */
 export function isPushToOpen(front: PushToOpenQuery): boolean {
-  const isTopRow = front.y0Mm >= TOP_ROW_Y0_MM;
-  const handle = resolvedHandleOf({
+  const handle = resolvedHandleAt(front);
+  return handle === undefined
+    ? isTopRowFloorMm(front.y0Mm)
+    : handle === PUSH_TO_OPEN;
+}
+
+/**
+ * The handle this front wears, the same resolution `isPushToOpen` decides by: `undefined` where the definition takes
+ * none. Exported so the scene's bar colour reads what its bar visibility reads, never `recordedHandle` alone.
+ */
+export function resolvedHandleAt(front: PushToOpenQuery): Handle | undefined {
+  return resolvedHandleOf({
     ownHandle: front.recordedHandle,
-    kitchenSettings: front.kitchenSettings ?? {},
+    kitchenSettings: front.kitchenSettings,
     canHandle: front.canHandle,
-    isTopRow,
+    isTopRow: isTopRowFloorMm(front.y0Mm),
   });
-  return handle === undefined ? isTopRow : handle === PUSH_TO_OPEN;
 }
