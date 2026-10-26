@@ -133,7 +133,7 @@ at the time of writing**: ADR [0176](decisions/0176-the-manufacturer-price-dashb
 (timing; supersedes ADR 0062's "after M8"; satisfies ADR 0174 O-L3-2), ADR
 [0177](decisions/0177-the-m10-pricing-seams-rounding-round-up-percentages-deepening-fixed-size-rows-linked-accessories-and-the-lift-mechanism.md)
 (pricing seams) and ADR [0178](decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md)
-(storage and lifecycle; **Proposed, awaits a security read**), dated amendments to ADRs 0062, 0068, 0070, 0072, 0092, 0100,
+(storage and lifecycle; **Accepted, security-reviewed 2026-10-26, findings F1–F10 applied**), dated amendments to ADRs 0062, 0068, 0070, 0072, 0092, 0100,
 0106, 0173, 0174 and 0175, and notes on backlog 54, 176 and 276-286. **Nothing is built; no code wave is dispatched until
 W0 and X0 merge (MP-0).** Migrations `0025`-`0031` are planned and **unapplied anywhere**. **Open owner flags, blocking
 nothing:** OQ-5a (is a lift door's third hinge from 500 mm or above it; built strict, `> 500`) and OQ-4a (the

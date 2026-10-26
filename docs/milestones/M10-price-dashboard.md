@@ -17,6 +17,11 @@
 > X1 is withdrawn (nothing waits on the owner any more). P4, R4 and U4a are split, M4 and S2b are added, and migration
 > numbers move (§9.2). Two flags remain for the owner, neither blocking a dispatch: **OQ-5a** (500 mm inclusive or
 > not) and **OQ-4a** (the coordinator's reading of OQ-4).
+>
+> **Amended again 2026-10-26 for the security read of ADR 0178** (findings F1–F10, every proposed fix accepted by the
+> coordinator). Touched: A-10, A-11, A-12, A-13, A-15, A-17 and A-21; new A-22; §8.4(c), (d) and (e); §9.2 (grants,
+> seeded singletons, the availability head folded into `0028`, the `priced` grant beside `0029`); the S, R, K and M4
+> criteria; and risks RK-22 to RK-26.
 
 **Evidence tiers used below** (`docs/best-practices/documentation.md`, *Label the evidence tier*):
 
@@ -281,6 +286,9 @@ from, or derived from, the catalogue's width-step constant.
 - The contact route refuses with its existing unavailable answer.
 - The application never falls back to the sample book.
 - An owner-run seed command publishes the converted sample book, still `amountsProvisional: true`, as version 1.
+  **Security amendment F3 (2026-10-26):** the seed takes the owner's account id as an argument, as the actor recorded
+  as publisher. It refuses when any version already exists, so it can never replace a book. It is an owner-run
+  command and writes no staff audit row.
 - Tests and local runs seed the same book through a test-only helper (ADR 0151).
 
 **A-11 — The notice marker is a database row per design**: the last pair (book version, availability revision) whose
@@ -291,7 +299,10 @@ every kitchen that earns it.
 
 | | |
 | --- | --- |
-| Written | Only by a request authorised to edit that design (its write token or its account) |
+| Written | Only by a request authorised to edit that design (its write token or its account), through routes that mirror the save route's authorisation, refuse cross-site requests and accept JSON only (security F8). It is a customer write, **not a staff write**, so it has no audit row (F3) |
+| Also never written by | A staff open (D10B), a share-link view (`/s/<token>`), or any request lacking edit-level authorisation. The `GET` that reports whether to show the notice needs edit-level authorisation too (F8) |
+| How the first open writes | **Insert-if-absent** (`on conflict do nothing`): a first open never overwrites an acknowledgement (F8) |
+| How an acknowledgement is validated | It records the pair **the page displayed**, and the server checks it: the version exists, and the availability revision is ≤ the current head revision. Otherwise `400` (F8) |
 | Never written by | A save, so it never moves `designs.revision` (which would light D10's badge) |
 | When the notice shows | The design has a marker, the active (version, availability revision) differs from it, and `pricesChangedBetween(design, {seenBook, seenAvailability}, {activeBook, currentAvailability})` is true. `seenAvailability` is rebuilt from the append-only availability log (A-17) |
 | A design with no marker | Gets one written at the current pair, silently, on its first open |
@@ -313,6 +324,14 @@ every kitchen that earns it.
 - "Sent twice" needs no extra rule: both submissions name the same design.
 - Opening the kitchen page sends the revision **the page displayed** (`POST …/seen`, audited). A save landing between
   load and mark therefore keeps the badge.
+- **Security amendment F9 (2026-10-26):**
+  - the store refuses, in SQL, a displayed revision **greater than** the current one (`409`);
+  - a displayed revision that is not a digit string of the revision's shape is `400`, before the store;
+  - P-L3-4's visibility applies: a client-deleted or unsent kitchen is `404`, and this also excludes such kitchens
+    from the D10 list, the counter and the digest (F6);
+  - **the polled changed-count read is exempt from a per-poll audit row.** It returns one number and no row, and
+    auditing every poll would flood the log. This is stated as a deliberate exception to ADR 0173's "every list view
+    is audited", which covers views that return rows.
 
 **A-13 — The digest.**
 
@@ -326,6 +345,20 @@ every kitchen that earns it.
   list's "Trimisă la" date. That is why the 30 days count from it (OQ-10).
 - No eligible kitchen means no e-mail.
 - Recipients are accounts holding `contact.read` with a confirmed address.
+- **Security amendment F6 (2026-10-26):**
+  - **Authentication:** the cron route authenticates only through `isAuthorizedCronRequest`
+    [src: `apps/web/src/lib/server/cron-auth.ts:9`] and takes no parameters (no query, no body read).
+  - **Preview:** it never runs on Preview. Preview has no `CRON_SECRET`, and no new environment variable is added.
+  - **What it reads:** client-deleted designs are excluded. Of a customer it reads only `accounts.name`, else the
+    request reference.
+  - **What it writes:** every value goes through the existing `escapeHtml` builders. No customer text reaches the
+    subject or any header. The only link is the staff kitchen URL.
+  - **Claim before send:**
+    - the day's claim is inserted **before** sending, with `on conflict do nothing`;
+    - a send that fails **loses that day**; its kitchens stay eligible for the next day, because their entries are
+      written only after a successful send;
+    - the digest records itself in its own rounds and entries tables and writes **no** staff audit row (F3: it has
+      no actor).
 
 **A-14 — Bulk % and its rounding.** Every scaled amount (anchor, steps, size prices) becomes `r10(amount × (100 + p) /
 100)`, as the mockup's `r10(a*1.05)` does [mock L608]. A bulk change is one draft group, shown as one expandable row in
@@ -339,6 +372,13 @@ D7 and D8.
 - Restore adds the archived version's differing fields as changes.
 - Publish stores the candidate book whole and immutable, plus its change summary. Versions are append-only, and exactly
   one is active.
+- **Security amendments F7 and F10 (2026-10-26):**
+  - **The active version is the newest row.** There is no `state` column and no `UPDATE` on versions.
+  - Each version carries a strictly increasing `sequence_number`. Publish inserts `expectedActiveSequence + 1`, so of
+    two racing publishes the second is refused by the uniqueness constraint (`changed-meanwhile`).
+  - **Publish never accepts a book from the request.** The server computes `apply(activeBook, storedDraft)` from the
+    stored draft at the expected draft revision, judges it, and stores it.
+  - The draft and archived versions are never served on a non-staff route.
 
 **A-16 — A disabled colour or handle (backlog 285's open point for the architect).**
 
@@ -356,6 +396,26 @@ D7 and D8.
 - Disabling or enabling a material, colour, hardware class, handle or accessory is written **on save**, never into
   the draft. It is an append-only log: `catalogue_availability_changes`, one row per change with a monotonically
   increasing revision. The current state is each item's latest row.
+- **The revision mechanism (security amendment F1, 2026-10-26; the coordinator's choice; pinned here so lane S does
+  not guess):**
+  - **The head row.** A seeded one-row table, `catalogue_availability_head(revision bigint)`, in the singleton
+    pattern of `0009`'s `csp_report_cursor` [src: `0009_create_csp_reports.sql:12-16, 46-52`]. There is **no
+    sequence**: the unattended screen refuses `create sequence`, so no `bigserial` either.
+  - **One write is one statement.** It is a single CTE: `with h as (update catalogue_availability_head set revision =
+    revision + 1 where revision = $expected returning revision) insert into catalogue_availability_changes
+    (revision, …) select h.revision, … from h`. It runs in the same transaction as its audit row.
+  - **No trigger.** The log's `revision` is its **primary key** and is in the log's `INSERT` grant. Its value is only
+    ever the one the head update returned within the same statement. A stale `$expected` updates no head row, inserts
+    nothing, and is answered `changed-meanwhile`.
+  - **Accepted residual**, recorded beside ADR 0173's F1 and F2: a holder of the application credential could insert a
+    log row at an unused higher revision without moving the head. The database cannot stop that; the audit row and
+    the head mismatch reveal it.
+- **The D9 defaults save takes the same CAS** (the coordinator: "both take that head-row lock"). It increments the head
+  revision with the same `where revision = $expected` in its transaction. Defaults and availability writes therefore
+  serialise through one compare-and-set:
+  - a disable judged against a stale defaults read is refused `changed-meanwhile`;
+  - a defaults save naming an item that is disabled, or absent from the active book, is refused `item-unavailable`.
+  - The last-active-option guard is judged against the state at `$expected`, which the CAS makes current.
 - Pricing receives availability **beside** the book, as `priceDesign({…, book, availability})`. It is not a field of
   the book, so a published version stays immutable and availability never needs a publish.
 - The browser receives `{versionId, book, availability}` together (R1). The contact route prices with the **current**
@@ -415,10 +475,28 @@ D7 and D8.
   Russian field, and the parser refuses one.
 - Rendering: a created row's authored Romanian is shown in **both** locales until the deferred translation feature
   (ADR 0174 O-L3-3) supplies Russian.
-- Bounds and characters follow the existing `MAX_BOOK_NAME_LENGTH` and `MAX_BOOK_DESCRIPTION_LENGTH`
-  (`parse-price-book.ts:47-50`).
+- Bounds follow the existing `MAX_BOOK_NAME_LENGTH` and `MAX_BOOK_DESCRIPTION_LENGTH` (`parse-price-book.ts:47-50`).
+- **Characters (security amendment F5, 2026-10-26):** the rule of migration `0021_create_design_notes.sql:15` (not
+  ADR 0021), as `judgeNoteText` applies it [src: `staff/note-text.ts:29`]:
+  - NFC;
+  - control and bidi-override characters refused;
+  - non-empty after trimming.
+  - Judged in M4.
+- **Created ids (F5):** server-minted, strictly shaped, and unique against every built-in and keyed id. The client never
+  supplies one.
 - ADR 0106 Amendment A still binds: authored text may not state an amount, a percentage or "inclus". This is judged in
   M4 and shown as an inline error.
+
+**A-22 — Audit, and the writes that have no actor** (security amendments F3 and F4, 2026-10-26).
+
+- **Every staff write commits its audit row in the same transaction as the write.** Not "its own transaction".
+- ADR 0178 restates P-L3-3 itself, so M10 does not depend on ADR 0173's acceptance.
+- **The writes with no staff actor are named, and only these:**
+  - the customer's notice marker (A-11);
+  - the digest's rounds and entries (A-13);
+  - the owner-run seed (A-10), which takes the owner's account id.
+- **Every audit action has a closed detail key list** of kinds, ids, codes and counts (§8.4(e)). No created-row text,
+  version label, note, search text or customer value ever enters `detail`.
 
 ---
 
@@ -692,16 +770,17 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 
 - **No `null`; a special-case object instead.**
 - **The book is `unknown`** (jsonb): the store never imports a book type, and the domain parses it.
-- **Every write takes an audit entry** and commits it in its own transaction.
+- **Every staff write takes an audit entry and commits it in the same transaction as the write** (A-22, F3). The
+  notice marker, the digest's tables and the owner-run seed are the only writes without one, and they are named.
 
 | Port | Operations |
 | --- | --- |
-| `PriceBookStore` | `readActive()` → `{versionId, label, publishedAt, book}` or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)`; `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, label, note, book, changeSummary, audit})` → ok `{versionId}` or `changed-meanwhile` (one transaction: archive the previous active version, insert the new one, clear the draft, write the audit row) |
-| `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED`; `save({expectedRevision, defaults, audit})` |
+| `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber}` or `changed-meanwhile`. One transaction: insert at `expectedActiveSequence + 1`, reset the draft row, write the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **Amended 2026-10-26 (F7, F10): `expectedActiveSequence` added; no archive update** |
+| `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED` (the seeded row holds `{}`); `save({expectedRevision, expectedAvailabilityRevision, defaults, audit})` → ok, `changed-meanwhile`, `availability-changed-meanwhile`, or `item-unavailable {item}`. It increments the availability head in the same transaction (A-17, F1). **Amended 2026-10-26: `expectedAvailabilityRevision` and two refusals added** |
 | `KitchenUsageReader` | `count(itemRef)` → a count of designs not deleted by the client |
-| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})`; `listChanged…` is folded into the staff kitchens statements; `claimDigestDay(dayKey)` (idempotent); `listDigestEligible(now)`; `recordDigested(roundId, designIds)` |
-| `CatalogueAvailabilityStore` | `readCurrent()` → `{revision, disabled}`; `readAt(revision)` → the state at that revision, from the append-only log; `setActive({item, active, expectedRevision, audit})` → ok `{revision}` or `changed-meanwhile` |
-| `PriceNoticeStore` | `readAcknowledged(designId)` → `{versionId, availabilityRevision}` or `NEVER_RECORDED`; `recordAcknowledged(designId, {versionId, availabilityRevision})` |
+| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (client-deleted or unsent, P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{claimed: roundId}` or `ALREADY_CLAIMED` (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
+| `CatalogueAvailabilityStore` | `readCurrent()` → `{revision, disabled}` (`revision` is the head's); `readAt(revision)` → the state at that revision, from the append-only log; `setActive({item, active, expectedRevision, audit})` → ok `{revision}` or `changed-meanwhile`, written as one CTE statement (A-17, F1). Signature unchanged |
+| `PriceNoticeStore` | `readAcknowledged(designId)` → `{versionId, availabilityRevision}` or `NEVER_RECORDED`; `recordIfAbsent(designId, pair)` (the first open, insert-if-absent; F8); `recordAcknowledged(designId, pair)` → ok, `unknown-version` or `revision-ahead` (validated in SQL against the versions table and the availability head; F8). No audit (F3). **Amended 2026-10-26: `recordIfAbsent` and the result union added** |
 
 **(d) Wire contract** (X0, `apps/web/src/price-dashboard/price-dashboard-wire-contract.ts`, plus additions to
 `apps/web/src/staff/staff-kitchens-wire-contract.ts`).
@@ -710,16 +789,34 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
   creation and deletion), revert, bulk, publish, versions, version, restore, **availability (immediate)**, usage counts,
   defaults, seen, changed count, price notice.
 - The editor's book payload is `{versionId, book, availability}`.
+- **Amended 2026-10-26 (security):**
+  - **creation requests carry no id**; the server mints it (F5);
+  - **the publish request carries no book** (`{expectedDraftRevision, expectedActiveSequence, label, note,
+    provisional}`; F10);
+  - draft and archived versions appear only in staff responses (F10);
+  - the closed refusal list gains `displayed-revision-ahead`, `item-unavailable`, `availability-changed-meanwhile`,
+    `unknown-version` and `revision-ahead`;
+  - the seen request's revision is a digit string, `400` otherwise (F9).
 - Refusal codes are a closed list.
 - Bodies carry codes, never sentences (ADR 0095 decision 3).
 
 **(e) Staff audit actions** (X0, `packages/configurator-domain/src/staff/staff-audit-action.ts`). These are new
-closed-list entries, each with its detail shape: ids, codes and counts, never names or free text.
+closed-list entries. **Amended 2026-10-26 (F4):** each has a **closed detail key list**, and a key outside it is
+refused.
+
+- **Allowed:** kinds and codes from closed lists, server-minted ids, and counts.
+- **Never:** created-row text, version label or note, search text, or any customer value.
 
 ```
-price-draft-changed (detail: the change kind, including created / text / deleted), price-draft-reverted,
-price-bulk-changed, price-published, price-restored-to-draft, catalogue-item-activation-changed (immediate, A-17),
-kitchen-defaults-saved, kitchen-seen, price-catalogue-viewed
+price-draft-changed        { changeKind, itemKind?, itemId?, field? }        // changeKind ∈ §8.4(b) kinds; no value, no text
+price-draft-reverted       { changeKind, itemKind?, itemId? }
+price-bulk-changed         { scope: all|group|selection, groupCode?, percent, ruleCount, amountCount }
+price-published            { sequenceNumber, changeCount, provisional }   // no label, no note
+price-restored-to-draft    { fromSequenceNumber, changeCount }
+catalogue-item-activation-changed { itemKind, itemId, active, availabilityRevision }
+kitchen-defaults-saved     { changedFields: [material|hardware|depth|finish|handle|topRowHandle] }
+kitchen-seen               { }                                             // the design id is the row's own column
+price-catalogue-viewed     { section: catalogue|hardware|materials|accessories|defaults|publish|history|version }
 ```
 
 The `action` column is a shape check [src: `0020` header], so no migration is owed.
@@ -758,15 +855,23 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | Number | File | Wave | Grant (exact text written in the wave, pasted into the runbook by the scribe) |
 | --- | --- | --- | --- |
 | 0023, 0024 | *reserved by M8B Lot 3* (preset sort, invitations) | — | — |
-| 0025 | `create_price_book_versions` (id, label, note, book jsonb object, change_summary jsonb, state `active`/`archived`, published_at, published_by_account_id; one active, by a partial unique index) | S2 | `SELECT`; `INSERT`; `UPDATE (state)` |
-| 0026 | `create_price_book_draft` (a single row: revision bigint, changes jsonb array, base_version_id, updated_at, updated_by_account_id) | S2 | `SELECT, INSERT, UPDATE` |
-| 0027 | `create_kitchen_defaults` (a single row: revision, defaults jsonb, saved_at, saved_by_account_id) | S3 | `SELECT, INSERT, UPDATE` |
-| 0028 | `create_catalogue_availability_changes` (revision bigserial pk, item_kind, item_id, active boolean, changed_at, changed_by_account_id; the current state is each item's latest row). **Added 2026-10-26 (A-17)** | S2b | `SELECT, INSERT` only (append-only) |
-| 0029 | `create_design_staff_seen` (design_id pk, seen_revision bigint, seen_by_account_id, seen_at) | S4 | `SELECT, INSERT, UPDATE` |
-| 0030 | `create_staff_change_digest` (rounds: day_key unique, ran_at, sent_count; entries: round_id, design_id, revision) | S4 | `SELECT, INSERT, UPDATE (rounds.sent_count)` |
-| 0031 | `create_design_price_notices` (design_id pk, acknowledged_version_id, acknowledged_availability_revision, acknowledged_at) | S5 | `SELECT, INSERT, UPDATE` |
+| 0025 | `create_price_book_versions`: id (server-minted, shaped), `sequence_number bigint not null unique check (> 0)`, label (length-checked; 1–80 [inf: `MAX_BOOK_NAME_LENGTH`]), note (≤ 240 [inf: `MAX_BOOK_DESCRIPTION_LENGTH`]), book jsonb object, change_summary jsonb, `published_at default now()`, published_by_account_id. **No `state` column**; the active version is the newest row (F7) | S2 | `SELECT`; `INSERT (id, sequence_number, label, note, book, change_summary, published_by_account_id)`. **No `UPDATE`** (F7) |
+| 0026 | `create_price_book_draft`: a **seeded singleton** (0009's pattern): revision bigint, changes jsonb array (seeded `[]`), base_version_id, `updated_at default now()`, updated_by_account_id | S2 | `SELECT`; `UPDATE (revision, changes, base_version_id, updated_at, updated_by_account_id)`. **No `INSERT`** (F7) |
+| 0027 | `create_kitchen_defaults`: a **seeded singleton**: revision, defaults jsonb (seeded `{}` = none saved), `saved_at default now()`, saved_by_account_id | S3 | `SELECT`; `UPDATE (revision, defaults, saved_at, saved_by_account_id)`. **No `INSERT`** (F7) |
+| 0028 | **Two tables, one file** (A-17, F1): `catalogue_availability_head`, a seeded singleton (`revision bigint not null check (>= 0)`, seeded 0), and `catalogue_availability_changes` (`revision bigint primary key`, item_kind, item_id, active boolean, `changed_at default now()`, changed_by_account_id). **No sequence and no trigger.** A row's revision comes from the head update in the same CTE statement (§5 A-17) | S2b | head: `SELECT, UPDATE (revision)`. log: `SELECT, INSERT (revision, item_kind, item_id, active, changed_by_account_id)`. No `DELETE`, no log `UPDATE` |
+| 0029 | `create_design_staff_seen`: design_id pk, seen_revision bigint, seen_by_account_id, `seen_at default now()` | S4 | `SELECT`; `INSERT (design_id, seen_revision, seen_by_account_id)`; `UPDATE (seen_revision, seen_by_account_id, seen_at)`. No PK update. **Also, with 0029, on the existing table (F2):** `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;`. This is a **runbook grant, not SQL in the migration file**: grants are never in a migration file, because the unattended screen does not recognise them [src: `0009_create_csp_reports.sql:32-34`]. **The first reader is S4's staff kitchen statement for the as-sent estimate, consumed by K2** |
+| 0030 | `create_staff_change_digest`, **two tables**: rounds (day_key pk, shape-checked; `claimed_at default now()`; sent_count int) and entries (round day_key, design_id, revision; pk (round, design)) | S4 | rounds: `SELECT; INSERT (day_key); UPDATE (sent_count)`. entries: `SELECT; INSERT (day_key, design_id, revision)` (F7) |
+| 0031 | `create_design_price_notices`: design_id pk, acknowledged_version_id, acknowledged_availability_revision, `acknowledged_at default now()` | S5 | `SELECT`; `INSERT (design_id, acknowledged_version_id, acknowledged_availability_revision)`; `UPDATE (acknowledged_version_id, acknowledged_availability_revision, acknowledged_at)`. No PK update |
 
-No `DELETE` is granted on 0025 or 0028. Versions and availability changes are append-only (A-15, A-17).
+**Rules across every M10 table (F7, 2026-10-26):**
+
+- column-level grants exactly as listed;
+- every `*_at` defaults to `now()` and is outside every `INSERT` grant;
+- no primary-key column is in an `UPDATE` grant;
+- no `DELETE` and no `TRUNCATE` anywhere;
+- nothing to `PUBLIC`.
+
+The append-only tables are `0025` and `0028`'s log.
 
 **Renumbered 2026-10-26.** The plan's earlier numbers were never used. The availability log took `0028`, and the three
 tables after it each moved up one. Nothing was built under the old numbers.
@@ -995,7 +1100,7 @@ ADR 0099, ADR 0092 Amendment C, this plan A-9. **(clean-code):** the diff.
 | **M1** change-set | (1) `applyChanges(book, changes)` gives the candidate book, refused per change with a code, for the **price-field, size, depth-rule, bulk and provisional** kinds (creation, text and deletion kinds arrive in M4); (2) `diffBooks(a, b)` gives D7/D8 rows in the new terms [mock L742], with bulk groups as one row; (3) revert one change; (4) `restoreChanges(archived, active)` (A-15) | new `price-dashboard/apply-changes.ts`, `diff-books.ts`, `restore.ts` | P2 merged (types) | §8.4(b); A-14; A-15; D7/D8 frames [mock L871-880] |
 | **M2** bulk, validation, preview | (1) bulk % over a scope (all, one group, a selection) with A-14 rounding and counts ("22 dulapuri, 64 prețuri"); (2) `judgeBookAgainstCatalog`: the narrowest buildable width prices > 0 [D3C]; anchor width = default width; size list = the catalogue's sizes; percentage ranges; (3) `previewCabinet(rule, catalog, book, {material, depth, hardwareTier?})`: rows every 50 mm, an off-grid minimum row ("560 → preț ca 600"), door-step rows marked, built **only** from P's functions | new `price-dashboard/bulk-change.ts`, `judge-book.ts`, `cabinet-preview.ts` | P3 merged | D2D, D3A–G notes [mock L846-866]; ADR 0175 *Open* (negative at the narrow end) |
 | **M3** lifecycle rules (amended 2026-10-26) | (1) `usesItem(design, itemRef, catalog)`, which counts linked accessories through the earning rule and is the predicate S3's SQL must agree with; (2) `judgeAvailabilityChange(item, active, {availability, book, defaults})`, applied **at write time** (A-17): disabling refused for the D9 default and for the last active option of a group; enabling refused for an item absent from the active published book; (3) `canDelete` (unused, and not the D9 default); (4) the D9 defaults judgement (a colour reset when the default material changes); (5) the remaining-options list for the dialogs | new `price-dashboard/item-usage.ts`, `item-lifecycle.ts`, `defaults-judgement.ts` | P4b merged | D4E/F, D5C/D/E/G, D6C, D9B [mock L868-881]; ADR 0062 Amendment 3 and the 2026-10-26 Amendment; A-17, A-19 |
-| **M4** creation, created-row text, deletion (added 2026-10-26) | (1) `applyChanges` gains the `hardware-tier-created`, `accessory-created`, `created-row-text` and `item-deleted` kinds (A-18), and `diffBooks` gains their D7/D8 rows; (2) `judgeBookAgainstCatalog` gains: a linked accessory's `linkedBuildId` names a catalogue row the book prices that the manufacturer supplies (A-19); (3) the authored-text judgement: Romanian only, bounded, and per ADR 0106 Amendment A no amount, percentage or "inclus" (A-21); (4) `judgeDeletionsAtPublish(changes, usageCounts)`: refuses the whole publish if a deleted item gained a user (A-18) | `price-dashboard/apply-changes.ts` (mod), `diff-books.ts` (mod), `judge-book.ts` (mod), new `price-dashboard/created-row-text.ts` | M2, M3, P4b | A-18, A-19, A-21; frames D4C, D6A/B [mock L692-697, L710-712]; ADR 0106 Amendment A; `parse-price-book.ts:47-50` |
+| **M4** creation, created-row text, deletion (added 2026-10-26) | (1) `applyChanges` gains the `hardware-tier-created`, `accessory-created`, `created-row-text` and `item-deleted` kinds (A-18), and `diffBooks` gains their D7/D8 rows; (2) `judgeBookAgainstCatalog` gains: a linked accessory's `linkedBuildId` names a catalogue row the book prices that the manufacturer supplies (A-19); (3) the authored-text judgement: Romanian only, bounded, the character rule of migration `0021_create_design_notes.sql:15` (F5), and per ADR 0106 Amendment A no amount, percentage or "inclus" (A-21); (4) `judgeDeletionsAtPublish(changes, usageCounts)`: refuses the whole publish if a deleted item gained a user (A-18) | `price-dashboard/apply-changes.ts` (mod), `diff-books.ts` (mod), `judge-book.ts` (mod), new `price-dashboard/created-row-text.ts` | M2, M3, P4b | A-18, A-19, A-21; frames D4C, D6A/B [mock L692-697, L710-712]; ADR 0106 Amendment A; `parse-price-book.ts:47-50`; `staff/note-text.ts` and migration `0021_create_design_notes.sql:15` (F5) |
 
 **M acceptance:**
 
@@ -1029,6 +1134,12 @@ ADR 0099, ADR 0092 Amendment C, this plan A-9. **(clean-code):** the diff.
 - **M4-b:** an authored name containing a digit-bearing amount, "%", or any of `inclus`/`inclusă`/`incluse` is refused
   with a code. A plain name passes.
 - **M4-c:** a link to a customer-supplied row, or to an id the catalogue does not hold, is refused.
+- **M4-d (amended 2026-10-26, F5):**
+  - created-row text is judged by the rule of migration `0021_create_design_notes.sql:15`, through `judgeNoteText`'s
+    rules or a shared extraction of them (`staff/note-text.ts:29`): NFC; control and bidi-override characters
+    refused; non-empty after trim. A sweep runs over the C0 and C1 controls and U+202A–U+202E, U+2066–U+2069;
+  - created ids are server-minted to the stated shape and unique against every built-in and keyed id. A collision
+    test seeds one.
 
 **QA reading:** M reading plus P's tests. **Review reading:** logic: the frames named, A-14, A-15, and A-17 to A-21; clean-code: the diff.
 
@@ -1055,29 +1166,63 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
 
 - **S-a:** every live suite is registered in `live-suite-census.test.ts`. Every new table has a privilege arm that is
   **red with nothing granted** and green with exactly the §9.2 grant.
-- **S-b:**
-  - publish is all-or-nothing: if the audit insert fails (fault injected), no version row is written and the draft is
-    unchanged;
-  - must-not: two active versions exist at once (the partial unique index, proved by a racing pair of publishes);
-  - must-not: any `DELETE` on `price_book_versions` is granted.
-- **S-b2 (S2b):**
+- **S-b (S2; amended 2026-10-26, F3, F7, F10):**
+  - publish is all-or-nothing: if the audit insert fails (fault injected), no version row is written and the draft
+    row is unchanged;
+  - **a racing pair of publishes** at the same `expectedActiveSequence` yields exactly one new version; the other is
+    `changed-meanwhile` (the uniqueness of `sequence_number`);
+  - `readActive` is the row with the greatest `sequence_number`;
+  - must-not: `UPDATE`, `DELETE` or `TRUNCATE` on `price_book_versions` is held;
+  - must-not: `INSERT` on `price_book_draft` or `kitchen_defaults` is held (seeded singletons).
+- **S-b1 (S2, the seed; F3):**
+  - the seed refuses when any version exists, and leaves the table byte-identical;
+  - it records the owner's account id it was given as `published_by_account_id`;
+  - it writes no staff audit row.
+- **S-b2 (S2b; amended 2026-10-26, F1):**
   - an availability write and its audit row commit together or not at all;
+  - **the log's revision always equals the head revision its statement produced.** A write with a stale
+    `expectedRevision` inserts no log row, moves no head and answers `changed-meanwhile`;
+  - **a racing pair** of availability writes at one `expectedRevision` yields exactly one log row and a head moved by
+    exactly one;
+  - **a racing pair of one availability write and one defaults save** (S3) at the same `expectedRevision` yields
+    exactly one success. A disable of the item a concurrent defaults save makes the default can never both succeed;
   - `readAt(r)` equals the replay of the log up to `r` for every `r`. This is a property over random change sequences;
-  - must-not: any `UPDATE` or `DELETE` on `catalogue_availability_changes` is granted.
-- **S-c:**
+  - the migration file contains no `sequence`, `serial` or `trigger`;
+  - must-not: `UPDATE` or `DELETE` on `catalogue_availability_changes`, or `INSERT` on the head, is held.
+- **S-c (S4; amended 2026-10-26, F9):**
   - `changed_since_seen` is computed only in SQL;
+  - `markSeen` with a displayed revision greater than the current one is `displayed-revision-ahead` and writes
+    nothing (compared in SQL);
+  - `markSeen` on a client-deleted or unsent design is `not-found`;
+  - the staff list statements, the count and `listDigestEligible` exclude client-deleted designs;
   - no TypeScript code parses, orders or does arithmetic on a revision (checked with `rtk proxy grep` for `Number(`
     and `BigInt(` near `revision`);
   - a seen mark with a stale displayed revision leaves the badge on.
-- **S-d:**
-  - `claimDigestDay` called twice for one day key yields exactly one claim;
+- **S-d (S4; amended 2026-10-26, F6, F7):**
+  - `claimDigestDay` called twice for one day key yields exactly one claim, inserted with `on conflict do nothing`;
+  - entries can only be inserted, never updated;
   - a design digested since its last seen mark is not eligible;
   - one past 30 days from `sent_at`, or at `offer-sent` or `closed`, is not eligible.
 - **S-e:** the usage reader and `usesItem` agree on every fixture design, including absent settings counted toward the
   fallback, a per-cabinet colour override, a seeded body earning a linked accessory through its equivalent, and a
   client-deleted design (excluded).
-- **S-f:** the application role reads no personal column of `contact_submissions` in any new statement (ADR 0153 d1).
-  Checked by the privilege test planning each statement as that role.
+- **S-f (amended 2026-10-26, F2):**
+  - the application role reads no personal column of `contact_submissions` in any new statement (ADR 0153 d1),
+    checked by the privilege test planning each statement as that role;
+  - S4 adds the arm for exactly `SELECT (priced)`: green with the grant, red without;
+  - **must-not: any `SELECT` on `contact_submissions` wider than the runbook's existing list plus `priced`.**
+- **S-h (S3; amended 2026-10-26, F1):**
+  - a defaults save naming a disabled item, or one absent from the active book, is `item-unavailable` and writes
+    nothing;
+  - a save at a stale `expectedAvailabilityRevision` is `availability-changed-meanwhile`;
+  - a successful save moves the availability head by exactly one, in its transaction.
+- **S-i (S5; amended 2026-10-26, F3, F8):**
+  - `recordIfAbsent` never overwrites an existing marker. This is a property: any interleaving of first-opens and
+    acknowledgements ends at the last acknowledgement;
+  - `recordAcknowledged` refuses a version id that is not in `price_book_versions` (`unknown-version`) and an
+    availability revision greater than the head (`revision-ahead`);
+  - no audit row is written;
+  - must-not: `UPDATE (design_id)` is held.
 - **S-g:** every migration file is new. **No applied migration file is edited** (checksums). The runbook text for each
   is in the wave's report.
 
@@ -1127,14 +1272,26 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - the price bar, the account card and D10B's current estimate show no figure;
   - the contact route refuses;
   - nothing renders 0.
-- **R-c:**
-  - every R2, R3, R4a and R4b write, including each immediate availability change, has exactly one audit row;
+- **R-c (amended 2026-10-26, F3, F4):**
+  - every R2, R3, R4a and R4b write, including each immediate availability change, has exactly one audit row,
+    committed **in the same transaction** as the write;
   - if the audit write fails, the change is absent and the answer is `503`;
+  - every audit `detail` matches its closed key list (§8.4(e));
+  - a test sweeps every route, and no detail contains created-row text, a version label or a note;
   - an operator session (no `price.edit`) gets `403` on every price route and sees no catalogue nav.
-- **R-d:**
-  - publish with a stale draft revision gives `409 changed-meanwhile`;
+- **R-d (amended 2026-10-26, F7, F10):**
+  - publish with a stale draft revision, or a stale `expectedActiveSequence`, gives `409 changed-meanwhile`;
+  - **a publish request carrying a `book` member is `400`**; the server computes `apply(activeBook, storedDraft)`
+    itself;
   - a book the domain refuses is never stored;
+  - must-not: any non-staff route serves the draft or an archived version. A sweep of every non-staff route's response
+    for the draft's or archive's version id finds none;
   - after publish, the next customer page load prices at the new version.
+- **R-h (R2/R4a; F5):**
+  - a creation request carrying an id is `400`;
+  - the server mints an id of the stated shape, unique against every built-in and keyed id;
+  - created text failing the `0021_create_design_notes.sql:15` rule (not NFC, a control or bidi-override character,
+    empty after trim) is `400` with M4's code.
 - **R-f (R4a), the OQ-2 ruling made testable:**
   - an availability change is visible to the **next** customer price evaluation with no publish;
   - the draft and the active version are byte-identical before and after it;
@@ -1143,9 +1300,16 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
 - **R-g (R4a):**
   - a contact send for a kitchen using an item disabled after the page loaded is refused (`REPLACEMENT_REQUIRED`);
   - no snapshot is stored for it.
-- **R-e:**
+- **R-e (R5; amended 2026-10-26, F3, F8):**
   - acknowledging a notice never changes `designs.revision` (asserted against the store);
-  - a share-link (`/s/<token>`) viewer is never shown the notice and cannot write it.
+  - a share-link (`/s/<token>`) viewer is never shown the notice and cannot write it;
+  - a staff open never writes it;
+  - **both notice routes mirror the save route's authorisation.** A request without edit-level authorisation is
+    refused, the `GET` included. A cross-site request is refused, and a non-JSON body is `415`;
+  - **the first open is insert-if-absent**: it never overwrites an acknowledgement;
+  - an acknowledgement of a version that does not exist, or of an availability revision above the head, is `400`, and
+    nothing is written;
+  - no staff audit row is written (F3).
 
 **QA reading:** the base reading plus `apps/web/tests/api/staff/**` and `tests/price/**`. **Review reading:** logic:
 §5 and the routes; security: ADR 0019, 0153, 0156, 0161, 0172 D7, 0173; clean-code: the diff.
@@ -1220,6 +1384,14 @@ the frames and `engineering-conventions.md`. **Visual:** §13.3.
   h, a choice recorded in the wave.
 - **K2-a:** opening the page with a revision older than the current one leaves the badge on. A non-staff session gets
   `403`. A seen write without its audit row is refused (`503`).
+- **K2-c (amended 2026-10-26, F9, P-L3-4):**
+  - a displayed revision that is not a digit string of the revision shape is `400` and never reaches the store;
+  - one greater than the current is `409 displayed-revision-ahead`, with nothing written;
+  - a client-deleted or unsent kitchen is `404` on seen, list, count and page alike;
+  - the polled changed-count read writes **no** audit row per poll (the stated exception); every list view still
+    writes its `kitchens-listed` row.
+- **K2-d (F2):** the as-sent estimate reads `contact_submissions.priced` through S4's statement, under exactly the
+  `SELECT (priced)` grant. No other column is added.
 - **K2-b:** the as-sent estimate equals the stored snapshot's total byte for byte, after any number of publishes
   (ADR 0154).
 - **K3-a:** D10C's cycle: changed, badge; open, gone; changed again, back. This is an e2e test against the fake store.
@@ -1228,8 +1400,21 @@ the frames and `engineering-conventions.md`. **Visual:** §13.3.
   - a day with nothing eligible sends nothing;
   - a kitchen appears once per round;
   - must-not: the e-mail contains a phone number, a postal address or a request's personal column.
-- **K4-b:** a mail-port failure leaves the round unrecorded, so the next day retries. A partial send is never recorded
-  as complete (ADR 0164's single-guard lesson).
+- **K4-b (amended 2026-10-26, F6; supersedes "the next day retries the round"):**
+  - the day's claim is inserted **before** sending (`on conflict do nothing`);
+  - a mail-port failure **loses that day**. No entries are written, so the same kitchens are eligible on the next
+    day's run;
+  - a partial send is never recorded as complete (ADR 0164's single-guard lesson);
+  - the digest writes no staff audit row (F3).
+- **K4-c (F6):**
+  - the route authenticates only through `isAuthorizedCronRequest` and reads no query and no body;
+  - without `CRON_SECRET` (Preview) it is refused and sends nothing, and no new environment variable is introduced;
+  - client-deleted designs never appear;
+  - the customer is named only from `accounts.name`, else the request reference;
+  - every interpolated value passes through the `escapeHtml` builders. A test injects `<`, `"` and a bidi override
+    into a kitchen name and an account name, and the HTML carries them escaped;
+  - the subject and headers contain no customer text;
+  - the only link is the staff kitchen URL.
 
 **QA reading:** K's base reading plus `apps/web/tests/staff/**` and `tests/mail/**`. **Review reading:** logic:
 A-12 and A-13; security: ADR 0153, 0154, 0164, 0173, plus a read of the digest template; clean-code: the diff.
@@ -1314,7 +1499,7 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | RK-10 | **The shared-file collision the owner named as the main risk** | all | §9.1's single owners; handoffs only at named merges; worktrees per lane; every brief carries the git ban and the base check |
 | RK-11 | **Placeholders become approved figures** | P3, T1, U | §0; P2-f; copy never carries a figure; `amountsProvisional` stays true until the owner flips D7C |
 | RK-12 | **The opaque revision gets arithmetic above SQL** | S4, K2 | A-12; criterion S-c |
-| RK-13 | **Digest PII and recipients** | K4 | S-21; K4-a's must-not; security review |
+| RK-13 | **Digest PII and recipients** | K4 | S-21; K4-a's must-not; K4-c (F6: `accounts.name` only, escaped values, no customer text in subject or headers, staff URL only); security review |
 | RK-14 | **ADR 0173 is still Proposed** | R, K | W0 lists its acceptance as owed; M10's audit rows follow P-L3-3 regardless |
 | RK-15 | **Performance:** `pricesChangedBetween` and the D3 preview price many times; the active book is read per request | R1, Q3, U3 | Measure in Z1 at 390 × 844 on a large preset kitchen. **No figure is asserted until measured** (R4) |
 | RK-16 | **The e2e and dev runs need an active book** | R1 | A-10's test seeding through the fake store; ADR 0151 (tests delete only rows tests added) |
@@ -1323,6 +1508,11 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | RK-19 | **Activating a linked accessory raises saved kitchens' prices with no new book version** | P4b, R5, Q3 | A-11's version and availability pair; P4b-d; Q3-f |
 | RK-20 | **OQ-4 is the coordinator's reading** (OQ-4a). If the owner meant only "show the link", three waves are wasted | P4b, M4, U4c | OQ-4a is asked in W0, before P4b is dispatched. P4b sits behind P3 and P4a, so there is time |
 | RK-21 | **The lift sweep finds other "flap" fronts** (`front-population.ts:67`, "the top box's flap") whose pricing the owner did not rule | P5 | A-20 and P5-d: only declared `liftUp` fronts are priced; candidates are reported to the owner |
+| RK-22 | **A forged availability-log row** (security F1's accepted residual): a holder of the application credential inserts a log row at an unused higher revision without moving the head | S2b | No database check can tie a row to the head without a trigger, which F1 declined. The audit row is missing and the head lags the log's maximum. Z1 adds a read-only consistency check (`max(log.revision) = head.revision`) to the owner's runbook. Accepted beside ADR 0173 F1/F2 |
+| RK-23 | **A failed digest send loses the day** (F6) | K4 | Its kitchens stay eligible next day, because entries are written only after a successful send (K4-b). The dashboard badge is unaffected |
+| RK-24 | **The polled changed-count read is unaudited** (F9) | K2 | It returns one number and no row. Every list and page view keeps its audit row. Recorded as a deliberate exception in ADR 0178 |
+| RK-25 | **The digest cannot be exercised on Preview** (no `CRON_SECRET` there; F6) | K4, Z1 | Verified with the route's tests and a local run with a test secret. The first real send is the owner's, on production. Nothing new is added to any environment |
+| RK-26 | **X0 is being implemented while these contracts change** | X0 | §8.4's amended lines (listed in the 2026-10-26 security amendment report) go to the X0 implementer before its QA. The tree is frozen per agent-coordination before the change is applied |
 
 ---
 
