@@ -19,8 +19,8 @@ import {
   pricedFlat,
   PRICE_BOOK_CURRENCY,
   type BookAccessories,
-  type CabinetPriceRule,
-  type PriceBook,
+  type LinearCabinetPriceRule,
+  type LinearPriceBook,
 } from "./price-book.js";
 
 /** The version this sample book is filed under. Matched for equality by the query, so a stable string
@@ -39,7 +39,7 @@ export const SAMPLE_PRICE_BOOK_VERSION = "sample-2026-09";
  * both. `pricing-seams.test.ts` holds this book to those catalogue flags. Every other row's height and
  * door population are fixed at build and fold into its `baseMinor`.
  */
-const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
+const SAMPLE_CABINET_RULES: readonly LinearCabinetPriceRule[] = [
   // §7's insertable rows. A seeded body reaches these through its `catalogEquivalentId` (ADR 0022).
   // The merged hinged base's door count follows its width (ADR 0033): one band of leaves, one step.
   {
@@ -272,7 +272,7 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
  * Every row that renders an ordinary word names its catalogue leaf (ADR 0106 decision 1). The two
  * brand rows name no `nameKey` on purpose.
  */
-export const SAMPLE_PRICE_BOOK: PriceBook = {
+export const SAMPLE_PRICE_BOOK: LinearPriceBook = {
   version: SAMPLE_PRICE_BOOK_VERSION,
   currency: PRICE_BOOK_CURRENCY,
   status: "estimate",
