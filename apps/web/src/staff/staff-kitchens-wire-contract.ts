@@ -264,3 +264,61 @@ export interface StaffAuditInvalidQueryWire {
     readonly code: StaffAuditQueryRefusalCode;
   }[];
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Kitchens changed after staff saw them (M10 D10; plan §8.4 d, A-12)
+//
+// Standalone types beside the shapes above, none of which gains a member: a reader of the list or the kitchen as they
+// stand is unaffected, and a screen that shows the mark reads the `Marked` form.
+
+/** Whether the kitchen's revision differs from the one staff last saw, or else the one it was sent at. The comparison
+ *  is made in SQL; the revision itself stays opaque. */
+export interface StaffChangedMarkWire {
+  readonly changedAfterSeen: boolean;
+}
+
+export type StaffListedKitchenMarkedWire = StaffListedKitchenWire &
+  StaffChangedMarkWire;
+
+/** The list with its marked rows, and the number of changed kitchens the menu counter shows. */
+export interface StaffKitchenMarkedListWire
+  extends Omit<StaffKitchenListWire, "kitchens"> {
+  readonly changedCount: number;
+  readonly kitchens: readonly StaffListedKitchenMarkedWire[];
+}
+
+/** The kitchen page, with the revision it displayed: what `StaffSeenRequestWire` sends back. */
+export type StaffKitchenMarkedWire = StaffKitchenWire &
+  StaffChangedMarkWire & { readonly displayedRevision: string };
+
+/** Marks a kitchen as seen at the revision the page displayed. A save landing between load and mark keeps the mark. */
+export interface StaffSeenRequestWire {
+  readonly displayedRevision: string;
+}
+
+/** `200` of a seen mark: the kitchen's mark afterwards. The request status is untouched. */
+export type StaffSeenMarkedWire = StaffChangedMarkWire;
+
+/** `MISSING_VALUE` is absent or not text; `NOT_A_REVISION` is text that is not a digit string of the revision's shape
+ *  (no leading zero, at most nineteen digits). Both are refused before the store (F9). */
+export type StaffSeenRefusalCode = "MISSING_VALUE" | "NOT_A_REVISION";
+
+/** `409` of a seen mark whose displayed revision is greater than the kitchen's current one, compared in SQL (F9). A
+ *  kitchen deleted by its client or not sent is the byte-identical kitchen refusal, as for every staff route. */
+export interface StaffSeenConflictWire {
+  readonly status: "displayed-revision-ahead";
+}
+
+/** `400` of a seen mark: the member and a code. Never the value. */
+export interface StaffSeenInvalidWire {
+  readonly status: "invalid-input";
+  readonly issues: readonly {
+    readonly field: "displayedRevision";
+    readonly code: StaffSeenRefusalCode;
+  }[];
+}
+
+/** `200` of the changed-kitchens count behind the menu badge. */
+export interface StaffChangedCountWire {
+  readonly count: number;
+}

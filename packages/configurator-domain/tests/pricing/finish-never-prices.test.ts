@@ -156,13 +156,33 @@ describe("nothing under pricing/ can even see the declaration", () => {
       .replace(/\/\/.*$/gm, " ");
   }
 
+  /** `catalogue-availability.ts` names `kind: "finish"` because availability can switch a colour off: an item kind
+   *  passed beside the book (ADR 0177; M10 plan A-17), not a coefficient keyed on one. It is exempt by name, so a new
+   *  file under pricing/ naming a finish still trips the pin; `AVAILABILITY_ITEM_FILE` is held to carrying no number. */
+  const AVAILABILITY_ITEM_FILE = "catalogue-availability.ts";
+
   it("has no module under pricing/ naming a finish, a decor or a palette entry", () => {
     // The other half of the same seam, in the data rather than the graph: a coefficient could be
     // keyed on a decor without importing anything, by writing the id as a literal.
-    const namers = sourcesUnderPricing().filter((file) =>
-      /\b(finish|finishes|decor|decors|palette)\b/i.test(codeOf(file)),
-    );
+    const namers = sourcesUnderPricing()
+      .filter((file) => path.basename(file) !== AVAILABILITY_ITEM_FILE)
+      .filter((file) =>
+        /\b(finish|finishes|decor|decors|palette)\b/i.test(codeOf(file)),
+      );
 
     expect(namers.map((file) => path.basename(file))).toEqual([]);
+  });
+
+  it("lets the availability item file name a finish only as an item kind, never as a coefficient", () => {
+    const [file] = sourcesUnderPricing().filter(
+      (candidate) => path.basename(candidate) === AVAILABILITY_ITEM_FILE,
+    );
+
+    if (file === undefined) throw new Error("the availability file is gone");
+    const code = codeOf(file);
+
+    expect(code).toMatch(/kind: "finish"/);
+    expect(code).not.toMatch(/\d/);
+    expect(code).not.toMatch(/\b(const|let|var|function|class|enum)\b/);
   });
 });

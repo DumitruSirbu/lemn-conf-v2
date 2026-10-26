@@ -244,6 +244,8 @@ export * from "./pricing/price-design.js";
 // composition root picks it up here and a book from another source is a substitution.
 // `pricing-seams.test.ts` holds the import graph to that.
 export * from "./pricing/sample-price-book.js";
+// What can be switched off, beside the book (A-17). Types only: the dashboard's field address imports it from here.
+export * from "./pricing/catalogue-availability.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";
@@ -381,6 +383,36 @@ export {
   type KitchensListedDetail,
   type StatusChangedDetail,
 } from "./staff/staff-audit-action.js";
+// The price dashboard's audit actions, a list of their own beside `STAFF_AUDIT_ACTIONS` (M10 X0).
+export {
+  BULK_CHANGE_SCOPES,
+  DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
+  DASHBOARD_AUDIT_ACTIONS,
+  dashboardAuditActionNamesDesign,
+  DRAFT_CHANGE_FIELDS,
+  isDashboardAuditAction,
+  KITCHEN_DEFAULTS_FIELDS,
+  PRICE_CATALOGUE_SECTIONS,
+  PRICE_GROUP_CODES,
+  readDashboardAuditEntry,
+  type BulkChangeScope,
+  type CatalogueItemActivationChangedDetail,
+  type DashboardAuditAction,
+  type DashboardAuditEntry,
+  type DashboardAuditEntryReading,
+  type DraftChangeField,
+  type KitchenDefaultsField,
+  type KitchenDefaultsSavedDetail,
+  type KitchenSeenDetail,
+  type PriceBulkChangedDetail,
+  type PriceCatalogueSection,
+  type PriceCatalogueViewedDetail,
+  type PriceDraftChangedDetail,
+  type PriceGroupCode,
+  type PriceDraftRevertedDetail,
+  type PricePublishedDetail,
+  type PriceRestoredToDraftDetail,
+} from "./staff/staff-audit-action.js";
 export {
   judgeNoteText,
   NOTE_TEXT_MAX_LENGTH,
@@ -403,3 +435,8 @@ export {
   type StaffKitchenQueryRefusalCode,
   type StaffKitchenSegment,
 } from "./staff/staff-kitchen-query.js";
+// The three M10 lane sub-barrels (plan §9.1). X0 writes these lines; after MP-0 only lane P edits this file, and
+// lanes M, K and H export through their own sub-barrel.
+export * from "./price-dashboard/index.js";
+export * from "./staff-changes/index.js";
+export * from "./kitchen-handle/index.js";

@@ -26,6 +26,7 @@ const SOURCE_ROOT = path.resolve(
   "../../src",
 );
 const PRICING_ROOT = path.join(SOURCE_ROOT, "pricing");
+const PRICE_DASHBOARD_ROOT = path.join(SOURCE_ROOT, "price-dashboard");
 
 function sourcesUnder(root: string): readonly string[] {
   return readdirSync(root, { recursive: true, withFileTypes: true })
@@ -272,11 +273,28 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
   it("keeps every minor-unit amount in the sample book file", () => {
     // ADR 0062's third prohibition: an amount in a catalogue row or a rejection sentence would be a second authority
     // for a price; the sheet's delta must be this data rendered.
+    // `price-dashboard/` is exempt as a directory: it names the book's fields (`anchorMinor`, `perHingeMinor`) to
+    // address them, which is not an amount. The test after this one holds that directory to naming and never to
+    // valuing.
     const carriers = sourcesUnder(SOURCE_ROOT)
       .filter((file) => !file.startsWith(PRICING_ROOT))
+      .filter((file) => !file.startsWith(PRICE_DASHBOARD_ROOT + path.sep))
       .filter((file) => /Minor\b/.test(read(file)));
 
     expect(carriers.map((file) => path.relative(SOURCE_ROOT, file))).toEqual(
+      [],
+    );
+  });
+
+  it("assigns no minor-unit field a number anywhere under price-dashboard/", () => {
+    // The replacement for the exemption above (M10 X0-1): the dashboard may name an amount's field, never state one.
+    const files = sourcesUnder(PRICE_DASHBOARD_ROOT);
+    const assigners = files.filter((file) =>
+      /Minor\??\s*[:=]\s*-?\d/.test(read(file)),
+    );
+
+    expect(files.length).toBeGreaterThan(0);
+    expect(assigners.map((file) => path.relative(SOURCE_ROOT, file))).toEqual(
       [],
     );
   });
