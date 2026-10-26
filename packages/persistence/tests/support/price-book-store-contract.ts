@@ -831,19 +831,26 @@ function describeHistory(
       const staff = await world.aStaffMember();
       const totalBefore = (await world.store.listVersions({ page: 1 })).total;
       const newestBefore = await newestSequenceOf(world.store);
+      const books = ["one", "two", "three"].map((version) => ({
+        ...A_BOOK,
+        version,
+      }));
       const first = await publish(world, staff, {
         label: "One",
         note: "First.",
+        book: books[0],
         changeSummary: [DEPTH_TO_40],
       });
       const second = await publish(world, staff, {
         label: "Two",
         note: "Second.",
+        book: books[1],
         changeSummary: [],
       });
       const third = await publish(world, staff, {
         label: "Three",
         note: "Third.",
+        book: books[2],
         changeSummary: [DEPTH_TO_40, ANCHOR_TO_5000],
       });
       if (first.kind !== "ok" || second.kind !== "ok" || third.kind !== "ok") {
@@ -890,15 +897,20 @@ function describeHistory(
           label: "One",
           note: "First.",
           state: "archived",
-          book: A_BOOK,
+          book: books[0],
           changeSummary: [DEPTH_TO_40],
         },
+      });
+      expect(await world.store.readVersion(second.versionId)).toMatchObject({
+        kind: "found",
+        version: { label: "Two", book: books[1], changeSummary: [] },
       });
       expect(await world.store.readActive()).toMatchObject({
         kind: "found",
         version: {
           versionId: third.versionId,
           sequenceNumber: newestBefore + 3,
+          book: books[2],
         },
       });
     });
