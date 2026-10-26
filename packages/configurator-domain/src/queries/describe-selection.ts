@@ -18,6 +18,7 @@ import type { Finish } from "../materials.js";
 import {
   DEFAULT_HANDLE,
   defaultHandleOf,
+  type KitchenHandleSettings,
 } from "../kitchen-handle/kitchen-handle.js";
 import { toMillimetres } from "../millimetres.js";
 import {
@@ -65,10 +66,10 @@ export interface SelectionMeta {
    *  the absent case cannot be collapsed into `"push"`. */
   readonly handle?: Handle;
   /** What §6.5 gives this body when `handle` is absent, decided by the module line it stands on, not its
-   *  catalogue band: a top-row body ships push-to-open with handles built and hidden (§11 row 13). Below the
-   *  top row, a body that takes a handle follows the kitchen's where the kitchen has one; a body that takes
-   *  none reports the slot's default and never the kitchen's. Published so §9's Mâner section can mark the
-   *  chip the customer is looking at without re-deriving the rule from a `y0` `meta` does not carry. */
+   *  catalogue band: a top-row body ships push-to-open with handles built and hidden (§11 row 13). Below it,
+   *  a body that takes a handle follows the kitchen's; one that takes none gets the slot's default.
+   *  Published so §9's Mâner section can mark the chip without re-deriving the rule from a `y0` `meta`
+   *  does not carry. */
   readonly defaultHandle: Handle;
   /** Present only when this body offers nothing structural (no swap list, delete, finish, handle or width)
    *  and says why (§11 row 16, §13.1). Read from the catalogue entry's declaration, not inferred from the
@@ -82,10 +83,8 @@ export interface DescribeSelectionInput {
   readonly voids: readonly VoidRecord[];
   readonly catalog: BodyCatalog;
   readonly target: CommandTarget;
-  /** `design.settings.handle`, which a body with no handle of its own follows below the top row. Absent is
-   *  a kitchen that has chosen none. A field of its own, not the whole design: the records already carry
-   *  everything else this projection reads. */
-  readonly kitchenHandle?: Handle | undefined;
+  /** The design's kitchen handle settings. Absent reads as `{}`. */
+  readonly kitchenSettings?: KitchenHandleSettings;
 }
 
 /** `undefined` when the target no longer resolves — a stale void id after a recompute, which §9
@@ -103,7 +102,7 @@ export function describeSelection(
     (candidate) => candidate.id === input.target.id,
   );
   return record
-    ? describeBody(record, input.catalog, input.kitchenHandle)
+    ? describeBody(record, input.catalog, input.kitchenSettings ?? {})
     : undefined;
 }
 
@@ -141,7 +140,7 @@ function describeVoid(record: VoidRecord): SelectionMeta {
 function describeBody(
   record: PlacementRecord,
   catalog: BodyCatalog,
-  kitchenHandle: Handle | undefined,
+  kitchenSettings: KitchenHandleSettings,
 ): SelectionMeta {
   const definition = catalog.get(record.buildId);
   // The chips are the widths this body can be built at, never its raw catalogue row: `offersFor` narrows by
@@ -181,7 +180,7 @@ function describeBody(
     ...(record.finishKey === undefined ? {} : { finish: record.finishKey }),
     ...(record.handleMode === undefined ? {} : { handle: record.handleMode }),
     defaultHandle: defaultHandleOf({
-      kitchenHandle,
+      kitchenSettings,
       canHandle: record.canHandle,
       isTopRow: isPushOpenByDefault(record.frame.y0),
     }),

@@ -1,6 +1,3 @@
-// H1 item 2 at the panel's projection: `meta.handle` stays the cabinet's own choice (the panel's "chosen"
-// state) and `meta.defaultHandle` is where the kitchen's handle arrives, so a chip is marked with no
-// second derivation in the web.
 import { describe, expect, it } from "vitest";
 
 import { isPushOpenByDefault } from "../../src/bands.js";
@@ -45,7 +42,7 @@ function metaOf(record: PlacementRecord, kitchenHandle?: Handle) {
   const meta = describeSelection({
     ...world,
     target: { kind: "placement", id: record.id },
-    kitchenHandle,
+    kitchenSettings: { handle: kitchenHandle },
   });
   if (!meta) throw new Error(`${record.id} did not resolve`);
   return meta;
@@ -76,9 +73,7 @@ describe("describeSelection with a kitchen handle", () => {
     }
   });
 
-  // Recorded as it stands, not asserted as desirable: `meta.handle` has always echoed whatever the
-  // document records, and H1-c holds that for a document with no kitchen handle. The kitchen's handle
-  // is what must never arrive, and it does not.
+  // `meta.handle` has always echoed the document; only the kitchen's handle must not arrive.
   it("still echoes a hand-edited handle on a body that takes none, and still adds no kitchen handle", () => {
     const handEdited = createWorld(
       {
@@ -95,7 +90,7 @@ describe("describeSelection with a kitchen handle", () => {
     const meta = describeSelection({
       ...handEdited,
       target: { kind: "placement", id: TAKES_NO_HANDLE.id },
-      kitchenHandle: "push",
+      kitchenSettings: { handle: "push" },
     });
 
     expect(meta?.handle).toBe("black");
@@ -119,7 +114,7 @@ describe("describeSelection with a kitchen handle", () => {
       const meta = describeSelection({
         ...choosing,
         target: { kind: "placement", id: BELOW_THE_TOP_ROW.id },
-        kitchenHandle,
+        kitchenSettings: { handle: kitchenHandle },
       });
 
       expect(meta?.handle).toBe("black");
@@ -131,7 +126,7 @@ describe("describeSelection with a kitchen handle", () => {
       const target = { kind: "placement", id: record.id } as const;
 
       expect(describeSelection({ ...world, target })).toEqual(
-        describeSelection({ ...world, target, kitchenHandle: undefined }),
+        describeSelection({ ...world, target, kitchenSettings: {} }),
       );
       expect(metaOf(record).defaultHandle).toBe(
         isTopRow(record) ? "push" : "steel",

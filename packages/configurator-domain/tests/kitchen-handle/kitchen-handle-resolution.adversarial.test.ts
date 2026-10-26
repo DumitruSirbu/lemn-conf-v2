@@ -92,13 +92,13 @@ describe("the three readers agree for every placement of a dealt kitchen (H1-a)"
         const meta = describeSelection({
           ...world,
           target: { kind: "placement", id: record.id },
-          kitchenHandle,
+          kitchenSettings: { handle: kitchenHandle },
         });
         const isTopRow = entry.y0Mm >= TOP_ROW_Y0_MM;
         const latched = isPushToOpen({
           y0Mm: entry.y0Mm,
           recordedHandle: entry.handle,
-          kitchenHandle,
+          kitchenSettings: { handle: kitchenHandle },
           canHandle: record.canHandle,
         });
 
@@ -117,7 +117,7 @@ describe("the three readers agree for every placement of a dealt kitchen (H1-a)"
           expect(
             resolvedHandleOf({
               ownHandle: undefined,
-              kitchenHandle,
+              kitchenSettings: { handle: kitchenHandle },
               canHandle: true,
               isTopRow,
             }),
@@ -156,12 +156,12 @@ describe("the top-row boundary is one millimetre wide in both units (H1-a must-n
           candidate.id === record.id ? moved : candidate,
         ),
         target: { kind: "placement", id: record.id },
-        kitchenHandle,
+        kitchenSettings: { handle: kitchenHandle },
       });
       const latched = isPushToOpen({
         y0Mm: toMillimetres(floorM),
         recordedHandle: undefined,
-        kitchenHandle,
+        kitchenSettings: { handle: kitchenHandle },
         canHandle: true,
       });
 
@@ -182,13 +182,16 @@ describe("a cabinet whose own handle is the legacy null keeps the base answer (q
         const nullHandle = null as unknown as Handle;
         const query = { y0Mm, recordedHandle: nullHandle, canHandle: true };
 
-        expect(isPushToOpen({ ...query, kitchenHandle })).toBe(
-          isPushToOpen(query),
-        );
+        expect(
+          isPushToOpen({
+            ...query,
+            kitchenSettings: { handle: kitchenHandle },
+          }),
+        ).toBe(isPushToOpen(query));
         expect(
           resolvedHandleOf({
             ownHandle: nullHandle,
-            kitchenHandle,
+            kitchenSettings: { handle: kitchenHandle },
             canHandle: true,
             isTopRow: y0Mm >= TOP_ROW_Y0_MM,
           }),
@@ -233,26 +236,6 @@ describe("setKitchenHandle refusals and shape (item 3)", () => {
     expect(after.settings).toEqual({ handle: "black" });
     expect(DesignSchema.safeParse(after).success).toBe(true);
   });
-
-  // setMaterialTier/setHardwareTier run DesignSettingsSchema over the container they would store
-  // (`findRefusal`), so `ok: true` always means a document the load seam accepts. This command takes
-  // an untyped value from the store just the same.
-  it.each(["gold", "", "PUSH", null, 1])(
-    "never answers ok with a document the schema refuses, for handle %j",
-    (untyped) => {
-      const result = setKitchenHandle({
-        design: KITCHEN_L_DESIGN,
-        handle: untyped as unknown as Handle,
-        occurredAt: OCCURRED_AT,
-      });
-
-      if (result.ok) {
-        expect(DesignSchema.safeParse(result.design).success).toBe(true);
-      } else {
-        expect(result.design).toBe(KITCHEN_L_DESIGN);
-      }
-    },
-  );
 });
 
 describe("settings.handle survives the other whole-kitchen commands (item 5)", () => {
@@ -348,7 +331,7 @@ describe("choosing the kitchen handle is history-independent (H1-b)", () => {
         isPushToOpen({
           y0Mm: entry.y0Mm,
           recordedHandle: entry.handle,
-          kitchenHandle: design.settings?.handle,
+          kitchenSettings: { handle: design.settings?.handle },
           canHandle: catalog.get(entry.buildId)?.canHandle === true,
         }),
       ).length;

@@ -1,18 +1,7 @@
-// H1-b: choosing push for the kitchen raises the push-to-open count by exactly the fronts of the bodies
-// that now resolve to push, and choosing steel or black lowers it back. A property over random designs:
-// a pool of seeded and composed kitchens, each dealt random own handles per placement, under a random
-// kitchen handle.
-//
-// **"The push-to-open count" is per opening front, not per body** (ADR 0092 decision 3: one latch per
-// leaf and per drawer). So "exactly the number of resolved push bodies" is read as the sum of those
-// bodies' fronts; a body with three fronts that turns push adds three.
-//
-// **What this file does not cover.** The hardware line is built by `countHardwareMechanisms`, which reads
-// `DisplayEntry.handle` and has no access to `design.settings`. The count below is therefore made through
-// `isPushToOpen` with the kitchen handle supplied, and is anchored two ways to the real counter: with no
-// kitchen handle it must equal `countHardwareMechanisms`, and with one it must equal what the real counter
-// answers for the same design with that handle stamped onto every body that follows it. Wiring the real
-// counter to read `settings.handle` is the call-site patch the wave's report hands over.
+// The latch count is per opening front, not per body (ADR 0092 decision 3). `countHardwareMechanisms` cannot
+// yet see `design.settings`, so the count goes through `isPushToOpen` and is anchored to the real counter:
+// equal with no kitchen handle, and equal to the real counter on the design with the handle stamped on
+// the bodies that follow it.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -87,7 +76,7 @@ function latchesUnder(
       isPushToOpen({
         y0Mm: entry.y0Mm,
         recordedHandle: entry.handle,
-        kitchenHandle,
+        kitchenSettings: { handle: kitchenHandle },
         canHandle: takesAHandle(entry, catalog),
       })
         ? total + frontsOf(entry, catalog)
@@ -215,7 +204,7 @@ describe("the latch count under a kitchen handle", () => {
           isPushToOpen({
             y0Mm: entry.y0Mm,
             recordedHandle: entry.handle,
-            kitchenHandle: handle,
+            kitchenSettings: { handle: handle },
             canHandle: takesAHandle(entry, document.catalog),
           }),
         );

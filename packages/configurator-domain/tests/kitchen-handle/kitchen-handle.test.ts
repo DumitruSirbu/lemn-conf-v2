@@ -1,5 +1,3 @@
-// H1-a, at the resolver: the order own choice, kitchen, slot default, with the top row and a body that
-// takes no handle as the two places the kitchen's choice must not arrive.
 import { describe, expect, it } from "vitest";
 
 import type { Handle } from "../../src/design.js";
@@ -17,7 +15,7 @@ const EVERY_HANDLE: readonly Handle[] = ["steel", "black", "push"];
  *  below departs from. */
 const FOLLOWING_BELOW_THE_TOP_ROW: HandleResolutionQuery = {
   ownHandle: undefined,
-  kitchenHandle: undefined,
+  kitchenSettings: {},
   canHandle: true,
   isTopRow: false,
 };
@@ -30,14 +28,20 @@ describe("resolvedHandleOf — a cabinet's own handle wins", () => {
   for (const own of EVERY_HANDLE) {
     for (const kitchen of EVERY_HANDLE) {
       it(`keeps its own ${own} under a kitchen ${kitchen}`, () => {
-        expect(resolved({ ownHandle: own, kitchenHandle: kitchen })).toBe(own);
+        expect(
+          resolved({ ownHandle: own, kitchenSettings: { handle: kitchen } }),
+        ).toBe(own);
       });
     }
   }
 
   it("keeps its own handle on the top row too", () => {
     expect(
-      resolved({ ownHandle: "black", kitchenHandle: "push", isTopRow: true }),
+      resolved({
+        ownHandle: "black",
+        kitchenSettings: { handle: "push" },
+        isTopRow: true,
+      }),
     ).toBe("black");
   });
 });
@@ -45,12 +49,12 @@ describe("resolvedHandleOf — a cabinet's own handle wins", () => {
 describe("resolvedHandleOf — a cabinet with none follows the kitchen", () => {
   for (const kitchen of EVERY_HANDLE) {
     it(`wears the kitchen's ${kitchen} below the top row`, () => {
-      expect(resolved({ kitchenHandle: kitchen })).toBe(kitchen);
+      expect(resolved({ kitchenSettings: { handle: kitchen } })).toBe(kitchen);
     });
   }
 
   it("falls to today's default when the kitchen has chosen none", () => {
-    expect(resolved({ kitchenHandle: undefined })).toBe(DEFAULT_HANDLE);
+    expect(resolved({ kitchenSettings: {} })).toBe(DEFAULT_HANDLE);
     expect(DEFAULT_HANDLE).toBe("steel");
   });
 });
@@ -58,9 +62,9 @@ describe("resolvedHandleOf — a cabinet with none follows the kitchen", () => {
 describe("resolvedHandleOf — the top row never follows the kitchen", () => {
   for (const kitchen of EVERY_HANDLE) {
     it(`stays push-to-open under a kitchen ${kitchen}`, () => {
-      expect(resolved({ kitchenHandle: kitchen, isTopRow: true })).toBe(
-        TOP_ROW_HANDLE,
-      );
+      expect(
+        resolved({ kitchenSettings: { handle: kitchen }, isTopRow: true }),
+      ).toBe(TOP_ROW_HANDLE);
     });
   }
 
@@ -75,27 +79,31 @@ describe("resolvedHandleOf — a body that takes no handle never reports one", (
       for (const ownHandle of [undefined, ...EVERY_HANDLE]) {
         it(`answers nothing at isTopRow ${String(isTopRow)}, kitchen ${String(kitchenHandle)}, own ${String(ownHandle)}`, () => {
           expect(
-            resolved({ canHandle: false, isTopRow, kitchenHandle, ownHandle }),
+            resolved({
+              canHandle: false,
+              isTopRow,
+              kitchenSettings: { handle: kitchenHandle },
+              ownHandle,
+            }),
           ).toBeUndefined();
         });
       }
     }
   }
 
-  // The catalogue is a supplied port: a truthy non-boolean arrives uncoerced, and `isPushToOpen`
-  // has always refused it. The resolver must refuse it the same way or the two would disagree.
+  // A truthy non-boolean `canHandle` must be refused here as `isPushToOpen` refuses it.
   it("treats a truthy non-boolean canHandle as not taking one", () => {
     const declared = "yes" as unknown as boolean;
 
     expect(
-      resolved({ canHandle: declared, kitchenHandle: "black" }),
+      resolved({ canHandle: declared, kitchenSettings: { handle: "black" } }),
     ).toBeUndefined();
   });
 });
 
 describe("defaultHandleOf — what the panel marks when nothing is chosen", () => {
   const BELOW_THE_TOP_ROW: Omit<HandleResolutionQuery, "ownHandle"> = {
-    kitchenHandle: undefined,
+    kitchenSettings: {},
     canHandle: true,
     isTopRow: false,
   };
@@ -104,7 +112,7 @@ describe("defaultHandleOf — what the panel marks when nothing is chosen", () =
     expect(
       defaultHandleOf({
         ...BELOW_THE_TOP_ROW,
-        kitchenHandle: "black",
+        kitchenSettings: { handle: "black" },
       }),
     ).toBe("black");
   });
@@ -113,7 +121,7 @@ describe("defaultHandleOf — what the panel marks when nothing is chosen", () =
     expect(
       defaultHandleOf({
         ...BELOW_THE_TOP_ROW,
-        kitchenHandle: "steel",
+        kitchenSettings: { handle: "steel" },
         isTopRow: true,
       }),
     ).toBe("push");
@@ -122,16 +130,26 @@ describe("defaultHandleOf — what the panel marks when nothing is chosen", () =
   it("gives a body that takes no handle the slot's default and never the kitchen's", () => {
     const base = { ...BELOW_THE_TOP_ROW, canHandle: false };
 
-    expect(defaultHandleOf({ ...base, kitchenHandle: "push" })).toBe("steel");
     expect(
-      defaultHandleOf({ ...base, kitchenHandle: "black", isTopRow: true }),
+      defaultHandleOf({ ...base, kitchenSettings: { handle: "push" } }),
+    ).toBe("steel");
+    expect(
+      defaultHandleOf({
+        ...base,
+        kitchenSettings: { handle: "black" },
+        isTopRow: true,
+      }),
     ).toBe("push");
   });
 
   it("agrees with the resolver for every body that takes a handle and has chosen nothing", () => {
     for (const kitchenHandle of [undefined, ...EVERY_HANDLE]) {
       for (const isTopRow of [false, true]) {
-        const query = { kitchenHandle, canHandle: true, isTopRow };
+        const query = {
+          kitchenSettings: { handle: kitchenHandle },
+          canHandle: true,
+          isTopRow,
+        };
 
         expect(defaultHandleOf(query)).toBe(
           resolvedHandleOf({ ...query, ownHandle: undefined }),

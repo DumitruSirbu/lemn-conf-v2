@@ -191,15 +191,8 @@ export const DesignSettingsSchema = z.strictObject({
    * `setMaterialTier` and re-resolved at the load seam.
    */
   finish: FinishSchema.optional(),
-  /**
-   * The whole-kitchen handle, between a cabinet's own `body.handle` and the slot's default
-   * (`kitchen-handle/kitchen-handle.ts`; M10 wave H1, on ADR 0099 decision 10's argument). Absence is
-   * valid and unchanged: a document without it renders and prices as it always has, so no schema bump
-   * is owed. It never reaches the top row, which ships push-to-open by module line.
-   *
-   * Like `finish`, this key is a no-rollback hazard: `DesignSettingsSchema` is a `strictObject`, so a
-   * rollback to a build without it makes every document carrying it unreadable at the load seam.
-   */
+  /** The kitchen's handle, below a cabinet's own and never on the top row. Absent is valid (no schema
+   *  bump); like `finish`, a rollback to a build without this key makes documents carrying it unreadable. */
   handle: HandleSchema.optional(),
 });
 export type DesignSettings = z.infer<typeof DesignSettingsSchema>;

@@ -1,6 +1,3 @@
-// H1 item 4: `isPushToOpen` reads the resolved handle, so a latch follows the kitchen's choice where the
-// cabinet has none. Swept over every floor a body can stand on, because the top row's boundary is a
-// millimetre and three examples would not notice it move.
 import { describe, expect, it } from "vitest";
 
 import type { Handle } from "../../src/design.js";
@@ -32,7 +29,7 @@ describe("a body with no handle of its own follows the kitchen's below the top r
           isPushToOpen({
             y0Mm,
             recordedHandle: undefined,
-            kitchenHandle,
+            kitchenSettings: { handle: kitchenHandle },
             canHandle: true,
           }),
       );
@@ -54,7 +51,7 @@ describe("a body with no handle of its own follows the kitchen's below the top r
           isPushToOpen({
             y0Mm,
             recordedHandle: undefined,
-            kitchenHandle,
+            kitchenSettings: { handle: kitchenHandle },
             canHandle: true,
           }),
       );
@@ -74,7 +71,7 @@ describe("a cabinet's own handle keeps deciding under any kitchen handle", () =>
             isPushToOpen({
               y0Mm,
               recordedHandle,
-              kitchenHandle,
+              kitchenSettings: { handle: kitchenHandle },
               canHandle: true,
             }),
         );
@@ -93,7 +90,7 @@ describe("a body that takes no handle is decided by its slot alone, whatever the
           isPushToOpen({
             y0Mm,
             recordedHandle,
-            kitchenHandle,
+            kitchenSettings: { handle: kitchenHandle },
             canHandle: false,
           }),
         );
@@ -111,7 +108,7 @@ describe("the top row is push-to-open under any kitchen handle", () => {
         isPushToOpen({
           y0Mm: TOP_ROW_Y0_MM,
           recordedHandle: undefined,
-          kitchenHandle,
+          kitchenSettings: { handle: kitchenHandle },
           canHandle: true,
         }),
       ).toBe(true);

@@ -1,7 +1,3 @@
-// H1-d (ruling H-4): `setKitchenHandle` judges its own input. The type says `Handle`, which a caller outside
-// TypeScript is not bound by, and a stored value outside `HandleSchema` would make the document unreadable
-// at the load seam. Availability is not asked here: Q2 offers only active handles, Q5 resolves a disabled
-// one through the sheet, and the price refuses `REPLACEMENT_REQUIRED` (P4a).
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 

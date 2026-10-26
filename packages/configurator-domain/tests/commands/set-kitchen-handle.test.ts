@@ -1,4 +1,3 @@
-// H1 items 3 and 5: the command that writes `settings.handle`, and the seams that must carry it.
 import { describe, expect, it } from "vitest";
 
 import { setKitchenHandle } from "../../src/commands/set-kitchen-handle.js";
@@ -67,14 +66,6 @@ describe("setKitchenHandle", () => {
     expect(after.placements).toBe(own.placements);
   });
 
-  it("grows no handle key on a cabinet that has chosen nothing", () => {
-    const after = applied(KITCHEN_L_DESIGN, "push");
-
-    expect(
-      after.placements.some((placement) => "handle" in placement.body),
-    ).toBe(false);
-  });
-
   it("keeps the other whole-kitchen settings", () => {
     const configured: Design = {
       ...KITCHEN_L_DESIGN,
@@ -96,19 +87,6 @@ describe("setKitchenHandle", () => {
 
     expect(applied(first, "push").settings?.handle).toBe("push");
     expect(applied(first, "black").settings?.handle).toBe("black");
-  });
-
-  it("refuses a timestamp the document cannot hold and returns the very same design", () => {
-    const result = setKitchenHandle({
-      design: KITCHEN_L_DESIGN,
-      handle: "push",
-      occurredAt: "yesterday",
-    });
-
-    expect(result.ok).toBe(false);
-    expect(result.design).toBe(KITCHEN_L_DESIGN);
-    if (result.ok) return;
-    expect(result.reason.code).toBe("INVALID_OCCURRED_AT");
   });
 });
 

@@ -11,4 +11,5 @@ export {
   resolvedHandleOf,
   TOP_ROW_HANDLE,
   type HandleResolutionQuery,
+  type KitchenHandleSettings,
 } from "./kitchen-handle.js";

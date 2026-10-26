@@ -10,7 +10,10 @@
 // Its own module: not in `bands.ts` (band vocabulary in metres), and not in `hardware-mechanisms.ts`,
 // which the adapter must not import to decide whether to draw a bar.
 import type { Handle } from "./design.js";
-import { resolvedHandleOf } from "./kitchen-handle/kitchen-handle.js";
+import {
+  resolvedHandleOf,
+  type KitchenHandleSettings,
+} from "./kitchen-handle/kitchen-handle.js";
 
 /** §6.5's mode: the bars are built and hidden rather than omitted, so the choice stays reversible
  *  wherever the customer has one. */
@@ -22,9 +25,9 @@ const PUSH_TO_OPEN: Handle = "push";
 export const TOP_ROW_Y0_MM = 2_200;
 
 /**
- * The facts the answer is made of: where the front's floor is, what mode the *document* records for this
- * cabinet and for the kitchen, and whether the body's definition permits a mode at all. A parameter
- * object so the facts cannot be transposed. `DisplayEntry.y0Mm` supplies the floor directly and a
+ * The three facts the answer is made of: where the front's floor is, what mode the *document* records,
+ * and whether the body's definition permits a mode at all. A parameter object so the facts cannot be
+ * transposed. `DisplayEntry.y0Mm` supplies the floor directly and a
  * `PlacementRecord`'s `frame.y0` through `toMillimetres`; the millimetre unit is the document's own (§12).
  */
 export interface PushToOpenQuery {
@@ -32,10 +35,9 @@ export interface PushToOpenQuery {
   readonly y0Mm: number;
   /** The mode the placement records, absent when the customer has chosen none (§6.5). */
   readonly recordedHandle: Handle | undefined;
-  /** The mode the kitchen records (`design.settings.handle`), which a cabinet with no mode of its own
-   *  follows below the top row (M10 wave H1). Absent is the document that has chosen none, and answers
-   *  exactly as before the field existed. */
-  readonly kitchenHandle?: Handle | undefined;
+  /** The design's kitchen handle settings, followed by a cabinet with none of its own below the top row.
+   *  Absent reads as `{}`. */
+  readonly kitchenSettings?: KitchenHandleSettings;
   /** Whether this body's own definition permits a recorded mode (`BodyDefinition.canHandle`). */
   readonly canHandle: boolean;
 }
@@ -43,8 +45,7 @@ export interface PushToOpenQuery {
 /**
  * True when this front's handle bar is not on it, so it opens by a latch and the latch is billed.
  *
- * - The resolved handle decides (`resolvedHandleOf`: the cabinet's own mode, else the kitchen's below
- *   the top row, else the slot's default), but only where the definition permits one:
+ * - The resolved handle (`resolvedHandleOf`) decides, but only where the definition permits one:
  *   `carriedAppearance` refuses to carry a mode onto a body that cannot take it, but a hand-edited or
  *   migrated document can mismatch, and a `push` on `fridge-free` (whose doors build `handle_bar`
  *   meshes) would hide bars no panel control can turn back on and bill latches for them.
@@ -58,13 +59,9 @@ export interface PushToOpenQuery {
  */
 export function isPushToOpen(front: PushToOpenQuery): boolean {
   const isTopRow = front.y0Mm >= TOP_ROW_Y0_MM;
-  // `canHandle` is read as `unknown` and compared against `true`: the catalogue is a supplied port, so a
-  // definition can arrive from outside TypeScript with a truthy non-boolean, which
-  // `derivePlacementRecords` copies through uncoerced. `hardware-mechanisms.ts` coerces with `=== true`,
-  // so without this the two would answer differently. `resolvedHandleOf` applies the same stricter test.
   const handle = resolvedHandleOf({
     ownHandle: front.recordedHandle,
-    kitchenHandle: front.kitchenHandle,
+    kitchenSettings: front.kitchenSettings ?? {},
     canHandle: front.canHandle,
     isTopRow,
   });
