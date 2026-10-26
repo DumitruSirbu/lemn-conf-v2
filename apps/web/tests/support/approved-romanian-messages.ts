@@ -400,6 +400,13 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     included: "inclus",
     notIncluded: "nu este inclus",
+    // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+    // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
+    // decision 2, and is never pinned here.
+    // the depth line of the price breakdown (frame C3); the percentage is the published rule's value.
+    depthLine:
+      "Adâncime {cabinetDepthMm, number, ::group-off} mm · adaos {percent} %",
+    depthLineScope: "dulapurile de bază și coloanele",
   },
   // Frames 3A and 3B as written; the room line gives millimetres where the frame draws metres (ADR 0126).
   review: {
@@ -456,6 +463,17 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
     depthNote:
       "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
+    // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+    // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
+    // decision 2, and is never pinned here.
+    // `depthNotePriced` is the sentence the depth control shows once depth is priced (frame C3S); nothing renders it until
+    // wave Q1 switches to it, and `depthNote` above stays until wave T2 retires it. `kitchenHandle*` is the whole-kitchen handle
+    // row (frame C2); its options are `panel.handleLabels`.
+    depthNotePriced:
+      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile de bază și coloanele cu {percent} %.}}",
+    kitchenHandleHeading: "Mânere",
+    kitchenHandleHint:
+      "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
     colourHeading: "Culoarea bucătăriei",
     colourNote:
       "Culoarea nu schimbă prețul bucătăriei. Dulapurile cu o culoare individuală la modificarea culorii pentru întreagă bucătărie își păstrează culoarea.",
@@ -1648,6 +1666,618 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     emptyBody: "Accesul personalului la bucătării apare aici.",
     noResultsTitle: "Nicio acțiune pentru filtrele alese.",
     noResultsBody: "Schimbă persoana, acțiunea sau intervalul.",
+  },
+  // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+  // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
+  // decision 2, and is never pinned here.
+  // The words of the manufacturer price dashboard (mockup frames D1 to D9). Deactivating or activating an item applies at once (A-17), so
+  // those dialogs say "Se aplică imediat." and not the mockup's "Intră în vigoare când publici"; price saves, creation and
+  // deletion go through publishing and keep that line (A-18). Text is Romanian only (A-21): no RU-tab labels, and a created
+  // row's form says Russian comes later from the translation feature. No leaf carries a figure: amounts, percentages and
+  // dimensions are parameters.
+  priceDashboard: {
+    nav: {
+      groupCustomers: "Clienți",
+      groupCatalog: "Catalog",
+      groupPrices: "Prețuri",
+      cabinets: "Dulapuri",
+      hardware: "Feronerie",
+      materials: "Materiale",
+      accessories: "Accesorii",
+      defaults: "Setări implicite",
+      publish: "Publicare prețuri",
+      note: "Meniul arată doar secțiunile permise rolului tău.",
+      pendingChip:
+        "{count, plural, one {{count, number, ::group-off} preț de publicat} few {{count, number, ::group-off} prețuri de publicat} other {{count, number, ::group-off} de prețuri de publicat}}",
+      allPublished: "Toate prețurile sunt publicate",
+    },
+    common: {
+      save: "Salvează",
+      cancel: "Anulează",
+      close: "Închide",
+      edit: "Editează",
+      activate: "Activează",
+      deactivate: "Dezactivează",
+      delete: "Șterge",
+      addToPending: "Adaugă la „De publicat”",
+      actionsFor: "Acțiuni pentru {name}",
+      moreActionsFor: "Mai multe acțiuni: {name}",
+      activeValue: "Activ: {amount}",
+      activeValueWithHint: "Activ: {amount} · {hint}",
+      activeShort: "activ {amount}",
+      activeThenPending: "activ {active} · de publicat",
+      percent: "{percent} %",
+      percentPlus: "+{percent} %",
+      priceSavedNotice: "Salvat. Prețul nou intră în vigoare când publici.",
+      textSavedNotice: "Salvat. Textul nou intră în vigoare când publici.",
+      createdTextNote:
+        "Textul se scrie doar în română. Rusa se adaugă mai târziu, din funcția de traduceri; până atunci, clienții care folosesc rusa văd româna.",
+      keyedTextNote:
+        "Textul acestui rând vine din fișierele de traduceri și nu se editează aici.",
+    },
+    chips: {
+      active: "Activ",
+      inactive: "Inactiv",
+      defaultChoice: "Implicit",
+      modified: "Modificat",
+      customerSupplied: "Furnizat de client",
+      structural: "Structural",
+      pending: "De publicat",
+      inactiveInUse:
+        "Inactiv · folosit în {count, plural, one {{count, number, ::group-off} bucătărie} few {{count, number, ::group-off} bucătării} other {{count, number, ::group-off} de bucătării}}",
+    },
+    units: {
+      mm: "mm",
+      currency: "lei",
+      perDoor: "lei / ușă",
+      perHinge: "lei / balama",
+      perSlidePair: "lei / pereche",
+      perMechanism: "lei / mecanism",
+    },
+    errors: {
+      notNumber:
+        "Scrie doar cifre și o virgulă pentru bani, de exemplu {example}.",
+      negative: "Suma nu poate fi negativă.",
+      tooManyDecimals: "Cel mult două zecimale, de exemplu {example}.",
+      tooBig: "Suma este prea mare.",
+      empty: "Completează suma. Scrie zero dacă nu se adaugă nimic.",
+      percentEmpty:
+        "Completează procentul. Scrie zero dacă adâncimea nu schimbă prețul.",
+      percentNotWhole: "Scrie un număr întreg, de exemplu {example}.",
+      percentNegative: "Procentul nu poate fi negativ.",
+      percentTooBig: "Cel mult {max} %.",
+      priceNotPositiveAtWidth:
+        "La {widthMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul „în minus”.",
+      priceNotPositiveAtHeight:
+        "La {heightMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul de înălțime.",
+      fixToSave:
+        "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
+      saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
+      changedMeanwhile:
+        "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
+    },
+    diff: {
+      amountPercent: "{signedAmount} · {signedPercent} %",
+      amountUnderOne: "{signedAmount} · sub un procent",
+      points:
+        "{sign}{count, plural, one {# punct} few {# puncte} other {# de puncte}}",
+    },
+    cabinets: {
+      title: "Dulapuri",
+      subtitle:
+        "Tipurile de dulap din configurator. Prețul la mărimea implicită se schimbă direct în tabel; pașii de lățime, în pagina dulapului.",
+      basisNote: "PAL melaminat, fără feronerie. Clic pe preț ca să-l schimbi.",
+      searchLabel: "Caută dulap",
+      searchPlaceholder: "ex.: suspendat",
+      searchClear: "Golește căutarea",
+      emptySearchTitle: "Niciun dulap pentru „{query}”.",
+      emptySearchBody: "Verifică denumirea sau golește căutarea.",
+      filterChanged: "Doar modificate",
+      bulkAction: "Modifică prețurile cu %",
+      groupBase: "Dulapuri bază",
+      groupWall: "Dulapuri suspendate",
+      groupTall: "Coloane",
+      groupCorner: "Piese de colț",
+      groupCount:
+        "{count, plural, one {{count, number, ::group-off} dulap} few {{count, number, ::group-off} dulapuri} other {{count, number, ::group-off} dulapuri}}",
+      groupPending: "{count, number, ::group-off} de publicat",
+      columnCabinet: "Dulap",
+      columnWidth: "Lățime",
+      columnPrice: "Preț la mărimea implicită",
+      widthFixed: "fix {widths} mm",
+      widthDefault: "implicit {widthMm, number, ::group-off}",
+      widthFollowsBase: "implicit: după dulapul de jos",
+      proposed: "propus",
+      priceBasis: "{widthMm, number, ::group-off} mm · PAL",
+      priceBasisHeight:
+        "{widthMm, number, ::group-off} mm × {heightMm, number, ::group-off} · PAL",
+      customerSuppliedShort: "Furnizat de client · nu influențează prețul",
+      structuralShort: "Structural · pus automat în bucătăriile în L și U",
+      noEffectOnPrice: "nu influențează prețul",
+      editPriceAria: "Modifică prețul: {name}",
+      editPriceLabel: "Preț la {widthMm, number, ::group-off} mm",
+      editHint: "Enter salvează la „De publicat” · Esc anulează",
+      selectRowAria: "Bifează {name}",
+    },
+    rule: {
+      title: "Reguli de preț pentru toate dulapurile",
+      subtitle:
+        "Se aplică întregului catalog. Se publică la fel ca orice preț.",
+      deepKitchenLabel: "Bucătărie adâncă ({depthMm, number, ::group-off} mm)",
+      scope: "Dulapurile de bază și coloanele",
+      hint: "Se aplică dulapurilor de bază și coloanelor. Dulapurile suspendate rămân la {wallDepthMm, number, ::group-off} mm și nu se scumpesc. Feroneria și accesoriile nu se schimbă. Prețurile finale se rotunjesc la {roundTo}.",
+      activeValue: "Activ: +{percent} %.",
+      savedNotice: "Salvat în „De publicat”. Intră în vigoare când publici.",
+      isNew: "Regulă nouă",
+    },
+    bulk: {
+      title: "Modifică prețurile cu %",
+      scopeLabel: "Pentru",
+      scopeAll: "Toate dulapurile",
+      scopeGroup: "Un grup",
+      scopeSelected: "Dulapurile bifate",
+      groupLabel: "Grupul",
+      changeLabel: "Modificare",
+      changeHint: "Cu minus pentru reducere, de exemplu −{example}.",
+      previewTitle: "Previzualizare",
+      preview:
+        "{cabinetCount, plural, one {{cabinetCount, number, ::group-off} dulap} few {{cabinetCount, number, ::group-off} dulapuri} other {{cabinetCount, number, ::group-off} dulapuri}}, {priceCount, plural, one {{priceCount, number, ::group-off} preț} few {{priceCount, number, ::group-off} prețuri} other {{priceCount, number, ::group-off} de prețuri}}. Exemplu: {example}.",
+      explainer:
+        "Se schimbă proporțional prețul la mărimea implicită, pașii de lățime, ușa în plus, pasul de înălțime și prețurile pe mărime. Rezultatele se rotunjesc la {roundTo}. Merg la „De publicat”, nu direct la clienți.",
+    },
+    cabinet: {
+      dimensionsHeading: "Dimensiuni",
+      dimensionsNote: "din modelul 3D · doar citire",
+      defaultWidth: "Lățime implicită",
+      minWidth: "Lățime minimă",
+      maxWidth: "Lățime maximă",
+      widthStep: "Pas",
+      availableWidths: "Lățimi disponibile",
+      bodyHeight: "Înălțime corp",
+      maxHeight: "Înălțime maximă",
+      depthInKitchen:
+        "Adâncime · bucătărie {kitchenDepthMm, number, ::group-off}",
+      sourceGenerator: "din generatorul de bucătării",
+      sourceSameAsWidth: "aceeași cu lățimea disponibilă",
+      sourceToConfirm: "de confirmat de tine",
+      followsBase: "după dulapul de jos",
+      wallRows: "rândul de perete / rândul de sus",
+      followsOpening: "după golul din perete",
+      noMaxHeight: "nu există încă; ia înălțimea golului",
+      doors: "Uși",
+      doorsRange:
+        "{low, number, ::group-off} · {high, number, ::group-off} de la {atMm, number, ::group-off} mm",
+      drawers: "Sertare",
+      hasHandle: "Mâner",
+      canColour: "Se poate colora",
+      yes: "Da",
+      no: "Nu",
+      developerNote:
+        "Dimensiunile și structura dulapului se schimbă doar de dezvoltator.",
+      priceHeading: "Preț",
+      priceIntro:
+        "Prețul dulapului în PAL melaminat, fără feronerie. Materialul se aplică în procente, iar feroneria se adaugă automat.",
+      fieldAnchor: "Preț la {widthMm, number, ::group-off} mm",
+      fieldPlus: "Fiecare {stepMm, number, ::group-off} mm în plus",
+      fieldMinus: "Fiecare {stepMm, number, ::group-off} mm în minus",
+      fieldDoor: "Ușă în plus (de la {atMm, number, ::group-off} mm)",
+      fieldHeightStep: "Fiecare {stepMm, number, ::group-off} mm de înălțime",
+      anchorHint: "Activ: {amount} · PAL, fără feronerie",
+      doorHint:
+        "Activ: {amount}. Doar panoul ușii; balamalele ei sunt deja în Feronerie.",
+      heightStepHint:
+        "Activ: {amount} · față de {referenceMm, number, ::group-off} mm, în plus și în minus",
+      summaryBase: "{widthMm, number, ::group-off} mm costă {amount}.",
+      summarySteps:
+        "Fiecare {stepMm, number, ::group-off} mm în plus adaugă {plusAmount}, fiecare {stepMm, number, ::group-off} mm în minus scade {minusAmount}.",
+      summaryDoor:
+        "Sub {atMm, number, ::group-off} mm are {doorCount, plural, one {o ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}} mai puțin: −{amount}.",
+      summaryHeight:
+        "Fiecare {stepMm, number, ::group-off} mm de înălțime sub {referenceMm, number, ::group-off} scade {amount}.",
+      summaryRounding: "Lățimile intermediare se rotunjesc în sus.",
+      summaryFixedSize: "{widthMm, number, ::group-off} mm: {amount}",
+      hardwareHeading: "Feronerie (automată, doar citire)",
+      hardwareLine:
+        "La {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
+      hardwareNone: "Acest dulap nu are mecanisme de feronerie.",
+      hardwareLink: "Feronerie →",
+      hingeCount:
+        "{count, plural, one {{count, number, ::group-off} balama} few {{count, number, ::group-off} balamale} other {{count, number, ::group-off} de balamale}}",
+      slidePairCount:
+        "{count, plural, one {{count, number, ::group-off} pereche de glisiere} few {{count, number, ::group-off} perechi de glisiere} other {{count, number, ::group-off} de perechi de glisiere}}",
+      liftCount:
+        "{count, plural, one {{count, number, ::group-off} mecanism rabatabil} few {{count, number, ::group-off} mecanisme rabatabile} other {{count, number, ::group-off} de mecanisme rabatabile}}",
+      previewHeading: "Prețul dulapului",
+      previewIntro:
+        "Activ acum și după salvare. Toate prețurile se rotunjesc la {roundTo}.",
+      columnWidth: "Lățime",
+      columnDoors: "Uși",
+      columnActive: "Activ",
+      columnNew: "Nou",
+      withHardware: "Cu feronerie",
+      withHardwareOn: "Prețul include feroneria",
+      withHardwareOff: "Fără feronerie",
+      depthToggle:
+        "Adâncime {shallowMm, number, ::group-off} / {deepMm, number, ::group-off}",
+      depthToggleOn: "{deepMm, number, ::group-off} mm · +{percent} %",
+      depthToggleOff: "{shallowMm, number, ::group-off} mm",
+      depthToggleDisabled: "Nu se schimbă la {deepMm, number, ::group-off} mm",
+      columnMaterialPercent: "{name} +{percent} %",
+      columnWallRow:
+        "{heightMm, number, ::group-off} mm · rândul de perete · PAL",
+      columnTopRow: "{heightMm, number, ::group-off} mm · rândul de sus · PAL",
+      columnHeight: "Înălțime {heightMm, number, ::group-off} mm · PAL",
+      widthRoundedUp:
+        "{widthMm, number, ::group-off} → ca {roundedMm, number, ::group-off}",
+      doorCount:
+        "{doorCount, plural, one {{doorCount, number, ::group-off} ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
+      doorsFromHere:
+        "de aici {doorCount, plural, one {o ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
+      activeCell: "activ {amount}",
+      pendingNotice:
+        "Prețul nou este în „De publicat” și intră în vigoare când publici.",
+      customerSupplied: "Clientul oferă acest obiect; nu influențează prețul.",
+      hoodNote:
+        "Pentru hota încorporată lipsește încă dulapul ei din catalog. Până atunci, orice hotă rămâne în afara prețului.",
+      structuralNote:
+        "Nu apare în catalogul clientului; este pus automat în bucătăriile în L și U, cu prețul de aici.",
+      sinkNote:
+        "Dulapul pentru chiuvetă aduce automat accesoriile lui; regulile sunt în Accesorii.",
+    },
+    hardware: {
+      title: "Feronerie",
+      subtitle:
+        "Clasele de feronerie din care alege clientul. Fiecare clasă are aceleași mecanisme, cu prețul ei pe bucată.",
+      addAction: "Adaugă clasă de feronerie",
+      tableLabel: "Clase de feronerie",
+      columnClass: "Clasă",
+      columnHinge: "Balama",
+      columnSlide: "Glisieră (pereche)",
+      columnPush: "Push-to-open",
+      columnLift: "Mecanism rabatabil",
+      columnState: "Stare",
+      newTitle: "Clasă nouă de feronerie",
+      nameLabel: "Nume",
+      descriptionLabel: "Descriere",
+      activeLabel: "Activă în configurator",
+      activeHintNew:
+        "O clasă nouă se creează inactivă. O activezi după ce îi publici prețurile.",
+      activeHint:
+        "Clienții o pot alege. Când e inactivă, nu o mai pot alege; la deschiderea unei bucătării salvate care o folosește, aleg altă opțiune dintre cele rămase. Se aplică imediat.",
+      deleteHeading: "Șterge clasa",
+      deleteHint:
+        "Poți șterge doar o clasă nefolosită în bucătării salvate și care nu e implicită. Altfel, dezactivează-o.",
+      deleteAction: "Șterge clasa",
+      deleteNotice: "Ștergerea intră în vigoare când publici.",
+      pricesHeading: "Prețuri pe bucată",
+      pricesHint:
+        "Aceleași mecanisme pentru fiecare clasă. Prețurile noi intră în vigoare când publici.",
+      priceHinge: "Preț pe balama",
+      priceSlide: "Preț pe glisieră",
+      priceSlideHint: "Un sertar primește o pereche de glisiere.",
+      pricePush: "Preț pe mecanism push-to-open",
+      priceLift: "Preț pe mecanism rabatabil",
+      priceLiftHint: "Pentru dulapul suspendat rabatabil",
+      newPricesNote:
+        "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
+      createAction: "Creează clasa",
+      createdNotice:
+        "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
+    },
+    materials: {
+      title: "Materiale",
+      subtitle:
+        "Materialul se alege pentru toată bucătăria. Se aplică în procente la prețul dulapurilor, nu la feronerie și nu la accesorii.",
+      referenceNote:
+        "PAL melaminat este referința: prețurile dulapurilor sunt în PAL. Culoarea nu schimbă prețul.",
+      tableLabel: "Materiale",
+      columnMaterial: "Material",
+      columnSurcharge: "Adaos față de PAL",
+      columnColours: "Culori",
+      columnState: "Stare",
+      referenceRow: "referință · nu se editează",
+      colourCount:
+        "{count, plural, one {{count, number, ::group-off} culoare} few {{count, number, ::group-off} culori} other {{count, number, ::group-off} de culori}}",
+      usageDrift:
+        "Numărul se schimbă pe măsură ce clienții își deschid bucătăriile.",
+      inactiveBanner:
+        "Clienții nu îl mai pot alege. Când un client deschide o bucătărie care îl folosește, alege altă opțiune. Numărul se schimbă pe măsură ce clienții își deschid bucătăriile.",
+      activeLabel: "Activ în configurator",
+      activeHint:
+        "Clienții îl pot alege pentru toată bucătăria. Dezactivarea se aplică imediat.",
+      coloursManaged: "{count, number, ::group-off} · se gestionează separat",
+      coloursLabel: "Culori",
+      usedInKitchens: "Folosit în bucătării salvate",
+      surchargeHeading: "Adaos",
+      surchargeHint:
+        "Se aplică prețului dulapurilor; feroneria și accesoriile nu se schimbă. Intră în vigoare când publici.",
+      exampleTitle:
+        "Exemplu · {cabinetName} {widthMm, number, ::group-off} mm, fără feronerie",
+      exampleActive: "activ: {before} → {after}",
+      exampleNew: "{before} → {after}",
+      exampleDeep:
+        "La adâncime {deepMm, number, ::group-off}: {before} → {after}",
+      exampleNote:
+        "Prețurile finale se rotunjesc la {roundTo}. Într-o bucătărie mai mare, adaosul crește odată cu prețul dulapurilor. Clientul vede o singură linie: „{customerLine}”.",
+    },
+    accessories: {
+      title: "Accesorii",
+      subtitle: "Extra care se adaugă automat la un tip de dulap.",
+      addAction: "Adaugă accesoriu",
+      tableLabel: "Accesorii",
+      columnAccessory: "Accesoriu",
+      columnAddedTo: "Se adaugă la",
+      columnPrice: "Preț",
+      columnState: "Stare",
+      ruleSinkCover:
+        "Câte unul pentru fiecare dulap pentru chiuvetă, întotdeauna.",
+      ruleDryingRack:
+        "Câte unul pentru fiecare chiuvetă care are un dulap suspendat deasupra.",
+      ruleLinked:
+        "Câte unul pentru fiecare „{cabinetName}” din bucătărie, automat.",
+      builtInNote:
+        "Textul și regula acestui accesoriu sunt fixe; aici se schimbă doar prețul și starea.",
+      newTitle: "Accesoriu nou",
+      nameLabel: "Nume",
+      descriptionLabel: "Descriere",
+      linkLabel: "Se adaugă automat la",
+      linkHint:
+        "Lista conține tipurile de dulap din Dulapuri pe care le furnizează producătorul.",
+      linkFixedNote: "Tipul de dulap se alege la creare și nu se mai schimbă.",
+      linkRequired: "Alege tipul de dulap la care se adaugă accesoriul.",
+      activeLabel: "Activ",
+      activeHint:
+        "Când e inactiv, accesoriul nu se mai adaugă în nicio bucătărie. Se aplică imediat.",
+      priceHeading: "Preț",
+      priceHint: "Intră în vigoare când publici.",
+      pricePerPiece: "Preț pe bucată",
+      createAction: "Creează accesoriul",
+      createdNotice:
+        "Accesoriul a fost creat în „De publicat”. Îl activezi după ce publici.",
+    },
+    lifecycle: {
+      deactivateTitle: "Dezactivezi „{name}”?",
+      whatHappens: "Ce se întâmplă",
+      usedBy:
+        "{count, plural, one {O bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} această opțiune.",
+      clientsCannotChoose: "Clienții nu mai pot alege această opțiune.",
+      replacementExplained:
+        "Când un client deschide o bucătărie care folosește această opțiune, i se cere să aleagă altă opțiune dintre cele rămase. Prețul se recalculează după alegere.",
+      accessoryRemovedExplained:
+        "Accesoriul nu se mai adaugă; clientul este anunțat când își deschide bucătăria. Dacă îl activezi din nou, revine.",
+      appliesImmediately: "Se aplică imediat.",
+      remaining: "Rămân disponibile: {options}.",
+      deactivateConfirm: "Dezactivează",
+      activateTitle: "Activezi „{name}”?",
+      activateBody: "Clienții pot alege din nou această opțiune.",
+      activateConfirm: "Activează",
+      activateNotPublished:
+        "Se poate activa doar după ce prețurile sunt publicate.",
+      lastActiveTitle: "Nu poți dezactiva „{name}”",
+      lastActiveBody: "Trebuie să rămână cel puțin o opțiune activă.",
+      defaultCannotChange:
+        "Este implicit. Alege alt implicit în Setări implicite.",
+      deleteTitle: "Ștergi „{name}”?",
+      deleteBody: "Ștergerea intră în vigoare când publici.",
+      deleteBlockedTitle: "Nu poți șterge „{name}”",
+      deleteBlockedBody:
+        "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
+      deactivateInstead: "Dezactivează în schimb",
+    },
+    publish: {
+      title: "Publicare prețuri",
+      subtitle:
+        "Toate prețurile pregătite și încă nepublicate, din toate secțiunile. Poți corecta o valoare direct aici sau renunța la ea (↺).",
+      subtitleMobile:
+        "{count, plural, one {Un preț pregătit} few {{count, number, ::group-off} prețuri pregătite} other {{count, number, ::group-off} de prețuri pregătite}}, din toate secțiunile.",
+      tabPending: "De publicat",
+      tabHistory: "Istoric versiuni",
+      columnChange: "Ce s-a schimbat",
+      columnActive: "Activ acum",
+      columnNew: "Nou",
+      columnDifference: "Diferență",
+      sectionCabinets: "Dulapuri",
+      sectionRules: "Reguli de preț",
+      sectionMaterials: "Materiale",
+      sectionHardware: "Feronerie",
+      sectionAccessories: "Accesorii",
+      changeCount:
+        "{count, plural, one {{count, number, ::group-off} modificare} few {{count, number, ::group-off} modificări} other {{count, number, ::group-off} de modificări}}",
+      newValueAria: "Valoare nouă: {name}, {field}",
+      revertAria: "Renunță la modificarea pentru {name}",
+      bulkRowName: "{signedPercent} % la {group}",
+      bulkRowSummary:
+        "{cabinetCount, plural, one {{cabinetCount, number, ::group-off} dulap} few {{cabinetCount, number, ::group-off} dulapuri} other {{cabinetCount, number, ::group-off} dulapuri}} · {priceCount, plural, one {{priceCount, number, ::group-off} preț} few {{priceCount, number, ::group-off} prețuri} other {{priceCount, number, ::group-off} de prețuri}}",
+      bulkRowHide: "ascunde",
+      bulkRowShow: "arată",
+      exampleLine: "{name} {widthMm, number, ::group-off}: {before} → {after}",
+      versionNameLabel: "Numele versiunii",
+      versionNameHint: "Îl vezi doar tu, în Istoric versiuni.",
+      provisionalLabel: "Sume provizorii",
+      provisionalHint:
+        "Cât timp e pornit, clientul vede că cifrele sunt provizorii. Oprește-l când prețurile sunt cele reale ale magazinului.",
+      provisionalOn: "Pornit · cifrele sunt provizorii",
+      provisionalOff: "Oprit",
+      provisionalChanges: "Se schimbă la publicare",
+      helpTitle: "Ce face publicarea",
+      helpPrices:
+        "Prețurile se schimbă doar aici. În Dulapuri, Feronerie, Materiale și Accesorii doar le pregătești.",
+      helpActivation:
+        "La publicare, toate prețurile de mai jos devin active deodată: pentru bucătăriile noi și pentru cele deja salvate de clienți.",
+      helpNotice:
+        "Clientul care își deschide o bucătărie salvată vede o singură dată o notificare că prețurile s-au actualizat.",
+      helpApproximate:
+        "Toate prețurile din configurator sunt orientative; prețul final se stabilește la magazin.",
+      publishAction:
+        "Publică {count, plural, one {un preț} few {{count, number, ::group-off} prețuri} other {{count, number, ::group-off} de prețuri}}",
+      publishing: "Se publică…",
+      confirmTitle: "Publici „{versionName}”?",
+      confirmBody:
+        "{count, plural, one {Prețul nou devine activ} few {Cele {count, number, ::group-off} prețuri noi devin active} other {Cele {count, number, ::group-off} de prețuri noi devin active}} imediat în toate bucătăriile, și în cele deja salvate de clienți. Clienții vor vedea o notificare că prețurile s-au actualizat.",
+      confirmAction: "Publică",
+      provisionalOffTitle: "Oprești „Sume provizorii”?",
+      provisionalOffWarningTitle: "Cifrele devin prețurile magazinului",
+      provisionalOffWarning:
+        "După publicare, clienții nu mai văd mențiunea că cifrele sunt provizorii. Prețurile rămân orientative.",
+      provisionalOffCheck:
+        "Am verificat toate prețurile și sunt cele ale magazinului.",
+      provisionalOffConfirm: "Oprește sumele provizorii",
+      emptyTitle: "Nu ai prețuri de publicat",
+      emptyBody:
+        "Când salvezi un preț nou în Dulapuri, Feronerie, Materiale sau Accesorii, apare aici. Clienții văd acum versiunea {versionId}.",
+      latestVersions: "Ultimele versiuni",
+      publishedTitle: "Versiunea {versionId} „{versionName}” este activă.",
+      publishedBody: "Prețurile noi se văd acum în toate bucătăriile.",
+      failedTitle: "Versiunea nu a fost publicată",
+      failedBody:
+        "Serverul nu a răspuns sau conexiunea s-a întrerupt. Prețurile active nu s-au schimbat, iar cele pregătite sunt păstrate.",
+      retry: "Încearcă din nou",
+      blockedInUse:
+        "Nimic nu a fost publicat. „{name}” a început să fie folosit în bucătării salvate și nu mai poate fi șters. Renunță la ștergere și publică din nou.",
+      blockedIsDefault:
+        "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou.",
+    },
+    history: {
+      subtitle:
+        "Istoricul îl vezi doar tu. Bucătăriile folosesc mereu versiunea activă, niciodată una veche.",
+      columnVersion: "Versiune",
+      columnName: "Nume",
+      columnPublishedAt: "Publicată la",
+      columnChanges: "Modificări",
+      stateActive: "Activă",
+      statePreparing: "În pregătire",
+      stateArchived: "Arhivată",
+      stateArchivedReadOnly: "Arhivată · doar citire",
+      pendingRowName: "Prețuri de publicat",
+      notPublished: "nepublicată",
+      detailSubtitle:
+        "Publicată la {date} · {count, plural, one {o modificare} few {{count, number, ::group-off} modificări} other {{count, number, ::group-off} de modificări}} față de {previousId}",
+      columnInVersion: "În {versionId}",
+      restoreHeading: "Revii la aceste prețuri?",
+      restoreBody:
+        "„Restaurează” compară prețurile din {versionId} cu cele active și adaugă diferențele la „De publicat”, lângă ce ai pregătit deja. Nimic nu se schimbă pentru clienți până nu publici.",
+      restoreAction: "Restaurează prețurile din {versionId}",
+      restoreTitle: "Restaurezi prețurile din {versionId}?",
+      restoreDialogBody:
+        "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”. Le verifici și le publici ca de obicei.",
+    },
+    defaults: {
+      title: "Setări implicite",
+      subtitle:
+        "Cu ce pornește o bucătărie nouă. Clientul le poate schimba în configurator.",
+      appliesNote:
+        "Se aplică imediat după „Salvează”, fără publicare: nu schimbă niciun preț. Bucătăriile deja salvate nu se schimbă.",
+      frontMaterial: "Material fronturi",
+      frontMaterialHint: "Materialul cu care pornește o bucătărie nouă.",
+      hardware: "Feronerie",
+      hardwareHint: "Clasa de feronerie a unei bucătării noi.",
+      depth: "Adâncimea dulapurilor",
+      depthHint: "Pentru dulapurile de jos și coloane.",
+      colour: "Culoarea bucătăriei",
+      colourHint: "Din paleta materialului implicit.",
+      colourReset:
+        "Materialul ales nu are culoarea {unavailableColour}. Culoarea implicită devine {replacementColour}.",
+      handles: "Mânere",
+      handlesHint: "Pe fiecare dulap care are mâner.",
+      topRow: "Rândul de sus",
+      topRowHint:
+        "Dulapurile din rândul de sus se deschid de obicei fără mâner.",
+      modified: "Modificat",
+      savedTitle: "Salvat. Bucătăriile noi pornesc de acum cu aceste setări.",
+      savedBody: "Bucătăriile deja salvate nu se schimbă.",
+      itemUnavailable: "O opțiune aleasă nu mai este disponibilă. Alege alta.",
+    },
+  },
+  // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+  // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
+  // decision 2, and is never pinned here.
+  // The words of the staff view of a kitchen the client changed after it was seen (frames D10A to D10D), including the daily digest.
+  // The status names are not repeated: the digest takes them as parameters from `staffKitchens`.
+  staffChanges: {
+    badge: "Modificată după ce ai văzut-o",
+    filter: "Doar modificate",
+    toolbarCount:
+      "{count, plural, one {O bucătărie modificată după ce ai văzut-o · apare prima} few {{count, number, ::group-off} bucătării modificate după ce le-ai văzut · apar primele} other {{count, number, ::group-off} de bucătării modificate după ce le-ai văzut · apar primele}}",
+    seenAndChangedAgain: "Văzută {seen} · modificată din nou {changed}",
+    subSentModified: "Trimisă de {email} · {date} · modificată {when}",
+    subSentNoAccountModified: "Trimisă fără cont · {date} · modificată {when}",
+    markedSeen: "Marcată ca văzută. Statusul cererii nu s-a schimbat.",
+    versionLabel: "Versiunea",
+    versionSent: "Trimisă · {date}",
+    versionCurrent: "Actuală · {when}",
+    tableLabel: "Corpuri",
+    columnBody: "Corp / setare",
+    columnSize: "Mărime",
+    rowDiffers: "diferă",
+    rowAdded: "nou în versiunea actuală",
+    rowRemoved: "scos în versiunea actuală",
+    rowWasInSent: "în cea trimisă: {value}",
+    estimateSent: "Estimare · trimisă",
+    estimateCurrent: "Estimare · actuală",
+    highlightNote:
+      "Rândurile evidențiate diferă între versiuni; nu arătăm o comparație detaliată.",
+    digest: {
+      title:
+        "{count, plural, one {O bucătărie modificată după ce ai văzut-o} few {{count, number, ::group-off} bucătării modificate după ce le-ai văzut} other {{count, number, ::group-off} de bucătării modificate după ce le-ai văzut}}",
+      intro:
+        "Clienții au modificat aceste bucătării trimise după ce le-ai deschis ultima dată.",
+      tableLabel: "Bucătării modificate",
+      columnKitchen: "Bucătărie",
+      columnClient: "Client",
+      columnSent: "Trimisă",
+      columnModified: "Modificată",
+      rowSent: "trimisă {date}",
+      rowModified: "modificată {when}",
+      open: "Deschide",
+      footer:
+        "Primești acest e-mail cel mult o dată pe zi, doar când există modificări noi. O bucătărie nu mai apare aici după {days, plural, one {o zi} few {{days, number, ::group-off} zile} other {{days, number, ::group-off} de zile}} de la trimitere sau după ce o treci la „{offerSentStatus}” sau „{closedStatus}”.",
+    },
+  },
+  // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+  // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
+  // decision 2, and is never pinned here.
+  // The words of the customer's one-time notice that prices were updated (frames C1 and C4C).
+  customerPriceNotice: {
+    body: "Prețurile s-au actualizat de la ultima vizită. Prețul afișat este cel actual.",
+    acknowledge: "Am înțeles",
+    alsoUpdated: "Prețurile s-au actualizat și de la ultima vizită.",
+  },
+  // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+  // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
+  // decision 2, and is never pinned here.
+  // The words of the sheet a saved kitchen opens with when an option it uses is no longer offered (frames C4A to C4D).
+  replacementSheet: {
+    title: "Unele opțiuni nu mai sunt disponibile",
+    bodyOne:
+      "Producătorul nu mai oferă: {items}. Alege o opțiune dintre cele disponibile ca să vezi prețul actualizat.",
+    bodyMany:
+      "Producătorul nu mai oferă: {items}. Alege câte o opțiune pentru fiecare; prețul apare când le-ai ales pe toate.",
+    unavailable: "nu mai este disponibil",
+    unavailableAria: "{name} nu mai este disponibil",
+    choose: "Alege",
+    change: "Schimbă",
+    priceAfterChoosing: "Prețul apare după ce alegi",
+    priceAfterApplying: "Prețul apare după ce aplici",
+    exitHint: "Poți ieși din bucătărie cu ‹, sus. Revii când vrei.",
+    headerMaterialToChoose: "Material de ales",
+    chooserAppliesTo:
+      "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor {bodyCount, number, ::group-off} dulapuri} other {tuturor celor {bodyCount, number, ::group-off} dulapuri}}.",
+    chooseFromRemaining: "Alege dintre opțiunile rămase.",
+    strikethroughNote: "Nu mai este oferit.",
+    settingsNoLongerOffered: "Nu mai este oferit.",
+    accessoryRemoved: "{name} nu mai este oferit și a fost scos din bucătărie.",
+    changedMaterial: "Material schimbat în {name}. Prețul a fost actualizat.",
+    changedHardware: "Feronerie schimbată în {name}. Prețul a fost actualizat.",
+    changedHandle: "Mânere schimbate în {name}. Prețul a fost actualizat.",
+    colourReverted: "Culoarea a revenit la {colour}.",
+  },
+  // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
+  // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
+  // decision 2, and is never pinned here.
+  // The words of the closable note above the price of a kitchen already sent (frames C5A and C5AD).
+  sentKitchenNote: {
+    body: "Ai trimis deja această bucătărie. Modificările se văd și la noi, dar spune-ne la telefon dacă e ceva important.",
+    close: "Închide nota",
   },
 } as const;
 

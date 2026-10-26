@@ -14,6 +14,14 @@ import {
   signature,
 } from "../support/icu-signature";
 
+/** A leaf whose Russian `one` arm writes the count as `#` while the Romanian `one` arm does not. */
+function russianPoundIn(argument: string) {
+  return {
+    romanianOnly: [],
+    russianOnly: [`root/plural:${argument}/one:pound`],
+  } as const;
+}
+
 const EXPECTED_POUND_DIVERGENCES: Readonly<
   Record<
     string,
@@ -27,6 +35,20 @@ const EXPECTED_POUND_DIVERGENCES: Readonly<
     romanianOnly: [],
     russianOnly: ["root/plural:bodyCount/one:pound"],
   },
+  // Russian `one` also covers 21, 31, 101, so its arm carries the number; Romanian's `one` is only 1 and says "o ..." / "un ...".
+  "priceDashboard.cabinet.summaryDoor": russianPoundIn("doorCount"),
+  "priceDashboard.cabinet.doorsFromHere": russianPoundIn("doorCount"),
+  "priceDashboard.lifecycle.usedBy": russianPoundIn("count"),
+  "priceDashboard.lifecycle.deleteBlockedBody": russianPoundIn("count"),
+  "priceDashboard.publish.subtitleMobile": russianPoundIn("count"),
+  "priceDashboard.publish.publishAction": russianPoundIn("count"),
+  "priceDashboard.publish.confirmBody": russianPoundIn("count"),
+  "priceDashboard.history.detailSubtitle": russianPoundIn("count"),
+  "priceDashboard.history.restoreDialogBody": russianPoundIn("count"),
+  "staffChanges.toolbarCount": russianPoundIn("count"),
+  "staffChanges.digest.title": russianPoundIn("count"),
+  "staffChanges.digest.footer": russianPoundIn("days"),
+  "replacementSheet.chooserAppliesTo": russianPoundIn("bodyCount"),
 };
 
 function multisetDifference(
