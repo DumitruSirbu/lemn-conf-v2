@@ -6,7 +6,7 @@ import { useId } from "react";
 import styles from "./cabinet-list.module.css";
 import { findCabinetListImage } from "./cabinet-list-image";
 import {
-  hasPendingPrice,
+  priceOfRow,
   type CabinetGroup,
   type CabinetRow,
   type CabinetWidthFacts,
@@ -193,8 +193,8 @@ function CabinetWidths({ widths }: { readonly widths: CabinetWidthFacts }) {
 
 function CabinetPrice({ row }: { readonly row: CabinetRow }) {
   const translate = useTranslations();
-  const { price } = row.facts;
-  if (price === undefined) {
+  const shown = priceOfRow(row);
+  if (shown.kind === "none") {
     return (
       <div className={styles.rowPrice}>
         <span className={styles.noPrice} aria-hidden="true" />
@@ -204,7 +204,7 @@ function CabinetPrice({ row }: { readonly row: CabinetRow }) {
       </div>
     );
   }
-  const currency = translate("priceDashboard.units.currency");
+  const { price } = shown;
   const basis =
     price.heightMm === undefined
       ? translate("priceDashboard.cabinets.priceBasis", {
@@ -214,17 +214,26 @@ function CabinetPrice({ row }: { readonly row: CabinetRow }) {
           widthMm: price.widthMm,
           heightMm: price.heightMm,
         });
+  if (shown.kind === "unreadable") {
+    return (
+      <div className={styles.rowPrice} data-testid="cabinet-price-unreadable">
+        <span className={styles.noPrice} aria-hidden="true" />
+        <span className={styles.muted}>{basis}</span>
+      </div>
+    );
+  }
+  const currency = translate("priceDashboard.units.currency");
   return (
     <div className={styles.rowPrice} data-testid="cabinet-price">
       <span className={styles.strong}>
-        {formatLei(price.pendingMinor, currency)}
+        {formatLei(shown.headlineMinor, currency)}
       </span>
       <span className={styles.muted}>
-        {hasPendingPrice(row)
-          ? `${basis} · ${translate("priceDashboard.common.activeShort", {
-              amount: formatLeiAmount(price.activeMinor),
-            })}`
-          : basis}
+        {shown.activeBesideMinor === undefined
+          ? basis
+          : `${basis} · ${translate("priceDashboard.common.activeShort", {
+              amount: formatLeiAmount(shown.activeBesideMinor),
+            })}`}
       </span>
     </div>
   );

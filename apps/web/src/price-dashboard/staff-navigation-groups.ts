@@ -132,6 +132,8 @@ function pendingBadgeOf(
   count: number | undefined,
   describe: (count: number) => string,
 ): PendingPricesBadge | undefined {
-  if (count === undefined || count <= 0) return undefined;
+  if (count === undefined || !Number.isSafeInteger(count) || count <= 0) {
+    return undefined;
+  }
   return { count, label: describe(count) };
 }

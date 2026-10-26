@@ -224,14 +224,16 @@ describe("what each kind of account is shown", () => {
     });
   });
 
-  it("gives an administrator whose address is not confirmed the 403 inside the frame, and no catalog page in the menu", async () => {
-    become(callerNamed("an unconfirmed administrator"));
+  it.each(["an unconfirmed administrator", "an unconfirmed operator"])(
+    "gives %s the account area's 403, as the staff gate does: an unconfirmed address holds no staff capability",
+    async (label) => {
+      become(callerNamed(label));
 
-    expect(await readCatalogPage({ locale: "ro" })).toEqual({
-      kind: "staff-forbidden",
-      shell: { role: "administrator", email: STAFF_ADDRESS, navigation: [] },
-    });
-  });
+      expect(await readCatalogPage({ locale: "ro" })).toEqual({
+        kind: "forbidden",
+      });
+    },
+  );
 
   it("opens the page for a verified administrator, whose menu lists the built catalog pages after the staff pages", async () => {
     become(callerNamed("a verified administrator"));

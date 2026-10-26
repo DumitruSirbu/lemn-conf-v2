@@ -132,16 +132,6 @@ export function StaffShell({
           {copy.roles[context.role]}
         </span>
         <span className={styles.spacer} />
-        {publishItem?.badge === undefined ? null : (
-          <a
-            className={styles.pendingChip}
-            href={publishItem.href}
-            data-testid="staff-pending-prices"
-          >
-            {publishItem.badge.label}
-            <span aria-hidden="true"> →</span>
-          </a>
-        )}
         <AccountControl
           cellClassName={styles.account ?? ""}
           afterSignOut="leave-for-start"
@@ -156,6 +146,16 @@ export function StaffShell({
             />
           ))}
         </nav>
+        {publishItem?.badge === undefined ? null : (
+          <a
+            className={styles.pendingChip}
+            href={publishItem.href}
+            data-testid="staff-pending-prices"
+          >
+            {publishItem.badge.label}
+            <span aria-hidden="true"> →</span>
+          </a>
+        )}
       </div>
       <div className={styles.body}>
         {groups.length === 0 ? null : (

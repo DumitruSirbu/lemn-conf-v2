@@ -221,10 +221,10 @@
 }
 
 /* "N prețuri de publicat →" in the bar, on every page of the area: the way to the publish page. On a phone it takes the
- * bar's second row. */
+ * bar's second row when the first has no room. It is the bar's last child and is never reordered, so Tab meets it where
+ * the eye does. */
 .pendingChip {
   display: inline-flex;
-  order: 9;
   align-items: center;
   min-height: var(--touch-target);
   padding: 0 14px;
@@ -327,7 +327,6 @@
   }
 
   .pendingChip {
-    order: 0;
     margin: 0;
   }
 

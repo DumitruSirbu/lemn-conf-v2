@@ -8,7 +8,13 @@ import {
   type CapabilityHolder,
 } from "@/lib/server/account/require-capability";
 import { readSignedInPage } from "@/lib/server/account/signed-in-page";
+import {
+  BUILT_CATALOG_PAGES,
+  catalogPagesOpenTo,
+} from "@/price-dashboard/catalog-pages";
+import { isCatalogPage } from "@/staff/staff-paths";
 import type {
+  StaffAreaPage,
   StaffPage,
   StaffRole,
   StaffShellContext,
@@ -19,17 +25,30 @@ import type {
 // and adds the page's own capability and the navigation that goes with the person's role. It reads and never writes.
 
 /** What each staff page asks of the session. Only a verified address holds any of these (`isCapabilityHeld`). */
-const CAPABILITY_OF_PAGE: Readonly<Record<StaffPage, Capability>> = {
+const CAPABILITY_OF_PAGE: Readonly<Record<StaffAreaPage, Capability>> = {
   kitchens: "design.read.any",
   audit: "audit.read",
+  cabinets: "price.edit",
+  hardware: "price.edit",
+  materials: "price.edit",
+  accessories: "price.edit",
+  defaults: "price.edit",
+  publish: "price.edit",
 };
 
-/** The pages in the order the navigation lists them. */
+/** The staff pages in the order the navigation lists them; the price dashboard's pages follow them. */
 const NAVIGATION_ORDER: readonly StaffPage[] = ["kitchens", "audit"];
 
-/** The pages that have a screen. A page joins this list when its directory under
- *  `app/[locale]/staff` exists, never before: the navigation must not link to a page that answers 404. */
+/** The staff pages that have a screen. A page joins this list when its directory under
+ *  `app/[locale]/staff` exists, never before: the navigation must not link to a page that answers 404. The price
+ *  dashboard's pages have their own list, `BUILT_CATALOG_PAGES`. */
 export const BUILT_STAFF_PAGES: readonly StaffPage[] = ["kitchens", "audit"];
+
+/** Every page the navigation may link to when it is not told otherwise. */
+const BUILT_NAVIGATION_PAGES: readonly StaffAreaPage[] = [
+  ...BUILT_STAFF_PAGES,
+  ...BUILT_CATALOG_PAGES,
+];
 
 /** Held by every live session, an unconfirmed address included, so the signed-in gate answers the redirect, the outage
  *  and the unknown role, and the staff gate alone judges what the page asks. */
@@ -55,7 +74,7 @@ export async function readStaffPage({
   page,
 }: {
   locale: string;
-  page: StaffPage;
+  page: StaffAreaPage;
 }): Promise<StaffPageRead> {
   const gate = await readSignedInPage({
     locale,
@@ -70,16 +89,24 @@ export async function readStaffPage({
     : { kind: "staff-forbidden", shell };
 }
 
-/** The navigation's pages: those built, in the navigation's order, that the holder's capabilities open. */
+/**
+ * The navigation's pages: those built, in the navigation's order, that the holder's capabilities open. The staff pages
+ * come first and the price dashboard's pages after them, which only a holder of `price.edit` is offered.
+ */
 export function staffNavigationOf(
   holder: CapabilityHolder,
-  builtPages: readonly StaffPage[] = BUILT_STAFF_PAGES,
-): readonly StaffPage[] {
-  return NAVIGATION_ORDER.filter(
+  builtPages: readonly StaffAreaPage[] = BUILT_NAVIGATION_PAGES,
+): readonly StaffAreaPage[] {
+  const staffPages = NAVIGATION_ORDER.filter(
     (page) =>
       builtPages.includes(page) &&
       isCapabilityHeld(holder, CAPABILITY_OF_PAGE[page]),
   );
+  const catalogPages = catalogPagesOpenTo({
+    canEditPrices: isCapabilityHeld(holder, CAPABILITY_OF_PAGE.cabinets),
+    builtPages: builtPages.filter(isCatalogPage),
+  });
+  return [...staffPages, ...catalogPages];
 }
 
 /** What the shell draws for a staff member, or nothing for anyone else: staff are the accounts that hold a capability

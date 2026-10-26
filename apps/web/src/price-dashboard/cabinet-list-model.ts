@@ -141,12 +141,51 @@ export function normalisedForSearch(text: string): string {
     .trim();
 }
 
+/**
+ * What a row's price cell says. `none`: a cabinet the customer supplies has no price, whatever the facts carry.
+ * `unreadable`: an amount that is not a whole, non-negative count of bani, which is a defect of ours and must not take
+ * the whole list down; the cell says nothing of it. `amount`: the figure the row heads with, and, only while the draft
+ * moves it, the active one beside it.
+ */
+export type RowPrice =
+  | { readonly kind: "none" }
+  | { readonly kind: "unreadable"; readonly price: CabinetDefaultPrice }
+  | {
+      readonly kind: "amount";
+      readonly price: CabinetDefaultPrice;
+      readonly headlineMinor: number;
+      readonly activeBesideMinor: number | undefined;
+    };
+
+export function priceOfRow(row: CabinetRow): RowPrice {
+  const { price, isCustomerSupplied } = row.facts;
+  if (isCustomerSupplied || price === undefined) return { kind: "none" };
+  if (!isCountOfBani(price.activeMinor) || !isCountOfBani(price.pendingMinor)) {
+    return { kind: "unreadable", price };
+  }
+  if (!row.isModified) {
+    return {
+      kind: "amount",
+      price,
+      headlineMinor: price.activeMinor,
+      activeBesideMinor: undefined,
+    };
+  }
+  return {
+    kind: "amount",
+    price,
+    headlineMinor: price.pendingMinor,
+    activeBesideMinor:
+      price.pendingMinor === price.activeMinor ? undefined : price.activeMinor,
+  };
+}
+
+function isCountOfBani(amount: number): boolean {
+  return Number.isSafeInteger(amount) && amount >= 0;
+}
+
 /** Whether the price at the default size changes with the draft, so the row shows the new one and the active beside it. */
 export function hasPendingPrice(row: CabinetRow): boolean {
-  const { price } = row.facts;
-  return (
-    row.isModified &&
-    price !== undefined &&
-    price.pendingMinor !== price.activeMinor
-  );
+  const price = priceOfRow(row);
+  return price.kind === "amount" && price.activeBesideMinor !== undefined;
 }

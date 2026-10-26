@@ -3,6 +3,9 @@
 // The staff menu as the dashboard's frames draw it (D1C the administrator's whole menu, D1D the operator's one group, D1M
 // the phone's sheet): pages under headings, the number of prices awaiting publication beside "Publicare prețuri" and in the
 // bar. The pages are the server's decision; the frame draws exactly those and puts each under its heading.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -11,6 +14,7 @@ import type { StaffAreaPage } from "@/staff/staff-paths";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { declarationsFor } from "../support/css-declarations";
 import { flushPromises } from "../support/render-hook";
 import {
   allIn,
@@ -245,6 +249,29 @@ describe("the number of prices awaiting publication (frames D1C, D2B)", () => {
       ).toBeNull();
     },
   );
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -3, 1.5])(
+    "draws no number and no chip for a count that is no count: %s",
+    async (count) => {
+      const container = await mount({ pendingPriceCount: count });
+
+      expect(container.querySelector(PENDING_CHIP)).toBeNull();
+      expect(container.textContent).not.toContain("NaN");
+      expect(container.textContent).not.toContain("Infinity");
+    },
+  );
+
+  it("is the bar's last link, never reordered on screen, so Tab meets it where the eye does", async () => {
+    const container = await mount({ pendingPriceCount: 7 });
+    const bar = requireIn(container, "main > div");
+    const stylesheet = readFileSync(
+      join(import.meta.dirname, "../../src/staff/staff.module.css"),
+      "utf8",
+    );
+
+    expect(bar.lastElementChild).toBe(requireIn(container, PENDING_CHIP));
+    expect(declarationsFor(stylesheet, "pendingChip", "order")).toEqual([]);
+  });
 
   it("is not drawn while the publish page is not in the navigation: no link to a page that is not built", async () => {
     const container = await mount({

@@ -8,9 +8,11 @@ import {
   isRuleModified,
   normalisedForSearch,
   pendingPriceCountOf,
+  priceOfRow,
   rowsOf,
   type CabinetListInput,
   type CabinetRow,
+  type CabinetRuleFacts,
 } from "@/price-dashboard/cabinet-list-model";
 import { SAMPLE_CABINET_LIST } from "@/price-dashboard/cabinet-list-sample";
 
@@ -191,6 +193,96 @@ describe("the search", () => {
     );
 
     expect(normalisedForSearch(`  ${upperWithDiacritics} `)).toBe("sati a");
+  });
+});
+
+describe("what a row's price cell says", () => {
+  const withPrice = (
+    ruleId: string,
+    price: { activeMinor: number; pendingMinor: number } | undefined,
+    isModified: boolean,
+  ): CabinetRow => {
+    const base = rowOf(rowsOf(SAMPLE_CABINET_LIST), ruleId);
+    const facts: CabinetRuleFacts = {
+      ...base.facts,
+      price: price === undefined ? undefined : { widthMm: 600, ...price },
+    } as CabinetRuleFacts;
+    return { isModified, facts };
+  };
+
+  it("heads an unmodified row with the active price, even if the facts carry a different pending one", () => {
+    const row = withPrice(
+      THREE_DRAWER,
+      { activeMinor: 100_000, pendingMinor: 120_000 },
+      false,
+    );
+
+    expect(priceOfRow(row)).toMatchObject({
+      kind: "amount",
+      headlineMinor: 100_000,
+      activeBesideMinor: undefined,
+    });
+  });
+
+  it("heads a modified row with the pending price and puts the active one beside it, only when they differ", () => {
+    const moved = withPrice(
+      THREE_DRAWER,
+      { activeMinor: 100_000, pendingMinor: 120_000 },
+      true,
+    );
+    const same = withPrice(
+      THREE_DRAWER,
+      { activeMinor: 100_000, pendingMinor: 100_000 },
+      true,
+    );
+
+    expect(priceOfRow(moved)).toMatchObject({
+      headlineMinor: 120_000,
+      activeBesideMinor: 100_000,
+    });
+    expect(priceOfRow(same)).toMatchObject({
+      headlineMinor: 100_000,
+      activeBesideMinor: undefined,
+    });
+  });
+
+  it("is none for a cabinet the customer supplies, even when a price is supplied with it", () => {
+    const base = rowOf(rowsOf(SAMPLE_CABINET_LIST), HOOD);
+    const row: CabinetRow = {
+      isModified: true,
+      facts: {
+        ...base.facts,
+        price: { widthMm: 600, activeMinor: 5_000, pendingMinor: 6_000 },
+      },
+    };
+
+    expect(priceOfRow(row)).toEqual({ kind: "none" });
+    expect(hasPendingPrice(row)).toBe(false);
+  });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 53])(
+    "is unreadable, and throws nothing, for an amount of %s bani",
+    (minor) => {
+      const bad = withPrice(
+        THREE_DRAWER,
+        { activeMinor: minor, pendingMinor: 100_000 },
+        false,
+      );
+      const badPending = withPrice(
+        THREE_DRAWER,
+        { activeMinor: 100_000, pendingMinor: minor },
+        true,
+      );
+
+      expect(priceOfRow(bad).kind).toBe("unreadable");
+      expect(priceOfRow(badPending).kind).toBe("unreadable");
+    },
+  );
+
+  it("is none for a manufactured cabinet that carries no price at all", () => {
+    expect(priceOfRow(withPrice(THREE_DRAWER, undefined, false))).toEqual({
+      kind: "none",
+    });
   });
 });
 

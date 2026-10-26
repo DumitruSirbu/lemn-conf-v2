@@ -7,7 +7,10 @@ import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CabinetListScreen } from "@/price-dashboard/cabinet-list";
-import type { CabinetListInput } from "@/price-dashboard/cabinet-list-model";
+import type {
+  CabinetListInput,
+  CabinetRuleFacts,
+} from "@/price-dashboard/cabinet-list-model";
 import { SAMPLE_CABINET_LIST } from "@/price-dashboard/cabinet-list-sample";
 
 import roMessages from "../../src/messages/ro.json";
@@ -453,5 +456,65 @@ describe("in Russian (frame D2R)", () => {
     );
     expect(priceOf(row)).toContain("ЛДСП");
     expect(priceOf(row)).toContain(`${NBSP}лей`);
+  });
+});
+
+describe("a price that cannot be drawn, or must not be", () => {
+  const [first] = SAMPLE_CABINET_LIST.rules;
+  if (first === undefined) throw new Error("the sample holds no rule");
+
+  function inputWithFirst(facts: Partial<CabinetRuleFacts>): CabinetListInput {
+    return {
+      rules: [
+        { ...first, ...facts } as CabinetRuleFacts,
+        ...SAMPLE_CABINET_LIST.rules.slice(1),
+      ],
+      draft: { draftRevision: "1", changes: [] },
+    };
+  }
+
+  it("draws a dash in the row of an invalid price and every other row as it was, and does not throw", async () => {
+    const container = await mount(
+      inputWithFirst({
+        price: { widthMm: 600, activeMinor: -100, pendingMinor: -100 },
+      }),
+    );
+
+    expect(
+      rowOf(container, first.ruleId).querySelector(
+        '[data-testid="cabinet-price-unreadable"]',
+      ),
+    ).not.toBeNull();
+    expect(rowOf(container, first.ruleId).textContent).not.toContain("-");
+    expect(rowsOf(container)).toHaveLength(SAMPLE_CABINET_LIST.rules.length);
+    expect(priceOf(rowOf(container, THREE_DRAWER))).toBe(
+      `2${NBSP}100${NBSP}lei600 mm · PAL`,
+    );
+  });
+
+  it("heads an unmodified row with the active price", async () => {
+    const container = await mount(
+      inputWithFirst({
+        price: { widthMm: 600, activeMinor: 145_000, pendingMinor: 999_000 },
+      }),
+    );
+
+    expect(priceOf(rowOf(container, first.ruleId))).toBe(
+      `1${NBSP}450${NBSP}lei600 mm · PAL`,
+    );
+  });
+
+  it("draws no price for a cabinet the customer supplies, even one supplied with a price", async () => {
+    const container = await mount(
+      inputWithFirst({
+        isCustomerSupplied: true,
+        price: { widthMm: 600, activeMinor: 145_000, pendingMinor: 145_000 },
+      }),
+    );
+
+    const row = rowOf(container, first.ruleId);
+
+    expect(row.querySelector('[data-testid="cabinet-price"]')).toBeNull();
+    expect(row.textContent).not.toContain(COPY.units.currency);
   });
 });
