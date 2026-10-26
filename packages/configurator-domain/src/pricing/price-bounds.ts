@@ -1,10 +1,5 @@
-// The constants the price arithmetic and the book parser both stand on, in a module that imports nothing so
-// `book-reading.ts` (which derives `MAX_PRICE_COEFFICIENT_MINOR` from them) and `anchored-price-formula.ts` (which
-// imports `book-reading.ts`) cannot form a cycle through it.
-
-/** The unit a width or height is rounded up to and a step is quoted per ("+ lei per 50 mm"). Declared here
- *  as a pricing unit and never derived from the catalogue's own width module (ADR 0177 A-4). */
-export const PRICE_STEP_MM = 50;
+// The percentage bounds the book parser and the percentage seam both stand on (ADR 0177 A-5): a module that imports
+// nothing, so neither can form a cycle through it.
 
 /** The largest whole percentage a material may add to the PAL cabinets. An architect's bound and not a business
  *  figure (ADR 0177 A-5, owner-visible); PAL itself is fixed at 0. */

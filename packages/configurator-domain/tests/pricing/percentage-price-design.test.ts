@@ -18,10 +18,7 @@ import {
   MAX_DEEP_CABINET_PERCENT,
   MAX_MATERIAL_PERCENT,
 } from "../../src/pricing/price-bounds.js";
-import {
-  priceDesign,
-  priceDesignWithDeepening,
-} from "../../src/pricing/price-design.js";
+import { priceDesign } from "../../src/pricing/price-design.js";
 import type {
   CabinetPriceLine,
   PriceLine,
@@ -107,16 +104,14 @@ function pricedOf(
 ): PricedDesign {
   const book = bookOf(scenario);
   const { design, catalog } = kitchenAt(scenario.depthMm);
-  const result = priceDesignWithDeepening(
-    {
-      design,
-      catalog,
-      book,
-      pricingVersion: book.version,
-      selections: chosen,
-    },
-    (pricedAsBuildId) => scenario.deepeningIds.has(pricedAsBuildId),
-  );
+  const result = priceDesign({
+    design,
+    catalog,
+    book,
+    pricingVersion: book.version,
+    selections: chosen,
+    deepeningRows: scenario.deepeningIds,
+  });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);
   }
@@ -242,16 +237,14 @@ describe("the three parts are differences of nested stages (P2-b)", () => {
           };
           expect(oneBase.placements).toHaveLength(1);
           const book = bookOf(scenario);
-          const result = priceDesignWithDeepening(
-            {
-              design: oneBase,
-              catalog,
-              book,
-              pricingVersion: book.version,
-              selections: { materialTierId: UPGRADE_TIER_ID },
-            },
-            () => true,
-          );
+          const result = priceDesign({
+            design: oneBase,
+            catalog,
+            book,
+            pricingVersion: book.version,
+            selections: { materialTierId: UPGRADE_TIER_ID },
+            deepeningRows: new Set(SUPPLIED_BUILD_IDS),
+          });
           if (!result.ok) throw new Error(result.failure.detail);
 
           const cabinet = cabinetLinesOf(result.priced)[0];
@@ -380,7 +373,7 @@ describe("0 % gives no amount (P2-d)", () => {
 describe("the form decides how a book is priced", () => {
   const flatKitchen = kitchenAt(DEEP_MM);
 
-  it("refuses a book in percentage form from the public query until A-6's answer is supplied to it", () => {
+  it("refuses a book in percentage form without `deepeningRows`, since pricing decides no row's depth itself", () => {
     const book = bookOf({
       anchors: [100_000],
       materialPercent: 10,
@@ -398,16 +391,19 @@ describe("the form decides how a book is priced", () => {
     if (!result.ok) expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
   });
 
-  it("prices a book in the old flat form as it always did, whatever the seam is given", () => {
+  it("prices a book in the old flat form as it always did, whatever `deepeningRows` holds", () => {
     const request = {
       ...flatKitchen,
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK.version,
     };
     const publicResult = priceDesign(request);
-    const withSeam = priceDesignWithDeepening(request, () => true);
+    const withRows = priceDesign({
+      ...request,
+      deepeningRows: new Set(SUPPLIED_BUILD_IDS),
+    });
 
-    expect(withSeam).toEqual(publicResult);
+    expect(withRows).toEqual(publicResult);
     expect(publicResult.ok).toBe(true);
     if (publicResult.ok) {
       expect(

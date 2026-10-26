@@ -14,35 +14,26 @@ import {
   describeDeclared,
   invalidBook,
   isRecord,
-  MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR,
   readDeclared,
-  refuseOversizedAmount,
   refuseUnreadFields,
 } from "./book-reading.js";
-import { MAX_SIZES_PER_RULE } from "./parse-anchored-formula.js";
 import {
   MAX_DEEP_CABINET_PERCENT,
   MAX_MATERIAL_PERCENT,
 } from "./price-bounds.js";
 import type { PricingFailure } from "./price-lines.js";
 
-/** The parser's own bounds on the two lists this reads, passed in so the two cannot differ. */
-export interface BookListLimits {
-  readonly maxTiersPerGroup: number;
-  readonly maxCabinetRules: number;
-}
-
-/** The book's material tiers and depth rule, held to being one form, and in the percentage form its cabinet amounts
- *  held to the bound the percentage seam needs. */
+/** The book's material tiers and depth rule, held to being one form. `maxTiersPerGroup` is the parser's own bound on
+ *  a group, passed in so the two cannot differ. */
 export function refuseUnusablePercentageForm(
   book: Record<string, unknown>,
-  limits: BookListLimits,
+  maxTiersPerGroup: number,
 ): PricingFailure | undefined {
   const material = readDeclared(book, "material");
   if (!isRecord(material)) return undefined;
   const tiers = boundedListOf(
     readDeclared(material, "tiers"),
-    limits.maxTiersPerGroup,
+    maxTiersPerGroup,
   );
   const tierRecords = (tiers ?? []).filter(isRecord);
 
@@ -62,62 +53,8 @@ export function refuseUnusablePercentageForm(
   return (
     firstUnusableTierPercentage(percentageTiers) ??
     refuseUnusableDepthRule(depthRule) ??
-    refuseDefaultTierAboveZero(material, percentageTiers) ??
-    refuseCabinetAmountsPastTheSeam(book, limits.maxCabinetRules)
+    refuseDefaultTierAboveZero(material, percentageTiers)
   );
-}
-
-/** Every amount a cabinet rule states, held to `MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR` (ADR 0177 A-5): in this form
- *  the three rounded stages multiply it by up to 60 000 and the lines sum over every placement. The flat bound has
- *  already been held by the formula parse; this one is tighter. */
-function refuseCabinetAmountsPastTheSeam(
-  book: Record<string, unknown>,
-  maxCabinetRules: number,
-): PricingFailure | undefined {
-  const rules = boundedListOf(
-    readDeclared(book, "cabinetRules"),
-    maxCabinetRules,
-  );
-  for (const rule of rules ?? []) {
-    if (!isRecord(rule)) continue;
-    const formula = readDeclared(rule, "formula");
-    if (!isRecord(formula)) continue;
-    const named = `rule "${describeRuleId(rule)}"`;
-    const refused =
-      refuseOversizedAmount(
-        formula,
-        named,
-        MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR,
-      ) ?? refuseOversizedSizes(formula, named);
-    if (refused) return refused;
-  }
-  return undefined;
-}
-
-/** A fixed-size row states its prices inside `sizes`, which the sweep of the formula's own fields does not reach. */
-function refuseOversizedSizes(
-  formula: Record<string, unknown>,
-  named: string,
-): PricingFailure | undefined {
-  const sizes = boundedListOf(
-    readDeclared(formula, "sizes"),
-    MAX_SIZES_PER_RULE,
-  );
-  for (const size of sizes ?? []) {
-    if (!isRecord(size)) continue;
-    const refused = refuseOversizedAmount(
-      size,
-      `${named} size`,
-      MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR,
-    );
-    if (refused) return refused;
-  }
-  return undefined;
-}
-
-function describeRuleId(rule: Record<string, unknown>): string {
-  const ruleId = readDeclared(rule, "ruleId");
-  return typeof ruleId === "string" ? ruleId : describeDeclared(ruleId);
 }
 
 function statesPercentage(tier: Record<string, unknown>): boolean {

@@ -3,24 +3,13 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
-import {
-  MAX_DESIGN_DIMENSION_MM,
-  MAX_PLACEMENTS,
-} from "../../src/design-bounds.js";
-import { MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR } from "../../src/pricing/book-reading.js";
-import {
-  MAX_PRICE_COEFFICIENT_MINOR,
-  parsePriceBook,
-} from "../../src/pricing/parse-price-book.js";
+import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
 import { DEPTH_RULE_ID, type PriceBook } from "../../src/pricing/price-book.js";
-import { splitCabinetsByPercentage } from "../../src/pricing/percentage-lines.js";
 import {
   MAX_DEEP_CABINET_PERCENT,
   MAX_MATERIAL_PERCENT,
-  PRICE_STEP_MM,
 } from "../../src/pricing/price-bounds.js";
 import {
-  anchoredAt,
   anchoredRules,
   percentageBookOf,
   REFERENCE_TIER_ID,
@@ -218,97 +207,5 @@ describe("the depth rule's reserved rule id is swept with the others", () => {
     };
 
     expect(refusalDetailOf(collided)).toContain(DEPTH_RULE_ID);
-  });
-});
-
-describe("the bound is re-derived for the percentage form (P2 item 4, A-5)", () => {
-  /** The five multipliers of the widest anchored formula, written out here from the formula's own terms. */
-  const STEPS = MAX_DESIGN_DIMENSION_MM / PRICE_STEP_MM;
-  const CABINET_IN_COEFFICIENTS = 1 + STEPS + STEPS + STEPS + STEPS;
-  const PERCENT_PRODUCT =
-    (100 + MAX_MATERIAL_PERCENT) * (100 + MAX_DEEP_CABINET_PERCENT);
-
-  it("is the largest coefficient whose worst sum over every placement is a safe integer, and no larger", () => {
-    const sumAt = (coefficient: bigint) =>
-      BigInt(MAX_PLACEMENTS) *
-      coefficient *
-      BigInt(CABINET_IN_COEFFICIENTS) *
-      BigInt(PERCENT_PRODUCT);
-    const bound = BigInt(MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR);
-
-    expect(sumAt(bound) <= BigInt(Number.MAX_SAFE_INTEGER)).toBe(true);
-    expect(sumAt(bound + 1n) > BigInt(Number.MAX_SAFE_INTEGER)).toBe(true);
-  });
-
-  it("is tighter than the flat form's, which did not count the percentage product", () => {
-    expect(MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR).toBeLessThan(
-      MAX_PRICE_COEFFICIENT_MINOR,
-    );
-  });
-
-  it("evaluates its worst case exactly: every placement at the dearest cabinet, material and depth", () => {
-    const worstCabinetMinor =
-      MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR * CABINET_IN_COEFFICIENTS;
-    const everyPlacement = Array.from({ length: MAX_PLACEMENTS }, () => ({
-      exactMinor: worstCabinetMinor,
-      deepens: true,
-    }));
-
-    const split = splitCabinetsByPercentage(everyPlacement, {
-      materialPercent: MAX_MATERIAL_PERCENT,
-      deepCabinetPercent: MAX_DEEP_CABINET_PERCENT,
-    });
-    const computed =
-      split.cabinetMinors.reduce((sum, amount) => sum + amount, 0) +
-      split.materialLineMinor +
-      split.depthLineMinor;
-
-    const numerator = BigInt(worstCabinetMinor) * BigInt(PERCENT_PRODUCT);
-    const roundedOracle =
-      ((2n * numerator + 10_000_000n) / 20_000_000n) * 1_000n;
-    expect(BigInt(computed)).toBe(roundedOracle * BigInt(MAX_PLACEMENTS));
-    expect(Number.isSafeInteger(computed)).toBe(true);
-  });
-
-  it("refuses a cabinet amount past it in a percentage book while the flat form still accepts it", () => {
-    const pastTheSeam = MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR + 1;
-    const percentageBook = percentageBookOf({
-      materialPercent: 10,
-      deepCabinetPercent: 10,
-      cabinetRules: anchoredRules(() => pastTheSeam),
-    });
-    const [first, ...rest] = SAMPLE_PRICE_BOOK.cabinetRules;
-    if (!first) throw new Error("no rules");
-    const flatBook = {
-      ...SAMPLE_PRICE_BOOK,
-      cabinetRules: [{ ...first, formula: anchoredAt(pastTheSeam) }, ...rest],
-    };
-
-    expect(refusalDetailOf(percentageBook)).toContain(
-      String(MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR),
-    );
-    expect(parsePriceBook(flatBook).ok).toBe(true);
-  });
-
-  it("holds a fixed-size row's listed prices to it too", () => {
-    const book = validBook();
-    const [first, ...rest] = book.cabinetRules;
-    if (!first) throw new Error("no rules");
-    const sized = {
-      ...first,
-      formula: {
-        shape: "price-per-size",
-        sizes: [
-          {
-            widthMm: 600,
-            amountMinor: MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR + 1,
-          },
-        ],
-      },
-    };
-
-    expect(
-      refusalDetailOf({ ...book, cabinetRules: [sized, ...rest] }),
-    ).toContain(String(MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR));
   });
 });

@@ -3,15 +3,9 @@
 // nothing here reads a member bare: fields go through `readDeclared`, enumerations through `enumerableFieldsOf`, lists
 // through `boundedListOf`, and a refusal is built by `invalidBook` only. This module imports no pricing type, so
 // both parsers and `anchored-price-formula.ts` can depend on it.
-import { MAX_DESIGN_DIMENSION_MM, MAX_PLACEMENTS } from "../design-bounds.js";
+import { MAX_DESIGN_DIMENSION_MM } from "../design-bounds.js";
 import { boundedFailureReason } from "../failure-text.js";
 
-import {
-  MAX_DEEP_CABINET_PERCENT,
-  MAX_MATERIAL_PERCENT,
-  PERCENT_BASE,
-  PRICE_STEP_MM,
-} from "./price-bounds.js";
 import type { PricingFailure } from "./price-lines.js";
 
 /** The widest linear shape's term count: base, width, height and door-leaf terms, each multiplied by a
@@ -29,57 +23,12 @@ const MAX_BOOK_AMOUNT_MULTIPLIER = MAX_DESIGN_DIMENSION_MM;
  * safe-integer range, so cancelling terms cannot lose precision. A bound on magnitude, not sign:
  * `refuseNegativeAmount` refuses a negative price and the published line is refused where it is built.
  *
- * The flat form is the one the percentage form replaces (P3): a book in percentage form is held to
- * `MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR` instead, which is the same derivation extended over the percentage seam.
+ * Held for every form of book. The percentage seam bounds a cabinet's whole amount instead, by
+ * `MAX_CABINET_AMOUNT_MINOR` (`percentage-lines.ts`, ADR 0177 A-5): the terms' own arithmetic is exact-checked.
  */
 export const MAX_PRICE_COEFFICIENT_MINOR = Math.floor(
   Number.MAX_SAFE_INTEGER /
     (TERMS_IN_THE_WIDEST_FORMULA * MAX_BOOK_AMOUNT_MULTIPLIER),
-);
-
-/** The most 50 mm steps, door leaves or height steps one term of an anchored formula is multiplied by: a design is at
- *  most `MAX_DESIGN_DIMENSION_MM` across, and a leaf or a step is never narrower than one pricing step. */
-const MAX_COUNT_OF_STEPS_OR_LEAVES = MAX_DESIGN_DIMENSION_MM / PRICE_STEP_MM;
-
-/** What each of the five terms of the widest anchored formula is multiplied by: the anchor once, then the wider steps,
- *  the narrower steps, the extra door leaves and the height steps. Both width terms are counted although a body is on
- *  one side of its anchor only, so the bound errs high. */
-const ANCHORED_TERM_MULTIPLIERS: readonly number[] = [
-  1,
-  MAX_COUNT_OF_STEPS_OR_LEAVES,
-  MAX_COUNT_OF_STEPS_OR_LEAVES,
-  MAX_COUNT_OF_STEPS_OR_LEAVES,
-  MAX_COUNT_OF_STEPS_OR_LEAVES,
-];
-
-/** The most one cabinet's exact amount can be, in units of the largest coefficient. */
-const LARGEST_CABINET_IN_COEFFICIENTS = ANCHORED_TERM_MULTIPLIERS.reduce(
-  (sum, multiplier) => sum + multiplier,
-  0,
-);
-
-/** What a cabinet's exact amount is multiplied by before the 10 000 divides it back out: the dearest material times
- *  the deepest depth (ADR 0177 A-1's third stage). The two multiply and never add. */
-const LARGEST_PERCENTAGE_PRODUCT =
-  (PERCENT_BASE + MAX_MATERIAL_PERCENT) *
-  (PERCENT_BASE + MAX_DEEP_CABINET_PERCENT);
-
-/**
- * The largest magnitude a cabinet rule's amount may carry in a book in percentage form (ADR 0177 A-5), derived so that
- * the sum of the third stage over every cabinet stays a safe integer:
- *
- *     MAX_PLACEMENTS cabinets × (1 + 4 × 200 anchored-term multipliers) × (100 + 200) × (100 + 100)
- *
- * The material and depth lines sum across every cabinet and a cabinet's stages multiply its whole price, so the flat
- * form's "one term times a millimetre count" no longer bounds it. Covers the anchored shapes and `price-per-size`: a
- * linear shape's four terms times a millimetre count are not within it, and the seam's own checked arithmetic refuses
- * what it cannot hold exactly instead of publishing it.
- */
-export const MAX_PERCENTAGE_FORM_COEFFICIENT_MINOR = Math.floor(
-  Number.MAX_SAFE_INTEGER /
-    (MAX_PLACEMENTS *
-      LARGEST_CABINET_IN_COEFFICIENTS *
-      LARGEST_PERCENTAGE_PRODUCT),
 );
 
 /** A read that raised, told apart from every value a book can carry: a symbol, not `undefined`,
@@ -234,7 +183,6 @@ function renderedOr(rendered: string | undefined, fallback: string): string {
 export function refuseOversizedAmount(
   declared: Record<string, unknown>,
   named: string,
-  boundMinor: number = MAX_PRICE_COEFFICIENT_MINOR,
 ): PricingFailure | undefined {
   const fields = enumerableFieldsOf(declared);
   if (fields === undefined)
@@ -246,24 +194,21 @@ export function refuseOversizedAmount(
       return invalidBook(
         `The ${named} declares "${field}" as something that raised when it was read`,
       );
-    if (isOversizedAmount(read, boundMinor)) {
+    if (isOversizedAmount(read)) {
       return invalidBook(
         `The ${named} declares "${field}" as ${String(read)}, whose magnitude is past ` +
-          `${String(boundMinor)} minor units — past what the arithmetic holds exactly`,
+          `${String(MAX_PRICE_COEFFICIENT_MINOR)} minor units — past what the arithmetic holds exactly`,
       );
     }
   }
   return undefined;
 }
 
-function isOversizedAmount(
-  value: unknown,
-  boundMinor: number,
-): value is number {
+function isOversizedAmount(value: unknown): value is number {
   return (
     typeof value === "number" &&
     Number.isSafeInteger(value) &&
-    Math.abs(value) > boundMinor
+    Math.abs(value) > MAX_PRICE_COEFFICIENT_MINOR
   );
 }
 

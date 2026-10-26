@@ -35,10 +35,10 @@ import { parsePriceBook } from "./parse-price-book.js";
 import {
   DEEP_CABINET_DEPTH_MM,
   isBuiltAtDeepDepth,
+  MAX_CABINET_AMOUNT_MINOR,
   roundHalfUpToTenLei,
   splitCabinetsByPercentage,
   type CabinetPercentages,
-  type DeepensAtDeepDepth,
 } from "./percentage-lines.js";
 import {
   ACCESSORY_IDS,
@@ -91,6 +91,10 @@ export interface PriceDesignRequest {
   /** Matched for **equality** against the book's own version: no "current version" fallback. */
   readonly pricingVersion: string;
   readonly selections?: WholeKitchenSelections | undefined;
+  /** The priced-as build ids that get deeper at `DEEP_CABINET_DEPTH_MM` (`measureDeepeningRows`, ADR 0177 A-6), supplied
+   *  by the composition root because pricing binds to no catalogue. Read only by a book in percentage form, which is
+   *  refused without it; P3 makes it required. */
+  readonly deepeningRows?: ReadonlySet<string> | undefined;
 }
 
 /**
@@ -98,20 +102,6 @@ export interface PriceDesignRequest {
  * naming what could not be resolved.
  */
 export function priceDesign(request: PriceDesignRequest): PricingResult {
-  return priceDesignWithDeepening(request, undefined);
-}
-
-/**
- * `priceDesign` with the answer to A-6's question supplied, so a book in percentage form prices. Not exported from the
- * package root: a book in percentage form is refused by `priceDesign` until which cabinets deepen (ADR 0177 A-6) is
- * wired as its own input, because a default would be this module deciding it. `deepensAtDeepDepth` is asked of the
- * priced-as catalogue row of each manufacturer-supplied cabinet, and only for a design built at
- * `DEEP_CABINET_DEPTH_MM`.
- */
-export function priceDesignWithDeepening(
-  request: PriceDesignRequest,
-  deepensAtDeepDepth: DeepensAtDeepDepth | undefined,
-): PricingResult {
   const unusable = refuseUnusableRequest(request);
   if (unusable) return { ok: false, failure: unusable };
 
@@ -121,10 +111,7 @@ export function priceDesignWithDeepening(
     return { ok: false, failure: cabinetLines.failure };
 
   const lines = isPercentageBook(request.book)
-    ? pricePercentageForm(
-        { entries, request, deepensAtDeepDepth },
-        cabinetLines.value,
-      )
+    ? pricePercentageForm({ entries, request }, cabinetLines.value)
     : priceFlatForm(entries, request, cabinetLines.value);
   if (isRefused(lines)) return { ok: false, failure: lines.failure };
 
@@ -732,24 +719,25 @@ function isPercentageBook(book: PriceBook): boolean {
 interface PercentageFormRequest {
   readonly entries: readonly DisplayEntry[];
   readonly request: PriceDesignRequest;
-  readonly deepensAtDeepDepth: DeepensAtDeepDepth | undefined;
 }
 
 /**
  * The percentage form (ADR 0177 A-1): each cabinet carried through the three rounded stages, hardware and each
  * accessory rounded to 10 lei, so every line is a whole number of ten lei and they add to the total exactly. Lines in
- * the order cabinets, hardware, material, depth, accessories. Refused until A-6's answer is supplied.
+ * the order cabinets, hardware, material, depth, accessories. Refused without `deepeningRows`, since a default would be
+ * this module deciding which cabinets deepen (ADR 0177 A-6).
  */
 function pricePercentageForm(
   form: PercentageFormRequest,
   cabinetLines: readonly CabinetPriceLine[],
 ): Attempt<readonly PriceLine[]> {
-  const { deepensAtDeepDepth, request, entries } = form;
-  if (deepensAtDeepDepth === undefined) {
+  const { request, entries } = form;
+  const { deepeningRows } = request;
+  if (deepeningRows === undefined) {
     return refusal(
       "INVALID_PRICE_BOOK",
-      "A book stating its materials as percentages cannot be priced until which cabinets deepen is supplied " +
-        "(ADR 0177 A-6)",
+      "A book stating its materials as percentages cannot be priced without `deepeningRows`, " +
+        "the priced-as rows that get deeper (ADR 0177 A-6)",
       { id: request.book.version },
     );
   }
@@ -771,7 +759,7 @@ function pricePercentageForm(
 
   const cabinetsAndUpliftLines = priceCabinetsInPercentages(
     { cabinetLines, rates: rates.value, material: material.value },
-    { request, deepensAtDeepDepth },
+    { request, deepeningRows },
   );
   if (isRefused(cabinetsAndUpliftLines)) return cabinetsAndUpliftLines;
 
@@ -840,9 +828,12 @@ function priceCabinetsInPercentages(
   },
   context: {
     readonly request: PriceDesignRequest;
-    readonly deepensAtDeepDepth: DeepensAtDeepDepth;
+    readonly deepeningRows: ReadonlySet<string>;
   },
 ): Attempt<PercentageCabinetLines> {
+  const tooDear = refuseCabinetAboveTheSeam(priced.cabinetLines);
+  if (tooDear) return tooDear;
+
   const deepeningOnes = deepeningCabinetFlags(priced.cabinetLines, context);
   const split = attemptExactly(
     () =>
@@ -878,13 +869,30 @@ function priceCabinetsInPercentages(
   };
 }
 
+/** A cabinet whose exact amount is past `MAX_CABINET_AMOUNT_MINOR` is refused: above it the three stages' numerators
+ *  could leave the exact-integer range (ADR 0177 A-5). Far above any realistic price, so a defence and not a limit. */
+function refuseCabinetAboveTheSeam(
+  cabinetLines: readonly CabinetPriceLine[],
+): Refused | undefined {
+  const tooDear = cabinetLines.find(
+    (line) => line.amountMinor > MAX_CABINET_AMOUNT_MINOR,
+  );
+  if (tooDear === undefined) return undefined;
+  return refusal(
+    "INVALID_AMOUNT",
+    `Placement "${tooDear.placementId}" prices at ${String(tooDear.amountMinor)}, past the ` +
+      `${String(MAX_CABINET_AMOUNT_MINOR)} a cabinet may cost before the percentage stages cannot be held exactly`,
+    { placementId: tooDear.placementId, id: tooDear.ruleId },
+  );
+}
+
 /** Which cabinets take the depth uplift: a manufacturer-supplied one whose priced-as row deepens, in a design built at
  *  the deep depth. A customer-supplied row never does (ADR 0177 A-6). */
 function deepeningCabinetFlags(
   cabinetLines: readonly CabinetPriceLine[],
   context: {
     readonly request: PriceDesignRequest;
-    readonly deepensAtDeepDepth: DeepensAtDeepDepth;
+    readonly deepeningRows: ReadonlySet<string>;
   },
 ): readonly boolean[] {
   const isDeep = isBuiltAtDeepDepth(context.request.design);
@@ -892,7 +900,7 @@ function deepeningCabinetFlags(
     (line) =>
       isDeep &&
       line.suppliedBy === "manufacturer" &&
-      context.deepensAtDeepDepth(line.pricedAsBuildId),
+      context.deepeningRows.has(line.pricedAsBuildId),
   );
 }
 

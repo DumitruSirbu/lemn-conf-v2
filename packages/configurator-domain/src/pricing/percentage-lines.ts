@@ -12,10 +12,15 @@
 // The material and depth percentages multiply and never add: the cross term lands in the depth line. Every step is an
 // integer: a fraction, a float or a sum outside the safe range throws `InexactPriceArithmeticError`, which
 // `price-design.ts` converts to a refusal, rather than publishing a figure somebody rounded by accident.
+import { MAX_PLACEMENTS } from "../design-bounds.js";
 import { cabinetDepthMmOf, type Design } from "../design.js";
 
 import { InexactPriceArithmeticError } from "./price-book.js";
-import { PERCENT_BASE } from "./price-bounds.js";
+import {
+  MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
+  PERCENT_BASE,
+} from "./price-bounds.js";
 
 /** Ten lei in bani: the grain every line is rounded to. */
 export const TEN_LEI_MINOR = 1_000;
@@ -24,9 +29,18 @@ export const TEN_LEI_MINOR = 1_000;
  *  700"). A third declared depth is a new decision, so it is not read as "any depth above the default". */
 export const DEEP_CABINET_DEPTH_MM = 700;
 
-/** Which priced-as catalogue rows get deeper at `DEEP_CABINET_DEPTH_MM` (ADR 0177 A-6). A parameter of the seam and
- *  not a list here: which rows deepen is a measured catalogue fact whose answer is the architect's. */
-export type DeepensAtDeepDepth = (pricedAsBuildId: string) => boolean;
+/**
+ * The most one cabinet's exact priced amount may be, in minor units (ADR 0177 A-5). Derived so that a cabinet's third
+ * stage, `b × (100 + m) × (100 + d)`, stays a safe integer for every placement of a design at the dearest material and
+ * depth: the sum over `MAX_PLACEMENTS` cabinets of that numerator is then exact by construction. Invents no business
+ * ceiling; it is far above any realistic cabinet price.
+ */
+export const MAX_CABINET_AMOUNT_MINOR = Math.floor(
+  Number.MAX_SAFE_INTEGER /
+    (MAX_PLACEMENTS *
+      (PERCENT_BASE + MAX_MATERIAL_PERCENT) *
+      (PERCENT_BASE + MAX_DEEP_CABINET_PERCENT)),
+);
 
 /** The two percentages a cabinet's amount is scaled by. `deepCabinetPercent` is `0` for a cabinet that does not
  *  deepen, which is how a body that gets no deeper takes no uplift. */
