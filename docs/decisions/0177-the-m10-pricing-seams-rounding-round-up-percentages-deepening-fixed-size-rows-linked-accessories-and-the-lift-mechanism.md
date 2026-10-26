@@ -90,6 +90,10 @@ seam test `pricing-seams.test.ts` is amended **by QA** to forbid importing the c
 - `MAX_PRICE_COEFFICIENT_MINOR` is **re-derived, not widened** (S-10): `Σ over MAX_PLACEMENTS cabinets of
   b_i × (100 + 200) × (100 + 100)` must stay a safe integer. The derivation is code over named constants and a test pins
   that the worst case is exact.
+- **Re-ruled 2026-10-26 (P2):** the coefficient bound stays at the flat-form value for every book form; each cabinet's
+  exact amount is capped at `MAX_CABINET_AMOUNT_MINOR = floor(MAX_SAFE_INTEGER / (MAX_PLACEMENTS × (100 +
+  MAX_MATERIAL_PERCENT) × (100 + MAX_DEPTH_PERCENT)))`, derived in code and refused `INVALID_AMOUNT` above it; publish
+  (A-7b) refuses any price above the cap.
 
 ### A-6 — Which cabinets deepen
 
@@ -100,6 +104,12 @@ take the uplift. A parity test over every catalogue row asserts the set. The rul
 and the base corners deepen; wall rows and the wall corners do not (frame D3 draws wall corners at 320/320 [mock
 L500-503]). **If the measurement disagrees with the ruling for any row, the wave stops and reports; it edits neither
 side.**
+
+**Owner ruling 2026-10-26: "Surcharge every deeper cabinet."** The measurement governs: every manufacturer-supplied row
+whose priced-as row measures deeper takes the depth percentage, wall rows and wall corners included (330 → 400). The rule
+is per priced-as row, so lifted-column tops that price as `wall-cabinet` take it too. The deepening set is computed by
+`measureDeepeningRows(catalogAtShallow, catalogAtDeep)` and passed to `priceDesign` as `deepeningRows`. This supersedes
+the "expected set" sentence above, which excluded wall rows and wall corners.
 
 ### A-7 — Fixed-size rows
 
