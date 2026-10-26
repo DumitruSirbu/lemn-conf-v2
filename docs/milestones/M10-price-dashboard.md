@@ -363,6 +363,15 @@ every kitchen that earns it.
   - it has not been in a digest since it was last seen; and
   - `designs.sent_at` is within 30 days; and
   - the status is not `offer-sent` or `closed`.
+- **Judged on revisions, in SQL** (K1 review, coordinator's ruling, 2026-10-26).
+  - "Not digested since seen" means **no digest entry** for the design with `revision >` the effective seen revision.
+    It is never judged on instants: a stale seen mark, which A-12 allows, would otherwise re-send a revision already
+    digested.
+  - SQL delivers it to the domain as the boolean `isDigestedSinceSeen`, beside `isChangedSinceSeen`.
+  - K1's eligibility takes those two booleans, `sentAt`, the status and `now`. It holds no seen or digested instants.
+- **The window is 720 hours** (`DIGEST_WINDOW_MS`, the domain's constant): eligible if and only if `sentAt > now −
+  720 h`, with `now` passed in. This is an exact duration, so a DST change in Europe/Chisinau neither lengthens nor
+  shortens it.
 - `designs.sent_at` keeps the **first** send's instant [src: `neon-account-kitchen-store.ts:428-436`], and it is the
   list's "Trimisă la" date. That is why the 30 days count from it (OQ-10).
 - No eligible kitchen means no e-mail.
@@ -1380,7 +1389,7 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
 | **S1** fakes | Fakes for all six ports from §8.4(c), with a contract test suite each Neon store will also run | `fake-price-book-store.ts`, `fake-kitchen-defaults-store.ts`, `fake-catalogue-availability-store.ts`, `fake-kitchen-change-store.ts`, `fake-price-notice-store.ts`, `index.ts`. **Six (the usage reader's fake is folded into the defaults fake); over five, stated.** Each fake is small and mechanical, and the contract suites are the review surface. **Plus a test-only item (ruling 2026-10-26):** four pre-existing live files throw inside a `describe.skipIf` body in a worktree with no `.env.*.local`, instead of skipping. They are `count-contact-submissions-for-tests.live`, `delete-contact-submissions-for-tests.live`, `delete-rate-limit-counters-for-tests.live` and `neon-rate-limit-totals.live`, all calling `neon(liveTestDatabaseUrl)` at describe scope. S1 moves each connection into the guarded hooks. This changes no production file, and the census registration does not move | MP-0 | §8.4(c); `fake-staff-kitchen-actions-store.ts`; `account-domain-store-agreement.test.ts` (the agreement-suite pattern) |
 | **S2** book versions and draft | `0025`, `0026`; `NeonPriceBookStore` (publish in one transaction with its audit row; `changed-meanwhile` compared in SQL); the owner-run `seed-price-book` command (A-10); migration-text tests; privilege-test arms; census rows | 2 migrations, `neon-price-book-store.ts`, `price-book-statements.ts`, `seed-price-book.ts` | S1, X2 | A-10, A-15; §9.2 rows 0025/0026; `migrate.ts` (how an owner-run command is wired); `0011_create_presets.sql` (an append-mostly table's grant) |
 | **S2b** availability log (added 2026-10-26, A-17) | `0028`; `NeonCatalogueAvailabilityStore`: append-only writes with their audit row in one transaction; `readCurrent` as each item's latest row; `readAt(revision)`; `changed-meanwhile` on a stale expected revision, compared in SQL; migration-text test; privilege arm (no `UPDATE` and no `DELETE` held); census row | 1 migration, `neon-catalogue-availability-store.ts`, `catalogue-availability-statements.ts` | S2 (sequence) | A-17; §9.2 row 0028; `0020_create_staff_audit_events.sql` (an append-only table's grant) |
-| **S4** seen and digest | `0029`, `0030`; `NeonKitchenChangeStore`; the staff kitchens statement gains `changed_since_seen` (`revision <> effective-seen`, in SQL), an `only-changed` filter, changed-first sort and a count | 2 migrations, `neon-kitchen-change-store.ts`, `staff-kitchen-statements.ts` (mod), `kitchen-change-statements.ts` | S2b (sequence) | A-12, A-13; S-18; `0004` header (read only); `design-revision.ts`; `0022_create_design_request_states.sql`; `neon-staff-kitchen-reader.ts` |
+| **S4** seen and digest | `0029`, `0030`; `NeonKitchenChangeStore`; the staff kitchens statement gains `changed_since_seen` (`revision <> effective-seen`, in SQL), an `only-changed` filter, changed-first sort and a count; `listDigestEligible($now)` exactly as S-d1 restates it | 2 migrations, `neon-kitchen-change-store.ts`, `staff-kitchen-statements.ts` (mod), `kitchen-change-statements.ts` | S2b (sequence) | A-12, A-13; S-18; `0004` header (read only); `design-revision.ts`; `0022_create_design_request_states.sql`; `neon-staff-kitchen-reader.ts` |
 | **S5** notice marker | `0031`; `NeonPriceNoticeStore` storing the (version, availability revision) pair | 1 migration, `neon-price-notice-store.ts` | S4 (sequence) | A-11 (as amended 2026-10-26); `neon-configuration-repository.ts` (the write-token authorisation it must mirror, read only) |
 | **S3** defaults and usage | `0027`; `NeonKitchenDefaultsStore`; `NeonKitchenUsageReader` (jsonb paths; client-deleted rows excluded) with a **parity test against M3's `usesItem`** over shared fixture designs. For a linked accessory, the reader is given the set of build ids that price as the linked row (computed by the domain through `resolveCatalogEquivalent`), never a hand list | 1 migration, `neon-kitchen-defaults-store.ts`, `neon-kitchen-usage-reader.ts`, `kitchen-usage-statements.ts` | S5, M3 | A-9; M3's `item-usage.ts`; `design.ts:170-195` (the settings paths); `0016` (`deleted_by_client_at`) |
 | **S6** backup (OQ-13) | Price-book versions, the availability log and the defaults added to the scheduled export | `backup` statement (one file) | S3 | ADR 0012; `apps/web/src/lib/server/backup-designs.ts` (read only; its route is not S's) |
@@ -1430,11 +1439,37 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - no TypeScript code parses, orders or does arithmetic on a revision (checked with `rtk proxy grep` for `Number(`
     and `BigInt(` near `revision`);
   - a seen mark with a stale displayed revision leaves the badge on.
-- **S-d (S4; amended 2026-10-26, F6, F7):**
+- **S-d (S4; amended 2026-10-26, F6, F7, and the K1-review ruling):**
   - `claimDigestDay` called twice for one day key yields exactly one claim, inserted with `on conflict do nothing`;
-  - entries can only be inserted, never updated;
-  - a design digested since its last seen mark is not eligible;
-  - one past 30 days from `sent_at`, or at `offer-sent` or `closed`, is not eligible.
+  - entries can only be inserted, never updated.
+- **S-d1 — what `listDigestEligible($now)`'s SQL restates.** Each clause is checked by reading the statement, and each
+  is covered by S-d2:
+  - **(a) changed:** `d.revision <> coalesce(seen.seen_revision, latest_sub.design_revision)`, where `latest_sub` is
+    **exactly one row**, the latest submission for the design (a `lateral … order by created_at desc limit 1`).
+    Never a fan-out join over submissions.
+  - **(b) held:** `exists` a digest **entry** (not merely a round) for the design with `revision >` the effective seen
+    revision from (a). A claimed day with no entries holds nothing.
+  - **(c) window:** `d.sent_at > $now - interval '720 hours'`, with the **passed** `$now`. Never SQL `now()`, and never
+    `interval '30 days'`.
+  - **(d) status:** `coalesce(rs.status, 'new') not in ('offer-sent', 'closed')`.
+  - **(e) visibility:** `d.deleted_by_client_at is null and d.sent_at is not null`. S4 reads `designs.sent_at`, the
+    first send.
+  - **(f) shape:** exactly one row per design. The customer name is `nullif(btrim(a.name), '')`, else the request
+    reference.
+  - Its results carry `isChangedSinceSeen` and `isDigestedSinceSeen` as booleans, computed in SQL. The opaque
+    revisions are never compared above SQL (A-12).
+- **S-d2 — live parity with the domain** (it runs on `TEST_DATABASE_URL`, alone):
+  - over a fixture grid of:
+    - changed yes / no;
+    - a digest entry absent, at the seen revision, above it, or a claimed day with no entries;
+    - `sent_at` at 720 h − 1 ms, exactly 720 h, and 720 h + 1 ms before `$now`, including one pair whose window
+      crosses a Europe/Chisinau DST change;
+    - status `null` and each of the four;
+    - a client-deleted design and an unsent design;
+  - membership of `listDigestEligible($now)` equals K1's `isDigestEligible(facts)` for every cell;
+  - the test **imports `DIGEST_WINDOW_MS` and `DIGEST_STOPPING_STATUSES` from the domain**, never restating 720 h or
+    the two statuses;
+  - a sabotage of any one clause (a)–(e) must turn at least one cell red.
 - **S-e:** the usage reader and `usesItem` agree on every fixture design, including absent settings counted toward the
   fallback, a per-cabinet colour override, a seeded body earning a linked accessory through its equivalent, and a
   client-deleted design (excluded).
@@ -1611,16 +1646,16 @@ the frames and `engineering-conventions.md`. **Visual:** §13.3.
 
 | Wave | Must-fix items | Prod files | Depends on | Reading (in addition to the base) |
 | --- | --- | --- | --- | --- |
-| **K1** rules | (1) digest eligibility (A-13, on facts: `sentAt`, status, seen and digested instants, a changed flag computed in SQL); (2) the digest model (subject count, rows, footer facts); (3) the Europe/Chisinau day key | `staff-changes/digest-eligibility.ts`, `digest-model.ts`, `chisinau-day.ts` | MP-0. **Merge waits for OQ-9** | `staff/request-status.ts`; frame D10D's footer [mock L833, L828]; S-19 |
+| **K1** rules | (1) digest eligibility (A-13, on facts: `sentAt`, status, `now`, and the two SQL-computed booleans `isChangedSinceSeen` and `isDigestedSinceSeen`; no seen or digested instants, per the K1-review ruling); exporting `DIGEST_WINDOW_MS` (720 h) and `DIGEST_STOPPING_STATUSES`; (2) the digest model (subject count, rows, footer facts); (3) the Europe/Chisinau day key | `staff-changes/digest-eligibility.ts`, `digest-model.ts`, `chisinau-day.ts` | MP-0. **Merge waits for OQ-9** | `staff/request-status.ts`; frame D10D's footer [mock L833, L828]; S-19 |
 | **K2** server | `POST /api/staff/kitchens/{id}/seen` (displayed revision; `contact.read`; audit `kitchen-seen`; fail closed); the list API gains `changedSinceSeen`, `onlyChanged` and the changed count; the kitchen API gains the as-sent estimate (the stored `priced` total, never re-priced) and the current estimate (priced now, a refusal shown as no figure) | 2 routes (1 new, 1 modified), `staff-kitchens.ts` (mod), `staff-kitchen-actions.ts` (mod) | K1, S1, X2 | A-12; S-18; ADR 0173 *Dated note 2026-10-22* (the `from` precedent: the page states what it saw); `app/api/staff/kitchens/[id]/status/route.ts`; the active book from R1 (if merged; otherwise the current estimate wiring is left to Z1, stated) |
 | **K3** UI | D10A/C: badge, changed-first sort, "Doar modificate", the "Văzută … modificată din nou" sub-line; D10B: marks seen on open with the displayed revision, the "Trimisă"/"Actuală" switch (thumbnail, cabinet list with differing rows highlighted, no detailed diff), both estimates, status unchanged | `staff-kitchens-rows.tsx`, `staff-kitchen-filters.tsx`, `staff-kitchen-view.tsx`, `use-staff-kitchen.ts`, new `kitchen-version-switch.tsx` | K2, T1 | Frames D10A–C [mock L814-826]; `Lemnaria Cont Lot 3.dc.html` S2/S3; `staff-kitchens-list.tsx`, `staff-kitchen-page.tsx` |
-| **K4** digest and counter | Cron `/api/cron/staff-change-digest` (`cron-auth`, claim the day, eligible list, send through the mail port, record entries); the HTML and plain-text message; recipients hold `contact.read` with a confirmed address; the customer's name from the profile, else the reference; the nav counter | cron route, `lib/server/mail/staff-change-digest.ts`, `vercel.json`, `staff-shell.tsx`/`staff-nav-sheet.tsx` (handoff), `use-changed-kitchen-count.ts` | K3, U1, S4; **OQ-10** | Frame D10D [mock L827-828]; A-13; S-21; `lib/server/mail/mail-sender.ts`, `lead-notification-html.ts` (the branded pattern); `lib/server/cron-auth.ts`; `app/api/cron/prune-rate-limits/**`; `vercel.json` |
+| **K4** digest and counter | Cron `/api/cron/staff-change-digest` (`cron-auth`, claim the day, eligible list, send through the mail port, record entries **from the deduplicated model rows, each mapped to the revision the port returned for that design**, after a successful send); the HTML and plain-text message; recipients hold `contact.read` with a confirmed address; the customer's name from the profile, else the reference; the nav counter | cron route, `lib/server/mail/staff-change-digest.ts`, `vercel.json`, `staff-shell.tsx`/`staff-nav-sheet.tsx` (handoff), `use-changed-kitchen-count.ts` | K3, U1, S4; **OQ-10** | Frame D10D [mock L827-828]; A-13; S-21; `lib/server/mail/mail-sender.ts`, `lead-notification-html.ts` (the branded pattern); `lib/server/cron-auth.ts`; `app/api/cron/prune-rate-limits/**`; `vercel.json` |
 
 **K acceptance:**
 
-- **K1-a:** a property over random facts: eligible if and only if (changed) ∧ (not digested since last seen) ∧
-  (`now − sentAt` < 30 days) ∧ (status ∉ {offer-sent, closed}). The 30-day boundary is exclusive at exactly 30 × 24
-  h, a choice recorded in the wave.
+- **K1-a:** a property over random facts: eligible if and only if `isChangedSinceSeen` ∧ ¬`isDigestedSinceSeen` ∧
+  (`sentAt > now − DIGEST_WINDOW_MS`) ∧ (status ∉ `DIGEST_STOPPING_STATUSES`). The boundary is exclusive at exactly
+  720 h.
 - **K2-a:** opening the page with a revision older than the current one leaves the badge on. A non-staff session gets
   `403`. A seen write without its audit row is refused (`503`).
 - **K2-c (amended 2026-10-26, F9, P-L3-4):**
@@ -1639,6 +1674,11 @@ the frames and `engineering-conventions.md`. **Visual:** §13.3.
   - a day with nothing eligible sends nothing;
   - a kitchen appears once per round;
   - must-not: the e-mail contains a phone number, a postal address or a request's personal column.
+- **K4-d (K1-review ruling):**
+  - the entries recorded are exactly the e-mail's rows, one per design, each with the revision `listDigestEligible`
+    returned for it;
+  - so the next run's `isDigestedSinceSeen` holds that revision and no later one, and a save after the digest makes
+    the kitchen eligible again only after it is seen and changed again (A-13).
 - **K4-b (amended 2026-10-26, F6; supersedes "the next day retries the round"):**
   - the day's claim is inserted **before** sending (`on conflict do nothing`);
   - a mail-port failure **loses that day**. No entries are written, so the same kitchens are eligible on the next
