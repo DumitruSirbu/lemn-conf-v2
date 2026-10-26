@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { neon } from "@neondatabase/serverless";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { countContactSubmissionsForTests } from "../src/count-contact-submissions-for-tests.js";
@@ -31,7 +31,8 @@ function newId(): string {
 }
 
 describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
-  const sql = neon(liveTestDatabaseUrl);
+  // Opened in `beforeAll`: a skipped suite's body still runs, and with no database configured the URL is empty.
+  let sql: NeonQueryFunction<false, false>;
 
   async function plant(id: string): Promise<void> {
     const recorded = await new NeonContactSubmissionStore(
@@ -41,6 +42,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   }
 
   beforeAll(async () => {
+    sql = neon(liveTestDatabaseUrl);
     await runMigrations(liveTestDatabaseUrl);
   });
 

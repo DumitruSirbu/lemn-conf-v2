@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
   readDashboardAuditEntry,
   type ItemRef,
 } from "@lemnaria/configurator-domain";
@@ -23,6 +24,7 @@ import {
   type MarkKitchenSeenRequest,
   type PriceBookStore,
   type PriceNoticeStore,
+  type PublishAuditRecord,
   type PublishPriceBookRequest,
   type PublishPriceBookResult,
   type SaveKitchenDefaultsRequest,
@@ -111,7 +113,7 @@ describe("the write requests take the members the plan (as amended) names", () =
     >().toBeString();
     expectTypeOf<
       PublishPriceBookRequest["audit"]
-    >().toEqualTypeOf<DashboardAuditRecord>();
+    >().toEqualTypeOf<PublishAuditRecord>();
   });
 
   it("a defaults save: both expected revisions, the defaults and the audit", () => {
@@ -271,7 +273,7 @@ describe("no answer is absent", () => {
   });
 
   it("reads a never-written revision as the one value the domain's audit shape also accepts", () => {
-    const reading = readDashboardAuditEntry("catalogue-item-active-changed", {
+    const reading = readDashboardAuditEntry(CATALOGUE_ACTIVATION_AUDIT_ACTION, {
       itemKind: "material",
       itemId: "material.painted-mdf",
       active: true,

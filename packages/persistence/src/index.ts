@@ -405,6 +405,7 @@ export {
   NEVER_RECORDED,
   NO_ACTIVE_VERSION,
   NONE_SAVED,
+  PRICE_VERSION_PAGE_SIZE,
   REVISION_AHEAD,
   UNKNOWN_VERSION,
   VERSION_NOT_FOUND,
@@ -436,6 +437,8 @@ export type {
   NoActiveVersion,
   NoneSaved,
   PriceBookStore,
+  PublishAuditRecord,
+  PricePublishedAuditInput,
   PriceDraft,
   PriceNoticeStore,
   PriceVersionPage,
@@ -461,6 +464,36 @@ export type {
   WriteDraftRequest,
   WriteDraftResult,
 } from "./m10-ports.js";
+// The fakes of those ports. They share one audit log, one availability head and one price book where the real stores
+// share tables, so a test builds them together (`tests/support/fake-dashboard-world.ts`).
+export {
+  FakeDashboardAuditLedger,
+  FakeRevisionHead,
+} from "./fake-dashboard-support.js";
+export type {
+  FakeDashboardAuditLedgerOptions,
+  HeldDashboardAuditEvent,
+  StageDashboardAuditRequest,
+  StagedDashboardAudit,
+} from "./fake-dashboard-support.js";
+export { FakePriceBookStore } from "./fake-price-book-store.js";
+export type { FakePriceBookStoreOptions } from "./fake-price-book-store.js";
+export { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
+export type { FakeCatalogueAvailabilityStoreOptions } from "./fake-catalogue-availability-store.js";
+export { FakeKitchenDefaultsStore } from "./fake-kitchen-defaults-store.js";
+export type {
+  FakeKitchenDefaultsStoreOptions,
+  HeldDesignUsage,
+} from "./fake-kitchen-defaults-store.js";
+export { FakeKitchenChangeStore } from "./fake-kitchen-change-store.js";
+export type {
+  FakeKitchenChangeStoreOptions,
+  HeldChangeKitchen,
+  HeldDigestRound,
+  HeldSeenMark,
+} from "./fake-kitchen-change-store.js";
+export { FakePriceNoticeStore } from "./fake-price-notice-store.js";
+export type { FakePriceNoticeStoreOptions } from "./fake-price-notice-store.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,

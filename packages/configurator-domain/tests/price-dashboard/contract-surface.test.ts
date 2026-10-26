@@ -281,7 +281,7 @@ describe("the activation the availability store is handed (M4)", () => {
     expectTypeOf<
       Extract<
         DashboardAuditEntry,
-        { action: "catalogue-item-active-changed" }
+        { action: typeof auditModule.CATALOGUE_ACTIVATION_AUDIT_ACTION }
       >["detail"]
     >().toHaveProperty("availabilityRevision");
   });
