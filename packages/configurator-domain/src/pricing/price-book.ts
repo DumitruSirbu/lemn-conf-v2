@@ -10,7 +10,8 @@
 // the product (hence `pricedFlat`). A fifth axis, not a fourth combination, is the cue to revisit.
 //
 // Nothing here keys on a width and nothing under `pricing/` names the catalogue's width-step
-// constant (`pricing-seams.test.ts` reads the source for it): a body built at 575 is priced at 575.
+// constant (`pricing-seams.test.ts` reads the source for it). A linear shape prices a body built at 575
+// at 575; an anchored shape rounds width and height up to the pricing step first, so 575 prices as 600.
 
 import {
   anchoredShapeReadsDoorLeaves,
@@ -521,9 +522,10 @@ export interface PricedTerm {
  * total reaches `1e16`. Every prefix of an accepted sum is safe, so an accepted total is the true
  * integer total.
  *
- * A cabinet formula is order-invariant: for a book `parsePriceBook` accepted, no prefix of a shape's
- * four terms exceeds `4 × MAX_PRICE_COEFFICIENT_MINOR × MAX_DESIGN_DIMENSION_MM` (9 007 199 254 720 000),
- * just under `2^53 − 1`. The hardware line is not proved: its count is a design's whole mechanism
+ * A cabinet formula is order-invariant: for a book `parsePriceBook` accepted, no prefix of a linear
+ * shape's four terms exceeds `4 × MAX_PRICE_COEFFICIENT_MINOR × MAX_DESIGN_DIMENSION_MM` (9 007 199 254 720 000),
+ * just under `2^53 − 1`. An anchored shape's five terms are multiplied by step and leaf counts, never by a
+ * millimetre figure, so its prefixes stay far below that ceiling. The hardware line is not proved: its count is a design's whole mechanism
  * count and nothing caps the mechanisms one body carries. A prefix leaves the safe range only past
  * 13 333 mechanisms; at `MAX_PLACEMENTS` (279) and an assumed twelve a body the ceiling is 3 348,
  * about 3.98× under. Closing it means a domain constant for that cap.

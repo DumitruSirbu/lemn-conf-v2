@@ -4,22 +4,72 @@
 // This module counts steps and never multiplies: it answers how many 50 mm steps, door leaves and height steps
 // a body sits away from its anchor, in integers. `price-book.ts` pairs each count with the book's rate and sums
 // them through the one checked arithmetic, so this file holds no amount and imports no value from the book.
+import { describeDeclared, isRecord, readDeclared } from "./book-reading.js";
 import type { PricedBody } from "./price-book.js";
 
 /** The unit a width or height is rounded up to and a step is quoted per ("+ lei per 50 mm"). Declared here
  *  as a pricing unit and never derived from the catalogue's own width module (ADR 0177 A-4). */
 export const PRICE_STEP_MM = 50;
 
-/** The four anchored shapes. One shape per combination of terms, as the linear shapes are: a shape is a statement
- *  about the product. */
-export const ANCHORED_SHAPES = [
-  "anchored-width",
-  "anchored-width-and-door-leaves",
-  "anchored-width-and-height",
-  "anchored-width-height-and-door-leaves",
-] as const;
+/** What an anchored shape may read beyond its anchor and its width steps. */
+type AnchoredTerm = "door-leaves" | "height";
 
-export type AnchoredShape = (typeof ANCHORED_SHAPES)[number];
+/** The one table of which optional terms each anchored shape reads: one shape per combination, as the linear shapes
+ *  are, since a shape is a statement about the product. The shape list, the readers below, the arithmetic and the
+ *  parser's field lists all derive from it. */
+const TERMS_READ_BY_SHAPE = {
+  "anchored-width": [],
+  "anchored-width-and-door-leaves": ["door-leaves"],
+  "anchored-width-and-height": ["height"],
+  "anchored-width-height-and-door-leaves": ["height", "door-leaves"],
+} as const satisfies Record<string, readonly AnchoredTerm[]>;
+
+export type AnchoredShape = keyof typeof TERMS_READ_BY_SHAPE;
+
+export const ANCHORED_SHAPES = Object.keys(
+  TERMS_READ_BY_SHAPE,
+) as readonly AnchoredShape[];
+
+export function isAnchoredShape(declared: unknown): declared is AnchoredShape {
+  return (
+    typeof declared === "string" &&
+    (ANCHORED_SHAPES as readonly string[]).includes(declared)
+  );
+}
+
+/** What a field of an anchored formula holds: a width or height the price is quoted at, a price, or a step (what one
+ *  `PRICE_STEP_MM` adds or takes off, never negative since the direction of a step is its name). */
+export type AnchoredFieldKind = "dimension" | "price" | "step";
+
+export interface AnchoredField {
+  readonly name: string;
+  readonly kind: AnchoredFieldKind;
+  /** The optional term that reads this field; absent means every anchored shape reads it. */
+  readonly term?: AnchoredTerm;
+}
+
+const ANCHORED_FIELDS: readonly AnchoredField[] = [
+  { name: "anchorWidthMm", kind: "dimension" },
+  { name: "anchorMinor", kind: "price" },
+  { name: "perStepWiderMinor", kind: "step" },
+  { name: "perStepNarrowerMinor", kind: "step" },
+  { name: "perExtraDoorLeafMinor", kind: "price", term: "door-leaves" },
+  { name: "anchorHeightMm", kind: "dimension", term: "height" },
+  { name: "perHeightStepMinor", kind: "step", term: "height" },
+];
+
+/** The fields a formula of this shape carries, exactly: no more and no fewer. */
+export function anchoredFieldsReadBy(
+  shape: AnchoredShape,
+): readonly AnchoredField[] {
+  return ANCHORED_FIELDS.filter(
+    (field) => field.term === undefined || shapeReads(shape, field.term),
+  );
+}
+
+function shapeReads(shape: AnchoredShape, term: AnchoredTerm): boolean {
+  return (TERMS_READ_BY_SHAPE[shape] as readonly AnchoredTerm[]).includes(term);
+}
 
 export const PRICE_PER_SIZE_SHAPE = "price-per-size" as const;
 
@@ -63,18 +113,12 @@ export interface PricePerSizeFormula {
 
 /** Whether a shape carries the signed door-leaf term. */
 export function anchoredShapeReadsDoorLeaves(shape: AnchoredShape): boolean {
-  return (
-    shape === "anchored-width-and-door-leaves" ||
-    shape === "anchored-width-height-and-door-leaves"
-  );
+  return shapeReads(shape, "door-leaves");
 }
 
 /** Whether a shape carries the signed height term. */
 export function anchoredShapeReadsHeight(shape: AnchoredShape): boolean {
-  return (
-    shape === "anchored-width-and-height" ||
-    shape === "anchored-width-height-and-door-leaves"
-  );
+  return shapeReads(shape, "height");
 }
 
 /** How far a body sits from its anchor, in whole units. Each is signed: negative means narrower, fewer leaves,
@@ -139,12 +183,26 @@ function priceStepsFromAnchor(
   anchor: DeclaredDimension,
   built: DeclaredDimension,
 ): number {
-  const anchorMm = wholePositiveMillimetres(anchor);
-  const builtMm = roundUpToPriceStepMm(wholePositiveMillimetres(built));
-  if (anchorMm % PRICE_STEP_MM !== 0) {
+  if (!isWholePositiveStepMultiple(anchor.declared)) {
     throw new MalformedPriceDimensionError(anchor);
   }
-  return (builtMm - anchorMm) / PRICE_STEP_MM;
+  const builtMm = roundUpToPriceStepMm(wholePositiveMillimetres(built));
+  return (builtMm - anchor.declared) / PRICE_STEP_MM;
+}
+
+/** A dimension a price is quoted at: whole, positive and on the pricing step. A parser adds its upper bound. */
+export function isWholePositiveStepMultiple(
+  declared: unknown,
+): declared is number {
+  return isWholePositive(declared) && declared % PRICE_STEP_MM === 0;
+}
+
+function isWholePositive(declared: unknown): declared is number {
+  return (
+    typeof declared === "number" &&
+    Number.isSafeInteger(declared) &&
+    declared > 0
+  );
 }
 
 /** `⌈mm / PRICE_STEP_MM⌉ × PRICE_STEP_MM` for a width or height in whole millimetres. */
@@ -156,13 +214,7 @@ export function roundUpToPriceStepMm(millimetres: number): number {
  *  body does not have. */
 function wholePositiveMillimetres(dimension: DeclaredDimension): number {
   const { declared } = dimension;
-  if (
-    typeof declared === "number" &&
-    Number.isSafeInteger(declared) &&
-    declared > 0
-  ) {
-    return declared;
-  }
+  if (isWholePositive(declared)) return declared;
   throw new MalformedPriceDimensionError(dimension);
 }
 
@@ -198,10 +250,21 @@ export function listedSizeFor(
 }
 
 /** `unknown` although a formula declares a list: the book is data from outside TypeScript, and the parser is not
- *  the only caller. */
+ *  the only caller. Each entry must be an object with a numeric width, which the search reads; its amount is
+ *  checked as a coefficient where it is charged. */
 function readListedSizes(declared: unknown): readonly PricedSize[] {
-  if (Array.isArray(declared)) return declared as readonly PricedSize[];
-  throw new MalformedPriceDimensionError({ declared, field: "sizes" });
+  if (!Array.isArray(declared)) {
+    throw new MalformedPriceDimensionError({ declared, field: "sizes" });
+  }
+  for (const size of declared as readonly unknown[]) {
+    if (!isRecord(size) || typeof readDeclared(size, "widthMm") !== "number") {
+      throw new MalformedPriceDimensionError({
+        declared: size,
+        field: "sizes",
+      });
+    }
+  }
+  return declared as readonly PricedSize[];
 }
 
 /** Every dimension a refusal can name: a book's anchors and sizes, and the body's own width and height. */
@@ -218,7 +281,7 @@ export class MalformedPriceDimensionError extends Error {
   constructor(dimension: DeclaredDimension) {
     super(
       `The price cannot be read on "${dimension.field}", which is a whole, positive count of millimetres ` +
-        `and a multiple of ${String(PRICE_STEP_MM)} where a book states it. Found: ${describe(dimension.declared)}.`,
+        `and a multiple of ${String(PRICE_STEP_MM)} where a book states it. Found: ${describeDeclared(dimension.declared)}.`,
     );
     this.name = "MalformedPriceDimensionError";
   }
@@ -247,16 +310,5 @@ export class MissingAnchorLeafCountError extends Error {
       "An anchored door shape needs the leaf count at the anchor width, and the body supplies none.",
     );
     this.name = "MissingAnchorLeafCountError";
-  }
-}
-
-/** Runs inside a refusal being built, so it must not raise: a book can declare a BigInt or a cycle. */
-function describe(declared: unknown): string {
-  if (declared === undefined) return "nothing";
-  try {
-    const rendered = JSON.stringify(declared) as string | undefined;
-    return rendered ?? typeof declared;
-  } catch {
-    return typeof declared;
   }
 }

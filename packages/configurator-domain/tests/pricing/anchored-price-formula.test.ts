@@ -9,6 +9,9 @@ import { deriveDoorCount } from "../../src/catalog.js";
 import { MAX_DESIGN_DIMENSION_MM } from "../../src/design-bounds.js";
 import {
   ANCHORED_SHAPES,
+  anchoredFieldsReadBy,
+  anchoredShapeReadsDoorLeaves,
+  anchoredShapeReadsHeight,
   MalformedPriceDimensionError,
   MissingAnchorLeafCountError,
   NoPriceForSizeError,
@@ -138,6 +141,49 @@ const NON_DOOR_SHAPES = ANCHORED_SHAPES.filter(
 const DOOR_SHAPES = ANCHORED_SHAPES.filter((shape) =>
   shape.includes("door-leaves"),
 );
+
+describe("the one table of what each anchored shape reads", () => {
+  it("gives every shape the four fields all share, and its optional ones exactly when the shape reads them", () => {
+    for (const shape of ANCHORED_SHAPES) {
+      const names = anchoredFieldsReadBy(shape).map((field) => field.name);
+
+      expect(names, shape).toEqual(
+        expect.arrayContaining([
+          "anchorWidthMm",
+          "anchorMinor",
+          "perStepWiderMinor",
+          "perStepNarrowerMinor",
+        ]),
+      );
+      expect(names.includes("perExtraDoorLeafMinor"), shape).toBe(
+        anchoredShapeReadsDoorLeaves(shape),
+      );
+      expect(names.includes("perHeightStepMinor"), shape).toBe(
+        anchoredShapeReadsHeight(shape),
+      );
+      expect(names.includes("anchorHeightMm"), shape).toBe(
+        anchoredShapeReadsHeight(shape),
+      );
+    }
+  });
+
+  it("lists the four shapes, one for each combination of the two optional terms", () => {
+    expect(
+      ANCHORED_SHAPES.map((shape) => [
+        anchoredShapeReadsDoorLeaves(shape),
+        anchoredShapeReadsHeight(shape),
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        [false, false],
+        [true, false],
+        [false, true],
+        [true, true],
+      ]),
+    );
+    expect(ANCHORED_SHAPES).toHaveLength(4);
+  });
+});
 
 describe("round-up to the pricing step (A-2, A-4)", () => {
   propertyTest.prop([fc.integer({ min: 1, max: MAX_DESIGN_DIMENSION_MM })])(
@@ -445,6 +491,20 @@ describe("a fixed-size row prices at the smallest listed size that reaches the b
     expect(priceWith(offStep, 200)).toBe(9);
     expect(() => priceWith(offStep, 201)).toThrow(NoPriceForSizeError);
   });
+
+  it.each([
+    ["null", [null]],
+    ["a number", [300]],
+    ["an object with no width", [{ amountMinor: 1 }]],
+    ["an object with a string width", [{ widthMm: "300", amountMinor: 1 }]],
+  ])(
+    "refuses a list holding %s rather than reading a width off it",
+    (_name, sizes) => {
+      expect(() =>
+        priceWith(sizes as unknown as readonly PricedSize[], 300),
+      ).toThrow(MalformedPriceDimensionError);
+    },
+  );
 
   it("names the width and the listed sizes in the refusal", () => {
     expect(() =>

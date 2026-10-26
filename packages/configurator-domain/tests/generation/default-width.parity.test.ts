@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptsWidthMm,
   INSERTABLE_BODY_DEFINITIONS,
+  resolveBuildableSizes,
   toInsertableBody,
 } from "../../src/catalog.js";
 import {
@@ -21,25 +22,13 @@ import {
   type DesignRoom,
   type GenerationCoreRole,
 } from "../../src/index.js";
+import type { DefaultWidthSource } from "../../src/void-engine.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const OCCURRED_AT = "2026-10-26T09:00:00.000Z";
 /** The fewest generated bodies a row may rest on: `base-hob-oven` stands in only the kitchens with no oven tower. */
 const FLOOR_PER_ROW = 5;
-
-/** Rows whose default the owner still confirms (backlog 276, plan OQ-8): the one place they are listed. It holds
- *  the three rows the generator never builds, which the last tests below require to be here, and the three the
- *  backlog names although the generator does plan them (`base-panbank`, `hood`, `tall-pantry`, whose default is
- *  the generator's width and may still be 800 for the pantry). */
-const PROPOSED_DEFAULT_WIDTH_BUILD_IDS: readonly string[] = [
-  "base-panbank",
-  "wall-lift",
-  "open-shelf",
-  "hood",
-  "tall-pantry",
-  "tall-fridge-housing",
-];
 
 function priorityWidthMm(role: GenerationCoreRole): number {
   const item = GENERATION_PRIORITIES.find(
@@ -49,20 +38,30 @@ function priorityWidthMm(role: GenerationCoreRole): number {
   return item.widthMm;
 }
 
-/** What the generator's own constants say each planned row is made at. `base-panbank`, the pantry and the tower are
- *  one storage module wide by the generator's comments, which the generated widths below hold to. */
-const PLANNED_BY_CONSTANT: readonly (readonly [string, number])[] = [
+/** What the generator's own exported constants say each planned row is made at. */
+const PLANNED_BY_CONSTANT: ReadonlyMap<string, number> = new Map([
   ["fridge-free", priorityWidthMm("fridge")],
   ["base-sink", priorityWidthMm("sink")],
   ["base-3drawer", priorityWidthMm("preparation")],
   ["base-hob-oven", priorityWidthMm("hob")],
   ["base-hob-2drawer", priorityWidthMm("hob")],
   ["base-cabinet", STORAGE_BODY_WIDTH_MM],
-  ["base-panbank", STORAGE_BODY_WIDTH_MM],
   ["base-dishwasher", DISHWASHER_PLANNED_WIDTH_MM],
   ["tall-pantry", STORAGE_BODY_WIDTH_MM],
-  ["tall-oven-tower", STORAGE_BODY_WIDTH_MM],
+]);
+
+/** Generator rows whose width the generator takes from the catalogue or from the row beneath, so it exports no
+ *  constant for them: their parity is the generated widths alone. */
+const PLANNED_WITHOUT_A_CONSTANT: readonly string[] = [
+  "base-bottle-cargo",
+  "wall-cabinet",
 ];
+
+function buildIdsWithSource(source: DefaultWidthSource): readonly string[] {
+  return [...INSERTABLE_BODY_DEFINITIONS]
+    .filter(([, definition]) => definition.defaultWidthSource === source)
+    .map(([buildId]) => buildId);
+}
 
 function insertableRows(): readonly (readonly [string, number | undefined])[] {
   return [...INSERTABLE_BODY_DEFINITIONS].map(([buildId, definition]) => [
@@ -176,15 +175,45 @@ describe("every insertable row declares the width it is quoted at", () => {
   });
 });
 
-describe("the default width is the width the generator plans each of its rows at (P1-e)", () => {
-  it.each(PLANNED_BY_CONSTANT)(
+describe("every default width says where it comes from", () => {
+  it("names one of the three sources on every insertable row, and uses all three", () => {
+    const sources = [...INSERTABLE_BODY_DEFINITIONS].map(
+      ([, definition]) => definition.defaultWidthSource,
+    );
+
+    expect(
+      sources.every(
+        (source) =>
+          source === "generator" ||
+          source === "only-width" ||
+          source === "proposed",
+      ),
+    ).toBe(true);
+    expect(new Set(sources)).toEqual(
+      new Set(["generator", "only-width", "proposed"]),
+    );
+  });
+});
+
+describe("a generator row's default is the width the generator plans it at (P1-e)", () => {
+  const GENERATOR_ROWS = buildIdsWithSource("generator");
+
+  it("accounts for every generator row by a constant or by its generated widths, and no other", () => {
+    expect([...GENERATOR_ROWS].sort()).toEqual(
+      [...PLANNED_BY_CONSTANT.keys(), ...PLANNED_WITHOUT_A_CONSTANT].sort(),
+    );
+  });
+
+  it.each(GENERATOR_ROWS.filter((buildId) => PLANNED_BY_CONSTANT.has(buildId)))(
     "%s declares the width the generator's constants plan it at",
-    (buildId, plannedMm) => {
-      expect(CATALOG.get(buildId)?.defaultWidthMm).toBe(plannedMm);
+    (buildId) => {
+      expect(CATALOG.get(buildId)?.defaultWidthMm).toBe(
+        PLANNED_BY_CONSTANT.get(buildId),
+      );
     },
   );
 
-  it.each(PLANNED_BY_CONSTANT)(
+  it.each(GENERATOR_ROWS)(
     "%s is generated at its default width more often than at any other width, on enough bodies to say",
     (buildId) => {
       const widths = GENERATED.get(buildId) ?? [];
@@ -193,39 +222,45 @@ describe("the default width is the width the generator plans each of its rows at
       expect(modalWidthOf(widths)).toBe(CATALOG.get(buildId)?.defaultWidthMm);
     },
   );
-
-  it("generates the bottle cargo, the hood and the wall cabinet at their defaults too", () => {
-    for (const buildId of ["base-bottle-cargo", "hood", "wall-cabinet"]) {
-      const widths = GENERATED.get(buildId) ?? [];
-
-      expect(widths.length, buildId).toBeGreaterThanOrEqual(FLOOR_PER_ROW);
-      expect(modalWidthOf(widths), buildId).toBe(
-        CATALOG.get(buildId)?.defaultWidthMm,
-      );
-    }
-  });
 });
 
-describe("a row the generator never plans is a proposed default, and listed once", () => {
-  const NEVER_GENERATED = [...INSERTABLE_BODY_DEFINITIONS]
-    .map(([buildId]) => buildId)
-    .filter((buildId) => !GENERATED.has(buildId));
+describe("a row with one width declares it, and every other generated row agrees with its default", () => {
+  it.each(buildIdsWithSource("only-width"))(
+    "%s is made in exactly one width and declares that width",
+    (buildId) => {
+      expect(resolveBuildableSizes(CATALOG, buildId)).toEqual([
+        CATALOG.get(buildId)?.defaultWidthMm,
+      ]);
+    },
+  );
 
-  it("names the rows no swept kitchen contains", () => {
-    expect(NEVER_GENERATED.sort()).toEqual(
-      ["open-shelf", "tall-fridge-housing", "wall-lift"].sort(),
-    );
-  });
+  it.each(
+    [...GENERATED.keys()].filter(
+      (buildId) => CATALOG.get(buildId)?.insertable === true,
+    ),
+  )(
+    "%s, wherever the generator builds it, stands mostly at its default",
+    (buildId) => {
+      expect(modalWidthOf(GENERATED.get(buildId) ?? [])).toBe(
+        CATALOG.get(buildId)?.defaultWidthMm,
+      );
+    },
+  );
+});
 
-  it("lists every never-generated row as proposed, so none is a default nobody has confirmed", () => {
-    for (const buildId of NEVER_GENERATED) {
-      expect(PROPOSED_DEFAULT_WIDTH_BUILD_IDS, buildId).toContain(buildId);
-    }
-  });
+describe("a row the generator never plans is a proposed default", () => {
+  it("is declared proposed for every insertable row no swept kitchen contains", () => {
+    const neverGenerated = [...INSERTABLE_BODY_DEFINITIONS]
+      .map(([buildId]) => buildId)
+      .filter((buildId) => !GENERATED.has(buildId));
 
-  it("lists as proposed only rows that exist", () => {
-    for (const buildId of PROPOSED_DEFAULT_WIDTH_BUILD_IDS) {
-      expect(CATALOG.get(buildId)?.insertable, buildId).toBe(true);
+    expect([...neverGenerated].sort()).toEqual([
+      "open-shelf",
+      "tall-fridge-housing",
+      "wall-lift",
+    ]);
+    for (const buildId of neverGenerated) {
+      expect(buildIdsWithSource("proposed"), buildId).toContain(buildId);
     }
   });
 });

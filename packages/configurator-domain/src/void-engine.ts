@@ -156,9 +156,12 @@ export interface BodyDefinition {
   /** §9's modular widths a customer picks from (ADR 0035); the bound, not this list, decides whether a width may be
    *  built. */
   readonly sizesMm?: readonly number[];
-  /** The width the generator plans this row at, and the width its anchor price is quoted at. Declared once on
-   *  every insertable row and never inferred; a parity test holds it to the generator (backlog 276). */
+  /** The width a cabinet takes when there is room, and the width its anchor price is quoted at. Declared once on
+   *  every insertable row and never inferred (backlog 276). */
   readonly defaultWidthMm?: number;
+  /** Where `defaultWidthMm` comes from: the width the generator plans (a parity test holds it there), the row's only
+   *  width, or a proposal the owner has yet to confirm. */
+  readonly defaultWidthSource?: DefaultWidthSource;
   /** Narrowest width this row permits; absent means `MIN_WIDTH_M`. Above it is a builder limitation (`base-sink`
    *  560); below it a product decision (`base-bottle-cargo` 200; ADR 0026). */
   readonly minWidthMm?: number;
@@ -179,6 +182,10 @@ export interface BodyDefinition {
   /** Present only on an entry that offers nothing structural, saying why (§11 row 16, §13.1). */
   readonly structuralReason?: StructuralReason;
 }
+
+/** Where a row's default width comes from: `generator` is what the kitchen generator plans it at, `only-width` the
+ *  one width it is made in, `proposed` a value the owner has yet to confirm. */
+export type DefaultWidthSource = "generator" | "only-width" | "proposed";
 
 export type BodyCatalog = ReadonlyMap<string, BodyDefinition>;
 

@@ -132,9 +132,10 @@ export type PricingFailureCode =
   | "NO_PRICE_FOR_SIZE"
   /** A selection, or a book's own default, names a tier the book does not hold. */
   | "UNKNOWN_TIER"
-  /** The row a body is priced as declares no usable door-leaf count, so the door step cannot be taken
-   *  (`describePricedBody`). Raised on the door-step path alone, never on a hardware quantity: a body
-   *  whose mechanisms cannot be counted raises `UNDECLARED_FRONT_POPULATION`. */
+  /** The row a body is priced as declares no usable door-leaf count, so a linear shape's door step cannot be
+   *  taken (`describePricedBody`). Raised on that path alone, never on a hardware quantity: a body whose
+   *  mechanisms cannot be counted, or whose leaves an anchored door shape cannot count, raises
+   *  `UNDECLARED_FRONT_POPULATION`. */
   | "UNDECLARED_HANDLE_COUNT"
   /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
    *  latches cannot be counted (ADR 0092 decision 1). Never read as zero mechanisms: that would price a

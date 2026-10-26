@@ -15,6 +15,7 @@ import {
   type Band,
   type BodyCatalog,
   type BodyDefinition,
+  type DefaultWidthSource,
   type WidthFlex,
   type WidthRangeMm,
 } from "./void-engine.js";
@@ -78,12 +79,71 @@ export const WIDTH_STEP_MM = 50;
  *  leaf and this module is not (ADR 0052). */
 export const CABINETRY_MAX_WIDTH_MM = 800;
 
-/** The width most rows are made at when there is room: the module the generator plans a cabinet at. Rows with another
- *  width (the bottle cargo, the freestanding fridge) name their own. A parity test ties every `defaultWidthMm` to the
- *  generator (ADR 0175; backlog 276). */
+/** A row's default width and where the value comes from. */
+interface DefaultWidth {
+  readonly widthMm: number;
+  readonly source: DefaultWidthSource;
+}
+
+/** The module the generator plans a cabinet at, and the width most rows are made at when there is room. */
 const STANDARD_DEFAULT_WIDTH_MM = 600;
-const BOTTLE_CARGO_DEFAULT_WIDTH_MM = 300;
-const FREESTANDING_FRIDGE_DEFAULT_WIDTH_MM = 700;
+
+const GENERATED_AT_THE_STANDARD_MODULE: DefaultWidth = {
+  widthMm: STANDARD_DEFAULT_WIDTH_MM,
+  source: "generator",
+};
+const ONLY_WIDTH_IS_THE_STANDARD_MODULE: DefaultWidth = {
+  widthMm: STANDARD_DEFAULT_WIDTH_MM,
+  source: "only-width",
+};
+const PROPOSED_AT_THE_STANDARD_MODULE: DefaultWidth = {
+  widthMm: STANDARD_DEFAULT_WIDTH_MM,
+  source: "proposed",
+};
+
+/**
+ * Every insertable row's default width and where the value comes from (ADR 0175; backlog 276; the dashboard shows
+ * "propus" on a `proposed` one, which is the owner's to confirm). Declared once here, beside the rows, so the
+ * generator, the anchor price and the dashboard read one figure. A parity test holds each `generator` row to what the
+ * generator plans.
+ */
+const DEFAULT_WIDTHS: ReadonlyMap<string, DefaultWidth> = new Map([
+  ["base-cabinet", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-3drawer", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-sink", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-hob-oven", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-dishwasher", GENERATED_AT_THE_STANDARD_MODULE],
+  ["base-bottle-cargo", { widthMm: 300, source: "generator" }],
+  ["fridge-free", { widthMm: 700, source: "generator" }],
+  ["wall-cabinet", GENERATED_AT_THE_STANDARD_MODULE],
+  ["tall-pantry", GENERATED_AT_THE_STANDARD_MODULE],
+  // The hob role's other body: planned at the hob's width wherever an oven tower stands, so both hob bases carry
+  // one source.
+  ["base-hob-2drawer", GENERATED_AT_THE_STANDARD_MODULE],
+  ["tall-oven-tower", ONLY_WIDTH_IS_THE_STANDARD_MODULE],
+  ["base-panbank", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["hood", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["wall-lift", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["open-shelf", PROPOSED_AT_THE_STANDARD_MODULE],
+  ["tall-fridge-housing", PROPOSED_AT_THE_STANDARD_MODULE],
+]);
+
+/** The definition with its default width and the source of it. Throws for a row with none, so a new insertable row
+ *  cannot be added without saying what width it is quoted at. */
+function withDefaultWidth(
+  buildId: string,
+  definition: BodyDefinition,
+): BodyDefinition {
+  const declared = DEFAULT_WIDTHS.get(buildId);
+  if (declared === undefined) {
+    throw new Error(`The catalogue declares no default width for "${buildId}"`);
+  }
+  return {
+    ...definition,
+    defaultWidthMm: declared.widthMm,
+    defaultWidthSource: declared.source,
+  };
+}
 
 /** Every multiple of `WIDTH_STEP_MM` inside these ranges, derived so the chips cannot drift from the bound (ADR 0035
  *  decision 2). */
@@ -448,7 +508,7 @@ export type CatalogEntry = readonly [string, BodyDefinition];
 export function buildInsertableBodyDefinitions(
   cabinetDepthMm: number,
 ): readonly CatalogEntry[] {
-  return [
+  const rows: readonly CatalogEntry[] = [
     // ADR 0033: one row for both door counts; the count follows the width, so the customer chooses a cabinet and a
     // width.
     [
@@ -466,43 +526,33 @@ export function buildInsertableBodyDefinitions(
           ),
         }),
         ...HINGED_CABINET_WIDTHS,
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
         doorCountFollowsWidth: true,
       },
     ],
     [
       "base-3drawer",
-      {
-        ...baseCabinet(cabinetDepthMm, {
-          cabinetHandles: carriesHandles(3),
-          // Three drawers, no door leaf (ADR 0070): a handle count alone cannot tell runners from hinges.
-          fronts: carriesDrawers(3),
-        }),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
-      },
+      baseCabinet(cabinetDepthMm, {
+        cabinetHandles: carriesHandles(3),
+        // Three drawers, no door leaf (ADR 0070): a handle count alone cannot tell runners from hinges.
+        fronts: carriesDrawers(3),
+      }),
     ],
     [
       "base-panbank",
-      {
-        ...baseCabinet(cabinetDepthMm, {
-          cabinetHandles: carriesHandles(2),
-          fronts: carriesDrawers(2),
-        }),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
-      },
+      baseCabinet(cabinetDepthMm, {
+        cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
+      }),
     ],
     // ADR 0027: the hob is part of the cabinet, not a placement on it, so a deleted hob can come back. Both are
     // `fixedWidth` at 600.
     [
       "base-hob-2drawer",
-      {
-        ...hobBase(cabinetDepthMm, {
-          cabinetHandles: carriesHandles(2),
-          fronts: carriesDrawers(2),
-        }),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
-      },
+      hobBase(cabinetDepthMm, {
+        cabinetHandles: carriesHandles(2),
+        fronts: carriesDrawers(2),
+      }),
     ],
     [
       "base-hob-oven",
@@ -518,7 +568,6 @@ export function buildInsertableBodyDefinitions(
         // as the filler is a facade and the only bar is the oven's (§9, §13.1).
         canFinish: true,
         canHandle: false,
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         // The oven's fascia and bar reach 28 mm past the worktop at every depth, as the fascia rests on a carcass front
         // that moves with the setting.
         occupiedDepth: finishesAtMm(hobOvenBaseFinishedDepthMm(cabinetDepthMm)),
@@ -535,7 +584,6 @@ export function buildInsertableBodyDefinitions(
         }),
         widthFlex: BOTTLE_CARGO_WIDTHS_MM,
         ...discreteWidths(BOTTLE_CARGO_WIDTHS_MM),
-        defaultWidthMm: BOTTLE_CARGO_DEFAULT_WIDTH_MM,
         minWidthMm: BOTTLE_CARGO_MIN_WIDTH_MM,
       },
     ],
@@ -559,7 +607,6 @@ export function buildInsertableBodyDefinitions(
           maxMm: CABINETRY_MAX_WIDTH_MM,
         }),
         minWidthMm: SINK_MIN_WIDTH_MM,
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         // ADR 0092 decision 9: the one §7 row that holds a sink, declared rather than recognised from its `kind`, label
         // or id.
         sink: CARRIES_SINK,
@@ -583,7 +630,6 @@ export function buildInsertableBodyDefinitions(
         kind: "dishwasher_housing",
         widthFlex: DISHWASHER_WIDTHS_MM,
         ...discreteWidths(DISHWASHER_WIDTHS_MM),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
       },
     ],
     // ADR 0033: one row for both door counts; a resize to 400 mm makes it a one-door without migrating the placement to
@@ -603,26 +649,22 @@ export function buildInsertableBodyDefinitions(
           ),
         }),
         ...HINGED_CABINET_WIDTHS,
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         minWidthMm: HINGED_CABINET_MIN_WIDTH_MM,
         doorCountFollowsWidth: true,
       },
     ],
     [
       "wall-lift",
-      {
-        ...wallCabinet(cabinetDepthMm, {
-          cabinetHandles: carriesHandles(1),
-          // One full-face leaf with a `"bottom"` handle edge, which is why drawer-ness is declared and not read off
-          // that field; lift mechanisms are out of ADR 0070's scope (decision 6).
-          fronts: carriesFronts({
-            doorBands: oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
-            leavesPerBand: 1,
-            drawers: NO_DRAWERS,
-          }),
+      wallCabinet(cabinetDepthMm, {
+        cabinetHandles: carriesHandles(1),
+        // One full-face leaf with a `"bottom"` handle edge, which is why drawer-ness is declared and not read off that
+        // field; lift mechanisms are out of ADR 0070's scope (decision 6).
+        fronts: carriesFronts({
+          doorBands: oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
+          leavesPerBand: 1,
+          drawers: NO_DRAWERS,
         }),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
-      },
+      }),
     ],
     [
       "open-shelf",
@@ -632,7 +674,6 @@ export function buildInsertableBodyDefinitions(
           fronts: NO_OPENING_FRONTS,
         }),
         kind: "open_shelf_unit",
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         // No door and no handle, so shell and finished depth are one number and the two overrides move together (ADR
         // 0075 decision 1).
         frameDepthMm: wallCarcassDepthMm(cabinetDepthMm),
@@ -653,7 +694,6 @@ export function buildInsertableBodyDefinitions(
           fronts: NO_OPENING_FRONTS,
         }),
         kind: EXTRACTOR_HOOD_KIND,
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         // Front-hung (ADR 0039 decision 2): its seat is measured forward from the cabinet-depth line, so
         // `cabinet-front-line` is its own arm, not folded into the corner leg's `joint`.
         seatRule: seatedOnCabinetFrontLine,
@@ -703,7 +743,6 @@ export function buildInsertableBodyDefinitions(
           minMm: PANTRY_FLOOR_WIDTH_MM,
           maxMm: CABINETRY_MAX_WIDTH_MM,
         }),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         fixedWidth: false,
         doorCountFollowsWidth: true,
       },
@@ -723,7 +762,6 @@ export function buildInsertableBodyDefinitions(
             drawers: NO_DRAWERS,
           }),
         }),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
         // The carcass follows the setting but the appliance fronts add 39 mm at every depth; `depthRule` stays the
         // spread's `cabinet-depth`.
         occupiedDepth: finishesAtMm(
@@ -733,19 +771,16 @@ export function buildInsertableBodyDefinitions(
     ],
     [
       "tall-fridge-housing",
-      {
-        ...fullHeightUnit("fridge_housing", cabinetDepthMm, {
-          cabinetHandles: carriesHandles(3),
-          // Three leaves in three bands (fridge, freezer, top box's flap): only the tallest is over ADR 0070's 900 mm
-          // threshold.
-          fronts: carriesFronts({
-            doorBands: doorBandsMm(FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM),
-            leavesPerBand: 1,
-            drawers: NO_DRAWERS,
-          }),
+      fullHeightUnit("fridge_housing", cabinetDepthMm, {
+        cabinetHandles: carriesHandles(3),
+        // Three leaves in three bands (fridge, freezer, top box's flap): only the tallest is over ADR 0070's 900 mm
+        // threshold.
+        fronts: carriesFronts({
+          doorBands: doorBandsMm(FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM),
+          leavesPerBand: 1,
+          drawers: NO_DRAWERS,
         }),
-        defaultWidthMm: STANDARD_DEFAULT_WIDTH_MM,
-      },
+      }),
     ],
     [
       "fridge-free",
@@ -758,7 +793,6 @@ export function buildInsertableBodyDefinitions(
         }),
         widthFlex: FREESTANDING_FRIDGE_WIDTHS_MM,
         ...discreteWidths(FREESTANDING_FRIDGE_WIDTHS_MM),
-        defaultWidthMm: FREESTANDING_FRIDGE_DEFAULT_WIDTH_MM,
         nominalHeightMm: FREESTANDING_FRIDGE_HEIGHT_MM,
         nominalDepthMm: FREESTANDING_FRIDGE_DEPTH_MM,
         occupiedDepth: finishesAtMm(FREESTANDING_FRIDGE_FINISHED_DEPTH_MM),
@@ -775,6 +809,10 @@ export function buildInsertableBodyDefinitions(
       },
     ],
   ];
+  return rows.map(([buildId, definition]) => [
+    buildId,
+    withDefaultWidth(buildId, definition),
+  ]);
 }
 
 /** §7's catalogue at the shipped depth, for readers not yet depth-aware (`design-bounds.ts`, the seeded fixture, the

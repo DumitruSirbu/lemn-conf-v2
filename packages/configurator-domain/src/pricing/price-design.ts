@@ -9,6 +9,7 @@ import { resolveCatalogEquivalent } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
 import {
+  ContradictoryFrontDeclarationError,
   doorLeafCount,
   frontPopulationQueryFor,
   UnbuildableDoorBandError,
@@ -26,7 +27,10 @@ import { findOverflowingPlacementIds } from "../queries/overflowing-placements.j
 import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
-import { NoPriceForSizeError } from "./anchored-price-formula.js";
+import {
+  MissingAnchorLeafCountError,
+  NoPriceForSizeError,
+} from "./anchored-price-formula.js";
 import { parsePriceBook } from "./parse-price-book.js";
 import {
   ACCESSORY_IDS,
@@ -263,8 +267,9 @@ function priceOnePlacement(
 
 /** `amountForBody` **throws** for a coefficient that is not an exact count of minor units (ADR 0062
  *  seam 1); this query refuses with a code instead. `undefined` passes through untouched: an
- *  unimplemented formula shape is the caller's other refusal. A width above every listed size is its
- *  own code; every other cause is `INVALID_AMOUNT`. */
+ *  unimplemented formula shape is the caller's other refusal. A width above every listed size, unreadable
+ *  fronts and an unbuildable door band have codes of their own; a defect leaves as itself, as in
+ *  `refuseUnreadFrontsCause`; every other cause is `INVALID_AMOUNT`. */
 function evaluateFormula(
   rule: CabinetPriceRule,
   body: PricedBody,
@@ -273,11 +278,21 @@ function evaluateFormula(
   try {
     return { value: amountForBody(rule.formula, body) };
   } catch (error) {
+    if (isADefectNotARefusal(error)) throw error;
     return refusal(failureCodeOf(error), describeError(error), {
       placementId,
       id: rule.ruleId,
     });
   }
+}
+
+/** A throw no book or design can cause: the query's own caller left out the anchor's leaf count, or the catalogue
+ *  declares fronts that contradict each other. Never a refusal a surface could render. */
+function isADefectNotARefusal(error: unknown): boolean {
+  return (
+    error instanceof MissingAnchorLeafCountError ||
+    error instanceof ContradictoryFrontDeclarationError
+  );
 }
 
 /** The refusal a formula's throw becomes: the three causes with a code of their own, else an unusable amount. */
@@ -341,10 +356,12 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * What a formula may know about a body: the placement's width and height (a body built to its
  * opening stands at a height its catalogue row does not state), and its door leaves.
  *
- * The leaf count is read from the **priced-as** row, the opposite of `countHardwareMechanisms`
- * (which counts the built body): seeded rows freeze `carriesHandles(n)` at their built size, so
- * reading the placement's own entry would give a resized seeded `wall-2door-600` no door step at
- * 800 mm while an inserted `wall-cabinet` beside it got one (ADR 0092 decision 1).
+ * Two leaf counts, for two questions. `doorLeafCount`, which the linear shapes' door step reads, comes from the
+ * **priced-as** row's width rule: seeded rows freeze `carriesHandles(n)` at their built size, so reading the
+ * placement's own entry would give a resized seeded `wall-2door-600` no door step at 800 mm while an inserted
+ * `wall-cabinet` beside it got one (ADR 0092 decision 1). An anchored door shape instead reads the leaves the body
+ * itself carries (`builtDoorLeafCount`, what `countHardwareMechanisms` bills hinges over) against the priced-as
+ * row's at the anchor width (`doorLeafCountAt`), so its panel step and its hinges count leaves alike (ADR 0177 A-3).
  */
 function describePricedBody(
   entry: DisplayEntry,
