@@ -534,19 +534,46 @@ type ListedFieldsReading =
   | { readonly ok: false };
 
 /**
- * At least one row changed, and no row twice. The list is read once into a copy of our own (a proxy or a getter cannot
- * answer differently to the check and to the copy, and a hole becomes `undefined` and is refused); the copy is what is
- * checked, frozen and returned.
+ * At least one row changed, and no row twice. The claimed length is refused when it exceeds the rows there are, before
+ * anything is copied (a proxy may claim any length). The list is then read once through its iterator into a copy of our
+ * own, stopping one entry past the rows there are, so a list that lies about its length later cannot extend the copy.
+ * A proxy or a getter cannot answer differently to the check and to the copy, and a hole becomes `undefined` and is
+ * refused; the copy is what is checked, frozen and returned.
  */
 function readDistinctListedFields(value: unknown): ListedFieldsReading {
   if (!Array.isArray(value)) return { ok: false };
-  const fields: unknown[] = Array.from(value);
+  const claimedLength: unknown = value.length;
+  if (!isListLengthWithinFields(claimedLength)) return { ok: false };
+  const fields = copyEntriesUpToOnePast(value, KITCHEN_DEFAULTS_FIELDS.length);
   const isListed = fields.every((field): field is KitchenDefaultsField =>
     isOneOf(KITCHEN_DEFAULTS_FIELDS, field),
   );
-  if (!isListed || fields.length < 1) return { ok: false };
-  if (new Set(fields).size !== fields.length) return { ok: false };
-  return { ok: true, fields: Object.freeze(fields as KitchenDefaultsField[]) };
+  const isWithinFields = fields.length <= KITCHEN_DEFAULTS_FIELDS.length;
+  if (!isListed || !isWithinFields || new Set(fields).size !== fields.length) {
+    return { ok: false };
+  }
+  return { ok: true, fields: Object.freeze(fields) };
+}
+
+function isListLengthWithinFields(length: unknown): length is number {
+  return (
+    typeof length === "number" &&
+    Number.isSafeInteger(length) &&
+    length >= 1 &&
+    length <= KITCHEN_DEFAULTS_FIELDS.length
+  );
+}
+
+function copyEntriesUpToOnePast(
+  list: readonly unknown[],
+  limit: number,
+): unknown[] {
+  const copy: unknown[] = [];
+  for (const entry of list) {
+    copy.push(entry);
+    if (copy.length > limit) break;
+  }
+  return copy;
 }
 
 function isAvailabilityRevision(value: unknown): value is string {
