@@ -150,8 +150,13 @@ also wrong copy (ADR 0062's third Amendment governs). Neither is carried; wave T
   `catalogue_availability_head(revision bigint)`, following migration `0009`'s cursor pattern, granted
   `SELECT, UPDATE (revision)`. Each write runs `update … set revision = revision + 1 where revision = $expected returning
   revision` **in the same transaction as the log insert**, and the log row carries that revision. There is **no sequence**,
-  and the revision is **not in the log's INSERT grant** (the migration derives it from the head row, not from the caller).
-  The revision is therefore gap-free and commit-ordered. `changed-meanwhile` is the zero-rows case of the conditional update.
+  the log's `revision` is its primary key and **is** in the log's INSERT grant, written only as the value the head update
+  returns inside the same single CTE statement (`with h as (update catalogue_availability_head set revision = revision + 1
+  where revision = $expected returning revision) insert into catalogue_availability_changes (revision, …) select h.revision,
+  … from h`); there is no trigger and no sequence. The head's revisions are gap-free and commit-ordered; the log's are not,
+  because a defaults save or a publish without created rows moves the head without writing a log row. Accepted residual: a
+  holder of the application credential could insert a log row at an unused higher revision without moving the head; the
+  missing audit row and the head mismatch reveal it. (Amended 2026-10-26 after the X0 logic review.) `changed-meanwhile` is the zero-rows case of the conditional update.
 - Pricing receives availability **beside** the book (`priceDesign({…, book, availability})`), not inside it, so a published
   version stays immutable. The browser receives `{versionId, book, availability}` together. The contact route prices with
   the **current** availability, so a kitchen using an item disabled mid-session is refused at send
@@ -161,6 +166,11 @@ also wrong copy (ADR 0062's third Amendment governs). Neither is carried; wave T
 - The guards are checked at write time: the D9 default cannot be disabled; the last active option of a group cannot be
   disabled. **The last-active-option guard and the D9 defaults save both take the head-row lock (F1)**, so neither races an
   availability write. The defaults save refuses an item that is disabled or not in the active book.
+- **Publish takes the same head CAS (X0 review M1, M5, 2026-10-26).** `publish` carries `expectedAvailabilityRevision` and
+  the items it creates; in its transaction it moves the head once per created item (chained CTEs), writing an
+  `active = false` log row for each, or once with no row when it creates nothing. A stale value refuses the whole publish
+  `availability-changed-meanwhile`. A created class or accessory is therefore inactive when published, and live only after
+  an explicit activation.
 - Rejected: availability inside the book via the draft (the architect's recommendation, overruled by the owner); a mutable
   flag on the active version.
 
@@ -169,7 +179,8 @@ also wrong copy (ADR 0062's third Amendment governs). Neither is carried; wave T
 Creating a hardware class or a linked accessory, editing a created row's Romanian text, and deleting an unused,
 non-default item are **draft changes** and take effect at publish, because they change what the book contains. OQ-2 concerns
 switching an item off, not changing the book's rows. At publish the domain re-judges every deletion against the usage
-reader; an item that gained a user between draft and publish refuses the **whole** publish, naming the item (frame D7G).
+reader **and the stored D9 defaults**, under the head CAS; a deletion of the current default refuses the whole publish
+`item-is-default {item}`. An item that gained a user between draft and publish refuses the **whole** publish, naming the item (frame D7G).
 A created row is inactive until published and then activated (A-17). Owner-visible: editing a created row's text
 immediately (the mockup comment "Textele … se aplică imediat" [mock L887]) was not ruled and is not taken.
 
@@ -207,11 +218,11 @@ applies them, preview first. The exact grant text is written in each wave.
 | 0025 | `create_price_book_versions` (id, label, note, book jsonb object, change_summary jsonb, published_at, published_by_account_id; **no `state` column: the active version is the newest row**; length checks on label and note) | S2 | `SELECT, INSERT` only (fully append-only) |
 | 0026 | `create_price_book_draft` (a **seeded singleton row**, `0009`'s pattern: revision bigint, changes jsonb array, base_version_id, updated_at, updated_by_account_id) | S2 | `SELECT` + `UPDATE` on named columns; no `INSERT` |
 | 0027 | `create_kitchen_defaults` (a **seeded singleton row**: revision, defaults jsonb, saved_at, saved_by_account_id) | S3 | `SELECT` + `UPDATE` on named columns; no `INSERT` |
-| 0028 | `create_catalogue_availability_changes` (item_kind, item_id, active boolean, changed_at default now(), changed_by_account_id; the revision is carried from the head row, F1) **and** the seeded one-row `catalogue_availability_head(revision bigint)` | S2b | Log: `SELECT, INSERT` on the named columns (no `revision`, no `changed_at`). Head: `SELECT, UPDATE (revision)` |
+| 0028 | `create_catalogue_availability_changes` (item_kind, item_id, active boolean, changed_at default now(), changed_by_account_id; the revision is carried from the head row, F1) **and** the seeded one-row `catalogue_availability_head(revision bigint)` | S2b | Log: `SELECT, INSERT (revision, item_kind, item_id, active, changed_by_account_id)` (no `changed_at`). Head: `SELECT, UPDATE (revision)` |
 | 0029 | `create_design_staff_seen` (design_id pk, seen_revision bigint, seen_by_account_id, seen_at default now()) | S4 | `SELECT`; `INSERT (design_id, seen_revision, seen_by_account_id)`; `UPDATE (seen_revision, seen_by_account_id, seen_at)`; no PK update |
-| 0030 | `create_staff_change_digest`: two tables — `rounds` (day_key unique, ran_at default now(), sent_count) and `entries` (round_id, design_id, revision) | S4 | `rounds`: `SELECT, INSERT, UPDATE (sent_count)`. `entries`: `SELECT, INSERT` only |
+| 0030 | `create_staff_change_digest`: two tables — `rounds` (day_key primary key, which is also the round id; claimed_at default now(); sent_count) and `entries` (day_key references rounds (day_key), design_id, revision; primary key (day_key, design_id)) | S4 | `rounds`: `SELECT, INSERT (day_key), UPDATE (sent_count)`. `entries`: `SELECT, INSERT (day_key, design_id, revision)` only |
 | 0031 | `create_design_price_notices` (design_id pk, acknowledged_version_id, acknowledged_availability_revision, acknowledged_at default now()) | S5 | `SELECT`; `INSERT` on the named columns; `UPDATE` of the acknowledged pair and `acknowledged_at`; no update of `design_id` |
-| (in S3 or S4; no new table) | **Grant on an existing table (F2):** exactly `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;`. Migration `0008`'s header classes `priced` as non-personal, so ADR 0153 d1 holds. **Any wider `SELECT` on that table is forbidden.** | the wave that first reads it | as stated |
+| (with 0029, wave S4; no new table) | **Grant on an existing table (F2):** exactly `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;`. Migration `0008`'s header classes `priced` as non-personal, so ADR 0153 d1 holds. **Any wider `SELECT` on that table is forbidden.** | S4: its staff-kitchen statement for the as-sent estimate, read by K2 | as stated |
 
 **Column-level rule (F7):** every `*_at` column defaults to `now()` and is out of every INSERT grant (except where a grant
 above names it for an UPDATE); no primary key is ever updated. The exact grant text is written in each wave and pasted
