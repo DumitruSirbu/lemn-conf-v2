@@ -15,6 +15,7 @@
 .topBar {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
   padding: 0 6px 0 2px;
@@ -153,6 +154,95 @@
   list-style: none;
 }
 
+/* A heading over a run of pages (frames D1C and D1M), and a run with none: the groups are spaced apart so the headless one
+ * does not read as the last row of the one above. */
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.groupHeading {
+  padding: 0 14px;
+  margin: 0;
+  font: 700 11px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.navNote {
+  margin: 20px 14px 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.sheetNav {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheetNav .groupHeading {
+  padding: 14px 0 2px;
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The number of prices awaiting publication: a pill beside the page's name, drawn and not read (its words follow it). */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  margin-inline-start: 10px;
+  font: 700 12px/1 var(--font-ui);
+  color: var(--accent-strong);
+  background: var(--staff-selected-surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+/* "N prețuri de publicat →" in the bar, on every page of the area: the way to the publish page. On a phone it takes the
+ * bar's second row. */
+.pendingChip {
+  display: inline-flex;
+  order: 9;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  margin: 0 8px 4px;
+  font: 700 12.5px/1 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+  white-space: nowrap;
+  background: var(--staff-selected-surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.pendingChip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .navItem {
   display: flex;
   align-items: center;
@@ -230,9 +320,15 @@
 
 @media (min-width: 900px) {
   .topBar {
+    flex-wrap: nowrap;
     gap: 20px;
     height: 76px;
     padding: 0 40px;
+  }
+
+  .pendingChip {
+    order: 0;
+    margin: 0;
   }
 
   .menuButton {

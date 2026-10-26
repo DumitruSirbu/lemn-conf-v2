@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type RefObject } from "react";
+import { useId, useRef, type RefObject } from "react";
 
 import accountStyles from "@/account/account.module.css";
 import type { SignOutHere } from "@/account/session/use-logout";
@@ -17,17 +17,31 @@ import styles from "./staff.module.css";
 // pages': the screen owns it and leaves for the start of the configurator once the server has ended the
 // session, so no staff page stays on screen with clients' data after it.
 
+/** How many prices await publication, drawn beside a page's name: `label` is what the number means, said in words. */
+export interface StaffNavBadge {
+  readonly count: number;
+  readonly label: string;
+}
+
 export interface StaffNavItem {
   readonly key: string;
   readonly href: string;
   readonly label: string;
   readonly isCurrent: boolean;
+  readonly badge?: StaffNavBadge | undefined;
+}
+
+/** Pages standing under one heading. A group with no heading is drawn as a list with nothing above it. */
+export interface StaffNavGroup {
+  readonly key: string;
+  readonly heading: string | undefined;
+  readonly items: readonly StaffNavItem[];
 }
 
 export interface StaffNavSheetProps {
   readonly email: string;
   readonly roleName: string;
-  readonly items: readonly StaffNavItem[];
+  readonly groups: readonly StaffNavGroup[];
   readonly profileHref: string;
   /** This device's sign-out, owned by the screen: the sheet can be dismissed while the request is out, and the leave
    *  that follows must outlive it. */
@@ -41,7 +55,7 @@ export interface StaffNavSheetProps {
 export function StaffNavSheet({
   email,
   roleName,
-  items,
+  groups,
   profileHref,
   signOutHere,
   onClose,
@@ -87,15 +101,10 @@ export function StaffNavSheet({
         <p className={styles.sheetRole}>
           {copy.roleLabel} <strong>{roleName}</strong>
         </p>
-        {items.length === 0 ? null : (
-          <nav className={accountStyles.menuRows} aria-label={copy.areaName}>
-            {items.map((item) => (
-              <SheetLinkRow
-                key={item.key}
-                href={item.href}
-                label={item.label}
-                isCurrent={item.isCurrent}
-              />
+        {groups.length === 0 ? null : (
+          <nav className={styles.sheetNav} aria-label={copy.areaName}>
+            {groups.map((group) => (
+              <SheetGroup key={group.key} group={group} />
             ))}
           </nav>
         )}
@@ -135,14 +144,43 @@ export function StaffNavSheet({
   );
 }
 
+function SheetGroup({ group }: { readonly group: StaffNavGroup }) {
+  const headingId = useId();
+  const isNamed = group.heading !== undefined;
+  return (
+    <div
+      className={accountStyles.menuRows}
+      role={isNamed ? "group" : undefined}
+      aria-labelledby={isNamed ? headingId : undefined}
+    >
+      {group.heading === undefined ? null : (
+        <p id={headingId} className={styles.groupHeading}>
+          {group.heading}
+        </p>
+      )}
+      {group.items.map((item) => (
+        <SheetLinkRow
+          key={item.key}
+          href={item.href}
+          label={item.label}
+          isCurrent={item.isCurrent}
+          badge={item.badge}
+        />
+      ))}
+    </div>
+  );
+}
+
 function SheetLinkRow({
   href,
   label,
   isCurrent,
+  badge,
 }: {
   readonly href: string;
   readonly label: string;
   readonly isCurrent: boolean;
+  readonly badge?: StaffNavBadge | undefined;
 }) {
   return (
     <a
@@ -150,9 +188,24 @@ function SheetLinkRow({
       href={href}
       aria-current={isCurrent ? "page" : undefined}
     >
-      {label}
+      <span className={styles.rowLabel}>
+        {label}
+        {badge === undefined ? null : <NavBadge badge={badge} />}
+      </span>
       <span className={accountStyles.menuRowMark} aria-hidden="true" />
     </a>
+  );
+}
+
+/** The number is drawn, and its meaning is said to a screen reader after the page's name. */
+export function NavBadge({ badge }: { readonly badge: StaffNavBadge }) {
+  return (
+    <>
+      <span className={styles.badge} aria-hidden="true">
+        {badge.count}
+      </span>
+      <span className={styles.visuallyHidden}>{`, ${badge.label}`}</span>
+    </>
   );
 }
 
