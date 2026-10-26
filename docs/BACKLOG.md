@@ -317,6 +317,8 @@ status corrections, in one of these two files:
 | 284 | Pricing engine: 10-lei rounding | open.md — ruled 2026-10-25 (ADR 0175); which amount is rounded is open for the architect |
 | 285 | Deactivating or deleting an item saved kitchens use | open.md — ruled 2026-10-25: delete blocked, disable allowed with a mandatory replacement on open (price hidden until chosen; accessory removed with a notice; ~~sent kitchens stay editable~~ reversed, then reversed back: sent kitchens stay editable, see 286); architect point open: lone colour vs ADRs 0057/0081/0086 |
 | 286 | Sent kitchen stays editable; changed-after-sending badge, side-by-side view, daily digest, review statuses | open.md — ruled 2026-10-25 (ADR 0062 fifth Amendment; ~~lock and create-a-copy~~ of the fourth reversed): no lock, current price and replacement sheet as on any kitchen, soft note, seen-revision badge and menu counter, at most one digest a day, four hand-set statuses; 4 architect points and reviewer role open; not built |
+| 287 | Staff path guard may compare undecoded path segments (encoded staff URL could miss `X-Robots-Tag` / `Cache-Control: private`) | open.md — recorded 2026-10-26; Low, unconfirmed, predates M10 |
+| 288 | `enumerableFieldsOf` does not see an accessor defined on a prototype | open.md — recorded 2026-10-26; gap not yet characterised |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

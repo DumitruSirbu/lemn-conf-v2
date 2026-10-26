@@ -93,17 +93,21 @@ seam test `pricing-seams.test.ts` is amended **by QA** to forbid importing the c
 - **Re-ruled 2026-10-26 (P2):** the coefficient bound stays at the flat-form value for every book form; each cabinet's
   exact amount is capped at `MAX_CABINET_AMOUNT_MINOR = floor(MAX_SAFE_INTEGER / (MAX_PLACEMENTS × (100 +
   MAX_MATERIAL_PERCENT) × (100 + MAX_DEPTH_PERCENT)))`, derived in code and refused `INVALID_AMOUNT` above it; publish
-  (A-7b) refuses any price above the cap.
+  refuses any price above the cap. (The "A-7b" the coordinator cited is the M10 plan's §5 A-7b, "no buildable body may
+  price at or below zero", ruled 2026-10-26 in the P1 review. It is a sibling publish check and is **not** a section of
+  this record; the above-cap refusal is the P2 re-ruling's own.)
 
 ### A-6 — Which cabinets deepen
 
 "Deepens" is a **measured** catalogue fact: the priced-as row's finished depth in the catalogue at 700 is greater than in
 the catalogue at 600. It is never keyed on `depthFollowsSetting()` (which answers `true` for the wall corner returns
 [plan S-12, citing `cabinet-depth-rule.ts:57-60,134-140`]), on a band or on a list of ids. Customer-supplied rows never
-take the uplift. A parity test over every catalogue row asserts the set. The ruling's expected set: base, tall, hob, sink
+take the uplift. A parity test over every catalogue row asserts the set. ~~The ruling's expected set: base, tall, hob, sink
 and the base corners deepen; wall rows and the wall corners do not (frame D3 draws wall corners at 320/320 [mock
-L500-503]). **If the measurement disagrees with the ruling for any row, the wave stops and reports; it edits neither
-side.**
+L500-503]).~~ **Superseded 2026-10-26 by the owner's ruling below:** the measurement showed wall rows and wall corners
+deepen (330 → 400), and frame D3's 320/320 is not what the catalogue measures. The expected set is now every
+manufacturer-supplied row that measures deeper. **If the measurement disagrees with the expected set for any row, the wave
+stops and reports; it edits neither side.**
 
 **Owner ruling 2026-10-26: "Surcharge every deeper cabinet."** The measurement governs: every manufacturer-supplied row
 whose priced-as row measures deeper takes the depth percentage, wall rows and wall corners included (330 → 400). The rule
