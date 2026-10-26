@@ -27,6 +27,7 @@ import {
   invalidBook,
   isRecord,
   readDeclared,
+  refuseNonWholeAmount,
   refuseOversizedAmount,
   UNREADABLE,
 } from "./book-reading.js";
@@ -346,20 +347,24 @@ function refuseUnreadableTier(
     ) ??
     refuseUnreadableWords(declared, named) ??
     refuseOversizedAmount(declared, named) ??
-    refuseNegativeRates(declared, named)
+    refuseUnusableRates(declared, named)
   );
 }
 
-/** A tier's or an accessory's rates, never below zero, as a cabinet's are. A rate that is absent or not a number is
- *  the arithmetic's to refuse when it is priced. Runs after `refuseOversizedAmount`, which has enumerated the fields. */
-function refuseNegativeRates(
+/** A tier's or an accessory's rates, whole and never below zero, as a cabinet's are. A rate that is absent or not a
+ *  number is the arithmetic's to refuse when it is priced. Runs after `refuseOversizedAmount`, which has enumerated the
+ *  fields. */
+function refuseUnusableRates(
   declared: Record<string, unknown>,
   named: string,
 ): PricingFailure | undefined {
   for (const field of enumerableFieldsOf(declared) ?? []) {
     if (!field.endsWith("Minor")) continue;
     const read = readDeclared(declared, field);
-    if (typeof read === "number" && read < 0)
+    if (typeof read !== "number") continue;
+    const notWhole = refuseNonWholeAmount(read, { field, named });
+    if (notWhole) return notWhole;
+    if (read < 0)
       return invalidBook(
         `The ${named} declares "${field}" as ${String(read)}, a price below zero`,
       );
@@ -407,7 +412,7 @@ function refuseUnreadableAccessoryRule(
     ) ??
     refuseUnreadableWords(declared, named) ??
     refuseOversizedAmount(declared, named) ??
-    refuseNegativeRates(declared, named)
+    refuseUnusableRates(declared, named)
   );
 }
 

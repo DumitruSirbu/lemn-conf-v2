@@ -35,7 +35,7 @@ vi.mock(
       if (address.kind !== "hardware-tier-created")
         return original.prepareWrite(book, address, value);
       return {
-        isOk: true,
+        ok: true,
         value: (target) => withCreatedTier(target),
       };
     };

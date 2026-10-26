@@ -8,23 +8,25 @@ import {
   PRICE_GROUP_CODES,
 } from "../staff/dashboard-audit-action.js";
 
+import { isSameAddress } from "./address-key.js";
 import {
   BOOK_FIELD_ADDRESS_KINDS,
   type BookFieldAddress,
+  type DraftBulk,
   type DraftChange,
 } from "./book-field-address.js";
 import {
-  isSameAddress,
+  isCabinetAddress,
   prepareWrite,
   type BookUpdater,
   type ChangeRefusalCode,
   type Judged,
 } from "./editable-fields.js";
 
-// The candidate book a draft would publish: `apply(activeBook, changes)` (plan A-15), pure, never mutating its input.
-// Changes apply in order, so a later change of an equal address wins (X0-4), and each is judged against the running
-// candidate (the book with the earlier changes applied): a change may name a row an earlier change introduced, and is
-// refused when moved ahead of it. One refused change refuses the whole candidate; the result names each by index.
+// The candidate book a draft would publish: `apply(activeBook, changes)`, pure, never mutating its input. Changes apply
+// in order, so a later change of an equal address wins, and each is judged against the running candidate (the book with
+// the earlier changes applied): a change may name a row an earlier change introduced, and is refused when moved ahead of
+// it. One refused change refuses the whole candidate; the result names each by index.
 
 /** One refused change: where it sits in the list and the closed code it was refused for. Never the value. */
 export interface ChangeRefusal {
@@ -60,10 +62,10 @@ export function applyChanges(
     const judged =
       index in changes
         ? judgeChange(candidate, changes[index])
-        : ({ isOk: false, code: "MISSING_VALUE" } as const);
-    const code = judged.isOk ? groupCodes.get(index) : judged.code;
+        : ({ ok: false, code: "MISSING_VALUE" } as const);
+    const code = judged.ok ? groupCodes.get(index) : judged.code;
     if (code !== undefined) refusals.push({ index, code });
-    else if (judged.isOk) candidate = judged.value(candidate);
+    else if (judged.ok) candidate = judged.value(candidate);
   }
   if (refusals.length > 0)
     return { ok: false, reason: "changes-refused", refusals };
@@ -78,6 +80,13 @@ export function revertChange(
   return changes.filter(
     (change) => !isSameAddress(addressOfStored(change), address),
   );
+}
+
+/** A bulk action as stored on a change, or `undefined` when what is stored is not the shape of one. */
+export function readBulk(declared: unknown): DraftBulk | undefined {
+  return judgeBulk(declared) === undefined
+    ? (declared as DraftBulk)
+    : undefined;
 }
 
 /** The address a stored change names, or `undefined` for a stored value that is not a change. */
@@ -95,9 +104,9 @@ function parseCandidate(candidate: PriceBook): ApplyChangesResult {
 /** The updater that makes one change on `book`, or the code it is refused for. Takes `unknown`: a draft is stored and
  *  requested JSON. */
 function judgeChange(book: PriceBook, change: unknown): Judged<BookUpdater> {
-  if (!isRecord(change)) return { isOk: false, code: "UNKNOWN_ADDRESS" };
+  if (!isRecord(change)) return { ok: false, code: "UNKNOWN_ADDRESS" };
   const address = snapshotAddress(change["address"]);
-  if (address === undefined) return { isOk: false, code: "UNKNOWN_ADDRESS" };
+  if (address === undefined) return { ok: false, code: "UNKNOWN_ADDRESS" };
   return prepareWrite(book, address, change["value"]);
 }
 
@@ -114,51 +123,53 @@ function snapshotAddress(declared: unknown): BookFieldAddress | undefined {
   return isKnownKind ? (copy as unknown as BookFieldAddress) : undefined;
 }
 
+type Membership =
+  | { readonly kind: "none" }
+  | { readonly kind: "refused"; readonly code: ChangeRefusalCode }
+  | {
+      readonly kind: "member";
+      readonly groupId: string;
+      readonly bulkKey: string;
+    };
+
 /**
  * The code each grouped or bulk-marked change is refused for, by index. `groupId` and `bulk` come together or not at
- * all, a group holds cabinet prices only (A-14), and every change of one group carries the same `bulk` as the group's
- * first. Judged on the list as written, so it does not depend on the order the changes apply in.
+ * all, a group holds cabinet prices only, and every change of one group carries the same `bulk` as the group's first.
+ * Judged on the list as written, so it does not depend on the order the changes apply in.
  */
 function judgeGroups(
   changes: readonly DraftChange[],
 ): ReadonlyMap<number, ChangeRefusalCode> {
   const codes = new Map<number, ChangeRefusalCode>();
-  const firstBulkOfGroup = new Map<string, string>();
+  const firstBulkKeyOfGroup = new Map<string, string>();
   changes.forEach((change: unknown, index) => {
-    if (!isRecord(change)) return;
-    const code = judgeMembership(change, firstBulkOfGroup);
-    if (code !== undefined) codes.set(index, code);
+    const membership = readMembership(change);
+    if (membership.kind === "refused") {
+      codes.set(index, membership.code);
+    } else if (membership.kind === "member") {
+      const first = firstBulkKeyOfGroup.get(membership.groupId);
+      if (first === undefined)
+        firstBulkKeyOfGroup.set(membership.groupId, membership.bulkKey);
+      else if (first !== membership.bulkKey) codes.set(index, "NOT_EDITABLE");
+    }
   });
   return codes;
 }
 
-function judgeMembership(
-  change: Record<string, unknown>,
-  firstBulkOfGroup: Map<string, string>,
-): ChangeRefusalCode | undefined {
+function readMembership(change: unknown): Membership {
+  if (!isRecord(change)) return { kind: "none" };
   const groupId = change["groupId"];
   const bulk = change["bulk"];
-  if (groupId === undefined && bulk === undefined) return undefined;
+  if (groupId === undefined && bulk === undefined) return { kind: "none" };
   if (
     !isUsableGroupId(groupId) ||
     bulk === undefined ||
-    !isCabinetPrice(change)
+    !isCabinetAddress(change["address"])
   )
-    return "NOT_EDITABLE";
+    return { kind: "refused", code: "NOT_EDITABLE" };
   const malformed = judgeBulk(bulk);
-  if (malformed !== undefined) return malformed;
-  const key = bulkKey(bulk);
-  const first = firstBulkOfGroup.get(groupId) ?? key;
-  firstBulkOfGroup.set(groupId, first);
-  return first === key ? undefined : "NOT_EDITABLE";
-}
-
-function isCabinetPrice(change: Record<string, unknown>): boolean {
-  const address = change["address"];
-  return (
-    isRecord(address) &&
-    (address["kind"] === "cabinet" || address["kind"] === "cabinet-size")
-  );
+  if (malformed !== undefined) return { kind: "refused", code: malformed };
+  return { kind: "member", groupId, bulkKey: bulkKey(bulk) };
 }
 
 function isUsableGroupId(groupId: unknown): groupId is string {
@@ -171,8 +182,8 @@ function isUsableGroupId(groupId: unknown): groupId is string {
 
 const BULK_MEMBERS: readonly string[] = ["percent", "scope", "groupCode"];
 
-/** A bulk action's shape: a whole percent, a known scope, a group code exactly when the scope is a group. Whether the
- *  percent is inside the bulk bound is M2's. */
+/** A bulk action's shape: a whole percent, a known scope, a group code exactly when the scope is a group. The bound on
+ *  the percent is the bulk action's own. */
 function judgeBulk(bulk: unknown): ChangeRefusalCode | undefined {
   if (!isRecord(bulk)) return "NOT_EDITABLE";
   const percent = bulk["percent"];

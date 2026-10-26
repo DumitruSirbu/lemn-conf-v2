@@ -1,8 +1,7 @@
-// Books and an independent editing oracle for the change-set tests. Nothing here calls `readEditableFields` or
-// `applyChanges`: a slot is found by walking the book's JSON, and an edit is written by path, so a test that compares the
-// module's result with `setSlots` is not fed by the module on both sides.
+// Books and helpers for the change-set tests. Nothing here calls `readEditableFields` or `applyChanges`: slots come from
+// the independent walker in `qa-m1-books.ts`, so a test that compares the module's result with `setSlots` is not fed by
+// the module on both sides.
 import type {
-  BookFieldAddress,
   DraftBulk,
   DraftChange,
 } from "../../src/price-dashboard/book-field-address.js";
@@ -15,11 +14,11 @@ import type {
   MaterialTier,
   PriceBook,
 } from "../../src/pricing/price-book.js";
-import {
-  MAX_DEEP_CABINET_PERCENT,
-  MAX_MATERIAL_PERCENT,
-} from "../../src/pricing/price-bounds.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+
+import { valueAt, type Edit as SlotEdit, type Slot } from "./qa-m1-books.js";
+
+type EditSlot = Slot;
 
 /** The flat form: linear cabinet formulas, flat material amounts, no depth rule. Only hardware, accessories and the
  *  provisional flag are editable in it. */
@@ -128,141 +127,20 @@ export function anchoredRuleReading(
   return rule;
 }
 
-export type SlotPath = readonly (string | number)[];
+// The one independent walker, shared with the adversarial suites: it finds every editable field by walking a book's JSON
+// and writes an edit by path.
+export {
+  slotsOf as editSlotsOf,
+  valueAt,
+  written as setSlots,
+  type Edit as SlotEdit,
+  type Slot as EditSlot,
+} from "./qa-m1-books.js";
 
-export type SlotUnit = "amount" | "percent" | "flag";
-
-export interface EditSlot {
-  readonly path: SlotPath;
-  readonly address: BookFieldAddress;
-  readonly unit: SlotUnit;
-  readonly maxValue: number;
-  readonly arm: string;
-}
-
-const CABINET_KEYS = [
-  "anchorMinor",
-  "perStepWiderMinor",
-  "perStepNarrowerMinor",
-  "perExtraDoorLeafMinor",
-  "perHeightStepMinor",
-] as const;
-
-export const SLOT_AMOUNT_CEILING = 1_000_000_000;
-
-function amountSlot(
-  path: SlotPath,
-  address: BookFieldAddress,
-  arm: string,
-): EditSlot {
-  return { path, address, unit: "amount", maxValue: SLOT_AMOUNT_CEILING, arm };
-}
-
-function cabinetSlots(rule: CabinetPriceRule, index: number): EditSlot[] {
-  if (rule.suppliedBy === "customer") return [];
-  const formula = rule.formula as unknown as Record<string, unknown>;
-  if (formula["shape"] === "price-per-size") {
-    return (formula["sizes"] as { widthMm: number }[]).map((size, at) =>
-      amountSlot(
-        ["cabinetRules", index, "formula", "sizes", at, "amountMinor"],
-        { kind: "cabinet-size", ruleId: rule.ruleId, widthMm: size.widthMm },
-        "cabinet-size",
-      ),
-    );
-  }
-  return CABINET_KEYS.filter((key) => typeof formula[key] === "number").map(
-    (field) =>
-      amountSlot(
-        ["cabinetRules", index, "formula", field],
-        { kind: "cabinet", ruleId: rule.ruleId, field },
-        `cabinet.${String(formula["shape"])}`,
-      ),
-  );
-}
-
-/** Every editable field of a book, found by walking its JSON: the oracle's own enumeration. */
-export function editSlotsOf(book: PriceBook): readonly EditSlot[] {
-  const hardware = book.hardware.tiers.flatMap((tier, index) =>
-    Object.keys(tier)
-      .filter((key) => /^per[A-Za-z]+Minor$/.test(key))
-      .map((field) =>
-        amountSlot(
-          ["hardware", "tiers", index, field],
-          {
-            kind: "hardware",
-            tierId: tier.tierId,
-            field: field as "perHingeMinor",
-          },
-          "hardware",
-        ),
-      ),
-  );
-  const materials = book.material.tiers.flatMap((tier, index): EditSlot[] =>
-    tier.tierId !== book.material.defaultTierId && "percentOfCabinets" in tier
-      ? [
-          {
-            path: ["material", "tiers", index, "percentOfCabinets"],
-            address: {
-              kind: "material",
-              tierId: tier.tierId,
-              field: "percentOfCabinets",
-            },
-            unit: "percent",
-            maxValue: MAX_MATERIAL_PERCENT,
-            arm: "material",
-          },
-        ]
-      : [],
-  );
-  const depth: EditSlot[] =
-    book.depthRule === undefined
-      ? []
-      : [
-          {
-            path: ["depthRule", "deepCabinetPercent"],
-            address: { kind: "depth-rule" },
-            unit: "percent",
-            maxValue: MAX_DEEP_CABINET_PERCENT,
-            arm: "depth-rule",
-          },
-        ];
-  const accessories = (["sinkProtectiveCover", "dishDryingRack"] as const).map(
-    (accessoryId) =>
-      amountSlot(
-        ["accessories", accessoryId, "perUnitMinor"],
-        { kind: "accessory", accessoryId, field: "perUnitMinor" },
-        "accessory",
-      ),
-  );
-  const provisional: EditSlot = {
-    path: ["amountsProvisional"],
-    address: { kind: "provisional" },
-    unit: "flag",
-    maxValue: 1,
-    arm: "provisional",
-  };
-  return [
-    ...book.cabinetRules.flatMap(cabinetSlots),
-    ...hardware,
-    ...materials,
-    ...depth,
-    ...accessories,
-    provisional,
-  ];
-}
-
+/** A value for the slot taken from `seed`: a whole number within the slot's range, or a boolean for the flag. */
 export function valueForSeed(slot: EditSlot, seed: number): number | boolean {
   if (slot.unit === "flag") return seed % 2 === 0;
-  return seed % (slot.maxValue + 1);
-}
-
-/** What the book holds at a slot's path. */
-export function valueAt(book: PriceBook, slot: EditSlot): number | boolean {
-  let node: unknown = book;
-  for (const key of slot.path) {
-    node = (node as Record<string | number, unknown>)[key];
-  }
-  return node as number | boolean;
+  return seed % (slot.max + 1);
 }
 
 /** A value that differs from what the book holds at the slot and stays inside the slot's range. */
@@ -272,38 +150,7 @@ export function otherValueAt(
 ): number | boolean {
   const current = valueAt(book, slot);
   if (typeof current === "boolean") return !current;
-  return current >= slot.maxValue ? current - 1 : current + 1;
-}
-
-export interface SlotEdit {
-  readonly slot: EditSlot;
-  readonly value: number | boolean;
-}
-
-/** A deep copy of `book` with each edit written at its path, later edits over earlier. Writes JSON, not the module. */
-export function setSlots(
-  book: PriceBook,
-  edits: readonly SlotEdit[],
-): PriceBook {
-  const copy = JSON.parse(JSON.stringify(book)) as PriceBook;
-  for (const { slot, value } of edits) writeAtPath(copy, slot.path, value);
-  return copy;
-}
-
-function writeAtPath(
-  root: unknown,
-  path: SlotPath,
-  value: number | boolean,
-): void {
-  const parent = path
-    .slice(0, -1)
-    .reduce<unknown>(
-      (node, key) => (node as Record<string | number, unknown>)[key],
-      root,
-    ) as Record<string | number, unknown>;
-  const last = path[path.length - 1];
-  if (last === undefined) throw new Error("an empty path");
-  parent[last] = value;
+  return current >= slot.max ? current - 1 : current + 1;
 }
 
 /** A bulk action as a group's changes carry it. */

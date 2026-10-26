@@ -8,8 +8,9 @@ import {
   revertChange,
 } from "../../src/price-dashboard/apply-changes.js";
 import type { DraftChange } from "../../src/price-dashboard/book-field-address.js";
-import { isSameAddress } from "../../src/price-dashboard/editable-fields.js";
+import { isSameAddress } from "../../src/price-dashboard/address-key.js";
 import { restoreChanges } from "../../src/price-dashboard/restore.js";
+import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
 import type { PriceBook } from "../../src/pricing/price-book.js";
 
 import {
@@ -230,5 +231,27 @@ describe("restoring an archived version", () => {
     const kinds = new Set(changes.map(({ address }) => address.kind));
     expect([...kinds].sort()).toEqual(["hardware"]);
     expect(applyChanges(FLAT_BOOK, changes).ok).toBe(true);
+  });
+
+  it("emits 0 for a stored negative zero, which the parser accepts and applyChanges would refuse", () => {
+    const hardwareSlot = editSlotsOf(PERCENTAGE_BOOK).find(
+      ({ address }) =>
+        address.kind === "hardware" && address.field === "perHingeMinor",
+    );
+    if (hardwareSlot === undefined) throw new Error("no hinge slot");
+    const archived = setSlots(PERCENTAGE_BOOK, [
+      { slot: hardwareSlot, value: -0 },
+    ]);
+    const active = setSlots(PERCENTAGE_BOOK, [
+      { slot: hardwareSlot, value: 5 },
+    ]);
+    expect(parsePriceBook(archived).ok).toBe(true);
+
+    const [change] = restoreChanges(archived, active);
+
+    expect(Object.is(change?.value, 0)).toBe(true);
+    expect(applyChanges(active, restoreChanges(archived, active)).ok).toBe(
+      true,
+    );
   });
 });

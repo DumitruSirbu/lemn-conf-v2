@@ -29,6 +29,8 @@ export interface Slot {
   readonly path: Path;
   readonly unit: SlotUnit;
   readonly max: number;
+  /** The kind of field, finer for a cabinet price (the shape of its formula), for a floor per arm. */
+  readonly arm: string;
 }
 
 const SAMPLE_JSON = JSON.parse(JSON.stringify(SAMPLE_PRICE_BOOK)) as Json;
@@ -69,8 +71,9 @@ function slot(
   path: Path,
   unit: SlotUnit,
   max: number,
+  arm: string = address.kind,
 ): Slot {
-  return { address, key: addressKeyOf(address), path, unit, max };
+  return { address, key: addressKeyOf(address), path, unit, max, arm };
 }
 
 function cabinetSlots(rule: Json, index: number): Slot[] {
@@ -95,6 +98,7 @@ function cabinetSlots(rule: Json, index: number): Slot[] {
       [...base, field],
       "amount",
       MAX_AMOUNT,
+      `cabinet.${String(formula["shape"])}`,
     ),
   );
 }

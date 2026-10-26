@@ -407,8 +407,7 @@ describe("no rounding, and no float that could produce one", () => {
       // three rates wave 6T split the basis into, and the refusal names the one that is fractional
       // — naming only the tier would leave a reader to find which of three.
       expect(refusalFrom({ book: fractionalHardware })).toMatchObject({
-        code: "INVALID_AMOUNT",
-        id: BOOK.hardware.defaultTierId,
+        code: "INVALID_PRICE_BOOK",
       });
       expect(refusalFrom({ book: fractionalHardware }).detail).toContain(field);
     },

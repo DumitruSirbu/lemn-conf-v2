@@ -67,3 +67,55 @@ describe("the book parser and negative tier and accessory amounts", () => {
     },
   );
 });
+
+describe("the book parser and tier and accessory amounts that are not whole", () => {
+  it.each(HARDWARE_RATES)("refuses a hardware tier's %s of 12.5", (field) => {
+    const result = parsePriceBook(withHardwareRate(field, 12.5));
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(result.failure.detail).toContain(field);
+  });
+
+  it("refuses a hardware rate of NaN", () => {
+    const result = parsePriceBook(
+      withHardwareRate("perHingeMinor", Number.NaN),
+    );
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("refuses an accessory price of 12.5", () => {
+    const book: PriceBook = {
+      ...SAMPLE_PRICE_BOOK,
+      accessories: {
+        ...SAMPLE_PRICE_BOOK.accessories,
+        sinkProtectiveCover: {
+          ...SAMPLE_PRICE_BOOK.accessories.sinkProtectiveCover,
+          perUnitMinor: 12.5,
+        },
+      },
+    };
+
+    expect(parsePriceBook(book).ok).toBe(false);
+  });
+
+  it("refuses a flat material tier's amount of 12.5", () => {
+    const [first, ...rest] = SAMPLE_PRICE_BOOK.material.tiers;
+    if (first === undefined) throw new Error("the sample book has no tier");
+    const book: PriceBook = {
+      ...SAMPLE_PRICE_BOOK,
+      material: {
+        ...SAMPLE_PRICE_BOOK.material,
+        tiers: [{ ...first, wholeKitchenMinor: 12.5 }, ...rest],
+      },
+    };
+
+    expect(parsePriceBook(book).ok).toBe(false);
+  });
+
+  it("accepts a rate of negative zero, which restoring emits as 0", () => {
+    expect(parsePriceBook(withHardwareRate("perHingeMinor", -0)).ok).toBe(true);
+  });
+});

@@ -206,7 +206,7 @@ export type AddressOfKind<Kind extends BookFieldAddressKind> = Extract<
 >;
 
 /**
- * The bulk action a group of changes came from, as it was asked (A-14, ruling M1-Q1): the whole percent (negative for
+ * The bulk action a group of changes came from, as it was asked: the whole percent (negative for
  * a reduction), the scope, and the group when the scope is one. Stored beside the amounts because `r10` rounding makes
  * the percent impossible to recover from them.
  */
@@ -219,7 +219,7 @@ export interface DraftBulk {
 
 /**
  * One draft change: the field or row it names, and what it sets it to. `groupId` ties the changes of one bulk action
- * (A-14) and `bulk` says what that action was: each is present exactly when the other is, and `bulk` is identical on
+ * and `bulk` says what that action was: each is present exactly when the other is, and `bulk` is identical on
  * every change of one group. Written as one arm per kind, so the address's kind decides the value's type.
  */
 export type DraftChange = {

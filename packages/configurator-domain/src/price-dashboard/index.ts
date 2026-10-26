@@ -1,8 +1,9 @@
 export * from "./book-field-address.js";
+export { isSameAddress } from "./address-key.js";
 export {
   APPLIED_ADDRESS_KINDS,
   CHANGE_REFUSAL_CODES,
-  isSameAddress,
+  isCabinetAddress,
   readEditableFields,
   type AppliedAddress,
   type AppliedAddressKind,

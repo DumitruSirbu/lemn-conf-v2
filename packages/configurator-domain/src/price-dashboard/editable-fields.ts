@@ -24,22 +24,19 @@ import {
 
 import {
   ACCESSORY_FIELDS,
-  BOOK_FIELD_ADDRESS_KINDS,
   CABINET_RULE_FIELDS,
   HARDWARE_RATE_FIELDS,
   MATERIAL_FIELDS,
   type AddressOfKind,
   type BookFieldAddress,
-  type BookFieldAddressKind,
   type DraftChange,
 } from "./book-field-address.js";
 
-// Which fields of a price book a draft change may set, found and written by one table per address kind. `applyChanges`
-// judges and writes through it, `diffBooks` and `restoreChanges` read through it, so "editable" has a single meaning.
-// Creation, text and deletion kinds are refused `NOT_EDITABLE` until they have an arm in `locateField`.
+// Which fields of a price book a draft change may set, found and written by `locateField`. `applyChanges` judges and
+// writes through it, `diffBooks` and `restoreChanges` read through it, so "editable" has a single meaning. Creation,
+// text and deletion kinds are refused `NOT_EDITABLE` until `locateField` has an arm for them.
 
-/** Why one change was refused. Each string is meant to be a member of the wire's `DraftChangeRefusalCode`; only a web
- *  test can import both lists, so that subset is not guarded in this package. */
+/** Why one change was refused. The wire's draft-change refusal codes are built from this list. */
 export const CHANGE_REFUSAL_CODES = Object.freeze([
   "MISSING_VALUE",
   "NOT_A_WHOLE_NUMBER",
@@ -55,37 +52,44 @@ export type ChangeRefusalCode = (typeof CHANGE_REFUSAL_CODES)[number];
 
 /** The result of a judgement: the thing judged, or the code it was refused for. */
 export type Judged<Value> =
-  | { readonly isOk: true; readonly value: Value }
-  | { readonly isOk: false; readonly code: ChangeRefusalCode };
+  | { readonly ok: true; readonly value: Value }
+  | { readonly ok: false; readonly code: ChangeRefusalCode };
 
 function accepted<Value>(value: Value): Judged<Value> {
-  return { isOk: true, value };
+  return { ok: true, value };
 }
 
 function refused(code: ChangeRefusalCode): Judged<never> {
-  return { isOk: false, code };
+  return { ok: false, code };
 }
 
-const APPLIED_KIND_FLAGS = {
-  cabinet: true,
-  "cabinet-size": true,
-  hardware: true,
-  material: true,
-  "depth-rule": true,
-  accessory: true,
-  provisional: true,
-} as const;
-
 /** The address kinds that set a value on a row the book already has. */
-export type AppliedAddressKind = keyof typeof APPLIED_KIND_FLAGS;
-export const APPLIED_ADDRESS_KINDS: readonly AppliedAddressKind[] =
-  Object.freeze(Object.keys(APPLIED_KIND_FLAGS) as AppliedAddressKind[]);
+export const APPLIED_ADDRESS_KINDS = Object.freeze([
+  "cabinet",
+  "cabinet-size",
+  "hardware",
+  "material",
+  "depth-rule",
+  "accessory",
+  "provisional",
+] as const);
+export type AppliedAddressKind = (typeof APPLIED_ADDRESS_KINDS)[number];
 
 export type AppliedAddress = AddressOfKind<AppliedAddressKind>;
 export type AppliedDraftChange = Extract<
   DraftChange,
   { readonly address: AppliedAddress }
 >;
+
+export type CabinetAddress = AddressOfKind<"cabinet" | "cabinet-size">;
+
+/** Whether `address` names a cabinet's price (an anchored amount or a listed size): what a bulk action may touch. */
+export function isCabinetAddress(address: unknown): address is CabinetAddress {
+  return (
+    isRecord(address) &&
+    (address["kind"] === "cabinet" || address["kind"] === "cabinet-size")
+  );
+}
 
 /** What an editable field holds: an amount in bani, a whole percent, or the provisional flag. */
 export type FieldValue = number | boolean;
@@ -126,7 +130,7 @@ export function prepareWrite(
   value: unknown,
 ): Judged<BookUpdater> {
   const located = locateField(book, address);
-  return located.isOk ? writerFor(located.value, value) : located;
+  return located.ok ? writerFor(located.value, value) : located;
 }
 
 function writerFor(field: LocatedField, value: unknown): Judged<BookUpdater> {
@@ -136,7 +140,7 @@ function writerFor(field: LocatedField, value: unknown): Judged<BookUpdater> {
       : refused("MISSING_VALUE");
   }
   const judged = judgeWholeNumber(value, field.maxValue);
-  return judged.isOk ? accepted(field.settingTo(judged.value)) : judged;
+  return judged.ok ? accepted(field.settingTo(judged.value)) : judged;
 }
 
 /** A whole number from 0 to `maxValue`. `-0` is refused as negative: it prints as 0 and signs as a reduction. */
@@ -154,7 +158,7 @@ export function readEditableFields(
 ): readonly EditableFieldReading[] {
   return candidateAddresses(book).flatMap((address) => {
     const located = locateField(book, address);
-    if (!located.isOk) return [];
+    if (!located.ok) return [];
     const { current, unit } = located.value;
     return [{ address, value: current, unit }];
   });
@@ -169,93 +173,6 @@ export function changeFromReading(
     address: reading.address,
     value: reading.value,
   } as AppliedDraftChange;
-}
-
-/**
- * A stable identity for an address, whatever order its members were written in. Equal keys are the same field. Total
- * over anything a draft may hold: a shape that is not a valid address (no kind, no `item`, a member of the wrong type)
- * gets a key containing an object, which no valid address's key does, so it equals no valid address.
- */
-export function addressKey(address: unknown): string {
-  if (!isRecord(address)) return INVALID_ADDRESS_KEY;
-  const kind = address["kind"];
-  const members = isAddressKind(kind)
-    ? addressMembers(kind, address)
-    : undefined;
-  return JSON.stringify([kind, ...(members ?? [INVALID_MEMBER])]);
-}
-
-export function isSameAddress(left: unknown, right: unknown): boolean {
-  return addressKey(left) === addressKey(right);
-}
-
-const INVALID_MEMBER = { invalid: true } as const;
-const INVALID_ADDRESS_KEY = JSON.stringify([INVALID_MEMBER]);
-
-function isAddressKind(kind: unknown): kind is BookFieldAddressKind {
-  return (
-    typeof kind === "string" &&
-    (BOOK_FIELD_ADDRESS_KINDS as readonly string[]).includes(kind)
-  );
-}
-
-function addressMembers(
-  kind: BookFieldAddressKind,
-  address: Record<string, unknown>,
-): readonly unknown[] | undefined {
-  switch (kind) {
-    case "cabinet":
-      return validMembers(address, ["ruleId", "field"]);
-    case "cabinet-size":
-      return validMembers(address, ["ruleId", "widthMm"]);
-    case "hardware":
-    case "material":
-      return validMembers(address, ["tierId", "field"]);
-    case "accessory":
-      return validMembers(address, ["accessoryId", "field"]);
-    case "depth-rule":
-    case "provisional":
-      return [];
-    case "hardware-tier-created":
-      return validMembers(address, ["tierId"]);
-    case "accessory-created":
-      return validMembers(address, ["accessoryId"]);
-    case "created-row-text":
-      return withItem(address, ["field"]);
-    case "item-deleted":
-      return withItem(address, []);
-  }
-}
-
-/** The named members, each a string or a number, or `undefined` when one is missing or of another type. */
-function validMembers(
-  address: Record<string, unknown>,
-  names: readonly string[],
-): readonly unknown[] | undefined {
-  const members = names.map((name) => address[name]);
-  const isValid = members.every(
-    (member) => typeof member === "string" || typeof member === "number",
-  );
-  return isValid ? members : undefined;
-}
-
-/** An item reference flattened to its kind and id, then the named members. */
-function withItem(
-  address: Record<string, unknown>,
-  names: readonly string[],
-): readonly unknown[] | undefined {
-  const item = address["item"];
-  if (!isRecord(item)) return undefined;
-  const itemMembers = validMembers(item, ["kind", itemIdName(item["kind"])]);
-  const rest = validMembers(address, names);
-  return itemMembers === undefined || rest === undefined
-    ? undefined
-    : [...itemMembers, ...rest];
-}
-
-/** The member an item of this kind names its id in. */
-function itemIdName(kind: unknown): string {
-  return kind === "accessory" ? "accessoryId" : "tierId";
 }
 
 /** Finds the field an address names in this book, or says why it names none. Total over every address kind. */

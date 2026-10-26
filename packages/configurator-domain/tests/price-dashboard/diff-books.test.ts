@@ -59,7 +59,28 @@ describe("a diff of identical books", () => {
     expect(diffBooks(book, setSlots(book, []))).toEqual([]);
   });
 
-  it("is empty even when the changes name groups, because nothing differs", () => {
+  it("is empty when no change names a field, even though changes were given", () => {
+    expect(
+      diffBooks(PERCENTAGE_BOOK, PERCENTAGE_BOOK, { changes: [] }),
+    ).toEqual([]);
+  });
+
+  it("gives a restated value its own row, before equal to after, so the change can be reverted", () => {
+    const slot = slotOf((address) => address.kind === "cabinet");
+    const same = { slot, value: currentValue(slot) };
+
+    const rows = diffBooks(PERCENTAGE_BOOK, setSlots(PERCENTAGE_BOOK, [same]), {
+      changes: [changeOf(same)],
+    });
+
+    expect(rows).toHaveLength(1);
+    const row = fieldRow(rows[0]);
+    expect(row.address).toEqual(slot.address);
+    expect(row.before).toBe(row.after);
+    expect(row.delta).toBe(0);
+  });
+
+  it("gives a group of one restated value a group row of one no-op item", () => {
     const slot = slotOf((address) => address.kind === "cabinet");
     const same = { slot, value: currentValue(slot) };
 
@@ -67,7 +88,12 @@ describe("a diff of identical books", () => {
       changes: [changeOf(same, "group-1")],
     });
 
-    expect(rows).toEqual([]);
+    expect(rows).toHaveLength(1);
+    const group = groupRow(rows[0]);
+    expect(group.amountCount).toBe(1);
+    expect(group.items.map((item) => item.before === item.after)).toEqual([
+      true,
+    ]);
   });
 });
 
@@ -385,7 +411,7 @@ describe("a bulk group", () => {
     ]);
   });
 
-  it("counts only the fields that differ: a grouped change that restates a value adds no item", () => {
+  it("counts every member of the group: a grouped change that restates a value is a no-op item", () => {
     const moved = cabinetSlots.slice(0, 2).map(rise);
     const unchanged = cabinetSlots[2];
     if (unchanged === undefined) throw new Error("no slot");
@@ -399,7 +425,14 @@ describe("a bulk group", () => {
       },
     );
 
-    expect(groupRow(rows[0]).items).toHaveLength(2);
+    const group = groupRow(rows[0]);
+    expect(group.items).toHaveLength(3);
+    expect(group.amountCount).toBe(3);
+    expect(group.items.map((item) => item.before === item.after)).toEqual([
+      false,
+      false,
+      true,
+    ]);
   });
 
   it("lets a later single edit of a grouped field take it out of the group", () => {

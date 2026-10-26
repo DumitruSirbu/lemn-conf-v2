@@ -1,10 +1,12 @@
 import { isRecord } from "../pricing/book-reading.js";
 import type { PriceBook } from "../pricing/price-book.js";
 
+import { addressKey } from "./address-key.js";
+import { readBulk } from "./apply-changes.js";
 import type { DraftBulk, DraftChange } from "./book-field-address.js";
 import {
-  addressKey,
   anchoredFormulaOf,
+  isCabinetAddress,
   readEditableFields,
   type AppliedAddress,
   type EditableFieldReading,
@@ -15,9 +17,9 @@ import {
 // What differs between two price books, as the rows D7 (draft against active) and D8 (archived against its
 // predecessor) draw. Rows hold field codes and numbers, never words: the web names a row from its address and the book.
 //
-// Two books cannot say which differences were one bulk action, so the grouping comes from the changes that made them:
-// the differing fields whose change carries a `groupId` fold into one `group` row that expands to its items and carries
-// the group's `bulk` (percent, scope, group code) as stored.
+// Two books cannot say which differences were one bulk action, so the grouping comes from the changes that made them.
+// A field a change names has a row even when the change restated its value, so the row can be reverted; the fields of
+// one `groupId` fold into one `group` row that expands to every member and carries the group's `bulk` as stored.
 
 /** The order D7 lists its sections in. */
 export const DIFF_SECTIONS = Object.freeze([
@@ -57,7 +59,7 @@ export interface FieldDiffRow {
   readonly cabinet?: CabinetRowContext;
 }
 
-/** One bulk action: its differing fields, counted as the audit counts them (rules touched, prices touched). */
+/** One bulk action: every member of the group, counted as the audit counts them (rules touched, prices touched). */
 export interface GroupDiffRow {
   readonly kind: "group";
   readonly groupId: string;
@@ -72,32 +74,43 @@ export interface GroupDiffRow {
 export type BookDiffRow = FieldDiffRow | GroupDiffRow;
 
 export interface DiffBooksOptions {
-  /** The changes that made `after` from `before`, which name the bulk groups. Without them every field is its own row. */
+  /** The changes that made `after` from `before`, which name the bulk groups. Without them every field is its own row,
+   *  and only a field that differs has one. */
   readonly changes?: readonly DraftChange[];
 }
 
-/** The rows by which `after` differs from `before`, sectioned in D7's order. Equal books give none. */
+/** The rows by which `after` differs from `before`, sectioned in D7's order, and for each change given the row of the
+ *  field it names. Equal books and no changes give none. */
 export function diffBooks(
   before: PriceBook,
   after: PriceBook,
   options: DiffBooksOptions = {},
 ): readonly BookDiffRow[] {
-  const fieldRows = changedFieldRows(before, after);
-  return foldBulkGroups(fieldRows, membershipOf(options.changes ?? []));
+  const membership = membershipOf(options.changes ?? []);
+  const fieldRows = changedFieldRows({ before, after }, membership.changedKeys);
+  return foldBulkGroups(fieldRows, membership);
 }
 
 function changedFieldRows(
-  before: PriceBook,
-  after: PriceBook,
+  books: BookPair,
+  changedKeys: ReadonlySet<string>,
 ): readonly FieldDiffRow[] {
-  const beforeFields = readingsByAddress(before);
-  const afterFields = readingsByAddress(after);
+  const beforeFields = readingsByAddress(books.before);
+  const afterFields = readingsByAddress(books.after);
   const addresses = new Map([...beforeFields, ...afterFields]);
   return [...addresses.keys()]
     .flatMap((key) =>
-      rowOf(beforeFields.get(key), afterFields.get(key), { before, after }),
+      rowOf(
+        { before: beforeFields.get(key), after: afterFields.get(key) },
+        { books, isNamedByAChange: changedKeys.has(key) },
+      ),
     )
     .sort(bySection);
+}
+
+interface BookPair {
+  readonly before: PriceBook;
+  readonly after: PriceBook;
 }
 
 function readingsByAddress(
@@ -112,15 +125,17 @@ function readingsByAddress(
 }
 
 function rowOf(
-  beforeReading: EditableFieldReading | undefined,
-  afterReading: EditableFieldReading | undefined,
-  books: { readonly before: PriceBook; readonly after: PriceBook },
+  readings: {
+    readonly before: EditableFieldReading | undefined;
+    readonly after: EditableFieldReading | undefined;
+  },
+  context: { readonly books: BookPair; readonly isNamedByAChange: boolean },
 ): readonly FieldDiffRow[] {
-  const reading = afterReading ?? beforeReading;
+  const reading = readings.after ?? readings.before;
   if (reading === undefined) return [];
-  const before = beforeReading?.value ?? ABSENT_VALUE;
-  const after = afterReading?.value ?? ABSENT_VALUE;
-  if (before === after) return [];
+  const before = readings.before?.value ?? ABSENT_VALUE;
+  const after = readings.after?.value ?? ABSENT_VALUE;
+  if (before === after && !context.isNamedByAChange) return [];
   const { address, unit } = reading;
   return [
     {
@@ -131,7 +146,7 @@ function rowOf(
       before,
       after,
       ...deltaOf(unit, before, after),
-      ...cabinetContextOf(address, books),
+      ...cabinetContextOf(address, context.books),
     },
   ];
 }
@@ -147,9 +162,9 @@ function deltaOf(
 
 function cabinetContextOf(
   address: AppliedAddress,
-  books: { readonly before: PriceBook; readonly after: PriceBook },
+  books: BookPair,
 ): { readonly cabinet?: CabinetRowContext } {
-  if (address.kind !== "cabinet" && address.kind !== "cabinet-size") return {};
+  if (!isCabinetAddress(address)) return {};
   const ruleId = address.ruleId;
   const rule =
     books.after.cabinetRules.find((row) => row.ruleId === ruleId) ??
@@ -191,29 +206,33 @@ function bySection(left: FieldDiffRow, right: FieldDiffRow): number {
 }
 
 interface GroupMembership {
+  /** Every address a change names, in a draft that holds one change per address. */
+  readonly changedKeys: ReadonlySet<string>;
   readonly groupIdByAddress: ReadonlyMap<string, string>;
   readonly bulkByGroup: ReadonlyMap<string, DraftBulk>;
 }
 
-/** The group each address belongs to, and what each group was asked as. A later change of an address replaces the
- *  earlier, so it may also leave a group. */
+/** The addresses the changes name, the group each belongs to, and what each group was asked as. A later change of an
+ *  address replaces the earlier, so it may also leave a group. A `bulk` that is not the shape of one is dropped. */
 function membershipOf(changes: readonly DraftChange[]): GroupMembership {
+  const changedKeys = new Set<string>();
   const groupIdByAddress = new Map<string, string>();
   const bulkByGroup = new Map<string, DraftBulk>();
   for (const stored of changes as readonly unknown[]) {
     if (!isRecord(stored)) continue;
     const key = addressKey(stored["address"]);
+    changedKeys.add(key);
     const groupId = stored["groupId"];
     if (typeof groupId !== "string") {
       groupIdByAddress.delete(key);
       continue;
     }
     groupIdByAddress.set(key, groupId);
-    const bulk = stored["bulk"];
-    if (isRecord(bulk) && !bulkByGroup.has(groupId))
-      bulkByGroup.set(groupId, bulk as unknown as DraftBulk);
+    const bulk = readBulk(stored["bulk"]);
+    if (bulk !== undefined && !bulkByGroup.has(groupId))
+      bulkByGroup.set(groupId, bulk);
   }
-  return { groupIdByAddress, bulkByGroup };
+  return { changedKeys, groupIdByAddress, bulkByGroup };
 }
 
 /** Each group becomes one row at the place its first item held; ungrouped rows stay as they are. */
@@ -252,9 +271,7 @@ function groupRowOf(group: {
   const { groupId, items, bulk } = group;
   const ruleIds = new Set(
     items.flatMap(({ address }) =>
-      address.kind === "cabinet" || address.kind === "cabinet-size"
-        ? [address.ruleId]
-        : [],
+      isCabinetAddress(address) ? [address.ruleId] : [],
     ),
   );
   return {
