@@ -30,6 +30,7 @@ import {
   PER_SIZE_WIDTHS_MM,
   perSizeRuleOf,
   PERCENTAGE_BOOK,
+  SAMPLE_BULK,
   setSlots,
   valueForSeed,
 } from "./change-set-books.js";
@@ -50,11 +51,12 @@ function changeAt(
   address: BookFieldAddress,
   value: unknown,
   groupId?: string,
+  bulk: unknown = SAMPLE_BULK,
 ): DraftChange {
   return {
     address,
     value,
-    ...(groupId === undefined ? {} : { groupId }),
+    ...(groupId === undefined ? {} : { groupId, bulk }),
   } as DraftChange;
 }
 
@@ -617,11 +619,163 @@ describe("a change is refused with a closed code", () => {
         7,
       ],
     ])("refuses %s carrying a group id", (_title, address, value, groupId) => {
-      const change = { address, value, groupId } as unknown as DraftChange;
+      const change = {
+        address,
+        value,
+        groupId,
+        bulk: SAMPLE_BULK,
+      } as unknown as DraftChange;
 
       expect(refusalsOf(applyChanges(PERCENTAGE_BOOK, [change]))).toEqual([
         "0:NOT_EDITABLE",
       ]);
+    });
+  });
+
+  describe("by its bulk metadata", () => {
+    const first: BookFieldAddress = {
+      kind: "cabinet",
+      ruleId: rule.ruleId,
+      field: "anchorMinor",
+    };
+    const second: BookFieldAddress = {
+      kind: "cabinet",
+      ruleId: rule.ruleId,
+      field: "perStepWiderMinor",
+    };
+    const bare = (address: BookFieldAddress, value: number): DraftChange =>
+      changeAt(address, value);
+
+    it("refuses a bulk without a group id", () => {
+      const change = {
+        ...bare(first, 10),
+        bulk: SAMPLE_BULK,
+      } as unknown as DraftChange;
+
+      expect(refusalsOf(applyChanges(PERCENTAGE_BOOK, [change]))).toEqual([
+        "0:NOT_EDITABLE",
+      ]);
+    });
+
+    it("refuses a group id without a bulk", () => {
+      const change = {
+        ...bare(first, 10),
+        groupId: "group-1",
+      } as unknown as DraftChange;
+
+      expect(refusalsOf(applyChanges(PERCENTAGE_BOOK, [change]))).toEqual([
+        "0:NOT_EDITABLE",
+      ]);
+    });
+
+    it.each([
+      ["scope all", { percent: 5, scope: "all" }],
+      ["scope selection", { percent: -90, scope: "selection" }],
+      [
+        "scope group with its group code",
+        { percent: 300, scope: "group", groupCode: "wall" },
+      ],
+      ["a percent of zero", { percent: 0, scope: "all" }],
+    ])("accepts a group stating %s", (_title, bulk) => {
+      const result = applyChanges(PERCENTAGE_BOOK, [
+        changeAt(first, 10, "group-1", bulk),
+        changeAt(second, 20, "group-1", bulk),
+      ]);
+
+      expect(result.ok).toBe(true);
+    });
+
+    it("refuses the member whose bulk differs from the group's first, and only that one", () => {
+      const result = applyChanges(PERCENTAGE_BOOK, [
+        changeAt(first, 10, "group-1", { percent: 5, scope: "all" }),
+        changeAt(second, 20, "group-1", { percent: 6, scope: "all" }),
+        changeAt(first, 30, "group-2", { percent: 6, scope: "all" }),
+      ]);
+
+      expect(refusalsOf(result)).toEqual(["1:NOT_EDITABLE"]);
+    });
+
+    it.each([
+      ["a scope that differs", { percent: 5, scope: "selection" }],
+      [
+        "a group code that differs",
+        { percent: 5, scope: "group", groupCode: "wall" },
+      ],
+    ])("refuses a member whose bulk has %s", (_title, other) => {
+      const result = applyChanges(PERCENTAGE_BOOK, [
+        changeAt(first, 10, "group-1", {
+          percent: 5,
+          scope: "group",
+          groupCode: "base",
+        }),
+        changeAt(second, 20, "group-1", other),
+      ]);
+
+      expect(refusalsOf(result)).toEqual(["1:NOT_EDITABLE"]);
+    });
+
+    it.each([
+      [
+        "a percent with a fraction",
+        { percent: 5.5, scope: "all" },
+        "NOT_A_WHOLE_NUMBER",
+      ],
+      [
+        "a percent of NaN",
+        { percent: Number.NaN, scope: "all" },
+        "NOT_A_WHOLE_NUMBER",
+      ],
+      [
+        "a percent that is a string",
+        { percent: "5", scope: "all" },
+        "NOT_A_WHOLE_NUMBER",
+      ],
+      ["a percent of negative zero", { percent: -0, scope: "all" }, "NEGATIVE"],
+      [
+        "a scope no action has",
+        { percent: 5, scope: "everything" },
+        "NOT_EDITABLE",
+      ],
+      [
+        "a group scope without a group code",
+        { percent: 5, scope: "group" },
+        "NOT_EDITABLE",
+      ],
+      [
+        "a group scope with a code no group has",
+        { percent: 5, scope: "group", groupCode: "attic" },
+        "NOT_EDITABLE",
+      ],
+      [
+        "a group code beside another scope",
+        { percent: 5, scope: "all", groupCode: "base" },
+        "NOT_EDITABLE",
+      ],
+      [
+        "a member no bulk has",
+        { percent: 5, scope: "all", rounding: "r10" },
+        "NOT_EDITABLE",
+      ],
+      ["a bulk that is not an object", 5, "NOT_EDITABLE"],
+    ])("refuses %s", (_title, bulk, code) => {
+      const result = applyChanges(PERCENTAGE_BOOK, [
+        changeAt(first, 10, "group-1", bulk),
+      ]);
+
+      expect(refusalsOf(result)).toEqual([`0:${code}`]);
+    });
+
+    it("applies a group's prices exactly as the same ungrouped changes do", () => {
+      const grouped = applyChanges(PERCENTAGE_BOOK, [
+        changeAt(first, 10, "group-1"),
+        changeAt(second, 20, "group-1"),
+      ]);
+      const ungrouped = applyChanges(PERCENTAGE_BOOK, [
+        changeAt(first, 10),
+        changeAt(second, 20),
+      ]);
+
+      expect(appliedBook(grouped)).toEqual(appliedBook(ungrouped));
     });
   });
 

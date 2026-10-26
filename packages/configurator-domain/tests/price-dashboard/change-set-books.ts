@@ -3,6 +3,7 @@
 // module's result with `setSlots` is not fed by the module on both sides.
 import type {
   BookFieldAddress,
+  DraftBulk,
   DraftChange,
 } from "../../src/price-dashboard/book-field-address.js";
 import type {
@@ -305,11 +306,19 @@ function writeAtPath(
   parent[last] = value;
 }
 
-export function changeOf(edit: SlotEdit, groupId?: string): DraftChange {
+/** A bulk action as a group's changes carry it. */
+export const SAMPLE_BULK: DraftBulk = { percent: 5, scope: "all" };
+
+/** A change; with a `groupId` it also carries `bulk`, because the two come together. */
+export function changeOf(
+  edit: SlotEdit,
+  groupId?: string,
+  bulk: DraftBulk = SAMPLE_BULK,
+): DraftChange {
   return {
     address: edit.slot.address,
     value: edit.value,
-    ...(groupId === undefined ? {} : { groupId }),
+    ...(groupId === undefined ? {} : { groupId, bulk }),
   } as DraftChange;
 }
 

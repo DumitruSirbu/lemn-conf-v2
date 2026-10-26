@@ -1,6 +1,6 @@
 import type { PriceBook } from "../pricing/price-book.js";
 
-import type { DraftChange } from "./book-field-address.js";
+import type { DraftBulk, DraftChange } from "./book-field-address.js";
 import {
   addressKey,
   anchoredFormulaOf,
@@ -15,7 +15,8 @@ import {
 // predecessor) draw. Rows hold field codes and numbers, never words: the web names a row from its address and the book.
 //
 // Two books cannot say which differences were one bulk action, so the grouping comes from the changes that made them:
-// the differing fields whose change carries a `groupId` fold into one `group` row that expands to its items.
+// the differing fields whose change carries a `groupId` fold into one `group` row that expands to its items and carries
+// the group's `bulk` (percent, scope, group code) as stored.
 
 /** The order D7 lists its sections in. */
 export const DIFF_SECTIONS = Object.freeze([
@@ -62,6 +63,8 @@ export interface GroupDiffRow {
   readonly section: DiffSection;
   readonly ruleCount: number;
   readonly amountCount: number;
+  /** What the action was asked as, exactly as stored on the group's changes; never derived from the amounts. */
+  readonly bulk?: DraftBulk;
   readonly items: readonly FieldDiffRow[];
 }
 
@@ -79,7 +82,7 @@ export function diffBooks(
   options: DiffBooksOptions = {},
 ): readonly BookDiffRow[] {
   const fieldRows = changedFieldRows(before, after);
-  return foldBulkGroups(fieldRows, groupIdsByAddress(options.changes ?? []));
+  return foldBulkGroups(fieldRows, membershipOf(options.changes ?? []));
 }
 
 function changedFieldRows(
@@ -186,44 +189,63 @@ function bySection(left: FieldDiffRow, right: FieldDiffRow): number {
   );
 }
 
-/** The group each address belongs to. A later change of an address replaces the earlier, so it may also leave a group. */
-function groupIdsByAddress(
-  changes: readonly DraftChange[],
-): ReadonlyMap<string, string> {
-  const groupIds = new Map<string, string>();
+interface GroupMembership {
+  readonly groupIdByAddress: ReadonlyMap<string, string>;
+  readonly bulkByGroup: ReadonlyMap<string, DraftBulk>;
+}
+
+/** The group each address belongs to, and what each group was asked as. A later change of an address replaces the
+ *  earlier, so it may also leave a group. */
+function membershipOf(changes: readonly DraftChange[]): GroupMembership {
+  const groupIdByAddress = new Map<string, string>();
+  const bulkByGroup = new Map<string, DraftBulk>();
   for (const change of changes) {
     const key = addressKey(change.address);
-    if (change.groupId === undefined) groupIds.delete(key);
-    else groupIds.set(key, change.groupId);
+    if (change.groupId === undefined) {
+      groupIdByAddress.delete(key);
+      continue;
+    }
+    groupIdByAddress.set(key, change.groupId);
+    if (change.bulk !== undefined && !bulkByGroup.has(change.groupId))
+      bulkByGroup.set(change.groupId, change.bulk);
   }
-  return groupIds;
+  return { groupIdByAddress, bulkByGroup };
 }
 
 /** Each group becomes one row at the place its first item held; ungrouped rows stay as they are. */
 function foldBulkGroups(
   rows: readonly FieldDiffRow[],
-  groupIds: ReadonlyMap<string, string>,
+  membership: GroupMembership,
 ): readonly BookDiffRow[] {
+  const { groupIdByAddress, bulkByGroup } = membership;
   const itemsByGroup = new Map<string, FieldDiffRow[]>();
   for (const row of rows) {
-    const groupId = groupIds.get(addressKey(row.address));
+    const groupId = groupIdByAddress.get(addressKey(row.address));
     if (groupId === undefined) continue;
     itemsByGroup.set(groupId, [...(itemsByGroup.get(groupId) ?? []), row]);
   }
   const placed = new Set<string>();
   return rows.flatMap((row): readonly BookDiffRow[] => {
-    const groupId = groupIds.get(addressKey(row.address));
+    const groupId = groupIdByAddress.get(addressKey(row.address));
     if (groupId === undefined) return [row];
     if (placed.has(groupId)) return [];
     placed.add(groupId);
-    return [groupRowOf(groupId, itemsByGroup.get(groupId) ?? [])];
+    return [
+      groupRowOf({
+        groupId,
+        items: itemsByGroup.get(groupId) ?? [],
+        bulk: bulkByGroup.get(groupId),
+      }),
+    ];
   });
 }
 
-function groupRowOf(
-  groupId: string,
-  items: readonly FieldDiffRow[],
-): GroupDiffRow {
+function groupRowOf(group: {
+  readonly groupId: string;
+  readonly items: readonly FieldDiffRow[];
+  readonly bulk: DraftBulk | undefined;
+}): GroupDiffRow {
+  const { groupId, items, bulk } = group;
   const ruleIds = new Set(
     items.flatMap(({ address }) =>
       address.kind === "cabinet" || address.kind === "cabinet-size"
@@ -237,6 +259,7 @@ function groupRowOf(
     section: items[0]?.section ?? "cabinets",
     ruleCount: ruleIds.size,
     amountCount: items.length,
+    ...(bulk === undefined ? {} : { bulk }),
     items,
   };
 }

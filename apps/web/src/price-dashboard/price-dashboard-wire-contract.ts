@@ -227,9 +227,9 @@ export type DraftChangeInputWire = WithoutGroupId<
   >
 >;
 
-/** A single-change input never carries a group id: only the bulk route mints one (m1). */
+/** A single-change input never carries a group id, nor the `bulk` that goes with it: only the bulk route sets them (m1). */
 type WithoutGroupId<Change> = Change extends unknown
-  ? Omit<Change, "groupId">
+  ? Omit<Change, "groupId" | "bulk">
   : never;
 
 /** One change to the draft. `groupId` ties the changes of one bulk action. */

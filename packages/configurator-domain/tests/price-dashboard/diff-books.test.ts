@@ -3,7 +3,11 @@
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import type { BookFieldAddress } from "../../src/price-dashboard/book-field-address.js";
+import type {
+  BookFieldAddress,
+  DraftBulk,
+  DraftChange,
+} from "../../src/price-dashboard/book-field-address.js";
 import {
   ABSENT_VALUE,
   DIFF_SECTIONS,
@@ -21,6 +25,7 @@ import {
   FIXTURE_ANCHOR_WIDTH_MM,
   PERCENTAGE_BOOK,
   perSizeRuleOf,
+  SAMPLE_BULK,
   setSlots,
   valueAt,
   type EditSlot,
@@ -245,6 +250,7 @@ describe("a bulk group", () => {
         expect(rows).toHaveLength(1);
         const group = groupRow(rows[0]);
         expect(group.groupId).toBe("group-1");
+        expect(group.bulk).toEqual(SAMPLE_BULK);
         expect(group.items).toHaveLength(count);
         expect(group.amountCount).toBe(count);
         expect(group.ruleCount).toBe(
@@ -294,6 +300,67 @@ describe("a bulk group", () => {
     expect(rows.map((row) => row.kind)).toEqual(["group", "field", "field"]);
     expect(groupRow(rows[0]).items).toHaveLength(3);
     expect(fieldRow(rows[1]).address).toEqual(cabinetAlone.slot.address);
+  });
+
+  it.each<DraftBulk>([
+    { percent: 5, scope: "all" },
+    { percent: -20, scope: "group", groupCode: "wall" },
+    { percent: 300, scope: "selection" },
+  ])(
+    "carries its bulk $scope as stored, though the amounts moved by +10 whatever the percent",
+    (bulk) => {
+      const edits = cabinetSlots.slice(0, 3).map(rise);
+
+      const rows = diffBooks(
+        PERCENTAGE_BOOK,
+        setSlots(PERCENTAGE_BOOK, edits),
+        {
+          changes: edits.map((edit) => changeOf(edit, "group-1", bulk)),
+        },
+      );
+
+      expect(groupRow(rows[0]).bulk).toEqual(bulk);
+    },
+  );
+
+  it("gives each of two groups its own bulk", () => {
+    const first = cabinetSlots.slice(0, 2).map(rise);
+    const second = cabinetSlots.slice(2, 4).map(rise);
+    const firstBulk: DraftBulk = { percent: 5, scope: "all" };
+    const secondBulk: DraftBulk = {
+      percent: -10,
+      scope: "group",
+      groupCode: "tall",
+    };
+
+    const rows = diffBooks(
+      PERCENTAGE_BOOK,
+      setSlots(PERCENTAGE_BOOK, [...first, ...second]),
+      {
+        changes: [
+          ...first.map((edit) => changeOf(edit, "group-1", firstBulk)),
+          ...second.map((edit) => changeOf(edit, "group-2", secondBulk)),
+        ],
+      },
+    );
+
+    expect(rows.map((row) => groupRow(row).bulk)).toEqual([
+      firstBulk,
+      secondBulk,
+    ]);
+  });
+
+  it("states no bulk for a group whose changes carry none", () => {
+    const edits = cabinetSlots.slice(0, 2).map(rise);
+    const changes = edits.map(
+      (edit) => ({ ...changeOf(edit), groupId: "group-1" }) as DraftChange,
+    );
+
+    const rows = diffBooks(PERCENTAGE_BOOK, setSlots(PERCENTAGE_BOOK, edits), {
+      changes,
+    });
+
+    expect(groupRow(rows[0])).not.toHaveProperty("bulk");
   });
 
   it("keeps two groups apart", () => {
