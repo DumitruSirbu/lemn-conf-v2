@@ -12,6 +12,8 @@
 // Nothing here keys on a width and nothing under `pricing/` names the catalogue's width-step
 // constant (`pricing-seams.test.ts` reads the source for it). A linear shape prices a body built at 575
 // at 575; an anchored shape rounds width and height up to the pricing step first, so 575 prices as 600.
+//
+// A book in percentage form rounds each cabinet's stages to 10 lei in `percentage-lines.ts` (ADR 0177 A-1).
 
 import {
   anchoredShapeReadsDoorLeaves,
@@ -23,7 +25,7 @@ import {
   type PricePerSizeFormula,
 } from "./anchored-price-formula.js";
 
-/** The currency of every book. Minor units throughout (bani): only presentation may round. */
+/** The currency of every book. Minor units throughout (bani). */
 export const PRICE_BOOK_CURRENCY = "MDL" as const;
 export type PriceBookCurrency = typeof PRICE_BOOK_CURRENCY;
 
@@ -223,10 +225,33 @@ export interface HardwareTier extends TierIdentity {
   readonly perPushToOpenMinor: number;
 }
 
-/** A material tier, priced once for the whole kitchen. */
-export interface MaterialTier extends TierIdentity {
+/** A material priced as one amount for the whole kitchen (ADR 0092). Never states a percentage. */
+export interface FlatMaterialTier extends TierIdentity {
   readonly wholeKitchenMinor: number;
+  readonly percentOfCabinets?: undefined;
 }
+
+/** A material priced as a percentage on the PAL cabinets (ADR 0092 Amendment of 2026-10-25). */
+export interface PercentageMaterialTier extends TierIdentity {
+  readonly wholeKitchenMinor?: undefined;
+  /** Whole, `0` to `MAX_MATERIAL_PERCENT`. PAL is the reference and is `0`. Never applied to hardware or accessories. */
+  readonly percentOfCabinets: number;
+}
+
+/** A tier states one of the two, and a book states one form throughout: `parsePriceBook` enforces it, because the
+ *  book arrives outside TypeScript (ADR 0062 seam 1). */
+export type MaterialTier = FlatMaterialTier | PercentageMaterialTier;
+
+/** The one percentage a 700 mm depth adds to the cabinets that get deeper (ADR 0100 Amendment, ADR 0177 A-1). Held as
+ *  book data and edited on the dashboard; a book that states it prices in percentage form. */
+export interface DepthRule {
+  /** Whole, `0` to `MAX_DEEP_CABINET_PERCENT`. At `0` the depth line is *inclus*. */
+  readonly deepCabinetPercent: number;
+}
+
+/** The rule id the depth line traces to. The book's depth rule carries no id of its own, so the id is reserved and
+ *  `listRuleIds` sweeps it with the rest: a rule that reuses it is a repeated id. */
+export const DEPTH_RULE_ID = "depth.deep-cabinets";
 
 /**
  * One extra a design earns rather than chooses (ADR 0070 decision 4): the aluminium sink cover and
@@ -291,12 +316,15 @@ export interface PriceBook {
   readonly cabinetRules: readonly CabinetPriceRule[];
   readonly hardware: TierGroup<HardwareTier>;
   readonly material: TierGroup<MaterialTier>;
+  /** Present exactly when the book states its materials as percentages (the percentage form). */
+  readonly depthRule?: DepthRule | undefined;
   readonly accessories: BookAccessories;
 }
 
-/** A book whose cabinet rules all state a linear formula: the sample book's type until it is converted. */
-export type LinearPriceBook = Omit<PriceBook, "cabinetRules"> & {
+/** A book whose cabinet rules all state a linear formula and whose materials are flat amounts: the sample book's type. */
+export type LinearPriceBook = Omit<PriceBook, "cabinetRules" | "material"> & {
   readonly cabinetRules: readonly LinearCabinetPriceRule[];
+  readonly material: TierGroup<FlatMaterialTier>;
 };
 
 /** Everything a formula may read about one body, and nothing else. Every field is derived by the
@@ -601,7 +629,9 @@ export type PriceCoefficientField =
   | "perDrawerMinor"
   | "perPushToOpenMinor"
   | "perUnitMinor"
-  | "wholeKitchenMinor";
+  | "wholeKitchenMinor"
+  | "percentOfCabinets"
+  | "deepCabinetPercent";
 
 /**
  * A formula that declares a coefficient the arithmetic cannot be performed on: an error in the book,
@@ -647,8 +677,8 @@ export function usableCoefficientOf(
   throw new MalformedPriceCoefficientError({ field, declared });
 }
 
-/** Every rule id in a book: cabinet rules, then tiers, then accessories. `parse-price-book.ts` sweeps
- *  it for duplicates, since a repeated id makes a line untraceable to one rule.
+/** Every rule id in a book: cabinet rules, then tiers, then accessories, then the depth rule's reserved id.
+ *  `parse-price-book.ts` sweeps it for duplicates, since a repeated id makes a line untraceable to one rule.
  *
  *  The three lists are dereferenced bare, which is safe only because the parser's section checks
  *  establish they are lists before it calls this. */
@@ -658,6 +688,7 @@ export function listRuleIds(book: PriceBook): readonly string[] {
     ...book.hardware.tiers.map((tier) => tier.ruleId),
     ...book.material.tiers.map((tier) => tier.ruleId),
     ...listAccessoryRuleIds(book),
+    ...(book.depthRule === undefined ? [] : [DEPTH_RULE_ID]),
   ];
 }
 

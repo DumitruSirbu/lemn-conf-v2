@@ -18,10 +18,13 @@ const TERMS_IN_THE_WIDEST_FORMULA = 4;
 const MAX_BOOK_AMOUNT_MULTIPLIER = MAX_DESIGN_DIMENSION_MM;
 
 /**
- * The largest magnitude a coefficient or a stated amount may carry, in minor units. Derived from the
+ * The largest magnitude a flat-form book's coefficient or stated amount may carry, in minor units. Derived from the
  * arithmetic: at this bound every product and partial sum `amountForBody` forms stays in the
  * safe-integer range, so cancelling terms cannot lose precision. A bound on magnitude, not sign:
  * `refuseNegativeAmount` refuses a negative price and the published line is refused where it is built.
+ *
+ * Held for every form of book. The percentage seam bounds a cabinet's whole amount instead, by
+ * `MAX_CABINET_AMOUNT_MINOR` (`percentage-lines.ts`, ADR 0177 A-5): the terms' own arithmetic is exact-checked.
  */
 export const MAX_PRICE_COEFFICIENT_MINOR = Math.floor(
   Number.MAX_SAFE_INTEGER /

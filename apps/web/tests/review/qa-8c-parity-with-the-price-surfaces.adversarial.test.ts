@@ -219,6 +219,12 @@ function rawWholeKitchenRowsOf(
   priced: PricedDesign,
 ): readonly PrintedRow[] {
   return priced.lines.flatMap((line) => {
+    if (line.kind === "depth") {
+      throw new Error(
+        `Line "${line.lineId}" is a depth line: unreachable until P3 prints the depth line. The breakdown drops a ` +
+          "kind it has no category word for while the total counts it, so a depth line must fail here, not pass.",
+      );
+    }
     if (line.kind === "cabinet") return [];
     const tierName =
       line.nameKey === undefined

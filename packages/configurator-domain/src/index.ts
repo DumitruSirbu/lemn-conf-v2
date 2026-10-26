@@ -241,6 +241,21 @@ export * from "./pricing/price-lines.js";
 // reads a shape something has established rather than a type somebody declared.
 export * from "./pricing/parse-price-book.js";
 export * from "./pricing/price-design.js";
+export {
+  DEEP_CABINET_DEPTH_MM,
+  MAX_CABINET_AMOUNT_MINOR,
+  percentageStagesOf,
+  roundHalfUpToTenLei,
+  TEN_LEI_MINOR,
+  type CabinetPercentages,
+  type CabinetStages,
+} from "./pricing/percentage-lines.js";
+export { measureDeepeningRows } from "./pricing/deepening-rows.js";
+export {
+  MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
+  PERCENT_BASE,
+} from "./pricing/price-bounds.js";
 // The one module that names the sample book (ADR 0062 seam 1): the query imports no book, so a
 // composition root picks it up here and a book from another source is a substitution.
 // `pricing-seams.test.ts` holds the import graph to that.
