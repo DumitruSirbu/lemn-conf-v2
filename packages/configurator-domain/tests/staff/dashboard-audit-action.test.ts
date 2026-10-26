@@ -4,32 +4,42 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import { BOOK_FIELD_ADDRESS_KINDS } from "../../src/price-dashboard/book-field-address.js";
 import {
+  ADDRESS_FIELDS,
+  BOOK_FIELD_ADDRESS_KINDS,
+} from "../../src/price-dashboard/book-field-address.js";
+import {
+  BULK_GROUP_CHANGE_KIND,
+  CHANGE_ITEM_KINDS,
   DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
   DASHBOARD_AUDIT_ACTIONS,
-  DRAFT_CHANGE_FIELDS,
   PRICE_GROUP_CODES,
-  STAFF_AUDIT_ACTIONS,
   dashboardAuditActionNamesDesign,
   isDashboardAuditAction,
   readDashboardAuditEntry,
-  readStaffAuditEntry,
   type DashboardAuditAction,
+} from "../../src/staff/dashboard-audit-action.js";
+import {
+  STAFF_AUDIT_ACTIONS,
+  readStaffAuditEntry,
 } from "../../src/staff/staff-audit-action.js";
 
 /** One valid detail per action, the fullest form of each. Every other test derives from these. */
 const VALID_DETAILS: Readonly<Record<DashboardAuditAction, object>> = {
   "price-draft-changed": {
-    changeKind: "hardware",
-    itemKind: "hardware",
-    itemId: "hardware.premium",
-    field: "perLiftMinor",
+    changeKind: "cabinet-size",
+    itemKind: "cabinet",
+    itemId: "cabinet.base-bottle-cargo",
+    field: "perUnitMinor",
+    widthMm: 200,
   },
   "price-draft-reverted": {
-    changeKind: "item-deleted",
-    itemKind: "accessory",
-    itemId: "accessory.dish-drying-rack",
+    changeKind: "cabinet-size",
+    itemKind: "cabinet",
+    itemId: "cabinet.base-bottle-cargo",
+    field: "perUnitMinor",
+    widthMm: 200,
+    revertedCount: 1,
   },
   "price-bulk-changed": {
     scope: "group",
@@ -51,12 +61,12 @@ const VALID_DETAILS: Readonly<Record<DashboardAuditAction, object>> = {
   "price-catalogue-viewed": { section: "hardware" },
 };
 
-/** The keys a valid detail may omit. Every other key is required. */
+/** The keys a valid detail may omit on its own. The item keys go together, and `widthMm` needs `cabinet-size`. */
 const OPTIONAL_KEYS: Readonly<
   Partial<Record<DashboardAuditAction, readonly string[]>>
 > = {
-  "price-draft-changed": ["itemKind", "itemId", "field"],
-  "price-draft-reverted": ["itemKind", "itemId"],
+  "price-draft-changed": ["field", "widthMm"],
+  "price-draft-reverted": ["field", "widthMm"],
 };
 
 const ALL_ACTIONS = [...DASHBOARD_AUDIT_ACTIONS];
@@ -66,9 +76,9 @@ function refusalOf(action: string, detail: unknown): string | undefined {
   return reading.ok ? undefined : reading.code;
 }
 
-function withoutKey(detail: object, missingKey: string): object {
+function withoutKeys(detail: object, ...missing: readonly string[]): object {
   return Object.fromEntries(
-    Object.entries(detail).filter(([key]) => key !== missingKey),
+    Object.entries(detail).filter(([key]) => !missing.includes(key)),
   );
 }
 
@@ -91,9 +101,9 @@ describe("the dashboard audit actions", () => {
   it("share no action with the six Lot 3 actions, whose list the audit page filters by", () => {
     const lotThree: readonly string[] = STAFF_AUDIT_ACTIONS;
 
-    expect(DASHBOARD_AUDIT_ACTIONS.filter((a) => lotThree.includes(a))).toEqual(
-      [],
-    );
+    expect(
+      DASHBOARD_AUDIT_ACTIONS.filter((action) => lotThree.includes(action)),
+    ).toEqual([]);
   });
 
   it("are refused by the Lot 3 reader, and the Lot 3 actions by this one", () => {
@@ -167,11 +177,13 @@ describe("a dashboard audit detail", () => {
     "%s: refuses the detail once a required key is missing, and accepts it once an optional one is",
     (action) => {
       const optional = OPTIONAL_KEYS[action] ?? [];
+      const itemKeys = ["itemKind", "itemId"];
 
       for (const key of Object.keys(VALID_DETAILS[action])) {
+        if (itemKeys.includes(key)) continue;
         const reading = refusalOf(
           action,
-          withoutKey(VALID_DETAILS[action], key),
+          withoutKeys(VALID_DETAILS[action], key),
         );
 
         expect(reading).toBe(
@@ -219,47 +231,147 @@ describe("a dashboard audit detail", () => {
   });
 });
 
-describe("the detail of each action", () => {
-  it("a draft change names a listed kind, and optionally a listed item kind, an id and a listed field", () => {
+describe("the detail of a draft change and of a revert (m7)", () => {
+  const CHANGED = VALID_DETAILS["price-draft-changed"];
+  const REVERTED = VALID_DETAILS["price-draft-reverted"];
+
+  it("names a listed kind alone, and every listed kind is accepted", () => {
     for (const changeKind of BOOK_FIELD_ADDRESS_KINDS) {
       expect(refusalOf("price-draft-changed", { changeKind })).toBeUndefined();
-      expect(refusalOf("price-draft-reverted", { changeKind })).toBeUndefined();
+      expect(
+        refusalOf("price-draft-reverted", { changeKind, revertedCount: 1 }),
+      ).toBeUndefined();
     }
-    for (const field of DRAFT_CHANGE_FIELDS) {
+    expect(refusalOf("price-draft-changed", { changeKind: "active" })).toBe(
+      "INVALID_DETAIL",
+    );
+  });
+
+  it("names a field by one of the address fields' own words, and no other", () => {
+    for (const field of ADDRESS_FIELDS) {
       expect(
         refusalOf("price-draft-changed", { changeKind: "cabinet", field }),
       ).toBeUndefined();
     }
-    const refused: readonly object[] = [
-      { changeKind: "active" },
-      { changeKind: "cabinet", field: "nameRu" },
-      { changeKind: "cabinet", itemKind: "colour" },
-      { changeKind: "hardware", itemId: "Hettich Premium" },
-      { changeKind: "hardware", itemId: 5 },
-    ];
-
-    for (const detail of refused) {
-      expect(refusalOf("price-draft-changed", detail)).toBe("INVALID_DETAIL");
-    }
-  });
-
-  it("a revert holds no field: the value it removes is not named", () => {
     expect(
-      refusalOf("price-draft-reverted", {
+      refusalOf("price-draft-changed", {
         changeKind: "cabinet",
-        field: "anchorMinor",
+        field: "nameRu",
       }),
     ).toBe("INVALID_DETAIL");
   });
 
-  it("a bulk change holds a listed scope, a group code only for a group, a whole percent and counts from zero", () => {
+  it("takes an item kind from the six the plan lists", () => {
+    expect([...CHANGE_ITEM_KINDS].sort()).toEqual([
+      "accessory",
+      "cabinet",
+      "finish",
+      "handle",
+      "hardware",
+      "material",
+    ]);
+    expect(
+      refusalOf("price-draft-changed", {
+        changeKind: "hardware",
+        itemKind: "colour",
+        itemId: "x",
+      }),
+    ).toBe("INVALID_DETAIL");
+  });
+
+  it("holds the item kind and the item id together, or neither", () => {
+    for (const detail of [
+      withoutKeys(CHANGED, "itemId", "widthMm", "field"),
+      withoutKeys(CHANGED, "itemKind", "widthMm", "field"),
+    ]) {
+      expect(refusalOf("price-draft-changed", detail)).toBe("INVALID_DETAIL");
+    }
+    expect(
+      refusalOf(
+        "price-draft-changed",
+        withoutKeys(CHANGED, "itemKind", "itemId"),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("takes an id, never a name", () => {
+    for (const itemId of ["Hettich Premium", "", 5, "x".repeat(65)]) {
+      expect(refusalOf("price-draft-changed", { ...CHANGED, itemId })).toBe(
+        "INVALID_DETAIL",
+      );
+    }
+  });
+
+  it("takes a width only for a fixed-size cabinet price, and only a whole positive one", () => {
+    expect(
+      refusalOf("price-draft-changed", { ...CHANGED, changeKind: "cabinet" }),
+    ).toBe("INVALID_DETAIL");
+    for (const widthMm of [0, -200, 1.5, "200"]) {
+      expect(refusalOf("price-draft-changed", { ...CHANGED, widthMm })).toBe(
+        "INVALID_DETAIL",
+      );
+    }
+  });
+
+  it("names no item for a rule or a switch of the book", () => {
+    for (const changeKind of ["depth-rule", "provisional"]) {
+      expect(
+        refusalOf("price-draft-changed", {
+          changeKind,
+          itemKind: "cabinet",
+          itemId: "cabinet.x",
+        }),
+      ).toBe("INVALID_DETAIL");
+      expect(refusalOf("price-draft-changed", { changeKind })).toBeUndefined();
+    }
+  });
+
+  it("reports a single revert as one, and a group revert as the bulk-group kind with its count and no item keys", () => {
+    expect(
+      refusalOf("price-draft-reverted", { ...REVERTED, revertedCount: 2 }),
+    ).toBe("INVALID_DETAIL");
+    expect(
+      refusalOf("price-draft-reverted", withoutKeys(REVERTED, "revertedCount")),
+    ).toBe("INVALID_DETAIL");
+    expect(
+      refusalOf("price-draft-reverted", {
+        changeKind: BULK_GROUP_CHANGE_KIND,
+        revertedCount: 4,
+      }),
+    ).toBeUndefined();
+    expect(
+      refusalOf("price-draft-reverted", {
+        changeKind: BULK_GROUP_CHANGE_KIND,
+        revertedCount: 0,
+      }),
+    ).toBe("INVALID_DETAIL");
+    expect(
+      refusalOf("price-draft-reverted", {
+        changeKind: BULK_GROUP_CHANGE_KIND,
+        itemKind: "cabinet",
+        itemId: "cabinet.x",
+        revertedCount: 4,
+      }),
+    ).toBe("INVALID_DETAIL");
+  });
+
+  it("refuses the group-revert kind on a change, which names an address", () => {
+    expect(
+      refusalOf("price-draft-changed", { changeKind: BULK_GROUP_CHANGE_KIND }),
+    ).toBe("INVALID_DETAIL");
+  });
+});
+
+describe("the detail of the other actions", () => {
+  it("a bulk change holds a listed scope, a closed group code only for a group, a whole percent and counts from zero", () => {
     const valid = VALID_DETAILS["price-bulk-changed"];
     const cases: readonly object[] = [
       { ...valid, scope: "everything" },
       { ...valid, scope: "selected" },
       { ...valid, scope: "all" },
-      withoutKey(valid, "groupCode"),
+      withoutKeys(valid, "groupCode"),
       { ...valid, groupCode: "Kitchen columns" },
+      { ...valid, groupCode: "hardware.x" },
       { ...valid, ruleCount: -1 },
       { ...valid, amountCount: 1.5 },
       { ...valid, percent: 2.5 },
@@ -276,9 +388,6 @@ describe("the detail of each action", () => {
       ).toBeUndefined();
     }
     expect([...PRICE_GROUP_CODES]).toEqual(["base", "wall", "tall", "corner"]);
-    expect(
-      refusalOf("price-bulk-changed", { ...valid, groupCode: "hardware.x" }),
-    ).toBe("INVALID_DETAIL");
     expect(
       refusalOf("price-bulk-changed", {
         scope: "selection",
@@ -325,6 +434,7 @@ describe("the detail of each action", () => {
   it("an activation names a listed kind, an id, a boolean and the availability revision it created", () => {
     const valid = VALID_DETAILS["catalogue-item-activation-changed"];
     const refused: readonly object[] = [
+      { ...valid, itemKind: "cabinet" },
       { ...valid, itemKind: "colour" },
       { ...valid, itemId: "Hettich Premium" },
       { ...valid, active: "false" },
@@ -332,7 +442,6 @@ describe("the detail of each action", () => {
       { ...valid, availabilityRevision: "012" },
       { ...valid, availabilityRevision: "1e3" },
       { ...valid, availabilityRevision: "" },
-      { ...valid, availabilityRevision: "1".repeat(20) },
     ];
 
     for (const detail of refused) {
@@ -340,12 +449,42 @@ describe("the detail of each action", () => {
         "INVALID_DETAIL",
       );
     }
-    expect(
-      refusalOf("catalogue-item-activation-changed", {
-        ...valid,
-        availabilityRevision: "0",
-      }),
-    ).toBeUndefined();
+  });
+
+  it("an availability revision is 0 or 1 to 19 digits with no leading zero, and at 19 digits at most the bigint's maximum, compared as text (m6)", () => {
+    const valid = VALID_DETAILS["catalogue-item-activation-changed"];
+    const accepted = [
+      "0",
+      "1",
+      "9",
+      "9".repeat(18),
+      "9223372036854775807",
+      "1000000000000000000",
+    ];
+    const refused = [
+      "9223372036854775808",
+      "9999999999999999999",
+      "1".repeat(20),
+      "00",
+      "-1",
+    ];
+
+    for (const availabilityRevision of accepted) {
+      expect(
+        refusalOf("catalogue-item-activation-changed", {
+          ...valid,
+          availabilityRevision,
+        }),
+      ).toBeUndefined();
+    }
+    for (const availabilityRevision of refused) {
+      expect(
+        refusalOf("catalogue-item-activation-changed", {
+          ...valid,
+          availabilityRevision,
+        }),
+      ).toBe("INVALID_DETAIL");
+    }
   });
 
   it("a defaults save names the rows it changed, from the closed list, at least one and none twice", () => {
@@ -374,7 +513,7 @@ describe("the detail of each action", () => {
     );
   });
 
-  it("the seen marker names nothing: the design is the row's own column", () => {
+  it("the seen marker names nothing: its detail is the empty key list, `{ }`, and the design is the row's own column", () => {
     expect(readDashboardAuditEntry("kitchen-seen", {})).toEqual({
       ok: true,
       entry: { action: "kitchen-seen", detail: {} },

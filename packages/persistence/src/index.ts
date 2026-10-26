@@ -411,6 +411,7 @@ export {
 } from "./m10-ports.js";
 export type {
   AcknowledgedPrices,
+  ActivationAuditRecord,
   ActivePriceVersion,
   AlreadyClaimed,
   AvailabilityChangedMeanwhile,

@@ -1,4 +1,5 @@
 import type {
+  CatalogueActivationAuditInput,
   CatalogueAvailability,
   DashboardAuditEntry,
   DraftChange,
@@ -120,7 +121,7 @@ export interface StoredPriceVersion extends ActivePriceVersion {
   readonly state: "active" | "archived";
   /** Authored text. */
   readonly note: string;
-  /** The change summary stored beside the book, as the domain wrote it. */
+  /** The published `DraftChange[]` as a JSON array, with minted ids and group ids (m8). `changeCount` is its length. */
   readonly changeSummary: unknown;
 }
 
@@ -130,7 +131,7 @@ export interface PriceVersionSummary {
   readonly label: string;
   readonly state: "active" | "archived";
   readonly publishedAt: Date;
-  /** How many changes the version carried, derived from its stored change summary and stored nowhere else (X0-5). */
+  /** The length of the stored change summary's array, derived and stored nowhere else (X0-5, m8). */
   readonly changeCount: number;
 }
 
@@ -195,7 +196,12 @@ export interface PublishPriceBookRequest {
    * never a book a request carried. Stored whole and immutable.
    */
   readonly book: unknown;
+  /** The published `DraftChange[]`, as a JSON array (m8). It is stored whole; `changeCount` is its length. */
   readonly changeSummary: unknown;
+  /** The availability head the publisher read. A publish takes the same compare-and-set as an availability write (M1). */
+  readonly expectedAvailabilityRevision: string;
+  /** The rows this publish creates (hardware classes and linked accessories). Each is logged inactive, in order (A-17). */
+  readonly createdItems: readonly ItemRef[];
   readonly audit: DashboardAuditRecord;
 }
 
@@ -204,13 +210,21 @@ export type PublishPriceBookResult =
       readonly kind: "ok";
       readonly versionId: string;
       readonly sequenceNumber: number;
+      /** The head after the publish: it moved once per created item, or once when there were none. */
+      readonly availabilityRevision: string;
     }
-  | ChangedMeanwhile;
+  | ChangedMeanwhile
+  | AvailabilityChangedMeanwhile;
 
 /**
  * Published versions are append-only (no update, no delete) and the newest is the active one (F7). `publish` is one
- * transaction: it inserts the new version at `expectedActiveSequence + 1`, resets the draft and writes the audit row, or
- * does none of them. Of two racing publishes the second meets the uniqueness of the sequence and is `changed-meanwhile`.
+ * transaction: the availability head compare-and-set and the created items' inactive log rows (A-17), the insert at
+ * `expectedActiveSequence + 1`, the draft reset and the audit row, or none of them. Of two racing publishes the second
+ * meets the uniqueness of the sequence and is `changed-meanwhile`; a stale `expectedAvailabilityRevision` is
+ * `availability-changed-meanwhile`.
+ *
+ * The store does not return `item-is-default` or a used deletion: the domain judges both **before** the call, against
+ * defaults and usage read at `expectedAvailabilityRevision`, which the compare-and-set keeps current (M5).
  */
 export interface PriceBookStore {
   readActive(): Promise<ReadActiveVersionResult>;
@@ -257,12 +271,19 @@ export type AvailabilityChangedMeanwhile =
   typeof AVAILABILITY_CHANGED_MEANWHILE;
 
 export type SaveKitchenDefaultsResult =
-  | { readonly kind: "ok"; readonly revision: string }
+  | {
+      readonly kind: "ok";
+      readonly revision: string;
+      /** The availability head after the save, which moved once. */
+      readonly availabilityRevision: string;
+    }
   | ChangedMeanwhile
-  | AvailabilityChangedMeanwhile
-  /** A defaults value names an item that is disabled or absent from the active book. */
-  | { readonly kind: "item-unavailable"; readonly item: ItemRef };
+  | AvailabilityChangedMeanwhile;
 
+/**
+ * The store returns only the two compare-and-set refusals (m2). `item-unavailable` is the domain's judgement, made
+ * before the call under the same compare-and-set, because the store cannot read `defaults` (it is `unknown`).
+ */
 export interface KitchenDefaultsStore {
   read(): Promise<ReadKitchenDefaultsResult>;
   save(request: SaveKitchenDefaultsRequest): Promise<SaveKitchenDefaultsResult>;
@@ -312,7 +333,11 @@ export const ALREADY_CLAIMED = Object.freeze({
 export type AlreadyClaimed = typeof ALREADY_CLAIMED;
 
 export type ClaimDigestDayResult =
-  | { readonly kind: "claimed"; readonly roundId: string }
+  | {
+      readonly kind: "claimed";
+      /** The day key itself: a round's identity is its day. */
+      readonly roundId: DigestDayKey;
+    }
   | AlreadyClaimed;
 
 /** How the digest names the customer: by `accounts.name` only, else by the request reference (X0-5, S-21). */
@@ -373,12 +398,23 @@ export type ReadAvailabilityAtResult =
   | { readonly kind: "found"; readonly availability: CatalogueAvailability }
   | AvailabilityRevisionNotFound;
 
+/** The staff member who acts, and the activation **without** the revision it will create (M4). */
+export interface ActivationAuditRecord {
+  readonly session: StaffActingSession;
+  readonly entry: CatalogueActivationAuditInput;
+}
+
 export interface SetItemActiveRequest {
   readonly item: ItemRef;
   readonly active: boolean;
   readonly expectedRevision: string;
-  /** `catalogue-item-activation-changed`. */
-  readonly audit: DashboardAuditRecord;
+  /**
+   * `catalogue-item-activation-changed` without `availabilityRevision`. The store stamps the revision its statement
+   * returned into the detail, reads the entry again with the domain, and inserts, all in the one transaction. The
+   * expected revision is not recorded: two racing requests may share it, while the returned revision is the unique key
+   * joining the audit row to its log row.
+   */
+  readonly audit: ActivationAuditRecord;
 }
 
 export type SetItemActiveResult =

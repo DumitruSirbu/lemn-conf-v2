@@ -2,8 +2,11 @@
 // has, the defaults' names against the stored settings' own, the closed lists' separation, and the staff-kitchens
 // additions. The type-level checks run in `pnpm typecheck`.
 import type {
+  BookFieldAddress,
   BookFieldAddressKind,
+  PriceGroupCode,
   DesignSettings,
+  ItemRef,
   KitchenDefaultsField,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
@@ -14,19 +17,27 @@ import {
   DEFAULTS_REFUSAL_CODES,
   DRAFT_CHANGE_REFUSAL_CODES,
   KITCHEN_DEFAULTS_MEMBERS,
+  PRICE_NOTICE_REFUSALS,
   PUBLISH_TEXT_REFUSAL_CODES,
   TEXT_REFUSAL_CODES,
   type AvailabilityRequestWire,
   type CreateAccessoryRequestWire,
   type CreateHardwareClassRequestWire,
   type DashboardBookPayload,
+  type BulkTargetWire,
+  type DashboardItemIsDefaultWire,
   type DashboardItemUnavailableWire,
+  type DashboardRequestField,
+  type DraftRevertRequestWire,
+  type DraftRevertTargetWire,
+  type KitchenDefaultsSavedWire,
   type DraftChangeInputWire,
   type DraftChangeRequestWire,
   type KitchenDefaultsSaveRequestWire,
   type KitchenDefaultsWire,
   type PriceNoticeRefusedWire,
   type PublishRequestWire,
+  type PublishedWire,
   type PriceVersionSummaryWire,
   type DashboardConflict,
 } from "@/price-dashboard/price-dashboard-wire-contract";
@@ -43,13 +54,16 @@ describe("the bodies have the members the plan (as amended) names", () => {
     >();
   });
 
-  it("a publish request is {expectedDraftRevision, expectedActiveSequence, label, note, provisional}: no book", () => {
+  it("a publish request is {expectedDraftRevision, expectedActiveSequence, expectedAvailabilityRevision, label, note}: no book, no provisional", () => {
     expectTypeOf<keyof PublishRequestWire>().toEqualTypeOf<
       | "expectedDraftRevision"
       | "expectedActiveSequence"
+      | "expectedAvailabilityRevision"
       | "label"
       | "note"
-      | "provisional"
+    >();
+    expectTypeOf<keyof PublishedWire>().toEqualTypeOf<
+      "versionId" | "sequenceNumber" | "availabilityRevision"
     >();
   });
 
@@ -168,5 +182,86 @@ describe("the seen mark of the staff kitchens contract (F9)", () => {
       StaffSeenConflictWire["status"]
     >().toEqualTypeOf<"displayed-revision-ahead">();
     expect(DASHBOARD_CONFLICTS).toContain("displayed-revision-ahead");
+  });
+});
+
+describe("revert, bulk and the single-change input after the review rulings (M2, M3, m1)", () => {
+  it("reverts a change by its address and a bulk group by its minted id, and has no index to go stale", () => {
+    expectTypeOf<DraftRevertTargetWire>().toEqualTypeOf<
+      | { readonly kind: "change"; readonly address: BookFieldAddress }
+      | { readonly kind: "group"; readonly groupId: string }
+    >();
+    expectTypeOf<keyof DraftRevertRequestWire>().toEqualTypeOf<
+      "expectedDraftRevision" | "target"
+    >();
+    // @ts-expect-error `changeIndex` left the request fields: an index goes stale under a replace
+    const stale: DashboardRequestField = "changeIndex";
+
+    expect(stale).toBe("changeIndex");
+  });
+
+  it("names a bulk group by the closed code, never by a free id; a selection by rule ids", () => {
+    expectTypeOf<Extract<BulkTargetWire, { scope: "group" }>>().toEqualTypeOf<{
+      readonly scope: "group";
+      readonly groupCode: PriceGroupCode;
+    }>();
+    const target: BulkTargetWire = {
+      scope: "group",
+      // @ts-expect-error a group code is one of the four, not any string
+      groupCode: "kitchen",
+    };
+    const asRequestField: DashboardRequestField = "groupCode";
+
+    expect([target, asRequestField]).toHaveLength(2);
+  });
+
+  it("carries no group id in a single-change input: only the bulk route mints one", () => {
+    type InputKeys = DraftChangeInputWire extends infer Change
+      ? Change extends unknown
+        ? keyof Change
+        : never
+      : never;
+
+    expectTypeOf<InputKeys>().toEqualTypeOf<"address" | "value">();
+  });
+});
+
+describe("the refusals the review moved (m2, m5, M5)", () => {
+  it("answers a switch-off or a publish that deletes the default with the item, as `item-is-default`", () => {
+    expectTypeOf<DashboardItemIsDefaultWire>().toEqualTypeOf<{
+      readonly status: "item-is-default";
+      readonly item: ItemRef;
+    }>();
+    expect(DASHBOARD_CONFLICTS).toContain("item-is-default");
+  });
+
+  it("keeps the two notice refusals out of the conflicts: they are a 400 list of their own", () => {
+    const conflicts: readonly string[] = DASHBOARD_CONFLICTS;
+
+    expect([...PRICE_NOTICE_REFUSALS]).toEqual([
+      "unknown-version",
+      "revision-ahead",
+    ]);
+    expect(Object.isFrozen(PRICE_NOTICE_REFUSALS)).toBe(true);
+    for (const refusal of PRICE_NOTICE_REFUSALS) {
+      expect(conflicts).not.toContain(refusal);
+    }
+    expectTypeOf<PriceNoticeRefusedWire["status"]>().toEqualTypeOf<
+      "unknown-version" | "revision-ahead"
+    >();
+  });
+
+  it("no longer refuses a defaults save for an unavailable item as malformed input", () => {
+    const codes: readonly string[] = DEFAULTS_REFUSAL_CODES;
+
+    expect(codes).not.toContain("NOT_AVAILABLE");
+    expect(DASHBOARD_CONFLICTS).toContain("item-unavailable");
+    expect(DASHBOARD_CONFLICTS).toContain("availability-changed-meanwhile");
+  });
+
+  it("answers a defaults save with both revisions", () => {
+    expectTypeOf<keyof KitchenDefaultsSavedWire>().toEqualTypeOf<
+      "revision" | "availabilityRevision"
+    >();
   });
 });

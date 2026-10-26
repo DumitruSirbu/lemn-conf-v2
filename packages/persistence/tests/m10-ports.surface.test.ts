@@ -4,13 +4,18 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { readDashboardAuditEntry } from "@lemnaria/configurator-domain";
+import {
+  readDashboardAuditEntry,
+  type ItemRef,
+} from "@lemnaria/configurator-domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   INITIAL_REVISION,
+  type ActivationAuditRecord,
   type CatalogueAvailabilityStore,
   type ClaimDigestDayResult,
+  type DashboardAuditRecord,
   type DigestEligibleKitchen,
   type KitchenChangeStore,
   type KitchenDefaultsStore,
@@ -19,9 +24,13 @@ import {
   type PriceBookStore,
   type PriceNoticeStore,
   type PublishPriceBookRequest,
+  type PublishPriceBookResult,
   type SaveKitchenDefaultsRequest,
+  type SaveKitchenDefaultsResult,
   type SetItemActiveRequest,
+  type SetItemActiveResult,
   type WriteDraftRequest,
+  type WriteDraftResult,
 } from "../src/index.js";
 
 const PORTS_SOURCE = readFileSync(
@@ -81,10 +90,12 @@ describe("the write requests take the members the plan (as amended) names", () =
     >();
   });
 
-  it("a publish: both expectations, the text, the book the server computed, the summary and the audit", () => {
+  it("a publish: three expectations, the created items, the text, the book the server computed, the summary and the audit", () => {
     expectTypeOf<keyof PublishPriceBookRequest>().toEqualTypeOf<
       | "expectedDraftRevision"
       | "expectedActiveSequence"
+      | "expectedAvailabilityRevision"
+      | "createdItems"
       | "label"
       | "note"
       | "book"
@@ -92,6 +103,15 @@ describe("the write requests take the members the plan (as amended) names", () =
       | "audit"
     >();
     expectTypeOf<PublishPriceBookRequest["book"]>().toBeUnknown();
+    expectTypeOf<PublishPriceBookRequest["createdItems"]>().toEqualTypeOf<
+      readonly ItemRef[]
+    >();
+    expectTypeOf<
+      PublishPriceBookRequest["expectedAvailabilityRevision"]
+    >().toBeString();
+    expectTypeOf<
+      PublishPriceBookRequest["audit"]
+    >().toEqualTypeOf<DashboardAuditRecord>();
   });
 
   it("a defaults save: both expected revisions, the defaults and the audit", () => {
@@ -100,9 +120,18 @@ describe("the write requests take the members the plan (as amended) names", () =
     >();
   });
 
-  it("an availability change: the item, the flag, the expected revision and the audit", () => {
+  it("an availability change: the item, the flag, the expected revision and an audit without the revision it will create (M4)", () => {
     expectTypeOf<keyof SetItemActiveRequest>().toEqualTypeOf<
       "item" | "active" | "expectedRevision" | "audit"
+    >();
+    expectTypeOf<
+      SetItemActiveRequest["audit"]
+    >().toEqualTypeOf<ActivationAuditRecord>();
+    expectTypeOf<
+      keyof ActivationAuditRecord["entry"]["detail"]
+    >().toEqualTypeOf<"itemKind" | "itemId" | "active">();
+    expectTypeOf<keyof ActivationAuditRecord>().toEqualTypeOf<
+      "session" | "entry"
     >();
   });
 
@@ -175,6 +204,63 @@ describe("the results use the plan's own names as their kinds (X0-5)", () => {
     expectTypeOf<
       Extract<ClaimDigestDayResult, { kind: "claimed" }>
     >().toEqualTypeOf<{ readonly kind: "claimed"; readonly roundId: string }>();
+  });
+});
+
+describe("the results are the shapes the amended plan names (M1, m2, m3, M4)", () => {
+  it("a publish answers ok with the version and the head after it, or one of the two compare-and-set refusals", () => {
+    expectTypeOf<PublishPriceBookResult["kind"]>().toEqualTypeOf<
+      "ok" | "changed-meanwhile" | "availability-changed-meanwhile"
+    >();
+    expectTypeOf<
+      Extract<PublishPriceBookResult, { kind: "ok" }>
+    >().toEqualTypeOf<{
+      readonly kind: "ok";
+      readonly versionId: string;
+      readonly sequenceNumber: number;
+      readonly availabilityRevision: string;
+    }>();
+  });
+
+  it("a defaults save returns both revisions, and only the two compare-and-set refusals: item-unavailable is the domain's", () => {
+    expectTypeOf<SaveKitchenDefaultsResult["kind"]>().toEqualTypeOf<
+      "ok" | "changed-meanwhile" | "availability-changed-meanwhile"
+    >();
+    expectTypeOf<
+      Extract<SaveKitchenDefaultsResult, { kind: "ok" }>
+    >().toEqualTypeOf<{
+      readonly kind: "ok";
+      readonly revision: string;
+      readonly availabilityRevision: string;
+    }>();
+    expect(PORTS_CODE).not.toMatch(/kind: "item-unavailable"/);
+  });
+
+  it("a draft write answers ok with the revision it created, or changed-meanwhile; an availability write the same with its revision", () => {
+    expectTypeOf<WriteDraftResult["kind"]>().toEqualTypeOf<
+      "ok" | "changed-meanwhile"
+    >();
+    expectTypeOf<Extract<WriteDraftResult, { kind: "ok" }>>().toEqualTypeOf<{
+      readonly kind: "ok";
+      readonly draftRevision: string;
+    }>();
+    expectTypeOf<SetItemActiveResult["kind"]>().toEqualTypeOf<
+      "ok" | "changed-meanwhile"
+    >();
+    expectTypeOf<Extract<SetItemActiveResult, { kind: "ok" }>>().toEqualTypeOf<{
+      readonly kind: "ok";
+      readonly revision: string;
+    }>();
+  });
+
+  it("a publish's audit is the ordinary record; only the availability write takes the unstamped one", () => {
+    expectTypeOf<
+      WriteDraftRequest["audit"]
+    >().toEqualTypeOf<DashboardAuditRecord>();
+    expectTypeOf<
+      SaveKitchenDefaultsRequest["audit"]
+    >().toEqualTypeOf<DashboardAuditRecord>();
+    expectTypeOf<ActivationAuditRecord>().not.toEqualTypeOf<DashboardAuditRecord>();
   });
 });
 

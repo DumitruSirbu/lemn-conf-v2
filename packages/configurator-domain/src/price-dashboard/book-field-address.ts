@@ -62,6 +62,22 @@ export const ITEM_KINDS: readonly ItemKind[] = Object.freeze(
   Object.keys(ITEM_KIND_FLAGS) as ItemKind[],
 );
 
+/** The rows whose text the dashboard authors: a created hardware class or a (linked) accessory (A-21, m9). */
+export type CreatedRowItemRef = Extract<
+  ItemRef,
+  { readonly kind: "hardware" | "accessory" }
+>;
+
+/**
+ * The rows that can be deleted: a hardware class, a material, or a linked accessory (m9). A finish, a handle and the
+ * two built-in accessories are code-declared and can be disabled, never deleted. That a hardware class or an accessory
+ * is one the dashboard created, and that an accessory is linked, are judged against the book, not by this type.
+ */
+export type DeletableItemRef = Extract<
+  ItemRef,
+  { readonly kind: "hardware" | "material" | "accessory" }
+>;
+
 /**
  * The stable address of one field of the price book, or one structural change to it: identity only, never a payload.
  * Every arm is a draft change; the draft is an ordered list of them (A-15).
@@ -110,13 +126,13 @@ export type BookFieldAddress =
   | {
       /** Created rows only; a keyed row's text is read-only (A-21). */
       readonly kind: "created-row-text";
-      readonly item: ItemRef;
+      readonly item: CreatedRowItemRef;
       readonly field: CreatedRowTextField;
     }
   | {
       /** An unused, non-default item. Judged again at publish, which refuses whole if it gained a user (A-18). */
       readonly kind: "item-deleted";
-      readonly item: ItemRef;
+      readonly item: DeletableItemRef;
     };
 
 /** Every `field` an address can name, by its own word: what an audit detail may say a change touched. */

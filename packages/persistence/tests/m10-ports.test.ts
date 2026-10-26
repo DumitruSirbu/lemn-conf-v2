@@ -139,6 +139,35 @@ describe("the M10 ports' signatures", () => {
     );
   });
 
+  it("makes a publish take the availability head's compare-and-set, with the rows it creates (M1)", () => {
+    const code = codeWithoutComments(PORTS_SOURCE);
+    const publish =
+      /export interface PublishPriceBookRequest \{[\s\S]*?\n\}/.exec(code)?.[0];
+
+    expect(publish).toMatch(/readonly expectedAvailabilityRevision: string;/);
+    expect(publish).toMatch(/readonly createdItems: readonly ItemRef\[\];/);
+    expect(code).toMatch(/readonly availabilityRevision: string;/);
+  });
+
+  it("hands the availability store the activation without its revision, which the store stamps (M4)", () => {
+    const code = codeWithoutComments(PORTS_SOURCE);
+
+    expect(code).toMatch(/readonly entry: CatalogueActivationAuditInput;/);
+    expect(code).toMatch(/readonly audit: ActivationAuditRecord;/);
+  });
+
+  it("returns only the two compare-and-set refusals from a defaults save, and the head with the revision (m2, m3)", () => {
+    const code = codeWithoutComments(PORTS_SOURCE);
+    const result = /export type SaveKitchenDefaultsResult =[\s\S]*?\n\n/.exec(
+      code,
+    )?.[0];
+
+    expect(result).toMatch(/ChangedMeanwhile/);
+    expect(result).toMatch(/AvailabilityChangedMeanwhile/);
+    expect(result).not.toMatch(/item-unavailable/);
+    expect(result).toMatch(/availabilityRevision: string/);
+  });
+
   it("makes a publish expect the active sequence and returns the one it created (F7)", () => {
     const code = codeWithoutComments(PORTS_SOURCE);
 

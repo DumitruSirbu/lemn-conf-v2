@@ -299,6 +299,25 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
     );
   });
 
+  it("states no amount as the value of a draft change under price-dashboard/", () => {
+    // The second pattern (X0 review, QA pin gap): a `DraftChange` holds its amount in `value`, not in a `…Minor` member,
+    // so `{address: {field: "anchorMinor"}, value: 145000}` slips past the pin above. Two shapes catch it: a number of
+    // four digits or more in a `value` position (a percentage is at most `100`), and
+    // any number in the `value` of an object whose address names a `…Minor` field.
+    const amountInValuePosition =
+      /\bvalue"?\s*:\s*-?(?:\d[\d_]{3,}|0x[\da-f]{3,})/i;
+    const numberBesideAMinorAddress =
+      /Minor"?\s*[,}\s]*\}[,\s]*value"?\s*:\s*-?(?:\d|0x)/i;
+    const stating = sourcesUnder(PRICE_DASHBOARD_ROOT).filter((file) => {
+      const code = read(file);
+      return (
+        amountInValuePosition.test(code) || numberBesideAMinorAddress.test(code)
+      );
+    });
+
+    expect(stating.map((file) => path.relative(SOURCE_ROOT, file))).toEqual([]);
+  });
+
   /** What a row may publish besides its amounts (ADR 0106 decision 1): a rendered text and nothing else. Each row
    *  still declares its own `tierId`, `ruleId` and amounts as own properties, and the two added fields are catalogue
    *  paths, not figures. A whole-shape assertion, so a row that quietly grew a field fails here. */

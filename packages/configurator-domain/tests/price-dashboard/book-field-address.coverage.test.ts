@@ -345,8 +345,8 @@ const DELIBERATE_ABSENCES: readonly DeliberateAbsence[] = [
   {
     frame: "D6B",
     drawn: "linked cabinet type, once the accessory exists",
-    ruling: "unruled (reported)",
-    why: "§8.4 b has an arm for the link at creation and none for editing it afterwards; no arm is invented.",
+    ruling: "out of scope, ruled 2026-10-26 (X0-4)",
+    why: "The owner asked only for linking on creating an accessory; D6B shows the link read-only afterwards, and the price is edited through the accessory arm.",
   },
   {
     frame: "D7",
@@ -618,6 +618,25 @@ describe("an address is identity only; the payload is the change's value (X0-4)"
       falseDeletion,
       missingValue,
     ]).toHaveLength(5);
+  });
+
+  it("limits created-row text to a hardware class or an accessory, and deletion to a class, a material or an accessory (m9)", () => {
+    const material = { kind: "material", tierId: MDF } as const;
+    const colour = { kind: "finish", finishId: "pal.alb" } as const;
+    const handle = { kind: "handle", handle: "black" } as const;
+    const text = { kind: "created-row-text", field: "name" } as const;
+    const deleted = { kind: "item-deleted" } as const;
+
+    // @ts-expect-error a keyed material's text is read-only
+    const materialText: BookFieldAddress = { ...text, item: material };
+    // @ts-expect-error a colour is code-declared and cannot be deleted
+    const colourDeleted: BookFieldAddress = { ...deleted, item: colour };
+    // @ts-expect-error a handle is code-declared and cannot be deleted
+    const handleDeleted: BookFieldAddress = { ...deleted, item: handle };
+    const materialDeleted: BookFieldAddress = { ...deleted, item: material };
+
+    expect([materialText, colourDeleted, handleDeleted]).toHaveLength(3);
+    expect(materialDeleted.kind).toBe("item-deleted");
   });
 
   it("has no arm for editing a linked accessory's cabinet type after creation", () => {

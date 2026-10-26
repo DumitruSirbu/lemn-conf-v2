@@ -10,6 +10,8 @@ import type {
   AddressField,
   BookFieldAddress,
   BookFieldAddressKind,
+  CreatedRowItemRef,
+  DeletableItemRef,
   DraftChange,
   DraftValueByKind,
   HardwareTierCreation,
@@ -18,7 +20,14 @@ import type {
   CatalogueAvailability,
   ItemRef,
 } from "../../src/pricing/catalogue-availability.js";
-import * as auditModule from "../../src/staff/staff-audit-action.js";
+import * as auditModule from "../../src/staff/dashboard-audit-action.js";
+import type {
+  CatalogueActivationAuditInput,
+  DashboardAuditEntry,
+  DraftChangeTarget,
+  PriceDraftChangedDetail,
+  PriceDraftRevertedDetail,
+} from "../../src/staff/dashboard-audit-action.js";
 
 /** Every member name any address arm has. An address is identity: a payload member would widen this union. */
 type AddressMemberName = BookFieldAddress extends infer Arm
@@ -85,7 +94,7 @@ describe("the field address against the plan's §8.4 (b), literally", () => {
 
     expect(new Set(fields).size).toBe(fields.length);
     expect(fields).toHaveLength(5 + 4 + 1 + 1 + 2);
-    expect(auditModule.DRAFT_CHANGE_FIELDS).toBe(addressModule.ADDRESS_FIELDS);
+    expect(barrel.ADDRESS_FIELDS).toBe(addressModule.ADDRESS_FIELDS);
   });
 
   it("freezes every list, so no lane can append a field at run time", () => {
@@ -207,5 +216,91 @@ describe("the domain barrels", () => {
     for (const action of barrel.DASHBOARD_AUDIT_ACTIONS) {
       expect(barrel.STAFF_AUDIT_ACTIONS).not.toContain(action);
     }
+  });
+});
+
+describe("which rows can carry text or be deleted (m9)", () => {
+  it("lets text belong to a hardware class or an accessory, and a deletion to those and a material", () => {
+    expectTypeOf<CreatedRowItemRef["kind"]>().toEqualTypeOf<
+      "hardware" | "accessory"
+    >();
+    expectTypeOf<DeletableItemRef["kind"]>().toEqualTypeOf<
+      "hardware" | "material" | "accessory"
+    >();
+    expectTypeOf<
+      Extract<BookFieldAddress, { kind: "created-row-text" }>["item"]
+    >().toEqualTypeOf<CreatedRowItemRef>();
+    expectTypeOf<
+      Extract<BookFieldAddress, { kind: "item-deleted" }>["item"]
+    >().toEqualTypeOf<DeletableItemRef>();
+  });
+
+  it("refuses text on a material, a finish or a handle, and a deletion of a finish or a handle", () => {
+    const materialText: BookFieldAddress = {
+      kind: "created-row-text",
+      // @ts-expect-error a material's text is read-only: only created rows have any
+      item: { kind: "material", tierId: "material.painted-mdf" },
+      field: "name",
+    };
+    const finishText: BookFieldAddress = {
+      kind: "created-row-text",
+      // @ts-expect-error a finish is declared in code
+      item: { kind: "finish", finishId: "white" },
+      field: "name",
+    };
+    const handleDeletion: BookFieldAddress = {
+      kind: "item-deleted",
+      // @ts-expect-error a handle can be disabled, never deleted
+      item: { kind: "handle", handle: "steel" },
+    };
+    const finishDeletion: BookFieldAddress = {
+      kind: "item-deleted",
+      // @ts-expect-error a finish can be disabled, never deleted
+      item: { kind: "finish", finishId: "white" },
+    };
+    const accessoryDeletion: BookFieldAddress = {
+      kind: "item-deleted",
+      item: { kind: "accessory", accessoryId: "accessory.linked-rack" },
+    };
+
+    expect([
+      materialText,
+      finishText,
+      handleDeletion,
+      finishDeletion,
+      accessoryDeletion,
+    ]).toHaveLength(5);
+  });
+});
+
+describe("the activation the availability store is handed (M4)", () => {
+  it("is the five members of an activation but the revision, which the store stamps", () => {
+    expectTypeOf<keyof CatalogueActivationAuditInput["detail"]>().toEqualTypeOf<
+      "itemKind" | "itemId" | "active"
+    >();
+    expectTypeOf<
+      Extract<
+        DashboardAuditEntry,
+        { action: "catalogue-item-activation-changed" }
+      >["detail"]
+    >().toHaveProperty("availabilityRevision");
+  });
+
+  it("is not a `DashboardAuditEntry`: the reader's full entry cannot be handed in its place unchecked", () => {
+    expectTypeOf<CatalogueActivationAuditInput>().not.toExtend<DashboardAuditEntry>();
+  });
+});
+
+describe("a draft change input and a revert, by the compiler", () => {
+  it("lets a group revert report a count and no item (m7), and a single one report an address", () => {
+    expectTypeOf<PriceDraftRevertedDetail["changeKind"]>().toEqualTypeOf<
+      BookFieldAddressKind | "bulk-group"
+    >();
+    expectTypeOf<
+      PriceDraftChangedDetail["changeKind"]
+    >().toEqualTypeOf<BookFieldAddressKind>();
+    expectTypeOf<DraftChangeTarget["widthMm"]>().toEqualTypeOf<
+      number | undefined
+    >();
   });
 });

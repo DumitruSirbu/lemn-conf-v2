@@ -18,11 +18,17 @@ import {
   KITCHEN_DEFAULTS_MEMBERS,
   MAX_USAGE_ITEMS,
   NUMBER_REFUSAL_CODES,
+  PRICE_NOTICE_REFUSALS,
   PUBLISH_TEXT_REFUSAL_CODES,
   TEXT_REFUSAL_CODES,
+  type BulkTargetWire,
   type CreateAccessoryRequestWire,
   type CreateHardwareClassRequestWire,
+  type DashboardItemIsDefaultWire,
   type DraftChangeRequestWire,
+  type DraftRevertRequestWire,
+  type KitchenDefaultsSavedWire,
+  type PublishedWire,
   type PublishRequestWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
@@ -89,18 +95,96 @@ describe("the dashboard wire contract's closed lists", () => {
 });
 
 describe("the security amendments' shapes", () => {
-  it("lists the five states the amendment adds to the closed refusal list", () => {
+  it("lists the states the amendments add to the closed conflict list, and keeps the notice refusals out of it", () => {
     const conflicts: readonly string[] = DASHBOARD_CONFLICTS;
 
     for (const word of [
       "displayed-revision-ahead",
       "item-unavailable",
       "availability-changed-meanwhile",
-      "unknown-version",
-      "revision-ahead",
+      "item-is-default",
     ]) {
       expect(conflicts).toContain(word);
     }
+    for (const word of PRICE_NOTICE_REFUSALS) {
+      expect(conflicts).not.toContain(word);
+    }
+    expect([...PRICE_NOTICE_REFUSALS]).toEqual([
+      "unknown-version",
+      "revision-ahead",
+    ]);
+  });
+
+  it("builds the draft text refusals from the publish text refusals (m-nit)", () => {
+    for (const code of PUBLISH_TEXT_REFUSAL_CODES) {
+      expect(TEXT_REFUSAL_CODES).toContain(code);
+    }
+    expect(TEXT_REFUSAL_CODES).toContain("TEXT_STATES_AN_AMOUNT");
+  });
+
+  it("refuses defaults as malformed input only; an unavailable item is a 409 (m2)", () => {
+    const codes: readonly string[] = DEFAULTS_REFUSAL_CODES;
+
+    expect(codes).not.toContain("NOT_AVAILABLE");
+  });
+
+  it("reverts by an address or a group id, never by an index (M2)", () => {
+    const byAddress: DraftRevertRequestWire = {
+      expectedDraftRevision: "1",
+      target: { kind: "change", address: { kind: "depth-rule" } },
+    };
+    const byGroup: DraftRevertRequestWire = {
+      expectedDraftRevision: "1",
+      target: { kind: "group", groupId: "g-1" },
+    };
+    const byIndex: DraftRevertRequestWire = {
+      expectedDraftRevision: "1",
+      // @ts-expect-error an index goes stale when a later change replaces an earlier one
+      target: { kind: "change", changeIndex: 2 },
+    };
+
+    expect([byAddress, byGroup, byIndex]).toHaveLength(3);
+    expect(CONTRACT_SOURCE).not.toContain('"changeIndex"');
+  });
+
+  it("targets a bulk group by its closed code (M3)", () => {
+    const target: BulkTargetWire = { scope: "group", groupCode: "corner" };
+    // @ts-expect-error a group is a code, not a free id
+    const freeId: BulkTargetWire = { scope: "group", groupId: "g-1" };
+
+    expect([target, freeId]).toHaveLength(2);
+  });
+
+  it("answers a publish with the availability head and refuses a default's deletion naming it (M1, M5)", () => {
+    const published: PublishedWire = {
+      versionId: "v",
+      sequenceNumber: 2,
+      availabilityRevision: "13",
+    };
+    const isDefault: DashboardItemIsDefaultWire = {
+      status: "item-is-default",
+      item: { kind: "material", tierId: "material.painted-mdf" },
+    };
+    const saved: KitchenDefaultsSavedWire = {
+      revision: "4",
+      availabilityRevision: "14",
+    };
+
+    expect([published, isDefault, saved]).toHaveLength(3);
+  });
+
+  it("takes no group id on a single change input (m1)", () => {
+    const withGroup: DraftChangeRequestWire = {
+      expectedDraftRevision: "1",
+      change: {
+        address: { kind: "depth-rule" },
+        value: 15,
+        // @ts-expect-error only the bulk route mints a group id
+        groupId: "g-1",
+      },
+    };
+
+    expect(withGroup.expectedDraftRevision).toBe("1");
   });
 
   it("creates a class or an accessory without an id, because the server mints it (F5)", () => {
@@ -145,14 +229,23 @@ describe("the security amendments' shapes", () => {
     const request: PublishRequestWire = {
       expectedDraftRevision: "1",
       expectedActiveSequence: 3,
+      expectedAvailabilityRevision: "12",
       label: "x",
       note: "y",
-      provisional: true,
       // @ts-expect-error a publish request carries no book
       book: {},
     };
+    const withProvisional: PublishRequestWire = {
+      expectedDraftRevision: "1",
+      expectedActiveSequence: 3,
+      expectedAvailabilityRevision: "12",
+      label: "x",
+      note: "y",
+      // @ts-expect-error provisional has one source, the draft change (m4)
+      provisional: true,
+    };
 
-    expect(Object.keys(request)).not.toContain("versionId");
+    expect([request, withProvisional]).toHaveLength(2);
   });
 });
 

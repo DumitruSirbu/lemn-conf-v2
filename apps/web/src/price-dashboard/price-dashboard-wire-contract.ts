@@ -1,6 +1,7 @@
 import type {
   AccessoryCreation,
   AddressOfKind,
+  BookFieldAddress,
   BulkChangeScope,
   CatalogueAvailability,
   DraftChange,
@@ -11,6 +12,7 @@ import type {
   ItemRef,
   KitchenDefaultsField,
   PriceBook,
+  PriceGroupCode,
 } from "@lemnaria/configurator-domain";
 
 // What the manufacturer price dashboard's routes answer and its screens expect, once (M10 plan §8.4 d; ADR 0178).
@@ -65,11 +67,18 @@ export const NUMBER_REFUSAL_CODES = Object.freeze([
   "TOO_LARGE",
 ] as const);
 
-/** Why authored Romanian text was refused (A-21; ADR 0106 Amendment A: a text may not state an amount or a percentage). */
-export const TEXT_REFUSAL_CODES = Object.freeze([
+/** What a version's label or note can be refused for. */
+export const PUBLISH_TEXT_REFUSAL_CODES = Object.freeze([
   "TEXT_EMPTY",
   "TEXT_TOO_LONG",
   "TEXT_FORBIDDEN_CHARACTER",
+] as const);
+export type PublishTextRefusalCode =
+  (typeof PUBLISH_TEXT_REFUSAL_CODES)[number];
+
+/** Why authored Romanian text was refused (A-21; ADR 0106 Amendment A: a text may not state an amount or a percentage). */
+export const TEXT_REFUSAL_CODES = Object.freeze([
+  ...PUBLISH_TEXT_REFUSAL_CODES,
   "TEXT_STATES_AN_AMOUNT",
 ] as const);
 
@@ -103,31 +112,28 @@ export const BULK_REFUSAL_CODES = Object.freeze([
 ] as const);
 export type BulkRefusalCode = (typeof BULK_REFUSAL_CODES)[number];
 
-/** What a defaults save can be refused for. The member is the D9 row. */
+/**
+ * What a defaults save can be refused for as malformed input (`400`). A value naming an item that is switched off or
+ * absent from the active book is not here: it is a state of the data, `409 item-unavailable` (m2).
+ */
 export const DEFAULTS_REFUSAL_CODES = Object.freeze([
   "MISSING_VALUE",
   "UNKNOWN_VALUE",
-  "NOT_AVAILABLE",
   "FINISH_NOT_IN_PALETTE",
 ] as const);
 export type DefaultsRefusalCode = (typeof DEFAULTS_REFUSAL_CODES)[number];
-
-/** What a version's label or note can be refused for. */
-export const PUBLISH_TEXT_REFUSAL_CODES = Object.freeze([
-  "TEXT_EMPTY",
-  "TEXT_TOO_LONG",
-  "TEXT_FORBIDDEN_CHARACTER",
-] as const);
-export type PublishTextRefusalCode =
-  (typeof PUBLISH_TEXT_REFUSAL_CODES)[number];
 
 /** The members a `400` of any dashboard write names. */
 export type DashboardRequestField =
   | "expectedDraftRevision"
   | "expectedRevision"
+  | "expectedActiveSequence"
+  | "expectedAvailabilityRevision"
   | "change"
-  | "changeIndex"
+  | "target"
+  | "address"
   | "groupId"
+  | "groupCode"
   | "scope"
   | "percent"
   | "ruleIds"
@@ -160,15 +166,15 @@ export interface DashboardInvalidInputWire<Code extends string> {
  * - `nothing-to-publish`: the draft is empty.
  * - `nothing-differs`: a restore found no difference from the active prices.
  * - `item-not-in-active-book`: availability of a row only the draft knows (A-17).
- * - `item-is-default`: the D9 default cannot be switched off.
+ * - `item-is-default`: the D9 default cannot be switched off, nor deleted by a publish; the body names the item
+ *   (`DashboardItemIsDefaultWire`, M5).
  * - `last-active-option`: the last active option of a group cannot be switched off (D5G).
  * - `candidate-refused`: the book the draft would produce did not pass the domain's judgement, a defect of ours.
  * - `displayed-revision-ahead`: a kitchen was marked seen at a revision greater than its current one (F9).
  * - `item-unavailable`: a defaults value names an item that is disabled or absent from the active book (A-17); the
  *   body names the item (`DashboardItemUnavailableWire`).
- * - `availability-changed-meanwhile`: the availability head moved since a defaults save read it (A-17, F1).
- * - `unknown-version`: a price-notice acknowledgement names a version that does not exist (F8).
- * - `revision-ahead`: it names an availability revision greater than the head's (F8).
+ * - `availability-changed-meanwhile`: the availability head moved since a defaults save or a publish read it (A-17,
+ *   F1, M1).
  */
 export const DASHBOARD_CONFLICTS = Object.freeze([
   "changed-meanwhile",
@@ -182,13 +188,17 @@ export const DASHBOARD_CONFLICTS = Object.freeze([
   "displayed-revision-ahead",
   "item-unavailable",
   "availability-changed-meanwhile",
-  "unknown-version",
-  "revision-ahead",
 ] as const);
 export type DashboardConflict = (typeof DASHBOARD_CONFLICTS)[number];
 
 export interface DashboardConflictWire {
   readonly status: DashboardConflict;
+}
+
+/** `409` of a publish whose draft deletes the current D9 default, or of a switch-off of it (M5). */
+export interface DashboardItemIsDefaultWire {
+  readonly status: "item-is-default";
+  readonly item: ItemRef;
 }
 
 /** `409` of a publish that found an item deleted in the draft now used by a saved kitchen: the whole publish is
@@ -206,14 +216,21 @@ export interface DashboardItemInUseWire {
  * shaped and unique against every built-in and keyed id; A-21, F5) and have requests of their own. Every other change
  * is the stored `DraftChange` as it is.
  */
-export type DraftChangeInputWire = Exclude<
-  DraftChange,
-  {
-    readonly address: AddressOfKind<
-      "hardware-tier-created" | "accessory-created"
-    >;
-  }
+export type DraftChangeInputWire = WithoutGroupId<
+  Exclude<
+    DraftChange,
+    {
+      readonly address: AddressOfKind<
+        "hardware-tier-created" | "accessory-created"
+      >;
+    }
+  >
 >;
+
+/** A single-change input never carries a group id: only the bulk route mints one (m1). */
+type WithoutGroupId<Change> = Change extends unknown
+  ? Omit<Change, "groupId">
+  : never;
 
 /** One change to the draft. `groupId` ties the changes of one bulk action. */
 export interface DraftChangeRequestWire {
@@ -253,9 +270,12 @@ export interface DraftChangeCreatedWire {
 export type DraftChangeInvalidWire =
   DashboardInvalidInputWire<DraftChangeRefusalCode>;
 
-/** Removes one change, or every change of one bulk action. */
+/**
+ * Removes one change by its address (an index would go stale under a replace), or every change of one bulk action by
+ * its server-minted group id (M2).
+ */
 export type DraftRevertTargetWire =
-  | { readonly kind: "change"; readonly changeIndex: number }
+  | { readonly kind: "change"; readonly address: BookFieldAddress }
   | { readonly kind: "group"; readonly groupId: string };
 
 export interface DraftRevertRequestWire {
@@ -268,7 +288,7 @@ export type BulkTargetWire =
   | { readonly scope: Extract<BulkChangeScope, "all"> }
   | {
       readonly scope: Extract<BulkChangeScope, "group">;
-      readonly groupId: string;
+      readonly groupCode: PriceGroupCode;
     }
   | {
       readonly scope: Extract<BulkChangeScope, "selection">;
@@ -297,20 +317,22 @@ export type BulkChangeInvalidWire = DashboardInvalidInputWire<BulkRefusalCode>;
 /**
  * Authored text, bounded by the domain: the label and the note are the staff member's own words. **The request carries
  * no book.** The server computes the book from the stored draft at `expectedDraftRevision`, judges it and stores it
- * (F10). `provisional` is the state of the "Sume provizorii" switch the new version carries (D7C).
+ * (F10). It carries no `provisional` either: the switch has one source, the draft change `{kind: "provisional"}`
+ * (m4). The publish takes the availability head's compare-and-set (M1), so it names the head the page read.
  */
 export interface PublishRequestWire {
   readonly expectedDraftRevision: string;
   readonly expectedActiveSequence: number;
+  readonly expectedAvailabilityRevision: string;
   readonly label: string;
   readonly note: string;
-  readonly provisional: boolean;
 }
 
-/** `200` of a publish: the version that went live. */
+/** `200` of a publish: the version that went live, and the availability head after it (M1). */
 export interface PublishedWire {
   readonly versionId: string;
   readonly sequenceNumber: number;
+  readonly availabilityRevision: string;
 }
 
 export type PublishInvalidWire =
@@ -379,6 +401,10 @@ export interface AvailabilitySetWire {
 /** The most items one usage question names; a dialog asks about one, a list about a page. */
 export const MAX_USAGE_ITEMS = 50;
 
+/**
+ * Counts only, and exempt from per-read audit (m10), like the changed-count poll (A-12): the screen that asks is
+ * audited as `price-catalogue-viewed`.
+ */
 export interface UsageRequestWire {
   readonly items: readonly ItemRef[];
 }
@@ -434,15 +460,19 @@ export interface KitchenDefaultsSaveRequestWire {
   readonly defaults: KitchenDefaultsWire;
 }
 
-/** `200` of a save: the revision it created. A save applies at once to new kitchens and to no saved one (A-9). */
+/**
+ * `200` of a save: the revision it created and the availability head after it (m3). A save applies at once to new
+ * kitchens and to no saved one (A-9).
+ */
 export interface KitchenDefaultsSavedWire {
   readonly revision: string;
+  readonly availabilityRevision: string;
 }
 
 export type KitchenDefaultsInvalidWire =
   DashboardInvalidInputWire<DefaultsRefusalCode>;
 
-/** `409` of a defaults save that names an item switched off or absent from the active book. */
+/** `409` of a defaults save that names an item switched off or absent from the active book (m2). */
 export interface DashboardItemUnavailableWire {
   readonly status: "item-unavailable";
   readonly item: ItemRef;
@@ -484,13 +514,18 @@ export interface PriceNoticeAcknowledgedWire {
   readonly acknowledged: PriceStampWire;
 }
 
-/** `400` of an acknowledgement the server checked and refused: the version does not exist, or the availability
- *  revision is greater than the head's (F8). Nothing was written. */
+/**
+ * What a `400` of an acknowledgement says, checked in SQL (F8, m5): the version does not exist, or the availability
+ * revision is greater than the head's. Nothing was written. Not state conflicts, so not in `DASHBOARD_CONFLICTS`.
+ */
+export const PRICE_NOTICE_REFUSALS = Object.freeze([
+  "unknown-version",
+  "revision-ahead",
+] as const);
+export type PriceNoticeRefusal = (typeof PRICE_NOTICE_REFUSALS)[number];
+
 export interface PriceNoticeRefusedWire {
-  readonly status: Extract<
-    DashboardConflict,
-    "unknown-version" | "revision-ahead"
-  >;
+  readonly status: PriceNoticeRefusal;
 }
 
 export type PriceNoticeInvalidWire = DashboardInvalidInputWire<
