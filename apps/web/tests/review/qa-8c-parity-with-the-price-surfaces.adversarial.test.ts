@@ -219,7 +219,9 @@ function rawWholeKitchenRowsOf(
   priced: PricedDesign,
 ): readonly PrintedRow[] {
   return priced.lines.flatMap((line) => {
-    if (line.kind === "cabinet") return [];
+    // The depth line is the percentage form's, which no surface prints until the cut-over (P3); the book these
+    // suites price is the flat one, so none is ever published here.
+    if (line.kind === "cabinet" || line.kind === "depth") return [];
     const tierName =
       line.nameKey === undefined
         ? line.name
