@@ -1,3 +1,4 @@
+import { CATALOGUE_ACTIVATION_AUDIT_ACTION } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
@@ -5,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import { itemIdOf } from "../../src/fake-dashboard-support.js";
 import {
   AVAILABILITY_REVISION_NOT_FOUND,
-  CATALOGUE_ACTIVATION_ACTION,
   CHANGED_MEANWHILE,
   INITIAL_REVISION,
 } from "../../src/m10-ports.js";
@@ -159,7 +159,7 @@ function describeSetActive(
       ]);
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
         {
-          action: CATALOGUE_ACTIVATION_ACTION,
+          action: CATALOGUE_ACTIVATION_AUDIT_ACTION,
           designId: undefined,
           detail: {
             itemKind: item.kind,

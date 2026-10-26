@@ -236,7 +236,12 @@ rule above).
 New closed-list entries in `staff-audit-action.ts`, written by X0. **Each has a closed key list: kind, ids, codes, counts
 (F4). Never created-row text, never a version label or note, never a name or free text.** The actions: `price-draft-changed` (the change kind, including created / text / deleted), `price-draft-reverted`,
 `price-bulk-changed`, `price-published`, `price-restored-to-draft`, `catalogue-item-active-changed` (renamed 2026-10-26: the stored action is capped at 32 characters by migration `0020`'s check and `STORED_ACTION_SHAPE`) (immediate, A-17),
-`kitchen-defaults-saved`, `kitchen-seen`, `price-catalogue-viewed`. The store fills `sequenceNumber` and `changeCount` (the length of the stored change summary) into the `price-published` detail; the caller's entry omits them (S1 QA, 2026-10-26). The `action` column is a shape check (`0020` header,
+`kitchen-defaults-saved`, `kitchen-seen`, `price-catalogue-viewed`. The store fills `sequenceNumber` and `changeCount` (the length of the stored change summary) into the `price-published` detail; the caller's entry omits them (S1 QA, 2026-10-26).
+
+**Ruling 2026-10-26 (coordinator): hidden extra keys are stripped, enumerable unknown keys are refused.** The audit detail
+readers strip hidden extra keys (non-enumerable, symbol, accessor) rather than refuse them; only enumerable unknown keys are
+refused. Nothing undeclared reaches the store or the wire, because the readers rebuild the detail from the declared keys.
+This refines the closed key list above and supersedes nothing in it. The `action` column is a shape check (`0020` header,
 per the plan), so no migration is owed.
 
 ## Alternatives considered

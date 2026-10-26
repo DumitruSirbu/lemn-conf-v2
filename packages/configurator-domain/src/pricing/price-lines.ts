@@ -12,14 +12,21 @@ import type {
 } from "./price-book.js";
 
 /** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
- *  whole-kitchen rules §12 permits a line to trace to instead; `accessory` traces to neither — it is
- *  billed per sink, which is a count of bodies rather than one body or the whole kitchen. */
-export type PriceLineKind = "cabinet" | "hardware" | "material" | "accessory";
+ *  whole-kitchen rules §12 permits a line to trace to instead; `depth` is the book's one depth rule, which only a
+ *  book in percentage form publishes; `accessory` traces to neither — it is billed per sink, which is a count of
+ *  bodies rather than one body or the whole kitchen. */
+export type PriceLineKind =
+  | "cabinet"
+  | "hardware"
+  | "material"
+  | "depth"
+  | "accessory";
 
 /** The fields every line carries, whatever it prices.
  *
- *  `amountMinor` is always `quantity × unitAmountMinor` and both are exact safe integers: nothing
- *  here rounds, and a fraction reaching a line would be an amount somebody has already rounded. */
+ *  `amountMinor` is `quantity × unitAmountMinor` and both are exact safe integers. A book in percentage form
+ *  rounds at one named seam (ADR 0177 A-1): its amounts are whole tens of lei, and an accessory line there is
+ *  `r10(quantity × unitAmountMinor)` with the book's exact rate as its unit. */
 export interface PriceLineCommon {
   /** Derived, never supplied by price data, so it is stable across a re-ordered input array and
    *  across a change of amount. */
@@ -64,6 +71,15 @@ export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly descriptionKey?: string | undefined;
 }
 
+/** The uplift a 700 mm depth adds to the cabinets that get deeper: one line, published only by a book in percentage
+ *  form, only when the design is built at 700 and at least one manufacturer-supplied cabinet deepens. Its amount is `0`
+ *  when the book states 0 %, which a surface renders *inclus*. Quantity 1, as the whole-kitchen lines. */
+export interface DepthPriceLine extends PriceLineCommon {
+  readonly kind: "depth";
+  /** The depth the design is built at, so the surface names it ("Adâncime 700 mm") without knowing it. */
+  readonly depthMm: number;
+}
+
 /** An extra the design earns rather than chooses: the two sink extras (ADR 0070 decision 4). The same
  *  book-data-rendered shape as a tier line (ADR 0062: no copy in a component) and no `tierId`, since no
  *  control selects it. `quantity` is a count of sinks. A quantity of zero is not a line: it would render
@@ -82,6 +98,7 @@ export interface AccessoryPriceLine extends PriceLineCommon {
 export type PriceLine =
   | CabinetPriceLine
   | WholeKitchenPriceLine
+  | DepthPriceLine
   | AccessoryPriceLine;
 
 /** A priced design. Derived on every read and stored nowhere (§12: never store a total), so
@@ -101,7 +118,7 @@ export interface PricedDesign {
    *  appended rather than interleaved so every "hardware then material" assertion holds
    *  (ADR 0092 decision 11). */
   readonly lines: readonly PriceLine[];
-  /** The exact sum of every line, in minor units. Presentation rounds; this does not. */
+  /** The exact sum of every line, in minor units: the lines are what was rounded, so nothing rounds the total. */
   readonly totalMinor: number;
   /** The placements reaching past the end of their wall, derived from the design being priced through
    *  `findOverflowingPlacementIds` (ADR 0069 decision 5c), so a surface marks the bodies the scene

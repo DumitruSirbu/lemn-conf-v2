@@ -11,6 +11,13 @@ import {
   type StaffAuditRefusal,
   type StaffAuditRefusalCode,
 } from "./audit-refusal.js";
+import {
+  DASHBOARD_AUDIT_ACTIONS,
+  DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
+  isDashboardAuditAction,
+  readDashboardAuditEntry,
+  type DashboardAuditEntry,
+} from "./dashboard-audit-action.js";
 import { isRequestStatus, type RequestStatus } from "./request-status.js";
 import {
   STAFF_KITCHEN_PAGE_SIZE,
@@ -22,13 +29,20 @@ import {
 // the database (ADR 0172 D10). A detail holds codes only, so an address, a name or a note's text has no field
 // to be written into.
 
-export const STAFF_AUDIT_ACTIONS = Object.freeze([
+const KITCHEN_AUDIT_ACTIONS = Object.freeze([
   "kitchen-opened",
   "note-added",
   "status-changed",
   "kitchen-unhidden",
   "kitchens-listed",
   "audit-viewed",
+] as const);
+type KitchenAuditAction = (typeof KITCHEN_AUDIT_ACTIONS)[number];
+
+/** The kitchen actions, then the price dashboard's. */
+export const STAFF_AUDIT_ACTIONS = Object.freeze([
+  ...KITCHEN_AUDIT_ACTIONS,
+  ...DASHBOARD_AUDIT_ACTIONS,
 ] as const);
 export type StaffAuditAction = (typeof STAFF_AUDIT_ACTIONS)[number];
 
@@ -63,7 +77,7 @@ export interface AuditViewedDetail {
   readonly hasDateFilter: boolean;
 }
 
-interface StaffAuditDetailByAction {
+interface KitchenAuditDetailByAction {
   readonly "kitchen-opened": null;
   readonly "note-added": null;
   readonly "status-changed": StatusChangedDetail;
@@ -72,12 +86,14 @@ interface StaffAuditDetailByAction {
   readonly "audit-viewed": AuditViewedDetail;
 }
 
-export type StaffAuditEntry = {
-  readonly [Action in StaffAuditAction]: {
+type KitchenAuditEntry = {
+  readonly [Action in KitchenAuditAction]: {
     readonly action: Action;
-    readonly detail: StaffAuditDetailByAction[Action];
+    readonly detail: KitchenAuditDetailByAction[Action];
   };
-}[StaffAuditAction];
+}[KitchenAuditAction];
+
+export type StaffAuditEntry = KitchenAuditEntry | DashboardAuditEntry;
 
 export type { StaffAuditRefusalCode };
 
@@ -112,13 +128,14 @@ export const STAFF_AUDIT_ACTION_NAMES_DESIGN: Readonly<
   "kitchen-unhidden": true,
   "kitchens-listed": false,
   "audit-viewed": false,
+  ...DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
 });
 
 export function auditActionNamesDesign(action: StaffAuditAction): boolean {
   return STAFF_AUDIT_ACTION_NAMES_DESIGN[action];
 }
 
-/** A row names a design exactly when its action does: the two list views name none, every other action names one. */
+/** A row names a design exactly when its action does (`STAFF_AUDIT_ACTION_NAMES_DESIGN`). */
 export function auditActionAcceptsDesignId(
   action: StaffAuditAction,
   designId: string | null,
@@ -130,12 +147,19 @@ export function isStaffAuditAction(value: unknown): value is StaffAuditAction {
   return STAFF_AUDIT_ACTIONS.some((action) => action === value);
 }
 
+function isKitchenAuditAction(value: unknown): value is KitchenAuditAction {
+  return KITCHEN_AUDIT_ACTIONS.some((action) => action === value);
+}
+
 /** An action and its detail as one entry: what a store may write, and what it may read back from a row. */
 export function readStaffAuditEntry(
   action: unknown,
   detail: unknown,
 ): StaffAuditEntryReading {
-  if (!isStaffAuditAction(action)) return refused("UNKNOWN_ACTION");
+  if (isDashboardAuditAction(action)) {
+    return readDashboardAuditEntry(action, detail);
+  }
+  if (!isKitchenAuditAction(action)) return refused("UNKNOWN_ACTION");
   switch (action) {
     case "status-changed":
       return readStatusChangedEntry(detail);

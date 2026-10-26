@@ -377,7 +377,9 @@ function hasIdleLifetimes(
 
 function requireRecognisedEntry(entry: StaffAuditEntry): StaffAuditEntry {
   const reading = readStaffAuditEntry(entry.action, entry.detail);
-  if (!reading.ok) throw refusedRecord("ENTRY_NOT_RECOGNISED");
+  if (!reading.ok || !STORED_ACTION_SHAPE.test(reading.entry.action)) {
+    throw refusedRecord("ENTRY_NOT_RECOGNISED");
+  }
   return reading.entry;
 }
 

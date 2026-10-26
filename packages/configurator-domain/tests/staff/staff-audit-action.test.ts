@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { DASHBOARD_AUDIT_ACTIONS } from "../../src/staff/dashboard-audit-action.js";
 import { REQUEST_STATUSES } from "../../src/staff/request-status.js";
 import {
   STAFF_AUDIT_ACTIONS,
@@ -27,7 +28,7 @@ function entryOf(action: unknown, detail: unknown): StaffAuditEntry {
 }
 
 describe("the staff audit actions", () => {
-  it("are the six that Lot 3 builds, each a code and not a sentence", () => {
+  it("are the six that Lot 3 builds then the nine of the price dashboard, each a code and not a sentence", () => {
     expect(STAFF_AUDIT_ACTIONS).toEqual([
       "kitchen-opened",
       "note-added",
@@ -35,7 +36,9 @@ describe("the staff audit actions", () => {
       "kitchen-unhidden",
       "kitchens-listed",
       "audit-viewed",
+      ...DASHBOARD_AUDIT_ACTIONS,
     ]);
+    expect(STAFF_AUDIT_ACTIONS).toHaveLength(15);
   });
 
   it("cannot be edited by a caller that imports the list", () => {

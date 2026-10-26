@@ -322,7 +322,7 @@ describe("the snapshot holds no contact field and no shown figure, by type", () 
 
   it("takes no selections: a design's own settings are the only choice", () => {
     expectTypeOf<keyof SubmissionSnapshotRequest>().toEqualTypeOf<
-      "design" | "catalog" | "book" | "pricingVersion"
+      "design" | "catalog" | "book" | "pricingVersion" | "deepeningRows"
     >();
   });
 

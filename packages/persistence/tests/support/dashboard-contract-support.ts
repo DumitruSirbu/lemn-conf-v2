@@ -3,14 +3,12 @@ import type {
   DashboardAuditEntry,
   ItemRef,
 } from "@lemnaria/configurator-domain";
+import { CATALOGUE_ACTIVATION_AUDIT_ACTION } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 import { expect } from "vitest";
 
 import { itemIdOf } from "../../src/fake-dashboard-support.js";
-import {
-  CATALOGUE_ACTIVATION_ACTION,
-  DashboardStoreError,
-} from "../../src/m10-ports.js";
+import { DashboardStoreError } from "../../src/m10-ports.js";
 import type {
   CatalogueAvailabilityStore,
   DashboardStoreFailure,
@@ -80,7 +78,7 @@ export function activationEntryFor(
   active: boolean,
 ): CatalogueActivationAuditInput {
   return {
-    action: CATALOGUE_ACTIVATION_ACTION,
+    action: CATALOGUE_ACTIVATION_AUDIT_ACTION,
     detail: { itemKind: item.kind, itemId: itemIdOf(item), active },
   };
 }

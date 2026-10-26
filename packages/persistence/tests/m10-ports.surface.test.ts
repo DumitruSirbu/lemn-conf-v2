@@ -5,13 +5,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
   readDashboardAuditEntry,
   type ItemRef,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
-  CATALOGUE_ACTIVATION_ACTION,
   INITIAL_REVISION,
   type ActivationAuditRecord,
   type CatalogueAvailabilityStore,
@@ -273,7 +273,7 @@ describe("no answer is absent", () => {
   });
 
   it("reads a never-written revision as the one value the domain's audit shape also accepts", () => {
-    const reading = readDashboardAuditEntry(CATALOGUE_ACTIVATION_ACTION, {
+    const reading = readDashboardAuditEntry(CATALOGUE_ACTIVATION_AUDIT_ACTION, {
       itemKind: "material",
       itemId: "material.painted-mdf",
       active: true,

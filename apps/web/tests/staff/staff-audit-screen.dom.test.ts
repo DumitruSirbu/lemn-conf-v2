@@ -632,10 +632,28 @@ describe.each(LOCALES)("in %s", (locale) => {
         words.actionKitchenUnhidden,
         words.actionKitchensListed,
         words.actionAuditViewed,
+        ...dashboardActionWords(words),
       ]);
     });
   });
 });
+
+/** The nine price dashboard actions' words, in the order of `DASHBOARD_AUDIT_ACTIONS`. */
+function dashboardActionWords(
+  words: ReturnType<typeof auditWords>,
+): readonly string[] {
+  return [
+    words.actionPriceDraftChanged,
+    words.actionPriceDraftReverted,
+    words.actionPriceBulkChanged,
+    words.actionPricePublished,
+    words.actionPriceRestoredToDraft,
+    words.actionCatalogueItemActiveChanged,
+    words.actionKitchenDefaultsSaved,
+    words.actionKitchenSeen,
+    words.actionPriceCatalogueViewed,
+  ];
+}
 
 describe("what each action says (frame S8B)", () => {
   const ENTRIES = [
@@ -672,6 +690,65 @@ describe("what each action says (frame S8B)", () => {
         },
       },
     ],
+    [
+      "price-draft-changed",
+      { action: "price-draft-changed", detail: { changeKind: "depth-rule" } },
+    ],
+    [
+      "price-draft-reverted",
+      {
+        action: "price-draft-reverted",
+        detail: { changeKind: "provisional", revertedCount: 1 },
+      },
+    ],
+    [
+      "price-bulk-changed",
+      {
+        action: "price-bulk-changed",
+        detail: { scope: "all", percent: 5, ruleCount: 12, amountCount: 40 },
+      },
+    ],
+    [
+      "price-published",
+      {
+        action: "price-published",
+        detail: { sequenceNumber: 2, changeCount: 3, provisional: false },
+      },
+    ],
+    [
+      "price-restored-to-draft",
+      {
+        action: "price-restored-to-draft",
+        detail: { fromSequenceNumber: 1, changeCount: 2 },
+      },
+    ],
+    [
+      "catalogue-item-active-changed",
+      {
+        action: "catalogue-item-active-changed",
+        detail: {
+          itemKind: "material",
+          itemId: "material.painted-mdf",
+          active: true,
+          availabilityRevision: "4",
+        },
+      },
+    ],
+    [
+      "kitchen-defaults-saved",
+      {
+        action: "kitchen-defaults-saved",
+        detail: { changedFields: ["finish"] },
+      },
+    ],
+    ["kitchen-seen", { action: "kitchen-seen", detail: {} }],
+    [
+      "price-catalogue-viewed",
+      {
+        action: "price-catalogue-viewed",
+        detail: { section: "publish" },
+      },
+    ],
   ] as const;
 
   it.each(LOCALES)(
@@ -700,6 +777,7 @@ describe("what each action says (frame S8B)", () => {
         words.actionKitchenUnhidden,
         words.actionKitchensListed,
         words.actionAuditViewed,
+        ...dashboardActionWords(words),
       ]);
       expect(new Set(labels).size).toBe(STAFF_AUDIT_ACTIONS.length);
     },

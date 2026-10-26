@@ -134,6 +134,9 @@ Pointer: the account-to-contact read this list sits beside is recorded in ADR 01
   administrator-only and fail-closed, and ids are unguessable.
 - **Unrecognised actions appear only on unfiltered pages.** The action filter accepts the six closed codes only (`audit-viewed` included), while
   the store would accept any table-shaped code; a row the build does not know is therefore found by paging, not by filter.
+  **Dated amendment, 2026-10-26 (coordinator, relayed; the scribe ran nothing):** the action filter now accepts **fifteen**
+  closed codes, the six above plus the nine dashboard actions of [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md),
+  not six. The sentence above is kept as the Lot 3 state.
 
 ## L3-S9: the notes in the client's own export, 2026-10-21 [written by the wave's implementer from the dispatch and the code; no owner ruling, no review yet]
 

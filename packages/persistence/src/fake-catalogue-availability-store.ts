@@ -1,3 +1,4 @@
+import { CATALOGUE_ACTIVATION_AUDIT_ACTION } from "@lemnaria/configurator-domain";
 import type {
   CatalogueAvailability,
   ItemRef,
@@ -15,7 +16,6 @@ import {
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
 import {
   AVAILABILITY_REVISION_NOT_FOUND,
-  CATALOGUE_ACTIVATION_ACTION,
   CHANGED_MEANWHILE,
   DashboardStoreError,
 } from "./m10-ports.js";
@@ -101,7 +101,7 @@ export class FakeCatalogueAvailabilityStore
     const staged = await this.ledger.stage({
       operation: "set an item's availability",
       record: request.audit,
-      accepts: [CATALOGUE_ACTIVATION_ACTION],
+      accepts: [CATALOGUE_ACTIVATION_AUDIT_ACTION],
       provisional: { availabilityRevision: this.head.next() },
     });
     if (request.expectedRevision !== this.head.current()) {

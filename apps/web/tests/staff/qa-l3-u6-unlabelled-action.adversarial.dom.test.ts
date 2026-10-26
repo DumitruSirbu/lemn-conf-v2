@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
 // A domain that is one action ahead of the page (wave L3-U6): the closed list of actions is the domain's, the words are the
-// catalogue's, and a build can carry the first without the second. The domain is doubled here with a seventh action that
+// catalogue's, and a build can carry the first without the second. The domain is doubled here with a sixteenth action that
 // the catalogue has no words for; the page must stay up, tell the row as an action it does not know with the code as text,
-// keep the six it does know in their own words, and still let the person filter by the new one.
+// keep the fifteen it does know in their own words, and still let the person filter by the new one.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import roMessages from "../../src/messages/ro.json";
@@ -100,11 +100,11 @@ describe.each(LOCALES)(
       expect(cell(viewed)?.textContent).toBe(words.actionAuditViewed);
     });
 
-    it("offers the action in the menu in some words, after the six, and asks for it by its code", async () => {
+    it("offers the action in the menu in some words, after the fifteen, and asks for it by its code", async () => {
       const select = harness.actionSelect();
       const options = allIn<HTMLOptionElement>(select, "option");
 
-      expect(options).toHaveLength(8);
+      expect(options).toHaveLength(17);
       expect(options[0]?.textContent).toBe(words.filterActionAll);
       expect(options[1]?.textContent).toBe(words.actionKitchenOpened);
       const added = options.at(-1);

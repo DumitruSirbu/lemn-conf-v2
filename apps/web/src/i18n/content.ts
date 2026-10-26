@@ -1505,6 +1505,23 @@ export function resolveStaffAuditCopy(translate: ContentTranslator) {
     "kitchen-unhidden": translate("staffAudit.actionKitchenUnhidden"),
     "kitchens-listed": translate("staffAudit.actionKitchensListed"),
     "audit-viewed": translate("staffAudit.actionAuditViewed"),
+    "price-draft-changed": translate("staffAudit.actionPriceDraftChanged"),
+    "price-draft-reverted": translate("staffAudit.actionPriceDraftReverted"),
+    "price-bulk-changed": translate("staffAudit.actionPriceBulkChanged"),
+    "price-published": translate("staffAudit.actionPricePublished"),
+    "price-restored-to-draft": translate(
+      "staffAudit.actionPriceRestoredToDraft",
+    ),
+    "catalogue-item-active-changed": translate(
+      "staffAudit.actionCatalogueItemActiveChanged",
+    ),
+    "kitchen-defaults-saved": translate(
+      "staffAudit.actionKitchenDefaultsSaved",
+    ),
+    "kitchen-seen": translate("staffAudit.actionKitchenSeen"),
+    "price-catalogue-viewed": translate(
+      "staffAudit.actionPriceCatalogueViewed",
+    ),
   };
   const rows = (count: number) => translate("staffAudit.detailRows", { count });
   return {
