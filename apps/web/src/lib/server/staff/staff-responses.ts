@@ -2,7 +2,11 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import type { StaffKitchenQueryIssue } from "@lemnaria/configurator-domain";
+import {
+  DASHBOARD_DETAIL_KEYS,
+  type DashboardAuditEntry,
+  type StaffKitchenQueryIssue,
+} from "@lemnaria/configurator-domain";
 import type {
   SavedRequestStatus,
   StaffAuditAccountRef,
@@ -298,9 +302,36 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
     case "note-added":
     case "kitchen-unhidden":
       return { kind: "recognised", action: entry.action, detail: null };
+    case "price-draft-changed":
+    case "price-draft-reverted":
+    case "price-bulk-changed":
+    case "price-published":
+    case "price-restored-to-draft":
+    case "catalogue-item-active-changed":
+    case "kitchen-defaults-saved":
+    case "kitchen-seen":
+    case "price-catalogue-viewed":
+      return { kind: "recognised", ...dashboardEntryWireOf(entry) };
     default:
       return degradedEntryOf(entry);
   }
+}
+
+// A dashboard action's detail is copied key by key from the domain's closed list for that action, so a member beyond
+// the declared shape never leaves the server. An optional key is copied only when present, and a list is copied as a
+// new array.
+function dashboardEntryWireOf(entry: DashboardAuditEntry): DashboardAuditEntry {
+  const source: Readonly<Record<string, unknown>> = { ...entry.detail };
+  const detail = Object.fromEntries(
+    DASHBOARD_DETAIL_KEYS[entry.action]
+      .filter((key) => source[key] !== undefined)
+      .map((key) => [key, copiedValueOf(source[key])]),
+  );
+  return { action: entry.action, detail } as DashboardAuditEntry;
+}
+
+function copiedValueOf(value: unknown): unknown {
+  return Array.isArray(value) ? Array.from<unknown>(value) : value;
 }
 
 // `entry` is `never` here while the switch names every action the domain lists, so a new domain action is a compile

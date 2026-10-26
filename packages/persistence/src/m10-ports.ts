@@ -409,7 +409,7 @@ export interface SetItemActiveRequest {
   readonly active: boolean;
   readonly expectedRevision: string;
   /**
-   * `catalogue-item-activation-changed` without `availabilityRevision`. The store stamps the revision its statement
+   * `catalogue-item-active-changed` without `availabilityRevision`. The store stamps the revision its statement
    * returned into the detail, reads the entry again with the domain, and inserts, all in the one transaction. The
    * expected revision is not recorded: two racing requests may share it, while the returned revision is the unique key
    * joining the audit row to its log row.

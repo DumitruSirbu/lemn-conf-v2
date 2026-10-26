@@ -271,15 +271,12 @@ describe("no answer is absent", () => {
   });
 
   it("reads a never-written revision as the one value the domain's audit shape also accepts", () => {
-    const reading = readDashboardAuditEntry(
-      "catalogue-item-activation-changed",
-      {
-        itemKind: "material",
-        itemId: "material.painted-mdf",
-        active: true,
-        availabilityRevision: INITIAL_REVISION,
-      },
-    );
+    const reading = readDashboardAuditEntry("catalogue-item-active-changed", {
+      itemKind: "material",
+      itemId: "material.painted-mdf",
+      active: true,
+      availabilityRevision: INITIAL_REVISION,
+    });
 
     expect(reading.ok).toBe(true);
   });

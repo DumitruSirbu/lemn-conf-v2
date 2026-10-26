@@ -22,14 +22,16 @@ import {
 // The manufacturer price dashboard's audit actions (M10, plan §8.4 e, A-22; ADR 0173 P-L3-3: every staff read and
 // write is audited).
 //
-// A list of their own, and deliberately not members of `STAFF_AUDIT_ACTIONS`: that list is what the audit page offers
-// as a filter and labels, what the persistence stores accept and what the wire reading recognises, and growing it
-// changes all four at once. Wave X2 folds these nine in; until then a store cannot write them and the audit page does
-// not show them. Their detail shapes are fixed here so that step changes no shape.
+// Declared here and spread into `STAFF_AUDIT_ACTIONS`; the audit page, the stores and the wire recognise them through
+// `readStaffAuditEntry`, which defers to `readDashboardAuditEntry` here.
 //
 // Every action has a closed detail key list (F4): kinds and codes from closed lists, server-minted ids and counts.
 // Never created-row text, a version's label or note, search text or any customer value: they have no field to be
 // written into, and a key outside the list refuses the whole detail.
+
+/** The action of an item switched on or off, named once for the callers that write it before its revision is known. */
+export const CATALOGUE_ACTIVATION_AUDIT_ACTION =
+  "catalogue-item-active-changed" as const;
 
 export const DASHBOARD_AUDIT_ACTIONS = Object.freeze([
   "price-draft-changed",
@@ -37,7 +39,7 @@ export const DASHBOARD_AUDIT_ACTIONS = Object.freeze([
   "price-bulk-changed",
   "price-published",
   "price-restored-to-draft",
-  "catalogue-item-activation-changed",
+  CATALOGUE_ACTIVATION_AUDIT_ACTION,
   "kitchen-defaults-saved",
   "kitchen-seen",
   "price-catalogue-viewed",
@@ -156,7 +158,7 @@ export interface CatalogueItemActivationChangedDetail {
  * revision its statement returned, reads the entry again with `readDashboardAuditEntry`, then inserts (X0 review M4).
  */
 export interface CatalogueActivationAuditInput {
-  readonly action: "catalogue-item-activation-changed";
+  readonly action: typeof CATALOGUE_ACTIVATION_AUDIT_ACTION;
   readonly detail: Omit<
     CatalogueItemActivationChangedDetail,
     "availabilityRevision"
@@ -175,13 +177,13 @@ export interface PriceCatalogueViewedDetail {
   readonly section: PriceCatalogueSection;
 }
 
-interface DashboardAuditDetailByAction {
+export interface DashboardAuditDetailByAction {
   readonly "price-draft-changed": PriceDraftChangedDetail;
   readonly "price-draft-reverted": PriceDraftRevertedDetail;
   readonly "price-bulk-changed": PriceBulkChangedDetail;
   readonly "price-published": PricePublishedDetail;
   readonly "price-restored-to-draft": PriceRestoredToDraftDetail;
-  readonly "catalogue-item-activation-changed": CatalogueItemActivationChangedDetail;
+  readonly "catalogue-item-active-changed": CatalogueItemActivationChangedDetail;
   readonly "kitchen-defaults-saved": KitchenDefaultsSavedDetail;
   readonly "kitchen-seen": KitchenSeenDetail;
   readonly "price-catalogue-viewed": PriceCatalogueViewedDetail;
@@ -207,7 +209,7 @@ export const DASHBOARD_AUDIT_ACTION_NAMES_DESIGN: Readonly<
   "price-bulk-changed": false,
   "price-published": false,
   "price-restored-to-draft": false,
-  "catalogue-item-activation-changed": false,
+  "catalogue-item-active-changed": false,
   "kitchen-defaults-saved": false,
   "kitchen-seen": true,
   "price-catalogue-viewed": false,
@@ -226,10 +228,13 @@ const AVAILABILITY_REVISION_SHAPE = /^(0|[1-9][0-9]{0,18})$/;
 /** The widest a `bigint` reaches. At 19 digits a revision is compared with it as text, never parsed into a number. */
 const BIGINT_MAX_TEXT = "9223372036854775807";
 
+/** The keys each action's detail may hold, checked by the compiler against the action's detail type. */
+export type DashboardDetailKeys = {
+  readonly [Action in DashboardAuditAction]: readonly (keyof DashboardAuditDetailByAction[Action])[];
+};
+
 /** Every key an action's detail may hold; a detail holding another is refused whole. */
-const DASHBOARD_DETAIL_KEYS: Readonly<
-  Record<DashboardAuditAction, readonly string[]>
-> = Object.freeze({
+export const DASHBOARD_DETAIL_KEYS = Object.freeze({
   "price-draft-changed": [
     "changeKind",
     "itemKind",
@@ -254,7 +259,7 @@ const DASHBOARD_DETAIL_KEYS: Readonly<
   ],
   "price-published": ["sequenceNumber", "changeCount", "provisional"],
   "price-restored-to-draft": ["fromSequenceNumber", "changeCount"],
-  "catalogue-item-activation-changed": [
+  "catalogue-item-active-changed": [
     "itemKind",
     "itemId",
     "active",
@@ -263,7 +268,7 @@ const DASHBOARD_DETAIL_KEYS: Readonly<
   "kitchen-defaults-saved": ["changedFields"],
   "kitchen-seen": [],
   "price-catalogue-viewed": ["section"],
-});
+} satisfies DashboardDetailKeys);
 
 /** Kinds whose address names no item: a rule or a switch of the book, or a whole bulk group. */
 const ITEMLESS_CHANGE_KINDS: readonly string[] = [
@@ -316,7 +321,7 @@ function readDashboardDetail(
       return readPublished(detail);
     case "price-restored-to-draft":
       return readRestoredToDraft(detail);
-    case "catalogue-item-activation-changed":
+    case "catalogue-item-active-changed":
       return readActivationChanged(detail);
     case "kitchen-defaults-saved":
       return readDefaultsSaved(detail);
@@ -413,8 +418,7 @@ function readBulkChanged(detail: PlainObject): DashboardAuditEntryReading {
     !isOneOf(BULK_CHANGE_SCOPES, scope) ||
     (groupCode !== undefined && !isOneOf(PRICE_GROUP_CODES, groupCode)) ||
     (scope === "group") !== (groupCode !== undefined) ||
-    typeof percent !== "number" ||
-    !Number.isSafeInteger(percent) ||
+    !isSignedWholeNumber(percent) ||
     !isCount(ruleCount) ||
     !isCount(amountCount)
   ) {
@@ -488,7 +492,7 @@ function readActivationChanged(
   return {
     ok: true,
     entry: {
-      action: "catalogue-item-activation-changed",
+      action: "catalogue-item-active-changed",
       detail: Object.freeze({
         itemKind,
         itemId,
@@ -500,15 +504,13 @@ function readActivationChanged(
 }
 
 function readDefaultsSaved(detail: PlainObject): DashboardAuditEntryReading {
-  const changedFields = ownValueOf(detail, "changedFields");
-  if (!isDistinctListedFields(changedFields)) return refused("INVALID_DETAIL");
+  const reading = readDistinctListedFields(ownValueOf(detail, "changedFields"));
+  if (!reading.ok) return refused("INVALID_DETAIL");
   return {
     ok: true,
     entry: {
       action: "kitchen-defaults-saved",
-      detail: Object.freeze({
-        changedFields: Object.freeze([...changedFields]),
-      }),
+      detail: Object.freeze({ changedFields: reading.fields }),
     },
   };
 }
@@ -527,16 +529,51 @@ function readCatalogueViewed(detail: PlainObject): DashboardAuditEntryReading {
   };
 }
 
-/** At least one row changed, and no row twice. */
-function isDistinctListedFields(
-  value: unknown,
-): value is readonly KitchenDefaultsField[] {
-  return (
-    Array.isArray(value) &&
-    value.length >= 1 &&
-    value.every((field) => isOneOf(KITCHEN_DEFAULTS_FIELDS, field)) &&
-    new Set<unknown>(value).size === value.length
+type ListedFieldsReading =
+  | { readonly ok: true; readonly fields: readonly KitchenDefaultsField[] }
+  | { readonly ok: false };
+
+/**
+ * At least one row changed, and no row twice. The claimed length is refused when it exceeds the rows there are, before
+ * anything is copied (a proxy may claim any length). The list is then read once through its iterator into a copy of our
+ * own, stopping one entry past the rows there are, so a list that lies about its length later cannot extend the copy.
+ * A proxy or a getter cannot answer differently to the check and to the copy, and a hole becomes `undefined` and is
+ * refused; the copy is what is checked, frozen and returned.
+ */
+function readDistinctListedFields(value: unknown): ListedFieldsReading {
+  if (!Array.isArray(value)) return { ok: false };
+  const claimedLength: unknown = value.length;
+  if (!isListLengthWithinFields(claimedLength)) return { ok: false };
+  const fields = copyEntriesUpToOnePast(value, KITCHEN_DEFAULTS_FIELDS.length);
+  const isListed = fields.every((field): field is KitchenDefaultsField =>
+    isOneOf(KITCHEN_DEFAULTS_FIELDS, field),
   );
+  const isWithinFields = fields.length <= KITCHEN_DEFAULTS_FIELDS.length;
+  if (!isListed || !isWithinFields || new Set(fields).size !== fields.length) {
+    return { ok: false };
+  }
+  return { ok: true, fields: Object.freeze(fields) };
+}
+
+function isListLengthWithinFields(length: unknown): length is number {
+  return (
+    typeof length === "number" &&
+    Number.isSafeInteger(length) &&
+    length >= 1 &&
+    length <= KITCHEN_DEFAULTS_FIELDS.length
+  );
+}
+
+function copyEntriesUpToOnePast(
+  list: readonly unknown[],
+  limit: number,
+): unknown[] {
+  const copy: unknown[] = [];
+  for (const entry of list) {
+    copy.push(entry);
+    if (copy.length > limit) break;
+  }
+  return copy;
 }
 
 function isAvailabilityRevision(value: unknown): value is string {
@@ -554,8 +591,17 @@ function isOneOf<Member extends string>(
   return list.some((member) => member === value);
 }
 
+/** A safe integer that is not `-0`: a detail is stored as JSON, which writes `-0` as `0`, so it would not read back as given. */
+function isSignedWholeNumber(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    !Object.is(value, -0)
+  );
+}
+
 function isCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  return isSignedWholeNumber(value) && value >= 0;
 }
 
 function isAuditDetailId(value: unknown): value is string {

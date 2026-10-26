@@ -1653,6 +1653,16 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     actionKitchenUnhidden: "a făcut vizibilă bucătăria",
     actionKitchensListed: "a deschis lista",
     actionAuditViewed: "a deschis jurnalul",
+    actionPriceDraftChanged: "a pregătit o modificare de preț",
+    actionPriceDraftReverted: "a anulat o modificare de preț pregătită",
+    actionPriceBulkChanged: "a schimbat prețurile în bloc",
+    actionPricePublished: "a publicat prețurile",
+    // Reworded in X2 review: the action only brings a version's prices into the draft. Owner approval pending (OQ-11).
+    actionPriceRestoredToDraft: "a adus în ciornă prețurile unei versiuni",
+    actionCatalogueItemActiveChanged: "a activat sau a dezactivat un articol",
+    actionKitchenDefaultsSaved: "a salvat setările implicite",
+    actionKitchenSeen: "a marcat bucătăria ca văzută",
+    actionPriceCatalogueViewed: "a deschis panoul de prețuri",
     actionUnknown: "Acțiune necunoscută",
     detailStatusChanged: "{from} → {to}",
     detailRows:
