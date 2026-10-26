@@ -114,7 +114,7 @@ function stepperAt(kitchen: Kitchen, id: string): WidthStepperSection {
   const panel = describePanel({
     content: ro,
     material: PAL_KITCHEN,
-    meta: describeSelection({ ...world, target }),
+    meta: describeSelection({ kitchenSettings: {}, ...world, target }),
     offers: offersFor({
       ...world,
       target,

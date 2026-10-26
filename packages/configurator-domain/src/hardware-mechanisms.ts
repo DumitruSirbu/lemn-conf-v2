@@ -18,6 +18,7 @@ import {
   doorLeafHeightsMm,
   drawerCount,
   frontPopulationQueryFor,
+  openingFrontCount,
   type DeclaresFronts,
 } from "./front-population.js";
 import { isPushToOpen, type PushToOpenQuery } from "./push-to-open.js";
@@ -91,7 +92,7 @@ function mechanismsOn(
     drawers,
     pushToOpen: countPushToOpen(
       pushToOpenQueryFor(entry, declared),
-      leafHeightsMm.length + drawers,
+      openingFrontCount(query),
     ),
   };
 }
@@ -112,9 +113,9 @@ interface DeclaresMechanismFacts extends DeclaresFronts {
 const DECLARES_NOTHING: DeclaresMechanismFacts = {};
 
 /** The facts `isPushToOpen` reads: the floor and the recorded mode are the **placement's** (§6.5: two
- *  `base-sink-800`s can carry different handles), the permission is the **catalogue row's**. A row
- *  declaring no permission reads as permitting none, which decides nothing on any reachable path:
- *  `doorLeafHeightsMm` has already refused an uncatalogued body. */
+ *  `base-sink-800`s can carry different handles), the kitchen's handle is the **design's**, the permission is the
+ *  **catalogue row's**. A row declaring no permission reads as permitting none, which decides nothing on any
+ *  reachable path: `doorLeafHeightsMm` has already refused an uncatalogued body. */
 function pushToOpenQueryFor(
   entry: DisplayEntry,
   declared: DeclaresMechanismFacts,
@@ -122,6 +123,7 @@ function pushToOpenQueryFor(
   return {
     y0Mm: entry.y0Mm,
     recordedHandle: entry.handle,
+    kitchenSettings: entry.kitchenSettings,
     canHandle: declared.canHandle === true,
   };
 }

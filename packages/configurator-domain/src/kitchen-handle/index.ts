@@ -8,6 +8,8 @@ export {
 export {
   DEFAULT_HANDLE,
   defaultHandleOf,
+  kitchenHandleSettingsOf,
+  ownHandleOf,
   resolvedHandleOf,
   TOP_ROW_HANDLE,
   type HandleResolutionQuery,

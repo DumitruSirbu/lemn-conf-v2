@@ -1,16 +1,16 @@
 // The one predicate wave 6T-a exists to make one (ADR 0092 decision 3, Amendment C).
 //
-// **The two units are held in agreement here and nowhere else.** `bands.ts` keeps the metre
-// threshold the display path already reads (`isPushOpenByDefault`) and `push-to-open.ts` keeps the
-// millimetre one the document and the price read. Neither is computed from the other, so this file
-// is the only thing stopping them drifting — and it is a sweep over every floor a body can stand on
-// rather than three examples, because a threshold that moved by a millimetre would still agree at
-// 0, at 1500 and at 2200.
+// **The module line is held to its literal here.** `isTopRowFloorMm` in `push-to-open.ts` is the one place the line
+// is a comparison; every reader (price, scene, panel) asks it. A sweep over every floor a body can stand on pins it
+// to the literal 2200 mm rather than to a second restatement of itself, and rather than three examples, because a
+// threshold that moved by a millimetre would still agree at 0, at 1500 and at 2200.
 import { describe, expect, it } from "vitest";
 
-import { isPushOpenByDefault, TOP_ROW_Y0_M } from "../src/bands.js";
-import { toMetres } from "../src/millimetres.js";
-import { isPushToOpen, TOP_ROW_Y0_MM } from "../src/push-to-open.js";
+import {
+  isPushToOpen,
+  isTopRowFloorMm,
+  TOP_ROW_Y0_MM,
+} from "../src/push-to-open.js";
 import type { Handle } from "../src/design.js";
 
 /** Every floor a body can stand on in a room this product builds — from the floor itself to above
@@ -26,25 +26,33 @@ function pushToOpenAt(
   recorded?: { readonly handle: Handle; readonly canHandle: boolean },
 ): boolean {
   return isPushToOpen({
+    kitchenSettings: {},
     y0Mm,
     recordedHandle: recorded?.handle,
     canHandle: recorded?.canHandle ?? true,
   });
 }
 
-describe("the millimetre threshold is the metre one, restated rather than computed", () => {
-  it("sits on the whole millimetre TOP_ROW_Y0_M rounds to", () => {
-    expect(TOP_ROW_Y0_MM).toBe(Math.round(TOP_ROW_Y0_M * 1000));
+/** §6.5's module line, written out: the oracle must not read the constant under test. */
+const LITERAL_MODULE_LINE_MM = 2_200;
+
+describe("the module line is the literal 2200 mm, for every reader", () => {
+  it("is the whole millimetre §6.5 states", () => {
+    expect(TOP_ROW_Y0_MM).toBe(LITERAL_MODULE_LINE_MM);
   });
 
-  it("answers exactly as isPushOpenByDefault does at every millimetre a body can stand on", () => {
+  it("is what isPushToOpen and isTopRowFloorMm answer at every millimetre a body can stand on", () => {
     const disagreeing: number[] = [];
     for (
       let y0Mm = LEGAL_FLOORS_MM.lowest;
       y0Mm <= LEGAL_FLOORS_MM.highest;
       y0Mm += 1
     ) {
-      if (pushToOpenAt(y0Mm) !== isPushOpenByDefault(toMetres(y0Mm))) {
+      const isOnTopRow = y0Mm >= LITERAL_MODULE_LINE_MM;
+      if (
+        pushToOpenAt(y0Mm) !== isOnTopRow ||
+        isTopRowFloorMm(y0Mm) !== isOnTopRow
+      ) {
         disagreeing.push(y0Mm);
       }
     }

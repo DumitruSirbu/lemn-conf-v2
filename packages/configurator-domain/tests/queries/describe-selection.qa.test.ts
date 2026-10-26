@@ -7,7 +7,6 @@
 // was checked and wrong one module line up.
 import { describe, expect, it } from "vitest";
 
-import { isPushOpenByDefault, TOP_ROW_Y0_M } from "../../src/bands.js";
 import { setHandle } from "../../src/commands/set-appearance.js";
 import type { Design, DesignPlacement } from "../../src/design.js";
 import {
@@ -22,7 +21,11 @@ import { advance, createWorld } from "../support/kitchen-world.js";
 const seeded = () => createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
 function metaFor(world: ReturnType<typeof seeded>, id: string) {
-  return describeSelection({ ...world, target: { kind: "placement", id } });
+  return describeSelection({
+    kitchenSettings: {},
+    ...world,
+    target: { kind: "placement", id },
+  });
 }
 
 describe("§9's canWidth, over the whole seeded population", () => {
@@ -74,6 +77,7 @@ describe("§9's canWidth, over the whole seeded population", () => {
     let swept = 0;
     for (const record of world.voids) {
       const meta = describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "void", id: record.id },
       });
@@ -92,7 +96,8 @@ describe("§9's canWidth, over the whole seeded population", () => {
 });
 
 describe("§6.5's default handle at the module line itself", () => {
-  const line = Math.round(TOP_ROW_Y0_M * 1000);
+  /** §6.5's module line, written out: the oracle must not read a constant the readers share. */
+  const line = 2_200;
 
   function designAt(y0Mm: number): Design {
     const placement: DesignPlacement = {
@@ -128,9 +133,8 @@ describe("§6.5's default handle at the module line itself", () => {
         (candidate) => candidate.id === placement.id,
       );
       const meta = metaFor(world, placement.id);
-      const rendered = isPushOpenByDefault(record?.frame.y0 ?? 0)
-        ? "push"
-        : "steel";
+      const rendered =
+        Math.round((record?.frame.y0 ?? 0) * 1000) >= line ? "push" : "steel";
       expect([placement.id, meta?.defaultHandle]).toEqual([
         placement.id,
         rendered,
@@ -169,7 +173,7 @@ describe("§6.5's default handle at the module line itself", () => {
         id: record.id,
       })),
     ]) {
-      const meta = describeSelection({ ...world, target });
+      const meta = describeSelection({ kitchenSettings: {}, ...world, target });
       expect(["steel", "black", "push"]).toContain(meta?.defaultHandle);
       swept += 1;
     }

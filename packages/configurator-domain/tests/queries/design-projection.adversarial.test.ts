@@ -200,6 +200,7 @@ describe("the label is the panel header's label, not a second derivation", () =>
     expect(projected.size).toBe(KITCHEN_L_PLACEMENTS.length);
     for (const record of records) {
       const meta = describeSelection({
+        kitchenSettings: {},
         records,
         voids: [],
         catalog: CATALOG,
@@ -226,6 +227,7 @@ describe("the label is the panel header's label, not a second derivation", () =>
     for (const design of [before, after]) {
       const records = derivePlacementRecords(design, CATALOG);
       const header = describeSelection({
+        kitchenSettings: {},
         records,
         voids: [],
         catalog: CATALOG,
@@ -444,6 +446,7 @@ describe("the id tie-break rests on a validated uniqueness, not on luck", () => 
       y0Mm: 1500,
       widthMm: 600,
       heightMm: 700,
+      kitchenSettings: {},
     });
 
     expect(compareDisplayOrder(entry("B"), entry("a"))).toBeLessThan(0);

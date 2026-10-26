@@ -3,7 +3,6 @@
 // handles: `isPushToOpen`, `describeSelection`'s handle fields, and the hardware line's push-to-open count.
 import { describe, expect, it } from "vitest";
 
-import { isPushOpenByDefault } from "../../src/bands.js";
 import type { Handle } from "../../src/design.js";
 import {
   countHardwareMechanisms,
@@ -13,7 +12,6 @@ import {
   projectDesignForDisplay,
   type DisplayEntry,
 } from "../../src/index.js";
-import { toMetres } from "../../src/millimetres.js";
 import { isPushToOpen } from "../../src/push-to-open.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { createWorld } from "../support/kitchen-world.js";
@@ -66,7 +64,7 @@ describe("the documents swept", () => {
 describe.each(documentsWithNoKitchenHandle().map((d) => [d.name, d] as const))(
   "%s, with no kitchen handle",
   (_name, document) => {
-    it("answers isPushToOpen as the old rule does, with the setting absent or empty", () => {
+    it("answers isPushToOpen as the old rule does, with the kitchen settings empty", () => {
       for (const entry of entriesOf(document)) {
         const front = {
           y0Mm: entry.y0Mm,
@@ -74,7 +72,6 @@ describe.each(documentsWithNoKitchenHandle().map((d) => [d.name, d] as const))(
           canHandle: canHandleOf(entry, document),
         };
 
-        expect(isPushToOpen(front)).toBe(oldIsPushToOpen(front));
         expect(isPushToOpen({ ...front, kitchenSettings: {} })).toBe(
           oldIsPushToOpen(front),
         );
@@ -107,20 +104,16 @@ describe.each(documentsWithNoKitchenHandle().map((d) => [d.name, d] as const))(
 
       for (const record of world.records) {
         const target = { kind: "placement", id: record.id } as const;
-        const meta = describeSelection({ ...world, target });
+        const meta = describeSelection({
+          kitchenSettings: {},
+          ...world,
+          target,
+        });
 
         expect(meta?.handle).toBe(record.handleMode);
         expect(meta?.defaultHandle).toBe(
           oldDefaultHandle(Math.round(record.frame.y0 * 1000)),
         );
-        expect(meta?.defaultHandle).toBe(
-          isPushOpenByDefault(toMetres(Math.round(record.frame.y0 * 1000)))
-            ? "push"
-            : "steel",
-        );
-        expect(
-          describeSelection({ ...world, target, kitchenSettings: {} }),
-        ).toEqual(meta);
       }
     });
   },

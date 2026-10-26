@@ -76,7 +76,7 @@ function panelAt(world: World, target: CommandTarget, canWrite = true) {
   return describePanel({
     content: ro,
     material: PAL_KITCHEN,
-    meta: describeSelection({ ...world, target }),
+    meta: describeSelection({ kitchenSettings: {}, ...world, target }),
     offers: offersFor({
       ...world,
       target,
@@ -230,7 +230,7 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
     const panel = describePanel({
       content: ro,
       material: PAL_KITCHEN,
-      meta: describeSelection({ ...world, target }),
+      meta: describeSelection({ kitchenSettings: {}, ...world, target }),
       offers: offersFor({
         ...world,
         target,
@@ -383,6 +383,7 @@ describe("a willing body with no widths gets no section, not an empty one", () =
       catalogWith("wall-2door-600", { catalogEquivalentId: "no-such-entry" }),
     );
     const meta = describeSelection({
+      kitchenSettings: {},
       ...world,
       target: { kind: "placement", id: "p8" },
     });
@@ -416,6 +417,7 @@ describe("a fixed-width body shows the one width it is made at", () => {
       const record = world.records.find((candidate) => candidate.id === id);
       if (!record) throw new Error(`no record ${id}`);
       const meta = describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "placement", id },
       });

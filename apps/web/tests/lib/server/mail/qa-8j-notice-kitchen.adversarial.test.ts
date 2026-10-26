@@ -12,6 +12,7 @@ import {
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   type Design,
+  type DesignPlacement,
   type Finish,
   type Handle,
   type PricedDesign,
@@ -241,6 +242,22 @@ function withOwnFinishAndHandle(design: Design): Design {
   };
 }
 
+/** §6.5's module line, written out whole: the oracle does not read the constant the model reads. */
+const TOP_ROW_FLOOR_MM = 2200;
+
+/** What a dressed body wears or is latched as: its own handle where its definition takes one, push on the top row. */
+function wornHandleOf(
+  placement: DesignPlacement,
+  design: Design,
+): Handle | undefined {
+  const canHandle =
+    buildKitchenLBodyCatalog(cabinetDepthMmOf(design)).get(
+      placement.body.buildId,
+    )?.canHandle === true;
+  if (canHandle) return placement.body.handle;
+  return placement.y0Mm >= TOP_ROW_FLOOR_MM ? "push" : undefined;
+}
+
 interface DressedKitchen {
   readonly design: Design;
   readonly stored: SubmissionSnapshot;
@@ -294,7 +311,7 @@ describe.each(ARMS)(
       expect(wrong).toEqual([]);
     });
 
-    it("print each handle's own word once for every body that carries that handle", () => {
+    it("print each handle's word once for every body that wears that handle", () => {
       const wrong = kitchens
         .filter(({ design, factLines }) =>
           OWN_HANDLES.some(
@@ -303,8 +320,9 @@ describe.each(ARMS)(
                 factLines,
                 `${FACT_INDENT}${ro.panel.handleLabels[handle]}`,
               ) !==
-              design.placements.filter(({ body }) => body.handle === handle)
-                .length,
+              design.placements.filter(
+                (placement) => wornHandleOf(placement, design) === handle,
+              ).length,
           ),
         )
         .map(({ design }) => JSON.stringify(design.room));

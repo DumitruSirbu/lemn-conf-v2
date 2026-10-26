@@ -7,8 +7,20 @@
 import { normaliseBand, type NormalisedBand } from "../bands.js";
 import { describeBodyLabelAt, type BodyLabel } from "../catalog.js";
 import type { Design, DesignPlacement, DesignWall, Handle } from "../design.js";
+import {
+  kitchenHandleSettingsOf,
+  ownHandleOf,
+  type KitchenHandleSettings,
+} from "../kitchen-handle/kitchen-handle.js";
 import type { Finish } from "../materials.js";
+import {
+  frontPopulationQueryFor,
+  openingFrontCount,
+  UnbuildableDoorBandError,
+  UndeclaredFrontPopulationError,
+} from "../front-population.js";
 import { compareOpaqueIds } from "../opaque-id-order.js";
+import { wornHandleAt } from "../push-to-open.js";
 import {
   UnknownBodyError,
   type Band,
@@ -39,9 +51,15 @@ export interface DisplayEntry {
   /** The finish currently applied, absent when the body ships in its default — a real state, and
    *  a per-cabinet choice, so a list that shows it must read the placement, not the catalogue. */
   readonly finish?: Finish;
-  /** The handle mode currently applied, absent when none was chosen (§6.5). Per placement, for the
-   *  same reason as `finish`. */
+  /** The handle mode this cabinet chose itself, absent when none was chosen (§6.5): never the resolved handle. Per
+   *  placement, for the same reason as `finish`. */
   readonly handle?: Handle;
+  /** The design's kitchen handle settings, which a cabinet with no handle of its own follows (ADR 0099). The same
+   *  object on every entry of one projection; `{}` when the kitchen has none. */
+  readonly kitchenSettings: KitchenHandleSettings;
+  /** The handle this body is read as wearing, `wornHandleAt`'s answer: absent for a body that wears none, and never
+   *  the cabinet's own alone. What a customer-facing list names, so it cannot omit a latch the price bills. */
+  readonly wornHandle?: Handle;
 }
 
 /** One heading and the bodies under it — the mockup's *Perete A · suspendate*. A group is never
@@ -106,8 +124,9 @@ export function projectDesignForDisplay(
   design: Design,
   catalog: BodyCatalog,
 ): readonly DisplayGroup[] {
+  const kitchenSettings = kitchenHandleSettingsOf(design.settings);
   const entries = design.placements
-    .map((placement) => toDisplayEntry(placement, catalog))
+    .map((placement) => toDisplayEntry(placement, catalog, kitchenSettings))
     .sort(compareDisplayOrder);
   return groupInDisplayOrder(entries);
 }
@@ -115,8 +134,15 @@ export function projectDesignForDisplay(
 function toDisplayEntry(
   placement: DesignPlacement,
   catalog: BodyCatalog,
+  kitchenSettings: KitchenHandleSettings,
 ): DisplayEntry {
   const definition = lookupDefinition(catalog, placement.body.buildId);
+  const ownHandle = ownHandleOf(placement.body.handle);
+  const wornHandle = wornHandleOrNothing(
+    placement,
+    definition,
+    kitchenSettings,
+  );
   return {
     placementId: placement.id,
     buildId: placement.body.buildId,
@@ -136,10 +162,44 @@ function toDisplayEntry(
     ...(placement.body.finish === undefined
       ? {}
       : { finish: placement.body.finish }),
-    ...(placement.body.handle === undefined
-      ? {}
-      : { handle: placement.body.handle }),
+    ...(ownHandle === undefined ? {} : { handle: ownHandle }),
+    kitchenSettings,
+    ...(wornHandle === undefined ? {} : { wornHandle }),
   };
+}
+
+/**
+ * `wornHandleAt`, kept total over a body whose fronts cannot be read: the list still shows the body, wearing nothing,
+ * and the price keeps the refusal it already gives for it (`UNDECLARED_FRONT_POPULATION`, `UNBUILDABLE_DOOR_BAND`).
+ * Only those two refusals are caught; any other error is a defect and propagates.
+ */
+function wornHandleOrNothing(
+  placement: DesignPlacement,
+  definition: BodyDefinition,
+  kitchenSettings: KitchenHandleSettings,
+): Handle | undefined {
+  try {
+    return wornHandleAt({
+      y0Mm: placement.y0Mm,
+      recordedHandle: ownHandleOf(placement.body.handle),
+      kitchenSettings,
+      canHandle: definition.canHandle,
+      countOpeningFronts: () =>
+        openingFrontCount(
+          frontPopulationQueryFor({ body: placement.body, definition }),
+        ),
+    });
+  } catch (error) {
+    if (isUnreadableFrontsError(error)) return undefined;
+    throw error;
+  }
+}
+
+function isUnreadableFrontsError(error: unknown): boolean {
+  return (
+    error instanceof UndeclaredFrontPopulationError ||
+    error instanceof UnbuildableDoorBandError
+  );
 }
 
 /** The entries arrive in display order (wall-major, then band-major), so one pass that starts a group

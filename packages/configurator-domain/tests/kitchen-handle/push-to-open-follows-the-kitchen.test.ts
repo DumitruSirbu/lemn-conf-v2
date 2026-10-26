@@ -43,6 +43,7 @@ describe("a body with no handle of its own follows the kitchen's below the top r
       const wrong = disagreementsWith(
         (y0Mm) =>
           isPushToOpen({
+            kitchenSettings: {},
             y0Mm,
             recordedHandle: undefined,
             canHandle: true,

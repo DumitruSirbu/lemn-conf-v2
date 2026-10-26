@@ -59,6 +59,7 @@ function recordWith(
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
+    kitchenSettings: {},
   };
 }
 

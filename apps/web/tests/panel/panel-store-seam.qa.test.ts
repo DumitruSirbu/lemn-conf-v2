@@ -20,6 +20,7 @@ import {
   cornerDirectionOf,
   describeSelection,
   KITCHEN_L_DESIGN,
+  kitchenHandleSettingsOf,
   offersFor,
   widthOptionsFor,
   widthStepsFor,
@@ -89,7 +90,13 @@ function panelFromStore(state: ConfiguratorState): PanelView {
     direction: cornerDirectionOf(state.design.room),
     material: PAL_KITCHEN,
     meta: selection
-      ? describeSelection({ records, voids, catalog, target: selection })
+      ? describeSelection({
+          kitchenSettings: kitchenHandleSettingsOf(state.design.settings),
+          records,
+          voids,
+          catalog,
+          target: selection,
+        })
       : undefined,
     offers: selection
       ? offersFor({

@@ -46,9 +46,10 @@ export interface ReviewSettingsRow {
 
 /**
  * What a body's row says under the frame's two lines: its name without the width, then the facts that follow it, in
- * order. The width always; the body's own finish and its handle exactly when it carries one (ADR 0099: a body on the
- * kitchen's colour names none). The row's `label` stays the breakdown's, the name and the width together, which is
- * what a refusal calls the body, so the two lines state what the label says and more.
+ * order. The width always; the body's own finish exactly when it carries one (ADR 0099: a body on the kitchen's colour
+ * names none); and the handle it wears (`DisplayEntry.wornHandle`: its own, else the kitchen's, else the slot's, as
+ * the price resolves it) exactly when it wears one. The row's `label` stays the breakdown's, the name and the width
+ * together, which is what a refusal calls the body, so the two lines state what the label says and more.
  */
 export interface ReviewRowDetail {
   readonly name: string;
@@ -282,9 +283,9 @@ function describeRowDetail(
       ...(entry.finish === undefined
         ? []
         : [describeFinish(entry.finish, content)]),
-      ...(entry.handle === undefined
+      ...(entry.wornHandle === undefined
         ? []
-        : [content.panel.handleLabels[entry.handle]]),
+        : [content.panel.handleLabels[entry.wornHandle]]),
     ],
   };
 }

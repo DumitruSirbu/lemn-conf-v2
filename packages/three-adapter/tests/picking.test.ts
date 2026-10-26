@@ -50,6 +50,7 @@ function makeRecord(overrides: Partial<PlacementRecord> = {}): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
+    kitchenSettings: {},
     ...overrides,
   };
 }

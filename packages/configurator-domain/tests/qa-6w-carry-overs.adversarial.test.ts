@@ -64,6 +64,7 @@ function pushToOpenWith(input: {
   readonly canHandle: unknown;
 }): boolean {
   return isPushToOpen({
+    kitchenSettings: {},
     y0Mm: input.y0Mm,
     recordedHandle: input.recordedHandle,
     canHandle: input.canHandle as boolean,
@@ -124,6 +125,7 @@ describe("the price and the scene reach one answer for a row the port typed loos
     readonly handle: Handle | undefined;
   }): DisplayEntry {
     return {
+      kitchenSettings: {},
       placementId: "p-under-test",
       buildId: "under-test",
       label: kindLabel("under_test"),

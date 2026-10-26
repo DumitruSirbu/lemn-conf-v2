@@ -3,6 +3,8 @@
 // below, copied from the two catalogues. A wrong pairing of an entry and its word in the code cannot hide behind the
 // same lookup, and a line that states something the body does not wear fails.
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   CURRENT_SCHEMA_VERSION,
   migrateDesign,
   type Design,
@@ -88,6 +90,9 @@ const OWN_FINISHES: Readonly<Record<MaterialTier, readonly Finish[]>> = {
 };
 const HANDLES: readonly Handle[] = ["steel", "black", "push"];
 
+/** §6.5's module line, written out whole: the oracle does not read the constant the model reads. */
+const TOP_ROW_FLOOR_MM = 2200;
+
 /** A small repeatable draw, so the kitchens are the same on every run and differ from one another. */
 function drawsFrom(seed: number): () => number {
   let state = seed >>> 0;
@@ -138,6 +143,7 @@ function dressed(design: Design, material: MaterialTier, seed: number): Design {
       },
     };
   });
+  const kitchenHandle = draw() < 0.5 ? undefined : pick(HANDLES);
   const settings = { ...design.settings };
   delete settings.finish;
   return loadedOrAsWritten({
@@ -147,6 +153,7 @@ function dressed(design: Design, material: MaterialTier, seed: number): Design {
       ...settings,
       materialTierId: material,
       ...(kitchenFinish === undefined ? {} : { finish: kitchenFinish }),
+      ...(kitchenHandle === undefined ? {} : { handle: kitchenHandle }),
     },
   });
 }
@@ -167,12 +174,32 @@ function reviewIn(locale: CatalogueLocale, design: Design): AvailableReview {
   return view;
 }
 
+/**
+ * The handle this body wears or is latched as, from the rule's words: its own, else on the top row push, else the
+ * kitchen's, else steel; a body that takes none wears none, though a top-row one is still latched (push-to-open).
+ */
+function wornHandleOf(
+  placement: DesignPlacement,
+  design: Design,
+): Handle | undefined {
+  const canHandle =
+    buildKitchenLBodyCatalog(cabinetDepthMmOf(design)).get(
+      placement.body.buildId,
+    )?.canHandle === true;
+  const isTopRow = placement.y0Mm >= TOP_ROW_FLOOR_MM;
+  if (!canHandle) return isTopRow ? "push" : undefined;
+  if (placement.body.handle !== undefined) return placement.body.handle;
+  return isTopRow ? "push" : (design.settings?.handle ?? "steel");
+}
+
 /** What the second line must say for this body, from its document and the table above alone. */
 function factsOf(
   placement: DesignPlacement,
+  design: Design,
   locale: CatalogueLocale,
 ): string[] {
-  const { finish, handle, widthMm } = placement.body;
+  const { finish, widthMm } = placement.body;
+  const handle = wornHandleOf(placement, design);
   return [
     `${String(widthMm)} ${MILLIMETRES[locale]}`,
     ...(finish === undefined
@@ -205,7 +232,7 @@ const DRESSED_KITCHENS: readonly Design[] = VARIED_ARMS.flatMap(
 );
 
 describe.each(["ro", "ru"] as const)("a row's second line, in %s", (locale) => {
-  it("states every body's width, and its own finish and handle exactly when its document carries them", () => {
+  it("states every body's width, its own finish exactly when its document carries one, and the handle it wears", () => {
     const seen = {
       bodies: 0,
       widthOnly: 0,
@@ -222,7 +249,8 @@ describe.each(["ro", "ru"] as const)("a row's second line, in %s", (locale) => {
       for (const placement of design.placements) {
         const { finish, handle } = placement.body;
         seen.bodies += 1;
-        if (finish === undefined && handle === undefined) seen.widthOnly += 1;
+        if (factsOf(placement, design, locale).length === 1)
+          seen.widthOnly += 1;
         if (finish !== undefined && handle !== undefined) seen.both += 1;
         if (finish?.kind === "palette-entry")
           seen.finishes.set(
@@ -236,7 +264,7 @@ describe.each(["ro", "ru"] as const)("a row's second line, in %s", (locale) => {
         expect(
           rowDetails[placement.id]?.facts,
           `${placement.id} ${placement.body.buildId}`,
-        ).toEqual(factsOf(placement, locale));
+        ).toEqual(factsOf(placement, design, locale));
       }
     }
 
@@ -394,9 +422,11 @@ describe("a body's own colour against the kitchen's", () => {
       undressed,
     );
 
-    expect(
-      reviewIn("ro", followingAgain).rowDetails[chooser.id]?.facts,
-    ).toEqual([`${String(chooser.body.widthMm)} mm`]);
+    const [width, ...rest] =
+      reviewIn("ro", followingAgain).rowDetails[chooser.id]?.facts ?? [];
+    const handleWords = Object.values(HANDLE_WORDS).map((words) => words.ro);
+    expect(width).toBe(`${String(chooser.body.widthMm)} mm`);
+    for (const fact of rest) expect(handleWords).toContain(fact);
   });
 
   it("states the width the document holds after the body is made narrower", () => {

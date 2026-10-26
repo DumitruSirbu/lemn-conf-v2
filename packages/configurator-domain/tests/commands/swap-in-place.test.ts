@@ -160,6 +160,7 @@ describe("swap in place", () => {
     if (!result.ok) return;
     const after = advance(cleared, result.design);
     const meta = describeSelection({
+      kitchenSettings: {},
       ...after,
       target: { kind: "placement", id: result.effect.placementId },
     });

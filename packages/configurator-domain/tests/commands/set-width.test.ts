@@ -304,6 +304,7 @@ describe("ADR 0031 rule 5 — a column's widths are the intersection of its memb
     expect(resized?.widthMm).toBe(400);
     expect(
       describeSelection({
+        kitchenSettings: {},
         ...after,
         target: { kind: "placement", id: resized?.id ?? "" },
       })?.label,

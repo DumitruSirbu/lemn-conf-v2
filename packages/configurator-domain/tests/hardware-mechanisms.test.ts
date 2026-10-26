@@ -66,6 +66,7 @@ function entryAt(
     y0Mm: 0,
     widthMm: 600,
     heightMm: 720,
+    kitchenSettings: {},
     ...overrides,
   };
 }

@@ -14,6 +14,11 @@ import {
   type PlannedBoundariesMm,
 } from "./merge-empty-columns.js";
 import { toExactMillimetres, toMetres } from "./millimetres.js";
+import {
+  kitchenHandleSettingsOf,
+  ownHandleOf,
+  type KitchenHandleSettings,
+} from "./kitchen-handle/kitchen-handle.js";
 import { drawnFinishOf } from "./resolved-finish.js";
 import type { SeatRule } from "./seat-rule.js";
 import { bodyFinishRuleOf, type BodyFinishRule } from "./body-finish-rule.js";
@@ -220,7 +225,12 @@ export interface PlacementRecord {
   /** The colour to paint, resolved by `drawnFinishOf` (ADR 0099 decision 1), so the renderer needs no capability guard.
    *  Never stored and never read by a command; use `finishKey` for what the customer picked. */
   readonly drawnFinish?: Finish;
+  /** The handle this cabinet chose itself; absent means it follows the kitchen's (a legacy `null` reads as absent).
+   *  Never the resolved handle: that is `resolvedHandleAt`'s answer. */
   readonly handleMode?: Handle;
+  /** The design's kitchen handle settings, carried so the scene resolves a handle by the same call as the price and
+   *  the panel (ADR 0092 Amendment C). `{}` when the kitchen has none. */
+  readonly kitchenSettings: KitchenHandleSettings;
 }
 
 export interface Column {
@@ -320,8 +330,10 @@ export function derivePlacementRecords(
   catalog: BodyCatalog,
 ): PlacementRecord[] {
   const roomWidthM = toMetres(design.room.widthMm);
+  const kitchenSettings = kitchenHandleSettingsOf(design.settings);
   return design.placements.map((placement) => {
     const definition = lookupDefinition(catalog, placement.body.buildId);
+    const ownHandle = ownHandleOf(placement.body.handle);
     const frame = deriveFrame(placement, definition, roomWidthM);
     // "Rotated" names the along axis (`+z`), not a wall; wall C reads exactly as B (ADR 0132 decision 1).
     const rotated = placement.wall !== "A";
@@ -360,9 +372,8 @@ export function derivePlacementRecords(
         ? { finishKey: placement.body.finish }
         : {}),
       ...(drawnFinish !== undefined ? { drawnFinish } : {}),
-      ...(placement.body.handle !== undefined
-        ? { handleMode: placement.body.handle }
-        : {}),
+      ...(ownHandle !== undefined ? { handleMode: ownHandle } : {}),
+      kitchenSettings,
     };
   });
 }

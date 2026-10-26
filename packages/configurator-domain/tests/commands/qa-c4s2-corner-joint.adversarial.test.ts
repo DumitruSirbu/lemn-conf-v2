@@ -152,7 +152,7 @@ describe.each(CASES)("%s", (_label, prefix, room, cabinetDepthMm) => {
     "keeps %s structural: a colour and nothing else",
     (id) => {
       const target = { kind: "placement", id } as const;
-      const meta = describeSelection({ ...world, target });
+      const meta = describeSelection({ kitchenSettings: {}, ...world, target });
       const removal = removePlacement({
         design: world.design,
         catalog: world.catalog,

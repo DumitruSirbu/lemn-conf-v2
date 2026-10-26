@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { isPushOpenByDefault } from "../../src/bands.js";
 import type { Handle } from "../../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -22,8 +21,11 @@ function recordWhere(
   return found;
 }
 
+/** §6.5's module line, written out: the oracle must not read the constant under test. */
+const MODULE_LINE_MM = 2_200;
+
 const isTopRow = (record: PlacementRecord) =>
-  isPushOpenByDefault(record.frame.y0);
+  Math.round(record.frame.y0 * 1000) >= MODULE_LINE_MM;
 
 const BELOW_THE_TOP_ROW = recordWhere(
   (record) => record.canHandle && !isTopRow(record),
@@ -121,13 +123,9 @@ describe("describeSelection with a kitchen handle", () => {
     }
   });
 
-  it("answers exactly as before when the kitchen has chosen none", () => {
+  it("answers as before when the kitchen has chosen none: the cabinet's own handle, else the slot's default", () => {
     for (const record of world.records) {
-      const target = { kind: "placement", id: record.id } as const;
-
-      expect(describeSelection({ ...world, target })).toEqual(
-        describeSelection({ ...world, target, kitchenSettings: {} }),
-      );
+      expect(metaOf(record).handle).toBe(record.handleMode);
       expect(metaOf(record).defaultHandle).toBe(
         isTopRow(record) ? "push" : "steel",
       );

@@ -436,6 +436,7 @@ describe.each(SMALL_ROOMS)("%s: the corner is covered", (_label, room, ids) => {
       const sideId = `${id.startsWith("right-") ? "right-" : ""}${id.endsWith("p28") ? "p21" : "p9"}`;
       const capabilities = (placementId: string) => {
         const meta = describeSelection({
+          kitchenSettings: {},
           records: world.records,
           voids: world.voids,
           catalog: world.catalog,

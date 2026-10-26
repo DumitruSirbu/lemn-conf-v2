@@ -80,6 +80,7 @@ describe("a control the affordance enables is a command the engine accepts", () 
     let enabledFinishes = 0;
     for (const target of selections) {
       const meta = describeSelection({
+        kitchenSettings: {},
         records: world.records,
         voids: world.voids,
         catalog: world.catalog,
@@ -183,7 +184,7 @@ describe("a control the affordance enables is a command the engine accepts", () 
   ): readonly InsertableBody[] {
     const candidates = listInsertableBodies(world.catalog);
     if (target.kind === "void") return candidates;
-    const meta = describeSelection({ ...world, target });
+    const meta = describeSelection({ kitchenSettings: {}, ...world, target });
     if (!meta) return [];
     return candidates.filter(
       (body) => normaliseBand(body.band) === normaliseBand(meta.band),
@@ -233,6 +234,7 @@ describe("a control the affordance enables is a command the engine accepts", () 
 
     for (const target of voidTargets) {
       const meta = describeSelection({
+        kitchenSettings: {},
         records: world.records,
         voids: world.voids,
         catalog: world.catalog,

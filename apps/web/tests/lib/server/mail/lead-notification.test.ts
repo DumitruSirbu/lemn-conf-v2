@@ -632,16 +632,18 @@ describe("the notice's kitchen lines", () => {
   );
 
   it.each(ARMS_BY_NAME)(
-    "prints each handle's word, from the body's own member, under its row in the %s arm",
+    "prints the word of a handle a body chose and can take, from the body's own member, under its row in the %s arm",
     (_name, arm) => {
       const missing = dressedKitchens(arm, KITCHENS_PER_ARM).filter(
         (design) => {
           const printed = bodyLinesOf(
             designRequest({ snapshot: snapshotOfDesign(design) }),
           );
+          const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
           return entriesOf(design).some(
             (entry) =>
               entry.handle !== undefined &&
+              catalog.get(entry.buildId)?.canHandle === true &&
               !printed.includes(`  ${ro.panel.handleLabels[entry.handle]}`),
           );
         },

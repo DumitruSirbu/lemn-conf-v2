@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 
 import { kindLabel } from "../src/catalog.js";
 
-import { isPushOpenByDefault } from "../src/bands.js";
 import { cabinetHandleCount } from "../src/cabinet-handles.js";
 import {
   CABINET_SIZED_OPENING_MAX_M,
@@ -403,17 +402,20 @@ describe("the metre frame and the millimetre predicate survive the trip between 
     "answers the same in millimetres, in metres, and through the scene's frame",
     (y0Mm) => {
       const asDocumented = isPushToOpen({
+        kitchenSettings: {},
         y0Mm,
         recordedHandle: undefined,
         canHandle: true,
       });
       const asTheSceneAsksIt = isPushToOpen({
+        kitchenSettings: {},
         y0Mm: toMillimetres(toMetres(y0Mm)),
         recordedHandle: undefined,
         canHandle: true,
       });
 
-      expect(asDocumented).toBe(isPushOpenByDefault(toMetres(y0Mm)));
+      // the literal line, not a second restatement of the function under test
+      expect(asDocumented).toBe(y0Mm >= 2_200);
       expect(asTheSceneAsksIt).toBe(asDocumented);
     },
   );
@@ -421,6 +423,7 @@ describe("the metre frame and the millimetre predicate survive the trip between 
   it("puts the flip between 2199 and 2200 on the scene's own path too", () => {
     const throughTheFrame = (y0Mm: number): boolean =>
       isPushToOpen({
+        kitchenSettings: {},
         y0Mm: toMillimetres(toMetres(y0Mm)),
         recordedHandle: undefined,
         canHandle: true,
@@ -438,6 +441,7 @@ function entryAt(
   overrides: Partial<DisplayEntry> & { readonly buildId: string },
 ): DisplayEntry {
   return {
+    kitchenSettings: {},
     placementId: "under-test",
     label: kindLabel("under_test"),
     wall: "A",

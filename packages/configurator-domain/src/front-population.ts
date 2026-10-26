@@ -366,6 +366,12 @@ export function drawerCount(query: FrontPopulationQuery): number {
   return usableCountOf(query, rule.drawers, "drawers");
 }
 
+/** How many fronts of this body open: its door leaves and its drawers. The quantity a push-to-open latch is billed
+ *  over, one per front, and zero for a body with nothing that opens (an open shelf). */
+export function openingFrontCount(query: FrontPopulationQuery): number {
+  return doorLeafCount(query) + drawerCount(query);
+}
+
 /** How tall each of this body's door bands is, in millimetres, one entry per band. Not the frame height
  *  (`tall-pantry` declares 1290 and 790 inside 2200). A body with nothing that opens answers an empty
  *  list, which is an answer and not a refusal. */

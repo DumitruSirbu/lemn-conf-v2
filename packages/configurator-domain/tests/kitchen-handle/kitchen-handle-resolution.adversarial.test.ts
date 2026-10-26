@@ -1,12 +1,11 @@
 // Adversarial QA of wave H1 (whole-kitchen handle). Each block names the claim it attacks.
 //
-// What this file does not cover: the hardware line (`countHardwareMechanisms`) and the scene's
-// `hidesHandles` do not yet receive `design.settings.handle`; that wiring is assigned outside H1, so every
-// H1-b assertion here is at the `isPushToOpen` / `describeSelection` level.
+// What this file does not cover: the hardware line and the scene, which receive `design.settings.handle` from wave H1b
+// and are held to the kitchen handle by `kitchen-handle-readers-agree.*` here and in `three-adapter/tests`; every H1-b
+// assertion in this file is at the `isPushToOpen` / `describeSelection` level.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import { isPushOpenByDefault } from "../../src/bands.js";
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
 import { setKitchenHandle } from "../../src/commands/set-kitchen-handle.js";
 import {
@@ -102,8 +101,8 @@ describe("the three readers agree for every placement of a dealt kitchen (H1-a)"
           canHandle: record.canHandle,
         });
 
-        // the metre-based top-row test of the panel and the millimetre-based one of the latch agree
-        expect(isPushOpenByDefault(record.frame.y0)).toBe(isTopRow);
+        // the floor the panel and the scene read (metres, rounded) is the floor the latch reads (millimetres)
+        expect(toMillimetres(record.frame.y0)).toBe(entry.y0Mm);
         if (!record.canHandle) {
           expect(meta?.defaultHandle).toBe(isTopRow ? "push" : "steel");
           expect(latched).toBe(isTopRow);
@@ -175,29 +174,50 @@ describe("the top-row boundary is one millimetre wide in both units (H1-a must-n
   );
 });
 
-describe("a cabinet whose own handle is the legacy null keeps the base answer (qa-6w quirk)", () => {
+describe("a cabinet whose own handle is the legacy null follows the kitchen as one with none (builders, H1b)", () => {
+  const withNullOwnHandles = (design: Design): Design => ({
+    ...design,
+    placements: design.placements.map((placement) => ({
+      ...placement,
+      body: { ...placement.body, handle: null as unknown as Handle },
+    })),
+  });
+
   for (const kitchenHandle of [undefined, "steel", "black", "push"] as const) {
-    for (const y0Mm of [0, 900, 2_199, 2_200, 2_500]) {
-      it(`is as the base answered at ${String(y0Mm)} mm under kitchen ${String(kitchenHandle)}`, () => {
-        const nullHandle = null as unknown as Handle;
-        const query = { y0Mm, recordedHandle: nullHandle, canHandle: true };
+    it(`describes and latches every body as the absent key does under kitchen ${String(kitchenHandle)}`, () => {
+      const absent: Design =
+        kitchenHandle === undefined
+          ? KITCHEN_L_DESIGN
+          : {
+              ...KITCHEN_L_DESIGN,
+              settings: { ...KITCHEN_L_DESIGN.settings, handle: kitchenHandle },
+            };
+      const nulled = withNullOwnHandles(absent);
+      const absentWorld = createWorld(absent, KITCHEN_L_BODY_CATALOG);
+      const nulledWorld = createWorld(nulled, KITCHEN_L_BODY_CATALOG);
+
+      for (const record of absentWorld.records) {
+        const target = { kind: "placement", id: record.id } as const;
+        const settings = { handle: kitchenHandle };
 
         expect(
-          isPushToOpen({
-            ...query,
-            kitchenSettings: { handle: kitchenHandle },
+          describeSelection({
+            ...nulledWorld,
+            target,
+            kitchenSettings: settings,
           }),
-        ).toBe(isPushToOpen(query));
-        expect(
-          resolvedHandleOf({
-            ownHandle: nullHandle,
-            kitchenSettings: { handle: kitchenHandle },
-            canHandle: true,
-            isTopRow: y0Mm >= TOP_ROW_Y0_MM,
+        ).toEqual(
+          describeSelection({
+            ...absentWorld,
+            target,
+            kitchenSettings: settings,
           }),
-        ).toBeNull();
-      });
-    }
+        );
+      }
+      expect(projectDesignForDisplay(nulled, KITCHEN_L_BODY_CATALOG)).toEqual(
+        projectDesignForDisplay(absent, KITCHEN_L_BODY_CATALOG),
+      );
+    });
   }
 });
 

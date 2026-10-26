@@ -5,7 +5,6 @@ import {
   deriveColumns,
   derivePlacementRecords,
   describeSelection,
-  isPushOpenByDefault,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   KITCHEN_L_PLACEMENTS,
@@ -78,7 +77,7 @@ function panelAt(
   target: CommandTarget,
   rejection = null as Parameters<typeof describePanel>[0]["rejection"],
 ) {
-  const meta = describeSelection({ ...world, target });
+  const meta = describeSelection({ kitchenSettings: {}, ...world, target });
   return describePanel({
     content: ro,
     material: PAL_KITCHEN,
@@ -149,6 +148,7 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
     let swept = 0;
     for (const placement of KITCHEN_L_PLACEMENTS) {
       const meta = describeSelection({
+        kitchenSettings: {},
         ...world,
         target: { kind: "placement", id: placement.id },
       });
@@ -170,7 +170,7 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
     ).toBeGreaterThan(0);
   });
 
-  // The scene hides handles by `isPushOpenByDefault(record.frame.y0)` and the panel marks the chip by
+  // The scene hides handles by the module line (2200 mm, written out below) and the panel marks the chip by
   // `meta.defaultHandle`; the two must agree.
   it("marks the chip the scene is actually rendering, for every body with handles", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
@@ -185,7 +185,8 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
       const active = section.chips
         .filter((chip) => chip.isActive)
         .map((chip) => chip.value);
-      const rendered = isPushOpenByDefault(record.frame.y0) ? "push" : "steel";
+      const rendered =
+        Math.round(record.frame.y0 * 1000) >= 2_200 ? "push" : "steel";
       expect([record.id, active]).toEqual([record.id, [rendered]]);
       swept += 1;
     }

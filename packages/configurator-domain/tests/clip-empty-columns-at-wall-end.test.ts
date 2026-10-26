@@ -73,6 +73,7 @@ function recordAt(col: string): PlacementRecord {
     canReplace: true,
     canDelete: true,
     fixedWidth: false,
+    kitchenSettings: {},
   };
 }
 

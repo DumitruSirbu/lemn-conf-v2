@@ -64,7 +64,12 @@ describe("a design with no placements at all", () => {
   it("describes nothing and offers nothing", () => {
     const target = { kind: "placement", id: "p0" } as const;
     expect(
-      describeSelection({ ...world, catalog: world.catalog, target }),
+      describeSelection({
+        kitchenSettings: {},
+        ...world,
+        catalog: world.catalog,
+        target,
+      }),
     ).toBeUndefined();
     expect(offersFor({ ...world, target })).toEqual([]);
   });

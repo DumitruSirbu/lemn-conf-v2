@@ -326,24 +326,24 @@ describe("a body's row is two lines", () => {
     }
   });
 
-  it("names a body's own finish and handle on its second line, after the width, and nobody else's", () => {
+  it("names a body's own finish and handle on its second line, after the width, and nobody else's finish", () => {
     const page = render(design);
-    const withOwn = [
+    const finishName = ro.finishName("pal.antracit");
+    const factsOf = (facts: Element) =>
+      [...facts.querySelectorAll("span")].map((fact) => fact.textContent);
+    const withOwnFinish = [
       ...page.querySelectorAll('[data-testid="review-row-facts"]'),
-    ].filter((facts) => facts.querySelectorAll("span").length > 1);
+    ].filter((facts) => factsOf(facts).includes(finishName));
 
-    expect(withOwn).toHaveLength(1);
-    expect(
-      [...(withOwn[0]?.querySelectorAll("span") ?? [])].map(
-        (fact) => fact.textContent,
-      ),
-    ).toEqual([
+    const [ownFinishFacts] = withOwnFinish;
+    expect(withOwnFinish).toHaveLength(1);
+    expect(ownFinishFacts && factsOf(ownFinishFacts)).toEqual([
       `${String(second.body.widthMm)} mm`,
-      ro.finishName("pal.antracit"),
+      finishName,
       roMessages.panel.handleLabels.push,
     ]);
     expect(rowOf(page, second.id)).toBe(
-      withOwn[0]?.closest('[data-testid="review-row"]') ?? null,
+      ownFinishFacts?.closest('[data-testid="review-row"]') ?? null,
     );
   });
 
