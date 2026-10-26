@@ -23,6 +23,7 @@ import {
   type MarkKitchenSeenRequest,
   type PriceBookStore,
   type PriceNoticeStore,
+  type PublishAuditRecord,
   type PublishPriceBookRequest,
   type PublishPriceBookResult,
   type SaveKitchenDefaultsRequest,
@@ -111,7 +112,7 @@ describe("the write requests take the members the plan (as amended) names", () =
     >().toBeString();
     expectTypeOf<
       PublishPriceBookRequest["audit"]
-    >().toEqualTypeOf<DashboardAuditRecord>();
+    >().toEqualTypeOf<PublishAuditRecord>();
   });
 
   it("a defaults save: both expected revisions, the defaults and the audit", () => {

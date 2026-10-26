@@ -4,6 +4,7 @@ import type {
   DashboardAuditEntry,
   DraftChange,
   ItemRef,
+  PricePublishedDetail,
 } from "@lemnaria/configurator-domain";
 
 import type { DesignRevision } from "./design-revision.js";
@@ -184,6 +185,18 @@ export type WriteDraftResult =
   | { readonly kind: "ok"; readonly draftRevision: string }
   | ChangedMeanwhile;
 
+/** The `price-published` entry as a caller builds it: without the two members only the store knows. */
+export interface PricePublishedAuditInput {
+  readonly action: "price-published";
+  readonly detail: Omit<PricePublishedDetail, "sequenceNumber" | "changeCount">;
+}
+
+/** The staff member who publishes, and the entry without the sequence and change count the publish will produce. */
+export interface PublishAuditRecord {
+  readonly session: StaffActingSession;
+  readonly entry: PricePublishedAuditInput;
+}
+
 export interface PublishPriceBookRequest {
   readonly expectedDraftRevision: string;
   /** The sequence number of the version the publisher saw as active, or 0 while none exists. The new row takes the next. */
@@ -202,7 +215,11 @@ export interface PublishPriceBookRequest {
   readonly expectedAvailabilityRevision: string;
   /** The rows this publish creates (hardware classes and linked accessories). Each is logged inactive, in order (A-17). */
   readonly createdItems: readonly ItemRef[];
-  readonly audit: DashboardAuditRecord;
+  /**
+   * `price-published` without `sequenceNumber` and `changeCount`. The store fills both: the sequence it inserted and the
+   * length of the change summary it stored. A value forced into either through a cast is overwritten.
+   */
+  readonly audit: PublishAuditRecord;
 }
 
 export type PublishPriceBookResult =

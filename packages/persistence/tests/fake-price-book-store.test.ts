@@ -1,0 +1,80 @@
+import type { DraftChange } from "@lemnaria/configurator-domain";
+import { describe, expect, it } from "vitest";
+
+import { PRICE_VERSION_PAGE_SIZE } from "../src/fake-price-book-store.js";
+import { INITIAL_REVISION } from "../src/m10-ports.js";
+import {
+  DRAFT_CHANGED,
+  auditRecordOf,
+  publishNextVersion,
+} from "./support/dashboard-contract-support.js";
+import { newFakeDashboardWorld } from "./support/fake-dashboard-world.js";
+import { describePriceBookStoreContract } from "./support/price-book-store-contract.js";
+import type { PriceBookWorld } from "./support/price-book-store-contract.js";
+
+/** The fake with the shared audit log behind it, as the contract's world. */
+function newPriceBookWorld(): PriceBookWorld &
+  ReturnType<typeof newFakeDashboardWorld> {
+  const world = newFakeDashboardWorld();
+  return { ...world, store: world.priceBook };
+}
+
+describePriceBookStoreContract("FakePriceBookStore", () =>
+  Promise.resolve(newPriceBookWorld()),
+);
+
+describe("FakePriceBookStore, beyond what the Neon store must also do", () => {
+  it("pages the history by its page size, newest first, and no version is on two pages", async () => {
+    const world = newPriceBookWorld();
+    const staff = await world.aStaffMember();
+    const published = PRICE_VERSION_PAGE_SIZE + 3;
+    for (let version = 0; version < published; version += 1) {
+      await publishNextVersion(world.store, world.availability, staff);
+    }
+
+    const first = await world.store.listVersions({ page: 1 });
+    const second = await world.store.listVersions({ page: 2 });
+
+    expect(first.pageSize).toBe(PRICE_VERSION_PAGE_SIZE);
+    expect(first.versions).toHaveLength(PRICE_VERSION_PAGE_SIZE);
+    expect(first.versions[0]?.sequenceNumber).toBe(published);
+    expect(second.versions.map((version) => version.sequenceNumber)).toEqual([
+      3, 2, 1,
+    ]);
+    expect(second.total).toBe(published);
+  });
+
+  it("knows the versions it holds, for the fakes that judge against them in the same turn", async () => {
+    const world = newPriceBookWorld();
+
+    const { versionId } = await publishNextVersion(
+      world.store,
+      world.availability,
+      await world.aStaffMember(),
+    );
+
+    expect(world.priceBook.hasHeldVersion(versionId)).toBe(true);
+    expect(world.priceBook.hasHeldVersion("A".repeat(21))).toBe(false);
+  });
+
+  it("hands out a draft that is its own: changing what was given or what was read changes nothing held", async () => {
+    const world = newPriceBookWorld();
+    const staff = await world.aStaffMember();
+    const depthTo40: DraftChange = {
+      address: { kind: "depth-rule" },
+      value: 40,
+    };
+    const given = [{ ...depthTo40 }];
+    await world.store.writeDraft({
+      expectedDraftRevision: INITIAL_REVISION,
+      changes: given,
+      audit: auditRecordOf(staff, DRAFT_CHANGED),
+    });
+    given[0] = { address: { kind: "depth-rule" }, value: 99 };
+
+    const read = await world.store.readDraft();
+    (read.changes as unknown[]).length = 0;
+
+    expect((await world.store.readDraft()).changes).toEqual([depthTo40]);
+  });
+});
