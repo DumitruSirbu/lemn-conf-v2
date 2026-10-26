@@ -286,6 +286,27 @@ from, or derived from, the catalogue's width-step constant.
 - `price-per-size` priced at the smallest listed size ≥ the body's width (round up, as A-2).
 - A width above every listed size is refused with a new code, `NO_PRICE_FOR_SIZE`. It is never priced at 0 and never
   at the nearest size.
+- **The six structural corner rules are `price-per-size` with one entry** (P1 review, ruled 2026-10-26), keyed at
+  their **actual built width** (320, 570 or 900; `sample-price-book.ts:178-209`):
+  - not rounded up to 350 or 600, and not anchored;
+  - the lookup rule above already prices a body at exactly a listed width, and per-size widths are the catalogue's
+    own sizes, so they are not held to the 50 mm step (that applies only to `anchorWidthMm`, P1-f);
+  - this matches frame D3G, "Un singur preț";
+  - an anchored formula on a non-insertable row is refused by M2.
+
+**A-7b — No buildable body may price at or below zero** (P1 review, ruled 2026-10-26).
+
+- The parser has no catalogue, so a parser-valid book can price a buildable body below zero; every kitchen holding it
+  would then be refused `INVALID_AMOUNT`.
+- M2's `judgeBookAgainstCatalog` evaluates **every manufacturer-supplied row over its whole buildable grid**:
+  - every buildable width, after round-up: each 50 mm step in range, plus the off-grid minimum;
+  - for `heightFlex` rows, every buildable height after round-up;
+  - the leaf count that width actually gives.
+- It refuses the book unless **every price is > 0**. Zero is refused too: the D3C copy reads "0 sau negativ"
+  [`…-v2-update.md`: "La 200 mm prețul ar ieși 0 sau negativ"].
+- It evaluates the grid rather than one corner, so the rule does not depend on every coefficient being ≥ 0.
+- `price-per-size` amounts are each > 0. Customer-supplied rows are exempt: they must be 0 (ADR 0107 d2).
+- Publish (R3) refuses such a book whole, and the editor shows D3C's error on the field that drives the value.
 
 **A-8 — Material ordering.**
 
@@ -1149,7 +1170,7 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
 | --- | --- | --- | --- | --- |
 | **P1** anchored shapes, beside the old ones | (1) the four `anchored-*` shapes and `price-per-size`, with arms in `amountForBody`; (2) round-up of width and height (A-2, A-4), and `NO_PRICE_FOR_SIZE` (A-7); (3) the signed door term at actual width (A-3, behind one named function); (4) parser arms with bounds; (5) the catalogue `defaultWidthMm` field plus a parity test against the generator's constants (backlog 276) | `price-book.ts`, new `pricing/anchored-price-formula.ts`, `parse-price-book.ts`, `price-lines.ts` (code), `catalog.ts` | MP-0 (OQ-6 ruled: actual width) | `cabinet-handles.ts` (`widthDerivedDoorLeafCount`); `generation/generation-priorities.ts`, `leftover-rule.ts`, `optional-run-items.ts`, `u-tall-layout.ts` (default widths); backlog 276; ADR 0035 d8; ADR 0049 |
 | **P2** percentages and the rounding seam, beside the old ones | (1) `percentOfCabinets` on material tiers and `depthRule` (types and parse); (2) the deepening property (A-6) and its parity sweep; (3) the A-1 decomposition: material and depth lines and every line `r10` (integer arithmetic); (4) re-derive `MAX_PRICE_COEFFICIENT_MINOR` (A-5); (5) a book carrying both old and new material fields is refused | `price-book.ts`, new `pricing/percentage-lines.ts`, `price-design.ts`, `parse-price-book.ts`, `price-lines.ts` | P1 merged | `cabinet-depth-rule.ts`; `worktop-depth.ts`; `buildKitchenLBodyCatalog`; ADR 0101; ADR 0087; ADR 0098 |
-| **P3** cut-over (the hard serialisation point) | (1) the sample book converted to anchored, percentage and depth form (placeholders, still `amountsProvisional: true`); (2) the old linear shapes and `wholeKitchenMinor` removed; (3) every consumer updated: `whole-kitchen-tiers.ts`, `starting-price.ts`, the breakdown model's material line and new depth line, and the i18n tests naming `wholeKitchenMinor` (tests only: no message-file edit); (4) the `price-book.ts:12-13` comment rewritten; (5) QA is told which pins move (`pricing-seams.test.ts`, `qa-6b2-tier-amounts`, `qa-m6-wave-b-*`, `submission-snapshot.test.ts`) | `sample-price-book.ts`, `price-book.ts`, `apps/web/src/price/whole-kitchen-tiers.ts`, `starting-price.ts`, `price-breakdown-model.ts`. **About five, plus test fixtures; a mini-review is added because it crosses packages** | P2, R1 merged (so the root is already single) | ADR 0106 and Amendment A; `apps/web/tests/i18n/price-book-text.test.ts`; ADR 0154 d8 (stored snapshots are not touched); `apps/web/src/price/price-breakdown.tsx` |
+| **P3** cut-over (the hard serialisation point) | (1) the sample book converted to anchored, percentage and depth form (placeholders, still `amountsProvisional: true`); (2) the old linear shapes and `wholeKitchenMinor` removed; (3) every consumer updated: `whole-kitchen-tiers.ts`, `starting-price.ts`, the breakdown model's material line and new depth line, and the i18n tests naming `wholeKitchenMinor` (tests only: no message-file edit); (4) the head comment P1 already rewrote (S-6) is re-checked so it no longer names the retired linear shapes; (5) QA is told which pins move (`pricing-seams.test.ts`, `qa-6b2-tier-amounts`, `qa-m6-wave-b-*`, `submission-snapshot.test.ts`) | `sample-price-book.ts`, `price-book.ts`, `apps/web/src/price/whole-kitchen-tiers.ts`, `starting-price.ts`, `price-breakdown-model.ts`. **About five, plus test fixtures; a mini-review is added because it crosses packages** | P2, R1 merged (so the root is already single) | ADR 0106 and Amendment A; `apps/web/tests/i18n/price-book-text.test.ts`; ADR 0154 d8 (stored snapshots are not touched); `apps/web/src/price/price-breakdown.tsx` |
 | **P4a** availability and replacement (amended 2026-10-26, A-17) | (1) `CatalogueAvailability` and `ItemRef` types, and `priceDesign`'s new `availability` input (no flag in the book); (2) `REPLACEMENT_REQUIRED` when a selection names a disabled material, hardware class, colour or handle, never `UNKNOWN_TIER`; (3) `replacementsRequired(design, book, availability, catalog)` → item refs plus remaining options; (4) a disabled accessory (built-in or linked) produces no line, and `removedAccessoriesSince(design, seenAvailability, currentAvailability)` supports the C4 info row | `price-design.ts`, `pricing/catalogue-availability.ts` (created types-only by X0; P4a adds its functions), new `pricing/replacements.ts`, `price-lines.ts` (code) | P3 merged | ADR 0062 Amendment 3 and the 2026-10-26 Amendment (W0); A-16, A-17; ADR 0072 Amendment; ADR 0057; ADR 0081; ADR 0086; ADR 0099; `materials.ts`; `queries/sink-accessories.ts` |
 | **P4b** linked accessories, created-row text, the price-change test (added 2026-10-26) | (1) `linkedAccessories` with the per-linked-placement earning shape (A-19), priced via `resolveCatalogEquivalent` like cabinet rules; (2) parser arms: unique ids across built-ins and linked rows, bounded list, `perUnitMinor` exact, a customer-supplied link refused when the book says so; (3) authored Romanian `name`/`description` on created rows only, with no Russian field accepted (A-21); (4) `pricesChangedBetween(design, catalog, {seenBook, seenAvailability}, {activeBook, currentAvailability})` (A-11) | `price-book.ts`, `parse-price-book.ts`, `price-design.ts`, new `pricing/linked-accessories.ts`, new `pricing/price-change-notice.ts` | P4a | A-11, A-19, A-21; ADR 0070 d4; ADR 0062 seam 1 and S-28; ADR 0106 and Amendment A; `price-book.ts:205-243`; `price-design.ts:613-708` |
 | **P5** lift mechanism and lift-door hinges (no longer conditional; ruled 2026-10-26) | (1) `HardwareTier.perLiftMinor` and its parser arm; (2) `HardwareMechanismCounts.lifts`, one per declared lift-up door; (3) the lift door's hinges: 2, or 3 when the door is **wider than 500 mm** (OQ-5a default, strict); its height rule does not apply; (4) the `liftUp` front declaration on `wall-lift` in `catalog.ts`, plus a sweep reporting every other front the catalogue calls a lift or flap (reported, not priced); (5) the ADR 0092 Amendment C quantifier gains its lift term, derived from the declared rates, and the code comments at `hardware-mechanisms.ts:27-29` and `catalog.ts:593-594` are rewritten | `hardware-mechanisms.ts`, `front-population.ts`, `catalog.ts`, `price-book.ts`, `price-design.ts`, `parse-price-book.ts`. **Six; over five, stated.** The arithmetic is two existing functions extended, and a mini-review is added | P4b (same files), **H1b** (it holds `hardware-mechanisms.ts` first). **OQ-5a flags the boundary, without blocking** | ADR 0070 d1, d6; ADR 0092 d1, d2, d8 and Amendment C; A-20; S-29, S-30; `hardware-mechanisms.ts:27-160`; `front-population.ts:60-130`; frames D4A/B [mock L688-695]; the mockup's `hwOf` [mock L511] (illustrative only) |
@@ -1171,7 +1192,14 @@ applies.
 - **P1-d:** a fixed-size body at a listed width prices at that size. Above every listed width it is refused with
   `NO_PRICE_FOR_SIZE`. It is never priced at 0.
 - **P1-e:** every catalogue row's `defaultWidthMm` equals the width the generator plans it at, for every row the
-  generator plans (parity). Rows marked proposed are listed in one place.
+  generator plans (parity).
+  - **(P1 review, 2026-10-26)** Where each value comes from is a **production** field on the catalogue entry, beside
+    `defaultWidthMm`: `defaultWidthSource: "generator" | "only-width" | "proposed"`, following the brief's "Where the
+    value comes from" column. It lives in `catalog.ts`; P1 owns it, in a fix round of P1.
+  - The parity test reads that field (the `"generator"` rows) instead of a list in the test.
+  - U1 and U3 render "propus" from the field. They read the domain catalogue in the browser, so the wire is
+    unchanged.
+  - OQ-8's answers flip `proposed` to a confirmed source.
 - **P1-f:** the parser refuses, each with a code naming the field:
   - a negative step;
   - an anchor that is not a safe integer;
@@ -1349,6 +1377,21 @@ ADR 0099, ADR 0092 Amendment C, this plan A-9. **(clean-code):** the diff.
   - must-not: a bulk change touches a customer-supplied row or a percentage.
 - **M2-b:** `judgeBookAgainstCatalog` refuses the D3C case (the minus step driving the narrowest width ≤ 0) and accepts
   the boundary at exactly 1 000 bani above 0.
+- **M2-b2 (A-7b):**
+  - over every manufacturer row's full buildable grid, any price ≤ 0 refuses the book, naming the row, the width,
+    the height and the field. The coordinator's witness (anchor 600 @ 100 000, narrower 30 000 per step, door
+    20 000; 200 mm < 0) is a test;
+  - a price of exactly 1 bani above 0 passes, and exactly 0 fails;
+  - customer-supplied rows are exempt and must be 0;
+  - must-not: the judgement samples only one point of the grid. Sabotage: restricting the judgement to the anchor
+    width must turn the narrow-end witness test red;
+  - a planted negative that only the off-grid minimum (for example 560 mm) produces is caught.
+- **M2-b3 (A-7):**
+  - for an **insertable** row, `anchorWidthMm` equals the catalogue's `defaultWidthMm` (anchored), or the size list
+    equals the catalogue's fixed widths (per-size);
+  - for a **non-insertable** row (the six corners), the formula must be `price-per-size` and its one listed width
+    must equal the body's built width. An anchored formula there is refused;
+  - no `defaultWidthMm` is read for a corner.
 - **M2-c:**
   - every preview cell equals P2-b's function for that width, material and depth;
   - with hardware on, it equals that plus `r10` of that body's hardware;
