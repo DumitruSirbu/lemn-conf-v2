@@ -1,4 +1,4 @@
-// Lane K's sub-barrel (M10, D10): the changed-after-seen and digest rules. Pure rules on facts; no I/O.
+// Digest rules: who the daily digest lists, what it says, and the Europe/Chisinau day it runs on.
 export * from "./chisinau-day.js";
 export * from "./digest-eligibility.js";
 export * from "./digest-model.js";

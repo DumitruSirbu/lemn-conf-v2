@@ -1,9 +1,4 @@
-// What one day's digest says, as facts and codes (frame D10D; ADR 0178 A-13). It carries no sentence: the subject is a
-// count, the footer is the rule's own numbers and status codes, and the words, plurals and dates in a reader's locale
-// are lane T's copy and the mail builder's.
-//
-// It also carries no e-mail address and no phone number: a row names its customer by the account name or, without an
-// account, by the request reference (S-21, X0-5). Values are raw; escaping is the mail builder's job, at the output.
+// What one day's digest says, as facts and codes with no sentence (ADR 0178 A-13); values are raw, escaping is the mailer's.
 
 import {
   DIGEST_STOPPING_STATUSES,
@@ -12,12 +7,7 @@ import {
 } from "./digest-eligibility.js";
 import { chisinauDayKey, type ChisinauDayKey } from "./chisinau-day.js";
 
-/**
- * One kitchen the digest lists. The same shape as the persistence port's `DigestEligibleKitchen`, restated here because
- * the domain depends on no other package, and with its two instants as epoch milliseconds (`Date.getTime()`), because
- * the domain holds no `Date`. The revision is deliberately absent: it stays opaque and is recorded by the caller,
- * which holds the port's rows.
- */
+/** The persistence port's `DigestEligibleKitchen` without `Date` (instants are epoch milliseconds) or revision. */
 export type DigestKitchenInput = DigestCustomerInput & {
   readonly designId: string;
   readonly kitchenName?: string;
@@ -33,23 +23,23 @@ export type DigestCustomerFact =
   | { readonly kind: "account-name"; readonly name: string }
   | { readonly kind: "request-reference"; readonly reference: string };
 
-/** The closed set of facts a row carries. */
+/** A closed set of facts: no e-mail, no phone. */
 export interface DigestRow {
   readonly designId: string;
-  /** Omitted when the kitchen has no name; never an empty string. */
+  /** Omitted when the kitchen has no name or a blank one. */
   readonly kitchenName?: string;
   readonly customer: DigestCustomerFact;
   readonly sentAtMs: number;
   readonly updatedAtMs: number;
-  /** The Europe/Chisinau calendar day of each instant, so a reader's "yesterday" and date agree with the shop's. */
+  /** The Europe/Chisinau calendar day of each instant. */
   readonly sentDay: ChisinauDayKey;
   readonly updatedDay: ChisinauDayKey;
 }
 
-/** How often the digest may be sent: one run per Europe/Chisinau calendar day, and only with something to list. */
+/** One run per Europe/Chisinau calendar day, and only with something to list. */
 export const DIGEST_CADENCE = "at-most-once-per-day" as const;
 
-/** The rule the footer states, in the rule's own numbers and codes. */
+/** The footer states the rule in its own numbers and codes. */
 export interface DigestFooterFacts {
   readonly cadence: typeof DIGEST_CADENCE;
   /** Days after the first send at which a kitchen drops out. */
@@ -60,13 +50,13 @@ export interface DigestFooterFacts {
 
 export interface DigestModel {
   readonly kind: "digest";
-  /** The subject names this count and nothing else: no customer text reaches a subject. */
+  /** The subject carries this count and no customer text. */
   readonly subjectCount: number;
   readonly rows: readonly DigestRow[];
   readonly footer: DigestFooterFacts;
 }
 
-/** No kitchen is eligible: no e-mail is sent (A-13). */
+/** No kitchen is eligible, so no e-mail is sent. */
 export const NOTHING_TO_SEND = Object.freeze({
   kind: "nothing-to-send",
 } as const);
@@ -78,10 +68,7 @@ export const DIGEST_FOOTER_FACTS: DigestFooterFacts = Object.freeze({
   stoppingStatuses: DIGEST_STOPPING_STATUSES,
 });
 
-/**
- * Rows are ordered by the latest change first, then by design id, so the same eligible set always prints the same
- * e-mail. A design given twice is listed once, at its latest change: a kitchen appears once per round (frame D10D).
- */
+/** Rows run latest change first, then by design id; a design given twice is listed once, at its latest change. */
 export function buildDigestModel(
   eligible: readonly DigestKitchenInput[],
 ): DigestModel | NothingToSend {
@@ -98,7 +85,9 @@ export function buildDigestModel(
 function toDigestRow(kitchen: DigestKitchenInput): DigestRow {
   return {
     designId: kitchen.designId,
-    ...(kitchen.kitchenName ? { kitchenName: kitchen.kitchenName } : {}),
+    ...(hasText(kitchen.kitchenName)
+      ? { kitchenName: kitchen.kitchenName }
+      : {}),
     customer: customerFact(kitchen),
     sentAtMs: kitchen.sentAtMs,
     updatedAtMs: kitchen.updatedAtMs,
@@ -108,9 +97,19 @@ function toDigestRow(kitchen: DigestKitchenInput): DigestRow {
 }
 
 function customerFact(kitchen: DigestKitchenInput): DigestCustomerFact {
-  return kitchen.customerName !== undefined
-    ? { kind: "account-name", name: kitchen.customerName }
-    : { kind: "request-reference", reference: kitchen.reference };
+  if (hasText(kitchen.customerName)) {
+    return { kind: "account-name", name: kitchen.customerName };
+  }
+  if (hasText(kitchen.reference)) {
+    return { kind: "request-reference", reference: kitchen.reference };
+  }
+  throw new RangeError(
+    `buildDigestModel: kitchen ${kitchen.designId} has neither a customer name nor a request reference`,
+  );
+}
+
+function hasText(value: string | undefined): value is string {
+  return value !== undefined && value.trim() !== "";
 }
 
 function byLatestChange(first: DigestRow, second: DigestRow): number {

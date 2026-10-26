@@ -1,11 +1,7 @@
-// The calendar day in Europe/Chisinau, which names the digest's day (ADR 0178 A-13: at most one run per day, claimed
-// by a day key). The day is read from the time-zone database, never computed from a fixed offset: Chisinau is on UTC+2
-// in winter and UTC+3 in summer, so a spring day is 23 hours long and an autumn day is 25.
-//
-// An instant is epoch milliseconds, as everywhere in this package: the domain reads no clock and holds no `Date`
-// (tests/contact/qa-8h-package-purity). The caller turns its own `Date` into milliseconds with `getTime()`.
+// The Europe/Chisinau calendar day that names a digest run (ADR 0178 A-13), read from the time-zone database so
+// the 23-hour and 25-hour change days come out right. An instant is epoch milliseconds: the domain holds no `Date`.
 
-/** `YYYY-MM-DD`, the calendar day in Europe/Chisinau. The same shape as the persistence port's `DigestDayKey`. */
+/** `YYYY-MM-DD`. */
 export type ChisinauDayKey = string;
 
 const CHISINAU_TIME_ZONE = "Europe/Chisinau";
@@ -14,7 +10,7 @@ const YEAR_DIGITS = 4;
 /** The widest instant ECMAScript can represent, in epoch milliseconds. */
 const MAX_EPOCH_MS = 8.64e15;
 
-// One formatter for the module: building an Intl formatter is the expensive part of every call.
+// Built once: constructing the formatter is the expensive part of each call.
 const CHISINAU_DAY_PARTS = new Intl.DateTimeFormat("en-US", {
   timeZone: CHISINAU_TIME_ZONE,
   year: "numeric",

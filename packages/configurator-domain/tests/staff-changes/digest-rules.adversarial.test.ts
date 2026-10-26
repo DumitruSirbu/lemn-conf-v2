@@ -1,6 +1,6 @@
-// M10 K1 adversarial QA: the digest rules attacked from outside the implementer's examples.
-// The day key is compared with an independent oracle (EET/EEST), the window is swept across both 2026 clock changes,
-// and the model is shuffled and fed smuggled fields. Instants are epoch milliseconds (tests/contact/qa-8h-package-purity).
+// The digest rules attacked from outside the implementer's examples: the day key against an independent EET/EEST
+// oracle, the window swept through both clock changes, the revision-based hold, and the model shuffled and fed
+// smuggled fields. Instants are epoch milliseconds: the domain holds no `Date`.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -16,12 +16,12 @@ import {
   type DigestModel,
 } from "../../src/staff-changes/digest-model.js";
 import * as domain from "../../src/index.js";
+import { REQUEST_STATUSES } from "../../src/staff/request-status.js";
 
 const MS_PER_HOUR = 3_600_000;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const WINDOW_HOURS = 720;
 
-// ---------------------------------------------------------------------------------------------------------------------
 // The day key against an oracle that shares no code with the module: Chisinau is UTC+2, and UTC+3 from the last
 // Sunday of March to the last Sunday of October. The two rules for the changeover hour (Moldova's 00:00 UTC, the EU's
 // 01:00 UTC) only differ while local time reads 02:00 to 04:00 on the change day itself, which has one date either way.
@@ -162,18 +162,18 @@ describe("the day key's refusals", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Eligibility: the thirty-day window as fixed hours, swept over send instants through both clock changes.
+const FIXED_NOW_MS = Date.UTC(2026, 9, 26, 5);
 
 function eligibleFacts(
   overrides: Partial<DigestEligibilityFacts> = {},
 ): DigestEligibilityFacts {
-  const nowMs = overrides.nowMs ?? Date.UTC(2026, 9, 26, 5);
+  const nowMs = overrides.nowMs ?? FIXED_NOW_MS;
   return {
     nowMs,
     sentAtMs: nowMs - MS_PER_DAY,
     status: "contacted",
     isChangedSinceSeen: true,
+    isDigestedSinceSeen: false,
     ...overrides,
   };
 }
@@ -206,89 +206,101 @@ describe("the thirty-day window is 720 hours wherever the clocks change", () => 
     expect(DIGEST_WINDOW_MS).toBe(WINDOW_HOURS * MS_PER_HOUR);
   });
 
-  it("drops a kitchen sent at 08:00 local on a summer day when the 30th morning after is on winter time (721 hours)", () => {
-    const sentAtMs = Date.UTC(2026, 8, 26, 5); // 08:00 EEST
-    const nowMs = Date.UTC(2026, 9, 26, 6); // 08:00 EET, thirty calendar days later
+  it("drops a kitchen sent at 08:00 local in summer when the 30th morning after is on winter time (721 hours)", () => {
+    const sentAtMs = Date.UTC(2026, 8, 26, 5);
+    const nowMs = Date.UTC(2026, 9, 26, 6);
 
     expect(isDigestEligible(eligibleFacts({ sentAtMs, nowMs }))).toBe(false);
   });
 
-  it("still lists a kitchen sent at 08:00 local on a winter day on the 30th morning after when spring came between (719 hours)", () => {
-    const sentAtMs = Date.UTC(2026, 2, 20, 6); // 08:00 EET
-    const nowMs = Date.UTC(2026, 3, 19, 5); // 08:00 EEST, thirty calendar days later
+  it("still lists a kitchen sent at 08:00 local in winter on the 30th morning after, when spring came between (719 hours)", () => {
+    const sentAtMs = Date.UTC(2026, 2, 20, 6);
+    const nowMs = Date.UTC(2026, 3, 19, 5);
 
     expect(nowMs - sentAtMs).toBe(719 * MS_PER_HOUR);
     expect(isDigestEligible(eligibleFacts({ sentAtMs, nowMs }))).toBe(true);
   });
 });
 
-// ---------------------------------------------------------------------------------------------------------------------
-// Eligibility: metamorphic laws, valid and invalid instants over the whole double range.
-
 const instantArbitrary = fc.double({
   min: -8.64e15,
   max: 8.64e15,
   noNaN: true,
 });
-const optionalInstant = fc.option(instantArbitrary, { nil: undefined });
 const anyDouble = fc.double({ noDefaultInfinity: false });
-const optionalAnyDouble = fc.option(anyDouble, { nil: undefined });
 
 describe("isDigestEligible over every double", () => {
   propertyTest.prop(
-    [anyDouble, anyDouble, optionalAnyDouble, optionalAnyDouble, fc.boolean()],
+    [
+      anyDouble,
+      anyDouble,
+      fc.boolean(),
+      fc.boolean(),
+      fc.constantFrom(...REQUEST_STATUSES),
+    ],
     { numRuns: 3000 },
   )(
-    "is false whenever any instant is not finite, and never throws",
-    (nowMs, sentAtMs, lastSeenAtMs, lastDigestedAtMs, isChangedSinceSeen) => {
-      const facts: DigestEligibilityFacts = {
+    "is false whenever an instant is not finite, never throws, and always answers a boolean",
+    (nowMs, sentAtMs, isChangedSinceSeen, isDigestedSinceSeen, status) => {
+      const result = isDigestEligible({
         nowMs,
         sentAtMs,
-        status: "new",
+        status,
         isChangedSinceSeen,
-        ...(lastSeenAtMs !== undefined ? { lastSeenAtMs } : {}),
-        ...(lastDigestedAtMs !== undefined ? { lastDigestedAtMs } : {}),
-      };
-      const isAnyInstantNotFinite = [
-        nowMs,
-        sentAtMs,
-        lastSeenAtMs,
-        lastDigestedAtMs,
-      ].some((instant) => instant !== undefined && !Number.isFinite(instant));
+        isDigestedSinceSeen,
+      });
 
-      const result = isDigestEligible(facts);
-
-      if (isAnyInstantNotFinite) expect(result).toBe(false);
+      if (!Number.isFinite(nowMs) || !Number.isFinite(sentAtMs)) {
+        expect(result).toBe(false);
+      }
       expect(typeof result).toBe("boolean");
     },
   );
 
   propertyTest.prop(
-    [instantArbitrary, instantArbitrary, optionalInstant, optionalInstant],
+    [
+      instantArbitrary,
+      instantArbitrary,
+      fc.constantFrom(...REQUEST_STATUSES),
+      fc.boolean(),
+      fc.boolean(),
+    ],
     { numRuns: 3000 },
   )(
     "matches a plain restatement of the four conditions for any finite instants",
-    (nowMs, sentAtMs, lastSeenAtMs, lastDigestedAtMs) => {
-      const facts: DigestEligibilityFacts = {
-        nowMs,
-        sentAtMs,
-        status: "new",
-        isChangedSinceSeen: true,
-        ...(lastSeenAtMs !== undefined ? { lastSeenAtMs } : {}),
-        ...(lastDigestedAtMs !== undefined ? { lastDigestedAtMs } : {}),
-      };
-      const isHeld =
-        lastDigestedAtMs !== undefined &&
-        (lastSeenAtMs === undefined || lastDigestedAtMs >= lastSeenAtMs);
+    (nowMs, sentAtMs, status, isChangedSinceSeen, isDigestedSinceSeen) => {
+      const isStopped = status === "offer-sent" || status === "closed";
 
-      expect(isDigestEligible(facts)).toBe(
-        !isHeld && nowMs - sentAtMs < DIGEST_WINDOW_MS,
+      expect(
+        isDigestEligible({
+          nowMs,
+          sentAtMs,
+          status,
+          isChangedSinceSeen,
+          isDigestedSinceSeen,
+        }),
+      ).toBe(
+        isChangedSinceSeen &&
+          !isDigestedSinceSeen &&
+          nowMs - sentAtMs < DIGEST_WINDOW_MS &&
+          !isStopped,
       );
     },
   );
 
-  it.each([["offer-sent"], ["closed"]] as const)(
-    "never lists status %s whatever else is true, even a kitchen sent in the future and never digested",
+  it.each([
+    ["sentAtMs is positive infinity", { sentAtMs: Number.POSITIVE_INFINITY }],
+    ["sentAtMs is negative infinity", { sentAtMs: Number.NEGATIVE_INFINITY }],
+    ["sentAtMs is NaN", { sentAtMs: Number.NaN }],
+    ["nowMs is negative infinity", { nowMs: Number.NEGATIVE_INFINITY }],
+    ["nowMs is positive infinity", { nowMs: Number.POSITIVE_INFINITY }],
+    ["nowMs is NaN", { nowMs: Number.NaN }],
+  ] as const)("fails closed when %s", (_label, overrides) => {
+    expect(isDigestEligible(eligibleFacts(overrides))).toBe(false);
+  });
+
+  it.each(["offer-sent", "closed"] as const)(
+    "never lists status %s, even for a kitchen sent in the future that changed and was never digested",
     (status) => {
       expect(
         isDigestEligible(
@@ -299,54 +311,144 @@ describe("isDigestEligible over every double", () => {
   );
 });
 
-describe("isDigestEligible is monotone in each condition", () => {
-  const seenAtMs = Date.UTC(2026, 9, 20, 10);
+// A store stood in for by revisions, written apart from the rules under test: a save raises the revision, a sighting
+// records the displayed revision (never lowering the marker), a digest records an entry for each kitchen it lists.
+// The revision-based facts are what the SQL judges: the revision differs from the effective seen revision, and an entry
+// exists for a revision greater than it.
+const SUBMITTED_REVISION = 1;
 
-  it("re-arms a held kitchen when staff see it again after the digest, and holds it again once a digest follows", () => {
-    const heldFacts = eligibleFacts({
-      lastSeenAtMs: seenAtMs,
-      lastDigestedAtMs: seenAtMs + MS_PER_HOUR,
+class RevisionStore {
+  revision = SUBMITTED_REVISION;
+  seenRevision: number | undefined;
+  readonly entries: number[] = [];
+
+  save(): void {
+    this.revision += 1;
+  }
+
+  seeDisplayed(displayedRevision: number): void {
+    const displayed = Math.min(displayedRevision, this.revision);
+    this.seenRevision = Math.max(this.effectiveSeen, displayed);
+  }
+
+  get effectiveSeen(): number {
+    return this.seenRevision ?? SUBMITTED_REVISION;
+  }
+
+  facts(): DigestEligibilityFacts {
+    return eligibleFacts({
+      isChangedSinceSeen: this.revision !== this.effectiveSeen,
+      isDigestedSinceSeen: this.entries.some(
+        (entryRevision) => entryRevision > this.effectiveSeen,
+      ),
     });
-    const seenAgainFacts = {
-      ...heldFacts,
-      lastSeenAtMs: seenAtMs + 2 * MS_PER_HOUR,
-    };
-    const digestedAgainFacts = {
-      ...seenAgainFacts,
-      lastDigestedAtMs: seenAtMs + 3 * MS_PER_HOUR,
-    };
+  }
 
-    expect(isDigestEligible(heldFacts)).toBe(false);
-    expect(isDigestEligible(seenAgainFacts)).toBe(true);
-    expect(isDigestEligible(digestedAgainFacts)).toBe(false);
+  runDigest(): boolean {
+    const isListed = isDigestEligible(this.facts());
+    if (isListed) this.entries.push(this.revision);
+    return isListed;
+  }
+}
+
+describe("once per round of changes, on revisions", () => {
+  it("does not list a revision a digest already held when a page loaded at an older revision then marks it seen", () => {
+    const store = new RevisionStore();
+    store.save();
+    store.save();
+    const displayedAtLoad = store.revision - 1;
+
+    expect(store.runDigest()).toBe(true);
+    store.seeDisplayed(displayedAtLoad);
+
+    expect(store.runDigest()).toBe(false);
   });
 
-  it("does not let an earlier digest hold a kitchen across a later sighting however long ago the digest ran", () => {
-    const facts = eligibleFacts({
-      lastSeenAtMs: seenAtMs,
-      lastDigestedAtMs: seenAtMs - 20 * MS_PER_DAY,
-    });
+  it("does not list a kitchen saved again after a digest while no one has seen it", () => {
+    const store = new RevisionStore();
+    store.save();
+    expect(store.runDigest()).toBe(true);
 
-    expect(isDigestEligible(facts)).toBe(true);
+    store.save();
+
+    expect(store.runDigest()).toBe(false);
+    store.save();
+    expect(store.runDigest()).toBe(false);
   });
 
-  it("is not changed by the order the facts are written in (a plain object, no hidden state)", () => {
-    const first = eligibleFacts({ lastSeenAtMs: seenAtMs });
-    const second = { ...first };
-    const evaluations = [
-      isDigestEligible(first),
-      isDigestEligible(second),
-      isDigestEligible(first),
-    ];
+  it("lists a kitchen again once staff saw the current revision and it was saved after", () => {
+    const store = new RevisionStore();
+    store.save();
+    expect(store.runDigest()).toBe(true);
+    store.seeDisplayed(store.revision);
 
-    expect(new Set(evaluations).size).toBe(1);
+    expect(store.runDigest()).toBe(false);
+    store.save();
+    expect(store.runDigest()).toBe(true);
+    expect(store.runDigest()).toBe(false);
   });
+
+  it("lists a kitchen after staff saw a revision newer than the held one, though it is not the latest", () => {
+    const store = new RevisionStore();
+    store.save();
+    expect(store.runDigest()).toBe(true);
+    store.save();
+    store.seeDisplayed(store.revision);
+    store.save();
+
+    expect(store.runDigest()).toBe(true);
+  });
+
+  it("holds nothing for a claimed day that listed no kitchen: the kitchen is listed the next day", () => {
+    const store = new RevisionStore();
+    store.save();
+
+    expect(store.facts().isDigestedSinceSeen).toBe(false);
+    expect(store.runDigest()).toBe(true);
+  });
+
+  const operations = fc.array(
+    fc.oneof(
+      fc.constant({ kind: "save" } as const),
+      fc.constant({ kind: "digest" } as const),
+      fc.record({
+        kind: fc.constant("see" as const),
+        stepsBehind: fc.integer({ min: 0, max: 4 }),
+      }),
+    ),
+    { minLength: 1, maxLength: 60 },
+  );
+
+  propertyTest.prop([operations], { numRuns: 1000 })(
+    "never lists a revision twice, lists only revisions staff have not seen, and lists the first changed morning of a round",
+    (steps) => {
+      const store = new RevisionStore();
+      const listedRevisions: number[] = [];
+
+      for (const step of steps) {
+        if (step.kind === "save") store.save();
+        if (step.kind === "see") {
+          store.seeDisplayed(store.revision - step.stepsBehind);
+        }
+        if (step.kind === "digest") {
+          const isChanged = store.revision > store.effectiveSeen;
+          const hadEntryAboveSeen = store.entries.some(
+            (entry) => entry > store.effectiveSeen,
+          );
+
+          const isListed = store.runDigest();
+
+          expect(isListed).toBe(isChanged && !hadEntryAboveSeen);
+          if (isListed) listedRevisions.push(store.revision);
+        }
+      }
+
+      expect(new Set(listedRevisions).size).toBe(listedRevisions.length);
+    },
+  );
 });
 
-// ---------------------------------------------------------------------------------------------------------------------
-// The model: shuffled, smuggled and mutated inputs.
-
-const NOW_MS = Date.UTC(2026, 9, 25, 12);
+const MODEL_NOW_MS = Date.UTC(2026, 9, 25, 12);
 
 function kitchen(
   designId: string,
@@ -355,8 +457,8 @@ function kitchen(
   return {
     designId,
     customerName: `Client ${designId}`,
-    sentAtMs: NOW_MS - 9 * MS_PER_DAY,
-    updatedAtMs: NOW_MS - MS_PER_HOUR,
+    sentAtMs: MODEL_NOW_MS - 9 * MS_PER_DAY,
+    updatedAtMs: MODEL_NOW_MS - MS_PER_HOUR,
     ...overrides,
   } as DigestKitchenInput;
 }
@@ -381,15 +483,15 @@ const uniqueKitchens = fc
     entries.map(({ designId, updatedOffsetMs, kitchenName, hasAccount }) =>
       hasAccount
         ? kitchen(designId, {
-            updatedAtMs: NOW_MS - updatedOffsetMs,
+            updatedAtMs: MODEL_NOW_MS - updatedOffsetMs,
             ...(kitchenName !== undefined ? { kitchenName } : {}),
           })
         : ({
             designId,
             reference: `REQ-${designId}`,
             ...(kitchenName !== undefined ? { kitchenName } : {}),
-            sentAtMs: NOW_MS - 9 * MS_PER_DAY,
-            updatedAtMs: NOW_MS - updatedOffsetMs,
+            sentAtMs: MODEL_NOW_MS - 9 * MS_PER_DAY,
+            updatedAtMs: MODEL_NOW_MS - updatedOffsetMs,
           } satisfies DigestKitchenInput),
     ),
   );
@@ -446,7 +548,7 @@ describe("the digest model over shuffled kitchens", () => {
   it("does not write into its input, which may be frozen", () => {
     const input = Object.freeze([
       Object.freeze(kitchen("b")),
-      Object.freeze(kitchen("a", { updatedAtMs: NOW_MS })),
+      Object.freeze(kitchen("a", { updatedAtMs: MODEL_NOW_MS })),
     ]);
 
     expect(() => buildDigestModel(input)).not.toThrow();
@@ -485,8 +587,8 @@ describe("the digest model leaks nothing the port did not name", () => {
       {
         designId: "a",
         reference: "REQ-1",
-        sentAtMs: NOW_MS,
-        updatedAtMs: NOW_MS,
+        sentAtMs: MODEL_NOW_MS,
+        updatedAtMs: MODEL_NOW_MS,
       },
     ],
   ] as const)(
@@ -524,6 +626,53 @@ describe("the digest model leaks nothing the port did not name", () => {
 
     expect(row?.customer).toEqual({ kind: "account-name", name: "Client a" });
     expect(JSON.stringify(row)).not.toContain("REQ-9");
+  });
+});
+
+describe("a row's customer when the name is blank", () => {
+  it.each(["", " ", "\t\n  "])(
+    "falls back to the request reference when the account name is %j",
+    (customerName) => {
+      const input = {
+        designId: "a",
+        customerName,
+        reference: "REQ-5",
+        sentAtMs: MODEL_NOW_MS,
+        updatedAtMs: MODEL_NOW_MS,
+      } as unknown as DigestKitchenInput;
+
+      const row = digestOf([input]).rows[0];
+
+      expect(row?.customer).toEqual({
+        kind: "request-reference",
+        reference: "REQ-5",
+      });
+    },
+  );
+
+  it("keeps an account name as given, without trimming it", () => {
+    const row = digestOf([kitchen("a", { customerName: " Ana " })]).rows[0];
+
+    expect(row?.customer).toEqual({ kind: "account-name", name: " Ana " });
+  });
+
+  it("refuses the digest, naming the design, when both the name and the reference are blank", () => {
+    const input = {
+      designId: "d-77",
+      customerName: "  ",
+      reference: "",
+      sentAtMs: MODEL_NOW_MS,
+      updatedAtMs: MODEL_NOW_MS,
+    } as unknown as DigestKitchenInput;
+
+    expect(() => buildDigestModel([kitchen("b"), input])).toThrow(/d-77/);
+    expect(() => buildDigestModel([input])).toThrow(RangeError);
+  });
+
+  it("omits a kitchen name made only of whitespace, as it omits an empty one", () => {
+    const row = digestOf([kitchen("a", { kitchenName: "   " })]).rows[0];
+
+    expect(row !== undefined && "kitchenName" in row).toBe(false);
   });
 });
 
