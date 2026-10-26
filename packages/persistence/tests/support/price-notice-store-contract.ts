@@ -14,6 +14,7 @@ import type {
   PriceNoticeStore,
 } from "../../src/m10-ports.js";
 import {
+  aNewItem,
   activationEntryFor,
   auditRecordOf,
   dashboardFailureOf,
@@ -349,7 +350,7 @@ async function switchOneItemOff(
   staff: DashboardStaffMember,
 ): Promise<string> {
   await publishFirstVersionIfNone(world, staff);
-  const item = { kind: "material", tierId: "mdf" } as const;
+  const item = aNewItem("material");
   const result = await world.availability.setActive({
     item,
     active: false,

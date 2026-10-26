@@ -27,6 +27,7 @@ const SESSIONS_NOW_MS = Date.parse("2026-10-21T09:00:00.000Z");
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 const STORE_CLOCK_START_MS = Date.parse("2026-10-21T10:00:00.000Z");
 const STORE_CLOCK_STEP_MS = 1000;
+const WIDEST_BIGINT = 9223372036854775807n;
 
 /**
  * Every M10 fake, built as the tables they stand for are shared: one audit log, one availability head, one price book.
@@ -104,9 +105,8 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
       await sessions.revoke(member.session.sessionTokenHash);
       return member;
     },
-    // The stand-in for `revision::bigint + n` in the live world's SQL; a contract never does this itself.
     aRevisionAfter: (revision, steps) =>
-      Promise.resolve(String(BigInt(revision) + BigInt(steps))),
+      Promise.resolve().then(() => revisionAfter(revision, steps)),
     auditEventsOf: (accountId) =>
       Promise.resolve(
         ledger
@@ -119,4 +119,14 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
           })),
       ),
   };
+}
+
+/**
+ * The stand-in for the Neon world's `($1::bigint + $2)::text`, which raises "bigint out of range" past the widest
+ * revision; a contract never does this arithmetic itself.
+ */
+function revisionAfter(revision: string, steps: number): string {
+  const after = BigInt(revision) + BigInt(steps);
+  if (after > WIDEST_BIGINT) throw new Error("bigint out of range");
+  return String(after);
 }

@@ -45,7 +45,9 @@ export interface DashboardStaffWorld {
   ): Promise<readonly StoredDashboardAuditEvent[]>;
   /**
    * The revision `steps` writes after `revision`. Contracts never do arithmetic on a revision (A-12): the fake counts
-   * and the live world asks the database, so "ahead of the head" and "moved by exactly n" read the same in both.
+   * and the live world asks the database, so "ahead of the head" and "moved by exactly n" read the same in both. The
+   * Neon world implements it as `($1::bigint + $2)::text`; past the widest `bigint` both reject, as SQL raises
+   * "bigint out of range".
    */
   aRevisionAfter(revision: string, steps: number): Promise<string>;
 }
@@ -83,16 +85,22 @@ export function activationEntryFor(
   };
 }
 
+/** Every kind but the handle, whose values are a closed list of the book's own: a contract cannot mint one. */
+export type MintableItemKind = Exclude<ItemRef["kind"], "handle">;
+
 /**
  * An item no earlier test or run has switched, so that what a contract reads of it is its own doing. The catalogue log
- * is append-only and a shared test database keeps every row.
+ * is append-only and a shared test database keeps every row, so a contract switches only items it minted: a real item
+ * switched there would stay switched for every later reader of that database.
  */
-export function aNewItem(kind: "material" | "hardware" | "accessory"): ItemRef {
+export function aNewItem(kind: MintableItemKind): ItemRef {
   const id = `item-${nanoid(10)}`;
   switch (kind) {
     case "material":
     case "hardware":
       return { kind, tierId: id };
+    case "finish":
+      return { kind, finishId: id };
     case "accessory":
       return { kind, accessoryId: id };
   }

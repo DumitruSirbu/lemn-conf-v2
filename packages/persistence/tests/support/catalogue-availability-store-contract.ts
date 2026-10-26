@@ -21,31 +21,30 @@ import {
   itemsSwitchedOffBetween,
   sortedItems,
 } from "./dashboard-contract-support.js";
+import type { MintableItemKind } from "./dashboard-contract-support.js";
 import type {
   DashboardStaffMember,
   DashboardStaffWorld,
 } from "./dashboard-contract-support.js";
 
 // These suites also run against a shared test database whose log earlier runs have written to (ADR 0151, and the log is
-// append-only). Each arm therefore switches items no earlier run has touched and asserts what its writes changed, from
-// a read taken before them. What only an empty log can promise is asserted in the fake's own test file.
+// append-only). Each arm therefore switches only items it minted, never a real catalogue item, and asserts what its
+// writes changed, from a read taken before them. What only an empty log can promise is asserted in the fake's own test file.
 
 export interface AvailabilityWorld extends DashboardStaffWorld {
   readonly store: CatalogueAvailabilityStore;
 }
 
-const MDF: ItemRef = { kind: "material", tierId: "mdf" };
-const FENIX: ItemRef = { kind: "material", tierId: "fenix" };
-const PREMIUM: ItemRef = { kind: "hardware", tierId: "premium" };
-const WALNUT: ItemRef = { kind: "finish", finishId: "walnut" };
-const STEEL: ItemRef = { kind: "handle", handle: "steel" };
-const LIGHT: ItemRef = { kind: "accessory", accessoryId: "plinth-light" };
-
 /** The widest revision a `bigint` holds: a valid shape no head has reached. */
 const WIDEST_REVISION = "9223372036854775807";
 
-/** One item of every kind, so the log is held by the kind and the id together. */
-const ONE_OF_EACH: readonly ItemRef[] = [MDF, PREMIUM, WALNUT, STEEL, LIGHT];
+/** One item of every kind that can be minted (a handle cannot), so the log is held by the kind and the id together. */
+const KINDS: readonly MintableItemKind[] = [
+  "material",
+  "hardware",
+  "finish",
+  "accessory",
+];
 
 export function describeCatalogueAvailabilityStoreContract(
   suiteName: string,
@@ -433,10 +432,13 @@ function describeReplay(
     it("answers the replay of the log up to every revision, for any sequence of switches", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
+      const oneOfEach = KINDS.map(aNewItem);
+      const [material] = oneOfEach;
+      if (material?.kind !== "material") throw new Error("no material minted");
       const pool: readonly ItemRef[] = [
-        ...ONE_OF_EACH,
-        FENIX,
-        { kind: "hardware", tierId: "mdf" },
+        ...oneOfEach,
+        aNewItem("material"),
+        { kind: "hardware", tierId: itemIdOf(material) },
       ];
       const switches = fc.array(
         fc.record({
@@ -482,7 +484,7 @@ function describeReplay(
     it("answers, for every revision the head has reached, the replay of the log up to it", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
-      const sequence = replaySequence();
+      const sequence = replaySequence(KINDS.map(aNewItem));
       const start = await world.store.readCurrent();
       const off = new Map<string, ItemRef>(
         start.disabled.map((item) => [JSON.stringify(item), item]),
@@ -523,19 +525,26 @@ function describeReplay(
 }
 
 /** Switches of every kind off and on again, one item twice over, in an order that is not the items' own. */
-function replaySequence(): readonly {
-  readonly item: ItemRef;
-  readonly active: boolean;
-}[] {
+function replaySequence(
+  oneOfEach: readonly ItemRef[],
+): readonly { readonly item: ItemRef; readonly active: boolean }[] {
+  const [material, hardware, finish, accessory] = oneOfEach;
+  if (
+    material === undefined ||
+    hardware === undefined ||
+    finish === undefined ||
+    accessory === undefined
+  ) {
+    throw new Error("the replay needs one item of every kind");
+  }
   return [
-    { item: STEEL, active: false },
-    { item: MDF, active: false },
-    { item: LIGHT, active: false },
-    { item: MDF, active: true },
-    { item: WALNUT, active: false },
-    { item: PREMIUM, active: false },
-    { item: STEEL, active: true },
-    { item: MDF, active: false },
-    ...ONE_OF_EACH.map((item) => ({ item, active: true })),
+    { item: finish, active: false },
+    { item: material, active: false },
+    { item: accessory, active: false },
+    { item: material, active: true },
+    { item: hardware, active: false },
+    { item: finish, active: true },
+    { item: material, active: false },
+    ...oneOfEach.map((item) => ({ item, active: true })),
   ];
 }
