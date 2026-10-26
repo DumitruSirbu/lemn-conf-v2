@@ -2,7 +2,11 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import type { StaffKitchenQueryIssue } from "@lemnaria/configurator-domain";
+import type {
+  DashboardAuditEntry,
+  DraftChangeTarget,
+  StaffKitchenQueryIssue,
+} from "@lemnaria/configurator-domain";
 import type {
   SavedRequestStatus,
   StaffAuditAccountRef,
@@ -307,10 +311,96 @@ function auditEntryWireOf(reading: StaffAuditReading): StaffAuditEntryWire {
     case "kitchen-defaults-saved":
     case "kitchen-seen":
     case "price-catalogue-viewed":
-      return { kind: "recognised", ...entry };
+      return { kind: "recognised", ...dashboardEntryWireOf(entry) };
     default:
       return degradedEntryOf(entry);
   }
+}
+
+// The domain's closed key table (`DASHBOARD_DETAIL_KEYS`) is untyped and not exported, so each action's detail is
+// named here member by member and checked by the compiler against the domain's detail type. An optional member is
+// copied only when present; a member beyond the declared shape never leaves the server.
+function dashboardEntryWireOf(entry: DashboardAuditEntry): DashboardAuditEntry {
+  switch (entry.action) {
+    case "price-draft-changed":
+      return {
+        action: entry.action,
+        detail: {
+          changeKind: entry.detail.changeKind,
+          ...changeTargetWireOf(entry.detail),
+        },
+      };
+    case "price-draft-reverted":
+      return {
+        action: entry.action,
+        detail: {
+          changeKind: entry.detail.changeKind,
+          ...changeTargetWireOf(entry.detail),
+          revertedCount: entry.detail.revertedCount,
+        },
+      };
+    case "price-bulk-changed":
+      return {
+        action: entry.action,
+        detail: {
+          scope: entry.detail.scope,
+          ...(entry.detail.groupCode === undefined
+            ? {}
+            : { groupCode: entry.detail.groupCode }),
+          percent: entry.detail.percent,
+          ruleCount: entry.detail.ruleCount,
+          amountCount: entry.detail.amountCount,
+        },
+      };
+    case "price-published":
+      return {
+        action: entry.action,
+        detail: {
+          sequenceNumber: entry.detail.sequenceNumber,
+          changeCount: entry.detail.changeCount,
+          provisional: entry.detail.provisional,
+        },
+      };
+    case "price-restored-to-draft":
+      return {
+        action: entry.action,
+        detail: {
+          fromSequenceNumber: entry.detail.fromSequenceNumber,
+          changeCount: entry.detail.changeCount,
+        },
+      };
+    case "catalogue-item-active-changed":
+      return {
+        action: entry.action,
+        detail: {
+          itemKind: entry.detail.itemKind,
+          itemId: entry.detail.itemId,
+          active: entry.detail.active,
+          availabilityRevision: entry.detail.availabilityRevision,
+        },
+      };
+    case "kitchen-defaults-saved":
+      return {
+        action: entry.action,
+        detail: { changedFields: [...entry.detail.changedFields] },
+      };
+    case "kitchen-seen":
+      return { action: entry.action, detail: {} };
+    case "price-catalogue-viewed":
+      return {
+        action: entry.action,
+        detail: { section: entry.detail.section },
+      };
+  }
+}
+
+function changeTargetWireOf(target: DraftChangeTarget): DraftChangeTarget {
+  return {
+    ...(target.itemKind === undefined ? {} : { itemKind: target.itemKind }),
+    ...(target.itemId === undefined ? {} : { itemId: target.itemId }),
+    ...(target.field === undefined ? {} : { field: target.field }),
+    ...(target.widthMm === undefined ? {} : { widthMm: target.widthMm }),
+  };
 }
 
 // `entry` is `never` here while the switch names every action the domain lists, so a new domain action is a compile
