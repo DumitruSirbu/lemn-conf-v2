@@ -377,8 +377,11 @@ every kitchen that earns it.
 - **Security amendment F9 (2026-10-26):**
   - the store refuses, in SQL, a displayed revision **greater than** the current one (`409`);
   - a displayed revision that is not a digit string of the revision's shape is `400`, before the store;
-  - P-L3-4's visibility applies: a client-deleted or unsent kitchen is `404`, and this also excludes such kitchens
-    from the D10 list, the counter and the digest (F6);
+  - **visibility (amended 2026-10-26, S1 QA, coordinator's ruling):** `markSeen` and the kitchen page follow the
+    **staff-list predicate** of P-L3-4: not deleted by the client, and sent **or** held by an account. Staff can open,
+    and mark seen, an account-held kitchen that was never sent; any other kitchen is `404`;
+  - **the changed badge, the counter and the digest consider sent kitchens only** (`sent_at is not null`), and
+    exclude client-deleted ones (F6). A mark on an account-held unsent kitchen is stored, but lights nothing;
   - **the polled changed-count read is exempt from a per-poll audit row.** It returns one number and no row, and
     auditing every poll would flood the log. This is stated as a deliberate exception to ADR 0173's "every list view
     is audited", which covers views that return rows.
@@ -429,6 +432,9 @@ D7 and D8.
 - The candidate book is `apply(activeBook, changes)`, a pure domain function.
 - ↺ removes one change.
 - Restore adds the archived version's differing fields as changes.
+- **The `price-published` audit detail is stamped by the store** (S1 QA, coordinator's ruling, 2026-10-26).
+  `sequenceNumber` is the inserted version's, and `changeCount` is the length of the stored change summary. Callers
+  cannot supply either; the audit entry passed in omits both, as with M4's `availabilityRevision`.
 - Publish stores the candidate book whole and immutable, plus its change summary. Versions are append-only, and exactly
   one is active.
 - **Security amendments F7 and F10 (2026-10-26):**
@@ -568,6 +574,9 @@ D7 and D8.
   - the customer's notice marker (A-11);
   - the digest's rounds and entries (A-13);
   - the owner-run seed (A-10), which takes the owner's account id.
+- **Store-stamped audit keys:** `availabilityRevision` on `catalogue-item-activation-changed` (M4), and
+  `sequenceNumber` and `changeCount` on `price-published` (S1 QA). The store fills them from what it wrote, before its
+  own `readStaffAuditEntry` re-check. The caller's entry type omits them.
 - **Every audit action has a closed detail key list** of kinds, ids, codes and counts (§8.4(e)). No created-row text,
   version label, note, search text or customer value ever enters `detail`.
 
@@ -891,7 +900,7 @@ DraftChange { address, value, groupId? }   // groupId = one bulk action (A-14)
 | `PriceBookStore` | `readActive()` → `{versionId, sequenceNumber, label, publishedAt, book}` (the newest row) or `NO_ACTIVE_VERSION`; `readVersion(id)`; `listVersions(page)` (state derived: the newest is active, the rest archived); `readDraft()` → `{draftRevision, changes}`; `writeDraft({expectedDraftRevision, changes, audit})` → ok or `changed-meanwhile`; `publish({expectedDraftRevision, expectedActiveSequence, expectedAvailabilityRevision, createdItems, label, note, book, changeSummary, audit})` → ok `{versionId, sequenceNumber, availabilityRevision}`, `changed-meanwhile` or `availability-changed-meanwhile`. One transaction: the head CAS and the created items' inactive log rows (A-17), the insert at `expectedActiveSequence + 1`, the draft-row reset, and the audit row. `book` is computed by the server from the stored draft (F10), never taken from a request. **`changeSummary` is pinned** (m8): the published `DraftChange[]` JSON array, with minted ids and group ids, from which `changeCount` is its length. **Refusals the store does not return:** `item-is-default` and a used deletion are judged by the domain **before** the call, against defaults and usage read at `expectedAvailabilityRevision`, which the CAS keeps current (M5). **Amended 2026-10-26: F7, F10, then X0 review M1, M5 and m8** |
 | `KitchenDefaultsStore` | `read()` → defaults or `NONE_SAVED` (the seeded row holds `{}`); `save({expectedRevision, expectedAvailabilityRevision, defaults, audit})` → ok `{revision, availabilityRevision}` (m3), `changed-meanwhile` or `availability-changed-meanwhile`. It increments the availability head in the same transaction (A-17, F1). **The store returns only these two CAS refusals** (m2): `item-unavailable` is the domain's judgement under the CAS, made before the call, because the store cannot read `defaults` (`unknown`). **Amended 2026-10-26: F1, then X0 review m2 and m3** |
 | `KitchenUsageReader` | `count(itemRef)` → a count of designs not deleted by the client |
-| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (client-deleted or unsent, P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{kind: "claimed", roundId}` or `ALREADY_CLAIMED`, **where `roundId` is the day key itself** (the round's identity is its day; doc-conflict pin) (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
+| `KitchenChangeStore` | `markSeen({designId, displayedRevision, audit})` → ok, `not-found` (outside the staff-list predicate: client-deleted, or neither sent nor held by an account; P-L3-4), or `displayed-revision-ahead` (compared in SQL; F9); `listChanged…` is folded into the staff kitchens statements, which exclude client-deleted designs; `claimDigestDay(dayKey)` → `{kind: "claimed", roundId}` or `ALREADY_CLAIMED`, **where `roundId` is the day key itself** (the round's identity is its day; doc-conflict pin) (insert, `on conflict do nothing`, before sending; F6); `listDigestEligible(now)` (client-deleted excluded); `recordDigested(roundId, entries)` (no audit; F3). **Amended 2026-10-26: result unions named** |
 | `CatalogueAvailabilityStore` | `readCurrent()` → `{revision, disabled}` (`revision` is the head's); `readAt(revision)` → the state at that revision, from the append-only log; `setActive({item, active, expectedRevision, audit})` → ok `{revision}` or `changed-meanwhile`, written as one CTE statement (A-17, F1). **`audit` is an entry without `availabilityRevision`** (X0 review M4). The store stamps the revision its CTE returned into the detail, then runs its own `readStaffAuditEntry` re-check, then inserts, all in the one transaction. The expected revision is not recorded: two racing requests may share it, while the returned revision is the unique key joining the audit row to its log row |
 | `PriceNoticeStore` | `readAcknowledged(designId)` → `{versionId, availabilityRevision}` or `NEVER_RECORDED`; `recordIfAbsent(designId, pair)` (the first open, insert-if-absent; F8); `recordAcknowledged(designId, pair)` → ok, `unknown-version` or `revision-ahead` (validated in SQL against the versions table and the availability head; F8). No audit (F3). **Amended 2026-10-26: `recordIfAbsent` and the result union added** |
 
@@ -1461,6 +1470,11 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - **a racing pair of one publish and one defaults save** at the same `expectedAvailabilityRevision` yields exactly
     one success;
   - `change_summary` round-trips as the published `DraftChange[]` array (m8);
+  - **(S1 QA)** the `price-published` audit row's `sequenceNumber` equals the inserted version's and its
+    `changeCount` equals the stored summary's length. A caller-supplied value for either is impossible by type and is
+    overwritten if forced through a cast;
+  - **(S1 QA)** `expectedDraftRevision` is shape-checked like every revision (m6's bounded digit shape). A malformed
+    value is `invalid-request` and never reaches SQL;
   - must-not: `UPDATE`, `DELETE` or `TRUNCATE` on `price_book_versions` is held;
   - must-not: `INSERT` on `price_book_draft` or `kitchen_defaults` is held (seeded singletons).
 - **S-b1 (S2, the seed; F3):**
@@ -1493,7 +1507,9 @@ P4b), so it runs last and holds nothing up. Migration numbers follow §9.2, not 
   - `changed_since_seen` is computed only in SQL;
   - `markSeen` with a displayed revision greater than the current one is `displayed-revision-ahead` and writes
     nothing (compared in SQL);
-  - `markSeen` on a client-deleted or unsent design is `not-found`;
+  - `markSeen` on a client-deleted design, or one neither sent nor held by an account, is `not-found`. On an
+  account-held unsent design it succeeds, and that design never shows the badge, counts toward the counter, or
+  enters the digest;
   - the staff list statements, the count and `listDigestEligible` exclude client-deleted designs;
   - no TypeScript code parses, orders or does arithmetic on a revision (checked with `rtk proxy grep` for `Number(`
     and `BigInt(` near `revision`);
@@ -1720,7 +1736,9 @@ the frames and `engineering-conventions.md`. **Visual:** §13.3.
 - **K2-c (amended 2026-10-26, F9, P-L3-4):**
   - a displayed revision that is not a digit string of the revision shape is `400` and never reaches the store;
   - one greater than the current is `409 displayed-revision-ahead`, with nothing written;
-  - a client-deleted or unsent kitchen is `404` on seen, list, count and page alike;
+  - a kitchen outside the staff-list predicate (client-deleted, or neither sent nor held by an account) is `404` on
+    seen and page and absent from the list. An account-held unsent kitchen opens and can be marked seen, but never
+    carries the badge or enters the counter or the digest;
   - the polled changed-count read writes **no** audit row per poll (the stated exception); every list view still
     writes its `kitchens-listed` row.
 - **K2-d (F2):** the as-sent estimate reads `contact_submissions.priced` through S4's statement, under exactly the
