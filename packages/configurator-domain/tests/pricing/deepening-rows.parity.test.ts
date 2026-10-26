@@ -11,12 +11,16 @@ import { describe, expect, it } from "vitest";
 import { buildKitchenLBodyCatalog } from "../../src/fixtures/kitchen-l-design.js";
 import { finishesAtMm } from "../../src/occupied-depth.js";
 import { measureDeepeningRows } from "../../src/pricing/deepening-rows.js";
+import { DEEP_CABINET_DEPTH_MM } from "../../src/pricing/percentage-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import type { BodyCatalog } from "../../src/void-engine.js";
-import { declaredCabinetDepthsMm } from "../../src/worktop-depth.js";
+import {
+  declaredCabinetDepthsMm,
+  DEFAULT_CABINET_DEPTH_MM,
+} from "../../src/worktop-depth.js";
 
-const SHALLOW_MM = 600;
-const DEEP_MM = 700;
+const SHALLOW_MM = DEFAULT_CABINET_DEPTH_MM;
+const DEEP_MM = DEEP_CABINET_DEPTH_MM;
 const shallow = buildKitchenLBodyCatalog(SHALLOW_MM);
 const deep = buildKitchenLBodyCatalog(DEEP_MM);
 const measured = measureDeepeningRows(shallow, deep);

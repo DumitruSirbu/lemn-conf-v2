@@ -91,9 +91,8 @@ export interface PriceDesignRequest {
   /** Matched for **equality** against the book's own version: no "current version" fallback. */
   readonly pricingVersion: string;
   readonly selections?: WholeKitchenSelections | undefined;
-  /** The priced-as build ids that get deeper at `DEEP_CABINET_DEPTH_MM` (`measureDeepeningRows`, ADR 0177 A-6), supplied
-   *  by the composition root because pricing binds to no catalogue. Read only by a book in percentage form, which is
-   *  refused without it; P3 makes it required. */
+  /** The priced-as build ids that get deeper at `DEEP_CABINET_DEPTH_MM` (`measureDeepeningRows`), supplied by the
+   *  caller because pricing binds to no catalogue. A book in percentage form is refused without it. */
   readonly deepeningRows?: ReadonlySet<string> | undefined;
 }
 
@@ -110,20 +109,22 @@ export function priceDesign(request: PriceDesignRequest): PricingResult {
   if (isRefused(cabinetLines))
     return { ok: false, failure: cabinetLines.failure };
 
+  const form: PricingForm = {
+    entries,
+    request,
+    cabinetLines: cabinetLines.value,
+  };
   const lines = isPercentageBook(request.book)
-    ? pricePercentageForm({ entries, request }, cabinetLines.value)
-    : priceFlatForm(entries, request, cabinetLines.value);
+    ? pricePercentageForm(form)
+    : priceFlatForm(form);
   if (isRefused(lines)) return { ok: false, failure: lines.failure };
 
   return finishPricing(request, lines.value);
 }
 
-/** The flat form, as it was before the percentage seam: cabinets, hardware, material, accessories, none rounded. */
-function priceFlatForm(
-  entries: readonly DisplayEntry[],
-  request: PriceDesignRequest,
-  cabinetLines: readonly CabinetPriceLine[],
-): Attempt<readonly PriceLine[]> {
+/** The flat form: cabinets, hardware, material, accessories, none rounded. */
+function priceFlatForm(form: PricingForm): Attempt<readonly PriceLine[]> {
+  const { entries, request, cabinetLines } = form;
   const wholeKitchenLines = priceWholeKitchen(entries, request);
   if (isRefused(wholeKitchenLines)) return wholeKitchenLines;
 
@@ -709,29 +710,27 @@ function wholeKitchenLine(line: {
 
 const WHOLE_KITCHEN_QUANTITY = 1;
 
-/** A book whose materials are percentages states a depth rule too (`parse-percentage-form.ts` holds the two together),
- *  so the depth rule is what tells the two forms apart. */
+/** The depth rule is what tells a book in percentage form from a flat one: the parser holds the two together. */
 function isPercentageBook(book: PriceBook): boolean {
   return book.depthRule !== undefined;
 }
 
-/** Everything the percentage form is priced from. */
-interface PercentageFormRequest {
+/** What a form is priced from: the design's bodies in display order, the request, and the cabinet lines at their
+ *  exact amounts. */
+interface PricingForm {
   readonly entries: readonly DisplayEntry[];
   readonly request: PriceDesignRequest;
+  readonly cabinetLines: readonly CabinetPriceLine[];
 }
 
 /**
- * The percentage form (ADR 0177 A-1): each cabinet carried through the three rounded stages, hardware and each
- * accessory rounded to 10 lei, so every line is a whole number of ten lei and they add to the total exactly. Lines in
- * the order cabinets, hardware, material, depth, accessories. Refused without `deepeningRows`, since a default would be
- * this module deciding which cabinets deepen (ADR 0177 A-6).
+ * The percentage form (ADR 0177 A-1): each cabinet carried through three rounded stages, hardware and each accessory
+ * rounded to 10 lei, so every line is a whole number of ten lei and the lines add to the total exactly. Lines run
+ * cabinets, hardware, material, depth, accessories. Refused without `deepeningRows`: which cabinets deepen is a
+ * measured catalogue fact that pricing does not decide (A-6).
  */
-function pricePercentageForm(
-  form: PercentageFormRequest,
-  cabinetLines: readonly CabinetPriceLine[],
-): Attempt<readonly PriceLine[]> {
-  const { request, entries } = form;
+function pricePercentageForm(form: PricingForm): Attempt<readonly PriceLine[]> {
+  const { entries, request, cabinetLines } = form;
   const { deepeningRows } = request;
   if (deepeningRows === undefined) {
     return refusal(
@@ -741,29 +740,16 @@ function pricePercentageForm(
       { id: request.book.version },
     );
   }
-  const hardware = selectTier(
-    request.book.hardware,
-    request.selections?.hardwareTierId,
-    "hardware",
-  );
-  if (isRefused(hardware)) return hardware;
-  const material = selectTier(
-    request.book.material,
-    request.selections?.materialTierId,
-    "material",
-  );
-  if (isRefused(material)) return material;
+  const chosen = chooseTiersAndPercentages(request);
+  if (isRefused(chosen)) return chosen;
 
-  const rates = checkedPercentages(material.value, request.book);
-  if (isRefused(rates)) return rates;
-
-  const cabinetsAndUpliftLines = priceCabinetsInPercentages(
-    { cabinetLines, rates: rates.value, material: material.value },
-    { request, deepeningRows },
+  const cabinets = priceCabinetsInPercentages(
+    { cabinetLines, ...chosen.value },
+    { design: request.design, deepeningRows },
   );
-  if (isRefused(cabinetsAndUpliftLines)) return cabinetsAndUpliftLines;
+  if (isRefused(cabinets)) return cabinets;
 
-  const hardwareLine = priceRoundedHardware(hardware.value, {
+  const hardwareLine = priceRoundedHardware(chosen.value.hardware, {
     entries,
     catalog: request.catalog,
   });
@@ -772,15 +758,49 @@ function pricePercentageForm(
   const accessoryLines = priceRoundedAccessories(entries, request);
   if (isRefused(accessoryLines)) return accessoryLines;
 
-  const { cabinets, materialLine, depthLines } = cabinetsAndUpliftLines.value;
   return {
     value: [
-      ...cabinets,
+      ...cabinets.value.cabinets,
       hardwareLine.value,
-      materialLine,
-      ...depthLines,
+      cabinets.value.materialLine,
+      ...cabinets.value.depthLines,
       ...accessoryLines.value,
     ],
+  };
+}
+
+/** The tiers the design is priced at and the two percentages their rules state. */
+interface ChosenTiers {
+  readonly hardware: HardwareTier;
+  readonly material: MaterialTier;
+  readonly rates: CabinetPercentages;
+}
+
+function chooseTiersAndPercentages(
+  request: PriceDesignRequest,
+): Attempt<ChosenTiers> {
+  const { book, selections } = request;
+  const hardware = selectTier(
+    book.hardware,
+    selections?.hardwareTierId,
+    "hardware",
+  );
+  if (isRefused(hardware)) return hardware;
+  const material = selectTier(
+    book.material,
+    selections?.materialTierId,
+    "material",
+  );
+  if (isRefused(material)) return material;
+
+  const rates = checkedPercentages(material.value, book);
+  if (isRefused(rates)) return rates;
+  return {
+    value: {
+      hardware: hardware.value,
+      material: material.value,
+      rates: rates.value,
+    },
   };
 }
 
@@ -819,28 +839,29 @@ interface PercentageCabinetLines {
   readonly depthLines: readonly DepthPriceLine[];
 }
 
-/** The cabinet lines at their first stage, the material line and the depth line as sums of the later stages' differences. */
+/** The cabinet lines at their first stage, the material line and the depth line as sums of the later stages'
+ *  differences. */
 function priceCabinetsInPercentages(
   priced: {
     readonly cabinetLines: readonly CabinetPriceLine[];
     readonly rates: CabinetPercentages;
     readonly material: MaterialTier;
   },
-  context: {
-    readonly request: PriceDesignRequest;
+  deepening: {
+    readonly design: Design;
     readonly deepeningRows: ReadonlySet<string>;
   },
 ): Attempt<PercentageCabinetLines> {
   const tooDear = refuseCabinetAboveTheSeam(priced.cabinetLines);
   if (tooDear) return tooDear;
 
-  const deepeningOnes = deepeningCabinetFlags(priced.cabinetLines, context);
   const split = attemptExactly(
     () =>
       splitCabinetsByPercentage(
-        priced.cabinetLines.map((line, index) => ({
+        priced.cabinetLines.map((line) => ({
+          line,
           exactMinor: line.amountMinor,
-          deepens: deepeningOnes[index] === true,
+          deepens: takesTheDepthUplift(line, deepening),
         })),
         priced.rates,
       ),
@@ -857,14 +878,14 @@ function priceCabinetsInPercentages(
 
   return {
     value: {
-      cabinets: priced.cabinetLines.map((line, index) =>
-        atRoundedAmount(
-          line,
-          split.value.cabinetMinors[index] ?? line.amountMinor,
-        ),
+      cabinets: split.value.cabinets.map(({ cabinet, cabinetMinor }) =>
+        atRoundedAmount(cabinet.line, cabinetMinor),
       ),
       materialLine: materialLine.value,
-      depthLines: depthLineOf(deepeningOnes, split.value.depthLineMinor),
+      depthLines: depthLineOf(
+        split.value.cabinets.some(({ cabinet }) => cabinet.deepens),
+        split.value.depthLineMinor,
+      ),
     },
   };
 }
@@ -886,34 +907,33 @@ function refuseCabinetAboveTheSeam(
   );
 }
 
-/** Which cabinets take the depth uplift: a manufacturer-supplied one whose priced-as row deepens, in a design built at
- *  the deep depth. A customer-supplied row never does (ADR 0177 A-6). */
-function deepeningCabinetFlags(
-  cabinetLines: readonly CabinetPriceLine[],
-  context: {
-    readonly request: PriceDesignRequest;
+/** Whether a cabinet takes the depth uplift: manufacturer-supplied, its priced-as row measured deeper, and the design
+ *  built at the deep depth. A customer-supplied row never does (ADR 0177 A-6). */
+function takesTheDepthUplift(
+  line: CabinetPriceLine,
+  deepening: {
+    readonly design: Design;
     readonly deepeningRows: ReadonlySet<string>;
   },
-): readonly boolean[] {
-  const isDeep = isBuiltAtDeepDepth(context.request.design);
-  return cabinetLines.map(
-    (line) =>
-      isDeep &&
-      line.suppliedBy === "manufacturer" &&
-      context.deepeningRows.has(line.pricedAsBuildId),
+): boolean {
+  return (
+    isBuiltAtDeepDepth(deepening.design) &&
+    line.suppliedBy === "manufacturer" &&
+    deepening.deepeningRows.has(line.pricedAsBuildId)
   );
 }
 
 /** A depth line exists if and only if some cabinet deepens: then at 0 % it is present and its amount is 0. */
 function depthLineOf(
-  deepeningOnes: readonly boolean[],
+  isAnyCabinetDeepening: boolean,
   depthLineMinor: number,
 ): readonly DepthPriceLine[] {
-  if (!deepeningOnes.some(Boolean)) return [];
+  if (!isAnyCabinetDeepening) return [];
+  const kind = "depth";
   return [
     {
-      lineId: "kitchen:depth",
-      kind: "depth",
+      lineId: `kitchen:${kind}`,
+      kind,
       ruleId: DEPTH_RULE_ID,
       depthMm: DEEP_CABINET_DEPTH_MM,
       quantity: WHOLE_KITCHEN_QUANTITY,

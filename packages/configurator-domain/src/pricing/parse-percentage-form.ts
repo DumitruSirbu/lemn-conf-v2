@@ -1,14 +1,6 @@
-// Reads how a book states its materials and its depth, called from `parse-price-book.ts` once every section is known
-// to be readable. A book states them one way (ADR 0092 Amendment of 2026-10-25, ADR 0177 A-5):
-//
-// - the flat form: each material tier a `wholeKitchenMinor`, and no `depthRule`. What every book is until the
-//   cut-over retires it (P3);
-// - the percentage form: each material tier a whole `percentOfCabinets`, the book a `depthRule`, and the default tier
-//   (the pricing fallback, PAL) at 0 %.
-//
-// A book that carries both forms is refused whole: a tier stating both amounts, tiers that disagree, a `depthRule`
-// beside flat tiers. Any of them would price one way while the dashboard edited the other. Every read goes through
-// `readDeclared`, as in the parser that calls this.
+// A book states its materials one way (ADR 0092 Amendment of 2026-10-25, ADR 0177 A-5): flat (`wholeKitchenMinor` per
+// tier, no `depthRule`) or as percentages (`percentOfCabinets` per tier, a `depthRule`, the default tier at 0 %).
+// A book carrying both is refused. Every read goes through `readDeclared`.
 import {
   boundedListOf,
   describeDeclared,
@@ -37,23 +29,36 @@ export function refuseUnusablePercentageForm(
   );
   const tierRecords = (tiers ?? []).filter(isRecord);
 
-  const bothForms = firstTierStatingBothForms(tierRecords);
-  if (bothForms) return bothForms;
+  const mixed = refuseMixedForms(tierRecords);
+  if (mixed) return mixed;
 
   const percentageTiers = tierRecords.filter(statesPercentage);
   const depthRule = readDeclared(book, "depthRule");
   if (percentageTiers.length === 0) {
     return refuseDepthRuleBesideFlatTiers(depthRule);
   }
-  if (percentageTiers.length < tierRecords.length) {
-    return invalidBook(
-      "The material tiers state their amounts two ways: some a percentOfCabinets, some not. A book states one form",
-    );
-  }
   return (
     firstUnusableTierPercentage(percentageTiers) ??
     refuseUnusableDepthRule(depthRule) ??
     refuseDefaultTierAboveZero(material, percentageTiers)
+  );
+}
+
+/** A tier stating both amounts, or tiers that do not all state a percentage when one does: a book states one form. */
+function refuseMixedForms(
+  tiers: readonly Record<string, unknown>[],
+): PricingFailure | undefined {
+  const stated = tiers.filter(statesPercentage);
+  const bothAmounts = stated.find(statesFlatAmount);
+  if (bothAmounts !== undefined) {
+    return invalidBook(
+      `The ${namedTier(bothAmounts)} declares both "wholeKitchenMinor" and "percentOfCabinets". ` +
+        `A material is a flat amount or a percentage, never both`,
+    );
+  }
+  if (stated.length === 0 || stated.length === tiers.length) return undefined;
+  return invalidBook(
+    "The material tiers state their amounts two ways: some a percentOfCabinets, some not. A book states one form",
   );
 }
 
@@ -63,19 +68,6 @@ function statesPercentage(tier: Record<string, unknown>): boolean {
 
 function statesFlatAmount(tier: Record<string, unknown>): boolean {
   return readDeclared(tier, "wholeKitchenMinor") !== undefined;
-}
-
-function firstTierStatingBothForms(
-  tiers: readonly Record<string, unknown>[],
-): PricingFailure | undefined {
-  const both = tiers.find(
-    (tier) => statesPercentage(tier) && statesFlatAmount(tier),
-  );
-  if (both === undefined) return undefined;
-  return invalidBook(
-    `The ${namedTier(both)} declares both "wholeKitchenMinor" and "percentOfCabinets". ` +
-      `A material is a flat amount or a percentage, never both`,
-  );
 }
 
 /** A depth rule beside flat tiers would sit in the book unpriced, as `refuseUnreadFields` holds for any field. */

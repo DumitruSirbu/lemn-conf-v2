@@ -13,6 +13,7 @@ import {
   parsePriceBook,
 } from "../../src/pricing/parse-price-book.js";
 import {
+  DEEP_CABINET_DEPTH_MM,
   MAX_CABINET_AMOUNT_MINOR,
   percentageStagesOf,
   splitCabinetsByPercentage,
@@ -130,7 +131,7 @@ describe("a cabinet above the bound is refused, one at it is priced", () => {
       deepCabinetPercent: MAX_DEEP_CABINET_PERCENT,
       cabinetRules: anchoredRules(() => anchorMinor),
     });
-    const catalog = buildKitchenLBodyCatalog(700);
+    const catalog = buildKitchenLBodyCatalog(DEEP_CABINET_DEPTH_MM);
     const onlyBase = KITCHEN_L_DESIGN.placements.filter(
       (placement) => placement.body.buildId === "base-drawer3-600",
     );
@@ -139,7 +140,10 @@ describe("a cabinet above the bound is refused, one at it is priced", () => {
       design: {
         ...KITCHEN_L_DESIGN,
         placements: onlyBase,
-        settings: { ...KITCHEN_L_DESIGN.settings, cabinetDepthMm: 700 },
+        settings: {
+          ...KITCHEN_L_DESIGN.settings,
+          cabinetDepthMm: DEEP_CABINET_DEPTH_MM,
+        },
       },
       catalog,
       book,

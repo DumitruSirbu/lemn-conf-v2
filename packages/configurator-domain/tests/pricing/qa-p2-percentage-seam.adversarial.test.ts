@@ -1177,7 +1177,7 @@ describe("hostile percentages are refused before any price is formed", () => {
     const tiers = book.material.tiers.map((tier) => ({
       ...tier,
       percentOfCabinets: 1,
-    }));
+    })) as unknown as PriceBook["material"]["tiers"];
 
     const failure = refusalOf(
       requestOf(
@@ -1201,7 +1201,7 @@ describe("hostile percentages are refused before any price is formed", () => {
     const tiers = book.material.tiers.map((tier) => ({
       ...tier,
       wholeKitchenMinor: 5_000,
-    }));
+    })) as unknown as PriceBook["material"]["tiers"];
 
     const failure = refusalOf(
       requestOf(

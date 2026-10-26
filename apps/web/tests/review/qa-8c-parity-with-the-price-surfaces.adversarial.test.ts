@@ -219,9 +219,13 @@ function rawWholeKitchenRowsOf(
   priced: PricedDesign,
 ): readonly PrintedRow[] {
   return priced.lines.flatMap((line) => {
-    // The depth line is the percentage form's, which no surface prints until the cut-over (P3); the book these
-    // suites price is the flat one, so none is ever published here.
-    if (line.kind === "cabinet" || line.kind === "depth") return [];
+    if (line.kind === "depth") {
+      throw new Error(
+        `Line "${line.lineId}" is a depth line: unreachable until P3 prints the depth line. The breakdown drops a ` +
+          "kind it has no category word for while the total counts it, so a depth line must fail here, not pass.",
+      );
+    }
+    if (line.kind === "cabinet") return [];
     const tierName =
       line.nameKey === undefined
         ? line.name

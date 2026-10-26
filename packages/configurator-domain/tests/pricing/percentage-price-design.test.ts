@@ -10,6 +10,7 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import {
+  DEEP_CABINET_DEPTH_MM,
   percentageStagesOf,
   TEN_LEI_MINOR,
 } from "../../src/pricing/percentage-lines.js";
@@ -25,6 +26,7 @@ import type {
   PricedDesign,
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { DEFAULT_CABINET_DEPTH_MM } from "../../src/worktop-depth.js";
 import {
   anchoredRules,
   percentageBookOf,
@@ -32,8 +34,8 @@ import {
 } from "./percentage-book-support.js";
 
 const NUM_RUNS = 120;
-const SHALLOW_MM = 600;
-const DEEP_MM = 700;
+const SHALLOW_MM = DEFAULT_CABINET_DEPTH_MM;
+const DEEP_MM = DEEP_CABINET_DEPTH_MM;
 
 const SUPPLIED_BUILD_IDS = SAMPLE_PRICE_BOOK.cabinetRules
   .filter((rule) => rule.suppliedBy !== "customer")

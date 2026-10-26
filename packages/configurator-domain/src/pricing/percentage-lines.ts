@@ -1,17 +1,7 @@
-// The one place a price is rounded: the percentage seam (ADR 0177 A-1). A cabinet's exact priced amount `b` is carried
-// through three nested stages, each rounded half-up to a multiple of 10 lei (1 000 bani) in integer arithmetic:
-//
-//   cabinet  c   = r10(b)
-//   material cm  = r10(b × (100 + m) / 100)
-//   depth    cmd = r10(b × (100 + m) × (100 + d) / 10 000)
-//
-// The cabinet line is `c`, the material line the sum of `cm − c`, the depth line the sum of `cmd − cm`. Lines are
-// differences of rounded stages, so they add to the sum of `cmd` exactly, and one cabinet's three parts add to `cmd`,
-// the figure the dashboard's cabinet preview shows (`percentageStagesOf` is that one function, imported there).
-//
-// The material and depth percentages multiply and never add: the cross term lands in the depth line. Every step is an
-// integer: a fraction, a float or a sum outside the safe range throws `InexactPriceArithmeticError`, which
-// `price-design.ts` converts to a refusal, rather than publishing a figure somebody rounded by accident.
+// The percentage seam (ADR 0177 A-1). A cabinet's exact amount b passes three stages, each r10 (half-up to 1 000 bani):
+//   cabinet c = r10(b); material cm = r10(b × (100 + m) / 100); depth cmd = r10(b × (100 + m) × (100 + d) / 10 000).
+// Lines are the cabinet c and the sums of cm − c and cmd − cm. Integer arithmetic only: an inexact step throws
+// `InexactPriceArithmeticError`.
 import { MAX_PLACEMENTS } from "../design-bounds.js";
 import { cabinetDepthMmOf, type Design } from "../design.js";
 
@@ -115,8 +105,17 @@ export interface CabinetToSplit {
   readonly deepens: boolean;
 }
 
+/** A cabinet beside its own first-stage amount, so no caller pairs the two by position. */
+export interface SplitCabinet<TCabinet extends CabinetToSplit> {
+  readonly cabinet: TCabinet;
+  readonly cabinetMinor: number;
+}
+
 /** What the cabinets add up to, line by line. `cabinetMinors` follows the input order. */
-export interface PercentageSplit {
+export interface PercentageSplit<
+  TCabinet extends CabinetToSplit = CabinetToSplit,
+> {
+  readonly cabinets: readonly SplitCabinet<TCabinet>[];
   readonly cabinetMinors: readonly number[];
   readonly materialLineMinor: number;
   readonly depthLineMinor: number;
@@ -124,14 +123,11 @@ export interface PercentageSplit {
 
 /** Every cabinet through the three stages, then the two lines as sums of differences. The cabinets, the material line
  *  and the depth line add to the sum of the third stage, whatever the order of the cabinets. */
-export function splitCabinetsByPercentage(
-  cabinets: readonly CabinetToSplit[],
-  rates: {
-    readonly materialPercent: number;
-    readonly deepCabinetPercent: number;
-  },
-): PercentageSplit {
-  const cabinetMinors: number[] = [];
+export function splitCabinetsByPercentage<TCabinet extends CabinetToSplit>(
+  cabinets: readonly TCabinet[],
+  rates: CabinetPercentages,
+): PercentageSplit<TCabinet> {
+  const split: SplitCabinet<TCabinet>[] = [];
   let materialLineMinor = 0;
   let depthLineMinor = 0;
   for (const cabinet of cabinets) {
@@ -139,7 +135,7 @@ export function splitCabinetsByPercentage(
       materialPercent: rates.materialPercent,
       deepCabinetPercent: cabinet.deepens ? rates.deepCabinetPercent : 0,
     });
-    cabinetMinors.push(stages.cabinetMinor);
+    split.push({ cabinet, cabinetMinor: stages.cabinetMinor });
     materialLineMinor = checked(
       materialLineMinor + (stages.withMaterialMinor - stages.cabinetMinor),
       "the material line",
@@ -149,7 +145,12 @@ export function splitCabinetsByPercentage(
       "the depth line",
     );
   }
-  return { cabinetMinors, materialLineMinor, depthLineMinor };
+  return {
+    cabinets: split,
+    cabinetMinors: split.map(({ cabinetMinor }) => cabinetMinor),
+    materialLineMinor,
+    depthLineMinor,
+  };
 }
 
 /** Whether the design is built at the depth the deepening uplift applies at. */
