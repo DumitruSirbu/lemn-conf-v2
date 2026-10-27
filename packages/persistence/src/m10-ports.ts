@@ -337,9 +337,14 @@ export type DisplayedRevisionAhead = typeof DISPLAYED_REVISION_AHEAD;
 
 /**
  * `not-found` is the one kitchen refusal: unknown, malformed, deleted by its client, or an unsent draft (P-L3-4).
+ *
+ * `ok` carries `changedAfterSeen`: whether the kitchen's revision still differs from the seen revision the mark left
+ * stored (`greatest(held, displayed)`), computed by the statement that wrote the mark, so a save landing between load and
+ * mark answers `true` and a mark of the current revision answers `false` (rulings K2-Q1, K2-Q3). It is `false` for an
+ * account-held kitchen never sent, which never shows the badge (A-12). The revision stays opaque above SQL.
  */
 export type MarkKitchenSeenResult =
-  | { readonly kind: "ok" }
+  | { readonly kind: "ok"; readonly changedAfterSeen: boolean }
   | { readonly kind: "not-found" }
   | DisplayedRevisionAhead;
 

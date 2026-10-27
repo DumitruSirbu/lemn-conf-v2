@@ -68,6 +68,30 @@ export function isRevisionAhead(candidate: string, head: string): boolean {
   return candidate > head;
 }
 
+export interface ChangedAfterSeenFacts {
+  readonly isSent: boolean;
+  readonly revision: string;
+  /** The revision staff last marked seen, when anyone has. */
+  readonly seenRevision: string | undefined;
+  /** The design revision on the kitchen's latest submission, which stands for the mark until there is one. */
+  readonly latestSubmissionRevision: string | undefined;
+}
+
+/**
+ * The stand-in for the SQL every staff statement repeats: `sent_at is not null and revision <> coalesce(seen_revision,
+ * latest_submission.design_revision)`. A kitchen with neither a mark nor a submission is **not** changed, as the null
+ * comparison in SQL is not true; one never sent is never changed (A-12). Equality only: nothing here orders two
+ * revisions. For the fakes alone: the Neon stores compare in SQL.
+ */
+export function isChangedAfterSeen(facts: ChangedAfterSeenFacts): boolean {
+  const effectiveSeen = facts.seenRevision ?? facts.latestSubmissionRevision;
+  return (
+    facts.isSent &&
+    effectiveSeen !== undefined &&
+    facts.revision !== effectiveSeen
+  );
+}
+
 /**
  * A revision that only a successful write advances, as `revision = revision + 1` is in SQL. The count is private and
  * is only ever shown as text.

@@ -811,7 +811,7 @@ describe("the reader's visibility test, repeated", () => {
     );
     const readOne = normalised(loneStatement());
     resetQueryDriver();
-    answerQueryWith([{ total: 0, id: null }]);
+    answerQueryWith([{ total: 0, changed_count: 0, id: null }]);
     await new NeonStaffKitchenReader(WELL_FORMED_UNREACHABLE_VALUE).listPage({
       segment: "all",
       status: null,

@@ -5,7 +5,13 @@ import { neon } from "@neondatabase/serverless";
 import { nanoid } from "nanoid";
 import { afterAll, describe, expect, it } from "vitest";
 
+import { NeonKitchenChangeStore } from "../src/neon-kitchen-change-store.js";
 import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
+import {
+  KITCHEN_SEEN,
+  auditRecordOf,
+} from "./support/dashboard-contract-support.js";
+import { createNeonDashboardStaffWorld } from "./support/neon-dashboard-world.js";
 import {
   announceSkippedLiveSuite,
   isLiveTestDatabaseConfigured,
@@ -68,11 +74,15 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   const designIds: string[] = [];
   const clientRequestIds: string[] = [];
   const noteIds: string[] = [];
+  // The staff members who mark kitchens seen: signed in by the dashboard world, which also deletes their rows.
+  const staff = createNeonDashboardStaffWorld(liveTestDatabaseUrl);
 
   afterAll(async () => {
     if (!isLiveTestDatabaseConfigured) return;
     await sql()`delete from design_notes where design_id = any(${designIds}) or id = any(${noteIds})`;
     await sql()`delete from design_request_states where design_id = any(${designIds})`;
+    await sql()`delete from design_staff_seen where design_id = any(${designIds})`;
+    await staff.removeTheRowsItMinted();
     await sql()`delete from contact_submissions where client_request_id = any(${clientRequestIds})`;
     await sql()`delete from designs where id = any(${designIds})`;
     await sql()`delete from accounts where id = any(${accountIds})`;
@@ -158,12 +168,31 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           insert into contact_submissions (client_request_id, reference, design_id, design_revision, payload_digest,
             created_at, name, phone, phone_normal_form, locality, channel, email, consent_text_version, locale,
             design_document, priced)
-          values (${clientRequestId}, ${reference}, ${spec.designId}, 1, ${randomBytes(32).toString("hex")},
+          values (${clientRequestId}, ${reference}, ${spec.designId}, ${spec.designRevision ?? "1"}::bigint,
+            ${randomBytes(32).toString("hex")},
             ${spec.createdAt.toISOString()}::timestamptz, ${REQUEST_NAME_MARKER}, ${REQUEST_PHONE_MARKER},
             ${REQUEST_PHONE_MARKER}, ${REQUEST_LOCALITY_MARKER}, ${REQUEST_CHANNEL_MARKER}, ${REQUEST_EMAIL_MARKER},
-            '1', 'ro', '{}'::jsonb, '{}'::jsonb)
+            '1', 'ro', '{}'::jsonb, ${JSON.stringify(spec.pricedTotal ?? {})}::jsonb)
         `;
         return { clientRequestId, reference };
+      },
+      async saveKitchen(designId): Promise<string> {
+        const rows = await sql()`
+          update designs set revision = revision + 1 where id = ${designId} returning revision::text as revision
+        `;
+        return (rows[0] as { revision: string }).revision;
+      },
+      async markSeen(designId, displayedRevision): Promise<void> {
+        const staffMember = await staff.world.aStaffMember();
+        const changes = new NeonKitchenChangeStore(liveTestDatabaseUrl);
+        const result = await changes.markSeen({
+          designId,
+          displayedRevision,
+          audit: auditRecordOf(staffMember, KITCHEN_SEEN),
+        });
+        if (result.kind !== "ok") {
+          throw new Error(`the mark was refused: ${result.kind}`);
+        }
       },
       async aSentCopy(spec): Promise<void> {
         const document =

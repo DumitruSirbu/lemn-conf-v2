@@ -4,6 +4,13 @@ import { nanoid } from "nanoid";
 import { describe, expect, it } from "vitest";
 
 import { FakeStaffKitchenReader } from "../src/fake-staff-kitchen-reader.js";
+import type { PlantedStaffKitchen } from "../src/fake-staff-kitchen-reader.js";
+import {
+  KITCHEN_SEEN,
+  auditRecordOf,
+} from "./support/dashboard-contract-support.js";
+import type { DashboardStaffMember } from "./support/dashboard-contract-support.js";
+import { newFakeDashboardWorld } from "./support/fake-dashboard-world.js";
 import {
   CURRENT_DESIGN,
   describeStaffKitchenReaderContract,
@@ -40,7 +47,8 @@ function randomText(alphabet: string, length: number): string {
 function newFakeWorld(): KitchenWorld & {
   readonly fake: FakeStaffKitchenReader;
 } {
-  const fake = new FakeStaffKitchenReader();
+  const dashboard = newFakeDashboardWorld();
+  const fake = new FakeStaffKitchenReader({ seen: dashboard.changes });
   const marker = randomText(
     "abcdefghijklmnopqrstuvwxyz0123456789",
     MARKER_LENGTH,
@@ -48,6 +56,31 @@ function newFakeWorld(): KitchenWorld & {
   let eraCount = 0;
   let accountCount = 0;
   let requestCount = 0;
+  const planted = new Map<string, PlantedStaffKitchen>();
+  const saveCounts = new Map<string, number>();
+  let staffMember: Promise<DashboardStaffMember> | undefined;
+
+  function revisionOf(designId: string): string {
+    return String(saveCounts.get(designId) ?? 1);
+  }
+
+  function plant(kitchen: PlantedStaffKitchen): void {
+    planted.set(kitchen.id, kitchen);
+    fake.plantKitchen({ ...kitchen, revision: revisionOf(kitchen.id) });
+  }
+
+  /** The change store holds its own copy of the rows the mark reads, as the two fakes stand for one `designs` table. */
+  function plantInChangeStore(kitchen: PlantedStaffKitchen): void {
+    dashboard.changes.plantKitchen({
+      designId: kitchen.id,
+      ...(kitchen.accountId === null ? {} : { accountId: kitchen.accountId }),
+      ...(kitchen.sentAt === null ? {} : { sentAt: kitchen.sentAt }),
+      updatedAt: kitchen.updatedAt,
+      revision: revisionOf(kitchen.id),
+      isDeletedByClient: kitchen.isDeletedByClient,
+      reference: `REF-${kitchen.id}`,
+    });
+  }
 
   function anEmail(): string {
     accountCount += 1;
@@ -93,7 +126,7 @@ function newFakeWorld(): KitchenWorld & {
     },
     aKitchen(spec): Promise<string> {
       const id = spec.id ?? nanoid();
-      fake.plantKitchen({
+      plant({
         id,
         name: spec.name ?? null,
         design: spec.document === "unreadable" ? null : CURRENT_DESIGN,
@@ -114,8 +147,31 @@ function newFakeWorld(): KitchenWorld & {
         designId: spec.designId,
         reference,
         createdAt: spec.createdAt,
+        designRevision: spec.designRevision ?? "1",
+        pricedTotal: spec.pricedTotal ?? null,
       });
       return Promise.resolve({ clientRequestId, reference });
+    },
+    saveKitchen(designId): Promise<string> {
+      const kitchen = planted.get(designId);
+      if (kitchen === undefined) throw new Error("no such kitchen was planted");
+      saveCounts.set(designId, (saveCounts.get(designId) ?? 1) + 1);
+      plant(kitchen);
+      return Promise.resolve(revisionOf(designId));
+    },
+    async markSeen(designId, displayedRevision): Promise<void> {
+      const kitchen = planted.get(designId);
+      if (kitchen === undefined) throw new Error("no such kitchen was planted");
+      plantInChangeStore(kitchen);
+      staffMember ??= dashboard.aStaffMember();
+      const result = await dashboard.changes.markSeen({
+        designId,
+        displayedRevision,
+        audit: auditRecordOf(await staffMember, KITCHEN_SEEN),
+      });
+      if (result.kind !== "ok") {
+        throw new Error(`the mark was refused: ${result.kind}`);
+      }
     },
     aSentCopy(spec): Promise<void> {
       fake.plantSentCopy({

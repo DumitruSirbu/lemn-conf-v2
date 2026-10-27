@@ -1,14 +1,18 @@
 import {
+  PRICE_BOOK_CURRENCY,
   STAFF_KITCHEN_PAGE_SIZE,
   migrateDesign,
 } from "@lemnaria/configurator-domain";
 import type { Design, StaffKitchenQuery } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
+import { isDesignRevision } from "./design-revision.js";
+import type { DesignRevision } from "./design-revision.js";
 import { reducedCauseOf } from "./migration-errors.js";
 import type { ReducedCause } from "./migration-errors.js";
 import {
   instantFromEpochMilliseconds,
+  isCount,
   isMissingGrantOrTable,
   isRecord,
   pagedRowsFrom,
@@ -34,6 +38,7 @@ import type {
   StaffKitchenReaderOperation,
   StaffKitchenReading,
   StaffKitchenRequest,
+  StaffKitchenSentTotal,
   StaffKitchenStatus,
   StaffListedKitchen,
 } from "./staff-kitchen-reader.js";
@@ -48,15 +53,20 @@ type ApplicationSql = NeonQueryFunction<false, false>;
 const LIST_OPERATION = "list staff kitchens";
 const READ_OPERATION = "read a staff kitchen";
 
+/** The text of a stored total: a whole number, no sign and no fraction, as `jsonb` prints an integer. */
+const WHOLE_NUMBER_TEXT = /^(0|[1-9][0-9]{0,15})$/;
+
 /**
  * `StaffKitchenReader` on Neon Postgres, over `designs`, joined to `accounts`, `design_request_states`,
- * `contact_submissions` and `contact_submission_views`, and reading `design_notes` (migrations `0008`, `0010`, `0012`,
- * `0015`-`0017`, `0021`, `0022`). Every statement is a read, written in `staff-kitchen-statements.ts`.
+ * `design_staff_seen`, `contact_submissions` and `contact_submission_views`, and reading `design_notes` (migrations
+ * `0008`, `0010`, `0012`, `0015`-`0017`, `0021`, `0022`, `0026`). Every statement is a read, written in
+ * `staff-kitchen-statements.ts`.
  *
  * A kitchen its client deleted is excluded by every statement; one it hid is not. The `contact_submissions` clause
- * names only the seven columns the application role may select, among them `reference`, `client_request_id`,
- * `design_id` and `created_at`, never a column the client typed, and `accounts` is read for its e-mail, name and phone
- * alone.
+ * names only the seven columns the application role may select (among them `reference`, `client_request_id`,
+ * `design_id`, `design_revision` and `created_at`) and `priced`, the one column `0026`'s grant adds, of which it takes
+ * the total and the currency alone, never a column the client typed; `accounts` is read for its e-mail, name and phone
+ * alone. Whether a kitchen changed after staff saw it is judged in SQL, and the revision stays opaque here.
  */
 export class NeonStaffKitchenReader implements StaffKitchenReader {
   private readonly sql: ApplicationSql;
@@ -149,9 +159,13 @@ function unexpectedAnswer(
 
 function pageFrom(rows: readonly Row[], page: number): StaffKitchenPage {
   const paged = pagedRowsFrom(rows, STAFF_KITCHEN_PAGE_SIZE);
-  if (paged === undefined) throw unexpectedAnswer(LIST_OPERATION);
+  const changedCount = rows[0]?.["changed_count"];
+  if (paged === undefined || !isCount(changedCount)) {
+    throw unexpectedAnswer(LIST_OPERATION);
+  }
   return {
     total: paged.total,
+    changedCount,
     page,
     pageSize: STAFF_KITCHEN_PAGE_SIZE,
     kitchens: paged.found.map(listedKitchenFrom),
@@ -174,6 +188,7 @@ function listedKitchenFrom(row: Row): StaffListedKitchen {
       isSent,
       storedStatus: optionalText(row["stored_status"], operation),
     }),
+    isChangedSinceSeen: requiredBoolean(row["is_changed"], operation),
   };
 }
 
@@ -190,6 +205,11 @@ function detailFrom(row: Row, noteRows: readonly Row[]): StaffKitchenDetail {
   return {
     id: requiredText(row["id"], operation),
     name: optionalText(row["name"], operation),
+    revision: revisionFrom(row["revision"], operation),
+    isChangedSinceSeen: requiredBoolean(
+      row["is_changed_since_seen"],
+      operation,
+    ),
     design: readableDesignOrNull(row["schema_version"], row["document"]),
     isSent,
     isHidden: requiredBoolean(row["is_hidden"], operation),
@@ -197,6 +217,7 @@ function detailFrom(row: Row, noteRows: readonly Row[]): StaffKitchenDetail {
     updatedAt: requiredInstant(row["updated_ms"], operation),
     client: clientFrom(row, operation),
     request: requestFrom(row, operation),
+    sentTotal: sentTotalFrom(row, operation),
     asSent: readableDesignOrNull(
       row["sent_schema_version"],
       row["sent_document"],
@@ -228,6 +249,37 @@ function requestFrom(
   const reference = optionalText(row["request_reference"], operation);
   if (reference === null) return null;
   return { reference, sentAt: requiredInstant(row["request_ms"], operation) };
+}
+
+/** The revision as `designs.revision::text` prints it: a digit run that is a revision, and opaque from here on. */
+function revisionFrom(
+  value: unknown,
+  operation: StaffKitchenReaderOperation,
+): DesignRevision {
+  const revision = requiredText(value, operation);
+  if (!isDesignRevision(revision)) throw unexpectedAnswer(operation);
+  return revision;
+}
+
+/**
+ * The total stored with the latest request, from the two members of its snapshot the statement selects. A request
+ * without a snapshot, or a snapshot with no numeric total, stored nothing to show: `null`. A total that is present but
+ * is not a whole number a `number` holds exactly, or a currency this build does not price in, is not this reply.
+ */
+function sentTotalFrom(
+  row: Row,
+  operation: StaffKitchenReaderOperation,
+): StaffKitchenSentTotal | null {
+  const totalText = optionalText(row["priced_total_minor"], operation);
+  if (totalText === null) return null;
+  const totalMinor = Number(totalText);
+  const currency = optionalText(row["priced_currency"], operation);
+  const isStoredTotal =
+    WHOLE_NUMBER_TEXT.test(totalText) &&
+    Number.isSafeInteger(totalMinor) &&
+    currency === PRICE_BOOK_CURRENCY;
+  if (!isStoredTotal) throw unexpectedAnswer(operation);
+  return { totalMinor, currency };
 }
 
 function statusFrom(

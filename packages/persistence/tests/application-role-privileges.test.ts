@@ -1,5 +1,7 @@
 import {
   CURRENT_SCHEMA_VERSION,
+  DIGEST_STOPPING_STATUSES,
+  DIGEST_WINDOW_MS,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
@@ -13,6 +15,12 @@ import {
   readCurrentAvailabilityStatement,
   setItemActiveStatement,
 } from "../src/catalogue-availability-statements.js";
+import {
+  claimDigestDayStatement,
+  listDigestEligibleStatement,
+  markSeenStatement,
+  recordDigestedStatement,
+} from "../src/kitchen-change-statements.js";
 import {
   listVersionsStatement,
   publishStatement,
@@ -37,7 +45,8 @@ import {
 } from "../src/staff-kitchen-statements.js";
 import { columnsHolding, columnsOf } from "./support/column-privileges.js";
 import {
-  READABLE_COLUMNS,
+  PERSONAL_COLUMNS,
+  READABLE_COLUMNS_WITH_0026,
   UPDATABLE_COLUMNS,
 } from "./support/contact-submission-columns.js";
 import {
@@ -393,8 +402,9 @@ interface StaffTableGrant {
   /** The columns of the `UPDATE` grant. */
   readonly updatable: readonly string[];
   /** The tail of an insert that names a column left out of the grant on purpose (a stamped column, or any column of a
-   *  seeded singleton), so that a leaked credential cannot write it: type-correct, so the refusal is for privilege. */
-  readonly refusedInsertTail: string;
+   *  seeded singleton), so that a leaked credential cannot write it: type-correct, so the refusal is for privilege.
+   *  `null` when every column of the table is in the `INSERT` grant, so no insert can be refused for a column. */
+  readonly refusedInsertTail: string | null;
   /** A column left out of the `UPDATE` grant. */
   readonly notUpdatable: string;
   /** The tail of an insert of the shape the store will send, naming only granted columns; `null` for a table the
@@ -540,6 +550,42 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
     updateTail: null,
     insertTail: `(revision, item_kind, item_id, active, changed_by_account_id) values (1, 'material', 'a-probe', false, '${A_PROBE_ID}')`,
   },
+  {
+    table: "public.design_staff_seen",
+    columns: ["design_id", "seen_revision", "seen_by_account_id", "seen_at"],
+    insertable: ["design_id", "seen_revision", "seen_by_account_id"],
+    updatable: ["seen_revision", "seen_by_account_id", "seen_at"],
+    refusedInsertTail: "(seen_at) values (now())",
+    notUpdatable: "design_id",
+    updateTail: null,
+    insertTail:
+      `(design_id, seen_revision, seen_by_account_id) values ('${A_PROBE_ID}', 1, '${A_PROBE_ID}') ` +
+      "on conflict (design_id) do update set seen_revision = greatest(design_staff_seen.seen_revision, excluded.seen_revision), " +
+      "seen_by_account_id = excluded.seen_by_account_id, seen_at = now()",
+  },
+  {
+    table: "public.staff_change_digest_rounds",
+    columns: ["day_key", "claimed_at", "sent_count"],
+    insertable: ["day_key"],
+    updatable: ["sent_count"],
+    refusedInsertTail: "(day_key, claimed_at) values ('2000-01-01', now())",
+    notUpdatable: "day_key",
+    updateTail: "set sent_count = 1 where day_key = '2000-01-01'",
+    insertTail:
+      "(day_key) values ('2000-01-01') on conflict (day_key) do nothing",
+  },
+  {
+    table: "public.staff_change_digest_entries",
+    columns: ["day_key", "design_id", "revision"],
+    insertable: ["day_key", "design_id", "revision"],
+    updatable: [],
+    // Every column is insertable and the table stamps none, so no insert names a column the grant leaves out; the
+    // entries are held only by the absence of UPDATE and DELETE, which the two refusals below prove.
+    refusedInsertTail: null,
+    notUpdatable: "revision",
+    updateTail: null,
+    insertTail: `(day_key, design_id, revision) values ('2000-01-01', '${A_PROBE_ID}', 1) on conflict (day_key, design_id) do nothing`,
+  },
 ];
 
 /** The tables the staff kitchen reader's statements read. */
@@ -549,6 +595,7 @@ const STAFF_READER_TABLES = [
   "public.contact_submissions",
   "public.contact_submission_views",
   "public.design_request_states",
+  "public.design_staff_seen",
   "public.design_notes",
 ];
 
@@ -774,7 +821,7 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
   // `where false`, a delete and an update of an id that does not exist. The expected sets are named and the columns come
   // from the catalog, so a column added later is unread until someone names it here.
   guardedTest(
-    "holds insert on public.contact_submissions, select on exactly its seven readable columns and update on notified_at alone, once it exists",
+    "holds insert on public.contact_submissions, select on exactly its seven readable columns and priced (the 0026 grant) and update on notified_at alone, once it exists",
     async (context) => {
       const sql = neon(readDatabaseUrl());
       const [tableProbe] = (await sql`
@@ -799,7 +846,7 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
         CONTACT_SUBMISSIONS,
         "UPDATE",
       );
-      expect(readable).toEqual([...READABLE_COLUMNS].sort());
+      expect(readable).toEqual([...READABLE_COLUMNS_WITH_0026].sort());
       expect(updatable).toEqual([...UPDATABLE_COLUMNS].sort());
       expect(
         await columnsHolding(sql, CONTACT_SUBMISSIONS, "REFERENCES"),
@@ -1143,11 +1190,13 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
         expect(
           await failureOf(`explain delete from ${grant.table}`),
         ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
-        expect(
-          await failureOf(
-            `explain insert into ${grant.table} ${grant.refusedInsertTail}`,
-          ),
-        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        if (grant.refusedInsertTail !== null) {
+          expect(
+            await failureOf(
+              `explain insert into ${grant.table} ${grant.refusedInsertTail}`,
+            ),
+          ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        }
         expect(
           await failureOf(
             `explain update ${grant.table} set ${grant.notUpdatable} = ${grant.notUpdatable}`,
@@ -1292,6 +1341,13 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
           search: null,
           page: 2,
         }),
+        staffKitchenListStatement(recordedStatement, {
+          segment: "sent",
+          status: null,
+          search: null,
+          page: 1,
+          onlyChanged: true,
+        }),
         staffKitchenStatement(recordedStatement, "0".repeat(21)),
         staffKitchenNotesStatement(recordedStatement, "0".repeat(21)),
       ]) {
@@ -1302,6 +1358,100 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       expect(
         await failureOf(`explain select name from ${CONTACT_SUBMISSIONS}`),
       ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
+  // M10 wave S4 (migration `0026`, ADR 0178 F2): the one column the owner's grant adds to the seven. Green with
+  // `GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;` and red without it (the first plan below
+  // is refused with 42501). The controls show the grant is no wider: every personal column, and the snapshot of the
+  // document, are still refused, and a statement that names `priced` beside a personal column is refused whole.
+  guardedTest(
+    "can plan a read of contact_submissions.priced alone, and cannot plan a read of any personal column or of the document, once the grant is issued",
+    async (context) => {
+      await skipUnlessTheTableExists(context, CONTACT_SUBMISSIONS);
+
+      await expect(
+        neon(readDatabaseUrl()).query(
+          `explain select priced from ${CONTACT_SUBMISSIONS}`,
+        ),
+      ).resolves.toBeDefined();
+      await expect(
+        neon(readDatabaseUrl()).query(
+          `explain select priced -> 'totalMinor', design_revision from ${CONTACT_SUBMISSIONS}`,
+        ),
+      ).resolves.toBeDefined();
+      for (const column of [...PERSONAL_COLUMNS, "design_document"]) {
+        expect(
+          await failureOf(
+            `explain select ${quoted(column)} from ${CONTACT_SUBMISSIONS}`,
+          ),
+          column,
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+        expect(
+          await failureOf(
+            `explain select priced, ${quoted(column)} from ${CONTACT_SUBMISSIONS}`,
+          ),
+          column,
+        ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+      }
+      expect(
+        await failureOf(`explain select * from ${CONTACT_SUBMISSIONS}`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
+  // M10 wave S4: the seen mark's and the digest's four statements, the stores' own text built by the same functions,
+  // planned and never run (`explain` runs no data-modifying branch). Each reads or writes several tables through column
+  // grants, so a column a statement names that the role was not granted is a 42501 here and not at the first mark.
+  guardedTest(
+    "can have the kitchen change store's mark, claim, list and record statements planned, once the tables exist",
+    async (context) => {
+      for (const table of [
+        "public.design_staff_seen",
+        "public.staff_change_digest_rounds",
+        "public.staff_change_digest_entries",
+        "public.staff_audit_events",
+        "public.account_sessions",
+        "public.accounts",
+        "public.designs",
+        "public.design_request_states",
+      ]) {
+        await skipUnlessTheTableExists(context, table);
+      }
+      const audit = prepareStaffAuditRecord({
+        sessionTokenHash: "a".repeat(64),
+        idleLifetimeSeconds: {
+          client: 2_592_000,
+          operator: 43_200,
+          administrator: 43_200,
+        },
+        entry: { action: "kitchen-seen", detail: {} } as never,
+        designId: "0".repeat(21),
+        subjectAccountId: null,
+      });
+
+      for (const statement of [
+        markSeenStatement(recordedStatement, {
+          designId: "0".repeat(21),
+          displayedRevision: "1",
+          audit,
+        }),
+        claimDigestDayStatement(recordedStatement, "2000-01-01"),
+        listDigestEligibleStatement(recordedStatement, {
+          nowIso: "2026-10-27T05:00:00.000Z",
+          windowMilliseconds: DIGEST_WINDOW_MS,
+          stoppingStatuses: DIGEST_STOPPING_STATUSES,
+        }),
+        recordDigestedStatement(recordedStatement, {
+          roundId: "2000-01-01",
+          designIds: ["0".repeat(21)],
+          revisions: ["1"],
+        }),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
     },
   );
 });

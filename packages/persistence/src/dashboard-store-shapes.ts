@@ -1,6 +1,7 @@
 import { HandleSchema } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
+import { isDesignRevision } from "./design-revision.js";
 import type { PublishPriceBookRequest } from "./m10-ports.js";
 
 // The shapes the M10 stores refuse before any statement: the fakes and the Neon stores share them, so both turn away
@@ -88,6 +89,19 @@ export function isListablePage(page: number): boolean {
 /** A revision as a head or a row holds it: a digit run from 0, no leading zero, as wide as a `bigint`. */
 const REVISION_SHAPE = /^(0|[1-9][0-9]{0,18})$/;
 
+const DAY_KEY_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Whether the text is a calendar day as `YYYY-MM-DD`: a month 01 to 12 and a day the month has. The digest's day key
+ * (`0027`'s `rounds.day_key`) is judged by this before any statement, and the table's check repeats the shape.
+ */
+export function isCalendarDay(value: unknown): value is string {
+  if (typeof value !== "string" || !DAY_KEY_SHAPE.test(value)) return false;
+  const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 /** The widest revision a `bigint` column holds: a 19-digit run above it is a revision SQL would refuse to cast. */
 const WIDEST_REVISION = "9223372036854775807";
 
@@ -97,6 +111,19 @@ export function isRevisionShape(value: unknown): value is string {
     typeof value === "string" &&
     REVISION_SHAPE.test(value) &&
     !isWiderThanABigint(value)
+  );
+}
+
+/**
+ * Whether the text is a revision a design can hold (`design-revision.ts`: a positive digit run, no leading zero) and a
+ * `bigint` column can store, so a statement's cast of it cannot fail. The seen mark and the digest's entries are judged by
+ * this before any statement.
+ */
+export function isStorableDesignRevision(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    isDesignRevision(value) &&
+    isRevisionShape(value)
   );
 }
 

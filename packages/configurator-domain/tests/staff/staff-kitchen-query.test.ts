@@ -434,3 +434,69 @@ describe("staffKitchenOffsetOf: the rows before a page", () => {
     },
   );
 });
+
+describe("readStaffKitchenQuery: the onlyChanged member (ADR 0178 A-12)", () => {
+  it("reads the text `true` as a request for the changed kitchens, beside the other members", () => {
+    expect(queryOf({ onlyChanged: "true" })).toEqual({
+      segment: "sent",
+      status: null,
+      search: null,
+      page: 1,
+      onlyChanged: true,
+    });
+    expect(
+      queryOf({ segment: "all", q: "ana", page: "3", onlyChanged: "true" }),
+    ).toMatchObject({
+      segment: "all",
+      search: "ana",
+      page: 3,
+      onlyChanged: true,
+    });
+  });
+
+  it("leaves the member out when it is absent or empty, so a query that does not ask has no member at all", () => {
+    expect(Object.keys(queryOf({})).sort()).toEqual([
+      "page",
+      "search",
+      "segment",
+      "status",
+    ]);
+    expect(queryOf({ onlyChanged: "" })).toEqual(queryOf({}));
+    expect(queryOf({ onlyChanged: undefined })).toEqual(queryOf({}));
+  });
+
+  it.each(["false", "True", "TRUE", "1", "yes", " true", "true ", "on"])(
+    "refuses %j as an unknown value for the field",
+    (value) => {
+      expect(issuesOf({ onlyChanged: value })).toEqual([
+        { field: "onlyChanged", code: "UNKNOWN_VALUE" },
+      ]);
+    },
+  );
+
+  it.each([true, 1, ["true"], { value: "true" }, null])(
+    "refuses a value that is not text (%j)",
+    (value) => {
+      expect(issuesOf({ onlyChanged: value })).toEqual([
+        { field: "onlyChanged", code: "NOT_TEXT" },
+      ]);
+    },
+  );
+
+  it("is allowed under every segment and beside a status: the filter narrows, it does not conflict", () => {
+    for (const segment of STAFF_KITCHEN_SEGMENTS) {
+      expect(issuesOf({ segment, onlyChanged: "true" })).toEqual([]);
+    }
+    expect(
+      issuesOf({ segment: "sent", status: "new", onlyChanged: "true" }),
+    ).toEqual([]);
+  });
+
+  it("reports it beside every other wrong field, not instead of them", () => {
+    expect(
+      issuesOf({ segment: "bogus", onlyChanged: "false" }).map(
+        (issue) => issue.field,
+      ),
+    ).toEqual(["segment", "onlyChanged"]);
+  });
+});

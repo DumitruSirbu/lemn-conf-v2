@@ -8,10 +8,12 @@ import {
 } from "@lemnaria/configurator-domain";
 import type {
   Design,
+  PriceBookCurrency,
   RequestStatus,
   StaffKitchenQuery,
 } from "@lemnaria/configurator-domain";
 
+import type { DesignRevision } from "./design-revision.js";
 import type { StaffAuditAccountRef } from "./staff-audit-store.js";
 
 export type StaffKitchenReaderOperation =
@@ -92,11 +94,23 @@ export interface StaffListedKitchen {
   readonly sentAt: Date | null;
   readonly updatedAt: Date;
   readonly requestStatus: ShownStaffStatus;
+  /**
+   * Whether the kitchen changed after staff last saw it: sent, and its revision differs from the seen revision, else
+   * from the latest submission's (ADR 0178 A-12). Judged in SQL; the revision stays opaque above it. `false` for a
+   * kitchen never sent, which never shows the badge.
+   */
+  readonly isChangedSinceSeen: boolean;
 }
 
 export interface StaffKitchenPage {
   /** Every kitchen the query matches, counted in the snapshot of the page. */
   readonly total: number;
+  /**
+   * How many sent kitchens are changed after seen, whatever the segment, status, search and `onlyChanged` of the query:
+   * the number the menu counter shows (A-12). Counted in the snapshot of the page, by the same judgement as
+   * `isChangedSinceSeen`, so it equals the rows an unfiltered `onlyChanged` query returns over all its pages.
+   */
+  readonly changedCount: number;
   readonly page: number;
   readonly pageSize: number;
   readonly kitchens: readonly StaffListedKitchen[];
@@ -126,9 +140,26 @@ export interface StaffKitchenNote {
   readonly author: StaffAuditAccountRef;
 }
 
+/**
+ * The total the latest request was priced at when it was sent, as stored in its snapshot (`contact_submissions.priced`):
+ * never priced again, so a later publish does not move it (ADR 0154). Only these two members of the snapshot are read.
+ */
+export interface StaffKitchenSentTotal {
+  /** Minor units, a whole number a `number` holds exactly. */
+  readonly totalMinor: number;
+  readonly currency: PriceBookCurrency;
+}
+
 export interface StaffKitchenDetail {
   readonly id: string;
   readonly name: string | null;
+  /**
+   * The revision the page displays, as `designs.revision` holds it: an opaque digit string, never parsed, ordered or
+   * incremented above SQL. The page sends it back when it marks the kitchen seen (A-12).
+   */
+  readonly revision: DesignRevision;
+  /** As `StaffListedKitchen.isChangedSinceSeen`: computed in the statement that read `revision`. */
+  readonly isChangedSinceSeen: boolean;
   /** `null` when this build cannot read the stored document. */
   readonly design: Design | null;
   readonly isSent: boolean;
@@ -137,6 +168,11 @@ export interface StaffKitchenDetail {
   readonly updatedAt: Date;
   readonly client: StaffKitchenClient | null;
   readonly request: StaffKitchenRequest | null;
+  /**
+   * The total stored with the latest request; `null` for a kitchen with no request and for a request that stored no
+   * snapshot (an intent request).
+   */
+  readonly sentTotal: StaffKitchenSentTotal | null;
   /** The kitchen as the shop's notice carried it, from the newest unrevoked copy of the latest request; `null` when
    *  none exists or this build cannot read it. */
   readonly asSent: Design | null;
@@ -204,12 +240,13 @@ export function requireValidStaffKitchenQuery(query: StaffKitchenQuery): void {
 }
 
 function isValidStaffKitchenQuery(query: StaffKitchenQuery): boolean {
-  const { segment, status, search, page } = query;
+  const { segment, status, search, page, onlyChanged } = query;
   return (
     STAFF_KITCHEN_SEGMENTS.some((named) => named === segment) &&
     isValidStatusFilter(segment, status) &&
     isValidSearch(search) &&
-    isCountablePage(page)
+    isCountablePage(page) &&
+    (onlyChanged === undefined || typeof onlyChanged === "boolean")
   );
 }
 

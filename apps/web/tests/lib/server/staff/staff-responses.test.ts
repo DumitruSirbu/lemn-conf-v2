@@ -54,11 +54,15 @@ const LISTED = leaky({
   sentAt: WHEN,
   updatedAt: WHEN,
   requestStatus: "new" as const,
+  isChangedSinceSeen: false,
 });
 
 const DETAIL: StaffKitchenDetail = leaky({
   id: "kitchenid000000000001",
   name: "Bucataria",
+  revision: "7",
+  isChangedSinceSeen: false,
+  sentTotal: null,
   design: KITCHEN_L_DESIGN,
   isSent: true,
   isHidden: true,
@@ -107,6 +111,7 @@ function keysOf(value: unknown): string[] {
 describe("the list answer", () => {
   const page: StaffKitchenPage = {
     total: 1,
+    changedCount: 0,
     page: 1,
     pageSize: 20,
     kitchens: [LISTED],

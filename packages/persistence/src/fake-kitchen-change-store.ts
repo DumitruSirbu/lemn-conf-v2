@@ -3,11 +3,14 @@ import {
   DIGEST_WINDOW_MS,
 } from "@lemnaria/configurator-domain";
 
-import { isDesignRevision } from "./design-revision.js";
+import {
+  isCalendarDay,
+  isStorableDesignRevision,
+} from "./dashboard-store-shapes.js";
 import type { DesignRevision } from "./design-revision.js";
 import {
+  isChangedAfterSeen,
   isRevisionAhead,
-  isRevisionShape,
   settle,
 } from "./fake-dashboard-support.js";
 import type { FakeDashboardAuditLedger } from "./fake-dashboard-support.js";
@@ -26,8 +29,6 @@ import type {
   MarkKitchenSeenResult,
 } from "./m10-ports.js";
 import { isActionableDesignId } from "./staff-kitchen-actions-store.js";
-
-const DAY_KEY_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** A kitchen as the seen mark and the digest read it: the columns of `designs` and what joins to them. */
 export interface HeldChangeKitchen {
@@ -126,10 +127,7 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     request: MarkKitchenSeenRequest,
   ): Promise<MarkKitchenSeenResult> {
     const { designId, displayedRevision } = request;
-    if (
-      !isDesignRevision(displayedRevision) ||
-      !isRevisionShape(displayedRevision)
-    ) {
+    if (!isStorableDesignRevision(displayedRevision)) {
       throw new DashboardStoreError(
         "mark a kitchen as seen",
         "invalid-request",
@@ -158,7 +156,7 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
       });
     }
     staged.commit();
-    return { kind: "ok" };
+    return { kind: "ok", changedAfterSeen: this.isChangedSinceSeen(kitchen) };
   }
 
   claimDigestDay(dayKey: DigestDayKey): Promise<ClaimDigestDayResult> {
@@ -175,16 +173,22 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
   }
 
   listDigestEligible(now: Date): Promise<readonly DigestEligibleKitchen[]> {
-    return settle("list the kitchens a digest holds", () =>
-      [...this.kitchens.values()]
+    return settle("list the kitchens a digest holds", () => {
+      if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+        throw new DashboardStoreError(
+          "list the kitchens a digest holds",
+          "invalid-request",
+        );
+      }
+      return [...this.kitchens.values()]
         .filter((kitchen) => this.isDigestEligible(kitchen, now))
         .sort(bySentThenId)
         .flatMap((kitchen) =>
           kitchen.sentAt === undefined
             ? []
             : [digestRowOf(kitchen, kitchen.sentAt)],
-        ),
-    );
+        );
+    });
   }
 
   recordDigested(
@@ -194,7 +198,11 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     return settle("record a digest", () => {
       const isWellFormed =
         this.rounds.some((round) => round.dayKey === roundId) &&
-        entries.every((entry) => isDesignRevision(entry.revision));
+        entries.every(
+          (entry) =>
+            isActionableDesignId(entry.designId) &&
+            isStorableDesignRevision(entry.revision),
+        );
       if (!isWellFormed) {
         throw new DashboardStoreError("record a digest", "invalid-request");
       }
@@ -242,8 +250,12 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
   }
 
   private isChangedSinceSeen(kitchen: HeldChangeKitchen): boolean {
-    const effectiveSeen = this.effectiveSeenRevision(kitchen);
-    return effectiveSeen !== undefined && kitchen.revision !== effectiveSeen;
+    return isChangedAfterSeen({
+      isSent: kitchen.sentAt !== undefined,
+      revision: kitchen.revision,
+      seenRevision: this.marks.get(kitchen.designId)?.seenRevision,
+      latestSubmissionRevision: kitchen.latestSubmissionRevision,
+    });
   }
 
   /** A digest entry, not merely a claimed day, whose revision is above the effective seen one. */
@@ -294,11 +306,4 @@ function bySentThenId(
   const bySent = (left.sentAt?.getTime() ?? 0) - (right.sentAt?.getTime() ?? 0);
   if (bySent !== 0) return bySent;
   return left.designId < right.designId ? -1 : 1;
-}
-
-function isCalendarDay(value: unknown): boolean {
-  if (typeof value !== "string" || !DAY_KEY_SHAPE.test(value)) return false;
-  const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }

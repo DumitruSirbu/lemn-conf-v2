@@ -35,12 +35,14 @@ export interface DashboardAuditToPrepare {
   readonly detail: unknown;
   /** The actions this write may record: any other, though a valid dashboard action, is refused. */
   readonly accepts: readonly DashboardAuditAction[];
+  /** The kitchen the row names, for exactly the actions that name one (`kitchen-seen`); absent for every other. */
+  readonly designId?: string;
 }
 
 /**
  * Checks the session and the entry the way the audit store does (`prepareStaffAuditRecord`) and mints the row's id. A
- * session that is not well formed, an entry the domain refuses, and an action this write may not record are all
- * `invalid-request`, before any statement.
+ * session that is not well formed, an entry the domain refuses, an action this write may not record, and a design id
+ * given to an action that names none (or missing from one that does) are all `invalid-request`, before any statement.
  */
 export function prepareDashboardAudit({
   operation,
@@ -48,8 +50,14 @@ export function prepareDashboardAudit({
   action,
   detail,
   accepts,
+  designId,
 }: DashboardAuditToPrepare): PreparedStaffAuditRecord {
-  const prepared = prepareOrRefuse(operation, session, { action, detail });
+  const prepared = prepareOrRefuse(
+    operation,
+    session,
+    { action, detail },
+    designId ?? null,
+  );
   if (!accepts.some((accepted) => accepted === prepared.entry.action)) {
     throw new DashboardStoreError(operation, "invalid-request");
   }
@@ -60,13 +68,14 @@ function prepareOrRefuse(
   operation: DashboardStoreOperation,
   session: StaffActingSession,
   entry: { readonly action: string; readonly detail: unknown },
+  designId: string | null,
 ): PreparedStaffAuditRecord {
   try {
     return prepareStaffAuditRecord({
       sessionTokenHash: session.sessionTokenHash,
       idleLifetimeSeconds: session.idleLifetimeSeconds,
       entry: entry as StaffAuditEntry,
-      designId: null,
+      designId,
       subjectAccountId: null,
     });
   } catch (refusal) {

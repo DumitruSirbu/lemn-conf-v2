@@ -223,7 +223,7 @@ const EXPECTED_CLASSIFICATION: Readonly<
     gate: "live test database",
     lock: "shared",
     reason:
-      "writes accounts, kitchens, requests, sent copies, statuses and notes under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure and needs the schema intact (M8B Lot 3 L3-S4)",
+      "writes accounts, kitchens, requests, sent copies, statuses, notes, seen marks and their audit rows under random ids it mints, deletes them by those ids when it finishes, asserts no whole-table figure (the changed count is compared with the total of the same statement) and needs the schema intact (M8B Lot 3 L3-S4; M10 wave S4)",
   },
   "neon-account-kitchen-store.notes.live.test.ts": {
     gate: "live test database",
@@ -260,6 +260,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "exclusive",
     reason:
       "the availability contract asserts over a global singleton (the availability head, which every write moves by exactly one) and its log is append-only, so no other run may write the head meanwhile (M10 wave S2, ex-S2b)",
+  },
+  "neon-kitchen-change-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the digest contract lists over the whole designs table and writes about eighty kitchens of its own, and the rounds it claims are append-only for the application role (it leaves them, at day keys in years 3000 to 8999), so no other run may read the digest tables or count designs meanwhile (M10 wave S4, plan S2 recorded choice a)",
   },
   "table-privileges.test.ts": {
     gate: "live test database",

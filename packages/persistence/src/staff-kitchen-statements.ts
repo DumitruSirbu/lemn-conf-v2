@@ -20,6 +20,13 @@ import {
  * shown able to plan. Every one is a read. Every instant is read as epoch milliseconds clamped to what a `Date` holds
  * (`infinity` and years past 275760 read as the nearest one). `least` and `greatest` skip a null, so `sent_at`, which
  * is null on a draft, is tested for null first; `changed_ms` is read only where a status row exists.
+ *
+ * **Changed after seen (ADR 0178 A-12) is judged here, in SQL, and the revision stays opaque above it.** A kitchen is
+ * changed when it was sent, its client has not deleted it, and `designs.revision` differs from the seen revision, or else
+ * from the design revision on its latest submission. The list states that once (the `changed` CTE) and reads it for the row
+ * flag, the `onlyChanged` filter, the changed-first order and the count; the kitchen's statement states it again beside the
+ * revision it displays. `0026`'s grant lets the kitchen's statement read `contact_submissions.priced`, of which it takes the
+ * total and the currency alone.
  */
 
 /**
@@ -27,7 +34,8 @@ import {
  * (a visitor's unsent draft is neither). A tagged template cannot interpolate SQL, so this is the one reference the
  * statements repeat as text: the reader's `readOne` ends its `where` with it, the list's `all` segment is its other
  * form, and the four write statements of `staff-kitchen-actions-statements.ts` contain it (aliased `d`, or bare in the
- * unhide update). Tests assert every copy against this constant, both ways, so a one-sided change fails.
+ * unhide update), as does the seen mark of `kitchen-change-statements.ts` (aliased `d`). Tests assert every copy against
+ * this constant, both ways, so a one-sided change fails.
  */
 export const STAFF_VISIBLE_PREDICATE =
   "d.deleted_by_client_at is null and (d.sent_at is not null or d.account_id is not null)";
@@ -39,22 +47,38 @@ export const STAFF_VISIBLE_PREDICATE =
  */
 export function staffKitchenListStatement<Statement>(
   sql: StatementTag<Statement>,
-  { segment, status, search, page }: StaffKitchenQuery,
+  { segment, status, search, page, onlyChanged }: StaffKitchenQuery,
 ): Statement {
   const pattern = search === null ? null : likePatternContaining(search);
   const foldedPattern =
     search === null
       ? null
       : likePatternContaining(foldRomanianSearchText(search));
+  const isOnlyChanged = onlyChanged === true;
   return sql`
-    with matching as (
+    with latest_submission as (
+      select distinct on (cs.design_id) cs.design_id, cs.design_revision
+      from contact_submissions cs
+      where cs.design_id is not null
+      order by cs.design_id, cs.created_at desc, cs.client_request_id desc
+    ),
+    changed as (
+      select d.id
+      from designs d
+      left join design_staff_seen seen on seen.design_id = d.id
+      left join latest_submission latest on latest.design_id = d.id
+      where d.deleted_by_client_at is null and d.sent_at is not null
+        and d.revision <> coalesce(seen.seen_revision, latest.design_revision)
+    ),
+    matching as (
       select d.id, d.name, d.sent_at, d.updated_at, d.hidden_by_client_at,
         case when ${segment}::text = 'sent' then d.sent_at else d.updated_at end as sorted_at,
         a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
-        s.status as stored_status
+        s.status as stored_status, (c.id is not null) as is_changed
       from designs d
       left join accounts a on a.id = d.account_id
       left join design_request_states s on s.design_id = d.id
+      left join changed c on c.id = d.id
       where d.deleted_by_client_at is null
         and (case ${segment}::text
           when 'sent' then d.sent_at is not null
@@ -66,13 +90,16 @@ export function staffKitchenListStatement<Statement>(
           or a.email_normal_form ilike ${pattern}::text escape '\\'
           or translate(a.name, ${ROMANIAN_CEDILLA_LETTERS}::text, ${ROMANIAN_COMMA_BELOW_LETTERS}::text)
             ilike ${foldedPattern}::text escape '\\')
+        and (not ${isOnlyChanged}::boolean or c.id is not null)
     )
-    select t.total, p.id, p.name, p.is_sent, p.is_hidden, p.sent_ms, p.updated_ms, p.sorted_at,
+    select t.total, (select count(*)::int from changed) as changed_count, p.id, p.name, p.is_sent, p.is_hidden,
+      p.is_changed, p.sent_ms, p.updated_ms, p.sorted_at,
       p.client_id, p.client_email, p.client_name, p.client_phone, p.stored_status,
       p.schema_version, p.document
     from (select count(*)::int as total from matching) t
     left join lateral (
       select m.id, m.name, (m.sent_at is not null) as is_sent, (m.hidden_by_client_at is not null) as is_hidden,
+        m.is_changed,
         case when m.sent_at is null then null
           else floor(least(
             greatest(extract(epoch from m.sent_at) * 1000, -8640000000000000),
@@ -86,10 +113,10 @@ export function staffKitchenListStatement<Statement>(
         kitchen.schema_version, kitchen.document
       from matching m
       left join designs kitchen on kitchen.id = m.id
-      order by m.sorted_at desc, m.id desc
+      order by m.is_changed desc, m.sorted_at desc, m.id desc
       limit ${STAFF_KITCHEN_PAGE_SIZE}::int offset ${staffKitchenOffsetOf(page)}::bigint
     ) p on true
-    order by p.sorted_at desc nulls last, p.id desc
+    order by p.is_changed desc nulls last, p.sorted_at desc nulls last, p.id desc
   `;
 }
 
@@ -105,6 +132,9 @@ export function staffKitchenStatement<Statement>(
 ): Statement {
   return sql`
     select d.id, d.name, d.schema_version, d.document,
+      d.revision::text as revision,
+      (d.sent_at is not null
+        and coalesce(d.revision <> coalesce(seen.seen_revision, request.design_revision), false)) as is_changed_since_seen,
       (d.sent_at is not null) as is_sent, (d.hidden_by_client_at is not null) as is_hidden,
       case when d.sent_at is null then null
           else floor(least(
@@ -117,6 +147,7 @@ export function staffKitchenStatement<Statement>(
       ))::bigint::text as updated_ms,
       a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
       request.reference as request_reference, request.created_ms as request_ms,
+      request.priced_total_minor, request.priced_currency,
       sent_copy.schema_version as sent_schema_version, sent_copy.design_document as sent_document,
       s.status as stored_status, s.changed_by_account_id as changed_by_id,
       floor(least(
@@ -127,11 +158,15 @@ export function staffKitchenStatement<Statement>(
     from designs d
     left join accounts a on a.id = d.account_id
     left join lateral (
-      select cs.reference, cs.client_request_id,
+      select cs.reference, cs.client_request_id, cs.design_revision,
         floor(least(
           greatest(extract(epoch from cs.created_at) * 1000, -8640000000000000),
           8640000000000000
-        ))::bigint::text as created_ms
+        ))::bigint::text as created_ms,
+        case when jsonb_typeof(cs.priced -> 'totalMinor') = 'number' then cs.priced ->> 'totalMinor' end
+          as priced_total_minor,
+        case when jsonb_typeof(cs.priced -> 'currency') = 'string' then cs.priced ->> 'currency' end
+          as priced_currency
       from contact_submissions cs
       where cs.design_id = d.id
       order by cs.created_at desc, cs.client_request_id desc
@@ -145,6 +180,7 @@ export function staffKitchenStatement<Statement>(
       limit 1
     ) sent_copy on true
     left join design_request_states s on s.design_id = d.id
+    left join design_staff_seen seen on seen.design_id = d.id
     left join accounts changer on changer.id = s.changed_by_account_id
     where d.id = ${designId}
       and d.deleted_by_client_at is null
