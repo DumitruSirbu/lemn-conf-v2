@@ -1,8 +1,9 @@
 // Generator and editing oracle for the M1 adversarial QA. Written from plan §8.4 (a) and (b), not from the module under
 // test and not from `change-set-books.ts`: the enumeration of editable fields below spells every field name out, finds
 // customer-supplied rows by their own flag and the default material tier by its own id, and writes an edit by JSON path.
-// Books vary in structure (form, which rules exist, each rule's shape, size lists, which tiers exist, which tier is the
-// default, whether a depth rule exists), not only in value.
+// Books vary in structure (which rules exist, each rule's shape, size lists, which tiers exist, which tier is the
+// default), not only in value. Since the P3 cut-over every book is percentage-form with a depth rule: a book that
+// states neither is one the parser refuses, so the generator no longer makes one.
 import { fc } from "@fast-check/vitest";
 
 import type {
@@ -284,7 +285,6 @@ const hardwareTierArb = fc.record({
 });
 
 export interface BookPlan {
-  readonly isPercentage: boolean;
   readonly keptManufacturerRules: readonly number[];
   readonly formulas: readonly Json[];
   readonly keptHardware: readonly number[];
@@ -300,7 +300,6 @@ export interface BookPlan {
 }
 
 const planArb: fc.Arbitrary<BookPlan> = fc.record({
-  isPercentage: fc.boolean(),
   keptManufacturerRules: fc.subarray(MANUFACTURER_INDEXES, { minLength: 2 }),
   formulas: fc.array(formulaArb, {
     minLength: MANUFACTURER_INDEXES.length,
@@ -332,7 +331,6 @@ function rulesOf(plan: BookPlan): Json[] {
     if (rule["suppliedBy"] === "customer") return [rule];
     const position = MANUFACTURER_INDEXES.indexOf(index);
     if (!plan.keptManufacturerRules.includes(index)) return [];
-    if (!plan.isPercentage) return [rule];
     return [{ ...rule, formula: plan.formulas[position] }];
   });
 }
@@ -353,7 +351,6 @@ function hardwareOf(plan: BookPlan): Json {
 }
 
 function materialOf(plan: BookPlan): Json {
-  if (!plan.isPercentage) return SAMPLE_JSON["material"] as Json;
   const sampleTiers = (SAMPLE_JSON["material"] as Json)["tiers"] as Json[];
   const defaultSource = must(
     plan.keptMaterials[plan.materialDefault % plan.keptMaterials.length],
@@ -381,9 +378,7 @@ function bookOf(plan: BookPlan): Json {
     cabinetRules: rulesOf(plan),
     hardware: hardwareOf(plan),
     material: materialOf(plan),
-    ...(plan.isPercentage
-      ? { depthRule: { deepCabinetPercent: plan.depthPercent } }
-      : {}),
+    depthRule: { deepCabinetPercent: plan.depthPercent },
     accessories: {
       sinkProtectiveCover: {
         ...(accessories["sinkProtectiveCover"] as Json),
@@ -409,15 +404,6 @@ export function parsedBookOf(plan: BookPlan): PriceBook {
 }
 
 export const bookArb: fc.Arbitrary<PriceBook> = planArb.map(parsedBookOf);
-
-/** A percentage-form book whose rules and tiers vary, so cabinet groups have something to group. */
-export const percentageBookArb: fc.Arbitrary<PriceBook> = planArb
-  .map((plan) => ({ ...plan, isPercentage: true }))
-  .map(parsedBookOf);
-
-export const flatBookArb: fc.Arbitrary<PriceBook> = planArb
-  .map((plan) => ({ ...plan, isPercentage: false }))
-  .map(parsedBookOf);
 
 type ValuePick = "zero" | "one" | "max-1" | "max" | "mid";
 const valuePickArb = fc.constantFrom<ValuePick>(
@@ -535,9 +521,8 @@ const FIXED_FORMULAS: readonly Json[] = [
 
 /** A fixed plan: every rule kept, the five formulas in turn, all three tiers of each group, the default material
  *  tier at 0 % and the others at 25 % and 60 %. Hand-written, so no property depends on the generator. */
-export function fixedPlan(isPercentage: boolean): BookPlan {
+export function fixedPlan(): BookPlan {
   return {
-    isPercentage,
     keptManufacturerRules: MANUFACTURER_INDEXES,
     formulas: MANUFACTURER_INDEXES.map((_, position) =>
       must(FIXED_FORMULAS[position % FIXED_FORMULAS.length]),
@@ -560,8 +545,8 @@ export function fixedPlan(isPercentage: boolean): BookPlan {
   };
 }
 
-export function fixedBook(isPercentage: boolean): PriceBook {
-  return parsedBookOf(fixedPlan(isPercentage));
+export function fixedBook(): PriceBook {
+  return parsedBookOf(fixedPlan());
 }
 
 /** The value, or a thrown error: for a lookup the test has already made certain of. */

@@ -1,4 +1,9 @@
 // No figure here is a price: every amount is read off the book under test or one built here (ADR 0001 decision 4).
+//
+// Moved at the M10 P3 cut-over, keeping what each pin protects: a cabinet is priced by an anchor and signed 50 mm steps,
+// a width rounds up to the step before it steps (ADR 0177 A-2), the door term counts the leaves the body is built with
+// against the anchor's (A-3), and a cabinet line is rounded to ten lei (A-1). The door and height coefficients were once
+// per millimetre; they are now per step, so the monotone claims hold across a step and are flat within one.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,11 +35,11 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import type { AnchoredFormula } from "../../src/pricing/anchored-price-formula.js";
 import {
   amountForBody,
   type CabinetPriceRule,
   type PriceBook,
-  type PriceCoefficientField,
   type PriceFormula,
 } from "../../src/pricing/price-book.js";
 import {
@@ -50,6 +55,8 @@ import type {
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { roundedToTenLei } from "../support/line-amounts.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -89,6 +96,7 @@ function request(
     catalog: CATALOG,
     book: BOOK,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     ...overrides,
   };
 }
@@ -154,23 +162,54 @@ function bookPricing(buildId: string, formula: PriceFormula): PriceBook {
   };
 }
 
-function coefficient(
-  formula: PriceFormula,
-  field: PriceCoefficientField,
-): number {
-  const held = (formula as unknown as Record<string, unknown>)[field];
-  if (typeof held !== "number") {
-    throw new Error(`the formula declares no numeric "${field}"`);
+const PRICE_STEP_MM = 50;
+const TEN_LEI_MINOR = 1_000;
+
+function anchoredFormulaOf(buildId: string): AnchoredFormula {
+  const { formula } = ruleFor(BOOK, buildId);
+  if (formula.shape === "price-per-size") {
+    throw new Error(`"${buildId}" is a fixed-size row, not an anchored one`);
   }
-  return held;
+  return formula;
 }
 
-function hasCoefficient(
-  formula: PriceFormula,
-  field: PriceCoefficientField,
-): boolean {
-  return (
-    typeof (formula as unknown as Record<string, unknown>)[field] === "number"
+function roundedUpToStep(millimetres: number): number {
+  return Math.ceil(millimetres / PRICE_STEP_MM) * PRICE_STEP_MM;
+}
+
+function leavesOf(buildId: string, widthMm: number): number {
+  return widthDerivedDoorLeafCount({
+    buildId,
+    rule: CATALOG.get(buildId)?.cabinetHandles,
+    widthMm,
+  });
+}
+
+/** What the sample book's anchored rule gives a body, applied by hand: the anchor, signed 50 mm steps of the width
+ *  rounded up and of the height rounded up, and the leaves the body has beyond the anchor's, to the nearest ten lei. */
+function expectedAmountMinor(
+  buildId: string,
+  body: { readonly widthMm: number; readonly heightMm: number },
+): number {
+  const formula = anchoredFormulaOf(buildId);
+  const widthSteps =
+    (roundedUpToStep(body.widthMm) - formula.anchorWidthMm) / PRICE_STEP_MM;
+  const widthMinor =
+    widthSteps >= 0
+      ? widthSteps * formula.perStepWiderMinor
+      : widthSteps * formula.perStepNarrowerMinor;
+  const heightMinor =
+    formula.anchorHeightMm === undefined
+      ? 0
+      : ((roundedUpToStep(body.heightMm) - formula.anchorHeightMm) /
+          PRICE_STEP_MM) *
+        (formula.perHeightStepMinor ?? 0);
+  const doorMinor =
+    (formula.perExtraDoorLeafMinor ?? 0) *
+    (leavesOf(buildId, body.widthMm) -
+      leavesOf(buildId, formula.anchorWidthMm));
+  return roundedToTenLei(
+    formula.anchorMinor + widthMinor + heightMinor + doorMinor,
   );
 }
 
@@ -258,49 +297,70 @@ describe("money is integer arithmetic, and no path can make it anything else", (
     fc.integer({ min: -1000, max: 1000 }),
     fc.integer({ min: -1000, max: 1000 }),
     fc.integer({ min: -1000, max: 1000 }),
+    fc.integer({ min: -1000, max: 1000 }),
     fc.integer({ min: 1, max: 3000 }),
     fc.integer({ min: 1, max: 3000 }),
+    fc.integer({ min: 0, max: 8 }),
     fc.integer({ min: 0, max: 8 }),
   ])(
     "answers an exact integer for every integer coefficient, sign included",
     (
-      baseMinor,
-      perWidthMillimetreMinor,
-      perHeightMillimetreMinor,
-      perDoorLeafMinor,
+      anchorMinor,
+      perStepWiderMinor,
+      perStepNarrowerMinor,
+      perHeightStepMinor,
+      perExtraDoorLeafMinor,
       widthMm,
       heightMm,
-      doorLeafCount,
+      builtLeaves,
+      anchorLeaves,
     ) => {
       // Zero and negative rates are swept deliberately: a manufacturer typing a minus sign produces a negative one.
+      // `amountForBody` is the arithmetic alone: the parser's non-negative rule is not in its way.
+      const anchorWidthMm = 600;
+      const anchorHeightMm = 700;
       const amount = amountForBody(
         {
-          shape: "linear-in-width-height-and-door-leaves",
-          baseMinor,
-          perWidthMillimetreMinor,
-          perHeightMillimetreMinor,
-          perDoorLeafMinor,
+          shape: "anchored-width-height-and-door-leaves",
+          anchorWidthMm,
+          anchorHeightMm,
+          anchorMinor,
+          perStepWiderMinor,
+          perStepNarrowerMinor,
+          perHeightStepMinor,
+          perExtraDoorLeafMinor,
         },
-        { widthMm, heightMm, doorLeafCount },
+        {
+          widthMm,
+          heightMm,
+          doorLeafCount: builtLeaves,
+          doorLeafCountAt: () => anchorLeaves,
+        },
       );
 
+      const widthSteps =
+        (roundedUpToStep(widthMm) - anchorWidthMm) / PRICE_STEP_MM;
+      const heightSteps =
+        (roundedUpToStep(heightMm) - anchorHeightMm) / PRICE_STEP_MM;
       expect(amount).toBe(
-        baseMinor +
-          perWidthMillimetreMinor * widthMm +
-          perHeightMillimetreMinor * heightMm +
-          perDoorLeafMinor * doorLeafCount,
+        anchorMinor +
+          perStepWiderMinor * Math.max(widthSteps, 0) +
+          perStepNarrowerMinor * Math.min(widthSteps, 0) +
+          perHeightStepMinor * heightSteps +
+          perExtraDoorLeafMinor * (builtLeaves - anchorLeaves),
       );
       expect(Number.isSafeInteger(amount)).toBe(true);
     },
   );
 
-  /** An odd multiplier (499 mm wide, 701 mm high) keeps the half a half: 0.5 × 700 is whole and would pass
-   *  for the wrong reason. */
+  /** A half in any field of an anchored rule is a book fault, named with its rule and field: it is refused before a line
+   *  is priced, so it can never be rounded into one. */
   const HALF_COEFFICIENTS = [
-    { field: "perWidthMillimetreMinor", value: 0.5 },
-    { field: "perHeightMillimetreMinor", value: 0.5 },
-    { field: "perDoorLeafMinor", value: 0.5 },
-    { field: "baseMinor", value: -0.5 },
+    { field: "perStepWiderMinor", value: 0.5 },
+    { field: "perStepNarrowerMinor", value: 0.5 },
+    { field: "perHeightStepMinor", value: 0.5 },
+    { field: "perExtraDoorLeafMinor", value: 0.5 },
+    { field: "anchorMinor", value: -0.5 },
   ] as const;
 
   for (const half of HALF_COEFFICIENTS) {
@@ -317,8 +377,9 @@ describe("money is integer arithmetic, and no path can make it anything else", (
         book: bookPricing("wall-cabinet", formula),
       });
 
-      expect(failure.code).toBe("INVALID_AMOUNT");
-      expect(failure.id).toBe("cabinet.wall-cabinet");
+      expect(failure.code).toBe("INVALID_PRICE_BOOK");
+      expect(failure.detail).toContain(half.field);
+      expect(failure.detail).toContain("cabinet.wall-cabinet");
     });
   }
 
@@ -333,18 +394,30 @@ describe("money is integer arithmetic, and no path can make it anything else", (
   ];
 
   for (const unusable of UNUSABLE_COEFFICIENTS) {
-    it(`refuses ${unusable.name} on the height term rather than pricing around it`, () => {
-      const formula = {
-        ...ruleFor(BOOK, "wall-cabinet").formula,
-        perHeightMillimetreMinor: unusable.value,
-      } as unknown as PriceFormula;
+    const formula = {
+      ...ruleFor(BOOK, "wall-cabinet").formula,
+      perHeightStepMinor: unusable.value,
+    } as unknown as PriceFormula;
 
-      expect(
-        refusalFrom({
-          design: designOf([placedAt({ id: "solo" })]),
-          book: bookPricing("wall-cabinet", formula),
-        }).code,
-      ).toBe("INVALID_AMOUNT");
+    it(`refuses ${unusable.name} on the height term rather than pricing around it`, () => {
+      const failure = refusalFrom({
+        design: designOf([placedAt({ id: "solo" })]),
+        book: bookPricing("wall-cabinet", formula),
+      });
+
+      expect(failure.code).toBe("INVALID_PRICE_BOOK");
+      expect(failure.detail).toContain("perHeightStepMinor");
+    });
+
+    it(`throws on ${unusable.name} in the arithmetic itself, for a caller that skips the parser`, () => {
+      expect(() =>
+        amountForBody(formula, {
+          widthMm: 600,
+          heightMm: 700,
+          doorLeafCount: 2,
+          doorLeafCountAt: () => 2,
+        }),
+      ).toThrow();
     });
   }
 
@@ -367,7 +440,7 @@ describe("money is integer arithmetic, and no path can make it anything else", (
     for (const zeroing of SILENTLY_ZEROING_COEFFICIENTS) {
       const unusable = bookPricing("wall-cabinet", {
         ...ruleFor(BOOK, "wall-cabinet").formula,
-        perHeightMillimetreMinor: zeroing.value,
+        perHeightStepMinor: zeroing.value,
       } as unknown as PriceFormula);
       const result = priceDesign(
         request({
@@ -429,8 +502,9 @@ describe("one composition of the door count, and no second derivation anywhere",
     expect(composing).toEqual(["src/cabinet-handles.ts"]);
   });
 
-  /** One minor unit per hinge, so the hardware amount divides back to a count with no rounding. */
-  const ONE_MINOR_UNIT_PER_HINGE = 1;
+  /** Ten lei per hinge: the hardware line is rounded to ten lei, so a rate under that would be rounded away and the
+   *  amount would no longer divide back to a count. */
+  const ONE_GRAIN_PER_HINGE = TEN_LEI_MINOR;
 
   /** Charges for hinges and nothing else, so the hardware amount reads as a hinge count. */
   function hingeOnlyBook(perHingeMinor: number): PriceBook {
@@ -461,6 +535,26 @@ describe("one composition of the door count, and no second derivation anywhere",
     );
   }
 
+  /** The sample rule's anchor and rates, restated so a row can be priced by its door term alone: a price held at its
+   *  anchor and one ten-lei step per extra leaf, so the amount divides back to a leaf count with no rounding. The anchor
+   *  is large enough that a body narrower than the door threshold, one leaf under the anchor's, stays positive. */
+  const LEAF_COUNTING_ANCHOR_MINOR = 10_000_000;
+
+  function leafCountingFormula(
+    buildId: string,
+    perLeafMinor: number,
+  ): PriceFormula {
+    const base = anchoredFormulaOf(buildId);
+    return {
+      ...base,
+      anchorMinor: LEAF_COUNTING_ANCHOR_MINOR,
+      perStepWiderMinor: 0,
+      perStepNarrowerMinor: 0,
+      perExtraDoorLeafMinor: perLeafMinor,
+      ...(base.anchorHeightMm === undefined ? {} : { perHeightStepMinor: 0 }),
+    };
+  }
+
   const LEAF_ROWS = [
     { buildId: "wall-cabinet", handlesPerLeaf: 1 },
     { buildId: "base-cabinet", handlesPerLeaf: 1 },
@@ -469,46 +563,42 @@ describe("one composition of the door count, and no second derivation anywhere",
 
   for (const row of LEAF_ROWS) {
     it(`bills ${row.buildId}'s hinges and its door step off the same count, at every width`, () => {
-      // The leaf count billed by the price step (difference between two books differing only in perDoorLeafMinor) must
+      // The leaf count billed by the price step (the amount over the anchor, with only the door term moving it) must
       // equal the count the hardware line is billed over (a hinge-only tier), at every width including the threshold.
       const definition = CATALOG.get(row.buildId);
       if (!definition) throw new Error(`fixture has no "${row.buildId}"`);
-      const base = ruleFor(BOOK, row.buildId).formula;
-      const stepMinor = 1;
-      const withoutStep = bookPricing(row.buildId, {
-        ...base,
-        perDoorLeafMinor: 0,
-      } as PriceFormula);
-      const withStep = bookPricing(row.buildId, {
-        ...base,
-        perDoorLeafMinor: stepMinor,
-      } as PriceFormula);
+      const countingLeaves = bookPricing(
+        row.buildId,
+        leafCountingFormula(row.buildId, TEN_LEI_MINOR),
+      );
+      const anchorLeaves = leavesOf(
+        row.buildId,
+        anchoredFormulaOf(row.buildId).anchorWidthMm,
+      );
 
       for (const widthMm of sweptWidths(row.buildId, definition)) {
         const body = { buildId: row.buildId, widthMm, heightMm: 700 };
         const pricedLeaves =
-          amountOfOneBody(body, { book: withStep }) -
-          amountOfOneBody(body, { book: withoutStep });
+          (amountOfOneBody(body, { book: countingLeaves }) -
+            LEAF_COUNTING_ANCHOR_MINOR) /
+            TEN_LEI_MINOR +
+          anchorLeaves;
         const billedHinges =
           lineOfKind(
             priceOrFail({
               design: designOf([placedAt({ id: "solo", body })]),
-              book: hingeOnlyBook(ONE_MINOR_UNIT_PER_HINGE),
+              book: hingeOnlyBook(ONE_GRAIN_PER_HINGE),
               selections: { hardwareTierId: BOOK.hardware.defaultTierId },
             }),
             "hardware",
-          ).amountMinor / ONE_MINOR_UNIT_PER_HINGE;
+          ).amountMinor / ONE_GRAIN_PER_HINGE;
 
         const leafHeightsMm = doorLeafHeightsMm(
           frontPopulationQueryFor({ body, definition }),
         );
 
-        expect(pricedLeaves).toBe(
-          widthDerivedDoorLeafCount({
-            buildId: row.buildId,
-            rule: definition.cabinetHandles,
-            widthMm,
-          }),
+        expect(pricedLeaves, `${row.buildId} at ${String(widthMm)}`).toBe(
+          leavesOf(row.buildId, widthMm),
         );
         expect(leafHeightsMm.length).toBe(pricedLeaves * row.handlesPerLeaf);
         expect(billedHinges).toBe(hingesOn(leafHeightsMm));
@@ -518,23 +608,27 @@ describe("one composition of the door count, and no second derivation anywhere",
 
   it("steps at deriveDoorCount's threshold and at no width of its own", () => {
     // 499 and below is one door, 500 and above two (ADR 0035 decision 4); the price's only jump must land there.
-    // price was billed for changes.
-    const base = ruleFor(BOOK, "wall-cabinet").formula;
-    const flat = bookPricing("wall-cabinet", {
-      ...base,
-      baseMinor: 0,
-      perWidthMillimetreMinor: 0,
-      perHeightMillimetreMinor: 0,
-      perDoorLeafMinor: 1,
-    } as PriceFormula);
+    // The width term is zeroed, so the one thing that can move the amount is the leaves the body is built with.
+    const leavesOnly = bookPricing(
+      "wall-cabinet",
+      leafCountingFormula("wall-cabinet", TEN_LEI_MINOR),
+    );
+    const anchorLeaves = leavesOf(
+      "wall-cabinet",
+      anchoredFormulaOf("wall-cabinet").anchorWidthMm,
+    );
     const transitions: number[] = [];
     let previous: number | undefined;
 
     for (let widthMm = 200; widthMm <= 800; widthMm += 1) {
-      const leaves = amountOfOneBody(
-        { buildId: "wall-cabinet", widthMm },
-        { book: flat },
-      );
+      const leaves =
+        (amountOfOneBody(
+          { buildId: "wall-cabinet", widthMm },
+          { book: leavesOnly },
+        ) -
+          LEAF_COUNTING_ANCHOR_MINOR) /
+          TEN_LEI_MINOR +
+        anchorLeaves;
       expect(leaves).toBe(deriveDoorCount(widthMm));
       if (previous !== undefined && leaves !== previous) {
         transitions.push(widthMm);
@@ -568,13 +662,30 @@ describe("every body a customer can stand in a design has a price", () => {
       for (const [buildId, definition] of catalog) {
         for (const widthMm of sweptWidths(buildId, definition)) {
           const heightMm = definition.nominalHeightMm ?? 700;
-          const amount = amountOfOneBody(
-            { buildId, widthMm, heightMm },
-            { catalog },
-          );
+          // The design is built at the depth the catalogue is, so the deep sweep prices through the depth line too.
+          const atDepth = designOf([
+            placedAt({ id: "solo", body: { buildId, widthMm, heightMm } }),
+          ]);
+          const priced = priceOrFail({
+            design: {
+              ...atDepth,
+              settings: { ...atDepth.settings, cabinetDepthMm },
+            },
+            catalog,
+          });
+          const amount = cabinetLinesOf(priced)[0]?.amountMinor;
 
           expect(Number.isSafeInteger(amount)).toBe(true);
           expect(amount).toBeGreaterThanOrEqual(0);
+          // Every line of one kitchen, depth included, is a whole number of ten lei and they add up.
+          expect(
+            priced.lines.every(
+              (line) => line.amountMinor % TEN_LEI_MINOR === 0,
+            ),
+          ).toBe(true);
+          expect(priced.totalMinor).toBe(
+            priced.lines.reduce((sum, line) => sum + line.amountMinor, 0),
+          );
         }
       }
     }
@@ -625,25 +736,33 @@ describe("every body a customer can stand in a design has a price", () => {
 });
 
 describe("taller costs more, on every shape that carries the term", () => {
-  it("prices every height-flexible row with a strictly positive height coefficient", () => {
-    // Monotonicity below is vacuous against a zero coefficient, so the coefficient is pinned first.
+  it("prices every height-flexible row with a strictly positive height step", () => {
+    // Monotonicity below is vacuous against a zero step, so the step is pinned first.
+    expect(HEIGHT_FLEX_ROWS).toHaveLength(3);
     for (const buildId of HEIGHT_FLEX_ROWS) {
-      const { formula } = ruleFor(BOOK, buildId);
-      expect(hasCoefficient(formula, "perHeightMillimetreMinor")).toBe(true);
-      expect(coefficient(formula, "perHeightMillimetreMinor")).toBeGreaterThan(
-        0,
+      const formula = anchoredFormulaOf(buildId);
+      expect(formula.perHeightStepMinor, buildId).toBeGreaterThan(
+        TEN_LEI_MINOR,
       );
     }
   });
 
   for (const buildId of HEIGHT_FLEX_ROWS) {
-    it(`prices ${buildId} strictly higher at every greater height`, () => {
+    it(`prices ${buildId} at the oracle's amount at every whole height, and strictly higher across each 50 mm step`, () => {
       const widthMm = 600;
-      let previous: number | undefined;
+      let previous: { heightMm: number; amount: number } | undefined;
       for (let heightMm = 200; heightMm <= 900; heightMm += 1) {
         const amount = amountOfOneBody({ buildId, widthMm, heightMm });
-        if (previous !== undefined) expect(amount).toBeGreaterThan(previous);
-        previous = amount;
+        expect(amount, `${buildId} at ${String(heightMm)}`).toBe(
+          expectedAmountMinor(buildId, { widthMm, heightMm }),
+        );
+        if (previous !== undefined) {
+          const crossesAStep =
+            roundedUpToStep(heightMm) > roundedUpToStep(previous.heightMm);
+          if (crossesAStep) expect(amount).toBeGreaterThan(previous.amount);
+          else expect(amount).toBe(previous.amount);
+        }
+        previous = { heightMm, amount };
       }
     });
 
@@ -659,14 +778,14 @@ describe("taller costs more, on every shape that carries the term", () => {
     fc.integer({ min: 150, max: 1200 }),
     fc.integer({ min: 200, max: 800 }),
   ])(
-    "orders any two heights of one row the way the heights are ordered",
+    "orders any two heights of one row the way their 50 mm steps are ordered",
     (buildId, first, second, widthMm) => {
       const [lower, higher] =
         first <= second ? [first, second] : [second, first];
       const amountAt = (heightMm: number) =>
         amountOfOneBody({ buildId, widthMm, heightMm });
 
-      if (lower === higher) {
+      if (roundedUpToStep(lower) === roundedUpToStep(higher)) {
         expect(amountAt(lower)).toBe(amountAt(higher));
         return;
       }
@@ -675,18 +794,19 @@ describe("taller costs more, on every shape that carries the term", () => {
   );
 
   it("adds height, and does not multiply it into the width", () => {
-    // Price is not by front area: `a + b·w + c·h` keeps the width term when height changes; `k·w·h` does not.
+    // Price is not by front area: the width step stays the same whatever the height; a product of the two would not.
+    // One step of width is the 600 to 650 step, which `wall-lift`'s book states per 50 mm; the cabinet line is rounded to
+    // ten lei, so each difference is the rate to within that grain, and the same at every height.
+    const perStepWiderMinor = anchoredFormulaOf("wall-lift").perStepWiderMinor;
     const widthStep = (heightMm: number) =>
-      amountOfOneBody({ buildId: "wall-lift", widthMm: 601, heightMm }) -
+      amountOfOneBody({ buildId: "wall-lift", widthMm: 650, heightMm }) -
       amountOfOneBody({ buildId: "wall-lift", widthMm: 600, heightMm });
 
-    const steps = new Set([400, 600, 800, 900].map(widthStep));
-    expect(steps.size).toBe(1);
-    expect([...steps][0]).toBe(
-      coefficient(
-        ruleFor(BOOK, "wall-lift").formula,
-        "perWidthMillimetreMinor",
-      ),
+    const steps = [400, 600, 800, 900].map(widthStep);
+
+    expect(new Set(steps).size).toBe(1);
+    expect(Math.abs((steps[0] ?? Number.NaN) - perStepWiderMinor)).toBeLessThan(
+      TEN_LEI_MINOR,
     );
   });
 
@@ -710,99 +830,77 @@ describe("a second door costs more, and costs exactly what the book says it cost
     expect(DOOR_COUNT_ROWS).toHaveLength(3);
   });
 
+  /** The two widths either side of the door threshold: both round up to one 50 mm step, so the width term cancels and
+   *  the door term is all that separates them. */
+  const ONE_DOOR_WIDTH_MM = TWO_DOOR_MIN_WIDTH_MM - 1;
+
   for (const buildId of DOOR_COUNT_ROWS) {
-    it(`prices ${buildId} higher with two doors than with one, at one width`, () => {
-      // Needs two books because a real cabinet cannot have both door counts at one width.
-      const base = ruleFor(BOOK, buildId).formula;
-      const widthMm = TWO_DOOR_MIN_WIDTH_MM;
+    it(`prices ${buildId} higher with two doors than with one, at one rounded width`, () => {
       const heightMm = 700;
-      const stepless = bookPricing(buildId, {
-        ...base,
-        perDoorLeafMinor: 0,
-      } as PriceFormula);
+      const twoDoors = amountOfOneBody({
+        buildId,
+        widthMm: TWO_DOOR_MIN_WIDTH_MM,
+        heightMm,
+      });
+      const oneDoor = amountOfOneBody({
+        buildId,
+        widthMm: ONE_DOOR_WIDTH_MM,
+        heightMm,
+      });
 
-      const twoDoors = amountOfOneBody({ buildId, widthMm, heightMm });
-      const withNoStep = amountOfOneBody(
-        { buildId, widthMm, heightMm },
-        { book: stepless },
+      expect(roundedUpToStep(ONE_DOOR_WIDTH_MM)).toBe(
+        roundedUpToStep(TWO_DOOR_MIN_WIDTH_MM),
       );
-
-      expect(twoDoors).toBeGreaterThan(withNoStep);
+      expect(twoDoors).toBeGreaterThan(oneDoor);
     });
 
-    it(`steps ${buildId} by the declared perDoorLeafMinor and not by the width term`, () => {
-      // Subtracting the width term from the step across the threshold leaves the door step: the declared coefficient
+    it(`steps ${buildId} by the declared perExtraDoorLeafMinor and not by the width term`, () => {
+      // The width term cancels across the threshold (both widths round up to 500), leaving the declared coefficient
       // times the leaves the row's bands add.
-      const { formula } = ruleFor(BOOK, buildId);
-      const definition = CATALOG.get(buildId);
-      if (!definition) throw new Error(`fixture has no "${buildId}"`);
+      const formula = anchoredFormulaOf(buildId);
       const heightMm = 700;
       const leavesAdded =
-        widthDerivedDoorLeafCount({
-          buildId,
-          rule: definition.cabinetHandles,
-          widthMm: TWO_DOOR_MIN_WIDTH_MM,
-        }) -
-        widthDerivedDoorLeafCount({
-          buildId,
-          rule: definition.cabinetHandles,
-          widthMm: TWO_DOOR_MIN_WIDTH_MM - 1,
-        });
+        leavesOf(buildId, TWO_DOOR_MIN_WIDTH_MM) -
+        leavesOf(buildId, ONE_DOOR_WIDTH_MM);
 
       const across =
         amountOfOneBody({ buildId, widthMm: TWO_DOOR_MIN_WIDTH_MM, heightMm }) -
-        amountOfOneBody({
-          buildId,
-          widthMm: TWO_DOOR_MIN_WIDTH_MM - 1,
-          heightMm,
-        });
+        amountOfOneBody({ buildId, widthMm: ONE_DOOR_WIDTH_MM, heightMm });
 
       expect(leavesAdded).toBeGreaterThan(0);
-      expect(across - coefficient(formula, "perWidthMillimetreMinor")).toBe(
-        coefficient(formula, "perDoorLeafMinor") * leavesAdded,
-      );
+      expect(across).toBe((formula.perExtraDoorLeafMinor ?? 0) * leavesAdded);
     });
 
-    it(`changes ${buildId} by the width coefficient alone away from the threshold`, () => {
-      const perWidth = coefficient(
-        ruleFor(BOOK, buildId).formula,
-        "perWidthMillimetreMinor",
-      );
+    it(`prices ${buildId} at the oracle's amount at every buildable width: width steps by 50 mm, leaves by the door rule`, () => {
       const definition = CATALOG.get(buildId);
       if (!definition) throw new Error(`fixture has no "${buildId}"`);
-      const widths = buildableWidthsOf(buildId, definition);
-      if (widths.length === 0) return;
 
-      for (const widthMm of widths) {
-        const next = widthMm + 1;
-        if (!widths.includes(next)) continue;
-        if (next === TWO_DOOR_MIN_WIDTH_MM) continue;
+      for (const widthMm of buildableWidthsOf(buildId, definition)) {
         expect(
-          amountOfOneBody({ buildId, widthMm: next, heightMm: 700 }) -
-            amountOfOneBody({ buildId, widthMm, heightMm: 700 }),
-        ).toBe(perWidth);
+          amountOfOneBody({ buildId, widthMm, heightMm: 700 }),
+          `${buildId} at ${String(widthMm)}`,
+        ).toBe(expectedAmountMinor(buildId, { widthMm, heightMm: 700 }));
       }
     });
   }
 
   it("does not step a row whose front population its width does not decide", () => {
     for (const buildId of ["base-3drawer", "base-panbank", "base-sink"]) {
-      const perWidth = coefficient(
-        ruleFor(BOOK, buildId).formula,
-        "perWidthMillimetreMinor",
-      );
+      // Across the door threshold the two widths round to one step, so nothing separates them.
       expect(
         amountOfOneBody({
           buildId,
           widthMm: TWO_DOOR_MIN_WIDTH_MM,
           heightMm: 820,
-        }) -
-          amountOfOneBody({
-            buildId,
-            widthMm: TWO_DOOR_MIN_WIDTH_MM - 1,
-            heightMm: 820,
-          }),
-      ).toBe(perWidth);
+        }),
+        buildId,
+      ).toBe(
+        amountOfOneBody({
+          buildId,
+          widthMm: TWO_DOOR_MIN_WIDTH_MM - 1,
+          heightMm: 820,
+        }),
+      );
     }
   });
 });
@@ -854,9 +952,11 @@ describe("the book is data with one authority, and is refused when it is not", (
           ruleId: "cabinet.wall-cabinet.flat",
           buildId: "wall-cabinet",
           formula: {
-            shape: "linear-in-width",
-            baseMinor: 1,
-            perWidthMillimetreMinor: 0,
+            shape: "anchored-width",
+            anchorWidthMm: 600,
+            anchorMinor: 1_000,
+            perStepWiderMinor: 0,
+            perStepNarrowerMinor: 0,
           },
         },
       ],
@@ -905,11 +1005,14 @@ describe("the book is data with one authority, and is refused when it is not", (
   it("publishes no cabinet line, and no total, below zero", () => {
     // Asserts on the published amount, not a failure code: refusing at the book or at the line are both acceptable.
     const negative = bookPricing("wall-cabinet", {
-      shape: "linear-in-width-height-and-door-leaves",
-      baseMinor: -1_000_000,
-      perWidthMillimetreMinor: -1,
-      perHeightMillimetreMinor: -1,
-      perDoorLeafMinor: -1,
+      shape: "anchored-width-height-and-door-leaves",
+      anchorWidthMm: 600,
+      anchorHeightMm: 700,
+      anchorMinor: -1_000_000,
+      perStepWiderMinor: -1_000,
+      perStepNarrowerMinor: -1_000,
+      perHeightStepMinor: -1_000,
+      perExtraDoorLeafMinor: -1_000,
     });
     const result = priceDesign(
       request({

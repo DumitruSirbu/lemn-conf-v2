@@ -31,24 +31,26 @@ import {
 import type { AnchoredFormula } from "../../src/pricing/anchored-price-formula.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import {
-  pricedByWidth,
-  pricedByWidthAndDoorLeaves,
   type CabinetPriceRule,
   type PriceBook,
   type PriceFormula,
 } from "../../src/pricing/price-book.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
-const ONE_BANI_PER_LEAF_ANCHOR_MM = 600;
-const ONE_BANI_PER_LEAF: Omit<AnchoredFormula, "shape"> = {
-  anchorWidthMm: ONE_BANI_PER_LEAF_ANCHOR_MM,
+/** A cabinet line is rounded to ten lei, so one leaf is worth exactly one grain: a smaller rate would be rounded away
+ *  and the amount would no longer divide back to a leaf count. */
+const TEN_LEI_MINOR = 1_000;
+const TEN_LEI_PER_LEAF_ANCHOR_MM = 600;
+const TEN_LEI_PER_LEAF: Omit<AnchoredFormula, "shape"> = {
+  anchorWidthMm: TEN_LEI_PER_LEAF_ANCHOR_MM,
   anchorMinor: 1_000_000,
   perStepWiderMinor: 0,
   perStepNarrowerMinor: 0,
-  perExtraDoorLeafMinor: 1,
+  perExtraDoorLeafMinor: TEN_LEI_MINOR,
 };
 
 const INSERTABLE_BUILD_IDS = [...INSERTABLE_BODY_DEFINITIONS].map(
@@ -74,7 +76,7 @@ function bookWithOneRule(rule: CabinetPriceRule): PriceBook {
 }
 
 type DoorTermResult =
-  | { readonly ok: true; readonly deltaBani: number }
+  | { readonly ok: true; readonly deltaLeaves: number }
   | {
       readonly ok: false;
       readonly code: string;
@@ -89,7 +91,7 @@ function priceDoorTerm(
   const rule: CabinetPriceRule = {
     ruleId: "cabinet.anchored-door",
     buildId: ruleBuildId,
-    formula: { shape: "anchored-width-and-door-leaves", ...ONE_BANI_PER_LEAF },
+    formula: { shape: "anchored-width-and-door-leaves", ...TEN_LEI_PER_LEAF },
   };
   const book = bookWithOneRule(rule);
   const result = priceDesign({
@@ -97,6 +99,7 @@ function priceDoorTerm(
     catalog: CATALOG,
     book,
     pricingVersion: book.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
   if (!result.ok) {
     return {
@@ -113,18 +116,19 @@ function priceDoorTerm(
   if (line?.kind !== "cabinet") throw new Error("no cabinet line");
   return {
     ok: true,
-    deltaBani: line.amountMinor - ONE_BANI_PER_LEAF.anchorMinor,
+    deltaLeaves:
+      (line.amountMinor - TEN_LEI_PER_LEAF.anchorMinor) / TEN_LEI_MINOR,
   };
 }
 
-function doorTermBaniOf(
+function doorTermLeavesOf(
   ruleBuildId: string,
   placement: DesignPlacement,
 ): number {
   const rule: CabinetPriceRule = {
     ruleId: "cabinet.anchored-door",
     buildId: ruleBuildId,
-    formula: { shape: "anchored-width-and-door-leaves", ...ONE_BANI_PER_LEAF },
+    formula: { shape: "anchored-width-and-door-leaves", ...TEN_LEI_PER_LEAF },
   };
   const book = bookWithOneRule(rule);
   const result = priceDesign({
@@ -132,6 +136,7 @@ function doorTermBaniOf(
     catalog: CATALOG,
     book,
     pricingVersion: book.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);
@@ -140,7 +145,7 @@ function doorTermBaniOf(
     (candidate) => candidate.kind === "cabinet",
   );
   if (line?.kind !== "cabinet") throw new Error("no cabinet line");
-  return line.amountMinor - ONE_BANI_PER_LEAF.anchorMinor;
+  return (line.amountMinor - TEN_LEI_PER_LEAF.anchorMinor) / TEN_LEI_MINOR;
 }
 
 function entriesOf(placement: DesignPlacement) {
@@ -183,7 +188,7 @@ describe("every insertable row: the door term moves exactly as hardware's leaf l
     (buildId) => {
       const heightMm = rowHeightMm(buildId);
       const anchorLeaves = builtLeafHeightsMm(
-        placementOf(buildId, ONE_BANI_PER_LEAF_ANCHOR_MM, heightMm),
+        placementOf(buildId, TEN_LEI_PER_LEAF_ANCHOR_MM, heightMm),
       ).length;
 
       for (let widthMm = 50; widthMm <= 1200; widthMm += 1) {
@@ -191,7 +196,7 @@ describe("every insertable row: the door term moves exactly as hardware's leaf l
         const hardwareLeaves = builtLeafHeightsMm(placement).length;
 
         expect(
-          doorTermBaniOf(buildId, placement),
+          doorTermLeavesOf(buildId, placement),
           `${buildId} at ${String(widthMm)} mm`,
         ).toBe(hardwareLeaves - anchorLeaves);
       }
@@ -238,7 +243,7 @@ describe("a resized SEEDED body is priced as another row and agrees with hardwar
         ...seeded,
         body: {
           buildId: pricedAsBuildId,
-          widthMm: ONE_BANI_PER_LEAF_ANCHOR_MM,
+          widthMm: TEN_LEI_PER_LEAF_ANCHOR_MM,
           heightMm: size.heightMm,
         },
       }).length;
@@ -282,7 +287,7 @@ describe("a resized SEEDED body is priced as another row and agrees with hardwar
           compared += 1;
           const label = `${seeded.body.buildId} ${String(widthMm)}x${String(heightMm)}`;
           if (expected.kind === "leaves") {
-            if (!result.ok || result.deltaBani !== expected.delta) {
+            if (!result.ok || result.deltaLeaves !== expected.delta) {
               disagreements.push(
                 `${label}: wanted ${String(expected.delta)}, got ${JSON.stringify(result)}`,
               );
@@ -313,7 +318,7 @@ describe("a resized SEEDED body is priced as another row and agrees with hardwar
           const result = priceDoorTerm(buildId, placement);
           const label = `${buildId} ${String(widthMm)}x${String(heightMm)}`;
           if (expected.kind === "leaves") {
-            if (!result.ok || result.deltaBani !== expected.delta) {
+            if (!result.ok || result.deltaLeaves !== expected.delta) {
               disagreements.push(
                 `${label}: wanted ${String(expected.delta)}, got ${JSON.stringify(result)}`,
               );
@@ -351,7 +356,7 @@ describe("a body whose fronts cannot be read is refused, never priced, on every 
   const FORMULAS: readonly (readonly [string, PriceFormula])[] = [
     [
       "anchored door shape",
-      { shape: "anchored-width-and-door-leaves", ...ONE_BANI_PER_LEAF },
+      { shape: "anchored-width-and-door-leaves", ...TEN_LEI_PER_LEAF },
     ],
     [
       "anchored width shape",
@@ -364,22 +369,38 @@ describe("a body whose fronts cannot be read is refused, never priced, on every 
       },
     ],
     [
-      "linear door shape",
-      pricedByWidthAndDoorLeaves({
-        baseMinor: 1_000_000,
-        perWidthMillimetreMinor: 0,
-        perDoorLeafMinor: 1,
-      }),
+      "anchored height shape",
+      {
+        shape: "anchored-width-and-height",
+        anchorWidthMm: 600,
+        anchorHeightMm: 700,
+        anchorMinor: 1_000_000,
+        perStepWiderMinor: 0,
+        perStepNarrowerMinor: 0,
+        perHeightStepMinor: 0,
+      },
     ],
     [
-      "linear width shape",
-      pricedByWidth({ baseMinor: 1_000_000, perWidthMillimetreMinor: 0 }),
+      "anchored height and door shape",
+      {
+        shape: "anchored-width-height-and-door-leaves",
+        ...TEN_LEI_PER_LEAF,
+        anchorHeightMm: 700,
+        perHeightStepMinor: 0,
+      },
+    ],
+    [
+      "fixed-size shape",
+      {
+        shape: "price-per-size",
+        sizes: [{ widthMm: 700, amountMinor: 1_000_000 }],
+      },
     ],
   ];
 
   const DOOR_FORMULA: PriceFormula = {
     shape: "anchored-width-and-door-leaves",
-    ...ONE_BANI_PER_LEAF,
+    ...TEN_LEI_PER_LEAF,
   };
 
   function withoutFronts(buildId: string): BodyCatalog {
@@ -397,6 +418,7 @@ describe("a body whose fronts cannot be read is refused, never priced, on every 
     formula: PriceFormula,
     catalog: BodyCatalog,
     heightMm: number,
+    widthMm = 700,
   ) {
     const rule: CabinetPriceRule = {
       ruleId: "cabinet.undeclared",
@@ -407,11 +429,12 @@ describe("a body whose fronts cannot be read is refused, never priced, on every 
     return priceDesign({
       design: {
         ...KITCHEN_L_DESIGN,
-        placements: [placementOf("wall-cabinet", 700, heightMm)],
+        placements: [placementOf("wall-cabinet", widthMm, heightMm)],
       },
       catalog,
       book,
       pricingVersion: book.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
   }
 
@@ -447,14 +470,15 @@ describe("a body whose fronts cannot be read is refused, never priced, on every 
       });
   });
 
-  it("prices a linear-shape design exactly as before for every ordinary body, so the new codes cost it nothing", () => {
-    const linear = pricedByWidthAndDoorLeaves({
-      baseMinor: 1_000_000,
-      perWidthMillimetreMinor: 3,
-      perDoorLeafMinor: 7,
-    });
+  it("prices an anchored-shape design for every ordinary body, so the new codes cost it nothing", () => {
+    const stepped: PriceFormula = {
+      shape: "anchored-width-and-door-leaves",
+      ...TEN_LEI_PER_LEAF,
+      perStepWiderMinor: 7_000,
+      perStepNarrowerMinor: 3_000,
+    };
     for (let widthMm = 200; widthMm <= 900; widthMm += 25) {
-      const result = resultFor(linear, CATALOG, 700);
+      const result = resultFor(stepped, CATALOG, 700, widthMm);
       expect(result.ok, String(widthMm)).toBe(true);
     }
   });

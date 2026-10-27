@@ -32,6 +32,12 @@ import {
 
 import { boundedFailureReason } from "../../src/failure-text.js";
 
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import {
+  expectedLineAmountMinor,
+  roundedToTenLei,
+} from "../support/line-amounts.js";
+
 import {
   catalogOf,
   GENERATED_KITCHENS,
@@ -41,13 +47,17 @@ import {
 
 const ANOTHER_VERSION = "not-the-book's-version";
 
+/** The width every handed-over cabinet is quoted at: a free anchored row steps by nothing, so it prices at zero at any
+ *  width and the figure here decides nothing but that the rule is a valid one. */
+const HANDED_OVER_ANCHOR_WIDTH_MM = 600;
+
 /** The shipped book with every cabinet handed to the customer: drawn, listed, and nothing Lemnaria supplies. */
 const CUSTOMER_SUPPLIES_EVERYTHING: PriceBook = {
   ...SAMPLE_PRICE_BOOK,
   cabinetRules: SAMPLE_PRICE_BOOK.cabinetRules.map(({ ruleId, buildId }) => ({
     ruleId,
     buildId,
-    ...drawnButNotSupplied(),
+    ...drawnButNotSupplied(HANDED_OVER_ANCHOR_WIDTH_MM),
   })),
 };
 
@@ -65,7 +75,12 @@ function requestFor(
   design: Design,
   terms: Terms = SHIPPED,
 ): SubmissionSnapshotRequest {
-  return { design, catalog: catalogOf(design), ...terms };
+  return {
+    design,
+    catalog: catalogOf(design),
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+    ...terms,
+  };
 }
 
 function snapshotOf(design: Design, terms: Terms = SHIPPED) {
@@ -521,7 +536,7 @@ describe("8H criterion 6: the price is priceDesign's, through one call", () => {
       const { priced } = snapshotOf(design);
 
       const sum = priced.lines.reduce(
-        (total, line) => total + line.quantity * line.unitAmountMinor,
+        (total, line) => total + expectedLineAmountMinor(line),
         0,
       );
 
@@ -529,9 +544,23 @@ describe("8H criterion 6: the price is priceDesign's, through one call", () => {
       expect(Number.isSafeInteger(priced.totalMinor)).toBe(true);
       expect(
         priced.lines.every(
-          (line) => line.amountMinor === line.quantity * line.unitAmountMinor,
+          (line) => line.amountMinor === expectedLineAmountMinor(line),
         ),
       ).toBe(true);
+    });
+
+    it("holds the product identity on every line but an accessory, and rounds an accessory to ten lei", () => {
+      const { priced } = snapshotOf(design);
+
+      for (const line of priced.lines) {
+        if (line.kind === "accessory") {
+          expect(line.amountMinor).toBe(
+            roundedToTenLei(line.quantity * line.unitAmountMinor),
+          );
+        } else {
+          expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
+        }
+      }
     });
 
     it("carries the book's version and what the book says of itself", () => {
@@ -587,11 +616,13 @@ describe("8H criterion 6: the price is priceDesign's, through one call", () => {
 
 describe("8H criterion 6: a total under the shipped book, added up by hand", () => {
   // The shipped book's rows, read from `src/pricing/sample-price-book.ts` and restated here:
-  //   cabinet.wall-cabinet  base 40 000, 300 per mm of width, 70 per mm of height, 14 000 per door leaf
+  //   cabinet.wall-cabinet  anchor 297 000 at 600 mm wide and 700 mm high, 15 000 a 50 mm step of width either way,
+  //                         3 500 a 50 mm step of height, 14 000 a door leaf beyond the anchor's two
   //   hardware.standard     1 760 per hinge
-  //   material.melamine     0 for the whole kitchen
-  // A wall cabinet carries two door leaves from 500 mm of width and one below; a leaf hangs on two hinges
-  // (ADR 0092 decision 2). Neither cabinet stands over a sink, so no accessory is earned.
+  //   material.melamine     0 % of the cabinets
+  // A width rounds up to the next 50 mm before it steps (ADR 0177 A-2); the door leaves follow the width as built
+  // (A-3): two from 500 mm and one below. A leaf hangs on two hinges (ADR 0092 decision 2), and the hardware line is
+  // rounded to ten lei. Neither cabinet stands over a sink, so no accessory is earned.
   const HEIGHT_MM = 700;
 
   function wallCabinet(
@@ -620,12 +651,12 @@ describe("8H criterion 6: a total under the shipped book, added up by hand", () 
     };
   }
 
-  it("is 530 560 minor units for a 600 mm and a 400 mm wall cabinet", () => {
-    // wide    600 mm: 40 000 + 300 x 600 + 70 x 700 + 14 000 x 2 = 40 000 + 180 000 + 49 000 + 28 000 = 297 000
-    // narrow  400 mm: 40 000 + 300 x 400 + 70 x 700 + 14 000 x 1 = 40 000 + 120 000 + 49 000 + 14 000 = 223 000
-    // hinges: wide 2 leaves, narrow 1; two hinges a leaf: (4 + 2) x 1 760 =                              10 560
-    // material, once for the kitchen:                                                                         0
-    // sum: 297 000 + 223 000 + 10 560 + 0 =                                                             530 560
+  it("is 531 000 minor units for a 600 mm and a 400 mm wall cabinet", () => {
+    // wide    600 mm: anchor, no step, no extra leaf                                  =  297 000
+    // narrow  400 mm: 297 000 - 4 steps x 15 000 - 1 leaf x 14 000 = 297 000 - 60 000 - 14 000 = 223 000
+    // hinges: wide 2 leaves, narrow 1; two hinges a leaf: (4 + 2) x 1 760 = 10 560, to ten lei  =   11 000
+    // material, once for the kitchen:                                                          =        0
+    // sum: 297 000 + 223 000 + 11 000 + 0 =                                                    531 000
     const design = kitchenOf([
       wallCabinet("wide", 300, 600),
       wallCabinet("narrow", 800, 400),
@@ -634,16 +665,17 @@ describe("8H criterion 6: a total under the shipped book, added up by hand", () 
     const { priced } = snapshotOf(design);
 
     expect(priced.lines.map((line) => line.amountMinor)).toEqual([
-      297_000, 223_000, 10_560, 0,
+      297_000, 223_000, 11_000, 0,
     ]);
-    expect(priced.totalMinor).toBe(530_560);
+    expect(priced.totalMinor).toBe(531_000);
   });
 
-  it("is 530 260 minor units either side of the second door leaf, at 500 mm and 499 mm", () => {
-    // at-step 500 mm: 40 000 + 300 x 500 + 70 x 700 + 14 000 x 2 = 40 000 + 150 000 + 49 000 + 28 000 = 267 000
-    // below   499 mm: 40 000 + 300 x 499 + 70 x 700 + 14 000 x 1 = 40 000 + 149 700 + 49 000 + 14 000 = 252 700
-    // hinges: (4 + 2) x 1 760 =                                                                          10 560
-    // sum: 267 000 + 252 700 + 10 560 + 0 =                                                             530 260
+  it("is 531 000 minor units either side of the second door leaf, at 500 mm and 499 mm", () => {
+    // at-step 500 mm: 297 000 - 2 steps x 15 000, two leaves, none extra       = 267 000
+    // below   499 mm: rounds up to 500 for the step (-30 000), one leaf (-14 000) = 253 000
+    //   (the retired linear book priced 499 mm at 252 700: the width term now steps by 50 mm)
+    // hinges: (4 + 2) x 1 760 = 10 560, to ten lei                              =  11 000
+    // sum: 267 000 + 253 000 + 11 000 + 0 =                                     531 000
     const design = kitchenOf([
       wallCabinet("at-step", 250, 500),
       wallCabinet("below", 800, 499),
@@ -652,9 +684,9 @@ describe("8H criterion 6: a total under the shipped book, added up by hand", () 
     const { priced } = snapshotOf(design);
 
     expect(priced.lines.map((line) => line.amountMinor)).toEqual([
-      267_000, 252_700, 10_560, 0,
+      267_000, 253_000, 11_000, 0,
     ]);
-    expect(priced.totalMinor).toBe(530_260);
+    expect(priced.totalMinor).toBe(531_000);
   });
 });
 

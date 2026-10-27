@@ -33,6 +33,8 @@ import type {
   WholeKitchenPriceLine,
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { roundedToTenLei } from "../support/line-amounts.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 import type { BodyCatalog } from "../../src/void-engine.js";
 
@@ -47,6 +49,7 @@ function request(
     catalog: CATALOG,
     book: BOOK,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     ...overrides,
   };
 }
@@ -212,11 +215,13 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
 
   /** Rates a design's counts can be read back out of: powers far enough apart that no combination
    *  of the three counts can alias one mechanism for another. The seeded kitchen's largest count is
-   *  74, so a base of 1 000 separates them with room to spare. */
+   *  74, so a base of 1 000 separates them with room to spare. The smallest rate is one ten-lei grain, because the
+   *  hardware line is rounded to ten lei (ADR 0177 A-1) and a smaller one would be rounded away. */
+  const GRAIN_MINOR = 1_000;
   const SEPARABLE_RATES = {
-    perHingeMinor: 1,
-    perDrawerMinor: 1_000,
-    perPushToOpenMinor: 1_000_000,
+    perHingeMinor: GRAIN_MINOR,
+    perDrawerMinor: 1_000 * GRAIN_MINOR,
+    perPushToOpenMinor: 1_000_000 * GRAIN_MINOR,
   } as const;
 
   propertyTest.prop([anySubset])(
@@ -233,10 +238,13 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
 
         expect(line.quantity).toBe(1);
         expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
+        // The three rates over the three counts, rounded once to ten lei.
         expect(line.amountMinor).toBe(
-          tier.perHingeMinor * counts.hinges +
-            tier.perDrawerMinor * counts.drawers +
-            tier.perPushToOpenMinor * counts.pushToOpen,
+          roundedToTenLei(
+            tier.perHingeMinor * counts.hinges +
+              tier.perDrawerMinor * counts.drawers +
+              tier.perPushToOpenMinor * counts.pushToOpen,
+          ),
         );
       }
     },
@@ -253,9 +261,11 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
         priceOrFail({ design, book: bookAtRates(SEPARABLE_RATES) }),
       ).amountMinor;
 
-      expect(amount % 1_000).toBe(counts.hinges);
-      expect(Math.floor(amount / 1_000) % 1_000).toBe(counts.drawers);
-      expect(Math.floor(amount / 1_000_000)).toBe(counts.pushToOpen);
+      const grains = amount / GRAIN_MINOR;
+
+      expect(grains % 1_000).toBe(counts.hinges);
+      expect(Math.floor(grains / 1_000) % 1_000).toBe(counts.drawers);
+      expect(Math.floor(grains / 1_000_000)).toBe(counts.pushToOpen);
     },
   );
 
@@ -286,8 +296,22 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
             }),
           ).amountMinor;
 
-        expect(at(enlarged) - at(design)).toBe(3 * tier.perDrawerMinor);
+        // Each side is rounded to ten lei once, so the difference is the three drawers to within one grain.
+        expect(
+          Math.abs(at(enlarged) - at(design) - 3 * tier.perDrawerMinor),
+        ).toBeLessThan(2 * GRAIN_MINOR);
       }
+      // At a rate that is a whole number of grains the difference is exact.
+      const exactBook = bookAtRates({
+        perHingeMinor: 0,
+        perDrawerMinor: 2 * GRAIN_MINOR,
+        perPushToOpenMinor: 0,
+      });
+      const exactlyAt = (one: Design): number =>
+        hardwareLineOf(priceOrFail({ design: one, book: exactBook }))
+          .amountMinor;
+
+      expect(exactlyAt(enlarged) - exactlyAt(design)).toBe(6 * GRAIN_MINOR);
     },
   );
 
@@ -424,8 +448,10 @@ describe("the boundaries the wave plan names", () => {
           priceOrFail({ design, selections: { hardwareTierId: tier.tierId } }),
         ).amountMinor,
       ).toBe(
-        expected.hinges * tier.perHingeMinor +
-          expected.drawers * tier.perDrawerMinor,
+        roundedToTenLei(
+          expected.hinges * tier.perHingeMinor +
+            expected.drawers * tier.perDrawerMinor,
+        ),
       );
     },
   );

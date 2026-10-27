@@ -32,6 +32,8 @@ import {
 import { toMetres, toMillimetres } from "../src/millimetres.js";
 import type { PriceBook } from "../src/pricing/price-book.js";
 import { priceDesign } from "../src/pricing/price-design.js";
+import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { roundedToTenLei } from "./support/line-amounts.js";
 import { SAMPLE_PRICE_BOOK } from "../src/pricing/sample-price-book.js";
 import { isPushToOpen, TOP_ROW_Y0_MM } from "../src/push-to-open.js";
 import {
@@ -627,6 +629,7 @@ function hardwareAmountOf(
     book,
     pricingVersion: book.version,
     selections: { hardwareTierId: tierId },
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
   if (!result.ok) throw new Error(`design refused: ${result.failure.code}`);
   const line = result.priced.lines.find(
@@ -654,8 +657,11 @@ describe("the seeded hardware line moves with the book's push rate and not with 
       const book = bookWithPushRate(perPushToOpenMinor);
 
       for (const tierId of EVERY_TIER_ID) {
+        // The line is the exact sum rounded once to ten lei (ADR 0177 A-1): affine in the rate to within that grain.
         expect(hardwareAmountOf(KITCHEN_L_DESIGN, tierId, book)).toBe(
-          (HINGES_AND_DRAWERS_MINOR[tierId] ?? 0) + 16 * perPushToOpenMinor,
+          roundedToTenLei(
+            (HINGES_AND_DRAWERS_MINOR[tierId] ?? 0) + 16 * perPushToOpenMinor,
+          ),
         );
       }
     },
@@ -668,7 +674,7 @@ describe("the seeded hardware line moves with the book's push rate and not with 
     (tierId) => {
       expect(
         hardwareAmountOf(KITCHEN_L_DESIGN, tierId, bookWithPushRate(0)),
-      ).toBe(HINGES_AND_DRAWERS_MINOR[tierId]);
+      ).toBe(roundedToTenLei(HINGES_AND_DRAWERS_MINOR[tierId] ?? Number.NaN));
     },
   );
 });

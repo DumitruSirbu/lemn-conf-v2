@@ -25,6 +25,7 @@ import {
   VARIED_ARMS,
   variedKitchensOf,
 } from "../support/varied-kitchens";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const MARKER = "ZZQA8H";
 
@@ -203,13 +204,20 @@ describe("8H criterion 15: a failure priceDesign itself returned", () => {
         book,
         pricingVersion,
         selections: design.settings,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
       });
       if (pricing.ok) throw new Error("expected pricing to refuse");
       const { failure } = pricing;
 
       it("reaches the snapshot's refusal whole, for the endpoint to log", () => {
         expect(
-          snapshotSubmission({ design, catalog, book, pricingVersion }),
+          snapshotSubmission({
+            design,
+            catalog,
+            book,
+            pricingVersion,
+            deepeningRows: MEASURED_DEEPENING_ROWS,
+          }),
         ).toEqual({ ok: false, refusal: { code: "PRICING_FAILED", failure } });
       });
 

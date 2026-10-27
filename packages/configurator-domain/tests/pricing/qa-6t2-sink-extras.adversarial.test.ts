@@ -32,6 +32,7 @@ import type {
   PricedDesign,
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -46,6 +47,7 @@ function priceOrFail(design: Design, book: PriceBook = BOOK): PricedDesign {
     catalog: CATALOG,
     book,
     pricingVersion: book.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
   if (!result.ok) throw new Error(`design refused: ${result.failure.code}`);
   return result.priced;
@@ -234,6 +236,7 @@ describe("an accessory id colliding anywhere in the book refuses it", () => {
       catalog: CATALOG,
       book,
       pricingVersion: book.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
     if (result.ok) throw new Error("expected the book to be refused");
     return result.failure;
@@ -292,6 +295,7 @@ describe("an accessory id colliding anywhere in the book refuses it", () => {
       catalog: CATALOG,
       book: withAccessoryRuleId("sinkProtectiveCover", tier.ruleId),
       pricingVersion: BOOK.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
 
     expect(result.ok).toBe(false);

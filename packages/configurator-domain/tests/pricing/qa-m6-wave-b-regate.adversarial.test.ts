@@ -7,6 +7,10 @@
 // with `qa-m6-wave-b-parse-boundary.adversarial.test.ts`, which still holds the five themselves and
 // is unchanged.
 //
+// Moved at the M10 P3 cut-over: the whole-kitchen material amount is gone, so the accessor and absent-amount cases are
+// read on the material tier's percentage and on the depth rule's; the base is the anchor and the terms are signed step
+// counts, which stay inside the bound with room to spare (`price-book.ts`, on `exactAmountOfTerms`).
+//
 // Two claims are load-bearing and are asserted here rather than taken:
 //
 // - **The backstop is not doing the work.** `refuseAnythingRaised`'s own doc says a refusal wearing
@@ -32,10 +36,6 @@ import {
   amountForBody,
   exactAmountOfTerms,
   InexactPriceArithmeticError,
-  pricedByWidth,
-  pricedByWidthAndDoorLeaves,
-  pricedByWidthAndHeight,
-  pricedByWidthHeightAndDoorLeaves,
   type HardwareTier,
   type MaterialTier,
   type PriceBook,
@@ -46,6 +46,8 @@ import {
 import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricingResult } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { ANCHORED_SHAPES } from "../../src/pricing/anchored-price-formula.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -67,6 +69,7 @@ function priceSeededKitchen(book: unknown): PricingResult {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: book as PriceBook,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -121,14 +124,24 @@ describe("each closed finding is refused by its own guard, not by the backstop",
   it("names the tier and the amount for an accessor that raises", () => {
     const [first, ...rest] = BOOK.material.tiers;
     if (!first) throw new Error("the sample offers no material tier");
-    const tiers = [raisingOn(first, "wholeKitchenMinor"), ...rest];
+    const tiers = [raisingOn(first, "percentOfCabinets"), ...rest];
 
     const detail = refusalDetailOf(
       bookWith({ material: { ...BOOK.material, tiers } }),
     );
 
     expect(detail).toContain(`material tier "${first.tierId}"`);
-    expect(detail).toContain('"wholeKitchenMinor"');
+    expect(detail).toContain('"percentOfCabinets"');
+    expect(detail).not.toContain(BACKSTOP_DETAIL);
+  });
+
+  it("names the depth rule and its percentage for an accessor that raises", () => {
+    const detail = refusalDetailOf(
+      bookWith({ depthRule: raisingOn(BOOK.depthRule, "deepCabinetPercent") }),
+    );
+
+    expect(detail).toContain("depth rule");
+    expect(detail).toContain('"deepCabinetPercent"');
     expect(detail).not.toContain(BACKSTOP_DETAIL);
   });
 
@@ -232,22 +245,35 @@ describe("the parse boundary names what it refused, whatever raised while readin
       ...["version", "currency", "status", "amountsProvisional"].map(
         (field) => ({ name: `book.${field}`, book: raisingOn(BOOK, field) }),
       ),
-      ...["cabinetRules", "hardware", "material", "accessories"].map(
-        (field) => ({ name: `book.${field}`, book: raisingOn(BOOK, field) }),
-      ),
+      ...[
+        "cabinetRules",
+        "hardware",
+        "material",
+        "depthRule",
+        "accessories",
+      ].map((field) => ({
+        name: `book.${field}`,
+        book: raisingOn(BOOK, field),
+      })),
       ...["ruleId", "buildId", "formula"].map((field) => ({
         name: `cabinetRule.${field}`,
         book: bookWith({ cabinetRules: [raisingOn(rule, field), ...rules] }),
       })),
-      ...["tierId", "ruleId", "name", "description"].map((field) => ({
-        name: `materialTier.${field}`,
-        book: bookWith({
-          material: {
-            ...BOOK.material,
-            tiers: [raisingOn(tier, field), ...tiers],
-          },
-        }),
+      ...["deepCabinetPercent"].map((field) => ({
+        name: `depthRule.${field}`,
+        book: bookWith({ depthRule: raisingOn(BOOK.depthRule, field) }),
       })),
+      ...["tierId", "ruleId", "name", "description", "percentOfCabinets"].map(
+        (field) => ({
+          name: `materialTier.${field}`,
+          book: bookWith({
+            material: {
+              ...BOOK.material,
+              tiers: [raisingOn(tier, field), ...tiers],
+            },
+          }),
+        }),
+      ),
       ...["defaultTierId", "tiers"].map((field) => ({
         name: `material.${field}`,
         book: bookWith({ material: raisingOn(BOOK.material, field) }),
@@ -351,11 +377,11 @@ describe("the amount sweep reaches what a reader reaches", () => {
 });
 
 describe("an amount that could not be read stays apart from one that was never declared", () => {
-  it("refuses an absent tier amount as a malformed amount, naming nothing raised", () => {
+  it("refuses an absent tier percentage as a malformed one, naming nothing raised", () => {
     const [first, ...rest] = BOOK.material.tiers;
     if (!first) throw new Error("the sample offers no material tier");
     const withoutAmount: Record<string, unknown> = { ...first };
-    delete withoutAmount["wholeKitchenMinor"];
+    delete withoutAmount["percentOfCabinets"];
     const tiers = [withoutAmount as unknown as MaterialTier, ...rest];
 
     const result = priceSeededKitchen(
@@ -364,15 +390,15 @@ describe("an amount that could not be read stays apart from one that was never d
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.failure.code).toBe("INVALID_AMOUNT");
-    expect(result.failure.detail).toContain("Found: nothing");
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(result.failure.detail).toContain("as nothing");
     expect(result.failure.detail).not.toContain("raised");
   });
 
-  it("refuses an unreadable tier amount as a malformed book, naming that it raised", () => {
+  it("refuses an unreadable tier percentage as a malformed book, naming that it raised", () => {
     const [first, ...rest] = BOOK.material.tiers;
     if (!first) throw new Error("the sample offers no material tier");
-    const tiers = [raisingOn(first, "wholeKitchenMinor"), ...rest];
+    const tiers = [raisingOn(first, "percentOfCabinets"), ...rest];
 
     const result = priceSeededKitchen(
       bookWith({ material: { ...BOOK.material, tiers } }),
@@ -389,75 +415,111 @@ describe("an amount that could not be read stays apart from one that was never d
     // a `PricingFailure` is logged and rendered.
     const [first, ...rest] = BOOK.material.tiers;
     if (!first) throw new Error("the sample offers no material tier");
-    const details = ["wholeKitchenMinor", "name", "tierId"].map((field) =>
+    const details = [
+      ...["percentOfCabinets", "name", "tierId"].map((field) =>
+        refusalDetailOf(
+          bookWith({
+            material: {
+              ...BOOK.material,
+              tiers: [raisingOn(first, field), ...rest],
+            },
+          }),
+        ),
+      ),
       refusalDetailOf(
         bookWith({
-          material: {
-            ...BOOK.material,
-            tiers: [raisingOn(first, field), ...rest],
-          },
+          depthRule: raisingOn(BOOK.depthRule, "deepCabinetPercent"),
         }),
       ),
-    );
+    ];
 
     for (const detail of details) expect(detail).not.toContain("Symbol(");
   });
 });
 
-describe("the base is charged exactly once, in every shape", () => {
-  const BASE_MINOR = 123_456;
-  const BODY: PricedBody = { widthMm: 600, heightMm: 700, doorLeafCount: 2 };
+describe("the anchor is charged exactly once, in every shape", () => {
+  const ANCHOR_MINOR = 123_456;
+  const ANCHOR_WIDTH_MM = 600;
+  const ANCHOR_HEIGHT_MM = 700;
+  const ANCHOR_LEAVES = 2;
+  /** A body standing exactly at the anchor, so no step term has a count. */
+  const BODY_AT_THE_ANCHOR: PricedBody = {
+    widthMm: ANCHOR_WIDTH_MM,
+    heightMm: ANCHOR_HEIGHT_MM,
+    doorLeafCount: ANCHOR_LEAVES,
+    doorLeafCountAt: () => ANCHOR_LEAVES,
+  };
 
-  const BASE_ONLY_SHAPES: readonly PriceFormula[] = [
-    pricedByWidth({ baseMinor: BASE_MINOR, perWidthMillimetreMinor: 0 }),
-    pricedByWidthAndDoorLeaves({
-      baseMinor: BASE_MINOR,
-      perWidthMillimetreMinor: 0,
-      perDoorLeafMinor: 0,
-    }),
-    pricedByWidthAndHeight({
-      baseMinor: BASE_MINOR,
-      perWidthMillimetreMinor: 0,
-      perHeightMillimetreMinor: 0,
-    }),
-    pricedByWidthHeightAndDoorLeaves({
-      baseMinor: BASE_MINOR,
-      perWidthMillimetreMinor: 0,
-      perHeightMillimetreMinor: 0,
-      perDoorLeafMinor: 0,
-    }),
-  ];
+  /** A formula of this shape with the anchor and the given rates, and every rate the shape reads at the value given. */
+  function formulaOf(
+    shape: (typeof ANCHORED_SHAPES)[number],
+    fields: {
+      readonly anchorMinor: number;
+      readonly rateMinor: number;
+    },
+  ): PriceFormula {
+    return {
+      shape,
+      anchorWidthMm: ANCHOR_WIDTH_MM,
+      anchorMinor: fields.anchorMinor,
+      perStepWiderMinor: fields.rateMinor,
+      perStepNarrowerMinor: fields.rateMinor,
+      ...(shape.includes("door-leaves")
+        ? { perExtraDoorLeafMinor: fields.rateMinor }
+        : {}),
+      ...(shape.includes("height")
+        ? {
+            anchorHeightMm: ANCHOR_HEIGHT_MM,
+            perHeightStepMinor: fields.rateMinor,
+          }
+        : {}),
+    };
+  }
 
-  it("prices a body at the base alone, neither twice nor not at all", () => {
-    for (const formula of BASE_ONLY_SHAPES) {
-      expect(amountForBody(formula, BODY), formula.shape).toBe(BASE_MINOR);
+  it("covers all four anchored shapes", () => {
+    expect(ANCHORED_SHAPES).toHaveLength(4);
+  });
+
+  it("prices a body at the anchor alone, neither twice nor not at all, whatever the rates", () => {
+    for (const shape of ANCHORED_SHAPES) {
+      for (const rateMinor of [0, 1_000, 77_777]) {
+        expect(
+          amountForBody(
+            formulaOf(shape, { anchorMinor: ANCHOR_MINOR, rateMinor }),
+            BODY_AT_THE_ANCHOR,
+          ),
+          `${shape} at rate ${String(rateMinor)}`,
+        ).toBe(ANCHOR_MINOR);
+      }
     }
   });
 
-  it("drops the base entirely when a book states it as zero", () => {
+  it("drops the anchor entirely when a book states it as zero", () => {
     expect(
       amountForBody(
-        pricedByWidth({ baseMinor: 0, perWidthMillimetreMinor: 100 }),
-        BODY,
+        formulaOf("anchored-width", { anchorMinor: 0, rateMinor: 100 }),
+        { ...BODY_AT_THE_ANCHOR, widthMm: ANCHOR_WIDTH_MM + 50 },
       ),
-    ).toBe(100 * BODY.widthMm);
+    ).toBe(100);
   });
 
   const coefficient = fc.integer({
     min: -MAX_PRICE_COEFFICIENT_MINOR,
     max: MAX_PRICE_COEFFICIENT_MINOR,
   });
-  const millimetres = fc.integer({ min: 0, max: MAX_DESIGN_DIMENSION_MM });
+  const millimetres = fc.integer({ min: 1, max: MAX_DESIGN_DIMENSION_MM });
 
   propertyTest.prop(
     {
-      baseMinor: coefficient,
-      perWidthMillimetreMinor: coefficient,
-      perHeightMillimetreMinor: coefficient,
-      perDoorLeafMinor: coefficient,
+      anchorMinor: coefficient,
+      perStepWiderMinor: coefficient,
+      perStepNarrowerMinor: coefficient,
+      perHeightStepMinor: coefficient,
+      perExtraDoorLeafMinor: coefficient,
       widthMm: millimetres,
       heightMm: millimetres,
-      doorLeafCount: fc.integer({ min: 0, max: 8 }),
+      builtLeaves: fc.integer({ min: 0, max: 8 }),
+      anchorLeaves: fc.integer({ min: 0, max: 8 }),
     },
     { seed: PROPERTY_SEED, numRuns: 1_000 },
   )(
@@ -466,30 +528,55 @@ describe("the base is charged exactly once, in every shape", () => {
       const body: PricedBody = {
         widthMm: swept.widthMm,
         heightMm: swept.heightMm,
-        doorLeafCount: swept.doorLeafCount,
+        doorLeafCount: swept.builtLeaves,
+        doorLeafCountAt: () => swept.anchorLeaves,
       };
-      const base = BigInt(swept.baseMinor);
+      const stepsOf = (millimetresBuilt: number, anchorMm: number) =>
+        BigInt(Math.ceil(millimetresBuilt / 50) * 50 - anchorMm) / 50n;
+      const widthSteps = stepsOf(swept.widthMm, ANCHOR_WIDTH_MM);
+      const heightSteps = stepsOf(swept.heightMm, ANCHOR_HEIGHT_MM);
+      const anchor = BigInt(swept.anchorMinor);
       const width =
-        BigInt(swept.perWidthMillimetreMinor) * BigInt(body.widthMm);
-      const height =
-        BigInt(swept.perHeightMillimetreMinor) * BigInt(body.heightMm);
+        widthSteps >= 0n
+          ? BigInt(swept.perStepWiderMinor) * widthSteps
+          : BigInt(swept.perStepNarrowerMinor) * widthSteps;
+      const height = BigInt(swept.perHeightStepMinor) * heightSteps;
       const leaves =
-        BigInt(swept.perDoorLeafMinor) * BigInt(body.doorLeafCount);
+        BigInt(swept.perExtraDoorLeafMinor) *
+        BigInt(swept.builtLeaves - swept.anchorLeaves);
+      const formula = (shape: (typeof ANCHORED_SHAPES)[number]): PriceFormula =>
+        ({
+          ...formulaOf(shape, { anchorMinor: 0, rateMinor: 0 }),
+          anchorMinor: swept.anchorMinor,
+          perStepWiderMinor: swept.perStepWiderMinor,
+          perStepNarrowerMinor: swept.perStepNarrowerMinor,
+          ...(shape.includes("door-leaves")
+            ? { perExtraDoorLeafMinor: swept.perExtraDoorLeafMinor }
+            : {}),
+          ...(shape.includes("height")
+            ? { perHeightStepMinor: swept.perHeightStepMinor }
+            : {}),
+        }) as PriceFormula;
 
-      expect(BigInt(amountForBody(pricedByWidth(swept), body) ?? 0)).toBe(
-        base + width,
+      expect(BigInt(amountForBody(formula("anchored-width"), body) ?? 0)).toBe(
+        anchor + width,
       );
       expect(
-        BigInt(amountForBody(pricedByWidthAndDoorLeaves(swept), body) ?? 0),
-      ).toBe(base + width + leaves);
+        BigInt(
+          amountForBody(formula("anchored-width-and-door-leaves"), body) ?? 0,
+        ),
+      ).toBe(anchor + width + leaves);
       expect(
-        BigInt(amountForBody(pricedByWidthAndHeight(swept), body) ?? 0),
-      ).toBe(base + width + height);
+        BigInt(amountForBody(formula("anchored-width-and-height"), body) ?? 0),
+      ).toBe(anchor + width + height);
       expect(
         BigInt(
-          amountForBody(pricedByWidthHeightAndDoorLeaves(swept), body) ?? 0,
+          amountForBody(
+            formula("anchored-width-height-and-door-leaves"),
+            body,
+          ) ?? 0,
         ),
-      ).toBe(base + width + height + leaves);
+      ).toBe(anchor + width + height + leaves);
     },
   );
 });
@@ -513,17 +600,17 @@ describe("the checked arithmetic refuses by order, and no accepted book can reac
     const rise: PricedTerm = {
       coefficientMinor: half,
       count: 1,
-      field: "baseMinor",
+      field: "anchorMinor",
     };
     const fall: PricedTerm = {
       coefficientMinor: -half,
       count: 1,
-      field: "perWidthMillimetreMinor",
+      field: "perStepNarrowerMinor",
     };
     const again: PricedTerm = {
       coefficientMinor: half,
       count: 1,
-      field: "perHeightMillimetreMinor",
+      field: "perHeightStepMinor",
     };
 
     expect(outcomeOf([rise, fall, again])).toBe(`answered ${String(half)}`);
@@ -534,17 +621,20 @@ describe("the checked arithmetic refuses by order, and no accepted book can reac
     min: -MAX_PRICE_COEFFICIENT_MINOR,
     max: MAX_PRICE_COEFFICIENT_MINOR,
   });
-  const millimetres = fc.integer({ min: 0, max: MAX_DESIGN_DIMENSION_MM });
+  /** The most steps of 50 mm a design dimension can sit from an anchor. */
+  const MAX_STEPS = MAX_DESIGN_DIMENSION_MM / 50;
+  const steps = fc.integer({ min: -MAX_STEPS, max: MAX_STEPS });
 
   propertyTest.prop(
     {
-      baseMinor: coefficient,
-      perWidthMillimetreMinor: coefficient,
-      perHeightMillimetreMinor: coefficient,
-      perDoorLeafMinor: coefficient,
-      widthMm: millimetres,
-      heightMm: millimetres,
-      doorLeafCount: fc.integer({ min: 0, max: 8 }),
+      anchorMinor: coefficient,
+      perStepWiderMinor: coefficient,
+      perStepNarrowerMinor: coefficient,
+      perHeightStepMinor: coefficient,
+      perExtraDoorLeafMinor: coefficient,
+      widthSteps: steps,
+      heightSteps: steps,
+      extraLeaves: fc.integer({ min: -8, max: 8 }),
     },
     { seed: PROPERTY_SEED, numRuns: 500 },
   )(
@@ -552,24 +642,29 @@ describe("the checked arithmetic refuses by order, and no accepted book can reac
     (swept) => {
       const terms: readonly PricedTerm[] = [
         {
-          coefficientMinor: swept.baseMinor,
+          coefficientMinor: swept.anchorMinor,
           count: 1,
-          field: "baseMinor",
+          field: "anchorMinor",
         },
         {
-          coefficientMinor: swept.perWidthMillimetreMinor,
-          count: swept.widthMm,
-          field: "perWidthMillimetreMinor",
+          coefficientMinor: swept.perStepWiderMinor,
+          count: Math.max(swept.widthSteps, 0),
+          field: "perStepWiderMinor",
         },
         {
-          coefficientMinor: swept.perHeightMillimetreMinor,
-          count: swept.heightMm,
-          field: "perHeightMillimetreMinor",
+          coefficientMinor: swept.perStepNarrowerMinor,
+          count: Math.min(swept.widthSteps, 0),
+          field: "perStepNarrowerMinor",
         },
         {
-          coefficientMinor: swept.perDoorLeafMinor,
-          count: swept.doorLeafCount,
-          field: "perDoorLeafMinor",
+          coefficientMinor: swept.perHeightStepMinor,
+          count: swept.heightSteps,
+          field: "perHeightStepMinor",
+        },
+        {
+          coefficientMinor: swept.perExtraDoorLeafMinor,
+          count: swept.extraLeaves,
+          field: "perExtraDoorLeafMinor",
         },
       ];
 
@@ -582,7 +677,7 @@ describe("the checked arithmetic refuses by order, and no accepted book can reac
   );
 });
 
-/** Every ordering of a term list. Four terms is 24 orderings, which is what a shape has at most. */
+/** Every ordering of a term list. Five terms is 120 orderings, which is what a shape has at most. */
 function permutationsOf(
   terms: readonly PricedTerm[],
 ): readonly (readonly PricedTerm[])[] {

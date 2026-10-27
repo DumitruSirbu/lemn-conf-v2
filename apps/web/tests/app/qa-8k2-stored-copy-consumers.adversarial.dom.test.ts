@@ -34,6 +34,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
 import { underSamplePriceBook } from "../support/sample-price-root";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 vi.mock("@/app/configurator/configure/configure-screen", () => ({
   ConfigureScreen: EveryConsumer,
@@ -93,6 +94,7 @@ function priceOf(design: Design): PricingResult {
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     selections: design.settings,
   });
 }

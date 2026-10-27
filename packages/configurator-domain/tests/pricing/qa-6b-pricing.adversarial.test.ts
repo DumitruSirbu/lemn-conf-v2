@@ -28,8 +28,6 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import {
   amountForBody,
-  pricedByWidth,
-  pricedFlat,
   type CabinetPriceRule,
   type PriceBook,
 } from "../../src/pricing/price-book.js";
@@ -47,6 +45,10 @@ import { projectDesignForDisplay } from "../../src/queries/design-projection.js"
 import { findOverflowingPlacementIds } from "../../src/queries/overflowing-placements.js";
 import { validateDesignForCatalog } from "../../src/validate-design.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { expectedLineAmountMinor } from "../support/line-amounts.js";
+
+import { anchoredAt } from "./percentage-book-support.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -83,6 +85,7 @@ function request(
     catalog: CATALOG,
     book: BOOK,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     ...overrides,
   };
 }
@@ -153,6 +156,7 @@ describe("the two lookups that must differ, read from the other direction", () =
       (rule) => rule.buildId === "base-sink",
     );
     if (!equivalentRule) throw new Error("the sample book prices no base-sink");
+    const DECOY_ANCHOR_MINOR = 1_000;
     const bookNamingBoth: PriceBook = {
       ...BOOK,
       cabinetRules: [
@@ -160,7 +164,7 @@ describe("the two lookups that must differ, read from the other direction", () =
         {
           ruleId: "cabinet.decoy-own-id",
           buildId: OWN_ID,
-          formula: pricedFlat(equivalentRule.formula.baseMinor + 1),
+          formula: anchoredAt(DECOY_ANCHOR_MINOR),
         },
       ],
     };
@@ -352,34 +356,50 @@ describe("degenerate designs and degenerate books", () => {
 });
 
 describe("no rounding, and no float that could produce one", () => {
-  it("refuses a fractional amount rather than rounding it to a whole minor unit", () => {
-    const fractional = bookWithRuleFor("wall-cabinet", {
-      formula: pricedByWidth({ baseMinor: 0, perWidthMillimetreMinor: 0.5 }),
+  /** The sample's wall-cabinet formula with one of its step rates replaced, a hand-built variant of the shipped rule. */
+  function wallCabinetBookWithStep(
+    rate: "perStepWiderMinor" | "perStepNarrowerMinor",
+    minor: number,
+  ): PriceBook {
+    const shipped = BOOK.cabinetRules.find(
+      (rule) => rule.buildId === "wall-cabinet",
+    );
+    if (shipped === undefined)
+      throw new Error("the sample prices no wall-cabinet");
+    return bookWithRuleFor("wall-cabinet", {
+      formula: {
+        ...shipped.formula,
+        [rate]: minor,
+      } as CabinetPriceRule["formula"],
     });
+  }
 
-    expect(
-      refusalFrom({
-        design: designOf([placedAt({ id: "x", body: { widthMm: 575 } })]),
-        book: fractional,
-      }),
-    ).toMatchObject({ code: "INVALID_AMOUNT", placementId: "x" });
-  });
+  it.each(["perStepWiderMinor", "perStepNarrowerMinor"] as const)(
+    "refuses a half minor unit in %s as a book fault, rather than rounding it into a line",
+    (rate) => {
+      // The amount is checked where it is written down (the book), since a step is multiplied by a whole count: a
+      // fraction in the rate is the only way a fraction reaches an amount.
+      expect(
+        refusalFrom({
+          design: designOf([placedAt({ id: "x", body: { widthMm: 575 } })]),
+          book: wallCabinetBookWithStep(rate, 0.5),
+        }),
+      ).toMatchObject({ code: "INVALID_PRICE_BOOK" });
+    },
+  );
 
-  it("refuses the fractional amount a fractional width produces, where it produces one", () => {
-    // The query guards the **amount**, not the width. `DesignSchema` is what forbids a fractional
-    // width, and every shipped coefficient is a multiple of 50, so a half-millimetre width happens
-    // to land on a whole amount under the shipped book. An odd coefficient is where it does not,
-    // and that is the case the guard has to catch.
-    const oddCoefficient = bookWithRuleFor("wall-cabinet", {
-      formula: pricedByWidth({ baseMinor: 0, perWidthMillimetreMinor: 301 }),
-    });
+  it("refuses the width a fractional millimetre gives, and never prices around it", () => {
+    // `DesignSchema` forbids a fractional width, and the query refuses one it is handed anyway: a width is a whole,
+    // positive count of millimetres before it is rounded up to a step, so no odd rate can turn it into a fractional
+    // amount.
+    const oddRate = wallCabinetBookWithStep("perStepWiderMinor", 301);
 
     expect(
       refusalFrom({
         design: designOf([placedAt({ id: "x", body: { widthMm: 575.5 } })]),
-        book: oddCoefficient,
-      }).code,
-    ).toBe("INVALID_AMOUNT");
+        book: oddRate,
+      }),
+    ).toMatchObject({ code: "INVALID_AMOUNT", placementId: "x" });
     expect(
       DesignSchema.safeParse(
         designOf([placedAt({ id: "x", body: { widthMm: 575.5 } })]),
@@ -424,7 +444,7 @@ describe("no rounding, and no float that could produce one", () => {
     for (const line of priced.lines) {
       expect(Number.isSafeInteger(line.unitAmountMinor)).toBe(true);
       expect(Number.isSafeInteger(line.quantity)).toBe(true);
-      expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
+      expect(line.amountMinor).toBe(expectedLineAmountMinor(line));
       expect(Number.isSafeInteger(line.amountMinor)).toBe(true);
     }
     expect(priced.totalMinor).toBe(
@@ -496,22 +516,33 @@ describe("the formula holds across the whole buildable range, not at examples", 
     }
   });
 
-  it("prices a flat-rule body identically at every width, without keying on one", () => {
-    const amounts = new Set<number>();
-    for (const widthMm of [RANGE.min, 555, 575, 600, RANGE.max]) {
-      amounts.add(
-        priceOrFail({
+  it("prices a fixed-size row at its listed size for every width up to it, and refuses a width above it", () => {
+    // `tall-oven-tower` lists one size. A width at or under it is priced at that size, identically and without keying on
+    // the width; one above it has no size that reaches it, so it is refused rather than priced at the nearest (A-7).
+    const amountAt = (widthMm: number) =>
+      priceDesign(
+        request({
           design: designOf([
             placedAt({
               id: "x",
               body: { buildId: "tall-oven-tower", widthMm, heightMm: 2200 },
             }),
           ]),
-        }).lines[0]?.amountMinor ?? Number.NaN,
+        }),
       );
-    }
+    const priced = [RANGE.min, 555, 575, 600].map((widthMm) => {
+      const result = amountAt(widthMm);
+      if (!result.ok) throw new Error(result.failure.code);
+      return result.priced.lines[0]?.amountMinor ?? Number.NaN;
+    });
 
-    expect(amounts.size).toBe(1);
+    expect(new Set(priced).size).toBe(1);
+    const above = amountAt(RANGE.max);
+    expect(above.ok).toBe(false);
+    expect(above.ok ? undefined : above.failure).toMatchObject({
+      code: "NO_PRICE_FOR_SIZE",
+      placementId: "x",
+    });
   });
 });
 

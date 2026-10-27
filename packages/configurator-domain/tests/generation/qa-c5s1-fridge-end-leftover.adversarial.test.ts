@@ -53,6 +53,7 @@ import { beforeAdr0167 } from "../support/before-adr-0167-free-end-fill.js";
 import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
   const { withTheFreeEndFillSwitchable } = await import(
@@ -303,6 +304,7 @@ function priceLinesById(design: Design): Map<string, number> {
     catalog: catalogOf(design),
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     selections: design.settings,
   });
   if (!result.ok)

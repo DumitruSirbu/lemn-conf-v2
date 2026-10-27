@@ -18,6 +18,7 @@ import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
 import type { PriceBook } from "../../src/pricing/price-book.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
@@ -46,6 +47,7 @@ function pricesWith(book: PriceBook): boolean {
     catalog: KITCHEN_L_BODY_CATALOG,
     book,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   }).ok;
 }
 

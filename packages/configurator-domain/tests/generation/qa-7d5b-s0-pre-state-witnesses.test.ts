@@ -395,14 +395,18 @@ function amountAt600Mm(buildId: string): number {
   if (!definition || !rule || heightMm === undefined) {
     throw new Error(`${buildId} is not priced`);
   }
+  const leavesAt = (widthMm: number) =>
+    widthDerivedDoorLeafCount({
+      buildId,
+      rule: definition.cabinetHandles,
+      widthMm,
+    });
+  // An anchored door shape sets the built body's leaves against the anchor's, so the body supplies both counts.
   const amount = amountForBody(rule.formula, {
     widthMm: PRICED_WIDTH_MM,
     heightMm,
-    doorLeafCount: widthDerivedDoorLeafCount({
-      buildId,
-      rule: definition.cabinetHandles,
-      widthMm: PRICED_WIDTH_MM,
-    }),
+    doorLeafCount: leavesAt(PRICED_WIDTH_MM),
+    doorLeafCountAt: leavesAt,
   });
   if (amount === undefined) throw new Error(`${buildId} has no amount`);
   return amount;

@@ -31,6 +31,11 @@ import { ro } from "../support/romanian-content";
 import roMessages from "../../src/messages/ro.json";
 import { authoredLiteralsIn } from "../support/icu-authored-literals";
 import { SUM_CLAIM_PATTERN } from "../support/ruled-price-copy";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import {
+  materialLineBounds,
+  roundedToTenLei,
+} from "../support/ten-lei-amounts";
 import {
   describeAddedAmount,
   describeRoundedAmount,
@@ -111,6 +116,7 @@ function measure(design: Design): WholeKitchenTierOffer {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -160,8 +166,8 @@ function totalMechanismsIn(design: Design): number {
   return counts.hinges + counts.drawers + counts.pushToOpen;
 }
 
-/** What the book charges this design at this tier: three rates against three counts, composed here
- *  rather than read off a line, which is what makes it the independent side. */
+/** What the hardware line prints for this design at this tier: three rates against three counts, composed here rather
+ *  than read off a line, rounded once to ten lei (ADR 0177 A-1). The independent side. */
 function bookAmountFor(tierId: string, design: Design): number {
   const tier = SAMPLE_PRICE_BOOK.hardware.tiers.find(
     (one) => one.tierId === tierId,
@@ -169,19 +175,36 @@ function bookAmountFor(tierId: string, design: Design): number {
   if (!tier) throw new Error(`the book holds no hardware tier "${tierId}"`);
   const mechanisms = countMechanismsIn(design);
 
-  return (
+  return roundedToTenLei(
     tier.perHingeMinor * mechanisms.hinges +
-    tier.perDrawerMinor * mechanisms.drawers +
-    tier.perPushToOpenMinor * mechanisms.pushToOpen
+      tier.perDrawerMinor * mechanisms.drawers +
+      tier.perPushToOpenMinor * mechanisms.pushToOpen,
   );
 }
 
-function bookWholeKitchenFor(tierId: string): number {
+/** What the material line prints for this design at this tier, read off the priced design's own line: the one amount a
+ *  material tier moves, and so what its delta must be. */
+function materialLineFor(tierId: string, design: Design) {
+  const result = priceDesign({
+    design,
+    catalog: KITCHEN_L_BODY_CATALOG,
+    book: SAMPLE_PRICE_BOOK,
+    pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    selections: { ...design.settings, materialTierId: tierId },
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+  });
+  if (!result.ok) throw new Error("the design was expected to price");
+  const line = result.priced.lines.find((one) => one.kind === "material");
+  if (line === undefined) throw new Error("no material line");
+  return { amountMinor: line.amountMinor, lines: result.priced.lines };
+}
+
+function percentOf(tierId: string): number {
   const tier = SAMPLE_PRICE_BOOK.material.tiers.find(
     (one) => one.tierId === tierId,
   );
   if (!tier) throw new Error(`the book holds no material tier "${tierId}"`);
-  return tier.wholeKitchenMinor;
+  return tier.percentOfCabinets;
 }
 
 function pricingOf(design: Design): PricingResult {
@@ -191,6 +214,7 @@ function pricingOf(design: Design): PricingResult {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -201,6 +225,7 @@ function offerOf(design: Design): WholeKitchenTierOffer {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -281,30 +306,49 @@ describe("a delta cannot depend on a setting the customer is not looking at", ()
 
   it("measures against the book's default rather than against the tier the design already carries", () => {
     // Characterisation: the baseline is the group's `defaultTierId`, so a customer already on *Furnir natural* still
-    // reads *de la +18 000* beside the tier they own. Pinned so moving it is a decision rather than an unread diff.
-    const onVeneer = measure(
-      designCarrying({ materialTierId: "material.veneer" }),
+    // reads a *de la +…* beside the tier they own. Pinned so moving it is a decision rather than an unread diff.
+    const carrying = designCarrying({ materialTierId: "material.veneer" });
+    const onVeneer = measure(carrying);
+    const veneerLine = materialLineFor("material.veneer", carrying);
+    const { nearMinor, toleranceMinor } = materialLineBounds(
+      veneerLine.lines,
+      percentOf("material.veneer"),
     );
 
+    // The delta is the material line the tier prints (the reference's is nothing), which is the book's percentage of the
+    // kitchen's cabinets to within the per-cabinet rounding.
     expect(deltaOf(onVeneer.material, "material.veneer")).toBe(
-      bookWholeKitchenFor("material.veneer") -
-        bookWholeKitchenFor(SAMPLE_PRICE_BOOK.material.defaultTierId),
+      veneerLine.amountMinor -
+        materialLineFor(SAMPLE_PRICE_BOOK.material.defaultTierId, carrying)
+          .amountMinor,
     );
+    expect(
+      Math.abs(deltaOf(onVeneer.material, "material.veneer") - nearMinor),
+    ).toBeLessThanOrEqual(toleranceMinor);
     expect(
       deltaOf(onVeneer.material, SAMPLE_PRICE_BOOK.material.defaultTierId),
     ).toBe(0);
   });
 
   it("reads that consequence on the page, in the words a customer would see", () => {
-    const view = viewOf(designCarrying({ materialTierId: "material.veneer" }));
+    const carrying = designCarrying({ materialTierId: "material.veneer" });
+    const view = viewOf(carrying);
     const material = groupNamed(view, "material");
 
+    // The words are the ruled ones around a figure rounded up to the thousand from the tier's own material line: the
+    // reference is *inclus* and the others *de la +…* from what they add.
     expect(
       material.options.map((option) => [option.tierId, option.deltaText]),
     ).toEqual([
       ["material.melamine", "inclus"],
-      ["material.painted-mdf", "de la +9 000"],
-      ["material.veneer", "de la +18 000"],
+      [
+        "material.painted-mdf",
+        `de la ${describeAddedAmount(materialLineFor("material.painted-mdf", carrying).amountMinor)}`,
+      ],
+      [
+        "material.veneer",
+        `de la ${describeAddedAmount(materialLineFor("material.veneer", carrying).amountMinor)}`,
+      ],
     ]);
   });
 });
@@ -362,13 +406,19 @@ describe("the arithmetic, re-derived from something that is not priceDesign", ()
     ).toEqual(["inclus", "inclus", "inclus"]);
   });
 
-  it("still charges the material tiers in that empty kitchen, which is what makes the zero above a measurement", () => {
-    // Without this, an all-zero hardware delta is also what a measurement that stopped measuring looks like.
+  it("charges a material nothing in a kitchen with no cabinets, since it is a percentage of nothing, and charges it in one with cabinets", () => {
+    // Without the second half, an all-zero material delta is also what a measurement that stopped measuring looks like.
     const empty: Design = { ...KITCHEN_L_DESIGN, placements: [] };
 
-    expect(deltaOf(measure(empty).material, "material.veneer")).toBe(
-      bookWholeKitchenFor("material.veneer"),
-    );
+    expect(deltaOf(measure(empty).material, "material.veneer")).toBe(0);
+    expect(
+      groupNamed(viewOf(empty), "material").options.map(
+        (option) => option.deltaText,
+      ),
+    ).toEqual(["inclus", "inclus", "inclus"]);
+    expect(
+      deltaOf(measure(KITCHEN_L_DESIGN).material, "material.veneer"),
+    ).toBeGreaterThan(0);
   });
 });
 
@@ -513,7 +563,11 @@ describe("the two words on the badge cannot drift from the two above the figure"
   );
 
   it("renders the badge's words on the page rather than only in the model", () => {
-    expect(markupOf(viewOf(KITCHEN_L_DESIGN))).toContain(">de la +9 000<");
+    // The badge of a tier above the reference, in the words the page prints, from the tier's own material line.
+    const upgradeId = "material.painted-mdf";
+    const badge = `de la ${describeAddedAmount(materialLineFor(upgradeId, KITCHEN_L_DESIGN).amountMinor)}`;
+
+    expect(markupOf(viewOf(KITCHEN_L_DESIGN))).toContain(`>${badge}<`);
   });
 
   // Exact Romanian CLDR boundaries and Gate O1 wording belong to
@@ -571,8 +625,9 @@ describe("how many bodies, and which part of the document says so", () => {
     },
   );
 
-  /** One `base-drawer3-600` (three drawers, no hinge) prices Hettich 4 200 minor below Standard: the sheet renders,
-   *  every tier stays choosable, and only that tier states no amount. */
+  /** One `base-drawer3-600` (three drawers, no hinge) prices Hettich below Standard by three drawers' rate gap, to within
+   *  the ten-lei grain each printed amount is rounded to: the sheet renders, every tier stays choosable, and only that
+   *  tier states no amount. */
   it("renders the sheet for a drawer-dominant design, with no amount on the tier that prices below the default", () => {
     const drawersOnly: Design = {
       ...KITCHEN_L_DESIGN,
@@ -587,10 +642,20 @@ describe("how many bodies, and which part of the document says so", () => {
       drawers: 3,
       pushToOpen: 0,
     });
-    expect(
+    const drawerGapMinor =
+      3 *
+      ((SAMPLE_PRICE_BOOK.hardware.tiers.find(
+        (one) => one.tierId === "hardware.soft-close",
+      )?.perDrawerMinor ?? Number.NaN) -
+        (SAMPLE_PRICE_BOOK.hardware.tiers.find(
+          (one) => one.tierId === SAMPLE_PRICE_BOOK.hardware.defaultTierId,
+        )?.perDrawerMinor ?? Number.NaN));
+    const printedGapMinor =
       bookAmountFor("hardware.soft-close", drawersOnly) -
-        bookAmountFor(SAMPLE_PRICE_BOOK.hardware.defaultTierId, drawersOnly),
-    ).toBe(-4_200);
+      bookAmountFor(SAMPLE_PRICE_BOOK.hardware.defaultTierId, drawersOnly);
+    expect(drawerGapMinor).toBeLessThan(0);
+    expect(Math.abs(printedGapMinor - drawerGapMinor)).toBeLessThan(1_000);
+    expect(printedGapMinor).toBeLessThan(0);
 
     const view = viewOf(drawersOnly);
     const hardware = groupNamed(view, "hardware");

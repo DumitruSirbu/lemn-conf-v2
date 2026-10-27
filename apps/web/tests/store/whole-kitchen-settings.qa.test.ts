@@ -24,6 +24,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { underSamplePriceBook } from "../support/sample-price-root";
+import {
+  materialLineBounds,
+  roundedToTenLei,
+} from "../support/ten-lei-amounts";
 
 const storeState = vi.hoisted(() => ({ current: undefined as unknown }));
 
@@ -211,7 +215,7 @@ describe("the settings container reaches the price, by the book's own amounts", 
   });
 
   it.each(MATERIAL_TIER_IDS)(
-    "prices %s at that tier's own whole-kitchen amount",
+    "prices %s at that tier's own percentage of the cabinets",
     (tierId) => {
       const store = freshStore();
       const atDefault = priceOf(store.getState());
@@ -220,15 +224,20 @@ describe("the settings container reaches the price, by the book's own amounts", 
       const chosen = priceOf(store.getState());
 
       const chosenTier = materialTier(tierId);
-      const defaultTier = materialTier(
-        SAMPLE_PRICE_BOOK.material.defaultTierId,
+      const line = lineOfKind(chosen, "material");
+      const { nearMinor, toleranceMinor } = materialLineBounds(
+        chosen.lines,
+        chosenTier.percentOfCabinets,
       );
-      expect(lineOfKind(chosen, "material").tierId).toBe(tierId);
-      expect(lineOfKind(chosen, "material").amountMinor).toBe(
-        chosenTier.wholeKitchenMinor,
+      expect(line.tierId).toBe(tierId);
+      // The line is the book's percentage of the cabinets, to within the per-cabinet rounding; the reference tier is
+      // exactly nothing. The total then moves by that line and by nothing else: no cabinet, hardware or accessory moves.
+      expect(Math.abs(line.amountMinor - nearMinor)).toBeLessThanOrEqual(
+        toleranceMinor,
       );
+      expect(line.amountMinor === 0).toBe(chosenTier.percentOfCabinets === 0);
       expect(chosen.totalMinor - atDefault.totalMinor).toBe(
-        chosenTier.wholeKitchenMinor - defaultTier.wholeKitchenMinor,
+        line.amountMinor - lineOfKind(atDefault, "material").amountMinor,
       );
     },
   );
@@ -265,11 +274,14 @@ describe("the settings container reaches the price, by the book's own amounts", 
       expect(mechanisms.hinges + mechanisms.drawers).toBeGreaterThan(0);
       expect(lineOfKind(chosen, "hardware").tierId).toBe(tierId);
       expect(lineOfKind(chosen, "hardware").quantity).toBe(1);
+      // Each hardware line is its rates over its counts rounded once to ten lei (ADR 0177 A-1), so the difference
+      // between two tiers is the difference of two rounded amounts.
       expect(lineOfKind(chosen, "hardware").unitAmountMinor).toBe(
-        amountAt(chosenTier),
+        roundedToTenLei(amountAt(chosenTier)),
       );
       expect(chosen.totalMinor - atDefault.totalMinor).toBe(
-        amountAt(chosenTier) - amountAt(defaultTier),
+        roundedToTenLei(amountAt(chosenTier)) -
+          roundedToTenLei(amountAt(defaultTier)),
       );
     },
   );
@@ -291,11 +303,19 @@ describe("the settings container reaches the price, by the book's own amounts", 
     const veneerTotal = priceOf(freshStore(veneer).getState()).totalMinor;
     const paintedTotal = priceOf(freshStore(paintedMdf).getState()).totalMinor;
 
+    const materialMinorOf = (priced: PricedDesign) =>
+      lineOfKind(priced, "material").amountMinor;
+    const veneerPriced = priceOf(freshStore(veneer).getState());
+    const paintedPriced = priceOf(freshStore(paintedMdf).getState());
+
+    // Only the material line differs between the two: the cabinets, hardware and accessories are the same kitchen's.
     expect(veneerTotal - paintedTotal).toBe(
-      materialTier("material.veneer").wholeKitchenMinor -
-        materialTier("material.painted-mdf").wholeKitchenMinor,
+      materialMinorOf(veneerPriced) - materialMinorOf(paintedPriced),
     );
     expect(veneerTotal).not.toBe(paintedTotal);
+    expect(materialMinorOf(veneerPriced)).toBeGreaterThan(
+      materialMinorOf(paintedPriced),
+    );
   });
 
   // The two settings are independent: choosing a material may not move the hardware line, and the

@@ -9,7 +9,10 @@ import { describe, expect, it } from "vitest";
 import { test as propertyTest } from "@fast-check/vitest";
 
 import { deriveDoorCount } from "../../src/door-count.js";
-import { MAX_DESIGN_DIMENSION_MM } from "../../src/design-bounds.js";
+import {
+  MAX_DESIGN_DIMENSION_MM,
+  MAX_PLACEMENTS,
+} from "../../src/design-bounds.js";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -30,6 +33,7 @@ import {
 } from "../../src/pricing/price-book.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const MAX_DIMENSION = MAX_DESIGN_DIMENSION_MM;
 const STEP = BigInt(PRICE_STEP_MM);
@@ -47,6 +51,20 @@ function bodyOf(widthMm: number, heightMm: number, tiers: number): PricedBody {
     doorLeafCount: leaves(widthMm),
     doorLeafCountAt: leaves,
   };
+}
+
+/** The most one cabinet may cost before its three percentage stages could leave the exact-integer range (ADR 0177 A-5):
+ *  the safe-integer ceiling over every placement at the dearest material (+200 %) and depth (+100 %). Restated. */
+const ORACLE_CABINET_CAP =
+  BigInt(Number.MAX_SAFE_INTEGER) / (BigInt(MAX_PLACEMENTS) * 300n * 200n);
+
+const TEN_LEI = 1_000n;
+const HALF_A_GRAIN = 500n;
+
+/** A cabinet line is its exact amount rounded half up to ten lei (ADR 0177 A-1). Restated in BigInt, so the oracle
+ *  shares nothing with the seam it checks; the amount is non-negative where a line is published. */
+function oracleRoundedToTenLei(exactMinor: bigint): bigint {
+  return ((exactMinor + HALF_A_GRAIN) / TEN_LEI) * TEN_LEI;
 }
 
 /** Integer-only ceil to the pricing step, with no division. */
@@ -342,6 +360,7 @@ describe("through priceDesign: a line is the oracle's integer, or a coded refusa
       catalog: CATALOG,
       book,
       pricingVersion: book.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
   }
 
@@ -391,11 +410,20 @@ describe("through priceDesign: a line is the oracle's integer, or a coded refusa
 
       const result = priceOne(formula, widthMm, heightMm);
 
-      if (expected >= 0n) {
+      if (expected > ORACLE_CABINET_CAP) {
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure).toMatchObject({
+          code: "INVALID_AMOUNT",
+          placementId: "p1",
+        });
+      } else if (expected >= 0n) {
         expect(result.ok).toBe(true);
         if (!result.ok) return;
         const line = result.priced.lines.find((l) => l.kind === "cabinet");
-        expect(BigInt(line?.amountMinor ?? -1)).toBe(expected);
+        expect(BigInt(line?.amountMinor ?? -1)).toBe(
+          oracleRoundedToTenLei(expected),
+        );
         expect(Object.is(line?.amountMinor, -0)).toBe(false);
       } else {
         expect(result.ok).toBe(false);
@@ -501,6 +529,7 @@ describe("a fixed-size row against a listed-size oracle (A-7)", () => {
       catalog: CATALOG,
       book,
       pricingVersion: book.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
   }
 
@@ -523,10 +552,23 @@ describe("a fixed-size row against a listed-size oracle (A-7)", () => {
         });
         return;
       }
+      if (BigInt(reaching.amountMinor) > ORACLE_CABINET_CAP) {
+        // The parser admits a listed amount up to the coefficient bound; the percentage seam refuses the cabinet that
+        // would leave its stages inexact, naming the placement (ADR 0177 A-5).
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure).toMatchObject({
+          code: "INVALID_AMOUNT",
+          placementId: "p1",
+        });
+        return;
+      }
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       const line = result.priced.lines.find((l) => l.kind === "cabinet");
-      expect(line?.amountMinor).toBe(reaching.amountMinor);
+      expect(BigInt(line?.amountMinor ?? -1)).toBe(
+        oracleRoundedToTenLei(BigInt(reaching.amountMinor)),
+      );
     },
   );
 
@@ -592,6 +634,7 @@ describe("a whole kitchen priced on the anchored shapes: no body the seeded or g
         catalog: CATALOG,
         book: anchoredBook,
         pricingVersion: anchoredBook.version,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
       });
 
       expect(
@@ -607,6 +650,7 @@ describe("a whole kitchen priced on the anchored shapes: no body the seeded or g
       catalog: CATALOG,
       book: anchoredBook,
       pricingVersion: anchoredBook.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
 
     expect(result.ok).toBe(true);
@@ -657,6 +701,7 @@ describe("the plan's QA grid through priceDesign (§12): every millimetre of wid
           catalog: CATALOG,
           book,
           pricingVersion: book.version,
+          deepeningRows: MEASURED_DEEPENING_ROWS,
         });
         const expected = oracleAmount(GRID_RULE, bodyOf(widthMm, heightMm, 1));
 

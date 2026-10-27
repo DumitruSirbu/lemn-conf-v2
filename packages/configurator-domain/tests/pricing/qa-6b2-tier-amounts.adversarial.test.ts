@@ -2,8 +2,10 @@
 //
 // The sibling file attacks the cabinet coefficients. This one attacks the whole-kitchen amounts the
 // same population produces and that the same guard had not been reaching: a hardware tier's three
-// per-mechanism rates and `MaterialTier.wholeKitchenMinor`, read straight off a book authored
-// outside TypeScript, where a declared `number` is a promise and not a fact.
+// per-mechanism rates and the percentages a book states (a material's `percentOfCabinets`, the depth rule's
+// `deepCabinetPercent`), read straight off a book authored outside TypeScript, where a declared `number` is a promise
+// and not a fact. Since the cut-over (M10 P3) a material is a percentage on the cabinets and no longer an amount per
+// kitchen, so its malformed values are refused as a book fault by the parser, before any line is priced.
 //
 // **Wave 6T replaced the hardware tier's single `perCabinetHandleMinor` with three rates**
 // (ADR 0070 decision 1), so every hardware case below is swept over all three: a book that declares
@@ -44,6 +46,8 @@ import type {
   WholeKitchenPriceLine,
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { roundedToTenLei } from "../support/line-amounts.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -76,6 +80,7 @@ function request(
     catalog: CATALOG,
     book: BOOK,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     ...overrides,
   };
 }
@@ -177,19 +182,29 @@ function declaredHardwareAmount(tier: HardwareTier): number {
   );
 }
 
-/** The material half of the same, on the tier the reviewer mutated. */
-function bookWithMaterialAmount(declared: unknown): PriceBook {
+/** The material half of the same: one tier declares this as its percentage of the cabinets. Cast, since the whole point
+ *  is a value `MaterialTier` says is impossible. */
+function bookWithMaterialPercent(tierId: string, declared: unknown): PriceBook {
   return {
     ...BOOK,
     material: {
       ...BOOK.material,
       tiers: BOOK.material.tiers.map((tier) =>
-        tier.tierId === BOOK.material.defaultTierId
-          ? ({ ...tier, wholeKitchenMinor: declared } as MaterialTier)
+        tier.tierId === tierId
+          ? ({ ...tier, percentOfCabinets: declared } as MaterialTier)
           : tier,
       ),
     },
   };
+}
+
+/** The one tier above the 0 % reference, which is where a malformed percentage is billed once chosen. */
+function upgradeTierOf(group: TierGroup<MaterialTier>): MaterialTier {
+  const tier = group.tiers.find(
+    (candidate) => candidate.tierId !== group.defaultTierId,
+  );
+  if (!tier) throw new Error("the group holds no tier but its default");
+  return tier;
 }
 
 describe("whole-kitchen tier amounts are held to being amounts", () => {
@@ -205,14 +220,40 @@ describe("whole-kitchen tier amounts are held to being amounts", () => {
   });
 
   describe.each(MALFORMED_AMOUNTS)(
-    "a material tier declaring %s",
+    "a material tier declaring %s as its percentage",
     (_described, declared) => {
-      it("refuses the whole design instead of publishing a line", () => {
-        const failure = refusalFrom({ book: bookWithMaterialAmount(declared) });
+      it.each([
+        ["the reference tier", defaultTierOf(BOOK.material)],
+        ["a tier above it", upgradeTierOf(BOOK.material)],
+      ] as const)(
+        "refuses the whole design instead of publishing a line, naming %s's percentage",
+        (_which, tier) => {
+          const failure = refusalFrom({
+            book: bookWithMaterialPercent(tier.tierId, declared),
+            selections: { materialTierId: tier.tierId },
+          });
 
-        expect(failure.code).toBe("INVALID_AMOUNT");
-        expect(failure.detail).toContain("wholeKitchenMinor");
-        expect(failure.id).toBe(defaultTierOf(BOOK.material).ruleId);
+          expect(failure.code).toBe("INVALID_PRICE_BOOK");
+          expect(failure.detail).toContain("percentOfCabinets");
+          expect(failure.detail).toContain(tier.tierId);
+        },
+      );
+    },
+  );
+
+  describe.each(MALFORMED_AMOUNTS)(
+    "a depth rule declaring %s as its percentage",
+    (_described, declared) => {
+      it("refuses the whole design at the default depth too, where no depth line is priced", () => {
+        const failure = refusalFrom({
+          book: {
+            ...BOOK,
+            depthRule: { deepCabinetPercent: declared as number },
+          },
+        });
+
+        expect(failure.code).toBe("INVALID_PRICE_BOOK");
+        expect(failure.detail).toContain("deepCabinetPercent");
       });
     },
   );
@@ -261,10 +302,14 @@ describe("a published tier amount is the checked number", () => {
    *  in the multiply, so the *amount* is a perfectly exact integer while the **unit** is still a
    *  string — which is why the line must publish the checked number and not the declaration. */
   it("refuses a numeric string rather than publishing it on a number field", () => {
-    const failure = refusalFrom({ book: bookWithMaterialAmount("9000") });
+    const upgrade = upgradeTierOf(BOOK.material);
+    const failure = refusalFrom({
+      book: bookWithMaterialPercent(upgrade.tierId, "18"),
+      selections: { materialTierId: upgrade.tierId },
+    });
 
-    expect(failure.code).toBe("INVALID_AMOUNT");
-    expect(failure.detail).toContain('"9000"');
+    expect(failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(failure.detail).toContain('"18"');
   });
 });
 
@@ -273,15 +318,40 @@ describe("the guard changes no amount the shipped book states", () => {
    *  declaration. A zero tier is a real answer and stays one — `inclus` is a price, and only an
    *  *undeclared* amount is a refusal. */
   it.each(BOOK.material.tiers.map((tier) => [tier.tierId, tier] as const))(
-    "prices material tier %s at the amount the book declares",
+    "prices material tier %s at the percentage the book declares of the cabinets, and none of anything else",
     (_tierId, tier) => {
       const selections: WholeKitchenSelections = {
         materialTierId: tier.tierId,
       };
-      const line = lineOfKind(priceOrFail({ selections }), "material");
+      const priced = priceOrFail({ selections });
+      const line = lineOfKind(priced, "material");
+      const cabinetLines = priced.lines.filter(
+        (candidate) => candidate.kind === "cabinet",
+      );
+      const reference = priceOrFail({
+        selections: { materialTierId: BOOK.material.defaultTierId },
+      });
 
-      expect(line.unitAmountMinor).toBe(tier.wholeKitchenMinor);
-      expect(line.amountMinor).toBe(tier.wholeKitchenMinor);
+      // Each cabinet is carried through its own rounding stage, so the line is a sum of ten-lei differences: bounded by
+      // half a grain either way for every cabinet, and exactly zero for the reference tier.
+      const exactMinor = cabinetLines.reduce(
+        (total, candidate) =>
+          total + (candidate.amountMinor * tier.percentOfCabinets) / 100,
+        0,
+      );
+      expect(line.unitAmountMinor).toBe(line.amountMinor);
+      expect(Math.abs(line.amountMinor - exactMinor)).toBeLessThanOrEqual(
+        cabinetLines.length * 1_000,
+      );
+      expect(tier.percentOfCabinets === 0).toBe(line.amountMinor === 0);
+      // A material never touches hardware or an accessory.
+      expect(
+        priced.lines.filter((l) => l.kind !== "material" && l.kind !== "depth"),
+      ).toEqual(
+        reference.lines.filter(
+          (l) => l.kind !== "material" && l.kind !== "depth",
+        ),
+      );
     },
   );
 
@@ -293,7 +363,10 @@ describe("the guard changes no amount the shipped book states", () => {
       };
       const line = lineOfKind(priceOrFail({ selections }), "hardware");
 
-      expect(line.unitAmountMinor).toBe(declaredHardwareAmount(tier));
+      // The hardware line is the declared rates over the counts, rounded once to ten lei (ADR 0177 A-1).
+      expect(line.unitAmountMinor).toBe(
+        roundedToTenLei(declaredHardwareAmount(tier)),
+      );
       expect(line.quantity).toBe(1);
       expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
     },

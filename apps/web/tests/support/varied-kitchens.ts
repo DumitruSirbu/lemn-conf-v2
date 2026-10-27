@@ -240,6 +240,19 @@ function furthestOn(
   );
 }
 
+function furthestFirstOn(
+  design: Design,
+  wall: DesignWall,
+): readonly DesignPlacement[] {
+  return [...onWall(design, wall)].sort(
+    (first, second) => farEdgeMm(second) - farEdgeMm(first),
+  );
+}
+
+function hasAPrice(design: Design): boolean {
+  return priceAndProject(design).pricing.ok;
+}
+
 function wallLengthOf(room: DesignRoom, wall: DesignWall): number {
   if (wall === "A") return room.widthMm;
   if (wall === "B") return room.depthMm;
@@ -308,6 +321,7 @@ function replacing(
   };
 }
 
+const DESIGN_WALLS: readonly DesignWall[] = ["A", "B", "C"];
 const ADDED_BODY_ID = "added-past-the-wall";
 const FAR_PAST_THE_WALL_MM = 2500;
 
@@ -362,19 +376,27 @@ export const OVERFLOW_MAKERS: readonly OverflowMaker[] = [
     },
   },
   {
-    name: "the furthest body on the last wall widened across its end",
+    name: "the furthest widenable body widened across its wall's end",
     make: ({ design }) => {
-      const wall = lastWallOf(design);
-      const furthest = furthestOn(design, wall);
-      if (furthest === undefined) return undefined;
-      const reachMm = wallLengthOf(design.room, wall) - furthest.alongMm;
-      return {
-        design: replacing(design, furthest.id, (placement) => ({
-          ...placement,
-          body: { ...placement.body, widthMm: 2 * reachMm + 2 },
-        })),
-        mustOverflow: [furthest.id],
-      };
+      // The last wall first, furthest body first, and the first body that can be widened and still be priced: a
+      // fixed-size row has no price at a width no listed size reaches (ADR 0177 A-7), and a kitchen with no price has no
+      // flag to carry beside it. Where the last wall holds nothing widenable, the other walls are tried.
+      const walls = [lastWallOf(design), ...DESIGN_WALLS].filter(
+        (wall, index, all) => all.indexOf(wall) === index,
+      );
+      for (const wall of walls) {
+        for (const candidate of furthestFirstOn(design, wall)) {
+          const reachMm = wallLengthOf(design.room, wall) - candidate.alongMm;
+          const widened = replacing(design, candidate.id, (placement) => ({
+            ...placement,
+            body: { ...placement.body, widthMm: 2 * reachMm + 2 },
+          }));
+          if (hasAPrice(widened)) {
+            return { design: widened, mustOverflow: [candidate.id] };
+          }
+        }
+      }
+      return undefined;
     },
   },
   {

@@ -48,6 +48,7 @@ import {
   MDF_TIER_ID,
   VENEER_TIER_ID,
 } from "../support/mdf-kitchen-wearing-chosen-colours";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const SURFACE_ID = "settings";
 
@@ -77,6 +78,7 @@ function confirmingView(): GlobalSettingsView {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   };
   return describeGlobalSettings({
     content: content,

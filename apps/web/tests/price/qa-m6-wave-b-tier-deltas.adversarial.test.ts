@@ -21,6 +21,7 @@ import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
 } from "@/price/whole-kitchen-tiers";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
@@ -30,6 +31,7 @@ function measure(book: PriceBook = BOOK): WholeKitchenTierOffer {
     catalog: KITCHEN_L_BODY_CATALOG,
     book,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     selections: KITCHEN_L_DESIGN.settings,
   });
 }
@@ -45,6 +47,7 @@ function totalAt(selection: {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: BOOK,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     selections: { ...KITCHEN_L_DESIGN.settings, ...selection },
   });
   if (!result.ok)

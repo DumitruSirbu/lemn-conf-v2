@@ -58,6 +58,7 @@ import {
   createFakeProbeFactory,
 } from "./support/fake-probe.js";
 import { advance, createWorld } from "./support/kitchen-world.js";
+import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
 
 const OCCURRED_AT = "2026-09-08T09:00:00.000Z";
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -810,6 +811,7 @@ describe("ADR 0099 acceptance 9 — no price moves at either level", () => {
       catalog: CATALOG,
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
   }
 

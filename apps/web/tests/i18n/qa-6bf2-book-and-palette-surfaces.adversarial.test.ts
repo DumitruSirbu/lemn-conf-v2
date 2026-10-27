@@ -58,6 +58,7 @@ import { PAL_KITCHEN } from "../support/panel-material";
 import { swatchSectionOf } from "../support/panel-sections";
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** What a row's text must read on screen: the catalogue's word where the row names a leaf, and the
  *  book's own word where it names none (ADR 0106 decision 2). `requireLeafAt` rather than `leafAt`
@@ -106,6 +107,7 @@ const SHIPPED_PRICING: PricingResult = priceDesign({
   catalog: KITCHEN_L_BODY_CATALOG,
   book: SAMPLE_PRICE_BOOK,
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+  deepeningRows: MEASURED_DEEPENING_ROWS,
 });
 
 const SHIPPED_OFFER: WholeKitchenTierOffer = offerWholeKitchenTiers({
@@ -113,6 +115,7 @@ const SHIPPED_OFFER: WholeKitchenTierOffer = offerWholeKitchenTiers({
   catalog: KITCHEN_L_BODY_CATALOG,
   book: SAMPLE_PRICE_BOOK,
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+  deepeningRows: MEASURED_DEEPENING_ROWS,
   selections: KITCHEN_L_DESIGN.settings,
 });
 
