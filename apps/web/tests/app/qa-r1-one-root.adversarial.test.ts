@@ -156,6 +156,14 @@ const SURFACES: readonly (readonly [string, () => Promise<unknown>])[] = [
 interface StoredVersion {
   readonly versionId: string;
   readonly book: unknown;
+  /** A store states a book's own `version` as its version's id; a test of a book that does not says so. */
+  readonly isUnstamped?: boolean;
+}
+
+function bookAsStored(version: StoredVersion): unknown {
+  return version.isUnstamped === true
+    ? version.book
+    : { ...(version.book as object), version: version.versionId };
 }
 
 interface PlantedStores {
@@ -179,7 +187,7 @@ function plantStores(
         sequenceNumber: 1,
         label: "A label",
         publishedAt: new Date(0),
-        book: stored.book,
+        book: bookAsStored(stored),
       },
     });
   });
@@ -267,19 +275,18 @@ describe("one request reads the store once and parses once, on every surface (R-
     expect(stores.readActive).toHaveBeenCalledTimes(SURFACES.length * 2 + 1);
   });
 
-  it("hands the contact route the very version the page showed, even when the authored book version text is the same in both", async () => {
+  it("states the book's own version as the version id it was read as, before and after a publish, on a page and on the contact route", async () => {
     const stores = plantStores({ versionId: "v-1", book: SAMPLE_PRICE_BOOK });
     const page = priceBookRootOf(await SURFACES[0]?.[1]());
     stores.publish({ versionId: "v-2", book: SAMPLE_PRICE_BOOK });
+    const nextPage = priceBookRootOf(await SURFACES[0]?.[1]());
 
     const ports = await makeContactProductionPorts(new Headers());
 
-    expect(page.kind === "active" && page.book.version).toBe(
-      ports.book.version,
-    );
-    expect(page.kind === "active" && page.versionId).not.toBe(
-      ports.bookVersionId,
-    );
+    expect(page.kind === "active" && page.book.version).toBe("v-1");
+    expect(nextPage.kind === "active" && nextPage.book.version).toBe("v-2");
+    expect(ports.book.version).toBe(ports.bookVersionId);
+    expect(ports.bookVersionId).toBe("v-2");
   });
 
   it("carries the availability current at the read, beside the book and never inside it", async () => {
@@ -313,6 +320,15 @@ describe("every way of having no book is one refusal on every surface (A-10, R-b
       () => plantStores({ versionId: "v-1", book: { not: "a price book" } }),
     ],
     [
+      "the stored book's version is not its version's id",
+      () =>
+        plantStores({
+          versionId: "v-1",
+          book: SAMPLE_PRICE_BOOK,
+          isUnstamped: true,
+        }),
+    ],
+    [
       "the stored book is null",
       () => plantStores({ versionId: "v-1", book: null }),
     ],
@@ -344,7 +360,7 @@ describe("every way of having no book is one refusal on every surface (A-10, R-b
         makeContactProductionPorts(new Headers()),
       ).rejects.toMatchObject({
         name: "ContactFailure",
-        unavailableCause: "unexpected",
+        unavailableCause: "no-price-book",
       });
     });
   });

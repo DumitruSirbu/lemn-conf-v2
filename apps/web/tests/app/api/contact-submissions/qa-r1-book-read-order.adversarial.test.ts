@@ -45,6 +45,9 @@ vi.mock("@/lib/server/contact/contact-log", async (importOriginal) => ({
   reportContactRefused: vi.fn(),
 }));
 
+const { bodyOf } = await import(
+  "../../../lib/server/contact/submit-contact-harness"
+);
 const { POST } = await import(
   "../../../../src/app/api/contact-submissions/route"
 );
@@ -87,9 +90,12 @@ function plantStores(stored: "none" | "sample" | "unavailable"): void {
   );
 }
 
+/** A text that parses and names a design: the only kind of request that reads a book. */
+const DESIGN_BODY = bodyOf();
+
 function contactRequest(
   overrides: Record<string, string> = {},
-  body: BodyInit = "{}",
+  body: BodyInit = DESIGN_BODY,
 ): NextRequest {
   return new NextRequest("https://lemnaria.test/api/contact-submissions", {
     method: "POST",
@@ -138,15 +144,18 @@ describe("a contact request with no book to price under (R-b)", () => {
     await POST(contactRequest());
 
     expect(spies.reportContactUnavailable).toHaveBeenCalledTimes(1);
-    expect(spies.reportContactUnavailable).toHaveBeenCalledWith("unexpected");
+    expect(spies.reportContactUnavailable).toHaveBeenCalledWith(
+      "no-price-book",
+    );
   });
 
-  it("is answered the same for a request that carries no design at all (the callback form needs no book, but the route has one door)", async () => {
+  it("is not asked for a text that does not parse as a request, which is invalid and not unavailable", async () => {
     plantStores("none");
 
-    const response = await POST(contactRequest({}, '{"intent":"callback"}'));
+    const response = await POST(contactRequest({}, "{}"));
 
-    expect(response.status).toBe(contactUnavailableResponse().status);
+    expect(response.status).toBe(400);
+    expect(spies.readActive).not.toHaveBeenCalled();
   });
 });
 

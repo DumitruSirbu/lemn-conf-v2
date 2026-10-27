@@ -250,6 +250,75 @@ describe("the availability is bounded", () => {
   });
 });
 
+describe("the availability is handed over as the catalogue declares it", () => {
+  it("keeps the kinds the catalogue can switch off, each with its one id, and drops any other member", async () => {
+    const disabled = [
+      { kind: "material", tierId: "mdf", extra: SECRET_MARKER },
+      { kind: "hardware", tierId: "premium" },
+      { kind: "finish", finishId: "oak" },
+      { kind: "handle", handle: "black" },
+      { kind: "accessory", accessoryId: "sinkProtectiveCover" },
+    ];
+    const stores = storesHolding(STORED_BOOK, { revision: "3", disabled });
+
+    const root = await readActivePriceBook(stores);
+
+    expect(root.kind === "active" && root.availability).toEqual({
+      revision: "3",
+      disabled: [
+        { kind: "material", tierId: "mdf" },
+        { kind: "hardware", tierId: "premium" },
+        { kind: "finish", finishId: "oak" },
+        { kind: "handle", handle: "black" },
+        { kind: "accessory", accessoryId: "sinkProtectiveCover" },
+      ],
+    });
+    expect(JSON.stringify(root)).not.toContain(SECRET_MARKER);
+  });
+
+  it.each([
+    [
+      "an id held as a nested value of any size",
+      [{ kind: "material", tierId: { deep: "x".repeat(100_000) } }],
+    ],
+    ["an id held as an array", [{ kind: "finish", finishId: ["oak"] }]],
+    ["an id held as a number", [{ kind: "accessory", accessoryId: 7 }]],
+    ["an empty id", [{ kind: "material", tierId: "" }]],
+    [
+      "a kind the catalogue does not switch",
+      [{ kind: "cabinet", tierId: "x" }],
+    ],
+    ["an item with no kind", [{ tierId: "mdf" }]],
+    ["a handle outside the closed list", [{ kind: "handle", handle: "gold" }]],
+    ["an item that is text", ["accessory.x"]],
+    ["an item that is null", [null]],
+  ])("is no book for %s, as unreadable", async (_, disabled) => {
+    const stores = storesHolding(STORED_BOOK, { revision: "3", disabled });
+
+    expect(await readActivePriceBook(stores)).toBe(NO_PRICE_BOOK);
+    expect(linesWritten()).toEqual([
+      { event: "no-price-book", cause: "availability-unreadable" },
+    ]);
+  });
+
+  it.each([
+    ["no list of items", { revision: "3" }],
+    ["a list that is not an array", { revision: "3", disabled: { length: 1 } }],
+    ["a revision that is not text", { revision: 3, disabled: [] }],
+    ["no answer at all", null],
+  ])(
+    "is no book for an answer with %s, and never a failed request",
+    async (_, answer) => {
+      const stores = storesHolding(STORED_BOOK, answer);
+
+      expect(await readActivePriceBook(stores)).toBe(NO_PRICE_BOOK);
+      expect(linesWritten()).toEqual([
+        { event: "no-price-book", cause: "availability-unreadable" },
+      ]);
+    },
+  );
+});
+
 describe("having no book to price from (A-10)", () => {
   it("is the one no-book answer when no version was ever published, with no line: that is not a failure", async () => {
     const stores = countingStores(

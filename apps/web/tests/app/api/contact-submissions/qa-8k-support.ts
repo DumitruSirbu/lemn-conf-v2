@@ -14,6 +14,7 @@ import {
 } from "@/lib/server/mail/fake-mail-sender";
 import type { MailOutcome, MailSender } from "@/lib/server/mail/mail-sender";
 import type { OwnedDesignLoad } from "@/lib/server/load-owned-design";
+import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
 // What the adversarial files of the contact route share: a request whose every value is invented and recognisable, the
@@ -160,9 +161,22 @@ export function failTheStoreAt(
 
 export type Post = (request: NextRequest) => Promise<Response>;
 
+/**
+ * The process's price stores, seeded with the sample book as a deployment-free test run seeds them. These files name
+ * `CLIENT_NETWORK_SOURCE`, a variable only a deployment has, so the store selection would otherwise choose the real stores
+ * (which answer "unavailable") and every design request would be refused before it reached what the file is about.
+ */
+async function plantSeededPriceStores(): Promise<void> {
+  const { seedFakePriceStores } = await import(
+    "@/lib/server/price-book-test-seed"
+  );
+  Reflect.set(globalThis, PRICE_STORES_GLOBAL_KEY, seedFakePriceStores());
+}
+
 /** The route on a fresh module graph: nothing the process has "already written once" is carried into it. */
 export async function loadRoute(): Promise<Post> {
   vi.resetModules();
+  await plantSeededPriceStores();
   const route = await import(
     "../../../../src/app/api/contact-submissions/route"
   );
