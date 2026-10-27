@@ -16,6 +16,7 @@ import type { Client } from "@neondatabase/serverless";
 import { nanoid } from "nanoid";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { listDigestEligibleStatement } from "../src/kitchen-change-statements.js";
 import {
   DashboardStoreError,
   DISPLAYED_REVISION_AHEAD,
@@ -80,7 +81,7 @@ const LONG_AGO = new Date("2020-01-01T00:00:00.000Z");
 const WIDEST_REVISION = "9223372036854775807";
 
 type Row = Record<string, unknown>;
-type Role = "administrator" | "operator";
+type Role = "administrator" | "operator" | "client";
 
 let client: Client;
 let sentStatements: string[] = [];
@@ -375,6 +376,30 @@ async function digestAmong(
   return listed.filter(({ designId }) => ids.has(designId));
 }
 
+/** Every place a kitchen's "changed" is read must say `isChanged`, and the digest lists it exactly when `isEligible`. */
+async function expectAgreement(
+  kitchen: PlantedKitchen,
+  token: string,
+  expected: { isChanged: boolean; isEligible: boolean },
+) {
+  const reader = readerOverTransaction();
+  const detail = await detailOf(kitchen.id);
+  const listed = await reader.listPage(
+    queryOf({ segment: "all", search: token }),
+  );
+  const filtered = await reader.listPage(
+    queryOf({ segment: "all", search: token, onlyChanged: true }),
+  );
+  const digested = await digestAmong([kitchen]);
+
+  expect(detail.isChangedSinceSeen).toBe(expected.isChanged);
+  expect(listed.kitchens.map((k) => k.isChangedSinceSeen)).toEqual([
+    expected.isChanged,
+  ]);
+  expect(filtered.total).toBe(expected.isChanged ? 1 : 0);
+  expect(digested).toHaveLength(expected.isEligible ? 1 : 0);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // The seen mark
 // ---------------------------------------------------------------------------------------------------------------------
@@ -450,30 +475,6 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   });
 
   describe("the effective seen revision is the greater of the seen mark and the latest request's revision (S-c0)", () => {
-    /** Every place a kitchen's "changed" is read must say `isChanged`, and the digest lists it exactly when `isEligible`. */
-    async function expectAgreement(
-      kitchen: PlantedKitchen,
-      token: string,
-      expected: { isChanged: boolean; isEligible: boolean },
-    ) {
-      const reader = readerOverTransaction();
-      const detail = await detailOf(kitchen.id);
-      const listed = await reader.listPage(
-        queryOf({ segment: "all", search: token }),
-      );
-      const filtered = await reader.listPage(
-        queryOf({ segment: "all", search: token, onlyChanged: true }),
-      );
-      const digested = await digestAmong([kitchen]);
-
-      expect(detail.isChangedSinceSeen).toBe(expected.isChanged);
-      expect(listed.kitchens.map((k) => k.isChangedSinceSeen)).toEqual([
-        expected.isChanged,
-      ]);
-      expect(filtered.total).toBe(expected.isChanged ? 1 : 0);
-      expect(digested).toHaveLength(expected.isEligible ? 1 : 0);
-    }
-
     it("leaves a kitchen sent at revision 3 unchanged and out of the digest after a stale first mark at 1, in every place, and eligible after the next save", async () => {
       await inARolledBackTransaction(async () => {
         const member = await aStaffMember();
@@ -679,6 +680,283 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           isChanged: true,
           isEligible: true,
         });
+      });
+    });
+  });
+
+  describe("a seen mark above the kitchen's revision is ignored, and a mark at it hides only until the next save", () => {
+    it("leaves an unchanged kitchen unchanged in every place when its stored mark is above its revision, and never hides a change", async () => {
+      await inARolledBackTransaction(async () => {
+        const reader = readerOverTransaction();
+        const baseline = (await reader.listPage(queryOf())).changedCount;
+        const unchangedToken = randomToken();
+        const changedToken = randomToken();
+        const unchanged = await aKitchen({
+          emailToken: unchangedToken,
+          revision: 3,
+          requests: [{ revision: 3 }],
+          seenRevision: 9,
+        });
+        const changed = await aKitchen({
+          emailToken: changedToken,
+          revision: 4,
+          requests: [{ revision: 3 }],
+          seenRevision: 9,
+        });
+        const noRequest = await aKitchen({
+          emailToken: randomToken(),
+          revision: 4,
+          requests: [],
+          seenRevision: 9,
+        });
+
+        await expectAgreement(unchanged, unchangedToken, {
+          isChanged: false,
+          isEligible: false,
+        });
+        await expectAgreement(changed, changedToken, {
+          isChanged: true,
+          isEligible: true,
+        });
+        expect((await detailOf(noRequest.id)).isChangedSinceSeen).toBe(false);
+        expect((await reader.listPage(queryOf())).changedCount).toBe(
+          baseline + 1,
+        );
+      });
+    });
+
+    it("answers a mark on a kitchen whose stored mark is above its revision from the request alone", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const token = randomToken();
+        const unchanged = await aKitchen({
+          emailToken: token,
+          revision: 3,
+          requests: [{ revision: 3 }],
+          seenRevision: 9,
+        });
+        const changed = await aKitchen({
+          revision: 4,
+          requests: [{ revision: 3 }],
+          seenRevision: 9,
+        });
+
+        const first = await markOf(member, unchanged.id, 3);
+        const second = await markOf(member, changed.id, 3);
+
+        expect(first).toEqual({ kind: "ok", changedAfterSeen: false });
+        expect(second).toEqual({ kind: "ok", changedAfterSeen: true });
+        expect((await seenRowOf(unchanged.id))?.["revision"]).toBe("9");
+      });
+    });
+
+    it("measures from the request while the mark is above the kitchen, and from the mark once the kitchen has caught up to it", async () => {
+      await inARolledBackTransaction(async () => {
+        const token = randomToken();
+        const kitchen = await aKitchen({
+          emailToken: token,
+          revision: 3,
+          requests: [{ revision: 3 }],
+          seenRevision: 5,
+        });
+        await expectAgreement(kitchen, token, {
+          isChanged: false,
+          isEligible: false,
+        });
+        await saveKitchen(kitchen.id);
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+        await saveKitchen(kitchen.id);
+        await expectAgreement(kitchen, token, {
+          isChanged: false,
+          isEligible: false,
+        });
+        await saveKitchen(kitchen.id);
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+      });
+    });
+
+    it("hides a change from a mark at the current revision until the next save", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const token = randomToken();
+        const kitchen = await aKitchen({
+          emailToken: token,
+          revision: 4,
+          requests: [{ revision: 3 }],
+        });
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+
+        await markOf(member, kitchen.id, 4);
+        await expectAgreement(kitchen, token, {
+          isChanged: false,
+          isEligible: false,
+        });
+        await saveKitchen(kitchen.id);
+
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+      });
+    });
+  });
+
+  describe("a digest entry holds a kitchen only at a revision the kitchen has reached", () => {
+    it("holds for an entry between the effective seen revision and the kitchen's own, inclusive of the kitchen's, and for none outside it", async () => {
+      await inARolledBackTransaction(async () => {
+        await aClaimedRound(A_ROUND);
+        const cases = [
+          { entry: 3, isHeld: false },
+          { entry: 4, isHeld: true },
+          { entry: 5, isHeld: true },
+          { entry: 6, isHeld: false },
+          { entry: 9, isHeld: false },
+        ];
+        for (const { entry, isHeld } of cases) {
+          const token = randomToken();
+          const kitchen = await aKitchen({
+            emailToken: token,
+            revision: 5,
+            requests: [{ revision: 3 }],
+          });
+          await anEntry(A_ROUND, kitchen.id, entry);
+
+          await expectAgreement(kitchen, token, {
+            isChanged: true,
+            isEligible: !isHeld,
+          });
+        }
+      });
+    });
+
+    it("lets a kitchen through that an entry above its revision once held, after the kitchen's own saves", async () => {
+      await inARolledBackTransaction(async () => {
+        await aClaimedRound(A_ROUND);
+        const token = randomToken();
+        const kitchen = await aKitchen({
+          emailToken: token,
+          revision: 4,
+          requests: [{ revision: 3 }],
+        });
+        await anEntry(A_ROUND, kitchen.id, 6);
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+
+        await saveKitchen(kitchen.id);
+        await saveKitchen(kitchen.id);
+
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: false,
+        });
+      });
+    });
+  });
+
+  describe("the digest skips a row with nothing to name the customer by and lists the others", () => {
+    it("lists the named kitchens of a day that also holds one with neither an account name nor a request reference", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const named = await aKitchen({ revision: 3, accountName: "Ana Pop" });
+        const referenced = await aKitchen({ revision: 3 });
+        const nameless = await aKitchen({ revision: 3, requests: [] });
+        const spaces = await aKitchen({
+          revision: 3,
+          requests: [],
+          accountName: "   ",
+        });
+        const anonymous = await aKitchen({
+          revision: 3,
+          requests: [],
+          hasAccount: false,
+        });
+        for (const kitchen of [nameless, spaces, anonymous]) {
+          await markOf(member, kitchen.id, 1);
+        }
+
+        const listed = await digestAmong([
+          named,
+          referenced,
+          nameless,
+          spaces,
+          anonymous,
+        ]);
+
+        expect(listed.map((k) => k.designId).sort()).toEqual(
+          [named.id, referenced.id].sort(),
+        );
+      });
+    });
+
+    it("leaves such a row out in the statement itself, so the store's own skip is a second guard and not the only one", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const nameless = await aKitchen({ revision: 3, requests: [] });
+        const named = await aKitchen({ revision: 3, accountName: "Ana Pop" });
+        await markOf(member, nameless.id, 1);
+
+        const rows = await listDigestEligibleStatement(tagOverTransaction, {
+          nowIso: NOW.toISOString(),
+          windowMilliseconds: DIGEST_WINDOW_MS,
+          stoppingStatuses: DIGEST_STOPPING_STATUSES,
+        });
+
+        const ids = rows.map((row) => row["design_id"]);
+        expect(ids).toContain(named.id);
+        expect(ids).not.toContain(nameless.id);
+      });
+    });
+
+    it("names a kitchen with a request but no account name by the reference, and one with a name but no request by the name", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const byReference = await aKitchen({
+          revision: 3,
+          requests: [{ revision: 1, reference: "S4Q-ONLYREF" }],
+        });
+        const byName = await aKitchen({
+          revision: 3,
+          requests: [],
+          accountName: "Ion Rusu",
+        });
+        await markOf(member, byName.id, 1);
+
+        const listed = await digestAmong([byReference, byName]);
+
+        const byId = new Map(listed.map((k) => [k.designId, k]));
+        expect(byId.get(byReference.id)).toMatchObject({
+          reference: "S4Q-ONLYREF",
+        });
+        expect(byId.get(byName.id)).toMatchObject({ customerName: "Ion Rusu" });
+      });
+    });
+  });
+
+  describe("only staff can mark a kitchen seen", () => {
+    it("answers not-recorded for a client session, writing no seen row and no audit row, on a visible kitchen and an invisible one", async () => {
+      await inARolledBackTransaction(async () => {
+        const client = await aStaffMember("client");
+        const visible = await aKitchen({ revision: 2 });
+        const invisible = await aKitchen({ isDeleted: true });
+
+        for (const kitchen of [visible, invisible]) {
+          const failure = await rejectionOf(markOf(client, kitchen.id, 1));
+          expect(failure).toBeInstanceOf(DashboardStoreError);
+          expect((failure as DashboardStoreError).failure).toBe("not-recorded");
+          expect(await seenRowOf(kitchen.id)).toBeUndefined();
+          expect(await auditRowsFor(kitchen.id)).toBe(0);
+        }
       });
     });
   });
@@ -988,6 +1266,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       "below-seen",
       "claimed-day-without-entries",
       "above-seen-in-another-round",
+      "above-the-kitchen's-own-revision",
     );
     const cellArbitrary = fc.record({
       changed: changedArbitrary,
@@ -1052,6 +1331,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       };
     }
 
+    /** Whether the entry planted holds the kitchen: above the effective seen revision and not above the kitchen's own. */
     async function plantEntry(
       entry: string,
       designId: string,
@@ -1059,15 +1339,19 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     ): Promise<boolean> {
       await aClaimedRound(A_ROUND);
       await aClaimedRound(ANOTHER_ROUND);
-      if (entry === "at-seen") await anEntry(A_ROUND, designId, effectiveSeen);
-      if (entry === "above-seen")
-        await anEntry(A_ROUND, designId, effectiveSeen + 1);
-      if (entry === "below-seen")
-        await anEntry(A_ROUND, designId, effectiveSeen - 1);
-      if (entry === "above-seen-in-another-round") {
-        await anEntry(ANOTHER_ROUND, designId, effectiveSeen + 1);
-      }
-      return entry === "above-seen" || entry === "above-seen-in-another-round";
+      const revisionOf: Readonly<Record<string, number>> = {
+        "at-seen": effectiveSeen,
+        "above-seen": effectiveSeen + 1,
+        "below-seen": effectiveSeen - 1,
+        "above-seen-in-another-round": effectiveSeen + 1,
+        "above-the-kitchen's-own-revision": REVISION_NOW + 1,
+      };
+      const revision = revisionOf[entry];
+      if (revision === undefined) return false;
+      const round =
+        entry === "above-seen-in-another-round" ? ANOTHER_ROUND : A_ROUND;
+      await anEntry(round, designId, revision);
+      return revision > effectiveSeen && revision <= REVISION_NOW;
     }
 
     it("lists exactly the kitchens the domain's isDigestEligible accepts, over every cell of changed, held, window edge, status, deleted and unsent", async () => {
@@ -1132,17 +1416,22 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       });
     });
 
-    it("keeps the window's edge exclusive to the microsecond", async () => {
+    it("compares the window on the milliseconds a Date holds: exclusive at the edge millisecond, inclusive from the next", async () => {
       await inARolledBackTransaction(async () => {
         const edge = NOW.getTime() - DIGEST_WINDOW_MS;
-        const instants = {
-          oneMicrosecondInside: new Date(edge)
-            .toISOString()
-            .replace("Z", "001Z"),
-          exactlyOnTheEdge: new Date(edge).toISOString(),
-          oneMicrosecondOutside: new Date(edge - 1)
-            .toISOString()
-            .replace("Z", "999Z"),
+        const text = (ms: number, microseconds: string) =>
+          new Date(ms).toISOString().replace("Z", `${microseconds}Z`);
+        const instants: Readonly<Record<string, string>> = {
+          oneMillisecondInside: text(edge + 1, "000"),
+          lastMicrosecondOfTheEdgeMillisecond: text(edge, "999"),
+          exactlyOnTheEdge: text(edge, "000"),
+          lastMicrosecondOfTheMillisecondOutside: text(edge - 1, "999"),
+        };
+        const expected: Readonly<Record<string, boolean>> = {
+          oneMillisecondInside: true,
+          lastMicrosecondOfTheEdgeMillisecond: false,
+          exactlyOnTheEdge: false,
+          lastMicrosecondOfTheMillisecondOutside: false,
         };
         const kitchens: Record<string, PlantedKitchen> = {};
         for (const [name, instant] of Object.entries(instants)) {
@@ -1161,19 +1450,13 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           (await digestAmong(Object.values(kitchens))).map((k) => k.designId),
         );
 
-        expect({
-          oneMicrosecondInside: listed.has(
-            kitchens["oneMicrosecondInside"]?.id ?? "",
-          ),
-          exactlyOnTheEdge: listed.has(kitchens["exactlyOnTheEdge"]?.id ?? ""),
-          oneMicrosecondOutside: listed.has(
-            kitchens["oneMicrosecondOutside"]?.id ?? "",
-          ),
-        }).toEqual({
-          oneMicrosecondInside: true,
-          exactlyOnTheEdge: false,
-          oneMicrosecondOutside: false,
-        });
+        const observed = Object.fromEntries(
+          Object.entries(kitchens).map(([name, kitchen]) => [
+            name,
+            listed.has(kitchen.id),
+          ]),
+        );
+        expect(observed).toEqual(expected);
       });
     });
 
@@ -1579,7 +1862,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       ["a total with no currency", { totalMinor: 5000 }],
       ["a currency that is a number", { totalMinor: 5000, currency: 1 }],
     ])(
-      "refuses %s as an unexpected answer and shows no total",
+      "reads %s as no total, and still reads the kitchen",
       async (_label, priced) => {
         await inARolledBackTransaction(async () => {
           const kitchen = await aKitchen({
@@ -1595,14 +1878,10 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
             ],
           });
 
-          const failure = await rejectionOf(
-            readerOverTransaction().readOne(kitchen.id),
-          );
+          const detail = await detailOf(kitchen.id);
 
-          expect(failure).toBeInstanceOf(StaffKitchenReaderError);
-          expect((failure as StaffKitchenReaderError).failure).toBe(
-            "unexpected-answer",
-          );
+          expect(detail.sentTotal).toBeNull();
+          expect(detail.request?.reference).toMatch(/^S4Q-/);
         });
       },
     );

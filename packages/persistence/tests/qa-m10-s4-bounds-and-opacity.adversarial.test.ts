@@ -9,6 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardStoreError } from "../src/m10-ports.js";
 import { NeonKitchenChangeStore } from "../src/neon-kitchen-change-store.js";
+import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
+import { EFFECTIVE_SEEN_REVISION } from "../src/staff-kitchen-statements.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
   answerQueryWith,
@@ -232,4 +234,85 @@ describe("an instant the digest statement cannot cast is refused before it is se
       expect(fakeList).toEqual([]);
     },
   );
+});
+
+describe("the effective seen revision is one text in the four statements that judge it", () => {
+  const SESSION = {
+    sessionTokenHash: "a".repeat(64),
+    idleLifetimeSeconds: { client: 1, operator: 1, administrator: 1 },
+  };
+  const DESIGN_ID = "D".repeat(21);
+
+  function squashed(text: string): string {
+    return text.replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  async function everyStatementThatJudgesIt(): Promise<Record<string, string>> {
+    const reader = new NeonStaffKitchenReader(WELL_FORMED_UNREACHABLE_VALUE);
+    answerQueryWith([{ total: 0, changed_count: 0, id: null }]);
+    await reader.listPage({
+      segment: "sent",
+      status: null,
+      search: null,
+      page: 1,
+    });
+    answerQueryWith([]);
+    await reader.readOne(DESIGN_ID);
+    answerQueryWith([
+      {
+        is_session_live: true,
+        is_kitchen_visible: true,
+        is_displayed_ahead: false,
+        marked_rows: 1,
+        audited_rows: 1,
+        is_changed_after_seen: false,
+      },
+    ]);
+    await newStore().markSeen({
+      designId: DESIGN_ID,
+      displayedRevision: "1",
+      audit: {
+        session: SESSION,
+        entry: { action: "kitchen-seen", detail: {} },
+      } as never,
+    });
+    answerQueryWith([]);
+    await newStore().listDigestEligible(new Date("2026-11-10T08:00:00.000Z"));
+    const [list, kitchen, mark, digest] = queryDriver.statements.map((s) =>
+      squashed(s.text),
+    );
+    if (
+      list === undefined ||
+      kitchen === undefined ||
+      mark === undefined ||
+      digest === undefined
+    ) {
+      throw new Error("a statement was not sent");
+    }
+    return { list, kitchen, mark, digest };
+  }
+
+  it("is the constant, word for word, in the list, the kitchen's statement, the seen mark and the digest", async () => {
+    const statements = await everyStatementThatJudgesIt();
+
+    for (const [which, text] of Object.entries(statements)) {
+      expect(text, which).toContain(squashed(EFFECTIVE_SEEN_REVISION));
+    }
+  });
+
+  it("is spelled once in each statement, and no statement still reads the mark by coalesce", async () => {
+    const statements = await everyStatementThatJudgesIt();
+    const constant = squashed(EFFECTIVE_SEEN_REVISION);
+
+    for (const [which, text] of Object.entries(statements)) {
+      expect(text.split(constant).length - 1, which).toBe(1);
+      expect(text, which).not.toMatch(/coalesce\(\s*seen\.seen_revision/);
+    }
+  });
+
+  it("ignores a mark above the kitchen's own revision, and takes the greater of the mark and the latest request", () => {
+    expect(squashed(EFFECTIVE_SEEN_REVISION)).toBe(
+      "greatest(case when seen.seen_revision <= d.revision then seen.seen_revision end, latest.design_revision)",
+    );
+  });
 });
