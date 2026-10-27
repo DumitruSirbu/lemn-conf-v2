@@ -13,7 +13,7 @@ import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { PublishScreen } from "@/price-dashboard/publish-page";
-import { sampleVersionIdOf } from "@/price-dashboard/publish-client";
+import { sampleVersionIdOf } from "@/price-dashboard/publish-sample-client";
 import {
   SAMPLE_PUBLISH_PAGE,
   sampleVersionDetail,

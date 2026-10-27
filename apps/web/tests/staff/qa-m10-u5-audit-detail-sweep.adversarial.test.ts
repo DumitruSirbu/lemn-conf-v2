@@ -5,7 +5,6 @@
 // missing message (next-intl's default is to return the key's path, which reads as an answer).
 import {
   BOOK_FIELD_ADDRESS_KINDS,
-  BULK_CHANGE_SCOPES,
   CHANGE_ITEM_KINDS,
   DASHBOARD_AUDIT_ACTIONS,
   KITCHEN_DEFAULTS_FIELDS,
@@ -212,21 +211,50 @@ describe.each(LOCALES)("the audit detail in %s", (locale) => {
     },
   );
 
-  it.each(BULK_CHANGE_SCOPES.filter((scope) => scope !== "group"))(
-    "names a bulk action over scope %s by the cabinets it touched",
-    (scope) => {
-      const parts = partsOf(locale, "price-bulk-changed", {
-        scope,
-        percent: 5,
-        ruleCount: 22,
-        amountCount: 64,
-      });
+  it("names a bulk action over a selection by the cabinets it touched", () => {
+    const say = createTranslator({
+      locale,
+      messages: locale === "ro" ? roMessages : ruMessages,
+    });
 
-      expectTold(parts);
-      expect(parts[0]).toContain("22");
-      expect(parts[0]).not.toMatch(new RegExp(`\\b${scope}\\b`));
-    },
-  );
+    const parts = partsOf(locale, "price-bulk-changed", {
+      scope: "selection",
+      percent: 5,
+      ruleCount: 22,
+      amountCount: 64,
+    });
+
+    expectTold(parts);
+    expect(parts[0]).toBe(
+      say("priceDashboard.publish.bulkRowName", {
+        signedPercent: "+5",
+        group: say("priceDashboard.cabinets.groupCount", { count: 22 }),
+      }),
+    );
+  });
+
+  it("names a bulk action over the whole catalogue 'all the cabinets', with no count that would go stale", () => {
+    const say = createTranslator({
+      locale,
+      messages: locale === "ro" ? roMessages : ruMessages,
+    });
+
+    const parts = partsOf(locale, "price-bulk-changed", {
+      scope: "all",
+      percent: -10,
+      ruleCount: 22,
+      amountCount: 64,
+    });
+
+    expectTold(parts);
+    expect(parts[0]).toBe(
+      say("priceDashboard.publish.bulkRowName", {
+        signedPercent: `${MINUS_SIGN}10`,
+        group: say("priceDashboard.publish.bulkScopeAll"),
+      }),
+    );
+    expect(parts[0]).not.toContain("22");
+  });
 
   it.each([-90, -10, -1, 1, 7, 300])(
     "writes the bulk percentage %i with its sign, a reduction with the minus sign and never a hyphen",

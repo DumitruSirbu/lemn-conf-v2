@@ -24,7 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatLei } from "@/price-dashboard/format-lei";
 import type { PublishClient } from "@/price-dashboard/publish-client";
-import { makeSamplePublishClient } from "@/price-dashboard/publish-client";
+import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
 import {
   readPendingDraft,
   type PublishPageInput,

@@ -20,7 +20,7 @@ import type { PublishClient } from "@/price-dashboard/publish-client";
 import {
   makeSamplePublishClient,
   sampleVersionIdOf,
-} from "@/price-dashboard/publish-client";
+} from "@/price-dashboard/publish-sample-client";
 import type {
   PublishPageInput,
   VersionDetailInput,
