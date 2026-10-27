@@ -247,4 +247,4 @@ reconciled four (P-L3-8; owner-confirmed for M10's purposes as OQ-9 on 2026-10-2
 still Proposed.** Its acceptance (the coordinator's, after a security read) is owed before M10's persistence and route
 lanes merge. M10's own storage, grants and audit actions are in
 [ADR 0178](0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md), which also awaits a security read.
-M10 claims migrations `0025`-`0031`; `0023` and `0024` stay reserved by this plan (§2.3).
+M10 first claimed `0025`-`0031` with `0023` and `0024` reserved here (§2.3). **Superseded 2026-10-27 by ADR 0178's Amendment of that date:** M10 takes `0023`-`0029` contiguously, and this plan's later migrations take the next free numbers after M10's.

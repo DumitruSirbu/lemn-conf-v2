@@ -1179,6 +1179,40 @@ fixed by a new migration, never by editing a file that has been applied.
 **The test database.** The live persistence suite applies every migration to the test database through its `beforeAll`
 hooks; the coordinator applies `0020`–`0022` there, and no grant is needed there for the live suite.
 
+## For the M10 price-book and availability tables (wave S2, added 2026-10-27; **exact grant text pending**)
+
+**Status: relayed by the coordinator from wave S2's developer; the scribe ran nothing, and these migrations are unapplied
+anywhere.** The grant text below is **as written in S2's migration headers at branch `m10/s2`; re-check it against the
+merged files** before applying. Apply order: `0023_create_price_book_versions`, `0024_create_price_book_draft`,
+`0025_create_catalogue_availability_changes` (which also creates `catalogue_availability_head`). The ledger reads 1–22
+before and 1–25 after. Do not apply until M10 is about to merge: applying puts the shared ledger ahead of every other
+checkout (`ledgerAheadOfCheckoutError`).
+
+```sql
+GRANT SELECT ON TABLE public.price_book_versions TO app_designs;
+GRANT INSERT (id, sequence_number, label, note, book, change_summary, published_by_account_id) ON TABLE public.price_book_versions TO app_designs;
+GRANT SELECT ON TABLE public.price_book_draft TO app_designs;
+GRANT UPDATE (revision, changes, base_version_id, updated_at, updated_by_account_id) ON TABLE public.price_book_draft TO app_designs;
+GRANT SELECT ON TABLE public.catalogue_availability_head TO app_designs;
+GRANT UPDATE (revision) ON TABLE public.catalogue_availability_head TO app_designs;
+GRANT SELECT ON TABLE public.catalogue_availability_changes TO app_designs;
+GRANT INSERT (revision, item_kind, item_id, active, changed_by_account_id) ON TABLE public.catalogue_availability_changes TO app_designs;
+```
+
+Eight lines. **None** of `DELETE`, `TRUNCATE`, `ALL`, `PUBLIC` or a grant option. **No `INSERT`** on the singleton tables
+(`price_book_draft` and `catalogue_availability_head` are seeded rows). `sequence_number` is the column name in S2's
+`0023_create_price_book_versions.sql` (the S2 developer's report); re-check it against the merged file.
+
+**After applying, cross-check (owner, by hand).** The application credential could insert an availability-log row and move
+the head, and a planted newest version makes prices live with no audit row. Compare:
+- every availability-log revision against a matching `catalogue-item-active-changed` audit row;
+- every price-book version with `sequence_number > 1` against a matching `price-published` audit row whose
+  `detail.sequenceNumber` is the same.
+A log revision or version with no matching audit row is the sign of a write that bypassed the application.
+
+**Seeding.** Run `seed-price-book <environment> <owner-account-id>` **only after wave P3** has landed (the seed converts the
+sample book to its final form). It refuses when any version already exists. It never prints a secret.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only
