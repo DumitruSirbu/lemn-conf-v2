@@ -20,6 +20,7 @@ import {
 import {
   ANCHORED_BOOK,
   ANCHORED_RULE_ID,
+  CUSTOMER_RULE_ID,
   FIXED_SIZES_RULE_ID,
   freshPriceDashboardWorld,
   type PriceDashboardWorld,
@@ -303,23 +304,144 @@ describe("a bulk action that is accepted", () => {
   });
 });
 
-describe("a percentage that is -0 (the rounding of a small reduction, which JSON.stringify writes as 0 and only raw text carries)", () => {
-  it("is read as 0 once, at the boundary: the planner, the stored bulk and the audit row all hold 0, never -0", async () => {
-    const { cookie } = await administrator();
+describe("a percentage of 0, or of -0 (which JSON.stringify writes as 0 and only raw text carries), is refused (ruling R2-Q7)", () => {
+  it.each([
+    ["0", "0"],
+    ["-0", "-0"],
+    ["-0.0", "-0.0"],
+    ["a zero in exponent form", "0e5"],
+  ])(
+    "answers %s with 400 on percent, before the planner is asked, and writes nothing",
+    async (_title, percentText) => {
+      const { cookie } = await administrator();
+      const before = await currentDraftRevision();
 
-    const answer = await bulkRaw(cookie, '{"scope":"all"}', "-0");
+      const answer = await bulkRaw(cookie, '{"scope":"all"}', percentText);
+
+      expect(answer.status).toBe(400);
+      expect(await jsonOf(answer)).toEqual({
+        status: "invalid-input",
+        issues: [{ field: "percent", code: "PERCENT_OUT_OF_RANGE" }],
+      });
+      expect(plannerCalls).toEqual([]);
+      expect(draftRows()).toEqual([]);
+      expect(await storedChanges()).toEqual([]);
+      expect((await prices.stores.priceBook.readDraft()).draftRevision).toBe(
+        before,
+      );
+    },
+  );
+});
+
+describe("a bulk action that changes nothing (ruling R2-Q7)", () => {
+  async function pendAnchorAtZero(cookie: string) {
+    await changeDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: await currentDraftRevision(),
+        change: {
+          address: {
+            kind: "cabinet",
+            ruleId: ANCHORED_RULE_ID,
+            field: "anchorMinor",
+          },
+          value: 0,
+        },
+      },
+    });
+  }
+
+  it("is refused 400 on percent when every scaled amount rounds back to the candidate's, and writes nothing", async () => {
+    const { cookie } = await administrator();
+    await pendAnchorAtZero(cookie);
+    const rowsBefore = draftRows().length;
+    const revisionBefore = await currentDraftRevision();
+
+    const answer = await bulk(
+      cookie,
+      { scope: "selection", ruleIds: [ANCHORED_RULE_ID] },
+      5,
+    );
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "percent", code: "PERCENT_OUT_OF_RANGE" }],
+    });
+    expect(draftRows()).toHaveLength(rowsBefore);
+    expect(await currentDraftRevision()).toBe(revisionBefore);
+  });
+
+  it("leaves a row its scaling does not change out of the group, so the counts name only real changes", async () => {
+    const { cookie } = await administrator();
+    await pendAnchorAtZero(cookie);
+
+    const answer = await bulk(
+      cookie,
+      {
+        scope: "selection",
+        ruleIds: [ANCHORED_RULE_ID, FIXED_SIZES_RULE_ID],
+      },
+      5,
+    );
 
     expect(answer.status).toBe(200);
-    expect(plannerCalls).toHaveLength(1);
-    expect(Object.is(plannerCalls[0]?.percent, 0)).toBe(true);
-    const changes = await storedChanges();
-    expect(changes.length).toBeGreaterThan(0);
-    expect(changes.every((change) => Object.is(change.bulk?.percent, 0))).toBe(
-      true,
+    const grouped = (await storedChanges()).filter(
+      (change) => change.groupId !== undefined,
     );
-    const [row] = draftRows();
-    expect(row?.action).toBe("price-bulk-changed");
-    expect(Object.is(row?.detail.percent, 0)).toBe(true);
+    expect(grouped.length).toBeGreaterThan(0);
+    expect(
+      grouped.every((change) => change.address.ruleId === FIXED_SIZES_RULE_ID),
+    ).toBe(true);
+    const body = (await jsonOf(answer)) as {
+      ruleCount: number;
+      amountCount: number;
+    };
+    expect(body).toMatchObject({
+      ruleCount: 1,
+      amountCount: grouped.length,
+    });
+    expect(
+      (await storedChanges()).some(
+        (change) =>
+          change.address.ruleId === ANCHORED_RULE_ID &&
+          change.groupId === undefined &&
+          change.value === 0,
+      ),
+    ).toBe(true);
+  });
+
+  it("names ruleIds when a selection holds no cabinet the manufacturer prices", async () => {
+    const { cookie } = await administrator();
+
+    const answer = await bulk(
+      cookie,
+      { scope: "selection", ruleIds: [CUSTOMER_RULE_ID] },
+      5,
+    );
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "ruleIds", code: "NO_CABINETS_SELECTED" }],
+    });
+    expect(draftRows()).toEqual([]);
+  });
+
+  it("names scope when a group holds none", async () => {
+    const { cookie } = await administrator();
+
+    const answer = await bulk(
+      cookie,
+      { scope: "group", groupCode: "corner" },
+      5,
+    );
+
+    if (answer.status === 200) return;
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "scope", code: "NO_CABINETS_SELECTED" }],
+    });
   });
 });
 

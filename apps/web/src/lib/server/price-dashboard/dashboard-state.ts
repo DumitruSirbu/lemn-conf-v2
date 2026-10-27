@@ -31,7 +31,9 @@ export interface ActiveDashboardState {
 
 export type DashboardStateReading =
   | { readonly kind: "ready"; readonly state: ActiveDashboardState }
-  | { readonly kind: "no-active-version" };
+  | { readonly kind: "no-active-version" }
+  /** The stored changes are not what a draft holds. Its revision is all that is known of it, and a discard-all needs it. */
+  | { readonly kind: "draft-unreadable"; readonly draftRevision: string };
 
 class DashboardStateUnreadableError extends Error {
   constructor(what: "book" | "draft" | "availability") {
@@ -47,18 +49,19 @@ export async function readDashboardState(
   if (active.kind !== "found") return { kind: "no-active-version" };
   const book = readBookOf(active.version);
   if (book === undefined) throw new DashboardStateUnreadableError("book");
-  const draft = await readDraftOf(stores);
-  return { kind: "ready", state: { version: active.version, book, draft } };
-}
-
-async function readDraftOf(stores: PriceStores): Promise<DashboardDraft> {
   const stored = await stores.priceBook.readDraft();
-  const reading = readStoredDraft(stored.changes);
-  const isRevisionReadable = isRevisionShape(stored.draftRevision);
-  if (!reading.ok || !isRevisionReadable) {
+  if (!isRevisionShape(stored.draftRevision)) {
     throw new DashboardStateUnreadableError("draft");
   }
-  return { draftRevision: stored.draftRevision, changes: reading.changes };
+  const reading = readStoredDraft(stored.changes);
+  if (!reading.ok) {
+    return { kind: "draft-unreadable", draftRevision: stored.draftRevision };
+  }
+  const draft = {
+    draftRevision: stored.draftRevision,
+    changes: reading.changes,
+  };
+  return { kind: "ready", state: { version: active.version, book, draft } };
 }
 
 export async function readDashboardAvailability(

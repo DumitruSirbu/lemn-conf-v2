@@ -34,6 +34,8 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 /**
  * Takes one change out of the draft (↺). The change is named by its address, or by its group for a bulk action, in the
  * body (`DraftRevertRequestWire`): an address is not a path segment, and a revert names what it removes, never an index.
+ * A body of `{expectedDraftRevision, scope: "all"}` (`DraftDiscardRequestWire`) resets the whole draft to empty without
+ * reading it, which is how a draft that cannot be read is recovered.
  */
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const body = await readGuardedBody(request);

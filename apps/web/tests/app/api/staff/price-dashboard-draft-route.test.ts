@@ -16,8 +16,10 @@ import {
   type AccountWorld,
 } from "../../../support/account-world";
 import {
+  bulkDraft,
   changeDraft,
   currentDraftRevision,
+  readState,
   revertDraft,
 } from "../../../support/price-dashboard-requests";
 import {
@@ -997,5 +999,202 @@ describe("DELETE: taking a change out of the draft (the arrow)", () => {
     expect((await storedDraft()).changes).toHaveLength(1);
     expect(draftRows()).toHaveLength(1);
     expect(console_.everything()).not.toContain(DRIVER_FAILURE_MARKER);
+  });
+});
+
+describe("a stored draft that cannot be read (ruling R2-Q2)", () => {
+  const JUNK = [
+    { address: { kind: "cabinet" }, value: "STORED-JUNK-4471" },
+    { address: { kind: "provisional" }, value: true },
+  ];
+
+  function unreadableAt(revision: string) {
+    return vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
+      draftRevision: revision,
+      changes: JUNK,
+    });
+  }
+
+  it("is 409 draft-unreadable on the read, the change, the revert and the bulk action, naming the revision and nothing it holds", async () => {
+    const { cookie } = await administrator();
+    unreadableAt("1");
+    const writeDraft = vi.spyOn(prices.stores.priceBook, "writeDraft");
+
+    const answers = [
+      await readState({ cookie }),
+      await putChange(
+        cookie,
+        { address: { kind: "depth-rule" }, value: 20 },
+        "1",
+      ),
+      await revertDraft({
+        cookie,
+        json: {
+          expectedDraftRevision: "1",
+          target: { kind: "change", address: { kind: "provisional" } },
+        },
+      }),
+      await bulkDraft({
+        cookie,
+        json: {
+          expectedDraftRevision: "1",
+          target: { scope: "all" },
+          percent: 5,
+        },
+      }),
+    ];
+
+    for (const answer of answers) {
+      expect(answer.status).toBe(409);
+      expect(await jsonOf(answer)).toEqual({
+        status: "draft-unreadable",
+        draftRevision: "1",
+      });
+    }
+    expect(writeDraft).not.toHaveBeenCalled();
+    expect(draftRows()).toEqual([]);
+    expect(console_.everything()).not.toContain("STORED-JUNK-4471");
+  });
+
+  it("is reset to empty by a discard-all, which reads none of what it holds, and is recorded with a count of 0", async () => {
+    const { cookie, accountId } = await administrator();
+    const revision = await currentDraftRevision();
+    unreadableAt(revision);
+
+    const answer = await revertDraft({
+      cookie,
+      json: { expectedDraftRevision: revision, scope: "all" },
+    });
+
+    expect(answer.status).toBe(200);
+    vi.restoreAllMocks();
+    const stored = await storedDraft();
+    expect(stored.changes).toEqual([]);
+    expect(await jsonOf(answer)).toEqual({
+      draftRevision: stored.draftRevision,
+      changes: [],
+    });
+    expect(
+      draftRows().map(({ action, detail, actorAccountId }) => ({
+        action,
+        detail,
+        actorAccountId,
+      })),
+    ).toEqual([
+      {
+        action: "price-draft-reverted",
+        detail: { changeKind: "discard-all", revertedCount: 0 },
+        actorAccountId: accountId,
+      },
+    ]);
+    expect(await answer.clone().text()).not.toContain("STORED-JUNK-4471");
+  });
+});
+
+describe("DELETE with scope all: discarding the draft", () => {
+  async function discard(cookie: string, revision?: string) {
+    return revertDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: revision ?? (await currentDraftRevision()),
+        scope: "all",
+      },
+    });
+  }
+
+  it("empties a readable draft and records one row counting the entries it held", async () => {
+    const { cookie } = await administrator();
+    await putChange(cookie, { address: ANCHOR_ADDRESS, value: 125_000 });
+    await putChange(cookie, { address: { kind: "depth-rule" }, value: 20 });
+
+    const answer = await discard(cookie);
+
+    expect(answer.status).toBe(200);
+    expect((await storedDraft()).changes).toEqual([]);
+    expect(draftRows().at(-1)).toMatchObject({
+      action: "price-draft-reverted",
+      detail: { changeKind: "discard-all", revertedCount: 2 },
+    });
+    expect(draftRows()).toHaveLength(3);
+    expect(draftRows().at(-1)?.detail).not.toHaveProperty("itemId");
+  });
+
+  it("of a draft that is already empty is accepted and recorded with a count of 0", async () => {
+    const { cookie } = await administrator();
+
+    const answer = await discard(cookie);
+
+    expect(answer.status).toBe(200);
+    expect(draftRows().map((row) => row.detail)).toEqual([
+      { changeKind: "discard-all", revertedCount: 0 },
+    ]);
+  });
+
+  it("is 409 changed-meanwhile for a draft that moved since the page read it, and discards nothing", async () => {
+    const { cookie } = await administrator();
+    const seen = await currentDraftRevision();
+    await putChange(cookie, { address: ANCHOR_ADDRESS, value: 125_000 });
+
+    const answer = await discard(cookie, seen);
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+    expect((await storedDraft()).changes).toHaveLength(1);
+    expect(draftRows()).toHaveLength(1);
+  });
+
+  it.each([
+    ["a scope that is not all", "some"],
+    ["a scope that is not text", true],
+  ])(
+    "answers %s with 400 on scope, and writes nothing",
+    async (_title, scope) => {
+      const { cookie } = await administrator();
+
+      const answer = await revertDraft({
+        cookie,
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          scope,
+        },
+      });
+
+      expect(answer.status).toBe(400);
+      expect(await jsonOf(answer)).toEqual({
+        status: "invalid-input",
+        issues: [{ field: "scope", code: "MISSING_VALUE" }],
+      });
+      expect(draftRows()).toEqual([]);
+    },
+  );
+
+  it("refuses a body that names both a target and a scope as a request this route does not read", async () => {
+    const { cookie } = await administrator();
+
+    const answer = await revertDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: await currentDraftRevision(),
+        scope: "all",
+        target: { kind: "change", address: ANCHOR_ADDRESS },
+      },
+    });
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({ status: "invalid-request" });
+  });
+
+  it("answers 503 with the draft unchanged when the audit row cannot be staged", async () => {
+    const { cookie } = await administrator();
+    await putChange(cookie, { address: ANCHOR_ADDRESS, value: 125_000 });
+    vi.spyOn(prices.ledger, "stage").mockRejectedValue(
+      new Error(DRIVER_FAILURE_MARKER),
+    );
+
+    const answer = await discard(cookie);
+
+    expect(answer.status).toBe(503);
+    expect((await storedDraft()).changes).toHaveLength(1);
+    expect(draftRows()).toHaveLength(1);
   });
 });

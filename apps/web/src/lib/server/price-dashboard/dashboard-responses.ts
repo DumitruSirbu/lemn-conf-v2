@@ -9,6 +9,7 @@ import type {
   BulkChangedWire,
   DashboardConflict,
   DashboardConflictWire,
+  DashboardDraftUnreadableWire,
   DashboardDraftWire,
   DashboardInvalidInputWire,
   DashboardIssue,
@@ -24,6 +25,7 @@ type DashboardBody =
   | DashboardDraftWire
   | BulkChangedWire
   | DashboardConflictWire
+  | DashboardDraftUnreadableWire
   | DashboardInvalidInputWire<string>;
 
 function jsonResponse(body: DashboardBody, status: number): NextResponse {
@@ -49,9 +51,14 @@ export function bulkChangedResponse(wire: BulkChangedWire): NextResponse {
 
 /** `409`: a state of the data, never a failure to answer. Nothing was written. */
 export function dashboardConflictResponse(
-  word: DashboardConflict,
+  word: Exclude<DashboardConflict, "draft-unreadable">,
 ): NextResponse {
   return jsonResponse({ status: word }, 409);
+}
+
+/** `409`: the stored draft cannot be read. It names the revision a discard-all is made against, and nothing it holds. */
+export function draftUnreadableResponse(draftRevision: string): NextResponse {
+  return jsonResponse({ status: "draft-unreadable", draftRevision }, 409);
 }
 
 /** `400`: the members the person can correct, as the member and a closed code. Never the value that was refused. */

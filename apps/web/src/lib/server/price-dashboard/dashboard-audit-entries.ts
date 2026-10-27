@@ -1,5 +1,6 @@
 import {
   BULK_GROUP_CHANGE_KIND,
+  DISCARD_ALL_CHANGE_KIND,
   type AppliedAddress,
   type BulkChangeScope,
   type DashboardAuditEntry,
@@ -40,6 +41,16 @@ export function groupRevertedEntry(revertedCount: number): DashboardAuditEntry {
   return {
     action: "price-draft-reverted",
     detail: { changeKind: BULK_GROUP_CHANGE_KIND, revertedCount },
+  };
+}
+
+/** The draft was reset to empty: `revertedCount` is the entries it held, or 0 when they could not be read. */
+export function draftDiscardedEntry(
+  revertedCount: number,
+): DashboardAuditEntry {
+  return {
+    action: "price-draft-reverted",
+    detail: { changeKind: DISCARD_ALL_CHANGE_KIND, revertedCount },
   };
 }
 

@@ -3,7 +3,10 @@ import "server-only";
 import type { NextResponse } from "next/server";
 
 import type { CatalogueAvailability } from "@lemnaria/configurator-domain";
-import { DashboardStoreError } from "@lemnaria/persistence";
+import {
+  DashboardStoreError,
+  type WriteDraftRequest,
+} from "@lemnaria/persistence";
 
 import {
   reportAccountEvent,
@@ -17,11 +20,17 @@ import {
 } from "@/lib/server/account/account-responses";
 import type { SessionCookieReader } from "@/lib/server/account/session-cookie";
 import { getBulkPlanner } from "@/lib/server/price-dashboard/bulk-planner";
-import { catalogueViewedEntry } from "@/lib/server/price-dashboard/dashboard-audit-entries";
+import {
+  catalogueViewedEntry,
+  draftDiscardedEntry,
+} from "@/lib/server/price-dashboard/dashboard-audit-entries";
 import {
   dashboardConflictResponse,
   dashboardInvalidInputResponse,
   dashboardStateResponse,
+  draftChangedResponse,
+  draftUnreadableResponse,
+  draftWireOf,
 } from "@/lib/server/price-dashboard/dashboard-responses";
 import {
   readDashboardAvailability,
@@ -35,16 +44,19 @@ import {
   type DraftPlan,
 } from "@/lib/server/price-dashboard/draft-plans";
 import {
+  isDiscardRequest,
   readBulkRequest,
   readDraftChangeRequest,
   readRevertRequest,
   type BulkRequest,
+  type DiscardRequest,
   type DraftChangeRequest,
   type RequestReading,
   type RequestRefusal,
-  type RevertRequest,
+  type RevertOrDiscardRequest,
 } from "@/lib/server/price-dashboard/draft-requests";
-import { getPriceStores } from "@/lib/server/price-stores";
+import { readStoredDraft } from "@/lib/server/price-dashboard/stored-draft";
+import { getPriceStores, type PriceStores } from "@/lib/server/price-stores";
 import { judgeAccountSubject } from "@/lib/server/rate-limit/judge-account-request";
 import { judgeReadRequest } from "@/lib/server/rate-limit/judge-read-request";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
@@ -111,6 +123,12 @@ async function serveState(cookies: SessionCookieReader): Promise<NextResponse> {
       dashboardConflictResponse("no-active-version"),
     );
   }
+  if (reading.kind === "draft-unreadable") {
+    return refused(
+      PRICE_READ_EVENT,
+      draftUnreadableResponse(reading.draftRevision),
+    );
+  }
   const availability = await readDashboardAvailability(stores);
   const response = dashboardStateResponse(
     stateWireOf(reading.state, availability),
@@ -145,22 +163,33 @@ function stateWireOf(
 
 interface DraftWrite<Input extends { readonly expectedDraftRevision: string }> {
   readonly judge: (bodyText: string) => RequestReading<Input, string>;
-  readonly plan: (input: Input, state: ActiveDashboardState) => DraftPlan;
+  readonly perform: (
+    input: Input,
+    cookies: SessionCookieReader,
+  ) => Promise<NextResponse>;
 }
+
+type PlanOf<Input> = (input: Input, state: ActiveDashboardState) => DraftPlan;
 
 const CHANGE_WRITE: DraftWrite<DraftChangeRequest> = {
   judge: readDraftChangeRequest,
-  plan: planChange,
+  perform: (input, cookies) => performPlanned(input, cookies, planChange),
 };
 
-const REVERT_WRITE: DraftWrite<RevertRequest> = {
+const REVERT_WRITE: DraftWrite<RevertOrDiscardRequest> = {
   judge: readRevertRequest,
-  plan: planRevert,
+  perform: (input, cookies) =>
+    isDiscardRequest(input)
+      ? performDiscard(input, cookies)
+      : performPlanned(input, cookies, planRevert),
 };
 
 const BULK_WRITE: DraftWrite<BulkRequest> = {
   judge: readBulkRequest,
-  plan: (input, state) => planBulk(input, state, getBulkPlanner()),
+  perform: (input, cookies) =>
+    performPlanned(input, cookies, (request, state) =>
+      planBulk(request, state, getBulkPlanner()),
+    ),
 };
 
 /** Replaces the draft's change of one address, or adds it. */
@@ -170,7 +199,10 @@ export function changeDraftAsStaff(
   return runDraftWrite(CHANGE_WRITE, request);
 }
 
-/** Removes one change from the draft (↺), by its address, or every change of one bulk action, by its group. */
+/**
+ * Removes one change from the draft (↺), by its address, or every change of one bulk action, by its group; or, told by
+ * `scope: "all"`, resets the whole draft to empty without reading it.
+ */
 export function revertDraftAsStaff(
   request: DashboardWriteRequest,
 ): Promise<NextResponse> {
@@ -209,18 +241,19 @@ async function runDraftWrite<
   );
   if (limited !== undefined) return limited;
   try {
-    return await performDraftWrite(write, reading.value, cookies);
+    return await write.perform(reading.value, cookies);
   } catch (failure) {
     return answerOfStoreFailure(failure);
   }
 }
 
-async function performDraftWrite<
+/** A write decided by what the draft holds: the draft is read and parsed, judged against the book, then written. */
+async function performPlanned<
   Input extends { readonly expectedDraftRevision: string },
 >(
-  write: DraftWrite<Input>,
   input: Input,
   cookies: SessionCookieReader,
+  planOf: PlanOf<Input>,
 ): Promise<NextResponse> {
   const stores = await getPriceStores();
   const reading = await readDashboardState(stores);
@@ -230,26 +263,75 @@ async function performDraftWrite<
       dashboardConflictResponse("no-active-version"),
     );
   }
+  if (reading.kind === "draft-unreadable") {
+    return refused(
+      PRICE_DRAFT_EVENT,
+      draftUnreadableResponse(reading.draftRevision),
+    );
+  }
   if (reading.state.draft.draftRevision !== input.expectedDraftRevision) {
     return refused(
       PRICE_DRAFT_EVENT,
       dashboardConflictResponse("changed-meanwhile"),
     );
   }
-  const plan = write.plan(input, reading.state);
+  const plan = planOf(input, reading.state);
   if (plan.kind === "refused") return refused(PRICE_DRAFT_EVENT, plan.response);
-  const result = await stores.priceBook.writeDraft({
+  return writeDraft(stores, {
     expectedDraftRevision: input.expectedDraftRevision,
     changes: plan.changes,
     audit: { session: actingSessionOf(cookies), entry: plan.entry },
+    answer: plan.answer,
   });
+}
+
+/**
+ * Resets the draft to empty without parsing what it holds, so it works on a draft that cannot be read (ruling R2-Q2). The
+ * audit row counts the entries the draft held, or 0 when they could not be read.
+ */
+async function performDiscard(
+  input: DiscardRequest,
+  cookies: SessionCookieReader,
+): Promise<NextResponse> {
+  const stores = await getPriceStores();
+  const stored = await stores.priceBook.readDraft();
+  if (stored.draftRevision !== input.expectedDraftRevision) {
+    return refused(
+      PRICE_DRAFT_EVENT,
+      dashboardConflictResponse("changed-meanwhile"),
+    );
+  }
+  const revertedCount = readStoredDraft(stored.changes).ok
+    ? stored.changes.length
+    : 0;
+  return writeDraft(stores, {
+    expectedDraftRevision: input.expectedDraftRevision,
+    changes: [],
+    audit: {
+      session: actingSessionOf(cookies),
+      entry: draftDiscardedEntry(revertedCount),
+    },
+    answer: (draftRevision) =>
+      draftChangedResponse(draftWireOf(draftRevision, [])),
+  });
+}
+
+type DraftWriteToMake = WriteDraftRequest & {
+  readonly answer: (draftRevision: string) => NextResponse;
+};
+
+async function writeDraft(
+  stores: PriceStores,
+  { answer, ...request }: DraftWriteToMake,
+): Promise<NextResponse> {
+  const result = await stores.priceBook.writeDraft(request);
   if (result.kind === "changed-meanwhile") {
     return refused(
       PRICE_DRAFT_EVENT,
       dashboardConflictResponse("changed-meanwhile"),
     );
   }
-  return succeeded(PRICE_DRAFT_EVENT, plan.answer(result.draftRevision));
+  return succeeded(PRICE_DRAFT_EVENT, answer(result.draftRevision));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

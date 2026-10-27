@@ -1289,7 +1289,8 @@ declare const messages: {
       "accessoryCreated": "accesoriu nou",
       "createdRowText": "text al unui rând creat",
       "itemDeleted": "ștergerea unui articol",
-      "bulkGroup": "modificare în bloc"
+      "bulkGroup": "modificare în bloc",
+      "discardAll": "renunțare la ciornă"
     },
     "itemKinds": {
       "cabinet": "dulap",

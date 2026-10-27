@@ -263,6 +263,7 @@ describe("the audit rows of every route (R-c)", () => {
       "price-catalogue-viewed",
       "price-draft-changed",
       "price-draft-reverted",
+      "price-draft-reverted",
     ]);
     for (const { action, detail } of rows) {
       const closedKeys: readonly string[] =

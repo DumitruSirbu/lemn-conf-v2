@@ -17,8 +17,11 @@ function assertNever(value: never): never {
   throw new Error(`Unhandled audit detail code: ${JSON.stringify(value)}`);
 }
 
-/** What a revert of a whole bulk action is called: the domain's own word for it, which no address kind has. */
-export type ChangeKindCode = BookFieldAddressKind | "bulk-group";
+/** What a revert of a whole bulk action, or of the whole draft, is called: the domain's own words, which no address kind has. */
+export type ChangeKindCode =
+  | BookFieldAddressKind
+  | "bulk-group"
+  | "discard-all";
 
 export function resolveDashboardAuditDetailCopy(translate: ContentTranslator) {
   return {
@@ -102,6 +105,8 @@ function changeKindWords(
       return translate("staffAuditDetail.changeKinds.itemDeleted");
     case "bulk-group":
       return translate("staffAuditDetail.changeKinds.bulkGroup");
+    case "discard-all":
+      return translate("staffAuditDetail.changeKinds.discardAll");
     default:
       return assertNever(kind);
   }

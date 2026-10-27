@@ -101,6 +101,20 @@ export const DASHBOARD_ROUTES: readonly DashboardRoute[] = [
       }),
   },
   {
+    name: "DELETE /api/staff/prices/draft (discard all)",
+    event: "staff-price-draft",
+    capability: "price.edit",
+    admittedStatus: 200,
+    ask: async (cookie) =>
+      revertDraft({
+        ...WITH_COOKIE(cookie),
+        json: {
+          expectedDraftRevision: await currentDraftRevision(),
+          scope: "all",
+        },
+      }),
+  },
+  {
     name: "POST /api/staff/prices/bulk",
     event: "staff-price-draft",
     capability: "price.edit",

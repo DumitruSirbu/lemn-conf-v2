@@ -217,18 +217,35 @@ describe("a store that cannot answer", () => {
     expect(staffWorld.audit.heldEvents()).toEqual([]);
   });
 
-  it("is 503 when the stored draft is not what a draft holds, and the draft is not served in part", async () => {
+  it("is 409 draft-unreadable, naming only the revision, when the stored draft is not what a draft holds, and no row is written", async () => {
     const { cookie } = await administratorCookie();
     vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
-      draftRevision: "1",
+      draftRevision: "7",
       changes: [{ address: { kind: "cabinet" }, value: "STORED-JUNK-4471" }],
     });
 
     const answer = await readState({ cookie });
 
-    expect(answer.status).toBe(503);
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "draft-unreadable",
+      draftRevision: "7",
+    });
     expect(await answer.clone().text()).not.toContain("STORED-JUNK-4471");
     expect(console_.everything()).not.toContain("STORED-JUNK-4471");
+    expect(staffWorld.audit.heldEvents()).toEqual([]);
+  });
+
+  it("is 503 when the stored draft's revision is not a revision: that is the store's defect, not the draft's content", async () => {
+    const { cookie } = await administratorCookie();
+    vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
+      draftRevision: "-1",
+      changes: [],
+    });
+
+    const answer = await readState({ cookie });
+
+    expect(answer.status).toBe(503);
   });
 
   it("is 503 when the availability head cannot be read", async () => {

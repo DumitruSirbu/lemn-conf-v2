@@ -7,7 +7,9 @@ import type { NextResponse } from "next/server";
 import {
   applyChanges,
   isSameAddress,
+  readEditableFields,
   revertChange,
+  type PriceBook,
   type AppliedAddress,
   type ChangeRefusalCode,
   type DashboardAuditEntry,
@@ -190,11 +192,32 @@ export function planBulk(
   if (plan.kind === "refused") {
     return refused(issueResponse(fieldOfBulkRefusal(plan.code), plan.code));
   }
-  const group = mintedGroup(request, plan.changes);
-  if (group.changes.length === 0) {
-    return refused(issueResponse("scope", "NO_CABINETS_SELECTED"));
+  if (plan.changes.length === 0) {
+    return refused(
+      issueResponse(fieldOfEmptyTarget(request.target), "NO_CABINETS_SELECTED"),
+    );
   }
-  return writeBulk(request, state, group);
+  const changed = plan.changes.filter(
+    ({ address, value }) => value !== currentValueOf(candidate.book, address),
+  );
+  if (changed.length === 0) {
+    return refused(issueResponse("percent", "PERCENT_OUT_OF_RANGE"));
+  }
+  return writeBulk(request, state, mintedGroup(request, changed));
+}
+
+/** The member the person corrects when a target holds no cabinet the manufacturer prices. */
+function fieldOfEmptyTarget(
+  target: BulkTarget,
+): DashboardIssue<string>["field"] {
+  return target.scope === "selection" ? "ruleIds" : "scope";
+}
+
+/** A price as the candidate holds it: what a scaled amount that equals it leaves unchanged (A-14, ruling R2-Q7). */
+function currentValueOf(book: PriceBook, address: unknown): unknown {
+  return readEditableFields(book).find((reading) =>
+    isSameAddress(reading.address, address),
+  )?.value;
 }
 
 function hasUnknownRule(

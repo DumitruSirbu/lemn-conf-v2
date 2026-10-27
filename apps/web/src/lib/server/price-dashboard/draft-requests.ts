@@ -96,19 +96,51 @@ export interface RevertRequest {
   readonly target: RevertTarget;
 }
 
+/** Resets the whole draft; it names no change, and `scope` is the one member that tells it from a revert. */
+export interface DiscardRequest {
+  readonly expectedDraftRevision: string;
+  readonly scope: "all";
+}
+
+/** What the draft's `DELETE` takes: a revert of one change or group (`target`), or a discard of everything (`scope`). */
+export type RevertOrDiscardRequest = RevertRequest | DiscardRequest;
+
+export function isDiscardRequest(
+  request: RevertOrDiscardRequest,
+): request is DiscardRequest {
+  return "scope" in request;
+}
+
 export function readRevertRequest(
   bodyText: string,
-): RequestReading<RevertRequest, DraftChangeRefusalCode> {
-  const body = membersOf(bodyText, ["expectedDraftRevision", "target"]);
+): RequestReading<RevertOrDiscardRequest, DraftChangeRefusalCode> {
+  const body = membersOf(bodyText, [
+    "expectedDraftRevision",
+    "target",
+    "scope",
+  ]);
   if (body === undefined) return MALFORMED;
   const revision = readRevision(body.expectedDraftRevision);
   if (!revision.ok) return revision;
+  if (Object.hasOwn(body, "scope")) {
+    return readDiscard(body, revision.value);
+  }
   const target = readRevertTarget(body.target);
   if (!target.ok) return target;
   return accepted({
     expectedDraftRevision: revision.value,
     target: target.value,
   });
+}
+
+function readDiscard(
+  body: Members,
+  expectedDraftRevision: string,
+): RequestReading<DiscardRequest, DraftChangeRefusalCode> {
+  if (Object.hasOwn(body, "target")) return MALFORMED;
+  return body.scope === "all"
+    ? accepted({ expectedDraftRevision, scope: "all" })
+    : refusedWith("scope", "MISSING_VALUE");
 }
 
 function readRevertTarget(
@@ -170,9 +202,9 @@ export function readBulkRequest(
 }
 
 /**
- * A whole percentage as a safe integer. `-0` (`JSON.parse("-0")` yields it, as does `Math.round(-0.4)`) is read as 0
- * here, once, so it can never be written down as a reduction that prints as nothing. The bulk action's own bounds are
- * judged by whoever scales the amounts.
+ * A whole, non-zero percentage as a safe integer. `-0` (`JSON.parse("-0")` yields it, as does `Math.round(-0.4)`) is
+ * normalised to 0 first, and 0 % is refused (ruling R2-Q7): it would write a group of changes that change nothing. The
+ * bulk action's own bounds are judged by whoever scales the amounts.
  */
 function readPercent(
   declared: unknown,
@@ -186,7 +218,10 @@ function readPercent(
   if (!Number.isSafeInteger(declared)) {
     return refusedWith("percent", "PERCENT_OUT_OF_RANGE");
   }
-  return accepted(declared === 0 ? 0 : declared);
+  const percent = declared === 0 ? 0 : declared;
+  return percent === 0
+    ? refusedWith("percent", "PERCENT_OUT_OF_RANGE")
+    : accepted(percent);
 }
 
 function readBulkTarget(

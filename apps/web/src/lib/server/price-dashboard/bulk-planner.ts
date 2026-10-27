@@ -9,7 +9,9 @@ import type { BulkRefusalCode } from "@/price-dashboard/price-dashboard-wire-con
 // over a scope, and the four price groups derived from the catalogue band). That wave is not merged, and this application
 // does not carry domain arithmetic in the meantime. The route is written against this seam: it hands a planner the candidate
 // book (the active book with the draft applied, so the prices a person sees are the ones scaled) and takes back the cabinet
-// price changes, or the code the action was refused for. Until M2 supplies one, the planner is the unavailable one and the
+// price changes, or the code the action was refused for. It reports every row it scaled, unchanged ones included: the
+// route drops the rows whose scaled amount equals the candidate's, refuses a bulk action that leaves none (A-14, ruling
+// R2-Q7), and refuses 0 % before the planner is asked. Until M2 supplies one, the planner is the unavailable one and the
 // route answers `503`, after its guards, its capability, its bucket and its body have all been judged.
 
 /** A cabinet price set to a value; the route gives it its group and its `bulk`. */
