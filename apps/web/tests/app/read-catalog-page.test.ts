@@ -257,7 +257,7 @@ describe("what each kind of account is shown", () => {
       shell: {
         role: "administrator",
         email: STAFF_ADDRESS,
-        navigation: ["kitchens", "audit", "cabinets"],
+        navigation: ["kitchens", "audit", "cabinets", "defaults"],
       },
     });
   });

@@ -96,7 +96,7 @@ describe("an administrator", () => {
       context: {
         role: "administrator",
         email: "administrator@example.test",
-        navigation: ["kitchens", "audit", "cabinets"],
+        navigation: ["kitchens", "audit", "cabinets", "defaults"],
       },
     });
   });

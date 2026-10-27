@@ -263,7 +263,7 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
       shell: {
         role: "administrator",
         email: STAFF_ADDRESS,
-        navigation: ["kitchens", "audit", "cabinets"],
+        navigation: ["kitchens", "audit", "cabinets", "defaults"],
       },
     });
   });
