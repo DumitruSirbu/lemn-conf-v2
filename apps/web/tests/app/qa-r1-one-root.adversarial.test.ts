@@ -291,14 +291,17 @@ describe("one request reads the store once and parses once, on every surface (R-
 
   it("carries the availability current at the read, beside the book and never inside it", async () => {
     plantStores({ versionId: "v-1", book: SAMPLE_PRICE_BOOK }, () =>
-      Promise.resolve({ revision: "9", disabled: ["accessory.x"] }),
+      Promise.resolve({
+        revision: "9",
+        disabled: [{ kind: "accessory", accessoryId: "x" }],
+      }),
     );
 
     const root = priceBookRootOf(await SURFACES[0]?.[1]());
 
     expect(root.kind === "active" && root.availability).toEqual({
       revision: "9",
-      disabled: ["accessory.x"],
+      disabled: [{ kind: "accessory", accessoryId: "x" }],
     });
     expect(root.kind === "active" && "availability" in root.book).toBe(false);
   });

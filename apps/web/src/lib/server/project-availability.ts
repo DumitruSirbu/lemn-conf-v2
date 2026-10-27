@@ -40,7 +40,8 @@ type ItemKind = keyof typeof ID_MEMBER_OF_KIND;
  */
 export function projectAvailability(answer: unknown): ProjectedAvailability {
   if (typeof answer !== "object" || answer === null) return unreadable();
-  const { revision, disabled } = answer as Record<string, unknown>;
+  const revision = ownMemberOf(answer, "revision");
+  const disabled = ownMemberOf(answer, "disabled");
   if (typeof revision !== "string" || !Array.isArray(disabled)) {
     return unreadable();
   }
@@ -58,18 +59,25 @@ export function projectAvailability(answer: unknown): ProjectedAvailability {
 
 function projectItem(item: unknown): ItemRef | "too-large" | undefined {
   if (typeof item !== "object" || item === null) return undefined;
-  const { kind } = item as Record<string, unknown>;
+  const kind = ownMemberOf(item, "kind");
   if (typeof kind !== "string" || !Object.hasOwn(ID_MEMBER_OF_KIND, kind)) {
     return undefined;
   }
   const member = ID_MEMBER_OF_KIND[kind as ItemKind];
-  const id = (item as Record<string, unknown>)[member];
+  const id = ownMemberOf(item, member);
   if (typeof id !== "string" || id.length === 0) return undefined;
   if (id.length > MAX_IDENTIFIER_LENGTH) return "too-large";
   if (kind === "handle" && !HandleSchema.safeParse(id).success) {
     return undefined;
   }
   return { kind, [member]: id } as ItemRef;
+}
+
+/** A member the object owns, and nothing it merely inherits: a stored answer is data, and a prototype is not part of it. */
+function ownMemberOf(source: object, member: string): unknown {
+  return Object.hasOwn(source, member)
+    ? (source as Record<string, unknown>)[member]
+    : undefined;
 }
 
 function unreadable(): ProjectedAvailability {

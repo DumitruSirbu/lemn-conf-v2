@@ -221,21 +221,24 @@ describe("what the store may say is switched off is bounded", () => {
     expect(root).toBe(NO_PRICE_BOOK);
   });
 
-  // Pinned, not endorsed: the port types the answer, so a list that is not a list is a store that broke its contract
-  // (`unexpected-answer` is the store's to raise). Today it is a defect: one line, then the request fails.
-  it("lets an answer with no list of items through as a defect after one line, and never as a value", async () => {
+  it("is no book, with the cause availability-unreadable, for an answer with no list of items", async () => {
     for (const answer of [
       { revision: "1", disabled: undefined },
+      { revision: "1", disabled: null },
+      { revision: "1", disabled: "accessory" },
       { revision: "1", disabled: { length: 1 } },
+      { revision: "1" },
     ]) {
       written = [];
 
-      await expect(
-        readActivePriceBook(storesWithAvailability(answer)),
-      ).rejects.toBeInstanceOf(TypeError);
+      const root = await readActivePriceBook(storesWithAvailability(answer));
 
+      expect(root, JSON.stringify(answer)).toBe(NO_PRICE_BOOK);
       expect(written).toEqual([
-        ["[price-book]", { event: "no-price-book", cause: "unexpected" }],
+        [
+          "[price-book]",
+          { event: "no-price-book", cause: "availability-unreadable" },
+        ],
       ]);
     }
   });
