@@ -254,6 +254,13 @@ E-L3-7 waits on O-L3-5, E-L3-8 on O-L3-4. The notes list rides E-L3-2 (newest fi
   ([`M10-price-dashboard.md`](M10-price-dashboard.md) §9.2, [ADR 0178](../decisions/0178-the-m10-dashboard-storage-lifecycle-defaults-notice-seen-and-digest.md))
   claims `0025`-`0031`; M10's are unapplied anywhere. If this lot adds a migration, it takes the next
   free number after M10's and re-lists it (as L3-S1 did for `0020`-`0022`).
+- **Note 2026-10-27 (M10 coordinator ruling A; supersedes the reservation above).** `assertVersionsAreContiguous`
+  (`packages/persistence/src/migration-files.ts:73`) refuses any gap, and no `0023` or `0024` exists on any branch,
+  so the reservation would block every later migration. **M10 now takes `0023`–`0029`**, contiguously in its landing
+  order ([`M10-price-dashboard.md`](M10-price-dashboard.md) §9.2). This lot's `add_preset_sort_position` and
+  `create_staff_invitations` (listed above as `0023` and `0024`, provisional) take **the next free numbers after
+  M10's** when their waves land, and re-list them then. The table rows above keep their old provisional numbers as
+  history.
 - `designs` needs **no grant**: unhide clears `hidden_by_client_at`, already under the table-level `UPDATE` of ADR 0019 d11
   whose scope Amendment G grew to that column [doc]. The scope does not grow again.
 - **No index is added on `designs` for the staff list.** "Trimise, newest sent first" across every design and the search

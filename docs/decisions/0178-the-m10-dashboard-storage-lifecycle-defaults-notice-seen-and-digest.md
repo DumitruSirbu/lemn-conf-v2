@@ -259,3 +259,48 @@ A-21 (an optional Russian field), and OQ-4 in ADR 0177 A-19.
   audit rule itself and does not depend on ADR 0173's acceptance, which remains owed for 0173's own P-rows.
 - Owner flags still open and blocking nothing: OQ-5a and OQ-4a (ADR 0177); the close-only questions of plan §6.2 (OQ-8,
   OQ-11, OQ-12, OQ-13, OQ-14). Answers are recorded below as dated amendments.
+
+## Amendment — 2026-10-27: migrations renumbered contiguously; S2b folded into S2; the publish batch
+
+**Evidence tier.** Coordinator rulings A and B, 2026-10-27. The code fact is source-verified by wave S2's developer
+and relayed: `packages/persistence/src/migration-files.ts:73`, `assertVersionsAreContiguous`. The body above is kept as
+written; this amendment supersedes its migration numbers and its S2b wave name.
+
+1. **Ruling A: renumbering.** The contiguity guard refuses any gap, the latest migration is `0022`, and no `0023` or
+   `0024` exists on any branch. So the numbers in *Migrations* (`0025`–`0031`, with `0023`/`0024` reserved by M8B Lot
+   3) cannot land. M10 takes the next free numbers, contiguous from `0023`, in the order its waves land:
+
+   | Was | Now | Table | Wave |
+   | --- | --- | --- | --- |
+   | 0025 | **0023** | `create_price_book_versions` | S2 |
+   | 0026 | **0024** | `create_price_book_draft` | S2 |
+   | 0028 | **0025** | `create_catalogue_availability_changes` and `catalogue_availability_head` | S2 (ex-S2b) |
+   | 0029 | **0026** | `create_design_staff_seen` (with the F2 `SELECT (priced)` runbook grant) | S4 |
+   | 0030 | **0027** | `create_staff_change_digest` | S4 |
+   | 0031 | **0028** | `create_design_price_notices` | S5 |
+   | 0027 | **0029** | `create_kitchen_defaults` | S3 |
+
+   - **S3's defaults table takes `0029`, not `0026`.** The architect applied the "landing order" principle: S3 lands
+     after S4 and S5, because it is gated on M3 and so on P4b. Giving it `0026` would leave a gap that blocks S4's and
+     S5's migrations until S3 lands. If S3 is reordered ahead of S4, the numbers follow.
+   - M8B Lot 3's provisional preset-sort and invitation migrations take the next free numbers after M10's.
+   - The guard is unchanged. Grants and every other column rule above are unchanged; only the numbers move.
+   - **No live database run happens until these numbers are committed**, because migrations are add-only on the shared
+     test database's ledger.
+
+2. **Ruling B: S2b is folded into S2.** `PriceBookStore.publish` moves the availability head and writes
+   `catalogue_availability_changes`, so the price-book contract's world needs a real availability store. S2 owns:
+   - the price-book and availability migrations;
+   - `NeonPriceBookStore` and `NeonCatalogueAvailabilityStore`;
+   - both shared contracts, run live under the exclusive test-schema lock.
+
+   The "racing publish against a defaults save" arm stays with S3, because it needs `KitchenDefaultsStore`. Until S3
+   lands, the price-book live file skips it with that reason, stated.
+
+3. **The publish batch (architect's ruling, 2026-10-27).** Neon HTTP `sql.transaction([...])` statements cannot read
+   earlier results. S2's publish therefore moves the head by `greatest(k, 1)` in one update and inserts the *k* created
+   items' log rows at revisions `old + 1 … old + k`. This is accepted as observably equivalent to A-17's "one chained
+   CTE per item", **on two conditions**:
+   - every effect, **the audit row included**, is a branch of one CTE conditional on the head update. A separate
+     unconditional audit statement would leave an audit row for a publish that never happened (F3);
+   - a CAS that updates no row writes nothing and is answered `availability-changed-meanwhile`.
