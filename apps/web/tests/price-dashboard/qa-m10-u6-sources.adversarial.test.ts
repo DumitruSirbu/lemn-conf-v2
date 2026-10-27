@@ -90,19 +90,33 @@ describe("what a browser is sent", () => {
     expect(importers).toEqual(["app/[locale]/staff/catalog/defaults/page.tsx"]);
   });
 
-  it("decides on the literal the bundler replaces, in the source and in the client", () => {
-    for (const file of [
-      "kitchen-defaults-source.ts",
-      "default-kitchen-defaults-client.ts",
-    ]) {
-      const source = sourceOf(join(DASHBOARD_ROOT, file));
+  it("decides on the literal the bundler replaces in the client, and asks the one predicate in the server-side source", () => {
+    const client = sourceOf(
+      join(DASHBOARD_ROOT, "default-kitchen-defaults-client.ts"),
+    );
+    const source = sourceOf(join(DASHBOARD_ROOT, "kitchen-defaults-source.ts"));
+    const predicate = sourceOf(join(DASHBOARD_ROOT, "is-production-build.ts"));
 
-      expect(source, file).toMatch(
-        /process\.env\.NODE_ENV\s*===\s*"production"/,
-      );
-      expect(source, file).not.toMatch(/process\.env\[/);
-      expect(source, file).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
+    expect(client).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
+    expect(client).not.toMatch(/isProductionBuild/);
+    expect(source).toMatch(/isProductionBuild\(\)/);
+    expect(source).not.toMatch(/process\.env/);
+    expect(predicate).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
+    for (const text of [client, source, predicate]) {
+      expect(text).not.toMatch(/process\.env\[/);
+      expect(text).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
     }
+  });
+
+  it("puts the production branch before the import of the stand-in, so nothing is loaded on the way to it", () => {
+    const client = sourceOf(
+      join(DASHBOARD_ROOT, "default-kitchen-defaults-client.ts"),
+    );
+
+    expect(client.indexOf("production")).toBeGreaterThan(-1);
+    expect(client.indexOf("production")).toBeLessThan(
+      client.indexOf("kitchen-defaults-stand-in-client"),
+    );
   });
 });
 

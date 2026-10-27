@@ -9,7 +9,11 @@ import {
   type RefObject,
 } from "react";
 
-import type { Finish, ItemRef } from "@lemnaria/configurator-domain";
+import {
+  sameFinish,
+  type Finish,
+  type ItemRef,
+} from "@lemnaria/configurator-domain";
 
 import { orFailed } from "./async-seams";
 import { defaultKitchenDefaultsClient } from "./default-kitchen-defaults-client";
@@ -151,7 +155,7 @@ interface DraftEditing {
   readonly choose: KitchenDefaultsDesk["choose"];
   /** Back to the saved values. */
   readonly discard: () => void;
-  /** The draft became the saved values. */
+  /** The draft became the saved values. A reset the person made since, which the save did not write, keeps its note. */
   readonly adoptSaved: (
     saved: SavedRevisions,
     sent: KitchenDefaultsWire,
@@ -231,7 +235,11 @@ function useDraftEditing(
         ...last,
         state: { ...revisions, saved: true, defaults: sent },
       }));
-      setColourResetFrom(null);
+      const current = latestDraftRef.current;
+      const isResetSaved =
+        current.materialTierId === sent.materialTierId &&
+        sameFinish(current.finish, sent.finish);
+      if (isResetSaved) setColourResetFrom(null);
       setRefused(new Set());
     },
     [],

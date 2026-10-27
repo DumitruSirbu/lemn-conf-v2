@@ -13,10 +13,19 @@ export async function orFailed<Outcome>(
   }
 }
 
-/** A loader that runs `load` on its first call and answers the same promise to every call after it. */
+/**
+ * A loader that runs `load` on its first call and answers the same promise to every call after it. A load that rejects is
+ * not remembered: the next call tries again.
+ */
 export function memoizeAsync<Loaded>(
   load: () => Promise<Loaded>,
 ): () => Promise<Loaded> {
   let loaded: Promise<Loaded> | undefined;
-  return () => (loaded ??= load());
+  return () => {
+    loaded ??= load().catch((failure: unknown) => {
+      loaded = undefined;
+      throw failure;
+    });
+    return loaded;
+  };
 }

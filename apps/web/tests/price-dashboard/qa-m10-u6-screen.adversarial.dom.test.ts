@@ -622,7 +622,7 @@ describe("a conflict", () => {
     expect(saveButton(container).disabled).toBe(false);
   });
 
-  it("does not send a decor for MDF when another member moved the material to MDF under a colour this person chose: the row is flagged and Save stays off", async () => {
+  it("resets the person's decor with the material another member moved to MDF, says so, and never sends a decor for MDF", async () => {
     const fresh = inputWith(
       { materialTierId: MDF, finish: freeColourFinish("#eceeeb") },
       {},
@@ -631,12 +631,30 @@ describe("a conflict", () => {
     const held = heldClient([{ kind: "conflict" }, SAVED_AT_2], fresh);
     const container = await mount({ client: held.client });
     await choose(radioOf(container, "finish", "pal.antracit"));
+    await choose(radioOf(container, "handle", "black"));
 
     await saveAndWait(container);
+
+    expect(alertsIn(container, "finish")).toHaveLength(0);
+    expect(colourInput(container).value).toBe("#eceeeb");
+    expect(
+      requireIn(row(container, "finish"), '[role="status"]').textContent,
+    ).toBe(
+      roCopy("priceDashboard.defaults.colourReset", {
+        unavailableColour: roCopy("finish.pal.antracit"),
+        replacementColour: "#eceeeb",
+      }),
+    );
+    expect(saveButton(container).disabled).toBe(false);
+
     await saveAndWait(container);
 
-    expect(alertsIn(container, "finish")).toHaveLength(1);
-    expect(saveButton(container).disabled).toBe(true);
+    expect(held.save).toHaveBeenCalledTimes(2);
+    expect(held.save.mock.calls[1]?.[0].defaults).toMatchObject({
+      materialTierId: MDF,
+      finish: freeColourFinish("#eceeeb"),
+      handle: "black",
+    });
     for (const [request] of held.save.mock.calls) {
       const { materialTierId, finish } = request.defaults;
       expect(materialTierId === MDF && finish.kind === "palette-entry").toBe(
@@ -862,7 +880,7 @@ describe("saving more than once", () => {
 });
 
 describe("availability is judged on the screen", () => {
-  it("flags the material's default colour when it is switched off, keeps Save off, and lets another colour clear it", async () => {
+  it("resets to the first colour still on offer when the material's default is switched off, names it in the note, and flags nothing", async () => {
     const held = heldClient([SAVED_AT_2]);
     const container = await mount({
       input: inputWith(
@@ -874,16 +892,20 @@ describe("availability is judged on the screen", () => {
 
     await choose(radioOf(container, "materialTierId", VENEER));
 
+    expect(checkedValue(container, "finish")).toBe("veneer.nuc");
+    expect(alertsIn(container, "finish")).toHaveLength(0);
     expect(
-      allIn(row(container, "finish"), "input[type='radio']:checked"),
-    ).toHaveLength(0);
-    expect(alertsIn(container, "finish")).toHaveLength(1);
-    expect(saveButton(container).disabled).toBe(true);
+      requireIn(row(container, "finish"), '[role="status"]').textContent,
+    ).toBe(
+      roCopy("priceDashboard.defaults.colourReset", {
+        unavailableColour: roCopy("finish.pal.alb"),
+        replacementColour: roCopy("finish.veneer.nuc"),
+      }),
+    );
+    expect(saveButton(container).disabled).toBe(false);
 
-    await choose(radioOf(container, "finish", "veneer.nuc"));
     await saveAndWait(container);
 
-    expect(alertsIn(container, "finish")).toHaveLength(0);
     expect(held.save.mock.calls[0]?.[0].defaults).toMatchObject({
       materialTierId: VENEER,
       finish: paletteFinish("veneer.nuc"),
