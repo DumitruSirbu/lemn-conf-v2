@@ -94,11 +94,33 @@ describe("the seed statement", () => {
       "000000000000000000001",
       SEED_VERSION_LABEL,
       SEED_VERSION_NOTE,
-      JSON.stringify(BOOK),
+      JSON.stringify({ ...BOOK, version: "000000000000000000001" }),
       OWNER,
       OWNER,
       OWNER,
     ]);
+  });
+
+  it("stores the book with its version set to the minted version id, whatever version it carried (R1-Q2)", async () => {
+    answerWith([SEEDED_ROW]);
+
+    await seed({ book: { ...BOOK, version: "sample-2026-09", extra: 1 } });
+
+    const stored: unknown = JSON.parse(String(driver.statements[0]?.values[3]));
+    expect(stored).toEqual({
+      ...BOOK,
+      extra: 1,
+      version: "000000000000000000001",
+    });
+  });
+
+  it("does not change the book it was handed", async () => {
+    answerWith([SEEDED_ROW]);
+    const handed = { ...BOOK, version: "sample-2026-09" };
+
+    await seed({ book: handed });
+
+    expect(handed).toEqual({ ...BOOK, version: "sample-2026-09" });
   });
 
   it("writes no staff audit row, no draft and no availability row, and updates and deletes nothing", async () => {

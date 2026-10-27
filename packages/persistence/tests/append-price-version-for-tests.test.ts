@@ -58,9 +58,22 @@ describe("appendPriceVersionForTests", () => {
     expect(statement?.values).toEqual([
       VERSION_ID,
       "Test version",
-      JSON.stringify(BOOK),
+      JSON.stringify({ ...BOOK, version: VERSION_ID }),
       PUBLISHER,
     ]);
+  });
+
+  it("stores the book with its version set to the new version's id, whatever version it carried (R1-Q2)", async () => {
+    answerWith([{ id: VERSION_ID, sequence_number: "2" }]);
+    const handed = { version: "something else", rate: 3 };
+
+    await appendPriceVersionForTests(handed, PUBLISHER);
+
+    expect(JSON.parse(String(driver.statements[0]?.values[2]))).toEqual({
+      version: VERSION_ID,
+      rate: 3,
+    });
+    expect(handed.version).toBe("something else");
   });
 
   it("names only the columns the grant of 0023 gives, and updates, deletes and replaces nothing", async () => {

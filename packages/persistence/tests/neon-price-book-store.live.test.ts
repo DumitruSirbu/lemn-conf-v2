@@ -131,7 +131,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         version: {
           versionId: appended.versionId,
           sequenceNumber: newestBefore + 1,
-          book: { version: "appended" },
+          book: { version: appended.versionId },
         },
       });
       expect(await world.store.readVersion(appended.versionId)).toMatchObject({

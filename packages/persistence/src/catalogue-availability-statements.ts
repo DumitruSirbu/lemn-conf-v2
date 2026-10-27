@@ -92,6 +92,7 @@ export function setItemActiveStatement<Statement>(
         and s.created_at >= a.password_changed_at
         and s.last_seen_at
           + ((${lifetimes}::jsonb ->> a.role)::double precision * interval '1 second') > now()
+        and a.role = 'administrator'
     ),
     moved_head as (
       update catalogue_availability_head

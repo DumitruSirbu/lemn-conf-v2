@@ -297,6 +297,14 @@ describe("an availability write", () => {
     expect(livenessPredicateOf(statement)).toBe(liveness);
   });
 
+  it("takes the actor only from an administrator's session, as the route also requires", async () => {
+    const { statement } = await writeAndCapture([WRITTEN_ROW]);
+
+    expect(normalised(statement)).toContain(
+      "interval '1 second') > now() and a.role = 'administrator' ), moved_head as",
+    );
+  });
+
   it("answers changed-meanwhile when the head did not move, and not-recorded when no session stood behind the call", async () => {
     expect(
       (

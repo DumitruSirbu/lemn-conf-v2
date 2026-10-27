@@ -18,6 +18,9 @@ const TEST_VERSION_LABEL = "Test version";
  * when any version exists and is no use here. The connection is never accepted, and the publisher is an account id the
  * caller names, shape-checked, so nothing here reaches another database or another row.
  *
+ * The book is stored with its `version` set to the new version's id, as every stored version satisfies
+ * `book.version === versionId` (architect ruling R1-Q2, 2026-10-27).
+ *
  * One statement, never repeated. Two callers racing for the same next number meet the uniqueness of the sequence number
  * and one of them fails: seed serially.
  */
@@ -39,7 +42,7 @@ export async function appendPriceVersionForTests(
   const rows = (await sql`
     insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
     select ${versionId}::text, coalesce(max(sequence_number), 0) + 1, ${TEST_VERSION_LABEL}::text, ''::text,
-      ${JSON.stringify(book)}::jsonb, '[]'::jsonb, ${publishedByAccountId}::text
+      ${JSON.stringify({ ...(book as object), version: versionId })}::jsonb, '[]'::jsonb, ${publishedByAccountId}::text
     from price_book_versions
     returning id, sequence_number::text as sequence_number
   `) as { id?: unknown; sequence_number?: unknown }[];

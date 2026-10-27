@@ -225,10 +225,24 @@ describe("0023 creates price_book_versions, append-only, with no state column", 
     expect(text).toContain("check (char_length(note) <= 240)");
   });
 
-  it("requires the book to be a JSON object and the change summary a JSON array, and puts no size ceiling the plan has not ruled", () => {
+  it("requires the book to be a JSON object and the change summary a JSON array, each bounded to 4 MiB of jsonb text as 0011 bounds a document", () => {
     expect(text).toContain("check (jsonb_typeof(book) = 'object')");
     expect(text).toContain("check (jsonb_typeof(change_summary) = 'array')");
-    expect(text).not.toContain("octet_length");
+    expect(text).toContain(
+      "constraint price_book_versions_book_size check (octet_length(book::text) <= 4194304)",
+    );
+    expect(text).toContain(
+      "constraint price_book_versions_change_summary_size check (octet_length(change_summary::text) <= 4194304)",
+    );
+    expect(headerTextOf(VERSIONS)).toContain("`0011`'s ceiling");
+  });
+
+  it("says plainly, in its header, that a holder of the application credential can make a newest version live with no audit row, and where it is detected", () => {
+    const header = headerTextOf(VERSIONS);
+    expect(header).toContain(
+      "prices go live with no `price-published` audit row",
+    );
+    expect(header).toContain("owner's runbook cross-check");
   });
 
   it("accepts a 21-character id on the version and its publisher, and refuses 20, 22 and a character outside the alphabet", () => {
@@ -279,6 +293,13 @@ describe("0024 creates price_book_draft, a seeded singleton the application only
     expect(text).toContain("check (jsonb_typeof(changes) = 'array')");
   });
 
+  it("bounds the changes to 4 MiB of jsonb text as 0011 bounds a document", () => {
+    expect(text).toContain(
+      "constraint price_book_draft_changes_size check (octet_length(changes::text) <= 4194304)",
+    );
+    expect(headerTextOf(DRAFT)).toContain("`0011`'s ceiling");
+  });
+
   it("accepts a 21-character id on the base version and the staff account, and refuses 20 and 22", () => {
     for (const name of [
       "price_book_draft_base_version_id_shape",
@@ -318,6 +339,15 @@ describe("0025 creates the availability head and log with no counter object and 
       "changed_by_account_id text not null",
     ]);
     expect(text).toContain("values (true, 0)");
+  });
+
+  it("says plainly, in its header, that the credential which inserts log rows can also move the head, so only a missing audit row detects a forged change", () => {
+    const header = headerTextOf(AVAILABILITY);
+    expect(header).toContain("can also move the head");
+    expect(header).toContain("detects nothing");
+    expect(header).toContain("only a missing audit row");
+    expect(header).toContain("wedged until the owner");
+    expect(header).toContain("runbook cross-checks");
   });
 
   it("contains no sequence, serial or trigger anywhere in the file, comments included", () => {

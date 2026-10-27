@@ -15,6 +15,11 @@
 -- shape of the ids they hold and neither is a foreign key (`0015`'s precedent). `updated_at` is `now()` by default and is
 -- set again by the code with the literal `now()`.
 --
+-- `changes` is bounded to 4 MiB of `jsonb` text (4194304 bytes), `0011`'s ceiling for a stored document and for its
+-- reason: far above any draft the product writes and above what `jsonb` adds in spaces to the application's own, lower
+-- limit (2 MiB of compact JSON, checked before any statement), so no credential can make a row that the dashboard must
+-- then load. The ceiling must be in the first apply; it cannot be added later to a row that already holds more.
+--
 -- The row is seeded with `insert … on conflict do nothing`, so a re-run changes no data and never resets a draft that
 -- already holds changes. The unattended screen recognises that shape (`insert into … values (…) on conflict … do
 -- nothing`).
@@ -44,7 +49,8 @@ create table if not exists price_book_draft (
   revision bigint not null
     constraint price_book_draft_revision_is_not_negative check (revision >= 0),
   changes jsonb not null
-    constraint price_book_draft_changes_is_an_array check (jsonb_typeof(changes) = 'array'),
+    constraint price_book_draft_changes_is_an_array check (jsonb_typeof(changes) = 'array')
+    constraint price_book_draft_changes_size check (octet_length(changes::text) <= 4194304),
   base_version_id text
     constraint price_book_draft_base_version_id_shape check (base_version_id ~ '^[A-Za-z0-9_-]{21}$'),
   updated_at timestamptz not null default now(),

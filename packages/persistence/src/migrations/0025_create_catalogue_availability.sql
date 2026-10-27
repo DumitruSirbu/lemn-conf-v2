@@ -27,10 +27,17 @@
 -- credential cannot back-date a change. `changed_by_account_id` is the staff member whose live session switched the item,
 -- in the shape of `accounts.id`, with no foreign key (`0015`'s precedent).
 --
--- **Accepted residual (plan risk RK-22, beside ADR 0173's F1 and F2):** a holder of the application credential can insert a log row at a
--- revision the head has not reached, because the grant must include `revision` and no check can tie a row to the head.
--- The audit row of that change is missing and the head lags the log's largest revision; the owner's runbook reads
--- `max(revision)` of the log against the head. The application reads the log only up to the head's revision.
+-- **Accepted residual, stated plainly (plan risk RK-22, beside ADR 0173's F1 and F2; security review L1,
+-- 2026-10-27).** The grants must give the application credential both `INSERT` on the log (including `revision`) and
+-- `UPDATE` of the head, so whoever holds it can write a log row at any revision and can also move the head. A head that
+-- "lags the log" therefore detects nothing: the holder can move it to match. What detects a forged change is only a
+-- missing audit row: every log row the application wrote has a `catalogue-item-active-changed` row in
+-- `staff_audit_events` whose `availabilityRevision` is its own revision (a publish's created items are the exception:
+-- their rows have a `price-published` audit row instead). Two results, both recoverable only by the owner:
+-- a log row planted at the revision after the head's makes the next write of the application fail at the log's key, so
+-- every availability write, defaults save and publish is wedged until the owner removes the row or moves the head; and
+-- a row planted below the head changes what is switched off with no audit row. The owner's runbook cross-checks the
+-- log's revisions against those audit rows. The application reads the log only up to the head's revision.
 --
 -- The head row is seeded with `insert … on conflict do nothing`, so a re-run changes no data and never resets a head
 -- that has moved.

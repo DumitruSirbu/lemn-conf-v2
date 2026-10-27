@@ -64,6 +64,18 @@ function isWiderThanABigint(canonicalDigits: string): boolean {
   );
 }
 
+/**
+ * The most JSON a store sends for a book, a change summary or a draft's changes: 2 MiB of compact text. The tables check
+ * 4 MiB of `jsonb` text (`0023`, `0024`; `0011`'s ceiling), and `jsonb` text adds a space after each colon and comma,
+ * which can not double the length of compact JSON, so nothing this bound lets through is refused by a table.
+ */
+export const MAX_STORED_JSON_BYTES = 2_097_152;
+
+/** Whether the JSON text is short enough to send. Counted in UTF-8 bytes, as `octet_length` counts. */
+export function isWithinStoredJsonLimit(jsonText: string): boolean {
+  return new TextEncoder().encode(jsonText).length <= MAX_STORED_JSON_BYTES;
+}
+
 /** An id a store mints for a row: the shape of `accounts.id` and of a design's id, which the tables check. */
 const MINTED_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
 

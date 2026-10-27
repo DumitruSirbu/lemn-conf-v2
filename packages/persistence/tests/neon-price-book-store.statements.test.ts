@@ -385,6 +385,31 @@ describe("a draft write", () => {
     expect(livenessPredicateOf(statement)).toBe(liveness);
   });
 
+  it("takes the actor only from an administrator's session, as the route also requires", async () => {
+    const { statement } = await writeAndCapture([WRITTEN_ROW]);
+
+    expect(normalised(statement)).toContain(
+      "interval '1 second') > now() and a.role = 'administrator' ), moved as",
+    );
+  });
+
+  it("refuses changes longer than a table takes, before it sends anything and without quoting them", async () => {
+    const huge = [{ value: "x".repeat(2_097_152) }];
+
+    const failure = await failureOf(
+      () =>
+        newStore().writeDraft({
+          expectedDraftRevision: "3",
+          changes: huge as never,
+          audit: { session: SESSION, entry: DRAFT_CHANGED },
+        }),
+      "invalid-request",
+    );
+
+    expect(queryDriver.statements).toHaveLength(0);
+    expect(failure.message).not.toContain("xxxx");
+  });
+
   it("answers changed-meanwhile when the compare-and-set moved no row, and not-recorded when no session stood behind it", async () => {
     expect(
       (
@@ -805,6 +830,39 @@ describe("a publish", () => {
     );
 
     expect(queryDriver.statements).toHaveLength(0);
+  });
+
+  it("takes the actor only from an administrator's session, as the route also requires", async () => {
+    const { statement } = await publishAndCapture([PUBLISHED_ROW]);
+
+    expect(normalised(statement)).toContain(
+      "interval '1 second') > now() and a.role = 'administrator' ), created_items as",
+    );
+  });
+
+  it.each([
+    ["a book", { book: { text: "x".repeat(2_097_152) } }],
+    ["a change summary", { changeSummary: ["x".repeat(2_097_152)] }],
+  ])(
+    "refuses %s longer than a table takes before it sends anything, without quoting it",
+    async (_name, overrides) => {
+      const failure = await failureOf(
+        () => newStore().publish(aPublishRequest(overrides as never)),
+        "invalid-request",
+      );
+
+      expect(queryDriver.statements).toHaveLength(0);
+      expect(failure.message).not.toContain("xxxx");
+    },
+  );
+
+  it("accepts a book that is just inside the bound", async () => {
+    const { result } = await publishAndCapture(
+      [PUBLISHED_ROW],
+      aPublishRequest({ book: { text: "x".repeat(2_097_000) } }),
+    );
+
+    expect(result.kind).toBe("ok");
   });
 
   it("counts a label in characters, as the table does, so 80 emoji are accepted", async () => {

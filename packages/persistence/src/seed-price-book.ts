@@ -32,7 +32,7 @@ export interface SeedPriceBookRequest {
   readonly readFrom?: ConnectionVariableName;
   /** The owner's account, recorded as the version's publisher. It must exist. */
   readonly ownerAccountId: string;
-  /** The book to publish as version 1, stored whole. */
+  /** The book to publish as version 1, stored whole except that its `version` becomes the version's id (R1-Q2). */
   readonly book: unknown;
 }
 
@@ -63,7 +63,7 @@ export async function seedPriceBook(
     versionId,
     label: SEED_VERSION_LABEL,
     note: SEED_VERSION_NOTE,
-    bookJson: JSON.stringify(book),
+    bookJson: JSON.stringify(stampedWith(versionId, book as object)),
     ownerAccountId,
   });
   const row = onlyRowOf(reply);
@@ -86,6 +86,12 @@ function onlyRowOf(reply: unknown): Row {
     );
   }
   return { ...row };
+}
+
+/** Every stored version satisfies `book.version === versionId` (architect ruling R1-Q2, 2026-10-27): the version a price
+ *  carries is the row's own id, so the id the seed minted replaces whatever label the sample book was written with. */
+function stampedWith(versionId: string, book: object): object {
+  return { ...book, version: versionId };
 }
 
 const REFUSAL_TEXT: Readonly<Record<SeedRefusal, string>> = {

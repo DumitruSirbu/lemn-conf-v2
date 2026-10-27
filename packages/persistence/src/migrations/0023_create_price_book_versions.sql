@@ -18,12 +18,22 @@
 --
 -- `label` is 1 to 80 characters and `note` at most 240, the bounds of `MAX_BOOK_NAME_LENGTH` and
 -- `MAX_BOOK_DESCRIPTION_LENGTH` in the domain's price book parser; the character rule (NFC, no control or bidi-override
--- character) is the domain's, applied before the insert. This migration puts no ceiling on the size of `book` or
--- `change_summary`: that is a number the plan has not ruled (as `0020`'s header says of its own `detail`), and the
--- application refuses a book it cannot parse before it stores one.
+-- character) is the domain's, applied before the insert. `book` and `change_summary` are each bounded to 4 MiB of
+-- `jsonb` text (4194304 bytes), `0011`'s ceiling for a stored document and for its reason: far above any book the
+-- product writes and above what `jsonb` adds in spaces to the application's own, lower limit (2 MiB of compact JSON,
+-- checked before any statement), so no honest book meets it and no credential can make a row that every price surface
+-- must then load. The ceiling must be in the first apply; it cannot be added to a table that holds versions.
 --
 -- `published_at` is `now()` by default and is **not in the grant**, so a leaked credential cannot back-date or
 -- forward-date a version (`0011`'s `created_at` reasoning).
+--
+-- **Accepted residual, stated plainly (security review L1, 2026-10-27).** The application credential holds `INSERT`
+-- on this table, so whoever holds it can insert a newest version, and the newest version is the one prices are read
+-- from: the prices go live with no `price-published` audit row, because the audit row is written by the application's
+-- own publish and not by the table. No check in the database can tie a row to an audit row (a trigger was declined).
+-- What detects it is the owner's runbook cross-check: every version beyond the first (the seed writes the first, with no
+-- audit row, on purpose) has a `price-published` row in `staff_audit_events` whose `sequenceNumber` is its own. A
+-- version without one was not published by the application.
 --
 -- The grant is the owner's separate step:
 --
@@ -58,9 +68,11 @@ create table if not exists price_book_versions (
   note text not null
     constraint price_book_versions_note_length check (char_length(note) <= 240),
   book jsonb not null
-    constraint price_book_versions_book_is_an_object check (jsonb_typeof(book) = 'object'),
+    constraint price_book_versions_book_is_an_object check (jsonb_typeof(book) = 'object')
+    constraint price_book_versions_book_size check (octet_length(book::text) <= 4194304),
   change_summary jsonb not null
-    constraint price_book_versions_change_summary_is_an_array check (jsonb_typeof(change_summary) = 'array'),
+    constraint price_book_versions_change_summary_is_an_array check (jsonb_typeof(change_summary) = 'array')
+    constraint price_book_versions_change_summary_size check (octet_length(change_summary::text) <= 4194304),
   published_at timestamptz not null default now(),
   published_by_account_id text not null
     constraint price_book_versions_published_by_account_id_shape check (published_by_account_id ~ '^[A-Za-z0-9_-]{21}$')

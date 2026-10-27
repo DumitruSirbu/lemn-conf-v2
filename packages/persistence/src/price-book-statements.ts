@@ -114,6 +114,7 @@ export function writeDraftStatement<Statement>(
         and s.created_at >= a.password_changed_at
         and s.last_seen_at
           + ((${lifetimes}::jsonb ->> a.role)::double precision * interval '1 second') > now()
+        and a.role = 'administrator'
     ),
     moved as (
       update price_book_draft
@@ -186,6 +187,7 @@ export function publishStatement<Statement>(
         and s.created_at >= a.password_changed_at
         and s.last_seen_at
           + ((${lifetimes}::jsonb ->> a.role)::double precision * interval '1 second') > now()
+        and a.role = 'administrator'
     ),
     created_items as (
       select t.kind, t.item_id, t.position
