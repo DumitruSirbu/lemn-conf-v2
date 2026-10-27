@@ -1203,6 +1203,25 @@ Eight lines. **None** of `DELETE`, `TRUNCATE`, `ALL`, `PUBLIC` or a grant option
 (`price_book_draft` and `catalogue_availability_head` are seeded rows). `sequence_number` is the column name in S2's
 `0023_create_price_book_versions.sql` (the S2 developer's report); re-check it against the merged file.
 
+**Wave S4, `0026` and `0027` (relayed 2026-10-27; as written in S4's migration headers at branch `m10/s4`; re-check
+against the merged files).**
+
+```sql
+GRANT SELECT ON TABLE public.design_staff_seen TO app_designs;
+GRANT INSERT (design_id, seen_revision, seen_by_account_id) ON TABLE public.design_staff_seen TO app_designs;
+GRANT UPDATE (seen_revision, seen_by_account_id, seen_at) ON TABLE public.design_staff_seen TO app_designs;
+GRANT SELECT (priced) ON TABLE public.contact_submissions TO app_designs;
+GRANT SELECT ON TABLE public.staff_change_digest_rounds TO app_designs;
+GRANT INSERT (day_key) ON TABLE public.staff_change_digest_rounds TO app_designs;
+GRANT UPDATE (sent_count) ON TABLE public.staff_change_digest_rounds TO app_designs;
+GRANT SELECT ON TABLE public.staff_change_digest_entries TO app_designs;
+GRANT INSERT (day_key, design_id, revision) ON TABLE public.staff_change_digest_entries TO app_designs;
+```
+
+The ledger reads 1–25 before and 1–27 after. **Deploy order:** apply `0023`–`0027` and issue **all** their grants **before the
+code deploys**. The existing staff kitchens list and kitchen page read `design_staff_seen` and `contact_submissions.priced`,
+so they answer 503 from deploy until `0026` and its grants are in place.
+
 **After applying, cross-check (owner, by hand).** The application credential could insert an availability-log row and move
 the head, and a planted newest version makes prices live with no audit row. Compare:
 - every availability-log revision against a matching `catalogue-item-active-changed` audit row;
