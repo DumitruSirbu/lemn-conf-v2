@@ -15,12 +15,14 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { shippedPriceBook } from "@/lib/server/shipped-price-book";
 import { planRestore } from "@/price-dashboard/publish-model";
-import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+import {
+  SAMPLE_FLAT_BOOK,
+  SAMPLE_PUBLISH_PAGE,
+} from "@/price-dashboard/publish-sample";
 
 const ACTIVE: PriceBook = SAMPLE_PUBLISH_PAGE.state.active.book;
-const FLAT: PriceBook = shippedPriceBook();
+const FLAT: PriceBook = SAMPLE_FLAT_BOOK;
 const AMOUNT_FIELDS = [
   "anchorMinor",
   "perStepWiderMinor",
