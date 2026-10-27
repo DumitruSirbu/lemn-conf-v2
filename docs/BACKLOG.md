@@ -320,6 +320,7 @@ status corrections, in one of these two files:
 | 287 | Staff path guard may compare undecoded path segments (encoded staff URL could miss `X-Robots-Tag` / `Cache-Control: private`) | open.md — recorded 2026-10-26; Low, unconfirmed, predates M10 |
 | 288 | `enumerableFieldsOf` does not see an accessor defined on a prototype | open.md — recorded 2026-10-26; gap not yet characterised |
 | 289 | A fail-closed account-bucket refusal logs the same `[account]` line as a store failure | open.md — recorded 2026-10-27; Low, diagnostics, predates M10 |
+| 290 | A digest name of only tabs, NBSP or zero-width characters shows blank instead of falling back to the reference (`btrim` strips only U+0020) | open.md — recorded 2026-10-27; Info |
 
 *Notes at the 8J2, 8U and 8V close (2026-10-17) on existing entries:* 145 (facing-labels flaky again), 160 (closed), 232 (the non-live recipe does not hold) carry dated notes in `open.md`.
 

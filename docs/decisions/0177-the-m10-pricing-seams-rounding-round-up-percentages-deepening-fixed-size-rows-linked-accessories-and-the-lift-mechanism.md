@@ -120,6 +120,11 @@ the "expected set" sentence above, which excluded wall rows and wall corners.
 `price-per-size` is priced at the smallest listed size ≥ the body's width (round up, as A-2). A width above every listed
 size is refused with a new code, `NO_PRICE_FOR_SIZE`; it is never priced at 0 and never at the nearest size.
 
+**Amendment 2026-10-27 (coordinator, relayed; the scribe ran nothing):** the six structural corner rules are
+`price-per-size` with one entry keyed at the round-up of their built width to 50 mm (320 → 350, 570 → 600, 900 → 900; plan
+P3-Q4, 2026-10-27), because per-size keys are on the 50 mm grid and the lookup rounds the body's width up first. Each built
+body's price is unchanged, and frame D3G shows the built width.
+
 ### A-8 — Material ordering (settles S-5)
 
 The book's `material.defaultTierId` is the **pricing fallback**, fixed at the PAL reference. With percentages whole and

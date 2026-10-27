@@ -11,7 +11,7 @@ import {
   type TierIdentity,
 } from "@lemnaria/configurator-domain";
 
-import { shippedPriceBook } from "@/lib/server/shipped-price-book";
+import { readActivePriceBook } from "@/lib/server/active-price-book";
 import roMessages from "@/messages/ro.json";
 
 import { sampleVersionIdOf } from "./publish-sample-client";
@@ -23,8 +23,21 @@ import type { PublishPageInput, VersionDetailInput } from "./publish-model";
 
 // Invented data for builds that show samples; every book goes through `applyChanges`. Reached only through the sources.
 
-/** The book the application ships, in its flat form: what the sample restates in the percentage form. */
-const FLAT_BOOK: PriceBook = shippedPriceBook();
+/**
+ * The book the application's own root reads in a build that shows samples, in its flat form (linear prices, flat material
+ * amounts, no depth rule): what the sample restates in the percentage form, and what a version published before that form
+ * was. Read through the one root, so this module names no book of its own.
+ */
+export const SAMPLE_FLAT_BOOK: PriceBook = await readFlatBook();
+
+async function readFlatBook(): Promise<PriceBook> {
+  const root = await readActivePriceBook();
+  if (root.kind !== "active") {
+    throw new Error("the application's own root holds no book to restate");
+  }
+  return root.book;
+}
+const FLAT_BOOK: PriceBook = SAMPLE_FLAT_BOOK;
 
 const ANCHOR_WIDTH_MM = 600;
 const FIRST_ANCHOR_MINOR = 100_000;
