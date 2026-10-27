@@ -1,4 +1,8 @@
 import type { ItemKind, ItemRef } from "../pricing/catalogue-availability.js";
+import type {
+  BulkChangeScope,
+  PriceGroupCode,
+} from "../staff/dashboard-audit-action.js";
 
 // The contract of M10's draft (plan §8.4 a, b; ADR 0062 Amendments, ADR 0176 to 0178): which field of the price
 // book a change names, and what a change is. Types and closed lists only; nothing here reads or writes a book.
@@ -202,13 +206,27 @@ export type AddressOfKind<Kind extends BookFieldAddressKind> = Extract<
 >;
 
 /**
+ * The bulk action a group of changes came from, as it was asked: the whole percent (negative for
+ * a reduction), the scope, and the group when the scope is one. Stored beside the amounts because `r10` rounding makes
+ * the percent impossible to recover from them.
+ */
+export interface DraftBulk {
+  readonly percent: number;
+  readonly scope: BulkChangeScope;
+  /** Present exactly when `scope` is `group`. */
+  readonly groupCode?: PriceGroupCode;
+}
+
+/**
  * One draft change: the field or row it names, and what it sets it to. `groupId` ties the changes of one bulk action
- * (A-14). Written as one arm per kind, so the address's kind decides the value's type.
+ * and `bulk` says what that action was: each is present exactly when the other is, and `bulk` is identical on
+ * every change of one group. Written as one arm per kind, so the address's kind decides the value's type.
  */
 export type DraftChange = {
   readonly [Kind in BookFieldAddressKind]: {
     readonly address: AddressOfKind<Kind>;
     readonly value: DraftValueByKind[Kind];
     readonly groupId?: string;
+    readonly bulk?: DraftBulk;
   };
 }[BookFieldAddressKind];

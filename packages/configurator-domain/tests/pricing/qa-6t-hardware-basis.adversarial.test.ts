@@ -530,10 +530,8 @@ describe("a body whose fronts cannot be read fails the design whole", () => {
 });
 
 describe("a rate that would publish a negative line is refused", () => {
-  /** `usableCoefficientOf` deliberately does not ask about the sign — a negative rate is exact
-   *  arithmetic, and what is wrong with it is the amount it publishes. So the refusal has to arrive
-   *  at the line, and it does: a design with mechanisms and a negative rate is refused whole rather
-   *  than quoted a discount. */
+  /** `usableCoefficientOf` does not ask about the sign, so the book parser does: a negative tier rate is
+   *  refused as an invalid book, and the design is refused whole rather than quoted a discount. */
   it("refuses the seeded kitchen priced at a negative hinge rate", () => {
     const failure = refusalFrom({
       book: bookAtRates({
@@ -543,6 +541,6 @@ describe("a rate that would publish a negative line is refused", () => {
       }),
     });
 
-    expect(failure.code).toBe("INVALID_AMOUNT");
+    expect(failure.code).toBe("INVALID_PRICE_BOOK");
   });
 });

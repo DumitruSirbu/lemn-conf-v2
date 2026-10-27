@@ -1,3 +1,4 @@
+import { CHANGE_REFUSAL_CODES } from "@lemnaria/configurator-domain";
 import type {
   AccessoryCreation,
   AddressOfKind,
@@ -82,15 +83,10 @@ export const TEXT_REFUSAL_CODES = Object.freeze([
   "TEXT_STATES_AN_AMOUNT",
 ] as const);
 
-/** What a draft change can be refused for, beyond its number or its text. */
+/** What a draft change can be refused for: the domain's own refusals, then its text and the refusals judged elsewhere. */
 export const DRAFT_CHANGE_REFUSAL_CODES = Object.freeze([
-  ...NUMBER_REFUSAL_CODES,
+  ...CHANGE_REFUSAL_CODES,
   ...TEXT_REFUSAL_CODES,
-  "UNKNOWN_ADDRESS",
-  "UNKNOWN_RULE",
-  "UNKNOWN_ITEM",
-  "NOT_EDITABLE",
-  "FIELD_NOT_ON_RULE",
   "PRICE_WOULD_BE_NEGATIVE",
   "LINK_TARGET_UNKNOWN",
   "LINK_TARGET_CUSTOMER_SUPPLIED",
@@ -227,9 +223,9 @@ export type DraftChangeInputWire = WithoutGroupId<
   >
 >;
 
-/** A single-change input never carries a group id: only the bulk route mints one (m1). */
+/** A single-change input never carries a group id, nor the `bulk` that goes with it: only the bulk route sets them (m1). */
 type WithoutGroupId<Change> = Change extends unknown
-  ? Omit<Change, "groupId">
+  ? Omit<Change, "groupId" | "bulk">
   : never;
 
 /** One change to the draft. `groupId` ties the changes of one bulk action. */

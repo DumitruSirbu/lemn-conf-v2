@@ -1,0 +1,179 @@
+// Books and helpers for the change-set tests. Nothing here calls `readEditableFields` or `applyChanges`: slots come from
+// the independent walker in `qa-m1-books.ts`, so a test that compares the module's result with `setSlots` is not fed by
+// the module on both sides.
+import type {
+  DraftBulk,
+  DraftChange,
+} from "../../src/price-dashboard/book-field-address.js";
+import type {
+  AnchoredFormula,
+  AnchoredShape,
+} from "../../src/pricing/anchored-price-formula.js";
+import type {
+  CabinetPriceRule,
+  MaterialTier,
+  PriceBook,
+} from "../../src/pricing/price-book.js";
+import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+
+import { valueAt, type Edit as SlotEdit, type Slot } from "./qa-m1-books.js";
+
+type EditSlot = Slot;
+
+/** The flat form: linear cabinet formulas, flat material amounts, no depth rule. Only hardware, accessories and the
+ *  provisional flag are editable in it. */
+export const FLAT_BOOK: PriceBook = SAMPLE_PRICE_BOOK;
+
+const ANCHORED_SHAPES_IN_ORDER: readonly AnchoredShape[] = [
+  "anchored-width",
+  "anchored-width-and-door-leaves",
+  "anchored-width-and-height",
+  "anchored-width-height-and-door-leaves",
+];
+
+export const FIXTURE_ANCHOR_WIDTH_MM = 600;
+export const FIXTURE_ANCHOR_HEIGHT_MM = 700;
+export const PER_SIZE_WIDTHS_MM = [400, 600, 800] as const;
+
+function anchoredFormulaOf(
+  shape: AnchoredShape,
+  anchorMinor: number,
+): AnchoredFormula {
+  const readsDoors = shape.includes("door-leaves");
+  const readsHeight = shape.includes("height");
+  return {
+    shape,
+    anchorWidthMm: FIXTURE_ANCHOR_WIDTH_MM,
+    anchorMinor,
+    perStepWiderMinor: 8_000,
+    perStepNarrowerMinor: 6_000,
+    ...(readsDoors ? { perExtraDoorLeafMinor: 20_000 } : {}),
+    ...(readsHeight
+      ? { anchorHeightMm: FIXTURE_ANCHOR_HEIGHT_MM, perHeightStepMinor: 3_000 }
+      : {}),
+  };
+}
+
+function percentageRules(): readonly CabinetPriceRule[] {
+  let manufacturerIndex = 0;
+  return SAMPLE_PRICE_BOOK.cabinetRules.map((rule) => {
+    if (rule.suppliedBy === "customer") return rule;
+    const index = manufacturerIndex++;
+    const anchorMinor = 100_000 + index * 10_000;
+    const shape = ANCHORED_SHAPES_IN_ORDER[index % 4] ?? "anchored-width";
+    const formula =
+      index === 4
+        ? {
+            shape: "price-per-size" as const,
+            sizes: PER_SIZE_WIDTHS_MM.map((widthMm, step) => ({
+              widthMm,
+              amountMinor: anchorMinor + step * 20_000,
+            })),
+          }
+        : anchoredFormulaOf(shape, anchorMinor);
+    return { ...rule, formula };
+  });
+}
+
+function percentageTiers(): readonly MaterialTier[] {
+  const percents = [0, 25, 60];
+  return SAMPLE_PRICE_BOOK.material.tiers.map((tier, index) => {
+    const { wholeKitchenMinor, ...identity } = tier;
+    void wholeKitchenMinor;
+    return {
+      ...identity,
+      percentOfCabinets: percents[index] ?? 0,
+    } as unknown as MaterialTier;
+  });
+}
+
+/** The percentage form: every manufacturer row anchored (all four shapes, a fixed-size row, the rest plain), customer
+ *  rows kept, three material tiers (the default at 0 %) and a depth rule. */
+export const PERCENTAGE_BOOK: PriceBook = {
+  ...SAMPLE_PRICE_BOOK,
+  cabinetRules: percentageRules(),
+  material: {
+    defaultTierId: SAMPLE_PRICE_BOOK.material.defaultTierId,
+    tiers: percentageTiers(),
+  },
+  depthRule: { deepCabinetPercent: 15 },
+};
+
+export const FIXTURE_BOOKS = [
+  { form: "flat", book: FLAT_BOOK },
+  { form: "percentage", book: PERCENTAGE_BOOK },
+] as const;
+
+export function customerRuleOf(book: PriceBook): CabinetPriceRule {
+  const rule = book.cabinetRules.find((row) => row.suppliedBy === "customer");
+  if (rule === undefined) throw new Error("the fixture has no customer row");
+  return rule;
+}
+
+export function perSizeRuleOf(book: PriceBook): CabinetPriceRule {
+  const rule = book.cabinetRules.find(
+    (row) => row.formula.shape === "price-per-size",
+  );
+  if (rule === undefined) throw new Error("the fixture has no fixed-size row");
+  return rule;
+}
+
+export function anchoredRuleReading(
+  book: PriceBook,
+  shape: AnchoredShape,
+): CabinetPriceRule {
+  const rule = book.cabinetRules.find((row) => row.formula.shape === shape);
+  if (rule === undefined) throw new Error(`the fixture has no ${shape} row`);
+  return rule;
+}
+
+// The one independent walker, shared with the adversarial suites: it finds every editable field by walking a book's JSON
+// and writes an edit by path.
+export {
+  slotsOf as editSlotsOf,
+  valueAt,
+  written as setSlots,
+  type Edit as SlotEdit,
+  type Slot as EditSlot,
+} from "./qa-m1-books.js";
+
+/** A value for the slot taken from `seed`: a whole number within the slot's range, or a boolean for the flag. */
+export function valueForSeed(slot: EditSlot, seed: number): number | boolean {
+  if (slot.unit === "flag") return seed % 2 === 0;
+  return seed % (slot.max + 1);
+}
+
+/** A value that differs from what the book holds at the slot and stays inside the slot's range. */
+export function otherValueAt(
+  book: PriceBook,
+  slot: EditSlot,
+): number | boolean {
+  const current = valueAt(book, slot);
+  if (typeof current === "boolean") return !current;
+  return current >= slot.max ? current - 1 : current + 1;
+}
+
+/** A bulk action as a group's changes carry it. */
+export const SAMPLE_BULK: DraftBulk = { percent: 5, scope: "all" };
+
+/** A change; with a `groupId` it also carries `bulk`, because the two come together. */
+export function changeOf(
+  edit: SlotEdit,
+  groupId?: string,
+  bulk: DraftBulk = SAMPLE_BULK,
+): DraftChange {
+  return {
+    address: edit.slot.address,
+    value: edit.value,
+    ...(groupId === undefined ? {} : { groupId, bulk }),
+  } as DraftChange;
+}
+
+/** Freezes a book and everything under it, so a write to the input of a pure function throws. */
+export function deepFreeze<Value>(value: Value): Value {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const member of Object.values(value)) deepFreeze(member);
+  }
+  return value;
+}
