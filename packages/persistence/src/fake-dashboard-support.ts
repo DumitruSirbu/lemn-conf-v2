@@ -120,6 +120,8 @@ export interface StageDashboardAuditRequest {
   readonly provisional?: Readonly<Record<string, unknown>>;
   /** Required exactly when the action names a kitchen. */
   readonly designId?: string;
+  /** A write only an administrator's live session may make, as Neon's actor test for the price book and the log. */
+  readonly onlyAdministrators?: boolean;
 }
 
 export interface FakeDashboardAuditLedgerOptions {
@@ -149,9 +151,9 @@ export class FakeDashboardAuditLedger {
   async stage(
     request: StageDashboardAuditRequest,
   ): Promise<StagedDashboardAudit> {
-    const { operation, record, designId } = request;
+    const { designId } = request;
     const entry = this.requireAcceptedEntry(request);
-    const actorAccountId = await this.liveActorOf(operation, record);
+    const actorAccountId = await this.liveActorOf(request);
     let isCommitted = false;
     return {
       actorAccountId,
@@ -198,14 +200,16 @@ export class FakeDashboardAuditLedger {
     return reading.entry;
   }
 
-  private async liveActorOf(
-    operation: DashboardStoreOperation,
-    record: StagedAuditRecord,
-  ): Promise<string> {
+  private async liveActorOf({
+    operation,
+    record,
+    onlyAdministrators = false,
+  }: StageDashboardAuditRequest): Promise<string> {
     const lookup = await this.findLive(operation, record);
-    if (lookup.kind === "none") {
-      throw new DashboardStoreError(operation, "not-recorded");
-    }
+    const isActor =
+      lookup.kind !== "none" &&
+      (!onlyAdministrators || lookup.account.role === "administrator");
+    if (!isActor) throw new DashboardStoreError(operation, "not-recorded");
     return lookup.account.id;
   }
 

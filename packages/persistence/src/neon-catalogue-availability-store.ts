@@ -24,18 +24,18 @@ import type {
 } from "./m10-ports.js";
 import {
   detailJsonWithout,
-  failureFrom,
   itemFromColumns,
   nullableText,
   onlyRow,
-  plainRowsOf,
   prepareDashboardAudit,
   readRows,
   requiredBoolean,
   requiredCount,
   requiredText,
   unexpectedAnswer,
+  writeRows,
 } from "./neon-dashboard-store-support.js";
+import { isRecord } from "./neon-row-guards.js";
 import type { Row } from "./neon-row-guards.js";
 import { openApplicationDatabase } from "./open-application-database.js";
 import {
@@ -53,14 +53,9 @@ const SET_AVAILABILITY = "set an item's availability";
 const STAMPED_ACTIVATION_KEYS = ["availabilityRevision"] as const;
 
 /**
- * `CatalogueAvailabilityStore` on Neon Postgres, over `catalogue_availability_head` and `catalogue_availability_changes`
- * (migration `0025`), with the audit row of `staff_audit_events`. Every statement is a tagged-template `sql`.
- *
- * A write is **one statement** (`catalogue-availability-statements.ts`): the head's compare-and-set, the log row at the
- * revision that update returned, and the audit row naming that same revision, as branches of one `with`. A head that
- * moved since the writer read it updates no row and nothing is written. A write is never retried; a read is.
- *
- * A revision is opaque text: nothing here parses, orders or does arithmetic on one.
+ * `CatalogueAvailabilityStore` on Neon Postgres (migration `0025`, ADR 0178 A-17). A write is one statement, so the head's
+ * compare-and-set, the log row and the audit row commit together or not at all, and it is never retried. A revision is
+ * opaque text: the compare-and-set is in SQL.
  */
 export class NeonCatalogueAvailabilityStore
   implements CatalogueAvailabilityStore
@@ -108,7 +103,7 @@ export class NeonCatalogueAvailabilityStore
       accepts: [CATALOGUE_ACTIVATION_AUDIT_ACTION],
     });
     requireDescribing(audit.entry.detail, item, active);
-    const rows = await this.write(() =>
+    const rows = await writeRows(SET_AVAILABILITY, () =>
       setItemActiveStatement(this.sql, {
         expectedRevision,
         itemKind: item.kind,
@@ -118,32 +113,23 @@ export class NeonCatalogueAvailabilityStore
         audit,
       }),
     );
-    const row = onlyRow(rows, SET_AVAILABILITY);
-    if (!requiredBoolean(row["is_session_live"], SET_AVAILABILITY)) {
-      throw new DashboardStoreError(SET_AVAILABILITY, "not-recorded");
-    }
-    const revision = nullableText(row["revision"], SET_AVAILABILITY);
-    if (revision === null) return CHANGED_MEANWHILE;
-    const isOneRowEach =
-      row["logged_revision"] === revision &&
-      requiredCount(row["audited_rows"], SET_AVAILABILITY) === 1;
-    if (!isRevisionShape(revision) || !isOneRowEach) {
-      throw unexpectedAnswer(SET_AVAILABILITY);
-    }
-    return { kind: "ok", revision };
+    return setActiveResultFrom(onlyRow(rows, SET_AVAILABILITY));
   }
+}
 
-  private async write(
-    sendStatement: () => PromiseLike<unknown>,
-  ): Promise<readonly Row[]> {
-    let reply: unknown;
-    try {
-      reply = await sendStatement();
-    } catch (failure) {
-      throw failureFrom(SET_AVAILABILITY, failure);
-    }
-    return plainRowsOf(reply, SET_AVAILABILITY);
+function setActiveResultFrom(row: Row): SetItemActiveResult {
+  if (!requiredBoolean(row["is_session_live"], SET_AVAILABILITY)) {
+    throw new DashboardStoreError(SET_AVAILABILITY, "not-recorded");
   }
+  const revision = nullableText(row["revision"], SET_AVAILABILITY);
+  if (revision === null) return CHANGED_MEANWHILE;
+  const isOneRowEach =
+    row["logged_revision"] === revision &&
+    requiredCount(row["audited_rows"], SET_AVAILABILITY) === 1;
+  if (!isRevisionShape(revision) || !isOneRowEach) {
+    throw unexpectedAnswer(SET_AVAILABILITY);
+  }
+  return { kind: "ok", revision };
 }
 
 /** The audit entry must describe this write: its item and its flag. The domain has read the detail already. */
@@ -152,15 +138,11 @@ function requireDescribing(
   item: ItemRef,
   active: boolean,
 ): void {
-  const described = detail as {
-    readonly itemKind?: unknown;
-    readonly itemId?: unknown;
-    readonly active?: unknown;
-  };
   const isDescribing =
-    described.itemKind === item.kind &&
-    described.itemId === itemIdOf(item) &&
-    described.active === active;
+    isRecord(detail) &&
+    detail["itemKind"] === item.kind &&
+    detail["itemId"] === itemIdOf(item) &&
+    detail["active"] === active;
   if (!isDescribing) {
     throw new DashboardStoreError(SET_AVAILABILITY, "invalid-request");
   }

@@ -4,9 +4,9 @@ import type {
   ItemRef,
 } from "@lemnaria/configurator-domain";
 
+import { isStorableItem } from "./dashboard-store-shapes.js";
 import {
   FakeRevisionHead,
-  isNamedItem,
   isRevisionAhead,
   isRevisionShape,
   itemIdOf,
@@ -103,6 +103,7 @@ export class FakeCatalogueAvailabilityStore
       record: request.audit,
       accepts: [CATALOGUE_ACTIVATION_AUDIT_ACTION],
       provisional: { availabilityRevision: this.head.next() },
+      onlyAdministrators: true,
     });
     if (request.expectedRevision !== this.head.current()) {
       return CHANGED_MEANWHILE;
@@ -140,7 +141,7 @@ function requireWritable(request: SetItemActiveRequest): void {
   const isWellFormed =
     isRevisionShape(request.expectedRevision) &&
     typeof request.active === "boolean" &&
-    isNamedItem(request.item) &&
+    isStorableItem(request.item) &&
     isDescribedBy(request);
   if (!isWellFormed) {
     throw new DashboardStoreError(

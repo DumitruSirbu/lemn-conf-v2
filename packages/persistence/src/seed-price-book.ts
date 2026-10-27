@@ -4,7 +4,11 @@ import { fileURLToPath } from "node:url";
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
-import { isJsonObject, isMintedId } from "./dashboard-store-shapes.js";
+import {
+  isJsonObject,
+  isMintedId,
+  stampedWithVersion,
+} from "./dashboard-store-shapes.js";
 import { loadEnvLocal } from "./load-env.js";
 import {
   MigrationExecutionError,
@@ -23,7 +27,7 @@ import type { ConnectionVariableName } from "./open-database.js";
 import { seedPriceBookStatement } from "./price-book-statements.js";
 import { readMigrationDatabaseUrl } from "./read-database-url.js";
 
-/** Authored text of the first version: a number and no note, so the seed puts no wording of the shop's own in the history. */
+/** The first version's authored text: a number and no note, so the seed puts no wording of the shop's own in history. */
 export const SEED_VERSION_LABEL = "Versiunea 1";
 export const SEED_VERSION_NOTE = "";
 
@@ -32,7 +36,7 @@ export interface SeedPriceBookRequest {
   readonly readFrom?: ConnectionVariableName;
   /** The owner's account, recorded as the version's publisher. It must exist. */
   readonly ownerAccountId: string;
-  /** The book to publish as version 1, stored whole except that its `version` becomes the version's id (R1-Q2). */
+  /** The book to publish as version 1, stored whole except that its `version` becomes the version's id. */
   readonly book: unknown;
 }
 
@@ -43,10 +47,9 @@ export type SeedPriceBookResult =
 export type SeedRefusal = "versions-exist" | "unknown-owner-account";
 
 /**
- * Publishes the first version (A-10). Owner-run, on the owner's credential (`MIGRATION_DATABASE_URL`), and no part of the
- * application: it **refuses when any version exists**, so it can never replace a book, and leaves the table as it found
- * it. It records the owner's account id as the publisher and writes no staff audit row (A-22: the owner-run seed is one
- * of the writes with no staff actor).
+ * Publishes the first version (ADR 0178 A-10). Owner-run on `MIGRATION_DATABASE_URL`, no part of the application: it
+ * refuses when any version exists, so it never replaces a book, and records the owner's account as the publisher. It
+ * writes no audit row, as no staff member acts.
  */
 export async function seedPriceBook(
   request: SeedPriceBookRequest,
@@ -63,7 +66,7 @@ export async function seedPriceBook(
     versionId,
     label: SEED_VERSION_LABEL,
     note: SEED_VERSION_NOTE,
-    bookJson: JSON.stringify(stampedWith(versionId, book as object)),
+    bookJson: JSON.stringify(stampedWithVersion(versionId, book)),
     ownerAccountId,
   });
   const row = onlyRowOf(reply);
@@ -86,12 +89,6 @@ function onlyRowOf(reply: unknown): Row {
     );
   }
   return { ...row };
-}
-
-/** Every stored version satisfies `book.version === versionId` (architect ruling R1-Q2, 2026-10-27): the version a price
- *  carries is the row's own id, so the id the seed minted replaces whatever label the sample book was written with. */
-function stampedWith(versionId: string, book: object): object {
-  return { ...book, version: versionId };
 }
 
 const REFUSAL_TEXT: Readonly<Record<SeedRefusal, string>> = {

@@ -5,6 +5,7 @@ import type {
   StaffAuditEntry,
 } from "@lemnaria/configurator-domain";
 
+import { sequenceNumberOf } from "./dashboard-store-shapes.js";
 import { DashboardStoreError } from "./m10-ports.js";
 import type {
   DashboardStoreFailure,
@@ -92,7 +93,8 @@ export function detailJsonWithout(
 
 /**
  * The failure with a built cause (type name, SQLSTATE, constraint name): the audit store's reading of a driver error. A
- * missing table or grant is `unavailable`, which a route answers 503; anything else is `database`.
+ * missing table or grant is `unavailable`, which a route answers 503; anything else is `database`. The staff kitchen
+ * actions store reads the same driver error onto its own error type, so it keeps its own mapping.
  */
 export function failureFrom(
   operation: DashboardStoreOperation,
@@ -134,6 +136,25 @@ export async function readRows(
     reply = await retryOnTransientFailure(() => Promise.resolve(runQuery()));
   } catch (failure) {
     throw failureFrom(operation, failure);
+  }
+  return plainRowsOf(reply, operation);
+}
+
+/**
+ * A write, sent once and never retried: a repeat after a lost acknowledgement could write twice. A failure is the store
+ * error with a built cause, unless `refusalOf` reads it as a refusal the caller answers, which is returned in place of rows.
+ */
+export async function writeRows<Refusal = never>(
+  operation: DashboardStoreOperation,
+  send: () => PromiseLike<unknown>,
+  refusalOf?: (failure: unknown) => Refusal,
+): Promise<readonly Row[] | Refusal> {
+  let reply: unknown;
+  try {
+    reply = await send();
+  } catch (failure) {
+    if (refusalOf === undefined) throw failureFrom(operation, failure);
+    return refusalOf(failure);
   }
   return plainRowsOf(reply, operation);
 }
@@ -196,14 +217,12 @@ export function requiredCount(
   return value;
 }
 
-/** A `bigint` that is a version's sequence number, read from its text: a positive whole number a `number` holds. */
 export function sequenceNumberFrom(
   value: unknown,
   operation: DashboardStoreOperation,
 ): number {
-  const text = requiredText(value, operation);
-  const sequence = /^[1-9][0-9]{0,15}$/.test(text) ? Number(text) : Number.NaN;
-  if (!Number.isSafeInteger(sequence)) throw unexpectedAnswer(operation);
+  const sequence = sequenceNumberOf(value);
+  if (sequence === undefined) throw unexpectedAnswer(operation);
   return sequence;
 }
 

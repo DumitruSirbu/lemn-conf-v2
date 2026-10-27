@@ -1,6 +1,8 @@
 import { HandleSchema } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
+import type { PublishPriceBookRequest } from "./m10-ports.js";
+
 // The shapes the M10 stores refuse before any statement: the fakes and the Neon stores share them, so both turn away
 // the same request. None of these reads a value as a number: a revision is an opaque digit run, and the only ordering
 // of two of them is `isRevisionAhead`, which stands for the `bigint` comparison SQL makes and is never used to decide
@@ -57,8 +59,30 @@ export function isStorableItem(item: ItemRef): boolean {
   );
 }
 
-export function isJsonObject(value: unknown): boolean {
+export function isJsonObject(
+  value: unknown,
+): value is Readonly<Record<string, unknown>> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Every stored version satisfies `book.version === versionId` (ADR 0178 A-15): the version a price carries is the row's
+ * own id, so whatever label a book arrived with is replaced. The book handed in is not changed.
+ */
+export function stampedWithVersion(
+  versionId: string,
+  book: Readonly<Record<string, unknown>>,
+): Readonly<Record<string, unknown>> {
+  return { ...book, version: versionId };
+}
+
+/** The last page of versions a request may name, so an offset stays far inside what the server counts in. */
+export const MAX_PRICE_VERSION_PAGE = 100_000;
+
+export function isListablePage(page: number): boolean {
+  return (
+    Number.isSafeInteger(page) && page >= 1 && page <= MAX_PRICE_VERSION_PAGE
+  );
 }
 
 /** A revision as a head or a row holds it: a digit run from 0, no leading zero, as wide as a `bigint`. */
@@ -114,6 +138,27 @@ export function isStorableJsonText(jsonText: string): boolean {
     if (!isStorableLeafOrQueue(pending.pop(), pending)) return false;
   }
   return true;
+}
+
+/**
+ * The JSON text of a value that must come out as an object or an array and be one a table takes
+ * (`isStorableJsonText`), or `undefined` when it is not: a value JSON cannot hold, or one a table would refuse or alter.
+ */
+export function storableJsonTextOf(
+  value: unknown,
+  shape: "object" | "array",
+): string | undefined {
+  let text: string | undefined;
+  try {
+    // `JSON.stringify` answers `undefined` for a value JSON has no text for, which its signature does not say.
+    text = JSON.stringify(value) as string | undefined;
+  } catch {
+    return undefined;
+  }
+  const opening = shape === "array" ? "[" : "{";
+  return text?.startsWith(opening) && isStorableJsonText(text)
+    ? text
+    : undefined;
 }
 
 /** The value of JSON text, or `undefined` for text no parser takes (a nesting deeper than the parser's stack). */
@@ -184,4 +229,57 @@ function countCharacters(text: string): number {
 /** A `text` column cannot hold U+0000, and the server refuses it with an error this store would report as a failure. */
 function holdsNul(text: string): boolean {
   return text.includes("\u0000");
+}
+
+/** A version's sequence number from the text of its `bigint`: a positive whole number a `number` holds, else `undefined`. */
+export function sequenceNumberOf(value: unknown): number | undefined {
+  if (typeof value !== "string" || !/^[1-9][0-9]{0,15}$/.test(value)) {
+    return undefined;
+  }
+  return Number(value);
+}
+
+/** What a publish request holds once every member is judged: the JSON as the statement takes it, and the items. */
+export interface StorablePublish {
+  readonly expectedActiveSequence: number;
+  readonly bookJson: string;
+  readonly changeSummaryJson: string;
+  readonly changeCount: number;
+  readonly createdItems: readonly ItemRef[];
+}
+
+/**
+ * The publish request judged as the Neon store judges it, and as the fake does so that both turn away the same request:
+ * revisions of the digit shape, a whole non-negative sequence, a label and a note a table holds, a book that is an
+ * object and a summary that is an array (each JSON a table takes), and items the log can keep. `undefined` when any
+ * member is not.
+ */
+export function storablePublishOf(
+  request: PublishPriceBookRequest,
+): StorablePublish | undefined {
+  const { expectedActiveSequence, book, changeSummary, createdItems } = request;
+  const isWellFormed =
+    isRevisionShape(request.expectedDraftRevision) &&
+    isRevisionShape(request.expectedAvailabilityRevision) &&
+    Number.isSafeInteger(expectedActiveSequence) &&
+    expectedActiveSequence >= 0 &&
+    isVersionLabel(request.label) &&
+    isVersionNote(request.note) &&
+    isJsonObject(book) &&
+    Array.isArray(changeSummary) &&
+    Array.isArray(createdItems) &&
+    createdItems.every(isStorableItem);
+  if (!isWellFormed) return undefined;
+  const bookJson = storableJsonTextOf(book, "object");
+  const changeSummaryJson = storableJsonTextOf(changeSummary, "array");
+  if (bookJson === undefined || changeSummaryJson === undefined) {
+    return undefined;
+  }
+  return {
+    expectedActiveSequence,
+    bookJson,
+    changeSummaryJson,
+    changeCount: (changeSummary as readonly unknown[]).length,
+    createdItems: Array.from<ItemRef>(createdItems),
+  };
 }

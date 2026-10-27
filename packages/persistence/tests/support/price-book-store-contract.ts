@@ -60,6 +60,8 @@ export function describePriceBookStoreContract(
   describeDraft(suiteName, newWorld);
   describePublish(suiteName, newWorld);
   describeHistory(suiteName, newWorld);
+  describeWhatNoTableCanHold(suiteName, newWorld);
+  describeWhoMayWrite(suiteName, newWorld);
 }
 
 async function writeDraft(
@@ -319,12 +321,13 @@ function describePublish(
         sequenceNumber: newestBefore + 1,
         availabilityRevision: (await world.availability.readCurrent()).revision,
       });
+      const versionId = result.kind === "ok" ? result.versionId : "";
       expect(await world.store.readActive()).toMatchObject({
         kind: "found",
         version: {
           sequenceNumber: newestBefore + 1,
           label: "November",
-          book: A_BOOK,
+          book: { ...A_BOOK, version: versionId },
         },
       });
       expect(await world.auditEventsOf(staff.accountId)).toEqual([
@@ -809,8 +812,30 @@ function describePublish(
 
       const again = await world.store.readVersion(result.versionId);
       expect(again).toMatchObject({
-        version: { book: { version: "given", nested: { rate: 1 } } },
+        version: { book: { version: result.versionId, nested: { rate: 1 } } },
       });
+    });
+
+    it("stores every version with its own id as the book's version, whatever version the book carried, and leaves the book it was given alone", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const carried = { ...A_BOOK, version: "sample-2026-09" };
+
+      const first = await publish(world, staff, { book: carried });
+      const second = await publish(world, staff, { book: A_BOOK });
+
+      if (first.kind !== "ok" || second.kind !== "ok") {
+        throw new Error("a publish was refused");
+      }
+      expect(first.versionId).not.toBe(second.versionId);
+      for (const published of [first, second]) {
+        expect(
+          await world.store.readVersion(published.versionId),
+        ).toMatchObject({
+          version: { book: { ...A_BOOK, version: published.versionId } },
+        });
+      }
+      expect(carried.version).toBe("sample-2026-09");
     });
   });
 }
@@ -897,20 +922,24 @@ function describeHistory(
           label: "One",
           note: "First.",
           state: "archived",
-          book: books[0],
+          book: { ...books[0], version: first.versionId },
           changeSummary: [DEPTH_TO_40],
         },
       });
       expect(await world.store.readVersion(second.versionId)).toMatchObject({
         kind: "found",
-        version: { label: "Two", book: books[1], changeSummary: [] },
+        version: {
+          label: "Two",
+          book: { ...books[1], version: second.versionId },
+          changeSummary: [],
+        },
       });
       expect(await world.store.readActive()).toMatchObject({
         kind: "found",
         version: {
           versionId: third.versionId,
           sequenceNumber: newestBefore + 3,
-          book: books[2],
+          book: { ...books[2], version: third.versionId },
         },
       });
     });
@@ -953,15 +982,165 @@ function describeHistory(
       expect(page).toMatchObject({ total, page: pastTheLast, versions: [] });
     });
 
-    it("refuses a page that is not a whole number from 1", async () => {
+    it("refuses a page that is not a whole number from 1 up to the last page a request may name", async () => {
       const world = await newWorld();
 
-      for (const page of [0, -1, 1.5, Number.NaN]) {
+      for (const page of [
+        0,
+        -1,
+        1.5,
+        Number.NaN,
+        100_001,
+        Number.MAX_SAFE_INTEGER,
+      ]) {
         await dashboardFailureOf(
           world.store.listVersions({ page }),
           "invalid-request",
         );
       }
+    });
+  });
+}
+
+/** What no table of the price book can hold, or holds as something else than it was sent as: refused before any write. */
+function describeWhatNoTableCanHold(
+  suiteName: string,
+  newWorld: () => Promise<PriceBookWorld>,
+) {
+  describe(`${suiteName}: what no table can hold`, () => {
+    const NUL = "\u0000";
+    const LONE_SURROGATE = "\ud800";
+
+    it.each([
+      ["an empty label", { label: "" }],
+      ["a label of 81 characters", { label: "a".repeat(81) }],
+      ["a label holding NUL", { label: `a${NUL}b` }],
+      ["a note of 241 characters", { note: "a".repeat(241) }],
+      ["a note holding NUL", { note: `a${NUL}b` }],
+    ])(
+      "refuses a publish with %s, writing nothing",
+      async (_name, overrides) => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const before = await stateOf(world, staff);
+
+        await dashboardFailureOf(
+          publish(world, staff, overrides),
+          "invalid-request",
+        );
+
+        expect(await stateOf(world, staff)).toEqual(before);
+      },
+    );
+
+    it("counts a label in characters, so 80 characters of two code units each are one label", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+
+      const result = await publish(world, staff, {
+        label: "\u{1F34E}".repeat(80),
+      });
+
+      expect(result.kind).toBe("ok");
+    });
+
+    it.each([
+      ["a handle the design does not list", { kind: "handle", handle: "gold" }],
+      ["an item id with a space", { kind: "accessory", accessoryId: "a b" }],
+      [
+        "an item id of 65 characters",
+        { kind: "finish", finishId: "a".repeat(65) },
+      ],
+    ])(
+      "refuses a publish creating %s, which the log would keep for good",
+      async (_name, item) => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const before = await stateOf(world, staff);
+
+        await dashboardFailureOf(
+          publish(world, staff, { createdItems: [item as never] }),
+          "invalid-request",
+        );
+
+        expect(await stateOf(world, staff)).toEqual(before);
+      },
+    );
+
+    it.each([
+      ["a fraction", 1.5],
+      ["a number past the safe integers", 2 ** 60],
+      ["a string holding NUL", `a${NUL}b`],
+      ["a string holding a lone surrogate", LONE_SURROGATE],
+    ])(
+      "refuses %s in a book, a change summary and a draft write, writing nothing",
+      async (_name, value) => {
+        const world = await newWorld();
+        const staff = await world.aStaffMember();
+        const before = await stateOf(world, staff);
+
+        await dashboardFailureOf(
+          publish(world, staff, { book: { ...A_BOOK, rate: value } }),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          publish(world, staff, { changeSummary: [{ value }] }),
+          "invalid-request",
+        );
+        await dashboardFailureOf(
+          writeDraft(world, staff, [
+            { address: { kind: "depth-rule" }, value } as never,
+          ]),
+          "invalid-request",
+        );
+
+        expect(await stateOf(world, staff)).toEqual(before);
+      },
+    );
+
+    it("refuses draft changes that are not an array", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+
+      await dashboardFailureOf(
+        writeDraft(world, staff, { 0: DEPTH_TO_40 } as never),
+        "invalid-request",
+      );
+    });
+
+    it("accepts whole numbers of either sign and zero anywhere in a book", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+
+      const result = await publish(world, staff, {
+        book: { ...A_BOOK, amounts: [0, -5, 2 ** 53 - 1] },
+      });
+
+      expect(result.kind).toBe("ok");
+    });
+  });
+}
+
+/** Only an administrator's live session writes the price book or its draft; an operator's is no actor. */
+function describeWhoMayWrite(
+  suiteName: string,
+  newWorld: () => Promise<PriceBookWorld>,
+) {
+  describe(`${suiteName}: who may write`, () => {
+    it("records nothing for an operator's draft write or publish, and answers that no live session stood behind the call", async () => {
+      const world = await newWorld();
+      const admin = await world.aStaffMember();
+      const operator = await world.aStaffMemberWhoIsNotAnAdministrator();
+      const before = await stateOf(world, admin);
+
+      await dashboardFailureOf(
+        writeDraft(world, operator, [DEPTH_TO_40]),
+        "not-recorded",
+      );
+      await dashboardFailureOf(publish(world, operator), "not-recorded");
+
+      expect(await stateOf(world, admin)).toEqual(before);
+      expect(await world.auditEventsOf(operator.accountId)).toEqual([]);
     });
   });
 }

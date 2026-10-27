@@ -2,21 +2,15 @@ import type { StatementTag } from "./preset-statements.js";
 import type { PreparedStaffAuditRecord } from "./staff-audit-store.js";
 
 /**
- * `NeonPriceBookStore`'s statements, written once, here, in the pattern of `staff-kitchen-actions-statements.ts`: the
- * store sends them and a test hands them to a recorder or to the server. A tagged template cannot be interpolated into
- * another, so the actor test (`NeonSessionStore.findLive`'s, as `staffAuditInsertStatement` repeats it) is written out in
- * each write; a statements test compares the copies word for word.
- *
- * **Every write is one statement.** A Neon HTTP batch cannot read an earlier statement's result, so the write and its
- * audit row are branches of one `with … ` statement, which Postgres runs as one transaction: the audit insert reads the
- * change it records, so a refused or lost write leaves no audit row, and a refused call leaves nothing at all.
+ * `NeonPriceBookStore`'s statements (ADR 0178). Every write is one `with` statement, which Postgres runs as one
+ * transaction, because a Neon HTTP batch cannot read an earlier statement's result: the audit insert reads the change it
+ * records, so a refused write leaves no audit row. A tagged template cannot be interpolated into another, so the actor test
+ * (`NeonSessionStore.findLive`'s, administrators only) is repeated in each write; a statements test compares the copies.
  */
 
 /**
- * Raised on purpose by the publish statement, and by nothing else in it, when the head moved but another branch did not
- * write its row (a draft changed between the statement's snapshot and its lock). The whole statement rolls back, so
- * nothing is left half-written, and the store reads the raise as `changed-meanwhile`. 2201F is "zero raised to a negative
- * power", the SQLSTATE the actions store uses for a stored status that moved.
+ * Raised by the publish statement alone when the head moved but another branch wrote nothing: the statement rolls back and
+ * the store answers `changed-meanwhile`. 2201F is "zero raised to a negative power".
  */
 export const PUBLISH_RACED = "2201F";
 
@@ -97,10 +91,8 @@ export interface WriteDraftStatementInput {
 }
 
 /**
- * The draft write: the compare-and-set, and the audit row of the account of the live session, as branches of one
- * statement. The update changes a row only while the draft is still at the revision the writer read, so a stale writer
- * changes nothing, writes no audit row and finds `revision` null; a call with no live session finds
- * `is_session_live` false and changed nothing. `updated_at` is the literal `now()`.
+ * The draft write: the compare-and-set and the audit row of the live session's account, as branches of one statement. A
+ * stale writer changes nothing and finds `revision` null; a call with no live session finds `is_session_live` false.
  */
 export function writeDraftStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -160,20 +152,12 @@ export interface PublishStatementInput {
 }
 
 /**
- * The publish, in one statement. Its branches, in the order they depend on one another:
- * 1. `draft_row` locks the draft at the revision the publisher read (a draft changed since is not found), and two
- *    publishes meet here first, so the second finds nothing;
- * 2. `moved_head` moves the availability head by `greatest(k, 1)` for *k* created items, only while it is still at the
- *    revision the publisher read, the draft was found, the newest version is the one the publisher saw and the session is
- *    live. A head that changed since changes no row, and then **nothing else is written**;
- * 3. `reset_draft` empties the draft at a revision no earlier reader holds, `inserted_version` appends the version at
- *    the next sequence number, `logged` writes the *k* created items as switched off at head revisions old + 1 … old + k,
- *    and `audited` writes the audit row, whose `sequenceNumber` and `changeCount` are read from the version row that was
- *    inserted and from nothing the caller supplied.
- *
- * The last select reports what each branch did. The one state it cannot leave is the head moved without every other
- * branch having written (a concurrent draft write between the snapshot and the lock): it raises `PUBLISH_RACED`, which
- * rolls the statement back. A sequence number two publishes both insert raises 23505 and rolls the statement back too.
+ * The publish, in one statement whose branches depend on one another in this order: `draft_row` locks the draft at the
+ * revision read (two publishes meet here first); `moved_head` moves the availability head by `greatest(k, 1)` only while
+ * it is still at the revision read, and a head that moved changes no row and then nothing else is written; `reset_draft`,
+ * `inserted_version`, `logged` and `audited` follow. The audit row's `sequenceNumber` and `changeCount` are read from the
+ * inserted version row. The book is stored with its `version` set to the version's id. The last select reports each
+ * branch, and raises `PUBLISH_RACED` for the one state it must not leave. A sequence number taken raises 23505.
  */
 export function publishStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -225,7 +209,9 @@ export function publishStatement<Statement>(
     inserted_version as (
       insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
       select ${input.versionId}::text, ${input.expectedActiveSequence}::bigint + 1, ${input.label}::text,
-        ${input.note}::text, ${input.bookJson}::jsonb, ${input.changeSummaryJson}::jsonb, a.account_id
+        ${input.note}::text,
+        ${input.bookJson}::jsonb || jsonb_build_object('version', ${input.versionId}::text),
+        ${input.changeSummaryJson}::jsonb, a.account_id
       from reset_draft
       cross join actor a
       returning id, sequence_number, jsonb_array_length(change_summary) as change_count
@@ -278,10 +264,10 @@ export interface SeedPriceBookStatementInput {
 }
 
 /**
- * The owner-run seed (A-10): version 1, inserted only while no version exists and only for an account that exists, and
- * nothing else. It writes no audit row. The reply says what was there before the statement ran (one snapshot), so a
- * refusal can be told apart: `seeded_id` is null when nothing was inserted. A second seed racing this one meets the
- * uniqueness of the sequence number and fails.
+ * The owner-run seed: version 1, inserted only while no version exists and only for an account that exists, and the
+ * draft pointed at it (`base_version_id`). It writes no audit row. The
+ * reply says what was there before the statement ran, so a refusal can be told apart: `seeded_id` is null when nothing was
+ * inserted. A second seed racing this one meets the uniqueness of the sequence number and fails.
  */
 export function seedPriceBookStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -291,11 +277,16 @@ export function seedPriceBookStatement<Statement>(
   return sql`
     with seeded as (
       insert into price_book_versions (id, sequence_number, label, note, book, change_summary, published_by_account_id)
-      select ${versionId}::text, 1, ${label}::text, ${note}::text, ${bookJson}::jsonb, '[]'::jsonb,
-        ${ownerAccountId}::text
+      select ${versionId}::text, 1, ${label}::text, ${note}::text,
+        ${bookJson}::jsonb, '[]'::jsonb, ${ownerAccountId}::text
       where not exists (select 1 from price_book_versions)
         and exists (select 1 from accounts where id = ${ownerAccountId}::text)
       returning id
+    ),
+    based as (
+      update price_book_draft set base_version_id = ${versionId}::text
+      where exists (select 1 from seeded)
+      returning singleton
     )
     select (select id from seeded) as seeded_id,
       exists (select 1 from price_book_versions) as are_versions_present,

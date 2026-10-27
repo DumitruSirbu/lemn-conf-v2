@@ -2,10 +2,9 @@ import type { StatementTag } from "./preset-statements.js";
 import type { PreparedStaffAuditRecord } from "./staff-audit-store.js";
 
 /**
- * `NeonCatalogueAvailabilityStore`'s statements (ADR 0178 A-17, F1), written once, here, as `price-book-statements.ts`
- * writes the price book's. The head row (`catalogue_availability_head`, `0025`) numbers the log: a write moves it with
+ * `NeonCatalogueAvailabilityStore`'s statements (ADR 0178 A-17). The head row numbers the log: a write moves it with
  * `where revision = <the one the writer read>`, and the log row it inserts carries the revision that update returned,
- * inside the same statement. There is no counter object and no hook on insert.
+ * inside the same statement. The actor test (`NeonSessionStore.findLive`'s, administrators only) is repeated per write.
  */
 
 /**

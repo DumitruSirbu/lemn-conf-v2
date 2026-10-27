@@ -43,13 +43,15 @@ export function createNeonDashboardStaffWorld(
   const accountIds: string[] = [];
   const sql = () => neon(connectionUrl);
 
-  async function signedIn(): Promise<DashboardStaffMember> {
+  async function signedIn(
+    role: "administrator" | "operator" = "administrator",
+  ): Promise<DashboardStaffMember> {
     const accountId = nanoid();
     accountIds.push(accountId);
     const email = `dashboard-live-${accountId.toLowerCase()}@example.invalid`;
     await sql()`
       insert into accounts (id, email, email_normal_form, password_hash, role, locale, privacy_notice_version)
-      values (${accountId}, ${email}, ${email}, ${PASSWORD_HASH}, 'administrator', 'ro', '1')
+      values (${accountId}, ${email}, ${email}, ${PASSWORD_HASH}, ${role}, 'ro', '1')
     `;
     const sessionTokenHash = randomBytes(32).toString("hex");
     await sql()`
@@ -63,7 +65,8 @@ export function createNeonDashboardStaffWorld(
   }
 
   const world: DashboardStaffWorld = {
-    aStaffMember: signedIn,
+    aStaffMember: () => signedIn(),
+    aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
     async aStaffMemberWhoseSessionIsRevoked() {
       const member = await signedIn();
       await sql()`update account_sessions set revoked_at = now() where token_hash = ${member.session.sessionTokenHash}`;

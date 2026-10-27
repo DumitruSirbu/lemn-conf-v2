@@ -97,6 +97,7 @@ describe("the seed statement", () => {
       JSON.stringify({ ...BOOK, version: "000000000000000000001" }),
       OWNER,
       OWNER,
+      "000000000000000000001",
       OWNER,
     ]);
   });
@@ -123,15 +124,27 @@ describe("the seed statement", () => {
     expect(handed).toEqual({ ...BOOK, version: "sample-2026-09" });
   });
 
-  it("writes no staff audit row, no draft and no availability row, and updates and deletes nothing", async () => {
+  it("writes no staff audit row and no availability row, and deletes nothing", async () => {
     answerWith([SEEDED_ROW]);
 
     await seed();
 
     const text = normalised(driver.statements[0]?.text ?? "");
     expect(text).not.toMatch(
-      /staff_audit_events|price_book_draft|catalogue_availability|\bupdate\b|\bdelete\b|\btruncate\b|\bon conflict\b/,
+      /staff_audit_events|catalogue_availability|\bdelete\b|\btruncate\b|\bon conflict\b/,
     );
+  });
+
+  it("points the draft at the seeded version and changes nothing else of the draft, and only when it seeded", async () => {
+    answerWith([SEEDED_ROW]);
+
+    await seed();
+
+    const text = normalised(driver.statements[0]?.text ?? "");
+    expect(text).toContain(
+      "based as ( update price_book_draft set base_version_id = ?::text where exists (select 1 from seeded) returning singleton )",
+    );
+    expect(text.match(/\bupdate\b/g)).toHaveLength(1);
   });
 
   it("states no amount, percentage or 'inclus' in the text it publishes (ADR 0106 Amendment A)", () => {

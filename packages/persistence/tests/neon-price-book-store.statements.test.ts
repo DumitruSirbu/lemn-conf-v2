@@ -694,12 +694,22 @@ describe("a publish", () => {
       "November",
       "Prices for November.",
       JSON.stringify(BOOK),
+      VERSION_ID,
       JSON.stringify([DEPTH_CHANGE]),
       AUDIT_ID,
       "price-published",
       JSON.stringify({ provisional: true }),
       "4",
     ]);
+  });
+
+  it("stores the book with its version set to the version's id, in the statement, whatever version the book carried", async () => {
+    const { statement } = await publishAndCapture([PUBLISHED_ROW]);
+
+    expect(normalised(statement)).toContain(
+      "?::jsonb || jsonb_build_object('version', ?::text), ?::jsonb, a.account_id",
+    );
+    expect(statement.values).toContain(JSON.stringify(BOOK));
   });
 
   it("raises when the head moved and another branch did not write, so the statement rolls back whole", async () => {

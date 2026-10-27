@@ -1,17 +1,15 @@
-import type { ItemRef } from "@lemnaria/configurator-domain";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { nanoid } from "nanoid";
 
 import {
-  isJsonObject,
+  isListablePage,
   isMintedId,
   isRevisionShape,
-  isStorableItem,
-  isStorableJsonText,
-  isVersionLabel,
-  isVersionNote,
   itemIdOf,
+  storableJsonTextOf,
+  storablePublishOf,
 } from "./dashboard-store-shapes.js";
+import type { StorablePublish } from "./dashboard-store-shapes.js";
 import {
   AVAILABILITY_CHANGED_MEANWHILE,
   CHANGED_MEANWHILE,
@@ -41,7 +39,6 @@ import {
   instantFrom,
   nullableText,
   onlyRow,
-  plainRowsOf,
   prepareDashboardAudit,
   readRows,
   requiredBoolean,
@@ -50,6 +47,7 @@ import {
   sequenceNumberFrom,
   sqlFactsOf,
   unexpectedAnswer,
+  writeRows,
 } from "./neon-dashboard-store-support.js";
 import { isRecord, pagedRowsFrom } from "./neon-row-guards.js";
 import type { Row } from "./neon-row-guards.js";
@@ -64,6 +62,8 @@ import {
   readVersionStatement,
   writeDraftStatement,
 } from "./price-book-statements.js";
+import type { PublishStatementInput } from "./price-book-statements.js";
+import type { PreparedStaffAuditRecord } from "./staff-audit-store.js";
 
 type ApplicationSql = NeonQueryFunction<false, false>;
 
@@ -74,7 +74,6 @@ const READ_DRAFT = "read the price draft";
 const WRITE_DRAFT = "write the price draft";
 const PUBLISH = "publish the price book";
 
-/** The actions a draft write may record (X0's closed list of draft entries). */
 const DRAFT_WRITE_ACTIONS = Object.freeze([
   "price-draft-changed",
   "price-draft-reverted",
@@ -82,23 +81,12 @@ const DRAFT_WRITE_ACTIONS = Object.freeze([
   "price-restored-to-draft",
 ] as const);
 
-/** The last page a request may name, so an offset stays far inside what the server counts in. A bound on a request. */
-const MAX_PRICE_VERSION_PAGE = 100_000;
-
 /** The members of the `price-published` detail the statement stamps from the version row it inserted. */
 const STAMPED_PUBLISH_KEYS = ["sequenceNumber", "changeCount"] as const;
 
 /**
- * `PriceBookStore` on Neon Postgres, over `price_book_versions`, `price_book_draft` and, for a publish,
- * `catalogue_availability_head` and `catalogue_availability_changes` (migrations `0023` to `0025`), with the audit row of
- * `staff_audit_events`. Every statement is a tagged-template `sql`, which parameterises values.
- *
- * Each write is **one statement** (`price-book-statements.ts`): the compare-and-set, every row the write produces and its
- * audit row are branches of one `with`, so they commit together or not at all, and a refusal leaves nothing. A write is
- * never retried: a repeat after a lost acknowledgement could publish twice. Reads are retried.
- *
- * Revisions are opaque text. Nothing here parses, orders or does arithmetic on one: the compare-and-set is in SQL, and a
- * revision is only checked for its digit shape before it is sent.
+ * `PriceBookStore` on Neon Postgres (migrations `0023` to `0025`, ADR 0178). Each write is one statement, so it and its
+ * audit row commit together or not at all, and none is retried. A revision is opaque text: the compare-and-set is in SQL.
  */
 export class NeonPriceBookStore implements PriceBookStore {
   private readonly sql: ApplicationSql;
@@ -132,11 +120,7 @@ export class NeonPriceBookStore implements PriceBookStore {
   async listVersions({
     page,
   }: PriceVersionPageRequest): Promise<PriceVersionPage> {
-    if (
-      !Number.isSafeInteger(page) ||
-      page < 1 ||
-      page > MAX_PRICE_VERSION_PAGE
-    ) {
+    if (!isListablePage(page)) {
       throw new DashboardStoreError(LIST_VERSIONS, "invalid-request");
     }
     const offset = (page - 1) * PRICE_VERSION_PAGE_SIZE;
@@ -169,10 +153,10 @@ export class NeonPriceBookStore implements PriceBookStore {
 
   async writeDraft(request: WriteDraftRequest): Promise<WriteDraftResult> {
     const { expectedDraftRevision, changes, audit: record } = request;
-    if (!isRevisionShape(expectedDraftRevision)) {
+    const changesJson = storableJsonTextOf(changes, "array");
+    if (!isRevisionShape(expectedDraftRevision) || changesJson === undefined) {
       throw new DashboardStoreError(WRITE_DRAFT, "invalid-request");
     }
-    const changesJson = jsonTextOf(changes, "array", WRITE_DRAFT);
     const audit = prepareDashboardAudit({
       operation: WRITE_DRAFT,
       session: record.session,
@@ -180,7 +164,7 @@ export class NeonPriceBookStore implements PriceBookStore {
       detail: record.entry.detail,
       accepts: DRAFT_WRITE_ACTIONS,
     });
-    const rows = await this.write(WRITE_DRAFT, () =>
+    const rows = await writeRows(WRITE_DRAFT, () =>
       writeDraftStatement(this.sql, {
         expectedRevision: expectedDraftRevision,
         changesJson,
@@ -188,31 +172,21 @@ export class NeonPriceBookStore implements PriceBookStore {
         audit,
       }),
     );
-    const row = onlyRow(rows, WRITE_DRAFT);
-    if (!requiredBoolean(row["is_session_live"], WRITE_DRAFT)) {
-      throw new DashboardStoreError(WRITE_DRAFT, "not-recorded");
-    }
-    const draftRevision = nullableText(row["revision"], WRITE_DRAFT);
-    if (draftRevision === null) return CHANGED_MEANWHILE;
-    if (
-      !isRevisionShape(draftRevision) ||
-      requiredCount(row["audited_rows"], WRITE_DRAFT) !== 1
-    ) {
-      throw unexpectedAnswer(WRITE_DRAFT);
-    }
-    return { kind: "ok", draftRevision };
+    return draftWriteResultFrom(onlyRow(rows, WRITE_DRAFT));
   }
 
   /**
    * Of two publishes at one draft revision the second finds the draft locked by the first and then moved, and is
-   * `changed-meanwhile`; a stale availability head is `availability-changed-meanwhile`; a draft or head that moved
-   * between the statement's snapshot and its lock rolls the whole statement back and is `changed-meanwhile`. A refusal
-   * wrote nothing, the audit row included.
+   * `changed-meanwhile`; a stale availability head is `availability-changed-meanwhile`. A refusal wrote nothing, the audit
+   * row included. The book is stored with its `version` set to the new version's id.
    */
   async publish(
     request: PublishPriceBookRequest,
   ): Promise<PublishPriceBookResult> {
-    const publishable = requirePublishable(request);
+    const publishable = storablePublishOf(request);
+    if (publishable === undefined) {
+      throw new DashboardStoreError(PUBLISH, "invalid-request");
+    }
     const versionId = nanoid();
     const audit = prepareDashboardAudit({
       operation: PUBLISH,
@@ -225,40 +199,57 @@ export class NeonPriceBookStore implements PriceBookStore {
       },
       accepts: ["price-published"],
     });
-    let reply: unknown;
-    try {
-      reply = await publishStatement(this.sql, {
-        expectedDraftRevision: publishable.expectedDraftRevision,
-        expectedActiveSequence: String(publishable.expectedActiveSequence),
-        expectedAvailabilityRevision: publishable.expectedAvailabilityRevision,
-        versionId,
-        label: publishable.label,
-        note: publishable.note,
-        bookJson: publishable.bookJson,
-        changeSummaryJson: publishable.changeSummaryJson,
-        createdItemKinds: publishable.createdItems.map(({ kind }) => kind),
-        createdItemIds: publishable.createdItems.map(itemIdOf),
-        detailJson: detailJsonWithout(audit, STAMPED_PUBLISH_KEYS),
-        audit,
-      });
-    } catch (failure) {
-      return publishRefusalOf(failure);
-    }
-    return publishResultFrom(plainRowsOf(reply, PUBLISH), versionId);
+    const outcome = await writeRows(
+      PUBLISH,
+      () =>
+        publishStatement(
+          this.sql,
+          statementInputOf(request, publishable, versionId, audit),
+        ),
+      publishRefusalOf,
+    );
+    if (isRefusal(outcome)) return outcome;
+    return publishResultFrom(outcome, versionId);
   }
+}
 
-  private async write(
-    operation: DashboardStoreOperation,
-    sendStatement: () => PromiseLike<unknown>,
-  ): Promise<readonly Row[]> {
-    let reply: unknown;
-    try {
-      reply = await sendStatement();
-    } catch (failure) {
-      throw failureFrom(operation, failure);
-    }
-    return plainRowsOf(reply, operation);
+function isRefusal(outcome: unknown): outcome is typeof CHANGED_MEANWHILE {
+  return outcome === CHANGED_MEANWHILE;
+}
+
+function statementInputOf(
+  request: PublishPriceBookRequest,
+  publishable: StorablePublish,
+  versionId: string,
+  audit: PreparedStaffAuditRecord,
+): PublishStatementInput {
+  return {
+    expectedDraftRevision: request.expectedDraftRevision,
+    expectedActiveSequence: String(publishable.expectedActiveSequence),
+    expectedAvailabilityRevision: request.expectedAvailabilityRevision,
+    versionId,
+    label: request.label,
+    note: request.note,
+    bookJson: publishable.bookJson,
+    changeSummaryJson: publishable.changeSummaryJson,
+    createdItemKinds: publishable.createdItems.map(({ kind }) => kind),
+    createdItemIds: publishable.createdItems.map(itemIdOf),
+    detailJson: detailJsonWithout(audit, STAMPED_PUBLISH_KEYS),
+    audit,
+  };
+}
+
+function draftWriteResultFrom(row: Row): WriteDraftResult {
+  if (!requiredBoolean(row["is_session_live"], WRITE_DRAFT)) {
+    throw new DashboardStoreError(WRITE_DRAFT, "not-recorded");
   }
+  const draftRevision = nullableText(row["revision"], WRITE_DRAFT);
+  if (draftRevision === null) return CHANGED_MEANWHILE;
+  const isOneAuditRow = requiredCount(row["audited_rows"], WRITE_DRAFT) === 1;
+  if (!isRevisionShape(draftRevision) || !isOneAuditRow) {
+    throw unexpectedAnswer(WRITE_DRAFT);
+  }
+  return { kind: "ok", draftRevision };
 }
 
 /** A race lost inside the statement is the refusal `changed-meanwhile`; any other failure is a failure to answer. */
@@ -307,81 +298,6 @@ function publishedFrom(
     sequenceNumber: sequenceNumberFrom(row["sequence_number"], PUBLISH),
     availabilityRevision,
   };
-}
-
-interface PublishableRequest {
-  readonly expectedDraftRevision: string;
-  readonly expectedActiveSequence: number;
-  readonly expectedAvailabilityRevision: string;
-  readonly label: string;
-  readonly note: string;
-  readonly bookJson: string;
-  readonly changeSummaryJson: string;
-  readonly changeCount: number;
-  readonly createdItems: PublishPriceBookRequest["createdItems"];
-}
-
-/** The request as the statement takes it, or `invalid-request` before any statement. Each member is read once. */
-function requirePublishable(
-  request: PublishPriceBookRequest,
-): PublishableRequest {
-  const {
-    expectedDraftRevision,
-    expectedActiveSequence,
-    expectedAvailabilityRevision,
-    label,
-    note,
-    book,
-    changeSummary,
-    createdItems,
-  } = request;
-  const isWellFormed =
-    isRevisionShape(expectedDraftRevision) &&
-    isRevisionShape(expectedAvailabilityRevision) &&
-    Number.isSafeInteger(expectedActiveSequence) &&
-    expectedActiveSequence >= 0 &&
-    isVersionLabel(label) &&
-    isVersionNote(note) &&
-    isJsonObject(book) &&
-    Array.isArray(changeSummary) &&
-    Array.isArray(createdItems) &&
-    createdItems.every(isStorableItem);
-  if (!isWellFormed) throw new DashboardStoreError(PUBLISH, "invalid-request");
-  return {
-    expectedDraftRevision,
-    expectedActiveSequence,
-    expectedAvailabilityRevision,
-    label,
-    note,
-    bookJson: jsonTextOf(book, "object", PUBLISH),
-    changeSummaryJson: jsonTextOf(changeSummary, "array", PUBLISH),
-    changeCount: (changeSummary as readonly unknown[]).length,
-    createdItems: Array.from<ItemRef>(createdItems),
-  };
-}
-
-/**
- * The JSON text of a value that must come out as an object or an array, or `invalid-request`: a value JSON cannot hold,
- * or one a table would refuse or alter: too long, a number that is not a whole one, a NUL or a lone surrogate (refused
- * without quoting any of it).
- */
-function jsonTextOf(
-  value: unknown,
-  shape: "object" | "array",
-  operation: DashboardStoreOperation,
-): string {
-  let text: string | undefined;
-  try {
-    // `JSON.stringify` answers `undefined` for a value JSON has no text for, which its signature does not say.
-    text = JSON.stringify(value) as string | undefined;
-  } catch {
-    throw new DashboardStoreError(operation, "invalid-request");
-  }
-  const opening = shape === "array" ? "[" : "{";
-  if (!text?.startsWith(opening) || !isStorableJsonText(text)) {
-    throw new DashboardStoreError(operation, "invalid-request");
-  }
-  return text;
 }
 
 function activeVersionFrom(row: Row, operation: DashboardStoreOperation) {
