@@ -1069,3 +1069,284 @@ describe("what a person meets", () => {
     expect(container.textContent).not.toMatch(/\blei\b|\bMDL\b|\d\s?€/i);
   });
 });
+
+describe("edits made in the air, against every answer", () => {
+  async function sendThenEdit(
+    sent: readonly (readonly [KitchenDefaultsMember, string])[],
+    fresh?: KitchenDefaultsPageInput,
+    input: KitchenDefaultsPageInput = SAMPLE_KITCHEN_DEFAULTS,
+  ): Promise<{
+    container: HTMLElement;
+    answer: (outcome: DefaultsSaveOutcome) => void;
+  }> {
+    const pending = pendingSave();
+    const container = await mount({
+      input,
+      client: {
+        save: pending.save,
+        readAgain: () => Promise.resolve(fresh),
+      },
+    });
+    for (const [member, value] of sent) {
+      await choose(radioOf(container, member, value));
+    }
+    submitFormIn(container);
+    await flushPromises(3);
+    return { container, answer: pending.answer };
+  }
+
+  it("keeps a material chosen in the air, with the colour that came with it, over a conflict", async () => {
+    const { container, answer } = await sendThenEdit(
+      [["handle", "black"]],
+      inputWith({ cabinetDepthMm: 700 }, {}, "2"),
+    );
+    await choose(radioOf(container, "materialTierId", VENEER));
+
+    answer({ kind: "conflict" });
+    await flushPromises(8);
+
+    expect(checkedValue(container, "materialTierId")).toBe(VENEER);
+    expect(checkedValue(container, "finish")).toBe("veneer.stejar");
+    expect(checkedValue(container, "cabinetDepthMm")).toBe("700");
+    expect(checkedValue(container, "handle")).toBe("black");
+  });
+
+  it("takes the other member's value for a row sent and then put back to what was read, since the person no longer changes it", async () => {
+    const { container, answer } = await sendThenEdit(
+      [["cabinetDepthMm", "700"]],
+      inputWith({ cabinetDepthMm: 700 }, {}, "2"),
+    );
+    await choose(radioOf(container, "cabinetDepthMm", "600"));
+
+    answer({ kind: "conflict" });
+    await flushPromises(8);
+
+    expect(checkedValue(container, "cabinetDepthMm")).toBe("700");
+    expect(allIn(container, '[data-modified="true"]')).toHaveLength(0);
+  });
+
+  it("does not flag a row changed after sending when the 400 names it, and keeps the row's new value", async () => {
+    const { container, answer } = await sendThenEdit([
+      ["finish", "pal.antracit"],
+    ]);
+    await choose(radioOf(container, "finish", "pal.gri-havanna"));
+
+    answer({
+      kind: "invalid",
+      issues: [{ field: "finish", code: "FINISH_NOT_IN_PALETTE" }],
+    });
+    await flushPromises(8);
+
+    expect(alertsIn(container, "finish")).toHaveLength(0);
+    expect(checkedValue(container, "finish")).toBe("pal.gri-havanna");
+    expect(saveButton(container).disabled).toBe(false);
+  });
+
+  it("flags the row of a 400 that was not changed after sending and not the one that was, and keeps both values", async () => {
+    const { container, answer } = await sendThenEdit([
+      ["cabinetDepthMm", "700"],
+      ["handle", "black"],
+    ]);
+    await choose(radioOf(container, "handle", "steel"));
+
+    answer({
+      kind: "invalid",
+      issues: [
+        { field: "handle", code: "UNKNOWN_VALUE" },
+        { field: "cabinetDepthMm", code: "UNKNOWN_VALUE" },
+      ],
+    });
+    await flushPromises(8);
+
+    expect(alertsIn(container, "cabinetDepthMm")).toHaveLength(1);
+    expect(alertsIn(container, "handle")).toHaveLength(0);
+    expect(checkedValue(container, "handle")).toBe("steel");
+    expect(
+      row(container, "cabinetDepthMm").contains(document.activeElement),
+    ).toBe(true);
+  });
+
+  it("keeps an unrelated row chosen in the air over a 400", async () => {
+    const { container, answer } = await sendThenEdit([
+      ["cabinetDepthMm", "700"],
+    ]);
+    await choose(radioOf(container, "topRowHandle", "steel"));
+
+    answer({
+      kind: "invalid",
+      issues: [{ field: "cabinetDepthMm", code: "UNKNOWN_VALUE" }],
+    });
+    await flushPromises(8);
+
+    expect(checkedValue(container, "topRowHandle")).toBe("steel");
+    expect(alertsIn(container, "cabinetDepthMm")).toHaveLength(1);
+  });
+
+  it("does not flag a handle row changed after sending when the 409 names the handle sent, and keeps Save on", async () => {
+    const fresh = inputWith(
+      {},
+      { disabled: [{ kind: "handle", handle: "black" }] },
+    );
+    const { container, answer } = await sendThenEdit(
+      [["handle", "black"]],
+      fresh,
+    );
+    await choose(radioOf(container, "handle", "push"));
+
+    answer({
+      kind: "item-unavailable",
+      item: { kind: "handle", handle: "black" },
+    });
+    await flushPromises(8);
+
+    expect(alertsIn(container, "handle")).toHaveLength(0);
+    expect(checkedValue(container, "handle")).toBe("push");
+    expect(saveButton(container).disabled).toBe(false);
+  });
+
+  it("flags a handle row changed in the air to the very item the 409 names", async () => {
+    const fresh = inputWith(
+      {},
+      { disabled: [{ kind: "handle", handle: "black" }] },
+    );
+    const { container, answer } = await sendThenEdit(
+      [["handle", "push"]],
+      fresh,
+    );
+    await choose(radioOf(container, "topRowHandle", "steel"));
+
+    answer({
+      kind: "item-unavailable",
+      item: { kind: "handle", handle: "black" },
+    });
+    await flushPromises(8);
+
+    expect(checkedValue(container, "topRowHandle")).toBe("steel");
+    expect(allIn(container, '[data-member] [role="alert"]')).toHaveLength(0);
+  });
+
+  it("keeps the edit when the answer is a failure, and when the client throws", async () => {
+    for (const outcome of [{ kind: "failed" } as const, undefined]) {
+      const pending = pendingSave();
+      const container = await mount({
+        client: {
+          save:
+            outcome === undefined
+              ? () => Promise.reject(new Error("x"))
+              : pending.save,
+          readAgain: () => Promise.resolve(undefined),
+        },
+      });
+      await choose(radioOf(container, "cabinetDepthMm", "700"));
+      submitFormIn(container);
+      await flushPromises(3);
+      await choose(radioOf(container, "handle", "black"));
+      if (outcome !== undefined) pending.answer(outcome);
+      await flushPromises(8);
+
+      expect(checkedValue(container, "handle")).toBe("black");
+      expect(checkedValue(container, "cabinetDepthMm")).toBe("700");
+      screen?.unmount();
+      screen = undefined;
+    }
+  });
+
+  it("keeps an edit made in the air over an item-unavailable answer whose facts cannot be read again", async () => {
+    const { container, answer } = await sendThenEdit([
+      ["hardwareTierId", "hardware.premium"],
+    ]);
+    await choose(radioOf(container, "handle", "black"));
+
+    answer({
+      kind: "item-unavailable",
+      item: { kind: "hardware", tierId: "hardware.premium" },
+    });
+    await flushPromises(8);
+
+    expect(checkedValue(container, "handle")).toBe("black");
+    expect(alertsIn(container, "hardwareTierId")).toHaveLength(1);
+  });
+});
+
+describe("the MDF colour input and its error, through its life", () => {
+  const MDF_FREE = inputWith({
+    materialTierId: MDF,
+    finish: freeColourFinish("#eceeeb"),
+  });
+  const describedIds = (input: HTMLInputElement): string[] =>
+    (input.getAttribute("aria-describedby") ?? "")
+      .split(" ")
+      .filter((token) => token !== "");
+
+  it("is valid and described by its readout alone while its row has no error", async () => {
+    const container = await mount({ input: MDF_FREE });
+
+    const picker = colourInput(container);
+
+    expect(picker.getAttribute("aria-invalid")).toBe("false");
+    expect(describedIds(picker)).toHaveLength(1);
+    const [readoutId = ""] = describedIds(picker);
+    expect(requireIn(container, `[id="${readoutId}"]`).textContent).toBe(
+      "#eceeeb",
+    );
+  });
+
+  it("is invalid and described by the error as well while a decor is held with MDF, and valid again once a colour is picked", async () => {
+    const container = await mount({
+      input: inputWith({
+        materialTierId: MDF,
+        finish: paletteFinish("pal.alb"),
+      }),
+    });
+    const alert = requireIn(row(container, "finish"), '[role="alert"]');
+    expect(colourInput(container).getAttribute("aria-invalid")).toBe("true");
+    expect(describedIds(colourInput(container))).toContain(alert.id);
+
+    typeInto(colourInput(container), "#336699");
+    await flushPromises(3);
+
+    expect(alertsIn(container, "finish")).toHaveLength(0);
+    expect(colourInput(container).getAttribute("aria-invalid")).toBe("false");
+    for (const id of describedIds(colourInput(container))) {
+      expect(container.querySelector(`[id="${id}"]`), id).not.toBeNull();
+    }
+    expect(saveButton(container).disabled).toBe(false);
+  });
+
+  it("is invalid and described by the error after a 400 on the colour, and clears when the colour changes", async () => {
+    const held = heldClient([
+      {
+        kind: "invalid",
+        issues: [{ field: "finish", code: "FINISH_NOT_IN_PALETTE" }],
+      },
+    ]);
+    const container = await mount({ input: MDF_FREE, client: held.client });
+    typeInto(colourInput(container), "#336699");
+    await flushPromises(3);
+    await saveAndWait(container);
+    const alert = requireIn(row(container, "finish"), '[role="alert"]');
+    expect(colourInput(container).getAttribute("aria-invalid")).toBe("true");
+    expect(describedIds(colourInput(container))).toContain(alert.id);
+
+    typeInto(colourInput(container), "#663399");
+    await flushPromises(3);
+
+    expect(colourInput(container).getAttribute("aria-invalid")).toBe("false");
+    expect(describedIds(colourInput(container))).not.toContain(alert.id);
+  });
+
+  it("leaves a palette colour's radio group exactly as it was: invalid and described by its error", async () => {
+    const container = await mount({
+      input: inputWith(
+        {},
+        { disabled: [{ kind: "finish", finishId: "pal.alb" }] },
+      ),
+    });
+
+    const group = requireIn(row(container, "finish"), '[role="radiogroup"]');
+    const alert = requireIn(row(container, "finish"), '[role="alert"]');
+
+    expect(group.getAttribute("aria-invalid")).toBe("true");
+    expect(group.getAttribute("aria-describedby")).toContain(alert.id);
+  });
+});

@@ -51,15 +51,35 @@ describe("what a browser is sent", () => {
     expect(leaks).toEqual([]);
   });
 
-  it("names the invented defaults from the page's source and the client's lazy stand-in, and from nothing else", () => {
+  it("names the invented defaults from the page's source and from nothing else", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) => /kitchen-defaults-sample["']/.test(sourceOf(path)))
       .map((path) => path.slice(SOURCE_ROOT.length + 1));
 
+    expect(importers).toEqual(["price-dashboard/kitchen-defaults-source.ts"]);
+  });
+
+  it("loads the in-memory stand-in from the default client alone, and the sample's re-export for tests", () => {
+    const importers = filesUnder(SOURCE_ROOT)
+      .filter((path) =>
+        /kitchen-defaults-stand-in-client["']/.test(sourceOf(path)),
+      )
+      .map((path) => path.slice(SOURCE_ROOT.length + 1));
+
     expect(importers).toEqual([
-      "price-dashboard/kitchen-defaults-client.ts",
-      "price-dashboard/kitchen-defaults-source.ts",
+      "price-dashboard/default-kitchen-defaults-client.ts",
+      "price-dashboard/kitchen-defaults-sample.ts",
     ]);
+  });
+
+  it("holds no static import of the stand-in anywhere the client's closure reaches", () => {
+    const staticImport =
+      /^\s*import\s[^;]*from\s*["'][^"']*kitchen-defaults-stand-in-client["']/m;
+    const offenders = filesUnder(SOURCE_ROOT)
+      .filter((path) => staticImport.test(sourceOf(path)))
+      .map((path) => path.slice(SOURCE_ROOT.length + 1));
+
+    expect(offenders).toEqual([]);
   });
 
   it("is read through the source by the page route and by nothing else", () => {
@@ -73,7 +93,7 @@ describe("what a browser is sent", () => {
   it("decides on the literal the bundler replaces, in the source and in the client", () => {
     for (const file of [
       "kitchen-defaults-source.ts",
-      "kitchen-defaults-client.ts",
+      "default-kitchen-defaults-client.ts",
     ]) {
       const source = sourceOf(join(DASHBOARD_ROOT, file));
 
