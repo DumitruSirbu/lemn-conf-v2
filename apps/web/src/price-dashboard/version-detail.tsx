@@ -1,7 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+
+import type { PriceBook } from "@lemnaria/configurator-domain";
 
 import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
@@ -9,9 +11,13 @@ import { isolated } from "@/staff/bidi-isolate";
 import { dayOf } from "@/staff/staff-kitchen-dates";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
-import type { DashboardDraftWire } from "./price-dashboard-wire-contract";
+import type {
+  DashboardDraftWire,
+  DashboardStateWire,
+} from "./price-dashboard-wire-contract";
 import {
   defaultPublishClient,
+  orFailed,
   type PublishClient,
   type RestoreOutcome,
 } from "./publish-client";
@@ -41,6 +47,8 @@ type RestoreFailure = "save-failed" | "conflict";
 
 interface RestoreState {
   readonly draft: DashboardDraftWire;
+  /** The active book the draft is read against: read again when a write found the data moved. */
+  readonly activeBook: PriceBook;
   readonly isDialogOpen: boolean;
   readonly isBusy: boolean;
   readonly failure: RestoreFailure | undefined;
@@ -58,8 +66,10 @@ export function VersionDetailScreen({
     () => suppliedClient ?? defaultClientFor(input),
     [suppliedClient, input],
   );
+  const restoreButtonRef = useRef<HTMLButtonElement>(null);
   const [restore, setRestore] = useState<RestoreState>({
     draft: input.draft,
+    activeBook: input.active.book,
     isDialogOpen: false,
     isBusy: false,
     failure: undefined,
@@ -69,20 +79,20 @@ export function VersionDetailScreen({
     () =>
       planRestore({
         archived: input.version.book,
-        active: input.active.book,
+        active: restore.activeBook,
         draft: restore.draft.changes,
       }).differingCount,
-    [input, restore.draft.changes],
+    [input.version.book, restore.activeBook, restore.draft.changes],
   );
   const confirm = useCallback(() => {
     setRestore((held) => ({ ...held, isBusy: true, failure: undefined }));
-    void client
-      .restore(input.version.versionId, {
-        expectedDraftRevision: restore.draft.draftRevision,
-      })
-      .then((outcome) => {
-        setRestore((held) => settled(held, outcome));
-      });
+    void askToRestore({
+      client,
+      versionId: input.version.versionId,
+      draftRevision: restore.draft.draftRevision,
+    }).then((answer) => {
+      setRestore((held) => settled(held, answer));
+    });
   }, [client, input.version.versionId, restore.draft.draftRevision]);
   const shell = {
     ...context,
@@ -97,6 +107,7 @@ export function VersionDetailScreen({
           <VersionChanges input={input} />
           {input.version.state === "archived" ? (
             <RestoreBlock
+              buttonRef={restoreButtonRef}
               versionNumber={input.version.sequenceNumber}
               differingCount={differingCount}
               onAsk={() => {
@@ -107,6 +118,7 @@ export function VersionDetailScreen({
         </div>
         {restore.isDialogOpen ? (
           <RestoreDialog
+            returnFocusFallbackRef={restoreButtonRef}
             versionNumber={input.version.sequenceNumber}
             differingCount={differingCount}
             isBusy={restore.isBusy}
@@ -122,7 +134,30 @@ export function VersionDetailScreen({
   );
 }
 
-function settled(held: RestoreState, outcome: RestoreOutcome): RestoreState {
+interface RestoreAnswer {
+  readonly outcome: RestoreOutcome;
+  /** The state read again after a refusal as `changed-meanwhile`, so the next press carries the revision that is current. */
+  readonly fresh: DashboardStateWire | undefined;
+}
+
+/** Asks the client to restore; a client that rejects has failed, and a refusal as changed-meanwhile reads the state again. */
+async function askToRestore(request: {
+  readonly client: PublishClient;
+  readonly versionId: string;
+  readonly draftRevision: string;
+}): Promise<RestoreAnswer> {
+  const { client, versionId, draftRevision } = request;
+  const outcome = await orFailed<RestoreOutcome>(
+    () => client.restore(versionId, { expectedDraftRevision: draftRevision }),
+    { kind: "failed" },
+  );
+  if (outcome.kind !== "conflict") return { outcome, fresh: undefined };
+  const fresh = await orFailed(() => client.readState(), undefined);
+  return { outcome, fresh };
+}
+
+function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
+  const { outcome, fresh } = answer;
   const idle = { ...held, isBusy: false };
   switch (outcome.kind) {
     case "restored":
@@ -135,7 +170,12 @@ function settled(held: RestoreState, outcome: RestoreOutcome): RestoreState {
     case "nothing-differs":
       return { ...idle, isDialogOpen: false };
     case "conflict":
-      return { ...idle, failure: "conflict" };
+      return {
+        ...idle,
+        failure: "conflict",
+        draft: fresh?.draft ?? held.draft,
+        activeBook: fresh?.active.book ?? held.activeBook,
+      };
     case "failed":
       return { ...idle, failure: "save-failed" };
   }
@@ -233,10 +273,12 @@ function VersionChanges({ input }: { readonly input: VersionDetailInput }) {
 }
 
 function RestoreBlock({
+  buttonRef,
   versionNumber,
   differingCount,
   onAsk,
 }: {
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
   readonly versionNumber: number;
   readonly differingCount: number;
   readonly onAsk: () => void;
@@ -255,6 +297,7 @@ function RestoreBlock({
           })}
         </p>
         <button
+          ref={buttonRef}
           type="button"
           className={styles.secondary}
           aria-disabled={isOff ? true : undefined}

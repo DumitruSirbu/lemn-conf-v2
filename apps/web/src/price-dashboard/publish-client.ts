@@ -63,6 +63,18 @@ export interface PublishClient {
   ): Promise<RestoreOutcome>;
 }
 
+/** What a call answers, or `failed` when the client throws or its promise rejects: a screen is never left waiting on one. */
+export async function orFailed<Outcome>(
+  call: () => Promise<Outcome>,
+  failed: Outcome,
+): Promise<Outcome> {
+  try {
+    return await call();
+  } catch {
+    return failed;
+  }
+}
+
 /** The client of a build that has no server to write to: every write fails and nothing changes. */
 export const UNAVAILABLE_PUBLISH_CLIENT: PublishClient = {
   readState: () => Promise.resolve(undefined),

@@ -359,3 +359,41 @@ describe("restoring a version's prices (D8C)", () => {
     );
   });
 });
+
+describe("a client that rejects, and focus after a press that did not focus the button", () => {
+  it("is told as a failed restore in the dialog, which stays", async () => {
+    const input = thirdVersionWithNothingPending();
+    const client = spiedClient(input, {
+      restore: () => Promise.reject(new Error("the network dropped")),
+    });
+    const container = await mountDetail(input, { client });
+    click(restoreButton(container));
+
+    click(byWords(requireDialog(), "button", COPY.common.addToPending));
+    await settle();
+
+    expect(requireDialog().textContent).toContain(COPY.errors.saveFailed);
+    expect(
+      byWords(requireDialog(), "button", COPY.common.addToPending).getAttribute(
+        "aria-busy",
+      ),
+    ).toBeNull();
+  });
+
+  it("returns to the restore button when the dialog is dismissed", async () => {
+    const input = thirdVersionWithNothingPending();
+    const container = await mountDetail(input);
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement) focused.blur();
+    click(restoreButton(container));
+
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(restoreButton(container));
+  });
+});

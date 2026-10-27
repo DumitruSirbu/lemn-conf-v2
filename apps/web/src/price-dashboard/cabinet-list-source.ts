@@ -1,5 +1,4 @@
 import type { CabinetListInput } from "./cabinet-list-model";
-import { SAMPLE_CABINET_LIST } from "./cabinet-list-sample";
 
 // The one place the cabinet list's facts come from. It is to become the server read of the active version and the draft,
 // building one `CabinetRuleFacts` per cabinet rule with the default-size prices worked out by the domain, and answering
@@ -10,11 +9,9 @@ export type CabinetListRead =
   | { readonly kind: "ready"; readonly input: CabinetListInput }
   | { readonly kind: "unavailable" };
 
-export function readCabinetList(): Promise<CabinetListRead> {
+export async function readCabinetList(): Promise<CabinetListRead> {
   const isProductionBuild = process.env.NODE_ENV === "production";
-  return Promise.resolve(
-    isProductionBuild
-      ? { kind: "unavailable" }
-      : { kind: "ready", input: SAMPLE_CABINET_LIST },
-  );
+  if (isProductionBuild) return { kind: "unavailable" };
+  const { SAMPLE_CABINET_LIST } = await import("./cabinet-list-sample");
+  return { kind: "ready", input: SAMPLE_CABINET_LIST };
 }

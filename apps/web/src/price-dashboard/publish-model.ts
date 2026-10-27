@@ -386,10 +386,11 @@ export interface RestorePlan {
 }
 
 /**
- * What a restore makes of the draft, so that applying it gives the archived prices. `restoreChanges(archived, book)` is
- * exact only against the book it is given, so it is given the candidate the draft would publish. A draft change on a
- * field the archived version states is taken out, and the archived value is added where it differs from the active one:
- * with active 100, draft 120 and archived 100 the draft change simply goes.
+ * What a restore makes of the draft, so that applying it to the active book gives the archived value on every field both
+ * books state. Draft changes on fields the archived version states are taken out, and the archived value is added wherever
+ * it differs from the active book (`restoreChanges(archived, active)`): with active 100, draft 120 and archived 120 the
+ * 120 is added again, and with archived 100 the draft change simply goes. The candidate (active plus draft) is only what
+ * "differs" is counted against, so a restore that would change nothing is told as such.
  */
 export function planRestore(input: {
   readonly archived: PriceBook;
@@ -398,17 +399,11 @@ export function planRestore(input: {
 }): RestorePlan {
   const { archived, active, draft } = input;
   const applied = applyChanges(active, draft);
-  const differing = restoreChanges(
+  const differingFromCandidate = restoreChanges(
     archived,
     applied.ok ? applied.book : active,
   );
-  const activeReadings = readEditableFields(active);
-  const added = differing.filter(
-    (change) =>
-      activeReadings.find((reading) =>
-        isSameAddress(reading.address, change.address),
-      )?.value !== change.value,
-  );
+  const added = restoreChanges(archived, active);
   const archivedReadings = readEditableFields(archived);
   const kept = draft.filter(
     (change) =>
@@ -418,7 +413,7 @@ export function planRestore(input: {
   );
   return {
     draft: [...kept, ...added],
-    differingCount: differing.length,
+    differingCount: differingFromCandidate.length,
     addedChangeCount: added.length,
   };
 }

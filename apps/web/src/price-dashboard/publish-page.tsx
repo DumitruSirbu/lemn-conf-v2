@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { useRef, type ReactNode, type RefObject } from "react";
 
 import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
@@ -54,6 +54,7 @@ export function PublishScreen({
   client,
 }: PublishScreenProps) {
   const desk = usePublishDesk({ input, initialView, client });
+  const publishButtonRef = useRef<HTMLButtonElement>(null);
   const shell = {
     ...context,
     pendingPriceCount: desk.state.draft.changes.length,
@@ -70,9 +71,13 @@ export function PublishScreen({
             pendingCount={desk.state.draft.changes.length}
           />
         ) : (
-          <PendingPrices locale={locale} desk={desk} />
+          <PendingPrices
+            locale={locale}
+            desk={desk}
+            publishButtonRef={publishButtonRef}
+          />
         )}
-        <PublishDialogs desk={desk} />
+        <PublishDialogs desk={desk} returnFocusFallbackRef={publishButtonRef} />
       </section>
     </StaffShell>
   );
@@ -148,9 +153,11 @@ function PublishHeading({
 function PendingPrices({
   locale,
   desk,
+  publishButtonRef,
 }: {
   readonly locale: AppLocale;
   readonly desk: PublishDesk;
+  readonly publishButtonRef: RefObject<HTMLButtonElement | null>;
 }) {
   const translate = useTranslations();
   const { reading } = desk;
@@ -188,6 +195,7 @@ function PendingPrices({
         />
         <PublishHelp />
         <PublishButton
+          buttonRef={publishButtonRef}
           changeCount={view.changeCount}
           canPublish={view.canPublish}
           isBusy={desk.isBusy}
@@ -326,13 +334,20 @@ function NoticeBody({
 
 /** The question the phase asks, if it asks one: the provisional one in place of the plain one whenever the draft turns the
  *  figures off. */
-function PublishDialogs({ desk }: { readonly desk: PublishDesk }) {
+function PublishDialogs({
+  desk,
+  returnFocusFallbackRef,
+}: {
+  readonly desk: PublishDesk;
+  readonly returnFocusFallbackRef: RefObject<HTMLElement | null>;
+}) {
   const { phase, reading } = desk;
   if (phase.kind === "idle" || reading.kind !== "ready") return null;
   const isAskingAboutProvisional = reading.view.holdsProvisionalOff;
   if (isAskingAboutProvisional) {
     return (
       <ProvisionalOffDialog
+        returnFocusFallbackRef={returnFocusFallbackRef}
         isChecked={
           phase.kind === "confirming-provisional-off" ? phase.isChecked : true
         }
@@ -345,6 +360,7 @@ function PublishDialogs({ desk }: { readonly desk: PublishDesk }) {
   }
   return (
     <PublishConfirmDialog
+      returnFocusFallbackRef={returnFocusFallbackRef}
       versionName={isolated(desk.versionName.trim())}
       changeCount={reading.view.changeCount}
       isBusy={desk.isBusy}

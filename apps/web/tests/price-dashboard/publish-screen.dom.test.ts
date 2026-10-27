@@ -47,13 +47,9 @@ const MENU: Parameters<typeof contextOf>[1] = [
   "cabinets",
   "publish",
 ];
-/** The tall cabinets the manufacturer supplies, each with the three amounts of an anchored price: what the sample's bulk row covers. */
-const SAMPLE_TALL_CABINETS =
-  SAMPLE_PUBLISH_PAGE.state.active.book.cabinetRules.filter(
-    (rule) =>
-      rule.buildId.startsWith("tall-") && rule.suppliedBy !== "customer",
-  ).length;
-const AMOUNTS_PER_CABINET = 3;
+/** The cabinets the sample's bulk row covers (one), each with the three amounts of an anchored price. */
+const SAMPLE_BULK_CABINETS = 1;
+const AMOUNTS_PER_CABINET = 2;
 const ACTIVE_SEQUENCE = SAMPLE_PUBLISH_PAGE.state.active.sequenceNumber;
 const PENDING_COUNT = SAMPLE_PUBLISH_PAGE.state.draft.changes.length;
 const PENDING_CHIP = '[data-testid="staff-pending-prices"]';
@@ -225,20 +221,22 @@ describe("the pending prices (D7A)", () => {
     );
   });
 
-  it("writes a bulk action as one row, '+5 % la Coloane', with its count of cabinets and prices", async () => {
+  it("writes a bulk action as one row, '+5 % la 1 dulap', with its count of cabinets and prices", async () => {
     const container = await mountPublish({});
 
     const row = groupRow(container);
     expect(requireIn(row, '[data-testid="diff-group-name"]').textContent).toBe(
       roCopy("priceDashboard.publish.bulkRowName", {
         signedPercent: "+5",
-        group: roCopy("priceDashboard.cabinets.groupTall"),
+        group: roCopy("priceDashboard.cabinets.groupCount", {
+          count: SAMPLE_BULK_CABINETS,
+        }),
       }),
     );
     expect(row.textContent).toContain(
       roCopy("priceDashboard.publish.bulkRowSummary", {
-        cabinetCount: SAMPLE_TALL_CABINETS,
-        priceCount: SAMPLE_TALL_CABINETS * AMOUNTS_PER_CABINET,
+        cabinetCount: SAMPLE_BULK_CABINETS,
+        priceCount: SAMPLE_BULK_CABINETS * AMOUNTS_PER_CABINET,
       }),
     );
   });
@@ -284,7 +282,9 @@ describe("the pending prices (D7A)", () => {
     ).toBe(
       ruCopy("priceDashboard.publish.bulkRowName", {
         signedPercent: "+5",
-        group: ruCopy("priceDashboard.cabinets.groupTall"),
+        group: ruCopy("priceDashboard.cabinets.groupCount", {
+          count: SAMPLE_BULK_CABINETS,
+        }),
       }),
     );
   });
@@ -746,5 +746,92 @@ describe("a build that cannot read the prices", () => {
       screen.container.querySelector('[data-testid="publish-page"]'),
     ).toBeNull();
     expect(screen.container.querySelector('[role="alert"]')).not.toBeNull();
+  });
+});
+
+describe("a client that rejects", () => {
+  it("is told as a failed publish: the dialog closes, the notice shows and the draft stays", async () => {
+    const client = spiedClient(PLAIN_DRAFT, {
+      publish: () => Promise.reject(new Error("the network dropped")),
+    });
+    const container = await mountPublish({ input: PLAIN_DRAFT, client });
+    typeInto(nameField(container), "Ajustari");
+    click(publishButton(container));
+
+    click(byWords(requireDialog(), "button", COPY.publish.confirmAction));
+    await settle();
+
+    expect(dialog()).toBeNull();
+    expect(
+      requireIn(container, '[data-testid="publish-notice"]').textContent,
+    ).toContain(COPY.publish.failedTitle);
+    expect(publishButton(container).getAttribute("aria-busy")).toBeNull();
+    expect(rowsIn(container).length).toBeGreaterThan(0);
+  });
+
+  it("is told as a draft write that saved nothing, for a revert that throws", async () => {
+    const client = spiedClient(PLAIN_DRAFT, {
+      revert: () => {
+        throw new Error("thrown, not rejected");
+      },
+    });
+    const container = await mountPublish({ input: PLAIN_DRAFT, client });
+    const before = rowsIn(container).length;
+
+    click(requireIn(container, '[data-testid="diff-revert"]'));
+    await settle();
+
+    expect(rowsIn(container)).toHaveLength(before);
+    expect(
+      requireIn(container, '[data-testid="publish-notice"]').textContent,
+    ).toContain(COPY.errors.saveFailed);
+  });
+
+  it("does not leave a conflict waiting when the state cannot be read again", async () => {
+    const client = spiedClient(PLAIN_DRAFT, {
+      publish: () => Promise.resolve({ kind: "conflict" }),
+      readState: () => Promise.reject(new Error("offline")),
+    });
+    const container = await mountPublish({ input: PLAIN_DRAFT, client });
+    typeInto(nameField(container), "Ajustari");
+    click(publishButton(container));
+
+    click(byWords(requireDialog(), "button", COPY.publish.confirmAction));
+    await settle();
+
+    expect(
+      requireIn(container, '[data-testid="publish-notice"]').textContent,
+    ).toContain(COPY.errors.changedMeanwhile);
+  });
+});
+
+describe("where focus goes when a dialog closes after a press that did not focus its button", () => {
+  function blurWhatHasFocus(): void {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement) focused.blur();
+  }
+
+  it("returns to the publish button when the confirmation is dismissed", async () => {
+    const container = await mountPublish({ input: PLAIN_DRAFT });
+    typeInto(nameField(container), "Ajustari");
+    blurWhatHasFocus();
+    click(publishButton(container));
+
+    pressEscape();
+
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(publishButton(container));
+  });
+
+  it("returns to the publish button when the provisional question is dismissed", async () => {
+    const container = await mountPublish({ input: PROVISIONAL_OFF });
+    typeInto(nameField(container), "Ajustari");
+    blurWhatHasFocus();
+    click(publishButton(container));
+
+    pressEscape();
+
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(publishButton(container));
   });
 });

@@ -36,7 +36,7 @@ const STEP_WIDER_MINOR = 8_000;
 const STEP_NARROWER_MINOR = 6_000;
 const MATERIAL_PERCENTS = [0, 25, 60] as const;
 const DEEP_CABINET_PERCENT = 15;
-const BULK_ROUNDING_MINOR = 1_000;
+const BULK_ROUNDING_MINOR = 100;
 const BULK_PERCENT = 5;
 const PAGE_SIZE = 20;
 
@@ -177,40 +177,34 @@ function scaledByBulkPercent(minor: number): number {
   return roundedToBulkUnit((minor * (100 + BULK_PERCENT)) / 100);
 }
 
-const TALL_BULK: DraftBulk = {
-  percent: BULK_PERCENT,
-  scope: "group",
-  groupCode: "tall",
-};
-const TALL_GROUP_ID = "bulk-sample-tall";
+/**
+ * The one bulk action of the sample covers one cabinet, the base cabinet, beside a single change of its price: the cabinet
+ * list draws its rows from the same draft and marks as modified every cabinet a change names, so a wider scope would mark
+ * cabinets its facts give no new price.
+ */
+const BULK: DraftBulk = { percent: BULK_PERCENT, scope: "selection" };
+const BULK_GROUP_ID = "bulk-sample-base";
+const BULK_CABINET_RULE_ID = "cabinet.base-cabinet";
 
-/** The tall cabinets the manufacturer supplies, each with the three amounts its anchored price states. */
-const TALL_BULK_CHANGES: readonly DraftChange[] = ACTIVE_BOOK.cabinetRules
-  .filter(
-    (rule) =>
-      rule.buildId.startsWith("tall-") && rule.suppliedBy !== "customer",
-  )
-  .flatMap((rule) =>
-    (["anchorMinor", "perStepWiderMinor", "perStepNarrowerMinor"] as const).map(
-      (field): DraftChange => {
-        const address = {
-          kind: "cabinet",
-          ruleId: rule.ruleId,
-          field,
-        } as const;
-        return {
-          address,
-          value: scaledByBulkPercent(valueAt(ACTIVE_BOOK, address)),
-          groupId: TALL_GROUP_ID,
-          bulk: TALL_BULK,
-        };
-      },
-    ),
-  );
+const BULK_CHANGES: readonly DraftChange[] = (
+  ["perStepWiderMinor", "perStepNarrowerMinor"] as const
+).map((field): DraftChange => {
+  const address = {
+    kind: "cabinet",
+    ruleId: BULK_CABINET_RULE_ID,
+    field,
+  } as const;
+  return {
+    address,
+    value: scaledByBulkPercent(valueAt(ACTIVE_BOOK, address)),
+    groupId: BULK_GROUP_ID,
+    bulk: BULK,
+  };
+});
 
 const SAMPLE_DRAFT_CHANGES: readonly DraftChange[] = [
-  firstAnchorChange("base-3drawer", 215_000),
-  ...TALL_BULK_CHANGES,
+  firstAnchorChange("base-cabinet", 150_000),
+  ...BULK_CHANGES,
   { address: { kind: "depth-rule" }, value: 18 },
   {
     address: {

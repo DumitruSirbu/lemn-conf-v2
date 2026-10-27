@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
 import { AccountDialog } from "@/account/account-dialog";
@@ -21,7 +21,12 @@ function InMain({ children }: { readonly children: ReactNode }) {
   );
 }
 
-export interface PublishConfirmDialogProps {
+/** Where focus goes when the control that opened a dialog was not focused by the press (Safari and Firefox). */
+interface FocusFallback {
+  readonly returnFocusFallbackRef: RefObject<HTMLElement | null>;
+}
+
+export interface PublishConfirmDialogProps extends FocusFallback {
   readonly versionName: string;
   readonly changeCount: number;
   readonly isBusy: boolean;
@@ -36,6 +41,7 @@ export function PublishConfirmDialog({
   isBusy,
   onConfirm,
   onCancel,
+  returnFocusFallbackRef,
 }: PublishConfirmDialogProps) {
   const translate = useTranslations();
   return (
@@ -49,6 +55,7 @@ export function PublishConfirmDialog({
         description={translate("priceDashboard.publish.confirmBody", {
           count: changeCount,
         })}
+        returnFocusFallbackRef={returnFocusFallbackRef}
         confirm={{
           label: translate("priceDashboard.publish.confirmAction"),
           busyLabel: translate("priceDashboard.publish.publishing"),
@@ -64,7 +71,7 @@ export function PublishConfirmDialog({
   );
 }
 
-export interface ProvisionalOffDialogProps {
+export interface ProvisionalOffDialogProps extends FocusFallback {
   readonly isChecked: boolean;
   readonly isBusy: boolean;
   readonly onCheckedChange: (isChecked: boolean) => void;
@@ -79,6 +86,7 @@ export function ProvisionalOffDialog({
   onCheckedChange,
   onConfirm,
   onCancel,
+  returnFocusFallbackRef,
 }: ProvisionalOffDialogProps) {
   const translate = useTranslations();
   const checkRef = useRef<HTMLInputElement>(null);
@@ -91,6 +99,7 @@ export function ProvisionalOffDialog({
         title={translate("priceDashboard.publish.provisionalOffTitle")}
         alsoDescribedById={warningId}
         initialFocusRef={checkRef}
+        returnFocusFallbackRef={returnFocusFallbackRef}
         confirm={{
           label: translate("priceDashboard.publish.provisionalOffConfirm"),
           busyLabel: translate("priceDashboard.publish.publishing"),
@@ -128,7 +137,7 @@ export function ProvisionalOffDialog({
   );
 }
 
-export interface RestoreDialogProps {
+export interface RestoreDialogProps extends FocusFallback {
   readonly versionNumber: number;
   readonly differingCount: number;
   readonly isBusy: boolean;
@@ -145,6 +154,7 @@ export function RestoreDialog({
   failure,
   onConfirm,
   onCancel,
+  returnFocusFallbackRef,
 }: RestoreDialogProps) {
   const translate = useTranslations();
   return (
@@ -158,6 +168,7 @@ export function RestoreDialog({
         description={translate("priceDashboard.history.restoreDialogBody", {
           count: differingCount,
         })}
+        returnFocusFallbackRef={returnFocusFallbackRef}
         confirm={{
           label: translate("priceDashboard.common.addToPending"),
           busyLabel: translate("priceDashboard.history.restoring"),

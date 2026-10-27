@@ -11,6 +11,7 @@ import type {
 } from "./price-dashboard-wire-contract";
 import {
   defaultPublishClient,
+  orFailed,
   type DraftWriteOutcome,
   type PublishBlock,
   type PublishClient,
@@ -25,6 +26,9 @@ import {
 // The publish page's state: the draft and the active version as the screen last read them, the version's name, where the
 // publish stands, and what the last write said. A write is sent with the revision the screen displayed; a refusal as
 // `changed-meanwhile` reads the state again before saying so, and nothing is shown as published until the server said it.
+
+const WRITE_FAILED: DraftWriteOutcome = { kind: "failed" };
+const PUBLISH_FAILED: PublishOutcome = { kind: "failed" };
 
 export type PublishView = "pending" | "history";
 
@@ -106,7 +110,7 @@ export function usePublishDesk({
   const isBusy = phase.kind === "publishing";
 
   const readAgain = useCallback(async () => {
-    const fresh = await client.readState();
+    const fresh = await orFailed(() => client.readState(), undefined);
     if (fresh !== undefined) setState(fresh);
     setNotice({ kind: "conflict" });
   }, [client]);
@@ -124,12 +128,14 @@ export function usePublishDesk({
 
   const revert = useCallback(
     (target: DraftRevertTargetWire) => {
-      void client
-        .revert({
-          expectedDraftRevision: state.draft.draftRevision,
-          target,
-        })
-        .then(applyDraftWrite);
+      void orFailed(
+        () =>
+          client.revert({
+            expectedDraftRevision: state.draft.draftRevision,
+            target,
+          }),
+        WRITE_FAILED,
+      ).then(applyDraftWrite);
     },
     [client, state.draft.draftRevision, applyDraftWrite],
   );
@@ -138,21 +144,22 @@ export function usePublishDesk({
     const next = !isProvisionalOf(reading, state);
     const isActiveValue = next === state.active.book.amountsProvisional;
     const request = { expectedDraftRevision: state.draft.draftRevision };
-    const write = isActiveValue
-      ? client.revert({
-          ...request,
-          target: { kind: "change", address: { kind: "provisional" } },
-        })
-      : client.change({
-          ...request,
-          change: { address: { kind: "provisional" }, value: next },
-        });
-    void write.then(applyDraftWrite);
+    const write = () =>
+      isActiveValue
+        ? client.revert({
+            ...request,
+            target: { kind: "change", address: { kind: "provisional" } },
+          })
+        : client.change({
+            ...request,
+            change: { address: { kind: "provisional" }, value: next },
+          });
+    void orFailed(write, WRITE_FAILED).then(applyDraftWrite);
   }, [client, reading, state, applyDraftWrite]);
 
   const adoptPublished = useCallback(
     async (published: PublishedWire) => {
-      const fresh = await client.readState();
+      const fresh = await orFailed(() => client.readState(), undefined);
       const adopted =
         fresh ??
         locallyPublished(state, reading, {
@@ -199,15 +206,17 @@ export function usePublishDesk({
 
   const confirmPublish = useCallback(() => {
     setPhase({ kind: "publishing" });
-    void client
-      .publish({
-        expectedDraftRevision: state.draft.draftRevision,
-        expectedActiveSequence: state.active.sequenceNumber,
-        expectedAvailabilityRevision: state.active.availability.revision,
-        label: versionName.trim(),
-        note: "",
-      })
-      .then(settlePublish);
+    void orFailed(
+      () =>
+        client.publish({
+          expectedDraftRevision: state.draft.draftRevision,
+          expectedActiveSequence: state.active.sequenceNumber,
+          expectedAvailabilityRevision: state.active.availability.revision,
+          label: versionName.trim(),
+          note: "",
+        }),
+      PUBLISH_FAILED,
+    ).then(settlePublish);
   }, [client, state, versionName, settlePublish]);
 
   return {

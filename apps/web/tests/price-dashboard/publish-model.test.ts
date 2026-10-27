@@ -445,6 +445,23 @@ describe("what a restore makes of the draft", () => {
     reproduces(archived, ACTIVE, plan.draft);
   });
 
+  it("keeps the price the draft moved to when the archived price is the same and another field still differs", () => {
+    const moved = valueAt(ACTIVE, FIRST) + 20_000;
+    const archived = bookWith(ACTIVE, [
+      change(FIRST, moved),
+      change(SECOND, valueAt(ACTIVE, SECOND) + 9_000),
+    ]);
+    const draft = [
+      change(FIRST, moved),
+      change(SECOND, valueAt(ACTIVE, SECOND) + 5_000),
+    ];
+
+    const plan = planRestore({ archived, active: ACTIVE, draft });
+
+    reproduces(archived, ACTIVE, plan.draft);
+    expect(plan.addedChangeCount).toBe(2);
+  });
+
   it("keeps a draft change on a field the archived version does not state", () => {
     const kept = change(FIRST, valueAt(ACTIVE, FIRST) + 3_000);
 
@@ -464,6 +481,6 @@ describe("what a restore makes of the draft", () => {
     const plan = planRestore({ archived, active: ACTIVE, draft });
 
     expect(plan.differingCount).toBe(0);
-    expect(plan.addedChangeCount).toBe(0);
+    reproduces(archived, ACTIVE, plan.draft);
   });
 });

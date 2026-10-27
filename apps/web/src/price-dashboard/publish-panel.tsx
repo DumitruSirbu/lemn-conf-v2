@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, type RefObject } from "react";
 
 import type { PublishTextRefusalCode } from "./price-dashboard-wire-contract";
 import styles from "./publish.module.css";
@@ -143,6 +143,7 @@ export function PublishHelp() {
 }
 
 export interface PublishButtonProps {
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
   readonly changeCount: number;
   readonly canPublish: boolean;
   readonly isBusy: boolean;
@@ -151,6 +152,7 @@ export interface PublishButtonProps {
 
 /** Off, and out of reach, while the draft would change nothing (D7D): it stays in the Tab ring, so its state is read. */
 export function PublishButton({
+  buttonRef,
   changeCount,
   canPublish,
   isBusy,
@@ -161,6 +163,7 @@ export function PublishButton({
   return (
     <div className={styles.actionBar}>
       <button
+        ref={buttonRef}
         type="button"
         className={styles.primary}
         aria-disabled={isOff ? true : undefined}
