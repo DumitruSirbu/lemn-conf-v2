@@ -150,6 +150,10 @@ describe("every surface is handed the one book root of the active version", () =
     );
     expect(new Set(versionIds).size).toBe(1);
     expect(ports.bookVersionId).toBe(versionIds[0]);
+    expect(ports.book.version).toBe(ports.bookVersionId);
+    for (const root of roots) {
+      expect(root.kind === "active" && root.book.version).toBe(versionIds[0]);
+    }
     const [editor] = roots;
     expect(editor?.kind === "active" && editor.book).toEqual(ports.book);
   });

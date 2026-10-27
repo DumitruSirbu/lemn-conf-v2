@@ -10,6 +10,7 @@ import {
   FakeRevisionHead,
   FakeSessionStore,
   generateAccountId,
+  type ActivePriceVersion,
   type CatalogueAvailabilityStore,
   type PriceBookStore,
 } from "@lemnaria/persistence";
@@ -93,5 +94,39 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
   if (published.kind !== "ok") {
     throw new Error(`The sample book could not be seeded: ${published.kind}`);
   }
-  return { priceBook, availability };
+  return { priceBook: stampedWithItsVersionId(priceBook), availability };
+}
+
+/**
+ * The architect's rule for every stored version: `book.version === versionId`, so the id a request digests, the version
+ * the pricing is asked for and the version a stored submission records are one identity. A store mints the id when it
+ * publishes, after the book is fixed, so the fake world stamps it on the way out; the real store and the publish route
+ * must stamp it on the way in. Reads only: nothing the fake holds is changed.
+ */
+function stampedWithItsVersionId(store: FakePriceBookStore): PriceBookStore {
+  return {
+    readActive: async () => {
+      const read = await store.readActive();
+      return read.kind === "found"
+        ? { kind: "found", version: stamped(read.version) }
+        : read;
+    },
+    readVersion: async (versionId) => {
+      const read = await store.readVersion(versionId);
+      return read.kind === "found"
+        ? { kind: "found", version: stamped(read.version) }
+        : read;
+    },
+    listVersions: (request) => store.listVersions(request),
+    readDraft: () => store.readDraft(),
+    writeDraft: (request) => store.writeDraft(request),
+    publish: (request) => store.publish(request),
+  };
+}
+
+function stamped<Version extends ActivePriceVersion>(
+  version: Version,
+): Version {
+  const book = version.book as Record<string, unknown>;
+  return { ...version, book: { ...book, version: version.versionId } };
 }

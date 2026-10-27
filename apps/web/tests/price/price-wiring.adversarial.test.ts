@@ -49,6 +49,7 @@ import {
 } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import { createHeadlessCanvas } from "../support/headless-canvas";
 
 /** The store state the hooks under test read. Swapped between cases, so the real `usePanelView` and
@@ -87,7 +88,7 @@ function readFromHook<T>(useHook: () => T): T {
     seen = useHook();
     return null;
   }
-  renderToStaticMarkup(createElement(Probe));
+  renderToStaticMarkup(underSamplePriceBook(createElement(Probe)));
   if (seen === undefined) throw new Error("the hook produced nothing");
   return seen;
 }

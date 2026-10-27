@@ -67,7 +67,10 @@ describe("the stores of this process", () => {
     expect(active.kind).toBe("found");
     if (active.kind !== "found") return;
     expect(active.version.sequenceNumber).toBe(1);
-    expect(active.version.book).toEqual(SAMPLE_PRICE_BOOK);
+    expect(active.version.book).toEqual({
+      ...SAMPLE_PRICE_BOOK,
+      version: active.version.versionId,
+    });
   });
 
   it("are one world: two readers get the same version id, and a concurrent first use seeds once", async () => {

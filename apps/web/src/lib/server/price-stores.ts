@@ -70,12 +70,21 @@ interface HoldsPriceStores {
 
 /**
  * The price stores of this process. The seeding is held as a promise, so two requests that arrive before it finishes await
- * one publish instead of racing two.
+ * one publish instead of racing two. A seeding that fails is not kept: the next request tries again, and only the
+ * request that met the failure is told of it.
  */
 export function getPriceStores(): Promise<PriceStores> {
   const held = globalThis as unknown as HoldsPriceStores;
-  held[PRICE_STORES_GLOBAL_KEY] ??= makePriceStores(process.env);
-  return held[PRICE_STORES_GLOBAL_KEY];
+  const existing = held[PRICE_STORES_GLOBAL_KEY];
+  if (existing !== undefined) return existing;
+  const made = makePriceStores(process.env);
+  held[PRICE_STORES_GLOBAL_KEY] = made;
+  made.catch(() => {
+    if (held[PRICE_STORES_GLOBAL_KEY] === made) {
+      held[PRICE_STORES_GLOBAL_KEY] = undefined;
+    }
+  });
+  return made;
 }
 
 function makePriceStores(

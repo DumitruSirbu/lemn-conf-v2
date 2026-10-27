@@ -1,26 +1,35 @@
-// Adversarial QA for M6 remediation wave B, ingress half: `use-priced-design.ts` parses the book at
-// **module scope**.
+// @vitest-environment happy-dom
+// Adversarial QA for M6 remediation wave B, ingress half, moved by M10 wave R1 to where the book now enters.
 //
-// That moves the failure mode M6-AUD-002 named rather than only fixing it. A refusal returned from
-// `parsePriceBook` degrades the price and keeps the application; anything the parser *raises*
-// happens while the module is being evaluated, before any component exists to fail — so no error
-// boundary, no `UnreadablePriceBookError`, and no render at all. These cases hold the parser to the
-// contract its own header states, at the one call site where breaking it is worst.
+// The book is no longer parsed at module scope of the browser's hook: the server parses the active version once per
+// request, in `readActivePriceBook`. The premise survives the move and gets sharper. A refusal returned from
+// `parsePriceBook` degrades the price and keeps the application; anything the parser *raises* happens inside the page's
+// server component, before any component exists to fail, so the customer gets no page at all. These cases hold the
+// parser to the contract its own header states, at the one call site where breaking it is worst, with the stored book
+// (not a book this build ships) as the hostile input.
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
-  type PriceBook,
+  SAMPLE_PRICE_BOOK,
 } from "@lemnaria/configurator-domain";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import type {
+  CatalogueAvailabilityStore,
+  PriceBookStore,
+} from "@lemnaria/persistence";
+import fc from "fast-check";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readActivePriceBook } from "@/lib/server/active-price-book";
+import { NO_PRICE_BOOK } from "@/price/price-book-root";
+import { usePricedDesign } from "@/price/use-priced-design";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { renderHook } from "../support/render-hook";
 
-/** The store state the hook under test reads — the real store, so the hook composes over real
- *  fields rather than over a fixture shaped like them. */
+const VERSION_ID = "the-stored-version";
+
+/** The store state the hook under test reads: the real store, so the hook composes over real fields. */
 const storeState = vi.hoisted(() => ({ current: undefined as unknown }));
 
 vi.mock("@/store/configurator-store", async (importActual) => {
@@ -33,29 +42,29 @@ vi.mock("@/store/configurator-store", async (importActual) => {
   };
 });
 
-/** React's server renderer is this suite's only renderer (M4 wave 4A: no jsdom, no RTL), and the
- *  claim under test is what the hook composes rather than how it reacts. */
-function readFromHook<TValue>(useHook: () => TValue): TValue {
-  let seen: TValue | undefined;
-  function Probe() {
-    seen = useHook();
-    return null;
-  }
-  renderToStaticMarkup(createElement(Probe));
-  if (seen === undefined) throw new Error("the hook produced nothing");
-  return seen;
+function storesHoldingStoredBook(book: unknown) {
+  return {
+    priceBook: {
+      readActive: () =>
+        Promise.resolve({
+          kind: "found" as const,
+          version: {
+            versionId: VERSION_ID,
+            sequenceNumber: 1,
+            label: "Stored",
+            publishedAt: new Date(0),
+            book,
+          },
+        }),
+    } as unknown as PriceBookStore,
+    availability: {
+      readCurrent: () => Promise.resolve({ revision: "0", disabled: [] }),
+    } as unknown as CatalogueAvailabilityStore,
+  };
 }
 
-/** Loads the pricing composition root over a supplied sample book, from a fresh module registry so
- *  the module-scope parse runs again for each case. */
-async function loadPricingRootShipping(book: unknown) {
-  vi.resetModules();
-  vi.doMock("@lemnaria/configurator-domain", async (importActual) => {
-    const actual =
-      await importActual<typeof import("@lemnaria/configurator-domain")>();
-    return { ...actual, SAMPLE_PRICE_BOOK: book };
-  });
-  return import("@/price/use-priced-design");
+function aSampleBookWith(section: string, value: unknown): unknown {
+  return { ...SAMPLE_PRICE_BOOK, [section]: value };
 }
 
 beforeEach(() => {
@@ -68,27 +77,76 @@ beforeEach(() => {
   storeState.current = store.getState();
 });
 
-describe("a book this build ships that cannot be read", () => {
-  it("evaluates the module and answers a refusal for a book missing a section", () => {
-    // The M6-AUD-002 reproduction, at the ingress: the section `listRuleIds` used to dereference
-    // bare. What the customer loses is the figure; what they keep is the application.
-    const malformed = { ...KITCHEN_L_DESIGN } as unknown as PriceBook;
+describe("a stored book that cannot be read", () => {
+  it("is no book for a book missing a section, and the price hook then answers a refusal", async () => {
+    // The M6-AUD-002 reproduction, at the ingress: the section `listRuleIds` used to dereference bare. What the
+    // customer loses is the figure; what they keep is the application.
+    const malformed = { ...KITCHEN_L_DESIGN };
 
-    return loadPricingRootShipping(malformed).then((pricingRoot) => {
-      const result = readFromHook(pricingRoot.usePricedDesign);
+    const root = await readActivePriceBook(storesHoldingStoredBook(malformed));
 
-      expect(result.ok).toBe(false);
-      if (result.ok) return;
-      expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
-    });
+    expect(root).toBe(NO_PRICE_BOOK);
+    const hook = renderHook(usePricedDesign, (children) => children, root);
+    const result = hook.result.current;
+    hook.unmount();
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
   });
 
-  it("evaluates the module for a book carrying a value JSON cannot render", async () => {
-    // `describeDeclared` stringifies whatever the book declared, and `JSON.stringify` raises for a
-    // BigInt. At module scope that is not a refusal a surface renders — it is the module failing to
-    // load, and every component that imports it going with it.
-    const unrenderable = { version: 1n } as unknown as PriceBook;
+  it("is no book, and not a raised error, for a book carrying a value JSON cannot render", async () => {
+    // `describeDeclared` stringifies whatever the book declared, and `JSON.stringify` raises for a BigInt. In the page's
+    // server component that would not be a refusal a surface renders: it would be the request failing outright.
+    const unrenderable = { version: 1n };
 
-    await expect(loadPricingRootShipping(unrenderable)).resolves.toBeDefined();
+    await expect(
+      readActivePriceBook(storesHoldingStoredBook(unrenderable)),
+    ).resolves.toBe(NO_PRICE_BOOK);
+  });
+
+  it("never raises, whatever one section of the sample book is replaced by", async () => {
+    const sections = Object.keys(SAMPLE_PRICE_BOOK);
+    const hostileValue = fc.anything({
+      withBigInt: true,
+      withNullPrototype: true,
+      withObjectString: true,
+      withSparseArray: true,
+      withTypedArray: true,
+    });
+
+    await fc.assert(
+      fc.asyncProperty(
+        fc.constantFrom(...sections),
+        hostileValue,
+        async (section, value) => {
+          const root = await readActivePriceBook(
+            storesHoldingStoredBook(aSampleBookWith(section, value)),
+          );
+
+          expect(root.kind === "none" || root.versionId === VERSION_ID).toBe(
+            true,
+          );
+        },
+      ),
+      { numRuns: 300 },
+    );
+  });
+
+  it("never raises for a stored book that is any value at all", async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.anything({ withBigInt: true, withNullPrototype: true }),
+        async (stored) => {
+          const root = await readActivePriceBook(
+            storesHoldingStoredBook(stored),
+          );
+
+          expect(root.kind === "none" || root.versionId === VERSION_ID).toBe(
+            true,
+          );
+        },
+      ),
+      { numRuns: 300 },
+    );
   });
 });

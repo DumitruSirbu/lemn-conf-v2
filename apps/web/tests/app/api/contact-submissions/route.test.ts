@@ -1,9 +1,6 @@
 import { createHash } from "node:crypto";
 
-import {
-  SAMPLE_PRICE_BOOK,
-  SAMPLE_PRICE_BOOK_VERSION,
-} from "@lemnaria/configurator-domain";
+import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import { NextRequest, NextResponse } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -40,6 +37,7 @@ type NextRequestInit = NonNullable<
 const spies = vi.hoisted(() => ({
   submitContact: vi.fn(),
   makeContactJudge: vi.fn(),
+  everyRequest: vi.fn(),
   createMailSender: vi.fn(),
   loadOwnedDesign: vi.fn(),
   getContactSubmissionStore: vi.fn(),
@@ -87,7 +85,11 @@ beforeEach(() => {
   );
   spies.getContactSubmissionStore.mockReturnValue(A_STORE);
   spies.createMailSender.mockReturnValue(MAIL_ENVIRONMENT_MARKER);
-  spies.makeContactJudge.mockReturnValue({ which: "a judge" });
+  spies.everyRequest.mockResolvedValue(undefined);
+  spies.makeContactJudge.mockReturnValue({
+    which: "a judge",
+    everyRequest: spies.everyRequest,
+  });
   spies.parsePriceBook.mockImplementation((declared: unknown) => ({
     ok: true,
     book: declared,
@@ -348,25 +350,29 @@ describe("the route parses nothing and asks no judgement", () => {
     },
   );
 
-  it("never asks a judgement itself: the judge is made only when the orchestration asks for one", async () => {
+  it("asks the every-request judgement once, before the price book is read, and hands the orchestration a judge that does not ask it again", async () => {
     await POST(contactRequest("{}"));
 
-    expect(spies.makeContactJudge).not.toHaveBeenCalled();
+    expect(spies.makeContactJudge).toHaveBeenCalledTimes(1);
+    expect(spies.everyRequest).toHaveBeenCalledTimes(1);
+    expect(spies.everyRequest.mock.invocationCallOrder[0]).toBeLessThan(
+      spies.parsePriceBook.mock.invocationCallOrder[0] ?? Infinity,
+    );
+    const judge = handedPorts().makeJudge(new Date(0));
+    expect(await judge.everyRequest()).toBeUndefined();
+    expect(spies.everyRequest).toHaveBeenCalledTimes(1);
     expect(await recordedHits(() => POST(contactRequest("{}")))).toBe(0);
   });
 
-  it("makes the judge of the request's headers, the process's environment and the instant asked for", async () => {
+  it("makes the judge of the request's headers and the process's environment", async () => {
     const request = contactRequest("{}", { "x-forwarded-for": "192.0.2.9" });
     await POST(request);
-    const instant = new Date("2026-07-15T12:20:00Z");
-
-    handedPorts().makeJudge(instant);
 
     expect(spies.makeContactJudge).toHaveBeenCalledTimes(1);
     expect(spies.makeContactJudge).toHaveBeenCalledWith({
       environment: process.env,
       headers: request.headers,
-      instant,
+      instant: expect.any(Date) as unknown,
     });
   });
 });
@@ -412,12 +418,15 @@ describe("the production ports, each made inside the request", () => {
     await POST(contactRequest("{}"));
 
     expect(spies.parsePriceBook).toHaveBeenCalledTimes(1);
-    expect(spies.parsePriceBook).toHaveBeenCalledWith(SAMPLE_PRICE_BOOK);
+    expect(spies.parsePriceBook).toHaveBeenCalledWith({
+      ...SAMPLE_PRICE_BOOK,
+      version: expect.any(String) as unknown,
+    });
     const parsed = spies.parsePriceBook.mock.results[0]?.value as {
       readonly book: unknown;
     };
     expect(handedPorts().book).toBe(parsed.book);
-    expect(handedPorts().book.version).toBe(SAMPLE_PRICE_BOOK_VERSION);
+    expect(handedPorts().book.version).toBe(handedPorts().bookVersionId);
     expect(handedPorts().bookVersionId).toEqual(expect.any(String));
   });
 

@@ -552,6 +552,20 @@ describe("a stored request: its tries, never a new request's buckets", () => {
     expect(afterThePublish.sender.sent).toHaveLength(0);
   });
 
+  it("stores the version a fresh send was priced under, which is the version id when the book's version is stamped with it", async () => {
+    const harness = aHarness({
+      book: { ...SAMPLE_PRICE_BOOK, version: "version-id-9" },
+      bookVersionId: "version-id-9",
+    });
+
+    await harness.submit(bodyOf());
+
+    const [stored] = harness.store.heldSubmissions();
+    expect(stored?.submission.snapshot?.priced.pricingVersion).toBe(
+      "version-id-9",
+    );
+  });
+
   it("does not digest the book's authored version text: the same version id with other text in the book is the same request", async () => {
     const harness = aHarness({
       outcomes: [{ ok: false, kind: "busy" }],

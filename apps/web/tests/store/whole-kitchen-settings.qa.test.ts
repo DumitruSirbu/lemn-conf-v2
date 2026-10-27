@@ -23,6 +23,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 const storeState = vi.hoisted(() => ({ current: undefined as unknown }));
 
@@ -62,7 +63,7 @@ function readFromHook<T>(useHook: () => T): T {
     seen = useHook();
     return null;
   }
-  renderToStaticMarkup(createElement(Probe));
+  renderToStaticMarkup(underSamplePriceBook(createElement(Probe)));
   if (seen === undefined) throw new Error("the hook produced nothing");
   return seen;
 }

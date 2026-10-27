@@ -1,11 +1,9 @@
-import {
-  KITCHEN_L_DESIGN,
-  SAMPLE_PRICE_BOOK_VERSION,
-} from "@lemnaria/configurator-domain";
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { FakeContactSubmissionStore } from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
@@ -100,13 +98,15 @@ describe("a request through the route", () => {
     expect(sender.sent[0]?.subject).toContain(reference);
   });
 
-  it("stores a design's request priced under the one book this build ships", async () => {
+  it("stores a design's request priced under the active version, recording the id of that version", async () => {
+    const active = await readActivePriceBook();
     const answer = await post(bodyOf());
 
     expect(answer.status).toBe(200);
     const [held] = store.heldSubmissions();
+    expect(active.kind).toBe("active");
     expect(held?.submission.snapshot?.priced.pricingVersion).toBe(
-      SAMPLE_PRICE_BOOK_VERSION,
+      active.kind === "active" ? active.versionId : undefined,
     );
     expect(held?.submission.target).toMatchObject({
       kind: "design",

@@ -5,6 +5,7 @@ import type {
   SentMarkStore,
 } from "@lemnaria/persistence";
 import { createTranslator, type IntlError } from "next-intl";
+import type { NextResponse } from "next/server";
 
 import { resolveContent, type Content } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
@@ -12,7 +13,10 @@ import roMessages from "@/messages/ro.json";
 import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import { getContactSubmissionStore } from "@/lib/server/contact/contact-submission-store-instance";
-import { makeContactJudge } from "@/lib/server/contact/judge-contact-request";
+import {
+  makeContactJudge,
+  type ContactJudge,
+} from "@/lib/server/contact/judge-contact-request";
 import { getSentMarkStore } from "@/lib/server/contact/sent-mark-store-instance";
 import type { SubmitContactPorts } from "@/lib/server/contact/submit-contact";
 import { readDigester } from "@/lib/server/digest/digest-secret";
@@ -51,6 +55,35 @@ export async function makeContactProductionPorts(
     readPublicOrigin: () => readPublicOrigin(process.env),
     sentKitchenViews: sentKitchenViewsOnFirstUse(),
   };
+}
+
+/** A request judged before anything of the price store is read: refused by the every-request bucket, or given its ports. */
+export type AdmittedContactRequest =
+  | { readonly kind: "limited"; readonly answer: NextResponse }
+  | { readonly kind: "ports"; readonly ports: SubmitContactPorts };
+
+/**
+ * ADR 0157 decision 1: every request is judged first. The every-request bucket is asked before the price store is read,
+ * so a request the limiter refuses costs the store nothing and is answered as the limiter's, whatever state the store is
+ * in. The ports are made only for an admitted request, and the judge they hand the orchestration is the one already
+ * asked: its every-request judgement is not asked (and counted) a second time, while its other two are.
+ */
+export async function admitContactRequest(
+  headers: HeaderReader,
+): Promise<AdmittedContactRequest> {
+  const judge = makeContactJudge({
+    environment: process.env,
+    headers,
+    instant: new Date(),
+  });
+  const limited = await judge.everyRequest();
+  if (limited !== undefined) return { kind: "limited", answer: limited };
+  const ports = await makeContactProductionPorts(headers);
+  const admitted: ContactJudge = {
+    ...judge,
+    everyRequest: () => Promise.resolve(undefined),
+  };
+  return { kind: "ports", ports: { ...ports, makeJudge: () => admitted } };
 }
 
 /**
