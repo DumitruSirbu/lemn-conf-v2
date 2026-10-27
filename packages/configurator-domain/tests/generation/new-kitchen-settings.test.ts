@@ -24,6 +24,7 @@ import {
   PALETTE_ENTRY_IDS,
   paletteFinish,
   replayGenerationLog,
+  setCabinetDepth,
   stampedSettingsOf,
   validateDesignForCatalog,
   validateRoomInput,
@@ -427,7 +428,12 @@ describe("a stamped depth is the depth the kitchen is planned, built and probed 
 
   it("builds the 700 mm kitchen deeper than the 600 mm one, on every wall it fills", () => {
     const deepestRecordedColumnMm = (design: Design) =>
-      Math.max(...(design.emptyColumns ?? []).map((column) => column.depthMm));
+      Math.max(
+        ...[
+          ...(design.emptyColumns ?? []),
+          ...(design.columnExtents ?? []),
+        ].map((column) => column.depthMm),
+      );
 
     for (const room of ROOMS) {
       const shallow = generated(room).design;
@@ -563,5 +569,89 @@ describe("changing the defaults never changes a kitchen that already exists (H2-
     );
 
     expect(reloaded.settings).toStrictEqual({ cabinetDepthMm: 600 });
+  });
+});
+
+describe("a shell stamped at 700 mm is the shell `setCabinetDepth` makes from the 600 mm one, nothing excluded", () => {
+  const shellOf = (
+    room: DesignRoom,
+    newKitchenSettings?: NewKitchenSettings,
+  ) => {
+    const input = {
+      room,
+      occurredAt: OCCURRED_AT,
+      ...(newKitchenSettings === undefined ? {} : { newKitchenSettings }),
+    };
+    if (room.shape === "linear") return buildLinearShellDesign(input);
+    return room.shape === "L"
+      ? buildLShellDesign(input)
+      : buildUShellDesign(input);
+  };
+
+  /** The free ground per wall, row, ceiling and clearance, as merged [start, end) spans: every recorded column counts. */
+  const freeGroundOf = (design: Design) => {
+    const spansByKey = new Map<string, [number, number][]>();
+    for (const column of design.emptyColumns ?? []) {
+      const key = `${column.wall}|${String(column.y0Mm)}-${String(column.topMm)}|${String(column.depthMm)}`;
+      const half = column.widthMm / 2;
+      spansByKey.set(key, [
+        ...(spansByKey.get(key) ?? []),
+        [column.alongMm - half, column.alongMm + half],
+      ]);
+    }
+    return [...spansByKey.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, spans]) => {
+        const merged: [number, number][] = [];
+        for (const [start, end] of [...spans].sort((a, b) => a[0] - b[0])) {
+          const last = merged[merged.length - 1];
+          if (last !== undefined && start <= last[1]) {
+            last[1] = Math.max(last[1], end);
+          } else merged.push([start, end]);
+        }
+        return [key, merged];
+      });
+  };
+
+  const structuralPiecesOf = (design: Design) =>
+    design.placements
+      .map(({ id, wall, alongMm, y0Mm, body }) => ({
+        id,
+        wall,
+        alongMm,
+        y0Mm,
+        buildId: body.buildId,
+        widthMm: body.widthMm,
+        heightMm: body.heightMm,
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+
+  it("has the same structural pieces and the same free ground, with no corner strip left out, in L and U rooms", () => {
+    const rooms = approvedRoomsOnASweep().filter(
+      (room) => room.shape !== "linear",
+    );
+    const compared: Record<string, number> = { L: 0, U: 0 };
+    for (const room of rooms) {
+      const moved = setCabinetDepth({
+        design: shellOf(room),
+        catalogAt: buildKitchenLBodyCatalog,
+        cabinetDepthMm: 700,
+        probeAt: createFakeProbeFactory(),
+        occurredAt: OCCURRED_AT,
+      });
+      if (!moved.ok) continue;
+      const native = shellOf(room, { cabinetDepthMm: 700 });
+
+      expect(structuralPiecesOf(native), JSON.stringify(room)).toEqual(
+        structuralPiecesOf(moved.design),
+      );
+      expect(freeGroundOf(native), JSON.stringify(room)).toEqual(
+        freeGroundOf(moved.design),
+      );
+      compared[room.shape] = (compared[room.shape] ?? 0) + 1;
+    }
+
+    expect(compared["L"]).toBeGreaterThan(20);
+    expect(compared["U"]).toBeGreaterThan(20);
   });
 });

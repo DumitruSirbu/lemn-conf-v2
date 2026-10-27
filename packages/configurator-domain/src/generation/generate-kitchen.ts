@@ -26,7 +26,6 @@ import { reconcileSuccessfulCommandResult } from "../commands/reconcile-command-
 import type { RejectionReason } from "../commands/rejection.js";
 import { insertBody } from "../commands/insert-body.js";
 import { setWidth } from "../commands/set-width.js";
-import { buildKitchenLBodyCatalog } from "../fixtures/kitchen-l-design.js";
 import { TOP_ROW_Y0_MM } from "../push-to-open.js";
 import {
   GENERATION_PRIORITIES,
@@ -43,23 +42,25 @@ import {
   isAFreeEndFill,
   withTheFreeEndsFilled,
   type FreeEndFillRule,
+  type FreeRunMm,
 } from "./free-end-fill.js";
 import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
 import {
   copyOfNewKitchenSettings,
-  newKitchenDepthMmOf,
+  stampedSettingsOf,
   type NewKitchenSettings,
+  type StampedKitchenSettings,
 } from "./new-kitchen-settings.js";
 import type {
   TwoWallDispatch,
-  UGenerationRun,
   UKitchenCompositionPlan,
   UPlannedGenerationBase,
 } from "./run-layout.js";
 import {
-  buildLinearShellDesign,
-  buildLShellDesign,
-  buildUShellDesign,
+  buildLinearShellDesignStamped,
+  buildLShellDesignStamped,
+  buildUShellDesignStamped,
+  catalogAtCabinetDepth,
   linearShellFloorRuns,
   lShellFloorRuns,
   uShellFloorRuns,
@@ -143,8 +144,8 @@ export type GenerationStep =
 export interface GenerationLog {
   /** The shell and commands share this timestamp, making the log replayable on its own. */
   readonly occurredAt: string;
-  /** The defaults the shell was stamped with, so the log replays on its own at the same depth. Absent when the
-   *  request named none, and then the key is absent too: a log without defaults is what it always was. */
+  /** A copy of the request's defaults, so the log replays on its own at the same depth. Absent, not undefined, when
+   *  the request named none. */
   readonly newKitchenSettings?: NewKitchenSettings;
   readonly plan: GenerationPlan;
   readonly steps: readonly GenerationStep[];
@@ -166,8 +167,8 @@ export interface GenerateKitchenInput {
   readonly room: Design["room"];
   readonly occurredAt: string;
   readonly probeAt: BodyProbeFactory;
-  /** The dashboard's new-kitchen defaults, stamped explicitly into the design's settings (M10 A-9). Absent for a
-   *  caller with none supplied: the reference kitchen's settings, as ever. */
+  /** The new-kitchen defaults, stamped explicitly into the design's settings. Without them the settings are the
+   *  reference kitchen's. */
   readonly newKitchenSettings?: NewKitchenSettings | undefined;
 }
 
@@ -193,7 +194,7 @@ const OVEN_BEARING_BUILD_IDS: ReadonlySet<string> = new Set([
 /** A straight room's one wall is handed over beside an empty, zero-capacity wall B, so
  *  `planKitchenComposition` never branches on the shape: zero capacity cuts the reading order at 0
  *  (ADR 0137 decision 7). */
-function shellRunsFor(
+function twoWallRunsOf(
   room: Design["room"],
   cabinetDepthMm: number,
 ): Readonly<Record<TwoWallDispatch, GenerationRun>> {
@@ -206,33 +207,63 @@ function shellRunsFor(
   return lShellFloorRuns(room, cabinetDepthMm);
 }
 
+/** Every wall's free run the plan is composed against, at the depth the kitchen stands at: a U's three walls or the
+ *  other shapes' two. The one dispatch by shape. */
+function runsOf(
+  room: Design["room"],
+  cabinetDepthMm: number,
+): FreeEndFillRule["runs"] {
+  return room.shape === "U"
+    ? uShellFloorRuns(room, cabinetDepthMm)
+    : twoWallRunsOf(room, cabinetDepthMm);
+}
+
 /** The shell dispatch by room shape, kept to one place. */
 function buildShellFor(args: {
   readonly room: Design["room"];
   readonly occurredAt: string;
   readonly plan: GenerationPlan;
-  readonly newKitchenSettings: NewKitchenSettings | undefined;
+  readonly settings: StampedKitchenSettings;
 }): Design {
-  const { room, occurredAt, plan, newKitchenSettings } = args;
-  if (isUKitchenPlan(plan)) return buildUShellFor(args, plan);
+  const { room, occurredAt, plan, settings } = args;
   const plannedBoundariesMm = plannedBoundariesOf(plan);
+  if (isUKitchenPlan(plan)) {
+    return buildUShellDesignStamped(
+      {
+        room,
+        occurredAt,
+        compositionPlan: {
+          floorWidthsMm: plan.floorWidthsMm,
+          plannedBoundariesMm,
+        },
+      },
+      settings,
+    );
+  }
   if (room.shape === "linear") {
-    return buildLinearShellDesign({
+    return buildLinearShellDesignStamped(
+      {
+        room,
+        occurredAt,
+        compositionPlan: {
+          floorWidthsMm: plan.floorWidthsMm.A,
+          plannedBoundariesMm,
+        },
+      },
+      settings,
+    );
+  }
+  return buildLShellDesignStamped(
+    {
       room,
       occurredAt,
-      newKitchenSettings,
       compositionPlan: {
-        floorWidthsMm: plan.floorWidthsMm.A,
+        floorWidthsMm: plan.floorWidthsMm,
         plannedBoundariesMm,
       },
-    });
-  }
-  return buildLShellDesign({
-    room,
-    occurredAt,
-    newKitchenSettings,
-    compositionPlan: { floorWidthsMm: plan.floorWidthsMm, plannedBoundariesMm },
-  });
+    },
+    settings,
+  );
 }
 
 /** Whether `plan` is a U's three-wall plan, and so may carry bases on wall C. */
@@ -240,26 +271,6 @@ export function isUKitchenPlan(
   plan: GenerationPlan,
 ): plan is UKitchenCompositionPlan {
   return plan.room.shape === "U";
-}
-
-function buildUShellFor(
-  args: {
-    readonly room: Design["room"];
-    readonly occurredAt: string;
-    readonly newKitchenSettings: NewKitchenSettings | undefined;
-  },
-  plan: UKitchenCompositionPlan,
-): Design {
-  const { room, occurredAt, newKitchenSettings } = args;
-  return buildUShellDesign({
-    room,
-    occurredAt,
-    newKitchenSettings,
-    compositionPlan: {
-      floorWidthsMm: plan.floorWidthsMm,
-      plannedBoundariesMm: plannedBoundariesOf(plan),
-    },
-  });
 }
 
 /** Composes one deterministic kitchen — an L, a straight run (ADR 0130) or a U — through the editor's own
@@ -270,17 +281,19 @@ function buildUShellFor(
 export function generateKitchen(
   input: GenerateKitchenInput,
 ): GenerateKitchenResult {
-  const planningDepthMm = newKitchenDepthMmOf(input.newKitchenSettings);
-  const catalog = buildKitchenLBodyCatalog(planningDepthMm);
-  const plan = planComposition(input.room, { catalog, planningDepthMm });
+  const settings = stampedSettingsOf(input.newKitchenSettings);
+  const catalog = catalogAtCabinetDepth(settings.cabinetDepthMm);
+  const plan = planComposition(input.room, {
+    catalog,
+    cabinetDepthMm: settings.cabinetDepthMm,
+  });
   const shell = buildShellFor({
     room: input.room,
     occurredAt: input.occurredAt,
     plan,
-    newKitchenSettings: input.newKitchenSettings,
+    settings,
   });
-  refuseAnUnplannedShellDepth(shell, planningDepthMm);
-  const lease = input.probeAt(cabinetDepthMmOf(shell));
+  const lease = input.probeAt(settings.cabinetDepthMm);
 
   return lease.use((probe) => compose({ shell, catalog, plan, probe, input }));
 }
@@ -289,41 +302,27 @@ export function generateKitchen(
  *  the last step of the plan, after every absorb, so it reads only the remainder they leave. */
 function planComposition(
   room: Design["room"],
-  planning: {
-    readonly catalog: BodyCatalog;
-    readonly planningDepthMm: number;
-  },
+  at: { readonly catalog: BodyCatalog; readonly cabinetDepthMm: number },
 ): GenerationPlan {
-  const { catalog, planningDepthMm } = planning;
+  const { catalog, cabinetDepthMm } = at;
   const columns = declaredColumnSizes(catalog);
-  const runs = freeRunsOf(room, planningDepthMm);
   const composed =
     room.shape === "U"
       ? planUKitchenComposition({
           room,
-          runs: uShellFloorRuns(room, planningDepthMm),
+          runs: uShellFloorRuns(room, cabinetDepthMm),
           columns,
         })
       : planKitchenComposition({
           room,
-          runs: shellRunsFor(room, planningDepthMm),
+          runs: twoWallRunsOf(room, cabinetDepthMm),
           columns,
         });
   return withTheFreeEndsFilled(composed, {
     ...declaredFreeEndFill(catalog),
-    runs,
+    runs: runsOf(room, cabinetDepthMm),
     countedIds: countedBodyIdsOf(composed),
   });
-}
-
-/** Every wall's free run the plan was composed against, at the depth the kitchen is planned and stamped at. */
-function freeRunsOf(
-  room: Design["room"],
-  cabinetDepthMm: number,
-): FreeEndFillRule["runs"] {
-  return room.shape === "U"
-    ? uShellFloorRuns(room, cabinetDepthMm)
-    : shellRunsFor(room, cabinetDepthMm);
 }
 
 /** The two bodies a filled column carries, a base cabinet under a wall cabinet (and the top cabinet is the
@@ -410,16 +409,6 @@ function declaredHeightMm(catalog: BodyCatalog, buildId: string): number {
     throw new Error(`generateKitchen: ${buildId} declares no height`);
   }
   return heightMm;
-}
-
-function refuseAnUnplannedShellDepth(
-  shell: Design,
-  planningDepthMm: number,
-): void {
-  if (cabinetDepthMmOf(shell) === planningDepthMm) return;
-  throw new Error(
-    `generateKitchen: the shell stands at ${String(cabinetDepthMmOf(shell))} mm, which is not the ${String(planningDepthMm)} mm its plan read the catalogue at`,
-  );
 }
 
 function compose(args: {
@@ -1001,14 +990,14 @@ function isFreeEndBody(
 
 /** The floor run `wall` of `design`'s room was planned against, at the depth the design stands at: a U's three, or
  *  the L's and the straight room's two. Wall C exists in a U alone. */
-function floorRunOf(design: Design, wall: DesignWall): UGenerationRun {
-  const { room } = design;
-  const cabinetDepthMm = cabinetDepthMmOf(design);
-  if (room.shape === "U") return uShellFloorRuns(room, cabinetDepthMm)[wall];
-  if (wall === "C") {
-    throw new Error(`generateKitchen: a ${room.shape} room has no wall C`);
+function floorRunOf(design: Design, wall: DesignWall): FreeRunMm {
+  const run = runsOf(design.room, cabinetDepthMmOf(design))[wall];
+  if (run === undefined) {
+    throw new Error(
+      `generateKitchen: a ${design.room.shape} room has no wall ${wall}`,
+    );
   }
-  return shellRunsFor(room, cabinetDepthMm)[wall];
+  return run;
 }
 
 function placementById(design: Design, id: string): DesignPlacement {
@@ -1099,14 +1088,15 @@ export function replayGenerationLog(input: {
   readonly log: GenerationLog;
   readonly probeAt: BodyProbeFactory;
 }): Design {
+  const settings = stampedSettingsOf(input.log.newKitchenSettings);
   const shell = buildShellFor({
     room: input.log.plan.room,
     occurredAt: input.log.occurredAt,
     plan: input.log.plan,
-    newKitchenSettings: input.log.newKitchenSettings,
+    settings,
   });
-  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(shell));
-  const lease = input.probeAt(cabinetDepthMmOf(shell));
+  const catalog = catalogAtCabinetDepth(settings.cabinetDepthMm);
+  const lease = input.probeAt(settings.cabinetDepthMm);
   return lease.use((probe) =>
     inTheEditorsCanonicalForm(
       input.log.commands.reduce(

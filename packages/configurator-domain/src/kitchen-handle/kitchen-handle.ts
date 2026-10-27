@@ -3,6 +3,7 @@
 // The top row never follows the kitchen's `handle`; it follows the kitchen's `topRowHandle`, else `TOP_ROW_HANDLE`.
 // Lane H rulings: docs/milestones/M10-price-dashboard.md.
 import type { DesignSettings, Handle } from "../design.js";
+import { pickDefined } from "../pick-defined.js";
 
 export const DEFAULT_HANDLE: Handle = "steel";
 
@@ -19,12 +20,7 @@ export type KitchenHandleSettings = Pick<
 export function kitchenHandleSettingsOf(
   settings: DesignSettings | undefined,
 ): KitchenHandleSettings {
-  return {
-    ...(settings?.handle === undefined ? {} : { handle: settings.handle }),
-    ...(settings?.topRowHandle === undefined
-      ? {}
-      : { topRowHandle: settings.topRowHandle }),
-  };
+  return pickDefined(settings, ["handle", "topRowHandle"]);
 }
 
 /** A legacy `null` own handle is no choice: absent. Applied where a document becomes a record or a display entry, so

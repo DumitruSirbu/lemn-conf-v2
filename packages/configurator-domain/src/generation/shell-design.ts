@@ -1,6 +1,6 @@
 // The design generation starts from (ADR 0110 decision 1, Amendment B): the entered room, the
-// reference kitchen's settings and depth (or the new-kitchen defaults the caller stamps, M10 A-9), the structural corner pieces that fit under the ceiling, and
-// every free run of each wall recorded as empty space. Authored for its room, never derived by
+// reference kitchen's settings and depth (or the new-kitchen defaults the caller stamps), the structural
+// corner pieces that fit under the ceiling, and every free run of each wall recorded as empty space. Authored for its room, never derived by
 // removing from the reference kitchen, which would carry its column boundaries and depth sources into
 // rooms where none stood (Amendment B1). Each run is cut by `splitEmptySpanAtCap` at composition's width
 // limit (`COMPOSITION_WIDTH_LIMIT_MM`) with its depth read off a neutral declared source
@@ -65,6 +65,7 @@ import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
 import {
   stampedSettingsOf,
   type NewKitchenSettings,
+  type StampedKitchenSettings,
 } from "./new-kitchen-settings.js";
 import { isBackWallBaseOnly } from "./run-layout.js";
 
@@ -101,8 +102,18 @@ export class LinearShellInputError extends Error {
 /** The shell for a straight `input.room` (ADR 0130 decision 4): no structural placement, and wall A's one
  *  free run recorded the same way an L's runs are. The tiling primitives are shared with the L. */
 export function buildLinearShellDesign(input: LinearShellDesignInput): Design {
+  return buildLinearShellDesignStamped(
+    input,
+    stampedSettingsOf(input.newKitchenSettings),
+  );
+}
+
+/** `buildLinearShellDesign` for a caller that has already stamped its settings, so they are judged once. */
+export function buildLinearShellDesignStamped(
+  input: LinearShellDesignInput,
+  settings: StampedKitchenSettings,
+): Design {
   refuseUnbuildableLinearInput(input);
-  const settings = stampedSettingsOf(input.newKitchenSettings);
   const shell: Design = {
     room: input.room,
     presetId: null,
@@ -228,18 +239,18 @@ const CATALOGS_BY_DEPTH_MM: ReadonlyMap<number, BodyCatalog> = new Map(
   ]),
 );
 
-/** The catalogue a shell is derived against: its clearances are functions of the depth it stands at. */
-function shellCatalogAt(cabinetDepthMm: number): BodyCatalog {
+/** The catalogue of a declared cabinet depth, built once: the shell and the composition that fills it read the one. */
+export function catalogAtCabinetDepth(cabinetDepthMm: number): BodyCatalog {
   const catalog = CATALOGS_BY_DEPTH_MM.get(cabinetDepthMm);
   if (catalog === undefined) {
     throw new Error(
-      `buildLShellDesign: no catalogue is built for a ${String(cabinetDepthMm)} mm shell`,
+      `shell-design: no catalogue is built for a ${String(cabinetDepthMm)} mm cabinet depth`,
     );
   }
   return catalog;
 }
 
-const REFERENCE_CATALOG = shellCatalogAt(REFERENCE_CABINET_DEPTH_MM);
+const REFERENCE_CATALOG = catalogAtCabinetDepth(REFERENCE_CABINET_DEPTH_MM);
 
 /** One wall of a shell's room, at the depth the shell stands at: what every run and corner reading is made from. */
 interface ShellWall {
@@ -304,8 +315,18 @@ const MODULE_GRID_TOP_MM = wholeMillimetresOf(
 /** The shell for `input.room`: the corner that fits under its ceiling and every free run recorded,
  *  canonicalised as a load followed by a save would write it. */
 export function buildLShellDesign(input: LShellDesignInput): Design {
+  return buildLShellDesignStamped(
+    input,
+    stampedSettingsOf(input.newKitchenSettings),
+  );
+}
+
+/** `buildLShellDesign` for a caller that has already stamped its settings, so they are judged once. */
+export function buildLShellDesignStamped(
+  input: LShellDesignInput,
+  settings: StampedKitchenSettings,
+): Design {
   refuseUnbuildableInput(input);
-  const settings = stampedSettingsOf(input.newKitchenSettings);
   const corner: Design = {
     room: input.room,
     presetId: null,
@@ -406,9 +427,9 @@ function cornerPiecesUnder(
   });
 }
 
-/** One wall's free runs: the floor run from the corner's far edge to the planned end, and — where
- *  nothing structural stands above the corner's base — the wall-only run over it. That is wall A on a
- *  base-only back wall (a large U) alone: elsewhere the corner wall unit stands there. */
+/** One wall's free runs: the floor run from the corner's far edge to the planned end, and the wall-only run over
+ *  the corner's base, which holds tiles only where no wall unit stands there: wall A on a base-only back wall
+ *  (a large U). Elsewhere it starts where the floor run does and records nothing. */
 function freeRunTiles(
   on: ShellWall & { readonly wall: LWall },
   compositionPlan: LShellCompositionPlan | undefined,
@@ -494,16 +515,16 @@ function floorRunStartMm(on: ShellWall): number {
   return cornerReachMm(on, CORNER_BANDS);
 }
 
-/** The wall and top rows start past the structural pieces that reach above the wall row's floor on
- *  that wall: past the corner wall unit on wall A, and at the corner itself on a base-only back wall,
- *  where no unit stands and the run over the corner's base is tiled. */
+/** The wall and top rows start past the whole corner assembly, like the floor run, and at the corner itself on a
+ *  base-only back wall, where no wall unit stands and the run over the corner's base is tiled.
+ *
+ *  Past the whole assembly, not past the wall-row pieces alone: the base corner reaches further than they do at a deeper
+ *  cabinet depth, and the sliver between the two fits no body (DEVELOPMENT-SPEC §4 rule 3). */
 function wallRowStartMm(on: ShellWall): number {
   // Reverting this start reddens corner-wall-unit.test.ts's approved L 900 × 1000, odd-width U and
   // stored-design tests (by mutation); an ordinary room is unchanged by it.
   const bands =
-    on.wall === "A" && isBackWallBaseOnly(on.room)
-      ? NO_BANDS
-      : BANDS_ABOVE_THE_WALL_ROW_FLOOR;
+    on.wall === "A" && isBackWallBaseOnly(on.room) ? NO_BANDS : CORNER_BANDS;
   return cornerReachMm(on, bands);
 }
 
@@ -631,8 +652,18 @@ export class UShellInputError extends Error {
  *  for wall C against the right corner's synthetic room, relabelled; wall A is new because both
  *  corners share it. */
 export function buildUShellDesign(input: UShellDesignInput): Design {
+  return buildUShellDesignStamped(
+    input,
+    stampedSettingsOf(input.newKitchenSettings),
+  );
+}
+
+/** `buildUShellDesign` for a caller that has already stamped its settings, so they are judged once. */
+export function buildUShellDesignStamped(
+  input: UShellDesignInput,
+  settings: StampedKitchenSettings,
+): Design {
   refuseUnbuildableUInput(input);
-  const settings = stampedSettingsOf(input.newKitchenSettings);
   const { cabinetDepthMm } = settings;
   const shell: Design = {
     room: input.room,
@@ -980,7 +1011,7 @@ function tileDepthMm(run: TileRun): number {
 }
 
 function sourceDefinition(run: TileRun): BodyDefinition {
-  const definition = shellCatalogAt(run.cabinetDepthMm).get(run.source);
+  const definition = catalogAtCabinetDepth(run.cabinetDepthMm).get(run.source);
   if (!definition) {
     throw new Error(`buildLShellDesign: the catalogue holds no ${run.source}`);
   }
@@ -998,7 +1029,7 @@ function canonicalised(
 ): Design {
   const records = derivePlacementRecords(
     design,
-    shellCatalogAt(cabinetDepthMmOf(design)),
+    catalogAtCabinetDepth(cabinetDepthMmOf(design)),
   );
   return withFrozenMap(
     design,

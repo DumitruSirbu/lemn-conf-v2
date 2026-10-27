@@ -1,6 +1,6 @@
-// What a new kitchen is stamped with: the dashboard's new-kitchen defaults, written into the design's own `settings`
-// when generation creates it. A saved kitchen never reads them again, and a document that names no tier keeps the
-// fixed pricing fallback. No request is the old behaviour exactly: the reference kitchen's settings and nothing else.
+// The settings a new kitchen is created with: the dashboard's new-kitchen defaults, written into the design's own
+// `settings`. A saved kitchen never reads them again, and a document that names no tier keeps the fixed pricing
+// fallback. With no request the settings are the reference kitchen's and nothing else (ADR 0111).
 import {
   cabinetDepthMmOf,
   DesignSettingsSchema,
@@ -13,17 +13,26 @@ import {
   materialOffersFinish,
   type Finish,
 } from "../materials.js";
+import { pickDefined } from "../pick-defined.js";
 
-/** The six defaults the dashboard stores. Every key is optional: a key left out is stamped as nothing, and the
- *  reader's own fallback decides (ADR 0099 decision 10), except the depth, which a current design must carry. */
+/** The six settings a new kitchen is stamped with, in the schema's order: the one list the type, the key check and
+ *  the stamp are all read from. */
+const NEW_KITCHEN_KEYS = [
+  "materialTierId",
+  "hardwareTierId",
+  "cabinetDepthMm",
+  "finish",
+  "handle",
+  "topRowHandle",
+] as const;
+
+const KNOWN_KEYS: ReadonlySet<string> = new Set(NEW_KITCHEN_KEYS);
+
+/** Every key is optional: a key left out is stamped as nothing and the reader's own fallback decides (ADR 0099
+ *  decision 10), except the depth, which a current design must carry. */
 export type NewKitchenSettings = Pick<
   DesignSettings,
-  | "materialTierId"
-  | "hardwareTierId"
-  | "cabinetDepthMm"
-  | "finish"
-  | "handle"
-  | "topRowHandle"
+  (typeof NEW_KITCHEN_KEYS)[number]
 >;
 
 /** The container a new design is written with: always carries its depth. */
@@ -32,8 +41,8 @@ export type StampedKitchenSettings = DesignSettings & {
 };
 
 /** A request that is not the settings container a design may hold: a depth nobody manufactures, a colour that is
- *  not a `Finish`, an id the schema refuses. A programming error at this seam, as the shell builders' input errors
- *  are: the caller judged the defaults before it saved them. */
+ *  not a `Finish`, an id the schema refuses, a `null` or a key this request does not define. A programming error at
+ *  this seam, as the shell builders' input errors are: the caller judged the defaults before it saved them. */
 export class NewKitchenSettingsError extends Error {
   readonly refusal = "NEW_KITCHEN_SETTINGS_NOT_STORABLE";
 
@@ -45,23 +54,12 @@ export class NewKitchenSettingsError extends Error {
 
 const REFERENCE_DEPTH_MM = cabinetDepthMmOf(KITCHEN_L_DESIGN);
 
-const REQUEST_KEYS: ReadonlySet<string> = new Set([
-  "materialTierId",
-  "hardwareTierId",
-  "cabinetDepthMm",
-  "finish",
-  "handle",
-  "topRowHandle",
-]);
-
 /**
- * The `settings` of a new design.
+ * The `settings` of a new design, judged once and copied from the request.
  *
- * - No request: the reference kitchen's settings (its depth and nothing else), so the output is what it always was.
- * - A request: its defined keys, in the schema's order, over the reference depth. A colour the stamped material
- *   does not offer becomes that material's default colour (ADR 0057 decision 2, ADR 0071's Amendment of
- *   2026-09-04), through the same offer query and the same lookup `setMaterialTier` resets by. An absent material
- *   is PAL, as everywhere (`materialOfDesign`); an undeclared one makes no offer of its own and resets nothing.
+ * With a request: its defined keys over the reference depth. A colour the stamped material does not offer becomes
+ * that material's default colour (ADR 0057 decision 2, ADR 0071), by the same offer query `setMaterialTier` resets by.
+ * An absent material is PAL, as everywhere; an undeclared one makes no offer of its own and resets nothing.
  */
 export function stampedSettingsOf(
   request: NewKitchenSettings | undefined,
@@ -82,30 +80,19 @@ export function copyOfNewKitchenSettings(
     : { ...request, finish: { ...finish } };
 }
 
-/** The depth a request asks for, which the plan, the catalogue and the probe are all read at. */
-export function newKitchenDepthMmOf(
-  request: NewKitchenSettings | undefined,
-): number {
-  return stampedSettingsOf(request).cabinetDepthMm;
-}
-
-/** The request's keys in the schema's order, over the reference depth, with the colour the caller has settled. */
+/** The request's defined keys in the schema's order, with the depth settled and the colour the caller has settled. */
 function containerOf(
   request: NewKitchenSettings,
   finish: Finish | undefined,
 ): StampedKitchenSettings {
-  return {
-    ...definedKey("materialTierId", request.materialTierId),
-    ...definedKey("hardwareTierId", request.hardwareTierId),
-    cabinetDepthMm: depthOf(request),
-    ...definedKey("finish", finish),
-    ...definedKey("handle", request.handle),
-    ...definedKey("topRowHandle", request.topRowHandle),
-  };
+  const cabinetDepthMm = depthOf(request);
+  const present = { ...request, cabinetDepthMm, finish };
+  // The depth is in `present`, so the override keeps its place in the schema's order and settles its type.
+  return { ...pickDefined(present, NEW_KITCHEN_KEYS), cabinetDepthMm };
 }
 
-/** Only an absent depth falls back: a `null` is a value the schema refuses, never the reference depth. Read as
- *  `unknown` because the type admits no `null`, which a caller outside the type system can still send. */
+/** Only an absent depth falls back: a `null` is a value the schema refuses, never the reference depth. The cast is
+ *  sound only for a request `refuseARequestNoDesignMayHold` has passed, and the one other call is that check itself. */
 function depthOf(request: NewKitchenSettings): number {
   const requested: unknown = request.cabinetDepthMm;
   return requested === undefined ? REFERENCE_DEPTH_MM : (requested as number);
@@ -118,7 +105,7 @@ function refuseARequestNoDesignMayHold(request: NewKitchenSettings): void {
   const isAnObject = typeof given === "object" && given !== null;
   if (
     !isAnObject ||
-    !Object.keys(request).every((key) => REQUEST_KEYS.has(key)) ||
+    !Object.keys(request).every((key) => KNOWN_KEYS.has(key)) ||
     !DesignSettingsSchema.safeParse(containerOf(request, request.finish))
       .success
   ) {
@@ -136,13 +123,4 @@ function finishTheMaterialOffers(
   return materialOffersFinish(lookup.material, finish)
     ? { ...finish }
     : { ...lookup.material.defaultFinish };
-}
-
-function definedKey<Key extends keyof DesignSettings>(
-  key: Key,
-  value: DesignSettings[Key] | undefined,
-): Partial<Pick<DesignSettings, Key>> {
-  return value === undefined
-    ? {}
-    : ({ [key]: value } as Pick<DesignSettings, Key>);
 }
