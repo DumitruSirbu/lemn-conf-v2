@@ -672,7 +672,7 @@ describe("a write and its audit row are one thing", () => {
     await nothingWasWritten(before);
   });
 
-  it("answers 409 candidate-refused, not a 400, when a change already stored no longer applies, and writes nothing", async () => {
+  it("accepts a change that adds no refusal while a change already stored no longer applies, and writes its one row", async () => {
     const { cookie } = await administrator();
     const revision = await currentDraftRevision();
     vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
@@ -694,9 +694,8 @@ describe("a write and its audit row are one thing", () => {
       value: 20,
     });
 
-    expect(answer.status).toBe(409);
-    expect(await jsonOf(answer)).toEqual({ status: "candidate-refused" });
-    expect(draftRows()).toEqual([]);
+    expect(answer.status).toBe(200);
+    expect(draftRows()).toHaveLength(1);
   });
 });
 
@@ -1211,5 +1210,177 @@ describe("DELETE with scope all: discarding the draft", () => {
     expect(answer.status).toBe(503);
     expect((await storedDraft()).changes).toHaveLength(1);
     expect(draftRows()).toHaveLength(1);
+  });
+});
+
+describe("a stored draft that is not a list at all", () => {
+  it.each([
+    ["null", null],
+    ["an object", {}],
+    ["a number", 5],
+    ["text", "STORED-JUNK-4471"],
+  ])(
+    "is %s: unreadable, never a thrown error, so the read answers 409 and a discard-all recovers it",
+    async (_title, stored) => {
+      const { cookie } = await administrator();
+      const revision = await currentDraftRevision();
+      vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
+        draftRevision: revision,
+        changes: stored as unknown as unknown[],
+      });
+
+      const read = await readState({ cookie });
+      const discarded = await revertDraft({
+        cookie,
+        json: { expectedDraftRevision: revision, scope: "all" },
+      });
+
+      expect(read.status).toBe(409);
+      expect(await jsonOf(read)).toEqual({
+        status: "draft-unreadable",
+        draftRevision: revision,
+      });
+      expect(discarded.status).toBe(200);
+      expect(draftRows().map((row) => row.detail)).toEqual([
+        { changeKind: "discard-all", revertedCount: 0 },
+      ]);
+      expect(console_.everything()).not.toContain("STORED-JUNK-4471");
+    },
+  );
+});
+
+describe("a draft holding changes that no longer apply heals one revert at a time", () => {
+  const STALE_RULE = {
+    address: { kind: "cabinet", ruleId: "cabinet.gone", field: "anchorMinor" },
+    value: 5_000,
+  };
+  const STALE_TIER = {
+    address: {
+      kind: "hardware",
+      tierId: "hardware.gone",
+      field: "perHingeMinor",
+    },
+    value: 1_000,
+  };
+  const VALID = { address: { kind: "depth-rule" }, value: 20 };
+
+  function holdStale(revision: string) {
+    vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
+      draftRevision: revision,
+      changes: [STALE_RULE, VALID, STALE_TIER],
+    });
+    return vi.spyOn(prices.stores.priceBook, "writeDraft");
+  }
+
+  it.each([
+    ["the first stale change", STALE_RULE, [VALID, STALE_TIER]],
+    ["the second stale change", STALE_TIER, [STALE_RULE, VALID]],
+  ])(
+    "accepts the revert of %s while the other stays, because it adds no refusal",
+    async (_title, reverted, remaining) => {
+      const { cookie } = await administrator();
+      const revision = await currentDraftRevision();
+      const write = holdStale(revision);
+
+      const answer = await revertDraft({
+        cookie,
+        json: {
+          expectedDraftRevision: revision,
+          target: { kind: "change", address: reverted.address },
+        },
+      });
+
+      expect(answer.status).toBe(200);
+      expect(write).toHaveBeenCalledTimes(1);
+      expect((await jsonOf(answer)) as { changes: unknown[] }).toMatchObject({
+        changes: remaining,
+      });
+    },
+  );
+
+  it("accepts the revert of a valid change while both stale ones stay", async () => {
+    const { cookie } = await administrator();
+    const revision = await currentDraftRevision();
+    holdStale(revision);
+
+    const answer = await revertDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: revision,
+        target: { kind: "change", address: VALID.address },
+      },
+    });
+
+    expect(answer.status).toBe(200);
+    expect(await jsonOf(answer)).toMatchObject({
+      changes: [STALE_RULE, STALE_TIER],
+    });
+  });
+
+  it("accepts a change elsewhere, which adds no refusal, and refuses a change that is itself refused with a 400", async () => {
+    const { cookie } = await administrator();
+    const revision = await currentDraftRevision();
+    holdStale(revision);
+
+    const refusedNew = await putChange(
+      cookie,
+      { address: ANCHOR_ADDRESS, value: -1 },
+      revision,
+    );
+    const accepted = await putChange(
+      cookie,
+      { address: { kind: "depth-rule" }, value: 30 },
+      revision,
+    );
+
+    expect(refusedNew.status).toBe(400);
+    expect(await jsonOf(refusedNew)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "change", code: "NEGATIVE" }],
+    });
+    expect(accepted.status).toBe(200);
+  });
+
+  it("still refuses a bulk action over such a draft, which has no candidate to scale", async () => {
+    const { cookie } = await administrator();
+    const revision = await currentDraftRevision();
+    holdStale(revision);
+
+    const answer = await bulkDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: revision,
+        target: { scope: "all" },
+        percent: 5,
+      },
+    });
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "candidate-refused" });
+  });
+});
+
+describe("the draft is read before the active version", () => {
+  it("so that a publish between the two reads is caught by the revision a write names, never judged against a book the draft was not read for", async () => {
+    const { cookie } = await administrator();
+    const order: string[] = [];
+    const realDraft = prices.stores.priceBook.readDraft.bind(
+      prices.stores.priceBook,
+    );
+    const realActive = prices.stores.priceBook.readActive.bind(
+      prices.stores.priceBook,
+    );
+    vi.spyOn(prices.stores.priceBook, "readDraft").mockImplementation(() => {
+      order.push("draft");
+      return realDraft();
+    });
+    vi.spyOn(prices.stores.priceBook, "readActive").mockImplementation(() => {
+      order.push("active");
+      return realActive();
+    });
+
+    await readState({ cookie });
+
+    expect(order.slice(0, 2)).toEqual(["draft", "active"]);
   });
 });

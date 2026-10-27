@@ -1,11 +1,14 @@
 import {
-  MAX_IDENTIFIER_LENGTH,
   readBulk,
   type DraftBulk,
   type DraftChange,
 } from "@lemnaria/configurator-domain";
 
 import { readAppliedAddress } from "@/lib/server/price-dashboard/draft-address";
+import {
+  isIdentifier,
+  isPlainRecord,
+} from "@/lib/server/price-dashboard/identifier-shape";
 
 // A stored draft is jsonb: it was written by this build, but the database is not part of its type system, so every change
 // is rebuilt member by member before anything judges or serves it. A change that is not exactly what a draft holds makes the
@@ -15,11 +18,11 @@ export type StoredDraftReading =
   | { readonly ok: true; readonly changes: readonly DraftChange[] }
   | { readonly ok: false };
 
-export function readStoredDraft(
-  stored: readonly unknown[],
-): StoredDraftReading {
+/** `stored` is whatever the store answered: a draft that is not a list at all is unreadable, never a thrown error. */
+export function readStoredDraft(stored: unknown): StoredDraftReading {
+  if (!Array.isArray(stored)) return { ok: false };
   const changes: DraftChange[] = [];
-  for (const declared of stored) {
+  for (const declared of stored as readonly unknown[]) {
     const change = readStoredChange(declared);
     if (change === undefined) return { ok: false };
     changes.push(change);
@@ -28,8 +31,8 @@ export function readStoredDraft(
 }
 
 function readStoredChange(declared: unknown): DraftChange | undefined {
-  if (typeof declared !== "object" || declared === null) return undefined;
-  const members = declared as Readonly<Record<string, unknown>>;
+  if (!isPlainRecord(declared)) return undefined;
+  const members = declared;
   const address = readAppliedAddress(members.address);
   const value = members.value;
   if (address.kind !== "address" || !isStoredValue(value)) return undefined;
@@ -55,11 +58,7 @@ function readGrouping(
   const declaredBulk = members.bulk;
   if (groupId === undefined && declaredBulk === undefined) return {};
   const bulk = readBulk(declaredBulk);
-  const isGroupIdUsable =
-    typeof groupId === "string" &&
-    groupId !== "" &&
-    groupId.length <= MAX_IDENTIFIER_LENGTH;
-  if (!isGroupIdUsable || bulk === undefined) return undefined;
+  if (!isIdentifier(groupId) || bulk === undefined) return undefined;
   return { groupId, bulk: copiedBulk(bulk) };
 }
 

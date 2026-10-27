@@ -45,11 +45,13 @@ class DashboardStateUnreadableError extends Error {
 export async function readDashboardState(
   stores: PriceStores,
 ): Promise<DashboardStateReading> {
+  // The draft is read first: a publish advances its revision, so a version newer than the draft read here is caught by the
+  // revision the write names, and never by a book the draft was not judged against (the `PriceBookStore` contract).
+  const stored = await readRawDraft(stores);
   const active = await stores.priceBook.readActive();
   if (active.kind !== "found") return { kind: "no-active-version" };
   const book = readBookOf(active.version);
   if (book === undefined) throw new DashboardStateUnreadableError("book");
-  const stored = await readRawDraft(stores);
   const reading = readStoredDraft(stored.changes);
   if (!reading.ok) {
     return { kind: "draft-unreadable", draftRevision: stored.draftRevision };

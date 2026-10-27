@@ -31,8 +31,10 @@ import {
   draftWireOf,
 } from "@/lib/server/price-dashboard/dashboard-responses";
 import type { ActiveDashboardState } from "@/lib/server/price-dashboard/dashboard-state";
-import type { BulkPlanner } from "@/lib/server/price-dashboard/bulk-planner";
-import { readAppliedAddress } from "@/lib/server/price-dashboard/draft-address";
+import type {
+  BulkPlanner,
+  PlannedCabinetPrice,
+} from "@/lib/server/price-dashboard/bulk-planner";
 import { judgeDraft } from "@/lib/server/price-dashboard/draft-judgement";
 import type {
   BulkRequest,
@@ -78,7 +80,12 @@ export function planChange(
     (stored) => !isSameAddress(stored.address, address),
   );
   const changes = [...kept, { address, value } as DraftChange];
-  const judgement = judgeDraft(book, changes, kept.length);
+  const judgement = judgeDraft({
+    book,
+    changes,
+    firstNewIndex: kept.length,
+    stored: draft.changes,
+  });
   switch (judgement.kind) {
     case "candidate-refused":
       return candidateRefused();
@@ -111,11 +118,12 @@ export function planRevert(
       ? removalOfChange(draft.changes, target.address)
       : removalOfGroup(draft.changes, target.groupId);
   if (removal.kind === "nothing-to-remove") return refused(removal.response);
-  const judgement = judgeDraft(
+  const judgement = judgeDraft({
     book,
-    removal.remaining,
-    removal.remaining.length,
-  );
+    changes: removal.remaining,
+    firstNewIndex: removal.remaining.length,
+    stored: draft.changes,
+  });
   if (judgement.kind !== "applies") return candidateRefused();
   return {
     kind: "write",
@@ -214,7 +222,7 @@ function fieldOfEmptyTarget(
 }
 
 /** A price as the candidate holds it: what a scaled amount that equals it leaves unchanged (A-14, ruling R2-Q7). */
-function currentValueOf(book: PriceBook, address: unknown): unknown {
+function currentValueOf(book: PriceBook, address: AppliedAddress): unknown {
   return readEditableFields(book).find((reading) =>
     isSameAddress(reading.address, address),
   )?.value;
@@ -237,20 +245,16 @@ interface MintedGroup {
 /** Each planned price becomes a change of one new group, every one carrying the same `bulk` as it was asked. */
 function mintedGroup(
   { target, percent }: BulkRequest,
-  planned: readonly { readonly address: unknown; readonly value: number }[],
+  planned: readonly PlannedCabinetPrice[],
 ): MintedGroup {
   const groupId = randomUUID();
   const bulk: DraftBulk =
     target.scope === "group"
       ? { percent, scope: "group", groupCode: target.groupCode }
       : { percent, scope: target.scope };
-  const changes = planned.map(({ address, value }) => {
-    const reading = readAppliedAddress(address);
-    if (reading.kind !== "address") {
-      throw new Error("The bulk planner named an address no draft can hold.");
-    }
-    return { address: reading.address, value, groupId, bulk } as DraftChange;
-  });
+  const changes = planned.map(
+    ({ address, value }) => ({ address, value, groupId, bulk }) as DraftChange,
+  );
   return { changes, bulk };
 }
 
@@ -264,7 +268,7 @@ function writeBulk(
       !minted.some((change) => isSameAddress(stored.address, change.address)),
   );
   const changes = [...kept, ...minted];
-  const judgement = judgeDraft(book, changes, kept.length);
+  const judgement = judgeDraft({ book, changes, firstNewIndex: kept.length });
   if (judgement.kind === "candidate-refused") return candidateRefused();
   if (judgement.kind === "refused-new-change") {
     return refused(refusalOfPlannedPrice(judgement.code));

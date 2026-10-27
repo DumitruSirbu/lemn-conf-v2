@@ -1,9 +1,10 @@
 import type {
-  BookFieldAddressKind,
   BulkChangeScope,
   ChangeItemKind,
   KitchenDefaultsField,
   PriceCatalogueSection,
+  PriceDraftChangedDetail,
+  PriceDraftRevertedDetail,
   PriceGroupCode,
 } from "@lemnaria/configurator-domain";
 
@@ -17,11 +18,10 @@ function assertNever(value: never): never {
   throw new Error(`Unhandled audit detail code: ${JSON.stringify(value)}`);
 }
 
-/** What a revert of a whole bulk action, or of the whole draft, is called: the domain's own words, which no address kind has. */
+/** Every kind of change an audit detail can name, as the domain's two details declare them: a new one has no words until written. */
 export type ChangeKindCode =
-  | BookFieldAddressKind
-  | "bulk-group"
-  | "discard-all";
+  | PriceDraftChangedDetail["changeKind"]
+  | PriceDraftRevertedDetail["changeKind"];
 
 export function resolveDashboardAuditDetailCopy(translate: ContentTranslator) {
   return {

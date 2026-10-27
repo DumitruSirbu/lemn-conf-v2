@@ -1,5 +1,4 @@
 import {
-  MAX_IDENTIFIER_LENGTH,
   PRICE_GROUP_CODES,
   type AppliedAddress,
   type PriceGroupCode,
@@ -7,6 +6,10 @@ import {
 
 import { parseJsonObject } from "@/lib/server/account/account-request";
 import { readAppliedAddress } from "@/lib/server/price-dashboard/draft-address";
+import {
+  isIdentifier,
+  isPlainRecord,
+} from "@/lib/server/price-dashboard/identifier-shape";
 import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
 import type {
   BulkRefusalCode,
@@ -77,7 +80,7 @@ function readChangeMembers(
   Pick<DraftChangeRequest, "address" | "value">,
   DraftChangeRefusalCode
 > {
-  if (!isMembers(declared)) return refusedWith("change", "MISSING_VALUE");
+  if (!isPlainRecord(declared)) return refusedWith("change", "MISSING_VALUE");
   if (hasMemberOutside(declared, ["address", "value"])) return MALFORMED;
   return withAddress(declared.address, (address) =>
     accepted({ address, value: ownMember(declared, "value") }),
@@ -146,7 +149,7 @@ function readDiscard(
 function readRevertTarget(
   declared: unknown,
 ): RequestReading<RevertTarget, DraftChangeRefusalCode> {
-  if (!isMembers(declared)) return refusedWith("target", "MISSING_VALUE");
+  if (!isPlainRecord(declared)) return refusedWith("target", "MISSING_VALUE");
   const kind = declared.kind;
   if (kind === "change") {
     if (hasMemberOutside(declared, ["kind", "address"])) return MALFORMED;
@@ -175,7 +178,7 @@ export type BulkTarget =
 export interface BulkRequest {
   readonly expectedDraftRevision: string;
   readonly target: BulkTarget;
-  /** A safe integer, never `-0`: the one form every later step (the stored `bulk`, the audit detail) can hold. */
+  /** A non-zero safe integer: the one form every later step (the stored `bulk`, the audit detail) can hold. */
   readonly percent: number;
 }
 
@@ -202,9 +205,8 @@ export function readBulkRequest(
 }
 
 /**
- * A whole, non-zero percentage as a safe integer. `-0` (`JSON.parse("-0")` yields it, as does `Math.round(-0.4)`) is
- * normalised to 0 first, and 0 % is refused (ruling R2-Q7): it would write a group of changes that change nothing. The
- * bulk action's own bounds are judged by whoever scales the amounts.
+ * A whole, non-zero percentage as a safe integer. 0 % is refused (ruling R2-Q7): it would write a group of changes that
+ * change nothing. The bulk action's own bounds are judged by whoever scales the amounts.
  */
 function readPercent(
   declared: unknown,
@@ -218,16 +220,16 @@ function readPercent(
   if (!Number.isSafeInteger(declared)) {
     return refusedWith("percent", "PERCENT_OUT_OF_RANGE");
   }
-  const percent = declared === 0 ? 0 : declared;
-  return percent === 0
+  // `-0 === 0`, so a percentage that rounds to `-0` is refused with 0 % and can never be stored or audited as a reduction.
+  return declared === 0
     ? refusedWith("percent", "PERCENT_OUT_OF_RANGE")
-    : accepted(percent);
+    : accepted(declared);
 }
 
 function readBulkTarget(
   declared: unknown,
 ): RequestReading<BulkTarget, BulkRefusalCode> {
-  if (!isMembers(declared)) return refusedWith("scope", "MISSING_VALUE");
+  if (!isPlainRecord(declared)) return refusedWith("scope", "MISSING_VALUE");
   switch (declared.scope) {
     case "all":
       return hasMemberOutside(declared, ["scope"])
@@ -289,24 +291,8 @@ function hasMemberOutside(
   return Object.keys(members).some((member) => !allowed.includes(member));
 }
 
-function isMembers(declared: unknown): declared is Members {
-  return (
-    typeof declared === "object" &&
-    declared !== null &&
-    !Array.isArray(declared)
-  );
-}
-
 function ownMember(members: Members, name: string): unknown {
   return Object.hasOwn(members, name) ? members[name] : undefined;
-}
-
-function isIdentifier(declared: unknown): declared is string {
-  return (
-    typeof declared === "string" &&
-    declared !== "" &&
-    declared.length <= MAX_IDENTIFIER_LENGTH
-  );
 }
 
 /** The revision is opaque: it is checked for its shape as text and compared for equality, and never parsed. */

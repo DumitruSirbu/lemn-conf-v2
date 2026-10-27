@@ -217,7 +217,7 @@ export const STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE = 60;
  * PROVISIONAL: how many times one administrator may read the price dashboard's state in an hour, and how many draft
  * writes (a change, a revert, a bulk action) the same account may make. Each read is audited and serves the whole active
  * book, so it **fails closed** like the audit page; 300 matches it. A person editing prices makes a write per field, so
- * 600 an hour is one every 6 seconds. The owner's answer changes these constants and no code; see ADR 0173.
+ * 600 an hour is one every 6 seconds. The owner's answer changes these constants and no code; see ADR 0178 (the M10 record, ruling R2-Q5).
  */
 export const STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE = 300;
 export const STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE = 600;

@@ -243,6 +243,11 @@ export type PublishPriceBookResult =
  * meets the uniqueness of the sequence and is `changed-meanwhile`; a stale `expectedAvailabilityRevision` is
  * `availability-changed-meanwhile`.
  *
+ * **Any change to the active version advances the draft's revision**, in the same transaction (a publish resets the draft
+ * to a revision it has never held). A reader that reads the draft first and the active version second can therefore never
+ * hold a newer version together with the older draft revision it was read at: a write that names that revision is refused
+ * as `changed-meanwhile`. The dashboard's routes read in that order and depend on this.
+ *
  * The store does not return `item-is-default` or a used deletion: the domain judges both **before** the call, against
  * defaults and usage read at `expectedAvailabilityRevision`, which the compare-and-set keeps current (M5).
  */

@@ -1,10 +1,14 @@
 import {
   BOOK_FIELD_ADDRESS_KINDS,
-  MAX_IDENTIFIER_LENGTH,
   type AppliedAddress,
   type AppliedAddressKind,
   type BookFieldAddress,
 } from "@lemnaria/configurator-domain";
+
+import {
+  isIdentifier,
+  isPlainRecord,
+} from "@/lib/server/price-dashboard/identifier-shape";
 
 // An address read from outside TypeScript, a request's or a stored draft's: rebuilt member by member from the members its
 // kind names, so nothing a crafted body adds ever reaches the draft's jsonb. Only the kinds `applyChanges` applies are read;
@@ -55,15 +59,7 @@ function isMemberOfRightType(name: string, member: unknown): boolean {
   if (NUMBER_MEMBERS.includes(name)) {
     return typeof member === "number" && Number.isFinite(member);
   }
-  return (
-    typeof member === "string" &&
-    member !== "" &&
-    member.length <= MAX_IDENTIFIER_LENGTH
-  );
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return isIdentifier(member);
 }
 
 function isAddressKind(kind: unknown): kind is BookFieldAddress["kind"] {

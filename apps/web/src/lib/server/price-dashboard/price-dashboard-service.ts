@@ -37,6 +37,7 @@ import {
   readDashboardState,
   readRawDraft,
   type ActiveDashboardState,
+  type DashboardStateReading,
 } from "@/lib/server/price-dashboard/dashboard-state";
 import {
   planBulk,
@@ -118,17 +119,8 @@ export async function readDashboardForStaff({
 async function serveState(cookies: SessionCookieReader): Promise<NextResponse> {
   const stores = await getPriceStores();
   const reading = await readDashboardState(stores);
-  if (reading.kind === "no-active-version") {
-    return refused(
-      PRICE_READ_EVENT,
-      dashboardConflictResponse("no-active-version"),
-    );
-  }
-  if (reading.kind === "draft-unreadable") {
-    return refused(
-      PRICE_READ_EVENT,
-      draftUnreadableResponse(reading.draftRevision),
-    );
+  if (reading.kind !== "ready") {
+    return refusalOfUnreadyState(PRICE_READ_EVENT, reading);
   }
   const availability = await readDashboardAvailability(stores);
   const response = dashboardStateResponse(
@@ -258,17 +250,8 @@ async function performPlanned<
 ): Promise<NextResponse> {
   const stores = await getPriceStores();
   const reading = await readDashboardState(stores);
-  if (reading.kind === "no-active-version") {
-    return refused(
-      PRICE_DRAFT_EVENT,
-      dashboardConflictResponse("no-active-version"),
-    );
-  }
-  if (reading.kind === "draft-unreadable") {
-    return refused(
-      PRICE_DRAFT_EVENT,
-      draftUnreadableResponse(reading.draftRevision),
-    );
+  if (reading.kind !== "ready") {
+    return refusalOfUnreadyState(PRICE_DRAFT_EVENT, reading);
   }
   if (reading.state.draft.draftRevision !== input.expectedDraftRevision) {
     return refused(
@@ -337,6 +320,19 @@ async function writeDraft(
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The answers
+
+/** What a read or a write answers when there is no book to judge against, or the draft cannot be read: both are states of the data. */
+function refusalOfUnreadyState(
+  event: AccountEvent,
+  reading: Exclude<DashboardStateReading, { readonly kind: "ready" }>,
+): NextResponse {
+  return refused(
+    event,
+    reading.kind === "no-active-version"
+      ? dashboardConflictResponse("no-active-version")
+      : draftUnreadableResponse(reading.draftRevision),
+  );
+}
 
 function answerOfRefusal(refusal: RequestRefusal<string>): NextResponse {
   return refusal.kind === "malformed"
