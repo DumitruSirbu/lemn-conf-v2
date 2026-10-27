@@ -81,6 +81,7 @@ const PURPOSE_RECORD: Record<PolicyPurpose, true> = {
   "staff-note-by-account": true,
   "staff-status-by-account": true,
   "staff-unhide-by-account": true,
+  "staff-seen-by-account": true,
 };
 const EVERY_PURPOSE = Object.keys(PURPOSE_RECORD) as PolicyPurpose[];
 const FLAGGED: NetworkEnvironment = { [E2E_RATE_LIMIT_POLICY_FLAG]: "1" };

@@ -20,6 +20,7 @@ export const ACCOUNT_EVENTS = [
   "staff-note",
   "staff-status",
   "staff-unhide",
+  "staff-seen",
   "kitchen-rename",
   "kitchen-duplicate",
   "kitchen-hide",

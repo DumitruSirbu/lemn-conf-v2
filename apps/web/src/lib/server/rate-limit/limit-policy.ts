@@ -213,6 +213,12 @@ export const STAFF_AUDIT_PAGE_PER_ACCOUNT_HOUR_FIGURE = 300;
 export const STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE = 120;
 export const STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE = 120;
 export const STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE = 60;
+/**
+ * PROVISIONAL: how many seen marks one staff account may write in an hour. A page marks one kitchen seen each time it
+ * opens, so the figure equals the opening bucket's (600), and like every account write it **fails closed**. The owner's
+ * answer changes this constant and no code; see ADR 0178 A-12.
+ */
+export const STAFF_SEEN_PER_ACCOUNT_HOUR_FIGURE = 600;
 /** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
  *  ADR 0147's intent). */
 export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
@@ -537,6 +543,11 @@ export const STAFF_UNHIDE_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_SEEN_BY_ACCOUNT_POLICY = policyOf("staff-seen-by-account", {
+  figure: STAFF_SEEN_PER_ACCOUNT_HOUR_FIGURE,
+  window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+});
+
 export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
   "account-export-by-account",
   {
@@ -610,7 +621,8 @@ export type PolicyPurpose =
   | "staff-audit-page-by-account"
   | "staff-note-by-account"
   | "staff-status-by-account"
-  | "staff-unhide-by-account";
+  | "staff-unhide-by-account"
+  | "staff-seen-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -723,6 +735,7 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "staff-note-by-account": sameInProduction(STAFF_NOTE_BY_ACCOUNT_POLICY),
   "staff-status-by-account": sameInProduction(STAFF_STATUS_BY_ACCOUNT_POLICY),
   "staff-unhide-by-account": sameInProduction(STAFF_UNHIDE_BY_ACCOUNT_POLICY),
+  "staff-seen-by-account": sameInProduction(STAFF_SEEN_BY_ACCOUNT_POLICY),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */

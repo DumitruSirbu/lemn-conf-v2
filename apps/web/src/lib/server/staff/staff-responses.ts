@@ -45,6 +45,9 @@ import type {
   StaffListedKitchenWire,
   StaffNoteAddedWire,
   StaffPersonWire,
+  StaffSeenConflictWire,
+  StaffSeenInvalidWire,
+  StaffSeenRefusalCode,
   StaffStatusSavedWire,
   StaffThumbnailDesign,
   StaffWriteConflict,
@@ -132,6 +135,29 @@ export function staffUnhiddenResponse(): NextResponse {
   });
 }
 
+/** `400` of a seen mark: the code for the displayed revision. Never the value that was refused. */
+export function staffSeenInvalidResponse(
+  code: StaffSeenRefusalCode,
+): NextResponse {
+  const body: StaffSeenInvalidWire = {
+    status: "invalid-input",
+    issues: [{ field: "displayedRevision", code }],
+  };
+  return jsonResponse(body, 400);
+}
+
+/** `200`: the mark is stored, or an equal or later one already was. It carries no member: whether the kitchen still
+ *  shows as changed is for SQL to say, and the mark's store answers only that it was admitted. */
+export function staffSeenMarkedResponse(): NextResponse {
+  return jsonResponse({}, 200);
+}
+
+/** `409`: the page claims to have shown a revision ahead of the kitchen's own. Nothing was written. */
+export function staffSeenConflictResponse(): NextResponse {
+  const body: StaffSeenConflictWire = { status: "displayed-revision-ahead" };
+  return jsonResponse(body, 409);
+}
+
 /** `200`: one page of the staff kitchens list. Built before the audit row is written and sent only after it commits. */
 export function staffKitchenListResponse(page: StaffKitchenPage): NextResponse {
   return jsonResponse(staffKitchenListWireOf(page), 200);
@@ -159,7 +185,10 @@ type StaffWireBody =
   | StaffStatusSavedWire
   | StaffConflictWire
   | StaffKitchenListWire
-  | StaffKitchenWire;
+  | StaffKitchenWire
+  | StaffSeenInvalidWire
+  | StaffSeenConflictWire
+  | Readonly<Record<string, never>>;
 
 function jsonResponse(body: StaffWireBody, status: number): NextResponse {
   return NextResponse.json(body, {

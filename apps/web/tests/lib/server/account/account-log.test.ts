@@ -45,6 +45,7 @@ describe("the lists", () => {
       "staff-note",
       "staff-status",
       "staff-unhide",
+      "staff-seen",
       "kitchen-rename",
       "kitchen-duplicate",
       "kitchen-hide",

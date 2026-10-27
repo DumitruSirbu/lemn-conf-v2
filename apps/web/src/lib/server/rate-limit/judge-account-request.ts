@@ -77,7 +77,8 @@ export type AccountKeyedPurpose =
   | "staff-audit-page"
   | "staff-note"
   | "staff-status"
-  | "staff-unhide";
+  | "staff-unhide"
+  | "staff-seen";
 
 /**
  * What the subject stage is judged from, keyed by purpose so that the text a purpose counts cannot be left out: an
@@ -202,6 +203,7 @@ const SUBJECT_PLAN_OF_PURPOSE: Readonly<
     event: "staff-unhide",
     buckets: ["staff-unhide-by-account"],
   },
+  "staff-seen": { event: "staff-seen", buckets: ["staff-seen-by-account"] },
 };
 
 const UNJUDGED: WriteJudgement = Object.freeze({

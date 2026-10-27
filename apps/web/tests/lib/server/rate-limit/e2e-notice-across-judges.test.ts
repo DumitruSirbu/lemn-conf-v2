@@ -66,6 +66,7 @@ async function freshJudges() {
     "staff-note-by-account": () => Promise.resolve(undefined),
     "staff-status-by-account": () => Promise.resolve(undefined),
     "staff-unhide-by-account": () => Promise.resolve(undefined),
+    "staff-seen-by-account": () => Promise.resolve(undefined),
   };
   return askers;
 }
