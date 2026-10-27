@@ -46,6 +46,7 @@ import {
 } from "./free-end-fill.js";
 import { COMPOSITION_WIDTH_LIMIT_MM } from "./leftover-rule.js";
 import {
+  copyOfNewKitchenSettings,
   newKitchenDepthMmOf,
   type NewKitchenSettings,
 } from "./new-kitchen-settings.js";
@@ -649,7 +650,11 @@ function logOf(
     occurredAt: input.occurredAt,
     ...(input.newKitchenSettings === undefined
       ? {}
-      : { newKitchenSettings: input.newKitchenSettings }),
+      : {
+          newKitchenSettings: copyOfNewKitchenSettings(
+            input.newKitchenSettings,
+          ),
+        }),
     plan,
     steps,
     commands,

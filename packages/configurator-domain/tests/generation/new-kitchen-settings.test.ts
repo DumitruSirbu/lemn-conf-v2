@@ -245,6 +245,24 @@ describe("a request that names the defaults has them stamped explicitly (H2-a)",
     }
   });
 
+  it("shares no object with the caller: editing the request afterwards changes neither the design nor the replay", () => {
+    const request = { ...FULL_DEFAULTS, finish: freeColourFinish("#336699") };
+    const result = generated(L_ROOM, request);
+    const designBefore = canonicalSerializeDesign(result.design);
+
+    (request.finish as { value: string }).value = "#000000";
+
+    expect(result.design.settings?.finish).toEqual(freeColourFinish("#336699"));
+    expect(
+      canonicalSerializeDesign(
+        replayGenerationLog({
+          log: result.log,
+          probeAt: createFakeProbeFactory(),
+        }),
+      ),
+    ).toBe(designBefore);
+  });
+
   it("does not write the request: a frozen one stamps", () => {
     const frozen = Object.freeze({ ...FULL_DEFAULTS });
 
@@ -255,6 +273,8 @@ describe("a request that names the defaults has them stamped explicitly (H2-a)",
     const refused: NewKitchenSettings[] = [
       { cabinetDepthMm: 650 },
       { cabinetDepthMm: 0 },
+      { cabinetDepthMm: null as unknown as number },
+      { colour: "white" } as unknown as NewKitchenSettings,
       { materialTierId: "" },
       { handle: "gold" as Handle },
       { topRowHandle: null as unknown as Handle },

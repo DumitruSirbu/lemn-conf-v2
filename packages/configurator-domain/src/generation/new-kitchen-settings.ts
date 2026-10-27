@@ -45,6 +45,15 @@ export class NewKitchenSettingsError extends Error {
 
 const REFERENCE_DEPTH_MM = cabinetDepthMmOf(KITCHEN_L_DESIGN);
 
+const REQUEST_KEYS: ReadonlySet<string> = new Set([
+  "materialTierId",
+  "hardwareTierId",
+  "cabinetDepthMm",
+  "finish",
+  "handle",
+  "topRowHandle",
+]);
+
 /**
  * The `settings` of a new design.
  *
@@ -58,8 +67,19 @@ export function stampedSettingsOf(
   request: NewKitchenSettings | undefined,
 ): StampedKitchenSettings {
   if (request === undefined) return { cabinetDepthMm: REFERENCE_DEPTH_MM };
-  refuseAContainerNoDesignMayHold(containerOf(request, request.finish));
+  refuseARequestNoDesignMayHold(request);
   return containerOf(request, finishTheMaterialOffers(request));
+}
+
+/** A copy that shares nothing with the caller's request, for the log: a later edit of the request must not change
+ *  what replay stamps. */
+export function copyOfNewKitchenSettings(
+  request: NewKitchenSettings,
+): NewKitchenSettings {
+  const { finish } = request;
+  return finish === undefined
+    ? { ...request }
+    : { ...request, finish: { ...finish } };
 }
 
 /** The depth a request asks for, which the plan, the catalogue and the probe are all read at. */
@@ -77,18 +97,31 @@ function containerOf(
   return {
     ...definedKey("materialTierId", request.materialTierId),
     ...definedKey("hardwareTierId", request.hardwareTierId),
-    cabinetDepthMm: request.cabinetDepthMm ?? REFERENCE_DEPTH_MM,
+    cabinetDepthMm: depthOf(request),
     ...definedKey("finish", finish),
     ...definedKey("handle", request.handle),
     ...definedKey("topRowHandle", request.topRowHandle),
   };
 }
 
-/** Judged before the reset: a colour that is not a `Finish` at all must be refused, not healed into a default. */
-function refuseAContainerNoDesignMayHold(
-  container: StampedKitchenSettings,
-): void {
-  if (!DesignSettingsSchema.safeParse(container).success) {
+/** Only an absent depth falls back: a `null` is a value the schema refuses, never the reference depth. Read as
+ *  `unknown` because the type admits no `null`, which a caller outside the type system can still send. */
+function depthOf(request: NewKitchenSettings): number {
+  const requested: unknown = request.cabinetDepthMm;
+  return requested === undefined ? REFERENCE_DEPTH_MM : (requested as number);
+}
+
+/** Judged before the reset: a colour that is not a `Finish` at all must be refused, not healed into a default, and
+ *  so must a key this request does not define or a `null` standing where a value is optional. */
+function refuseARequestNoDesignMayHold(request: NewKitchenSettings): void {
+  const given: unknown = request;
+  const isAnObject = typeof given === "object" && given !== null;
+  if (
+    !isAnObject ||
+    !Object.keys(request).every((key) => REQUEST_KEYS.has(key)) ||
+    !DesignSettingsSchema.safeParse(containerOf(request, request.finish))
+      .success
+  ) {
     throw new NewKitchenSettingsError();
   }
 }
@@ -99,10 +132,10 @@ function finishTheMaterialOffers(
   const { finish } = request;
   if (finish === undefined) return undefined;
   const lookup = lookUpMaterial(request.materialTierId ?? DEFAULT_MATERIAL_ID);
-  if (lookup.kind === "undeclared") return finish;
+  if (lookup.kind === "undeclared") return { ...finish };
   return materialOffersFinish(lookup.material, finish)
-    ? finish
-    : lookup.material.defaultFinish;
+    ? { ...finish }
+    : { ...lookup.material.defaultFinish };
 }
 
 function definedKey<Key extends keyof DesignSettings>(
