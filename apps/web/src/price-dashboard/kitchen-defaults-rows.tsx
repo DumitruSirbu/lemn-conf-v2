@@ -1,10 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, type ReactNode } from "react";
+import { createContext, useContext, useId, type ReactNode } from "react";
 
 import {
   freeColourFinish,
+  lookUpMaterial,
   paletteFinish,
   type Finish,
   type Handle,
@@ -31,19 +32,31 @@ import type { KitchenDefaultsMember } from "./price-dashboard-wire-contract";
 // The six rows of D9, in the frame's order. Each is a labelled group of native radio buttons (the colour of an MDF kitchen,
 // a free colour, is a native colour input), so the arrow keys, the touch targets and the names come from the platform.
 
-/** What a control that is not a radio needs of its row to be tied to the row's error. */
-interface ControlField {
-  readonly isInvalid: boolean;
-  /** The id of the row's error, or empty while it has none. */
-  readonly errorId: string;
-}
-
 interface RowOption {
   readonly value: string;
   readonly label: string;
   /** The colour of the dot before the label, for the colour row. */
   readonly swatchColour?: string;
 }
+
+/** What names a row: the member it sets, its label and its hint. */
+interface RowIdentity {
+  readonly member: KitchenDefaultsMember;
+  readonly label: string;
+  readonly hint: string;
+}
+
+/** What a control that is not a radio needs of its row to be tied to the row's error. */
+interface RowErrorField {
+  readonly isInvalid: boolean;
+  /** The id of the row's error, or empty while it has none. */
+  readonly errorId: string;
+}
+
+const RowErrorFieldContext = createContext<RowErrorField>({
+  isInvalid: false,
+  errorId: "",
+});
 
 export function KitchenDefaultsRows({
   desk,
@@ -71,9 +84,11 @@ function MaterialRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
   return (
     <ChoiceRow
       desk={desk}
-      member="materialTierId"
-      label={translate("priceDashboard.defaults.frontMaterial")}
-      hint={translate("priceDashboard.defaults.frontMaterialHint")}
+      row={{
+        member: "materialTierId",
+        label: translate("priceDashboard.defaults.frontMaterial"),
+        hint: translate("priceDashboard.defaults.frontMaterialHint"),
+      }}
       options={options}
       selected={desk.draft.materialTierId}
       onChoose={desk.chooseMaterial}
@@ -90,9 +105,11 @@ function HardwareRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
   return (
     <ChoiceRow
       desk={desk}
-      member="hardwareTierId"
-      label={translate("priceDashboard.defaults.hardware")}
-      hint={translate("priceDashboard.defaults.hardwareHint")}
+      row={{
+        member: "hardwareTierId",
+        label: translate("priceDashboard.defaults.hardware"),
+        hint: translate("priceDashboard.defaults.hardwareHint"),
+      }}
       options={options}
       selected={desk.draft.hardwareTierId}
       onChoose={(tierId) => {
@@ -112,9 +129,11 @@ function DepthRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
   return (
     <ChoiceRow
       desk={desk}
-      member="cabinetDepthMm"
-      label={translate("priceDashboard.defaults.depth")}
-      hint={translate("priceDashboard.defaults.depthHint")}
+      row={{
+        member: "cabinetDepthMm",
+        label: translate("priceDashboard.defaults.depth"),
+        hint: translate("priceDashboard.defaults.depthHint"),
+      }}
       options={options}
       selected={String(desk.draft.cabinetDepthMm)}
       onChoose={(depthMm) => {
@@ -126,8 +145,9 @@ function DepthRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
 
 function ColourRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
   const translate = useTranslations();
-  const noteId = useId();
   const offer = colourOfferFor(desk.input, desk.draft.materialTierId);
+  const { colourResetFrom, draft } = desk;
+  const seed = freeColourSeedOf(draft.materialTierId);
   const options =
     offer.kind === "palette"
       ? offer.entryIds.map((entryId) => ({
@@ -135,20 +155,24 @@ function ColourRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
           label: resolveFinishName(translate, entryId),
           swatchColour: swatchOf(paletteFinish(entryId)).color,
         }))
-      : [];
+      : unsetFreeColourOptions(offer.kind, seed, draft.finish);
   const selected =
-    desk.draft.finish.kind === "palette-entry"
-      ? desk.draft.finish.entryId
-      : undefined;
+    draft.finish.kind === "palette-entry" ? draft.finish.entryId : undefined;
   return (
     <ChoiceRow
       desk={desk}
-      member="finish"
-      label={translate("priceDashboard.defaults.colour")}
-      hint={translate("priceDashboard.defaults.colourHint")}
+      row={{
+        member: "finish",
+        label: translate("priceDashboard.defaults.colour"),
+        hint: translate("priceDashboard.defaults.colourHint"),
+      }}
       options={options}
       selected={selected}
       onChoose={(value) => {
+        if (offer.kind === "free") {
+          desk.choose("finish", freeColourFinish(value));
+          return;
+        }
         const entryId =
           offer.kind === "palette"
             ? offer.entryIds.find((offered) => offered === value)
@@ -156,68 +180,74 @@ function ColourRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
         if (entryId !== undefined)
           desk.choose("finish", paletteFinish(entryId));
       }}
-      describedBy={noteId}
-      control={
-        offer.kind === "free"
-          ? (field) => <FreeColourPicker desk={desk} field={field} />
-          : undefined
+      resetNote={
+        colourResetFrom === null
+          ? null
+          : translate("priceDashboard.defaults.colourReset", {
+              unavailableColour: nameOfFinish(translate, colourResetFrom),
+              replacementColour: nameOfFinish(translate, draft.finish),
+            })
       }
-      aside={<ColourResetNote id={noteId} desk={desk} />}
-    />
+    >
+      {offer.kind === "free" && seed !== undefined ? (
+        <FreeColourPicker desk={desk} seed={seed} />
+      ) : null}
+    </ChoiceRow>
   );
+}
+
+/**
+ * A colour input always shows a colour, and choosing the one it shows fires nothing. While the kitchen holds no free colour
+ * the input shows the material's default, so that colour is offered as an option beside it and every other colour is
+ * the input's to emit.
+ */
+function unsetFreeColourOptions(
+  offerKind: "palette" | "free" | "none",
+  seed: string | undefined,
+  held: Finish,
+): readonly RowOption[] {
+  if (offerKind !== "free" || seed === undefined) return [];
+  if (held.kind === "free-colour") return [];
+  return [{ value: seed, label: seed, swatchColour: seed }];
+}
+
+function freeColourSeedOf(materialTierId: string): string | undefined {
+  const lookup = lookUpMaterial(materialTierId);
+  if (lookup.kind === "undeclared") return undefined;
+  const { defaultFinish } = lookup.material;
+  return defaultFinish.kind === "free-colour" ? defaultFinish.value : undefined;
 }
 
 function FreeColourPicker({
   desk,
-  field,
+  seed,
 }: {
   readonly desk: KitchenDefaultsDesk;
-  readonly field: ControlField;
+  /** What the input shows while the kitchen holds no free colour. */
+  readonly seed: string;
 }) {
   const translate = useTranslations();
-  const valueId = useId();
+  const readoutId = useId();
+  const field = useContext(RowErrorFieldContext);
   const { finish } = desk.draft;
-  const colour = finish.kind === "free-colour" ? finish.value : undefined;
+  const colour = finish.kind === "free-colour" ? finish.value : seed;
   return (
     <span className={styles.freeColour}>
       <input
         type="color"
         className={styles.colourInput}
         aria-label={translate("priceDashboard.defaults.colour")}
-        aria-describedby={[valueId, field.errorId].join(" ").trim()}
+        aria-describedby={[readoutId, field.errorId].join(" ").trim()}
         aria-invalid={field.isInvalid}
-        value={colour ?? "#000000"}
+        value={colour}
         onChange={(event) => {
           desk.choose("finish", freeColourFinish(event.target.value));
         }}
       />
-      <span id={valueId} className={styles.colourValue} dir="ltr">
-        {colour ?? ""}
+      <span id={readoutId} className={styles.colourValue} dir="ltr">
+        {finish.kind === "free-colour" ? finish.value : ""}
       </span>
     </span>
-  );
-}
-
-/** D9B: the colour the new material does not have, and the one that takes its place. The region stays mounted, so the
- *  sentence is announced when it arrives. */
-function ColourResetNote({
-  id,
-  desk,
-}: {
-  readonly id: string;
-  readonly desk: KitchenDefaultsDesk;
-}) {
-  const translate = useTranslations();
-  const { colourResetFrom } = desk;
-  return (
-    <p id={id} role="status" className={styles.resetNote}>
-      {colourResetFrom === null
-        ? null
-        : translate("priceDashboard.defaults.colourReset", {
-            unavailableColour: nameOfFinish(translate, colourResetFrom),
-            replacementColour: nameOfFinish(translate, desk.draft.finish),
-          })}
-    </p>
   );
 }
 
@@ -249,17 +279,19 @@ function HandleRow({
   return (
     <ChoiceRow
       desk={desk}
-      member={member}
-      label={translate(
-        isTopRow
-          ? "priceDashboard.defaults.topRow"
-          : "priceDashboard.defaults.handles",
-      )}
-      hint={translate(
-        isTopRow
-          ? "priceDashboard.defaults.topRowHint"
-          : "priceDashboard.defaults.handlesHint",
-      )}
+      row={{
+        member,
+        label: translate(
+          isTopRow
+            ? "priceDashboard.defaults.topRow"
+            : "priceDashboard.defaults.handles",
+        ),
+        hint: translate(
+          isTopRow
+            ? "priceDashboard.defaults.topRowHint"
+            : "priceDashboard.defaults.handlesHint",
+        ),
+      }}
       options={options}
       selected={desk.draft[member]}
       onChoose={(value) => {
@@ -272,41 +304,47 @@ function HandleRow({
 
 function ChoiceRow({
   desk,
-  member,
-  label,
-  hint,
+  row,
   options,
   selected,
   onChoose,
-  describedBy,
-  control,
-  aside,
+  resetNote,
+  children,
 }: {
   readonly desk: KitchenDefaultsDesk;
-  readonly member: KitchenDefaultsMember;
-  readonly label: string;
-  readonly hint: string;
+  readonly row: RowIdentity;
   readonly options: readonly RowOption[];
   readonly selected: string | undefined;
   readonly onChoose: (value: string) => void;
-  readonly describedBy?: string;
-  /** A control that stands among the options, in their group: MDF's free colour. */
-  readonly control?: ((field: ControlField) => ReactNode) | undefined;
-  /** What stands beside the group and is not one of its options. */
-  readonly aside?: ReactNode;
+  /** The sentence about a colour the last change took away, or null while there is none. Absent for a row with no such
+   *  note; where present its region stays in the page, so the sentence is announced when it arrives. */
+  readonly resetNote?: string | null;
+  /** A control among the options, inside their group. */
+  readonly children?: ReactNode;
 }) {
   const translate = useTranslations();
-  const ids = { label: useId(), hint: useId(), error: useId() };
+  const ids = { label: useId(), hint: useId(), error: useId(), note: useId() };
+  const { member } = row;
   const isModified = desk.modified.has(member);
   const hasError = desk.unoffered.has(member);
-  const description = [ids.hint, hasError ? ids.error : undefined, describedBy]
+  const hasNote = resetNote !== undefined;
+  const description = [
+    ids.hint,
+    hasError ? ids.error : undefined,
+    hasNote ? ids.note : undefined,
+  ]
     .filter((id) => id !== undefined)
     .join(" ");
+  const hasRadios = options.length > 0;
+  const field: RowErrorField = {
+    isInvalid: hasError,
+    errorId: hasError ? ids.error : "",
+  };
   return (
     <div className={styles.row} data-member={member} data-modified={isModified}>
       <div className={styles.rowHead}>
         <span id={ids.label} className={styles.rowLabel}>
-          {label}
+          {row.label}
         </span>
         {isModified ? (
           <span className={styles.modifiedChip}>
@@ -314,16 +352,16 @@ function ChoiceRow({
           </span>
         ) : null}
         <span id={ids.hint} className={styles.rowHint}>
-          {hint}
+          {row.hint}
         </span>
       </div>
       <div className={styles.rowBody}>
         <div
-          role={options.length > 0 ? "radiogroup" : "group"}
+          role={hasRadios ? "radiogroup" : "group"}
           className={styles.options}
           aria-labelledby={ids.label}
           aria-describedby={description}
-          aria-invalid={options.length > 0 ? hasError : undefined}
+          aria-invalid={hasRadios ? hasError : undefined}
         >
           {options.map((option) => (
             <OptionButton
@@ -334,12 +372,13 @@ function ChoiceRow({
               onChoose={onChoose}
             />
           ))}
-          {control?.({
-            isInvalid: hasError,
-            errorId: hasError ? ids.error : "",
-          })}
+          <RowErrorFieldContext value={field}>{children}</RowErrorFieldContext>
         </div>
-        {aside}
+        {hasNote ? (
+          <p id={ids.note} role="status" className={styles.resetNote}>
+            {resetNote}
+          </p>
+        ) : null}
         {hasError ? (
           <p id={ids.error} role="alert" className={styles.rowError}>
             {translate("priceDashboard.defaults.itemUnavailable")}

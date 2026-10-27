@@ -44,6 +44,7 @@ import {
 import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 /** The store state the component under test reads — `price-wiring.adversarial.test.ts`'s pattern,
  *  for its reason: the real component runs against a real store's real fields. */
@@ -133,13 +134,19 @@ function stateFor(design: Design): ConfiguratorState {
   }).getState();
 }
 
-describe("exactly two modules in this application name a price book, one for each runtime", () => {
-  // ADR 0062 seam 1, amended: the browser's root and the server's, each named, both naming the same book. Two roots are
-  // two substitutions, so before either names another book they become one module both read.
-  it("are the browser's composition root and the server's, and nothing else", () => {
+describe("one module reads the book and one seeds the sample, and the browser names neither", () => {
+  // ADR 0062 seam 1 as R1 closed it (backlog 176): the server parses the active version once, in one module, and hands the
+  // browser the result as a prop. Only the test-only seeding helper names the sample, so a surface that imported it would
+  // make a second answer to "what is on offer".
+  it("names the sample in the seeding helper alone, so the browser's composition root names no book", () => {
     expect(modulesNaming(/SAMPLE_PRICE_BOOK/)).toEqual([
-      "lib/server/shipped-price-book.ts",
-      "price/price-book-root.ts",
+      "lib/server/price-book-test-seed.ts",
+    ]);
+  });
+
+  it("parses a book in the active-price-book module alone", () => {
+    expect(modulesNaming(/\bparsePriceBook\b/)).toEqual([
+      "lib/server/active-price-book.ts",
     ]);
   });
 
@@ -192,7 +199,7 @@ describe("the count of bodies comes from wave 6A's projection", () => {
   it("hands the model the projection's own answer, verbatim", () => {
     handedGroups.calls = [];
     storeState.current = stateFor(KITCHEN_L_DESIGN);
-    renderToStaticMarkup(createElement(GlobalSettings));
+    renderToStaticMarkup(underSamplePriceBook(createElement(GlobalSettings)));
 
     expect(handedGroups.calls.at(-1)).toEqual(
       projectDesignForDisplay(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
@@ -209,7 +216,7 @@ describe("the count of bodies comes from wave 6A's projection", () => {
 
     handedGroups.calls = [];
     storeState.current = stateFor(wallBOnly);
-    renderToStaticMarkup(createElement(GlobalSettings));
+    renderToStaticMarkup(underSamplePriceBook(createElement(GlobalSettings)));
 
     expect(handedGroups.calls.at(-1)).toEqual(
       projectDesignForDisplay(wallBOnly, KITCHEN_L_BODY_CATALOG),

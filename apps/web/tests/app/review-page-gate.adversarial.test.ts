@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DesignPage from "../../src/app/[locale]/d/[id]/page";
 import ReviewPage from "../../src/app/[locale]/d/[id]/review/page";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 
 /**
  * The review route is a second door to a design that opens only in its owning browser (ADR 0114 decision 5). This is
@@ -282,7 +283,9 @@ describe("the owner", () => {
   it("is served the review with the stored design", async () => {
     state.cookieValue = OWNER_VALUE;
 
-    const page = await renderDoor("review", "ro", OWNED_ROW_ID);
+    const page = withoutPriceBook(
+      await renderDoor("review", "ro", OWNED_ROW_ID),
+    );
 
     if (!isValidElement<Record<string, unknown>>(page))
       throw new Error("non-element");

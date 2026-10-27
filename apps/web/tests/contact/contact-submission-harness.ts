@@ -16,6 +16,7 @@ import {
 } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 export const DESIGN_ID = "design0123456789abcde" as DesignId;
 export const FIRST_REVISION = "4";
@@ -232,12 +233,14 @@ export function mountContactForm(
   }
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        locale: "ro",
-        messages: roMessages,
-        timeZone: "Europe/Chisinau",
-        children: createElement(Probe),
-      }),
+      underSamplePriceBook(
+        createElement(NextIntlClientProvider, {
+          locale: "ro",
+          messages: roMessages,
+          timeZone: "Europe/Chisinau",
+          children: createElement(Probe),
+        }),
+      ),
     );
   });
   const current = (): ContactSubmission => {

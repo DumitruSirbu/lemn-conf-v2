@@ -1,7 +1,4 @@
-import type {
-  DraftChange,
-  PriceGroupCode,
-} from "@lemnaria/configurator-domain";
+import type { PriceGroupCode } from "@lemnaria/configurator-domain";
 
 import roMessages from "@/messages/ro.json";
 
@@ -11,6 +8,7 @@ import type {
   CabinetRuleFacts,
   CabinetWidthFacts,
 } from "./cabinet-list-model";
+import { SAMPLE_PUBLISH_PAGE } from "./publish-sample";
 
 // Invented facts for the list while nothing supplies the real ones. Every figure is made up, like `SAMPLE_PRICE_BOOK`'s,
 // and every name is the catalogue's Romanian one, read from the message file. It stands behind `readCabinetList` outside a
@@ -251,26 +249,7 @@ const SAMPLE_CABINETS: readonly SampleCabinet[] = [
 
 const RULES: readonly CabinetRuleFacts[] = SAMPLE_CABINETS.map(ruleOf);
 
-const DRAFT_CHANGES: readonly DraftChange[] = [
-  {
-    address: {
-      kind: "cabinet",
-      ruleId: "cabinet.base-cabinet",
-      field: "anchorMinor",
-    },
-    value: 150_000,
-  },
-  {
-    address: {
-      kind: "cabinet",
-      ruleId: "cabinet.base-cabinet",
-      field: "perStepWiderMinor",
-    },
-    value: 9_000,
-  },
-];
-
 export const SAMPLE_CABINET_LIST: CabinetListInput = {
   rules: RULES,
-  draft: { draftRevision: "1", changes: DRAFT_CHANGES },
+  draft: SAMPLE_PUBLISH_PAGE.state.draft,
 };

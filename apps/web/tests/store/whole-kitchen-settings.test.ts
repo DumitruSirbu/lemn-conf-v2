@@ -20,6 +20,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import {
   FINISHES_RESOLVED_BY_VENEER,
   HOOD_PLACEMENT_ID,
@@ -67,7 +68,7 @@ function readFromHook<T>(useHook: () => T): T {
     seen = useHook();
     return null;
   }
-  renderToStaticMarkup(createElement(Probe));
+  renderToStaticMarkup(underSamplePriceBook(createElement(Probe)));
   if (seen === undefined) throw new Error("the hook produced nothing");
   return seen;
 }

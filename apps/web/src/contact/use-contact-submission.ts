@@ -11,6 +11,8 @@ import {
   sentRequestFrom,
 } from "@/done/sent-request-memory";
 import type { AppLocale } from "@/i18n/routing";
+import { usePriceBookRoot } from "@/price/price-book-provider";
+import type { PriceBookRoot } from "@/price/price-book-root";
 import { usePricedDesign } from "@/price/use-priced-design";
 import { useSaveWait, type SaveWait } from "@/review/use-save-wait";
 import {
@@ -164,7 +166,7 @@ export function useContactSubmission(
   const designSaveWait = useSaveWait();
   // A request with no design names nothing the store holds, so another design's unsaved edit is no reason to hold it.
   const saveWait = target.kind === "design" ? designSaveWait : NOTHING_TO_SAVE;
-  const bookVersion = pricingVersionOf(usePricedDesign());
+  const bookVersion = pricedVersionIdOf(usePriceBookRoot(), usePricedDesign());
 
   const edit = useCallback(
     (event: ContactFormEdit) => {
@@ -317,11 +319,15 @@ function readSubmissionTarget(
     : undefined;
 }
 
-/** The version of the book the card's figure is priced under, from the same root that prices it. */
-function pricingVersionOf(
+/**
+ * The version id of the book the card's figure is priced under, from the root the page supplied; nothing when the card
+ * has no figure. The server digests the same id (ADR 0157 decision 2), so a retry after a publish is a new request.
+ */
+function pricedVersionIdOf(
+  root: PriceBookRoot,
   pricing: ReturnType<typeof usePricedDesign>,
 ): string | undefined {
-  return pricing.ok ? pricing.priced.pricingVersion : undefined;
+  return root.kind === "active" && pricing.ok ? root.versionId : undefined;
 }
 
 function refuse({ memory, show }: PressContext): void {

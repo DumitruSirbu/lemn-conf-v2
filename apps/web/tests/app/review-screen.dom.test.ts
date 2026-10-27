@@ -48,6 +48,7 @@ import { ConfiguratorSnapshotProvider } from "@/store/configurator-snapshot";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import {
   emptied,
   pastTheWall,
@@ -68,20 +69,22 @@ const STYLESHEET = readFileSync(
 function render(design: Design, locale: keyof typeof MESSAGES = "ro") {
   const container = document.createElement("div");
   container.innerHTML = renderToStaticMarkup(
-    createElement(NextIntlClientProvider, {
-      locale,
-      messages: MESSAGES[locale] as typeof roMessages,
-      timeZone: "Europe/Chisinau",
-      children: createElement(ConfiguratorSnapshotProvider, {
-        loaded: {
-          design,
-          designId: DESIGN_ID,
-          revision: "1",
-          canWrite: false,
-        },
-        children: createElement(ReviewScreen, { designId: DESIGN_ID }),
+    underSamplePriceBook(
+      createElement(NextIntlClientProvider, {
+        locale,
+        messages: MESSAGES[locale] as typeof roMessages,
+        timeZone: "Europe/Chisinau",
+        children: createElement(ConfiguratorSnapshotProvider, {
+          loaded: {
+            design,
+            designId: DESIGN_ID,
+            revision: "1",
+            canWrite: false,
+          },
+          children: createElement(ReviewScreen, { designId: DESIGN_ID }),
+        }),
       }),
-    }),
+    ),
   );
   return container;
 }

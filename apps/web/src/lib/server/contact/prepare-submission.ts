@@ -16,9 +16,15 @@ import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import type { DesignRefusal } from "@/lib/server/contact/contact-responses";
 import type { OwnedDesignLoad } from "@/lib/server/load-owned-design";
 
-/** What the design is read and priced from: the owned load, handed in, and the one book taken for the request. */
+/**
+ * What the design is read and priced from: the owned load, handed in, and the one book taken for the request, with the
+ * id of the version it was read as (`active-price-book.ts`). The id is what the request's digest covers (ADR 0157
+ * decision 2). A request that names no design prices nothing and is handed no book; a request that names one and is handed
+ * none is `no-price-book`.
+ */
 export interface SubmissionSources {
-  readonly book: PriceBook;
+  readonly book: PriceBook | undefined;
+  readonly bookVersionId: string | undefined;
   readonly loadOwned: (designId: string) => Promise<OwnedDesignLoad>;
 }
 
@@ -45,6 +51,7 @@ export async function prepareSubmission(
   if (target.kind === "intent") {
     return ready({ ...stored, snapshot: undefined });
   }
+  if (book === undefined) throw new ContactFailure("no-price-book");
   const owned = await ownedDesignAt(target.design, loadOwned);
   if (owned === undefined) return refusedAsNotCurrent();
   const result = snapshotSubmission({

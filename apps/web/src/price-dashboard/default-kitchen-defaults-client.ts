@@ -5,11 +5,8 @@ import {
 } from "./kitchen-defaults-client";
 import type { KitchenDefaultsPageInput } from "./kitchen-defaults-model";
 
-// The client a screen writes through when it is given none: nothing in a production build, and an in-memory stand-in seeded
-// with what the page showed in any other. R4b's `PUT` client replaces the non-production branch.
-//
-// The test is spelled out here, not asked of another module: the bundler replaces this literal and drops the branch with
-// the import behind it, while a call into another module is not folded and would ship the stand-in's chunk.
+// The screen's client when none is handed in: nothing in a production build, an in-memory one seeded with what the page
+// showed elsewhere. The test is spelled out here, not asked of `is-production-build.ts`, which says why.
 
 export function defaultKitchenDefaultsClient(
   seed: KitchenDefaultsPageInput,

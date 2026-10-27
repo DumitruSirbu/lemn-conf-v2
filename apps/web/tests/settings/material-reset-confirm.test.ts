@@ -47,6 +47,7 @@ import { describeEditability } from "@/store/editability";
 import { buildKitchenLBodyCatalog } from "@lemnaria/configurator-domain";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 import {
   FINISHES_RESOLVED_BY_VENEER,
   MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
@@ -418,7 +419,9 @@ describe("the copy never appears where the consequence is not being asked about"
     storeState.current = closedScreenStateFor(
       MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
     );
-    const markup = renderToStaticMarkup(createElement(GlobalSettings));
+    const markup = renderToStaticMarkup(
+      underSamplePriceBook(createElement(GlobalSettings)),
+    );
 
     expect(markup).toContain(ro.globalSettings.open);
     for (const ruled of everyRuledString(CHOSEN_COLOURS_ON_THE_MDF_FIXTURE)) {

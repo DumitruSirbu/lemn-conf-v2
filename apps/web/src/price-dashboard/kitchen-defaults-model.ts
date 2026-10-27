@@ -4,10 +4,12 @@ import {
   lookUpMaterial,
   materialOffersFinish,
   paletteEntriesOf,
+  paletteFinish,
   sameFinish,
   type Finish,
   type Handle,
   type ItemRef,
+  type Material,
   type PaletteEntryId,
 } from "@lemnaria/configurator-domain";
 
@@ -33,8 +35,8 @@ export interface TierOffer {
 
 /**
  * Everything the screen needs to be drawn, in two halves that come from two places. `state` is the saved defaults with the
- * two revisions a save expects (R4b). The tiers and what is switched off are the active book's and the availability head's
- * (R1, R2): only an item that is active is offered (A-17).
+ * two revisions a save expects. The tiers and what is switched off are the active book's and the availability head's: only
+ * an item that is active is offered.
  */
 export interface KitchenDefaultsPageInput {
   readonly state: KitchenDefaultsStateWire;
@@ -68,24 +70,68 @@ export type ColourOffer =
 export function activeMaterials(
   input: KitchenDefaultsPageInput,
 ): readonly TierOffer[] {
-  return input.materials.filter(
-    (tier) => !isSwitchedOff(input, { kind: "material", tierId: tier.tierId }),
+  return input.materials.filter((tier) =>
+    isMaterialOffered(input, tier.tierId),
   );
 }
 
 export function activeHardware(
   input: KitchenDefaultsPageInput,
 ): readonly TierOffer[] {
-  return input.hardware.filter(
-    (tier) => !isSwitchedOff(input, { kind: "hardware", tierId: tier.tierId }),
-  );
+  return input.hardware.filter((tier) => isHardwareOffered(input, tier.tierId));
 }
 
 export function activeHandles(
   input: KitchenDefaultsPageInput,
 ): readonly Handle[] {
-  return HandleSchema.options.filter(
-    (handle) => !isSwitchedOff(input, { kind: "handle", handle }),
+  return HandleSchema.options.filter((handle) =>
+    isHandleOffered(input, handle),
+  );
+}
+
+export function isMaterialOffered(
+  input: KitchenDefaultsPageInput,
+  tierId: string,
+): boolean {
+  return (
+    input.materials.some((tier) => tier.tierId === tierId) &&
+    !isSwitchedOff(input.disabled, { kind: "material", tierId })
+  );
+}
+
+export function isHardwareOffered(
+  input: KitchenDefaultsPageInput,
+  tierId: string,
+): boolean {
+  return (
+    input.hardware.some((tier) => tier.tierId === tierId) &&
+    !isSwitchedOff(input.disabled, { kind: "hardware", tierId })
+  );
+}
+
+export function isHandleOffered(
+  input: KitchenDefaultsPageInput,
+  handle: Handle,
+): boolean {
+  return !isSwitchedOff(input.disabled, { kind: "handle", handle });
+}
+
+export function isDepthOffered(cabinetDepthMm: number): boolean {
+  return depthOptions().includes(cabinetDepthMm);
+}
+
+/** Whether the colour the draft holds is on offer for the material it holds: in that material's palette and not switched
+ *  off, or a free colour where the material takes one. */
+export function isFinishOffered(
+  input: KitchenDefaultsPageInput,
+  draft: KitchenDefaultsWire,
+): boolean {
+  const offer = colourOfferFor(input, draft.materialTierId);
+  const { finish } = draft;
+  if (offer.kind === "none") return false;
+  if (offer.kind === "free") return finish.kind === "free-colour";
+  return (
+    finish.kind === "palette-entry" && offer.entryIds.includes(finish.entryId)
   );
 }
 
@@ -99,7 +145,10 @@ export function colourOfferFor(
   if (colourControl.shape === "ral-picker") return { kind: "free" };
   const entryIds = paletteEntriesOf(lookup.material)
     .map((entry) => entry.entryId)
-    .filter((finishId) => !isSwitchedOff(input, { kind: "finish", finishId }));
+    .filter(
+      (finishId) =>
+        !isSwitchedOff(input.disabled, { kind: "finish", finishId }),
+    );
   return { kind: "palette", entryIds };
 }
 
@@ -109,10 +158,14 @@ export interface MaterialChange {
   readonly resetFrom: Finish | null;
 }
 
-/** A colour the new material does not offer becomes that material's default colour; any other stays. */
+/**
+ * A colour the new material does not offer becomes that material's default colour, or its first colour that is not
+ * switched off when the default is; any other stays. The colour a reset lands on is always one that can be saved.
+ */
 export function withMaterial(
   draft: KitchenDefaultsWire,
   materialTierId: string,
+  switchedOff: readonly ItemRef[] = [],
 ): MaterialChange {
   const lookup = lookUpMaterial(materialTierId);
   const isOffered =
@@ -124,10 +177,27 @@ export function withMaterial(
     draft: {
       ...draft,
       materialTierId,
-      finish: { ...lookup.material.defaultFinish },
+      finish: resetColourOf(lookup.material, switchedOff),
     },
     resetFrom: draft.finish,
   };
+}
+
+function resetColourOf(
+  material: Material,
+  switchedOff: readonly ItemRef[],
+): Finish {
+  const isAvailable = (finish: Finish): boolean =>
+    finish.kind !== "palette-entry" ||
+    !isSwitchedOff(switchedOff, { kind: "finish", finishId: finish.entryId });
+  const preferred = material.defaultFinish;
+  if (isAvailable(preferred)) return { ...preferred };
+  const firstActive = paletteEntriesOf(material).find((entry) =>
+    isAvailable(paletteFinish(entry.entryId)),
+  );
+  return firstActive === undefined
+    ? { ...preferred }
+    : paletteFinish(firstActive.entryId);
 }
 
 /**
@@ -137,11 +207,11 @@ export function withMaterial(
  */
 export function rebasedOnto(
   fresh: KitchenDefaultsWire,
-  readSaved: KitchenDefaultsWire,
+  savedAtEditStart: KitchenDefaultsWire,
   draft: KitchenDefaultsWire,
 ): KitchenDefaultsWire {
   const changedByPerson: Partial<KitchenDefaultsWire> = {};
-  for (const member of modifiedMembers(readSaved, draft)) {
+  for (const member of modifiedMembers(savedAtEditStart, draft)) {
     Object.assign(changedByPerson, { [member]: draft[member] });
   }
   return { ...fresh, ...changedByPerson };
@@ -165,18 +235,13 @@ export function unofferedMembers(
   input: KitchenDefaultsPageInput,
   draft: KitchenDefaultsWire,
 ): ReadonlySet<KitchenDefaultsMember> {
-  const handles = activeHandles(input);
   const isOffered: Readonly<Record<KitchenDefaultsMember, boolean>> = {
-    materialTierId: activeMaterials(input).some(
-      (tier) => tier.tierId === draft.materialTierId,
-    ),
-    hardwareTierId: activeHardware(input).some(
-      (tier) => tier.tierId === draft.hardwareTierId,
-    ),
-    cabinetDepthMm: depthOptions().includes(draft.cabinetDepthMm),
+    materialTierId: isMaterialOffered(input, draft.materialTierId),
+    hardwareTierId: isHardwareOffered(input, draft.hardwareTierId),
+    cabinetDepthMm: isDepthOffered(draft.cabinetDepthMm),
     finish: isFinishOffered(input, draft),
-    handle: handles.includes(draft.handle),
-    topRowHandle: handles.includes(draft.topRowHandle),
+    handle: isHandleOffered(input, draft.handle),
+    topRowHandle: isHandleOffered(input, draft.topRowHandle),
   };
   return new Set(DEFAULTS_ROW_ORDER.filter((member) => !isOffered[member]));
 }
@@ -218,7 +283,7 @@ export function membersOfIssues(
   );
 }
 
-/** The whole object, all six members, with the revisions the page read (A-17, F1). A save is never a partial write. */
+/** The whole object, all six members, with the revisions the page read. A save is never a partial write. */
 export function saveRequestOf(
   state: KitchenDefaultsStateWire,
   draft: KitchenDefaultsWire,
@@ -241,11 +306,8 @@ function wholeDefaultsOf(draft: KitchenDefaultsWire): KitchenDefaultsWire {
   };
 }
 
-function isSwitchedOff(
-  input: KitchenDefaultsPageInput,
-  item: ItemRef,
-): boolean {
-  return input.disabled.some((off) => sameItem(off, item));
+function isSwitchedOff(disabled: readonly ItemRef[], item: ItemRef): boolean {
+  return disabled.some((off) => sameItem(off, item));
 }
 
 function sameItem(one: ItemRef, other: ItemRef): boolean {
@@ -262,19 +324,6 @@ function sameItem(one: ItemRef, other: ItemRef): boolean {
         other.kind === "accessory" && one.accessoryId === other.accessoryId
       );
   }
-}
-
-function isFinishOffered(
-  input: KitchenDefaultsPageInput,
-  draft: KitchenDefaultsWire,
-): boolean {
-  const offer = colourOfferFor(input, draft.materialTierId);
-  const { finish } = draft;
-  if (offer.kind === "none") return false;
-  if (offer.kind === "free") return finish.kind === "free-colour";
-  return (
-    finish.kind === "palette-entry" && offer.entryIds.includes(finish.entryId)
-  );
 }
 
 function isSameValue(

@@ -11,11 +11,11 @@ import {
 
 import type { Finish, ItemRef } from "@lemnaria/configurator-domain";
 
+import { orFailed } from "./async-seams";
 import { defaultKitchenDefaultsClient } from "./default-kitchen-defaults-client";
-import {
-  orFallback,
-  type DefaultsSaveOutcome,
-  type KitchenDefaultsClient,
+import type {
+  DefaultsSaveOutcome,
+  KitchenDefaultsClient,
 } from "./kitchen-defaults-client";
 import {
   DEFAULTS_ROW_ORDER,
@@ -96,23 +96,97 @@ export function useKitchenDefaults({
     () => suppliedClient ?? defaultKitchenDefaultsClient(initialInput),
     [suppliedClient, initialInput],
   );
-  const [input, setInput] = useState(initialInput);
-  const [draft, setDraft] = useState(initialInput.state.defaults);
   const [notice, setNotice] = useState<DefaultsNotice>("applies");
-  const [colourResetFrom, setColourResetFrom] = useState<Finish | null>(null);
-  const [refused, setRefused] = useState<ReadonlySet<KitchenDefaultsMember>>(
-    new Set(),
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const isSavingRef = useRef(false);
-  const latestDraftRef = useRef(draft);
-  useEffect(() => {
-    latestDraftRef.current = draft;
-  }, [draft]);
   const formRef = useRef<HTMLFormElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const requestFocus = useFocusRequests({ formRef, noticeRef, titleRef });
+  const land = useCallback(
+    (landing: Landing) => {
+      setNotice(landing.notice);
+      requestFocus(landing.focus);
+    },
+    [requestFocus],
+  );
+  const editing = useDraftEditing(initialInput, () => {
+    setNotice("applies");
+  });
+  const { isSaving, save } = useSave({ client, editing, land });
+  const cancel = useCallback(() => {
+    editing.discard();
+    land({ notice: "applies", focus: { kind: "title" } });
+  }, [editing, land]);
+
+  const isDirty = editing.modified.size > 0;
+  return {
+    input: editing.input,
+    draft: editing.draft,
+    notice,
+    colourResetFrom: editing.colourResetFrom,
+    modified: editing.modified,
+    unoffered: editing.unoffered,
+    isSaving,
+    canSave: isDirty && editing.unoffered.size === 0 && !isSaving,
+    canCancel: isDirty,
+    formRef,
+    noticeRef,
+    titleRef,
+    chooseMaterial: editing.chooseMaterial,
+    choose: editing.choose,
+    save,
+    cancel,
+  };
+}
+
+/** The values being edited, against the saved ones the person started from. */
+interface DraftEditing {
+  readonly input: KitchenDefaultsPageInput;
+  readonly draft: KitchenDefaultsWire;
+  readonly colourResetFrom: Finish | null;
+  readonly modified: ReadonlySet<KitchenDefaultsMember>;
+  readonly unoffered: ReadonlySet<KitchenDefaultsMember>;
+  /** What the page holds now, which is not the render a save was started in. */
+  readonly currentDraft: () => KitchenDefaultsWire;
+  readonly chooseMaterial: (tierId: string) => void;
+  readonly choose: KitchenDefaultsDesk["choose"];
+  /** Back to the saved values. */
+  readonly discard: () => void;
+  /** The draft became the saved values. */
+  readonly adoptSaved: (
+    saved: SavedRevisions,
+    sent: KitchenDefaultsWire,
+  ) => void;
+  /**
+   * The facts read again: what is offered and the revisions change, what the person changed from what they started with
+   * stays, and every other row takes the value another member saved meanwhile. A colour the material does not offer is
+   * reset as a change of material would. The draft that results.
+   */
+  readonly adoptFresh: (
+    fresh: KitchenDefaultsPageInput,
+    savedAtEditStart: KitchenDefaultsWire,
+  ) => KitchenDefaultsWire;
+  readonly refuse: (members: readonly KitchenDefaultsMember[]) => void;
+}
+
+interface SavedRevisions {
+  readonly revision: string;
+  readonly availabilityRevision: string;
+}
+
+function useDraftEditing(
+  initialInput: KitchenDefaultsPageInput,
+  onEdit: () => void,
+): DraftEditing {
+  const [input, setInput] = useState(initialInput);
+  const [draft, setDraft] = useState(initialInput.state.defaults);
+  const [colourResetFrom, setColourResetFrom] = useState<Finish | null>(null);
+  const [refused, setRefused] = useState<ReadonlySet<KitchenDefaultsMember>>(
+    new Set(),
+  );
+  const latestDraftRef = useRef(draft);
+  useEffect(() => {
+    latestDraftRef.current = draft;
+  }, [draft]);
 
   const saved = input.state.defaults;
   const modified = useMemo(() => modifiedMembers(saved, draft), [saved, draft]);
@@ -121,23 +195,15 @@ export function useKitchenDefaults({
     [input, draft, refused],
   );
 
-  const land = useCallback(
-    (landing: Landing) => {
-      setNotice(landing.notice);
-      requestFocus(landing.focus);
-    },
-    [requestFocus],
-  );
-
   const chooseMaterial = useCallback(
     (tierId: string) => {
-      const change = withMaterial(draft, tierId);
+      const change = withMaterial(draft, tierId, input.disabled);
       setDraft(change.draft);
-      setNotice("applies");
       setColourResetFrom(change.resetFrom);
       setRefused(without(refused, ["materialTierId", "finish"]));
+      onEdit();
     },
-    [draft, refused],
+    [draft, input.disabled, refused, onEdit],
   );
 
   const choose = useCallback(
@@ -146,30 +212,101 @@ export function useKitchenDefaults({
       value: KitchenDefaultsWire[Member],
     ) => {
       setDraft({ ...draft, [member]: value });
-      setNotice("applies");
       if (member === "finish") setColourResetFrom(null);
       setRefused(without(refused, [member]));
+      onEdit();
     },
-    [draft, refused],
+    [draft, refused, onEdit],
   );
 
+  const discard = useCallback(() => {
+    setDraft(saved);
+    setColourResetFrom(null);
+    setRefused(new Set());
+  }, [saved]);
+
+  const adoptSaved = useCallback(
+    (revisions: SavedRevisions, sent: KitchenDefaultsWire) => {
+      setInput((last) => ({
+        ...last,
+        state: { ...revisions, saved: true, defaults: sent },
+      }));
+      setColourResetFrom(null);
+      setRefused(new Set());
+    },
+    [],
+  );
+
+  const adoptFresh = useCallback(
+    (
+      fresh: KitchenDefaultsPageInput,
+      savedAtEditStart: KitchenDefaultsWire,
+    ) => {
+      const rebased = rebasedOnto(
+        fresh.state.defaults,
+        savedAtEditStart,
+        latestDraftRef.current,
+      );
+      const settled = withMaterial(
+        rebased,
+        rebased.materialTierId,
+        fresh.disabled,
+      );
+      setInput(fresh);
+      setDraft(settled.draft);
+      if (settled.resetFrom !== null) setColourResetFrom(settled.resetFrom);
+      return settled.draft;
+    },
+    [],
+  );
+
+  const refuse = useCallback((members: readonly KitchenDefaultsMember[]) => {
+    setRefused(new Set(members));
+  }, []);
+
+  return {
+    input,
+    draft,
+    colourResetFrom,
+    modified,
+    unoffered,
+    currentDraft: () => latestDraftRef.current,
+    chooseMaterial,
+    choose,
+    discard,
+    adoptSaved,
+    adoptFresh,
+    refuse,
+  };
+}
+
+/** One save at a time, and what each answer does to the page. */
+function useSave({
+  client,
+  editing,
+  land,
+}: {
+  readonly client: KitchenDefaultsClient;
+  readonly editing: DraftEditing;
+  readonly land: (landing: Landing) => void;
+}): { readonly isSaving: boolean; readonly save: () => void } {
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+  const { input, draft } = editing;
   const save = useCallback(() => {
     if (isSavingRef.current) return;
     isSavingRef.current = true;
     setIsSaving(true);
     const request = saveRequestOf(input.state, draft);
-    void orFallback<DefaultsSaveOutcome>(() => client.save(request), {
+    void orFailed<DefaultsSaveOutcome>(() => client.save(request), {
       kind: "failed",
     })
       .then((outcome) =>
         settleSave(outcome, {
-          draft,
-          currentDraft: () => latestDraftRef.current,
-          readSaved: input.state.defaults,
+          sent: draft,
+          savedAtEditStart: input.state.defaults,
           client,
-          setInput,
-          setDraft,
-          setRefused,
+          editing,
           land,
         }),
       )
@@ -177,52 +314,20 @@ export function useKitchenDefaults({
         isSavingRef.current = false;
         setIsSaving(false);
       });
-  }, [client, draft, input.state, land]);
-
-  const cancel = useCallback(() => {
-    setDraft(saved);
-    setColourResetFrom(null);
-    setRefused(new Set());
-    land({ notice: "applies", focus: { kind: "title" } });
-  }, [saved, land]);
-
-  const isDirty = modified.size > 0;
-  return {
-    input,
-    draft,
-    notice,
-    colourResetFrom,
-    modified,
-    unoffered,
-    isSaving,
-    canSave: isDirty && unoffered.size === 0 && !isSaving,
-    canCancel: isDirty,
-    formRef,
-    noticeRef,
-    titleRef,
-    chooseMaterial,
-    choose,
-    save,
-    cancel,
-  };
+  }, [client, draft, editing, input.state, land]);
+  return { isSaving, save };
 }
 
 /**
  * What a save's answer changes on the page. A refusal writes nothing, so what the person changed stays, including what
- * they changed while the save was in the air: `draft` is what was sent, `currentDraft` is what the page holds when the
- * answer comes.
+ * they changed while the save was in the air: `sent` is what was sent, `editing.currentDraft()` is what the page holds when
+ * the answer comes.
  */
 interface SaveEffects {
-  readonly draft: KitchenDefaultsWire;
-  readonly currentDraft: () => KitchenDefaultsWire;
-  /** The saved values the draft was edited from. */
-  readonly readSaved: KitchenDefaultsWire;
+  readonly sent: KitchenDefaultsWire;
+  readonly savedAtEditStart: KitchenDefaultsWire;
   readonly client: KitchenDefaultsClient;
-  readonly setDraft: (draft: KitchenDefaultsWire) => void;
-  readonly setInput: (
-    update: (input: KitchenDefaultsPageInput) => KitchenDefaultsPageInput,
-  ) => void;
-  readonly setRefused: (members: ReadonlySet<KitchenDefaultsMember>) => void;
+  readonly editing: DraftEditing;
   readonly land: (landing: Landing) => void;
 }
 
@@ -232,7 +337,8 @@ async function settleSave(
 ): Promise<void> {
   switch (outcome.kind) {
     case "saved":
-      adoptSaved(outcome.saved, effects);
+      effects.editing.adoptSaved(outcome.saved, effects.sent);
+      effects.land({ notice: "saved", focus: { kind: "notice" } });
       return;
     case "invalid":
       refuseRows(
@@ -244,7 +350,7 @@ async function settleSave(
       await refuseItem(outcome.item, effects);
       return;
     case "conflict":
-      await adoptFreshFactsAfterConflict(effects);
+      await landAfterConflict(effects);
       return;
     case "failed":
       effects.land(SAVE_FAILED);
@@ -252,37 +358,25 @@ async function settleSave(
   }
 }
 
-function adoptSaved(
-  saved: { readonly revision: string; readonly availabilityRevision: string },
-  { draft, setInput, setRefused, land }: SaveEffects,
-): void {
-  setInput((input) => ({
-    ...input,
-    state: { ...saved, saved: true, defaults: draft },
-  }));
-  setRefused(new Set());
-  land({ notice: "saved", focus: { kind: "notice" } });
-}
-
 function refuseRows(
   members: readonly KitchenDefaultsMember[],
-  { setRefused, land }: SaveEffects,
+  { editing, land }: SaveEffects,
 ): void {
   const first = DEFAULTS_ROW_ORDER.find((member) => members.includes(member));
   if (first === undefined) {
     land(SAVE_FAILED);
     return;
   }
-  setRefused(new Set(members));
+  editing.refuse(members);
   land({ notice: "applies", focus: { kind: "row", member: first } });
 }
 
 /** A refusal names what was sent: a row the person has changed since is not the one refused. */
 function unchangedSinceSent(
   members: readonly KitchenDefaultsMember[],
-  { draft, currentDraft }: SaveEffects,
+  { sent, editing }: SaveEffects,
 ): readonly KitchenDefaultsMember[] {
-  const changed = modifiedMembers(draft, currentDraft());
+  const changed = modifiedMembers(sent, editing.currentDraft());
   return members.filter((member) => !changed.has(member));
 }
 
@@ -290,41 +384,27 @@ function unchangedSinceSent(
 async function refuseItem(item: ItemRef, effects: SaveEffects): Promise<void> {
   const rebased = await adoptFreshFacts(effects);
   refuseRows(
-    membersHoldingItem(rebased ?? effects.currentDraft(), item),
+    membersHoldingItem(rebased ?? effects.editing.currentDraft(), item),
     effects,
   );
 }
 
-/**
- * The facts as they are now, so what is offered, and the revisions a save expects, are what it will be judged against.
- * What the person has changed from what they read stays, edits made while the save was in the air included; every other
- * row takes the value another member saved meanwhile. The draft laid over the fresh defaults, or nothing when they cannot
- * be read.
- */
-async function adoptFreshFacts(
-  effects: SaveEffects,
-): Promise<KitchenDefaultsWire | undefined> {
-  const fresh = await orFallback(() => effects.client.readAgain(), undefined);
-  if (fresh === undefined) return undefined;
-  const rebased = rebasedOnto(
-    fresh.state.defaults,
-    effects.readSaved,
-    effects.currentDraft(),
-  );
-  effects.setInput(() => fresh);
-  effects.setDraft(rebased);
-  return rebased;
-}
-
-async function adoptFreshFactsAfterConflict(
-  effects: SaveEffects,
-): Promise<void> {
+async function landAfterConflict(effects: SaveEffects): Promise<void> {
   const isRead = (await adoptFreshFacts(effects)) !== undefined;
   effects.land(
     isRead
       ? { notice: "changed-meanwhile", focus: { kind: "notice" } }
       : SAVE_FAILED,
   );
+}
+
+/** The facts read again and laid under the person's edits; nothing when they cannot be read. */
+async function adoptFreshFacts(
+  effects: SaveEffects,
+): Promise<KitchenDefaultsWire | undefined> {
+  const fresh = await orFailed(() => effects.client.readAgain(), undefined);
+  if (fresh === undefined) return undefined;
+  return effects.editing.adoptFresh(fresh, effects.savedAtEditStart);
 }
 
 function without(

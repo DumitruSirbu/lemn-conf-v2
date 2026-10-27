@@ -53,6 +53,7 @@ import {
 import { describeEditability } from "@/store/editability";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 /** `global-settings-seams.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -115,7 +116,9 @@ function stateFor(design: Design): ConfiguratorState {
  *  these cases are about is *which words* the pill puts on the screen, not how many of them fit. */
 function screenMarkupFor(design: Design, visibleCount = EVERY_SETTING): string {
   storeState.current = stateFor(design);
-  return renderToStaticMarkup(createElement(GlobalSettings, { visibleCount }));
+  return renderToStaticMarkup(
+    underSamplePriceBook(createElement(GlobalSettings, { visibleCount })),
+  );
 }
 
 /** The four settings frame D2A's pill names, in ADR 0099 decision 9's order. */

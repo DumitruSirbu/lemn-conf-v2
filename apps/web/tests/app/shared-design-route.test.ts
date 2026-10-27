@@ -8,6 +8,7 @@ import { isValidElement, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DesignPage from "../../src/app/[locale]/d/[id]/page";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 
 interface HydrateProps {
   readonly design: Design;
@@ -66,9 +67,11 @@ describe("localized shared-design route identity", () => {
     const pages: ReactElement<HydrateProps>[] = [];
 
     for (const locale of ["ro", "ru"] as const) {
-      const page = await DesignPage({
-        params: Promise.resolve({ locale, id }),
-      });
+      const page = withoutPriceBook(
+        await DesignPage({
+          params: Promise.resolve({ locale, id }),
+        }),
+      );
       if (!isValidElement<HydrateProps>(page)) {
         throw new Error("Shared-design route returned a non-element");
       }

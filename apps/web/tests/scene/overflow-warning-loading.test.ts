@@ -50,6 +50,7 @@ vi.mock("@/i18n/use-locale-menu", async (importOriginal) => {
 
 import { ro } from "../support/romanian-content";
 import roMessages from "../../src/messages/ro.json";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 const store = vi.hoisted(() => ({
   design: undefined as Design | undefined,
@@ -89,12 +90,14 @@ const { ConfigureScreen } = await import(
 
 function renderScreen(): string {
   return renderToStaticMarkup(
-    createElement(NextIntlClientProvider, {
-      children: createElement(ConfigureScreen),
-      locale: "ro",
-      messages: roMessages,
-      timeZone: "Europe/Chisinau",
-    }),
+    underSamplePriceBook(
+      createElement(NextIntlClientProvider, {
+        children: createElement(ConfigureScreen),
+        locale: "ro",
+        messages: roMessages,
+        timeZone: "Europe/Chisinau",
+      }),
+    ),
   );
 }
 

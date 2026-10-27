@@ -18,7 +18,7 @@ import {
 } from "./use-kitchen-defaults";
 
 // The values a new kitchen starts with (frames D9A to D9C). A save applies at once to the kitchens created after it and to
-// no saved one (A-9), so there is no publication and no price here.
+// no saved one, so there is no publication and no price here.
 
 export function KitchenDefaultsScreen({
   locale,

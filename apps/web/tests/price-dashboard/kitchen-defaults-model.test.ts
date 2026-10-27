@@ -19,6 +19,11 @@ import {
   activeMaterials,
   colourOfferFor,
   depthOptions,
+  isDepthOffered,
+  isFinishOffered,
+  isHandleOffered,
+  isHardwareOffered,
+  isMaterialOffered,
   membersHoldingItem,
   membersOfIssues,
   modifiedMembers,
@@ -349,5 +354,61 @@ describe("a draft laid over defaults that moved meanwhile", () => {
     expect(Object.keys(rebasedOnto(FRESH, SAVED, draft)).sort()).toEqual(
       SIX_MEMBERS,
     );
+  });
+});
+
+describe("a reset never lands on a colour that is switched off", () => {
+  it("takes the material's default colour while it is active", () => {
+    const change = withMaterial(SAVED, "material.veneer", [
+      { kind: "finish", finishId: "veneer.nuc" },
+    ]);
+
+    expect(change.draft.finish).toEqual(paletteFinish("veneer.stejar"));
+  });
+
+  it("takes the material's first active colour when its default is switched off, and names what it took away", () => {
+    const change = withMaterial(SAVED, "material.veneer", [
+      { kind: "finish", finishId: "veneer.stejar" },
+    ]);
+
+    expect(change.draft.finish).toEqual(paletteFinish("veneer.nuc"));
+    expect(change.resetFrom).toEqual(SAVED.finish);
+  });
+
+  it("takes PAL's first active decor when Alb is switched off", () => {
+    const fromWood = { ...SAVED, finish: paletteFinish("veneer.nuc") };
+
+    const change = withMaterial(fromWood, "material.melamine", [
+      { kind: "finish", finishId: "pal.alb" },
+    ]);
+
+    expect(change.draft.finish).toEqual(paletteFinish("pal.stejar-bardolino"));
+  });
+});
+
+describe("what is on offer, asked one value at a time", () => {
+  it("agrees with the lists of what is active", () => {
+    const input = inputWithout(
+      { kind: "material", tierId: "material.veneer" },
+      { kind: "hardware", tierId: "hardware.premium" },
+      { kind: "handle", handle: "black" },
+      { kind: "finish", finishId: "pal.antracit" },
+    );
+
+    expect(isMaterialOffered(input, "material.veneer")).toBe(false);
+    expect(isMaterialOffered(input, "material.melamine")).toBe(true);
+    expect(isMaterialOffered(input, "material.unheard-of")).toBe(false);
+    expect(isHardwareOffered(input, "hardware.premium")).toBe(false);
+    expect(isHandleOffered(input, "black")).toBe(false);
+    expect(isHandleOffered(input, "steel")).toBe(true);
+    expect(isDepthOffered(600)).toBe(true);
+    expect(isDepthOffered(650)).toBe(false);
+    expect(
+      isFinishOffered(input, {
+        ...SAVED,
+        finish: paletteFinish("pal.antracit"),
+      }),
+    ).toBe(false);
+    expect(isFinishOffered(input, SAVED)).toBe(true);
   });
 });

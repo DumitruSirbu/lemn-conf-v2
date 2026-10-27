@@ -3,7 +3,7 @@
 // The new-kitchen defaults screen (frames D9A, D9B, D9C): six labelled rows, only active options, the colour reset note, a
 // whole-object save with the revisions the page read, and the three ways a save is answered that are not a success. It is
 // drawn inside the staff frame, from the facts the server supplies, through a client the test holds.
-import { paletteFinish } from "@lemnaria/configurator-domain";
+import { freeColourFinish, paletteFinish } from "@lemnaria/configurator-domain";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -614,5 +614,120 @@ describe("the in-memory client, which stands in for R4b's route", () => {
       item: { kind: "finish", finishId: "pal.antracit" },
     });
     expect((await client.readAgain())?.state.revision).toBe(state.revision);
+  });
+});
+
+describe("a colour the material does not offer, after the defaults moved", () => {
+  it("resets a colour the person chose when another member moved the material to one that does not offer it, and says so", async () => {
+    const memory = inMemoryKitchenDefaultsClient(SAMPLE_KITCHEN_DEFAULTS);
+    const container = await mount({ client: memory });
+    await choose(radioOf(container, "finish", "pal.antracit"));
+    await memory.save({
+      expectedRevision: "1",
+      expectedAvailabilityRevision: "1",
+      defaults: {
+        ...SAMPLE_KITCHEN_DEFAULTS.state.defaults,
+        materialTierId: "material.veneer",
+        finish: paletteFinish("veneer.stejar"),
+      },
+    });
+
+    await saveAndWait(container);
+
+    expect(checkedValue(container, "materialTierId")).toBe("material.veneer");
+    expect(checkedValue(container, "finish")).toBe("veneer.stejar");
+    expect(
+      requireIn(row(container, "finish"), '[role="status"]').textContent,
+    ).toBe(
+      roCopy("priceDashboard.defaults.colourReset", {
+        unavailableColour: roCopy("finish.pal.antracit"),
+        replacementColour: roCopy("finish.veneer.stejar"),
+      }),
+    );
+    expect(allIn(row(container, "finish"), '[role="alert"]')).toHaveLength(0);
+  });
+
+  it("lands a reset on the material's first active colour when its default colour is switched off", async () => {
+    const container = await mount({
+      input: {
+        ...SAMPLE_KITCHEN_DEFAULTS,
+        disabled: [{ kind: "finish", finishId: "veneer.stejar" }],
+      },
+    });
+
+    await choose(radioOf(container, "materialTierId", "material.veneer"));
+
+    expect(checkedValue(container, "finish")).toBe("veneer.nuc");
+    expect(
+      requireIn(row(container, "finish"), '[role="status"]').textContent,
+    ).toContain(roCopy("finish.veneer.nuc"));
+    expect(allIn(container, '[role="alert"]')).toHaveLength(0);
+  });
+
+  it("shows no reset note once the change is saved", async () => {
+    const memory = inMemoryKitchenDefaultsClient(SAMPLE_KITCHEN_DEFAULTS);
+    const container = await mount({ client: memory });
+    await choose(radioOf(container, "materialTierId", "material.veneer"));
+    expect(
+      requireIn(row(container, "finish"), '[role="status"]').textContent,
+    ).not.toBe("");
+
+    await saveAndWait(container);
+
+    expect(
+      requireIn(row(container, "finish"), '[role="status"]').textContent,
+    ).toBe("");
+  });
+});
+
+describe("MDF holding a colour it cannot have", () => {
+  const MDF_WEARING_A_DECOR: KitchenDefaultsPageInput = {
+    ...SAMPLE_KITCHEN_DEFAULTS,
+    state: {
+      ...SAMPLE_KITCHEN_DEFAULTS.state,
+      defaults: {
+        ...SAMPLE_KITCHEN_DEFAULTS.state.defaults,
+        materialTierId: "material.painted-mdf",
+      },
+    },
+  };
+
+  it("offers the colour the input starts at as an option beside it, so no colour is out of reach", async () => {
+    const container = await mount({ input: MDF_WEARING_A_DECOR });
+
+    const radios = allIn<HTMLInputElement>(
+      row(container, "finish"),
+      'input[type="radio"]',
+    );
+    const picker = requireIn<HTMLInputElement>(
+      row(container, "finish"),
+      'input[type="color"]',
+    );
+    expect(radios.map((radio) => radio.value)).toEqual([picker.value]);
+
+    await choose(radios[0] ?? picker);
+
+    expect(allIn(row(container, "finish"), '[role="alert"]')).toHaveLength(0);
+    expect(picker.value).toBe(radios[0]?.value);
+    expect(saveButton(container).disabled).toBe(false);
+  });
+
+  it("offers no extra option while the kitchen holds a free colour", async () => {
+    const container = await mount({
+      input: {
+        ...MDF_WEARING_A_DECOR,
+        state: {
+          ...MDF_WEARING_A_DECOR.state,
+          defaults: {
+            ...MDF_WEARING_A_DECOR.state.defaults,
+            finish: freeColourFinish("#336699"),
+          },
+        },
+      },
+    });
+
+    expect(allIn(row(container, "finish"), 'input[type="radio"]')).toHaveLength(
+      0,
+    );
   });
 });

@@ -31,6 +31,8 @@ vi.mock("@/i18n/use-content", async () => {
 import { PriceBreakdown } from "@/price/price-breakdown";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
+import { underSamplePriceBook } from "../support/sample-price-root";
+
 const RESET_DESIGN_ID = "dom-test-design";
 const RESET_REVISION = "1";
 
@@ -60,7 +62,7 @@ beforeEach(() => {
   document.body.append(outsideControl);
   root = createRoot(container);
   act(() => {
-    root.render(createElement(PriceBreakdown));
+    root.render(underSamplePriceBook(createElement(PriceBreakdown)));
   });
 });
 
