@@ -49,6 +49,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** The design id a hydrate names. The store takes back an unsaved edit it holds for the same id and revision, so a
+ *  describe whose tests edit gives each test an id of its own (the top-row describe below). */
+let designIdInUse = "handle-stage";
+
 function withKitchenHandle(handle: Handle | undefined): Design {
   if (handle === undefined) return KITCHEN_L_DESIGN;
   return {
@@ -60,7 +64,7 @@ function withKitchenHandle(handle: Handle | undefined): Design {
 function hydrate(design: Design): void {
   useConfiguratorStore.getState().hydrate({
     design,
-    designId: "handle-stage" as DesignId,
+    designId: designIdInUse as DesignId,
     revision: "1",
     canWrite: true,
   });
@@ -201,5 +205,102 @@ describe("a command that changes something else keeps the kitchen's handle on th
     expect(
       records.map((record) => visibleHandleParts(instanceOf(record.id))),
     ).toEqual(records.map((record) => barsBefore.get(record.id)));
+  });
+});
+
+function withTopRowHandle(topRowHandle: Handle | undefined): Design {
+  if (topRowHandle === undefined) return KITCHEN_L_DESIGN;
+  return {
+    ...KITCHEN_L_DESIGN,
+    settings: { ...KITCHEN_L_DESIGN.settings, topRowHandle },
+  };
+}
+
+function followsTheTopRow(record: PlacementRecord): boolean {
+  return (
+    record.canHandle &&
+    record.handleMode === undefined &&
+    Math.round(record.frame.y0 * 1000) >= MODULE_LINE_MM
+  );
+}
+
+describe("a loaded document that differs only in the kitchen's top-row handle re-syncs the scene (H2)", () => {
+  let testsRun = 0;
+  beforeEach(() => {
+    testsRun += 1;
+    designIdInUse = `handle-stage-top-row-${String(testsRun)}`;
+  });
+
+  it.each([
+    [undefined, "steel"],
+    ["steel", "black"],
+    ["black", "push"],
+    ["push", "steel"],
+  ] as const)(
+    "%s to %s rebuilds exactly the top-row bodies that follow it",
+    (from, to) => {
+      hydrate(withTopRowHandle(from));
+      const before = instances(syncFromStore());
+
+      hydrate(withTopRowHandle(to));
+      const records = syncFromStore();
+
+      const expected = records
+        .filter(followsTheTopRow)
+        .map((record) => record.id)
+        .sort();
+      expect(expected.length).toBeGreaterThan(0);
+      expect(rebuilt(before, records)).toEqual(expected);
+    },
+  );
+
+  it("shows the bars of a top-row body that draws one when the top row goes steel, and hides them again after", () => {
+    hydrate(withTopRowHandle("steel"));
+    const mounted = syncFromStore();
+    const follower = mounted.find(
+      (record) =>
+        followsTheTopRow(record) &&
+        visibleHandleParts(instanceOf(record.id)) > 0,
+    );
+    if (!follower) throw new Error("no top-row body draws a bar under steel");
+
+    hydrate(withTopRowHandle("push"));
+    syncFromStore();
+    const barsUnderPush = visibleHandleParts(instanceOf(follower.id));
+    hydrate(withTopRowHandle("steel"));
+    syncFromStore();
+
+    expect(barsUnderPush).toBe(0);
+    expect(visibleHandleParts(instanceOf(follower.id))).toBeGreaterThan(0);
+  });
+
+  it("carries the top-row handle on every record the store derives, beside the handle", () => {
+    hydrate({
+      ...KITCHEN_L_DESIGN,
+      settings: {
+        ...KITCHEN_L_DESIGN.settings,
+        handle: "black",
+        topRowHandle: "steel",
+      },
+    });
+
+    const { records } = useConfiguratorStore.getState();
+
+    expect(records.length).toBeGreaterThan(0);
+    expect(records.map((record) => record.kitchenSettings)).toEqual(
+      records.map(() => ({ handle: "black", topRowHandle: "steel" })),
+    );
+  });
+
+  it("keeps the top-row handle when a command changes something else", () => {
+    hydrate(withTopRowHandle("steel"));
+    syncFromStore();
+    useConfiguratorStore.getState().select({ kind: "placement", id: "p0" });
+
+    useConfiguratorStore.getState().remove();
+
+    expect(useConfiguratorStore.getState().design.settings?.topRowHandle).toBe(
+      "steel",
+    );
   });
 });

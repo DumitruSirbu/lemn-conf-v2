@@ -15,3 +15,10 @@ export {
   type HandleResolutionQuery,
   type KitchenHandleSettings,
 } from "./kitchen-handle.js";
+export {
+  newKitchenDepthMmOf,
+  NewKitchenSettingsError,
+  stampedSettingsOf,
+  type NewKitchenSettings,
+  type StampedKitchenSettings,
+} from "../generation/new-kitchen-settings.js";

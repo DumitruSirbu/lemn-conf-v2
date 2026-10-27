@@ -194,6 +194,10 @@ export const DesignSettingsSchema = z.strictObject({
   /** The kitchen's handle, below a cabinet's own and never on the top row. Absent is valid (no schema
    *  bump); like `finish`, a rollback to a build without this key makes documents carrying it unreadable. */
   handle: HandleSchema.optional(),
+  /** The kitchen's top-row handle, stamped when the kitchen is created. Read only for a top-row body whose catalogue
+   *  row takes a handle: below that cabinet's own, above `TOP_ROW_HANDLE`. Absent is valid (no schema bump); like
+   *  `handle`, a rollback to a build without this key makes documents carrying it unreadable. */
+  topRowHandle: HandleSchema.optional(),
 });
 export type DesignSettings = z.infer<typeof DesignSettingsSchema>;
 

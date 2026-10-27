@@ -1,4 +1,4 @@
-// Wave H1b (M10): the kitchen handle reaches every reader together. Price (`countHardwareMechanisms`), panel
+// Wave H1b (M10), extended by H2 for the kitchen's top-row handle: the kitchen handle reaches every reader together. Price (`countHardwareMechanisms`), panel
 // (`describeSelection`) and the record the scene resolves from (`derivePlacementRecords`) are asked, for every
 // placement of a random design under every kitchen handle, what that body wears. ADR 0092 Amendment C: they
 // must never split. The scene's own half is measured on meshes in `three-adapter/tests`.
@@ -49,9 +49,27 @@ const KITCHEN_CHOICES = fc.constantFrom<Handle | undefined>(
 /** §6.5's module line, written out as a literal: the oracle must not read the constant under test. */
 const TOP_ROW_FLOOR_MM = 2_200;
 
+interface KitchenChoice {
+  readonly kitchen: Handle | undefined;
+  readonly topRow: Handle | undefined;
+}
+
+function withKitchenHandles(design: Design, choice: KitchenChoice): Design {
+  if (choice.kitchen === undefined && choice.topRow === undefined) {
+    return design;
+  }
+  return {
+    ...design,
+    settings: {
+      ...design.settings,
+      ...(choice.kitchen === undefined ? {} : { handle: choice.kitchen }),
+      ...(choice.topRow === undefined ? {} : { topRowHandle: choice.topRow }),
+    },
+  };
+}
+
 function withKitchenHandle(design: Design, handle: Handle | undefined): Design {
-  if (handle === undefined) return design;
-  return { ...design, settings: { ...design.settings, handle } };
+  return withKitchenHandles(design, { kitchen: handle, topRow: undefined });
 }
 
 function withOwnHandles(
@@ -127,16 +145,17 @@ const randomDesign = fc.record({
   document: fc.constantFrom(...POOL),
   own: fc.array(OWN_CHOICES, { minLength: 1, maxLength: 12 }),
   kitchen: KITCHEN_CHOICES,
+  topRow: KITCHEN_CHOICES,
 });
 
 describe("price, panel and scene name the same handle for every body", () => {
   propertyTest.prop([randomDesign])(
     "the latch the price bills is the push the panel marks, and the record resolves the same",
-    ({ document, own, kitchen }) => {
-      const design = withKitchenHandle(
-        withOwnHandles(document.design, own),
+    ({ document, own, kitchen, topRow }) => {
+      const design = withKitchenHandles(withOwnHandles(document.design, own), {
         kitchen,
-      );
+        topRow,
+      });
       const disagreements: string[] = [];
 
       for (const record of recordsOf(design, document.catalog)) {
@@ -165,11 +184,11 @@ describe("price, panel and scene name the same handle for every body", () => {
 
   propertyTest.prop([randomDesign])(
     "a body taking a handle wears the panel's chip in the record too, and the black one is the same body",
-    ({ document, own, kitchen }) => {
-      const design = withKitchenHandle(
-        withOwnHandles(document.design, own),
+    ({ document, own, kitchen, topRow }) => {
+      const design = withKitchenHandles(withOwnHandles(document.design, own), {
         kitchen,
-      );
+        topRow,
+      });
 
       const disagreeing = recordsOf(design, document.catalog)
         .filter((record) => record.canHandle)
@@ -209,10 +228,10 @@ describe("price, panel and scene name the same handle for every body", () => {
 
 describe("a kitchen handle is followed by a cabinet that chose none, below the top row, and by no one else", () => {
   propertyTest.prop([randomDesign])(
-    "the record keeps the cabinet's own handle, and the top row never wears the kitchen's",
-    ({ document, own, kitchen }) => {
+    "the record keeps the cabinet's own handle, and the top row wears the top-row handle, never the kitchen's",
+    ({ document, own, kitchen, topRow }) => {
       const base = withOwnHandles(document.design, own);
-      const design = withKitchenHandle(base, kitchen);
+      const design = withKitchenHandles(base, { kitchen, topRow });
       const baseRecords = recordsOf(base, document.catalog);
 
       const records = recordsOf(design, document.catalog);
@@ -223,11 +242,38 @@ describe("a kitchen handle is followed by a cabinet that chose none, below the t
       for (const record of records) {
         const isTopRow = Math.round(record.frame.y0 * 1000) >= TOP_ROW_FLOOR_MM;
         if (isTopRow && record.canHandle && record.handleMode === undefined) {
-          expect(recordWears(record)).toBe("push");
+          expect(recordWears(record)).toBe(topRow ?? "push");
         }
       }
     },
   );
+
+  it("swept over the pool, each top-row handle moves the three readers on some top-row body (the property is not vacuous)", () => {
+    for (const topRow of ["steel", "black", "push"] as const) {
+      const followers = POOL.flatMap((document) => {
+        const design = withKitchenHandles(document.design, {
+          kitchen: undefined,
+          topRow,
+        });
+        return recordsOf(design, document.catalog)
+          .filter(
+            (record) =>
+              record.canHandle &&
+              record.handleMode === undefined &&
+              Math.round(record.frame.y0 * 1000) >= TOP_ROW_FLOOR_MM,
+          )
+          .map((record) => ({ document, design, record }));
+      });
+
+      expect(followers.length).toBeGreaterThan(0);
+      for (const { document, design, record } of followers) {
+        expect(recordWears(record)).toBe(topRow);
+        expect(panelWears(metaOf(design, document.catalog, record))).toBe(
+          topRow,
+        );
+      }
+    }
+  });
 });
 
 describe("a legacy null own handle behaves exactly like an absent one", () => {

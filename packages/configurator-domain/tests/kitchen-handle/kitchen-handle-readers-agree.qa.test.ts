@@ -2,8 +2,8 @@
 //
 // `kitchen-handle-readers-agree.property.test.ts` asks the price, the panel and the record whether they agree. Three
 // readers sharing one wrong resolver would still agree, so this file adds the independent half: an oracle written
-// here (own handle, else the kitchen's below the top row, else steel; the top row is push at the literal 2200 mm line;
-// a body that takes no handle never wears one) that the price's latch count, the panel's marked chip and the record's
+// here (own handle, else the kitchen's below the top row, else steel; the top row is the kitchen's top-row handle,
+// else push, at the literal 2200 mm line; a body that takes no handle never wears one) that the price's latch count, the panel's marked chip and the record's
 // answer are each held to, with floors dealt around the line (2199 / 2200 / 2201), and the one derivation of the
 // line held to the floor the scene reads (`toMillimetres(frame.y0)`) at every whole millimetre around it.
 import { fc, test as propertyTest } from "@fast-check/vitest";
@@ -59,6 +59,8 @@ interface Variation {
   readonly own: readonly (Handle | undefined)[];
   readonly floors: readonly (number | undefined)[];
   readonly kitchen: Handle | undefined;
+  /** The kitchen's top-row handle (H2): read by a body on the top row and by no other. */
+  readonly topRow: Handle | undefined;
 }
 
 const variation = fc.record({
@@ -66,9 +68,16 @@ const variation = fc.record({
   own: fc.array(handleChoice, { minLength: 1, maxLength: 9 }),
   floors: fc.array(floorChoice, { minLength: 1, maxLength: 7 }),
   kitchen: handleChoice,
+  topRow: handleChoice,
 });
 
-function designOf({ document, own, floors, kitchen }: Variation): Design {
+function designOf({
+  document,
+  own,
+  floors,
+  kitchen,
+  topRow,
+}: Variation): Design {
   const placements = document.design.placements.map((placement, index) => {
     const ownHandle = own[index % own.length] ?? placement.body.handle;
     const floor = floors[index % floors.length];
@@ -81,10 +90,7 @@ function designOf({ document, own, floors, kitchen }: Variation): Design {
           : { ...placement.body, handle: ownHandle },
     };
   });
-  const settings =
-    kitchen === undefined
-      ? document.design.settings
-      : { ...document.design.settings, handle: kitchen };
+  const settings = settingsWith(document.design.settings, { kitchen, topRow });
   return {
     ...document.design,
     placements,
@@ -92,15 +98,33 @@ function designOf({ document, own, floors, kitchen }: Variation): Design {
   };
 }
 
+function settingsWith(
+  base: Design["settings"],
+  choice: {
+    readonly kitchen: Handle | undefined;
+    readonly topRow: Handle | undefined;
+  },
+): Design["settings"] {
+  if (choice.kitchen === undefined && choice.topRow === undefined) return base;
+  return {
+    ...base,
+    ...(choice.kitchen === undefined ? {} : { handle: choice.kitchen }),
+    ...(choice.topRow === undefined ? {} : { topRowHandle: choice.topRow }),
+  };
+}
+
 /** What this body wears, from the rule's words; `undefined` where it takes no handle at all. */
 function oracleWears(
   placement: DesignPlacement,
   canHandle: boolean,
-  kitchen: Handle | undefined,
+  kitchen: Pick<Variation, "kitchen" | "topRow">,
 ): Handle | undefined {
   if (!canHandle) return undefined;
   const isTopRow = placement.y0Mm >= MODULE_LINE_MM;
-  return placement.body.handle ?? (isTopRow ? "push" : (kitchen ?? "steel"));
+  return (
+    placement.body.handle ??
+    (isTopRow ? (kitchen.topRow ?? "push") : (kitchen.kitchen ?? "steel"))
+  );
 }
 
 function oracleLatches(placement: DesignPlacement, wears: Handle | undefined) {
@@ -142,7 +166,7 @@ describe("the readers are held to the rule written out, not to each other", () =
         const wears = oracleWears(
           placement,
           canHandleOf(placement.body.buildId, catalog),
-          vary.kitchen,
+          vary,
         );
         return oracleLatches(placement, wears)
           ? total + frontsOf(entry, catalog)
@@ -169,7 +193,7 @@ describe("the readers are held to the rule written out, not to each other", () =
         );
         if (!record) throw new Error(`no record for "${placement.id}"`);
         const canHandle = canHandleOf(placement.body.buildId, catalog);
-        const expected = oracleWears(placement, canHandle, vary.kitchen);
+        const expected = oracleWears(placement, canHandle, vary);
         const meta = describeSelection({
           records,
           voids: [],
@@ -198,14 +222,15 @@ describe("the readers are held to the rule written out, not to each other", () =
   );
 
   propertyTest.prop([variation])(
-    "a top-row body that chose none is billed the same under every kitchen handle",
+    "a top-row body that chose none is billed the same under every kitchen handle (the top-row handle held fixed)",
     (vary) => {
       const design = designOf(vary);
       const { catalog } = vary.document;
-      const settingsWith = (kitchen: Handle | undefined) =>
-        kitchen === undefined
-          ? vary.document.design.settings
-          : { ...vary.document.design.settings, handle: kitchen };
+      const settingsUnder = (kitchen: Handle | undefined) =>
+        settingsWith(vary.document.design.settings, {
+          kitchen,
+          topRow: vary.topRow,
+        });
 
       for (const placement of design.placements) {
         if (placement.y0Mm < MODULE_LINE_MM) continue;
@@ -216,7 +241,7 @@ describe("the readers are held to the rule written out, not to each other", () =
               {
                 ...design,
                 placements: [placement],
-                settings: settingsWith(kitchen),
+                settings: settingsUnder(kitchen),
               },
               catalog,
             ),
@@ -225,6 +250,80 @@ describe("the readers are held to the rule written out, not to each other", () =
 
         for (const kitchen of HANDLE_CHOICES) {
           expect(latchesUnder(kitchen)).toEqual(latchesUnder(undefined));
+        }
+      }
+    },
+  );
+});
+
+describe("the kitchen's top-row handle is read by the top row alone", () => {
+  propertyTest.prop([variation])(
+    "a body below the module line that chose none is billed the same under every top-row handle",
+    (vary) => {
+      const design = designOf(vary);
+      const { catalog } = vary.document;
+      const latchesUnder = (
+        placement: DesignPlacement,
+        topRow: Handle | undefined,
+      ) =>
+        countHardwareMechanisms(
+          entriesOf(
+            {
+              ...design,
+              placements: [placement],
+              settings: settingsWith(vary.document.design.settings, {
+                kitchen: vary.kitchen,
+                topRow,
+              }),
+            },
+            catalog,
+          ),
+          catalog,
+        );
+
+      for (const placement of design.placements) {
+        if (placement.y0Mm >= MODULE_LINE_MM) continue;
+        for (const topRow of HANDLE_CHOICES) {
+          expect(latchesUnder(placement, topRow)).toEqual(
+            latchesUnder(placement, undefined),
+          );
+        }
+      }
+    },
+  );
+
+  propertyTest.prop([variation])(
+    "a body that takes no handle is billed the same under every top-row handle, so the top-row corner return stays latched (H2-b)",
+    (vary) => {
+      const design = designOf(vary);
+      const { catalog } = vary.document;
+      const records = derivePlacementRecords(design, catalog);
+
+      for (const record of records) {
+        if (record.canHandle) continue;
+        const floor = toMillimetres(record.frame.y0);
+        const latchedUnder = (topRow: Handle | undefined) =>
+          countHardwareMechanisms(
+            entriesOf(
+              {
+                ...design,
+                placements: design.placements.filter(
+                  (placement) => placement.id === record.id,
+                ),
+                settings: settingsWith(vary.document.design.settings, {
+                  kitchen: vary.kitchen,
+                  topRow,
+                }),
+              },
+              catalog,
+            ),
+            catalog,
+          ).pushToOpen > 0;
+
+        for (const topRow of HANDLE_CHOICES) {
+          expect(latchedUnder(topRow), `${record.id} @ ${String(floor)}`).toBe(
+            latchedUnder(undefined),
+          );
         }
       }
     },
@@ -295,18 +394,32 @@ describe("the builders' two small functions", () => {
     expect(ownHandleOf(null as unknown as Handle)).toBeUndefined();
   });
 
-  it("kitchenHandleSettingsOf carries the handle alone, whatever else the settings hold", () => {
+  it("kitchenHandleSettingsOf carries the two handles alone, whatever else the settings hold", () => {
     expect(kitchenHandleSettingsOf(undefined)).toEqual({});
     expect(kitchenHandleSettingsOf({})).toEqual({});
     expect(
       kitchenHandleSettingsOf({ handle: "black", cabinetDepthMm: 600 }),
     ).toStrictEqual({ handle: "black" });
+    expect(
+      kitchenHandleSettingsOf({
+        topRowHandle: "steel",
+        materialTierId: "material.veneer",
+      }),
+    ).toStrictEqual({ topRowHandle: "steel" });
+    expect(
+      kitchenHandleSettingsOf({
+        handle: "black",
+        topRowHandle: "push",
+        hardwareTierId: "hardware.standard",
+      }),
+    ).toStrictEqual({ handle: "black", topRowHandle: "push" });
   });
 
   it("kitchenHandleSettingsOf never states an absent handle as a key", () => {
-    expect("handle" in kitchenHandleSettingsOf({ cabinetDepthMm: 600 })).toBe(
-      false,
-    );
+    const carried = kitchenHandleSettingsOf({ cabinetDepthMm: 600 });
+
+    expect("handle" in carried).toBe(false);
+    expect("topRowHandle" in carried).toBe(false);
   });
 });
 
