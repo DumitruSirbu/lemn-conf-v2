@@ -2061,6 +2061,14 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
   the gitignored `testing-reports/2026-10-<dd>-m10/`. The verifier owns the tree exclusively.
 - **Viewports.** Desktop 1440 × 900 for D1–D10, C3D, C4AD, C4BD and C5AD. Mobile 390 × 844 for C1–C5, D1M, D2M,
   D3M1/2, D5CM and D7M. The viewport is set before the page loads.
+- **Z1/Z2 re-verification owed from U5's visual pass (2026-10-27, relayed).** The pass could not verify these, because dev
+  sample data cannot produce them. Re-verify once R3 and the real stores exist:
+  - the audit page's detail text for the nine dashboard actions (needs real audit rows);
+  - the "Toate prețurile sunt publicate" zero state on the kitchens, audit and cabinets pages;
+  - cross-page persistence of restore and publish (the sample desk resets per navigation).
+
+  Also: **no pixel comparison against D7A–G, D7M and D8A–C was done**; U5 was compared against the recorded departures
+  only. Z1 does that comparison.
 - **Each frame**, captured and inspected against the mockup frame of the same id:
   - its listed states (error, empty, busy, failure);
   - keyboard: focus trap, Esc, initial focus;
