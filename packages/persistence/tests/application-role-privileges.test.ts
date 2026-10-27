@@ -9,6 +9,20 @@ import type { TestContext } from "vitest";
 
 import { exportedKitchenNotesStatement } from "../src/account-kitchen-notes-statement.js";
 import {
+  readAvailabilityAtStatement,
+  readCurrentAvailabilityStatement,
+  setItemActiveStatement,
+} from "../src/catalogue-availability-statements.js";
+import {
+  listVersionsStatement,
+  publishStatement,
+  readActiveVersionStatement,
+  readDraftStatement,
+  readVersionStatement,
+  writeDraftStatement,
+} from "../src/price-book-statements.js";
+import { prepareStaffAuditRecord } from "../src/staff-audit-store.js";
+import {
   insertUnlessHeldStatement,
   selectPublishedNearStatement,
 } from "../src/preset-statements.js";
@@ -378,12 +392,17 @@ interface StaffTableGrant {
   readonly insertable: readonly string[];
   /** The columns of the `UPDATE` grant. */
   readonly updatable: readonly string[];
-  /** A column left out of the `INSERT` grant on purpose, so that a leaked credential cannot stamp it. */
-  readonly notInsertable: string;
+  /** The tail of an insert that names a column left out of the grant on purpose (a stamped column, or any column of a
+   *  seeded singleton), so that a leaked credential cannot write it: type-correct, so the refusal is for privilege. */
+  readonly refusedInsertTail: string;
   /** A column left out of the `UPDATE` grant. */
   readonly notUpdatable: string;
-  /** The tail of an insert of the shape the store will send, naming only granted columns. */
-  readonly insertTail: string;
+  /** The tail of an insert of the shape the store will send, naming only granted columns; `null` for a table the
+   *  application role never inserts into (a seeded singleton). */
+  readonly insertTail: string | null;
+  /** The tail of an update of the shape the store will send, naming only granted columns; `null` for a table the store
+   *  updates through the insert above, or never. */
+  readonly updateTail: string | null;
 }
 
 const A_PROBE_ID = "0".repeat(21);
@@ -409,8 +428,9 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
       "detail",
     ],
     updatable: [],
-    notInsertable: "occurred_at",
+    refusedInsertTail: "(occurred_at) values (now())",
     notUpdatable: "action",
+    updateTail: null,
     insertTail: `(id, actor_account_id, action) values ('${A_PROBE_ID}', '${A_PROBE_ID}', 'kitchen-opened')`,
   },
   {
@@ -418,8 +438,9 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
     columns: ["id", "design_id", "author_account_id", "body", "created_at"],
     insertable: ["id", "design_id", "author_account_id", "body"],
     updatable: [],
-    notInsertable: "created_at",
+    refusedInsertTail: "(created_at) values (now())",
     notUpdatable: "body",
+    updateTail: null,
     insertTail: `(id, design_id, author_account_id, body) values ('${A_PROBE_ID}', '${A_PROBE_ID}', '${A_PROBE_ID}', 'a probe')`,
   },
   {
@@ -427,12 +448,97 @@ const STAFF_TABLE_GRANTS: readonly StaffTableGrant[] = [
     columns: ["design_id", "status", "changed_by_account_id", "changed_at"],
     insertable: ["design_id", "status", "changed_by_account_id"],
     updatable: ["status", "changed_by_account_id", "changed_at"],
-    notInsertable: "changed_at",
+    refusedInsertTail: "(changed_at) values (now())",
     notUpdatable: "design_id",
+    updateTail: null,
     insertTail:
       `(design_id, status, changed_by_account_id) values ('${A_PROBE_ID}', 'new', '${A_PROBE_ID}') ` +
       "on conflict (design_id) do update set status = excluded.status, " +
       "changed_by_account_id = excluded.changed_by_account_id, changed_at = now()",
+  },
+  {
+    table: "public.price_book_versions",
+    columns: [
+      "id",
+      "sequence_number",
+      "label",
+      "note",
+      "book",
+      "change_summary",
+      "published_at",
+      "published_by_account_id",
+    ],
+    insertable: [
+      "id",
+      "sequence_number",
+      "label",
+      "note",
+      "book",
+      "change_summary",
+      "published_by_account_id",
+    ],
+    updatable: [],
+    refusedInsertTail: "(published_at) values (now())",
+    notUpdatable: "label",
+    updateTail: null,
+    insertTail: `(id, sequence_number, label, note, book, change_summary, published_by_account_id) values ('${A_PROBE_ID}', 1, 'a probe', '', '{}'::jsonb, '[]'::jsonb, '${A_PROBE_ID}')`,
+  },
+  {
+    table: "public.price_book_draft",
+    columns: [
+      "singleton",
+      "revision",
+      "changes",
+      "base_version_id",
+      "updated_at",
+      "updated_by_account_id",
+    ],
+    insertable: [],
+    updatable: [
+      "revision",
+      "changes",
+      "base_version_id",
+      "updated_at",
+      "updated_by_account_id",
+    ],
+    refusedInsertTail: "(revision) values (1)",
+    notUpdatable: "singleton",
+    updateTail:
+      "set revision = revision + 1, changes = '[]'::jsonb, updated_at = now(), updated_by_account_id = null where revision = 0",
+    insertTail: null,
+  },
+  {
+    table: "public.catalogue_availability_head",
+    columns: ["singleton", "revision"],
+    insertable: [],
+    updatable: ["revision"],
+    refusedInsertTail: "(revision) values (1)",
+    notUpdatable: "singleton",
+    updateTail: "set revision = revision + 1 where revision = 0",
+    insertTail: null,
+  },
+  {
+    table: "public.catalogue_availability_changes",
+    columns: [
+      "revision",
+      "item_kind",
+      "item_id",
+      "active",
+      "changed_at",
+      "changed_by_account_id",
+    ],
+    insertable: [
+      "revision",
+      "item_kind",
+      "item_id",
+      "active",
+      "changed_by_account_id",
+    ],
+    updatable: [],
+    refusedInsertTail: "(changed_at) values (now())",
+    notUpdatable: "active",
+    updateTail: null,
+    insertTail: `(revision, item_kind, item_id, active, changed_by_account_id) values (1, 'material', 'a-probe', false, '${A_PROBE_ID}')`,
   },
 ];
 
@@ -1018,21 +1124,28 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
     );
 
     guardedTest(
-      "can have the store's insert planned, and cannot have a delete, an insert naming the stamped column or an update of an ungranted column planned, once it exists",
+      "can have the store's write planned, and cannot have a delete, an insert or an update the grant leaves out planned, once it exists",
       async (context) => {
         await skipUnlessTheTableExists(context, grant.table);
         const sql = neon(readDatabaseUrl());
 
-        await expect(
-          sql.query(`explain insert into ${grant.table} ${grant.insertTail}`),
-        ).resolves.toBeDefined();
+        if (grant.insertTail !== null) {
+          await expect(
+            sql.query(`explain insert into ${grant.table} ${grant.insertTail}`),
+          ).resolves.toBeDefined();
+        }
+        if (grant.updateTail !== null) {
+          await expect(
+            sql.query(`explain update ${grant.table} ${grant.updateTail}`),
+          ).resolves.toBeDefined();
+        }
 
         expect(
           await failureOf(`explain delete from ${grant.table}`),
         ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
         expect(
           await failureOf(
-            `explain insert into ${grant.table} (${grant.notInsertable}) values (now())`,
+            `explain insert into ${grant.table} ${grant.refusedInsertTail}`,
           ),
         ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
         expect(
@@ -1043,6 +1156,96 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       },
     );
   });
+
+  // M10 wave S2: the price book and availability stores' statements, the stores' own text built by the same functions,
+  // planned and never run (`explain` runs no data-modifying branch). Each reads or writes several tables through column
+  // grants, so a column a statement names that the role was not granted is a 42501 here and not at the first publish. Red
+  // until the owner has issued the `0023` to `0025` grants and the `0020` to `0022` ones the audit row and the actor need.
+  guardedTest(
+    "can have the price book store's and the availability store's statements planned, once the tables exist",
+    async (context) => {
+      for (const table of [
+        "public.price_book_versions",
+        "public.price_book_draft",
+        "public.catalogue_availability_head",
+        "public.catalogue_availability_changes",
+        "public.staff_audit_events",
+        "public.account_sessions",
+        "public.accounts",
+      ]) {
+        await skipUnlessTheTableExists(context, table);
+      }
+      const session = {
+        sessionTokenHash: "a".repeat(64),
+        idleLifetimeSeconds: {
+          client: 2_592_000,
+          operator: 43_200,
+          administrator: 43_200,
+        },
+      };
+      const auditOf = (action: string, detail: Record<string, unknown>) =>
+        prepareStaffAuditRecord({
+          ...session,
+          entry: { action, detail } as never,
+          designId: null,
+          subjectAccountId: null,
+        });
+
+      for (const statement of [
+        readActiveVersionStatement(recordedStatement),
+        readVersionStatement(recordedStatement, A_PROBE_ID),
+        listVersionsStatement(recordedStatement, { offset: 0, limit: 20 }),
+        readDraftStatement(recordedStatement),
+        writeDraftStatement(recordedStatement, {
+          expectedRevision: "0",
+          changesJson: "[]",
+          detailJson: JSON.stringify({ changeKind: "depth-rule" }),
+          audit: auditOf("price-draft-changed", { changeKind: "depth-rule" }),
+        }),
+        publishStatement(recordedStatement, {
+          expectedDraftRevision: "0",
+          expectedActiveSequence: "0",
+          expectedAvailabilityRevision: "0",
+          versionId: A_PROBE_ID,
+          label: "a probe",
+          note: "",
+          bookJson: "{}",
+          changeSummaryJson: "[]",
+          createdItemKinds: ["hardware"],
+          createdItemIds: ["a-probe"],
+          detailJson: JSON.stringify({ provisional: true }),
+          audit: auditOf("price-published", {
+            provisional: true,
+            sequenceNumber: 1,
+            changeCount: 0,
+          }),
+        }),
+        readCurrentAvailabilityStatement(recordedStatement),
+        readAvailabilityAtStatement(recordedStatement, "0"),
+        setItemActiveStatement(recordedStatement, {
+          expectedRevision: "0",
+          itemKind: "material",
+          itemId: "a-probe",
+          active: false,
+          detailJson: JSON.stringify({
+            itemKind: "material",
+            itemId: "a-probe",
+            active: false,
+          }),
+          audit: auditOf("catalogue-item-active-changed", {
+            itemKind: "material",
+            itemId: "a-probe",
+            active: false,
+            availabilityRevision: "0",
+          }),
+        }),
+      ]) {
+        await expect(
+          explainOfThePresetStatement(statement),
+        ).resolves.toBeDefined();
+      }
+    },
+  );
 
   // The client's data export reads the notes on its own kitchens in one statement, the store's own text built by the
   // same function, planned and never run. It reads `design_notes` and `designs` and selects no author column, so a

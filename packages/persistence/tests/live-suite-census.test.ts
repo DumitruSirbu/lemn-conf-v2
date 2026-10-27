@@ -249,6 +249,18 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S5: adds a NOT VALID check constraint, a deferred constraint trigger and a function named qa_l3_s5_* to the staff tables for the length of one test each and drops them in a finally, so no other run may write those tables meanwhile (M8B Lot 3 L3-S5 QA)",
   },
+  "neon-price-book-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the price book contract asserts over global singletons (the draft, the newest version and the availability head, which every publish moves), and each publish leaves a version no test can remove: versions are append-only, so no other run may read the newest one meanwhile (M10 wave S2, plan S2 recorded choice a)",
+  },
+  "neon-catalogue-availability-store.live.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "the availability contract asserts over a global singleton (the availability head, which every write moves by exactly one) and its log is append-only, so no other run may write the head meanwhile (M10 wave S2, ex-S2b)",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",
@@ -300,6 +312,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "none",
     reason:
       "unit test of the two readers: sets and deletes its own variables, connects nowhere",
+  },
+  "seed-price-book.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "unit test of the owner-run seed: the driver is replaced, and the spawned command is given an unresolvable probe URL and is refused before it connects (M10 wave S2)",
   },
   "delete-rate-limit-counters-for-tests.live.test.ts": {
     gate: "live test database",
