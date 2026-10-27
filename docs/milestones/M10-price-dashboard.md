@@ -322,13 +322,16 @@ from, or derived from, the catalogue's width-step constant.
 - `price-per-size` priced at the smallest listed size ≥ the body's width (round up, as A-2).
 - A width above every listed size is refused with a new code, `NO_PRICE_FOR_SIZE`. It is never priced at 0 and never
   at the nearest size.
-- **The six structural corner rules are `price-per-size` with one entry** (P1 review, ruled 2026-10-26), keyed at
-  their **actual built width** (320, 570 or 900; `sample-price-book.ts:178-209`):
-  - not rounded up to 350 or 600, and not anchored;
-  - the lookup rule above already prices a body at exactly a listed width, and per-size widths are the catalogue's
-    own sizes, so they are not held to the 50 mm step (that applies only to `anchorWidthMm`, P1-f);
-  - this matches frame D3G, "Un singur preț";
-  - an anchored formula on a non-insertable row is refused by M2.
+- **The six structural corner rules are `price-per-size` with one entry** (P1 review, ruled 2026-10-26), **amended
+  2026-10-27 (P3-Q4):**
+  - each is keyed at the **round-up of its built width to the 50 mm grid**: 320 → **350**, 570 → **600**, 900 → 900
+    (`sample-price-book.ts:178-209`);
+  - ~~keyed at their actual built width, not rounded up~~. P1's parser refuses per-size keys off the 50 mm grid, and
+    the lookup rounds the body's width up before matching, so a 320 key could never match. One rule for every
+    per-size row is simpler than an exception for non-insertable rows;
+  - the price of each built body is identical either way;
+  - not anchored. An anchored formula on a non-insertable row is refused by M2;
+  - **D3G shows the catalogue's built width** (320, 570, 900) with its one price, and never the rounded key.
 
 **A-7b — No buildable body may price at or below zero** (P1 review, ruled 2026-10-26).
 
@@ -341,6 +344,10 @@ from, or derived from, the catalogue's width-step constant.
 - It refuses the book unless **every price is > 0**. Zero is refused too: the D3C copy reads "0 sau negativ"
   [`…-v2-update.md`: "La 200 mm prețul ar ieși 0 sau negativ"].
 - It evaluates the grid rather than one corner, so the rule does not depend on every coefficient being ≥ 0.
+- **(P3-Q2, 2026-10-27)** The same evaluation **refuses a row the build cannot evaluate** (`UNKNOWN_FORMULA_SHAPE`, for
+  example a retired linear shape in a stored book) and **a catalogue row the book does not price** (`NO_RULE_FOR_BODY`).
+  Publish (R3) and the owner-run seed (S2) therefore refuse a book that would parse, go active, and then refuse every
+  price. The parser stays catalogue-free and unchanged on this point.
 - `price-per-size` amounts are each > 0. Customer-supplied rows are exempt: they must be 0 (ADR 0107 d2).
 - Publish (R3) refuses such a book whole, and the editor shows D3C's error on the field that drives the value.
 - **(2026-10-26)** The same grid also refuses any price above `MAX_CABINET_AMOUNT_MINOR` (A-5), so an oversized book is
@@ -1061,7 +1068,8 @@ The `action` column is a shape check [src: `0020` header], so no migration is ow
 | `packages/configurator-domain/src/queries/design-projection.ts` (`DisplayEntry` gains an optional kitchen-handle fact) | **H1b** | Every lane reads it only |
 | `packages/configurator-domain/src/push-to-open.ts`, `queries/describe-selection.ts` | **H1**, which makes `PushToOpenQuery`, `DescribeSelectionInput` and `HandleResolutionQuery` take a **required** `KitchenHandleSettings` object (`Pick<DesignSettings, "handle">`). H1b and H2 touch these files **only to widen that object** (H2 adds `topRowHandle`), never to change its shape otherwise (ruled 2026-10-26, H1 review) | — |
 | `packages/configurator-domain/src/commands/set-appearance.ts`; the panel's handle control | **Q2b**, only if the owner accepts (or does not answer) OQ-15 | — |
-| `apps/web/src/review/review-model.ts` | **H1b** (the resolved handle on the review screen) | — |
+| `apps/web/src/review/review-model.ts`, `review/review-screen.tsx` | **H1b** (the resolved handle on the review screen), then **Q1b** (the depth line, 2026-10-27), in sequence; Q1b starts from a base that holds H1b's change | — |
+| `apps/web/src/lib/server/mail/lead-notification.ts`, `lead-notification-html.ts` | **Q1b** (the depth line in the shop's notice, 2026-10-27) | K4 reads them as a pattern only |
 | `apps/web/src/lib/server/staff/staff-page.ts` | **U1** (the catalog pages' capability and navigation), then **U5** (the pending-price count in the nav, 2026-10-27), in sequence | R does not touch it |
 | `apps/web/src/staff/staff-audit-rows.tsx` | **U5** (2026-10-27; a Lot 3 file with no other M10 owner, for the dashboard actions' rows) | — |
 | Lane T's message files, U5's new leaves | **U5**, under the new-copy permission, for its own new leaves only, in a window when no T wave is open (recorded 2026-10-27). T re-runs the copy-lock and completeness gates in its next wave | — |
@@ -1267,6 +1275,32 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
 | **P4b** linked accessories, created-row text, the price-change test (added 2026-10-26) | (1) `linkedAccessories` with the per-linked-placement earning shape (A-19), priced via `resolveCatalogEquivalent` like cabinet rules; (2) parser arms: unique ids across built-ins and linked rows, bounded list, `perUnitMinor` exact, a customer-supplied link refused when the book says so; (3) authored Romanian `name`/`description` on created rows only, with no Russian field accepted (A-21); (4) `pricesChangedBetween(design, catalog, {seenBook, seenAvailability}, {activeBook, currentAvailability})` (A-11) | `price-book.ts`, `parse-price-book.ts`, `price-design.ts`, new `pricing/linked-accessories.ts`, new `pricing/price-change-notice.ts` | P4a | A-11, A-19, A-21; ADR 0070 d4; ADR 0062 seam 1 and S-28; ADR 0106 and Amendment A; `price-book.ts:205-243`; `price-design.ts:613-708` |
 | **P5** lift mechanism and lift-door hinges (no longer conditional; ruled 2026-10-26) | (1) `HardwareTier.perLiftMinor` and its parser arm; (2) `HardwareMechanismCounts.lifts`, one per declared lift-up door; (3) the lift door's hinges: 2, or 3 when the door is **wider than 500 mm** (OQ-5a default, strict); its height rule does not apply; (4) the `liftUp` front declaration on `wall-lift` in `catalog.ts`, plus a sweep reporting every other front the catalogue calls a lift or flap (reported, not priced); (5) the ADR 0092 Amendment C quantifier gains its lift term, derived from the declared rates, and the code comments at `hardware-mechanisms.ts:27-29` and `catalog.ts:593-594` are rewritten | `hardware-mechanisms.ts`, `front-population.ts`, `catalog.ts`, `price-book.ts`, `price-design.ts`, `parse-price-book.ts`. **Six; over five, stated.** The arithmetic is two existing functions extended, and a mini-review is added | P4b (same files), **H1b** (it holds `hardware-mechanisms.ts` first). **OQ-5a flags the boundary, without blocking** | ADR 0070 d1, d6; ADR 0092 d1, d2, d8 and Amendment C; A-20; S-29, S-30; `hardware-mechanisms.ts:27-160`; `front-population.ts:60-130`; frames D4A/B [mock L688-695]; the mockup's `hwOf` [mock L511] (illustrative only) |
 
+**Rulings of 2026-10-27 on P3's questions** (branch `m10/p3` @ `edb3b157`):
+
+- **P3-Q1, the depth line on customer surfaces without an owner:** the review model and screen
+  (`review-model.ts`, `review-screen.tsx`) and the shop's lead notice (`lead-notification.ts`,
+  `lead-notification-html.ts`) copy only `groups` and `wholeKitchenRows`. At 700 mm they would omit the depth line
+  while the total includes it. → **New wave Q1b**, built on P3's branch beside Q1, **merged at MP-3 with P3 and Q1**
+  (row in lane Q). The notice prints the stored snapshot (ADR 0154 d8), whose lines already carry the `depth` kind; it
+  only has to render it.
+- **P3-Q2:** publish refuses a book with an unevaluable row (A-7b, amended).
+- **P3-Q3, not accepted as stated:** a stray flat amount silently dropped is a data hole. The replacement refusal must
+  not name the retired field, so it would not break P3-b's grep. **P3 makes material and hardware tier rows
+  closed-key in the parser**: any key outside the declared list is refused with a code naming the row. That covers a
+  stray `wholeKitchenMinor` without naming it. This is done in P3's own fix round, and the same applies to accessory
+  and linked-accessory rows.
+- **P3-Q4:** the corner keys are the round-up of the built width (A-7 and M2-b3, amended).
+- **P3-Q5, confirmed:** `SAMPLE_PRICE_BOOK_VERSION` is bumped to a new id (`sample-2026-10`), so one id always names one
+  set of figures. Stored versions are unaffected: their `book.version` is the store's minted `versionId` (R-a).
+- **P3-Q6, accepted and recorded:**
+  - `evaluateFormula` now converts only its named causes to refusals, and anything else (a stray `TypeError`)
+    propagates, as ADR 0092 d16's front-population precedent requires;
+  - front-population refusals name the **build id**, which is the existing shape `refuseUnreadableFrontsCause` already
+    uses [src: `price-design.ts:562-575`].
+- **P3-Q7:** the `content.ts` accessors for `priceBreakdown.depthLine`, `priceBreakdown.depthLineScope` and
+  `globalSettings.depthNotePriced` are **lane T's, added in T3**, which already rewrites those leaves. T3 merges before
+  MP-3, and Q1 and Q1b consume them. Neither Q wave edits `content.ts`.
+
 **P acceptance.** Each item is a property where a range exists. Use `fast-check`; the javascript-testing-expert skill
 applies.
 
@@ -1315,7 +1349,11 @@ applies.
   - the re-derived bound's worst case evaluates exactly.
 - **P2-f:** the property suite asserts the rule with randomly drawn percentages and amounts. It never asserts 15 % or
   any placeholder.
-- **P3-a:** the sample book parses. `amountsProvisional === true` and `status === "estimate"`.
+- **P3-a:** the sample book parses. `amountsProvisional === true` and `status === "estimate"`. Its version id is
+  bumped (P3-Q5).
+- **P3-e (P3-Q3):** a tier, accessory or linked-accessory row carrying any key outside its declared list is refused
+  with a code naming the row, so a stray flat amount beside a percentage is caught. The test plants
+  `wholeKitchenMinor` from the test file, never from production source.
 - **P3-b:** no source file under `packages/` or `apps/web/src` names `wholeKitchenMinor` or a `linear-in-*` shape,
   checked with `rtk proxy grep`.
 - **P3-c:** stored contact-submission snapshots are untouched. `submission-snapshot.test.ts` reads old snapshots
@@ -1497,8 +1535,11 @@ ADR 0099, ADR 0092 Amendment C, this plan A-9. **(clean-code):** the diff.
 - **M2-b3 (A-7):**
   - for an **insertable** row, `anchorWidthMm` equals the catalogue's `defaultWidthMm` (anchored), or the size list
     equals the catalogue's fixed widths (per-size);
-  - for a **non-insertable** row (the six corners), the formula must be `price-per-size` and its one listed width
-    must equal the body's built width. An anchored formula there is refused;
+  - for a **non-insertable** row (the six corners), the formula must be `price-per-size` and its one listed key must
+    equal **the round-up of the body's built width to 50 mm** (P3-Q4, 2026-10-27). An anchored formula there is
+    refused;
+  - for an insertable fixed-size row, the size list equals the round-up of each catalogue width (the shipped fixed
+    widths are already on the grid);
   - no `defaultWidthMm` is read for a corner.
 - **M2-c:**
   - every preview cell equals P2-b's function for that width, material and depth;
@@ -1973,6 +2014,7 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | Wave | Must-fix items | Prod files | Depends on | Reading (in addition to the base) |
 | --- | --- | --- | --- | --- |
 | **Q1** depth line and copy | (1) the depth line in the breakdown ("Adâncime 700 mm · +{percent} %"); (2) the settings depth control switches from `globalSettings.depthNote` to T1's `depthNotePriced`, with `{percent}` from the published rule. This is a component edit only; no message file is touched | `price-breakdown.tsx`, `price-breakdown-model.ts` (depth line only), `settings/global-settings.tsx` | T1; **built on P3's branch after P3's QA is green; merged with P3 at MP-3** | ADR 0100 decision 5 and Amendment; A-1; frames C3, C3D, C3S, C3R [mock L784-790] |
+| **Q1b** the depth line on the review screen and in the shop's notice (added 2026-10-27, P3-Q1; Full + security, because the notice is generated e-mail) | The review model and screen, and the lead notice in plain text and HTML, render the `depth` line from the priced result and the stored snapshot, between the material line and the hardware line, with the same copy as the breakdown (T3's accessors). The lines on every surface sum to the total shown | `review/review-model.ts`, `review/review-screen.tsx`, `lib/server/mail/lead-notification.ts`, `lib/server/mail/lead-notification-html.ts` | T3; **built on P3's branch; merged at MP-3 with P3 and Q1** | A-1; ADR 0154 d8; ADR 0165; `escapeHtml` builders (F6's rule applies to any value it prints) |
 | **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint, offering only active handles; the store applies `setKitchenHandle`; **Q2 folds `KitchenHandleSetEffect` into the `CommandEffect` union** (H1 leaves it outside, and its code comment saying so is being trimmed), together with `apply-command-result.ts`'s whole-kitchen branch, in one change (H-6) | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts`, `domain commands/command-result.ts`, `store/apply-command-result.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), **H1b**, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command; H-6 |
 | **Q2b** a cabinet follows the kitchen handle again (added 2026-10-26; **pending OQ-15**, default = mirror colour) | (1) a `clearHandle` command in `set-appearance.ts`, mirroring `clearFinish` (ADR 0099 d8): it removes the cabinet's own handle, so the kitchen handle applies again; (2) a panel option "Ca restul bucătăriei" in the cabinet's handle control, as the colour control has; (3) the copy leaf, requested from T | `commands/set-appearance.ts`, the panel handle control, `store/apply-command-result.ts` (if a new effect branch is needed) | Q2 | ADR 0099 d8 (`clearFinish`); `set-appearance.ts`; OQ-15 |
 | **Q3** forced replacement and merged notice (**widened 2026-10-27, R1-Q1 deferral: with no active book the whole editor `/d/[id]` and the share view `/s/[token]` crash, not only the settings sheet, because `use-top-bar-fit.ts:72` calls `useWholeKitchenTierOffer()` unconditionally and there is no `error.tsx`; Q3's `NO_TIER_OFFER` work must cover `describeSettingsPill` and the top bar too, see R-b**) | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17) | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |
@@ -1985,6 +2027,12 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
   - there is no commit on `m10-price-dashboard` in which the customer's price responds to depth while the settings
     sheet renders the old `depthNote`, or the reverse;
   - checked by reading `git log -p` of the MP-3 merge.
+- **Q1b-a:**
+  - at 700 mm, with a positive depth percentage, the review screen and both forms of the lead notice show a depth
+    line;
+  - on each surface the lines sum to the total shown;
+  - a snapshot stored before P3, which has no `depth` line, renders unchanged;
+  - must-not: the notice re-prices anything (ADR 0154 d8).
 - **Q1-b:** the depth line's percentage text is the published rule's value. A test publishes two different values and
   sees each one. No figure is in the copy.
 - **Q3-a:**
