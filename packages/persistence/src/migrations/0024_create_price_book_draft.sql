@@ -17,7 +17,8 @@
 --
 -- `changes` is bounded to 4 MiB of `jsonb` text (4194304 bytes), `0011`'s ceiling for a stored document and for its
 -- reason: far above any draft the product writes and above what `jsonb` adds in spaces to the application's own, lower
--- limit (2 MiB of compact JSON, checked before any statement), so no credential can make a row that the dashboard must
+-- limit (2 MiB of compact JSON whose numbers are all whole, checked before any statement; `jsonb` prints any other
+-- number out in full), so no credential can make a row that the dashboard must
 -- then load. The ceiling must be in the first apply; it cannot be added later to a row that already holds more.
 --
 -- The row is seeded with `insert … on conflict do nothing`, so a re-run changes no data and never resets a draft that

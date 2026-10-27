@@ -1,3 +1,5 @@
+import { fc, test as propertyTest } from "@fast-check/vitest";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,7 +13,14 @@ import type {
   DashboardStoreFailure,
   PublishPriceBookRequest,
 } from "../src/m10-ports.js";
+import { isRevisionShape } from "../src/dashboard-store-shapes.js";
 import { NeonPriceBookStore } from "../src/neon-price-book-store.js";
+import {
+  listVersionsStatement,
+  readActiveVersionStatement,
+  readDraftStatement,
+  readVersionStatement,
+} from "../src/price-book-statements.js";
 import { NeonSessionStore } from "../src/neon-session-store.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
@@ -21,6 +30,10 @@ import {
   resetQueryDriver,
 } from "./support/mocked-neon-query-driver.js";
 import type { SentQuery } from "./support/mocked-neon-query-driver.js";
+import {
+  orderByNamesOfAnOutputColumn,
+  statementText,
+} from "./support/order-by-output-aliases.js";
 import { rejectionOf } from "./support/rejection-of.js";
 
 const mintedIds = vi.hoisted(() => ({ count: 0 }));
@@ -175,7 +188,7 @@ describe("reading the versions", () => {
     answerQueryWith([]);
     expect(await newStore().readActive()).toBe(NO_ACTIVE_VERSION);
     expect(normalised(loneStatement())).toContain(
-      "from price_book_versions order by sequence_number desc limit 1",
+      "from price_book_versions v order by v.sequence_number desc limit 1",
     );
 
     resetQueryDriver();
@@ -896,5 +909,387 @@ describe("a publish", () => {
       () => newStore().publish(aPublishRequest()),
       "unexpected-answer",
     );
+  });
+});
+
+describe("wave S2 adversarial QA: what the statements' text and the stores' shape checks let through", () => {
+  describe("the order by of a reader", () => {
+    it.each([
+      ["the active version", readActiveVersionStatement(statementText)],
+      ["one version", readVersionStatement(statementText, VERSION_ID)],
+      [
+        "the page of versions",
+        listVersionsStatement(statementText, { offset: 0, limit: 20 }),
+      ],
+      ["the draft", readDraftStatement(statementText)],
+    ])(
+      "sorts %s by a column and never by an output column of the same name",
+      (_name, text) => {
+        // `sequence_number::text as sequence_number … order by sequence_number` sorts the text, so version 9 follows 10.
+        expect(orderByNamesOfAnOutputColumn(text)).toEqual([]);
+      },
+    );
+
+    it("is able to see the defect it guards against", () => {
+      expect(
+        orderByNamesOfAnOutputColumn(
+          "select n::text as n from t order by n desc limit 1",
+        ),
+      ).toEqual(["n"]);
+      expect(
+        orderByNamesOfAnOutputColumn(
+          "select n::text as n from t order by t.n desc limit 1",
+        ),
+      ).toEqual([]);
+    });
+  });
+
+  describe("json the table cannot hold, or holds as far more text than it was sent as", () => {
+    // PostgreSQL prints a `jsonb` number in plain decimal: 5e-324 as 326 characters, 1.7976931348623157e+308 as 309 and
+    // 1e+21 as 22, where `JSON.stringify` wrote 6, 23 and 5. Each count below is 0.09 to 1 MiB of compact text and more
+    // than the 4 MiB of `jsonb` text that `0023` and `0024` accept (measured on PostgreSQL 17: a `23514` check violation).
+    const EXPONENT_NUMBER_ARRAYS = [
+      ["13 000 copies of the smallest double", Array(13_000).fill(5e-324)],
+      [
+        "14 000 copies of the largest double",
+        Array(14_000).fill(Number.MAX_VALUE),
+      ],
+      ["180 000 copies of 1e21", Array(180_000).fill(1e21)],
+    ] as const;
+
+    it.each(EXPONENT_NUMBER_ARRAYS)(
+      "refuses a book of %s before it sends anything",
+      async (_name, numbers) => {
+        await failureOf(
+          () =>
+            newStore().publish(aPublishRequest({ book: { numbers } as never })),
+          "invalid-request",
+        );
+
+        expect(queryDriver.statements).toHaveLength(0);
+      },
+    );
+
+    it.each(EXPONENT_NUMBER_ARRAYS)(
+      "refuses a change summary of %s before it sends anything",
+      async (_name, numbers) => {
+        await failureOf(
+          () =>
+            newStore().publish(
+              aPublishRequest({ changeSummary: numbers as never }),
+            ),
+          "invalid-request",
+        );
+
+        expect(queryDriver.statements).toHaveLength(0);
+      },
+    );
+
+    it.each(EXPONENT_NUMBER_ARRAYS)(
+      "refuses draft changes of %s before it sends anything",
+      async (_name, numbers) => {
+        await failureOf(
+          () =>
+            newStore().writeDraft({
+              expectedDraftRevision: "3",
+              changes: numbers as never,
+              audit: { session: SESSION, entry: DRAFT_CHANGED },
+            }),
+          "invalid-request",
+        );
+
+        expect(queryDriver.statements).toHaveLength(0);
+      },
+    );
+
+    it("still sends a book of the same count of whole numbers, which the table holds as the text it was sent as", async () => {
+      answerQueryWith([PUBLISHED_ROW]);
+
+      const result = await newStore().publish(
+        aPublishRequest({ book: { numbers: Array(180_000).fill(1) } as never }),
+      );
+
+      expect(result.kind).toBe("ok");
+    });
+
+    it.each([
+      ["a NUL", "\u0000"],
+      ["a lone high surrogate", "\ud800"],
+      ["a lone low surrogate", "\udc00"],
+    ])(
+      "refuses json holding %s anywhere in a book, a summary or a draft before it sends anything",
+      async (_name, text) => {
+        // `jsonb` refuses `\u0000` (22P05) and a lone surrogate escape (22P02), and `JSON.stringify` writes both.
+        const failures = [
+          () =>
+            newStore().publish(aPublishRequest({ book: { text } as never })),
+          () => newStore().publish(aPublishRequest({ changeSummary: [text] })),
+          () =>
+            newStore().writeDraft({
+              expectedDraftRevision: "3",
+              changes: [{ text }] as never,
+              audit: { session: SESSION, entry: DRAFT_CHANGED },
+            }),
+        ];
+
+        for (const call of failures) {
+          await failureOf(call, "invalid-request");
+        }
+
+        expect(queryDriver.statements).toHaveLength(0);
+      },
+    );
+
+    it("still sends json holding a surrogate pair, which is one character", async () => {
+      answerQueryWith([PUBLISHED_ROW]);
+
+      const result = await newStore().publish(
+        aPublishRequest({ book: { text: "\u{1F34E}" } as never }),
+      );
+
+      expect(result.kind).toBe("ok");
+    });
+  });
+
+  describe("the bound on a stored document, counted in bytes of compact text", () => {
+    const BOUND = 2_097_152;
+    const BOOK_WRAPPER_BYTES = '{"text":""}'.length;
+    const ARRAY_WRAPPER_BYTES = '[""]'.length;
+
+    it("sends a book of exactly the bound and refuses one byte more", async () => {
+      answerQueryWith([PUBLISHED_ROW]);
+      const book = (bytes: number) => ({
+        text: "x".repeat(bytes - BOOK_WRAPPER_BYTES),
+      });
+
+      const atBound = await newStore().publish(
+        aPublishRequest({ book: book(BOUND) }),
+      );
+      await failureOf(
+        () => newStore().publish(aPublishRequest({ book: book(BOUND + 1) })),
+        "invalid-request",
+      );
+
+      expect(atBound.kind).toBe("ok");
+      expect(queryDriver.statements).toHaveLength(1);
+    });
+
+    it("sends a change summary and draft changes of exactly the bound and refuses one byte more", async () => {
+      const entry = (bytes: number) => [
+        "x".repeat(bytes - ARRAY_WRAPPER_BYTES),
+      ];
+      const draft = (changes: readonly unknown[]) =>
+        newStore().writeDraft({
+          expectedDraftRevision: "3",
+          changes: changes as never,
+          audit: { session: SESSION, entry: DRAFT_CHANGED },
+        });
+      answerQueryWith([PUBLISHED_ROW]);
+      answerQueryWith([
+        { revision: "4", is_session_live: true, audited_rows: 1 },
+      ]);
+
+      const summaryAtBound = await newStore().publish(
+        aPublishRequest({ changeSummary: entry(BOUND) }),
+      );
+      const draftAtBound = await draft(entry(BOUND));
+      await failureOf(
+        () =>
+          newStore().publish(
+            aPublishRequest({ changeSummary: entry(BOUND + 1) }),
+          ),
+        "invalid-request",
+      );
+      await failureOf(() => draft(entry(BOUND + 1)), "invalid-request");
+
+      expect(summaryAtBound.kind).toBe("ok");
+      expect(draftAtBound.kind).toBe("ok");
+      expect(queryDriver.statements).toHaveLength(2);
+    });
+
+    it("counts bytes and not characters: a book of 3-byte characters is refused once its bytes pass the bound", async () => {
+      const euros = (characters: number) => ({ text: "€".repeat(characters) });
+      const widest = Math.floor((BOUND - BOOK_WRAPPER_BYTES) / 3);
+      answerQueryWith([PUBLISHED_ROW]);
+
+      const atBound = await newStore().publish(
+        aPublishRequest({ book: euros(widest) }),
+      );
+      await failureOf(
+        () => newStore().publish(aPublishRequest({ book: euros(widest + 1) })),
+        "invalid-request",
+      );
+
+      expect(atBound.kind).toBe("ok");
+    });
+  });
+
+  describe("an item a publish creates, which the append-only log keeps for good", () => {
+    it("refuses a created handle the book does not list before it sends anything", async () => {
+      await failureOf(
+        () =>
+          newStore().publish(
+            aPublishRequest({
+              createdItems: [{ kind: "handle", handle: "nope" } as never],
+            }),
+          ),
+        "invalid-request",
+      );
+
+      expect(queryDriver.statements).toHaveLength(0);
+    });
+
+    it("sends a created handle the book lists", async () => {
+      answerQueryWith([PUBLISHED_ROW]);
+
+      const result = await newStore().publish(
+        aPublishRequest({
+          createdItems: [{ kind: "handle", handle: "steel" }],
+        }),
+      );
+
+      expect(result.kind).toBe("ok");
+    });
+  });
+
+  describe("a revision, which is opaque text", () => {
+    const WIDEST_BIGINT = 9_223_372_036_854_775_807n;
+    const REVISION_CHARACTERS = [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "-",
+      "+",
+      "e",
+      ".",
+      " ",
+      "\n",
+      "١",
+      "１",
+    ];
+
+    function isCanonicalBigintText(candidate: string): boolean {
+      return (
+        /^(0|[1-9][0-9]*)$/.test(candidate) &&
+        BigInt(candidate) <= WIDEST_BIGINT
+      );
+    }
+
+    propertyTest.prop([
+      fc.string({
+        unit: fc.constantFrom(...REVISION_CHARACTERS),
+        maxLength: 22,
+      }),
+    ])(
+      "is held to the canonical digit run a bigint column holds, by any string",
+      (text) => {
+        expect(isRevisionShape(text)).toBe(isCanonicalBigintText(text));
+      },
+    );
+
+    propertyTest.prop([fc.bigInt({ min: -3n, max: 3n })])(
+      "changes its answer exactly at the widest bigint",
+      (offset) => {
+        const candidate = WIDEST_BIGINT + offset;
+
+        expect(isRevisionShape(candidate.toString())).toBe(offset <= 0n);
+      },
+    );
+
+    it("is never parsed, ordered or counted with in the TypeScript of the stores or the text of their statements", () => {
+      const sourceOf = (file: string) =>
+        readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
+      const stores = [
+        "neon-price-book-store.ts",
+        "neon-catalogue-availability-store.ts",
+      ].map(sourceOf);
+      const statements = [
+        "price-book-statements.ts",
+        "catalogue-availability-statements.ts",
+      ].map(sourceOf);
+
+      for (const source of [...stores, ...statements]) {
+        expect(source).not.toMatch(
+          /\bBigInt\s*\(|\bparseInt\s*\(|\bparseFloat\s*\(/,
+        );
+      }
+      for (const source of stores) {
+        expect(source).not.toMatch(/[Rr]evision\w*\s*[-+*/<>]=?\s*\w/);
+      }
+    });
+  });
+});
+
+describe("the json a store sends, as a table reads it back", () => {
+  it.each([
+    ["a fraction", 1.5],
+    ["a number past the safe integers", 2 ** 60],
+    ["a negative fraction", -0.25],
+  ])(
+    "refuses %s anywhere in a book, a summary or a draft before it sends anything",
+    async (_name, number) => {
+      const calls = [
+        () =>
+          newStore().publish(
+            aPublishRequest({ book: { nested: [{ rate: number }] } as never }),
+          ),
+        () =>
+          newStore().publish(
+            aPublishRequest({ changeSummary: [{ value: number }] }),
+          ),
+        () =>
+          newStore().writeDraft({
+            expectedDraftRevision: "3",
+            changes: [{ value: number }] as never,
+            audit: { session: SESSION, entry: DRAFT_CHANGED },
+          }),
+      ];
+
+      for (const call of calls) await failureOf(call, "invalid-request");
+
+      expect(queryDriver.statements).toHaveLength(0);
+    },
+  );
+
+  it("sends whole numbers of either sign, and zero", async () => {
+    answerQueryWith([PUBLISHED_ROW]);
+
+    const result = await newStore().publish(
+      aPublishRequest({
+        book: {
+          amounts: [0, -5, 9_007_199_254_740_991, -9_007_199_254_740_991],
+        } as never,
+      }),
+    );
+
+    expect(result.kind).toBe("ok");
+  });
+
+  it("refuses a NUL or a lone surrogate in an object key as it does in a string", async () => {
+    for (const key of ["a\u0000b", "\ud800"]) {
+      await failureOf(
+        () =>
+          newStore().publish(aPublishRequest({ book: { [key]: 1 } as never })),
+        "invalid-request",
+      );
+    }
+
+    expect(queryDriver.statements).toHaveLength(0);
+  });
+
+  it("walks a value nested a hundred thousand deep without overflowing the stack", async () => {
+    let nested: unknown = 1;
+    for (let depth = 0; depth < 100_000; depth += 1) nested = [nested];
+
+    await expect(
+      newStore().publish(aPublishRequest({ changeSummary: nested as never })),
+    ).rejects.toBeDefined();
   });
 });

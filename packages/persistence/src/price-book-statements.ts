@@ -24,14 +24,19 @@ export const PUBLISH_RACED = "2201F";
 export const SEQUENCE_NUMBER_IS_UNIQUE =
   "price_book_versions_sequence_number_is_unique";
 
+/**
+ * The newest version. **Every `order by` here names its column through a table alias**: a bare name in `order by` binds to
+ * an output column of that name first, and `sequence_number::text as sequence_number` is one, so a bare
+ * `order by sequence_number` sorts the text and puts version 9 after version 10.
+ */
 export function readActiveVersionStatement<Statement>(
   sql: StatementTag<Statement>,
 ): Statement {
   return sql`
-    select id, sequence_number::text as sequence_number, label,
-      floor(extract(epoch from published_at) * 1000)::bigint::text as published_ms, book
-    from price_book_versions
-    order by sequence_number desc
+    select v.id, v.sequence_number::text as sequence_number, v.label,
+      floor(extract(epoch from v.published_at) * 1000)::bigint::text as published_ms, v.book
+    from price_book_versions v
+    order by v.sequence_number desc
     limit 1
   `;
 }

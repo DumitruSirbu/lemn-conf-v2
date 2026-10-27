@@ -7,7 +7,7 @@ import {
   isMintedId,
   isRevisionShape,
   isStorableItem,
-  isWithinStoredJsonLimit,
+  isStorableJsonText,
   isVersionLabel,
   isVersionNote,
   itemIdOf,
@@ -362,7 +362,8 @@ function requirePublishable(
 
 /**
  * The JSON text of a value that must come out as an object or an array, or `invalid-request`: a value JSON cannot hold,
- * or one longer than a table takes (refused without quoting any of it).
+ * or one a table would refuse or alter: too long, a number that is not a whole one, a NUL or a lone surrogate (refused
+ * without quoting any of it).
  */
 function jsonTextOf(
   value: unknown,
@@ -377,7 +378,7 @@ function jsonTextOf(
     throw new DashboardStoreError(operation, "invalid-request");
   }
   const opening = shape === "array" ? "[" : "{";
-  if (!text?.startsWith(opening) || !isWithinStoredJsonLimit(text)) {
+  if (!text?.startsWith(opening) || !isStorableJsonText(text)) {
     throw new DashboardStoreError(operation, "invalid-request");
   }
   return text;

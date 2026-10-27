@@ -6,6 +6,10 @@ import {
   DashboardStoreError,
 } from "../src/m10-ports.js";
 import type { DashboardStoreFailure } from "../src/m10-ports.js";
+import {
+  readAvailabilityAtStatement,
+  readCurrentAvailabilityStatement,
+} from "../src/catalogue-availability-statements.js";
 import { NeonCatalogueAvailabilityStore } from "../src/neon-catalogue-availability-store.js";
 import { NeonSessionStore } from "../src/neon-session-store.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
@@ -16,6 +20,10 @@ import {
   resetQueryDriver,
 } from "./support/mocked-neon-query-driver.js";
 import type { SentQuery } from "./support/mocked-neon-query-driver.js";
+import {
+  orderByNamesOfAnOutputColumn,
+  statementText,
+} from "./support/order-by-output-aliases.js";
 import { rejectionOf } from "./support/rejection-of.js";
 
 vi.mock("nanoid", () => ({ nanoid: () => "000000000000000000001" }));
@@ -414,4 +422,74 @@ describe("an availability write", () => {
 
     await failureOf(() => setMaterialOff(), "unexpected-answer");
   });
+});
+
+describe("wave S2 adversarial QA: what the availability store lets into an append-only log", () => {
+  // The log has no `UPDATE` or `DELETE` grant, and `readCurrent` and `readAt` rebuild an item from each row: a handle the
+  // book does not list is a row the store itself then refuses to read (`unexpected-answer`), for every reader, with no way
+  // for the application to take the row back.
+  const OFF_LIST_HANDLE = { kind: "handle", handle: "nope" } as never;
+
+  it("refuses to switch an off-list handle before it sends anything", async () => {
+    await failureOf(
+      () =>
+        setMaterialOff({
+          item: OFF_LIST_HANDLE,
+          audit: activation({
+            itemKind: "handle",
+            itemId: "nope",
+            active: false,
+          }),
+        }),
+      "invalid-request",
+    );
+
+    expect(queryDriver.statements).toHaveLength(0);
+  });
+
+  it("sends a handle the book lists", async () => {
+    answerQueryWith([WRITTEN_ROW]);
+
+    const result = await setMaterialOff({
+      item: { kind: "handle", handle: "steel" },
+      audit: activation({ itemKind: "handle", itemId: "steel", active: false }),
+    });
+
+    expect(result).toEqual({ kind: "ok", revision: "8" });
+  });
+
+  it.each([
+    ["the current state", readCurrentAvailabilityStatement(statementText)],
+    [
+      "the state at a revision",
+      readAvailabilityAtStatement(statementText, "3"),
+    ],
+  ])(
+    "sorts %s by a column and never by an output column of the same name",
+    (_name, text) => {
+      expect(orderByNamesOfAnOutputColumn(text)).toEqual([]);
+    },
+  );
+});
+
+describe("a handle, the one item whose ids are a closed list", () => {
+  it.each(["steel", "black", "push"] as const)(
+    "switches %s, which the design lists and readCurrent reads back",
+    async (handle) => {
+      answerQueryWith([WRITTEN_ROW]);
+
+      const result = await newStore().setActive({
+        item: { kind: "handle", handle },
+        active: false,
+        expectedRevision: "7",
+        audit: activation({
+          itemKind: "handle",
+          itemId: handle,
+          active: false,
+        }),
+      });
+
+      expect(result).toEqual({ kind: "ok", revision: "8" });
+    },
+  );
 });

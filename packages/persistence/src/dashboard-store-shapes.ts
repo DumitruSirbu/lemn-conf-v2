@@ -1,3 +1,4 @@
+import { HandleSchema } from "@lemnaria/configurator-domain";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
 // The shapes the M10 stores refuse before any statement: the fakes and the Neon stores share them, so both turn away
@@ -31,10 +32,29 @@ export function isNamedItem(item: ItemRef): boolean {
  */
 const STORABLE_ITEM_ID_SHAPE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
 
-/** Whether the table (`0025`) can hold a row for the item. */
+/** The kinds whose id is free text of the shape above: every kind but the closed list of handles. */
+const STORABLE_TIER_KINDS: readonly ItemRef["kind"][] = [
+  "material",
+  "hardware",
+  "finish",
+  "accessory",
+];
+
+/**
+ * Whether the table (`0025`) can hold a row for the item **and the stores can read the row back**. The log is
+ * append-only, so a row no reader accepts would make `readCurrent` fail for good: a handle must be one the design lists,
+ * and every other kind is an id of the shape above.
+ */
 export function isStorableItem(item: ItemRef): boolean {
+  if (item.kind === "handle") {
+    return HandleSchema.safeParse(item.handle).success;
+  }
   const id: unknown = itemIdOf(item);
-  return typeof id === "string" && STORABLE_ITEM_ID_SHAPE.test(id);
+  return (
+    typeof id === "string" &&
+    STORABLE_ITEM_ID_SHAPE.test(id) &&
+    STORABLE_TIER_KINDS.includes(item.kind)
+  );
 }
 
 export function isJsonObject(value: unknown): boolean {
@@ -66,14 +86,65 @@ function isWiderThanABigint(canonicalDigits: string): boolean {
 
 /**
  * The most JSON a store sends for a book, a change summary or a draft's changes: 2 MiB of compact text. The tables check
- * 4 MiB of `jsonb` text (`0023`, `0024`; `0011`'s ceiling), and `jsonb` text adds a space after each colon and comma,
- * which can not double the length of compact JSON, so nothing this bound lets through is refused by a table.
+ * 4 MiB of `jsonb` text (`0023`, `0024`; `0011`'s ceiling). `jsonb` prints a number out in full (5e-324 as 326
+ * characters, 1e21 as 22), which no byte count of compact text bounds, so `isStorableJsonText` also refuses any number
+ * that is not a safe integer: with only whole numbers `jsonb` adds a space after each colon and comma and nothing else,
+ * which cannot double the length of compact JSON, so nothing it lets through is refused by a table.
  */
 export const MAX_STORED_JSON_BYTES = 2_097_152;
 
-/** Whether the JSON text is short enough to send. Counted in UTF-8 bytes, as `octet_length` counts. */
-export function isWithinStoredJsonLimit(jsonText: string): boolean {
-  return new TextEncoder().encode(jsonText).length <= MAX_STORED_JSON_BYTES;
+/** A high surrogate with no low one after it, or a low one with no high one before it. */
+const LONE_SURROGATE =
+  /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+
+/**
+ * Whether the JSON text is one a table takes and reads back as it was sent: at most `MAX_STORED_JSON_BYTES` of UTF-8,
+ * every number a safe integer (every amount and percentage of a book is whole), and no string or key holding U+0000 or a
+ * lone surrogate, which `jsonb` refuses (22P05, 22P02). The walk is iterative, so a deeply nested value cannot overflow
+ * the stack.
+ */
+export function isStorableJsonText(jsonText: string): boolean {
+  if (new TextEncoder().encode(jsonText).length > MAX_STORED_JSON_BYTES) {
+    return false;
+  }
+  const parsed = parseOrUndefined(jsonText);
+  if (parsed === undefined) return false;
+  const pending: unknown[] = [parsed];
+  while (pending.length > 0) {
+    if (!isStorableLeafOrQueue(pending.pop(), pending)) return false;
+  }
+  return true;
+}
+
+/** The value of JSON text, or `undefined` for text no parser takes (a nesting deeper than the parser's stack). */
+function parseOrUndefined(jsonText: string): unknown {
+  try {
+    return JSON.parse(jsonText) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Judges a leaf, or queues a container's members; `false` for a value a table would refuse. */
+function isStorableLeafOrQueue(value: unknown, pending: unknown[]): boolean {
+  if (typeof value === "number") return Number.isSafeInteger(value);
+  if (typeof value === "string") return isStorableString(value);
+  if (Array.isArray(value)) {
+    for (const member of value as unknown[]) pending.push(member);
+    return true;
+  }
+  if (typeof value === "object" && value !== null) {
+    const members = value as Record<string, unknown>;
+    for (const key of Object.keys(members)) {
+      if (!isStorableString(key)) return false;
+      pending.push(members[key]);
+    }
+  }
+  return true;
+}
+
+function isStorableString(text: string): boolean {
+  return !text.includes("\u0000") && !LONE_SURROGATE.test(text);
 }
 
 /** An id a store mints for a row: the shape of `accounts.id` and of a design's id, which the tables check. */
