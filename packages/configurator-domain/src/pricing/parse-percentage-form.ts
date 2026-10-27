@@ -1,6 +1,8 @@
-// A book states its materials one way (ADR 0092 Amendment of 2026-10-25, ADR 0177 A-5): flat (`wholeKitchenMinor` per
-// tier, no `depthRule`) or as percentages (`percentOfCabinets` per tier, a `depthRule`, the default tier at 0 %).
-// A book carrying both is refused. Every read goes through `readDeclared`.
+// A book states its materials as percentages (ADR 0092 Amendment of 2026-10-25, ADR 0177 A-5): every material tier a
+// `percentOfCabinets`, the book a `depthRule`, the default tier at 0 %. It is the only form: a book whose tier states no
+// percentage, or that states no depth rule, is refused here, so a stored book from before the cut-over never reaches the
+// arithmetic. A member of a tier that nothing reads prices nothing and is not this parser's to refuse (the projection
+// drops it, `project-price-book.ts`). Every read goes through `readDeclared`.
 import {
   boundedListOf,
   describeDeclared,
@@ -15,8 +17,8 @@ import {
 } from "./price-bounds.js";
 import type { PricingFailure } from "./price-lines.js";
 
-/** The book's material tiers and depth rule, held to being one form. `maxTiersPerGroup` is the parser's own bound on
- *  a group, passed in so the two cannot differ. */
+/** The book's material tiers and depth rule, held to being the percentage form. `maxTiersPerGroup` is the parser's own
+ *  bound on a group, passed in so the two cannot differ. */
 export function refuseUnusablePercentageForm(
   book: Record<string, unknown>,
   maxTiersPerGroup: number,
@@ -28,60 +30,14 @@ export function refuseUnusablePercentageForm(
     maxTiersPerGroup,
   );
   const tierRecords = (tiers ?? []).filter(isRecord);
-
-  const mixed = refuseMixedForms(tierRecords);
-  if (mixed) return mixed;
-
-  const percentageTiers = tierRecords.filter(statesPercentage);
-  const depthRule = readDeclared(book, "depthRule");
-  if (percentageTiers.length === 0) {
-    return refuseDepthRuleBesideFlatTiers(depthRule);
-  }
   return (
-    firstUnusableTierPercentage(percentageTiers) ??
-    refuseUnusableDepthRule(depthRule) ??
-    refuseDefaultTierAboveZero(material, percentageTiers)
+    firstUnusableTier(tierRecords) ??
+    refuseUnusableDepthRule(readDeclared(book, "depthRule")) ??
+    refuseDefaultTierAboveZero(material, tierRecords)
   );
 }
 
-/** A tier stating both amounts, or tiers that do not all state a percentage when one does: a book states one form. */
-function refuseMixedForms(
-  tiers: readonly Record<string, unknown>[],
-): PricingFailure | undefined {
-  const stated = tiers.filter(statesPercentage);
-  const bothAmounts = stated.find(statesFlatAmount);
-  if (bothAmounts !== undefined) {
-    return invalidBook(
-      `The ${namedTier(bothAmounts)} declares both "wholeKitchenMinor" and "percentOfCabinets". ` +
-        `A material is a flat amount or a percentage, never both`,
-    );
-  }
-  if (stated.length === 0 || stated.length === tiers.length) return undefined;
-  return invalidBook(
-    "The material tiers state their amounts two ways: some a percentOfCabinets, some not. A book states one form",
-  );
-}
-
-function statesPercentage(tier: Record<string, unknown>): boolean {
-  return readDeclared(tier, "percentOfCabinets") !== undefined;
-}
-
-function statesFlatAmount(tier: Record<string, unknown>): boolean {
-  return readDeclared(tier, "wholeKitchenMinor") !== undefined;
-}
-
-/** A depth rule beside flat tiers would sit in the book unpriced, as `refuseUnreadFields` holds for any field. */
-function refuseDepthRuleBesideFlatTiers(
-  depthRule: unknown,
-): PricingFailure | undefined {
-  if (depthRule === undefined) return undefined;
-  return invalidBook(
-    'The book declares a "depthRule" but its material tiers state flat amounts: ' +
-      "a depth rule belongs to the percentage form, where every tier states a percentOfCabinets",
-  );
-}
-
-function firstUnusableTierPercentage(
+function firstUnusableTier(
   tiers: readonly Record<string, unknown>[],
 ): PricingFailure | undefined {
   for (const tier of tiers) {
@@ -103,7 +59,7 @@ function refuseUnusableDepthRule(
 ): PricingFailure | undefined {
   if (!isRecord(depthRule)) {
     return invalidBook(
-      `A book whose materials are percentages declares a "depthRule" object. Found: ${describeDeclared(depthRule)}`,
+      `A book declares a "depthRule" object. Found: ${describeDeclared(depthRule)}`,
     );
   }
   return (

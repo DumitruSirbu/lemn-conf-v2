@@ -8,9 +8,10 @@ import { boundedFailureReason } from "../failure-text.js";
 
 import type { PricingFailure } from "./price-lines.js";
 
-/** The widest linear shape's term count: base, width, height and door-leaf terms, each multiplied by a
- *  millimetre count. An anchored shape has five terms, but it multiplies each by a count of 50 mm steps or of door
- *  leaves, so its multipliers sum to far less than four millimetre-sized ones and the same bound holds. */
+/** The term count the coefficient bound was derived over: the four millimetre-multiplied terms of the shapes this
+ *  build retired at the cut-over. An anchored shape has five terms, but it multiplies each by a count of 50 mm steps
+ *  or of door leaves, so its multipliers sum to far less than four millimetre-sized ones; the bound is kept, not
+ *  re-derived, so a stored book that parsed still parses. */
 const TERMS_IN_THE_WIDEST_FORMULA = 4;
 
 /** The largest count a book amount is multiplied by: a millimetre dimension, since every other
@@ -18,12 +19,12 @@ const TERMS_IN_THE_WIDEST_FORMULA = 4;
 const MAX_BOOK_AMOUNT_MULTIPLIER = MAX_DESIGN_DIMENSION_MM;
 
 /**
- * The largest magnitude a flat-form book's coefficient or stated amount may carry, in minor units. Derived from the
+ * The largest magnitude a book's coefficient or stated amount may carry, in minor units. Derived from the
  * arithmetic: at this bound every product and partial sum `amountForBody` forms stays in the
  * safe-integer range, so cancelling terms cannot lose precision. A bound on magnitude, not sign:
  * `refuseNegativeAmount` refuses a negative price and the published line is refused where it is built.
  *
- * Held for every form of book. The percentage seam bounds a cabinet's whole amount instead, by
+ * The percentage seam bounds a cabinet's whole amount beside it, by
  * `MAX_CABINET_AMOUNT_MINOR` (`percentage-lines.ts`, ADR 0177 A-5): the terms' own arithmetic is exact-checked.
  */
 export const MAX_PRICE_COEFFICIENT_MINOR = Math.floor(

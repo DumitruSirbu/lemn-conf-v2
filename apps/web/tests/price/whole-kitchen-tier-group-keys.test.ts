@@ -38,11 +38,13 @@ import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
 } from "@/price/whole-kitchen-tiers";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
 function measure(book: PriceBook = BOOK): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book,
@@ -70,9 +72,10 @@ function bookCollidingTierIds(): {
 }
 
 describe("the delta a whole-kitchen tier states, and what a collided book does to it", () => {
-  it("prices the shipped book's veneer upgrade at the book's own whole-kitchen amount", () => {
-    // The `normal` half of the witness. Read off the book rather than written as a literal, so a
-    // repriced sample moves the expectation with it.
+  it("prices the shipped book's veneer upgrade at the material line the query itself publishes for it", () => {
+    // The `normal` half of the witness. Read off a second evaluation of the query rather than written as a literal, so a
+    // repriced sample moves the expectation with it: the delta is the material line, which is the default's zero less
+    // the upgrade's percentage of the cabinets, each rounded to ten lei (ADR 0177 A-1).
     const veneer = BOOK.material.tiers[2];
     if (!veneer)
       throw new Error("the sample offers fewer than three material tiers");
@@ -80,7 +83,29 @@ describe("the delta a whole-kitchen tier states, and what a collided book does t
       (tier) => tier.tierId === veneer.tierId,
     );
 
-    expect(offered?.deltaMinor).toBe(veneer.wholeKitchenMinor);
+    const materialLineAt = (materialTierId: string): number => {
+      const result = priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
+        design: KITCHEN_L_DESIGN,
+        catalog: KITCHEN_L_BODY_CATALOG,
+        book: BOOK,
+        pricingVersion: BOOK.version,
+        selections: { materialTierId },
+      });
+      if (!result.ok)
+        throw new Error("the seeded design was expected to price");
+      const line = result.priced.lines.find(
+        (candidate) => candidate.kind === "material",
+      );
+      if (line === undefined) throw new Error("no material line");
+      return line.amountMinor;
+    };
+
+    expect(offered?.deltaMinor).toBeGreaterThan(0);
+    expect(offered?.deltaMinor).toBe(
+      materialLineAt(veneer.tierId) -
+        materialLineAt(BOOK.material.defaultTierId),
+    );
   });
 
   it("refuses the collided book at the parser, naming the id declared in both groups", () => {
@@ -90,6 +115,7 @@ describe("the delta a whole-kitchen tier states, and what a collided book does t
     const { book, tierId } = bookCollidingTierIds();
 
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book,

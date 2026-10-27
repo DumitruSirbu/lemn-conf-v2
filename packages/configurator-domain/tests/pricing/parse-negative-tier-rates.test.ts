@@ -101,14 +101,14 @@ describe("the book parser and tier and accessory amounts that are not whole", ()
     expect(parsePriceBook(book).ok).toBe(false);
   });
 
-  it("refuses a flat material tier's amount of 12.5", () => {
+  it("refuses a material tier's percentage of 12.5", () => {
     const [first, ...rest] = SAMPLE_PRICE_BOOK.material.tiers;
     if (first === undefined) throw new Error("the sample book has no tier");
     const book: PriceBook = {
       ...SAMPLE_PRICE_BOOK,
       material: {
         ...SAMPLE_PRICE_BOOK.material,
-        tiers: [{ ...first, wholeKitchenMinor: 12.5 }, ...rest],
+        tiers: [{ ...first, percentOfCabinets: 12.5 }, ...rest],
       },
     };
 

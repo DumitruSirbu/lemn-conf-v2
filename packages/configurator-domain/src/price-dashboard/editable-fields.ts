@@ -391,8 +391,17 @@ function locateMaterialPercent(
   });
 }
 
+/** The book's depth rule, read as possibly absent although `PriceBook` declares it required: a book arrives from outside
+ *  TypeScript, and one stored before the cut-over states none. The widening is a parameter because a `const` is narrowed
+ *  back to its initialiser's type. */
+function depthRuleOf(
+  declared: Partial<Pick<PriceBook, "depthRule">>,
+): PriceBook["depthRule"] | undefined {
+  return declared.depthRule;
+}
+
 function locateDepthRule(book: PriceBook): Judged<LocatedField> {
-  const depthRule = book.depthRule;
+  const depthRule = depthRuleOf(book);
   if (depthRule === undefined) return refused("FIELD_NOT_ON_RULE");
   return accepted({
     unit: "percent",

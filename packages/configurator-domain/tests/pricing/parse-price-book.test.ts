@@ -23,10 +23,10 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
+import type { AnchoredFormula } from "../../src/pricing/anchored-price-formula.js";
 import {
   amountForBody,
   InexactPriceArithmeticError,
-  pricedByWidthHeightAndDoorLeaves,
   type CabinetPriceRule,
   type HardwareTier,
   type MaterialTier,
@@ -35,6 +35,7 @@ import {
 import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricingFailure } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
@@ -42,6 +43,7 @@ const BOOK = SAMPLE_PRICE_BOOK;
  *  refused before a placement is read, so the design is a constant and never the variable. */
 function refusalFrom(book: unknown): PricingFailure {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: book as PriceBook,
@@ -255,7 +257,7 @@ describe("a row's rendered text may name a catalogue leaf (ADR 0106)", () => {
       ruleId: first.ruleId,
       name: first.name,
       description: first.description,
-      wholeKitchenMinor: first.wholeKitchenMinor,
+      percentOfCabinets: first.percentOfCabinets,
     };
 
     expect(
@@ -301,74 +303,63 @@ describe("a row's rendered text may name a catalogue leaf (ADR 0106)", () => {
 /**
  * **The arithmetic, in the two layers M6-AUD-015 asks for.**
  *
- * The coefficients below are the audit's own: on the real `wall-cabinet` rule path with a 600 × 700
- * body they cancel exactly in integer arithmetic and leave the 1-unit base, and in floating point
- * the base is lost during the addition and the cancellation yields `0` — which
- * `Number.isSafeInteger` accepts, so both the line and the total validated a wrong amount.
+ * The audit's witness was a set of coefficients that cancel exactly in integer arithmetic and leave a 1-unit base, and
+ * in floating point the base is lost during the addition so the cancellation yields a figure that is not the exact
+ * one. The shapes the audit named are retired; this is the same witness on the anchored shape that carries three signed
+ * terms: the anchor is 1, and the width step, the door-leaf step and the height step each carry the same large
+ * amount, the height step against a body shorter than its anchor.
  */
 describe("no intermediate can be inexact (M6-AUD-015)", () => {
-  const CANCELLING = {
-    baseMinor: 1,
-    perWidthMillimetreMinor: 9_007_199_254_740_988,
-    perHeightMillimetreMinor: -7_720_456_504_063_704,
-    perDoorLeafMinor: 0,
-  } as const;
-  const BODY = { widthMm: 600, heightMm: 700, doorLeafCount: 1 };
+  const LARGE_SAFE_STEP = 9_007_199_254_740_988;
+  const CANCELLING: AnchoredFormula = {
+    shape: "anchored-width-height-and-door-leaves",
+    anchorWidthMm: 600,
+    anchorHeightMm: 700,
+    anchorMinor: 1,
+    perStepWiderMinor: LARGE_SAFE_STEP,
+    perStepNarrowerMinor: 0,
+    perExtraDoorLeafMinor: LARGE_SAFE_STEP,
+    perHeightStepMinor: LARGE_SAFE_STEP,
+  };
+  /** One step wider than the anchor, one door leaf more, one step shorter: the three terms are +A, +A and -A. */
+  const BODY = {
+    widthMm: 650,
+    heightMm: 650,
+    doorLeafCount: 3,
+    doorLeafCountAt: () => 2,
+  };
 
   it("still reproduces the witness in plain JavaScript, so the fix is not guarding a phantom", () => {
     const naive =
-      CANCELLING.baseMinor +
-      CANCELLING.perWidthMillimetreMinor * BODY.widthMm +
-      CANCELLING.perHeightMillimetreMinor * BODY.heightMm;
+      CANCELLING.anchorMinor +
+      LARGE_SAFE_STEP +
+      LARGE_SAFE_STEP -
+      LARGE_SAFE_STEP;
+    const exact = Number(1n + BigInt(LARGE_SAFE_STEP));
 
-    expect(naive).toBe(0);
+    expect(naive).not.toBe(exact);
     expect(Number.isSafeInteger(naive)).toBe(true);
   });
 
   it("refuses the arithmetic rather than publishing the figure it cancels to", () => {
     // The second layer, exercised where the first cannot reach it: `amountForBody` takes a formula
     // and not a book, so this is what a loosened bound would still meet.
-    expect(() =>
-      amountForBody(pricedByWidthHeightAndDoorLeaves(CANCELLING), BODY),
-    ).toThrow(InexactPriceArithmeticError);
+    expect(() => amountForBody(CANCELLING, BODY)).toThrow(
+      InexactPriceArithmeticError,
+    );
   });
 
   it("refuses the book that declares them, before any arithmetic is attempted", () => {
     const cabinetRules: readonly CabinetPriceRule[] = BOOK.cabinetRules.map(
       (rule) =>
         rule.buildId === "wall-cabinet"
-          ? { ...rule, formula: pricedByWidthHeightAndDoorLeaves(CANCELLING) }
+          ? { ...rule, formula: CANCELLING }
           : rule,
     );
 
     expect(refusalFrom(bookWith({ cabinetRules })).code).toBe(
       "INVALID_PRICE_BOOK",
     );
-  });
-
-  it("leaves a negative coefficient inside the bound permitted, which is an unruled question", () => {
-    // Whether a negative coefficient is commercially legal is an owner ruling nobody has made. The
-    // parser bounds magnitude and says nothing about sign; `refuseNegativeAmount` refuses the
-    // published *line*, which is where the question actually is.
-    const parsed = parsePriceBook(
-      bookWith({
-        cabinetRules: BOOK.cabinetRules.map((rule) =>
-          rule.buildId === "wall-cabinet"
-            ? {
-                ...rule,
-                formula: pricedByWidthHeightAndDoorLeaves({
-                  baseMinor: 120_000,
-                  perWidthMillimetreMinor: 400,
-                  perHeightMillimetreMinor: -1,
-                  perDoorLeafMinor: 18_000,
-                }),
-              }
-            : rule,
-        ),
-      }),
-    );
-
-    expect(parsed.ok).toBe(true);
   });
 });
 

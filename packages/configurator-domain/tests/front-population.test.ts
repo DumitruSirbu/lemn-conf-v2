@@ -38,6 +38,7 @@ import {
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
 } from "../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
 
 /** A width and frame height a `declared-leaves` row ignores by construction and deliberately not a real one, so a
  *  row that silently took a width-following rule would not resolve against a plausible cabinet. */
@@ -612,6 +613,7 @@ describe("an entry that declares nothing refuses", () => {
 describe("what wave 6S declared, wave 6T prices", () => {
   const priceAt = (hardwareTierId: string | undefined) => {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -636,7 +638,11 @@ describe("what wave 6S declared, wave 6T prices", () => {
 
   /** The seeded design's price with no hardware billed; every total below is this plus one hardware line. It does
    *  not charge the rows the manufacturer does not supply, `hood-600` (290 000) and `fridge-free-700` (1 200 000). */
-  const CABINETRY_AND_MATERIAL_MINOR = 7_937_500;
+  const CABINETRY_AND_MATERIAL_MINOR = 7_938_000;
+
+  /** A hardware amount as its line carries it: rounded half up to ten lei (ADR 0177 A-1). */
+  const tenLeiOf = (exactMinor: number): number =>
+    Math.round(exactMinor / 1_000) * 1_000;
 
   /** ADR 0070 decision 4's sink extras: one cover and one rack, flat in all three tier columns and so outside the
    *  tier (reconciled in `sink-extras.test.ts`). */
@@ -664,20 +670,17 @@ describe("what wave 6S declared, wave 6T prices", () => {
     expect(totalAt("hardware.standard")).toBe(
       CABINETRY_AND_MATERIAL_MINOR +
         SINK_EXTRAS_MINOR +
-        450_240 +
-        latchesAt("hardware.standard"),
+        tenLeiOf(450_240 + latchesAt("hardware.standard")),
     );
     expect(totalAt("hardware.soft-close")).toBe(
       CABINETRY_AND_MATERIAL_MINOR +
         SINK_EXTRAS_MINOR +
-        942_000 +
-        latchesAt("hardware.soft-close"),
+        tenLeiOf(942_000 + latchesAt("hardware.soft-close")),
     );
     expect(totalAt("hardware.premium")).toBe(
       CABINETRY_AND_MATERIAL_MINOR +
         SINK_EXTRAS_MINOR +
-        973_500 +
-        latchesAt("hardware.premium"),
+        tenLeiOf(973_500 + latchesAt("hardware.premium")),
     );
   });
 
@@ -716,10 +719,8 @@ describe("what wave 6S declared, wave 6T prices", () => {
     const spreadMinor =
       totalAt("hardware.soft-close") - totalAt("hardware.standard");
     expect(spreadMinor).toBe(
-      942_000 -
-        450_240 +
-        latchesAt("hardware.soft-close") -
-        latchesAt("hardware.standard"),
+      tenLeiOf(942_000 + latchesAt("hardware.soft-close")) -
+        tenLeiOf(450_240 + latchesAt("hardware.standard")),
     );
     // Not a per-handle rate: the spread over 41 handles is not a whole number of bani, and an exact
     // per-handle basis is precisely what a wave reintroducing the old quantity would make it be.

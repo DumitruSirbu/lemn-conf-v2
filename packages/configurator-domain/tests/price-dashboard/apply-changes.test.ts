@@ -26,7 +26,7 @@ import {
   deepFreeze,
   editSlotsOf,
   FIXTURE_BOOKS,
-  FLAT_BOOK,
+  PRE_CUTOVER_BOOK,
   PER_SIZE_WIDTHS_MM,
   perSizeRuleOf,
   PERCENTAGE_BOOK,
@@ -69,8 +69,12 @@ function onlyRefusal(
 }
 
 describe("the fixtures are books the parser accepts (a control for every refusal below)", () => {
-  it.each(FIXTURE_BOOKS)("parses the $form form", ({ book }) => {
-    expect(parsePriceBook(book).ok).toBe(true);
+  it("parses the percentage form", () => {
+    expect(parsePriceBook(PERCENTAGE_BOOK).ok).toBe(true);
+  });
+
+  it("refuses the pre-cut-over form, which the change functions meet only from outside TypeScript", () => {
+    expect(parsePriceBook(PRE_CUTOVER_BOOK).ok).toBe(false);
   });
 });
 
@@ -79,12 +83,8 @@ describe("every editable field of both forms takes a change", () => {
     editSlotsOf(book).map((slot) => ({ form, book, slot })),
   );
 
-  it("has a floor of cases for each arm of each form", () => {
-    const armsOfPercentage = new Set(
-      cases
-        .filter(({ form }) => form === "percentage")
-        .map(({ slot }) => slot.arm),
-    );
+  it("has a floor of cases for each arm", () => {
+    const armsOfPercentage = new Set(cases.map(({ slot }) => slot.arm));
     expect([...armsOfPercentage].sort()).toEqual(
       [
         "accessory",
@@ -98,12 +98,6 @@ describe("every editable field of both forms takes a change", () => {
         "material",
         "provisional",
       ].sort(),
-    );
-    const armsOfFlat = new Set(
-      cases.filter(({ form }) => form === "flat").map(({ slot }) => slot.arm),
-    );
-    expect([...armsOfFlat].sort()).toEqual(
-      ["accessory", "hardware", "provisional"].sort(),
     );
   });
 
@@ -348,19 +342,33 @@ describe("a change is refused with a closed code", () => {
     expect(onlyRefusal(PERCENTAGE_BOOK, address, 5)).toBe(`0:${code}`);
   });
 
-  it("refuses a material change and the depth rule on a book in the flat form", () => {
-    const flatMaterial = FLAT_BOOK.material.tiers[1]?.tierId ?? "";
+  it("refuses a material change and the depth rule on a book stored before the cut-over, which has neither", () => {
+    const flatMaterial = PRE_CUTOVER_BOOK.material.tiers[1]?.tierId ?? "";
 
     expect(
       onlyRefusal(
-        FLAT_BOOK,
+        PRE_CUTOVER_BOOK,
         { kind: "material", tierId: flatMaterial, field: "percentOfCabinets" },
         5,
       ),
     ).toBe("0:FIELD_NOT_ON_RULE");
-    expect(onlyRefusal(FLAT_BOOK, { kind: "depth-rule" }, 5)).toBe(
+    expect(onlyRefusal(PRE_CUTOVER_BOOK, { kind: "depth-rule" }, 5)).toBe(
       "0:FIELD_NOT_ON_RULE",
     );
+  });
+
+  it("refuses to edit a book stored before the cut-over at all: the candidate would not parse", () => {
+    const hardwareSlot = editSlotsOf(PRE_CUTOVER_BOOK).find(
+      ({ address }) => address.kind === "hardware",
+    );
+    if (hardwareSlot === undefined) throw new Error("no hardware slot");
+
+    const result = applyChanges(PRE_CUTOVER_BOOK, [
+      changeOf({ slot: hardwareSlot, value: 1 }),
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? undefined : result.reason).toBe("candidate-refused");
   });
 
   it("refuses a change with no address or that is not an object", () => {

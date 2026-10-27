@@ -16,16 +16,18 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import { WALL_DOOR_BAND_INSET_MM } from "../../src/front-population.js";
+import {
+  doorLeafCount,
+  frontPopulationQueryFor,
+  WALL_DOOR_BAND_INSET_MM,
+} from "../../src/front-population.js";
 import {
   countHardwareMechanisms,
   type HardwareMechanismCounts,
 } from "../../src/hardware-mechanisms.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import {
-  pricedFlat,
   type CabinetPriceRule,
-  type LinearCabinetPriceRule,
   type PriceBook,
 } from "../../src/pricing/price-book.js";
 import type {
@@ -41,6 +43,7 @@ import {
   type BodyCatalog,
   type BodyDefinition,
 } from "../../src/void-engine.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -59,11 +62,18 @@ function hardwareAmountOfDefaultTier(): number {
     CATALOG,
   );
 
-  return (
+  return tenLeiOf(
     tier.perHingeMinor * mechanisms.hinges +
-    tier.perDrawerMinor * mechanisms.drawers +
-    tier.perPushToOpenMinor * mechanisms.pushToOpen
+      tier.perDrawerMinor * mechanisms.drawers +
+      tier.perPushToOpenMinor * mechanisms.pushToOpen,
   );
+}
+
+/** An exact amount as its line carries it: rounded half up to ten lei. Restated, as the oracle must not import the
+ *  rounding it checks. */
+function tenLeiOf(exactMinor: number): number {
+  const TEN_LEI_MINOR = 1_000;
+  return Math.round(exactMinor / TEN_LEI_MINOR) * TEN_LEI_MINOR;
 }
 
 /** The seeded design with its placements replaced; the room and timestamps stay as shipped. */
@@ -91,9 +101,14 @@ function placedAt(
   };
 }
 
+type PriceRequest = Omit<Parameters<typeof priceDesign>[0], "deepeningRows">;
+
 /** The success branch, or a failure message that names what refused instead of an undefined read. */
-function priceOrFail(request: Parameters<typeof priceDesign>[0]): PricedDesign {
-  const result = priceDesign(request);
+function priceOrFail(request: PriceRequest): PricedDesign {
+  const result = priceDesign({
+    ...request,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+  });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);
   }
@@ -101,7 +116,7 @@ function priceOrFail(request: Parameters<typeof priceDesign>[0]): PricedDesign {
 }
 
 function pricedSeededKitchen(
-  overrides: Partial<Parameters<typeof priceDesign>[0]> = {},
+  overrides: Partial<PriceRequest> = {},
 ): PricedDesign {
   return priceOrFail({
     design: KITCHEN_L_DESIGN,
@@ -126,7 +141,7 @@ function lineFor(priced: PricedDesign, placementId: string): CabinetPriceLine {
   return line;
 }
 
-function ruleFor(buildId: string): LinearCabinetPriceRule {
+function ruleFor(buildId: string): CabinetPriceRule {
   const rule = BOOK.cabinetRules.find(
     (candidate) => candidate.buildId === buildId,
   );
@@ -163,29 +178,53 @@ function catalogDeclaringNoHandles(buildId: string): BodyCatalog {
   return new Map(CATALOG).set(buildId, undeclared);
 }
 
-/** The amount the sample book's coefficients give a body, applied by hand rather than through the query's
- *  arithmetic. The door leaves are the one number read from production code, so both derive it in one place. */
+/** The pricing step a width or height rounds up to: restated here, as the oracle must not import what it checks. */
+const STEP_MM = 50;
+
+function stepsAbove(builtMm: number, anchorMm: number): number {
+  return (Math.ceil(builtMm / STEP_MM) * STEP_MM - anchorMm) / STEP_MM;
+}
+
+/** The anchored formula of a rule, or a failure naming the rule that is not one. */
+function anchoredFormulaOf(buildId: string) {
+  const { formula } = ruleFor(buildId);
+  if (formula.shape === "price-per-size") {
+    throw new Error(`"${buildId}" is a fixed-size row, not an anchored one`);
+  }
+  return formula;
+}
+
+/** The amount the sample book's rule gives a body, applied by hand rather than through the query's arithmetic: the
+ *  anchor, then a signed number of 50 mm steps in width and height, then the leaves the body has beyond the anchor's,
+ *  rounded to the ten lei a cabinet line carries. The door leaves are the one number read from production code, so both
+ *  derive it in one place. */
 function expectedAmountFor(
   buildId: string,
   body: { readonly widthMm: number; readonly heightMm: number },
 ): number {
-  const { formula } = ruleFor(buildId);
+  const formula = anchoredFormulaOf(buildId);
+  const widthSteps = stepsAbove(body.widthMm, formula.anchorWidthMm);
   const width =
-    formula.baseMinor + formula.perWidthMillimetreMinor * body.widthMm;
+    widthSteps >= 0
+      ? widthSteps * formula.perStepWiderMinor
+      : widthSteps * formula.perStepNarrowerMinor;
   const height =
-    "perHeightMillimetreMinor" in formula
-      ? formula.perHeightMillimetreMinor * body.heightMm
-      : 0;
+    formula.anchorHeightMm === undefined
+      ? 0
+      : stepsAbove(body.heightMm, formula.anchorHeightMm) *
+        (formula.perHeightStepMinor ?? 0);
+  const leavesAt = (widthMm: number) =>
+    widthDerivedDoorLeafCount({
+      buildId,
+      rule: CATALOG.get(buildId)?.cabinetHandles,
+      widthMm,
+    });
   const doors =
-    "perDoorLeafMinor" in formula
-      ? formula.perDoorLeafMinor *
-        widthDerivedDoorLeafCount({
-          buildId,
-          rule: CATALOG.get(buildId)?.cabinetHandles,
-          widthMm: body.widthMm,
-        })
-      : 0;
-  return width + height + doors;
+    formula.perExtraDoorLeafMinor === undefined
+      ? 0
+      : formula.perExtraDoorLeafMinor *
+        (leavesAt(body.widthMm) - leavesAt(formula.anchorWidthMm));
+  return tenLeiOf(formula.anchorMinor + width + height + doors);
 }
 
 function amountOfOneBody(body: Partial<CabinetBody>): number {
@@ -200,8 +239,8 @@ function amountOfOneBody(body: Partial<CabinetBody>): number {
   ).amountMinor;
 }
 
-describe("a price is a formula over width, never a table keyed on the ladder", () => {
-  it("prices every whole millimetre across a cabinetry row's range", () => {
+describe("a price is an anchor and steps over width, never a table keyed on the ladder", () => {
+  it("prices every whole millimetre across a cabinetry row's range, rounded up to the 50 mm step", () => {
     for (let widthMm = 200; widthMm <= 800; widthMm += 1) {
       expect(
         amountOfOneBody({ buildId: "wall-cabinet", widthMm, heightMm: 700 }),
@@ -226,11 +265,12 @@ describe("a price is a formula over width, never a table keyed on the ladder", (
 
 describe("the price steps where the door count does, and nowhere else", () => {
   // Another door is another handle and more processing, so the amount steps at `deriveDoorCount`'s threshold
-  // and the width term stays beside the step (ADR 0068).
+  // and the width term stays beside the step (ADR 0068). The threshold sits inside one 50 mm bracket, so across it the
+  // width term does not move and the door step is the whole rise.
 
-  it("changes by exactly the width coefficient at every width but the threshold", () => {
-    const { formula } = ruleFor("wall-cabinet");
-    if (!("perDoorLeafMinor" in formula)) {
+  it("changes by the door step only at the threshold and by a width step only at a bracket edge", () => {
+    const formula = anchoredFormulaOf("wall-cabinet");
+    if (formula.perExtraDoorLeafMinor === undefined) {
       throw new Error(
         "the sample book no longer steps the hinged wall cabinet",
       );
@@ -245,42 +285,65 @@ describe("the price steps where the door count does, and nowhere else", () => {
           heightMm: 700,
         });
       const stepsHere = widthMm === TWO_DOOR_MIN_WIDTH_MM;
+      const crossesABracket = (widthMm - 1) % STEP_MM === 0;
+      const widthStep =
+        widthMm <= formula.anchorWidthMm
+          ? formula.perStepNarrowerMinor
+          : formula.perStepWiderMinor;
 
       expect(rise).toBe(
-        formula.perWidthMillimetreMinor +
-          (stepsHere ? formula.perDoorLeafMinor : 0),
+        (crossesABracket ? widthStep : 0) +
+          (stepsHere ? formula.perExtraDoorLeafMinor : 0),
       );
     }
   });
 
   it("steps twice for a two-band column and once for a one-band cabinet", () => {
     // `deriveDoorCount` answers leaves per band, so a pantry gaining two leaves at the threshold gains two steps;
-    // a step read straight off it would under-charge every banded cabinet by half.
-    const oneBand = ruleFor("wall-cabinet").formula;
-    const twoBands = ruleFor("tall-pantry").formula;
-    if (!("perDoorLeafMinor" in oneBand) || !("perDoorLeafMinor" in twoBands)) {
+    // a step read straight off it would under-charge every banded cabinet by half. 499 and 500 share a bracket, so
+    // the whole difference is the door step.
+    const oneBand = anchoredFormulaOf("wall-cabinet");
+    const twoBands = anchoredFormulaOf("tall-pantry");
+    if (
+      oneBand.perExtraDoorLeafMinor === undefined ||
+      twoBands.perExtraDoorLeafMinor === undefined
+    ) {
       throw new Error("the sample book no longer steps both hinged rows");
     }
 
     const stepOf = (buildId: string, perLeafMinor: number) =>
       (amountOfOneBody({ buildId, widthMm: 500, heightMm: 2200 }) -
-        amountOfOneBody({ buildId, widthMm: 499, heightMm: 2200 }) -
-        ruleFor(buildId).formula.perWidthMillimetreMinor) /
+        amountOfOneBody({ buildId, widthMm: 499, heightMm: 2200 })) /
       perLeafMinor;
 
-    expect(stepOf("wall-cabinet", oneBand.perDoorLeafMinor)).toBe(1);
-    expect(stepOf("tall-pantry", twoBands.perDoorLeafMinor)).toBe(2);
+    expect(stepOf("wall-cabinet", oneBand.perExtraDoorLeafMinor)).toBe(1);
+    expect(stepOf("tall-pantry", twoBands.perExtraDoorLeafMinor)).toBe(2);
     expect(deriveDoorCount(500) - deriveDoorCount(499)).toBe(1);
   });
 
-  it("steps a resized seeded body exactly as it steps the row it is priced as", () => {
-    // Seeded rows freeze `carriesHandles(n)` at their build size, so a step read off the placement's own entry
-    // would price a widened seeded wall cabinet and an inserted `wall-cabinet` differently.
+  it("steps a resized seeded body by the leaves its own fronts carry, which hardware bills, and not by its priced-as row's", () => {
+    // Seeded rows freeze `carriesHandles(n)` at their build size, so a widened seeded wall cabinet carries the leaves it
+    // was built with. The door term counts those, as hardware does (ADR 0177 A-3), so the two bodies differ by exactly
+    // the leaves they differ by.
+    const perLeafMinor =
+      anchoredFormulaOf("wall-cabinet").perExtraDoorLeafMinor;
+    const leavesOf = (buildId: string, widthMm: number) =>
+      doorLeafCount(
+        frontPopulationQueryFor({
+          body: { buildId, widthMm, heightMm: 700 },
+          definition: CATALOG.get(buildId) ?? {},
+        }),
+      );
+    if (perLeafMinor === undefined) throw new Error("no door step");
+
     for (const widthMm of [400, 600]) {
       expect(
-        amountOfOneBody({ buildId: "wall-2door-600", widthMm, heightMm: 700 }),
+        amountOfOneBody({ buildId: "wall-2door-600", widthMm, heightMm: 700 }) -
+          amountOfOneBody({ buildId: "wall-cabinet", widthMm, heightMm: 700 }),
       ).toBe(
-        amountOfOneBody({ buildId: "wall-cabinet", widthMm, heightMm: 700 }),
+        (leavesOf("wall-2door-600", widthMm) -
+          leavesOf("wall-cabinet", widthMm)) *
+          perLeafMinor,
       );
     }
   });
@@ -300,12 +363,13 @@ describe("the price steps where the door count does, and nowhere else", () => {
         }),
       ]),
     ).toEqual(widthsMm.map((widthMm) => [widthMm, 0]));
-    expect(ruleFor("base-sink").formula.shape).toBe("linear-in-width");
+    expect(ruleFor("base-sink").formula.shape).toBe("anchored-width");
   });
 
   it("refuses a body whose entry declares no count, rather than billing zero", () => {
     const undeclared = catalogDeclaringNoHandles("wall-cabinet");
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([placedAt({ id: "x" })]),
       catalog: undeclared,
       book: BOOK,
@@ -340,21 +404,21 @@ describe("a body built to its opening is priced by the height it was built to", 
     );
   });
 
-  it("changes by exactly the height coefficient across the whole built range", () => {
-    const { formula } = ruleFor("open-shelf");
-    if (formula.shape !== "linear-in-width-and-height") {
+  it("prices every built height as the 50 mm step it rounds up to, so the price moves at each edge and nowhere else", () => {
+    const formula = anchoredFormulaOf("open-shelf");
+    if (formula.shape !== "anchored-width-and-height") {
       throw new Error("the sample book no longer prices the shelf by height");
     }
+    const amountAt = (heightMm: number) =>
+      amountOfOneBody({ buildId: "open-shelf", widthMm: 600, heightMm });
 
     for (let heightMm = 301; heightMm <= 900; heightMm += 1) {
-      expect(
-        amountOfOneBody({ buildId: "open-shelf", widthMm: 600, heightMm }) -
-          amountOfOneBody({
-            buildId: "open-shelf",
-            widthMm: 600,
-            heightMm: heightMm - 1,
-          }),
-      ).toBe(formula.perHeightMillimetreMinor);
+      expect(amountAt(heightMm), `${String(heightMm)} mm`).toBe(
+        expectedAmountFor("open-shelf", { widthMm: 600, heightMm }),
+      );
+      if ((heightMm - 1) % STEP_MM !== 0) {
+        expect(amountAt(heightMm)).toBe(amountAt(heightMm - 1));
+      }
     }
   });
 
@@ -378,7 +442,7 @@ describe("a body built to its opening is priced by the height it was built to", 
 
     expect(amounts.size).toBe(1);
     expect(ruleFor("base-cabinet").formula.shape).toBe(
-      "linear-in-width-and-door-leaves",
+      "anchored-width-and-door-leaves",
     );
   });
 
@@ -388,9 +452,8 @@ describe("a body built to its opening is priced by the height it was built to", 
       amountOfOneBody({ buildId: "wall-cabinet", widthMm, heightMm });
 
     expect(at(600, 900)).toBeGreaterThan(at(600, 700));
-    expect(at(600, 700)).toBeGreaterThan(
-      at(499, 700) +
-        (600 - 499) * ruleFor("wall-cabinet").formula.perWidthMillimetreMinor,
+    expect(at(500, 700) - at(499, 700)).toBe(
+      anchoredFormulaOf("wall-cabinet").perExtraDoorLeafMinor,
     );
   });
 });
@@ -482,10 +545,10 @@ describe("the mechanism count comes from the placement's own entry", () => {
       (candidate) => candidate.tierId === tierId,
     );
     if (!tier) throw new Error(`the book holds no "${tierId}"`);
-    return (
+    return tenLeiOf(
       tier.perHingeMinor * mechanisms.hinges +
-      tier.perDrawerMinor * mechanisms.drawers +
-      tier.perPushToOpenMinor * mechanisms.pushToOpen
+        tier.perDrawerMinor * mechanisms.drawers +
+        tier.perPushToOpenMinor * mechanisms.pushToOpen,
     );
   }
 
@@ -648,6 +711,7 @@ describe("a tier that costs nothing is a line, and a missing rule is never a zer
 
   it("refuses a selection naming a tier the book does not hold", () => {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([placedAt({ id: "x" })]),
       catalog: CATALOG,
       book: BOOK,
@@ -667,6 +731,7 @@ describe("a tier that costs nothing is a line, and a missing rule is never a zer
 describe("fail whole", () => {
   it("refuses a design whose body resolves no rule, naming the id", () => {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([placedAt({ id: "x" }), placedAt({ id: "y" })]),
       catalog: CATALOG,
       book: bookWithout("wall-cabinet"),
@@ -685,6 +750,7 @@ describe("fail whole", () => {
 
   it("refuses a body the catalogue does not hold", () => {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([placedAt({ id: "x", body: { buildId: "invented" } })]),
       catalog: CATALOG,
       book: BOOK,
@@ -701,6 +767,7 @@ describe("fail whole", () => {
 
   it("refuses a book whose version is not the one asked for, with no fallback", () => {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: BOOK,
@@ -720,12 +787,16 @@ describe("fail whole", () => {
         {
           ruleId: ruleFor("wall-cabinet").ruleId,
           buildId: "invented",
-          formula: pricedFlat(1),
+          formula: {
+            shape: "price-per-size",
+            sizes: [{ widthMm: 50, amountMinor: 1_000 }],
+          },
         },
       ],
     };
 
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([placedAt({ id: "x" })]),
       catalog: CATALOG,
       book: duplicated,
@@ -753,6 +824,7 @@ describe("fail whole", () => {
     };
 
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([placedAt({ id: "x" })]),
       catalog: CATALOG,
       book: unknownShape,
@@ -762,6 +834,75 @@ describe("fail whole", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.failure.code).toBe("UNKNOWN_FORMULA_SHAPE");
+  });
+});
+
+describe("a book in the retired linear form is refused (P3 item 2)", () => {
+  const retiredFormula = {
+    shape: "linear-in-width",
+    baseMinor: 100_000,
+    perWidthMillimetreMinor: 400,
+  } as unknown as CabinetPriceRule["formula"];
+
+  it("refuses a book whose cabinet rules and material tiers are all in the retired form, before a placement is read", () => {
+    const linear = {
+      ...BOOK,
+      cabinetRules: BOOK.cabinetRules.map((rule) => ({
+        ...rule,
+        formula: retiredFormula,
+      })),
+      material: {
+        ...BOOK.material,
+        tiers: BOOK.material.tiers.map((tier) => ({
+          ...Object.fromEntries(
+            Object.entries(tier).filter(
+              ([field]) => field !== "percentOfCabinets",
+            ),
+          ),
+          wholeKitchenMinor: 0,
+        })),
+      },
+      depthRule: undefined,
+    } as unknown as PriceBook;
+
+    const result = priceDesign({
+      design: KITCHEN_L_DESIGN,
+      catalog: CATALOG,
+      book: linear,
+      pricingVersion: BOOK.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+  });
+
+  it("refuses a design priced from a rule still in the retired shape, naming the rule and the placement", () => {
+    const oneRuleRetired: PriceBook = {
+      ...BOOK,
+      cabinetRules: BOOK.cabinetRules.map((rule) =>
+        rule.buildId === "wall-cabinet"
+          ? { ...rule, formula: retiredFormula }
+          : rule,
+      ),
+    };
+
+    const result = priceDesign({
+      design: designOf([placedAt({ id: "x" })]),
+      catalog: CATALOG,
+      book: oneRuleRetired,
+      pricingVersion: BOOK.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure).toMatchObject({
+      code: "UNKNOWN_FORMULA_SHAPE",
+      placementId: "x",
+      id: ruleFor("wall-cabinet").ruleId,
+    });
   });
 });
 
@@ -853,7 +994,7 @@ describe("an overflowing design is priced in full and the total is flagged", () 
   });
 });
 
-describe("nothing is rounded and nothing is stored", () => {
+describe("every line is a whole ten lei, the total is their exact sum, and nothing is stored", () => {
   it("returns the exact sum of its lines in minor units", () => {
     const priced = pricedSeededKitchen({
       selections: {
@@ -866,12 +1007,18 @@ describe("nothing is rounded and nothing is stored", () => {
       priced.lines.reduce((sum, line) => sum + line.amountMinor, 0),
     );
     expect(Number.isSafeInteger(priced.totalMinor)).toBe(true);
-    // The hardware line is the tier's per-handle amount times the count, exact and unrounded — a
-    // query that rounded anywhere would not reproduce it.
-    const hardware = priced.lines.find((line) => line.kind === "hardware");
-    expect(hardware?.amountMinor).toBe(
-      (hardware?.quantity ?? 0) * (hardware?.unitAmountMinor ?? 0),
+    // Every line is rounded once, at its own seam (ADR 0177 A-1), so the lines add to the total with no rounding
+    // left to do; a query that rounded the total instead would not reproduce the sum.
+    expect(priced.lines.every((line) => line.amountMinor % 1_000 === 0)).toBe(
+      true,
     );
+    // A line that is not an accessory is its quantity times its unit; an accessory line keeps the book's exact rate
+    // as its unit and rounds the amount.
+    for (const line of priced.lines.filter(
+      (candidate) => candidate.kind !== "accessory",
+    )) {
+      expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
+    }
   });
 
   it("carries the book's currency, version and status forward", () => {
@@ -901,6 +1048,7 @@ describe("nothing is rounded and nothing is stored", () => {
     delete undeclared["amountsProvisional"];
 
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: undeclared as unknown as PriceBook,
@@ -937,6 +1085,7 @@ describe("the pricing catch names its causes", () => {
   /** A `wall-cabinet` built too short to carry a door, so the placement's own height refuses, not the catalogue. */
   function priceAWallCabinetAt(frameHeightMm: number) {
     return priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([
         placedAt({ id: "flat", body: { heightMm: frameHeightMm } }),
       ]),
@@ -971,6 +1120,7 @@ describe("the pricing catch names its causes", () => {
     delete stripped["fronts"];
 
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: designOf([placedAt({ id: "flat" })]),
       catalog: catalogWith(
         "wall-cabinet",
@@ -998,6 +1148,7 @@ describe("the pricing catch names its causes", () => {
       catalog: catalogWhoseFrontsThrow("wall-cabinet", thrownByThePort),
       book: BOOK,
       pricingVersion: BOOK.version,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     };
 
     expect(() => priceDesign(request)).toThrow(thrownByThePort);

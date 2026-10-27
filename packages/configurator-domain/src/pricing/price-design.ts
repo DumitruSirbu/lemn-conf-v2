@@ -9,7 +9,6 @@ import { resolveCatalogEquivalent } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
 import {
-  ContradictoryFrontDeclarationError,
   doorLeafCount,
   frontPopulationQueryFor,
   UnbuildableDoorBandError,
@@ -28,7 +27,7 @@ import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
 import {
-  MissingAnchorLeafCountError,
+  MalformedPriceDimensionError,
   NoPriceForSizeError,
 } from "./anchored-price-formula.js";
 import { parsePriceBook } from "./parse-price-book.js";
@@ -48,6 +47,7 @@ import {
   DEPTH_RULE_ID,
   exactAmountOfTerms,
   InexactPriceArithmeticError,
+  MalformedPriceCoefficientError,
   usableCoefficientOf,
   type AccessoryId,
   type AccessoryRule,
@@ -92,8 +92,9 @@ export interface PriceDesignRequest {
   readonly pricingVersion: string;
   readonly selections?: WholeKitchenSelections | undefined;
   /** The priced-as build ids that get deeper at `DEEP_CABINET_DEPTH_MM` (`measureDeepeningRows`), supplied by the
-   *  caller because pricing binds to no catalogue. A book in percentage form is refused without it. */
-  readonly deepeningRows?: ReadonlySet<string> | undefined;
+   *  caller because pricing binds to no catalogue. Required: a caller that has not measured it cannot say which
+   *  cabinets take the depth percentage (ADR 0177 A-6). */
+  readonly deepeningRows: ReadonlySet<string>;
 }
 
 /**
@@ -109,35 +110,14 @@ export function priceDesign(request: PriceDesignRequest): PricingResult {
   if (isRefused(cabinetLines))
     return { ok: false, failure: cabinetLines.failure };
 
-  const form: PricingForm = {
+  const lines = priceKitchenLines({
     entries,
     request,
     cabinetLines: cabinetLines.value,
-  };
-  const lines = isPercentageBook(request.book)
-    ? pricePercentageForm(form)
-    : priceFlatForm(form);
+  });
   if (isRefused(lines)) return { ok: false, failure: lines.failure };
 
   return finishPricing(request, lines.value);
-}
-
-/** The flat form: cabinets, hardware, material, accessories, none rounded. */
-function priceFlatForm(form: PricingForm): Attempt<readonly PriceLine[]> {
-  const { entries, request, cabinetLines } = form;
-  const wholeKitchenLines = priceWholeKitchen(entries, request);
-  if (isRefused(wholeKitchenLines)) return wholeKitchenLines;
-
-  const accessoryLines = priceAccessories(entries, request);
-  if (isRefused(accessoryLines)) return accessoryLines;
-
-  return {
-    value: [
-      ...cabinetLines,
-      ...wholeKitchenLines.value,
-      ...accessoryLines.value,
-    ],
-  };
 }
 
 /** The total and the result envelope, once every line is known. */
@@ -264,7 +244,7 @@ function priceOnePlacement(
   const body = describePricedBody(entry, pricedAs, catalog);
   if (isRefused(body)) return body;
 
-  const evaluated = evaluateFormula(rule, body.value, entry.placementId);
+  const evaluated = evaluateFormula(rule, body.value, entry);
   if (isRefused(evaluated)) return evaluated;
 
   const amountMinor = evaluated.value;
@@ -306,30 +286,43 @@ function priceOnePlacement(
 /** `amountForBody` **throws** for a coefficient that is not an exact count of minor units (ADR 0062
  *  seam 1); this query refuses with a code instead. `undefined` passes through untouched: an
  *  unimplemented formula shape is the caller's other refusal. A width above every listed size, unreadable
- *  fronts and an unbuildable door band have codes of their own; a defect leaves as itself, as in
- *  `refuseUnreadFrontsCause`; every other cause is `INVALID_AMOUNT`. */
+ *  fronts and an unbuildable door band have codes of their own, the last two naming the body's build id as the hardware
+ *  path does; a book's other faults are `INVALID_AMOUNT`. Any throw that is not one of those causes is a defect and
+ *  leaves as itself, as in `refuseUnreadFrontsCause`: an anchored door shape reads the fronts, so a `TypeError` from
+ *  a catalogue must not be relabelled as a fact about a book. */
 function evaluateFormula(
   rule: CabinetPriceRule,
   body: PricedBody,
-  placementId: string,
+  placement: { readonly placementId: string; readonly buildId: string },
 ): Attempt<number | undefined> {
   try {
     return { value: amountForBody(rule.formula, body) };
   } catch (error) {
-    if (isADefectNotARefusal(error)) throw error;
+    if (!isARefusalCause(error)) throw error;
     return refusal(failureCodeOf(error), describeError(error), {
-      placementId,
-      id: rule.ruleId,
+      placementId: placement.placementId,
+      id: isAboutTheFronts(error) ? placement.buildId : rule.ruleId,
     });
   }
 }
 
-/** A throw no book or design can cause: the query's own caller left out the anchor's leaf count, or the catalogue
- *  declares fronts that contradict each other. Never a refusal a surface could render. */
-function isADefectNotARefusal(error: unknown): boolean {
+/** The throws a book or a design can cause, each of which this query answers with a code. Anything else, including
+ *  the query's own caller leaving out the anchor's leaf count and a catalogue whose fronts contradict each other,
+ *  is never a refusal a surface could render. */
+function isARefusalCause(error: unknown): boolean {
   return (
-    error instanceof MissingAnchorLeafCountError ||
-    error instanceof ContradictoryFrontDeclarationError
+    error instanceof MalformedPriceCoefficientError ||
+    error instanceof MalformedPriceDimensionError ||
+    error instanceof InexactPriceArithmeticError ||
+    error instanceof NoPriceForSizeError ||
+    isAboutTheFronts(error)
+  );
+}
+
+function isAboutTheFronts(error: unknown): boolean {
+  return (
+    error instanceof UndeclaredFrontPopulationError ||
+    error instanceof UnbuildableDoorBandError
   );
 }
 
@@ -394,12 +387,12 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * What a formula may know about a body: the placement's width and height (a body built to its
  * opening stands at a height its catalogue row does not state), and its door leaves.
  *
- * Two leaf counts, for two questions. `doorLeafCount`, which the linear shapes' door step reads, comes from the
- * **priced-as** row's width rule: seeded rows freeze `carriesHandles(n)` at their built size, so reading the
- * placement's own entry would give a resized seeded `wall-2door-600` no door step at 800 mm while an inserted
- * `wall-cabinet` beside it got one (ADR 0092 decision 1). An anchored door shape instead reads the leaves the body
- * itself carries (`builtDoorLeafCount`, what `countHardwareMechanisms` bills hinges over) against the priced-as
- * row's at the anchor width (`doorLeafCountAt`), so its panel step and its hinges count leaves alike (ADR 0177 A-3).
+ * Three leaf counts, for two questions. An anchored door shape sets the leaves the body itself carries
+ * (`builtDoorLeafCount`, what `countHardwareMechanisms` bills hinges over) against the priced-as row's at the anchor
+ * width (`doorLeafCountAt`), so its panel step and its hinges count leaves alike (ADR 0177 A-3). `doorLeafCount`, from
+ * the **priced-as** row's width rule, is what stands in for the first when no front population is read: seeded rows
+ * freeze `carriesHandles(n)` at their built size, so reading the placement's own entry would give a resized seeded
+ * `wall-2door-600` a different count from an inserted `wall-cabinet` beside it (ADR 0092 decision 1).
  */
 function describePricedBody(
   entry: DisplayEntry,
@@ -447,63 +440,13 @@ function hardwareDoorLeaves(
   );
 }
 
-/** The leaves the priced-as row's width rule derives at one width: what the linear shapes' door step reads. */
+/** The leaves the priced-as row's width rule derives at one width. */
 function doorLeavesAt(pricedAs: PricingRow, widthMm: number): number {
   return widthDerivedDoorLeafCount({
     buildId: pricedAs.buildId,
     rule: pricedAs.definition?.cabinetHandles,
     widthMm,
   });
-}
-
-/** Hardware, then material, after **all** placement lines, both always emitted. A free tier is a
- *  zero-amount line (rendered *inclus*); a missing rule or amount is a refusal, never a zero, because
- *  omission must never be read as "included". */
-function priceWholeKitchen(
-  entries: readonly DisplayEntry[],
-  request: PriceDesignRequest,
-): Attempt<readonly WholeKitchenPriceLine[]> {
-  const hardware = selectTier(
-    request.book.hardware,
-    request.selections?.hardwareTierId,
-    "hardware",
-  );
-  if (isRefused(hardware)) return hardware;
-
-  const material = selectTier(
-    request.book.material,
-    request.selections?.materialTierId,
-    "material",
-  );
-  if (isRefused(material)) return material;
-
-  const hardwareAmount = hardwareUnitAmount(hardware.value, {
-    entries,
-    catalog: request.catalog,
-  });
-  if (isRefused(hardwareAmount)) return hardwareAmount;
-
-  const hardwareLine = wholeKitchenLine({
-    kind: "hardware",
-    tier: hardware.value,
-    unitAmountMinor: hardwareAmount.value,
-  });
-  if (isRefused(hardwareLine)) return hardwareLine;
-
-  const materialAmount = checkedBookAmount(
-    wholeKitchenAmount(material.value),
-    material.value.ruleId,
-  );
-  if (isRefused(materialAmount)) return materialAmount;
-
-  const materialLine = wholeKitchenLine({
-    kind: "material",
-    tier: material.value,
-    unitAmountMinor: materialAmount.value,
-  });
-  if (isRefused(materialLine)) return materialLine;
-
-  return { value: [hardwareLine.value, materialLine.value] };
 }
 
 /** `find` is safe only because the book was parsed: `refuseRepeatedTierId` makes a tier id shared
@@ -674,11 +617,6 @@ function refuseUnreadableFrontsCause(
   throw error;
 }
 
-/** What a material tier charges once for the whole kitchen. */
-function wholeKitchenAmount(tier: MaterialTier): DeclaredBookAmount {
-  return { declared: tier.wholeKitchenMinor, field: "wholeKitchenMinor" };
-}
-
 /** Both whole-kitchen lines carry `quantity: 1` (ADR 0092 decision 4), so
  *  `amountMinor === quantity × unitAmountMinor` holds by construction. Takes an **already-checked**
  *  amount: the two kinds reach one by different routes, and folding both in gives two reasons to change. */
@@ -710,42 +648,29 @@ function wholeKitchenLine(line: {
 
 const WHOLE_KITCHEN_QUANTITY = 1;
 
-/** The depth rule is what tells a book in percentage form from a flat one: the parser holds the two together. */
-function isPercentageBook(book: PriceBook): boolean {
-  return book.depthRule !== undefined;
-}
-
-/** What a form is priced from: the design's bodies in display order, the request, and the cabinet lines at their
- *  exact amounts. */
-interface PricingForm {
+/** What the kitchen's lines are priced from: the design's bodies in display order, the request, and the cabinet lines
+ *  at their exact amounts. */
+interface PricingInputs {
   readonly entries: readonly DisplayEntry[];
   readonly request: PriceDesignRequest;
   readonly cabinetLines: readonly CabinetPriceLine[];
 }
 
 /**
- * The percentage form (ADR 0177 A-1): each cabinet carried through three rounded stages, hardware and each accessory
- * rounded to 10 lei, so every line is a whole number of ten lei and the lines add to the total exactly. Lines run
- * cabinets, hardware, material, depth, accessories. Refused without `deepeningRows`: which cabinets deepen is a
- * measured catalogue fact that pricing does not decide (A-6).
+ * Every line of the kitchen (ADR 0177 A-1): each cabinet carried through three rounded stages, hardware and each
+ * accessory rounded to 10 lei, so every line is a whole number of ten lei and the lines add to the total exactly. Lines
+ * run cabinets, hardware, material, depth, accessories.
  */
-function pricePercentageForm(form: PricingForm): Attempt<readonly PriceLine[]> {
-  const { entries, request, cabinetLines } = form;
-  const { deepeningRows } = request;
-  if (deepeningRows === undefined) {
-    return refusal(
-      "INVALID_PRICE_BOOK",
-      "A book stating its materials as percentages cannot be priced without `deepeningRows`, " +
-        "the priced-as rows that get deeper (ADR 0177 A-6)",
-      { id: request.book.version },
-    );
-  }
+function priceKitchenLines(
+  inputs: PricingInputs,
+): Attempt<readonly PriceLine[]> {
+  const { entries, request, cabinetLines } = inputs;
   const chosen = chooseTiersAndPercentages(request);
   if (isRefused(chosen)) return chosen;
 
   const cabinets = priceCabinetsInPercentages(
     { cabinetLines, ...chosen.value },
-    { design: request.design, deepeningRows },
+    { design: request.design, deepeningRows: request.deepeningRows },
   );
   if (isRefused(cabinets)) return cabinets;
 
@@ -817,7 +742,7 @@ function checkedPercentages(
   if (isRefused(materialPercent)) return materialPercent;
   const deepCabinetPercent = checkedBookAmount(
     {
-      declared: book.depthRule?.deepCabinetPercent,
+      declared: book.depthRule.deepCabinetPercent,
       field: "deepCabinetPercent",
     },
     DEPTH_RULE_ID,
@@ -1147,7 +1072,7 @@ function indexRulesByBuildId(
   return new Map(rules.map((rule) => [rule.buildId, rule]));
 }
 
-/** An amount is a whole count of minor units; rounding belongs to presentation. */
+/** An amount is a whole count of minor units. */
 function isExactAmount(amountMinor: number): boolean {
   return Number.isSafeInteger(amountMinor);
 }

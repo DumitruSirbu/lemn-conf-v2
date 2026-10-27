@@ -1,5 +1,6 @@
 // How a book states its materials and its depth (ADR 0177 A-5, ADR 0092 Amendment of 2026-10-25): whole percentages,
-// within bounds, in one form throughout. The old flat form keeps parsing; a book carrying both forms is refused.
+// within bounds, and the only form there is. A book in the retired flat form, or carrying a flat amount beside a
+// percentage, is refused.
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -77,7 +78,7 @@ describe("a book in percentage form parses (P2 item 1)", () => {
     ).toBe(true);
   });
 
-  it("keeps parsing the flat form, which states no depth rule", () => {
+  it("parses the sample book, which is in this form", () => {
     expect(parsePriceBook(SAMPLE_PRICE_BOOK).ok).toBe(true);
   });
 });
@@ -137,16 +138,47 @@ describe("a depth percentage is whole and within 0..MAX_DEEP_CABINET_PERCENT", (
   });
 });
 
-describe("a book carrying both the old and the new material fields is refused (P2 item 5)", () => {
-  it("refuses a tier that states a flat amount and a percentage", () => {
-    const detail = refusalDetailOf(
-      withUpgradeTier((tier) => {
-        tier["wholeKitchenMinor"] = 130_000;
-      }),
-    );
+/** The retired material form: a flat amount per tier in place of a percentage. Built here from a percentage book, so the
+ *  fixture is the one place the old field is spelled. */
+function withFlatTiers(book: PriceBook): unknown {
+  return {
+    ...book,
+    material: {
+      ...book.material,
+      tiers: book.material.tiers.map((tier) => ({
+        ...Object.fromEntries(
+          Object.entries(tier).filter(
+            ([field]) => field !== "percentOfCabinets",
+          ),
+        ),
+        wholeKitchenMinor: 0,
+      })),
+    },
+  };
+}
 
-    expect(detail).toContain("wholeKitchenMinor");
-    expect(detail).toContain("percentOfCabinets");
+describe("a book in the retired flat form is refused whole (P3 item 2)", () => {
+  it("refuses flat material tiers, naming the percentage a tier must state", () => {
+    const flat = withFlatTiers(validBook());
+
+    expect(refusalDetailOf(flat)).toContain("percentOfCabinets");
+  });
+
+  it("refuses flat material tiers beside a depth rule, which prices nothing the tiers say", () => {
+    const flat = {
+      ...(withFlatTiers(validBook()) as object),
+      depthRule: { deepCabinetPercent: 10 },
+    };
+
+    expect(refusalDetailOf(flat)).toContain("percentOfCabinets");
+  });
+
+  it("prices a tier that states a flat amount beside its percentage by the percentage alone, the flat amount being read by nothing", () => {
+    const book = withUpgradeTier((tier) => {
+      tier["wholeKitchenMinor"] = 130_000;
+    });
+
+    expect(parsePriceBook(book).ok).toBe(true);
   });
 
   it("refuses tiers that disagree: one a percentage, one a flat amount", () => {
@@ -159,16 +191,7 @@ describe("a book carrying both the old and the new material fields is refused (P
 
     expect(
       refusalDetailOf({ ...book, material: { ...book.material, tiers } }),
-    ).toContain("two ways");
-  });
-
-  it("refuses a depth rule beside flat tiers, which nothing would price", () => {
-    expect(
-      refusalDetailOf({
-        ...SAMPLE_PRICE_BOOK,
-        depthRule: { deepCabinetPercent: 10 },
-      }),
-    ).toContain("depthRule");
+    ).toContain("percentOfCabinets");
   });
 
   it("refuses percentage tiers with no depth rule, since the book would price a depth nobody states", () => {

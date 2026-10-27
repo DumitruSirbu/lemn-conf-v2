@@ -36,6 +36,7 @@ import { ro } from "../support/romanian-content";
 import { ro as content } from "../support/romanian-content";
 import { describePriceBar } from "@/price/price-bar-model";
 import { describePriceBreakdown } from "@/price/price-breakdown-model";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const CABINET_DEPTH_MM = 600;
 const catalog = buildKitchenLBodyCatalog(CABINET_DEPTH_MM);
@@ -54,6 +55,7 @@ function priceOf(design: Design): PricingResult {
   const parsed = parsePriceBook(SAMPLE_PRICE_BOOK);
   if (!parsed.ok) throw new Error("the sample book did not parse");
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog,
     book: parsed.book,

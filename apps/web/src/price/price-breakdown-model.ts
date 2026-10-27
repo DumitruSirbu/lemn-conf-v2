@@ -8,12 +8,14 @@
 // Row-major within a group: the whole hanging row left to right, then the whole top row
 // ([ADR 0063](../../../../docs/decisions/0063-a-group-is-listed-row-major-height-before-position.md)).
 //
-// Rounded lines and a rounded total need not sum: both round through `roundUpToThousandMdl` and the
-// difference can exceed a whole step. The disclaimer and note carry that, so nothing here adds a
-// subtotal, an equality claim, or a row labelled *total*.
+// The priced lines add to the priced total exactly, each rounded to ten lei at the domain's one seam (ADR 0177 A-1).
+// What is shown is rounded again, up to the thousand MDL, so shown lines and a shown total need not sum: both round
+// through `roundUpToThousandMdl` and the difference can exceed a whole step. The disclaimer and note carry that, so
+// nothing here adds a subtotal, an equality claim, or a row labelled *total*.
 import type {
   AccessoryPriceLine,
   CabinetPriceLine,
+  DepthPriceLine,
   DisplayEntry,
   DisplayGroup,
   PricedDesign,
@@ -49,6 +51,17 @@ export interface BreakdownGroup {
   readonly rows: readonly BreakdownRow[];
 }
 
+/** The uplift a 700 mm depth adds to the cabinets that get deeper, as a row of its own: the model publishes the depth
+ *  the line names and the amount, and the surface words them ("Adâncime 700 mm · adaos {percent} %"), because the percent
+ *  is the book's rule and no line carries it. */
+export interface BreakdownDepthRow {
+  readonly key: string;
+  /** The cabinet depth the design is built at, from the line. */
+  readonly depthMm: number;
+  /** Already rounded and grouped, *"inclus"* at zero (a book stating 0 %). */
+  readonly amountText: string;
+}
+
 /** Nothing is rendered and no control offers it: a breakdown of a total that could not be computed
  *  would be a longer version of an invented number. */
 export interface UnavailableBreakdown {
@@ -65,6 +78,9 @@ export interface AvailableBreakdown {
    *  is a real answer: an accessory the design earns none of is no row, since the query publishes no
    *  line for it rather than a zero that would render *inclus*. */
   readonly wholeKitchenRows: readonly BreakdownRow[];
+  /** The depth line, present exactly when the query published one: a 700 mm kitchen with a cabinet that gets deeper.
+   *  Absent, never zero, at 600 mm, so a surface that ignores it still prints every line that is not the uplift. */
+  readonly depthRow?: BreakdownDepthRow;
   /** The sentence that says the amounts above are each rounded up on their own. */
   readonly note: string;
   /** The bar's figure, restated because on mobile this sheet covers the bar. Not a sum of the rows,
@@ -128,6 +144,7 @@ export function describePriceBreakdown(
     disclaimer: input.content.priceBreakdown.disclaimer,
     groups: rows.groups,
     wholeKitchenRows: rows.wholeKitchenRows,
+    ...(rows.depthRow === undefined ? {} : { depthRow: rows.depthRow }),
     note: input.content.priceBreakdown.note,
     figure: describeStartingPrice({
       totalMinor: priced.totalMinor,
@@ -159,6 +176,7 @@ interface DescribeBreakdownRowsInput {
 interface BreakdownRows {
   readonly groups: readonly BreakdownGroup[];
   readonly wholeKitchenRows: readonly BreakdownRow[];
+  readonly depthRow?: BreakdownDepthRow;
 }
 
 /** The one builder of the rows every surface lists a priced design by; the review calls it too, so
@@ -173,6 +191,7 @@ export function describeBreakdownRows(
   );
   assertEveryPricedBodyIsPlaced(input.groups, lineByPlacement);
 
+  const depthLine = priced.lines.find(isDepthLine);
   return {
     groups,
     wholeKitchenRows: priced.lines
@@ -180,6 +199,17 @@ export function describeBreakdownRows(
         isUnplacedLine(line, content.priceBreakdown.wholeKitchenCategories),
       )
       .map((line) => toUnplacedRow(line, content)),
+    ...(depthLine === undefined
+      ? {}
+      : { depthRow: toDepthRow(depthLine, content) }),
+  };
+}
+
+function toDepthRow(line: DepthPriceLine, content: Content): BreakdownDepthRow {
+  return {
+    key: line.lineId,
+    depthMm: line.depthMm,
+    amountText: describeRowAmount(line.amountMinor, content),
   };
 }
 
@@ -303,11 +333,16 @@ function isCabinetLine(line: PriceLine): line is CabinetPriceLine {
   return line.kind === "cabinet";
 }
 
+function isDepthLine(line: PriceLine): line is DepthPriceLine {
+  return line.kind === "depth";
+}
+
 /**
  * An explicit membership test, never `kind !== "cabinet"` (ADR 0092 decision 11): the negation
  * selects a new line kind that has no category word and renders `undefined · …`. Membership is asked
  * of the category record itself, so a kind with no word is not selected, and adding a kind to
- * `UnplacedPriceLine` without a word is a compile error.
+ * `UnplacedPriceLine` without a word is a compile error. The depth line has no category word on purpose: it is not a
+ * tier or an accessory, and `describeBreakdownRows` publishes it as the row of its own, `depthRow`.
  */
 function isUnplacedLine(
   line: PriceLine,

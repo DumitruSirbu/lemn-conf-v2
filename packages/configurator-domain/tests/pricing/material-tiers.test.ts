@@ -22,12 +22,12 @@ import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 
 const TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map((tier) => tier.tierId);
 
-function amountFor(materialId: string): number {
+function percentFor(materialId: string): number {
   const tier = SAMPLE_PRICE_BOOK.material.tiers.find(
     (candidate) => candidate.tierId === materialId,
   );
   if (!tier) throw new Error(`the sample book prices no "${materialId}"`);
-  return tier.wholeKitchenMinor;
+  return tier.percentOfCabinets;
 }
 
 describe("the price book's material tier ids are exactly the declared materials", () => {
@@ -52,11 +52,11 @@ describe("the price book's material tier ids are exactly the declared materials"
 
   it("prices the materials in the order the domain declares them", () => {
     // ADR 0071 decision 1: PAL < MDF < veneer. The order is a declared product fact, and a book
-    // whose amounts contradict it is a book fault — the material list would then be sorted by
+    // whose percentages contradict it is a book fault — the material list would then be sorted by
     // nothing a reader can see.
-    const amounts = MATERIAL_IDS.map(amountFor);
+    const percents = MATERIAL_IDS.map(percentFor);
 
-    expect(amounts).toEqual([...amounts].sort((one, other) => one - other));
+    expect(percents).toEqual([...percents].sort((one, other) => one - other));
   });
 
   it("agrees with the book on which material an unset design is priced at", () => {

@@ -4,15 +4,16 @@ import {
   canonicalSerializeDesign,
   DesignSchema,
   findOverflowingPlacementIds,
+  judgeSubmissionEligibility,
   KITCHEN_L_DESIGN,
   PRICE_BOOK_CURRENCY,
   priceDesign,
-  pricedByWidth,
   snapshotSubmission,
   drawnButNotSupplied,
   type Design,
   type DesignPlacement,
   type PriceBook,
+  type PricedDesign,
   type SubmissionRefusal,
   type SubmissionSnapshot,
   type SubmissionSnapshotRequest,
@@ -26,6 +27,7 @@ import {
   withABodyPastItsWall,
   type Kitchen,
 } from "./support/submission-kitchens.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 function requestFor(kitchen: Kitchen, book: PriceBook = SAMPLE_BOOK) {
   return {
@@ -33,6 +35,7 @@ function requestFor(kitchen: Kitchen, book: PriceBook = SAMPLE_BOOK) {
     catalog: kitchen.catalog,
     book,
     pricingVersion: book.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   };
 }
 
@@ -124,11 +127,12 @@ describe("the snapshot's price is priceDesign's, through one call", () => {
 describe("the snapshot's total, added up by hand", () => {
   // The book is stated here. Two wall cabinets on wall A of the seeded room, 600 mm and 400 mm wide, both
   // fitting its 3560 mm wall. A wall cabinet carries two door leaves from 500 mm wide (one below), and a
-  // leaf carries two hinges (ADR 0092 decision 2).
-  const WALL_CABINET_BASE_MINOR = 10_000;
-  const WALL_CABINET_PER_MM_MINOR = 20;
+  // leaf carries two hinges (ADR 0092 decision 2). The material is dearer than the reference by a quarter.
+  const ANCHOR_WIDTH_MM = 600;
+  const WALL_CABINET_ANCHOR_MINOR = 22_000;
+  const WALL_CABINET_PER_STEP_MINOR = 1_000;
   const PER_HINGE_MINOR = 1_000;
-  const MATERIAL_MINOR = 7_500;
+  const UPGRADE_PERCENT = 25;
 
   const BOOK: PriceBook = {
     version: "hand-added",
@@ -139,10 +143,13 @@ describe("the snapshot's total, added up by hand", () => {
       {
         ruleId: "cabinet.wall-cabinet",
         buildId: "wall-cabinet",
-        formula: pricedByWidth({
-          baseMinor: WALL_CABINET_BASE_MINOR,
-          perWidthMillimetreMinor: WALL_CABINET_PER_MM_MINOR,
-        }),
+        formula: {
+          shape: "anchored-width",
+          anchorWidthMm: ANCHOR_WIDTH_MM,
+          anchorMinor: WALL_CABINET_ANCHOR_MINOR,
+          perStepWiderMinor: WALL_CABINET_PER_STEP_MINOR,
+          perStepNarrowerMinor: WALL_CABINET_PER_STEP_MINOR,
+        },
       },
     ],
     hardware: {
@@ -160,17 +167,25 @@ describe("the snapshot's total, added up by hand", () => {
       ],
     },
     material: {
-      defaultTierId: "material.test",
+      defaultTierId: "material.reference",
       tiers: [
         {
-          tierId: "material.test",
-          ruleId: "material.test",
-          name: "Test",
-          description: "Whole kitchen.",
-          wholeKitchenMinor: MATERIAL_MINOR,
+          tierId: "material.reference",
+          ruleId: "material.reference",
+          name: "Reference",
+          description: "The reference.",
+          percentOfCabinets: 0,
+        },
+        {
+          tierId: "material.upgrade",
+          ruleId: "material.upgrade",
+          name: "Upgrade",
+          description: "A quarter more on the cabinets.",
+          percentOfCabinets: UPGRADE_PERCENT,
         },
       ],
     },
+    depthRule: { deepCabinetPercent: 0 },
     accessories: {
       sinkProtectiveCover: {
         ruleId: "accessory.cover",
@@ -203,38 +218,43 @@ describe("the snapshot's total, added up by hand", () => {
 
   const DESIGN: Design = {
     ...KITCHEN_L_DESIGN,
+    settings: {
+      ...KITCHEN_L_DESIGN.settings,
+      materialTierId: "material.upgrade",
+    },
     placements: [
       wallCabinet("wide", 300, 600),
       wallCabinet("narrow", 800, 400),
     ],
   };
 
-  it("is 53 500 minor units", () => {
-    // wide    600 mm: 10 000 + 20 x 600 =               22 000
-    // narrow  400 mm: 10 000 + 20 x 400 =               18 000
-    // hinges: wide has 2 leaves, narrow 1; 2 hinges each: (4 + 2) x 1 000 = 6 000
-    // material, once for the kitchen:                    7 500
-    // sum: 22 000 + 18 000 + 6 000 + 7 500 =            53 500
-    const { priced } = snapshotOf({
-      design: DESIGN,
-      catalog: catalogOf(DESIGN),
-      book: BOOK,
-      pricingVersion: BOOK.version,
-    });
+  const requestForBook = (book: PriceBook): SubmissionSnapshotRequest => ({
+    design: DESIGN,
+    catalog: catalogOf(DESIGN),
+    book,
+    pricingVersion: book.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
+  });
 
-    expect(priced.totalMinor).toBe(53_500);
+  it("is 57 000 minor units", () => {
+    // wide    600 mm: the anchor =                                            22 000
+    // narrow  400 mm: four 50 mm steps narrower, 22 000 - 4 x 1 000 =        18 000
+    // hinges: wide has 2 leaves, narrow 1; 2 hinges each: (4 + 2) x 1 000 =   6 000
+    // material at 25 %, each cabinet rounded to 10 lei on its own, half up:
+    //   wide   22 000 x 1.25 = 27 500, a tie, up to 28 000, so +6 000
+    //   narrow 18 000 x 1.25 = 22 500, a tie, up to 23 000, so +5 000
+    //   the material line: 6 000 + 5 000 =                                   11 000
+    // sum: 22 000 + 18 000 + 6 000 + 11 000 =                                57 000
+    const { priced } = snapshotOf(requestForBook(BOOK));
+
+    expect(priced.totalMinor).toBe(57_000);
     expect(priced.lines.map((line) => line.amountMinor)).toEqual([
-      22_000, 18_000, 6_000, 7_500,
+      22_000, 18_000, 6_000, 11_000,
     ]);
   });
 
   it("carries the book's version, currency and what it says of itself, unrounded", () => {
-    const { priced } = snapshotOf({
-      design: DESIGN,
-      catalog: catalogOf(DESIGN),
-      book: BOOK,
-      pricingVersion: BOOK.version,
-    });
+    const { priced } = snapshotOf(requestForBook(BOOK));
 
     expect(priced).toMatchObject({
       pricingVersion: "hand-added",
@@ -254,19 +274,14 @@ describe("the snapshot's total, added up by hand", () => {
         {
           ruleId: "cabinet.wall-cabinet",
           buildId: "wall-cabinet",
-          ...drawnButNotSupplied(),
+          ...drawnButNotSupplied(ANCHOR_WIDTH_MM),
         },
       ],
     };
 
-    expect(
-      refusalOf({
-        design: DESIGN,
-        catalog: catalogOf(DESIGN),
-        book: customerBook,
-        pricingVersion: customerBook.version,
-      }),
-    ).toEqual({ code: "NO_CABINET" });
+    expect(refusalOf(requestForBook(customerBook))).toEqual({
+      code: "NO_CABINET",
+    });
   });
 });
 
@@ -344,6 +359,61 @@ describe("the snapshot holds no contact field and no shown figure, by type", () 
 
     expect(keys.length).toBeGreaterThan(50);
     expect(keys.filter((key) => CONTACT_KEY.test(key))).toEqual([]);
+  });
+});
+
+describe("a snapshot taken before the cut-over is read back as stored (P3-c, ADR 0154 decision 8)", () => {
+  // A snapshot is kept for good and nothing re-prices it. This one is a stored price from the retired book's era,
+  // written as JSON so that nothing here can type it into today's shape: a flat material line, lines that are not
+  // whole tens of lei, and a total that is the book's own exact sum.
+  const STORED_BEFORE_THE_CUT_OVER = `{
+    "currency": "MDL",
+    "pricingVersion": "sample-2026-09",
+    "status": "estimate",
+    "amountsProvisional": true,
+    "lines": [
+      { "lineId": "placement:p0:cabinet", "kind": "cabinet", "ruleId": "cabinet.base-sink", "placementId": "p0",
+        "buildId": "base-sink-800", "pricedAsBuildId": "base-sink", "label": "base-sink", "widthMm": 800,
+        "suppliedBy": "manufacturer", "quantity": 1, "unitAmountMinor": 486000, "amountMinor": 486000 },
+      { "lineId": "kitchen:hardware", "kind": "hardware", "ruleId": "hardware.standard", "tierId": "hardware.standard",
+        "name": "Standard", "description": "d", "quantity": 1, "unitAmountMinor": 450240, "amountMinor": 450240 },
+      { "lineId": "kitchen:material", "kind": "material", "ruleId": "material.painted-mdf", "tierId": "material.painted-mdf",
+        "name": "MDF", "description": "d", "quantity": 1, "unitAmountMinor": 900000, "amountMinor": 900000 }
+    ],
+    "totalMinor": 1836240,
+    "overflowingPlacementIds": [],
+    "totalIsFlagged": false
+  }`;
+
+  it("keeps the stored total and every stored line byte for byte through the eligibility rule, never recomputing them", () => {
+    const stored = JSON.parse(STORED_BEFORE_THE_CUT_OVER) as PricedDesign;
+
+    const eligibility = judgeSubmissionEligibility({
+      design: KITCHEN_L_DESIGN,
+      overflowingPlacementIds: [],
+      pricing: { ok: true, priced: stored },
+    });
+
+    expect(eligibility.kind).toBe("allowed");
+    if (eligibility.kind !== "allowed") return;
+    expect(eligibility.priced).toBe(stored);
+    expect(JSON.stringify(eligibility.priced)).toBe(
+      JSON.stringify(JSON.parse(STORED_BEFORE_THE_CUT_OVER)),
+    );
+    expect(eligibility.priced.totalMinor).toBe(1_836_240);
+    expect(eligibility.priced.totalMinor % 1_000).not.toBe(0);
+  });
+
+  it("is a price the book of today would not have produced, which is the point: the stored figure is not the current book's", () => {
+    const stored = JSON.parse(STORED_BEFORE_THE_CUT_OVER) as PricedDesign;
+    const seeded = GENERATED_KITCHENS.find(
+      (kitchen) => kitchen.name === "the seeded L",
+    );
+    if (seeded === undefined) throw new Error("the seeded kitchen is listed");
+
+    const today = snapshotOf(requestFor(seeded)).priced;
+
+    expect(today.totalMinor).not.toBe(stored.totalMinor);
   });
 });
 

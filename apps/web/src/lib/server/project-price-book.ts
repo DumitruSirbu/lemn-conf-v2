@@ -6,9 +6,8 @@ import type {
   BookAccessories,
   CabinetPriceRule,
   DepthRule,
-  FlatMaterialTier,
   HardwareTier,
-  PercentageMaterialTier,
+  MaterialTier,
   PriceBook,
   PricedSize,
   TierGroup,
@@ -54,24 +53,18 @@ const RULE_MEMBERS = membersOf<CabinetPriceRule>()([
   "suppliedBy",
 ]);
 
-/** Every member any formula shape states, in one list: the linear shapes' coefficients and the anchored shapes'. A formula
- *  of a shape that states fewer simply has fewer of them. The listed sizes of a `price-per-size` formula are copied apart. */
-const FORMULA_MEMBERS = [
-  ...membersOf<AnchoredFormula>()([
-    "shape",
-    "anchorWidthMm",
-    "anchorMinor",
-    "perStepWiderMinor",
-    "perStepNarrowerMinor",
-    "perExtraDoorLeafMinor",
-    "anchorHeightMm",
-    "perHeightStepMinor",
-  ]),
-  "baseMinor",
-  "perWidthMillimetreMinor",
-  "perDoorLeafMinor",
-  "perHeightMillimetreMinor",
-] as const;
+/** Every member any formula shape states, in one list. A formula of a shape that states fewer simply has fewer of them.
+ *  The listed sizes of a `price-per-size` formula are copied apart. */
+const FORMULA_MEMBERS = membersOf<AnchoredFormula>()([
+  "shape",
+  "anchorWidthMm",
+  "anchorMinor",
+  "perStepWiderMinor",
+  "perStepNarrowerMinor",
+  "perExtraDoorLeafMinor",
+  "anchorHeightMm",
+  "perHeightStepMinor",
+]);
 
 const SIZE_MEMBERS = membersOf<PricedSize>()(["widthMm", "amountMinor"]);
 
@@ -95,10 +88,7 @@ const HARDWARE_MEMBERS = [
 
 const MATERIAL_MEMBERS = [
   ...TIER_IDENTITY_MEMBERS,
-  ...membersOf<
-    Pick<FlatMaterialTier, "wholeKitchenMinor"> &
-      Pick<PercentageMaterialTier, "percentOfCabinets">
-  >()(["wholeKitchenMinor", "percentOfCabinets"]),
+  ...membersOf<Omit<MaterialTier, keyof TierIdentity>>()(["percentOfCabinets"]),
 ] as const;
 
 const ACCESSORY_MEMBERS = membersOf<AccessoryRule>()([
@@ -190,13 +180,11 @@ export function projectPriceBook(book: PriceBook): PriceBook {
     book.hardware,
     HARDWARE_MEMBERS,
   );
-  projected.material = projectGroup<FlatMaterialTier | PercentageMaterialTier>(
+  projected.material = projectGroup<MaterialTier>(
     book.material,
     MATERIAL_MEMBERS,
   );
-  if (book.depthRule !== undefined) {
-    projected.depthRule = picked(book.depthRule, DEPTH_RULE_MEMBERS);
-  }
+  projected.depthRule = picked(book.depthRule, DEPTH_RULE_MEMBERS);
   projected.accessories = projectAccessories(book.accessories);
   return projected as unknown as PriceBook;
 }

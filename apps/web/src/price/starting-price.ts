@@ -12,8 +12,9 @@
 // cross-tier floor. Interim, pending owner review: a floor reading would be a copy change to
 // `price.startingPrefix` and `priceBreakdown.disclaimer`, with no arithmetic moving.
 //
-// Rounding is presentation and lives only here: `packages/configurator-domain/src/pricing/` keeps
-// exact integer minor units and never rounds.
+// The rounding a customer reads lives only here. `packages/configurator-domain/src/pricing/` rounds each line to
+// ten lei at one named seam, so the lines add to the total exactly (ADR 0177 A-1), and nothing else; this file
+// rounds a line or a total up to the thousand MDL it is shown at.
 import { type PricedDesign } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";

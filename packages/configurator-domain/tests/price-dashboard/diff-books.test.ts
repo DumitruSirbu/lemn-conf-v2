@@ -16,6 +16,7 @@ import {
   type FieldDiffRow,
   type GroupDiffRow,
 } from "../../src/price-dashboard/diff-books.js";
+import type { PriceBook } from "../../src/pricing/price-book.js";
 
 import {
   anchoredRuleReading,
@@ -211,7 +212,10 @@ describe("the rows are in the terms D7 and D8 draw", () => {
   });
 
   it("shows a field only one book states as absent on the other side, never as null", () => {
-    const withoutDepthRule = { ...PERCENTAGE_BOOK, depthRule: undefined };
+    const withoutDepthRule = {
+      ...PERCENTAGE_BOOK,
+      depthRule: undefined,
+    } as unknown as PriceBook;
 
     const rows = diffBooks(withoutDepthRule, PERCENTAGE_BOOK);
 

@@ -14,9 +14,9 @@ export const PRICE_STEP_MM = 50;
 /** What an anchored shape may read beyond its anchor and its width steps. */
 type AnchoredTerm = "door-leaves" | "height";
 
-/** The one table of which optional terms each anchored shape reads: one shape per combination, as the linear shapes
- *  are, since a shape is a statement about the product. The shape list, the readers below, the arithmetic and the
- *  parser's field lists all derive from it. */
+/** The one table of which optional terms each anchored shape reads: one shape per combination, since a shape is a
+ *  statement about the product. The shape list, the readers below, the arithmetic and the parser's field lists all
+ *  derive from it. */
 const TERMS_READ_BY_SHAPE = {
   "anchored-width": [],
   "anchored-width-and-door-leaves": ["door-leaves"],

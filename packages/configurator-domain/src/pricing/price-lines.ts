@@ -12,8 +12,7 @@ import type {
 } from "./price-book.js";
 
 /** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
- *  whole-kitchen rules §12 permits a line to trace to instead; `depth` is the book's one depth rule, which only a
- *  book in percentage form publishes; `accessory` traces to neither — it is billed per sink, which is a count of
+ *  whole-kitchen rules §12 permits a line to trace to instead; `depth` is the book's one depth rule; `accessory` traces to neither — it is billed per sink, which is a count of
  *  bodies rather than one body or the whole kitchen. */
 export type PriceLineKind =
   | "cabinet"
@@ -24,8 +23,8 @@ export type PriceLineKind =
 
 /** The fields every line carries, whatever it prices.
  *
- *  `amountMinor` is `quantity × unitAmountMinor` and both are exact safe integers. A book in percentage form
- *  rounds at one named seam (ADR 0177 A-1): its amounts are whole tens of lei, and an accessory line there is
+ *  `amountMinor` is `quantity × unitAmountMinor` and both are exact safe integers, except on an accessory line. Pricing
+ *  rounds at one named seam (ADR 0177 A-1): every amount is a whole number of tens of lei, and an accessory line is
  *  `r10(quantity × unitAmountMinor)` with the book's exact rate as its unit. */
 export interface PriceLineCommon {
   /** Derived, never supplied by price data, so it is stable across a re-ordered input array and
@@ -71,8 +70,8 @@ export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly descriptionKey?: string | undefined;
 }
 
-/** The uplift a 700 mm depth adds to the cabinets that get deeper: one line, published only by a book in percentage
- *  form, only when the design is built at 700 and at least one manufacturer-supplied cabinet deepens. Its amount is `0`
+/** The uplift a 700 mm depth adds to the cabinets that get deeper: one line, published only when the design is built
+ *  at 700 and at least one manufacturer-supplied cabinet deepens. Its amount is `0`
  *  when the book states 0 %, which a surface renders *inclus*. Quantity 1, as the whole-kitchen lines. */
 export interface DepthPriceLine extends PriceLineCommon {
   readonly kind: "depth";
@@ -149,10 +148,9 @@ export type PricingFailureCode =
   | "NO_PRICE_FOR_SIZE"
   /** A selection, or a book's own default, names a tier the book does not hold. */
   | "UNKNOWN_TIER"
-  /** The row a body is priced as declares no usable door-leaf count, so a linear shape's door step cannot be
-   *  taken (`describePricedBody`). Raised on that path alone, never on a hardware quantity: a body whose
-   *  mechanisms cannot be counted, or whose leaves an anchored door shape cannot count, raises
-   *  `UNDECLARED_FRONT_POPULATION`. */
+  /** The row a body is priced as declares no usable door-leaf count at the body's width (`describePricedBody`).
+   *  Raised on that path alone, never on a hardware quantity: a body whose mechanisms cannot be counted, or whose
+   *  leaves an anchored door shape cannot count, raises `UNDECLARED_FRONT_POPULATION`. */
   | "UNDECLARED_HANDLE_COUNT"
   /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
    *  latches cannot be counted (ADR 0092 decision 1). Never read as zero mechanisms: that would price a

@@ -42,6 +42,7 @@ import {
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const WITHDRAWN_TIER_ID = "material.withdrawn";
 const WITHDRAWN_HARDWARE_TIER_ID = "hardware.withdrawn";
@@ -55,6 +56,7 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
 
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -65,6 +67,7 @@ function pricingOf(design: Design): PricingResult {
 
 function offerOf(design: Design): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,

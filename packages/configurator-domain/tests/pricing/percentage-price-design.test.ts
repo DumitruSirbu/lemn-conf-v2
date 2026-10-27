@@ -2,7 +2,7 @@
 // lines adding to the total exactly, material and depth multiplying, and which cabinets deepen taken as a parameter so
 // that nothing here decides A-6. Every amount and percentage is drawn at random or named by the test; none is a price.
 import * as fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { Design } from "../../src/design.js";
 import {
@@ -19,7 +19,10 @@ import {
   MAX_DEEP_CABINET_PERCENT,
   MAX_MATERIAL_PERCENT,
 } from "../../src/pricing/price-bounds.js";
-import { priceDesign } from "../../src/pricing/price-design.js";
+import {
+  priceDesign,
+  type PriceDesignRequest,
+} from "../../src/pricing/price-design.js";
 import type {
   CabinetPriceLine,
   PriceLine,
@@ -32,6 +35,7 @@ import {
   percentageBookOf,
   UPGRADE_TIER_ID,
 } from "./percentage-book-support.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const NUM_RUNS = 120;
 const SHALLOW_MM = DEFAULT_CABINET_DEPTH_MM;
@@ -372,45 +376,36 @@ describe("0 % gives no amount (P2-d)", () => {
   });
 });
 
-describe("the form decides how a book is priced", () => {
-  const flatKitchen = kitchenAt(DEEP_MM);
+describe("which cabinets deepen is measured by the caller and required (P3 item 2, ADR 0177 A-6)", () => {
+  const kitchen = kitchenAt(DEEP_MM);
 
-  it("refuses a book in percentage form without `deepeningRows`, since pricing decides no row's depth itself", () => {
-    const book = bookOf({
-      anchors: [100_000],
-      materialPercent: 10,
-      deepCabinetPercent: 10,
-      depthMm: DEEP_MM,
-      deepeningIds: new Set(),
-    });
-    const result = priceDesign({
-      ...flatKitchen,
-      book,
-      pricingVersion: book.version,
-    });
+  it("makes `deepeningRows` a required member of the request, so a caller that has not measured it does not compile", () => {
+    expectTypeOf<PriceDesignRequest["deepeningRows"]>().toEqualTypeOf<
+      ReadonlySet<string>
+    >();
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
-  });
-
-  it("prices a book in the old flat form as it always did, whatever `deepeningRows` holds", () => {
-    const request = {
-      ...flatKitchen,
+    // @ts-expect-error -- the set is required: pricing decides no row's depth itself
+    const incomplete: PriceDesignRequest = {
+      ...kitchen,
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK.version,
     };
-    const publicResult = priceDesign(request);
-    const withRows = priceDesign({
-      ...request,
-      deepeningRows: new Set(SUPPLIED_BUILD_IDS),
-    });
+    expect(incomplete.pricingVersion).toBe(SAMPLE_PRICE_BOOK.version);
+  });
 
-    expect(withRows).toEqual(publicResult);
-    expect(publicResult.ok).toBe(true);
-    if (publicResult.ok) {
-      expect(
-        publicResult.priced.lines.some((line) => line.kind === "depth"),
-      ).toBe(false);
-    }
+  it("prices the shipped book at 700 with a depth line over the measured rows, and with none at 600", () => {
+    const priceAt = (depthMm: number) => {
+      const result = priceDesign({
+        ...kitchenAt(depthMm),
+        book: SAMPLE_PRICE_BOOK,
+        pricingVersion: SAMPLE_PRICE_BOOK.version,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
+      });
+      if (!result.ok) throw new Error(result.failure.code);
+      return result.priced;
+    };
+
+    expect(linesOfKind(priceAt(DEEP_MM), "depth")).toHaveLength(1);
+    expect(linesOfKind(priceAt(SHALLOW_MM), "depth")).toHaveLength(0);
   });
 });

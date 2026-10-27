@@ -15,24 +15,25 @@ import {
   SAMPLE_PRICE_BOOK_VERSION,
   type Design,
   type PriceBook,
-  type TierIdentity,
+  type PricedDesign,
   type WholeKitchenSelections,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
   offerWholeKitchenTiers,
-  NegativeTierDeltaError,
   UnofferedDefaultTierError,
   type OfferedTierGroup,
   type WholeKitchenTierOffer,
 } from "@/price/whole-kitchen-tiers";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 function measure(
   design: Design = KITCHEN_L_DESIGN,
   book: PriceBook = SAMPLE_PRICE_BOOK,
 ): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book,
@@ -45,7 +46,12 @@ function measure(
  *  of. Written out here rather than imported from the module under test, so an agreement is not an
  *  agreement with itself. */
 function totalAt(selections: WholeKitchenSelections): number {
+  return pricedAt(selections).totalMinor;
+}
+
+function pricedAt(selections: WholeKitchenSelections): PricedDesign {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -53,7 +59,7 @@ function totalAt(selections: WholeKitchenSelections): number {
     selections,
   });
   if (!result.ok) throw new Error("the seeded design was expected to price");
-  return result.priced.totalMinor;
+  return result.priced;
 }
 
 const SHIPPED = measure();
@@ -104,14 +110,22 @@ describe("a tier's delta is the whole kitchen, twice", () => {
     }
   });
 
-  it("holds every material tier's delta to the book's own whole-kitchen amount, which is the one group where the two agree", () => {
-    // The material term *is* stated per kitchen, so here the measurement and the book must land on
+  it("holds every material tier's delta to the material line the query publishes for it, the one line that moves with the material", () => {
+    // The material term is a percentage of the cabinets, so the measurement and the published material line must land on
     // the same number. Asserted because it is the case that would hide a broken measurement: if the
-    // hardware assertion above were the only one, a delta of zero everywhere would still pass it.
+    // hardware assertion above were the only one, a delta of zero everywhere would still pass it. At 600 mm there is no
+    // depth line, so the material line is the whole difference.
+    const materialLineAt = (materialTierId: string): number => {
+      const line = pricedAt({ materialTierId }).lines.find(
+        (candidate) => candidate.kind === "material",
+      );
+      if (line === undefined) throw new Error("no material line");
+      return line.amountMinor;
+    };
     for (const tier of SAMPLE_PRICE_BOOK.material.tiers) {
       expect(deltaOf(SHIPPED.material, tier.tierId), tier.tierId).toBe(
-        tier.wholeKitchenMinor -
-          defaultTierOf(SAMPLE_PRICE_BOOK.material).wholeKitchenMinor,
+        materialLineAt(tier.tierId) -
+          materialLineAt(SAMPLE_PRICE_BOOK.material.defaultTierId),
       );
     }
   });
@@ -130,18 +144,20 @@ describe("what the book must look like for a delta to be an addition", () => {
     );
   });
 
-  it("refuses a book whose default is not its cheapest tier, rather than rendering a discount", () => {
+  it("states no delta for a book whose default is not the 0 % reference, and still offers every tier, rather than rendering a discount", () => {
+    // A-8: the parser refuses a default material above the PAL reference, so the pricing query refuses the whole book and
+    // the offer is the recovery path of ADR 0072 (P3-d): every tier is listed and none states an amount. A discount
+    // cannot reach a badge, because a book that could make one never prices.
     const inverted = withMaterialDefault("material.veneer");
 
-    expect(() => measure(KITCHEN_L_DESIGN, inverted)).toThrow(
-      NegativeTierDeltaError,
-    );
-  });
+    const offer = measure(KITCHEN_L_DESIGN, inverted);
 
-  it("names the tier and the shortfall, so a book fault is reported rather than guessed at", () => {
-    expect(() =>
-      measure(KITCHEN_L_DESIGN, withMaterialDefault("material.veneer")),
-    ).toThrow(/material\.melamine/);
+    expect(offer.material.tierIds).toEqual(
+      SAMPLE_PRICE_BOOK.material.tiers.map((tier) => tier.tierId),
+    );
+    for (const tier of [...offer.material.tiers, ...offer.hardware.tiers]) {
+      expect(tier.deltaMinor, tier.tierId).toBeUndefined();
+    }
   });
 
   it("refuses a group whose declared default it does not offer", () => {
@@ -177,6 +193,7 @@ describe("what the offer publishes", () => {
     // The list is the one control that could put a broken document right, so a pricing failure
     // costs the customer numbers and never the choice.
     const offer = offerWholeKitchenTiers({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -210,6 +227,7 @@ describe("what the offer publishes", () => {
     // The default is what an unset choice resolves to, so it has to exist with or without a price.
     expect(() =>
       offerWholeKitchenTiers({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design: KITCHEN_L_DESIGN,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: withMaterialDefault("material.no-such-tier"),
@@ -249,15 +267,6 @@ function cheapestDeltaTierId(group: OfferedTierGroup): string {
     .sort((left, right) => left.delta - right.delta)[0];
   if (!cheapest) throw new Error("the offer holds no tiers at all");
   return cheapest.tierId;
-}
-
-function defaultTierOf<TTier extends TierIdentity>(group: {
-  readonly defaultTierId: string;
-  readonly tiers: readonly TTier[];
-}): TTier {
-  const tier = group.tiers.find((one) => one.tierId === group.defaultTierId);
-  if (!tier) throw new Error("the book defaults to a tier it does not offer");
-  return tier;
 }
 
 /** The sample book with one group's default moved, which is the only way to reach the two refusals

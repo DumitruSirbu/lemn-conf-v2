@@ -17,7 +17,7 @@ import {
   changeOf,
   editSlotsOf,
   FIXTURE_BOOKS,
-  FLAT_BOOK,
+  PRE_CUTOVER_BOOK,
   otherValueAt,
   PERCENTAGE_BOOK,
   setSlots,
@@ -27,9 +27,8 @@ import {
   type SlotEdit,
 } from "./change-set-books.js";
 
-/** The arms of editable field each form states: a flat book has no anchored price, size, material percent or depth. */
+/** The arms of editable field each form states. */
 const ARMS_BY_FORM = {
-  flat: ["accessory", "hardware", "provisional"],
   percentage: [
     "accessory",
     "cabinet-size",
@@ -226,11 +225,12 @@ describe("restoring an archived version", () => {
       { slot: hardwareSlot, value: 1 },
     ]);
 
-    const changes = restoreChanges(archived, FLAT_BOOK);
+    const changes = restoreChanges(archived, PRE_CUTOVER_BOOK);
 
     const kinds = new Set(changes.map(({ address }) => address.kind));
     expect([...kinds].sort()).toEqual(["hardware"]);
-    expect(applyChanges(FLAT_BOOK, changes).ok).toBe(true);
+    // The result cannot be applied: the book it would edit no longer parses, and that is the limit M1 recorded.
+    expect(applyChanges(PRE_CUTOVER_BOOK, changes).ok).toBe(false);
   });
 
   it("emits 0 for a stored negative zero, which the parser accepts and applyChanges would refuse", () => {

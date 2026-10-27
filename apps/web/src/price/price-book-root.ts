@@ -20,6 +20,7 @@ import {
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 
+import { shippedDeepeningRows } from "./deepening-rows";
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
@@ -80,6 +81,7 @@ export function priceAgainstBook(
     book: root.book,
     pricingVersion: root.book.version,
     selections: design.settings,
+    deepeningRows: shippedDeepeningRows(),
   });
 }
 
@@ -100,6 +102,7 @@ export function offerTiersAgainstBook(
     book: root.book,
     pricingVersion: root.book.version,
     selections: design.settings,
+    deepeningRows: shippedDeepeningRows(),
   });
 }
 

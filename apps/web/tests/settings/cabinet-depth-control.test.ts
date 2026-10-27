@@ -39,6 +39,7 @@ import {
   type DescribeGlobalSettingsInput,
   type GlobalSettingsView,
 } from "@/settings/global-settings-model";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** The depth a legacy document with none is built at, as a number. The one literal depth in this file: the default is
  *  one value, and reading it from the domain's constant would compare the fallback with itself. */
@@ -46,6 +47,7 @@ const DEPTH_A_DESIGN_NAMING_NONE_IS_BUILT_AT_MM = 600;
 
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -56,6 +58,7 @@ function pricingOf(design: Design): PricingResult {
 
 function offerOf(design: Design): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,

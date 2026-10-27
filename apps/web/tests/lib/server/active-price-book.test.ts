@@ -148,11 +148,9 @@ describe("a book is handed over as declared and nothing more (security)", () => 
     return {
       ...book,
       ...extra,
-      cabinetRules: book.cabinetRules.map((rule) => ({
-        ...rule,
-        ...extra,
-        formula: { ...rule.formula, ...extra },
-      })),
+      // An anchored formula states exactly its fields, so an extra member there is refused by the parser and never
+      // reaches the projection; each rule is the level this sweep can reach.
+      cabinetRules: book.cabinetRules.map((rule) => ({ ...rule, ...extra })),
       hardware: {
         ...book.hardware,
         ...extra,
@@ -174,7 +172,7 @@ describe("a book is handed over as declared and nothing more (security)", () => 
     };
   }
 
-  it("drops a member the book does not declare, at the book, each rule and formula, each tier and each accessory", async () => {
+  it("drops a member the book does not declare, at the book, each rule, each tier and each accessory", async () => {
     const stores = storesHolding(withUndeclaredMembers(STORED_BOOK));
 
     const root = await readActivePriceBook(stores);

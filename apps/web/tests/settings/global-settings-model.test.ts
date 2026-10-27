@@ -40,9 +40,11 @@ import {
 } from "@/settings/global-settings-model";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
 import { describeEditability } from "@/store/editability";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -53,6 +55,7 @@ function pricingOf(design: Design): PricingResult {
 
 function offerOf(design: Design): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
