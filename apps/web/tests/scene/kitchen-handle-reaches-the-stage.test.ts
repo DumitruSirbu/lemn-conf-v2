@@ -9,7 +9,6 @@
 import {
   KITCHEN_L_DESIGN,
   type Design,
-  type DesignId,
   type Handle,
   type PlacementRecord,
 } from "@lemnaria/configurator-domain";
@@ -64,7 +63,7 @@ function withKitchenHandle(handle: Handle | undefined): Design {
 function hydrate(design: Design): void {
   useConfiguratorStore.getState().hydrate({
     design,
-    designId: designIdInUse as DesignId,
+    designId: designIdInUse,
     revision: "1",
     canWrite: true,
   });

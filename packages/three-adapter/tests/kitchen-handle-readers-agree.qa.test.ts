@@ -106,7 +106,10 @@ beforeAll(() => {
       catalog: KITCHEN_L_BODY_CATALOG,
     },
     ...GENERATED_ROOMS.map((room) => generatedDocument(room)),
-    generatedDocument(GENERATED_ROOMS[0] as DesignRoom, NATIVE_700_DEFAULTS),
+    generatedDocument(
+      required(GENERATED_ROOMS[0], "the L room"),
+      NATIVE_700_DEFAULTS,
+    ),
   ];
 });
 
@@ -144,8 +147,12 @@ function generatedDocument(
   };
 }
 
+/** The design with exactly this kitchen choice: a handle the document was stamped with does not survive into it. */
 function withKitchenSettings(design: Design, kitchen: KitchenChoice): Design {
-  return { ...design, settings: { ...design.settings, ...kitchen } };
+  const settings = { ...design.settings };
+  delete settings.handle;
+  delete settings.topRowHandle;
+  return { ...design, settings: { ...settings, ...kitchen } };
 }
 
 function withOwnHandles(
