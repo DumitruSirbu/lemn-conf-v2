@@ -98,7 +98,9 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
  * that does not). The fake store mints the id when it publishes, after the book is fixed, so this world stamps it on the
  * way out. A store that stamps on the way in makes this redundant. Reads only: nothing the fake holds is changed.
  */
-function stampedWithItsVersionId(store: FakePriceBookStore): PriceBookStore {
+export function stampedWithItsVersionId(
+  store: FakePriceBookStore,
+): PriceBookStore {
   return {
     readActive: async () => {
       const read = await store.readActive();

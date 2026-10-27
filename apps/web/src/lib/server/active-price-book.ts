@@ -78,7 +78,8 @@ async function readActiveVersion(
   }
 }
 
-function readBookOf(version: ActivePriceVersion): PriceBook | undefined {
+/** The stored version's book, parsed, checked against its version's id and projected; the cause is logged when it is not. */
+export function readBookOf(version: ActivePriceVersion): PriceBook | undefined {
   const parsed = parsePriceBook(version.book);
   if (!parsed.ok) {
     reportNoPriceBook("book-unparseable");
