@@ -1677,6 +1677,48 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     noResultsTitle: "Nicio acțiune pentru filtrele alese.",
     noResultsBody: "Schimbă persoana, acțiunea sau intervalul.",
   },
+  // Drafted, not approved: the Romanian is the agent's draft of wave U5's new copy, pending the owner's approval as
+  // drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, and is never pinned here.
+  staffAuditDetail: {
+    changeKinds: {
+      cabinet: "preț de dulap",
+      cabinetSize: "preț pe mărime de dulap",
+      hardware: "preț de feronerie",
+      material: "adaos de material",
+      depthRule: "regula de adâncime",
+      accessory: "preț de accesoriu",
+      provisional: "sume provizorii",
+      hardwareTierCreated: "clasă de feronerie nouă",
+      accessoryCreated: "accesoriu nou",
+      createdRowText: "text al unui rând creat",
+      itemDeleted: "ștergerea unui articol",
+      bulkGroup: "modificare în bloc",
+    },
+    itemKinds: {
+      cabinet: "dulap",
+      material: "material",
+      hardware: "clasă de feronerie",
+      finish: "culoare",
+      handle: "mâner",
+      accessory: "accesoriu",
+    },
+    defaultsFields: {
+      material: "material",
+      hardware: "feronerie",
+      depth: "adâncime",
+      finish: "culoare",
+      handle: "mâner",
+      topRowHandle: "mânerul rândului de sus",
+    },
+    sectionVersion: "o versiune din istoric",
+    detailVersion: "versiunea {sequenceNumber, number, ::group-off}",
+    detailFromVersion: "din versiunea {sequenceNumber, number, ::group-off}",
+    detailChanges:
+      "{count, plural, one {# modificare} few {# modificări} other {# de modificări}}",
+    detailProvisionalOn: "cu sume provizorii",
+    detailProvisionalOff: "fără sume provizorii",
+    detailWidth: "{widthMm, number, ::group-off} mm",
+  },
   // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
   // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
   // decision 2, and is never pinned here.
@@ -2157,6 +2199,12 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Nimic nu a fost publicat. „{name}” a început să fie folosit în bucătării salvate și nu mai poate fi șters. Renunță la ștergere și publică din nou.",
       blockedIsDefault:
         "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's new copy, pending the owner's approval as
+      // drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, and is never pinned here.
+      versionNameEmpty: "Scrie un nume pentru versiune.",
+      versionNameTooLong: "Numele este prea lung. Scrie unul mai scurt.",
+      versionNameForbidden:
+        "Numele are un caracter care nu e permis. Scrie doar litere, cifre și semne obișnuite.",
     },
     history: {
       subtitle:
@@ -2181,6 +2229,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       restoreTitle: "Restaurezi prețurile din {versionId}?",
       restoreDialogBody:
         "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”. Le verifici și le publici ca de obicei.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's new copy, pending the owner's approval as
+      // drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, and is never pinned here.
+      restoring: "Se adaugă…",
+      restoredNotice:
+        "Prețurile au fost adăugate la „De publicat”. Nimic nu s-a publicat.",
+      nothingToRestore:
+        "Prețurile din {versionId} nu diferă de cele active și de cele pregătite.",
+      firstVersion:
+        "Aceasta este prima versiune: nu are o versiune anterioară cu care să fie comparată.",
     },
     defaults: {
       title: "Setări implicite",
