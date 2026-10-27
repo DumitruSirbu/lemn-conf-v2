@@ -15,6 +15,7 @@ import {
   queryDriver,
   resetQueryDriver,
 } from "./support/mocked-neon-query-driver.js";
+import { newFakeDashboardWorld } from "./support/fake-dashboard-world.js";
 import { rejectionOf } from "./support/rejection-of.js";
 
 vi.mock("@neondatabase/serverless", async (importOriginal) =>
@@ -141,23 +142,61 @@ describe("the digest's bounds come from the domain and are not restated", () => 
   });
 });
 
+const EARLIEST_CASTABLE_MS = Date.parse("0001-01-01T00:00:00.000Z");
+const LATEST_CASTABLE_MS = Date.parse("9999-12-31T23:59:59.999Z");
+
+const UNCASTABLE_INSTANTS: readonly (readonly [string, unknown])[] = [
+  ["an invalid Date", new Date(Number.NaN)],
+  ["a Date one millisecond past what a Date holds", new Date(8.64e15 + 1)],
+  ["the latest instant a Date holds", new Date(8.64e15)],
+  ["the earliest instant a Date holds", new Date(-8.64e15)],
+  ["the first millisecond of year 10000", new Date(LATEST_CASTABLE_MS + 1)],
+  [
+    "the first millisecond of year 10000, parsed from its signed text",
+    new Date(Date.parse("+010000-01-01T00:00:00.000Z")),
+  ],
+  ["the last millisecond of year 0000", new Date(EARLIEST_CASTABLE_MS - 1)],
+  [
+    "the last millisecond of year -1, parsed from its signed text",
+    new Date(Date.parse("-000001-12-31T23:59:59.999Z")),
+  ],
+  ["a number", 1_790_000_000_000],
+  ["its ISO text", "2026-11-10T08:00:00.000Z"],
+  ["null", null],
+  ["an object with a getTime", { getTime: () => 1_790_000_000_000 }],
+];
+
+const CASTABLE_INSTANTS: readonly (readonly [string, Date])[] = [
+  ["the first millisecond of year 0001", new Date(EARLIEST_CASTABLE_MS)],
+  ["the last millisecond of year 9999", new Date(LATEST_CASTABLE_MS)],
+  ["the epoch", new Date(0)],
+  ["a day in 2026", new Date("2026-11-10T08:00:00.000Z")],
+];
+
 describe("an instant the digest statement cannot cast is refused before it is sent", () => {
-  it.each([
-    ["an invalid Date", new Date(Number.NaN)],
-    ["a Date past what a Date holds", new Date(8.64e15 + 1)],
-    [
-      "the first year the ISO text prefixes with a sign",
-      new Date(Date.UTC(10_000, 0, 1)),
-    ],
-    ["the last instant before year 0001", new Date(Date.UTC(1, 0, 1) - 1)],
-    ["the latest instant a Date holds", new Date(8.64e15)],
-    ["the earliest instant a Date holds", new Date(-8.64e15)],
-  ])(
+  it("puts the two bounds where the ISO text stops having four digits", () => {
+    expect(new Date(EARLIEST_CASTABLE_MS).toISOString()).toBe(
+      "0001-01-01T00:00:00.000Z",
+    );
+    expect(new Date(EARLIEST_CASTABLE_MS - 1).toISOString()).toBe(
+      "0000-12-31T23:59:59.999Z",
+    );
+    expect(new Date(LATEST_CASTABLE_MS).toISOString()).toBe(
+      "9999-12-31T23:59:59.999Z",
+    );
+    expect(new Date(LATEST_CASTABLE_MS + 1).toISOString()).toBe(
+      "+010000-01-01T00:00:00.000Z",
+    );
+  });
+
+  it.each(UNCASTABLE_INSTANTS)(
     "answers %s with invalid-request and no statement",
     async (_label, now) => {
       answerQueryWith([]);
 
-      const failure = await rejectionOf(newStore().listDigestEligible(now));
+      const failure = await rejectionOf(
+        newStore().listDigestEligible(now as Date),
+      );
 
       expect(failure).toBeInstanceOf(DashboardStoreError);
       expect((failure as DashboardStoreError).failure).toBe("invalid-request");
@@ -165,15 +204,32 @@ describe("an instant the digest statement cannot cast is refused before it is se
     },
   );
 
-  it.each([
-    ["year 0001", new Date("0001-01-01T00:00:00.000Z")],
-    ["year 9999", new Date("9999-12-31T23:59:59.999Z")],
-    ["the epoch", new Date(0)],
-  ])("sends %s, whose ISO text Postgres reads", async (_label, now) => {
-    answerQueryWith([]);
+  it.each(UNCASTABLE_INSTANTS)(
+    "is answered the same way by the fake for %s",
+    async (_label, now) => {
+      const { changes } = newFakeDashboardWorld();
 
-    await newStore().listDigestEligible(now);
+      const failure = await rejectionOf(
+        changes.listDigestEligible(now as Date),
+      );
 
-    expect(queryDriver.statements).toHaveLength(1);
-  });
+      expect(failure).toBeInstanceOf(DashboardStoreError);
+      expect((failure as DashboardStoreError).failure).toBe("invalid-request");
+    },
+  );
+
+  it.each(CASTABLE_INSTANTS)(
+    "sends %s, whose ISO text Postgres reads, and the fake lists for it",
+    async (_label, now) => {
+      answerQueryWith([]);
+
+      await newStore().listDigestEligible(now);
+      const fakeList =
+        await newFakeDashboardWorld().changes.listDigestEligible(now);
+
+      expect(queryDriver.statements).toHaveLength(1);
+      expect(queryDriver.statements[0]?.values[0]).toBe(now.toISOString());
+      expect(fakeList).toEqual([]);
+    },
+  );
 });

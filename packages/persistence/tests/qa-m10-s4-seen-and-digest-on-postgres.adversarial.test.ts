@@ -449,6 +449,240 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     });
   });
 
+  describe("the effective seen revision is the greater of the seen mark and the latest request's revision (S-c0)", () => {
+    /** Every place a kitchen's "changed" is read must say `isChanged`, and the digest lists it exactly when `isEligible`. */
+    async function expectAgreement(
+      kitchen: PlantedKitchen,
+      token: string,
+      expected: { isChanged: boolean; isEligible: boolean },
+    ) {
+      const reader = readerOverTransaction();
+      const detail = await detailOf(kitchen.id);
+      const listed = await reader.listPage(
+        queryOf({ segment: "all", search: token }),
+      );
+      const filtered = await reader.listPage(
+        queryOf({ segment: "all", search: token, onlyChanged: true }),
+      );
+      const digested = await digestAmong([kitchen]);
+
+      expect(detail.isChangedSinceSeen).toBe(expected.isChanged);
+      expect(listed.kitchens.map((k) => k.isChangedSinceSeen)).toEqual([
+        expected.isChanged,
+      ]);
+      expect(filtered.total).toBe(expected.isChanged ? 1 : 0);
+      expect(digested).toHaveLength(expected.isEligible ? 1 : 0);
+    }
+
+    it("leaves a kitchen sent at revision 3 unchanged and out of the digest after a stale first mark at 1, in every place, and eligible after the next save", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const token = randomToken();
+        const reader = readerOverTransaction();
+        const baseline = (await reader.listPage(queryOf())).changedCount;
+        const kitchen = await aKitchen({
+          emailToken: token,
+          revision: 3,
+          requests: [{ revision: 3 }],
+        });
+
+        const answer = await markOf(member, kitchen.id, 1);
+
+        expect(answer).toEqual({ kind: "ok", changedAfterSeen: false });
+        expect((await seenRowOf(kitchen.id))?.["revision"]).toBe("1");
+        await expectAgreement(kitchen, token, {
+          isChanged: false,
+          isEligible: false,
+        });
+        expect((await reader.listPage(queryOf())).changedCount).toBe(baseline);
+        await saveKitchen(kitchen.id);
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+        expect((await reader.listPage(queryOf())).changedCount).toBe(
+          baseline + 1,
+        );
+        expect(await markOf(member, kitchen.id, 4)).toEqual({
+          kind: "ok",
+          changedAfterSeen: false,
+        });
+        await expectAgreement(kitchen, token, {
+          isChanged: false,
+          isEligible: false,
+        });
+      });
+    });
+
+    it("measures from the mark when it is above the sent revision, and from the sent revision when the mark is below or equal to it", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const cases = [
+          { mark: 2, sent: 3, current: 5, isChanged: true },
+          { mark: 3, sent: 3, current: 5, isChanged: true },
+          { mark: 4, sent: 3, current: 5, isChanged: true },
+          { mark: 5, sent: 3, current: 5, isChanged: false },
+          { mark: 2, sent: 5, current: 5, isChanged: false },
+          { mark: 4, sent: 5, current: 5, isChanged: false },
+          { mark: 4, sent: 4, current: 4, isChanged: false },
+        ];
+        for (const { mark, sent, current, isChanged } of cases) {
+          const token = randomToken();
+          const kitchen = await aKitchen({
+            emailToken: token,
+            revision: current,
+            requests: [{ revision: sent }],
+          });
+
+          const answer = await markOf(member, kitchen.id, mark);
+
+          expect(answer, JSON.stringify({ mark, sent, current })).toEqual({
+            kind: "ok",
+            changedAfterSeen: isChanged,
+          });
+          await expectAgreement(kitchen, token, {
+            isChanged,
+            isEligible: isChanged,
+          });
+        }
+      });
+    });
+
+    it("takes the sent revision for the mark's answer from the same request the list, the detail and the digest take when two requests share an instant", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const sameInstant = new Date("2026-11-02T08:00:00.000Z");
+        const sentAtFive = await aKitchen({
+          revision: 5,
+          requests: [
+            {
+              revision: 4,
+              createdAt: sameInstant,
+              clientRequestId: "c".repeat(21),
+            },
+            {
+              revision: 5,
+              createdAt: sameInstant,
+              clientRequestId: "x".repeat(21),
+            },
+          ],
+        });
+        const sentAtFour = await aKitchen({
+          revision: 5,
+          requests: [
+            {
+              revision: 5,
+              createdAt: sameInstant,
+              clientRequestId: "d".repeat(21),
+            },
+            {
+              revision: 4,
+              createdAt: sameInstant,
+              clientRequestId: "w".repeat(21),
+            },
+          ],
+        });
+
+        const unchanged = await markOf(member, sentAtFive.id, 1);
+        const changed = await markOf(member, sentAtFour.id, 1);
+
+        expect(unchanged).toEqual({ kind: "ok", changedAfterSeen: false });
+        expect(changed).toEqual({ kind: "ok", changedAfterSeen: true });
+        expect((await detailOf(sentAtFive.id)).isChangedSinceSeen).toBe(false);
+        expect((await detailOf(sentAtFour.id)).isChangedSinceSeen).toBe(true);
+      });
+    });
+
+    it("reads a mark on a sent kitchen that has no request as the mark alone", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const token = randomToken();
+        const kitchen = await aKitchen({
+          emailToken: token,
+          revision: 3,
+          requests: [],
+        });
+
+        const answer = await markOf(member, kitchen.id, 1);
+
+        expect(answer).toEqual({ kind: "ok", changedAfterSeen: true });
+        expect((await detailOf(kitchen.id)).isChangedSinceSeen).toBe(true);
+      });
+    });
+
+    it("takes a request sent after the mark as the new floor, so a new request at the current revision clears the badge a lower mark left", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const token = randomToken();
+        const kitchen = await aKitchen({
+          emailToken: token,
+          revision: 3,
+          requests: [{ revision: 3 }],
+        });
+        await saveKitchen(kitchen.id);
+        await saveKitchen(kitchen.id);
+        await markOf(member, kitchen.id, 4);
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+
+        await aRequest(
+          kitchen.id,
+          { revision: 5, createdAt: new Date(NOW.getTime() + 1000) },
+          A_SENT_INSTANT,
+        );
+
+        await expectAgreement(kitchen, token, {
+          isChanged: false,
+          isEligible: false,
+        });
+      });
+    });
+
+    it("keeps a digested revision held against a stale first mark, and lets a later save through", async () => {
+      await inARolledBackTransaction(async () => {
+        const member = await aStaffMember();
+        const token = randomToken();
+        const kitchen = await aKitchen({
+          emailToken: token,
+          revision: 4,
+          requests: [{ revision: 3 }],
+        });
+        const store = storeOverTransaction();
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+        await store.claimDigestDay(A_ROUND);
+        await store.recordDigested(A_ROUND, [
+          { designId: kitchen.id, revision: "4" },
+        ]);
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: false,
+        });
+
+        await markOf(member, kitchen.id, 1);
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: false,
+        });
+        await markOf(member, kitchen.id, 4);
+        await expectAgreement(kitchen, token, {
+          isChanged: false,
+          isEligible: false,
+        });
+        await saveKitchen(kitchen.id);
+
+        await expectAgreement(kitchen, token, {
+          isChanged: true,
+          isEligible: true,
+        });
+      });
+    });
+  });
+
   describe("what a mark admits, and what it writes when it admits nothing", () => {
     it("refuses a revision ahead of the kitchen's by one, and by the widest bigint, writing no seen row and no audit row", async () => {
       await inARolledBackTransaction(async () => {
@@ -571,7 +805,8 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
               let current = 1;
               let seen: number | undefined;
               let latestRequest = 1;
-              const model = () => isSent && current !== (seen ?? latestRequest);
+              const model = () =>
+                isSent && current !== Math.max(seen ?? 0, latestRequest);
 
               for (const operation of operations) {
                 if (operation.kind === "save") {
@@ -735,12 +970,17 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
   describe("the digest's membership is the domain's rule over the facts SQL judges", () => {
     const REVISION_NOW = 5;
-    const changedArbitrary = fc.constantFrom(
-      "latest-request-older",
-      "seen-older",
-      "latest-request-current",
-      "seen-current-masking-an-older-request",
-    );
+    /** The seen mark and the latest request's revision of each cell; the kitchen stands at `REVISION_NOW`. */
+    const FACTS_OF_CHANGED: Readonly<
+      Record<string, { seen?: number; requested: number }>
+    > = {
+      "latest-request-older": { requested: 3 },
+      "stale-mark-below-the-sent-revision": { seen: 3, requested: 5 },
+      "latest-request-current": { requested: 5 },
+      "mark-above-the-sent-revision-below-current": { seen: 4, requested: 3 },
+      "mark-at-current-above-an-older-request": { seen: 5, requested: 3 },
+    };
+    const changedArbitrary = fc.constantFrom(...Object.keys(FACTS_OF_CHANGED));
     const entryArbitrary = fc.constantFrom(
       "none",
       "at-seen",
@@ -785,30 +1025,17 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       kitchen: PlantedKitchen;
       expected: boolean;
     }> {
-      const effectiveSeen =
-        cell.changed === "latest-request-older" || cell.changed === "seen-older"
-          ? 3
-          : REVISION_NOW;
-      const isSeenMark =
-        cell.changed === "seen-older" ||
-        cell.changed === "seen-current-masking-an-older-request";
+      const { seen, requested } = FACTS_OF_CHANGED[cell.changed] ?? {
+        requested: REVISION_NOW,
+      };
+      const effectiveSeen = Math.max(seen ?? 0, requested);
       const sentAt = new Date(NOW.getTime() - cell.ageMs);
       const kitchen = await aKitchen({
         revision: REVISION_NOW,
         sentAt: cell.isUnsent ? null : sentAt,
         isDeleted: cell.isDeleted,
-        requests: cell.isUnsent
-          ? []
-          : [
-              {
-                revision: isSeenMark
-                  ? effectiveSeen === 3
-                    ? REVISION_NOW
-                    : 3
-                  : effectiveSeen,
-              },
-            ],
-        ...(isSeenMark ? { seenRevision: effectiveSeen } : {}),
+        requests: cell.isUnsent ? [] : [{ revision: requested }],
+        ...(seen === undefined ? {} : { seenRevision: seen }),
         ...(cell.status === undefined ? {} : { status: cell.status }),
       });
       const isHeld = await plantEntry(cell.entry, kitchen.id, effectiveSeen);
@@ -1059,6 +1286,21 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         expect(filtered.kitchens.some(({ id }) => id === kitchen.id)).toBe(
           false,
         );
+      });
+    });
+  });
+
+  describe("the instants the store lets through are ones Postgres reads", () => {
+    it.each([
+      ["the first millisecond of year 0001", "0001-01-01T00:00:00.000Z"],
+      ["the last millisecond of year 9999", "9999-12-31T23:59:59.999Z"],
+    ])("lists for %s without a database error", async (_label, iso) => {
+      await inARolledBackTransaction(async () => {
+        const listed = await storeOverTransaction().listDigestEligible(
+          new Date(iso),
+        );
+
+        expect(Array.isArray(listed)).toBe(true);
       });
     });
   });
