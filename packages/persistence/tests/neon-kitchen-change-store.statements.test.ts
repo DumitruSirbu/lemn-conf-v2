@@ -198,11 +198,15 @@ describe("a seen mark", () => {
     );
   });
 
-  it("judges changed after seen from the revision the upsert returned, for a sent kitchen only", async () => {
+  it("judges changed after seen from the revision the upsert returned and the latest request's, whichever is greater, for a sent kitchen only", async () => {
     const { statement } = await markAndCapture();
 
-    expect(normalised(statement)).toContain(
-      "(select k.sent_at is not null and k.revision <> (select m.seen_revision from marked m) from kitchen k) as is_changed_after_seen",
+    const text = normalised(statement);
+    expect(text).toContain(
+      "(select k.sent_at is not null and k.revision <> greatest((select m.seen_revision from marked m), k.submitted_revision) from kitchen k) as is_changed_after_seen",
+    );
+    expect(text).toContain(
+      "(select cs.design_revision from contact_submissions cs where cs.design_id = d.id order by cs.created_at desc, cs.client_request_id desc limit 1) as submitted_revision",
     );
   });
 
@@ -491,7 +495,7 @@ describe("the list of the kitchens a digest holds", () => {
       "left join lateral ( select cs.reference, cs.design_revision from contact_submissions cs where cs.design_id = d.id order by cs.created_at desc, cs.client_request_id desc limit 1 ) latest on true",
     );
     expect(text).toContain(
-      "select coalesce(seen.seen_revision, latest.design_revision) as effective_seen",
+      "select greatest(seen.seen_revision, latest.design_revision) as effective_seen",
     );
     expect(text).toContain("d.revision <> basis.effective_seen");
     expect(text).toContain(

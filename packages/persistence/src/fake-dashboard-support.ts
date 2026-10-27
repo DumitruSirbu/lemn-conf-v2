@@ -68,12 +68,22 @@ export function isRevisionAhead(candidate: string, head: string): boolean {
   return candidate > head;
 }
 
+/** The greater of two revisions that may be absent, as SQL's `greatest` is: an absent one is skipped. */
+export function greatestRevision(
+  first: string | undefined,
+  second: string | undefined,
+): string | undefined {
+  if (first === undefined) return second;
+  if (second === undefined) return first;
+  return isRevisionAhead(second, first) ? second : first;
+}
+
 export interface ChangedAfterSeenFacts {
   readonly isSent: boolean;
   readonly revision: string;
   /** The revision staff last marked seen, when anyone has. */
   readonly seenRevision: string | undefined;
-  /** The design revision on the kitchen's latest submission, which stands for the mark until there is one. */
+  /** The design revision on the kitchen's latest submission, which a mark below it never undoes (S-c0, ruled 2026-10-27: the effective seen revision is the greater of the two). */
   readonly latestSubmissionRevision: string | undefined;
 }
 
@@ -84,7 +94,10 @@ export interface ChangedAfterSeenFacts {
  * revisions. For the fakes alone: the Neon stores compare in SQL.
  */
 export function isChangedAfterSeen(facts: ChangedAfterSeenFacts): boolean {
-  const effectiveSeen = facts.seenRevision ?? facts.latestSubmissionRevision;
+  const effectiveSeen = greatestRevision(
+    facts.seenRevision,
+    facts.latestSubmissionRevision,
+  );
   return (
     facts.isSent &&
     effectiveSeen !== undefined &&

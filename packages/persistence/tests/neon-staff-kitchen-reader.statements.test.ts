@@ -242,7 +242,7 @@ describe("the list statement", () => {
       "changed as ( select d.id from designs d left join design_staff_seen seen on seen.design_id = d.id " +
         "left join latest_submission latest on latest.design_id = d.id " +
         "where d.deleted_by_client_at is null and d.sent_at is not null " +
-        "and d.revision <> coalesce(seen.seen_revision, latest.design_revision) )",
+        "and d.revision <> greatest(seen.seen_revision, latest.design_revision) )",
     );
     expect(text).toContain(
       "latest_submission as ( select distinct on (cs.design_id) cs.design_id, cs.design_revision from contact_submissions cs " +
@@ -523,7 +523,7 @@ describe("the statements for one kitchen", () => {
 
     expect(text).toContain("d.revision::text as revision");
     expect(text).toContain(
-      "(d.sent_at is not null and coalesce(d.revision <> coalesce(seen.seen_revision, request.design_revision), false)) as is_changed_since_seen",
+      "(d.sent_at is not null and coalesce(d.revision <> greatest(seen.seen_revision, request.design_revision), false)) as is_changed_since_seen",
     );
     expect(text).toContain(
       "left join design_staff_seen seen on seen.design_id = d.id",

@@ -47,7 +47,12 @@ export function markSeenStatement<Statement>(
           + ((${lifetimes}::jsonb ->> a.role)::double precision * interval '1 second') > now()
     ),
     kitchen as (
-      select d.id, d.revision, d.sent_at
+      select d.id, d.revision, d.sent_at,
+        (select cs.design_revision
+          from contact_submissions cs
+          where cs.design_id = d.id
+          order by cs.created_at desc, cs.client_request_id desc
+          limit 1) as submitted_revision
       from designs d
       where d.id = ${input.designId}
         and d.deleted_by_client_at is null and (d.sent_at is not null or d.account_id is not null)
@@ -81,7 +86,8 @@ export function markSeenStatement<Statement>(
       exists (select 1 from kitchen k where ${input.displayedRevision}::bigint > k.revision) as is_displayed_ahead,
       (select count(*) from marked)::int as marked_rows,
       (select count(*) from audited)::int as audited_rows,
-      (select k.sent_at is not null and k.revision <> (select m.seen_revision from marked m)
+      (select k.sent_at is not null
+          and k.revision <> greatest((select m.seen_revision from marked m), k.submitted_revision)
         from kitchen k) as is_changed_after_seen
   `;
 }
@@ -115,8 +121,9 @@ export interface ListDigestEligibleStatementInput {
  * The kitchens the digest lists (A-13, S-d1), one row each, with nothing a person typed beyond the kitchen's name and the
  * account's name: no e-mail, no phone, no address, and no column of `contact_submissions` but the reference and the
  * design revision. Each clause is one of S-d1's:
- * - changed: the revision differs from the effective seen revision, the seen mark or else the **one** latest
- *   submission's revision (a lateral with `limit 1`, never a join over submissions);
+ * - changed: the revision differs from the effective seen revision, the **greater** of the seen mark and the **one**
+ *   latest submission's revision (a lateral with `limit 1`, never a join over submissions), so a stale first mark below the
+ *   revision a kitchen was sent at cannot make it read as changed (S-c0, ruled 2026-10-27);
  * - not held: no digest **entry** for the design above that effective seen revision;
  * - in the window: first sent after `$now` less the window, exclusive at the edge;
  * - not stopped: the stored status (or `new` where none is stored) is not one the digest stops at;
@@ -151,7 +158,7 @@ export function listDigestEligibleStatement<Statement>(
       limit 1
     ) latest on true
     cross join lateral (
-      select coalesce(seen.seen_revision, latest.design_revision) as effective_seen
+      select greatest(seen.seen_revision, latest.design_revision) as effective_seen
     ) basis
     where d.deleted_by_client_at is null and d.sent_at is not null
       and d.sent_at > ${input.nowIso}::timestamptz

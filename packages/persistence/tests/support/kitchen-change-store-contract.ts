@@ -846,10 +846,64 @@ function describeDigestEligibility(
     it("refuses an instant that is not a valid date, before any statement", async () => {
       const world = await newWorld();
 
-      await dashboardFailureOf(
-        world.store.listDigestEligible(new Date(Number.NaN)),
-        "invalid-request",
+      for (const now of [
+        new Date(Number.NaN),
+        new Date(8.64e15),
+        new Date("+010000-01-01T00:00:00.000Z"),
+        new Date("-000001-12-31T23:59:59.999Z"),
+      ]) {
+        await dashboardFailureOf(
+          world.store.listDigestEligible(now),
+          "invalid-request",
+        );
+      }
+    });
+
+    it("sent at revision 3, a first mark at revision 1 leaves it unchanged and out of the digest: the effective seen revision is the greater of the mark and the latest request's", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      await world.saveKitchen(kitchen.designId);
+      const third = await world.saveKitchen(kitchen.designId);
+      await world.resendKitchen(kitchen.designId);
+
+      const answer = await world.store.markSeen({
+        designId: kitchen.designId,
+        displayedRevision: kitchen.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+
+      expect(answer).toEqual({ kind: "ok", changedAfterSeen: false });
+      expect(await world.seenRevisionOf(kitchen.designId)).toBe(
+        kitchen.revision,
       );
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
+      await world.saveKitchen(kitchen.designId);
+      expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
+      expect(third).not.toBe(kitchen.revision);
+    });
+
+    it("holds a digested revision against a stale first mark below the revision the kitchen was sent at", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      await world.saveKitchen(kitchen.designId);
+      await world.saveKitchen(kitchen.designId);
+      await world.resendKitchen(kitchen.designId);
+      const fourth = await world.saveKitchen(kitchen.designId);
+      const dayKey = aDayNobodyClaimed();
+      await world.store.claimDigestDay(dayKey);
+      await world.store.recordDigested(dayKey, [
+        { designId: kitchen.designId, revision: fourth },
+      ]);
+
+      await world.store.markSeen({
+        designId: kitchen.designId,
+        displayedRevision: kitchen.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
     });
 
     it("does not touch the kitchen when its day is claimed: a send that fails leaves it eligible", async () => {

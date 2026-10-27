@@ -89,6 +89,24 @@ export function isListablePage(page: number): boolean {
 /** A revision as a head or a row holds it: a digit run from 0, no leading zero, as wide as a `bigint`. */
 const REVISION_SHAPE = /^(0|[1-9][0-9]{0,18})$/;
 
+/** `0001-01-01T00:00:00.000Z` and `9999-12-31T23:59:59.999Z` in epoch milliseconds: the years whose ISO text has four digits. */
+const EARLIEST_CASTABLE_INSTANT_MS = -62_135_596_800_000;
+const LATEST_CASTABLE_INSTANT_MS = 253_402_300_799_999;
+
+/**
+ * Whether the date's ISO text is one `::timestamptz` reads: a valid `Date` in years 0001 to 9999. A year outside them is
+ * printed with a sign and six digits, which Postgres refuses, so the digest's instant is judged by this before any statement.
+ */
+export function isInstantPostgresCanCast(value: unknown): value is Date {
+  if (!(value instanceof Date)) return false;
+  const milliseconds = value.getTime();
+  return (
+    Number.isFinite(milliseconds) &&
+    milliseconds >= EARLIEST_CASTABLE_INSTANT_MS &&
+    milliseconds <= LATEST_CASTABLE_INSTANT_MS
+  );
+}
+
 const DAY_KEY_SHAPE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**

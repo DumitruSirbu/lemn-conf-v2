@@ -6,6 +6,7 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 import {
   isCalendarDay,
+  isInstantPostgresCanCast,
   isStorableDesignRevision,
 } from "./dashboard-store-shapes.js";
 import {
@@ -112,7 +113,7 @@ export class NeonKitchenChangeStore implements KitchenChangeStore {
   async listDigestEligible(
     now: Date,
   ): Promise<readonly DigestEligibleKitchen[]> {
-    if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+    if (!isInstantPostgresCanCast(now)) {
       throw new DashboardStoreError(LIST_DIGEST, "invalid-request");
     }
     const rows = await readRows(LIST_DIGEST, () =>

@@ -1563,6 +1563,35 @@ function describeChangedAfterSeen(
       expect(detailAfterStaleMark.revision).toBe(third);
     });
 
+    it("takes the greater of the mark and the latest request's revision as the one staff last saw: a first mark below the revision the kitchen was sent at does not make it changed", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const era = world.nextEra();
+      const kitchen = await aSentKitchen(world, client, at(era, 1));
+      await world.saveKitchen(kitchen);
+      const third = await world.saveKitchen(kitchen);
+      await world.aRequest({
+        designId: kitchen,
+        createdAt: at(era, 5),
+        designRevision: third,
+      });
+      const scope = queryOf({ search: world.marker });
+
+      await world.markSeen(kitchen, "1");
+
+      const listed = listedOf(await world.reader.listPage(scope), kitchen);
+      const detail = await foundKitchen(world, kitchen);
+      const onlyChanged = await world.reader.listPage({
+        ...scope,
+        onlyChanged: true,
+      });
+      expect([listed.isChangedSinceSeen, detail.isChangedSinceSeen]).toEqual([
+        false,
+        false,
+      ]);
+      expect(idsOf(onlyChanged)).toEqual([]);
+    });
+
     it("never shows a draft an account holds as changed, however often it is saved or opened", async () => {
       const world = await newWorld();
       const client = await world.aClient();

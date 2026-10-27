@@ -4,8 +4,9 @@
 -- log (`0020`, action `kitchen-seen`). It is a table of its own, beside `design_request_states`, and not columns of
 -- `contact_submissions`, whose grants are narrow on purpose (ADR 0153 decision 1).
 --
--- A kitchen is "changed after seen" when `designs.revision` differs from `seen_revision`, or from the design revision of
--- its latest submission while no mark exists. **That comparison is made in SQL, never above it** (A-12): a revision is an
+-- A kitchen is "changed after seen" when `designs.revision` differs from the greater of `seen_revision` and the design
+-- revision of its latest submission (so a stale first mark below the revision a kitchen was sent at cannot make it read as
+-- changed; ruling of 2026-10-27). **That comparison is made in SQL, never above it** (A-12): a revision is an
 -- opaque digit string to every layer above the database. The store writes
 -- `seen_revision = greatest(existing, displayed)`, so a stale page marking an older revision after a newer one leaves
 -- the newer, and `seen_by_account_id` and `seen_at` change only when the displayed revision is strictly greater, so

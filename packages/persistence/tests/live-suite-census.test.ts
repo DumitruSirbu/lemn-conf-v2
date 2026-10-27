@@ -213,6 +213,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of L3-S4: runs the staff kitchen reader's statements inside a repeatable-read transaction it rolls back, writes nothing that survives, asserts only the difference between a total read before planting and one read after (one snapshot) and needs the schema intact (M8B Lot 3 L3-S4 QA)",
   },
+  "qa-m10-s4-seen-and-digest-on-postgres.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of M10 wave S4: runs the seen mark, the digest list and record and the staff kitchen reader's additions inside a repeatable-read transaction it rolls back, writes nothing that survives (the rounds and entries it claims included), asserts no whole-table figure (a membership test looks at the kitchens it planted, a count is compared with one read in the same snapshot before planting) and needs the schema intact (M10 wave S4 QA)",
+  },
   "neon-staff-audit-store.live.test.ts": {
     gate: "live test database",
     lock: "shared",

@@ -95,8 +95,8 @@ export interface StaffListedKitchen {
   readonly updatedAt: Date;
   readonly requestStatus: ShownStaffStatus;
   /**
-   * Whether the kitchen changed after staff last saw it: sent, and its revision differs from the seen revision, else
-   * from the latest submission's (ADR 0178 A-12). Judged in SQL; the revision stays opaque above it. `false` for a
+   * Whether the kitchen changed after staff last saw it: sent, and its revision differs from the greater of the seen
+   * revision and the latest submission's (ADR 0178 A-12; S-c0, ruled 2026-10-27). Judged in SQL; the revision stays opaque above it. `false` for a
    * kitchen never sent, which never shows the badge.
    */
   readonly isChangedSinceSeen: boolean;

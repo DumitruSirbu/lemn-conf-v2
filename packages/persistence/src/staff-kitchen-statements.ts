@@ -22,8 +22,8 @@ import {
  * is null on a draft, is tested for null first; `changed_ms` is read only where a status row exists.
  *
  * **Changed after seen (ADR 0178 A-12) is judged here, in SQL, and the revision stays opaque above it.** A kitchen is
- * changed when it was sent, its client has not deleted it, and `designs.revision` differs from the seen revision, or else
- * from the design revision on its latest submission. The list states that once (the `changed` CTE) and reads it for the row
+ * changed when it was sent, its client has not deleted it, and `designs.revision` differs from the greater of the seen
+ * revision and the design revision on its latest submission (S-c0: a stale first mark cannot undo the sent revision). The list states that once (the `changed` CTE) and reads it for the row
  * flag, the `onlyChanged` filter, the changed-first order and the count; the kitchen's statement states it again beside the
  * revision it displays. `0026`'s grant lets the kitchen's statement read `contact_submissions.priced`, of which it takes the
  * total and the currency alone.
@@ -68,7 +68,7 @@ export function staffKitchenListStatement<Statement>(
       left join design_staff_seen seen on seen.design_id = d.id
       left join latest_submission latest on latest.design_id = d.id
       where d.deleted_by_client_at is null and d.sent_at is not null
-        and d.revision <> coalesce(seen.seen_revision, latest.design_revision)
+        and d.revision <> greatest(seen.seen_revision, latest.design_revision)
     ),
     matching as (
       select d.id, d.name, d.sent_at, d.updated_at, d.hidden_by_client_at,
@@ -134,7 +134,7 @@ export function staffKitchenStatement<Statement>(
     select d.id, d.name, d.schema_version, d.document,
       d.revision::text as revision,
       (d.sent_at is not null
-        and coalesce(d.revision <> coalesce(seen.seen_revision, request.design_revision), false)) as is_changed_since_seen,
+        and coalesce(d.revision <> greatest(seen.seen_revision, request.design_revision), false)) as is_changed_since_seen,
       (d.sent_at is not null) as is_sent, (d.hidden_by_client_at is not null) as is_hidden,
       case when d.sent_at is null then null
           else floor(least(

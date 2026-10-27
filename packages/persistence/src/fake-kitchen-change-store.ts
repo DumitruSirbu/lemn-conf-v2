@@ -5,10 +5,12 @@ import {
 
 import {
   isCalendarDay,
+  isInstantPostgresCanCast,
   isStorableDesignRevision,
 } from "./dashboard-store-shapes.js";
 import type { DesignRevision } from "./design-revision.js";
 import {
+  greatestRevision,
   isChangedAfterSeen,
   isRevisionAhead,
   settle,
@@ -174,7 +176,7 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
 
   listDigestEligible(now: Date): Promise<readonly DigestEligibleKitchen[]> {
     return settle("list the kitchens a digest holds", () => {
-      if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+      if (!isInstantPostgresCanCast(now)) {
         throw new DashboardStoreError(
           "list the kitchens a digest holds",
           "invalid-request",
@@ -239,13 +241,13 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     );
   }
 
-  /** The revision the kitchen's changes are measured from: the seen mark's, else its latest submission's. */
+  /** The revision the kitchen's changes are measured from: the greater of the seen mark's and its latest submission's. */
   private effectiveSeenRevision(
     kitchen: HeldChangeKitchen,
   ): DesignRevision | undefined {
-    return (
-      this.marks.get(kitchen.designId)?.seenRevision ??
-      kitchen.latestSubmissionRevision
+    return greatestRevision(
+      this.marks.get(kitchen.designId)?.seenRevision,
+      kitchen.latestSubmissionRevision,
     );
   }
 
