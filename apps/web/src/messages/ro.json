@@ -1273,6 +1273,45 @@
     "noResultsTitle": "Nicio acțiune pentru filtrele alese.",
     "noResultsBody": "Schimbă persoana, acțiunea sau intervalul."
   },
+  "staffAuditDetail": {
+    "changeKinds": {
+      "cabinet": "preț de dulap",
+      "cabinetSize": "preț pe mărime de dulap",
+      "hardware": "preț de feronerie",
+      "material": "adaos de material",
+      "depthRule": "regula de adâncime",
+      "accessory": "preț de accesoriu",
+      "provisional": "sume provizorii",
+      "hardwareTierCreated": "clasă de feronerie nouă",
+      "accessoryCreated": "accesoriu nou",
+      "createdRowText": "text al unui rând creat",
+      "itemDeleted": "ștergerea unui articol",
+      "bulkGroup": "modificare în bloc"
+    },
+    "itemKinds": {
+      "cabinet": "dulap",
+      "material": "material",
+      "hardware": "clasă de feronerie",
+      "finish": "culoare",
+      "handle": "mâner",
+      "accessory": "accesoriu"
+    },
+    "defaultsFields": {
+      "material": "material",
+      "hardware": "feronerie",
+      "depth": "adâncime",
+      "finish": "culoare",
+      "handle": "mâner",
+      "topRowHandle": "mânerul rândului de sus"
+    },
+    "sectionVersion": "o versiune din istoric",
+    "detailVersion": "versiunea {sequenceNumber, number, ::group-off}",
+    "detailFromVersion": "din versiunea {sequenceNumber, number, ::group-off}",
+    "detailChanges": "{count, plural, one {# modificare} few {# modificări} other {# de modificări}}",
+    "detailProvisionalOn": "cu sume provizorii",
+    "detailProvisionalOff": "fără sume provizorii",
+    "detailWidth": "{widthMm, number, ::group-off} mm"
+  },
   "priceDashboard": {
     "nav": {
       "groupCustomers": "Clienți",
@@ -1653,7 +1692,14 @@
       "failedBody": "Serverul nu a răspuns sau conexiunea s-a întrerupt. Prețurile active nu s-au schimbat, iar cele pregătite sunt păstrate.",
       "retry": "Încearcă din nou",
       "blockedInUse": "Nimic nu a fost publicat. „{name}” a început să fie folosit în bucătării salvate și nu mai poate fi șters. Renunță la ștergere și publică din nou.",
-      "blockedIsDefault": "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou."
+      "blockedIsDefault": "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou.",
+      "versionNameEmpty": "Scrie un nume pentru versiune.",
+      "versionNameTooLong": "Numele este prea lung. Scrie unul mai scurt.",
+      "versionNameForbidden": "Numele are un caracter care nu e permis. Scrie doar litere, cifre și semne obișnuite.",
+      "bulkScopeAll": "toate dulapurile",
+      "candidateRefusedTitle": "Prețurile pregătite nu pot fi publicate",
+      "candidateRefusedBody": "Lista de prețuri care ar rezulta nu trece verificarea catalogului, de exemplu pentru că un preț ar ieși zero sau negativ. Nimic nu s-a publicat. Corectează sau anulează (↺) o modificare din listă și încearcă din nou.",
+      "noDifference": "fără diferență"
     },
     "history": {
       "subtitle": "Istoricul îl vezi doar tu. Bucătăriile folosesc mereu versiunea activă, niciodată una veche.",
@@ -1670,10 +1716,16 @@
       "detailSubtitle": "Publicată la {date} · {count, plural, one {o modificare} few {{count, number, ::group-off} modificări} other {{count, number, ::group-off} de modificări}} față de {previousId}",
       "columnInVersion": "În {versionId}",
       "restoreHeading": "Revii la aceste prețuri?",
-      "restoreBody": "„Restaurează” compară prețurile din {versionId} cu cele active și adaugă diferențele la „De publicat”, lângă ce ai pregătit deja. Nimic nu se schimbă pentru clienți până nu publici.",
+      "restoreBody": "„Restaurează” pune în „De publicat” prețurile din {versionId}. Ele înlocuiesc ce ai pregătit pentru aceleași prețuri; restul modificărilor tale rămân. Nimic nu se schimbă pentru clienți până nu publici.",
       "restoreAction": "Restaurează prețurile din {versionId}",
       "restoreTitle": "Restaurezi prețurile din {versionId}?",
-      "restoreDialogBody": "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”. Le verifici și le publici ca de obicei."
+      "restoreDialogBody": "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active și de cele pregătite. Ele se pun la „De publicat” și înlocuiesc ce ai pregătit pentru aceleași prețuri; restul modificărilor tale rămân. Nimic nu se publică până nu publici.",
+      "restoring": "Se adaugă…",
+      "restoredNotice": "Prețurile au fost adăugate la „De publicat”. Nimic nu s-a publicat.",
+      "nothingToRestore": "Prețurile din {versionId} nu diferă de cele active și de cele pregătite.",
+      "firstVersion": "Aceasta este prima versiune: nu are o versiune anterioară cu care să fie comparată.",
+      "versionNotFound": "Versiunea nu mai există sau nu poate fi citită. Nimic nu s-a adăugat la „De publicat”.",
+      "restoreReplaces": "Prețuri pregătite de tine care se înlocuiesc: {count, number, ::group-off}."
     },
     "defaults": {
       "title": "Setări implicite",

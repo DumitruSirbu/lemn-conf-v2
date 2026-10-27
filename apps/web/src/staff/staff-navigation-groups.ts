@@ -84,6 +84,8 @@ export interface StaffNavigation {
   readonly groups: readonly StaffNavGroup[];
   /** The bar's link to the publish page, present only while that page is in the navigation and prices are waiting. */
   readonly pendingPricesLink: { href: string; text: string } | undefined;
+  /** "Toate prețurile sunt publicate": said only of a count that is known to be zero, never of one that is not known. */
+  readonly allPublishedLine: string | undefined;
 }
 
 /** The navigation's groups for the page being shown, in the page's language. */
@@ -130,7 +132,11 @@ export function useStaffNavigation({
       pendingPrices,
     });
     const isPublishListed = navigation.includes("publish");
+    const isKnownToBeEmpty = isPublishListed && pendingPriceCount === 0;
     return {
+      allPublishedLine: isKnownToBeEmpty
+        ? translate("priceDashboard.nav.allPublished")
+        : undefined,
       groups,
       pendingPricesLink:
         pendingPrices === undefined || !isPublishListed

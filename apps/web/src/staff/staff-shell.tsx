@@ -99,7 +99,7 @@ export function StaffShell({
   const askSignOutEverywhere = useCallback(() => {
     setOpen("logout-everywhere");
   }, []);
-  const { groups, pendingPricesLink } = useStaffNavigation({
+  const { groups, pendingPricesLink, allPublishedLine } = useStaffNavigation({
     locale,
     page,
     navigation: context.navigation,
@@ -150,6 +150,14 @@ export function StaffShell({
             {pendingPricesLink.text}
             <span aria-hidden="true"> →</span>
           </a>
+        )}
+        {allPublishedLine === undefined ? null : (
+          <span
+            className={styles.allPublished}
+            data-testid="staff-all-published"
+          >
+            {allPublishedLine}
+          </span>
         )}
       </div>
       <div className={styles.body}>

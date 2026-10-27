@@ -120,7 +120,11 @@ describe("the list inside the staff frame", () => {
 
     expect(
       requireIn(container, '[data-testid="staff-pending-prices"]').textContent,
-    ).toContain(roCopy("priceDashboard.nav.pendingChip", { count: 2 }));
+    ).toContain(
+      roCopy("priceDashboard.nav.pendingChip", {
+        count: SAMPLE_CABINET_LIST.draft.changes.length,
+      }),
+    );
   });
 
   it("explains the basis of every price and the way to change one", async () => {

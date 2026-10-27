@@ -26,6 +26,8 @@ import type {
   StaffAuditAction,
 } from "@lemnaria/configurator-domain";
 
+import { resolveDashboardAuditDetailCopy } from "./staff-audit-dashboard-copy";
+
 export type ContentTranslator = _Translator<Messages>;
 
 function assertNever(value: never): never {
@@ -1548,6 +1550,7 @@ export function resolveStaffAuditCopy(translate: ContentTranslator) {
     },
     actionLabels: new Map<string, string>(Object.entries(actionLabels)),
     unknownAction: translate("staffAudit.actionUnknown"),
+    dashboard: resolveDashboardAuditDetailCopy(translate),
     details: {
       statusChanged: (change: { from: string; to: string }) =>
         translate("staffAudit.detailStatusChanged", change),
