@@ -45,7 +45,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     CONTACT_BODY_MAX_BYTES,
   );
   if (!body.ok) return refusalOfUnreadableBody(body.failure);
-  const made = madeProductionPorts(request);
+  const made = await madeProductionPorts(request);
   if (made.kind === "unavailable") return made.answer;
   return submitContact(
     { text: body.value, visitorHash: readVisitorHash(request.cookies) },
@@ -80,11 +80,11 @@ function refusalOfUnreadableBody(failure: BoundedBodyFailure): NextResponse {
 
 /** Nothing is held at module level, so a request that cannot be given its ports is answered as unavailable and no
  *  later request inherits what failed. */
-function madeProductionPorts(request: NextRequest): MadePorts {
+async function madeProductionPorts(request: NextRequest): Promise<MadePorts> {
   try {
     return {
       kind: "ports",
-      ports: makeContactProductionPorts(request.headers),
+      ports: await makeContactProductionPorts(request.headers),
     };
   } catch (thrown) {
     reportContactUnavailable(causeOf(thrown));

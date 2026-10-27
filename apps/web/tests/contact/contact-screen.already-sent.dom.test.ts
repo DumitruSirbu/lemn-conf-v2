@@ -76,6 +76,7 @@ import {
   type ScreenLocale,
 } from "./contact-screen-harness";
 import { sourceFilesMatching } from "../lib/server/server-source-support";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 const SENT: SentReferenceAnswer = { kind: "sent", reference: "LM-2614" };
 const NONE: SentReferenceAnswer = { kind: "none" };
@@ -350,17 +351,19 @@ function mountWithAnEditHeld(): HTMLElement {
   const root = createRoot(container);
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        locale: "ro",
-        messages: MESSAGES.ro,
-        timeZone: "Europe/Chisinau",
-        children: createElement(ContactScreen, {
-          designId: DESIGN_ID,
-          loadedRevision: FIRST_REVISION,
-          isSendable: true,
-          sentReference: SENT,
+      underSamplePriceBook(
+        createElement(NextIntlClientProvider, {
+          locale: "ro",
+          messages: MESSAGES.ro,
+          timeZone: "Europe/Chisinau",
+          children: createElement(ContactScreen, {
+            designId: DESIGN_ID,
+            loadedRevision: FIRST_REVISION,
+            isSendable: true,
+            sentReference: SENT,
+          }),
         }),
-      }),
+      ),
     );
   });
   screen = {

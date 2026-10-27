@@ -8,6 +8,8 @@ import { isDesignId } from "@lemnaria/configurator-domain";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
 import { routing } from "@/i18n/routing";
+import { readActivePriceBook } from "@/lib/server/active-price-book";
+import { PriceBookProvider } from "@/price/price-book-provider";
 import { readStaffPage } from "@/lib/server/staff/staff-page";
 import { StaffKitchenScreen } from "@/staff/staff-kitchen-page";
 import { StaffKitchensUnavailableScreen } from "@/staff/staff-kitchens-states";
@@ -51,12 +53,14 @@ export default async function StaffKitchenPage({
     case "signed-in":
       if (!isDesignId(id)) notFound();
       return (
-        <StaffKitchenScreen
-          key={id}
-          locale={locale}
-          context={read.shell}
-          designId={id}
-        />
+        <PriceBookProvider root={await readActivePriceBook()}>
+          <StaffKitchenScreen
+            key={id}
+            locale={locale}
+            context={read.shell}
+            designId={id}
+          />
+        </PriceBookProvider>
       );
     case "staff-forbidden":
       return (

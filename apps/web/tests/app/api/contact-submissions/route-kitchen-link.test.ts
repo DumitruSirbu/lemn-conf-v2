@@ -16,6 +16,7 @@ import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
 
 import { bodyOf } from "../../../lib/server/contact/submit-contact-harness";
 import { parseNotice } from "../../../lib/server/mail/notice-html-dom-support";
+import { withoutPriceBook } from "../../../support/price-book-wrapper";
 
 /**
  * The shop's link from the request to the page it opens: the route with its real orchestration and production ports,
@@ -122,9 +123,11 @@ function kitchenTokenOfTheNotice(): string {
 }
 
 async function pageFor(token: string): Promise<ReactElement> {
-  const element: unknown = await SharedDesignPage({
-    params: Promise.resolve({ token }),
-  });
+  const element: unknown = withoutPriceBook(
+    await SharedDesignPage({
+      params: Promise.resolve({ token }),
+    }),
+  );
   if (!isValidElement(element)) throw new Error("the page drew no element");
   return element;
 }

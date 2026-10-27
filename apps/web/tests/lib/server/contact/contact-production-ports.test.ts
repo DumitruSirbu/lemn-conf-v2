@@ -5,6 +5,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { contentFor } from "../../../support/catalogues";
+import { NO_PRICE_BOOK } from "@/price/price-book-root";
+import {
+  SAMPLE_PRICE_ROOT,
+  SAMPLE_PRICE_VERSION_ID,
+} from "../../../support/sample-price-root";
 import roMessages from "../../../../src/messages/ro.json";
 import { readSource } from "../server-source-support";
 
@@ -19,7 +24,7 @@ const spies = vi.hoisted(() => ({
   createMailSender: vi.fn(),
   loadOwnedDesign: vi.fn(),
   getContactSubmissionStore: vi.fn(),
-  shippedPriceBook: vi.fn(),
+  readActivePriceBook: vi.fn(),
   getSentKitchenViewRepository: vi.fn(),
 }));
 
@@ -35,8 +40,8 @@ vi.mock("@/lib/server/load-owned-design", () => ({
 vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
   getContactSubmissionStore: spies.getContactSubmissionStore,
 }));
-vi.mock("@/lib/server/shipped-price-book", () => ({
-  shippedPriceBook: spies.shippedPriceBook,
+vi.mock("@/lib/server/active-price-book", () => ({
+  readActivePriceBook: spies.readActivePriceBook,
 }));
 vi.mock("@/lib/server/repository", () => ({
   getSentKitchenViewRepository: spies.getSentKitchenViewRepository,
@@ -55,7 +60,9 @@ const { makeContactProductionPorts } = await import(
 
 beforeEach(() => {
   spies.getContactSubmissionStore.mockReturnValue(A_STORE);
-  spies.shippedPriceBook.mockImplementation(() => ({ ...SAMPLE_PRICE_BOOK }));
+  spies.readActivePriceBook.mockImplementation(() =>
+    Promise.resolve({ ...SAMPLE_PRICE_ROOT, book: { ...SAMPLE_PRICE_BOOK } }),
+  );
   spies.createMailSender.mockReturnValue("a sender");
 });
 
@@ -65,8 +72,8 @@ afterEach(() => {
 });
 
 describe("the contact's production ports, made for one request", () => {
-  it("hands the store's instance, the served locales, the owned load and the clock", () => {
-    const ports = makeContactProductionPorts(new Headers());
+  it("hands the store's instance, the served locales, the owned load and the clock", async () => {
+    const ports = await makeContactProductionPorts(new Headers());
 
     expect(ports.store).toBe(A_STORE);
     expect(ports.servedLocales).toEqual(["ro", "ru"]);
@@ -74,54 +81,63 @@ describe("the contact's production ports, made for one request", () => {
     expect(Math.abs(ports.now().getTime() - Date.now())).toBeLessThan(5_000);
   });
 
-  it("hands one book made by the server's root, and asks it once for the ports", () => {
-    const ports = makeContactProductionPorts(new Headers());
+  it("hands one book and its version id, read once by the server's root for the ports", async () => {
+    const ports = await makeContactProductionPorts(new Headers());
 
-    expect(spies.shippedPriceBook).toHaveBeenCalledTimes(1);
+    expect(spies.readActivePriceBook).toHaveBeenCalledTimes(1);
     expect(ports.book).toEqual(SAMPLE_PRICE_BOOK);
+    expect(ports.bookVersionId).toBe(SAMPLE_PRICE_VERSION_ID);
   });
 
-  it("makes another book and other ports for each call, and holds none at module level", () => {
-    const first = makeContactProductionPorts(new Headers());
-    const second = makeContactProductionPorts(new Headers());
+  it("is refused when there is no active version, and makes no ports to price under a sample", async () => {
+    spies.readActivePriceBook.mockResolvedValue(NO_PRICE_BOOK);
 
-    expect(spies.shippedPriceBook).toHaveBeenCalledTimes(2);
+    await expect(makeContactProductionPorts(new Headers())).rejects.toThrow(
+      "unexpected",
+    );
+  });
+
+  it("makes another book and other ports for each call, and holds none at module level", async () => {
+    const first = await makeContactProductionPorts(new Headers());
+    const second = await makeContactProductionPorts(new Headers());
+
+    expect(spies.readActivePriceBook).toHaveBeenCalledTimes(2);
     expect(second).not.toBe(first);
     expect(second.book).not.toBe(first.book);
   });
 
-  it("builds no sender until the orchestration asks, and then from the process's environment", () => {
-    const ports = makeContactProductionPorts(new Headers());
+  it("builds no sender until the orchestration asks, and then from the process's environment", async () => {
+    const ports = await makeContactProductionPorts(new Headers());
     expect(spies.createMailSender).not.toHaveBeenCalled();
 
     expect(ports.createSender()).toBe("a sender");
     expect(spies.createMailSender).toHaveBeenCalledWith(process.env);
   });
 
-  it("reads the digester from the process's environment when the ports are made, as unusable without a secret", () => {
-    expect(makeContactProductionPorts(new Headers()).digester.status).toBe(
-      "usable",
-    );
+  it("reads the digester from the process's environment when the ports are made, as unusable without a secret", async () => {
+    expect(
+      (await makeContactProductionPorts(new Headers())).digester.status,
+    ).toBe("usable");
 
     vi.stubEnv("DIGEST_SECRET", undefined);
 
-    expect(makeContactProductionPorts(new Headers()).digester.status).toBe(
-      "unavailable",
-    );
+    expect(
+      (await makeContactProductionPorts(new Headers())).digester.status,
+    ).toBe("unavailable");
   });
 
-  it("writes the shop's notice in Romanian", () => {
-    const ports = makeContactProductionPorts(new Headers());
+  it("writes the shop's notice in Romanian", async () => {
+    const ports = await makeContactProductionPorts(new Headers());
 
     expect(JSON.stringify(ports.noticeContent)).toBe(
       JSON.stringify(contentFor("ro", roMessages)),
     );
   });
 
-  it("makes the judge from the headers it was handed, the process's environment and the instant asked for", () => {
+  it("makes the judge from the headers it was handed, the process's environment and the instant asked for", async () => {
     const headers = new Headers({ "x-forwarded-for": "192.0.2.9" });
     const instant = new Date("2026-07-15T12:20:00Z");
-    const ports = makeContactProductionPorts(headers);
+    const ports = await makeContactProductionPorts(headers);
     expect(spies.makeContactJudge).not.toHaveBeenCalled();
 
     ports.makeJudge(instant);
@@ -136,7 +152,7 @@ describe("the contact's production ports, made for one request", () => {
   it("asks for the frozen copies' instance only when a view is recorded, and records through it", async () => {
     const record = vi.fn(() => Promise.resolve("recorded"));
     spies.getSentKitchenViewRepository.mockReturnValue({ record });
-    const ports = makeContactProductionPorts(new Headers());
+    const ports = await makeContactProductionPorts(new Headers());
     expect(spies.getSentKitchenViewRepository).not.toHaveBeenCalled();
 
     expect(await ports.sentKitchenViews.record(A_VIEW)).toBe("recorded");
@@ -148,16 +164,16 @@ describe("the contact's production ports, made for one request", () => {
       throw new Error("no database");
     });
 
-    const ports = makeContactProductionPorts(new Headers());
+    const ports = await makeContactProductionPorts(new Headers());
 
     await expect(ports.sentKitchenViews.record(A_VIEW)).rejects.toThrow(
       "no database",
     );
   });
 
-  it("reads the public origin from the process's environment each time it is asked, never once for the ports", () => {
+  it("reads the public origin from the process's environment each time it is asked, never once for the ports", async () => {
     vi.stubEnv("LEMNARIA_PUBLIC_ORIGIN", "https://first.lemnaria.example");
-    const ports = makeContactProductionPorts(new Headers());
+    const ports = await makeContactProductionPorts(new Headers());
     expect(ports.readPublicOrigin()).toEqual({
       status: "configured",
       origin: "https://first.lemnaria.example",
@@ -171,13 +187,17 @@ describe("the contact's production ports, made for one request", () => {
     });
   });
 
-  it("throws when a port cannot be made and keeps nothing of the failure for the next call", () => {
+  it("throws when a port cannot be made and keeps nothing of the failure for the next call", async () => {
     spies.getContactSubmissionStore.mockImplementationOnce(() => {
       throw new Error("no store");
     });
 
-    expect(() => makeContactProductionPorts(new Headers())).toThrow("no store");
-    expect(makeContactProductionPorts(new Headers()).store).toBe(A_STORE);
+    await expect(makeContactProductionPorts(new Headers())).rejects.toThrow(
+      "no store",
+    );
+    expect((await makeContactProductionPorts(new Headers())).store).toBe(
+      A_STORE,
+    );
   });
 
   it("reads source: holds no state at module level", () => {

@@ -533,6 +533,41 @@ describe("a stored request: its tries, never a new request's buckets", () => {
     expect((await jsonOf(retried)).code).toBe("CONTACT_REQUEST_CONFLICT");
     expect(afterTheChange.sender.sent).toHaveLength(0);
   });
+
+  it("digests the id of the version the book was read as: a publish between the two attempts is a conflict even when the book's own version text did not change", async () => {
+    const harness = aHarness({
+      outcomes: [{ ok: false, kind: "busy" }],
+      bookVersionId: "version-id-1",
+    });
+    await harness.submit(bodyOf());
+    const afterThePublish = aHarness({
+      bookVersionId: "version-id-2",
+      store: () => harness.store,
+    });
+
+    const retried = await afterThePublish.submit(bodyOf());
+
+    expect(retried.status).toBe(409);
+    expect((await jsonOf(retried)).code).toBe("CONTACT_REQUEST_CONFLICT");
+    expect(afterThePublish.sender.sent).toHaveLength(0);
+  });
+
+  it("does not digest the book's authored version text: the same version id with other text in the book is the same request", async () => {
+    const harness = aHarness({
+      outcomes: [{ ok: false, kind: "busy" }],
+      bookVersionId: "version-id-1",
+    });
+    await harness.submit(bodyOf());
+    const sameVersionOtherText = aHarness({
+      book: { ...SAMPLE_PRICE_BOOK, version: "other-text" },
+      bookVersionId: "version-id-1",
+      store: () => harness.store,
+    });
+
+    const retried = await sameVersionOtherText.submit(bodyOf());
+
+    expect(retried.status).toBe(200);
+  });
 });
 
 describe("whether to send is decided on notified, never on new", () => {

@@ -1,5 +1,7 @@
 import { DesignLoadError } from "@/app/d/[id]/design-load-error";
 import { HydrateAndContact } from "@/app/d/[id]/contact/hydrate-and-contact";
+import { readActivePriceBook } from "@/lib/server/active-price-book";
+import { PriceBookProvider } from "@/price/price-book-provider";
 import { isContactSendable } from "@/lib/server/contact/contact-availability";
 import {
   CONTACT_PAGE_READ_DEADLINE_MS,
@@ -23,13 +25,16 @@ export default async function ContactPage({
     { designId: id, revision: load.revision },
     { deadlineMs: CONTACT_PAGE_READ_DEADLINE_MS },
   );
+  const priceBook = await readActivePriceBook();
   return (
-    <HydrateAndContact
-      design={load.design}
-      designId={id}
-      revision={load.revision}
-      isSendable={isContactSendable(process.env)}
-      sentReference={sentReference}
-    />
+    <PriceBookProvider root={priceBook}>
+      <HydrateAndContact
+        design={load.design}
+        designId={id}
+        revision={load.revision}
+        isSendable={isContactSendable(process.env)}
+        sentReference={sentReference}
+      />
+    </PriceBookProvider>
   );
 }

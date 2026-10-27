@@ -9,6 +9,8 @@ import { createTranslator, type IntlError } from "next-intl";
 import { resolveContent, type Content } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import roMessages from "@/messages/ro.json";
+import { readActivePriceBook } from "@/lib/server/active-price-book";
+import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import { getContactSubmissionStore } from "@/lib/server/contact/contact-submission-store-instance";
 import { makeContactJudge } from "@/lib/server/contact/judge-contact-request";
 import { getSentMarkStore } from "@/lib/server/contact/sent-mark-store-instance";
@@ -20,22 +22,25 @@ import { NOTICE_LOCALE } from "@/lib/server/mail/lead-notification";
 import { readPublicOrigin } from "@/lib/server/public-origin";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { getSentKitchenViewRepository } from "@/lib/server/repository";
-import { shippedPriceBook } from "@/lib/server/shipped-price-book";
 
 /**
  * The contact request's production ports, made for one request and held nowhere: the route calls this once, inside its
  * guard, and nothing here is kept at module level, so a request that cannot be given its ports leaves nothing for the
- * next to inherit. The book is the one book of the request: its version is what the digest covers and its prices are
- * what the snapshot is priced under.
+ * next to inherit. The book is the one book of the request, the active version read once (`readActivePriceBook`): its
+ * version id is what the digest covers and its prices are what the snapshot is priced under. With no active version
+ * there is nothing to price under, and the request is the one unavailable answer (A-10), never a sample book.
  */
-export function makeContactProductionPorts(
+export async function makeContactProductionPorts(
   headers: HeaderReader,
-): SubmitContactPorts {
+): Promise<SubmitContactPorts> {
+  const priceBook = await readActivePriceBook();
+  if (priceBook.kind === "none") throw new ContactFailure("unexpected");
   return {
     store: getContactSubmissionStore(),
     sentMarks: sentMarksOnFirstUse(),
     createSender: () => createMailSender(process.env),
-    book: shippedPriceBook(),
+    book: priceBook.book,
+    bookVersionId: priceBook.versionId,
     digester: readDigester(process.env),
     noticeContent: noticeContent(),
     servedLocales: routing.locales,

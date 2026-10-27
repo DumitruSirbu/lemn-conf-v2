@@ -408,13 +408,17 @@ describe("the production ports, each made inside the request", () => {
     );
   });
 
-  it("makes one book for a request, the sample book this build ships, and the same one it hands over", async () => {
+  it("reads one book for a request, the active version's, parses it once and hands over the book it parsed with its version id", async () => {
     await POST(contactRequest("{}"));
 
     expect(spies.parsePriceBook).toHaveBeenCalledTimes(1);
     expect(spies.parsePriceBook).toHaveBeenCalledWith(SAMPLE_PRICE_BOOK);
-    expect(handedPorts().book).toBe(SAMPLE_PRICE_BOOK);
+    const parsed = spies.parsePriceBook.mock.results[0]?.value as {
+      readonly book: unknown;
+    };
+    expect(handedPorts().book).toBe(parsed.book);
     expect(handedPorts().book.version).toBe(SAMPLE_PRICE_BOOK_VERSION);
+    expect(handedPorts().bookVersionId).toEqual(expect.any(String));
   });
 
   it("makes another book and other ports for the next request, and holds none at module level", async () => {

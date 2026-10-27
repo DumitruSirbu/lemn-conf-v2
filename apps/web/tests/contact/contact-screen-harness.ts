@@ -10,8 +10,10 @@ import { vi } from "vitest";
 import { ContactScreen } from "@/contact/contact-screen";
 import { CONTACT_SUBMISSIONS_ENDPOINT } from "@/contact/send-contact-request";
 import type { SentReferenceAnswer } from "@/done/result-to-show";
+import { PriceBookProvider } from "@/price/price-book-provider";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
+import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
 import { DESIGN_ID, FIRST_REVISION } from "./contact-submission-harness";
@@ -51,15 +53,18 @@ export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
   const root: Root = createRoot(container);
   act(() => {
     root.render(
-      createElement(NextIntlClientProvider, {
-        locale,
-        messages: MESSAGES[locale] as typeof roMessages,
-        timeZone: "Europe/Chisinau",
-        children: createElement(ContactScreen, {
-          designId: DESIGN_ID,
-          loadedRevision: FIRST_REVISION,
-          isSendable,
-          sentReference,
+      createElement(PriceBookProvider, {
+        root: SAMPLE_PRICE_ROOT,
+        children: createElement(NextIntlClientProvider, {
+          locale,
+          messages: MESSAGES[locale] as typeof roMessages,
+          timeZone: "Europe/Chisinau",
+          children: createElement(ContactScreen, {
+            designId: DESIGN_ID,
+            loadedRevision: FIRST_REVISION,
+            isSendable,
+            sentReference,
+          }),
         }),
       }),
     );

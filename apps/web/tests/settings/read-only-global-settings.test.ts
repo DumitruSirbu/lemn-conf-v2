@@ -37,6 +37,7 @@ import {
 import { describeEditability } from "@/store/editability";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { underSamplePriceBook } from "../support/sample-price-root";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -116,7 +117,9 @@ function closedScreenMarkupFor(access: {
   readonly saveStatus: SaveStatus;
 }): string {
   storeState.current = stateFor(access);
-  return renderToStaticMarkup(createElement(GlobalSettings));
+  return renderToStaticMarkup(
+    underSamplePriceBook(createElement(GlobalSettings)),
+  );
 }
 
 /** The open sheet at a given access, which a static render cannot reach through the trigger —

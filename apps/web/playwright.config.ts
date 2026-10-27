@@ -2,6 +2,10 @@ import { assertSafeTestDatabaseUrl, loadEnvLocal } from "@lemnaria/persistence";
 import { defineConfig, devices } from "@playwright/test";
 
 import {
+  FAKE_PRICE_BOOK_FLAG,
+  FAKE_PRICE_BOOK_FLAG_ENABLED,
+} from "./src/lib/server/fake-price-book-flag";
+import {
   E2E_RATE_LIMIT_POLICY_FLAG,
   E2E_RATE_LIMIT_POLICY_FLAG_ENABLED,
 } from "./src/lib/server/rate-limit/limit-policy";
@@ -119,6 +123,10 @@ export default defineConfig({
       // in the one shared bucket and no forwarding header decides anything.
       [E2E_RATE_LIMIT_POLICY_FLAG]: E2E_RATE_LIMIT_POLICY_FLAG_ENABLED,
       DIGEST_SECRET: runSecret,
+      // The server reads its price book from fake stores seeded with the sample book as version 1 (A-10, RK-16): this
+      // server is a production build, which selects the real stores unless asked. Set here and in no env file, so no
+      // deployed environment has it.
+      [FAKE_PRICE_BOOK_FLAG]: FAKE_PRICE_BOOK_FLAG_ENABLED,
       // A contact request is passed on by the fake sender, which only this flag selects and only with no mail variable
       // present (ADR 0154). Set here and in no env file, so no deployed environment inherits it.
       ...FAKE_MAIL_SERVER_ENVIRONMENT,

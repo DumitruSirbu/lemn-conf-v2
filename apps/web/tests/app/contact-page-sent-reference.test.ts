@@ -8,6 +8,7 @@ import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-inst
 import ContactPage from "../../src/app/[locale]/d/[id]/contact/page";
 
 import { readSource } from "../lib/server/server-source-support";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 
 /**
  * What the contact page reads of a sent request, and where (ADR 0163 A2 to A4 and A8; 8M2 criteria 10, 25 and 26): only
@@ -64,7 +65,8 @@ function renderContactPage(extra: object = {}): Promise<unknown> {
   } as Parameters<typeof ContactPage>[0]);
 }
 
-function propsOf(element: unknown): Record<string, unknown> {
+function propsOf(page: unknown): Record<string, unknown> {
+  const element = withoutPriceBook(page);
   if (!isValidElement<Record<string, unknown>>(element))
     throw new Error("the page returned a non-element");
   return element.props;

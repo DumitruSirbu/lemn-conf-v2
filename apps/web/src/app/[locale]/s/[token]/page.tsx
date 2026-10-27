@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 
 import { DesignLoadError } from "@/app/d/[id]/design-load-error";
 import { SharedDesignView } from "@/app/s/[token]/shared-design-view";
+import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { reportDesignFailure } from "@/lib/server/design-failure-log";
+import { PriceBookProvider } from "@/price/price-book-provider";
 import {
   getSentKitchenViewRepository,
   getShareLinkRepository,
@@ -51,7 +53,12 @@ export default async function SharedDesignPage({
     // `key={token}`: the token is public, and keying by it makes each share view a fresh mount, never a re-hydrate of
     // a live instance. Without it, back/forward between two share views reused one `SharedDesignView` and called
     // `hydrate()` mid-render again: a real React warning ("cannot update a component while rendering a different one").
-    return <SharedDesignView key={token} design={outcome.design} />;
+    const priceBook = await readActivePriceBook();
+    return (
+      <PriceBookProvider root={priceBook}>
+        <SharedDesignView key={token} design={outcome.design} />
+      </PriceBookProvider>
+    );
   } catch (error) {
     if (error instanceof InvalidDesignError)
       return <DesignLoadError reason="invalid" />;

@@ -28,6 +28,7 @@ import {
   type MountedScreen,
   type TestLocale,
 } from "../support/render-with-intl";
+import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 
 const scene = vi.hoisted(() => ({
   viewOnlyViews: [] as unknown[],
@@ -105,6 +106,7 @@ function rowsOf(design: Design, locale: TestLocale = "ro") {
   });
   return describeStaffSummaryRows({
     design,
+    priceBook: SAMPLE_PRICE_ROOT,
     copy: resolveStaffKitchenCopy(translate),
     content: resolveContent(translate),
     noValue: NO_VALUE,

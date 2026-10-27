@@ -4,7 +4,6 @@ import {
   countedFormOfAddress,
   payloadDigestFields,
   type ContactSubmissionRequest,
-  type PriceBook,
 } from "@lemnaria/configurator-domain";
 import type {
   ContactSubmissionStore,
@@ -328,19 +327,22 @@ function makeSender(ports: SubmitContactPorts): MailSender {
 }
 
 /**
- * The request's digest over the coverage, and for a design the version of the one book the snapshot is priced with.
- * The version is decided here, from the request's target, and the domain's function throws when it is handed one the
- * target does not take: the two statements agree by that throw, so a caller that decides wrongly is a failure and never
- * a digest over the wrong coverage.
+ * The request's digest over the coverage, and for a design the id of the version of the one book the snapshot is priced
+ * with. The version is decided here, from the request's target, and the domain's function throws when it is handed one
+ * the target does not take: the two statements agree by that throw, so a caller that decides wrongly is a failure and
+ * never a digest over the wrong coverage.
  */
 function digestOf(
   request: ContactSubmissionRequest,
-  { digester, book }: { digester: DigesterOutcome; book: PriceBook },
+  {
+    digester,
+    bookVersionId,
+  }: { digester: DigesterOutcome; bookVersionId: string },
 ): string {
   if (digester.status !== "usable")
     throw new ContactFailure("digester-unusable");
   const bookVersion =
-    request.target.kind === "design" ? book.version : undefined;
+    request.target.kind === "design" ? bookVersionId : undefined;
   return digester.digest({
     purpose: "contact-payload",
     fields: payloadDigestFields(request, bookVersion),

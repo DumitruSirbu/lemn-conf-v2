@@ -16,9 +16,14 @@ import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import type { DesignRefusal } from "@/lib/server/contact/contact-responses";
 import type { OwnedDesignLoad } from "@/lib/server/load-owned-design";
 
-/** What the design is read and priced from: the owned load, handed in, and the one book taken for the request. */
+/**
+ * What the design is read and priced from: the owned load, handed in, and the one book taken for the request, with the
+ * id of the version it was read as (`active-price-book.ts`). The id is what the request's digest covers (ADR 0157
+ * decision 2): the book's own `version` is authored text and nothing makes a publish change it.
+ */
 export interface SubmissionSources {
   readonly book: PriceBook;
+  readonly bookVersionId: string;
   readonly loadOwned: (designId: string) => Promise<OwnedDesignLoad>;
 }
 

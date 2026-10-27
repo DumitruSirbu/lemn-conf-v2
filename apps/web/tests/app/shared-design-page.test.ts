@@ -11,6 +11,8 @@ import { FakeSentKitchenViewRepository } from "@lemnaria/persistence";
 import { isValidElement, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { withoutPriceBook } from "../support/price-book-wrapper";
+
 const loadShared = vi.hoisted(() => vi.fn());
 const reportDesignFailure = vi.hoisted(() => vi.fn());
 const designLoadError = vi.hoisted(() => vi.fn(() => null));
@@ -127,9 +129,11 @@ describe("the share view's page component (M7 wave 7E3c D6)", () => {
   it("mounts SharedDesignView keyed by the token, with the migrated design and nothing else identifying it (criterion 13)", async () => {
     loadShared.mockResolvedValue({ kind: "found", design: KITCHEN_L_DESIGN });
 
-    const page = await SharedDesignPage({
-      params: Promise.resolve({ token: WELL_FORMED_TOKEN }),
-    });
+    const page = withoutPriceBook(
+      await SharedDesignPage({
+        params: Promise.resolve({ token: WELL_FORMED_TOKEN }),
+      }),
+    );
 
     if (!isValidElement(page)) throw new Error("expected an element");
     expect(page.type).toBe(sharedDesignView);
@@ -189,7 +193,9 @@ async function recordSentKitchen(
 }
 
 async function renderPageFor(token: string): Promise<ReactElement> {
-  const page = await SharedDesignPage({ params: Promise.resolve({ token }) });
+  const page = withoutPriceBook(
+    await SharedDesignPage({ params: Promise.resolve({ token }) }),
+  );
   if (!isValidElement(page)) throw new Error("expected an element");
   return page;
 }
