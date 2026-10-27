@@ -111,10 +111,25 @@ describe("a bulk action in the draft", () => {
     expect(rowsOf(view.sections)).toHaveLength(1);
     expect(row.bulk).toEqual({
       percent: -7,
-      scope: { kind: "cabinets", count: 3 },
+      scope: { kind: "selection", count: 3 },
     });
     expect(row.items).toHaveLength(3);
     expect([row.ruleCount, row.amountCount]).toEqual([3, 3]);
+  });
+
+  it("keeps the whole catalogue apart from a selection, as it was stored", () => {
+    const whole = pending(
+      bulkChanges().map((stored) =>
+        grouped(stored.address as AppliedAddress, stored.value as number, {
+          groupId: "bulk-all",
+          bulk: { percent: 5, scope: "all" },
+        }),
+      ),
+    );
+
+    expect(groupRow(rowsOf(whole.sections)[0]).bulk?.scope).toEqual({
+      kind: "all",
+    });
   });
 
   it("names its scope by the group when it was asked for one group", () => {
@@ -443,6 +458,51 @@ describe("what a restore makes of the draft", () => {
 
     expect(plan.draft).toEqual([change(FIRST, valueAt(archived, FIRST))]);
     reproduces(archived, ACTIVE, plan.draft);
+  });
+
+  // The flat book states no cabinet price, so a cabinet change in a draft survives a restore from it, while its
+  // hardware and accessory fields are the ones that go.
+  const ACCESSORY: AppliedAddress = {
+    kind: "accessory",
+    accessoryId: "dishDryingRack",
+    field: "perUnitMinor",
+  };
+  const GROUP = {
+    groupId: "bulk-x",
+    bulk: { percent: 5, scope: "selection" } satisfies DraftBulk,
+  };
+
+  it("turns the survivors of a bulk group that lost members into ordinary changes", () => {
+    const survivor = grouped(FIRST, valueAt(ACTIVE, FIRST) + 1_000, GROUP);
+    const lost = grouped(ACCESSORY, valueAt(ACTIVE, ACCESSORY) + 1_000, GROUP);
+
+    const plan = planRestore({
+      archived: SAMPLE_PRICE_BOOK,
+      active: ACTIVE,
+      draft: [survivor, lost],
+    });
+
+    const kept = plan.draft.find((candidate) =>
+      isSameAddress(candidate.address, FIRST),
+    );
+    expect(kept).toEqual(change(FIRST, survivor.value as number));
+    expect(kept).not.toHaveProperty("groupId");
+    expect(kept).not.toHaveProperty("bulk");
+  });
+
+  it("leaves a bulk group whole when none of its members is touched", () => {
+    const members = [
+      grouped(FIRST, valueAt(ACTIVE, FIRST) + 1_000, GROUP),
+      grouped(SECOND, valueAt(ACTIVE, SECOND) + 1_000, GROUP),
+    ];
+
+    const plan = planRestore({
+      archived: SAMPLE_PRICE_BOOK,
+      active: ACTIVE,
+      draft: members,
+    });
+
+    expect(plan.draft).toEqual(expect.arrayContaining(members));
   });
 
   it("keeps the price the draft moved to when the archived price is the same and another field still differs", () => {

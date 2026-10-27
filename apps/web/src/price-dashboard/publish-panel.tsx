@@ -6,9 +6,7 @@ import { useId, type RefObject } from "react";
 import type { PublishTextRefusalCode } from "./price-dashboard-wire-contract";
 import styles from "./publish.module.css";
 
-// The panel beside the pending prices (frame D7A): the version's name, the "Sume provizorii" switch, what publishing does and
-// the button. The name is the person's own and is seen by staff only, in the history. The switch is a draft change like
-// any price, so it is a pending row; the checkbox that guards turning it off is asked when the person publishes.
+// The provisional switch is a draft change like any price; the checkbox that guards turning it off is asked at publish.
 
 const HELP_KEYS = [
   "priceDashboard.publish.helpPrices",

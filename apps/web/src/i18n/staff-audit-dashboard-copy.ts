@@ -1,5 +1,6 @@
 import type {
   BookFieldAddressKind,
+  BulkChangeScope,
   ChangeItemKind,
   KitchenDefaultsField,
   PriceCatalogueSection,
@@ -28,9 +29,20 @@ export function resolveDashboardAuditDetailCopy(translate: ContentTranslator) {
       defaultsFieldWords(translate, field),
     section: (section: PriceCatalogueSection): string =>
       sectionWords(translate, section),
-    group: (code: PriceGroupCode): string => groupWords(translate, code),
-    cabinets: (count: number): string =>
-      translate("priceDashboard.cabinets.groupCount", { count }),
+    bulkScope: (detail: {
+      scope: BulkChangeScope;
+      groupCode?: PriceGroupCode;
+      ruleCount: number;
+    }): string => {
+      if (detail.groupCode !== undefined) {
+        return groupWords(translate, detail.groupCode);
+      }
+      return detail.scope === "all"
+        ? translate("priceDashboard.publish.bulkScopeAll")
+        : translate("priceDashboard.cabinets.groupCount", {
+            count: detail.ruleCount,
+          });
+    },
     bulkName: (words: { signedPercent: string; group: string }): string =>
       translate("priceDashboard.publish.bulkRowName", words),
     bulkSummary: (counts: { ruleCount: number; amountCount: number }): string =>

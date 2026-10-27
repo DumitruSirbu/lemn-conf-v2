@@ -1,8 +1,6 @@
 import { staffPathOf } from "@/staff/staff-paths";
 
-// The addresses under "Publicare prețuri": the pending prices, the history of versions, and one version. Each is a full
-// load of a staff page, like every link of the staff area. They stand under the publish page's own address, so the
-// staff proxy already admits them (`catalog/publish/{id}`) and the navigation marks the publish page for all three.
+// All three stand under the publish page's address, which the staff proxy already admits (`catalog/publish/{id}`).
 
 const HISTORY_SEGMENT = "history";
 

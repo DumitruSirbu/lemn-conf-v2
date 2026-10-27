@@ -35,10 +35,7 @@ export function dashboardDetailParts(
       return [
         copy.bulkName({
           signedPercent: signedWholeNumber(entry.detail.percent),
-          group:
-            entry.detail.groupCode === undefined
-              ? copy.cabinets(entry.detail.ruleCount)
-              : copy.group(entry.detail.groupCode),
+          group: copy.bulkScope(entry.detail),
         }),
         copy.bulkSummary(entry.detail),
       ];

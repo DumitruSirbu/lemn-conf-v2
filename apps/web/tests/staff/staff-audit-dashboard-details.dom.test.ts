@@ -174,14 +174,22 @@ const CASES: readonly Case[] = [
     action: "price-bulk-changed",
     detail: { scope: "all", percent: -3, ruleCount: 22, amountCount: 66 },
     parts: (t) => [
-      BULK_NAME(
-        t,
-        "−3",
-        t("priceDashboard.cabinets.groupCount", { count: 22 }),
-      ),
+      BULK_NAME(t, "−3", t("priceDashboard.publish.bulkScopeAll")),
       t("priceDashboard.publish.bulkRowSummary", {
         cabinetCount: 22,
         priceCount: 66,
+      }),
+    ],
+  },
+  {
+    name: "a bulk rise for a selection of cabinets",
+    action: "price-bulk-changed",
+    detail: { scope: "selection", percent: 2, ruleCount: 4, amountCount: 12 },
+    parts: (t) => [
+      BULK_NAME(t, "+2", t("priceDashboard.cabinets.groupCount", { count: 4 })),
+      t("priceDashboard.publish.bulkRowSummary", {
+        cabinetCount: 4,
+        priceCount: 12,
       }),
     ],
   },
@@ -274,6 +282,12 @@ const CASES: readonly Case[] = [
   },
 ];
 
+function caseNamed(name: string): Case {
+  const found = CASES.find((candidate) => candidate.name === name);
+  if (found === undefined) throw new Error(`no case named ${name}`);
+  return found;
+}
+
 function caseAt(index: number): Case {
   const found = CASES[index];
   if (found === undefined) throw new Error(`no case at ${String(index)}`);
@@ -314,7 +328,11 @@ describe.each(["ro", "ru"] as const)("the audit page in %s", (locale) => {
   });
 
   it("tells the same details on a phone's cards", () => {
-    const container = mountTable(listingOf([caseAt(6)]), locale, AuditCards);
+    const container = mountTable(
+      listingOf([caseNamed("the version that went live")]),
+      locale,
+      AuditCards,
+    );
 
     expect(
       requireIn(container, '[data-testid="staff-audit-row"]').textContent,

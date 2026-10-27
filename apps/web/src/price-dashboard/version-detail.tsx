@@ -16,11 +16,11 @@ import type {
   DashboardStateWire,
 } from "./price-dashboard-wire-contract";
 import {
-  defaultPublishClient,
   orFailed,
   type PublishClient,
   type RestoreOutcome,
 } from "./publish-client";
+import { defaultPublishClient } from "./default-publish-client";
 import { RestoreDialog } from "./publish-dialogs";
 import {
   describeVersionDiff,
@@ -31,9 +31,7 @@ import { historyPathOf, publishPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
 import { DiffSections } from "./publish-rows";
 
-// One version, read-only (frames D8B, D8C): what it changed against the version before it, and the one thing that can be done
-// with it, restoring its prices into "De publicat". A restore adds to the pending list and publishes nothing, so the
-// clients' prices do not move until the person publishes as usual. Customers never see a version (ADR 0072 Amendment).
+// A restore adds to the pending list and publishes nothing. Customers never see a version (ADR 0072 Amendment).
 
 export interface VersionDetailScreenProps {
   readonly locale: AppLocale;
@@ -43,7 +41,7 @@ export interface VersionDetailScreenProps {
   readonly client?: PublishClient | undefined;
 }
 
-type RestoreFailure = "save-failed" | "conflict";
+type RestoreFailure = "save-failed" | "conflict" | "not-found";
 
 interface RestoreState {
   readonly draft: DashboardDraftWire;
@@ -63,7 +61,7 @@ export function VersionDetailScreen({
   client: suppliedClient,
 }: VersionDetailScreenProps) {
   const client = useMemo(
-    () => suppliedClient ?? defaultClientFor(input),
+    () => suppliedClient ?? defaultPublishClient({ kind: "version", input }),
     [suppliedClient, input],
   );
   const restoreButtonRef = useRef<HTMLButtonElement>(null);
@@ -176,26 +174,11 @@ function settled(held: RestoreState, answer: RestoreAnswer): RestoreState {
         draft: fresh?.draft ?? held.draft,
         activeBook: fresh?.active.book ?? held.activeBook,
       };
+    case "version-not-found":
+      return { ...idle, failure: "not-found" };
     case "failed":
       return { ...idle, failure: "save-failed" };
   }
-}
-
-function defaultClientFor(input: VersionDetailInput): PublishClient {
-  return defaultPublishClient({
-    state: {
-      active: {
-        versionId: "",
-        book: input.active.book,
-        availability: { revision: "0", disabled: [] },
-        sequenceNumber: input.active.sequenceNumber,
-        label: "",
-        publishedAt: "",
-      },
-      draft: input.draft,
-    },
-    archived: new Map([[input.version.versionId, input.version.book]]),
-  });
 }
 
 function VersionHeading({

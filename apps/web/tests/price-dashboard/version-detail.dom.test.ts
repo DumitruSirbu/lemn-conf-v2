@@ -11,7 +11,7 @@ import type { PublishClient } from "@/price-dashboard/publish-client";
 import {
   makeSamplePublishClient,
   sampleVersionIdOf,
-} from "@/price-dashboard/publish-client";
+} from "@/price-dashboard/publish-sample-client";
 import type { VersionDetailInput } from "@/price-dashboard/publish-model";
 import { sampleVersionDetail } from "@/price-dashboard/publish-sample";
 import { VersionDetailScreen } from "@/price-dashboard/version-detail";
@@ -395,5 +395,25 @@ describe("a client that rejects, and focus after a press that did not focus the 
 
     expect(dialog()).toBeNull();
     expect(document.activeElement).toBe(restoreButton(container));
+  });
+});
+
+describe("a restore of a version the store no longer holds", () => {
+  it("says so in the dialog, which stays, and adds nothing", async () => {
+    const input = thirdVersionWithNothingPending();
+    const client = spiedClient(input, {
+      restore: () => Promise.resolve({ kind: "version-not-found" }),
+    });
+    const container = await mountDetail(input, { client });
+    click(restoreButton(container));
+
+    click(byWords(requireDialog(), "button", COPY.common.addToPending));
+    await settle();
+
+    expect(requireDialog().textContent).toContain(COPY.history.versionNotFound);
+    expect(requireDialog().textContent).not.toContain(COPY.errors.saveFailed);
+    expect(
+      container.querySelector('[data-testid="restore-notice"]'),
+    ).toBeNull();
   });
 });

@@ -2205,6 +2205,12 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       versionNameTooLong: "Numele este prea lung. Scrie unul mai scurt.",
       versionNameForbidden:
         "Numele are un caracter care nu e permis. Scrie doar litere, cifre și semne obișnuite.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's review-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      bulkScopeAll: "toate dulapurile",
+      candidateRefusedTitle: "Prețurile pregătite nu pot fi publicate",
+      candidateRefusedBody:
+        "Lista de prețuri care ar rezulta nu trece verificarea catalogului, de exemplu pentru că un preț ar ieși zero sau negativ. Nimic nu s-a publicat. Corectează sau anulează (↺) o modificare din listă și încearcă din nou.",
     },
     history: {
       subtitle:
@@ -2238,6 +2244,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Prețurile din {versionId} nu diferă de cele active și de cele pregătite.",
       firstVersion:
         "Aceasta este prima versiune: nu are o versiune anterioară cu care să fie comparată.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's review-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      versionNotFound:
+        "Versiunea nu mai există sau nu poate fi citită. Nimic nu s-a adăugat la „De publicat”.",
     },
     defaults: {
       title: "Setări implicite",

@@ -29,10 +29,7 @@ import {
 } from "./use-publish-desk";
 import { VersionHistory } from "./version-history";
 
-// "Publicare prețuri" (frames D7A to D7G, D7M, and D8A as its second tab): everything prepared and not yet published, from
-// every section, in one list; the version's name; the switch for the provisional figures; and the button that makes it all
-// active at once. A bulk action is one row that opens to its members. The numbers in the frame's header and menu come from
-// this screen's own draft while it is open, so they follow a ↺ at once.
+// The frame's pending count follows this screen's own draft while it is open.
 
 /** How many of the latest versions the empty page offers (D7D). */
 const LATEST_VERSIONS_SHOWN = 3;
@@ -280,6 +277,15 @@ function NoticeBody({
           })}
         >
           {translate("priceDashboard.publish.publishedBody")}
+        </FormNotice>
+      );
+    case "candidate-refused":
+      return (
+        <FormNotice
+          tone="error"
+          title={translate("priceDashboard.publish.candidateRefusedTitle")}
+        >
+          {translate("priceDashboard.publish.candidateRefusedBody")}
         </FormNotice>
       );
     case "failed":

@@ -6,13 +6,12 @@ import { createPortal } from "react-dom";
 
 import { AccountDialog } from "@/account/account-dialog";
 import { FormNotice } from "@/account/account-form-parts";
+import type { ContentTranslator } from "@/i18n/content";
 
 import styles from "./publish.module.css";
 
-// The three questions of the publish screens (frames D7B, D7C, D8C). Each opens on the safe action and Escape takes it: "Anulează"
-// for the publish and the restore, which change what clients see or the pending list, and the checkbox for the provisional
-// question, which does nothing by itself. While the request is out nothing leaves the dialog (`AccountDialog` holds that).
-// They are drawn into the frame's `<main>`, as `AccountDialog` asks, so the page behind goes inert.
+// Each dialog opens on the safe action and Escape takes it; `AccountDialog` holds the rest.
+// They are drawn into the frame's `<main>`, so the page behind goes inert.
 
 function InMain({ children }: { readonly children: ReactNode }) {
   return createPortal(
@@ -141,7 +140,7 @@ export interface RestoreDialogProps extends FocusFallback {
   readonly versionNumber: number;
   readonly differingCount: number;
   readonly isBusy: boolean;
-  readonly failure: "save-failed" | "conflict" | undefined;
+  readonly failure: "save-failed" | "conflict" | "not-found" | undefined;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
 }
@@ -182,12 +181,24 @@ export function RestoreDialog({
       >
         {failure === undefined ? null : (
           <FormNotice tone="error">
-            {failure === "conflict"
-              ? translate("priceDashboard.errors.changedMeanwhile")
-              : translate("priceDashboard.errors.saveFailed")}
+            {restoreFailureWords(translate, failure)}
           </FormNotice>
         )}
       </AccountDialog>
     </InMain>
   );
+}
+
+function restoreFailureWords(
+  translate: ContentTranslator,
+  failure: "save-failed" | "conflict" | "not-found",
+): string {
+  switch (failure) {
+    case "conflict":
+      return translate("priceDashboard.errors.changedMeanwhile");
+    case "not-found":
+      return translate("priceDashboard.history.versionNotFound");
+    case "save-failed":
+      return translate("priceDashboard.errors.saveFailed");
+  }
 }

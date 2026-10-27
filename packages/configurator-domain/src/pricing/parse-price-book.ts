@@ -60,8 +60,8 @@ const MAX_CABINET_RULES = 500;
  *  tiers cost ~200 ms of synchronous work and 2 000 rendered radios. */
 const MAX_TIERS_PER_GROUP = 20;
 
-/** The longest a tier's or an accessory's name may be: a radio label on one line. */
-const MAX_BOOK_NAME_LENGTH = 80;
+/** The longest a tier's or an accessory's name may be: a radio label on one line. A version's name has the same bound. */
+export const MAX_BOOK_NAME_LENGTH = 80;
 
 /** The longest a tier's or an accessory's one-line description may be. */
 const MAX_BOOK_DESCRIPTION_LENGTH = 240;

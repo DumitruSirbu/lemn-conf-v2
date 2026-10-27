@@ -1,7 +1,6 @@
 import { formatLei } from "./format-lei";
 
-// How a difference is signed on the publish screens. A reduction is written with the minus sign (U+2212), as the bulk
-// dialog's hint writes it, so it cannot be taken for a hyphen in a name; a rise carries "+", and zero carries neither.
+// A reduction is written with the minus sign (U+2212), never a hyphen; zero carries no sign.
 
 const MINUS_SIGN = "−";
 const PLUS_SIGN = "+";

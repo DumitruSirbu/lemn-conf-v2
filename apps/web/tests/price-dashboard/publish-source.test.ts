@@ -56,18 +56,42 @@ describe("a production build", () => {
     expect(await UNAVAILABLE_PUBLISH_CLIENT.readState()).toBeUndefined();
   });
 
-  it.each(["publish-source.ts", "publish-client.ts"])(
-    "decides in %s on the literal the bundler replaces, so the build holds the branch and not the sample",
-    (name) => {
-      const source = readFileSync(
-        join(SOURCE_ROOT, "price-dashboard", name),
+  it("asks one predicate in the server-side readers and spells the build mode in no reader of its own", () => {
+    for (const name of [
+      "price-dashboard/publish-source.ts",
+      "price-dashboard/cabinet-list-source.ts",
+    ]) {
+      const source = readFileSync(join(SOURCE_ROOT, name), "utf8");
+
+      expect(source, name).toMatch(/isProductionBuild\(\)/);
+      expect(source, name).not.toMatch(/process\.env/);
+    }
+    const predicate = readFileSync(
+      join(SOURCE_ROOT, "price-dashboard/is-production-build.ts"),
+      "utf8",
+    );
+    expect(predicate).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
+  });
+
+  it("decides the browser's client on the literal the bundler replaces, so a production bundle holds no sample", () => {
+    const source = readFileSync(
+      join(SOURCE_ROOT, "price-dashboard/default-publish-client.ts"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
+    expect(source).not.toMatch(/process\.env\[/);
+    for (const screen of ["use-publish-desk.ts", "version-detail.tsx"]) {
+      const screenSource = readFileSync(
+        join(SOURCE_ROOT, "price-dashboard", screen),
         "utf8",
       );
-
-      expect(source).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
-      expect(source).not.toMatch(/process\.env\[/);
-    },
-  );
+      expect(screenSource, screen).toMatch(/defaultPublishClient\(/);
+      expect(screenSource, screen).not.toMatch(
+        /process\.env|publish-sample-client/,
+      );
+    }
+  });
 
   it("reaches the invented prices only through the sources: the sample is imported by its own source and by the cabinet list's sample, which shares its draft", () => {
     const importers = filesUnder(SOURCE_ROOT)

@@ -14,17 +14,14 @@ import {
 import { shippedPriceBook } from "@/lib/server/shipped-price-book";
 import roMessages from "@/messages/ro.json";
 
-import { sampleVersionIdOf } from "./publish-client";
+import { sampleVersionIdOf } from "./publish-sample-client";
 import type {
   PriceVersionSummaryWire,
   PriceVersionWire,
 } from "./price-dashboard-wire-contract";
 import type { PublishPageInput, VersionDetailInput } from "./publish-model";
 
-// Invented versions, draft and books for the publish and history screens while nothing supplies the real ones. Every figure
-// is made up, like the shipped book's, and every book and every draft below goes through the domain's own `applyChanges`,
-// so the rows the screens draw are `diffBooks`' of books that are books. It stands behind `publish-source.ts` outside a
-// production build only, and goes with that stub. Labels are plain ASCII: they are made-up names, not catalogue copy.
+// Invented data for builds that show samples; every book goes through `applyChanges`. Reached only through the sources.
 
 /** The book the application ships, in its flat form: what the sample restates in the percentage form. */
 const FLAT_BOOK: PriceBook = shippedPriceBook();

@@ -1698,7 +1698,10 @@ declare const messages: {
       "blockedIsDefault": "Nimic nu a fost publicat. „{name}” este acum implicit în Setări implicite și nu poate fi șters. Renunță la ștergere sau alege alt implicit, apoi publică din nou.",
       "versionNameEmpty": "Scrie un nume pentru versiune.",
       "versionNameTooLong": "Numele este prea lung. Scrie unul mai scurt.",
-      "versionNameForbidden": "Numele are un caracter care nu e permis. Scrie doar litere, cifre și semne obișnuite."
+      "versionNameForbidden": "Numele are un caracter care nu e permis. Scrie doar litere, cifre și semne obișnuite.",
+      "bulkScopeAll": "toate dulapurile",
+      "candidateRefusedTitle": "Prețurile pregătite nu pot fi publicate",
+      "candidateRefusedBody": "Lista de prețuri care ar rezulta nu trece verificarea catalogului, de exemplu pentru că un preț ar ieși zero sau negativ. Nimic nu s-a publicat. Corectează sau anulează (↺) o modificare din listă și încearcă din nou."
     },
     "history": {
       "subtitle": "Istoricul îl vezi doar tu. Bucătăriile folosesc mereu versiunea activă, niciodată una veche.",
@@ -1722,7 +1725,8 @@ declare const messages: {
       "restoring": "Se adaugă…",
       "restoredNotice": "Prețurile au fost adăugate la „De publicat”. Nimic nu s-a publicat.",
       "nothingToRestore": "Prețurile din {versionId} nu diferă de cele active și de cele pregătite.",
-      "firstVersion": "Aceasta este prima versiune: nu are o versiune anterioară cu care să fie comparată."
+      "firstVersion": "Aceasta este prima versiune: nu are o versiune anterioară cu care să fie comparată.",
+      "versionNotFound": "Versiunea nu mai există sau nu poate fi citită. Nimic nu s-a adăugat la „De publicat”."
     },
     "defaults": {
       "title": "Setări implicite",

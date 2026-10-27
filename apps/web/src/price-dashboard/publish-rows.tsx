@@ -31,9 +31,7 @@ import type {
 } from "./publish-model";
 import styles from "./publish.module.css";
 
-// The rows of a difference between two price books: the pending prices (D7) and an archived version's changes (D8B), as one
-// markup. A phone draws each row as a card and from 900 px the rows line up as a table, as on the cabinet list. The cells say
-// what they are in their own words, so the column titles are for the eye. A bulk action is one row that opens to its members.
+// One markup: cards on a phone, a table from 900 px. Each cell carries its own label; the column titles are for the eye.
 
 const SECTION_HEADING_KEYS = {
   cabinets: "priceDashboard.publish.sectionCabinets",
@@ -404,9 +402,16 @@ export function useRowWords() {
 type Translate = ContentTranslator;
 
 function scopeWords(translate: Translate, scope: BulkScopeView): string {
-  return scope.kind === "group"
-    ? translate(GROUP_WORD_KEYS[scope.code])
-    : translate("priceDashboard.cabinets.groupCount", { count: scope.count });
+  switch (scope.kind) {
+    case "group":
+      return translate(GROUP_WORD_KEYS[scope.code]);
+    case "all":
+      return translate("priceDashboard.publish.bulkScopeAll");
+    case "selection":
+      return translate("priceDashboard.cabinets.groupCount", {
+        count: scope.count,
+      });
+  }
 }
 
 /** The name of the field a row changes, in the cabinet detail's and the hardware list's own words. */

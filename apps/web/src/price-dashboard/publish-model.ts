@@ -27,13 +27,8 @@ import type {
   PriceVersionWire,
 } from "./price-dashboard-wire-contract";
 
-// What the publish and history screens are drawn from, and the pure rules that turn it into rows. The rows are the
-// domain's `diffBooks`; this module names each one from its address and the book, decides whether the draft would change
-// anything, and says what a ↺ removes. It does no price arithmetic beyond the size of a difference, and holds no words:
-// the screens turn a subject and a difference into a sentence.
-
-/** The longest a version's name may be (the book's name bound; `parsePriceBook` holds the same figure). */
-export const MAX_VERSION_NAME_LENGTH = 80;
+// Rows are the domain's `diffBooks`, named from address and book. No words, and no price arithmetic beyond the size
+// of a difference.
 
 /** Everything the publish screens are given: the dashboard's state, the versions so far, and the cabinets' names. */
 export interface PublishPageInput {
@@ -105,7 +100,8 @@ export interface FieldRowView {
 /** What a bulk action covered, in the terms its row names it. */
 export type BulkScopeView =
   | { readonly kind: "group"; readonly code: PriceGroupCode }
-  | { readonly kind: "cabinets"; readonly count: number };
+  | { readonly kind: "all" }
+  | { readonly kind: "selection"; readonly count: number };
 
 export interface GroupRowView {
   readonly kind: "group";
@@ -240,11 +236,15 @@ function bulkViewOf(
   ruleCount: number,
 ): GroupRowView["bulk"] {
   if (bulk === undefined) return undefined;
-  const scope: BulkScopeView =
-    bulk.scope === "group" && bulk.groupCode !== undefined
-      ? { kind: "group", code: bulk.groupCode }
-      : { kind: "cabinets", count: ruleCount };
-  return { percent: bulk.percent, scope };
+  return { percent: bulk.percent, scope: scopeViewOf(bulk, ruleCount) };
+}
+
+function scopeViewOf(bulk: DraftBulk, ruleCount: number): BulkScopeView {
+  if (bulk.scope === "all") return { kind: "all" };
+  if (bulk.scope === "group" && bulk.groupCode !== undefined) {
+    return { kind: "group", code: bulk.groupCode };
+  }
+  return { kind: "selection", count: ruleCount };
 }
 
 function fieldRowViewOf(
@@ -369,13 +369,6 @@ function sectionsOf(rows: readonly RowView[]): readonly SectionView[] {
   });
 }
 
-/** Whether a row, or any member of a group, shows a value other than the one the book already has. */
-export function isRowEffective(row: RowView): boolean {
-  return row.kind === "field"
-    ? !row.isUnchanged
-    : row.items.some((item) => !item.isUnchanged);
-}
-
 export interface RestorePlan {
   /** The draft after the restore. */
   readonly draft: readonly DraftChange[];
@@ -386,11 +379,9 @@ export interface RestorePlan {
 }
 
 /**
- * What a restore makes of the draft, so that applying it to the active book gives the archived value on every field both
- * books state. Draft changes on fields the archived version states are taken out, and the archived value is added wherever
- * it differs from the active book (`restoreChanges(archived, active)`): with active 100, draft 120 and archived 120 the
- * 120 is added again, and with archived 100 the draft change simply goes. The candidate (active plus draft) is only what
- * "differs" is counted against, so a restore that would change nothing is told as such.
+ * Applying `draft` to `active` gives the archived value on every field both books state. Draft changes on fields the
+ * archived version states go, and `restoreChanges(archived, active)` is added; `differingCount` is against the candidate.
+ * A survivor of a bulk group that lost members is an ordinary change: `groupId` and `bulk` go together.
  */
 export function planRestore(input: {
   readonly archived: PriceBook;
@@ -405,17 +396,32 @@ export function planRestore(input: {
   );
   const added = restoreChanges(archived, active);
   const archivedReadings = readEditableFields(archived);
-  const kept = draft.filter(
-    (change) =>
-      !archivedReadings.some((reading) =>
-        isSameAddress(reading.address, change.address),
-      ),
+  const isStated = (change: DraftChange): boolean =>
+    archivedReadings.some((reading) =>
+      isSameAddress(reading.address, change.address),
+    );
+  const brokenGroupIds = new Set(
+    draft.filter(isStated).flatMap(({ groupId }) => groupId ?? []),
   );
+  const kept = draft
+    .filter((change) => !isStated(change))
+    .map((change) =>
+      change.groupId !== undefined && brokenGroupIds.has(change.groupId)
+        ? withoutGroup(change)
+        : change,
+    );
   return {
     draft: [...kept, ...added],
     differingCount: differingFromCandidate.length,
     addedChangeCount: added.length,
   };
+}
+
+function withoutGroup(change: DraftChange): DraftChange {
+  const { groupId, bulk, ...ordinary } = change;
+  void groupId;
+  void bulk;
+  return ordinary as DraftChange;
 }
 
 /** What an item a publish was refused for is called: its tier or accessory text from the book, else its own code. */

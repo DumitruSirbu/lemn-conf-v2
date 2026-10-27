@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DIFF_SECTIONS, type DraftChange } from "@lemnaria/configurator-domain";
 
 import type { PublishClient } from "@/price-dashboard/publish-client";
-import { makeSamplePublishClient } from "@/price-dashboard/publish-client";
+import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
 import type { PublishPageInput } from "@/price-dashboard/publish-model";
 import {
   PublishScreen,
@@ -833,5 +833,85 @@ describe("where focus goes when a dialog closes after a press that did not focus
 
     expect(dialog()).toBeNull();
     expect(document.activeElement).toBe(publishButton(container));
+  });
+});
+
+describe("a publish refused for the book the draft would make", () => {
+  it("says what is wrong in its own words, with no retry that could never succeed, and leaves the draft", async () => {
+    const client = spiedClient(PLAIN_DRAFT, {
+      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+    });
+    const container = await mountPublish({ input: PLAIN_DRAFT, client });
+    const rowsBefore = rowsIn(container).length;
+    typeInto(nameField(container), "Ajustari");
+    click(publishButton(container));
+
+    click(byWords(requireDialog(), "button", COPY.publish.confirmAction));
+    await settle();
+
+    const notice = requireIn(container, '[data-testid="publish-notice"]');
+    expect(notice.textContent).toContain(COPY.publish.candidateRefusedTitle);
+    expect(notice.textContent).toContain(COPY.publish.candidateRefusedBody);
+    expect(notice.textContent).not.toContain(COPY.publish.failedTitle);
+    expect(notice.querySelector("button")).toBeNull();
+    expect(rowsIn(container)).toHaveLength(rowsBefore);
+  });
+
+  it("is told in Russian too", async () => {
+    const client = spiedClient(PLAIN_DRAFT, {
+      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+    });
+    const container = await mountPublish({
+      input: PLAIN_DRAFT,
+      client,
+      locale: "ru",
+    });
+    typeInto(nameField(container), "Ajustari");
+    click(publishButton(container));
+    click(requireIn(requireDialog(), "button"));
+    await settle();
+
+    expect(
+      requireIn(container, '[data-testid="publish-notice"]').textContent,
+    ).toContain(ruMessages.priceDashboard.publish.candidateRefusedTitle);
+  });
+});
+
+describe("a name with a character the rule forbids", () => {
+  it("is refused in the field by the in-memory client, as the real rule will", async () => {
+    const container = await mountPublish({ input: PLAIN_DRAFT });
+    typeInto(nameField(container), "Ajustari\u0007");
+    click(publishButton(container));
+
+    click(byWords(requireDialog(), "button", COPY.publish.confirmAction));
+    await settle();
+
+    expect(requireIn(container, '[role="alert"]').textContent).toBe(
+      COPY.publish.versionNameForbidden,
+    );
+  });
+});
+
+describe("the whole catalogue and a selection", () => {
+  it("are told differently on a row: all the cabinets, or a count of them", async () => {
+    const whole = withDraft(
+      SAMPLE_PUBLISH_PAGE.state.draft.changes.map((change) =>
+        change.bulk === undefined
+          ? change
+          : { ...change, bulk: { percent: 5, scope: "all" as const } },
+      ),
+    );
+
+    const container = await mountPublish({ input: whole });
+
+    expect(
+      requireIn(groupRow(container), '[data-testid="diff-group-name"]')
+        .textContent,
+    ).toBe(
+      roCopy("priceDashboard.publish.bulkRowName", {
+        signedPercent: "+5",
+        group: COPY.publish.bulkScopeAll,
+      }),
+    );
   });
 });

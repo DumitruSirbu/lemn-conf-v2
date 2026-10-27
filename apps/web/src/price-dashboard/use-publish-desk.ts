@@ -9,8 +9,8 @@ import type {
   PublishedWire,
   PublishTextRefusalCode,
 } from "./price-dashboard-wire-contract";
+import { defaultPublishClient } from "./default-publish-client";
 import {
-  defaultPublishClient,
   orFailed,
   type DraftWriteOutcome,
   type PublishBlock,
@@ -23,9 +23,7 @@ import {
   type PublishPageInput,
 } from "./publish-model";
 
-// The publish page's state: the draft and the active version as the screen last read them, the version's name, where the
-// publish stands, and what the last write said. A write is sent with the revision the screen displayed; a refusal as
-// `changed-meanwhile` reads the state again before saying so, and nothing is shown as published until the server said it.
+// Nothing is shown as published until the client said so; a refusal as `changed-meanwhile` reads the state again first.
 
 const WRITE_FAILED: DraftWriteOutcome = { kind: "failed" };
 const PUBLISH_FAILED: PublishOutcome = { kind: "failed" };
@@ -47,6 +45,7 @@ export type PublishNotice =
       readonly label: string;
     }
   | { readonly kind: "failed" }
+  | { readonly kind: "candidate-refused" }
   | { readonly kind: "conflict" }
   | { readonly kind: "save-failed" }
   | { readonly kind: "blocked"; readonly block: PublishBlock };
@@ -84,9 +83,7 @@ export function usePublishDesk({
   client: suppliedClient,
 }: DeskInput): PublishDesk {
   const client = useMemo(
-    () =>
-      suppliedClient ??
-      defaultPublishClient({ state: input.state, archived: new Map() }),
+    () => suppliedClient ?? defaultPublishClient({ kind: "publish", input }),
     [suppliedClient, input],
   );
   const [state, setState] = useState(input.state);
@@ -196,6 +193,9 @@ export function usePublishDesk({
           return;
         case "blocked":
           setNotice({ kind: "blocked", block: outcome.block });
+          return;
+        case "candidate-refused":
+          setNotice({ kind: "candidate-refused" });
           return;
         case "failed":
           setNotice({ kind: "failed" });

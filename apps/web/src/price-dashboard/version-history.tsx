@@ -10,10 +10,7 @@ import type { PriceVersionSummaryWire } from "./price-dashboard-wire-contract";
 import { publishPathOf, versionPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
 
-// The versions published so far, newest first (frames D8A, D7F, and D7D's "Ultimele versiuni"): the number, the name, the day,
-// how many changes it held and whether it is the active one. A row that is waiting to be published stands above them as
-// "În pregătire". Each version opens its read-only page; the history is seen by staff only, so no customer is ever shown
-// a version (ADR 0072 Amendment).
+// Customers never see a version (ADR 0072 Amendment).
 
 export interface VersionHistoryProps {
   readonly locale: AppLocale;
