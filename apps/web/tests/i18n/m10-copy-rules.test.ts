@@ -36,7 +36,10 @@ const INCLUSION_WORDS: Readonly<Record<CatalogueLocale, RegExp>> = {
   ru: /(включ|входит|входят|входящ)/iu,
 };
 
-const PERCENT_PARAMETER_BEFORE_SIGN = /\{(percent|signedPercent|max)\}\s*$/u;
+/** `#` is a plural's own number: `globalSettings.depthNotePriced` writes its percentage that way, because the same
+ *  name as selector and as a plain argument is typed `never` by the generated declaration. */
+const PERCENT_PARAMETER_BEFORE_SIGN =
+  /(?:\{(?:percent|signedPercent|max)\}|#)\s*$/u;
 
 /** The two labels whose sign names the operation ("change prices by %") and not a value; ruled by key, not by wording. */
 const LEAVES_WHOSE_SIGN_NAMES_THE_OPERATION: readonly string[] = [

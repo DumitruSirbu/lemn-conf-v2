@@ -470,7 +470,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // wave Q1 switches to it, and `depthNote` above stays until wave T2 retires it. `kitchenHandle*` is the whole-kitchen handle
     // row (frame C2); its options are `panel.handleLabels`.
     depthNotePriced:
-      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu {percent} %.}}",
+      "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu # %.}}",
     kitchenHandleHeading: "Mânere",
     kitchenHandleHint:
       "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",

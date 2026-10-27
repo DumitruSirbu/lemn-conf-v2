@@ -82,7 +82,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 34 function-valued legacy content families", () => {
+  it("covers exactly the 35 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -257,14 +257,16 @@ describe("golden-output fixture coverage", () => {
     // +2 for the carousel Select's own failure sentences, `presetChooser.selectFailed` and `.selectLimitReached`.
     // Lot 2 tests round: +1 for `designLoadError.bodyClient`, the design-load error's sentence for a signed-in client.
     // Lot 2 U15c: +1 net for `configure.backConfirm.body`, replaced by `.bodyClient` and `.bodyVisitor`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(260);
+    // M10 T3b: +1 for `priceBreakdown.depthLineScope`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(261);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
     // M8 8M2 S2: +2 for `submissionResult.whatsappMessageToShop` and `.alreadySentAdvice`.
     // M8 8M2 S3: -1 for the retired `submissionResult.whatsappMessage`.
     // +6 for `leadNotice.groupCount`'s four counts and `.preheader` with and without a locality.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(75);
+    // M10 T3b: +3 for `priceBreakdown.depthLine` and `globalSettings.depthNotePriced`'s zero and surcharge forms.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(78);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -304,7 +306,8 @@ describe("golden-output fixture coverage", () => {
     // Lot 2 tests round: +1 static fixture for `designLoadError.bodyClient`.
     // Lot 2 U15c: +1 net static fixture for `configure.backConfirm.bodyClient` and `.bodyVisitor` replacing `.body`.
     // M10 H1: +1 rejection fixture for `UNKNOWN_HANDLE`.
-    expect(GOLDEN_FIXTURES).toHaveLength(578);
+    // M10 T3b: +1 static and +3 function fixtures for the depth line and the priced depth sentence.
+    expect(GOLDEN_FIXTURES).toHaveLength(582);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

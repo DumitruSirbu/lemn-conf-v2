@@ -325,7 +325,7 @@
     "depthOption": "{cabinetDepthMm, number, ::group-off} mm",
     "depthWarning": "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
     "depthNote": "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
-    "depthNotePriced": "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu {percent} %.}}",
+    "depthNotePriced": "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu # %.}}",
     "kitchenHandleHeading": "Mânere",
     "kitchenHandleHint": "Se pune pe toate dulapurile care au mâner. Mânerul unui singur dulap îl poți schimba apoi din editorul lui.",
     "colourHeading": "Culoarea bucătăriei",
