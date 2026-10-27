@@ -337,16 +337,23 @@ function digestOf(
   {
     digester,
     bookVersionId,
-  }: { digester: DigesterOutcome; bookVersionId: string },
+  }: { digester: DigesterOutcome; bookVersionId: string | undefined },
 ): string {
   if (digester.status !== "usable")
     throw new ContactFailure("digester-unusable");
   const bookVersion =
-    request.target.kind === "design" ? bookVersionId : undefined;
+    request.target.kind === "design"
+      ? requiredVersionId(bookVersionId)
+      : undefined;
   return digester.digest({
     purpose: "contact-payload",
     fields: payloadDigestFields(request, bookVersion),
   });
+}
+
+function requiredVersionId(bookVersionId: string | undefined): string {
+  if (bookVersionId === undefined) throw new ContactFailure("no-price-book");
+  return bookVersionId;
 }
 
 function countedAddressOf(

@@ -12,6 +12,7 @@ import {
 } from "../../../support/sample-price-root";
 import roMessages from "../../../../src/messages/ro.json";
 import { readSource } from "../server-source-support";
+import { bodyOf, callbackBodyOf } from "./submit-contact-harness";
 
 /**
  * The module the route calls once for a request. Its leaf ports are the same spies the route's tests use, so what is
@@ -54,7 +55,7 @@ const A_VIEW = {
   document: "{}",
 };
 
-const { makeContactProductionPorts } = await import(
+const { admitContactRequest, makeContactProductionPorts } = await import(
   "@/lib/server/contact/contact-production-ports"
 );
 
@@ -93,7 +94,7 @@ describe("the contact's production ports, made for one request", () => {
     spies.readActivePriceBook.mockResolvedValue(NO_PRICE_BOOK);
 
     await expect(makeContactProductionPorts(new Headers())).rejects.toThrow(
-      "unexpected",
+      "no-price-book",
     );
   });
 
@@ -208,5 +209,94 @@ describe("the contact's production ports, made for one request", () => {
     expect(source).not.toMatch(
       /^const\s+\w+\s*(?::[^=]+)?=\s*(?:get|make|read|create|shipped)/m,
     );
+  });
+});
+
+describe("admitting a request before any price is read (ADR 0157 decision 1)", () => {
+  const everyRequest = vi.fn();
+  const triesOfStoredRequest = vi.fn();
+
+  beforeEach(() => {
+    everyRequest.mockReset().mockResolvedValue(undefined);
+    triesOfStoredRequest.mockReset().mockResolvedValue(undefined);
+    spies.makeContactJudge.mockReturnValue({
+      everyRequest,
+      triesOfStoredRequest,
+    });
+  });
+
+  it("answers a request the every-request bucket refuses with that answer, and reads no price", async () => {
+    const refusal = new Response("limited", { status: 429 });
+    everyRequest.mockResolvedValue(refusal);
+
+    const admitted = await admitContactRequest(new Headers(), bodyOf());
+
+    expect(admitted).toEqual({ kind: "limited", answer: refusal });
+    expect(spies.readActivePriceBook).not.toHaveBeenCalled();
+  });
+
+  it("reads the price once for a request that names a design, and hands it with its version id", async () => {
+    const admitted = await admitContactRequest(new Headers(), bodyOf());
+
+    expect(spies.readActivePriceBook).toHaveBeenCalledTimes(1);
+    expect(admitted.kind === "ports" && admitted.ports.bookVersionId).toBe(
+      SAMPLE_PRICE_VERSION_ID,
+    );
+    expect(admitted.kind === "ports" && admitted.ports.book).toEqual(
+      SAMPLE_PRICE_BOOK,
+    );
+  });
+
+  it("reads no price for the callback form, which prices nothing and is handed no book", async () => {
+    spies.readActivePriceBook.mockResolvedValue(NO_PRICE_BOOK);
+
+    const admitted = await admitContactRequest(new Headers(), callbackBodyOf());
+
+    expect(spies.readActivePriceBook).not.toHaveBeenCalled();
+    expect(admitted.kind).toBe("ports");
+    expect(admitted.kind === "ports" && admitted.ports.book).toBeUndefined();
+    expect(
+      admitted.kind === "ports" && admitted.ports.bookVersionId,
+    ).toBeUndefined();
+  });
+
+  it("reads no price for a text the orchestration will refuse", async () => {
+    await admitContactRequest(new Headers(), "{}");
+    await admitContactRequest(new Headers(), "not json");
+
+    expect(spies.readActivePriceBook).not.toHaveBeenCalled();
+  });
+
+  it("is the unavailable failure for a design's request while no version is active", async () => {
+    spies.readActivePriceBook.mockResolvedValue(NO_PRICE_BOOK);
+
+    await expect(
+      admitContactRequest(new Headers(), bodyOf()),
+    ).rejects.toMatchObject({
+      name: "ContactFailure",
+      unavailableCause: "no-price-book",
+    });
+  });
+
+  it("asks the judge of the clock the ports hand out, once, and hands the orchestration a judge that does not ask it again", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-15T12:20:00Z"));
+    try {
+      const admitted = await admitContactRequest(new Headers(), bodyOf());
+
+      expect(spies.makeContactJudge).toHaveBeenCalledWith(
+        expect.objectContaining({ instant: new Date("2026-07-15T12:20:00Z") }),
+      );
+      const judge =
+        admitted.kind === "ports"
+          ? admitted.ports.makeJudge(new Date(0))
+          : undefined;
+      expect(await judge?.everyRequest()).toBeUndefined();
+      await judge?.triesOfStoredRequest("req_x");
+      expect(everyRequest).toHaveBeenCalledTimes(1);
+      expect(triesOfStoredRequest).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

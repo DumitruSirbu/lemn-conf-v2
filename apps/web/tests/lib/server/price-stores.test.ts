@@ -53,6 +53,30 @@ describe("selecting the price stores from the environment", () => {
       "a production build with a padded flag",
       { NODE_ENV: "production", [FAKE_PRICE_BOOK_FLAG]: " 1" },
     ],
+    [
+      "the e2e flag beside a deployment's VERCEL_ENV, whatever it holds",
+      {
+        NODE_ENV: "production",
+        [FAKE_PRICE_BOOK_FLAG]: FAKE_PRICE_BOOK_FLAG_ENABLED,
+        VERCEL_ENV: "preview",
+      },
+    ],
+    [
+      "the e2e flag beside CLIENT_NETWORK_SOURCE, whatever it holds",
+      {
+        NODE_ENV: "production",
+        [FAKE_PRICE_BOOK_FLAG]: FAKE_PRICE_BOOK_FLAG_ENABLED,
+        CLIENT_NETWORK_SOURCE: "",
+      },
+    ],
+    [
+      "a development mode beside VERCEL_ENV",
+      { NODE_ENV: "development", VERCEL_ENV: "production" },
+    ],
+    [
+      "a test mode beside CLIENT_NETWORK_SOURCE",
+      { NODE_ENV: "test", CLIENT_NETWORK_SOURCE: "vercel" },
+    ],
   ])("selects the real stores for %s", (_, environment) => {
     expect(selectPriceStores(environment)).toBe("production");
   });

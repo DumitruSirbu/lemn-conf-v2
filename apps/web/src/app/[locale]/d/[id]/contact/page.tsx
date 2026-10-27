@@ -1,13 +1,12 @@
 import { DesignLoadError } from "@/app/d/[id]/design-load-error";
 import { HydrateAndContact } from "@/app/d/[id]/contact/hydrate-and-contact";
-import { readActivePriceBook } from "@/lib/server/active-price-book";
-import { PriceBookProvider } from "@/price/price-book-provider";
 import { isContactSendable } from "@/lib/server/contact/contact-availability";
 import {
   CONTACT_PAGE_READ_DEADLINE_MS,
   readSentReference,
 } from "@/lib/server/contact/sent-reference";
 import { loadOwnedDesign } from "@/lib/server/load-owned-design";
+import { withActivePriceBook } from "@/lib/server/with-active-price-book";
 
 /** The contact page of a stored design, opened only in the browser that owns it: every refusal is `loadOwnedDesign`'s
  *  (ADR 0114 decision 5), and a refused request reads nothing of the contact store. Rendered per request (the owned
@@ -25,16 +24,13 @@ export default async function ContactPage({
     { designId: id, revision: load.revision },
     { deadlineMs: CONTACT_PAGE_READ_DEADLINE_MS },
   );
-  const priceBook = await readActivePriceBook();
-  return (
-    <PriceBookProvider root={priceBook}>
-      <HydrateAndContact
-        design={load.design}
-        designId={id}
-        revision={load.revision}
-        isSendable={isContactSendable(process.env)}
-        sentReference={sentReference}
-      />
-    </PriceBookProvider>
+  return withActivePriceBook(
+    <HydrateAndContact
+      design={load.design}
+      designId={id}
+      revision={load.revision}
+      isSendable={isContactSendable(process.env)}
+      sentReference={sentReference}
+    />,
   );
 }

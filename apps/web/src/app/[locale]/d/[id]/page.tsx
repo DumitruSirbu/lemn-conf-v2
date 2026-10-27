@@ -1,8 +1,7 @@
 import { DesignLoadError } from "@/app/d/[id]/design-load-error";
 import { HydrateAndConfigure } from "@/app/d/[id]/hydrate-and-configure";
-import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { loadOwnedDesign } from "@/lib/server/load-owned-design";
-import { PriceBookProvider } from "@/price/price-book-provider";
+import { withActivePriceBook } from "@/lib/server/with-active-price-book";
 
 /**
  * The load-by-link route, gated to the owning browser alone (ADR 0114 decision 5, Amendment H2). Every refusal comes
@@ -21,14 +20,11 @@ export default async function DesignPage({
   const { id } = await params;
   const load = await loadOwnedDesign(id);
   if (load.kind === "refused") return <DesignLoadError reason={load.reason} />;
-  const priceBook = await readActivePriceBook();
-  return (
-    <PriceBookProvider root={priceBook}>
-      <HydrateAndConfigure
-        design={load.design}
-        designId={id}
-        revision={load.revision}
-      />
-    </PriceBookProvider>
+  return withActivePriceBook(
+    <HydrateAndConfigure
+      design={load.design}
+      designId={id}
+      revision={load.revision}
+    />,
   );
 }

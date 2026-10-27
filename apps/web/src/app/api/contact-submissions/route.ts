@@ -46,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     CONTACT_BODY_MAX_BYTES,
   );
   if (!body.ok) return refusalOfUnreadableBody(body.failure);
-  const made = await madeProductionPorts(request);
+  const made = await madeProductionPorts(request, body.value);
   if (made.kind === "answer") return made.answer;
   return submitContact(
     { text: body.value, visitorHash: readVisitorHash(request.cookies) },
@@ -81,9 +81,12 @@ function refusalOfUnreadableBody(failure: BoundedBodyFailure): NextResponse {
 
 /** Nothing is held at module level. A request the every-request bucket refuses is that answer, before the price store is
  *  read; one that cannot be given its ports is answered as unavailable; and no later request inherits what failed. */
-async function madeProductionPorts(request: NextRequest): Promise<MadePorts> {
+async function madeProductionPorts(
+  request: NextRequest,
+  text: string,
+): Promise<MadePorts> {
   try {
-    const admitted = await admitContactRequest(request.headers);
+    const admitted = await admitContactRequest(request.headers, text);
     return admitted.kind === "limited"
       ? { kind: "answer", answer: admitted.answer }
       : admitted;

@@ -1,4 +1,4 @@
-// The composition root for pricing in this application. It names no price book (ADR 0062 seam 1, M10 wave R1):
+// The composition root for pricing in this application. It names no price book (ADR 0062 seam 1):
 // the book arrives as a value, read and parsed once per request on the server (`lib/server/active-price-book.ts`) and
 // handed to the browser as a server prop (`price-book-provider.tsx`), so a manufacturer-published book is a substitution
 // at that one server read and no client module can name a different one. Every function here takes the root as its first

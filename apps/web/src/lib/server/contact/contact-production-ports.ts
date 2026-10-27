@@ -7,6 +7,8 @@ import type {
 import { createTranslator, type IntlError } from "next-intl";
 import type { NextResponse } from "next/server";
 
+import type { PriceBook } from "@lemnaria/configurator-domain";
+
 import { resolveContent, type Content } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import roMessages from "@/messages/ro.json";
@@ -17,6 +19,7 @@ import {
   makeContactJudge,
   type ContactJudge,
 } from "@/lib/server/contact/judge-contact-request";
+import { parseContactRequest } from "@/lib/server/contact/parse-contact-request";
 import { getSentMarkStore } from "@/lib/server/contact/sent-mark-store-instance";
 import type { SubmitContactPorts } from "@/lib/server/contact/submit-contact";
 import { readDigester } from "@/lib/server/digest/digest-secret";
@@ -28,23 +31,41 @@ import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { getSentKitchenViewRepository } from "@/lib/server/repository";
 
 /**
- * The contact request's production ports, made for one request and held nowhere: the route calls this once, inside its
- * guard, and nothing here is kept at module level, so a request that cannot be given its ports leaves nothing for the
- * next to inherit. The book is the one book of the request, the active version read once (`readActivePriceBook`): its
- * version id is what the digest covers and its prices are what the snapshot is priced under. With no active version
- * there is nothing to price under, and the request is the one unavailable answer (A-10), never a sample book.
+ * The contact request's production ports, made for one request and held nowhere: nothing here is kept at module level, so
+ * a request that cannot be given its ports leaves nothing for the next to inherit. These ports price: the book is the one
+ * book of the request, the active version read once (`readActivePriceBook`), whose id is what the digest covers and whose
+ * prices are what the snapshot is priced under. With no active version there is nothing to price under, and the request
+ * is the one unavailable answer (A-10), never a sample book.
  */
 export async function makeContactProductionPorts(
   headers: HeaderReader,
-): Promise<SubmitContactPorts> {
+): Promise<PricedContactPorts> {
+  const ports = makeContactPortsWithoutBook(headers);
   const priceBook = await readActivePriceBook();
-  if (priceBook.kind === "none") throw new ContactFailure("unexpected");
+  if (priceBook.kind === "none") throw new ContactFailure("no-price-book");
+  return {
+    ...ports,
+    book: priceBook.book,
+    bookVersionId: priceBook.versionId,
+  };
+}
+
+/** The ports of a request that names a design: the book of the request is in them. */
+export type PricedContactPorts = SubmitContactPorts & {
+  readonly book: PriceBook;
+  readonly bookVersionId: string;
+};
+
+/** Everything but the book: for a request that prices nothing, and for the judgement that comes before any price is read. */
+function makeContactPortsWithoutBook(
+  headers: HeaderReader,
+): SubmitContactPorts {
   return {
     store: getContactSubmissionStore(),
     sentMarks: sentMarksOnFirstUse(),
     createSender: () => createMailSender(process.env),
-    book: priceBook.book,
-    bookVersionId: priceBook.versionId,
+    book: undefined,
+    bookVersionId: undefined,
     digester: readDigester(process.env),
     noticeContent: noticeContent(),
     servedLocales: routing.locales,
@@ -65,25 +86,33 @@ export type AdmittedContactRequest =
 /**
  * ADR 0157 decision 1: every request is judged first. The every-request bucket is asked before the price store is read,
  * so a request the limiter refuses costs the store nothing and is answered as the limiter's, whatever state the store is
- * in. The ports are made only for an admitted request, and the judge they hand the orchestration is the one already
- * asked: its every-request judgement is not asked (and counted) a second time, while its other two are.
+ * in. The judge the orchestration is handed is the one already asked: its every-request judgement is not asked (and
+ * counted) a second time, while its other two are.
+ *
+ * A book is read only for a request that names a design. The callback form prices nothing and works with no book; a text
+ * that does not parse is refused by the orchestration, which needs none.
  */
 export async function admitContactRequest(
   headers: HeaderReader,
+  text: string,
 ): Promise<AdmittedContactRequest> {
-  const judge = makeContactJudge({
-    environment: process.env,
-    headers,
-    instant: new Date(),
-  });
+  const ports = makeContactPortsWithoutBook(headers);
+  const judge = ports.makeJudge(ports.now());
   const limited = await judge.everyRequest();
   if (limited !== undefined) return { kind: "limited", answer: limited };
-  const ports = await makeContactProductionPorts(headers);
   const admitted: ContactJudge = {
     ...judge,
     everyRequest: () => Promise.resolve(undefined),
   };
-  return { kind: "ports", ports: { ...ports, makeJudge: () => admitted } };
+  const admittedPorts = { ...ports, makeJudge: () => admitted };
+  if (!namesADesign(text)) return { kind: "ports", ports: admittedPorts };
+  const { book, bookVersionId } = await makeContactProductionPorts(headers);
+  return { kind: "ports", ports: { ...admittedPorts, book, bookVersionId } };
+}
+
+function namesADesign(text: string): boolean {
+  const parsed = parseContactRequest(text, routing.locales);
+  return parsed.kind === "request" && parsed.request.target.kind === "design";
 }
 
 /**

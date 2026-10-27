@@ -11,6 +11,8 @@ import { FakeSentKitchenViewRepository } from "@lemnaria/persistence";
 import { isValidElement, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
+
 import { withoutPriceBook } from "../support/price-book-wrapper";
 
 const loadShared = vi.hoisted(() => vi.fn());
@@ -141,6 +143,38 @@ describe("the share view's page component (M7 wave 7E3c D6)", () => {
     // `key` never reaches `props` — React strips it — so this also proves the token itself is not
     // handed to the component as ordinary data.
     expect(page.props).toEqual({ design: KITCHEN_L_DESIGN });
+  });
+
+  it("logs a defect of the price book under the price book's own cause and never as share-read, then rethrows", async () => {
+    loadShared.mockResolvedValue({ kind: "found", design: KITCHEN_L_DESIGN });
+    const written = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    Reflect.set(
+      globalThis,
+      PRICE_STORES_GLOBAL_KEY,
+      Promise.resolve({
+        priceBook: {
+          readActive: () => Promise.reject(new TypeError("a defect")),
+        },
+        availability: {},
+      }),
+    );
+    try {
+      await expect(
+        SharedDesignPage({
+          params: Promise.resolve({ token: WELL_FORMED_TOKEN }),
+        }),
+      ).rejects.toThrow("a defect");
+    } finally {
+      Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
+    }
+
+    expect(reportDesignFailure).not.toHaveBeenCalled();
+    expect(written.mock.calls.map((call) => call[1] as unknown)).toEqual([
+      { event: "no-price-book", cause: "unexpected" },
+    ]);
+    written.mockRestore();
   });
 
   it('renders reason="invalid" for a stored document that fails migration, without logging it', async () => {

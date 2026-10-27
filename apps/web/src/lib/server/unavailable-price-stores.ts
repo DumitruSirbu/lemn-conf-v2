@@ -7,7 +7,7 @@ import {
   type PriceBookStore,
 } from "@lemnaria/persistence";
 
-// The stores of production until the Neon stores exist (M10 lanes S2 and S2b). Every call is the store's own refusal,
+// The stores of production while it has no database-backed price stores. Every call is the store's own refusal,
 // "unavailable": a table is missing. A reader acts on it exactly as it would on a database that cannot answer, so no
 // price surface prices from anything and the contact route answers its one unavailable answer (A-10).
 

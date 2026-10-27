@@ -11,20 +11,15 @@ import {
   FakeSessionStore,
   generateAccountId,
   type ActivePriceVersion,
-  type CatalogueAvailabilityStore,
   type PriceBookStore,
 } from "@lemnaria/persistence";
 
+import type { PriceStores } from "@/lib/server/price-stores";
+
 // The test-only seeding helper (A-10, ADR 0151): the one module in this application that names `SAMPLE_PRICE_BOOK`. Dev,
 // test and e2e runs read their book from fake stores seeded here, as a published version 1, through the same port
-// production reads (`PriceBookStore`); nothing in a request path reaches the sample except by the store. Nothing here
-// runs in production: `price-stores.ts` selects it only for `NODE_ENV` development or test, or the e2e flag.
-
-/** The stores a price reader needs, whichever environment made them. */
-export interface PriceStores {
-  readonly priceBook: PriceBookStore;
-  readonly availability: CatalogueAvailabilityStore;
-}
+// production reads (`PriceBookStore`). `price-stores.ts` loads this module only for `NODE_ENV` development or test, or the
+// e2e flag, so a production build never reaches the sample.
 
 const SEEDING_PUBLISHER_PASSWORD_HASH = `$argon2id$v=19$m=19456,t=2,p=1$${"A".repeat(22)}$${"B".repeat(43)}`;
 const SESSION_IDLE_LIFETIMES_SECONDS = {
@@ -98,10 +93,10 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
 }
 
 /**
- * The architect's rule for every stored version: `book.version === versionId`, so the id a request digests, the version
- * the pricing is asked for and the version a stored submission records are one identity. A store mints the id when it
- * publishes, after the book is fixed, so the fake world stamps it on the way out; the real store and the publish route
- * must stamp it on the way in. Reads only: nothing the fake holds is changed.
+ * Every stored version's book states its own `version` as its version's id, so the id a request digests, the version
+ * pricing is asked for and the version a stored submission records are one identity (`readActivePriceBook` refuses a book
+ * that does not). The fake store mints the id when it publishes, after the book is fixed, so this world stamps it on the
+ * way out. A store that stamps on the way in makes this redundant. Reads only: nothing the fake holds is changed.
  */
 function stampedWithItsVersionId(store: FakePriceBookStore): PriceBookStore {
   return {

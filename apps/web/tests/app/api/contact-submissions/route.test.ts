@@ -10,6 +10,7 @@ import type {
 } from "@/lib/server/contact/submit-contact";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
+import { bodyOf } from "../../../lib/server/contact/submit-contact-harness";
 import {
   readSource,
   sourceFilesMatching,
@@ -414,8 +415,8 @@ describe("the production ports, each made inside the request", () => {
     );
   });
 
-  it("reads one book for a request, the active version's, parses it once and hands over the book it parsed with its version id", async () => {
-    await POST(contactRequest("{}"));
+  it("reads one book for a request that names a design, the active version's, parses it once and hands over the book it parsed with its version id", async () => {
+    await POST(contactRequest(bodyOf()));
 
     expect(spies.parsePriceBook).toHaveBeenCalledTimes(1);
     expect(spies.parsePriceBook).toHaveBeenCalledWith({
@@ -425,14 +426,14 @@ describe("the production ports, each made inside the request", () => {
     const parsed = spies.parsePriceBook.mock.results[0]?.value as {
       readonly book: unknown;
     };
-    expect(handedPorts().book).toBe(parsed.book);
-    expect(handedPorts().book.version).toBe(handedPorts().bookVersionId);
+    expect(handedPorts().book).toEqual(parsed.book);
+    expect(handedPorts().book?.version).toBe(handedPorts().bookVersionId);
     expect(handedPorts().bookVersionId).toEqual(expect.any(String));
   });
 
   it("makes another book and other ports for the next request, and holds none at module level", async () => {
-    await POST(contactRequest("{}"));
-    await POST(contactRequest("{}"));
+    await POST(contactRequest(bodyOf()));
+    await POST(contactRequest(bodyOf()));
 
     expect(spies.parsePriceBook).toHaveBeenCalledTimes(2);
     const [first, second] = spies.submitContact.mock.calls.map(
@@ -494,11 +495,13 @@ describe("a request that cannot be given its ports", () => {
       failure: { detail: FAILURE_MARKER },
     });
 
-    const answer = await POST(contactRequest("{}"));
+    const answer = await POST(contactRequest(bodyOf()));
 
     expect(answer.status).toBe(503);
     expect(await codeOf(answer)).toBe("CONTACT_UNAVAILABLE");
-    expect(spies.reportContactUnavailable).toHaveBeenCalledWith("unexpected");
+    expect(spies.reportContactUnavailable).toHaveBeenCalledWith(
+      "no-price-book",
+    );
     expect(JSON.stringify(await answer.clone().text())).not.toContain(
       FAILURE_MARKER,
     );

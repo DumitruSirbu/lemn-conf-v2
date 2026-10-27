@@ -1,10 +1,14 @@
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
-import { FakeContactSubmissionStore } from "@lemnaria/persistence";
+import {
+  FakeContactSubmissionStore,
+  NO_ACTIVE_VERSION,
+} from "@lemnaria/persistence";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
+import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
 import {
@@ -172,5 +176,39 @@ describe("what the route lets be counted, and when", () => {
 
     expect(statuses).toEqual([200, 200, 429]);
     expect(store.heldSubmissions()).toHaveLength(2);
+  });
+});
+
+describe("a request through the route while no price version is active (A-10)", () => {
+  beforeEach(() => {
+    Reflect.set(
+      globalThis,
+      PRICE_STORES_GLOBAL_KEY,
+      Promise.resolve({
+        priceBook: { readActive: () => Promise.resolve(NO_ACTIVE_VERSION) },
+        availability: { readCurrent: vi.fn() },
+      }),
+    );
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, PRICE_STORES_GLOBAL_KEY);
+  });
+
+  it("stores a callback and sends its notice: the form prices nothing and needs no book", async () => {
+    const answer = await post(callbackBodyOf());
+
+    expect(answer.status).toBe(200);
+    expect(store.heldSubmissions()).toHaveLength(1);
+    expect(sender.sent).toHaveLength(1);
+  });
+
+  it("refuses a design's request as the one unavailable answer, storing and sending nothing", async () => {
+    const answer = await post(bodyOf());
+
+    expect(answer.status).toBe(503);
+    expect((await jsonOf(answer)).code).toBe("CONTACT_UNAVAILABLE");
+    expect(store.heldSubmissions()).toHaveLength(0);
+    expect(sender.sent).toHaveLength(0);
   });
 });

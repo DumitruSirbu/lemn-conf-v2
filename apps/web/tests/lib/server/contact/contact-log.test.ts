@@ -162,7 +162,7 @@ describe("unavailable: each time, with a cause from a closed list", () => {
     );
   });
 
-  it("is the limiter's seven and five more of its own", async () => {
+  it("is the limiter's seven and six more of its own", async () => {
     const { CONTACT_UNAVAILABLE_CAUSES } = await freshLog();
 
     expect([...CONTACT_UNAVAILABLE_CAUSES]).toEqual([
@@ -171,6 +171,7 @@ describe("unavailable: each time, with a cause from a closed list", () => {
       "submission-store-failed",
       "notice-unbuildable",
       "price-book-mismatch",
+      "no-price-book",
       "unexpected",
     ]);
   });

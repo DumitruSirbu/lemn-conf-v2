@@ -49,6 +49,15 @@ describe("the sample book is named by the seeding helper alone", () => {
     );
   });
 
+  it("is loaded by the store selection on the branch that seeds, never by a static import", () => {
+    const source = withoutComments(readSource("lib/server/price-stores.ts"));
+
+    expect(source).not.toMatch(/^import[^;]*price-book-test-seed/m);
+    expect(source).toMatch(
+      /await import\(\s*"@\/lib\/server\/price-book-test-seed"/,
+    );
+  });
+
   it("is reached only through the store selection, which is the only importer of the helper", () => {
     expect(filesNamingInCode(/price-book-test-seed/)).toEqual([
       "lib/server/price-stores.ts",
