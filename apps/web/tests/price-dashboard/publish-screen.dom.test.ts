@@ -915,3 +915,118 @@ describe("the whole catalogue and a selection", () => {
     );
   });
 });
+
+describe("where focus goes when a row is taken back", () => {
+  const SINGLE_ROWS = withDraft([
+    { address: { kind: "depth-rule" }, value: 18 },
+    {
+      address: {
+        kind: "accessory",
+        accessoryId: "dishDryingRack",
+        field: "perUnitMinor",
+      },
+      value: 65_000,
+    },
+    { address: { kind: "provisional" }, value: false },
+  ]);
+
+  const reverts = (container: HTMLElement): HTMLElement[] =>
+    allIn(container, '[data-testid="diff-revert"]');
+
+  async function revertAt(
+    container: HTMLElement,
+    index: number,
+  ): Promise<void> {
+    const button = reverts(container)[index];
+    if (button === undefined) throw new Error(`no arrow at ${String(index)}`);
+    button.focus();
+    click(button);
+    await settle();
+  }
+
+  it("moves to the arrow of the row that now stands where the row was", async () => {
+    const container = await mountPublish({ input: SINGLE_ROWS });
+    const [, second] = reverts(container);
+
+    await revertAt(container, 0);
+
+    expect(reverts(container)).toHaveLength(2);
+    expect(document.activeElement).toBe(second);
+    expect(document.activeElement).toBe(reverts(container)[0]);
+  });
+
+  it("moves to the previous row's arrow when the last row was taken back", async () => {
+    const container = await mountPublish({ input: SINGLE_ROWS });
+
+    await revertAt(container, 2);
+
+    expect(reverts(container)).toHaveLength(2);
+    expect(document.activeElement).toBe(reverts(container)[1]);
+  });
+
+  it("moves to the empty page's title when no row is left", async () => {
+    const container = await mountPublish({
+      input: withDraft(SINGLE_ROWS.state.draft.changes.slice(0, 1)),
+    });
+
+    await revertAt(container, 0);
+
+    const title = requireIn(container, '[data-testid="publish-empty"] p');
+    expect(title.textContent).toBe(COPY.publish.emptyTitle);
+    expect(document.activeElement).toBe(title);
+  });
+
+  it("leaves focus alone when the revert did not happen", async () => {
+    const client = spiedClient(SINGLE_ROWS, {
+      revert: () => Promise.resolve({ kind: "failed" }),
+    });
+    const container = await mountPublish({ input: SINGLE_ROWS, client });
+    const first = reverts(container)[0];
+
+    await revertAt(container, 0);
+
+    expect(reverts(container)).toHaveLength(3);
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("does not take focus from where the person has gone meanwhile", async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const base = spiedClient(SINGLE_ROWS);
+    const client = spiedClient(SINGLE_ROWS, {
+      revert: async (request) => {
+        await held;
+        return base.revert(request);
+      },
+    });
+    const container = await mountPublish({ input: SINGLE_ROWS, client });
+    const button = reverts(container)[0];
+    button?.focus();
+    if (button !== undefined) click(button);
+    nameField(container).focus();
+
+    release();
+    await settle();
+
+    expect(reverts(container)).toHaveLength(2);
+    expect(document.activeElement).toBe(nameField(container));
+  });
+});
+
+describe("a row with no difference", () => {
+  it("keeps its place in the table with a dash that is drawn and not read, and says in words that there is none", async () => {
+    const container = await mountPublish({ input: RESTATED_ONLY });
+
+    const row = requireIn(container, '[data-testid="diff-row"]');
+    const difference = allIn(row, '[data-empty="true"]').find((cell) =>
+      cell.textContent.includes(COPY.publish.columnDifference),
+    );
+    expect(difference?.dataset.empty).toBe("true");
+    expect(
+      requireIn(difference ?? container, '[class*="cellValue"]').textContent,
+    ).toBe("");
+    expect(difference?.textContent).toContain(COPY.publish.noDifference);
+  });
+});

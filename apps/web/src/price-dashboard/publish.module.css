@@ -7,8 +7,8 @@
   --warm-row: #fbf5ea;
   --warm-edge: #e6cfa8;
   --warm-ink: #5a3e25;
-  --diff-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr)
-    var(--touch-target);
+  --diff-columns: minmax(0, 1.5fr) minmax(0, 1.15fr) minmax(0, 1.15fr)
+    minmax(0, 1fr) var(--touch-target);
 
   display: flex;
   flex: 1;
@@ -252,7 +252,24 @@
   font-weight: 700;
   color: var(--ink);
   text-align: end;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+
+/* An empty cell keeps its place in the table with a dash, drawn here and read by nobody. */
+.cell[data-empty="true"] .cellValue::before {
+  content: "\2014" / "";
+}
+
+/* Read by a screen reader and seen by nobody. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
 }
 
 .revert {

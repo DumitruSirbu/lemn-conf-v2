@@ -2211,6 +2211,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       candidateRefusedTitle: "Prețurile pregătite nu pot fi publicate",
       candidateRefusedBody:
         "Lista de prețuri care ar rezulta nu trece verificarea catalogului, de exemplu pentru că un preț ar ieși zero sau negativ. Nimic nu s-a publicat. Corectează sau anulează (↺) o modificare din listă și încearcă din nou.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's visual-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      noDifference: "fără diferență",
     },
     history: {
       subtitle:
@@ -2230,11 +2233,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       columnInVersion: "În {versionId}",
       restoreHeading: "Revii la aceste prețuri?",
       restoreBody:
-        "„Restaurează” compară prețurile din {versionId} cu cele active și adaugă diferențele la „De publicat”, lângă ce ai pregătit deja. Nimic nu se schimbă pentru clienți până nu publici.",
+        "„Restaurează” pune în „De publicat” prețurile din {versionId}. Ele înlocuiesc ce ai pregătit pentru aceleași prețuri; restul modificărilor tale rămân. Nimic nu se schimbă pentru clienți până nu publici.",
       restoreAction: "Restaurează prețurile din {versionId}",
       restoreTitle: "Restaurezi prețurile din {versionId}?",
       restoreDialogBody:
-        "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active. Diferențele se adaugă la „De publicat”. Le verifici și le publici ca de obicei.",
+        "{count, plural, one {Un preț diferă} few {{count, number, ::group-off} prețuri diferă} other {{count, number, ::group-off} de prețuri diferă}} de cele active și de cele pregătite. Ele se pun la „De publicat” și înlocuiesc ce ai pregătit pentru aceleași prețuri; restul modificărilor tale rămân. Nimic nu se publică până nu publici.",
       // Drafted, not approved: the Romanian is the agent's draft of wave U5's new copy, pending the owner's approval as
       // drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, and is never pinned here.
       restoring: "Se adaugă…",
@@ -2248,6 +2251,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
       versionNotFound:
         "Versiunea nu mai există sau nu poate fi citită. Nimic nu s-a adăugat la „De publicat”.",
+      // Drafted, not approved: the Romanian is the agent's draft of wave U5's visual-round copy, pending the owner's
+      // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      restoreReplaces:
+        "Prețuri pregătite de tine care se înlocuiesc: {count, number, ::group-off}.",
     },
     defaults: {
       title: "Setări implicite",

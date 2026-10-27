@@ -139,6 +139,8 @@ export function ProvisionalOffDialog({
 export interface RestoreDialogProps extends FocusFallback {
   readonly versionNumber: number;
   readonly differingCount: number;
+  /** How many pending changes the restore replaces; none, and the sentence is left out. */
+  readonly replacedCount: number;
   readonly isBusy: boolean;
   readonly failure: "save-failed" | "conflict" | "not-found" | undefined;
   readonly onConfirm: () => void;
@@ -149,6 +151,7 @@ export interface RestoreDialogProps extends FocusFallback {
 export function RestoreDialog({
   versionNumber,
   differingCount,
+  replacedCount,
   isBusy,
   failure,
   onConfirm,
@@ -179,6 +182,13 @@ export function RestoreDialog({
           onPress: onCancel,
         }}
       >
+        {replacedCount === 0 ? null : (
+          <FormNotice tone="info">
+            {translate("priceDashboard.history.restoreReplaces", {
+              count: replacedCount,
+            })}
+          </FormNotice>
+        )}
         {failure === undefined ? null : (
           <FormNotice tone="error">
             {restoreFailureWords(translate, failure)}

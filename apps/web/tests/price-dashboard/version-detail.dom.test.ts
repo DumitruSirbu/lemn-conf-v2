@@ -3,7 +3,10 @@
 // One published version, read-only (frames D8B, D8C): what it changed against the version before it, and the restore that puts
 // its prices into "De publicat". A restore adds to the pending list and never publishes, so the active version and the
 // clients' prices are where they were.
-import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
+import {
+  SAMPLE_PRICE_BOOK,
+  type DraftChange,
+} from "@lemnaria/configurator-domain";
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -415,5 +418,53 @@ describe("a restore of a version the store no longer holds", () => {
     expect(
       container.querySelector('[data-testid="restore-notice"]'),
     ).toBeNull();
+  });
+});
+
+describe("what a restore says it does with what is already pending", () => {
+  const PENDING_ON_A_STATED_FIELD: DraftChange = {
+    address: {
+      kind: "cabinet",
+      ruleId: "cabinet.base-cabinet",
+      field: "anchorMinor",
+    },
+    value: 999_000,
+  };
+
+  it("says on the page that the archived prices replace pending ones on the same prices and that the rest stay", async () => {
+    const container = await mountDetail(thirdVersionWithNothingPending());
+
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.history.restoreBody", { versionId: "3" }),
+    );
+    /* eslint-disable no-restricted-syntax -- a claim about the wording: the page says "replace" and no longer says "added beside". */
+    expect(COPY.history.restoreBody).toContain("înlocuiesc");
+    expect(COPY.history.restoreBody).not.toContain("lângă ce ai pregătit");
+    /* eslint-enable no-restricted-syntax */
+  });
+
+  it("counts, in the dialog, the pending prices it will replace", async () => {
+    const input: VersionDetailInput = {
+      ...thirdVersionWithNothingPending(),
+      draft: { draftRevision: "1", changes: [PENDING_ON_A_STATED_FIELD] },
+    };
+    const container = await mountDetail(input);
+
+    click(restoreButton(container));
+
+    expect(requireDialog().textContent).toContain(
+      roCopy("priceDashboard.history.restoreReplaces", { count: 1 }),
+    );
+  });
+
+  it("leaves the sentence out when nothing pending is replaced", async () => {
+    const container = await mountDetail(thirdVersionWithNothingPending());
+
+    click(restoreButton(container));
+
+    expect(requireDialog().textContent).not.toContain(
+      roCopy("priceDashboard.history.restoreReplaces", { count: 0 }),
+    );
+    expect(requireDialog().querySelector('[role="status"]')).toBeNull();
   });
 });

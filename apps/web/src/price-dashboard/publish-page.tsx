@@ -21,6 +21,7 @@ import {
 import { historyPathOf, publishPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
 import { DiffSections, useRowWords } from "./publish-rows";
+import { useFocusAfterRevert } from "./use-focus-after-revert";
 import {
   usePublishDesk,
   type PublishDesk,
@@ -52,13 +53,23 @@ export function PublishScreen({
 }: PublishScreenProps) {
   const desk = usePublishDesk({ input, initialView, client });
   const publishButtonRef = useRef<HTMLButtonElement>(null);
+  const pageRef = useRef<HTMLElement>(null);
+  const { rememberRevertPosition, emptyHeadingRef } = useFocusAfterRevert(
+    pageRef,
+    desk.state.draft,
+  );
   const shell = {
     ...context,
     pendingPriceCount: desk.state.draft.changes.length,
   };
   return (
     <StaffShell locale={locale} page="publish" context={shell}>
-      <section className={styles.page} data-testid="publish-page">
+      <section
+        ref={pageRef}
+        className={styles.page}
+        data-testid="publish-page"
+        onClickCapture={rememberRevertPosition}
+      >
         <PublishHeading locale={locale} desk={desk} />
         <PublishNoticeBanner desk={desk} />
         {desk.view === "history" ? (
@@ -72,6 +83,7 @@ export function PublishScreen({
             locale={locale}
             desk={desk}
             publishButtonRef={publishButtonRef}
+            emptyHeadingRef={emptyHeadingRef}
           />
         )}
         <PublishDialogs desk={desk} returnFocusFallbackRef={publishButtonRef} />
@@ -151,16 +163,24 @@ function PendingPrices({
   locale,
   desk,
   publishButtonRef,
+  emptyHeadingRef,
 }: {
   readonly locale: AppLocale;
   readonly desk: PublishDesk;
   readonly publishButtonRef: RefObject<HTMLButtonElement | null>;
+  readonly emptyHeadingRef: RefObject<HTMLElement | null>;
 }) {
   const translate = useTranslations();
   const { reading } = desk;
   if (reading.kind === "candidate-refused") return <CatalogUnavailableNotice />;
   if (reading.kind === "empty") {
-    return <NothingToPublish locale={locale} desk={desk} />;
+    return (
+      <NothingToPublish
+        locale={locale}
+        desk={desk}
+        headingRef={emptyHeadingRef}
+      />
+    );
   }
   const { view } = reading;
   return (
@@ -208,16 +228,22 @@ function PendingPrices({
 function NothingToPublish({
   locale,
   desk,
+  headingRef,
 }: {
   readonly locale: AppLocale;
   readonly desk: PublishDesk;
+  readonly headingRef: RefObject<HTMLElement | null>;
 }) {
   const translate = useTranslations();
   return (
     <div className={styles.layout}>
       <div className={styles.main}>
         <div className={styles.empty} data-testid="publish-empty">
-          <p className={styles.emptyTitle}>
+          <p
+            ref={headingRef as RefObject<HTMLParagraphElement | null>}
+            tabIndex={-1}
+            className={styles.emptyTitle}
+          >
             {translate("priceDashboard.publish.emptyTitle")}
           </p>
           <p className={styles.emptyBody}>

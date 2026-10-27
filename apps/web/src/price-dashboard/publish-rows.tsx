@@ -257,25 +257,36 @@ function RowName({
 function Cell({
   label,
   value,
+  hiddenNote,
 }: {
   readonly label: string;
   readonly value: ReactNode;
+  /** Words for a reader when the cell shows a dash: the dash itself is drawn by the stylesheet and read by nobody. */
+  readonly hiddenNote?: string | undefined;
 }) {
   return (
     <div className={styles.cell} data-empty={value === ""}>
       <span className={styles.cellLabel}>{label}</span>
       <span className={styles.cellValue}>{value}</span>
+      {hiddenNote === undefined ? null : (
+        <span className={styles.visuallyHidden}>{hiddenNote}</span>
+      )}
     </div>
   );
 }
 
-/** The size of a change. A row that restates the value the book already has shows none. */
+/** The size of a change. A row that restates the value the book already has shows a dash, as a table keeps the place. */
 function DifferenceCell({ text }: { readonly text: string }) {
   const translate = useTranslations();
   return (
     <Cell
       label={translate("priceDashboard.publish.columnDifference")}
       value={text}
+      hiddenNote={
+        text === ""
+          ? translate("priceDashboard.publish.noDifference")
+          : undefined
+      }
     />
   );
 }

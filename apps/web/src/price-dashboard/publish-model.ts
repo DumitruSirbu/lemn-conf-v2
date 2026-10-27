@@ -376,6 +376,8 @@ export interface RestorePlan {
   readonly differingCount: number;
   /** The changes the restore put in the draft. */
   readonly addedChangeCount: number;
+  /** The pending changes on fields the archived version states: the ones it replaces or drops. */
+  readonly replacedChangeCount: number;
 }
 
 /**
@@ -414,6 +416,7 @@ export function planRestore(input: {
     draft: [...kept, ...added],
     differingCount: differingFromCandidate.length,
     addedChangeCount: added.length,
+    replacedChangeCount: draft.filter(isStated).length,
   };
 }
 

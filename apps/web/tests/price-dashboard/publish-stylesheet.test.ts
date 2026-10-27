@@ -169,3 +169,18 @@ describe("a narrow screen", () => {
     expect(css).toMatch(/\.members\[hidden\]\s*\{\s*display:\s*none/);
   });
 });
+
+describe("a value that does not fit its column", () => {
+  it("breaks at spaces and only when a single word is wider than the column, never anywhere in a word", () => {
+    expect(valuesFor(css, "cellValue", "overflow-wrap")).toEqual([
+      "break-word",
+    ]);
+    expect(css).not.toMatch(/word-break:\s*break-all/);
+  });
+
+  it("draws the dash of an empty cell with an empty alternative, so it is read by nobody", () => {
+    expect(css).toMatch(
+      /\.cell\[data-empty="true"\] \.cellValue::before\s*\{\s*content:\s*"\\2014" \/ ""/,
+    );
+  });
+});

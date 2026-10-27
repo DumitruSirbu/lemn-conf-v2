@@ -73,15 +73,16 @@ export function VersionDetailScreen({
     failure: undefined,
     isRestored: false,
   });
-  const differingCount = useMemo(
+  const plan = useMemo(
     () =>
       planRestore({
         archived: input.version.book,
         active: restore.activeBook,
         draft: restore.draft.changes,
-      }).differingCount,
+      }),
     [input.version.book, restore.activeBook, restore.draft.changes],
   );
+  const differingCount = plan.differingCount;
   const confirm = useCallback(() => {
     setRestore((held) => ({ ...held, isBusy: true, failure: undefined }));
     void askToRestore({
@@ -119,6 +120,7 @@ export function VersionDetailScreen({
             returnFocusFallbackRef={restoreButtonRef}
             versionNumber={input.version.sequenceNumber}
             differingCount={differingCount}
+            replacedCount={plan.replacedChangeCount}
             isBusy={restore.isBusy}
             failure={restore.failure}
             onConfirm={confirm}
