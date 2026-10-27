@@ -305,6 +305,14 @@ written; this amendment supersedes its migration numbers and its S2b wave name.
      unconditional audit statement would leave an audit row for a publish that never happened (F3);
    - a CAS that updates no row writes nothing and is answered `availability-changed-meanwhile`.
 
+## Amendment — 2026-10-27: the effective seen revision is a greatest, not an else (A-12; coordinator ruling, relayed)
+
+A-12 defines effective-seen as "the seen revision, or else the latest submission's `design_revision`". **Ruling 2026-10-27:
+the effective seen revision is `greatest(seen mark, the latest request's design_revision)`.** A stale first mark below the
+sent revision therefore never makes an unchanged sent kitchen read as changed. The rule that a seen mark never moves
+backwards (A-12, the `greatest(existing, displayed)` write) governs over the "else" wording; the comparison stays in SQL
+only. The M10 plan's S4 row and criterion S-c0 carry the same rule.
+
 ## Amendment — 2026-10-27: limiter buckets (relayed by the coordinator; the scribe ran nothing)
 
 **Limiter buckets (R2, 2026-10-27; provisional, fail closed, the owner's to retune):** `staff-prices-read-by-account` 300
