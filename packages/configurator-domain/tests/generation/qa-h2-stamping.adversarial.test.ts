@@ -16,6 +16,9 @@ import {
   DesignSettingsSchema,
   fatalDesignValidationIssues,
   freeColourFinish,
+  buildLinearShellDesign,
+  buildLShellDesign,
+  buildUShellDesign,
   generateKitchen,
   MATERIALS,
   migrateDesign,
@@ -40,11 +43,20 @@ const L_ROOM: DesignRoom = {
   depthMm: 3000,
   heightMm: 2600,
 };
-const ROOMS: readonly DesignRoom[] = [
-  L_ROOM,
-  { shape: "linear", widthMm: 3200, depthMm: 2400, heightMm: 2600 },
-  { shape: "U", widthMm: 4200, depthMm: 3600, heightMm: 2600, wallCMm: 3000 },
-];
+const LINEAR_ROOM: DesignRoom = {
+  shape: "linear",
+  widthMm: 3200,
+  depthMm: 2400,
+  heightMm: 2600,
+};
+const U_ROOM: DesignRoom = {
+  shape: "U",
+  widthMm: 4200,
+  depthMm: 3600,
+  heightMm: 2600,
+  wallCMm: 3000,
+};
+const ROOMS: readonly DesignRoom[] = [L_ROOM, LINEAR_ROOM, U_ROOM];
 const EVERY_HANDLE: readonly Handle[] = ["steel", "black", "push"];
 
 function generate(room: DesignRoom, newKitchenSettings?: NewKitchenSettings) {
@@ -275,5 +287,63 @@ describe("a refused room still logs the defaults it was asked for", () => {
       handle: "black",
     });
     expect("newKitchenSettings" in unasked.log).toBe(false);
+  });
+});
+
+describe("the shell builders stamp first, then judge the room (the order is one error each way)", () => {
+  const BAD_ROOM: DesignRoom = {
+    shape: "L",
+    widthMm: 100,
+    depthMm: 100,
+    heightMm: 2600,
+  };
+  const BAD_SETTINGS = { cabinetDepthMm: 650 };
+  const BUILDERS = [
+    ["L", buildLShellDesign, L_ROOM, BAD_ROOM],
+    [
+      "linear",
+      buildLinearShellDesign,
+      LINEAR_ROOM,
+      { shape: "linear", widthMm: 100, depthMm: 2400, heightMm: 2600 },
+    ],
+    [
+      "U",
+      buildUShellDesign,
+      U_ROOM,
+      { shape: "U", widthMm: 100, depthMm: 100, heightMm: 2600, wallCMm: 100 },
+    ],
+  ] as const;
+
+  it.each(BUILDERS)(
+    "%s: a bad room with good settings is the room's error, bad settings with a good room is the settings' error, both bad is the settings'",
+    (_shape, build, goodRoom, badRoom) => {
+      const call = (room: DesignRoom, settings: object) => () =>
+        build({
+          room,
+          occurredAt: OCCURRED_AT,
+          newKitchenSettings: settings,
+        });
+
+      expect(call(badRoom, { cabinetDepthMm: 700 })).toThrow(
+        /refused its input/,
+      );
+      expect(call(goodRoom, BAD_SETTINGS)).toThrow(NewKitchenSettingsError);
+      expect(call(badRoom, BAD_SETTINGS)).toThrow(NewKitchenSettingsError);
+      expect(call(goodRoom, { cabinetDepthMm: 700 })).not.toThrow();
+    },
+  );
+
+  it("generateKitchen refuses bad settings whatever the room, before it plans anything", () => {
+    expect(() => generate(L_ROOM, BAD_SETTINGS)).toThrow(
+      NewKitchenSettingsError,
+    );
+    expect(() =>
+      generateKitchen({
+        room: BAD_ROOM,
+        occurredAt: OCCURRED_AT,
+        probeAt: createFakeProbeFactory(),
+        newKitchenSettings: BAD_SETTINGS,
+      }),
+    ).toThrow(NewKitchenSettingsError);
   });
 });

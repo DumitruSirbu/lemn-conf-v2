@@ -34,6 +34,8 @@ import {
   type PlacementRecord,
   type RoomInput,
 } from "../../src/index.js";
+import { isLargeU } from "../../src/generation/run-layout.js";
+import { MIN_WIDTH_M } from "../../src/void-engine.js";
 import { buildKitchenLBodyCatalog } from "../../src/fixtures/kitchen-l-design.js";
 import { derivePlacementRecords } from "../../src/void-engine.js";
 import { wallDepthMmForWorktop } from "../../src/worktop-depth.js";
@@ -112,15 +114,9 @@ function movedTo(design: Design, cabinetDepthMm: number): Design | undefined {
 }
 
 /** The ground the design records as free, per wall, row, ceiling and clearance: merged runs of [start, end). */
-function freeGroundOf(
-  design: Design,
-  includeCornerStrip = false,
-): Record<string, [number, number][]> {
+function freeGroundOf(design: Design): Record<string, [number, number][]> {
   const byKey = new Map<string, [number, number][]>();
-  const columns = (design.emptyColumns ?? []).filter(
-    (column) => includeCornerStrip || !isCornerStrip(column),
-  );
-  for (const column of columns) {
+  for (const column of design.emptyColumns ?? []) {
     const key = `${column.wall}|${String(column.y0Mm)}-${String(column.topMm)}|${String(column.depthMm)}`;
     const half = column.widthMm / 2;
     byKey.set(key, [
@@ -133,15 +129,6 @@ function freeGroundOf(
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([key, spans]) => [key, mergedSpans(spans)]),
   );
-}
-
-/** The wall-row sliver a deeper base corner leaves beside the wall corner-return unit (970 to 1000 on wall B at
- *  700 mm): `setCabinetDepth` does not republish it, the native shell records it. Nothing 30 mm wide is fillable. */
-const CORNER_STRIP_WIDTH_MM = 30;
-function isCornerStrip(
-  column: NonNullable<Design["emptyColumns"]>[number],
-): boolean {
-  return column.widthMm === CORNER_STRIP_WIDTH_MM && column.y0Mm === 1500;
 }
 
 function mergedSpans(spans: readonly [number, number][]): [number, number][] {
@@ -210,32 +197,59 @@ describe("a shell built at 700 mm is the shell `setCabinetDepth` makes from the 
     expect(compared).toBeGreaterThan(SHELL_ROOMS.length * 0.8);
   });
 
-  it("differs from the command's shell by one thing only: the 30 mm wall-row sliver beside a deeper base corner", () => {
-    const sliversOf = (design: Design) =>
-      (design.emptyColumns ?? []).filter(isCornerStrip).map((column) => ({
-        wall: column.wall,
-        startMm: column.alongMm - column.widthMm / 2,
-        endMm: column.alongMm + column.widthMm / 2,
-        topMm: column.topMm,
-        depthMm: column.depthMm,
-      }));
-    let withSlivers = 0;
+  it("equals the command's shell column for column in the free ground, so no sliver stands beside a deeper base corner", () => {
+    const narrowestInsertableMm = Math.min(
+      ...[...buildKitchenLBodyCatalog(DEEP_MM).values()]
+        .filter((definition) => definition.insertable === true)
+        .map((definition) => definition.minWidthMm ?? MIN_WIDTH_M * 1000),
+    );
+    const spanWidthsOf = (design: Design) =>
+      Object.values(freeGroundOf(design)).flatMap((spans) =>
+        spans.map(([start, end]) => end - start),
+      );
+    let compared = 0;
     for (const room of SHELL_ROOMS) {
       const viaCommand = movedTo(shellOf(room), DEEP_MM);
       if (viaCommand === undefined) continue;
       const native = shellOf(room, DEEP_MM);
 
-      expect(sliversOf(viaCommand), JSON.stringify(room)).toEqual([]);
-      for (const sliver of sliversOf(native)) {
-        expect(["B", "C"], JSON.stringify(room)).toContain(sliver.wall);
-        expect(sliver.endMm - sliver.startMm).toBe(30);
-        expect(sliver.endMm, JSON.stringify(room)).toBe(1000);
-        expect(sliver.depthMm).toBe(wallDepthMmForWorktop(DEEP_MM));
-      }
-      if (sliversOf(native).length > 0) withSlivers += 1;
+      expect(freeGroundOf(native), JSON.stringify(room)).toEqual(
+        freeGroundOf(viaCommand),
+      );
+      const narrow = (design: Design) =>
+        spanWidthsOf(design).filter(
+          (widthMm) => widthMm < narrowestInsertableMm,
+        );
+      expect(
+        narrow(native).length,
+        `${JSON.stringify(room)}: a depth must not add a free span no body fits`,
+      ).toBeLessThanOrEqual(narrow(shellOf(room)).length);
+      compared += 1;
     }
 
-    expect(withSlivers).toBeGreaterThan(0);
+    expect(narrowestInsertableMm).toBeGreaterThan(0);
+    expect(compared).toBeGreaterThan(SHELL_ROOMS.length * 0.8);
+  });
+
+  it("keeps a large U's back wall tiled over the corner bases at both depths, from the corner to the room's far end", () => {
+    const largeUs = SHELL_ROOMS.filter(
+      (room) => room.shape === "U" && isLargeU(room),
+    );
+    for (const room of largeUs) {
+      for (const cabinetDepthMm of [SHALLOW_MM, DEEP_MM]) {
+        const spans = Object.entries(
+          freeGroundOf(shellOf(room, cabinetDepthMm)),
+        )
+          .filter(([key]) => key.startsWith("A|1500-"))
+          .flatMap(([, wallRowSpans]) => wallRowSpans);
+
+        expect(spans.length, JSON.stringify(room)).toBeGreaterThan(0);
+        expect(Math.min(...spans.map(([start]) => start))).toBe(0);
+        expect(Math.max(...spans.map(([, end]) => end))).toBe(room.widthMm);
+      }
+    }
+
+    expect(largeUs.length).toBeGreaterThan(5);
   });
 
   it("records the clearances the declared depths give: a wall unit's 400 and a base run deeper than at 600", () => {
