@@ -35,6 +35,7 @@ import {
 import {
   readDashboardAvailability,
   readDashboardState,
+  readRawDraft,
   type ActiveDashboardState,
 } from "@/lib/server/price-dashboard/dashboard-state";
 import {
@@ -294,7 +295,7 @@ async function performDiscard(
   cookies: SessionCookieReader,
 ): Promise<NextResponse> {
   const stores = await getPriceStores();
-  const stored = await stores.priceBook.readDraft();
+  const stored = await readRawDraft(stores);
   if (stored.draftRevision !== input.expectedDraftRevision) {
     return refused(
       PRICE_DRAFT_EVENT,

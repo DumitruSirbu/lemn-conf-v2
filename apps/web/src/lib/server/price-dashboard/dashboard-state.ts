@@ -5,7 +5,7 @@ import type {
   DraftChange,
   PriceBook,
 } from "@lemnaria/configurator-domain";
-import type { ActivePriceVersion } from "@lemnaria/persistence";
+import type { ActivePriceVersion, PriceDraft } from "@lemnaria/persistence";
 
 import { readBookOf } from "@/lib/server/active-price-book";
 import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
@@ -49,10 +49,7 @@ export async function readDashboardState(
   if (active.kind !== "found") return { kind: "no-active-version" };
   const book = readBookOf(active.version);
   if (book === undefined) throw new DashboardStateUnreadableError("book");
-  const stored = await stores.priceBook.readDraft();
-  if (!isRevisionShape(stored.draftRevision)) {
-    throw new DashboardStateUnreadableError("draft");
-  }
+  const stored = await readRawDraft(stores);
   const reading = readStoredDraft(stored.changes);
   if (!reading.ok) {
     return { kind: "draft-unreadable", draftRevision: stored.draftRevision };
@@ -62,6 +59,18 @@ export async function readDashboardState(
     changes: reading.changes,
   };
   return { kind: "ready", state: { version: active.version, book, draft } };
+}
+
+/**
+ * The stored draft as the store holds it, its changes unparsed. Its revision is checked for its shape: a store that answers
+ * a revision SQL could not have made is a defect, thrown, and never a draft that merely moved.
+ */
+export async function readRawDraft(stores: PriceStores): Promise<PriceDraft> {
+  const stored = await stores.priceBook.readDraft();
+  if (!isRevisionShape(stored.draftRevision)) {
+    throw new DashboardStateUnreadableError("draft");
+  }
+  return stored;
 }
 
 export async function readDashboardAvailability(

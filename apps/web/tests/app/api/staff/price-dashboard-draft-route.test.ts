@@ -1184,6 +1184,21 @@ describe("DELETE with scope all: discarding the draft", () => {
     expect(await jsonOf(answer)).toEqual({ status: "invalid-request" });
   });
 
+  it("answers 503, not changed-meanwhile, over a stored revision that is not a revision, and writes nothing", async () => {
+    const { cookie } = await administrator();
+    vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
+      draftRevision: "-1",
+      changes: [],
+    });
+    const writeDraft = vi.spyOn(prices.stores.priceBook, "writeDraft");
+
+    const answer = await discard(cookie, "0");
+
+    expect(answer.status).toBe(503);
+    expect(writeDraft).not.toHaveBeenCalled();
+    expect(draftRows()).toEqual([]);
+  });
+
   it("answers 503 with the draft unchanged when the audit row cannot be staged", async () => {
     const { cookie } = await administrator();
     await putChange(cookie, { address: ANCHOR_ADDRESS, value: 125_000 });

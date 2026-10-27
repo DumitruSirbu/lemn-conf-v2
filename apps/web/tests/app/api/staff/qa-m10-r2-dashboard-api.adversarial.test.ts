@@ -9,6 +9,12 @@ import {
 import * as bulkRoute from "@/app/api/staff/prices/bulk/route";
 import * as draftRoute from "@/app/api/staff/prices/draft/route";
 import * as readRoute from "@/app/api/staff/prices/route";
+import type {
+  BulkPlan,
+  BulkPlanner,
+  PlannedCabinetPrice,
+} from "@/lib/server/price-dashboard/bulk-planner";
+import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
 import {
   STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
@@ -61,10 +67,15 @@ vi.mock("@/lib/server/price-stores", () =>
     world.priceStoresModule(),
   ),
 );
+const planners = vi.hoisted(() => ({
+  override: undefined as
+    | import("@/lib/server/price-dashboard/bulk-planner").BulkPlanner
+    | undefined,
+}));
 vi.mock("@/lib/server/price-dashboard/bulk-planner", () =>
-  import("../../../support/test-bulk-planner").then((world) =>
-    world.bulkPlannerModule(),
-  ),
+  import("../../../support/test-bulk-planner").then((world) => ({
+    getBulkPlanner: () => planners.override ?? world.testBulkPlanner,
+  })),
 );
 
 /**
@@ -85,6 +96,7 @@ beforeEach(async () => {
   prices = await freshPriceDashboardWorld();
   console_ = captureConsole();
   resetTestBulkPlanner();
+  planners.override = undefined;
   limiterLedger.refusing.clear();
   limiterLedger.unavailable.clear();
   limiterLedger.counted.length = 0;
@@ -99,6 +111,41 @@ afterEach(() => {
 async function administrator(email = "administrator@example.test") {
   const { session } = await signedInAs({ role: "administrator" }, email);
   return session.cookie;
+}
+
+async function administratorSession(email = "administrator@example.test") {
+  const { session, account } = await signedInAs(
+    { role: "administrator" },
+    email,
+  );
+  return {
+    cookie: session.cookie,
+    tokenHash: session.tokenHash,
+    accountId: account.id,
+  };
+}
+
+/** Puts changes the draft's reader cannot read into the real fake store, as a bad migration or a hand edit would. */
+async function storeDraftAsIs(
+  tokenHash: string,
+  changes: readonly unknown[],
+): Promise<string> {
+  const written = await prices.priceBook.writeDraft({
+    expectedDraftRevision: await currentDraftRevision(),
+    changes: changes as never,
+    audit: {
+      session: {
+        sessionTokenHash: tokenHash,
+        idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
+      },
+      entry: {
+        action: "price-draft-changed",
+        detail: { changeKind: "provisional" },
+      },
+    },
+  });
+  if (written.kind !== "ok") throw new Error("seed: the draft was not written");
+  return written.draftRevision;
 }
 
 function draftRows() {
@@ -925,32 +972,24 @@ describe("a bulk action", () => {
     expect(draftRows()).toEqual([]);
   });
 
-  it("at 0 percent is accepted, as the developer decided: one group of changes that each equal the active price, one row with percent 0 and never -0", async () => {
-    const cookie = await administrator();
-    const served = (await jsonOf(await readState({ cookie }))) as {
-      active: { book: PriceBook };
-    };
+  it.each([["0"], ["-0"], ["0.0"], ["-0.0"], ["0e5"], ["-0e-3"]])(
+    "at a percentage written %s is refused 400 PERCENT_OUT_OF_RANGE on percent before the planner is asked, and writes nothing (ruling R2-Q7)",
+    async (percentText) => {
+      const cookie = await administrator();
+      const before = await currentDraftRevision();
 
-    const answer = await bulkRaw(cookie, '{"scope":"all"}', "0");
+      const answer = await bulkRaw(cookie, '{"scope":"all"}', percentText);
 
-    expect(answer.status).toBe(200);
-    const changes = (await storedChanges()) as {
-      address: Record<string, unknown>;
-      value: number;
-      groupId: string;
-      bulk: { percent: number };
-    }[];
-    expect(changes.length).toBeGreaterThan(0);
-    expect(new Set(changes.map(({ groupId }) => groupId)).size).toBe(1);
-    for (const { address, value, bulk } of changes) {
-      expect(value, JSON.stringify(address)).toBe(
-        activeAmountOf(served.active.book, address),
-      );
-      expect(Object.is(bulk.percent, 0)).toBe(true);
-    }
-    expect(draftRows()).toHaveLength(1);
-    expect(Object.is(draftRows()[0]?.detail.percent, 0)).toBe(true);
-  });
+      expect(answer.status).toBe(400);
+      expect(await jsonOf(answer)).toEqual({
+        status: "invalid-input",
+        issues: [{ field: "percent", code: "PERCENT_OUT_OF_RANGE" }],
+      });
+      expect(plannerCalls).toEqual([]);
+      expect(draftRows()).toEqual([]);
+      expect(await currentDraftRevision()).toBe(before);
+    },
+  );
 
   it("over each price group mints the group's code on every change and in its one audit row, and at least one group has cabinets to change", async () => {
     const cookie = await administrator();
@@ -1123,7 +1162,7 @@ describe("the routes' own methods", () => {
 // ---------------------------------------------------------------------------------------------------------------------
 // A stored draft is untrusted
 
-describe("a stored draft that is not what a draft holds", () => {
+describe("a stored draft that is not what a draft holds (ruling R2-Q2)", () => {
   const JUNK_CHANGES: readonly [string, unknown][] = [
     ["a change that is a string", "junk"],
     ["a change that is null", null],
@@ -1183,7 +1222,7 @@ describe("a stored draft that is not what a draft holds", () => {
   ];
 
   it.each(JUNK_CHANGES)(
-    "holding %s is a 503 with no detail on the read, the change, the revert and the bulk action, and writes nothing",
+    "holding %s is a 409 draft-unreadable naming only the revision on the read, the change, the revert and the bulk action, and writes nothing",
     async (_title, junk) => {
       const cookie = await administrator();
       vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
@@ -1216,8 +1255,11 @@ describe("a stored draft that is not what a draft holds", () => {
       ];
 
       for (const answer of answers) {
-        expect(answer.status).toBe(503);
-        expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+        expect(answer.status).toBe(409);
+        expect(await jsonOf(answer)).toEqual({
+          status: "draft-unreadable",
+          draftRevision: "1",
+        });
       }
       expect(writeDraft).not.toHaveBeenCalled();
       expect(draftRows()).toEqual([]);
@@ -1419,5 +1461,597 @@ describe("an administrator demoted after the route admitted the request and befo
     expect(answer.status).toBeGreaterThanOrEqual(401);
     expect(await storedChanges()).toEqual([]);
     expect(draftRows()).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A bulk action that scales the candidate and leaves unchanged rows out (rulings R2-Q7)
+
+interface PlannableRow {
+  readonly address: PlannedCabinetPrice["address"];
+  readonly current: number;
+}
+
+/** Every price a manufacturer cabinet row of the candidate holds, in book order: what a planner reports as scaled. */
+function plannableRowsOf(book: PriceBook): readonly PlannableRow[] {
+  return book.cabinetRules.flatMap((rule) => {
+    if (rule.suppliedBy === "customer") return [];
+    const formula = rule.formula as {
+      sizes?: readonly { widthMm: number }[];
+    };
+    const addresses: PlannedCabinetPrice["address"][] =
+      formula.sizes === undefined
+        ? [{ kind: "cabinet", ruleId: rule.ruleId, field: "anchorMinor" }]
+        : formula.sizes.map(({ widthMm }) => ({
+            kind: "cabinet-size",
+            ruleId: rule.ruleId,
+            widthMm,
+          }));
+    return addresses.map((address) => ({
+      address,
+      current: activeAmountOf(book, address) ?? Number.NaN,
+    }));
+  });
+}
+
+/** A planner that reports every row, each at `valueOf(row, index)`, and remembers the book it was handed. */
+function reportingPlanner(
+  valueOf: (row: PlannableRow, index: number) => number,
+): BulkPlanner & { readonly booksSeen: PriceBook[] } {
+  const booksSeen: PriceBook[] = [];
+  return {
+    booksSeen,
+    plan: ({ book }): BulkPlan => {
+      booksSeen.push(book);
+      return {
+        kind: "planned",
+        changes: plannableRowsOf(book).map((row, index) => ({
+          address: row.address,
+          value: valueOf(row, index),
+        })),
+      };
+    },
+  };
+}
+
+describe("a bulk action whose planner reports every row it scaled", () => {
+  async function bookOf(cookie: string): Promise<PriceBook> {
+    const served = (await jsonOf(await readState({ cookie }))) as {
+      active: { book: PriceBook };
+    };
+    return served.active.book;
+  }
+
+  it("that left every row as the candidate has it is refused 400 PERCENT_OUT_OF_RANGE on percent, with no row and no new revision", async () => {
+    const cookie = await administrator();
+    const before = await currentDraftRevision();
+    planners.override = reportingPlanner((row) => row.current);
+
+    const answer = await bulkRaw(cookie, '{"scope":"all"}', "7");
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "percent", code: "PERCENT_OUT_OF_RANGE" }],
+    });
+    expect(draftRows()).toEqual([]);
+    expect(await currentDraftRevision()).toBe(before);
+  });
+
+  it("writes only the rows that moved, and the answer and the audit row count only those", async () => {
+    const cookie = await administrator();
+    const book = await bookOf(cookie);
+    const rows = plannableRowsOf(book);
+    const fixedSizeRuleId = rows.find(
+      ({ address }) => address.kind === "cabinet-size",
+    )?.address.ruleId;
+    const movedRows = rows.filter(
+      ({ address }) =>
+        address.ruleId === fixedSizeRuleId ||
+        (address.kind === "cabinet" && address.ruleId === ANCHORED_RULE_ID),
+    );
+    const movedKeys = new Set(
+      movedRows.map(({ address }) => JSON.stringify(address)),
+    );
+    planners.override = reportingPlanner((row) =>
+      movedKeys.has(JSON.stringify(row.address))
+        ? row.current + 2_000
+        : row.current,
+    );
+
+    const answer = await bulkRaw(cookie, '{"scope":"all"}', "7");
+
+    expect(answer.status).toBe(200);
+    const served = (await jsonOf(answer)) as {
+      ruleCount: number;
+      amountCount: number;
+    };
+    const stored = (await storedChanges()) as {
+      address: Record<string, unknown>;
+    }[];
+    expect(stored).toHaveLength(movedRows.length);
+    expect(served.amountCount).toBe(movedRows.length);
+    expect(served.ruleCount).toBe(2);
+    expect(draftRows()).toHaveLength(1);
+    expect(draftRows()[0]?.detail).toMatchObject({
+      percent: 7,
+      ruleCount: 2,
+      amountCount: movedRows.length,
+    });
+    for (const { address } of stored) {
+      expect([ANCHORED_RULE_ID, fixedSizeRuleId]).toContain(address.ruleId);
+    }
+  });
+
+  it("is handed the candidate: the draft's pending price is in the book the planner scales", async () => {
+    const cookie = await administrator();
+    await changeDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: await currentDraftRevision(),
+        change: { address: ANCHOR_ADDRESS, value: 125_000 },
+      },
+    });
+    const planner = reportingPlanner((row) => row.current + 1_000);
+    planners.override = planner;
+
+    await bulkRaw(cookie, '{"scope":"all"}', "7");
+
+    const [seen] = planner.booksSeen;
+    if (seen === undefined) throw new Error("the planner was not asked");
+    expect(activeAmountOf(seen, { ...ANCHOR_ADDRESS })).toBe(125_000);
+  });
+
+  it("leaves a pending change alone when the scaled price equals it, and replaces it when the scaled price equals only the active one", async () => {
+    const cookie = await administrator();
+    const book = await bookOf(cookie);
+    const active = activeAmountOf(book, ANCHOR_ADDRESS) ?? Number.NaN;
+    await changeDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: await currentDraftRevision(),
+        change: { address: ANCHOR_ADDRESS, value: 125_000 },
+      },
+    });
+    const isAnchor = (row: PlannableRow) =>
+      row.address.kind === "cabinet" && row.address.ruleId === ANCHORED_RULE_ID;
+
+    planners.override = reportingPlanner((row) =>
+      isAnchor(row) ? 125_000 : row.current + 1_000,
+    );
+    const sameAsCandidate = await bulkRaw(cookie, '{"scope":"all"}', "7");
+    const afterFirst = (await storedChanges()) as {
+      address: Record<string, unknown>;
+      value: number;
+      groupId?: string;
+    }[];
+
+    expect(sameAsCandidate.status).toBe(200);
+    const pending = afterFirst.filter(
+      ({ address }) => address.ruleId === ANCHORED_RULE_ID,
+    );
+    expect(pending).toEqual([{ address: ANCHOR_ADDRESS, value: 125_000 }]);
+
+    planners.override = reportingPlanner((row) =>
+      isAnchor(row) ? active : row.current + 2_000,
+    );
+    const backToActive = await bulkRaw(cookie, '{"scope":"all"}', "7");
+    const afterSecond = (await storedChanges()) as typeof afterFirst;
+
+    expect(backToActive.status).toBe(200);
+    const anchorChanges = afterSecond.filter(
+      ({ address }) => address.ruleId === ANCHORED_RULE_ID,
+    );
+    expect(anchorChanges).toHaveLength(1);
+    expect(anchorChanges[0]?.value).toBe(active);
+    expect(anchorChanges[0]?.groupId).toBeDefined();
+  });
+
+  it("whose target holds no cabinet the manufacturer prices is refused on the member the person corrects: ruleIds for a selection, scope otherwise", async () => {
+    const cookie = await administrator();
+    planners.override = { plan: () => ({ kind: "planned", changes: [] }) };
+
+    const selection = await bulkRaw(
+      cookie,
+      JSON.stringify({ scope: "selection", ruleIds: [ANCHORED_RULE_ID] }),
+      "7",
+    );
+    const everything = await bulkRaw(cookie, '{"scope":"all"}', "7");
+
+    expect(await jsonOf(selection)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "ruleIds", code: "NO_CABINETS_SELECTED" }],
+    });
+    expect(await jsonOf(everything)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "scope", code: "NO_CABINETS_SELECTED" }],
+    });
+    expect(draftRows()).toEqual([]);
+  });
+
+  it("is taken out whole by its group, and a second bulk action on top of the first is scaled from it, not from the active book", async () => {
+    const cookie = await administrator();
+    const book = await bookOf(cookie);
+    const active = activeAmountOf(book, ANCHOR_ADDRESS) ?? Number.NaN;
+    planners.override = reportingPlanner((row) => row.current + 1_000);
+
+    const first = await bulkRaw(cookie, '{"scope":"all"}', "7");
+    const second = await bulkRaw(cookie, '{"scope":"all"}', "7");
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const stored = (await storedChanges()) as {
+      address: Record<string, unknown>;
+      value: number;
+      groupId: string;
+    }[];
+    const anchor = stored.filter(
+      ({ address }) => address.ruleId === ANCHORED_RULE_ID,
+    );
+    expect(anchor).toHaveLength(1);
+    expect(anchor[0]?.value).toBe(active + 2_000);
+    const groupId = anchor[0]?.groupId ?? "";
+    expect(groupId).not.toBe("");
+
+    const reverted = await revertDraft({
+      cookie,
+      json: {
+        expectedDraftRevision: await currentDraftRevision(),
+        target: { kind: "group", groupId },
+      },
+    });
+
+    expect(reverted.status).toBe(200);
+    expect(await storedChanges()).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A draft that cannot be read, and the discard that recovers it (ruling R2-Q2)
+
+const DISCARD_ALL = { scope: "all" } as const;
+
+async function discardRaw(cookie: string, bodyTail: string, revision?: string) {
+  const current = revision ?? (await currentDraftRevision());
+  return revertDraft({
+    cookie,
+    json: `{"expectedDraftRevision":"${current}"${bodyTail}}`,
+  });
+}
+
+describe("DELETE with scope all", () => {
+  it("with a stale revision is 409 changed-meanwhile, writes no row and leaves the draft as it was", async () => {
+    const { cookie, tokenHash } = await administratorSession();
+    const seen = await currentDraftRevision();
+    await storeDraftAsIs(tokenHash, [
+      { address: { kind: "provisional" }, value: true },
+    ]);
+    const rowsBefore = draftRows().length;
+
+    const answer = await discardRaw(cookie, ',"scope":"all"', seen);
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({ status: "changed-meanwhile" });
+    expect(draftRows()).toHaveLength(rowsBefore);
+    expect(await storedChanges()).toHaveLength(1);
+  });
+
+  it.each([
+    ["a different word", '"everything"'],
+    ["the word in capitals", '"ALL"'],
+    ["an empty word", '""'],
+    ["null", "null"],
+    ["a number", "1"],
+    ["true", "true"],
+    ["an array holding the word", '["all"]'],
+    ["an object", '{"all":true}'],
+  ])(
+    "with a scope of %s is 400 invalid-input on scope and discards nothing",
+    async (_title, scopeText) => {
+      const { cookie, tokenHash } = await administratorSession();
+      await storeDraftAsIs(tokenHash, [
+        { address: { kind: "provisional" }, value: true },
+      ]);
+      const rowsBefore = draftRows().length;
+
+      const answer = await discardRaw(cookie, `,"scope":${scopeText}`);
+
+      expect(answer.status).toBe(400);
+      expect(await jsonOf(answer)).toEqual({
+        status: "invalid-input",
+        issues: [{ field: "scope", code: "MISSING_VALUE" }],
+      });
+      expect(draftRows()).toHaveLength(rowsBefore);
+      expect(await storedChanges()).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    [
+      "a target beside the scope",
+      ',"scope":"all","target":{"kind":"group","groupId":"g"}',
+    ],
+    ["a null target beside the scope", ',"scope":"all","target":null'],
+    ["a member neither request takes", ',"scope":"all","percent":5'],
+    ["a groupId at the top level", ',"scope":"all","groupId":"g"'],
+    ["a __proto__ member", ',"scope":"all","__proto__":{"scope":"all"}'],
+  ])(
+    "with %s is a request this route does not read, and discards nothing",
+    async (_title, bodyTail) => {
+      const { cookie, tokenHash } = await administratorSession();
+      await storeDraftAsIs(tokenHash, [
+        { address: { kind: "provisional" }, value: true },
+      ]);
+      const rowsBefore = draftRows().length;
+
+      const answer = await discardRaw(cookie, bodyTail);
+
+      expect(answer.status).toBe(400);
+      expect(await jsonOf(answer)).toEqual({ status: "invalid-request" });
+      expect(draftRows()).toHaveLength(rowsBefore);
+      expect(await storedChanges()).toHaveLength(1);
+    },
+  );
+
+  it("over a draft that can be read removes every change, records one discard-all row counting what it held, and moves the revision", async () => {
+    const { cookie, accountId } = await administratorSession();
+    for (const [index, address] of [
+      ANCHOR_ADDRESS,
+      { kind: "depth-rule" },
+      { kind: "provisional" },
+    ].entries()) {
+      const value = address.kind === "provisional" ? true : 20 + index;
+      await putRaw(
+        cookie,
+        JSON.stringify({
+          address,
+          value: address.kind === "cabinet" ? 125_000 : value,
+        }),
+      );
+    }
+    await bulkRaw(cookie, '{"scope":"all"}', "7");
+    const held = (await storedChanges()).length;
+    const seen = await currentDraftRevision();
+    const rowsBefore = draftRows().length;
+
+    const answer = await discardRaw(cookie, ',"scope":"all"');
+
+    expect(answer.status).toBe(200);
+    const stored = await prices.stores.priceBook.readDraft();
+    expect(stored.changes).toEqual([]);
+    expect(stored.draftRevision).not.toBe(seen);
+    expect(await jsonOf(answer)).toEqual({
+      draftRevision: stored.draftRevision,
+      changes: [],
+    });
+    const rows = draftRows();
+    expect(rows).toHaveLength(rowsBefore + 1);
+    expect(rows.at(-1)).toMatchObject({
+      action: "price-draft-reverted",
+      actorAccountId: accountId,
+      detail: { changeKind: "discard-all", revertedCount: held },
+    });
+    expect(held).toBeGreaterThan(3);
+
+    const replay = await discardRaw(cookie, ',"scope":"all"', seen);
+    expect(replay.status).toBe(409);
+    expect(draftRows()).toHaveLength(rowsBefore + 1);
+  });
+
+  it("over a draft that holds nothing is answered 200 with a row counting 0, or refused without a row: never a 5xx", async () => {
+    const { cookie } = await administratorSession();
+
+    const answer = await discardRaw(cookie, ',"scope":"all"');
+
+    expect([200, 400, 409]).toContain(answer.status);
+    if (answer.status === 200) {
+      expect(draftRows().at(-1)?.detail).toEqual({
+        changeKind: "discard-all",
+        revertedCount: 0,
+      });
+    }
+  });
+
+  it("over a draft the reader cannot read is recorded with 0, echoes nothing it held, and the dashboard then reads and writes again", async () => {
+    const { cookie, tokenHash } = await administratorSession();
+    const revision = await storeDraftAsIs(tokenHash, [
+      { address: { kind: "provisional" }, value: "SECRET-VALUE-9917" },
+      { SECRET_MEMBER_9917: 1 },
+    ]);
+    const stuck = await readState({ cookie });
+    expect(await jsonOf(stuck)).toEqual({
+      status: "draft-unreadable",
+      draftRevision: revision,
+    });
+
+    const discarded = await discardRaw(cookie, ',"scope":"all"', revision);
+
+    expect(discarded.status).toBe(200);
+    expect(await discarded.clone().text()).not.toContain("SECRET");
+    expect(draftRows().at(-1)?.detail).toEqual({
+      changeKind: "discard-all",
+      revertedCount: 0,
+    });
+    const reads = await readState({ cookie });
+    expect(reads.status).toBe(200);
+    const written = await putRaw(
+      cookie,
+      JSON.stringify({ address: ANCHOR_ADDRESS, value: 125_000 }),
+    );
+    expect(written.status).toBe(200);
+    expect(console_.everything()).not.toContain("SECRET");
+  });
+
+  it("fails closed: an audit row that cannot be staged is 503 and the unreadable draft is still the stored one", async () => {
+    const { cookie, tokenHash } = await administratorSession();
+    const revision = await storeDraftAsIs(tokenHash, ["junk"]);
+    const rowsBefore = draftRows().length;
+    vi.spyOn(prices.ledger, "stage").mockRejectedValue(new Error("down"));
+
+    const answer = await discardRaw(cookie, ',"scope":"all"', revision);
+
+    expect(answer.status).toBe(503);
+    expect(await jsonOf(answer)).toEqual({ status: "unavailable" });
+    vi.restoreAllMocks();
+    expect(await currentDraftRevision()).toBe(revision);
+    expect(await storedChanges()).toEqual(["junk"]);
+    expect(draftRows()).toHaveLength(rowsBefore);
+  });
+
+  it("is refused to an operator, a client and an anonymous caller before any store is read, and leaves the draft alone", async () => {
+    const { tokenHash } = await administratorSession();
+    await storeDraftAsIs(tokenHash, ["junk"]);
+    const operator = await signedInAs({ role: "operator" }, "o3@example.test");
+    const client = await signedInAs({ role: "client" }, "c3@example.test");
+    priceStoreAsks.count = 0;
+
+    const answers = [
+      await discardRaw(operator.session.cookie, ',"scope":"all"'),
+      await discardRaw(client.session.cookie, ',"scope":"all"'),
+      await revertDraft({
+        json: { expectedDraftRevision: "0", ...DISCARD_ALL },
+      }),
+    ];
+
+    expect(answers.map(({ status }) => status)).toEqual([403, 403, 401]);
+    expect(priceStoreAsks.count).toBe(0);
+    expect(await storedChanges()).toEqual(["junk"]);
+  });
+
+  it("is judged by the account's draft bucket like every write: 429 when it refuses, a body that is refused is not counted", async () => {
+    const { cookie } = await administratorSession();
+    limiterLedger.counted.length = 0;
+
+    await discardRaw(cookie, ',"scope":"nope"');
+    expect(
+      limiterLedger.counted.filter((name) =>
+        name.startsWith(STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY.name),
+      ),
+    ).toEqual([]);
+
+    await discardRaw(cookie, ',"scope":"all"');
+    expect(
+      limiterLedger.counted.filter((name) =>
+        name.startsWith(STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY.name),
+      ),
+    ).toHaveLength(1);
+
+    limiterLedger.refusing.set(STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY.name, 5);
+    const refused = await discardRaw(cookie, ',"scope":"all"');
+    expect(refused.status).toBe(429);
+  });
+
+  it("racing a second discard and a write on one revision has exactly one winner and one row", async () => {
+    const { cookie, tokenHash } = await administratorSession();
+    const revision = await storeDraftAsIs(tokenHash, [
+      { address: { kind: "provisional" }, value: true },
+    ]);
+    const rowsBefore = draftRows().length;
+
+    const answers = await Promise.all([
+      discardRaw(cookie, ',"scope":"all"', revision),
+      discardRaw(cookie, ',"scope":"all"', revision),
+      putRaw(
+        cookie,
+        JSON.stringify({ address: { kind: "depth-rule" }, value: 20 }),
+        revision,
+      ),
+    ]);
+
+    expect(answers.map(({ status }) => status).sort()).toEqual([200, 409, 409]);
+    expect(draftRows()).toHaveLength(rowsBefore + 1);
+  });
+
+  it("over a stored revision that is not a revision is not answered 200, and not as a draft that merely moved", async () => {
+    const { cookie } = await administratorSession();
+    vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
+      draftRevision: "-1",
+      changes: [],
+    });
+
+    const answer = await discardRaw(cookie, ',"scope":"all"', "0");
+
+    expect(answer.status).toBe(503);
+  });
+});
+
+describe("a draft-unreadable answer", () => {
+  it("is 409 with exactly a status and a revision whatever junk is stored, on every route, and never a 5xx", async () => {
+    const { cookie } = await administratorSession();
+    const revision = await currentDraftRevision();
+    const readDraft = vi.spyOn(prices.stores.priceBook, "readDraft");
+    const goodChange = { address: { kind: "provisional" }, value: true };
+
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(fc.oneof(fc.jsonValue(), fc.constant(goodChange)), {
+          maxLength: 4,
+        }),
+        async (stored) => {
+          readDraft.mockResolvedValue({
+            draftRevision: revision,
+            changes: stored,
+          });
+
+          const read = await readState({ cookie });
+
+          expect([200, 409]).toContain(read.status);
+          if (read.status === 409) {
+            expect(Object.keys((await jsonOf(read)) as object).sort()).toEqual([
+              "draftRevision",
+              "status",
+            ]);
+            expect(read.headers.get("cache-control")).toBe("private, no-store");
+          }
+        },
+      ),
+      { numRuns: 150 },
+    );
+  });
+
+  it("carries a revision of the shape a discard takes and none of the stored text, keys or values", async () => {
+    const { cookie, tokenHash } = await administratorSession();
+    const revision = await storeDraftAsIs(tokenHash, [
+      {
+        SECRET_KEY_5521: "SECRET_VALUE_5521",
+        address: { kind: "SECRET_KIND_5521" },
+      },
+    ]);
+
+    const answers = [
+      await readState({ cookie }),
+      await putRaw(
+        cookie,
+        JSON.stringify({ address: { kind: "depth-rule" }, value: 20 }),
+        revision,
+      ),
+      await bulkRaw(cookie, '{"scope":"all"}', "5"),
+    ];
+
+    for (const answer of answers) {
+      expect(await jsonOf(answer)).toEqual({
+        status: "draft-unreadable",
+        draftRevision: revision,
+      });
+      expect(await answer.clone().text()).not.toContain("SECRET");
+    }
+    expect(console_.everything()).not.toContain("SECRET");
+  });
+
+  it("is given for a stale expected revision too, naming the stored one, so a person can discard without reading again", async () => {
+    const { cookie, tokenHash } = await administratorSession();
+    const revision = await storeDraftAsIs(tokenHash, ["junk"]);
+
+    const answer = await putRaw(
+      cookie,
+      JSON.stringify({ address: { kind: "depth-rule" }, value: 20 }),
+      "0",
+    );
+
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "draft-unreadable",
+      draftRevision: revision,
+    });
   });
 });
