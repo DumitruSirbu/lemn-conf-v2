@@ -1,5 +1,6 @@
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
+import { memoizeAsync } from "./async-seams";
 import type {
   DashboardDraftWire,
   DashboardStateWire,
@@ -55,18 +56,6 @@ export interface PublishClient {
   ): Promise<RestoreOutcome>;
 }
 
-/** What a call answers, or `failed` when the client throws or its promise rejects: a screen is never left waiting on one. */
-export async function orFailed<Outcome>(
-  call: () => Promise<Outcome>,
-  failed: Outcome,
-): Promise<Outcome> {
-  try {
-    return await call();
-  } catch {
-    return failed;
-  }
-}
-
 export const UNAVAILABLE_PUBLISH_CLIENT: PublishClient = {
   readState: () => Promise.resolve(undefined),
   publish: () => Promise.resolve({ kind: "failed" }),
@@ -77,8 +66,7 @@ export const UNAVAILABLE_PUBLISH_CLIENT: PublishClient = {
 
 /** A client that is loaded by its first call, so the module behind `load` is fetched only if something is written. */
 export function lazyClient(load: () => Promise<PublishClient>): PublishClient {
-  let loaded: Promise<PublishClient> | undefined;
-  const client = (): Promise<PublishClient> => (loaded ??= load());
+  const client = memoizeAsync(load);
   return {
     readState: async () => (await client()).readState(),
     publish: async (request) => (await client()).publish(request),

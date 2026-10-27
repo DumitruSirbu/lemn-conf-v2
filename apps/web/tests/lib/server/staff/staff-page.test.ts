@@ -264,7 +264,7 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
       shell: {
         role: "administrator",
         email: STAFF_ADDRESS,
-        navigation: ["kitchens", "audit", "cabinets", "publish"],
+        navigation: ["kitchens", "audit", "cabinets", "defaults", "publish"],
         pendingPriceCount: SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
       },
     });

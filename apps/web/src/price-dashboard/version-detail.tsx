@@ -15,11 +15,8 @@ import type {
   DashboardDraftWire,
   DashboardStateWire,
 } from "./price-dashboard-wire-contract";
-import {
-  orFailed,
-  type PublishClient,
-  type RestoreOutcome,
-} from "./publish-client";
+import { type PublishClient, type RestoreOutcome } from "./publish-client";
+import { orFailed } from "./async-seams";
 import { defaultPublishClient } from "./default-publish-client";
 import { RestoreDialog } from "./publish-dialogs";
 import {

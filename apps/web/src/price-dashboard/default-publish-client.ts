@@ -7,8 +7,7 @@ import {
 
 // The screens' client when none is handed in: nothing in a production build, an in-memory one elsewhere.
 //
-// The test is spelled out here, not asked of `is-production-build.ts`: the bundler replaces this literal and drops the
-// branch with the import behind it, while a call into another module is not folded and would ship the sample's chunk.
+// The test is spelled out here, not asked of `is-production-build.ts`, which says why.
 
 export type DefaultClientSource =
   | { readonly kind: "publish"; readonly input: PublishPageInput }

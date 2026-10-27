@@ -9,9 +9,9 @@ import type {
   PublishedWire,
   PublishTextRefusalCode,
 } from "./price-dashboard-wire-contract";
+import { orFailed } from "./async-seams";
 import { defaultPublishClient } from "./default-publish-client";
 import {
-  orFailed,
   type DraftWriteOutcome,
   type PublishBlock,
   type PublishClient,
