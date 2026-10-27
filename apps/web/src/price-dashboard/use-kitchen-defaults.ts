@@ -9,10 +9,10 @@ import {
   type RefObject,
 } from "react";
 
-import type { Finish } from "@lemnaria/configurator-domain";
+import type { Finish, ItemRef } from "@lemnaria/configurator-domain";
 
+import { defaultKitchenDefaultsClient } from "./default-kitchen-defaults-client";
 import {
-  defaultKitchenDefaultsClient,
   orFallback,
   type DefaultsSaveOutcome,
   type KitchenDefaultsClient,
@@ -105,6 +105,10 @@ export function useKitchenDefaults({
   );
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
+  const latestDraftRef = useRef(draft);
+  useEffect(() => {
+    latestDraftRef.current = draft;
+  }, [draft]);
   const formRef = useRef<HTMLFormElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -160,6 +164,7 @@ export function useKitchenDefaults({
       .then((outcome) =>
         settleSave(outcome, {
           draft,
+          currentDraft: () => latestDraftRef.current,
           readSaved: input.state.defaults,
           client,
           setInput,
@@ -202,9 +207,14 @@ export function useKitchenDefaults({
   };
 }
 
-/** What a save's answer changes on the page. A refusal writes nothing, so what the person changed stays. */
+/**
+ * What a save's answer changes on the page. A refusal writes nothing, so what the person changed stays, including what
+ * they changed while the save was in the air: `draft` is what was sent, `currentDraft` is what the page holds when the
+ * answer comes.
+ */
 interface SaveEffects {
   readonly draft: KitchenDefaultsWire;
+  readonly currentDraft: () => KitchenDefaultsWire;
   /** The saved values the draft was edited from. */
   readonly readSaved: KitchenDefaultsWire;
   readonly client: KitchenDefaultsClient;
@@ -225,12 +235,13 @@ async function settleSave(
       adoptSaved(outcome.saved, effects);
       return;
     case "invalid":
-      refuseRows(membersOfIssues(outcome.issues), effects);
+      refuseRows(
+        unchangedSinceSent(membersOfIssues(outcome.issues), effects),
+        effects,
+      );
       return;
     case "item-unavailable":
-      // Focus goes to the row after the options are read again: the refused option may be gone by then.
-      await adoptFreshFacts(effects);
-      refuseRows(membersHoldingItem(effects.draft, outcome.item), effects);
+      await refuseItem(outcome.item, effects);
       return;
     case "conflict":
       await adoptFreshFactsAfterConflict(effects);
@@ -266,24 +277,49 @@ function refuseRows(
   land({ notice: "applies", focus: { kind: "row", member: first } });
 }
 
-/**
- * The facts as they are now, so what is offered, and the revisions a save expects, are what it will be judged against. What
- * the person changed stays; every other row takes the value another member saved meanwhile. False when they cannot be read.
- */
-async function adoptFreshFacts(effects: SaveEffects): Promise<boolean> {
-  const fresh = await orFallback(() => effects.client.readAgain(), undefined);
-  if (fresh === undefined) return false;
-  effects.setInput(() => fresh);
-  effects.setDraft(
-    rebasedOnto(fresh.state.defaults, effects.readSaved, effects.draft),
+/** A refusal names what was sent: a row the person has changed since is not the one refused. */
+function unchangedSinceSent(
+  members: readonly KitchenDefaultsMember[],
+  { draft, currentDraft }: SaveEffects,
+): readonly KitchenDefaultsMember[] {
+  const changed = modifiedMembers(draft, currentDraft());
+  return members.filter((member) => !changed.has(member));
+}
+
+/** Focus goes to the row after the options are read again: the refused option may be gone by then. */
+async function refuseItem(item: ItemRef, effects: SaveEffects): Promise<void> {
+  const rebased = await adoptFreshFacts(effects);
+  refuseRows(
+    membersHoldingItem(rebased ?? effects.currentDraft(), item),
+    effects,
   );
-  return true;
+}
+
+/**
+ * The facts as they are now, so what is offered, and the revisions a save expects, are what it will be judged against.
+ * What the person has changed from what they read stays, edits made while the save was in the air included; every other
+ * row takes the value another member saved meanwhile. The draft laid over the fresh defaults, or nothing when they cannot
+ * be read.
+ */
+async function adoptFreshFacts(
+  effects: SaveEffects,
+): Promise<KitchenDefaultsWire | undefined> {
+  const fresh = await orFallback(() => effects.client.readAgain(), undefined);
+  if (fresh === undefined) return undefined;
+  const rebased = rebasedOnto(
+    fresh.state.defaults,
+    effects.readSaved,
+    effects.currentDraft(),
+  );
+  effects.setInput(() => fresh);
+  effects.setDraft(rebased);
+  return rebased;
 }
 
 async function adoptFreshFactsAfterConflict(
   effects: SaveEffects,
 ): Promise<void> {
-  const isRead = await adoptFreshFacts(effects);
+  const isRead = (await adoptFreshFacts(effects)) !== undefined;
   effects.land(
     isRead
       ? { notice: "changed-meanwhile", focus: { kind: "notice" } }

@@ -31,6 +31,13 @@ import type { KitchenDefaultsMember } from "./price-dashboard-wire-contract";
 // The six rows of D9, in the frame's order. Each is a labelled group of native radio buttons (the colour of an MDF kitchen,
 // a free colour, is a native colour input), so the arrow keys, the touch targets and the names come from the platform.
 
+/** What a control that is not a radio needs of its row to be tied to the row's error. */
+interface ControlField {
+  readonly isInvalid: boolean;
+  /** The id of the row's error, or empty while it has none. */
+  readonly errorId: string;
+}
+
 interface RowOption {
   readonly value: string;
   readonly label: string;
@@ -150,13 +157,23 @@ function ColourRow({ desk }: { readonly desk: KitchenDefaultsDesk }) {
           desk.choose("finish", paletteFinish(entryId));
       }}
       describedBy={noteId}
-      control={offer.kind === "free" ? <FreeColourPicker desk={desk} /> : null}
+      control={
+        offer.kind === "free"
+          ? (field) => <FreeColourPicker desk={desk} field={field} />
+          : undefined
+      }
       aside={<ColourResetNote id={noteId} desk={desk} />}
     />
   );
 }
 
-function FreeColourPicker({ desk }: { readonly desk: KitchenDefaultsDesk }) {
+function FreeColourPicker({
+  desk,
+  field,
+}: {
+  readonly desk: KitchenDefaultsDesk;
+  readonly field: ControlField;
+}) {
   const translate = useTranslations();
   const valueId = useId();
   const { finish } = desk.draft;
@@ -167,7 +184,8 @@ function FreeColourPicker({ desk }: { readonly desk: KitchenDefaultsDesk }) {
         type="color"
         className={styles.colourInput}
         aria-label={translate("priceDashboard.defaults.colour")}
-        aria-describedby={valueId}
+        aria-describedby={[valueId, field.errorId].join(" ").trim()}
+        aria-invalid={field.isInvalid}
         value={colour ?? "#000000"}
         onChange={(event) => {
           desk.choose("finish", freeColourFinish(event.target.value));
@@ -273,7 +291,7 @@ function ChoiceRow({
   readonly onChoose: (value: string) => void;
   readonly describedBy?: string;
   /** A control that stands among the options, in their group: MDF's free colour. */
-  readonly control?: ReactNode;
+  readonly control?: ((field: ControlField) => ReactNode) | undefined;
   /** What stands beside the group and is not one of its options. */
   readonly aside?: ReactNode;
 }) {
@@ -316,7 +334,10 @@ function ChoiceRow({
               onChoose={onChoose}
             />
           ))}
-          {control}
+          {control?.({
+            isInvalid: hasError,
+            errorId: hasError ? ids.error : "",
+          })}
         </div>
         {aside}
         {hasError ? (

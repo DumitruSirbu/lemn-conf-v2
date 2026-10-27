@@ -51,26 +51,8 @@ export async function orFallback<Outcome>(
   }
 }
 
-/**
- * The client a screen writes through when it is given none: nothing in a production build, and an in-memory stand-in
- * seeded with what the page showed in any other. The stand-in is loaded by its first call, so a production bundle holds
- * no sample branch and a page that is only read never fetches it.
- */
-export function defaultKitchenDefaultsClient(
-  seed: KitchenDefaultsPageInput,
-): KitchenDefaultsClient {
-  if (process.env.NODE_ENV === "production") {
-    return UNAVAILABLE_KITCHEN_DEFAULTS_CLIENT;
-  }
-  return lazyClient(async () => {
-    const { inMemoryKitchenDefaultsClient } = await import(
-      "./kitchen-defaults-sample"
-    );
-    return inMemoryKitchenDefaultsClient(seed);
-  });
-}
-
-function lazyClient(
+/** A client loaded by its first call, so the module behind `load` is fetched only if something is written. */
+export function lazyClient(
   load: () => Promise<KitchenDefaultsClient>,
 ): KitchenDefaultsClient {
   let loaded: Promise<KitchenDefaultsClient> | undefined;
