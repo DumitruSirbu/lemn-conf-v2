@@ -304,3 +304,10 @@ written; this amendment supersedes its migration numbers and its S2b wave name.
    - every effect, **the audit row included**, is a branch of one CTE conditional on the head update. A separate
      unconditional audit statement would leave an audit row for a publish that never happened (F3);
    - a CAS that updates no row writes nothing and is answered `availability-changed-meanwhile`.
+
+## Amendment — 2026-10-27: limiter buckets (relayed by the coordinator; the scribe ran nothing)
+
+**Limiter buckets (R2, 2026-10-27; provisional, fail closed, the owner's to retune):** `staff-prices-read-by-account` 300
+per hour (the staff list's figure); `staff-price-draft-by-account` 600 per hour, shared by the draft's `PUT`, `DELETE` and
+`POST`; events `staff-prices` and `staff-price-draft`. Subjects are made as ADR 0156 requires. Also `staff-seen-by-account`
+600 per hour (K2a; provisional, fail closed). None of these figures is an owner ruling.
