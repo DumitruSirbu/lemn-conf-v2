@@ -2377,6 +2377,14 @@ export function resolveContent(translate: ContentTranslator) {
       },
       included: translate("priceBreakdown.included"),
       notIncluded: translate("priceBreakdown.notIncluded"),
+      /** `percent` is the published depth rule's whole percentage: the leaf states no figure of its own (ADR 0100
+       *  decision 5). The leaf's plain `{percent}` is typed as text, so the number is read here. */
+      depthLine: (cabinetDepthMm: number, percent: number) =>
+        translate("priceBreakdown.depthLine", {
+          cabinetDepthMm,
+          percent: String(percent),
+        }),
+      depthLineScope: translate("priceBreakdown.depthLineScope"),
     },
     review: {
       title: translate("review.title"),
@@ -2438,6 +2446,12 @@ export function resolveContent(translate: ContentTranslator) {
         translate("globalSettings.depthOption", { cabinetDepthMm }),
       depthWarning: translate("globalSettings.depthWarning"),
       depthNote: translate("globalSettings.depthNote"),
+      /** A zero `percent` reads as "the depth does not change the price", not as a surcharge of 0 %. */
+      depthNotePriced: (cabinetDepthMm: number, percent: number) =>
+        translate("globalSettings.depthNotePriced", {
+          cabinetDepthMm,
+          percent,
+        }),
       apply: translate("globalSettings.apply"),
       cancel: translate("globalSettings.cancel"),
       materialResetConfirm: {

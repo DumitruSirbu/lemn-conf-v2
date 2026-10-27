@@ -370,22 +370,22 @@ describe("the priced depth sentence has a zero form (a 0 % rule must not read as
   );
 
   it.each(CATALOGUES)(
-    "carries the percent parameter in the other arm only, in %s",
+    "carries the percentage as the plural's own number (#) in the other arm only, in %s",
     (_locale, messages) => {
       const [node] = pluralNodesOf(parse(leafAt(messages, KEY) ?? ""));
-      const armNames = (name: string): readonly string[] => {
+      // `#` rather than a second `{percent}`: the generated declaration types a plural selector and a plain argument of
+      // one name as `never`, so no caller could pass either.
+      const poundCount = (name: string): number => {
         const arm = node?.options[name]?.value ?? [];
-        const names: string[] = [];
+        let count = 0;
         walk(arm, (element) => {
-          if ("value" in element && typeof element.value === "string") {
-            names.push(element.value);
-          }
+          if (element.type === TYPE.pound) count += 1;
         });
-        return names;
+        return count;
       };
 
-      expect(armNames("=0")).not.toContain("percent");
-      expect(armNames("other")).toContain("percent");
+      expect(poundCount("=0")).toBe(0);
+      expect(poundCount("other")).toBe(1);
     },
   );
 

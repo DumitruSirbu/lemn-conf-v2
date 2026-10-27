@@ -325,7 +325,7 @@
     "depthOption": "{cabinetDepthMm, number, ::group-off} мм",
     "depthWarning": "Изменение глубины столешницы перестроит все шкафы и изменит их цену.",
     "depthNote": "Глубина столешницы не влияет на цену кухни — меняются только размеры шкафов.",
-    "depthNotePriced": "{percent, plural, =0 {Глубина {cabinetDepthMm, number, ::group-off} мм не меняет цену.} other {Глубина {cabinetDepthMm, number, ::group-off} мм удорожает шкафы, которые становятся глубже, на {percent} %.}}",
+    "depthNotePriced": "{percent, plural, =0 {Глубина {cabinetDepthMm, number, ::group-off} мм не меняет цену.} other {Глубина {cabinetDepthMm, number, ::group-off} мм удорожает шкафы, которые становятся глубже, на # %.}}",
     "kitchenHandleHeading": "Ручки",
     "kitchenHandleHint": "Применяется ко всем шкафам, у которых есть ручка. Ручку одного шкафа можно потом изменить в его редакторе.",
     "colourHeading": "Цвет кухни",
