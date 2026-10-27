@@ -33,31 +33,47 @@ export type PriceStoreSelection = "seeded-fakes" | "production";
 
 const DEVELOPMENT_AND_TEST_MODES: readonly string[] = ["development", "test"];
 
-/** Variables only a deployment has, whatever they hold. */
-const DEPLOYMENT_VARIABLES = ["VERCEL_ENV", CLIENT_NETWORK_SOURCE_VARIABLE];
-
 /**
  * Which stores the environment asks for, as a value. The seeded fakes serve a development server, a test run and the e2e
  * server (a production build, so by its flag alone). Anything else, including an unset `NODE_ENV`, is production: the
- * choice fails toward the real stores, never toward a book that ships with the code. Beside a variable only a deployment
- * has, the fakes are a misconfiguration and are not chosen, as the e2e rate-limit policy is not (`choosePolicy`): production
- * is the choice that refuses to price rather than prices from a sample.
+ * choice fails toward the real stores, never toward a book that ships with the code.
+ *
+ * `VERCEL_ENV` vetoes every request for the fakes, the flag included: production is the choice that refuses to price
+ * rather than prices from a sample. `CLIENT_NETWORK_SOURCE`, the owner's own marker of a deployment, vetoes a
+ * development or test mode but not the flag, because the e2e harness's second servers name a network source to prove the
+ * figures of a production deployment and still have to read the sample book to render a page. That differs from
+ * `choosePolicy`, which refuses its e2e policy beside either variable.
  */
 export function selectPriceStores(
   environment: PriceStoreEnvironment,
 ): PriceStoreSelection {
-  if (isDeployment(environment)) return "production";
-  const isFlagged =
-    Object.hasOwn(environment, FAKE_PRICE_BOOK_FLAG) &&
-    environment[FAKE_PRICE_BOOK_FLAG] === FAKE_PRICE_BOOK_FLAG_ENABLED;
+  if (isNamed(environment, "VERCEL_ENV")) return "production";
+  if (isFlagged(environment)) return "seeded-fakes";
   const isDevelopmentOrTest =
     environment.NODE_ENV !== undefined &&
     DEVELOPMENT_AND_TEST_MODES.includes(environment.NODE_ENV);
-  return isFlagged || isDevelopmentOrTest ? "seeded-fakes" : "production";
+  const isNamingNetworkSource = isNamed(
+    environment,
+    CLIENT_NETWORK_SOURCE_VARIABLE,
+  );
+  return isDevelopmentOrTest && !isNamingNetworkSource
+    ? "seeded-fakes"
+    : "production";
 }
 
-function isDeployment(environment: PriceStoreEnvironment): boolean {
-  return DEPLOYMENT_VARIABLES.some((name) => Object.hasOwn(environment, name));
+function isFlagged(environment: PriceStoreEnvironment): boolean {
+  return (
+    Object.hasOwn(environment, FAKE_PRICE_BOOK_FLAG) &&
+    environment[FAKE_PRICE_BOOK_FLAG] === FAKE_PRICE_BOOK_FLAG_ENABLED
+  );
+}
+
+/** Named at all, whatever it holds: an own member, never one the environment merely inherits. */
+function isNamed(
+  environment: PriceStoreEnvironment,
+  name: "VERCEL_ENV" | typeof CLIENT_NETWORK_SOURCE_VARIABLE,
+): boolean {
+  return Object.hasOwn(environment, name);
 }
 
 /**

@@ -37,6 +37,14 @@ describe("selecting the price stores from the environment", () => {
         [FAKE_PRICE_BOOK_FLAG]: FAKE_PRICE_BOOK_FLAG_ENABLED,
       },
     ],
+    [
+      "a production build with the e2e flag beside CLIENT_NETWORK_SOURCE, whatever it holds (a second e2e server names a source)",
+      {
+        NODE_ENV: "production",
+        [FAKE_PRICE_BOOK_FLAG]: FAKE_PRICE_BOOK_FLAG_ENABLED,
+        CLIENT_NETWORK_SOURCE: "vercel",
+      },
+    ],
   ])("selects the seeded fakes for %s", (_, environment) => {
     expect(selectPriceStores(environment)).toBe("seeded-fakes");
   });
@@ -59,14 +67,6 @@ describe("selecting the price stores from the environment", () => {
         NODE_ENV: "production",
         [FAKE_PRICE_BOOK_FLAG]: FAKE_PRICE_BOOK_FLAG_ENABLED,
         VERCEL_ENV: "preview",
-      },
-    ],
-    [
-      "the e2e flag beside CLIENT_NETWORK_SOURCE, whatever it holds",
-      {
-        NODE_ENV: "production",
-        [FAKE_PRICE_BOOK_FLAG]: FAKE_PRICE_BOOK_FLAG_ENABLED,
-        CLIENT_NETWORK_SOURCE: "",
       },
     ],
     [
