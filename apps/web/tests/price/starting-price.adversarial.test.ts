@@ -425,6 +425,9 @@ describe("only these modules may go near a price, and only one of them may round
       "contact/use-contact-submission.ts",
       // The shop's notice prints a stored review's figure and rows and derives nothing; it rounds nothing.
       "lib/server/mail/lead-notification.ts",
+      // The server's projection of a stored book onto its declared members, before a page is handed it: it copies the
+      // book's amounts and derives, rounds and prices nothing.
+      "lib/server/project-price-book.ts",
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",

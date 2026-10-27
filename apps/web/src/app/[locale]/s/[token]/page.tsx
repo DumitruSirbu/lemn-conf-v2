@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/repository";
 import { isWellFormedShareToken } from "@/lib/server/share-token";
 import { sha256Hex } from "@/lib/server/sha256-hex";
+import { withActivePriceBook } from "@/lib/server/with-active-price-book";
 
 /** Never indexed or followed, and the referrer is withheld from wherever a visitor clicks next: stricter than the
  *  site-wide default so a shared kitchen leaks not even the origin. `proxy.ts`'s `SHARE_VIEW_HEADERS` carries the
@@ -45,19 +46,23 @@ export default async function SharedDesignPage({
   if (!isWellFormedShareToken(token))
     return <DesignLoadError reason="not-found" />;
 
+  let outcome: Awaited<ReturnType<typeof loadSharedOrSentKitchen>>;
   try {
-    const outcome = await loadSharedOrSentKitchen(sha256Hex(token));
-    if (outcome.kind === "none") return <DesignLoadError reason="not-found" />;
-    // `key={token}`: the token is public, and keying by it makes each share view a fresh mount, never a re-hydrate of
-    // a live instance. Without it, back/forward between two share views reused one `SharedDesignView` and called
-    // `hydrate()` mid-render again: a real React warning ("cannot update a component while rendering a different one").
-    return <SharedDesignView key={token} design={outcome.design} />;
+    outcome = await loadSharedOrSentKitchen(sha256Hex(token));
   } catch (error) {
     if (error instanceof InvalidDesignError)
       return <DesignLoadError reason="invalid" />;
     reportDesignFailure("share-read", error);
     throw error;
   }
+  if (outcome.kind === "none") return <DesignLoadError reason="not-found" />;
+  // `key={token}`: the token is public, and keying by it makes each share view a fresh mount, never a re-hydrate of
+  // a live instance. Without it, back/forward between two share views reused one `SharedDesignView` and called
+  // `hydrate()` mid-render again: a real React warning ("cannot update a component while rendering a different one").
+  // The price book is read outside the guard above: a failure of it is the price book's own line, never `share-read`.
+  return withActivePriceBook(
+    <SharedDesignView key={token} design={outcome.design} />,
+  );
 }
 
 /** The design's own share link wins; the frozen copy is asked only when the hash names no share link. */

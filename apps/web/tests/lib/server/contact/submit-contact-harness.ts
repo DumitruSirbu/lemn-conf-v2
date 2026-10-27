@@ -113,6 +113,9 @@ export interface HarnessOptions {
   readonly digester?: SubmitContactPorts["digester"];
   readonly noticeContent?: SubmitContactPorts["noticeContent"];
   readonly book?: SubmitContactPorts["book"];
+  /** The id of the version the book was read as; by default the book's own `version`, so a test that changes the book
+   *  changes what is digested. */
+  readonly bookVersionId?: SubmitContactPorts["bookVersionId"];
   readonly readPublicOrigin?: SubmitContactPorts["readPublicOrigin"];
   readonly views?: (
     inner: FakeSentKitchenViewRepository,
@@ -152,6 +155,8 @@ export function aHarness(options: HarnessOptions = {}): Harness {
       options.createSender ??
       (() => ({ kind: "sender", sender: loggedSender(sender, calls) })),
     book: options.book ?? SAMPLE_PRICE_BOOK,
+    bookVersionId:
+      options.bookVersionId ?? (options.book ?? SAMPLE_PRICE_BOOK).version,
     digester: options.digester ?? readDigester(environment),
     noticeContent: options.noticeContent ?? ro,
     servedLocales: ["ro", "ru"],

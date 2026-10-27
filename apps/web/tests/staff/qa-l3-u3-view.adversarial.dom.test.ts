@@ -33,6 +33,7 @@ import {
   type MountedScreen,
   type TestLocale,
 } from "../support/render-with-intl";
+import { SAMPLE_PRICE_ROOT } from "../support/sample-price-root";
 
 const scene = vi.hoisted(() => ({
   canvasesLive: 0,
@@ -344,6 +345,7 @@ describe("a kitchen of any odd but valid shape", () => {
       for (const design of designs) {
         const rows = describeStaffSummaryRows({
           design,
+          priceBook: SAMPLE_PRICE_ROOT,
           copy: resolveStaffKitchenCopy(translate),
           content: resolveContent(translate),
           noValue: NO_VALUE,
@@ -374,6 +376,7 @@ describe("a kitchen of any odd but valid shape", () => {
     const rowsOf = (design: Design) =>
       describeStaffSummaryRows({
         design,
+        priceBook: SAMPLE_PRICE_ROOT,
         copy: resolveStaffKitchenCopy(translate),
         content: resolveContent(translate),
         noValue: NO_VALUE,
@@ -392,6 +395,7 @@ describe("a kitchen of any odd but valid shape", () => {
 
     const rows = describeStaffSummaryRows({
       design: EMPTY_ROOM,
+      priceBook: SAMPLE_PRICE_ROOT,
       copy: resolveStaffKitchenCopy(translate),
       content: resolveContent(translate),
       noValue: NO_VALUE,

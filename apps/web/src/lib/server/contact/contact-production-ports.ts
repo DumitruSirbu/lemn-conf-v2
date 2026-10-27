@@ -5,12 +5,21 @@ import type {
   SentMarkStore,
 } from "@lemnaria/persistence";
 import { createTranslator, type IntlError } from "next-intl";
+import type { NextResponse } from "next/server";
+
+import type { PriceBook } from "@lemnaria/configurator-domain";
 
 import { resolveContent, type Content } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
 import roMessages from "@/messages/ro.json";
+import { readActivePriceBook } from "@/lib/server/active-price-book";
+import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import { getContactSubmissionStore } from "@/lib/server/contact/contact-submission-store-instance";
-import { makeContactJudge } from "@/lib/server/contact/judge-contact-request";
+import {
+  makeContactJudge,
+  type ContactJudge,
+} from "@/lib/server/contact/judge-contact-request";
+import { parseContactRequest } from "@/lib/server/contact/parse-contact-request";
 import { getSentMarkStore } from "@/lib/server/contact/sent-mark-store-instance";
 import type { SubmitContactPorts } from "@/lib/server/contact/submit-contact";
 import { readDigester } from "@/lib/server/digest/digest-secret";
@@ -20,22 +29,43 @@ import { NOTICE_LOCALE } from "@/lib/server/mail/lead-notification";
 import { readPublicOrigin } from "@/lib/server/public-origin";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import { getSentKitchenViewRepository } from "@/lib/server/repository";
-import { shippedPriceBook } from "@/lib/server/shipped-price-book";
 
 /**
- * The contact request's production ports, made for one request and held nowhere: the route calls this once, inside its
- * guard, and nothing here is kept at module level, so a request that cannot be given its ports leaves nothing for the
- * next to inherit. The book is the one book of the request: its version is what the digest covers and its prices are
- * what the snapshot is priced under.
+ * The contact request's production ports, made for one request and held nowhere: nothing here is kept at module level, so
+ * a request that cannot be given its ports leaves nothing for the next to inherit. These ports price: the book is the one
+ * book of the request, the active version read once (`readActivePriceBook`), whose id is what the digest covers and whose
+ * prices are what the snapshot is priced under. With no active version there is nothing to price under, and the request
+ * is the one unavailable answer (A-10), never a sample book.
  */
-export function makeContactProductionPorts(
+export async function makeContactProductionPorts(
+  headers: HeaderReader,
+): Promise<PricedContactPorts> {
+  const ports = makeContactPortsWithoutBook(headers);
+  const priceBook = await readActivePriceBook();
+  if (priceBook.kind === "none") throw new ContactFailure("no-price-book");
+  return {
+    ...ports,
+    book: priceBook.book,
+    bookVersionId: priceBook.versionId,
+  };
+}
+
+/** The ports of a request that names a design: the book of the request is in them. */
+export type PricedContactPorts = SubmitContactPorts & {
+  readonly book: PriceBook;
+  readonly bookVersionId: string;
+};
+
+/** Everything but the book: for a request that prices nothing, and for the judgement that comes before any price is read. */
+function makeContactPortsWithoutBook(
   headers: HeaderReader,
 ): SubmitContactPorts {
   return {
     store: getContactSubmissionStore(),
     sentMarks: sentMarksOnFirstUse(),
     createSender: () => createMailSender(process.env),
-    book: shippedPriceBook(),
+    book: undefined,
+    bookVersionId: undefined,
     digester: readDigester(process.env),
     noticeContent: noticeContent(),
     servedLocales: routing.locales,
@@ -46,6 +76,43 @@ export function makeContactProductionPorts(
     readPublicOrigin: () => readPublicOrigin(process.env),
     sentKitchenViews: sentKitchenViewsOnFirstUse(),
   };
+}
+
+/** A request judged before anything of the price store is read: refused by the every-request bucket, or given its ports. */
+export type AdmittedContactRequest =
+  | { readonly kind: "limited"; readonly answer: NextResponse }
+  | { readonly kind: "ports"; readonly ports: SubmitContactPorts };
+
+/**
+ * ADR 0157 decision 1: every request is judged first. The every-request bucket is asked before the price store is read,
+ * so a request the limiter refuses costs the store nothing and is answered as the limiter's, whatever state the store is
+ * in. The judge the orchestration is handed is the one already asked: its every-request judgement is not asked (and
+ * counted) a second time, while its other two are.
+ *
+ * A book is read only for a request that names a design. The callback form prices nothing and works with no book; a text
+ * that does not parse is refused by the orchestration, which needs none.
+ */
+export async function admitContactRequest(
+  headers: HeaderReader,
+  text: string,
+): Promise<AdmittedContactRequest> {
+  const ports = makeContactPortsWithoutBook(headers);
+  const judge = ports.makeJudge(ports.now());
+  const limited = await judge.everyRequest();
+  if (limited !== undefined) return { kind: "limited", answer: limited };
+  const admitted: ContactJudge = {
+    ...judge,
+    everyRequest: () => Promise.resolve(undefined),
+  };
+  const admittedPorts = { ...ports, makeJudge: () => admitted };
+  if (!namesADesign(text)) return { kind: "ports", ports: admittedPorts };
+  const { book, bookVersionId } = await makeContactProductionPorts(headers);
+  return { kind: "ports", ports: { ...admittedPorts, book, bookVersionId } };
+}
+
+function namesADesign(text: string): boolean {
+  const parsed = parseContactRequest(text, routing.locales);
+  return parsed.kind === "request" && parsed.request.target.kind === "design";
 }
 
 /**

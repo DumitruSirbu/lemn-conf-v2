@@ -14,6 +14,7 @@ import DesignPage from "../../src/app/[locale]/d/[id]/page";
 import ReviewPage from "../../src/app/[locale]/d/[id]/review/page";
 
 import { readSource } from "../lib/server/server-source-support";
+import { withoutPriceBook } from "../support/price-book-wrapper";
 
 /**
  * The contact page is a third door to a design that opens only in its owning browser (ADR 0114 decision 5, ADR 0148
@@ -109,8 +110,10 @@ function ownerOnlyRepository(): void {
 
 function renderDoor(door: Door, id: string): Promise<unknown> {
   const params = Promise.resolve({ locale: "ro", id });
-  if (door === "editor") return DesignPage({ params });
-  return door === "review" ? ReviewPage({ params }) : ContactPage({ params });
+  if (door === "editor") return DesignPage({ params }).then(withoutPriceBook);
+  return (
+    door === "review" ? ReviewPage({ params }) : ContactPage({ params })
+  ).then(withoutPriceBook);
 }
 
 function propsOf(element: unknown): Record<string, unknown> {

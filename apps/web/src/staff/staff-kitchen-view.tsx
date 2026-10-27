@@ -14,7 +14,8 @@ import {
 import { describeKitchenPrice } from "@/account/kitchens/kitchen-summary";
 import type { Content, StaffKitchenCopy } from "@/i18n/content";
 import { useContent, useStaffKitchenCopy } from "@/i18n/use-content";
-import { priceFloorOf } from "@/price/price-book-root";
+import { usePriceBookRoot } from "@/price/price-book-provider";
+import { priceFloorOf, type PriceBookRoot } from "@/price/price-book-root";
 import { KitchenPicture } from "@/review/review-scene";
 import { useCameraPreset } from "@/scene/camera-preset-store";
 import { presetForRoom, type SceneView } from "@/scene/scene-view";
@@ -187,17 +188,19 @@ export interface StaffSummaryRow {
  */
 export function describeStaffSummaryRows({
   design,
+  priceBook,
   copy,
   content,
   noValue,
 }: {
   readonly design: Design;
+  readonly priceBook: PriceBookRoot;
   readonly copy: StaffKitchenCopy;
   readonly content: Content;
   readonly noValue: string;
 }): readonly StaffSummaryRow[] {
   const facts = kitchenSummaryOf(design);
-  const priced = priceFloorOf(design);
+  const priced = priceFloorOf(priceBook, design);
   const price = describeKitchenPrice(priced, content.price);
   const { summary } = copy;
   return [
@@ -280,9 +283,11 @@ export function StaffKitchenSummary({
 }) {
   const copy = useStaffKitchenCopy();
   const content = useContent();
+  const priceBook = usePriceBookRoot();
   const rows = useMemo(
-    () => describeStaffSummaryRows({ design, copy, content, noValue }),
-    [design, copy, content, noValue],
+    () =>
+      describeStaffSummaryRows({ design, priceBook, copy, content, noValue }),
+    [design, priceBook, copy, content, noValue],
   );
   return (
     <section
