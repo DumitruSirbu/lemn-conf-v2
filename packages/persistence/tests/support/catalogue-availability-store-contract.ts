@@ -53,6 +53,7 @@ export function describeCatalogueAvailabilityStoreContract(
   describeReading(suiteName, newWorld);
   describeSetActive(suiteName, newWorld);
   describeReplay(suiteName, newWorld);
+  describeWhatTheLogCannotKeep(suiteName, newWorld);
 }
 
 async function setActive(
@@ -295,7 +296,8 @@ function describeSetActive(
           (event.detail as { availabilityRevision: string })
             .availabilityRevision,
       );
-      expect(audited).toEqual(produced);
+      // Two audit rows written in one clock tick have no order the store promises, so the revisions are compared as a set.
+      expect([...audited].sort()).toEqual([...produced].sort());
     });
 
     it("refuses an expected revision ahead of the head, or the widest one there is, appending no row, moving no head and writing no audit row", async () => {
@@ -547,4 +549,60 @@ function replaySequence(
     { item: material, active: false },
     ...oneOfEach.map((item) => ({ item, active: true })),
   ];
+}
+
+/** The log is append-only, so an item no reader accepts, or an actor who may not write, is refused before it can be kept. */
+function describeWhatTheLogCannotKeep(
+  suiteName: string,
+  newWorld: () => Promise<AvailabilityWorld>,
+): void {
+  describe(`${suiteName}: what the log cannot keep`, () => {
+    it.each([
+      ["a handle the design does not list", { kind: "handle", handle: "gold" }],
+      ["an item id with a space", { kind: "material", tierId: "a b" }],
+      [
+        "an item id of 65 characters",
+        { kind: "finish", finishId: "a".repeat(65) },
+      ],
+      ["an item id that is empty", { kind: "accessory", accessoryId: "" }],
+    ])("refuses to switch %s, writing nothing", async (_name, item) => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const before = await world.store.readCurrent();
+
+      await dashboardFailureOf(
+        world.store.setActive({
+          item: item as ItemRef,
+          active: false,
+          expectedRevision: before.revision,
+          audit: auditRecordOf(
+            staff,
+            activationEntryFor(item as ItemRef, false),
+          ),
+        }),
+        "invalid-request",
+      );
+
+      expect(await world.store.readCurrent()).toEqual(before);
+      expect(await world.auditEventsOf(staff.accountId)).toEqual([]);
+    });
+
+    it("records nothing for an operator's write, and answers that no live session stood behind the call", async () => {
+      const world = await newWorld();
+      const operator = await world.aStaffMemberWhoIsNotAnAdministrator();
+      const before = await world.store.readCurrent();
+
+      await dashboardFailureOf(
+        setActive(world, operator, {
+          item: aNewItem("material"),
+          active: false,
+          expectedRevision: before.revision,
+        }),
+        "not-recorded",
+      );
+
+      expect(await world.store.readCurrent()).toEqual(before);
+      expect(await world.auditEventsOf(operator.accountId)).toEqual([]);
+    });
+  });
 }

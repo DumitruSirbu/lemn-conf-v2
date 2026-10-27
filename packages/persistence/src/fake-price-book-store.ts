@@ -1,11 +1,16 @@
 import type { ItemRef } from "@lemnaria/configurator-domain";
 import { nanoid } from "nanoid";
 
+import {
+  isListablePage,
+  stampedWithVersion,
+  storableJsonTextOf,
+  storablePublishOf,
+} from "./dashboard-store-shapes.js";
+
 import type { FakeCatalogueAvailabilityStore } from "./fake-catalogue-availability-store.js";
 import {
   FakeRevisionHead,
-  isJsonObject,
-  isNamedItem,
   isRevisionShape,
   settle,
 } from "./fake-dashboard-support.js";
@@ -117,7 +122,7 @@ export class FakePriceBookStore implements PriceBookStore {
 
   listVersions({ page }: PriceVersionPageRequest): Promise<PriceVersionPage> {
     return settle("list the price versions", () => {
-      if (!Number.isSafeInteger(page) || page < 1) {
+      if (!isListablePage(page)) {
         throw new DashboardStoreError(
           "list the price versions",
           "invalid-request",
@@ -150,13 +155,17 @@ export class FakePriceBookStore implements PriceBookStore {
   }
 
   async writeDraft(request: WriteDraftRequest): Promise<WriteDraftResult> {
-    if (!isRevisionShape(request.expectedDraftRevision)) {
+    const isStorable =
+      isRevisionShape(request.expectedDraftRevision) &&
+      storableJsonTextOf(request.changes, "array") !== undefined;
+    if (!isStorable) {
       throw new DashboardStoreError("write the price draft", "invalid-request");
     }
     const staged = await this.ledger.stage({
       operation: "write the price draft",
       record: request.audit,
       accepts: DRAFT_WRITE_ACTIONS,
+      onlyAdministrators: true,
     });
     if (request.expectedDraftRevision !== this.draftRevision.current()) {
       return CHANGED_MEANWHILE;
@@ -170,15 +179,22 @@ export class FakePriceBookStore implements PriceBookStore {
   async publish(
     request: PublishPriceBookRequest,
   ): Promise<PublishPriceBookResult> {
-    requirePublishable(request);
+    const publishable = storablePublishOf(request);
+    if (publishable === undefined) {
+      throw new DashboardStoreError(
+        "publish the price book",
+        "invalid-request",
+      );
+    }
     const staged = await this.ledger.stage({
       operation: "publish the price book",
       record: request.audit,
       accepts: ["price-published"],
       provisional: {
-        sequenceNumber: request.expectedActiveSequence + 1,
-        changeCount: (request.changeSummary as readonly unknown[]).length,
+        sequenceNumber: publishable.expectedActiveSequence + 1,
+        changeCount: publishable.changeCount,
       },
+      onlyAdministrators: true,
     });
     const newestSequence = this.versions.at(-1)?.sequenceNumber ?? 0;
     if (
@@ -193,13 +209,16 @@ export class FakePriceBookStore implements PriceBookStore {
       return AVAILABILITY_CHANGED_MEANWHILE;
     }
     const availabilityRevision = this.logCreatedItems(request.createdItems);
+    const versionId = nanoid();
     const held: HeldVersion = {
-      versionId: nanoid(),
+      versionId,
       sequenceNumber: newestSequence + 1,
       label: request.label,
       note: request.note,
       publishedAt: this.now(),
-      book: structuredClone(request.book),
+      book: structuredClone(
+        stampedWithVersion(versionId, request.book as Record<string, unknown>),
+      ),
       changeSummary: structuredClone(
         request.changeSummary as readonly unknown[],
       ),
@@ -244,22 +263,5 @@ export class FakePriceBookStore implements PriceBookStore {
 
   private stateOf(held: HeldVersion): "active" | "archived" {
     return held === this.versions.at(-1) ? "active" : "archived";
-  }
-}
-
-function requirePublishable(request: PublishPriceBookRequest): void {
-  const isWellFormed =
-    isRevisionShape(request.expectedDraftRevision) &&
-    Number.isSafeInteger(request.expectedActiveSequence) &&
-    request.expectedActiveSequence >= 0 &&
-    typeof request.label === "string" &&
-    typeof request.note === "string" &&
-    isJsonObject(request.book) &&
-    Array.isArray(request.changeSummary) &&
-    isRevisionShape(request.expectedAvailabilityRevision) &&
-    Array.isArray(request.createdItems) &&
-    request.createdItems.every(isNamedItem);
-  if (!isWellFormed) {
-    throw new DashboardStoreError("publish the price book", "invalid-request");
   }
 }
