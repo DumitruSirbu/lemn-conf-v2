@@ -44,7 +44,7 @@ export function createNeonDashboardStaffWorld(
   const sql = () => neon(connectionUrl);
 
   async function signedIn(
-    role: "administrator" | "operator" = "administrator",
+    role: "administrator" | "operator" | "client" = "administrator",
   ): Promise<DashboardStaffMember> {
     const accountId = nanoid();
     accountIds.push(accountId);
@@ -67,6 +67,7 @@ export function createNeonDashboardStaffWorld(
   const world: DashboardStaffWorld = {
     aStaffMember: () => signedIn(),
     aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
+    aClientWithALiveSession: () => signedIn("client"),
     async aStaffMemberWhoseSessionIsRevoked() {
       const member = await signedIn();
       await sql()`update account_sessions set revoked_at = now() where token_hash = ${member.session.sessionTokenHash}`;

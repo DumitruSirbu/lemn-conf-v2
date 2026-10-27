@@ -130,6 +130,10 @@ export interface KitchenWorld {
   saveKitchen(designId: string): Promise<string>;
   /** A staff member opens the kitchen, which records the revision the page displayed as seen (A-12). */
   markSeen(designId: string, displayedRevision: string): Promise<void>;
+  /** Writes the kitchen's seen row around the store, as a holder of the application credential could: any revision. */
+  plantSeenMark(designId: string, revision: string): Promise<void>;
+  /** The revision `steps` saves after `revision`, asked of the database in the live world, so no test does arithmetic. */
+  aRevisionAfter(revision: string, steps: number): Promise<string>;
 }
 
 export const CURRENT_DESIGN: Design = KITCHEN_L_DESIGN;
@@ -1590,6 +1594,29 @@ function describeChangedAfterSeen(
         false,
       ]);
       expect(idsOf(onlyChanged)).toEqual([]);
+    });
+
+    it("ignores a seen row written above the kitchen's revision, which the store never writes, and reads one at it as a real mark", async () => {
+      const world = await newWorld();
+      const client = await world.aClient();
+      const kitchen = await aSentKitchen(world, client, at(world.nextEra(), 1));
+      const scope = queryOf({ search: world.marker });
+      const isChanged = async () => ({
+        listed: listedOf(await world.reader.listPage(scope), kitchen)
+          .isChangedSinceSeen,
+        detail: (await foundKitchen(world, kitchen)).isChangedSinceSeen,
+      });
+
+      await world.plantSeenMark(kitchen, await world.aRevisionAfter("1", 1));
+      const aheadOfTheKitchen = await isChanged();
+      await world.plantSeenMark(kitchen, "1");
+      const atTheKitchen = await isChanged();
+      await world.saveKitchen(kitchen);
+      const afterTheNextSave = await isChanged();
+
+      expect(aheadOfTheKitchen).toEqual({ listed: false, detail: false });
+      expect(atTheKitchen).toEqual({ listed: false, detail: false });
+      expect(afterTheNextSave).toEqual({ listed: true, detail: true });
     });
 
     it("never shows a draft an account holds as changed, however often it is saved or opened", async () => {

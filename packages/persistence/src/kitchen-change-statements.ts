@@ -18,15 +18,15 @@ export interface MarkSeenStatementInput {
 
 /**
  * One mark, in one statement: the actor of the live session, the kitchen if staff can see it, the upsert of the seen
- * revision, and the audit row, the last two both conditional on the same admission (a live session, a visible kitchen, a
- * displayed revision not ahead of the kitchen's). Nothing is written otherwise, and the reply says which of the three
+ * revision, and the audit row, the last two both conditional on the same admission (a live session, a visible kitchen,
+ * a displayed revision not ahead of the kitchen's). Nothing is written otherwise, and the reply says which of the three
  * refused. The audit insert is part of the statement, so a mark whose audit row cannot be written is not made.
  *
- * The upsert never lowers the stored revision: `greatest(held, displayed)`. The account and the instant change only when
- * the displayed revision is strictly greater than the one held, evaluated on the locked row, so of two marks racing at
- * different revisions the greater is the one kept, in either order. `changed_after_seen` is judged against the revision
- * the upsert **returned**, so it describes the row as it stands after this mark; and only for a kitchen that was sent,
- * because an account-held draft never shows the badge (A-12).
+ * The upsert never lowers the stored revision: `greatest(held, displayed)`. The account and the instant change only
+ * when the displayed revision is strictly greater than the one held, evaluated on the locked row, so of two marks
+ * racing at different revisions the greater is the one kept, in either order. `changed_after_seen` is judged against
+ * the revision the upsert **returned**, so it describes the row as it stands after this mark; and only for a kitchen
+ * that was sent, because an account-held draft never shows the badge (A-12).
  */
 export function markSeenStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -45,17 +45,20 @@ export function markSeenStatement<Statement>(
         and s.created_at >= a.password_changed_at
         and s.last_seen_at
           + ((${lifetimes}::jsonb ->> a.role)::double precision * interval '1 second') > now()
+        and a.role in ('operator', 'administrator')
     ),
     kitchen as (
-      select d.id, d.revision, d.sent_at,
-        (select cs.design_revision
-          from contact_submissions cs
-          where cs.design_id = d.id
-          order by cs.created_at desc, cs.client_request_id desc
-          limit 1) as submitted_revision
+      select d.id, d.revision, d.sent_at
       from designs d
       where d.id = ${input.designId}
         and d.deleted_by_client_at is null and (d.sent_at is not null or d.account_id is not null)
+    ),
+    latest as (
+      select cs.design_revision
+      from contact_submissions cs
+      join kitchen k on k.id = cs.design_id
+      order by cs.created_at desc, cs.client_request_id desc
+      limit 1
     ),
     admitted as (
       select k.id, a.account_id
@@ -86,15 +89,17 @@ export function markSeenStatement<Statement>(
       exists (select 1 from kitchen k where ${input.displayedRevision}::bigint > k.revision) as is_displayed_ahead,
       (select count(*) from marked)::int as marked_rows,
       (select count(*) from audited)::int as audited_rows,
-      (select k.sent_at is not null
-          and k.revision <> greatest((select m.seen_revision from marked m), k.submitted_revision)
-        from kitchen k) as is_changed_after_seen
+      (select d.sent_at is not null
+          and d.revision <> greatest(case when seen.seen_revision <= d.revision then seen.seen_revision end, latest.design_revision)
+        from kitchen d
+        cross join marked seen
+        left join latest on true) as is_changed_after_seen
   `;
 }
 
 /**
- * The claim of a day: one row inserted with `on conflict do nothing`, so of two runs for one day exactly one gets the row
- * back and the other none (A-13, F6). The insert names `day_key` alone; the table stamps `claimed_at`.
+ * The claim of a day: one row inserted with `on conflict do nothing`, so of two runs for one day exactly one gets the
+ * row back and the other none (ADR 0178 A-13). The insert names `day_key` alone; the table stamps `claimed_at`.
  */
 export function claimDigestDayStatement<Statement>(
   sql: StatementTag<Statement>,
@@ -118,16 +123,20 @@ export interface ListDigestEligibleStatementInput {
 }
 
 /**
- * The kitchens the digest lists (A-13, S-d1), one row each, with nothing a person typed beyond the kitchen's name and the
- * account's name: no e-mail, no phone, no address, and no column of `contact_submissions` but the reference and the
- * design revision. Each clause is one of S-d1's:
- * - changed: the revision differs from the effective seen revision, the **greater** of the seen mark and the **one**
- *   latest submission's revision (a lateral with `limit 1`, never a join over submissions), so a stale first mark below the
- *   revision a kitchen was sent at cannot make it read as changed (S-c0, ruled 2026-10-27);
- * - not held: no digest **entry** for the design above that effective seen revision;
- * - in the window: first sent after `$now` less the window, exclusive at the edge;
+ * The kitchens the digest lists (ADR 0178 A-13), one row each, with nothing a person typed beyond the kitchen's name
+ * and the account's name: no e-mail, no phone, no address, and no column of `contact_submissions` but the reference and
+ * the design revision. The clauses:
+ * - changed: the revision differs from the effective seen revision (`EFFECTIVE_SEEN_REVISION`): the greater of the seen
+ *   mark, unless it is above the kitchen's own revision, and the **one** latest submission's revision (a lateral with `limit 1`,
+ *   never a join over submissions), so a stale first mark below the revision a kitchen was sent at cannot make it read
+ *   as changed;
+ * - not held: no digest **entry** for the design above that effective seen revision and not above the kitchen's own;
+ * - in the window: first sent, truncated to the milliseconds a `Date` holds, after `$now` less the window, exclusive at
+ *   the edge;
  * - not stopped: the stored status (or `new` where none is stored) is not one the digest stops at;
- * - visible and sent: not deleted by the client, `sent_at` set.
+ * - visible and sent: not deleted by the client, `sent_at` set;
+ * - printable: an account name or a request reference to name the customer by, so one row without either cannot abort
+ *   the day's digest.
  * The name is `nullif(btrim(accounts.name), '')`: `btrim` strips spaces only.
  */
 export function listDigestEligibleStatement<Statement>(
@@ -158,17 +167,20 @@ export function listDigestEligibleStatement<Statement>(
       limit 1
     ) latest on true
     cross join lateral (
-      select greatest(seen.seen_revision, latest.design_revision) as effective_seen
+      select greatest(case when seen.seen_revision <= d.revision then seen.seen_revision end, latest.design_revision) as effective_seen
     ) basis
     where d.deleted_by_client_at is null and d.sent_at is not null
-      and d.sent_at > ${input.nowIso}::timestamptz
+      and date_trunc('milliseconds', d.sent_at) > ${input.nowIso}::timestamptz
         - (${input.windowMilliseconds}::double precision * interval '1 millisecond')
       and coalesce(s.status, 'new') <> all(${input.stoppingStatuses}::text[])
+      and (nullif(btrim(a.name), '') is not null or latest.reference is not null)
       and d.revision <> basis.effective_seen
       and not exists (
         select 1
         from staff_change_digest_entries entry
-        where entry.design_id = d.id and entry.revision > basis.effective_seen
+        where entry.design_id = d.id
+          and entry.revision > basis.effective_seen
+          and entry.revision <= d.revision
       )
     order by d.sent_at asc, d.id asc
   `;

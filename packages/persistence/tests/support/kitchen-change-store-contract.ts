@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 import {
   DIGEST_STOPPING_STATUSES,
   DIGEST_WINDOW_MS,
@@ -33,6 +35,8 @@ export interface ChangeKitchenSpec {
   readonly kitchenName?: string;
   /** `accounts.name`. */
   readonly customerName?: string;
+  /** No request is stored for the kitchen, as after a restore of the designs alone: no reference, no request revision. */
+  readonly hasNoRequest?: boolean;
 }
 
 export interface PlantedChangeKitchen {
@@ -60,6 +64,11 @@ export interface ChangeWorld extends DashboardStaffWorld {
   seenRevisionOf(designId: string): Promise<string | undefined>;
   /** The whole seen row: the revision, the account that set it and the instant it was set. */
   seenMarkOf(designId: string): Promise<SeenMark | undefined>;
+  /**
+   * Writes the kitchen's seen row around the store, as a holder of the application credential could: any revision, with
+   * no audit row, and not held to the kitchen's own.
+   */
+  plantSeenMark(designId: string, revision: string): Promise<void>;
 }
 
 export interface SeenMark {
@@ -859,6 +868,54 @@ function describeDigestEligibility(
       }
     });
 
+    it("refuses a mark by a client's session as not recorded, and records one by an operator's", async () => {
+      const world = await newWorld();
+      const client = await world.aClientWithALiveSession();
+      const operator = await world.aStaffMemberWhoIsNotAnAdministrator();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const mark = (staff: typeof client) =>
+        world.store.markSeen({
+          designId: kitchen.designId,
+          displayedRevision: kitchen.revision,
+          audit: auditRecordOf(staff, KITCHEN_SEEN),
+        });
+
+      await dashboardFailureOf(mark(client), "not-recorded");
+      expect(await world.seenRevisionOf(kitchen.designId)).toBeUndefined();
+      expect(await world.auditEventsOf(client.accountId)).toEqual([]);
+
+      expect((await mark(operator)).kind).toBe("ok");
+      expect(await world.seenRevisionOf(kitchen.designId)).toBe(
+        kitchen.revision,
+      );
+    });
+
+    it("ignores a seen row written above the kitchen's revision, which the store never writes: an unchanged kitchen stays unchanged", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      await world.plantSeenMark(
+        kitchen.designId,
+        await world.aRevisionAfter(kitchen.revision, 1),
+      );
+
+      expect(await eligibleAmong(world, [kitchen])).toEqual([]);
+    });
+
+    it("reads a seen row written at the kitchen's revision as a real mark: it hides the change until the next save", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const second = await world.saveKitchen(kitchen.designId);
+      await world.plantSeenMark(kitchen.designId, second);
+      const listed = async () =>
+        (await eligibleAmong(world, [kitchen])).length === 1;
+
+      const whileCurrent = await listed();
+      await world.saveKitchen(kitchen.designId);
+      const afterTheNextSave = await listed();
+
+      expect([whileCurrent, afterTheNextSave]).toEqual([false, true]);
+    });
+
     it("sent at revision 3, a first mark at revision 1 leaves it unchanged and out of the digest: the effective seen revision is the greater of the mark and the latest request's", async () => {
       const world = await newWorld();
       const staff = await world.aStaffMember();
@@ -881,6 +938,47 @@ function describeDigestEligibility(
       await world.saveKitchen(kitchen.designId);
       expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
       expect(third).not.toBe(kitchen.revision);
+    });
+
+    it("lists a changed kitchen once even when an entry is recorded for a revision it has not reached: that entry holds nothing", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: WHEN_SENT });
+      const current = await world.saveKitchen(kitchen.designId);
+      const dayKey = aDayNobodyClaimed();
+      await world.store.claimDigestDay(dayKey);
+
+      await world.store.recordDigested(dayKey, [
+        {
+          designId: kitchen.designId,
+          revision: await world.aRevisionAfter(current, 3),
+        },
+      ]);
+
+      expect(await eligibleAmong(world, [kitchen])).toHaveLength(1);
+    });
+
+    it("leaves out a kitchen with neither an account name nor a request reference, and still lists the others", async () => {
+      const world = await newWorld();
+      const staff = await world.aStaffMember();
+      const nameless = await world.aKitchen({
+        sentAt: WHEN_SENT,
+        hasNoRequest: true,
+      });
+      const named = await world.aKitchen({
+        sentAt: WHEN_SENT,
+        customerName: "Ana Rusu",
+      });
+      await world.store.markSeen({
+        designId: nameless.designId,
+        displayedRevision: nameless.revision,
+        audit: auditRecordOf(staff, KITCHEN_SEEN),
+      });
+      await world.saveKitchen(nameless.designId);
+      await world.saveKitchen(named.designId);
+
+      const rows = await eligibleAmong(world, [nameless, named]);
+
+      expect(rows.map((row) => row.designId)).toEqual([named.designId]);
     });
 
     it("holds a digested revision against a stale first mark below the revision the kitchen was sent at", async () => {
@@ -1293,14 +1391,22 @@ function rowOf(
   return row;
 }
 
-let nextClaimedDay = 0;
+const claimedDays = new Set<string>();
 
-/** A day key no other test, nor an earlier run against a shared database, has claimed. */
+/**
+ * A day key no other test, nor an earlier run against a shared database, has claimed: a random year from 3000 to 8999, a
+ * random month and a day every month has, and never one this process has handed out. A real day is never claimed in
+ * those years, and the rounds the application cannot delete stay in the database between runs.
+ */
 export function aDayNobodyClaimed(): string {
-  nextClaimedDay += 1;
-  const year = String(3000 + (Date.now() % 6000));
-  const date = new Date(Date.UTC(2001, 0, 1 + (nextClaimedDay % 360)));
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  for (;;) {
+    const year = 3000 + randomInt(6000);
+    const month = String(1 + randomInt(12)).padStart(2, "0");
+    const day = String(1 + randomInt(28)).padStart(2, "0");
+    const dayKey = `${String(year)}-${month}-${day}`;
+    if (!claimedDays.has(dayKey)) {
+      claimedDays.add(dayKey);
+      return dayKey;
+    }
+  }
 }

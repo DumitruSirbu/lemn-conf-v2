@@ -182,6 +182,15 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         `;
         return (rows[0] as { revision: string }).revision;
       },
+      async plantSeenMark(designId, revision): Promise<void> {
+        await sql()`
+          insert into design_staff_seen (design_id, seen_revision, seen_by_account_id)
+          values (${designId}, ${revision}::bigint, ${nanoid()})
+          on conflict (design_id) do update set seen_revision = excluded.seen_revision
+        `;
+      },
+      aRevisionAfter: (revision, steps) =>
+        staff.world.aRevisionAfter(revision, steps),
       async markSeen(designId, displayedRevision): Promise<void> {
         const staffMember = await staff.world.aStaffMember();
         const changes = new NeonKitchenChangeStore(liveTestDatabaseUrl);

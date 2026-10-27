@@ -54,7 +54,7 @@ const LIST_OPERATION = "list staff kitchens";
 const READ_OPERATION = "read a staff kitchen";
 
 /** The text of a stored total: a whole number, no sign and no fraction, as `jsonb` prints an integer. */
-const WHOLE_NUMBER_TEXT = /^(0|[1-9][0-9]{0,15})$/;
+const WHOLE_NUMBER_TEXT = /^(0|[1-9][0-9]*)$/;
 
 /**
  * `StaffKitchenReader` on Neon Postgres, over `designs`, joined to `accounts`, `design_request_states`,
@@ -263,22 +263,20 @@ function revisionFrom(
 
 /**
  * The total stored with the latest request, from the two members of its snapshot the statement selects. A request
- * without a snapshot, or a snapshot with no numeric total, stored nothing to show: `null`. A total that is present but
- * is not a whole number a `number` holds exactly, or a currency this build does not price in, is not this reply.
+ * without a snapshot, and a snapshot whose total this build cannot read (not a whole number a `number` holds exactly,
+ * or a currency it does not price in), show no total: `null`, as a sent copy this build cannot read shows none.
  */
 function sentTotalFrom(
   row: Row,
   operation: StaffKitchenReaderOperation,
 ): StaffKitchenSentTotal | null {
   const totalText = optionalText(row["priced_total_minor"], operation);
-  if (totalText === null) return null;
-  const totalMinor = Number(totalText);
   const currency = optionalText(row["priced_currency"], operation);
-  const isStoredTotal =
-    WHOLE_NUMBER_TEXT.test(totalText) &&
-    Number.isSafeInteger(totalMinor) &&
-    currency === PRICE_BOOK_CURRENCY;
-  if (!isStoredTotal) throw unexpectedAnswer(operation);
+  if (totalText === null || !WHOLE_NUMBER_TEXT.test(totalText)) return null;
+  const totalMinor = Number(totalText);
+  if (!Number.isSafeInteger(totalMinor) || currency !== PRICE_BOOK_CURRENCY) {
+    return null;
+  }
   return { totalMinor, currency };
 }
 

@@ -45,9 +45,11 @@ function newChangeWorld(): ChangeWorld &
         ...(spec.customerName === undefined
           ? {}
           : { customerName: spec.customerName }),
-        reference: `REF-${designId}`,
+        ...(spec.hasNoRequest === true ? {} : { reference: `REF-${designId}` }),
         ...(spec.status === undefined ? {} : { status: spec.status }),
-        latestSubmissionRevision: "1",
+        ...(spec.hasNoRequest === true
+          ? {}
+          : { latestSubmissionRevision: "1" }),
       });
       replant(designId, 1);
       return Promise.resolve({ designId, revision: "1" });
@@ -71,6 +73,10 @@ function newChangeWorld(): ChangeWorld &
     },
     aRevisionAheadOf: (designId) =>
       Promise.resolve(String((revisions.get(designId) ?? 0) + 1)),
+    plantSeenMark(designId, revision) {
+      world.changes.plantSeenMark(designId, revision, nanoid());
+      return Promise.resolve();
+    },
     seenRevisionOf: (designId) =>
       Promise.resolve(world.changes.heldSeenRevision(designId)),
     seenMarkOf(designId) {

@@ -78,26 +78,48 @@ export function greatestRevision(
   return isRevisionAhead(second, first) ? second : first;
 }
 
+/** The revision, or `undefined` when it is above the ceiling: a mark above the kitchen's own revision is ignored. */
+export function revisionUnlessAhead(
+  revision: string | undefined,
+  ceiling: string,
+): string | undefined {
+  if (revision === undefined) return undefined;
+  return isRevisionAhead(revision, ceiling) ? undefined : revision;
+}
+
 export interface ChangedAfterSeenFacts {
   readonly isSent: boolean;
   readonly revision: string;
   /** The revision staff last marked seen, when anyone has. */
   readonly seenRevision: string | undefined;
-  /** The design revision on the kitchen's latest submission, which a mark below it never undoes (S-c0, ruled 2026-10-27: the effective seen revision is the greater of the two). */
+  /** The design revision on the kitchen's latest submission, below which a mark never takes the effective revision. */
   readonly latestSubmissionRevision: string | undefined;
 }
 
 /**
- * The stand-in for the SQL every staff statement repeats: `sent_at is not null and revision <> coalesce(seen_revision,
- * latest_submission.design_revision)`. A kitchen with neither a mark nor a submission is **not** changed, as the null
- * comparison in SQL is not true; one never sent is never changed (A-12). Equality only: nothing here orders two
- * revisions. For the fakes alone: the Neon stores compare in SQL.
+ * The effective seen revision as the staff statements compute it (`EFFECTIVE_SEEN_REVISION`): the greater of the seen
+ * mark, unless it is above the kitchen's own revision, and the latest submission's. `undefined` when there is neither.
  */
-export function isChangedAfterSeen(facts: ChangedAfterSeenFacts): boolean {
-  const effectiveSeen = greatestRevision(
-    facts.seenRevision,
+export function effectiveSeenRevision(
+  facts: Pick<
+    ChangedAfterSeenFacts,
+    "revision" | "seenRevision" | "latestSubmissionRevision"
+  >,
+): string | undefined {
+  return greatestRevision(
+    revisionUnlessAhead(facts.seenRevision, facts.revision),
     facts.latestSubmissionRevision,
   );
+}
+
+/**
+ * The stand-in for the SQL every staff statement repeats: `sent_at is not null and revision <> <effective seen>`. A
+ * kitchen with neither a mark nor a submission is **not** changed, as the null comparison in SQL is not true; one never
+ * sent is never changed. The fakes order two revisions only to take the greater and to ignore a mark above the kitchen's
+ * own revision, as the statements do; the Neon stores compare in SQL.
+ */
+export function isChangedAfterSeen(facts: ChangedAfterSeenFacts): boolean {
+  const effectiveSeen = effectiveSeenRevision(facts);
   return (
     facts.isSent &&
     effectiveSeen !== undefined &&
@@ -159,6 +181,8 @@ export interface StageDashboardAuditRequest {
   readonly designId?: string;
   /** A write only an administrator's live session may make, as Neon's actor test for the price book and the log. */
   readonly onlyAdministrators?: boolean;
+  /** A write only an operator's or an administrator's live session may make, as Neon's actor test for the seen mark. */
+  readonly onlyStaff?: boolean;
 }
 
 export interface FakeDashboardAuditLedgerOptions {
@@ -241,11 +265,13 @@ export class FakeDashboardAuditLedger {
     operation,
     record,
     onlyAdministrators = false,
+    onlyStaff = false,
   }: StageDashboardAuditRequest): Promise<string> {
     const lookup = await this.findLive(operation, record);
     const isActor =
       lookup.kind !== "none" &&
-      (!onlyAdministrators || lookup.account.role === "administrator");
+      (!onlyAdministrators || lookup.account.role === "administrator") &&
+      (!onlyStaff || lookup.account.role !== "client");
     if (!isActor) throw new DashboardStoreError(operation, "not-recorded");
     return lookup.account.id;
   }

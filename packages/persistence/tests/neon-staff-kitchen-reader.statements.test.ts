@@ -11,6 +11,7 @@ import type { StaffKitchenQuery } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { COLUMNS_ADDED_BY_0026 } from "./support/contact-submission-columns.js";
+import { EFFECTIVE_SEEN_REVISION } from "../src/staff-kitchen-statements.js";
 import { NeonStaffKitchenReader } from "../src/neon-staff-kitchen-reader.js";
 import {
   NOTES_READ_LIMIT,
@@ -242,7 +243,7 @@ describe("the list statement", () => {
       "changed as ( select d.id from designs d left join design_staff_seen seen on seen.design_id = d.id " +
         "left join latest_submission latest on latest.design_id = d.id " +
         "where d.deleted_by_client_at is null and d.sent_at is not null " +
-        "and d.revision <> greatest(seen.seen_revision, latest.design_revision) )",
+        `and d.revision <> ${EFFECTIVE_SEEN_REVISION} )`,
     );
     expect(text).toContain(
       "latest_submission as ( select distinct on (cs.design_id) cs.design_id, cs.design_revision from contact_submissions cs " +
@@ -523,7 +524,7 @@ describe("the statements for one kitchen", () => {
 
     expect(text).toContain("d.revision::text as revision");
     expect(text).toContain(
-      "(d.sent_at is not null and coalesce(d.revision <> greatest(seen.seen_revision, request.design_revision), false)) as is_changed_since_seen",
+      `(d.sent_at is not null and coalesce(d.revision <> ${EFFECTIVE_SEEN_REVISION}, false)) as is_changed_since_seen`,
     );
     expect(text).toContain(
       "left join design_staff_seen seen on seen.design_id = d.id",
@@ -567,7 +568,7 @@ describe("the statements for one kitchen", () => {
       "from contact_submissions cs where cs.design_id = d.id order by cs.created_at desc, cs.client_request_id desc limit 1",
     );
     expect(text).toContain(
-      "from contact_submission_views csv where csv.client_request_id = request.client_request_id and csv.revoked_at is null order by csv.created_at desc, csv.token_hash desc limit 1",
+      "from contact_submission_views csv where csv.client_request_id = latest.client_request_id and csv.revoked_at is null order by csv.created_at desc, csv.token_hash desc limit 1",
     );
   });
 
@@ -1093,16 +1094,14 @@ describe("the total a request was sent at", () => {
     ["of a currency this build does not price in", "100", "EUR"],
     ["with no currency", "100", null],
   ])(
-    "refuses a total that is %s as an unexpected answer",
+    "shows no total, and does not fail the page, for a total that is %s",
     async (_label, total, currency) => {
-      answerQueryWith([
-        aKitchenRow({ priced_total_minor: total, priced_currency: currency }),
-      ]);
-      answerQueryWith([]);
-
-      const failure = await failureOf(() => newReader().readOne(DESIGN_ID));
-
-      expect(failure.failure).toBe("unexpected-answer");
+      expect(
+        await sentTotalOf({
+          priced_total_minor: total,
+          priced_currency: currency,
+        }),
+      ).toBeNull();
     },
   );
 });

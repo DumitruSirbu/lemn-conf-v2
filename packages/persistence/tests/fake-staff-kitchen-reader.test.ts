@@ -159,6 +159,12 @@ function newFakeWorld(): KitchenWorld & {
       plant(kitchen);
       return Promise.resolve(revisionOf(designId));
     },
+    plantSeenMark(designId, revision): Promise<void> {
+      dashboard.changes.plantSeenMark(designId, revision, nanoid());
+      return Promise.resolve();
+    },
+    aRevisionAfter: (revision, steps) =>
+      dashboard.aRevisionAfter(revision, steps),
     async markSeen(designId, displayedRevision): Promise<void> {
       const kitchen = planted.get(designId);
       if (kitchen === undefined) throw new Error("no such kitchen was planted");

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import {
   CURRENT_SCHEMA_VERSION,
+  DIGEST_WINDOW_MS,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
@@ -156,7 +157,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
         values (${designId}, ${spec.status}, ${accountId ?? nanoid()})
       `;
     }
-    if (spec.sentAt !== undefined) {
+    if (spec.sentAt !== undefined && spec.hasNoRequest !== true) {
       await insertSubmission(designId, "1", spec.sentAt);
     }
     return { designId, revision: "1" };
@@ -187,6 +188,13 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           await sql()`select (revision + 1)::text as revision from designs where id = ${designId}`;
         return (rows[0] as { revision: string }).revision;
       },
+      async plantSeenMark(designId, revision) {
+        await sql()`
+          insert into design_staff_seen (design_id, seen_revision, seen_by_account_id)
+          values (${designId}, ${revision}::bigint, ${nanoid()})
+          on conflict (design_id) do update set seen_revision = excluded.seen_revision
+        `;
+      },
       async seenRevisionOf(designId) {
         const rows =
           await sql()`select seen_revision::text as revision from design_staff_seen where design_id = ${designId}`;
@@ -215,6 +223,25 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   describeKitchenChangeStoreContract("NeonKitchenChangeStore", newWorld);
 
   describe("what only the database can show", () => {
+    it("compares the window on the milliseconds a Date holds: a send 900 microseconds past a millisecond is out at the exact edge, as the domain's floored instant is", async () => {
+      const world = await newWorld();
+      const kitchen = await world.aKitchen({ sentAt: SENT_LONG_AGO });
+      await world.saveKitchen(kitchen.designId);
+      await sql()`
+        update designs set sent_at = sent_at + interval '900 microseconds' where id = ${kitchen.designId}
+      `;
+      const edge = SENT_LONG_AGO.getTime() + DIGEST_WINDOW_MS;
+      const listedAt = async (instant: number) =>
+        (await world.store.listDigestEligible(new Date(instant))).some(
+          (row) => row.designId === kitchen.designId,
+        );
+
+      expect([await listedAt(edge - 1), await listedAt(edge)]).toEqual([
+        true,
+        false,
+      ]);
+    });
+
     it("rolls a mark back whole when its audit row cannot be inserted: the seen row that was there is unchanged, in revision, account and instant", async () => {
       const world = await newWorld();
       const member = await world.aStaffMember();

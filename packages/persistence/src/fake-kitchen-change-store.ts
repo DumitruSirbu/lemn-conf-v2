@@ -5,12 +5,12 @@ import {
 
 import {
   isCalendarDay,
-  isInstantPostgresCanCast,
+  isStorableInstant,
   isStorableDesignRevision,
 } from "./dashboard-store-shapes.js";
 import type { DesignRevision } from "./design-revision.js";
 import {
-  greatestRevision,
+  effectiveSeenRevision,
   isChangedAfterSeen,
   isRevisionAhead,
   settle,
@@ -44,8 +44,8 @@ export interface HeldChangeKitchen {
   readonly kitchenName?: string;
   /** `accounts.name`, when the kitchen has an account that has one. */
   readonly customerName?: string;
-  /** The request reference, printed when there is no account name. */
-  readonly reference: string;
+  /** The request reference, printed when there is no account name; absent for a kitchen whose requests are gone. */
+  readonly reference?: string;
   /** The stored request status; absent when none was saved. */
   readonly status?: string;
   /** The design revision on the kitchen's latest submission, which stands for the seen mark before there is one. */
@@ -105,6 +105,22 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     this.kitchens.set(kitchen.designId, structuredClone(kitchen));
   }
 
+  /**
+   * Writes the seen row as a holder of the application credential could: any revision, no audit row, and not held to the
+   * kitchen's own.
+   */
+  plantSeenMark(
+    designId: string,
+    seenRevision: DesignRevision,
+    seenByAccountId: string,
+  ): void {
+    this.marks.set(designId, {
+      seenRevision,
+      seenByAccountId,
+      seenAt: this.now(),
+    });
+  }
+
   heldSeenRevision(designId: string): DesignRevision | undefined {
     return this.marks.get(designId)?.seenRevision;
   }
@@ -140,6 +156,7 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
       operation: "mark a kitchen as seen",
       record: request.audit,
       accepts: ["kitchen-seen"],
+      onlyStaff: true,
       designId,
     });
     const kitchen = this.visibleKitchen(designId);
@@ -176,7 +193,7 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
 
   listDigestEligible(now: Date): Promise<readonly DigestEligibleKitchen[]> {
     return settle("list the kitchens a digest holds", () => {
-      if (!isInstantPostgresCanCast(now)) {
+      if (!isStorableInstant(now)) {
         throw new DashboardStoreError(
           "list the kitchens a digest holds",
           "invalid-request",
@@ -185,11 +202,13 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
       return [...this.kitchens.values()]
         .filter((kitchen) => this.isDigestEligible(kitchen, now))
         .sort(bySentThenId)
-        .flatMap((kitchen) =>
-          kitchen.sentAt === undefined
-            ? []
-            : [digestRowOf(kitchen, kitchen.sentAt)],
-        );
+        .flatMap((kitchen) => {
+          const row =
+            kitchen.sentAt === undefined
+              ? undefined
+              : digestRowOf(kitchen, kitchen.sentAt);
+          return row === undefined ? [] : [row];
+        });
     });
   }
 
@@ -241,14 +260,15 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     );
   }
 
-  /** The revision the kitchen's changes are measured from: the greater of the seen mark's and its latest submission's. */
-  private effectiveSeenRevision(
+  /** The revision the kitchen's changes are measured from: see `effectiveSeenRevision`. */
+  private effectiveSeenRevisionOf(
     kitchen: HeldChangeKitchen,
   ): DesignRevision | undefined {
-    return greatestRevision(
-      this.marks.get(kitchen.designId)?.seenRevision,
-      kitchen.latestSubmissionRevision,
-    );
+    return effectiveSeenRevision({
+      revision: kitchen.revision,
+      seenRevision: this.marks.get(kitchen.designId)?.seenRevision,
+      latestSubmissionRevision: kitchen.latestSubmissionRevision,
+    });
   }
 
   private isChangedSinceSeen(kitchen: HeldChangeKitchen): boolean {
@@ -260,15 +280,19 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
     });
   }
 
-  /** A digest entry, not merely a claimed day, whose revision is above the effective seen one. */
+  /**
+   * A digest entry, not merely a claimed day, whose revision is above the effective seen one and not above the
+   * kitchen's own: an entry for a revision the kitchen has not reached holds nothing.
+   */
   private isDigestedSinceSeen(kitchen: HeldChangeKitchen): boolean {
-    const effectiveSeen = this.effectiveSeenRevision(kitchen);
+    const effectiveSeen = this.effectiveSeenRevisionOf(kitchen);
     return (
       effectiveSeen !== undefined &&
       this.entries.some(
         (entry) =>
           entry.designId === kitchen.designId &&
-          isRevisionAhead(entry.revision, effectiveSeen),
+          isRevisionAhead(entry.revision, effectiveSeen) &&
+          !isRevisionAhead(entry.revision, kitchen.revision),
       )
     );
   }
@@ -277,12 +301,15 @@ export class FakeKitchenChangeStore implements KitchenChangeStore {
 function digestRowOf(
   kitchen: HeldChangeKitchen,
   sentAt: Date,
-): DigestEligibleKitchen {
+): DigestEligibleKitchen | undefined {
   const customerName = nullIfBlank(kitchen.customerName);
   const customer =
-    customerName === undefined
-      ? { reference: kitchen.reference }
-      : { customerName };
+    customerName !== undefined
+      ? { customerName }
+      : kitchen.reference === undefined
+        ? undefined
+        : { reference: kitchen.reference };
+  if (customer === undefined) return undefined;
   return {
     designId: kitchen.designId,
     ...(kitchen.kitchenName === undefined

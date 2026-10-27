@@ -13,7 +13,10 @@ import {
 import type { DashboardStoreFailure } from "../src/m10-ports.js";
 import { NeonKitchenChangeStore } from "../src/neon-kitchen-change-store.js";
 import { NeonSessionStore } from "../src/neon-session-store.js";
-import { STAFF_VISIBLE_PREDICATE } from "../src/staff-kitchen-statements.js";
+import {
+  EFFECTIVE_SEEN_REVISION,
+  STAFF_VISIBLE_PREDICATE,
+} from "../src/staff-kitchen-statements.js";
 import { WELL_FORMED_UNREACHABLE_VALUE } from "./support/leaked-connection-markers.js";
 import {
   answerQueryWith,
@@ -203,14 +206,14 @@ describe("a seen mark", () => {
 
     const text = normalised(statement);
     expect(text).toContain(
-      "(select k.sent_at is not null and k.revision <> greatest((select m.seen_revision from marked m), k.submitted_revision) from kitchen k) as is_changed_after_seen",
+      `(select d.sent_at is not null and d.revision <> ${EFFECTIVE_SEEN_REVISION} from kitchen d cross join marked seen left join latest on true) as is_changed_after_seen`,
     );
     expect(text).toContain(
-      "(select cs.design_revision from contact_submissions cs where cs.design_id = d.id order by cs.created_at desc, cs.client_request_id desc limit 1) as submitted_revision",
+      "latest as ( select cs.design_revision from contact_submissions cs join kitchen k on k.id = cs.design_id order by cs.created_at desc, cs.client_request_id desc limit 1 )",
     );
   });
 
-  it("asks of the session what NeonSessionStore.findLive asks, word for word, and takes the actor of any role", async () => {
+  it("asks of the session what NeonSessionStore.findLive asks, word for word, and takes the actor of a staff role only", async () => {
     answerQueryWith([]);
     await new NeonSessionStore(WELL_FORMED_UNREACHABLE_VALUE).findLive({
       tokenHash: SESSION_HASH,
@@ -220,8 +223,9 @@ describe("a seen mark", () => {
     const { statement } = await markAndCapture();
 
     expect(livenessPredicateOf(statement)).toBe(liveness);
-    expect(normalised(statement)).not.toContain("administrator");
-    expect(normalised(statement)).not.toContain("a.role =");
+    expect(normalised(statement)).toContain(
+      "interval '1 second') > now() and a.role in ('operator', 'administrator') ), kitchen as",
+    );
   });
 
   it("names exactly the columns the grants of 0026 and the audit table give, never seen_at on insert and never a delete", async () => {
@@ -478,7 +482,7 @@ describe("the list of the kitchens a digest holds", () => {
     ]);
     const text = normalised(statement);
     expect(text).toContain(
-      "d.sent_at > ?::timestamptz - (?::double precision * interval '1 millisecond')",
+      "date_trunc('milliseconds', d.sent_at) > ?::timestamptz - (?::double precision * interval '1 millisecond')",
     );
     expect(text).toContain("coalesce(s.status, 'new') <> all(?::text[])");
     expect(text).not.toMatch(/\bnow\s*\(/);
@@ -487,7 +491,7 @@ describe("the list of the kitchens a digest holds", () => {
     expect(text).not.toContain("current_timestamp");
   });
 
-  it("states each clause of S-d1: changed against the effective seen revision, not held by an entry above it, sent and not deleted", async () => {
+  it("states each clause: changed against the effective seen revision, not held by an entry above it, sent, not deleted and printable", async () => {
     const { statement } = await listAndCapture();
 
     const text = normalised(statement);
@@ -495,11 +499,14 @@ describe("the list of the kitchens a digest holds", () => {
       "left join lateral ( select cs.reference, cs.design_revision from contact_submissions cs where cs.design_id = d.id order by cs.created_at desc, cs.client_request_id desc limit 1 ) latest on true",
     );
     expect(text).toContain(
-      "select greatest(seen.seen_revision, latest.design_revision) as effective_seen",
+      `select ${EFFECTIVE_SEEN_REVISION} as effective_seen`,
     );
     expect(text).toContain("d.revision <> basis.effective_seen");
     expect(text).toContain(
-      "not exists ( select 1 from staff_change_digest_entries entry where entry.design_id = d.id and entry.revision > basis.effective_seen )",
+      "not exists ( select 1 from staff_change_digest_entries entry where entry.design_id = d.id and entry.revision > basis.effective_seen and entry.revision <= d.revision )",
+    );
+    expect(text).toContain(
+      "and (nullif(btrim(a.name), '') is not null or latest.reference is not null)",
     );
     expect(text).toContain(
       "where d.deleted_by_client_at is null and d.sent_at is not null",
@@ -588,11 +595,21 @@ describe("the list of the kitchens a digest holds", () => {
     ]);
   });
 
+  it("skips a row with neither a name nor a reference, which the statement leaves out already, and never aborts the day's digest", async () => {
+    const { result } = await listAndCapture([
+      {
+        ...ROW,
+        design_id: OTHER_DESIGN_ID,
+        customer_name: null,
+        reference: null,
+      },
+      ROW,
+    ]);
+
+    expect(result.map((kitchen) => kitchen.designId)).toEqual([DESIGN_ID]);
+  });
+
   it.each([
-    [
-      "a row with neither a name nor a reference",
-      { customer_name: null, reference: null },
-    ],
     ["a revision with a leading zero", { revision: "012" }],
     ["a revision that is a number", { revision: 12 }],
     ["an instant that is not milliseconds", { sent_ms: "yesterday" }],

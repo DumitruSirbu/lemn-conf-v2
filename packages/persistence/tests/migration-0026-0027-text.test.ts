@@ -222,9 +222,18 @@ describe("0026 creates design_staff_seen, one row per design, shared by all staf
     const header = headerTextOf(SEEN);
     expect(header).toContain("Accepted residual, stated plainly");
     expect(header).toContain("write any seen revision for any design");
-    expect(header).toContain("hides that it changed");
-    expect(header).toContain("`kitchen-seen` row naming the design");
-    expect(header).toContain("runbook cross-checks the two");
+    expect(header).toContain(
+      "ignore a mark above the kitchen's current revision",
+    );
+    expect(header).toContain("until it is next saved");
+    expect(header).toContain("so a forged mark above it hides nothing");
+    expect(header).toContain(
+      "A row whose `seen_revision` is above its design's `revision` was not written by the store",
+    );
+    expect(header).toContain(
+      "the same credential can insert `kitchen-seen` rows",
+    );
+    expect(header).toContain("the owner's runbook has the query");
   });
 
   it("states the rules that are the statement's and not the table's: greatest, and the account and instant only for a greater revision", () => {
@@ -232,6 +241,9 @@ describe("0026 creates design_staff_seen, one row per design, shared by all staf
     expect(header).toContain("`seen_revision = greatest(existing, displayed)`");
     expect(header).toContain(
       "only when the displayed revision is strictly greater",
+    );
+    expect(header).toContain(
+      "the greater of `seen_revision`, unless that is above the kitchen's own revision, and the design revision of its latest submission",
     );
     expect(header).toContain("That comparison is made in SQL, never above it");
   });
@@ -346,9 +358,18 @@ describe("0027 creates the digest's rounds and entries", () => {
     const header = headerTextOf(DIGEST);
     expect(header).toContain("Accepted residual, stated plainly");
     expect(header).toContain("can claim a day that has not come");
-    expect(header).toContain("keeps that kitchen out of the digest");
+    expect(header).toContain(
+      "keeps that kitchen out of the digest until staff open it",
+    );
+    expect(header).toContain(
+      "holds nothing, so a forged entry cannot hold a kitchen for good",
+    );
     expect(header).toContain("cannot delete a round or an entry");
-    expect(header).toContain("sent_count");
+    expect(header).toContain("`sent_count` is writable by the same credential");
+    expect(header).toContain(
+      "The reliable tell is a round whose `claimed_at` precedes its `day_key`",
+    );
+    expect(header).toContain("not claimed by the cron");
   });
 
   it("states that a claimed day with no entries holds nothing, that the claim precedes the send, and that entries are only inserted", () => {

@@ -21,12 +21,14 @@ import {
  * (`infinity` and years past 275760 read as the nearest one). `least` and `greatest` skip a null, so `sent_at`, which
  * is null on a draft, is tested for null first; `changed_ms` is read only where a status row exists.
  *
- * **Changed after seen (ADR 0178 A-12) is judged here, in SQL, and the revision stays opaque above it.** A kitchen is
- * changed when it was sent, its client has not deleted it, and `designs.revision` differs from the greater of the seen
- * revision and the design revision on its latest submission (S-c0: a stale first mark cannot undo the sent revision). The list states that once (the `changed` CTE) and reads it for the row
- * flag, the `onlyChanged` filter, the changed-first order and the count; the kitchen's statement states it again beside the
- * revision it displays. `0026`'s grant lets the kitchen's statement read `contact_submissions.priced`, of which it takes the
- * total and the currency alone.
+ * **Changed after seen (ADR 0178 A-12) is judged in SQL, and the revision stays opaque above it.** A kitchen is changed
+ * when it was sent, its client has not deleted it, and `designs.revision` differs from its effective seen revision: the
+ * greater of the seen mark, unless it is above the kitchen's current revision, and the design revision on its
+ * latest submission. A stale first mark below the sent revision therefore cannot make a kitchen read as changed, and a
+ * mark above the kitchen's revision hides nothing. The list states the comparison
+ * once (the `changed` CTE) and reads it for the row flag, the `onlyChanged` filter, the changed-first order and the
+ * count; the kitchen's statement states it beside the revision it displays. `0026`'s grant lets the kitchen's statement
+ * read `contact_submissions.priced`, of which it takes the total and the currency alone.
  */
 
 /**
@@ -34,11 +36,22 @@ import {
  * (a visitor's unsent draft is neither). A tagged template cannot interpolate SQL, so this is the one reference the
  * statements repeat as text: the reader's `readOne` ends its `where` with it, the list's `all` segment is its other
  * form, and the four write statements of `staff-kitchen-actions-statements.ts` contain it (aliased `d`, or bare in the
- * unhide update), as does the seen mark of `kitchen-change-statements.ts` (aliased `d`). Tests assert every copy against
- * this constant, both ways, so a one-sided change fails.
+ * unhide update), as does the seen mark of `kitchen-change-statements.ts` (aliased `d`). Tests assert every copy
+ * against this constant, both ways, so a one-sided change fails.
  */
 export const STAFF_VISIBLE_PREDICATE =
   "d.deleted_by_client_at is null and (d.sent_at is not null or d.account_id is not null)";
+
+/**
+ * A kitchen's effective seen revision, over `designs d`, `design_staff_seen seen` and the latest submission `latest`:
+ * the greater of the seen mark and the revision of its latest request. A mark above the kitchen's own revision is
+ * ignored: the store refuses an ahead mark and revisions only rise, so no legitimate row holds one. `greatest` skips a
+ * null, so a kitchen with no mark, or no request, is measured from the other, and one with neither reads as unchanged.
+ * Spelled once here and repeated as text in the list, the kitchen's statement, the seen mark and the digest's list; a
+ * test asserts every copy against this constant.
+ */
+// A template literal, like the statements it is repeated in, so SQL's comparison is not read as code's.
+export const EFFECTIVE_SEEN_REVISION = `greatest(case when seen.seen_revision <= d.revision then seen.seen_revision end, latest.design_revision)`;
 
 /**
  * The page and the count in one statement, so `total` and the kitchens come from one snapshot. The accounts, the status
@@ -68,7 +81,7 @@ export function staffKitchenListStatement<Statement>(
       left join design_staff_seen seen on seen.design_id = d.id
       left join latest_submission latest on latest.design_id = d.id
       where d.deleted_by_client_at is null and d.sent_at is not null
-        and d.revision <> greatest(seen.seen_revision, latest.design_revision)
+        and d.revision <> greatest(case when seen.seen_revision <= d.revision then seen.seen_revision end, latest.design_revision)
     ),
     matching as (
       select d.id, d.name, d.sent_at, d.updated_at, d.hidden_by_client_at,
@@ -134,7 +147,7 @@ export function staffKitchenStatement<Statement>(
     select d.id, d.name, d.schema_version, d.document,
       d.revision::text as revision,
       (d.sent_at is not null
-        and coalesce(d.revision <> greatest(seen.seen_revision, request.design_revision), false)) as is_changed_since_seen,
+        and coalesce(d.revision <> greatest(case when seen.seen_revision <= d.revision then seen.seen_revision end, latest.design_revision), false)) as is_changed_since_seen,
       (d.sent_at is not null) as is_sent, (d.hidden_by_client_at is not null) as is_hidden,
       case when d.sent_at is null then null
           else floor(least(
@@ -146,8 +159,8 @@ export function staffKitchenStatement<Statement>(
         8640000000000000
       ))::bigint::text as updated_ms,
       a.id as client_id, a.email as client_email, a.name as client_name, a.phone as client_phone,
-      request.reference as request_reference, request.created_ms as request_ms,
-      request.priced_total_minor, request.priced_currency,
+      latest.reference as request_reference, latest.created_ms as request_ms,
+      latest.priced_total_minor, latest.priced_currency,
       sent_copy.schema_version as sent_schema_version, sent_copy.design_document as sent_document,
       s.status as stored_status, s.changed_by_account_id as changed_by_id,
       floor(least(
@@ -171,11 +184,11 @@ export function staffKitchenStatement<Statement>(
       where cs.design_id = d.id
       order by cs.created_at desc, cs.client_request_id desc
       limit 1
-    ) request on true
+    ) latest on true
     left join lateral (
       select csv.schema_version, csv.design_document
       from contact_submission_views csv
-      where csv.client_request_id = request.client_request_id and csv.revoked_at is null
+      where csv.client_request_id = latest.client_request_id and csv.revoked_at is null
       order by csv.created_at desc, csv.token_hash desc
       limit 1
     ) sent_copy on true

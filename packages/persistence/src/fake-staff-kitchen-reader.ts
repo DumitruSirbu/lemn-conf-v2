@@ -52,15 +52,16 @@ export interface PlantedStaffKitchen {
 }
 
 /**
- * A row of `contact_submissions`, with the columns the application role cannot read left out: it may read `design_revision`
- * and, since `0026`, `priced`, of which the reader takes the total and the currency.
+ * A row of `contact_submissions`, with the columns the application role cannot read left out: it may read
+ * `design_revision` and, since `0026`, `priced`, of which the reader takes the total and the currency.
  */
 export interface PlantedStaffRequest {
   readonly clientRequestId: string;
   readonly designId: string;
   readonly reference: string;
   readonly createdAt: Date;
-  /** The design revision the request was sent at. Absent: no revision, so with no seen mark the kitchen is not changed. */
+  /** The design revision the request was sent at. Absent: no revision, so with no seen mark the kitchen is not changed.
+  /** */
   readonly designRevision?: DesignRevision;
   /** The total stored in the snapshot. Absent or `null`: the request stored no snapshot, as an intent request. */
   readonly pricedTotal?: StaffKitchenSentTotal | null;

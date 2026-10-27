@@ -6,7 +6,7 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 import {
   isCalendarDay,
-  isInstantPostgresCanCast,
+  isStorableInstant,
   isStorableDesignRevision,
 } from "./dashboard-store-shapes.js";
 import {
@@ -58,8 +58,9 @@ const RECORD_DIGEST = "record a digest";
  * on a transient failure. A revision is opaque text: it is compared only in SQL, and the answers that depend on a
  * comparison (`changedAfterSeen`, the digest's membership) come back from the statement as booleans and as rows.
  *
- * The mark's actor is the staff member behind a live session, whatever their role (the route has judged `contact.read`),
- * as the staff kitchen actions' statements take it. The digest is a system action: it has no actor and writes no audit row.
+ * The mark's actor is the staff member behind a live session, whatever their role (the route has judged
+ * `contact.read`), as the staff kitchen actions' statements take it. The digest is a system action: it has no actor and
+ * writes no audit row.
  */
 export class NeonKitchenChangeStore implements KitchenChangeStore {
   private readonly sql: ApplicationSql;
@@ -113,7 +114,7 @@ export class NeonKitchenChangeStore implements KitchenChangeStore {
   async listDigestEligible(
     now: Date,
   ): Promise<readonly DigestEligibleKitchen[]> {
-    if (!isInstantPostgresCanCast(now)) {
+    if (!isStorableInstant(now)) {
       throw new DashboardStoreError(LIST_DIGEST, "invalid-request");
     }
     const rows = await readRows(LIST_DIGEST, () =>
@@ -123,7 +124,7 @@ export class NeonKitchenChangeStore implements KitchenChangeStore {
         stoppingStatuses: DIGEST_STOPPING_STATUSES,
       }),
     );
-    return rows.map(digestKitchenFrom);
+    return rows.flatMap((row) => digestKitchenFrom(row) ?? []);
   }
 
   /** An entry for a round nobody claimed, or one that is not well formed, is `invalid-request` and writes nothing. */
@@ -178,8 +179,11 @@ function markSeenResultFrom(row: Row): MarkKitchenSeenResult {
   };
 }
 
-/** The name is `accounts.name` as `btrim` left it, else the request's reference; a row with neither is not this reply. */
-function digestKitchenFrom(row: Row): DigestEligibleKitchen {
+/**
+ * The name is `accounts.name` as `btrim` left it, else the request's reference. A row with neither has nothing to
+ * print, and the statement already leaves it out, so one that arrives is skipped and never aborts the day's digest.
+ */
+function digestKitchenFrom(row: Row): DigestEligibleKitchen | undefined {
   const revision = requiredText(row["revision"], LIST_DIGEST);
   if (!isStorableDesignRevision(revision)) throw unexpectedAnswer(LIST_DIGEST);
   const kitchenName = nullableText(row["kitchen_name"], LIST_DIGEST);
@@ -193,6 +197,5 @@ function digestKitchenFrom(row: Row): DigestEligibleKitchen {
   const customerName = nullableText(row["customer_name"], LIST_DIGEST);
   if (customerName !== null) return { ...kitchen, customerName };
   const reference = nullableText(row["reference"], LIST_DIGEST);
-  if (reference === null) throw unexpectedAnswer(LIST_DIGEST);
-  return { ...kitchen, reference };
+  return reference === null ? undefined : { ...kitchen, reference };
 }

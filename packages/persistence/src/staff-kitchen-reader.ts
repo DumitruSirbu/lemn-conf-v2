@@ -96,8 +96,8 @@ export interface StaffListedKitchen {
   readonly requestStatus: ShownStaffStatus;
   /**
    * Whether the kitchen changed after staff last saw it: sent, and its revision differs from the greater of the seen
-   * revision and the latest submission's (ADR 0178 A-12; S-c0, ruled 2026-10-27). Judged in SQL; the revision stays opaque above it. `false` for a
-   * kitchen never sent, which never shows the badge.
+   * revision and the latest submission's (ADR 0178 A-12). Judged in SQL; the revision stays opaque above it. `false`
+   * for a kitchen never sent, which never shows the badge.
    */
   readonly isChangedSinceSeen: boolean;
 }
@@ -141,8 +141,9 @@ export interface StaffKitchenNote {
 }
 
 /**
- * The total the latest request was priced at when it was sent, as stored in its snapshot (`contact_submissions.priced`):
- * never priced again, so a later publish does not move it (ADR 0154). Only these two members of the snapshot are read.
+ * The total the latest request was priced at when it was sent, as stored in its snapshot
+ * (`contact_submissions.priced`): never priced again, so a later publish does not move it (ADR 0154). Only these two
+ * members of the snapshot are read.
  */
 export interface StaffKitchenSentTotal {
   /** Minor units, a whole number a `number` holds exactly. */
@@ -169,8 +170,9 @@ export interface StaffKitchenDetail {
   readonly client: StaffKitchenClient | null;
   readonly request: StaffKitchenRequest | null;
   /**
-   * The total stored with the latest request; `null` for a kitchen with no request and for a request that stored no
-   * snapshot (an intent request).
+   * The total stored with the latest request: `null` for a kitchen with no request, and for a request whose snapshot
+   * holds no total this build can read. A request linked to a design always stores a snapshot, so `null` is never "an
+   * unpriced request" in the application's own data.
    */
   readonly sentTotal: StaffKitchenSentTotal | null;
   /** The kitchen as the shop's notice carried it, from the newest unrevoked copy of the latest request; `null` when

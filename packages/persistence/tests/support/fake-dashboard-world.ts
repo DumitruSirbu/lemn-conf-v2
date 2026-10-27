@@ -47,7 +47,10 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
   let tick = 0;
   const now = () =>
     new Date(STORE_CLOCK_START_MS + STORE_CLOCK_STEP_MS * tick++);
-  const roleByAccountId = new Map<string, "administrator" | "operator">();
+  const roleByAccountId = new Map<
+    string,
+    "administrator" | "operator" | "client"
+  >();
   const sessions = new FakeSessionStore({
     now: () => new Date(SESSIONS_NOW_MS),
     accountOf: (accountId) =>
@@ -77,7 +80,7 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
   const notice = new FakePriceNoticeStore({ priceBook, availability });
 
   async function signedIn(
-    role: "administrator" | "operator" = "administrator",
+    role: "administrator" | "operator" | "client" = "administrator",
   ): Promise<DashboardStaffMember> {
     const accountId = nanoid();
     roleByAccountId.set(accountId, role);
@@ -103,6 +106,7 @@ export function newFakeDashboardWorld(): FakeDashboardWorld {
     notice,
     aStaffMember: () => signedIn(),
     aStaffMemberWhoIsNotAnAdministrator: () => signedIn("operator"),
+    aClientWithALiveSession: () => signedIn("client"),
     async aStaffMemberWhoseSessionIsRevoked() {
       const member = await signedIn();
       await sessions.revoke(member.session.sessionTokenHash);
