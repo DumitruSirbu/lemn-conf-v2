@@ -26,7 +26,7 @@ vi.mock("@/i18n/use-content", async () => {
 import { PriceBookProvider } from "@/price/price-book-provider";
 import { priceAgainstBook } from "@/price/price-book-root";
 import { PriceBreakdown } from "@/price/price-breakdown";
-import { describeRoundedAmount } from "@/price/starting-price";
+import { describeLineAmount } from "@/price/starting-price";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { rootPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
@@ -137,7 +137,7 @@ describe("the depth line in the customer breakdown (Q1-b)", () => {
 
     expect(line?.amountMinor).toBeGreaterThan(0);
     expect(textOf(dom, "breakdown-depth-amount")).toBe(
-      describeRoundedAmount(line?.amountMinor ?? Number.NaN),
+      describeLineAmount(line?.amountMinor ?? Number.NaN),
     );
     expect(textOf(dom, "breakdown-depth-scope")).toBe(
       ro.priceBreakdown.depthLineScope,

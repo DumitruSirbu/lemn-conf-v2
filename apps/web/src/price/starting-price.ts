@@ -1,11 +1,10 @@
-// The one place an amount becomes a figure a customer reads: prefixed *De la*, rounded up to the
-// thousand MDL ([ADR 0001](../../../../docs/decisions/0001-initial-product-and-stack.md) decision 4).
-// A second rounding site would let two surfaces show different numbers for one kitchen.
+// The one place an amount becomes a figure a customer reads. Two roundings, by the owner's ruling of 2026-10-28
+// (M10 Q1c, ADR 0001 decision 4 as amended there): the kitchen TOTAL is prefixed *De la* and rounded up to the
+// thousand MDL; every LINE is shown to the ten lei the domain priced it at (ADR 0175 decision 5, ADR 0177 A-1).
+// A second rounding site for either would let two surfaces show different numbers for one kitchen.
 //
-// Rounded lines and a rounded total need not sum, and that is deliberate: four 1 800 MDL lines round
-// to 4 × 2 000 = 8 000, their 7 200 total rounds to 8 000 only by coincidence, and at 1 200 apiece
-// it is 8 000 against 5 000. No surface may claim they sum; the disclaimer *"Toate sumele sunt
-// prețuri de pornire, rotunjite în sus"* carries it.
+// Lines shown to the ten lei and a total rounded to the thousand need not sum, and that is deliberate: a priced
+// total of 7 200 MDL is shown as 8 000 beside lines that add to 7 200. No surface may claim they sum.
 //
 // *De la* stays true and unqualified when a tier prices below the default (ADR 0092 decision 12): it
 // claims a starting price for the kitchen as it stands, re-derived from the current design, not a
@@ -13,8 +12,8 @@
 // `price.startingPrefix` and `priceBreakdown.disclaimer`, with no arithmetic moving.
 //
 // The rounding a customer reads lives only here. `packages/configurator-domain/src/pricing/` rounds each line to
-// ten lei at one named seam, so the lines add to the total exactly (ADR 0177 A-1), and nothing else; this file
-// rounds a line or a total up to the thousand MDL it is shown at.
+// ten lei at one named seam, so the lines add to the total exactly (ADR 0177 A-1); this file shows a line at that
+// ten lei and rounds a total up to the thousand MDL.
 import { type PricedDesign } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";
@@ -22,10 +21,16 @@ import type { Content } from "@/i18n/content";
 /** MDL minor units are bani. */
 const MINOR_UNITS_PER_MDL = 100;
 
-/** The step every displayed figure is rounded up to. */
+/** The step a displayed total is rounded up to. */
 const ROUNDING_STEP_MDL = 1000;
 
 const MINOR_UNITS_PER_ROUNDING_STEP = MINOR_UNITS_PER_MDL * ROUNDING_STEP_MDL;
+
+/** The unit a displayed line is shown at: the domain's price unit (ADR 0175 decision 5), so a priced line is shown
+ *  as it is priced. */
+const LINE_STEP_MDL = 10;
+
+const MINOR_UNITS_PER_LINE_STEP = MINOR_UNITS_PER_MDL * LINE_STEP_MDL;
 
 const DIGITS_PER_GROUP = 3;
 
@@ -83,12 +88,23 @@ export function roundUpToThousandMdl(totalMinor: number): number {
 }
 
 /**
- * One amount, rounded and grouped, without the currency, which the mockups state once per surface.
- * Rounds through `roundUpToThousandMdl`, the total's own site, so lines and total need not sum (see
- * the head comment and `priceBreakdown.note`).
+ * One total or delta, rounded up to the thousand and grouped, without the currency, which the mockups state once
+ * per surface. A priced LINE is `describeLineAmount`'s, so lines and total need not sum (see the head comment).
  */
 export function describeRoundedAmount(amountMinor: number): string {
   return groupThousands(roundUpToThousandMdl(amountMinor));
+}
+
+/**
+ * One priced line (a body, a tier, an accessory, the depth uplift), shown to the ten lei and grouped, without the
+ * currency. The domain prices every line at a multiple of ten lei, so this is the line's exact amount; an amount
+ * that is not (a stored snapshot) is rounded up to the next ten lei rather than shown with bani.
+ */
+export function describeLineAmount(amountMinor: number): string {
+  assertExactMinorAmount(amountMinor);
+  const wholeMdl =
+    Math.ceil(amountMinor / MINOR_UNITS_PER_LINE_STEP) * LINE_STEP_MDL;
+  return groupThousands(wholeMdl);
 }
 
 /**

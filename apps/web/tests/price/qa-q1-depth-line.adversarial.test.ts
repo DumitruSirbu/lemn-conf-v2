@@ -345,17 +345,14 @@ describe("generated rooms built at 700 mm through the real depth command", () =>
   });
 });
 
-describe("the amounts as printed (a spec conflict, reported and not Q1's to settle)", () => {
-  // KNOWN CONFLICT, named and loud. The domain's lines are multiples of 10 lei and add to the total exactly (A-1, P2-a;
-  // ADR 0175 decision 5 calls 10 lei "the customer's display unit"), but `describeRoundedAmount` rounds every printed
-  // line UP to the thousand MDL (`starting-price.ts:78-96`, ADR 0001 decision 4), so the printed rows cannot add to the
-  // printed total: at 12 % the shipped L kitchen prints the depth line of 9 510 lei as "10 000" and the total of 94 630
-  // as "95 000". Q1b-a ("on each surface the lines sum to the total shown") cannot hold for printed text while this
-  // stands. `it.fails` passes while the printed rows do not add up; the day a wave settles the display unit it goes
-  // red, and the instruction is to delete `.fails`.
-  // The guard that keeps the `it.fails` below honest: it fails for the stated reason only if every priced line has a
-  // printed amount that parses, so a renamed test id or a throw cannot keep it green for the wrong one.
-  it("prints one parseable amount per priced line, so the sum below is over every line", () => {
+describe("the amounts as printed (owner ruling 2026-10-28: lines to the 10 lei, the total to the 1 000)", () => {
+  // The ruling that settled the conflict this block used to carry: every printed line is its priced amount to the leu
+  // (the domain prices at 10 lei, ADR 0175 decision 5, ADR 0177 A-1) and only the total is rounded up to the thousand,
+  // so the printed rows need not add to the printed total. At 12 % the shipped L kitchen prints the depth line of
+  // 9 510 lei as "9 510", and its total of 94 630 as "95 000".
+  // The guard that keeps the assertions below honest: every priced line has a printed amount that parses, so a renamed
+  // test id or a throw cannot keep them green for the wrong reason.
+  it("prints one parseable amount per priced line, so the sums below are over every line", () => {
     const design = deepShippedKitchen();
     const pricing = priceAt(design, 12);
     const dom = markupOf(describeAt(design, pricing));
@@ -373,22 +370,55 @@ describe("the amounts as printed (a spec conflict, reported and not Q1's to sett
       );
   });
 
-  it.fails("printed rows add up to the printed total", () => {
+  it("prints each row at its priced amount to the leu, and the rows add to the priced total to the leu", () => {
     const design = deepShippedKitchen();
-    const view = describeAt(design, priceAt(design, 12));
-    const dom = markupOf(view);
+    const pricing = priceAt(design, 12);
+    const priced = pricedOf(pricing);
 
-    const printedAmounts = Array.from(
-      dom.querySelectorAll(
-        '[data-testid="breakdown-row-amount"], [data-testid="breakdown-depth-amount"]',
-      ),
-    ).map((amount) => amountOfText(amount.textContent));
+    const printedAmounts = printedAmountsOf(
+      markupOf(describeAt(design, pricing)),
+    );
 
+    expect([...printedAmounts].sort(byValue)).toEqual(
+      priced.lines
+        .map((line) => line.amountMinor / MINOR_PER_LEU)
+        .sort(byValue),
+    );
     expect(printedAmounts.reduce((sum, amount) => sum + amount, 0)).toBe(
-      amountOfText(view.figure.amountText),
+      priced.totalMinor / MINOR_PER_LEU,
+    );
+  });
+
+  it("prints the total rounded up to the thousand, which the printed rows need not add up to", () => {
+    const design = deepShippedKitchen();
+    const pricing = priceAt(design, 12);
+    const view = describeAt(design, pricing);
+    const printedAmounts = printedAmountsOf(markupOf(view));
+    const printedTotal = amountOfText(view.figure.amountText);
+
+    expect(printedTotal).toBe(
+      Math.ceil(pricedOf(pricing).totalMinor / MINOR_PER_THOUSAND_LEI) * 1000,
+    );
+    expect(printedAmounts.reduce((sum, amount) => sum + amount, 0)).not.toBe(
+      printedTotal,
     );
   });
 });
+
+const MINOR_PER_LEU = 100;
+const MINOR_PER_THOUSAND_LEI = 100_000;
+
+function byValue(left: number, right: number): number {
+  return left - right;
+}
+
+function printedAmountsOf(dom: HTMLElement): readonly number[] {
+  return Array.from(
+    dom.querySelectorAll(
+      '[data-testid="breakdown-row-amount"], [data-testid="breakdown-depth-amount"]',
+    ),
+  ).map((amount) => amountOfText(amount.textContent));
+}
 
 /** The whole-MDL figure in a printed amount; *inclus* and any other wording without a digit is 0. */
 function amountOfText(text: string): number {

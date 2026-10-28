@@ -20,7 +20,7 @@ import type { Content } from "@/i18n/content";
 import { MEASURED_DEEPENING_ROWS } from "./deepening-rows";
 import { NOTHING_DISABLED } from "./availability";
 import type { PricedKitchen } from "./generated-kitchens";
-import { rawRoundedAmountOf } from "./raw-catalogue-text";
+import { rawLineAmountOf } from "./raw-catalogue-text";
 
 export function builtDeep(design: Design): Design {
   return {
@@ -101,7 +101,7 @@ export function restamped(
 /**
  * The amount every priced line prints as, written from the line and the published words alone: the oracle for "each
  * line the total counts is listed once". A zero is `inclus`, a customer's own appliance `nu este inclus`, anything else
- * the amount up to a thousand lei.
+ * the amount to the ten lei.
  */
 export function printedAmountOf(
   line: PricedDesign["lines"][number],
@@ -111,7 +111,7 @@ export function printedAmountOf(
     return content.priceBreakdown.notIncluded;
   }
   if (line.amountMinor === 0) return content.priceBreakdown.included;
-  return rawRoundedAmountOf(line.amountMinor);
+  return rawLineAmountOf(line.amountMinor);
 }
 
 export function sumOfLines(priced: PricedDesign): number {

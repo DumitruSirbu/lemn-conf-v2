@@ -35,7 +35,10 @@ import {
   type AvailableBreakdown,
 } from "@/price/price-breakdown-model";
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
-import { describeRoundedAmount } from "@/price/starting-price";
+import {
+  describeLineAmount,
+  describeRoundedAmount,
+} from "@/price/starting-price";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 import { NOTHING_DISABLED } from "../support/availability";
 
@@ -379,7 +382,7 @@ describe("what an amount reads as", () => {
     }
   });
 
-  it("rounds a line up to the thousand, through the one rounding site", () => {
+  it("shows a line to the ten lei, through the one line-amount site", () => {
     const view = shippedBreakdown();
     const firstRow = view.groups[0]?.rows[0];
     const firstLine = SHIPPED_PRICING.ok
@@ -390,7 +393,7 @@ describe("what an amount reads as", () => {
       : undefined;
 
     expect(firstRow?.amountText).toBe(
-      describeRoundedAmount(firstLine?.amountMinor ?? -1),
+      describeLineAmount(firstLine?.amountMinor ?? -1),
     );
   });
 
