@@ -1,9 +1,9 @@
 // Adversarial QA for P3 on the sample dashboard: the book a build that shows samples presents as the active version.
 //
-// `publish-sample.ts` restates the application's own root book (the cut-over sample) and, in doing so, rewrites every
-// manufacturer cabinet to an anchored formula. A-7 (amended by P3-Q4) keeps the six structural corner rules
-// `price-per-size`, "not anchored. An anchored formula on a non-insertable row is refused by M2". A sample dashboard
-// whose active version anchors them shows a book the publish judgement would refuse. This test is red while it does.
+// The active version is the root sample as it stands. A-7 (amended by P3-Q4) keeps the six structural corner rules
+// `price-per-size`, "not anchored. An anchored formula on a non-insertable row is refused by M2", so a sample dashboard
+// that anchored any of them would show a book the publish judgement refuses. Sabotage check: rewriting one corner rule to
+// an anchored formula in `publish-sample.ts` turns exactly that rule's test red.
 import {
   SAMPLE_PRICE_BOOK,
   type PriceBook,
@@ -57,4 +57,26 @@ describe("the sample dashboard's active version keeps the structural corner rule
       );
     },
   );
+});
+
+describe("the sample dashboard's active version is the root sample's fixed-size rows, all of them", () => {
+  const ROOT_FIXED_SIZE_RULES = SAMPLE_PRICE_BOOK.cabinetRules
+    .filter((rule) => rule.formula.shape === "price-per-size")
+    .map((rule) => rule.ruleId);
+
+  it("has at least the six structural corners among the rules it sweeps", () => {
+    expect(ROOT_FIXED_SIZE_RULES.length).toBeGreaterThanOrEqual(
+      STRUCTURAL_CORNER_RULES.length,
+    );
+    for (const ruleId of STRUCTURAL_CORNER_RULES)
+      expect(ROOT_FIXED_SIZE_RULES).toContain(ruleId);
+  });
+
+  it("keeps every one of them price-per-size with the listed widths", () => {
+    for (const ruleId of ROOT_FIXED_SIZE_RULES) {
+      expect(fixedSizeReadingOf(SAMPLE_ACTIVE, ruleId), ruleId).toEqual(
+        fixedSizeReadingOf(SAMPLE_PRICE_BOOK, ruleId),
+      );
+    }
+  });
 });
