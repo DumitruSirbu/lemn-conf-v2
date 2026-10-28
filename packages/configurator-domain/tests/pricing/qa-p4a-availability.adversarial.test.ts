@@ -352,11 +352,21 @@ describe("P4a-c swept: the sheet and the refusal are one set, and a row never of
 
         if (!rowsAreDue) {
           expect(() =>
-            replacementsRequired(design, BOOK, availability, CATALOG),
+            replacementsRequired({
+              design,
+              book: BOOK,
+              availability,
+              catalog: CATALOG,
+            }),
           ).toThrow(NoReplacementOptionError);
           return;
         }
-        const rows = replacementsRequired(design, BOOK, availability, CATALOG);
+        const rows = replacementsRequired({
+          design,
+          book: BOOK,
+          availability,
+          catalog: CATALOG,
+        });
         expect(rows.map((row) => row.item)).toEqual(refusedOn ?? []);
         for (const row of rows) {
           expect(row.remaining.length).toBeGreaterThan(0);
@@ -513,7 +523,12 @@ describe("P4a-b: availability is read from beside the book, never from it", () =
 
     priceUnder(NOTHING_DISABLED, design, watched);
     const refused = priceUnder(switchedOff, design, watched);
-    replacementsRequired(design, watched, switchedOff, CATALOG);
+    replacementsRequired({
+      design,
+      book: watched,
+      availability: switchedOff,
+      catalog: CATALOG,
+    });
 
     expect(refusalItemsOf(refused)).toEqual([colour("veneer.nuc")]);
     expect(reads).toEqual([]);
@@ -590,12 +605,12 @@ describe("P4a-d swept: a switched-off accessory is a missing line, and the notic
             );
 
             expect(
-              removedAccessoriesSince(
+              removedAccessoriesSince({
                 design,
-                availabilityOf(seen, "s"),
-                availabilityOf(current, "c"),
-                CATALOG,
-              ),
+                catalog: CATALOG,
+                seen: availabilityOf(seen, "s"),
+                current: availabilityOf(current, "c"),
+              }),
             ).toEqual(expected);
           },
         ),
@@ -611,12 +626,12 @@ describe("P4a-d swept: a switched-off accessory is a missing line, and the notic
         );
 
         expect(
-          removedAccessoriesSince(
-            KITCHEN_L_DESIGN,
-            NOTHING_DISABLED,
-            availabilityOf(disabled),
-            CATALOG,
-          )
+          removedAccessoriesSince({
+            design: KITCHEN_L_DESIGN,
+            catalog: CATALOG,
+            seen: NOTHING_DISABLED,
+            current: availabilityOf(disabled),
+          })
             .map((item) => (item.kind === "accessory" ? item.accessoryId : ""))
             .sort(),
         ).toEqual([...noLongerBilled].sort());
@@ -659,10 +674,20 @@ describe("hostile availability: a frozen, repeated, oversized or foreign-kinded 
 
     expect(() => priceUnder(frozen, namedKitchen)).not.toThrow();
     expect(() =>
-      replacementsRequired(namedKitchen, BOOK, frozen, CATALOG),
+      replacementsRequired({
+        design: namedKitchen,
+        book: BOOK,
+        availability: frozen,
+        catalog: CATALOG,
+      }),
     ).not.toThrow();
     expect(() =>
-      removedAccessoriesSince(KITCHEN_L_DESIGN, frozen, frozen, CATALOG),
+      removedAccessoriesSince({
+        design: KITCHEN_L_DESIGN,
+        catalog: CATALOG,
+        seen: frozen,
+        current: frozen,
+      }),
     ).not.toThrow();
     expect(frozen.disabled.map((item) => item.kind)).toEqual([
       "handle",
@@ -721,12 +746,12 @@ describe("A-9 fallback tiers: a design that names no tier is priced at the book'
     const availability = availabilityOf([hardware(fallback)]);
 
     const refused = priceUnder(availability);
-    const [row] = replacementsRequired(
-      KITCHEN_L_DESIGN,
-      BOOK,
+    const [row] = replacementsRequired({
+      design: KITCHEN_L_DESIGN,
+      book: BOOK,
       availability,
-      CATALOG,
-    );
+      catalog: CATALOG,
+    });
 
     expect(refusalItemsOf(refused)).toEqual([hardware(fallback)]);
     expect(row?.remaining).toEqual(
@@ -849,7 +874,12 @@ describe("CURRENT BEHAVIOUR for the architect: a disabled colour and a disabled 
   });
 
   it("offers the colour row the active colours of the material that is itself switched off", () => {
-    const rows = replacementsRequired(veneerKitchen, BOOK, bothOff, CATALOG);
+    const rows = replacementsRequired({
+      design: veneerKitchen,
+      book: BOOK,
+      availability: bothOff,
+      catalog: CATALOG,
+    });
 
     expect(rows.map((row) => row.remaining)).toEqual([
       [material("material.melamine"), material("material.painted-mdf")],
@@ -874,7 +904,12 @@ describe("CURRENT BEHAVIOUR for the architect: a palette colour on a material th
 
   it("throws NoReplacementOptionError from the sheet for the same design: the refusal and the sheet disagree here", () => {
     expect(() =>
-      replacementsRequired(mdfWearingAPaletteColour, BOOK, colourOff, CATALOG),
+      replacementsRequired({
+        design: mdfWearingAPaletteColour,
+        book: BOOK,
+        availability: colourOff,
+        catalog: CATALOG,
+      }),
     ).toThrow(NoReplacementOptionError);
   });
 
@@ -936,7 +971,12 @@ describe("RULED: a design that chose a tier the book does not hold is UNKNOWN_TI
   // The guard that caught the defect: the sheet is built for a design the price refuses, never thrown from.
   it("builds the sheet for such a design with no row, and does not throw", () => {
     expect(
-      replacementsRequired(unknownMaterialAndAColour, BOOK, colourOff, CATALOG),
+      replacementsRequired({
+        design: unknownMaterialAndAColour,
+        book: BOOK,
+        availability: colourOff,
+        catalog: CATALOG,
+      }),
     ).toEqual([]);
   });
 });
@@ -991,12 +1031,12 @@ describe("whenever the price refuses REPLACEMENT_REQUIRED, the sheet can be buil
           if (refusedOn === undefined) return;
           refusals += 1;
 
-          const rows = replacementsRequired(
+          const rows = replacementsRequired({
             design,
-            BOOK,
+            book: BOOK,
             availability,
-            CATALOG,
-          );
+            catalog: CATALOG,
+          });
 
           expect(rows.map((row) => row.item)).toEqual(refusedOn);
         },
@@ -1020,7 +1060,12 @@ describe("NAMED EXCLUSIONS from that property: two states where the refusal and 
       colour("pal.antracit"),
     ]);
     expect(() =>
-      replacementsRequired(design, BOOK, availability, CATALOG),
+      replacementsRequired({
+        design,
+        book: BOOK,
+        availability,
+        catalog: CATALOG,
+      }),
     ).toThrow(NoReplacementOptionError);
     expect(
       fatalDesignValidationIssues(validateDesignForCatalog(design, CATALOG)),
@@ -1055,12 +1100,12 @@ describe("NAMED EXCLUSIONS from that property: two states where the refusal and 
 
     expect(refused).toEqual([colour("pal.antracit")]);
     expect(() =>
-      replacementsRequired(
+      replacementsRequired({
         design,
-        bookWithAnUndeclaredMaterial,
+        book: bookWithAnUndeclaredMaterial,
         availability,
-        CATALOG,
-      ),
+        catalog: CATALOG,
+      }),
     ).toThrow(NoReplacementOptionError);
   });
 });

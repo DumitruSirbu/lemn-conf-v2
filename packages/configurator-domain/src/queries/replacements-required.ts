@@ -3,7 +3,8 @@
 //
 // It sits beside the other queries, not under `pricing/`, because the colours a material offers are the palette's
 // (`materials.ts`), which nothing under `pricing/` may import (ADR 0071 decision 1). What it asks of pricing is the one
-// list `priceDesign` refuses on (`disabledItemsNamedBy`), so the refusal's items and this query's rows are the same set.
+// list `priceDesign` refuses on (`disabledItemsNamedBy`), so the refusal's items and this query's rows are the same
+// set.
 //
 // It never offers a switched-off item, and it never produces a row with nothing to choose: the dashboard refuses to
 // switch off the last active option of a group (A-17), so an empty set is a defect, thrown, and never an empty sheet.
@@ -18,7 +19,7 @@ import type {
   TierGroup,
   TierIdentity,
 } from "../pricing/price-book.js";
-import { disabledItemsNamedBy } from "../pricing/replacements.js";
+import { disabledItemsNamedBy } from "../pricing/named-items.js";
 import { lookUpMaterial, paletteEntriesOf } from "../materials.js";
 import type { BodyCatalog } from "../void-engine.js";
 
@@ -43,17 +44,26 @@ export class NoReplacementOptionError extends Error {
   }
 }
 
+/** What the sheet is built from: the design, the book whose tiers are on offer, what is switched off, and the
+ *  catalogue that says which bodies carry a colour or a handle. */
+export interface ReplacementsRequiredRequest {
+  readonly design: Design;
+  readonly book: PriceBook;
+  readonly availability: CatalogueAvailability;
+  readonly catalog: BodyCatalog;
+}
+
 /**
  * The switched-off items this design names (material, hardware class, colour, handle), each with its remaining options,
  * in the order `priceDesign` lists them. Empty when the design names none. A colour's options are the active entries of
  * the design's own material: a customer replaces a colour within the material they are on.
  */
-export function replacementsRequired(
-  design: Design,
-  book: PriceBook,
-  availability: CatalogueAvailability,
-  catalog: BodyCatalog,
-): readonly ReplacementRequired[] {
+export function replacementsRequired({
+  design,
+  book,
+  availability,
+  catalog,
+}: ReplacementsRequiredRequest): readonly ReplacementRequired[] {
   const items = disabledItemsNamedBy(
     { design, catalog, book, chosen: design.settings },
     availability,

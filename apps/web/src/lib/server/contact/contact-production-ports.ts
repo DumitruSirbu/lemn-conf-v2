@@ -7,7 +7,10 @@ import type {
 import { createTranslator, type IntlError } from "next-intl";
 import type { NextResponse } from "next/server";
 
-import type { PriceBook } from "@lemnaria/configurator-domain";
+import type {
+  CatalogueAvailability,
+  PriceBook,
+} from "@lemnaria/configurator-domain";
 
 import { resolveContent, type Content } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
@@ -47,6 +50,7 @@ export async function makeContactProductionPorts(
     ...ports,
     book: priceBook.book,
     bookVersionId: priceBook.versionId,
+    availability: priceBook.availability,
   };
 }
 
@@ -54,6 +58,7 @@ export async function makeContactProductionPorts(
 export type PricedContactPorts = SubmitContactPorts & {
   readonly book: PriceBook;
   readonly bookVersionId: string;
+  readonly availability: CatalogueAvailability;
 };
 
 /** Everything but the book: for a request that prices nothing, and for the judgement that comes before any price is read. */
@@ -66,6 +71,7 @@ function makeContactPortsWithoutBook(
     createSender: () => createMailSender(process.env),
     book: undefined,
     bookVersionId: undefined,
+    availability: undefined,
     digester: readDigester(process.env),
     noticeContent: noticeContent(),
     servedLocales: routing.locales,
@@ -106,8 +112,12 @@ export async function admitContactRequest(
   };
   const admittedPorts = { ...ports, makeJudge: () => admitted };
   if (!namesADesign(text)) return { kind: "ports", ports: admittedPorts };
-  const { book, bookVersionId } = await makeContactProductionPorts(headers);
-  return { kind: "ports", ports: { ...admittedPorts, book, bookVersionId } };
+  const { book, bookVersionId, availability } =
+    await makeContactProductionPorts(headers);
+  return {
+    kind: "ports",
+    ports: { ...admittedPorts, book, bookVersionId, availability },
+  };
 }
 
 function namesADesign(text: string): boolean {

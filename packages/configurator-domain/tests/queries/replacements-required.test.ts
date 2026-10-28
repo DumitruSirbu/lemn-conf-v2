@@ -53,7 +53,12 @@ const VENEER_COLOUR_ITEMS: readonly ItemRef[] = paletteEntriesOf(
 ).map((entry) => colour(entry.entryId));
 
 function rowsOf(design: typeof KITCHEN_L_DESIGN, disabled: readonly ItemRef[]) {
-  return replacementsRequired(design, BOOK, availabilityOf(disabled), CATALOG);
+  return replacementsRequired({
+    design,
+    book: BOOK,
+    availability: availabilityOf(disabled),
+    catalog: CATALOG,
+  });
 }
 
 describe("the rows are the switched-off items the kitchen names, each with what can replace it (P4a-c)", () => {

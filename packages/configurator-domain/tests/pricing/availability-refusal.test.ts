@@ -29,7 +29,7 @@ import type {
   PricingFailure,
   ReplacementRequiredFailure,
 } from "../../src/pricing/price-lines.js";
-import { itemsNamedBy } from "../../src/pricing/replacements.js";
+import { itemsNamedBy } from "../../src/pricing/named-items.js";
 import {
   accessory,
   availabilityOf,

@@ -132,12 +132,12 @@ describe("removedAccessoriesSince names what a customer has lost since they last
     current: readonly ItemRef[],
     design: Design = KITCHEN_L_DESIGN,
   ) =>
-    removedAccessoriesSince(
+    removedAccessoriesSince({
       design,
-      availabilityOf(seen, "seen-revision"),
-      availabilityOf(current, "current-revision"),
-      CATALOG,
-    );
+      catalog: CATALOG,
+      seen: availabilityOf(seen, "seen-revision"),
+      current: availabilityOf(current, "current-revision"),
+    });
 
   it("names an accessory the kitchen earns that is now off and was on", () => {
     expect(removed([], [COVER])).toEqual([COVER]);
@@ -166,12 +166,12 @@ describe("removedAccessoriesSince names what a customer has lost since they last
   });
 
   it("does not depend on the revisions, only on what each availability lists", () => {
-    const sameItems = removedAccessoriesSince(
-      KITCHEN_L_DESIGN,
-      availabilityOf([], "a"),
-      availabilityOf([COVER], "b"),
-      CATALOG,
-    );
+    const sameItems = removedAccessoriesSince({
+      design: KITCHEN_L_DESIGN,
+      catalog: CATALOG,
+      seen: availabilityOf([], "a"),
+      current: availabilityOf([COVER], "b"),
+    });
 
     expect(sameItems).toEqual([COVER]);
   });
@@ -186,12 +186,12 @@ describe("removedAccessoriesSince names what a customer has lost since they last
     const lost = billedBefore.filter((id) => !billedNow.includes(id));
 
     expect(
-      removedAccessoriesSince(
-        KITCHEN_L_DESIGN,
-        NOTHING_DISABLED,
+      removedAccessoriesSince({
+        design: KITCHEN_L_DESIGN,
+        catalog: CATALOG,
+        seen: NOTHING_DISABLED,
         current,
-        CATALOG,
-      )
+      })
         .map((item) => (item.kind === "accessory" ? item.accessoryId : ""))
         .sort(),
     ).toEqual([...lost].sort());

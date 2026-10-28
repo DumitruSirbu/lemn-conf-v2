@@ -272,18 +272,19 @@ export * from "./pricing/catalogue-availability.js";
 export {
   disabledItemsNamedBy,
   itemsNamedBy,
-  type ChosenTiers,
-  type ItemSelectionQuery,
-} from "./pricing/replacements.js";
+  type NamedItemsQuery,
+} from "./pricing/named-items.js";
 export {
   earnedAccessoryQuantities,
   removedAccessoriesSince,
   type EarnedAccessoryQuantities,
+  type RemovedAccessoriesRequest,
 } from "./pricing/earned-accessories.js";
 export {
   NoReplacementOptionError,
   replacementsRequired,
   type ReplacementRequired,
+  type ReplacementsRequiredRequest,
 } from "./queries/replacements-required.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";

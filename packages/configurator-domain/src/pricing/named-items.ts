@@ -21,26 +21,20 @@ import {
   type ItemRef,
 } from "./catalogue-availability.js";
 import type { PriceBook, TierGroup, TierIdentity } from "./price-book.js";
-
-/** The whole-kitchen tiers a caller chose: the structural twin of `WholeKitchenSelections`, which this module may not
- *  import (`price-design.ts` imports this module). */
-export interface ChosenTiers {
-  readonly hardwareTierId?: string | undefined;
-  readonly materialTierId?: string | undefined;
-}
+import type { WholeKitchenSelections } from "./whole-kitchen-selections.js";
 
 /** What names items: the design, the catalogue that says which bodies carry a colour or a handle, the book whose
  *  fallback tiers a choice-less design is priced at, and the tiers the caller chose (priced as chosen, as
  *  `priceDesign`'s `selections` are; absent, the fallbacks). */
-export interface ItemSelectionQuery {
+export interface NamedItemsQuery {
   readonly design: Design;
   readonly catalog: CustomisableBodies;
   readonly book: PriceBook;
-  readonly chosen?: ChosenTiers | undefined;
+  readonly chosen?: WholeKitchenSelections | undefined;
 }
 
 /** Every switchable item the design names, once each, in `distinctItemsInOrder`'s order. */
-export function itemsNamedBy(query: ItemSelectionQuery): readonly ItemRef[] {
+export function itemsNamedBy(query: NamedItemsQuery): readonly ItemRef[] {
   const { book, chosen } = query;
   return distinctItemsInOrder([
     ...tierItem(book.material, chosen?.materialTierId, "material"),
@@ -53,12 +47,12 @@ export function itemsNamedBy(query: ItemSelectionQuery): readonly ItemRef[] {
  * The items the design names that `availability` switches off, once each, in `distinctItemsInOrder`'s order. The items
  * returned are the design's own references, so a result cannot carry anything availability merely lists.
  *
- * Empty for a design whose chosen tier the book does not hold, whatever is switched off: that design is `UNKNOWN_TIER`'s
- * (the recovery path of ADR 0072), and a replacement sheet for it could not be built, since its options are read from
- * the tiers and the material it names.
+ * Empty for a design whose chosen tier the book does not hold, whatever is switched off: that design is
+ * `UNKNOWN_TIER`'s (the recovery path of ADR 0072), and a replacement sheet for it could not be built, since its
+ * options are read from the tiers and the material it names.
  */
 export function disabledItemsNamedBy(
-  query: ItemSelectionQuery,
+  query: NamedItemsQuery,
   availability: CatalogueAvailability,
 ): readonly ItemRef[] {
   if (namesATierTheBookDoesNotHold(query)) return [];
@@ -70,7 +64,7 @@ export function disabledItemsNamedBy(
 function namesATierTheBookDoesNotHold({
   book,
   chosen,
-}: ItemSelectionQuery): boolean {
+}: NamedItemsQuery): boolean {
   return (
     !holdsTier(book.material, chosen?.materialTierId) ||
     !holdsTier(book.hardware, chosen?.hardwareTierId)

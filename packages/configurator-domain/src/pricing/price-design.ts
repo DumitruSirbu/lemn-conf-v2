@@ -35,6 +35,7 @@ import {
   type ItemRef,
 } from "./catalogue-availability.js";
 import { earnedAccessoryQuantities } from "./earned-accessories.js";
+import { disabledItemsNamedBy } from "./named-items.js";
 import { parsePriceBook } from "./parse-price-book.js";
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -71,23 +72,16 @@ import type {
   CabinetPriceLine,
   DepthPriceLine,
   OrdinaryPricingFailure,
+  OrdinaryPricingFailureCode,
   PriceLine,
   PricingFailure,
   PricingResult,
   ReplacementRequiredFailure,
   WholeKitchenPriceLine,
 } from "./price-lines.js";
-import { disabledItemsNamedBy } from "./replacements.js";
+import type { WholeKitchenSelections } from "./whole-kitchen-selections.js";
 
-/** The whole-kitchen choices a design was configured with, passed in by the caller holding the book.
- *  An absent choice is priced at the book's own default tier.
- *
- *  Each key is `string | undefined`, not merely optional: `DesignSettings` is inferred from a Zod
- *  `.optional()`, which `exactOptionalPropertyTypes` would refuse to assign to a plain `?: string`. */
-export interface WholeKitchenSelections {
-  readonly hardwareTierId?: string | undefined;
-  readonly materialTierId?: string | undefined;
-}
+export type { WholeKitchenSelections };
 
 /** Everything the query needs, named rather than positional. */
 export interface PriceDesignRequest {
@@ -360,7 +354,7 @@ function isAboutTheFronts(error: unknown): boolean {
 }
 
 /** The refusal a formula's throw becomes: the three causes with a code of their own, else an unusable amount. */
-function failureCodeOf(error: unknown): OrdinaryPricingFailure["code"] {
+function failureCodeOf(error: unknown): OrdinaryPricingFailureCode {
   if (error instanceof NoPriceForSizeError) return "NO_PRICE_FOR_SIZE";
   if (error instanceof UndeclaredFrontPopulationError) {
     return "UNDECLARED_FRONT_POPULATION";
@@ -392,6 +386,7 @@ function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
 }
 
 /** The row a body is priced as, with its definition: looking the row up twice lets id and row diverge. */
+/** Exported for `price-dashboard/priced-row.ts` (M2), which describes a priced body the way this query does. */
 export interface PricingRow {
   readonly buildId: string;
   readonly definition: BodyDefinition | undefined;
@@ -427,6 +422,7 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * freeze `carriesHandles(n)` at their built size, so reading the placement's own entry would give a resized seeded
  * `wall-2door-600` a different count from an inserted `wall-cabinet` beside it (ADR 0092 decision 1).
  */
+/** Exported for `price-dashboard/priced-row.ts` (M2), so the preview and the price read a body alike. */
 export function describePricedBody(
   entry: DisplayEntry,
   pricedAs: PricingRow,
@@ -1162,17 +1158,17 @@ function refuseNegativeAmount(
 
 /** A step answers with a value or with the one failure that ends the whole query; there is no
  *  partial result. */
-export interface Refused {
+interface Refused {
   readonly failure: PricingFailure;
 }
-export type Attempt<TValue> = { readonly value: TValue } | Refused;
+type Attempt<TValue> = { readonly value: TValue } | Refused;
 
 function isRefused<TValue>(attempt: Attempt<TValue>): attempt is Refused {
   return "failure" in attempt;
 }
 
 function refusal(
-  code: OrdinaryPricingFailure["code"],
+  code: OrdinaryPricingFailureCode,
   detail: string,
   named?: { readonly placementId?: string; readonly id?: string },
 ): Refused {
@@ -1185,21 +1181,21 @@ function refusal(
  * both reach these strings, and an unbounded, un-scrubbed one amplifies and can forge a log line.
  */
 function failWith(
-  code: OrdinaryPricingFailure["code"],
+  code: OrdinaryPricingFailureCode,
   detail: string,
   named?: { readonly placementId?: string; readonly id?: string },
 ): OrdinaryPricingFailure {
   return { code, detail: boundedFailureReason(detail), ...named };
 }
 
-/** The one refusal that names items, not an id: the full list rides in `items`, and `detail` only summarises it. */
+/** The one refusal that names items, not an id: the full list rides in `items`, and `detail` only counts them. */
 function failWithReplacements(
   items: readonly ItemRef[],
 ): ReplacementRequiredFailure {
   return {
     code: "REPLACEMENT_REQUIRED",
     detail: boundedFailureReason(
-      `The design names ${String(items.length)} item(s) the catalogue has switched off: ${JSON.stringify(items)}`,
+      `The design names ${String(items.length)} item(s) the catalogue has switched off`,
     ),
     items,
   };

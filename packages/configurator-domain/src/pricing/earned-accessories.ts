@@ -38,21 +38,30 @@ export function earnedAccessoryQuantities(
   };
 }
 
+/** The kitchen and the catalogue that says what it earns, and the availability the customer last saw (`seen`) and the
+ *  one that is current. */
+export interface RemovedAccessoriesRequest {
+  readonly design: Design;
+  readonly catalog: BodyCatalog;
+  readonly seen: CatalogueAvailability;
+  readonly current: CatalogueAvailability;
+}
+
 /**
- * The accessories this kitchen earns that `currentAvailability` switches off and `seenAvailability` did not: what the
- * customer is told was removed since they last looked, as accessory items. One already off when they last looked is
- * not reported again, and one the kitchen does not earn (no sink, no rack host) was never theirs to lose.
+ * The accessories this kitchen earns that `current` switches off and `seen` did not: what the customer is told was
+ * removed since they last looked, as accessory items. One already off when they last looked is not reported again, and
+ * one the kitchen does not earn (no sink, no rack host) was never theirs to lose.
  *
- * It takes the catalogue, which the plan's three-argument form leaves out, because whether a kitchen earns a sink cover
- * is a fact about its bodies. Like the projection it reads, it throws `UnknownBodyError` for a body the catalogue does
- * not hold: price the design first, which refuses it with a code.
+ * It takes the catalogue because whether a kitchen earns a sink cover is a fact about its bodies. Like the projection
+ * it reads, it throws `UnknownBodyError` for a body the catalogue does not hold: price the design first, which refuses it
+ * with a code.
  */
-export function removedAccessoriesSince(
-  design: Design,
-  seenAvailability: CatalogueAvailability,
-  currentAvailability: CatalogueAvailability,
-  catalog: BodyCatalog,
-): readonly ItemRef[] {
+export function removedAccessoriesSince({
+  design,
+  catalog,
+  seen,
+  current,
+}: RemovedAccessoriesRequest): readonly ItemRef[] {
   const earned = earnedAccessoryQuantities(
     projectDesignForDisplay(design, catalog).flatMap((group) => group.entries),
     catalog,
@@ -61,9 +70,7 @@ export function removedAccessoriesSince(
     ACCESSORY_IDS.filter((accessoryId) => earned[accessoryId] > 0)
       .map((accessoryId): ItemRef => ({ kind: "accessory", accessoryId }))
       .filter(
-        (item) =>
-          isItemDisabled(currentAvailability, item) &&
-          !isItemDisabled(seenAvailability, item),
+        (item) => isItemDisabled(current, item) && !isItemDisabled(seen, item),
       ),
   );
 }

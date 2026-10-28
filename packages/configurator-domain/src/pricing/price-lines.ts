@@ -192,9 +192,15 @@ interface PricingFailureCommon {
   readonly id?: string;
 }
 
+/** Every code but the one that is about a set of items. */
+export type OrdinaryPricingFailureCode = Exclude<
+  PricingFailureCode,
+  "REPLACEMENT_REQUIRED"
+>;
+
 /** Every refusal that is about one id or one placement. */
 export interface OrdinaryPricingFailure extends PricingFailureCommon {
-  readonly code: Exclude<PricingFailureCode, "REPLACEMENT_REQUIRED">;
+  readonly code: OrdinaryPricingFailureCode;
 }
 
 /** The refusal that is about a set of items. `items` is every switched-off item the design names, once each, in one
