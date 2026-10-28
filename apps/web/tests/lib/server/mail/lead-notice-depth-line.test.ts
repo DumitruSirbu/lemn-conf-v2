@@ -111,6 +111,20 @@ describe("the shop's notice and the depth line", () => {
     expect(message.html).toContain(depthLine);
   });
 
+  it("sets the scope words under the depth line in the text (indented) and in the HTML, and prints them nowhere without a depth line", () => {
+    const deep = noticeOfKitchenBuiltAt(DEEP_CABINET_DEPTH_MM).message;
+    const standard = noticeOfKitchenBuiltAt(undefined).message;
+    const scope = ro.priceBreakdown.depthLineScope;
+    const textLines = deep.text.split("\n");
+    const scopeAt = textLines.findIndex((line) => line.includes(scope));
+
+    expect(textLines[scopeAt]).toBe(`  ${scope}`);
+    expect(textLines[scopeAt - 1]).toContain("adaos");
+    expect(deep.html).toContain(scope);
+    expect(standard.text).not.toContain(scope);
+    expect(standard.html ?? "").not.toContain(scope);
+  });
+
   it("prints the stored percent, not the live book's: a snapshot stored with another percent is worded with it", () => {
     const { snapshot } = noticeOfKitchenBuiltAt(DEEP_CABINET_DEPTH_MM);
     const restamped: SubmissionSnapshot = {

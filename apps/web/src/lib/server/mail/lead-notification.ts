@@ -21,6 +21,7 @@ import {
   type LabelledValue,
   type LeadNoticeView,
   type NoticeAppendixGroup,
+  type NoticeAppendixRow,
   type NoticeAppendixView,
   type NoticeBody,
   type NoticeClientView,
@@ -406,13 +407,15 @@ function appendixOf(
     groups: review.groups.map((group) =>
       appendixGroupOf(group, { review, line }),
     ),
-    wholeKitchenRows: listWholeKitchenRows(review).map((row) =>
-      labelled(
-        "wholeKitchenRow",
-        line("wholeKitchenRow", row.label),
-        row.amountText,
-        line,
-      ),
+    wholeKitchenRows: listWholeKitchenRows(review).map(
+      (row): NoticeAppendixRow => ({
+        label: line("wholeKitchenRow", row.label),
+        value: line("wholeKitchenRow", row.amountText),
+        facts:
+          row.scope === undefined
+            ? []
+            : [line("wholeKitchenRowScope", row.scope)],
+      }),
     ),
   };
 }
@@ -471,18 +474,17 @@ function appendixLines(
   { input, line }: KitchenSource,
 ): string[] {
   const { leadNotice } = input.content;
-  const rowLine = ({ label, value }: LabelledValue) =>
-    line("row", leadNotice.line(label, value));
+  const rowLines = ({ label, value, facts }: NoticeAppendixRow) => [
+    line("row", leadNotice.line(label, value)),
+    ...facts.map((fact) => `${FACT_INDENT}${fact}`),
+  ];
   return [
     appendix.heading,
     ...appendix.groups.flatMap((group) => [
       group.heading,
-      ...group.rows.flatMap((row) => [
-        rowLine(row),
-        ...row.facts.map((fact) => `${FACT_INDENT}${fact}`),
-      ]),
+      ...group.rows.flatMap(rowLines),
     ]),
-    ...appendix.wholeKitchenRows.map(rowLine),
+    ...appendix.wholeKitchenRows.flatMap(rowLines),
   ];
 }
 

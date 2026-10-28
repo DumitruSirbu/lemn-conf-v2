@@ -39,6 +39,12 @@ import {
 } from "@/price/starting-price";
 import { parsedRoomLengthsOf } from "@/room/room-url-state";
 
+/** A whole-kitchen row as the review lists it: the breakdown's row, and, on the depth line only, the words saying which
+ *  cabinets its percent applies to, set under the label. */
+export interface ReviewWholeKitchenRow extends BreakdownRow {
+  readonly scope?: string;
+}
+
 /** Material and hardware as the settings sheet's pill words them, for the row that opens that sheet. */
 export interface ReviewSettingsRow {
   readonly heading: string;
@@ -106,7 +112,7 @@ export interface AvailableReview {
   readonly wholeKitchenRows: readonly BreakdownRow[];
   /** The depth line the total counts, worded from the priced (or stored) line: present exactly when the priced design
    *  carries one. `listWholeKitchenRows` places it among the whole-kitchen rows. */
-  readonly depthRow?: BreakdownRow;
+  readonly depthRow?: ReviewWholeKitchenRow;
   readonly notIncluded: ReviewNotIncludedSlot;
   readonly disclaimer: ReviewDisclaimer;
   readonly figure: PriceFigure;
@@ -270,7 +276,7 @@ function describeDepthRow(
   row: BreakdownDepthRow | undefined,
   priced: PricedDesign,
   content: Content,
-): { readonly depthRow?: BreakdownRow } {
+): { readonly depthRow?: ReviewWholeKitchenRow } {
   const line = priced.lines.find((candidate) => candidate.kind === "depth");
   if (row === undefined || line?.kind !== "depth") return {};
   return {
@@ -281,6 +287,7 @@ function describeDepthRow(
         line.deepCabinetPercent,
       ),
       amountText: row.amountText,
+      scope: content.priceBreakdown.depthLineScope,
     },
   };
 }
@@ -295,7 +302,7 @@ const MATERIAL_ROW_KEY = "kitchen:material";
  */
 export function listWholeKitchenRows(
   review: AvailableReview,
-): readonly BreakdownRow[] {
+): readonly ReviewWholeKitchenRow[] {
   const { depthRow, wholeKitchenRows } = review;
   if (depthRow === undefined) return wholeKitchenRows;
   const materialAt = wholeKitchenRows.findIndex(

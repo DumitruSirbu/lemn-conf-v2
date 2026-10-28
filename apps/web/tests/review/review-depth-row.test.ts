@@ -87,6 +87,7 @@ describe("the review's whole-kitchen rows with the depth row", () => {
         depthLineOf(DEEP).deepCabinetPercent,
       ),
       amountText: review.depthRow?.amountText,
+      scope: ro.priceBreakdown.depthLineScope,
     });
     expect(rows.filter((row) => row.key !== "kitchen:depth")).toEqual(
       review.wholeKitchenRows,
@@ -103,11 +104,25 @@ describe("the review's whole-kitchen rows with the depth row", () => {
     }
   });
 
+  it("sets the scope words on the depth row alone, and on no other row", () => {
+    const rows = listWholeKitchenRows(availableReviewOf(DEEP));
+
+    expect(
+      rows.filter((row) => row.scope !== undefined).map((row) => row.key),
+    ).toEqual(["kitchen:depth"]);
+    expect(rows.find((row) => row.key === "kitchen:depth")?.scope).toBe(
+      ro.priceBreakdown.depthLineScope,
+    );
+  });
+
   it("lists the rows untouched when the design carries no depth line", () => {
     const review = availableReviewOf(DEFAULT_DEPTH);
 
     expect(review).not.toHaveProperty("depthRow");
     expect(listWholeKitchenRows(review)).toBe(review.wholeKitchenRows);
+    expect(
+      listWholeKitchenRows(review).some((row) => row.scope !== undefined),
+    ).toBe(false);
   });
 
   it("lists a snapshot stored before the cut-over, which has no depth line, exactly as it was", () => {

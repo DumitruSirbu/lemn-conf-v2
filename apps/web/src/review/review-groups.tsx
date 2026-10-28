@@ -11,7 +11,11 @@ import type {
 } from "@/price/price-breakdown-model";
 
 import { editorHref, type EditorArrival } from "./design-hrefs";
-import { rowDetailOf, type ReviewRowDetail } from "./review-model";
+import {
+  rowDetailOf,
+  type ReviewRowDetail,
+  type ReviewWholeKitchenRow,
+} from "./review-model";
 
 export interface ReviewGroupsProps {
   readonly designId: DesignId;
@@ -44,17 +48,24 @@ export function ReviewGroups({
   ));
 }
 
-/** Hardware and material, then the accessories billed per sink, after every body's row. */
+/** Hardware and material, the depth line after the material, then the accessories billed per sink, after every body's
+ *  row. A row with a scope (the depth line) sets it under its label, as a body's facts are set. */
 export function ReviewWholeKitchenRows({
   rows,
 }: {
-  readonly rows: readonly BreakdownRow[];
+  readonly rows: readonly ReviewWholeKitchenRow[];
 }) {
   if (rows.length === 0) return null;
   return (
     <ul className={styles.wholeKitchen} data-testid="review-whole-kitchen">
       {rows.map((row) => (
-        <ReviewRow key={row.key} row={row} />
+        <ReviewRow
+          key={row.key}
+          row={row}
+          {...(row.scope === undefined
+            ? {}
+            : { detail: { name: row.label, facts: [row.scope] } })}
+        />
       ))}
     </ul>
   );

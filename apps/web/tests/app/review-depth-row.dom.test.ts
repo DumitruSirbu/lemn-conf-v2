@@ -80,7 +80,11 @@ function wholeKitchenLabelsOf(page: HTMLElement): string[] {
   const list = page.querySelector('[data-testid="review-whole-kitchen"]');
   return [
     ...(list?.querySelectorAll('[data-testid="review-row-label"]') ?? []),
-  ].map((label) => label.textContent);
+  ].map(
+    (label) =>
+      label.querySelector('[data-testid="review-row-name"]')?.textContent ??
+      label.textContent,
+  );
 }
 
 describe("the review screen's depth row", () => {
@@ -106,6 +110,21 @@ describe("the review screen's depth row", () => {
       ro.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, 20),
     );
     expect(seven).not.toEqual(twenty);
+  });
+
+  it("sets the scope words under the depth label at 700 mm, and prints them nowhere at the default depth", () => {
+    const scope = ro.priceBreakdown.depthLineScope;
+    const deep = renderedUnder(DEEP_KITCHEN, 12);
+    const depthRow = [
+      ...deep.querySelectorAll('[data-testid="review-whole-kitchen"] li'),
+    ].find((row) => row.textContent.includes(String(DEEP_CABINET_DEPTH_MM)));
+
+    expect(
+      depthRow?.querySelector('[data-testid="review-row-facts"]')?.textContent,
+    ).toBe(scope);
+    expect(renderedUnder(KITCHEN_L_DESIGN, 12).textContent).not.toContain(
+      scope,
+    );
   });
 
   it("is absent at the default depth, where no cabinet deepens", () => {
