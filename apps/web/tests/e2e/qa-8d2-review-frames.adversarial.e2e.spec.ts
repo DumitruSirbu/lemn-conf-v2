@@ -84,7 +84,11 @@ function dressedKitchen(
   };
 }
 
-/** What each row's second line must say, in the order the review draws its rows, from the document alone. */
+/**
+ * What each row's second line must say, in the order the review draws its rows. The width and the body's own finish come
+ * from the document alone; the handle is the one the body wears (H1b: its own, else the kitchen's, else the slot's), which
+ * the price bills a latch for, so the row names it whether or not the body chose it.
+ */
 function expectedSecondLines(
   design: Design,
   locale: Locale,
@@ -106,9 +110,27 @@ function expectedSecondLines(
                 ? (words[body.finish.entryId] ?? "?")
                 : body.finish.value,
             ]),
-        ...(body.handle === undefined ? [] : [words[body.handle] ?? "?"]),
+        ...(entry.wornHandle === undefined
+          ? []
+          : [words[entry.wornHandle] ?? "?"]),
       ];
     }),
+  );
+}
+
+/** The rows whose second line names a finish: a palette entry by its approved name, or a free colour by its value. */
+function rowsReadingAFinish(
+  secondLines: readonly (readonly string[])[],
+  locale: Locale,
+): readonly (readonly string[])[] {
+  const finishWords = new Set([
+    FREE_COLOUR,
+    ...Object.entries(WORDS[locale])
+      .filter(([key]) => key.startsWith("pal."))
+      .map(([, word]) => word),
+  ]);
+  return secondLines.filter((facts) =>
+    facts.some((fact) => finishWords.has(fact)),
   );
 }
 
@@ -125,6 +147,39 @@ async function secondLinesOnThePage(
         ].map((fact) => fact.textContent),
       ),
     );
+}
+
+/** The rows in the order the review draws them, by the body each one is. */
+function placementIdsInRowOrder(design: Design): readonly string[] {
+  return priceAndProject(design).groups.flatMap((group) =>
+    group.entries.map((entry) => entry.placementId),
+  );
+}
+
+/**
+ * The handle words read off the document alone, so the oracle above cannot agree with the page by sharing its mistake: a
+ * body that chose a handle names it, and a body that chose none still names the kitchen's default, steel (H1b).
+ */
+function expectHandlesFromTheDocumentAlone(
+  design: Design,
+  secondLines: readonly (readonly string[])[],
+  locale: Locale,
+): void {
+  const words = WORDS[locale];
+  const bodies = new Map(
+    design.placements.map((placement) => [placement.id, placement.body]),
+  );
+  const rows = placementIdsInRowOrder(design).map((placementId, index) => ({
+    own: bodies.get(placementId)?.handle,
+    facts: secondLines[index] ?? [],
+  }));
+
+  for (const { own, facts } of rows)
+    if (own !== undefined) expect(facts, locale).toContain(words[own]);
+  const followsTheKitchen = rows.filter(
+    ({ own, facts }) => own === undefined && facts.includes(words.steel ?? ""),
+  );
+  expect(followsTheKitchen.length, locale).toBeGreaterThan(0);
 }
 
 const DRESSED_KITCHENS: readonly (readonly [string, Design])[] = [
@@ -176,14 +231,12 @@ for (const [name, design] of DRESSED_KITCHENS) {
         await openReview(page, kitchen, locale);
         const expected = expectedSecondLines(stored as Design, locale);
 
-        expect(await secondLinesOnThePage(page), locale).toEqual(expected);
-        expect(expected.filter((facts) => facts.length > 1).length).toBe(
-          Object.keys(
-            design.placements.filter(
-              (placement) =>
-                placement.body.finish !== undefined ||
-                placement.body.handle !== undefined,
-            ),
+        const onThePage = await secondLinesOnThePage(page);
+        expect(onThePage, locale).toEqual(expected);
+        expectHandlesFromTheDocumentAlone(stored as Design, onThePage, locale);
+        expect(rowsReadingAFinish(expected, locale).length).toBe(
+          design.placements.filter(
+            (placement) => placement.body.finish !== undefined,
           ).length,
         );
         // Each row is two lines, the name above the facts, and nothing in it is wider than its row.

@@ -382,6 +382,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "28082585f6db6d7fb99cacb52e34b6174a7bf805b57f2a6a0278446eef39d510",
   "content.globalSettings.applyRefused.material":
     "c71812f8c2c932aa12208871e09a1e692f8b2f4d22d24e105536c882ee6494ad",
+  "content.globalSettings.depthNotePriced.700-mm-0-percent":
+    "e02effc2057ff48b699e141fb68933063bdc81ad7a825a5017ef96d68bb4e58d",
+  "content.globalSettings.depthNotePriced.700-mm-15-percent":
+    "555c2e68c31da0fc921002a621aff39ac46c4cf77e46de93c40c96d1b9c213ef",
   "content.globalSettings.depthOption.600":
     "0bd37af88c9a52e783ad75a3d633f6376464c84d50ad5d0fa96f5c8ee58a380d",
   "content.globalSettings.depthOption.700":
@@ -490,6 +494,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "2bda1bc71d3b5108018893d4b2eb9fa6d59123071a376c0276e069bd6a618f1c",
   "content.price.amountWithCurrency.43_000":
     "3c5b36d09c775bdac0e8c214b4f280023b4354c7726adf067de0193759a00c00",
+  "content.priceBreakdown.depthLine.700-mm-15-percent":
+    "062401fec2dfb9f3a742a678f0dba5ca4fc4b1e66687eba038356b7dfab73469",
   "content.priceBreakdown.groupHeading.wall-a-base":
     "27f6f9677464002cbd9c9fb2e906fc090f38b0e6b6b056e3b0fbbda0123d22a3",
   "content.priceBreakdown.groupHeading.wall-a-column":
@@ -956,6 +962,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "9aa9916696d886789a6d08a608f0843b7518555429a3251106a64274dc481635",
   "content.static.priceBreakdown.close":
     "b7f0026982e780c33344834500464527854631c01f51039d2eb87853b8370c6d",
+  "content.static.priceBreakdown.depthLineScope":
+    "79dd601e7275781e671dfb70c59f4c944fe19a5aac273ce8e4224f024d35beec",
   "content.static.priceBreakdown.disclaimer":
     "4ed0dfac02e66a05154c4aee2ef2f3f3cbb9dd41977c6b33edb130c92fe24888",
   "content.static.priceBreakdown.included":

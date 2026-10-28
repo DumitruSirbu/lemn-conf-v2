@@ -37,12 +37,25 @@ describe("the invented cabinet list can reach nobody in a production build", () 
     expect(importers).toEqual(["price-dashboard/cabinet-list-source.ts"]);
   });
 
-  it("decides on the literal the bundler replaces, so a production build holds the branch and not the sample", () => {
+  it("asks the one predicate that holds the literal the bundler replaces, and never reads the environment itself", () => {
+    const predicate = sourceOf(join(DASHBOARD_ROOT, "is-production-build.ts"));
     const source = sourceOf(join(DASHBOARD_ROOT, "cabinet-list-source.ts"));
+
+    expect(predicate).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
+    expect(predicate).not.toMatch(/process\.env\[/);
+    expect(predicate).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
+    expect(source).toMatch(/isProductionBuild\(\)/);
+    expect(source).not.toMatch(/process\.env/);
+  });
+
+  it("keeps the browser's choice of client on the literal itself, with the sample behind a dynamic import", () => {
+    const source = sourceOf(join(DASHBOARD_ROOT, "default-publish-client.ts"));
 
     expect(source).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
     expect(source).not.toMatch(/process\.env\[/);
-    expect(source).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
+    expect(source).not.toMatch(/isProductionBuild/);
+    expect(source).not.toMatch(/^import[^;]*publish-sample-client/m);
+    expect(source).toMatch(/import\(\s*"\.\/publish-sample-client"\s*\)/);
   });
 
   it("answers unavailable in production, every time, however often it is asked", async () => {

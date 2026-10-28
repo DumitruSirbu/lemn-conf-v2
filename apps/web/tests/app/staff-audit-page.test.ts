@@ -7,6 +7,7 @@ import { createTranslator } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
+import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
 import {
   StaffAuditScreen,
   StaffAuditUnavailableScreen,
@@ -96,7 +97,8 @@ describe("an administrator", () => {
       context: {
         role: "administrator",
         email: "administrator@example.test",
-        navigation: ["kitchens", "audit", "cabinets"],
+        navigation: ["kitchens", "audit", "cabinets", "defaults", "publish"],
+        pendingPriceCount: SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
       },
     });
   });

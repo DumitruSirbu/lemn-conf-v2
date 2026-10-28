@@ -461,6 +461,8 @@ describe("a variable only a deployment has forces the real stores", () => {
       LEMNARIA_E2E_FAKE_PRICE_BOOK: fc.constant("1"),
     }),
   );
+  const isAskedByTheFlag = (asked: PriceStoreEnvironment): boolean =>
+    asked.LEMNARIA_E2E_FAKE_PRICE_BOOK === "1";
 
   it("is production whatever the deployment variable holds, including nothing, beside any request for the fakes", () => {
     fc.assert(
@@ -469,12 +471,33 @@ describe("a variable only a deployment has forces the real stores", () => {
         fc.constantFrom(...DEPLOYMENT_VARIABLES),
         fc.oneof(fc.constant(""), fc.string({ maxLength: 12 })),
         (asked, variable, value) => {
+          fc.pre(variable === "VERCEL_ENV" || !isAskedByTheFlag(asked));
           const environment: PriceStoreEnvironment = {
             ...asked,
             [variable]: value,
           };
 
           expect(selectPriceStores(environment)).toBe("production");
+        },
+      ),
+      { numRuns: 500 },
+    );
+  });
+
+  it("lets the e2e flag stand beside CLIENT_NETWORK_SOURCE, and nothing else does (a second e2e server names a source)", () => {
+    fc.assert(
+      fc.property(
+        fakesAsked,
+        fc.oneof(fc.constant(""), fc.string({ maxLength: 12 })),
+        (asked, value) => {
+          const environment: PriceStoreEnvironment = {
+            ...asked,
+            CLIENT_NETWORK_SOURCE: value,
+          };
+
+          expect(selectPriceStores(environment)).toBe(
+            isAskedByTheFlag(asked) ? "seeded-fakes" : "production",
+          );
         },
       ),
       { numRuns: 500 },

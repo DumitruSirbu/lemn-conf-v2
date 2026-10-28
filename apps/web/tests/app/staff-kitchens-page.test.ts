@@ -6,6 +6,7 @@ import { createTranslator } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
+import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
 import { StaffKitchensScreen } from "@/staff/staff-kitchens-list";
 import { StaffKitchensUnavailableScreen } from "@/staff/staff-kitchens-states";
 
@@ -83,7 +84,7 @@ async function signInAs(
 describe("a person who is signed in as staff", () => {
   it.each([
     ["operator", ["kitchens"]],
-    ["administrator", ["kitchens", "audit", "cabinets"]],
+    ["administrator", ["kitchens", "audit", "cabinets", "defaults", "publish"]],
   ] as const)(
     "gets the list for a verified %s, in the staff frame with the pages the role opens in its navigation",
     async (role, navigation) => {
@@ -98,6 +99,12 @@ describe("a person who is signed in as staff", () => {
           role,
           email: `${role}@example.test`,
           navigation,
+          ...(role === "administrator"
+            ? {
+                pendingPriceCount:
+                  SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
+              }
+            : {}),
         },
       });
     },
