@@ -23,15 +23,11 @@ import type { Content } from "@/i18n/content";
 const MINOR_UNITS_PER_MDL = 100;
 
 /** The step a displayed total is rounded up to. */
-const ROUNDING_STEP_MDL = 1000;
-
-const MINOR_UNITS_PER_ROUNDING_STEP = MINOR_UNITS_PER_MDL * ROUNDING_STEP_MDL;
+const TOTAL_STEP_MDL = 1000;
 
 /** The unit a displayed line is shown at: the domain's price unit (ADR 0175 decision 5), so a priced line is shown
  *  as it is priced. */
 const LINE_STEP_MDL = 10;
-
-const MINOR_UNITS_PER_LINE_STEP = MINOR_UNITS_PER_MDL * LINE_STEP_MDL;
 
 const DIGITS_PER_GROUP = 3;
 
@@ -55,7 +51,7 @@ export interface PriceFigure {
 }
 
 export interface StartingPriceInput {
-  /** Exact minor units, as a priced line or a priced total publishes them. */
+  /** Exact minor units, as a priced total publishes them. */
   readonly totalMinor: number;
   /** The active locale's price copy; the label is composed from it here. */
   readonly copy: Content["price"];
@@ -72,27 +68,25 @@ export function holdsNoCabinets(priced: PricedDesign): boolean {
   return !priced.lines.some((line) => line.kind === "cabinet");
 }
 
-/** Builds the one shape a figure may be rendered from; every displayed price comes through here. */
+/** Builds the one shape a kitchen total may be rendered from; every displayed total comes through here. A priced
+ *  line is `describeLineAmount`'s. */
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
     label: input.copy.startingPrefix,
-    amountText: formatRoundedAmount(input.totalMinor, input.copy),
+    amountText: formatTotalAmount(input.totalMinor, input.copy),
   };
 }
 
-/** The rounding rule itself, in whole MDL, published so lines and total share one implementation. */
+/** The total's rounding rule, in whole MDL: up to the thousand. A priced line has its own, `describeLineAmount`'s. */
 export function roundUpToThousandMdl(totalMinor: number): number {
-  assertExactMinorAmount(totalMinor);
-  return (
-    Math.ceil(totalMinor / MINOR_UNITS_PER_ROUNDING_STEP) * ROUNDING_STEP_MDL
-  );
+  return roundUpToStepMdl(totalMinor, TOTAL_STEP_MDL);
 }
 
 /**
  * One total or delta, rounded up to the thousand and grouped, without the currency, which the mockups state once
  * per surface. A priced LINE is `describeLineAmount`'s, so lines and total need not sum (see the head comment).
  */
-export function describeRoundedAmount(amountMinor: number): string {
+export function describeTotalAmount(amountMinor: number): string {
   return groupThousands(roundUpToThousandMdl(amountMinor));
 }
 
@@ -102,10 +96,7 @@ export function describeRoundedAmount(amountMinor: number): string {
  * that is not (a stored snapshot) is rounded up to the next ten lei rather than shown with bani.
  */
 export function describeLineAmount(amountMinor: number): string {
-  assertExactMinorAmount(amountMinor);
-  const wholeMdl =
-    Math.ceil(amountMinor / MINOR_UNITS_PER_LINE_STEP) * LINE_STEP_MDL;
-  return groupThousands(wholeMdl);
+  return groupThousands(roundUpToStepMdl(amountMinor, LINE_STEP_MDL));
 }
 
 /**
@@ -117,7 +108,7 @@ export function describeLineAmount(amountMinor: number): string {
  * and a cheaper hardware tier states no amount. `assertExactMinorAmount` refuses a negative anyway.
  */
 export function describeAddedAmount(amountMinor: number): string {
-  return `${ADDED_AMOUNT_SIGN}${describeRoundedAmount(amountMinor)}`;
+  return `${ADDED_AMOUNT_SIGN}${describeTotalAmount(amountMinor)}`;
 }
 
 /**
@@ -126,19 +117,21 @@ export function describeAddedAmount(amountMinor: number): string {
  * refuses any other currency. The leaf takes an already-grouped `{amount}` string, so no ICU number
  * skeleton or CLDR grouping rule reaches the digits (see `THOUSANDS_SEPARATOR`).
  */
-function formatRoundedAmount(
-  totalMinor: number,
-  copy: Content["price"],
-): string {
-  return copy.amountWithCurrency(describeRoundedAmount(totalMinor));
+function formatTotalAmount(totalMinor: number, copy: Content["price"]): string {
+  return copy.amountWithCurrency(describeTotalAmount(totalMinor));
 }
 
-/** A price that is not a whole, non-negative count of minor units was already rounded or has a sign
- *  error; it is refused rather than coerced, as rendering it would invent a number. */
-function assertExactMinorAmount(totalMinor: number): void {
-  if (Number.isSafeInteger(totalMinor) && totalMinor >= 0) return;
+/** Whole MDL, rounded up to a multiple of `stepMdl`. An amount that is not a whole, non-negative count of minor units
+ *  was already rounded or has a sign error; it is refused rather than coerced, as rendering it would invent a number. */
+function roundUpToStepMdl(amountMinor: number, stepMdl: number): number {
+  assertExactMinorAmount(amountMinor);
+  return Math.ceil(amountMinor / (MINOR_UNITS_PER_MDL * stepMdl)) * stepMdl;
+}
+
+function assertExactMinorAmount(amountMinor: number): void {
+  if (Number.isSafeInteger(amountMinor) && amountMinor >= 0) return;
   throw new RangeError(
-    `A starting price needs a non-negative whole count of minor units; got ${String(totalMinor)}`,
+    `A displayed amount needs a non-negative whole count of minor units; got ${String(amountMinor)}`,
   );
 }
 

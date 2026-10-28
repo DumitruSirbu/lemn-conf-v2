@@ -40,7 +40,7 @@ import {
 } from "../support/ten-lei-amounts";
 import {
   describeAddedAmount,
-  describeRoundedAmount,
+  describeTotalAmount,
 } from "@/price/starting-price";
 import {
   offerWholeKitchenTiers,
@@ -436,7 +436,7 @@ describe("the sign is part of the figure, and the figure rounds exactly once", (
     "is the rounded amount with the mockups' mark in front of it, and nothing else",
     (deltaMinor) => {
       expect(describeAddedAmount(deltaMinor)).toBe(
-        `+${describeRoundedAmount(deltaMinor)}`,
+        `+${describeTotalAmount(deltaMinor)}`,
       );
     },
   );

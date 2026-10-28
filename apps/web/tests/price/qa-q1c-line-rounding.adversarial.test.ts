@@ -627,7 +627,7 @@ describe("which module rounds what", () => {
       sorted([THE_BREAKDOWN_MODEL, THE_FORMATTER]),
     );
     expect(filesCalling("roundUpToThousandMdl")).toEqual([THE_FORMATTER]);
-    expect(filesCalling("describeRoundedAmount")).toEqual([THE_FORMATTER]);
+    expect(filesCalling("describeTotalAmount")).toEqual([THE_FORMATTER]);
   });
 
   it("lets only the settings model print a tier delta, through the total's rule", () => {
@@ -655,7 +655,7 @@ describe("which module rounds what", () => {
 
     expect(code.match(/\bdescribeLineAmount\s*\(/g)).toHaveLength(1);
     expect(code.match(/\bdescribeStartingPrice\s*\(/g)).toHaveLength(1);
-    expect(code).not.toMatch(/describeRoundedAmount|roundUpToThousandMdl/);
+    expect(code).not.toMatch(/describeTotalAmount|roundUpToThousandMdl/);
   });
 
   it("formats a number by no other means in the application: no NumberFormat, toLocaleString, toFixed or regex grouping", () => {

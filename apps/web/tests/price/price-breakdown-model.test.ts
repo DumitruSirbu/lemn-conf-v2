@@ -37,7 +37,7 @@ import {
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
 import {
   describeLineAmount,
-  describeRoundedAmount,
+  describeTotalAmount,
 } from "@/price/starting-price";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 import { NOTHING_DISABLED } from "../support/availability";
@@ -425,7 +425,7 @@ describe("the figure at the foot of the sheet", () => {
     expect(view.figure.amountText).toBe(
       SHIPPED_PRICING.ok
         ? ro.price.amountWithCurrency(
-            describeRoundedAmount(SHIPPED_PRICING.priced.totalMinor),
+            describeTotalAmount(SHIPPED_PRICING.priced.totalMinor),
           )
         : "",
     );
