@@ -12,8 +12,23 @@ const LONE_HIGH_SURROGATE = "\uD800";
 const COMBINING_ACUTE = "́";
 const PRECOMPOSED_E_ACUTE = "é";
 const ZERO_WIDTH_SPACE = "​";
-const RIGHT_TO_LEFT_OVERRIDE = "‮";
 const LINE_SEPARATOR = " ";
+
+/** Marks, embeddings, overrides and isolates (ADR 0178 F5), the Arabic letter mark among them. */
+const DIRECTION_CONTROLS = [
+  "200E",
+  "200F",
+  "061C",
+  "202A",
+  "202B",
+  "202C",
+  "202D",
+  "202E",
+  "2066",
+  "2067",
+  "2068",
+  "2069",
+] as const;
 
 function labelCode(raw: unknown): string | undefined {
   const judgement = judgeVersionLabel(raw);
@@ -47,7 +62,7 @@ describe("judgeVersionLabel: the name a published version carries", () => {
     ["undefined", undefined],
     ["the empty string", ""],
     ["spaces", "   "],
-    ["format characters alone", `${ZERO_WIDTH_SPACE}${RIGHT_TO_LEFT_OVERRIDE}`],
+    ["format characters alone", `${ZERO_WIDTH_SPACE}\u00AD`],
   ])("requires a label: %s is REQUIRED", (_title, raw) => {
     expect(labelCode(raw)).toBe("REQUIRED");
   });
@@ -75,11 +90,19 @@ describe("judgeVersionLabel: the name a published version carries", () => {
     expect(labelCode(`e${COMBINING_ACUTE}`.repeat(81))).toBe("TOO_LONG");
   });
 
-  it("strips format characters, bidi overrides included, instead of refusing them", () => {
-    expect(labelOf(`Pri${ZERO_WIDTH_SPACE}ces${RIGHT_TO_LEFT_OVERRIDE}`)).toBe(
-      "Prices",
-    );
+  it("strips format characters that do not reorder text instead of refusing them", () => {
+    expect(labelOf(`Pri${ZERO_WIDTH_SPACE}ces\u00AD\uFEFF`)).toBe("Prices");
   });
+
+  it.each(DIRECTION_CONTROLS)(
+    "refuses the direction control U+%s as typed, in a label and a note, and does not strip it",
+    (hex) => {
+      const typed = `Pri${String.fromCodePoint(Number.parseInt(hex, 16))}ces`;
+
+      expect(labelCode(typed)).toBe("FORBIDDEN_CHARACTER");
+      expect(noteCode(typed)).toBe("FORBIDDEN_CHARACTER");
+    },
+  );
 
   it("trims the ends and keeps the interior", () => {
     expect(labelOf("  Autumn  prices ")).toBe("Autumn  prices");

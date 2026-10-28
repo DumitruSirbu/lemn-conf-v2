@@ -1,12 +1,16 @@
 import {
   readTypedText,
   type TextRefusalCode,
+  type TypedTextReading,
 } from "../contact/input-checks.js";
-import { MAX_BOOK_NAME_LENGTH } from "../pricing/parse-price-book.js";
+import { MAX_BOOK_NAME_LENGTH } from "../pricing/book-reading.js";
+import { holdsUnsendableCharacter } from "../visible-text.js";
 
 // The two texts a staff member writes when publishing a price version: its label and its note. They are typed text like
-// every other field, so the reading is `readTypedText`'s: NFC, format characters (zero-width, bidi marks and overrides)
-// removed, trimmed, and no control, line-separator or lone-surrogate character. The label is how the history names the
+// every other field, so the reading is `readTypedText`'s: NFC, format characters (zero-width and the like) removed,
+// trimmed, and no control, line-separator or lone-surrogate character. The direction controls (marks, embeddings,
+// overrides, isolates) are the exception: they are refused as typed and not stripped (ADR 0178 F5), because they reorder
+// the text printed around them. They are `holdsUnsendableCharacter`'s, checked on the value as it arrived. The label is how the history names the
 // version, so it is required; the note is a single line the frame draws no field for, so it may be empty.
 
 /** Characters, as code points, in the stored NFC form. A version's name has the book's bound for a name (ADR 0178). */
@@ -23,7 +27,7 @@ export type VersionTextJudgement =
 
 /** On acceptance, `text` is the form that is stored and shown. An absent or blank label is `REQUIRED`. */
 export function judgeVersionLabel(raw: unknown): VersionTextJudgement {
-  const reading = readTypedText(raw, VERSION_LABEL_MAX_LENGTH);
+  const reading = readVersionText(raw, VERSION_LABEL_MAX_LENGTH);
   if (!reading.ok) return reading;
   if (reading.value === "") return { ok: false, code: "REQUIRED" };
   return { ok: true, text: reading.value };
@@ -31,6 +35,13 @@ export function judgeVersionLabel(raw: unknown): VersionTextJudgement {
 
 /** On acceptance, `text` is the form that is stored and shown; an absent or blank note is the empty string. */
 export function judgeVersionNote(raw: unknown): VersionTextJudgement {
-  const reading = readTypedText(raw, VERSION_NOTE_MAX_LENGTH);
+  const reading = readVersionText(raw, VERSION_NOTE_MAX_LENGTH);
   return reading.ok ? { ok: true, text: reading.value } : reading;
+}
+
+function readVersionText(raw: unknown, maxLength: number): TypedTextReading {
+  if (typeof raw === "string" && holdsUnsendableCharacter(raw)) {
+    return { ok: false, code: "FORBIDDEN_CHARACTER" };
+  }
+  return readTypedText(raw, maxLength);
 }

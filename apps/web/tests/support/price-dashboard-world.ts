@@ -24,8 +24,10 @@ import { signedInAs } from "./staff-world";
 // `priceStoresModule()` and calls `freshPriceDashboardWorld()` after `freshAccountWorld()` (and `freshStaffWorld()`, whose
 // audit store the read's `price-catalogue-viewed` row goes to).
 //
-// The sample book is the flat form, in which no cabinet price is editable, so the world publishes `ANCHORED_BOOK`: the same
-// rows with the anchored formulas, percentage material tiers and a depth rule of the form the dashboard edits.
+// The sample book now has the anchored form, so its cabinet prices are editable and it passes the catalogue's judgement. The
+// world still publishes `ANCHORED_BOOK` by default, which the draft routes only parse: the same rows with every formula
+// anchored (the structural corner rows included), percentage material tiers and a depth rule. That book fails
+// `judgeBookAgainstCatalog`, so a test that publishes passes `book: SAMPLE_PRICE_BOOK` (R3).
 
 export interface PriceDashboardWorld {
   readonly stores: PriceStores;

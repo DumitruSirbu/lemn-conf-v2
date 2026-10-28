@@ -89,7 +89,8 @@ const ANCHOR_ADDRESS = {
 const ASTRAL_CHARACTER = "\u{1F373}";
 const COMBINING_ACUTE = "́";
 const ZERO_WIDTH_SPACE = "​";
-const RIGHT_TO_LEFT_OVERRIDE = "‮";
+const RIGHT_TO_LEFT_OVERRIDE = "\u202E";
+const SOFT_HYPHEN = "\u00AD";
 const LINE_SEPARATOR = " ";
 const LONE_HIGH_SURROGATE = "\uD800";
 
@@ -208,7 +209,7 @@ describe("a publish that is accepted", () => {
     const held = (await prices.stores.priceBook.readDraft()).changes;
 
     const answer = await publish(cookie, {
-      label: `  Pri${ZERO_WIDTH_SPACE}ces${RIGHT_TO_LEFT_OVERRIDE}  `,
+      label: `  Pri${ZERO_WIDTH_SPACE}ces${SOFT_HYPHEN}  `,
       note: `e${COMBINING_ACUTE}`,
     });
     const { versionId } = (await jsonOf(answer)) as { versionId: string };
@@ -354,7 +355,7 @@ describe("the label and the note are the contact fields' text rule", () => {
     ["absent", undefined],
     ["empty", ""],
     ["spaces", "   "],
-    ["format characters only", `${ZERO_WIDTH_SPACE}${RIGHT_TO_LEFT_OVERRIDE}`],
+    ["format characters only", `${ZERO_WIDTH_SPACE}${SOFT_HYPHEN}`],
   ])("requires a label: %s is TEXT_EMPTY", async (_title, label) => {
     const { cookie } = await administrator();
     await putChange(cookie, ANCHOR_ADDRESS, NEW_ANCHOR_MINOR);
@@ -380,6 +381,7 @@ describe("the label and the note are the contact fields' text rule", () => {
     ["a line feed", "Prices\nnew"],
     ["a NUL", "Prices\u0000"],
     ["a line separator", `Prices${LINE_SEPARATOR}new`],
+    ["a bidi override (ADR 0178 F5)", `Pri${RIGHT_TO_LEFT_OVERRIDE}ces`],
     ["a lone surrogate", `Prices${LONE_HIGH_SURROGATE}`],
   ])("refuses a label with %s", async (_title, label) => {
     const { cookie } = await administrator();
@@ -412,6 +414,23 @@ describe("the label and the note are the contact fields' text rule", () => {
 
     const absent = await publishDraft({ cookie, json: withoutNote });
     expect(absent.status).toBe(200);
+  });
+
+  it("refuses a bidi override in a note too, and stores nothing", async () => {
+    const { cookie } = await administrator();
+    await putChange(cookie, ANCHOR_ADDRESS, NEW_ANCHOR_MINOR);
+    const before = await snapshot();
+
+    const answer = await publish(cookie, {
+      note: `x${RIGHT_TO_LEFT_OVERRIDE}y`,
+    });
+
+    expect(answer.status).toBe(400);
+    expect(await jsonOf(answer)).toEqual({
+      status: "invalid-input",
+      issues: [{ field: "note", code: "TEXT_FORBIDDEN_CHARACTER" }],
+    });
+    await expectNothingWritten(before);
   });
 
   it("names a refused label and a refused note together", async () => {
