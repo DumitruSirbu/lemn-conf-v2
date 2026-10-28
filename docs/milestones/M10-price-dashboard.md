@@ -1301,6 +1301,42 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
   `globalSettings.depthNotePriced` are **lane T's, added in T3**, which already rewrites those leaves. T3 merges before
   MP-3, and Q1 and Q1b consume them. Neither Q wave edits `content.ts`.
 
+**2026-10-28 — P3 built, QA green, reviewed; held to MP-3** (branch `m10/p3` @ `0abdd0d2`, pushed) [coordinator's
+brief, relayed; the scribe ran nothing]:
+
+- **State:** QA green; logic review found no blockers; clean-code review found no must-fix; the review round is applied.
+- **Held, never merged alone:** P3 merges at **MP-3 together with Q1 and Q1b**. At 700 mm the total includes the depth
+  uplift, which only Q1 (breakdown) and Q1b (review screen, lead notice) render.
+- **R2** merged into `m10-price-dashboard` on 2026-10-28 (`09b2a139`, pushed) [src: git log in the session context].
+- **Coordinator ruling (P3-Q3 implementation):** the closed-key row refusal reuses `INVALID_PRICE_BOOK`, names the row
+  and the key in the detail, and carries a structured `id` (tier or accessory id), as `refuseUnreadableAccessoryRule`
+  does.
+- **Hand-offs, by owning wave:**
+  - **P4b:** add linked-accessory rows to `refuseUndeclaredRowMembers` in `pricing/parse-row-members.ts`
+    (`membersOf` catches a missing member, not a missing row kind).
+  - **P5:** add `perLiftMinor` to the hardware tier member list in `parse-row-members.ts` and restore the M1 test
+    generator line that emits it (`qa-m1-books.ts`). Until then a book carrying it is refused.
+  - **Q1:** `BreakdownDepthRow` (`price-breakdown-model.ts`) carries `depthMm` and `amountText` but not the percent.
+    Q1's "Adâncime 700 mm · +{percent} %" must source `book.depthRule.deepCabinetPercent`.
+  - **M2:** retired `linear-in-*` cabinet formulas still parse and are refused only when a body needs them;
+    `judgeBookAgainstCatalog` (P3-Q2) is what closes it at publish. **Not covered by the closed keys** (outside P3-Q3 as
+    ruled): a stray key on a cabinet-rule object, a third key in the `accessories` container, a group-level stray key.
+  - **S2** (open question answered by the logic reviewer; **inference**): a pre-cut-over stored version cannot reach
+    history or detail (no store existed before P3; the seed publishes the converted sample; publish refuses unevaluable
+    books). The tolerances stay as defensive code: `publish-rows.tsx` depth-rule "isNew", `diff-books.ts`
+    `ABSENT_VALUE` on a depth-rule row, `editable-fields.ts` `locateDepthRule` with an absent rule. Recommendation for
+    S2: read archived versions through `parsePriceBook`, or record that history shows unparsed books.
+  - **Test audit / QA later:**
+    - `packages/configurator-domain/tests/price-dashboard/change-set-books.ts:123` generates books with
+      `depthRule: undefined`, which the parser now refuses, so some M1 property suites prove properties over unparseable
+      books;
+    - `qa-m10-u5-publish-rows` tall-group cases now cover one anchored tall row only (the sample has one);
+    - the P3-c pin holds by structure (identity of the stored snapshot), not through a read path.
+- **Known flakes seen during P3 (unrelated):** `apps/web/tests/app/api/csp-reports/qa-8q2-sink-store.adversarial.test.ts`
+  (30 s timeout under load, 37/37 alone) and
+  `apps/web/tests/contact/qa-8m-p1-p4-with-the-connection.adversarial.dom.test.ts` (coverage floor: "told as
+  unanswered" swept 95 < 100).
+
 **P acceptance.** Each item is a property where a range exists. Use `fast-check`; the javascript-testing-expert skill
 applies.
 

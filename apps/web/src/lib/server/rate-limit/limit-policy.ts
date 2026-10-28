@@ -213,6 +213,14 @@ export const STAFF_AUDIT_PAGE_PER_ACCOUNT_HOUR_FIGURE = 300;
 export const STAFF_NOTE_PER_ACCOUNT_HOUR_FIGURE = 120;
 export const STAFF_STATUS_PER_ACCOUNT_HOUR_FIGURE = 120;
 export const STAFF_UNHIDE_PER_ACCOUNT_DAY_FIGURE = 60;
+/**
+ * PROVISIONAL: how many times one administrator may read the price dashboard's state in an hour, and how many draft
+ * writes (a change, a revert, a bulk action) the same account may make. Each read is audited and serves the whole active
+ * book, so it **fails closed** like the audit page; 300 matches it. A person editing prices makes a write per field, so
+ * 600 an hour is one every 6 seconds. The owner's answer changes these constants and no code; see ADR 0178 (the M10 record, ruling R2-Q5).
+ */
+export const STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE = 300;
+export const STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE = 600;
 /** How many kitchens an account may copy in a UTC day, on top of the mint's own per-network bucket (a copy is a mint,
  *  ADR 0147's intent). */
 export const DESIGN_DUPLICATE_PER_ACCOUNT_DAY_FIGURE = 20;
@@ -537,6 +545,22 @@ export const STAFF_UNHIDE_BY_ACCOUNT_POLICY = policyOf(
   },
 );
 
+export const STAFF_PRICES_READ_BY_ACCOUNT_POLICY = policyOf(
+  "staff-prices-read-by-account",
+  {
+    figure: STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
+export const STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY = policyOf(
+  "staff-price-draft-by-account",
+  {
+    figure: STAFF_PRICE_DRAFT_PER_ACCOUNT_HOUR_FIGURE,
+    window: utcMinutes(ACCOUNT_HOUR_MINUTES),
+  },
+);
+
 export const ACCOUNT_EXPORT_BY_ACCOUNT_POLICY = policyOf(
   "account-export-by-account",
   {
@@ -610,7 +634,9 @@ export type PolicyPurpose =
   | "staff-audit-page-by-account"
   | "staff-note-by-account"
   | "staff-status-by-account"
-  | "staff-unhide-by-account";
+  | "staff-unhide-by-account"
+  | "staff-prices-read-by-account"
+  | "staff-price-draft-by-account";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -723,6 +749,12 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
   "staff-note-by-account": sameInProduction(STAFF_NOTE_BY_ACCOUNT_POLICY),
   "staff-status-by-account": sameInProduction(STAFF_STATUS_BY_ACCOUNT_POLICY),
   "staff-unhide-by-account": sameInProduction(STAFF_UNHIDE_BY_ACCOUNT_POLICY),
+  "staff-prices-read-by-account": sameInProduction(
+    STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
+  ),
+  "staff-price-draft-by-account": sameInProduction(
+    STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
+  ),
 };
 
 /** The twins of a purpose that has no e2e figure of its own: the production policy answers in both. */

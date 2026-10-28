@@ -294,7 +294,7 @@ describe("the activation the availability store is handed (M4)", () => {
 describe("a draft change input and a revert, by the compiler", () => {
   it("lets a group revert report a count and no item (m7), and a single one report an address", () => {
     expectTypeOf<PriceDraftRevertedDetail["changeKind"]>().toEqualTypeOf<
-      BookFieldAddressKind | "bulk-group"
+      BookFieldAddressKind | "bulk-group" | "discard-all"
     >();
     expectTypeOf<
       PriceDraftChangedDetail["changeKind"]

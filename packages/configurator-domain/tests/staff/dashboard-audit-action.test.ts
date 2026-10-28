@@ -13,6 +13,7 @@ import {
   CHANGE_ITEM_KINDS,
   DASHBOARD_AUDIT_ACTION_NAMES_DESIGN,
   DASHBOARD_AUDIT_ACTIONS,
+  DISCARD_ALL_CHANGE_KIND,
   PRICE_GROUP_CODES,
   dashboardAuditActionNamesDesign,
   isDashboardAuditAction,
@@ -367,6 +368,45 @@ describe("the detail of a draft change and of a revert (m7)", () => {
         itemKind: "cabinet",
         itemId: "cabinet.x",
         revertedCount: 4,
+      }),
+    ).toBe("INVALID_DETAIL");
+  });
+
+  it("reports a discard-all as the whole draft reset: a count from zero (0 when the entries could not be read) and no item keys", () => {
+    for (const revertedCount of [0, 1, 7]) {
+      expect(
+        refusalOf("price-draft-reverted", {
+          changeKind: DISCARD_ALL_CHANGE_KIND,
+          revertedCount,
+        }),
+      ).toBeUndefined();
+    }
+    for (const revertedCount of [-1, 1.5, -0, "2", undefined]) {
+      expect(
+        refusalOf("price-draft-reverted", {
+          changeKind: DISCARD_ALL_CHANGE_KIND,
+          revertedCount,
+        }),
+      ).toBe("INVALID_DETAIL");
+    }
+    expect(
+      refusalOf("price-draft-reverted", {
+        changeKind: DISCARD_ALL_CHANGE_KIND,
+        itemKind: "cabinet",
+        itemId: "cabinet.x",
+        revertedCount: 2,
+      }),
+    ).toBe("INVALID_DETAIL");
+    expect(
+      refusalOf("price-draft-changed", { changeKind: DISCARD_ALL_CHANGE_KIND }),
+    ).toBe("INVALID_DETAIL");
+  });
+
+  it("refuses a revert of one change counted as none: only a discard-all may report 0", () => {
+    expect(
+      refusalOf("price-draft-reverted", {
+        changeKind: "cabinet",
+        revertedCount: 0,
       }),
     ).toBe("INVALID_DETAIL");
   });

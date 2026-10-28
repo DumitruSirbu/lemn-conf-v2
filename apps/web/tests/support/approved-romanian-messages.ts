@@ -1693,6 +1693,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       createdRowText: "text al unui rând creat",
       itemDeleted: "ștergerea unui articol",
       bulkGroup: "modificare în bloc",
+      discardAll: "renunțare la ciornă",
     },
     itemKinds: {
       cabinet: "dulap",

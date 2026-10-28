@@ -103,6 +103,7 @@ describe("the security amendments' shapes", () => {
       "item-unavailable",
       "availability-changed-meanwhile",
       "item-is-default",
+      "draft-unreadable",
     ]) {
       expect(conflicts).toContain(word);
     }
