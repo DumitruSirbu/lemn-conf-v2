@@ -1,6 +1,6 @@
-// Q1b-a on the review model: the depth line the total counts is listed, worded from the priced line's own percent, directly
-// after the material row; a kitchen with no depth line (600 mm, or a snapshot stored before the cut-over) lists
-// exactly the rows it always did.
+// Q1b-a on the review model: the depth line the total counts is listed, worded from the priced line's own percent,
+// directly after the material row; a kitchen with no depth line (600 mm, or a snapshot stored before the cut-over)
+// lists exactly the rows it always did.
 import {
   DEEP_CABINET_DEPTH_MM,
   KITCHEN_L_DESIGN,
@@ -10,11 +10,11 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-  DepthRowWithoutMaterialRowError,
-  describeReview,
+  DepthLineWithoutMaterialRowError,
+  DepthLineWithoutPercentError,
   listWholeKitchenRows,
-  type AvailableReview,
-} from "@/review/review-model";
+} from "@/price/price-breakdown-model";
+import { describeReview, type AvailableReview } from "@/review/review-model";
 
 import {
   priceAndProject,
@@ -86,7 +86,7 @@ describe("the review's whole-kitchen rows with the depth row", () => {
         DEEP_CABINET_DEPTH_MM,
         depthLineOf(DEEP).deepCabinetPercent,
       ),
-      amountText: review.depthRow?.amountText,
+      amountText: review.depthLine?.amountText,
       scope: ro.priceBreakdown.depthLineScope,
     });
     expect(rows.filter((row) => row.key !== "kitchen:depth")).toEqual(
@@ -118,7 +118,7 @@ describe("the review's whole-kitchen rows with the depth row", () => {
   it("lists the rows untouched when the design carries no depth line", () => {
     const review = availableReviewOf(DEFAULT_DEPTH);
 
-    expect(review).not.toHaveProperty("depthRow");
+    expect(review).not.toHaveProperty("depthLine");
     expect(listWholeKitchenRows(review)).toBe(review.wholeKitchenRows);
     expect(
       listWholeKitchenRows(review).some((row) => row.scope !== undefined),
@@ -150,7 +150,7 @@ describe("the review's whole-kitchen rows with the depth row", () => {
       pricing: { ok: true, priced: storedBeforeTheCutOver },
     });
 
-    expect(review).not.toHaveProperty("depthRow");
+    expect(review).not.toHaveProperty("depthLine");
     expect(listWholeKitchenRows(review)).toBe(review.wholeKitchenRows);
     expect(review.wholeKitchenRows.map((row) => row.key)).toEqual([
       "kitchen:hardware",
@@ -168,7 +168,17 @@ describe("the review's whole-kitchen rows with the depth row", () => {
     };
 
     expect(() => listWholeKitchenRows(withoutMaterial)).toThrow(
-      DepthRowWithoutMaterialRowError,
+      DepthLineWithoutMaterialRowError,
     );
+  });
+
+  it("refuses a stored depth line that carries no numeric percent, rather than wording it", () => {
+    for (const percent of [undefined, null, Number.NaN, "12"]) {
+      const stored = storedWithPercent(DEEP, percent as number);
+
+      expect(() => availableReviewOf(stored)).toThrow(
+        DepthLineWithoutPercentError,
+      );
+    }
   });
 });

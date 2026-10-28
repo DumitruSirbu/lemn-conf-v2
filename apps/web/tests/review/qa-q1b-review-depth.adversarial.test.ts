@@ -1,7 +1,7 @@
-// Adversarial QA for Q1b on the review model. At 700 mm, under any percentage a book may state (0 to the cap) and any room
-// the generator composes, the review lists the depth line the total counts: the breakdown's key and amount, worded by the
-// percent the priced line carries (never a book's), directly after the material row, and every line the total counts is
-// listed exactly once, so the listed amounts are the priced ones and add to the total (A-1).
+// Adversarial QA for Q1b on the review model. At 700 mm, under any percentage a book may state (0 to the cap) and any
+// room the generator composes, the review lists the depth line the total counts: the breakdown's key and amount, worded
+// by the percent the priced line carries (never a book's), directly after the material row, and every line the total
+// counts is listed exactly once, so the listed amounts are the priced ones and add to the total (A-1).
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -14,12 +14,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { Content } from "@/i18n/content";
-import { describePriceBreakdown } from "@/price/price-breakdown-model";
 import {
-  describeReview,
+  describePriceBreakdown,
   listWholeKitchenRows,
-  type AvailableReview,
-} from "@/review/review-model";
+} from "@/price/price-breakdown-model";
+import { describeReview, type AvailableReview } from "@/review/review-model";
 
 import { CATALOGUES, contentFor } from "../support/catalogues";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -130,8 +129,8 @@ describe.each(VARIED_ARMS)(
           if (breakdown.kind !== "available") throw new Error("breakdown");
           const listed = listWholeKitchenRows(review);
 
-          expect(review.depthRow === undefined).toBe(!hasDepthLine);
-          expect(breakdown.depthRow === undefined).toBe(!hasDepthLine);
+          expect(review.depthLine === undefined).toBe(!hasDepthLine);
+          expect(breakdown.depthLine === undefined).toBe(!hasDepthLine);
           expect(review.groups).toEqual(breakdown.groups);
           expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);
           expectEveryPricedLineListedOnce(listed, review, priced, content);
@@ -142,9 +141,9 @@ describe.each(VARIED_ARMS)(
 
           const line = depthLineOf(priced);
           const depthAt = listed.findIndex((row) => row.key === DEPTH_KEY);
-          expect(review.depthRow?.key).toBe(breakdown.depthRow?.key);
-          expect(review.depthRow?.amountText).toBe(
-            breakdown.depthRow?.amountText,
+          expect(review.depthLine?.key).toBe(breakdown.depthLine?.key);
+          expect(review.depthLine?.amountText).toBe(
+            breakdown.depthLine?.amountText,
           );
           expect(line.deepCabinetPercent).toBe(percent);
           expect(line.depthMm).toBe(DEEP_CABINET_DEPTH_MM);
@@ -166,7 +165,7 @@ describe.each(VARIED_ARMS)(
           );
           if (percent === 0) {
             expect(line.amountMinor).toBe(0);
-            expect(review.depthRow?.amountText).toBe(
+            expect(review.depthLine?.amountText).toBe(
               content.priceBreakdown.included,
             );
           }
@@ -233,7 +232,7 @@ describe("the stored percent wins over any book, on the review model", () => {
       };
       const review = availableReviewOf(stamped, ROMANIAN_CONTENT);
 
-      expect(review.depthRow?.label).toBe(
+      expect(review.depthLine?.label).toBe(
         ROMANIAN_CONTENT.priceBreakdown.depthLine(
           DEEP_CABINET_DEPTH_MM,
           percent,

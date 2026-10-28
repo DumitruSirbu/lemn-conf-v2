@@ -51,26 +51,37 @@ export interface BreakdownGroup {
   readonly rows: readonly BreakdownRow[];
 }
 
-/** The uplift a 700 mm depth adds to the cabinets that get deeper, as a row of its own: the facts the priced line
- *  carries, the depth it names and its amount. The percent is the book's rule and no line carries it, so the words
- *  ("Adâncime 700 mm · adaos {percent} %") are `describeDepthLine`'s, given the rule. */
-export interface BreakdownDepthRow {
+/** The uplift a 700 mm depth adds to the cabinets that get deeper, as the row of its own that every surface lists by:
+ *  worded once by `describeDepthLine` from the priced line, the amount being the line's own. A row carrying `scope`,
+ *  so it also fits a listing of whole-kitchen rows (`WholeKitchenListingRow`). */
+export interface BreakdownDepthLine {
   readonly key: string;
-  /** The cabinet depth the design is built at, from the line. */
-  readonly depthMm: number;
+  /** "Adâncime 700 mm · adaos {percent} %", the percent being the one the line was priced with. */
+  readonly label: string;
+  /** Which cabinets the percent applies to: the second line of the row. */
+  readonly scope: string;
   /** Already rounded and grouped, *"inclus"* at zero (a book stating 0 %). */
   readonly amountText: string;
 }
 
-/** The depth row worded: what a surface prints for the line the total counts, the amount being the priced line's own. */
-export interface BreakdownDepthLine {
-  readonly key: string;
-  /** "Adâncime 700 mm · adaos {percent} %", the percent being the published rule's. */
-  readonly label: string;
-  /** Which cabinets the percent applies to: the second line of the row. */
-  readonly scope: string;
-  /** The row's `amountText`, unchanged. */
-  readonly amountText: string;
+/** A whole-kitchen row as a surface lists it: the tier and accessory rows as built, and the depth line, the only one
+ *  to carry `scope`, among them. */
+export interface WholeKitchenListingRow extends BreakdownRow {
+  readonly scope?: string;
+}
+
+/** The depth line and where it is listed, present exactly when the priced design carries a depth line. Absent, never
+ *  zero, at 600 mm, so a surface that ignores it still prints every line that is not the uplift. */
+export interface DepthLineFields {
+  readonly depthLine?: BreakdownDepthLine;
+  /** The key of the material row the builder produced, the one whose percent the depth line multiplies with: the row
+   *  the line is listed after. Absent when no material row was built, which `listWholeKitchenRows` refuses. */
+  readonly depthLineAfterKey?: string;
+}
+
+/** The whole-kitchen rows as built and the depth line to list among them: a breakdown, a review, anything with both. */
+export interface WholeKitchenRowSet extends DepthLineFields {
+  readonly wholeKitchenRows: readonly BreakdownRow[];
 }
 
 /** Nothing is rendered and no control offers it: a breakdown of a total that could not be computed
@@ -89,14 +100,11 @@ export interface AvailableBreakdown {
    *  is a real answer: an accessory the design earns none of is no row, since the query publishes no
    *  line for it rather than a zero that would render *inclus*. */
   readonly wholeKitchenRows: readonly BreakdownRow[];
-  /** The depth line, present exactly when the query published one: a 700 mm kitchen with a cabinet that gets deeper.
-   *  Absent, never zero, at 600 mm, so a surface that ignores it still prints every line that is not the uplift. */
-  readonly depthRow?: BreakdownDepthRow;
-  /** `depthRow` worded, present exactly when `depthRow` is. */
+  /** The depth line, present exactly when the query published one: a 700 mm kitchen with a cabinet that gets deeper. */
   readonly depthLine?: BreakdownDepthLine;
-  /** The key of the whole-kitchen row the depth line is printed after: the material row, whose percent it multiplies
-   *  with. Absent when the design prices no material row, and the line then leads the section. */
-  readonly depthLineFollowsKey?: string;
+  /** `wholeKitchenRows` with the depth line listed directly after the material row (`listWholeKitchenRows`): what the
+   *  sheet draws. `wholeKitchenRows` itself stays the tiers and the accessories. */
+  readonly wholeKitchenListing: readonly WholeKitchenListingRow[];
   /** The sentence that says the amounts above are each rounded up on their own. */
   readonly note: string;
   /** The bar's figure, restated because on mobile this sheet covers the bar. Not a sum of the rows,
@@ -116,10 +124,6 @@ export interface DescribePriceBreakdownInput {
   /** `projectDesignForDisplay`'s answer for the same design, verbatim: the only source of which rows
    *  exist, their order and their names. */
   readonly groups: readonly DisplayGroup[];
-  /** The published rule's whole percentage (`book.depthRule.deepCabinetPercent`): the only source of the depth line's
-   *  figure. Required as a key so a caller cannot forget it; `undefined` is for a caller that holds no book, whose
-   *  pricing is refused and which never reaches a depth row. A depth row with no percent is refused, not left unworded. */
-  readonly deepCabinetPercent: number | undefined;
 }
 
 /**
@@ -138,17 +142,30 @@ export class PriceBreakdownDivergenceError extends Error {
 }
 
 /**
- * The priced design holds a depth line and the caller supplied no published percentage to word it with. Thrown, not
- * rendered short: the total counts the uplift, so a sheet that dropped the line would show rows that explain less
- * than the figure beside them.
+ * A depth line with no material row to list it after. Both come from one pricing, so this is a defect; thrown, not
+ * rendered with the line dropped or put first: the total counts the uplift, so a sheet that lost the line would show
+ * rows that explain less than the figure beside them.
  */
-export class PriceBreakdownDepthRuleMissingError extends Error {
-  constructor(depthLineId: string) {
+export class DepthLineWithoutMaterialRowError extends Error {
+  constructor(depthLineKey: string) {
     super(
-      "The priced design holds a depth line, but no published depth percentage " +
-        `was supplied to word it: ${depthLineId}`,
+      "The priced design holds a depth line but no material row to list it after; " +
+        `both come from one pricing: ${depthLineKey}`,
     );
-    this.name = "PriceBreakdownDepthRuleMissingError";
+    this.name = "DepthLineWithoutMaterialRowError";
+  }
+}
+
+/**
+ * A priced depth line carries no usable percentage. The type says it always does; a snapshot stored by a build from
+ * before the line carried it does not. Thrown, never worded: a label would print "adaos undefined %".
+ */
+export class DepthLineWithoutPercentError extends Error {
+  constructor(depthLineKey: string) {
+    super(
+      `The depth line carries no numeric deepCabinetPercent to word it with: ${depthLineKey}`,
+    );
+    this.name = "DepthLineWithoutPercentError";
   }
 }
 
@@ -173,20 +190,19 @@ export function describePriceBreakdown(
     groups: input.groups,
   });
   const warning = describeFlaggedTotalWarning(priced, input.content.price);
-  const depthLine = describeDepthLineOf(rows.depthRow, input);
   return {
     kind: "available",
     title: input.content.priceBreakdown.title,
     disclaimer: input.content.priceBreakdown.disclaimer,
     groups: rows.groups,
     wholeKitchenRows: rows.wholeKitchenRows,
-    ...(rows.depthRow === undefined ? {} : { depthRow: rows.depthRow }),
-    ...(depthLine === undefined
+    wholeKitchenListing: listWholeKitchenRows({
+      wholeKitchenRows: rows.wholeKitchenRows,
+      ...rows.depth,
+    }),
+    ...(rows.depth.depthLine === undefined
       ? {}
-      : {
-          depthLine,
-          ...followKeyOf(priced.lines),
-        }),
+      : { depthLine: rows.depth.depthLine }),
     note: input.content.priceBreakdown.note,
     figure: describeStartingPrice({
       totalMinor: priced.totalMinor,
@@ -197,40 +213,48 @@ export function describePriceBreakdown(
   };
 }
 
-function describeDepthLineOf(
-  row: BreakdownDepthRow | undefined,
-  input: DescribePriceBreakdownInput,
-): BreakdownDepthLine | undefined {
-  if (row === undefined) return undefined;
-  if (input.deepCabinetPercent === undefined)
-    throw new PriceBreakdownDepthRuleMissingError(row.key);
-  return describeDepthLine(row, input.deepCabinetPercent, input.content);
-}
-
-/** The material row's key, as the one the depth line is printed after. */
-function followKeyOf(
-  lines: readonly PriceLine[],
-): Pick<AvailableBreakdown, "depthLineFollowsKey"> {
-  const material = lines.find((line) => line.kind === "material");
-  return material === undefined ? {} : { depthLineFollowsKey: material.lineId };
+/**
+ * The words of the depth row, from the priced (or stored) line alone: its depth, its amount and the percent it was
+ * priced with, never one read from a book or derived from the amount, so a stored snapshot is worded by the percent it
+ * was priced with. The one wording of the line, which every surface that lists it calls.
+ */
+export function describeDepthLine(
+  line: DepthPriceLine,
+  content: Content,
+): BreakdownDepthLine {
+  if (!Number.isFinite(line.deepCabinetPercent))
+    throw new DepthLineWithoutPercentError(line.lineId);
+  return {
+    key: line.lineId,
+    label: content.priceBreakdown.depthLine(
+      line.depthMm,
+      line.deepCabinetPercent,
+    ),
+    scope: content.priceBreakdown.depthLineScope,
+    amountText: describeRowAmount(line.amountMinor, content),
+  };
 }
 
 /**
- * The words of the depth row. The percent is the published rule's and is passed in, never read from a constant or
- * derived from the amount: the line carries the amount the total already counts, and the UI re-computes nothing.
- * Exported so that every surface that lists the lines words the depth row the same way.
+ * The rows a surface lists under the placement rows: the depth line directly after the material row, the other rows
+ * in their order. Placed by the anchor key the builder took from the rows it built, never by index and never first;
+ * a design with no depth line lists the rows untouched. A depth line with no material row to follow throws.
  */
-export function describeDepthLine(
-  row: BreakdownDepthRow,
-  deepCabinetPercent: number,
-  content: Content,
-): BreakdownDepthLine {
-  return {
-    key: row.key,
-    label: content.priceBreakdown.depthLine(row.depthMm, deepCabinetPercent),
-    scope: content.priceBreakdown.depthLineScope,
-    amountText: row.amountText,
-  };
+export function listWholeKitchenRows(
+  set: WholeKitchenRowSet,
+): readonly WholeKitchenListingRow[] {
+  const { wholeKitchenRows, depthLine, depthLineAfterKey } = set;
+  if (depthLine === undefined) return wholeKitchenRows;
+  const anchorAt = wholeKitchenRows.findIndex(
+    (row) => row.key === depthLineAfterKey,
+  );
+  if (anchorAt === -1)
+    throw new DepthLineWithoutMaterialRowError(depthLine.key);
+  return [
+    ...wholeKitchenRows.slice(0, anchorAt + 1),
+    depthLine,
+    ...wholeKitchenRows.slice(anchorAt + 1),
+  ];
 }
 
 /** An empty kitchen has no price to explain, so it is `unavailable`, not an empty breakdown: that
@@ -254,7 +278,7 @@ interface DescribeBreakdownRowsInput {
 interface BreakdownRows {
   readonly groups: readonly BreakdownGroup[];
   readonly wholeKitchenRows: readonly BreakdownRow[];
-  readonly depthRow?: BreakdownDepthRow;
+  readonly depth: DepthLineFields;
 }
 
 /** The one builder of the rows every surface lists a priced design by; the review calls it too, so
@@ -269,25 +293,27 @@ export function describeBreakdownRows(
   );
   assertEveryPricedBodyIsPlaced(input.groups, lineByPlacement);
 
-  const depthLine = priced.lines.find(isDepthLine);
+  const unplacedLines = priced.lines.filter((line) =>
+    isUnplacedLine(line, content.priceBreakdown.wholeKitchenCategories),
+  );
   return {
     groups,
-    wholeKitchenRows: priced.lines
-      .filter((line) =>
-        isUnplacedLine(line, content.priceBreakdown.wholeKitchenCategories),
-      )
-      .map((line) => toUnplacedRow(line, content)),
-    ...(depthLine === undefined
-      ? {}
-      : { depthRow: toDepthRow(depthLine, content) }),
+    wholeKitchenRows: unplacedLines.map((line) => toUnplacedRow(line, content)),
+    depth: describeDepthFields(priced.lines, unplacedLines, content),
   };
 }
 
-function toDepthRow(line: DepthPriceLine, content: Content): BreakdownDepthRow {
+function describeDepthFields(
+  lines: readonly PriceLine[],
+  unplacedLines: readonly UnplacedPriceLine[],
+  content: Content,
+): DepthLineFields {
+  const depthLine = lines.find(isDepthLine);
+  if (depthLine === undefined) return {};
+  const material = unplacedLines.find((line) => line.kind === "material");
   return {
-    key: line.lineId,
-    depthMm: line.depthMm,
-    amountText: describeRowAmount(line.amountMinor, content),
+    depthLine: describeDepthLine(depthLine, content),
+    ...(material === undefined ? {} : { depthLineAfterKey: material.lineId }),
   };
 }
 
@@ -420,7 +446,7 @@ function isDepthLine(line: PriceLine): line is DepthPriceLine {
  * selects a new line kind that has no category word and renders `undefined · …`. Membership is asked
  * of the category record itself, so a kind with no word is not selected, and adding a kind to
  * `UnplacedPriceLine` without a word is a compile error. The depth line has no category word on purpose: it is not a
- * tier or an accessory, and `describeBreakdownRows` publishes it as the row of its own, `depthRow`.
+ * tier or an accessory, and `describeBreakdownRows` publishes it as the row of its own, `depth.depthLine`.
  */
 function isUnplacedLine(
   line: PriceLine,

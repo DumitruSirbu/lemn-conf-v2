@@ -35,12 +35,8 @@ import {
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection } from "@/panel/panel-model";
 import {
-  NO_PRICE_BOOK_DETAIL,
-  UnreadablePriceBookError,
-} from "@/price/price-book-root";
-import {
-  useDeepCabinetPercent,
   usePricedDesign,
+  useRequiredDeepCabinetPercent,
   useWholeKitchenTierOffer,
 } from "@/price/use-priced-design";
 import { ShareDesign } from "@/share/share-design";
@@ -85,7 +81,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   const content = useContent();
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
-  const deepCabinetPercent = requirePublished(useDeepCabinetPercent());
+  const deepCabinetPercent = useRequiredDeepCabinetPercent();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const applyWholeKitchenSettings = useConfiguratorStore(
@@ -776,12 +772,4 @@ function TierGroupSection({
       ))}
     </section>
   );
-}
-
-/** The sheet cannot open without a book (the tier offer refuses first), so a missing percentage is raised, not answered
- *  with a 0 % that would say the depth is free. */
-function requirePublished(deepCabinetPercent: number | undefined): number {
-  if (deepCabinetPercent === undefined)
-    throw new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL);
-  return deepCabinetPercent;
 }

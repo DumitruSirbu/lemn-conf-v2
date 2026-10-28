@@ -59,7 +59,6 @@ function breakdownOf(
   groups: readonly DisplayGroup[],
 ): AvailableBreakdown {
   const view = describePriceBreakdown({
-    deepCabinetPercent: undefined,
     content: ro,
     pricing,
     groups,

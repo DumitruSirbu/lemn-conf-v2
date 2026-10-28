@@ -280,7 +280,11 @@ export function describeGlobalSettings(
         input.content,
       ),
     ],
-    depthGroup: toDepthGroupView(input),
+    depthGroup: toDepthGroupView({
+      pendingDepthMm: input.pending.cabinetDepthMm,
+      content: input.content,
+      deepCabinetPercent: input.deepCabinetPercent,
+    }),
     ...(colourGroup === undefined ? {} : { colourGroup }),
     warning: input.content.globalSettings.materialWarning,
     ...(figure === undefined ? {} : { figure }),
@@ -491,9 +495,17 @@ function offeredCabinetDepthsMm(): readonly number[] {
   );
 }
 
-function toDepthGroupView(input: DescribeGlobalSettingsInput): DepthGroupView {
-  const { content } = input;
-  const pendingDepthMm = input.pending.cabinetDepthMm;
+interface DepthGroupInput {
+  readonly pendingDepthMm: number | undefined;
+  readonly content: Content;
+  readonly deepCabinetPercent: number;
+}
+
+function toDepthGroupView({
+  pendingDepthMm,
+  content,
+  deepCabinetPercent,
+}: DepthGroupInput): DepthGroupView {
   const offered = offeredCabinetDepthsMm();
   const selected = offered.includes(pendingDepthMm ?? Number.NaN)
     ? pendingDepthMm
@@ -509,7 +521,7 @@ function toDepthGroupView(input: DescribeGlobalSettingsInput): DepthGroupView {
     // The deep depth, whichever is selected: the note says what choosing it costs.
     note: content.globalSettings.depthNotePriced(
       DEEP_CABINET_DEPTH_MM,
-      input.deepCabinetPercent,
+      deepCabinetPercent,
     ),
     warning: content.globalSettings.depthWarning,
   };

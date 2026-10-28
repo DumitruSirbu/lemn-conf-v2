@@ -28,7 +28,7 @@ import {
   describeBreakdownRows,
   describePlacementLabel,
   describePlacementName,
-  type BreakdownDepthRow,
+  type BreakdownDepthLine,
   type BreakdownGroup,
   type BreakdownRow,
 } from "@/price/price-breakdown-model";
@@ -38,12 +38,6 @@ import {
   type PriceFigure,
 } from "@/price/starting-price";
 import { parsedRoomLengthsOf } from "@/room/room-url-state";
-
-/** A whole-kitchen row as the review lists it: the breakdown's row, and, on the depth line only, the words saying which
- *  cabinets its percent applies to, set under the label. */
-export interface ReviewWholeKitchenRow extends BreakdownRow {
-  readonly scope?: string;
-}
 
 /** Material and hardware as the settings sheet's pill words them, for the row that opens that sheet. */
 export interface ReviewSettingsRow {
@@ -111,8 +105,9 @@ export interface AvailableReview {
   readonly rowDetails: Readonly<Record<string, ReviewRowDetail>>;
   readonly wholeKitchenRows: readonly BreakdownRow[];
   /** The depth line the total counts, worded from the priced (or stored) line: present exactly when the priced design
-   *  carries one. `listWholeKitchenRows` places it among the whole-kitchen rows. */
-  readonly depthRow?: ReviewWholeKitchenRow;
+   *  carries one. `listWholeKitchenRows` lists it among the whole-kitchen rows, after `depthLineAfterKey`. */
+  readonly depthLine?: BreakdownDepthLine;
+  readonly depthLineAfterKey?: string;
   readonly notIncluded: ReviewNotIncludedSlot;
   readonly disclaimer: ReviewDisclaimer;
   readonly figure: PriceFigure;
@@ -126,7 +121,12 @@ export type ReviewView = UnavailableReview | AvailableReview;
 export type ReviewSection =
   | Exclude<
       keyof AvailableReview,
-      "kind" | "overflowWarning" | "submit" | "rowDetails" | "depthRow"
+      | "kind"
+      | "overflowWarning"
+      | "submit"
+      | "rowDetails"
+      | "depthLine"
+      | "depthLineAfterKey"
     >
   | "overflowWarning"
   | "refusal"
@@ -165,17 +165,6 @@ export class MissingWholeKitchenTierError extends Error {
       `The priced design carries no ${kind} tier line; the review has no setting to name`,
     );
     this.name = "MissingWholeKitchenTierError";
-  }
-}
-
-/** The priced design carries a depth line but no material line to place it after: the lines come from one pricing, so
- *  this is a defect, not a state to draw. */
-export class DepthRowWithoutMaterialRowError extends Error {
-  constructor() {
-    super(
-      "The review holds a depth row but no material row to list it after; both come from one pricing",
-    );
-    this.name = "DepthRowWithoutMaterialRowError";
   }
 }
 
@@ -255,7 +244,7 @@ function describeAvailableReview(
     groups: rows.groups,
     rowDetails: describeRowDetails(groups, content),
     wholeKitchenRows: rows.wholeKitchenRows,
-    ...describeDepthRow(rows.depthRow, priced, content),
+    ...rows.depth,
     notIncluded: describeNotIncludedSlot(content),
     disclaimer: describeDisclaimer(content),
     figure: describeStartingPrice({
@@ -268,52 +257,6 @@ function describeAvailableReview(
         : { kind: "allowed" },
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
-}
-
-/** The depth row with its words: the breakdown's key and amount, and the percent the priced line itself carries, never
- *  one read from a book, so a stored snapshot is worded by the percent it was priced with. */
-function describeDepthRow(
-  row: BreakdownDepthRow | undefined,
-  priced: PricedDesign,
-  content: Content,
-): { readonly depthRow?: ReviewWholeKitchenRow } {
-  const line = priced.lines.find((candidate) => candidate.kind === "depth");
-  if (row === undefined || line?.kind !== "depth") return {};
-  return {
-    depthRow: {
-      key: row.key,
-      label: content.priceBreakdown.depthLine(
-        row.depthMm,
-        line.deepCabinetPercent,
-      ),
-      amountText: row.amountText,
-      scope: content.priceBreakdown.depthLineScope,
-    },
-  };
-}
-
-/** The line the domain keys the material tier's price line by (`kitchen:${kind}`). */
-const MATERIAL_ROW_KEY = "kitchen:material";
-
-/**
- * The whole-kitchen rows as the review lists them: the depth row directly after the material row it follows in the
- * priced lines, and the other rows in their order. Placed by key, never by index; a design with no depth line lists the
- * rows untouched. A depth line with no material row to follow is the model's defect.
- */
-export function listWholeKitchenRows(
-  review: AvailableReview,
-): readonly ReviewWholeKitchenRow[] {
-  const { depthRow, wholeKitchenRows } = review;
-  if (depthRow === undefined) return wholeKitchenRows;
-  const materialAt = wholeKitchenRows.findIndex(
-    (row) => row.key === MATERIAL_ROW_KEY,
-  );
-  if (materialAt === -1) throw new DepthRowWithoutMaterialRowError();
-  return [
-    ...wholeKitchenRows.slice(0, materialAt + 1),
-    depthRow,
-    ...wholeKitchenRows.slice(materialAt + 1),
-  ];
 }
 
 /** The two lines of a listed body's row. A body with none is the model's defect and throws; no screen picks another
@@ -358,7 +301,8 @@ function describeRowDetail(
   };
 }
 
-/** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks it. */
+/** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks
+ *  it. */
 function describeFinish(finish: Finish, content: Content): string {
   return finish.kind === "palette-entry"
     ? content.finishName(finish.entryId)

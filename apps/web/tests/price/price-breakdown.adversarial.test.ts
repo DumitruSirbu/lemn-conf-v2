@@ -189,7 +189,6 @@ function availableView(
   groups: readonly DisplayGroup[],
 ): AvailableBreakdown {
   const view = describePriceBreakdown({
-    deepCabinetPercent: undefined,
     content: ro,
     pricing,
     groups,
@@ -314,7 +313,6 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
       expect(() =>
         describePriceBreakdown({
-          deepCabinetPercent: undefined,
           content: ro,
           pricing: SHIPPED_PRICING,
           groups: short,
@@ -341,7 +339,6 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
         expect(() =>
           describePriceBreakdown({
-            deepCabinetPercent: undefined,
             content: ro,
             pricing: SHIPPED_PRICING,
             groups: short,
@@ -360,7 +357,6 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
       expect(() =>
         describePriceBreakdown({
-          deepCabinetPercent: undefined,
           content: ro,
           pricing: withLines(SHIPPED_PRICING, short),
           groups: SHIPPED_GROUPS,
@@ -420,12 +416,16 @@ describe("how many amounts the surface may show, counted against the design", ()
     // The counterfactual, in the exact shape that walked past the view-derived guard: an unlabelled
     // row carrying the total, which is what a customer reads as the sum of the lines above it.
     const view = availableView(SHIPPED_PRICING, SHIPPED_GROUPS);
+    const subtotal = {
+      key: "subtotal",
+      label: "",
+      amountText: view.figure.amountText,
+    };
+    // A row the model appends lands in the rows and in the listing the sheet draws, which is built from them.
     const withSubtotal = {
       ...view,
-      wholeKitchenRows: [
-        ...view.wholeKitchenRows,
-        { key: "subtotal", label: "", amountText: view.figure.amountText },
-      ],
+      wholeKitchenRows: [...view.wholeKitchenRows, subtotal],
+      wholeKitchenListing: [...view.wholeKitchenListing, subtotal],
     };
 
     expect(renderedAmountCount(renderSurface(withSubtotal))).not.toBe(

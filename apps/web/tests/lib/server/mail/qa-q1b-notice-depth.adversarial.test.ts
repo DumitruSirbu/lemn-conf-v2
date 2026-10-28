@@ -1,7 +1,8 @@
-// Adversarial QA for Q1b on the shop's notice. The notice prints the review of the STORED snapshot (ADR 0154 decision 8):
-// the depth line the stored total counts is one of its lines, worded by the percent stored on that line, in the text part
-// and in the HTML part alike, and nothing in it prices again or reads a book. A snapshot stored before the cut-over, which
-// has no depth line, prints byte for byte as the base commit printed it (the `*.golden.*` files were written by that base).
+// Adversarial QA for Q1b on the shop's notice. The notice prints the review of the STORED snapshot (ADR 0154 decision
+// 8): the depth line the stored total counts is one of its lines, worded by the percent stored on that line, in the
+// text part and in the HTML part alike, and nothing in it prices again or reads a book. A snapshot stored before the
+// cut-over, which has no depth line, prints byte for byte as the base commit printed it (the `*.golden.*` files were
+// written by that base).
 import { fc } from "@fast-check/vitest";
 import {
   canonicalSerializeDesign,
@@ -367,31 +368,30 @@ describe("Q1b-a must-not: the notice prices nothing again and reads no book (ADR
 describe("Q1b-a: a hostile value reaching the depth row is escaped in the HTML and cannot break a line in the text", () => {
   const benign = parseNotice(noticeOf(snapshotAtPercent(L_DEEP, 12)).html);
 
-  it("escapes a stored percent that is markup: it parses back to its own words in the label slot and adds no element", () => {
+  // The percent is a number or the kitchen is refused (see the last describe), so the words that reach the label slot
+  // are the content's: a hostile depth label is the way markup or a line break gets there.
+  it("escapes a depth label that is markup: it parses back to its own words in the label slot and adds no element", () => {
     const hostile = '<img src=x onerror="alert(1)"></td><script>';
     const { html, text } = noticeOf(
-      restamped(snapshotAtPercent(L_DEEP, 12), hostile),
+      snapshotAtPercent(L_DEEP, 12),
+      contentWith({ depthLine: () => hostile }),
     );
     const parsed = parseNotice(html);
-    const label = ro.priceBreakdown.depthLine(
-      DEEP_CABINET_DEPTH_MM,
-      hostile as never,
-    );
 
     expect(html).not.toContain(hostile);
     expect(tagSequenceOf(parsed)).toEqual(tagSequenceOf(benign));
     expect(
-      parsed.elements.filter((element) => ownTextOf(element) === label),
+      parsed.elements.filter((element) => ownTextOf(element) === hostile),
     ).toHaveLength(1);
-    expect(text).toContain(label);
+    expect(text).toContain(hostile);
   });
 
   it.each(["\n", "\r", "\r\n", " ", " ", "\u0085", "\u0000"])(
-    "refuses a stored percent holding %j as the wholeKitchenRow line, in neither part",
+    "refuses a depth label holding %j as the wholeKitchenRow line, in neither part",
     (breaker) => {
-      const snapshot = restamped(snapshotAtPercent(L_DEEP, 12), `1${breaker}2`);
+      const content = contentWith({ depthLine: () => `1${breaker}2` });
 
-      expect(() => noticeOf(snapshot)).toThrow(
+      expect(() => noticeOf(snapshotAtPercent(L_DEEP, 12), content)).toThrow(
         new NoticeLineError("wholeKitchenRow"),
       );
     },
@@ -459,30 +459,37 @@ describe("Q1b-a: a hostile value reaching the depth row is escaped in the HTML a
   });
 });
 
-// KNOWN GAP, named and loud. A stored depth line without `deepCabinetPercent` (a snapshot stored by a P3 build earlier than
-// 40a72c06; reachability is INFERENCE: P3 has never merged, so a production store holds none, and whether the shared dev
-// store does could not be checked without a database run) is worded "adaos undefined %" in both parts of the shop's notice,
-// by `content.priceBreakdown.depthLine(depthMm, undefined)` in `describeDepthRow` (review-model.ts). Whether to omit the
-// percent or to refuse the kitchen (NoticeKitchenError) is a product choice, so the assertion accepts either. `it.fails`
-// passes while the gap stands; if the coordinator rules it a defect, fix it and delete `.fails`.
-describe("Q1b-a robustness: a stored depth line that carries no percent", () => {
-  it.fails(
-    "does not print the words undefined or NaN for a stored depth line that carries no percent: it words it without one or refuses the kitchen",
-    () => {
-      const withoutPercent = restamped(
-        snapshotAtPercent(L_DEEP, 12),
-        undefined,
+// A stored depth line whose percent is not a number (a snapshot stored by a P3 build earlier than 40a72c06 carries
+// none) is refused, never worded: the notice would otherwise print "adaos undefined %" in both parts. The refusal is
+// the notice's own value-free error, so a hostile stored value is not echoed either.
+describe("Q1b-a robustness: a stored depth line that carries no numeric percent is refused", () => {
+  const NON_NUMERIC_PERCENTS: readonly [string, unknown][] = [
+    ["is absent", undefined],
+    ["is null", null],
+    ["is NaN", Number.NaN],
+    ["is infinite", Number.POSITIVE_INFINITY],
+    ["is a numeral in a string", "12"],
+    ["is markup", '<img src=x onerror="alert(1)">'],
+    ["holds a line break", "1\r\nBcc: x@y.z"],
+  ];
+
+  it.each(NON_NUMERIC_PERCENTS)(
+    "refuses the kitchen when the stored percent %s",
+    (_description, percent) => {
+      const withoutPercent = restamped(snapshotAtPercent(L_DEEP, 12), percent);
+
+      expect(() => noticeOf(withoutPercent)).toThrow(
+        new NoticeKitchenError("review-not-sendable"),
       );
-
-      let printed: { text: string; html: string } | undefined;
-      try {
-        printed = noticeOf(withoutPercent);
-      } catch (thrown) {
-        expect(thrown).toBeInstanceOf(NoticeKitchenError);
-      }
-
-      expect(printed?.text ?? "").not.toMatch(/undefined|NaN/);
-      expect(printed?.html ?? "").not.toMatch(/undefined|NaN/);
     },
   );
+
+  it("still words a stored percent of zero, which is a number and a published rule", () => {
+    const { text, html } = noticeOf(
+      restamped(snapshotAtPercent(L_DEEP, 12), 0),
+    );
+
+    expect(text).toContain(ro.priceBreakdown.depthLine(700, 0));
+    expect(html).toContain(ro.priceBreakdown.depthLine(700, 0));
+  });
 });

@@ -8,14 +8,11 @@ import { useContent } from "@/i18n/use-content";
 import type {
   BreakdownGroup,
   BreakdownRow,
+  WholeKitchenListingRow,
 } from "@/price/price-breakdown-model";
 
 import { editorHref, type EditorArrival } from "./design-hrefs";
-import {
-  rowDetailOf,
-  type ReviewRowDetail,
-  type ReviewWholeKitchenRow,
-} from "./review-model";
+import { rowDetailOf, type ReviewRowDetail } from "./review-model";
 
 export interface ReviewGroupsProps {
   readonly designId: DesignId;
@@ -53,7 +50,7 @@ export function ReviewGroups({
 export function ReviewWholeKitchenRows({
   rows,
 }: {
-  readonly rows: readonly ReviewWholeKitchenRow[];
+  readonly rows: readonly WholeKitchenListingRow[];
 }) {
   if (rows.length === 0) return null;
   return (

@@ -221,7 +221,6 @@ describe("the optional delta never reaches a screen as a word", () => {
       const pricing = pricingOf(design);
       const bar = describePriceBar({ pricing, content: ro });
       const breakdown = describePriceBreakdown({
-        deepCabinetPercent: undefined,
         content: ro,
         pricing,
         groups: projectDesignForDisplay(design, CATALOG),
@@ -478,10 +477,10 @@ function everyOneAndTwoBodyPopulation(): readonly Design[] {
 
 describe("the refusal is narrowed, not laundered", () => {
   /** An inverted material book, as the cut-over leaves it reachable: the default tier is a dear one. The parser refuses
-   *  it (the default material is the 0 % reference, A-8), so pricing refuses it, so the sheet offers every tier and states
-   *  no amount; a discount is never printed and the settings sheet, the recovery path, is never closed (P3-d). Since a
-   *  parsed book's material percentages are all at least the reference's, `NegativeTierDeltaError` from the material
-   *  group guards a book the parser has already refused. */
+   *  it (the default material is the 0 % reference, A-8), so pricing refuses it, so the sheet offers every tier and
+   *  states no amount; a discount is never printed and the settings sheet, the recovery path, is never closed (P3-d).
+   *  Since a parsed book's material percentages are all at least the reference's, `NegativeTierDeltaError` from the
+   *  material group guards a book the parser has already refused. */
   const invertedMaterial: PriceBook = {
     ...BOOK,
     material: { ...BOOK.material, defaultTierId: "material.veneer" },
@@ -517,7 +516,8 @@ describe("the refusal is narrowed, not laundered", () => {
     );
   });
 
-  /** The inverted material book asked on every population: refused whole whatever the hardware does, and never a throw. */
+  /** The inverted material book asked on every population: refused whole whatever the hardware does, and never a
+   *  throw. */
   propertyTest.prop([anyPopulation])(
     "answers an inverted material book at every population without a throw and without a figure",
     (design) => {

@@ -20,7 +20,6 @@ import {
   MAX_DEEP_CABINET_PERCENT,
   priceDesign,
   projectDesignForDisplay,
-  SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -47,7 +46,10 @@ import {
   mountInCatalogue,
   type MountedScreen,
 } from "../support/render-with-intl";
-import { rootPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
+import {
+  bookPublishingDeepCabinetPercent,
+  rootPublishingDeepCabinetPercent,
+} from "../support/book-with-deep-cabinet-percent";
 import { ro } from "../support/romanian-content";
 
 const SWEEP_SEED = 20_261_028;
@@ -80,10 +82,7 @@ function settingsViewFor(
 ): GlobalSettingsView {
   const design: Design = KITCHEN_L_DESIGN;
   const catalog = buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM);
-  const book = {
-    ...SAMPLE_PRICE_BOOK,
-    depthRule: { deepCabinetPercent },
-  };
+  const book = bookPublishingDeepCabinetPercent(deepCabinetPercent);
   const pricingInput = {
     deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
@@ -205,7 +204,8 @@ describe("the retired depthNote is rendered nowhere (Q1-a)", () => {
   });
 });
 
-/** What next-intl logs for a missing or unformattable message. The sheet logs other, unrelated lines in a bare mount. */
+/** What next-intl logs for a missing or unformattable message. The sheet logs other, unrelated lines in a bare
+ *  mount. */
 function translationErrorsIn(logged: {
   readonly mock: { readonly calls: readonly (readonly unknown[])[] };
 }): readonly string[] {

@@ -35,10 +35,12 @@ import {
 } from "@/lib/server/mail/mail-sender";
 import { asciiDomainOfPlainMailbox } from "@/lib/server/mail/plain-mailbox";
 import type { PublicOriginOutcome } from "@/lib/server/public-origin";
-import type { BreakdownGroup } from "@/price/price-breakdown-model";
+import {
+  listWholeKitchenRows,
+  type BreakdownGroup,
+} from "@/price/price-breakdown-model";
 import {
   describeReview,
-  listWholeKitchenRows,
   rowDetailOf,
   type AvailableReview,
 } from "@/review/review-model";

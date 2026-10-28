@@ -62,7 +62,6 @@ function shippedBreakdown(
   groups: readonly DisplayGroup[] = SHIPPED_GROUPS,
 ): AvailableBreakdown {
   const view = describePriceBreakdown({
-    deepCabinetPercent: undefined,
     content: ro,
     pricing,
     groups,
@@ -188,7 +187,6 @@ describe("the rows are wave 6A's groups, rendered", () => {
   // answer. The bar carries the owner's prompt instead.
   it("offers no breakdown at all for a design of nothing but empty space", () => {
     const view = describePriceBreakdown({
-      deepCabinetPercent: undefined,
       content: ro,
       pricing: withLines(SHIPPED_PRICING, []),
       groups: [],
@@ -199,7 +197,6 @@ describe("the rows are wave 6A's groups, rendered", () => {
     // about the empty kitchen and not about this helper.
     expect(
       describePriceBreakdown({
-        deepCabinetPercent: undefined,
         content: ro,
         pricing: SHIPPED_PRICING,
         groups: SHIPPED_GROUPS,
@@ -214,7 +211,6 @@ describe("deleting the projection call breaks the surface rather than shortening
     // cabinet line is still there, in the right order, with the right label — and there is no list.
     expect(() =>
       describePriceBreakdown({
-        deepCabinetPercent: undefined,
         content: ro,
         pricing: SHIPPED_PRICING,
         groups: [],
@@ -229,7 +225,6 @@ describe("deleting the projection call breaks the surface rather than shortening
 
     expect(() =>
       describePriceBreakdown({
-        deepCabinetPercent: undefined,
         content: ro,
         pricing: withLines(SHIPPED_PRICING, cabinetLines),
         groups: SHIPPED_GROUPS,
@@ -243,7 +238,6 @@ describe("deleting the projection call breaks the surface rather than shortening
 
     expect(() =>
       describePriceBreakdown({
-        deepCabinetPercent: undefined,
         content: ro,
         pricing: SHIPPED_PRICING,
         groups: [],
@@ -461,7 +455,6 @@ describe("a pricing failure", () => {
 
     expect(
       describePriceBreakdown({
-        deepCabinetPercent: undefined,
         content: ro,
         pricing: failed,
         groups: SHIPPED_GROUPS,

@@ -10,9 +10,9 @@ import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
 import { OpenEditorLink } from "@/review/open-editor-link";
 import { editorHref } from "@/review/design-hrefs";
+import { listWholeKitchenRows } from "@/price/price-breakdown-model";
 import { ReviewGroups, ReviewWholeKitchenRows } from "@/review/review-groups";
 import {
-  listWholeKitchenRows,
   type AvailableReview,
   type RefusedSubmit,
   type ReviewView,

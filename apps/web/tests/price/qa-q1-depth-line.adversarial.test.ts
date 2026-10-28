@@ -4,14 +4,14 @@
 // decision 5).
 //
 // What the wave's own tests (`q1-depth-line.dom.test.ts`) do not reach, and what this file takes:
-//   1. the percent is the published rule's across its WHOLE range (0 to the parser's bound), not two sampled values, and
-//      the label states no other figure than the depth and that percent;
-//   2. the amount is the priced line's own: a synthetic result whose depth amount matches no percent still prints verbatim;
-//   3. across generated rooms, tier pairs and percentages built at 700 mm through the store's real depth command, every
-//      priced line is printed exactly once, the depth line sits straight after the material row, and the figure restates
-//      the total the lines sum to;
-//   4. at 0 % the line is present and reads *inclus* (ADR 0177 A-1), the one behaviour the plan leaves implicit;
-//   5. `deepCabinetPercent` is a required key of the model's input: every production call site must pass it.
+//   1. the percent is the published rule's across its WHOLE range (0 to the parser's bound), not two sampled
+//      values, and the label states no other figure than the depth and that percent;
+//   2. the amount is the priced line's own: a synthetic result whose depth amount matches no percent still prints
+//      verbatim;
+//   3. across generated rooms, tier pairs and percentages built at 700 mm through the store's real depth command,
+//      every priced line is printed exactly once, the depth line sits straight after the material row, and the figure
+//      restates the total the lines sum to;
+//   4. at 0 % the line is present and reads *inclus* (ADR 0177 A-1), the one behaviour the plan leaves implicit.
 import { fc } from "@fast-check/vitest";
 import {
   buildKitchenLBodyCatalog,
@@ -21,14 +21,11 @@ import {
   MAX_DEEP_CABINET_PERCENT,
   priceDesign,
   projectDesignForDisplay,
-  SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   type Design,
   type PricedDesign,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -41,8 +38,8 @@ import { PriceBreakdownSurface } from "@/price/price-breakdown";
 import { describeStartingPrice } from "@/price/starting-price";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
+import { bookPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
-import { filesUnder } from "../support/files-under";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { ro } from "../support/romanian-content";
 import { ARMS } from "../support/swept-kitchens";
@@ -51,16 +48,11 @@ import { TIER_PAIRS, withTiers } from "../support/varied-kitchens";
 
 const SWEEP_SEED = 20_261_028;
 const OCCURRED_AT = "2026-10-28T09:00:00.000Z";
-const WEB_SOURCE = join(import.meta.dirname, "..", "..", "src");
 
 const publishedPercent = fc.integer({ min: 0, max: MAX_DEEP_CABINET_PERCENT });
 
-function bookPublishing(deepCabinetPercent: number) {
-  return { ...SAMPLE_PRICE_BOOK, depthRule: { deepCabinetPercent } };
-}
-
 function priceAt(design: Design, deepCabinetPercent: number): PricingResult {
-  const book = bookPublishing(deepCabinetPercent);
+  const book = bookPublishingDeepCabinetPercent(deepCabinetPercent);
   return priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
@@ -76,10 +68,8 @@ function priceAt(design: Design, deepCabinetPercent: number): PricingResult {
 function describeAt(
   design: Design,
   pricing: PricingResult,
-  deepCabinetPercent: number | undefined,
 ): AvailableBreakdown {
   const view = describePriceBreakdown({
-    deepCabinetPercent: undefined,
     content: ro,
     pricing,
     groups: projectDesignForDisplay(
@@ -88,7 +78,6 @@ function describeAt(
         design.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM,
       ),
     ),
-    ...(deepCabinetPercent === undefined ? {} : { deepCabinetPercent }),
   });
   if (view.kind !== "available") throw new Error("the fixture should price");
   return view;
@@ -147,7 +136,7 @@ describe("the depth line states the published percent and nothing else (Q1-b)", 
     fc.assert(
       fc.property(publishedPercent, (percent) => {
         const design = deepShippedKitchen();
-        const view = describeAt(design, priceAt(design, percent), percent);
+        const view = describeAt(design, priceAt(design, percent));
 
         expect(view.depthLine?.label).toBe(
           ro.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, percent),
@@ -172,8 +161,8 @@ describe("the depth line states the published percent and nothing else (Q1-b)", 
           const real = priceAt(design, percent);
           const forged = withDepthAmount(real, tensOfLei * 1000);
 
-          expect(describeAt(design, forged, percent).depthLine?.label).toBe(
-            describeAt(design, real, percent).depthLine?.label,
+          expect(describeAt(design, forged).depthLine?.label).toBe(
+            describeAt(design, real).depthLine?.label,
           );
         },
       ),
@@ -223,14 +212,13 @@ describe("the depth line's amount is the priced line's own, never recomputed (P2
             tensOfLei * 1000,
           );
 
-          const view = describeAt(design, forged, percent);
+          const view = describeAt(design, forged);
           const printed = markupOf(view).querySelector(
             '[data-testid="breakdown-depth-amount"]',
           );
 
-          expect(printed?.textContent).toBe(view.depthRow?.amountText);
-          expect(view.depthLine?.amountText).toBe(view.depthRow?.amountText);
-          expect(view.depthRow?.amountText).not.toBe(
+          expect(printed?.textContent).toBe(view.depthLine?.amountText);
+          expect(view.depthLine?.amountText).not.toBe(
             ro.priceBreakdown.included,
           );
         },
@@ -243,7 +231,7 @@ describe("the depth line's amount is the priced line's own, never recomputed (P2
     const design = deepShippedKitchen();
     const forged = withDepthAmount(priceAt(design, 40), 0);
 
-    const view = describeAt(design, forged, 40);
+    const view = describeAt(design, forged);
 
     expect(view.depthLine?.amountText).toBe(ro.priceBreakdown.included);
     expect(view.depthLine?.label).toContain("40 %");
@@ -253,7 +241,7 @@ describe("the depth line's amount is the priced line's own, never recomputed (P2
 describe("at 0 % the depth line is present and reads inclus (ADR 0177 A-1: 'At 0 % it renders inclus')", () => {
   it("is shown at 700 mm with 'adaos 0 %' and inclus, and not at 600 mm", () => {
     const deep = deepShippedKitchen();
-    const view = describeAt(deep, priceAt(deep, 0), 0);
+    const view = describeAt(deep, priceAt(deep, 0));
     const rows = printedRowsOf(markupOf(view));
     const depthRow = rows.find((row) => row.testId === "breakdown-depth-row");
 
@@ -263,7 +251,7 @@ describe("at 0 % the depth line is present and reads inclus (ADR 0177 A-1: 'At 0
     expect(depthRow?.text).toContain(ro.priceBreakdown.included);
 
     const shallow = KITCHEN_L_DESIGN;
-    const shallowView = describeAt(shallow, priceAt(shallow, 0), 0);
+    const shallowView = describeAt(shallow, priceAt(shallow, 0));
     expect(shallowView.depthLine).toBeUndefined();
   });
 });
@@ -303,7 +291,7 @@ describe("generated rooms built at 700 mm through the real depth command", () =>
         const pricing = priceAt(design, percent);
         if (!pricing.ok) return;
         const priced = pricing.priced;
-        const view = describeAt(design, pricing, percent);
+        const view = describeAt(design, pricing);
         const rows = printedRowsOf(markupOf(view));
 
         // P2-a restated at the surface: the lines the screen is built from add to the figure's total.
@@ -348,57 +336,20 @@ describe("generated rooms built at 700 mm through the real depth command", () =>
   });
 });
 
-describe("a caller of describePriceBreakdown", () => {
-  it("is pinned at every production call site: each call of describePriceBreakdown passes deepCabinetPercent", () => {
-    const callSites = filesUnder(WEB_SOURCE).flatMap((file) =>
-      callsOf("describePriceBreakdown", readFileSync(file, "utf8")).map(
-        (argument) => ({ file, argument }),
-      ),
-    );
-
-    expect(callSites.map((site) => site.file.split("/src/")[1])).toContain(
-      "price/price-breakdown.tsx",
-    );
-    for (const site of callSites)
-      expect(site.argument, site.file).toMatch(/\bdeepCabinetPercent\b/u);
-  });
-});
-
-/** The argument text of each call `name(` in `source`, balanced on parentheses; the declaration is not a call. */
-function callsOf(name: string, source: string): readonly string[] {
-  const calls: string[] = [];
-  let from = 0;
-  for (;;) {
-    const at = source.indexOf(`${name}(`, from);
-    if (at === -1) return calls;
-    from = at + name.length;
-    const before = source.slice(Math.max(0, at - 16), at);
-    if (/function\s+$/u.test(before)) continue;
-    let depth = 0;
-    let end = at + name.length;
-    for (; end < source.length; end += 1) {
-      if (source[end] === "(") depth += 1;
-      if (source[end] === ")") depth -= 1;
-      if (depth === 0) break;
-    }
-    calls.push(source.slice(at + name.length, end + 1));
-  }
-}
-
 describe("the amounts as printed (a spec conflict, reported and not Q1's to settle)", () => {
   // KNOWN CONFLICT, named and loud. The domain's lines are multiples of 10 lei and add to the total exactly (A-1, P2-a;
   // ADR 0175 decision 5 calls 10 lei "the customer's display unit"), but `describeRoundedAmount` rounds every printed
   // line UP to the thousand MDL (`starting-price.ts:78-96`, ADR 0001 decision 4), so the printed rows cannot add to the
   // printed total: at 12 % the shipped L kitchen prints the depth line of 9 510 lei as "10 000" and the total of 94 630
   // as "95 000". Q1b-a ("on each surface the lines sum to the total shown") cannot hold for printed text while this
-  // stands. `it.fails` passes while the printed rows do not add up; the day a wave settles the display unit it goes red,
-  // and the instruction is to delete `.fails`.
+  // stands. `it.fails` passes while the printed rows do not add up; the day a wave settles the display unit it goes
+  // red, and the instruction is to delete `.fails`.
   // The guard that keeps the `it.fails` below honest: it fails for the stated reason only if every priced line has a
   // printed amount that parses, so a renamed test id or a throw cannot keep it green for the wrong one.
   it("prints one parseable amount per priced line, so the sum below is over every line", () => {
     const design = deepShippedKitchen();
     const pricing = priceAt(design, 12);
-    const dom = markupOf(describeAt(design, pricing, 12));
+    const dom = markupOf(describeAt(design, pricing));
 
     const printedAmounts = Array.from(
       dom.querySelectorAll(
@@ -415,7 +366,7 @@ describe("the amounts as printed (a spec conflict, reported and not Q1's to sett
 
   it.fails("printed rows add up to the printed total", () => {
     const design = deepShippedKitchen();
-    const view = describeAt(design, priceAt(design, 12), 12);
+    const view = describeAt(design, priceAt(design, 12));
     const dom = markupOf(view);
 
     const printedAmounts = Array.from(

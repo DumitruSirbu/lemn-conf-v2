@@ -4,8 +4,8 @@
 //
 // `cut-over-surfaces.test.ts` holds each surface against a second evaluation of the domain query. This file adds what
 // that cannot see: a surface that measured the set a different way would still agree with its own second evaluation, so
-// the composition itself is read from source; and a surface that priced alone would pass its own check while disagreeing
-// with the rest, so the figures are compared across surfaces.
+// the composition itself is read from source; and a surface that priced alone would pass its own check while
+// disagreeing with the rest, so the figures are compared across surfaces.
 import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
@@ -55,7 +55,8 @@ import {
   TIER_PAIRS,
 } from "../support/varied-kitchens";
 
-/** The first word of the ruled depth line ("{word} 700 mm · adaos …"), read from the message file and not typed here. */
+/** The first word of the ruled depth line ("{word} 700 mm · adaos …"), read from the message file and not typed
+ *  here. */
 const DEPTH_LINE_WORD = roMessages.priceBreakdown.depthLine.split(" ")[0] ?? "";
 
 function withoutComments(source: string): string {
@@ -176,7 +177,6 @@ describe("every surface names one total for one kitchen, at both depths", () => 
 
         const bar = describePriceBar({ content: ro, pricing });
         const breakdown = describePriceBreakdown({
-          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: ro,
           pricing,
           groups,
@@ -287,7 +287,6 @@ describe("P3-d: a refused price takes the numbers off the sheet and never the ch
     expect(describePriceBar({ content: ro, pricing }).kind).not.toBe("priced");
     expect(
       describePriceBreakdown({
-        deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
         content: ro,
         pricing,
         groups,
@@ -357,7 +356,6 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
       content: ro,
       pricing,
       groups: projectDesignForDisplay(design, catalog),
-      deepCabinetPercent: root.book.depthRule.deepCabinetPercent,
     });
     if (view.kind !== "available" || !pricing.ok)
       throw new Error("no breakdown");
@@ -371,7 +369,7 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
     );
 
     expect(line).toBeDefined();
-    expect(view.depthRow?.key).toBe(line?.lineId);
+    expect(view.depthLine?.key).toBe(line?.lineId);
   });
 
   // The gap P3 named is closed by Q1: the sheet prints the model's depth line, so its rows account for the figure.
@@ -387,7 +385,7 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
     );
 
     expect(markup).toContain(`${String(DEEP_CABINET_DEPTH_MM)} mm`);
-    expect(markup).toContain(view.depthRow?.amountText ?? "never");
+    expect(markup).toContain(view.depthLine?.amountText ?? "never");
     expect(markup).toContain(DEPTH_LINE_WORD);
   });
 
@@ -452,7 +450,7 @@ describe("P3-c: a stored pre-cut-over snapshot reaches the review as written, ne
     expect(review.figure).toEqual(
       describeStartingPrice({ totalMinor: stored.totalMinor, copy: ro.price }),
     );
-    expect(review).not.toHaveProperty("depthRow");
+    expect(review).not.toHaveProperty("depthLine");
     expect(JSON.stringify(stored)).toBe(JSON.stringify(JSON.parse(STORED)));
     expect(review.wholeKitchenRows.map((row) => row.key)).toEqual([
       "kitchen:hardware",

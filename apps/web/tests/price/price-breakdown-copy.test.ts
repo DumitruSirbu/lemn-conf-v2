@@ -72,7 +72,6 @@ const WORDS_INSTEAD_OF_AN_AMOUNT: readonly string[] = [
 /** The seeded design's breakdown, as the application builds it. */
 function shippedBreakdown(): AvailableBreakdown {
   const view = describePriceBreakdown({
-    deepCabinetPercent: undefined,
     content: ro,
     pricing: priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,

@@ -4,7 +4,6 @@
 // catalogues and the priced lines through no content resolver (`raw-catalogue-text.ts`), what
 // `describePriceBreakdown` prints, and what `describePriceBar` prints. The order is checked on the review's own
 // keys against the design's placements, so a review that reordered what it was handed is seen.
-import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import { fc, test } from "@fast-check/vitest";
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -233,7 +232,7 @@ function rawWholeKitchenRowsOf(
   priced: PricedDesign,
 ): readonly PrintedRow[] {
   return priced.lines.flatMap((line) => {
-    // The depth line is not a whole-kitchen row: the breakdown publishes it as the row of its own, `depthRow`, and the
+    // The depth line is not a whole-kitchen row: the breakdown publishes it as the row of its own, `depthLine`, and the
     // review does not carry it yet (see "the depth line at 700 mm" below). It is skipped here by name so that a new
     // line kind with no word still fails this sweep, which a blanket `kind !== "cabinet"` would not.
     if (line.kind === "depth") return [];
@@ -371,7 +370,6 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
       for (const kitchen of kitchens) {
         const review = reviewIn(catalogue, kitchen);
         const breakdown = describePriceBreakdown({
-          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(catalogue),
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -390,7 +388,6 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         const review = reviewIn(catalogue, kitchen);
         const bar = describePriceBar({ content, pricing: kitchen.pricing });
         const breakdown = describePriceBreakdown({
-          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content,
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -452,7 +449,6 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
           (candidate) => candidate.kind === "depth",
         );
         const breakdown = describePriceBreakdown({
-          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(ROMANIAN),
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -461,12 +457,16 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
           throw new Error("expected a breakdown");
 
         if (line === undefined) {
-          expect(breakdown.depthRow).toBeUndefined();
+          expect(breakdown.depthLine).toBeUndefined();
           continue;
         }
-        expect(breakdown.depthRow).toEqual({
+        expect(breakdown.depthLine).toEqual({
           key: line.lineId,
-          depthMm: DEEP_CABINET_DEPTH_MM,
+          label: contentOf(ROMANIAN).priceBreakdown.depthLine(
+            DEEP_CABINET_DEPTH_MM,
+            line.deepCabinetPercent,
+          ),
+          scope: contentOf(ROMANIAN).priceBreakdown.depthLineScope,
           amountText:
             line.amountMinor === 0
               ? fillLeaf(ROMANIAN, "priceBreakdown.included")
@@ -481,7 +481,6 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
     it("leaves no line the total counts unshown in the breakdown: every priced line is a row or the depth row", () => {
       for (const kitchen of deepKitchens) {
         const breakdown = describePriceBreakdown({
-          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(ROMANIAN),
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -493,7 +492,9 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
             group.rows.map((row) => row.key),
           ),
           ...breakdown.wholeKitchenRows.map((row) => row.key),
-          ...(breakdown.depthRow === undefined ? [] : [breakdown.depthRow.key]),
+          ...(breakdown.depthLine === undefined
+            ? []
+            : [breakdown.depthLine.key]),
         ]);
         const unshown = pricedOf(kitchen)
           .lines.map((line) =>
@@ -509,7 +510,6 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
       for (const kitchen of deepKitchens) {
         const review = reviewIn(ROMANIAN, kitchen);
         const breakdown = describePriceBreakdown({
-          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(ROMANIAN),
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -517,15 +517,15 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         if (breakdown.kind !== "available")
           throw new Error("expected a breakdown");
 
-        expect(review.depthRow?.key).toBe(breakdown.depthRow?.key);
-        expect(review.depthRow?.amountText).toBe(
-          breakdown.depthRow?.amountText,
+        expect(review.depthLine?.key).toBe(breakdown.depthLine?.key);
+        expect(review.depthLine?.amountText).toBe(
+          breakdown.depthLine?.amountText,
         );
         expect(review.groups).toEqual(breakdown.groups);
         expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);
       }
       for (const kitchen of fitting) {
-        expect(reviewIn(ROMANIAN, kitchen)).not.toHaveProperty("depthRow");
+        expect(reviewIn(ROMANIAN, kitchen)).not.toHaveProperty("depthLine");
       }
     });
 
@@ -535,7 +535,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         const listed = new Set([
           ...review.groups.flatMap((group) => group.rows.map((row) => row.key)),
           ...review.wholeKitchenRows.map((row) => row.key),
-          ...(review.depthRow === undefined ? [] : [review.depthRow.key]),
+          ...(review.depthLine === undefined ? [] : [review.depthLine.key]),
         ]);
         const unlisted = pricedOf(kitchen)
           .lines.map((line) =>
