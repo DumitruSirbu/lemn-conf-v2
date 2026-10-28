@@ -18,9 +18,9 @@ import {
 import type { PricingFailure } from "./price-lines.js";
 
 /**
- * A list of the members of one declared type, accepted only when it names every member: a name that is not a member fails
- * to compile, and so does a member left out. A field added to a row type cannot be refused as stray by a build that
- * forgot to list it.
+ * A list of the members of one declared type, accepted only when it names every member: a name that is not a member
+ * fails to compile, and so does a member left out. A field added to a row type cannot be refused as stray by a build
+ * that forgot to list it.
  */
 function membersOf<Declared>() {
   return <const List extends readonly (keyof Declared & string)[]>(
@@ -114,6 +114,7 @@ function refuseUndeclaredTierMembers(
     const refused = refuseUnreadFields(tier, kind.members, {
       shape: kind.shape,
       named: `${kind.shape} "${textOf(tierId)}"`,
+      ...(typeof tierId === "string" ? { id: tierId } : {}),
     });
     if (refused) return refused;
   }
@@ -130,6 +131,7 @@ function refuseUndeclaredAccessoryMembers(
     const refused = refuseUnreadFields(row, ACCESSORY.members, {
       shape: ACCESSORY.shape,
       named: `${ACCESSORY.shape} "${accessoryId}"`,
+      id: accessoryId,
     });
     if (refused) return refused;
   }

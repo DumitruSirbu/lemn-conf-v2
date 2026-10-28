@@ -10,8 +10,9 @@ import type { PricingFailure } from "./price-lines.js";
 
 /** The term count the coefficient bound was derived over: the four millimetre-multiplied terms of the shapes this
  *  build retired at the cut-over. An anchored shape has five terms, but it multiplies each by a count of 50 mm steps
- *  or of door leaves, so its multipliers sum to far less than four millimetre-sized ones; the bound is kept, not
- *  re-derived, so a stored book that parsed still parses. */
+ *  or of door leaves, so its multipliers sum to far less than four millimetre-sized ones. The bound is kept, not
+ *  re-derived, by the re-ruling of 2026-10-26 (ADR 0177 A-5): the percentage seam bounds a cabinet's whole amount
+ *  instead (`MAX_CABINET_AMOUNT_MINOR`). */
 const TERMS_IN_THE_WIDEST_FORMULA = 4;
 
 /** The largest count a book amount is multiplied by: a millimetre dimension, since every other
@@ -255,6 +256,8 @@ export function refuseUnreadFields(
     readonly named: string;
     /** The path a field is named under when the record sits inside the formula, such as `sizes[2].`. */
     readonly within?: string;
+    /** The id of the row the record is, carried on the refusal so a surface can name it without parsing the detail. */
+    readonly id?: string;
   },
 ): PricingFailure | undefined {
   const fields = enumerableFieldsOf(record);
@@ -267,6 +270,7 @@ export function refuseUnreadFields(
     if (readDeclared(record, field) === undefined) continue;
     return invalidBook(
       `The ${context.named} declares "${context.within ?? ""}${field}", which its shape "${context.shape}" does not read`,
+      context.id === undefined ? undefined : { id: context.id },
     );
   }
   return undefined;

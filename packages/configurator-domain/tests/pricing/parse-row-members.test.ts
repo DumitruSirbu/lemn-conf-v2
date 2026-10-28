@@ -17,6 +17,8 @@ type Plant = (
 
 interface RowUnderTest {
   readonly rowName: string;
+  /** The id the refusal carries: a tier id, or the accessory's name in the book. */
+  readonly rowId: string;
   readonly plantIn: Plant;
 }
 
@@ -45,18 +47,22 @@ const plantInAccessory =
 const ROWS: readonly RowUnderTest[] = [
   {
     rowName: `hardware tier "${SAMPLE_PRICE_BOOK.hardware.tiers[1]?.tierId ?? ""}"`,
+    rowId: SAMPLE_PRICE_BOOK.hardware.tiers[1]?.tierId ?? "",
     plantIn: plantInTier("hardware", 1),
   },
   {
     rowName: `material tier "${SAMPLE_PRICE_BOOK.material.tiers[1]?.tierId ?? ""}"`,
+    rowId: SAMPLE_PRICE_BOOK.material.tiers[1]?.tierId ?? "",
     plantIn: plantInTier("material", 1),
   },
   {
     rowName: 'accessory "sinkProtectiveCover"',
+    rowId: "sinkProtectiveCover",
     plantIn: plantInAccessory("sinkProtectiveCover"),
   },
   {
     rowName: 'accessory "dishDryingRack"',
+    rowId: "dishDryingRack",
     plantIn: plantInAccessory("dishDryingRack"),
   },
 ];
@@ -72,7 +78,7 @@ describe("a row carrying a key outside its declared list is refused, naming the 
     expect(parsePriceBook(SAMPLE_PRICE_BOOK).ok).toBe(true);
   });
 
-  for (const { rowName, plantIn } of ROWS) {
+  for (const { rowName, rowId, plantIn } of ROWS) {
     it(`refuses a stray flat amount on the ${rowName}`, () => {
       const failure = refusalOf(
         plantIn(SAMPLE_PRICE_BOOK, RETIRED_FLAT_FIELD, 130_000),
@@ -81,6 +87,7 @@ describe("a row carrying a key outside its declared list is refused, naming the 
       expect(failure.code).toBe("INVALID_PRICE_BOOK");
       expect(failure.detail).toContain(rowName);
       expect(failure.detail).toContain(RETIRED_FLAT_FIELD);
+      expect(failure.id).toBe(rowId);
     });
 
     it(`refuses any undeclared key on the ${rowName}, whatever it holds`, () => {

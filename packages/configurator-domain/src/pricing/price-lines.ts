@@ -12,8 +12,8 @@ import type {
 } from "./price-book.js";
 
 /** What a line is for. `cabinet` traces to a placement; `hardware` and `material` are the named
- *  whole-kitchen rules §12 permits a line to trace to instead; `depth` is the book's one depth rule; `accessory` traces to neither — it is billed per sink, which is a count of
- *  bodies rather than one body or the whole kitchen. */
+ *  whole-kitchen rules §12 permits a line to trace to instead; `depth` is the book's one depth rule; `accessory` traces
+ *  to neither — it is billed per sink, which is a count of bodies rather than one body or the whole kitchen. */
 export type PriceLineKind =
   | "cabinet"
   | "hardware"
