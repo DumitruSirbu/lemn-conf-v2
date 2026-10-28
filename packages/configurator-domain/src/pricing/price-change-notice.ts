@@ -26,13 +26,16 @@ export interface PriceChangeRequest {
   readonly currentAvailability: CatalogueAvailability;
 }
 
+/** Which pair of (book, availability) a pricing was made under. */
+export type PriceSide = "seen" | "active";
+
 /** One side of the comparison has no price: a refusal has no lines to compare, and answering "no change" for it would
  *  hide a price that moved behind a kitchen that could not be priced. The refusal is carried whole. */
 export class PriceChangeNotComparableError extends Error {
-  readonly side: "seen" | "active";
+  readonly side: PriceSide;
   readonly failure: PricingFailure;
 
-  constructor(side: "seen" | "active", failure: PricingFailure) {
+  constructor(side: PriceSide, failure: PricingFailure) {
     super(
       `The kitchen cannot be priced under the ${side} book and availability: ${failure.code}`,
     );
@@ -51,33 +54,43 @@ export class PriceChangeNotComparableError extends Error {
  * no price to compare, and the replacement sheet, not this notice, is what answers it.
  */
 export function pricesChangedBetween(request: PriceChangeRequest): boolean {
-  const seen = pricedOrThrow("seen", request, {
+  const seen = pricedOrThrow({
+    side: "seen",
+    request,
     book: request.seenBook,
     availability: request.seenAvailability,
   });
-  const active = pricedOrThrow("active", request, {
+  const active = pricedOrThrow({
+    side: "active",
+    request,
     book: request.activeBook,
     availability: request.currentAvailability,
   });
   return differInSomeLine(amountsByLine(seen), amountsByLine(active));
 }
 
-function pricedOrThrow(
-  side: "seen" | "active",
-  { design, catalog, deepeningRows }: PriceChangeRequest,
-  under: {
-    readonly book: PriceBook;
-    readonly availability: CatalogueAvailability;
-  },
-): PricedDesign {
+/** The kitchen priced under one pair, and which pair it was. */
+interface PricingUnderOnePair {
+  readonly side: PriceSide;
+  readonly request: PriceChangeRequest;
+  readonly book: PriceBook;
+  readonly availability: CatalogueAvailability;
+}
+
+function pricedOrThrow({
+  side,
+  request: { design, catalog, deepeningRows },
+  book,
+  availability,
+}: PricingUnderOnePair): PricedDesign {
   const result = priceDesign({
     design,
     catalog,
     deepeningRows,
-    book: under.book,
-    pricingVersion: under.book.version,
+    book,
+    pricingVersion: book.version,
     selections: design.settings,
-    availability: under.availability,
+    availability,
   });
   if (!result.ok) throw new PriceChangeNotComparableError(side, result.failure);
   return result.priced;

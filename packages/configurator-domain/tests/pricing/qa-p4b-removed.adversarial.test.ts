@@ -71,7 +71,8 @@ describe("removedAccessoriesSince is what the price carried and availability too
           const removed = removedAccessoriesSince({
             design,
             catalog: CATALOG,
-            book,
+            seenBook: book,
+            activeBook: book,
             seen: availabilityOf(seenOff.map(accessory), "s"),
             current: availabilityOf(currentOff.map(accessory), "c"),
           });
@@ -107,7 +108,8 @@ describe("removedAccessoriesSince is what the price carried and availability too
       removedAccessoriesSince({
         design: KITCHEN_L_DESIGN,
         catalog: CATALOG,
-        book,
+        seenBook: book,
+        activeBook: book,
         seen: availabilityOf([], "s"),
         current: availabilityOf(lookalikes, "c"),
       }),
@@ -126,7 +128,8 @@ describe("removedAccessoriesSince is what the price carried and availability too
       removedAccessoriesSince({
         design: KITCHEN_L_DESIGN,
         catalog: CATALOG,
-        book: bookWithLinked(ordered),
+        seenBook: bookWithLinked(ordered),
+        activeBook: bookWithLinked(ordered),
         seen: availabilityOf([], "s"),
         current,
       });

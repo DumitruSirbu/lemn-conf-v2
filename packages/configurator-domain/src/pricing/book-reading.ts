@@ -279,7 +279,8 @@ export function refuseUnreadFields(
   return undefined;
 }
 
-/** The longest a tier's or an accessory's name may be: a radio label on one line. A version's name has the same bound. */
+/** The longest a tier's or an accessory's name may be: a radio label on one line. A version's name has the same
+ *  bound. */
 export const MAX_BOOK_NAME_LENGTH = 80;
 
 /** The longest a tier's or an accessory's one-line description may be. */
@@ -312,4 +313,19 @@ export function refuseUnusableText(
     `Book declares a ${bound.named} of ${String(declared.length)} characters, ` +
       `past the ${String(bound.maxLength)} a book may state`,
   );
+}
+
+/** The first id a list repeats, or nothing: the sweep every "ids are unique" refusal is made of. */
+export function firstDuplicate(ids: readonly string[]): string | undefined {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) return id;
+    seen.add(id);
+  }
+  return undefined;
+}
+
+/** An id as a message renders it, whatever the book declared it as. */
+export function idAsText(declared: unknown): string {
+  return typeof declared === "string" ? declared : describeDeclared(declared);
 }

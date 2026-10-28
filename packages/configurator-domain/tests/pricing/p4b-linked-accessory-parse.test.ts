@@ -448,24 +448,51 @@ describe("created-row text is held to what a line of the lead notice can carry",
     expect(parsePriceBook(withRow({ name: "a\u200Bb" })).ok).toBe(true);
   });
 
-  it("measures the lengths on the NFC form: a decomposed letter is one toward the limit", () => {
-    const decomposed = "s\u0327";
-    const composed = decomposed.normalize("NFC");
+  it("refuses text that is not already in NFC, in a name and in a description, and accepts its composed form", () => {
+    const decomposed = "e\u0301";
 
-    expect(composed).toHaveLength(1);
+    expect(decomposed.normalize("NFC")).not.toBe(decomposed);
+    expect(refusalOf(withRow({ name: decomposed })).detail).toContain("NFC");
+    expect(refusalOf(withRow({ description: decomposed })).detail).toContain(
+      "NFC",
+    );
+    expect(parsePriceBook(withRow({ name: "\u00e9" })).ok).toBe(true);
+  });
+
+  it("measures the lengths in UTF-16 units of the declared string, as every other book row", () => {
+    const emoji = "\u{1F642}";
+
     expect(
-      parsePriceBook(withRow({ name: decomposed.repeat(MAX_BOOK_NAME_LENGTH) }))
+      parsePriceBook(withRow({ name: emoji.repeat(MAX_BOOK_NAME_LENGTH / 2) }))
         .ok,
     ).toBe(true);
     expect(
       parsePriceBook(
-        withRow({ name: decomposed.repeat(MAX_BOOK_NAME_LENGTH + 1) }),
+        withRow({ name: emoji.repeat(MAX_BOOK_NAME_LENGTH / 2 + 1) }),
       ).ok,
     ).toBe(false);
-    expect(
-      parsePriceBook(
-        withRow({ description: decomposed.repeat(MAX_DESCRIPTION_LENGTH) }),
-      ).ok,
-    ).toBe(true);
+  });
+
+  it("refuses a lone surrogate, which no database column holds, in a name and in a description", () => {
+    for (const lone of ["\ud800", "\udc00", "a\ud83dz"]) {
+      expect(refusalOf(withRow({ name: `n${lone}` })).detail).toContain("name");
+      expect(refusalOf(withRow({ description: `d${lone}` })).detail).toContain(
+        "description",
+      );
+    }
+    expect(parsePriceBook(withRow({ name: "\u{1F642}" })).ok).toBe(true);
+  });
+
+  it("refuses a name of only format characters or blank fillers (the direction marks are refused as direction controls, before blankness)", () => {
+    for (const name of [
+      "\u2060",
+      "\u00ad",
+      "\u034f",
+      "\u3164",
+      "\u115f",
+      "\u1160",
+    ]) {
+      expect(refusalOf(withRow({ name })).detail).toContain("blank");
+    }
   });
 });

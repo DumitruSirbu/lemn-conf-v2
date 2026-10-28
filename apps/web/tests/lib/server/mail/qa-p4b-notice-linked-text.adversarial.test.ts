@@ -80,7 +80,7 @@ describe("a parsed created-row name travels through the shop's notice", () => {
       "Органайзер",
       `Lamp${String.fromCodePoint(0x103)} ${String.fromCodePoint(0x1f642)}`,
       "1/2\u00a0inch",
-      "ş",
+      "\u00e9",
       "a\u200bb",
     ]) {
       const parsed = parsePriceBook(bookWith(name, "Pentru un sertar."));

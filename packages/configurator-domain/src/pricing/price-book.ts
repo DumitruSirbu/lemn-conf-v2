@@ -508,7 +508,8 @@ export function usableCoefficientOf(
 }
 
 /** Every rule id in a book: cabinet rules, then tiers, then accessories (built-in, then linked), then the depth rule's
- *  reserved id. `parse-price-book.ts` sweeps it for duplicates, since a repeated id makes a line untraceable to one rule.
+ *  reserved id. `parse-price-book.ts` sweeps it for duplicates, since a repeated id makes a line untraceable to one
+ *  rule.
  *
  *  The four lists are dereferenced bare, which is safe only because the parser's section checks
  *  establish they are lists before it calls this. */

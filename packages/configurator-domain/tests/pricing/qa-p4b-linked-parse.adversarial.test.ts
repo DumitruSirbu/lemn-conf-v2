@@ -383,19 +383,29 @@ describe("a created row's words refuse what the shop's one-line notice cannot ca
     expect(refusalOf(withRow(amendment)).code).toBe("INVALID_PRICE_BOOK");
   });
 
-  it("accepts a decomposed name, a letter and its combining mark being one letter once composed", () => {
-    expect(parsePriceBook(withRow({ name: "ş" })).ok).toBe(true);
+  it("refuses a decomposed name: the stored book is canonical, so text not already in NFC is refused, not rewritten", () => {
+    expect(refusalOf(withRow({ name: "e\u0301" })).code).toBe(
+      "INVALID_PRICE_BOOK",
+    );
+    expect(refusalOf(withRow({ description: "e\u0301" })).code).toBe(
+      "INVALID_PRICE_BOOK",
+    );
+    expect(parsePriceBook(withRow({ name: "\u00e9" })).ok).toBe(true);
   });
 
-  it("measures the limits on the NFC form: eighty decomposed letters fit the name, eighty-one do not", () => {
-    expect(parsePriceBook(withRow({ name: "ş".repeat(80) })).ok).toBe(true);
-    expect(parsePriceBook(withRow({ name: "ş".repeat(81) })).ok).toBe(false);
-    expect(parsePriceBook(withRow({ description: "ş".repeat(240) })).ok).toBe(
+  it("measures the limits in UTF-16 units of the declared string: eighty composed letters fit the name, eighty-one do not", () => {
+    expect(parsePriceBook(withRow({ name: "\u00e9".repeat(80) })).ok).toBe(
       true,
     );
-    expect(parsePriceBook(withRow({ description: "ş".repeat(241) })).ok).toBe(
+    expect(parsePriceBook(withRow({ name: "\u00e9".repeat(81) })).ok).toBe(
       false,
     );
+    expect(
+      parsePriceBook(withRow({ description: "\u00e9".repeat(240) })).ok,
+    ).toBe(true);
+    expect(
+      parsePriceBook(withRow({ description: "\u00e9".repeat(241) })).ok,
+    ).toBe(false);
   });
 
   it("counts an emoji as its two UTF-16 units today: forty fit the name, forty-one do not", () => {
@@ -420,18 +430,19 @@ describe("a created row's words refuse what the shop's one-line notice cannot ca
   });
 });
 
-describe("invisible characters outside the ruled set, pinned as they stand today", () => {
+describe("invisible characters beyond whitespace and the zero-width set are refused as a name (ruled: every format character and the blank fillers)", () => {
   it.each([
-    ["a word joiner", "⁠"],
-    ["a left-to-right mark", "‎"],
-    ["a soft hyphen", "­"],
-    ["an Arabic letter mark", "؜"],
-  ])(
-    "accepts today a name of only %s, which prints as nothing (the ruled set is whitespace, U+200B-200D and U+FEFF)",
-    (_, name) => {
-      expect(parsePriceBook(withRow({ name })).ok).toBe(true);
-    },
-  );
+    ["a word joiner", "\u2060"],
+    ["a left-to-right mark", "\u200e"],
+    ["a soft hyphen", "\u00ad"],
+    ["an Arabic letter mark", "\u061c"],
+    ["a combining grapheme joiner", "\u034f"],
+    ["a Hangul filler", "\u3164"],
+    ["a Hangul choseong filler", "\u115f"],
+    ["a Hangul jungseong filler", "\u1160"],
+  ])("refuses a name of only %s, which prints as nothing", (_, name) => {
+    expect(refusalOf(withRow({ name })).code).toBe("INVALID_PRICE_BOOK");
+  });
 });
 
 describe("a link names a row the book prices (ruled: the parser's job)", () => {

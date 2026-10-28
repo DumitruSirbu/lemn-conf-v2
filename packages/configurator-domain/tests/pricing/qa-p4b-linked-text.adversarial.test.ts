@@ -55,7 +55,7 @@ const VISIBLE_SAFE_PIECES = [
   "\u{1F468}\u200d\u{1F469}\u200d\u{1F467}",
   "1/2\u00a0inch",
   "a\u00a0b",
-  "ş",
+  "\u00e9",
   `Lumin${String.fromCodePoint(0x103)} 12 V`,
 ];
 

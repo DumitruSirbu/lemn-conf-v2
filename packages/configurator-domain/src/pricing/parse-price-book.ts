@@ -14,6 +14,8 @@
 //
 // Hand-written rather than Zod: a schema would duplicate `PriceBook`'s hand-authored interfaces and
 // would have to be opened up for both exceptions above.
+import { holdsNothingVisible } from "../visible-text.js";
+
 import {
   isAnchoredShape,
   PRICE_PER_SIZE_SHAPE,
@@ -22,6 +24,8 @@ import {
   boundedListOf,
   describeDeclared,
   enumerableFieldsOf,
+  firstDuplicate,
+  idAsText,
   invalidBook,
   isRecord,
   MAX_BOOK_DESCRIPTION_LENGTH,
@@ -35,6 +39,7 @@ import {
 } from "./book-reading.js";
 import {
   MAX_LINKED_ACCESSORIES,
+  refuseLinkedAccessoryConflicts,
   refuseUnreadableLinkedAccessories,
 } from "./parse-linked-accessories.js";
 import { refuseUnusablePercentageForm } from "./parse-percentage-form.js";
@@ -47,7 +52,6 @@ import {
 import {
   ACCESSORY_IDS,
   CABINET_SUPPLIERS,
-  listAccessoryIds,
   listRuleIds,
   PRICE_BOOK_CURRENCY,
   PRICE_BOOK_STATUSES,
@@ -222,7 +226,7 @@ function refuseUnusableSupplier(
   )
     return undefined;
   return invalidBook(
-    `The rule "${asText(ruleId)}" declares "suppliedBy" as ${describeDeclared(declared)}. ` +
+    `The rule "${idAsText(ruleId)}" declares "suppliedBy" as ${describeDeclared(declared)}. ` +
       `It is one of: ${CABINET_SUPPLIERS.join(", ")}`,
   );
 }
@@ -237,7 +241,7 @@ function refuseChargedCustomerSuppliedRule(
   const formula = readDeclared(declared, "formula");
   if (!isRecord(formula)) return undefined;
 
-  const named = `rule "${asText(ruleId)}"`;
+  const named = `rule "${idAsText(ruleId)}"`;
   const fields = enumerableFieldsOf(formula);
   if (fields === undefined)
     return invalidBook(`The ${named} could not be enumerated for its amounts`);
@@ -295,7 +299,7 @@ function refuseUnreadableFormula(
   declared: unknown,
   ruleId: unknown,
 ): PricingFailure | undefined {
-  const named = `rule "${asText(ruleId)}"`;
+  const named = `rule "${idAsText(ruleId)}"`;
   if (declared === UNREADABLE)
     return invalidBook(
       `The ${named} declares a formula that raised when it was read`,
@@ -350,7 +354,7 @@ function refuseUnreadableTier(
       `A ${kind} tier is an object. Found: ${describeDeclared(declared)}`,
     );
   const tierId = readDeclared(declared, "tierId");
-  const named = `${kind} tier "${asText(tierId)}"`;
+  const named = `${kind} tier "${idAsText(tierId)}"`;
   return (
     refuseUnusableIdentifier(tierId, `${kind}.tierId`) ??
     refuseUnusableIdentifier(
@@ -458,7 +462,7 @@ function refuseBlankUnkeyedName(
   named: string,
 ): PricingFailure | undefined {
   const name = readDeclared(declared, "name");
-  if (typeof name !== "string" || name.trim() !== "") return undefined;
+  if (typeof name !== "string" || !holdsNothingVisible(name)) return undefined;
   if (readDeclared(declared, "nameKey") !== undefined) return undefined;
   return invalidBook(
     `The ${named} declares a blank "name" and names no "nameKey", so it would render nothing`,
@@ -489,63 +493,15 @@ function refuseUnusableTextKey(
 /**
  * What the book's rules say about each other, once all are readable. A repeated rule id makes a line
  * untraceable; a repeated tier id makes `selectTier`'s `Array.find` resolve on declaration order; a row
- * priced twice does not say what the cabinet costs; a repeated accessory id gives two lines one id and one
- * availability switch; a linked accessory on a row the customer supplies would bill for what nobody sells.
+ * priced twice does not say what the cabinet costs; a linked accessory that collides with the built-ins or links to
+ * a row that cannot earn it is `refuseLinkedAccessoryConflicts`'s.
  */
 function refuseRepeatedId(book: PriceBook): PricingFailure | undefined {
   return (
     refuseRepeatedRuleId(book) ??
     refuseRepeatedTierId(book) ??
     refuseRowPricedTwice(book) ??
-    refuseRepeatedAccessoryId(book) ??
-    refuseLinkToUnpricedRow(book) ??
-    refuseLinkToCustomerSuppliedRow(book)
-  );
-}
-
-/** Across the two built-ins' field names and every linked accessory, so a created accessory cannot take a built-in's
- *  line id (`accessory:sinkProtectiveCover`) or its availability switch. */
-function refuseRepeatedAccessoryId(
-  book: PriceBook,
-): PricingFailure | undefined {
-  const repeated = firstDuplicate(listAccessoryIds(book));
-  if (repeated === undefined) return undefined;
-  return invalidBook(`Accessory id "${repeated}" is declared more than once`, {
-    id: repeated,
-  });
-}
-
-/** A link is to a row the book prices under its own build id: a placement is counted through the row it is priced as, so
- *  a link to anything else (a row the book does not price, a seeded variant's id) would earn nothing for ever. Whether
- *  the catalogue holds the row is the dashboard's judgement at publish, since pricing binds to no catalogue. */
-function refuseLinkToUnpricedRow(book: PriceBook): PricingFailure | undefined {
-  const pricedRows = new Set(book.cabinetRules.map((rule) => rule.buildId));
-  const linked = book.linkedAccessories.find(
-    (accessory) => !pricedRows.has(accessory.linkedBuildId),
-  );
-  if (linked === undefined) return undefined;
-  return invalidBook(
-    `Linked accessory "${linked.accessoryId}" is linked to "${linked.linkedBuildId}", a row the book has no cabinet rule for`,
-    { id: linked.accessoryId },
-  );
-}
-
-/** Only where the book itself says the row is the customer's. */
-function refuseLinkToCustomerSuppliedRow(
-  book: PriceBook,
-): PricingFailure | undefined {
-  const customerRows = new Set(
-    book.cabinetRules
-      .filter((rule) => rule.suppliedBy === "customer")
-      .map((rule) => rule.buildId),
-  );
-  const linked = book.linkedAccessories.find((accessory) =>
-    customerRows.has(accessory.linkedBuildId),
-  );
-  if (linked === undefined) return undefined;
-  return invalidBook(
-    `Linked accessory "${linked.accessoryId}" is linked to "${linked.linkedBuildId}", a row the customer supplies`,
-    { id: linked.accessoryId },
+    refuseLinkedAccessoryConflicts(book)
   );
 }
 
@@ -579,18 +535,4 @@ function refuseRowPricedTwice(book: PriceBook): PricingFailure | undefined {
     `Catalogue row "${repeated}" is priced by more than one rule`,
     { id: repeated },
   );
-}
-
-function firstDuplicate(ids: readonly string[]): string | undefined {
-  const seen = new Set<string>();
-  for (const id of ids) {
-    if (seen.has(id)) return id;
-    seen.add(id);
-  }
-  return undefined;
-}
-
-/** An id as a message renders it, whatever the book declared it as. */
-function asText(declared: unknown): string {
-  return typeof declared === "string" ? declared : describeDeclared(declared);
 }

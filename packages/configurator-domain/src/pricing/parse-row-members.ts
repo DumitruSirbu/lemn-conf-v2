@@ -4,6 +4,7 @@
 // declared and never a retired field, so this module needs to know none. Every read goes through `readDeclared`.
 import {
   boundedListOf,
+  idAsText,
   isRecord,
   readDeclared,
   refuseUnreadFields,
@@ -103,8 +104,8 @@ export interface RowListBounds {
 }
 
 /** Run once the book's sections are established as readable, and after the percentage form is, so a book still in a
- *  retired form is refused for the member it lacks before one it carries too many of. Every kind of row the book holds is
- *  listed here: `membersOf` catches a member missing from a kind, never a kind missing from this function. */
+ *  retired form is refused for the member it lacks before one it carries too many of. Every kind of row the book holds
+ *  is listed here: `membersOf` catches a member missing from a kind, never a kind missing from this function. */
 export function refuseUndeclaredRowMembers(
   book: Record<string, unknown>,
   bounds: RowListBounds,
@@ -140,7 +141,7 @@ function refuseUndeclaredTierMembers(
     const tierId = readDeclared(tier, "tierId");
     const refused = refuseUnreadFields(tier, kind.members, {
       shape: kind.shape,
-      named: `${kind.shape} "${textOf(tierId)}"`,
+      named: `${kind.shape} "${idAsText(tierId)}"`,
       ...(typeof tierId === "string" ? { id: tierId } : {}),
     });
     if (refused) return refused;
@@ -175,15 +176,10 @@ function refuseUndeclaredLinkedAccessoryMembers(
     const accessoryId = readDeclared(row, "accessoryId");
     const refused = refuseUnreadFields(row, LINKED_ACCESSORY.members, {
       shape: LINKED_ACCESSORY.shape,
-      named: `${LINKED_ACCESSORY.shape} "${textOf(accessoryId)}"`,
+      named: `${LINKED_ACCESSORY.shape} "${idAsText(accessoryId)}"`,
       ...(typeof accessoryId === "string" ? { id: accessoryId } : {}),
     });
     if (refused) return refused;
   }
   return undefined;
-}
-
-/** An id as a message renders it; a tier id of any other type was refused earlier, so this only has to be total. */
-function textOf(declared: unknown): string {
-  return typeof declared === "string" ? declared : "?";
 }

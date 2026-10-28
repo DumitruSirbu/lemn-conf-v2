@@ -136,7 +136,8 @@ describe("removedAccessoriesSince names what a customer has lost since they last
     removedAccessoriesSince({
       design,
       catalog: CATALOG,
-      book: BOOK,
+      seenBook: BOOK,
+      activeBook: BOOK,
       seen: availabilityOf(seen, "seen-revision"),
       current: availabilityOf(current, "current-revision"),
     });
@@ -171,7 +172,8 @@ describe("removedAccessoriesSince names what a customer has lost since they last
     const sameItems = removedAccessoriesSince({
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
-      book: BOOK,
+      seenBook: BOOK,
+      activeBook: BOOK,
       seen: availabilityOf([], "a"),
       current: availabilityOf([COVER], "b"),
     });
@@ -192,7 +194,8 @@ describe("removedAccessoriesSince names what a customer has lost since they last
       removedAccessoriesSince({
         design: KITCHEN_L_DESIGN,
         catalog: CATALOG,
-        book: BOOK,
+        seenBook: BOOK,
+        activeBook: BOOK,
         seen: NOTHING_DISABLED,
         current,
       })

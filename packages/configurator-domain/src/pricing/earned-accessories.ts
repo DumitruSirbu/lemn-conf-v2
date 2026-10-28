@@ -22,6 +22,7 @@ import {
 import { earnedLinkedAccessories } from "./linked-accessories.js";
 import {
   ACCESSORY_IDS,
+  listAccessoryIds,
   type AccessoryId,
   type PriceBook,
 } from "./price-book.js";
@@ -43,22 +44,27 @@ export function earnedAccessoryQuantities(
   };
 }
 
-/** The kitchen, the catalogue and the book that say what it earns, and the availability the customer last saw (`seen`)
- *  and the one that is current. The book is the one the kitchen is priced under now: a linked accessory is earned by
- *  the row it states there. */
+/** The kitchen and the catalogue that say what it earns; the book and availability the customer last saw (`seenBook`,
+ *  `seen`); and the book and availability in force (`activeBook`, `current`). */
 export interface RemovedAccessoriesRequest {
   readonly design: Design;
   readonly catalog: BodyCatalog;
-  readonly book: PriceBook;
+  readonly seenBook: PriceBook;
+  readonly activeBook: PriceBook;
   readonly seen: CatalogueAvailability;
   readonly current: CatalogueAvailability;
 }
 
 /**
- * The accessories this kitchen earns, built-in or linked, that `current` switches off and `seen` did not: what the
- * customer is told was removed since they last looked, as accessory items. One already off when they last looked is not
- * reported again, and one the kitchen does not earn (no sink, no rack host, no placement of the linked row) was never
- * theirs to lose.
+ * The accessories, built-in or linked, that the customer had in their kitchen when they last looked and that `current`
+ * has since switched off: what they are told was removed, as accessory items. "Had" is read against what they saw: the
+ * kitchen earned it under `seenBook`, and `seen` did not list it as off. So an accessory the dashboard created after
+ * that (published inactive, A-17) was never theirs to lose and is not reported; one already off when they looked is not
+ * reported again; and one the kitchen does not earn (no sink, no rack host, no placement of the linked row) never was.
+ *
+ * A linked accessory that `activeBook` no longer states is not reported either. It has not been switched off but
+ * deleted, which A-18 allows only for an accessory no kitchen uses; so for an earned one the case does not arise, and
+ * the money it took off is the prices-updated notice's (`pricesChangedBetween`).
  *
  * It takes the catalogue because whether a kitchen earns a sink cover is a fact about its bodies. Like the projection
  * it reads, it throws `UnknownBodyError` for a body the catalogue does not hold: price the design first, which refuses it
@@ -67,15 +73,18 @@ export interface RemovedAccessoriesRequest {
 export function removedAccessoriesSince({
   design,
   catalog,
-  book,
+  seenBook,
+  activeBook,
   seen,
   current,
 }: RemovedAccessoriesRequest): readonly ItemRef[] {
   const entries = projectDesignForDisplay(design, catalog).flatMap(
     (group) => group.entries,
   );
+  const statedNow = new Set(listAccessoryIds(activeBook));
   return distinctItemsInOrder(
-    earnedAccessoryIds({ entries, catalog, book })
+    earnedAccessoryIds({ entries, catalog, book: seenBook })
+      .filter((accessoryId) => statedNow.has(accessoryId))
       .map((accessoryId): ItemRef => ({ kind: "accessory", accessoryId }))
       .filter(
         (item) => isItemDisabled(current, item) && !isItemDisabled(seen, item),

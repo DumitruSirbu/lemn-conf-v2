@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
 import { removedAccessoriesSince } from "../../src/pricing/earned-accessories.js";
 import type { ItemRef } from "../../src/pricing/catalogue-availability.js";
-import type { LinkedAccessoryRule } from "../../src/pricing/price-book.js";
+import type {
+  LinkedAccessoryRule,
+  PriceBook,
+} from "../../src/pricing/price-book.js";
 import {
   accessory,
   availabilityOf,
@@ -33,7 +36,8 @@ function removed(seen: readonly ItemRef[], current: readonly ItemRef[]) {
   return removedAccessoriesSince({
     design: KITCHEN_L_DESIGN,
     catalog: CATALOG,
-    book: BOOK,
+    seenBook: BOOK,
+    activeBook: BOOK,
     seen: availabilityOf(seen, "seen"),
     current: availabilityOf(current, "current"),
   });
@@ -69,7 +73,8 @@ describe("removedAccessoriesSince takes in linked accessories (P4a-d, P4b)", () 
       removedAccessoriesSince({
         design: KITCHEN_L_DESIGN,
         catalog: CATALOG,
-        book: bookWithLinked([]),
+        seenBook: bookWithLinked([]),
+        activeBook: bookWithLinked([]),
         seen: NOTHING_DISABLED,
         current: availabilityOf([accessory(EARNED.accessoryId)]),
       }),
@@ -109,7 +114,8 @@ describe("removedAccessoriesSince takes in linked accessories (P4a-d, P4b)", () 
         const named = removedAccessoriesSince({
           design: KITCHEN_L_DESIGN,
           catalog: CATALOG,
-          book,
+          seenBook: book,
+          activeBook: book,
           seen: NOTHING_DISABLED,
           current: availabilityOf(disabled),
         }).map((item) => (item.kind === "accessory" ? item.accessoryId : ""));
@@ -117,5 +123,47 @@ describe("removedAccessoriesSince takes in linked accessories (P4a-d, P4b)", () 
         expect([...named].sort()).toEqual([...noLongerBilled].sort());
       }),
     );
+  });
+});
+
+describe("an accessory is reported only if the customer had it when they last looked (F1)", () => {
+  const earned = accessory(EARNED.accessoryId);
+  const before = bookWithLinked([]);
+  const removedUnder = (books: {
+    seenBook: PriceBook;
+    activeBook: PriceBook;
+    current: readonly ItemRef[];
+  }) =>
+    removedAccessoriesSince({
+      design: KITCHEN_L_DESIGN,
+      catalog: CATALOG,
+      seenBook: books.seenBook,
+      activeBook: books.activeBook,
+      seen: NOTHING_DISABLED,
+      current: availabilityOf(books.current, "current"),
+    });
+
+  it("names nothing for one created after the marker and inactive now", () => {
+    expect(
+      removedUnder({ seenBook: before, activeBook: BOOK, current: [earned] }),
+    ).toEqual([]);
+  });
+
+  it("still names a built-in disabled since, whatever the books", () => {
+    expect(
+      removedUnder({ seenBook: before, activeBook: BOOK, current: [COVER] }),
+    ).toEqual([COVER]);
+  });
+
+  it("names one the kitchen had under the seen book and has since lost, once the active book states it too", () => {
+    expect(
+      removedUnder({ seenBook: BOOK, activeBook: BOOK, current: [earned] }),
+    ).toEqual([earned]);
+  });
+
+  it("does not name one the active book no longer states: it was deleted, not switched off", () => {
+    expect(
+      removedUnder({ seenBook: BOOK, activeBook: before, current: [earned] }),
+    ).toEqual([]);
   });
 });

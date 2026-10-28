@@ -5,7 +5,7 @@
 // - It re-derives no order and no label: line order is `projectDesignForDisplay`'s (ADR 0063).
 // - It fails whole: every refusal returns before a single line is published.
 import { widthDerivedDoorLeafCount } from "../cabinet-handles.js";
-import { resolveCatalogEquivalent } from "../catalog.js";
+import { pricedAsBuildId } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
 import {
@@ -371,12 +371,14 @@ function failureCodeOf(error: unknown): OrdinaryPricingFailureCode {
  * (ADR 0021) and are priced under their own ids.
  */
 function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
-  const equivalent = resolveCatalogEquivalent(catalog, buildId);
-  if (equivalent) return equivalent;
-  const definition = catalog.get(buildId);
+  const pricedAsId = pricedAsBuildId(catalog, buildId);
+  const definition = catalog.get(pricedAsId);
+  if (definition?.insertable === true) {
+    return { buildId: pricedAsId, definition };
+  }
   const declaredEquivalentId = definition?.catalogEquivalentId;
   return {
-    buildId,
+    buildId: pricedAsId,
     definition,
     ...(declaredEquivalentId === undefined
       ? {}
@@ -1015,7 +1017,7 @@ function isSwitchedOff(
 
 /** What a rule must state to be billed: a built-in's rule (keyed words, a required description) and a linked one's
  *  (authored words, an optional description) both satisfy it. */
-interface AccessoryRuleBilled {
+interface BillableAccessoryRule {
   readonly ruleId: string;
   readonly name: string;
   readonly description?: string | undefined;
@@ -1026,7 +1028,7 @@ interface AccessoryRuleBilled {
 
 /** One accessory and how many the design earns of it, before any amount is formed. */
 interface BilledAccessory {
-  readonly rule: AccessoryRuleBilled | undefined;
+  readonly rule: BillableAccessoryRule | undefined;
   readonly accessoryId: string;
   readonly quantity: number;
 }

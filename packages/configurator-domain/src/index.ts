@@ -285,7 +285,7 @@ export {
 export {
   earnedLinkedAccessories,
   type EarnedLinkedAccessory,
-  type LinkedAccessoryEarning,
+  type LinkedAccessoryEarningRequest,
 } from "./pricing/linked-accessories.js";
 export { MAX_LINKED_ACCESSORIES } from "./pricing/parse-linked-accessories.js";
 export {
