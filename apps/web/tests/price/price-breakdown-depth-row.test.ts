@@ -7,6 +7,7 @@ import {
   DEEP_CABINET_DEPTH_MM,
   DEFAULT_CABINET_DEPTH_MM,
   KITCHEN_L_DESIGN,
+  MAX_DEEP_CABINET_PERCENT,
   priceDesign,
   projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
@@ -18,9 +19,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   describeBreakdownRows,
+  describeDepthLine,
   describePriceBreakdown,
   DepthLineWithoutMaterialRowError,
+  DepthLineWithoutPercentError,
   listWholeKitchenRows,
+  MultipleDepthLinesError,
 } from "@/price/price-breakdown-model";
 import { describeRoundedAmount } from "@/price/starting-price";
 
@@ -193,3 +197,61 @@ function depthPercentOf(line: PriceLine | undefined): number {
   if (line?.kind !== "depth") throw new Error("expected a depth line");
   return line.deepCabinetPercent;
 }
+
+describe("a stored depth line is worded only when its percent is a whole number the rule can state", () => {
+  const { priced } = breakdownAt(DEEP_CABINET_DEPTH_MM);
+  const stored = priced.lines.find((line) => line.kind === "depth");
+
+  function wordedAt(percent: number) {
+    if (stored?.kind !== "depth") throw new Error("expected a depth line");
+    return describeDepthLine(
+      { ...stored, deepCabinetPercent: percent },
+      content,
+    );
+  }
+
+  it.each([
+    -5,
+    -1,
+    12.5,
+    0.1,
+    MAX_DEEP_CABINET_PERCENT + 1,
+    1000,
+    Number.MAX_SAFE_INTEGER + 2,
+  ])("refuses %s % rather than printing it as the stored rule", (percent) => {
+    expect(() => wordedAt(percent)).toThrow(DepthLineWithoutPercentError);
+  });
+
+  it.each([0, 1, 12, MAX_DEEP_CABINET_PERCENT])(
+    "words %s %, the ends of the rule's range included",
+    (percent) => {
+      expect(wordedAt(percent).label).toBe(
+        content.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, percent),
+      );
+    },
+  );
+});
+
+describe("a priced design with more than one depth line is refused, not listed by its first", () => {
+  it("throws on two depth lines, naming both, though the total counts both", () => {
+    const { priced } = breakdownAt(DEEP_CABINET_DEPTH_MM);
+    const depthLine = priced.lines.find((line) => line.kind === "depth");
+    if (depthLine === undefined) throw new Error("expected a depth line");
+    const twice = {
+      ...priced,
+      lines: [...priced.lines, { ...depthLine, lineId: "kitchen:depth-again" }],
+    };
+    const design = kitchenAt(DEEP_CABINET_DEPTH_MM);
+
+    expect(() =>
+      describeBreakdownRows({
+        content,
+        priced: twice,
+        groups: projectDesignForDisplay(
+          design,
+          buildKitchenLBodyCatalog(DEEP_CABINET_DEPTH_MM),
+        ),
+      }),
+    ).toThrow(MultipleDepthLinesError);
+  });
+});

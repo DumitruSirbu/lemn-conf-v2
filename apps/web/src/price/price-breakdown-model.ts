@@ -12,16 +12,17 @@
 // What is shown is rounded again, up to the thousand MDL, so shown lines and a shown total need not sum: both round
 // through `roundUpToThousandMdl` and the difference can exceed a whole step. The disclaimer and note carry that, so
 // nothing here adds a subtotal, an equality claim, or a row labelled *total*.
-import type {
-  AccessoryPriceLine,
-  CabinetPriceLine,
-  DepthPriceLine,
-  DisplayEntry,
-  DisplayGroup,
-  PricedDesign,
-  PriceLine,
-  PricingResult,
-  WholeKitchenPriceLine,
+import {
+  MAX_DEEP_CABINET_PERCENT,
+  type AccessoryPriceLine,
+  type CabinetPriceLine,
+  type DepthPriceLine,
+  type DisplayEntry,
+  type DisplayGroup,
+  type PricedDesign,
+  type PriceLine,
+  type PricingResult,
+  type WholeKitchenPriceLine,
 } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";
@@ -157,15 +158,37 @@ export class DepthLineWithoutMaterialRowError extends Error {
 }
 
 /**
- * A priced depth line carries no usable percentage. The type says it always does; a snapshot stored by a build from
- * before the line carried it does not. Thrown, never worded: a label would print "adaos undefined %".
+ * A priced depth line carries no usable percentage: not a whole number from 0 to the rule's bound. The type says it
+ * always does; a snapshot stored by a build from before the line carried it, or a damaged one, does not. Thrown, never
+ * worded: a label would print "adaos undefined %", or a percent no book could state.
  */
 export class DepthLineWithoutPercentError extends Error {
   constructor(depthLineKey: string) {
     super(
-      `The depth line carries no numeric deepCabinetPercent to word it with: ${depthLineKey}`,
+      `The depth line carries no whole deepCabinetPercent from 0 to ${String(MAX_DEEP_CABINET_PERCENT)}: ${depthLineKey}`,
     );
     this.name = "DepthLineWithoutPercentError";
+  }
+}
+
+/** A priced depth line names no depth: not a positive whole number of millimetres. Thrown, never worded. */
+export class DepthLineWithoutDepthError extends Error {
+  constructor(depthLineKey: string) {
+    super(
+      `The depth line carries no positive whole depthMm to word it with: ${depthLineKey}`,
+    );
+    this.name = "DepthLineWithoutDepthError";
+  }
+}
+
+/** The priced design holds more than one depth line. The query publishes one, and listing only the first would show
+ *  rows that explain less than the total, which counts them all. */
+export class MultipleDepthLinesError extends Error {
+  constructor(depthLineKeys: readonly string[]) {
+    super(
+      `The priced design holds ${String(depthLineKeys.length)} depth lines, one is allowed: ${depthLineKeys.join(", ")}`,
+    );
+    this.name = "MultipleDepthLinesError";
   }
 }
 
@@ -222,8 +245,7 @@ export function describeDepthLine(
   line: DepthPriceLine,
   content: Content,
 ): BreakdownDepthLine {
-  if (!Number.isFinite(line.deepCabinetPercent))
-    throw new DepthLineWithoutPercentError(line.lineId);
+  assertWordable(line);
   return {
     key: line.lineId,
     label: content.priceBreakdown.depthLine(
@@ -233,6 +255,26 @@ export function describeDepthLine(
     scope: content.priceBreakdown.depthLineScope,
     amountText: describeRowAmount(line.amountMinor, content),
   };
+}
+
+/** What a stored line must hold to be worded: a whole depth in millimetres and a whole percent the rule can state. */
+function assertWordable(line: DepthPriceLine): void {
+  if (!isPositiveWhole(line.depthMm))
+    throw new DepthLineWithoutDepthError(line.lineId);
+  if (!isWholePercent(line.deepCabinetPercent))
+    throw new DepthLineWithoutPercentError(line.lineId);
+}
+
+function isPositiveWhole(value: number): boolean {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
+function isWholePercent(value: number): boolean {
+  return (
+    Number.isSafeInteger(value) &&
+    value >= 0 &&
+    value <= MAX_DEEP_CABINET_PERCENT
+  );
 }
 
 /**
@@ -308,8 +350,12 @@ function describeDepthFields(
   unplacedLines: readonly UnplacedPriceLine[],
   content: Content,
 ): DepthLineFields {
-  const depthLine = lines.find(isDepthLine);
+  const [depthLine, ...surplus] = lines.filter(isDepthLine);
   if (depthLine === undefined) return {};
+  if (surplus.length > 0)
+    throw new MultipleDepthLinesError(
+      [depthLine, ...surplus].map((line) => line.lineId),
+    );
   const material = unplacedLines.find((line) => line.kind === "material");
   return {
     depthLine: describeDepthLine(depthLine, content),
