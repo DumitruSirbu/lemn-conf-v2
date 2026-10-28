@@ -1,5 +1,3 @@
-import { normaliseBand } from "../bands.js";
-import { entryLabel } from "../catalog.js";
 import { countHardwareMechanisms } from "../hardware-mechanisms.js";
 import {
   anchoredShapeReadsDoorLeaves,
@@ -20,7 +18,6 @@ import {
   type HardwareTier,
   type PriceBook,
 } from "../pricing/price-book.js";
-import type { DisplayEntry } from "../queries/design-projection.js";
 import type { BodyCatalog } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
 
@@ -31,6 +28,7 @@ import {
 import {
   bookFaultOf,
   buildableHeightsMm,
+  displayEntryOf,
   doorLeavesOf,
   exactAmountOf,
   isBuildableHeightMm,
@@ -354,7 +352,7 @@ function hardwareMinorAt(
   const { hardware } = setting;
   if (hardware === undefined) return undefined;
   const counts = countHardwareMechanisms(
-    [bodyOnTheFloor(setting, widthMm)],
+    [displayEntryOf(setting.row, { widthMm, heightMm: setting.heightMm })],
     setting.catalog,
   );
   return roundHalfUpToTenLei(
@@ -379,26 +377,5 @@ function termOf(
     coefficientMinor: usableCoefficientOf(rateMinor, field),
     count,
     field,
-  };
-}
-
-/** One body of the priced-as row at this width, the way a projection of a kitchen would list it. */
-function bodyOnTheFloor(
-  setting: PreviewSetting,
-  widthMm: number,
-): DisplayEntry {
-  const { buildId, definition } = setting.row;
-  return {
-    placementId: "preview",
-    buildId,
-    label: entryLabel(buildId),
-    wall: "A",
-    band: normaliseBand(definition.band),
-    rawBand: definition.band,
-    alongMm: 0,
-    y0Mm: 0,
-    widthMm,
-    heightMm: setting.heightMm,
-    kitchenSettings: {},
   };
 }

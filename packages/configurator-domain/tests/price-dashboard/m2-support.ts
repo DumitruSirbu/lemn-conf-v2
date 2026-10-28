@@ -16,6 +16,7 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricedDesign } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import type { BodyCatalog } from "../../src/void-engine.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 export const SHALLOW_DEPTH_MM = 600;
 export const DEEP_DEPTH_MM = 700;
@@ -139,6 +140,7 @@ export function priceOneCabinet(
       hardwareTierId: setting.hardwareTierId,
     },
     deepeningRows: DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) throw new Error(result.failure.code);
   return result.priced;

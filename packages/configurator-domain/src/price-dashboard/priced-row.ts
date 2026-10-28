@@ -1,5 +1,6 @@
-import { widthDerivedDoorLeafCount } from "../cabinet-handles.js";
+import { normaliseBand } from "../bands.js";
 import {
+  entryLabel,
   resolveCatalogEquivalent,
   resolveWidthRangesMm,
   toInsertableBody,
@@ -13,7 +14,6 @@ import {
   type CornerAssemblyPiece,
 } from "../corner-assembly-size.js";
 import type { DesignRoom } from "../design.js";
-import { doorLeafCount, frontPopulationQueryFor } from "../front-population.js";
 import { toMillimetres } from "../millimetres.js";
 import {
   MalformedPriceDimensionError,
@@ -28,13 +28,15 @@ import {
   type PriceFormula,
   type PricedBody,
 } from "../pricing/price-book.js";
+import { describePricedBody } from "../pricing/price-design.js";
+import type { DisplayEntry } from "../queries/design-projection.js";
 import { WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
 // What a price rule says about a catalogue row at one built size, shared by the book's judgement and the cabinet
-// preview so the two read the same widths, the same heights and the same leaves. It builds the `PricedBody` the way
-// `describePricedBody` in `pricing/price-design.ts` does for a placed body (that function is private to the query), and
-// the one exact amount comes from `amountForBody`. A test holds this mirror to `priceDesign` on a one-cabinet design.
+// preview so the two read the same widths, the same heights and the same leaves. The `PricedBody` is the query's own
+// `describePricedBody`, handed an entry for the body that stands, and the one exact amount comes from `amountForBody`.
+// A test holds the result to `priceDesign` on a one-cabinet design.
 //
 // A body is priced by the rule of the row it is priced as (ADR 0022), but its door leaves are counted from its own
 // front population: a seeded `wall-1door-300` keeps one leaf at any width. `exactAmountOf` takes the body that stands
@@ -128,12 +130,9 @@ export function bookFaultOf(error: unknown): BookFault | undefined {
 
 /** The leaves the row's body carries when built at this size: the count the door step and the hinges both bill. */
 export function doorLeavesOf(row: PricedRow, size: BuiltSize): number {
-  return doorLeafCount(
-    frontPopulationQueryFor({
-      body: { buildId: row.buildId, ...size },
-      definition: row.definition,
-    }),
-  );
+  const counted = pricedBodyOf(row, size, row).builtDoorLeafCount;
+  if (counted === undefined) throw new UnpricedBodyError(row.buildId);
+  return counted();
 }
 
 function pricedBodyOf(
@@ -141,17 +140,42 @@ function pricedBodyOf(
   size: BuiltSize,
   standing: PricedRow,
 ): PricedBody {
+  const described = describePricedBody(
+    displayEntryOf(standing, size),
+    row,
+    new Map([[standing.buildId, standing.definition]]),
+  );
+  if ("failure" in described) {
+    throw new UnpricedBodyError(row.buildId, described.failure.detail);
+  }
+  return described.value;
+}
+
+/** A body that stands as a row cannot be described to the formulas: its front population or its handle count is
+ *  undeclared. A defect in the catalogue, not a fact about a book. */
+export class UnpricedBodyError extends Error {
+  constructor(buildId: string, detail = "it declares no door leaves") {
+    super(`A body priced as "${buildId}" cannot be described: ${detail}`);
+    this.name = "UnpricedBodyError";
+  }
+}
+
+/** One body of this row at this size, the way a projection of a kitchen would list it: standing on the floor with the
+ *  kitchen's default handles, so none is push-to-open. */
+export function displayEntryOf(row: PricedRow, size: BuiltSize): DisplayEntry {
+  const { buildId, definition } = row;
   return {
+    placementId: "preview",
+    buildId,
+    label: entryLabel(buildId),
+    wall: "A",
+    band: normaliseBand(definition.band),
+    rawBand: definition.band,
+    alongMm: 0,
+    y0Mm: 0,
     widthMm: size.widthMm,
     heightMm: size.heightMm,
-    doorLeafCount: widthDerivedDoorLeafCount({
-      buildId: row.buildId,
-      rule: row.definition.cabinetHandles,
-      widthMm: size.widthMm,
-    }),
-    doorLeafCountAt: (widthMm) =>
-      doorLeavesOf(row, { widthMm, heightMm: size.heightMm }),
-    builtDoorLeafCount: () => doorLeavesOf(standing, size),
+    kitchenSettings: {},
   };
 }
 
