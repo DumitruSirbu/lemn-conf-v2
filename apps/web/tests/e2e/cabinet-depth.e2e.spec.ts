@@ -40,7 +40,12 @@ async function chooseADepthThatIsNotCurrent(page: Page): Promise<string> {
   throw new Error("every declared depth is already the current one");
 }
 
-test("applies a chosen depth, and the total does not move with it", async ({
+/** The whole lei a rendered figure such as "95 000 MDL" states. */
+function leiOf(figure: string): number {
+  return Number(figure.replace(/\D/g, ""));
+}
+
+test("applies a chosen depth, and a deeper kitchen costs more", async ({
   page,
 }) => {
   const before = await storedDesign(page);
@@ -57,11 +62,17 @@ test("applies a chosen depth, and the total does not move with it", async ({
   expect(after.cabinetDepthMm).toBe(chosen);
   expect(after.updatedAt).not.toBe(before.updatedAt);
 
-  // The depth adds no price line (the sheet's own note): the figure is the same kitchen at a different depth.
+  // The depth is priced (ADR 0100 Amendment, ADR 0177 A-1): the seeded book's depth rule is above 0 %, so the
+  // deeper kitchen's figure rises and the shallower one's falls.
   await page.getByTestId("global-settings-trigger").tap();
-  expect(await page.getByTestId("global-settings-figure").innerText()).toBe(
-    figureBefore,
-  );
+  const figureAfter = await page
+    .getByTestId("global-settings-figure")
+    .innerText();
+  if (Number(chosen) > Number(before.cabinetDepthMm)) {
+    expect(leiOf(figureAfter)).toBeGreaterThan(leiOf(figureBefore));
+  } else {
+    expect(leiOf(figureAfter)).toBeLessThan(leiOf(figureBefore));
+  }
 });
 
 test("writes nothing when a chosen depth is cancelled", async ({ page }) => {
