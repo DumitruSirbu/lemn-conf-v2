@@ -367,13 +367,13 @@ describe("the quantity a linked accessory earns, against an independent oracle (
   });
 });
 
-describe("a linked accessory leaves everything else as it was (P4b-b), over kitchens that name every setting", () => {
+describe("a linked accessory leaves everything else as it was (P4b-b), over kitchens that name every setting and crowded ones", () => {
   const settingsKitchens = [KITCHEN_L_DESIGN, kitchenNamingEverything()];
 
   it("keeps every non-linked line, and the total less the linked lines, equal to the book with none", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...settingsKitchens),
+        fc.oneof(fc.constantFrom(...settingsKitchens), aCrowdedKitchen),
         aListOfLinkedRules,
         (design, rules) => {
           const without = pricedOrThrow(
