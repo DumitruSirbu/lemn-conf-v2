@@ -77,6 +77,9 @@ export interface DepthPriceLine extends PriceLineCommon {
   readonly kind: "depth";
   /** The depth the design is built at, so the surface names it ("Adâncime 700 mm") without knowing it. */
   readonly depthMm: number;
+  /** The depth rule's percentage this line was priced with, stored beside the amount so a reader of a stored snapshot can
+   *  word the uplift without the live book (ADR 0154 decision 8). */
+  readonly deepCabinetPercent: number;
 }
 
 /** An extra the design earns rather than chooses: the two sink extras (ADR 0070 decision 4). The same

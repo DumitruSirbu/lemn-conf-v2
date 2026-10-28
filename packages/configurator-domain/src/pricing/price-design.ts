@@ -809,7 +809,10 @@ function priceCabinetsInPercentages(
       materialLine: materialLine.value,
       depthLines: depthLineOf(
         split.value.cabinets.some(({ cabinet }) => cabinet.deepens),
-        split.value.depthLineMinor,
+        {
+          amountMinor: split.value.depthLineMinor,
+          deepCabinetPercent: priced.rates.deepCabinetPercent,
+        },
       ),
     },
   };
@@ -851,7 +854,7 @@ function takesTheDepthUplift(
 /** A depth line exists if and only if some cabinet deepens: then at 0 % it is present and its amount is 0. */
 function depthLineOf(
   isAnyCabinetDeepening: boolean,
-  depthLineMinor: number,
+  depth: { readonly amountMinor: number; readonly deepCabinetPercent: number },
 ): readonly DepthPriceLine[] {
   if (!isAnyCabinetDeepening) return [];
   const kind = "depth";
@@ -861,9 +864,10 @@ function depthLineOf(
       kind,
       ruleId: DEPTH_RULE_ID,
       depthMm: DEEP_CABINET_DEPTH_MM,
+      deepCabinetPercent: depth.deepCabinetPercent,
       quantity: WHOLE_KITCHEN_QUANTITY,
-      unitAmountMinor: depthLineMinor,
-      amountMinor: WHOLE_KITCHEN_QUANTITY * depthLineMinor,
+      unitAmountMinor: depth.amountMinor,
+      amountMinor: WHOLE_KITCHEN_QUANTITY * depth.amountMinor,
     },
   ];
 }

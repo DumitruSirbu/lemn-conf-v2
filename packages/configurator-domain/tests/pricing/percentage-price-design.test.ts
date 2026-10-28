@@ -302,8 +302,26 @@ describe("which cabinets take the depth line (P2-c)", () => {
       kind: "depth",
       lineId: "kitchen:depth",
       depthMm: DEEP_MM,
+      deepCabinetPercent: base.deepCabinetPercent,
       quantity: 1,
     });
+  });
+
+  it("carries the percentage it was priced with, whatever the book states, so a stored line is worded without the book", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: MAX_DEEP_CABINET_PERCENT }),
+        (deepCabinetPercent) => {
+          const [depth] = linesOfKind(
+            pricedOf({ ...base, deepCabinetPercent }),
+            "depth",
+          );
+
+          expect(depth).toMatchObject({ kind: "depth", deepCabinetPercent });
+        },
+      ),
+      { numRuns: NUM_RUNS },
+    );
   });
 
   it("never takes the uplift from a customer-supplied row, even when the row is declared to deepen", () => {
