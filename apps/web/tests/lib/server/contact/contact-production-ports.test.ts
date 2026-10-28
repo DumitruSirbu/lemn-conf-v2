@@ -90,6 +90,21 @@ describe("the contact's production ports, made for one request", () => {
     expect(ports.bookVersionId).toBe(SAMPLE_PRICE_VERSION_ID);
   });
 
+  it("hands the availability read beside the book, so the ports price under what is switched off now", async () => {
+    const switchedOff = {
+      revision: "12",
+      disabled: [{ kind: "handle", handle: "black" }],
+    } as const;
+    spies.readActivePriceBook.mockResolvedValue({
+      ...SAMPLE_PRICE_ROOT,
+      availability: switchedOff,
+    });
+
+    const ports = await makeContactProductionPorts(new Headers());
+
+    expect(ports.availability).toEqual(switchedOff);
+  });
+
   it("is refused when there is no active version, and makes no ports to price under a sample", async () => {
     spies.readActivePriceBook.mockResolvedValue(NO_PRICE_BOOK);
 

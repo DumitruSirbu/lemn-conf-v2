@@ -47,6 +47,7 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricingResult } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import { ANCHORED_SHAPES } from "../../src/pricing/anchored-price-formula.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 
@@ -70,6 +71,7 @@ function priceSeededKitchen(book: unknown): PricingResult {
     book: book as PriceBook,
     pricingVersion: BOOK.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 

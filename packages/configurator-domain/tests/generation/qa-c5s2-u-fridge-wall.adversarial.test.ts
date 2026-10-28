@@ -53,6 +53,7 @@ import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { gateVerdictFor } from "../support/u-gate-verdict.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
   const { withTheFreeEndFillSwitchable } = await import(
@@ -305,6 +306,7 @@ function cabinetPricesById(design: Design): Map<string, number> {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
   if (!result.ok) {

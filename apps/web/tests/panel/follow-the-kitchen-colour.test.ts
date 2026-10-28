@@ -52,6 +52,7 @@ import { pickerSectionOf, swatchSectionOf } from "../support/panel-sections";
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const PAL_ANTRACIT = paletteFinish("pal.antracit");
 
@@ -298,6 +299,7 @@ describe("the global settings sheet is the level being followed, so it offers no
       pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
       selections: design.settings,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     };
     const view = describeGlobalSettings({
       deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,

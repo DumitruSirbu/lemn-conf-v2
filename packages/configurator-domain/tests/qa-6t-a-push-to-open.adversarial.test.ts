@@ -33,6 +33,7 @@ import { toMetres, toMillimetres } from "../src/millimetres.js";
 import type { PriceBook } from "../src/pricing/price-book.js";
 import { priceDesign } from "../src/pricing/price-design.js";
 import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 import { roundedToTenLei } from "./support/line-amounts.js";
 import { SAMPLE_PRICE_BOOK } from "../src/pricing/sample-price-book.js";
 import { isPushToOpen, TOP_ROW_Y0_MM } from "../src/push-to-open.js";
@@ -630,6 +631,7 @@ function hardwareAmountOf(
     pricingVersion: book.version,
     selections: { hardwareTierId: tierId },
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) throw new Error(`design refused: ${result.failure.code}`);
   const line = result.priced.lines.find(

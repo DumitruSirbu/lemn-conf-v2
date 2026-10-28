@@ -28,6 +28,7 @@ import { describeEditability } from "@/store/editability";
 import { SUM_CLAIM_PATTERN } from "../support/ruled-price-copy";
 import { MDF_KITCHEN_WEARING_CHOSEN_COLOURS } from "../support/mdf-kitchen-wearing-chosen-colours";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const SURFACE_ID = "settings";
 
@@ -132,6 +133,7 @@ function viewFor(options: {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   };
   return describeGlobalSettings({
     deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,

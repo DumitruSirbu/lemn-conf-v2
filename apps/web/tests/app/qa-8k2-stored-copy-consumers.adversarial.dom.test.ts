@@ -35,6 +35,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 import roMessages from "../../src/messages/ro.json";
 import { underSamplePriceBook } from "../support/sample-price-root";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 vi.mock("@/app/configurator/configure/configure-screen", () => ({
   ConfigureScreen: EveryConsumer,
@@ -95,6 +96,7 @@ function priceOf(design: Design): PricingResult {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
 }

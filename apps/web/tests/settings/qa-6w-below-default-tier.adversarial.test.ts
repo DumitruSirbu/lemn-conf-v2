@@ -41,6 +41,7 @@ import { describeEditability } from "@/store/editability";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { roundedToTenLei } from "../support/ten-lei-amounts";
 
@@ -123,6 +124,7 @@ function offerOf(
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 
@@ -134,6 +136,7 @@ function pricingOf(design: Design, book: PriceBook = BOOK): PricingResult {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 
@@ -682,6 +685,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
         book: BOOK,
         pricingVersion: `${SAMPLE_PRICE_BOOK_VERSION}-retired`,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       }),
       offer: offerWholeKitchenTiers({
         design: DRAWERS_ONLY,
@@ -689,6 +693,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
         book: BOOK,
         pricingVersion: `${SAMPLE_PRICE_BOOK_VERSION}-retired`,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       }),
       groups: projectDesignForDisplay(DRAWERS_ONLY, CATALOG),
       applied: {},

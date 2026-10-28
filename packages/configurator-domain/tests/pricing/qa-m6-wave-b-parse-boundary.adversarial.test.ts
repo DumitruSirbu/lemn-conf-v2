@@ -52,6 +52,7 @@ import {
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
@@ -66,6 +67,7 @@ function priceSeededKitchen(book: unknown): PricingResult {
     book: book as PriceBook,
     pricingVersion: BOOK.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 
@@ -552,6 +554,7 @@ describe("a repeated tier id is refused before declaration order can decide a pr
       pricingVersion: BOOK.version,
       selections: { materialTierId: first.tierId },
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
 
     expect(result.ok).toBe(false);

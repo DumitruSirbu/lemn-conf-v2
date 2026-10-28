@@ -37,10 +37,12 @@ import {
 import { PriceBreakdownSurface } from "@/price/price-breakdown";
 import { describeRoundedAmount } from "@/price/starting-price";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 function priceOf(design: Design): PricingResult {
   return priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -447,6 +449,7 @@ describe("a pricing failure", () => {
   it("offers no breakdown at all — not an empty one, not a zeroed one", () => {
     const failed = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

@@ -39,6 +39,7 @@ import { priceDesign } from "../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../src/pricing/sample-price-book.js";
 import { InvalidDesignError } from "../src/repository.js";
 import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 
 /** Every version arm this build still carries a document forward from, plus the one it writes.
  *
@@ -224,6 +225,7 @@ describe("a legacy document is billed at PAL, which is the half the ruling was t
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       // Exactly what `use-priced-design.ts` passes: the design's own settings.
       selections: design.settings,
     });
@@ -606,6 +608,7 @@ describe("colour never moves a price, even when every cabinet wears a different 
         book: SAMPLE_PRICE_BOOK,
         pricingVersion: SAMPLE_PRICE_BOOK.version,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         selections: design.settings,
       }),
     );

@@ -54,6 +54,7 @@ import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 vi.mock("../../src/generation/free-end-fill.js", async (importOriginal) => {
   const { withTheFreeEndFillSwitchable } = await import(
@@ -305,6 +306,7 @@ function priceLinesById(design: Design): Map<string, number> {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
   if (!result.ok)

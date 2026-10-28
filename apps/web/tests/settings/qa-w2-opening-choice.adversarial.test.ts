@@ -46,6 +46,7 @@ import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** Fixed, so a failing run is reproducible from the file rather than from a CI log. */
 const PROPERTY_SEED = 20260907;
@@ -67,6 +68,7 @@ function offerFor(design: Design): WholeKitchenTierOffer {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
 }
@@ -239,6 +241,7 @@ describe("a book whose own default is the withdrawn tier", () => {
         book: bookWithoutItsDefault,
         pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         selections: KITCHEN_L_DESIGN.settings,
       }),
     ).toThrow(UnofferedDefaultTierError);
@@ -464,6 +467,7 @@ function priceDesignOf(design: Design) {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
 }

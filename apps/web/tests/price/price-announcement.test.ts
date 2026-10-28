@@ -40,6 +40,7 @@ import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
 import { PAL_KITCHEN } from "../support/panel-material";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** The same two seams `PriceBar` reads, stubbed for the same reason the adversarial suite stubs
  *  them: the flagged state is not reachable from the seeded design. */
@@ -67,6 +68,7 @@ const { FlaggedTotalWarning } = await import("@/price/flagged-total-warning");
 function priceOf(design: Design): PricingResult {
   return priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,

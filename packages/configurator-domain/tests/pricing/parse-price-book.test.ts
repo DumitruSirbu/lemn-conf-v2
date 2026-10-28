@@ -36,6 +36,7 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricingFailure } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
@@ -44,6 +45,7 @@ const BOOK = SAMPLE_PRICE_BOOK;
 function refusalFrom(book: unknown): PricingFailure {
   const result = priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: book as PriceBook,

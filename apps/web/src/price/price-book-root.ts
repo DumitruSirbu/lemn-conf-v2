@@ -29,7 +29,7 @@ import {
 /**
  * What the server hands the browser, whole and together: the version prices are read from, the book (parsed once, on
  * the server) and the availability current when it was read (A-17). Availability is carried beside the book and is
- * never a field of it; until P4a prices read it, it is only carried.
+ * never a field of it; every price here is read under it.
  */
 export interface ActivePriceBook {
   readonly kind: "active";
@@ -82,6 +82,7 @@ export function priceAgainstBook(
     pricingVersion: root.book.version,
     selections: design.settings,
     deepeningRows: shippedDeepeningRows(),
+    availability: root.availability,
   });
 }
 
@@ -110,6 +111,7 @@ export function offerTiersAgainstBook(
     pricingVersion: root.book.version,
     selections: design.settings,
     deepeningRows: shippedDeepeningRows(),
+    availability: root.availability,
   });
 }
 

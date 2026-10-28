@@ -52,6 +52,7 @@ import { describeEditability, type Editability } from "@/store/editability";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const PAL_TIER_ID = "material.melamine";
 const VENEER_TIER_ID = "material.veneer";
@@ -79,6 +80,7 @@ const LOCKED = describeEditability(
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -90,6 +92,7 @@ function pricingOf(design: Design): PricingResult {
 function offerOf(design: Design): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,

@@ -27,6 +27,7 @@ import {
 import { InvalidDesignError } from "../src/repository.js";
 import { canonicalSerializeDesign } from "../src/serialize-design.js";
 import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 
 /** Any room but `3600 × 2400`, so nothing here trips the room normalisation. Not the seeded room —
  *  this file is about settings on a stored document, so the pair only has to miss the trigger. */
@@ -220,6 +221,7 @@ describe("an explicitly-undefined tier id is the same thing as an absent one", (
         book: SAMPLE_PRICE_BOOK,
         pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         selections,
       });
       if (!result.ok) throw new Error("expected the seeded design to price");
@@ -238,6 +240,7 @@ describe("an explicitly-undefined tier id is the same thing as an absent one", (
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       selections: {
         materialTierId: defaultTierIds[0],
         hardwareTierId: defaultTierIds[1],

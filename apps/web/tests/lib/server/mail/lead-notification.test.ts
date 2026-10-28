@@ -50,6 +50,7 @@ import {
   releaseFetch,
 } from "./mail-test-support";
 import { MEASURED_DEEPENING_ROWS } from "../../../support/deepening-rows";
+import { NOTHING_DISABLED } from "../../../support/availability";
 
 const ARMS_BY_NAME = VARIED_ARMS.map((arm) => [arm.name, arm] as const);
 
@@ -78,6 +79,7 @@ function validContact(overrides: ContactFieldsInput = {}): ContactFields {
 function snapshotOfDesign(design: Design): SubmissionSnapshot {
   const result = snapshotSubmission({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,
@@ -94,6 +96,7 @@ function sendableDesigns(arm: VariedArm, limit: number): readonly Design[] {
       (design) =>
         snapshotSubmission({
           deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
           design,
           catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
           book: SAMPLE_PRICE_BOOK,
@@ -557,6 +560,7 @@ describe("the notice's kitchen lines", () => {
       design,
       pricing: priceDesign({
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         design,
         catalog,
         book: SAMPLE_PRICE_BOOK,
@@ -852,6 +856,7 @@ describe("a request whose kitchen the notice cannot describe", () => {
     };
     const pricing = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: empty,
       catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(empty)),
       book: SAMPLE_PRICE_BOOK,

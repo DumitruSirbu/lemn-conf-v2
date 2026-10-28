@@ -39,6 +39,7 @@ import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const OCCURRED_AT = "2026-09-08T12:00:00.000Z";
 const DEFAULT_MM = 600;
@@ -100,6 +101,7 @@ function deepenTheKitchen(): DepthChange {
 function priceOf(design: Design): PricingResult {
   return priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: buildKitchenLBodyCatalog(
       design.settings?.cabinetDepthMm ?? DEFAULT_MM,
