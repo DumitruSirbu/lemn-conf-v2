@@ -426,7 +426,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
     });
   });
 
-  describe("the depth line at 700 mm (M10 P3: the breakdown model prints it; the review does not yet)", () => {
+  describe("the depth line at 700 mm (M10 P3 and Q1b: the breakdown and the review both carry it)", () => {
     const deepKitchens = deepened(fitting);
     const withADepthLine = deepKitchens.filter((kitchen) =>
       pricedOf(kitchen).lines.some((line) => line.kind === "depth"),
@@ -500,24 +500,8 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
       }
     });
 
-    // KNOWN GAP, named and loud (an open question to the architect; the wave that wires the review's depth row owes the
-    // flip). The review lists the cabinets, the tiers and the accessories, and carries no depth row, while its figure is
-    // the total that counts the depth line: at 700 mm its rows add to less than the figure by exactly the depth line.
-    // `it.fails` runs the assertion the review should meet and passes while it does not; the day the review carries the
-    // row it goes red, and the instruction is to delete `.fails`.
-    it.fails(
-      "KNOWN GAP (review, depth row): shows the depth line the figure counts",
-      () => {
-        for (const kitchen of withADepthLine) {
-          const review = reviewIn(ROMANIAN, kitchen);
-
-          expect(review).toHaveProperty("depthRow");
-        }
-      },
-    );
-
-    it("is the review's gap and nothing else: its rows are the breakdown's, less the depth row, so a figure that counts the line exceeds what the review lists by exactly that line", () => {
-      for (const kitchen of withADepthLine) {
+    it("carries the depth row the breakdown carries, verbatim, on every kitchen that earns the line and on none that does not", () => {
+      for (const kitchen of deepKitchens) {
         const review = reviewIn(ROMANIAN, kitchen);
         const breakdown = describePriceBreakdown({
           content: contentOf(ROMANIAN),
@@ -527,10 +511,30 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         if (breakdown.kind !== "available")
           throw new Error("expected a breakdown");
 
+        expect(review.depthRow).toEqual(breakdown.depthRow);
         expect(review.groups).toEqual(breakdown.groups);
         expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);
-        expect(review).not.toHaveProperty("depthRow");
-        expect(breakdown.depthRow).toBeDefined();
+      }
+      for (const kitchen of fitting) {
+        expect(reviewIn(ROMANIAN, kitchen)).not.toHaveProperty("depthRow");
+      }
+    });
+
+    it("leaves no line the figure counts unlisted in the review: every priced line is a body row, a whole-kitchen row or the depth row", () => {
+      for (const kitchen of deepKitchens) {
+        const review = reviewIn(ROMANIAN, kitchen);
+        const listed = new Set([
+          ...review.groups.flatMap((group) => group.rows.map((row) => row.key)),
+          ...review.wholeKitchenRows.map((row) => row.key),
+          ...(review.depthRow === undefined ? [] : [review.depthRow.key]),
+        ]);
+        const unlisted = pricedOf(kitchen)
+          .lines.map((line) =>
+            line.kind === "cabinet" ? line.placementId : line.lineId,
+          )
+          .filter((key) => !listed.has(key));
+
+        expect(unlisted).toEqual([]);
       }
     });
   });

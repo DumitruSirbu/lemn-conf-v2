@@ -8,13 +8,15 @@ import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import { usePublishedDeepCabinetPercent } from "@/price/use-priced-design";
 import { OpenEditorLink } from "@/review/open-editor-link";
 import { editorHref } from "@/review/design-hrefs";
 import { ReviewGroups, ReviewWholeKitchenRows } from "@/review/review-groups";
-import type {
-  AvailableReview,
-  RefusedSubmit,
-  ReviewView,
+import {
+  listWholeKitchenRows,
+  type AvailableReview,
+  type RefusedSubmit,
+  type ReviewView,
 } from "@/review/review-model";
 import { ReviewScene } from "@/review/review-scene";
 import { useReview } from "@/review/use-review";
@@ -115,6 +117,7 @@ function AvailableBody({
   refusalSentenceId,
 }: BodyProps & { readonly review: AvailableReview }) {
   const content = useContent();
+  const wholeKitchenRows = useWholeKitchenRows(review);
   const markedPlacementIds = new Set(
     review.submit.kind === "refused"
       ? review.submit.bodies.map((body) => body.placementId)
@@ -168,7 +171,7 @@ function AvailableBody({
         />
       </div>
       <div data-section="wholeKitchenRows">
-        <ReviewWholeKitchenRows rows={review.wholeKitchenRows} />
+        <ReviewWholeKitchenRows rows={wholeKitchenRows} />
       </div>
       <NotIncluded lines={review.notIncluded.lines} />
       <div className={styles.disclaimer} data-section="disclaimer">
@@ -184,6 +187,24 @@ function AvailableBody({
       ) : null}
     </>
   );
+}
+
+/** The model's whole-kitchen rows with the depth row worded by the published rule: no line carries the percent, and the
+ *  price the review shows was computed from this same book, so its percent is the one the amount was made from. */
+function useWholeKitchenRows(review: AvailableReview) {
+  const content = useContent();
+  const percent = usePublishedDeepCabinetPercent();
+  return listWholeKitchenRows(review, (depthMm) =>
+    content.priceBreakdown.depthLine(depthMm, requiredPercent(percent)),
+  );
+}
+
+/** A priced design has a book, so a depth row beside no book is a defect, not a percent to invent. */
+function requiredPercent(percent: number | undefined): number {
+  if (percent === undefined) {
+    throw new Error("The review holds a depth row but no price book is active");
+  }
+  return percent;
 }
 
 /** A review that cannot be shown: no figure, no zero, no rows, no not-included block and no scene, only why and the
