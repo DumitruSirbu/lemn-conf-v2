@@ -1301,6 +1301,34 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
   `globalSettings.depthNotePriced` are **lane T's, added in T3**, which already rewrites those leaves. T3 merges before
   MP-3, and Q1 and Q1b consume them. Neither Q wave edits `content.ts`.
 
+**2026-10-28 — MP-3 merged** (`83cd7c6b`, one `--no-ff` merge of the combined branch `m10/mp3` @ `b2eb4e43`, pushed)
+[coordinator, source-verified from git and the gate logs]:
+
+- P3, Q1 and Q1b arrived together. Q1-a holds on the first-parent reading (MP-3 logic review).
+- Coordinator rulings made on the way, recorded here:
+  - `DepthPriceLine` carries `deepCabinetPercent` (P3 `40a72c06`). Every surface words the depth row from the line,
+    never the live book; the settings note reads the book through `useRequiredDeepCabinetPercent`.
+  - One wording function (`describeDepthLine`) and one placement rule (`listWholeKitchenRows`: directly after the
+    material row, a missing anchor throws) serve the breakdown, the review and the lead notice. Hardware stays before
+    material (pre-M10 order), so Q1b's "between material and hardware" reads as "directly after material".
+  - The copy is T3's accessors ("Adâncime 700 mm · adaos {percent} %" plus the scope line), not the brief's "+15 %".
+  - A malformed stored depth line (depth not a positive integer, percent outside 0..100, an unsafe id, more than one
+    depth line) refuses the notice through `MalformedDepthLineError` → `NoticeKitchenError("review-not-sendable")`.
+    Unreachable from data the domain writes (logic and security reviews); defence in depth.
+  - "The lines sum to the total" means priced amounts (A-1). Printed rows round up to the thousand lei, so they need
+    not add to the printed total: **owner question** (ADR 0175 d5 calls 10 lei the display unit), pinned as an
+    `it.fails` in `qa-q1-depth-line.adversarial.test.ts`.
+  - **Owner copy question:** at 0 % the depth line reads "adaos 0 %" beside *inclus* while the note says "nu schimbă
+    prețul"; `depthLine` has no `=0` branch.
+- Gates on `83cd7c6b` (`pnpm ci:local`): every gate passed except `test` (only the known `qa-8q2-sink-store` load
+  flake, 37/37 alone) and `e2e` (1 127 passed, 1 failed: `cabinet-depth.e2e.spec.ts` still asserted the pre-P3
+  "the total does not move with depth"; rewritten at `980df5ed`, the spec passes 4/4 alone). The full e2e suite was
+  not rerun after the rewrite.
+- Deferred clean-code items: split `price-breakdown-model.ts` (depth-line material into its own module); the
+  `wholeKitchenRows` / `wholeKitchenListing` naming.
+- Hand-offs: **T2** retires `globalSettings.depthNote` (no renderer left) and the stale `aud-006` test; **Q3** covers
+  `useRequiredDeepCabinetPercent` as a second no-book throw site.
+
 **2026-10-28 — P3 built, QA green, reviewed; held to MP-3** (branch `m10/p3` @ `0abdd0d2`, pushed) [coordinator's
 brief, relayed; the scribe ran nothing]:
 
