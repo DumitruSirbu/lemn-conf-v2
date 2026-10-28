@@ -448,7 +448,7 @@ describe("a bulk action that changes nothing (ruling R2-Q7)", () => {
       5,
     );
 
-    if (answer.status === 200) return;
+    expect(answer.status).toBe(400);
     expect(await jsonOf(answer)).toEqual({
       status: "invalid-input",
       issues: [{ field: "scope", code: "NO_CABINETS_SELECTED" }],
