@@ -7,8 +7,9 @@
 // (`coloursAndHandlesNamedBy`). An accessory is never named by a design and never needs replacing: a switched-off one
 // is simply not billed (`earned-accessories.ts`).
 //
-// A tier the book does not hold is not listed whatever availability says: that is `UNKNOWN_TIER`'s. The order is the
-// items' own (`distinctItemsInOrder`), so it does not depend on how the design or `availability.disabled` was ordered.
+// A tier the book does not hold is not listed, and a design that chose one is refused no replacement at all: that is
+// `UNKNOWN_TIER`'s. The order is the items' own (`distinctItemsInOrder`), so it does not depend on how the design or
+// `availability.disabled` was ordered.
 import type { Design } from "../design.js";
 
 import {
@@ -48,15 +49,40 @@ export function itemsNamedBy(query: ItemSelectionQuery): readonly ItemRef[] {
   ]);
 }
 
-/** The items the design names that `availability` switches off, once each, in `distinctItemsInOrder`'s order. The
- *  items returned are the design's own references, so a result cannot carry anything availability merely lists. */
+/**
+ * The items the design names that `availability` switches off, once each, in `distinctItemsInOrder`'s order. The items
+ * returned are the design's own references, so a result cannot carry anything availability merely lists.
+ *
+ * Empty for a design whose chosen tier the book does not hold, whatever is switched off: that design is `UNKNOWN_TIER`'s
+ * (the recovery path of ADR 0072), and a replacement sheet for it could not be built, since its options are read from
+ * the tiers and the material it names.
+ */
 export function disabledItemsNamedBy(
   query: ItemSelectionQuery,
   availability: CatalogueAvailability,
 ): readonly ItemRef[] {
+  if (namesATierTheBookDoesNotHold(query)) return [];
   return itemsNamedBy(query).filter((item) =>
     isItemDisabled(availability, item),
   );
+}
+
+function namesATierTheBookDoesNotHold({
+  book,
+  chosen,
+}: ItemSelectionQuery): boolean {
+  return (
+    !holdsTier(book.material, chosen?.materialTierId) ||
+    !holdsTier(book.hardware, chosen?.hardwareTierId)
+  );
+}
+
+function holdsTier(
+  group: TierGroup<TierIdentity>,
+  chosenTierId: string | undefined,
+): boolean {
+  const tierId = chosenTierId ?? group.defaultTierId;
+  return group.tiers.some((tier) => tier.tierId === tierId);
 }
 
 /** The tier a design is priced at, as an item, when the book holds it. */
@@ -66,6 +92,5 @@ function tierItem(
   kind: "hardware" | "material",
 ): readonly ItemRef[] {
   const tierId = chosenTierId ?? group.defaultTierId;
-  const isHeld = group.tiers.some((tier) => tier.tierId === tierId);
-  return isHeld ? [{ kind, tierId }] : [];
+  return holdsTier(group, chosenTierId) ? [{ kind, tierId }] : [];
 }

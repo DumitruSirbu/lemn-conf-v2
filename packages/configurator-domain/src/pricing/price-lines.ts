@@ -151,8 +151,9 @@ export type PricingFailureCode =
   /** A fixed-size row is built wider than every size the book lists for it. Never priced at zero and never at
    *  the nearest listed size (ADR 0177 A-7). */
   | "NO_PRICE_FOR_SIZE"
-  /** A selection, or a book's own default, names a tier the book does not hold. A tier the book holds and availability
-   *  switches off is `REPLACEMENT_REQUIRED` and never this. */
+  /** A selection, or a book's own default, names a tier the book does not hold. A design that chose a tier the book
+   *  does not hold is this whatever availability switches off; a tier the book holds and availability switches off is
+   *  `REPLACEMENT_REQUIRED` and never this. */
   | "UNKNOWN_TIER"
   /** The design names an item availability switches off: a material, a hardware class, a colour or a handle, whether
    *  chosen or the book's own fallback tier (ADR 0062 Amendment 3, A-17). Carries every such item. The kitchen has no

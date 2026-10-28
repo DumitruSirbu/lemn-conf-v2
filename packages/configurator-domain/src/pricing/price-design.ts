@@ -168,7 +168,8 @@ function finishPricing(
 
 /** Every refusal that can be decided before a line exists: the book, then the version, then the
  *  design against the catalogue, then the design against availability (before any tier is selected, so a switched-off
- *  tier the book holds is never read as an unknown one). */
+ *  tier the book holds is never read as an unknown one; a design that chose a tier the book lacks is passed on to
+ *  `UNKNOWN_TIER`, whatever is switched off). */
 function refuseUnusableRequest(
   request: PriceDesignRequest,
 ): PricingFailure | undefined {
@@ -391,7 +392,7 @@ function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
 }
 
 /** The row a body is priced as, with its definition: looking the row up twice lets id and row diverge. */
-interface PricingRow {
+export interface PricingRow {
   readonly buildId: string;
   readonly definition: BodyDefinition | undefined;
   /** Set only when the entry **declares** an equivalent that did not resolve (a broken pointer, as
@@ -426,7 +427,7 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * freeze `carriesHandles(n)` at their built size, so reading the placement's own entry would give a resized seeded
  * `wall-2door-600` a different count from an inserted `wall-cabinet` beside it (ADR 0092 decision 1).
  */
-function describePricedBody(
+export function describePricedBody(
   entry: DisplayEntry,
   pricedAs: PricingRow,
   catalog: BodyCatalog,
@@ -1161,10 +1162,10 @@ function refuseNegativeAmount(
 
 /** A step answers with a value or with the one failure that ends the whole query; there is no
  *  partial result. */
-interface Refused {
+export interface Refused {
   readonly failure: PricingFailure;
 }
-type Attempt<TValue> = { readonly value: TValue } | Refused;
+export type Attempt<TValue> = { readonly value: TValue } | Refused;
 
 function isRefused<TValue>(attempt: Attempt<TValue>): attempt is Refused {
   return "failure" in attempt;
