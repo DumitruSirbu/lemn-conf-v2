@@ -84,16 +84,18 @@ export interface DepthPriceLine extends PriceLineCommon {
   readonly deepCabinetPercent: number;
 }
 
-/** An extra the design earns rather than chooses: the two sink extras (ADR 0070 decision 4). The same
- *  book-data-rendered shape as a tier line (ADR 0062: no copy in a component) and no `tierId`, since no
- *  control selects it. `quantity` is a count of sinks. A quantity of zero is not a line: it would render
- *  *inclus* and tell a customer a rack they are not getting is included. */
+/** An extra the design earns rather than chooses: the two sink extras (ADR 0070 decision 4) and each accessory the
+ *  dashboard created (ADR 0177 A-19). The same book-data-rendered shape as a tier line (ADR 0062: no copy in a
+ *  component) and no `tierId`, since no control selects it. `quantity` is a count of sinks for a sink extra and of
+ *  placements for a linked accessory. A quantity of zero is not a line: it would render *inclus* and tell a customer a
+ *  rack they are not getting is included. */
 export interface AccessoryPriceLine extends PriceLineCommon {
   readonly kind: "accessory";
-  /** Which of the book's named accessory rules produced this line: not the rule id, as `tierId` is not
-   *  `ruleId` on a tier line. */
+  /** Which accessory produced this line: a built-in's field name or a linked accessory's id, not the rule id, as
+   *  `tierId` is not `ruleId` on a tier line. */
   readonly accessoryId: string;
   readonly name: string;
+  /** Empty for a created accessory authored without one. */
   readonly description: string;
   readonly nameKey?: string | undefined;
   readonly descriptionKey?: string | undefined;

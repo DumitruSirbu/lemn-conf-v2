@@ -157,8 +157,9 @@ export interface AccessoryRule {
 }
 
 /**
- * The accessories a book declares: named fields, not a list keyed by id. When an accessory applies
- * is code, and an array would let a book declare one nothing implements (ADR 0062 seam 1).
+ * The built-in accessories a book declares: named fields, not a list keyed by id. When an accessory applies
+ * is code, and an array would let a book declare one nothing implements (ADR 0062 seam 1). The accessories the
+ * dashboard creates are a list of one implemented earning shape, `PriceBook.linkedAccessories`.
  */
 export interface BookAccessories {
   /** Mounted on the sink base against humidity and leaks. Always present and never toggled
@@ -169,8 +170,28 @@ export interface BookAccessories {
   readonly dishDryingRack: AccessoryRule;
 }
 
-/** Which accessory a line is for, as the book's own field names spell it. */
+/** Which built-in accessory a line is for, as the book's own field names spell it. */
 export type AccessoryId = keyof BookAccessories;
+
+/**
+ * An accessory the dashboard created, linked to one catalogue row (ADR 0177 A-19): one unit for every placement priced
+ * as `linkedBuildId`, the one earning shape a linked accessory has. Its words are authored Romanian and nothing else:
+ * no key into the message files and no Russian (A-21), and `description` may be absent.
+ */
+export interface LinkedAccessoryRule {
+  /** Unique across the built-ins' field names and every other linked accessory: availability names an accessory by it,
+   *  and its line is `accessory:<accessoryId>`. */
+  readonly accessoryId: string;
+  /** Unique across the whole book, like every other rule's. */
+  readonly ruleId: string;
+  /** The catalogue row a placement is priced as (`resolveCatalogEquivalent`, as a cabinet rule's `buildId`). The book's
+   *  own rule for it may not be a `customer` row: what the manufacturer does not sell carries no accessory. */
+  readonly linkedBuildId: string;
+  /** Charged per placement of the linked row. */
+  readonly perUnitMinor: number;
+  readonly name: string;
+  readonly description?: string | undefined;
+}
 
 /** Both accessory ids, in the order their lines are published. */
 export const ACCESSORY_IDS: readonly AccessoryId[] = [
@@ -203,6 +224,8 @@ export interface PriceBook {
   readonly material: TierGroup<MaterialTier>;
   readonly depthRule: DepthRule;
   readonly accessories: BookAccessories;
+  /** The accessories created beside the two built-ins, in the order their lines are published. */
+  readonly linkedAccessories: readonly LinkedAccessoryRule[];
 }
 
 /** Everything a formula may read about one body, and nothing else. Every field is derived by the
@@ -484,10 +507,11 @@ export function usableCoefficientOf(
   throw new MalformedPriceCoefficientError({ field, declared });
 }
 
-/** Every rule id in a book: cabinet rules, then tiers, then accessories, then the depth rule's reserved id.
- *  `parse-price-book.ts` sweeps it for duplicates, since a repeated id makes a line untraceable to one rule.
+/** Every rule id in a book: cabinet rules, then tiers, then accessories (built-in, then linked), then the depth rule's
+ *  reserved id. `parse-price-book.ts` sweeps it for duplicates, since a repeated id makes a line untraceable to one
+ *  rule.
  *
- *  The three lists are dereferenced bare, which is safe only because the parser's section checks
+ *  The four lists are dereferenced bare, which is safe only because the parser's section checks
  *  establish they are lists before it calls this. */
 export function listRuleIds(book: PriceBook): readonly string[] {
   return [
@@ -495,7 +519,17 @@ export function listRuleIds(book: PriceBook): readonly string[] {
     ...book.hardware.tiers.map((tier) => tier.ruleId),
     ...book.material.tiers.map((tier) => tier.ruleId),
     ...listAccessoryRuleIds(book),
+    ...book.linkedAccessories.map((accessory) => accessory.ruleId),
     DEPTH_RULE_ID,
+  ];
+}
+
+/** Every accessory id a book states: the two built-ins' field names, then each linked accessory's. The ids one
+ *  availability switch and one line id (`accessory:<id>`) are named by, so none may repeat. */
+export function listAccessoryIds(book: PriceBook): readonly string[] {
+  return [
+    ...ACCESSORY_IDS,
+    ...book.linkedAccessories.map((accessory) => accessory.accessoryId),
   ];
 }
 

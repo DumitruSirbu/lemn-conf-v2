@@ -3,7 +3,10 @@
 // nothing here reads a member bare: fields go through `readDeclared`, enumerations through `enumerableFieldsOf`, lists
 // through `boundedListOf`, and a refusal is built by `invalidBook` only. This module imports no pricing type, so
 // both parsers and `anchored-price-formula.ts` can depend on it.
-import { MAX_DESIGN_DIMENSION_MM } from "../design-bounds.js";
+import {
+  MAX_DESIGN_DIMENSION_MM,
+  MAX_IDENTIFIER_LENGTH,
+} from "../design-bounds.js";
 import { boundedFailureReason } from "../failure-text.js";
 
 import type { PricingFailure } from "./price-lines.js";
@@ -274,4 +277,55 @@ export function refuseUnreadFields(
     );
   }
   return undefined;
+}
+
+/** The longest a tier's or an accessory's name may be: a radio label on one line. A version's name has the same
+ *  bound. */
+export const MAX_BOOK_NAME_LENGTH = 80;
+
+/** The longest a tier's or an accessory's one-line description may be. */
+export const MAX_BOOK_DESCRIPTION_LENGTH = 240;
+
+/** An id a rule, tier or book is known by: a non-empty string within `MAX_IDENTIFIER_LENGTH`; an
+ *  unbounded one multiplies every refusal message and log line it reaches. */
+export function refuseUnusableIdentifier(
+  declared: unknown,
+  field: string,
+): PricingFailure | undefined {
+  if (declared === "")
+    return invalidBook(`Book declares an empty "${field}", which is not an id`);
+  return refuseUnusableText(declared, {
+    named: `"${field}"`,
+    maxLength: MAX_IDENTIFIER_LENGTH,
+  });
+}
+
+export function refuseUnusableText(
+  declared: unknown,
+  bound: { readonly named: string; readonly maxLength: number },
+): PricingFailure | undefined {
+  if (typeof declared !== "string")
+    return invalidBook(
+      `Book declares no ${bound.named}, which is a string. Found: ${describeDeclared(declared)}`,
+    );
+  if (declared.length <= bound.maxLength) return undefined;
+  return invalidBook(
+    `Book declares a ${bound.named} of ${String(declared.length)} characters, ` +
+      `past the ${String(bound.maxLength)} a book may state`,
+  );
+}
+
+/** The first id a list repeats, or nothing: the sweep every "ids are unique" refusal is made of. */
+export function firstDuplicate(ids: readonly string[]): string | undefined {
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) return id;
+    seen.add(id);
+  }
+  return undefined;
+}
+
+/** An id as a message renders it, whatever the book declared it as. */
+export function idAsText(declared: unknown): string {
+  return typeof declared === "string" ? declared : describeDeclared(declared);
 }
