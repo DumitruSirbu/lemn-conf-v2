@@ -1,8 +1,12 @@
 // Q1b-a on the shop's notice: the notice prints the review of the STORED snapshot (ADR 0154 decision 8), so the depth
 // line the stored total counts has to be one of its lines, in the text part and in the HTML part alike.
 import {
+  canonicalSerializeDesign,
   DEEP_CABINET_DEPTH_MM,
+  KITCHEN_L_DESIGN,
   SAMPLE_PRICE_BOOK,
+  type PricedDesign,
+  type SubmissionSnapshot,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -16,6 +20,22 @@ import {
   sendableKitchensOf,
   snapshotOf,
 } from "./lead-notice-fixtures";
+
+// Written as JSON so nothing here can type it into today's shape: a flat hardware line and a flat material line, and no
+// depth line, as the retired book priced the one body it holds.
+const STORED_BEFORE_THE_CUT_OVER = JSON.parse(`{
+  "currency": "MDL", "pricingVersion": "sample-2026-09", "status": "estimate", "amountsProvisional": true,
+  "lines": [
+    { "lineId": "placement:p0:cabinet", "kind": "cabinet", "ruleId": "cabinet.base-sink", "placementId": "p0",
+      "buildId": "base-sink-800", "pricedAsBuildId": "base-sink", "label": "base-sink", "widthMm": 800,
+      "suppliedBy": "manufacturer", "quantity": 1, "unitAmountMinor": 485600, "amountMinor": 485600 },
+    { "lineId": "kitchen:hardware", "kind": "hardware", "ruleId": "hardware.standard", "tierId": "hardware.standard",
+      "name": "Standard", "description": "d", "quantity": 1, "unitAmountMinor": 1760, "amountMinor": 1760 },
+    { "lineId": "kitchen:material", "kind": "material", "ruleId": "material.painted-mdf", "tierId": "material.painted-mdf",
+      "name": "MDF", "description": "d", "quantity": 1, "unitAmountMinor": 900000, "amountMinor": 900000 }
+  ],
+  "totalMinor": 1387360, "overflowingPlacementIds": [], "totalIsFlagged": false
+}`) as PricedDesign;
 
 function firstKitchen() {
   const [kitchen] = sendableKitchensOf(VARIED_L_ARM);
@@ -49,14 +69,27 @@ describe("the shop's notice and the depth line", () => {
     );
   });
 
-  it("states no depth line for a kitchen priced without one, as before the cut-over", () => {
-    const { message } = noticeOfKitchenBuiltAt(undefined);
-    const anyDepthLine = new RegExp(
-      ro.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, 0).replace(/0 %$/, ""),
+  it("prints a snapshot stored before the cut-over, which has no depth line, as the stored hardware and material lines and nothing more", () => {
+    const onlyP0 = {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.filter((p) => p.id === "p0"),
+    };
+    const stored: SubmissionSnapshot = {
+      document: canonicalSerializeDesign(onlyP0),
+      priced: STORED_BEFORE_THE_CUT_OVER,
+    };
+
+    const message = composeLeadNotice(
+      noticeInput(designSubmission({ snapshot: stored })),
     );
 
-    expect(message.text).not.toMatch(anyDepthLine);
-    expect(message.html ?? "").not.toMatch(anyDepthLine);
+    expect(message.text).toContain(
+      ro.priceBreakdown.wholeKitchenLabel(
+        ro.priceBreakdown.wholeKitchenCategories.material,
+        "MDF",
+      ),
+    );
+    expect(message.text).not.toContain("adaos");
   });
 
   // KNOWN GAP, named and loud (an open question to the architect, reported by Q1b). The stored `DepthPriceLine` carries
