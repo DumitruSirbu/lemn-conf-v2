@@ -5,14 +5,18 @@ import {
   type BulkChangeScope,
   type DashboardAuditEntry,
   type DraftChangeTarget,
+  type PriceCatalogueSection,
   type PriceGroupCode,
 } from "@lemnaria/configurator-domain";
+import type { PricePublishedAuditInput } from "@lemnaria/persistence";
 
 // The audit entries of the dashboard's reads and draft writes (M10 plan §8.4 e). An entry names kinds, ids, fields and
 // counts from the book's closed lists, and never a value: the amount a change sets is not in any detail.
 
-export function catalogueViewedEntry(): DashboardAuditEntry {
-  return { action: "price-catalogue-viewed", detail: { section: "catalogue" } };
+export function catalogueViewedEntry(
+  section: PriceCatalogueSection = "catalogue",
+): DashboardAuditEntry {
+  return { action: "price-catalogue-viewed", detail: { section } };
 }
 
 export function draftChangedEntry(
@@ -51,6 +55,30 @@ export function draftDiscardedEntry(
   return {
     action: "price-draft-reverted",
     detail: { changeKind: DISCARD_ALL_CHANGE_KIND, revertedCount },
+  };
+}
+
+/** A publish, without the sequence number and change count only the store knows. Never the label or the note. */
+export function publishedEntry(
+  isProvisional: boolean,
+): PricePublishedAuditInput {
+  return {
+    action: "price-published",
+    detail: { provisional: isProvisional },
+  };
+}
+
+/** The archived version whose prices were put in the draft, and how many changes that added. */
+export function restoredToDraftEntry(restored: {
+  readonly fromSequenceNumber: number;
+  readonly addedChangeCount: number;
+}): DashboardAuditEntry {
+  return {
+    action: "price-restored-to-draft",
+    detail: {
+      fromSequenceNumber: restored.fromSequenceNumber,
+      changeCount: restored.addedChangeCount,
+    },
   };
 }
 

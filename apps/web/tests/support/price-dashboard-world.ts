@@ -60,12 +60,19 @@ export function priceStoresModule() {
 }
 
 export interface PriceDashboardWorldOptions {
-  /** Whether `ANCHORED_BOOK` is published as version 1. `false` is the state before the first version. */
+  /** Whether the book is published as version 1. `false` is the state before the first version. */
   readonly isPublished?: boolean;
+  /**
+   * The book published as version 1. `ANCHORED_BOOK` by default: the draft routes only parse a candidate. A publish also
+   * judges it against the catalogue, which `ANCHORED_BOOK` does not pass (it anchors the corner rows), so a test that
+   * publishes passes a book that does, such as the sample book.
+   */
+  readonly book?: PriceBook;
 }
 
 export async function freshPriceDashboardWorld({
   isPublished = true,
+  book = ANCHORED_BOOK,
 }: PriceDashboardWorldOptions = {}): Promise<PriceDashboardWorld> {
   const { sessions, now } = currentAccountWorld();
   const ledger = new FakeDashboardAuditLedger({ sessions, now });
@@ -75,7 +82,7 @@ export async function freshPriceDashboardWorld({
   });
   const priceBook = new FakePriceBookStore({ ledger, availability, now });
   const versionId = isPublished
-    ? await publishAnchoredBook(priceBook)
+    ? await publishFirstVersion(priceBook, book)
     : undefined;
   const world: PriceDashboardWorld = {
     stores: { priceBook: stampedWithItsVersionId(priceBook), availability },
@@ -88,8 +95,11 @@ export async function freshPriceDashboardWorld({
   return world;
 }
 
-/** Publishes `ANCHORED_BOOK` as version 1, as an administrator's seed does. */
-async function publishAnchoredBook(store: FakePriceBookStore): Promise<string> {
+/** Publishes `book` as version 1, as an administrator's seed does. */
+async function publishFirstVersion(
+  store: FakePriceBookStore,
+  book: PriceBook,
+): Promise<string> {
   const publisher = await signedInAs(
     { role: "administrator" },
     "price-publisher@example.test",
@@ -101,7 +111,7 @@ async function publishAnchoredBook(store: FakePriceBookStore): Promise<string> {
     createdItems: [],
     label: "Version 1",
     note: "",
-    book: ANCHORED_BOOK,
+    book,
     changeSummary: [],
     audit: {
       session: {
@@ -110,7 +120,7 @@ async function publishAnchoredBook(store: FakePriceBookStore): Promise<string> {
       },
       entry: {
         action: "price-published",
-        detail: { provisional: ANCHORED_BOOK.amountsProvisional },
+        detail: { provisional: book.amountsProvisional },
       },
     },
   });

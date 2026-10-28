@@ -55,3 +55,11 @@ export {
   type BuiltWidthsMm,
   type PricedRow,
 } from "./priced-row.js";
+export {
+  VERSION_LABEL_MAX_LENGTH,
+  VERSION_NOTE_MAX_LENGTH,
+  judgeVersionLabel,
+  judgeVersionNote,
+  type VersionTextJudgement,
+  type VersionTextRefusalCode,
+} from "./version-text.js";

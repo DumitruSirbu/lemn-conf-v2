@@ -78,18 +78,28 @@ async function readActiveVersion(
   }
 }
 
+/**
+ * A stored book, parsed and projected onto the declared members; `undefined` when it does not parse. This is the one place
+ * in the application that parses a book (ADR 0062 seam 1), for the version that prices customers and for an archived one a
+ * staff screen reads.
+ */
+export function parseStoredBook(stored: unknown): PriceBook | undefined {
+  const parsed = parsePriceBook(stored);
+  return parsed.ok ? projectPriceBook(parsed.book) : undefined;
+}
+
 /** The stored version's book, parsed, checked against its version's id and projected; the cause is logged when it is not. */
 export function readBookOf(version: ActivePriceVersion): PriceBook | undefined {
-  const parsed = parsePriceBook(version.book);
-  if (!parsed.ok) {
+  const book = parseStoredBook(version.book);
+  if (book === undefined) {
     reportNoPriceBook("book-unparseable");
     return undefined;
   }
-  if (parsed.book.version !== version.versionId) {
+  if (book.version !== version.versionId) {
     reportNoPriceBook("version-mismatch");
     return undefined;
   }
-  return projectPriceBook(parsed.book);
+  return book;
 }
 
 async function readCurrentAvailability(

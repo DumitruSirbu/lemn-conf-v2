@@ -261,6 +261,8 @@ describe("the audit rows of every route (R-c)", () => {
     expect(rows.map(({ action }) => action).sort()).toEqual([
       "price-bulk-changed",
       "price-catalogue-viewed",
+      "price-catalogue-viewed",
+      "price-catalogue-viewed",
       "price-draft-changed",
       "price-draft-reverted",
       "price-draft-reverted",
