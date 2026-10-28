@@ -51,14 +51,25 @@ export interface BreakdownGroup {
   readonly rows: readonly BreakdownRow[];
 }
 
-/** The uplift a 700 mm depth adds to the cabinets that get deeper, as a row of its own: the model publishes the depth
- *  the line names and the amount, and the surface words them ("Adâncime 700 mm · adaos {percent} %"), because the percent
- *  is the book's rule and no line carries it. */
+/** The uplift a 700 mm depth adds to the cabinets that get deeper, as a row of its own: the facts the priced line
+ *  carries, the depth it names and its amount. The percent is the book's rule and no line carries it, so the words
+ *  ("Adâncime 700 mm · adaos {percent} %") are `describeDepthLine`'s, given the rule. */
 export interface BreakdownDepthRow {
   readonly key: string;
   /** The cabinet depth the design is built at, from the line. */
   readonly depthMm: number;
   /** Already rounded and grouped, *"inclus"* at zero (a book stating 0 %). */
+  readonly amountText: string;
+}
+
+/** The depth row worded: what a surface prints for the line the total counts, the amount being the priced line's own. */
+export interface BreakdownDepthLine {
+  readonly key: string;
+  /** "Adâncime 700 mm · adaos {percent} %", the percent being the published rule's. */
+  readonly label: string;
+  /** Which cabinets the percent applies to: the second line of the row. */
+  readonly scope: string;
+  /** The row's `amountText`, unchanged. */
   readonly amountText: string;
 }
 
@@ -81,6 +92,11 @@ export interface AvailableBreakdown {
   /** The depth line, present exactly when the query published one: a 700 mm kitchen with a cabinet that gets deeper.
    *  Absent, never zero, at 600 mm, so a surface that ignores it still prints every line that is not the uplift. */
   readonly depthRow?: BreakdownDepthRow;
+  /** `depthRow` worded, present exactly when it is and the input carried the published rule. */
+  readonly depthLine?: BreakdownDepthLine;
+  /** The key of the whole-kitchen row the depth line is printed after: the material row, whose percent it multiplies
+   *  with. Absent when the design prices no material row, and the line then leads the section. */
+  readonly depthLineFollowsKey?: string;
   /** The sentence that says the amounts above are each rounded up on their own. */
   readonly note: string;
   /** The bar's figure, restated because on mobile this sheet covers the bar. Not a sum of the rows,
@@ -100,6 +116,9 @@ export interface DescribePriceBreakdownInput {
   /** `projectDesignForDisplay`'s answer for the same design, verbatim: the only source of which rows
    *  exist, their order and their names. */
   readonly groups: readonly DisplayGroup[];
+  /** The published rule's whole percentage (`book.depthRule.deepCabinetPercent`): the only source of the depth line's
+   *  figure. A caller that omits it gets no `depthLine` for a depth row it holds, never a percent of the model's own. */
+  readonly deepCabinetPercent?: number;
 }
 
 /**
@@ -138,6 +157,7 @@ export function describePriceBreakdown(
     groups: input.groups,
   });
   const warning = describeFlaggedTotalWarning(priced, input.content.price);
+  const depthLine = describeDepthLineOf(rows.depthRow, input);
   return {
     kind: "available",
     title: input.content.priceBreakdown.title,
@@ -145,6 +165,12 @@ export function describePriceBreakdown(
     groups: rows.groups,
     wholeKitchenRows: rows.wholeKitchenRows,
     ...(rows.depthRow === undefined ? {} : { depthRow: rows.depthRow }),
+    ...(depthLine === undefined
+      ? {}
+      : {
+          depthLine,
+          ...followKeyOf(priced.lines),
+        }),
     note: input.content.priceBreakdown.note,
     figure: describeStartingPrice({
       totalMinor: priced.totalMinor,
@@ -152,6 +178,41 @@ export function describePriceBreakdown(
     }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
     closeLabel: input.content.priceBreakdown.close,
+  };
+}
+
+function describeDepthLineOf(
+  row: BreakdownDepthRow | undefined,
+  input: DescribePriceBreakdownInput,
+): BreakdownDepthLine | undefined {
+  if (row === undefined || input.deepCabinetPercent === undefined)
+    return undefined;
+  return describeDepthLine(row, input.deepCabinetPercent, input.content);
+}
+
+/** The material row's key, as the one the depth line is printed after. */
+function followKeyOf(
+  lines: readonly PriceLine[],
+): Pick<AvailableBreakdown, "depthLineFollowsKey"> {
+  const material = lines.find((line) => line.kind === "material");
+  return material === undefined ? {} : { depthLineFollowsKey: material.lineId };
+}
+
+/**
+ * The words of the depth row. The percent is the published rule's and is passed in, never read from a constant or
+ * derived from the amount: the line carries the amount the total already counts, and the UI re-computes nothing.
+ * Exported so that every surface that lists the lines words the depth row the same way.
+ */
+export function describeDepthLine(
+  row: BreakdownDepthRow,
+  deepCabinetPercent: number,
+  content: Content,
+): BreakdownDepthLine {
+  return {
+    key: row.key,
+    label: content.priceBreakdown.depthLine(row.depthMm, deepCabinetPercent),
+    scope: content.priceBreakdown.depthLineScope,
+    amountText: row.amountText,
   };
 }
 

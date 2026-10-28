@@ -5,6 +5,7 @@
 // every following cabinet into an overriding one, and the customer's *next* global change would
 // move nothing. The markup half asserts only what markup can decide — that the group is after the
 // material, that it is the panel's own control, and that a locked sheet greys it.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -102,6 +103,7 @@ function viewOf(
   pending: WholeKitchenChoice,
 ): GlobalSettingsView {
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: content,
     pricing: pricingOf(design),
     offer: offerOf(design),
@@ -268,6 +270,7 @@ describe("acceptance 1 — the colour group renders after material, from the mat
     // The confirm step replaces the body wholesale, so its one write action carries the same guard —
     // asserted here because this wave adds a fourth group to the press that button commits.
     const view = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: content,
       pricing: pricingOf(KITCHEN_L_DESIGN),
       offer: offerOf(KITCHEN_L_DESIGN),

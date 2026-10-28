@@ -32,6 +32,17 @@ export function usePricedDesign(): PricingResult {
 }
 
 /**
+ * The depth percentage the active book publishes (`depthRule.deepCabinetPercent`): the only source of the figure on the
+ * depth line and in the depth note. Absent without a book, where the pricing is refused and no figure is shown either.
+ */
+export function useDeepCabinetPercent(): number | undefined {
+  const root = usePriceBookRoot();
+  return root.kind === "active"
+    ? root.book.depthRule.deepCabinetPercent
+    : undefined;
+}
+
+/**
  * Every whole-kitchen tier the book offers, each measured against its group's default (*inclus*,
  * *de la +9 000*), and the `availableTierIds` the whole-kitchen commands take. Memoised on the same
  * slices as `usePricedDesign`: six evaluations of one pure query, stored nowhere.

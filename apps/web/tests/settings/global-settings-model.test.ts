@@ -6,6 +6,7 @@
 // **Every string this wave added is read from its own catalogue leaf below, never spelled here.**
 // The wording is pinned once, in `tests/support/approved-romanian-messages.ts`; what these pin is
 // which leaf each field asks for, which is the half a copy lock cannot see.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -73,6 +74,7 @@ function inputFor(
   overrides: Partial<DescribeGlobalSettingsInput> = {},
 ): DescribeGlobalSettingsInput {
   return {
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: overrides.content ?? content,
     pricing: pricingOf(KITCHEN_L_DESIGN),
     offer: offerOf(KITCHEN_L_DESIGN),
@@ -504,6 +506,7 @@ describe("a stored tier the book no longer offers", () => {
 
   function withdrawnView(): GlobalSettingsView {
     return describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: content,
       pricing: pricingOf(withdrawn),
       offer: offerOf(withdrawn),

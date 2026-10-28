@@ -4,10 +4,12 @@
 // assertion below that could have been written against `[600, 700]` is written against
 // `declaredCabinetDepthsMm()` instead, so a third declared depth tomorrow is one data row rather
 // than a UI rewrite — and so this file cannot pass by agreeing with a literal it also supplies.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
   countCabinetsWearingAChosenFinish,
   declaredCabinetDepthsMm,
+  DEEP_CABINET_DEPTH_MM,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   MIN_CABINET_DEPTH_MM,
@@ -76,6 +78,7 @@ function settingsView(
   overrides: Partial<DescribeGlobalSettingsInput> = {},
 ): GlobalSettingsView {
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: pricingOf(KITCHEN_L_DESIGN),
     offer: offerOf(KITCHEN_L_DESIGN),
@@ -138,8 +141,13 @@ describe("the depth group on the whole-kitchen sheet", () => {
   });
 
   // The criterion: the absence of a price line is explained, so it does not read as a missing one.
-  it("says in one sentence why the depth adds no price line", () => {
-    expect(settingsView().depthGroup.note).toBe(ro.globalSettings.depthNote);
+  it("says in one sentence what the deep depth adds, naming the published percentage", () => {
+    expect(settingsView().depthGroup.note).toBe(
+      ro.globalSettings.depthNotePriced(
+        DEEP_CABINET_DEPTH_MM,
+        SAMPLE_DEEP_CABINET_PERCENT,
+      ),
+    );
     expect(settingsView().depthGroup.note).not.toBe("");
   });
 

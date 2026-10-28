@@ -6,6 +6,7 @@
 // that cannot see: a surface that measured the set a different way would still agree with its own second evaluation, so
 // the composition itself is read from source; and a surface that priced alone would pass its own check while disagreeing
 // with the rest, so the figures are compared across surfaces.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
   DEEP_CABINET_DEPTH_MM,
@@ -318,6 +319,7 @@ describe("P3-d: a refused price takes the numbers off the sheet and never the ch
     const design = withAnOverWideHob();
     const catalog = buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM);
     const view: GlobalSettingsView = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: ro,
       pricing: priceAgainstBook(root, design, catalog),
       offer: offerTiersAgainstBook(root, design, catalog),
@@ -336,7 +338,7 @@ describe("P3-d: a refused price takes the numbers off the sheet and never the ch
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// 4. Named gaps: the depth line is priced and totalled but not printed by the breakdown sheet or the review.
+// 4. The depth line is priced, totalled and printed by the breakdown sheet (Q1); the review's half is Q1b's.
 // ---------------------------------------------------------------------------------------------------------------
 
 describe("the depth line at 700 mm: what the screens print of a line the total counts", () => {
@@ -349,6 +351,7 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
       content: ro,
       pricing,
       groups: projectDesignForDisplay(design, catalog),
+      deepCabinetPercent: root.book.depthRule.deepCabinetPercent,
     });
     if (view.kind !== "available" || !pricing.ok)
       throw new Error("no breakdown");
@@ -365,29 +368,24 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
     expect(view.depthRow?.key).toBe(line?.lineId);
   });
 
-  // KNOWN GAP, named and loud (an open question to the architect; the wave that wires the sheet owes the flip). The
-  // breakdown sheet draws the placement rows and the whole-kitchen rows from the model and never the model's `depthRow`,
-  // so at 700 mm its rows add to less than the figure it prints. `it.fails` runs the assertion the sheet should meet and
-  // passes while it does not; the day the sheet prints the row it goes red, and the instruction is to delete `.fails`.
-  it.fails(
-    "KNOWN GAP (breakdown sheet, depth row): prints the depth line the figure counts",
-    async () => {
-      const { view } = await breakdownAtDepth();
+  // The gap P3 named is closed by Q1: the sheet prints the model's depth line, so its rows account for the figure.
+  it("the breakdown sheet prints the depth line the figure counts, with the priced line's own amount", async () => {
+    const { view } = await breakdownAtDepth();
 
-      const markup = renderToStaticMarkup(
-        createElement(PriceBreakdownSurface, {
-          id: "breakdown",
-          view,
-          onClose: () => undefined,
-        }),
-      );
+    const markup = renderToStaticMarkup(
+      createElement(PriceBreakdownSurface, {
+        id: "breakdown",
+        view,
+        onClose: () => undefined,
+      }),
+    );
 
-      expect(markup).toContain(`${String(DEEP_CABINET_DEPTH_MM)} mm`);
-      expect(markup).toContain(view.depthRow?.amountText ?? "never");
-    },
-  );
+    expect(markup).toContain(`${String(DEEP_CABINET_DEPTH_MM)} mm`);
+    expect(markup).toContain(view.depthRow?.amountText ?? "never");
+    expect(markup).toContain(DEPTH_LINE_WORD);
+  });
 
-  it("is the sheet's gap and nothing else: it prints every other row, and no word of a depth line", async () => {
+  it("prints every other row beside it", async () => {
     const { view } = await breakdownAtDepth();
 
     const markup = renderToStaticMarkup(
@@ -400,7 +398,6 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
 
     for (const row of view.wholeKitchenRows)
       expect(markup).toContain(row.label);
-    expect(markup).not.toContain(DEPTH_LINE_WORD);
   });
 });
 
