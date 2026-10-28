@@ -13,6 +13,11 @@
 //
 // Written against the source, not against the fix: every case below is a value a book can carry,
 // and each assertion says what a customer would be shown if it held.
+//
+// Moved at the M10 P3 cut-over: a cabinet is an anchor plus signed steps (or a listed size), a material is a percentage
+// and the depth is one more, so the amounts at the bound are the anchored and listed ones and the hostile sections
+// include the depth rule. The bound is kept, not re-derived (`book-reading.ts`), so the derivation checks below are
+// held against the anchored shapes' larger-than-needed headroom.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -31,10 +36,6 @@ import {
 import {
   amountForBody,
   InexactPriceArithmeticError,
-  pricedByWidth,
-  pricedByWidthAndDoorLeaves,
-  pricedByWidthAndHeight,
-  pricedByWidthHeightAndDoorLeaves,
   type CabinetPriceRule,
   type HardwareTier,
   type MaterialTier,
@@ -44,8 +45,13 @@ import {
 } from "../../src/pricing/price-book.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricingResult } from "../../src/pricing/price-lines.js";
+import {
+  ANCHORED_SHAPES,
+  type AnchoredFormula,
+} from "../../src/pricing/anchored-price-formula.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
@@ -59,6 +65,7 @@ function priceSeededKitchen(book: unknown): PricingResult {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: book as PriceBook,
     pricingVersion: BOOK.version,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -98,6 +105,7 @@ describe("the parser refuses every declared book, and never throws for one", () 
     "cabinetRules",
     "hardware",
     "material",
+    "depthRule",
     "accessories",
     "version",
     "currency",
@@ -159,7 +167,7 @@ describe("the parser refuses every declared book, and never throws for one", () 
     // present a computed amount, and one that raises takes the parser with it.
     const [first, ...rest] = BOOK.material.tiers;
     if (!first) throw new Error("the sample offers no material tier");
-    const tier = Object.defineProperty({ ...first }, "wholeKitchenMinor", {
+    const tier = Object.defineProperty({ ...first }, "percentOfCabinets", {
       get: () => {
         throw new Error("this tier's amount could not be computed");
       },
@@ -183,6 +191,26 @@ describe("the parser refuses every declared book, and never throws for one", () 
   });
 });
 
+/** A cabinet quoted at its anchor and moved by one rate per 50 mm step of width: every coefficient but the two named is
+ *  zero, so a test sets exactly the one amount it is about. */
+function anchoredWith(
+  amounts: Partial<
+    Pick<
+      AnchoredFormula,
+      "anchorMinor" | "perStepWiderMinor" | "perStepNarrowerMinor"
+    >
+  >,
+): PriceFormula {
+  return {
+    shape: "anchored-width",
+    anchorWidthMm: 600,
+    anchorMinor: 0,
+    perStepWiderMinor: 0,
+    perStepNarrowerMinor: 0,
+    ...amounts,
+  };
+}
+
 describe("every amount a book states is held to the magnitude bound", () => {
   function bookPricingWallCabinetWith(formula: PriceFormula): unknown {
     const cabinetRules: readonly CabinetPriceRule[] = BOOK.cabinetRules.map(
@@ -191,39 +219,57 @@ describe("every amount a book states is held to the magnitude bound", () => {
     return bookWith({ cabinetRules });
   }
 
-  it("accepts a coefficient at exactly the bound", () => {
+  it.each([
+    "anchorMinor",
+    "perStepWiderMinor",
+    "perStepNarrowerMinor",
+  ] as const)("accepts %s at exactly the bound", (field) => {
     const parsed = parsePriceBook(
       bookPricingWallCabinetWith(
-        pricedByWidth({
-          baseMinor: 0,
-          perWidthMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-        }),
+        anchoredWith({ [field]: MAX_PRICE_COEFFICIENT_MINOR }),
       ),
     );
 
     expect(parsed.ok).toBe(true);
   });
 
-  it("refuses a coefficient one minor unit past the bound", () => {
+  it.each([
+    "anchorMinor",
+    "perStepWiderMinor",
+    "perStepNarrowerMinor",
+  ] as const)("refuses %s one minor unit past the bound", (field) => {
     const parsed = parsePriceBook(
       bookPricingWallCabinetWith(
-        pricedByWidth({
-          baseMinor: 0,
-          perWidthMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR + 1,
-        }),
+        anchoredWith({ [field]: MAX_PRICE_COEFFICIENT_MINOR + 1 }),
       ),
     );
 
     expect(parsed.ok).toBe(false);
   });
 
+  it("accepts a listed size at exactly the bound and refuses one past it", () => {
+    const listed = (amountMinor: number): PriceFormula => ({
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor }],
+    });
+
+    expect(
+      parsePriceBook(
+        bookPricingWallCabinetWith(listed(MAX_PRICE_COEFFICIENT_MINOR)),
+      ).ok,
+    ).toBe(true);
+    expect(
+      parsePriceBook(
+        bookPricingWallCabinetWith(listed(MAX_PRICE_COEFFICIENT_MINOR + 1)),
+      ).ok,
+    ).toBe(false);
+  });
+
   it("refuses a coefficient one minor unit past the bound in the negative direction", () => {
+    // A negative price is refused before its magnitude is weighed, so this holds whichever check speaks first.
     const parsed = parsePriceBook(
       bookPricingWallCabinetWith(
-        pricedByWidth({
-          baseMinor: 0,
-          perWidthMillimetreMinor: -(MAX_PRICE_COEFFICIENT_MINOR + 1),
-        }),
+        anchoredWith({ anchorMinor: -(MAX_PRICE_COEFFICIENT_MINOR + 1) }),
       ),
     );
 
@@ -232,9 +278,7 @@ describe("every amount a book states is held to the magnitude bound", () => {
 
   it("accepts a negative zero, which every guard downstream reads as zero", () => {
     const parsed = parsePriceBook(
-      bookPricingWallCabinetWith(
-        pricedByWidth({ baseMinor: -0, perWidthMillimetreMinor: 0 }),
-      ),
+      bookPricingWallCabinetWith(anchoredWith({ anchorMinor: -0 })),
     );
 
     expect(parsed.ok).toBe(true);
@@ -337,76 +381,88 @@ describe("the hardware line adds its three products without checking any of them
 });
 
 describe("the coefficient bound is derived from the arithmetic it has to hold", () => {
-  /** Every shape the book module builds, each carrying the coefficients its own constructor takes.
-   *  Built from the constructors rather than from a literal list of shape names, so a fifth shape
-   *  joins this sweep on the day it is exported. */
+  /** Every shape a book may carry, each at the bound in every coefficient it states. The four anchored shapes come from
+   *  one table, so a fifth joins this sweep on the day it is declared. */
   const EVERY_SHAPE: readonly PriceFormula[] = [
-    pricedByWidth({
-      baseMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perWidthMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-    }),
-    pricedByWidthAndDoorLeaves({
-      baseMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perWidthMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perDoorLeafMinor: MAX_PRICE_COEFFICIENT_MINOR,
-    }),
-    pricedByWidthAndHeight({
-      baseMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perWidthMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perHeightMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-    }),
-    pricedByWidthHeightAndDoorLeaves({
-      baseMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perWidthMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perHeightMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-      perDoorLeafMinor: MAX_PRICE_COEFFICIENT_MINOR,
-    }),
+    ...ANCHORED_SHAPES.map(
+      (shape): PriceFormula => ({
+        shape,
+        anchorWidthMm: 600,
+        anchorMinor: MAX_PRICE_COEFFICIENT_MINOR,
+        perStepWiderMinor: MAX_PRICE_COEFFICIENT_MINOR,
+        perStepNarrowerMinor: MAX_PRICE_COEFFICIENT_MINOR,
+        ...(shape.includes("door-leaves")
+          ? { perExtraDoorLeafMinor: MAX_PRICE_COEFFICIENT_MINOR }
+          : {}),
+        ...(shape.includes("height")
+          ? {
+              anchorHeightMm: 700,
+              perHeightStepMinor: MAX_PRICE_COEFFICIENT_MINOR,
+            }
+          : {}),
+      }),
+    ),
+    {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: MAX_PRICE_COEFFICIENT_MINOR }],
+    },
   ];
 
-  /** The multiplier the bound's derivation names as the largest a book amount ever meets. */
+  /** The widest body: every step count the arithmetic can meet is at its largest. */
   const WIDEST_BODY: PricedBody = {
-    widthMm: MAX_DESIGN_DIMENSION_MM,
-    heightMm: MAX_DESIGN_DIMENSION_MM,
+    widthMm: 600,
+    heightMm: 700,
     doorLeafCount: MAX_DESIGN_DIMENSION_MM,
+    doorLeafCountAt: () => 0,
   };
 
-  it("evaluates every shape at the bound and the widest body without refusing its own arithmetic", () => {
-    // What "derived rather than chosen" has to mean: a book the parser accepts is never refused by
-    // the guard the bound exists to keep unreachable. A fifth term added to a shape breaks this.
+  it("evaluates every shape at the bound, on a widest body, without refusing its own arithmetic", () => {
+    // What "derived rather than chosen" has to mean: a book the parser accepts is never refused by the guard the bound
+    // exists to keep unreachable, short of the per-cabinet cap the percentage seam applies. Two coefficients at the bound
+    // can sum past the safe range, and then the refusal is the arithmetic's own `InexactPriceArithmeticError`: never a
+    // figure the integers disagree with.
     for (const formula of EVERY_SHAPE) {
-      expect(
-        () => amountForBody(formula, WIDEST_BODY),
-        formula.shape,
-      ).not.toThrow();
+      let amount: number | undefined;
+      try {
+        amount = amountForBody(formula, WIDEST_BODY);
+      } catch (error) {
+        expect(error, formula.shape).toBeInstanceOf(
+          InexactPriceArithmeticError,
+        );
+        continue;
+      }
+      expect(Number.isSafeInteger(amount), formula.shape).toBe(true);
     }
   });
 
-  it("counts the widest shape's terms rather than trusting the constant's comment", () => {
-    const widestTermCount = Math.max(
+  it("counts the widest shape's coefficients rather than trusting the constant's comment", () => {
+    const widestCoefficientCount = Math.max(
       ...EVERY_SHAPE.map(
         (formula) =>
-          Object.values(formula).filter((value) => typeof value === "number")
+          Object.keys(formula).filter((field) => field.endsWith("Minor"))
             .length,
       ),
     );
 
+    // One term is multiplied by a step or leaf count, which stays below the millimetre dimension the bound was derived
+    // over, so five terms at the bound over the largest count still fit.
     expect(
-      widestTermCount * MAX_DESIGN_DIMENSION_MM * MAX_PRICE_COEFFICIENT_MINOR,
-    ).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
+      widestCoefficientCount *
+        MAX_DESIGN_DIMENSION_MM *
+        MAX_PRICE_COEFFICIENT_MINOR,
+    ).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER * 2);
   });
 
   it("refuses rather than publishes when a design's own total leaves the safe range", () => {
-    // The bound is derived per **body**. A design sums up to `MAX_PLACEMENTS` of them, and the
-    // derivation does not carry that factor — so this asserts the direction the omission fails in:
-    // a refusal, never a figure the integers disagree with.
+    // The bound is derived per **body**. A design sums up to `MAX_PLACEMENTS` of them; the per-cabinet cap
+    // (ADR 0177 A-5) is what carries that factor, so a book at the bound is refused whole and never published at a
+    // figure the integers disagree with.
     const cabinetRules: readonly CabinetPriceRule[] = BOOK.cabinetRules.map(
       (rule) => ({
         ...rule,
-        formula: pricedByWidthHeightAndDoorLeaves({
-          baseMinor: MAX_PRICE_COEFFICIENT_MINOR,
-          perWidthMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-          perHeightMillimetreMinor: MAX_PRICE_COEFFICIENT_MINOR,
-          perDoorLeafMinor: MAX_PRICE_COEFFICIENT_MINOR,
+        formula: anchoredWith({
+          anchorMinor: MAX_PRICE_COEFFICIENT_MINOR,
+          perStepWiderMinor: MAX_PRICE_COEFFICIENT_MINOR,
         }),
       }),
     );
@@ -415,33 +471,43 @@ describe("the coefficient bound is derived from the arithmetic it has to hold", 
     expect(!result.ok || Number.isSafeInteger(result.priced.totalMinor)).toBe(
       true,
     );
+    expect(result.ok).toBe(false);
   });
 });
 
 describe("a formula publishes the figure the integers give, or refuses", () => {
+  const BODY: PricedBody = {
+    widthMm: 600,
+    heightMm: 700,
+    doorLeafCount: 1,
+    doorLeafCountAt: () => 1,
+  };
+
   it("refuses a shape whose terms are each exact and whose total is not", () => {
     const half = Math.floor(Number.MAX_SAFE_INTEGER / 2);
 
     expect(() =>
       amountForBody(
-        pricedByWidthAndHeight({
-          baseMinor: half,
-          perWidthMillimetreMinor: half,
-          perHeightMillimetreMinor: half,
-        }),
-        { widthMm: 1, heightMm: 1, doorLeafCount: 0 },
+        {
+          shape: "anchored-width-and-height",
+          anchorWidthMm: 600,
+          anchorHeightMm: 700,
+          anchorMinor: half,
+          perStepWiderMinor: half,
+          perStepNarrowerMinor: 0,
+          perHeightStepMinor: half,
+        },
+        // 650 is one step wider and 750 one step taller: three exact terms of `half` whose sum is not exact.
+        { ...BODY, widthMm: 650, heightMm: 750 },
       ),
     ).toThrow(InexactPriceArithmeticError);
   });
 
-  it("refuses the largest safe integer multiplied by a millimetre of width", () => {
+  it("refuses the largest safe integer multiplied by a step of width", () => {
     expect(() =>
       amountForBody(
-        pricedByWidth({
-          baseMinor: 0,
-          perWidthMillimetreMinor: Number.MAX_SAFE_INTEGER,
-        }),
-        { widthMm: 2, heightMm: 0, doorLeafCount: 0 },
+        anchoredWith({ perStepWiderMinor: Number.MAX_SAFE_INTEGER }),
+        { ...BODY, widthMm: 700 },
       ),
     ).toThrow(InexactPriceArithmeticError);
   });
@@ -449,11 +515,8 @@ describe("a formula publishes the figure the integers give, or refuses", () => {
   it("answers the largest safe integer itself, which is exact and is the last value that is", () => {
     expect(
       amountForBody(
-        pricedByWidth({
-          baseMinor: Number.MAX_SAFE_INTEGER,
-          perWidthMillimetreMinor: 0,
-        }),
-        { widthMm: 600, heightMm: 700, doorLeafCount: 1 },
+        anchoredWith({ anchorMinor: Number.MAX_SAFE_INTEGER }),
+        BODY,
       ),
     ).toBe(Number.MAX_SAFE_INTEGER);
   });
@@ -461,11 +524,8 @@ describe("a formula publishes the figure the integers give, or refuses", () => {
   it("answers the negation of the largest safe integer, which is exact and negative", () => {
     expect(
       amountForBody(
-        pricedByWidth({
-          baseMinor: -Number.MAX_SAFE_INTEGER,
-          perWidthMillimetreMinor: 0,
-        }),
-        { widthMm: 600, heightMm: 700, doorLeafCount: 1 },
+        anchoredWith({ anchorMinor: -Number.MAX_SAFE_INTEGER }),
+        BODY,
       ),
     ).toBe(-Number.MAX_SAFE_INTEGER);
   });
@@ -491,6 +551,7 @@ describe("a repeated tier id is refused before declaration order can decide a pr
       }) as PriceBook,
       pricingVersion: BOOK.version,
       selections: { materialTierId: first.tierId },
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     });
 
     expect(result.ok).toBe(false);

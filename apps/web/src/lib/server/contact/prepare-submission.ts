@@ -15,6 +15,7 @@ import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
 import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import type { DesignRefusal } from "@/lib/server/contact/contact-responses";
 import type { OwnedDesignLoad } from "@/lib/server/load-owned-design";
+import { shippedDeepeningRows } from "@/price/deepening-rows";
 
 /**
  * What the design is read and priced from: the owned load, handed in, and the one book taken for the request, with the
@@ -59,6 +60,7 @@ export async function prepareSubmission(
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(owned)),
     book,
     pricingVersion: book.version,
+    deepeningRows: shippedDeepeningRows(),
   });
   if (!result.ok) return refusalOf(result.refusal);
   requireTheBooksVersion(result.snapshot.priced.pricingVersion, book);

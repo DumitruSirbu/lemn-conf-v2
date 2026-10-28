@@ -27,6 +27,7 @@ import {
   MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
   VENEER_TIER_ID,
 } from "../support/mdf-kitchen-wearing-chosen-colours";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** The store state the hook under test reads, swapped between cases so the real `usePricedDesign`
  *  runs against a real store's real fields rather than a fixture shaped like one. */
@@ -198,6 +199,7 @@ describe("the two whole-kitchen store actions", () => {
 describe("usePricedDesign reads the settings container", () => {
   function priceWith(design: Design) {
     return priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

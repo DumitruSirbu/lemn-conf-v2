@@ -3,12 +3,9 @@ import {
   isSameAddress,
   readEditableFields,
   type AppliedAddress,
-  type CabinetPriceRule,
   type DraftBulk,
   type DraftChange,
-  type PercentageMaterialTier,
   type PriceBook,
-  type TierIdentity,
 } from "@lemnaria/configurator-domain";
 
 import { readActivePriceBook } from "@/lib/server/active-price-book";
@@ -24,77 +21,39 @@ import type { PublishPageInput, VersionDetailInput } from "./publish-model";
 // Invented data for builds that show samples; every book goes through `applyChanges`. Reached only through the sources.
 
 /**
- * The book the application's own root reads in a build that shows samples, in its flat form (linear prices, flat material
- * amounts, no depth rule): what the sample restates in the percentage form, and what a version published before that form
- * was. Read through the one root, so this module names no book of its own.
+ * The book the application's own root reads in a build that shows samples. It is the active version exactly as it
+ * stands (percentage form, fixed-size rows kept fixed-size); the earlier versions are derived from it by `applyChanges`,
+ * so no module here restates the sample's figures. Read through the one root, so this module names no book of its own.
  */
-export const SAMPLE_FLAT_BOOK: PriceBook = await readFlatBook();
+const ROOT_BOOK: PriceBook = await readRootBook();
 
-async function readFlatBook(): Promise<PriceBook> {
+async function readRootBook(): Promise<PriceBook> {
   const root = await readActivePriceBook();
   if (root.kind !== "active") {
-    throw new Error("the application's own root holds no book to restate");
+    throw new Error("the application's own root holds no book to show");
   }
   return root.book;
 }
-const FLAT_BOOK: PriceBook = SAMPLE_FLAT_BOOK;
 
-const ANCHOR_WIDTH_MM = 600;
-const FIRST_ANCHOR_MINOR = 100_000;
-const ANCHOR_STEP_BETWEEN_RULES_MINOR = 10_000;
-const STEP_WIDER_MINOR = 8_000;
-const STEP_NARROWER_MINOR = 6_000;
-const MATERIAL_PERCENTS = [0, 25, 60] as const;
-const DEEP_CABINET_PERCENT = 15;
 const BULK_ROUNDING_MINOR = 100;
 const BULK_PERCENT = 5;
 const PAGE_SIZE = 20;
 
-function anchoredRuleOf(
-  rule: CabinetPriceRule,
-  index: number,
-): CabinetPriceRule {
-  if (rule.suppliedBy === "customer") return rule;
-  return {
-    ...rule,
-    formula: {
-      shape: "anchored-width",
-      anchorWidthMm: ANCHOR_WIDTH_MM,
-      anchorMinor: FIRST_ANCHOR_MINOR + index * ANCHOR_STEP_BETWEEN_RULES_MINOR,
-      perStepWiderMinor: STEP_WIDER_MINOR,
-      perStepNarrowerMinor: STEP_NARROWER_MINOR,
-    },
-  };
-}
+/** How the history differs from the root: it is the root walked backwards, so the active version stays the root. The
+ *  drawer rate stood above the root at version 3; the others stood below it. */
+const DRAWER_ABOVE_ROOT_AT_V3_MINOR = 5_000;
+const MDF_PERCENT_BELOW_ROOT_AT_V2 = 3;
+const MDF_PERCENT_BELOW_ROOT_AT_V1 = 8;
+const BASE_ANCHOR_BELOW_ROOT_AT_V2_MINOR = 10_000;
 
-function percentageTierOf(
-  tier: TierIdentity,
-  percentOfCabinets: number,
-): PercentageMaterialTier {
-  return {
-    tierId: tier.tierId,
-    ruleId: tier.ruleId,
-    name: tier.name,
-    description: tier.description,
-    nameKey: tier.nameKey,
-    descriptionKey: tier.descriptionKey,
-    percentOfCabinets,
-  };
-}
+/** The pending draft: figures chosen to show a rise, a cut and a new depth rule beside one bulk action. */
+const DRAFT_ANCHOR_ABOVE_ROOT_MINOR = 6_000;
+const DRAFT_DEPTH_PERCENT = 18;
+const DRAFT_MDF_PERCENT = 30;
+const DRAFT_BLUM_HINGE_MINOR = 4_500;
+const DRAFT_DRYING_RACK_MINOR = 65_000;
 
-/** The sample book restated in the percentage form, the only form whose cabinet, material and depth fields are editable. */
-const FIRST_BOOK: PriceBook = {
-  ...FLAT_BOOK,
-  amountsProvisional: true,
-  cabinetRules: FLAT_BOOK.cabinetRules.map(anchoredRuleOf),
-  material: {
-    defaultTierId: FLAT_BOOK.material.defaultTierId,
-    tiers: FLAT_BOOK.material.tiers.map((tier, index) =>
-      percentageTierOf(tier, MATERIAL_PERCENTS[index] ?? 0),
-    ),
-  },
-  depthRule: { deepCabinetPercent: DEEP_CABINET_PERCENT },
-};
+const BASE_CABINET_RULE_ID = "cabinet.base-cabinet";
 
 function valueAt(book: PriceBook, address: AppliedAddress): number {
   const reading = readEditableFields(book).find((row) =>
@@ -115,65 +74,89 @@ function bookAfter(
   return applied.book;
 }
 
-function secondMaterialTierId(): string {
-  const tier = FLAT_BOOK.material.tiers[1];
-  if (tier === undefined) throw new Error("the sample book has no upgrade");
+/** The id of the root's tier at this position in its group. */
+function tierIdAt(group: "hardware" | "material", index: number): string {
+  const tier = ROOT_BOOK[group].tiers[index];
+  if (tier === undefined) {
+    throw new Error(`the sample book has no ${group} tier ${String(index)}`);
+  }
   return tier.tierId;
 }
 
-function hardwareTierId(index: number): string {
-  const tier = FLAT_BOOK.hardware.tiers[index];
-  if (tier === undefined) throw new Error("the sample book lacks a class");
-  return tier.tierId;
+/** The three kinds of address the history edits, each of which takes a whole number. */
+type NumberAddress = Extract<
+  AppliedAddress,
+  { readonly kind: "cabinet" | "material" | "hardware" }
+>;
+
+const BASE_ANCHOR: NumberAddress = {
+  kind: "cabinet",
+  ruleId: BASE_CABINET_RULE_ID,
+  field: "anchorMinor",
+};
+const SECOND_MATERIAL_PERCENT: NumberAddress = {
+  kind: "material",
+  tierId: tierIdAt("material", 1),
+  field: "percentOfCabinets",
+};
+const SECOND_HARDWARE_DRAWER: NumberAddress = {
+  kind: "hardware",
+  tierId: tierIdAt("hardware", 1),
+  field: "perDrawerMinor",
+};
+
+/** The union of `DraftChange` pairs each kind with its own value type; every kind in `NumberAddress` takes a number. */
+function changeTo(address: NumberAddress, value: number): DraftChange {
+  return { address, value } as DraftChange;
 }
 
-function firstAnchorChange(buildId: string, value: number): DraftChange {
-  return {
-    address: {
-      kind: "cabinet",
-      ruleId: `cabinet.${buildId}`,
-      field: "anchorMinor",
-    },
-    value,
-  };
+function rootValueOffsetBy(address: NumberAddress, offset: number): number {
+  return valueAt(ROOT_BOOK, address) + offset;
 }
 
-const SECOND_CHANGES: readonly DraftChange[] = [
-  {
-    address: {
-      kind: "material",
-      tierId: secondMaterialTierId(),
-      field: "percentOfCabinets",
-    },
-    value: 20,
-  },
+// Newest first. Each version's changes stand right before the book that version published, which is also the book the
+// next version started from.
+const FOURTH_CHANGES: readonly DraftChange[] = [
+  changeTo(
+    SECOND_HARDWARE_DRAWER,
+    rootValueOffsetBy(SECOND_HARDWARE_DRAWER, 0),
+  ),
 ];
-const SECOND_BOOK = bookAfter(FIRST_BOOK, SECOND_CHANGES);
 
 const THIRD_CHANGES: readonly DraftChange[] = [
-  {
-    address: {
-      kind: "material",
-      tierId: secondMaterialTierId(),
-      field: "percentOfCabinets",
-    },
-    value: 25,
-  },
-  firstAnchorChange("base-cabinet", 145_000),
+  changeTo(
+    SECOND_MATERIAL_PERCENT,
+    rootValueOffsetBy(SECOND_MATERIAL_PERCENT, 0),
+  ),
+  changeTo(BASE_ANCHOR, rootValueOffsetBy(BASE_ANCHOR, 0)),
 ];
-const THIRD_BOOK = bookAfter(SECOND_BOOK, THIRD_CHANGES);
+const THIRD_BOOK = bookAfter(ROOT_BOOK, [
+  changeTo(
+    SECOND_HARDWARE_DRAWER,
+    rootValueOffsetBy(SECOND_HARDWARE_DRAWER, DRAWER_ABOVE_ROOT_AT_V3_MINOR),
+  ),
+]);
 
-const FOURTH_CHANGES: readonly DraftChange[] = [
-  {
-    address: {
-      kind: "hardware",
-      tierId: hardwareTierId(1),
-      field: "perDrawerMinor",
-    },
-    value: 11_000,
-  },
+const SECOND_CHANGES: readonly DraftChange[] = [
+  changeTo(
+    SECOND_MATERIAL_PERCENT,
+    rootValueOffsetBy(SECOND_MATERIAL_PERCENT, -MDF_PERCENT_BELOW_ROOT_AT_V2),
+  ),
 ];
-const ACTIVE_BOOK = bookAfter(THIRD_BOOK, FOURTH_CHANGES);
+const SECOND_BOOK = bookAfter(THIRD_BOOK, [
+  ...SECOND_CHANGES,
+  changeTo(
+    BASE_ANCHOR,
+    rootValueOffsetBy(BASE_ANCHOR, -BASE_ANCHOR_BELOW_ROOT_AT_V2_MINOR),
+  ),
+]);
+
+const FIRST_BOOK = bookAfter(SECOND_BOOK, [
+  changeTo(
+    SECOND_MATERIAL_PERCENT,
+    rootValueOffsetBy(SECOND_MATERIAL_PERCENT, -MDF_PERCENT_BELOW_ROOT_AT_V1),
+  ),
+]);
 
 function roundedToBulkUnit(minor: number): number {
   const remainder = minor % BULK_ROUNDING_MINOR;
@@ -194,43 +177,38 @@ function scaledByBulkPercent(minor: number): number {
  */
 const BULK: DraftBulk = { percent: BULK_PERCENT, scope: "selection" };
 const BULK_GROUP_ID = "bulk-sample-base";
-const BULK_CABINET_RULE_ID = "cabinet.base-cabinet";
 
 const BULK_CHANGES: readonly DraftChange[] = (
   ["perStepWiderMinor", "perStepNarrowerMinor"] as const
 ).map((field): DraftChange => {
   const address = {
     kind: "cabinet",
-    ruleId: BULK_CABINET_RULE_ID,
+    ruleId: BASE_CABINET_RULE_ID,
     field,
   } as const;
   return {
     address,
-    value: scaledByBulkPercent(valueAt(ACTIVE_BOOK, address)),
+    value: scaledByBulkPercent(valueAt(ROOT_BOOK, address)),
     groupId: BULK_GROUP_ID,
     bulk: BULK,
   };
 });
 
 const SAMPLE_DRAFT_CHANGES: readonly DraftChange[] = [
-  firstAnchorChange("base-cabinet", 150_000),
+  changeTo(
+    BASE_ANCHOR,
+    rootValueOffsetBy(BASE_ANCHOR, DRAFT_ANCHOR_ABOVE_ROOT_MINOR),
+  ),
   ...BULK_CHANGES,
-  { address: { kind: "depth-rule" }, value: 18 },
-  {
-    address: {
-      kind: "material",
-      tierId: secondMaterialTierId(),
-      field: "percentOfCabinets",
-    },
-    value: 30,
-  },
+  { address: { kind: "depth-rule" }, value: DRAFT_DEPTH_PERCENT },
+  changeTo(SECOND_MATERIAL_PERCENT, DRAFT_MDF_PERCENT),
   {
     address: {
       kind: "hardware",
-      tierId: hardwareTierId(2),
+      tierId: tierIdAt("hardware", 2),
       field: "perHingeMinor",
     },
-    value: 4_500,
+    value: DRAFT_BLUM_HINGE_MINOR,
   },
   {
     address: {
@@ -238,7 +216,7 @@ const SAMPLE_DRAFT_CHANGES: readonly DraftChange[] = [
       accessoryId: "dishDryingRack",
       field: "perUnitMinor",
     },
-    value: 65_000,
+    value: DRAFT_DRYING_RACK_MINOR,
   },
   { address: { kind: "provisional" }, value: false },
 ];
@@ -280,7 +258,7 @@ const ACTIVE_VERSION = versionOf(
     publishedAt: "2026-10-20T08:00:00.000Z",
     isActive: true,
   },
-  { book: ACTIVE_BOOK, changes: FOURTH_CHANGES },
+  { book: ROOT_BOOK, changes: FOURTH_CHANGES },
 );
 
 /** Oldest first. The last is the active version. */
@@ -322,7 +300,7 @@ export const SAMPLE_PUBLISH_PAGE: PublishPageInput = {
   state: {
     active: {
       versionId: ACTIVE_VERSION.summary.versionId,
-      book: ACTIVE_BOOK,
+      book: ROOT_BOOK,
       availability: { revision: "0", disabled: [] },
       sequenceNumber: ACTIVE_VERSION.summary.sequenceNumber,
       label: ACTIVE_VERSION.summary.label,
@@ -377,7 +355,7 @@ export function sampleVersionDetail(
           },
     active: {
       sequenceNumber: ACTIVE_VERSION.summary.sequenceNumber,
-      book: ACTIVE_BOOK,
+      book: ROOT_BOOK,
     },
     draft: SAMPLE_PUBLISH_PAGE.state.draft,
     cabinetNames: CABINET_NAMES,

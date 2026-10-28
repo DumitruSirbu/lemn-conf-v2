@@ -26,10 +26,9 @@ import {
   percentageStagesOf,
   roundHalfUpToTenLei,
 } from "../../src/pricing/percentage-lines.js";
-import {
-  pricedFlat,
-  type CabinetPriceRule,
-  type PriceBook,
+import type {
+  CabinetPriceRule,
+  PriceBook,
 } from "../../src/pricing/price-book.js";
 import {
   MAX_DEEP_CABINET_PERCENT,
@@ -57,6 +56,9 @@ const NUM_RUNS = 100;
 const SHALLOW_MM = 600;
 const DEEP_MM = 700;
 const TEN_LEI = 1_000n;
+
+/** What a caller that measured and found nothing deeper passes: a real answer, not an absent one. */
+const NOTHING_DEEPENS: ReadonlySet<string> = new Set();
 
 const MANUFACTURER_ROWS = SAMPLE_PRICE_BOOK.cabinetRules
   .filter((rule) => rule.suppliedBy !== "customer")
@@ -172,7 +174,7 @@ function requestOf(
     book,
     pricingVersion: book.version,
     selections: { materialTierId: options.materialTierId },
-    deepeningRows: options.deepeningRows,
+    deepeningRows: options.deepeningRows ?? NOTHING_DEEPENS,
   };
 }
 
@@ -451,12 +453,19 @@ describe("hardware and accessories are rounded to ten lei and never scaled by ma
             deepCabinetPercent: depthPercent,
             cabinetRules: rules,
           });
-          const flatBook: PriceBook = {
-            ...SAMPLE_PRICE_BOOK,
+          // The same book with no percentage in it: PAL is the reference and the depth rule states 0 %.
+          const withoutPercentages = percentageBookOf({
+            materialPercent: 0,
+            deepCabinetPercent: 0,
             cabinetRules: rules,
-          };
+          });
           const design = designAt(DEEP_MM);
-          const flat = pricedOrThrow(requestOf(flatBook, { design }));
+          const flat = pricedOrThrow(
+            requestOf(withoutPercentages, {
+              design,
+              deepeningRows: new Set(MANUFACTURER_ROWS),
+            }),
+          );
           const priced = pricedOrThrow(
             requestOf(percentageBook, {
               design,
@@ -903,27 +912,44 @@ describe("measureDeepeningRows over generated catalogues", () => {
 // 5. A percentage-form book without deepeningRows.
 // ---------------------------------------------------------------------------------------------------------------
 
-describe("a percentage-form book is refused without deepeningRows", () => {
+describe("a caller that has not measured the deepening rows gets no price that silently omits the depth line", () => {
   const book = percentageBookOf({
     materialPercent: 10,
     deepCabinetPercent: 10,
     cabinetRules: anchoredRules(() => 100_000),
   });
 
-  it.each([SHALLOW_MM, DEEP_MM])(
-    "refuses INVALID_PRICE_BOOK at %i mm and names the missing input",
-    (builtAtMm) => {
-      const failure = refusalOf(
-        requestOf(book, {
-          design: designAt(builtAtMm),
-          deepeningRows: undefined,
-        }),
-      );
+  /** The request as a caller that forgot the set (or a JavaScript caller) would send it. The type forbids it, and
+   *  that is the first line of defence: the `@ts-expect-error` goes red the day the field turns optional. */
+  function requestWithoutTheSet(builtAtMm: number): PriceDesignRequest {
+    const request = requestOf(book, { design: designAt(builtAtMm) });
+    const missing: PriceDesignRequest = {
+      ...request,
+      // @ts-expect-error `deepeningRows` is required (ADR 0177 A-6, P3)
+      deepeningRows: undefined,
+    };
+    return missing;
+  }
 
-      expect(failure.code).toBe("INVALID_PRICE_BOOK");
-      expect(failure.detail).toContain("deepeningRows");
-    },
-  );
+  it("never returns a price at 700 mm, where the depth line depends on the set", () => {
+    // It raises rather than refuses: the set is supplied by code, not by a book, so a missing one is a defect in the
+    // caller and not a fact a surface could render. What must never happen is a figure without its depth line.
+    const answer = (() => {
+      try {
+        return priceDesign(requestWithoutTheSet(DEEP_MM));
+      } catch {
+        return undefined;
+      }
+    })();
+
+    expect(answer?.ok ?? false).toBe(false);
+  });
+
+  it("prices at 600 mm, where no cabinet deepens and so the set decides nothing", () => {
+    const priced = pricedOrThrow(requestWithoutTheSet(SHALLOW_MM));
+
+    expect(countOfKind(priced, "depth")).toBe(0);
+  });
 
   it("prices with an empty set, which is a real answer ('nothing deepens') and not an absence", () => {
     const priced = pricedOrThrow(
@@ -1192,37 +1218,60 @@ describe("hostile percentages are refused before any price is formed", () => {
     expect(failure.code).toBe("INVALID_PRICE_BOOK");
   });
 
-  it("refuses a book that states both a flat amount and a percentage on one tier", () => {
+  it("refuses a retired whole-kitchen amount left on a percentage tier, naming the tier (P3-Q3 closed the former gap)", () => {
     const book = percentageBookOf({
       materialPercent: 10,
       deepCabinetPercent: 10,
       cabinetRules: anchoredRules(() => 100_000),
     });
-    const tiers = book.material.tiers.map((tier) => ({
+    const withRetiredAmount = book.material.tiers.map((tier) => ({
       ...tier,
       wholeKitchenMinor: 5_000,
     })) as unknown as PriceBook["material"]["tiers"];
 
-    const failure = refusalOf(
+    const result = priceDesign(
       requestOf(
-        { ...book, material: { ...book.material, tiers } },
+        { ...book, material: { ...book.material, tiers: withRetiredAmount } },
         {
           design,
-          deepeningRows: new Set(),
+          deepeningRows: new Set<string>(),
+          materialTierId: UPGRADE_TIER_ID,
         },
       ),
     );
 
-    expect(failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(result.failure.detail).toContain(
+      `material tier "${REFERENCE_TIER_ID}"`,
+    );
   });
 });
 
 describe("a cabinet that would price below zero is refused, never rounded into a line (A-7b)", () => {
+  /** A book states no negative price, so a cabinet reaches a negative amount the one way left: stepping down from an
+   *  anchor by more than the anchor. The 3-drawer base is quoted at `amountMinor` plus six steps' worth at 600 mm and
+   *  built at 300 mm, six steps narrower, so its exact amount is `amountMinor`. */
+  const STEPS_BELOW_THE_ANCHOR = 6;
+  const STEP_DOWN_MINOR = 400_000;
+  const NARROW_WIDTH_MM = 300;
+
   function bookWithBaseDrawerAt(amountMinor: number): PriceBook {
     const rules: readonly CabinetPriceRule[] = anchoredRules(() => 100_000).map(
       (rule) =>
         rule.buildId === "base-3drawer"
-          ? { ...rule, formula: pricedFlat(amountMinor) }
+          ? {
+              ...rule,
+              formula: {
+                shape: "anchored-width",
+                anchorWidthMm: 600,
+                anchorMinor:
+                  amountMinor + STEPS_BELOW_THE_ANCHOR * STEP_DOWN_MINOR,
+                perStepWiderMinor: 0,
+                perStepNarrowerMinor: STEP_DOWN_MINOR,
+              },
+            }
           : rule,
     );
     return percentageBookOf({
@@ -1232,12 +1281,27 @@ describe("a cabinet that would price below zero is refused, never rounded into a
     });
   }
 
+  function narrowDrawerDesign(): Design {
+    const deep = designAt(DEEP_MM);
+    return {
+      ...deep,
+      placements: deep.placements.map((placement) =>
+        placement.id === "p4"
+          ? {
+              ...placement,
+              body: { ...placement.body, widthMm: NARROW_WIDTH_MM },
+            }
+          : placement,
+      ),
+    };
+  }
+
   it.each([-1, -499, -500, -501, -1_000_000])(
     "refuses %i bani with INVALID_AMOUNT naming the placement",
     (amountMinor) => {
       const failure = refusalOf(
         requestOf(bookWithBaseDrawerAt(amountMinor), {
-          design: designAt(DEEP_MM),
+          design: narrowDrawerDesign(),
           deepeningRows: new Set(MANUFACTURER_ROWS),
           materialTierId: UPGRADE_TIER_ID,
         }),
@@ -1253,7 +1317,7 @@ describe("a cabinet that would price below zero is refused, never rounded into a
     (amountMinor) => {
       const priced = pricedOrThrow(
         requestOf(bookWithBaseDrawerAt(amountMinor), {
-          design: designAt(DEEP_MM),
+          design: narrowDrawerDesign(),
           deepeningRows: new Set(MANUFACTURER_ROWS),
           materialTierId: UPGRADE_TIER_ID,
         }),

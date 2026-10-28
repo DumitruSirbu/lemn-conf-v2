@@ -8,18 +8,19 @@ import { describe, expect, it } from "vitest";
 
 import { INSERTABLE_BODY_DEFINITIONS } from "../../src/catalog.js";
 import { SAMPLE_PRICE_BOOK as BARREL_BOOK } from "../../src/index.js";
+import { ANCHORED_SHAPES } from "../../src/pricing/anchored-price-formula.js";
 import {
   amountForBody,
   PRICE_BOOK_CURRENCY,
   type AccessoryRule,
-  pricedByWidth,
-  pricedByWidthAndDoorLeaves,
-  pricedByWidthAndHeight,
-  pricedByWidthHeightAndDoorLeaves,
-  pricedFlat,
   type PriceFormula,
 } from "../../src/pricing/price-book.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import type { BodyDefinition } from "../../src/void-engine.js";
+
+const INSERTABLE_ROWS: ReadonlyMap<string, BodyDefinition> = new Map(
+  INSERTABLE_BODY_DEFINITIONS,
+);
 
 const SOURCE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -78,42 +79,56 @@ describe("the query takes a book and imports none", () => {
   });
 });
 
-/** Every formula shape this build knows and the coefficients each is made of, declared here rather than derived
- *  from the book, so a book that grew a field fails instead of passing a sweep of whatever it holds. The shapes: the
- *  base one, the per-door step, and one reading a body built to its opening; all share the two width coefficients and
- *  none names a width. */
-const COEFFICIENTS_BY_SHAPE: Readonly<Record<string, readonly string[]>> = {
-  "linear-in-width": ["baseMinor", "perWidthMillimetreMinor"],
-  "linear-in-width-and-door-leaves": [
-    "baseMinor",
-    "perWidthMillimetreMinor",
-    "perDoorLeafMinor",
+/** Every formula shape this build knows and the fields each is made of, declared here rather than derived from the
+ *  book, so a book that grew a field fails instead of passing a sweep of whatever it holds. The shapes: an anchor and
+ *  its 50 mm steps, with a door-leaf step and a height step where a row's catalogue property asks for one, and a list
+ *  of sizes. A width appears only as the dimension a price is quoted at or a size it is listed at; none is a price. */
+const FIELDS_BY_SHAPE: Readonly<Record<string, readonly string[]>> = {
+  "anchored-width": [
+    "anchorWidthMm",
+    "anchorMinor",
+    "perStepWiderMinor",
+    "perStepNarrowerMinor",
   ],
-  "linear-in-width-and-height": [
-    "baseMinor",
-    "perWidthMillimetreMinor",
-    "perHeightMillimetreMinor",
+  "anchored-width-and-door-leaves": [
+    "anchorWidthMm",
+    "anchorMinor",
+    "perStepWiderMinor",
+    "perStepNarrowerMinor",
+    "perExtraDoorLeafMinor",
   ],
-  "linear-in-width-height-and-door-leaves": [
-    "baseMinor",
-    "perWidthMillimetreMinor",
-    "perHeightMillimetreMinor",
-    "perDoorLeafMinor",
+  "anchored-width-and-height": [
+    "anchorWidthMm",
+    "anchorMinor",
+    "perStepWiderMinor",
+    "perStepNarrowerMinor",
+    "anchorHeightMm",
+    "perHeightStepMinor",
   ],
+  "anchored-width-height-and-door-leaves": [
+    "anchorWidthMm",
+    "anchorMinor",
+    "perStepWiderMinor",
+    "perStepNarrowerMinor",
+    "perExtraDoorLeafMinor",
+    "anchorHeightMm",
+    "perHeightStepMinor",
+  ],
+  "price-per-size": ["sizes"],
 };
 
-/** Which shapes read which derived fact about a body. Read off the coefficient table above rather
- *  than listed again, so a shape cannot be added to one and forgotten in the other. */
-function shapesReading(coefficient: string): readonly string[] {
-  return Object.entries(COEFFICIENTS_BY_SHAPE)
-    .filter(([, coefficients]) => coefficients.includes(coefficient))
+/** Which shapes read which derived fact about a body. Read off the field table above rather than listed again, so a
+ *  shape cannot be added to one and forgotten in the other. */
+function shapesReading(field: string): readonly string[] {
+  return Object.entries(FIELDS_BY_SHAPE)
+    .filter(([, fields]) => fields.includes(field))
     .map(([shape]) => shape);
 }
 
-describe("price is a formula over width, never a table keyed on the ladder", () => {
-  it("has no module under pricing/ naming the width step", () => {
-    // ADR 0035 decision 8: the 50 mm step is what the panel offers, and nothing downstream of the
-    // panel may depend on it. A body built at 570 or 575 is priced like any other.
+describe("a price is an anchor and steps, never a table keyed on the ladder", () => {
+  it("has no module under pricing/ naming the catalogue's width step", () => {
+    // ADR 0177 A-4: pricing declares its own pricing step and never imports or derives it from the catalogue's width
+    // module (ADR 0035 decision 8 keeps the 50 mm step a presentation fact). Neither name nor import may appear.
     const naming = sourcesUnder(PRICING_ROOT).filter((file) =>
       read(file).includes("WIDTH_STEP_MM"),
     );
@@ -122,10 +137,9 @@ describe("price is a formula over width, never a table keyed on the ladder", () 
   });
 
   it("has no price-data structure keyed on a width", () => {
-    // Falsifiable in the data: neither a rule nor its formula carries a field whose name or value is a width. Stated
-    // against the declared shapes, not one shape's field list: the property protected is that no coefficient is a
-    // width, not that there is one shape. `COEFFICIENTS_BY_SHAPE` is the table this file owns, so a shape added in
-    // `price-book.ts` without a line here fails as unknown.
+    // Falsifiable in the data: neither a rule nor its formula carries a field whose name or value is a price keyed on
+    // a width. Stated against the declared shapes, not one shape's field list. `FIELDS_BY_SHAPE` is the table this file
+    // owns, so a shape added in `price-book.ts` without a line here fails as unknown.
     for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
       // `suppliedBy` is an optional key: it says who puts the row in the kitchen, not a coefficient or a width. Still
       // exhaustive: a rule declares the three required keys and at most that one.
@@ -134,84 +148,154 @@ describe("price is a formula over width, never a table keyed on the ladder", () 
           ? ["buildId", "formula", "ruleId"]
           : ["buildId", "formula", "ruleId", "suppliedBy"],
       );
-      const coefficients = COEFFICIENTS_BY_SHAPE[rule.formula.shape];
-      expect(coefficients).toBeDefined();
+      const fields = FIELDS_BY_SHAPE[rule.formula.shape];
+      expect(fields).toBeDefined();
       expect(Object.keys(rule.formula).sort()).toEqual(
-        [...(coefficients ?? []), "shape"].sort(),
+        [...(fields ?? []), "shape"].sort(),
       );
     }
   });
 
-  it("names no coefficient after a width the ladder offers", () => {
-    // No coefficient is a size and none is keyed on one: `600`, `perMm600` or `at800` would be a width table wearing
-    // a formula's clothes.
+  it("names no field after a width the ladder offers", () => {
+    // No field is a size and none is keyed on one: `perMm600` or `at800` would be a width table wearing a formula's
+    // clothes.
     for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
-      for (const coefficient of Object.keys(rule.formula)) {
-        expect(coefficient).not.toMatch(/\d/);
+      for (const field of Object.keys(rule.formula)) {
+        expect(field).not.toMatch(/\d/);
       }
     }
   });
 
-  it("prices every catalogue row it names with a formula, not a list of sizes", () => {
+  it("states every amount, step and dimension of an anchored row as an exact integer", () => {
     for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
-      const coefficients = COEFFICIENTS_BY_SHAPE[rule.formula.shape];
-      expect(coefficients).toBeDefined();
-      for (const coefficient of coefficients ?? []) {
-        expect(
-          Number.isSafeInteger(
-            (rule.formula as unknown as Record<string, unknown>)[coefficient],
-          ),
-        ).toBe(true);
+      if (rule.formula.shape === "price-per-size") continue;
+      const formula = rule.formula as unknown as Record<string, unknown>;
+      for (const field of FIELDS_BY_SHAPE[rule.formula.shape] ?? []) {
+        expect(Number.isSafeInteger(formula[field]), field).toBe(true);
       }
+    }
+  });
+
+  it("lists sizes only for a row the catalogue makes in listed sizes, and lists exactly those", () => {
+    // A-7: a row made in one or two widths carries those sizes; every row with a continuous range is an anchor and
+    // steps. The insertable rows are checked against the catalogue's own sizes; a structural corner, which the
+    // catalogue does not list as insertable, is made in one width and lists one.
+    const listedBy = new Map(
+      SAMPLE_PRICE_BOOK.cabinetRules.flatMap((rule) =>
+        rule.formula.shape === "price-per-size"
+          ? [
+              [
+                rule.buildId,
+                rule.formula.sizes.map((size) => size.widthMm),
+              ] as const,
+            ]
+          : [],
+      ),
+    );
+
+    for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
+      const isCustomerSupplied =
+        SAMPLE_PRICE_BOOK.cabinetRules.find((rule) => rule.buildId === buildId)
+          ?.suppliedBy === "customer";
+      const isMadeInListedSizes = (definition.widthRangesMm ?? []).every(
+        (range) => range.minMm === range.maxMm,
+      );
+      if (isCustomerSupplied) continue;
+      expect(listedBy.has(buildId), buildId).toBe(isMadeInListedSizes);
+      if (isMadeInListedSizes) {
+        expect(listedBy.get(buildId), buildId).toEqual(definition.sizesMm);
+      }
+    }
+    const corners = [...listedBy.entries()].filter(
+      ([buildId]) => !INSERTABLE_ROWS.has(buildId),
+    );
+    expect(corners).toHaveLength(6);
+    for (const [buildId, widthsMm] of corners) {
+      expect(widthsMm, buildId).toHaveLength(1);
+    }
+  });
+
+  it("quotes every anchored insertable row at the width the catalogue says it is made at by default", () => {
+    // The book-by-catalogue rule M2 will enforce at publish, held for the shipped book here: an anchor quoted at a width
+    // nothing is built at would make every step count from a width nobody orders.
+    for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
+      const definition = INSERTABLE_ROWS.get(rule.buildId);
+      if (definition === undefined || rule.formula.shape === "price-per-size") {
+        continue;
+      }
+      expect(rule.formula.anchorWidthMm, rule.buildId).toBe(
+        definition.defaultWidthMm,
+      );
     }
   });
 });
 
 describe("every shape this build declares is a shape this build evaluates", () => {
   // A declared shape with no arm in `amountForBody` is not a type error (the switch default refuses), so it would
-  // fail as `UNKNOWN_FORMULA_SHAPE` at runtime on a customer-facing document; every exported constructor is
-  // exercised here.
+  // fail as `UNKNOWN_FORMULA_SHAPE` at runtime on a customer-facing document; every shape is exercised here. Every
+  // rate is a different power of ten, so a wrong arm answers another shape's sum.
+  const ANCHOR = 1;
+  const WIDER = 10;
+  const NARROWER = 100;
+  const DOOR = 1_000;
+  const HEIGHT = 10_000;
+  const anchored = (
+    shape: Extract<PriceFormula, { anchorMinor: number }>["shape"],
+  ): PriceFormula => ({
+    shape,
+    anchorWidthMm: 600,
+    anchorHeightMm: 700,
+    anchorMinor: ANCHOR,
+    perStepWiderMinor: WIDER,
+    perStepNarrowerMinor: NARROWER,
+    perExtraDoorLeafMinor: DOOR,
+    perHeightStepMinor: HEIGHT,
+  });
   const ONE_OF_EACH: readonly PriceFormula[] = [
-    pricedFlat(1),
-    pricedByWidth({ baseMinor: 1, perWidthMillimetreMinor: 1 }),
-    pricedByWidthAndDoorLeaves({
-      baseMinor: 1,
-      perWidthMillimetreMinor: 1,
-      perDoorLeafMinor: 1,
-    }),
-    pricedByWidthAndHeight({
-      baseMinor: 1,
-      perWidthMillimetreMinor: 1,
-      perHeightMillimetreMinor: 1,
-    }),
-    pricedByWidthHeightAndDoorLeaves({
-      baseMinor: 1,
-      perWidthMillimetreMinor: 1,
-      perHeightMillimetreMinor: 1,
-      perDoorLeafMinor: 1,
-    }),
+    anchored("anchored-width"),
+    anchored("anchored-width-and-door-leaves"),
+    anchored("anchored-width-and-height"),
+    anchored("anchored-width-height-and-door-leaves"),
+    { shape: "price-per-size", sizes: [{ widthMm: 650, amountMinor: 7 }] },
   ];
 
-  it("evaluates a formula from every constructor the module exports", () => {
-    // Every coefficient is 1, so each amount is the base plus the terms its own shape reads: 600 of width,
-    // 700 of height, 2 door leaves. A missing arm answers nothing and a wrong arm answers another row's sum.
+  it("evaluates a formula of every shape the book seam names", () => {
+    // The body is one step wider than the width anchor, one step taller than the height anchor and one door leaf over
+    // the anchor's. Each amount is the anchor plus the terms its own shape reads.
     expect(
       ONE_OF_EACH.map((formula) =>
         amountForBody(formula, {
-          widthMm: 600,
-          heightMm: 700,
-          doorLeafCount: 2,
+          widthMm: 650,
+          heightMm: 750,
+          doorLeafCount: 3,
+          doorLeafCountAt: () => 2,
         }),
       ),
-    ).toEqual([1, 1 + 600, 1 + 600 + 2, 1 + 600 + 700, 1 + 600 + 700 + 2]);
+    ).toEqual([
+      ANCHOR + WIDER,
+      ANCHOR + WIDER + DOOR,
+      ANCHOR + WIDER + HEIGHT,
+      ANCHOR + WIDER + HEIGHT + DOOR,
+      7,
+    ]);
   });
 
-  it("covers every shape the coefficient table declares, and no other", () => {
-    // Ties the two lists together: the table this file prices books against and the constructors
-    // the module offers describe the same set, so neither can grow a member the other has not seen.
+  it("covers every shape the field table declares, and no other", () => {
+    // Ties the lists together: the table this file prices books against, the shapes the module exports and the shapes
+    // exercised above describe the same set, so none can grow a member the others have not seen.
+    const exercised = [...new Set(ONE_OF_EACH.map((formula) => formula.shape))];
+    expect(exercised.sort()).toEqual(Object.keys(FIELDS_BY_SHAPE).sort());
+    expect([...ANCHORED_SHAPES, "price-per-size"].sort()).toEqual(
+      Object.keys(FIELDS_BY_SHAPE).sort(),
+    );
+  });
+
+  it("does not evaluate a shape this build has retired", () => {
+    const retired = { shape: "linear-in-width" } as unknown as PriceFormula;
+
     expect(
-      [...new Set(ONE_OF_EACH.map((formula) => formula.shape))].sort(),
-    ).toEqual(Object.keys(COEFFICIENTS_BY_SHAPE).sort());
+      amountForBody(retired, { widthMm: 600, heightMm: 700, doorLeafCount: 2 }),
+    ).toBeUndefined();
   });
 });
 
@@ -236,9 +320,7 @@ describe("a shape is assigned by the catalogue's property, not by a list of ids"
     // Not a vacuous sweep: the wall band is height-flexible and the hood opts out of it.
     expect(flexible).toEqual(["wall-cabinet", "wall-lift", "open-shelf"]);
     for (const buildId of flexible) {
-      expect(shapesReading("perHeightMillimetreMinor")).toContain(
-        shapeFor(buildId),
-      );
+      expect(shapesReading("perHeightStepMinor")).toContain(shapeFor(buildId));
     }
   });
 
@@ -249,7 +331,9 @@ describe("a shape is assigned by the catalogue's property, not by a list of ids"
 
     expect(hinged).toEqual(["base-cabinet", "wall-cabinet", "tall-pantry"]);
     for (const buildId of hinged) {
-      expect(shapesReading("perDoorLeafMinor")).toContain(shapeFor(buildId));
+      expect(shapesReading("perExtraDoorLeafMinor")).toContain(
+        shapeFor(buildId),
+      );
     }
   });
 
@@ -259,10 +343,10 @@ describe("a shape is assigned by the catalogue's property, not by a list of ids"
     for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
       if (definition.heightFlex === true) continue;
       if (definition.doorCountFollowsWidth === true) continue;
-      expect(shapesReading("perHeightMillimetreMinor")).not.toContain(
+      expect(shapesReading("perHeightStepMinor")).not.toContain(
         shapeFor(buildId),
       );
-      expect(shapesReading("perDoorLeafMinor")).not.toContain(
+      expect(shapesReading("perExtraDoorLeafMinor")).not.toContain(
         shapeFor(buildId),
       );
     }
@@ -343,7 +427,7 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
         (tier) =>
           [
             tier as unknown as Record<string, unknown>,
-            [...tierFields, "wholeKitchenMinor"],
+            [...tierFields, "percentOfCabinets"],
           ] as const,
       ),
       ...Object.values(SAMPLE_PRICE_BOOK.accessories).map(

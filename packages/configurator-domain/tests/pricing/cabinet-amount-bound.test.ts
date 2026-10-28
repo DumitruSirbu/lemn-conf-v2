@@ -59,9 +59,12 @@ describe("MAX_CABINET_AMOUNT_MINOR is derived from named constants and is the la
       doorLeafCount: 4,
       doorLeafCountAt: () => 2,
     };
+    // A fixed-size row has no price at 1 200 mm (it is refused, never priced), so its dearest listed size stands in.
     const dearestSampleRow = Math.max(
-      ...SAMPLE_PRICE_BOOK.cabinetRules.map(
-        (rule) => amountForBody(rule.formula, body) ?? 0,
+      ...SAMPLE_PRICE_BOOK.cabinetRules.map((rule) =>
+        rule.formula.shape === "price-per-size"
+          ? Math.max(...rule.formula.sizes.map((size) => size.amountMinor))
+          : (amountForBody(rule.formula, body) ?? 0),
       ),
     );
 

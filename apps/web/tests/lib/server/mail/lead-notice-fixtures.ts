@@ -32,6 +32,7 @@ import {
   variedKitchensOf,
   type VariedArm,
 } from "../../../support/varied-kitchens";
+import { MEASURED_DEEPENING_ROWS } from "../../../support/deepening-rows";
 
 // Fictitious throughout: the origin is a reserved name that resolves nowhere, the numbers are no one's.
 export const FIXTURE_ORIGIN = "https://example.invalid";
@@ -69,6 +70,7 @@ export function fixtureContact(
 
 export function snapshotOf(design: Design): SubmissionSnapshot | undefined {
   const result = snapshotSubmission({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,

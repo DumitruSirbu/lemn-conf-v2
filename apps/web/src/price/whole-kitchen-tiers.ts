@@ -86,6 +86,8 @@ export interface OfferWholeKitchenTiersRequest {
   /** What the design already carries. Each group is measured with the **other** group held at these,
    *  so the deltas describe the kitchen the customer is looking at. */
   readonly selections?: WholeKitchenSelections | undefined;
+  /** The priced-as rows that deepen, the one set the caller measured for `priceDesign` (ADR 0177 A-6). */
+  readonly deepeningRows: ReadonlySet<string>;
 }
 
 /**
@@ -146,6 +148,7 @@ function totalAt(
     book: request.book,
     pricingVersion: request.pricingVersion,
     selections: { ...request.selections, ...override },
+    deepeningRows: request.deepeningRows,
   });
   return result.ok ? result.priced.totalMinor : undefined;
 }
@@ -156,8 +159,9 @@ function totalAt(
  * - `"offer-with-no-delta"` (hardware): a tier states three per-mechanism rates, so which is cheapest depends on
  *   the customer's kitchen (a drawer-dominant design costs less at Hettich). Refusing would take the settings sheet
  *   away from a customer who only deleted wall cabinets, so the tier is offered with no delta badge.
- * - `"refuse"` (material): one flat per-kitchen amount, so its ordering against the default is a property of the
- *   book alone: a book fault, reported through `NegativeTierDeltaError`.
+ * - `"refuse"` (material): one percentage per tier, whole and never below the default's 0 %, so its ordering against
+ *   the default is a property of the book alone: a book fault, reported through `NegativeTierDeltaError`
+ *   (ADR 0177 A-8).
  */
 type BelowDefaultTierRule = "refuse" | "offer-with-no-delta";
 

@@ -24,12 +24,12 @@ import {
 } from "../../src/pricing/anchored-price-formula.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import {
-  pricedByWidth,
   type CabinetPriceRule,
   type PriceBook,
   type PriceFormula,
 } from "../../src/pricing/price-book.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const RULE_ID = "cabinet.test-anchored";
@@ -56,6 +56,7 @@ function resultOf(
   body: Partial<CabinetBody> & { buildId: string },
 ) {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design: designOf(body),
     catalog: CATALOG,
     book,
@@ -121,16 +122,19 @@ describe("an anchored body is priced as its width rounded up (P1-b)", () => {
     });
   });
 
-  it("leaves the linear shape pricing an odd width exactly, as the rounding is the anchored shapes' alone", () => {
-    const linear = bookPricing(
-      "base-3drawer",
-      pricedByWidth({ baseMinor: 1_000, perWidthMillimetreMinor: 7 }),
-    );
+  it("refuses a rule stating a shape the cut-over retired, rather than pricing it at the width it was built", () => {
+    const retired = {
+      shape: "linear-in-width",
+      baseMinor: 1_000,
+      perWidthMillimetreMinor: 7,
+    } as unknown as PriceFormula;
 
     expect(
-      cabinetLineOf(linear, { buildId: "base-3drawer", widthMm: 575 })
-        .amountMinor,
-    ).toBe(1_000 + 7 * 575);
+      refusalOf(bookPricing("base-3drawer", retired), {
+        buildId: "base-3drawer",
+        widthMm: 575,
+      }),
+    ).toMatchObject({ code: "UNKNOWN_FORMULA_SHAPE", id: RULE_ID });
   });
 
   it("refuses a price that would fall below zero at the narrow end, never publishing it", () => {
@@ -152,13 +156,15 @@ describe("the door term counts leaves as hardware does, at the built width (P1-c
   const DOOR_FOLLOWING_ROWS = [...INSERTABLE_BODY_DEFINITIONS]
     .filter(([, definition]) => definition.doorCountFollowsWidth === true)
     .map(([buildId]) => buildId);
-  const ONE_BANI_PER_LEAF: AnchoredFormula = {
+  /** One leaf is one ten-lei grain, so a priced line (rounded to ten lei, ADR 0177 A-1) shows the leaf count exactly. */
+  const LEAF_MINOR = 1_000;
+  const ONE_GRAIN_PER_LEAF: AnchoredFormula = {
     shape: "anchored-width-and-door-leaves",
     anchorWidthMm: 600,
-    anchorMinor: 1_000,
+    anchorMinor: 10_000,
     perStepWiderMinor: 0,
     perStepNarrowerMinor: 0,
-    perExtraDoorLeafMinor: 1,
+    perExtraDoorLeafMinor: LEAF_MINOR,
   };
 
   function hardwareLeavesOf(buildId: string, widthMm: number): number {
@@ -181,19 +187,19 @@ describe("the door term counts leaves as hardware does, at the built width (P1-c
   it.each(DOOR_FOLLOWING_ROWS)(
     "charges %s the leaves hardware counts beyond the anchor's, at every width in its range",
     (buildId) => {
-      const book = bookPricing(buildId, ONE_BANI_PER_LEAF);
+      const book = bookPricing(buildId, ONE_GRAIN_PER_LEAF);
       const anchorLeaves = hardwareLeavesOf(
         buildId,
-        ONE_BANI_PER_LEAF.anchorWidthMm,
+        ONE_GRAIN_PER_LEAF.anchorWidthMm,
       );
 
       for (let widthMm = 200; widthMm <= 800; widthMm += 1) {
         const charged =
           cabinetLineOf(book, { buildId, widthMm, heightMm: 700 }).amountMinor -
-          ONE_BANI_PER_LEAF.anchorMinor;
+          ONE_GRAIN_PER_LEAF.anchorMinor;
 
         expect(charged, `${buildId} at ${String(widthMm)} mm`).toBe(
-          hardwareLeavesOf(buildId, widthMm) - anchorLeaves,
+          (hardwareLeavesOf(buildId, widthMm) - anchorLeaves) * LEAF_MINOR,
         );
       }
     },
@@ -204,10 +210,10 @@ describe("the door term counts leaves as hardware does, at the built width (P1-c
     (buildId) => {
       const doorRateMinor = 1_000_000;
       const oneLeaf: AnchoredFormula = {
-        ...ONE_BANI_PER_LEAF,
+        ...ONE_GRAIN_PER_LEAF,
         anchorWidthMm: 400,
         perExtraDoorLeafMinor: doorRateMinor,
-        perStepWiderMinor: 10,
+        perStepWiderMinor: 1_000,
       };
       const book = bookPricing(buildId, oneLeaf);
 
@@ -238,10 +244,10 @@ describe("a resized seeded body's door term is the leaves hardware bills for it,
   const doorRule: AnchoredFormula = {
     shape: "anchored-width-and-door-leaves",
     anchorWidthMm: ANCHOR_WIDTH_MM,
-    anchorMinor: 1_000,
+    anchorMinor: 10_000,
     perStepWiderMinor: 0,
     perStepNarrowerMinor: 0,
-    perExtraDoorLeafMinor: 1,
+    perExtraDoorLeafMinor: 1_000,
   };
 
   function hardwareLeaves(
@@ -280,7 +286,7 @@ describe("a resized seeded body's door term is the leaves hardware bills for it,
           cabinetLineOf(book, body).amountMinor - doorRule.anchorMinor;
 
         expect(charged, `${seededId} at ${String(widthMm)} mm`).toBe(
-          hardwareLeaves(seededId, body) - anchorLeaves,
+          (hardwareLeaves(seededId, body) - anchorLeaves) * 1_000,
         );
       }
     },

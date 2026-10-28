@@ -7,7 +7,11 @@ import { act, createElement } from "react";
 import { createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DIFF_SECTIONS, type DraftChange } from "@lemnaria/configurator-domain";
+import {
+  DIFF_SECTIONS,
+  SAMPLE_PRICE_BOOK,
+  type DraftChange,
+} from "@lemnaria/configurator-domain";
 
 import type { PublishClient } from "@/price-dashboard/publish-client";
 import { makeSamplePublishClient } from "@/price-dashboard/publish-sample-client";
@@ -41,6 +45,7 @@ import {
 
 const ruCopy = createTranslator({ locale: "ru", messages: ruMessages });
 const COPY = roMessages.priceDashboard;
+const SAMPLE_DEPTH_PERCENT = SAMPLE_PRICE_BOOK.depthRule.deepCabinetPercent;
 const MENU: Parameters<typeof contextOf>[1] = [
   "kitchens",
   "audit",
@@ -301,7 +306,9 @@ describe("the pending prices (D7A)", () => {
     expect(depth?.textContent).toContain(COPY.rule.scope);
     const [before, after] = allIn(depth ?? container, '[class*="cellValue"]');
     expect([before?.textContent, after?.textContent]).toEqual([
-      roCopy("priceDashboard.common.percentPlus", { percent: "15" }),
+      roCopy("priceDashboard.common.percentPlus", {
+        percent: String(SAMPLE_DEPTH_PERCENT),
+      }),
       roCopy("priceDashboard.common.percentPlus", { percent: "18" }),
     ]);
   });

@@ -1,8 +1,8 @@
 // The composition root for pricing in this application. It names no price book (ADR 0062 seam 1):
 // the book arrives as a value, read and parsed once per request on the server (`lib/server/active-price-book.ts`) and
-// handed to the browser as a server prop (`price-book-provider.tsx`), so a manufacturer-published book is a substitution
-// at that one server read and no client module can name a different one. Every function here takes the root as its first
-// argument.
+// handed to the browser as a server prop (`price-book-provider.tsx`), so a manufacturer-published book is a
+// substitution at that one server read and no client module can name a different one. Every function here takes the
+// root as its first argument.
 //
 // Store-free and client-directive-free on purpose: the account's kitchen card prices a stored document through
 // `priceFloorOf` and must not pull the configurator store into its page.
@@ -20,15 +20,16 @@ import {
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 
+import { shippedDeepeningRows } from "./deepening-rows";
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
 } from "./whole-kitchen-tiers";
 
 /**
- * What the server hands the browser, whole and together: the version prices are read from, the book (parsed once, on the
- * server) and the availability current when it was read (A-17). Availability is carried beside the book and is never a
- * field of it; until P4a prices read it, it is only carried.
+ * What the server hands the browser, whole and together: the version prices are read from, the book (parsed once, on
+ * the server) and the availability current when it was read (A-17). Availability is carried beside the book and is
+ * never a field of it; until P4a prices read it, it is only carried.
  */
 export interface ActivePriceBook {
   readonly kind: "active";
@@ -80,7 +81,15 @@ export function priceAgainstBook(
     book: root.book,
     pricingVersion: root.book.version,
     selections: design.settings,
+    deepeningRows: shippedDeepeningRows(),
   });
+}
+
+/** The depth percentage the root's book publishes. No book is raised: a missing figure must not read as 0 %. */
+export function requireDeepCabinetPercent(root: PriceBookRoot): number {
+  if (root.kind === "none")
+    throw new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL);
+  return root.book.depthRule.deepCabinetPercent;
 }
 
 /**
@@ -100,6 +109,7 @@ export function offerTiersAgainstBook(
     book: root.book,
     pricingVersion: root.book.version,
     selections: design.settings,
+    deepeningRows: shippedDeepeningRows(),
   });
 }
 

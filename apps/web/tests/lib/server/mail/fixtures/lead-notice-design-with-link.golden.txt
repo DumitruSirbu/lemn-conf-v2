@@ -1,0 +1,91 @@
+Cerere din configurator LM-FIXT2345
+
+Bucătăria în 3D: https://example.invalid/ro/s/Fixture0Tok1
+
+Referință: LM-FIXT2345
+Limba clientului: Română
+Nume: Ion Exemplu
+Telefon: +37369000123
+Localitate: Orhei
+Canal preferat: WhatsApp
+
+Cameră: În L · 900 × 5999 mm · cot la stânga · 22 dulapuri
+Perete A · bază — 1 corp
+Perete A · suspendate — 2 corpuri
+Perete B · bază — 5 corpuri
+Perete B · suspendate — 10 corpuri
+Perete B · coloane — 4 corpuri
+Preț: De la 82 000 MDL
+Preț de pornire, rotunjit în sus.
+Pretul afișat este estimativ. Nu reprezintă o ofertă comercială finală. Oferta comercială finală se stabilește doar după măsurarile exacte.
+
+Lista corpurilor (pentru verificare)
+Perete A · bază
+Dulap bază de colț 900: 4 000
+  900 mm
+Perete A · suspendate
+Dulap suspendat de colț 900: 2 000
+  900 mm
+Dulap de colț rând de sus 900: 1 000
+  900 mm
+  Push-to-open
+Perete B · bază
+Racord bază de colț 330: 2 000
+  330 mm
+Dulap pentru chiuvetă 600: 5 000
+  600 mm
+  Bară inox
+Nișă mașină de spălat vase 600: 4 000
+  600 mm
+  Bară inox
+Sertare pentru oale 600: 5 000
+  600 mm
+  Bară inox
+Dulap plită și 2 sertare 600: 4 000
+  600 mm
+  Bară inox
+Perete B · suspendate
+Dulap suspendat de colț 570: 2 000
+  570 mm
+Dulap suspendat 2 uși 600: 3 000
+  600 mm
+  Bară inox
+Dulap suspendat 2 uși 600: 3 000
+  600 mm
+  Bară inox
+Dulap suspendat 2 uși 600: 3 000
+  600 mm
+  Bară inox
+Hotă 600: nu este inclus
+  600 mm
+Dulap de colț rând de sus 570: 1 000
+  570 mm
+  Push-to-open
+Dulap suspendat 2 uși 600: 3 000
+  600 mm
+  Push-to-open
+Dulap suspendat 2 uși 600: 3 000
+  600 mm
+  Push-to-open
+Dulap suspendat 2 uși 600: 3 000
+  600 mm
+  Push-to-open
+Dulap suspendat 2 uși 600: 3 000
+  600 mm
+  Push-to-open
+Perete B · coloane
+Frigider, liber 700: nu este inclus
+  700 mm
+Coloană cuptor + microunde 600: 9 000
+  600 mm
+  Bară inox
+Coloană cămară 2 uși 600: 9 000
+  600 mm
+  Bară inox
+Coloană cămară 2 uși 698: 9 000
+  698 mm
+  Bară inox
+Feronerie · Blum: 10 000
+Material · PAL melaminat: inclus
+Accesorii · Protecție de aluminiu pentru dulapul chiuvetei: 1 000
+Accesorii · Uscător de vase: 1 000

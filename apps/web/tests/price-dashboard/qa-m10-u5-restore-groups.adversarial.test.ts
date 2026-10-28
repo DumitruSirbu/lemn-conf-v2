@@ -16,22 +16,22 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { planRestore } from "@/price-dashboard/publish-model";
-import {
-  SAMPLE_FLAT_BOOK,
-  SAMPLE_PUBLISH_PAGE,
-} from "@/price-dashboard/publish-sample";
+import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
+
+import { withRetiredLinearRules } from "../support/retired-form-books";
 
 const ACTIVE: PriceBook = SAMPLE_PUBLISH_PAGE.state.active.book;
-const FLAT: PriceBook = SAMPLE_FLAT_BOOK;
 const AMOUNT_FIELDS = [
   "anchorMinor",
   "perStepWiderMinor",
   "perStepNarrowerMinor",
 ] as const;
+// Only an anchored row states the three amounts a bulk action scales. The sample keeps its other tall rows fixed-size
+// (A-7), so the first group is the one anchored tall row with two anchored base rows; its label is the test's own.
 const TALL_RULES = [
   "cabinet.tall-pantry",
-  "cabinet.tall-oven-tower",
-  "cabinet.tall-fridge-housing",
+  "cabinet.base-3drawer",
+  "cabinet.base-panbank",
 ] as const;
 const WALL_RULES = ["cabinet.wall-cabinet", "cabinet.wall-lift"] as const;
 const TALL_GROUP = "bulk-tall";
@@ -75,17 +75,10 @@ const DRAFT: readonly DraftChange[] = [
   ...groupOf(WALL_RULES, { groupId: WALL_GROUP, bulk: WALL_BULK }),
 ];
 
-/** The active book, with these cabinets' prices in the flat form, which states none of the three anchored amounts. */
+/** The active book, with these cabinets priced in the retired linear shape, which states none of the three anchored
+ *  amounts (a version stored before the cut-over). */
 function archivedWithout(ruleIds: readonly string[]): PriceBook {
-  return {
-    ...ACTIVE,
-    cabinetRules: ACTIVE.cabinetRules.map((rule) => {
-      const flat = FLAT.cabinetRules.find(
-        (candidate) => candidate.ruleId === rule.ruleId,
-      );
-      return ruleIds.includes(rule.ruleId) && flat !== undefined ? flat : rule;
-    }),
-  };
+  return withRetiredLinearRules(ACTIVE, ruleIds);
 }
 
 function states(book: PriceBook, change: DraftChange): boolean {

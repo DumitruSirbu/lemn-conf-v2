@@ -1,5 +1,7 @@
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
+  DEEP_CABINET_DEPTH_MM,
   KITCHEN_L_BODY_CATALOG,
   priceDesign,
   projectDesignForDisplay,
@@ -25,6 +27,7 @@ import { describeEditability } from "@/store/editability";
 
 import { SUM_CLAIM_PATTERN } from "../support/ruled-price-copy";
 import { MDF_KITCHEN_WEARING_CHOSEN_COLOURS } from "../support/mdf-kitchen-wearing-chosen-colours";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const SURFACE_ID = "settings";
 
@@ -128,8 +131,10 @@ function viewFor(options: {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   };
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: content,
     pricing: priceDesign(priceInput),
     offer: offerWholeKitchenTiers(priceInput),
@@ -386,7 +391,10 @@ describe("what the confirm step leaves behind when it replaces the body and foot
       content.globalSettings.cancel,
       content.globalSettings.materialWarning,
       content.globalSettings.depthWarning,
-      content.globalSettings.depthNote,
+      content.globalSettings.depthNotePriced(
+        DEEP_CABINET_DEPTH_MM,
+        SAMPLE_DEEP_CABINET_PERCENT,
+      ),
       content.globalSettings.depthHeading,
       content.globalSettings.groupHeadings.material,
       content.globalSettings.groupHeadings.hardware,

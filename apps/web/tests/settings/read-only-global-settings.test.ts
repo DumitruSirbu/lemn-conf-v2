@@ -13,6 +13,7 @@
 // **This file is also what closes the dropped-wiring risk** `GlobalSettingsSurface.editability`
 // records: the sheet's default is *writable*, so the assertions below drive the real store-connected
 // `GlobalSettings` rather than the presentational surface, and go red if it stops passing the prop.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
@@ -38,6 +39,7 @@ import { describeEditability } from "@/store/editability";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { underSamplePriceBook } from "../support/sample-price-root";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -130,8 +132,10 @@ function openSheetMarkupFor(access: {
   readonly saveStatus: SaveStatus;
 }): string {
   const view = describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: content,
     pricing: priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -139,6 +143,7 @@ function openSheetMarkupFor(access: {
       selections: KITCHEN_L_DESIGN.settings,
     }),
     offer: offerWholeKitchenTiers({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

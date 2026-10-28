@@ -127,6 +127,13 @@
   font: 700 13px/1.4 var(--font-ui);
 }
 
+/* The depth line's second line: the cabinets its percent applies to. */
+.rowScope {
+  display: block;
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--ink-faint);
+}
+
 .note {
   display: flex;
   gap: 9px;

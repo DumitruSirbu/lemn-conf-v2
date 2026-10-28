@@ -28,6 +28,7 @@ import type {
   PricedDesign,
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -38,6 +39,7 @@ function designOf(placements: readonly DesignPlacement[]): Design {
 
 function priceOrFail(design: Design, book: PriceBook = BOOK): PricedDesign {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: CATALOG,
     book,
@@ -134,6 +136,7 @@ describe("a sink base is always billed a protective cover", () => {
       },
     ].map((selections) => {
       const result = priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design: designOf([SINK, WALL_CABINET_OVER_THE_SINK]),
         catalog: CATALOG,
         book: BOOK,
@@ -261,6 +264,7 @@ describe("the accessory lines are book data, and the book is swept for them", ()
       };
 
       const result = priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design: KITCHEN_L_DESIGN,
         catalog: CATALOG,
         book: collided,
@@ -301,6 +305,7 @@ describe("the accessory lines are book data, and the book is swept for them", ()
     expect(dishDryingRack).toBeDefined();
 
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: {
@@ -335,6 +340,7 @@ describe("the accessory lines are book data, and the book is swept for them", ()
       } as unknown as PriceBook;
 
       const result = priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design: KITCHEN_L_DESIGN,
         catalog: CATALOG,
         book: malformed,
@@ -363,6 +369,7 @@ describe("the accessory lines are book data, and the book is swept for them", ()
     };
 
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: negative,
@@ -391,6 +398,7 @@ describe("the seeded design's extras total ADR 0070's flat sink column", () => {
     const totals = BOOK.hardware.tiers.flatMap((hardware) =>
       BOOK.material.tiers.map((material) => {
         const result = priceDesign({
+          deepeningRows: MEASURED_DEEPENING_ROWS,
           design: KITCHEN_L_DESIGN,
           catalog: CATALOG,
           book: BOOK,

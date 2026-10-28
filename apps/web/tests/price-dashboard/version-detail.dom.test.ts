@@ -31,6 +31,7 @@ import {
   type MountedScreen,
   type TestLocale,
 } from "../support/render-with-intl";
+import { withoutDepthRule } from "../support/retired-form-books";
 import { roCopy } from "./romanian-copy";
 import {
   contextOf,
@@ -39,6 +40,7 @@ import {
 } from "./staff-frame-harness";
 
 const COPY = roMessages.priceDashboard;
+const SAMPLE_DEPTH_PERCENT = SAMPLE_PRICE_BOOK.depthRule.deepCabinetPercent;
 const MENU: Parameters<typeof contextOf>[1] = [
   "kitchens",
   "cabinets",
@@ -196,7 +198,10 @@ describe("an archived version (D8B)", () => {
   it("calls a depth rule that the version before it did not have a new rule, and its old side a dash", async () => {
     const input: VersionDetailInput = {
       ...detailOf(2),
-      predecessor: { sequenceNumber: 1, book: SAMPLE_PRICE_BOOK },
+      predecessor: {
+        sequenceNumber: 1,
+        book: withoutDepthRule(detailOf(1).version.book),
+      },
     };
 
     const container = await mountDetail(input);
@@ -211,7 +216,9 @@ describe("an archived version (D8B)", () => {
     const [before, after] = allIn(depth ?? container, '[class*="cellValue"]');
     expect([before?.textContent, after?.textContent]).toEqual([
       roMessages.staffKitchens.noValue,
-      roCopy("priceDashboard.common.percentPlus", { percent: "15" }),
+      roCopy("priceDashboard.common.percentPlus", {
+        percent: String(SAMPLE_DEPTH_PERCENT),
+      }),
     ]);
   });
 

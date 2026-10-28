@@ -14,6 +14,7 @@
 // here, and `docs`-level: if a group ever renders zero checked radios, or a footer button ever
 // renders `disabled`, the trap loses an end and the e2e that presses Tab is the only thing left
 // standing between that and focus leaving the dialog.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   buildKitchenLBodyCatalog,
@@ -54,6 +55,7 @@ import { describeEditability } from "@/store/editability";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { underSamplePriceBook } from "../support/sample-price-root";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** `global-settings-seams.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -271,6 +273,7 @@ describe("a design the book cannot price", () => {
   it("is genuinely unpriceable, so this is the case it is named for", () => {
     expect(
       priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design: withdrawn,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: SAMPLE_PRICE_BOOK,
@@ -318,6 +321,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
 
   function pricingOf(design: Design): PricingResult {
     return priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -328,6 +332,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
 
   function offerOf(design: Design): WholeKitchenTierOffer {
     return offerWholeKitchenTiers({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -338,6 +343,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
 
   function viewOf(design: Design): GlobalSettingsView {
     const view = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: content,
       pricing: pricingOf(design),
       offer: offerOf(design),
@@ -424,6 +430,7 @@ describe("the markup preconditions the focus trap is written against", () => {
     const design =
       pending === undefined ? KITCHEN_L_DESIGN : designCarrying(pending);
     const pricing = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -431,9 +438,11 @@ describe("the markup preconditions the focus trap is written against", () => {
       selections: design.settings,
     });
     const view = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: content,
       pricing,
       offer: offerWholeKitchenTiers({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: SAMPLE_PRICE_BOOK,

@@ -1,0 +1,24 @@
+Cerere din configurator LM-FIXT2345
+
+Bucătăria în 3D: https://example.invalid/ro/s/Fixture0Tok1
+
+Referință: LM-FIXT2345
+Limba clientului: Română
+Nume: Ion Exemplu
+Telefon: +37369000123
+Localitate: Orhei
+Canal preferat: WhatsApp
+
+Cameră: În L · 3560 × 2920 mm · cot la stânga · 1 dulap
+Perete A · bază — 1 corp
+Preț: De la 14 000 MDL
+Preț de pornire, rotunjit în sus.
+Pretul afișat este estimativ. Nu reprezintă o ofertă comercială finală. Oferta comercială finală se stabilește doar după măsurarile exacte.
+
+Lista corpurilor (pentru verificare)
+Perete A · bază
+Dulap pentru chiuvetă 800: 5 000
+  800 mm
+  Bară inox
+Feronerie · Standard: 1 000
+Material · MDF: 9 000

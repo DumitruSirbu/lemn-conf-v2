@@ -45,6 +45,7 @@ import { offerWholeKitchenTiers } from "@/price/whole-kitchen-tiers";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { underSamplePriceBook } from "../support/sample-price-root";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** The store state the component under test reads — `price-wiring.adversarial.test.ts`'s pattern,
  *  for its reason: the real component runs against a real store's real fields. */
@@ -240,6 +241,7 @@ describe("a design carrying a withdrawn tier can be repaired from this surface",
       now: () => "2026-09-04T12:00:00.000Z",
     });
     const offer = offerWholeKitchenTiers({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: withdrawn,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -257,6 +259,7 @@ describe("a design carrying a withdrawn tier can be repaired from this surface",
     );
     expect(
       priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design: store.getState().design,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: SAMPLE_PRICE_BOOK,

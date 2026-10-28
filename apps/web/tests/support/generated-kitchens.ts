@@ -14,6 +14,7 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { createFakeProbeFactory } from "./fake-body-probe";
+import { MEASURED_DEEPENING_ROWS } from "./deepening-rows";
 
 const GENERATED_AT = "2026-10-07T09:00:00.000Z";
 
@@ -42,6 +43,7 @@ export function priceAndProject(design: Design): PricedKitchen {
   return {
     design,
     pricing: priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog,
       book: SAMPLE_PRICE_BOOK,

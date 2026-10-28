@@ -45,6 +45,7 @@ import {
   contentFor,
   type Catalogue,
 } from "../support/catalogues";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** The plan's own reachable ceiling: ten billion bani, a hundred million MDL. Swept rather than
  *  sampled, because the transitions that matter are the multiples of the step and a fixed table is
@@ -79,6 +80,7 @@ const SEEDED = (() => {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
   if (!result.ok) throw new Error("the seeded kitchen did not price");
   return result.priced;

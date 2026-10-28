@@ -148,39 +148,66 @@ describe("a book is handed over as declared and nothing more (security)", () => 
     return {
       ...book,
       ...extra,
-      cabinetRules: book.cabinetRules.map((rule) => ({
-        ...rule,
-        ...extra,
-        formula: { ...rule.formula, ...extra },
-      })),
-      hardware: {
-        ...book.hardware,
-        ...extra,
-        tiers: book.hardware.tiers.map((tier) => ({ ...tier, ...extra })),
-      },
-      material: {
-        ...book.material,
-        ...extra,
-        tiers: book.material.tiers.map((tier) => ({ ...tier, ...extra })),
-      },
-      accessories: {
-        sinkProtectiveCover: {
-          ...book.accessories.sinkProtectiveCover,
-          ...extra,
-        },
-        dishDryingRack: { ...book.accessories.dishDryingRack, ...extra },
-        ...extra,
-      },
+      // An anchored formula states exactly its fields, and so does a tier or an accessory row, so an extra member there
+      // is refused by the parser and never reaches the projection; the book, each rule, each group and the accessory
+      // section are the levels this sweep can reach.
+      cabinetRules: book.cabinetRules.map((rule) => ({ ...rule, ...extra })),
+      hardware: { ...book.hardware, ...extra },
+      material: { ...book.material, ...extra },
+      accessories: { ...book.accessories, ...extra },
     };
   }
 
-  it("drops a member the book does not declare, at the book, each rule and formula, each tier and each accessory", async () => {
+  it("drops a member the book does not declare, at the book, each rule, each group and the accessory section", async () => {
     const stores = storesHolding(withUndeclaredMembers(STORED_BOOK));
 
     const root = await readActivePriceBook(stores);
 
     expect(root.kind === "active" && root.book).toEqual(STORED_BOOK);
     expect(JSON.stringify(root)).not.toContain(SECRET_MARKER);
+  });
+
+  it("refuses a book whose tier or accessory row states a member it does not declare, rather than serving the rest", async () => {
+    const stray = { undeclared: SECRET_MARKER };
+    const strayRows = [
+      {
+        ...STORED_BOOK,
+        hardware: {
+          ...STORED_BOOK.hardware,
+          tiers: STORED_BOOK.hardware.tiers.map((tier) => ({
+            ...tier,
+            ...stray,
+          })),
+        },
+      },
+      {
+        ...STORED_BOOK,
+        material: {
+          ...STORED_BOOK.material,
+          tiers: STORED_BOOK.material.tiers.map((tier) => ({
+            ...tier,
+            ...stray,
+          })),
+        },
+      },
+      {
+        ...STORED_BOOK,
+        accessories: {
+          ...STORED_BOOK.accessories,
+          sinkProtectiveCover: {
+            ...STORED_BOOK.accessories.sinkProtectiveCover,
+            ...stray,
+          },
+        },
+      },
+    ];
+
+    for (const book of strayRows) {
+      const root = await readActivePriceBook(storesHolding(book));
+
+      expect(root).toBe(NO_PRICE_BOOK);
+      expect(JSON.stringify(linesWritten())).not.toContain(SECRET_MARKER);
+    }
   });
 
   it("keeps every declared member of the sample book, so a price is never lost to the projection", async () => {

@@ -26,8 +26,16 @@ import {
   written,
 } from "./qa-m1-books.js";
 
-const BOOK = fixedBook(true);
-const FLAT = fixedBook(false);
+const BOOK = fixedBook();
+
+/** A book stored before the cut-over states no depth rule (and its tiers state no percentage): the parser refuses it
+ *  whole, so it can be read and listed but never edited, and nothing restores a form onto or off it. */
+const LEGACY: PriceBook = (() => {
+  const copy: { -readonly [K in keyof PriceBook]?: PriceBook[K] } =
+    structuredClone(BOOK);
+  delete copy.depthRule;
+  return copy as PriceBook;
+})();
 const COVER: BookFieldAddress = {
   kind: "accessory",
   accessoryId: "sinkProtectiveCover",
@@ -390,7 +398,7 @@ describe("the list of changes itself", () => {
 
     const result = applyChanges(BOOK, changes);
 
-    expect(result.ok && result.book.depthRule?.deepCabinetPercent).toBe(33);
+    expect(result.ok && result.book.depthRule.deepCabinetPercent).toBe(33);
     expect(Date.now() - startedAt).toBeLessThan(10_000);
   });
 
@@ -946,17 +954,23 @@ describe("restore between books that differ in the rows they state", () => {
     }
   });
 
-  it("does not turn a flat book into a percentage book, nor the reverse (the form is not restorable)", () => {
-    const changesToFlat = restoreChanges(FLAT, BOOK);
-    const changesToPercentage = restoreChanges(BOOK, FLAT);
+  it("never carries the depth rule onto or off a book that states none: the form is not restorable", () => {
+    const changesToLegacy = restoreChanges(LEGACY, BOOK);
+    const changesFromLegacy = restoreChanges(BOOK, LEGACY);
 
-    const toFlat = applyChanges(BOOK, changesToFlat);
-    const toPercentage = applyChanges(FLAT, changesToPercentage);
+    const toLegacy = applyChanges(BOOK, changesToLegacy);
+    const fromLegacy = applyChanges(LEGACY, changesFromLegacy);
 
-    expect(toFlat.ok && toFlat.book.depthRule).toEqual(BOOK.depthRule);
-    expect(toPercentage.ok && toPercentage.book.depthRule).toBeUndefined();
+    // Restoring towards a book without the rule leaves the rule where it is...
+    expect(toLegacy.ok && toLegacy.book.depthRule).toEqual(BOOK.depthRule);
+    // ...and a book without one is refused whole as a candidate, so nothing is ever written onto it.
+    expect(fromLegacy).toMatchObject({
+      ok: false,
+      reason: "candidate-refused",
+      failure: { code: "INVALID_PRICE_BOOK" },
+    });
     expect(
-      changesToFlat.every(
+      [...changesToLegacy, ...changesFromLegacy].every(
         (c) => c.address.kind !== "depth-rule" && c.address.kind !== "material",
       ),
     ).toBe(true);

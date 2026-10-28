@@ -6,6 +6,7 @@
 // keys against the design's placements, so a review that reordered what it was handed is seen.
 import { fc, test } from "@fast-check/vitest";
 import {
+  DEEP_CABINET_DEPTH_MM,
   findOverflowingPlacementIds,
   type DesignPlacement,
   type DisplayEntry,
@@ -19,6 +20,7 @@ import { describePriceBar } from "@/price/price-bar-model";
 import { describePriceBreakdown } from "@/price/price-breakdown-model";
 import { describeReview, type AvailableReview } from "@/review/review-model";
 
+import { listedDepthLineOf } from "../support/listed-depth-line";
 import { CATALOGUES, contentFor } from "../support/catalogues";
 import {
   priceAndProject,
@@ -66,9 +68,21 @@ function kitchensOf(arm: VariedArm): readonly PricedKitchen[] {
       return made === undefined ? [] : [priceAndProject(made.design)];
     }),
   );
-  const kitchens = [...fitting, ...overflowing];
+  const kitchens = [...fitting, ...deepened(fitting), ...overflowing];
   kitchensByArm.set(arm.name, kitchens);
   return kitchens;
+}
+
+/** The same composed kitchens built at the deep depth and priced again, so the sweep reaches the depth line. */
+function deepened(
+  kitchens: readonly PricedKitchen[],
+): readonly PricedKitchen[] {
+  return kitchens.map(({ design }) =>
+    priceAndProject({
+      ...design,
+      settings: { ...design.settings, cabinetDepthMm: DEEP_CABINET_DEPTH_MM },
+    }),
+  );
 }
 
 function pricedOf(kitchen: PricedKitchen): PricedDesign {
@@ -219,12 +233,10 @@ function rawWholeKitchenRowsOf(
   priced: PricedDesign,
 ): readonly PrintedRow[] {
   return priced.lines.flatMap((line) => {
-    if (line.kind === "depth") {
-      throw new Error(
-        `Line "${line.lineId}" is a depth line: unreachable until P3 prints the depth line. The breakdown drops a ` +
-          "kind it has no category word for while the total counts it, so a depth line must fail here, not pass.",
-      );
-    }
+    // The depth line is not a whole-kitchen row: the breakdown publishes it as the row of its own, `depthLine`, and the
+    // review does not carry it yet (see "the depth line at 700 mm" below). It is skipped here by name so that a new
+    // line kind with no word still fails this sweep, which a blanket `kind !== "cabinet"` would not.
+    if (line.kind === "depth") return [];
     if (line.kind === "cabinet") return [];
     const tierName =
       line.nameKey === undefined
@@ -411,6 +423,125 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
             fillLeaf(catalogue, "price.overflowingTotalWarning"),
           );
         }
+      }
+    });
+  });
+
+  describe("the depth line at 700 mm (M10 P3 and Q1b: the breakdown and the review both carry it)", () => {
+    const deepKitchens = deepened(fitting);
+    const withADepthLine = deepKitchens.filter((kitchen) =>
+      pricedOf(kitchen).lines.some((line) => line.kind === "depth"),
+    );
+
+    it("sweeps enough kitchens that earn a depth line, and none at the default depth", () => {
+      expect(withADepthLine.length).toBeGreaterThanOrEqual(
+        KITCHEN_FLOOR_PER_ARM / 2,
+      );
+      for (const kitchen of fitting) {
+        expect(
+          pricedOf(kitchen).lines.some((line) => line.kind === "depth"),
+        ).toBe(false);
+      }
+    });
+
+    it("prints the depth line in the breakdown as a row of its own, at the amount the line carries, and nowhere in the whole-kitchen rows", () => {
+      for (const kitchen of deepKitchens) {
+        const line = pricedOf(kitchen).lines.find(
+          (candidate) => candidate.kind === "depth",
+        );
+        const breakdown = describePriceBreakdown({
+          content: contentOf(ROMANIAN),
+          pricing: kitchen.pricing,
+          groups: kitchen.groups,
+        });
+        if (breakdown.kind !== "available")
+          throw new Error("expected a breakdown");
+
+        if (line === undefined) {
+          expect(listedDepthLineOf(breakdown)).toBeUndefined();
+          continue;
+        }
+        expect(listedDepthLineOf(breakdown)).toEqual({
+          key: line.lineId,
+          label: contentOf(ROMANIAN).priceBreakdown.depthLine(
+            DEEP_CABINET_DEPTH_MM,
+            line.deepCabinetPercent,
+          ),
+          scope: contentOf(ROMANIAN).priceBreakdown.depthLineScope,
+          amountText:
+            line.amountMinor === 0
+              ? fillLeaf(ROMANIAN, "priceBreakdown.included")
+              : rawRoundedAmountOf(line.amountMinor),
+        });
+        expect(breakdown.wholeKitchenRows.map((row) => row.key)).not.toContain(
+          line.lineId,
+        );
+      }
+    });
+
+    it("leaves no line the total counts unshown in the breakdown: every priced line is a row or the depth row", () => {
+      for (const kitchen of deepKitchens) {
+        const breakdown = describePriceBreakdown({
+          content: contentOf(ROMANIAN),
+          pricing: kitchen.pricing,
+          groups: kitchen.groups,
+        });
+        if (breakdown.kind !== "available")
+          throw new Error("expected a breakdown");
+        const shown = new Set([
+          ...breakdown.groups.flatMap((group) =>
+            group.rows.map((row) => row.key),
+          ),
+          ...breakdown.wholeKitchenListing.map((row) => row.key),
+        ]);
+        const unshown = pricedOf(kitchen)
+          .lines.map((line) =>
+            line.kind === "cabinet" ? line.placementId : line.lineId,
+          )
+          .filter((key) => !shown.has(key));
+
+        expect(unshown).toEqual([]);
+      }
+    });
+
+    it("carries the depth row the breakdown carries (same key and amount), on every kitchen that earns the line and on none that does not", () => {
+      for (const kitchen of deepKitchens) {
+        const review = reviewIn(ROMANIAN, kitchen);
+        const breakdown = describePriceBreakdown({
+          content: contentOf(ROMANIAN),
+          pricing: kitchen.pricing,
+          groups: kitchen.groups,
+        });
+        if (breakdown.kind !== "available")
+          throw new Error("expected a breakdown");
+
+        expect(review.depthLine?.key).toBe(listedDepthLineOf(breakdown)?.key);
+        expect(review.depthLine?.amountText).toBe(
+          listedDepthLineOf(breakdown)?.amountText,
+        );
+        expect(review.groups).toEqual(breakdown.groups);
+        expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);
+      }
+      for (const kitchen of fitting) {
+        expect(reviewIn(ROMANIAN, kitchen)).not.toHaveProperty("depthLine");
+      }
+    });
+
+    it("leaves no line the figure counts unlisted in the review: every priced line is a body row, a whole-kitchen row or the depth row", () => {
+      for (const kitchen of deepKitchens) {
+        const review = reviewIn(ROMANIAN, kitchen);
+        const listed = new Set([
+          ...review.groups.flatMap((group) => group.rows.map((row) => row.key)),
+          ...review.wholeKitchenRows.map((row) => row.key),
+          ...(review.depthLine === undefined ? [] : [review.depthLine.key]),
+        ]);
+        const unlisted = pricedOf(kitchen)
+          .lines.map((line) =>
+            line.kind === "cabinet" ? line.placementId : line.lineId,
+          )
+          .filter((key) => !listed.has(key));
+
+        expect(unlisted).toEqual([]);
       }
     });
   });

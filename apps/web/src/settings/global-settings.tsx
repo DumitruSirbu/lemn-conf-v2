@@ -36,6 +36,7 @@ import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection } from "@/panel/panel-model";
 import {
   usePricedDesign,
+  useRequiredDeepCabinetPercent,
   useWholeKitchenTierOffer,
 } from "@/price/use-priced-design";
 import { ShareDesign } from "@/share/share-design";
@@ -80,6 +81,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   const content = useContent();
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
+  const deepCabinetPercent = useRequiredDeepCabinetPercent();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const applyWholeKitchenSettings = useConfiguratorStore(
@@ -131,6 +133,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
     content,
     pricing,
     offer,
+    deepCabinetPercent,
     groups,
     applied,
     pending,
@@ -683,7 +686,7 @@ function DepthGroupSection({
           </span>
         </label>
       ))}
-      {/* Explains why no amount is shown, so the absence does not read as a missing line. */}
+      {/* What choosing the deep depth adds, worded from the published rule. */}
       <p
         className={styles.groupAnchor}
         data-testid="global-settings-depth-note"

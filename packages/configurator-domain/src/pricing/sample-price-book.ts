@@ -12,135 +12,172 @@
 // test pins their wording.
 import {
   drawnButNotSupplied,
-  pricedByWidth,
-  pricedByWidthAndDoorLeaves,
-  pricedByWidthAndHeight,
-  pricedByWidthHeightAndDoorLeaves,
-  pricedFlat,
   PRICE_BOOK_CURRENCY,
   type BookAccessories,
-  type LinearCabinetPriceRule,
-  type LinearPriceBook,
+  type CabinetPriceRule,
+  type PriceBook,
 } from "./price-book.js";
 
 /** The version this sample book is filed under. Matched for equality by the query, so a stable string
  *  and not a date. */
-export const SAMPLE_PRICE_BOOK_VERSION = "sample-2026-09";
+export const SAMPLE_PRICE_BOOK_VERSION = "sample-2026-10";
 
 /**
- * Amounts are in bani (MDL minor units) throughout: only presentation rounds (§9's *De la*).
+ * Amounts are in bani (MDL minor units) throughout and exact: a priced line rounds its own amount to 10 lei (1 000
+ * bani) at one named seam, so a step or an anchor need not be a whole ten lei (ADR 0177 A-1).
  *
- * Every cabinetry row is a formula over width and none holds a width (ADR 0035 decision 8): a 575 mm
- * body prices from the same coefficients as a 600 mm one. `pricedFlat` marks rows where width buys
- * nothing: an appliance, a hood body, a corner return.
+ * Each insertable row is quoted at its catalogue default width (`defaultWidthMm`) and steps by 50 mm either way
+ * (ADR 0175, ADR 0177 A-2): a 575 mm body prices as 600. A row made in one or two listed sizes carries those sizes
+ * instead (A-7). The six structural corner bodies have no catalogue default and are priced under their own ids; each
+ * is made in one width, listed at the width a body of it rounds up to.
  *
  * Which row takes which shape is checkable (ADR 0068): a door term belongs to rows declaring
  * `doorCountFollowsWidth`, a height term to rows declaring `heightFlex`, and `wall-cabinet` declares
  * both. `pricing-seams.test.ts` holds this book to those catalogue flags. Every other row's height and
- * door population are fixed at build and fold into its `baseMinor`.
+ * door population are fixed at build and fold into its anchor.
  */
-const SAMPLE_CABINET_RULES: readonly LinearCabinetPriceRule[] = [
+const SAMPLE_CABINET_RULES: readonly CabinetPriceRule[] = [
   // §7's insertable rows. A seeded body reaches these through its `catalogEquivalentId` (ADR 0022).
   // The merged hinged base's door count follows its width (ADR 0033): one band of leaves, one step.
   {
     ruleId: "cabinet.base-cabinet",
     buildId: "base-cabinet",
-    formula: pricedByWidthAndDoorLeaves({
-      baseMinor: 120_000,
-      perWidthMillimetreMinor: 400,
-      perDoorLeafMinor: 18_000,
-    }),
+    formula: {
+      shape: "anchored-width-and-door-leaves",
+      anchorWidthMm: 600,
+      anchorMinor: 396_000,
+      perStepWiderMinor: 20_000,
+      perStepNarrowerMinor: 20_000,
+      perExtraDoorLeafMinor: 18_000,
+    },
   },
   {
     ruleId: "cabinet.base-3drawer",
     buildId: "base-3drawer",
-    formula: pricedByWidth({
-      baseMinor: 180_000,
-      perWidthMillimetreMinor: 500,
-    }),
+    formula: {
+      shape: "anchored-width",
+      anchorWidthMm: 600,
+      anchorMinor: 480_000,
+      perStepWiderMinor: 25_000,
+      perStepNarrowerMinor: 25_000,
+    },
   },
   {
     ruleId: "cabinet.base-panbank",
     buildId: "base-panbank",
-    formula: pricedByWidth({
-      baseMinor: 160_000,
-      perWidthMillimetreMinor: 480,
-    }),
+    formula: {
+      shape: "anchored-width",
+      anchorWidthMm: 600,
+      anchorMinor: 448_000,
+      perStepWiderMinor: 24_000,
+      perStepNarrowerMinor: 24_000,
+    },
   },
   {
     ruleId: "cabinet.base-hob-2drawer",
     buildId: "base-hob-2drawer",
-    formula: pricedFlat(350_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: 350_000 }],
+    },
   },
   {
     ruleId: "cabinet.base-hob-oven",
     buildId: "base-hob-oven",
-    formula: pricedFlat(420_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: 420_000 }],
+    },
   },
   {
     // Its hardware is billed as one drawer box, which understates a full-height cargo pull-out; ADR
     // 0070 publishes no cargo figure. Pricing the pull-out overturns ADR 0092 decision 8.
     ruleId: "cabinet.base-bottle-cargo",
     buildId: "base-bottle-cargo",
-    formula: pricedByWidth({ baseMinor: 90_000, perWidthMillimetreMinor: 450 }),
+    formula: {
+      shape: "price-per-size",
+      sizes: [
+        { widthMm: 200, amountMinor: 180_000 },
+        { widthMm: 300, amountMinor: 225_000 },
+      ],
+    },
   },
   {
     ruleId: "cabinet.base-sink",
     buildId: "base-sink",
-    formula: pricedByWidth({
-      baseMinor: 150_000,
-      perWidthMillimetreMinor: 420,
-    }),
+    formula: {
+      shape: "anchored-width",
+      anchorWidthMm: 600,
+      anchorMinor: 402_000,
+      perStepWiderMinor: 21_000,
+      perStepNarrowerMinor: 21_000,
+    },
   },
   {
     ruleId: "cabinet.base-dishwasher",
     buildId: "base-dishwasher",
-    formula: pricedByWidth({
-      baseMinor: 140_000,
-      perWidthMillimetreMinor: 300,
-    }),
+    formula: {
+      shape: "price-per-size",
+      sizes: [
+        { widthMm: 450, amountMinor: 275_000 },
+        { widthMm: 600, amountMinor: 320_000 },
+      ],
+    },
   },
   // The one row exhibiting both decisions (ADR 0068): `heightFlex` for the whole wall band plus
-  // `doorCountFollowsWidth`. A rule expressing only the step would misprice the most-inserted cabinet.
+  // `doorCountFollowsWidth`. A rule expressing only the step would misprice the most-inserted cabinet. Quoted at the
+  // reference height of 700 mm.
   {
     ruleId: "cabinet.wall-cabinet",
     buildId: "wall-cabinet",
-    formula: pricedByWidthHeightAndDoorLeaves({
-      baseMinor: 40_000,
-      perWidthMillimetreMinor: 300,
-      perHeightMillimetreMinor: 70,
-      perDoorLeafMinor: 14_000,
-    }),
+    formula: {
+      shape: "anchored-width-height-and-door-leaves",
+      anchorWidthMm: 600,
+      anchorHeightMm: 700,
+      anchorMinor: 297_000,
+      perStepWiderMinor: 15_000,
+      perStepNarrowerMinor: 15_000,
+      perHeightStepMinor: 3_500,
+      perExtraDoorLeafMinor: 14_000,
+    },
   },
   // Built to its opening, so two stand at two heights. Height is an input beside width, not a front
   // area (ADR 0068).
   {
     ruleId: "cabinet.wall-lift",
     buildId: "wall-lift",
-    formula: pricedByWidthAndHeight({
-      baseMinor: 70_000,
-      perWidthMillimetreMinor: 350,
-      perHeightMillimetreMinor: 100,
-    }),
+    formula: {
+      shape: "anchored-width-and-height",
+      anchorWidthMm: 600,
+      anchorHeightMm: 700,
+      anchorMinor: 350_000,
+      perStepWiderMinor: 17_500,
+      perStepNarrowerMinor: 17_500,
+      perHeightStepMinor: 5_000,
+    },
   },
   // Built to its opening with no door, so the height shape and not the door-step one.
   {
     ruleId: "cabinet.open-shelf",
     buildId: "open-shelf",
-    formula: pricedByWidthAndHeight({
-      baseMinor: 30_000,
-      perWidthMillimetreMinor: 200,
-      perHeightMillimetreMinor: 50,
-    }),
+    formula: {
+      shape: "anchored-width-and-height",
+      anchorWidthMm: 600,
+      anchorHeightMm: 700,
+      anchorMinor: 185_000,
+      perStepWiderMinor: 10_000,
+      perStepNarrowerMinor: 10_000,
+      perHeightStepMinor: 2_500,
+    },
   },
   // An appliance, drawn and not sold: the customer buys the hood, and `priceBreakdown.disclaimer`
   // already excludes appliances. What Lemnaria builds around it is a different row and priced.
-  // `drawnButNotSupplied`, not a bare `pricedFlat(0)`, so the breakdown prints *nu este inclus* here
-  // and *inclus* beside an equally free manufacturer cabinet.
+  // `drawnButNotSupplied` so the breakdown prints *nu este inclus* here and *inclus* beside an equally free
+  // manufacturer cabinet.
   {
     ruleId: "cabinet.hood",
     buildId: "hood",
-    ...drawnButNotSupplied(),
+    ...drawnButNotSupplied(600),
   },
   // ADR 0048's resizable column: two stacked bands of leaves, so the 500 mm threshold takes it from
   // two doors to four and the price steps twice. The count is `widthDerivedDoorLeafCount`, not
@@ -148,63 +185,91 @@ const SAMPLE_CABINET_RULES: readonly LinearCabinetPriceRule[] = [
   {
     ruleId: "cabinet.tall-pantry",
     buildId: "tall-pantry",
-    formula: pricedByWidthAndDoorLeaves({
-      baseMinor: 300_000,
-      perWidthMillimetreMinor: 700,
-      perDoorLeafMinor: 22_000,
-    }),
+    formula: {
+      shape: "anchored-width-and-door-leaves",
+      anchorWidthMm: 600,
+      anchorMinor: 808_000,
+      perStepWiderMinor: 35_000,
+      perStepNarrowerMinor: 35_000,
+      perExtraDoorLeafMinor: 22_000,
+    },
   },
   {
     ruleId: "cabinet.tall-oven-tower",
     buildId: "tall-oven-tower",
-    formula: pricedFlat(900_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: 900_000 }],
+    },
   },
   {
     ruleId: "cabinet.tall-fridge-housing",
     buildId: "tall-fridge-housing",
-    formula: pricedFlat(700_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: 700_000 }],
+    },
   },
   // The free-standing fridge is furniture the customer supplies: no carpentry, nothing to charge.
   // `tall-fridge-housing`, the niche an integrated fridge sits in, is joinery and keeps its price.
   {
     ruleId: "cabinet.fridge-free",
     buildId: "fridge-free",
-    ...drawnButNotSupplied(),
+    ...drawnButNotSupplied(700),
   },
   // Bodies with no §7 equivalent: the corner bodies, structural (ADR 0021) and never chosen by a
   // customer (§13.1). A book prices them under their own ids; without these rules the seeded kitchen
-  // and a generated shell fail whole.
+  // and a generated shell fail whole. Each is made in one width, so each lists the one size a body of it rounds up
+  // to (320 to 350, 570 to 600).
   {
     ruleId: "cabinet.base-corner-x-900",
     buildId: "base-corner-x-900",
-    formula: pricedFlat(400_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 900, amountMinor: 400_000 }],
+    },
   },
   {
     ruleId: "cabinet.base-corner-return-320",
     buildId: "base-corner-return-320",
-    formula: pricedFlat(120_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 350, amountMinor: 120_000 }],
+    },
   },
   {
     ruleId: "cabinet.wall-corner-return-570",
     buildId: "wall-corner-return-570",
-    formula: pricedFlat(160_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: 160_000 }],
+    },
   },
   {
     ruleId: "cabinet.wall-corner-return-570-top",
     buildId: "wall-corner-return-570-top",
-    formula: pricedFlat(90_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: 90_000 }],
+    },
   },
   // PENDING OWNER INPUT: the corner wall unit's amounts are placeholders at each side corner piece's
   // own amount (160 000 wall row, 90 000 top row) and trace to no supplier.
   {
     ruleId: "cabinet.wall-corner-x-900",
     buildId: "wall-corner-x-900",
-    formula: pricedFlat(160_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 900, amountMinor: 160_000 }],
+    },
   },
   {
     ruleId: "cabinet.wall-corner-x-900-top",
     buildId: "wall-corner-x-900-top",
-    formula: pricedFlat(90_000),
+    formula: {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 900, amountMinor: 90_000 }],
+    },
   },
 ];
 
@@ -259,12 +324,13 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
 /**
  * A provisional sample book: not a quote, not a price list, and not checked against anything.
  *
- * Hardware tiers are priced per mechanism (ADR 0070 decision 1); material tiers once for the whole
- * kitchen.
+ * Hardware tiers are priced per mechanism (ADR 0070 decision 1); a material is a whole percentage on the cabinets
+ * and the depth a whole percentage on the cabinets that get deeper (ADR 0177 A-1), both invented.
  *
  * The two defaults are deliberately unlike. The default material tier costs nothing, so its line
  * renders *inclus*. The default hardware tier does not: Standard prices the seeded kitchen's
- * mechanisms at `450_240` minor, since ADR 0070's totals table puts a Standard tier near 5 100 MDL.
+ * mechanisms near 4 500 MDL (`450_240` minor before the line is rounded to 10 lei), since ADR 0070's totals table
+ * puts a Standard tier near 5 100 MDL.
  * Whether that line should be that number or zero is open owner input 6 (ADR 0092 decision 15): the
  * alternative, a line pricing the difference from the default, goes negative on a drawer-dominant
  * design and fails `priceDesign` whole.
@@ -272,7 +338,7 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
  * Every row that renders an ordinary word names its catalogue leaf (ADR 0106 decision 1). The two
  * brand rows name no `nameKey` on purpose.
  */
-export const SAMPLE_PRICE_BOOK: LinearPriceBook = {
+export const SAMPLE_PRICE_BOOK: PriceBook = {
   version: SAMPLE_PRICE_BOOK_VERSION,
   currency: PRICE_BOOK_CURRENCY,
   status: "estimate",
@@ -335,7 +401,7 @@ export const SAMPLE_PRICE_BOOK: LinearPriceBook = {
         description: "Materialul standard al bucătăriei.",
         nameKey: "priceBook.material.melamine.name",
         descriptionKey: "priceBook.material.melamine.description",
-        wholeKitchenMinor: 0,
+        percentOfCabinets: 0,
       },
       {
         tierId: "material.painted-mdf",
@@ -344,7 +410,7 @@ export const SAMPLE_PRICE_BOOK: LinearPriceBook = {
         description: "Fronturi din MDF vopsit mat, pentru toată bucătăria.",
         nameKey: "priceBook.material.painted-mdf.name",
         descriptionKey: "priceBook.material.painted-mdf.description",
-        wholeKitchenMinor: 900_000,
+        percentOfCabinets: 18,
       },
       {
         tierId: "material.veneer",
@@ -353,9 +419,10 @@ export const SAMPLE_PRICE_BOOK: LinearPriceBook = {
         description: "Fronturi furniruite natural, pentru toată bucătăria.",
         nameKey: "priceBook.material.veneer.name",
         descriptionKey: "priceBook.material.veneer.description",
-        wholeKitchenMinor: 1_800_000,
+        percentOfCabinets: 40,
       },
     ],
   },
+  depthRule: { deepCabinetPercent: 12 },
   accessories: SAMPLE_ACCESSORIES,
 };

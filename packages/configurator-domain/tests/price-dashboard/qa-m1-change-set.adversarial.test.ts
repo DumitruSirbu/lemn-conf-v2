@@ -71,7 +71,7 @@ function fieldRowsOf(rows: readonly BookDiffRow[]): readonly FieldDiffRow[] {
 }
 
 describe("the generator produces what the properties assume", () => {
-  it("makes parser-valid books of both forms with varied structure", () => {
+  it("makes parser-valid percentage-form books with varied structure", () => {
     const books = fc.sample(bookArb, { numRuns: 400, seed: PROPERTY_SEED });
     const shapes = new Set(
       books.flatMap((book) =>
@@ -79,8 +79,20 @@ describe("the generator produces what the properties assume", () => {
       ),
     );
 
-    expect(books.some((book) => book.depthRule !== undefined)).toBe(true);
-    expect(books.some((book) => book.depthRule === undefined)).toBe(true);
+    // One form since the cut-over: every book states a depth percentage and every material tier a percentage.
+    expect(
+      books.every((book) =>
+        Number.isInteger(book.depthRule.deepCabinetPercent),
+      ),
+    ).toBe(true);
+    expect(
+      books.every((book) =>
+        book.material.tiers.every((tier) => "percentOfCabinets" in tier),
+      ),
+    ).toBe(true);
+    expect(
+      new Set(books.map((book) => book.depthRule.deepCabinetPercent)).size,
+    ).toBeGreaterThan(1);
     for (const shape of [
       "anchored-width",
       "anchored-width-and-door-leaves",
@@ -96,11 +108,6 @@ describe("the generator produces what the properties assume", () => {
     expect(
       new Set(books.map((book) => book.hardware.defaultTierId)).size,
     ).toBeGreaterThan(1);
-    expect(
-      books.some((book) =>
-        book.hardware.tiers.some((tier) => "perLiftMinor" in tier),
-      ),
-    ).toBe(true);
   });
 });
 

@@ -39,6 +39,7 @@ import { toMetres } from "../../src/millimetres.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { createWorld } from "../support/kitchen-world.js";
 import { asBeforeTheCornerUnit } from "../support/before-c2-corner-unit.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const OCCURRED_AT = "2026-10-01T10:00:00.000Z";
 const UNIT_BUILD_ID = "wall-corner-x-900";
@@ -393,6 +394,7 @@ describe("the unit is structural (ADR 0021): fixed, not editable, nothing insert
 describe("the price rises by exactly the units' lines", () => {
   const pricedLines = (design: Design) => {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
       book: SAMPLE_PRICE_BOOK,

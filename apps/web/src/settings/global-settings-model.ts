@@ -2,6 +2,7 @@
 // Decides no price: tiers, deltas and the total arrive from `whole-kitchen-tiers.ts` and `usePricedDesign`.
 // The pill names what the design carries (`applied`); the options inside name `pending`, not yet applied.
 import {
+  DEEP_CABINET_DEPTH_MM,
   DEFAULT_CABINET_DEPTH_MM,
   DEFAULT_MATERIAL_ID,
   declaredCabinetDepthsMm,
@@ -199,6 +200,9 @@ export interface DescribeGlobalSettingsInput {
   readonly content: Content;
   readonly pricing: PricingResult;
   readonly offer: WholeKitchenTierOffer;
+  /** The published depth rule's whole percentage (`book.depthRule.deepCabinetPercent`): the only source of the figure
+   *  in the depth note. Required, because an absent one would read as 0 %, which says the depth is free. */
+  readonly deepCabinetPercent: number;
   /** `projectDesignForDisplay`'s answer, the only source of the body count: a void or an empty column is not a
    *  placement it carries. */
   readonly groups: readonly DisplayGroup[];
@@ -276,7 +280,11 @@ export function describeGlobalSettings(
         input.content,
       ),
     ],
-    depthGroup: toDepthGroupView(input.pending.cabinetDepthMm, input.content),
+    depthGroup: toDepthGroupView({
+      pendingDepthMm: input.pending.cabinetDepthMm,
+      content: input.content,
+      deepCabinetPercent: input.deepCabinetPercent,
+    }),
     ...(colourGroup === undefined ? {} : { colourGroup }),
     warning: input.content.globalSettings.materialWarning,
     ...(figure === undefined ? {} : { figure }),
@@ -487,10 +495,17 @@ function offeredCabinetDepthsMm(): readonly number[] {
   );
 }
 
-function toDepthGroupView(
-  pendingDepthMm: number | undefined,
-  content: Content,
-): DepthGroupView {
+interface DepthGroupInput {
+  readonly pendingDepthMm: number | undefined;
+  readonly content: Content;
+  readonly deepCabinetPercent: number;
+}
+
+function toDepthGroupView({
+  pendingDepthMm,
+  content,
+  deepCabinetPercent,
+}: DepthGroupInput): DepthGroupView {
   const offered = offeredCabinetDepthsMm();
   const selected = offered.includes(pendingDepthMm ?? Number.NaN)
     ? pendingDepthMm
@@ -503,7 +518,11 @@ function toDepthGroupView(
       label: content.globalSettings.depthOption(cabinetDepthMm),
       isSelected: cabinetDepthMm === selected,
     })),
-    note: content.globalSettings.depthNote,
+    // The deep depth, whichever is selected: the note says what choosing it costs.
+    note: content.globalSettings.depthNotePriced(
+      DEEP_CABINET_DEPTH_MM,
+      deepCabinetPercent,
+    ),
     warning: content.globalSettings.depthWarning,
   };
 }

@@ -19,6 +19,7 @@
 //      production call site leaves the whole 1710-test web suite green, because no test can open the
 //      sheet — the environment is `node`, there is no DOM, and `useState(false)` never advances. The
 //      guard here is the one that can be written without a browser.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -48,6 +49,7 @@ import {
   MDF_TIER_ID,
   VENEER_TIER_ID,
 } from "../support/mdf-kitchen-wearing-chosen-colours";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const SURFACE_ID = "settings";
 
@@ -77,8 +79,10 @@ function confirmingView(): GlobalSettingsView {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   };
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: content,
     pricing: priceDesign(priced),
     offer: offerWholeKitchenTiers(priced),

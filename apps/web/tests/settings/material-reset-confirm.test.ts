@@ -11,6 +11,7 @@
 // **And the words are asserted where the customer meets them.** This project has shipped a ruled
 // sentence no test ever saw reach the screen, so each of the four strings is asserted against
 // rendered markup rather than against `ro`.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -54,6 +55,7 @@ import {
   MDF_TIER_ID,
   VENEER_TIER_ID,
 } from "../support/mdf-kitchen-wearing-chosen-colours";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -113,8 +115,10 @@ function viewFor(options: {
 }): GlobalSettingsView {
   const { design } = options;
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -122,6 +126,7 @@ function viewFor(options: {
       selections: design.settings,
     }),
     offer: offerWholeKitchenTiers({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

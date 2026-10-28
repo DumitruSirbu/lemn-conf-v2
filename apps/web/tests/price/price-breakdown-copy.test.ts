@@ -34,6 +34,7 @@ import {
   RULED_TO_CONTAIN_A_SUM_WORD,
   SUM_CLAIM_WORDS,
 } from "../support/ruled-price-copy";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** The desktop file, read only for the question mark the owner ruled onto this control; frame 2D (the mobile file,
  *  the only one carrying every frame) draws the wording unpunctuated. */
@@ -73,6 +74,7 @@ function shippedBreakdown(): AvailableBreakdown {
   const view = describePriceBreakdown({
     content: ro,
     pricing: priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

@@ -43,6 +43,9 @@ import {
   type OfferedTierGroup,
 } from "@/price/whole-kitchen-tiers";
 
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { roundedToTenLei } from "../support/ten-lei-amounts";
+
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
 const DEFAULT_TIER_ID = BOOK.hardware.defaultTierId;
@@ -69,9 +72,9 @@ function mechanismsIn(design: Design): HardwareMechanismCounts {
   );
 }
 
-/** What the book charges this design at this tier, composed from the tier's own three rates — the
- *  independent side, never read off an offered delta. */
-function bookAmountFor(tierId: string, design: Design): number {
+/** What the book's rates make this design at this tier, exact: the tier's own three rates over the design's own three
+ *  counts, never read off an offered delta. */
+function exactAmountFor(tierId: string, design: Design): number {
   const tier = hardwareTier(tierId);
   const mechanisms = mechanismsIn(design);
 
@@ -82,6 +85,12 @@ function bookAmountFor(tierId: string, design: Design): number {
   );
 }
 
+/** What the hardware line prints for this design at this tier: the exact amount rounded once to ten lei (ADR 0177
+ *  A-1). A tier states a delta, and prices below its default, in these amounts and not in the exact ones. */
+function bookAmountFor(tierId: string, design: Design): number {
+  return roundedToTenLei(exactAmountFor(tierId, design));
+}
+
 function offerOf(design: Design) {
   return offerWholeKitchenTiers({
     design,
@@ -89,6 +98,7 @@ function offerOf(design: Design) {
     book: BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -176,6 +186,7 @@ describe("the sheet states an amount exactly where the rates make one an additio
           book: BOOK,
           pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
           selections: { hardwareTierId },
+          deepeningRows: MEASURED_DEEPENING_ROWS,
         });
         return result.ok ? result.priced.totalMinor : undefined;
       };
@@ -228,10 +239,20 @@ describe("the witness is where the rates put it, not where a fixture is quiet", 
       });
       // Re-derived from the two rates rather than pinned as a figure: the shortfall is the drawer
       // gap the owner's Hettich ruling creates, times this body's own drawers.
+      const shortfallMinor =
+        drawers * (hettich.perDrawerMinor - standard.perDrawerMinor);
       expect(
-        bookAmountFor(INVERTING_TIER_ID, design) -
-          bookAmountFor(DEFAULT_TIER_ID, design),
-      ).toBe(drawers * (hettich.perDrawerMinor - standard.perDrawerMinor));
+        exactAmountFor(INVERTING_TIER_ID, design) -
+          exactAmountFor(DEFAULT_TIER_ID, design),
+      ).toBe(shortfallMinor);
+      // The line prints each amount rounded once, so the printed gap is the exact one to within a grain.
+      expect(
+        Math.abs(
+          bookAmountFor(INVERTING_TIER_ID, design) -
+            bookAmountFor(DEFAULT_TIER_ID, design) -
+            shortfallMinor,
+        ),
+      ).toBeLessThan(1_000);
 
       const hardware = offerOf(design).hardware;
 

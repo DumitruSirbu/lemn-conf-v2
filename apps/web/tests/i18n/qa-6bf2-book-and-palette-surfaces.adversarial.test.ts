@@ -14,6 +14,7 @@
 //
 // Russian *wording* is never asserted here. Gate O2 owns that. What is asserted is that the surface
 // reaches the Russian leaf at all, and that the two brand rows reach neither locale's catalogue.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -58,6 +59,7 @@ import { PAL_KITCHEN } from "../support/panel-material";
 import { swatchSectionOf } from "../support/panel-sections";
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** What a row's text must read on screen: the catalogue's word where the row names a leaf, and the
  *  book's own word where it names none (ADR 0106 decision 2). `requireLeafAt` rather than `leafAt`
@@ -106,6 +108,7 @@ const SHIPPED_PRICING: PricingResult = priceDesign({
   catalog: KITCHEN_L_BODY_CATALOG,
   book: SAMPLE_PRICE_BOOK,
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+  deepeningRows: MEASURED_DEEPENING_ROWS,
 });
 
 const SHIPPED_OFFER: WholeKitchenTierOffer = offerWholeKitchenTiers({
@@ -113,11 +116,13 @@ const SHIPPED_OFFER: WholeKitchenTierOffer = offerWholeKitchenTiers({
   catalog: KITCHEN_L_BODY_CATALOG,
   book: SAMPLE_PRICE_BOOK,
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+  deepeningRows: MEASURED_DEEPENING_ROWS,
   selections: KITCHEN_L_DESIGN.settings,
 });
 
 function settingsViewIn(content: Content): GlobalSettingsView {
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content,
     pricing: SHIPPED_PRICING,
     offer: SHIPPED_OFFER,

@@ -11,7 +11,11 @@ import { useMemo } from "react";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { usePriceBookRoot } from "./price-book-provider";
-import { offerTiersAgainstBook, priceAgainstBook } from "./price-book-root";
+import {
+  offerTiersAgainstBook,
+  priceAgainstBook,
+  requireDeepCabinetPercent,
+} from "./price-book-root";
 import type { WholeKitchenTierOffer } from "./whole-kitchen-tiers";
 
 /**
@@ -29,6 +33,15 @@ export function usePricedDesign(): PricingResult {
     () => priceAgainstBook(root, design, catalog),
     [root, design, catalog],
   );
+}
+
+/**
+ * The depth percentage the active book publishes (`depthRule.deepCabinetPercent`): the only source of the figure in the
+ * settings sheet's depth note. The sheet cannot open without a book, so no book is raised, not answered with a 0 % that
+ * would say the depth is free.
+ */
+export function useRequiredDeepCabinetPercent(): number {
+  return requireDeepCabinetPercent(usePriceBookRoot());
 }
 
 /**

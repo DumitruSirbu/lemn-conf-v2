@@ -1,3 +1,4 @@
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   buildKitchenLBodyCatalog,
@@ -13,6 +14,7 @@ import {
   type DesignPlacement,
   type HardwareMechanismCounts,
   type HardwareTier,
+  parsePriceBook,
   type PriceBook,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
@@ -38,7 +40,9 @@ import { GlobalSettingsSurface } from "@/settings/global-settings";
 import { describeEditability } from "@/store/editability";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { roundedToTenLei } from "../support/ten-lei-amounts";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -81,9 +85,8 @@ function mechanismsIn(design: Design): HardwareMechanismCounts {
   );
 }
 
-/** What a book charges this design at this tier, composed from the tier's own three rates. The
- *  independent side of every comparison below, never read off an offered delta. */
-function hardwareAmountFor(
+/** What a book's rates make this design at this tier, exact: the tier's own three rates over the design's counts. */
+function exactHardwareAmountFor(
   book: PriceBook,
   tierId: string,
   design: Design,
@@ -98,6 +101,17 @@ function hardwareAmountFor(
   );
 }
 
+/** What the hardware line prints at this tier: the exact amount rounded once to ten lei (ADR 0177 A-1), which is what a
+ *  tier's delta and its standing below the default are measured in. The independent side of every comparison below,
+ *  never read off an offered delta. */
+function hardwareAmountFor(
+  book: PriceBook,
+  tierId: string,
+  design: Design,
+): number {
+  return roundedToTenLei(exactHardwareAmountFor(book, tierId, design));
+}
+
 function offerOf(
   design: Design,
   book: PriceBook = BOOK,
@@ -108,6 +122,7 @@ function offerOf(
     book,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -118,6 +133,7 @@ function pricingOf(design: Design, book: PriceBook = BOOK): PricingResult {
     book,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 
@@ -132,6 +148,7 @@ function offeredDeltaFor(
 
 function viewOf(design: Design, book: PriceBook = BOOK): GlobalSettingsView {
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: pricingOf(design, book),
     offer: offerOf(design, book),
@@ -252,8 +269,9 @@ describe("the optional delta never reaches a screen as a word", () => {
 });
 
 /**
- * The quantifier derived a second time, in integers with no division, so agreement is between two arithmetics: the
- * module's float form can land on the other side of the boundary from the exact integers.
+ * The quantifier derived a second time, in integers with no division, from the rate gaps alone. Rounding to ten lei can
+ * move a tier across the boundary only where this margin is under one grain, so the module's answer is held to it
+ * wherever the margin is a grain or more (`expectedDelta` below), and to the printed amounts everywhere.
  */
 function invertsInIntegers(book: PriceBook, tierId: string, design: Design) {
   const standard = tierOf(book, DEFAULT_TIER_ID);
@@ -266,6 +284,30 @@ function invertsInIntegers(book: PriceBook, tierId: string, design: Design) {
     (standard.perDrawerMinor - tier.perDrawerMinor) * counts.drawers;
 
   return savingMinor > surchargeMinor;
+}
+
+const GRAIN_MINOR = 1_000;
+
+/** What a hardware tier's delta must be on a design: its printed amount less the default's, stated unless that is
+ *  negative; and, wherever the exact gap is a whole grain or more, the rate gaps' own verdict. */
+function expectedDelta(
+  book: PriceBook,
+  tierId: string,
+  design: Design,
+): number | undefined {
+  const printedGapMinor =
+    hardwareAmountFor(book, tierId, design) -
+    hardwareAmountFor(book, DEFAULT_TIER_ID, design);
+  const exactGapMinor =
+    exactHardwareAmountFor(book, tierId, design) -
+    exactHardwareAmountFor(book, DEFAULT_TIER_ID, design);
+  if (Math.abs(exactGapMinor) >= GRAIN_MINOR) {
+    // A margin of a whole grain cannot be rounded across zero.
+    expect(printedGapMinor < 0, `${tierId} by the rates`).toBe(
+      invertsInIntegers(book, tierId, design),
+    );
+  }
+  return printedGapMinor < 0 ? undefined : printedGapMinor;
 }
 
 /** The sample book with one hardware tier's three rates replaced. The only way to reach a book that
@@ -328,12 +370,10 @@ describe("what states an amount is the book's arithmetic, not the tier's name", 
     "states a hardware tier's delta exactly where the integer arithmetic makes it an addition",
     (design) => {
       const hardware = offerOf(design).hardware;
-      const baseline = hardwareAmountFor(BOOK, DEFAULT_TIER_ID, design);
 
       for (const tierId of HARDWARE_TIER_IDS) {
-        const amountMinor = hardwareAmountFor(BOOK, tierId, design) - baseline;
         expect(offeredDeltaFor(hardware, tierId), tierId).toBe(
-          invertsInIntegers(BOOK, tierId, design) ? undefined : amountMinor,
+          expectedDelta(BOOK, tierId, design),
         );
       }
     },
@@ -345,17 +385,12 @@ describe("what states an amount is the book's arithmetic, not the tier's name", 
       // Swept over the same population space, so the claim is that the module follows *these* rates.
       for (const design of everyOneAndTwoBodyPopulation()) {
         const hardware = offerOf(design, book).hardware;
-        const baseline = hardwareAmountFor(book, DEFAULT_TIER_ID, design);
 
         for (const tierId of HARDWARE_TIER_IDS) {
-          const amountMinor =
-            hardwareAmountFor(book, tierId, design) - baseline;
           expect(
             offeredDeltaFor(hardware, tierId),
             `${tierId} on ${design.placements.map((one) => one.body.buildId).join("+")}`,
-          ).toBe(
-            invertsInIntegers(book, tierId, design) ? undefined : amountMinor,
-          );
+          ).toBe(expectedDelta(book, tierId, design));
         }
       }
     },
@@ -441,30 +476,32 @@ function everyOneAndTwoBodyPopulation(): readonly Design[] {
 }
 
 describe("the refusal is narrowed, not laundered", () => {
-  /** The message rebuilt from the two facts the constructor interpolates, character for character: one that lost the
-   *  tier id or the shortfall would still satisfy `toThrow(NegativeTierDeltaError)`. */
-  it("keeps NegativeTierDeltaError's exact sentence for the material group", () => {
-    const invertedMaterial: PriceBook = {
-      ...BOOK,
-      material: { ...BOOK.material, defaultTierId: "material.veneer" },
-    };
-    const cheapest = BOOK.material.tiers.find(
-      (tier) => tier.tierId === "material.melamine",
-    );
-    const veneer = BOOK.material.tiers.find(
-      (tier) => tier.tierId === "material.veneer",
-    );
-    if (!cheapest || !veneer) throw new Error("the book lost a material tier");
-    const shortfallMinor =
-      veneer.wholeKitchenMinor - cheapest.wholeKitchenMinor;
+  /** An inverted material book, as the cut-over leaves it reachable: the default tier is a dear one. The parser refuses
+   *  it (the default material is the 0 % reference, A-8), so pricing refuses it, so the sheet offers every tier and
+   *  states no amount; a discount is never printed and the settings sheet, the recovery path, is never closed (P3-d).
+   *  Since a parsed book's material percentages are all at least the reference's, `NegativeTierDeltaError` from the
+   *  material group guards a book the parser has already refused. */
+  const invertedMaterial: PriceBook = {
+    ...BOOK,
+    material: { ...BOOK.material, defaultTierId: "material.veneer" },
+  };
 
-    expect(() => offerOf(DRAWERS_ONLY, invertedMaterial)).toThrow(
-      new NegativeTierDeltaError("material.melamine", -shortfallMinor),
-    );
-    expect(() => offerOf(DRAWERS_ONLY, invertedMaterial)).toThrow(
-      `Tier "material.melamine" prices the kitchen below its group's default by ` +
-        `${String(shortfallMinor)} minor units; a tier delta is an addition, never a discount`,
-    );
+  it("refuses an inverted material book at the parser, and offers every tier with no amount rather than a discount", () => {
+    const parsed = parsePriceBook(invertedMaterial);
+
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) return;
+    expect(parsed.failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(parsed.failure.detail).toContain("material.veneer");
+
+    const offer = offerOf(DRAWERS_ONLY, invertedMaterial);
+    expect(offer.material.tierIds).toEqual(MATERIAL_TIER_IDS);
+    expect(offer.hardware.tierIds).toEqual(HARDWARE_TIER_IDS);
+    for (const group of [offer.material, offer.hardware]) {
+      for (const tier of group.tiers) {
+        expect(tier.deltaMinor, tier.tierId).toBeUndefined();
+      }
+    }
   });
 
   /** The error's own construction, independent of any book — so the sentence is pinned even if no
@@ -479,19 +516,13 @@ describe("the refusal is narrowed, not laundered", () => {
     );
   });
 
-  /** The material refusal asked on every population, including those the hardware rule spares: a
-   *  `BelowDefaultTierRule` wired the wrong way round, or read from the wrong group, fails here. */
+  /** The inverted material book asked on every population: refused whole whatever the hardware does, and never a
+   *  throw. */
   propertyTest.prop([anyPopulation])(
-    "refuses an inverted material book at every population, whether or not the hardware inverts",
+    "answers an inverted material book at every population without a throw and without a figure",
     (design) => {
-      const invertedMaterial: PriceBook = {
-        ...BOOK,
-        material: { ...BOOK.material, defaultTierId: "material.veneer" },
-      };
-
-      expect(() => offerOf(design, invertedMaterial)).toThrow(
-        NegativeTierDeltaError,
-      );
+      expect(() => offerOf(design, invertedMaterial)).not.toThrow();
+      expect(pricingOf(design, invertedMaterial).ok).toBe(false);
     },
   );
 
@@ -515,9 +546,10 @@ describe("the refusal is narrowed, not laundered", () => {
    */
   it("absorbs a hardware tier that is cheaper on all three rates, and no runtime rule reports it", () => {
     const dominated = bookWithHardwareRates(INVERTING_TIER_ID, {
-      perHingeMinor: STANDARD.perHingeMinor - 1,
-      perDrawerMinor: STANDARD.perDrawerMinor - 1,
-      perPushToOpenMinor: STANDARD.perPushToOpenMinor - 1,
+      // One grain under on each rate: a bani under would be rounded away, and the tier would price at the default.
+      perHingeMinor: STANDARD.perHingeMinor - GRAIN_MINOR,
+      perDrawerMinor: STANDARD.perDrawerMinor - GRAIN_MINOR,
+      perPushToOpenMinor: STANDARD.perPushToOpenMinor - GRAIN_MINOR,
     });
 
     // The guard that catches it is a suite assertion over the *sample* book, not a runtime rule: asked to price the
@@ -581,7 +613,12 @@ describe("the tier that states nothing is still a tier a customer can choose", (
     const chosen = pricingOf(store.getState().design);
     if (!chosen.ok) throw new Error("the chosen tier must still price");
     // The kitchen genuinely costs less here, and the customer sees a coherent figure rather than a refusal.
-    expect(chosen.priced.totalMinor).toBe(atDefault.priced.totalMinor - 4_200);
+    expect(chosen.priced.totalMinor).toBe(
+      atDefault.priced.totalMinor +
+        hardwareAmountFor(BOOK, INVERTING_TIER_ID, DRAWERS_ONLY) -
+        hardwareAmountFor(BOOK, DEFAULT_TIER_ID, DRAWERS_ONLY),
+    );
+    expect(chosen.priced.totalMinor).toBeLessThan(atDefault.priced.totalMinor);
     const bar = describePriceBar({ pricing: chosen, content: ro });
     expect(bar.kind).toBe("priced");
     if (bar.kind !== "priced") throw new Error("unreachable");
@@ -637,18 +674,21 @@ describe("the tier that states nothing is still a tier a customer can choose", (
    *  pricing below the default keeps it. */
   it("distinguishes one silent tier from a sheet that could not be priced at all", () => {
     const unpriceable = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: ro,
       pricing: priceDesign({
         design: DRAWERS_ONLY,
         catalog: CATALOG,
         book: BOOK,
         pricingVersion: `${SAMPLE_PRICE_BOOK_VERSION}-retired`,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
       }),
       offer: offerWholeKitchenTiers({
         design: DRAWERS_ONLY,
         catalog: CATALOG,
         book: BOOK,
         pricingVersion: `${SAMPLE_PRICE_BOOK_VERSION}-retired`,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
       }),
       groups: projectDesignForDisplay(DRAWERS_ONLY, CATALOG),
       applied: {},

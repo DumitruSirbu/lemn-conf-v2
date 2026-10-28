@@ -15,6 +15,7 @@
 //   rather than on the two examples that happen to be typed out.
 // - **The Romanian.** Every string the wave added must reach the surface it was written for and be
 //   Romanian (ADR 0095).
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
   declaredCabinetDepthsMm,
@@ -42,6 +43,7 @@ import fc from "fast-check";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 vi.mock("@/i18n/use-content", async () => {
   const { ro } = await import("../support/romanian-content");
@@ -101,6 +103,7 @@ function pricingOf(design: Design): PricingResult {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     selections: design.settings,
   });
 }
@@ -111,6 +114,7 @@ function offerOf(design: Design): WholeKitchenTierOffer {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     selections: design.settings,
   });
 }
@@ -124,6 +128,7 @@ interface ViewInput {
 
 function viewOf(input: ViewInput): GlobalSettingsView {
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content,
     pricing: pricingOf(input.design),
     offer: offerOf(input.design),

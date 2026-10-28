@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 
 import {
+  DEEP_CABINET_DEPTH_MM,
+  DEFAULT_CABINET_DEPTH_MM,
   KITCHEN_L_DESIGN,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
+  measureDeepeningRows,
   snapshotSubmission,
 } from "@lemnaria/configurator-domain";
 import type { Design, SubmissionSnapshot } from "@lemnaria/configurator-domain";
@@ -37,12 +40,19 @@ function copiedGeneratedDesigns(): NamedDesign[] {
   return JSON.parse(readFileSync(COPIED_DESIGNS_FILE, "utf8")) as NamedDesign[];
 }
 
+/** Measured from the domain's public catalogue builder, the way the application measures it (ADR 0177 A-6). */
+const MEASURED_DEEPENING_ROWS = measureDeepeningRows(
+  buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM),
+  buildKitchenLBodyCatalog(DEEP_CABINET_DEPTH_MM),
+);
+
 function realSnapshotOf({ name, design }: NamedDesign): RealSnapshot {
   const result = snapshotSubmission({
     design,
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
   if (!result.ok) throw new Error(`${name} has no snapshot`);
   return { name, snapshot: result.snapshot };

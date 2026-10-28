@@ -10,7 +10,7 @@ import {
 /**
  * The changes that make `active` equal `archived` on every editable field both books state: one per field whose value
  * differs, set to the archived value, in the order the dashboard lists fields. A field only one book states (a depth
- * rule where the other is flat, a row the other lacks) has no change to make: no change kind creates a row. A stored
+ * rule where the other states none, a row the other lacks) has no change to make: no change kind creates a row. A stored
  * `-0` is emitted as `0`, which `applyChanges` accepts. Equal books give none.
  */
 export function restoreChanges(

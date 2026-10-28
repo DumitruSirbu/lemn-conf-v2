@@ -1,15 +1,15 @@
 // **M6-AUD-006 / ADR 0100 decision 5: the copy and the coefficient move together, and neither moves
 // alone.**
 //
-// A 700 mm carcass eats more board and prices identically to a 600 mm one. The owner has ruled the
-// shape — one dashboard-editable multiplier on the 600 mm base — and deliberately deferred the work
-// (ADR 0100 decision 6). Until it ships, `globalSettings.depthNote` tells the customer that depth
-// does not change the estimate, which is **accurate about the code and wrong about furniture**.
+// A 700 mm carcass eats more board and, until the cut-over, priced identically to a 600 mm one. The owner ruled the
+// shape — one dashboard-editable percentage on the cabinets that get deeper — and the cut-over (M10 P3) ships it as the
+// book's depth rule and a depth line. `globalSettings.depthNote` still tells the customer that depth does not change the
+// estimate, which is **now wrong about the code**: the surface that shows it is Q1's, which switches it to
+// `globalSettings.depthNotePriced` and merges with this wave (MP-3), and T2 deletes the old leaf afterwards.
 //
-// The danger the deferral leaves behind is a half-move: somebody edits the sentence to promise a
-// depth-dependent price the book cannot produce, or ships a coefficient and leaves the sentence
-// standing. This file couples the two so either half alone turns it red, and whoever picks ADR 0100
-// up is handed the copy change by a failing test rather than by a reviewer's memory.
+// The danger a half-move leaves behind is a sentence that promises one price while the book charges another. This file
+// couples the two so that the price half is asserted here, where the coefficient shipped, and the copy half is what
+// Q1 and T2 owe: the case below that pins the note is the one they flip.
 //
 // **What "the kitchen really got deeper" has to mean here.** The first version of this file asserted
 // that some `buildId` changed, which proves a *rename* and not a rebuild: `resolveRebuildBody`
@@ -20,10 +20,9 @@
 // by its chain's own delta — `base-formula` +100 as the corner reach goes 560 -> 660, `wall-map`
 // +70 as it goes 291 -> 361.
 //
-// **The equality is safe from the rename for a stronger reason than this file can show**, worth
-// recording so nobody re-derives it: `price-design.ts` reads `widthMm` and `heightMm` only and
-// resolves each priced row through `resolveCatalogEquivalent`, so no depth quantity reaches pricing
-// at all. Depth-blindness is structural rather than a coincidence of this fixture.
+// **The depth line is measured, not assumed.** `price-design.ts` reads `widthMm` and `heightMm` only and resolves each
+// priced row through `resolveCatalogEquivalent`, so no depth quantity reaches a cabinet's own amount; which cabinets
+// take the percentage is `deepeningRows`, measured from the catalogue at the two depths (ADR 0177 A-6).
 import {
   KITCHEN_L_DESIGN,
   buildKitchenLBodyCatalog,
@@ -39,6 +38,7 @@ import { ro } from "../support/romanian-content";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const OCCURRED_AT = "2026-09-08T12:00:00.000Z";
 const DEFAULT_MM = 600;
@@ -99,6 +99,7 @@ function deepenTheKitchen(): DepthChange {
 /** Priced exactly as `usePricedDesign` prices it — same book, same version, same selections. */
 function priceOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: buildKitchenLBodyCatalog(
       design.settings?.cabinetDepthMm ?? DEFAULT_MM,
@@ -109,7 +110,7 @@ function priceOf(design: Design): PricingResult {
   });
 }
 
-describe("depth does not reach an amount, and the sentence that says so", () => {
+describe("depth reaches the price as one depth line, and the sentence that says it does not is owed a change", () => {
   it("rebuilds every body to a new depth except the machine that follows no setting", () => {
     const change = deepenTheKitchen();
 
@@ -161,17 +162,24 @@ describe("depth does not reach an amount, and the sentence that says so", () => 
     expect(atSixHundred.priced.totalMinor).toBeGreaterThan(0);
   });
 
-  it("charges the same total, line for line, at 700 as at 600", () => {
+  it("adds the one depth line at 700 and moves no other line", () => {
     const change = deepenTheKitchen();
     const atSixHundred = priceOf(change.shallow);
     const atSevenHundred = priceOf(change.deep);
     if (!atSixHundred.ok || !atSevenHundred.ok) throw new Error("refused");
 
-    expect(atSevenHundred.priced.totalMinor).toBe(
-      atSixHundred.priced.totalMinor,
+    const depthLines = atSevenHundred.priced.lines.filter(
+      (line) => line.kind === "depth",
     );
-    expect(atSevenHundred.priced.lines.map((line) => line.amountMinor)).toEqual(
-      atSixHundred.priced.lines.map((line) => line.amountMinor),
+    expect(depthLines).toHaveLength(1);
+    expect(depthLines[0]?.amountMinor).toBeGreaterThan(0);
+    expect(
+      atSevenHundred.priced.lines
+        .filter((line) => line.kind !== "depth")
+        .map((line) => line.amountMinor),
+    ).toEqual(atSixHundred.priced.lines.map((line) => line.amountMinor));
+    expect(atSevenHundred.priced.totalMinor).toBe(
+      atSixHundred.priced.totalMinor + (depthLines[0]?.amountMinor ?? 0),
     );
   });
 
@@ -184,8 +192,8 @@ describe("depth does not reach an amount, and the sentence that says so", () => 
     //
     // Decision 5's coupling is pinned, in three places that together make either half of a
     // half-move red:
-    //   1. *the price is genuinely unmoved by depth* — this file's own "charges the same total,
-    //      line for line, at 700 as at 600", which goes red the day a coefficient ships;
+    //   1. *the price moves by the depth line* — this file's own "adds the one depth line at 700
+    //      and moves no other line", which is the half the cut-over shipped;
     //   2. *this leaf is the note the control ships* — `tests/settings/cabinet-depth-control.test.ts`
     //      reads `depthGroup.note` off the settings view and fails if it reaches for another leaf;
     //   3. *the leaf's wording* — the copy lock, byte for byte, which is where a re-approval of the

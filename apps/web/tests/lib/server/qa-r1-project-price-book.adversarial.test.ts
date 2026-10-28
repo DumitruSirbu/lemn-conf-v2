@@ -5,10 +5,6 @@ import {
   KITCHEN_L_DESIGN,
   parsePriceBook,
   priceDesign,
-  pricedByWidth,
-  pricedByWidthAndDoorLeaves,
-  pricedByWidthAndHeight,
-  pricedByWidthHeightAndDoorLeaves,
   PRICE_PER_SIZE_SHAPE,
   SAMPLE_PRICE_BOOK,
   type AnchoredShape,
@@ -18,14 +14,16 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { projectPriceBook } from "@/lib/server/project-price-book";
+import { MEASURED_DEEPENING_ROWS } from "../../support/deepening-rows";
 
 // Adversarial QA for M10 wave R1's projection: a stored book is jsonb and may carry members its type does not declare;
 // the page is handed the declared book and nothing else. It must keep every declared member of every shape (or a price
 // silently changes) and lose every undeclared one at every level (or the browser is sent what was never part of a price).
-// The member lists in `project-price-book.ts` are checked against the types for the book's own shapes, but the linear
-// formula members are string literals with no type check, which is why every formula shape is swept here against an
-// oracle the projection does not share: the domain's own list of what an anchored shape reads, and the linear shapes' own
-// constructors.
+// The member lists in `project-price-book.ts` are checked against the types, but a shape's own fields are only as
+// complete as the one list of every field any shape states, which is why every formula shape is swept here against an
+// oracle the projection does not share: the domain's own list of what each anchored shape reads. Since the P3 cut-over
+// the linear shapes are gone, and a stored book that still carries one is held to the projection's other duty: nothing
+// of its retired members reaches a page.
 
 const EXTRA_KEY = "undeclaredMemberQa";
 const EXTRA_VALUE = "leaked-text-7c41";
@@ -62,19 +60,7 @@ function anchoredOf(shape: AnchoredShape): PriceFormula {
   return formula as unknown as PriceFormula;
 }
 
-const COEFFICIENTS = { baseMinor: 1_100, perWidthMillimetreMinor: 7 };
-const WITH_HEIGHT = { ...COEFFICIENTS, perHeightMillimetreMinor: 13 };
-const WITH_LEAVES = { ...COEFFICIENTS, perDoorLeafMinor: 17 };
-const WITH_BOTH = { ...WITH_HEIGHT, perDoorLeafMinor: 17 };
-
 const EVERY_FORMULA_SHAPE: readonly (readonly [string, PriceFormula])[] = [
-  ["linear-in-width", pricedByWidth(COEFFICIENTS)],
-  ["linear-in-width-and-door-leaves", pricedByWidthAndDoorLeaves(WITH_LEAVES)],
-  ["linear-in-width-and-height", pricedByWidthAndHeight(WITH_HEIGHT)],
-  [
-    "linear-in-width-height-and-door-leaves",
-    pricedByWidthHeightAndDoorLeaves(WITH_BOTH),
-  ],
   ...ANCHORED_SHAPES.map((shape) => [shape, anchoredOf(shape)] as const),
   [
     PRICE_PER_SIZE_SHAPE,
@@ -124,6 +110,7 @@ describe("the projection keeps every declared member", () => {
         catalog,
         book: candidate,
         pricingVersion: candidate.version,
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         selections: KITCHEN_L_DESIGN.settings,
       });
 
@@ -252,7 +239,23 @@ describe("the projection drops every undeclared member, at every level a book ha
       (path) => parsePriceBook(withExtraAt(rich, path, false)).ok,
     );
 
-    expect(letThrough.length).toBeGreaterThan(levels.length / 2);
+    // Since the cut-over a formula refuses a field its shape does not read, so the levels left for the projection to
+    // defend are the book, its rules, tiers and accessories, and the rest: still a real share of every level.
+    expect(letThrough.length).toBeGreaterThan(levels.length / 3);
+    expect(
+      letThrough.some((path) => path.length === 0),
+      "the book's own level",
+    ).toBe(true);
+    expect(
+      letThrough.some((path) => path[0] === "material"),
+      "a material tier's level",
+    ).toBe(true);
+    // The depth rule is not one of them: the parser refuses a member it does not declare there, so the projection is
+    // never the only defence at that level.
+    expect(
+      letThrough.some((path) => path[0] === "depthRule"),
+      "the depth rule's level",
+    ).toBe(false);
   });
 
   it.each(
@@ -303,10 +306,10 @@ describe("the projection is a copy and reads only what a book owns", () => {
 
   it("does not read a member a book merely inherits", () => {
     const inherited = Object.create({
-      baseMinor: 999,
-      perWidthMillimetreMinor: 999,
+      anchorMinor: 999,
+      perStepWiderMinor: 999,
     }) as Record<string, unknown>;
-    inherited.shape = "linear-in-width";
+    inherited.shape = "anchored-width";
     const book = {
       ...parsed(SAMPLE_PRICE_BOOK),
       cabinetRules: [{ ruleId: "r", buildId: "b", formula: inherited }],
@@ -314,7 +317,7 @@ describe("the projection is a copy and reads only what a book owns", () => {
 
     const [rule] = projectPriceBook(book).cabinetRules;
 
-    expect(rule?.formula).toEqual({ shape: "linear-in-width" });
+    expect(rule?.formula).toEqual({ shape: "anchored-width" });
   });
 
   it("never produces a member whose value is undefined", () => {
@@ -324,5 +327,53 @@ describe("the projection is a copy and reads only what a book owns", () => {
     const roundTripped = JSON.parse(text) as PriceBook;
 
     expect(roundTripped).toEqual(projectPriceBook(book));
+  });
+});
+
+describe("a book stored before the cut-over carries nothing retired to a page", () => {
+  const RETIRED_MEMBER = "wholeKitchenMinor";
+  const RETIRED_VALUE = 987_654;
+
+  /** The retired members as a stored book carried them: a flat amount on every material tier beside its percentage, and a
+   *  linear formula on a rule no design needs. The parser now refuses the first (P3-Q3), so this reaches the projection
+   *  unparsed: the projection is the second line of defence and drops it on its own. */
+  function bookCarryingRetiredMembers(): unknown {
+    return {
+      ...SAMPLE_PRICE_BOOK,
+      material: {
+        ...SAMPLE_PRICE_BOOK.material,
+        tiers: SAMPLE_PRICE_BOOK.material.tiers.map((tier) => ({
+          ...tier,
+          [RETIRED_MEMBER]: RETIRED_VALUE,
+        })),
+      },
+      cabinetRules: SAMPLE_PRICE_BOOK.cabinetRules.map((rule) =>
+        rule.buildId === "hood"
+          ? {
+              ...rule,
+              formula: {
+                shape: "linear-in-width",
+                baseMinor: 0,
+                perWidthMillimetreMinor: 0,
+              },
+            }
+          : rule,
+      ),
+    };
+  }
+
+  it("projects a retired amount on a tier away, and a retired formula to its shape alone", () => {
+    const projected = projectPriceBook(
+      bookCarryingRetiredMembers() as PriceBook,
+    );
+    const text = JSON.stringify(projected);
+
+    expect(text).not.toContain(RETIRED_MEMBER);
+    expect(text).not.toContain(String(RETIRED_VALUE));
+    expect(text).not.toContain("baseMinor");
+    expect(
+      projected.cabinetRules.find((rule) => rule.buildId === "hood")?.formula,
+    ).toEqual({ shape: "linear-in-width" });
+    expect(projected.material.tiers).toEqual(SAMPLE_PRICE_BOOK.material.tiers);
   });
 });

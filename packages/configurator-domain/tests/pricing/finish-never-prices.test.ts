@@ -31,6 +31,7 @@ import {
 } from "../../src/materials.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const PRICING_ROOT = path.join(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../src"),
@@ -63,6 +64,7 @@ function repaintedWith(finish: Finish): Design {
 
 function priceOf(design: Design) {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,

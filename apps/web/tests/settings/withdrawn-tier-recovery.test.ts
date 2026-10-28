@@ -15,6 +15,7 @@
 // is **both** halves of that — the recovery, and the invariant it must not buy the recovery with:
 // *cancel writes nothing, and apply writes only what changed*. Seeding the book's defaults into a
 // document that had deliberately chosen nothing would close the defect and open a worse one.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
@@ -42,6 +43,7 @@ import {
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const WITHDRAWN_TIER_ID = "material.withdrawn";
 const WITHDRAWN_HARDWARE_TIER_ID = "hardware.withdrawn";
@@ -55,6 +57,7 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
 
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -65,6 +68,7 @@ function pricingOf(design: Design): PricingResult {
 
 function offerOf(design: Design): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -77,6 +81,7 @@ function offerOf(design: Design): WholeKitchenTierOffer {
 function displayedTierIn(design: Design, key: WholeKitchenGroupKey): string {
   const opening = resolveOpeningChoice(design.settings ?? {}, offerOf(design));
   const view = describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: pricingOf(design),
     offer: offerOf(design),

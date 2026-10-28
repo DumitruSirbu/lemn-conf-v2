@@ -11,6 +11,7 @@
 //
 // Since the owner's ruling of 2026-09-10 it is also **not a chip in the scrolling colour row** but a
 // fixed full-width row under it; the last two blocks hold that placement.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -50,6 +51,7 @@ import { MDF_KITCHEN, PAL_KITCHEN } from "../support/panel-material";
 import { pickerSectionOf, swatchSectionOf } from "../support/panel-sections";
 import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 const PAL_ANTRACIT = paletteFinish("pal.antracit");
 
@@ -295,8 +297,10 @@ describe("the global settings sheet is the level being followed, so it offers no
       book: SAMPLE_PRICE_BOOK,
       pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
       selections: design.settings,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
     };
     const view = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content,
       pricing: priceDesign(priced),
       offer: offerWholeKitchenTiers(priced),

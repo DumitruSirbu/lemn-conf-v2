@@ -24,7 +24,6 @@ import {
   CABINET_SUPPLIERS,
   DEFAULT_CABINET_SUPPLIER,
   drawnButNotSupplied,
-  pricedFlat,
   type CabinetPriceRule,
   type PriceBook,
 } from "../../src/pricing/price-book.js";
@@ -34,8 +33,20 @@ import type {
   PricingFailure,
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
+
+/** A formula that costs `anchorMinor` at every width, which is how an anchored shape says a row is flat. */
+function costingAtEveryWidth(anchorMinor: number): CabinetPriceRule["formula"] {
+  return {
+    shape: "anchored-width",
+    anchorWidthMm: 600,
+    anchorMinor,
+    perStepWiderMinor: 0,
+    perStepNarrowerMinor: 0,
+  };
+}
 
 /** The two catalogue rows the owner ruled are appliances rather than joinery. The housings around
  *  them — `tall-oven-tower`, `tall-fridge-housing`, the hob bases, the dishwasher base — are
@@ -48,6 +59,7 @@ function bookWithRules(rules: readonly CabinetPriceRule[]): PriceBook {
 
 function cabinetLinesOf(book: PriceBook): readonly CabinetPriceLine[] {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book,
@@ -81,7 +93,8 @@ describe("the book states who supplies a row", () => {
     for (const rule of BOOK.cabinetRules) {
       if (rule.suppliedBy !== "customer") continue;
       for (const [field, value] of Object.entries(rule.formula)) {
-        if (typeof value !== "number") continue;
+        // The millimetre fields say where a price is quoted, never what is charged.
+        if (typeof value !== "number" || field.endsWith("Mm")) continue;
         expect(value, `${rule.ruleId}.${field}`).toBe(0);
       }
     }
@@ -126,7 +139,7 @@ describe("a priced line carries the supplier rather than a reader inferring it",
     const everythingFree = bookWithRules(
       BOOK.cabinetRules.map((rule) =>
         rule.suppliedBy === undefined
-          ? { ...rule, formula: pricedFlat(0) }
+          ? { ...rule, formula: costingAtEveryWidth(0) }
           : rule,
       ),
     );
@@ -160,7 +173,7 @@ describe("a book assembled elsewhere is held to the same statement", () => {
         {
           ruleId: "cabinet.charged-appliance",
           buildId: "hood",
-          formula: pricedFlat(290_000),
+          formula: costingAtEveryWidth(290_000),
           suppliedBy: "customer",
         },
         ...BOOK.cabinetRules,
@@ -175,14 +188,16 @@ describe("a book assembled elsewhere is held to the same statement", () => {
     const rule: CabinetPriceRule = {
       ruleId: "cabinet.authored",
       buildId: "hood",
-      ...drawnButNotSupplied(),
+      ...drawnButNotSupplied(600),
     };
 
     expect(rule.suppliedBy).toBe("customer");
     expect(rule.formula).toEqual({
-      shape: "linear-in-width",
-      baseMinor: 0,
-      perWidthMillimetreMinor: 0,
+      shape: "anchored-width",
+      anchorWidthMm: 600,
+      anchorMinor: 0,
+      perStepWiderMinor: 0,
+      perStepNarrowerMinor: 0,
     });
   });
 });

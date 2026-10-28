@@ -11,18 +11,16 @@ import type {
 } from "../../src/pricing/anchored-price-formula.js";
 import type {
   CabinetPriceRule,
+  DepthRule,
   MaterialTier,
   PriceBook,
+  PriceFormula,
 } from "../../src/pricing/price-book.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 
 import { valueAt, type Edit as SlotEdit, type Slot } from "./qa-m1-books.js";
 
 type EditSlot = Slot;
-
-/** The flat form: linear cabinet formulas, flat material amounts, no depth rule. Only hardware, accessories and the
- *  provisional flag are editable in it. */
-export const FLAT_BOOK: PriceBook = SAMPLE_PRICE_BOOK;
 
 const ANCHORED_SHAPES_IN_ORDER: readonly AnchoredShape[] = [
   "anchored-width",
@@ -77,18 +75,14 @@ function percentageRules(): readonly CabinetPriceRule[] {
 
 function percentageTiers(): readonly MaterialTier[] {
   const percents = [0, 25, 60];
-  return SAMPLE_PRICE_BOOK.material.tiers.map((tier, index) => {
-    const { wholeKitchenMinor, ...identity } = tier;
-    void wholeKitchenMinor;
-    return {
-      ...identity,
-      percentOfCabinets: percents[index] ?? 0,
-    } as unknown as MaterialTier;
-  });
+  return SAMPLE_PRICE_BOOK.material.tiers.map((tier, index) => ({
+    ...tier,
+    percentOfCabinets: percents[index] ?? 0,
+  }));
 }
 
-/** The percentage form: every manufacturer row anchored (all four shapes, a fixed-size row, the rest plain), customer
- *  rows kept, three material tiers (the default at 0 %) and a depth rule. */
+/** The only form a book has: every manufacturer row anchored (all four shapes, a fixed-size row, the rest plain),
+ *  customer rows kept, three material tiers (the default at 0 %) and a depth rule. */
 export const PERCENTAGE_BOOK: PriceBook = {
   ...SAMPLE_PRICE_BOOK,
   cabinetRules: percentageRules(),
@@ -99,8 +93,37 @@ export const PERCENTAGE_BOOK: PriceBook = {
   depthRule: { deepCabinetPercent: 15 },
 };
 
+/** A book as it was stored before the cut-over: the retired linear cabinet shapes, flat material amounts and no depth
+ *  rule. `parsePriceBook` refuses it now and no store holds one, but the change-set functions take a book that arrives
+ *  from outside TypeScript, so they are held to refusing it whole rather than editing it. */
+export const PRE_CUTOVER_BOOK: PriceBook = {
+  ...SAMPLE_PRICE_BOOK,
+  cabinetRules: SAMPLE_PRICE_BOOK.cabinetRules.map((rule) => ({
+    ...rule,
+    formula: {
+      shape: "linear-in-width",
+      baseMinor: 1_000,
+      perWidthMillimetreMinor: 1,
+    } as unknown as PriceFormula,
+  })),
+  material: {
+    ...SAMPLE_PRICE_BOOK.material,
+    tiers: SAMPLE_PRICE_BOOK.material.tiers.map(
+      (tier) =>
+        ({
+          ...Object.fromEntries(
+            Object.entries(tier).filter(
+              ([field]) => field !== "percentOfCabinets",
+            ),
+          ),
+          wholeKitchenMinor: 0,
+        }) as unknown as MaterialTier,
+    ),
+  },
+  depthRule: undefined as unknown as DepthRule,
+};
+
 export const FIXTURE_BOOKS = [
-  { form: "flat", book: FLAT_BOOK },
   { form: "percentage", book: PERCENTAGE_BOOK },
 ] as const;
 

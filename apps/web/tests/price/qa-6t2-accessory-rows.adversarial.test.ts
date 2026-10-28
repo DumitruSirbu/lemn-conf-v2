@@ -38,6 +38,7 @@ import {
   describePriceBreakdown,
   type AvailableBreakdown,
 } from "@/price/price-breakdown-model";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 function priceOf(design: Design): PricingResult {
   return priceDesign({
@@ -45,6 +46,7 @@ function priceOf(design: Design): PricingResult {
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    deepeningRows: MEASURED_DEEPENING_ROWS,
   });
 }
 

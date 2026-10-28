@@ -17,6 +17,7 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import type { PricedDesign } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -35,6 +36,11 @@ const ADR_0070_TOTALS_LEI = {
 } as const;
 
 const BANI_PER_LEU = 100;
+
+/** A hardware amount as its line carries it: rounded half up to ten lei (ADR 0177 A-1). Restated, as an oracle must not
+ *  import the rounding it checks. */
+const tenLeiOf = (exactMinor: number): number =>
+  Math.round(exactMinor / 1_000) * 1_000;
 
 /** Standard's hinge column is rounded by the owner: 74 hinges at 17.60 lei is 1 302.40, written as 1 300. A per-tier
  *  tolerance rather than a blanket one, which would hide a rate that is simply wrong. */
@@ -56,6 +62,7 @@ function tierOf(tierId: string): HardwareTier {
  *  customer is shown. */
 function hardwareLineAt(tierId: string) {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design: KITCHEN_L_DESIGN,
     catalog: CATALOG,
     book: BOOK,
@@ -106,9 +113,11 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
 
       expect(line.quantity).toBe(1);
       expect(line.unitAmountMinor).toBe(
-        hingesAndDrawersMinor +
-          SEEDED_MECHANISM_COUNTS.pushToOpen *
-            tierOf(tierId).perPushToOpenMinor,
+        tenLeiOf(
+          hingesAndDrawersMinor +
+            SEEDED_MECHANISM_COUNTS.pushToOpen *
+              tierOf(tierId).perPushToOpenMinor,
+        ),
       );
       expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
     },
@@ -120,9 +129,11 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
     const defaultTier = tierOf(BOOK.hardware.defaultTierId);
 
     expect(hardwareLineAt(BOOK.hardware.defaultTierId).amountMinor).toBe(
-      130_240 +
-        320_000 +
-        SEEDED_MECHANISM_COUNTS.pushToOpen * defaultTier.perPushToOpenMinor,
+      tenLeiOf(
+        130_240 +
+          320_000 +
+          SEEDED_MECHANISM_COUNTS.pushToOpen * defaultTier.perPushToOpenMinor,
+      ),
     );
     // A deliberate Romanian literal: a negative claim about the book's own authored prose (ADR 0106 decision 2 keeps it
     // required), which can only be spelled. It lives inside a regex because a diacritic scanner reading only quoted and
@@ -135,6 +146,7 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
 /** The hardware amount `priceDesign` publishes for any design at any tier. */
 function hardwareAmountOf(design: Design, tierId: string): number {
   const result = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: CATALOG,
     book: BOOK,
@@ -194,10 +206,13 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
     (tierId) => {
       const amount = hardwareAmountOf(PUSH_WHEREVER_PERMITTED, tierId);
 
+      const tier = tierOf(tierId);
       expect(amount).toBe(
-        hardwareLineAt(tierId).amountMinor +
-          tierOf(tierId).perPushToOpenMinor *
-            (PUSH_FRONTS_WHEN_PERMITTED - SEEDED_MECHANISM_COUNTS.pushToOpen),
+        tenLeiOf(
+          tier.perHingeMinor * SEEDED_MECHANISM_COUNTS.hinges +
+            tier.perDrawerMinor * SEEDED_MECHANISM_COUNTS.drawers +
+            tier.perPushToOpenMinor * PUSH_FRONTS_WHEN_PERMITTED,
+        ),
       );
       expect(amount).toBeGreaterThan(0);
     },
@@ -243,7 +258,7 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
 
   it.each(EVERY_TIER_ID)("bills %s for the hinges alone", (tierId) => {
     expect(hardwareAmountOf(RECORDED_PUSH_ON_A_VISIBLE_BAR, tierId)).toBe(
-      2 * tierOf(tierId).perHingeMinor,
+      tenLeiOf(2 * tierOf(tierId).perHingeMinor),
     );
   });
 });
@@ -301,6 +316,7 @@ describe("the tier rates relate to each other in ways the book itself decides", 
     };
     const hardwareAmountAt = (tierId: string): number => {
       const result = priceDesign({
+        deepeningRows: MEASURED_DEEPENING_ROWS,
         design,
         catalog: CATALOG,
         book: BOOK,
@@ -329,7 +345,10 @@ describe("the tier rates relate to each other in ways the book itself decides", 
     expect(
       hardwareAmountAt("hardware.soft-close") -
         hardwareAmountAt(BOOK.hardware.defaultTierId),
-    ).toBe(-4_200);
+    ).toBe(
+      tenLeiOf(3 * tierOf("hardware.soft-close").perDrawerMinor) -
+        tenLeiOf(3 * tierOf(BOOK.hardware.defaultTierId).perDrawerMinor),
+    );
   });
 });
 
@@ -353,6 +372,7 @@ describe("the seeded kitchen's whole hardware-and-extras figure, per tier", () =
 
   function pricedAt(tierId: string): PricedDesign {
     const result = priceDesign({
+      deepeningRows: MEASURED_DEEPENING_ROWS,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: BOOK,
@@ -380,10 +400,11 @@ describe("the seeded kitchen's whole hardware-and-extras figure, per tier", () =
 
       // The default material tier costs nothing, so what this sums is exactly the three terms.
       expect(unplacedAmountAt(tierId)).toBe(
-        hingesAndDrawers +
-          SINK_EXTRAS_MINOR +
-          SEEDED_MECHANISM_COUNTS.pushToOpen *
-            tierOf(tierId).perPushToOpenMinor,
+        tenLeiOf(
+          hingesAndDrawers +
+            SEEDED_MECHANISM_COUNTS.pushToOpen *
+              tierOf(tierId).perPushToOpenMinor,
+        ) + SINK_EXTRAS_MINOR,
       );
     },
   );

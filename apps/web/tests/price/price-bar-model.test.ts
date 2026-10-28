@@ -23,12 +23,14 @@ import {
   type PricedBar,
 } from "@/price/price-bar-model";
 import { roundUpToThousandMdl } from "@/price/starting-price";
+import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 
 /** Far enough past wall A's end that no rounding of the body's own half-width could hide it. */
 const PAST_THE_WALL_END_MM = 500;
 
 function priceOf(design: Design): PricingResult {
   return priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -153,6 +155,7 @@ describe("a refused edit", () => {
 
 describe("a pricing failure", () => {
   const failed = priceDesign({
+    deepeningRows: MEASURED_DEEPENING_ROWS,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
