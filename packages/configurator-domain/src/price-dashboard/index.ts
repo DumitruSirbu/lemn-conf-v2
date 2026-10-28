@@ -16,3 +16,12 @@ export {
 export * from "./apply-changes.js";
 export * from "./diff-books.js";
 export * from "./restore.js";
+export * from "./bulk-change.js";
+export * from "./judge-book.js";
+export * from "./cabinet-preview.js";
+export {
+  pricedRowOf,
+  referenceCornerBuiltWidthsMm,
+  type BuiltWidthsMm,
+  type PricedRow,
+} from "./priced-row.js";
