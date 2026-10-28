@@ -1032,6 +1032,12 @@ export function resolveCatalogEquivalent(
   return { buildId: equivalentId, definition: equivalent };
 }
 
+/** The id of the row a body is priced as (ADR 0022): its equivalent where it declares one that resolves, its own id where
+ *  it does not. The six corner bodies have no equivalent by design and stand under their own ids. */
+export function pricedAsBuildId(catalog: BodyCatalog, buildId: string): string {
+  return resolveCatalogEquivalent(catalog, buildId)?.buildId ?? buildId;
+}
+
 /** The widths a body can be built at: its equivalent's set narrowed by that entry's floor, both from one row. An
  *  empty set is a real answer: §9's width section declines to render (ADR 0026). */
 export function resolveBuildableSizes(

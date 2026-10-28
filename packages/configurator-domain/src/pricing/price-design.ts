@@ -5,7 +5,7 @@
 // - It re-derives no order and no label: line order is `projectDesignForDisplay`'s (ADR 0063).
 // - It fails whole: every refusal returns before a single line is published.
 import { widthDerivedDoorLeafCount } from "../cabinet-handles.js";
-import { resolveCatalogEquivalent } from "../catalog.js";
+import { pricedAsBuildId } from "../catalog.js";
 import type { Design } from "../design.js";
 import { boundedFailureReason } from "../failure-text.js";
 import {
@@ -35,6 +35,7 @@ import {
   type ItemRef,
 } from "./catalogue-availability.js";
 import { earnedAccessoryQuantities } from "./earned-accessories.js";
+import { earnedLinkedAccessories } from "./linked-accessories.js";
 import { disabledItemsNamedBy } from "./named-items.js";
 import { parsePriceBook } from "./parse-price-book.js";
 import {
@@ -55,8 +56,6 @@ import {
   InexactPriceArithmeticError,
   MalformedPriceCoefficientError,
   usableCoefficientOf,
-  type AccessoryId,
-  type AccessoryRule,
   type CabinetPriceRule,
   type HardwareTier,
   type MaterialTier,
@@ -372,12 +371,14 @@ function failureCodeOf(error: unknown): OrdinaryPricingFailureCode {
  * (ADR 0021) and are priced under their own ids.
  */
 function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
-  const equivalent = resolveCatalogEquivalent(catalog, buildId);
-  if (equivalent) return equivalent;
-  const definition = catalog.get(buildId);
+  const pricedAsId = pricedAsBuildId(catalog, buildId);
+  const definition = catalog.get(pricedAsId);
+  if (definition?.insertable === true) {
+    return { buildId: pricedAsId, definition };
+  }
   const declaredEquivalentId = definition?.catalogEquivalentId;
   return {
-    buildId,
+    buildId: pricedAsId,
     definition,
     ...(declaredEquivalentId === undefined
       ? {}
@@ -964,28 +965,41 @@ function attemptExactly<TValue>(
 }
 
 /**
- * The sink extras, after every other line (ADR 0092 decision 11). Two lines at most, often none, and none for an
- * accessory availability has switched off.
+ * The accessories, after every other line (ADR 0092 decision 11): the two sink extras, then each linked accessory in
+ * book order (ADR 0177 A-19). Two built-in lines at most, often none, and none for an accessory availability has
+ * switched off.
  *
- * Per sink, never per kitchen: the cover's quantity is the number of sink bodies, the rack's the
- * number of sinks that resolved a host, with no de-duplication when two racks share a wall cabinet.
- * A quantity of zero is no line at all: a zero would render *inclus* and tell the customer a rack
- * they are not getting is included.
+ * The built-ins are per sink, never per kitchen: the cover's quantity is the number of sink bodies, the rack's the
+ * number of sinks that resolved a host, with no de-duplication when two racks share a wall cabinet. A linked accessory
+ * is one per placement priced as its row. A quantity of zero is no line at all: a zero would render *inclus* and tell
+ * the customer a rack they are not getting is included.
  */
 function priceAccessories(
   entries: readonly DisplayEntry[],
   request: PriceDesignRequest,
 ): Attempt<readonly AccessoryPriceLine[]> {
   const quantities = earnedAccessoryQuantities(entries, request.catalog);
+  const billed: BilledAccessory[] = [
+    ...ACCESSORY_IDS.map((accessoryId) => ({
+      accessoryId,
+      rule: accessoryRuleOf(request.book, accessoryId),
+      quantity: quantities[accessoryId],
+    })),
+    ...earnedLinkedAccessories({
+      entries,
+      catalog: request.catalog,
+      rules: request.book.linkedAccessories,
+    }).map(({ rule, quantity }) => ({
+      accessoryId: rule.accessoryId,
+      rule,
+      quantity,
+    })),
+  ];
 
   const lines: AccessoryPriceLine[] = [];
-  for (const accessoryId of ACCESSORY_IDS) {
-    if (isSwitchedOff(request.availability, accessoryId)) continue;
-    const line = accessoryLine({
-      rule: accessoryRuleOf(request.book, accessoryId),
-      accessoryId,
-      quantity: quantities[accessoryId],
-    });
+  for (const accessory of billed) {
+    if (isSwitchedOff(request.availability, accessory.accessoryId)) continue;
+    const line = accessoryLine(accessory);
     if (isRefused(line)) return line;
     if (line.value) lines.push(line.value);
   }
@@ -996,18 +1010,34 @@ function priceAccessories(
  *  states its rule (ADR 0062 Amendment 3). Switching it on again restores the line exactly. */
 function isSwitchedOff(
   availability: CatalogueAvailability,
-  accessoryId: AccessoryId,
+  accessoryId: string,
 ): boolean {
   return isItemDisabled(availability, { kind: "accessory", accessoryId });
 }
 
+/** What a rule must state to be billed: a built-in's rule (keyed words, a required description) and a linked one's
+ *  (authored words, an optional description) both satisfy it. */
+interface BillableAccessoryRule {
+  readonly ruleId: string;
+  readonly name: string;
+  readonly description?: string | undefined;
+  readonly nameKey?: string | undefined;
+  readonly descriptionKey?: string | undefined;
+  readonly perUnitMinor: number;
+}
+
+/** One accessory and how many the design earns of it, before any amount is formed. */
+interface BilledAccessory {
+  readonly rule: BillableAccessoryRule | undefined;
+  readonly accessoryId: string;
+  readonly quantity: number;
+}
+
 /** One accessory the design earns, priced, or `undefined` where it earns none: an omission, which
  *  must never turn into an amount of zero. */
-function accessoryLine(billed: {
-  readonly rule: AccessoryRule | undefined;
-  readonly accessoryId: AccessoryId;
-  readonly quantity: number;
-}): Attempt<AccessoryPriceLine | undefined> {
+function accessoryLine(
+  billed: BilledAccessory,
+): Attempt<AccessoryPriceLine | undefined> {
   if (billed.quantity < ONE_ACCESSORY) return { value: undefined };
 
   // A missing rule for an accessory the design earns is refused, not skipped: a skipped line would
@@ -1039,7 +1069,7 @@ function accessoryLine(billed: {
       ruleId: rule.ruleId,
       accessoryId: billed.accessoryId,
       name: rule.name,
-      description: rule.description,
+      description: rule.description ?? NO_DESCRIPTION,
       ...textKeysOf(rule),
       quantity: billed.quantity,
       unitAmountMinor: unitAmountMinor.value,
@@ -1047,6 +1077,9 @@ function accessoryLine(billed: {
     },
   };
 }
+
+/** What a line says of a created accessory authored without a description: nothing, not a sentence. */
+const NO_DESCRIPTION = "";
 
 const ONE_ACCESSORY = 1;
 

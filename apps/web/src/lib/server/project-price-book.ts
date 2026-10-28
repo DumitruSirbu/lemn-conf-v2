@@ -7,6 +7,7 @@ import type {
   CabinetPriceRule,
   DepthRule,
   HardwareTier,
+  LinkedAccessoryRule,
   MaterialTier,
   PriceBook,
   PricedSize,
@@ -34,6 +35,8 @@ function membersOf<Declared>() {
   ): List => list;
 }
 
+/** Every member of a book, as the type spells them: the sections below that hold rows are then copied member by member
+ *  and replace the whole-section copy this makes, so a section is listed here and projected once, as `cabinetRules` is. */
 const BOOK_MEMBERS = membersOf<PriceBook>()([
   "version",
   "currency",
@@ -44,6 +47,7 @@ const BOOK_MEMBERS = membersOf<PriceBook>()([
   "material",
   "depthRule",
   "accessories",
+  "linkedAccessories",
 ]);
 
 const RULE_MEMBERS = membersOf<CabinetPriceRule>()([
@@ -98,6 +102,16 @@ const ACCESSORY_MEMBERS = membersOf<AccessoryRule>()([
   "nameKey",
   "descriptionKey",
   "perUnitMinor",
+]);
+
+/** A created accessory states authored Romanian and no key (A-21), so none is listed. */
+const LINKED_ACCESSORY_MEMBERS = membersOf<LinkedAccessoryRule>()([
+  "accessoryId",
+  "ruleId",
+  "linkedBuildId",
+  "perUnitMinor",
+  "name",
+  "description",
 ]);
 
 const ACCESSORIES_MEMBERS = membersOf<BookAccessories>()([
@@ -186,5 +200,8 @@ export function projectPriceBook(book: PriceBook): PriceBook {
   );
   projected.depthRule = picked(book.depthRule, DEPTH_RULE_MEMBERS);
   projected.accessories = projectAccessories(book.accessories);
+  projected.linkedAccessories = listed(book.linkedAccessories, (linked) =>
+    picked(linked, LINKED_ACCESSORY_MEMBERS),
+  );
   return projected as unknown as PriceBook;
 }

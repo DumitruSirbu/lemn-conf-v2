@@ -202,6 +202,7 @@ describe("the snapshot's total, added up by hand", () => {
         perUnitMinor: 100,
       },
     },
+    linkedAccessories: [],
   };
 
   function wallCabinet(
