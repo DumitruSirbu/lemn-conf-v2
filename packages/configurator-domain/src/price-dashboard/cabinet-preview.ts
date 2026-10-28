@@ -4,8 +4,6 @@ import { countHardwareMechanisms } from "../hardware-mechanisms.js";
 import {
   anchoredShapeReadsDoorLeaves,
   isAnchoredShape,
-  MalformedPriceDimensionError,
-  NoPriceForSizeError,
   PRICE_PER_SIZE_SHAPE,
   PRICE_STEP_MM,
   roundUpToPriceStepMm,
@@ -17,28 +15,28 @@ import {
 } from "../pricing/percentage-lines.js";
 import {
   exactAmountOfTerms,
-  InexactPriceArithmeticError,
-  MalformedPriceCoefficientError,
   usableCoefficientOf,
   type CabinetPriceRule,
   type HardwareTier,
   type PriceBook,
-  type PriceFormula,
 } from "../pricing/price-book.js";
-import {
-  MAX_DEEP_CABINET_PERCENT,
-  MAX_MATERIAL_PERCENT,
-} from "../pricing/price-bounds.js";
 import type { DisplayEntry } from "../queries/design-projection.js";
 import type { BodyCatalog } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
 
-import { isWholePercentWithin } from "./judge-book.js";
 import {
+  isDepthPercentInRange,
+  isMaterialPercentInRange,
+} from "./percent-bounds.js";
+import {
+  bookFaultOf,
   buildableHeightsMm,
   doorLeavesOf,
   exactAmountOf,
+  isBuildableHeightMm,
+  isInsertableRow,
   listedWidthsMm,
+  NO_DECLARED_HEIGHT_MM,
   pricedRowOf,
   referenceCornerBuiltWidthsMm,
   type BuiltWidthsMm,
@@ -47,9 +45,13 @@ import {
 
 // What one cabinet type costs at each width the owner can build it at (frames D3A to D3G): the table beside the price
 // fields, recalculated as they are typed. Built only from the pricing module's own functions: the exact amount is
-// `amountForBody`, the cell is the third stage of `percentageStagesOf` (ADR 0177 A-1: the one combined price a kitchen's
-// cabinet, material and depth lines add up to), and hardware is added at its own `r10`. Nothing here multiplies a
-// percentage or rounds a price itself.
+// `amountForBody`, the cell is the third stage of `percentageStagesOf` (ADR 0177 A-1: the one combined price a
+// kitchen's cabinet, material and depth lines add up to), and hardware is added at its own `r10`. Nothing here
+// multiplies a percentage or rounds a price itself.
+//
+// The cells are for the row the rule prices, counting door leaves as that row does. A seeded body priced as it (a
+// `wall-1door-300`) counts its leaves from its own fronts and can differ at a width; `judgeBookAgainstCatalog` judges
+// those, and the table does not draw them.
 
 export const PREVIEW_REFUSAL_CODES = Object.freeze([
   "NO_CATALOGUE_ROW",
@@ -59,6 +61,7 @@ export const PREVIEW_REFUSAL_CODES = Object.freeze([
   "UNKNOWN_HARDWARE",
   "UNKNOWN_DEPTH",
   "PERCENT_OUT_OF_RANGE",
+  "HEIGHT_NOT_BUILDABLE",
   "NO_PRICE_FOR_SIZE",
   "PRICE_NOT_EXACT",
 ] as const);
@@ -73,7 +76,8 @@ export interface CabinetPreviewOptions {
   readonly deepeningRows: ReadonlySet<string>;
   /** When given, each cell also carries that hardware class's mechanisms for a body of that width. */
   readonly hardwareTier?: string;
-  /** The height a row built to its opening is shown at. Defaults to the formula's own anchor height. */
+  /** The height a row built to its opening is shown at, which must be one the row is built at. Defaults to the
+   *  formula's own anchor height. */
   readonly heightMm?: number;
   /** The widths of the structural corner rows; defaults to the corner assembly's reference ones. */
   readonly builtWidthsMm?: BuiltWidthsMm;
@@ -100,14 +104,16 @@ export type CabinetPreview =
   | { readonly ok: true; readonly rows: readonly PreviewRow[] }
   | { readonly ok: false; readonly code: PreviewRefusalCode };
 
+/** The rule to draw, and what it is drawn against. */
+export interface CabinetPreviewRequest extends CabinetPreviewOptions {
+  readonly rule: CabinetPriceRule;
+  readonly catalog: BodyCatalog;
+  readonly book: PriceBook;
+}
+
 /** The table for one rule, one row per width, narrowest first. */
-export function previewCabinet(
-  rule: CabinetPriceRule,
-  catalog: BodyCatalog,
-  book: PriceBook,
-  options: CabinetPreviewOptions,
-): CabinetPreview {
-  const setting = settingOf(rule, catalog, book, options);
+export function previewCabinet(request: CabinetPreviewRequest): CabinetPreview {
+  const setting = settingOf(request);
   if (!setting.ok) return setting;
   try {
     return { ok: true, rows: rowsOf(setting.value) };
@@ -120,12 +126,14 @@ export function previewCabinet(
 
 /** The throws a book causes, as `priceDesign` names them; anything else is a defect and leaves as itself. */
 function refusalCodeOf(error: unknown): PreviewRefusalCode | undefined {
-  if (error instanceof NoPriceForSizeError) return "NO_PRICE_FOR_SIZE";
-  const isABookFault =
-    error instanceof MalformedPriceCoefficientError ||
-    error instanceof MalformedPriceDimensionError ||
-    error instanceof InexactPriceArithmeticError;
-  return isABookFault ? "PRICE_NOT_EXACT" : undefined;
+  switch (bookFaultOf(error)) {
+    case "NO_LISTED_SIZE":
+      return "NO_PRICE_FOR_SIZE";
+    case "NOT_EXACT":
+      return "PRICE_NOT_EXACT";
+    default:
+      return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -147,26 +155,24 @@ type Reading<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly code: PreviewRefusalCode };
 
-function settingOf(
-  rule: CabinetPriceRule,
-  catalog: BodyCatalog,
-  book: PriceBook,
-  options: CabinetPreviewOptions,
-): Reading<PreviewSetting> {
+function settingOf(request: CabinetPreviewRequest): Reading<PreviewSetting> {
+  const { rule, catalog } = request;
   const row = pricedRowOf(catalog, rule.buildId);
   if (row === undefined) return refused("NO_CATALOGUE_ROW");
-  const percentages = percentagesOf(rule, row, book, options);
+  const percentages = percentagesOf(request, row);
   if (!percentages.ok) return percentages;
-  const hardware = hardwareOf(book, options);
+  const hardware = hardwareOf(request);
   if (!hardware.ok) return hardware;
-  const widthsMm = widthsOf(rule, row, options);
+  const widthsMm = widthsOf(request, row);
   if (!widthsMm.ok) return widthsMm;
+  const heightMm = heightOf(request, row);
+  if (!heightMm.ok) return heightMm;
   return accepted({
     rule,
     row,
     catalog,
     widthsMm: widthsMm.value,
-    heightMm: heightOf(rule.formula, row, options),
+    heightMm: heightMm.value,
     ...percentages.value,
     hardware: hardware.value,
   });
@@ -174,16 +180,15 @@ function settingOf(
 
 /** The widths a table lists, for a shape this build can evaluate. */
 function widthsOf(
-  rule: CabinetPriceRule,
+  request: CabinetPreviewRequest,
   row: PricedRow,
-  options: CabinetPreviewOptions,
 ): Reading<readonly number[]> {
-  if (!isKnownShape(rule.formula.shape)) {
+  if (!isKnownShape(request.rule.formula.shape)) {
     return refused("UNKNOWN_FORMULA_SHAPE");
   }
   const widthsMm = listedWidthsMm(
     row,
-    options.builtWidthsMm ?? referenceCornerBuiltWidthsMm(),
+    request.builtWidthsMm ?? referenceCornerBuiltWidthsMm(),
   );
   return widthsMm.length === 0 ? refused("NO_BUILT_WIDTH") : accepted(widthsMm);
 }
@@ -208,77 +213,72 @@ interface Percentages {
   readonly deepCabinetPercent: number;
 }
 
-/** The two percentages, each checked whole and within its range before `percentageStagesOf` is asked (it checks that a
- *  percentage is whole, and not its range). */
+/** The two percentages, each checked whole and within its range before `percentageStagesOf` is asked, by the same
+ *  bounds the judgement of a book holds (it checks that a percentage is whole, and not its range). */
 function percentagesOf(
-  rule: CabinetPriceRule,
+  request: CabinetPreviewRequest,
   row: PricedRow,
-  book: PriceBook,
-  options: CabinetPreviewOptions,
 ): Reading<Percentages> {
-  if (!declaredCabinetDepthsMm().includes(options.depth)) {
+  const { book, depth } = request;
+  if (!declaredCabinetDepthsMm().includes(depth)) {
     return refused("UNKNOWN_DEPTH");
   }
-  const material = materialPercentOf(book, options.material);
-  if (!material.ok) return material;
-  const { deepCabinetPercent } = book.depthRule;
-  if (!isWholePercentWithin(deepCabinetPercent, MAX_DEEP_CABINET_PERCENT)) {
+  const tier = book.material.tiers.find(
+    ({ tierId }) => tierId === request.material,
+  );
+  if (tier === undefined) return refused("UNKNOWN_MATERIAL");
+  if (!isMaterialPercentInRange(book, tier) || !isDepthPercentInRange(book)) {
     return refused("PERCENT_OUT_OF_RANGE");
   }
   return accepted({
-    materialPercent: material.value,
-    deepCabinetPercent: takesDepthPercent(rule, row, options)
-      ? deepCabinetPercent
+    materialPercent: tier.percentOfCabinets,
+    deepCabinetPercent: takesDepthPercent(request, row)
+      ? book.depthRule.deepCabinetPercent
       : 0,
   });
 }
 
-function materialPercentOf(book: PriceBook, tierId: string): Reading<number> {
-  const tier = book.material.tiers.find(
-    (candidate) => candidate.tierId === tierId,
-  );
-  if (tier === undefined) return refused("UNKNOWN_MATERIAL");
-  return isWholePercentWithin(tier.percentOfCabinets, MAX_MATERIAL_PERCENT)
-    ? accepted(tier.percentOfCabinets)
-    : refused("PERCENT_OUT_OF_RANGE");
-}
-
 /** Only the deep depth, only a row that measures deeper, and never a customer-supplied one (ADR 0177 A-6). */
 function takesDepthPercent(
-  rule: CabinetPriceRule,
+  request: CabinetPreviewRequest,
   row: PricedRow,
-  options: CabinetPreviewOptions,
 ): boolean {
   return (
-    options.depth === DEEP_CABINET_DEPTH_MM &&
-    options.deepeningRows.has(row.buildId) &&
-    rule.suppliedBy !== "customer"
+    request.depth === DEEP_CABINET_DEPTH_MM &&
+    request.deepeningRows.has(row.buildId) &&
+    request.rule.suppliedBy !== "customer"
   );
 }
 
 function hardwareOf(
-  book: PriceBook,
-  options: CabinetPreviewOptions,
+  request: CabinetPreviewRequest,
 ): Reading<HardwareTier | undefined> {
-  if (options.hardwareTier === undefined) return accepted(undefined);
-  const tier = book.hardware.tiers.find(
-    ({ tierId }) => tierId === options.hardwareTier,
+  if (request.hardwareTier === undefined) return accepted(undefined);
+  const tier = request.book.hardware.tiers.find(
+    ({ tierId }) => tierId === request.hardwareTier,
   );
   return tier === undefined ? refused("UNKNOWN_HARDWARE") : accepted(tier);
 }
 
-/** The height a row built to its opening is read at: the caller's, else the formula's anchor height, else the row's
- *  first buildable one. */
+/** The height a row built to its opening is read at: the caller's (which the row must be built at), else the formula's
+ *  anchor height, else the row's first buildable one. */
 function heightOf(
-  formula: PriceFormula,
+  request: CabinetPreviewRequest,
   row: PricedRow,
-  options: CabinetPreviewOptions,
-): number {
-  if (options.heightMm !== undefined) return options.heightMm;
+): Reading<number> {
+  const { heightMm } = request;
+  if (heightMm !== undefined) {
+    return isBuildableHeightMm(row, heightMm)
+      ? accepted(heightMm)
+      : refused("HEIGHT_NOT_BUILDABLE");
+  }
+  const { formula } = request.rule;
   const anchorHeightMm = isAnchoredShape(formula.shape)
     ? (formula as { readonly anchorHeightMm?: number }).anchorHeightMm
     : undefined;
-  return anchorHeightMm ?? buildableHeightsMm(row)[0] ?? 0;
+  return accepted(
+    anchorHeightMm ?? buildableHeightsMm(row)[0] ?? NO_DECLARED_HEIGHT_MM,
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -315,7 +315,8 @@ function rowAt(setting: PreviewSetting, at: RowAt): PreviewRow {
   return {
     widthMm: at.widthMm,
     pricedAsWidthMm,
-    isOffGridMinimum: at.widthMm % PRICE_STEP_MM !== 0,
+    isOffGridMinimum:
+      isInsertableRow(setting.row) && at.widthMm % PRICE_STEP_MM !== 0,
     doorLeaves: at.leaves,
     isDoorStep: at.isDoorStep,
     priceMinor: cabinetCellMinor(setting, at.widthMm) + (hardwareMinor ?? 0),

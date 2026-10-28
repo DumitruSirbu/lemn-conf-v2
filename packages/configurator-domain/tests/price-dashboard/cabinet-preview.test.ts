@@ -39,7 +39,10 @@ function rowsOf(
   options: Partial<CabinetPreviewOptions> = {},
   book: PriceBook = SAMPLE_PRICE_BOOK,
 ): readonly PreviewRow[] {
-  const preview = previewCabinet(ruleOf(buildId, book), CATALOG, book, {
+  const preview = previewCabinet({
+    rule: ruleOf(buildId, book),
+    catalog: CATALOG,
+    book,
     material: REFERENCE_MATERIAL_ID,
     depth: SHALLOW_DEPTH_MM,
     deepeningRows: DEEPENING_ROWS,
@@ -182,7 +185,11 @@ describe("previewCabinet", () => {
     const rows = rowsOf("base-corner-return-320");
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ widthMm: 330, pricedAsWidthMm: 350 });
+    expect(rows[0]).toMatchObject({
+      widthMm: 330,
+      pricedAsWidthMm: 350,
+      isOffGridMinimum: false,
+    });
     expect(rows[0]?.priceMinor).toBe(120_000);
   });
 
@@ -247,7 +254,10 @@ describe("previewCabinet refuses what it cannot draw", () => {
     ["a depth the catalogue does not declare", { depth: 650 }, "UNKNOWN_DEPTH"],
   ] as const)("refuses %s", (_name, change, code) => {
     expect(
-      previewCabinet(rule, CATALOG, SAMPLE_PRICE_BOOK, {
+      previewCabinet({
+        rule,
+        catalog: CATALOG,
+        book: SAMPLE_PRICE_BOOK,
         ...options,
         ...change,
       }),
@@ -271,7 +281,10 @@ describe("previewCabinet refuses what it cannot draw", () => {
     const book = withPercentages(SAMPLE_PRICE_BOOK, percentages);
 
     expect(
-      previewCabinet(rule, CATALOG, book, {
+      previewCabinet({
+        rule,
+        catalog: CATALOG,
+        book,
         ...options,
         material: UPGRADE_MATERIAL_ID,
       }),
@@ -280,12 +293,12 @@ describe("previewCabinet refuses what it cannot draw", () => {
 
   it("refuses a rule whose catalogue row is not held", () => {
     expect(
-      previewCabinet(
-        { ...rule, buildId: "no-such-row" },
-        CATALOG,
-        SAMPLE_PRICE_BOOK,
-        options,
-      ),
+      previewCabinet({
+        rule: { ...rule, buildId: "no-such-row" },
+        catalog: CATALOG,
+        book: SAMPLE_PRICE_BOOK,
+        ...options,
+      }),
     ).toEqual({ ok: false, code: "NO_CATALOGUE_ROW" });
   });
 
@@ -293,12 +306,12 @@ describe("previewCabinet refuses what it cannot draw", () => {
     const retired = { shape: "linear-in-width" } as never;
 
     expect(
-      previewCabinet(
-        { ...rule, formula: retired },
-        CATALOG,
-        withFormula(SAMPLE_PRICE_BOOK, "base-cabinet", retired),
-        options,
-      ),
+      previewCabinet({
+        rule: { ...rule, formula: retired },
+        catalog: CATALOG,
+        book: withFormula(SAMPLE_PRICE_BOOK, "base-cabinet", retired),
+        ...options,
+      }),
     ).toEqual({ ok: false, code: "UNKNOWN_FORMULA_SHAPE" });
   });
 
@@ -309,8 +322,44 @@ describe("previewCabinet refuses what it cannot draw", () => {
     });
 
     expect(
-      previewCabinet(ruleOf("base-dishwasher", book), CATALOG, book, options),
+      previewCabinet({
+        rule: ruleOf("base-dishwasher", book),
+        catalog: CATALOG,
+        book,
+        ...options,
+      }),
     ).toEqual({ ok: false, code: "NO_PRICE_FOR_SIZE" });
+  });
+
+  it.each([
+    ["wall-cabinet", 395],
+    ["wall-cabinet", 901],
+    ["base-cabinet", 700],
+  ])(
+    "refuses a height %s is not built at: %i mm (review m4)",
+    (buildId, heightMm) => {
+      const rule = ruleOf(buildId);
+
+      expect(
+        previewCabinet({
+          rule,
+          catalog: CATALOG,
+          book: SAMPLE_PRICE_BOOK,
+          ...options,
+          heightMm,
+        }),
+      ).toEqual({ ok: false, code: "HEIGHT_NOT_BUILDABLE" });
+    },
+  );
+
+  it("takes a height in the row's range that rounds up to a buildable one", () => {
+    const rows = rowsOf("wall-cabinet", { heightMm: 710 });
+
+    expect(rows.find(({ widthMm }) => widthMm === 600)?.priceMinor).toBe(
+      rowsOf("wall-cabinet", { heightMm: 750 }).find(
+        ({ widthMm }) => widthMm === 600,
+      )?.priceMinor,
+    );
   });
 
   it("uses the row the rule prices, not the id the rule is named for", () => {

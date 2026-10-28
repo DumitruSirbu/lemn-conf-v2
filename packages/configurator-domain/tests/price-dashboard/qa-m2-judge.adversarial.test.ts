@@ -550,13 +550,21 @@ describe("a book the judgement accepts prices every corner a room can build (ADR
 // Customer-supplied rows (ADR 0107 d2)
 
 describe("customer-supplied rows must be free, in every field a formula may state", () => {
+  /** The widths a customer row is built at, so a fixed-size formula states the sizes the shape check asks for. */
+  const SIZES_OF: Readonly<Record<string, readonly number[]>> = {
+    hood: [600, 650, 700, 750, 800],
+    "fridge-free": [700],
+  };
+  const defaultWidthOf = (buildId: string) =>
+    required(CATALOG.get(buildId)?.defaultWidthMm);
+
   it.each(CUSTOMER_RULES.map(({ buildId }) => buildId))(
     "accepts %s at zero and refuses it at any amount in any field",
     (buildId) => {
       const free = (changes: Record<string, number>): PriceFormula =>
         ({
           shape: "anchored-width-height-and-door-leaves",
-          anchorWidthMm: 600,
+          anchorWidthMm: defaultWidthOf(buildId),
           anchorHeightMm: 700,
           anchorMinor: 0,
           perStepWiderMinor: 0,
@@ -588,7 +596,10 @@ describe("customer-supplied rows must be free, in every field a formula may stat
         refusalsOf(
           withFormula(SAMPLE_PRICE_BOOK, buildId, {
             shape: "price-per-size",
-            sizes: [{ widthMm: 600, amountMinor: 1_000 }],
+            sizes: required(SIZES_OF[buildId]).map((widthMm) => ({
+              widthMm,
+              amountMinor: 1_000,
+            })),
           }),
         ),
       ).toEqual([
@@ -597,7 +608,7 @@ describe("customer-supplied rows must be free, in every field a formula may stat
     },
   );
 
-  it("does not hold a customer row to the grid, the anchor or the size list", () => {
+  it("holds a customer row to the size list the catalogue builds it at, as any other row (review B1)", () => {
     const book = withRule(SAMPLE_PRICE_BOOK, "hood", (rule) => ({
       ...rule,
       formula: {
@@ -609,7 +620,9 @@ describe("customer-supplied rows must be free, in every field a formula may stat
       } as PriceFormula,
     }));
 
-    expect(refusalsOf(book)).toEqual([]);
+    expect(refusalsOf(book)).toEqual([
+      expect.objectContaining({ code: "SIZE_LIST_MISMATCH", buildId: "hood" }),
+    ]);
   });
 });
 

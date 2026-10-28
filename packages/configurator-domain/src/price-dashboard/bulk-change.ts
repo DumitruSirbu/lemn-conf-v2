@@ -14,17 +14,18 @@ import {
 import { judgePricesOfRule } from "./judge-book.js";
 import { pricedRowOf, type PricedRow } from "./priced-row.js";
 
-// A bulk percentage over the cabinets' prices (ADR 0177 A-14; frame D2D): every amount a cabinet's price is made of (the
-// anchor, both width steps, the door leaf, the height step and each listed size) becomes `r10(amount × (100 + p) / 100)`,
-// in integers. Prices of customer-supplied rows are not touched (they have none to scale), and neither is any percentage.
+// A bulk percentage over the cabinets' prices (ADR 0177 A-14; frame D2D): every amount a cabinet's price is made of
+// (the anchor, both width steps, the door leaf, the height step and each listed size) becomes
+// `r10(amount × (100 + p) / 100)`, in integers. Prices of customer-supplied rows are not touched (they have none to
+// scale), and neither is any percentage.
 //
 // The plan lists every amount in scope, ones that round back to their current value included: the caller (R2's bulk
-// route) drops those and refuses an action that leaves none. `scope` counts what the dialog's preview names ("22 dulapuri,
-// 64 prețuri"), `changed` what the plan really changes.
+// route) drops those and refuses an action that leaves none. `scope` counts what the dialog's preview names
+// ("22 dulapuri, 64 prețuri"), `changed` what the plan really changes.
 
-/** The least and greatest whole percentage a bulk action may apply. Architect's bounds (the plan's M2-a), not a business
- *  figure: −90 % keeps every price a tenth of itself and 300 % quadruples it, and a price the book cannot hold or the
- *  catalogue cannot price is refused after scaling, whatever the percentage. */
+/** The least and greatest whole percentage a bulk action may apply. Architect's bounds (the plan's M2-a), not a
+ *  business figure: −90 % keeps every price a tenth of itself and 300 % quadruples it, and a price the book cannot
+ *  hold or the catalogue cannot price is refused after scaling, whatever the percentage. */
 export const MIN_BULK_PERCENT = -90;
 export const MAX_BULK_PERCENT = 300;
 
@@ -249,8 +250,8 @@ function refusalOfScaledBook(
 }
 
 /** Only what scaling can cause: a price at or below zero, or above what a cabinet may cost, read over the rule's whole
- *  grid whatever else is wrong with the rule. A fault the rule already had (a shape the catalogue cannot price, an amount
- *  that is not exact) is not the percentage's, and is left to the judgement of the book. */
+ *  grid whatever else is wrong with the rule. A fault the rule already had (a shape the catalogue cannot price, an
+ *  amount that is not exact) is not the percentage's, and is left to the judgement of the book. */
 function refusalOfScaledRule(
   rule: CabinetPriceRule,
   catalog: BodyCatalog,

@@ -10,6 +10,7 @@ const M2_SOURCES = [
   "judge-book.ts",
   "cabinet-preview.ts",
   "priced-row.ts",
+  "percent-bounds.ts",
 ] as const;
 
 const FLOAT_ROUNDING =

@@ -2,25 +2,17 @@ import {
   anchoredFieldsReadBy,
   anchoredShapeReadsHeight,
   isAnchoredShape,
-  MalformedPriceDimensionError,
-  NoPriceForSizeError,
   PRICE_PER_SIZE_SHAPE,
   roundUpToPriceStepMm,
   type AnchoredFormula,
   type PricePerSizeFormula,
 } from "../pricing/anchored-price-formula.js";
 import { MAX_CABINET_AMOUNT_MINOR } from "../pricing/percentage-lines.js";
-import {
-  InexactPriceArithmeticError,
-  MalformedPriceCoefficientError,
-  type CabinetPriceRule,
-  type PriceBook,
-  type PriceFormula,
+import type {
+  CabinetPriceRule,
+  PriceBook,
+  PriceFormula,
 } from "../pricing/price-book.js";
-import {
-  MAX_DEEP_CABINET_PERCENT,
-  MAX_MATERIAL_PERCENT,
-} from "../pricing/price-bounds.js";
 import type { BodyCatalog } from "../void-engine.js";
 
 import {
@@ -28,10 +20,16 @@ import {
   type CabinetRuleField,
 } from "./book-field-address.js";
 import {
+  isDepthPercentInRange,
+  isMaterialPercentInRange,
+} from "./percent-bounds.js";
+import {
+  bookFaultOf,
   buildableHeightsMm,
   buildableWidthsMm,
   exactAmountOf,
   isInsertableRow,
+  listBodiesPricedAs,
   listPricedRows,
   pricedRowOf,
   referenceCornerBuiltWidthsMm,
@@ -44,14 +42,17 @@ import {
 // can parse, go live, and then refuse every price, because the parser has no catalogue. Publish and the owner-run seed
 // ask this before a book is stored, and the editor shows D3C's error from it.
 //
-// Every manufacturer row is evaluated over the whole grid it can be built on (every width, and every height of a row
-// built to its opening), not at one point, so the rule does not rest on a coefficient being non-negative: any price at
-// or below zero refuses the book, naming the row, the width, the height and the field that drives it. A row the book
-// does not price, and a row whose formula this build cannot evaluate (a retired linear shape that still parses), are
-// refused too. Customer-supplied rows are exempt, and must be free.
+// Every row is evaluated over the whole grid it can be built on (every width, and every height of a row built to its
+// opening), not at one point, so the rule does not rest on a coefficient being non-negative: any price at or below zero
+// refuses the book, naming the row, the width, the height and the field that drives it. Each body that stands as the
+// row is judged with its own door leaves, since a seeded variant counts them from its own fronts. A row the book does
+// not price, a row priced twice, and a row whose formula this build cannot evaluate (a retired linear shape that still
+// parses) are refused too. A customer-supplied row is held to the same shape and the same evaluation, but not to a
+// positive price: it must be free at every size.
 
 export const BOOK_JUDGEMENT_CODES = Object.freeze([
   "NO_RULE_FOR_BODY",
+  "DUPLICATE_RULE_FOR_BODY",
   "UNKNOWN_FORMULA_SHAPE",
   "PRICE_NOT_EXACT",
   "ANCHOR_WIDTH_MISMATCH",
@@ -71,7 +72,7 @@ export type PriceDrivingField = CabinetRuleField | "amountMinor";
 /** One reason a book cannot price the catalogue. Names what it is about and never carries a sentence. */
 export type BookRefusal =
   | {
-      readonly code: "NO_RULE_FOR_BODY";
+      readonly code: "NO_RULE_FOR_BODY" | "DUPLICATE_RULE_FOR_BODY";
       readonly buildId: string;
     }
   | {
@@ -129,12 +130,13 @@ export function judgeBookAgainstCatalog(
   catalog: BodyCatalog,
   options: BookJudgementOptions = {},
 ): BookJudgement {
-  const builtWidthsMm = options.builtWidthsMm ?? referenceCornerBuiltWidthsMm();
-  const ruleOf = rulesByBuildId(book.cabinetRules);
+  const context = judgementContext(catalog, options);
+  const rulesByBuildId = groupedByBuildId(book.cabinetRules);
   const refusals = [
     ...refusePercentages(book),
+    ...refuseDuplicates(rulesByBuildId),
     ...listPricedRows(catalog).flatMap((row) =>
-      judgeRow(ruleOf.get(row.buildId), row, builtWidthsMm),
+      judgeRow(rulesByBuildId.get(row.buildId)?.[0], row, context),
     ),
   ];
   return refusals.length === 0 ? { ok: true } : { ok: false, refusals };
@@ -151,52 +153,52 @@ export function judgePricesOfRule(
 ): BookRefusal | undefined {
   const row = pricedRowOf(catalog, rule.buildId);
   if (row === undefined || rule.suppliedBy === "customer") return undefined;
-  const builtWidthsMm = options.builtWidthsMm ?? referenceCornerBuiltWidthsMm();
-  return refusePrices(rule, row, builtWidthsMm)[0];
+  return refusePrices(rule, row, judgementContext(catalog, options))[0];
 }
 
-/** Whether `value` is a whole percentage from 0 to `maxPercent`: the form `percentageStagesOf` can hold exactly, which
- *  checks that a percentage is whole and not its range. */
-export function isWholePercentWithin(
-  value: unknown,
-  maxPercent: number,
-): boolean {
-  return (
-    typeof value === "number" &&
-    Number.isSafeInteger(value) &&
-    value >= 0 &&
-    value <= maxPercent
-  );
+/** What a judgement reads besides the rule: the catalogue, and the built widths of its structural rows. */
+interface JudgementContext {
+  readonly catalog: BodyCatalog;
+  readonly builtWidthsMm: BuiltWidthsMm;
 }
 
-function rulesByBuildId(
+function judgementContext(
+  catalog: BodyCatalog,
+  options: BookJudgementOptions,
+): JudgementContext {
+  return {
+    catalog,
+    builtWidthsMm: options.builtWidthsMm ?? referenceCornerBuiltWidthsMm(),
+  };
+}
+
+function groupedByBuildId(
   rules: readonly CabinetPriceRule[],
-): ReadonlyMap<string, CabinetPriceRule> {
-  const byBuildId = new Map<string, CabinetPriceRule>();
+): ReadonlyMap<string, readonly CabinetPriceRule[]> {
+  const grouped = new Map<string, CabinetPriceRule[]>();
   for (const rule of rules) {
-    if (!byBuildId.has(rule.buildId)) byBuildId.set(rule.buildId, rule);
+    grouped.set(rule.buildId, [...(grouped.get(rule.buildId) ?? []), rule]);
   }
-  return byBuildId;
+  return grouped;
+}
+
+/** A build id two rules price: which one a body is priced by would depend on the order of the book. */
+function refuseDuplicates(
+  rulesByBuildId: ReadonlyMap<string, readonly CabinetPriceRule[]>,
+): readonly BookRefusal[] {
+  return [...rulesByBuildId]
+    .filter(([, rules]) => rules.length > 1)
+    .map(([buildId]) => ({ code: "DUPLICATE_RULE_FOR_BODY", buildId }));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The percentages
 
 function refusePercentages(book: PriceBook): readonly BookRefusal[] {
-  const refusals: BookRefusal[] = [];
-  for (const tier of book.material.tiers) {
-    const maxPercent =
-      tier.tierId === book.material.defaultTierId ? 0 : MAX_MATERIAL_PERCENT;
-    if (!isWholePercentWithin(tier.percentOfCabinets, maxPercent)) {
-      refusals.push({ code: "PERCENT_OUT_OF_RANGE", item: tier.tierId });
-    }
-  }
-  if (
-    !isWholePercentWithin(
-      book.depthRule.deepCabinetPercent,
-      MAX_DEEP_CABINET_PERCENT,
-    )
-  ) {
+  const refusals: BookRefusal[] = book.material.tiers
+    .filter((tier) => !isMaterialPercentInRange(book, tier))
+    .map((tier) => ({ code: "PERCENT_OUT_OF_RANGE", item: tier.tierId }));
+  if (!isDepthPercentInRange(book)) {
     refusals.push({ code: "PERCENT_OUT_OF_RANGE", item: "depth" });
   }
   return refusals;
@@ -208,20 +210,23 @@ function refusePercentages(book: PriceBook): readonly BookRefusal[] {
 function judgeRow(
   rule: CabinetPriceRule | undefined,
   row: PricedRow,
-  builtWidthsMm: BuiltWidthsMm,
+  context: JudgementContext,
 ): readonly BookRefusal[] {
   if (rule === undefined) {
     return [{ code: "NO_RULE_FOR_BODY", buildId: row.buildId }];
   }
-  if (rule.suppliedBy === "customer") return refuseChargeFor(rule);
-  const structural = refuseStructure(rule, row, builtWidthsMm);
-  return structural.length > 0
-    ? structural
-    : refusePrices(rule, row, builtWidthsMm);
+  const structural = refuseStructure(rule, row, context.builtWidthsMm);
+  if (structural.length > 0) return structural;
+  const priced = refusePrices(rule, row, context);
+  return priced.length > 0 ? priced : refuseChargeFor(rule);
 }
 
+/** A customer-supplied row states no amount: evaluating it at every size finds a charge only where it shows, and a
+ *  rate that happens to cancel is a charge all the same. */
 function refuseChargeFor(rule: CabinetPriceRule): readonly BookRefusal[] {
-  return chargesAnything(rule.formula)
+  const isCharging =
+    rule.suppliedBy === "customer" && chargesAnything(rule.formula);
+  return isCharging
     ? [
         {
           code: "CUSTOMER_ROW_PRICED",
@@ -332,11 +337,13 @@ function isSameList(
 function refusePrices(
   rule: CabinetPriceRule,
   row: PricedRow,
-  builtWidthsMm: BuiltWidthsMm,
+  context: JudgementContext,
 ): readonly BookRefusal[] {
-  for (const size of sizesToJudge(rule.formula, row, builtWidthsMm)) {
-    const refusal = refusePriceAt(rule, row, size);
-    if (refusal !== undefined) return [refusal];
+  for (const standing of listBodiesPricedAs(context.catalog, row)) {
+    for (const size of sizesToJudge(rule.formula, row, context)) {
+      const refusal = refusePriceAt(rule, { row, standing }, size);
+      if (refusal !== undefined) return [refusal];
+    }
   }
   return [];
 }
@@ -345,12 +352,12 @@ function refusePrices(
 function sizesToJudge(
   formula: PriceFormula,
   row: PricedRow,
-  builtWidthsMm: BuiltWidthsMm,
+  context: JudgementContext,
 ): readonly BuiltSize[] {
   const heightsMm = pricesByHeight(formula)
     ? buildableHeightsMm(row)
     : buildableHeightsMm(row).slice(0, 1);
-  return buildableWidthsMm(row, builtWidthsMm).flatMap((widthMm) =>
+  return buildableWidthsMm(row, context.builtWidthsMm).flatMap((widthMm) =>
     heightsMm.map((heightMm) => ({ widthMm, heightMm })),
   );
 }
@@ -361,17 +368,28 @@ function pricesByHeight(formula: PriceFormula): boolean {
   );
 }
 
+/** The row a rule prices, and the body of it that stands at the size judged. */
+interface PricedBodyOfRow {
+  readonly row: PricedRow;
+  readonly standing: PricedRow;
+}
+
 function refusePriceAt(
   rule: CabinetPriceRule,
-  row: PricedRow,
+  body: PricedBodyOfRow,
   size: BuiltSize,
 ): BookRefusal | undefined {
   const named = { ruleId: rule.ruleId, buildId: rule.buildId };
-  const amountMinor = evaluatedAmount(rule.formula, row, size);
+  const amountMinor = evaluatedAmount(rule.formula, body, size);
   if (amountMinor === NO_LISTED_SIZE) return undefined;
   if (amountMinor === NOT_EXACT) return { code: "PRICE_NOT_EXACT", ...named };
   if (amountMinor === undefined) {
     return { code: "UNKNOWN_FORMULA_SHAPE", ...named };
+  }
+  if (rule.suppliedBy === "customer") {
+    return amountMinor === 0
+      ? undefined
+      : { code: "CUSTOMER_ROW_PRICED", ...named };
   }
   if (amountMinor > 0 && amountMinor <= MAX_CABINET_AMOUNT_MINOR) {
     return undefined;
@@ -381,7 +399,7 @@ function refusePriceAt(
     code: isTooLarge ? "PRICE_TOO_LARGE" : "PRICE_NOT_POSITIVE",
     ...named,
     ...size,
-    field: drivingField(rule.formula, { row, size, isTooLarge }),
+    field: drivingField(rule.formula, { ...body, size, isTooLarge }),
   };
 }
 
@@ -390,39 +408,31 @@ const NOT_EXACT = Symbol("a price the arithmetic cannot hold exactly");
  *  are judged. */
 const NO_LISTED_SIZE = Symbol("a width no listed size reaches");
 
-/** The three throws a book causes on a size it parsed for; anything else is a defect and leaves as itself. */
+/** What a book causes on a size it parsed for is a refusal or a skipped size; anything else is a defect and leaves as
+ *  itself. */
 function evaluatedAmount(
   formula: PriceFormula,
-  row: PricedRow,
+  body: PricedBodyOfRow,
   size: BuiltSize,
 ): number | undefined | typeof NOT_EXACT | typeof NO_LISTED_SIZE {
   try {
-    return exactAmountOf(formula, row, size);
+    return exactAmountOf(formula, body.row, size, body.standing);
   } catch (error) {
-    if (error instanceof NoPriceForSizeError) return NO_LISTED_SIZE;
-    if (isABookFault(error)) return NOT_EXACT;
-    throw error;
+    const fault = bookFaultOf(error);
+    if (fault === undefined) throw error;
+    return fault === "NO_LISTED_SIZE" ? NO_LISTED_SIZE : NOT_EXACT;
   }
 }
 
-function isABookFault(error: unknown): boolean {
-  return (
-    error instanceof MalformedPriceCoefficientError ||
-    error instanceof MalformedPriceDimensionError ||
-    error instanceof InexactPriceArithmeticError
-  );
-}
-
-interface DrivenPrice {
-  readonly row: PricedRow;
+interface DrivenPrice extends PricedBodyOfRow {
   readonly size: BuiltSize;
   readonly isTooLarge: boolean;
 }
 
 /**
- * The field a bad price is owed to: the amount the formula would price highest without (for a price at or below zero), or
- * lowest without (for one too large). Found by pricing the body again with each amount taken out, so it needs no second
- * arithmetic; a fixed-size row has one price per size and it is that.
+ * The field a bad price is owed to: the amount the formula would price highest without (for a price at or below
+ * zero), or lowest without (for one too large). Found by pricing the body again with each amount taken out, so it
+ * needs no second arithmetic; a fixed-size row has one price per size and it is that.
  */
 function drivingField(
   formula: PriceFormula,
@@ -446,10 +456,10 @@ function influenceOf(
   field: CabinetRuleField,
   driven: DrivenPrice,
 ): number {
-  const { row, size, isTooLarge } = driven;
+  const { row, standing, size, isTooLarge } = driven;
   const without = { ...formula, [field]: 0 } as AnchoredFormula;
-  const pricedMinor = exactAmountOf(formula, row, size) ?? 0;
-  const withoutMinor = exactAmountOf(without, row, size) ?? 0;
+  const pricedMinor = exactAmountOf(formula, row, size, standing) ?? 0;
+  const withoutMinor = exactAmountOf(without, row, size, standing) ?? 0;
   return isTooLarge ? pricedMinor - withoutMinor : withoutMinor - pricedMinor;
 }
 

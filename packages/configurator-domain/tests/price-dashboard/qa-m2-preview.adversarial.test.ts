@@ -10,7 +10,10 @@ import {
   type CabinetPreviewOptions,
   type PreviewRow,
 } from "../../src/price-dashboard/cabinet-preview.js";
-import { pricedRowOf } from "../../src/price-dashboard/priced-row.js";
+import {
+  isInsertableRow,
+  pricedRowOf,
+} from "../../src/price-dashboard/priced-row.js";
 import {
   isAnchoredShape,
   PRICE_STEP_MM,
@@ -55,7 +58,10 @@ function rowsOf(
   options: Partial<CabinetPreviewOptions> = {},
   book: PriceBook = SAMPLE_PRICE_BOOK,
 ): readonly PreviewRow[] {
-  const preview = previewCabinet(ruleOf(buildId, book), CATALOG, book, {
+  const preview = previewCabinet({
+    rule: ruleOf(buildId, book),
+    catalog: CATALOG,
+    book,
     material: REFERENCE_MATERIAL_ID,
     depth: SHALLOW_DEPTH_MM,
     deepeningRows: DEEPENING_ROWS,
@@ -414,7 +420,11 @@ describe("the table's rows are the widths the owner can build, and nothing else"
             required(rows[index - 1]).widthMm,
           );
         }
-        expect(row.isOffGridMinimum).toBe(row.widthMm % PRICE_STEP_MM !== 0);
+        // A structural row is built at one width and shows it, priced under its key, with no "priced as" note (m2).
+        expect(row.isOffGridMinimum).toBe(
+          isInsertableRow(required(pricedRowOf(CATALOG, buildId))) &&
+            row.widthMm % PRICE_STEP_MM !== 0,
+        );
         if (row.isOffGridMinimum) expect(index).toBe(0);
         expect(row.pricedAsWidthMm).toBeGreaterThanOrEqual(row.widthMm);
         expect(row.pricedAsWidthMm - row.widthMm).toBeLessThan(PRICE_STEP_MM);
@@ -471,7 +481,10 @@ describe("the table's rows are the widths the owner can build, and nothing else"
   it("takes a corner's built width from the caller: a narrower body takes the listed key, a wider one is refused, never priced at the nearest", () => {
     const rule = ruleOf("base-corner-return-320");
     const previewAt = (widthMm: number) =>
-      previewCabinet(rule, CATALOG, SAMPLE_PRICE_BOOK, {
+      previewCabinet({
+        rule,
+        catalog: CATALOG,
+        book: SAMPLE_PRICE_BOOK,
         material: REFERENCE_MATERIAL_ID,
         depth: SHALLOW_DEPTH_MM,
         deepeningRows: DEEPENING_ROWS,
@@ -578,8 +591,9 @@ describe("the preview is a pure function of its inputs", () => {
     });
     const rule = ruleOf("base-cabinet", frozen);
 
-    const first = previewCabinet(rule, CATALOG, frozen, options);
-    const second = previewCabinet(rule, CATALOG, frozen, options);
+    const request = { rule, catalog: CATALOG, book: frozen, ...options };
+    const first = previewCabinet(request);
+    const second = previewCabinet(request);
 
     expect(second).toEqual(first);
     expect(frozen).toEqual(SAMPLE_PRICE_BOOK);

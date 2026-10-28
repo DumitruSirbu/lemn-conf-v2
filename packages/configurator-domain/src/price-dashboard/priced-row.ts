@@ -16,21 +16,29 @@ import type { DesignRoom } from "../design.js";
 import { doorLeafCount, frontPopulationQueryFor } from "../front-population.js";
 import { toMillimetres } from "../millimetres.js";
 import {
+  MalformedPriceDimensionError,
+  NoPriceForSizeError,
   PRICE_STEP_MM,
   roundUpToPriceStepMm,
 } from "../pricing/anchored-price-formula.js";
 import {
   amountForBody,
+  InexactPriceArithmeticError,
+  MalformedPriceCoefficientError,
   type PriceFormula,
   type PricedBody,
 } from "../pricing/price-book.js";
 import { WORKTOP_DEPTH_MM } from "../worktop-depth.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
-// What a price rule says about a catalogue row at one built size, shared by the book's judgement and the cabinet preview
-// so the two read the same widths, the same heights and the same leaves. It builds the `PricedBody` the way
+// What a price rule says about a catalogue row at one built size, shared by the book's judgement and the cabinet
+// preview so the two read the same widths, the same heights and the same leaves. It builds the `PricedBody` the way
 // `describePricedBody` in `pricing/price-design.ts` does for a placed body (that function is private to the query), and
 // the one exact amount comes from `amountForBody`. A test holds this mirror to `priceDesign` on a one-cabinet design.
+//
+// A body is priced by the rule of the row it is priced as (ADR 0022), but its door leaves are counted from its own
+// front population: a seeded `wall-1door-300` keeps one leaf at any width. `exactAmountOf` takes the body that stands
+// as well as the row, and `listBodiesPricedAs` lists them.
 
 /** A catalogue row a rule prices: the row a body is priced as (ADR 0022), with its definition. */
 export interface PricedRow {
@@ -77,14 +85,45 @@ export function isInsertableRow(row: PricedRow): boolean {
   return row.definition.insertable === true;
 }
 
-/** The exact amount a formula prices a row at, at one built size, or `undefined` for a shape this build cannot evaluate.
- *  Throws what `amountForBody` throws. */
+/** The bodies that stand as this row, the row's own first: each seeded build id that is priced as it (ADR 0022) carries
+ *  its own front population, so its leaf count at a width can differ from the row's. */
+export function listBodiesPricedAs(
+  catalog: BodyCatalog,
+  row: PricedRow,
+): readonly PricedRow[] {
+  const seeded: PricedRow[] = [];
+  for (const [buildId, definition] of catalog) {
+    if (buildId === row.buildId) continue;
+    if (pricedRowOf(catalog, buildId)?.buildId === row.buildId) {
+      seeded.push({ buildId, definition });
+    }
+  }
+  return [row, ...seeded];
+}
+
+/** The exact amount a formula prices a row at, at one built size, or `undefined` for a shape this build cannot
+ *  evaluate. `standing` is the body whose leaves are counted (the row itself if omitted). Throws what `amountForBody`
+ *  throws. */
 export function exactAmountOf(
   formula: PriceFormula,
   row: PricedRow,
   size: BuiltSize,
+  standing: PricedRow = row,
 ): number | undefined {
-  return amountForBody(formula, pricedBodyOf(row, size));
+  return amountForBody(formula, pricedBodyOf(row, size, standing));
+}
+
+/** What a book can cause while a price is read: a width no listed size reaches, or an amount the arithmetic cannot hold
+ *  exactly. Anything else is a defect and is not classified. */
+export type BookFault = "NO_LISTED_SIZE" | "NOT_EXACT";
+
+export function bookFaultOf(error: unknown): BookFault | undefined {
+  if (error instanceof NoPriceForSizeError) return "NO_LISTED_SIZE";
+  const isNotExact =
+    error instanceof MalformedPriceCoefficientError ||
+    error instanceof MalformedPriceDimensionError ||
+    error instanceof InexactPriceArithmeticError;
+  return isNotExact ? "NOT_EXACT" : undefined;
 }
 
 /** The leaves the row's body carries when built at this size: the count the door step and the hinges both bill. */
@@ -97,7 +136,11 @@ export function doorLeavesOf(row: PricedRow, size: BuiltSize): number {
   );
 }
 
-function pricedBodyOf(row: PricedRow, size: BuiltSize): PricedBody {
+function pricedBodyOf(
+  row: PricedRow,
+  size: BuiltSize,
+  standing: PricedRow,
+): PricedBody {
   return {
     widthMm: size.widthMm,
     heightMm: size.heightMm,
@@ -108,15 +151,16 @@ function pricedBodyOf(row: PricedRow, size: BuiltSize): PricedBody {
     }),
     doorLeafCountAt: (widthMm) =>
       doorLeavesOf(row, { widthMm, heightMm: size.heightMm }),
-    builtDoorLeafCount: () => doorLeavesOf(row, size),
+    builtDoorLeafCount: () => doorLeavesOf(standing, size),
   };
 }
 
 /**
  * Every width a body of this row can be built at, ascending, with the widths a price can change between kept: each
- * range's own minimum and maximum (off the pricing grid, such a width is priced as the step above it), every step of the
- * pricing grid inside it, and the lowest width that rounds up to each step, since a door leaf is counted at the built
- * width and not the rounded one (ADR 0177 A-3). A structural row is built at one width, which the caller supplies.
+ * range's own minimum and maximum (off the pricing grid, such a width is priced as the step above it), every step of
+ * the pricing grid inside it, and the lowest width that rounds up to each step, since a door leaf is counted at the
+ * built width and not the rounded one (ADR 0177 A-3). A structural row is built at one width, which the caller
+ * supplies.
  */
 export function buildableWidthsMm(
   row: PricedRow,
@@ -171,8 +215,18 @@ export function buildableHeightsMm(row: PricedRow): readonly number[] {
   return [nominalHeightMm ?? frameHeightMm ?? NO_DECLARED_HEIGHT_MM];
 }
 
-/** A row that declares no height is read at none: only a formula that prices by height asks for one, and that refuses. */
-const NO_DECLARED_HEIGHT_MM = 0;
+/** A row that declares no height is read at none: only a formula that prices by height asks for one, and that
+ *  refuses. */
+export const NO_DECLARED_HEIGHT_MM = 0;
+
+/** Whether a body of this row can be built to this height, priced as the pricing step it rounds up to. */
+export function isBuildableHeightMm(row: PricedRow, heightMm: number): boolean {
+  const buildable = buildableHeightsMm(row);
+  const isWithin =
+    heightMm >= Math.min(...buildable) && heightMm <= Math.max(...buildable);
+  const pricedAs = buildable.map(roundUpToPriceStepMm);
+  return isWithin && pricedAs.includes(roundUpToPriceStepMm(heightMm));
+}
 
 function flexibleHeightsMm(): readonly number[] {
   const heights: number[] = [];

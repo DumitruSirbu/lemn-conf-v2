@@ -8,8 +8,11 @@ import {
 } from "../../src/price-dashboard/judge-book.js";
 import {
   isInsertableRow,
+  listBodiesPricedAs,
   listPricedRows,
+  pricedRowOf,
   referenceCornerBuiltWidthsMm,
+  type PricedRow,
 } from "../../src/price-dashboard/priced-row.js";
 import type { AnchoredFormula } from "../../src/pricing/anchored-price-formula.js";
 import { MAX_CABINET_AMOUNT_MINOR } from "../../src/pricing/percentage-lines.js";
@@ -48,6 +51,30 @@ function narrowestWidthMmOf(buildId: string): number {
   const range = body && resolveWidthRangesMm(body)[0];
   if (range === undefined) throw new Error(`No width range for ${buildId}`);
   return range.minMm;
+}
+
+function catalogWithSeededVariant(
+  buildId: string,
+  change: Partial<BodyDefinition>,
+): BodyCatalog {
+  const definition = CATALOG.get("base-cabinet");
+  if (definition === undefined) throw new Error("No base-cabinet");
+  return new Map([...CATALOG, [buildId, { ...definition, ...change }]]);
+}
+
+function fieldsOf(
+  buildId: string,
+  key: keyof BodyDefinition,
+): Partial<BodyDefinition> {
+  const value = CATALOG.get(buildId)?.[key];
+  if (value === undefined) throw new Error(`No ${key} on ${buildId}`);
+  return { [key]: value };
+}
+
+function requiredRow(buildId: string): PricedRow {
+  const row = pricedRowOf(CATALOG, buildId);
+  if (row === undefined) throw new Error(`No ${buildId}`);
+  return row;
 }
 
 function catalogWith(
@@ -212,9 +239,68 @@ describe("a price at or below zero anywhere on the grid (A-7b, D3C)", () => {
   });
 });
 
-describe("customer-supplied rows", () => {
-  it("are exempt from the positive-price rule and from the anchor width", () => {
-    const book = withFormula(SAMPLE_PRICE_BOOK, "hood", {
+describe("a build id priced twice", () => {
+  it("is refused: which rule prices a body would depend on the order of the book", () => {
+    const twice: PriceBook = {
+      ...SAMPLE_PRICE_BOOK,
+      cabinetRules: [
+        ...SAMPLE_PRICE_BOOK.cabinetRules,
+        { ...ruleOf("base-sink"), ruleId: "cabinet.base-sink.again" },
+      ],
+    };
+
+    expect(refusalsOf(twice)).toEqual([
+      { code: "DUPLICATE_RULE_FOR_BODY", buildId: "base-sink" },
+    ]);
+  });
+});
+
+describe("a seeded body priced as a row is judged with its own door leaves (review m1)", () => {
+  // A discount for a second leaf (a negative rate: the judge does not parse) is harmless on the row itself, whose leaves
+  // follow its width to two. A seeded variant that stands on four leaves at every width takes it twice.
+  const discounting = withFormula(SAMPLE_PRICE_BOOK, "base-cabinet", {
+    ...anchoredOf("base-cabinet"),
+    anchorMinor: 11_000,
+    perStepWiderMinor: 0,
+    perStepNarrowerMinor: 0,
+    perExtraDoorLeafMinor: -6_000,
+  });
+  const fourLeaves = catalogWithSeededVariant("base-cabinet-four-leaves", {
+    catalogEquivalentId: "base-cabinet",
+    insertable: false,
+    ...fieldsOf("tall-pantry", "fronts"),
+  });
+
+  it("accepts the discount while no seeded variant has more leaves than the row", () => {
+    expect(refusalsOf(discounting)).toEqual([]);
+  });
+
+  it("refuses it at the width a variant with four leaves is priced at", () => {
+    const refusals = refusalsOf(discounting, fourLeaves);
+
+    expect(refusals).toEqual([
+      expect.objectContaining({
+        code: "PRICE_NOT_POSITIVE",
+        buildId: "base-cabinet",
+        field: "perExtraDoorLeafMinor",
+      }),
+    ]);
+  });
+
+  it("lists the seeded bodies priced as the wall cabinet beside the row, the row first", () => {
+    const row = requiredRow("wall-cabinet");
+
+    const ids = listBodiesPricedAs(CATALOG, row).map(({ buildId }) => buildId);
+
+    expect(ids[0]).toBe("wall-cabinet");
+    expect(ids).toContain("wall-1door-300");
+    expect(ids).toContain("wall-2door-600");
+  });
+});
+
+describe("customer-supplied rows (A-7b, P3-Q2, review B1)", () => {
+  it("are free at every size, and held to the catalogue's anchor width as any other row", () => {
+    const quotedAt800 = withFormula(SAMPLE_PRICE_BOOK, "hood", {
       shape: "anchored-width",
       anchorWidthMm: 800,
       anchorMinor: 0,
@@ -222,7 +308,13 @@ describe("customer-supplied rows", () => {
       perStepNarrowerMinor: 0,
     });
 
-    expect(refusalsOf(book)).toEqual([]);
+    expect(refusalsOf(quotedAt800)).toEqual([
+      expect.objectContaining({
+        code: "ANCHOR_WIDTH_MISMATCH",
+        buildId: "hood",
+        expectedWidthMm: 600,
+      }),
+    ]);
   });
 
   it("must be free", () => {
@@ -235,6 +327,38 @@ describe("customer-supplied rows", () => {
       expect.objectContaining({
         code: "CUSTOMER_ROW_PRICED",
         buildId: "fridge-free",
+      }),
+    ]);
+  });
+
+  it("must be evaluable: a retired shape, which still parses, is refused", () => {
+    const retired = {
+      shape: "linear-in-width",
+      baseMinor: 0,
+      perWidthMillimetreMinor: 0,
+    } as unknown as AnchoredFormula;
+    const book = withFormula(SAMPLE_PRICE_BOOK, "hood", retired);
+
+    expect(parsePriceBook(book).ok).toBe(true);
+    expect(refusalsOf(book)).toEqual([
+      expect.objectContaining({
+        code: "UNKNOWN_FORMULA_SHAPE",
+        buildId: "hood",
+      }),
+    ]);
+  });
+
+  it("must list a size for every width it is built at: a hood is built from 600 to 800, and one size of 600 leaves 650 to 800 unpriced", () => {
+    const book = withFormula(SAMPLE_PRICE_BOOK, "hood", {
+      shape: "price-per-size",
+      sizes: [{ widthMm: 600, amountMinor: 0 }],
+    });
+
+    expect(refusalsOf(book)).toEqual([
+      expect.objectContaining({
+        code: "SIZE_LIST_MISMATCH",
+        buildId: "hood",
+        expectedWidthsMm: [600, 650, 700, 750, 800],
       }),
     ]);
   });

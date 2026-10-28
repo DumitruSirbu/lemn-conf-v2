@@ -63,12 +63,12 @@ const options = {
 };
 
 function cellsOf(): readonly number[] {
-  const preview = previewCabinet(
-    ruleOf("base-cabinet"),
-    CATALOG,
-    SAMPLE_PRICE_BOOK,
-    options,
-  );
+  const preview = previewCabinet({
+    rule: ruleOf("base-cabinet"),
+    catalog: CATALOG,
+    book: SAMPLE_PRICE_BOOK,
+    ...options,
+  });
   if (!preview.ok) throw new Error(preview.code);
   return preview.rows.map(({ priceMinor }) => priceMinor);
 }
