@@ -1,7 +1,8 @@
 // The one place an amount becomes a figure a customer reads. Two roundings, by the owner's ruling of 2026-10-28
-// (M10 Q1c, ADR 0001 decision 4 as amended there): the kitchen TOTAL is prefixed *De la* and rounded up to the
-// thousand MDL; every LINE is shown to the ten lei the domain priced it at (ADR 0175 decision 5, ADR 0177 A-1).
-// A second rounding site for either would let two surfaces show different numbers for one kitchen.
+// (M10 Q1c), which narrows [ADR 0001](../../../../docs/decisions/0001-initial-product-and-stack.md) decision 4 (every
+// figure rounded up to the thousand): the kitchen TOTAL is prefixed *De la* and rounded up to the thousand MDL; every
+// LINE is shown to the ten lei the domain priced it at (ADR 0175 decision 5, ADR 0177 A-1). A second rounding site for
+// either would let two surfaces show different numbers for one kitchen.
 //
 // Lines shown to the ten lei and a total rounded to the thousand need not sum, and that is deliberate: a priced
 // total of 7 200 MDL is shown as 8 000 beside lines that add to 7 200. No surface may claim they sum.

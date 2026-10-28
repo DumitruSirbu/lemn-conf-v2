@@ -3,7 +3,8 @@
 // Adversarial QA for Q1b on the rendered review screen. At 700 mm, whatever percentage the book states (0 included), the
 // whole-kitchen list holds the depth row right after the material row, with the scope words under its label alone, and
 // the amounts the screen prints are the priced lines' amounts, one for each line the total counts. At the default depth
-// the screen is the base commit's markup, byte for byte (the golden was written by 0abdd0d2's screen).
+// the screen is its golden's markup, byte for byte (written by 0abdd0d2's screen; its row amounts were regenerated for the
+// owner ruling of 2026-10-28, M10 Q1c, which shows a line to the ten lei, the markup being otherwise the base's).
 import {
   KITCHEN_L_DESIGN,
   MAX_DEEP_CABINET_PERCENT,
@@ -207,7 +208,7 @@ describe.each(CATALOGUES)(
 );
 
 describe("the review screen at the default depth", () => {
-  it("renders the base commit's markup byte for byte (classes stripped; golden from 0abdd0d2's screen)", () => {
+  it("renders the golden markup byte for byte (classes stripped; 0abdd0d2's screen, amounts regenerated for Q1c)", () => {
     const page = renderedUnder(KITCHEN_L_DESIGN, 12);
     const markup = page.innerHTML
       .replace(/ class="[^"]*"/g, "")
