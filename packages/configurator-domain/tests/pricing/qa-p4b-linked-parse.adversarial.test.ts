@@ -1,7 +1,7 @@
 // M10 P4b-c, adversarial: the parser's reading of the accessories the dashboard created (ADR 0177 A-19, A-21) and of
-// the blank-name ruling that binds every row naming no catalogue key. Where a case pins what the parser accepts today
-// that belongs to the dashboard's judgement (M4: characters, a link to a row the catalogue does not hold), the name
-// says "today" so the milestone that owns it knows to flip it.
+// the blank-name ruling that binds every row naming no catalogue key. The character rules of a created row's words and
+// the rule that a link names a row the book prices are the parser's (coordinator ruling after the P4b QA round); a case
+// that pins what the parser still accepts outside those rulings says "today".
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -90,7 +90,7 @@ describe("the blank-name ruling binds every row that names no catalogue key", ()
   ];
 
   describe.each(everyUnkeyedRow)("%s", (_, mutate) => {
-    it.each(["", " ", "   ", "\t", "\n", " ", "﻿", " \t\n "])(
+    it.each(["", " ", "   ", "\t", "\n", "\u00a0", "\ufeff", " \t\n "])(
       "refuses the blank name %j once its key is gone",
       (name) => {
         expect(refusalOf(mutate(SAMPLE_PRICE_BOOK, name)).code).toBe(
@@ -356,37 +356,139 @@ describe("bounds at the exact edge", () => {
   });
 });
 
-describe("what the parser accepts today and the dashboard's judgement (M4) must refuse", () => {
+describe("a created row's words refuse what the shop's one-line notice cannot carry (ruled: the parser's job)", () => {
   it.each([
-    ["a line break in the name", { name: "Organizator\nsertar" }],
+    ["a line feed in the name", { name: "Organizator\nsertar" }],
     ["a carriage return in the name", { name: "Organizator\rsertar" }],
-    ["a right-to-left override in the name", { name: "Organizator‮sertar" }],
+    ["a tab in the name", { name: "Organizator\tsertar" }],
+    [
+      "a right-to-left override in the name",
+      { name: "Organizator\u202esertar" },
+    ],
     ["a NUL in the name", { name: "Organizator\u0000" }],
-    ["a line break in the description", { description: "Unu.\nDoi." }],
-    ["a name of only a zero-width space", { name: "​" }],
-    ["a decomposed name", { name: "ş" }],
-  ])("accepts today %s (F5: M4 judges characters)", (_, amendment) => {
-    expect(parsePriceBook(withRow(amendment)).ok).toBe(true);
+    ["a next-line character in the name", { name: "Organizator\u0085sertar" }],
+    ["a DEL in the name", { name: "Organizator\u007fsertar" }],
+    ["a line feed in the description", { description: "Unu.\nDoi." }],
+    ["a line separator in the description", { description: "Unu.\u2028Doi." }],
+    ["a name of only a zero-width space", { name: "\u200b" }],
+    [
+      "a name of only zero-width joiners and a BOM",
+      { name: "\u200c\u200d\ufeff" },
+    ],
+    [
+      "a name of only spaces, a no-break space and a zero-width space",
+      { name: " \u00a0\u200b " },
+    ],
+  ])("refuses %s", (_, amendment) => {
+    expect(refusalOf(withRow(amendment)).code).toBe("INVALID_PRICE_BOOK");
   });
 
-  it("counts length in UTF-16 units today: a decomposed letter is two toward the 80", () => {
-    expect(parsePriceBook(withRow({ name: "ş".repeat(40) })).ok).toBe(true);
-    expect(parsePriceBook(withRow({ name: "ş".repeat(41) })).ok).toBe(false);
+  it("accepts a decomposed name, a letter and its combining mark being one letter once composed", () => {
+    expect(parsePriceBook(withRow({ name: "ş" })).ok).toBe(true);
   });
 
-  it("accepts today a link to a row the book prices nowhere, which then earns nothing for ever", () => {
-    expect(parsePriceBook(withRow({ linkedBuildId: "no-such-row" })).ok).toBe(
+  it("measures the limits on the NFC form: eighty decomposed letters fit the name, eighty-one do not", () => {
+    expect(parsePriceBook(withRow({ name: "ş".repeat(80) })).ok).toBe(true);
+    expect(parsePriceBook(withRow({ name: "ş".repeat(81) })).ok).toBe(false);
+    expect(parsePriceBook(withRow({ description: "ş".repeat(240) })).ok).toBe(
       true,
+    );
+    expect(parsePriceBook(withRow({ description: "ş".repeat(241) })).ok).toBe(
+      false,
     );
   });
 
-  it("accepts today a link to a seeded variant id, which earns through its equivalent only", () => {
+  it("counts an emoji as its two UTF-16 units today: forty fit the name, forty-one do not", () => {
+    expect(parsePriceBook(withRow({ name: "\u{1F642}".repeat(40) })).ok).toBe(
+      true,
+    );
+    expect(parsePriceBook(withRow({ name: "\u{1F642}".repeat(41) })).ok).toBe(
+      false,
+    );
+  });
+
+  it("does not name the offending text in its refusal, only the row and the field", () => {
+    const failure = refusalOf(withRow({ name: "Secret-7c41\nrest" }));
+
+    expect(failure.detail).not.toContain("Secret-7c41");
+  });
+
+  it("still refuses a forbidden character in a name that sits exactly at the limit", () => {
+    expect(parsePriceBook(withRow({ name: `${"n".repeat(79)}\n` })).ok).toBe(
+      false,
+    );
+  });
+});
+
+describe("invisible characters outside the ruled set, pinned as they stand today", () => {
+  it.each([
+    ["a word joiner", "⁠"],
+    ["a left-to-right mark", "‎"],
+    ["a soft hyphen", "­"],
+    ["an Arabic letter mark", "؜"],
+  ])(
+    "accepts today a name of only %s, which prints as nothing (the ruled set is whitespace, U+200B-200D and U+FEFF)",
+    (_, name) => {
+      expect(parsePriceBook(withRow({ name })).ok).toBe(true);
+    },
+  );
+});
+
+describe("a link names a row the book prices (ruled: the parser's job)", () => {
+  const LINKABLE = SUPPLIED_ROW_IDS[0] ?? "";
+
+  it.each([
+    ["a row the book prices nowhere", "no-such-row"],
+    ["a seeded variant's id", "wall-2door-600"],
+    ["a space", " "],
+    ["a row's id in another case", "BASE-3DRAWER"],
+    ["a row's id with a trailing space", "base-3drawer "],
+  ])("refuses a link to %s, naming the accessory", (_, linkedBuildId) => {
+    const failure = refusalOf(withRow({ linkedBuildId }));
+
+    expect(failure.id).toBe("plinth-light");
+    expect(failure.detail).toContain("cabinet rule");
+  });
+
+  it("refuses a link to a row once the book's own rule for it is gone, and accepts it while the rule stands", () => {
+    const withoutRule = {
+      ...SAMPLE_PRICE_BOOK,
+      cabinetRules: SAMPLE_PRICE_BOOK.cabinetRules.filter(
+        (rule) => rule.buildId !== LINKABLE,
+      ),
+      linkedAccessories: [
+        linkedRule("plinth-light", { linkedBuildId: LINKABLE }),
+      ],
+    };
+
     expect(
-      SUPPLIED_ROW_IDS.includes("wall-2door-600"),
-      "the sample book prices no seeded variant, so the link is to a row it does not hold",
-    ).toBe(false);
+      parsePriceBook(bookWithLinked(withoutRule.linkedAccessories)).ok,
+    ).toBe(true);
+    expect(refusalOf(withoutRule).id).toBe("plinth-light");
+  });
+
+  it("refuses the variant's id even when the book prices the row the variant resolves to", () => {
+    expect(SUPPLIED_ROW_IDS).toContain("wall-cabinet");
+
+    expect(parsePriceBook(withRow({ linkedBuildId: "wall-cabinet" })).ok).toBe(
+      true,
+    );
     expect(
       parsePriceBook(withRow({ linkedBuildId: "wall-2door-600" })).ok,
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  it("names the first offending accessory, wherever it sits in the list", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 9 }), (badAt) => {
+        const rows = Array.from({ length: 10 }, (_, index) =>
+          linkedRule(`row-${String(index)}`, {
+            linkedBuildId: index === badAt ? "wall-2door-600" : LINKABLE,
+          }),
+        );
+
+        expect(refusalOf(bookWithLinked(rows)).id).toBe(`row-${String(badAt)}`);
+      }),
+    );
   });
 });
