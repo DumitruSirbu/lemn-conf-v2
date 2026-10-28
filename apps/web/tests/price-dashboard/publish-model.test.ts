@@ -3,7 +3,6 @@
 // change nothing, and what a restore makes of the draft. The books are the sample's, whose changes go through `applyChanges`.
 import {
   ABSENT_VALUE,
-  SAMPLE_PRICE_BOOK,
   applyChanges,
   isSameAddress,
   readEditableFields,
@@ -24,6 +23,11 @@ import {
   type RowView,
   type SectionView,
 } from "@/price-dashboard/publish-model";
+
+import {
+  withRetiredLinearRules,
+  withoutDepthRule,
+} from "../support/retired-form-books";
 
 const ACTIVE: PriceBook = SAMPLE_PUBLISH_PAGE.state.active.book;
 const NAMES = SAMPLE_PUBLISH_PAGE.cabinetNames;
@@ -200,11 +204,12 @@ describe("a bulk action in the draft", () => {
 });
 
 describe("a value the book does not hold yet", () => {
-  const FLAT: PriceBook = SAMPLE_PRICE_BOOK;
+  // A version stored before the cut-over states no depth rule; every book since states one.
+  const BEFORE_THE_CUT_OVER: PriceBook = withoutDepthRule(ACTIVE);
 
   function depthRuleRow(): FieldRowView {
     const sections = describeVersionDiff({
-      before: FLAT,
+      before: BEFORE_THE_CUT_OVER,
       after: ACTIVE,
       changes: [],
       cabinetNames: NAMES,
@@ -460,8 +465,13 @@ describe("what a restore makes of the draft", () => {
     reproduces(archived, ACTIVE, plan.draft);
   });
 
-  // The flat book states no cabinet price, so a cabinet change in a draft survives a restore from it, while its
-  // hardware and accessory fields are the ones that go.
+  // A version stored before the cut-over prices these two cabinets in the retired linear shape, which states no anchored
+  // amount, so a cabinet change in a draft survives a restore from it, while its hardware and accessory fields are the
+  // ones that go.
+  const ARCHIVED_BEFORE_THE_CUT_OVER = withRetiredLinearRules(ACTIVE, [
+    `cabinet.${BASE}`,
+    `cabinet.${THREE_DRAWER}`,
+  ]);
   const ACCESSORY: AppliedAddress = {
     kind: "accessory",
     accessoryId: "dishDryingRack",
@@ -477,7 +487,7 @@ describe("what a restore makes of the draft", () => {
     const lost = grouped(ACCESSORY, valueAt(ACTIVE, ACCESSORY) + 1_000, GROUP);
 
     const plan = planRestore({
-      archived: SAMPLE_PRICE_BOOK,
+      archived: ARCHIVED_BEFORE_THE_CUT_OVER,
       active: ACTIVE,
       draft: [survivor, lost],
     });
@@ -497,7 +507,7 @@ describe("what a restore makes of the draft", () => {
     ];
 
     const plan = planRestore({
-      archived: SAMPLE_PRICE_BOOK,
+      archived: ARCHIVED_BEFORE_THE_CUT_OVER,
       active: ACTIVE,
       draft: members,
     });
@@ -526,7 +536,7 @@ describe("what a restore makes of the draft", () => {
     const kept = change(FIRST, valueAt(ACTIVE, FIRST) + 3_000);
 
     const plan = planRestore({
-      archived: SAMPLE_PRICE_BOOK,
+      archived: ARCHIVED_BEFORE_THE_CUT_OVER,
       active: ACTIVE,
       draft: [kept],
     });

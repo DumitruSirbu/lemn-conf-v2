@@ -3,10 +3,7 @@
 // One published version, read-only (frames D8B, D8C): what it changed against the version before it, and the restore that puts
 // its prices into "De publicat". A restore adds to the pending list and never publishes, so the active version and the
 // clients' prices are where they were.
-import {
-  SAMPLE_PRICE_BOOK,
-  type DraftChange,
-} from "@lemnaria/configurator-domain";
+import type { DraftChange } from "@lemnaria/configurator-domain";
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -31,6 +28,7 @@ import {
   type MountedScreen,
   type TestLocale,
 } from "../support/render-with-intl";
+import { withoutDepthRule } from "../support/retired-form-books";
 import { roCopy } from "./romanian-copy";
 import {
   contextOf,
@@ -196,7 +194,10 @@ describe("an archived version (D8B)", () => {
   it("calls a depth rule that the version before it did not have a new rule, and its old side a dash", async () => {
     const input: VersionDetailInput = {
       ...detailOf(2),
-      predecessor: { sequenceNumber: 1, book: SAMPLE_PRICE_BOOK },
+      predecessor: {
+        sequenceNumber: 1,
+        book: withoutDepthRule(detailOf(1).version.book),
+      },
     };
 
     const container = await mountDetail(input);

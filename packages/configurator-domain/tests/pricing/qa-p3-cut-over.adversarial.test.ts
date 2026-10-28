@@ -435,8 +435,9 @@ describe("P3: a book of the retired form is not priced", () => {
 
   /** A book as it was stored before the cut-over: linear shapes, a flat amount per material, no depth rule. */
   function bookStoredBeforeTheCutOver(): PriceBook {
-    const withoutDepthRule: Partial<PriceBook> =
-      structuredClone(SAMPLE_PRICE_BOOK);
+    const withoutDepthRule: {
+      -readonly [K in keyof PriceBook]?: PriceBook[K];
+    } = structuredClone(SAMPLE_PRICE_BOOK);
     delete withoutDepthRule.depthRule;
     return {
       ...withoutDepthRule,
@@ -447,7 +448,9 @@ describe("P3: a book of the retired form is not priced", () => {
       material: {
         ...SAMPLE_PRICE_BOOK.material,
         tiers: SAMPLE_PRICE_BOOK.material.tiers.map((tier, index) => {
-          const identity: Partial<typeof tier> = { ...tier };
+          const identity: {
+            -readonly [K in keyof typeof tier]?: (typeof tier)[K];
+          } = { ...tier };
           delete identity.percentOfCabinets;
           return { ...identity, wholeKitchenMinor: index * 900_000 };
         }),

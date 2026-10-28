@@ -31,7 +31,8 @@ const BOOK = fixedBook();
 /** A book stored before the cut-over states no depth rule (and its tiers state no percentage): the parser refuses it
  *  whole, so it can be read and listed but never edited, and nothing restores a form onto or off it. */
 const LEGACY: PriceBook = (() => {
-  const copy = structuredClone(BOOK) as Partial<PriceBook>;
+  const copy: { -readonly [K in keyof PriceBook]?: PriceBook[K] } =
+    structuredClone(BOOK);
   delete copy.depthRule;
   return copy as PriceBook;
 })();

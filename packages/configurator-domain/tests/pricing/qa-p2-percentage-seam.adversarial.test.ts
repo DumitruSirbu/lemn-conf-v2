@@ -923,9 +923,9 @@ describe("a caller that has not measured the deepening rows gets no price that s
    *  that is the first line of defence: the `@ts-expect-error` goes red the day the field turns optional. */
   function requestWithoutTheSet(builtAtMm: number): PriceDesignRequest {
     const request = requestOf(book, { design: designAt(builtAtMm) });
-    // @ts-expect-error `deepeningRows` is required (ADR 0177 A-6, P3)
     const missing: PriceDesignRequest = {
       ...request,
+      // @ts-expect-error `deepeningRows` is required (ADR 0177 A-6, P3)
       deepeningRows: undefined,
     };
     return missing;
