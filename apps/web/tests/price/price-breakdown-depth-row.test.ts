@@ -144,6 +144,27 @@ describe("the depth line's place among the whole-kitchen rows", () => {
     ).toThrow(DepthLineWithoutMaterialRowError);
   });
 
+  it("is refused by the breakdown itself, not left to the surface: a deep pricing without its material line builds no view", () => {
+    const { priced } = breakdownAt(DEEP_CABINET_DEPTH_MM);
+    const design = kitchenAt(DEEP_CABINET_DEPTH_MM);
+    const catalog = buildKitchenLBodyCatalog(DEEP_CABINET_DEPTH_MM);
+    const pricing: PricingResult = {
+      ok: true,
+      priced: {
+        ...priced,
+        lines: priced.lines.filter((line) => line.kind !== "material"),
+      },
+    };
+
+    expect(() =>
+      describePriceBreakdown({
+        content,
+        pricing,
+        groups: projectDesignForDisplay(design, catalog),
+      }),
+    ).toThrow(DepthLineWithoutMaterialRowError);
+  });
+
   it("takes its anchor from the rows built: a priced design with a depth line and no material line builds none", () => {
     const { priced } = breakdownAt(DEEP_CABINET_DEPTH_MM);
     const design = kitchenAt(DEEP_CABINET_DEPTH_MM);
