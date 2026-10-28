@@ -1,29 +1,39 @@
 import "server-only";
 
-import type { AddressOfKind, PriceBook } from "@lemnaria/configurator-domain";
+import {
+  buildKitchenLBodyCatalog,
+  DEFAULT_CABINET_DEPTH_MM,
+  planBulkChange,
+  type BodyCatalog,
+  type BulkCounts,
+  type PlannedCabinetPrice,
+  type PriceBook,
+} from "@lemnaria/configurator-domain";
 
-import type { BulkTarget } from "@/lib/server/price-dashboard/draft-requests";
 import type { BulkRefusalCode } from "@/price-dashboard/price-dashboard-wire-contract";
+import type { BulkTarget } from "@/lib/server/price-dashboard/draft-requests";
 
-// What scales a book's cabinet prices by a percentage is lane M's `bulk-change.ts` (M2: A-14's `r10(amount × (100 + p) / 100)`
-// over a scope, and the four price groups derived from the catalogue band). That wave is not merged, and this application
-// does not carry domain arithmetic in the meantime. The route is written against this seam: it hands a planner the candidate
-// book (the active book with the draft applied, so the prices a person sees are the ones scaled) and takes back the cabinet
-// price changes, or the code the action was refused for. It reports every row it scaled, unchanged ones included: the
-// route drops the rows whose scaled amount equals the candidate's, refuses a bulk action that leaves none (A-14, ruling
-// R2-Q7), and refuses 0 % before the planner is asked. Until M2 supplies one, the planner is the unavailable one and the
-// route answers `503`, after its guards, its capability, its bucket and its body have all been judged.
+// What scales a book's cabinet prices by a percentage is lane M's `planBulkChange` (M2: A-14's `r10(amount × (100 + p) /
+// 100)` over a scope, the four price groups derived from the catalogue band). This module is the seam the bulk route is
+// written against: it hands the domain the candidate book (the active book with the draft applied, so the prices a person
+// sees are the ones scaled) and the shipped catalogue, and takes back the cabinet price changes, or the code the action
+// was refused for. The plan lists every row it scaled, unchanged ones included: the route drops the rows whose scaled
+// amount equals the candidate's, refuses a bulk action that leaves none (A-14, ruling R2-Q7), and refuses 0 % before the
+// planner is asked.
 
-/** A cabinet price set to a value; the route gives it its group and its `bulk`. */
-export interface PlannedCabinetPrice {
-  readonly address: AddressOfKind<"cabinet" | "cabinet-size">;
-  readonly value: number;
-}
+export type { PlannedCabinetPrice };
 
+/**
+ * What a planner answers: the cabinet prices to set (the route gives each its group and its `bulk`), or the code the
+ * action was refused for, always one of the wire's. The domain's plan also counts what is in scope and what changes; the
+ * route counts from the changes it keeps, so those two are optional here.
+ */
 export type BulkPlan =
   | {
       readonly kind: "planned";
       readonly changes: readonly PlannedCabinetPrice[];
+      readonly scope?: BulkCounts;
+      readonly changed?: BulkCounts;
     }
   | { readonly kind: "refused"; readonly code: BulkRefusalCode };
 
@@ -35,20 +45,25 @@ export interface BulkPlanner {
   }): BulkPlan;
 }
 
-class BulkPlannerUnavailableError extends Error {
-  constructor() {
-    super("No bulk planner is installed: the bulk action waits for M2.");
-    this.name = "BulkPlannerUnavailableError";
-  }
+let shippedCatalog: BodyCatalog | undefined;
+
+/** The catalogue the price groups and the buildable widths are read from, built on first use: it is code, so it cannot
+ *  change under the process. */
+function shippedCatalogue(): BodyCatalog {
+  shippedCatalog ??= buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM);
+  return shippedCatalog;
 }
 
-const UNAVAILABLE_BULK_PLANNER: BulkPlanner = Object.freeze({
-  plan: () => {
-    throw new BulkPlannerUnavailableError();
-  },
+const DOMAIN_BULK_PLANNER: BulkPlanner = Object.freeze({
+  plan: ({
+    book,
+    target,
+    percent,
+  }: Parameters<BulkPlanner["plan"]>[0]): BulkPlan =>
+    planBulkChange({ book, catalog: shippedCatalogue(), target, percent }),
 });
 
-/** The planner of this process. M2's replaces the unavailable one here and nowhere else. */
+/** The planner of this process. */
 export function getBulkPlanner(): BulkPlanner {
-  return UNAVAILABLE_BULK_PLANNER;
+  return DOMAIN_BULK_PLANNER;
 }

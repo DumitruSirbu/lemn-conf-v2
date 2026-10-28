@@ -4,6 +4,7 @@ import { MAX_IDENTIFIER_LENGTH } from "@lemnaria/configurator-domain";
 
 import type * as BulkPlannerModule from "@/lib/server/price-dashboard/bulk-planner";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
+import { BULK_REFUSAL_CODES } from "@/price-dashboard/price-dashboard-wire-contract";
 
 import {
   DRIVER_FAILURE_MARKER,
@@ -130,6 +131,16 @@ async function bulkRaw(
 
 const MANUFACTURER_PRICE_RULES = ANCHORED_BOOK.cabinetRules.filter(
   (rule) => rule.suppliedBy !== "customer",
+);
+/** The amounts a manufacturer row's price is made of, counted from the formulas' own members. */
+const MANUFACTURER_AMOUNT_COUNT = MANUFACTURER_PRICE_RULES.reduce(
+  (total, { formula }) =>
+    total +
+    (formula.shape === "price-per-size"
+      ? formula.sizes.length
+      : Object.keys(formula).filter((member) => member.endsWith("Minor"))
+          .length),
+  0,
 );
 const BASE_RULE_IDS = MANUFACTURER_PRICE_RULES.filter((rule) =>
   rule.buildId.startsWith("base"),
@@ -437,7 +448,7 @@ describe("a bulk action that changes nothing (ruling R2-Q7)", () => {
       5,
     );
 
-    if (answer.status === 200) return;
+    expect(answer.status).toBe(400);
     expect(await jsonOf(answer)).toEqual({
       status: "invalid-input",
       issues: [{ field: "scope", code: "NO_CABINETS_SELECTED" }],
@@ -622,7 +633,7 @@ describe("a write and its audit row are one thing", () => {
     );
   });
 
-  it("answers 503 and writes nothing while no planner is installed (M2 is not merged)", async () => {
+  it("answers 503 and writes nothing while the planner is unavailable", async () => {
     const { cookie } = await administrator();
     plannerBehaviour.isUnavailable = true;
 
@@ -633,18 +644,43 @@ describe("a write and its audit row are one thing", () => {
     expect(draftRows()).toEqual([]);
   });
 
-  it("is a planner that is unavailable until M2 installs one: the real default throws and plans nothing", async () => {
+  it("plans for real: the domain's A-14 scaling over the book, with the counts the dialog names", async () => {
     const real = await vi.importActual<typeof BulkPlannerModule>(
       "@/lib/server/price-dashboard/bulk-planner",
     );
 
-    expect(() =>
-      real.getBulkPlanner().plan({
-        book: ANCHORED_BOOK,
-        target: { scope: "all" },
-        percent: 5,
-      }),
-    ).toThrow(/waits for M2/);
+    const plan = real.getBulkPlanner().plan({
+      book: ANCHORED_BOOK,
+      target: { scope: "all" },
+      percent: 5,
+    });
+
+    expect(plan).toMatchObject({
+      kind: "planned",
+      scope: {
+        ruleCount: MANUFACTURER_PRICE_RULES.length,
+        amountCount: MANUFACTURER_AMOUNT_COUNT,
+      },
+      changed: { ruleCount: MANUFACTURER_PRICE_RULES.length },
+    });
+    expect(plan.kind === "planned" ? plan.changes : []).toHaveLength(
+      MANUFACTURER_AMOUNT_COUNT,
+    );
+  });
+
+  it("refuses for real with a code of the wire's list", async () => {
+    const real = await vi.importActual<typeof BulkPlannerModule>(
+      "@/lib/server/price-dashboard/bulk-planner",
+    );
+
+    const plan = real.getBulkPlanner().plan({
+      book: ANCHORED_BOOK,
+      target: { scope: "selection", ruleIds: ["cabinet.nothing"] },
+      percent: 5,
+    });
+
+    expect(plan).toEqual({ kind: "refused", code: "UNKNOWN_RULE" });
+    expect(BULK_REFUSAL_CODES).toContain("UNKNOWN_RULE");
   });
 });
 
