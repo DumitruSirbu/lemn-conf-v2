@@ -11,8 +11,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   DepthLineWithoutMaterialRowError,
-  DepthLineWithoutPercentError,
   listWholeKitchenRows,
+  MalformedDepthLineError,
 } from "@/price/price-breakdown-model";
 import { describeReview, type AvailableReview } from "@/review/review-model";
 
@@ -21,6 +21,7 @@ import {
   type PricedKitchen,
 } from "../support/generated-kitchens";
 import { ro } from "../support/romanian-content";
+import { thrownBy } from "../support/thrown-by";
 
 function availableReviewOf(kitchen: PricedKitchen): AvailableReview {
   const view = describeReview({
@@ -176,9 +177,10 @@ describe("the review's whole-kitchen rows with the depth row", () => {
     for (const percent of [undefined, null, Number.NaN, "12"]) {
       const stored = storedWithPercent(DEEP, percent as number);
 
-      expect(() => availableReviewOf(stored)).toThrow(
-        DepthLineWithoutPercentError,
-      );
+      const error = thrownBy(() => availableReviewOf(stored));
+
+      expect(error).toBeInstanceOf(MalformedDepthLineError);
+      expect(error).toHaveProperty("reason", "percent");
     }
   });
 });

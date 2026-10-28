@@ -28,7 +28,6 @@ import { useContent } from "@/i18n/use-content";
 import {
   describePriceBreakdown,
   type AvailableBreakdown,
-  type BreakdownDepthLine,
   type BreakdownRow,
 } from "./price-breakdown-model";
 import styles from "./price-breakdown.module.css";
@@ -185,10 +184,10 @@ export function PriceBreakdownSurface({
             data-testid="price-breakdown-whole-kitchen"
           >
             {view.wholeKitchenListing.map((row) =>
-              view.depthLine !== undefined && row.key === view.depthLine.key ? (
-                <DepthLineRow key={row.key} line={view.depthLine} />
-              ) : (
+              row.scope === undefined ? (
                 <BreakdownLine key={row.key} row={row} kind="whole-kitchen" />
+              ) : (
+                <DepthLineRow key={row.key} row={row} scope={row.scope} />
               ),
             )}
           </section>
@@ -253,7 +252,13 @@ function BreakdownLine({
 
 /** The depth line: a whole-kitchen row with the cabinets it applies to under its label. Its own test ids, so a count
  *  of `breakdown-row` stays a count of the rows the placements and the tiers print. */
-function DepthLineRow({ line }: { readonly line: BreakdownDepthLine }) {
+function DepthLineRow({
+  row,
+  scope,
+}: {
+  readonly row: BreakdownRow;
+  readonly scope: string;
+}) {
   return (
     <span
       className={styles.row}
@@ -261,13 +266,13 @@ function DepthLineRow({ line }: { readonly line: BreakdownDepthLine }) {
       data-testid="breakdown-depth-row"
     >
       <span className={styles.rowLabel}>
-        <span data-testid="breakdown-depth-label">{line.label}</span>
+        <span data-testid="breakdown-depth-label">{row.label}</span>
         <span className={styles.rowScope} data-testid="breakdown-depth-scope">
-          {line.scope}
+          {scope}
         </span>
       </span>
       <span className={styles.rowAmount} data-testid="breakdown-depth-amount">
-        {line.amountText}
+        {row.amountText}
       </span>
     </span>
   );

@@ -22,12 +22,13 @@ import {
   describeDepthLine,
   describePriceBreakdown,
   DepthLineWithoutMaterialRowError,
-  DepthLineWithoutPercentError,
   listWholeKitchenRows,
-  MultipleDepthLinesError,
+  MalformedDepthLineError,
 } from "@/price/price-breakdown-model";
 import { describeRoundedAmount } from "@/price/starting-price";
 
+import { listedDepthLineOf } from "../support/listed-depth-line";
+import { thrownBy } from "../support/thrown-by";
 import { bookPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 import { ro as content } from "../support/romanian-content";
@@ -67,8 +68,7 @@ describe("the depth row", () => {
   it("is absent at the default depth, where the query publishes no depth line", () => {
     const { view } = breakdownAt(DEFAULT_CABINET_DEPTH_MM);
 
-    expect(view.depthLine).toBeUndefined();
-    expect(view).not.toHaveProperty("depthLine");
+    expect(listedDepthLineOf(view)).toBeUndefined();
     expect(view.wholeKitchenListing).toBe(view.wholeKitchenRows);
   });
 
@@ -77,7 +77,7 @@ describe("the depth row", () => {
     const line = priced.lines.find((candidate) => candidate.kind === "depth");
 
     expect(line).toBeDefined();
-    expect(view.depthLine).toEqual({
+    expect(listedDepthLineOf(view)).toEqual({
       key: line?.lineId,
       label: content.priceBreakdown.depthLine(
         DEEP_CABINET_DEPTH_MM,
@@ -91,14 +91,16 @@ describe("the depth row", () => {
   it("reads inclus at 0 %, which the query still publishes as a line", () => {
     const { view } = breakdownAt(DEEP_CABINET_DEPTH_MM, 0);
 
-    expect(view.depthLine?.amountText).toBe(content.priceBreakdown.included);
+    expect(listedDepthLineOf(view)?.amountText).toBe(
+      content.priceBreakdown.included,
+    );
   });
 
   it("is kept out of the whole-kitchen rows, which stay the tiers and the accessories", () => {
     const { view } = breakdownAt(DEEP_CABINET_DEPTH_MM);
 
     expect(view.wholeKitchenRows.map((row) => row.key)).not.toContain(
-      view.depthLine?.key,
+      listedDepthLineOf(view)?.key,
     );
     expect(view.wholeKitchenRows.map((row) => row.key)).toEqual(
       expect.arrayContaining(["kitchen:hardware", "kitchen:material"]),
@@ -109,8 +111,7 @@ describe("the depth row", () => {
     const { view, priced } = breakdownAt(DEEP_CABINET_DEPTH_MM);
     const shown = new Set([
       ...view.groups.flatMap((group) => group.rows.map((row) => row.key)),
-      ...view.wholeKitchenRows.map((row) => row.key),
-      ...(view.depthLine === undefined ? [] : [view.depthLine.key]),
+      ...view.wholeKitchenListing.map((row) => row.key),
     ]);
     const lineKeys = priced.lines.map((line) =>
       line.kind === "cabinet" ? line.placementId : line.lineId,
@@ -126,15 +127,17 @@ describe("the depth line's place among the whole-kitchen rows", () => {
     const keys = view.wholeKitchenListing.map((row) => row.key);
 
     expect(keys[keys.indexOf("kitchen:material") + 1]).toBe(
-      view.depthLine?.key,
+      listedDepthLineOf(view)?.key,
     );
-    expect(keys.filter((key) => key !== view.depthLine?.key)).toEqual(
+    expect(keys.filter((key) => key !== listedDepthLineOf(view)?.key)).toEqual(
       view.wholeKitchenRows.map((row) => row.key),
     );
   });
 
   it("is refused when the rows built hold no material row, not dropped and not put first", () => {
     const { view } = breakdownAt(DEEP_CABINET_DEPTH_MM);
+    const depthLine = listedDepthLineOf(view);
+    if (depthLine === undefined) throw new Error("expected a depth line");
     const withoutMaterial = view.wholeKitchenRows.filter(
       (row) => row.key !== "kitchen:material",
     );
@@ -142,7 +145,7 @@ describe("the depth line's place among the whole-kitchen rows", () => {
     expect(() =>
       listWholeKitchenRows({
         wholeKitchenRows: withoutMaterial,
-        ...(view.depthLine === undefined ? {} : { depthLine: view.depthLine }),
+        depthLine,
         depthLineAfterKey: "kitchen:material",
       }),
     ).toThrow(DepthLineWithoutMaterialRowError);
@@ -219,7 +222,10 @@ describe("a stored depth line is worded only when its percent is a whole number 
     1000,
     Number.MAX_SAFE_INTEGER + 2,
   ])("refuses %s % rather than printing it as the stored rule", (percent) => {
-    expect(() => wordedAt(percent)).toThrow(DepthLineWithoutPercentError);
+    const error = thrownBy(() => wordedAt(percent));
+
+    expect(error).toBeInstanceOf(MalformedDepthLineError);
+    expect(error).toHaveProperty("reason", "percent");
   });
 
   it.each([0, 1, 12, MAX_DEEP_CABINET_PERCENT])(
@@ -243,7 +249,7 @@ describe("a priced design with more than one depth line is refused, not listed b
     };
     const design = kitchenAt(DEEP_CABINET_DEPTH_MM);
 
-    expect(() =>
+    const error = thrownBy(() =>
       describeBreakdownRows({
         content,
         priced: twice,
@@ -252,6 +258,35 @@ describe("a priced design with more than one depth line is refused, not listed b
           buildKitchenLBodyCatalog(DEEP_CABINET_DEPTH_MM),
         ),
       }),
-    ).toThrow(MultipleDepthLinesError);
+    );
+
+    expect(error).toBeInstanceOf(MalformedDepthLineError);
+    expect(error).toHaveProperty("reason", "multiple");
+    expect(error).toHaveProperty("lineIds", [
+      "kitchen:depth",
+      "kitchen:depth-again",
+    ]);
+  });
+});
+
+describe("a stored depth line whose id is not shaped like one is refused, and never named", () => {
+  it.each([
+    "",
+    "kitchen:depth\r\nBcc: x@y.z",
+    'kitchen:depth<img src=x onerror="alert(1)">',
+    "kitchen depth",
+  ])("refuses the id %j and names a fixed word in its place", (lineId) => {
+    const { priced } = breakdownAt(DEEP_CABINET_DEPTH_MM);
+    const stored = priced.lines.find((line) => line.kind === "depth");
+    if (stored?.kind !== "depth") throw new Error("expected a depth line");
+
+    const error = thrownBy(() =>
+      describeDepthLine({ ...stored, lineId }, content),
+    );
+
+    expect(error).toBeInstanceOf(MalformedDepthLineError);
+    expect(error).toHaveProperty("reason", "id");
+    expect(error).toHaveProperty("lineIds", ["(refused id)"]);
+    expect(String(error)).not.toContain(lineId === "" ? "\u0000" : lineId);
   });
 });

@@ -38,6 +38,7 @@ import { PriceBreakdownSurface } from "@/price/price-breakdown";
 import { describeStartingPrice } from "@/price/starting-price";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
+import { listedDepthLineOf } from "../support/listed-depth-line";
 import { bookPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -138,14 +139,14 @@ describe("the depth line states the published percent and nothing else (Q1-b)", 
         const design = deepShippedKitchen();
         const view = describeAt(design, priceAt(design, percent));
 
-        expect(view.depthLine?.label).toBe(
+        expect(listedDepthLineOf(view)?.label).toBe(
           ro.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, percent),
         );
-        expect(figuresIn(view.depthLine?.label ?? "")).toEqual([
+        expect(figuresIn(listedDepthLineOf(view)?.label ?? "")).toEqual([
           String(DEEP_CABINET_DEPTH_MM),
           String(percent),
         ]);
-        expect(figuresIn(view.depthLine?.scope ?? "")).toEqual([]);
+        expect(figuresIn(listedDepthLineOf(view)?.scope ?? "")).toEqual([]);
       }),
       { seed: SWEEP_SEED, numRuns: 120 },
     );
@@ -161,8 +162,8 @@ describe("the depth line states the published percent and nothing else (Q1-b)", 
           const real = priceAt(design, percent);
           const forged = withDepthAmount(real, tensOfLei * 1000);
 
-          expect(describeAt(design, forged).depthLine?.label).toBe(
-            describeAt(design, real).depthLine?.label,
+          expect(listedDepthLineOf(describeAt(design, forged))?.label).toBe(
+            listedDepthLineOf(describeAt(design, real))?.label,
           );
         },
       ),
@@ -217,8 +218,10 @@ describe("the depth line's amount is the priced line's own, never recomputed (P2
             '[data-testid="breakdown-depth-amount"]',
           );
 
-          expect(printed?.textContent).toBe(view.depthLine?.amountText);
-          expect(view.depthLine?.amountText).not.toBe(
+          expect(printed?.textContent).toBe(
+            listedDepthLineOf(view)?.amountText,
+          );
+          expect(listedDepthLineOf(view)?.amountText).not.toBe(
             ro.priceBreakdown.included,
           );
         },
@@ -233,8 +236,10 @@ describe("the depth line's amount is the priced line's own, never recomputed (P2
 
     const view = describeAt(design, forged);
 
-    expect(view.depthLine?.amountText).toBe(ro.priceBreakdown.included);
-    expect(view.depthLine?.label).toContain("40 %");
+    expect(listedDepthLineOf(view)?.amountText).toBe(
+      ro.priceBreakdown.included,
+    );
+    expect(listedDepthLineOf(view)?.label).toContain("40 %");
   });
 });
 
@@ -252,7 +257,7 @@ describe("at 0 % the depth line is present and reads inclus (ADR 0177 A-1: 'At 0
 
     const shallow = KITCHEN_L_DESIGN;
     const shallowView = describeAt(shallow, priceAt(shallow, 0));
-    expect(shallowView.depthLine).toBeUndefined();
+    expect(listedDepthLineOf(shallowView)).toBeUndefined();
   });
 });
 
@@ -312,7 +317,9 @@ describe("generated rooms built at 700 mm through the real depth command", () =>
           (row) => row.testId === "breakdown-depth-row",
         );
         expect(depthRows).toHaveLength(depthLines.length);
-        expect(view.depthLine !== undefined).toBe(depthLines.length === 1);
+        expect(listedDepthLineOf(view) !== undefined).toBe(
+          depthLines.length === 1,
+        );
         if (depthLines.length === 0) return;
 
         deepKitchensWithADepthLine += 1;

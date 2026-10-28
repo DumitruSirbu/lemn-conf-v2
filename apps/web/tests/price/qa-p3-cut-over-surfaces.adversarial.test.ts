@@ -6,6 +6,7 @@
 // that cannot see: a surface that measured the set a different way would still agree with its own second evaluation, so
 // the composition itself is read from source; and a surface that priced alone would pass its own check while
 // disagreeing with the rest, so the figures are compared across surfaces.
+import { listedDepthLineOf } from "../support/listed-depth-line";
 import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
@@ -369,7 +370,7 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
     );
 
     expect(line).toBeDefined();
-    expect(view.depthLine?.key).toBe(line?.lineId);
+    expect(listedDepthLineOf(view)?.key).toBe(line?.lineId);
   });
 
   // The gap P3 named is closed by Q1: the sheet prints the model's depth line, so its rows account for the figure.
@@ -385,7 +386,7 @@ describe("the depth line at 700 mm: what the screens print of a line the total c
     );
 
     expect(markup).toContain(`${String(DEEP_CABINET_DEPTH_MM)} mm`);
-    expect(markup).toContain(view.depthLine?.amountText ?? "never");
+    expect(markup).toContain(listedDepthLineOf(view)?.amountText ?? "never");
     expect(markup).toContain(DEPTH_LINE_WORD);
   });
 

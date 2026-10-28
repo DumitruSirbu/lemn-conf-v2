@@ -27,6 +27,7 @@ import {
 } from "@/price/price-breakdown-model";
 import { describeReview, type AvailableReview } from "@/review/review-model";
 
+import { listedDepthLineOf } from "../../../support/listed-depth-line";
 import { CATALOGUES, contentFor } from "../../../support/catalogues";
 import {
   builtDeep,
@@ -233,7 +234,7 @@ describe.each(VARIED_ARMS)(
               expectDepthRow(kitchen, breakdown, content, { isDeep, percent });
               expectNotice(made, content, onSheet);
               if (!isDeep) {
-                expect(breakdown.depthLine).toBeUndefined();
+                expect(listedDepthLineOf(breakdown)).toBeUndefined();
                 expect(review.depthLine).toBeUndefined();
               }
             }

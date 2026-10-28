@@ -20,6 +20,7 @@ import {
 } from "@/price/price-breakdown-model";
 import { describeReview, type AvailableReview } from "@/review/review-model";
 
+import { listedDepthLineOf } from "../support/listed-depth-line";
 import { CATALOGUES, contentFor } from "../support/catalogues";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import {
@@ -130,7 +131,9 @@ describe.each(VARIED_ARMS)(
           const listed = listWholeKitchenRows(review);
 
           expect(review.depthLine === undefined).toBe(!hasDepthLine);
-          expect(breakdown.depthLine === undefined).toBe(!hasDepthLine);
+          expect(listedDepthLineOf(breakdown) === undefined).toBe(
+            !hasDepthLine,
+          );
           expect(review.groups).toEqual(breakdown.groups);
           expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);
           expectEveryPricedLineListedOnce(listed, review, priced, content);
@@ -141,9 +144,9 @@ describe.each(VARIED_ARMS)(
 
           const line = depthLineOf(priced);
           const depthAt = listed.findIndex((row) => row.key === DEPTH_KEY);
-          expect(review.depthLine?.key).toBe(breakdown.depthLine?.key);
+          expect(review.depthLine?.key).toBe(listedDepthLineOf(breakdown)?.key);
           expect(review.depthLine?.amountText).toBe(
-            breakdown.depthLine?.amountText,
+            listedDepthLineOf(breakdown)?.amountText,
           );
           expect(line.deepCabinetPercent).toBe(percent);
           expect(line.depthMm).toBe(DEEP_CABINET_DEPTH_MM);

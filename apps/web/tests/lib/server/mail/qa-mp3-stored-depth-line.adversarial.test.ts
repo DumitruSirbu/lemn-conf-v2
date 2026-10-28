@@ -1,12 +1,12 @@
 // Adversarial QA for the MP-3 combine after its fix round: what a STORED depth line may hold when the shop's notice and
-// the review word it. The fix round refuses a percent that is not a finite number (`DepthLineWithoutPercentError`) and a
+// the review word it. The fix round refuses a percent that is not a finite number (`MalformedDepthLineError`) and a
 // depth line with no material row to follow (`DepthLineWithoutMaterialRowError`); this file attacks the other stored
 // values that reach the label, and the placement rule's two anchors.
 import {
   DEEP_CABINET_DEPTH_MM,
   type SubmissionSnapshot,
 } from "@lemnaria/configurator-domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   composeLeadNotice,
@@ -14,9 +14,9 @@ import {
 } from "@/lib/server/mail/lead-notification";
 import {
   DepthLineWithoutMaterialRowError,
-  DepthLineWithoutPercentError,
   describeDepthLine,
   listWholeKitchenRows,
+  MalformedDepthLineError,
 } from "@/price/price-breakdown-model";
 
 import {
@@ -25,6 +25,7 @@ import {
   snapshotAtPercent,
 } from "../../../support/deep-priced-kitchens";
 import { ro } from "../../../support/romanian-content";
+import { thrownBy } from "../../../support/thrown-by";
 import { VARIED_L_ARM } from "../../../support/varied-kitchens";
 import {
   designSubmission,
@@ -92,6 +93,10 @@ describe("a stored depth line whose depth is not a finite number is refused, as 
     ["is infinite", Number.POSITIVE_INFINITY],
     ["is markup", '<img src=x onerror="alert(1)">'],
     ["holds a line break", "7\r\nBcc: x@y.z"],
+    ["is zero", 0],
+    ["is negative", -DEEP_CABINET_DEPTH_MM],
+    ["is fractional", DEEP_CABINET_DEPTH_MM + 0.5],
+    ["is past the safe integers", Number.MAX_SAFE_INTEGER + 2],
   ];
 
   it.each(NOT_A_DEPTH)(
@@ -193,7 +198,7 @@ describe("a stored depth line is placed after the material row the builder produ
   });
 
   it("describeDepthLine throws its own error for a percent-less line, never a label", () => {
-    expect(() =>
+    const error = thrownBy(() =>
       describeDepthLine(
         {
           ...depthLineOf(STORED.priced),
@@ -201,6 +206,53 @@ describe("a stored depth line is placed after the material row the builder produ
         },
         ro,
       ),
-    ).toThrow(DepthLineWithoutPercentError);
+    );
+
+    expect(error).toBeInstanceOf(MalformedDepthLineError);
+    expect(error).toHaveProperty("reason", "percent");
+  });
+});
+
+describe("a stored depth line whose id holds a line break and markup", () => {
+  const HOSTILE_ID =
+    'kitchen:depth\r\nBcc: x@y.z<img src=x onerror="alert(1)">';
+  const MARKERS = ["Bcc:", "<img", "onerror", "kitchen:depth"];
+
+  function withLineId(snapshot: SubmissionSnapshot, lineId: string) {
+    return {
+      ...snapshot,
+      priced: {
+        ...snapshot.priced,
+        lines: snapshot.priced.lines.map((line) =>
+          line.kind === "depth" ? { ...line, lineId } : line,
+        ),
+      },
+    };
+  }
+
+  it("is refused by the notice's value-free error, and nothing it throws or logs echoes the id", () => {
+    const logged = [
+      vi.spyOn(console, "error").mockImplementation(() => undefined),
+      vi.spyOn(console, "warn").mockImplementation(() => undefined),
+      vi.spyOn(console, "log").mockImplementation(() => undefined),
+    ];
+    try {
+      const error = thrownBy(() => noticeOf(withLineId(STORED, HOSTILE_ID)));
+
+      expect(error).toEqual(new NoticeKitchenError("review-not-sendable"));
+      if (!(error instanceof NoticeKitchenError))
+        throw new Error("expected the notice's own error");
+      const reachable = JSON.stringify([
+        error.name,
+        error.message,
+        error.stack,
+        Object.entries(error),
+        logged.map((spy) => spy.mock.calls),
+      ]);
+      for (const marker of MARKERS)
+        expect(reachable, marker).not.toContain(marker);
+    } finally {
+      for (const spy of logged) spy.mockRestore();
+    }
   });
 });

@@ -20,6 +20,7 @@ import { describePriceBar } from "@/price/price-bar-model";
 import { describePriceBreakdown } from "@/price/price-breakdown-model";
 import { describeReview, type AvailableReview } from "@/review/review-model";
 
+import { listedDepthLineOf } from "../support/listed-depth-line";
 import { CATALOGUES, contentFor } from "../support/catalogues";
 import {
   priceAndProject,
@@ -457,10 +458,10 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
           throw new Error("expected a breakdown");
 
         if (line === undefined) {
-          expect(breakdown.depthLine).toBeUndefined();
+          expect(listedDepthLineOf(breakdown)).toBeUndefined();
           continue;
         }
-        expect(breakdown.depthLine).toEqual({
+        expect(listedDepthLineOf(breakdown)).toEqual({
           key: line.lineId,
           label: contentOf(ROMANIAN).priceBreakdown.depthLine(
             DEEP_CABINET_DEPTH_MM,
@@ -491,10 +492,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
           ...breakdown.groups.flatMap((group) =>
             group.rows.map((row) => row.key),
           ),
-          ...breakdown.wholeKitchenRows.map((row) => row.key),
-          ...(breakdown.depthLine === undefined
-            ? []
-            : [breakdown.depthLine.key]),
+          ...breakdown.wholeKitchenListing.map((row) => row.key),
         ]);
         const unshown = pricedOf(kitchen)
           .lines.map((line) =>
@@ -517,9 +515,9 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         if (breakdown.kind !== "available")
           throw new Error("expected a breakdown");
 
-        expect(review.depthLine?.key).toBe(breakdown.depthLine?.key);
+        expect(review.depthLine?.key).toBe(listedDepthLineOf(breakdown)?.key);
         expect(review.depthLine?.amountText).toBe(
-          breakdown.depthLine?.amountText,
+          listedDepthLineOf(breakdown)?.amountText,
         );
         expect(review.groups).toEqual(breakdown.groups);
         expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);

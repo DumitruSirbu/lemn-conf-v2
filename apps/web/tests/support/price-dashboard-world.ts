@@ -151,10 +151,8 @@ function anchoredRules(): readonly CabinetPriceRule[] {
 function percentageTiers(): readonly MaterialTier[] {
   const percents = [0, 25, 60];
   return SAMPLE_PRICE_BOOK.material.tiers.map((tier, index) => {
-    const { wholeKitchenMinor, ...identity } = tier;
-    void wholeKitchenMinor;
     return {
-      ...identity,
+      ...tier,
       percentOfCabinets: percents[index] ?? 0,
     } as unknown as MaterialTier;
   });

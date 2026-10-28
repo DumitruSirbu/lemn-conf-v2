@@ -101,10 +101,9 @@ export interface AvailableBreakdown {
    *  is a real answer: an accessory the design earns none of is no row, since the query publishes no
    *  line for it rather than a zero that would render *inclus*. */
   readonly wholeKitchenRows: readonly BreakdownRow[];
-  /** The depth line, present exactly when the query published one: a 700 mm kitchen with a cabinet that gets deeper. */
-  readonly depthLine?: BreakdownDepthLine;
   /** `wholeKitchenRows` with the depth line listed directly after the material row (`listWholeKitchenRows`): what the
-   *  sheet draws. `wholeKitchenRows` itself stays the tiers and the accessories. */
+   *  sheet draws. The depth line is the one row carrying `scope`, present exactly when the query published one: a
+   *  700 mm kitchen with a cabinet that gets deeper. `wholeKitchenRows` itself stays the tiers and the accessories. */
   readonly wholeKitchenListing: readonly WholeKitchenListingRow[];
   /** The sentence that says the amounts above are each rounded up on their own. */
   readonly note: string;
@@ -157,38 +156,39 @@ export class DepthLineWithoutMaterialRowError extends Error {
   }
 }
 
+/** A line id is the key of a row and is named in errors: a few characters of word, colon and hyphen, never a break or
+ *  markup. */
+const LINE_ID_SHAPE = /^[A-Za-z0-9:_-]+$/u;
+
+/** Stands for a refused id in the error, which must not carry the stored text. */
+const REFUSED_LINE_ID = "(refused id)";
+
+/** Why a depth line cannot be worded: its id is not an id, its depth or its percent is not a whole number the rule can
+ *  state, or the priced design holds more than one. */
+export type MalformedDepthLineReason = "id" | "depth" | "percent" | "multiple";
+
 /**
- * A priced depth line carries no usable percentage: not a whole number from 0 to the rule's bound. The type says it
- * always does; a snapshot stored by a build from before the line carried it, or a damaged one, does not. Thrown, never
- * worded: a label would print "adaos undefined %", or a percent no book could state.
+ * A priced (or stored) depth line cannot be worded. The type says its depth and percent are always sound; a
+ * snapshot stored by an earlier build, or a damaged one, may not be, and the query publishes one line, not several.
+ * Thrown, never worded: a label would print "adaos undefined %", a percent no book could state, or rows that explain
+ * less than the total, which counts every line. Names the reason and the line ids, an id not shaped like one
+ * replaced by a fixed word, so it holds no stored text.
  */
-export class DepthLineWithoutPercentError extends Error {
-  constructor(depthLineKey: string) {
-    super(
-      `The depth line carries no whole deepCabinetPercent from 0 to ${String(MAX_DEEP_CABINET_PERCENT)}: ${depthLineKey}`,
-    );
-    this.name = "DepthLineWithoutPercentError";
-  }
-}
+export class MalformedDepthLineError extends Error {
+  readonly reason: MalformedDepthLineReason;
+  readonly lineIds: readonly string[];
 
-/** A priced depth line names no depth: not a positive whole number of millimetres. Thrown, never worded. */
-export class DepthLineWithoutDepthError extends Error {
-  constructor(depthLineKey: string) {
-    super(
-      `The depth line carries no positive whole depthMm to word it with: ${depthLineKey}`,
+  constructor(reason: MalformedDepthLineReason, lineIds: readonly string[]) {
+    const namedIds = lineIds.map((lineId) =>
+      isLineIdShaped(lineId) ? lineId : REFUSED_LINE_ID,
     );
-    this.name = "DepthLineWithoutDepthError";
-  }
-}
-
-/** The priced design holds more than one depth line. The query publishes one, and listing only the first would show
- *  rows that explain less than the total, which counts them all. */
-export class MultipleDepthLinesError extends Error {
-  constructor(depthLineKeys: readonly string[]) {
     super(
-      `The priced design holds ${String(depthLineKeys.length)} depth lines, one is allowed: ${depthLineKeys.join(", ")}`,
+      `The priced design holds a depth line that cannot be worded (${reason}): ` +
+        namedIds.join(", "),
     );
-    this.name = "MultipleDepthLinesError";
+    this.name = "MalformedDepthLineError";
+    this.reason = reason;
+    this.lineIds = namedIds;
   }
 }
 
@@ -223,9 +223,6 @@ export function describePriceBreakdown(
       wholeKitchenRows: rows.wholeKitchenRows,
       ...rows.depth,
     }),
-    ...(rows.depth.depthLine === undefined
-      ? {}
-      : { depthLine: rows.depth.depthLine }),
     note: input.content.priceBreakdown.note,
     figure: describeStartingPrice({
       totalMinor: priced.totalMinor,
@@ -259,10 +256,16 @@ export function describeDepthLine(
 
 /** What a stored line must hold to be worded: a whole depth in millimetres and a whole percent the rule can state. */
 function assertWordable(line: DepthPriceLine): void {
+  if (!isLineIdShaped(line.lineId))
+    throw new MalformedDepthLineError("id", [line.lineId]);
   if (!isPositiveWhole(line.depthMm))
-    throw new DepthLineWithoutDepthError(line.lineId);
+    throw new MalformedDepthLineError("depth", [line.lineId]);
   if (!isWholePercent(line.deepCabinetPercent))
-    throw new DepthLineWithoutPercentError(line.lineId);
+    throw new MalformedDepthLineError("percent", [line.lineId]);
+}
+
+function isLineIdShaped(lineId: string): boolean {
+  return LINE_ID_SHAPE.test(lineId);
 }
 
 function isPositiveWhole(value: number): boolean {
@@ -341,25 +344,40 @@ export function describeBreakdownRows(
   return {
     groups,
     wholeKitchenRows: unplacedLines.map((line) => toUnplacedRow(line, content)),
-    depth: describeDepthFields(priced.lines, unplacedLines, content),
+    depth: describeDepthFields({
+      depthLines: priced.lines.filter(isDepthLine),
+      materialRowKey: unplacedLines.find((line) => line.kind === "material")
+        ?.lineId,
+      content,
+    }),
   };
 }
 
-function describeDepthFields(
-  lines: readonly PriceLine[],
-  unplacedLines: readonly UnplacedPriceLine[],
-  content: Content,
-): DepthLineFields {
-  const [depthLine, ...surplus] = lines.filter(isDepthLine);
-  if (depthLine === undefined) return {};
-  if (surplus.length > 0)
-    throw new MultipleDepthLinesError(
-      [depthLine, ...surplus].map((line) => line.lineId),
+interface DepthFieldsInput {
+  readonly depthLines: readonly DepthPriceLine[];
+  /** The key of the material row the builder produced, if it produced one. */
+  readonly materialRowKey: string | undefined;
+  readonly content: Content;
+}
+
+function describeDepthFields({
+  depthLines,
+  materialRowKey,
+  content,
+}: DepthFieldsInput): DepthLineFields {
+  if (depthLines.length > 1) {
+    throw new MalformedDepthLineError(
+      "multiple",
+      depthLines.map((line) => line.lineId),
     );
-  const material = unplacedLines.find((line) => line.kind === "material");
+  }
+  const [depthLine] = depthLines;
+  if (depthLine === undefined) return {};
   return {
     depthLine: describeDepthLine(depthLine, content),
-    ...(material === undefined ? {} : { depthLineAfterKey: material.lineId }),
+    ...(materialRowKey === undefined
+      ? {}
+      : { depthLineAfterKey: materialRowKey }),
   };
 }
 

@@ -173,7 +173,8 @@ export class MissingWholeKitchenTierError extends Error {
 export class MissingRowDetailError extends Error {
   constructor(placementId: string) {
     super(
-      `The review holds no row detail for placement "${placementId}"; its rows and details are built from one projection`,
+      `The review holds no row detail for placement "${placementId}"; ` +
+        "its rows and details are built from one projection",
     );
     this.name = "MissingRowDetailError";
   }
