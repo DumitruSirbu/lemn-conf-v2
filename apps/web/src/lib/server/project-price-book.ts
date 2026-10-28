@@ -35,6 +35,8 @@ function membersOf<Declared>() {
   ): List => list;
 }
 
+/** Every member of a book, as the type spells them: the sections below that hold rows are then copied member by member
+ *  and replace the whole-section copy this makes, so a section is listed here and projected once, as `cabinetRules` is. */
 const BOOK_MEMBERS = membersOf<PriceBook>()([
   "version",
   "currency",

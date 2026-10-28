@@ -258,10 +258,13 @@ describe("a link to a row the customer supplies is refused when the book says so
     expect(parsePriceBook(bookWithLinked(everyRow)).ok).toBe(true);
   });
 
-  it("does not judge a row the book does not price: whether the catalogue holds it is the dashboard's question", () => {
-    expect(parsePriceBook(withRow({ linkedBuildId: "no-such-row" })).ok).toBe(
-      true,
-    );
+  it("refuses a link to a row the book has no cabinet rule for, a seeded variant's id among them", () => {
+    for (const linkedBuildId of ["no-such-row", "wall-2door-600"]) {
+      const failure = refusalOf(withRow({ linkedBuildId }));
+
+      expect(failure.detail).toContain(linkedBuildId);
+      expect(failure.id).toBe("plinth-light");
+    }
   });
 });
 
@@ -379,5 +382,90 @@ describe("a created hardware class names itself in Romanian: a row with no key m
         refusalOf(withTier({ ...unkeyedTier, [key]: "x" })).detail,
       ).toContain(key);
     }
+  });
+});
+
+describe("created-row text is held to what a line of the lead notice can carry", () => {
+  const UNSENDABLE = [
+    "line feed",
+    "carriage return",
+    "NUL",
+    "next line U+0085",
+    "line separator U+2028",
+    "paragraph separator U+2029",
+    "right-to-left override U+202E",
+    "isolate U+2066",
+    "DEL",
+  ];
+  const CHARACTERS = [
+    "\n",
+    "\r",
+    "\u0000",
+    "\u0085",
+    "\u2028",
+    "\u2029",
+    "\u202E",
+    "\u2066",
+    "\u007F",
+  ];
+
+  it.each(CHARACTERS.map((character, index) => [UNSENDABLE[index], character]))(
+    "refuses a %s in the name and in the description",
+    (_, character) => {
+      expect(
+        refusalOf(withRow({ name: `Organizator${character}x` })).detail,
+      ).toContain("name");
+      expect(
+        refusalOf(withRow({ description: `Unu${character}doi` })).detail,
+      ).toContain("description");
+    },
+  );
+
+  it("refuses every bidi embedding, override and isolate, and no character just outside the ranges", () => {
+    for (const code of [
+      0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069,
+    ]) {
+      expect(
+        parsePriceBook(withRow({ name: `a${String.fromCharCode(code)}b` })).ok,
+      ).toBe(false);
+    }
+    for (const code of [0x2030, 0x202f, 0x2065, 0x206a]) {
+      expect(
+        parsePriceBook(withRow({ name: `a${String.fromCharCode(code)}b` })).ok,
+      ).toBe(true);
+    }
+  });
+
+  it("refuses a name with nothing visible in it: whitespace and zero-width characters only", () => {
+    for (const name of [
+      "\u200B",
+      "\u200C\u200D",
+      "\uFEFF",
+      " \u200B \uFEFF\u00A0",
+    ]) {
+      expect(refusalOf(withRow({ name })).detail).toContain("blank");
+    }
+    expect(parsePriceBook(withRow({ name: "a\u200Bb" })).ok).toBe(true);
+  });
+
+  it("measures the lengths on the NFC form: a decomposed letter is one toward the limit", () => {
+    const decomposed = "s\u0327";
+    const composed = decomposed.normalize("NFC");
+
+    expect(composed).toHaveLength(1);
+    expect(
+      parsePriceBook(withRow({ name: decomposed.repeat(MAX_BOOK_NAME_LENGTH) }))
+        .ok,
+    ).toBe(true);
+    expect(
+      parsePriceBook(
+        withRow({ name: decomposed.repeat(MAX_BOOK_NAME_LENGTH + 1) }),
+      ).ok,
+    ).toBe(false);
+    expect(
+      parsePriceBook(
+        withRow({ description: decomposed.repeat(MAX_DESCRIPTION_LENGTH) }),
+      ).ok,
+    ).toBe(true);
   });
 });

@@ -498,6 +498,7 @@ function refuseRepeatedId(book: PriceBook): PricingFailure | undefined {
     refuseRepeatedTierId(book) ??
     refuseRowPricedTwice(book) ??
     refuseRepeatedAccessoryId(book) ??
+    refuseLinkToUnpricedRow(book) ??
     refuseLinkToCustomerSuppliedRow(book)
   );
 }
@@ -514,8 +515,22 @@ function refuseRepeatedAccessoryId(
   });
 }
 
-/** Only where the book itself says the row is the customer's: whether the catalogue holds the row is the dashboard's
- *  judgement at publish, since pricing binds to no catalogue. */
+/** A link is to a row the book prices under its own build id: a placement is counted through the row it is priced as, so
+ *  a link to anything else (a row the book does not price, a seeded variant's id) would earn nothing for ever. Whether
+ *  the catalogue holds the row is the dashboard's judgement at publish, since pricing binds to no catalogue. */
+function refuseLinkToUnpricedRow(book: PriceBook): PricingFailure | undefined {
+  const pricedRows = new Set(book.cabinetRules.map((rule) => rule.buildId));
+  const linked = book.linkedAccessories.find(
+    (accessory) => !pricedRows.has(accessory.linkedBuildId),
+  );
+  if (linked === undefined) return undefined;
+  return invalidBook(
+    `Linked accessory "${linked.accessoryId}" is linked to "${linked.linkedBuildId}", a row the book has no cabinet rule for`,
+    { id: linked.accessoryId },
+  );
+}
+
+/** Only where the book itself says the row is the customer's. */
 function refuseLinkToCustomerSuppliedRow(
   book: PriceBook,
 ): PricingFailure | undefined {
