@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import { projectPriceBook } from "@/lib/server/project-price-book";
 import { MEASURED_DEEPENING_ROWS } from "../../support/deepening-rows";
+import { NOTHING_DISABLED } from "../../support/availability";
 
 // Adversarial QA for M10 wave R1's projection: a stored book is jsonb and may carry members its type does not declare;
 // the page is handed the declared book and nothing else. It must keep every declared member of every shape (or a price
@@ -111,6 +112,7 @@ describe("the projection keeps every declared member", () => {
         book: candidate,
         pricingVersion: candidate.version,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         selections: KITCHEN_L_DESIGN.settings,
       });
 

@@ -15,6 +15,7 @@ import {
 
 import { createFakeProbeFactory } from "./fake-body-probe";
 import { MEASURED_DEEPENING_ROWS } from "./deepening-rows";
+import { NOTHING_DISABLED } from "./availability";
 
 const GENERATED_AT = "2026-10-07T09:00:00.000Z";
 
@@ -44,6 +45,7 @@ export function priceAndProject(design: Design): PricedKitchen {
     design,
     pricing: priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog,
       book: SAMPLE_PRICE_BOOK,

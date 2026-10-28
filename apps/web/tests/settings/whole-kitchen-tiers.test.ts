@@ -27,6 +27,7 @@ import {
   type WholeKitchenTierOffer,
 } from "@/price/whole-kitchen-tiers";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 function measure(
   design: Design = KITCHEN_L_DESIGN,
@@ -34,6 +35,7 @@ function measure(
 ): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
     book,
@@ -52,6 +54,7 @@ function totalAt(selections: WholeKitchenSelections): number {
 function pricedAt(selections: WholeKitchenSelections): PricedDesign {
   const result = priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book: SAMPLE_PRICE_BOOK,
@@ -194,6 +197,7 @@ describe("what the offer publishes", () => {
     // costs the customer numbers and never the choice.
     const offer = offerWholeKitchenTiers({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -228,6 +232,7 @@ describe("what the offer publishes", () => {
     expect(() =>
       offerWholeKitchenTiers({
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         design: KITCHEN_L_DESIGN,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: withMaterialDefault("material.no-such-tier"),

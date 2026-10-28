@@ -11,7 +11,11 @@ import {
   measureDeepeningRows,
   snapshotSubmission,
 } from "@lemnaria/configurator-domain";
-import type { Design, SubmissionSnapshot } from "@lemnaria/configurator-domain";
+import type {
+  CatalogueAvailability,
+  Design,
+  SubmissionSnapshot,
+} from "@lemnaria/configurator-domain";
 
 export interface RealSnapshot {
   readonly name: string;
@@ -40,6 +44,9 @@ function copiedGeneratedDesigns(): NamedDesign[] {
   return JSON.parse(readFileSync(COPIED_DESIGNS_FILE, "utf8")) as NamedDesign[];
 }
 
+/** Nothing switched off: a stored snapshot is a record of a price, whatever has been switched off since. */
+const NOTHING_DISABLED: CatalogueAvailability = { revision: "0", disabled: [] };
+
 /** Measured from the domain's public catalogue builder, the way the application measures it (ADR 0177 A-6). */
 const MEASURED_DEEPENING_ROWS = measureDeepeningRows(
   buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM),
@@ -53,6 +60,7 @@ function realSnapshotOf({ name, design }: NamedDesign): RealSnapshot {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) throw new Error(`${name} has no snapshot`);
   return { name, snapshot: result.snapshot };

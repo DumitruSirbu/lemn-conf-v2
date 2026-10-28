@@ -39,6 +39,7 @@ import {
   SAMPLE_PRICE_BOOK_VERSION,
 } from "../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 
 /** A width and frame height a `declared-leaves` row ignores by construction and deliberately not a real one, so a
  *  row that silently took a width-following rule would not resolve against a plausible cabinet. */
@@ -614,6 +615,7 @@ describe("what wave 6S declared, wave 6T prices", () => {
   const priceAt = (hardwareTierId: string | undefined) => {
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

@@ -34,6 +34,7 @@ import type {
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
@@ -60,6 +61,7 @@ function bookWithRules(rules: readonly CabinetPriceRule[]): PriceBook {
 function cabinetLinesOf(book: PriceBook): readonly CabinetPriceLine[] {
   const result = priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book,

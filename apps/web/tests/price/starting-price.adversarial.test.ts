@@ -34,6 +34,7 @@ import {
   roundUpToThousandMdl,
 } from "@/price/starting-price";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { roundedToTenLei } from "../support/ten-lei-amounts";
 
 // The sum-claim pattern and the two owner-ruled sentences it excludes live in `tests/support/ruled-price-copy.ts`:
@@ -54,6 +55,7 @@ const SEEDED = priceDesign({
   book: SAMPLE_PRICE_BOOK,
   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
   deepeningRows: MEASURED_DEEPENING_ROWS,
+  availability: NOTHING_DISABLED,
 });
 
 /** The seeded kitchen's top row: nine placements, sixteen door leaves, every bar hidden by the slot (ADR 0092

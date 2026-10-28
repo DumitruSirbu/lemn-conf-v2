@@ -56,6 +56,7 @@ import {
   VENEER_TIER_ID,
 } from "../support/mdf-kitchen-wearing-chosen-colours";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -119,6 +120,7 @@ function viewFor(options: {
     content: ro,
     pricing: priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -127,6 +129,7 @@ function viewFor(options: {
     }),
     offer: offerWholeKitchenTiers({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

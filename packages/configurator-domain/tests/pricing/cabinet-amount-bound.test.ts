@@ -25,6 +25,7 @@ import {
 } from "../../src/pricing/price-bounds.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import {
   anchoredRules,
   percentageBookOf,
@@ -153,6 +154,7 @@ describe("a cabinet above the bound is refused, one at it is priced", () => {
       pricingVersion: book.version,
       selections: { materialTierId: UPGRADE_TIER_ID },
       deepeningRows: new Set(["base-3drawer"]),
+      availability: NOTHING_DISABLED,
     });
   };
 

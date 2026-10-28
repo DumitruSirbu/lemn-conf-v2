@@ -38,6 +38,7 @@ import {
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -100,6 +101,7 @@ function priceDoorTerm(
     book,
     pricingVersion: book.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) {
     return {
@@ -137,6 +139,7 @@ function doorTermLeavesOf(
     book,
     pricingVersion: book.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);
@@ -435,6 +438,7 @@ describe("a body whose fronts cannot be read is refused, never priced, on every 
       book,
       pricingVersion: book.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
   }
 

@@ -26,6 +26,7 @@ import {
   type Handle,
 } from "../../src/index.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const MODULE_LINE_MM = 2_200;
 const FLOORS_MM = [0, MODULE_LINE_MM - 1, MODULE_LINE_MM, MODULE_LINE_MM + 1];
@@ -108,6 +109,7 @@ describe("the projection stays total over a body whose fronts cannot be read", (
                   book: SAMPLE_PRICE_BOOK,
                   pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
                   deepeningRows: MEASURED_DEEPENING_ROWS,
+                  availability: NOTHING_DISABLED,
                 });
                 if (
                   !result.ok &&
@@ -149,6 +151,7 @@ describe("the projection stays total over a body whose fronts cannot be read", (
         book: SAMPLE_PRICE_BOOK,
         pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       });
       return result.ok ? "ok" : result.failure.code;
     };
@@ -304,6 +307,7 @@ describe("a top-row body that takes no handle and whose fronts cannot be read", 
           book: SAMPLE_PRICE_BOOK,
           pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
           deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
         });
         return result.ok ? "ok" : result.failure.code;
       };

@@ -41,6 +41,7 @@ import { createConfiguratorStore } from "@/store/configurator-store";
 import { listedDepthLineOf } from "../support/listed-depth-line";
 import { bookPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { ro } from "../support/romanian-content";
 import { ARMS } from "../support/swept-kitchens";
@@ -56,6 +57,7 @@ function priceAt(design: Design, deepCabinetPercent: number): PricingResult {
   const book = bookPublishingDeepCabinetPercent(deepCabinetPercent);
   return priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: buildKitchenLBodyCatalog(
       design.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM,

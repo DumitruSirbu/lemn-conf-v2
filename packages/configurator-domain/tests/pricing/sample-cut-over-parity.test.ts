@@ -21,6 +21,7 @@ import { priceDesign } from "../../src/pricing/price-design.js";
 import type { CabinetPriceLine } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 /** What a retired linear rule charged: `base + perMm × width`, plus a height and a door term where its shape had one. */
 interface RetiredRule {
@@ -131,6 +132,7 @@ function newAmount(body: DesignPlacement["body"]): number {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);

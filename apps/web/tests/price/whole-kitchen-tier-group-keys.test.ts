@@ -39,12 +39,14 @@ import {
   type WholeKitchenTierOffer,
 } from "@/price/whole-kitchen-tiers";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const BOOK = SAMPLE_PRICE_BOOK;
 
 function measure(book: PriceBook = BOOK): WholeKitchenTierOffer {
   return offerWholeKitchenTiers({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design: KITCHEN_L_DESIGN,
     catalog: KITCHEN_L_BODY_CATALOG,
     book,
@@ -86,6 +88,7 @@ describe("the delta a whole-kitchen tier states, and what a collided book does t
     const materialLineAt = (materialTierId: string): number => {
       const result = priceDesign({
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         design: KITCHEN_L_DESIGN,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: BOOK,
@@ -116,6 +119,7 @@ describe("the delta a whole-kitchen tier states, and what a collided book does t
 
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book,

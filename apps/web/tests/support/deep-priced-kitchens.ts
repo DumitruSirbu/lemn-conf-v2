@@ -18,6 +18,7 @@ import {
 import type { Content } from "@/i18n/content";
 
 import { MEASURED_DEEPENING_ROWS } from "./deepening-rows";
+import { NOTHING_DISABLED } from "./availability";
 import type { PricedKitchen } from "./generated-kitchens";
 import { rawRoundedAmountOf } from "./raw-catalogue-text";
 
@@ -35,6 +36,7 @@ function bookWithDepthPercent(deepCabinetPercent: number) {
 function requestAt(design: Design, deepCabinetPercent: number) {
   return {
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
     book: bookWithDepthPercent(deepCabinetPercent),

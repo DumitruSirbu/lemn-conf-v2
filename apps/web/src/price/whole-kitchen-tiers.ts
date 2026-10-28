@@ -9,6 +9,7 @@
 import {
   priceDesign,
   type BodyCatalog,
+  type CatalogueAvailability,
   type Design,
   type PriceBook,
   type TierGroup,
@@ -88,6 +89,9 @@ export interface OfferWholeKitchenTiersRequest {
   readonly selections?: WholeKitchenSelections | undefined;
   /** The priced-as rows that deepen, the one set the caller measured for `priceDesign` (ADR 0177 A-6). */
   readonly deepeningRows: ReadonlySet<string>;
+  /** What is switched off, as `priceDesign` takes it. Every evaluation here is made under it, so a switched-off tier
+   *  (or a switched-off fallback tier) makes each of them refuse `REPLACEMENT_REQUIRED` and every delta absent. */
+  readonly availability: CatalogueAvailability;
 }
 
 /**
@@ -149,6 +153,7 @@ function totalAt(
     pricingVersion: request.pricingVersion,
     selections: { ...request.selections, ...override },
     deepeningRows: request.deepeningRows,
+    availability: request.availability,
   });
   return result.ok ? result.priced.totalMinor : undefined;
 }

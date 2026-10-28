@@ -45,6 +45,7 @@ import {
 } from "../../src/void-engine.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const OCCURRED_AT = "2026-10-01T10:00:00.000Z";
 const SHALLOW_MM = 600;
@@ -401,6 +402,7 @@ function priced(design: Design) {
     book: SAMPLE_PRICE_BOOK,
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     selections: design.settings,
   });
   if (!result.ok) throw new Error("the design did not price");

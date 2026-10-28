@@ -28,6 +28,7 @@ import {
 } from "@/price/price-book-root";
 
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { aHarness, bodyOf } from "../lib/server/contact/submit-contact-harness";
 
 function kitchenAt(depthMm: number): Design {
@@ -58,6 +59,7 @@ function priceIndependently(
     pricingVersion: root.book.version,
     selections,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) throw new Error(result.failure.code);
   return result.priced;

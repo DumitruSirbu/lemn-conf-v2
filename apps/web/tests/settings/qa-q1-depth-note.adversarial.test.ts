@@ -40,6 +40,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { CATALOGUES, contentFor, requireLeafAt } from "../support/catalogues";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { filesUnder } from "../support/files-under";
 import { authoredLiterals } from "../support/icu-authored-literals";
 import {
@@ -85,6 +86,7 @@ function settingsViewFor(
   const book = bookPublishingDeepCabinetPercent(deepCabinetPercent);
   const pricingInput = {
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog,
     book,

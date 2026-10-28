@@ -5,6 +5,7 @@ import {
   cabinetDepthMmOf,
   isDesignId,
   snapshotSubmission,
+  type CatalogueAvailability,
   type ContactSubmissionRequest,
   type DesignReference,
   type PriceBook,
@@ -19,13 +20,15 @@ import { shippedDeepeningRows } from "@/price/deepening-rows";
 
 /**
  * What the design is read and priced from: the owned load, handed in, and the one book taken for the request, with the
- * id of the version it was read as (`active-price-book.ts`). The id is what the request's digest covers (ADR 0157
- * decision 2). A request that names no design prices nothing and is handed no book; a request that names one and is handed
- * none is `no-price-book`.
+ * id of the version it was read as and the availability read beside it (`active-price-book.ts`). The id is what the
+ * request's digest covers (ADR 0157 decision 2). The availability is current when the book was read, so a kitchen
+ * naming an item switched off since is refused at send (A-17). A request that names no design prices nothing and is
+ * handed neither; a request that names one and is handed no book is `no-price-book`.
  */
 export interface SubmissionSources {
   readonly book: PriceBook | undefined;
   readonly bookVersionId: string | undefined;
+  readonly availability: CatalogueAvailability | undefined;
   readonly loadOwned: (designId: string) => Promise<OwnedDesignLoad>;
 }
 
@@ -45,14 +48,16 @@ export type PreparedSubmission =
 export async function prepareSubmission(
   request: ContactSubmissionRequest,
   payloadDigest: string,
-  { book, loadOwned }: SubmissionSources,
+  { book, availability, loadOwned }: SubmissionSources,
 ): Promise<PreparedSubmission> {
   const { clientRequestId, contact, locale, target } = request;
   const stored = { clientRequestId, payloadDigest, contact, locale, target };
   if (target.kind === "intent") {
     return ready({ ...stored, snapshot: undefined });
   }
-  if (book === undefined) throw new ContactFailure("no-price-book");
+  if (book === undefined || availability === undefined) {
+    throw new ContactFailure("no-price-book");
+  }
   const owned = await ownedDesignAt(target.design, loadOwned);
   if (owned === undefined) return refusedAsNotCurrent();
   const result = snapshotSubmission({
@@ -61,6 +66,7 @@ export async function prepareSubmission(
     book,
     pricingVersion: book.version,
     deepeningRows: shippedDeepeningRows(),
+    availability,
   });
   if (!result.ok) return refusalOf(result.refusal);
   requireTheBooksVersion(result.snapshot.priced.pricingVersion, book);
@@ -95,6 +101,11 @@ function refusalOf(refusal: SubmissionRefusal): PreparedSubmission {
     };
   }
   if (refusal.code === "NO_CABINET") return refusedAsNotCurrent();
+  // A kitchen naming an item switched off since it was last priced can no longer be sent as it is: the customer opens
+  // it again and replaces the item (C4). The contact wire has no cause of its own for this; "not current" is nearest.
+  if (refusal.failure.code === "REPLACEMENT_REQUIRED") {
+    return refusedAsNotCurrent();
+  }
   throw new ContactFailure(
     refusal.failure.code === "PRICING_VERSION_MISMATCH"
       ? "price-book-mismatch"

@@ -36,6 +36,7 @@ import {
   UPGRADE_TIER_ID,
 } from "./percentage-book-support.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const NUM_RUNS = 120;
 const SHALLOW_MM = DEFAULT_CABINET_DEPTH_MM;
@@ -117,6 +118,7 @@ function pricedOf(
     pricingVersion: book.version,
     selections: chosen,
     deepeningRows: scenario.deepeningIds,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);
@@ -250,6 +252,7 @@ describe("the three parts are differences of nested stages (P2-b)", () => {
             pricingVersion: book.version,
             selections: { materialTierId: UPGRADE_TIER_ID },
             deepeningRows: new Set(SUPPLIED_BUILD_IDS),
+            availability: NOTHING_DISABLED,
           });
           if (!result.ok) throw new Error(result.failure.detail);
 
@@ -418,6 +421,7 @@ describe("which cabinets deepen is measured by the caller and required (P3 item 
         book: SAMPLE_PRICE_BOOK,
         pricingVersion: SAMPLE_PRICE_BOOK.version,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       });
       if (!result.ok) throw new Error(result.failure.code);
       return result.priced;

@@ -42,6 +42,7 @@ import {
   resolveOpeningChoice,
 } from "@/settings/global-settings-model";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** A number the wall-depth map does not declare, and the one a legacy or hand-edited document would
  *  most plausibly carry. */
@@ -82,6 +83,7 @@ function depthOptionsOf(design: Design) {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   };
   const offer = offerWholeKitchenTiers(priced);
   const view = describeGlobalSettings({
@@ -144,6 +146,7 @@ describe("the sheet's depth group, over every document the schema accepts", () =
           book: SAMPLE_PRICE_BOOK,
           pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
           deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
           selections: noDepth.settings,
         }),
       ).cabinetDepthMm,

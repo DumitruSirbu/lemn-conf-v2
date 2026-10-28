@@ -264,6 +264,27 @@ describe("every way the owned load fails is one answer, and none counts a new re
     },
   );
 
+  it("answers a kitchen that names an item switched off since the book was read with CONTACT_DESIGN_NOT_CURRENT (A-17)", async () => {
+    const switchedOff = {
+      revision: "7",
+      disabled: [
+        { kind: "material", tierId: SAMPLE_PRICE_BOOK.material.defaultTierId },
+      ],
+    } as const;
+    const harness = aHarness({ availability: switchedOff });
+
+    const answer = await harness.submit(bodyOf());
+
+    expect(answer.status).toBe(409);
+    expect((await jsonOf(answer)).code).toBe("CONTACT_DESIGN_NOT_CURRENT");
+  });
+
+  it("sends the same kitchen when nothing is switched off", async () => {
+    const answer = await aHarness().submit(bodyOf());
+
+    expect(answer.status).toBe(200);
+  });
+
   it("is equal in body and headers for a stale revision, a design not the caller's and a refused row", async () => {
     const stale = aHarness({
       loadOwned: () =>

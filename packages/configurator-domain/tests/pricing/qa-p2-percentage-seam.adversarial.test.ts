@@ -45,6 +45,7 @@ import type {
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import {
   anchoredRules,
   percentageBookOf,
@@ -175,6 +176,7 @@ function requestOf(
     pricingVersion: book.version,
     selections: { materialTierId: options.materialTierId },
     deepeningRows: options.deepeningRows ?? NOTHING_DEEPENS,
+    availability: NOTHING_DISABLED,
   };
 }
 

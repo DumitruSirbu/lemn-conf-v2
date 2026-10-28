@@ -46,6 +46,7 @@ import { findOverflowingPlacementIds } from "../../src/queries/overflowing-place
 import { validateDesignForCatalog } from "../../src/validate-design.js";
 import type { BodyCatalog, BodyDefinition } from "../../src/void-engine.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import { expectedLineAmountMinor } from "../support/line-amounts.js";
 
 import { anchoredAt } from "./percentage-book-support.js";
@@ -86,6 +87,7 @@ function request(
     book: BOOK,
     pricingVersion: BOOK.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     ...overrides,
   };
 }

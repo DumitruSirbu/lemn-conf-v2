@@ -40,6 +40,7 @@ import { describeEditability } from "@/store/editability";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { underSamplePriceBook } from "../support/sample-price-root";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -136,6 +137,7 @@ function openSheetMarkupFor(access: {
     content: content,
     pricing: priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -144,6 +146,7 @@ function openSheetMarkupFor(access: {
     }),
     offer: offerWholeKitchenTiers({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,

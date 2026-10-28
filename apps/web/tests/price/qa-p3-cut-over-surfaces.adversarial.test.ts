@@ -48,6 +48,7 @@ import {
 } from "../lib/server/server-source-support";
 import roMessages from "../../src/messages/ro.json";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { ro } from "../support/romanian-content";
 import {
   VARIED_ARMS,
@@ -197,6 +198,7 @@ describe("every surface names one total for one kitchen, at both depths", () => 
           book: root.book,
           pricingVersion: root.book.version,
           deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
         });
 
         expect(bar.figure.amountText, label).toBe(figure.amountText);

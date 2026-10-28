@@ -31,6 +31,7 @@ import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
 import { ro } from "../../../support/romanian-content";
+import { NOTHING_DISABLED } from "../../../support/availability";
 
 export const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
@@ -116,6 +117,8 @@ export interface HarnessOptions {
   /** The id of the version the book was read as; by default the book's own `version`, so a test that changes the book
    *  changes what is digested. */
   readonly bookVersionId?: SubmitContactPorts["bookVersionId"];
+  /** What is switched off when the book was read; by default nothing. */
+  readonly availability?: SubmitContactPorts["availability"];
   readonly readPublicOrigin?: SubmitContactPorts["readPublicOrigin"];
   readonly views?: (
     inner: FakeSentKitchenViewRepository,
@@ -157,6 +160,7 @@ export function aHarness(options: HarnessOptions = {}): Harness {
     book: options.book ?? SAMPLE_PRICE_BOOK,
     bookVersionId:
       options.bookVersionId ?? (options.book ?? SAMPLE_PRICE_BOOK).version,
+    availability: options.availability ?? NOTHING_DISABLED,
     digester: options.digester ?? readDigester(environment),
     noticeContent: options.noticeContent ?? ro,
     servedLocales: ["ro", "ru"],

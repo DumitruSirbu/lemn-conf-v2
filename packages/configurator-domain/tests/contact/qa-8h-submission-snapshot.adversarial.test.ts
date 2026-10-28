@@ -33,6 +33,7 @@ import {
 import { boundedFailureReason } from "../../src/failure-text.js";
 
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import {
   expectedLineAmountMinor,
   roundedToTenLei,
@@ -79,6 +80,7 @@ function requestFor(
     design,
     catalog: catalogOf(design),
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     ...terms,
   };
 }

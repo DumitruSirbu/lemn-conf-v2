@@ -33,6 +33,7 @@ import roMessages from "../../src/messages/ro.json";
 import { authoredLiteralsIn } from "../support/icu-authored-literals";
 import { SUM_CLAIM_PATTERN } from "../support/ruled-price-copy";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import {
   materialLineBounds,
   roundedToTenLei,
@@ -118,6 +119,7 @@ function measure(design: Design): WholeKitchenTierOffer {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 
@@ -193,6 +195,7 @@ function materialLineFor(tierId: string, design: Design) {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: { ...design.settings, materialTierId: tierId },
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) throw new Error("the design was expected to price");
   const line = result.priced.lines.find((one) => one.kind === "material");
@@ -216,6 +219,7 @@ function pricingOf(design: Design): PricingResult {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 
@@ -227,6 +231,7 @@ function offerOf(design: Design): WholeKitchenTierOffer {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 

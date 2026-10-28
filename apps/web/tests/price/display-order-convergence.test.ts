@@ -52,6 +52,7 @@ import { ro } from "../support/romanian-content";
 
 import { createHeadlessCanvas } from "../support/headless-canvas";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** **The one display-order comparator**, named here rather than reimplemented, which is the whole
  *  point of the criterion. Everything below is an assertion about *this function*. */
@@ -103,6 +104,7 @@ function breakdownView(): AvailableBreakdown {
     content: ro,
     pricing: priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
