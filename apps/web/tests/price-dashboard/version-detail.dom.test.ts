@@ -3,7 +3,10 @@
 // One published version, read-only (frames D8B, D8C): what it changed against the version before it, and the restore that puts
 // its prices into "De publicat". A restore adds to the pending list and never publishes, so the active version and the
 // clients' prices are where they were.
-import type { DraftChange } from "@lemnaria/configurator-domain";
+import {
+  SAMPLE_PRICE_BOOK,
+  type DraftChange,
+} from "@lemnaria/configurator-domain";
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,6 +40,7 @@ import {
 } from "./staff-frame-harness";
 
 const COPY = roMessages.priceDashboard;
+const SAMPLE_DEPTH_PERCENT = SAMPLE_PRICE_BOOK.depthRule.deepCabinetPercent;
 const MENU: Parameters<typeof contextOf>[1] = [
   "kitchens",
   "cabinets",
@@ -212,7 +216,9 @@ describe("an archived version (D8B)", () => {
     const [before, after] = allIn(depth ?? container, '[class*="cellValue"]');
     expect([before?.textContent, after?.textContent]).toEqual([
       roMessages.staffKitchens.noValue,
-      roCopy("priceDashboard.common.percentPlus", { percent: "15" }),
+      roCopy("priceDashboard.common.percentPlus", {
+        percent: String(SAMPLE_DEPTH_PERCENT),
+      }),
     ]);
   });
 

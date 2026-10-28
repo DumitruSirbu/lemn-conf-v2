@@ -6,6 +6,7 @@ import {
   applyChanges,
   isSameAddress,
   readEditableFields,
+  SAMPLE_PRICE_BOOK,
   type AppliedAddress,
   type DraftBulk,
   type DraftChange,
@@ -31,6 +32,7 @@ import {
 
 const ACTIVE: PriceBook = SAMPLE_PUBLISH_PAGE.state.active.book;
 const NAMES = SAMPLE_PUBLISH_PAGE.cabinetNames;
+const SAMPLE_DEPTH_PERCENT = SAMPLE_PRICE_BOOK.depthRule.deepCabinetPercent;
 
 function anchorOf(buildId: string): AppliedAddress {
   return {
@@ -226,7 +228,7 @@ describe("a value the book does not hold yet", () => {
     const row = depthRuleRow();
 
     expect(row.before).toBe(ABSENT_VALUE);
-    expect(row.after).toBe(15);
+    expect(row.after).toBe(SAMPLE_DEPTH_PERCENT);
     expect(row.difference).toEqual({ kind: "none" });
     expect(row.subject).toEqual({ kind: "depth-rule" });
   });
@@ -240,8 +242,11 @@ describe("a value the book does not hold yet", () => {
     });
 
     const row = fieldRow(rowsOf(sections)[0]);
-    expect([row.before, row.after]).toEqual([15, 18]);
-    expect(row.difference).toEqual({ kind: "points", delta: 3 });
+    expect([row.before, row.after]).toEqual([SAMPLE_DEPTH_PERCENT, 18]);
+    expect(row.difference).toEqual({
+      kind: "points",
+      delta: 18 - SAMPLE_DEPTH_PERCENT,
+    });
   });
 });
 

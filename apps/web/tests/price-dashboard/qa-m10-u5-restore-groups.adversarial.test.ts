@@ -26,10 +26,12 @@ const AMOUNT_FIELDS = [
   "perStepWiderMinor",
   "perStepNarrowerMinor",
 ] as const;
+// Only an anchored row states the three amounts a bulk action scales. The sample keeps its other tall rows fixed-size
+// (A-7), so the first group is the one anchored tall row with two anchored base rows; its label is the test's own.
 const TALL_RULES = [
   "cabinet.tall-pantry",
-  "cabinet.tall-oven-tower",
-  "cabinet.tall-fridge-housing",
+  "cabinet.base-3drawer",
+  "cabinet.base-panbank",
 ] as const;
 const WALL_RULES = ["cabinet.wall-cabinet", "cabinet.wall-lift"] as const;
 const TALL_GROUP = "bulk-tall";

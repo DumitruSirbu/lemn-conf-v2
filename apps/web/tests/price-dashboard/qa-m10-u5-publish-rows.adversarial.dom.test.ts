@@ -111,7 +111,9 @@ function suppliedRulesWith(prefix: string): string[] {
   return ACTIVE.cabinetRules
     .filter(
       (rule) =>
-        rule.buildId.startsWith(prefix) && rule.suppliedBy !== "customer",
+        rule.buildId.startsWith(prefix) &&
+        rule.suppliedBy !== "customer" &&
+        rule.formula.shape.startsWith("anchored"),
     )
     .map((rule) => rule.ruleId);
 }
