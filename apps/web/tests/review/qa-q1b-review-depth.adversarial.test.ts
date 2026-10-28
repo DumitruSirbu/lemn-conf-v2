@@ -9,6 +9,8 @@ import {
   MAX_DEEP_CABINET_PERCENT,
   type PricedDesign,
 } from "@lemnaria/configurator-domain";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { Content } from "@/i18n/content";
@@ -31,7 +33,12 @@ import {
   sumOfLines,
 } from "../support/deep-priced-kitchens";
 import type { PricedKitchen } from "../support/generated-kitchens";
-import { codeOf, importClosureOf } from "../support/source-import-closure";
+import { filesUnder } from "../support/files-under";
+import {
+  codeOf,
+  codeWithoutComments,
+  importClosureOf,
+} from "../support/source-import-closure";
 import { TIER_PAIRS, VARIED_ARMS, withTiers } from "../support/varied-kitchens";
 
 const GENERATED_AT = "2026-10-07T12:00:00.000Z";
@@ -242,5 +249,30 @@ describe("the stored percent wins over any book, on the review model", () => {
 
     expect(closure).toContain("review/review-model.ts");
     expect(closure.filter((file) => naming.test(codeOf(file)))).toEqual([]);
+  });
+});
+
+describe("the review's rows are listed through listWholeKitchenRows, never read off the field", () => {
+  // `AvailableReview.wholeKitchenRows` leaves the depth row out on purpose (the breakdown's rows are not touched), so a
+  // surface that reads the field instead of the function would list rows that add to less than the total it shows.
+  const SOURCE_ROOT = join(import.meta.dirname, "../../src");
+
+  it("has no module outside the review model that reads a review's own wholeKitchenRows", () => {
+    const readers = filesUnder(SOURCE_ROOT)
+      .filter((file) => !file.endsWith(join("review", "review-model.ts")))
+      .filter((file) =>
+        /\breview\.wholeKitchenRows\b/.test(
+          codeWithoutComments(file, readFileSync(file, "utf8")),
+        ),
+      );
+
+    expect(readers).toEqual([]);
+  });
+
+  it("sees the read it forbids: the pattern matches the direct read and not the function call", () => {
+    const pattern = /\breview\.wholeKitchenRows\b/;
+
+    expect(pattern.test("rows={review.wholeKitchenRows}")).toBe(true);
+    expect(pattern.test("listWholeKitchenRows(review)")).toBe(false);
   });
 });

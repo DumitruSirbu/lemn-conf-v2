@@ -147,16 +147,19 @@ describe.each(CATALOGUES)(
         expect(rows.map(amountOf)).toEqual(
           expected.map((line) => printedAmountOf(line, content)),
         );
-        expect(
-          rows.filter((row) =>
-            nameOf(row).includes(
-              content.priceBreakdown.depthLine(
-                depthLineOf(priced).depthMm,
-                percent,
-              ),
-            ),
+        const names = rows.map(nameOf);
+        const depthAt = names.indexOf(
+          content.priceBreakdown.depthLine(
+            depthLineOf(priced).depthMm,
+            percent,
           ),
-        ).toHaveLength(1);
+        );
+        const materialAt = expected.findIndex(
+          (line) => line.lineId === MATERIAL_KEY,
+        );
+
+        expect(depthAt).toBe(materialAt + 1);
+        expect(names.filter((name) => name === names[depthAt])).toHaveLength(1);
       },
     );
 
