@@ -1,3 +1,4 @@
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   countCabinetsWearingAChosenFinish,
@@ -234,6 +235,7 @@ function viewOf(
   overrides: Partial<DescribeGlobalSettingsInput> = {},
 ): GlobalSettingsView {
   const view = describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: pricingOf(design),
     offer: offerOf(design),

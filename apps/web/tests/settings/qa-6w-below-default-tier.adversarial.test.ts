@@ -1,3 +1,4 @@
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   buildKitchenLBodyCatalog,
@@ -147,6 +148,7 @@ function offeredDeltaFor(
 
 function viewOf(design: Design, book: PriceBook = BOOK): GlobalSettingsView {
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: pricingOf(design, book),
     offer: offerOf(design, book),
@@ -219,6 +221,7 @@ describe("the optional delta never reaches a screen as a word", () => {
       const pricing = pricingOf(design);
       const bar = describePriceBar({ pricing, content: ro });
       const breakdown = describePriceBreakdown({
+        deepCabinetPercent: undefined,
         content: ro,
         pricing,
         groups: projectDesignForDisplay(design, CATALOG),
@@ -671,6 +674,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
    *  pricing below the default keeps it. */
   it("distinguishes one silent tier from a sheet that could not be priced at all", () => {
     const unpriceable = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: ro,
       pricing: priceDesign({
         design: DRAWERS_ONLY,

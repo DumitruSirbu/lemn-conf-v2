@@ -242,6 +242,7 @@ describe("every price surface, not only the bar, reads the same digits in both l
     // *inclus*, which is a translated word and **should** differ — the figures beside it must not.
     const amountsPerLocale = CATALOGUES.map(([locale, messages]) => {
       const view = describePriceBreakdown({
+        deepCabinetPercent: undefined,
         content: contentFor(locale, messages),
         pricing: { ok: true, priced: SEEDED },
         groups: SEEDED_GROUPS,

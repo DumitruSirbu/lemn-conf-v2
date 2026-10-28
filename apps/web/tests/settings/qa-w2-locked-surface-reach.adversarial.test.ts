@@ -19,6 +19,7 @@
 //      production call site leaves the whole 1710-test web suite green, because no test can open the
 //      sheet — the environment is `node`, there is no DOM, and `useState(false)` never advances. The
 //      guard here is the one that can be written without a browser.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -81,6 +82,7 @@ function confirmingView(): GlobalSettingsView {
     deepeningRows: MEASURED_DEEPENING_ROWS,
   };
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: content,
     pricing: priceDesign(priced),
     offer: offerWholeKitchenTiers(priced),

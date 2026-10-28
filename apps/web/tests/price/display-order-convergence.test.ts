@@ -100,6 +100,7 @@ function labelOf(entry: DisplayEntry): string {
 
 function breakdownView(): AvailableBreakdown {
   const view = describePriceBreakdown({
+    deepCabinetPercent: undefined,
     content: ro,
     pricing: priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,

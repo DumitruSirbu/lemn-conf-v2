@@ -14,6 +14,7 @@
 //
 // Russian *wording* is never asserted here. Gate O2 owns that. What is asserted is that the surface
 // reaches the Russian leaf at all, and that the two brand rows reach neither locale's catalogue.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -121,6 +122,7 @@ const SHIPPED_OFFER: WholeKitchenTierOffer = offerWholeKitchenTiers({
 
 function settingsViewIn(content: Content): GlobalSettingsView {
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content,
     pricing: SHIPPED_PRICING,
     offer: SHIPPED_OFFER,
@@ -133,6 +135,7 @@ function settingsViewIn(content: Content): GlobalSettingsView {
 
 function breakdownRowLabelsIn(content: Content): readonly string[] {
   const view = describePriceBreakdown({
+    deepCabinetPercent: undefined,
     content,
     pricing: SHIPPED_PRICING,
     groups: SHIPPED_GROUPS,

@@ -15,6 +15,7 @@
 // is **both** halves of that — the recovery, and the invariant it must not buy the recovery with:
 // *cancel writes nothing, and apply writes only what changed*. Seeding the book's defaults into a
 // document that had deliberately chosen nothing would close the defect and open a worse one.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
@@ -80,6 +81,7 @@ function offerOf(design: Design): WholeKitchenTierOffer {
 function displayedTierIn(design: Design, key: WholeKitchenGroupKey): string {
   const opening = resolveOpeningChoice(design.settings ?? {}, offerOf(design));
   const view = describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: pricingOf(design),
     offer: offerOf(design),

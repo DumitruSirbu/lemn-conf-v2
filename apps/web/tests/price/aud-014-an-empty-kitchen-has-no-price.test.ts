@@ -70,6 +70,7 @@ function barFor(design: Design) {
 
 function breakdownFor(design: Design) {
   return describePriceBreakdown({
+    deepCabinetPercent: undefined,
     content,
     pricing: priceOf(design),
     groups: projectDesignForDisplay(design, catalog),

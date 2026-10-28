@@ -35,6 +35,11 @@ import {
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection } from "@/panel/panel-model";
 import {
+  NO_PRICE_BOOK_DETAIL,
+  UnreadablePriceBookError,
+} from "@/price/price-book-root";
+import {
+  useDeepCabinetPercent,
   usePricedDesign,
   useWholeKitchenTierOffer,
 } from "@/price/use-priced-design";
@@ -80,6 +85,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   const content = useContent();
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
+  const deepCabinetPercent = requirePublished(useDeepCabinetPercent());
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const applyWholeKitchenSettings = useConfiguratorStore(
@@ -131,6 +137,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
     content,
     pricing,
     offer,
+    deepCabinetPercent,
     groups,
     applied,
     pending,
@@ -683,7 +690,7 @@ function DepthGroupSection({
           </span>
         </label>
       ))}
-      {/* Explains why no amount is shown, so the absence does not read as a missing line. */}
+      {/* What choosing the deep depth adds, worded from the published rule. */}
       <p
         className={styles.groupAnchor}
         data-testid="global-settings-depth-note"
@@ -769,4 +776,12 @@ function TierGroupSection({
       ))}
     </section>
   );
+}
+
+/** The sheet cannot open without a book (the tier offer refuses first), so a missing percentage is raised, not answered
+ *  with a 0 % that would say the depth is free. */
+function requirePublished(deepCabinetPercent: number | undefined): number {
+  if (deepCabinetPercent === undefined)
+    throw new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL);
+  return deepCabinetPercent;
 }

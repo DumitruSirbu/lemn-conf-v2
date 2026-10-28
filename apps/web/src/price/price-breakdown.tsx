@@ -13,6 +13,7 @@
 // by contract. No live region: `aria-live` would re-read the static list on every width step.
 import { projectDesignForDisplay } from "@lemnaria/configurator-domain";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -28,11 +29,12 @@ import { useContent } from "@/i18n/use-content";
 import {
   describePriceBreakdown,
   type AvailableBreakdown,
+  type BreakdownDepthLine,
   type BreakdownRow,
 } from "./price-breakdown-model";
 import styles from "./price-breakdown.module.css";
 import { useKeepSurfaceInsideViewport } from "./use-keep-surface-inside-viewport";
-import { usePricedDesign } from "./use-priced-design";
+import { useDeepCabinetPercent, usePricedDesign } from "./use-priced-design";
 
 /** Frame 2D's note carries a round information mark. Decoration, like §9's banner's `!`. */
 const NOTE_GLYPH = "i";
@@ -49,7 +51,14 @@ export function PriceBreakdown() {
     () => projectDesignForDisplay(design, catalog),
     [design, catalog],
   );
-  const view = describePriceBreakdown({ pricing, groups, content });
+  // No book means a refused pricing, which is the unavailable view: there is then no depth row to word.
+  const deepCabinetPercent = useDeepCabinetPercent();
+  const view = describePriceBreakdown({
+    pricing,
+    groups,
+    content,
+    deepCabinetPercent,
+  });
 
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -176,14 +185,26 @@ export function PriceBreakdownSurface({
             ))}
           </section>
         ))}
-        {/* After every placement row; absent when the book produced no inclusions, not an empty box. */}
-        {view.wholeKitchenRows.length === 0 ? null : (
+        {/* After every placement row; absent when the book produced no inclusions, not an empty box. The depth line
+            is one of its rows, printed after the material row it multiplies with. */}
+        {view.wholeKitchenRows.length === 0 &&
+        view.depthLine === undefined ? null : (
           <section
             className={styles.wholeKitchen}
             data-testid="price-breakdown-whole-kitchen"
           >
+            {view.depthLine !== undefined &&
+            view.depthLineFollowsKey === undefined ? (
+              <DepthLineRow line={view.depthLine} />
+            ) : null}
             {view.wholeKitchenRows.map((row) => (
-              <BreakdownLine key={row.key} row={row} kind="whole-kitchen" />
+              <Fragment key={row.key}>
+                <BreakdownLine row={row} kind="whole-kitchen" />
+                {view.depthLine !== undefined &&
+                view.depthLineFollowsKey === row.key ? (
+                  <DepthLineRow line={view.depthLine} />
+                ) : null}
+              </Fragment>
             ))}
           </section>
         )}
@@ -240,6 +261,28 @@ function BreakdownLine({
       </span>
       <span className={styles.rowAmount} data-testid="breakdown-row-amount">
         {row.amountText}
+      </span>
+    </span>
+  );
+}
+
+/** The depth line: a whole-kitchen row with the cabinets it applies to under its label. Its own test ids, so a count
+ *  of `breakdown-row` stays a count of the rows the placements and the tiers print. */
+function DepthLineRow({ line }: { readonly line: BreakdownDepthLine }) {
+  return (
+    <span
+      className={styles.row}
+      data-row="whole-kitchen"
+      data-testid="breakdown-depth-row"
+    >
+      <span className={styles.rowLabel}>
+        <span data-testid="breakdown-depth-label">{line.label}</span>
+        <span className={styles.rowScope} data-testid="breakdown-depth-scope">
+          {line.scope}
+        </span>
+      </span>
+      <span className={styles.rowAmount} data-testid="breakdown-depth-amount">
+        {line.amountText}
       </span>
     </span>
   );

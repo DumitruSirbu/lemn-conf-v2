@@ -405,6 +405,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         ).toBe("priced");
         expect(
           describePriceBreakdown({
+            deepCabinetPercent: undefined,
             content: ro,
             pricing: kitchen.pricing,
             groups: kitchen.groups,

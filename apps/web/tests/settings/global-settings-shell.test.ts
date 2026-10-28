@@ -14,6 +14,7 @@
 // here, and `docs`-level: if a group ever renders zero checked radios, or a footer button ever
 // renders `disabled`, the trap loses an end and the e2e that presses Tab is the only thing left
 // standing between that and focus leaving the dialog.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
   buildKitchenLBodyCatalog,
@@ -342,6 +343,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
 
   function viewOf(design: Design): GlobalSettingsView {
     const view = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: content,
       pricing: pricingOf(design),
       offer: offerOf(design),
@@ -436,6 +438,7 @@ describe("the markup preconditions the focus trap is written against", () => {
       selections: design.settings,
     });
     const view = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content: content,
       pricing,
       offer: offerWholeKitchenTiers({

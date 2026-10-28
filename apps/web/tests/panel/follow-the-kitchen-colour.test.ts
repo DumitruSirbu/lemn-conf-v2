@@ -11,6 +11,7 @@
 //
 // Since the owner's ruling of 2026-09-10 it is also **not a chip in the scrolling colour row** but a
 // fixed full-width row under it; the last two blocks hold that placement.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
@@ -299,6 +300,7 @@ describe("the global settings sheet is the level being followed, so it offers no
       deepeningRows: MEASURED_DEEPENING_ROWS,
     };
     const view = describeGlobalSettings({
+      deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
       content,
       pricing: priceDesign(priced),
       offer: offerWholeKitchenTiers(priced),

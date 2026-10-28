@@ -1,5 +1,7 @@
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   countCabinetsWearingAChosenFinish,
+  DEEP_CABINET_DEPTH_MM,
   KITCHEN_L_BODY_CATALOG,
   priceDesign,
   projectDesignForDisplay,
@@ -132,6 +134,7 @@ function viewFor(options: {
     deepeningRows: MEASURED_DEEPENING_ROWS,
   };
   return describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: content,
     pricing: priceDesign(priceInput),
     offer: offerWholeKitchenTiers(priceInput),
@@ -388,7 +391,10 @@ describe("what the confirm step leaves behind when it replaces the body and foot
       content.globalSettings.cancel,
       content.globalSettings.materialWarning,
       content.globalSettings.depthWarning,
-      content.globalSettings.depthNote,
+      content.globalSettings.depthNotePriced(
+        DEEP_CABINET_DEPTH_MM,
+        SAMPLE_DEEP_CABINET_PERCENT,
+      ),
       content.globalSettings.depthHeading,
       content.globalSettings.groupHeadings.material,
       content.globalSettings.groupHeadings.hardware,

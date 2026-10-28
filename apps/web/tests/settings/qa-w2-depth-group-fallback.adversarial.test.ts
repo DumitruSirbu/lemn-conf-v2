@@ -17,6 +17,7 @@
 // **What would open it** is asserted too: the moment `offeredCabinetDepthsMm` publishes fewer depths
 // than the schema accepts, a valid document can name a depth the sheet does not offer, and the tier
 // group's defect arrives on the depth group with no code change at all.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import {
   cabinetDepthMmOf,
   declaredCabinetDepthsMm,
@@ -84,6 +85,7 @@ function depthOptionsOf(design: Design) {
   };
   const offer = offerWholeKitchenTiers(priced);
   const view = describeGlobalSettings({
+    deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
     content: ro,
     pricing: priceDesign(priced),
     offer,
