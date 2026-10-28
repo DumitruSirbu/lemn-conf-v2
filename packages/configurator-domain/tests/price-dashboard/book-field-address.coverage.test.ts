@@ -33,7 +33,7 @@ const WALL_LIFT = "cabinet.wall-lift";
 const CARGO = "cabinet.base-bottle-cargo";
 const HETTICH = "hardware.hettich";
 const MDF = "material.painted-mdf";
-const DRYING_RACK = "accessory.dish-drying-rack";
+const DRYING_RACK = "dishDryingRack";
 
 const DRAWN_FIELDS: readonly DrawnField[] = [
   // D2: the list. The price at the default width is edited in the table, and the depth rule is a card above it.
@@ -666,14 +666,23 @@ describe("where ItemRef and CatalogueAvailability live (X0-3)", () => {
     );
   }
 
-  it("declares them in pricing/catalogue-availability.ts, which imports nothing but the Handle type", () => {
+  it("declares them in pricing/catalogue-availability.ts, which reads no catalogue, palette or book and holds no amount", () => {
     const file = path.join(SRC, "pricing", "catalogue-availability.ts");
     const source = readFileSync(file, "utf8");
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/\/\/.*$/gm, " ");
 
     expect(source).toMatch(/export type ItemRef =/);
     expect(source).toMatch(/export interface CatalogueAvailability/);
+    // Its header promises it names no catalogue, no palette and no book (ADR 0062 seam 1): the one thing it may import
+    // is the design's own types, so a `materials` or `price-book` import is the first step to a finish with a price.
     expect(importedSpecifiers(source)).toEqual(["../design.js"]);
-    expect(source).not.toMatch(/\b(const|function|class)\b/);
+    // Comparing and ordering items needs 0 (a comparator's tie) and nothing else: no rate, no amount, no multiplier.
+    expect(code.match(/\d+(?:\.\d+)?/g) ?? []).toEqual(["0"]);
+    expect(code).not.toMatch(
+      /Minor\b|percent|\b(rates?|amounts?|coefficients?|multipliers?|surcharges?)\b/i,
+    );
   });
 
   it("has the address module import them from there, and declare neither", () => {

@@ -185,8 +185,16 @@ describe("nothing under pricing/ can even see the declaration", () => {
     if (file === undefined) throw new Error("the availability file is gone");
     const code = codeOf(file);
 
+    // It holds functions now (equality, ordering, what a design names), so the pin is on what a coefficient is made of,
+    // not on the file having no code: an item kind, no number but a comparator's 0, no price vocabulary, and no import
+    // that could hand it a catalogue's entries or a book's amounts.
     expect(code).toMatch(/kind: "finish"/);
-    expect(code).not.toMatch(/\d/);
-    expect(code).not.toMatch(/\b(const|let|var|function|class|enum)\b/);
+    expect(code.match(/\d+(?:\.\d+)?/g) ?? []).toEqual(["0"]);
+    expect(code).not.toMatch(
+      /Minor\b|percent|\b(rates?|amounts?|coefficients?|multipliers?|surcharges?|price|prices|priced)\b/i,
+    );
+    expect(importedSpecifiers(readFileSync(file, "utf8"))).toEqual([
+      "../design.js",
+    ]);
   });
 });
