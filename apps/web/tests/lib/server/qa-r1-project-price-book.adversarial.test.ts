@@ -334,8 +334,9 @@ describe("a book stored before the cut-over carries nothing retired to a page", 
   const RETIRED_MEMBER = "wholeKitchenMinor";
   const RETIRED_VALUE = 987_654;
 
-  /** The retired members as a stored book carried them: a flat amount on every material tier beside its percentage (the
-   *  parser reads a tier's known fields and ignores the rest), and a linear formula on a rule no design needs. */
+  /** The retired members as a stored book carried them: a flat amount on every material tier beside its percentage, and a
+   *  linear formula on a rule no design needs. The parser now refuses the first (P3-Q3), so this reaches the projection
+   *  unparsed: the projection is the second line of defence and drops it on its own. */
   function bookCarryingRetiredMembers(): unknown {
     return {
       ...SAMPLE_PRICE_BOOK,
@@ -362,10 +363,9 @@ describe("a book stored before the cut-over carries nothing retired to a page", 
   }
 
   it("projects a retired amount on a tier away, and a retired formula to its shape alone", () => {
-    const result = parsePriceBook(bookCarryingRetiredMembers());
-    if (!result.ok) throw new Error("the book was expected to parse");
-
-    const projected = projectPriceBook(result.book);
+    const projected = projectPriceBook(
+      bookCarryingRetiredMembers() as PriceBook,
+    );
     const text = JSON.stringify(projected);
 
     expect(text).not.toContain(RETIRED_MEMBER);

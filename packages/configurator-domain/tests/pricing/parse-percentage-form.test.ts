@@ -173,12 +173,15 @@ describe("a book in the retired flat form is refused whole (P3 item 2)", () => {
     expect(refusalDetailOf(flat)).toContain("percentOfCabinets");
   });
 
-  it("prices a tier that states a flat amount beside its percentage by the percentage alone, the flat amount being read by nothing", () => {
+  it("refuses a tier that states a flat amount beside its percentage, since the amount would be dropped from every price (P3-Q3)", () => {
     const book = withUpgradeTier((tier) => {
       tier["wholeKitchenMinor"] = 130_000;
     });
 
-    expect(parsePriceBook(book).ok).toBe(true);
+    const detail = refusalDetailOf(book);
+
+    expect(detail).toContain(UPGRADE_TIER_ID);
+    expect(detail).toContain("wholeKitchenMinor");
   });
 
   it("refuses tiers that disagree: one a percentage, one a flat amount", () => {

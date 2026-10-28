@@ -108,11 +108,6 @@ describe("the generator produces what the properties assume", () => {
     expect(
       new Set(books.map((book) => book.hardware.defaultTierId)).size,
     ).toBeGreaterThan(1);
-    expect(
-      books.some((book) =>
-        book.hardware.tiers.some((tier) => "perLiftMinor" in tier),
-      ),
-    ).toBe(true);
   });
 });
 

@@ -1,8 +1,8 @@
 // A book states its materials as percentages (ADR 0092 Amendment of 2026-10-25, ADR 0177 A-5): every material tier a
 // `percentOfCabinets`, the book a `depthRule`, the default tier at 0 %. It is the only form: a book whose tier states no
 // percentage, or that states no depth rule, is refused here, so a stored book from before the cut-over never reaches the
-// arithmetic. A member of a tier that nothing reads prices nothing and is not this parser's to refuse (the projection
-// drops it, `project-price-book.ts`). Every read goes through `readDeclared`.
+// arithmetic. A member a tier carries beyond its declared ones is refused by `parse-row-members.ts`, which runs after
+// this. Every read goes through `readDeclared`.
 import {
   boundedListOf,
   describeDeclared,

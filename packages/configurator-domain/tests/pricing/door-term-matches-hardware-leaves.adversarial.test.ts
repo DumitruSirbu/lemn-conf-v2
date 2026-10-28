@@ -459,14 +459,14 @@ describe("a body whose fronts cannot be read is refused, never priced, on every 
     },
   );
 
-  it("names the placement and the rule when the anchored door term is where the fronts failed", () => {
+  it("names the placement and the build id when the anchored door term is where the fronts failed", () => {
     const result = resultFor(DOOR_FORMULA, withoutFronts("wall-cabinet"), 700);
 
     expect(result.ok).toBe(false);
     if (!result.ok)
       expect(result.failure).toMatchObject({
         placementId: "x",
-        id: "cabinet.undeclared",
+        id: "wall-cabinet",
       });
   });
 

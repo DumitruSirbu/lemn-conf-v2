@@ -20,7 +20,7 @@ import {
 
 /** The version this sample book is filed under. Matched for equality by the query, so a stable string
  *  and not a date. */
-export const SAMPLE_PRICE_BOOK_VERSION = "sample-2026-09";
+export const SAMPLE_PRICE_BOOK_VERSION = "sample-2026-10";
 
 /**
  * Amounts are in bani (MDL minor units) throughout and exact: a priced line rounds its own amount to 10 lei (1 000

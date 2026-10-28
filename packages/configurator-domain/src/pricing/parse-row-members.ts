@@ -1,0 +1,142 @@
+// A book row states exactly the members its type declares. A tier or an accessory carrying any other key is refused,
+// named by the row: the key would sit in the book unpriced while a dashboard offered it for editing, and a stray flat
+// amount beside a percentage would be silently dropped from every price (M10 P3-Q3). The refusal names the key the book
+// declared and never a retired field, so this module needs to know none. Every read goes through `readDeclared`.
+import {
+  boundedListOf,
+  isRecord,
+  readDeclared,
+  refuseUnreadFields,
+} from "./book-reading.js";
+import {
+  ACCESSORY_IDS,
+  type AccessoryRule,
+  type HardwareTier,
+  type MaterialTier,
+  type TierIdentity,
+} from "./price-book.js";
+import type { PricingFailure } from "./price-lines.js";
+
+/**
+ * A list of the members of one declared type, accepted only when it names every member: a name that is not a member fails
+ * to compile, and so does a member left out. A field added to a row type cannot be refused as stray by a build that
+ * forgot to list it.
+ */
+function membersOf<Declared>() {
+  return <const List extends readonly (keyof Declared & string)[]>(
+    list: List &
+      ([Exclude<keyof Declared, List[number]>] extends [never]
+        ? unknown
+        : never),
+  ): List => list;
+}
+
+const TIER_IDENTITY_MEMBERS = membersOf<TierIdentity>()([
+  "tierId",
+  "ruleId",
+  "name",
+  "description",
+  "nameKey",
+  "descriptionKey",
+]);
+
+const HARDWARE_TIER_MEMBERS: readonly string[] = [
+  ...TIER_IDENTITY_MEMBERS,
+  ...membersOf<Omit<HardwareTier, keyof TierIdentity>>()([
+    "perHingeMinor",
+    "perDrawerMinor",
+    "perPushToOpenMinor",
+  ]),
+];
+
+const MATERIAL_TIER_MEMBERS: readonly string[] = [
+  ...TIER_IDENTITY_MEMBERS,
+  ...membersOf<Omit<MaterialTier, keyof TierIdentity>>()(["percentOfCabinets"]),
+];
+
+const ACCESSORY_MEMBERS: readonly string[] = membersOf<AccessoryRule>()([
+  "ruleId",
+  "name",
+  "description",
+  "nameKey",
+  "descriptionKey",
+  "perUnitMinor",
+]);
+
+interface RowKind {
+  /** The row as a refusal names its shape: "hardware tier". */
+  readonly shape: string;
+  readonly members: readonly string[];
+}
+
+const HARDWARE_TIER: RowKind = {
+  shape: "hardware tier",
+  members: HARDWARE_TIER_MEMBERS,
+};
+const MATERIAL_TIER: RowKind = {
+  shape: "material tier",
+  members: MATERIAL_TIER_MEMBERS,
+};
+const ACCESSORY: RowKind = { shape: "accessory", members: ACCESSORY_MEMBERS };
+
+/** Run once the book's sections are established as readable, and after the percentage form is, so a book still in a
+ *  retired form is refused for the member it lacks before one it carries too many of. `maxTiersPerGroup` is the
+ *  parser's own bound on a group, passed in so the two cannot differ. */
+export function refuseUndeclaredRowMembers(
+  book: Record<string, unknown>,
+  maxTiersPerGroup: number,
+): PricingFailure | undefined {
+  return (
+    refuseUndeclaredTierMembers(
+      readDeclared(book, "hardware"),
+      HARDWARE_TIER,
+      maxTiersPerGroup,
+    ) ??
+    refuseUndeclaredTierMembers(
+      readDeclared(book, "material"),
+      MATERIAL_TIER,
+      maxTiersPerGroup,
+    ) ??
+    refuseUndeclaredAccessoryMembers(readDeclared(book, "accessories"))
+  );
+}
+
+function refuseUndeclaredTierMembers(
+  group: unknown,
+  kind: RowKind,
+  maxTiersPerGroup: number,
+): PricingFailure | undefined {
+  if (!isRecord(group)) return undefined;
+  const tiers = boundedListOf(readDeclared(group, "tiers"), maxTiersPerGroup);
+  for (const tier of tiers ?? []) {
+    if (!isRecord(tier)) continue;
+    const tierId = readDeclared(tier, "tierId");
+    const refused = refuseUnreadFields(tier, kind.members, {
+      shape: kind.shape,
+      named: `${kind.shape} "${textOf(tierId)}"`,
+    });
+    if (refused) return refused;
+  }
+  return undefined;
+}
+
+function refuseUndeclaredAccessoryMembers(
+  accessories: unknown,
+): PricingFailure | undefined {
+  if (!isRecord(accessories)) return undefined;
+  for (const accessoryId of ACCESSORY_IDS) {
+    const row = readDeclared(accessories, accessoryId);
+    if (!isRecord(row)) continue;
+    const refused = refuseUnreadFields(row, ACCESSORY.members, {
+      shape: ACCESSORY.shape,
+      named: `${ACCESSORY.shape} "${accessoryId}"`,
+    });
+    if (refused) return refused;
+  }
+  return undefined;
+}
+
+/** An id as a message renders it; a tier id of any other type was refused earlier, so this only has to be total. */
+function textOf(declared: unknown): string {
+  return typeof declared === "string" ? declared : "?";
+}

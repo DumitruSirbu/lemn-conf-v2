@@ -1218,11 +1218,7 @@ describe("hostile percentages are refused before any price is formed", () => {
     expect(failure.code).toBe("INVALID_PRICE_BOOK");
   });
 
-  it("ignores a retired whole-kitchen amount left on a percentage tier: the price is by the percentage alone (a named gap)", () => {
-    // KNOWN GAP, recorded and not endorsed: the book parser sweeps a formula for a field its shape does not read, but a
-    // tier's own fields are not swept, and `wholeKitchenMinor` cannot be named in source (P3-b). An author who leaves
-    // the retired amount beside a percentage is told nothing and is billed the percentage. This pin flips, loudly, the
-    // day the tier parser refuses an unread field.
+  it("refuses a retired whole-kitchen amount left on a percentage tier, naming the tier (P3-Q3 closed the former gap)", () => {
     const book = percentageBookOf({
       materialPercent: 10,
       deepCabinetPercent: 10,
@@ -1232,20 +1228,24 @@ describe("hostile percentages are refused before any price is formed", () => {
       ...tier,
       wholeKitchenMinor: 5_000,
     })) as unknown as PriceBook["material"]["tiers"];
-    const options = {
-      design,
-      deepeningRows: new Set<string>(),
-      materialTierId: UPGRADE_TIER_ID,
-    };
 
-    const withField = pricedOrThrow(
+    const result = priceDesign(
       requestOf(
         { ...book, material: { ...book.material, tiers: withRetiredAmount } },
-        options,
+        {
+          design,
+          deepeningRows: new Set<string>(),
+          materialTierId: UPGRADE_TIER_ID,
+        },
       ),
     );
 
-    expect(withField).toEqual(pricedOrThrow(requestOf(book, options)));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+    expect(result.failure.detail).toContain(
+      `material tier "${REFERENCE_TIER_ID}"`,
+    );
   });
 });
 

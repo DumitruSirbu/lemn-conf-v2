@@ -281,7 +281,8 @@ const hardwareTierArb = fc.record({
   perHingeMinor: amountArb,
   perDrawerMinor: amountArb,
   perPushToOpenMinor: amountArb,
-  perLiftMinor: fc.option(amountArb, { nil: undefined }),
+  // No `perLiftMinor`: the parser refuses a tier member `HardwareTier` does not declare (M10 P3-Q3), and P5 declares this
+  // one. P5 restores `perLiftMinor: fc.option(amountArb, { nil: undefined })` here.
 });
 
 export interface BookPlan {

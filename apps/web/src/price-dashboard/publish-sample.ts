@@ -6,7 +6,7 @@ import {
   type CabinetPriceRule,
   type DraftBulk,
   type DraftChange,
-  type PercentageMaterialTier,
+  type MaterialTier,
   type PriceBook,
   type TierIdentity,
 } from "@lemnaria/configurator-domain";
@@ -70,7 +70,7 @@ function anchoredRuleOf(
 function percentageTierOf(
   tier: TierIdentity,
   percentOfCabinets: number,
-): PercentageMaterialTier {
+): MaterialTier {
   return {
     tierId: tier.tierId,
     ruleId: tier.ruleId,
