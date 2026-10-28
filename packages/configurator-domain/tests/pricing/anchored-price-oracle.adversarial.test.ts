@@ -34,6 +34,7 @@ import {
 import { priceDesign } from "../../src/pricing/price-design.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const MAX_DIMENSION = MAX_DESIGN_DIMENSION_MM;
 const STEP = BigInt(PRICE_STEP_MM);
@@ -361,6 +362,7 @@ describe("through priceDesign: a line is the oracle's integer, or a coded refusa
       book,
       pricingVersion: book.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
   }
 
@@ -530,6 +532,7 @@ describe("a fixed-size row against a listed-size oracle (A-7)", () => {
       book,
       pricingVersion: book.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
   }
 
@@ -635,6 +638,7 @@ describe("a whole kitchen priced on the anchored shapes: no body the seeded or g
         book: anchoredBook,
         pricingVersion: anchoredBook.version,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       });
 
       expect(
@@ -651,6 +655,7 @@ describe("a whole kitchen priced on the anchored shapes: no body the seeded or g
       book: anchoredBook,
       pricingVersion: anchoredBook.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
 
     expect(result.ok).toBe(true);
@@ -702,6 +707,7 @@ describe("the plan's QA grid through priceDesign (§12): every millimetre of wid
           book,
           pricingVersion: book.version,
           deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
         });
         const expected = oracleAmount(GRID_RULE, bodyOf(widthMm, heightMm, 1));
 

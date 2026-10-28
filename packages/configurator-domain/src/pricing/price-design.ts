@@ -23,13 +23,18 @@ import {
   type DisplayEntry,
 } from "../queries/design-projection.js";
 import { findOverflowingPlacementIds } from "../queries/overflowing-placements.js";
-import { findSinkAccessories } from "../queries/sink-accessories.js";
 import type { BodyCatalog, BodyDefinition } from "../void-engine.js";
 
 import {
   MalformedPriceDimensionError,
   NoPriceForSizeError,
 } from "./anchored-price-formula.js";
+import {
+  isItemDisabled,
+  type CatalogueAvailability,
+  type ItemRef,
+} from "./catalogue-availability.js";
+import { earnedAccessoryQuantities } from "./earned-accessories.js";
 import { parsePriceBook } from "./parse-price-book.js";
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -65,12 +70,14 @@ import type {
   AccessoryPriceLine,
   CabinetPriceLine,
   DepthPriceLine,
+  OrdinaryPricingFailure,
   PriceLine,
   PricingFailure,
-  PricingFailureCode,
   PricingResult,
+  ReplacementRequiredFailure,
   WholeKitchenPriceLine,
 } from "./price-lines.js";
+import { disabledItemsNamedBy } from "./replacements.js";
 
 /** The whole-kitchen choices a design was configured with, passed in by the caller holding the book.
  *  An absent choice is priced at the book's own default tier.
@@ -95,6 +102,11 @@ export interface PriceDesignRequest {
    *  caller because pricing binds to no catalogue. Required: a caller that has not measured it cannot say which
    *  cabinets take the depth percentage (ADR 0177 A-6). */
   readonly deepeningRows: ReadonlySet<string>;
+  /** What is switched off, beside the book and never inside it (A-17): a design naming a switched-off tier, colour or
+   *  handle is refused `REPLACEMENT_REQUIRED`, and a switched-off accessory is not billed. Required, so a caller that
+   *  has not read it cannot price. Only the items the design names can change the result, and its `revision` never
+   *  does: the answer carries no trace of it. */
+  readonly availability: CatalogueAvailability;
 }
 
 /**
@@ -155,14 +167,16 @@ function finishPricing(
 }
 
 /** Every refusal that can be decided before a line exists: the book, then the version, then the
- *  design against the catalogue. */
+ *  design against the catalogue, then the design against availability (before any tier is selected, so a switched-off
+ *  tier the book holds is never read as an unknown one). */
 function refuseUnusableRequest(
   request: PriceDesignRequest,
 ): PricingFailure | undefined {
   return (
     refuseUnusableBook(request.book) ??
     refuseVersionMismatch(request) ??
-    refuseUncatalogedBody(request)
+    refuseUncatalogedBody(request) ??
+    refuseSwitchedOffSelections(request)
   );
 }
 
@@ -199,6 +213,24 @@ function refuseUncatalogedBody(
     );
   }
   return undefined;
+}
+
+/** Every item the design names that availability switches off, in one refusal: the customer replaces them all, so
+ *  naming the first would show the sheet one row at a time. */
+function refuseSwitchedOffSelections(
+  request: PriceDesignRequest,
+): PricingFailure | undefined {
+  const items = disabledItemsNamedBy(
+    {
+      design: request.design,
+      catalog: request.catalog,
+      book: request.book,
+      chosen: request.selections,
+    },
+    request.availability,
+  );
+  if (items.length === 0) return undefined;
+  return failWithReplacements(items);
 }
 
 /** The design's bodies in the one display order (ADR 0063), flattened out of the projection's groups. */
@@ -327,7 +359,7 @@ function isAboutTheFronts(error: unknown): boolean {
 }
 
 /** The refusal a formula's throw becomes: the three causes with a code of their own, else an unusable amount. */
-function failureCodeOf(error: unknown): PricingFailureCode {
+function failureCodeOf(error: unknown): OrdinaryPricingFailure["code"] {
   if (error instanceof NoPriceForSizeError) return "NO_PRICE_FOR_SIZE";
   if (error instanceof UndeclaredFrontPopulationError) {
     return "UNDECLARED_FRONT_POPULATION";
@@ -935,7 +967,8 @@ function attemptExactly<TValue>(
 }
 
 /**
- * The sink extras, after every other line (ADR 0092 decision 11). Two lines at most, often none.
+ * The sink extras, after every other line (ADR 0092 decision 11). Two lines at most, often none, and none for an
+ * accessory availability has switched off.
  *
  * Per sink, never per kitchen: the cover's quantity is the number of sink bodies, the rack's the
  * number of sinks that resolved a host, with no de-duplication when two racks share a wall cabinet.
@@ -946,16 +979,11 @@ function priceAccessories(
   entries: readonly DisplayEntry[],
   request: PriceDesignRequest,
 ): Attempt<readonly AccessoryPriceLine[]> {
-  const sinks = findSinkAccessories(entries, request.catalog);
-  const quantities: Readonly<Record<AccessoryId, number>> = {
-    sinkProtectiveCover: sinks.length,
-    dishDryingRack: sinks.filter(
-      (sink) => sink.rackHostPlacementId !== undefined,
-    ).length,
-  };
+  const quantities = earnedAccessoryQuantities(entries, request.catalog);
 
   const lines: AccessoryPriceLine[] = [];
   for (const accessoryId of ACCESSORY_IDS) {
+    if (isSwitchedOff(request.availability, accessoryId)) continue;
     const line = accessoryLine({
       rule: accessoryRuleOf(request.book, accessoryId),
       accessoryId,
@@ -965,6 +993,15 @@ function priceAccessories(
     if (line.value) lines.push(line.value);
   }
   return { value: lines };
+}
+
+/** A switched-off accessory is removed from the kitchen, not refused: no line, and no question of whether the book
+ *  states its rule (ADR 0062 Amendment 3). Switching it on again restores the line exactly. */
+function isSwitchedOff(
+  availability: CatalogueAvailability,
+  accessoryId: AccessoryId,
+): boolean {
+  return isItemDisabled(availability, { kind: "accessory", accessoryId });
 }
 
 /** One accessory the design earns, priced, or `undefined` where it earns none: an omission, which
@@ -1134,7 +1171,7 @@ function isRefused<TValue>(attempt: Attempt<TValue>): attempt is Refused {
 }
 
 function refusal(
-  code: PricingFailureCode,
+  code: OrdinaryPricingFailure["code"],
   detail: string,
   named?: { readonly placementId?: string; readonly id?: string },
 ): Refused {
@@ -1147,9 +1184,22 @@ function refusal(
  * both reach these strings, and an unbounded, un-scrubbed one amplifies and can forge a log line.
  */
 function failWith(
-  code: PricingFailureCode,
+  code: OrdinaryPricingFailure["code"],
   detail: string,
   named?: { readonly placementId?: string; readonly id?: string },
-): PricingFailure {
+): OrdinaryPricingFailure {
   return { code, detail: boundedFailureReason(detail), ...named };
+}
+
+/** The one refusal that names items, not an id: the full list rides in `items`, and `detail` only summarises it. */
+function failWithReplacements(
+  items: readonly ItemRef[],
+): ReplacementRequiredFailure {
+  return {
+    code: "REPLACEMENT_REQUIRED",
+    detail: boundedFailureReason(
+      `The design names ${String(items.length)} item(s) the catalogue has switched off: ${JSON.stringify(items)}`,
+    ),
+    items,
+  };
 }

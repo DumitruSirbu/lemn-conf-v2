@@ -43,6 +43,7 @@ import {
   type VariedArm,
 } from "../support/varied-kitchens";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const KITCHEN_FLOOR_PER_ARM = 80;
 const OVERFLOWING_FLOOR_PER_ARM = 400;
@@ -72,6 +73,7 @@ function priceUnder(design: Design, terms: PricingTerms): PricedKitchen {
       book: terms.book,
       pricingVersion: terms.pricingVersion,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       selections: design.settings,
     }),
     groups: projectDesignForDisplay(design, catalog),

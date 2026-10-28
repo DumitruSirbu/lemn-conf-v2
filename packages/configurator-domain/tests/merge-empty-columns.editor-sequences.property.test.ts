@@ -68,6 +68,7 @@ import {
   type MergeGuard,
 } from "./support/merge-oracle.js";
 import { MEASURED_DEEPENING_ROWS } from "./support/deepening-rows.js";
+import { NOTHING_DISABLED } from "./support/availability.js";
 
 const OCCURRED_AT = "2026-10-16T12:00:00.000Z";
 const MAX_COMMANDS = 12;
@@ -732,6 +733,7 @@ function expectNoCabinetMoved(result: CommandSuccess, after: World): void {
 function priceOf(design: Design, catalog: BodyCatalog) {
   return priceDesign({
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
     design,
     catalog,
     book: SAMPLE_PRICE_BOOK,

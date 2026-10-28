@@ -30,6 +30,7 @@ import {
   type VariedArm,
 } from "../support/varied-kitchens";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 interface Terms {
   readonly name: string;
@@ -99,6 +100,7 @@ function judge(design: Design, terms: Terms): Judged {
         pricingVersion,
         selections: design.settings,
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
       }),
       groups: projectDesignForDisplay(design, catalog),
     }),
@@ -108,6 +110,7 @@ function judge(design: Design, terms: Terms): Judged {
       book,
       pricingVersion,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     }),
   };
 }

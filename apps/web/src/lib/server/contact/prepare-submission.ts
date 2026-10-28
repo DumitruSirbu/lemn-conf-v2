@@ -6,6 +6,7 @@ import {
   isDesignId,
   snapshotSubmission,
   type ContactSubmissionRequest,
+  type CatalogueAvailability,
   type DesignReference,
   type PriceBook,
   type SubmissionRefusal,
@@ -16,6 +17,18 @@ import { ContactFailure } from "@/lib/server/contact/contact-failure";
 import type { DesignRefusal } from "@/lib/server/contact/contact-responses";
 import type { OwnedDesignLoad } from "@/lib/server/load-owned-design";
 import { shippedDeepeningRows } from "@/price/deepening-rows";
+
+/**
+ * Nothing switched off, because this route has no availability source yet: `SubmissionSources` carries the book and not
+ * the availability read beside it (A-17). A-17 has the contact route price under the *current* availability, so a kitchen
+ * using an item switched off mid-session is refused `REPLACEMENT_REQUIRED` at send. Until the sources carry it, such a
+ * kitchen is priced and sent as if the item were still on offer. The route's owner (R4a or S2) replaces this with the
+ * availability read for the request's book; it is deliberately local and not exported.
+ */
+const AVAILABILITY_NOT_YET_SOURCED: CatalogueAvailability = {
+  revision: "not-sourced",
+  disabled: [],
+};
 
 /**
  * What the design is read and priced from: the owned load, handed in, and the one book taken for the request, with the
@@ -61,6 +74,7 @@ export async function prepareSubmission(
     book,
     pricingVersion: book.version,
     deepeningRows: shippedDeepeningRows(),
+    availability: AVAILABILITY_NOT_YET_SOURCED,
   });
   if (!result.ok) return refusalOf(result.refusal);
   requireTheBooksVersion(result.snapshot.priced.pricingVersion, book);

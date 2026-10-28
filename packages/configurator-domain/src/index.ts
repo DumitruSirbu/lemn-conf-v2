@@ -265,8 +265,26 @@ export {
 // composition root picks it up here and a book from another source is a substitution.
 // `pricing-seams.test.ts` holds the import graph to that.
 export * from "./pricing/sample-price-book.js";
-// What can be switched off, beside the book (A-17). Types only: the dashboard's field address imports it from here.
+// What can be switched off, beside the book (A-17): the item and availability types, their comparison, and the
+// colours and handles a design names. The dashboard's field address imports the types from here.
 export * from "./pricing/catalogue-availability.js";
+// What a design names that availability can switch off, and the accessories a switched-off item takes away (A-17).
+export {
+  disabledItemsNamedBy,
+  itemsNamedBy,
+  type ChosenTiers,
+  type ItemSelectionQuery,
+} from "./pricing/replacements.js";
+export {
+  earnedAccessoryQuantities,
+  removedAccessoriesSince,
+  type EarnedAccessoryQuantities,
+} from "./pricing/earned-accessories.js";
+export {
+  NoReplacementOptionError,
+  replacementsRequired,
+  type ReplacementRequired,
+} from "./queries/replacements-required.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";

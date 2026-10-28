@@ -31,6 +31,7 @@ import { listedDepthLineOf } from "../support/listed-depth-line";
 import { thrownBy } from "../support/thrown-by";
 import { bookPublishingDeepCabinetPercent } from "../support/book-with-deep-cabinet-percent";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { ro as content } from "../support/romanian-content";
 
 function kitchenAt(depthMm: number): Design {
@@ -54,6 +55,7 @@ function breakdownAt(
     pricingVersion: book.version,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   const view = describePriceBreakdown({
     content,

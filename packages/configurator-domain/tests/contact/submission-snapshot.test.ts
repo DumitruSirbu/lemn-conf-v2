@@ -28,6 +28,7 @@ import {
   type Kitchen,
 } from "./support/submission-kitchens.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 function requestFor(kitchen: Kitchen, book: PriceBook = SAMPLE_BOOK) {
   return {
@@ -36,6 +37,7 @@ function requestFor(kitchen: Kitchen, book: PriceBook = SAMPLE_BOOK) {
     book,
     pricingVersion: book.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   };
 }
 
@@ -234,6 +236,7 @@ describe("the snapshot's total, added up by hand", () => {
     book,
     pricingVersion: book.version,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 
   it("is 57 000 minor units", () => {
@@ -337,7 +340,12 @@ describe("the snapshot holds no contact field and no shown figure, by type", () 
 
   it("takes no selections: a design's own settings are the only choice", () => {
     expectTypeOf<keyof SubmissionSnapshotRequest>().toEqualTypeOf<
-      "design" | "catalog" | "book" | "pricingVersion" | "deepeningRows"
+      | "design"
+      | "catalog"
+      | "book"
+      | "pricingVersion"
+      | "deepeningRows"
+      | "availability"
     >();
   });
 

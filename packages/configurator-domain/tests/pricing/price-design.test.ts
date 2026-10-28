@@ -44,6 +44,7 @@ import {
   type BodyDefinition,
 } from "../../src/void-engine.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
@@ -101,13 +102,17 @@ function placedAt(
   };
 }
 
-type PriceRequest = Omit<Parameters<typeof priceDesign>[0], "deepeningRows">;
+type PriceRequest = Omit<
+  Parameters<typeof priceDesign>[0],
+  "deepeningRows" | "availability"
+>;
 
 /** The success branch, or a failure message that names what refused instead of an undefined read. */
 function priceOrFail(request: PriceRequest): PricedDesign {
   const result = priceDesign({
     ...request,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);
@@ -370,6 +375,7 @@ describe("the price steps where the door count does, and nowhere else", () => {
     const undeclared = catalogDeclaringNoHandles("wall-cabinet");
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([placedAt({ id: "x" })]),
       catalog: undeclared,
       book: BOOK,
@@ -712,6 +718,7 @@ describe("a tier that costs nothing is a line, and a missing rule is never a zer
   it("refuses a selection naming a tier the book does not hold", () => {
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([placedAt({ id: "x" })]),
       catalog: CATALOG,
       book: BOOK,
@@ -732,6 +739,7 @@ describe("fail whole", () => {
   it("refuses a design whose body resolves no rule, naming the id", () => {
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([placedAt({ id: "x" }), placedAt({ id: "y" })]),
       catalog: CATALOG,
       book: bookWithout("wall-cabinet"),
@@ -751,6 +759,7 @@ describe("fail whole", () => {
   it("refuses a body the catalogue does not hold", () => {
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([placedAt({ id: "x", body: { buildId: "invented" } })]),
       catalog: CATALOG,
       book: BOOK,
@@ -768,6 +777,7 @@ describe("fail whole", () => {
   it("refuses a book whose version is not the one asked for, with no fallback", () => {
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: BOOK,
@@ -797,6 +807,7 @@ describe("fail whole", () => {
 
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([placedAt({ id: "x" })]),
       catalog: CATALOG,
       book: duplicated,
@@ -825,6 +836,7 @@ describe("fail whole", () => {
 
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([placedAt({ id: "x" })]),
       catalog: CATALOG,
       book: unknownShape,
@@ -871,6 +883,7 @@ describe("a book in the retired linear form is refused (P3 item 2)", () => {
       book: linear,
       pricingVersion: BOOK.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
 
     expect(result.ok).toBe(false);
@@ -894,6 +907,7 @@ describe("a book in the retired linear form is refused (P3 item 2)", () => {
       book: oneRuleRetired,
       pricingVersion: BOOK.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
 
     expect(result.ok).toBe(false);
@@ -1049,6 +1063,7 @@ describe("every line is a whole ten lei, the total is their exact sum, and nothi
 
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: KITCHEN_L_DESIGN,
       catalog: CATALOG,
       book: undeclared as unknown as PriceBook,
@@ -1086,6 +1101,7 @@ describe("the pricing catch names its causes", () => {
   function priceAWallCabinetAt(frameHeightMm: number) {
     return priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([
         placedAt({ id: "flat", body: { heightMm: frameHeightMm } }),
       ]),
@@ -1121,6 +1137,7 @@ describe("the pricing catch names its causes", () => {
 
     const result = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: designOf([placedAt({ id: "flat" })]),
       catalog: catalogWith(
         "wall-cabinet",
@@ -1149,6 +1166,7 @@ describe("the pricing catch names its causes", () => {
       book: BOOK,
       pricingVersion: BOOK.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     };
 
     expect(() => priceDesign(request)).toThrow(thrownByThePort);

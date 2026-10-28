@@ -44,6 +44,7 @@ import {
 } from "@/price/whole-kitchen-tiers";
 
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 import { roundedToTenLei } from "../support/ten-lei-amounts";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
@@ -99,6 +100,7 @@ function offerOf(design: Design) {
     pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
     selections: design.settings,
     deepeningRows: MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
 }
 
@@ -187,6 +189,7 @@ describe("the sheet states an amount exactly where the rates make one an additio
           pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
           selections: { hardwareTierId },
           deepeningRows: MEASURED_DEEPENING_ROWS,
+          availability: NOTHING_DISABLED,
         });
         return result.ok ? result.priced.totalMinor : undefined;
       };

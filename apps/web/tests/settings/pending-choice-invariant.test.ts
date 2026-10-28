@@ -37,6 +37,7 @@ import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const MATERIAL_TIER_IDS = SAMPLE_PRICE_BOOK.material.tiers.map(
   (tier) => tier.tierId,
@@ -47,6 +48,7 @@ const HARDWARE_TIER_IDS = SAMPLE_PRICE_BOOK.hardware.tiers.map(
 
 const OFFER = offerWholeKitchenTiers({
   deepeningRows: MEASURED_DEEPENING_ROWS,
+  availability: NOTHING_DISABLED,
   design: KITCHEN_L_DESIGN,
   catalog: buildKitchenLBodyCatalog(600),
   book: SAMPLE_PRICE_BOOK,

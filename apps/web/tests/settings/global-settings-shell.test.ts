@@ -56,6 +56,7 @@ import { describeEditability } from "@/store/editability";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import { underSamplePriceBook } from "../support/sample-price-root";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 /** `global-settings-seams.test.ts`'s pattern, for its reason: the component under test runs against
  *  a real store's real fields rather than a hand-written state shape. */
@@ -274,6 +275,7 @@ describe("a design the book cannot price", () => {
     expect(
       priceDesign({
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         design: withdrawn,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: SAMPLE_PRICE_BOOK,
@@ -322,6 +324,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
   function pricingOf(design: Design): PricingResult {
     return priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -333,6 +336,7 @@ describe("the overflow flag travels with the total onto this surface too", () =>
   function offerOf(design: Design): WholeKitchenTierOffer {
     return offerWholeKitchenTiers({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -431,6 +435,7 @@ describe("the markup preconditions the focus trap is written against", () => {
       pending === undefined ? KITCHEN_L_DESIGN : designCarrying(pending);
     const pricing = priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
@@ -443,6 +448,7 @@ describe("the markup preconditions the focus trap is written against", () => {
       pricing,
       offer: offerWholeKitchenTiers({
         deepeningRows: MEASURED_DEEPENING_ROWS,
+        availability: NOTHING_DISABLED,
         design,
         catalog: KITCHEN_L_BODY_CATALOG,
         book: SAMPLE_PRICE_BOOK,

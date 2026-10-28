@@ -30,6 +30,7 @@ import type {
 } from "../../src/pricing/price-lines.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows.js";
+import { NOTHING_DISABLED } from "../support/availability.js";
 import { roundedToTenLei } from "../support/line-amounts.js";
 
 const SHALLOW_MM = 600;
@@ -159,6 +160,7 @@ function priceAt(
     pricingVersion: book.version,
     selections: { materialTierId: options.materialTierId },
     deepeningRows: options.deepeningRows ?? MEASURED_DEEPENING_ROWS,
+    availability: NOTHING_DISABLED,
   });
   if (!result.ok) {
     throw new Error(`${result.failure.code}: ${result.failure.detail}`);
@@ -468,6 +470,7 @@ describe("P3: a book of the retired form is not priced", () => {
       book: stored,
       pricingVersion: stored.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
 
     expect(parsed.ok).toBe(false);
@@ -503,6 +506,7 @@ describe("P3: a book of the retired form is not priced", () => {
       book: linearBeside,
       pricingVersion: linearBeside.version,
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;

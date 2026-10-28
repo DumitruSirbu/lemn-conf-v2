@@ -29,6 +29,7 @@ import {
 
 import { CATALOGUES, contentFor, requireLeafAt } from "../support/catalogues";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
+import { NOTHING_DISABLED } from "../support/availability";
 
 const PRICE_DIRECTORY = resolve(import.meta.dirname, "../../src/price");
 const CONFIGURE_DIRECTORY = resolve(
@@ -271,6 +272,7 @@ describe("the bar under a translation 40 % longer than its Romanian source", () 
     content: stressedContent,
     pricing: priceDesign({
       deepeningRows: MEASURED_DEEPENING_ROWS,
+      availability: NOTHING_DISABLED,
       design: OVERFLOWING_KITCHEN_L_DESIGN,
       catalog: KITCHEN_L_BODY_CATALOG,
       book: SAMPLE_PRICE_BOOK,
