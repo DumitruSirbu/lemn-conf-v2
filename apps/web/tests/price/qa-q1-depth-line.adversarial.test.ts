@@ -412,6 +412,26 @@ describe("the amounts as printed (a spec conflict, reported and not Q1's to sett
   // as "95 000". Q1b-a ("on each surface the lines sum to the total shown") cannot hold for printed text while this
   // stands. `it.fails` passes while the printed rows do not add up; the day a wave settles the display unit it goes red,
   // and the instruction is to delete `.fails`.
+  // The guard that keeps the `it.fails` below honest: it fails for the stated reason only if every priced line has a
+  // printed amount that parses, so a renamed test id or a throw cannot keep it green for the wrong one.
+  it("prints one parseable amount per priced line, so the sum below is over every line", () => {
+    const design = deepShippedKitchen();
+    const pricing = priceAt(design, 12);
+    const dom = markupOf(describeAt(design, pricing, 12));
+
+    const printedAmounts = Array.from(
+      dom.querySelectorAll(
+        '[data-testid="breakdown-row-amount"], [data-testid="breakdown-depth-amount"]',
+      ),
+    );
+
+    expect(printedAmounts).toHaveLength(pricedOf(pricing).lines.length);
+    for (const amount of printedAmounts)
+      expect(amount.textContent).toMatch(
+        new RegExp(`\\d|${ro.priceBreakdown.included}`, "u"),
+      );
+  });
+
   it.fails("printed rows add up to the printed total", () => {
     const design = deepShippedKitchen();
     const view = describeAt(design, priceAt(design, 12), 12);
