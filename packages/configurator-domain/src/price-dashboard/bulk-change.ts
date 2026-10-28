@@ -11,7 +11,7 @@ import {
   readEditableFields,
   type CabinetAddress,
 } from "./editable-fields.js";
-import { judgeRuleAgainstCatalog } from "./judge-book.js";
+import { judgePricesOfRule } from "./judge-book.js";
 import { pricedRowOf, type PricedRow } from "./priced-row.js";
 
 // A bulk percentage over the cabinets' prices (ADR 0177 A-14; frame D2D): every amount a cabinet's price is made of (the
@@ -248,13 +248,14 @@ function refusalOfScaledBook(
   return undefined;
 }
 
-/** Only what scaling can cause: a price at or below zero, or above what a cabinet may cost. A fault the rule already
- *  had (a shape the catalogue cannot price, an amount that is not exact) is not the percentage's. */
+/** Only what scaling can cause: a price at or below zero, or above what a cabinet may cost, read over the rule's whole
+ *  grid whatever else is wrong with the rule. A fault the rule already had (a shape the catalogue cannot price, an amount
+ *  that is not exact) is not the percentage's, and is left to the judgement of the book. */
 function refusalOfScaledRule(
   rule: CabinetPriceRule,
   catalog: BodyCatalog,
 ): BulkPlanRefusalCode | undefined {
-  switch (judgeRuleAgainstCatalog(rule, catalog)?.code) {
+  switch (judgePricesOfRule(rule, catalog)?.code) {
     case "PRICE_NOT_POSITIVE":
       return "PRICE_WOULD_BE_NEGATIVE";
     case "PRICE_TOO_LARGE":

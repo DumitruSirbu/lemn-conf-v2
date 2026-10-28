@@ -197,13 +197,9 @@ export function planBulk(
     target: request.target,
     percent: request.percent,
   });
-  if (plan.kind === "refused") {
-    return refused(issueResponse(fieldOfBulkRefusal(plan.code), plan.code));
-  }
+  if (plan.kind === "refused") return refusedBulk(plan.code, request.target);
   if (plan.changes.length === 0) {
-    return refused(
-      issueResponse(fieldOfEmptyTarget(request.target), "NO_CABINETS_SELECTED"),
-    );
+    return refusedBulk("NO_CABINETS_SELECTED", request.target);
   }
   const changed = plan.changes.filter(
     ({ address, value }) => value !== currentValueOf(candidate.book, address),
@@ -212,13 +208,6 @@ export function planBulk(
     return refused(issueResponse("percent", "PERCENT_OUT_OF_RANGE"));
   }
   return writeBulk(request, state, mintedGroup(request, changed));
-}
-
-/** The member the person corrects when a target holds no cabinet the manufacturer prices. */
-function fieldOfEmptyTarget(
-  target: BulkTarget,
-): DashboardIssue<string>["field"] {
-  return target.scope === "selection" ? "ruleIds" : "scope";
 }
 
 /** A price as the candidate holds it: what a scaled amount that equals it leaves unchanged (A-14, ruling R2-Q7). */
@@ -308,15 +297,23 @@ function refusalOfPlannedPrice(code: ChangeRefusalCode): NextResponse {
   return dashboardConflictResponse("candidate-refused");
 }
 
+function refusedBulk(code: BulkRefusalCode, target: BulkTarget): DraftPlan {
+  return refused(issueResponse(fieldOfBulkRefusal(code, target), code));
+}
+
+/** The member of the request the person corrects. A target that holds no cabinet is named by the target's own member:
+ *  the ids a selection listed, else the scope. */
 function fieldOfBulkRefusal(
   code: BulkRefusalCode,
+  target: BulkTarget,
 ): DashboardIssue<string>["field"] {
   switch (code) {
     case "UNKNOWN_GROUP":
       return "groupCode";
     case "UNKNOWN_RULE":
-    case "NO_CABINETS_SELECTED":
       return "ruleIds";
+    case "NO_CABINETS_SELECTED":
+      return target.scope === "selection" ? "ruleIds" : "scope";
     default:
       return "percent";
   }

@@ -3,6 +3,7 @@ import {
   anchoredShapeReadsHeight,
   isAnchoredShape,
   MalformedPriceDimensionError,
+  NoPriceForSizeError,
   PRICE_PER_SIZE_SHAPE,
   roundUpToPriceStepMm,
   type AnchoredFormula,
@@ -139,10 +140,11 @@ export function judgeBookAgainstCatalog(
   return refusals.length === 0 ? { ok: true } : { ok: false, refusals };
 }
 
-/** The first reason one rule cannot price its row: its shape against the catalogue, else the first price at or below
- *  zero, above what a cabinet may cost, or not exact over every size the row is built at. `undefined` for a rule that
- *  prices well, a customer-supplied one, or one the catalogue does not hold. */
-export function judgeRuleAgainstCatalog(
+/** The first price of one rule that is at or below zero, above what a cabinet may cost, or not exact, over every size
+ *  the catalogue builds its row at. Whatever else is wrong with the rule is not looked at: its shape against the
+ *  catalogue is `judgeBookAgainstCatalog`'s, and a size its list does not cover has no price to judge. `undefined` for
+ *  a rule that prices well, a customer-supplied one, or one the catalogue does not hold. */
+export function judgePricesOfRule(
   rule: CabinetPriceRule,
   catalog: BodyCatalog,
   options: BookJudgementOptions = {},
@@ -150,8 +152,7 @@ export function judgeRuleAgainstCatalog(
   const row = pricedRowOf(catalog, rule.buildId);
   if (row === undefined || rule.suppliedBy === "customer") return undefined;
   const builtWidthsMm = options.builtWidthsMm ?? referenceCornerBuiltWidthsMm();
-  const [refusal] = judgeRow(rule, row, builtWidthsMm);
-  return refusal;
+  return refusePrices(rule, row, builtWidthsMm)[0];
 }
 
 /** Whether `value` is a whole percentage from 0 to `maxPercent`: the form `percentageStagesOf` can hold exactly, which
@@ -367,6 +368,7 @@ function refusePriceAt(
 ): BookRefusal | undefined {
   const named = { ruleId: rule.ruleId, buildId: rule.buildId };
   const amountMinor = evaluatedAmount(rule.formula, row, size);
+  if (amountMinor === NO_LISTED_SIZE) return undefined;
   if (amountMinor === NOT_EXACT) return { code: "PRICE_NOT_EXACT", ...named };
   if (amountMinor === undefined) {
     return { code: "UNKNOWN_FORMULA_SHAPE", ...named };
@@ -384,16 +386,20 @@ function refusePriceAt(
 }
 
 const NOT_EXACT = Symbol("a price the arithmetic cannot hold exactly");
+/** A width no listed size reaches: refused by `refuseSizeList` before any price is read, and skipped where only prices
+ *  are judged. */
+const NO_LISTED_SIZE = Symbol("a width no listed size reaches");
 
 /** The three throws a book causes on a size it parsed for; anything else is a defect and leaves as itself. */
 function evaluatedAmount(
   formula: PriceFormula,
   row: PricedRow,
   size: BuiltSize,
-): number | undefined | typeof NOT_EXACT {
+): number | undefined | typeof NOT_EXACT | typeof NO_LISTED_SIZE {
   try {
     return exactAmountOf(formula, row, size);
   } catch (error) {
+    if (error instanceof NoPriceForSizeError) return NO_LISTED_SIZE;
     if (isABookFault(error)) return NOT_EXACT;
     throw error;
   }
