@@ -500,7 +500,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
       }
     });
 
-    it("carries the depth row the breakdown carries, verbatim, on every kitchen that earns the line and on none that does not", () => {
+    it("carries the depth row the breakdown carries (same key and amount), on every kitchen that earns the line and on none that does not", () => {
       for (const kitchen of deepKitchens) {
         const review = reviewIn(ROMANIAN, kitchen);
         const breakdown = describePriceBreakdown({
@@ -511,7 +511,10 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         if (breakdown.kind !== "available")
           throw new Error("expected a breakdown");
 
-        expect(review.depthRow).toEqual(breakdown.depthRow);
+        expect(review.depthRow?.key).toBe(breakdown.depthRow?.key);
+        expect(review.depthRow?.amountText).toBe(
+          breakdown.depthRow?.amountText,
+        );
         expect(review.groups).toEqual(breakdown.groups);
         expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);
       }

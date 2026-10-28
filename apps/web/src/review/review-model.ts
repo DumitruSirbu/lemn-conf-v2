@@ -104,9 +104,9 @@ export interface AvailableReview {
   /** The two lines of each body's row, by placement id: the breakdown's rows are not touched. */
   readonly rowDetails: Readonly<Record<string, ReviewRowDetail>>;
   readonly wholeKitchenRows: readonly BreakdownRow[];
-  /** The breakdown's depth row, verbatim: present exactly when the priced design carries a depth line, which the total
-   *  counts. It holds no percent (no line carries one), so the screen words it; `listWholeKitchenRows` places it. */
-  readonly depthRow?: BreakdownDepthRow;
+  /** The depth line the total counts, worded from the priced (or stored) line: present exactly when the priced design
+   *  carries one. `listWholeKitchenRows` places it among the whole-kitchen rows. */
+  readonly depthRow?: BreakdownRow;
   readonly notIncluded: ReviewNotIncludedSlot;
   readonly disclaimer: ReviewDisclaimer;
   readonly figure: PriceFigure;
@@ -249,7 +249,7 @@ function describeAvailableReview(
     groups: rows.groups,
     rowDetails: describeRowDetails(groups, content),
     wholeKitchenRows: rows.wholeKitchenRows,
-    ...(rows.depthRow === undefined ? {} : { depthRow: rows.depthRow }),
+    ...describeDepthRow(rows.depthRow, priced, content),
     notIncluded: describeNotIncludedSlot(content),
     disclaimer: describeDisclaimer(content),
     figure: describeStartingPrice({
@@ -264,17 +264,37 @@ function describeAvailableReview(
   };
 }
 
+/** The depth row with its words: the breakdown's key and amount, and the percent the priced line itself carries, never
+ *  one read from a book, so a stored snapshot is worded by the percent it was priced with. */
+function describeDepthRow(
+  row: BreakdownDepthRow | undefined,
+  priced: PricedDesign,
+  content: Content,
+): { readonly depthRow?: BreakdownRow } {
+  const line = priced.lines.find((candidate) => candidate.kind === "depth");
+  if (row === undefined || line?.kind !== "depth") return {};
+  return {
+    depthRow: {
+      key: row.key,
+      label: content.priceBreakdown.depthLine(
+        row.depthMm,
+        line.deepCabinetPercent,
+      ),
+      amountText: row.amountText,
+    },
+  };
+}
+
 /** The line the domain keys the material tier's price line by (`kitchen:${kind}`). */
 const MATERIAL_ROW_KEY = "kitchen:material";
 
 /**
- * The whole-kitchen rows as the review lists them: the depth row, worded by the caller, directly after the material
- * row it follows in the priced lines, and the other rows in their order. Placed by key, never by index; a design with
- * no depth line lists the rows untouched. A depth line with no material row to follow is the model's defect.
+ * The whole-kitchen rows as the review lists them: the depth row directly after the material row it follows in the
+ * priced lines, and the other rows in their order. Placed by key, never by index; a design with no depth line lists the
+ * rows untouched. A depth line with no material row to follow is the model's defect.
  */
 export function listWholeKitchenRows(
   review: AvailableReview,
-  wordDepthRow: (depthMm: number) => string,
 ): readonly BreakdownRow[] {
   const { depthRow, wholeKitchenRows } = review;
   if (depthRow === undefined) return wholeKitchenRows;
@@ -282,14 +302,9 @@ export function listWholeKitchenRows(
     (row) => row.key === MATERIAL_ROW_KEY,
   );
   if (materialAt === -1) throw new DepthRowWithoutMaterialRowError();
-  const worded: BreakdownRow = {
-    key: depthRow.key,
-    label: wordDepthRow(depthRow.depthMm),
-    amountText: depthRow.amountText,
-  };
   return [
     ...wholeKitchenRows.slice(0, materialAt + 1),
-    worded,
+    depthRow,
     ...wholeKitchenRows.slice(materialAt + 1),
   ];
 }

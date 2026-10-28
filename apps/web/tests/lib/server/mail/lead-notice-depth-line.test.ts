@@ -4,7 +4,6 @@ import {
   canonicalSerializeDesign,
   DEEP_CABINET_DEPTH_MM,
   KITCHEN_L_DESIGN,
-  SAMPLE_PRICE_BOOK,
   type PricedDesign,
   type SubmissionSnapshot,
 } from "@lemnaria/configurator-domain";
@@ -92,23 +91,47 @@ describe("the shop's notice and the depth line", () => {
     expect(message.text).not.toContain("adaos");
   });
 
-  // KNOWN GAP, named and loud (an open question to the architect, reported by Q1b). The stored `DepthPriceLine` carries
-  // the depth (700) and the amount but not the percent, `depthLine` needs a percent, and the notice may neither read the
-  // live book (the figure it prints is the stored one, ADR 0154 decision 8, and the book may have moved since) nor invent
-  // a number. Until the percent is stored on the line (or another wording is ruled), the notice lists every other line and
-  // omits this one, while the stored total counts it. `it.fails` runs the assertion the notice should meet and passes
-  // while it does not; the day the notice carries the line it goes red, and the instruction is to delete `.fails`.
-  it.fails(
-    "KNOWN GAP (notice, depth row): prints the depth line the stored total counts, in the text and in the HTML",
-    () => {
-      const { message } = noticeOfKitchenBuiltAt(DEEP_CABINET_DEPTH_MM);
-      const depthLine = ro.priceBreakdown.depthLine(
-        DEEP_CABINET_DEPTH_MM,
-        SAMPLE_PRICE_BOOK.depthRule.deepCabinetPercent,
-      );
+  it("prints the depth line the stored total counts, right after the material line, worded from the stored line's own percent, in the text and in the HTML", () => {
+    const { snapshot, message } = noticeOfKitchenBuiltAt(DEEP_CABINET_DEPTH_MM);
+    const stored = snapshot.priced.lines.find((line) => line.kind === "depth");
+    if (stored?.kind !== "depth")
+      throw new Error("expected a stored depth line");
+    const depthLine = ro.priceBreakdown.depthLine(
+      stored.depthMm,
+      stored.deepCabinetPercent,
+    );
 
-      expect(message.text).toContain(depthLine);
-      expect(message.html).toContain(depthLine);
-    },
-  );
+    const textLines = message.text.split("\n");
+    const depthAt = textLines.findIndex((line) => line.includes(depthLine));
+
+    expect(depthAt).toBeGreaterThan(0);
+    expect(textLines[depthAt - 1]).toContain(
+      ro.priceBreakdown.wholeKitchenCategories.material,
+    );
+    expect(message.html).toContain(depthLine);
+  });
+
+  it("prints the stored percent, not the live book's: a snapshot stored with another percent is worded with it", () => {
+    const { snapshot } = noticeOfKitchenBuiltAt(DEEP_CABINET_DEPTH_MM);
+    const restamped: SubmissionSnapshot = {
+      ...snapshot,
+      priced: {
+        ...snapshot.priced,
+        lines: snapshot.priced.lines.map((line) =>
+          line.kind === "depth" ? { ...line, deepCabinetPercent: 7 } : line,
+        ),
+      },
+    };
+
+    const message = composeLeadNotice(
+      noticeInput(designSubmission({ snapshot: restamped })),
+    );
+
+    expect(message.text).toContain(
+      ro.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, 7),
+    );
+    expect(message.html).toContain(
+      ro.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, 7),
+    );
+  });
 });

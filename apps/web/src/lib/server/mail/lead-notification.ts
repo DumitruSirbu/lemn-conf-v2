@@ -37,6 +37,7 @@ import type { PublicOriginOutcome } from "@/lib/server/public-origin";
 import type { BreakdownGroup } from "@/price/price-breakdown-model";
 import {
   describeReview,
+  listWholeKitchenRows,
   rowDetailOf,
   type AvailableReview,
 } from "@/review/review-model";
@@ -393,7 +394,8 @@ function summaryOf(
   };
 }
 
-/** Every group, row and fact the review shows, in its order: the record of what was sent, whatever the link does. */
+/** Every group, row and fact the review shows, in its order (the depth line among the whole-kitchen rows, worded from
+ *  the stored line's own percent): the record of what was sent, whatever the link does. */
 function appendixOf(
   review: AvailableReview,
   source: KitchenSource,
@@ -404,7 +406,7 @@ function appendixOf(
     groups: review.groups.map((group) =>
       appendixGroupOf(group, { review, line }),
     ),
-    wholeKitchenRows: review.wholeKitchenRows.map((row) =>
+    wholeKitchenRows: listWholeKitchenRows(review).map((row) =>
       labelled(
         "wholeKitchenRow",
         line("wholeKitchenRow", row.label),

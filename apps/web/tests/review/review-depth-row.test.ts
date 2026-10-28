@@ -1,9 +1,10 @@
-// Q1b-a on the review model: the depth line the total counts is listed, worded by the published percent, directly
+// Q1b-a on the review model: the depth line the total counts is listed, worded from the priced line's own percent, directly
 // after the material row; a kitchen with no depth line (600 mm, or a snapshot stored before the cut-over) lists
 // exactly the rows it always did.
 import {
   DEEP_CABINET_DEPTH_MM,
   KITCHEN_L_DESIGN,
+  type DepthPriceLine,
   type PricedDesign,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
@@ -20,12 +21,6 @@ import {
   type PricedKitchen,
 } from "../support/generated-kitchens";
 import { ro } from "../support/romanian-content";
-
-const PUBLISHED_PERCENT = 12;
-
-function wordedAt(depthMm: number): string {
-  return ro.priceBreakdown.depthLine(depthMm, PUBLISHED_PERCENT);
-}
 
 function availableReviewOf(kitchen: PricedKitchen): AvailableReview {
   const view = describeReview({
@@ -47,16 +42,50 @@ const DEEP = priceAndProject({
   },
 });
 
+function depthLineOf(kitchen: PricedKitchen): DepthPriceLine {
+  if (!kitchen.pricing.ok) throw new Error("expected a priced kitchen");
+  const line = kitchen.pricing.priced.lines.find(
+    (candidate): candidate is DepthPriceLine => candidate.kind === "depth",
+  );
+  if (line === undefined) throw new Error("expected a depth line");
+  return line;
+}
+
+/** The kitchen as if it had been stored with `percent` on its depth line, the rest of the line as priced. */
+function storedWithPercent(
+  kitchen: PricedKitchen,
+  percent: number,
+): PricedKitchen {
+  if (!kitchen.pricing.ok) throw new Error("expected a priced kitchen");
+  const { priced } = kitchen.pricing;
+  return {
+    ...kitchen,
+    pricing: {
+      ok: true,
+      priced: {
+        ...priced,
+        lines: priced.lines.map((line) =>
+          line.kind === "depth"
+            ? { ...line, deepCabinetPercent: percent }
+            : line,
+        ),
+      },
+    },
+  };
+}
+
 describe("the review's whole-kitchen rows with the depth row", () => {
-  it("lists the depth row right after the material row, worded with the published percent and the line's own amount", () => {
+  it("lists the depth row right after the material row, worded with the line's own percent and amount", () => {
     const review = availableReviewOf(DEEP);
-    const rows = listWholeKitchenRows(review, wordedAt);
+    const rows = listWholeKitchenRows(review);
     const materialAt = rows.findIndex((row) => row.key === "kitchen:material");
 
-    expect(review.depthRow).toBeDefined();
     expect(rows[materialAt + 1]).toEqual({
       key: "kitchen:depth",
-      label: wordedAt(DEEP_CABINET_DEPTH_MM),
+      label: ro.priceBreakdown.depthLine(
+        DEEP_CABINET_DEPTH_MM,
+        depthLineOf(DEEP).deepCabinetPercent,
+      ),
       amountText: review.depthRow?.amountText,
     });
     expect(rows.filter((row) => row.key !== "kitchen:depth")).toEqual(
@@ -64,29 +93,21 @@ describe("the review's whole-kitchen rows with the depth row", () => {
     );
   });
 
-  it("words the row with whatever percent the caller publishes", () => {
-    const review = availableReviewOf(DEEP);
-
+  it("words the row with whatever percent the stored line carries, and with no book to read", () => {
     for (const percent of [0, 7, 12, 25]) {
-      const rows = listWholeKitchenRows(review, (depthMm) =>
-        ro.priceBreakdown.depthLine(depthMm, percent),
-      );
+      const review = availableReviewOf(storedWithPercent(DEEP, percent));
 
-      expect(rows.map((row) => row.label)).toContain(
+      expect(listWholeKitchenRows(review).map((row) => row.label)).toContain(
         ro.priceBreakdown.depthLine(DEEP_CABINET_DEPTH_MM, percent),
       );
     }
   });
 
-  it("lists the rows untouched, and never asks for the wording, when the design carries no depth line", () => {
+  it("lists the rows untouched when the design carries no depth line", () => {
     const review = availableReviewOf(DEFAULT_DEPTH);
 
-    const rows = listWholeKitchenRows(review, () => {
-      throw new Error("no depth line, so no wording is asked for");
-    });
-
     expect(review).not.toHaveProperty("depthRow");
-    expect(rows).toBe(review.wholeKitchenRows);
+    expect(listWholeKitchenRows(review)).toBe(review.wholeKitchenRows);
   });
 
   it("lists a snapshot stored before the cut-over, which has no depth line, exactly as it was", () => {
@@ -115,9 +136,7 @@ describe("the review's whole-kitchen rows with the depth row", () => {
     });
 
     expect(review).not.toHaveProperty("depthRow");
-    expect(listWholeKitchenRows(review, wordedAt)).toBe(
-      review.wholeKitchenRows,
-    );
+    expect(listWholeKitchenRows(review)).toBe(review.wholeKitchenRows);
     expect(review.wholeKitchenRows.map((row) => row.key)).toEqual([
       "kitchen:hardware",
       "kitchen:material",
@@ -133,7 +152,7 @@ describe("the review's whole-kitchen rows with the depth row", () => {
       ),
     };
 
-    expect(() => listWholeKitchenRows(withoutMaterial, wordedAt)).toThrow(
+    expect(() => listWholeKitchenRows(withoutMaterial)).toThrow(
       DepthRowWithoutMaterialRowError,
     );
   });
