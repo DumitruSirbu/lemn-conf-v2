@@ -25,7 +25,7 @@ import {
   listWholeKitchenRows,
   MalformedDepthLineError,
 } from "@/price/price-breakdown-model";
-import { describeRoundedAmount } from "@/price/starting-price";
+import { describeLineAmount } from "@/price/starting-price";
 
 import { listedDepthLineOf } from "../support/listed-depth-line";
 import { thrownBy } from "../support/thrown-by";
@@ -86,7 +86,7 @@ describe("the depth row", () => {
         depthPercentOf(line),
       ),
       scope: content.priceBreakdown.depthLineScope,
-      amountText: describeRoundedAmount(line?.amountMinor ?? 0),
+      amountText: describeLineAmount(line?.amountMinor ?? 0),
     });
   });
 

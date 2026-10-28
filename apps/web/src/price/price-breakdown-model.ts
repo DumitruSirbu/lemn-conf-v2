@@ -9,9 +9,9 @@
 // ([ADR 0063](../../../../docs/decisions/0063-a-group-is-listed-row-major-height-before-position.md)).
 //
 // The priced lines add to the priced total exactly, each rounded to ten lei at the domain's one seam (ADR 0177 A-1).
-// What is shown is rounded again, up to the thousand MDL, so shown lines and a shown total need not sum: both round
-// through `roundUpToThousandMdl` and the difference can exceed a whole step. The disclaimer and note carry that, so
-// nothing here adds a subtotal, an equality claim, or a row labelled *total*.
+// A line is shown at that ten lei (`describeLineAmount`); the total is shown rounded up to the thousand MDL
+// (`describeStartingPrice`), so shown lines and a shown total need not sum (owner ruling 2026-10-28). Nothing here
+// adds a subtotal, an equality claim, or a row labelled *total*.
 import {
   MAX_DEEP_CABINET_PERCENT,
   type AccessoryPriceLine,
@@ -29,7 +29,7 @@ import type { Content } from "@/i18n/content";
 
 import {
   describeFlaggedTotalWarning,
-  describeRoundedAmount,
+  describeLineAmount,
   describeStartingPrice,
   type PriceFigure,
   holdsNoCabinets,
@@ -40,7 +40,7 @@ import {
 export interface BreakdownRow {
   readonly key: string;
   readonly label: string;
-  /** Already rounded and grouped: *"inclus"* at zero, *"nu este inclus"* on a body the manufacturer
+  /** Shown to the ten lei and grouped: *"inclus"* at zero, *"nu este inclus"* on a body the manufacturer
    *  does not supply (decided by `describeRowAmount` and `describeCabinetRowAmount`). */
   readonly amountText: string;
 }
@@ -61,7 +61,7 @@ export interface BreakdownDepthLine {
   readonly label: string;
   /** Which cabinets the percent applies to: the second line of the row. */
   readonly scope: string;
-  /** Already rounded and grouped, *"inclus"* at zero (a book stating 0 %). */
+  /** Shown to the ten lei and grouped, *"inclus"* at zero (a book stating 0 %). */
   readonly amountText: string;
 }
 
@@ -105,7 +105,7 @@ export interface AvailableBreakdown {
    *  sheet draws. The depth line is the one row carrying `scope`, present exactly when the query published one: a
    *  700 mm kitchen with a cabinet that gets deeper. `wholeKitchenRows` itself stays the tiers and the accessories. */
   readonly wholeKitchenListing: readonly WholeKitchenListingRow[];
-  /** The sentence that says the amounts above are each rounded up on their own. */
+  /** The sentence that says the amounts shown are estimates, not an offer. */
   readonly note: string;
   /** The bar's figure, restated because on mobile this sheet covers the bar. Not a sum of the rows,
    *  and labelled *De la* rather than *total* so it cannot read as one. */
@@ -442,11 +442,11 @@ function toUnplacedRow(
   };
 }
 
-/** A zero reads *inclus* on any row, not only tier rows: rounding is upward, so only a genuinely free
+/** A zero reads *inclus* on any row, not only tier rows: only a genuinely free
  *  line reaches zero, and `0` beside a body is a number that is not a price. */
 function describeRowAmount(amountMinor: number, content: Content): string {
   if (amountMinor === 0) return content.priceBreakdown.included;
-  return describeRoundedAmount(amountMinor);
+  return describeLineAmount(amountMinor);
 }
 
 /**

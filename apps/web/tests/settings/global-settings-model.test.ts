@@ -27,7 +27,7 @@ import { describe, expect, it } from "vitest";
 
 import { swatchOf } from "@lemnaria/three-adapter";
 
-import { describeRoundedAmount } from "@/price/starting-price";
+import { describeTotalAmount } from "@/price/starting-price";
 import {
   offerWholeKitchenTiers,
   type WholeKitchenTierOffer,
@@ -217,7 +217,7 @@ describe("what a tier's badge prints", () => {
         (one) => one.tierId === tier.tierId,
       );
       expect(option?.deltaText, tier.tierId).toBe(
-        `de la +${describeRoundedAmount(tier.deltaMinor)}`,
+        `de la +${describeTotalAmount(tier.deltaMinor)}`,
       );
     }
   });

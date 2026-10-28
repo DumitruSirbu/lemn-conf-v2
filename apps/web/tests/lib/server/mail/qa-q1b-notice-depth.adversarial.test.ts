@@ -1,8 +1,9 @@
 // Adversarial QA for Q1b on the shop's notice. The notice prints the review of the STORED snapshot (ADR 0154 decision
 // 8): the depth line the stored total counts is one of its lines, worded by the percent stored on that line, in the
 // text part and in the HTML part alike, and nothing in it prices again or reads a book. A snapshot stored before the
-// cut-over, which has no depth line, prints byte for byte as the base commit printed it (the `*.golden.*` files were
-// written by that base).
+// cut-over, which has no depth line, prints byte for byte as its golden. The `*.golden.*` files were written by the base
+// commit's builder and regenerated deliberately for the owner ruling of 2026-10-28 (M10 Q1c): the structure is still the
+// base's, the line amounts are now shown to the ten lei instead of the thousand.
 import { fc } from "@fast-check/vitest";
 import {
   canonicalSerializeDesign,
@@ -280,7 +281,7 @@ describe("Q1b-a: the stored percent wins, whatever the live book says", () => {
   });
 });
 
-describe("Q1b-a: a snapshot stored before the cut-over prints as the base commit printed it", () => {
+describe("Q1b-a: a snapshot stored before the cut-over prints as its golden does (structure the base commit's, amounts the Q1c ruling's)", () => {
   const STORED_BEFORE_THE_CUT_OVER = JSON.parse(`{
     "currency": "MDL", "pricingVersion": "sample-2026-09", "status": "estimate", "amountsProvisional": true,
     "lines": [
@@ -306,7 +307,7 @@ describe("Q1b-a: a snapshot stored before the cut-over prints as the base commit
     };
   }
 
-  it("is byte for byte the base commit's HTML part (golden written by 0abdd0d2's builder)", () => {
+  it("is byte for byte the golden HTML part (written by 0abdd0d2's builder, amounts regenerated for Q1c)", () => {
     const { html } = noticeOf(storedBeforeTheCutOver());
 
     expect(html).toBe(
@@ -317,7 +318,7 @@ describe("Q1b-a: a snapshot stored before the cut-over prints as the base commit
     );
   });
 
-  it("is byte for byte the base commit's text part and subject (golden written by 0abdd0d2's builder)", () => {
+  it("is byte for byte the golden text part and subject (written by 0abdd0d2's builder, amounts regenerated for Q1c)", () => {
     const message = composeLeadNotice(
       noticeInput(designSubmission({ snapshot: storedBeforeTheCutOver() })),
     );
@@ -330,7 +331,7 @@ describe("Q1b-a: a snapshot stored before the cut-over prints as the base commit
     );
   });
 
-  it("prints the design-with-link fixture's text part as the base commit did (the HTML golden is `lead-notification-html.test.ts`)", () => {
+  it("prints the design-with-link fixture's text part as its golden does (amounts regenerated for Q1c; the HTML golden is `lead-notification-html.test.ts`)", () => {
     const message = composeLeadNotice(fixtureNamed("design-with-link"));
 
     expect(`${message.subject}\n\n${message.text}\n`).toBe(

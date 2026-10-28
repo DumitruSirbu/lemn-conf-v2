@@ -1,11 +1,11 @@
-// The one place an amount becomes a figure a customer reads: prefixed *De la*, rounded up to the
-// thousand MDL ([ADR 0001](../../../../docs/decisions/0001-initial-product-and-stack.md) decision 4).
-// A second rounding site would let two surfaces show different numbers for one kitchen.
+// The one place an amount becomes a figure a customer reads. Two roundings, by the owner's ruling of 2026-10-28
+// (M10 Q1c), which narrows [ADR 0001](../../../../docs/decisions/0001-initial-product-and-stack.md) decision 4 (every
+// figure rounded up to the thousand): the kitchen TOTAL is prefixed *De la* and rounded up to the thousand MDL; every
+// LINE is shown to the ten lei the domain priced it at (ADR 0175 decision 5, ADR 0177 A-1). A second rounding site for
+// either would let two surfaces show different numbers for one kitchen.
 //
-// Rounded lines and a rounded total need not sum, and that is deliberate: four 1 800 MDL lines round
-// to 4 × 2 000 = 8 000, their 7 200 total rounds to 8 000 only by coincidence, and at 1 200 apiece
-// it is 8 000 against 5 000. No surface may claim they sum; the disclaimer *"Toate sumele sunt
-// prețuri de pornire, rotunjite în sus"* carries it.
+// Lines shown to the ten lei and a total rounded to the thousand need not sum, and that is deliberate: a priced
+// total of 7 200 MDL is shown as 8 000 beside lines that add to 7 200. No surface may claim they sum.
 //
 // *De la* stays true and unqualified when a tier prices below the default (ADR 0092 decision 12): it
 // claims a starting price for the kitchen as it stands, re-derived from the current design, not a
@@ -13,8 +13,8 @@
 // `price.startingPrefix` and `priceBreakdown.disclaimer`, with no arithmetic moving.
 //
 // The rounding a customer reads lives only here. `packages/configurator-domain/src/pricing/` rounds each line to
-// ten lei at one named seam, so the lines add to the total exactly (ADR 0177 A-1), and nothing else; this file
-// rounds a line or a total up to the thousand MDL it is shown at.
+// ten lei at one named seam, so the lines add to the total exactly (ADR 0177 A-1); this file shows a line at that
+// ten lei and rounds a total up to the thousand MDL.
 import { type PricedDesign } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";
@@ -22,10 +22,12 @@ import type { Content } from "@/i18n/content";
 /** MDL minor units are bani. */
 const MINOR_UNITS_PER_MDL = 100;
 
-/** The step every displayed figure is rounded up to. */
-const ROUNDING_STEP_MDL = 1000;
+/** The step a displayed total is rounded up to. */
+const TOTAL_STEP_MDL = 1000;
 
-const MINOR_UNITS_PER_ROUNDING_STEP = MINOR_UNITS_PER_MDL * ROUNDING_STEP_MDL;
+/** The unit a displayed line is shown at: the domain's price unit (ADR 0175 decision 5), so a priced line is shown
+ *  as it is priced. */
+const LINE_STEP_MDL = 10;
 
 const DIGITS_PER_GROUP = 3;
 
@@ -49,7 +51,7 @@ export interface PriceFigure {
 }
 
 export interface StartingPriceInput {
-  /** Exact minor units, as a priced line or a priced total publishes them. */
+  /** Exact minor units, as a priced total publishes them. */
   readonly totalMinor: number;
   /** The active locale's price copy; the label is composed from it here. */
   readonly copy: Content["price"];
@@ -66,29 +68,35 @@ export function holdsNoCabinets(priced: PricedDesign): boolean {
   return !priced.lines.some((line) => line.kind === "cabinet");
 }
 
-/** Builds the one shape a figure may be rendered from; every displayed price comes through here. */
+/** Builds the one shape a kitchen total may be rendered from; every displayed total comes through here. A priced
+ *  line is `describeLineAmount`'s. */
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
     label: input.copy.startingPrefix,
-    amountText: formatRoundedAmount(input.totalMinor, input.copy),
+    amountText: formatTotalAmount(input.totalMinor, input.copy),
   };
 }
 
-/** The rounding rule itself, in whole MDL, published so lines and total share one implementation. */
+/** The total's rounding rule, in whole MDL: up to the thousand. A priced line has its own, `describeLineAmount`'s. */
 export function roundUpToThousandMdl(totalMinor: number): number {
-  assertExactMinorAmount(totalMinor);
-  return (
-    Math.ceil(totalMinor / MINOR_UNITS_PER_ROUNDING_STEP) * ROUNDING_STEP_MDL
-  );
+  return roundUpToStepMdl(totalMinor, TOTAL_STEP_MDL);
 }
 
 /**
- * One amount, rounded and grouped, without the currency, which the mockups state once per surface.
- * Rounds through `roundUpToThousandMdl`, the total's own site, so lines and total need not sum (see
- * the head comment and `priceBreakdown.note`).
+ * One total or delta, rounded up to the thousand and grouped, without the currency, which the mockups state once
+ * per surface. A priced LINE is `describeLineAmount`'s, so lines and total need not sum (see the head comment).
  */
-export function describeRoundedAmount(amountMinor: number): string {
+export function describeTotalAmount(amountMinor: number): string {
   return groupThousands(roundUpToThousandMdl(amountMinor));
+}
+
+/**
+ * One priced line (a body, a tier, an accessory, the depth uplift), shown to the ten lei and grouped, without the
+ * currency. The domain prices every line at a multiple of ten lei, so this is the line's exact amount; an amount
+ * that is not (a stored snapshot) is rounded up to the next ten lei rather than shown with bani.
+ */
+export function describeLineAmount(amountMinor: number): string {
+  return groupThousands(roundUpToStepMdl(amountMinor, LINE_STEP_MDL));
 }
 
 /**
@@ -100,7 +108,7 @@ export function describeRoundedAmount(amountMinor: number): string {
  * and a cheaper hardware tier states no amount. `assertExactMinorAmount` refuses a negative anyway.
  */
 export function describeAddedAmount(amountMinor: number): string {
-  return `${ADDED_AMOUNT_SIGN}${describeRoundedAmount(amountMinor)}`;
+  return `${ADDED_AMOUNT_SIGN}${describeTotalAmount(amountMinor)}`;
 }
 
 /**
@@ -109,19 +117,21 @@ export function describeAddedAmount(amountMinor: number): string {
  * refuses any other currency. The leaf takes an already-grouped `{amount}` string, so no ICU number
  * skeleton or CLDR grouping rule reaches the digits (see `THOUSANDS_SEPARATOR`).
  */
-function formatRoundedAmount(
-  totalMinor: number,
-  copy: Content["price"],
-): string {
-  return copy.amountWithCurrency(describeRoundedAmount(totalMinor));
+function formatTotalAmount(totalMinor: number, copy: Content["price"]): string {
+  return copy.amountWithCurrency(describeTotalAmount(totalMinor));
 }
 
-/** A price that is not a whole, non-negative count of minor units was already rounded or has a sign
- *  error; it is refused rather than coerced, as rendering it would invent a number. */
-function assertExactMinorAmount(totalMinor: number): void {
-  if (Number.isSafeInteger(totalMinor) && totalMinor >= 0) return;
+/** Whole MDL, rounded up to a multiple of `stepMdl`. An amount that is not a whole, non-negative count of minor units
+ *  was already rounded or has a sign error; it is refused rather than coerced, as rendering it would invent a number. */
+function roundUpToStepMdl(amountMinor: number, stepMdl: number): number {
+  assertExactMinorAmount(amountMinor);
+  return Math.ceil(amountMinor / (MINOR_UNITS_PER_MDL * stepMdl)) * stepMdl;
+}
+
+function assertExactMinorAmount(amountMinor: number): void {
+  if (Number.isSafeInteger(amountMinor) && amountMinor >= 0) return;
   throw new RangeError(
-    `A starting price needs a non-negative whole count of minor units; got ${String(totalMinor)}`,
+    `A displayed amount needs a non-negative whole count of minor units; got ${String(amountMinor)}`,
   );
 }
 

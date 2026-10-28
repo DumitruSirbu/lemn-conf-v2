@@ -29,6 +29,7 @@ import {
 import {
   fillLeaf,
   rawBodyNameOf,
+  rawLineAmountOf,
   rawRoundedAmountOf,
   type RawCatalogue,
 } from "../support/raw-catalogue-text";
@@ -146,7 +147,7 @@ function rawAmountOf(catalogue: RawCatalogue, line: PriceLine): string {
   }
   if (line.amountMinor === 0)
     return fillLeaf(catalogue, "priceBreakdown.included");
-  return rawRoundedAmountOf(line.amountMinor);
+  return rawLineAmountOf(line.amountMinor);
 }
 
 function cabinetLineOf(priced: PricedDesign, placementId: string): PriceLine {
@@ -471,7 +472,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
           amountText:
             line.amountMinor === 0
               ? fillLeaf(ROMANIAN, "priceBreakdown.included")
-              : rawRoundedAmountOf(line.amountMinor),
+              : rawLineAmountOf(line.amountMinor),
         });
         expect(breakdown.wholeKitchenRows.map((row) => row.key)).not.toContain(
           line.lineId,
