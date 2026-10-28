@@ -52,6 +52,10 @@ import {
   withBodyOf,
   withSettings,
 } from "../support/availability-kitchens.js";
+import {
+  fatalDesignValidationIssues,
+  validateDesignForCatalog,
+} from "../../src/validate-design.js";
 import { NOTHING_DISABLED } from "../support/availability.js";
 
 const MATERIAL_TIER_IDS = BOOK.material.tiers.map((tier) => tier.tierId);
@@ -874,11 +878,7 @@ describe("CURRENT BEHAVIOUR for the architect: a palette colour on a material th
     ).toThrow(NoReplacementOptionError);
   });
 
-  it("is a design the write seam refuses and the load seam rewrites, so a stored kitchen cannot reach the disagreement", async () => {
-    const { validateDesignForCatalog } = await import(
-      "../../src/validate-design.js"
-    );
-
+  it("is a design the write seam refuses and the load seam rewrites, so a stored kitchen cannot reach the disagreement", () => {
     const codes = validateDesignForCatalog(
       mdfWearingAPaletteColour,
       CATALOG,
@@ -904,6 +904,42 @@ describe("CURRENT BEHAVIOUR for the architect: a design with an unknown tier and
 
     expect(refusalItemsOf(first)).toEqual([colour("pal.antracit")]);
     expect(codeOf(afterReplacing)).toBe("UNKNOWN_TIER");
+  });
+});
+
+describe("DEFECT CANDIDATE (P4a-c): a stored material the declaration does not know, with a switched-off colour, is refused and its sheet throws", () => {
+  const unknownMaterialAndAColour = withSettings({
+    cabinetDepthMm: 600,
+    materialTierId: "material.unobtainium",
+    finish: paletteFinish("pal.antracit"),
+  });
+  const colourOff = availabilityOf([colour("pal.antracit")]);
+
+  it("starts from a design the write seam accepts and the load seam leaves alone, so a stored kitchen can be this", () => {
+    const fatal = fatalDesignValidationIssues(
+      validateDesignForCatalog(unknownMaterialAndAColour, CATALOG),
+    );
+
+    expect(fatal).toEqual([]);
+  });
+
+  it("is refused REPLACEMENT_REQUIRED for the colour, which is what sends the customer to the sheet; without the switch it is UNKNOWN_TIER", () => {
+    expect(
+      refusalItemsOf(priceUnder(colourOff, unknownMaterialAndAColour)),
+    ).toEqual([colour("pal.antracit")]);
+    expect(
+      codeOf(priceUnder(NOTHING_DISABLED, unknownMaterialAndAColour)),
+    ).toBe("UNKNOWN_TIER");
+  });
+
+  // Red on purpose. `coloursOfTheDesignsMaterial` (queries/replacements-required.ts) offers a colour the palette of the
+  // design's material; an undeclared material has none, so `activeOptionsReplacing` throws NoReplacementOptionError.
+  // P4a-c calls that throw unreachable because the dashboard never switches off a group's last option, but here no
+  // last option was switched off: the set is empty because the material is unknown.
+  it("builds the sheet for the refusal it just made, and does not throw", () => {
+    expect(() =>
+      replacementsRequired(unknownMaterialAndAColour, BOOK, colourOff, CATALOG),
+    ).not.toThrow();
   });
 });
 
