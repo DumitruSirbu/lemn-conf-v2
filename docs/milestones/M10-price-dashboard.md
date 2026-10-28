@@ -1316,10 +1316,11 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
     depth line) refuses the notice through `MalformedDepthLineError` → `NoticeKitchenError("review-not-sendable")`.
     Unreachable from data the domain writes (logic and security reviews); defence in depth.
   - "The lines sum to the total" means priced amounts (A-1). Printed rows round up to the thousand lei, so they need
-    not add to the printed total: **owner question** (ADR 0175 d5 calls 10 lei the display unit), pinned as an
-    `it.fails` in `qa-q1-depth-line.adversarial.test.ts`.
+    not add to the printed total: ~~**owner question**~~ **answered 2026-10-28**, see the rounding block below and
+    ADR 0001's 2026-10-28 amendment (pinned as an `it.fails` in `qa-q1-depth-line.adversarial.test.ts`).
   - **Owner copy question:** at 0 % the depth line reads "adaos 0 %" beside *inclus* while the note says "nu schimbă
-    prețul"; `depthLine` has no `=0` branch.
+    prețul"; `depthLine` has no `=0` branch. **Re-asked 2026-10-28** with options: show as is / hide / own wording
+    "fără cost suplimentar". Current behaviour (a, show as is) is kept until answered.
 - Gates on `83cd7c6b` (`pnpm ci:local`): every gate passed except `test` (only the known `qa-8q2-sink-store` load
   flake, 37/37 alone) and `e2e` (1 127 passed, 1 failed: `cabinet-depth.e2e.spec.ts` still asserted the pre-P3
   "the total does not move with depth"; rewritten at `980df5ed`, the spec passes 4/4 alone). The full e2e suite was
@@ -1328,6 +1329,54 @@ derived from placements and never stored) and §7 (catalogue); this plan §5 and
   `wholeKitchenRows` / `wholeKitchenListing` naming.
 - Hand-offs: **T2** retires `globalSettings.depthNote` (no renderer left) and the stale `aud-006` test; **Q3** covers
   `useRequiredDeepCabinetPercent` as a second no-book throw site.
+
+**2026-10-28 — owner rulings: rounding and translations** [coordinator's brief, relayed; the scribe ran nothing]:
+
+- Owner, verbatim: "we speak about 2 rounding, the price set to things in admin rounded by 10 lei, the sum of the
+  entire kitchen rounded to 1000 lei". Recorded as ADR 0001's 2026-10-28 amendment (decision 4). The display-rounding
+  owner question in the MP-3 block above is **answered**: lines at 10 lei, only the total at 1 000 lei, rows need not
+  sum. Wave **Q1c** (Lane Q) implements it.
+- Owner, on copy: "Don't block on translations, this will be covered later". **Copy and translation questions no longer
+  block waves.**
+- The 0 % depth-line wording question was re-asked (show as is / hide / "fără cost suplimentar"); behaviour (a) stays
+  until answered.
+
+**2026-10-28 — P4a merged (`e06caee1`) and M2 merged (`c9ff8fd3`)**; both QA green, logic and clean-code reviewed;
+pushed [coordinator's brief, relayed].
+
+- Gates, full `pnpm ci:local` on `c9ff8fd3` (coordinator's report): format, lint, typecheck, build, boundary, lockfile
+  and sca passed. Domain 11 752 passed (the gate itself failed on a vitest RPC timeout under load). e2e 1 126 passed,
+  2 failed (top-bar 900×500 passed alone; the staff-kitchen status-conflict test was shown load-induced: the server
+  answered 200 in 301 ms, and it passed 5/5 once load fell). Persistence 5 658 passed. Web 21 310 passed, 9 failed in
+  three known load-flake files (client-write-path and qa-8q2 passed alone; qa-l3-u6-screen timed out alone at load
+  average 121 and passed 155/155 in earlier runs). Running two waves plus full CI overloads the machine: run full CI
+  only when no QA is running.
+- P4a rulings: `UNKNOWN_TIER` precedes `REPLACEMENT_REQUIRED`; built-in accessory refs use book field names, created
+  and linked accessories have their own ids; `replacementsRequired` lives in `queries/` (ADR 0071 d1) and takes a named
+  input, as does `removedAccessoriesSince` (with `catalog`, later `book`); the contact route prices under the real
+  availability and refuses a kitchen naming a switched-off item with 409 `CONTACT_DESIGN_NOT_CURRENT` (nearest existing
+  cause); `describePricedBody` and `PricingRow` are exported for M2.
+- P4a hand-offs: **M3** must refuse to switch off `DEFAULT_HANDLE`, `TOP_ROW_HANDLE` and a material's `defaultFinish`
+  (a top-row kitchen with no stored handle falls back to push and would still be billed latches; slot-forced push
+  cannot be replaced), and defines last-active-option groups per material palette for colours and one group for
+  handles. **Q3:** one switched-off tier blanks every delta (`measureEveryDelta` is all-or-nothing) and a switched-off
+  tier stays in `offer.material.tierIds`, both pinned `it.fails`; Q3 also covers `useRequiredDeepCabinetPercent`.
+  **Q5:** with a disabled material and a disabled colour, the colour row offers the disabled material's palette;
+  replacement order matters (ADR 0057 resets the colour). **Architect, open:** defaults reached without storing are not
+  "named"; a stored but unworn kitchen handle or top-row handle is named; the staff view and account card show no
+  figure for a refused kitchen (D10B reason display, Q3 / staff lane).
+- M2 rulings: bulk scales every manufacturer cabinet amount proportionally, including extra-door and height steps;
+  bound −90..300; the bulk always checks scaled prices (`judgePricesOfRule`); the corner preview shows the real built
+  width (330, ADR 0135) priced under the round-up key, no "preț ca" note; customer rows must be evaluable and free;
+  seeded variants are judged with their own door leaves; duplicate build ids are refused.
+- M2 hand-offs: **R3 and S2** must call `judgeBookAgainstCatalog` (with
+  `buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM)`; the judge is depth-independent for the shipped catalogue) and
+  parse first. **U2:** a bulk can be refused for a ≤0 price the draft already had, so its message must name the rule.
+  **U3:** `previewCabinet` takes a named request and refuses non-buildable heights (`HEIGHT_NOT_BUILDABLE`). **P5:** add
+  the lift term to the preview's hardware.
+- In flight, not merged: **Q1c** (rounding, in QA) and **P4b** (linked accessories; rulings: `linkedAccessories`
+  required, since no stored versions exist yet and the sample id is unchanged; `pricesChangedBetween` throws when
+  either side is refused, R5 decides display; the blank-name rule applies to every unkeyed row).
 
 **2026-10-28 — P3 built, QA green, reviewed; held to MP-3** (branch `m10/p3` @ `0abdd0d2`, pushed) [coordinator's
 brief, relayed; the scribe ran nothing]:
@@ -2086,6 +2135,7 @@ Amendment; ADR 0062 Amendments 3 and 5; ADR 0104 (chrome specification); `apps/w
 | --- | --- | --- | --- | --- |
 | **Q1** depth line and copy | (1) the depth line in the breakdown ("Adâncime 700 mm · +{percent} %"); (2) the settings depth control switches from `globalSettings.depthNote` to T1's `depthNotePriced`, with `{percent}` from the published rule. This is a component edit only; no message file is touched | `price-breakdown.tsx`, `price-breakdown-model.ts` (depth line only), `settings/global-settings.tsx` | T1; **built on P3's branch after P3's QA is green; merged with P3 at MP-3** | ADR 0100 decision 5 and Amendment; A-1; frames C3, C3D, C3S, C3R [mock L784-790] |
 | **Q1b** the depth line on the review screen and in the shop's notice (added 2026-10-27, P3-Q1; Full + security, because the notice is generated e-mail) | The review model and screen, and the lead notice in plain text and HTML, render the `depth` line from the priced result and the stored snapshot, between the material line and the hardware line, with the same copy as the breakdown (T3's accessors). The lines on every surface sum to the total shown | `review/review-model.ts`, `review/review-screen.tsx`, `lib/server/mail/lead-notification.ts`, `lib/server/mail/lead-notification-html.ts` | T3; **built on P3's branch; merged at MP-3 with P3 and Q1** | A-1; ADR 0154 d8; ADR 0165; `escapeHtml` builders (F6's rule applies to any value it prints) |
+| **Q1c** two display roundings (added 2026-10-28, owner ruling; branch `m10/q1c`, **in QA, not merged**) | Every line on the breakdown, the review and the lead notice shows its priced amount to 10 lei; only the kitchen total rounds up to 1 000 lei; printed rows need not sum to the total. A stored legacy line not a multiple of 10 lei rounds up to the next 10 lei. Tier-delta badges stay at the thousand (they compare totals) | the Q1/Q1b surfaces and models (named in the dispatch) | MP-3 | ADR 0001 amendment 2026-10-28; ADR 0175 d5; the `it.fails` in `qa-q1-depth-line.adversarial.test.ts` |
 | **Q2** whole-kitchen handle row | C2: a "Mânere" row in the settings sheet (Bară inox / Bară neagră / Push-to-open) with its hint, offering only active handles; the store applies `setKitchenHandle`; **Q2 folds `KitchenHandleSetEffect` into the `CommandEffect` union** (H1 leaves it outside, and its code comment saying so is being trimmed), together with `apply-command-result.ts`'s whole-kitchen branch, in one change (H-6) | `global-settings.tsx`, `global-settings-model.ts`, `store/whole-kitchen-apply.ts`, `domain commands/command-result.ts`, `store/apply-command-result.ts` | **MP-3** (Q1 holds `global-settings.tsx` until then), **H1b**, T1 | Frame C2 [mock L764-767]; ADR 0099; H1's command; H-6 |
 | **Q2b** a cabinet follows the kitchen handle again (added 2026-10-26; **pending OQ-15**, default = mirror colour) | (1) a `clearHandle` command in `set-appearance.ts`, mirroring `clearFinish` (ADR 0099 d8): it removes the cabinet's own handle, so the kitchen handle applies again; (2) a panel option "Ca restul bucătăriei" in the cabinet's handle control, as the colour control has; (3) the copy leaf, requested from T | `commands/set-appearance.ts`, the panel handle control, `store/apply-command-result.ts` (if a new effect branch is needed) | Q2 | ADR 0099 d8 (`clearFinish`); `set-appearance.ts`; OQ-15 |
 | **Q3** forced replacement and merged notice (**widened 2026-10-27, R1-Q1 deferral: with no active book the whole editor `/d/[id]` and the share view `/s/[token]` crash, not only the settings sheet, because `use-top-bar-fit.ts:72` calls `useWholeKitchenTierOffer()` unconditionally and there is no `error.tsx`; Q3's `NO_TIER_OFFER` work must cover `describeSettingsPill` and the top bar too, see R-b**) | C4A–C4D (a modal sheet, not dismissable except by ‹; first "Alege" focused; rows announced; "Prețul apare după ce alegi"; only remaining options, the disabled one struck through; nothing preselected; accessory rows informational); C4C confirmation merged with C1's sentence (the mockup's choice [mock L810]); C1 standalone when there is nothing to replace; acknowledging writes the marker (the version and availability pair). The sheet and the accessory info rows follow **current availability**, so they appear on the next open after a disable, with no publish (A-17) | `replacement-sheet.tsx`, `use-price-notice.ts`, `price-notice-banner.tsx`, `price-bar.tsx` (mod), `whole-kitchen-tiers.ts` (disabled tiers hidden or struck) | P4a, R5, T1 | Frames C1, C4A–D [mock L763, L792-811]; A-11, A-16; ADR 0072 Amendment *Consequence*; ADR 0062 Amendment 3; `whole-kitchen-tiers.ts:91-162` |

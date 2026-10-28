@@ -36,6 +36,25 @@ Original status line: accepted by product owner
   deployment persistence provider still require recorded data before their dependent behavior can
   be called production-ready.
 
+## Amendment — 2026-10-28 (decision 4: two roundings; owner ruling, relayed)
+
+Evidence: the owner's words as relayed by the coordinator; the scribe ran nothing.
+
+Owner ruling, verbatim: "we speak about 2 rounding, the price set to things in admin rounded by 10 lei, the sum of
+the entire kitchen rounded to 1000 lei".
+
+Decision 4's "rounding up" (see ADR 0095 point 4, ADR 0177) is therefore two roundings, not one:
+
+- **Every line** the customer sees (breakdown, review, lead notice) shows its priced amount to **10 lei**.
+- **Only the kitchen total** rounds up to the **1 000 lei**. Printed rows need not sum to the printed total.
+- Coordinator rulings with it: a stored legacy line that is not a multiple of 10 lei rounds **up** to the next 10 lei;
+  tier-delta badges stay at the thousand, because they compare totals.
+
+This answers the owner question recorded in the 2026-10-28 MP-3 block of
+[`M10-price-dashboard.md`](../milestones/M10-price-dashboard.md) (ADR 0175 decision 5 called 10 lei the display unit).
+Implemented by wave Q1c (branch `m10/q1c`, in QA, not merged). Decision 4's other half (sample prices are estimates,
+never a quote) is unchanged.
+
 ## Dated note — 2026-10-17 (wave 8J2)
 
 Decision 7's *provider-neutral server API* is **kept**: the mail provider changed from Resend to Gmail SMTP behind the
