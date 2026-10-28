@@ -92,12 +92,19 @@ export function removedAccessoriesSince({
   );
 }
 
-/** Every accessory the bodies earn at least one of: the built-ins, then the linked ones. */
-function earnedAccessoryIds(kitchen: {
+/** The bodies a kitchen's accessories are earned over, the catalogue that says what each is, and the book whose linked
+ *  accessories are asked. */
+export interface EarnedAccessoryKitchen {
   readonly entries: readonly DisplayEntry[];
   readonly catalog: BodyCatalog;
   readonly book: PriceBook;
-}): readonly string[] {
+}
+
+/** Every accessory the bodies earn at least one of: the built-ins, then the linked ones. The one reader of "does this
+ *  kitchen have it", so the notice of what was removed and a count of the kitchens that use an accessory agree. */
+export function earnedAccessoryIds(
+  kitchen: EarnedAccessoryKitchen,
+): readonly string[] {
   const { entries, catalog, book } = kitchen;
   const builtIns = earnedAccessoryQuantities(entries, catalog);
   return [
