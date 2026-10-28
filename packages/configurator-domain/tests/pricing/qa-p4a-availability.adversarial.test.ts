@@ -608,6 +608,7 @@ describe("P4a-d swept: a switched-off accessory is a missing line, and the notic
               removedAccessoriesSince({
                 design,
                 catalog: CATALOG,
+                book: BOOK,
                 seen: availabilityOf(seen, "s"),
                 current: availabilityOf(current, "c"),
               }),
@@ -629,6 +630,7 @@ describe("P4a-d swept: a switched-off accessory is a missing line, and the notic
           removedAccessoriesSince({
             design: KITCHEN_L_DESIGN,
             catalog: CATALOG,
+            book: BOOK,
             seen: NOTHING_DISABLED,
             current: availabilityOf(disabled),
           })
@@ -685,6 +687,7 @@ describe("hostile availability: a frozen, repeated, oversized or foreign-kinded 
       removedAccessoriesSince({
         design: KITCHEN_L_DESIGN,
         catalog: CATALOG,
+        book: BOOK,
         seen: frozen,
         current: frozen,
       }),

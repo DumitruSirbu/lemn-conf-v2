@@ -14,8 +14,6 @@
 //
 // Hand-written rather than Zod: a schema would duplicate `PriceBook`'s hand-authored interfaces and
 // would have to be opened up for both exceptions above.
-import { MAX_IDENTIFIER_LENGTH } from "../design-bounds.js";
-
 import {
   isAnchoredShape,
   PRICE_PER_SIZE_SHAPE,
@@ -26,11 +24,19 @@ import {
   enumerableFieldsOf,
   invalidBook,
   isRecord,
+  MAX_BOOK_DESCRIPTION_LENGTH,
+  MAX_BOOK_NAME_LENGTH,
   readDeclared,
   refuseNonWholeAmount,
   refuseOversizedAmount,
+  refuseUnusableIdentifier,
+  refuseUnusableText,
   UNREADABLE,
 } from "./book-reading.js";
+import {
+  MAX_LINKED_ACCESSORIES,
+  refuseUnreadableLinkedAccessories,
+} from "./parse-linked-accessories.js";
 import { refuseUnusablePercentageForm } from "./parse-percentage-form.js";
 import { refuseUndeclaredRowMembers } from "./parse-row-members.js";
 import {
@@ -41,6 +47,7 @@ import {
 import {
   ACCESSORY_IDS,
   CABINET_SUPPLIERS,
+  listAccessoryIds,
   listRuleIds,
   PRICE_BOOK_CURRENCY,
   PRICE_BOOK_STATUSES,
@@ -61,17 +68,14 @@ const MAX_CABINET_RULES = 500;
  *  tiers cost ~200 ms of synchronous work and 2 000 rendered radios. */
 const MAX_TIERS_PER_GROUP = 20;
 
-/** The longest a tier's or an accessory's name may be: a radio label on one line. A version's name has the same bound. */
-export const MAX_BOOK_NAME_LENGTH = 80;
-
-/** The longest a tier's or an accessory's one-line description may be. */
-const MAX_BOOK_DESCRIPTION_LENGTH = 240;
-
 /** The longest catalogue key a row may name for a rendered field (ADR 0106 decision 1); bounded for
  *  `MAX_IDENTIFIER_LENGTH`'s reason: an unbounded one multiplies every refusal message it reaches. */
 const MAX_TEXT_KEY_LENGTH = 80;
 
-export { MAX_PRICE_COEFFICIENT_MINOR } from "./book-reading.js";
+export {
+  MAX_BOOK_NAME_LENGTH,
+  MAX_PRICE_COEFFICIENT_MINOR,
+} from "./book-reading.js";
 
 /** Reads a declared price book, or refuses it naming the first thing that is not what a book says it is.
  *  Takes `unknown`: a `PriceBook`-typed parameter would be the very promise this checks. */
@@ -110,8 +114,14 @@ function refuseUnreadableBook(declared: unknown): PricingFailure | undefined {
     refuseUnreadableTierGroup(readDeclared(declared, "hardware"), "hardware") ??
     refuseUnreadableTierGroup(readDeclared(declared, "material"), "material") ??
     refuseUnreadableAccessories(readDeclared(declared, "accessories")) ??
+    refuseUnreadableLinkedAccessories(
+      readDeclared(declared, "linkedAccessories"),
+    ) ??
     refuseUnusablePercentageForm(declared, MAX_TIERS_PER_GROUP) ??
-    refuseUndeclaredRowMembers(declared, MAX_TIERS_PER_GROUP) ??
+    refuseUndeclaredRowMembers(declared, {
+      maxTiersPerGroup: MAX_TIERS_PER_GROUP,
+      maxLinkedAccessories: MAX_LINKED_ACCESSORIES,
+    }) ??
     // Every section above is established, so the semantic sweeps may read the book as the shape it
     // declares; this double assertion is the only line in the package that has earned it.
     refuseRepeatedId(declared as unknown as PriceBook)
@@ -430,12 +440,28 @@ function refuseUnreadableWords(
       named: `${named} name`,
       maxLength: MAX_BOOK_NAME_LENGTH,
     }) ??
+    refuseBlankUnkeyedName(declared, named) ??
     refuseUnusableText(readDeclared(declared, "description"), {
       named: `${named} description`,
       maxLength: MAX_BOOK_DESCRIPTION_LENGTH,
     }) ??
     refuseUnusableTextKey(declared, named, "nameKey") ??
     refuseUnusableTextKey(declared, named, "descriptionKey")
+  );
+}
+
+/** A row naming no catalogue leaf renders its authored name as typed (ADR 0106 decision 2), so a blank one renders
+ *  nothing: a created row has no key, and this is what keeps its Romanian name from being empty. A keyed row's authored
+ *  word is the fallback and may be anything. */
+function refuseBlankUnkeyedName(
+  declared: Record<string, unknown>,
+  named: string,
+): PricingFailure | undefined {
+  const name = readDeclared(declared, "name");
+  if (typeof name !== "string" || name.trim() !== "") return undefined;
+  if (readDeclared(declared, "nameKey") !== undefined) return undefined;
+  return invalidBook(
+    `The ${named} declares a blank "name" and names no "nameKey", so it would render nothing`,
   );
 }
 
@@ -463,13 +489,48 @@ function refuseUnusableTextKey(
 /**
  * What the book's rules say about each other, once all are readable. A repeated rule id makes a line
  * untraceable; a repeated tier id makes `selectTier`'s `Array.find` resolve on declaration order; a row
- * priced twice does not say what the cabinet costs.
+ * priced twice does not say what the cabinet costs; a repeated accessory id gives two lines one id and one
+ * availability switch; a linked accessory on a row the customer supplies would bill for what nobody sells.
  */
 function refuseRepeatedId(book: PriceBook): PricingFailure | undefined {
   return (
     refuseRepeatedRuleId(book) ??
     refuseRepeatedTierId(book) ??
-    refuseRowPricedTwice(book)
+    refuseRowPricedTwice(book) ??
+    refuseRepeatedAccessoryId(book) ??
+    refuseLinkToCustomerSuppliedRow(book)
+  );
+}
+
+/** Across the two built-ins' field names and every linked accessory, so a created accessory cannot take a built-in's
+ *  line id (`accessory:sinkProtectiveCover`) or its availability switch. */
+function refuseRepeatedAccessoryId(
+  book: PriceBook,
+): PricingFailure | undefined {
+  const repeated = firstDuplicate(listAccessoryIds(book));
+  if (repeated === undefined) return undefined;
+  return invalidBook(`Accessory id "${repeated}" is declared more than once`, {
+    id: repeated,
+  });
+}
+
+/** Only where the book itself says the row is the customer's: whether the catalogue holds the row is the dashboard's
+ *  judgement at publish, since pricing binds to no catalogue. */
+function refuseLinkToCustomerSuppliedRow(
+  book: PriceBook,
+): PricingFailure | undefined {
+  const customerRows = new Set(
+    book.cabinetRules
+      .filter((rule) => rule.suppliedBy === "customer")
+      .map((rule) => rule.buildId),
+  );
+  const linked = book.linkedAccessories.find((accessory) =>
+    customerRows.has(accessory.linkedBuildId),
+  );
+  if (linked === undefined) return undefined;
+  return invalidBook(
+    `Linked accessory "${linked.accessoryId}" is linked to "${linked.linkedBuildId}", a row the customer supplies`,
+    { id: linked.accessoryId },
   );
 }
 
@@ -512,35 +573,6 @@ function firstDuplicate(ids: readonly string[]): string | undefined {
     seen.add(id);
   }
   return undefined;
-}
-
-/** An id a rule, tier or book is known by: a non-empty string within `MAX_IDENTIFIER_LENGTH`; an
- *  unbounded one multiplies every refusal message and log line it reaches. */
-function refuseUnusableIdentifier(
-  declared: unknown,
-  field: string,
-): PricingFailure | undefined {
-  if (declared === "")
-    return invalidBook(`Book declares an empty "${field}", which is not an id`);
-  return refuseUnusableText(declared, {
-    named: `"${field}"`,
-    maxLength: MAX_IDENTIFIER_LENGTH,
-  });
-}
-
-function refuseUnusableText(
-  declared: unknown,
-  bound: { readonly named: string; readonly maxLength: number },
-): PricingFailure | undefined {
-  if (typeof declared !== "string")
-    return invalidBook(
-      `Book declares no ${bound.named}, which is a string. Found: ${describeDeclared(declared)}`,
-    );
-  if (declared.length <= bound.maxLength) return undefined;
-  return invalidBook(
-    `Book declares a ${bound.named} of ${String(declared.length)} characters, ` +
-      `past the ${String(bound.maxLength)} a book may state`,
-  );
 }
 
 /** An id as a message renders it, whatever the book declared it as. */

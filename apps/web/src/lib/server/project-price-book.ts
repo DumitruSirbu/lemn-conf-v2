@@ -7,6 +7,7 @@ import type {
   CabinetPriceRule,
   DepthRule,
   HardwareTier,
+  LinkedAccessoryRule,
   MaterialTier,
   PriceBook,
   PricedSize,
@@ -44,6 +45,7 @@ const BOOK_MEMBERS = membersOf<PriceBook>()([
   "material",
   "depthRule",
   "accessories",
+  "linkedAccessories",
 ]);
 
 const RULE_MEMBERS = membersOf<CabinetPriceRule>()([
@@ -98,6 +100,16 @@ const ACCESSORY_MEMBERS = membersOf<AccessoryRule>()([
   "nameKey",
   "descriptionKey",
   "perUnitMinor",
+]);
+
+/** A created accessory states authored Romanian and no key (A-21), so none is listed. */
+const LINKED_ACCESSORY_MEMBERS = membersOf<LinkedAccessoryRule>()([
+  "accessoryId",
+  "ruleId",
+  "linkedBuildId",
+  "perUnitMinor",
+  "name",
+  "description",
 ]);
 
 const ACCESSORIES_MEMBERS = membersOf<BookAccessories>()([
@@ -186,5 +198,8 @@ export function projectPriceBook(book: PriceBook): PriceBook {
   );
   projected.depthRule = picked(book.depthRule, DEPTH_RULE_MEMBERS);
   projected.accessories = projectAccessories(book.accessories);
+  projected.linkedAccessories = listed(book.linkedAccessories, (linked) =>
+    picked(linked, LINKED_ACCESSORY_MEMBERS),
+  );
   return projected as unknown as PriceBook;
 }

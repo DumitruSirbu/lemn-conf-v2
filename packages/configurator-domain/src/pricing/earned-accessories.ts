@@ -19,7 +19,12 @@ import {
   type CatalogueAvailability,
   type ItemRef,
 } from "./catalogue-availability.js";
-import { ACCESSORY_IDS, type AccessoryId } from "./price-book.js";
+import { earnedLinkedAccessories } from "./linked-accessories.js";
+import {
+  ACCESSORY_IDS,
+  type AccessoryId,
+  type PriceBook,
+} from "./price-book.js";
 
 /** How many of each built-in accessory the bodies earn, before availability or any book is asked: per sink, never per
  *  kitchen, so a second sink doubles both. Zero is an answer and a line's absence, never an amount. */
@@ -38,19 +43,22 @@ export function earnedAccessoryQuantities(
   };
 }
 
-/** The kitchen and the catalogue that says what it earns, and the availability the customer last saw (`seen`) and the
- *  one that is current. */
+/** The kitchen, the catalogue and the book that say what it earns, and the availability the customer last saw (`seen`)
+ *  and the one that is current. The book is the one the kitchen is priced under now: a linked accessory is earned by
+ *  the row it states there. */
 export interface RemovedAccessoriesRequest {
   readonly design: Design;
   readonly catalog: BodyCatalog;
+  readonly book: PriceBook;
   readonly seen: CatalogueAvailability;
   readonly current: CatalogueAvailability;
 }
 
 /**
- * The accessories this kitchen earns that `current` switches off and `seen` did not: what the customer is told was
- * removed since they last looked, as accessory items. One already off when they last looked is not reported again, and
- * one the kitchen does not earn (no sink, no rack host) was never theirs to lose.
+ * The accessories this kitchen earns, built-in or linked, that `current` switches off and `seen` did not: what the
+ * customer is told was removed since they last looked, as accessory items. One already off when they last looked is not
+ * reported again, and one the kitchen does not earn (no sink, no rack host, no placement of the linked row) was never
+ * theirs to lose.
  *
  * It takes the catalogue because whether a kitchen earns a sink cover is a fact about its bodies. Like the projection
  * it reads, it throws `UnknownBodyError` for a body the catalogue does not hold: price the design first, which refuses it
@@ -59,18 +67,38 @@ export interface RemovedAccessoriesRequest {
 export function removedAccessoriesSince({
   design,
   catalog,
+  book,
   seen,
   current,
 }: RemovedAccessoriesRequest): readonly ItemRef[] {
-  const earned = earnedAccessoryQuantities(
-    projectDesignForDisplay(design, catalog).flatMap((group) => group.entries),
-    catalog,
+  const entries = projectDesignForDisplay(design, catalog).flatMap(
+    (group) => group.entries,
   );
   return distinctItemsInOrder(
-    ACCESSORY_IDS.filter((accessoryId) => earned[accessoryId] > 0)
+    earnedAccessoryIds({ entries, catalog, book })
       .map((accessoryId): ItemRef => ({ kind: "accessory", accessoryId }))
       .filter(
         (item) => isItemDisabled(current, item) && !isItemDisabled(seen, item),
       ),
   );
+}
+
+/** Every accessory the bodies earn at least one of: the built-ins, then the linked ones. */
+function earnedAccessoryIds(kitchen: {
+  readonly entries: readonly DisplayEntry[];
+  readonly catalog: BodyCatalog;
+  readonly book: PriceBook;
+}): readonly string[] {
+  const { entries, catalog, book } = kitchen;
+  const builtIns = earnedAccessoryQuantities(entries, catalog);
+  return [
+    ...ACCESSORY_IDS.filter((accessoryId) => builtIns[accessoryId] > 0),
+    ...earnedLinkedAccessories({
+      entries,
+      catalog,
+      rules: book.linkedAccessories,
+    })
+      .filter(({ quantity }) => quantity > 0)
+      .map(({ rule }) => rule.accessoryId),
+  ];
 }

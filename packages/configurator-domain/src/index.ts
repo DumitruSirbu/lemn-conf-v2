@@ -280,6 +280,19 @@ export {
   type EarnedAccessoryQuantities,
   type RemovedAccessoriesRequest,
 } from "./pricing/earned-accessories.js";
+// The accessories the dashboard creates (A-19): how many a kitchen earns, the most a book may hold, and the question
+// behind the prices-updated notice (A-11).
+export {
+  earnedLinkedAccessories,
+  type EarnedLinkedAccessory,
+  type LinkedAccessoryEarning,
+} from "./pricing/linked-accessories.js";
+export { MAX_LINKED_ACCESSORIES } from "./pricing/parse-linked-accessories.js";
+export {
+  PriceChangeNotComparableError,
+  pricesChangedBetween,
+  type PriceChangeRequest,
+} from "./pricing/price-change-notice.js";
 export {
   NoReplacementOptionError,
   replacementsRequired,

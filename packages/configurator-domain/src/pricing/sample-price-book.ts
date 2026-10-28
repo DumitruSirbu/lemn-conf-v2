@@ -425,4 +425,5 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
   },
   depthRule: { deepCabinetPercent: 12 },
   accessories: SAMPLE_ACCESSORIES,
+  linkedAccessories: [],
 };
