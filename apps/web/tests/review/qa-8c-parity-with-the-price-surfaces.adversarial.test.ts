@@ -4,6 +4,7 @@
 // catalogues and the priced lines through no content resolver (`raw-catalogue-text.ts`), what
 // `describePriceBreakdown` prints, and what `describePriceBar` prints. The order is checked on the review's own
 // keys against the design's placements, so a review that reordered what it was handed is seen.
+import { SAMPLE_DEEP_CABINET_PERCENT } from "../support/sample-deep-cabinet-percent";
 import { fc, test } from "@fast-check/vitest";
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -370,6 +371,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
       for (const kitchen of kitchens) {
         const review = reviewIn(catalogue, kitchen);
         const breakdown = describePriceBreakdown({
+          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(catalogue),
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -388,6 +390,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
         const review = reviewIn(catalogue, kitchen);
         const bar = describePriceBar({ content, pricing: kitchen.pricing });
         const breakdown = describePriceBreakdown({
+          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content,
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -449,6 +452,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
           (candidate) => candidate.kind === "depth",
         );
         const breakdown = describePriceBreakdown({
+          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(ROMANIAN),
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -477,6 +481,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
     it("leaves no line the total counts unshown in the breakdown: every priced line is a row or the depth row", () => {
       for (const kitchen of deepKitchens) {
         const breakdown = describePriceBreakdown({
+          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(ROMANIAN),
           pricing: kitchen.pricing,
           groups: kitchen.groups,
@@ -520,6 +525,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
       for (const kitchen of withADepthLine) {
         const review = reviewIn(ROMANIAN, kitchen);
         const breakdown = describePriceBreakdown({
+          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: contentOf(ROMANIAN),
           pricing: kitchen.pricing,
           groups: kitchen.groups,

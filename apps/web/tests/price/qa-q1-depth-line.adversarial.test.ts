@@ -11,7 +11,7 @@
 //      priced line is printed exactly once, the depth line sits straight after the material row, and the figure restates
 //      the total the lines sum to;
 //   4. at 0 % the line is present and reads *inclus* (ADR 0177 A-1), the one behaviour the plan leaves implicit;
-//   5. the optional `deepCabinetPercent` is a silent-omission hazard: every production call site must pass it.
+//   5. `deepCabinetPercent` is a required key of the model's input: every production call site must pass it.
 import { fc } from "@fast-check/vitest";
 import {
   buildKitchenLBodyCatalog,
@@ -79,6 +79,7 @@ function describeAt(
   deepCabinetPercent: number | undefined,
 ): AvailableBreakdown {
   const view = describePriceBreakdown({
+    deepCabinetPercent: undefined,
     content: ro,
     pricing,
     groups: projectDesignForDisplay(
@@ -347,27 +348,7 @@ describe("generated rooms built at 700 mm through the real depth command", () =>
   });
 });
 
-describe("a caller that omits the published percent (the silent-omission hazard)", () => {
-  // HAZARD, characterised and not endorsed: `deepCabinetPercent` is optional, so a caller that forgets it gets a total that
-  // includes the depth uplift and a sheet that does not print it. When the key is made required (or the model throws on
-  // a depth row without a percent), delete this case.
-  it("holds the depth row but prints no depth line, while the total still counts it", () => {
-    const design = deepShippedKitchen();
-    const pricing = priceAt(design, 12);
-
-    const view = describeAt(design, pricing, undefined);
-    const rows = printedRowsOf(markupOf(view));
-
-    expect(view.depthRow).toBeDefined();
-    expect(view.depthLine).toBeUndefined();
-    expect(rows.some((row) => row.testId === "breakdown-depth-row")).toBe(
-      false,
-    );
-    expect(pricedOf(pricing).totalMinor).toBeGreaterThan(
-      pricedOf(priceAt(KITCHEN_L_DESIGN, 12)).totalMinor,
-    );
-  });
-
+describe("a caller of describePriceBreakdown", () => {
   it("is pinned at every production call site: each call of describePriceBreakdown passes deepCabinetPercent", () => {
     const callSites = filesUnder(WEB_SOURCE).flatMap((file) =>
       callsOf("describePriceBreakdown", readFileSync(file, "utf8")).map(

@@ -92,7 +92,7 @@ export interface AvailableBreakdown {
   /** The depth line, present exactly when the query published one: a 700 mm kitchen with a cabinet that gets deeper.
    *  Absent, never zero, at 600 mm, so a surface that ignores it still prints every line that is not the uplift. */
   readonly depthRow?: BreakdownDepthRow;
-  /** `depthRow` worded, present exactly when it is and the input carried the published rule. */
+  /** `depthRow` worded, present exactly when `depthRow` is. */
   readonly depthLine?: BreakdownDepthLine;
   /** The key of the whole-kitchen row the depth line is printed after: the material row, whose percent it multiplies
    *  with. Absent when the design prices no material row, and the line then leads the section. */
@@ -117,8 +117,9 @@ export interface DescribePriceBreakdownInput {
    *  exist, their order and their names. */
   readonly groups: readonly DisplayGroup[];
   /** The published rule's whole percentage (`book.depthRule.deepCabinetPercent`): the only source of the depth line's
-   *  figure. A caller that omits it gets no `depthLine` for a depth row it holds, never a percent of the model's own. */
-  readonly deepCabinetPercent?: number;
+   *  figure. Required as a key so a caller cannot forget it; `undefined` is for a caller that holds no book, whose
+   *  pricing is refused and which never reaches a depth row. A depth row with no percent is refused, not left unworded. */
+  readonly deepCabinetPercent: number | undefined;
 }
 
 /**
@@ -133,6 +134,21 @@ export class PriceBreakdownDivergenceError extends Error {
         `no row could be built for: ${placementIds.join(", ")}`,
     );
     this.name = "PriceBreakdownDivergenceError";
+  }
+}
+
+/**
+ * The priced design holds a depth line and the caller supplied no published percentage to word it with. Thrown, not
+ * rendered short: the total counts the uplift, so a sheet that dropped the line would show rows that explain less
+ * than the figure beside them.
+ */
+export class PriceBreakdownDepthRuleMissingError extends Error {
+  constructor(depthLineId: string) {
+    super(
+      "The priced design holds a depth line, but no published depth percentage " +
+        `was supplied to word it: ${depthLineId}`,
+    );
+    this.name = "PriceBreakdownDepthRuleMissingError";
   }
 }
 
@@ -185,8 +201,9 @@ function describeDepthLineOf(
   row: BreakdownDepthRow | undefined,
   input: DescribePriceBreakdownInput,
 ): BreakdownDepthLine | undefined {
-  if (row === undefined || input.deepCabinetPercent === undefined)
-    return undefined;
+  if (row === undefined) return undefined;
+  if (input.deepCabinetPercent === undefined)
+    throw new PriceBreakdownDepthRuleMissingError(row.key);
   return describeDepthLine(row, input.deepCabinetPercent, input.content);
 }
 

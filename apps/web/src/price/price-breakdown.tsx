@@ -57,7 +57,7 @@ export function PriceBreakdown() {
     pricing,
     groups,
     content,
-    ...(deepCabinetPercent === undefined ? {} : { deepCabinetPercent }),
+    deepCabinetPercent,
   });
 
   const [isOpen, setIsOpen] = useState(false);

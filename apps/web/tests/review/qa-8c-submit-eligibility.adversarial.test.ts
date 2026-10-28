@@ -155,6 +155,7 @@ describe.each(VARIED_ARMS)("over varied $name kitchens", (arm) => {
           for (const { kitchen } of made) {
             const view = viewOf(kitchen, content);
             const breakdown = describePriceBreakdown({
+              deepCabinetPercent: undefined,
               content,
               pricing: kitchen.pricing,
               groups: kitchen.groups,
@@ -421,6 +422,7 @@ describe("the review's state beside the price bar's and the breakdown's", () => 
       const view = viewOf(kitchen);
       const bar = describePriceBar({ content: ro, pricing: kitchen.pricing });
       const breakdown = describePriceBreakdown({
+        deepCabinetPercent: undefined,
         content: ro,
         pricing: kitchen.pricing,
         groups: kitchen.groups,

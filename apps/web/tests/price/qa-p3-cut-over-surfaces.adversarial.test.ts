@@ -176,6 +176,7 @@ describe("every surface names one total for one kitchen, at both depths", () => 
 
         const bar = describePriceBar({ content: ro, pricing });
         const breakdown = describePriceBreakdown({
+          deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
           content: ro,
           pricing,
           groups,
@@ -284,9 +285,14 @@ describe("P3-d: a refused price takes the numbers off the sheet and never the ch
     const groups = projectDesignForDisplay(design, catalog);
 
     expect(describePriceBar({ content: ro, pricing }).kind).not.toBe("priced");
-    expect(describePriceBreakdown({ content: ro, pricing, groups }).kind).toBe(
-      "unavailable",
-    );
+    expect(
+      describePriceBreakdown({
+        deepCabinetPercent: SAMPLE_DEEP_CABINET_PERCENT,
+        content: ro,
+        pricing,
+        groups,
+      }).kind,
+    ).toBe("unavailable");
     expect(
       describeReview({ content: ro, design, pricing, groups }),
     ).toMatchObject({

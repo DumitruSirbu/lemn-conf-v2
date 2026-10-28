@@ -189,6 +189,7 @@ function availableView(
   groups: readonly DisplayGroup[],
 ): AvailableBreakdown {
   const view = describePriceBreakdown({
+    deepCabinetPercent: undefined,
     content: ro,
     pricing,
     groups,
@@ -313,6 +314,7 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
       expect(() =>
         describePriceBreakdown({
+          deepCabinetPercent: undefined,
           content: ro,
           pricing: SHIPPED_PRICING,
           groups: short,
@@ -339,6 +341,7 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
         expect(() =>
           describePriceBreakdown({
+            deepCabinetPercent: undefined,
             content: ro,
             pricing: SHIPPED_PRICING,
             groups: short,
@@ -357,6 +360,7 @@ describe("the two-way refusal, at every edge and not only at two of them", () =>
 
       expect(() =>
         describePriceBreakdown({
+          deepCabinetPercent: undefined,
           content: ro,
           pricing: withLines(SHIPPED_PRICING, short),
           groups: SHIPPED_GROUPS,

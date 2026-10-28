@@ -221,6 +221,7 @@ describe("the optional delta never reaches a screen as a word", () => {
       const pricing = pricingOf(design);
       const bar = describePriceBar({ pricing, content: ro });
       const breakdown = describePriceBreakdown({
+        deepCabinetPercent: undefined,
         content: ro,
         pricing,
         groups: projectDesignForDisplay(design, CATALOG),

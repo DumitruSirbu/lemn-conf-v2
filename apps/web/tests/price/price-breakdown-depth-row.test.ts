@@ -14,7 +14,10 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { describePriceBreakdown } from "@/price/price-breakdown-model";
+import {
+  describePriceBreakdown,
+  PriceBreakdownDepthRuleMissingError,
+} from "@/price/price-breakdown-model";
 import { describeRoundedAmount } from "@/price/starting-price";
 
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
@@ -46,6 +49,7 @@ function breakdownAt(
     deepeningRows: MEASURED_DEEPENING_ROWS,
   });
   const view = describePriceBreakdown({
+    deepCabinetPercent: depthPercent,
     content,
     pricing,
     groups: projectDesignForDisplay(design, catalog),
@@ -103,5 +107,39 @@ describe("the depth row", () => {
     );
 
     expect(lineKeys.filter((key) => !shown.has(key))).toEqual([]);
+  });
+});
+
+describe("a depth row with no published percentage to word it", () => {
+  function describeWithoutAPercent(depthMm: number) {
+    const design = kitchenAt(depthMm);
+    const catalog = buildKitchenLBodyCatalog(depthMm);
+    const pricing: PricingResult = priceDesign({
+      design,
+      catalog,
+      book: SAMPLE_PRICE_BOOK,
+      pricingVersion: SAMPLE_PRICE_BOOK.version,
+      selections: design.settings,
+      deepeningRows: MEASURED_DEEPENING_ROWS,
+    });
+    return () =>
+      describePriceBreakdown({
+        deepCabinetPercent: undefined,
+        content,
+        pricing,
+        groups: projectDesignForDisplay(design, catalog),
+      });
+  }
+
+  it("is refused at the deep depth, rather than rendered as rows that explain less than the total", () => {
+    expect(describeWithoutAPercent(DEEP_CABINET_DEPTH_MM)).toThrow(
+      PriceBreakdownDepthRuleMissingError,
+    );
+  });
+
+  it("is not needed at the default depth, where there is no depth row", () => {
+    expect(describeWithoutAPercent(DEFAULT_CABINET_DEPTH_MM)().kind).toBe(
+      "available",
+    );
   });
 });

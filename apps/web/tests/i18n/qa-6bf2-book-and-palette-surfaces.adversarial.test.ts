@@ -135,6 +135,7 @@ function settingsViewIn(content: Content): GlobalSettingsView {
 
 function breakdownRowLabelsIn(content: Content): readonly string[] {
   const view = describePriceBreakdown({
+    deepCabinetPercent: undefined,
     content,
     pricing: SHIPPED_PRICING,
     groups: SHIPPED_GROUPS,
