@@ -12,8 +12,11 @@ import {
   generateAccountId,
   type ActivePriceVersion,
   type PriceBookStore,
+  type SessionLookupRequest,
+  type SessionStore,
 } from "@lemnaria/persistence";
 
+import { getSessionStore } from "@/lib/server/account/session-store-instance";
 import type { PriceStores } from "@/lib/server/price-stores";
 
 // The test-only seeding helper (A-10, ADR 0151): the one module in this application that names `SAMPLE_PRICE_BOOK`. Dev,
@@ -60,7 +63,9 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
     expectedPasswordHash: SEEDING_PUBLISHER_PASSWORD_HASH,
     absoluteExpiresAt: new Date(Date.now() + SESSION_LIFETIME_MS),
   });
-  const ledger = new FakeDashboardAuditLedger({ sessions });
+  const ledger = new FakeDashboardAuditLedger({
+    sessions: sessionsOfTheAppBeside(sessions, sessionTokenHash),
+  });
   const availability = new FakeCatalogueAvailabilityStore({
     head: new FakeRevisionHead(),
     ledger,
@@ -93,12 +98,33 @@ export async function seedFakePriceStores(): Promise<PriceStores> {
 }
 
 /**
+ * The sessions a write's actor is taken from: the app's own session store, the one every staff route reads, so a real staff
+ * cookie is recorded as the actor and a write is judged as it is in production (ruling R2-Q1). Only the seed's own publisher,
+ * whose session exists nowhere else, is found in the seed's private store. The ledger asks `findLive` and nothing else of
+ * its sessions, so that is all this answers; the store is chosen when a write asks, never at import.
+ */
+function sessionsOfTheAppBeside(
+  seedSessions: FakeSessionStore,
+  seedTokenHash: string,
+): SessionStore {
+  const lookup = {
+    findLive: (request: SessionLookupRequest) =>
+      request.tokenHash === seedTokenHash
+        ? seedSessions.findLive(request)
+        : getSessionStore().findLive(request),
+  };
+  return lookup as unknown as SessionStore;
+}
+
+/**
  * Every stored version's book states its own `version` as its version's id, so the id a request digests, the version
  * pricing is asked for and the version a stored submission records are one identity (`readActivePriceBook` refuses a book
  * that does not). The fake store mints the id when it publishes, after the book is fixed, so this world stamps it on the
  * way out. A store that stamps on the way in makes this redundant. Reads only: nothing the fake holds is changed.
  */
-function stampedWithItsVersionId(store: FakePriceBookStore): PriceBookStore {
+export function stampedWithItsVersionId(
+  store: FakePriceBookStore,
+): PriceBookStore {
   return {
     readActive: async () => {
       const read = await store.readActive();

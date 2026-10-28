@@ -98,6 +98,19 @@ describe("FakePriceBookStore, beyond what the Neon store must also do", () => {
     expect(world.priceBook.hasHeldVersion("A".repeat(21))).toBe(false);
   });
 
+  it("advances the draft's revision with every publish, so a reader that reads the draft before the active version never holds an old version with the new draft's revision", async () => {
+    const world = newPriceBookWorld();
+    const staff = await world.aStaffMember();
+    const revisions = [(await world.store.readDraft()).draftRevision];
+
+    for (let version = 0; version < 3; version += 1) {
+      await publishNextVersion(world.store, world.availability, staff);
+      revisions.push((await world.store.readDraft()).draftRevision);
+    }
+
+    expect(new Set(revisions).size).toBe(revisions.length);
+  });
+
   it("hands out a draft that is its own: changing what was given or what was read changes nothing held", async () => {
     const world = newPriceBookWorld();
     const staff = await world.aStaffMember();

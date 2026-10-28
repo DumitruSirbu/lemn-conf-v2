@@ -171,6 +171,8 @@ export interface DashboardInvalidInputWire<Code extends string> {
  *   body names the item (`DashboardItemUnavailableWire`).
  * - `availability-changed-meanwhile`: the availability head moved since a defaults save or a publish read it (A-17,
  *   F1, M1).
+ * - `draft-unreadable`: the stored draft is not what a draft holds, so it can be neither shown nor judged; the body
+ *   names its revision (`DashboardDraftUnreadableWire`) and the one write that works is a discard-all (R2 ruling Q2).
  */
 export const DASHBOARD_CONFLICTS = Object.freeze([
   "changed-meanwhile",
@@ -184,11 +186,18 @@ export const DASHBOARD_CONFLICTS = Object.freeze([
   "displayed-revision-ahead",
   "item-unavailable",
   "availability-changed-meanwhile",
+  "draft-unreadable",
 ] as const);
 export type DashboardConflict = (typeof DASHBOARD_CONFLICTS)[number];
 
 export interface DashboardConflictWire {
   readonly status: DashboardConflict;
+}
+
+/** `409` of a read or a write that met a stored draft it cannot read: the revision to discard it at. */
+export interface DashboardDraftUnreadableWire {
+  readonly status: "draft-unreadable";
+  readonly draftRevision: string;
 }
 
 /** `409` of a publish whose draft deletes the current D9 default, or of a switch-off of it (M5). */
@@ -277,6 +286,16 @@ export type DraftRevertTargetWire =
 export interface DraftRevertRequestWire {
   readonly expectedDraftRevision: string;
   readonly target: DraftRevertTargetWire;
+}
+
+/**
+ * Resets the draft to empty, whatever it holds and without reading it, so it works on a draft that cannot be read. `200`
+ * answers the draft as it is now (`DraftChangedWire`, no changes). It is the `DELETE` of the draft's own path, told from a
+ * revert by `scope` where a revert has `target`.
+ */
+export interface DraftDiscardRequestWire {
+  readonly expectedDraftRevision: string;
+  readonly scope: "all";
 }
 
 /** Which cabinets a bulk percentage applies to. */

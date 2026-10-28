@@ -1286,7 +1286,8 @@
       "accessoryCreated": "новый аксессуар",
       "createdRowText": "текст созданной строки",
       "itemDeleted": "удаление позиции",
-      "bulkGroup": "массовое изменение"
+      "bulkGroup": "массовое изменение",
+      "discardAll": "отказ от черновика"
     },
     "itemKinds": {
       "cabinet": "шкаф",

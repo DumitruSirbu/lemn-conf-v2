@@ -97,6 +97,9 @@ export const CHANGE_ITEM_KINDS: readonly ChangeItemKind[] = Object.freeze([
 /** The kind a group revert reports: it removes every change of one bulk action and names no item (m7). */
 export const BULK_GROUP_CHANGE_KIND = "bulk-group";
 
+/** The kind a discard-all reports: the whole draft was reset to empty, whatever it held (R2 ruling Q2, 2026-10-27). */
+export const DISCARD_ALL_CHANGE_KIND = "discard-all";
+
 /**
  * Which row and field a change names, by id and code. `itemKind` and `itemId` are both present or both absent. `itemId`
  * is a book rule id for `cabinet` and `cabinet-size`, otherwise a tier id, accessory id, finish id or handle code.
@@ -115,11 +118,15 @@ export interface PriceDraftChangedDetail extends DraftChangeTarget {
 }
 
 /**
- * Changes removed from the draft: one (`revertedCount` 1), or every change of one bulk action (`changeKind`
- * `bulk-group`, `revertedCount` n).
+ * Changes removed from the draft: one (`revertedCount` 1), every change of one bulk action (`changeKind` `bulk-group`,
+ * `revertedCount` n), or the whole draft (`changeKind` `discard-all`, `revertedCount` the entries it held, 0 when they
+ * could not be read).
  */
 export interface PriceDraftRevertedDetail extends DraftChangeTarget {
-  readonly changeKind: BookFieldAddressKind | typeof BULK_GROUP_CHANGE_KIND;
+  readonly changeKind:
+    | BookFieldAddressKind
+    | typeof BULK_GROUP_CHANGE_KIND
+    | typeof DISCARD_ALL_CHANGE_KIND;
   readonly revertedCount: number;
 }
 
@@ -275,6 +282,7 @@ const ITEMLESS_CHANGE_KINDS: readonly string[] = [
   "depth-rule",
   "provisional",
   BULK_GROUP_CHANGE_KIND,
+  DISCARD_ALL_CHANGE_KIND,
 ];
 
 export function isDashboardAuditAction(
@@ -389,12 +397,11 @@ function readDraftChanged(detail: PlainObject): DashboardAuditEntryReading {
 function readDraftReverted(detail: PlainObject): DashboardAuditEntryReading {
   const changeKind = ownValueOf(detail, "changeKind");
   const revertedCount = ownValueOf(detail, "revertedCount");
-  const isGroupRevert = changeKind === BULK_GROUP_CHANGE_KIND;
-  if (
-    !(isGroupRevert || isOneOf(BOOK_FIELD_ADDRESS_KINDS, changeKind)) ||
-    !isPositiveSafeInteger(revertedCount) ||
-    (!isGroupRevert && revertedCount !== 1)
-  ) {
+  const isKnownKind =
+    changeKind === DISCARD_ALL_CHANGE_KIND ||
+    changeKind === BULK_GROUP_CHANGE_KIND ||
+    isOneOf(BOOK_FIELD_ADDRESS_KINDS, changeKind);
+  if (!isKnownKind || !isRevertedCountOf(changeKind, revertedCount)) {
     return refused("INVALID_DETAIL");
   }
   const reading = readChangeTarget(changeKind, detail);
@@ -406,6 +413,18 @@ function readDraftReverted(detail: PlainObject): DashboardAuditEntryReading {
       detail: Object.freeze({ changeKind, ...reading.target, revertedCount }),
     },
   };
+}
+
+/** One change reverts one; a bulk group reverts one or more; a discard-all reverts the entries the draft held, none included. */
+function isRevertedCountOf(
+  changeKind: string,
+  revertedCount: unknown,
+): revertedCount is number {
+  if (changeKind === DISCARD_ALL_CHANGE_KIND) return isCount(revertedCount);
+  if (changeKind === BULK_GROUP_CHANGE_KIND) {
+    return isPositiveSafeInteger(revertedCount);
+  }
+  return revertedCount === 1;
 }
 
 function readBulkChanged(detail: PlainObject): DashboardAuditEntryReading {
