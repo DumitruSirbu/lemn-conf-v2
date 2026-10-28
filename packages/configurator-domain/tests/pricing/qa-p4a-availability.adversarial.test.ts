@@ -888,26 +888,7 @@ describe("CURRENT BEHAVIOUR for the architect: a palette colour on a material th
   });
 });
 
-describe("CURRENT BEHAVIOUR for the architect: a design with an unknown tier and a switched-off colour", () => {
-  const unknownTierAndAColour = withSettings({
-    cabinetDepthMm: 600,
-    materialTierId: "material.unobtainium",
-    finish: paletteFinish("pal.antracit"),
-  });
-
-  it("is refused for the colour first, and UNKNOWN_TIER only once the colour is replaced", () => {
-    const first = priceUnder(
-      availabilityOf([colour("pal.antracit")]),
-      unknownTierAndAColour,
-    );
-    const afterReplacing = priceUnder(NOTHING_DISABLED, unknownTierAndAColour);
-
-    expect(refusalItemsOf(first)).toEqual([colour("pal.antracit")]);
-    expect(codeOf(afterReplacing)).toBe("UNKNOWN_TIER");
-  });
-});
-
-describe("DEFECT CANDIDATE (P4a-c): a stored material the declaration does not know, with a switched-off colour, is refused and its sheet throws", () => {
+describe("RULED: a design that chose a tier the book does not hold is UNKNOWN_TIER whatever is switched off", () => {
   const unknownMaterialAndAColour = withSettings({
     cabinetDepthMm: 600,
     materialTierId: "material.unobtainium",
@@ -915,7 +896,7 @@ describe("DEFECT CANDIDATE (P4a-c): a stored material the declaration does not k
   });
   const colourOff = availabilityOf([colour("pal.antracit")]);
 
-  it("starts from a design the write seam accepts and the load seam leaves alone, so a stored kitchen can be this", () => {
+  it("starts from a design the write seam accepts, so a stored kitchen can be this", () => {
     const fatal = fatalDesignValidationIssues(
       validateDesignForCatalog(unknownMaterialAndAColour, CATALOG),
     );
@@ -923,23 +904,164 @@ describe("DEFECT CANDIDATE (P4a-c): a stored material the declaration does not k
     expect(fatal).toEqual([]);
   });
 
-  it("is refused REPLACEMENT_REQUIRED for the colour, which is what sends the customer to the sheet; without the switch it is UNKNOWN_TIER", () => {
-    expect(
-      refusalItemsOf(priceUnder(colourOff, unknownMaterialAndAColour)),
-    ).toEqual([colour("pal.antracit")]);
+  it("is refused UNKNOWN_TIER, switched-off colour or not, and also with every colour and handle switched off", () => {
+    const everythingOff = availabilityOf([
+      ...PALETTE_ENTRY_IDS.map(colour),
+      ...HandleSchema.options.map(handle),
+    ]);
+
+    expect(codeOf(priceUnder(colourOff, unknownMaterialAndAColour))).toBe(
+      "UNKNOWN_TIER",
+    );
+    expect(codeOf(priceUnder(everythingOff, unknownMaterialAndAColour))).toBe(
+      "UNKNOWN_TIER",
+    );
     expect(
       codeOf(priceUnder(NOTHING_DISABLED, unknownMaterialAndAColour)),
     ).toBe("UNKNOWN_TIER");
   });
 
-  // Red on purpose. `coloursOfTheDesignsMaterial` (queries/replacements-required.ts) offers a colour the palette of the
-  // design's material; an undeclared material has none, so `activeOptionsReplacing` throws NoReplacementOptionError.
-  // P4a-c calls that throw unreachable because the dashboard never switches off a group's last option, but here no
-  // last option was switched off: the set is empty because the material is unknown.
-  it("builds the sheet for the refusal it just made, and does not throw", () => {
-    expect(() =>
+  it("holds for an unknown hardware class as well", () => {
+    const design = withSettings({
+      cabinetDepthMm: 600,
+      hardwareTierId: "hardware.unobtainium",
+      handle: "black",
+    });
+
+    expect(codeOf(priceUnder(availabilityOf([handle("black")]), design))).toBe(
+      "UNKNOWN_TIER",
+    );
+  });
+
+  // The guard that caught the defect: the sheet is built for a design the price refuses, never thrown from.
+  it("builds the sheet for such a design with no row, and does not throw", () => {
+    expect(
       replacementsRequired(unknownMaterialAndAColour, BOOK, colourOff, CATALOG),
-    ).not.toThrow();
+    ).toEqual([]);
+  });
+});
+
+describe("whenever the price refuses REPLACEMENT_REQUIRED, the sheet can be built (P4a-c)", () => {
+  const COLOUR_GROUPS: readonly (readonly ItemRef[])[] = MATERIALS.map(
+    (declared) =>
+      paletteEntriesOf(declared).map((entry) => colour(entry.entryId)),
+  ).filter((group) => group.length > 0);
+
+  /** A set that leaves every group at least one active option, which is all the dashboard's write guard lets through
+   *  (A-17): so a throw from the sheet under it is a defect and never the guard's empty set. */
+  const aSetLeavingEveryGroupAnOption: fc.Arbitrary<ItemRef[]> = fc
+    .tuple(
+      ...[
+        MATERIAL_TIER_IDS.map(material),
+        HARDWARE_TIER_IDS.map(hardware),
+        HandleSchema.options.map(handle),
+        ...COLOUR_GROUPS,
+      ].map((group) =>
+        fc.shuffledSubarray([...group], {
+          minLength: 0,
+          maxLength: group.length - 1,
+        }),
+      ),
+      aSubsetOf([
+        COVER,
+        RACK,
+        accessory("accessory.linked-that-no-book-holds"),
+      ]),
+    )
+    .map((groups) => groups.flat());
+
+  /** Documents the write seam accepts: no finish the design's own material does not offer. */
+  const anAcceptedDocument = aNamingSpec
+    .map(designNaming)
+    .filter(
+      (design) =>
+        fatalDesignValidationIssues(validateDesignForCatalog(design, CATALOG))
+          .length === 0,
+    );
+
+  it("builds a sheet whose items are the refusal's items, over declared materials and accepted documents", () => {
+    let refusals = 0;
+    fc.assert(
+      fc.property(
+        anAcceptedDocument,
+        aSetLeavingEveryGroupAnOption,
+        (design, disabled) => {
+          const availability = availabilityOf(disabled);
+          const refusedOn = refusalItemsOf(priceUnder(availability, design));
+          if (refusedOn === undefined) return;
+          refusals += 1;
+
+          const rows = replacementsRequired(
+            design,
+            BOOK,
+            availability,
+            CATALOG,
+          );
+
+          expect(rows.map((row) => row.item)).toEqual(refusedOn);
+        },
+      ),
+      { numRuns: 500 },
+    );
+    expect(refusals).toBeGreaterThan(100);
+  });
+});
+
+describe("NAMED EXCLUSIONS from that property: two states where the refusal and the sheet disagree, neither a stored kitchen", () => {
+  it("a palette colour on painted MDF: the price refuses naming it and the sheet throws; the write seam refuses the document", () => {
+    const design = withSettings({
+      cabinetDepthMm: 600,
+      materialTierId: "material.painted-mdf",
+      finish: paletteFinish("pal.antracit"),
+    });
+    const availability = availabilityOf([colour("pal.antracit")]);
+
+    expect(refusalItemsOf(priceUnder(availability, design))).toEqual([
+      colour("pal.antracit"),
+    ]);
+    expect(() =>
+      replacementsRequired(design, BOOK, availability, CATALOG),
+    ).toThrow(NoReplacementOptionError);
+    expect(
+      fatalDesignValidationIssues(validateDesignForCatalog(design, CATALOG)),
+    ).not.toEqual([]);
+  });
+
+  it("a book material that materials.ts does not declare, chosen with a switched-off colour: the same disagreement", () => {
+    const veneer = BOOK.material.tiers.find(
+      (tier) => tier.tierId === "material.veneer",
+    );
+    if (veneer === undefined) throw new Error("the sample book has no veneer");
+    const bookWithAnUndeclaredMaterial: PriceBook = {
+      ...BOOK,
+      material: {
+        ...BOOK.material,
+        tiers: [
+          ...BOOK.material.tiers,
+          { ...veneer, tierId: "material.exotic", ruleId: "material.exotic" },
+        ],
+      },
+    };
+    const design = withSettings({
+      cabinetDepthMm: 600,
+      materialTierId: "material.exotic",
+      finish: paletteFinish("pal.antracit"),
+    });
+    const availability = availabilityOf([colour("pal.antracit")]);
+
+    const refused = refusalItemsOf(
+      priceUnder(availability, design, bookWithAnUndeclaredMaterial),
+    );
+
+    expect(refused).toEqual([colour("pal.antracit")]);
+    expect(() =>
+      replacementsRequired(
+        design,
+        bookWithAnUndeclaredMaterial,
+        availability,
+        CATALOG,
+      ),
+    ).toThrow(NoReplacementOptionError);
   });
 });
 

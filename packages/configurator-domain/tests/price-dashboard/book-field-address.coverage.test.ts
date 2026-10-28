@@ -33,7 +33,9 @@ const WALL_LIFT = "cabinet.wall-lift";
 const CARGO = "cabinet.base-bottle-cargo";
 const HETTICH = "hardware.hettich";
 const MDF = "material.painted-mdf";
-const DRYING_RACK = "dishDryingRack";
+// A created or linked accessory: its id is never a built-in's field name, which a book holds once (P4b: ids are unique
+// across the built-ins and the linked rows).
+const LINKED_DRYING_RACK = "accessory.linked-dish-rack";
 
 const DRAWN_FIELDS: readonly DrawnField[] = [
   // D2: the list. The price at the default width is edited in the table, and the depth rule is a card above it.
@@ -214,7 +216,7 @@ const DRAWN_FIELDS: readonly DrawnField[] = [
     drawn: "a-p (price per unit), a linked accessory",
     address: {
       kind: "accessory",
-      accessoryId: DRYING_RACK,
+      accessoryId: LINKED_DRYING_RACK,
       field: "perUnitMinor",
     },
   },
@@ -223,7 +225,7 @@ const DRAWN_FIELDS: readonly DrawnField[] = [
     drawn: "add accessory: name, description, linked cabinet type, price",
     address: {
       kind: "accessory-created",
-      accessoryId: DRYING_RACK,
+      accessoryId: LINKED_DRYING_RACK,
     },
   },
   {
@@ -231,7 +233,7 @@ const DRAWN_FIELDS: readonly DrawnField[] = [
     drawn: "name of an accessory the dashboard created",
     address: {
       kind: "created-row-text",
-      item: { kind: "accessory", accessoryId: DRYING_RACK },
+      item: { kind: "accessory", accessoryId: LINKED_DRYING_RACK },
       field: "name",
     },
   },
@@ -240,7 +242,7 @@ const DRAWN_FIELDS: readonly DrawnField[] = [
     drawn: "description of an accessory the dashboard created",
     address: {
       kind: "created-row-text",
-      item: { kind: "accessory", accessoryId: DRYING_RACK },
+      item: { kind: "accessory", accessoryId: LINKED_DRYING_RACK },
       field: "description",
     },
   },
@@ -249,7 +251,7 @@ const DRAWN_FIELDS: readonly DrawnField[] = [
     drawn: "delete (an unused accessory the dashboard created)",
     address: {
       kind: "item-deleted",
-      item: { kind: "accessory", accessoryId: DRYING_RACK },
+      item: { kind: "accessory", accessoryId: LINKED_DRYING_RACK },
     },
   },
   // D7: publish. The "Sume provizorii" switch (FLAGP) is the one field on the page.
@@ -479,7 +481,7 @@ describe("what the address does not contain", () => {
       },
     };
     const russianAccessory: DraftChange = {
-      address: { kind: "accessory-created", accessoryId: DRYING_RACK },
+      address: { kind: "accessory-created", accessoryId: LINKED_DRYING_RACK },
       value: {
         linkedBuildId: "base-sink",
         perUnitMinor: 1,
@@ -552,7 +554,7 @@ describe("an address is identity only; the payload is the change's value (X0-4)"
         value: { name: "Economy", description: "Budget offers." },
       },
       {
-        address: { kind: "accessory-created", accessoryId: DRYING_RACK },
+        address: { kind: "accessory-created", accessoryId: LINKED_DRYING_RACK },
         value: {
           linkedBuildId: "base-sink",
           perUnitMinor: 60_000,
@@ -563,7 +565,7 @@ describe("an address is identity only; the payload is the change's value (X0-4)"
       {
         address: {
           kind: "created-row-text",
-          item: { kind: "accessory", accessoryId: DRYING_RACK },
+          item: { kind: "accessory", accessoryId: LINKED_DRYING_RACK },
           field: "description",
         },
         value: "Stainless steel.",
