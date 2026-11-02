@@ -142,6 +142,7 @@ function registerSpecs(label: string, isPhone: boolean): void {
   test("a valid price saves to the draft on Enter; the row, the group and the frame say pending, and a reload keeps it", async ({
     page,
   }) => {
+    test.skip(isPhone, PHONE_HAS_NO_PRICE_BUTTON);
     await openList(page);
     const row = await editableRow(page);
     const ruleId = await ruleIdOf(row);
@@ -202,6 +203,7 @@ function registerSpecs(label: string, isPhone: boolean): void {
   test("pressing a price again with the same pending value saves nothing new and closes", async ({
     page,
   }) => {
+    test.skip(isPhone, PHONE_HAS_NO_PRICE_BUTTON);
     await openList(page);
     const row = await editableRow(page);
     await saveNextPrice(page, row);
@@ -220,6 +222,7 @@ function registerSpecs(label: string, isPhone: boolean): void {
   test("typing the active price back takes the change out of the draft", async ({
     page,
   }) => {
+    test.skip(isPhone, PHONE_HAS_NO_PRICE_BUTTON);
     await openList(page);
     const row = await editableRow(page);
     const activeValue = await openedValueOf(row);
@@ -240,6 +243,7 @@ function registerSpecs(label: string, isPhone: boolean): void {
   test("Escape cancels: nothing is sent, the field closes and focus returns to the price", async ({
     page,
   }) => {
+    test.skip(isPhone, PHONE_HAS_NO_PRICE_BUTTON);
     await openList(page);
     const row = await editableRow(page);
     const writes = collectWrites(page);
@@ -261,6 +265,7 @@ function registerSpecs(label: string, isPhone: boolean): void {
   test("a price that is not a multiple of 10 lei, or not an amount, alerts, stays open and sends nothing", async ({
     page,
   }) => {
+    test.skip(isPhone, PHONE_HAS_NO_PRICE_BUTTON);
     await openList(page);
     const row = await editableRow(page);
     const writes = collectWrites(page);
@@ -315,6 +320,31 @@ function registerSpecs(label: string, isPhone: boolean): void {
       "true",
     );
     await expect(row.getByRole("alert")).toHaveCount(0);
+  });
+
+  test("on a phone the price is plain text with no button, and the card's link opens the cabinet's own page", async ({
+    page,
+  }) => {
+    test.skip(!isPhone, "the table's price is a button at 1440");
+    await openList(page);
+    const row = page
+      .getByTestId("cabinet-group-base")
+      .getByTestId("cabinet-row")
+      .first();
+    const ruleId = await ruleIdOf(row);
+
+    await expect(
+      row.getByRole("button", { name: EDIT_PRICE_NAME }),
+      "a phone has no price button to press or tab to",
+    ).toHaveCount(0);
+    await expect(row.getByTestId("cabinet-price")).toContainText(
+      romanian("priceDashboard.units.currency"),
+    );
+    await row.getByTestId("cabinet-link").click();
+
+    await expect(page).toHaveURL(
+      new RegExp(`${CABINETS_PATH}/${encodeURIComponent(ruleId)}$`),
+    );
   });
 
   test("the depth rule: an invalid percentage errors and cannot be saved; a valid one goes to the draft", async ({
@@ -538,11 +568,13 @@ function registerSpecs(label: string, isPhone: boolean): void {
   }) => {
     await openList(page);
     await expectNoSidewaysScroll(page, "the list");
-    const row = await editableRow(page);
-    await priceButton(row).click();
-    await priceField(row).fill("15");
-    await expectNoSidewaysScroll(page, "an invalid price open");
-    await priceField(row).press("Escape");
+    if (!isPhone) {
+      const row = await editableRow(page);
+      await priceButton(row).click();
+      await priceField(row).fill("15");
+      await expectNoSidewaysScroll(page, "an invalid price open");
+      await priceField(row).press("Escape");
+    }
     await page
       .getByTestId("depth-rule-card")
       .getByLabel(DEEP_KITCHEN_LABEL)
@@ -567,11 +599,6 @@ function registerSpecs(label: string, isPhone: boolean): void {
       const list = "[data-testid=cabinet-list]";
       await openList(page);
       await expectTargetsLargeEnough(page, list, "the list at rest");
-      const row = await editableRow(page);
-      await priceButton(row).click();
-      await priceField(row).fill("15");
-      await expectTargetsLargeEnough(page, list, "a price field in error");
-      await priceField(row).press("Escape");
       await page
         .getByTestId("depth-rule-card")
         .getByLabel(DEEP_KITCHEN_LABEL)
@@ -599,6 +626,8 @@ function registerSpecs(label: string, isPhone: boolean): void {
 }
 
 const SETTLE_MS = 500;
+const PHONE_HAS_NO_PRICE_BUTTON =
+  "below 900 px the price is plain text and is changed on the cabinet's own page";
 const DEEP_KITCHEN_LABEL = romanian("priceDashboard.rule.deepKitchenLabel", {
   depthMm: DEEP_CABINET_DEPTH_MM,
 });
