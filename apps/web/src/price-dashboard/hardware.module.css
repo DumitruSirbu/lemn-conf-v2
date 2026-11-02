@@ -1,13 +1,16 @@
-/* The hardware screens: the list of classes and one class's page. One markup, two layouts: a card until 1200 px, which is
- * where the staff frame's 264 px navigation leaves room for the seven columns of the table, and the table from there. A
- * price is changed on the class's own page, never in the card. Every interactive box is at least `--touch-target` tall and
- * wide, and every cell may shrink (`min-width: 0`) so no width makes a page scroll sideways. */
+/* The hardware screens: the list of classes and one class's page. One markup, two layouts: a card until 1360 px, which is
+ * where the staff frame's 264 px navigation leaves room for the seven columns of the table with the four rate titles whole,
+ * and the table from there. A price is changed on the class's own page, never in the card. Every interactive box is at least
+ * `--touch-target` tall and wide, and every cell may shrink (`min-width: 0`) so no width makes a page scroll sideways. */
 .page {
   --warm-surface: #f7ecdc;
   --warm-row: #fbf5ea;
   --warm-edge: #e6cfa8;
   --warm-ink: #5a3e25;
   --rate-count: 4;
+  /* The widest title word of a rate column at 11 px uppercase with its letter-spacing ("Направляющие", 113 px) plus a few
+   * pixels: no title runs into the next one. */
+  --rate-column-min: 118px;
 
   display: flex;
   flex: 1;
@@ -120,7 +123,7 @@
 }
 
 /* A phone's whole card opens the class: the name's link is stretched over it, and the rates in it are only read. The
- * controls of the card stand above that link. */
+ * controls of the card stand above that link, and the space between them lets a press through to it. */
 @media (max-width: 899.98px) {
   .name::after {
     position: absolute;
@@ -131,6 +134,13 @@
   .rowActions {
     position: relative;
     z-index: 1;
+    pointer-events: none;
+  }
+
+  .editLink,
+  .more,
+  .menu {
+    pointer-events: auto;
   }
 }
 
@@ -464,6 +474,25 @@
   border-top: 1px solid var(--line-soft);
 }
 
+/* Where a pointer is the input the menu is a popover over the rows, so opening or closing one moves nothing under the
+ * pointer: to the right of the three dots in a card, to their left in the table, whose dots stand at the row's end. */
+@media (min-width: 900px) {
+  .rowMenu {
+    position: relative;
+    display: flex;
+  }
+
+  .menu {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 8px);
+    z-index: 2;
+    flex-basis: auto;
+    min-width: 15rem;
+    max-width: 20rem;
+  }
+}
+
 /* Beside each other as soon as a card is wide enough for them; two by two on a phone. */
 @media (min-width: 600px) {
   .rates {
@@ -471,12 +500,16 @@
   }
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1360px) {
+  .page {
+    --table-columns: minmax(0, 1.7fr)
+      repeat(var(--rate-count), minmax(var(--rate-column-min), 1fr))
+      minmax(0, 1.2fr) minmax(0, 1.6fr);
+  }
+
   .columns {
     display: grid;
-    grid-template-columns:
-      minmax(0, 1.7fr) repeat(var(--rate-count), minmax(0, 1fr))
-      minmax(0, 1.2fr) minmax(0, 1.6fr);
+    grid-template-columns: var(--table-columns);
     gap: 16px;
     padding: 0 14px;
     font: 700 11px/1.4 var(--font-ui);
@@ -491,9 +524,7 @@
   }
 
   .row {
-    grid-template-columns:
-      minmax(0, 1.7fr) repeat(var(--rate-count), minmax(0, 1fr))
-      minmax(0, 1.2fr) minmax(0, 1.6fr);
+    grid-template-columns: var(--table-columns);
     gap: 16px;
     align-items: center;
     padding: 10px 14px;
@@ -524,6 +555,13 @@
     clip-path: inset(50%);
   }
 
+  .menu {
+    right: calc(100% + 8px);
+    left: auto;
+  }
+}
+
+@media (min-width: 1200px) {
   .editColumns {
     flex-direction: row;
     gap: 40px;

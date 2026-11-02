@@ -79,8 +79,9 @@ import {
 const DESKTOP = { width: 1440, height: 900 } as const;
 const LOCALES = ["ro", "ru"] as const;
 /** Where the layout changes from the card to the table (`hardware.module.css`), and the widths either side of it. */
-const TABLE_FROM_PX = 1200;
-const WIDTHS = [900, 1024, 1199, 1200, 1280, 1440, 1920] as const;
+const TABLE_FROM_PX = 1360;
+const WIDTHS = [900, 1024, 1200, 1280, 1359, 1360, 1440, 1920] as const;
+const POPOVER_WIDTHS = [900, 1280, 1359, 1360, 1440, 1920] as const;
 const ALIGNMENT_TOLERANCE_PX = 1;
 /** A dialog centred in the viewport is off true centre by at most the width a scrollbar would take. */
 const CENTRE_SLACK_PX = 16;
@@ -178,11 +179,7 @@ test.describe("the hardware screens at desktop 1440", () => {
       }
     });
 
-    // RED ON PURPOSE: DEFECT. In Russian the column title "Направляющие (пара)" is one word of 113 px in a column of 82 px at
-    // 1200 and 92 px at 1280, so it runs 14.6 px and 5.2 px into the next title ("Push-to-open"), as the screenshot at
-    // those widths shows; from 1440 it fits. `hardware.module.css:475` (`.columns`, from 1200) sets seven columns of
-    // `minmax(0, 1fr)` with uppercase letter-spaced 11 px text, and nothing lets a long word shrink or wrap. Romanian passes.
-    test("no width from 900 to 1920 scrolls the page sideways, in RO and RU; the card is drawn below 1200 and the table from 1200; no word is broken in the middle", async ({
+    test("no width from 900 to 1920 scrolls the page sideways, in RO and RU; the card is drawn below 1360 and the table from 1360; no word is broken in the middle", async ({
       page,
     }) => {
       for (const locale of LOCALES) {
@@ -411,12 +408,6 @@ test.describe("the hardware screens at desktop 1440", () => {
   });
 
   test.describe("the row menus, under either server", () => {
-    // RED ON PURPOSE: DEFECT. `use-close-on-outside-press.ts` (used at `hardware-list.tsx:282`) closes the open menu on
-    // `pointerdown`, and the menu is drawn in the row's flow (`hardware.module.css:245`, `.menu` at flex-basis 100%), so the
-    // row grows and shrinks with it: on the press the rows below move up by the menu's height (measured 81 px at 1440), the
-    // release lands off the three dots, and no click happens. A real mouse click on another row's three dots while one menu
-    // is open does nothing at the first click. Frame D4F draws the menu as a popover floating over the rows (which would not move
-    // them); the built one is in the row's flow. The touch tap on the phone is not affected (its test passes).
     test("with one row's menu open, a click on the next row's three dots opens that menu at the first click", async ({
       page,
     }) => {
@@ -448,6 +439,65 @@ test.describe("the hardware screens at desktop 1440", () => {
       ).toBeVisible();
       await expect(menuOf(first)).toHaveCount(0);
     });
+
+    test("a row's menu is a popover over the rows: it moves no row, keeps the next row's three dots free, stays in the viewport and adds no sideways scroll; RO and RU, from 900 to 1920", async ({
+      page,
+    }) => {
+      for (const locale of LOCALES) {
+        await openHardwareList(page, locale);
+        for (const width of POPOVER_WIDTHS) {
+          await page.setViewportSize({ width, height: DESKTOP.height });
+          for (const [tierId, nextTierId] of [
+            [STANDARD, HETTICH],
+            [BLUM, undefined],
+          ] as const) {
+            const title = `${locale} at ${String(width)}, ${tierId}`;
+            const row = rowOf(page, tierId);
+            const distanceToLastRow = () =>
+              distanceBetweenRows(page, STANDARD, BLUM);
+            const distanceBefore = await distanceToLastRow();
+
+            await menuButtonOf(row).click();
+
+            const menu = await boxOf(menuOf(row));
+            expect
+              .soft(await distanceToLastRow(), `${title}: no row moves`)
+              .toBe(distanceBefore);
+            expect
+              .soft(menu.x, `${title}: left edge`)
+              .toBeGreaterThanOrEqual(0);
+            expect
+              .soft(menu.x + menu.width, `${title}: right edge`)
+              .toBeLessThanOrEqual(width);
+            await expectNoSidewaysScroll(page, title);
+            expect
+              .soft(await stickingOut(page), `${title}: sticking out`)
+              .toEqual([]);
+            const entries = menuOf(row).getByRole("button");
+            await entries.last().scrollIntoViewIfNeeded();
+            expect
+              .soft(
+                await isTopmostAtCentre(entries.last()),
+                `${title}: the last entry is the topmost box where it stands`,
+              )
+              .toBe(true);
+            if (nextTierId !== undefined) {
+              expect
+                .soft(
+                  await isTopmostAtCentre(
+                    menuButtonOf(rowOf(page, nextTierId)),
+                  ),
+                  `${title}: the next row's three dots are not under the menu`,
+                )
+                .toBe(true);
+            }
+            await menuButtonOf(row).click();
+            await expect(menuOf(row)).toHaveCount(0);
+          }
+        }
+        await page.setViewportSize(DESKTOP);
+      }
+    });
   });
 
   test.describe("a production build (CI): the lifecycle is drawn off, honestly", () => {
@@ -473,8 +523,6 @@ test.describe("the hardware screens at desktop 1440", () => {
           cannotJudge,
           cannotJudge,
         ]);
-        // A press outside closes this row's menu first: with it open the next row's dots move under the pointer.
-        await page.getByRole("heading", { level: 1 }).click();
       }
       await expect(itemDialogOf(page)).toHaveCount(0);
       expect(plainText(await page.getByRole("main").innerText())).not.toMatch(
@@ -737,6 +785,26 @@ function overflowingBoxes(page: Page): Promise<string[]> {
       }
     }
     return found.slice(0, 8);
+  });
+}
+
+/** How far the second row's top lies below the first's: unchanged by scrolling, changed by a row growing. */
+async function distanceBetweenRows(
+  page: Page,
+  firstTierId: string,
+  secondTierId: string,
+): Promise<number> {
+  const first = await boxOf(rowOf(page, firstTierId));
+  const second = await boxOf(rowOf(page, secondTierId));
+  return second.y - first.y;
+}
+
+/** Whether the box's centre point lands on the box itself or something inside it, and not on a box drawn over it. */
+function isTopmostAtCentre(target: Locator): Promise<boolean> {
+  return target.evaluate((element) => {
+    const { left, top, width, height } = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(left + width / 2, top + height / 2);
+    return hit !== null && element.contains(hit);
   });
 }
 

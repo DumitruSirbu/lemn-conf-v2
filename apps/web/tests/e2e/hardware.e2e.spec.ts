@@ -247,12 +247,6 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       }
     });
 
-    // RED ON PURPOSE: DEFECT (judgement on whether the frame wants it, a defect against "the whole card opens the class").
-    // `hardware.module.css:131` makes `.rowActions` `position: relative; z-index: 1` inside the max-width 899.98px block, and
-    // the box is the card's full width (a flex item of the card's grid), so everything right of "Editează" and the three dots,
-    // in their row, is above the name link's stretched `::after` (line 125) and a tap there opens nothing. The other three
-    // corners and the far bottom-right corner (in the card's padding) do open it. Fix: let `.rowActions` ignore pointer events
-    // and give only its buttons them back, or stand the controls themselves above the link.
     test("a tap on the empty space beside Edit and the three dots opens the class too", async ({
       page,
     }) => {

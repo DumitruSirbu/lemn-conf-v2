@@ -1,7 +1,8 @@
 // Reads the stylesheet's text (no layout runs here) for what a thumb and a narrow screen need from the hardware pages: every
-// interactive box at least a touch target tall, a ring on whatever takes focus, the card layout until 1200 px and the table
-// from there (seven columns do not fit beside the staff frame's navigation any sooner), the column titles read by the cells
-// below that, and nothing that would make a 390 px page scroll sideways. A price is never edited in a card.
+// interactive box at least a touch target tall, a ring on whatever takes focus, the card layout until 1360 px and the table
+// from there (seven columns with the four rate titles whole do not fit beside the staff frame's navigation any sooner), the
+// column titles read by the cells below that, a row's menu floating over the rows wherever a pointer is the input, and nothing
+// that would make a 390 px page scroll sideways. A price is never edited in a card.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -15,7 +16,10 @@ const css = readFileSync(
 );
 const TOUCH_TARGET = "var(--touch-target)";
 const PHONE = "@media (max-width: 899.98px)";
-const TABLE = "@media (min-width: 1200px)";
+const POINTER_WIDTH = "@media (min-width: 900px)";
+const TABLE = "@media (min-width: 1360px)";
+const EDIT_COLUMNS = "@media (min-width: 1200px)";
+const RATE_TITLE_WORD_PX = 113;
 
 describe("what a thumb must hit", () => {
   it.each([
@@ -74,16 +78,36 @@ describe("what a thumb must hit", () => {
 });
 
 describe("one markup, two layouts", () => {
-  it("is a one-column card until 1200 px and the table's seven columns from there", () => {
-    expect(
-      declarationsFor(css, "row", "grid-template-columns").map((d) => d.media),
-    ).toEqual(["", TABLE]);
-    expect(declarationsFor(css, "row", "grid-template-columns")[0]?.value).toBe(
-      "minmax(0, 1fr)",
+  it("is a one-column card until 1360 px and the table's seven columns from there, titles and rows on one template", () => {
+    const rowColumns = declarationsFor(css, "row", "grid-template-columns");
+    const titleColumns = declarationsFor(
+      css,
+      "columns",
+      "grid-template-columns",
     );
-    expect(
-      declarationsFor(css, "row", "grid-template-columns")[1]?.value,
-    ).toContain("repeat(var(--rate-count), minmax(0, 1fr))");
+
+    expect(rowColumns.map((d) => [d.media, d.value])).toEqual([
+      ["", "minmax(0, 1fr)"],
+      [TABLE, "var(--table-columns)"],
+    ]);
+    expect(titleColumns.map((d) => [d.media, d.value])).toEqual([
+      [TABLE, "var(--table-columns)"],
+    ]);
+    expect(declarationsFor(css, "page", "--table-columns")).toEqual([
+      expect.objectContaining({ media: TABLE }),
+    ]);
+  });
+
+  it("keeps each rate column at least as wide as the widest title word, and the table's columns on that minimum", () => {
+    const [template] = valuesFor(css, "page", "--table-columns");
+    const [minimum] = valuesFor(css, "page", "--rate-column-min");
+
+    expect(template?.replaceAll(/\s+/g, " ")).toContain(
+      "repeat(var(--rate-count), minmax(var(--rate-column-min), 1fr))",
+    );
+    expect(Number.parseFloat(minimum ?? "")).toBeGreaterThan(
+      RATE_TITLE_WORD_PX,
+    );
   });
 
   it("shows the column titles only in the table, and keeps each cell's own words for a reader there", () => {
@@ -110,6 +134,49 @@ describe("one markup, two layouts", () => {
     ]);
   });
 
+  it("lets a press through the actions' empty space to the stretched link on a phone, and gives it back to each control and the open menu", () => {
+    expect(declarationsFor(css, "rowActions", "pointer-events")).toEqual([
+      expect.objectContaining({ media: PHONE, value: "none" }),
+    ]);
+    for (const control of ["editLink", "more", "menu"]) {
+      expect(declarationsFor(css, control, "pointer-events"), control).toEqual([
+        expect.objectContaining({ media: PHONE, value: "auto" }),
+      ]);
+    }
+  });
+
+  it("floats a row's menu over the rows from 900 px, anchored to the three dots, below the dialogs, and keeps it in the flow on a phone", () => {
+    expect(declarationsFor(css, "menu", "position")).toEqual([
+      expect.objectContaining({ media: POINTER_WIDTH, value: "absolute" }),
+    ]);
+    expect(declarationsFor(css, "rowMenu", "position")).toEqual([
+      expect.objectContaining({ media: POINTER_WIDTH, value: "relative" }),
+    ]);
+    expect(
+      declarationsFor(css, "rowMenu", "display").map((d) => [d.media, d.value]),
+    ).toEqual([
+      ["", "contents"],
+      [POINTER_WIDTH, "flex"],
+    ]);
+    expect(declarationsFor(css, "menu", "z-index")).toEqual([
+      expect.objectContaining({ media: POINTER_WIDTH, value: "2" }),
+    ]);
+  });
+
+  it("opens the menu to the right of the three dots in a card and to their left in the table, and gives it a readable width", () => {
+    expect(
+      declarationsFor(css, "menu", "left").map((d) => [d.media, d.value]),
+    ).toEqual([
+      [POINTER_WIDTH, "calc(100% + 8px)"],
+      [TABLE, "auto"],
+    ]);
+    expect(declarationsFor(css, "menu", "right")).toEqual([
+      expect.objectContaining({ media: TABLE, value: "calc(100% + 8px)" }),
+    ]);
+    expect(valuesFor(css, "menu", "min-width")).toEqual(["15rem"]);
+    expect(valuesFor(css, "menu", "max-width")).toEqual(["20rem"]);
+  });
+
   it("puts the rates two by two on a phone and in a row once a card is wide enough", () => {
     expect(
       declarationsFor(css, "rates", "grid-template-columns").map(
@@ -121,7 +188,7 @@ describe("one markup, two layouts", () => {
     ]);
   });
 
-  it("puts a class's two columns side by side only in the table's width", () => {
+  it("puts a class's two columns side by side from 1200 px only", () => {
     expect(
       declarationsFor(css, "editColumns", "flex-direction").map((d) => [
         d.media,
@@ -129,7 +196,7 @@ describe("one markup, two layouts", () => {
       ]),
     ).toEqual([
       ["", "column"],
-      [TABLE, "row"],
+      [EDIT_COLUMNS, "row"],
     ]);
   });
 });
