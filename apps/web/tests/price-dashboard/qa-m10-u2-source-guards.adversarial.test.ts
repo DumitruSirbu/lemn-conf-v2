@@ -18,6 +18,7 @@ import {
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const SOURCE_FILE = "price-dashboard/cabinet-list-source.ts";
+const HARDWARE_SOURCE_FILE = "price-dashboard/hardware-source.ts";
 const PAGE = "app/[locale]/staff/catalog/cabinets/page.tsx";
 const DETAIL_PAGE = "app/[locale]/staff/catalog/cabinets/[ruleId]/page.tsx";
 const SERVER_ONLY_IMPORT = /^import\s+["']server-only["'];?\s*$/m;
@@ -153,7 +154,11 @@ describe("the allow-list entry the developer added to the R-d guard", () => {
       .filter((path) => path.startsWith("price-dashboard/"))
       .filter((path) => READS_DRAFT_OR_ARCHIVE.test(codeOf(path)));
 
-    expect(readers.filter((path) => path !== SOURCE_FILE)).toEqual([]);
+    expect(
+      readers.filter(
+        (path) => path !== SOURCE_FILE && path !== HARDWARE_SOURCE_FILE,
+      ),
+    ).toEqual([]);
   });
 
   it("does not admit the client-side file that would write through it: no price-dashboard module with a use-client line reads the server directory", () => {

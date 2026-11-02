@@ -1,0 +1,26 @@
+/* What a lifecycle dialog carries beside its question: the list of what the change does. The dialog's own surface, buttons
+ * and focus ring are the account dialog's. */
+.happens {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.happensTitle {
+  margin: 0;
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.happensList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 0 18px;
+  margin: 0;
+  font: 400 14px/1.5 var(--font-ui);
+  color: var(--ink);
+}

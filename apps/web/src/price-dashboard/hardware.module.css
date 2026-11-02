@@ -1,0 +1,498 @@
+/* The hardware screens: the list of classes and one class's page. One markup, two layouts: a card until 1200 px, which is
+ * where the staff frame's 264 px navigation leaves room for the seven columns of the table, and the table from there. A
+ * price is changed on the class's own page, never in the card. Every interactive box is at least `--touch-target` tall and
+ * wide, and every cell may shrink (`min-width: 0`) so no width makes a page scroll sideways. */
+.page {
+  --warm-surface: #f7ecdc;
+  --warm-row: #fbf5ea;
+  --warm-edge: #e6cfa8;
+  --warm-ink: #5a3e25;
+  --rate-count: 4;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding-bottom: 28px;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 0;
+  font: 400 13.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 13.5px/1.2 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.columns {
+  display: none;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.row[data-modified="true"] {
+  background: var(--warm-row);
+}
+
+.rowName {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  font: 700 15px/1.3 var(--font-ui);
+  color: var(--ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A phone's whole card opens the class: the name's link is stretched over it, and the rates in it are only read. The
+ * controls of the card stand above that link. */
+@media (max-width: 899.98px) {
+  .name::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+  }
+
+  .rowActions {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.description {
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips:empty {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  font: 700 11.5px/1 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.chip[data-tone="warm"] {
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border-color: var(--warm-edge);
+}
+
+.chip[data-tone="on"] {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+}
+
+.rates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.rate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.rateLabel {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.rateValue {
+  font: 700 14px/1.3 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.rateActive {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.editLink,
+.more,
+.menuEntry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  font: 700 13.5px/1.2 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.editLink:focus-visible,
+.more:focus-visible,
+.menuEntry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The three dots, drawn here so no glyph is text. */
+.rowMenu {
+  display: contents;
+}
+
+.more::before {
+  font: 700 18px/1 var(--font-ui);
+  content: "\22EF" / "";
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-basis: 100%;
+  padding: 8px;
+  margin: 0;
+  list-style: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(28 24 20 / 14%);
+}
+
+.menuItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.menuEntry {
+  justify-content: flex-start;
+  width: 100%;
+  text-align: start;
+  border: 0;
+}
+
+.menuEntry[aria-disabled="true"] {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.menuReason {
+  padding: 0 14px 6px;
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  font: 400 13.5px/1.5 var(--font-ui);
+  color: var(--ink);
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+/* ----- one class's page ----- */
+.editColumns {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.editColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font: 700 16px/1.3 var(--font-ui);
+  color: var(--ink);
+}
+
+.intro {
+  margin: 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wordsLabel {
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.wordsValue {
+  font: 400 15px/1.5 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.switch {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  font: 700 14px/1.3 var(--font-ui);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.switch[aria-checked="true"] {
+  border-color: var(--accent);
+}
+
+.switch[aria-disabled="true"] {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.switchState {
+  font: 400 13px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.hint {
+  margin: 0;
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sentence {
+  margin: 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saved {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  font: 700 13.5px/1.5 var(--font-ui);
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-edge);
+  border-radius: 12px;
+}
+
+.savedLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  color: var(--accent-strong);
+}
+
+.savedLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fixToSave {
+  margin: 0;
+  font: 700 13px/1.5 var(--font-ui);
+  color: var(--refusal);
+}
+
+.danger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Beside each other as soon as a card is wide enough for them; two by two on a phone. */
+@media (min-width: 600px) {
+  .rates {
+    grid-template-columns: repeat(var(--rate-count), minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .columns {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1.7fr) repeat(var(--rate-count), minmax(0, 1fr))
+      minmax(0, 1.2fr) minmax(0, 1.6fr);
+    gap: 16px;
+    padding: 0 14px;
+    font: 700 11px/1.4 var(--font-ui);
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .rows {
+    gap: 0;
+  }
+
+  .row {
+    grid-template-columns:
+      minmax(0, 1.7fr) repeat(var(--rate-count), minmax(0, 1fr))
+      minmax(0, 1.2fr) minmax(0, 1.6fr);
+    gap: 16px;
+    align-items: center;
+    padding: 10px 14px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line-soft);
+    border-radius: 0;
+  }
+
+  .row[data-modified="true"] {
+    background: var(--warm-row);
+  }
+
+  /* The cells of a row say what they are in their own words for a reader, and the column titles say it to the eye. */
+  .rates {
+    display: contents;
+  }
+
+  .rateLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 0;
+    clip-path: inset(50%);
+  }
+
+  .editColumns {
+    flex-direction: row;
+    gap: 40px;
+  }
+
+  .editColumn {
+    flex: 1;
+  }
+}

@@ -2161,6 +2161,15 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       deleteBlockedBody:
         "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
       deactivateInstead: "Dezactivează în schimb",
+      fixedDefaultCannotChange:
+        "Este opțiunea implicită a catalogului și rămâne mereu disponibilă.",
+      cannotJudge:
+        "Nu putem verifica acum dacă se poate. Încearcă din nou mai târziu.",
+      usageUnavailable:
+        "Nu am putut număra bucătăriile salvate care folosesc această opțiune, așa că nu schimbăm nimic acum. Încearcă din nou.",
+      deleteBlockedInactiveBody:
+        "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc această opțiune. Este deja dezactivată; clienții aleg altă opțiune când își deschid bucătăria.",
+      working: "Se aplică…",
     },
     publish: {
       title: "Publicare prețuri",

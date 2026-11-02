@@ -6,6 +6,7 @@ import type { CatalogPage } from "@/staff/staff-paths";
  */
 export const BUILT_CATALOG_PAGES: readonly CatalogPage[] = [
   "cabinets",
+  "hardware",
   "defaults",
   "publish",
 ];

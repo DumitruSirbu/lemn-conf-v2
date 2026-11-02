@@ -82,12 +82,15 @@ describe("what a browser is sent", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("is read through the source by the page route and by nothing else", () => {
+  it("is read through the source by the page route and by the hardware source, which needs the saved defaults, and by nothing else", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) => /kitchen-defaults-source["']/.test(sourceOf(path)))
       .map((path) => path.slice(SOURCE_ROOT.length + 1));
 
-    expect(importers).toEqual(["app/[locale]/staff/catalog/defaults/page.tsx"]);
+    expect(importers).toEqual([
+      "app/[locale]/staff/catalog/defaults/page.tsx",
+      "price-dashboard/hardware-source.ts",
+    ]);
   });
 
   it("decides on the literal the bundler replaces in the client, and asks the one predicate in the server-side source", () => {

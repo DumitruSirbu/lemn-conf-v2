@@ -1,0 +1,68 @@
+"use client";
+
+import { useCallback, useMemo } from "react";
+
+import type { DeletableItemRef } from "@lemnaria/configurator-domain";
+
+import { defaultItemLifecycleClient } from "./default-item-lifecycle-client";
+import {
+  deriveHardware,
+  type HardwareDerivation,
+  type HardwarePageInput,
+} from "./hardware-model";
+import type { ItemLifecycleClient } from "./item-lifecycle-client";
+import type { PriceDraftClient } from "./price-draft-client";
+import {
+  useItemAvailability,
+  type ItemAvailabilityDesk,
+} from "./use-item-availability";
+import { usePriceDraft, type PriceDraft } from "./use-price-draft";
+
+// What the two hardware screens hold in common: the draft of prices, what is switched off, and the classes worked out from
+// both again after every write. A deletion is a change of the draft; a switch is not.
+
+export interface HardwareDesk {
+  readonly draft: PriceDraft;
+  readonly availability: ItemAvailabilityDesk;
+  readonly derivation: HardwareDerivation;
+}
+
+export function useHardwareDesk({
+  page,
+  client,
+  lifecycleClient,
+}: {
+  readonly page: HardwarePageInput;
+  /** The routes the draft is written through; the fetching client when left out. */
+  readonly client: PriceDraftClient | undefined;
+  /** Where a switch is written and the saved kitchens are counted; the page's own stand-in when left out. */
+  readonly lifecycleClient: ItemLifecycleClient | undefined;
+}): HardwareDesk {
+  const draft = usePriceDraft({ initial: page.state, client });
+  const { change } = draft;
+  const lifecycle = useMemo(
+    () =>
+      lifecycleClient ??
+      defaultItemLifecycleClient({
+        book: page.state.active.book,
+        availability: page.state.active.availability,
+        defaults: page.defaults,
+        usage: page.sampleUsage ?? [],
+      }),
+    [lifecycleClient, page],
+  );
+  const deleteFromDraft = useCallback(
+    (item: DeletableItemRef) =>
+      change({ address: { kind: "item-deleted", item }, value: true }),
+    [change],
+  );
+  const availability = useItemAvailability({
+    initial: page.state.active.availability,
+    book: draft.state.active.book,
+    defaults: page.defaults,
+    client: lifecycle,
+    deleteFromDraft,
+  });
+  const derivation = useMemo(() => deriveHardware(draft.state), [draft.state]);
+  return { draft, availability, derivation };
+}

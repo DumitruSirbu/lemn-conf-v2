@@ -523,6 +523,9 @@ describe("a draft or an archive reaches no customer (R-d)", () => {
       // gate, with no audit row. It is imported by the list's page and the cabinet's page and by nothing a customer
       // reaches (`qa-m10-u1-source-guards`).
       /^price-dashboard\/cabinet-list-source\.ts$/,
+      // The staff hardware pages' source, on the same terms: read in process after the page's own `price.edit` gate, with
+      // no audit row, and named by the two hardware pages alone (`hardware-sources.test.ts`).
+      /^price-dashboard\/hardware-source\.ts$/,
     ];
 
     const readers = sourceFilesMatching(READS_DRAFT_OR_ARCHIVE).filter(
