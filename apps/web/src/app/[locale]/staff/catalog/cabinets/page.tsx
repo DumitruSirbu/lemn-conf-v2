@@ -1,15 +1,14 @@
 import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
+import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import type { Metadata } from "next";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
 import { routing } from "@/i18n/routing";
-import {
-  CabinetListScreen,
-  CabinetListUnavailableScreen,
-} from "@/price-dashboard/cabinet-list";
+import { CabinetListUnavailableScreen } from "@/price-dashboard/cabinet-list";
+import { CabinetListEditor } from "@/price-dashboard/cabinet-list-editor";
 import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
 import { CatalogUnavailableScreen } from "@/price-dashboard/catalog-states";
 import { StaffForbiddenScreen } from "@/staff/staff-shell";
@@ -34,7 +33,7 @@ export async function generateMetadata({
 /**
  * The list of cabinet types. `readCatalogPage` decides who sees it: a visitor leaves for the login page, an operator gets
  * the forbidden screen inside the staff frame, any other account gets the account area's, and an unreadable session store
- * draws a notice, all with HTTP 200. `readCabinetList` supplies what the list shows. Rendered per request.
+ * draws a notice, all with HTTP 200. `readCabinetList` supplies what the list shows, and the list writes through its own client. Rendered per request.
  */
 export default async function CabinetsPage({ params }: CabinetsPageProps) {
   await connection();
@@ -43,12 +42,15 @@ export default async function CabinetsPage({ params }: CabinetsPageProps) {
   const read = await readCatalogPage({ locale, page: "cabinets" });
   switch (read.kind) {
     case "signed-in": {
-      const list = await readCabinetList();
+      const list = await readCabinetList({
+        cookies: await cookies(),
+        headers: await headers(),
+      });
       return list.kind === "ready" ? (
-        <CabinetListScreen
+        <CabinetListEditor
           locale={locale}
           context={read.shell}
-          input={list.input}
+          page={list.page}
         />
       ) : (
         <CabinetListUnavailableScreen locale={locale} context={read.shell} />

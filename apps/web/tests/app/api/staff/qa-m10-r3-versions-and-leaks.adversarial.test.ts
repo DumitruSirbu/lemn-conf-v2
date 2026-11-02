@@ -519,6 +519,10 @@ describe("a draft or an archive reaches no customer (R-d)", () => {
       /^app\/api\/staff\/prices\//,
       /^lib\/server\/price-dashboard\//,
       /^lib\/server\/price-book-test-seed\.ts$/,
+      // The staff cabinets page's source: it takes the dashboard's own read, `GET /api/staff/prices`, in process,
+      // behind the same session, `price.edit` check, limiter and audit row. It is imported by that page and by nothing a
+      // customer reaches (`qa-m10-u1-source-guards` holds it to that).
+      /^price-dashboard\/cabinet-list-source\.ts$/,
     ];
 
     const readers = sourceFilesMatching(READS_DRAFT_OR_ARCHIVE).filter(

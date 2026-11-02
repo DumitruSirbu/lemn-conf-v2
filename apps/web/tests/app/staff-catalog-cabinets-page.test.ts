@@ -5,12 +5,9 @@ import { createTranslator } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ForbiddenScreen } from "@/account/forbidden-screen";
-import {
-  CabinetListScreen,
-  CabinetListUnavailableScreen,
-} from "@/price-dashboard/cabinet-list";
+import { CabinetListUnavailableScreen } from "@/price-dashboard/cabinet-list";
+import { CabinetListEditor } from "@/price-dashboard/cabinet-list-editor";
 import type { CabinetListRead } from "@/price-dashboard/cabinet-list-source";
-import { SAMPLE_CABINET_LIST } from "@/price-dashboard/cabinet-list-sample";
 import { CatalogUnavailableScreen } from "@/price-dashboard/catalog-states";
 import {
   StaffForbiddenScreen,
@@ -20,15 +17,23 @@ import {
 import type { StaffPageRead as CatalogPageRead } from "@/lib/server/staff/staff-page";
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { pageOf } from "../price-dashboard/dashboard-state-fixture";
+
+const COOKIES = { get: () => undefined };
+const HEADERS = { get: () => null };
 
 const world = vi.hoisted(() => ({
   gate: undefined as CatalogPageRead | undefined,
   gateAsked: [] as { locale: string; page: string }[],
   list: undefined as CabinetListRead | undefined,
-  listAsked: 0,
+  listAsked: [] as unknown[],
 }));
 
 vi.mock("next/server", () => ({ connection: () => Promise.resolve() }));
+vi.mock("next/headers", () => ({
+  cookies: () => Promise.resolve(COOKIES),
+  headers: () => Promise.resolve(HEADERS),
+}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -53,8 +58,8 @@ vi.mock("../../src/app/[locale]/staff/catalog/_lib/read-catalog-page", () => ({
   },
 }));
 vi.mock("@/price-dashboard/cabinet-list-source", () => ({
-  readCabinetList: () => {
-    world.listAsked += 1;
+  readCabinetList: (request: unknown) => {
+    world.listAsked.push(request);
     if (world.list === undefined) throw new Error("no list planned");
     return Promise.resolve(world.list);
   },
@@ -73,8 +78,8 @@ const SHELL: StaffShellContext = {
 beforeEach(() => {
   world.gate = undefined;
   world.gateAsked = [];
-  world.list = { kind: "ready", input: SAMPLE_CABINET_LIST };
-  world.listAsked = 0;
+  world.list = { kind: "ready", page: pageOf() };
+  world.listAsked = [];
 });
 
 async function pageFor(answer: CatalogPageRead) {
@@ -98,15 +103,21 @@ describe("the cabinets page for each answer of the catalog gate", () => {
     expect(world.gateAsked).toEqual([{ locale: "ro", page: "cabinets" }]);
   });
 
-  it("draws the list for an administrator, handing the screen the frame the server worked out and the source's facts", async () => {
+  it("draws the list for an administrator, handing the editor the frame the server worked out and the source's page", async () => {
     const page = await pageFor({ kind: "signed-in", shell: SHELL });
 
-    expect(page.type).toBe(CabinetListScreen);
+    expect(page.type).toBe(CabinetListEditor);
     expect(page.props).toEqual({
       locale: "ro",
       context: SHELL,
-      input: SAMPLE_CABINET_LIST,
+      page: world.list?.kind === "ready" ? world.list.page : undefined,
     });
+  });
+
+  it("asks the source once, as the request that came: its cookies and its headers", async () => {
+    await pageFor({ kind: "signed-in", shell: SHELL });
+
+    expect(world.listAsked).toEqual([{ cookies: COOKIES, headers: HEADERS }]);
   });
 
   it("draws the notice inside the frame when the source has no list, and keeps the frame's menu", async () => {
@@ -133,7 +144,7 @@ describe("the cabinets page for each answer of the catalog gate", () => {
       page: "cabinets",
       context: operator,
     });
-    expect(world.listAsked).toBe(0);
+    expect(world.listAsked).toEqual([]);
   });
 
   it("draws the account area's forbidden screen, with no word of the staff area, for anyone else", async () => {
@@ -141,7 +152,7 @@ describe("the cabinets page for each answer of the catalog gate", () => {
 
     expect(page.type).toBe(ForbiddenScreen);
     expect(page.props).toEqual({ locale: "ro" });
-    expect(world.listAsked).toBe(0);
+    expect(world.listAsked).toEqual([]);
   });
 
   it("draws the notice for a gate that could not read the session, and never asks the source", async () => {
@@ -149,7 +160,7 @@ describe("the cabinets page for each answer of the catalog gate", () => {
 
     expect(page.type).toBe(CatalogUnavailableScreen);
     expect(page.props).toEqual({ locale: "ro" });
-    expect(world.listAsked).toBe(0);
+    expect(world.listAsked).toEqual([]);
   });
 });
 

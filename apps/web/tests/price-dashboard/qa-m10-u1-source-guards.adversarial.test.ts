@@ -4,9 +4,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
 import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
 import { CATALOG_PAGES } from "@/staff/staff-paths";
 
@@ -24,28 +23,31 @@ function withoutComments(source: string): string {
 const sourceOf = (path: string): string =>
   withoutComments(readFileSync(path, "utf8"));
 
-describe("the invented cabinet list can reach nobody in a production build", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("is imported by the list's source and by no other module of the application", () => {
+describe("the invented cabinet list can reach nobody", () => {
+  // The list reads the dashboard's own answer, so the sample stands behind the source in no build: it is a fixture for the
+  // screen's tests, and no module of the application imports it.
+  it("is imported by no module of the application", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) => /cabinet-list-sample["']/.test(sourceOf(path)))
       .map((path) => path.slice(SOURCE_ROOT.length + 1));
 
-    expect(importers).toEqual(["price-dashboard/cabinet-list-source.ts"]);
+    expect(importers).toEqual([]);
   });
 
-  it("asks the one predicate that holds the literal the bundler replaces, and never reads the environment itself", () => {
-    const predicate = sourceOf(join(DASHBOARD_ROOT, "is-production-build.ts"));
+  it("is imported by the staff cabinets page and by no other module, so a draft's prices reach no customer's page through it", () => {
+    const importers = filesUnder(SOURCE_ROOT)
+      .filter((path) => /\/cabinet-list-source["']/.test(sourceOf(path)))
+      .map((path) => path.slice(SOURCE_ROOT.length + 1));
+
+    expect(importers).toEqual(["app/[locale]/staff/catalog/cabinets/page.tsx"]);
+  });
+
+  it("reads the dashboard's own answer, is server-only, and never reads the environment or loads a sample", () => {
     const source = sourceOf(join(DASHBOARD_ROOT, "cabinet-list-source.ts"));
 
-    expect(predicate).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
-    expect(predicate).not.toMatch(/process\.env\[/);
-    expect(predicate).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
-    expect(source).toMatch(/isProductionBuild\(\)/);
-    expect(source).not.toMatch(/process\.env/);
+    expect(source).toMatch(/^import "server-only";/m);
+    expect(source).toMatch(/readDashboardForStaff/);
+    expect(source).not.toMatch(/process\.env|isProductionBuild|sample/i);
   });
 
   it("keeps the browser's choice of client on the literal itself, with the sample behind a dynamic import", () => {
@@ -58,22 +60,13 @@ describe("the invented cabinet list can reach nobody in a production build", () 
     expect(source).toMatch(/import\(\s*"\.\/publish-sample-client"\s*\)/);
   });
 
-  it("answers unavailable in production, every time, however often it is asked", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+  it("still holds the one predicate the other sources ask, with the literal the bundler replaces", () => {
+    const predicate = sourceOf(join(DASHBOARD_ROOT, "is-production-build.ts"));
 
-    for (let ask = 0; ask < 3; ask += 1) {
-      expect(await readCabinetList()).toEqual({ kind: "unavailable" });
-    }
+    expect(predicate).toMatch(/process\.env\.NODE_ENV\s*===\s*"production"/);
+    expect(predicate).not.toMatch(/process\.env\[/);
+    expect(predicate).not.toMatch(/NEXT_PUBLIC|VERCEL|LEMNARIA_/);
   });
-
-  it.each(["development", "test"])(
-    "answers the sample in a %s build, which no deployed site is",
-    async (mode) => {
-      vi.stubEnv("NODE_ENV", mode);
-
-      expect((await readCabinetList()).kind).toBe("ready");
-    },
-  );
 });
 
 describe("the dashboard's code never rounds or re-formats a price", () => {

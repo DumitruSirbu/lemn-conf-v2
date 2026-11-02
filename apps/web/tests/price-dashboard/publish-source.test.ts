@@ -57,10 +57,7 @@ describe("a production build", () => {
   });
 
   it("asks one predicate in the server-side readers and spells the build mode in no reader of its own", () => {
-    for (const name of [
-      "price-dashboard/publish-source.ts",
-      "price-dashboard/cabinet-list-source.ts",
-    ]) {
+    for (const name of ["price-dashboard/publish-source.ts"]) {
       const source = readFileSync(join(SOURCE_ROOT, name), "utf8");
 
       expect(source, name).toMatch(/isProductionBuild\(\)/);

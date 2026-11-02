@@ -291,6 +291,14 @@ describe("a row (frames D2A, D2B)", () => {
     );
   });
 
+  it("puts the proposed mark on the line of the default width, not on a line of its own", async () => {
+    const container = await mount();
+    const mark = requireIn(rowOf(container, PAN_BANK), "[class*=proposed]");
+
+    expect(mark.textContent).toBe(COPY.cabinets.proposed);
+    expect(mark.parentElement?.textContent).toContain("implicit 600");
+  });
+
   it("draws the cabinet's picture as a decorative background, so a missing file paints an empty tile", async () => {
     const container = await mount();
     const picture = requireIn(
