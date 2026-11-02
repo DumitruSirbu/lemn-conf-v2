@@ -11,6 +11,8 @@ import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 import { allIn } from "../support/render-with-intl";
 import {
   BLUM,
+  CREATED,
+  CREATED_CLASS,
   HETTICH,
   dialogButton,
   dialogButtons,
@@ -211,6 +213,67 @@ describe("deleting a class kitchens use", () => {
       CLOSE,
     ]);
     expect(document.activeElement).toBe(dialogButton(dialog, CLOSE));
+  });
+});
+
+describe("deleting a class only the draft holds", () => {
+  it("counts nothing, since nothing published names it, and says it only leaves De publicat", async () => {
+    mounted = await mountHardwareList(
+      hardwarePageOf({ changes: CREATED_CLASS }),
+    );
+
+    const dialog = await openDeleteFor(CREATED, "GTV Economic");
+
+    expect(dialog.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.deleteCreatedBody"),
+    );
+    expect(dialog.textContent).not.toContain(
+      roCopy("priceDashboard.lifecycle.deleteBody"),
+    );
+    expect(
+      mounted.lifecycle.calls.filter((call) => call.kind === "readUsage"),
+    ).toEqual([]);
+    expect(document.activeElement).toBe(dialogButton(dialog, CANCEL));
+  });
+
+  it("takes the creation back out of the draft on confirming, as one revert, so nothing is left to publish", async () => {
+    mounted = await mountHardwareList(
+      hardwarePageOf({ changes: CREATED_CLASS }),
+    );
+    const dialog = await openDeleteFor(CREATED, "GTV Economic");
+
+    await press(dialogButton(dialog, DELETE));
+
+    expect(mounted.draftServer.calls).toEqual([
+      {
+        kind: "revert",
+        request: {
+          expectedDraftRevision: "1",
+          target: {
+            kind: "change",
+            address: { kind: "hardware-tier-created", tierId: CREATED },
+          },
+        },
+      },
+    ]);
+    expect(mounted.draftServer.state().draft.changes).toEqual([]);
+    expect(() => rowOf(mounted?.container ?? document.body, CREATED)).toThrow();
+    expect(openDialog()).toBeNull();
+  });
+
+  it("is judged by the same refusals: a failed revert leaves the class in the list", async () => {
+    mounted = await mountHardwareList(
+      hardwarePageOf({ changes: CREATED_CLASS }),
+    );
+    const dialog = await openDeleteFor(CREATED, "GTV Economic");
+    mounted.draftServer.answerNextWriteWith({ kind: "failed" });
+
+    await press(dialogButton(dialog, DELETE));
+
+    expect(openDialog()?.textContent).toContain(
+      roCopy("priceDashboard.errors.saveFailed"),
+    );
+    expect(rowOf(mounted.container, CREATED)).toBeDefined();
   });
 });
 

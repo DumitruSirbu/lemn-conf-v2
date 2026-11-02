@@ -201,7 +201,11 @@ function DeleteDialog({
       title={translate("priceDashboard.lifecycle.deleteTitle", {
         name: nameOf(flow.item),
       })}
-      description={translate("priceDashboard.lifecycle.deleteBody")}
+      description={translate(
+        flow.isDraftOnly
+          ? "priceDashboard.lifecycle.deleteCreatedBody"
+          : "priceDashboard.lifecycle.deleteBody",
+      )}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
         label: translate("priceDashboard.common.delete"),

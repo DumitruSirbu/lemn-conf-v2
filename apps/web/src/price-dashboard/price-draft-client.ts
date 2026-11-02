@@ -6,7 +6,9 @@ import {
   type BulkChangedWire,
   type BulkChangeRequestWire,
   type BulkRefusalCode,
+  type CreateHardwareClassRequestWire,
   type DashboardDraftWire,
+  type DraftChangeCreatedWire,
   type DashboardStateWire,
   type DraftChangeRefusalCode,
   type DraftChangeRequestWire,
@@ -43,12 +45,26 @@ export type BulkChangeOutcome = DraftWriteResult<
   BulkChangedWire
 >;
 
+export type CreateHardwareClassOutcome = DraftWriteResult<
+  DraftChangeRefusalCode,
+  DraftChangeCreatedWire
+>;
+
 export interface PriceDraftClient {
   /** The dashboard's state again; absent when it cannot be read. */
   readState(): Promise<DashboardStateWire | undefined>;
   change(request: DraftChangeRequestWire): Promise<DraftChangeOutcome>;
   revert(request: DraftRevertRequestWire): Promise<DraftChangeOutcome>;
   bulk(request: BulkChangeRequestWire): Promise<BulkChangeOutcome>;
+  /**
+   * Creates a hardware class and its rates in one write of the draft. Absent where no route takes a creation yet, which
+   * the screen reads as a creation that cannot be made: nothing is sent and nothing is shown as created.
+   */
+  readonly createHardwareClass?:
+    | ((
+        request: CreateHardwareClassRequestWire,
+      ) => Promise<CreateHardwareClassOutcome>)
+    | undefined;
 }
 
 const STATE_ADDRESS = "/api/staff/prices";

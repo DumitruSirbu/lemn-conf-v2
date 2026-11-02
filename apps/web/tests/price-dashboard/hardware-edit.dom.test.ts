@@ -24,6 +24,8 @@ import {
 } from "./cabinet-detail-harness";
 import {
   BLUM,
+  CREATED,
+  CREATED_CLASS,
   HETTICH,
   STANDARD,
   dialogButton,
@@ -405,6 +407,33 @@ describe("deleting the class", () => {
     expect(mounted.container.textContent).toContain(
       roCopy("priceDashboard.lifecycle.defaultCannotChange"),
     );
+  });
+});
+
+describe("deleting a class only the draft holds", () => {
+  it("takes it out of the draft and says nothing is left to publish, in place of a page for a class that is gone", async () => {
+    mounted = await mountHardwareEdit(
+      CREATED,
+      hardwarePageOf({ changes: CREATED_CLASS }),
+    );
+    const container = mounted.container;
+
+    await press(
+      buttonNamed(container, roCopy("priceDashboard.hardware.deleteAction")),
+    );
+    await press(
+      dialogButton(
+        openDialog() ?? container,
+        roCopy("priceDashboard.common.delete"),
+      ),
+    );
+
+    expect(mounted.draftServer.calls.map((call) => call.kind)).toEqual([
+      "revert",
+    ]);
+    expect(
+      container.querySelector('[data-testid="hardware-removed"]')?.textContent,
+    ).toContain(roCopy("priceDashboard.hardware.createdRemoved"));
   });
 });
 

@@ -1811,6 +1811,12 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
       changedMeanwhile:
         "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
+      textEmpty: "Completează textul.",
+      textTooLong: "Textul este prea lung. Scurtează-l.",
+      textForbiddenCharacter:
+        "Textul conține un caracter care nu se poate folosi. Folosește litere, cifre și semne obișnuite.",
+      textStatesAnAmount:
+        "Textul nu poate spune un preț sau un procent. Prețurile se scriu în câmpurile lor.",
     },
     diff: {
       amountPercent: "{signedAmount} · {signedPercent} %",
@@ -2061,6 +2067,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       createAction: "Creează clasa",
       createdNotice:
         "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
+      createdRemoved: "Clasa a fost scoasă din „De publicat”.",
     },
     materials: {
       title: "Materiale",
@@ -2170,6 +2177,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       deleteBlockedInactiveBody:
         "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc această opțiune. Este deja dezactivată; clienții aleg altă opțiune când își deschid bucătăria.",
       working: "Se aplică…",
+      deleteCreatedBody:
+        "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”.",
     },
     publish: {
       title: "Publicare prețuri",

@@ -56,7 +56,7 @@ describe("what a browser is sent (reads source)", () => {
     expect(source).not.toMatch(/^\s*import\s[^;]*hardware-sample/m);
   });
 
-  it("is named by the hardware pages and by nothing else, the source that is server-only", () => {
+  it("is named by the three hardware pages, the list, a class and the creation form, and by nothing else, the source that is server-only", () => {
     const importers = relativeSources
       .filter(({ text }) => /hardware-source["']/.test(text))
       .map(({ relative }) => relative)
@@ -64,6 +64,7 @@ describe("what a browser is sent (reads source)", () => {
 
     expect(importers).toEqual([
       "app/[locale]/staff/catalog/hardware/[tierId]/page.tsx",
+      "app/[locale]/staff/catalog/hardware/new/page.tsx",
       "app/[locale]/staff/catalog/hardware/page.tsx",
     ]);
   });

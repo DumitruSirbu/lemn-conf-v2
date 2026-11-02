@@ -1387,7 +1387,11 @@ declare const messages: {
       "priceNotPositive": "Cu valorile acestea un preț ar ieși zero sau negativ.",
       "fixToSave": "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       "saveFailed": "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
-      "changedMeanwhile": "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou."
+      "changedMeanwhile": "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
+      "textEmpty": "Completează textul.",
+      "textTooLong": "Textul este prea lung. Scurtează-l.",
+      "textForbiddenCharacter": "Textul conține un caracter care nu se poate folosi. Folosește litere, cifre și semne obișnuite.",
+      "textStatesAnAmount": "Textul nu poate spune un preț sau un procent. Prețurile se scriu în câmpurile lor."
     },
     "diff": {
       "amountPercent": "{signedAmount} · {signedPercent} %",
@@ -1583,7 +1587,8 @@ declare const messages: {
       "priceLiftHint": "Pentru dulapul suspendat rabatabil",
       "newPricesNote": "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
       "createAction": "Creează clasa",
-      "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici."
+      "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
+      "createdRemoved": "Clasa a fost scoasă din „De publicat”."
     },
     "materials": {
       "title": "Materiale",
@@ -1665,7 +1670,8 @@ declare const messages: {
       "cannotJudge": "Nu putem verifica acum dacă se poate. Încearcă din nou mai târziu.",
       "usageUnavailable": "Nu am putut număra bucătăriile salvate care folosesc această opțiune, așa că nu schimbăm nimic acum. Încearcă din nou.",
       "deleteBlockedInactiveBody": "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc această opțiune. Este deja dezactivată; clienții aleg altă opțiune când își deschid bucătăria.",
-      "working": "Se aplică…"
+      "working": "Se aplică…",
+      "deleteCreatedBody": "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”."
     },
     "publish": {
       "title": "Publicare prețuri",

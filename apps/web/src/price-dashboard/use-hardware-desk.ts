@@ -7,6 +7,7 @@ import type { DeletableItemRef } from "@lemnaria/configurator-domain";
 import { defaultItemLifecycleClient } from "./default-item-lifecycle-client";
 import {
   deriveHardware,
+  hardwareClassOf,
   type HardwareDerivation,
   type HardwarePageInput,
 } from "./hardware-model";
@@ -19,7 +20,7 @@ import {
 import { usePriceDraft, type PriceDraft } from "./use-price-draft";
 
 // What the two hardware screens hold in common: the draft of prices, what is switched off, and the classes worked out from
-// both again after every write. A deletion is a change of the draft; a switch is not.
+// both again after every write. A deletion is a change of the draft, which for a class only the draft holds takes it out; a switch is not.
 
 export interface HardwareDesk {
   readonly draft: PriceDraft;
@@ -39,7 +40,8 @@ export function useHardwareDesk({
   readonly lifecycleClient: ItemLifecycleClient | undefined;
 }): HardwareDesk {
   const draft = usePriceDraft({ initial: page.state, client });
-  const { change } = draft;
+  const { change, revert } = draft;
+  const derivation = useMemo(() => deriveHardware(draft.state), [draft.state]);
   const lifecycle = useMemo(
     () =>
       lifecycleClient ??
@@ -51,10 +53,19 @@ export function useHardwareDesk({
       }),
     [lifecycleClient, page],
   );
+  const isDraftOnly = useCallback(
+    (item: DeletableItemRef) => isCreatedInDraft(derivation, item),
+    [derivation],
+  );
   const deleteFromDraft = useCallback(
     (item: DeletableItemRef) =>
-      change({ address: { kind: "item-deleted", item }, value: true }),
-    [change],
+      item.kind === "hardware" && isDraftOnly(item)
+        ? revert({
+            kind: "change",
+            address: { kind: "hardware-tier-created", tierId: item.tierId },
+          })
+        : change({ address: { kind: "item-deleted", item }, value: true }),
+    [change, revert, isDraftOnly],
   );
   const availability = useItemAvailability({
     initial: page.state.active.availability,
@@ -62,7 +73,18 @@ export function useHardwareDesk({
     defaults: page.defaults,
     client: lifecycle,
     deleteFromDraft,
+    isDraftOnly,
   });
-  const derivation = useMemo(() => deriveHardware(draft.state), [draft.state]);
   return { draft, availability, derivation };
+}
+
+function isCreatedInDraft(
+  derivation: HardwareDerivation,
+  item: DeletableItemRef,
+): boolean {
+  return (
+    derivation.kind === "ready" &&
+    item.kind === "hardware" &&
+    hardwareClassOf(derivation, item.tierId)?.isCreated === true
+  );
 }

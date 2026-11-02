@@ -5,11 +5,7 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import {
-  HARDWARE_RATE_FIELDS,
-  SAMPLE_PRICE_BOOK,
-  type DraftChange,
-} from "@lemnaria/configurator-domain";
+import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 
 import { staffNavigationOf } from "@/lib/server/staff/staff-page";
 import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
@@ -19,6 +15,8 @@ import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 import { allIn, requireIn } from "../support/render-with-intl";
 import {
   BLUM,
+  CREATED,
+  CREATED_CLASS,
   HETTICH,
   STANDARD,
   hardwareItem,
@@ -44,20 +42,6 @@ const tierOf = (tierId: string) => {
   if (tier === undefined) throw new Error(tierId);
   return tier;
 };
-
-const CREATED = "hardware.economic";
-const CREATED_CLASS: readonly DraftChange[] = [
-  {
-    address: { kind: "hardware-tier-created", tierId: CREATED },
-    value: { name: "GTV Economic", description: "Pentru oferte economice" },
-  },
-  ...HARDWARE_RATE_FIELDS.map(
-    (field): DraftChange => ({
-      address: { kind: "hardware", tierId: CREATED, field },
-      value: 2_000,
-    }),
-  ),
-];
 
 let mounted: MountedHardware | undefined;
 
@@ -159,6 +143,17 @@ describe("a class's row", () => {
     ]);
     expect(chips(HETTICH)).toEqual([roCopy("priceDashboard.chips.active")]);
     expect(chips(BLUM)).toEqual([roCopy("priceDashboard.chips.inactive")]);
+  });
+
+  it("offers adding a class, as a link of a touch target's size to the creation form", async () => {
+    mounted = await mountHardwareList(hardwarePageOf());
+
+    const link = allIn<HTMLAnchorElement>(mounted.container, "a").find(
+      (candidate) =>
+        candidate.textContent === roCopy("priceDashboard.hardware.addAction"),
+    );
+
+    expect(link?.getAttribute("href")).toBe("/ro/staff/catalog/hardware/new");
   });
 
   it("holds no field: a price is changed on the class's own page", async () => {

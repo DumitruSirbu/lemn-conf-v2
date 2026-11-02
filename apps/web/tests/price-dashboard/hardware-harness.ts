@@ -3,6 +3,7 @@
 import { act, createElement } from "react";
 
 import {
+  HARDWARE_RATE_FIELDS,
   SAMPLE_PRICE_BOOK,
   type CatalogueAvailability,
   type DraftChange,
@@ -11,6 +12,7 @@ import {
   type NewKitchenSettings,
 } from "@lemnaria/configurator-domain";
 
+import { HardwareCreateScreen } from "@/price-dashboard/hardware-create";
 import { HardwareEditScreen } from "@/price-dashboard/hardware-edit";
 import { HardwareListScreen } from "@/price-dashboard/hardware-list";
 import type { HardwarePageInput } from "@/price-dashboard/hardware-model";
@@ -120,6 +122,25 @@ export async function mountHardwareList(
   return { container: screen.container, ...world, unmount: screen.unmount };
 }
 
+export async function mountHardwareCreate(
+  page: HardwarePageInput,
+  options: Omit<MountOptions, "lifecycleClient"> = {},
+): Promise<MountedHardware> {
+  const locale = options.locale ?? "ro";
+  const world = worldOf(page);
+  const screen: MountedScreen = mountInCatalogue(
+    createElement(HardwareCreateScreen, {
+      locale,
+      context: contextOf("administrator", ["kitchens", "hardware", "publish"]),
+      page,
+      client: options.draftClient ?? world.draftServer.client,
+    }),
+    locale,
+  );
+  await flushPromises(5);
+  return { container: screen.container, ...world, unmount: screen.unmount };
+}
+
 export async function mountHardwareEdit(
   tierId: string,
   page: HardwarePageInput,
@@ -218,3 +239,19 @@ export function pendingChipText(container: HTMLElement): string | undefined {
 }
 
 export const SAMPLE_HARDWARE = SAMPLE_PRICE_BOOK.hardware.tiers;
+
+export const CREATED = "hardware.economic";
+
+/** A class only the draft holds, with the four rates it owes. */
+export const CREATED_CLASS: readonly DraftChange[] = [
+  {
+    address: { kind: "hardware-tier-created", tierId: CREATED },
+    value: { name: "GTV Economic", description: "Pentru oferte economice" },
+  },
+  ...HARDWARE_RATE_FIELDS.map(
+    (field): DraftChange => ({
+      address: { kind: "hardware", tierId: CREATED, field },
+      value: 2_000,
+    }),
+  ),
+];

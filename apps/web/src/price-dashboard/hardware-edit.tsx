@@ -65,21 +65,44 @@ export function HardwareEditScreen({
 }: HardwareEditScreenProps) {
   const desk = useHardwareDesk({ page, client, lifecycleClient });
   const { derivation } = desk;
-  const facts =
-    derivation.kind === "ready"
-      ? hardwareClassOf(derivation, tierId)
-      : undefined;
-  if (facts === undefined) {
+  if (derivation.kind !== "ready") {
     return <HardwareUnavailableScreen locale={locale} context={context} />;
   }
   const shell = {
     ...context,
     pendingPriceCount: pendingPriceCountOf(desk.draft.state.draft),
   };
+  const facts = hardwareClassOf(derivation, tierId);
+  if (facts === undefined) {
+    return (
+      <StaffShell locale={locale} page="hardware" context={shell}>
+        <ClassRemoved locale={locale} />
+      </StaffShell>
+    );
+  }
   return (
     <StaffShell locale={locale} page="hardware" context={shell}>
       <HardwareEdit key={tierId} locale={locale} desk={desk} facts={facts} />
     </StaffShell>
+  );
+}
+
+/** The class is no longer in the draft: it was created there and has just been deleted, so nothing is left to publish. */
+function ClassRemoved({ locale }: { readonly locale: AppLocale }) {
+  const translate = useTranslations();
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    noticeRef.current?.focus();
+  }, []);
+  return (
+    <section className={styles.page} data-testid="hardware-removed">
+      <a className={styles.back} href={hardwarePathOf(locale)}>
+        {translate("priceDashboard.hardware.title")}
+      </a>
+      <p ref={noticeRef} tabIndex={-1} className={styles.notice} role="status">
+        {translate("priceDashboard.hardware.createdRemoved")}
+      </p>
+    </section>
   );
 }
 

@@ -26,6 +26,7 @@ describe("what a thumb must hit", () => {
     "menuEntry",
     "switch",
     "savedLink",
+    "addLink",
   ])("declares .%s a touch target tall", (className) => {
     const heights = valuesFor(css, className, "min-height");
 
@@ -40,8 +41,17 @@ describe("what a thumb must hit", () => {
     },
   );
 
+  it("declares the buttons that are links at least 44 px tall", () => {
+    for (const value of valuesFor(css, "linkAction", "min-height")) {
+      expect(Number.parseFloat(value)).toBeGreaterThanOrEqual(44);
+    }
+    expect(valuesFor(css, "linkAction", "min-height")).not.toEqual([]);
+  });
+
   it("draws a visible ring on every control that can take focus", () => {
     for (const control of [
+      "addLink",
+      "linkAction",
       "back",
       "name",
       "editLink",

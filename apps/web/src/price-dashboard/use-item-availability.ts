@@ -56,6 +56,8 @@ export type ItemFlow =
       readonly kind: "delete";
       readonly item: DeletableItemRef;
       readonly usage: UsageStand;
+      /** Only the draft holds the item, so deleting it takes it back out of the draft and nothing is published. */
+      readonly isDraftOnly: boolean;
     }
   | {
       readonly kind: "delete-blocked";
@@ -95,13 +97,17 @@ export interface ItemAvailabilityInput {
   readonly book: PriceBook;
   readonly defaults: NewKitchenSettings | undefined;
   readonly client: ItemLifecycleClient;
-  /** Puts the deletion of an item in the draft. */
+  /** Puts the deletion of an item in the draft, or takes the item out of it where only the draft holds it. */
   readonly deleteFromDraft: (
     item: DeletableItemRef,
   ) => Promise<FieldWriteResult>;
+  /** Whether only the draft holds the item: nothing published names it, so no saved kitchen can use it and none is counted. */
+  readonly isDraftOnly: (item: DeletableItemRef) => boolean;
 }
 
 const CLOSED: ItemFlow = { kind: "closed" };
+/** An item only the draft holds was never published, so no saved kitchen names it. */
+const NO_SAVED_KITCHEN_CAN_USE_IT = 0;
 const UNREADABLE_USAGE: UsageRead = { kind: "unavailable" };
 const FAILED_OUTCOME: AvailabilityOutcome = { kind: "failed" };
 const FAILED: ItemFailure = { kind: "failed" };
@@ -112,6 +118,7 @@ export function useItemAvailability({
   defaults,
   client,
   deleteFromDraft,
+  isDraftOnly,
 }: ItemAvailabilityInput): ItemAvailabilityDesk {
   const [availability, setAvailability] = useState(initial);
   const [flow, setFlow] = useState<ItemFlow>(CLOSED);
@@ -186,11 +193,20 @@ export function useItemAvailability({
     (item: DeletableItemRef) => {
       moveOn();
       if (deleteStandOf(item, context).kind === "off") return;
+      if (isDraftOnly(item)) {
+        setFlow({
+          kind: "delete",
+          item,
+          usage: { kind: "counted", count: NO_SAVED_KITCHEN_CAN_USE_IT },
+          isDraftOnly: true,
+        });
+        return;
+      }
       void openAfterCounting(item, (read) =>
         deletionFlowOf(item, context, read),
       );
     },
-    [context, moveOn, openAfterCounting],
+    [context, moveOn, openAfterCounting, isDraftOnly],
   );
 
   const settle = useCallback(
@@ -364,7 +380,12 @@ function deletionFlowOf(
 ): ItemFlow {
   const usage = usageStandOf(read, item);
   if (read.kind !== "counted" || usage.kind !== "counted") {
-    return { kind: "delete", item, usage: { kind: "unavailable" } };
+    return {
+      kind: "delete",
+      item,
+      usage: { kind: "unavailable" },
+      isDraftOnly: false,
+    };
   }
   const verdict = countedDeletionOf(item, context, read.counts);
   switch (verdict.kind) {
@@ -376,7 +397,7 @@ function deletionFlowOf(
         isOn: isItemOn(item, context),
       };
     case "allowed":
-      return { kind: "delete", item, usage };
+      return { kind: "delete", item, usage, isDraftOnly: false };
     case "off":
       return CLOSED;
   }

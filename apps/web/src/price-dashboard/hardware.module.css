@@ -51,6 +51,24 @@
   outline-offset: 2px;
 }
 
+.addLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  padding: 0 18px;
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--paper);
+  text-decoration: none;
+  background: var(--accent);
+  border-radius: 12px;
+}
+
+.addLink:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
 .columns {
   display: none;
 }
@@ -387,6 +405,25 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.linkAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 20px;
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+  background: var(--paper);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+}
+
+.linkAction:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
 }
 
 .saved {

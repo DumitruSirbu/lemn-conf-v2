@@ -26,7 +26,7 @@ import {
   type HardwareDerivation,
   type HardwarePageInput,
 } from "./hardware-model";
-import { hardwareClassPathOf } from "./hardware-paths";
+import { hardwareClassPathOf, hardwareNewPathOf } from "./hardware-paths";
 import styles from "./hardware.module.css";
 import { formatLei, formatLeiAmount } from "./format-lei";
 import { ItemDialogs } from "./item-dialogs";
@@ -132,6 +132,9 @@ function HardwareList({
         <p className={styles.subtitle}>
           {translate("priceDashboard.hardware.subtitle")}
         </p>
+        <a className={styles.addLink} href={hardwareNewPathOf(locale)}>
+          {translate("priceDashboard.hardware.addAction")}
+        </a>
       </div>
       <ColumnHeads rates={rates} />
       <ul

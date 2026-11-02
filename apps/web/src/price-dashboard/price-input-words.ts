@@ -2,6 +2,7 @@ import {
   MAX_BULK_PERCENT,
   MAX_DEEP_CABINET_PERCENT,
   MIN_BULK_PERCENT,
+  type CreatedRowTextRefusalCode,
 } from "@lemnaria/configurator-domain";
 
 import type { ContentTranslator } from "@/i18n/content";
@@ -54,6 +55,24 @@ export function leiRefusalWords(
       });
     case "tooBig":
       return translate("priceDashboard.errors.tooBig");
+  }
+}
+
+/** Why the words of a row the dashboard creates were refused, before anything is sent. */
+export function createdTextRefusalWords(
+  translate: ContentTranslator,
+  code: CreatedRowTextRefusalCode,
+): string {
+  switch (code) {
+    case "TEXT_TOO_LONG":
+      return translate("priceDashboard.errors.textTooLong");
+    case "TEXT_FORBIDDEN_CHARACTER":
+      return translate("priceDashboard.errors.textForbiddenCharacter");
+    case "TEXT_STATES_AN_AMOUNT":
+      return translate("priceDashboard.errors.textStatesAnAmount");
+    case "TEXT_EMPTY":
+    case "MISSING_VALUE":
+      return translate("priceDashboard.errors.textEmpty");
   }
 }
 
