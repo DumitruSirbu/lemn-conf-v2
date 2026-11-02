@@ -53,8 +53,8 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 /**
- * `GET /api/staff/prices/versions` and `…/versions/{id}` (M10 R3, ADR 0178). An archived version is served to an
- * administrator only, after its `price-catalogue-viewed` row has committed; a draft or an archive reaches no other route.
+ * `GET /api/staff/prices/versions` and `…/versions/{id}`: an archived version is served to an administrator only, after
+ * its `price-catalogue-viewed` row has committed.
  */
 
 let staffWorld: StaffWorld;

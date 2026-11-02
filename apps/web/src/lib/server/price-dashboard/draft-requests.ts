@@ -36,7 +36,7 @@ export type RequestRefusal<Code extends string> =
       readonly issues: readonly DashboardIssue<Code>[];
     };
 
-type Members = Readonly<Record<string, unknown>>;
+export type Members = Readonly<Record<string, unknown>>;
 
 export const MALFORMED = { ok: false, refusal: { kind: "malformed" } } as const;
 
@@ -293,7 +293,8 @@ function hasMemberOutside(
   return Object.keys(members).some((member) => !allowed.includes(member));
 }
 
-function ownMember(members: Members, name: string): unknown {
+/** The member the body holds itself, never one inherited from the prototype. */
+export function ownMember(members: Members, name: string): unknown {
   return Object.hasOwn(members, name) ? members[name] : undefined;
 }
 

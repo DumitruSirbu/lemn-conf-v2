@@ -1,13 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  applyChanges,
-  buildKitchenLBodyCatalog,
-  DEFAULT_CABINET_DEPTH_MM,
-  judgeBookAgainstCatalog,
-  SAMPLE_PRICE_BOOK,
-  type DraftChange,
-} from "@lemnaria/configurator-domain";
+import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 
 import { readActivePriceBook } from "@/lib/server/active-price-book";
 import { STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY } from "@/lib/server/rate-limit/limit-policy";
@@ -51,10 +44,10 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 /**
- * `POST /api/staff/prices/publish` (M10 R3, ADR 0178 A-15, F7, F10). The route is called with `Request` objects over the
- * persistence package's price-book fake, which commits a publish with its audit row or not at all; the session, the
- * capability, the limiter, `applyChanges` and `judgeBookAgainstCatalog` are the real ones. The book is computed from the
- * stored draft, so the body carries only the revisions a page read and the version's label and note.
+ * `POST /api/staff/prices/publish`, called over the persistence package's price-book fake, which commits a publish with
+ * its audit row or not at all; the session, the capability, the limiter, `applyChanges` and `judgeBookAgainstCatalog`
+ * are the real ones. The book is computed from the stored draft, so the body carries only the revisions a page read and
+ * the label and note.
  */
 
 let world: AccountWorld;
@@ -646,7 +639,7 @@ describe("the whole candidate is judged before anything is stored (A-7, M2's jud
     field: "perStepNarrowerMinor",
   } as const;
 
-  it("refuses a candidate that parses and prices at or below zero over its grid, 409 candidate-refused, and stores nothing", async () => {
+  it("refuses a candidate that parses and prices at or below zero over its grid, 409 candidate-refused naming the row, width and field, and stores nothing", async () => {
     const { cookie } = await administrator();
     await putChange(cookie, STEEP_NARROWING, 90_000);
     const before = await snapshot();
@@ -654,34 +647,46 @@ describe("the whole candidate is judged before anything is stored (A-7, M2's jud
     const answer = await publish(cookie);
 
     expect(answer.status).toBe(409);
-    expect(await jsonOf(answer)).toEqual({ status: "candidate-refused" });
+    expect(await jsonOf(answer)).toEqual({
+      status: "candidate-refused",
+      refusals: [
+        {
+          source: "catalogue",
+          code: "PRICE_NOT_POSITIVE",
+          ruleId: ANCHORED_RULE_ID,
+          buildId: "base-3drawer",
+          widthMm: 300,
+          heightMm: 860,
+          field: "perStepNarrowerMinor",
+        },
+      ],
+    });
     await expectNothingWritten(before);
   });
 
-  it("is the judgement's PRICE_NOT_POSITIVE that refuses it, naming the row and the field that drives the price: D3C's error, which the 409 does not carry", async () => {
+  it("refuses an anchor of 0, an ordinary change the draft stores, with the same closed members, and stores nothing", async () => {
     const { cookie } = await administrator();
-    await putChange(cookie, STEEP_NARROWING, 90_000);
-    const stored = (await prices.stores.priceBook.readDraft())
-      .changes as readonly DraftChange[];
-    const root = await readActivePriceBook(prices.stores);
-    if (root.kind !== "active") throw new Error("no active book");
+    await putChange(cookie, ANCHOR_ADDRESS, 0);
+    const before = await snapshot();
 
-    const applied = applyChanges(root.book, stored);
+    const answer = await publish(cookie);
 
-    expect(applied.ok).toBe(true);
-    if (!applied.ok) return;
-    const judged = judgeBookAgainstCatalog(
-      applied.book,
-      buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM),
-    );
-    expect(judged.ok).toBe(false);
-    expect(judged.ok ? [] : judged.refusals).toContainEqual(
-      expect.objectContaining({
-        code: "PRICE_NOT_POSITIVE",
-        ruleId: ANCHORED_RULE_ID,
-        field: "perStepNarrowerMinor",
-      }),
-    );
+    expect(answer.status).toBe(409);
+    expect(await jsonOf(answer)).toEqual({
+      status: "candidate-refused",
+      refusals: [
+        {
+          source: "catalogue",
+          code: "PRICE_NOT_POSITIVE",
+          ruleId: ANCHORED_RULE_ID,
+          buildId: "base-3drawer",
+          widthMm: 300,
+          heightMm: 860,
+          field: "perStepNarrowerMinor",
+        },
+      ],
+    });
+    await expectNothingWritten(before);
   });
 
   it("keeps the draft, so the person corrects the change and publishes again", async () => {
@@ -695,7 +700,7 @@ describe("the whole candidate is judged before anything is stored (A-7, M2's jud
     expect(answer.status).toBe(200);
   });
 
-  it("refuses a stored draft that no longer applies to the active book, and stores nothing", async () => {
+  it("refuses a stored draft that no longer applies to the active book, naming the change by its index, and stores nothing", async () => {
     const { cookie } = await administrator();
     const revision = await currentDraftRevision();
     vi.spyOn(prices.stores.priceBook, "readDraft").mockResolvedValue({
@@ -716,7 +721,10 @@ describe("the whole candidate is judged before anything is stored (A-7, M2's jud
     const answer = await publish(cookie);
 
     expect(answer.status).toBe(409);
-    expect(await jsonOf(answer)).toEqual({ status: "candidate-refused" });
+    expect(await jsonOf(answer)).toEqual({
+      status: "candidate-refused",
+      refusals: [{ source: "changes", index: 0, code: "UNKNOWN_RULE" }],
+    });
     await expectNothingWritten(before);
   });
 });

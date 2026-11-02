@@ -60,8 +60,8 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 /**
- * Adversarial QA of M10 wave R3's reads: the history's paging, a stored version that is not what the store declares, the
- * routes' own methods and headers on every status, and the rule that a draft or an archive reaches no customer (R-d).
+ * The history's paging, a stored version that is not what the store declares, the routes' methods and headers on every
+ * status, and that a draft or an archive reaches no customer.
  */
 
 let staffWorld: StaffWorld;

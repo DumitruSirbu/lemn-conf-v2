@@ -20,7 +20,7 @@ const MINTED_ID_CHARACTERS = new RegExp(
   `^[A-Za-z0-9_-]{1,${String(MAX_IDENTIFIER_LENGTH)}}$`,
 );
 
-/** A path's id of a published version, judged before any store is asked: made only of characters a store mints. */
+/** Unlike `isIdentifier`, a path segment must carry nothing a store could not hold: it is judged before any store. */
 export function isVersionId(declared: unknown): declared is string {
   return typeof declared === "string" && MINTED_ID_CHARACTERS.test(declared);
 }

@@ -9,8 +9,8 @@ import {
 import { planRestoreToDraft } from "@/lib/server/price-dashboard/restore-plan";
 
 /**
- * What a restore makes of the draft, over books (M10 R3, ruling U5-Q6). Pending changes of fields the archived book states
- * are replaced; a pending change to a field it does not state stays; a bulk group that loses a member is no group.
+ * What a restore makes of the draft, over books: pending changes of fields the archived book states are replaced, a
+ * pending change to a field it does not state stays, and a bulk group that loses a member is no group.
  */
 
 const KEPT_ROW = "cabinet.base-3drawer";

@@ -48,11 +48,9 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 /**
- * Adversarial QA of M10 wave R3, the acceptance the developer's and the earlier QA suites leave to inference: that R3
- * hands the store the candidate book as the stored draft makes it and does not stamp `book.version` (R-a: the store
- * does, once it has minted the id), that the book the candidate is made from is the stored book parsed and projected
- * and never the raw row, and that the note's bound and character rule hold at the route as they do in the domain (the
- * label's are pinned in `price-dashboard-publish-route.test.ts`).
+ * The publish hands the store the candidate as the stored draft makes it, without stamping `book.version` (the store
+ * does, once it has minted the id); the candidate is made from the stored book parsed and projected, never the raw row;
+ * and the note's bound and character rule hold at the route as in the domain.
  */
 
 const NEW_ANCHOR_MINOR = 500_000;

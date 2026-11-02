@@ -30,6 +30,14 @@ const DIRECTION_CONTROLS = [
   "2069",
 ] as const;
 
+/** Render as nothing and are not format characters, so `readTypedText` leaves them in place. */
+const BLANKS_THAT_ARE_NOT_FORMAT_CHARACTERS = [
+  ["the Hangul filler", "\u3164"],
+  ["the Hangul choseong filler", "\u115F"],
+  ["the combining grapheme joiner", "\u034F"],
+  ["the braille blank", "\u2800"],
+] as const;
+
 function labelCode(raw: unknown): string | undefined {
   const judgement = judgeVersionLabel(raw);
   return judgement.ok ? undefined : judgement.code;
@@ -66,6 +74,26 @@ describe("judgeVersionLabel: the name a published version carries", () => {
   ])("requires a label: %s is REQUIRED", (_title, raw) => {
     expect(labelCode(raw)).toBe("REQUIRED");
   });
+
+  it.each(BLANKS_THAT_ARE_NOT_FORMAT_CHARACTERS)(
+    "requires a label: %s alone is REQUIRED, alone or mixed with spaces and the others",
+    (_title, blank) => {
+      const everyBlank = BLANKS_THAT_ARE_NOT_FORMAT_CHARACTERS.map(
+        ([, character]) => character,
+      ).join(" ");
+
+      expect(labelCode(blank)).toBe("REQUIRED");
+      expect(labelCode(` ${blank}${blank} `)).toBe("REQUIRED");
+      expect(labelCode(`${blank} ${everyBlank}`)).toBe("REQUIRED");
+    },
+  );
+
+  it.each(BLANKS_THAT_ARE_NOT_FORMAT_CHARACTERS)(
+    "keeps %s beside a visible character: only a label of nothing is refused",
+    (_title, blank) => {
+      expect(labelOf(`A${blank}`)).toBe(`A${blank}`);
+    },
+  );
 
   it.each([
     ["null", null],
@@ -126,6 +154,14 @@ describe("judgeVersionNote: the optional line beside a version", () => {
   ])("accepts %s as an empty note", (_title, raw) => {
     expect(noteOf(raw)).toBe("");
   });
+
+  it.each(BLANKS_THAT_ARE_NOT_FORMAT_CHARACTERS)(
+    "reads %s alone as an empty note",
+    (_title, blank) => {
+      expect(noteOf(blank)).toBe("");
+      expect(noteOf(` ${blank}${blank} `)).toBe("");
+    },
+  );
 
   it("allows 240 code points and refuses 241", () => {
     expect(noteOf("a".repeat(240))).toBe("a".repeat(240));

@@ -4,14 +4,17 @@ import {
   type TypedTextReading,
 } from "../contact/input-checks.js";
 import { MAX_BOOK_NAME_LENGTH } from "../pricing/book-reading.js";
-import { holdsUnsendableCharacter } from "../visible-text.js";
+import {
+  holdsNothingVisible,
+  holdsUnsendableCharacter,
+} from "../visible-text.js";
 
-// The two texts a staff member writes when publishing a price version: its label and its note. They are typed text like
-// every other field, so the reading is `readTypedText`'s: NFC, format characters (zero-width and the like) removed,
-// trimmed, and no control, line-separator or lone-surrogate character. The direction controls (marks, embeddings,
-// overrides, isolates) are the exception: they are refused as typed and not stripped (ADR 0178 F5), because they reorder
-// the text printed around them. They are `holdsUnsendableCharacter`'s, checked on the value as it arrived. The label is how the history names the
-// version, so it is required; the note is a single line the frame draws no field for, so it may be empty.
+// The version's label and note are typed text (`readTypedText`: NFC, format characters removed, trimmed), except that
+// a direction control is refused as typed, never stripped, because it reorders the text printed around it (see ADR 0178
+// F5). The label names the version in the history, so it is required; the note may be empty.
+
+/** The braille blank renders as nothing and is a symbol (`So`), which the shared blank class does not hold. */
+const BRAILLE_BLANK = "\u2800";
 
 /** Characters, as code points, in the stored NFC form. A version's name has the book's bound for a name (ADR 0178). */
 export const VERSION_LABEL_MAX_LENGTH = MAX_BOOK_NAME_LENGTH;
@@ -25,18 +28,26 @@ export type VersionTextJudgement =
   | { readonly ok: true; readonly text: string }
   | { readonly ok: false; readonly code: VersionTextRefusalCode };
 
-/** On acceptance, `text` is the form that is stored and shown. An absent or blank label is `REQUIRED`. */
+/** On acceptance, `text` is the form stored and shown. An absent label, or one that shows nothing, is `REQUIRED`. */
 export function judgeVersionLabel(raw: unknown): VersionTextJudgement {
   const reading = readVersionText(raw, VERSION_LABEL_MAX_LENGTH);
   if (!reading.ok) return reading;
-  if (reading.value === "") return { ok: false, code: "REQUIRED" };
+  if (holdsNothingToRead(reading.value)) return { ok: false, code: "REQUIRED" };
   return { ok: true, text: reading.value };
 }
 
-/** On acceptance, `text` is the form that is stored and shown; an absent or blank note is the empty string. */
+/** On acceptance, `text` is the form stored and shown; an absent note, or one that shows nothing, is empty. */
 export function judgeVersionNote(raw: unknown): VersionTextJudgement {
   const reading = readVersionText(raw, VERSION_NOTE_MAX_LENGTH);
-  return reading.ok ? { ok: true, text: reading.value } : reading;
+  if (!reading.ok) return reading;
+  return {
+    ok: true,
+    text: holdsNothingToRead(reading.value) ? "" : reading.value,
+  };
+}
+
+function holdsNothingToRead(text: string): boolean {
+  return holdsNothingVisible(text.replaceAll(BRAILLE_BLANK, ""));
 }
 
 function readVersionText(raw: unknown, maxLength: number): TypedTextReading {

@@ -20,12 +20,11 @@ import type { ActiveDashboardState } from "@/lib/server/price-dashboard/dashboar
 import type { DraftPlan } from "@/lib/server/price-dashboard/draft-plans";
 import { readVersionBook } from "@/lib/server/price-dashboard/version-wire";
 
-// What a restore makes of the draft (M10 plan R3; ruling U5-Q6, 2026-10-27). `restoreChanges(archived, active)` is exact
-// only relative to its second argument: against the active book alone, a field the draft already edits (active 100, draft
-// 120, archived 100) emits nothing, and the candidate keeps 120. So the restore is made against the candidate the draft
-// makes, and it replaces by address: every pending change of a field the archived book states is dropped, and the archived
-// values that differ from the active book are added in its place. The candidate then equals the archived book on every
-// field both books state ("puts the old prices in the draft", D8C), and a pending change to anything else stays.
+// `restoreChanges(archived, active)` is exact only relative to its second argument: against the active book alone, a
+// field the draft already edits emits nothing and the candidate keeps the pending value. So a restore is made against
+// the candidate the draft makes, and replaces by address: the pending changes of every field the archived book states
+// are dropped, the archived values that differ from the active book are added, and a pending change to anything else
+// stays.
 
 /**
  * What restoring `version` writes: the draft it becomes, or the refusal. The active version has nothing to restore (the
@@ -45,18 +44,17 @@ export function planRestore(
   });
   if (plan.differingCount === 0) return refused("nothing-differs");
   if (!applyChanges(book, plan.draft).ok) return refused("candidate-refused");
-  const { addedChangeCount } = plan;
   return {
     kind: "write",
     changes: plan.draft,
     entry: restoredToDraftEntry({
       fromSequenceNumber: version.sequenceNumber,
-      addedChangeCount,
+      changedFieldCount: plan.differingCount,
     }),
     answer: (draftRevision) =>
       restoredResponse({
         draft: draftWireOf(draftRevision, plan.draft),
-        addedChangeCount,
+        addedChangeCount: plan.addedChangeCount,
       }),
   };
 }
@@ -70,9 +68,9 @@ function refused(
 export interface RestorePlan {
   /** The draft the restore writes. */
   readonly draft: readonly DraftChange[];
-  /** What the restore adds to the active book: the archived values that differ from it. The count the audit row keeps. */
+  /** What the restore adds to the active book: the archived values that differ from it. */
   readonly addedChangeCount: number;
-  /** How many fields the archived book states differently from the candidate; 0 means the restore changes nothing. */
+  /** The fields the restore changes in the candidate: those the archived book states differently. The audit count. */
   readonly differingCount: number;
 }
 
@@ -128,5 +126,5 @@ function withoutGroup(change: DraftChange): DraftChange {
   const { groupId, bulk, ...ordinary } = change;
   void groupId;
   void bulk;
-  return ordinary as DraftChange;
+  return ordinary;
 }

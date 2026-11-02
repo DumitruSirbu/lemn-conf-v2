@@ -9,9 +9,8 @@ import {
 let shippedCatalog: BodyCatalog | undefined;
 
 /**
- * The catalogue a price book is judged against: the price groups, the buildable widths and heights are read from it. Built
- * on first use, since it is code and cannot change under the process. The book's judgement does not depend on the depth the
- * catalogue is built at for the shipped catalogue, so the default depth is the one asked (M2's hand-off to R3).
+ * The catalogue a price book is judged against: the price groups and the buildable widths and heights are read from it.
+ * Built once, at the default depth: the judgement of the shipped catalogue does not depend on the depth it is built at.
  */
 export function shippedCatalogue(): BodyCatalog {
   shippedCatalog ??= buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM);

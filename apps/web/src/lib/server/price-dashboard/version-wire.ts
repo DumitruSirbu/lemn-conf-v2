@@ -15,11 +15,10 @@ import type {
   PriceVersionWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
-// A stored version as a staff screen reads it. The book and the change summary are jsonb, written by this build but not part
-// of its type system, so they are parsed before anything is served or restored from them (the plan's R rule on stored books
-// and drafts): the book through the application's one parse and projected onto the declared members, the changes rebuilt
-// member by member. A version that does not read back as one is a defect of ours and is thrown, so the route answers
-// `503` with no detail, and never a partial version.
+// A stored version as a staff screen reads it. The book and the change summary are jsonb, not part of the type system,
+// so they are parsed before anything is served or restored from them: the book through the application's one parse and
+// projected onto the declared members, the changes rebuilt member by member. A version that does not read back as one
+// is thrown, so the route answers `503` with no detail, never a partial version.
 
 class StoredVersionUnreadableError extends Error {
   constructor(what: "book" | "change summary") {

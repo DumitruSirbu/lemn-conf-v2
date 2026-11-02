@@ -63,11 +63,10 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 /**
- * Adversarial QA of M10 wave R3 (publish and restore), written to attack what the developer's suites assume: that the
- * order of refusals is the order the plan names, that a competing write between the route's read and the store's
- * compare-and-set loses, that a restore followed by a publish really reproduces the archive, that a mixed race has one
- * winner and one audit row, that the draft bucket is the one both writes spend, that no shape of path id reaches a
- * store, and that no text the person typed is anywhere but the version row.
+ * Publish and restore: refusals come in the order the plan names, a competing write between the route's read and the
+ * store's compare-and-set loses, a restore then a publish reproduces the archive, a mixed race has one winner and one
+ * audit row, both writes spend the draft bucket, no shape of path id reaches a store, and no typed text is anywhere
+ * but the version row.
  */
 
 let staffWorld: StaffWorld;
@@ -230,7 +229,10 @@ describe("the order a publish is judged in (recorded behaviour: the store's avai
       }),
     });
 
-    expect(await jsonOf(answer)).toEqual({ status: "candidate-refused" });
+    expect(await jsonOf(answer)).toEqual({
+      status: "candidate-refused",
+      refusals: [expect.objectContaining({ code: "PRICE_NOT_POSITIVE" })],
+    });
     expect(await worldFacts()).toEqual(before);
   });
 });

@@ -13,10 +13,9 @@ import {
 
 import { planRestoreToDraft } from "@/lib/server/price-dashboard/restore-plan";
 
-// Adversarial QA of M10 wave R3's restore plan, swept over generated archived books, active books and drafts rather than the
-// hand-picked ones of the unit tests. The plan is exact when: the candidate it leaves reproduces the archived book on every
-// field the archive states, a pending change to a field the archive does not state is still there, the count the audit row
-// keeps is what the restore adds to the active book, and "nothing differs" is exactly "the candidate already holds it".
+// Swept over generated archived books, active books and drafts: the candidate a restore leaves reproduces the archived
+// book on every field the archive states, a pending change to a field it does not state stays, `addedChangeCount` is
+// what the restore adds to the active book, and "nothing differs" is exactly "the candidate already holds the archive".
 
 const BASE = SAMPLE_PRICE_BOOK;
 const FIELDS = readEditableFields(BASE);

@@ -24,9 +24,9 @@ import {
 import { freshStaffWorld, signedInAs } from "../../../support/staff-world";
 
 /**
- * R-d's must-not, through the one non-staff route that reads the price stores: with archived versions and a pending draft
- * in the stores, a design's contact request is priced at the active version alone, and nothing it answers, stores or mails
- * names an archived version, a version's label or note, or a pending price.
+ * With archived versions and a pending draft in the stores, a design's contact request (the one non-staff route that
+ * reads the price stores) is priced at the active version alone, and nothing it answers, stores or mails names an
+ * archived version, a version's label or note, or a pending price.
  */
 
 const fakes = vi.hoisted(() => ({

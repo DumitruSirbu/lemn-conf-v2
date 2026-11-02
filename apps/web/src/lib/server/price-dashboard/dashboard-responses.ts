@@ -7,6 +7,8 @@ import type { DraftChange } from "@lemnaria/configurator-domain";
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type {
   BulkChangedWire,
+  CandidateRefusalWire,
+  DashboardCandidateRefusedWire,
   DashboardConflict,
   DashboardConflictWire,
   DashboardDraftUnreadableWire,
@@ -30,6 +32,7 @@ type DashboardBody =
   | DashboardDraftWire
   | BulkChangedWire
   | DashboardConflictWire
+  | DashboardCandidateRefusedWire
   | DashboardDraftUnreadableWire
   | DashboardInvalidInputWire<string>
   | PublishedWire
@@ -96,6 +99,17 @@ export function dashboardConflictResponse(
   word: Exclude<DashboardConflict, "draft-unreadable">,
 ): NextResponse {
   return jsonResponse({ status: word }, 409);
+}
+
+/** `409`: the book a publish would store was refused, and why. Nothing was written. */
+export function candidateRefusedResponse(
+  refusals: readonly CandidateRefusalWire[],
+): NextResponse {
+  const body: DashboardCandidateRefusedWire = {
+    status: "candidate-refused",
+    refusals,
+  };
+  return jsonResponse(body, 409);
 }
 
 /** `409`: the stored draft cannot be read. It names the revision a discard-all is made against, and nothing it holds. */

@@ -14,7 +14,7 @@ import type { PricePublishedAuditInput } from "@lemnaria/persistence";
 // counts from the book's closed lists, and never a value: the amount a change sets is not in any detail.
 
 export function catalogueViewedEntry(
-  section: PriceCatalogueSection = "catalogue",
+  section: PriceCatalogueSection,
 ): DashboardAuditEntry {
   return { action: "price-catalogue-viewed", detail: { section } };
 }
@@ -68,16 +68,16 @@ export function publishedEntry(
   };
 }
 
-/** The archived version whose prices were put in the draft, and how many changes that added. */
+/** The archived version whose prices were put in the draft, and how many fields that changed in the candidate. */
 export function restoredToDraftEntry(restored: {
   readonly fromSequenceNumber: number;
-  readonly addedChangeCount: number;
+  readonly changedFieldCount: number;
 }): DashboardAuditEntry {
   return {
     action: "price-restored-to-draft",
     detail: {
       fromSequenceNumber: restored.fromSequenceNumber,
-      changeCount: restored.addedChangeCount,
+      changeCount: restored.changedFieldCount,
     },
   };
 }

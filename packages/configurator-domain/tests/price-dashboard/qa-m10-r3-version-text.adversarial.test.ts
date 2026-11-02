@@ -9,9 +9,8 @@ import {
   type VersionTextJudgement,
 } from "../../src/price-dashboard/index.js";
 
-// Adversarial QA of M10 wave R3's version text rule (ADR 0178 F5). It sweeps what the example tests pick by hand: every
-// forbidden class at every position, every format character the rule must be blind to, the NFC count both ways round, and
-// the fixed point a stored value must be (reading a stored value gives that value again).
+// Swept: every forbidden class at every position, every format character the rule must be blind to, the NFC count both
+// ways round, and the fixed point a stored value must be (reading a stored value gives that value again).
 
 const BIDI_CONTROLS = [
   "؜",

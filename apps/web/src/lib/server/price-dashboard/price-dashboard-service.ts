@@ -4,6 +4,7 @@ import type { NextResponse } from "next/server";
 
 import type {
   CatalogueAvailability,
+  ItemRef,
   PriceCatalogueSection,
 } from "@lemnaria/configurator-domain";
 import {
@@ -90,7 +91,7 @@ import { admitStaff } from "@/lib/server/staff/staff-admission";
 import { commitAuditRow } from "@/lib/server/staff/staff-audit-commit";
 import type { DashboardStateWire } from "@/price-dashboard/price-dashboard-wire-contract";
 
-// What an administrator reads and writes of the price dashboard's draft (ADR 0173, ADR 0178; M10 plan R2). Every route
+// What an administrator reads and writes of the price dashboard's draft (see ADR 0173, ADR 0178). Every route
 // has checked the origin, and the writes the media type and the body's size. From there the order is the staff routes' own:
 // the session and `price.edit` (a client's, an operator's or an unconfirmed session reaches no store), the body's members,
 // the account's own bucket, which **fails closed**, and only then the stores. A draft write is committed with its audit row
@@ -101,6 +102,9 @@ import type { DashboardStateWire } from "@/price-dashboard/price-dashboard-wire-
 export const PRICE_READ_EVENT = "staff-prices" as const satisfies AccountEvent;
 export const PRICE_DRAFT_EVENT =
   "staff-price-draft" as const satisfies AccountEvent;
+
+/** `applyChanges` applies no creation, so a publish stores no new row for the availability log to start inactive. */
+const NO_CREATED_ROWS: readonly ItemRef[] = [];
 
 export interface DashboardReadRequest {
   readonly cookies: SessionCookieReader;
@@ -396,22 +400,54 @@ async function performPlanned<
   cookies: SessionCookieReader,
   planOf: PlanOf<Input>,
 ): Promise<NextResponse> {
-  const stores = await getPriceStores();
-  const reading = await readDashboardState(stores);
-  if (reading.kind !== "ready") {
-    return refusalOfUnreadyState(PRICE_DRAFT_EVENT, reading);
-  }
-  if (reading.state.draft.draftRevision !== input.expectedDraftRevision) {
-    return refused(
-      PRICE_DRAFT_EVENT,
-      dashboardConflictResponse("changed-meanwhile"),
-    );
-  }
+  const ready = await readStateForWrite();
+  if (ready.kind === "refused") return ready.response;
+  const { stores, state } = ready;
+  const stale = refusalOfStaleRevision(state, input.expectedDraftRevision);
+  if (stale !== undefined) return stale;
   return writePlanned(stores, {
-    plan: planOf(input, reading.state),
+    plan: planOf(input, state),
     expectedDraftRevision: input.expectedDraftRevision,
     cookies,
   });
+}
+
+type StateForWrite =
+  | {
+      readonly kind: "ready";
+      readonly stores: PriceStores;
+      readonly state: ActiveDashboardState;
+    }
+  | { readonly kind: "refused"; readonly response: NextResponse };
+
+/** The stores and the active state a draft write is judged against, or the refusal of a state that cannot be judged. */
+async function readStateForWrite(): Promise<StateForWrite> {
+  const stores = await getPriceStores();
+  const reading = await readDashboardState(stores);
+  if (reading.kind !== "ready") {
+    return {
+      kind: "refused",
+      response: refusalOfUnreadyState(PRICE_DRAFT_EVENT, reading),
+    };
+  }
+  return { kind: "ready", stores, state: reading.state };
+}
+
+/** `changed-meanwhile` when the draft moved since the page read `expectedDraftRevision`; otherwise `undefined`. */
+function refusalOfStaleRevision(
+  { draft }: ActiveDashboardState,
+  expectedDraftRevision: string,
+): NextResponse | undefined {
+  return draft.draftRevision === expectedDraftRevision
+    ? undefined
+    : changedMeanwhile();
+}
+
+function changedMeanwhile(): NextResponse {
+  return refused(
+    PRICE_DRAFT_EVENT,
+    dashboardConflictResponse("changed-meanwhile"),
+  );
 }
 
 /** Writes what a plan decided, with its audit row, or answers the refusal it is. */
@@ -436,31 +472,22 @@ async function writePlanned(
   });
 }
 
-/**
- * A restore reads the version it restores as well as the draft. A version no store holds is `404`; a stale draft revision
- * is `changed-meanwhile`. The plan is made against the candidate the draft makes (R3, ruling U5-Q6).
- */
+/** A restore also reads its version: one no store holds is `404`, judged before a stale revision. */
 async function performRestore(
   input: RestoreRequest,
   cookies: SessionCookieReader,
 ): Promise<NextResponse> {
-  const stores = await getPriceStores();
-  const reading = await readDashboardState(stores);
-  if (reading.kind !== "ready") {
-    return refusalOfUnreadyState(PRICE_DRAFT_EVENT, reading);
-  }
+  const ready = await readStateForWrite();
+  if (ready.kind === "refused") return ready.response;
+  const { stores, state } = ready;
   const found = await stores.priceBook.readVersion(input.versionId);
   if (found.kind !== "found") {
     return refused(PRICE_DRAFT_EVENT, versionNotFoundResponse());
   }
-  if (reading.state.draft.draftRevision !== input.expectedDraftRevision) {
-    return refused(
-      PRICE_DRAFT_EVENT,
-      dashboardConflictResponse("changed-meanwhile"),
-    );
-  }
+  const stale = refusalOfStaleRevision(state, input.expectedDraftRevision);
+  if (stale !== undefined) return stale;
   return writePlanned(stores, {
-    plan: planRestore(found.version, reading.state),
+    plan: planRestore(found.version, state),
     expectedDraftRevision: input.expectedDraftRevision,
     cookies,
   });
@@ -474,18 +501,16 @@ async function performPublish(
   input: PublishRequest,
   cookies: SessionCookieReader,
 ): Promise<NextResponse> {
-  const stores = await getPriceStores();
-  const reading = await readDashboardState(stores);
-  if (reading.kind !== "ready") {
-    return refusalOfUnreadyState(PRICE_DRAFT_EVENT, reading);
-  }
-  const plan = planPublish(input, reading.state);
+  const ready = await readStateForWrite();
+  if (ready.kind === "refused") return ready.response;
+  const { stores, state } = ready;
+  const plan = planPublish(input, state);
   if (plan.kind === "refused") return refused(PRICE_DRAFT_EVENT, plan.response);
   const result = await stores.priceBook.publish({
     expectedDraftRevision: input.expectedDraftRevision,
     expectedActiveSequence: input.expectedActiveSequence,
     expectedAvailabilityRevision: input.expectedAvailabilityRevision,
-    createdItems: [],
+    createdItems: NO_CREATED_ROWS,
     label: input.label,
     note: input.note,
     book: plan.book,
@@ -513,8 +538,8 @@ function answerOfPublish(result: PublishPriceBookResult): NextResponse {
 }
 
 /**
- * Resets the draft to empty without parsing what it holds, so it works on a draft that cannot be read (ruling R2-Q2). The
- * audit row counts the entries the draft held, or 0 when they could not be read.
+ * Resets the draft to empty without parsing what it holds, so it works on a draft that cannot be read. The audit row
+ * counts the entries the draft held, or 0 when they could not be read.
  */
 async function performDiscard(
   input: DiscardRequest,
@@ -523,10 +548,7 @@ async function performDiscard(
   const stores = await getPriceStores();
   const stored = await readRawDraft(stores);
   if (stored.draftRevision !== input.expectedDraftRevision) {
-    return refused(
-      PRICE_DRAFT_EVENT,
-      dashboardConflictResponse("changed-meanwhile"),
-    );
+    return changedMeanwhile();
   }
   const revertedCount = readStoredDraft(stored.changes).ok
     ? stored.changes.length
@@ -552,12 +574,7 @@ async function writeDraft(
   { answer, ...request }: DraftWriteToMake,
 ): Promise<NextResponse> {
   const result = await stores.priceBook.writeDraft(request);
-  if (result.kind === "changed-meanwhile") {
-    return refused(
-      PRICE_DRAFT_EVENT,
-      dashboardConflictResponse("changed-meanwhile"),
-    );
-  }
+  if (result.kind === "changed-meanwhile") return changedMeanwhile();
   return succeeded(PRICE_DRAFT_EVENT, answer(result.draftRevision));
 }
 

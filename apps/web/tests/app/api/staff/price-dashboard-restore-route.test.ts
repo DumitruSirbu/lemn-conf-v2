@@ -57,10 +57,9 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 /**
- * `POST /api/staff/prices/versions/{id}/restore` (M10 R3, ruling U5-Q6, 2026-10-27). A restore puts an archived version's
- * prices in the draft and publishes nothing. `restoreChanges(archived, active)` is exact only relative to its second
- * argument, so the server makes the plan against the candidate the draft makes: a pending value of a field the archived book
- * states is replaced, and the candidate then reproduces the archived book (D8C).
+ * `POST /api/staff/prices/versions/{id}/restore`: puts an archived version's prices in the draft and publishes nothing.
+ * The plan is made against the candidate the draft makes, so a pending value of a field the archived book states is
+ * replaced and the candidate reproduces the archived book.
  */
 
 let world: AccountWorld;
@@ -200,7 +199,7 @@ describe("a restore with an empty draft", () => {
   });
 });
 
-describe("a restore against a draft that already edits a field (ruling U5-Q6)", () => {
+describe("a restore against a draft that already edits a field", () => {
   it("reproduces the archived value when the draft edits a field the active book already holds (active 100, draft 120, archived 100)", async () => {
     const { cookie } = await administrator();
     // Version 2 changes the depth rule only, so its anchor equals version 1's: against the active book alone the restore
@@ -262,17 +261,38 @@ describe("a restore against a draft that already edits a field (ruling U5-Q6)", 
     ).toBe(restoreChanges(archived, await activeBook()).length);
   });
 
-  it("counts what the restore adds to the active book in the audit row, not the draft's size", async () => {
+  it("counts in the audit row the fields the restore changed in the candidate, not what it adds to the active book", async () => {
     const { cookie } = await administrator();
     await putChange(cookie, DEPTH_RULE_ADDRESS, 20);
     await publishWithLabel(cookie, "Second");
     await putChange(cookie, ANCHOR_ADDRESS, PENDING_ANCHOR_MINOR);
 
-    await restore(cookie, versionOne());
+    const answer = await restore(cookie, versionOne());
 
+    expect(
+      ((await jsonOf(answer)) as { addedChangeCount: number }).addedChangeCount,
+    ).toBe(1);
     expect(restoreRows().at(-1)?.detail).toEqual({
       fromSequenceNumber: 1,
-      changeCount: 1,
+      changeCount: 2,
+    });
+  });
+
+  it("counts the reverted fields in the audit row when the restore only reverts: the active book already holds the archived prices", async () => {
+    const { cookie } = await administrator();
+    await publishAnchor(cookie, OTHER_ANCHOR_MINOR);
+    await publishAnchor(cookie, SAMPLE_ANCHOR_MINOR);
+    await putChange(cookie, ANCHOR_ADDRESS, PENDING_ANCHOR_MINOR);
+    await putChange(cookie, DEPTH_RULE_ADDRESS, 35);
+
+    const answer = await restore(cookie, versionOne());
+
+    expect(answer.status).toBe(200);
+    expect(await jsonOf(answer)).toMatchObject({ addedChangeCount: 0 });
+    expect((await storedDraft()).changes).toEqual([]);
+    expect(restoreRows().at(-1)?.detail).toEqual({
+      fromSequenceNumber: 1,
+      changeCount: 2,
     });
   });
 });
