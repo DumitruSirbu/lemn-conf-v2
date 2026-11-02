@@ -7,10 +7,12 @@ import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  applyChanges,
   DEFAULT_CABINET_DEPTH_MM,
   previewCabinet,
   SAMPLE_PRICE_BOOK,
   type DraftChange,
+  type PriceBook,
 } from "@lemnaria/configurator-domain";
 
 import { deriveCabinetDetail } from "@/price-dashboard/cabinet-detail-model";
@@ -80,12 +82,13 @@ function previewRowsOf(
   ruleId: string,
   materialTierId: string,
   heightMm?: number,
+  book: PriceBook = SAMPLE_PRICE_BOOK,
 ) {
-  const rule = ruleOf(SAMPLE_PRICE_BOOK, ruleId);
+  const rule = ruleOf(book, ruleId);
   const preview = previewCabinet({
     rule,
     catalog: priceDashboardCatalogue(),
-    book: SAMPLE_PRICE_BOOK,
+    book,
     material: materialTierId,
     depth: DEFAULT_CABINET_DEPTH_MM,
     deepeningRows: MEASURED_DEEPENING_ROWS,
@@ -197,18 +200,46 @@ describe("what typing does", () => {
     expect(server.calls).toEqual([]);
   });
 
-  it("draws, in every cell of the new column, the preview of the book the typed amounts make", async () => {
+  it("draws, in every cell of the new column, the preview of the book the typed amounts make, and in the old column the active one", async () => {
     const { container } = await mount(BASE_RULE);
     typeInField(container, ANCHOR_LABEL, "4100");
+    const applied = applyChanges(SAMPLE_PRICE_BOOK, [
+      {
+        address: { kind: "cabinet", ruleId: BASE_RULE, field: "anchorMinor" },
+        value: 410_000,
+      },
+    ]);
+    if (!applied.ok) throw new Error("the typed book is refused");
 
-    const rows = previewRowsOf(BASE_RULE, "material.melamine");
-    const typedRows = previewRowsOf(BASE_RULE, "material.melamine");
-    const cells = previewCells(container).map((row) => row[2]);
+    const cells = previewCells(container);
 
-    expect(cells).toEqual(rows.map((row) => lei(row.priceMinor)));
-    expect(typedRows.length).toBe(cells.length);
-    const next = previewCells(container).map((row) => row[3]);
-    expect(next[0]).not.toBe(cells[0]);
+    for (const [index, tierId] of SAMPLE_PRICE_BOOK.material.tiers
+      .map((tier) => tier.tierId)
+      .entries()) {
+      const active = previewRowsOf(BASE_RULE, tierId);
+      const next = previewRowsOf(BASE_RULE, tierId, undefined, applied.book);
+      expect(cells.map((row) => row[2 + 2 * index])).toEqual(
+        active.map((row) => lei(row.priceMinor)),
+      );
+      expect(cells.map((row) => row[3 + 2 * index])).toEqual(
+        next.map((row) => lei(row.priceMinor)),
+      );
+    }
+    expect(cells.map((row) => row[3])).not.toEqual(cells.map((row) => row[2]));
+  });
+
+  it("names the table's parts by role as well as by tag, so a phone that lays it out as cards keeps its semantics", async () => {
+    const { container } = await mount(BASE_RULE);
+    const table = requireIn(container, '[data-testid="cabinet-preview"]');
+    const rolesOf = (selector: string) =>
+      new Set(allIn(table, selector).map((part) => part.getAttribute("role")));
+
+    expect(table.getAttribute("role")).toBe("table");
+    expect(rolesOf("thead, tbody")).toEqual(new Set(["rowgroup"]));
+    expect(rolesOf("tr")).toEqual(new Set(["row"]));
+    expect(rolesOf("thead th")).toEqual(new Set(["columnheader"]));
+    expect(rolesOf("tbody th")).toEqual(new Set(["rowheader"]));
+    expect(rolesOf("tbody td")).toEqual(new Set(["cell"]));
   });
 
   it("marks a cell whose new price differs from the active one", async () => {

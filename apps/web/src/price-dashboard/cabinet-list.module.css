@@ -462,6 +462,12 @@ button.groupHeader:focus-visible {
     translate: none;
   }
 
+  .name {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch-target);
+  }
+
   .rowWidth,
   .rowPrice {
     flex-direction: column;

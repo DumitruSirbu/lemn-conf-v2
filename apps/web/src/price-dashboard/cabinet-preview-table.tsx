@@ -203,30 +203,39 @@ function PreviewGrid({
   const labelOf = (column: PreviewColumn) =>
     columnLabel(translate, content, column);
   return (
-    <table className={styles.previewTable} data-testid="cabinet-preview">
-      <thead>
-        <tr>
-          <th scope="col" rowSpan={2}>
+    <table
+      className={styles.previewTable}
+      role="table"
+      data-testid="cabinet-preview"
+    >
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader" rowSpan={2}>
             {translate("priceDashboard.cabinet.columnWidth")}
           </th>
           {table.hasDoorColumn ? (
-            <th scope="col" rowSpan={2}>
+            <th scope="col" role="columnheader" rowSpan={2}>
               {translate("priceDashboard.cabinet.columnDoors")}
             </th>
           ) : null}
           {table.columns.map((column) => (
-            <th key={columnKey(column)} scope="colgroup" colSpan={2}>
+            <th
+              key={columnKey(column)}
+              scope="colgroup"
+              role="columnheader"
+              colSpan={2}
+            >
               {labelOf(column)}
             </th>
           ))}
         </tr>
-        <tr>
+        <tr role="row">
           {table.columns.map((column) => (
             <ActiveAndNewHeads key={columnKey(column)} />
           ))}
         </tr>
       </thead>
-      <tbody>
+      <tbody role="rowgroup">
         {table.rows.map((row) => (
           <PreviewLine
             key={row.widthMm}
@@ -244,8 +253,12 @@ function ActiveAndNewHeads() {
   const translate = useTranslations();
   return (
     <>
-      <th scope="col">{translate("priceDashboard.cabinet.columnActive")}</th>
-      <th scope="col">{translate("priceDashboard.cabinet.columnNew")}</th>
+      <th scope="col" role="columnheader">
+        {translate("priceDashboard.cabinet.columnActive")}
+      </th>
+      <th scope="col" role="columnheader">
+        {translate("priceDashboard.cabinet.columnNew")}
+      </th>
     </>
   );
 }
@@ -264,8 +277,8 @@ function PreviewLine({
   const active = translate("priceDashboard.cabinet.columnActive");
   const next = translate("priceDashboard.cabinet.columnNew");
   return (
-    <tr data-step={row.isDoorStep}>
-      <th scope="row">
+    <tr role="row" data-step={row.isDoorStep}>
+      <th scope="row" role="rowheader">
         {row.isOffGridMinimum
           ? translate("priceDashboard.cabinet.widthRoundedUp", {
               widthMm: row.widthMm,
@@ -276,7 +289,10 @@ function PreviewLine({
             })}
       </th>
       {table.hasDoorColumn ? (
-        <td data-label={translate("priceDashboard.cabinet.columnDoors")}>
+        <td
+          role="cell"
+          data-label={translate("priceDashboard.cabinet.columnDoors")}
+        >
           {row.isDoorStep ? (
             <span className={styles.stepChip}>
               {translate("priceDashboard.cabinet.doorsFromHere", {
@@ -297,6 +313,7 @@ function PreviewLine({
           cell.nextMinor !== undefined && cell.nextMinor !== cell.activeMinor;
         return [
           <td
+            role="cell"
             key={`${String(index)}-active`}
             data-role="active"
             data-label={translate("priceDashboard.cabinet.previewCellLabel", {
@@ -307,6 +324,7 @@ function PreviewLine({
             {formatLei(cell.activeMinor, currency)}
           </td>,
           <td
+            role="cell"
             key={`${String(index)}-next`}
             data-role="next"
             data-changed={isChanged}

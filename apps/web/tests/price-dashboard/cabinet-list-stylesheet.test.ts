@@ -95,6 +95,12 @@ describe("the way into a cabinet's page", () => {
     expect(valuesFor(css, "row", "position")).toEqual(["relative"]);
   });
 
+  it("makes the name's link a touch target tall in the table, where only the link opens the cabinet", () => {
+    expect(
+      declarationsFor(css, "name", "min-height").map((d) => [d.media, d.value]),
+    ).toEqual([[DESKTOP, TOUCH_TARGET]]);
+  });
+
   it("gives the chevron a fifth column of the table and a place at the card's end", () => {
     expect(css).toMatch(/--row-columns: .*16px;/);
     expect(
