@@ -2209,6 +2209,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       publishAction:
         "Publică {count, plural, one {un preț} few {{count, number, ::group-off} prețuri} other {{count, number, ::group-off} de prețuri}}",
       publishing: "Se publică…",
+      unsentAmountHint:
+        "Ai o valoare scrisă în „Nou” care nu a fost trimisă. Trimite-o cu Enter sau închide câmpul cu Esc, apoi publică.",
       confirmTitle: "Publici „{versionName}”?",
       confirmBody:
         "{count, plural, one {Prețul nou devine activ} few {Cele {count, number, ::group-off} prețuri noi devin active} other {Cele {count, number, ::group-off} de prețuri noi devin active}} imediat în toate bucătăriile, și în cele deja salvate de clienți. Clienții vor vedea o notificare că prețurile s-au actualizat.",

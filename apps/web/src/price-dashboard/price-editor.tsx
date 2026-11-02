@@ -2,7 +2,9 @@
 
 import { useTranslations } from "next-intl";
 import {
+  useContext,
   useEffect,
+  useId,
   useRef,
   useState,
   type KeyboardEvent,
@@ -17,6 +19,7 @@ import {
 } from "./price-input-words";
 import { plainLeiOf, readLeiInputOverHeld } from "./price-field-input";
 import styles from "./price-edit.module.css";
+import { UnsentAmountsContext } from "./unsent-amounts";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { FieldWriteResult } from "./use-price-draft";
 
@@ -25,8 +28,9 @@ import type { FieldWriteResult } from "./use-price-draft";
 // itself and stays open. So does a value the server refused, in the same place, unless the person has since closed the
 // field, opened it again or typed over the text: an answer to a value no longer in the field is ignored. A price already
 // held, the active one or the draft's, is never refused for its size, so a stored price that is not a whole ten of lei
-// can be opened, closed and typed back. Below 900 px the figure is plain text: a phone changes a price on the cabinet's
-// own page.
+// can be opened, closed and typed back. Text typed and not sent is reported to the page that listens, which keeps a
+// publish from putting the old figure live. Below 900 px the figure is plain text: a phone changes a price on the
+// cabinet's own page.
 
 export interface PriceEditorProps {
   /** The open field's label. */
@@ -62,7 +66,17 @@ export function PriceEditor({
   );
   const [isFocusOwed, setIsFocusOwed] = useState(false);
   const { moveOn: markMoved, begin } = useLateAnswerGuard();
+  const reportUnsentAmount = useContext(UnsentAmountsContext);
+  const fieldId = useId();
   const isOpen = typed !== undefined;
+  const isUnsent = isOpen && typed !== plainLeiOf(pendingMinor);
+
+  useEffect(() => {
+    reportUnsentAmount?.(fieldId, isUnsent);
+    return () => {
+      reportUnsentAmount?.(fieldId, false);
+    };
+  }, [reportUnsentAmount, fieldId, isUnsent]);
 
   useEffect(() => {
     if (isOpen) {

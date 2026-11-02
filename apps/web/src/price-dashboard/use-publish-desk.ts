@@ -24,6 +24,7 @@ import {
   type PendingDraftReading,
   type PublishPageInput,
 } from "./publish-model";
+import { useUnsentAmounts, type ReportUnsentAmount } from "./unsent-amounts";
 import { useDiscardDraft, type DiscardControl } from "./use-discard-draft";
 import {
   usePriceDraft,
@@ -77,6 +78,9 @@ export interface PublishDesk {
   /** A publish or a write of the draft is out: no other write is sent meanwhile. */
   readonly isLocked: boolean;
   readonly isProvisional: boolean;
+  /** A row's "Nou" holds text that was not sent: a publish would put the old figure live, so none is asked. */
+  readonly hasUnsentAmount: boolean;
+  readonly reportUnsentAmount: ReportUnsentAmount;
   readonly discard: DiscardControl;
   readonly setVersionName: (name: string) => void;
   readonly requestPublish: () => void;
@@ -128,6 +132,7 @@ export function usePublishDesk({
       }),
     [state, input.cabinetNames],
   );
+  const { hasUnsentAmount, reportUnsentAmount } = useUnsentAmounts();
   const isBusy = phase.kind === "publishing";
   const {
     adopt,
@@ -287,13 +292,15 @@ export function usePublishDesk({
     isBusy,
     isLocked: isBusy || isDraftBusy,
     isProvisional: isProvisionalOf(reading, state),
+    hasUnsentAmount,
+    reportUnsentAmount,
     discard,
     setVersionName: (name) => {
       setVersionNameState(name);
       setNameRefusal(undefined);
     },
     requestPublish: () => {
-      if (isDraftBusy) return;
+      if (isDraftBusy || hasUnsentAmount) return;
       if (versionName.trim() === "") {
         setNameRefusal("TEXT_EMPTY");
         return;

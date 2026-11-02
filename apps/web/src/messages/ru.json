@@ -1696,6 +1696,7 @@
       "helpApproximate": "Все цены в конфигураторе ориентировочные; окончательная цена определяется в магазине.",
       "publishAction": "Опубликовать {count, plural, one {# цену} few {{count, number, ::group-off} цены} many {{count, number, ::group-off} цен} other {{count, number, ::group-off} цены}}",
       "publishing": "Публикуем…",
+      "unsentAmountHint": "В колонке «Новое» есть значение, которое не отправлено. Отправь его или закрой поле, а затем публикуй.",
       "confirmTitle": "Опубликовать «{versionName}»?",
       "confirmBody": "{count, plural, one {# новая цена станет действующей} few {{count, number, ::group-off} новые цены станут действующими} many {{count, number, ::group-off} новых цен станут действующими} other {{count, number, ::group-off} новой цены станут действующими}} сразу во всех кухнях, в том числе в уже сохранённых клиентами. Клиенты увидят уведомление об обновлении цен.",
       "confirmAction": "Опубликовать",

@@ -499,6 +499,11 @@
   background: var(--paper);
 }
 
+.actionReason {
+  composes: hint;
+  margin-bottom: 8px;
+}
+
 .primary {
   width: 100%;
   min-height: 52px;

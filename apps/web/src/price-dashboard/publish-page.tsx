@@ -26,6 +26,7 @@ import { historyPathOf, publishPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
 import { NoticeBody } from "./publish-notices";
 import { DiffSections } from "./publish-rows";
+import { UnsentAmountsContext } from "./unsent-amounts";
 import { useFocusAfterRevert } from "./use-focus-after-revert";
 import { useFocusWhenLost } from "./use-focus-when-lost";
 import {
@@ -96,13 +97,15 @@ export function PublishScreen({
             }}
           />
         ) : (
-          <PendingPrices
-            locale={locale}
-            desk={desk}
-            publishButtonRef={publishButtonRef}
-            discardButtonRef={discardButtonRef}
-            emptyHeadingRef={emptyHeadingRef}
-          />
+          <UnsentAmountsContext.Provider value={desk.reportUnsentAmount}>
+            <PendingPrices
+              locale={locale}
+              desk={desk}
+              publishButtonRef={publishButtonRef}
+              discardButtonRef={discardButtonRef}
+              emptyHeadingRef={emptyHeadingRef}
+            />
+          </UnsentAmountsContext.Provider>
         )}
         <PublishDialogs
           desk={desk}
@@ -264,6 +267,7 @@ function PendingPrices({
           buttonRef={publishButtonRef}
           changeCount={view.changeCount}
           canPublish={view.canPublish}
+          hasUnsentAmount={desk.hasUnsentAmount}
           isBusy={desk.isBusy}
           onPress={desk.requestPublish}
         />

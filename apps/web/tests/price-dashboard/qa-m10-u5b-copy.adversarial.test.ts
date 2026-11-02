@@ -32,6 +32,7 @@ const FOLLOW_UP_LEAVES = [
   "priceDashboard.publish.refusalUnnamed",
   "priceDashboard.publish.refusalsMore",
   "priceDashboard.publish.rowDeleted",
+  "priceDashboard.publish.unsentAmountHint",
   "priceDashboard.history.pageFailed",
 ] as const;
 
