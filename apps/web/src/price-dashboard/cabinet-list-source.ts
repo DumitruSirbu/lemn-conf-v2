@@ -2,9 +2,7 @@ import "server-only";
 
 import { createTranslator } from "next-intl";
 
-import { entryLabel, type PriceBook } from "@lemnaria/configurator-domain";
-
-import { resolveBodyLabel, type ContentTranslator } from "@/i18n/content";
+import type { ContentTranslator } from "@/i18n/content";
 import { reportAccountEvent } from "@/lib/server/account/account-log";
 import {
   PRICE_READ_EVENT,
@@ -12,6 +10,7 @@ import {
 } from "@/lib/server/price-dashboard/price-dashboard-service";
 import roMessages from "@/messages/ro.json";
 
+import { cabinetNamesOf } from "./cabinet-names";
 import {
   deriveCabinetList,
   type CabinetListPageInput,
@@ -62,7 +61,7 @@ async function readPage(): Promise<CabinetListPageInput | undefined> {
   if (state === undefined) return undefined;
   const page = {
     state,
-    cabinetNames: cabinetNamesOf(state.active.book),
+    cabinetNames: cabinetNamesOf(state.active.book, romanian),
   };
   // The seam's own check: a list that cannot be worked out here would not be worked out in the browser either.
   return deriveCabinetList(page).kind === "ready" ? page : undefined;
@@ -76,13 +75,4 @@ async function readStateOrNothing(): Promise<DashboardStateWire | undefined> {
     reportAccountEvent({ event: PRICE_READ_EVENT, outcome: "unavailable" });
     return undefined;
   }
-}
-
-function cabinetNamesOf(book: PriceBook): Readonly<Record<string, string>> {
-  return Object.fromEntries(
-    book.cabinetRules.map(({ buildId }) => [
-      buildId,
-      resolveBodyLabel(romanian, entryLabel(buildId)),
-    ]),
-  );
 }

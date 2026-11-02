@@ -3,13 +3,13 @@
 import { createTranslator } from "next-intl";
 
 import {
-  entryLabel,
   SAMPLE_PRICE_BOOK,
   type DraftChange,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import { resolveBodyLabel, type ContentTranslator } from "@/i18n/content";
+import type { ContentTranslator } from "@/i18n/content";
+import { cabinetNamesOf as namesOfBook } from "@/price-dashboard/cabinet-names";
 import type { CabinetListPageInput } from "@/price-dashboard/cabinet-list-facts";
 import type { DashboardStateWire } from "@/price-dashboard/price-dashboard-wire-contract";
 
@@ -25,12 +25,7 @@ export const BASE_CABINET_RULE = "cabinet.base-cabinet";
 export function cabinetNamesOf(
   book: PriceBook,
 ): Readonly<Record<string, string>> {
-  return Object.fromEntries(
-    book.cabinetRules.map(({ buildId }) => [
-      buildId,
-      resolveBodyLabel(translate, entryLabel(buildId)),
-    ]),
-  );
+  return namesOfBook(book, translate);
 }
 
 export function stateOf(

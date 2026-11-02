@@ -1419,6 +1419,7 @@
       "widthRange": "{minMm, number, ::group-off}–{maxMm, number, ::group-off} мм",
       "widthDefault": "по умолчанию {widthMm, number, ::group-off}",
       "widthFollowsBase": "по умолчанию: по нижнему шкафу",
+      "nameWithWidth": "{name} {widthMm, number, ::group-off}",
       "proposed": "предложено",
       "priceBasis": "{widthMm, number, ::group-off} мм · ЛДСП",
       "priceBasisHeight": "{widthMm, number, ::group-off} мм × {heightMm, number, ::group-off} · ЛДСП",

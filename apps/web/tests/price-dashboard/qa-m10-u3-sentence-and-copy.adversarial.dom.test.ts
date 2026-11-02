@@ -22,6 +22,7 @@ import { filesUnder } from "../support/files-under";
 import { requireIn } from "../support/render-with-intl";
 import {
   atIndex,
+  fieldNamed,
   mountDetail,
   typeInField,
   type MountedDetail,
@@ -156,17 +157,27 @@ describe("the door clause names the leaves the catalogue steps by (A-3)", () => 
       const doorIndex = detail.fields.findIndex(({ role }) => role === "door");
       const label = atIndex(labelsOf(ruleId, container), doorIndex);
 
+      const draftDoorMinor = atIndex(detail.fields, doorIndex).pendingMinor;
+      let refusedCount = 0;
+
       for (const typedLei of TYPED_LEI) {
         typeInField(container, label, typedLei);
 
+        const isRefused =
+          fieldNamed(container, label).getAttribute("aria-invalid") === "true";
+        refusedCount += isRefused ? 1 : 0;
+        const stated = isRefused
+          ? draftDoorMinor
+          : Number(typedLei) * BANI_PER_LEU;
         expect(requireIn(container, SENTENCE).textContent).toContain(
           roCopy("priceDashboard.cabinet.summaryDoor", {
             atMm: step.widthMm,
             doorCount: leavesAdded,
-            amount: lei(Number(typedLei) * BANI_PER_LEU * leavesAdded),
+            amount: lei(stated * leavesAdded),
           }),
         );
       }
+      expect(refusedCount, "a refused price was typed").toBeGreaterThan(0);
     },
   );
 

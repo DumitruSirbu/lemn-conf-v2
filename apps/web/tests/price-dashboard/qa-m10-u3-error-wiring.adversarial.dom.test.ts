@@ -71,10 +71,8 @@ function blamedFieldIndex(
   ruleId: string,
   book: PriceBook,
 ): number | "unplaced" | undefined {
-  const refusal = judgePricesOfRule(
-    ruleIn(book, ruleId),
-    INDEPENDENT_CATALOGUE,
-  );
+  const rule = ruleIn(book, ruleId);
+  const refusal = judgePricesOfRule(rule, INDEPENDENT_CATALOGUE);
   if (refusal === undefined) return undefined;
   if (
     refusal.code !== "PRICE_NOT_POSITIVE" &&
@@ -83,6 +81,17 @@ function blamedFieldIndex(
     return "unplaced";
   }
   const { fields } = readyDetail(ruleId);
+  // A price at the anchor size is the anchor: with none above zero, no step can mend the refusal the domain names.
+  const isAnchorAtFault =
+    refusal.code === "PRICE_NOT_POSITIVE" &&
+    "anchorMinor" in rule.formula &&
+    rule.formula.anchorMinor <= 0;
+  if (isAnchorAtFault) {
+    return fields.findIndex(
+      ({ address }) =>
+        address.kind === "cabinet" && address.field === "anchorMinor",
+    );
+  }
   const index = fields.findIndex(({ address }) =>
     refusal.field === "amountMinor"
       ? address.kind === "cabinet-size" &&
