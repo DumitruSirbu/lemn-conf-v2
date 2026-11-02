@@ -477,8 +477,8 @@ describe("every opening front in the catalogue has a bar or a latch available to
   });
 });
 
-// ADR 0092 decision 8, wall-lift as amended by ADR 0177 A-20 — neither row appears in the seeded design, which is exactly why neither may
-// be settled by whichever line happens to typecheck.
+// ADR 0092 decision 8, wall-lift as amended by ADR 0177 A-20 — neither row appears in the seeded design, which is
+// exactly why neither may be settled by whichever line happens to typecheck.
 describe("the two rows ADR 0092 decision 8 resolves", () => {
   it("prices wall-lift at 600 mm as one lift and three hinges, the width rule and not the height one", () => {
     expect(
@@ -679,16 +679,39 @@ describe("a lift-up door", () => {
     }
 
     const liftRows = [...liftsByBuildId]
-      .filter(([, lifts]) => [...lifts].some((lifts_) => lifts_ > 0))
+      .filter(([, counts]) => [...counts].some((count) => count > 0))
       .map(([buildId]) => buildId);
-    const rowsWithoutLift = [...liftsByBuildId].filter(([, lifts]) =>
-      [...lifts].every((lifts_) => lifts_ === 0),
+    const rowsWithoutLift = [...liftsByBuildId].filter(([, counts]) =>
+      [...counts].every((count) => count === 0),
     );
 
     expect(liftRows).toEqual(["wall-lift"]);
     expect([...(liftsByBuildId.get("wall-lift") ?? [])]).toEqual([1]);
     expect(rowsWithoutLift.length).toBeGreaterThan(20);
   });
+
+  /** The fronts the catalogue's comments or its builders call a flap, or draw with a bottom handle edge, and that are
+   *  not declared lift-up: counted as ordinary leaves, no lift and the height rule, until the owner names one. */
+  it.each([
+    [
+      "tall-fridge-housing",
+      600,
+      2200,
+      HINGES_PER_TALL_DOOR_LEAF + 2 * HINGES_PER_DOOR_LEAF,
+    ],
+    ["tall-oven-tower", 600, 2200, 2 * HINGES_PER_DOOR_LEAF],
+    ["wall-cabinet", 600, 400, 2 * HINGES_PER_DOOR_LEAF],
+  ])(
+    "declines %s: no lift, and its hinges stay on the height rule",
+    (buildId, widthMm, heightMm, hinges) => {
+      const counts = countHardwareMechanisms(
+        [entryAt({ buildId, widthMm, heightMm })],
+        KITCHEN_L_BODY_CATALOG,
+      );
+
+      expect(counts).toMatchObject({ hinges, lifts: 0 });
+    },
+  );
 });
 
 // ADR 0092 decision 1, and ADR 0061 decision 4 one declaration over: a missing declaration is never
