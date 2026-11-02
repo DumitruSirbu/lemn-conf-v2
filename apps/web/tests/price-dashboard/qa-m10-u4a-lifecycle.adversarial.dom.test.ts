@@ -548,7 +548,7 @@ describe("deleting a class that only the draft holds, after its rates were edite
 });
 
 describe("what the page says after it read the data again", () => {
-  it("draws what the read of the lifecycle holds of what is switched off, not what the screen held before the draft was read again", async () => {
+  it("draws what the second read holds of what is switched off, not what the first read held: a re-read is the whole state", async () => {
     const page = hardwarePageOf();
     const server = inMemoryPriceDraftClient(page.state);
     const switchedOffMeanwhile = {
@@ -568,10 +568,6 @@ describe("what the page says after it read the data again", () => {
       },
     };
     mounted = await mountHardwareList(page, { draftClient });
-    await screen().lifecycle.writeBehindTheScreen({
-      item: hardwareItem(BLUM),
-      active: false,
-    });
     server.moveDraftBehindTheScreen();
     const dialog = await dialogFor(BLUM, BLUM_NAME, DELETE);
 

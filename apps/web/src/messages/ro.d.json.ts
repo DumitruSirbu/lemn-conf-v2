@@ -1387,7 +1387,7 @@ declare const messages: {
       "priceNotPositive": "Cu valorile acestea un preț ar ieși zero sau negativ.",
       "fixToSave": "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       "saveFailed": "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
-      "savePartlyFailed": "Nu am putut salva toate prețurile. Cele salvate deja sunt în „De publicat”; încearcă din nou pentru celelalte.",
+      "savePartlyFailed": "Nu am putut salva toate prețurile. Cele dinainte s-au salvat; încearcă din nou pentru celelalte.",
       "changedMeanwhile": "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
       "textEmpty": "Completează textul.",
       "textTooLong": "Textul este prea lung. Scurtează-l.",

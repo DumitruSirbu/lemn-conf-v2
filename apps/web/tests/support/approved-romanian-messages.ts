@@ -1810,9 +1810,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
       // Drafted, not approved: a Save of several prices that landed some and then failed. It does not say nothing changed,
-      // because the earlier prices are in "De publicat".
+      // because the draft already holds what the earlier writes did.
       savePartlyFailed:
-        "Nu am putut salva toate prețurile. Cele salvate deja sunt în „De publicat”; încearcă din nou pentru celelalte.",
+        "Nu am putut salva toate prețurile. Cele dinainte s-au salvat; încearcă din nou pentru celelalte.",
       changedMeanwhile:
         "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
       textEmpty: "Completează textul.",

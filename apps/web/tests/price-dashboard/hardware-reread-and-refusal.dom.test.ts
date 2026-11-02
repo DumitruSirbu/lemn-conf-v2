@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
 // What the hardware screens do when the data is read again after a conflict, and when the server refuses a deletion the
-// screen had counted as allowed. A whole-state read that names another revision only says the data moved, so what is
-// switched off is read again and that answer is what the screen holds (or what it held, where the read gets nothing); a
-// refusal because a saved kitchen has come to use the class is a block, never a failed save to try again.
+// screen had counted as allowed. A re-read is the whole state, so it replaces what is switched off, but one that names a
+// revision the screen already moved on from is an older read and leaves a newer switch alone; a refusal because a saved
+// kitchen has come to use the class is a block, never a failed save to try again.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { CatalogueAvailability } from "@lemnaria/configurator-domain";
@@ -127,10 +127,6 @@ describe("what is switched off after the draft is read again", () => {
       disabled: [hardwareItem(BLUM)],
     }));
     mounted = await mountHardwareList(page, { draftClient });
-    await screen().lifecycle.writeBehindTheScreen({
-      item: hardwareItem(BLUM),
-      active: false,
-    });
     server.moveDraftBehindTheScreen();
 
     const dialog = await openDialogFor(HETTICH, HETTICH_NAME, DEACTIVATE);
@@ -143,10 +139,11 @@ describe("what is switched off after the draft is read again", () => {
   });
 });
 
-describe("what is switched off when a read of it gets nothing", () => {
-  it("leaves what the screen holds, a switch it wrote included", async () => {
-    const page = hardwarePageOf();
-    const server = inMemoryPriceDraftClient(page.state);
+describe("what is switched off where the lifecycle client cannot read it", () => {
+  async function mountWithUnreadableLifecycle(
+    page: ReturnType<typeof hardwarePageOf>,
+    draftClient: PriceDraftClient,
+  ): Promise<void> {
     const lifecycle = recordingLifecycleClient({
       book: page.state.active.book,
       availability: page.state.active.availability,
@@ -158,9 +155,18 @@ describe("what is switched off when a read of it gets nothing", () => {
       readAvailability: () => Promise.resolve(undefined),
     };
     mounted = await mountHardwareList(page, {
-      draftClient: rereadingAs(server, (held) => ({ ...held })),
+      draftClient,
       lifecycleClient: unreadable,
     });
+  }
+
+  it("keeps a switch the screen wrote when the draft is read again and still holds the revision before it", async () => {
+    const page = hardwarePageOf();
+    const server = inMemoryPriceDraftClient(page.state);
+    await mountWithUnreadableLifecycle(
+      page,
+      rereadingAs(server, (held) => ({ ...held })),
+    );
     const switchOff = await openDialogFor(HETTICH, HETTICH_NAME, DEACTIVATE);
     await press(dialogButton(switchOff, CONFIRM_SWITCH_OFF));
     server.moveDraftBehindTheScreen();
@@ -170,6 +176,24 @@ describe("what is switched off when a read of it gets nothing", () => {
 
     expect(server.calls.map((call) => call.kind)).toContain("readState");
     expect(chipsOf(HETTICH)).toContain(roCopy("priceDashboard.chips.inactive"));
+  });
+
+  it("draws what a read of the draft holds of a newer revision, as the only read there is", async () => {
+    const page = hardwarePageOf();
+    const server = inMemoryPriceDraftClient(page.state);
+    await mountWithUnreadableLifecycle(
+      page,
+      rereadingAs(server, () => ({
+        revision: "9",
+        disabled: [hardwareItem(BLUM)],
+      })),
+    );
+    server.moveDraftBehindTheScreen();
+
+    const deletion = await openDialogFor(BLUM, BLUM_NAME, DELETE);
+    await press(dialogButton(deletion, DELETE));
+
+    expect(chipsOf(BLUM)).toContain(roCopy("priceDashboard.chips.inactive"));
   });
 });
 

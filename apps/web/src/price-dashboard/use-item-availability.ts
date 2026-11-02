@@ -63,8 +63,8 @@ export interface ItemAvailabilityDesk {
 }
 
 export interface ItemAvailabilityInput {
-  /** What the screen's last whole-state read holds of what is switched off. It seeds the desk; a later one that names
-   *  another revision only says the data moved, and the desk reads what is switched off again. */
+  /** What the screen's last whole-state read holds of what is switched off. It seeds the desk, and a later read
+   *  replaces what the desk holds unless it names a revision the desk has already moved on from. */
   readonly observed: CatalogueAvailability;
   /** The active book: it states the items, and the group each is chosen from. */
   readonly book: PriceBook;
@@ -95,7 +95,7 @@ export function useItemAvailability({
   const [isBusy, setIsBusy] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const availabilityRef = useRef(availability);
-  const readTicketRef = useRef(0);
+  const leftBehindRef = useRef<ReadonlySet<string>>(new Set());
   const observedRef = useRef(observed);
   const isSendingRef = useRef(false);
   const { moveOn: markMoved, begin } = useLateAnswerGuard();
@@ -104,35 +104,28 @@ export function useItemAvailability({
     [book, availability, defaults, client.canWrite],
   );
 
+  /** Takes what is switched off as it now stands, and remembers the revision it replaces: a later read of the draft
+   *  that still names a revision left behind is an older read, and leaves a newer switch alone. */
   const adopt = useCallback((next: CatalogueAvailability) => {
+    const held = availabilityRef.current.revision;
+    const leftBehind = new Set(leftBehindRef.current);
+    leftBehind.delete(next.revision);
+    if (held !== next.revision) leftBehind.add(held);
+    leftBehindRef.current = leftBehind;
     availabilityRef.current = next;
     setAvailability(next);
   }, []);
 
-  /** What is switched off, as the lifecycle's own read says. The latest read wins, and a switch written meanwhile
-   *  overtakes one still out; a read that gets nothing leaves what is held. */
-  const readAvailabilityAgain = useCallback(async () => {
-    readTicketRef.current += 1;
-    const ticket = readTicketRef.current;
-    const fresh = await orFailed(() => client.readAvailability(), undefined);
-    if (fresh !== undefined && readTicketRef.current === ticket) adopt(fresh);
-  }, [client, adopt]);
-
-  const adoptWritten = useCallback(
-    (next: CatalogueAvailability) => {
-      readTicketRef.current += 1;
-      adopt(next);
-    },
-    [adopt],
-  );
-
   useEffect(() => {
     if (observedRef.current === observed) return;
     observedRef.current = observed;
-    if (observed.revision !== availabilityRef.current.revision) {
-      void readAvailabilityAgain();
-    }
-  }, [observed, readAvailabilityAgain]);
+    if (!leftBehindRef.current.has(observed.revision)) adopt(observed);
+  }, [observed, adopt]);
+
+  const readAvailabilityAgain = useCallback(async () => {
+    const fresh = await orFailed(() => client.readAvailability(), undefined);
+    if (fresh !== undefined) adopt(fresh);
+  }, [client, adopt]);
 
   const moveOn = useCallback(() => {
     markMoved();
@@ -200,9 +193,7 @@ export function useItemAvailability({
     async (outcome: AvailabilityOutcome, item: ItemRef, active: boolean) => {
       switch (outcome.kind) {
         case "set":
-          adoptWritten(
-            afterSwitch(availabilityRef.current, item, active, outcome),
-          );
+          adopt(afterSwitch(availabilityRef.current, item, active, outcome));
           setFlow(CLOSED);
           return;
         case "refused":
@@ -225,7 +216,7 @@ export function useItemAvailability({
           return;
       }
     },
-    [adoptWritten, readAvailabilityAgain],
+    [adopt, readAvailabilityAgain],
   );
 
   const settleDeletion = useCallback((settlement: DeletionSettlement) => {
