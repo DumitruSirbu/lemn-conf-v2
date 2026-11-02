@@ -10,10 +10,11 @@ import type { ContentTranslator } from "@/i18n/content";
 
 import styles from "./cabinet-detail.module.css";
 import type { CabinetDetailFacts } from "./cabinet-detail-facts";
-import type { FieldState } from "./cabinet-detail-fields";
+import { refusedFieldKeyOf, type FieldState } from "./cabinet-detail-fields";
 import { priceSentence } from "./cabinet-price-sentence";
 import { formatLei } from "./format-lei";
 import { PriceUnitField } from "./price-unit-field";
+import { useFocusAfterCancel } from "./use-focus-after-cancel";
 import { leiRefusalWords, priceWriteFailureWords } from "./price-input-words";
 import editStyles from "./price-edit.module.css";
 import { publishPathOf } from "./publish-paths";
@@ -34,9 +35,11 @@ export function CabinetPriceFields({
   const translate = useTranslations();
   const toFix = errorsToFixOf(translate, editing);
   const errors = withWriteFailure(translate, toFix, editing.feedback);
+  const fieldsRef = useRef<HTMLDivElement>(null);
+  const cancel = useFocusAfterCancel(editing.cancel, fieldsRef);
   return (
     <>
-      <div className={styles.fields}>
+      <div ref={fieldsRef} tabIndex={-1} className={styles.fields}>
         {editing.states.map((state) => (
           <PriceField
             key={state.field.key}
@@ -48,11 +51,16 @@ export function CabinetPriceFields({
         ))}
       </div>
       <p className={styles.sentence} data-testid="cabinet-price-sentence">
-        {priceSentence(translate, { facts, states: editing.states })}
+        {priceSentence(translate, {
+          facts,
+          states: editing.states,
+          refusedFieldKey: refusedFieldKeyOf(editing.judgement),
+        })}
       </p>
       <SaveBar
         locale={locale}
         editing={editing}
+        onCancel={cancel}
         unplacedReason={unplacedReasonOf(translate, editing.judgement)}
         mustFix={toFix.size > 0 || editing.judgement?.kind === "unplaced"}
         hasError={errors.size > 0}
@@ -217,12 +225,14 @@ function judgementWords(
 function SaveBar({
   locale,
   editing,
+  onCancel,
   unplacedReason,
   mustFix,
   hasError,
 }: {
   readonly locale: AppLocale;
   readonly editing: CabinetPriceEditing;
+  readonly onCancel: () => void;
   readonly unplacedReason: string | undefined;
   /** A value must be corrected before it can be saved: the server's answer asks for no correction. */
   readonly mustFix: boolean;
@@ -273,7 +283,7 @@ function SaveBar({
           <button
             type="button"
             className={editStyles.action}
-            onClick={editing.cancel}
+            onClick={onCancel}
           >
             {translate("priceDashboard.common.cancel")}
           </button>

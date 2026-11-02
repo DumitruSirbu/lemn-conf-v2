@@ -50,12 +50,12 @@ describe("what a thumb must hit", () => {
 });
 
 describe("one markup, two layouts", () => {
-  it("stacks the cabinet above its price on a phone and puts them side by side from 900 px", () => {
+  it("stacks the cabinet above its price on a phone and puts them side by side from 1200 px", () => {
     expect(
       declarationsFor(css, "columns", "display").map((d) => [d.media, d.value]),
     ).toEqual([
       ["", "flex"],
-      [DESKTOP, "grid"],
+      ["@media (min-width: 1200px)", "grid"],
     ]);
   });
 
@@ -69,6 +69,25 @@ describe("one markup, two layouts", () => {
     expect(
       declarationsFor(css, "actions", "bottom").map((d) => [d.media, d.value]),
     ).toEqual([[PHONE, "0"]]);
+  });
+
+  it("keeps the save bar last in the price column on a phone, so it stays pinned down to the table", () => {
+    expect(
+      declarationsFor(css, "actions", "order").map((d) => [d.media, d.value]),
+    ).toEqual([[PHONE, "1"]]);
+    expect(css.match(/(?<![-\w])order:/g)).toHaveLength(1);
+  });
+
+  it("leaves room under a control focused on a phone for the pinned save bar", () => {
+    const margins = declarationsFor(css, "switch", "scroll-margin-bottom");
+
+    expect(margins.map((d) => d.media)).toEqual([PHONE]);
+    expect(Number.parseFloat(margins[0]?.value ?? "0")).toBeGreaterThanOrEqual(
+      69,
+    );
+    expect(css).toMatch(
+      /\.fields input,\s*\.switch,\s*\.tierChoice input\s*\{[^}]*scroll-margin-bottom/,
+    );
   });
 
   it("draws each width of the table as a card on a phone, with the column titles kept for screen readers", () => {
@@ -87,8 +106,17 @@ describe("one markup, two layouts", () => {
 });
 
 describe("a narrow screen", () => {
-  it("scrolls nothing sideways and fixes no width on the page", () => {
-    expect(css).not.toMatch(/overflow(-x)?:\s*(auto|scroll)/);
+  it("scrolls nothing sideways but the price table, inside its own box and only from 900 px", () => {
+    expect(
+      declarationsFor(css, "previewScroll", "overflow-x").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([[DESKTOP, "auto"]]);
+    expect(css.match(/overflow(-x)?:\s*(auto|scroll)/g)).toHaveLength(1);
+  });
+
+  it("fixes no width on the page", () => {
     expect(css).not.toMatch(/(?<![-\w(,])width:\s*\d{3,}px/);
   });
 

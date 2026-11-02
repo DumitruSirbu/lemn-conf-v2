@@ -451,6 +451,13 @@ describe("only these modules may go near a price, and only one of them may round
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",
+      // The staff cabinet page states book amounts and the per-cabinet preview: exact lei a manufacturer sets, not the
+      // customer's rounded figure. They format what the domain computed and round nothing themselves.
+      "price-dashboard/cabinet-detail-facts.ts",
+      "price-dashboard/cabinet-detail-fields.ts",
+      "price-dashboard/cabinet-hardware-readout.tsx",
+      "price-dashboard/cabinet-preview-table.tsx",
+      "price-dashboard/cabinet-price-sentence.ts",
       // ADR 0104 decision 8b: the flagged total's sentence is on the scene, a fourth surface; listed, not exempted.
       "price/flagged-total-warning.tsx",
       "price/price-bar-model.ts",

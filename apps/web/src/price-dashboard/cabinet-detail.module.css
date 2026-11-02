@@ -275,6 +275,11 @@
   gap: 14px;
 }
 
+.fields:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 4px;
+}
+
 .flatPrice {
   display: flex;
   gap: 12px;
@@ -454,6 +459,10 @@
   justify-content: space-between;
 }
 
+.previewScroll {
+  min-width: 0;
+}
+
 .previewTable {
   width: 100%;
   border-collapse: collapse;
@@ -529,10 +538,13 @@
 
 /* A phone: the save bar is fixed at the foot of the screen, and each width of the table is a card. */
 @media (max-width: 899.98px) {
+  /* A sticky box holds only while its own place in the flow is below the screen: last in the column, the bar stays
+   * pinned all the way down to the table and rests where the column ends. */
   .actions {
     position: sticky;
     bottom: 0;
     z-index: 2;
+    order: 1;
     padding: 10px 0;
     background: var(--paper);
     border-top: 1px solid var(--line);
@@ -540,6 +552,14 @@
 
   .actionRow > * {
     flex: 1;
+  }
+
+  /* A control reached by Tab or by script stops above the pinned bar: its 69 px (a 48 px button, 10 px around it and
+   * a 1 px rule) and up to two lines of the note under the buttons. */
+  .fields input,
+  .switch,
+  .tierChoice input {
+    scroll-margin-bottom: 120px;
   }
 
   .previewTable,
@@ -583,15 +603,24 @@
   }
 }
 
-@media (min-width: 900px) {
+/* Beside the dimensions the price column is too narrow for the fields' longest labels below this width. */
+@media (min-width: 1200px) {
   .columns {
     display: grid;
     grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
     gap: 28px;
     align-items: start;
   }
+}
 
+@media (min-width: 900px) {
   .fields {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+
+  /* The table has as many columns as the cabinet has prices and cannot shrink below them: it scrolls inside its own
+   * box, so the page never does. */
+  .previewScroll {
+    overflow-x: auto;
   }
 }

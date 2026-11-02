@@ -95,6 +95,21 @@ describe("the way into a cabinet's page", () => {
     expect(valuesFor(css, "row", "position")).toEqual(["relative"]);
   });
 
+  it("reaches the name's link over the chevron's end of the row in the table, and not over the price", () => {
+    const reach = declarationsFor(css, "name", "inline-size");
+
+    expect(reach.map((d) => [d.media, d.value])).toEqual([[DESKTOP, "44px"]]);
+    expect(
+      declarationsFor(css, "name", "inset-inline-end").map((d) => d.media),
+    ).toEqual([DESKTOP]);
+    expect(
+      declarationsFor(css, "name", "position").map((d) => [d.media, d.value]),
+    ).toEqual([
+      [PHONE, "absolute"],
+      [DESKTOP, "absolute"],
+    ]);
+  });
+
   it("makes the name's link a touch target tall in the table, where only the link opens the cabinet", () => {
     expect(
       declarationsFor(css, "name", "min-height").map((d) => [d.media, d.value]),

@@ -1855,6 +1855,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       structuralNote: "pus automat în bucătăriile în L și U",
       widthDefault: "implicit {widthMm, number, ::group-off}",
       widthFollowsBase: "implicit: după dulapul de jos",
+      nameWithWidth: "{name} {widthMm, number, ::group-off}",
       proposed: "propus",
       priceBasis: "{widthMm, number, ::group-off} mm · PAL",
       priceBasisHeight:
