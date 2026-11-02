@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 function detailOf(sequenceNumber: number): VersionDetailInput {
-  const found = sampleVersionDetail(sampleVersionIdOf(sequenceNumber));
+  const found = sampleVersionDetail(sampleVersionIdOf(sequenceNumber), "ro");
   if (found === undefined) throw new Error("the sample holds no such version");
   return found;
 }

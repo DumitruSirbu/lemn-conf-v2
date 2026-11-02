@@ -1,3 +1,5 @@
+import type { AppLocale } from "@/i18n/routing";
+
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { isProductionBuild } from "./is-production-build";
 import type { PublishPageInput, VersionDetailInput } from "./publish-model";
@@ -16,18 +18,22 @@ export type VersionDetailRead =
   | { readonly kind: "not-found" }
   | { readonly kind: "unavailable" };
 
-export async function readPublishPage(): Promise<PublishPageRead> {
+/** The page's input, its cabinets named in the language of the route. */
+export async function readPublishPage(
+  locale: AppLocale,
+): Promise<PublishPageRead> {
   if (isProductionBuild()) return { kind: "unavailable" };
-  const { SAMPLE_PUBLISH_PAGE } = await import("./publish-sample");
-  return { kind: "ready", input: SAMPLE_PUBLISH_PAGE };
+  const { samplePublishPageIn } = await import("./publish-sample");
+  return { kind: "ready", input: samplePublishPageIn(locale) };
 }
 
 export async function readVersionDetail(
   versionId: string,
+  locale: AppLocale,
 ): Promise<VersionDetailRead> {
   if (isProductionBuild()) return { kind: "unavailable" };
   const { sampleVersionDetail } = await import("./publish-sample");
-  const input = sampleVersionDetail(versionId);
+  const input = sampleVersionDetail(versionId, locale);
   return input === undefined ? { kind: "not-found" } : { kind: "ready", input };
 }
 

@@ -65,8 +65,10 @@ describe("a production build whose sample cannot be built", () => {
   });
 
   it("still answers every read as unavailable, because it never loads the sample", async () => {
-    expect(await readPublishPage()).toEqual({ kind: "unavailable" });
-    expect(await readVersionDetail("any")).toEqual({ kind: "unavailable" });
+    expect(await readPublishPage("ro")).toEqual({ kind: "unavailable" });
+    expect(await readVersionDetail("any", "ro")).toEqual({
+      kind: "unavailable",
+    });
     expect(await readPendingPriceCount()).toBeUndefined();
   });
 
@@ -85,7 +87,7 @@ describe("a production build whose sample cannot be built", () => {
 
 describe("a build that shows samples, whose sample cannot be built", () => {
   it("fails the publish page's own read, where the sample is wanted", async () => {
-    await expect(readPublishPage()).rejects.toThrow();
+    await expect(readPublishPage("ro")).rejects.toThrow();
   });
 
   it("does not refuse a staff page for the count: the page opens without one", async () => {

@@ -560,7 +560,7 @@ describe.each([1, 2, 3, 9, 25])("the history of %i versions", (count) => {
 // ---- a version, read-only, and its restore ----------------------------------------------------------------------------
 
 function detailOf(sequenceNumber: number): VersionDetailInput {
-  const found = sampleVersionDetail(sampleVersionIdOf(sequenceNumber));
+  const found = sampleVersionDetail(sampleVersionIdOf(sequenceNumber), "ro");
   if (found === undefined) throw new Error("the sample holds no such version");
   return found;
 }

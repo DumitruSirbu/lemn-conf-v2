@@ -125,7 +125,7 @@ function pendingScreen(
 }
 
 function detailScreen(sequenceNumber: number) {
-  const input = sampleVersionDetail(sampleVersionIdOf(sequenceNumber));
+  const input = sampleVersionDetail(sampleVersionIdOf(sequenceNumber), "ro");
   if (input === undefined) throw new Error("no such sample version");
   return createElement(VersionDetailScreen, { locale: "ro", context, input });
 }
