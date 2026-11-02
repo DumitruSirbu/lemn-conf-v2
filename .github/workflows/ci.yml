@@ -335,8 +335,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5]
-        total: [5]
+        shard: [1, 2, 3, 4, 5, 6]
+        total: [6]
     # Longer than `test` (15): this one produces a production build and drives a
     # real browser through it. On CI `playwright.config.ts` serves `next build &&
     # next start` rather than `next dev`, because dev compiles each route on its

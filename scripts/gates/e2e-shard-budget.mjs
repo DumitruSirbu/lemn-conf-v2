@@ -47,7 +47,7 @@ export const TARGET_MINUTES_PER_SHARD = 30;
  * Desktop needs five: three put 104 on its first shard (against 67) after the top-bar, price-breakdown and
  * room-desktop-line specs; four still left a shard over; five put 63 on its largest.
  */
-export const SHARDS_PER_PROJECT = { desktop: 5, mobile: 9 };
+export const SHARDS_PER_PROJECT = { desktop: 6, mobile: 9 };
 
 /**
  * A ceiling above the derived budget, for a project whose shards cannot all fit under it.
