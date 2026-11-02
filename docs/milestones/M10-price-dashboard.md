@@ -1369,6 +1369,30 @@ pushed [coordinator's brief, relayed].
   bound −90..300; the bulk always checks scaled prices (`judgePricesOfRule`); the corner preview shows the real built
   width (330, ADR 0135) priced under the round-up key, no "preț ca" note; customer rows must be evaluable and free;
   seeded variants are judged with their own door leaves; duplicate build ids are refused.
+- M3 hand-offs (2026-11-02, M3 logic review; inference until each wave reads them):
+  - **S3:** the contract is `usesItem(migrateDesign(row))`, not the stored row. Jsonb paths can match tiers and linked
+    accessories (`buildIdsPricedAs`) only: the drying rack depends on geometry, the sink cover on a sink set, colours and
+    handles on `canFinish`/`canHandle`, and migration rewrites legacy finishes. S3 counts those kinds by running the
+    domain predicate over migrated rows, and S-e widens to built-in accessories, legacy rows and the capability gate.
+    The reader owes exactly one count per item: `UsageNotCountedError` refuses a missing or repeated one.
+  - **R4a:** `judgeAvailabilityChange({item, active}, state)` and `usesItem({design, item, catalog, book})` are the real
+    signatures. The wire gains `item-is-fixed-default` (`price-dashboard-wire-contract.ts`, `DASHBOARD_CONFLICTS`,
+    `m10-ports.ts`), which only the domain knows today.
+  - **The D9 save route** runs `stampedSettingsOf` before persisting.
+  - **U4a/T1:** "Alege alt implicit" is true only of `item-is-default`; `item-is-fixed-default` needs its own copy. D5G's
+    message answers `last-active-option`, judged first. The D5E hint does not hold for accessories: opening a kitchen
+    never lowers their count.
+  - **M4:** built-in accessories are never deleted; `judgeDeletion` is kind-agnostic.
+  - **Web:** `kitchen-defaults-model.ts` `withMaterial` keeps its own fallback for a default colour that is off. Its tests
+    pin it; `judgeAvailabilityChange` makes the state unreachable for new writes, so it stays.
+  - **Coordinator choices awaiting the owner:** the fixed defaults (PAL, Standard, `steel`, `push`, each palette default)
+    can never be switched off, wider than A-9's "the D9 default"; a switched-off linked accessory stays undeletable while
+    any kitchen holds its body (`removedAccessoriesSince` relies on it).
+- R3 hand-offs (2026-11-02, R3 review): **U5b** shows `refusals` of publish's `409 candidate-refused`. **U5** keeps
+  disabling publish for a draft equal to the active book: the server refuses only an empty draft. Restoring the active
+  version answers `nothing-differs` and keeps pending edits, so D8C offers restore on archived versions only. U+2800 is
+  blank for a version label only, in `version-text.ts`; the shared class in `visible-text.ts` is unchanged, since widening
+  it could refuse stored books and names.
 - M2 hand-offs: **R3 and S2** must call `judgeBookAgainstCatalog` (with
   `buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM)`; the judge is depth-independent for the shipped catalogue) and
   parse first. **U2:** a bulk can be refused for a ≤0 price the draft already had, so its message must name the rule.
