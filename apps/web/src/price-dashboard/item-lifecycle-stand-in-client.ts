@@ -18,7 +18,7 @@ import type { AvailabilityRequestWire } from "./price-dashboard-wire-contract";
 // own: it is seeded with the facts the page was given, so it can sit in a browser chunk and name no invented count. It
 // counts only the items its seed counts.
 
-export interface ItemLifecycleSeed extends LifecycleContext {
+export interface ItemLifecycleSeed extends Omit<LifecycleContext, "canWrite"> {
   readonly usage: ItemUsageCounts;
 }
 
@@ -32,6 +32,7 @@ export function inMemoryItemLifecycleClient(
 ): ItemLifecycleClient {
   let current = seed.availability;
   return {
+    canWrite: true,
     setActive: (request) => {
       const outcome = judgedWrite(seed, current, request);
       if (outcome.kind === "set") {

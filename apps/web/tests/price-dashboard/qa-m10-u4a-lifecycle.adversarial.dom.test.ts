@@ -13,11 +13,18 @@ import {
   type DraftChange,
 } from "@lemnaria/configurator-domain";
 
+import { HardwareCreateScreen } from "@/price-dashboard/hardware-create";
+import { HardwareEditScreen } from "@/price-dashboard/hardware-edit";
 import { HardwareListScreen } from "@/price-dashboard/hardware-list";
 import type { PriceDraftClient } from "@/price-dashboard/price-draft-client";
 import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
-import { allIn, click, mountInCatalogue } from "../support/render-with-intl";
+import {
+  allIn,
+  click,
+  mountInCatalogue,
+  requireIn,
+} from "../support/render-with-intl";
 import { flushPromises } from "../support/render-hook";
 import { buttonNamed, typeInField } from "./cabinet-detail-harness";
 import {
@@ -230,23 +237,106 @@ describe("a production build, as the server hands it its page", () => {
     expect(openDialog()).not.toBeNull();
   });
 
-  it("says the save failed, and leaves a switched-off class off, when it is switched on: no route writes it yet, and the screen still invites a retry", async () => {
+  it("offers no switch-on that could be pressed: it is off for the reason that nothing can be checked, no dialog opens, and the class stays off", async () => {
     await mountWithNoLifecycleClient(
       productionPageOf({ disabled: [hardwareItem(BLUM)] }),
     );
 
-    const dialog = await dialogFor(BLUM, BLUM_NAME, ACTIVATE);
-    await press(
-      dialogButton(dialog, roCopy("priceDashboard.lifecycle.activateConfirm")),
-    );
+    await openMenuOf(screen().container, BLUM, BLUM_NAME);
+    const entry = menuEntry(screen().container, BLUM, ACTIVATE);
+    await press(entry);
 
-    expect(dialog.textContent).toContain(SAVE_FAILED);
+    expect(entry.getAttribute("aria-disabled")).toBe("true");
+    expect(openDialog()).toBeNull();
+    expect(
+      allIn(rowOf(screen().container, BLUM), '[data-testid="menu-reason"]').map(
+        (reason) => reason.textContent,
+      ),
+    ).toContain(roCopy("priceDashboard.lifecycle.cannotJudge"));
     expect(
       allIn(
         rowOf(screen().container, BLUM),
         '[data-testid="hardware-chip"]',
       ).map((chip) => chip.textContent),
     ).toEqual([roCopy("priceDashboard.chips.inactive")]);
+  });
+
+  it("offers no switch-on on the class's own page either: the switch is off and says why", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const page = productionPageOf({ disabled: [hardwareItem(BLUM)] });
+    const screenOf = mountInCatalogue(
+      createElement(HardwareEditScreen, {
+        locale: "ro",
+        context: contextOf("administrator", [
+          "kitchens",
+          "hardware",
+          "publish",
+        ]),
+        page,
+        tierId: BLUM,
+        client: inMemoryPriceDraftClient(page.state).client,
+      }),
+      "ro",
+    );
+    await flushPromises(5);
+
+    const classSwitch = requireIn(screenOf.container, '[role="switch"]');
+    await press(classSwitch);
+
+    expect(classSwitch.getAttribute("aria-disabled")).toBe("true");
+    expect(openDialog()).toBeNull();
+    expect(screenOf.container.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.cannotJudge"),
+    );
+    screenOf.unmount();
+  });
+
+  it("offers no creation where the client has no route for one: Create is off with the same reason, whatever is typed", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const screenOf = mountInCatalogue(
+      createElement(HardwareCreateScreen, {
+        locale: "ro",
+        context: contextOf("administrator", [
+          "kitchens",
+          "hardware",
+          "publish",
+        ]),
+        page: hardwarePageOf(),
+      }),
+      "ro",
+    );
+    await flushPromises(5);
+    typeInField(
+      screenOf.container,
+      roCopy("priceDashboard.hardware.nameLabel"),
+      "GTV",
+    );
+    typeInField(
+      screenOf.container,
+      roCopy("priceDashboard.hardware.descriptionLabel"),
+      "Economic",
+    );
+    for (const label of [
+      "priceDashboard.hardware.priceHinge",
+      "priceDashboard.hardware.priceSlide",
+      "priceDashboard.hardware.pricePush",
+      "priceDashboard.hardware.priceLift",
+    ] as const) {
+      typeInField(screenOf.container, roCopy(label), "10");
+    }
+
+    const create = buttonNamed(
+      screenOf.container,
+      roCopy("priceDashboard.hardware.createAction"),
+    );
+    await press(create);
+
+    expect(create).toHaveProperty("disabled", true);
+    expect(screenOf.container.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.cannotJudge"),
+    );
+    expect(screenOf.container.textContent).not.toContain(SAVE_FAILED);
+    screenOf.unmount();
   });
 });
 

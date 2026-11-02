@@ -48,8 +48,8 @@ vi.mock("@/lib/server/price-stores", () =>
 // turns a request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real
 // `PUT` and `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, and the bodies are the
 // ones the hardware screens send. R4a is not built (no `/api/staff/prices/availability` and no usage route exist, and
-// `draft-address.ts` reads only the applied kinds): where a test below is red it is a promise of the wave's port that no
-// route keeps yet, and its name says which.
+// `draft-address.ts` reads only the applied kinds): a test below marked `it.fails` is a promise of the screens' port that
+// no route keeps yet. It runs and goes red the moment R4a keeps it; R4a flips each to `it`.
 
 let prices: PriceDashboardWorld;
 let cookie: string;
@@ -97,17 +97,21 @@ async function answerFromTheRoutes(
 const SOFT_CLOSE = { kind: "hardware", tierId: "hardware.soft-close" } as const;
 
 describe("the write that deletes a held class (the hardware screens' `deleteFromDraft`) — no route until R4a", () => {
-  it("is taken by the draft route, so the confirmation of an unused class's deletion can succeed", async () => {
-    const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
-      expectedDraftRevision: await currentDraftRevision(),
-      change: {
-        address: { kind: "item-deleted", item: SOFT_CLOSE },
-        value: true,
-      },
-    });
+  // R4a adds the deletion's route and owes the flip to `it`.
+  it.fails(
+    "is taken by the draft route, so the confirmation of an unused class's deletion can succeed",
+    async () => {
+      const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
+        expectedDraftRevision: await currentDraftRevision(),
+        change: {
+          address: { kind: "item-deleted", item: SOFT_CLOSE },
+          value: true,
+        },
+      });
 
-    expect(outcome.kind).toBe("changed");
-  });
+      expect(outcome.kind).toBe("changed");
+    },
+  );
 
   it("is answered, today, as a refusal of the address, which the screen shows as a failed save it asks to retry", async () => {
     const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
@@ -126,11 +130,15 @@ describe("the write that deletes a held class (the hardware screens' `deleteFrom
 });
 
 describe("the write that creates a class (the creation form's `createHardwareClass`) — no route until R4a", () => {
-  it("has a client method in the browser's client, so the form can create anything at all", () => {
-    expect(FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass).toBeTypeOf(
-      "function",
-    );
-  });
+  // R4a adds the creation's route and client method, and owes the flip to `it`.
+  it.fails(
+    "has a client method in the browser's client, so the form can create anything at all",
+    () => {
+      expect(FETCHING_PRICE_DRAFT_CLIENT.createHardwareClass).toBeTypeOf(
+        "function",
+      );
+    },
+  );
 
   it("is not smuggled through the change route: a creation as a change is refused, so the screens' optional method stays honest", async () => {
     const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
@@ -163,26 +171,30 @@ describe("the revert that takes a class only the draft holds back out (`deleteFr
     ),
   ];
 
-  it("is read by the draft route's revert reader: a target naming the creation is not refused as an address the route does not apply", async () => {
-    const answer = await DELETE(
-      accountRequest("/api/staff/prices/draft", {
-        method: "DELETE",
-        cookie,
-        headers: NETWORK,
-        json: {
-          expectedDraftRevision: await currentDraftRevision(),
-          target: { kind: "change", address: CREATION[0]?.address },
-        },
-      }),
-    );
+  // R4a teaches the revert reader the creation's address and owes the flip to `it`.
+  it.fails(
+    "is read by the draft route's revert reader: a target naming the creation is not refused as an address the route does not apply",
+    async () => {
+      const answer = await DELETE(
+        accountRequest("/api/staff/prices/draft", {
+          method: "DELETE",
+          cookie,
+          headers: NETWORK,
+          json: {
+            expectedDraftRevision: await currentDraftRevision(),
+            target: { kind: "change", address: CREATION[0]?.address },
+          },
+        }),
+      );
 
-    // The stored draft is empty here, so once the reader takes the address the answer is the route's "nothing to remove"
-    // (an unknown address), not a success: only the reader's own refusal of the kind is what must not be answered.
-    expect(await jsonOf(answer)).not.toEqual({
-      status: "invalid-input",
-      issues: [{ field: "address", code: "NOT_EDITABLE" }],
-    });
-  });
+      // The stored draft is empty here, so once the reader takes the address the answer is the route's "nothing to remove"
+      // (an unknown address), not a success: only the reader's own refusal of the kind is what must not be answered.
+      expect(await jsonOf(answer)).not.toEqual({
+        status: "invalid-input",
+        issues: [{ field: "address", code: "NOT_EDITABLE" }],
+      });
+    },
+  );
 });
 
 describe("what the draft client does with the 409s the real routes can answer", () => {

@@ -26,6 +26,8 @@ export interface LifecycleContext {
   readonly book: PriceBook;
   readonly availability: CatalogueAvailability;
   readonly defaults: NewKitchenSettings | undefined;
+  /** Whether a switch can be written at all; where it cannot, no switch-on is offered. */
+  readonly canWrite: boolean;
 }
 
 /** Why a control is off: the sentence under it says which. */
@@ -70,9 +72,10 @@ export function switchStandOf(
       { item, active: true },
       { book, availability, defaults: defaults ?? {} },
     );
-    return verdict.kind === "allowed"
+    if (verdict.kind === "refused") return standOfRefusal(verdict.code);
+    return context.canWrite
       ? { kind: "enable" }
-      : standOfRefusal(verdict.code);
+      : { kind: "off", reason: "cannot-judge" };
   }
   if (defaults === undefined) return { kind: "off", reason: "cannot-judge" };
   const verdict = judgeAvailabilityChange(

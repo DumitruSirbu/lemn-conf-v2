@@ -52,6 +52,8 @@ export interface HardwareCreation {
   readonly rates: readonly RateEntry[];
   readonly feedback: CreationFeedback;
   readonly canCreate: boolean;
+  /** Whether the client can create a class at all; where it cannot, the form says so and sends nothing. */
+  readonly canWrite: boolean;
   readonly isCreating: boolean;
   readonly typeName: (text: string) => void;
   readonly typeDescription: (text: string) => void;
@@ -64,7 +66,10 @@ type TouchedKey = "name" | "description" | HardwareRateField;
 export function useHardwareCreation({
   draft,
 }: {
-  readonly draft: Pick<PriceDraft, "createHardwareClass" | "isBusy">;
+  readonly draft: Pick<
+    PriceDraft,
+    "createHardwareClass" | "canCreateHardwareClass" | "isBusy"
+  >;
 }): HardwareCreation {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -76,7 +81,11 @@ export function useHardwareCreation({
   const [isCreating, setIsCreating] = useState(false);
   const isCreatingRef = useRef(false);
   const { moveOn: markMoved, begin } = useLateAnswerGuard();
-  const { createHardwareClass, isBusy } = draft;
+  const {
+    createHardwareClass,
+    canCreateHardwareClass: canWrite,
+    isBusy,
+  } = draft;
 
   const nameEntry = useMemo(
     () => textEntryOf(name, "name", touched),
@@ -91,6 +100,7 @@ export function useHardwareCreation({
     [rateTexts, touched],
   );
   const canCreate =
+    canWrite &&
     nameEntry.judgement.ok &&
     descriptionEntry.judgement.ok &&
     rates.every((rate) => rate.reading.kind === "amount") &&
@@ -162,6 +172,7 @@ export function useHardwareCreation({
     rates,
     feedback,
     canCreate,
+    canWrite,
     isCreating,
     typeName,
     typeDescription,

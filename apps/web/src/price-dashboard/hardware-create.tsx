@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, type FormEvent } from "react";
+import { useEffect, useId, useRef, type FormEvent } from "react";
 
 import { FormNotice, TextField } from "@/account/account-form-parts";
 import type { ContentTranslator } from "@/i18n/content";
@@ -138,6 +138,7 @@ function CreateForm({
   readonly creation: HardwareCreation;
 }) {
   const translate = useTranslations();
+  const cannotWriteId = useId();
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void creation.create();
@@ -181,6 +182,7 @@ function CreateForm({
             className={editStyles.action}
             data-tone="primary"
             disabled={!creation.canCreate}
+            aria-describedby={creation.canWrite ? undefined : cannotWriteId}
           >
             {translate("priceDashboard.hardware.createAction")}
           </button>
@@ -188,6 +190,11 @@ function CreateForm({
             {translate("priceDashboard.common.cancel")}
           </a>
         </div>
+        {creation.canWrite ? null : (
+          <p id={cannotWriteId} className={styles.hint}>
+            {translate("priceDashboard.lifecycle.cannotJudge")}
+          </p>
+        )}
       </div>
     </form>
   );

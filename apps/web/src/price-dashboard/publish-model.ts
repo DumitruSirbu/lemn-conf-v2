@@ -210,8 +210,8 @@ interface RowContext {
   readonly isRevertable: boolean;
 }
 
-/** The rows of a price or a bulk action. The rows for a created, deleted or reworded item are not drawn yet: the draft
- *  wire carries no such change, so none reaches this model until the screens that author them are built (U4c). */
+/** The rows of a price or a bulk action. A structural row (an item created, deleted or reworded) is not drawn, so a
+ *  created class shows only as the field rows of its rates. */
 function pricedRowsOf(
   rows: readonly BookDiffRow[],
 ): readonly (FieldDiffRow | GroupDiffRow)[] {

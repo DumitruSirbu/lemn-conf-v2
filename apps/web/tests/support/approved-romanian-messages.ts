@@ -2176,6 +2176,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Nu am putut număra bucătăriile salvate care folosesc această opțiune, așa că nu schimbăm nimic acum. Încearcă din nou.",
       deleteBlockedInactiveBody:
         "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc această opțiune. Este deja dezactivată; clienții aleg altă opțiune când își deschid bucătăria.",
+      deleteBlockedAccessoryBody:
+        "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      deleteBlockedAccessoryInactiveBody:
+        "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc acest accesoriu. Este deja dezactivat; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      deleteBlockedUncountedBody:
+        "Nu poți șterge „{name}”: bucătării salvate folosesc această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
+      deleteBlockedAccessoryUncountedBody:
+        "Nu poți șterge „{name}”: bucătării salvate folosesc acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
       working: "Se aplică…",
       deleteCreatedBody:
         "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”.",

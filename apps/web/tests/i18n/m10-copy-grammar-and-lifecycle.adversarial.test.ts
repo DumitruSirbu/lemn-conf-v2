@@ -37,7 +37,7 @@ const M10_LEAVES_IN_OLDER_NAMESPACES = [
   "priceBreakdown.depthLineScope",
 ] as const;
 
-const PLURAL_NODES_ADDED_BY_T1 = 27;
+const PLURAL_NODES_IN_THE_M10_NAMESPACES = 28;
 const COUNT_SWEEP_UPPER_BOUND = 205;
 
 /** Owner ruling 2026-09-10 (engineering-conventions, "Plurals"): cabinets stay the bare noun in every arm. */
@@ -201,9 +201,13 @@ describe("the M10 leaves parse and agree on their parameters across the two loca
     }
   });
 
-  it("adds exactly the plural nodes the signature module counts for wave T1", () => {
-    expect(pluralSitesOf("ro")).toHaveLength(PLURAL_NODES_ADDED_BY_T1);
-    expect(pluralSitesOf("ru")).toHaveLength(PLURAL_NODES_ADDED_BY_T1);
+  it("holds exactly the plural nodes the M10 namespaces are counted to have", () => {
+    expect(pluralSitesOf("ro")).toHaveLength(
+      PLURAL_NODES_IN_THE_M10_NAMESPACES,
+    );
+    expect(pluralSitesOf("ru")).toHaveLength(
+      PLURAL_NODES_IN_THE_M10_NAMESPACES,
+    );
   });
 });
 

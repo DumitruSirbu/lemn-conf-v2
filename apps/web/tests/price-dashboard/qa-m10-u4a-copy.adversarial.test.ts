@@ -38,11 +38,15 @@ const ADDED_BY_THE_WAVE = [
   "lifecycle.deleteBlockedInactiveBody",
   "lifecycle.working",
   "lifecycle.deleteCreatedBody",
+  "lifecycle.deleteBlockedAccessoryInactiveBody",
+  "lifecycle.deleteBlockedUncountedBody",
+  "lifecycle.deleteBlockedAccessoryUncountedBody",
 ];
 
 const COUNTING_LEAVES = [
   "lifecycle.usedBy",
   "lifecycle.deleteBlockedBody",
+  "lifecycle.deleteBlockedAccessoryBody",
   "chips.inactiveInUse",
 ];
 

@@ -22,6 +22,16 @@ function russianPoundIn(argument: string) {
   } as const;
 }
 
+/** A leaf whose Russian `one` arm writes the count as a number without grouping while the Romanian `one` arm says no number. */
+function russianGroupOffNumberIn(argument: string) {
+  return {
+    romanianOnly: [],
+    russianOnly: [
+      `root/plural:${argument}/one:number:${argument}:{"type":0,"tokens":[{"stem":"group-off","options":[]}],"parsedOptions":{"useGrouping":false}}`,
+    ],
+  } as const;
+}
+
 const EXPECTED_POUND_DIVERGENCES: Readonly<
   Record<
     string,
@@ -38,8 +48,11 @@ const EXPECTED_POUND_DIVERGENCES: Readonly<
   // Russian `one` also covers 21, 31, 101, so its arm carries the number; Romanian's `one` is only 1 and says "o ..." / "un ...".
   "priceDashboard.cabinet.summaryDoor": russianPoundIn("doorCount"),
   "priceDashboard.cabinet.doorsFromHere": russianPoundIn("doorCount"),
-  "priceDashboard.lifecycle.usedBy": russianPoundIn("count"),
-  "priceDashboard.lifecycle.deleteBlockedBody": russianPoundIn("count"),
+  "priceDashboard.lifecycle.usedBy": russianGroupOffNumberIn("count"),
+  "priceDashboard.lifecycle.deleteBlockedBody":
+    russianGroupOffNumberIn("count"),
+  "priceDashboard.lifecycle.deleteBlockedAccessoryBody":
+    russianGroupOffNumberIn("count"),
   "priceDashboard.publish.subtitleMobile": russianPoundIn("count"),
   "priceDashboard.publish.publishAction": russianPoundIn("count"),
   "priceDashboard.publish.confirmBody": russianPoundIn("count"),

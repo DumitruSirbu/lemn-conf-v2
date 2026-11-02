@@ -243,7 +243,7 @@ describe("creating", () => {
     },
   );
 
-  it("sends nothing and shows nothing as created where no route takes a creation yet", async () => {
+  it("offers no creation where no route takes one: Create is off with the reason that nothing can be checked, and nothing is sent", async () => {
     const page = hardwarePageOf();
     const withoutCreation = {
       ...inMemoryPriceDraftClient(page.state).client,
@@ -255,9 +255,11 @@ describe("creating", () => {
 
     await press(buttonNamed(container, CREATE));
 
-    expect(alertsIn(container)).toEqual([
-      roCopy("priceDashboard.errors.saveFailed"),
-    ]);
+    expect(buttonNamed(container, CREATE)).toHaveProperty("disabled", true);
+    expect(container.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.cannotJudge"),
+    );
+    expect(alertsIn(container)).toEqual([]);
     expect(container.textContent).not.toContain(
       roCopy("priceDashboard.hardware.createdNotice"),
     );

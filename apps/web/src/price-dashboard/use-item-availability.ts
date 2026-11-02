@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   isSameItem,
@@ -28,6 +28,7 @@ import {
   switchStandOf,
   type LifecycleContext,
 } from "./item-lifecycle-model";
+import type { DraftChangeRefusalCode } from "./price-dashboard-wire-contract";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { FieldWriteResult } from "./use-price-draft";
 
@@ -62,7 +63,8 @@ export type ItemFlow =
   | {
       readonly kind: "delete-blocked";
       readonly item: DeletableItemRef;
-      readonly count: number;
+      /** How many saved kitchens use it; absent where a server refused the deletion without saying. */
+      readonly count: number | undefined;
       /** Customers are offered the item now, so switching it off is the way on that the dialog names. */
       readonly isOn: boolean;
     };
@@ -92,7 +94,9 @@ export interface ItemAvailabilityDesk {
 }
 
 export interface ItemAvailabilityInput {
-  readonly initial: CatalogueAvailability;
+  /** What the screen's last whole-state read holds of what is switched off. It seeds the desk, and a later read replaces
+   *  what the desk holds unless it names a revision the desk has already moved on from. */
+  readonly observed: CatalogueAvailability;
   /** The active book: its rows are the items, and its tiers are the groups. */
   readonly book: PriceBook;
   readonly defaults: NewKitchenSettings | undefined;
@@ -113,30 +117,43 @@ const FAILED_OUTCOME: AvailabilityOutcome = { kind: "failed" };
 const FAILED: ItemFailure = { kind: "failed" };
 
 export function useItemAvailability({
-  initial,
+  observed,
   book,
   defaults,
   client,
   deleteFromDraft,
   isDraftOnly,
 }: ItemAvailabilityInput): ItemAvailabilityDesk {
-  const [availability, setAvailability] = useState(initial);
+  const [availability, setAvailability] = useState(observed);
   const [flow, setFlow] = useState<ItemFlow>(CLOSED);
   const [failure, setFailure] = useState<ItemFailure | undefined>(undefined);
   const [isBusy, setIsBusy] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const availabilityRef = useRef(availability);
+  const leftBehindRef = useRef<ReadonlySet<string>>(new Set());
+  const observedRef = useRef(observed);
   const isSendingRef = useRef(false);
   const { moveOn: markMoved, begin } = useLateAnswerGuard();
   const context = useMemo<LifecycleContext>(
-    () => ({ book, availability, defaults }),
-    [book, availability, defaults],
+    () => ({ book, availability, defaults, canWrite: client.canWrite }),
+    [book, availability, defaults, client.canWrite],
   );
 
   const adopt = useCallback((next: CatalogueAvailability) => {
+    const held = availabilityRef.current.revision;
+    const leftBehind = new Set(leftBehindRef.current);
+    leftBehind.delete(next.revision);
+    if (held !== next.revision) leftBehind.add(held);
+    leftBehindRef.current = leftBehind;
     availabilityRef.current = next;
     setAvailability(next);
   }, []);
+
+  useEffect(() => {
+    if (observedRef.current === observed) return;
+    observedRef.current = observed;
+    if (!leftBehindRef.current.has(observed.revision)) adopt(observed);
+  }, [observed, adopt]);
 
   const readAvailabilityAgain = useCallback(async () => {
     const fresh = await orFailed(() => client.readAvailability(), undefined);
@@ -236,30 +253,48 @@ export function useItemAvailability({
     [adopt, readAvailabilityAgain],
   );
 
-  const settleDeletion = useCallback((result: FieldWriteResult) => {
-    switch (result.kind) {
-      case "saved":
-      case "unchanged":
-        setFlow(CLOSED);
-        return;
-      case "busy":
-        return;
-      case "conflict":
-        setFailure({ kind: "conflict" });
-        return;
-      case "refused":
-        setFailure(
-          result.code === "ITEM_IS_DEFAULT"
-            ? { kind: "refused", code: "item-is-default" }
-            : FAILED,
-        );
-        return;
-      case "candidate-refused":
-      case "failed":
+  /** A saved kitchen has come to use the item since it was counted: no retry changes that, so the block is what is said. */
+  const settleRefusedDeletion = useCallback(
+    (code: DraftChangeRefusalCode, item: DeletableItemRef) => {
+      if (code === "ITEM_IN_USE") {
+        setFlow({
+          kind: "delete-blocked",
+          item,
+          count: undefined,
+          isOn: isItemOn(item, context),
+        });
+      } else if (code === "ITEM_IS_DEFAULT") {
+        setFailure({ kind: "refused", code: "item-is-default" });
+      } else {
         setFailure(FAILED);
-        return;
-    }
-  }, []);
+      }
+    },
+    [context],
+  );
+
+  const settleDeletion = useCallback(
+    (result: FieldWriteResult, item: DeletableItemRef) => {
+      switch (result.kind) {
+        case "saved":
+        case "unchanged":
+          setFlow(CLOSED);
+          return;
+        case "busy":
+          return;
+        case "conflict":
+          setFailure({ kind: "conflict" });
+          return;
+        case "refused":
+          settleRefusedDeletion(result.code, item);
+          return;
+        case "candidate-refused":
+        case "failed":
+          setFailure(FAILED);
+          return;
+      }
+    },
+    [settleRefusedDeletion],
+  );
 
   /** One confirmation at a time: a second press while one is out is not sent. */
   const sendOnce = useCallback(async (send: () => Promise<void>) => {
@@ -299,7 +334,7 @@ export function useItemAvailability({
           () => deleteFromDraft(item),
           { kind: "failed" },
         );
-        settleDeletion(result);
+        settleDeletion(result, item);
       }),
     [deleteFromDraft, sendOnce, settleDeletion],
   );
@@ -315,10 +350,20 @@ export function useItemAvailability({
     const stand = switchStandOf(item, context);
     moveOn();
     if (stand.kind === "disable") {
+      const remaining = stand.remaining;
+      if (count === undefined) {
+        void openAfterCounting(item, (read) => ({
+          kind: "deactivate",
+          item,
+          remaining,
+          usage: usageStandOf(read, item),
+        }));
+        return;
+      }
       setFlow({
         kind: "deactivate",
         item,
-        remaining: stand.remaining,
+        remaining,
         usage: { kind: "counted", count },
       });
     } else if (stand.kind === "last-active-option") {
@@ -326,7 +371,7 @@ export function useItemAvailability({
     } else {
       setFlow(CLOSED);
     }
-  }, [flow, context, moveOn]);
+  }, [flow, context, moveOn, openAfterCounting]);
 
   const confirm = useCallback(() => {
     if (isBusy) return;

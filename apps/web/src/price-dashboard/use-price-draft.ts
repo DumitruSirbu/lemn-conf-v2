@@ -98,6 +98,8 @@ export interface PriceDraft {
   readonly createHardwareClass: (
     input: HardwareClassCreation,
   ) => Promise<CreateWriteResult>;
+  /** Whether the client has any route that takes a creation; where it has none, a screen offers none. */
+  readonly canCreateHardwareClass: boolean;
 }
 
 interface DraftInput {
@@ -248,6 +250,7 @@ export function usePriceDraft({
     changeOrRevert,
     bulk,
     createHardwareClass,
+    canCreateHardwareClass: client.createHardwareClass !== undefined,
   };
 }
 

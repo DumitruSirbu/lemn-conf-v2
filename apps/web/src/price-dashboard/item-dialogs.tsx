@@ -238,14 +238,12 @@ function DeleteBlockedDialog({
   const title = translate("priceDashboard.lifecycle.deleteBlockedTitle", {
     name,
   });
+  const description = deleteBlockedWords(translate, flow, name);
   if (!flow.isOn) {
     return (
       <ClosingDialog
         title={title}
-        description={translate(
-          "priceDashboard.lifecycle.deleteBlockedInactiveBody",
-          { name },
-        )}
+        description={description}
         onClose={desk.dismiss}
         returnFocusFallbackRef={returnFocusFallbackRef}
       />
@@ -256,10 +254,7 @@ function DeleteBlockedDialog({
       kind="destructive"
       confirmTone="primary"
       title={title}
-      description={translate("priceDashboard.lifecycle.deleteBlockedBody", {
-        name,
-        count: flow.count,
-      })}
+      description={description}
       returnFocusFallbackRef={returnFocusFallbackRef}
       confirm={{
         label: translate("priceDashboard.lifecycle.deactivateInstead"),
@@ -272,6 +267,38 @@ function DeleteBlockedDialog({
         onPress: desk.dismiss,
       }}
     />
+  );
+}
+
+/** Why the deletion is forbidden and the way on. An accessory has no alternative to choose: its customer is told it was
+ *  removed. A count is said only where one was had; a server's refusal names none. */
+function deleteBlockedWords(
+  translate: ContentTranslator,
+  { item, isOn, count }: FlowOf<"delete-blocked">,
+  name: string,
+): string {
+  const isAccessory = item.kind === "accessory";
+  if (!isOn) {
+    return translate(
+      isAccessory
+        ? "priceDashboard.lifecycle.deleteBlockedAccessoryInactiveBody"
+        : "priceDashboard.lifecycle.deleteBlockedInactiveBody",
+      { name },
+    );
+  }
+  if (count === undefined) {
+    return translate(
+      isAccessory
+        ? "priceDashboard.lifecycle.deleteBlockedAccessoryUncountedBody"
+        : "priceDashboard.lifecycle.deleteBlockedUncountedBody",
+      { name },
+    );
+  }
+  return translate(
+    isAccessory
+      ? "priceDashboard.lifecycle.deleteBlockedAccessoryBody"
+      : "priceDashboard.lifecycle.deleteBlockedBody",
+    { name, count },
   );
 }
 

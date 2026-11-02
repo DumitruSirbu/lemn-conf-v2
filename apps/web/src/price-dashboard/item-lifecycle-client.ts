@@ -28,6 +28,8 @@ export type UsageRead =
   | { readonly kind: "unavailable" };
 
 export interface ItemLifecycleClient {
+  /** Whether a switch reaches anything. Where it does not, the screen offers no switch-on and sends nothing. */
+  readonly canWrite: boolean;
   setActive(request: AvailabilityRequestWire): Promise<AvailabilityOutcome>;
   readUsage(items: readonly ItemRef[]): Promise<UsageRead>;
   /** What is switched off now; absent when it cannot be read. */
@@ -36,17 +38,20 @@ export interface ItemLifecycleClient {
 
 /** The client of a build with nothing behind the screen: nothing is written and nothing is counted, so no figure is claimed. */
 export const UNAVAILABLE_ITEM_LIFECYCLE_CLIENT: ItemLifecycleClient = {
+  canWrite: false,
   setActive: () => Promise.resolve({ kind: "failed" }),
   readUsage: () => Promise.resolve({ kind: "unavailable" }),
   readAvailability: () => Promise.resolve(undefined),
 };
 
-/** A client loaded by its first call, so the module behind `load` is fetched only if something is asked. */
+/** A client loaded by its first call, so the module behind `load` is fetched only if something is asked. It stands for a
+ *  client that writes: a loader of one that does not is the unavailable client itself, which is not loaded lazily. */
 export function lazyItemLifecycleClient(
   load: () => Promise<ItemLifecycleClient>,
 ): ItemLifecycleClient {
   const client = memoizeAsync(load);
   return {
+    canWrite: true,
     setActive: async (request) => (await client()).setActive(request),
     readUsage: async (items) => (await client()).readUsage(items),
     readAvailability: async () => (await client()).readAvailability(),

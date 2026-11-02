@@ -352,12 +352,15 @@ function RowMenu({
   const close = useCallback(() => {
     setIsOpen(false);
   }, []);
-  useCloseOnOutsidePress(wrapRef, isOpen, close);
+  const { availability } = desk;
+  // The dialog is drawn outside the menu, so a press in it is an outside press; the menu stays, and holds the entry
+  // that asked, for focus to return to.
+  const isAsking = availability.flow.kind !== "closed";
+  useCloseOnOutsidePress(wrapRef, isOpen && !isAsking, close);
   const item = hardwareItemOf(facts);
   const isOn = isItemOn(item, context);
-  const switchStand = switchStandOf(item, context);
+  const switchReason = switchReasonOf(translate, facts, context);
   const deleteReason = deleteReasonOf(translate, facts, context);
-  const { availability } = desk;
   return (
     <div
       ref={wrapRef}
@@ -392,11 +395,7 @@ function RowMenu({
                 ? "priceDashboard.common.deactivate"
                 : "priceDashboard.common.activate",
             )}
-            reason={
-              switchStand.kind === "off"
-                ? offReasonWords(translate, switchStand.reason)
-                : undefined
-            }
+            reason={switchReason}
             onPress={() => {
               availability.requestSwitch(item);
             }}
@@ -415,6 +414,21 @@ function RowMenu({
       ) : null}
     </div>
   );
+}
+
+/** A class the draft deletes cannot be switched: nothing is offered of it once the deletion is published. */
+function switchReasonOf(
+  translate: ContentTranslator,
+  facts: HardwareClassFacts,
+  context: LifecycleContext,
+): string | undefined {
+  if (facts.isDeletionPending) {
+    return translate("priceDashboard.hardware.deleteNotice");
+  }
+  const stand = switchStandOf(hardwareItemOf(facts), context);
+  return stand.kind === "off"
+    ? offReasonWords(translate, stand.reason)
+    : undefined;
 }
 
 function deleteReasonOf(

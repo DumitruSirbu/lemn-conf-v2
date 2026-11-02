@@ -68,7 +68,7 @@ export function useHardwareDesk({
     [change, revert, isDraftOnly],
   );
   const availability = useItemAvailability({
-    initial: page.state.active.availability,
+    observed: draft.state.active.availability,
     book: draft.state.active.book,
     defaults: page.defaults,
     client: lifecycle,

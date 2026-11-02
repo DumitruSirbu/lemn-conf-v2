@@ -31,6 +31,7 @@ function contextOf(
     book: SAMPLE_PRICE_BOOK,
     availability: NOTHING_OFF,
     defaults: {},
+    canWrite: true,
     ...overrides,
   };
 }
