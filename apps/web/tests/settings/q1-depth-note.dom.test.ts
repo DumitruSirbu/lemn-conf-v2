@@ -97,10 +97,4 @@ describe("the settings depth note (Q1-b)", () => {
     );
     expect(depthNoteOf(dom)).not.toContain("0 %");
   });
-
-  it("no longer renders the retired note", () => {
-    const dom = openSettingsPublishing(FIRST_PUBLISHED_PERCENT);
-
-    expect(dom.textContent).not.toContain(ro.globalSettings.depthNote);
-  });
 });

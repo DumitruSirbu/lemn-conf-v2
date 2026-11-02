@@ -8,7 +8,7 @@
 //      never says "600 mm scumpește…" or any figure of its own;
 //   2. no figure is authored into any of the three Q1 leaves, in Romanian or in Russian (ICU literals stripped of
 //      arguments and plural options carry no digit);
-//   3. the retired `globalSettings.depthNote` is rendered by nothing under `apps/web/src`;
+//   3. the retired `globalSettings.depthNote` is in no catalogue and named by nothing under `apps/web/src` (wave T2);
 //   4. the Russian leaves render on the real sheets, without a missing-key fallback, at the plural-category boundaries.
 import { fc } from "@fast-check/vitest";
 import {
@@ -38,7 +38,12 @@ import {
 import { GlobalSettings } from "@/settings/global-settings";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-import { CATALOGUES, contentFor, requireLeafAt } from "../support/catalogues";
+import {
+  CATALOGUES,
+  contentFor,
+  leafAt,
+  requireLeafAt,
+} from "../support/catalogues";
 import { MEASURED_DEEPENING_ROWS } from "../support/deepening-rows";
 import { NOTHING_DISABLED } from "../support/availability";
 import { filesUnder } from "../support/files-under";
@@ -176,34 +181,23 @@ describe("no figure is authored into the Q1 leaves (ADR 0100 decision 5: the cop
   );
 });
 
-describe("the retired depthNote is rendered nowhere (Q1-a)", () => {
+describe("the retired depthNote is gone from the catalogue and named by no source (Q1-a, T2)", () => {
   const RETIRED = /\bdepthNote\b(?!Priced)/u;
-  const OWNED_BY_T2 = [
-    join(WEB_SOURCE, "messages"),
-    join(WEB_SOURCE, "i18n", "content.ts"),
-  ];
 
-  it("no source under apps/web/src outside the message catalogue and its accessor names it", () => {
-    const readers = filesUnder(WEB_SOURCE)
-      .filter((file) => !OWNED_BY_T2.some((owned) => file.startsWith(owned)))
-      .filter((file) => RETIRED.test(readFileSync(file, "utf8")));
+  it("no source under apps/web/src names it, the message catalogues and the content resolver included", () => {
+    const readers = filesUnder(WEB_SOURCE).filter((file) =>
+      RETIRED.test(readFileSync(file, "utf8")),
+    );
 
     expect(readers).toEqual([]);
   });
 
-  it("the shipped depth group's note is never the retired leaf, in either locale", () => {
-    for (const [locale, messages] of CATALOGUES) {
-      const retired = requireLeafAt(messages, "globalSettings.depthNote");
-      const content = contentFor(locale, messages);
-      for (const percent of [0, 1, 12, 100])
-        expect(
-          content.globalSettings.depthNotePriced(
-            DEEP_CABINET_DEPTH_MM,
-            percent,
-          ),
-        ).not.toBe(retired);
-    }
-  });
+  it.each(CATALOGUES)(
+    "the %s catalogue carries no leaf for it",
+    (_locale, messages) => {
+      expect(leafAt(messages, "globalSettings.depthNote")).toBeUndefined();
+    },
+  );
 });
 
 /** What next-intl logs for a missing or unformattable message. The sheet logs other, unrelated lines in a bare

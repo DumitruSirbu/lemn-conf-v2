@@ -136,6 +136,9 @@
  * `configure.backConfirm.title` moved; `configure.backConfirm.body` is removed and replaced by `.bodyClient` and
  * `.bodyVisitor`, one of which the dialog shows by session. The new hashes were read off the failing manifest assertion's
  * diff. **No other hash moved.**
+ *
+ * **One removed, none moved, by M10 wave T2** — `content.static.globalSettings.depthNote`, the sentence that said depth
+ * does not change the price, retired once `globalSettings.depthNotePriced` replaced it on the settings sheet.
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -710,8 +713,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "ed9a12b4ab7d61f8bb77bcbab7b3cd7806471bb070a758e4fc610215400b0eab",
   "content.static.globalSettings.depthHeading":
     "a480381ded2d349e40b810313fdfb2deaec5f8e4b5463828973314f180700f94",
-  "content.static.globalSettings.depthNote":
-    "64b464167da556d87785dface711297b25948341a4c8408db9db464a371b0bce",
   "content.static.globalSettings.depthWarning":
     "0a5ca4d9a78dd5fc90ea1da9e6142580aa9c15cd3453a04c4e6d60898bddb6e6",
   "content.static.globalSettings.groupAnchors.hardware":

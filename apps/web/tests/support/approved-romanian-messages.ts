@@ -461,14 +461,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     depthOption: "{cabinetDepthMm, number, ::group-off} mm",
     depthWarning:
       "Schimbarea adâncimii blatului reconstruiește toate dulapurile și schimbă prețul acestora.",
-    depthNote:
-      "Adâncimea blatului nu schimbă prețul bucătăriei — doar dimensiunile dulapurilor.",
     // Drafted, not approved: the Romanian is the agent's draft of the M10 copy (plan M10, wave T1), pending the owner's
     // approval of the M10 Romanian copy as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095
     // decision 2, and is never pinned here.
-    // `depthNotePriced` is the sentence the depth control shows once depth is priced (frame C3S); nothing renders it until
-    // wave Q1 switches to it, and `depthNote` above stays until wave T2 retires it. `kitchenHandle*` is the whole-kitchen handle
-    // row (frame C2); its options are `panel.handleLabels`.
+    // `depthNotePriced` is the sentence the depth control shows (frame C3S); it replaced `depthNote`, retired by wave T2.
+    // `kitchenHandle*` is the whole-kitchen handle row (frame C2); its options are `panel.handleLabels`.
     depthNotePriced:
       "{percent, plural, =0 {Adâncimea de {cabinetDepthMm, number, ::group-off} mm nu schimbă prețul.} other {Adâncimea de {cabinetDepthMm, number, ::group-off} mm scumpește dulapurile care se adâncesc cu # %.}}",
     kitchenHandleHeading: "Mânere",
