@@ -530,6 +530,32 @@ function toColourGroupView(
   };
 }
 
+/** The handles the sheet offers: every one availability has not switched off. */
+function offeredHandles(
+  availability: NonNullable<DescribeGlobalSettingsInput["availability"]>,
+): readonly Handle[] {
+  return HandleSchema.options.filter(
+    (handle) => !isItemDisabled(availability, handleRef(handle)),
+  );
+}
+
+/**
+ * Drops a pending handle the sheet no longer offers, as `withoutAFinishTheMaterialRefuses` drops a colour
+ * (ADR 0099 decision 4): availability can switch a handle off after it was pressed, and *Aplică* must not
+ * write what the row has stopped showing. Unknown availability switches nothing off, so nothing is dropped.
+ */
+export function withoutAHandleTheSheetNoLongerOffers(
+  chosen: WholeKitchenChoice,
+  availability: DescribeGlobalSettingsInput["availability"],
+): WholeKitchenChoice {
+  const { handle } = chosen;
+  if (handle === undefined || availability === undefined) return chosen;
+  if (offeredHandles(availability).includes(handle)) return chosen;
+  const dropped = { ...chosen };
+  delete dropped.handle;
+  return dropped;
+}
+
 /** The handle row, or nothing where availability is unknown or has switched every handle off. The marked option is the
  *  pending choice, else the slot's default, which is what an unset kitchen shows. */
 function toHandleGroupView(
@@ -537,9 +563,7 @@ function toHandleGroupView(
 ): HandleGroupView | undefined {
   const { availability, content } = input;
   if (availability === undefined) return undefined;
-  const offered = HandleSchema.options.filter(
-    (handle) => !isItemDisabled(availability, handleRef(handle)),
-  );
+  const offered = offeredHandles(availability);
   if (offered.length === 0) return undefined;
   const selected = input.pending.handle ?? DEFAULT_HANDLE;
   return {

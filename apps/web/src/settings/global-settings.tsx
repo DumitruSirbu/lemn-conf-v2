@@ -56,6 +56,7 @@ import {
   describeGlobalSettings,
   describePillRung,
   resolveOpeningChoice,
+  withoutAHandleTheSheetNoLongerOffers,
   type ApplyRefusal,
   type GlobalSettingsView,
   type ColourGroupView,
@@ -222,6 +223,10 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
    */
   function applyPending(): void {
     if (editability.isReadOnly) return;
+    const { handle } = withoutAHandleTheSheetNoLongerOffers(
+      pending,
+      availability,
+    );
     const outcome = applyWholeKitchenSettings({
       ...(pending.materialTierId === undefined
         ? {}
@@ -234,7 +239,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
         : { cabinetDepthMm: pending.cabinetDepthMm }),
       // Absent stays absent: an untouched colour must leave a document with no global colour as found.
       ...(pending.finish === undefined ? {} : { finish: pending.finish }),
-      ...(pending.handle === undefined ? {} : { handle: pending.handle }),
+      ...(handle === undefined ? {} : { handle }),
       availableMaterialTierIds: offer.material.tierIds,
       availableHardwareTierIds: offer.hardware.tierIds,
     });
