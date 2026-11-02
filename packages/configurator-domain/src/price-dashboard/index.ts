@@ -17,6 +17,7 @@ export * from "./apply-changes.js";
 export * from "./diff-books.js";
 export {
   type AbsentText,
+  type LinkDiffRow,
   type RowDiffRow,
   type StructuralDiffRow,
   type TextDiffRow,

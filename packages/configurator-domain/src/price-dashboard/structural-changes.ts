@@ -24,7 +24,9 @@ import { judgeCreatedRowText } from "./created-row-text.js";
 import {
   accepted,
   judgeWholeNumber,
+  linkedAccessoriesOf,
   refused,
+  statesLinkedAccessories,
   type BookUpdater,
   type Judged,
 } from "./editable-fields.js";
@@ -36,7 +38,8 @@ import {
 // A created row is built from named members only. It carries no `nameKey` or `descriptionKey` (a keyed row's words
 // are the catalogue's), no Russian field, and a rule id derived from its own id (a tier's equals it, as every shipped tier's does; an
 // accessory's is `accessory.<id>`). An id the book already states is the parser's refusal, since ids are minted by the
-// server and a collision is its defect.
+// server and a collision is its defect; an id the draft removed is refused before that (`reusesRemovedId`). A book that
+// states no linked accessories takes none: a creation would write a section the version never held.
 
 export const STRUCTURAL_ADDRESS_KINDS = Object.freeze([
   "hardware-tier-created",
@@ -134,6 +137,7 @@ function prepareAccessoryCreation(
   value: unknown,
 ): Judged<BookUpdater> {
   if (typeof accessoryId !== "string") return refused("UNKNOWN_ADDRESS");
+  if (!statesLinkedAccessories(book)) return refused("NOT_EDITABLE");
   const members = readMembers(value, ACCESSORY_CREATION_MEMBERS);
   if (!members.ok) return members;
   const linkedBuildId = members.value["linkedBuildId"];
@@ -159,7 +163,7 @@ function prepareAccessoryCreation(
   };
   return accepted((target) => ({
     ...target,
-    linkedAccessories: [...target.linkedAccessories, accessory],
+    linkedAccessories: [...linkedAccessoriesOf(target), accessory],
   }));
 }
 
@@ -213,13 +217,13 @@ function locateCreatedRow(book: PriceBook, item: ItemRef): Judged<TextWriter> {
   const { accessoryId } = item;
   if ((ACCESSORY_IDS as readonly string[]).includes(accessoryId))
     return refused("NOT_EDITABLE");
-  const exists = book.linkedAccessories.some(
+  const exists = linkedAccessoriesOf(book).some(
     (linked) => linked.accessoryId === accessoryId,
   );
   if (!exists) return refused("UNKNOWN_ITEM");
   return accepted((field, text) => (target) => ({
     ...target,
-    linkedAccessories: target.linkedAccessories.map((linked) =>
+    linkedAccessories: linkedAccessoriesOf(target).map((linked) =>
       linked.accessoryId === accessoryId
         ? withLinkedText(linked, field, text)
         : linked,
@@ -342,11 +346,11 @@ function deleteLinkedAccessory(
 ): Judged<BookUpdater> {
   if ((ACCESSORY_IDS as readonly string[]).includes(accessoryId))
     return refused("NOT_EDITABLE");
-  if (!book.linkedAccessories.some((l) => l.accessoryId === accessoryId))
+  if (!linkedAccessoriesOf(book).some((l) => l.accessoryId === accessoryId))
     return refused("UNKNOWN_ITEM");
   return accepted((target) => ({
     ...target,
-    linkedAccessories: target.linkedAccessories.filter(
+    linkedAccessories: linkedAccessoriesOf(target).filter(
       (linked) => linked.accessoryId !== accessoryId,
     ),
   }));

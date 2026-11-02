@@ -40,6 +40,7 @@ import {
 import {
   MAX_LINKED_ACCESSORIES,
   refuseLinkedAccessoryConflicts,
+  refuseUnreadableAuthoredText,
   refuseUnreadableLinkedAccessories,
 } from "./parse-linked-accessories.js";
 import { refuseUnusablePercentageForm } from "./parse-percentage-form.js";
@@ -444,7 +445,7 @@ function refuseUnreadableWords(
       named: `${named} name`,
       maxLength: MAX_BOOK_NAME_LENGTH,
     }) ??
-    refuseBlankUnkeyedName(declared, named) ??
+    refuseUnsoundUnkeyedName(declared, named) ??
     refuseUnusableText(readDeclared(declared, "description"), {
       named: `${named} description`,
       maxLength: MAX_BOOK_DESCRIPTION_LENGTH,
@@ -454,16 +455,23 @@ function refuseUnreadableWords(
   );
 }
 
-/** A row naming no catalogue leaf renders its authored name as typed (ADR 0106 decision 2), so a blank one renders
- *  nothing: a created row has no key, and this is what keeps its Romanian name from being empty. A keyed row's authored
- *  word is the fallback and may be anything. */
-function refuseBlankUnkeyedName(
+/** A row naming no catalogue leaf renders its authored name as typed (ADR 0106 decision 2), so it is held to the
+ *  characters a created linked accessory's name is, and a blank one renders nothing: a created row has no key, and this
+ *  is what keeps its Romanian name printable and not empty. A keyed row's authored word is the fallback and may be
+ *  anything. */
+function refuseUnsoundUnkeyedName(
   declared: Record<string, unknown>,
   named: string,
 ): PricingFailure | undefined {
   const name = readDeclared(declared, "name");
-  if (typeof name !== "string" || !holdsNothingVisible(name)) return undefined;
+  if (typeof name !== "string") return undefined;
   if (readDeclared(declared, "nameKey") !== undefined) return undefined;
+  const unreadable = refuseUnreadableAuthoredText(name, {
+    named: `${named} name`,
+    maxLength: MAX_BOOK_NAME_LENGTH,
+  });
+  if (unreadable) return unreadable;
+  if (!holdsNothingVisible(name)) return undefined;
   return invalidBook(
     `The ${named} declares a blank "name" and names no "nameKey", so it would render nothing`,
   );

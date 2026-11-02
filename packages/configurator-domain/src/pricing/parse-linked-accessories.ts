@@ -102,7 +102,9 @@ function refuseUnreadableAuthoredWords(
   });
 }
 
-function refuseUnreadableAuthoredText(
+/** An authored text a line can carry: within its bound, with no control, line-breaking, unpaired-surrogate or
+ *  direction-control character, and in NFC. */
+export function refuseUnreadableAuthoredText(
   declared: unknown,
   bound: { readonly named: string; readonly maxLength: number },
 ): PricingFailure | undefined {

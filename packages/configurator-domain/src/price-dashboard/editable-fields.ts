@@ -434,6 +434,14 @@ export function linkedAccessoriesOf(
   return declared.linkedAccessories ?? [];
 }
 
+/** Whether the book states the linked-accessories section at all: one stored before it existed does not, and a creation
+ *  would write a section the version never held. */
+export function statesLinkedAccessories(
+  declared: Partial<Pick<PriceBook, "linkedAccessories">>,
+): boolean {
+  return declared.linkedAccessories !== undefined;
+}
+
 /** The built-ins' field names, then each linked accessory's id in book order. */
 function accessoryIdsOf(book: PriceBook): readonly string[] {
   return [

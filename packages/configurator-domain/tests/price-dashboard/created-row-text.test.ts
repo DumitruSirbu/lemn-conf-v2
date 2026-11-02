@@ -161,6 +161,60 @@ describe("a text may not state an amount, a percentage or an inclusion (ADR 0106
   });
 
   it.each([
+    "20 dolar",
+    "20 DOLARI",
+    "20 GBP",
+    "20 CHF",
+    "CHF 20",
+    "5 mii lei",
+    "2 milioane lei",
+    "5 mii de lei",
+    "500 de lei",
+    "1.000 de lei",
+    "500 de euro",
+    "500-lei",
+    "500/lei",
+    "lei: 500",
+    "lei (500)",
+    "500\u200blei",
+    "500\u2060 lei",
+    "l\u200bei 500",
+  ])(
+    "refuses %j as an amount, whatever stands between its number and unit",
+    (text) => {
+      expect(codeOf(text)).toBe("TEXT_STATES_AN_AMOUNT");
+    },
+  );
+
+  it.each([
+    "10 la sut" + BREVE_A,
+    "zece la sut" + BREVE_A,
+    "ZECE LA SUT" + BREVE_A.toUpperCase(),
+    "douazeci la suta",
+    "dou" + BREVE_A + "zeci la sut" + BREVE_A,
+    "inc\u200blus",
+    "inclu\u00ads",
+    "pro\u200bcent",
+  ])(
+    "refuses %j as a percentage or an inclusion, whatever invisible character it holds",
+    (text) => {
+      expect(codeOf(text)).toBe("TEXT_STATES_AN_AMOUNT");
+    },
+  );
+
+  it.each([
+    "la sut" + BREVE_A,
+    "Sertar la suta",
+    "Sertar 4 de lemn",
+    "Blum 2000 de",
+  ])(
+    "lets %j through: no number or number word states a percentage or an amount",
+    (text) => {
+      expect(codeOf(text)).toBe("ok");
+    },
+  );
+
+  it.each([
     "10%",
     "10 %",
     "%",

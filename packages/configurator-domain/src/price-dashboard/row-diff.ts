@@ -17,7 +17,9 @@ import { linkedAccessoriesOf } from "./editable-fields.js";
 
 // The rows a draft adds and removes, and the words of a created row, as D7 and D8 draw them. Read from two books, so a
 // version compared with its predecessor draws the same rows as a draft compared with the active book. The prices of a
-// created class are the `hardware` field rows beside this one, and a deleted row's rates are field rows that end absent.
+// created class are the `hardware` field rows beside this one, and a deleted row's rates are field rows that end
+// absent: reverting any of them reverts the deletion (`withoutRow`). A linked accessory that now follows another
+// catalogue row has a link row.
 
 /** A side of a text row with no text: a description the row does not state. */
 export interface AbsentText {
@@ -60,7 +62,18 @@ export interface TextDiffRow {
   readonly after: string | AbsentText;
 }
 
-export type StructuralDiffRow = RowDiffRow | TextDiffRow;
+/** The catalogue row a linked accessory follows, where the two books state it differently (A-19). Like a text row it
+ *  holds a side from each book; its address is the accessory's creation, the one change that sets a link. */
+export interface LinkDiffRow {
+  readonly kind: "link";
+  readonly section: "accessories";
+  readonly address: AddressOfKind<"accessory-created">;
+  readonly item: CreatedRowItemRef;
+  readonly before: string;
+  readonly after: string;
+}
+
+export type StructuralDiffRow = RowDiffRow | TextDiffRow | LinkDiffRow;
 
 interface StatedRow {
   readonly item: DeletableItemRef;
@@ -69,7 +82,8 @@ interface StatedRow {
   readonly linkedBuildId?: string;
 }
 
-/** The rows by which `after`'s items differ from `before`'s, created first, then deleted, then reworded. */
+/** The rows by which `after`'s items differ from `before`'s, created first, then deleted, then reworded, then
+ *  relinked. */
 export function structuralRowsOf(
   books: { readonly before: PriceBook; readonly after: PriceBook },
   namedTextKeys: ReadonlySet<string>,
@@ -80,6 +94,7 @@ export function structuralRowsOf(
     ...after.filter((row) => !isStatedIn(before, row.item)).flatMap(createdRow),
     ...before.filter((row) => !isStatedIn(after, row.item)).flatMap(deletedRow),
     ...after.flatMap((row) => textRows(row, before, namedTextKeys)),
+    ...after.flatMap((row) => linkRows(row, before)),
   ];
 }
 
@@ -207,6 +222,30 @@ function textRows(
       },
     ];
   });
+}
+
+function linkRows(
+  after: StatedRow,
+  before: readonly StatedRow[],
+): readonly LinkDiffRow[] {
+  const { item } = after;
+  if (item.kind !== "accessory") return [];
+  const earlier = before.find(
+    (row) => addressKeyOfItem(row.item) === addressKeyOfItem(item),
+  );
+  const was = earlier?.linkedBuildId;
+  const now = after.linkedBuildId;
+  if (was === undefined || now === undefined || was === now) return [];
+  return [
+    {
+      kind: "link",
+      section: "accessories",
+      address: { kind: "accessory-created", accessoryId: item.accessoryId },
+      item,
+      before: was,
+      after: now,
+    },
+  ];
 }
 
 function textOf(
