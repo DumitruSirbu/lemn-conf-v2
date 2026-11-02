@@ -2447,7 +2447,6 @@ export function resolveContent(translate: ContentTranslator) {
       depthOption: (cabinetDepthMm: number) =>
         translate("globalSettings.depthOption", { cabinetDepthMm }),
       depthWarning: translate("globalSettings.depthWarning"),
-      depthNote: translate("globalSettings.depthNote"),
       /** A zero `percent` reads as "the depth does not change the price", not as a surcharge of 0 %. */
       depthNotePriced: (cabinetDepthMm: number, percent: number) =>
         translate("globalSettings.depthNotePriced", {

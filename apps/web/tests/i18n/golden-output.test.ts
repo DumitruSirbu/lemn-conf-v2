@@ -259,7 +259,8 @@ describe("golden-output fixture coverage", () => {
     // Lot 2 U15c: +1 net for `configure.backConfirm.body`, replaced by `.bodyClient` and `.bodyVisitor`.
     // M10 T3b: +1 for `priceBreakdown.depthLineScope`.
     // +2 for `globalSettings.kitchenHandleHeading` and `.kitchenHandleHint`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(263);
+    // M10 T2: -1 for the retired `globalSettings.depthNote`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(262);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
@@ -309,7 +310,8 @@ describe("golden-output fixture coverage", () => {
     // M10 H1: +1 rejection fixture for `UNKNOWN_HANDLE`.
     // M10 T3b: +1 static and +3 function fixtures for the depth line and the priced depth sentence.
     // +2 static fixtures for the whole-kitchen handle row's heading and hint.
-    expect(GOLDEN_FIXTURES).toHaveLength(584);
+    // M10 T2: -1 static fixture for the retired `globalSettings.depthNote`.
+    expect(GOLDEN_FIXTURES).toHaveLength(583);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
