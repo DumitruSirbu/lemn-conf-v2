@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Design } from "../../src/design.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
-import { PALETTE_ENTRY_IDS } from "../../src/materials.js";
+import { PALETTE_ENTRY_IDS, paletteFinish } from "../../src/materials.js";
 import {
   buildIdsPricedAs,
   usageCountOf,
@@ -43,7 +43,6 @@ import {
   linkedRule,
   SUPPLIED_ROW_IDS,
 } from "../support/linked-accessory-books.js";
-import { paletteFinish } from "../../src/materials.js";
 
 const COVER = accessory("sinkProtectiveCover");
 const RACK = accessory("dishDryingRack");
@@ -241,8 +240,13 @@ const aKitchenOfSomePlacements = fc
 
 const aSuppliedRow = fc.constantFrom(...SUPPLIED_ROW_IDS);
 
+/** Runs a sweep must land on each side of an iff before it certifies the side that did not move. */
+const ARM_FLOOR = 10;
+
 describe("a linked accessory is used if and only if a placement is priced as its row (M3-c)", () => {
-  it("holds over any subset of the shipped kitchen's placements and any supplied row", () => {
+  it("holds over any subset of the shipped kitchen's placements and any supplied row, on both arms", () => {
+    const arms = { used: 0, unused: 0 };
+
     fc.assert(
       fc.property(aKitchenOfSomePlacements, aSuppliedRow, (design, row) => {
         const book = bookWithLinked([
@@ -252,10 +256,14 @@ describe("a linked accessory is used if and only if a placement is priced as its
         const expected = design.placements.some(
           (placement) => pricedAsRow(placement.body.buildId) === row,
         );
+        arms[expected ? "used" : "unused"] += 1;
 
         expect(uses(design, accessory("linked"), book)).toBe(expected);
       }),
     );
+
+    expect(arms.used).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(arms.unused).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
   it("counts a seeded body through the row it is priced as", () => {
@@ -291,7 +299,7 @@ describe("a linked accessory is used if and only if a placement is priced as its
   });
 });
 
-describe("buildIdsPricedAs is the set the usage reader's SQL is given (S3)", () => {
+describe("buildIdsPricedAs is the set the usage reader's SQL is given", () => {
   it("is every catalogue id priced as the row, and nothing else, for every supplied row", () => {
     for (const row of SUPPLIED_ROW_IDS) {
       const expected = [...CATALOG.keys()].filter(
@@ -303,7 +311,9 @@ describe("buildIdsPricedAs is the set the usage reader's SQL is given (S3)", () 
     }
   });
 
-  it("agrees with the usage predicate for any subset of placements and any supplied row", () => {
+  it("agrees with the usage predicate for any subset of placements and any supplied row, on both arms", () => {
+    const arms = { used: 0, unused: 0 };
+
     fc.assert(
       fc.property(aKitchenOfSomePlacements, aSuppliedRow, (design, row) => {
         const book = bookWithLinked([
@@ -314,10 +324,14 @@ describe("buildIdsPricedAs is the set the usage reader's SQL is given (S3)", () 
         const bySet = design.placements.some((placement) =>
           ids.has(placement.body.buildId),
         );
+        arms[bySet ? "used" : "unused"] += 1;
 
         expect(bySet).toBe(uses(design, accessory("linked"), book));
       }),
     );
+
+    expect(arms.used).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(arms.unused).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
   it("includes a seeded body that has an equivalent, and is empty for a row the catalogue does not hold", () => {

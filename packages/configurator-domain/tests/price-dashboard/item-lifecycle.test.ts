@@ -69,6 +69,8 @@ const MATERIAL_ITEMS = BOOK.material.tiers.map((tier) => material(tier.tierId));
 const HARDWARE_ITEMS = BOOK.hardware.tiers.map((tier) => hardware(tier.tierId));
 const HANDLE_ITEMS = [handle("steel"), handle("black"), handle("push")];
 const COLOUR_ITEMS = PALETTE_ENTRY_IDS.map(colour);
+/** Runs a sweep must land on each side of an iff before it certifies the side that did not move. */
+const ARM_FLOOR = 10;
 const COVER = accessory("sinkProtectiveCover");
 const BUILT_IN_ACCESSORIES = [COVER, accessory("dishDryingRack")];
 
@@ -103,7 +105,7 @@ const REFUSED_AS_ABSENT = { kind: "refused", code: "item-not-in-active-book" };
 const ALLOWED = { kind: "allowed" };
 
 describe("the refusal codes are the wire's own words", () => {
-  it("names exactly the codes R4a answers", () => {
+  it("names exactly the codes the availability and deletion routes answer", () => {
     expect([...AVAILABILITY_REFUSAL_CODES].sort()).toEqual(
       [
         "item-is-default",
@@ -365,6 +367,70 @@ describe("the last active option of a group cannot be switched off", () => {
   });
 });
 
+describe("the boundary of the last active option, in every group", () => {
+  const defaults = defaultItemsOf({ book: BOOK, defaults: {} });
+  const isNotDefault = (item: ItemRef) =>
+    !defaults.some((candidate) => isSameItem(candidate, item));
+  const GROUPS: readonly (readonly ItemRef[])[] = [
+    MATERIAL_ITEMS,
+    HARDWARE_ITEMS,
+    HANDLE_ITEMS,
+    ...MATERIALS.map((m) =>
+      paletteEntriesOf(m).map((entry) => colour(entry.entryId)),
+    ),
+  ].filter((group) => group.filter(isNotDefault).length >= 2);
+
+  it("has groups to judge, so the boundary below is not vacuous", () => {
+    // materials, hardware classes and PAL's palette: the groups with two options that are not defaults
+    expect(GROUPS.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("allows the switch-off while a second option is on and refuses it once the item stands alone", () => {
+    for (const group of GROUPS) {
+      const [first, second] = group.filter(isNotDefault);
+      if (first === undefined || second === undefined) continue;
+      const withTwoOn = group.filter(
+        (item) => !isSameItem(item, first) && !isSameItem(item, second),
+      );
+      const withOneOn = group.filter((item) => !isSameItem(item, first));
+
+      expect(disable(first, stateOf(withTwoOn)), JSON.stringify(first)).toEqual(
+        ALLOWED,
+      );
+      expect(disable(first, stateOf(withOneOn)), JSON.stringify(first)).toEqual(
+        REFUSED_AS_LAST,
+      );
+    }
+  });
+});
+
+describe("an item the kitchens use may be switched off (owner ruling: disable allowed, delete forbidden)", () => {
+  it("is refused only for the default or the last option, whether or not a kitchen uses it", () => {
+    const design = kitchenNamingEverything();
+    const used = UNIVERSE.filter((item) =>
+      usesItem({ design, item, catalog: CATALOG, book: BOOK }),
+    );
+    const defaults = defaultItemsOf({ book: BOOK, defaults: {} });
+    const usedDefaults = used.filter((item) =>
+      defaults.some((d) => isSameItem(d, item)),
+    );
+    const usedNonDefaults = used.filter(
+      (item) => !defaults.some((d) => isSameItem(d, item)),
+    );
+
+    expect(usedDefaults.length).toBeGreaterThan(0);
+    expect(usedNonDefaults.length).toBeGreaterThan(0);
+    for (const item of usedDefaults) {
+      expect(disable(item, stateOf()), JSON.stringify(item)).toEqual(
+        REFUSED_AS_DEFAULT,
+      );
+    }
+    for (const item of usedNonDefaults) {
+      expect(disable(item, stateOf()), JSON.stringify(item)).toEqual(ALLOWED);
+    }
+  });
+});
+
 describe("switching on, and an item the active book does not state (M3-c)", () => {
   const ABSENT: readonly ItemRef[] = [
     material("material.created-in-the-draft"),
@@ -437,29 +503,45 @@ describe("the options that remain, for the dialogs", () => {
     expect(remainingOptionsIfSwitchedOff(COVER, stateOf())).toEqual([]);
   });
 
-  it("is empty exactly when switching the item off is the last-active refusal", () => {
-    fc.assert(
-      fc.property(
+  it("is empty exactly when switching the item off is the last-active refusal, on both arms", () => {
+    const defaults = defaultItemsOf({ book: BOOK, defaults: {} });
+    const aStateOftenDownToTheItem = fc
+      .tuple(
         fc.subarray([...UNIVERSE]),
         fc.constantFrom(...UNIVERSE),
-        (disabled, item) => {
-          const state = stateOf(disabled);
-          const isOn = !isItemDisabled(state.availability, item);
-          const isEmpty =
-            remainingOptionsIfSwitchedOff(item, state).length === 0;
-          const isGrouped = item.kind !== "accessory";
-          const verdict = disable(item, state);
-          const isLast =
-            verdict.kind === "refused" && verdict.code === "last-active-option";
+        fc.boolean(),
+      )
+      .map(([disabled, item, isGroupDownToItem]): [ItemRef[], ItemRef] => [
+        isGroupDownToItem
+          ? [
+              ...disabled,
+              ...declaredOptionsOfGroupOf(item, BOOK).filter(
+                (option) => !isSameItem(option, item),
+              ),
+            ]
+          : disabled,
+        item,
+      ]);
+    const arms = { last: 0, notLast: 0 };
 
-          const isDefault = defaultItemsOf({ book: BOOK, defaults: {} }).some(
-            (d) => isSameItem(d, item),
-          );
-          if (isDefault) return;
-          expect(isLast).toBe(isOn && isGrouped && isEmpty);
-        },
-      ),
+    fc.assert(
+      fc.property(aStateOftenDownToTheItem, ([disabled, item]) => {
+        const state = stateOf(disabled);
+        const isOn = !isItemDisabled(state.availability, item);
+        const isEmpty = remainingOptionsIfSwitchedOff(item, state).length === 0;
+        const isGrouped = item.kind !== "accessory";
+        const verdict = disable(item, state);
+        const isLast =
+          verdict.kind === "refused" && verdict.code === "last-active-option";
+
+        if (defaults.some((d) => isSameItem(d, item))) return;
+        expect(isLast).toBe(isOn && isGrouped && isEmpty);
+        arms[isLast ? "last" : "notLast"] += 1;
+      }),
     );
+
+    expect(arms.last).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(arms.notLast).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
   it("is what the replacement sheet offers for every tier, handle and colour (one list, not two)", () => {
@@ -553,7 +635,6 @@ describe("deleting an item (M3-a, A-18)", () => {
   const DELETABLE: readonly DeletableItemRef[] = [
     ...MATERIAL_ITEMS,
     ...HARDWARE_ITEMS,
-    ...BUILT_IN_ACCESSORIES,
     accessory("organiser"),
   ].map(deletable);
   const BOOK_WITH_LINKED = bookWithLinked([linkedRule("organiser")]);

@@ -295,7 +295,7 @@ describe("a save of the defaults is judged for the items it names (A-17)", () =>
     }
   });
 
-  it("judges a colour against the fallback material when none is named", () => {
+  it("judges a colour against PAL when no material is named", () => {
     expect(
       judgeKitchenDefaults({ finish: paletteFinish("pal.antracit") }, ALL_ON),
     ).toEqual({ kind: "acceptable" });
@@ -304,6 +304,30 @@ describe("a save of the defaults is judged for the items it names (A-17)", () =>
     ).toEqual({
       kind: "colour-not-in-palette",
     });
+  });
+
+  it("reads the material a colour is judged against the way the stamp does: PAL, not the book's fallback tier", () => {
+    const bookFallingBackToVeneer = {
+      ...BOOK,
+      material: { ...BOOK.material, defaultTierId: "material.veneer" },
+    };
+    const context = {
+      book: bookFallingBackToVeneer,
+      availability: availabilityOf([]),
+    };
+    const palColour = { finish: paletteFinish("pal.alb") };
+    const veneerColour = { finish: paletteFinish("veneer.nuc") };
+
+    expect(judgeKitchenDefaults(palColour, context)).toEqual({
+      kind: "acceptable",
+    });
+    expect(stampedSettingsOf(palColour).finish).toEqual(palColour.finish);
+    expect(judgeKitchenDefaults(veneerColour, context)).toEqual({
+      kind: "colour-not-in-palette",
+    });
+    expect(stampedSettingsOf(veneerColour).finish).toEqual(
+      paletteFinish("pal.alb"),
+    );
   });
 
   it("accepts any free colour under painted MDF, and none of them under the other materials", () => {

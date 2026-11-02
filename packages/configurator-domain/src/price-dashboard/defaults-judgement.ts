@@ -9,6 +9,7 @@ import { DEFAULT_HANDLE, TOP_ROW_HANDLE } from "../kitchen-handle/index.js";
 import type { Handle } from "../design.js";
 import type { NewKitchenSettings } from "../generation/new-kitchen-settings.js";
 import {
+  DEFAULT_MATERIAL_ID,
   lookUpMaterial,
   MATERIALS,
   materialOffersFinish,
@@ -109,6 +110,7 @@ export function withDefaultMaterial(
  * - `acceptable`.
  *
  * Only what the defaults state is judged: a key left out falls back to the fixed fallback, which is never switched off.
+ * A colour with no material named is judged against PAL, the material the stamp and the design's finish check read.
  * A depth nobody manufactures and a document the schema refuses are the stamp's to refuse (`stampedSettingsOf`).
  */
 export type DefaultsJudgement =
@@ -141,13 +143,11 @@ function namedItems(defaults: NewKitchenSettings): readonly ItemRef[] {
 
 function judgeColour(
   defaults: NewKitchenSettings,
-  { book, availability }: ItemGroupContext,
+  { availability }: ItemGroupContext,
 ): DefaultsJudgement {
   const { finish } = defaults;
   if (finish === undefined) return ACCEPTABLE;
-  const lookup = lookUpMaterial(
-    defaults.materialTierId ?? book.material.defaultTierId,
-  );
+  const lookup = lookUpMaterial(defaults.materialTierId ?? DEFAULT_MATERIAL_ID);
   if (
     lookup.kind === "undeclared" ||
     !materialOffersFinish(lookup.material, finish)

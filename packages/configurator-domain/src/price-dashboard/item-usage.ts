@@ -6,7 +6,7 @@
 // the replacement sheet are built from), and an accessory when the kitchen earns it (`earnedAccessoryIds`, the list the
 // price bills and the removal notice names). So "used", "priced" and "must be replaced" cannot drift apart.
 //
-// Counts are an input. The domain reads no store; the reader that counts designs arrives with S3.
+// Counts are an input: the domain reads no store.
 import { pricedAsBuildId } from "../catalog.js";
 import type { Design } from "../design.js";
 import {
@@ -77,7 +77,7 @@ function earnsAccessory(
 /**
  * The catalogue rows whose placements earn a linked accessory: every row priced as `linkedBuildId`, itself included
  * (ADR 0022). A seeded body counts through the row it is priced as and a body with no equivalent through its own id, so
- * this is the set the usage reader's SQL is given, never a hand-kept list (S3). In the catalogue's order.
+ * this is the set the usage reader's SQL is given, never a hand-kept list. In the catalogue's order.
  */
 export function buildIdsPricedAs(
   catalog: BodyCatalog,

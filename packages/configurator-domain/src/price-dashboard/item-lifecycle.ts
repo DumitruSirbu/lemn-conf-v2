@@ -98,7 +98,7 @@ export interface DeletionRequest extends DefaultsContext {
  * not to switch off), then any use. Throws `UsageNotCountedError` when `usage` holds no count for the item, rather than
  * read a missing count as unused.
  *
- * Which kinds a deletion applies to (not a colour, a handle or a built-in accessory) is the draft change's rule, M4's.
+ * Which kinds a deletion applies to (not a colour, a handle or a built-in accessory) is the draft change's rule.
  */
 export function judgeDeletion(request: DeletionRequest): DeletionVerdict {
   if (isDefault(request.item, request)) return refusal("item-is-default");
