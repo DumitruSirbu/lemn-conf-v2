@@ -94,8 +94,8 @@ export interface ItemAvailabilityDesk {
 }
 
 export interface ItemAvailabilityInput {
-  /** What the screen's last whole-state read holds of what is switched off. It seeds the desk, and a later read replaces
-   *  what the desk holds unless it names a revision the desk has already moved on from. */
+  /** What the screen's last whole-state read holds of what is switched off. It seeds the desk, and a later read
+   *  replaces what the desk holds unless it names a revision the desk has already moved on from. */
   readonly observed: CatalogueAvailability;
   /** The active book: its rows are the items, and its tiers are the groups. */
   readonly book: PriceBook;
@@ -253,7 +253,7 @@ export function useItemAvailability({
     [adopt, readAvailabilityAgain],
   );
 
-  /** A saved kitchen has come to use the item since it was counted: no retry changes that, so the block is what is said. */
+  /** A saved kitchen has come to use the item since it was counted: no retry changes that, so the block is said. */
   const settleRefusedDeletion = useCallback(
     (code: DraftChangeRefusalCode, item: DeletableItemRef) => {
       if (code === "ITEM_IN_USE") {

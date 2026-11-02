@@ -48,8 +48,8 @@ vi.mock("@/lib/server/price-stores", () =>
 // turns a request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real
 // `PUT` and `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, and the bodies are the
 // ones the hardware screens send. R4a is not built (no `/api/staff/prices/availability` and no usage route exist, and
-// `draft-address.ts` reads only the applied kinds): a test below marked `it.fails` is a promise of the screens' port that
-// no route keeps yet. It runs and goes red the moment R4a keeps it; R4a flips each to `it`.
+// `draft-address.ts` reads only the applied kinds): a test below marked `it.fails` is a promise of the screens' port
+// that no route keeps yet. It runs and goes red the moment R4a keeps it; R4a flips each to `it`.
 
 let prices: PriceDashboardWorld;
 let cookie: string;

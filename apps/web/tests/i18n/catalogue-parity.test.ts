@@ -22,7 +22,7 @@ function russianPoundIn(argument: string) {
   } as const;
 }
 
-/** A leaf whose Russian `one` arm writes the count as a number without grouping while the Romanian `one` arm says no number. */
+/** A leaf whose Russian `one` arm writes the count as an ungrouped number where the Romanian `one` arm writes none. */
 function russianGroupOffNumberIn(argument: string) {
   return {
     romanianOnly: [],

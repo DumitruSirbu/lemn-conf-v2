@@ -301,7 +301,7 @@ describe("a production build, as the server hands it its page", () => {
           "hardware",
           "publish",
         ]),
-        page: hardwarePageOf(),
+        page: productionPageOf(),
       }),
       "ro",
     );

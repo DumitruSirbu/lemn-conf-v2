@@ -44,8 +44,8 @@ export const UNAVAILABLE_ITEM_LIFECYCLE_CLIENT: ItemLifecycleClient = {
   readAvailability: () => Promise.resolve(undefined),
 };
 
-/** A client loaded by its first call, so the module behind `load` is fetched only if something is asked. It stands for a
- *  client that writes: a loader of one that does not is the unavailable client itself, which is not loaded lazily. */
+/** A client loaded by its first call, so the module behind `load` is fetched only if something is asked. It stands for
+ *  a client that writes: one that does not is the unavailable client, which is never loaded lazily. */
 export function lazyItemLifecycleClient(
   load: () => Promise<ItemLifecycleClient>,
 ): ItemLifecycleClient {
