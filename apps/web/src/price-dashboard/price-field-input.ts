@@ -2,11 +2,13 @@ import {
   MAX_BULK_PERCENT,
   MAX_DEEP_CABINET_PERCENT,
   MIN_BULK_PERCENT,
+  TEN_LEI_MINOR,
 } from "@lemnaria/configurator-domain";
 
 // What a person types into a price or a percentage field, read before anything is sent. A value that is not one of these
 // is never sent: the field says why, in the words of `priceDashboard.errors` and `priceDashboard.bulk`, and stays where
-// it is. No float is parsed: an amount is whole bani counted from the digits, and a percentage is whole.
+// it is. No float is parsed: an amount is whole bani counted from the digits, and a percentage is whole. A price is set
+// in whole tens of lei (ADR 0001, 2026-10-28 amendment): any other amount is refused, never rounded to one.
 
 const BANI_PER_LEU = 100;
 const DECIMAL_PLACES = 2;
@@ -22,13 +24,14 @@ export type LeiInputRefusal =
   | "notNumber"
   | "negative"
   | "tooManyDecimals"
+  | "notMultipleOfTen"
   | "tooBig";
 
 export type LeiInputReading =
   | { readonly kind: "amount"; readonly minor: number }
   | { readonly kind: "refused"; readonly refusal: LeiInputRefusal };
 
-/** An amount in lei, with a comma or a point before at most two decimals ("450", "450,5", "450,25"), as whole bani. */
+/** An amount in lei (a comma or a point before at most two decimals) as whole bani; only a multiple of 10 lei. */
 export function readLeiInput(text: string): LeiInputReading {
   const typed = text.replace(WHITESPACE, "");
   if (typed === "") return refusedLei("empty");
@@ -43,9 +46,10 @@ export function readLeiInput(text: string): LeiInputReading {
   const minor =
     Number.parseInt(wholeLei, 10) * BANI_PER_LEU +
     Number.parseInt(decimals.padEnd(DECIMAL_PLACES, "0"), 10);
-  return Number.isSafeInteger(minor)
+  if (!Number.isSafeInteger(minor)) return refusedLei("tooBig");
+  return minor % TEN_LEI_MINOR === 0
     ? { kind: "amount", minor }
-    : refusedLei("tooBig");
+    : refusedLei("notMultipleOfTen");
 }
 
 function refusedLei(refusal: LeiInputRefusal): LeiInputReading {

@@ -19,15 +19,15 @@ const NBSP = " ";
 
 describe("an amount in lei", () => {
   it.each([
+    ["10", 1_000],
+    ["100", 10_000],
     ["450", 45_000],
-    ["450,5", 45_050],
-    ["450,25", 45_025],
-    ["450.25", 45_025],
     ["450,", 45_000],
+    ["450,00", 45_000],
+    ["450.0", 45_000],
     ["0", 0],
-    ["0,05", 5],
-    ["007", 700],
-    [`1${NBSP}450,25`, 145_025],
+    ["010", 1_000],
+    [`1${NBSP}450`, 145_000],
     [" 1 450 ", 145_000],
   ])("reads %j as %i bani", (typed, minor) => {
     expect(readLeiInput(typed)).toEqual({ kind: "amount", minor });
@@ -43,14 +43,33 @@ describe("an amount in lei", () => {
     [",5", "notNumber"],
     ["1e3", "notNumber"],
     ["450,255", "tooManyDecimals"],
+    ["15", "notMultipleOfTen"],
+    ["1", "notMultipleOfTen"],
+    ["100,50", "notMultipleOfTen"],
+    ["100.50", "notMultipleOfTen"],
+    ["450,5", "notMultipleOfTen"],
+    ["450,25", "notMultipleOfTen"],
+    ["0,05", "notMultipleOfTen"],
+    [`1${NBSP}455`, "notMultipleOfTen"],
     ["9".repeat(14), "tooBig"],
     ["9".repeat(40), "tooBig"],
   ])("refuses %j as %s", (typed, refusal) => {
     expect(readLeiInput(typed)).toEqual({ kind: "refused", refusal });
   });
 
-  it("reads the same bani whatever the grouping spaces, for every whole-lei amount in a sweep", () => {
-    for (let lei = 0; lei <= 200_000; lei += 997) {
+  it("accepts exactly the amounts that are whole tens of lei, for every bani count in a sweep", () => {
+    for (let bani = 0; bani <= 5_000; bani += 1) {
+      const typed = `${String(Math.floor(bani / 100))},${String(bani % 100).padStart(2, "0")}`;
+      const isWholeTensOfLei = bani % 1_000 === 0;
+
+      expect(readLeiInput(typed).kind).toBe(
+        isWholeTensOfLei ? "amount" : "refused",
+      );
+    }
+  });
+
+  it("reads the same bani whatever the grouping spaces, for every multiple of 10 lei in a sweep", () => {
+    for (let lei = 0; lei <= 200_000; lei += 9_970) {
       const grouped = String(lei).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
 
       expect(readLeiInput(grouped)).toEqual({

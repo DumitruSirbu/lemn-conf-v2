@@ -229,7 +229,7 @@ describe("the price at the default size, in the table (frame D2C)", () => {
     const { container, server } = await mount();
     const input = openPriceField(container, BASE_CABINET_RULE);
 
-    typeInto(input, "4 500,50");
+    typeInto(input, "4 500");
     await press(input, "Enter");
 
     expect(server.calls).toEqual([
@@ -243,12 +243,32 @@ describe("the price at the default size, in the table (frame D2C)", () => {
               ruleId: BASE_CABINET_RULE,
               field: "anchorMinor",
             },
-            value: 450_050,
+            value: 450_000,
           },
         },
       },
     ]);
   });
+
+  it.each([
+    ["10", 1_000],
+    ["100", 10_000],
+  ])(
+    "sends %j lei as %i bani: a whole ten of lei is accepted",
+    async (typed, minor) => {
+      const { container, server } = await mount();
+      const input = openPriceField(container, BASE_CABINET_RULE);
+
+      typeInto(input, typed);
+      await press(input, "Enter");
+
+      expect(server.calls.map((call) => call.kind)).toEqual(["change"]);
+      expect(server.calls[0]).toMatchObject({
+        request: { change: { value: minor } },
+      });
+      expect(input.isConnected).toBe(false);
+    },
+  );
 
   it("shows the saved price as pending with the active one beside it, never as live, and counts it in the frame", async () => {
     const { container, server } = await mount();
@@ -341,6 +361,18 @@ describe("the price at the default size, in the table (frame D2C)", () => {
       roCopy("priceDashboard.errors.tooManyDecimals", { example: "450,25" }),
     ],
     ["9".repeat(30), COPY.errors.tooBig],
+    [
+      "15",
+      roCopy("priceDashboard.errors.notMultipleOfTen", { example: "450" }),
+    ],
+    [
+      "100.50",
+      roCopy("priceDashboard.errors.notMultipleOfTen", { example: "450" }),
+    ],
+    [
+      "4 505",
+      roCopy("priceDashboard.errors.notMultipleOfTen", { example: "450" }),
+    ],
   ])("a value typed as %j", (typed, sentence) => {
     it("is never sent: the field keeps it, is invalid, and names the reason in an alert it is tied to", async () => {
       const { container, server } = await mount();
