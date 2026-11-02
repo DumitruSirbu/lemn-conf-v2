@@ -243,7 +243,7 @@ export function buildableHeightsMm(row: PricedRow): readonly number[] {
  * The height a body of this row stands at: the one it declares, else, for the structural base and wall corners (which
  * declare none), the one every insertable row of its band shares. `undefined` where neither says.
  */
-export function declaredHeightMmOf(
+export function standingHeightMmOf(
   catalog: BodyCatalog,
   row: PricedRow,
 ): number | undefined {

@@ -52,7 +52,7 @@ export {
 } from "./cabinet-preview.js";
 export {
   buildableHeightsMm,
-  declaredHeightMmOf,
+  standingHeightMmOf,
   displayEntryOf,
   NO_DECLARED_HEIGHT_MM,
   pricedRowOf,

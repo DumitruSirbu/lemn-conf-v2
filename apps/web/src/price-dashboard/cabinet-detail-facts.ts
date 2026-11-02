@@ -1,7 +1,7 @@
 import {
   buildableHeightsMm,
   countHardwareMechanisms,
-  declaredHeightMmOf,
+  standingHeightMmOf,
   declaresASink,
   DEFAULT_CABINET_DEPTH_MM,
   DEEP_CABINET_DEPTH_MM,
@@ -225,7 +225,7 @@ function heightOf(
   row: PricedRow,
   catalog: BodyCatalog,
 ): DetailHeight | undefined {
-  const declaredMm = declaredHeightMmOf(catalog, row);
+  const declaredMm = standingHeightMmOf(catalog, row);
   if (declaredMm === undefined) return undefined;
   if (row.definition.heightFlex !== true) {
     return { kind: "fixed", heightMm: declaredMm };

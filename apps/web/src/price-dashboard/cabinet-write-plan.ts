@@ -25,7 +25,8 @@ export interface PlannedWrite {
 /**
  * The writes a Save sends, one per changed field. The draft takes one change per write and the server does not judge a
  * half of two changes, so a write that fails part-way leaves the draft holding the writes before it. Each write is taken
- * from the first remaining one that keeps every price of the rule above zero, so that draft can always be published.
+ * from the first remaining one that keeps every price of the rule above zero, so that draft can be published wherever
+ * such a write remains.
  */
 export function plannedWritesOf(
   candidate: PriceBook,

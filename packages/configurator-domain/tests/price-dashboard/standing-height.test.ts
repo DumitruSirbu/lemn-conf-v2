@@ -1,11 +1,11 @@
-// The height a cabinet's page states for a row (`declaredHeightMmOf`) and the height the preview reads a cabinet at when
+// The height a cabinet's page states for a row (`standingHeightMmOf`) and the height the preview reads a cabinet at when
 // none is asked for (`defaultReadHeightMmOf`), each from one place.
 import { describe, expect, it } from "vitest";
 
 import { defaultReadHeightMmOf } from "../../src/price-dashboard/cabinet-preview.js";
 import {
   buildableHeightsMm,
-  declaredHeightMmOf,
+  standingHeightMmOf,
   listPricedRows,
   pricedRowOf,
 } from "../../src/price-dashboard/priced-row.js";
@@ -31,7 +31,7 @@ describe("the height a row stands at", () => {
   ])(
     "gives the structural corner %s the height the rows of its band stand at",
     (buildId, heightMm) => {
-      expect(declaredHeightMmOf(CATALOG, rowOf(buildId))).toBe(heightMm);
+      expect(standingHeightMmOf(CATALOG, rowOf(buildId))).toBe(heightMm);
     },
   );
 
@@ -39,7 +39,7 @@ describe("the height a row stands at", () => {
     const rows = listPricedRows(CATALOG);
 
     const unheld = rows.filter(
-      (row) => declaredHeightMmOf(CATALOG, row) === undefined,
+      (row) => standingHeightMmOf(CATALOG, row) === undefined,
     );
 
     expect(rows.length).toBeGreaterThan(20);
@@ -47,8 +47,8 @@ describe("the height a row stands at", () => {
   });
 
   it("answers a row's own declared height before its band's", () => {
-    expect(declaredHeightMmOf(CATALOG, rowOf("tall-pantry"))).toBe(2200);
-    expect(declaredHeightMmOf(CATALOG, rowOf("fridge-free"))).toBe(1850);
+    expect(standingHeightMmOf(CATALOG, rowOf("tall-pantry"))).toBe(2200);
+    expect(standingHeightMmOf(CATALOG, rowOf("fridge-free"))).toBe(1850);
   });
 
   it("states no height for a corner whose band's rows do not share one (a control: the band's height is read, not named)", () => {
@@ -62,8 +62,8 @@ describe("the height a row stands at", () => {
       ],
     ]);
 
-    expect(declaredHeightMmOf(CATALOG, corner)).toBe(860);
-    expect(declaredHeightMmOf(disagreeing, corner)).toBeUndefined();
+    expect(standingHeightMmOf(CATALOG, corner)).toBe(860);
+    expect(standingHeightMmOf(disagreeing, corner)).toBeUndefined();
   });
 });
 
