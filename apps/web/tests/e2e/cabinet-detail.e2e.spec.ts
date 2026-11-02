@@ -65,6 +65,7 @@ import {
   priceRateLimitKeysOf,
   test,
 } from "./support/price-dashboard-session";
+import { holdPriceDraft, releasePriceDraft } from "./support/price-draft-lock";
 import { shootForReview } from "./support/staff-pages";
 import {
   NOTHING_LEFT,
@@ -78,16 +79,21 @@ const PHONE = { width: 390, height: 844 } as const;
 const TYPED_ANCHOR = "3970";
 const TEN_LEI = 10;
 
+/** A spec file waits here for the files that hold the one price draft before it, and each takes under two minutes. */
+const FILES_TAKE_TURNS_MS = 600_000;
+
 let signedIn: SignedInAdministrator;
 let rateLimitKeys: readonly string[] = [];
 
 test.beforeAll(async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(FILES_TAKE_TURNS_MS);
+  await holdPriceDraft();
   signedIn = await plantSignedInAdministrator();
   rateLimitKeys = priceRateLimitKeysOf(signedIn);
 });
 
 test.afterAll(async () => {
+  releasePriceDraft();
   const scope = { rateLimitKeys };
   const removed = await removeStaffFixturesForTests(signedIn.marker, scope);
   const left = await countStaffFixturesForTests(signedIn.marker, scope);
@@ -1127,18 +1133,20 @@ test.describe("the cabinet's page at phone 390", () => {
       await shootForReview(page, "390-d3m2-last-field-focused");
     });
 
-    test("a field scrolled to the foot of the screen and then focused is not left under the sticky Save bar", async ({
+    test("Tab onto a field that sits at the foot of the screen does not leave it under the sticky Save bar", async ({
       page,
     }) => {
       await openCabinet(page, WALL_CABINET);
       await priceFieldOf(page, PLUS_LABEL).fill("160");
       const last = priceFieldOf(page, HEIGHT_LABEL);
 
+      await priceFieldOf(page, doorLabel(500)).focus();
       await last.evaluate((element) => {
         const rect = element.getBoundingClientRect();
         window.scrollBy(0, rect.bottom - window.innerHeight + 4);
       });
-      await last.focus();
+      await page.keyboard.press("Tab");
+      await expect(last, "Tab goes on to the height step").toBeFocused();
       await page.waitForTimeout(SETTLE_MS);
 
       expect(
@@ -1203,13 +1211,16 @@ test.describe("the cabinet's page at phone 390", () => {
       await page.waitForTimeout(SETTLE_MS);
       await shootForReview(page, "768-list-field-open");
 
+      await expect(
+        field,
+        "the field is still there to be tapped",
+      ).toBeVisible();
       const box = await field.boundingBox();
-      if (box !== null) {
-        await page.touchscreen.tap(
-          box.x + box.width / 2,
-          box.y + box.height / 2,
-        );
-      }
+      expect(box, "the field has a box").not.toBeNull();
+      await page.touchscreen.tap(
+        (box?.x ?? 0) + (box?.width ?? 0) / 2,
+        (box?.y ?? 0) + (box?.height ?? 0) / 2,
+      );
       await page.waitForTimeout(SETTLE_MS);
 
       await expect(

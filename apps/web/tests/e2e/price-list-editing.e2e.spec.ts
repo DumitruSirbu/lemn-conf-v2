@@ -25,6 +25,7 @@ import {
   STATE_ROUTE,
   test,
 } from "./support/price-dashboard-session";
+import { holdPriceDraft, releasePriceDraft } from "./support/price-draft-lock";
 import { shootForReview } from "./support/staff-pages";
 import {
   NOTHING_LEFT,
@@ -54,16 +55,21 @@ const VIEWPORTS = [
   },
 ] as const;
 
+/** A spec file waits here for the files that hold the one price draft before it, and each takes under two minutes. */
+const FILES_TAKE_TURNS_MS = 600_000;
+
 let signedIn: SignedInAdministrator;
 let rateLimitKeys: readonly string[] = [];
 
 test.beforeAll(async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(FILES_TAKE_TURNS_MS);
+  await holdPriceDraft();
   signedIn = await plantSignedInAdministrator();
   rateLimitKeys = priceRateLimitKeysOf(signedIn);
 });
 
 test.afterAll(async () => {
+  releasePriceDraft();
   const scope = { rateLimitKeys };
   const removed = await removeStaffFixturesForTests(signedIn.marker, scope);
   const left = await countStaffFixturesForTests(signedIn.marker, scope);
