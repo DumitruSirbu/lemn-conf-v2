@@ -273,7 +273,7 @@ function expectNoGroupEmptyAndNoDefaultOff(model: Model): void {
     expect(isOn(model.disabled, item), JSON.stringify(item)).toBe(true);
   }
   for (const item of UNIVERSE.filter((candidate) =>
-    isFixedDefault(candidate, model.defaults),
+    isDefault(candidate, model.defaults),
   )) {
     expect(isOn(model.disabled, item), JSON.stringify(item)).toBe(true);
   }
@@ -333,15 +333,21 @@ describe("a mixed sequence of dashboard operations, each judged as the route wou
 // An exhaustive sweep of the verdict over every group and every set of its other members being off.
 // ---------------------------------------------------------------------------------------------------------------
 
-/** What the default rule says, by hand: the fallbacks, what D9 names, the slot handles, each material's own colour. */
-function isFixedDefault(item: ItemRef, defaults: NewKitchenSettings): boolean {
-  const named: ItemRef[] = [
+/** What the fixed-default rule says, by hand: the fallbacks, the slot handles, each material's own colour. */
+function isFixed(item: ItemRef): boolean {
+  return [
     material(BOOK.material.defaultTierId),
     hardware(BOOK.hardware.defaultTierId),
     handle("steel"),
     handle("push"),
     colour("pal.alb"),
     colour("veneer.stejar"),
+  ].some((candidate) => isSameItem(candidate, item));
+}
+
+/** What D9 names, by hand. */
+function isNamedByD9(item: ItemRef, defaults: NewKitchenSettings): boolean {
+  const named: ItemRef[] = [
     ...(defaults.materialTierId ? [material(defaults.materialTierId)] : []),
     ...(defaults.hardwareTierId ? [hardware(defaults.hardwareTierId)] : []),
     ...(defaults.handle ? [handle(defaults.handle)] : []),
@@ -351,6 +357,10 @@ function isFixedDefault(item: ItemRef, defaults: NewKitchenSettings): boolean {
       : []),
   ];
   return named.some((candidate) => isSameItem(candidate, item));
+}
+
+function isDefault(item: ItemRef, defaults: NewKitchenSettings): boolean {
+  return isFixed(item) || isNamedByD9(item, defaults);
 }
 
 function everySubsetOf<Item>(
@@ -371,7 +381,7 @@ const D9_VARIANTS: readonly NewKitchenSettings[] = [
 
 describe("over every group, every set of its other members being off, and every D9, the verdict is the one the rules give", () => {
   it.each(GROUPS.map((group, index) => [index, group] as const))(
-    "group %i: default first, then the last on, otherwise allowed",
+    "group %i: the last on first, then fixed, then D9's, otherwise allowed",
     (_, group) => {
       let judged = 0;
       for (const defaults of D9_VARIANTS) {
@@ -383,11 +393,13 @@ describe("over every group, every set of its other members being off, and every 
               stateOf(off, defaults),
             );
             const allOthersOff = off.length === others.length;
-            const expected = isFixedDefault(item, defaults)
-              ? { kind: "refused", code: "item-is-default" }
-              : allOthersOff
-                ? { kind: "refused", code: "last-active-option" }
-                : { kind: "allowed" };
+            const expected = allOthersOff
+              ? { kind: "refused", code: "last-active-option" }
+              : isFixed(item)
+                ? { kind: "refused", code: "item-is-fixed-default" }
+                : isNamedByD9(item, defaults)
+                  ? { kind: "refused", code: "item-is-default" }
+                  : { kind: "allowed" };
             expect(
               verdict,
               `${JSON.stringify(item)} off=${String(off.length)}`,
@@ -400,8 +412,9 @@ describe("over every group, every set of its other members being off, and every 
     },
   );
 
-  it("reaches the last-active refusal in the shipped book only from a state where the default is already off", () => {
+  it("answers last-active-option for a default too, when it is the only one of its group left on", () => {
     let lastActive = 0;
+    let defaultsAmongThem = 0;
     for (const group of GROUPS) {
       for (const item of group) {
         const others = group.filter((member) => !isSameItem(member, item));
@@ -409,21 +422,21 @@ describe("over every group, every set of its other members being off, and every 
           { item, active: false },
           stateOf(others),
         );
-        if (
-          verdict.kind === "refused" &&
-          verdict.code === "last-active-option"
-        ) {
-          lastActive += 1;
-          expect(isFixedDefault(item, {})).toBe(false);
-        }
+        expect(verdict, JSON.stringify(item)).toEqual({
+          kind: "refused",
+          code: "last-active-option",
+        });
+        lastActive += 1;
+        defaultsAmongThem += isDefault(item, {}) ? 1 : 0;
       }
     }
     expect(lastActive).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(defaultsAmongThem).toBeGreaterThanOrEqual(GROUPS.length);
   });
 
-  it("is told to pick another default, not to keep one active, when the default is the only one left on", () => {
+  it("is told to keep one active, not that it is the default, when the default is the only one left on", () => {
     for (const group of GROUPS) {
-      const defaultMember = group.find((member) => isFixedDefault(member, {}));
+      const defaultMember = group.find((member) => isDefault(member, {}));
       if (defaultMember === undefined) continue;
       const others = group.filter(
         (member) => !isSameItem(member, defaultMember),
@@ -434,7 +447,7 @@ describe("over every group, every set of its other members being off, and every 
           { item: defaultMember, active: false },
           stateOf(others),
         ),
-      ).toEqual({ kind: "refused", code: "item-is-default" });
+      ).toEqual({ kind: "refused", code: "last-active-option" });
     }
   });
 
@@ -475,13 +488,13 @@ describe("the defaults follow the book and D9 that are asked, not constants", ()
         { item: material("material.veneer"), active: false },
         stateOf([], {}, book),
       ),
-    ).toEqual({ kind: "refused", code: "item-is-default" });
+    ).toEqual({ kind: "refused", code: "item-is-fixed-default" });
     expect(
       judgeAvailabilityChange(
         { item: hardware("hardware.premium"), active: false },
         stateOf([], {}, book),
       ),
-    ).toEqual({ kind: "refused", code: "item-is-default" });
+    ).toEqual({ kind: "refused", code: "item-is-fixed-default" });
     expect(
       judgeAvailabilityChange(
         { item: material("material.melamine"), active: false },
@@ -712,7 +725,7 @@ describe("an item absent from the active book is refused, switched on or off, wh
 // Deletion.
 // ---------------------------------------------------------------------------------------------------------------
 
-describe("a deletion is judged by default first, then by use, and a missing count is never read as unused", () => {
+describe("a deletion is judged by default (fixed named as fixed) first, then by use, and a missing count is never read as unused", () => {
   const DELETABLE: readonly DeletableItemRef[] = [
     ...MATERIAL_ITEMS,
     ...HARDWARE_ITEMS,
@@ -738,7 +751,7 @@ describe("a deletion is judged by default first, then by use, and a missing coun
   }
 
   it("count 0 allows, count 1 refuses as in use, for every non-default deletable item", () => {
-    const nonDefaults = DELETABLE.filter((item) => !isFixedDefault(item, {}));
+    const nonDefaults = DELETABLE.filter((item) => !isDefault(item, {}));
 
     expect(nonDefaults.length).toBeGreaterThan(0);
     for (const item of nonDefaults) {
@@ -753,12 +766,12 @@ describe("a deletion is judged by default first, then by use, and a missing coun
     }
   });
 
-  it("throws for a missing count on a non-default item, and refuses a default as the default without needing one", () => {
+  it("throws for a missing count on a non-default item, and refuses a fixed default without needing one", () => {
     for (const item of DELETABLE) {
-      if (isFixedDefault(item, {})) {
+      if (isDefault(item, {})) {
         expect(judgeDeletion(request(item, undefined))).toEqual({
           kind: "refused",
-          code: "item-is-default",
+          code: "item-is-fixed-default",
         });
       } else {
         expect(
@@ -769,14 +782,14 @@ describe("a deletion is judged by default first, then by use, and a missing coun
     }
   });
 
-  it("tells a default it is the default, not that it is in use, however many kitchens use it", () => {
+  it("tells a fixed default it is the default, not that it is in use, however many kitchens use it", () => {
     for (const item of DELETABLE.filter((candidate) =>
-      isFixedDefault(candidate, {}),
+      isDefault(candidate, {}),
     )) {
       for (const designCount of [0, 1, 40]) {
         expect(judgeDeletion(request(item, designCount))).toEqual({
           kind: "refused",
-          code: "item-is-default",
+          code: "item-is-fixed-default",
         });
       }
     }
@@ -797,7 +810,7 @@ describe("a deletion is judged by default first, then by use, and a missing coun
 
   it("refuses a count that is not a number of designs, whatever the item", () => {
     const item = elementAt(
-      DELETABLE.filter((candidate) => !isFixedDefault(candidate, {})),
+      DELETABLE.filter((candidate) => !isDefault(candidate, {})),
       0,
     );
 

@@ -100,6 +100,7 @@ function enable(item: ItemRef, state: AvailabilityState) {
 }
 
 const REFUSED_AS_DEFAULT = { kind: "refused", code: "item-is-default" };
+const REFUSED_AS_FIXED = { kind: "refused", code: "item-is-fixed-default" };
 const REFUSED_AS_LAST = { kind: "refused", code: "last-active-option" };
 const REFUSED_AS_ABSENT = { kind: "refused", code: "item-not-in-active-book" };
 const ALLOWED = { kind: "allowed" };
@@ -109,17 +110,18 @@ describe("the refusal codes are the wire's own words", () => {
     expect([...AVAILABILITY_REFUSAL_CODES].sort()).toEqual(
       [
         "item-is-default",
+        "item-is-fixed-default",
         "item-not-in-active-book",
         "last-active-option",
       ].sort(),
     );
     expect([...DELETION_REFUSAL_CODES].sort()).toEqual(
-      ["item-in-use", "item-is-default"].sort(),
+      ["item-in-use", "item-is-default", "item-is-fixed-default"].sort(),
     );
   });
 });
 
-describe("the default item cannot be switched off", () => {
+describe("a default item cannot be switched off, and a fixed one is told apart from one D9 names", () => {
   const FIXED_DEFAULTS: readonly [string, ItemRef][] = [
     ["PAL, the book's fallback material", PAL],
     ["Standard, the book's fallback hardware class", STANDARD],
@@ -137,10 +139,13 @@ describe("the default item cannot be switched off", () => {
     ),
   ];
 
-  it.each(FIXED_DEFAULTS)("refuses %s, with nothing saved in D9", (_, item) => {
-    expect(disable(item, stateOf())).toEqual(REFUSED_AS_DEFAULT);
-    expect(canDisable(item, stateOf())).toBe(false);
-  });
+  it.each(FIXED_DEFAULTS)(
+    "refuses %s as fixed, with nothing saved in D9",
+    (_, item) => {
+      expect(disable(item, stateOf())).toEqual(REFUSED_AS_FIXED);
+      expect(canDisable(item, stateOf())).toBe(false);
+    },
+  );
 
   it("covers a free-colour default by naming no item for it: MDF's default colour is not a switchable item", () => {
     const mdf = MATERIALS.find(
@@ -166,14 +171,33 @@ describe("the default item cannot be switched off", () => {
     hardware("hardware.premium"),
     colour("veneer.nuc"),
     handle("black"),
-  ])("refuses %j once D9 names it", (item) => {
-    expect(disable(item, stateOf([], D9))).toEqual(REFUSED_AS_DEFAULT);
-    expect(disable(item, stateOf([], {}))).toEqual(ALLOWED);
+  ])(
+    "refuses %j as a default once D9 names it, and allows it when D9 does not",
+    (item) => {
+      expect(disable(item, stateOf([], D9))).toEqual(REFUSED_AS_DEFAULT);
+      expect(disable(item, stateOf([], {}))).toEqual(ALLOWED);
+    },
+  );
+
+  it("still refuses PAL and Standard as fixed when D9 names other tiers", () => {
+    expect(disable(PAL, stateOf([], D9))).toEqual(REFUSED_AS_FIXED);
+    expect(disable(STANDARD, stateOf([], D9))).toEqual(REFUSED_AS_FIXED);
   });
 
-  it("still refuses PAL and Standard when D9 names other tiers", () => {
-    expect(disable(PAL, stateOf([], D9))).toEqual(REFUSED_AS_DEFAULT);
-    expect(disable(STANDARD, stateOf([], D9))).toEqual(REFUSED_AS_DEFAULT);
+  it("answers an item that is both fixed and named by D9 as fixed, since moving D9 would not release it", () => {
+    const d9NamingFixedItems: NewKitchenSettings = {
+      materialTierId: BOOK.material.defaultTierId,
+      hardwareTierId: BOOK.hardware.defaultTierId,
+      finish: paletteFinish("pal.alb"),
+      handle: DEFAULT_HANDLE,
+      topRowHandle: TOP_ROW_HANDLE,
+    };
+
+    for (const [, item] of FIXED_DEFAULTS) {
+      expect(disable(item, stateOf([], d9NamingFixedItems))).toEqual(
+        REFUSED_AS_FIXED,
+      );
+    }
   });
 
   it("allows an item that is not a default while others in its group are on", () => {
@@ -190,7 +214,7 @@ describe("the default item cannot be switched off", () => {
     }
   });
 
-  it("holds for any item the defaults name, in any availability, however the rest is switched", () => {
+  it("refuses any default in any availability: the last on is told so, else fixed or D9 by which it is", () => {
     const anItemList = fc.subarray([...UNIVERSE]);
     const someDefaults = fc.record(
       {
@@ -207,14 +231,37 @@ describe("the default item cannot be switched off", () => {
       { requiredKeys: [] },
     );
 
+    const isFixed = (item: ItemRef) =>
+      FIXED_DEFAULTS.some(([, fixed]) => isSameItem(fixed, item));
+    const arms = { last: 0, fixed: 0, saved: 0 };
+
     fc.assert(
       fc.property(anItemList, someDefaults, (disabled, defaults) => {
         const state = stateOf(disabled, defaults);
         for (const item of defaultItemsOf({ book: BOOK, defaults })) {
-          expect(disable(item, state)).toEqual(REFUSED_AS_DEFAULT);
+          const isLast =
+            !isItemDisabled(state.availability, item) &&
+            declaredOptionsOfGroupOf(item, BOOK).every(
+              (option) =>
+                isSameItem(option, item) ||
+                isItemDisabled(state.availability, option),
+            );
+          const arm = isLast ? "last" : isFixed(item) ? "fixed" : "saved";
+          const expected = {
+            last: REFUSED_AS_LAST,
+            fixed: REFUSED_AS_FIXED,
+            saved: REFUSED_AS_DEFAULT,
+          }[arm];
+
+          expect(disable(item, state), JSON.stringify(item)).toEqual(expected);
+          arms[arm] += 1;
         }
       }),
     );
+
+    expect(arms.last).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(arms.fixed).toBeGreaterThanOrEqual(ARM_FLOOR);
+    expect(arms.saved).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 });
 
@@ -284,7 +331,7 @@ describe("the last active option of a group cannot be switched off", () => {
     );
   });
 
-  it("is judged after the default: the default that is also the last on is told it is the default", () => {
+  it("is judged before the default: the fixed default that is also the last on is told to keep one active (D5G)", () => {
     const palettePalOff = COLOUR_ITEMS.filter(
       (item) =>
         item.kind === "finish" &&
@@ -293,8 +340,33 @@ describe("the last active option of a group cannot be switched off", () => {
     );
 
     expect(disable(colour("pal.alb"), stateOf(palettePalOff))).toEqual(
-      REFUSED_AS_DEFAULT,
+      REFUSED_AS_LAST,
     );
+  });
+
+  it("answers last-active-option for veneer's default wood once the other wood is off (D5G's example)", () => {
+    expect(
+      disable(colour("veneer.stejar"), stateOf([colour("veneer.nuc")])),
+    ).toEqual(REFUSED_AS_LAST);
+  });
+
+  it("answers last-active-option for the only hardware class left on, though it is the fallback class", () => {
+    const others = HARDWARE_ITEMS.filter((item) => !isSameItem(item, STANDARD));
+
+    expect(disable(STANDARD, stateOf(others))).toEqual(REFUSED_AS_LAST);
+  });
+
+  it("answers last-active-option for a tier D9 names when it is the only one left on", () => {
+    const others = MATERIAL_ITEMS.filter(
+      (item) => !isSameItem(item, material("material.veneer")),
+    );
+
+    expect(
+      disable(
+        material("material.veneer"),
+        stateOf(others, { materialTierId: "material.veneer" }),
+      ),
+    ).toEqual(REFUSED_AS_LAST);
   });
 
   it("allows switching off an item that is already off, even in a group with nothing on", () => {
@@ -405,7 +477,7 @@ describe("the boundary of the last active option, in every group", () => {
 });
 
 describe("an item the kitchens use may be switched off (owner ruling: disable allowed, delete forbidden)", () => {
-  it("is refused only for the default or the last option, whether or not a kitchen uses it", () => {
+  it("is refused only for a default or the last option, whether or not a kitchen uses it", () => {
     const design = kitchenNamingEverything();
     const used = UNIVERSE.filter((item) =>
       usesItem({ design, item, catalog: CATALOG, book: BOOK }),
@@ -422,7 +494,7 @@ describe("an item the kitchens use may be switched off (owner ruling: disable al
     expect(usedNonDefaults.length).toBeGreaterThan(0);
     for (const item of usedDefaults) {
       expect(disable(item, stateOf()), JSON.stringify(item)).toEqual(
-        REFUSED_AS_DEFAULT,
+        REFUSED_AS_FIXED,
       );
     }
     for (const item of usedNonDefaults) {
@@ -671,16 +743,25 @@ describe("deleting an item (M3-a, A-18)", () => {
     }
   });
 
-  it("refuses the default whether it is used or not, and says it is the default", () => {
+  it("refuses a default whether it is used or not, naming a fixed one as fixed and one D9 names as the default", () => {
     for (const designCount of [0, 23]) {
-      expect(verdictOf(PAL, designCount)).toEqual(REFUSED_AS_DEFAULT);
-      expect(verdictOf(STANDARD, designCount)).toEqual(REFUSED_AS_DEFAULT);
+      expect(verdictOf(PAL, designCount)).toEqual(REFUSED_AS_FIXED);
+      expect(verdictOf(STANDARD, designCount)).toEqual(REFUSED_AS_FIXED);
       expect(
         verdictOf(material("material.veneer"), designCount, {
           materialTierId: "material.veneer",
         }),
       ).toEqual(REFUSED_AS_DEFAULT);
     }
+  });
+
+  it("answers an item that is both fixed and named by D9 as fixed", () => {
+    expect(
+      verdictOf(PAL, 0, { materialTierId: BOOK.material.defaultTierId }),
+    ).toEqual(REFUSED_AS_FIXED);
+    expect(
+      verdictOf(STANDARD, 0, { hardwareTierId: BOOK.hardware.defaultTierId }),
+    ).toEqual(REFUSED_AS_FIXED);
   });
 
   it("throws when the item was not counted, instead of reading it as unused", () => {

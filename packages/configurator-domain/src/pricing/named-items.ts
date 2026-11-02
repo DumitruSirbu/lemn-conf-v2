@@ -16,9 +16,11 @@ import {
   coloursAndHandlesNamedBy,
   distinctItemsInOrder,
   isItemDisabled,
+  tierRef,
   type CatalogueAvailability,
   type CustomisableBodies,
   type ItemRef,
+  type TierKind,
 } from "./catalogue-availability.js";
 import type { PriceBook, TierGroup, TierIdentity } from "./price-book.js";
 import type { WholeKitchenSelections } from "./whole-kitchen-selections.js";
@@ -83,8 +85,8 @@ function holdsTier(
 function tierItem(
   group: TierGroup<TierIdentity>,
   chosenTierId: string | undefined,
-  kind: "hardware" | "material",
+  kind: TierKind,
 ): readonly ItemRef[] {
   const tierId = chosenTierId ?? group.defaultTierId;
-  return holdsTier(group, chosenTierId) ? [{ kind, tierId }] : [];
+  return holdsTier(group, chosenTierId) ? [tierRef(kind, tierId)] : [];
 }

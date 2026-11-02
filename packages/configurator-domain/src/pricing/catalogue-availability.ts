@@ -1,4 +1,4 @@
-import type { Design, Handle } from "../design.js";
+import { HandleSchema, type Design, type Handle } from "../design.js";
 
 // What can be switched off, and what is currently switched off (M10 plan §8.4 a, A-17). Pricing is the lower layer, and
 // `price-dashboard/book-field-address.ts` imports these from here, never the reverse.
@@ -145,13 +145,82 @@ export function coloursAndHandlesNamedBy(
 
 type NamedColour = NonNullable<NonNullable<Design["settings"]>["finish"]>;
 
-function colourItem(finish: NamedColour | undefined): readonly ItemRef[] {
-  return finish?.kind === "palette-entry"
-    ? [{ kind: "finish", finishId: finish.entryId }]
-    : [];
+/** The item a colour names: a palette entry only, since a free colour is not an item. */
+export function colourItem(
+  finish: NamedColour | undefined,
+): readonly ItemRef[] {
+  return finish?.kind === "palette-entry" ? finishItems([finish]) : [];
 }
 
 /** A legacy stored `null` is no choice, like an absent one: only a string names a handle. */
-function handleItem(handle: Handle | undefined): readonly ItemRef[] {
-  return typeof handle === "string" ? [{ kind: "handle", handle }] : [];
+export function handleItem(handle: Handle | undefined): readonly ItemRef[] {
+  return typeof handle === "string" ? [handleRef(handle)] : [];
+}
+
+/** The kinds whose group is a tier list. */
+export type TierKind = "hardware" | "material";
+
+/** All a group of tiers is asked here: the ids it holds, in its order. A book's `TierGroup` satisfies it. */
+export interface TierListing {
+  readonly tiers: readonly { readonly tierId: string }[];
+}
+
+export interface TierListings {
+  readonly material: TierListing;
+  readonly hardware: TierListing;
+}
+
+export function tierRef(kind: TierKind, tierId: string): ItemRef {
+  return { kind, tierId };
+}
+
+export function handleRef(handle: Handle): ItemRef {
+  return { kind: "handle", handle };
+}
+
+export function finishRef(finishId: string): ItemRef {
+  return { kind: "finish", finishId };
+}
+
+export function tierItems(
+  group: TierListing,
+  kind: TierKind,
+): readonly ItemRef[] {
+  return group.tiers.map(({ tierId }) => tierRef(kind, tierId));
+}
+
+/** Every handle the code declares, in its order: one group for the kitchen's handle and the top row's. */
+export function declaredHandleItems(): readonly ItemRef[] {
+  return HandleSchema.options.map(handleRef);
+}
+
+/** The colours of a list of palette entries, as items, in the list's order. */
+export function finishItems(
+  entries: readonly { readonly entryId: string }[],
+): readonly ItemRef[] {
+  return entries.map(({ entryId }) => finishRef(entryId));
+}
+
+/**
+ * Every option of the group the item belongs to, on or off, the item included, in the group's own order: the tiers of
+ * its kind, the declared handles, the colours `colourGroupOf` names. Empty for an accessory, which has no group. A
+ * colour's group is the caller's to name, because a palette belongs to a material and callers differ in which one.
+ */
+export function declaredOptionsOfGroup(
+  item: ItemRef,
+  listings: TierListings,
+  colourGroupOf: (finishId: string) => readonly ItemRef[],
+): readonly ItemRef[] {
+  switch (item.kind) {
+    case "material":
+      return tierItems(listings.material, "material");
+    case "hardware":
+      return tierItems(listings.hardware, "hardware");
+    case "handle":
+      return declaredHandleItems();
+    case "finish":
+      return colourGroupOf(item.finishId);
+    case "accessory":
+      return [];
+  }
 }

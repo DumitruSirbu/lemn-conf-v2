@@ -29,7 +29,7 @@ export interface ItemUsageQuery {
 }
 
 /**
- * Whether the design uses the item.
+ * Whether the design uses the item. It holds of the migrated document the caller passes, not of the stored row.
  *
  * - A material or hardware class: the design chose it, or chose none and is priced at the book's fallback tier (A-9). A
  *   stored tier id the book no longer holds is still used, whatever the book says.

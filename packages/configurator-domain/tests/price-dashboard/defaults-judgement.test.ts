@@ -4,6 +4,7 @@ import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import {
+  NewKitchenSettingsError,
   stampedSettingsOf,
   type NewKitchenSettings,
 } from "../../src/generation/new-kitchen-settings.js";
@@ -17,7 +18,9 @@ import {
 } from "../../src/materials.js";
 import {
   defaultItemsOf,
+  fixedDefaultItemsOf,
   judgeKitchenDefaults,
+  savedDefaultItemsOf,
   withDefaultMaterial,
 } from "../../src/price-dashboard/defaults-judgement.js";
 import {
@@ -417,5 +420,116 @@ describe("a save of the defaults is judged for the items it names (A-17)", () =>
         expect(verdict.kind === "acceptable").toBe(keepsItsColour && allOn);
       }),
     );
+  });
+});
+
+describe("a malformed colour is refused everywhere the stamp refuses it, never healed and never acceptable", () => {
+  const ALL_ON = { book: BOOK, availability: availabilityOf([]) };
+  const MALFORMED_COLOURS: readonly unknown[] = [
+    {},
+    [],
+    null,
+    7,
+    "pal.alb",
+    { kind: "palette-entry", entryId: "bogus" },
+    { kind: "free-colour", value: "nope" },
+    { kind: "free-colour", value: "#12345" },
+    { kind: "palette-entry", entryId: "pal.alb", extra: 1 },
+    { kind: "free-colour", value: "#eceeeb", extra: 1 },
+  ];
+  const aMaterialNamed: readonly (string | undefined)[] = [
+    undefined,
+    ...MATERIALS.map(({ materialId }) => materialId),
+  ];
+
+  it.each(MALFORMED_COLOURS.map((colourValue) => [colourValue] as const))(
+    "keeps %j with no reset, judges it colour-not-in-palette and has the stamp refuse it, under every material",
+    (malformed) => {
+      for (const materialTierId of aMaterialNamed) {
+        const given = {
+          ...(materialTierId === undefined ? {} : { materialTierId }),
+          finish: malformed,
+        } as unknown as NewKitchenSettings;
+        const label = `${String(materialTierId)} ${JSON.stringify(malformed)}`;
+
+        const change = withDefaultMaterial(
+          given,
+          materialTierId ?? "material.veneer",
+        );
+
+        expect(change.defaults.finish, label).toBe(malformed);
+        expect(change.colourReset, label).toBeUndefined();
+        expect(judgeKitchenDefaults(given, ALL_ON), label).toEqual({
+          kind: "colour-not-in-palette",
+        });
+        expect(() => stampedSettingsOf(given), label).toThrow(
+          NewKitchenSettingsError,
+        );
+      }
+    },
+  );
+
+  it("still resets a well-formed colour the new material does not offer", () => {
+    const change = withDefaultMaterial(
+      { finish: paletteFinish("pal.alb") },
+      "material.painted-mdf",
+    );
+
+    expect(change.colourReset).toEqual({
+      from: paletteFinish("pal.alb"),
+      to: MATERIALS.find((m) => m.materialId === "material.painted-mdf")
+        ?.defaultFinish,
+    });
+  });
+});
+
+describe("the defaults are fixed or saved, and the union is both", () => {
+  it("names the fallbacks, slot handles and each material's palette default as fixed, whatever D9 holds", () => {
+    expect(fixedDefaultItemsOf(BOOK)).toEqual([
+      material(BOOK.material.defaultTierId),
+      hardware(BOOK.hardware.defaultTierId),
+      colour("pal.alb"),
+      colour("veneer.stejar"),
+      handle("push"),
+      handle("steel"),
+    ]);
+  });
+
+  it("names exactly what D9 holds as saved, and nothing when it holds nothing", () => {
+    expect(savedDefaultItemsOf({})).toEqual([]);
+    expect(
+      savedDefaultItemsOf({
+        materialTierId: "material.veneer",
+        hardwareTierId: "hardware.premium",
+        finish: paletteFinish("veneer.nuc"),
+        handle: "black",
+        topRowHandle: "black",
+        cabinetDepthMm: 700,
+      }),
+    ).toEqual([
+      material("material.veneer"),
+      hardware("hardware.premium"),
+      colour("veneer.nuc"),
+      handle("black"),
+    ]);
+  });
+
+  it("is the two lists joined, each item once", () => {
+    const defaults: NewKitchenSettings = {
+      materialTierId: BOOK.material.defaultTierId,
+      handle: "black",
+    };
+
+    const union = defaultItemsOf({ book: BOOK, defaults });
+
+    expect(union).toHaveLength(
+      new Set(union.map((item) => JSON.stringify(item))).size,
+    );
+    for (const item of [
+      ...fixedDefaultItemsOf(BOOK),
+      ...savedDefaultItemsOf(defaults),
+    ]) {
+      expect(union.some((member) => isSameItem(member, item))).toBe(true);
+    }
   });
 });

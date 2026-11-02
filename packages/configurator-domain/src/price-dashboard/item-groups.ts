@@ -6,20 +6,16 @@
 // - handles: every declared handle (one group);
 // - colours: the palette of the material the colour belongs to (one group per material; a free-colour picker has none);
 // - accessories: no group. A switched-off accessory just drops its line, there is nothing to choose instead.
-import { HandleSchema } from "../design.js";
 import { MATERIALS, paletteEntriesOf } from "../materials.js";
 import {
+  declaredOptionsOfGroup,
+  finishItems,
   isItemDisabled,
   isSameItem,
   type CatalogueAvailability,
   type ItemRef,
 } from "../pricing/catalogue-availability.js";
-import {
-  listAccessoryIds,
-  type PriceBook,
-  type TierGroup,
-  type TierIdentity,
-} from "../pricing/price-book.js";
+import { listAccessoryIds, type PriceBook } from "../pricing/price-book.js";
 
 /** What names the book whose groups and items are asked, and the availability that says what is on. */
 export interface ItemGroupContext {
@@ -36,18 +32,7 @@ export function declaredOptionsOfGroupOf(
   item: ItemRef,
   book: PriceBook,
 ): readonly ItemRef[] {
-  switch (item.kind) {
-    case "material":
-      return tierItems(book.material, "material");
-    case "hardware":
-      return tierItems(book.hardware, "hardware");
-    case "handle":
-      return HandleSchema.options.map((handle) => ({ kind: "handle", handle }));
-    case "finish":
-      return paletteContaining(item.finishId);
-    case "accessory":
-      return [];
-  }
+  return declaredOptionsOfGroup(item, book, paletteContaining);
 }
 
 /** The options of the item's group that are on, the item itself excluded: what a customer could be moved to if it were
@@ -81,20 +66,9 @@ export function isItemOffered(
   return isItemStated(item, book) && !isItemDisabled(availability, item);
 }
 
-function tierItems(
-  group: TierGroup<TierIdentity>,
-  kind: "hardware" | "material",
-): readonly ItemRef[] {
-  return group.tiers.map((tier) => ({ kind, tierId: tier.tierId }));
-}
-
 function paletteContaining(finishId: string): readonly ItemRef[] {
   const owner = MATERIALS.find((material) =>
     paletteEntriesOf(material).some((entry) => entry.entryId === finishId),
   );
-  if (owner === undefined) return [];
-  return paletteEntriesOf(owner).map((entry) => ({
-    kind: "finish",
-    finishId: entry.entryId,
-  }));
+  return owner === undefined ? [] : finishItems(paletteEntriesOf(owner));
 }

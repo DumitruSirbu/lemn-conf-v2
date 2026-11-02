@@ -6,18 +6,22 @@
 // design never reads them again. Nothing is stored yet reads as `{}` (the store's `NONE_SAVED`), and a kitchen then
 // starts from the fixed fallbacks.
 import { DEFAULT_HANDLE, TOP_ROW_HANDLE } from "../kitchen-handle/index.js";
-import type { Handle } from "../design.js";
 import type { NewKitchenSettings } from "../generation/new-kitchen-settings.js";
 import {
   DEFAULT_MATERIAL_ID,
+  FinishSchema,
   lookUpMaterial,
   MATERIALS,
   materialOffersFinish,
   type Finish,
 } from "../materials.js";
 import {
+  colourItem,
   distinctItemsInOrder,
+  handleItem,
+  handleRef,
   isItemDisabled,
+  tierRef,
   type ItemRef,
 } from "../pricing/catalogue-availability.js";
 import type { PriceBook } from "../pricing/price-book.js";
@@ -31,36 +35,42 @@ export interface DefaultsContext {
 }
 
 /**
- * The items that are "the default" and so can be neither switched off nor deleted (frames D4E, D5C, D5D, D6C; the
- * fix-round briefs): the book's fallback material and hardware class (PAL, Standard) whatever D9 names, what D9 names,
- * the handle a kitchen and its top row follow when none is stored, and each material's default colour, the reset target
- * of ADR 0057. A free colour is not an item, so MDF's default is not here.
+ * The fixed defaults, which no saved defaults release (ADR 0057, A-9): the book's fallback material and hardware class
+ * (PAL, Standard), the handle a kitchen and its top row follow when none is stored, and each material's default colour,
+ * the reset target of ADR 0057. A free colour is not an item, so MDF's default is not here.
  */
+export function fixedDefaultItemsOf(book: PriceBook): readonly ItemRef[] {
+  return distinctItemsInOrder([
+    tierRef("material", book.material.defaultTierId),
+    tierRef("hardware", book.hardware.defaultTierId),
+    ...MATERIALS.flatMap(({ defaultFinish }) => colourItem(defaultFinish)),
+    ...handleItem(DEFAULT_HANDLE),
+    ...handleItem(TOP_ROW_HANDLE),
+  ]);
+}
+
+/** The items the saved defaults name (D9): moving D9 to other items releases these. */
+export function savedDefaultItemsOf(
+  defaults: NewKitchenSettings,
+): readonly ItemRef[] {
+  return distinctItemsInOrder([
+    ...tierAndHandleItemsOf(defaults),
+    ...colourItem(defaults.finish),
+  ]);
+}
+
+/** Every item that is a default, fixed or saved: none of them can be switched off or deleted. */
 export function defaultItemsOf({
   book,
   defaults,
 }: DefaultsContext): readonly ItemRef[] {
   return distinctItemsInOrder([
-    ...tierItems("material", [
-      book.material.defaultTierId,
-      defaults.materialTierId,
-    ]),
-    ...tierItems("hardware", [
-      book.hardware.defaultTierId,
-      defaults.hardwareTierId,
-    ]),
-    ...MATERIALS.flatMap(({ defaultFinish }) => colourItem(defaultFinish)),
-    ...colourItem(defaults.finish),
-    ...handleItems([
-      DEFAULT_HANDLE,
-      TOP_ROW_HANDLE,
-      defaults.handle,
-      defaults.topRowHandle,
-    ]),
+    ...fixedDefaultItemsOf(book),
+    ...savedDefaultItemsOf(defaults),
   ]);
 }
 
-/** A colour the default material's change took away, and the one it was reset to (the D9B note). */
+/** A colour the default material's change took away, and the one it was reset to. */
 export interface ColourReset {
   readonly from: Finish;
   readonly to: Finish;
@@ -73,11 +83,11 @@ export interface DefaultMaterialChange {
 }
 
 /**
- * Changes the default material. A default colour the new material does not offer becomes that material's default
- * colour; any other stays (ADR 0057 decision 2, by the same offer query `setMaterialTier` and `stampedSettingsOf` reset
- * by). Defaults naming no colour, or one that is not a colour at all (the save judgement refuses it), have none to
- * reset, and a material no declaration names makes no offer, so it resets nothing. Nothing is chosen on the customer's
- * behalf beyond that: the target is always the material's own default, which is never switched off.
+ * Changes the default material. A well-formed default colour the new material does not offer becomes that material's
+ * default colour; any other stays (ADR 0057 decision 2, by the same offer query `setMaterialTier` and `stampedSettingsOf`
+ * reset by). Defaults naming no colour, or one `FinishSchema` refuses, have none to reset: the stamp refuses a malformed
+ * colour rather than healing it, so it is kept for the save judgement to refuse. A material no declaration names makes
+ * no offer, so it resets nothing. The reset target is always the material's own default, which is never switched off.
  */
 export function withDefaultMaterial(
   defaults: NewKitchenSettings,
@@ -87,7 +97,7 @@ export function withDefaultMaterial(
   const lookup = lookUpMaterial(materialTierId);
   const { finish } = defaults;
   if (
-    !isColourObject(finish) ||
+    !isWellFormedColour(finish) ||
     lookup.kind === "undeclared" ||
     materialOffersFinish(lookup.material, finish)
   ) {
@@ -100,19 +110,7 @@ export function withDefaultMaterial(
   };
 }
 
-/**
- * What a save of the defaults is judged to be, in the order the dialog's rows are read (material, hardware class,
- * handle, top-row handle, then colour):
- * - `unavailable`: a value names an item that is switched off or that the active book does not state (A-17), the item
- *   named; the save is a state conflict;
- * - `colour-not-in-palette`: the colour is not one the default material offers, which the screen cannot produce (it
- *   resets, `withDefaultMaterial`), so the request is malformed;
- * - `acceptable`.
- *
- * Only what the defaults state is judged: a key left out falls back to the fixed fallback, which is never switched off.
- * A colour with no material named is judged against PAL, the material the stamp and the design's finish check read.
- * A depth nobody manufactures and a document the schema refuses are the stamp's to refuse (`stampedSettingsOf`).
- */
+/** What a save of the defaults is judged to be. */
 export type DefaultsJudgement =
   | { readonly kind: "acceptable" }
   | { readonly kind: "unavailable"; readonly item: ItemRef }
@@ -122,25 +120,30 @@ const ACCEPTABLE: DefaultsJudgement = Object.freeze({
   kind: "acceptable",
 } as const);
 
+/**
+ * Judges a save of the defaults, in the order the dialog's rows are read (material, hardware class, handle, top-row
+ * handle, then colour):
+ * - `unavailable`: a value names an item that is switched off or that the active book does not state (A-17), the item
+ *   named; the save is a state conflict;
+ * - `colour-not-in-palette`: the colour is not a well-formed one the default material offers, which the screen cannot
+ *   produce (it resets, `withDefaultMaterial`), so the request is malformed;
+ * - `acceptable`: never for a colour `stampedSettingsOf` refuses.
+ *
+ * Only what the defaults state is judged: a key left out falls back to the fixed fallback, which is never switched off.
+ * A colour with no material named is judged against PAL, the material the stamp and the design's finish check read.
+ * A depth nobody manufactures and a document the schema refuses are the stamp's to refuse (`stampedSettingsOf`).
+ */
 export function judgeKitchenDefaults(
   defaults: NewKitchenSettings,
   context: ItemGroupContext,
 ): DefaultsJudgement {
-  const unavailable = namedItems(defaults).find(
+  const unavailable = tierAndHandleItemsOf(defaults).find(
     (item) => !isItemOffered(item, context),
   );
-  if (unavailable !== undefined)
+  if (unavailable !== undefined) {
     return { kind: "unavailable", item: unavailable };
+  }
   return judgeColour(defaults, context);
-}
-
-function namedItems(defaults: NewKitchenSettings): readonly ItemRef[] {
-  return [
-    ...tierItems("material", [defaults.materialTierId]),
-    ...tierItems("hardware", [defaults.hardwareTierId]),
-    ...handleItems([defaults.handle]),
-    ...handleItems([defaults.topRowHandle]),
-  ];
 }
 
 function judgeColour(
@@ -151,7 +154,7 @@ function judgeColour(
   if (finish === undefined) return ACCEPTABLE;
   const lookup = lookUpMaterial(defaults.materialTierId ?? DEFAULT_MATERIAL_ID);
   if (
-    !isColourObject(finish) ||
+    !isWellFormedColour(finish) ||
     lookup.kind === "undeclared" ||
     !materialOffersFinish(lookup.material, finish)
   ) {
@@ -163,31 +166,32 @@ function judgeColour(
     : ACCEPTABLE;
 }
 
-/** Whether a stored colour is an object the offer query can read. A document the schema refuses may hold `null` or a
- *  scalar here; it is judged not in the palette (and the stamp refuses it), never a crash. */
-function isColourObject(finish: unknown): finish is Finish {
-  return typeof finish === "object" && finish !== null;
+/** Whether a stored colour is one `FinishSchema` admits. Anything else (`null`, a scalar, `{}`, a stray palette id, an
+ *  extra key) is what the stamp refuses, so it is neither healed nor judged acceptable. */
+function isWellFormedColour(finish: unknown): finish is Finish {
+  return FinishSchema.safeParse(finish).success;
 }
 
-function tierItems(
-  kind: "hardware" | "material",
-  tierIds: readonly (string | undefined)[],
+/** The items the defaults name for a tier or a handle, one for each key present. A key present holding `null` still
+ *  names an item, one nobody offers, so the judgement refuses it as the stamp does. */
+function tierAndHandleItemsOf(
+  defaults: NewKitchenSettings,
 ): readonly ItemRef[] {
-  return tierIds.flatMap((tierId) =>
-    tierId === undefined ? [] : [{ kind, tierId }],
-  );
+  return [
+    ...whenPresent(defaults.materialTierId, (tierId) =>
+      tierRef("material", tierId),
+    ),
+    ...whenPresent(defaults.hardwareTierId, (tierId) =>
+      tierRef("hardware", tierId),
+    ),
+    ...whenPresent(defaults.handle, handleRef),
+    ...whenPresent(defaults.topRowHandle, handleRef),
+  ];
 }
 
-function handleItems(
-  handles: readonly (Handle | undefined)[],
+function whenPresent<Value>(
+  value: Value | undefined,
+  itemOf: (value: Value) => ItemRef,
 ): readonly ItemRef[] {
-  return handles.flatMap((handle) =>
-    handle === undefined ? [] : [{ kind: "handle", handle }],
-  );
-}
-
-function colourItem(finish: Finish | undefined): readonly ItemRef[] {
-  return finish?.kind === "palette-entry"
-    ? [{ kind: "finish", finishId: finish.entryId }]
-    : [];
+  return value === undefined ? [] : [itemOf(value)];
 }

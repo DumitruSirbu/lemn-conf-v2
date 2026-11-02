@@ -252,7 +252,7 @@ describe("the D9 colour reset is what the customer's own material change does, o
     }
   });
 
-  it("treats a palette id or a colour no material declares as one the new material does not offer", () => {
+  it("keeps a palette id or a colour no material declares as it is, with no reset, for the save judgement to refuse", () => {
     const strays: Finish[] = [
       { kind: "palette-entry", entryId: "pal.nope" as never },
       { kind: "free-colour", value: "red" },
@@ -262,10 +262,12 @@ describe("the D9 colour reset is what the customer's own material change does, o
 
     for (const finish of strays) {
       for (const to of MATERIAL_IDS) {
-        expect(
-          withDefaultMaterial({ finish }, to).defaults.finish,
-          `${to} ${JSON.stringify(finish)}`,
-        ).toEqual(defaultColourOf(to));
+        const change = withDefaultMaterial({ finish }, to);
+
+        expect(change.defaults.finish, `${to} ${JSON.stringify(finish)}`).toBe(
+          finish,
+        );
+        expect(change.colourReset).toBeUndefined();
       }
     }
   });
