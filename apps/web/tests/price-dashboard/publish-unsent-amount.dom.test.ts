@@ -5,16 +5,24 @@
 // row back lets it go.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { allIn, click, requireIn, typeInto } from "../support/render-with-intl";
+import {
+  allIn,
+  byWords,
+  click,
+  requireIn,
+  typeInto,
+} from "../support/render-with-intl";
 import {
   inputWithDraft,
   mountDesk,
   pressKey,
   settle,
+  spiedPublishClient,
   type MountedDesk,
 } from "./publish-desk-harness";
 import {
   anchorOf,
+  askToPublish,
   BASE_ANCHOR,
   LEI,
   openFieldOf,
@@ -53,6 +61,9 @@ function typeAnotherPrice(
   return field;
 }
 
+const versionNameField = (container: HTMLElement): HTMLInputElement =>
+  requireIn<HTMLInputElement>(container, '[class*="aside"] input[type="text"]');
+
 const isPublishOff = (container: HTMLElement): boolean =>
   requireIn(container, PUBLISH_BUTTON).getAttribute("aria-disabled") === "true";
 
@@ -61,11 +72,12 @@ const reasonsOn = (container: HTMLElement): number =>
     .length;
 
 describe("a value typed into a row's Nou and not sent", () => {
-  it("turns the publish off and says why, and a press on it opens no question", async () => {
+  it("turns the publish off and says why, and a press on it, with the version named, opens no question", async () => {
     const { container, client } = await mountWithTwoRows();
     expect(isPublishOff(container)).toBe(false);
     expect(reasonsOn(container)).toBe(0);
 
+    typeInto(versionNameField(container), "Ajustari");
     typeAnotherPrice(container, BASE_ANCHOR.ruleId);
     await settle();
     click(requireIn(container, PUBLISH_BUTTON));
@@ -75,6 +87,26 @@ describe("a value typed into a row's Nou and not sent", () => {
     expect(reasonsOn(container)).toBe(1);
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     expect(client.publish).not.toHaveBeenCalled();
+  });
+
+  it("is not published either by the retry that a failed publish leaves on the page", async () => {
+    const input = inputWithDraft(TWO_AMOUNT_ROWS, "1");
+    mounted = await mountDesk({
+      input,
+      client: spiedPublishClient(input, {
+        publish: () => Promise.resolve({ kind: "failed" }),
+      }),
+    });
+    const { container, client } = mounted;
+    await askToPublish(container);
+    typeAnotherPrice(container, BASE_ANCHOR.ruleId);
+    await settle();
+
+    click(byWords(container, "button", roCopy("priceDashboard.publish.retry")));
+    await settle();
+
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(client.publish).toHaveBeenCalledTimes(1);
   });
 
   it("holds the publish off for text that is not an amount as well", async () => {
