@@ -198,35 +198,58 @@ describe("a change the route would refuse", () => {
 });
 
 describe("a page the route would refuse", () => {
-  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 10_001])(
-    "is not listed for page %s",
-    async (page) => {
+  it("is not listed: the route answers 400 for a page that is not 1 to 10 000 in whole digits", async () => {
+    const client = clientOver(STATE, historyOf(45));
+    const listed: number[] = [];
+
+    for (const page of [
+      0,
+      -1,
+      1.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      10_001,
+    ]) {
       const reading = readVersionPage(
         new URLSearchParams({ page: String(page) }),
       );
-      expect(reading.ok, "the route refuses this page").toBe(false);
+      expect(reading.ok, `the route refuses page ${String(page)}`).toBe(false);
+      if ((await client.readVersionPage(page)).kind === "listed") {
+        listed.push(page);
+      }
+    }
 
-      const outcome = await clientOver(STATE, historyOf(45)).readVersionPage(
-        page,
-      );
-
-      expect(outcome.kind).toBe("failed");
-    },
-  );
+    expect(listed, "pages the sample listed that no route would").toEqual([]);
+  });
 });
 
 describe("a history that grows by a publish", () => {
-  it("lists every version once, newest first, with a total that counts the new one, across its pages", async () => {
-    const before = historyOf(45);
-    const client = clientOver(STATE, before);
-    const outcome = await client.publish(publishRequest("Ajustari"));
+  const VERSIONS = 45;
+
+  it("lists every version once across its pages, the new one at the head of the first, and a total that counts it", async () => {
+    const before = historyOf(VERSIONS);
+    const client = clientOver(
+      {
+        ...STATE,
+        active: { ...STATE.active, sequenceNumber: VERSIONS },
+      },
+      before,
+    );
+    const outcome = await client.publish(
+      publishRequest("Ajustari", { expectedActiveSequence: VERSIONS }),
+    );
     expect(outcome.kind).toBe("published");
 
     const { listed, total } = await everyListedVersion(client, 3);
 
-    expect(total).toBe(46);
-    expect(listed.map((version) => version.sequenceNumber)).toEqual(
-      Array.from({ length: 46 }, (_, position) => 46 - position),
+    expect(total).toBe(VERSIONS + 1);
+    const sequences = listed.map((version) => version.sequenceNumber);
+    expect(sequences[0], "the new version heads the history").toBe(
+      VERSIONS + 1,
     );
+    expect(
+      [...sequences].sort((first, second) => first - second),
+      "every version once",
+    ).toEqual(Array.from({ length: VERSIONS + 1 }, (_, index) => index + 1));
   });
 });

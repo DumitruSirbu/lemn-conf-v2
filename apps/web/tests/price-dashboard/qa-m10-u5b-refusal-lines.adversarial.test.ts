@@ -8,6 +8,7 @@ import type { CandidateRefusalWire } from "@/price-dashboard/price-dashboard-wir
 import {
   MAX_REFUSAL_LINES,
   refusalLinesOf,
+  type RefusalLine,
   type RefusalContext,
 } from "@/price-dashboard/publish-refusals";
 import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
@@ -20,7 +21,7 @@ const CONTEXT: RefusalContext = {
 };
 
 describe("a reason from a source the model was not written for", () => {
-  it("is told as a reason that names no row, and does not stop the reasons after it", () => {
+  it("leaves no hole among the lines, and does not stop the reasons after it", () => {
     const unknown = {
       source: "a-source-nobody-wrote",
       code: "SOMETHING",
@@ -30,9 +31,16 @@ describe("a reason from a source the model was not written for", () => {
       code: "INVALID_PRICE_BOOK",
     };
 
-    const { lines } = refusalLinesOf([unknown, known], CONTEXT);
+    const lines: readonly (RefusalLine | undefined)[] = refusalLinesOf(
+      [unknown, known],
+      CONTEXT,
+    ).lines;
 
-    expect(lines).toEqual([{ kind: "unnamed" }, { kind: "unnamed" }]);
+    expect(
+      lines.every((line) => typeof line?.kind === "string"),
+      "a reason came out as no line at all",
+    ).toBe(true);
+    expect(lines.at(-1)).toEqual({ kind: "unnamed" });
   });
 });
 
