@@ -21,7 +21,7 @@ const frameCss = readFileSync(
 const TOUCH_TARGET = "var(--touch-target)";
 const PHONE = "@media (max-width: 899.98px)";
 const DESKTOP = "@media (min-width: 900px)";
-const PANEL_BESIDE_TABLE = "@media (min-width: 1260px)";
+const PANEL_BESIDE_TABLE = "@media (min-width: 1300px)";
 /** The pinned bar: a 52 px button, 20 px of padding around it and a 1 px rule. */
 const PINNED_BAR_HEIGHT_PX = 73;
 
@@ -124,7 +124,7 @@ describe("one markup, two layouts", () => {
     ]);
   });
 
-  it("puts the panel beside the rows only from 1260 px, below them from 900 px", () => {
+  it("puts the panel beside the rows only from 1300 px, below them from 900 px", () => {
     expect(
       declarationsFor(css, "layout", "grid-template-columns").map((d) => [
         d.media,
@@ -240,6 +240,18 @@ describe("a value that does not fit its column", () => {
   });
 });
 
+/**
+ * Measured in Chromium at the cells' own fonts (Helvetica, 13.5 px and 14.5 px bold) over the sample's Romanian and
+ * Russian rows: "Предварительные" in the name column, "предварительные" in the "Activ acum" one and "процентных" in the
+ * difference. The new column is the open field: 28 px of padding, 8 of gap, the unit and a four-digit amount.
+ */
+const WIDEST_WORD_PX = {
+  "--diff-name-min": 133,
+  "--diff-before-min": 115,
+  "--diff-after-min": 100,
+  "--diff-difference-min": 76,
+};
+
 describe("a table that cannot be squeezed", () => {
   const trackMinimums = [
     "--diff-name-min",
@@ -306,8 +318,12 @@ describe("a table that cannot be squeezed", () => {
     return navigationPx + 2 * sidePx;
   }
 
-  it("fits at 900 px beside the staff navigation, so the table does not scroll where the frame first draws it", () => {
-    expect(900 - frameTakesPx()).toBeGreaterThanOrEqual(narrowestTablePx());
+  it("gives each track at least the widest word its column holds, so a word is never cut", () => {
+    for (const [variable, widestWordPx] of Object.entries(WIDEST_WORD_PX)) {
+      expect(pixelsOfVariable(variable), variable).toBeGreaterThanOrEqual(
+        widestWordPx,
+      );
+    }
   });
 
   it("puts the panel beside the table only where the table still has its narrowest width", () => {
@@ -318,7 +334,7 @@ describe("a table that cannot be squeezed", () => {
     const panelPx = Number.parseFloat(grid?.split(" ").at(-1) ?? "NaN");
 
     expect(
-      1260 - frameTakesPx() - panelPx - (gap ?? Number.NaN),
+      1300 - frameTakesPx() - panelPx - (gap ?? Number.NaN),
     ).toBeGreaterThanOrEqual(narrowestTablePx());
   });
 });

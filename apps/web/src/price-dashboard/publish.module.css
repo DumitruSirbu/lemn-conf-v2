@@ -1,6 +1,6 @@
 /* The publish page, its history and an archived version. One markup, three layouts: a phone draws each row as a card with
  * the publish action in a bar pinned at the foot of the screen; from 900 px, the staff frame's own breakpoint, the rows line
- * up as a table with the panel below it; from 1260 px the panel stands beside the table. Every interactive box is at least
+ * up as a table with the panel below it; from 1300 px the panel stands beside the table. Every interactive box is at least
  * `--touch-target` tall; the marks on ↺ and the carets are drawn here, so no glyph is text. The dialogs are the account
  * stylesheet's. */
 .page {
@@ -8,10 +8,11 @@
   --warm-row: #fbf5ea;
   --warm-edge: #e6cfa8;
   --warm-ink: #5a3e25;
-  --diff-name-min: 116px;
-  --diff-before-min: 88px;
+  /* The widest word of the column at its font, over the Romanian and Russian rows, plus a few pixels: no word is cut. */
+  --diff-name-min: 136px;
+  --diff-before-min: 118px;
   --diff-after-min: 100px;
-  --diff-difference-min: 88px;
+  --diff-difference-min: 80px;
   --diff-gap: 12px;
   --diff-row-inline: 12px;
   /* `.members`: 14 px of padding and a 2 px rule. */
@@ -731,7 +732,8 @@ a.version:focus-visible {
     display: block;
   }
 
-  /* The table cannot shrink below its tracks: it scrolls inside its own box, so the page never does. */
+  /* The table cannot shrink below its tracks: under 942 px the staff frame leaves it less than that, and it scrolls
+   * inside its own box, so the page never does. */
   .diffScroll {
     overflow-x: auto;
   }
@@ -836,8 +838,8 @@ a.version:focus-visible {
 }
 
 /* The panel stands beside the table once the table keeps its narrowest width: 264 px of navigation, 112 of padding, the
- * 320 px panel and its 32 px gap leave 532 px of table at this width, against the 524 px `--diff-min-width` needs. */
-@media (min-width: 1260px) {
+ * 320 px panel and its 32 px gap leave 572 px of table at this width, against the 566 px `--diff-min-width` needs. */
+@media (min-width: 1300px) {
   .layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
