@@ -1,7 +1,6 @@
 export {
   setKitchenHandle,
   type KitchenHandleInput,
-  type KitchenHandleResult,
 } from "../commands/set-kitchen-handle.js";
 export {
   DEFAULT_HANDLE,

@@ -197,9 +197,15 @@ describe("the handle row's marked option", () => {
   });
 
   it("marks nothing when the kitchen's own handle is not on offer", () => {
+    const carrying: Design = {
+      ...KITCHEN_L_DESIGN,
+      settings: { ...KITCHEN_L_DESIGN.settings, handle: "black" },
+    };
+
     const view = viewOf({
+      design: carrying,
       availability: withHandlesSwitchedOff("black"),
-      pending: chooseHandleIn({}, "black"),
+      pending: resolveOpeningChoice(carrying.settings ?? {}, tierOffer()),
     });
 
     expect(selectedHandles(view)).toEqual([]);

@@ -532,7 +532,7 @@ function toColourGroupView(
 
 /** The handles the sheet offers: every one availability has not switched off. */
 function offeredHandles(
-  availability: NonNullable<DescribeGlobalSettingsInput["availability"]>,
+  availability: CatalogueAvailability,
 ): readonly Handle[] {
   return HandleSchema.options.filter(
     (handle) => !isItemDisabled(availability, handleRef(handle)),
@@ -546,7 +546,7 @@ function offeredHandles(
  */
 export function withoutAHandleTheSheetNoLongerOffers(
   chosen: WholeKitchenChoice,
-  availability: DescribeGlobalSettingsInput["availability"],
+  availability: CatalogueAvailability | undefined,
 ): WholeKitchenChoice {
   const { handle } = chosen;
   if (handle === undefined || availability === undefined) return chosen;
@@ -557,7 +557,8 @@ export function withoutAHandleTheSheetNoLongerOffers(
 }
 
 /** The handle row, or nothing where availability is unknown or has switched every handle off. The marked option is the
- *  pending choice, else the slot's default, which is what an unset kitchen shows. */
+ *  handle the kitchen will wear after *Aplică*: the pending choice if the sheet still offers it, else the applied one,
+ *  else the slot's default. A stored handle that is switched off marks nothing, because no row offers it. */
 function toHandleGroupView(
   input: DescribeGlobalSettingsInput,
 ): HandleGroupView | undefined {
@@ -565,7 +566,10 @@ function toHandleGroupView(
   if (availability === undefined) return undefined;
   const offered = offeredHandles(availability);
   if (offered.length === 0) return undefined;
-  const selected = input.pending.handle ?? DEFAULT_HANDLE;
+  const selected =
+    withoutAHandleTheSheetNoLongerOffers(input.pending, availability).handle ??
+    input.applied.handle ??
+    DEFAULT_HANDLE;
   return {
     heading: content.globalSettings.kitchenHandleHeading,
     hint: content.globalSettings.kitchenHandleHint,

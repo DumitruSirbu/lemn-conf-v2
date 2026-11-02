@@ -7,7 +7,6 @@ import {
   setKitchenHandle,
   type CommandEffect,
   type CommandResult,
-  type KitchenHandleResult,
   type KitchenHandleSetEffect,
 } from "../../src/index.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
@@ -45,7 +44,7 @@ describe("the kitchen handle's effect in the CommandEffect union", () => {
   });
 
   it("is what the command answers, and the answer is accepted as any command's result", () => {
-    const result: KitchenHandleResult = setKitchenHandle({
+    const result: CommandResult<KitchenHandleSetEffect> = setKitchenHandle({
       design: KITCHEN_L_DESIGN,
       handle: "black",
       occurredAt: "2026-11-02T10:00:00.000Z",

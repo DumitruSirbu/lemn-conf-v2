@@ -22,15 +22,13 @@ export interface KitchenHandleInput {
   readonly occurredAt: string;
 }
 
-export type KitchenHandleResult = CommandResult<KitchenHandleSetEffect>;
-
 /**
  * Writes `settings.handle` and nothing else. Refuses an invalid timestamp, then a value outside
  * `HandleSchema` (`UNKNOWN_HANDLE`), returning the design as given. Availability is the caller's.
  */
 export function setKitchenHandle(
   input: KitchenHandleInput,
-): KitchenHandleResult {
+): CommandResult<KitchenHandleSetEffect> {
   if (!isValidOccurredAt(input.occurredAt)) {
     return refuse(input.design, { code: "INVALID_OCCURRED_AT", params: {} });
   }

@@ -546,8 +546,6 @@ function ChoosingStep({
                 onChoose={onChooseFinish}
               />
             ) : null}
-            {/* Frame C2 puts the handle row between the colour and the hardware, so it follows the colour
-                inside the map and the hardware group is the next one drawn. */}
             {group.key === "material" &&
             handleGroup !== undefined &&
             onChooseHandle !== undefined ? (
@@ -672,8 +670,6 @@ function ColourGroupSection({
   );
 }
 
-/** The whole-kitchen handle row: the same native radios as the other groups, so the arrow keys and the 44 px
- *  rows are theirs. No price: a handle's effect on the total shows through the bar once applied. */
 function HandleGroupSection({
   group,
   namePrefix,
@@ -697,28 +693,18 @@ function HandleGroupSection({
         {group.heading}
       </h3>
       {group.options.map((option) => (
-        <label
+        <RadioOptionRow
           key={option.handle}
-          className={styles.option}
-          data-selected={option.isSelected}
-          {...(editability.isReadOnly ? { "data-disabled": "true" } : {})}
-          data-testid="global-settings-handle-option"
-        >
-          <input
-            type="radio"
-            className={styles.radio}
-            name={`${namePrefix}-kitchen-handle`}
-            value={option.handle}
-            checked={option.isSelected}
-            disabled={editability.isReadOnly}
-            onChange={() => {
-              onChoose(option.handle);
-            }}
-          />
-          <span className={styles.optionText}>
-            <span className={styles.optionName}>{option.label}</span>
-          </span>
-        </label>
+          testId="global-settings-handle-option"
+          name={`${namePrefix}-kitchen-handle`}
+          value={option.handle}
+          title={option.label}
+          isSelected={option.isSelected}
+          isReadOnly={editability.isReadOnly}
+          onChoose={() => {
+            onChoose(option.handle);
+          }}
+        />
       ))}
       <p
         className={styles.groupAnchor}
@@ -757,28 +743,18 @@ function DepthGroupSection({
         {group.heading}
       </h3>
       {group.options.map((option) => (
-        <label
+        <RadioOptionRow
           key={option.cabinetDepthMm}
-          className={styles.option}
-          data-selected={option.isSelected}
-          {...(editability.isReadOnly ? { "data-disabled": "true" } : {})}
-          data-testid="global-settings-depth-option"
-        >
-          <input
-            type="radio"
-            className={styles.radio}
-            name={`${namePrefix}-cabinet-depth`}
-            value={option.cabinetDepthMm}
-            checked={option.isSelected}
-            disabled={editability.isReadOnly}
-            onChange={() => {
-              onChoose(option.cabinetDepthMm);
-            }}
-          />
-          <span className={styles.optionText}>
-            <span className={styles.optionName}>{option.label}</span>
-          </span>
-        </label>
+          testId="global-settings-depth-option"
+          name={`${namePrefix}-cabinet-depth`}
+          value={option.cabinetDepthMm}
+          title={option.label}
+          isSelected={option.isSelected}
+          isReadOnly={editability.isReadOnly}
+          onChoose={() => {
+            onChoose(option.cabinetDepthMm);
+          }}
+        />
       ))}
       {/* What choosing the deep depth adds, worded from the published rule. */}
       <p
@@ -830,30 +806,19 @@ function TierGroupSection({
         </p>
       )}
       {group.options.map((option) => (
-        <label
+        <RadioOptionRow
           key={option.tierId}
-          className={styles.option}
-          data-selected={option.isSelected}
-          {...(editability.isReadOnly ? { "data-disabled": "true" } : {})}
-          data-testid="global-settings-option"
+          testId="global-settings-option"
+          name={`${namePrefix}-${group.key}`}
+          value={option.tierId}
+          title={option.name}
+          description={option.description}
+          isSelected={option.isSelected}
+          isReadOnly={editability.isReadOnly}
+          onChoose={() => {
+            onChoose(group.key, option.tierId);
+          }}
         >
-          <input
-            type="radio"
-            className={styles.radio}
-            name={`${namePrefix}-${group.key}`}
-            value={option.tierId}
-            checked={option.isSelected}
-            disabled={editability.isReadOnly}
-            onChange={() => {
-              onChoose(group.key, option.tierId);
-            }}
-          />
-          <span className={styles.optionText}>
-            <span className={styles.optionName}>{option.name}</span>
-            <span className={styles.optionDescription}>
-              {option.description}
-            </span>
-          </span>
           {option.deltaText === undefined ? null : (
             <span
               className={styles.optionDelta}
@@ -862,8 +827,61 @@ function TierGroupSection({
               {option.deltaText}
             </span>
           )}
-        </label>
+        </RadioOptionRow>
       ))}
     </section>
+  );
+}
+
+interface RadioOptionRowProps {
+  readonly testId: string;
+  readonly name: string;
+  readonly value: string | number;
+  readonly title: string;
+  /** Present only on a tier row, whose book text has a second line. */
+  readonly description?: string;
+  readonly isSelected: boolean;
+  readonly isReadOnly: boolean;
+  readonly onChoose: () => void;
+  /** What follows the text inside the row: a tier's price delta. */
+  readonly children?: ReactNode;
+}
+
+/** One native radio row, the same in every group so the arrow keys and the 44 px target are shared. */
+function RadioOptionRow({
+  testId,
+  name,
+  value,
+  title,
+  description,
+  isSelected,
+  isReadOnly,
+  onChoose,
+  children,
+}: RadioOptionRowProps) {
+  return (
+    <label
+      className={styles.option}
+      data-selected={isSelected}
+      {...(isReadOnly ? { "data-disabled": "true" } : {})}
+      data-testid={testId}
+    >
+      <input
+        type="radio"
+        className={styles.radio}
+        name={name}
+        value={value}
+        checked={isSelected}
+        disabled={isReadOnly}
+        onChange={onChoose}
+      />
+      <span className={styles.optionText}>
+        <span className={styles.optionName}>{title}</span>
+        {description === undefined ? null : (
+          <span className={styles.optionDescription}>{description}</span>
+        )}
+      </span>
+      {children}
+    </label>
   );
 }
