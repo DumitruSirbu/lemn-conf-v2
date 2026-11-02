@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of the reasons a refused publish names (U5b). The wire's `refusals` is a closed list, but no parser stands
+// Adversarial QA of the reasons a refused publish names. The wire's `refusals` is a closed list, but no parser stands
 // between a client and the notice, so the notice is the last place a reason it was not written for can be survived. The
 // contract: "a screen that meets one it does not know shows its generic failure".
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

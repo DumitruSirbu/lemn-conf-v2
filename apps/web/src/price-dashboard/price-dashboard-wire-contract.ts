@@ -20,8 +20,8 @@ import type {
 } from "@lemnaria/configurator-domain";
 
 // What the manufacturer price dashboard's routes answer and its screens expect, once (M10 plan §8.4 d; ADR 0178).
-// It lives outside `lib/server` because the client bundle may not import a server-only module, and holds types and
-// closed code lists only.
+// It lives outside `lib/server` because the client bundle may not import a server-only module, and holds the wire's
+// types, closed code lists and limits.
 //
 // Three rules hold throughout.
 // - **A body carries codes, never sentences** (ADR 0095 decision 3). The words are the message files'.

@@ -36,7 +36,7 @@ export interface PriceEditorProps {
   readonly activeMinor: number;
   readonly pendingMinor: number;
   readonly isBusy: boolean;
-  readonly save: (minor: number) => Promise<FieldWriteResult>;
+  readonly sendAmount: (minor: number) => Promise<FieldWriteResult>;
   /** The price as the surface draws it. */
   readonly figure: string;
   /** What stands beside the figure while the field is closed. */
@@ -49,7 +49,7 @@ export function PriceEditor({
   activeMinor,
   pendingMinor,
   isBusy,
-  save: sendAmount,
+  sendAmount,
   figure,
   basis,
 }: PriceEditorProps) {

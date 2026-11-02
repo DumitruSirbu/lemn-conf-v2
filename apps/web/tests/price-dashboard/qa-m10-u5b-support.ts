@@ -1,4 +1,4 @@
-// What the adversarial tests of the publish page's follow-ups (U5b) share: the sample book's two cabinet anchors raised into a
+// What the adversarial tests of the publish page's follow-ups share: the sample book's two cabinet anchors raised into a
 // draft, the rows and fields they draw, and the steps that ask a publish. Nothing here asserts.
 import type { DraftChange } from "@lemnaria/configurator-domain";
 

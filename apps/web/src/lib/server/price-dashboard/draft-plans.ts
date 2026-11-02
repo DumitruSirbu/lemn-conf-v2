@@ -35,7 +35,7 @@ import type {
   BulkPlanner,
   PlannedCabinetPrice,
 } from "@/lib/server/price-dashboard/bulk-planner";
-import { judgeDraft } from "@/lib/server/price-dashboard/draft-judgement";
+import { judgeDraft } from "@/price-dashboard/draft-judgement";
 import type {
   BulkRequest,
   BulkTarget,

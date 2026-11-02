@@ -1,6 +1,6 @@
-// Adversarial QA of the copy U5b added (priceDashboard.publish.* and history.pageFailed). The copy lock holds the Romanian
-// words by deep equality and the M10 copy rules hold the figures and the parameters of every leaf; what they do not hold is
-// the spelling and the Russian side of these leaves.
+// Adversarial QA of the publish page's follow-up copy (priceDashboard.publish.* and history.pageFailed): what the copy lock
+// (the Romanian words by deep equality) and the copy rules (the figures and the parameters of every leaf) do not hold,
+// which is the spelling and the Russian side of these leaves.
 import { describe, expect, it } from "vitest";
 
 import { catalogueLeaves, CATALOGUES, leafAt } from "../support/catalogues";
@@ -12,7 +12,7 @@ const ID_WORDS =
 /** An ICU argument, `{name}` or `{count, number, ::group-off}`: syntax, not text. */
 const PARAMETER = /\{[^}]*\}/gu;
 
-const U5B_LEAVES = [
+const FOLLOW_UP_LEAVES = [
   "priceDashboard.publish.unreadableTitle",
   "priceDashboard.publish.unreadableBody",
   "priceDashboard.publish.staleDraftTitle",
@@ -45,7 +45,7 @@ const CEDILLA = new RegExp(
 describe.each(CATALOGUES)(
   "the leaves of the follow-ups in %s",
   (locale, messages) => {
-    it.each(U5B_LEAVES)("has %s, non-empty and not a bare key", (key) => {
+    it.each(FOLLOW_UP_LEAVES)("has %s, non-empty and not a bare key", (key) => {
       const text = leafAt(messages, key);
 
       expect(text, key).toBeDefined();
@@ -54,7 +54,7 @@ describe.each(CATALOGUES)(
     });
 
     it("writes no id, no address and no English developer word into any leaf", () => {
-      for (const key of U5B_LEAVES) {
+      for (const key of FOLLOW_UP_LEAVES) {
         const text = leafAt(messages, key) ?? "";
 
         expect(text, key).not.toMatch(
@@ -63,8 +63,8 @@ describe.each(CATALOGUES)(
       }
     });
 
-    it("names no figure that is not a parameter (the M10 rule, over exactly these leaves)", () => {
-      for (const key of U5B_LEAVES) {
+    it("names no figure that is not a parameter (the copy rule, over exactly these leaves)", () => {
+      for (const key of FOLLOW_UP_LEAVES) {
         const withoutSyntax = (leafAt(messages, key) ?? "").replaceAll(
           PARAMETER,
           "",
@@ -75,7 +75,7 @@ describe.each(CATALOGUES)(
     });
 
     if (locale === "ro") {
-      it("spells with the comma-below letters, in this wave's leaves and in the whole dashboard namespace", () => {
+      it("spells with the comma-below letters, in these leaves and in the whole dashboard namespace", () => {
         const leaves = catalogueLeaves(
           messages.priceDashboard,
           "priceDashboard",
@@ -89,7 +89,7 @@ describe.each(CATALOGUES)(
 
     if (locale === "ru") {
       it("is Russian: every letter of every leaf is Cyrillic, punctuation or a parameter", () => {
-        for (const key of U5B_LEAVES) {
+        for (const key of FOLLOW_UP_LEAVES) {
           const withoutSyntax = (leafAt(messages, key) ?? "").replaceAll(
             PARAMETER,
             "",

@@ -1,4 +1,4 @@
-// Adversarial QA of how U5b's screens are reached and sheeted: which screen each answer of the page's read becomes, that a
+// Adversarial QA of how the publish page's screens are reached and sheeted: which screen each answer of the page's read becomes, that a
 // phone-sized page cannot be pushed sideways by what the follow-ups draw, and that nothing sends a write the sample
 // client alone would take in a production build.
 import { readFileSync } from "node:fs";

@@ -47,7 +47,7 @@ export function EditablePrice({
       activeMinor={field.activeMinor}
       pendingMinor={field.pendingMinor}
       isBusy={editing.isBusy}
-      save={(minor) => editing.saveAnchor(field, minor)}
+      sendAmount={(minor) => editing.saveAnchor(field, minor)}
       figure={figure}
       basis={basis}
     />

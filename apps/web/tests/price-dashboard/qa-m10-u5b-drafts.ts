@@ -1,4 +1,4 @@
-// The drafts the adversarial tests of the structural diff rows (U5b) sweep: a person's steps, in every order, that write
+// The drafts the adversarial tests of the structural diff rows sweep: a person's steps, in every order, that write
 // a created class, a created accessory, their rewording, their deletion and ordinary edits. Nothing here asserts.
 import fc from "fast-check";
 import {

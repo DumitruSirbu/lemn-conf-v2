@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of the "Nou" fields of the pending list and of the rows of an archived version's diff (U5b): fields left
+// Adversarial QA of the "Nou" fields of the pending list and of the rows of an archived version's diff: fields left
 // open while the list moves under them, and no field, arrow or price button anywhere on a diff that takes nothing back.
 import { createElement } from "react";
 import fc from "fast-check";

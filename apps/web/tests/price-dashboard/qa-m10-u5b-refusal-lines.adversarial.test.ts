@@ -1,4 +1,4 @@
-// Adversarial QA of the lines a refused publish is told by (U5b), below the screen: the model that turns the wire's reasons
+// Adversarial QA of the lines a refused publish is told by, below the screen: the model that turns the wire's reasons
 // into lines must survive a reason it was not written for and an index that names no change, since no parser stands between
 // the client and it.
 import fc from "fast-check";

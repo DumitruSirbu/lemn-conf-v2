@@ -10,7 +10,7 @@ import {
   type RefusalContext,
   type RefusalLine,
 } from "./publish-refusals";
-import { useRowWords } from "./publish-rows";
+import { useRowWords } from "./publish-row-words";
 import styles from "./publish.module.css";
 
 // What a publish the catalogue refused names: the row each reason is about, so the person can take it back or correct it.

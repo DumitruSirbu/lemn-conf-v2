@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of the history's pager (U5b) at the edges of its numbers: a page the history has since outgrown or shrunk
+// Adversarial QA of the history's pager at the edges of its numbers: a page the history has since outgrown or shrunk
 // below, and a page size that is not the one the first page stated. The pager counts from what the last answer said.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

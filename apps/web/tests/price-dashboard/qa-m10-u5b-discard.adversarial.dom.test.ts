@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of "Renunță la ciornă" (U5b): what the focus does when the button that opened the question is gone, and
+// Adversarial QA of "Renunță la ciornă": what the focus does when the button that opened the question is gone, and
 // whether the question can be put again when asking again cannot succeed.
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

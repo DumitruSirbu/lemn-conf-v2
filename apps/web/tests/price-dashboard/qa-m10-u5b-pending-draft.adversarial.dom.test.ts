@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of the pending page (U5b): drafts the page must stay usable under, and answers that arrive out of the order
+// Adversarial QA of the pending page: drafts the page must stay usable under, and answers that arrive out of the order
 // they were asked in.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

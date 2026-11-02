@@ -7,9 +7,9 @@ import {
 } from "@lemnaria/configurator-domain";
 
 // Whether a draft still makes a book. `applyChanges` judges every change against the book the earlier ones made, so one
-// refused change refuses the whole candidate; this says whose fault it is. A refusal at a change this request added is the
-// person's to correct. A refusal anywhere else, or a candidate that is not a book, is a draft that was stored already
-// unable to apply: a defect of ours, answered as a state of the data and never as a `400` that blames the person.
+// refused change refuses the whole candidate; this says whose fault it is. A refusal at a change the judged write added
+// is the person's to correct. A refusal anywhere else, or a candidate that is not a book, is a draft that was stored
+// already unable to apply: a defect of ours, not the person's.
 //
 // A write that is given the draft as it was stored also heals it: it is allowed when it adds no refusal, that is, when
 // every change still refused afterwards was refused before, at the same address. So a revert, or a change elsewhere, goes
@@ -24,7 +24,7 @@ export interface DraftToJudge {
   readonly book: PriceBook;
   /** The draft after the write. */
   readonly changes: readonly DraftChange[];
-  /** Where the changes this request added begin; the changes before it were already stored. */
+  /** Where the changes the judged write added begin; the changes before it were already stored. */
   readonly firstNewIndex: number;
   /** The draft as stored, when a write that adds no refusal is to be allowed on a draft that already has some. */
   readonly stored?: readonly DraftChange[];

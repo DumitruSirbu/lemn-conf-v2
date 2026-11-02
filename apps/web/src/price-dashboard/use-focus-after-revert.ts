@@ -9,9 +9,10 @@ import {
   type RefObject,
 } from "react";
 
-// Taking a row back removes the button that had focus, and so does a price corrected to the active one with Enter. Focus then goes to the button now standing where it stood (the next
-// row's, or the previous one's when it was the last), and to the empty page's heading when no row is left. It moves only if
-// focus was lost with the row, so a failed revert, or a press elsewhere meanwhile, leaves it where it is.
+// Taking a row back, or correcting a price to the active one with Enter, removes the button that had focus. Focus then
+// goes to the button now standing where it stood (the next row's, or the previous one's when it was the last), and to
+// the empty page's heading when no row is left. It moves only if focus was lost with the row, so a failed revert, or a
+// press elsewhere meanwhile, leaves it where it is.
 
 const REVERT_SELECTOR = '[data-testid="diff-revert"]';
 const ROW_SELECTOR = '[data-testid="diff-row"]';

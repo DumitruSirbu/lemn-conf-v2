@@ -1,4 +1,4 @@
-// Adversarial QA of the structural diff rows (U5b): row, text and link rows over drafts that mix a created class, a created
+// Adversarial QA of the structural diff rows: row, text and link rows over drafts that mix a created class, a created
 // accessory, their rewording, their deletion and ordinary edits, in every order the draft can hold them. Properties, not
 // examples: the rows must be unique, must name something, and what ↺ takes back must leave a draft that still makes a book.
 // Each predicate is also shown to fail on a row list built to break it, so a green sweep is not a sweep that checks nothing.

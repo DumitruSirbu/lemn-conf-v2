@@ -1,4 +1,4 @@
-// Adversarial QA of the in-memory client (U5b), against what the real routes answer. The sample is what every non-production
+// Adversarial QA of the in-memory client, against what the real routes answer. The sample is what every non-production
 // build writes through, so an answer it gives that no route would give shows a person a behaviour the real desk never has.
 // The oracles are the real ones: the domain's text rule for a version's label, `judgeDraft` for a change, `readVersionPage`
 // for a page, `planPublish`'s staleness rule for a publish.
@@ -9,7 +9,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { judgeDraft } from "@/lib/server/price-dashboard/draft-judgement";
+import { judgeDraft } from "@/price-dashboard/draft-judgement";
 import { readVersionPage } from "@/lib/server/price-dashboard/publish-requests";
 import type {
   DashboardStateWire,
