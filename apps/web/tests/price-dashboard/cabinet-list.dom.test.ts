@@ -6,6 +6,7 @@
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { cabinetPathOf } from "@/price-dashboard/cabinet-paths";
 import { CabinetListScreen } from "@/price-dashboard/cabinet-list";
 import type {
   CabinetListInput,
@@ -573,5 +574,36 @@ describe("a price that cannot be drawn, or must not be", () => {
 
     expect(row.querySelector('[data-testid="cabinet-price"]')).toBeNull();
     expect(row.textContent).not.toContain(COPY.units.currency);
+  });
+});
+
+describe("the way into a cabinet's page", () => {
+  it("makes each row's name a link to that cabinet's page, in the page's language", async () => {
+    const container = await mount(SAMPLE_CABINET_LIST, "ru");
+
+    const links = rowsOf(container).map((row) => {
+      const link = requireIn<HTMLAnchorElement>(
+        row,
+        '[data-testid="cabinet-link"]',
+      );
+      return [row.dataset.ruleId, link.getAttribute("href"), link.textContent];
+    });
+
+    expect(links.length).toBe(SAMPLE_CABINET_LIST.rules.length);
+    for (const [index, [ruleId, href, text]] of links.entries()) {
+      expect(href, String(ruleId)).toBe(cabinetPathOf("ru", String(ruleId)));
+      expect(text).toBe(SAMPLE_CABINET_LIST.rules[index]?.name);
+    }
+  });
+
+  it("ends each row with a chevron that is drawn and not read, and the column titles keep a place for it", async () => {
+    const container = await mount();
+    const row = rowOf(container, BASE_CABINET);
+    const chevron = requireIn(row, "[class*=chevron]");
+
+    expect(chevron.getAttribute("aria-hidden")).toBe("true");
+    expect(chevron.textContent).toBe("");
+    expect(chevron.parentElement).toBe(row);
+    expect(requireIn(container, "[class*=columns]").children).toHaveLength(5);
   });
 });

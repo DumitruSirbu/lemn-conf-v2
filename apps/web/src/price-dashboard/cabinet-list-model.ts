@@ -85,6 +85,14 @@ export interface CabinetRow {
   readonly isModified: boolean;
 }
 
+/** The message of each group's heading. */
+export const GROUP_HEADING_KEYS = {
+  base: "priceDashboard.cabinets.groupBase",
+  wall: "priceDashboard.cabinets.groupWall",
+  tall: "priceDashboard.cabinets.groupTall",
+  corner: "priceDashboard.cabinets.groupCorner",
+} as const;
+
 export interface CabinetGroup {
   readonly code: PriceGroupCode;
   readonly rows: readonly CabinetRow[];

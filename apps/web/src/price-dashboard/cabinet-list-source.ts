@@ -29,22 +29,43 @@ export type CabinetListRead =
   | { readonly kind: "ready"; readonly page: CabinetListPageInput }
   | { readonly kind: "unavailable" };
 
+/** One cabinet's page: the same state, and the cabinet asked for, which the book may not hold. */
+export type CabinetDetailRead =
+  | { readonly kind: "ready"; readonly page: CabinetListPageInput }
+  | { readonly kind: "not-found" }
+  | { readonly kind: "unavailable" };
+
 const romanian = createTranslator({
   locale: "ro",
   messages: roMessages,
 }) as ContentTranslator;
 
 export async function readCabinetList(): Promise<CabinetListRead> {
+  const page = await readPage();
+  return page === undefined ? { kind: "unavailable" } : { kind: "ready", page };
+}
+
+/** The page for a cabinet's own address. The id is judged here, after the staff gate has admitted the reader. */
+export async function readCabinetDetail(
+  ruleId: string,
+): Promise<CabinetDetailRead> {
+  const page = await readPage();
+  if (page === undefined) return { kind: "unavailable" };
+  const holdsRule = page.state.active.book.cabinetRules.some(
+    (rule) => rule.ruleId === ruleId,
+  );
+  return holdsRule ? { kind: "ready", page } : { kind: "not-found" };
+}
+
+async function readPage(): Promise<CabinetListPageInput | undefined> {
   const state = readDashboardStateWire(await readStateOrNothing());
-  if (state === undefined) return { kind: "unavailable" };
+  if (state === undefined) return undefined;
   const page = {
     state,
     cabinetNames: cabinetNamesOf(state.active.book),
   };
   // The seam's own check: a list that cannot be worked out here would not be worked out in the browser either.
-  return deriveCabinetList(page).kind === "ready"
-    ? { kind: "ready", page }
-    : { kind: "unavailable" };
+  return deriveCabinetList(page).kind === "ready" ? page : undefined;
 }
 
 /** A store that fails is nothing to show, and the line written down names the event and the outcome alone. */

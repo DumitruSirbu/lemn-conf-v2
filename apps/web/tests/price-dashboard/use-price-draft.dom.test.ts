@@ -228,3 +228,80 @@ describe("a bulk action", () => {
     draft.unmount();
   });
 });
+
+describe("an amount wanted at an address", () => {
+  const ACTIVE_ANCHOR_MINOR = 396_000;
+  const ANCHOR_WANTED = { address: ANCHOR_ADDRESS, value: 500_000 };
+
+  it("is a change, sent as the address and the value and nothing the caller carried beside them", async () => {
+    const server = inMemoryPriceDraftClient(stateOf([], "4"));
+    const draft = mount(server.client);
+
+    await act(async () => {
+      await draft.result.current.changeOrRevert(
+        { ...ANCHOR_WANTED, fieldKey: "anchorMinor" } as typeof ANCHOR_WANTED,
+        ACTIVE_ANCHOR_MINOR,
+      );
+    });
+
+    expect(server.calls.map((call) => call.kind)).toEqual(["change"]);
+    expect(server.state().draft.changes).toEqual([ANCHOR_WANTED]);
+    draft.unmount();
+  });
+
+  it("takes the draft's change out when the value is the active one", async () => {
+    const server = inMemoryPriceDraftClient(stateOf([ANCHOR_WANTED], "4"));
+    const draft = mount(server.client, server.state());
+
+    let result: unknown;
+    await act(async () => {
+      result = await draft.result.current.changeOrRevert(
+        { address: ANCHOR_ADDRESS, value: ACTIVE_ANCHOR_MINOR },
+        ACTIVE_ANCHOR_MINOR,
+      );
+    });
+
+    expect(result).toEqual({ kind: "saved" });
+    expect(server.calls.map((call) => call.kind)).toEqual(["revert"]);
+    expect(server.state().draft.changes).toEqual([]);
+    draft.unmount();
+  });
+
+  it("sends nothing when the value is the active one and the draft holds no change there", async () => {
+    const server = inMemoryPriceDraftClient(stateOf([], "4"));
+    const draft = mount(server.client);
+
+    let result: unknown;
+    await act(async () => {
+      result = await draft.result.current.changeOrRevert(
+        { address: ANCHOR_ADDRESS, value: ACTIVE_ANCHOR_MINOR },
+        ACTIVE_ANCHOR_MINOR,
+      );
+    });
+
+    expect(result).toEqual({ kind: "unchanged" });
+    expect(server.calls).toEqual([]);
+    draft.unmount();
+  });
+
+  it("reads the change the draft holds now, not the one it held when the screen last rendered", async () => {
+    const server = inMemoryPriceDraftClient(stateOf([], "4"));
+    const draft = mount(server.client);
+
+    let result: unknown;
+    await act(async () => {
+      await draft.result.current.changeOrRevert(
+        ANCHOR_WANTED,
+        ACTIVE_ANCHOR_MINOR,
+      );
+      result = await draft.result.current.changeOrRevert(
+        { address: ANCHOR_ADDRESS, value: ACTIVE_ANCHOR_MINOR },
+        ACTIVE_ANCHOR_MINOR,
+      );
+    });
+
+    expect(result).toEqual({ kind: "saved" });
+    expect(server.state().draft.changes).toEqual([]);
+    draft.unmount();
+  });
+});

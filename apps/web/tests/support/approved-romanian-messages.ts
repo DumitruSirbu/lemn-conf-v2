@@ -1807,6 +1807,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "La {widthMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul „în minus”.",
       priceNotPositiveAtHeight:
         "La {heightMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul de înălțime.",
+      // Drafted, not frame wording: the frames draw only the narrow-step and height-step causes of a zero price.
+      priceNotPositive: "Cu valorile acestea un preț ar ieși zero sau negativ.",
       fixToSave:
         "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
@@ -1918,17 +1920,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       maxWidth: "Lățime maximă",
       widthStep: "Pas",
       availableWidths: "Lățimi disponibile",
-      bodyHeight: "Înălțime corp",
+      bodyHeight: "Înălțime finită",
       maxHeight: "Înălțime maximă",
       depthInKitchen:
         "Adâncime · bucătărie {kitchenDepthMm, number, ::group-off}",
       sourceGenerator: "din generatorul de bucătării",
       sourceSameAsWidth: "aceeași cu lățimea disponibilă",
       sourceToConfirm: "de confirmat de tine",
-      followsBase: "după dulapul de jos",
-      wallRows: "rândul de perete / rândul de sus",
       followsOpening: "după golul din perete",
-      noMaxHeight: "nu există încă; ia înălțimea golului",
       doors: "Uși",
       doorsRange:
         "{low, number, ::group-off} · {high, number, ::group-off} de la {atMm, number, ::group-off} mm",
@@ -1961,11 +1960,20 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Fiecare {stepMm, number, ::group-off} mm de înălțime sub {referenceMm, number, ::group-off} scade {amount}.",
       summaryRounding: "Lățimile intermediare se rotunjesc în sus.",
       summaryFixedSize: "{widthMm, number, ::group-off} mm: {amount}",
+      // Drafted, not frame wording: the frames join a fixed-size row's sizes with a comma and end the sentence.
+      summaryFixedJoined: "{head}, {tail}",
+      summaryFixedEnd: "{sizes}.",
       hardwareHeading: "Feronerie (automată, doar citire)",
       hardwareLine:
         "La {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
+      hardwareLineActive:
+        "Activ · la {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
+      hardwareLinePending:
+        "De publicat · la {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
       hardwareNone: "Acest dulap nu are mecanisme de feronerie.",
       hardwareLink: "Feronerie →",
+      // Drafted, not frame wording: the frame joins the mechanisms with a plus.
+      hardwareJoined: "{head} + {tail}",
       hingeCount:
         "{count, plural, one {{count, number, ::group-off} balama} few {{count, number, ::group-off} balamale} other {{count, number, ::group-off} de balamale}}",
       slidePairCount:
@@ -1975,6 +1983,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       previewHeading: "Prețul dulapului",
       previewIntro:
         "Activ acum și după salvare. Toate prețurile se rotunjesc la {roundTo}.",
+      // Drafted, not frame wording: a width row of the table and the label a phone card gives each price.
+      previewWidth: "{widthMm, number, ::group-off} mm",
+      previewCellLabel: "{column} · {kind}",
       columnWidth: "Lățime",
       columnDoors: "Uși",
       columnActive: "Activ",
@@ -1985,9 +1996,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       depthToggle:
         "Adâncime {shallowMm, number, ::group-off} / {deepMm, number, ::group-off}",
       depthToggleOn: "{deepMm, number, ::group-off} mm · +{percent} %",
+      depthToggleOnPending:
+        "{deepMm, number, ::group-off} mm · Activ +{activePercent} % · De publicat +{pendingPercent} %",
       depthToggleOff: "{shallowMm, number, ::group-off} mm",
-      depthToggleDisabled: "Nu se schimbă la {deepMm, number, ::group-off} mm",
+      depthToggleDisabled:
+        "Prețul nu se schimbă la {deepMm, number, ::group-off} mm",
       columnMaterialPercent: "{name} +{percent} %",
+      columnMaterialPercentPending:
+        "{name} +{percent} % · De publicat +{pendingPercent} %",
       columnWallRow:
         "{heightMm, number, ::group-off} mm · rândul de perete · PAL",
       columnTopRow: "{heightMm, number, ::group-off} mm · rândul de sus · PAL",
@@ -1998,7 +2014,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "{doorCount, plural, one {{doorCount, number, ::group-off} ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
       doorsFromHere:
         "de aici {doorCount, plural, one {o ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
-      activeCell: "activ {amount}",
       pendingNotice:
         "Prețul nou este în „De publicat” și intră în vigoare când publici.",
       customerSupplied: "Clientul oferă acest obiect; nu influențează prețul.",

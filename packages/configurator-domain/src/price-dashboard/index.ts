@@ -47,6 +47,7 @@ export {
   type PriceDrivingField,
 } from "./judge-book.js";
 export {
+  defaultReadHeightMmOf,
   PREVIEW_REFUSAL_CODES,
   previewCabinet,
   type CabinetPreview,
@@ -56,8 +57,13 @@ export {
   type PreviewRow,
 } from "./cabinet-preview.js";
 export {
+  buildableHeightsMm,
+  standingHeightMmOf,
+  displayEntryOf,
+  NO_DECLARED_HEIGHT_MM,
   pricedRowOf,
   referenceCornerBuiltWidthsMm,
+  type BuiltSize,
   type BuiltWidthsMm,
   type PricedRow,
 } from "./priced-row.js";

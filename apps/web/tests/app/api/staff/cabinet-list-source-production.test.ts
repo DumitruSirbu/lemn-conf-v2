@@ -4,7 +4,10 @@
 // is how production is chosen.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
+import {
+  readCabinetDetail,
+  readCabinetList,
+} from "@/price-dashboard/cabinet-list-source";
 import { PRICE_STORES_GLOBAL_KEY } from "@/lib/server/price-stores";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
@@ -46,6 +49,19 @@ describe("the list's source in production", () => {
   it("answers unavailable, every time, and leaves no audit row and no word of a sample", async () => {
     for (let ask = 0; ask < 3; ask += 1) {
       expect(await readCabinetList()).toEqual({ kind: "unavailable" });
+    }
+
+    expect(staffWorld.audit.heldEvents()).toEqual([]);
+    expect(console_.everything()).not.toMatch(/sample|seed/i);
+  });
+});
+
+describe("one cabinet's page in production", () => {
+  it("answers unavailable, and not not-found, for a rule that exists and one that does not: no price is claimed and no cabinet is denied", async () => {
+    for (const ruleId of ["cabinet.base-cabinet", "cabinet.stranger"]) {
+      expect(await readCabinetDetail(ruleId), ruleId).toEqual({
+        kind: "unavailable",
+      });
     }
 
     expect(staffWorld.audit.heldEvents()).toEqual([]);

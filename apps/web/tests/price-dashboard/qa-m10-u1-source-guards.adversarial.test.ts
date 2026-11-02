@@ -42,12 +42,15 @@ describe("the invented cabinet list can reach nobody", () => {
     expect(importers).toEqual([]);
   });
 
-  it("is imported by the staff cabinets page and by no other module, so a draft's prices reach no customer's page through it", () => {
+  it("is imported by the staff cabinets page and the staff cabinet's page and by no other module, so a draft's prices reach no customer's page through it", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) => /\/cabinet-list-source["']/.test(sourceOf(path)))
       .map((path) => path.slice(SOURCE_ROOT.length + 1));
 
-    expect(importers).toEqual(["app/[locale]/staff/catalog/cabinets/page.tsx"]);
+    expect(importers.sort()).toEqual([
+      "app/[locale]/staff/catalog/cabinets/[ruleId]/page.tsx",
+      "app/[locale]/staff/catalog/cabinets/page.tsx",
+    ]);
   });
 
   it("reads the dashboard's state without writing, is server-only, and never reads the environment or loads a sample", () => {

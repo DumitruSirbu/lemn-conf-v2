@@ -111,6 +111,14 @@ export interface PricePerSizeFormula {
   readonly sizes: readonly PricedSize[];
 }
 
+/** Whether a formula is an anchored one. A guard on the formula and not on its shape, because a book comes from outside
+ *  TypeScript and narrowing `formula.shape` leaves `formula` a union. */
+export function isAnchoredFormula(
+  formula: AnchoredFormula | PricePerSizeFormula,
+): formula is AnchoredFormula {
+  return isAnchoredShape(formula.shape);
+}
+
 /** Whether a shape carries the signed door-leaf term. */
 export function anchoredShapeReadsDoorLeaves(shape: AnchoredShape): boolean {
   return shapeReads(shape, "door-leaves");

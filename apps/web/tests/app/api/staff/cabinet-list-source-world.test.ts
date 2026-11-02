@@ -6,7 +6,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deriveCabinetList } from "@/price-dashboard/cabinet-list-facts";
-import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
+import {
+  readCabinetDetail,
+  readCabinetList,
+} from "@/price-dashboard/cabinet-list-source";
 import { STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
@@ -97,5 +100,39 @@ describe("a page render writes nothing and spends nothing", () => {
     for (let read = 0; read < reads; read += 1) {
       expect((await readCabinetList()).kind, String(read)).toBe("ready");
     }
+  });
+});
+
+describe("one cabinet's page over the same worlds", () => {
+  const BASE_CABINET_RULE = "cabinet.base-cabinet";
+
+  it("is the seeded book's cabinet, and a rule the book lacks is not-found", async () => {
+    const found = await readCabinetDetail(BASE_CABINET_RULE);
+    const lacking = await readCabinetDetail("cabinet.stranger");
+
+    expect(found.kind).toBe("ready");
+    expect(lacking.kind).toBe("not-found");
+  });
+
+  it("leaves no audit row, touches no session and counts no limiter bucket, however often it is read", async () => {
+    staffWorld.auditBehaviour = "reject";
+    await signedInAs({ role: "administrator" });
+    const callsBefore = accountWorld.calls.length;
+    const bucketsBefore = limiterLedger.counted.length;
+
+    for (
+      let read = 0;
+      read <= STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE;
+      read += 1
+    ) {
+      expect(
+        (await readCabinetDetail(BASE_CABINET_RULE)).kind,
+        String(read),
+      ).toBe("ready");
+    }
+
+    expect(staffWorld.audit.heldEvents()).toEqual([]);
+    expect(accountWorld.calls.slice(callsBefore)).toEqual([]);
+    expect(limiterLedger.counted.slice(bucketsBefore)).toEqual([]);
   });
 });

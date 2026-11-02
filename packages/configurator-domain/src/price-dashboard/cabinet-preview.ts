@@ -1,6 +1,7 @@
 import { countHardwareMechanisms } from "../hardware-mechanisms.js";
 import {
   anchoredShapeReadsDoorLeaves,
+  isAnchoredFormula,
   isAnchoredShape,
   PRICE_PER_SIZE_SHAPE,
   PRICE_STEP_MM,
@@ -258,25 +259,32 @@ function hardwareOf(
   return tier === undefined ? refused("UNKNOWN_HARDWARE") : accepted(tier);
 }
 
-/** The height a row built to its opening is read at: the caller's (which the row must be built at), else the formula's
- *  anchor height, else the row's first buildable one. */
+/** The height a row built to its opening is read at: the caller's (which the row must be built at), else the one a cabinet
+ *  is read at when none is asked for. */
 function heightOf(
   request: CabinetPreviewRequest,
   row: PricedRow,
 ): Reading<number> {
   const { heightMm } = request;
-  if (heightMm !== undefined) {
-    return isBuildableHeightMm(row, heightMm)
-      ? accepted(heightMm)
-      : refused("HEIGHT_NOT_BUILDABLE");
+  if (heightMm === undefined) {
+    return accepted(defaultReadHeightMmOf(request.rule, row));
   }
-  const { formula } = request.rule;
-  const anchorHeightMm = isAnchoredShape(formula.shape)
-    ? (formula as { readonly anchorHeightMm?: number }).anchorHeightMm
+  return isBuildableHeightMm(row, heightMm)
+    ? accepted(heightMm)
+    : refused("HEIGHT_NOT_BUILDABLE");
+}
+
+/** The height a cabinet is read at when none is asked for: the formula's anchor height, else the row's first buildable
+ *  one. */
+export function defaultReadHeightMmOf(
+  rule: CabinetPriceRule,
+  row: PricedRow,
+): number {
+  const { formula } = rule;
+  const anchorHeightMm = isAnchoredFormula(formula)
+    ? formula.anchorHeightMm
     : undefined;
-  return accepted(
-    anchorHeightMm ?? buildableHeightsMm(row)[0] ?? NO_DECLARED_HEIGHT_MM,
-  );
+  return anchorHeightMm ?? buildableHeightsMm(row)[0] ?? NO_DECLARED_HEIGHT_MM;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

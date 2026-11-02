@@ -57,7 +57,12 @@ export function CabinetListScreen({
   };
   return (
     <StaffShell locale={locale} page="cabinets" context={shell}>
-      <CabinetList input={input} editing={editing} rulesCard={rulesCard} />
+      <CabinetList
+        locale={locale}
+        input={input}
+        editing={editing}
+        rulesCard={rulesCard}
+      />
     </StaffShell>
   );
 }
@@ -78,10 +83,12 @@ export function CabinetListUnavailableScreen({
 }
 
 function CabinetList({
+  locale,
   input,
   editing,
   rulesCard,
 }: {
+  readonly locale: AppLocale;
   readonly input: CabinetListInput;
   readonly editing: PriceEditing | undefined;
   readonly rulesCard: ReactNode;
@@ -169,6 +176,7 @@ function CabinetList({
           {groups.map((group) => (
             <CabinetGroupSection
               key={group.code}
+              locale={locale}
               group={group}
               editing={editing}
               isOpen={isNarrowed || !closedGroups.has(group.code)}
@@ -265,6 +273,7 @@ function ColumnHeads() {
       <span>{translate("priceDashboard.cabinets.columnCabinet")}</span>
       <span>{translate("priceDashboard.cabinets.columnWidth")}</span>
       <span>{translate("priceDashboard.cabinets.columnPrice")}</span>
+      <span />
     </div>
   );
 }

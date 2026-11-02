@@ -1,11 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
-import {
-  isSameAddress,
-  type AppliedAddress,
-} from "@lemnaria/configurator-domain";
+import type { AppliedAddress } from "@lemnaria/configurator-domain";
 
 import type { AppLocale } from "@/i18n/routing";
 import type { StaffShellContext } from "@/staff/staff-shell";
@@ -22,9 +19,8 @@ import {
 import type { PriceEditing } from "./cabinet-list-inline-edit";
 import type { CabinetAnchorField } from "./cabinet-list-model";
 import { DepthRuleCard } from "./depth-rule-card";
-import type { DraftChangeInputWire } from "./price-dashboard-wire-contract";
 import type { PriceDraftClient } from "./price-draft-client";
-import { usePriceDraft, type FieldWriteResult } from "./use-price-draft";
+import { usePriceDraft } from "./use-price-draft";
 
 // The cabinet list with its writes: the screen reads the draft it holds, and a price, the depth rule or a bulk action
 // changes it through the dashboard's routes. The rows are worked out again from the draft after every write, so what is
@@ -46,7 +42,7 @@ export function CabinetListEditor({
   page,
   client,
 }: CabinetListEditorProps) {
-  const { state, isBusy, change, revert, bulk } = usePriceDraft({
+  const { state, isBusy, changeOrRevert, bulk } = usePriceDraft({
     initial: page.state,
     client,
   });
@@ -57,34 +53,16 @@ export function CabinetListEditor({
     [state, page.cabinetNames],
   );
 
-  /** A value equal to the active one is no change: it takes the draft's change at that address out, or does nothing. */
-  const setField = useCallback(
-    (
-      wanted: { readonly address: AppliedAddress; readonly value: number },
-      activeValue: number,
-    ): Promise<FieldWriteResult> => {
-      // The address of a number field and a number are a change of that field: the route judges which address takes
-      // one.
-      if (wanted.value !== activeValue) {
-        return change(wanted as DraftChangeInputWire);
-      }
-      const holdsChange = state.draft.changes.some((held) =>
-        isSameAddress(held.address, wanted.address),
-      );
-      return holdsChange
-        ? revert({ kind: "change", address: wanted.address })
-        : Promise.resolve({ kind: "unchanged" });
-    },
-    [state.draft.changes, change, revert],
-  );
-
   const editing = useMemo<PriceEditing>(
     () => ({
       isBusy,
       saveAnchor: (field: CabinetAnchorField, minor: number) =>
-        setField({ address: field.address, value: minor }, field.activeMinor),
+        changeOrRevert(
+          { address: field.address, value: minor },
+          field.activeMinor,
+        ),
     }),
-    [isBusy, setField],
+    [isBusy, changeOrRevert],
   );
 
   if (reading.kind === "unreadable") {
@@ -104,7 +82,7 @@ export function CabinetListEditor({
             pendingPercent={reading.candidate.depthRule.deepCabinetPercent}
             isBusy={isBusy}
             onSave={(percent) =>
-              setField(
+              changeOrRevert(
                 { address: DEPTH_RULE_ADDRESS, value: percent },
                 activeDepthPercent,
               )

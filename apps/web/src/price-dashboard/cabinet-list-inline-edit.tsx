@@ -18,6 +18,7 @@ import {
 } from "./price-input-words";
 import { plainLeiOf, readLeiInputOverHeld } from "./price-field-input";
 import styles from "./price-edit.module.css";
+import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { FieldWriteResult } from "./use-price-draft";
 
 // Frame D2C: the price at the default size changes in the table. A press on the price opens its field; Enter sends the
@@ -63,7 +64,7 @@ export function EditablePrice({
     undefined,
   );
   const [isFocusOwed, setIsFocusOwed] = useState(false);
-  const moveCountRef = useRef(0);
+  const { moveOn: markMoved, begin } = useLateAnswerGuard();
   const isOpen = typed !== undefined;
 
   useEffect(() => {
@@ -76,11 +77,8 @@ export function EditablePrice({
     }
   }, [isOpen, isFocusOwed]);
 
-  /**
-   * Opening, typing and closing each make an answer still on its way an answer to a field that is no longer this one.
-   */
   const moveOn = () => {
-    moveCountRef.current += 1;
+    markMoved();
     setRefusal(undefined);
   };
 
@@ -108,6 +106,7 @@ export function EditablePrice({
           <span>{figure}</span>
           <span className={styles.pencil} aria-hidden="true" />
         </button>
+        <span className={styles.priceText}>{figure}</span>
         {basis}
       </>
     );
@@ -130,10 +129,9 @@ export function EditablePrice({
       close();
       return;
     }
-    const moveCountWhenSent = moveCountRef.current;
+    const hasMoved = begin();
     const result = await editing.saveAnchor(field, reading.minor);
-    if (result.kind === "busy") return;
-    if (moveCountRef.current !== moveCountWhenSent) return;
+    if (result.kind === "busy" || hasMoved()) return;
     if (result.kind === "saved" || result.kind === "unchanged") close();
     else setRefusal(result);
   };
@@ -149,21 +147,23 @@ export function EditablePrice({
   };
 
   return (
-    <PriceUnitField
-      label={translate("priceDashboard.cabinets.editPriceLabel", { widthMm })}
-      unit={translate("priceDashboard.units.currency")}
-      inputMode="decimal"
-      value={typed}
-      inputRef={inputRef}
-      hint={translate("priceDashboard.cabinets.editHint")}
-      error={error}
-      isPending={field.pendingMinor !== field.activeMinor}
-      onChange={(next) => {
-        moveOn();
-        setTyped(next);
-      }}
-      onKeyDown={onKeyDown}
-    />
+    <div className={styles.openPrice}>
+      <PriceUnitField
+        label={translate("priceDashboard.cabinets.editPriceLabel", { widthMm })}
+        unit={translate("priceDashboard.units.currency")}
+        inputMode="decimal"
+        value={typed}
+        inputRef={inputRef}
+        hint={translate("priceDashboard.cabinets.editHint")}
+        error={error}
+        isPending={field.pendingMinor !== field.activeMinor}
+        onChange={(next) => {
+          moveOn();
+          setTyped(next);
+        }}
+        onKeyDown={onKeyDown}
+      />
+    </div>
   );
 }
 

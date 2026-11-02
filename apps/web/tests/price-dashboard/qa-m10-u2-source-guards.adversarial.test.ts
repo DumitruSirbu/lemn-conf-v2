@@ -19,6 +19,7 @@ import {
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const SOURCE_FILE = "price-dashboard/cabinet-list-source.ts";
 const PAGE = "app/[locale]/staff/catalog/cabinets/page.tsx";
+const DETAIL_PAGE = "app/[locale]/staff/catalog/cabinets/[ruleId]/page.tsx";
 const SERVER_ONLY_IMPORT = /^import\s+["']server-only["'];?\s*$/m;
 
 const allSources = filesUnder(SOURCE_ROOT).map((path) =>
@@ -34,13 +35,13 @@ describe("the list's source", () => {
     expect(firstImport).toBe('import "server-only";');
   });
 
-  it("is named in code by the staff cabinets page alone, in whatever form the name is written", () => {
+  it("is named in code by the staff cabinets page and the staff cabinet's page alone, in whatever form the name is written", () => {
     const mentions = allSources.filter(
       (path) =>
         path !== SOURCE_FILE && codeOf(path).includes("cabinet-list-source"),
     );
 
-    expect(mentions).toEqual([PAGE]);
+    expect(mentions.sort()).toEqual([DETAIL_PAGE, PAGE]);
   });
 
   it("is named in code, by its words broken in two or built, by nobody (a dynamic import the closure cannot follow)", () => {
@@ -67,6 +68,8 @@ describe("the list's source", () => {
 describe("what a browser loads of the list", () => {
   const ENTRIES = [
     "price-dashboard/cabinet-list-editor.tsx",
+    "price-dashboard/cabinet-detail.tsx",
+    "price-dashboard/use-cabinet-price-editing.ts",
     "price-dashboard/cabinet-list-inline-edit.tsx",
     "price-dashboard/depth-rule-card.tsx",
     "price-dashboard/bulk-change-dialog.tsx",
@@ -112,6 +115,9 @@ describe("what a browser loads of the list", () => {
       ...ENTRIES,
       SOURCE_FILE,
       "price-dashboard/cabinet-list-facts.ts",
+      "price-dashboard/cabinet-detail-facts.ts",
+      "price-dashboard/cabinet-detail-fields.ts",
+      "price-dashboard/cabinet-preview-model.ts",
       "price-dashboard/price-dashboard-catalogue.ts",
       "price-dashboard/price-unit-field.tsx",
     ];

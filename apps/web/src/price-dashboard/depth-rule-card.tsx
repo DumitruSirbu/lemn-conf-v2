@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useRef, useState, type RefObject } from "react";
+import { useId, useState, type RefObject } from "react";
 
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -17,6 +17,7 @@ import {
 } from "./price-input-words";
 import { readDepthPercentInput } from "./price-field-input";
 import styles from "./price-edit.module.css";
+import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { FieldWriteResult } from "./use-price-draft";
 
 // Frames D2E1 to D2E3: the percentage the deep kitchen adds to the cabinets that get deeper, from 0 to the book's
@@ -52,7 +53,7 @@ export function DepthRuleCard({
   const titleId = useId();
   const [typed, setTyped] = useState<string | undefined>(undefined);
   const [feedback, setFeedback] = useState<SaveFeedback>({ kind: "none" });
-  const moveCountRef = useRef(0);
+  const { moveOn: markMoved, begin } = useLateAnswerGuard();
   const isPending = pendingPercent !== activePercent;
   const value = typed ?? String(pendingPercent);
   const reading = readDepthPercentInput(value);
@@ -66,19 +67,17 @@ export function DepthRuleCard({
         ? depthWriteFailureWords(translate, feedback.failure)
         : undefined;
 
-  /** Typing and cancelling each make a save still on its way an answer to a field that is no longer this one. */
   const moveOn = () => {
-    moveCountRef.current += 1;
+    markMoved();
     setFeedback({ kind: "none" });
   };
 
   const save = async () => {
     if (reading.kind !== "percent" || isBusy) return;
     const { percent } = reading;
-    const moveCountWhenSent = moveCountRef.current;
+    const hasMoved = begin();
     const result = await onSave(percent);
-    if (result.kind === "busy") return;
-    if (moveCountRef.current !== moveCountWhenSent) return;
+    if (result.kind === "busy" || hasMoved()) return;
     if (result.kind === "saved" || result.kind === "unchanged") {
       setTyped(undefined);
       // The active percentage written over a pending one takes the change out: nothing went to De publicat.
