@@ -240,6 +240,7 @@ export type {
   PresetRemovalCause,
 } from "./preset/preset-adaptation-result.js";
 export * from "./pricing/price-book.js";
+export { MAX_PRICE_COEFFICIENT_MINOR } from "./pricing/book-reading.js";
 export * from "./pricing/anchored-price-formula.js";
 export * from "./pricing/price-lines.js";
 // The book's ingress (ADR 0062 seam 1): a composition root parses once, so every consumer downstream

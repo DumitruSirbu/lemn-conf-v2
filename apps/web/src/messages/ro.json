@@ -1373,6 +1373,7 @@
       "notNumber": "Scrie doar cifre și o virgulă pentru bani, de exemplu {example}.",
       "negative": "Suma nu poate fi negativă.",
       "tooManyDecimals": "Cel mult două zecimale, de exemplu {example}.",
+      "notMultipleOfTen": "Prețul se scrie în multipli de {step} lei, de exemplu {example}.",
       "tooBig": "Suma este prea mare.",
       "empty": "Completează suma. Scrie zero dacă nu se adaugă nimic.",
       "percentEmpty": "Completează procentul. Scrie zero dacă adâncimea nu schimbă prețul.",
@@ -1451,7 +1452,20 @@
       "changeHint": "Cu minus pentru reducere, de exemplu −{example}.",
       "previewTitle": "Previzualizare",
       "preview": "{cabinetCount, plural, one {{cabinetCount, number, ::group-off} dulap} few {{cabinetCount, number, ::group-off} dulapuri} other {{cabinetCount, number, ::group-off} dulapuri}}, {priceCount, plural, one {{priceCount, number, ::group-off} preț} few {{priceCount, number, ::group-off} prețuri} other {{priceCount, number, ::group-off} de prețuri}}. Exemplu: {example}.",
-      "explainer": "Se schimbă proporțional prețul la mărimea implicită, pașii de lățime, ușa în plus, pasul de înălțime și prețurile pe mărime. Rezultatele se rotunjesc la {roundTo}. Merg la „De publicat”, nu direct la clienți."
+      "explainer": "Se schimbă proporțional prețul la mărimea implicită, pașii de lățime, ușa în plus, pasul de înălțime și prețurile pe mărime. Rezultatele se rotunjesc la {roundTo}. Merg la „De publicat”, nu direct la clienți.",
+      "adding": "Se adaugă…",
+      "previewExample": "{name} {widthMm, number, ::group-off} mm: {before} → {after}",
+      "errors": {
+        "empty": "Scrie procentul, de exemplu +{example}.",
+        "zero": "Zero la sută nu schimbă niciun preț. Scrie alt procent.",
+        "outOfRange": "Procentul trebuie să fie între {lowest} și {highest}.",
+        "nothingChanges": "Cu acest procent, după rotunjire, niciun preț nu s-ar schimba. Alege un procent mai mare.",
+        "noCabinets": "Bifează cel puțin un dulap.",
+        "priceNotPositive": "Prețul dulapului „{name}” ar ieși zero sau negativ. Alege un procent mai mic sau scoate dulapul din alegere.",
+        "priceAlreadyNotPositive": "Prețul dulapului „{name}” este deja zero sau negativ. Corectează mai întâi prețul, apoi aplică procentul.",
+        "priceTooLarge": "Un preț ar depăși cât poate costa un dulap. Alege un procent mai mic.",
+        "cannotApply": "Procentul nu poate fi aplicat acestor prețuri. Nu am schimbat nimic."
+      }
     },
     "cabinet": {
       "dimensionsHeading": "Dimensiuni",

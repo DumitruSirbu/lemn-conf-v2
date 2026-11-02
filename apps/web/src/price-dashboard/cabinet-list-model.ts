@@ -1,5 +1,6 @@
 import {
   PRICE_GROUP_CODES,
+  type AddressOfKind,
   type DraftChange,
   type PriceGroupCode,
 } from "@lemnaria/configurator-domain";
@@ -36,6 +37,22 @@ export interface CabinetDefaultPrice {
   readonly pendingMinor: number;
 }
 
+/** The address of a cabinet's price: its anchor, or one listed size. */
+export type CabinetPriceAddress = AddressOfKind<"cabinet" | "cabinet-size">;
+
+/**
+ * The one amount the list edits in place: the price the row is quoted at, as the book holds it (not the rounded
+ * display).
+ */
+export interface CabinetAnchorField {
+  /** What a draft change names: the anchor of an anchored rule, or the default size of a rule priced per size. */
+  readonly address: CabinetPriceAddress;
+  /** The amount in bani once the draft is applied: what the field starts from. */
+  readonly pendingMinor: number;
+  /** The amount in bani in the active version: a typed value equal to it takes the change out of the draft. */
+  readonly activeMinor: number;
+}
+
 /** One cabinet type of the book, as the list needs it. The server builds it from the active book and the catalogue. */
 export interface CabinetRuleFacts {
   readonly ruleId: string;
@@ -50,6 +67,10 @@ export interface CabinetRuleFacts {
   readonly isCustomerSupplied: boolean;
   /** Absent exactly for a customer-supplied row. */
   readonly price?: CabinetDefaultPrice;
+  /**
+   * What the price cell edits; absent for a row the list cannot edit (a customer-supplied one, and a read-only list).
+   */
+  readonly anchorField?: CabinetAnchorField;
 }
 
 /** Everything the list screen is given: the cabinets, and the draft beside them (X0's wire shape). */

@@ -11,7 +11,7 @@ import type {
   CabinetListInput,
   CabinetRuleFacts,
 } from "@/price-dashboard/cabinet-list-model";
-import { SAMPLE_CABINET_LIST } from "@/price-dashboard/cabinet-list-sample";
+import { SAMPLE_CABINET_LIST } from "../support/cabinet-list-sample";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
@@ -289,6 +289,14 @@ describe("a row (frames D2A, D2B)", () => {
     expect(rowOf(container, THREE_DRAWER).textContent).not.toContain(
       COPY.cabinets.proposed,
     );
+  });
+
+  it("puts the proposed mark on the line of the default width, not on a line of its own", async () => {
+    const container = await mount();
+    const mark = requireIn(rowOf(container, PAN_BANK), "[class*=proposed]");
+
+    expect(mark.textContent).toBe(COPY.cabinets.proposed);
+    expect(mark.parentElement?.textContent).toContain("implicit 600");
   });
 
   it("draws the cabinet's picture as a decorative background, so a missing file paints an empty tile", async () => {

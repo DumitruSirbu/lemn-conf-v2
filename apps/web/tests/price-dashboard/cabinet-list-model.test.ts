@@ -13,7 +13,7 @@ import {
   type CabinetRow,
   type CabinetRuleFacts,
 } from "@/price-dashboard/cabinet-list-model";
-import { SAMPLE_CABINET_LIST } from "@/price-dashboard/cabinet-list-sample";
+import { SAMPLE_CABINET_LIST } from "../support/cabinet-list-sample";
 
 const BASE_CABINET = "cabinet.base-cabinet";
 const THREE_DRAWER = "cabinet.base-3drawer";

@@ -1,7 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import type { PriceGroupCode } from "@lemnaria/configurator-domain";
 
@@ -16,6 +23,7 @@ import {
   rowsOf,
   type CabinetListInput,
 } from "./cabinet-list-model";
+import type { PriceEditing } from "./cabinet-list-inline-edit";
 import { CabinetGroupSection } from "./cabinet-list-rows";
 import { CatalogUnavailableNotice } from "./catalog-states";
 
@@ -26,22 +34,30 @@ import { CatalogUnavailableNotice } from "./catalog-states";
 /** The group that starts closed: the structural corner pieces, which the manufacturer rarely prices by hand. */
 const GROUPS_CLOSED_AT_FIRST: readonly PriceGroupCode[] = ["corner"];
 
+export interface CabinetListScreenProps {
+  readonly locale: AppLocale;
+  readonly context: StaffShellContext;
+  readonly input: CabinetListInput;
+  /** Present where a price can be changed in the table; absent, the list is read and nothing more. */
+  readonly editing?: PriceEditing | undefined;
+  /** What stands between the heading and the search: the depth rule's card. */
+  readonly rulesCard?: ReactNode;
+}
+
 export function CabinetListScreen({
   locale,
   context,
   input,
-}: {
-  readonly locale: AppLocale;
-  readonly context: StaffShellContext;
-  readonly input: CabinetListInput;
-}) {
+  editing,
+  rulesCard,
+}: CabinetListScreenProps) {
   const shell = {
     ...context,
     pendingPriceCount: pendingPriceCountOf(input.draft),
   };
   return (
     <StaffShell locale={locale} page="cabinets" context={shell}>
-      <CabinetList input={input} />
+      <CabinetList input={input} editing={editing} rulesCard={rulesCard} />
     </StaffShell>
   );
 }
@@ -61,7 +77,15 @@ export function CabinetListUnavailableScreen({
   );
 }
 
-function CabinetList({ input }: { readonly input: CabinetListInput }) {
+function CabinetList({
+  input,
+  editing,
+  rulesCard,
+}: {
+  readonly input: CabinetListInput;
+  readonly editing: PriceEditing | undefined;
+  readonly rulesCard: ReactNode;
+}) {
   const translate = useTranslations();
   const searchRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -102,6 +126,8 @@ function CabinetList({ input }: { readonly input: CabinetListInput }) {
           {translate("priceDashboard.cabinets.subtitle")}
         </p>
       </div>
+
+      {rulesCard}
 
       <div className={styles.tools}>
         <SearchField
@@ -144,6 +170,7 @@ function CabinetList({ input }: { readonly input: CabinetListInput }) {
             <CabinetGroupSection
               key={group.code}
               group={group}
+              editing={editing}
               isOpen={isNarrowed || !closedGroups.has(group.code)}
               onToggle={
                 isNarrowed

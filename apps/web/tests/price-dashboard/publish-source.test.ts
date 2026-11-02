@@ -57,10 +57,7 @@ describe("a production build", () => {
   });
 
   it("asks one predicate in the server-side readers and spells the build mode in no reader of its own", () => {
-    for (const name of [
-      "price-dashboard/publish-source.ts",
-      "price-dashboard/cabinet-list-source.ts",
-    ]) {
+    for (const name of ["price-dashboard/publish-source.ts"]) {
       const source = readFileSync(join(SOURCE_ROOT, name), "utf8");
 
       expect(source, name).toMatch(/isProductionBuild\(\)/);
@@ -93,17 +90,14 @@ describe("a production build", () => {
     }
   });
 
-  it("reaches the invented prices only through the sources: the sample is imported by its own source and by the cabinet list's sample, which shares its draft", () => {
+  it("reaches the invented prices only through its own source: the publish sample is imported by that source alone", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) =>
         /\.\/publish-sample["']/.test(readFileSync(path, "utf8")),
       )
       .map((path) => path.slice(SOURCE_ROOT.length + 1));
 
-    expect(importers).toEqual([
-      "price-dashboard/cabinet-list-sample.ts",
-      "price-dashboard/publish-source.ts",
-    ]);
+    expect(importers).toEqual(["price-dashboard/publish-source.ts"]);
   });
 });
 

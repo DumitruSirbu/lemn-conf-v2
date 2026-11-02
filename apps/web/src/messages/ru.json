@@ -1373,6 +1373,7 @@
       "notNumber": "Только цифры и запятая для копеек, например {example}.",
       "negative": "Сумма не может быть отрицательной.",
       "tooManyDecimals": "Не больше двух знаков после запятой, например {example}.",
+      "notMultipleOfTen": "Цена должна быть кратна {step} лей, например {example}.",
       "tooBig": "Сумма слишком большая.",
       "empty": "Заполни сумму. Напиши ноль, если ничего не добавляется.",
       "percentEmpty": "Укажи процент. Напиши ноль, если глубина не меняет цену.",
@@ -1451,7 +1452,20 @@
       "changeHint": "Со знаком минус для уменьшения, например −{example}.",
       "previewTitle": "Предпросмотр",
       "preview": "{cabinetCount, plural, one {{cabinetCount, number, ::group-off} шкаф} few {{cabinetCount, number, ::group-off} шкафа} many {{cabinetCount, number, ::group-off} шкафов} other {{cabinetCount, number, ::group-off} шкафа}}, {priceCount, plural, one {{priceCount, number, ::group-off} цена} few {{priceCount, number, ::group-off} цены} many {{priceCount, number, ::group-off} цен} other {{priceCount, number, ::group-off} цены}}. Пример: {example}.",
-      "explainer": "Пропорционально меняются цена при размере по умолчанию, шаги ширины, дополнительная дверь, шаг высоты и цены по размерам. Результаты округляются до {roundTo}. Они попадают в «К публикации», а не сразу к клиентам."
+      "explainer": "Пропорционально меняются цена при размере по умолчанию, шаги ширины, дополнительная дверь, шаг высоты и цены по размерам. Результаты округляются до {roundTo}. Они попадают в «К публикации», а не сразу к клиентам.",
+      "adding": "Добавляем…",
+      "previewExample": "{name} {widthMm, number, ::group-off} мм: {before} → {after}",
+      "errors": {
+        "empty": "Укажи процент, например +{example}.",
+        "zero": "Ноль процентов ничего не меняет. Укажи другой процент.",
+        "outOfRange": "Процент должен быть от {lowest} до {highest}.",
+        "nothingChanges": "С этим процентом после округления ни одна цена не изменится. Выбери процент побольше.",
+        "noCabinets": "Отметь хотя бы один шкаф.",
+        "priceNotPositive": "Цена шкафа «{name}» станет нулевой или отрицательной. Выбери процент поменьше или убери шкаф из выбора.",
+        "priceAlreadyNotPositive": "Цена шкафа «{name}» уже нулевая или отрицательная. Сначала исправь цену, потом применяй процент.",
+        "priceTooLarge": "Одна из цен превысит допустимую для шкафа. Выбери процент поменьше.",
+        "cannotApply": "Этот процент нельзя применить к этим ценам. Ничего не изменилось."
+      }
     },
     "cabinet": {
       "dimensionsHeading": "Размеры",
