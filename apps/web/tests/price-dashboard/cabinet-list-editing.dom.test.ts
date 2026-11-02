@@ -363,15 +363,24 @@ describe("the price at the default size, in the table (frame D2C)", () => {
     ["9".repeat(30), COPY.errors.tooBig],
     [
       "15",
-      roCopy("priceDashboard.errors.notMultipleOfTen", { example: "450" }),
+      roCopy("priceDashboard.errors.notMultipleOfTen", {
+        step: "10",
+        example: "450",
+      }),
     ],
     [
       "100.50",
-      roCopy("priceDashboard.errors.notMultipleOfTen", { example: "450" }),
+      roCopy("priceDashboard.errors.notMultipleOfTen", {
+        step: "10",
+        example: "450",
+      }),
     ],
     [
       "4 505",
-      roCopy("priceDashboard.errors.notMultipleOfTen", { example: "450" }),
+      roCopy("priceDashboard.errors.notMultipleOfTen", {
+        step: "10",
+        example: "450",
+      }),
     ],
   ])("a value typed as %j", (typed, sentence) => {
     it("is never sent: the field keeps it, is invalid, and names the reason in an alert it is tied to", async () => {
