@@ -212,17 +212,25 @@ describe("the words of the page, drawn for every rule in both languages", () => 
 
 describe("the page's own leaves", () => {
   const PAGE_NAMESPACE = "priceDashboard.cabinet";
-  /** Leaves wave T1 wrote that no page reads yet; the sweep names them so a new unread leaf is a failure. */
-  const UNREAD_BEFORE_THIS_WAVE = [
-    "priceDashboard.cabinet.followsBase",
-    "priceDashboard.cabinet.wallRows",
-    "priceDashboard.cabinet.noMaxHeight",
-    "priceDashboard.cabinet.hardwareLink",
-    "priceDashboard.cabinet.liftCount",
-    "priceDashboard.cabinet.activeCell",
-    "priceDashboard.cabinet.pendingNotice",
-  ];
-
+  /**
+   * Leaves wave T1 wrote that no module reads, each with what the frames draw where it would be read. A leaf a frame
+   * draws and the page does not is a departure from the frame; none of these is recorded as one in the plan or an ADR.
+   */
+  const UNREAD_WITH_THE_FRAME_THAT_DRAWS_IT: Readonly<Record<string, string>> =
+    {
+      "priceDashboard.cabinet.followsBase":
+        "D3D draws the wall cabinet's default width as this; the catalogue has no such source (generator, only-width, proposed), so the page shows the width",
+      "priceDashboard.cabinet.wallRows":
+        "D3D draws the body height as 700 / 350 with this hint; the page draws the nominal height alone",
+      "priceDashboard.cabinet.noMaxHeight":
+        "D3D draws the greatest height as a dash with this hint; the page draws the catalogue's greatest buildable height",
+      "priceDashboard.cabinet.hardwareLink":
+        "D3A draws a link to the hardware page in the readout; that page is wave U4a's, and the menu links to built pages only",
+      "priceDashboard.cabinet.liftCount":
+        "D3 draws a lift mechanism in the readout; the book has no lift rate before A-20",
+      "priceDashboard.cabinet.activeCell": "no D3 frame draws it",
+      "priceDashboard.cabinet.pendingNotice": "no D3 frame draws it",
+    };
   function leavesUnder(
     tree: Record<string, unknown>,
     prefix: string,
@@ -239,14 +247,14 @@ describe("the page's own leaves", () => {
     .map((path) => readFileSync(path, "utf8"))
     .join("\n");
 
-  it("is read by the code, leaf by leaf, except the seven that the wave before it wrote and nothing reads yet", () => {
+  it("is read by the code, leaf by leaf, except the seven named with the frame that would draw them", () => {
     const unread = leavesUnder(
       roMessages.priceDashboard.cabinet as unknown as Record<string, unknown>,
       PAGE_NAMESPACE,
     ).filter((key) => !sources.includes(key));
 
     expect(
-      unread.filter((key) => !UNREAD_BEFORE_THIS_WAVE.includes(key)),
+      unread.filter((key) => !(key in UNREAD_WITH_THE_FRAME_THAT_DRAWS_IT)),
     ).toEqual([]);
   });
 });
