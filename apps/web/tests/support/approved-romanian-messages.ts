@@ -1807,6 +1807,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "La {widthMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul „în minus”.",
       priceNotPositiveAtHeight:
         "La {heightMm, number, ::group-off} mm prețul ar ieși zero sau negativ. Micșorează pasul de înălțime.",
+      // Drafted, not frame wording: the frames draw only the narrow-step and height-step causes of a zero price.
+      priceNotPositive: "Cu valorile acestea un preț ar ieși zero sau negativ.",
       fixToSave:
         "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
@@ -1961,11 +1963,16 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Fiecare {stepMm, number, ::group-off} mm de înălțime sub {referenceMm, number, ::group-off} scade {amount}.",
       summaryRounding: "Lățimile intermediare se rotunjesc în sus.",
       summaryFixedSize: "{widthMm, number, ::group-off} mm: {amount}",
+      // Drafted, not frame wording: the frames join a fixed-size row's sizes with a comma and end the sentence.
+      summaryFixedJoined: "{head}, {tail}",
+      summaryFixedEnd: "{sizes}.",
       hardwareHeading: "Feronerie (automată, doar citire)",
       hardwareLine:
         "La {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
       hardwareNone: "Acest dulap nu are mecanisme de feronerie.",
       hardwareLink: "Feronerie →",
+      // Drafted, not frame wording: the frame joins the mechanisms with a plus.
+      hardwareJoined: "{head} + {tail}",
       hingeCount:
         "{count, plural, one {{count, number, ::group-off} balama} few {{count, number, ::group-off} balamale} other {{count, number, ::group-off} de balamale}}",
       slidePairCount:
@@ -1975,6 +1982,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       previewHeading: "Prețul dulapului",
       previewIntro:
         "Activ acum și după salvare. Toate prețurile se rotunjesc la {roundTo}.",
+      // Drafted, not frame wording: a width row of the table and the label a phone card gives each price.
+      previewWidth: "{widthMm, number, ::group-off} mm",
+      previewCellLabel: "{column} · {kind}",
       columnWidth: "Lățime",
       columnDoors: "Uși",
       columnActive: "Activ",

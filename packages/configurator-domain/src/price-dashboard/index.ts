@@ -50,8 +50,12 @@ export {
   type PreviewRow,
 } from "./cabinet-preview.js";
 export {
+  buildableHeightsMm,
+  displayEntryOf,
+  NO_DECLARED_HEIGHT_MM,
   pricedRowOf,
   referenceCornerBuiltWidthsMm,
+  type BuiltSize,
   type BuiltWidthsMm,
   type PricedRow,
 } from "./priced-row.js";

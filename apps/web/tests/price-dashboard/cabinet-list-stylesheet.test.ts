@@ -85,6 +85,43 @@ describe("one markup, two layouts", () => {
   });
 });
 
+describe("the way into a cabinet's page", () => {
+  const PHONE = "@media (max-width: 899.98px)";
+
+  it("stretches the name's link over the whole card on a phone, and only there", () => {
+    expect(
+      declarationsFor(css, "name", "inset").map((d) => [d.media, d.value]),
+    ).toEqual([[PHONE, "0"]]);
+    expect(valuesFor(css, "row", "position")).toEqual(["relative"]);
+  });
+
+  it("gives the chevron a fifth column of the table and a place at the card's end", () => {
+    expect(css).toMatch(/--row-columns: .*16px;/);
+    expect(
+      declarationsFor(css, "chevron", "position").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([
+      ["", "absolute"],
+      [DESKTOP, "static"],
+    ]);
+  });
+
+  it("draws the chevron, so no glyph is text, and gives the link a focus ring", () => {
+    expect(valuesFor(css, "chevron", "content")).toEqual(['"\\203A" / ""']);
+    expect(
+      css
+        .split("}")
+        .some(
+          (rule) =>
+            rule.includes(".name:focus-visible") &&
+            rule.includes("outline: 2px"),
+        ),
+    ).toBe(true);
+  });
+});
+
 describe("a narrow screen", () => {
   it("lets every column shrink below its content, so a long name wraps instead of widening the page", () => {
     expect(css).toMatch(

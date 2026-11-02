@@ -59,8 +59,8 @@
   color: var(--ink-muted);
 }
 
-/* The price, as a button that opens its field. The frame draws no field on a phone, where the price is changed from the
- * cabinet's own page; that page does not exist yet, so the phone keeps the button until it does. */
+/* The price, as a button that opens its field. The frame draws no field on a phone, where the whole card opens the
+ * cabinet's own page and the price is changed there: below 900 px the button is a figure to read, not a control. */
 .priceButton {
   display: inline-flex;
   gap: 8px;
@@ -93,6 +93,19 @@
 .priceButton:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
+}
+
+@media (max-width: 899.98px) {
+  .priceButton {
+    min-height: 0;
+    padding: 0;
+    margin-inline-start: 0;
+    pointer-events: none;
+  }
+
+  .pencil {
+    display: none;
+  }
 }
 
 .ruleCard {

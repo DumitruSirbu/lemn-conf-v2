@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 
-import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
+import {
+  readCabinetDetail,
+  readCabinetList,
+} from "@/price-dashboard/cabinet-list-source";
 
 import roMessages from "../../src/messages/ro.json";
 import { stateOf } from "./dashboard-state-fixture";
@@ -109,5 +112,54 @@ describe("anything else is unavailable, and nothing is thrown", () => {
     });
 
     expect(await readCabinetList()).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("one cabinet's page", () => {
+  const BASE_CABINET_RULE = "cabinet.base-cabinet";
+
+  it("is the same page as the list's when the book holds the rule, and reads the state without arguments", async () => {
+    const state = stateOf();
+    world.answer = answerWith(state);
+
+    const read = await readCabinetDetail(BASE_CABINET_RULE);
+
+    expect(read).toEqual({
+      kind: "ready",
+      page: expect.objectContaining({ state }) as unknown,
+    });
+    expect(world.asked).toEqual([[]]);
+  });
+
+  it("is not-found for a rule the book does not hold, whatever the address says", async () => {
+    world.answer = answerWith(stateOf());
+
+    for (const ruleId of [
+      "cabinet.stranger",
+      "",
+      "cabinet.base-cabinet/",
+      "__proto__",
+      "constructor",
+    ]) {
+      expect(await readCabinetDetail(ruleId), ruleId).toEqual({
+        kind: "not-found",
+      });
+    }
+  });
+
+  it("is unavailable, and not not-found, when the state cannot be had: an unreachable store never reads as an unknown cabinet", async () => {
+    world.answer = () => Promise.reject(new Error("the store is down"));
+
+    expect(await readCabinetDetail(BASE_CABINET_RULE)).toEqual({
+      kind: "unavailable",
+    });
+  });
+
+  it("is unavailable for a state that is not one", async () => {
+    world.answer = answerWith({ active: 1, draft: stateOf().draft });
+
+    expect(await readCabinetDetail(BASE_CABINET_RULE)).toEqual({
+      kind: "unavailable",
+    });
   });
 });

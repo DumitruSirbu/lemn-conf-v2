@@ -6,7 +6,7 @@
   --warm-row: #fbf5ea;
   --warm-edge: #e6cfa8;
   --warm-ink: #5a3e25;
-  --row-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.2fr);
+  --row-columns: 56px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.2fr) 16px;
 
   display: flex;
   flex: 1;
@@ -250,11 +250,12 @@ button.groupHeader:focus-visible {
 
 /* A phone's card: the drawing at the left, and the name, the widths and the price stacked beside it. */
 .row {
+  position: relative;
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 4px 12px;
   align-items: start;
-  padding: 12px;
+  padding: 12px 36px 12px 12px;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -283,7 +284,37 @@ button.groupHeader:focus-visible {
 .name {
   font: 700 14.5px/1.3 var(--font-ui);
   color: var(--ink);
+  text-decoration: none;
   overflow-wrap: anywhere;
+}
+
+.name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The mark at the row's end that says it opens: drawn here, so no glyph is text. */
+.chevron {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 14px;
+  translate: 0 -50%;
+}
+
+.chevron::before {
+  font: 400 20px/1 var(--font-ui);
+  color: var(--accent-strong);
+  content: "\203A" / "";
+}
+
+/* A phone's whole card opens the cabinet: the name's link is stretched over it, and the price in it is only read. The
+ * price is changed on the cabinet's own page. */
+@media (max-width: 899.98px) {
+  .name::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+  }
 }
 
 .chips {
@@ -424,6 +455,11 @@ button.groupHeader:focus-visible {
 
   .picture {
     grid-row: auto;
+  }
+
+  .chevron {
+    position: static;
+    translate: none;
   }
 
   .rowWidth,

@@ -3,7 +3,10 @@
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
+import type { AppLocale } from "@/i18n/routing";
+
 import styles from "./cabinet-list.module.css";
+import { cabinetPathOf } from "./cabinet-paths";
 import { findCabinetListImage } from "./cabinet-list-image";
 import {
   priceOfRow,
@@ -17,7 +20,7 @@ import { formatLei, formatLeiAmount } from "./format-lei";
 // One group of the list and its rows. The same markup is the table on a desktop and the cards on a phone: the stylesheet
 // lays the row out, so no script chooses between two trees and nothing flips after hydration.
 
-const GROUP_HEADING_KEYS = {
+export const GROUP_HEADING_KEYS = {
   base: "priceDashboard.cabinets.groupBase",
   wall: "priceDashboard.cabinets.groupWall",
   tall: "priceDashboard.cabinets.groupTall",
@@ -25,6 +28,7 @@ const GROUP_HEADING_KEYS = {
 } as const;
 
 export interface CabinetGroupSectionProps {
+  readonly locale: AppLocale;
   readonly group: CabinetGroup;
   readonly isOpen: boolean;
   /** Absent while a search or the "Doar modificate" filter is on: the groups with a match are then all open. */
@@ -34,6 +38,7 @@ export interface CabinetGroupSectionProps {
 }
 
 export function CabinetGroupSection({
+  locale,
   group,
   isOpen,
   onToggle,
@@ -83,7 +88,12 @@ export function CabinetGroupSection({
       </h2>
       <ul id={listId} className={styles.rows} hidden={!isOpen}>
         {group.rows.map((row) => (
-          <CabinetRowItem key={row.facts.ruleId} row={row} editing={editing} />
+          <CabinetRowItem
+            key={row.facts.ruleId}
+            locale={locale}
+            row={row}
+            editing={editing}
+          />
         ))}
       </ul>
     </section>
@@ -91,9 +101,11 @@ export function CabinetGroupSection({
 }
 
 function CabinetRowItem({
+  locale,
   row,
   editing,
 }: {
+  readonly locale: AppLocale;
   readonly row: CabinetRow;
   readonly editing: PriceEditing | undefined;
 }) {
@@ -110,7 +122,13 @@ function CabinetRowItem({
         url={findCabinetListImage(facts.buildId, facts.widths.defaultMm)}
       />
       <div className={styles.rowName}>
-        <span className={styles.name}>{facts.name}</span>
+        <a
+          className={styles.name}
+          href={cabinetPathOf(locale, facts.ruleId)}
+          data-testid="cabinet-link"
+        >
+          {facts.name}
+        </a>
         <span className={styles.chips}>
           {row.isModified ? (
             <span className={styles.chip} data-tone="warm">
@@ -132,6 +150,7 @@ function CabinetRowItem({
       </div>
       <CabinetWidths widths={facts.widths} />
       <CabinetPrice row={row} editing={editing} />
+      <span className={styles.chevron} aria-hidden="true" />
     </li>
   );
 }

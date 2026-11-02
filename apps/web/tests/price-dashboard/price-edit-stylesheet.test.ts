@@ -6,13 +6,14 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { valuesFor } from "../support/css-declarations";
+import { declarationsFor, valuesFor } from "../support/css-declarations";
 
 const css = readFileSync(
   join(import.meta.dirname, "../../src/price-dashboard/price-edit.module.css"),
   "utf8",
 );
 const TOUCH_TARGET = "var(--touch-target)";
+const PHONE = "@media (max-width: 899.98px)";
 
 function heightOf(className: string): number {
   const [height] = valuesFor(css, className, "min-height");
@@ -65,7 +66,19 @@ describe("what the fields look like", () => {
     expect(css).not.toMatch(/content:\s*"[^"\\/]/);
   });
 
-  it("keeps the price a button on a phone as well as in the table, while the cabinet's own page does not exist", () => {
+  it("keeps the price a button in the table, and below 900 px a figure the card's link opens the cabinet from", () => {
     expect(valuesFor(css, "priceButton", "display")).toEqual(["inline-flex"]);
+    expect(
+      declarationsFor(css, "priceButton", "pointer-events").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([[PHONE, "none"]]);
+    expect(
+      declarationsFor(css, "pencil", "display").map((d) => [d.media, d.value]),
+    ).toEqual([
+      ["", "inline-block"],
+      [PHONE, "none"],
+    ]);
   });
 });
