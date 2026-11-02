@@ -86,15 +86,12 @@ export const TEXT_REFUSAL_CODES = Object.freeze([
   "TEXT_STATES_AN_AMOUNT",
 ] as const);
 
-/** What a draft change can be refused for: the domain's own refusals, then its text and the refusals judged elsewhere. */
+/** What a draft change can be refused for: the domain's own refusals (its numbers, text, links and defaults), then the
+ *  refusals judged elsewhere. */
 export const DRAFT_CHANGE_REFUSAL_CODES = Object.freeze([
   ...CHANGE_REFUSAL_CODES,
-  ...TEXT_REFUSAL_CODES,
   "PRICE_WOULD_BE_NEGATIVE",
-  "LINK_TARGET_UNKNOWN",
-  "LINK_TARGET_CUSTOMER_SUPPLIED",
   "ITEM_IN_USE",
-  "ITEM_IS_DEFAULT",
 ] as const);
 export type DraftChangeRefusalCode =
   (typeof DRAFT_CHANGE_REFUSAL_CODES)[number];

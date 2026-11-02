@@ -43,6 +43,16 @@ const BOOK_REFUSAL_OF_EVERY_CODE: readonly BookRefusal[] = [
   { code: "PRICE_NOT_POSITIVE", ...PRICE_AT_A_SIZE },
   { code: "PRICE_TOO_LARGE", ...PRICE_AT_A_SIZE },
   { code: "PERCENT_OUT_OF_RANGE", item: "depth" },
+  {
+    code: "LINK_TARGET_UNKNOWN",
+    accessoryId: "organiser",
+    linkedBuildId: "no-such-row",
+  },
+  {
+    code: "LINK_TARGET_CUSTOMER_SUPPLIED",
+    accessoryId: "organiser",
+    linkedBuildId: "hood",
+  },
 ];
 
 describe("a book refusal as the wire states it", () => {

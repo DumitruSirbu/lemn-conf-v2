@@ -67,7 +67,10 @@ const SECTION_OF_KIND: Record<string, string> = {
 };
 
 function fieldRowsOf(rows: readonly BookDiffRow[]): readonly FieldDiffRow[] {
-  return rows.flatMap((row) => (row.kind === "field" ? [row] : row.items));
+  return rows.flatMap((row) => {
+    if (row.kind === "field") return [row];
+    return row.kind === "group" ? row.items : [];
+  });
 }
 
 describe("the generator produces what the properties assume", () => {

@@ -2,10 +2,10 @@ import "server-only";
 
 import type { NextResponse } from "next/server";
 
-import type {
-  CatalogueAvailability,
-  ItemRef,
-  PriceCatalogueSection,
+import {
+  createdItemsOf,
+  type CatalogueAvailability,
+  type PriceCatalogueSection,
 } from "@lemnaria/configurator-domain";
 import {
   DashboardStoreError,
@@ -102,9 +102,6 @@ import type { DashboardStateWire } from "@/price-dashboard/price-dashboard-wire-
 export const PRICE_READ_EVENT = "staff-prices" as const satisfies AccountEvent;
 export const PRICE_DRAFT_EVENT =
   "staff-price-draft" as const satisfies AccountEvent;
-
-/** `applyChanges` applies no creation, so a publish stores no new row for the availability log to start inactive. */
-const NO_CREATED_ROWS: readonly ItemRef[] = [];
 
 export interface DashboardReadRequest {
   readonly cookies: SessionCookieReader;
@@ -510,7 +507,7 @@ async function performPublish(
     expectedDraftRevision: input.expectedDraftRevision,
     expectedActiveSequence: input.expectedActiveSequence,
     expectedAvailabilityRevision: input.expectedAvailabilityRevision,
-    createdItems: NO_CREATED_ROWS,
+    createdItems: createdItemsOf(plan.changes),
     label: input.label,
     note: input.note,
     book: plan.book,

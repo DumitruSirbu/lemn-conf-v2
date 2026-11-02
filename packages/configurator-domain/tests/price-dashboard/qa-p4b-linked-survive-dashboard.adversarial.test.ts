@@ -28,17 +28,32 @@ const LINKED = [
   linkedRule("plinth-light", { linkedBuildId: "base-sink" }),
 ];
 const BOOK = bookWithLinked(LINKED);
+const readings = readEditableFields(BOOK);
 
-function expectBookIntact(result: ReturnType<typeof applyChanges>): PriceBook {
+function expectBookIntact(
+  result: ReturnType<typeof applyChanges>,
+  expectedLinked: typeof LINKED = LINKED,
+): PriceBook {
   if (!result.ok) throw new Error(`refused: ${result.reason}`);
-  expect(result.book.linkedAccessories).toEqual(LINKED);
+  expect(result.book.linkedAccessories).toEqual(expectedLinked);
   expect(parsePriceBook(result.book).ok).toBe(true);
   return result.book;
 }
 
-describe("a change to any editable field leaves the linked accessories in the book", () => {
-  const readings = readEditableFields(BOOK);
+/** A linked accessory's own price is an editable field: the list is the same but for that one amount. */
+function linkedAfter(
+  address: (typeof readings)[number]["address"],
+  value: number | boolean,
+): typeof LINKED {
+  if (address.kind !== "accessory") return LINKED;
+  return LINKED.map((rule) =>
+    rule.accessoryId === address.accessoryId
+      ? { ...rule, perUnitMinor: Number(value) }
+      : rule,
+  );
+}
 
+describe("a change to any editable field leaves the linked accessories in the book", () => {
   it("has editable fields to try", () => {
     expect(readings.length).toBeGreaterThan(20);
   });
@@ -62,14 +77,13 @@ describe("a change to any editable field leaves the linked accessories in the bo
       ]);
 
       if (!result.ok && result.reason === "changes-refused") return;
-      expectBookIntact(result);
+      expectBookIntact(result, linkedAfter(reading.address, changed));
     },
   );
 });
 
 describe("the single-field sweep is not vacuous", () => {
   it("lets most single-field changes through, so most of the cases above test the book that is made", () => {
-    const readings = readEditableFields(BOOK);
     const accepted = readings.filter((reading) => {
       const value =
         typeof reading.value === "number"

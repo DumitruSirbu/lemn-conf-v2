@@ -12,7 +12,9 @@ import {
 import {
   accessoryRuleOf,
   ACCESSORY_IDS,
+  type AccessoryId,
   type CabinetPriceRule,
+  type LinkedAccessoryRule,
   type PriceBook,
   type PriceFormula,
   type TierIdentity,
@@ -31,10 +33,12 @@ import {
   type BookFieldAddress,
   type DraftChange,
 } from "./book-field-address.js";
+import { AUTHORED_TEXT_REFUSAL_CODES } from "./created-row-text.js";
 
 // Which fields of a price book a draft change may set, found and written by `locateField`. `applyChanges` judges and
-// writes through it, `diffBooks` and `restoreChanges` read through it, so "editable" has a single meaning. Creation,
-// text and deletion kinds are refused `NOT_EDITABLE` until `locateField` has an arm for them.
+// writes through it, `diffBooks` and `restoreChanges` read through it, so "editable" has a single meaning. The creation,
+// text and deletion kinds set no field: they add, reword or remove a row (`structural-changes.ts`), so `locateField`
+// refuses them `NOT_EDITABLE` and no reader finds a field in them.
 
 /** Why one change was refused. The wire's draft-change refusal codes are built from this list. */
 export const CHANGE_REFUSAL_CODES = Object.freeze([
@@ -47,6 +51,11 @@ export const CHANGE_REFUSAL_CODES = Object.freeze([
   "UNKNOWN_ITEM",
   "NOT_EDITABLE",
   "FIELD_NOT_ON_RULE",
+  ...AUTHORED_TEXT_REFUSAL_CODES,
+  "LINK_TARGET_UNKNOWN",
+  "LINK_TARGET_CUSTOMER_SUPPLIED",
+  "ITEM_IS_DEFAULT",
+  "CREATED_TIER_RATES_MISSING",
 ] as const);
 export type ChangeRefusalCode = (typeof CHANGE_REFUSAL_CODES)[number];
 
@@ -55,11 +64,11 @@ export type Judged<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly code: ChangeRefusalCode };
 
-function accepted<Value>(value: Value): Judged<Value> {
+export function accepted<Value>(value: Value): Judged<Value> {
   return { ok: true, value };
 }
 
-function refused(code: ChangeRefusalCode): Judged<never> {
+export function refused(code: ChangeRefusalCode): Judged<never> {
   return { ok: false, code };
 }
 
@@ -144,7 +153,10 @@ function writerFor(field: LocatedField, value: unknown): Judged<BookUpdater> {
 }
 
 /** A whole number from 0 to `maxValue`. `-0` is refused as negative: it prints as 0 and signs as a reduction. */
-function judgeWholeNumber(value: unknown, maxValue: number): Judged<number> {
+export function judgeWholeNumber(
+  value: unknown,
+  maxValue: number,
+): Judged<number> {
   if (value === undefined || value === null) return refused("MISSING_VALUE");
   if (typeof value !== "number" || !Number.isInteger(value))
     return refused("NOT_A_WHOLE_NUMBER");
@@ -232,7 +244,7 @@ function candidateAddresses(book: PriceBook): readonly AppliedAddress[] {
       ),
     ),
     { kind: "depth-rule" },
-    ...ACCESSORY_IDS.flatMap((accessoryId) =>
+    ...accessoryIdsOf(book).flatMap((accessoryId) =>
       ACCESSORY_FIELDS.map(
         (field): AppliedAddress => ({ kind: "accessory", accessoryId, field }),
       ),
@@ -414,17 +426,40 @@ function locateDepthRule(book: PriceBook): Judged<LocatedField> {
   });
 }
 
+/** The book's linked accessories, read as possibly absent although `PriceBook` declares them required: a version stored
+ *  before the section existed states none, and its built-ins are still editable and restorable. */
+export function linkedAccessoriesOf(
+  declared: Partial<Pick<PriceBook, "linkedAccessories">>,
+): readonly LinkedAccessoryRule[] {
+  return declared.linkedAccessories ?? [];
+}
+
+/** The built-ins' field names, then each linked accessory's id in book order. */
+function accessoryIdsOf(book: PriceBook): readonly string[] {
+  return [
+    ...ACCESSORY_IDS,
+    ...linkedAccessoriesOf(book).map((linked) => linked.accessoryId),
+  ];
+}
+
 function locateAccessoryPrice(
   book: PriceBook,
   address: AddressOfKind<"accessory">,
 ): Judged<LocatedField> {
   const { accessoryId: declaredId, field } = address;
   if (!isListed(ACCESSORY_FIELDS, field)) return refused("UNKNOWN_ADDRESS");
-  const accessoryId = ACCESSORY_IDS.find((id) => id === declaredId);
-  const rule =
-    accessoryId === undefined ? undefined : accessoryRuleOf(book, accessoryId);
-  if (accessoryId === undefined || rule === undefined)
-    return refused("UNKNOWN_ITEM");
+  const builtInId = ACCESSORY_IDS.find((id) => id === declaredId);
+  if (builtInId !== undefined)
+    return locateBuiltInAccessoryPrice(book, builtInId);
+  return locateLinkedAccessoryPrice(book, declaredId);
+}
+
+function locateBuiltInAccessoryPrice(
+  book: PriceBook,
+  accessoryId: AccessoryId,
+): Judged<LocatedField> {
+  const rule = accessoryRuleOf(book, accessoryId);
+  if (rule === undefined) return refused("UNKNOWN_ITEM");
   return accepted({
     unit: "amount",
     current: rule.perUnitMinor,
@@ -438,6 +473,29 @@ function locateAccessoryPrice(
           perUnitMinor: value,
         },
       },
+    }),
+  });
+}
+
+function locateLinkedAccessoryPrice(
+  book: PriceBook,
+  accessoryId: string,
+): Judged<LocatedField> {
+  const rule = linkedAccessoriesOf(book).find(
+    (linked) => linked.accessoryId === accessoryId,
+  );
+  if (rule === undefined) return refused("UNKNOWN_ITEM");
+  return accepted({
+    unit: "amount",
+    current: rule.perUnitMinor,
+    maxValue: MAX_PRICE_COEFFICIENT_MINOR,
+    settingTo: (value) => (target) => ({
+      ...target,
+      linkedAccessories: linkedAccessoriesOf(target).map((linked) =>
+        linked.accessoryId === accessoryId
+          ? { ...linked, perUnitMinor: value }
+          : linked,
+      ),
     }),
   });
 }

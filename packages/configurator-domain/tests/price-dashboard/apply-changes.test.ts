@@ -388,8 +388,8 @@ describe("a change is refused with a closed code", () => {
     );
   });
 
-  it("refuses the four kinds M4 adds as not editable, whatever their value", () => {
-    const m4Addresses: readonly BookFieldAddress[] = [
+  it("refuses the four kinds M4 adds when they carry no value, naming what is missing", () => {
+    const addresses: readonly BookFieldAddress[] = [
       { kind: "hardware-tier-created", tierId: "hardware.new" },
       { kind: "accessory-created", accessoryId: "accessory.new" },
       {
@@ -403,11 +403,16 @@ describe("a change is refused with a closed code", () => {
       },
     ];
 
-    const codes = m4Addresses.map((address) =>
-      onlyRefusal(PERCENTAGE_BOOK, address, true),
+    const codes = addresses.map((address) =>
+      onlyRefusal(PERCENTAGE_BOOK, address, undefined),
     );
 
-    expect(codes).toEqual(m4Addresses.map(() => "0:NOT_EDITABLE"));
+    expect(codes).toEqual([
+      "0:MISSING_VALUE",
+      "0:MISSING_VALUE",
+      "0:UNKNOWN_ITEM",
+      "0:MISSING_VALUE",
+    ]);
   });
 
   describe("by its value", () => {
@@ -787,7 +792,7 @@ describe("a change is refused with a closed code", () => {
     });
   });
 
-  it("keeps the applied address kinds as this literal, the list the creation, text and deletion kinds extend", () => {
+  it("keeps the applied address kinds as this literal, the list the creation, text and deletion kinds do not extend", () => {
     expect([...APPLIED_ADDRESS_KINDS]).toEqual([
       "cabinet",
       "cabinet-size",
@@ -810,6 +815,14 @@ describe("a change is refused with a closed code", () => {
       "UNKNOWN_ITEM",
       "NOT_EDITABLE",
       "FIELD_NOT_ON_RULE",
+      "TEXT_EMPTY",
+      "TEXT_TOO_LONG",
+      "TEXT_FORBIDDEN_CHARACTER",
+      "TEXT_STATES_AN_AMOUNT",
+      "LINK_TARGET_UNKNOWN",
+      "LINK_TARGET_CUSTOMER_SUPPLIED",
+      "ITEM_IS_DEFAULT",
+      "CREATED_TIER_RATES_MISSING",
     ]);
   });
 });

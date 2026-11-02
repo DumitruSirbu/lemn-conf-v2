@@ -15,6 +15,7 @@ import {
   type DraftChange,
   type FieldDiffRow,
   type FieldUnit,
+  type GroupDiffRow,
   type ItemRef,
   type PriceBook,
   type PriceGroupCode,
@@ -163,7 +164,7 @@ export function readPendingDraft(
     kind: "ready",
     view: {
       sections: sectionsOf(
-        rows.map((row) =>
+        pricedRowsOf(rows).map((row) =>
           rowViewOf(row, {
             books: { before: active, after: candidate },
             cabinetNames,
@@ -193,7 +194,7 @@ export function describeVersionDiff(input: {
 }): readonly SectionView[] {
   const { before, after, changes, cabinetNames } = input;
   return sectionsOf(
-    diffBooks(before, after, { changes }).map((row) =>
+    pricedRowsOf(diffBooks(before, after, { changes })).map((row) =>
       rowViewOf(row, {
         books: { before, after },
         cabinetNames,
@@ -209,7 +210,21 @@ interface RowContext {
   readonly isRevertable: boolean;
 }
 
-function rowViewOf(row: BookDiffRow, context: RowContext): RowView {
+/** The rows of a price or a bulk action. The rows for a created, deleted or reworded item are not drawn yet: the draft
+ *  wire carries no such change, so none reaches this model until the screens that author them are built (U4c). */
+function pricedRowsOf(
+  rows: readonly BookDiffRow[],
+): readonly (FieldDiffRow | GroupDiffRow)[] {
+  return rows.filter(
+    (row): row is FieldDiffRow | GroupDiffRow =>
+      row.kind === "field" || row.kind === "group",
+  );
+}
+
+function rowViewOf(
+  row: FieldDiffRow | GroupDiffRow,
+  context: RowContext,
+): RowView {
   if (row.kind === "field") {
     return fieldRowViewOf(row, context, { isRevertable: context.isRevertable });
   }

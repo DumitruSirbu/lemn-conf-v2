@@ -63,6 +63,8 @@ export const BOOK_JUDGEMENT_CODES = Object.freeze([
   "PRICE_TOO_LARGE",
   "CUSTOMER_ROW_PRICED",
   "PERCENT_OUT_OF_RANGE",
+  "LINK_TARGET_UNKNOWN",
+  "LINK_TARGET_CUSTOMER_SUPPLIED",
 ] as const);
 export type BookJudgementCode = (typeof BOOK_JUDGEMENT_CODES)[number];
 
@@ -112,6 +114,12 @@ export type BookRefusal =
       readonly code: "PERCENT_OUT_OF_RANGE";
       /** `"depth"`, or the id of the material tier. */
       readonly item: string;
+    }
+  | {
+      /** A linked accessory's `linkedBuildId` is no row the catalogue prices, or the book prices no rule for it. */
+      readonly code: "LINK_TARGET_UNKNOWN" | "LINK_TARGET_CUSTOMER_SUPPLIED";
+      readonly accessoryId: string;
+      readonly linkedBuildId: string;
     };
 
 export type BookJudgement =
@@ -134,6 +142,7 @@ export function judgeBookAgainstCatalog(
   const rulesByBuildId = groupedByBuildId(book.cabinetRules);
   const refusals = [
     ...refusePercentages(book),
+    ...refuseLinkedAccessories(book, catalog),
     ...refuseDuplicates(rulesByBuildId),
     ...listPricedRows(catalog).flatMap((row) =>
       judgeRow(rulesByBuildId.get(row.buildId)?.[0], row, context),
@@ -202,6 +211,32 @@ function refusePercentages(book: PriceBook): readonly BookRefusal[] {
     refusals.push({ code: "PERCENT_OUT_OF_RANGE", item: "depth" });
   }
   return refusals;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The linked accessories (A-19)
+
+/** A link is to a row the catalogue prices as itself (a seeded variant's id is held by the catalogue but a placement of
+ *  it is counted through the row it is priced as, so a link to it would earn nothing), that the book has a rule for,
+ *  and that the manufacturer supplies. The parser already holds a book to the last two; this holds the first. */
+function refuseLinkedAccessories(
+  book: PriceBook,
+  catalog: BodyCatalog,
+): readonly BookRefusal[] {
+  const pricedRows = new Set(listPricedRows(catalog).map((row) => row.buildId));
+  return book.linkedAccessories.flatMap(
+    ({ accessoryId, linkedBuildId }): readonly BookRefusal[] => {
+      const rule = book.cabinetRules.find(
+        (candidate) => candidate.buildId === linkedBuildId,
+      );
+      const named = { accessoryId, linkedBuildId };
+      if (rule === undefined || !pricedRows.has(linkedBuildId))
+        return [{ code: "LINK_TARGET_UNKNOWN", ...named }];
+      return rule.suppliedBy === "customer"
+        ? [{ code: "LINK_TARGET_CUSTOMER_SUPPLIED", ...named }]
+        : [];
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
