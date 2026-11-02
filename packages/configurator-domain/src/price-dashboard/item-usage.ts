@@ -94,7 +94,8 @@ export interface ItemUsage {
   readonly designCount: number;
 }
 
-/** The counts a judgement is made against, one entry per item asked about. */
+/** The counts a judgement is made against: the reader owes exactly one entry per item asked about, and a missing or
+ *  repeated one is refused (`UsageNotCountedError`), never read as unused. */
 export type ItemUsageCounts = readonly ItemUsage[];
 
 /** An item the judgement needed was not counted, or was counted as something that is not a number of designs. Thrown,
@@ -111,12 +112,19 @@ export class UsageNotCountedError extends Error {
   }
 }
 
-/** The number of designs using the item. Throws `UsageNotCountedError` when `counts` holds no entry for it, or one that
- *  is not a non-negative whole number. */
+/** The number of designs using the item. Throws `UsageNotCountedError` when `counts` holds no entry for it, more than
+ *  one, or one that is not a non-negative whole number. */
 export function usageCountOf(counts: ItemUsageCounts, item: ItemRef): number {
-  const counted = counts.find((usage) => isSameItem(usage.item, item));
+  const entries = counts.filter((usage) => isSameItem(usage.item, item));
+  const [counted] = entries;
   if (counted === undefined)
     throw new UsageNotCountedError(item, "not counted");
+  if (entries.length > 1) {
+    throw new UsageNotCountedError(
+      item,
+      `counted ${String(entries.length)} times, so which count is true is unknown`,
+    );
+  }
   if (!Number.isSafeInteger(counted.designCount) || counted.designCount < 0) {
     throw new UsageNotCountedError(
       item,

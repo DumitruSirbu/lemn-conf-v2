@@ -156,6 +156,20 @@ describe("the default colour is reset by ADR 0057's rule when the default materi
     expect(change.colourReset).toBeUndefined();
   });
 
+  it("leaves a stored colour that is not a colour at all for the save judgement to refuse, and does not throw", () => {
+    for (const notAColour of [null, 7, "pal.alb"]) {
+      const given = { finish: notAColour } as unknown as NewKitchenSettings;
+
+      const change = withDefaultMaterial(given, "material.veneer");
+
+      expect(change.defaults, String(notAColour)).toEqual({
+        finish: notAColour,
+        materialTierId: "material.veneer",
+      });
+      expect(change.colourReset).toBeUndefined();
+    }
+  });
+
   it("does not change the defaults it was given, nor share the reset colour with the material's declaration", () => {
     const given: NewKitchenSettings = { finish: paletteFinish("pal.alb") };
     const frozen = structuredClone(given);

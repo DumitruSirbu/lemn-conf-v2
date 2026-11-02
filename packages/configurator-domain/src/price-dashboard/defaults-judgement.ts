@@ -75,9 +75,9 @@ export interface DefaultMaterialChange {
 /**
  * Changes the default material. A default colour the new material does not offer becomes that material's default
  * colour; any other stays (ADR 0057 decision 2, by the same offer query `setMaterialTier` and `stampedSettingsOf` reset
- * by). Defaults naming no colour have none to reset, and a material no declaration names makes no offer, so it resets
- * nothing. Nothing is chosen on the customer's behalf beyond that: the target is always the material's own default,
- * which is never switched off.
+ * by). Defaults naming no colour, or one that is not a colour at all (the save judgement refuses it), have none to
+ * reset, and a material no declaration names makes no offer, so it resets nothing. Nothing is chosen on the customer's
+ * behalf beyond that: the target is always the material's own default, which is never switched off.
  */
 export function withDefaultMaterial(
   defaults: NewKitchenSettings,
@@ -87,7 +87,7 @@ export function withDefaultMaterial(
   const lookup = lookUpMaterial(materialTierId);
   const { finish } = defaults;
   if (
-    finish === undefined ||
+    !isColourObject(finish) ||
     lookup.kind === "undeclared" ||
     materialOffersFinish(lookup.material, finish)
   ) {
@@ -118,7 +118,9 @@ export type DefaultsJudgement =
   | { readonly kind: "unavailable"; readonly item: ItemRef }
   | { readonly kind: "colour-not-in-palette" };
 
-const ACCEPTABLE: DefaultsJudgement = { kind: "acceptable" };
+const ACCEPTABLE: DefaultsJudgement = Object.freeze({
+  kind: "acceptable",
+} as const);
 
 export function judgeKitchenDefaults(
   defaults: NewKitchenSettings,
@@ -149,6 +151,7 @@ function judgeColour(
   if (finish === undefined) return ACCEPTABLE;
   const lookup = lookUpMaterial(defaults.materialTierId ?? DEFAULT_MATERIAL_ID);
   if (
+    !isColourObject(finish) ||
     lookup.kind === "undeclared" ||
     !materialOffersFinish(lookup.material, finish)
   ) {
@@ -158,6 +161,12 @@ function judgeColour(
   return item !== undefined && isItemDisabled(availability, item)
     ? { kind: "unavailable", item }
     : ACCEPTABLE;
+}
+
+/** Whether a stored colour is an object the offer query can read. A document the schema refuses may hold `null` or a
+ *  scalar here; it is judged not in the palette (and the stamp refuses it), never a crash. */
+function isColourObject(finish: unknown): finish is Finish {
+  return typeof finish === "object" && finish !== null;
 }
 
 function tierItems(
