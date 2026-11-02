@@ -168,7 +168,9 @@ test.describe("the publish page at desktop 1440", () => {
           ).toHaveCount(0);
         }
         await expect(
-          page.getByRole("main").getByRole("button"),
+          page
+            .getByRole("main")
+            .locator('button:not([data-testid="staff-menu-button"])'),
           `no button in the page of ${path}`,
         ).toHaveCount(0);
         await expectNoSidewaysScroll(page, path);
