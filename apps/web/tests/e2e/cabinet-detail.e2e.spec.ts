@@ -10,6 +10,7 @@ import {
   removeStaffFixturesForTests,
   countStaffFixturesForTests,
 } from "@lemnaria/persistence";
+import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import { chromium, expect, type Locator, type Page } from "@playwright/test";
 
 import {
@@ -456,6 +457,51 @@ test.describe("the cabinet's page at phone 390", () => {
       ).toBeGreaterThanOrEqual(400);
       await expect(page.getByTestId("cabinet-detail")).toHaveCount(0);
       pageErrors.length = 0;
+    });
+  });
+
+  test.describe("every cabinet of the book", () => {
+    test("each page is titled as its row in the list is, and no two cabinets share a title", async ({
+      page,
+    }) => {
+      await openList(page);
+      const corners = page.getByTestId("cabinet-group-corner");
+      await corners.getByRole("button", { expanded: false }).first().click();
+      const titlesInList = new Map<string, string>();
+      for (const row of await page.getByTestId("cabinet-row").all()) {
+        titlesInList.set(
+          (await row.getAttribute("data-rule-id")) ?? "",
+          await row.getByTestId("cabinet-link").innerText(),
+        );
+      }
+      expect(
+        [...titlesInList.keys()].sort(),
+        "the list holds every rule of the book",
+      ).toEqual(
+        SAMPLE_PRICE_BOOK.cabinetRules.map(({ ruleId }) => ruleId).sort(),
+      );
+
+      const titlesOnPages = new Map<string, string>();
+      for (const ruleId of titlesInList.keys()) {
+        await openCabinet(page, ruleId);
+        titlesOnPages.set(
+          ruleId,
+          await page.getByRole("heading", { level: 1 }).innerText(),
+        );
+      }
+
+      expect(
+        Object.fromEntries(titlesOnPages),
+        "a page's title is its row's name",
+      ).toEqual(Object.fromEntries(titlesInList));
+      const named = new Map<string, string[]>();
+      for (const [ruleId, title] of titlesOnPages) {
+        named.set(title, [...(named.get(title) ?? []), ruleId]);
+      }
+      expect(
+        [...named].filter(([, ruleIds]) => ruleIds.length > 1),
+        "titles that name more than one cabinet",
+      ).toEqual([]);
     });
   });
 
