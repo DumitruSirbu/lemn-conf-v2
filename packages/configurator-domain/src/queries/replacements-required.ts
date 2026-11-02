@@ -8,17 +8,15 @@
 //
 // It never offers a switched-off item, and it never produces a row with nothing to choose: the dashboard refuses to
 // switch off the last active option of a group (A-17), so an empty set is a defect, thrown, and never an empty sheet.
-import { HandleSchema, type Design } from "../design.js";
+import type { Design } from "../design.js";
 import {
+  declaredOptionsOfGroup,
+  finishItems,
   isItemDisabled,
   type CatalogueAvailability,
   type ItemRef,
 } from "../pricing/catalogue-availability.js";
-import type {
-  PriceBook,
-  TierGroup,
-  TierIdentity,
-} from "../pricing/price-book.js";
+import type { PriceBook } from "../pricing/price-book.js";
 import { disabledItemsNamedBy } from "../pricing/named-items.js";
 import { lookUpMaterial, paletteEntriesOf } from "../materials.js";
 import type { BodyCatalog } from "../void-engine.js";
@@ -97,25 +95,9 @@ function declaredOptionsFor(
   design: Design,
   book: PriceBook,
 ): readonly ItemRef[] {
-  switch (item.kind) {
-    case "material":
-      return tierItems(book.material, "material");
-    case "hardware":
-      return tierItems(book.hardware, "hardware");
-    case "handle":
-      return HandleSchema.options.map((handle) => ({ kind: "handle", handle }));
-    case "finish":
-      return coloursOfTheDesignsMaterial(design, book);
-    case "accessory":
-      return [];
-  }
-}
-
-function tierItems(
-  group: TierGroup<TierIdentity>,
-  kind: "hardware" | "material",
-): readonly ItemRef[] {
-  return group.tiers.map((tier) => ({ kind, tierId: tier.tierId }));
+  return declaredOptionsOfGroup(item, book, () =>
+    coloursOfTheDesignsMaterial(design, book),
+  );
 }
 
 /** The palette entries the design's material offers; none for a material that offers no entries (a free-colour picker)
@@ -128,8 +110,5 @@ function coloursOfTheDesignsMaterial(
     design.settings?.materialTierId ?? book.material.defaultTierId,
   );
   if (lookup.kind === "undeclared") return [];
-  return paletteEntriesOf(lookup.material).map((entry) => ({
-    kind: "finish",
-    finishId: entry.entryId,
-  }));
+  return finishItems(paletteEntriesOf(lookup.material));
 }

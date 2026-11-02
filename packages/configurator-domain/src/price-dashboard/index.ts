@@ -63,3 +63,7 @@ export {
   type VersionTextJudgement,
   type VersionTextRefusalCode,
 } from "./version-text.js";
+export * from "./item-usage.js";
+export * from "./item-groups.js";
+export * from "./item-lifecycle.js";
+export * from "./defaults-judgement.js";
