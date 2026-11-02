@@ -407,9 +407,10 @@ function expectCellsOf(
   changes: readonly DraftChange[],
 ): void {
   const rows = diffBooks(ACTIVE, candidateOf(changes), { changes });
-  const flat = rows.flatMap((row) =>
-    row.kind === "group" ? row.items : [row],
-  );
+  const flat = rows.flatMap((row) => {
+    if (row.kind === "group") return row.items;
+    return row.kind === "field" ? [row] : [];
+  });
   const asked = new Map(
     askedRows(changes).map((row) => [JSON.stringify(row.address), row]),
   );

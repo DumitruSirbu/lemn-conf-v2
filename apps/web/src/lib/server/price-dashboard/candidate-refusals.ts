@@ -77,5 +77,13 @@ export function refusalOfBook(refusal: BookRefusal): CandidateRefusalWire {
       };
     case "PERCENT_OUT_OF_RANGE":
       return { source: "catalogue", code: refusal.code, item: refusal.item };
+    case "LINK_TARGET_UNKNOWN":
+    case "LINK_TARGET_CUSTOMER_SUPPLIED":
+      return {
+        source: "catalogue",
+        code: refusal.code,
+        accessoryId: refusal.accessoryId,
+        linkedBuildId: refusal.linkedBuildId,
+      };
   }
 }

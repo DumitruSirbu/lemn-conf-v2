@@ -15,6 +15,12 @@ export {
 } from "./editable-fields.js";
 export * from "./apply-changes.js";
 export * from "./diff-books.js";
+export {
+  type LinkDiffRow,
+  type RowDiffRow,
+  type StructuralDiffRow,
+  type TextDiffRow,
+} from "./row-diff.js";
 export * from "./restore.js";
 export {
   BULK_PLAN_REFUSAL_CODES,
@@ -63,6 +69,21 @@ export {
   type VersionTextJudgement,
   type VersionTextRefusalCode,
 } from "./version-text.js";
+export {
+  AUTHORED_TEXT_REFUSAL_CODES,
+  judgeCreatedRowText,
+  type CreatedRowTextJudgement,
+  type CreatedRowTextRefusalCode,
+  type AuthoredTextRefusalCode,
+} from "./created-row-text.js";
+export { hardwareRatesOf, isStructuralAddress } from "./structural-changes.js";
+export { createdItemsOf, deletedItemsOf } from "./draft-structure.js";
+export {
+  judgeDeletionsAtPublish,
+  type PublishDeletionRefusal,
+  type PublishDeletionRefusalCode,
+  type PublishDeletionsRequest,
+} from "./publish-deletions.js";
 export * from "./item-usage.js";
 export * from "./item-groups.js";
 export * from "./item-lifecycle.js";

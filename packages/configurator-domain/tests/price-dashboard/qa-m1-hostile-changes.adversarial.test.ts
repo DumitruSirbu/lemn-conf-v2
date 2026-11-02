@@ -909,18 +909,23 @@ describe("addresses of the M4 kinds in the lists M1 reads", () => {
     expect(() => diffBooks(BOOK, BOOK, { changes })).not.toThrow();
   });
 
-  it("refuses the M4 kinds as NOT_EDITABLE with a group id too, and reports one refusal for each", () => {
+  it("refuses a structural kind that carries a group id NOT_EDITABLE, and reports one refusal for each", () => {
+    const bulk = { percent: 5, scope: "all" };
     const changes = [
       {
         address: {
           kind: "item-deleted",
-          item: { kind: "hardware", tierId: "hardware.standard" },
+          item: { kind: "hardware", tierId: "hardware.soft-close" },
         },
         value: true,
+        groupId: "g",
+        bulk,
       },
       {
         address: { kind: "hardware-tier-created", tierId: "t" },
         value: { name: "a", description: "b" },
+        groupId: "g",
+        bulk,
       },
     ] as unknown as DraftChange[];
 
