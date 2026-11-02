@@ -30,6 +30,7 @@ import {
   projectDesignForDisplay,
   TALL_DOOR_LEAF_THRESHOLD_MM,
   TOP_ROW_Y0_MM,
+  WIDE_LIFT_DOOR_THRESHOLD_MM,
   UndeclaredFrontPopulationError,
   type BodyCatalog,
   type BodyDefinition,
@@ -146,6 +147,7 @@ describe("the seeded kitchen's mechanisms, against ADR 0070's independent deriva
       hinges: 74,
       drawers: 5,
       pushToOpen: 16,
+      lifts: 0,
     });
   });
 
@@ -347,7 +349,7 @@ describe("push-to-open is counted per opening front, on the bodies whose bars ar
     expect(definitionOf("wall-corner-return-570").canHandle).toBe(false);
     expect(
       countHardwareMechanisms([cornerReturn], KITCHEN_L_BODY_CATALOG),
-    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0 });
+    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0, lifts: 0 });
   });
 
   /** Its `-top` twin declares the identical `carriesHandles(1)` and the identical `canHandle: false`
@@ -364,7 +366,7 @@ describe("push-to-open is counted per opening front, on the bodies whose bars ar
         ],
         KITCHEN_L_BODY_CATALOG,
       ),
-    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 1 });
+    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 1, lifts: 0 });
   });
 
   it("counts none for a recorded bar, including in the top row", () => {
@@ -475,16 +477,21 @@ describe("every opening front in the catalogue has a bar or a latch available to
   });
 });
 
-// ADR 0092 decision 8 — neither row appears in the seeded design, which is exactly why neither may
-// be settled by whichever line happens to typecheck.
+// ADR 0092 decision 8, wall-lift as amended by ADR 0177 A-20 — neither row appears in the seeded design, which is
+// exactly why neither may be settled by whichever line happens to typecheck.
 describe("the two rows ADR 0092 decision 8 resolves", () => {
-  it("prices wall-lift as one hinged leaf at two hinges, and its lift arm as nothing", () => {
+  it("prices wall-lift at 600 mm as one lift and three hinges, the width rule and not the height one", () => {
     expect(
       countHardwareMechanisms(
         [entryAt({ buildId: "wall-lift", widthMm: 600, heightMm: 700 })],
         KITCHEN_L_BODY_CATALOG,
       ),
-    ).toEqual({ hinges: HINGES_PER_DOOR_LEAF, drawers: 0, pushToOpen: 0 });
+    ).toEqual({
+      hinges: HINGES_PER_TALL_DOOR_LEAF,
+      drawers: 0,
+      pushToOpen: 0,
+      lifts: 1,
+    });
   });
 
   it("prices base-bottle-cargo as one drawer and no hinge", () => {
@@ -493,8 +500,218 @@ describe("the two rows ADR 0092 decision 8 resolves", () => {
         [entryAt({ buildId: "base-bottle-cargo", widthMm: 300 })],
         KITCHEN_L_BODY_CATALOG,
       ),
-    ).toEqual({ hinges: 0, drawers: 1, pushToOpen: 0 });
+    ).toEqual({ hinges: 0, drawers: 1, pushToOpen: 0, lifts: 0 });
   });
+});
+
+// ADR 0177 A-20: a declared lift-up door counts one lift, and its hinges follow its width, not its height.
+describe("a lift-up door", () => {
+  /** A one-band, one-leaf row of the given band height, declared lift-up or not. */
+  function catalogHolding(options: {
+    readonly bandHeightMm: number;
+    readonly liftUp?: true;
+    readonly leavesPerBand?: number;
+    readonly buildId?: string;
+  }): BodyCatalog {
+    const fronts = carriesFronts({
+      doorBands: doorBandsMm([options.bandHeightMm]),
+      leavesPerBand: options.leavesPerBand ?? 1,
+      drawers: 0,
+      ...(options.liftUp === undefined ? {} : { liftUp: options.liftUp }),
+    });
+    return new Map([
+      [
+        options.buildId ?? "under-test",
+        { ...definitionOf("base-sink"), fronts },
+      ],
+    ]);
+  }
+
+  function countsOf(
+    catalog: BodyCatalog,
+    widthMm: number,
+    buildId = "under-test",
+  ) {
+    return countHardwareMechanisms(
+      [entryAt({ buildId, widthMm, heightMm: 700 })],
+      catalog,
+    );
+  }
+
+  it.each([
+    [WIDE_LIFT_DOOR_THRESHOLD_MM - 1, HINGES_PER_DOOR_LEAF],
+    [WIDE_LIFT_DOOR_THRESHOLD_MM, HINGES_PER_DOOR_LEAF],
+    [WIDE_LIFT_DOOR_THRESHOLD_MM + 1, HINGES_PER_TALL_DOOR_LEAF],
+  ])(
+    "takes the hinges of a %i mm door by the strict width rule",
+    (widthMm, hinges) => {
+      const counts = countHardwareMechanisms(
+        [entryAt({ buildId: "wall-lift", widthMm, heightMm: 700 })],
+        KITCHEN_L_BODY_CATALOG,
+      );
+
+      expect(counts).toEqual({ hinges, drawers: 0, pushToOpen: 0, lifts: 1 });
+    },
+  );
+
+  it("pins the width threshold at 500 mm", () => {
+    expect(WIDE_LIFT_DOOR_THRESHOLD_MM).toBe(500);
+  });
+
+  it("takes two hinges at any height when narrow: a band over 900 mm gets no third from the height rule", () => {
+    const tallLift = catalogHolding({
+      bandHeightMm: TALL_DOOR_LEAF_THRESHOLD_MM + 100,
+      liftUp: true,
+    });
+
+    expect(countsOf(tallLift, 400)).toEqual({
+      hinges: HINGES_PER_DOOR_LEAF,
+      drawers: 0,
+      pushToOpen: 0,
+      lifts: 1,
+    });
+  });
+
+  it("takes three hinges when wide even though its band is far under 900 mm", () => {
+    const shortLift = catalogHolding({ bandHeightMm: 300, liftUp: true });
+
+    expect(countsOf(shortLift, 800).hinges).toBe(HINGES_PER_TALL_DOOR_LEAF);
+  });
+
+  it("leaves a leaf of the same band that is not declared lift-up on the height rule, with no lift", () => {
+    const ordinaryTall = catalogHolding({
+      bandHeightMm: TALL_DOOR_LEAF_THRESHOLD_MM + 100,
+    });
+
+    expect(countsOf(ordinaryTall, 400)).toEqual({
+      hinges: HINGES_PER_TALL_DOOR_LEAF,
+      drawers: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
+  });
+
+  it("counts a lift where the row declares one, whatever its id is", () => {
+    const declaredUnderAnotherId = catalogHolding({
+      bandHeightMm: 694,
+      liftUp: true,
+      buildId: "some-other-row",
+    });
+
+    expect(countsOf(declaredUnderAnotherId, 600, "some-other-row").lifts).toBe(
+      1,
+    );
+  });
+
+  it("counts no lift on a row named wall-lift that does not declare one", () => {
+    const undeclared = catalogHolding({
+      bandHeightMm: 694,
+      buildId: "wall-lift",
+    });
+
+    expect(countsOf(undeclared, 600, "wall-lift")).toEqual({
+      hinges: HINGES_PER_DOOR_LEAF,
+      drawers: 0,
+      pushToOpen: 0,
+      lifts: 0,
+    });
+  });
+
+  it("counts no lift for a declaration that is not the boolean true", () => {
+    const fronts = {
+      ...carriesFronts({
+        doorBands: doorBandsMm([694]),
+        leavesPerBand: 1,
+        drawers: 0,
+      }),
+      liftUp: "yes",
+    } as unknown as FrontPopulationRule;
+    const catalog = new Map([
+      ["under-test", { ...definitionOf("base-sink"), fronts }],
+    ]);
+
+    expect(countsOf(catalog, 600).lifts).toBe(0);
+  });
+
+  it("counts one lift per door and judges each door by its own width, the body's width shared between its leaves", () => {
+    const twoDoors = catalogHolding({
+      bandHeightMm: 694,
+      liftUp: true,
+      leavesPerBand: 2,
+    });
+
+    expect(countsOf(twoDoors, 2 * WIDE_LIFT_DOOR_THRESHOLD_MM)).toMatchObject({
+      hinges: 2 * HINGES_PER_DOOR_LEAF,
+      lifts: 2,
+    });
+    expect(
+      countsOf(twoDoors, 2 * WIDE_LIFT_DOOR_THRESHOLD_MM + 2),
+    ).toMatchObject({ hinges: 2 * HINGES_PER_TALL_DOOR_LEAF, lifts: 2 });
+  });
+
+  it("adds its lifts over the bodies of a design", () => {
+    const counts = countHardwareMechanisms(
+      [
+        entryAt({ buildId: "wall-lift", placementId: "a", widthMm: 400 }),
+        entryAt({ buildId: "wall-lift", placementId: "b", widthMm: 800 }),
+        entryAt({ buildId: "wall-cabinet", placementId: "c", widthMm: 800 }),
+      ],
+      KITCHEN_L_BODY_CATALOG,
+    );
+
+    expect(counts.lifts).toBe(2);
+  });
+
+  /** Every catalogue row at every size it is built at, so a front that is called a flap in a comment or drawn with
+   *  a bottom handle edge cannot be priced a lift without a declaration. The floors keep either arm from being
+   *  empty: at least one lift row, and many rows that must read zero. */
+  it("counts a lift only on the one row the catalogue declares lift-up, at every size of every row", () => {
+    const liftsByBuildId = new Map<string, Set<number>>();
+    for (const row of EVERY_CATALOGUE_ENTRY_AT_EVERY_SIZE) {
+      const { lifts } = countHardwareMechanisms(
+        [entryAt(row)],
+        KITCHEN_L_BODY_CATALOG,
+      );
+      liftsByBuildId.set(
+        row.buildId,
+        (liftsByBuildId.get(row.buildId) ?? new Set<number>()).add(lifts),
+      );
+    }
+
+    const liftRows = [...liftsByBuildId]
+      .filter(([, counts]) => [...counts].some((count) => count > 0))
+      .map(([buildId]) => buildId);
+    const rowsWithoutLift = [...liftsByBuildId].filter(([, counts]) =>
+      [...counts].every((count) => count === 0),
+    );
+
+    expect(liftRows).toEqual(["wall-lift"]);
+    expect([...(liftsByBuildId.get("wall-lift") ?? [])]).toEqual([1]);
+    expect(rowsWithoutLift.length).toBeGreaterThan(20);
+  });
+
+  /** The fronts the catalogue's comments or its builders call a flap, or draw with a bottom handle edge, and that are
+   *  not declared lift-up: counted as ordinary leaves, no lift and the height rule, until the owner names one. */
+  it.each([
+    [
+      "tall-fridge-housing",
+      600,
+      2200,
+      HINGES_PER_TALL_DOOR_LEAF + 2 * HINGES_PER_DOOR_LEAF,
+    ],
+    ["tall-oven-tower", 600, 2200, 2 * HINGES_PER_DOOR_LEAF],
+    ["wall-cabinet", 600, 400, 2 * HINGES_PER_DOOR_LEAF],
+  ])(
+    "declines %s: no lift, and its hinges stay on the height rule",
+    (buildId, widthMm, heightMm, hinges) => {
+      const counts = countHardwareMechanisms(
+        [entryAt({ buildId, widthMm, heightMm })],
+        KITCHEN_L_BODY_CATALOG,
+      );
+
+      expect(counts).toMatchObject({ hinges, lifts: 0 });
+    },
+  );
 });
 
 // ADR 0092 decision 1, and ADR 0061 decision 4 one declaration over: a missing declaration is never

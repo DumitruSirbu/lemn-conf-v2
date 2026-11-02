@@ -25,6 +25,10 @@ import {
 } from "./qa-m4-support.js";
 
 const X = hardwareItem("hw.x");
+/** The index just past a class's creation and rates: where the next change of a draft lands. */
+const AFTER_TIER_DRAFT = tierDraft("hw.x").length;
+/** Where a second creation of the class lands when its deletion comes right after the first draft. */
+const SECOND_CREATION_INDEX = AFTER_TIER_DRAFT + 1;
 
 describe("a deletion undoes only the creation before it", () => {
   it("lists a class created, deleted and created again, once", () => {
@@ -45,7 +49,9 @@ describe("a deletion undoes only the creation before it", () => {
     const changes = [...tierDraft("hw.x"), deleteItem(X), createTier("hw.x")];
     const everyIndex = new Set(changes.keys());
 
-    expect(incompleteCreationIndexes(changes, everyIndex, BASE)).toEqual([5]);
+    expect(incompleteCreationIndexes(changes, everyIndex, BASE)).toEqual([
+      SECOND_CREATION_INDEX,
+    ]);
   });
 
   it("owes nothing for a class deleted after its creation", () => {
@@ -67,7 +73,7 @@ describe("an id that was a row is never given to a row again", () => {
     ];
 
     expect(refusalCodes(applyChanges(BASE, changes))).toContain(
-      "5:NOT_EDITABLE",
+      `${String(SECOND_CREATION_INDEX)}:NOT_EDITABLE`,
     );
   });
 
@@ -111,7 +117,7 @@ describe("reverting a row takes the changes that cannot stand without it", () =>
       tierId: "hw.x",
     });
 
-    expect(rest).toEqual(created.slice(5));
+    expect(rest).toEqual(created.slice(AFTER_TIER_DRAFT + 1));
   });
 
   it("takes a created class's deletion with it", () => {
@@ -120,7 +126,7 @@ describe("reverting a row takes the changes that cannot stand without it", () =>
       tierId: "hw.x",
     });
 
-    expect(rest).toEqual(created.slice(5));
+    expect(rest).toEqual(created.slice(AFTER_TIER_DRAFT + 1));
   });
 
   it("takes a created accessory with its price, and leaves the class", () => {
@@ -129,7 +135,10 @@ describe("reverting a row takes the changes that cannot stand without it", () =>
       accessoryId: "acc.x",
     });
 
-    expect(rest).toEqual([...created.slice(0, 5), created[7]]);
+    expect(rest).toEqual([
+      ...created.slice(0, AFTER_TIER_DRAFT + 1),
+      otherRate,
+    ]);
   });
 
   it("takes the created class with its other rates when one of its rates is reverted", () => {
@@ -139,7 +148,7 @@ describe("reverting a row takes the changes that cannot stand without it", () =>
       field: "perHingeMinor",
     });
 
-    expect(rest).toEqual(created.slice(5));
+    expect(rest).toEqual(created.slice(AFTER_TIER_DRAFT + 1));
     expect(applyChanges(BASE, rest).ok).toBe(true);
   });
 
@@ -185,7 +194,7 @@ describe("reverting a row takes the changes that cannot stand without it", () =>
       field: "description",
     });
 
-    expect(rest).toEqual(created.slice(5));
+    expect(rest).toEqual(created.slice(AFTER_TIER_DRAFT + 1));
     expect(applyChanges(BASE, rest).ok).toBe(true);
   });
 

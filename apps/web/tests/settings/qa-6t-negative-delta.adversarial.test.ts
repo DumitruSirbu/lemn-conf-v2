@@ -73,7 +73,7 @@ function mechanismsIn(design: Design): HardwareMechanismCounts {
   );
 }
 
-/** What the book's rates make this design at this tier, exact: the tier's own three rates over the design's own three
+/** What the book's rates make this design at this tier, exact: the tier's own four rates over the design's own four
  *  counts, never read off an offered delta. */
 function exactAmountFor(tierId: string, design: Design): number {
   const tier = hardwareTier(tierId);
@@ -82,7 +82,8 @@ function exactAmountFor(tierId: string, design: Design): number {
   return (
     tier.perHingeMinor * mechanisms.hinges +
     tier.perDrawerMinor * mechanisms.drawers +
-    tier.perPushToOpenMinor * mechanisms.pushToOpen
+    tier.perPushToOpenMinor * mechanisms.pushToOpen +
+    tier.perLiftMinor * mechanisms.lifts
   );
 }
 
@@ -104,14 +105,14 @@ function offerOf(design: Design) {
   });
 }
 
-/** **The inversion's own quantifier, derived from the three rate gaps and never restated.** Hettich
- *  costs more per hinge and more per latch than the default tier, and less per drawer — the last is
+/** **The inversion's own quantifier, derived from the four rate gaps and never restated.** Hettich
+ *  costs more per hinge, per latch and per lift than the default tier, and less per drawer — the last is
  *  ADR 0070's runners-only figure, which the owner ruled stays understated — so it prices a design
- *  below the default exactly when the drawer saving outweighs both surcharges. Written as the two
+ *  below the default exactly when the drawer saving outweighs the surcharges. Written as the
  *  coefficients a drawer count is compared against, so the form is the ADR's own
- *  *drawers > a × hinges + b × latches*; **the two-term form is false in general** (ADR 0092
- *  Amendment C) and neither coefficient's value appears here, so the derivation survives the owner
- *  replacing the drafted push figures. */
+ *  *drawers > a × hinges + b × latches + c × lifts*; **the two-term form is false in general** (ADR 0092
+ *  Amendment C, and ADR 0177 A-20 for the lift term) and no coefficient's value appears here, so the
+ *  derivation survives the owner replacing the drafted push and lift figures. */
 function invertsForCounts(counts: HardwareMechanismCounts): boolean {
   const standard = hardwareTier(DEFAULT_TIER_ID);
   const hettich = hardwareTier(INVERTING_TIER_ID);
@@ -121,10 +122,14 @@ function invertsForCounts(counts: HardwareMechanismCounts): boolean {
   const latchesPerDrawer =
     (hettich.perPushToOpenMinor - standard.perPushToOpenMinor) /
     drawerSavingMinor;
+  const liftsPerDrawer =
+    (hettich.perLiftMinor - standard.perLiftMinor) / drawerSavingMinor;
 
   return (
     counts.drawers >
-    hingesPerDrawer * counts.hinges + latchesPerDrawer * counts.pushToOpen
+    hingesPerDrawer * counts.hinges +
+      latchesPerDrawer * counts.pushToOpen +
+      liftsPerDrawer * counts.lifts
   );
 }
 
@@ -239,6 +244,7 @@ describe("the witness is where the rates put it, not where a fixture is quiet", 
         hinges: 0,
         drawers,
         pushToOpen: 0,
+        lifts: 0,
       });
       // Re-derived from the two rates rather than pinned as a figure: the shortfall is the drawer
       // gap the owner's Hettich ruling creates, times this body's own drawers.
@@ -340,5 +346,53 @@ describe("the witness is where the rates put it, not where a fixture is quiet", 
     for (const tier of offerOf(KITCHEN_L_DESIGN).hardware.tiers) {
       expect(tier.deltaMinor, tier.tierId).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+describe("a lift-up door's surcharge belongs to the inversion's quantifier", () => {
+  const LIFT_DOOR: DesignPlacement = {
+    id: "lift",
+    wall: "A",
+    alongMm: 1300,
+    y0Mm: 1500,
+    body: { buildId: "wall-lift", widthMm: 600, heightMm: 700 },
+  };
+  const DRAWER_BASE = KITCHEN_L_DESIGN.placements.find(
+    (candidate) => candidate.body.buildId === "base-drawer3-600",
+  );
+
+  function liftWithDrawerBases(drawerBases: number): Design {
+    if (!DRAWER_BASE) throw new Error("the fixture stands no drawer base");
+    return designOf([
+      LIFT_DOOR,
+      ...Array.from({ length: drawerBases }, (_, index) => ({
+        ...DRAWER_BASE,
+        id: `drawers-${String(index)}`,
+      })),
+    ]);
+  }
+
+  /** The fewest drawer bases whose drawers outweigh the hinges of the lift door alone: past that count the three-term
+   *  form says Hettich prices below the default, and the lift surcharge is the whole difference to the four-term one. */
+  function fewestBasesThatOutweighTheHinges(): number {
+    for (let drawerBases = 1; drawerBases <= 80; drawerBases += 1) {
+      const counts = mechanismsIn(liftWithDrawerBases(drawerBases));
+      if (invertsForCounts({ ...counts, lifts: 0 })) return drawerBases;
+    }
+    throw new Error("no drawer count outweighs the lift door's hinges");
+  }
+
+  it("offers Hettich a stated amount where the drawers outweigh the hinges but not the hinges and the lift", () => {
+    const design = liftWithDrawerBases(fewestBasesThatOutweighTheHinges());
+    const counts = mechanismsIn(design);
+
+    expect(counts.lifts).toBe(1);
+    expect(invertsForCounts({ ...counts, lifts: 0 })).toBe(true);
+    expect(invertsForCounts(counts)).toBe(false);
+    expect(pricesBelowItsDefault(design)).toBe(false);
+    expect(offeredDeltaFor(offerOf(design).hardware, INVERTING_TIER_ID)).toBe(
+      bookAmountFor(INVERTING_TIER_ID, design) -
+        bookAmountFor(DEFAULT_TIER_ID, design),
+    );
   });
 });

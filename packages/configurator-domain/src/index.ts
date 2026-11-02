@@ -100,6 +100,7 @@ export {
   HINGES_PER_TALL_DOOR_LEAF,
   NO_HARDWARE_MECHANISMS,
   TALL_DOOR_LEAF_THRESHOLD_MM,
+  WIDE_LIFT_DOOR_THRESHOLD_MM,
   type HardwareMechanismCounts,
 } from "./hardware-mechanisms.js";
 // `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: a second caller outside this

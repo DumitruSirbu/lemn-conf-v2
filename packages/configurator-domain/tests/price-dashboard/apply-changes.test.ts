@@ -17,7 +17,7 @@ import {
 } from "../../src/price-dashboard/editable-fields.js";
 import { MAX_PRICE_COEFFICIENT_MINOR } from "../../src/pricing/book-reading.js";
 import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
-import type { PriceBook } from "../../src/pricing/price-book.js";
+import type { HardwareTier, PriceBook } from "../../src/pricing/price-book.js";
 
 import {
   anchoredRuleReading,
@@ -232,15 +232,6 @@ describe("a change is refused with a closed code", () => {
         "UNKNOWN_ADDRESS",
       ],
       [
-        "a hardware rate the book does not state yet (the lift rate)",
-        {
-          kind: "hardware",
-          tierId: "hardware.standard",
-          field: "perLiftMinor",
-        },
-        "FIELD_NOT_ON_RULE",
-      ],
-      [
         "a material tier the book does not have",
         {
           kind: "material",
@@ -340,6 +331,34 @@ describe("a change is refused with a closed code", () => {
 
   it.each(addressCases)("%s", (_title, address, code) => {
     expect(onlyRefusal(PERCENTAGE_BOOK, address, 5)).toBe(`0:${code}`);
+  });
+
+  it("refuses a lift-rate change on a tier that states no lift rate, and accepts one on a tier that does", () => {
+    const address: BookFieldAddress = {
+      kind: "hardware",
+      tierId: "hardware.standard",
+      field: "perLiftMinor",
+    };
+    const withoutLiftRate: PriceBook = {
+      ...PERCENTAGE_BOOK,
+      hardware: {
+        ...PERCENTAGE_BOOK.hardware,
+        tiers: PERCENTAGE_BOOK.hardware.tiers.map(
+          (tier) =>
+            Object.fromEntries(
+              Object.entries(tier).filter(([key]) => key !== "perLiftMinor"),
+            ) as unknown as HardwareTier,
+        ),
+      },
+    };
+
+    expect(onlyRefusal(withoutLiftRate, address, 5)).toBe(
+      "0:FIELD_NOT_ON_RULE",
+    );
+    expect(
+      appliedBook(applyChanges(PERCENTAGE_BOOK, [changeAt(address, 5)]))
+        .hardware.tiers[0]?.perLiftMinor,
+    ).toBe(5);
   });
 
   it("refuses a material change and the depth rule on a book stored before the cut-over, which has neither", () => {

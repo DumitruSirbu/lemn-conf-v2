@@ -27,6 +27,7 @@ import {
   HINGES_PER_DOOR_LEAF,
   HINGES_PER_TALL_DOOR_LEAF,
   TALL_DOOR_LEAF_THRESHOLD_MM,
+  WIDE_LIFT_DOOR_THRESHOLD_MM,
 } from "../../src/hardware-mechanisms.js";
 import type { AnchoredFormula } from "../../src/pricing/anchored-price-formula.js";
 import { priceDesign } from "../../src/pricing/price-design.js";
@@ -167,6 +168,21 @@ function builtLeafHeightsMm(placement: DesignPlacement): readonly number[] {
   );
 }
 
+/** A lift-up door takes its hinges by the body's width, every other leaf by its own height (ADR 0177 A-20). One leaf per
+ *  body on the row that declares lift-up, so the list's length is its door count. */
+function expectedHingesOf(placement: DesignPlacement): number {
+  const leafHeightsMm = builtLeafHeightsMm(placement);
+  const fronts = CATALOG.get(placement.body.buildId)?.fronts;
+  const isLiftUp =
+    fronts?.countedFrom === "declared-leaves" && fronts.liftUp === true;
+  if (!isLiftUp) return hingesOnLeaves(leafHeightsMm);
+  const hingesPerLiftDoor =
+    placement.body.widthMm > WIDE_LIFT_DOOR_THRESHOLD_MM
+      ? HINGES_PER_TALL_DOOR_LEAF
+      : HINGES_PER_DOOR_LEAF;
+  return leafHeightsMm.length * hingesPerLiftDoor;
+}
+
 function hingesOnLeaves(leafHeightsMm: readonly number[]): number {
   return leafHeightsMm
     .map((heightMm) =>
@@ -207,7 +223,7 @@ describe("every insertable row: the door term moves exactly as hardware's leaf l
   );
 
   it.each(INSERTABLE_BUILD_IDS)(
-    "%s: the hinges the hardware path bills are the hinge rule applied over the same leaf list the door term counts",
+    "%s: the hinges the hardware path bills are the hinge rule (by width for a lift-up door) applied over the same leaf list the door term counts",
     (buildId) => {
       const heightMm = rowHeightMm(buildId);
 
@@ -217,7 +233,7 @@ describe("every insertable row: the door term moves exactly as hardware's leaf l
         expect(
           countHardwareMechanisms(entriesOf(placement), CATALOG).hinges,
           `${buildId} at ${String(widthMm)} mm`,
-        ).toBe(hingesOnLeaves(builtLeafHeightsMm(placement)));
+        ).toBe(expectedHingesOf(placement));
       }
     },
   );

@@ -108,10 +108,10 @@ export interface TierIdentity {
 
 /** A hardware tier, priced per mechanism (ADR 0070 decision 1). A `handle: "push"` body carries
  *  mechanisms and no handle, so a per-handle basis would bill a push-to-open kitchen at zero.
- *  The three rates are independent: a tier can be dearest on hinges and cheapest on drawers.
+ *  The rates are independent: a tier can be dearest on hinges and cheapest on drawers.
  *  `countHardwareMechanisms` (`hardware-mechanisms.ts`) supplies the quantities. */
 export interface HardwareTier extends TierIdentity {
-  /** Charged per hinge — 2 on a door leaf, 3 on one taller than 900 mm. */
+  /** Charged per hinge — 2 on a door leaf, 3 on one taller than 900 mm; on a lift door, 3 when wider than 500 mm. */
   readonly perHingeMinor: number;
   /** Charged per drawer, not per runner: one drawer's price buys the pair (ADR 0092 decision 2). */
   readonly perDrawerMinor: number;
@@ -119,6 +119,8 @@ export interface HardwareTier extends TierIdentity {
    *  bar — `isPushToOpen`, not the recorded mode alone, because a body can be latched with no handle
    *  recorded (ADR 0092 Amendment C). */
   readonly perPushToOpenMinor: number;
+  /** Charged per lift mechanism, one per lift-up door (ADR 0177 A-20). Required: a book without it is refused. */
+  readonly perLiftMinor: number;
 }
 
 /** A material priced as a percentage on the PAL cabinets (ADR 0092 Amendment of 2026-10-25, ADR 0177 A-1). */
@@ -453,7 +455,7 @@ export class InexactPriceArithmeticError extends Error {
 /** Every amount a price is computed from — each shape's coefficients and the tier amounts — and so
  *  the only fields a malformed-amount refusal can name. A literal union so a typo is a compile error.
  *
- *  The three hardware rates are separate fields so a refusal names the unusable one. */
+ *  The hardware rates are separate fields so a refusal names the unusable one. */
 export type PriceCoefficientField =
   | "anchorMinor"
   | "perStepWiderMinor"
@@ -464,6 +466,7 @@ export type PriceCoefficientField =
   | "perHingeMinor"
   | "perDrawerMinor"
   | "perPushToOpenMinor"
+  | "perLiftMinor"
   | "perUnitMinor"
   | "percentOfCabinets"
   | "deepCabinetPercent";

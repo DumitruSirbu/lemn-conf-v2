@@ -237,8 +237,6 @@ describe("the page's own leaves", () => {
         "D3D draws the greatest height as a dash with this hint; the page draws the catalogue's greatest buildable height",
       "priceDashboard.cabinet.hardwareLink":
         "D3A draws a link to the hardware page in the readout; that page is wave U4a's, and the menu links to built pages only",
-      "priceDashboard.cabinet.liftCount":
-        "D3 draws a lift mechanism in the readout; the book has no lift rate before A-20",
       "priceDashboard.cabinet.activeCell": "no D3 frame draws it",
       "priceDashboard.cabinet.pendingNotice": "no D3 frame draws it",
     };

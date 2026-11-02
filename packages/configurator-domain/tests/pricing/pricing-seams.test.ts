@@ -420,6 +420,7 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
               "perHingeMinor",
               "perDrawerMinor",
               "perPushToOpenMinor",
+              "perLiftMinor",
             ],
           ] as const,
       ),

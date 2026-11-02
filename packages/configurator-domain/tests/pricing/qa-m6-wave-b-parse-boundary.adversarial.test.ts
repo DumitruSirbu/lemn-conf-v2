@@ -335,6 +335,7 @@ function hardwareTierInheriting(rates: {
   declared["name"] = template.name;
   declared["description"] = template.description;
   declared["perPushToOpenMinor"] = 0;
+  declared["perLiftMinor"] = 0;
   return declared as unknown as HardwareTier;
 }
 

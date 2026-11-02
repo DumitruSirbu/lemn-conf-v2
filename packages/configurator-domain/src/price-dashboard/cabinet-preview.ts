@@ -8,6 +8,11 @@ import {
   roundUpToPriceStepMm,
 } from "../pricing/anchored-price-formula.js";
 import {
+  HARDWARE_RATE_FIELDS,
+  mechanismsChargedAt,
+  type HardwareRateField,
+} from "../pricing/hardware-rate-fields.js";
+import {
   DEEP_CABINET_DEPTH_MM,
   percentageStagesOf,
   roundHalfUpToTenLei,
@@ -364,23 +369,15 @@ function hardwareMinorAt(
     setting.catalog,
   );
   return roundHalfUpToTenLei(
-    exactAmountOfTerms([
-      termOf(hardware.perHingeMinor, counts.hinges, "perHingeMinor"),
-      termOf(hardware.perDrawerMinor, counts.drawers, "perDrawerMinor"),
-      termOf(
-        hardware.perPushToOpenMinor,
-        counts.pushToOpen,
-        "perPushToOpenMinor",
+    exactAmountOfTerms(
+      HARDWARE_RATE_FIELDS.map((field) =>
+        termOf(hardware[field], mechanismsChargedAt(counts, field), field),
       ),
-    ]),
+    ),
   );
 }
 
-function termOf(
-  rateMinor: number,
-  count: number,
-  field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
-) {
+function termOf(rateMinor: number, count: number, field: HardwareRateField) {
   return {
     coefficientMinor: usableCoefficientOf(rateMinor, field),
     count,

@@ -187,6 +187,7 @@ describe("the 74, the 5 and the 16 are a census, not only a total", () => {
         hinges,
         drawers,
         pushToOpen,
+        lifts: 0,
       });
     },
   );
@@ -201,11 +202,17 @@ describe("the 74, the 5 and the 16 are a census, not only a total", () => {
         hinges: totals.hinges + hinges,
         drawers: totals.drawers + drawers,
         pushToOpen: totals.pushToOpen + pushToOpen,
+        lifts: 0,
       }),
-      { hinges: 0, drawers: 0, pushToOpen: 0 },
+      { hinges: 0, drawers: 0, pushToOpen: 0, lifts: 0 },
     );
 
-    expect(summed).toEqual({ hinges: 74, drawers: 5, pushToOpen: 16 });
+    expect(summed).toEqual({
+      hinges: 74,
+      drawers: 5,
+      pushToOpen: 16,
+      lifts: 0,
+    });
     expect(mechanismsIn(KITCHEN_L_DESIGN)).toEqual(summed);
   });
 });
@@ -333,6 +340,7 @@ describe("the count still moves the money, though the quantity is pinned at 1", 
       hinges: 4,
       drawers: 0,
       pushToOpen: 0,
+      lifts: 0,
     });
     expect(
       hardwareLineOf(
@@ -444,7 +452,11 @@ describe("the boundaries the wave plan names", () => {
       ]);
       const tier = tierOf("hardware.soft-close");
 
-      expect(mechanismsIn(design)).toEqual({ ...expected, pushToOpen: 0 });
+      expect(mechanismsIn(design)).toEqual({
+        ...expected,
+        pushToOpen: 0,
+        lifts: 0,
+      });
       expect(
         hardwareLineOf(
           priceOrFail({ design, selections: { hardwareTierId: tier.tierId } }),

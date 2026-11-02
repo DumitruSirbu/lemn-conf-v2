@@ -94,6 +94,7 @@ export interface HardwareReadout {
   };
   readonly hinges: number;
   readonly drawers: number;
+  readonly lifts: number;
   readonly amountMinor: number;
 }
 
@@ -316,7 +317,9 @@ function hardwareOf(
   if (row === undefined || tier === undefined) return undefined;
   const { defaultMm } = listed.widths;
   const counts = countsAt(rule, row, catalog, defaultMm);
-  if (counts.hinges === 0 && counts.drawers === 0) return undefined;
+  if (counts.hinges === 0 && counts.drawers === 0 && counts.lifts === 0) {
+    return undefined;
+  }
   const preview = previewCabinet({
     rule,
     catalog,
@@ -335,6 +338,7 @@ function hardwareOf(
     tierName: { authored: tier.name, key: tier.nameKey },
     hinges: counts.hinges,
     drawers: counts.drawers,
+    lifts: counts.lifts,
     amountMinor: atDefault.hardwareMinor,
   };
 }

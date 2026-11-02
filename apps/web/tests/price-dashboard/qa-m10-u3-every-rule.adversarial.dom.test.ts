@@ -553,14 +553,15 @@ describe("the hardware readout against what the customer's price adds", () => {
       const counts = mechanismCountsNamedBy(readout ?? "", defaultMm, billed);
       expect(
         counts,
-        "the readout names a count of hinges and drawers",
+        "the readout names a count of hinges, drawers and lifts",
       ).toBeDefined();
       const standard = SAMPLE_PRICE_BOOK.hardware.tiers.find(
         ({ tierId }) => tierId === SAMPLE_PRICE_BOOK.hardware.defaultTierId,
       );
       const exactMinor =
         (counts?.hinges ?? 0) * (standard?.perHingeMinor ?? 0) +
-        (counts?.drawers ?? 0) * (standard?.perDrawerMinor ?? 0);
+        (counts?.drawers ?? 0) * (standard?.perDrawerMinor ?? 0) +
+        (counts?.lifts ?? 0) * (standard?.perLiftMinor ?? 0);
       expect(
         roundUpHalfToTenLei(exactMinor),
         "the counts it names are what the customer pays for",
@@ -571,34 +572,48 @@ describe("the hardware readout against what the customer's price adds", () => {
 
 const MAX_HINGES_SWEPT = 40;
 const MAX_DRAWERS_SWEPT = 12;
+const MAX_LIFTS_SWEPT = 2;
 
-/** The hinge and drawer counts whose sentence, in the catalogue's words, is the readout: found by saying each aloud. */
+/** The hinge, drawer and lift counts whose sentence, in the catalogue's words, is the readout: found by saying each aloud. */
 function mechanismCountsNamedBy(
   readout: string,
   widthMm: number,
   billedMinor: number,
-): { readonly hinges: number; readonly drawers: number } | undefined {
+):
+  | {
+      readonly hinges: number;
+      readonly drawers: number;
+      readonly lifts: number;
+    }
+  | undefined {
   for (let hinges = 0; hinges <= MAX_HINGES_SWEPT; hinges += 1) {
     for (let drawers = 0; drawers <= MAX_DRAWERS_SWEPT; drawers += 1) {
-      const parts = [
-        hinges === 0
-          ? undefined
-          : roCopy("priceDashboard.cabinet.hingeCount", { count: hinges }),
-        drawers === 0
-          ? undefined
-          : roCopy("priceDashboard.cabinet.slidePairCount", { count: drawers }),
-      ].filter((part) => part !== undefined);
-      if (parts.length === 0) continue;
-      const quantities = parts.reduce((head, tail) =>
-        roCopy("priceDashboard.cabinet.hardwareJoined", { head, tail }),
-      );
-      const sentence = roCopy("priceDashboard.cabinet.hardwareLine", {
-        widthMm,
-        quantities,
-        amount: lei(billedMinor),
-        className: "Standard",
-      });
-      if (readout.includes(sentence)) return { hinges, drawers };
+      for (let lifts = 0; lifts <= MAX_LIFTS_SWEPT; lifts += 1) {
+        const parts = [
+          hinges === 0
+            ? undefined
+            : roCopy("priceDashboard.cabinet.hingeCount", { count: hinges }),
+          drawers === 0
+            ? undefined
+            : roCopy("priceDashboard.cabinet.slidePairCount", {
+                count: drawers,
+              }),
+          lifts === 0
+            ? undefined
+            : roCopy("priceDashboard.cabinet.liftCount", { count: lifts }),
+        ].filter((part) => part !== undefined);
+        if (parts.length === 0) continue;
+        const quantities = parts.reduce((head, tail) =>
+          roCopy("priceDashboard.cabinet.hardwareJoined", { head, tail }),
+        );
+        const sentence = roCopy("priceDashboard.cabinet.hardwareLine", {
+          widthMm,
+          quantities,
+          amount: lei(billedMinor),
+          className: "Standard",
+        });
+        if (readout.includes(sentence)) return { hinges, drawers, lifts };
+      }
     }
   }
   return undefined;

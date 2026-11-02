@@ -63,16 +63,16 @@ function resultOf(book: PriceBook, changes: readonly DraftChange[]) {
 describe("a change that names a row is judged against the draft so far", () => {
   const tier = tierDraft("hw.new");
   const PERMUTATIONS: readonly (readonly number[])[] = [
-    [0, 1, 2, 3],
-    [1, 0, 2, 3],
-    [1, 2, 0, 3],
-    [1, 2, 3, 0],
-    [3, 2, 1, 0],
-    [2, 0, 3, 1],
+    [0, 1, 2, 3, 4],
+    [1, 0, 2, 3, 4],
+    [1, 2, 0, 3, 4],
+    [1, 2, 3, 4, 0],
+    [4, 3, 2, 1, 0],
+    [2, 0, 4, 1, 3],
   ];
 
   it.each(PERMUTATIONS)(
-    "accepts a class and its three rates exactly when the creation comes first (order %j)",
+    "accepts a class and its four rates exactly when the creation comes first (order %j)",
     (...order) => {
       const changes = order.map((index) => elementAt(tier, index));
       const creationAt = changes.indexOf(elementAt(tier, 0));
@@ -157,6 +157,7 @@ describe("a change that names a row is judged against the draft so far", () => {
       createTier("hw.a"),
       setRate("hw.a", "perDrawerMinor", 2),
       setRate("hw.a", "perPushToOpenMinor", 3),
+      setRate("hw.a", "perLiftMinor", 4),
     ];
 
     expect(refusalCodes(resultOf(BASE, changes))).toBe(
@@ -165,14 +166,17 @@ describe("a change that names a row is judged against the draft so far", () => {
   });
 
   it("returns the whole draft refused when one change is, and never a partial book", () => {
+    const tier = tierDraft("hw.a");
     const result = resultOf(BASE, [
-      ...tierDraft("hw.a"),
+      ...tier,
       // eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this input must pass or be refused
       createAccessory("acc.a", { name: "Pre\u021b 500 lei" }),
     ]);
 
     expect(result.ok).toBe(false);
-    expect(refusalCodes(result)).toBe("4:TEXT_STATES_AN_AMOUNT");
+    expect(refusalCodes(result)).toBe(
+      `${String(tier.length)}:TEXT_STATES_AN_AMOUNT`,
+    );
   });
 });
 
@@ -544,7 +548,8 @@ describe("a created hardware class", () => {
       tier?.perHingeMinor,
       tier?.perDrawerMinor,
       tier?.perPushToOpenMinor,
-    ]).toEqual([1_000, 2_000, 3_000]);
+      tier?.perLiftMinor,
+    ]).toEqual([1_000, 2_000, 3_000, 4_000]);
   });
 
   it.each([
@@ -871,6 +876,7 @@ describe("over drafts of creations, words, prices and deletions in any order", (
             "name",
             "perDrawerMinor",
             "perHingeMinor",
+            "perLiftMinor",
             "perPushToOpenMinor",
             "ruleId",
             "tierId",

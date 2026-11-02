@@ -293,6 +293,18 @@ const DRAFTED_PUSH_TO_OPEN_MINOR = {
 } as const;
 
 /**
+ * Placeholders: their magnitudes are not evidence and must never be quoted as a price. Assertions read the rate off
+ * this book and multiply; none types a magnitude.
+ *
+ * Non-zero on purpose: a zero would price a lift-up door's mechanism at nothing.
+ */
+const DRAFTED_LIFT_MINOR = {
+  standard: 20_000,
+  hettich: 60_000,
+  blum: 50_000,
+} as const;
+
+/**
  * ADR 0070 decision 4's two sink extras, the one block here whose magnitudes are the owner's
  * (≈200 MDL cover, ≈400 rack, Chișinău retail), identical at all three tiers, which is why they sit
  * outside the hardware tier. Their names and descriptions are drafted placeholders; both name a
@@ -362,6 +374,7 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         perHingeMinor: 1_760,
         perDrawerMinor: 64_000,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.standard,
+        perLiftMinor: DRAFTED_LIFT_MINOR.standard,
       },
       {
         tierId: "hardware.soft-close",
@@ -377,6 +390,7 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         // three comparable overturns a decision.
         perDrawerMinor: 62_600,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.hettich,
+        perLiftMinor: DRAFTED_LIFT_MINOR.hettich,
       },
       {
         tierId: "hardware.premium",
@@ -388,6 +402,7 @@ export const SAMPLE_PRICE_BOOK: PriceBook = {
         perHingeMinor: 7_500,
         perDrawerMinor: 83_700,
         perPushToOpenMinor: DRAFTED_PUSH_TO_OPEN_MINOR.blum,
+        perLiftMinor: DRAFTED_LIFT_MINOR.blum,
       },
     ],
   },

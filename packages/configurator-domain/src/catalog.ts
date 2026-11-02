@@ -658,11 +658,13 @@ export function buildInsertableBodyDefinitions(
       wallCabinet(cabinetDepthMm, {
         cabinetHandles: carriesHandles(1),
         // One full-face leaf with a `"bottom"` handle edge, which is why drawer-ness is declared and not read off that
-        // field; lift mechanisms are out of ADR 0070's scope (decision 6).
+        // field. `liftUp` is declared here, never inferred from the id: it prices a lift and sets the hinges by width
+        // (ADR 0177 A-20).
         fronts: carriesFronts({
           doorBands: oneBandInsetFromFrameMm(WALL_DOOR_BAND_INSET_MM),
           leavesPerBand: 1,
           drawers: NO_DRAWERS,
+          liftUp: true,
         }),
       }),
     ],

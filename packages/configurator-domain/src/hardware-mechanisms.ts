@@ -1,4 +1,4 @@
-// How many mechanisms a kitchen's hardware is priced by: hinges, drawers and push-to-open latches,
+// How many mechanisms a kitchen's hardware is priced by: hinges, drawers, push-to-open latches and lifts,
 // counted over a design's bodies from their front-population declarations.
 //
 // Hardware is priced per mechanism, never per handle (ADR 0070 decision 1): a push-to-open body carries
@@ -18,26 +18,28 @@ import {
   doorLeafHeightsMm,
   drawerCount,
   frontPopulationQueryFor,
+  liftDoorWidthsMm,
   openingFrontCount,
   type DeclaresFronts,
+  type FrontPopulationQuery,
 } from "./front-population.js";
 import { isPushToOpen, type PushToOpenQuery } from "./push-to-open.js";
 import type { DisplayEntry } from "./queries/design-projection.js";
 import type { BodyCatalog } from "./void-engine.js";
 
-/** The three mechanisms ADR 0070 decision 1 names, and no fourth. A lift arm and a cargo pull-out are
- *  knowingly unpriced (ADR 0092 decision 8) rather than folded into a count that would make them look
- *  measured. */
+/** The mechanisms a kitchen's hardware is priced by: hinges, drawers, push-to-open latches and one lift per
+ *  lift-up door (ADR 0177 A-20). A cargo pull-out counts as one drawer (ADR 0092 decision 8). */
 export interface HardwareMechanismCounts {
   readonly hinges: number;
   readonly drawers: number;
   readonly pushToOpen: number;
+  readonly lifts: number;
 }
 
 /** Two hinges carry an ordinary door leaf. */
 export const HINGES_PER_DOOR_LEAF = 2;
 
-/** A third hinge carries a leaf over the threshold below — the extra weight needs it. */
+/** A third hinge carries a leaf over either threshold below — the extra weight needs it. */
 export const HINGES_PER_TALL_DOOR_LEAF = 3;
 
 /** The height a third hinge starts at, a strict boundary: ADR 0070 says *taller than 900*, so a 900 mm
@@ -45,11 +47,17 @@ export const HINGES_PER_TALL_DOOR_LEAF = 3;
  *  notice. */
 export const TALL_DOOR_LEAF_THRESHOLD_MM = 900;
 
+/** The width a lift door's third hinge starts at, a strict boundary like the height one: a 500 mm lift door takes
+ *  two hinges and a 501 mm one three. It is not the door-count threshold, which is inclusive. For a lift door this
+ *  width rule replaces the height rule. see ADR 0177 A-20 */
+export const WIDE_LIFT_DOOR_THRESHOLD_MM = 500;
+
 /** What a design with no bodies carries: a real answer, not a refusal. */
 export const NO_HARDWARE_MECHANISMS: HardwareMechanismCounts = {
   hinges: 0,
   drawers: 0,
   pushToOpen: 0,
+  lifts: 0,
 };
 
 /**
@@ -75,7 +83,7 @@ export function countHardwareMechanisms(
   return totals;
 }
 
-/** The three counts one body contributes. Built through `frontPopulationQueryFor` so nobody can reach
+/** The counts one body contributes. Built through `frontPopulationQueryFor` so nobody can reach
  *  for a definition's nominal height: one `wall-cabinet` entry declares 700 while its placements are
  *  built at 400, 700 and 750. */
 function mechanismsOn(
@@ -84,16 +92,16 @@ function mechanismsOn(
 ): HardwareMechanismCounts {
   const declared = definition ?? DECLARES_NOTHING;
   const query = frontPopulationQueryFor({ body: entry, definition: declared });
-  const leafHeightsMm = doorLeafHeightsMm(query);
-  const drawers = drawerCount(query);
+  const liftDoorWidths = liftDoorWidthsMm(query);
 
   return {
-    hinges: countHinges(leafHeightsMm),
-    drawers,
+    hinges: countHingesOn(query, liftDoorWidths),
+    drawers: drawerCount(query),
     pushToOpen: countPushToOpen(
       pushToOpenQueryFor(entry, declared),
       openingFrontCount(query),
     ),
+    lifts: liftDoorWidths.length,
   };
 }
 
@@ -128,18 +136,35 @@ function pushToOpenQueryFor(
   };
 }
 
-/** Counted over `doorLeafHeightsMm`, one entry per leaf, never over `doorBandHeightsMm`: a pantry at
- *  600 mm answers `[1290, 1290, 790, 790]`, and applying the threshold to its two bands gives 45 hinges
- *  on the seeded kitchen against the correct 74. */
-function countHinges(leafHeightsMm: readonly number[]): number {
-  return leafHeightsMm.reduce(
-    (total, leafHeightMm) => total + hingesOnLeaf(leafHeightMm),
-    0,
-  );
+/** A lift door's hinges follow its width, every other leaf's its height (ADR 0177 A-20), so a body's hinges are
+ *  counted over one list or the other, never both. Heights are counted over `doorLeafHeightsMm`, one entry per
+ *  leaf, never over `doorBandHeightsMm`: a pantry at 600 mm answers `[1290, 1290, 790, 790]`, and applying the
+ *  threshold to its two bands gives 45 hinges on the seeded kitchen against the correct 74. */
+function countHingesOn(
+  query: FrontPopulationQuery,
+  liftDoorWidths: readonly number[],
+): number {
+  if (liftDoorWidths.length > 0) {
+    return sumOf(liftDoorWidths, hingesOnLiftDoor);
+  }
+  return sumOf(doorLeafHeightsMm(query), hingesOnLeaf);
+}
+
+function sumOf(
+  values: readonly number[],
+  measure: (value: number) => number,
+): number {
+  return values.reduce((total, value) => total + measure(value), 0);
 }
 
 function hingesOnLeaf(leafHeightMm: number): number {
   return leafHeightMm > TALL_DOOR_LEAF_THRESHOLD_MM
+    ? HINGES_PER_TALL_DOOR_LEAF
+    : HINGES_PER_DOOR_LEAF;
+}
+
+function hingesOnLiftDoor(doorWidthMm: number): number {
+  return doorWidthMm > WIDE_LIFT_DOOR_THRESHOLD_MM
     ? HINGES_PER_TALL_DOOR_LEAF
     : HINGES_PER_DOOR_LEAF;
 }
@@ -162,5 +187,6 @@ function addCounts(
     hinges: left.hinges + right.hinges,
     drawers: left.drawers + right.drawers,
     pushToOpen: left.pushToOpen + right.pushToOpen,
+    lifts: left.lifts + right.lifts,
   };
 }

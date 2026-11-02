@@ -1,5 +1,5 @@
 // What a whole-kitchen tier costs, measured rather than transcribed. Neither the *inclus* nor the *de la +9 000* of
-// frames 2E / D2E is readable off the book: a hardware tier states three per-mechanism rates (ADR 0070 decision 1).
+// frames 2E / D2E is readable off the book: a hardware tier states per-mechanism rates (ADR 0070 decision 1).
 // A tier's delta is the whole design priced at that tier less the same design at the group's `defaultTierId`: six
 // evaluations of a pure query with the other group held at what the design carries, so it cancels out of every
 // difference. This module names no price book (ADR 0062 seam 1): it takes one, as `priceDesign` does, and
@@ -161,7 +161,7 @@ function totalAt(
 /**
  * What a group does with a tier that prices this design below the group's own default (ADR 0092 decision 12).
  * Interim, pending owner review: the owner may prefer a negative badge to the hardware rule below.
- * - `"offer-with-no-delta"` (hardware): a tier states three per-mechanism rates, so which is cheapest depends on
+ * - `"offer-with-no-delta"` (hardware): a tier states per-mechanism rates, so which is cheapest depends on
  *   the customer's kitchen (a drawer-dominant design costs less at Hettich). Refusing would take the settings sheet
  *   away from a customer who only deleted wall cabinets, so the tier is offered with no delta badge.
  * - `"refuse"` (material): one percentage per tier, whole and never below the default's 0 %, so its ordering against

@@ -86,7 +86,7 @@ function mechanismsIn(design: Design): HardwareMechanismCounts {
   );
 }
 
-/** What a book's rates make this design at this tier, exact: the tier's own three rates over the design's counts. */
+/** What a book's rates make this design at this tier, exact: the tier's own four rates over the design's counts. */
 function exactHardwareAmountFor(
   book: PriceBook,
   tierId: string,
@@ -98,7 +98,8 @@ function exactHardwareAmountFor(
   return (
     tier.perHingeMinor * mechanisms.hinges +
     tier.perDrawerMinor * mechanisms.drawers +
-    tier.perPushToOpenMinor * mechanisms.pushToOpen
+    tier.perPushToOpenMinor * mechanisms.pushToOpen +
+    tier.perLiftMinor * mechanisms.lifts
   );
 }
 
@@ -282,7 +283,9 @@ function invertsInIntegers(book: PriceBook, tierId: string, design: Design) {
   const counts = mechanismsIn(design);
   const surchargeMinor =
     (tier.perHingeMinor - standard.perHingeMinor) * counts.hinges +
-    (tier.perPushToOpenMinor - standard.perPushToOpenMinor) * counts.pushToOpen;
+    (tier.perPushToOpenMinor - standard.perPushToOpenMinor) *
+      counts.pushToOpen +
+    (tier.perLiftMinor - standard.perLiftMinor) * counts.lifts;
   const savingMinor =
     (standard.perDrawerMinor - tier.perDrawerMinor) * counts.drawers;
 
@@ -579,7 +582,11 @@ describe("the refusal is narrowed, not laundered", () => {
     let silent = 0;
     for (const design of everyOneAndTwoBodyPopulation()) {
       const counts = mechanismsIn(design);
-      if (counts.hinges + counts.drawers + counts.pushToOpen === 0) continue;
+      if (
+        counts.hinges + counts.drawers + counts.pushToOpen + counts.lifts ===
+        0
+      )
+        continue;
       expect(
         offeredDeltaFor(offerOf(design, dominated).hardware, INVERTING_TIER_ID),
       ).toBeUndefined();
