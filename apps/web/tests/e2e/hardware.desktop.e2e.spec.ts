@@ -179,10 +179,9 @@ test.describe("the hardware screens at desktop 1440", () => {
     });
 
     // RED ON PURPOSE: DEFECT. In Russian the column title "Направляющие (пара)" is one word of 113 px in a column of 82 px at
-    // 1200, 92 px at 1280 and 111 px at 1440, so it is drawn over the next title ("Push-to-open") at 1200 and 1280; at
-    // 1200 "Подъёмный механизм" overflows its 82 px column too. `hardware.module.css:475` (`.columns`, from 1200) sets
-    // seven fixed-fraction columns with `minmax(0, 1fr)` and uppercase letter-spaced 11 px text, with nothing that lets a
-    // long word shrink or wrap. Romanian and 1920 pass.
+    // 1200 and 92 px at 1280, so it runs 14.6 px and 5.2 px into the next title ("Push-to-open"), as the screenshot at
+    // those widths shows; from 1440 it fits. `hardware.module.css:475` (`.columns`, from 1200) sets seven columns of
+    // `minmax(0, 1fr)` with uppercase letter-spaced 11 px text, and nothing lets a long word shrink or wrap. Romanian passes.
     test("no width from 900 to 1920 scrolls the page sideways, in RO and RU; the card is drawn below 1200 and the table from 1200; no word is broken in the middle", async ({
       page,
     }) => {
@@ -211,6 +210,12 @@ test.describe("the hardware screens at desktop 1440", () => {
             )
             .toEqual([]);
           // A hyphenated name ("Push-to-open") may wrap at its hyphens; any other word broken in two is a cut.
+          expect
+            .soft(
+              await overlappingTitles(page),
+              `${title}: titles run into each other`,
+            )
+            .toEqual([]);
           const broken = (await wordsBrokenIn(listOf(page))).filter(
             (word) => !word.includes("-"),
           );
@@ -410,7 +415,8 @@ test.describe("the hardware screens at desktop 1440", () => {
     // `pointerdown`, and the menu is drawn in the row's flow (`hardware.module.css:245`, `.menu` at flex-basis 100%), so the
     // row grows and shrinks with it: on the press the rows below move up by the menu's height (measured 81 px at 1440), the
     // release lands off the three dots, and no click happens. A real mouse click on another row's three dots while one menu
-    // is open does nothing at the first click. The touch tap on the phone is not affected (its test passes).
+    // is open does nothing at the first click. Frame D4F draws the menu as a popover floating over the rows (which would not move
+    // them); the built one is in the row's flow. The touch tap on the phone is not affected (its test passes).
     test("with one row's menu open, a click on the next row's three dots opens that menu at the first click", async ({
       page,
     }) => {
@@ -714,13 +720,14 @@ function insideDialog(page: Page): Promise<boolean> {
   );
 }
 
-/** The elements of the list whose text is wider than their own box, named: a word is cut, or spills into its neighbour. */
+/** The elements of the list, outside the table's titles, whose text is wider than their own box, named. */
 function overflowingBoxes(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const found: string[] = [];
     const scope = document.querySelector('[data-testid="hardware-list"]');
     for (const element of scope?.querySelectorAll("*") ?? []) {
       if (!(element instanceof HTMLElement)) continue;
+      if (element.closest('[aria-hidden="true"]') !== null) continue;
       // The visually hidden labels are one pixel wide on purpose.
       if (element.clientWidth <= 1) continue;
       if (element.scrollWidth > element.clientWidth + 1) {
@@ -730,5 +737,33 @@ function overflowingBoxes(page: Page): Promise<string[]> {
       }
     }
     return found.slice(0, 8);
+  });
+}
+
+/** The table's titles whose text runs into the next title's text, named with the overlap in pixels. */
+function overlappingTitles(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const titles = [
+      ...document.querySelectorAll(
+        '[data-testid="hardware-list"] > [aria-hidden="true"] > span',
+      ),
+    ];
+    const found: string[] = [];
+    for (const [index, title] of titles.entries()) {
+      const next = titles[index + 1];
+      if (next === undefined) continue;
+      const text = document.createRange();
+      text.selectNodeContents(title);
+      const textRight = Math.max(
+        ...Array.from(text.getClientRects()).map((rect) => rect.right),
+      );
+      const overlap = textRight - next.getBoundingClientRect().left;
+      if (overlap > 0) {
+        found.push(
+          `"${title.textContent.trim()}" runs ${overlap.toFixed(1)} px into the next title`,
+        );
+      }
+    }
+    return found;
   });
 }

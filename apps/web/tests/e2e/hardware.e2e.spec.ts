@@ -10,10 +10,9 @@
 // without it. A switch never reaches the server, and each page starts from its own copy of it.
 //
 // NOT REACHABLE, so not asserted here: creating a class (the default client has no creation route, S3, so Create is off
-// under both servers, and "appears in the list, deleting it reverts it" cannot be reached); the counting notice (the
-// in-memory client answers in a microtask, so the notice is never painted; the test records whether it ever appeared); the
-// last-active dialog (Standard is the fixed default, which is judged first, so its entry is off before the dialog could
-// open); a switch's survival of a reload (the in-memory client forgets it).
+// under both servers, and "appears in the list, deleting it reverts it" cannot be reached); deleting a class into the draft
+// (the draft route reads no `item-deleted` until R4a, so the dialog's confirmation is refused with a 400, which the tests
+// record); a switch's survival of a reload (the in-memory client forgets it).
 //
 // The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes the
 // lock the dashboard's specs share.
@@ -27,6 +26,7 @@ import {
   collectWrites,
   expectPendingCount,
   refusalOf,
+  shootViewport,
 } from "./support/cabinet-detail-page";
 import {
   activeRatesOf,
@@ -847,7 +847,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         '[role="alertdialog"]',
         "the D4E dialog",
       );
-      await shootForReview(page, "390-d4e-deactivate-hettich");
+      await shootViewport(page, "390-d4e-deactivate-hettich");
 
       await dialog
         .getByRole("button", {
@@ -919,10 +919,26 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         }),
       ).toHaveCount(0);
 
-      test.info().annotations.push({
-        type: "counting notice painted",
-        description: String(await countingNoticeWasPainted(page)),
-      });
+      const sighting = await countingNoticeSighting(page);
+      expect(
+        sighting,
+        "the notice that the saved kitchens are being counted was put in the page",
+      ).toBeDefined();
+      if (sighting !== undefined) {
+        expect(sighting.left, "inside on the left").toBeGreaterThanOrEqual(0);
+        expect(sighting.right, "inside on the right").toBeLessThanOrEqual(
+          sighting.viewportWidth,
+        );
+        expect(
+          sighting.top,
+          "under the title, above the first card",
+        ).toBeGreaterThanOrEqual(sighting.headingBottom);
+        expect(sighting.bottom).toBeLessThanOrEqual(sighting.firstCardTop + 1);
+        test.info().annotations.push({
+          type: "counting notice stayed to the next frame",
+          description: String(sighting.atNextFrame),
+        });
+      }
     });
 
     test("Blum is used by no saved kitchen: its switch-off says nothing of use and names Standard and Hettich; with Hettich and Blum off, switching Standard off opens the last-active block and changes nothing", async ({
@@ -982,7 +998,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       ]);
       await expect(lastActive.getByRole("button")).toBeFocused();
       await expectDialogFitsScreen(lastActive);
-      await shootForReview(page, "390-d5g-last-active");
+      await shootViewport(page, "390-d5g-last-active");
       await lastActive.getByRole("button").tap();
       await expect(lastActive).toHaveCount(0);
       await expect(
@@ -1032,7 +1048,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
         '[role="alertdialog"]',
         "the delete-blocked dialog",
       );
-      await shootForReview(page, "390-d4d-delete-blocked");
+      await shootViewport(page, "390-d4d-delete-blocked");
       await blocked
         .getByRole("button", {
           name: romanian("priceDashboard.lifecycle.deactivateInstead"),
@@ -1102,7 +1118,7 @@ test.describe("the hardware screens on a phone, 390 x 844", () => {
       );
       expect(text).not.toContain("Hettich, Hettich");
       await expectDialogFitsScreen(dialog);
-      await shootForReview(page, "390-d4b-switch-off-dialog");
+      await shootViewport(page, "390-d4b-switch-off-dialog");
       await dialog
         .getByRole("button", {
           name: romanian("priceDashboard.lifecycle.deactivateConfirm"),
@@ -1159,26 +1175,66 @@ function expectBrowsersNoteOf(pageErrors: string[], status: number): void {
   pageErrors.splice(0, pageErrors.length, ...rest);
 }
 
-/** Records, from now on, whether the "counting the saved kitchens" notice ever appears in the document. */
+interface CountingNoticeSighting {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+  readonly headingBottom: number;
+  readonly firstCardTop: number;
+  readonly viewportWidth: number;
+  /** Still in the document at the next animation frame, so a frame was drawn with it. */
+  readonly atNextFrame: boolean | undefined;
+}
+
+/** Records, from now on, where the "counting the saved kitchens" notice stands the first time it is in the document. */
 async function watchForCountingNotice(page: Page): Promise<void> {
   const counting = romanian("priceDashboard.lifecycle.counting");
   await page.evaluate((needle) => {
-    const target = window as unknown as { __countingSeen: boolean };
-    target.__countingSeen = false;
+    const target = window as unknown as { __counting?: CountingNoticeSighting };
     new MutationObserver(() => {
-      if (document.body.innerText.includes(needle))
-        target.__countingSeen = true;
+      if (target.__counting !== undefined) return;
+      const holder = [...document.querySelectorAll("main *")].find(
+        (element) =>
+          element.children.length === 0 && element.textContent.includes(needle),
+      );
+      if (holder === undefined) return;
+      const rect = holder.getBoundingClientRect();
+      const sighting = {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        headingBottom:
+          document.querySelector("h1")?.getBoundingClientRect().bottom ?? 0,
+        firstCardTop:
+          document
+            .querySelector('[data-testid="hardware-row"]')
+            ?.getBoundingClientRect().top ?? 0,
+        viewportWidth: document.documentElement.clientWidth,
+        atNextFrame: undefined as boolean | undefined,
+      };
+      target.__counting = sighting;
+      requestAnimationFrame(() => {
+        sighting.atNextFrame = document.body.innerText.includes(needle);
+      });
     }).observe(document.body, {
       childList: true,
       subtree: true,
       characterData: true,
     });
+    interface CountingNoticeSighting {
+      atNextFrame: boolean | undefined;
+    }
   }, counting);
 }
 
-function countingNoticeWasPainted(page: Page): Promise<boolean> {
+function countingNoticeSighting(
+  page: Page,
+): Promise<CountingNoticeSighting | undefined> {
   return page.evaluate(
-    () => (window as unknown as { __countingSeen: boolean }).__countingSeen,
+    () =>
+      (window as unknown as { __counting?: CountingNoticeSighting }).__counting,
   );
 }
 
