@@ -12,7 +12,6 @@ import {
   test as seededTest,
   type SeededDesign,
 } from "./support/seeded-design";
-import { capturePatch, countChangedPixels } from "./support/pixels";
 
 const ro = JSON.parse(
   readFileSync(new URL("../../src/messages/ro.json", import.meta.url), "utf8"),
@@ -34,8 +33,6 @@ const SHOT_DIRECTORY =
 const SCENE_SETTLE_MS = 2000;
 const MIN_TARGET_PX = 44;
 const SAVE_BUDGET_MS = 15_000;
-/** Slack over a measured same-state difference of 0 pixels (see `editor-rail.desktop.e2e.spec.ts`). */
-const NOISE_FLOOR = 8;
 
 /** A page error or a console error is a failure of the test that caused it. */
 const test = seededTest.extend<{ pageErrors: string[] }>({
@@ -128,7 +125,7 @@ function countSaves(page: Page): () => number {
   let saves = 0;
   page.on("request", (request) => {
     const isSave =
-      request.method() === "PUT" &&
+      ["PUT", "PATCH"].includes(request.method()) &&
       /\/api\/designs\/[^/]+$/.test(request.url());
     if (isSave) saves += 1;
   });
@@ -328,6 +325,7 @@ test("push-to-open raises the figure and persists across a reload, and a bar han
   page,
   seededDesign,
 }) => {
+  const savesSent = countSaves(page);
   const before = await storedDesign(page);
   await openSheet(page);
   const figureOnBars = await figureOf(page);
@@ -349,6 +347,8 @@ test("push-to-open raises the figure and persists across a reload, and a bar han
       timeout: SAVE_BUDGET_MS,
     })
     .toBe("push");
+  // The counter can count: the write that reached the database is one it saw, so its zeros above mean something.
+  expect(savesSent()).toBeGreaterThanOrEqual(1);
 
   await page.reload();
   await expectWriteAccessApplied(page);
@@ -397,12 +397,6 @@ test("the scene shows the new handle and keeps the camera where the customer lef
   const canvas = page.locator("canvas");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("no canvas");
-  const sceneRect = {
-    x: box.x,
-    y: box.y,
-    width: Math.floor(box.width),
-    height: Math.floor(box.height),
-  };
 
   // Orbit somewhere distinctive first, so the assertion is about the customer's own view.
   const beforeOrbit = await paintedFrameCount(page);
@@ -416,15 +410,11 @@ test("the scene shows the new handle and keeps the camera where the customer lef
   await page.mouse.up();
   const before = await settledCamera(page, beforeOrbit);
 
-  const sceneOnBars = await capturePatch(page, sceneRect);
-  const sceneOnBarsAgain = await capturePatch(page, sceneRect);
-  const noise = await countChangedPixels(
-    page,
-    sceneOnBars,
-    sceneOnBarsAgain,
-    NOISE_FLOOR,
+  const handlesOnBars = await visibleHandleMeshes(page);
+  expect(handlesOnBars, "a default kitchen draws bar handles").toBeGreaterThan(
+    0,
   );
-  expect(noise, "two captures of one state differ by nothing").toBe(0);
+  await shot(page, "mobile-5a-scene-bar-handles");
 
   await openSheet(page);
   await handleOptionOf(page, "push").tap();
@@ -451,18 +441,30 @@ test("the scene shows the new handle and keeps the camera where the customer lef
     ).toBeLessThan(0.05);
   }
 
-  const sceneOnPush = await capturePatch(page, sceneRect);
-  const changed = await countChangedPixels(
-    page,
-    sceneOnBars,
-    sceneOnPush,
-    NOISE_FLOOR,
-  );
+  await shot(page, "mobile-5b-scene-push-to-open");
+  const handlesOnPush = await visibleHandleMeshes(page);
+
+  // The way back: the same handles are drawn again.
+  await openSheet(page);
+  await handleOptionOf(page, "steel").tap();
+  const beforeReturn = await paintedFrameCount(page);
+  await page.getByTestId("global-settings-apply").tap();
+  await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
+  await expect
+    .poll(() => paintedFrameCount(page), {
+      message: "applying the way back paints at least one new frame",
+    })
+    .toBeGreaterThan(beforeReturn);
+  await waitUntilNothingPaintsFor(page, RETURN_QUIET_MS);
+  const handlesOnBarsAgain = await visibleHandleMeshes(page);
+
+  // Counted off the scene graph three.js hands the renderer, not off pixels: the camera's few millimetres of damping
+  // move more pixels than a handle does (measured: bars to bars-again 4397, bars to push 3379).
   expect(
-    changed,
-    "the canvas shows something different once the kitchen is push-to-open",
-  ).toBeGreaterThan(0);
-  await shot(page, "mobile-5-scene-push-to-open");
+    handlesOnPush,
+    "push-to-open hides the cabinets' handles, so fewer are drawn",
+  ).toBeLessThan(handlesOnBars);
+  expect(handlesOnBarsAgain).toBe(handlesOnBars);
 });
 
 /**
@@ -496,6 +498,7 @@ const CAMERA_SAMPLER = () => {
     renderer.__wrapped = true;
     const original = renderer.render.bind(renderer);
     renderer.render = (scene: unknown, camera: unknown) => {
+      (window as unknown as { __lastScene?: unknown }).__lastScene = scene;
       const read = camera as {
         position: { toArray: () => number[] };
         quaternion: { toArray: () => number[] };
@@ -530,6 +533,53 @@ async function paintedFrameCount(page: Page): Promise<number> {
     () =>
       (window as unknown as { __cameraFrames?: unknown[] }).__cameraFrames
         ?.length ?? 0,
+  );
+}
+
+/** How many meshes the last painted frame draws that belong to a group named `handle` (the name `barHandle` gives it,
+ *  `cabinet-handle-meshes.ts`), counting only those whose own and every ancestor's `visible` is set. `push` hides the
+ *  cabinets' bars by `visible = false`. Read off the scene three.js handed the renderer through the sampler. */
+async function visibleHandleMeshes(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    interface Node3D {
+      name: string;
+      visible: boolean;
+      isMesh?: boolean;
+      children: Node3D[];
+    }
+    const scene = (window as unknown as { __lastScene?: Node3D }).__lastScene;
+    if (!scene) throw new Error("no scene was ever handed to the renderer");
+    const count = (node: Node3D, isInsideHandle: boolean): number => {
+      if (!node.visible) return 0;
+      const isHandle = isInsideHandle || node.name === "handle";
+      const own = node.isMesh === true && isHandle ? 1 : 0;
+      return node.children.reduce(
+        (total, child) => total + count(child, isHandle),
+        own,
+      );
+    };
+    return count(scene, false);
+  });
+}
+
+/** Idle time that ends the return leg's wait. Not `settledCamera`'s rule: that scales by the widest recent frame gap,
+ *  and here the window still holds the minutes-long idle gap from before the tap, so it would wait out its budget. */
+const RETURN_QUIET_MS = 1500;
+
+async function waitUntilNothingPaintsFor(
+  page: Page,
+  quietMs: number,
+): Promise<void> {
+  await page.waitForFunction(
+    (quiet: number) => {
+      const frames = (
+        window as unknown as { __cameraFrames?: { at: number }[] }
+      ).__cameraFrames;
+      const last = frames?.[frames.length - 1];
+      return last !== undefined && performance.now() - last.at >= quiet;
+    },
+    quietMs,
+    { timeout: SETTLE_BUDGET_MS },
   );
 }
 
