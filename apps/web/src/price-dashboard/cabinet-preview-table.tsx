@@ -240,49 +240,51 @@ function PreviewGrid({
   const labelOf = (column: PreviewColumn) =>
     columnLabel(translate, content, column);
   return (
-    <table
-      className={styles.previewTable}
-      role="table"
-      data-testid="cabinet-preview"
-    >
-      <thead role="rowgroup">
-        <tr role="row">
-          <th scope="col" role="columnheader" rowSpan={2}>
-            {translate("priceDashboard.cabinet.columnWidth")}
-          </th>
-          {table.hasDoorColumn ? (
+    <div className={styles.previewScroll}>
+      <table
+        className={styles.previewTable}
+        role="table"
+        data-testid="cabinet-preview"
+      >
+        <thead role="rowgroup">
+          <tr role="row">
             <th scope="col" role="columnheader" rowSpan={2}>
-              {translate("priceDashboard.cabinet.columnDoors")}
+              {translate("priceDashboard.cabinet.columnWidth")}
             </th>
-          ) : null}
-          {table.columns.map((column) => (
-            <th
-              key={columnKey(column)}
-              scope="colgroup"
-              role="columnheader"
-              colSpan={2}
-            >
-              {labelOf(column)}
-            </th>
+            {table.hasDoorColumn ? (
+              <th scope="col" role="columnheader" rowSpan={2}>
+                {translate("priceDashboard.cabinet.columnDoors")}
+              </th>
+            ) : null}
+            {table.columns.map((column) => (
+              <th
+                key={columnKey(column)}
+                scope="colgroup"
+                role="columnheader"
+                colSpan={2}
+              >
+                {labelOf(column)}
+              </th>
+            ))}
+          </tr>
+          <tr role="row">
+            {table.columns.map((column) => (
+              <ActiveAndNewHeads key={columnKey(column)} />
+            ))}
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          {table.rows.map((row) => (
+            <PreviewLine
+              key={row.widthMm}
+              row={row}
+              table={table}
+              labelOf={labelOf}
+            />
           ))}
-        </tr>
-        <tr role="row">
-          {table.columns.map((column) => (
-            <ActiveAndNewHeads key={columnKey(column)} />
-          ))}
-        </tr>
-      </thead>
-      <tbody role="rowgroup">
-        {table.rows.map((row) => (
-          <PreviewLine
-            key={row.widthMm}
-            row={row}
-            table={table}
-            labelOf={labelOf}
-          />
-        ))}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
