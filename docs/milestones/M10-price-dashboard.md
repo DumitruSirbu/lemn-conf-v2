@@ -1369,6 +1369,29 @@ pushed [coordinator's brief, relayed].
   bound −90..300; the bulk always checks scaled prices (`judgePricesOfRule`); the corner preview shows the real built
   width (330, ADR 0135) priced under the round-up key, no "preț ca" note; customer rows must be evaluable and free;
   seeded variants are judged with their own door leaves; duplicate build ids are refused.
+- M4 hand-offs (2026-11-02, M4 review; inference until each wave reads them):
+  - **R4a:** the stored-draft reader and draft wire carry the four structural kinds; `web/stored-draft.ts` refuses them
+    today. Publish calls `judgeDeletionsAtPublish` with `deletedItemsOf(changes)` and S3's counts. A creation writes
+    exactly the rates `hardwareRatesOf(activeBook)` returns, three until P5. `planChange` appends, so a re-sent creation
+    lands behind its dependents and is refused: replace it in place. Mint created ids in one namespace across kinds:
+    today an accessory may take a tier's id. Decide whether restore keeps a pending deletion: `[delete T, rate on T]` is
+    `candidate-refused`. Reverting a deletion can pass the 50-accessory cap, and the route answers `409`.
+  - **U4c:** publishing a created class waits for **Q3**. `qa-p4a-tier-offer-switched-off` pins with `it.fails` that one
+    switched-off tier blanks every delta and stays in `tierIds`, and a created class starts switched off (A-17). "Delete"
+    on a draft-created row reverts its creation: `[create, rates, delete]` applies with no row in D7.
+  - **U5/U5b:** draw the `row`, `text` and `link` diff rows; `publish-model.ts` keeps only `field` and `group`. A draft
+    holding stale refused changes shows the list as unavailable, so the publish page is where it gets cleaned up.
+  - **Restore** covers fields both books share and never recreates or deletes a row, so "reproduces the archived book"
+    holds only for that pair of row sets. D8C says so in its copy.
+  - **Text rule, coordinator readings awaiting the owner:** `Euro 450` passes as a hardware term and `50 euro` is refused;
+    `Blum 2000, Euro 450` is refused; Cyrillic look-alikes and superscript digits are not caught.
+  - **Z gate:** parse every stored version with the current parser before S2 goes live: unkeyed names and descriptions
+    now refuse control, direction and non-NFC characters.
+- U2 record (2026-11-02): the browser check is `apps/web/tests/e2e/price-list-editing.e2e.spec.ts` (`--project=mobile`
+  runs both viewports, 21 tests). It found no behavioural defect. Layout departures from D2C, D2D and D2E stand for a
+  polish pass: the depth card is stacked with no "+" and an unaligned field, the bulk scope uses native radios and the
+  dialog is narrower, and labels stay black in error. The 10-lei rule lives in the field only; a bulk at −90 % can take a
+  small step to 0, and the preview does not warn. Reading the cabinets page writes no audit row; `GET /api/staff/prices` does.
 - M3 hand-offs (2026-11-02, M3 logic review; inference until each wave reads them):
   - **S3:** the contract is `usesItem(migrateDesign(row))`, not the stored row. Jsonb paths can match tiers and linked
     accessories (`buildIdsPricedAs`) only: the drying rack depends on geometry, the sink cover on a sink set, colours and
