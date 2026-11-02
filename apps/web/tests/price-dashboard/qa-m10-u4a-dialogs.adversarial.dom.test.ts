@@ -26,13 +26,26 @@ const KINDS_THAT_ARE_NOT_HARDWARE: readonly (readonly [string, ItemRef])[] = [
   ["a material", { kind: "material", tierId: "material.mdf" }],
   ["a colour", { kind: "finish", finishId: "white" }],
   ["a handle", { kind: "handle", handle: "push" }],
-  ["an accessory", { kind: "accessory", accessoryId: "sinkProtectiveCover" }],
+  [
+    "a built-in accessory",
+    { kind: "accessory", accessoryId: "sinkProtectiveCover" },
+  ],
+  [
+    "a linked accessory",
+    { kind: "accessory", accessoryId: "linked-towel-rail" },
+  ],
 ];
 
 const ACCESSORY: ItemRef = {
   kind: "accessory",
   accessoryId: "sinkProtectiveCover",
 };
+
+/** A linked accessory the dashboard created: the only kind of accessory that is ever deleted (built-ins never are). */
+const LINKED_ACCESSORY = {
+  kind: "accessory",
+  accessoryId: "linked-towel-rail",
+} as const;
 
 /** What a person reads about hardware, which no other kind of item's dialog may say. */
 /* eslint-disable no-restricted-syntax -- a negative claim about the wording: the words no dialog for another kind of item may hold. */
@@ -207,7 +220,7 @@ describe("the block on deleting a used accessory (reads the brief and the M10 ha
       const text = textOf(
         {
           kind: "delete-blocked",
-          item: ACCESSORY as never,
+          item: LINKED_ACCESSORY,
           count: 23,
           isOn: true,
         },
@@ -224,7 +237,7 @@ describe("the block on deleting a used accessory (reads the brief and the M10 ha
       const text = textOf(
         {
           kind: "delete-blocked",
-          item: ACCESSORY as never,
+          item: LINKED_ACCESSORY,
           count: 23,
           isOn: false,
         },

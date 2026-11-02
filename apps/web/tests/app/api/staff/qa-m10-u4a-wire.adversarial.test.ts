@@ -163,7 +163,7 @@ describe("the revert that takes a class only the draft holds back out (`deleteFr
     ),
   ];
 
-  it("is read by the draft route's revert reader: a target naming the creation is a request it takes", async () => {
+  it("is read by the draft route's revert reader: a target naming the creation is not refused as an address the route does not apply", async () => {
     const answer = await DELETE(
       accountRequest("/api/staff/prices/draft", {
         method: "DELETE",
@@ -176,8 +176,12 @@ describe("the revert that takes a class only the draft holds back out (`deleteFr
       }),
     );
 
-    expect(answer.status).not.toBe(400);
-    expect(await jsonOf(answer)).not.toMatchObject({ status: "invalid-input" });
+    // The stored draft is empty here, so once the reader takes the address the answer is the route's "nothing to remove"
+    // (an unknown address), not a success: only the reader's own refusal of the kind is what must not be answered.
+    expect(await jsonOf(answer)).not.toEqual({
+      status: "invalid-input",
+      issues: [{ field: "address", code: "NOT_EDITABLE" }],
+    });
   });
 });
 

@@ -153,11 +153,19 @@ describe("where focus goes when a dialog is left with the pointer", () => {
   });
 });
 
-describe("a production build, which has no lifecycle client and no usage reader", () => {
-  async function mountWithNoLifecycleClient(): Promise<HTMLElement> {
+describe("a production build, as the server hands it its page", () => {
+  type Page = ReturnType<typeof hardwarePageOf>;
+
+  /** What `readHardware` returns in a production build: the saved defaults cannot be read and no usage is handed over. */
+  const productionPageOf = (
+    options: Parameters<typeof hardwarePageOf>[0] = {},
+  ): Page => ({
+    ...hardwarePageOf({ ...options, defaults: undefined }),
+    sampleUsage: undefined,
+  });
+
+  async function mountWithNoLifecycleClient(page: Page): Promise<void> {
     vi.stubEnv("NODE_ENV", "production");
-    // The page is handed a count it must not use: a production page never is, and if one leaked here no figure may reach a dialog.
-    const page = hardwarePageOf();
     const draftServer = inMemoryPriceDraftClient(page.state);
     const screenOf = mountInCatalogue(
       createElement(HardwareListScreen, {
@@ -179,11 +187,31 @@ describe("a production build, which has no lifecycle client and no usage reader"
       lifecycle: undefined as never,
       unmount: screenOf.unmount,
     };
-    return screenOf.container;
   }
 
-  it("claims no count of kitchens for a switch-off, even where the page was handed one, and leaves the confirmation off", async () => {
-    await mountWithNoLifecycleClient();
+  it("offers no switch-off and no deletion that could be pressed: both are off, for the reason that nothing can be checked, and no dialog opens", async () => {
+    await mountWithNoLifecycleClient(productionPageOf());
+
+    await openMenuOf(screen().container, HETTICH, HETTICH_NAME);
+    for (const words of [DEACTIVATE, DELETE]) {
+      const entry = menuEntry(screen().container, HETTICH, words);
+      await press(entry);
+
+      expect(entry.getAttribute("aria-disabled"), words).toBe("true");
+      expect(openDialog(), words).toBeNull();
+    }
+    expect(
+      allIn(
+        rowOf(screen().container, HETTICH),
+        '[data-testid="menu-reason"]',
+      ).map((reason) => reason.textContent),
+    ).toEqual(Array(2).fill(roCopy("priceDashboard.lifecycle.cannotJudge")));
+    expect(screen().draftServer.calls).toEqual([]);
+  });
+
+  it("claims no count of kitchens even where a page was handed one with the saved defaults, and leaves the confirmation off", async () => {
+    // Not a page production builds: it is what a leak would look like, and no figure may then reach a dialog.
+    await mountWithNoLifecycleClient(hardwarePageOf());
 
     const dialog = await dialogFor(HETTICH, HETTICH_NAME, DEACTIVATE);
     const confirm = dialogButton(
@@ -202,41 +230,10 @@ describe("a production build, which has no lifecycle client and no usage reader"
     expect(openDialog()).not.toBeNull();
   });
 
-  it("opens no deletion that could be confirmed: the count is unavailable, so the confirmation is off and nothing is written", async () => {
-    await mountWithNoLifecycleClient();
-
-    const dialog = await dialogFor(BLUM, BLUM_NAME, DELETE);
-    const confirm = dialogButton(dialog, DELETE);
-    await press(confirm);
-
-    expect(confirm.getAttribute("aria-disabled")).toBe("true");
-    expect(screen().draftServer.calls).toEqual([]);
-  });
-
-  it("says the save failed, and leaves the class off, when a switched-off class is switched on: nothing can be written", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    const page = hardwarePageOf({ disabled: [hardwareItem(BLUM)] });
-    const draftServer = inMemoryPriceDraftClient(page.state);
-    const screenOf = mountInCatalogue(
-      createElement(HardwareListScreen, {
-        locale: "ro",
-        context: contextOf("administrator", [
-          "kitchens",
-          "hardware",
-          "publish",
-        ]),
-        page,
-        client: draftServer.client,
-      }),
-      "ro",
+  it("says the save failed, and leaves a switched-off class off, when it is switched on: no route writes it yet, and the screen still invites a retry", async () => {
+    await mountWithNoLifecycleClient(
+      productionPageOf({ disabled: [hardwareItem(BLUM)] }),
     );
-    await flushPromises(5);
-    mounted = {
-      container: screenOf.container,
-      draftServer,
-      lifecycle: undefined as never,
-      unmount: screenOf.unmount,
-    };
 
     const dialog = await dialogFor(BLUM, BLUM_NAME, ACTIVATE);
     await press(
@@ -246,7 +243,7 @@ describe("a production build, which has no lifecycle client and no usage reader"
     expect(dialog.textContent).toContain(SAVE_FAILED);
     expect(
       allIn(
-        rowOf(screenOf.container, BLUM),
+        rowOf(screen().container, BLUM),
         '[data-testid="hardware-chip"]',
       ).map((chip) => chip.textContent),
     ).toEqual([roCopy("priceDashboard.chips.inactive")]);
