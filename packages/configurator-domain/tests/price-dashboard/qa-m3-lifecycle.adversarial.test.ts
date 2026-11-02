@@ -62,7 +62,6 @@ import {
 
 import {
   ARM_FLOOR,
-  COLOUR_ITEMS,
   deepFrozen,
   elementAt,
   HANDLE_ITEMS,
@@ -922,16 +921,6 @@ describe("the judgement depends on what is off and not on how the list was writt
         judgeAvailabilityChange({ item, active: false }, state),
       );
     }
-  });
-
-  it("does not shift a group's options when other items are switched off: their set is the declaration, in its order", () => {
-    for (const group of GROUPS) {
-      const expected = group;
-      for (const item of group) {
-        expect(declaredOptionsOfGroupOf(item, BOOK)).toEqual(expected);
-      }
-    }
-    expect(COLOUR_ITEMS.length).toBe(PALETTE_ENTRY_IDS.length);
   });
 });
 

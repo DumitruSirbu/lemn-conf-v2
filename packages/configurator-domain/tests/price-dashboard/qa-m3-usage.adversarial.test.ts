@@ -248,16 +248,34 @@ describe("a tier, a colour and a handle are used exactly when switching them off
     );
   });
 
-  it("counts a stored kitchen handle and top-row handle that no cabinet wears (the architect's ruling), and a free colour never", () => {
-    const noTopRow = withSettings({
+  const noBodies = (settings: NonNullable<Design["settings"]>): Design => ({
+    ...withSettings(settings),
+    placements: [],
+  });
+
+  it("counts a stored kitchen handle that no cabinet wears (the architect's ruling), and only that handle", () => {
+    const design = noBodies({ cabinetDepthMm: 600, handle: "black" });
+
+    expect(HANDLE_ITEMS.filter((item) => uses(design, item))).toEqual([
+      handle("black"),
+    ]);
+  });
+
+  it("counts a stored top-row handle in a kitchen with no bodies at all, and only that handle", () => {
+    const design = noBodies({ cabinetDepthMm: 600, topRowHandle: "black" });
+
+    expect(HANDLE_ITEMS.filter((item) => uses(design, item))).toEqual([
+      handle("black"),
+    ]);
+  });
+
+  it("never counts a free colour, which is not a catalogue entry", () => {
+    const design = noBodies({
       cabinetDepthMm: 600,
-      handle: "black",
-      topRowHandle: "black",
       finish: freeColourFinish("#abcdef"),
     });
 
-    expect(uses(noTopRow, handle("black"))).toBe(true);
-    expect(COLOUR_ITEMS.filter((item) => uses(noTopRow, item))).toEqual([]);
+    expect(COLOUR_ITEMS.filter((item) => uses(design, item))).toEqual([]);
   });
 
   it("does not count the handles a body wears without being told: the slot's defaults", () => {
