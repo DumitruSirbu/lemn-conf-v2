@@ -12,10 +12,7 @@ import { insertBody } from "../../src/commands/insert-body.js";
 import type { RejectionCode } from "../../src/commands/rejection.js";
 import { removePlacement } from "../../src/commands/remove-placement.js";
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
-import {
-  setKitchenHandle,
-  type KitchenHandleResult,
-} from "../../src/commands/set-kitchen-handle.js";
+import { setKitchenHandle } from "../../src/commands/set-kitchen-handle.js";
 import {
   setHardwareTier,
   setMaterialTier,
@@ -129,8 +126,7 @@ function worldWithOpenShelf(): { world: KitchenWorld; placementId: string } {
 interface SweepCase {
   readonly code: RejectionCode;
   readonly design: Design;
-  /** `setKitchenHandle` answers its own result type: its effect is kept outside `CommandEffect` (M10 H-6). */
-  readonly run: () => CommandResult | KitchenHandleResult;
+  readonly run: () => CommandResult;
 }
 
 function voidTarget(world: KitchenWorld, col: string, y0: number) {

@@ -142,6 +142,13 @@ export interface GlobalFinishSetEffect {
   readonly finish: Finish;
 }
 
+/** The kitchen's handle (ADR 0099). Like `GlobalFinishSetEffect` it names no placement: the command writes
+ *  `settings.handle` and no cabinet's own handle. */
+export interface KitchenHandleSetEffect {
+  readonly type: "kitchen_handle_set";
+  readonly handle: Handle;
+}
+
 export type CommandEffect =
   | PlacementRemovedEffect
   | BodyInsertedEffect
@@ -152,6 +159,7 @@ export type CommandEffect =
   | MaterialTierSetEffect
   | HardwareTierSetEffect
   | GlobalFinishSetEffect
+  | KitchenHandleSetEffect
   | CabinetDepthSetEffect;
 
 export interface CommandSuccess<TEffect extends CommandEffect = CommandEffect> {

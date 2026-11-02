@@ -13,6 +13,7 @@ import {
   projectDesignForDisplay,
   wouldDiscardTheGlobalFinish,
   type Finish,
+  type Handle,
 } from "@lemnaria/configurator-domain";
 import {
   Fragment,
@@ -35,6 +36,7 @@ import {
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection } from "@/panel/panel-model";
 import {
+  useCatalogueAvailability,
   usePricedDesign,
   useRequiredDeepCabinetPercent,
   useWholeKitchenTierOffer,
@@ -48,15 +50,18 @@ import { ConfirmStep } from "./confirmation-dialog";
 import {
   chooseDepthIn,
   chooseFinishIn,
+  chooseHandleIn,
   chooseTierIn,
   describeApplyRefusal,
   describeGlobalSettings,
   describePillRung,
   resolveOpeningChoice,
+  withoutAHandleTheSheetNoLongerOffers,
   type ApplyRefusal,
   type GlobalSettingsView,
   type ColourGroupView,
   type DepthGroupView,
+  type HandleGroupView,
   type MaterialResetConfirmView,
   type TierGroupView,
   type WholeKitchenChoice,
@@ -81,6 +86,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   const content = useContent();
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
+  const availability = useCatalogueAvailability();
   const deepCabinetPercent = useRequiredDeepCabinetPercent();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
@@ -133,6 +139,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
     content,
     pricing,
     offer,
+    availability,
     deepCabinetPercent,
     groups,
     applied,
@@ -191,6 +198,10 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
     setPending((chosen) => chooseFinishIn(chosen, finish));
   }
 
+  function chooseHandle(handle: Handle): void {
+    setPending((chosen) => chooseHandleIn(chosen, handle));
+  }
+
   /** With a confirmation owed the whole press is withheld, not only the material half (ADR 0081
    *  decision 2). Not the only door into the commit: `applyPending` carries its own read-only guard. */
   function requestApply(): void {
@@ -212,6 +223,10 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
    */
   function applyPending(): void {
     if (editability.isReadOnly) return;
+    const { handle } = withoutAHandleTheSheetNoLongerOffers(
+      pending,
+      availability,
+    );
     const outcome = applyWholeKitchenSettings({
       ...(pending.materialTierId === undefined
         ? {}
@@ -224,6 +239,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
         : { cabinetDepthMm: pending.cabinetDepthMm }),
       // Absent stays absent: an untouched colour must leave a document with no global colour as found.
       ...(pending.finish === undefined ? {} : { finish: pending.finish }),
+      ...(handle === undefined ? {} : { handle }),
       availableMaterialTierIds: offer.material.tierIds,
       availableHardwareTierIds: offer.hardware.tierIds,
     });
@@ -338,6 +354,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
             onChoose={chooseTier}
             onChooseDepth={chooseDepth}
             onChooseFinish={chooseFinish}
+            onChooseHandle={chooseHandle}
             onCancel={close}
             onApply={requestApply}
             {...(isConfirming && view.materialResetConfirm !== undefined
@@ -368,6 +385,7 @@ export function GlobalSettingsSurface({
   onChoose,
   onChooseDepth,
   onChooseFinish,
+  onChooseHandle,
   onCancel,
   onApply,
 }: {
@@ -387,6 +405,9 @@ export function GlobalSettingsSurface({
   /** Moves the sheet's pending colour, never a cabinet's (ADR 0099 decision 2). Its absence hides
    *  the colour group rather than greying it, since the surface could not satisfy a press. */
   readonly onChooseFinish?: (finish: Finish) => void;
+  /** Moves the sheet's pending kitchen handle. Its absence hides the handle row, as `onChooseFinish`'s hides the
+   *  colour group. */
+  readonly onChooseHandle?: (handle: Handle) => void;
   /** A slot for the share control, so a fixture can render the dialog with no store or i18n
    *  provider; absent, the choosing step ends one section sooner. */
   readonly shareControl?: ReactNode;
@@ -440,6 +461,7 @@ export function GlobalSettingsSurface({
           editability={editability}
           {...(refusalNote === undefined ? {} : { refusalNote })}
           {...(onChooseFinish === undefined ? {} : { onChooseFinish })}
+          {...(onChooseHandle === undefined ? {} : { onChooseHandle })}
           {...(shareControl === undefined ? {} : { shareControl })}
           onChoose={onChoose}
           onChooseDepth={onChooseDepth}
@@ -471,6 +493,7 @@ function ChoosingStep({
   onChoose,
   onChooseDepth,
   onChooseFinish,
+  onChooseHandle,
   shareControl,
   onCancel,
   onApply,
@@ -482,11 +505,12 @@ function ChoosingStep({
   readonly onChoose: (key: WholeKitchenGroupKey, tierId: string) => void;
   readonly onChooseDepth: (cabinetDepthMm: number) => void;
   readonly onChooseFinish?: (finish: Finish) => void;
+  readonly onChooseHandle?: (handle: Handle) => void;
   readonly shareControl?: ReactNode;
   readonly onCancel: () => void;
   readonly onApply: () => void;
 }) {
-  const colourGroup = view.colourGroup;
+  const { colourGroup, handleGroup } = view;
   return (
     <>
       <div className={styles.body}>
@@ -520,6 +544,16 @@ function ChoosingStep({
                 group={colourGroup}
                 editability={editability}
                 onChoose={onChooseFinish}
+              />
+            ) : null}
+            {group.key === "material" &&
+            handleGroup !== undefined &&
+            onChooseHandle !== undefined ? (
+              <HandleGroupSection
+                group={handleGroup}
+                editability={editability}
+                onChoose={onChooseHandle}
+                namePrefix={namePrefix}
               />
             ) : null}
           </Fragment>
@@ -636,6 +670,52 @@ function ColourGroupSection({
   );
 }
 
+function HandleGroupSection({
+  group,
+  namePrefix,
+  editability,
+  onChoose,
+}: {
+  readonly group: HandleGroupView;
+  readonly namePrefix: string;
+  readonly editability: Editability;
+  readonly onChoose: (handle: Handle) => void;
+}) {
+  const headingId = `${namePrefix}-kitchen-handle-heading`;
+  return (
+    <section
+      role="radiogroup"
+      aria-labelledby={headingId}
+      className={styles.group}
+      data-testid="global-settings-handle-group"
+    >
+      <h3 id={headingId} className={styles.heading}>
+        {group.heading}
+      </h3>
+      {group.options.map((option) => (
+        <RadioOptionRow
+          key={option.handle}
+          testId="global-settings-handle-option"
+          name={`${namePrefix}-kitchen-handle`}
+          value={option.handle}
+          title={option.label}
+          isSelected={option.isSelected}
+          isReadOnly={editability.isReadOnly}
+          onChoose={() => {
+            onChoose(option.handle);
+          }}
+        />
+      ))}
+      <p
+        className={styles.groupAnchor}
+        data-testid="global-settings-handle-hint"
+      >
+        {group.hint}
+      </p>
+    </section>
+  );
+}
+
 /** The depth group: the tier groups' native radios, with a note and a warning instead of an anchor
  *  and a delta. `view.depthGroup.shape` is read, never derived here: the shape rule lives in the
  *  model (ADR 0056). Both shapes render the same radios; the toggle's layout is CSS. */
@@ -663,28 +743,18 @@ function DepthGroupSection({
         {group.heading}
       </h3>
       {group.options.map((option) => (
-        <label
+        <RadioOptionRow
           key={option.cabinetDepthMm}
-          className={styles.option}
-          data-selected={option.isSelected}
-          {...(editability.isReadOnly ? { "data-disabled": "true" } : {})}
-          data-testid="global-settings-depth-option"
-        >
-          <input
-            type="radio"
-            className={styles.radio}
-            name={`${namePrefix}-cabinet-depth`}
-            value={option.cabinetDepthMm}
-            checked={option.isSelected}
-            disabled={editability.isReadOnly}
-            onChange={() => {
-              onChoose(option.cabinetDepthMm);
-            }}
-          />
-          <span className={styles.optionText}>
-            <span className={styles.optionName}>{option.label}</span>
-          </span>
-        </label>
+          testId="global-settings-depth-option"
+          name={`${namePrefix}-cabinet-depth`}
+          value={option.cabinetDepthMm}
+          title={option.label}
+          isSelected={option.isSelected}
+          isReadOnly={editability.isReadOnly}
+          onChoose={() => {
+            onChoose(option.cabinetDepthMm);
+          }}
+        />
       ))}
       {/* What choosing the deep depth adds, worded from the published rule. */}
       <p
@@ -736,30 +806,19 @@ function TierGroupSection({
         </p>
       )}
       {group.options.map((option) => (
-        <label
+        <RadioOptionRow
           key={option.tierId}
-          className={styles.option}
-          data-selected={option.isSelected}
-          {...(editability.isReadOnly ? { "data-disabled": "true" } : {})}
-          data-testid="global-settings-option"
+          testId="global-settings-option"
+          name={`${namePrefix}-${group.key}`}
+          value={option.tierId}
+          title={option.name}
+          description={option.description}
+          isSelected={option.isSelected}
+          isReadOnly={editability.isReadOnly}
+          onChoose={() => {
+            onChoose(group.key, option.tierId);
+          }}
         >
-          <input
-            type="radio"
-            className={styles.radio}
-            name={`${namePrefix}-${group.key}`}
-            value={option.tierId}
-            checked={option.isSelected}
-            disabled={editability.isReadOnly}
-            onChange={() => {
-              onChoose(group.key, option.tierId);
-            }}
-          />
-          <span className={styles.optionText}>
-            <span className={styles.optionName}>{option.name}</span>
-            <span className={styles.optionDescription}>
-              {option.description}
-            </span>
-          </span>
           {option.deltaText === undefined ? null : (
             <span
               className={styles.optionDelta}
@@ -768,8 +827,61 @@ function TierGroupSection({
               {option.deltaText}
             </span>
           )}
-        </label>
+        </RadioOptionRow>
       ))}
     </section>
+  );
+}
+
+interface RadioOptionRowProps {
+  readonly testId: string;
+  readonly name: string;
+  readonly value: string | number;
+  readonly title: string;
+  /** Present only on a tier row, whose book text has a second line. */
+  readonly description?: string;
+  readonly isSelected: boolean;
+  readonly isReadOnly: boolean;
+  readonly onChoose: () => void;
+  /** What follows the text inside the row: a tier's price delta. */
+  readonly children?: ReactNode;
+}
+
+/** One native radio row, the same in every group so the arrow keys and the 44 px target are shared. */
+function RadioOptionRow({
+  testId,
+  name,
+  value,
+  title,
+  description,
+  isSelected,
+  isReadOnly,
+  onChoose,
+  children,
+}: RadioOptionRowProps) {
+  return (
+    <label
+      className={styles.option}
+      data-selected={isSelected}
+      {...(isReadOnly ? { "data-disabled": "true" } : {})}
+      data-testid={testId}
+    >
+      <input
+        type="radio"
+        className={styles.radio}
+        name={name}
+        value={value}
+        checked={isSelected}
+        disabled={isReadOnly}
+        onChange={onChoose}
+      />
+      <span className={styles.optionText}>
+        <span className={styles.optionName}>{title}</span>
+        {description === undefined ? null : (
+          <span className={styles.optionDescription}>{description}</span>
+        )}
+      </span>
+      {children}
+    </label>
   );
 }
