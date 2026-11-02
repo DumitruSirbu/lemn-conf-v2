@@ -106,14 +106,14 @@ function mountEditing(ruleId: string): {
   const detail = deriveCabinetDetail(pageOf(), ruleId);
   if (detail.kind !== "ready") throw new Error(`${ruleId} is not ready`);
   const sent: Sent = { changes: [], reverts: [] };
-  const draft: Pick<PriceDraft, "change" | "revert" | "isBusy"> = {
+  const draft: Pick<PriceDraft, "changeOrRevert" | "isBusy"> = {
     isBusy: false,
-    change: (change) => {
-      sent.changes.push(change as DraftChange);
-      return Promise.resolve({ kind: "saved" });
-    },
-    revert: (target) => {
-      sent.reverts.push(target);
+    changeOrRevert: (wanted, activeValue) => {
+      if (wanted.value === activeValue) {
+        sent.reverts.push({ kind: "change", address: wanted.address });
+      } else {
+        sent.changes.push(wanted as DraftChange);
+      }
       return Promise.resolve({ kind: "saved" });
     },
   };
@@ -208,7 +208,7 @@ describe("every field of every manufacturer rule, typed over a range from nothin
           "the table is drawn from a book whose prices are not prices",
         ).toBeUndefined();
       }
-      if (now.judgement !== undefined) {
+      if (now.judgement !== undefined && now.judgement.kind !== "unplaced") {
         expect(keys).toContain(now.judgement.fieldKey);
       }
     },
@@ -275,8 +275,10 @@ describe("the greatest amounts that pass the field's reading but fail the rule's
 
     expect(now.canSave).toBe(false);
     expect(
-      now.judgement?.fieldKey ??
-        now.states.find(({ reading }) => reading.kind === "refused")?.field.key,
+      now.judgement !== undefined && now.judgement.kind !== "unplaced"
+        ? now.judgement.fieldKey
+        : now.states.find(({ reading }) => reading.kind === "refused")?.field
+            .key,
     ).toBeDefined();
   });
 });

@@ -9,6 +9,7 @@ import styles from "./cabinet-list.module.css";
 import { cabinetPathOf } from "./cabinet-paths";
 import { findCabinetListImage } from "./cabinet-list-image";
 import {
+  GROUP_HEADING_KEYS,
   priceOfRow,
   type CabinetGroup,
   type CabinetRow,
@@ -19,13 +20,6 @@ import { formatLei, formatLeiAmount } from "./format-lei";
 
 // One group of the list and its rows. The same markup is the table on a desktop and the cards on a phone: the stylesheet
 // lays the row out, so no script chooses between two trees and nothing flips after hydration.
-
-export const GROUP_HEADING_KEYS = {
-  base: "priceDashboard.cabinets.groupBase",
-  wall: "priceDashboard.cabinets.groupWall",
-  tall: "priceDashboard.cabinets.groupTall",
-  corner: "priceDashboard.cabinets.groupCorner",
-} as const;
 
 export interface CabinetGroupSectionProps {
   readonly locale: AppLocale;

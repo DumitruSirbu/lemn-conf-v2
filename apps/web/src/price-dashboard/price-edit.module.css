@@ -112,6 +112,14 @@
   }
 }
 
+/* An open price field stands above the phone card's stretched link (`.name::after` of the cabinet list), so a tap in it
+ * is a tap in the field. */
+.openPrice {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
 .ruleCard {
   --warm-surface: #f7ecdc;
   --warm-edge: #e6cfa8;

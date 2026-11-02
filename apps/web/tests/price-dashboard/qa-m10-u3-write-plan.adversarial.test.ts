@@ -22,10 +22,12 @@ import { deriveCabinetDetail } from "@/price-dashboard/cabinet-detail-model";
 import {
   bookWithTyped,
   fieldStatesOf,
-  plannedWritesOf,
-  type PlannedWrite,
   type TypedTexts,
 } from "@/price-dashboard/cabinet-detail-fields";
+import {
+  plannedWritesOf,
+  type PlannedWrite,
+} from "@/price-dashboard/cabinet-write-plan";
 
 import { pageOf } from "./dashboard-state-fixture";
 import {
@@ -143,7 +145,9 @@ describe("the writes of a Save, over every rule and a draft that already holds c
         );
         expect(writes, "one write for each changed field").toHaveLength(1);
         expect(writes[0]?.value).toBe(effectiveMinor);
-        expect(writes[0]?.isRevert).toBe(effectiveMinor === field.activeMinor);
+        expect(writes[0]?.value === writes[0]?.activeMinor).toBe(
+          effectiveMinor === field.activeMinor,
+        );
       }
       expect(
         isEveryPrefixPublishable(detail.candidate, ruleId, plan),

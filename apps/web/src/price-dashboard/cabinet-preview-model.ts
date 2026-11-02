@@ -2,12 +2,13 @@ import {
   anchoredShapeReadsHeight,
   DEEP_CABINET_DEPTH_MM,
   DEFAULT_CABINET_DEPTH_MM,
-  isAnchoredShape,
+  isAnchoredFormula,
   normaliseBand,
   previewCabinet,
   pricedRowOf,
   type BodyCatalog,
   type CabinetPriceRule,
+  type MaterialTier,
   type PreviewRow,
   type PriceBook,
   type PricedRow,
@@ -36,7 +37,10 @@ export type PreviewColumn =
         readonly authored: string;
         readonly key: string | undefined;
       };
+      /** In the active version. */
       readonly percent: number;
+      /** In the version the draft makes, where it differs from the active one. */
+      readonly pendingPercent: number | undefined;
       readonly isDefault: boolean;
     }
   | {
@@ -70,8 +74,26 @@ export interface PreviewTable {
 
 export interface PreviewBooks {
   readonly active: PriceBook;
+  /** The active book with the draft applied: where the percentages the new column is priced at come from. */
+  readonly draft: PriceBook;
   /** The book the typed amounts make; absent while they make none. */
   readonly typed: PriceBook | undefined;
+}
+
+/** What the deep kitchen adds to the cabinets that get deeper: in the active version, and in the one the draft makes. */
+export interface DepthPercents {
+  readonly active: number;
+  readonly pending: number;
+}
+
+export function depthPercentsOf({
+  active,
+  draft,
+}: Pick<PreviewBooks, "active" | "draft">): DepthPercents {
+  return {
+    active: active.depthRule.deepCabinetPercent,
+    pending: draft.depthRule.deepCabinetPercent,
+  };
 }
 
 /** The table for one rule, or `undefined` when the active version cannot be drawn at all. */
@@ -85,12 +107,10 @@ export function previewTableOf(
   const row =
     rule === undefined ? undefined : pricedRowOf(catalog, rule.buildId);
   if (rule === undefined || row === undefined) return undefined;
-  const lines = columnsOf(books.active, rule, row, catalog).flatMap(
-    (column) => {
-      const line = lineOf(books, ruleId, column, controls);
-      return line === undefined ? [] : [{ column, ...line }];
-    },
-  );
+  const lines = columnsOf(books, rule, row, catalog).flatMap((column) => {
+    const line = lineOf(books, ruleId, column, controls);
+    return line === undefined ? [] : [{ column, ...line }];
+  });
   const [first] = lines;
   if (first === undefined) return undefined;
   return {
@@ -110,24 +130,32 @@ export function previewTableOf(
   };
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// The columns
-
 function columnsOf(
-  book: PriceBook,
+  { active, draft }: PreviewBooks,
   rule: CabinetPriceRule,
   row: PricedRow,
   catalog: BodyCatalog,
 ): readonly PreviewColumn[] {
   const heights = heightColumnsOf(rule, row, catalog);
   if (heights.length > 1) return heights;
-  return book.material.tiers.map((tier) => ({
+  return active.material.tiers.map((tier) => ({
     kind: "material",
     tierId: tier.tierId,
     name: { authored: tier.name, key: tier.nameKey },
     percent: tier.percentOfCabinets,
-    isDefault: tier.tierId === book.material.defaultTierId,
+    pendingPercent: pendingPercentOf(tier, draft),
+    isDefault: tier.tierId === active.material.defaultTierId,
   }));
+}
+
+function pendingPercentOf(
+  tier: MaterialTier,
+  draft: PriceBook,
+): number | undefined {
+  const pending = draft.material.tiers.find(
+    ({ tierId }) => tierId === tier.tierId,
+  )?.percentOfCabinets;
+  return pending === tier.percentOfCabinets ? undefined : pending;
 }
 
 /**
@@ -140,14 +168,10 @@ function heightColumnsOf(
   catalog: BodyCatalog,
 ): readonly PreviewColumn[] {
   const { formula } = rule;
-  if (
-    !isAnchoredShape(formula.shape) ||
-    !anchoredShapeReadsHeight(formula.shape)
-  ) {
+  if (!isAnchoredFormula(formula) || !anchoredShapeReadsHeight(formula.shape)) {
     return [];
   }
-  const wallMm = (formula as { readonly anchorHeightMm?: number })
-    .anchorHeightMm;
+  const wallMm = formula.anchorHeightMm;
   if (wallMm === undefined) return [];
   const topMm = topRowHeightMmOf(row, catalog);
   const isWall = normaliseBand(row.definition.band) === "wall";
@@ -178,9 +202,6 @@ function topRowHeightMmOf(
     );
   return heights.length === 0 ? undefined : Math.min(...heights);
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
-// One column's two answers
 
 interface ColumnLine {
   readonly active: readonly PreviewRow[];

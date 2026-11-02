@@ -1920,7 +1920,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       maxWidth: "Lățime maximă",
       widthStep: "Pas",
       availableWidths: "Lățimi disponibile",
-      bodyHeight: "Înălțime corp",
+      bodyHeight: "Înălțime finită",
       maxHeight: "Înălțime maximă",
       depthInKitchen:
         "Adâncime · bucătărie {kitchenDepthMm, number, ::group-off}",
@@ -1966,6 +1966,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       hardwareHeading: "Feronerie (automată, doar citire)",
       hardwareLine:
         "La {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
+      hardwareLineActive:
+        "Activ · la {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
+      hardwareLinePending:
+        "De publicat · la {widthMm, number, ::group-off} mm: {quantities} → +{amount} cu {className}.",
       hardwareNone: "Acest dulap nu are mecanisme de feronerie.",
       hardwareLink: "Feronerie →",
       // Drafted, not frame wording: the frame joins the mechanisms with a plus.
@@ -1992,9 +1996,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       depthToggle:
         "Adâncime {shallowMm, number, ::group-off} / {deepMm, number, ::group-off}",
       depthToggleOn: "{deepMm, number, ::group-off} mm · +{percent} %",
+      depthToggleOnPending:
+        "{deepMm, number, ::group-off} mm · Activ +{activePercent} % · De publicat +{pendingPercent} %",
       depthToggleOff: "{shallowMm, number, ::group-off} mm",
-      depthToggleDisabled: "Nu se schimbă la {deepMm, number, ::group-off} mm",
+      depthToggleDisabled:
+        "Prețul nu se schimbă la {deepMm, number, ::group-off} mm",
       columnMaterialPercent: "{name} +{percent} %",
+      columnMaterialPercentPending:
+        "{name} +{percent} % · De publicat +{pendingPercent} %",
       columnWallRow:
         "{heightMm, number, ::group-off} mm · rândul de perete · PAL",
       columnTopRow: "{heightMm, number, ::group-off} mm · rândul de sus · PAL",

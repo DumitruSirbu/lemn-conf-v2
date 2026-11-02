@@ -51,6 +51,13 @@ describe("what a thumb must hit", () => {
   });
 });
 
+describe("an open price field against the phone card's stretched link", () => {
+  it("is positioned and raised, so the link's overlay, which has no z-index, paints under it", () => {
+    expect(valuesFor(css, "openPrice", "position")).toEqual(["relative"]);
+    expect(valuesFor(css, "openPrice", "z-index")).toEqual(["1"]);
+  });
+});
+
 describe("what the fields look like", () => {
   it("draws an invalid field in the refusal colours, with a heavier border", () => {
     const rule = css

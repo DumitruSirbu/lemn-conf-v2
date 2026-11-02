@@ -239,6 +239,36 @@ export function buildableHeightsMm(row: PricedRow): readonly number[] {
   return [nominalHeightMm ?? frameHeightMm ?? NO_DECLARED_HEIGHT_MM];
 }
 
+/**
+ * The height a body of this row stands at: the one it declares, else, for the structural base and wall corners (which
+ * declare none), the one every insertable row of its band shares. `undefined` where neither says.
+ */
+export function declaredHeightMmOf(
+  catalog: BodyCatalog,
+  row: PricedRow,
+): number | undefined {
+  const { nominalHeightMm, frameHeightMm, band } = row.definition;
+  return nominalHeightMm ?? frameHeightMm ?? heightSharedByBand(catalog, band);
+}
+
+function heightSharedByBand(
+  catalog: BodyCatalog,
+  band: BodyDefinition["band"],
+): number | undefined {
+  const heights = new Set<number>();
+  for (const definition of catalog.values()) {
+    const { nominalHeightMm } = definition;
+    const isInsertableInBand =
+      definition.insertable === true &&
+      normaliseBand(definition.band) === normaliseBand(band);
+    if (isInsertableInBand && nominalHeightMm !== undefined) {
+      heights.add(nominalHeightMm);
+    }
+  }
+  const [shared] = heights;
+  return heights.size === 1 ? shared : undefined;
+}
+
 /** A row that declares no height is read at none: only a formula that prices by height asks for one, and that
  *  refuses. */
 export const NO_DECLARED_HEIGHT_MM = 0;

@@ -1,18 +1,19 @@
 import {
   buildableHeightsMm,
   countHardwareMechanisms,
+  declaredHeightMmOf,
   declaresASink,
   DEFAULT_CABINET_DEPTH_MM,
   DEEP_CABINET_DEPTH_MM,
+  defaultReadHeightMmOf,
   displayEntryOf,
   EXTRACTOR_HOOD_KIND,
-  NO_DECLARED_HEIGHT_MM,
+  isAnchoredFormula,
   occupiedDepthOfEntryM,
   previewCabinet,
   pricedRowOf,
   toMillimetres,
   WIDTH_STEP_MM,
-  isAnchoredShape,
   type BodyCatalog,
   type CabinetPriceRule,
   type DefaultWidthSource,
@@ -23,7 +24,7 @@ import {
 
 import { shippedDeepeningRows } from "@/price/deepening-rows";
 
-import type { ListedWidth } from "./cabinet-detail-fields";
+import { ruleIn, type ListedWidth } from "./cabinet-detail-fields";
 import type { CabinetRuleFacts, CabinetWidthRange } from "./cabinet-list-model";
 import {
   priceDashboardCatalogue,
@@ -32,6 +33,12 @@ import {
 
 // What the cabinet's page states about the cabinet apart from its price: catalogue dimensions, doors, drawers, the door
 // step and the hardware readout. Every figure is the catalogue's or a row of `previewCabinet`.
+
+/** The two books a cabinet's page reads: the active version and the one the draft makes. */
+export interface DetailBooks {
+  readonly active: PriceBook;
+  readonly candidate: PriceBook;
+}
 
 export type DetailHeight =
   | { readonly kind: "fixed"; readonly heightMm: number }
@@ -105,7 +112,10 @@ export interface CabinetDetailFacts {
   readonly hasHandle: boolean;
   readonly canColour: boolean;
   readonly doorStep: DoorStep | undefined;
+  /** In the active version. */
   readonly hardware: HardwareReadout | undefined;
+  /** In the version the draft makes. */
+  readonly draftHardware: HardwareReadout | undefined;
   /** The priced-as row deepens in a deep kitchen and the manufacturer supplies it. */
   readonly canDeepen: boolean;
   /** The widths the cabinet is built at, with the grid width each is priced as. */
@@ -114,14 +124,14 @@ export interface CabinetDetailFacts {
 
 /** The facts of one cabinet in the active book; `undefined` for a rule the catalogue does not hold. */
 export function describeCabinet(
-  book: PriceBook,
+  books: DetailBooks,
   rule: CabinetPriceRule,
   listed: CabinetRuleFacts,
 ): CabinetDetailFacts | undefined {
   const catalog = priceDashboardCatalogue();
   const row = pricedRowOf(catalog, rule.buildId);
   if (row === undefined) return undefined;
-  const rows = defaultPreviewRows(book, rule, catalog);
+  const rows = defaultPreviewRows(books.active, rule, catalog);
   const isCustomerSupplied = rule.suppliedBy === "customer";
   return {
     ruleId: rule.ruleId,
@@ -132,13 +142,18 @@ export function describeCabinet(
     isStructural: listed.isStructural,
     isHood: isCustomerSupplied && row.definition.kind === EXTRACTOR_HOOD_KIND,
     holdsSink: declaresASink(row.definition),
-    dimensions: dimensionsOf(row, listed),
+    dimensions: dimensionsOf(row, listed, catalog),
     doors: doorsOf(rows),
     drawers: countsAt(rule, row, catalog, listed.widths.defaultMm).drawers,
     hasHandle: row.definition.canHandle,
     canColour: row.definition.canFinish,
     doorStep: doorStepOf(rule, rows),
-    hardware: isCustomerSupplied ? undefined : hardwareOf(book, rule, listed),
+    hardware: isCustomerSupplied
+      ? undefined
+      : hardwareOf(books.active, rule, listed),
+    draftHardware: isCustomerSupplied
+      ? undefined
+      : hardwareOfDraft(books.candidate, rule.ruleId, listed),
     canDeepen: !isCustomerSupplied && shippedDeepeningRows().has(row.buildId),
     listedWidths: rows.map(({ widthMm, pricedAsWidthMm }) => ({
       widthMm,
@@ -167,6 +182,7 @@ function defaultPreviewRows(
 function dimensionsOf(
   row: PricedRow,
   listed: CabinetRuleFacts,
+  catalog: BodyCatalog,
 ): DetailDimensions {
   const { widths } = listed;
   const { definition } = row;
@@ -178,7 +194,7 @@ function dimensionsOf(
     },
     widths: widths.range,
     stepMm: widths.range.kind === "range" ? WIDTH_STEP_MM : undefined,
-    height: heightOf(row),
+    height: heightOf(row, catalog),
     shallowDepth: depthAt(
       row.buildId,
       priceDashboardCatalogue(),
@@ -205,18 +221,20 @@ function depthAt(
   return { kitchenDepthMm, depthMm: toMillimetres(depthM) };
 }
 
-function heightOf(row: PricedRow): DetailHeight | undefined {
-  const heights = buildableHeightsMm(row);
-  const [first] = heights;
-  if (first === undefined || first === NO_DECLARED_HEIGHT_MM) return undefined;
+function heightOf(
+  row: PricedRow,
+  catalog: BodyCatalog,
+): DetailHeight | undefined {
+  const declaredMm = declaredHeightMmOf(catalog, row);
+  if (declaredMm === undefined) return undefined;
   if (row.definition.heightFlex !== true) {
-    return { kind: "fixed", heightMm: first };
+    return { kind: "fixed", heightMm: declaredMm };
   }
-  const nominalMm = row.definition.nominalHeightMm ?? first;
+  const heights = buildableHeightsMm(row);
   return {
     kind: "opening",
-    heightMm: nominalMm,
-    maxMm: heights[heights.length - 1] ?? nominalMm,
+    heightMm: declaredMm,
+    maxMm: heights[heights.length - 1] ?? declaredMm,
   };
 }
 
@@ -245,8 +263,8 @@ function doorStepOf(
   const before = rows[index - 1];
   if (step === undefined || before === undefined) return undefined;
   const { formula } = rule;
-  const anchorMm = isAnchoredShape(formula.shape)
-    ? (formula as { readonly anchorWidthMm: number }).anchorWidthMm
+  const anchorMm = isAnchoredFormula(formula)
+    ? formula.anchorWidthMm
     : undefined;
   return {
     atMm: step.widthMm,
@@ -263,18 +281,25 @@ function countsAt(
   widthMm: number,
 ) {
   return countHardwareMechanisms(
-    [displayEntryOf(row, { widthMm, heightMm: readHeightMmOf(rule, row) })],
+    [
+      displayEntryOf(row, {
+        widthMm,
+        heightMm: defaultReadHeightMmOf(rule, row),
+      }),
+    ],
     catalog,
   );
 }
 
-/** The height `previewCabinet` reads a cabinet at when it is not given one: the formula's anchor, else the first built. */
-function readHeightMmOf(rule: CabinetPriceRule, row: PricedRow): number {
-  const { formula } = rule;
-  const anchorHeightMm = isAnchoredShape(formula.shape)
-    ? (formula as { readonly anchorHeightMm?: number }).anchorHeightMm
-    : undefined;
-  return anchorHeightMm ?? buildableHeightsMm(row)[0] ?? NO_DECLARED_HEIGHT_MM;
+function hardwareOfDraft(
+  candidate: PriceBook,
+  ruleId: string,
+  listed: CabinetRuleFacts,
+): HardwareReadout | undefined {
+  const draftRule = ruleIn(candidate, ruleId);
+  return draftRule === undefined
+    ? undefined
+    : hardwareOf(candidate, draftRule, listed);
 }
 
 /** What the default hardware class adds to the cabinet at its default width: the mechanisms and their `r10` amount. */

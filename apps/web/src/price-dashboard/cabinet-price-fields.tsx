@@ -10,7 +10,7 @@ import type { ContentTranslator } from "@/i18n/content";
 
 import styles from "./cabinet-detail.module.css";
 import type { CabinetDetailFacts } from "./cabinet-detail-facts";
-import type { FieldRole, FieldState } from "./cabinet-detail-fields";
+import type { FieldState } from "./cabinet-detail-fields";
 import { priceSentence } from "./cabinet-price-sentence";
 import { formatLei } from "./format-lei";
 import { PriceUnitField } from "./price-unit-field";
@@ -32,8 +32,8 @@ export function CabinetPriceFields({
   readonly editing: CabinetPriceEditing;
 }) {
   const translate = useTranslations();
-  const errors = errorsOf(translate, editing);
-  const hasError = errors.size > 0;
+  const toFix = errorsToFixOf(translate, editing);
+  const errors = withWriteFailure(translate, toFix, editing.feedback);
   return (
     <>
       <div className={styles.fields}>
@@ -50,7 +50,13 @@ export function CabinetPriceFields({
       <p className={styles.sentence} data-testid="cabinet-price-sentence">
         {priceSentence(translate, { facts, states: editing.states })}
       </p>
-      <SaveBar locale={locale} editing={editing} hasError={hasError} />
+      <SaveBar
+        locale={locale}
+        editing={editing}
+        unplacedReason={unplacedReasonOf(translate, editing.judgement)}
+        mustFix={toFix.size > 0 || editing.judgement?.kind === "unplaced"}
+        hasError={errors.size > 0}
+      />
     </>
   );
 }
@@ -94,23 +100,27 @@ function labelOf(
   facts: CabinetDetailFacts,
 ): string {
   const widthMm = field.quotedAtMm ?? 0;
-  const roleLabels: Record<FieldRole, () => string> = {
-    anchor: () => translate("priceDashboard.cabinet.fieldAnchor", { widthMm }),
-    size: () => translate("priceDashboard.cabinet.fieldAnchor", { widthMm }),
-    plus: () =>
-      translate("priceDashboard.cabinet.fieldPlus", { stepMm: PRICE_STEP_MM }),
-    minus: () =>
-      translate("priceDashboard.cabinet.fieldMinus", { stepMm: PRICE_STEP_MM }),
-    door: () =>
-      translate("priceDashboard.cabinet.fieldDoor", {
-        atMm: facts.doorStep?.atMm ?? 0,
-      }),
-    height: () =>
-      translate("priceDashboard.cabinet.fieldHeightStep", {
+  switch (field.role) {
+    case "anchor":
+    case "size":
+      return translate("priceDashboard.cabinet.fieldAnchor", { widthMm });
+    case "plus":
+      return translate("priceDashboard.cabinet.fieldPlus", {
         stepMm: PRICE_STEP_MM,
-      }),
-  };
-  return roleLabels[field.role]();
+      });
+    case "minus":
+      return translate("priceDashboard.cabinet.fieldMinus", {
+        stepMm: PRICE_STEP_MM,
+      });
+    case "door":
+      return translate("priceDashboard.cabinet.fieldDoor", {
+        atMm: facts.doorStep?.atMm ?? 0,
+      });
+    case "height":
+      return translate("priceDashboard.cabinet.fieldHeightStep", {
+        stepMm: PRICE_STEP_MM,
+      });
+  }
 }
 
 /** What the field's active value is, in the words of the frame; a plain "Activ: …" where the frame says no more. */
@@ -135,8 +145,8 @@ function hintOf(translate: ContentTranslator, state: FieldState): string {
 }
 
 /** The sentence under each field that cannot be saved as it stands, by the field's key: what it reads, then what the
- *  prices it would make say, then what the server answered to the write that was last tried. */
-function errorsOf(
+ *  prices it would make say. */
+function errorsToFixOf(
   translate: ContentTranslator,
   editing: CabinetPriceEditing,
 ): ReadonlyMap<string, string> {
@@ -146,22 +156,47 @@ function errorsOf(
       errors.set(field.key, leiRefusalWords(translate, reading.refusal));
     }
   }
-  const { judgement, feedback } = editing;
-  if (judgement !== undefined && !errors.has(judgement.fieldKey)) {
+  const { judgement } = editing;
+  if (
+    judgement !== undefined &&
+    judgement.kind !== "unplaced" &&
+    !errors.has(judgement.fieldKey)
+  ) {
     errors.set(judgement.fieldKey, judgementWords(translate, judgement));
-  }
-  if (feedback.kind === "failed" && !errors.has(feedback.fieldKey)) {
-    errors.set(
-      feedback.fieldKey,
-      priceWriteFailureWords(translate, feedback.failure),
-    );
   }
   return errors;
 }
 
+/** The sentences to fix, and under the field the server's answer to the write last tried, where nothing is to fix. */
+function withWriteFailure(
+  translate: ContentTranslator,
+  toFix: ReadonlyMap<string, string>,
+  feedback: CabinetPriceEditing["feedback"],
+): ReadonlyMap<string, string> {
+  if (feedback.kind !== "failed" || toFix.has(feedback.fieldKey)) return toFix;
+  return new Map([
+    ...toFix,
+    [feedback.fieldKey, priceWriteFailureWords(translate, feedback.failure)],
+  ]);
+}
+
+/** The reason a refusal gives where no field carries it: it is said beside Save. */
+function unplacedReasonOf(
+  translate: ContentTranslator,
+  judgement: CabinetPriceEditing["judgement"],
+): string | undefined {
+  if (judgement?.kind !== "unplaced") return undefined;
+  return judgement.reason === "too-large"
+    ? translate("priceDashboard.errors.tooBig")
+    : translate("priceDashboard.errors.priceNotPositive");
+}
+
 function judgementWords(
   translate: ContentTranslator,
-  judgement: NonNullable<CabinetPriceEditing["judgement"]>,
+  judgement: Exclude<
+    NonNullable<CabinetPriceEditing["judgement"]>,
+    { readonly kind: "unplaced" }
+  >,
 ): string {
   switch (judgement.kind) {
     case "not-positive-at-width":
@@ -182,10 +217,16 @@ function judgementWords(
 function SaveBar({
   locale,
   editing,
+  unplacedReason,
+  mustFix,
   hasError,
 }: {
   readonly locale: AppLocale;
   readonly editing: CabinetPriceEditing;
+  readonly unplacedReason: string | undefined;
+  /** A value must be corrected before it can be saved: the server's answer asks for no correction. */
+  readonly mustFix: boolean;
+  /** A sentence stands under some field, the server's answer included. */
   readonly hasError: boolean;
 }) {
   const translate = useTranslations();
@@ -228,7 +269,7 @@ function SaveBar({
         >
           {translate("priceDashboard.common.save")}
         </button>
-        {editing.isChanged || hasError ? (
+        {editing.isChanged || hasError || mustFix ? (
           <button
             type="button"
             className={editStyles.action}
@@ -238,7 +279,12 @@ function SaveBar({
           </button>
         ) : null}
       </div>
-      {hasError ? (
+      {unplacedReason === undefined ? null : (
+        <p className={styles.fixToSave} role="alert">
+          {unplacedReason}
+        </p>
+      )}
+      {mustFix ? (
         <p className={styles.fixToSave}>
           {translate("priceDashboard.errors.fixToSave")}
         </p>

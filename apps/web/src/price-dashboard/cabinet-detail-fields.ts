@@ -1,9 +1,11 @@
 import {
   applyChanges,
+  isAnchoredFormula,
   isSameAddress,
   judgePricesOfRule,
   readEditableFields,
   roundUpToPriceStepMm,
+  type AnchoredFormula,
   type AppliedAddress,
   type BookRefusal,
   type CabinetPriceRule,
@@ -62,9 +64,7 @@ export function priceFieldsOf(
   listedWidths: readonly ListedWidth[],
 ): readonly DetailField[] {
   const active = readEditableFields(books.active);
-  const formula = ruleIn(books.candidate, ruleId)?.formula as
-    | { readonly anchorWidthMm?: number; readonly anchorHeightMm?: number }
-    | undefined;
+  const formula = anchoredFormulaOf(ruleIn(books.candidate, ruleId));
   return readEditableFields(books.candidate).flatMap(
     (reading): DetailField[] => {
       const { address, value } = reading;
@@ -102,11 +102,18 @@ export function priceFieldsOf(
   );
 }
 
+function anchoredFormulaOf(
+  rule: CabinetPriceRule | undefined,
+): AnchoredFormula | undefined {
+  const formula = rule?.formula;
+  return formula !== undefined && isAnchoredFormula(formula)
+    ? formula
+    : undefined;
+}
+
 function quotedAtOf(
   field: keyof typeof ROLE_OF_RULE_FIELD,
-  formula:
-    | { readonly anchorWidthMm?: number; readonly anchorHeightMm?: number }
-    | undefined,
+  formula: AnchoredFormula | undefined,
 ): number | undefined {
   if (field === "anchorMinor") return formula?.anchorWidthMm;
   return field === "perHeightStepMinor" ? formula?.anchorHeightMm : undefined;
@@ -128,9 +135,6 @@ export function ruleIn(
 ): CabinetPriceRule | undefined {
   return book.cabinetRules.find((rule) => rule.ruleId === ruleId);
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
-// What is typed
 
 /** The text a person has typed into a field, by its key; a field not in it shows its draft value. */
 export type TypedTexts = Readonly<Record<string, string>>;
@@ -178,11 +182,12 @@ export function changedStatesOf(
   );
 }
 
-function changeOf(state: FieldState): DraftChange {
-  return {
-    address: state.field.address,
-    value: state.effectiveMinor,
-  } as DraftChange;
+/** An address of a number field with a number is a change of that field: the book judges which address takes one. */
+export function draftChangeOf(
+  address: AppliedAddress,
+  value: number,
+): DraftChange {
+  return { address, value } as DraftChange;
 }
 
 /** The candidate book with the typed amounts applied; `undefined` when a typed amount does not make a book. */
@@ -192,15 +197,17 @@ export function bookWithTyped(
 ): PriceBook | undefined {
   const applied = applyChanges(
     candidate,
-    changedStatesOf(states).map(changeOf),
+    changedStatesOf(states).map(({ field, effectiveMinor }) =>
+      draftChangeOf(field.address, effectiveMinor),
+    ),
   );
   return applied.ok ? applied.book : undefined;
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
-// What the typed amounts would price
-
-/** The field a refused price is owed to, with the reason; the first price of the rule that is not a price. */
+/**
+ * Why the rule's prices are refused: the field the refusal is owed to, or only the reason where no field is. Every
+ * refusal of `judgePricesOfRule` is one, so a rule the judgement refuses is never one that can be saved.
+ */
 export type PriceJudgement =
   | {
       readonly kind: "not-positive-at-width";
@@ -213,7 +220,11 @@ export type PriceJudgement =
       readonly heightMm: number;
     }
   | { readonly kind: "not-positive"; readonly fieldKey: string }
-  | { readonly kind: "too-large"; readonly fieldKey: string };
+  | { readonly kind: "too-large"; readonly fieldKey: string }
+  | {
+      readonly kind: "unplaced";
+      readonly reason: "not-positive" | "too-large";
+    };
 
 export function judgePrices(
   rule: CabinetPriceRule,
@@ -226,17 +237,21 @@ export function judgePrices(
 function judgementOf(
   refusal: BookRefusal,
   fields: readonly DetailField[],
-): PriceJudgement | undefined {
+): PriceJudgement {
   if (
     refusal.code !== "PRICE_NOT_POSITIVE" &&
     refusal.code !== "PRICE_TOO_LARGE"
   ) {
-    return undefined;
+    // The one other refusal of a rule's prices is an amount the arithmetic cannot hold exactly: past what a price may be.
+    return { kind: "unplaced", reason: "too-large" };
   }
   const fieldKey = keyOfRefusedField(refusal, fields);
-  if (fieldKey === undefined) return undefined;
-  if (refusal.code === "PRICE_TOO_LARGE")
+  if (fieldKey === undefined) {
+    return { kind: "unplaced", reason: reasonOf(refusal) };
+  }
+  if (refusal.code === "PRICE_TOO_LARGE") {
     return { kind: "too-large", fieldKey };
+  }
   if (refusal.field === "perStepNarrowerMinor") {
     return {
       kind: "not-positive-at-width",
@@ -252,6 +267,15 @@ function judgementOf(
     };
   }
   return { kind: "not-positive", fieldKey };
+}
+
+function reasonOf(
+  refusal: Extract<
+    BookRefusal,
+    { readonly code: "PRICE_NOT_POSITIVE" | "PRICE_TOO_LARGE" }
+  >,
+): "not-positive" | "too-large" {
+  return refusal.code === "PRICE_TOO_LARGE" ? "too-large" : "not-positive";
 }
 
 function keyOfRefusedField(
@@ -274,73 +298,4 @@ function keyOfRefusedField(
 
 function addressField(address: CabinetPriceAddress): string | undefined {
   return address.kind === "cabinet" ? address.field : undefined;
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// What is sent
-
-export interface PlannedWrite {
-  readonly address: AppliedAddress;
-  readonly value: number;
-  /** The value is the active version's: the write takes the draft's change out and adds none. */
-  readonly isRevert: boolean;
-}
-
-/**
- * The writes a Save sends, one per changed field. The draft takes one change per write and the server does not judge a
- * half of two changes, so a write that fails part-way leaves the draft holding the writes before it. Each write is taken
- * from the first remaining one that keeps every price of the rule above zero, so that draft can always be published.
- */
-export function plannedWritesOf(
-  candidate: PriceBook,
-  ruleId: string,
-  states: readonly FieldState[],
-): readonly PlannedWrite[] {
-  const remaining = changedStatesOf(states).map(writeOf);
-  const planned: PlannedWrite[] = [];
-  let running = candidate;
-  while (remaining.length > 0) {
-    const firstSafe = remaining.findIndex((write) =>
-      isSafeAfter(running, ruleId, write),
-    );
-    // `judgePrices` places only two refusals on a field, so Save can be offered for a state this finds unsafe at every
-    // step; those writes go in the order of the fields (`splice(-1)` would take the last).
-    const pick = firstSafe === -1 ? 0 : firstSafe;
-    const [write] = remaining.splice(pick, 1);
-    if (write === undefined) break;
-    planned.push(write);
-    running = afterWrite(running, write) ?? running;
-  }
-  return planned;
-}
-
-function writeOf(state: FieldState): PlannedWrite {
-  return {
-    address: state.field.address,
-    value: state.effectiveMinor,
-    isRevert: state.effectiveMinor === state.field.activeMinor,
-  };
-}
-
-function afterWrite(
-  book: PriceBook,
-  write: PlannedWrite,
-): PriceBook | undefined {
-  const applied = applyChanges(book, [
-    { address: write.address, value: write.value } as DraftChange,
-  ]);
-  return applied.ok ? applied.book : undefined;
-}
-
-function isSafeAfter(
-  book: PriceBook,
-  ruleId: string,
-  write: PlannedWrite,
-): boolean {
-  const next = afterWrite(book, write);
-  const rule = next === undefined ? undefined : ruleIn(next, ruleId);
-  return (
-    rule !== undefined &&
-    judgePricesOfRule(rule, priceDashboardCatalogue()) === undefined
-  );
 }

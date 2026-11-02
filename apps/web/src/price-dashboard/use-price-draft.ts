@@ -2,6 +2,11 @@
 
 import { useCallback, useRef, useState } from "react";
 
+import {
+  isSameAddress,
+  type AppliedAddress,
+} from "@lemnaria/configurator-domain";
+
 import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 
 import {
@@ -54,11 +59,22 @@ export interface BulkChangeInput {
   readonly percent: number;
 }
 
+/** An amount wanted at the address of a number field. */
+export interface WantedAmount {
+  readonly address: AppliedAddress;
+  readonly value: number;
+}
+
 export interface PriceDraft {
   readonly state: DashboardStateWire;
   readonly isBusy: boolean;
   readonly change: (change: DraftChangeInputWire) => Promise<FieldWriteResult>;
   readonly revert: (target: DraftRevertTargetWire) => Promise<FieldWriteResult>;
+  /** A value equal to the active one is no change: it takes the draft's change at that address out, or does nothing. */
+  readonly changeOrRevert: (
+    wanted: WantedAmount,
+    activeValue: number,
+  ) => Promise<FieldWriteResult>;
   readonly bulk: (input: BulkChangeInput) => Promise<BulkWriteResult>;
 }
 
@@ -151,6 +167,25 @@ export function usePriceDraft({
     [client, exclusively, settle],
   );
 
+  const changeOrRevert = useCallback(
+    (wanted: WantedAmount, activeValue: number): Promise<FieldWriteResult> => {
+      // The address of a number field with a number is a change of that field: the route judges which address takes one.
+      if (wanted.value !== activeValue) {
+        return change({
+          address: wanted.address,
+          value: wanted.value,
+        } as DraftChangeInputWire);
+      }
+      const holdsChange = stateRef.current.draft.changes.some((held) =>
+        isSameAddress(held.address, wanted.address),
+      );
+      return holdsChange
+        ? revert({ kind: "change", address: wanted.address })
+        : Promise.resolve(UNCHANGED);
+    },
+    [change, revert],
+  );
+
   const bulk = useCallback(
     (input: BulkChangeInput) =>
       exclusively<BulkWriteResult>(async () => {
@@ -166,11 +201,12 @@ export function usePriceDraft({
     [client, exclusively, settle],
   );
 
-  return { state, isBusy, change, revert, bulk };
+  return { state, isBusy, change, revert, changeOrRevert, bulk };
 }
 
 const FAILED = { kind: "failed" } as const;
 const BUSY = { kind: "busy" } as const;
+const UNCHANGED = { kind: "unchanged" } as const;
 
 /** A client that throws is a write that failed: the screen is never left waiting on one. */
 async function sendOrFail<Code extends string, Written>(

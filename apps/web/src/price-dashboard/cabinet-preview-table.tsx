@@ -7,7 +7,7 @@ import {
   DEEP_CABINET_DEPTH_MM,
   DEFAULT_CABINET_DEPTH_MM,
   TEN_LEI_MINOR,
-  type PriceBook,
+  type HardwareTier,
 } from "@lemnaria/configurator-domain";
 
 import type { ContentTranslator } from "@/i18n/content";
@@ -16,7 +16,10 @@ import { useContent } from "@/i18n/use-content";
 import styles from "./cabinet-detail.module.css";
 import type { CabinetDetailFacts } from "./cabinet-detail-facts";
 import {
+  depthPercentsOf,
   previewTableOf,
+  type DepthPercents,
+  type PreviewBooks,
   type PreviewColumn,
   type PreviewTable,
   type PreviewTableRow,
@@ -29,18 +32,11 @@ import { formatLei } from "./format-lei";
 export function CabinetPreviewSection({
   facts,
   books,
-  depthPercent,
 }: {
   readonly facts: CabinetDetailFacts;
-  readonly books: {
-    readonly active: PriceBook;
-    readonly typed: PriceBook | undefined;
-  };
-  /** The depth rule's percentage in the draft. */
-  readonly depthPercent: number;
+  readonly books: PreviewBooks;
 }) {
   const translate = useTranslations();
-  const content = useContent();
   const [withHardware, setWithHardware] = useState(false);
   const [isDeepKitchen, setIsDeepKitchen] = useState(false);
   const [chosenTierId, setChosenTierId] = useState<string | undefined>(
@@ -49,15 +45,15 @@ export function CabinetPreviewSection({
   const tiers = books.active.hardware.tiers;
   const hardwareTierId = chosenTierId ?? books.active.hardware.defaultTierId;
   const isDeep = isDeepKitchen && facts.canDeepen;
-  const { active, typed } = books;
+  const { active, draft, typed } = books;
   const table = useMemo(
     () =>
-      previewTableOf({ active, typed }, facts.ruleId, {
+      previewTableOf({ active, draft, typed }, facts.ruleId, {
         withHardware,
         hardwareTierId,
         isDeepKitchen: isDeep,
       }),
-    [active, typed, facts.ruleId, withHardware, hardwareTierId, isDeep],
+    [active, draft, typed, facts.ruleId, withHardware, hardwareTierId, isDeep],
   );
   const headingId = useId();
   return (
@@ -88,29 +84,16 @@ export function CabinetPreviewSection({
         }}
       />
       {withHardware ? (
-        <fieldset className={styles.tierChoices}>
-          <legend className={styles.visuallyHidden}>
-            {translate("priceDashboard.cabinet.withHardware")}
-          </legend>
-          {tiers.map((tier) => (
-            <label key={tier.tierId} className={styles.tierChoice}>
-              <input
-                type="radio"
-                name="hardware-tier"
-                checked={tier.tierId === hardwareTierId}
-                onChange={() => {
-                  setChosenTierId(tier.tierId);
-                }}
-              />
-              {content.bookText(tier.name, tier.nameKey)}
-            </label>
-          ))}
-        </fieldset>
+        <HardwareTierChoice
+          tiers={tiers}
+          chosenTierId={hardwareTierId}
+          onChoose={setChosenTierId}
+        />
       ) : null}
       <DepthSwitch
         facts={facts}
         isDeep={isDeep}
-        depthPercent={depthPercent}
+        depthPercents={depthPercentsOf(books)}
         onToggle={() => {
           setIsDeepKitchen((isOn) => !isOn);
         }}
@@ -122,43 +105,100 @@ export function CabinetPreviewSection({
   );
 }
 
+function HardwareTierChoice({
+  tiers,
+  chosenTierId,
+  onChoose,
+}: {
+  readonly tiers: readonly HardwareTier[];
+  readonly chosenTierId: string;
+  readonly onChoose: (tierId: string) => void;
+}) {
+  const translate = useTranslations();
+  const content = useContent();
+  return (
+    <fieldset className={styles.tierChoices}>
+      <legend className={styles.visuallyHidden}>
+        {translate("priceDashboard.cabinet.withHardware")}
+      </legend>
+      {tiers.map((tier) => (
+        <label key={tier.tierId} className={styles.tierChoice}>
+          <input
+            type="radio"
+            name="hardware-tier"
+            checked={tier.tierId === chosenTierId}
+            onChange={() => {
+              onChoose(tier.tierId);
+            }}
+          />
+          {content.bookText(tier.name, tier.nameKey)}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+/** The switch between the shallow and the deep kitchen; with no `onToggle` it is a statement only. */
 export function DepthSwitch({
   facts,
   isDeep,
-  depthPercent,
+  depthPercents,
   onToggle,
 }: {
   readonly facts: CabinetDetailFacts;
   readonly isDeep: boolean;
-  readonly depthPercent: number;
-  readonly onToggle: () => void;
+  readonly depthPercents: DepthPercents;
+  readonly onToggle?: (() => void) | undefined;
 }) {
   const translate = useTranslations();
   const { shallowDepth, deepDepth } = facts.dimensions;
-  const state = !facts.canDeepen
-    ? translate("priceDashboard.cabinet.depthToggleDisabled", {
-        deepMm: DEEP_CABINET_DEPTH_MM,
-      })
-    : isDeep
-      ? translate("priceDashboard.cabinet.depthToggleOn", {
-          deepMm: DEEP_CABINET_DEPTH_MM,
-          percent: String(depthPercent),
-        })
-      : translate("priceDashboard.cabinet.depthToggleOff", {
-          shallowMm: DEFAULT_CABINET_DEPTH_MM,
-        });
   return (
     <Switch
       name={translate("priceDashboard.cabinet.depthToggle", {
         shallowMm: shallowDepth.kitchenDepthMm,
         deepMm: deepDepth.kitchenDepthMm,
       })}
-      state={state}
+      state={depthStateOf(translate, { facts, isDeep, depthPercents })}
       isOn={isDeep}
       isDisabled={!facts.canDeepen}
       onToggle={onToggle}
     />
   );
+}
+
+function depthStateOf(
+  translate: ContentTranslator,
+  {
+    facts,
+    isDeep,
+    depthPercents,
+  }: {
+    readonly facts: CabinetDetailFacts;
+    readonly isDeep: boolean;
+    readonly depthPercents: DepthPercents;
+  },
+): string {
+  if (!facts.canDeepen) {
+    return translate("priceDashboard.cabinet.depthToggleDisabled", {
+      deepMm: DEEP_CABINET_DEPTH_MM,
+    });
+  }
+  if (!isDeep) {
+    return translate("priceDashboard.cabinet.depthToggleOff", {
+      shallowMm: DEFAULT_CABINET_DEPTH_MM,
+    });
+  }
+  const { active, pending } = depthPercents;
+  return active === pending
+    ? translate("priceDashboard.cabinet.depthToggleOn", {
+        deepMm: DEEP_CABINET_DEPTH_MM,
+        percent: String(active),
+      })
+    : translate("priceDashboard.cabinet.depthToggleOnPending", {
+        deepMm: DEEP_CABINET_DEPTH_MM,
+        activePercent: String(active),
+        pendingPercent: String(pending),
+      });
 }
 
 function Switch({
@@ -172,7 +212,7 @@ function Switch({
   readonly state: string;
   readonly isOn: boolean;
   readonly isDisabled?: boolean;
-  readonly onToggle: () => void;
+  readonly onToggle?: (() => void) | undefined;
 }) {
   return (
     <button
@@ -188,9 +228,6 @@ function Switch({
     </button>
   );
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
-// The table
 
 function PreviewGrid({
   table,
@@ -273,9 +310,6 @@ function PreviewLine({
   readonly labelOf: (column: PreviewColumn) => string;
 }) {
   const translate = useTranslations();
-  const currency = translate("priceDashboard.units.currency");
-  const active = translate("priceDashboard.cabinet.columnActive");
-  const next = translate("priceDashboard.cabinet.columnNew");
   return (
     <tr role="row" data-step={row.isDoorStep}>
       <th scope="row" role="rowheader">
@@ -288,64 +322,88 @@ function PreviewLine({
               widthMm: row.widthMm,
             })}
       </th>
-      {table.hasDoorColumn ? (
-        <td
-          role="cell"
-          data-label={translate("priceDashboard.cabinet.columnDoors")}
-        >
-          {row.isDoorStep ? (
-            <span className={styles.stepChip}>
-              {translate("priceDashboard.cabinet.doorsFromHere", {
-                doorCount: row.doorLeaves,
-              })}
-            </span>
-          ) : (
-            translate("priceDashboard.cabinet.doorCount", {
-              doorCount: row.doorLeaves,
-            })
-          )}
-        </td>
-      ) : null}
+      {table.hasDoorColumn ? <DoorCell row={row} /> : null}
       {row.cells.flatMap((cell, index) => {
         const column = table.columns[index];
         const name = column === undefined ? "" : labelOf(column);
         const isChanged =
           cell.nextMinor !== undefined && cell.nextMinor !== cell.activeMinor;
         return [
-          <td
-            role="cell"
+          <PriceCell
             key={`${String(index)}-active`}
-            data-role="active"
-            data-label={translate("priceDashboard.cabinet.previewCellLabel", {
-              column: name,
-              kind: active,
-            })}
-          >
-            {cell.activeMinor === undefined ? (
-              <span className={styles.noValue} />
-            ) : (
-              formatLei(cell.activeMinor, currency)
-            )}
-          </td>,
-          <td
-            role="cell"
+            role="active"
+            column={name}
+            amountMinor={cell.activeMinor}
+          />,
+          <PriceCell
             key={`${String(index)}-next`}
-            data-role="next"
-            data-changed={isChanged}
-            data-label={translate("priceDashboard.cabinet.previewCellLabel", {
-              column: name,
-              kind: next,
-            })}
-          >
-            {cell.nextMinor === undefined ? (
-              <span className={styles.noValue} />
-            ) : (
-              formatLei(cell.nextMinor, currency)
-            )}
-          </td>,
+            role="next"
+            column={name}
+            amountMinor={cell.nextMinor}
+            isChanged={isChanged}
+          />,
         ];
       })}
     </tr>
+  );
+}
+
+function DoorCell({ row }: { readonly row: PreviewTableRow }) {
+  const translate = useTranslations();
+  return (
+    <td
+      role="cell"
+      data-label={translate("priceDashboard.cabinet.columnDoors")}
+    >
+      {row.isDoorStep ? (
+        <span className={styles.stepChip}>
+          {translate("priceDashboard.cabinet.doorsFromHere", {
+            doorCount: row.doorLeaves,
+          })}
+        </span>
+      ) : (
+        translate("priceDashboard.cabinet.doorCount", {
+          doorCount: row.doorLeaves,
+        })
+      )}
+    </td>
+  );
+}
+
+function PriceCell({
+  role,
+  column,
+  amountMinor,
+  isChanged,
+}: {
+  readonly role: "active" | "next";
+  readonly column: string;
+  readonly amountMinor: number | undefined;
+  /** Only the new column says whether its price differs from the active one. */
+  readonly isChanged?: boolean;
+}) {
+  const translate = useTranslations();
+  const kind = translate(
+    role === "active"
+      ? "priceDashboard.cabinet.columnActive"
+      : "priceDashboard.cabinet.columnNew",
+  );
+  return (
+    <td
+      role="cell"
+      data-role={role}
+      data-changed={isChanged}
+      data-label={translate("priceDashboard.cabinet.previewCellLabel", {
+        column,
+        kind,
+      })}
+    >
+      {amountMinor === undefined ? (
+        <span className={styles.noValue} />
+      ) : (
+        formatLei(amountMinor, translate("priceDashboard.units.currency"))
+      )}
+    </td>
   );
 }
 
@@ -361,13 +419,7 @@ function columnLabel(
   column: PreviewColumn,
 ): string {
   if (column.kind === "material") {
-    const name = content.bookText(column.name.authored, column.name.key);
-    return column.isDefault
-      ? name
-      : translate("priceDashboard.cabinet.columnMaterialPercent", {
-          name,
-          percent: String(column.percent),
-        });
+    return materialLabel(translate, content, column);
   }
   const { heightMm } = column;
   switch (column.role) {
@@ -378,4 +430,25 @@ function columnLabel(
     case "other":
       return translate("priceDashboard.cabinet.columnHeight", { heightMm });
   }
+}
+
+function materialLabel(
+  translate: ContentTranslator,
+  content: ReturnType<typeof useContent>,
+  column: Extract<PreviewColumn, { readonly kind: "material" }>,
+): string {
+  const name = content.bookText(column.name.authored, column.name.key);
+  if (column.pendingPercent !== undefined) {
+    return translate("priceDashboard.cabinet.columnMaterialPercentPending", {
+      name,
+      percent: String(column.percent),
+      pendingPercent: String(column.pendingPercent),
+    });
+  }
+  return column.isDefault
+    ? name
+    : translate("priceDashboard.cabinet.columnMaterialPercent", {
+        name,
+        percent: String(column.percent),
+      });
 }

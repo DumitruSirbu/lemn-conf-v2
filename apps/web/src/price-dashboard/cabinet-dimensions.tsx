@@ -13,7 +13,7 @@ import type {
   DetailHeight,
 } from "./cabinet-detail-facts";
 import { findCabinetListImage } from "./cabinet-list-image";
-import { GROUP_HEADING_KEYS } from "./cabinet-list-rows";
+import { GROUP_HEADING_KEYS } from "./cabinet-list-model";
 
 // The left column of a cabinet's page: its drawing, the dimensions the 3D model gives it, and what it carries.
 // Read-only.

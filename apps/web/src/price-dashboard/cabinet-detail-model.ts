@@ -48,13 +48,15 @@ export function deriveCabinetDetail(
     list.kind === "ready"
       ? list.input.rules.find((held) => held.ruleId === ruleId)
       : undefined;
-  const facts =
-    listed === undefined
-      ? undefined
-      : describeCabinet(active.book, rule, listed);
-  if (list.kind !== "ready" || facts === undefined) {
+  if (list.kind !== "ready" || listed === undefined) {
     return { kind: "unreadable" };
   }
+  const facts = describeCabinet(
+    { active: active.book, candidate: list.candidate },
+    rule,
+    listed,
+  );
+  if (facts === undefined) return { kind: "unreadable" };
   return {
     kind: "ready",
     facts,

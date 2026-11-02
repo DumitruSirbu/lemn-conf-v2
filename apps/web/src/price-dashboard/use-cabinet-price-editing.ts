@@ -2,10 +2,9 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import {
-  isSameAddress,
-  type PriceBook,
-  type CabinetPriceRule,
+import type {
+  CabinetPriceRule,
+  PriceBook,
 } from "@lemnaria/configurator-domain";
 
 import {
@@ -14,16 +13,15 @@ import {
   fieldStatesOf,
   isEveryFieldReadable,
   judgePrices,
-  plannedWritesOf,
   ruleIn,
   type DetailField,
   type FieldState,
-  type PlannedWrite,
   type PriceJudgement,
   type TypedTexts,
 } from "./cabinet-detail-fields";
-import type { DraftChangeInputWire } from "./price-dashboard-wire-contract";
+import { plannedWritesOf, type PlannedWrite } from "./cabinet-write-plan";
 import type { FailedFieldWrite } from "./price-input-words";
+import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { PriceDraft } from "./use-price-draft";
 
 // Typing, saving and cancelling on the cabinet's page. Nothing is sent while typing; a save sends one write per
@@ -62,7 +60,7 @@ interface EditingInput {
   readonly fields: readonly DetailField[];
   readonly candidate: PriceBook;
   readonly ruleId: string;
-  readonly draft: Pick<PriceDraft, "change" | "revert" | "isBusy">;
+  readonly draft: Pick<PriceDraft, "changeOrRevert" | "isBusy">;
 }
 
 type WriteSequence =
@@ -84,7 +82,8 @@ export function useCabinetPriceEditing({
   const [feedback, setFeedback] = useState<SaveFeedback>({ kind: "none" });
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
-  const moveCountRef = useRef(0);
+  const { moveOn: markMoved, begin } = useLateAnswerGuard();
+  const { changeOrRevert, isBusy } = draft;
 
   const states = useMemo(() => fieldStatesOf(fields, typed), [fields, typed]);
   const typedBook = useMemo(
@@ -108,13 +107,12 @@ export function useCabinetPriceEditing({
     typedRule !== undefined &&
     judgement === undefined &&
     !isSaving &&
-    !draft.isBusy;
+    !isBusy;
 
-  /** Typing and cancelling each make a save still on its way an answer to fields that are no longer these. */
   const moveOn = useCallback(() => {
-    moveCountRef.current += 1;
+    markMoved();
     setFeedback({ kind: "none" });
-  }, []);
+  }, [markMoved]);
 
   const type = useCallback(
     (fieldKey: string, text: string) => {
@@ -132,12 +130,11 @@ export function useCabinetPriceEditing({
   const save = useCallback(async () => {
     if (!canSave || isSavingRef.current) return;
     const writes = plannedWritesOf(candidate, ruleId, states);
-    const moveCountWhenSent = moveCountRef.current;
-    const hasMoved = () => moveCountRef.current !== moveCountWhenSent;
+    const hasMoved = begin();
     isSavingRef.current = true;
     setIsSaving(true);
     try {
-      const sequence = await sendInOrder(writes, draft, hasMoved);
+      const sequence = await sendInOrder(writes, changeOrRevert, hasMoved);
       if (hasMoved()) return;
       if (sequence.kind === "done") {
         setTyped({});
@@ -147,7 +144,7 @@ export function useCabinetPriceEditing({
       } else if (sequence.kind === "failed") {
         setFeedback({
           kind: "failed",
-          fieldKey: keyOfWrite(states, sequence.write),
+          fieldKey: sequence.write.fieldKey,
           failure: sequence.failure,
         });
       }
@@ -155,7 +152,7 @@ export function useCabinetPriceEditing({
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [canSave, candidate, ruleId, states, draft]);
+  }, [canSave, candidate, ruleId, states, changeOrRevert, begin]);
 
   return {
     states,
@@ -176,34 +173,20 @@ export function useCabinetPriceEditing({
 /** The writes in order; nothing more is sent once the person has typed, or one is not written. */
 async function sendInOrder(
   writes: readonly PlannedWrite[],
-  draft: Pick<PriceDraft, "change" | "revert">,
+  changeOrRevert: PriceDraft["changeOrRevert"],
   hasMoved: () => boolean,
 ): Promise<WriteSequence> {
   let putAnAmountInTheDraft = false;
   for (const write of writes) {
     if (hasMoved()) return { kind: "stopped" };
-    const result = write.isRevert
-      ? await draft.revert({ kind: "change", address: write.address })
-      : await draft.change({
-          address: write.address,
-          value: write.value,
-        } as DraftChangeInputWire);
+    const result = await changeOrRevert(write, write.activeMinor);
     if (result.kind === "busy") return { kind: "stopped" };
     if (result.kind !== "saved" && result.kind !== "unchanged") {
       return { kind: "failed", write, failure: result };
     }
-    if (result.kind === "saved" && !write.isRevert)
+    if (result.kind === "saved" && write.value !== write.activeMinor) {
       putAnAmountInTheDraft = true;
+    }
   }
   return { kind: "done", putAnAmountInTheDraft };
-}
-
-function keyOfWrite(
-  states: readonly FieldState[],
-  write: PlannedWrite,
-): string {
-  const held = states.find(({ field }) =>
-    isSameAddress(field.address, write.address),
-  );
-  return held?.field.key ?? "";
 }

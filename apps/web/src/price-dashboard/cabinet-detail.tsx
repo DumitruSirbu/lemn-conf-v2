@@ -15,6 +15,7 @@ import { CabinetListUnavailableScreen } from "./cabinet-list";
 import type { CabinetListPageInput } from "./cabinet-list-facts";
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { cabinetsPathOf } from "./cabinet-paths";
+import type { DepthPercents } from "./cabinet-preview-model";
 import { CabinetPreviewSection, DepthSwitch } from "./cabinet-preview-table";
 import { CabinetPriceFields } from "./cabinet-price-fields";
 import { formatLei } from "./format-lei";
@@ -37,6 +38,8 @@ export interface CabinetDetailEditorProps {
   /** The routes the writes go through; the fetching client when left out. */
   readonly client?: PriceDraftClient | undefined;
 }
+
+const NO_DEPTH_PERCENTS: DepthPercents = { active: 0, pending: 0 };
 
 type ReadyDetail = Extract<
   ReturnType<typeof deriveCabinetDetail>,
@@ -136,15 +139,20 @@ function SuppliedPrice({
   readonly detail: ReadyDetail;
   readonly editing: CabinetPriceEditing;
 }) {
-  const depthRule = (editing.pricedBook ?? detail.candidate).depthRule;
   return (
     <>
       <CabinetPriceFields locale={locale} facts={facts} editing={editing} />
-      <CabinetHardwareReadout hardware={facts.hardware} />
+      <CabinetHardwareReadout
+        hardware={facts.hardware}
+        draftHardware={facts.draftHardware}
+      />
       <CabinetPreviewSection
         facts={facts}
-        books={{ active: detail.active, typed: editing.pricedBook }}
-        depthPercent={depthRule.deepCabinetPercent}
+        books={{
+          active: detail.active,
+          draft: detail.candidate,
+          typed: editing.pricedBook,
+        }}
       />
     </>
   );
@@ -162,8 +170,7 @@ function CustomerSuppliedPrice({
       <DepthSwitch
         facts={facts}
         isDeep={false}
-        depthPercent={0}
-        onToggle={noToggle}
+        depthPercents={NO_DEPTH_PERCENTS}
       />
       <div className={styles.flatPrice}>
         <span className={styles.flatPriceLabel}>
@@ -175,10 +182,6 @@ function CustomerSuppliedPrice({
       </div>
     </>
   );
-}
-
-function noToggle(): void {
-  // The switch is disabled for a cabinet that takes no depth percentage, so it is never pressed.
 }
 
 function Notes({ facts }: { readonly facts: CabinetDetailFacts }) {

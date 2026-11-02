@@ -18,8 +18,8 @@ import {
   bookWithTyped,
   fieldStatesOf,
   judgePrices,
-  plannedWritesOf,
 } from "@/price-dashboard/cabinet-detail-fields";
+import { plannedWritesOf } from "@/price-dashboard/cabinet-write-plan";
 import { previewTableOf } from "@/price-dashboard/cabinet-preview-model";
 import { priceDashboardCatalogue } from "@/price-dashboard/price-dashboard-catalogue";
 import { plainLeiOf } from "@/price-dashboard/price-field-input";
@@ -210,7 +210,7 @@ describe("the table beside the price", () => {
   it("holds, in every cell, the preview of the same request asked for independently", () => {
     const typed = typedWith(BASE_RULE, "anchorMinor", 410_000);
     const table = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed },
       BASE_RULE,
       PLAIN,
     );
@@ -243,7 +243,7 @@ describe("the table beside the price", () => {
 
   it("draws a wall cabinet by height, the wall row at its anchor height and the top row at the height the catalogue builds it", () => {
     const table = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed: undefined },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed: undefined },
       WALL_RULE,
       PLAIN,
     );
@@ -256,10 +256,18 @@ describe("the table beside the price", () => {
 
   it("puts the deep kitchen's percentage into a deepening row's cells, and not into a row that does not deepen", () => {
     const at = (ruleId: string, isDeepKitchen: boolean) =>
-      previewTableOf({ active: SAMPLE_PRICE_BOOK, typed: undefined }, ruleId, {
-        ...PLAIN,
-        isDeepKitchen,
-      })?.rows[0]?.cells[0]?.activeMinor;
+      previewTableOf(
+        {
+          active: SAMPLE_PRICE_BOOK,
+          draft: SAMPLE_PRICE_BOOK,
+          typed: undefined,
+        },
+        ruleId,
+        {
+          ...PLAIN,
+          isDeepKitchen,
+        },
+      )?.rows[0]?.cells[0]?.activeMinor;
 
     expect(at(WALL_RULE, true)).toBeGreaterThan(at(WALL_RULE, false) ?? 0);
     expect(at(HOOD_RULE, true)).toBe(at(HOOD_RULE, false));
@@ -267,12 +275,12 @@ describe("the table beside the price", () => {
 
   it("adds the hardware part of the preview to every cell when the switch is on", () => {
     const without = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed: undefined },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed: undefined },
       BASE_RULE,
       PLAIN,
     );
     const withHardware = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed: undefined },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed: undefined },
       BASE_RULE,
       {
         ...PLAIN,
@@ -299,12 +307,12 @@ describe("the table beside the price", () => {
 
   it("marks the row where the door leaves step and flags no step on a cabinet priced without them", () => {
     const door = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed: undefined },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed: undefined },
       BASE_RULE,
       PLAIN,
     );
     const drawers = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed: undefined },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed: undefined },
       THREE_DRAWER_RULE,
       PLAIN,
     );
@@ -317,7 +325,7 @@ describe("the table beside the price", () => {
 
   it("draws no new price while the typed amounts make no book", () => {
     const table = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed: undefined },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed: undefined },
       BASE_RULE,
       PLAIN,
     );
@@ -331,7 +339,7 @@ describe("the table beside the price", () => {
 
   it("draws a customer-supplied cabinet's table in zeros, in either depth", () => {
     const table = previewTableOf(
-      { active: SAMPLE_PRICE_BOOK, typed: undefined },
+      { active: SAMPLE_PRICE_BOOK, draft: SAMPLE_PRICE_BOOK, typed: undefined },
       FRIDGE_RULE,
       {
         ...PLAIN,
@@ -372,6 +380,21 @@ describe("what typed amounts would price (the narrow-width case)", () => {
     expect(judgePrices(typedRule, detail.fields)).toBeUndefined();
   });
 
+  it("owes a refusal no field carries to the rule alone, so Save is not offered for it", () => {
+    const { detail, states } = statesWith(BASE_RULE, {
+      perStepNarrowerMinor: plainLeiOf(1_800_000),
+    });
+    const typedRule = ruleOf(typedBookOf(detail.candidate, states), BASE_RULE);
+    const fieldsWithoutTheMinusStep = detail.fields.filter(
+      ({ key }) => key !== "perStepNarrowerMinor",
+    );
+
+    expect(judgePrices(typedRule, fieldsWithoutTheMinusStep)).toEqual({
+      kind: "unplaced",
+      reason: "not-positive",
+    });
+  });
+
   it("names a zero price of a fixed-size row on that size's field", () => {
     const { detail, states } = statesWith(HOB_RULE, { "size-600": "0" });
     const typedRule = ruleOf(typedBookOf(detail.candidate, states), HOB_RULE);
@@ -406,7 +429,7 @@ describe("the order a Save sends its writes in", () => {
     expect(
       plannedWritesOf(detail.candidate, BASE_RULE, states).map((write) => [
         write.address,
-        write.isRevert,
+        write.value === write.activeMinor,
       ]),
     ).toEqual([
       [{ kind: "cabinet", ruleId: BASE_RULE, field: "anchorMinor" }, true],
@@ -414,6 +437,23 @@ describe("the order a Save sends its writes in", () => {
         { kind: "cabinet", ruleId: BASE_RULE, field: "perStepWiderMinor" },
         false,
       ],
+    ]);
+  });
+
+  it("names on each write the field it is owed to, and the amount its revert would put back", () => {
+    const detail = readyDetail(BASE_RULE);
+    const states = fieldStatesOf(detail.fields, {
+      anchorMinor: plainLeiOf(410_000),
+      perStepWiderMinor: plainLeiOf(230_000),
+    });
+
+    expect(
+      plannedWritesOf(detail.candidate, BASE_RULE, states).map(
+        ({ fieldKey, value, activeMinor }) => [fieldKey, value, activeMinor],
+      ),
+    ).toEqual([
+      ["anchorMinor", 410_000, 396_000],
+      ["perStepWiderMinor", 230_000, 20_000],
     ]);
   });
 
