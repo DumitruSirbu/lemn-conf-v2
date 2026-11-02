@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ItemRef } from "@lemnaria/configurator-domain";
 
 import { ItemDialogs } from "@/price-dashboard/item-dialogs";
-import type { ItemFlow } from "@/price-dashboard/use-item-availability";
+import type { ItemFlow } from "@/price-dashboard/item-flows";
 
 import {
   mountInCatalogue,

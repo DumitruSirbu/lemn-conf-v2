@@ -138,7 +138,7 @@ describe("the invented counts", () => {
 
   it("are not a default of any seam in the lifecycle's modules: a missing count is never a number", () => {
     const lifecycleModules = allSources.filter((path) =>
-      /price-dashboard\/(item-lifecycle|use-item-availability|use-hardware-desk|default-item)/.test(
+      /price-dashboard\/(item-lifecycle|item-flows|use-item-availability|use-hardware-desk|default-item)/.test(
         path,
       ),
     );
@@ -156,6 +156,7 @@ describe("the modules meant for every kind of item", () => {
   const kindAgnostic = [
     "price-dashboard/item-dialogs.tsx",
     "price-dashboard/use-item-availability.ts",
+    "price-dashboard/item-flows.ts",
     "price-dashboard/item-lifecycle-model.ts",
     "price-dashboard/item-lifecycle-client.ts",
     "price-dashboard/item-lifecycle-words.ts",

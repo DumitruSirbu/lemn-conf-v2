@@ -2,33 +2,40 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  isSameItem,
-  type AvailabilityRefusalCode,
-  type CatalogueAvailability,
-  type DeletableItemRef,
-  type ItemRef,
-  type NewKitchenSettings,
-  type PriceBook,
+import type {
+  CatalogueAvailability,
+  DeletableItemRef,
+  ItemRef,
+  NewKitchenSettings,
+  PriceBook,
 } from "@lemnaria/configurator-domain";
 
 import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
 
 import { orFailed } from "./async-seams";
+import {
+  afterSwitch,
+  CLOSED,
+  deactivateFlowOf,
+  deletionFlowOf,
+  deletionSettlementOf,
+  draftOnlyDeletionFlowOf,
+  FAILED,
+  usageStandOf,
+  type DeletionSettlement,
+  type ItemFailure,
+  type ItemFlow,
+} from "./item-flows";
 import type {
   AvailabilityOutcome,
   ItemLifecycleClient,
   UsageRead,
 } from "./item-lifecycle-client";
 import {
-  countedDeletionOf,
-  countOfUse,
   deleteStandOf,
-  isItemOn,
   switchStandOf,
   type LifecycleContext,
 } from "./item-lifecycle-model";
-import type { DraftChangeRefusalCode } from "./price-dashboard-wire-contract";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { FieldWriteResult } from "./use-price-draft";
 
@@ -36,44 +43,6 @@ import type { FieldWriteResult } from "./use-price-draft";
 // change; deleting is a draft change, so the screen hands in the write. Before a switch-off or a deletion is offered the
 // saved kitchens that use the item are counted, and a count that cannot be had is said so and never read as none. One
 // dialog is open at a time, and an answer to a question the person has since closed or replaced is dropped.
-
-/** How many saved kitchens use the item, or that nobody could say. */
-export type UsageStand =
-  | { readonly kind: "counted"; readonly count: number }
-  | { readonly kind: "unavailable" };
-
-/** The dialog that is open, and the facts it is drawn from. */
-export type ItemFlow =
-  | { readonly kind: "closed" }
-  | {
-      readonly kind: "deactivate";
-      readonly item: ItemRef;
-      readonly remaining: readonly ItemRef[];
-      readonly usage: UsageStand;
-    }
-  | { readonly kind: "last-active-option"; readonly item: ItemRef }
-  | { readonly kind: "activate"; readonly item: ItemRef }
-  | {
-      readonly kind: "delete";
-      readonly item: DeletableItemRef;
-      readonly usage: UsageStand;
-      /** Only the draft holds the item, so deleting it takes it back out of the draft and nothing is published. */
-      readonly isDraftOnly: boolean;
-    }
-  | {
-      readonly kind: "delete-blocked";
-      readonly item: DeletableItemRef;
-      /** How many saved kitchens use it; absent where a server refused the deletion without saying. */
-      readonly count: number | undefined;
-      /** Customers are offered the item now, so switching it off is the way on that the dialog names. */
-      readonly isOn: boolean;
-    };
-
-/** What the last confirmation came to when it was not written. */
-export type ItemFailure =
-  | { readonly kind: "refused"; readonly code: AvailabilityRefusalCode }
-  | { readonly kind: "conflict" }
-  | { readonly kind: "failed" };
 
 export interface ItemAvailabilityDesk {
   /** What is switched off now, as the last answer left it. */
@@ -97,7 +66,7 @@ export interface ItemAvailabilityInput {
   /** What the screen's last whole-state read holds of what is switched off. It seeds the desk; a later one that names
    *  another revision only says the data moved, and the desk reads what is switched off again. */
   readonly observed: CatalogueAvailability;
-  /** The active book: its rows are the items, and its tiers are the groups. */
+  /** The active book: it states the items, and the group each is chosen from. */
   readonly book: PriceBook;
   readonly defaults: NewKitchenSettings | undefined;
   readonly client: ItemLifecycleClient;
@@ -109,12 +78,8 @@ export interface ItemAvailabilityInput {
   readonly isDraftOnly: (item: DeletableItemRef) => boolean;
 }
 
-const CLOSED: ItemFlow = { kind: "closed" };
-/** An item only the draft holds was never published, so no saved kitchen names it. */
-const NO_SAVED_KITCHEN_CAN_USE_IT = 0;
 const UNREADABLE_USAGE: UsageRead = { kind: "unavailable" };
 const FAILED_OUTCOME: AvailabilityOutcome = { kind: "failed" };
-const FAILED: ItemFailure = { kind: "failed" };
 
 export function useItemAvailability({
   observed,
@@ -204,12 +169,13 @@ export function useItemAvailability({
           setFlow({ kind: "activate", item });
           return;
         case "disable":
-          void openAfterCounting(item, (read) => ({
-            kind: "deactivate",
-            item,
-            remaining: stand.remaining,
-            usage: usageStandOf(read, item),
-          }));
+          void openAfterCounting(item, (read) =>
+            deactivateFlowOf({
+              item,
+              remaining: stand.remaining,
+              usage: usageStandOf(read, item),
+            }),
+          );
       }
     },
     [context, moveOn, openAfterCounting],
@@ -220,12 +186,7 @@ export function useItemAvailability({
       moveOn();
       if (deleteStandOf(item, context).kind === "off") return;
       if (isDraftOnly(item)) {
-        setFlow({
-          kind: "delete",
-          item,
-          usage: { kind: "counted", count: NO_SAVED_KITCHEN_CAN_USE_IT },
-          isDraftOnly: true,
-        });
+        setFlow(draftOnlyDeletionFlowOf(item));
         return;
       }
       void openAfterCounting(item, (read) =>
@@ -249,7 +210,8 @@ export function useItemAvailability({
           await readAvailabilityAgain();
           return;
         case "conflict":
-          // The dialog was drawn from facts this read replaces, so it closes and the notice stays: asking again counts again.
+          // The dialog was drawn from facts this read replaces, so it closes and the notice stays: asking again
+          // counts again.
           setFailure({ kind: "conflict" });
           setFlow(CLOSED);
           await readAvailabilityAgain();
@@ -266,48 +228,21 @@ export function useItemAvailability({
     [adoptWritten, readAvailabilityAgain],
   );
 
-  /** A saved kitchen has come to use the item since it was counted: no retry changes that, so the block is said. */
-  const settleRefusedDeletion = useCallback(
-    (code: DraftChangeRefusalCode, item: DeletableItemRef) => {
-      if (code === "ITEM_IN_USE") {
-        setFlow({
-          kind: "delete-blocked",
-          item,
-          count: undefined,
-          isOn: isItemOn(item, context),
-        });
-      } else if (code === "ITEM_IS_DEFAULT") {
-        setFailure({ kind: "refused", code: "item-is-default" });
-      } else {
-        setFailure(FAILED);
-      }
-    },
-    [context],
-  );
-
-  const settleDeletion = useCallback(
-    (result: FieldWriteResult, item: DeletableItemRef) => {
-      switch (result.kind) {
-        case "saved":
-        case "unchanged":
-          setFlow(CLOSED);
-          return;
-        case "busy":
-          return;
-        case "conflict":
-          setFailure({ kind: "conflict" });
-          return;
-        case "refused":
-          settleRefusedDeletion(result.code, item);
-          return;
-        case "candidate-refused":
-        case "failed":
-          setFailure(FAILED);
-          return;
-      }
-    },
-    [settleRefusedDeletion],
-  );
+  const settleDeletion = useCallback((settlement: DeletionSettlement) => {
+    switch (settlement.kind) {
+      case "wait":
+        return;
+      case "close":
+        setFlow(CLOSED);
+        return;
+      case "fail":
+        setFailure(settlement.failure);
+        return;
+      case "replace":
+        setFlow(settlement.flow);
+        return;
+    }
+  }, []);
 
   /** One confirmation at a time: a second press while one is out is not sent. */
   const sendOnce = useCallback(async (send: () => Promise<void>) => {
@@ -347,9 +282,9 @@ export function useItemAvailability({
           () => deleteFromDraft(item),
           { kind: "failed" },
         );
-        settleDeletion(result, item);
+        settleDeletion(deletionSettlementOf({ result, item, context }));
       }),
-    [deleteFromDraft, sendOnce, settleDeletion],
+    [deleteFromDraft, sendOnce, settleDeletion, context],
   );
 
   const dismiss = useCallback(() => {
@@ -363,22 +298,24 @@ export function useItemAvailability({
     const stand = switchStandOf(item, context);
     moveOn();
     if (stand.kind === "disable") {
-      const remaining = stand.remaining;
+      const { remaining } = stand;
       if (count === undefined) {
-        void openAfterCounting(item, (read) => ({
-          kind: "deactivate",
-          item,
-          remaining,
-          usage: usageStandOf(read, item),
-        }));
+        void openAfterCounting(item, (read) =>
+          deactivateFlowOf({
+            item,
+            remaining,
+            usage: usageStandOf(read, item),
+          }),
+        );
         return;
       }
-      setFlow({
-        kind: "deactivate",
-        item,
-        remaining,
-        usage: { kind: "counted", count },
-      });
+      setFlow(
+        deactivateFlowOf({
+          item,
+          remaining,
+          usage: { kind: "counted", count },
+        }),
+      );
     } else if (stand.kind === "last-active-option") {
       setFlow({ kind: "last-active-option", item });
     } else {
@@ -420,55 +357,4 @@ export function useItemAvailability({
     dismiss,
     deactivateInstead,
   };
-}
-
-function usageStandOf(read: UsageRead, item: ItemRef): UsageStand {
-  if (read.kind !== "counted") return { kind: "unavailable" };
-  const count = countOfUse(read.counts, item);
-  return count === undefined
-    ? { kind: "unavailable" }
-    : { kind: "counted", count };
-}
-
-/** The dialog a deletion opens once its saved kitchens are counted: a block where any use one, a confirmation where none. */
-function deletionFlowOf(
-  item: DeletableItemRef,
-  context: LifecycleContext,
-  read: UsageRead,
-): ItemFlow {
-  const usage = usageStandOf(read, item);
-  if (read.kind !== "counted" || usage.kind !== "counted") {
-    return {
-      kind: "delete",
-      item,
-      usage: { kind: "unavailable" },
-      isDraftOnly: false,
-    };
-  }
-  const verdict = countedDeletionOf(item, context, read.counts);
-  switch (verdict.kind) {
-    case "in-use":
-      return {
-        kind: "delete-blocked",
-        item,
-        count: verdict.count,
-        isOn: isItemOn(item, context),
-      };
-    case "allowed":
-      return { kind: "delete", item, usage, isDraftOnly: false };
-    case "off":
-      return CLOSED;
-  }
-}
-
-function afterSwitch(
-  held: CatalogueAvailability,
-  item: ItemRef,
-  active: boolean,
-  { revision }: { readonly revision: string },
-): CatalogueAvailability {
-  const others = held.disabled.filter(
-    (disabled) => !isSameItem(disabled, item),
-  );
-  return { revision, disabled: active ? others : [...others, item] };
 }

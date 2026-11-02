@@ -6,9 +6,9 @@ import type { FailedSave } from "./price-input-words";
 import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { FieldWriteResult } from "./use-price-draft";
 
-// A Save that sends one write per changed field: it stops at the first that is not written, its answer is dropped once the
-// person has typed since, and a notice is shown only for what the server wrote. A failure says whether an earlier write of
-// the same Save had landed, so the words never claim that nothing changed when the draft holds something.
+// A Save that sends one write per changed field: it stops at the first that is not written, its answer is dropped once
+// the person has typed since, and a notice is shown only for what the server wrote. A failure says whether an earlier
+// write of the same Save had landed, so the words never claim that nothing changed when the draft holds something.
 
 export type SaveFeedback =
   | { readonly kind: "none" }

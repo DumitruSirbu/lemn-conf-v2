@@ -11,13 +11,9 @@ import { FormNotice } from "@/account/account-form-parts";
 import type { ContentTranslator } from "@/i18n/content";
 
 import styles from "./item-dialogs.module.css";
+import type { ItemFailure, ItemFlow, UsageStand } from "./item-flows";
 import { itemFailureWords } from "./item-lifecycle-words";
-import type {
-  ItemAvailabilityDesk,
-  ItemFailure,
-  ItemFlow,
-  UsageStand,
-} from "./use-item-availability";
+import type { ItemAvailabilityDesk } from "./use-item-availability";
 
 // The questions asked before an item is switched off or on or deleted, drawn the same for every kind of item: a dialog is
 // told the item's name and the names of what remains, and the words are the lifecycle leaves'. Each opens on its cancel (or,

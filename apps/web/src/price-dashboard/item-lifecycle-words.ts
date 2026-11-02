@@ -3,7 +3,7 @@ import type { AvailabilityRefusalCode } from "@lemnaria/configurator-domain";
 import type { ContentTranslator } from "@/i18n/content";
 
 import type { OffReason } from "./item-lifecycle-model";
-import type { ItemFailure } from "./use-item-availability";
+import type { ItemFailure } from "./item-flows";
 
 // The words of every refusal a switch or a deletion can meet, in the one place a code becomes a sentence, so a reason reads
 // the same under a menu entry, beside a switch and in a dialog.

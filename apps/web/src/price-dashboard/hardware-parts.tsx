@@ -21,8 +21,8 @@ import {
 } from "./item-lifecycle-model";
 import { offReasonWords } from "./item-lifecycle-words";
 
-// What the hardware list and the class page draw the same way: the chips of a class, the item it stands for, why a switch
-// or a deletion may be off, and the control that says so beside itself.
+// What the hardware list and the class page draw the same way: the chips of a class, the item it stands for, why a
+// switch or a deletion may be off, and the control that says so beside itself.
 
 export function hardwareItemOf({
   tierId,

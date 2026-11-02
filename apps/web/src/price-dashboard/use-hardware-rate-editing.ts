@@ -15,8 +15,8 @@ import {
 import type { FieldWriteResult, PriceDraft } from "./use-price-draft";
 
 // Typing, saving and cancelling the rates on a class's page. Nothing is sent while typing; a save sends one write per
-// changed rate (`use-sequential-save.ts`). A class only the draft knows has no active rate to type back to, so each of its
-// rates is a change of its own and none is ever taken out of the draft as "equal to the active one".
+// changed rate (`use-sequential-save.ts`). A class only the draft knows has no active rate to type back to, so each of
+// its rates is a change of its own and none is ever taken out of the draft as "equal to the active one".
 
 export interface RateFieldState {
   readonly rate: HardwareRateFacts;

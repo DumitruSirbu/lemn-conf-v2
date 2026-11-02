@@ -199,8 +199,8 @@ export function priceWriteFailureWords(
   return priceFailureWords(translate, failure, SAVE_FAILED);
 }
 
-/** What the answer to a Save says. Only a sentence that claims nothing was changed differs where an earlier write of the
- *  Save had landed, since the draft then holds it. */
+/** What the answer to a Save says. Only a sentence that claims nothing was changed differs where an earlier write of
+ *  the Save had landed, since the draft then holds it. */
 export function saveFailureWords(
   translate: ContentTranslator,
   { failure, hasWrittenEarlier }: FailedSave,
