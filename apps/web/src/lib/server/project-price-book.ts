@@ -87,6 +87,7 @@ const HARDWARE_MEMBERS = [
     "perHingeMinor",
     "perDrawerMinor",
     "perPushToOpenMinor",
+    "perLiftMinor",
   ]),
 ] as const;
 

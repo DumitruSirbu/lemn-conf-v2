@@ -178,6 +178,7 @@ describe("the demo's 16 latches, derived from the fixture rather than from the c
       pushToOpen: sum(
         SEEDED_CENSUS.filter(isPushToOpenByTheRuling).map(openingFrontsOf),
       ),
+      lifts: 0,
     });
   });
 
@@ -504,7 +505,7 @@ describe("canHandle disqualifies the recorded mode and never exempts a body", ()
         [entryAt({ buildId: REFUSING_ROW, y0Mm: 1_500, handle: "push" })],
         CATALOG,
       ),
-    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0 });
+    ).toEqual({ hinges: 2, drawers: 0, pushToOpen: 0, lifts: 0 });
   });
 
   it.each(["push", "steel", "black"] as const)(

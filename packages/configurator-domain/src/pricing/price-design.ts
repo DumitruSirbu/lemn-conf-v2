@@ -509,10 +509,10 @@ interface DeclaredBookAmount {
 }
 
 /**
- * The hardware line's unit amount and whole amount, because its quantity is 1: three rates cannot
+ * The hardware line's unit amount and whole amount, because its quantity is 1: four rates cannot
  * share one unit price (ADR 0092 decision 4).
  *
- * All three rates are checked whatever the design counts: a book declaring `null` for its
+ * All four rates are checked whatever the design counts: a book declaring `null` for its
  * push-to-open rate is malformed even when this kitchen has no push body.
  */
 function hardwareUnitAmount(
@@ -534,18 +534,20 @@ function hardwareUnitAmount(
   );
 }
 
-/** A hardware tier's three rates, in the order they are charged: one list drives both the check and
+/** A hardware tier's four rates, in the order they are charged: one list drives both the check and
  *  the terms built from it. */
 const HARDWARE_RATE_FIELDS: readonly HardwareRateField[] = [
   "perHingeMinor",
   "perDrawerMinor",
   "perPushToOpenMinor",
+  "perLiftMinor",
 ];
 
 type HardwareRateField =
   | "perHingeMinor"
   | "perDrawerMinor"
-  | "perPushToOpenMinor";
+  | "perPushToOpenMinor"
+  | "perLiftMinor";
 
 /** One rate a tier declares, known to be an exact count of minor units; the field picks the count. */
 interface CheckedHardwareRate {
@@ -553,7 +555,7 @@ interface CheckedHardwareRate {
   readonly minor: number;
 }
 
-/** Checks all three rates before the design is read at all (see `hardwareUnitAmount`). */
+/** Checks all four rates before the design is read at all (see `hardwareUnitAmount`). */
 function checkedHardwareRates(
   tier: HardwareTier,
 ): Attempt<readonly CheckedHardwareRate[]> {
@@ -578,7 +580,7 @@ function chargedOverMechanisms(
   }));
 }
 
-/** Which of the three counts a rate is charged over (ADR 0092 decision 2). */
+/** Which of the four counts a rate is charged over (ADR 0092 decision 2). */
 function mechanismsChargedAt(
   counts: HardwareMechanismCounts,
   field: HardwareRateField,
@@ -590,10 +592,12 @@ function mechanismsChargedAt(
       return counts.drawers;
     case "perPushToOpenMinor":
       return counts.pushToOpen;
+    case "perLiftMinor":
+      return counts.lifts;
   }
 }
 
-/** One of a tier's three rates, carrying its own field name so a refusal names the rate, not the tier. */
+/** One of a tier's four rates, carrying its own field name so a refusal names the rate, not the tier. */
 function hardwareRate(
   tier: HardwareTier,
   field: HardwareRateField,
@@ -1118,7 +1122,7 @@ function checkedBookAmount(
 
 /**
  * `exactAmountOfTerms` **throws** where a product or running sum leaves the exact-integer range; this
- * query refuses with a code instead. Separate from `checkedHardwareRates`: three exact rates do not
+ * query refuses with a code instead. Separate from `checkedHardwareRates`: four exact rates do not
  * make an exact total, since two out-of-range products and a sum landing back inside the range would
  * publish a wrong amount that every later guard accepts.
  */

@@ -281,8 +281,7 @@ const hardwareTierArb = fc.record({
   perHingeMinor: amountArb,
   perDrawerMinor: amountArb,
   perPushToOpenMinor: amountArb,
-  // No `perLiftMinor`: the parser refuses a tier member `HardwareTier` does not declare (M10 P3-Q3), and P5 declares this
-  // one. P5 restores `perLiftMinor: fc.option(amountArb, { nil: undefined })` here.
+  perLiftMinor: amountArb,
 });
 
 export interface BookPlan {
@@ -533,7 +532,7 @@ export function fixedPlan(): BookPlan {
       perHingeMinor: 1_000 + index,
       perDrawerMinor: 60_000 + index,
       perPushToOpenMinor: 4_000 + index,
-      perLiftMinor: undefined,
+      perLiftMinor: 20_000 + index,
     })),
     hardwareDefault: 0,
     keptMaterials: [0, 1, 2],

@@ -23,6 +23,7 @@ export const RATE_FIELDS = [
   "perHingeMinor",
   "perDrawerMinor",
   "perPushToOpenMinor",
+  "perLiftMinor",
 ] as const;
 export type RateField = (typeof RATE_FIELDS)[number];
 
@@ -101,7 +102,7 @@ export const accessoryItem = (accessoryId: string): ItemRef => ({
   accessoryId,
 });
 
-/** A whole hardware class: its creation and the three rates it owes. */
+/** A whole hardware class: its creation and the four rates it owes. */
 export function tierDraft(tierId: string): readonly DraftChange[] {
   return [createTier(tierId), ...allRates(tierId)];
 }
@@ -144,6 +145,7 @@ export function statedRowsOf(book: PriceBook): readonly StatedRow[] {
           perHingeMinor: tier.perHingeMinor,
           perDrawerMinor: tier.perDrawerMinor,
           perPushToOpenMinor: tier.perPushToOpenMinor,
+          perLiftMinor: tier.perLiftMinor,
         },
       }),
     ),
@@ -181,11 +183,7 @@ const anAccessoryId = fc.constantFrom("acc.a", "acc.b", "acc.c");
 const aLink = fc.constantFrom(...SUPPLIED_ROW_IDS);
 // eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this input must pass or be refused
 const aWord = fc.constantFrom("Alfa", "Beta", "Gama", "Sertar ad\u00e2nc");
-const aRate = fc.constantFrom(
-  "perHingeMinor",
-  "perDrawerMinor",
-  "perPushToOpenMinor",
-);
+const aRate = fc.constantFrom(...RATE_FIELDS);
 const anAmount = fc.integer({ min: 0, max: 200_000 });
 
 export const aTierBlock = fc
@@ -194,7 +192,9 @@ export const aTierBlock = fc
     fc.oneof(
       {
         weight: 5,
-        arbitrary: fc.shuffledSubarray([...RATE_FIELDS], { minLength: 3 }),
+        arbitrary: fc.shuffledSubarray([...RATE_FIELDS], {
+          minLength: RATE_FIELDS.length,
+        }),
       },
       { weight: 1, arbitrary: fc.shuffledSubarray([...RATE_FIELDS]) },
     ),

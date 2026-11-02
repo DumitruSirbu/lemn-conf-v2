@@ -7,6 +7,7 @@ import type { prepareWrite as PrepareWrite } from "../../src/price-dashboard/edi
 import { applyChanges } from "../../src/price-dashboard/apply-changes.js";
 import type {
   BookFieldAddress,
+  HardwareRateField,
   DraftChange,
 } from "../../src/price-dashboard/book-field-address.js";
 import type { PriceBook } from "../../src/pricing/price-book.js";
@@ -43,7 +44,7 @@ const createTier = {
 } as unknown as DraftChange;
 
 function rateOnCreatedTier(
-  field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
+  field: HardwareRateField,
   value: number,
 ): DraftChange {
   return {
@@ -56,10 +57,11 @@ function rateOnCreatedTier(
   } as DraftChange;
 }
 
-const [hingeRate, drawerRate, pushRate] = [
+const [hingeRate, drawerRate, pushRate, liftRate] = [
   rateOnCreatedTier("perHingeMinor", 4_321),
   rateOnCreatedTier("perDrawerMinor", 5_000),
   rateOnCreatedTier("perPushToOpenMinor", 0),
+  rateOnCreatedTier("perLiftMinor", 7_000),
 ];
 
 beforeEach(() => {
@@ -102,6 +104,7 @@ describe("each change is judged against the running candidate", () => {
       hingeRate,
       drawerRate,
       pushRate,
+      liftRate,
     ]);
 
     expect(result.ok).toBe(true);
@@ -113,6 +116,7 @@ describe("each change is judged against the running candidate", () => {
       perHingeMinor: 4_321,
       perDrawerMinor: 5_000,
       perPushToOpenMinor: 0,
+      perLiftMinor: 7_000,
     });
   });
 
@@ -122,6 +126,7 @@ describe("each change is judged against the running candidate", () => {
       hingeRate,
       drawerRate,
       pushRate,
+      liftRate,
     ]);
 
     const [, judgedAtRate] = seam.judgedAgainst;
@@ -139,6 +144,7 @@ describe("each change is judged against the running candidate", () => {
       createTier,
       drawerRate,
       pushRate,
+      liftRate,
     ]);
 
     expect(result).toMatchObject({

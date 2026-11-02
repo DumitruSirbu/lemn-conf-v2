@@ -364,7 +364,23 @@ function refuseUnreadableTier(
     ) ??
     refuseUnreadableWords(declared, named) ??
     refuseOversizedAmount(declared, named) ??
-    refuseUnusableRates(declared, named)
+    refuseUnusableRates(declared, named) ??
+    refuseUndeclaredLiftRate(declared, named, kind)
+  );
+}
+
+/** A hardware tier states its lift rate: required, since a book without it would price a lift-up door with no term for
+ *  its mechanism. Sign and wholeness are `refuseUnusableRates`'s, which has already run. */
+function refuseUndeclaredLiftRate(
+  declared: Record<string, unknown>,
+  named: string,
+  kind: string,
+): PricingFailure | undefined {
+  if (kind !== "hardware") return undefined;
+  const read = readDeclared(declared, "perLiftMinor");
+  if (typeof read === "number") return undefined;
+  return invalidBook(
+    `The ${named} declares no "perLiftMinor", which is a whole number of bani. Found: ${describeDeclared(read)}`,
   );
 }
 

@@ -48,6 +48,7 @@ function isSameReadout(
     active.amountMinor === draft.amountMinor &&
     active.hinges === draft.hinges &&
     active.drawers === draft.drawers &&
+    active.lifts === draft.lifts &&
     active.tierName.authored === draft.tierName.authored
   );
 }
@@ -108,6 +109,11 @@ function quantitiesOf(
       ? undefined
       : translate("priceDashboard.cabinet.slidePairCount", {
           count: hardware.drawers,
+        }),
+    hardware.lifts === 0
+      ? undefined
+      : translate("priceDashboard.cabinet.liftCount", {
+          count: hardware.lifts,
         }),
   ].filter((part) => part !== undefined);
   return parts.reduce((head, tail) =>

@@ -22,6 +22,7 @@ import {
 import type { BodyCatalog } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
 
+import type { HardwareRateField } from "./book-field-address.js";
 import {
   isDepthPercentInRange,
   isMaterialPercentInRange,
@@ -372,15 +373,12 @@ function hardwareMinorAt(
         counts.pushToOpen,
         "perPushToOpenMinor",
       ),
+      termOf(hardware.perLiftMinor, counts.lifts, "perLiftMinor"),
     ]),
   );
 }
 
-function termOf(
-  rateMinor: number,
-  count: number,
-  field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
-) {
+function termOf(rateMinor: number, count: number, field: HardwareRateField) {
   return {
     coefficientMinor: usableCoefficientOf(rateMinor, field),
     count,

@@ -1,6 +1,6 @@
-// What a body's fronts are, told apart: how many open on hinges, how many pull out on runners, and how
-// tall each door band is (ADR 0070 prices hinges by door leaf, runners by drawer, and a third hinge on
-// any leaf taller than 900 mm).
+// What a body's fronts are, told apart: how many open on hinges, how many pull out on runners, which doors
+// are lift-up flaps, and how tall each door band is (ADR 0070 prices hinges by door leaf, runners by drawer,
+// and a third hinge on any leaf taller than 900 mm; ADR 0177 A-20 prices a lift per lift-up door).
 //
 // Declared per catalogue entry, because the domain has no meshes to inspect (ADR 0061 decision 3). A
 // door band's height is not the frame height: `tallPantry` draws 1290 mm and 790 mm bands inside a
@@ -28,7 +28,8 @@ export type DoorBandsRule =
  *  and `base-3drawer` are both `base_cabinet`) nor from a handle edge (`doorSlab(…, "top")` covers
  *  drawers and doors below the worktop alike). see ADR 0061
  *
- *  - `declared-leaves`: the leaf population is fixed at every width (`base-sink`: one band of two).
+ *  - `declared-leaves`: the leaf population is fixed at every width (`base-sink`: one band of two). It alone may
+ *    declare `liftUp`: every door of the body is a lift-up flap with its own lift mechanism.
  *  - `leaves-follow-width`: a `doorCountFollowsWidth` row whose leaves per band come from
  *    `deriveDoorCount` (`tall-pantry`: two bands, so two leaves at 400 mm and four at 600).
  *
@@ -39,6 +40,7 @@ export type FrontPopulationRule =
       readonly doorBands: DoorBandsRule;
       readonly leavesPerBand: number;
       readonly drawers: number;
+      readonly liftUp?: true;
     }
   | {
       readonly countedFrom: "leaves-follow-width";
@@ -111,6 +113,8 @@ export interface DeclaredFronts {
   readonly doorBands: DoorBandsRule;
   readonly leavesPerBand: number;
   readonly drawers: number;
+  /** Every door of this body is a lift-up flap. Declared per row, never read off a build id or a handle edge. */
+  readonly liftUp?: true;
 }
 
 /** A body whose front population is fixed at every width it is built to. Throws at construction on a
@@ -127,6 +131,7 @@ export function carriesFronts(fronts: DeclaredFronts): FrontPopulationRule {
     doorBands: fronts.doorBands,
     leavesPerBand: fronts.leavesPerBand,
     drawers: fronts.drawers,
+    ...(fronts.liftUp === true ? { liftUp: true as const } : {}),
   };
 }
 
@@ -356,6 +361,22 @@ export function doorLeafHeightsMm(
  *  cannot come apart. A drawer is not a leaf. Fails closed: a query whose entry declares nothing throws. */
 export function doorLeafCount(query: FrontPopulationQuery): number {
   return doorLeafHeightsMm(query).length;
+}
+
+/** The width of each lift-up door this body carries, one entry per door, empty for a body that declares none: the
+ *  list ADR 0177 A-20's lift count and width-based hinge rule are applied over. A door is the body's width shared
+ *  between the leaves of one band. Only a declared `liftUp` makes a door a lift door. */
+export function liftDoorWidthsMm(
+  query: FrontPopulationQuery,
+): readonly number[] {
+  if (!declaresLiftUp(query.rule)) return [];
+  const leafWidthMm = query.widthMm / leavesPerBandOf(query);
+  return Array.from<number>({ length: doorLeafCount(query) }).fill(leafWidthMm);
+}
+
+/** Read as `=== true` because `BodyCatalog` is a port: a definition from outside TypeScript can carry any value. */
+function declaresLiftUp(rule: FrontPopulationRule | undefined): boolean {
+  return rule?.countedFrom === "declared-leaves" && rule.liftUp === true;
 }
 
 /** How many drawers this body carries: the quantity ADR 0070's runner rule is counted over. Its

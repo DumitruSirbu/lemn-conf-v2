@@ -3,13 +3,14 @@
 import { describe, expect, it } from "vitest";
 
 import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
-import type { PriceBook } from "../../src/pricing/price-book.js";
+import type { HardwareTier, PriceBook } from "../../src/pricing/price-book.js";
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 
 const HARDWARE_RATES = [
   "perHingeMinor",
   "perDrawerMinor",
   "perPushToOpenMinor",
+  "perLiftMinor",
 ] as const;
 
 function withHardwareRate(
@@ -66,6 +67,54 @@ describe("the book parser and negative tier and accessory amounts", () => {
       expect(parsePriceBook(priced(0)).ok).toBe(true);
     },
   );
+});
+
+describe("the book parser and a hardware tier that states no lift rate", () => {
+  function withoutLiftRate(tierIndex: number): PriceBook {
+    return {
+      ...SAMPLE_PRICE_BOOK,
+      hardware: {
+        ...SAMPLE_PRICE_BOOK.hardware,
+        tiers: SAMPLE_PRICE_BOOK.hardware.tiers.map((tier, index) =>
+          index === tierIndex
+            ? (Object.fromEntries(
+                Object.entries(tier).filter(([key]) => key !== "perLiftMinor"),
+              ) as unknown as HardwareTier)
+            : tier,
+        ),
+      },
+    };
+  }
+
+  it.each(SAMPLE_PRICE_BOOK.hardware.tiers.map((_, index) => index))(
+    "refuses the book when tier %i carries no perLiftMinor, naming the field",
+    (tierIndex) => {
+      const result = parsePriceBook(withoutLiftRate(tierIndex));
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.failure.code).toBe("INVALID_PRICE_BOOK");
+      expect(result.failure.detail).toContain("perLiftMinor");
+    },
+  );
+
+  it.each([null, "20000", true])(
+    "refuses a perLiftMinor of %j, which is not a number",
+    (declared) => {
+      const result = parsePriceBook(
+        withHardwareRate("perLiftMinor", declared as unknown as number),
+      );
+
+      expect(result.ok).toBe(false);
+    },
+  );
+
+  it("does not ask a material tier for a lift rate", () => {
+    expect(parsePriceBook(SAMPLE_PRICE_BOOK).ok).toBe(true);
+    expect(
+      Object.keys(SAMPLE_PRICE_BOOK.material.tiers[0] ?? {}),
+    ).not.toContain("perLiftMinor");
+  });
 });
 
 describe("the book parser and tier and accessory amounts that are not whole", () => {

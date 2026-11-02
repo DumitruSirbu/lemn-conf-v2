@@ -470,7 +470,7 @@ describe("the address of a row reverts the row", () => {
         row.address.tierId === "hardware.premium",
     );
 
-    expect(rateRows).toHaveLength(3);
+    expect(rateRows).toHaveLength(4);
     for (const row of rateRows) {
       if (row.kind !== "field") continue;
       expect(revertChange(DRAFT, row.address).length).toBeLessThan(
@@ -802,6 +802,7 @@ describe("restoreChanges covers the fields both books state and never a row", ()
       setRate("hw.shared", "perHingeMinor", 1),
       setRate("hw.shared", "perDrawerMinor", 2),
       setRate("hw.shared", "perPushToOpenMinor", 3),
+      setRate("hw.shared", "perLiftMinor", 4),
       setAccessoryPrice("organiser", 8),
     ]);
 
@@ -813,6 +814,7 @@ describe("restoreChanges covers the fields both books state and never a row", ()
         { kind: "hardware", tierId: "hw.shared", field: "perHingeMinor" },
         { kind: "hardware", tierId: "hw.shared", field: "perDrawerMinor" },
         { kind: "hardware", tierId: "hw.shared", field: "perPushToOpenMinor" },
+        { kind: "hardware", tierId: "hw.shared", field: "perLiftMinor" },
         { kind: "accessory", accessoryId: "organiser", field: "perUnitMinor" },
       ]
         .map((address) => addressKey(address))
@@ -828,6 +830,6 @@ describe("restoreChanges covers the fields both books state and never a row", ()
       }),
       { numRuns: RUNS, seed: SEED },
     );
-    expect(allRates("x")).toHaveLength(3);
+    expect(allRates("x")).toHaveLength(4);
   });
 });

@@ -2,9 +2,10 @@
 import { describe, expect, it } from "vitest";
 
 import { applyChanges } from "../../src/price-dashboard/apply-changes.js";
-import type {
-  BookFieldAddress,
-  DraftChange,
+import {
+  HARDWARE_RATE_FIELDS,
+  type BookFieldAddress,
+  type DraftChange,
 } from "../../src/price-dashboard/book-field-address.js";
 import {
   DIFF_SECTIONS,
@@ -32,9 +33,8 @@ const CREATE_TIER: readonly DraftChange[] = [
     { kind: "hardware-tier-created", tierId: TIER },
     { name: "Economic", description: "Glisiere simple." },
   ),
-  ...(["perHingeMinor", "perDrawerMinor", "perPushToOpenMinor"] as const).map(
-    (field, index) =>
-      change({ kind: "hardware", tierId: TIER, field }, 1_000 * (index + 1)),
+  ...HARDWARE_RATE_FIELDS.map((field, index) =>
+    change({ kind: "hardware", tierId: TIER, field }, 1_000 * (index + 1)),
   ),
 ];
 
@@ -77,11 +77,11 @@ describe("a created hardware class", () => {
   it("draws each rate as a field row that was absent before, never zero", () => {
     const rates = rowsOfKind(rows, "field");
 
-    expect(rates).toHaveLength(3);
+    expect(rates).toHaveLength(HARDWARE_RATE_FIELDS.length);
     expect(rates.map((row) => row.before)).toEqual(
       rates.map(() => ({ kind: "absent" })),
     );
-    expect(rates.map((row) => row.after)).toEqual([1_000, 2_000, 3_000]);
+    expect(rates.map((row) => row.after)).toEqual([1_000, 2_000, 3_000, 4_000]);
   });
 
   it("draws nothing for the class when the book is not changed", () => {
@@ -137,6 +137,7 @@ describe("a deleted item", () => {
       },
     ]);
     expect(rowsOfKind(rows, "field").map((row) => row.after)).toEqual([
+      { kind: "absent" },
       { kind: "absent" },
       { kind: "absent" },
       { kind: "absent" },
@@ -276,6 +277,7 @@ describe("the order of the rows", () => {
     const hardware = rows.filter((row) => row.section === "hardware");
     expect(hardware.map((row) => row.kind)).toEqual([
       "row",
+      "field",
       "field",
       "field",
       "field",

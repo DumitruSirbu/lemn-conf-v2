@@ -72,6 +72,7 @@ describe("every preview cell is the whole query's price of a kitchen of that cab
     "base-3drawer",
     "base-sink",
     "wall-cabinet",
+    "wall-lift",
     "tall-pantry",
     "base-dishwasher",
     "base-corner-return-320",
@@ -230,6 +231,31 @@ describe("previewCabinet", () => {
     expect(drawers[0]?.hardwareMinor).toBeGreaterThan(0);
     expect(rowsOf("base-3drawer")[0]?.hardwareMinor).toBeUndefined();
   });
+});
+
+describe("a lift-up cabinet's preview hardware carries the lift term and the width-based hinges", () => {
+  const WIDTH_BELOW_THE_THIRD_HINGE_MM = 500;
+  const WIDTH_PAST_THE_THIRD_HINGE_MM = 550;
+
+  /** Restated, as an oracle must not import the rounding it checks. */
+  const tenLeiOf = (exactMinor: number): number =>
+    Math.round(exactMinor / 1_000) * 1_000;
+
+  it.each(SAMPLE_PRICE_BOOK.hardware.tiers)(
+    "bills $tierId two hinges and one lift at 500 mm, three hinges and one lift at 550 mm",
+    (tier) => {
+      const rows = rowsOf("wall-lift", { hardwareTier: tier.tierId });
+      const hardwareAt = (widthMm: number) =>
+        rows.find((row) => row.widthMm === widthMm)?.hardwareMinor;
+
+      expect(hardwareAt(WIDTH_BELOW_THE_THIRD_HINGE_MM)).toBe(
+        tenLeiOf(2 * tier.perHingeMinor + tier.perLiftMinor),
+      );
+      expect(hardwareAt(WIDTH_PAST_THE_THIRD_HINGE_MM)).toBe(
+        tenLeiOf(3 * tier.perHingeMinor + tier.perLiftMinor),
+      );
+    },
+  );
 });
 
 describe("previewCabinet refuses what it cannot draw", () => {

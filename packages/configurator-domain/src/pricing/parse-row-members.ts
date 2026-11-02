@@ -48,6 +48,7 @@ const HARDWARE_TIER_MEMBERS: readonly string[] = [
     "perHingeMinor",
     "perDrawerMinor",
     "perPushToOpenMinor",
+    "perLiftMinor",
   ]),
 ];
 

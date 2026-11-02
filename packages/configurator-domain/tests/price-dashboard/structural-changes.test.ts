@@ -9,13 +9,15 @@ import {
 import type {
   BookFieldAddress,
   DraftChange,
+  HardwareRateField,
 } from "../../src/price-dashboard/book-field-address.js";
 import {
   createdItemsOf,
   deletedItemsOf,
 } from "../../src/price-dashboard/draft-structure.js";
+import { hardwareRatesOf } from "../../src/price-dashboard/structural-changes.js";
 import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
-import type { PriceBook } from "../../src/pricing/price-book.js";
+import type { HardwareTier, PriceBook } from "../../src/pricing/price-book.js";
 
 import { deepFreeze, PERCENTAGE_BOOK } from "./change-set-books.js";
 import {
@@ -43,17 +45,18 @@ function createTier(
 
 function rate(
   tierId: string,
-  field: "perHingeMinor" | "perDrawerMinor" | "perPushToOpenMinor",
+  field: HardwareRateField,
   value: number,
 ): DraftChange {
   return change({ kind: "hardware", tierId, field }, value);
 }
 
-function allThreeRates(tierId = NEW_TIER): readonly DraftChange[] {
+function everyRate(tierId = NEW_TIER): readonly DraftChange[] {
   return [
     rate(tierId, "perHingeMinor", 1_000),
     rate(tierId, "perDrawerMinor", 2_000),
     rate(tierId, "perPushToOpenMinor", 3_000),
+    rate(tierId, "perLiftMinor", 4_000),
   ];
 }
 
@@ -103,7 +106,7 @@ function refusalOf(book: PriceBook, ...changes: DraftChange[]): string {
 }
 
 const WITH_CREATED_TIER = appliedBook(
-  applyChanges(PERCENTAGE_BOOK, [createTier(), ...allThreeRates()]),
+  applyChanges(PERCENTAGE_BOOK, [createTier(), ...everyRate()]),
 );
 const WITH_LINKED = bookWithLinked(
   [linkedRule("organiser", { description: "Pentru sertar." })],
@@ -111,9 +114,9 @@ const WITH_LINKED = bookWithLinked(
 );
 
 describe("creating a hardware class (A-18)", () => {
-  it("adds a tier with the Romanian words and the three rates, and nothing else of the book changes", () => {
+  it("adds a tier with the Romanian words and the four rates, and nothing else of the book changes", () => {
     const book = appliedBook(
-      applyChanges(PERCENTAGE_BOOK, [createTier(), ...allThreeRates()]),
+      applyChanges(PERCENTAGE_BOOK, [createTier(), ...everyRate()]),
     );
 
     expect(book.hardware.tiers.at(-1)).toEqual({
@@ -124,6 +127,7 @@ describe("creating a hardware class (A-18)", () => {
       perHingeMinor: 1_000,
       perDrawerMinor: 2_000,
       perPushToOpenMinor: 3_000,
+      perLiftMinor: 4_000,
     });
     expect(book).toEqual({
       ...PERCENTAGE_BOOK,
@@ -147,12 +151,13 @@ describe("creating a hardware class (A-18)", () => {
         "perHingeMinor",
         "perDrawerMinor",
         "perPushToOpenMinor",
+        "perLiftMinor",
       ].sort(),
     );
   });
 
   it("is not made inactive by a flag in the book: it is a created item the publish starts switched off", () => {
-    const changes = [createTier(), ...allThreeRates()];
+    const changes = [createTier(), ...everyRate()];
 
     expect(JSON.stringify(WITH_CREATED_TIER)).not.toMatch(/"active"/);
     expect(createdItemsOf(changes)).toEqual([HARDWARE(NEW_TIER)]);
@@ -184,7 +189,7 @@ describe("creating a hardware class (A-18)", () => {
     const book = appliedBook(
       applyChanges(PERCENTAGE_BOOK, [
         createTier(NEW_TIER, inheriting),
-        ...allThreeRates(),
+        ...everyRate(),
       ]),
     );
 
@@ -241,7 +246,7 @@ describe("creating a hardware class (A-18)", () => {
   it("accepts an empty description, as a tier's description is a string and may be empty", () => {
     const result = applyChanges(PERCENTAGE_BOOK, [
       createTier(NEW_TIER, { ...WORDS, description: "" }),
-      ...allThreeRates(),
+      ...everyRate(),
     ]);
 
     expect(appliedBook(result).hardware.tiers.at(-1)).toMatchObject({
@@ -256,21 +261,54 @@ describe("creating a hardware class (A-18)", () => {
   });
 });
 
+describe("the rates a created class owes are the ones the book's tiers state", () => {
+  const withoutLiftRate: PriceBook = {
+    ...PERCENTAGE_BOOK,
+    hardware: {
+      ...PERCENTAGE_BOOK.hardware,
+      tiers: PERCENTAGE_BOOK.hardware.tiers.map(
+        (tier) =>
+          Object.fromEntries(
+            Object.entries(tier).filter(([key]) => key !== "perLiftMinor"),
+          ) as unknown as HardwareTier,
+      ),
+    },
+  };
+
+  it("are the four, the lift rate last, for a book whose tiers state a lift rate", () => {
+    expect(hardwareRatesOf(PERCENTAGE_BOOK)).toEqual([
+      "perHingeMinor",
+      "perDrawerMinor",
+      "perPushToOpenMinor",
+      "perLiftMinor",
+    ]);
+  });
+
+  it("are the three for a book whose tiers state no lift rate, so a created class is never owed one nobody can price", () => {
+    expect(hardwareRatesOf(withoutLiftRate)).toEqual([
+      "perHingeMinor",
+      "perDrawerMinor",
+      "perPushToOpenMinor",
+    ]);
+  });
+});
+
 describe("a created class owes a change for every rate", () => {
   const RATES = [
     "perHingeMinor",
     "perDrawerMinor",
     "perPushToOpenMinor",
+    "perLiftMinor",
   ] as const;
 
   it.each(RATES)(
     "is refused at its own index when %s is never set",
     (missing) => {
-      const rates = allThreeRates().filter(
+      const rates = everyRate().filter(
         (rated) => (rated.address as { field?: string }).field !== missing,
       );
 
-      expect(rates).toHaveLength(2);
+      expect(rates).toHaveLength(3);
       expect(refusalOf(PERCENTAGE_BOOK, createTier(), ...rates)).toBe(
         "0:CREATED_TIER_RATES_MISSING",
       );
@@ -288,6 +326,7 @@ describe("a created class owes a change for every rate", () => {
       rate(NEW_TIER, "perHingeMinor", 0),
       rate(NEW_TIER, "perDrawerMinor", 0),
       rate(NEW_TIER, "perPushToOpenMinor", 0),
+      rate(NEW_TIER, "perLiftMinor", 0),
     ];
 
     expect(applyChanges(PERCENTAGE_BOOK, [createTier(), ...rates]).ok).toBe(
@@ -305,6 +344,7 @@ describe("a created class owes a change for every rate", () => {
         refusedRate,
         rate(NEW_TIER, "perDrawerMinor", 1),
         rate(NEW_TIER, "perPushToOpenMinor", 1),
+        rate(NEW_TIER, "perLiftMinor", 1),
       ),
     ).toBe("0:CREATED_TIER_RATES_MISSING,1:NEGATIVE");
   });
@@ -341,7 +381,7 @@ describe("an id the book already states is a collision the parser refuses (F5)",
 
       const result = applyChanges(frozen, [
         creation,
-        ...(needsRates ? allThreeRates(tierId) : []),
+        ...(needsRates ? everyRate(tierId) : []),
       ]);
 
       expect(result).toMatchObject({ ok: false, reason: "candidate-refused" });
@@ -468,7 +508,7 @@ describe("the words of a created row (A-21)", () => {
     const book = appliedBook(
       applyChanges(PERCENTAGE_BOOK, [
         createTier(),
-        ...allThreeRates(),
+        ...everyRate(),
         textOf(HARDWARE(NEW_TIER), "name", "Altul"),
       ]),
     );
@@ -668,7 +708,7 @@ describe("what a draft says about the rows it creates and deletes", () => {
     const changes = [
       createAccessory("plinth-light"),
       createTier(),
-      ...allThreeRates(),
+      ...everyRate(),
       deletion({ kind: "material", tierId: "material.veneer" }),
       deletion(ACCESSORY("sinkProtectiveCover")),
     ];
@@ -706,7 +746,7 @@ describe("a structural change leaves the base book alone", () => {
 
     const result = applyChanges(frozen, [
       createTier(),
-      ...allThreeRates(),
+      ...everyRate(),
       createAccessory("plinth-light"),
       textOf(ACCESSORY("organiser"), "name", "Altul"),
       deletion(ACCESSORY("organiser")),
