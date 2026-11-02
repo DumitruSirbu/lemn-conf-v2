@@ -1,10 +1,7 @@
 import "server-only";
 
 import {
-  buildKitchenLBodyCatalog,
-  DEFAULT_CABINET_DEPTH_MM,
   planBulkChange,
-  type BodyCatalog,
   type BulkCounts,
   type PlannedCabinetPrice,
   type PriceBook,
@@ -12,6 +9,7 @@ import {
 
 import type { BulkRefusalCode } from "@/price-dashboard/price-dashboard-wire-contract";
 import type { BulkTarget } from "@/lib/server/price-dashboard/draft-requests";
+import { shippedCatalogue } from "@/lib/server/price-dashboard/shipped-catalogue";
 
 // What scales a book's cabinet prices by a percentage is lane M's `planBulkChange` (M2: A-14's `r10(amount × (100 + p) /
 // 100)` over a scope, the four price groups derived from the catalogue band). This module is the seam the bulk route is
@@ -43,15 +41,6 @@ export interface BulkPlanner {
     readonly target: BulkTarget;
     readonly percent: number;
   }): BulkPlan;
-}
-
-let shippedCatalog: BodyCatalog | undefined;
-
-/** The catalogue the price groups and the buildable widths are read from, built on first use: it is code, so it cannot
- *  change under the process. */
-function shippedCatalogue(): BodyCatalog {
-  shippedCatalog ??= buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM);
-  return shippedCatalog;
 }
 
 const DOMAIN_BULK_PLANNER: BulkPlanner = Object.freeze({

@@ -3,8 +3,10 @@ import type {
   AccessoryCreation,
   AddressOfKind,
   BookFieldAddress,
+  BookRefusal,
   BulkChangeScope,
   CatalogueAvailability,
+  ChangeRefusalCode,
   DraftChange,
   Finish,
   Handle,
@@ -14,6 +16,7 @@ import type {
   KitchenDefaultsField,
   PriceBook,
   PriceGroupCode,
+  PricingFailureCode,
 } from "@lemnaria/configurator-domain";
 
 // What the manufacturer price dashboard's routes answer and its screens expect, once (M10 plan §8.4 d; ADR 0178).
@@ -160,12 +163,13 @@ export interface DashboardInvalidInputWire<Code extends string> {
  *   written, and the page reads again.
  * - `no-active-version`: no version was ever published, so there is no book to edit or price (A-10).
  * - `nothing-to-publish`: the draft is empty.
- * - `nothing-differs`: a restore found no difference from the active prices.
+ * - `nothing-differs`: a restore found no difference from the candidate (the active prices with the draft applied).
  * - `item-not-in-active-book`: availability of a row only the draft knows (A-17).
  * - `item-is-default`: the D9 default cannot be switched off, nor deleted by a publish; the body names the item
  *   (`DashboardItemIsDefaultWire`, M5).
  * - `last-active-option`: the last active option of a group cannot be switched off (D5G).
- * - `candidate-refused`: the book the draft would produce did not pass the domain's judgement, a defect of ours.
+ * - `candidate-refused`: the book the draft would produce did not pass the domain's judgement. A publish names the
+ *   reasons (`DashboardCandidateRefusedWire`); the draft writes and a restore answer the word alone.
  * - `displayed-revision-ahead`: a kitchen was marked seen at a revision greater than its current one (F9).
  * - `item-unavailable`: a defaults value names an item that is disabled or absent from the active book (A-17); the
  *   body names the item (`DashboardItemUnavailableWire`).
@@ -192,6 +196,34 @@ export type DashboardConflict = (typeof DASHBOARD_CONFLICTS)[number];
 
 export interface DashboardConflictWire {
   readonly status: DashboardConflict;
+}
+
+/** One book refusal as it is sent: `expectedWidthMm` is left out when the catalogue declares no default width. */
+export type BookRefusalWire =
+  | Exclude<BookRefusal, { readonly code: "ANCHOR_WIDTH_MISMATCH" }>
+  | (Omit<
+      Extract<BookRefusal, { readonly code: "ANCHOR_WIDTH_MISMATCH" }>,
+      "expectedWidthMm"
+    > & { readonly expectedWidthMm?: number });
+
+/**
+ * Why a candidate book was refused: closed codes and the ids, widths and field they concern, never an amount or a
+ * sentence. `changes` names a pending change by its index in the draft, `pricing` a book that does not parse, and
+ * `catalogue` a book that parses but cannot price the catalogue.
+ */
+export type CandidateRefusalWire =
+  | {
+      readonly source: "changes";
+      readonly index: number;
+      readonly code: ChangeRefusalCode;
+    }
+  | { readonly source: "pricing"; readonly code: PricingFailureCode }
+  | (BookRefusalWire & { readonly source: "catalogue" });
+
+/** `409` of a publish whose candidate was refused: every reason, so the person can name the change to fix. */
+export interface DashboardCandidateRefusedWire {
+  readonly status: "candidate-refused";
+  readonly refusals: readonly CandidateRefusalWire[];
 }
 
 /** `409` of a read or a write that met a stored draft it cannot read: the revision to discard it at. */

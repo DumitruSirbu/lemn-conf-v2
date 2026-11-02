@@ -29,16 +29,18 @@ export type RequestReading<Value, Code extends string> =
 
 export type RequestRefusal<Code extends string> =
   | { readonly kind: "malformed" }
+  /** The request names a version that cannot exist, which is answered as one that does not: `404`. */
+  | { readonly kind: "not-found" }
   | {
       readonly kind: "issues";
       readonly issues: readonly DashboardIssue<Code>[];
     };
 
-type Members = Readonly<Record<string, unknown>>;
+export type Members = Readonly<Record<string, unknown>>;
 
-const MALFORMED = { ok: false, refusal: { kind: "malformed" } } as const;
+export const MALFORMED = { ok: false, refusal: { kind: "malformed" } } as const;
 
-function accepted<Value>(value: Value): RequestReading<Value, never> {
+export function accepted<Value>(value: Value): RequestReading<Value, never> {
   return { ok: true, value };
 }
 
@@ -274,7 +276,7 @@ function readSelectionTarget(
 // The pieces they share
 
 /** The body as the object it must be, with no member outside `allowed`; `undefined` is a request this route does not read. */
-function membersOf(
+export function membersOf(
   bodyText: string,
   allowed: readonly string[],
 ): Members | undefined {
@@ -291,7 +293,8 @@ function hasMemberOutside(
   return Object.keys(members).some((member) => !allowed.includes(member));
 }
 
-function ownMember(members: Members, name: string): unknown {
+/** The member the body holds itself, never one inherited from the prototype. */
+export function ownMember(members: Members, name: string): unknown {
   return Object.hasOwn(members, name) ? members[name] : undefined;
 }
 

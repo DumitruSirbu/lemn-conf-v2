@@ -11,7 +11,11 @@ import {
 import {
   bulkDraft,
   changeDraft,
+  publishDraft,
   readState,
+  readVersion,
+  readVersions,
+  restoreVersion,
   revertDraft,
 } from "../../../support/price-dashboard-requests";
 import {
@@ -75,6 +79,36 @@ describe.each([
           expectedDraftRevision: "0",
           target: { kind: "change", address: CHANGE.address },
         },
+      }),
+  ],
+  [
+    "POST /api/staff/prices/publish",
+    (cookie: string) =>
+      publishDraft({
+        cookie,
+        json: {
+          expectedDraftRevision: "0",
+          expectedActiveSequence: 1,
+          expectedAvailabilityRevision: "0",
+          label: "First",
+          note: "",
+        },
+      }),
+  ],
+  [
+    "GET /api/staff/prices/versions",
+    (cookie: string) => readVersions({ cookie }),
+  ],
+  [
+    "GET /api/staff/prices/versions/{id}",
+    (cookie: string) => readVersion("some-version", { cookie }),
+  ],
+  [
+    "POST /api/staff/prices/versions/{id}/restore",
+    (cookie: string) =>
+      restoreVersion("some-version", {
+        cookie,
+        json: { expectedDraftRevision: "0" },
       }),
   ],
   [

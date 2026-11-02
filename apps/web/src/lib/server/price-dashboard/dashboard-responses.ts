@@ -7,6 +7,8 @@ import type { DraftChange } from "@lemnaria/configurator-domain";
 import { ACCOUNT_RESPONSE_HEADERS } from "@/lib/server/account/account-responses";
 import type {
   BulkChangedWire,
+  CandidateRefusalWire,
+  DashboardCandidateRefusedWire,
   DashboardConflict,
   DashboardConflictWire,
   DashboardDraftUnreadableWire,
@@ -14,6 +16,11 @@ import type {
   DashboardInvalidInputWire,
   DashboardIssue,
   DashboardStateWire,
+  PriceVersionListWire,
+  PriceVersionNotFoundWire,
+  PriceVersionWire,
+  PublishedWire,
+  RestoredWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
 // The answers of the dashboard's read and draft routes. The refusals that are not the dashboard's own (401, 403, 429, 503,
@@ -25,8 +32,14 @@ type DashboardBody =
   | DashboardDraftWire
   | BulkChangedWire
   | DashboardConflictWire
+  | DashboardCandidateRefusedWire
   | DashboardDraftUnreadableWire
-  | DashboardInvalidInputWire<string>;
+  | DashboardInvalidInputWire<string>
+  | PublishedWire
+  | PriceVersionListWire
+  | PriceVersionWire
+  | RestoredWire
+  | PriceVersionNotFoundWire;
 
 function jsonResponse(body: DashboardBody, status: number): NextResponse {
   return NextResponse.json(body, { status, headers: ACCOUNT_RESPONSE_HEADERS });
@@ -49,11 +62,54 @@ export function bulkChangedResponse(wire: BulkChangedWire): NextResponse {
   return jsonResponse(wire, 200);
 }
 
+/** `200`: the version that went live, and the availability head after it. */
+export function publishedResponse(wire: PublishedWire): NextResponse {
+  return jsonResponse(
+    {
+      versionId: wire.versionId,
+      sequenceNumber: wire.sequenceNumber,
+      availabilityRevision: wire.availabilityRevision,
+    },
+    200,
+  );
+}
+
+/** `200`: one page of the history, newest first. */
+export function versionListResponse(wire: PriceVersionListWire): NextResponse {
+  return jsonResponse(wire, 200);
+}
+
+/** `200`: one version, read-only. */
+export function versionResponse(wire: PriceVersionWire): NextResponse {
+  return jsonResponse(wire, 200);
+}
+
+/** `200`: the draft after a restore, and how many changes the restore added. */
+export function restoredResponse(wire: RestoredWire): NextResponse {
+  return jsonResponse(wire, 200);
+}
+
+/** `404`: the id names no version, or no id this store holds. Nothing of the id is echoed. */
+export function versionNotFoundResponse(): NextResponse {
+  return jsonResponse({ status: "version-not-found" }, 404);
+}
+
 /** `409`: a state of the data, never a failure to answer. Nothing was written. */
 export function dashboardConflictResponse(
   word: Exclude<DashboardConflict, "draft-unreadable">,
 ): NextResponse {
   return jsonResponse({ status: word }, 409);
+}
+
+/** `409`: the book a publish would store was refused, and why. Nothing was written. */
+export function candidateRefusedResponse(
+  refusals: readonly CandidateRefusalWire[],
+): NextResponse {
+  const body: DashboardCandidateRefusedWire = {
+    status: "candidate-refused",
+    refusals,
+  };
+  return jsonResponse(body, 409);
 }
 
 /** `409`: the stored draft cannot be read. It names the revision a discard-all is made against, and nothing it holds. */

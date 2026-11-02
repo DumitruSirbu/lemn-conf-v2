@@ -146,7 +146,7 @@ export interface PricePublishedDetail {
   readonly provisional: boolean;
 }
 
-/** The archived version whose differences were added to the draft, and how many were. */
+/** The archived version put in the draft, and how many fields the restore changed in the candidate. */
 export interface PriceRestoredToDraftDetail {
   readonly fromSequenceNumber: number;
   readonly changeCount: number;
