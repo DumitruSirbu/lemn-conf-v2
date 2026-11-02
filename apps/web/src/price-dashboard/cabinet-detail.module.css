@@ -603,14 +603,17 @@
   }
 }
 
-@media (min-width: 900px) {
+/* Beside the dimensions the price column is too narrow for the fields' longest labels below this width. */
+@media (min-width: 1200px) {
   .columns {
     display: grid;
     grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
     gap: 28px;
     align-items: start;
   }
+}
 
+@media (min-width: 900px) {
   .fields {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }

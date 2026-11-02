@@ -50,12 +50,12 @@ describe("what a thumb must hit", () => {
 });
 
 describe("one markup, two layouts", () => {
-  it("stacks the cabinet above its price on a phone and puts them side by side from 900 px", () => {
+  it("stacks the cabinet above its price on a phone and puts them side by side from 1200 px", () => {
     expect(
       declarationsFor(css, "columns", "display").map((d) => [d.media, d.value]),
     ).toEqual([
       ["", "flex"],
-      [DESKTOP, "grid"],
+      ["@media (min-width: 1200px)", "grid"],
     ]);
   });
 
