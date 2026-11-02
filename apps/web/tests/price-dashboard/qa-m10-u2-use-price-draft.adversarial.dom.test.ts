@@ -444,9 +444,10 @@ describe("one write at a time, whatever the writes are", () => {
           );
         }
       });
-      const refused = await Promise.all(results.slice(1));
+      await flushPromises(3);
 
       expect(stub).toHaveBeenCalledTimes(1);
+      const refused = await Promise.all(results.slice(1));
       expect(refused).toEqual(refused.map(() => ({ kind: "failed" })));
       release();
       await act(async () => {

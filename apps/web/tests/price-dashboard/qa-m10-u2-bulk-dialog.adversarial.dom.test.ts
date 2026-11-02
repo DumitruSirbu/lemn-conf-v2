@@ -194,13 +194,22 @@ describe("the scopes", () => {
     const alert = alertIn(dialogOf());
 
     expect(alert).not.toBeNull();
-    const describedBy = allIn(dialogOf(), "[aria-describedby]").flatMap(
-      (element) => (element.getAttribute("aria-describedby") ?? "").split(" "),
+    expect(alert?.id, "the alert has no id for anything to point at").not.toBe(
+      "",
+    );
+    const checklist = requireIn(dialogOf(), "ul[aria-label]");
+    const describing = allIn(dialogOf(), "[aria-describedby]").filter(
+      (element) =>
+        (element.getAttribute("aria-describedby") ?? "")
+          .split(" ")
+          .includes(alert?.id ?? "\u0000"),
     );
     expect(
-      describedBy,
-      "no element of the dialog is described by the sentence that says to tick a cabinet",
-    ).toContain(alert?.id);
+      describing.some(
+        (element) => element === checklist || checklist.contains(element),
+      ),
+      "the list of cabinets to tick (or a box in it) is not described by the sentence that says to tick one",
+    ).toBe(true);
   });
 
   it("sends exactly the cabinets ticked, as rules the book holds, and nothing for a customer's", async () => {
