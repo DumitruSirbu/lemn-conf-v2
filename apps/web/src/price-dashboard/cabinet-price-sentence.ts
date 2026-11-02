@@ -12,13 +12,18 @@ import { formatLei } from "./format-lei";
 // The sentence under the fields restates the typed amounts in words. Its one product, the door step for more than one
 // leaf, is the pricing module's checked arithmetic.
 
+export interface PriceSentenceInput {
+  readonly facts: CabinetDetailFacts;
+  readonly states: readonly FieldState[];
+  /** The field whose typed amount the prices refuse: the sentence says what the draft holds there, never that amount. */
+  readonly refusedFieldKey: string | undefined;
+}
+
 export function priceSentence(
   translate: ContentTranslator,
-  input: {
-    readonly facts: CabinetDetailFacts;
-    readonly states: readonly FieldState[];
-  },
+  { facts, states, refusedFieldKey }: PriceSentenceInput,
 ): string {
+  const input = { facts, states: statesAsHeld(states, refusedFieldKey) };
   const money = (minor: number) =>
     formatLei(minor, translate("priceDashboard.units.currency"));
   const amountOf = amountReader(input.states, money);
@@ -42,6 +47,17 @@ export function priceSentence(
   ]
     .filter((part) => part !== "")
     .join(" ");
+}
+
+function statesAsHeld(
+  states: readonly FieldState[],
+  refusedFieldKey: string | undefined,
+): readonly FieldState[] {
+  return states.map((state) =>
+    state.field.key === refusedFieldKey
+      ? { ...state, effectiveMinor: state.field.pendingMinor }
+      : state,
+  );
 }
 
 function amountReader(

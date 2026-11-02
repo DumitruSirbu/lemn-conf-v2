@@ -226,12 +226,43 @@ export type PriceJudgement =
       readonly reason: "not-positive" | "too-large";
     };
 
+/** The key of the field a judgement is owed to; absent where the rule prices well or no field carries the refusal. */
+export function refusedFieldKeyOf(
+  judgement: PriceJudgement | undefined,
+): string | undefined {
+  return judgement === undefined || judgement.kind === "unplaced"
+    ? undefined
+    : judgement.fieldKey;
+}
+
 export function judgePrices(
   rule: CabinetPriceRule,
   fields: readonly DetailField[],
 ): PriceJudgement | undefined {
   const refusal = judgePricesOfRule(rule, priceDashboardCatalogue());
-  return refusal === undefined ? undefined : judgementOf(refusal, fields);
+  if (refusal === undefined) return undefined;
+  return isOwedToAnchor(refusal, rule)
+    ? anchorJudgement(fields)
+    : judgementOf(refusal, fields);
+}
+
+/**
+ * A price at the anchor size is the anchor itself, whatever the steps add or take, so an anchor of zero or less makes
+ * a refused price that no other field can mend. The domain names the first size it finds and the step that drives it.
+ */
+function isOwedToAnchor(refusal: BookRefusal, rule: CabinetPriceRule): boolean {
+  return (
+    refusal.code === "PRICE_NOT_POSITIVE" &&
+    isAnchoredFormula(rule.formula) &&
+    rule.formula.anchorMinor <= 0
+  );
+}
+
+function anchorJudgement(fields: readonly DetailField[]): PriceJudgement {
+  const anchor = fields.find(({ role }) => role === "anchor");
+  return anchor === undefined
+    ? { kind: "unplaced", reason: "not-positive" }
+    : { kind: "not-positive", fieldKey: anchor.key };
 }
 
 function judgementOf(
