@@ -75,7 +75,7 @@ import {
   type RestoreRequest,
 } from "@/lib/server/price-dashboard/publish-requests";
 import { planRestore } from "@/lib/server/price-dashboard/restore-plan";
-import { isIdentifier } from "@/lib/server/price-dashboard/identifier-shape";
+import { isVersionId } from "@/lib/server/price-dashboard/identifier-shape";
 import { readStoredDraft } from "@/lib/server/price-dashboard/stored-draft";
 import {
   versionListWireOf,
@@ -180,7 +180,7 @@ export async function readVersionForStaff(
 ): Promise<NextResponse> {
   const admission = await admitReader(request);
   if (admission.kind === "refused") return admission.response;
-  if (!isIdentifier(request.versionId)) {
+  if (!isVersionId(request.versionId)) {
     return refused(PRICE_READ_EVENT, versionNotFoundResponse());
   }
   const refusal = await refusalOfReadBucket(request, admission.accountId);

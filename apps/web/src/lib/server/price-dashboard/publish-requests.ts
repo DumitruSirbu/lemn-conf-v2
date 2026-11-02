@@ -11,7 +11,7 @@ import {
   membersOf,
   type RequestReading,
 } from "@/lib/server/price-dashboard/draft-requests";
-import { isIdentifier } from "@/lib/server/price-dashboard/identifier-shape";
+import { isVersionId } from "@/lib/server/price-dashboard/identifier-shape";
 import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
 import type {
   DashboardIssue,
@@ -129,7 +129,7 @@ export function readRestoreRequest(
   versionId: string,
   bodyText: string,
 ): RequestReading<RestoreRequest, never> {
-  if (!isIdentifier(versionId)) return NO_SUCH_VERSION;
+  if (!isVersionId(versionId)) return NO_SUCH_VERSION;
   const body = membersOf(bodyText, ["expectedDraftRevision"]);
   if (body === undefined) return MALFORMED;
   const expectedDraftRevision = ownMember(body, "expectedDraftRevision");
