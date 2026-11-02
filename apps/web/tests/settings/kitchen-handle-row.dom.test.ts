@@ -156,7 +156,7 @@ describe("choosing a kitchen handle on the sheet", () => {
     expect(
       container.querySelector('[data-testid="global-settings-surface"]'),
     ).toBeNull();
-    // A push-to-open kitchen bills a latch for every resolved push body (H1-b), so the total rises.
+    // A push-to-open kitchen bills a latch for every resolved push body, so the total rises.
     expect(Number(shownTotal())).toBeGreaterThan(totalBefore);
   });
 

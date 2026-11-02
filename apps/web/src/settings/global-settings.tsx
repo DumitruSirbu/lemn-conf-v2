@@ -36,7 +36,7 @@ import {
 import { FinishSectionView } from "@/panel/editor-panel";
 import { describeFinishSection } from "@/panel/panel-model";
 import {
-  useKitchenHandleOffer,
+  useCatalogueAvailability,
   usePricedDesign,
   useRequiredDeepCabinetPercent,
   useWholeKitchenTierOffer,
@@ -85,7 +85,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
   const content = useContent();
   const pricing = usePricedDesign();
   const offer = useWholeKitchenTierOffer();
-  const offeredHandles = useKitchenHandleOffer();
+  const availability = useCatalogueAvailability();
   const deepCabinetPercent = useRequiredDeepCabinetPercent();
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
@@ -138,7 +138,7 @@ export function GlobalSettings({ visibleCount }: GlobalSettingsProps) {
     content,
     pricing,
     offer,
-    offeredHandles,
+    availability,
     deepCabinetPercent,
     groups,
     applied,

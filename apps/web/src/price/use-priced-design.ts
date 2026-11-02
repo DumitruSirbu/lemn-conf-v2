@@ -5,14 +5,16 @@
 //
 // Derived on every render, stored nowhere (§12): each memo is keyed on the root and the two store slices the answer
 // depends on. That caches a pure query and does not persist a total; `DesignSchema` has no price field.
-import type { Handle, PricingResult } from "@lemnaria/configurator-domain";
+import type {
+  CatalogueAvailability,
+  PricingResult,
+} from "@lemnaria/configurator-domain";
 import { useMemo } from "react";
 
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import { usePriceBookRoot } from "./price-book-provider";
 import {
-  offerHandlesAgainstBook,
   offerTiersAgainstBook,
   priceAgainstBook,
   requireDeepCabinetPercent,
@@ -61,9 +63,8 @@ export function useWholeKitchenTierOffer(): WholeKitchenTierOffer {
   );
 }
 
-/** The handles the book's availability has not switched off, for the settings sheet's handle row. */
-export function useKitchenHandleOffer(): readonly Handle[] {
+/** What the page's book says is switched off, for the settings sheet's handle row. Absent where no book was supplied. */
+export function useCatalogueAvailability(): CatalogueAvailability | undefined {
   const root = usePriceBookRoot();
-
-  return useMemo(() => offerHandlesAgainstBook(root), [root]);
+  return root.kind === "active" ? root.availability : undefined;
 }

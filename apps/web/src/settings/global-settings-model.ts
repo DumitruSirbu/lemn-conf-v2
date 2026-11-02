@@ -7,9 +7,13 @@ import {
   DEFAULT_HANDLE,
   DEFAULT_MATERIAL_ID,
   declaredCabinetDepthsMm,
+  handleRef,
+  HandleSchema,
+  isItemDisabled,
   lookUpMaterial,
   materialOffersFinish,
   MIN_CABINET_DEPTH_MM,
+  type CatalogueAvailability,
   type DisplayGroup,
   type Finish,
   type Handle,
@@ -225,9 +229,9 @@ export interface DescribeGlobalSettingsInput {
   readonly content: Content;
   readonly pricing: PricingResult;
   readonly offer: WholeKitchenTierOffer;
-  /** The handles on offer, from `useKitchenHandleOffer`. Absent, like an empty list, hides the row: a sheet that was
-   *  not told what is on offer cannot say which handles are active. */
-  readonly offeredHandles?: readonly Handle[] | undefined;
+  /** What the page's book says is switched off. A handle is on offer unless it is listed here. Absent hides the row:
+   *  a sheet that was not told what is switched off cannot say which handles are active. */
+  readonly availability?: CatalogueAvailability | undefined;
   /** The published depth rule's whole percentage (`book.depthRule.deepCabinetPercent`): the only source of the figure
    *  in the depth note. Required, because an absent one would read as 0 %, which says the depth is free. */
   readonly deepCabinetPercent: number;
@@ -526,20 +530,22 @@ function toColourGroupView(
   };
 }
 
-/** The handle row, or nothing where no handle is on offer. The marked option is the pending choice, else the slot's
- *  default, which is what an unset kitchen shows. */
+/** The handle row, or nothing where availability is unknown or has switched every handle off. The marked option is the
+ *  pending choice, else the slot's default, which is what an unset kitchen shows. */
 function toHandleGroupView(
   input: DescribeGlobalSettingsInput,
 ): HandleGroupView | undefined {
-  const { offeredHandles, content } = input;
-  if (offeredHandles === undefined || offeredHandles.length === 0) {
-    return undefined;
-  }
+  const { availability, content } = input;
+  if (availability === undefined) return undefined;
+  const offered = HandleSchema.options.filter(
+    (handle) => !isItemDisabled(availability, handleRef(handle)),
+  );
+  if (offered.length === 0) return undefined;
   const selected = input.pending.handle ?? DEFAULT_HANDLE;
   return {
     heading: content.globalSettings.kitchenHandleHeading,
     hint: content.globalSettings.kitchenHandleHint,
-    options: offeredHandles.map((handle) => ({
+    options: offered.map((handle) => ({
       handle,
       label: content.panel.handleLabels[handle],
       isSelected: handle === selected,

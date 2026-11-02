@@ -8,6 +8,7 @@ import {
   projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
+  type CatalogueAvailability,
   type Design,
   type Handle,
 } from "@lemnaria/configurator-domain";
@@ -59,9 +60,20 @@ function tierOffer() {
   });
 }
 
+/** Availability with exactly these handles switched off. */
+function withHandlesSwitchedOff(
+  ...handles: readonly Handle[]
+): CatalogueAvailability {
+  return {
+    revision: "1",
+    disabled: handles.map((handle) => ({ kind: "handle", handle })),
+  };
+}
+
 function viewOf(
   options: {
-    readonly offeredHandles?: readonly Handle[] | undefined;
+    /** Left out, nothing is switched off; given as `undefined`, the sheet was told nothing about availability. */
+    readonly availability?: CatalogueAvailability | undefined;
     readonly pending?: WholeKitchenChoice;
     readonly design?: Design;
   } = {},
@@ -85,9 +97,8 @@ function viewOf(
     applied: design.settings ?? {},
     pending: options.pending ?? {},
     chosenColourCount: 0,
-    ...("offeredHandles" in options
-      ? { offeredHandles: options.offeredHandles }
-      : {}),
+    availability:
+      "availability" in options ? options.availability : NOTHING_DISABLED,
   });
 }
 
@@ -118,8 +129,8 @@ function selectedHandles(view: GlobalSettingsView): readonly Handle[] {
 }
 
 describe("the handle row's offer", () => {
-  it("lists the handles it was given, in that order, each worded as the panel words it", () => {
-    const view = viewOf({ offeredHandles: EVERY_HANDLE });
+  it("lists every declared handle in the declared order while none is switched off, each worded as the panel words it", () => {
+    const view = viewOf();
 
     expect(view.handleGroup?.options.map((option) => option.handle)).toEqual(
       EVERY_HANDLE,
@@ -130,8 +141,8 @@ describe("the handle row's offer", () => {
     );
   });
 
-  it("offers no handle that was left out of the offer", () => {
-    const view = viewOf({ offeredHandles: ["steel", "push"] });
+  it("offers no handle availability has switched off", () => {
+    const view = viewOf({ availability: withHandlesSwitchedOff("black") });
 
     expect(view.handleGroup?.options.map((option) => option.handle)).toEqual([
       "steel",
@@ -140,18 +151,21 @@ describe("the handle row's offer", () => {
   });
 
   it.each([
-    ["an empty offer", []],
-    ["no offer given", undefined],
-  ] as const)("shows no row for %s, never an empty one", (_case, offered) => {
-    const view = viewOf({ offeredHandles: offered });
+    ["every handle switched off", withHandlesSwitchedOff(...EVERY_HANDLE)],
+    ["availability unknown", undefined],
+  ] as const)(
+    "shows no row for %s, never an empty one",
+    (_case, availability) => {
+      const view = viewOf({ availability });
 
-    expect(view).not.toHaveProperty("handleGroup");
-  });
+      expect(view).not.toHaveProperty("handleGroup");
+    },
+  );
 });
 
 describe("the handle row's marked option", () => {
   it("marks the slot's default for a kitchen that chose none, without seeding a choice", () => {
-    const view = viewOf({ offeredHandles: EVERY_HANDLE });
+    const view = viewOf();
 
     expect(selectedHandles(view)).toEqual(["steel"]);
     expect(resolveOpeningChoice({}, tierOffer()).handle).toBeUndefined();
@@ -163,9 +177,7 @@ describe("the handle row's marked option", () => {
     (handle) => {
       const pending = chooseHandleIn({}, handle);
 
-      expect(
-        selectedHandles(viewOf({ offeredHandles: EVERY_HANDLE, pending })),
-      ).toEqual([handle]);
+      expect(selectedHandles(viewOf({ pending }))).toEqual([handle]);
     },
   );
 
@@ -177,7 +189,6 @@ describe("the handle row's marked option", () => {
 
     const opening = resolveOpeningChoice(carrying.settings ?? {}, tierOffer());
     const view = viewOf({
-      offeredHandles: EVERY_HANDLE,
       design: carrying,
       pending: opening,
     });
@@ -187,7 +198,7 @@ describe("the handle row's marked option", () => {
 
   it("marks nothing when the kitchen's own handle is not on offer", () => {
     const view = viewOf({
-      offeredHandles: ["steel", "push"],
+      availability: withHandlesSwitchedOff("black"),
       pending: chooseHandleIn({}, "black"),
     });
 
@@ -208,7 +219,7 @@ describe("choosing a handle in the sheet", () => {
 });
 
 describe("the handle row on the sheet", () => {
-  const view = viewOf({ offeredHandles: EVERY_HANDLE });
+  const view = viewOf();
 
   it("sits after the colour and before the hardware (frame C2)", () => {
     const markup = markupOf(view, WRITABLE);
