@@ -13,23 +13,18 @@ import {
   countStaffFixturesForTests,
   removeStaffFixturesForTests,
 } from "@lemnaria/persistence";
-import {
-  expect,
-  test as base,
-  type BrowserContext,
-  type Locator,
-  type Page,
-} from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
-import { ACCOUNT_KIND } from "../../src/lib/server/rate-limit/bucket-subject";
 import {
-  STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
-  STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
-} from "../../src/lib/server/rate-limit/limit-policy";
-import {
-  bucketKeyOfBlock,
-  secretOfThisRun,
-} from "./support/e2e-rate-limit-run";
+  discardDraft,
+  DRAFT_ROUTE,
+  expectNoSidewaysScroll,
+  expectTargetsLargeEnough,
+  OK,
+  priceRateLimitKeysOf,
+  STATE_ROUTE,
+  test,
+} from "./support/price-dashboard-session";
 import { shootForReview } from "./support/staff-pages";
 import {
   NOTHING_LEFT,
@@ -41,13 +36,9 @@ import {
 
 const CABINETS_PATH = "/ro/staff/catalog/cabinets";
 const RUSSIAN_CABINETS_PATH = "/ru/staff/catalog/cabinets";
-const STATE_ROUTE = "/api/staff/prices";
-const DRAFT_ROUTE = "/api/staff/prices/draft";
-const MINIMUM_TARGET_PX = 44;
 const TEN_LEI = 10;
 const DEPTH_STEP_PERCENT = 3;
 const BULK_PERCENT = "10";
-const OK = 200;
 const TOO_BIG_DEPTH_PERCENT = "120";
 
 const VIEWPORTS = [
@@ -63,40 +54,13 @@ const VIEWPORTS = [
   },
 ] as const;
 
-/** A page error or a console error of the page is a failure of the test that caused it. */
-const test = base.extend<{ pageErrors: string[] }>({
-  pageErrors: [
-    async ({ page }, use) => {
-      const errors: string[] = [];
-      page.on("console", (message) => {
-        if (message.type() === "error") {
-          errors.push(`console: ${message.text()}`);
-        }
-      });
-      page.on("pageerror", (error) => {
-        errors.push(`pageerror: ${error.message}`);
-      });
-      await use(errors);
-      expect(errors, "console errors and page errors").toEqual([]);
-    },
-    { auto: true },
-  ],
-});
-
 let signedIn: SignedInAdministrator;
 let rateLimitKeys: readonly string[] = [];
 
 test.beforeAll(async () => {
   test.setTimeout(120_000);
   signedIn = await plantSignedInAdministrator();
-  const subject = {
-    kind: ACCOUNT_KIND,
-    subject: signedIn.administrator.accountId,
-  } as const;
-  rateLimitKeys = [
-    STAFF_PRICES_READ_BY_ACCOUNT_POLICY,
-    STAFF_PRICE_DRAFT_BY_ACCOUNT_POLICY,
-  ].map((policy) => bucketKeyOfBlock(secretOfThisRun(), policy.name, subject));
+  rateLimitKeys = priceRateLimitKeysOf(signedIn);
 });
 
 test.afterAll(async () => {
@@ -772,83 +736,4 @@ function collectWrites(page: Page): string[] {
     }
   });
   return writes;
-}
-
-async function expectNoSidewaysScroll(page: Page, when: string): Promise<void> {
-  const overflow = await page.evaluate(() => ({
-    page:
-      document.documentElement.scrollWidth -
-      document.documentElement.clientWidth,
-    body: document.body.scrollWidth - document.documentElement.clientWidth,
-  }));
-  expect(overflow, `sideways scroll with ${when}`).toEqual({
-    page: 0,
-    body: 0,
-  });
-}
-
-/** Every visible control inside the scope is at least 44 px either way; a label around a box is its target. */
-async function expectTargetsLargeEnough(
-  page: Page,
-  scope: string,
-  when: string,
-): Promise<void> {
-  const { checked, small } = await measureTargets(page, scope);
-  expect(checked, `controls measured with ${when}`).toBeGreaterThan(0);
-  expect(
-    small,
-    `controls under ${String(MINIMUM_TARGET_PX)} px with ${when}`,
-  ).toEqual([]);
-}
-
-/** The visible controls inside the scope, and those under 44 px either way, named. */
-function measureTargets(
-  page: Page,
-  scope: string,
-): Promise<{ checked: number; small: string[] }> {
-  return page.evaluate(
-    ({ scopeSelector, minimum }) => {
-      const controls = document.querySelectorAll(
-        `${scopeSelector} :is(button, a[href], input:not([type=hidden]), select, textarea, summary)`,
-      );
-      const small: string[] = [];
-      let checked = 0;
-      for (const control of controls) {
-        const isBox =
-          control instanceof HTMLInputElement &&
-          (control.type === "checkbox" || control.type === "radio");
-        const target = isBox ? (control.closest("label") ?? control) : control;
-        const rect = target.getBoundingClientRect();
-        if (rect.width === 0 && rect.height === 0) continue;
-        checked += 1;
-        if (rect.width >= minimum - 0.5 && rect.height >= minimum - 0.5)
-          continue;
-        const name =
-          control.getAttribute("aria-label") ??
-          control.textContent.trim().slice(0, 40);
-        small.push(
-          `${control.tagName.toLowerCase()} "${name}" ${rect.width.toFixed(1)}x${rect.height.toFixed(1)}`,
-        );
-      }
-      return { checked, small };
-    },
-    { scopeSelector: scope, minimum: MINIMUM_TARGET_PX },
-  );
-}
-
-/** Empties the in-memory draft through the routes the dashboard uses, so no test leaves a pending price behind. */
-async function discardDraft(context: BrowserContext): Promise<void> {
-  const state = await context.request.get(STATE_ROUTE);
-  expect(
-    state.status(),
-    "the dashboard's state, read to discard the draft",
-  ).toBe(OK);
-  const { draft } = (await state.json()) as {
-    draft: { draftRevision: string; changes: readonly unknown[] };
-  };
-  if (draft.changes.length === 0) return;
-  const discarded = await context.request.delete(DRAFT_ROUTE, {
-    data: { expectedDraftRevision: draft.draftRevision, scope: "all" },
-  });
-  expect(discarded.status(), "the draft is discarded").toBe(OK);
 }
