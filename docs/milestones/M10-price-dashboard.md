@@ -1369,6 +1369,7 @@ pushed [coordinator's brief, relayed].
   bound −90..300; the bulk always checks scaled prices (`judgePricesOfRule`); the corner preview shows the real built
   width (330, ADR 0135) priced under the round-up key, no "preț ca" note; customer rows must be evaluable and free;
   seeded variants are judged with their own door leaves; duplicate build ids are refused.
+- Flaky browser test, not from M10's recent waves (2026-11-03): `u-gate-journeys.ts:374` "wall C: deleting a base body frees a void…" on desktop under `CI=1`. It failed the gate once at `7baa8ef3`, then 1 run of 5 alone there, and 8 of 15 alone at `849016d2`, a commit whose full gate passed. The tap lands on a placement, not the freed void (`u-gate.ts:457`). Cause not investigated; inference: the tap point is read before the scene settles after the sheet closes.
 - U4a record (2026-11-03):
   - Browser specs: `apps/web/tests/e2e/hardware.e2e.spec.ts`, `hardware.desktop.e2e.spec.ts`; `publish-page.e2e.spec.ts`, `publish-page.desktop.e2e.spec.ts` for U5b. Under `next dev` hardware has 27 passed, 2 skipped, publish 36 passed, 2 skipped; under `CI=1` hardware 21 passed, 8 skipped, publish 2 passed, 36 skipped. CI therefore does not hold the publish page's working surface until U5c. Not reached in a browser: creating a class, deleting into the draft, a switch surviving a reload; on the publish page the discard dialog, refusal list, pager, D7E, D7G.
   - Production until the Z gate: switch and delete off with `cannotJudge`, Create off, no count stated.
