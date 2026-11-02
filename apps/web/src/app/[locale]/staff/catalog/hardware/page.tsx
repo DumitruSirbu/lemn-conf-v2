@@ -4,10 +4,8 @@ import { connection } from "next/server";
 import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
-import {
-  HardwareListScreen,
-  HardwareUnavailableScreen,
-} from "@/price-dashboard/hardware-list";
+import { HardwareListScreen } from "@/price-dashboard/hardware-list";
+import { HardwareUnavailableScreen } from "@/price-dashboard/hardware-parts";
 import { readHardware } from "@/price-dashboard/hardware-source";
 
 import {

@@ -1,9 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef } from "react";
-
-import type { HardwareRateField } from "@lemnaria/configurator-domain";
+import { useEffect, useRef } from "react";
 
 import type { ContentTranslator } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
@@ -20,16 +18,18 @@ import {
 } from "./hardware-model";
 import { hardwareNameOf } from "./hardware-names";
 import {
+  ActionThatMayBeOff,
   ClassChips,
   hardwareItemOf,
   HardwareUnavailableScreen,
-} from "./hardware-list";
+  reasonsOf,
+} from "./hardware-parts";
 import { hardwarePathOf } from "./hardware-paths";
+import { HARDWARE_RATE_WORDS } from "./hardware-rate-words";
 import styles from "./hardware.module.css";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
-import { deleteStandOf, isItemOn, switchStandOf } from "./item-lifecycle-model";
-import { offReasonWords } from "./item-lifecycle-words";
+import { isItemOn } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
 import { leiRefusalWords, saveFailureWords } from "./price-input-words";
 import editStyles from "./price-edit.module.css";
@@ -223,80 +223,29 @@ function Lifecycle({
 }) {
   const translate = useTranslations();
   const { availability } = desk;
-  const { context } = availability;
   const item = hardwareItemOf(facts);
-  const isOn = isItemOn(item, context);
-  const stand = switchStandOf(item, context);
-  const switchReason =
-    stand.kind === "off" ? offReasonWords(translate, stand.reason) : undefined;
-  const deleteStand = deleteStandOf(
-    { kind: "hardware", tierId: facts.tierId },
-    context,
-  );
-  const deleteReason =
-    deleteStand.kind === "off"
-      ? offReasonWords(translate, deleteStand.reason)
-      : undefined;
+  const { switchReason, deleteReason } = reasonsOf({
+    translate,
+    facts,
+    context: availability.context,
+  });
+  const isOn = isItemOn(item, availability.context);
   return (
     <>
-      <ActiveSwitch
-        isOn={isOn}
+      <ActionThatMayBeOff
         reason={switchReason}
-        hint={translate(
+        restingNote={translate(
           facts.isCreated
             ? "priceDashboard.hardware.activeHintNew"
             : "priceDashboard.hardware.activeHint",
         )}
-        onToggle={() => {
+        switchState={isOn}
+        buttonClassName={styles.switch}
+        noteClassName={styles.hint}
+        noteTag="p"
+        onPress={() => {
           availability.requestSwitch(item);
         }}
-      />
-      <div className={styles.danger}>
-        <h2 className={styles.cardTitle}>
-          {translate("priceDashboard.hardware.deleteHeading")}
-        </h2>
-        <p className={styles.hint}>
-          {translate("priceDashboard.hardware.deleteHint")}
-        </p>
-        <DeleteAction
-          reason={deleteReason}
-          onPress={() => {
-            availability.requestDeletion({
-              kind: "hardware",
-              tierId: facts.tierId,
-            });
-          }}
-        />
-      </div>
-    </>
-  );
-}
-
-function ActiveSwitch({
-  isOn,
-  reason,
-  hint,
-  onToggle,
-}: {
-  readonly isOn: boolean;
-  /** Why the switch is off; absent, it can be pressed. */
-  readonly reason: string | undefined;
-  readonly hint: string;
-  readonly onToggle: () => void;
-}) {
-  const translate = useTranslations();
-  const hintId = useId();
-  const isOff = reason !== undefined;
-  return (
-    <>
-      <button
-        type="button"
-        role="switch"
-        className={styles.switch}
-        aria-checked={isOn}
-        aria-disabled={isOff ? true : undefined}
-        aria-describedby={hintId}
-        onClick={isOff ? undefined : onToggle}
       >
         <span>{translate("priceDashboard.hardware.activeLabel")}</span>
         <span className={styles.switchState}>
@@ -306,57 +255,29 @@ function ActiveSwitch({
               : "priceDashboard.chips.inactive",
           )}
         </span>
-      </button>
-      <p id={hintId} className={styles.hint}>
-        {reason ?? hint}
-      </p>
-    </>
-  );
-}
-
-function DeleteAction({
-  reason,
-  onPress,
-}: {
-  readonly reason: string | undefined;
-  readonly onPress: () => void;
-}) {
-  const translate = useTranslations();
-  const reasonId = useId();
-  const isOff = reason !== undefined;
-  return (
-    <>
-      <button
-        type="button"
-        className={editStyles.action}
-        aria-disabled={isOff ? true : undefined}
-        aria-describedby={isOff ? reasonId : undefined}
-        onClick={isOff ? undefined : onPress}
-      >
-        {translate("priceDashboard.hardware.deleteAction")}
-      </button>
-      {isOff ? (
-        <p id={reasonId} className={styles.hint}>
-          {reason}
+      </ActionThatMayBeOff>
+      <div className={styles.danger}>
+        <h2 className={styles.cardTitle}>
+          {translate("priceDashboard.hardware.deleteHeading")}
+        </h2>
+        <p className={styles.hint}>
+          {translate("priceDashboard.hardware.deleteHint")}
         </p>
-      ) : null}
+        <ActionThatMayBeOff
+          reason={deleteReason}
+          buttonClassName={editStyles.action}
+          noteClassName={styles.hint}
+          noteTag="p"
+          onPress={() => {
+            availability.requestDeletion(item);
+          }}
+        >
+          {translate("priceDashboard.hardware.deleteAction")}
+        </ActionThatMayBeOff>
+      </div>
     </>
   );
 }
-
-const RATE_LABELS = {
-  perHingeMinor: "priceDashboard.hardware.priceHinge",
-  perDrawerMinor: "priceDashboard.hardware.priceSlide",
-  perPushToOpenMinor: "priceDashboard.hardware.pricePush",
-  perLiftMinor: "priceDashboard.hardware.priceLift",
-} as const satisfies Record<HardwareRateField, string>;
-
-const RATE_UNITS = {
-  perHingeMinor: "priceDashboard.units.perHinge",
-  perDrawerMinor: "priceDashboard.units.perSlidePair",
-  perPushToOpenMinor: "priceDashboard.units.perMechanism",
-  perLiftMinor: "priceDashboard.units.perMechanism",
-} as const satisfies Record<HardwareRateField, string>;
 
 function RateFields({
   locale,
@@ -399,8 +320,8 @@ function RateField({
   const hint = error === undefined ? hintOf(translate, rate) : undefined;
   return (
     <PriceUnitField
-      label={translate(RATE_LABELS[rate.field])}
-      unit={translate(RATE_UNITS[rate.field])}
+      label={translate(HARDWARE_RATE_WORDS[rate.field].label)}
+      unit={translate(HARDWARE_RATE_WORDS[rate.field].unit)}
       inputMode="decimal"
       value={state.text}
       hint={hint}
@@ -419,7 +340,8 @@ function hintOf(
   translate: ContentTranslator,
   rate: RateFieldState["rate"],
 ): string | undefined {
-  const note = whatTheRateIsChargedFor(translate, rate.field);
+  const noteWords = HARDWARE_RATE_WORDS[rate.field].hint;
+  const note = noteWords === undefined ? undefined : translate(noteWords);
   if (rate.activeMinor === undefined) return note;
   const amount = formatLei(
     rate.activeMinor,
@@ -431,20 +353,6 @@ function hintOf(
         amount,
         hint: note,
       });
-}
-
-function whatTheRateIsChargedFor(
-  translate: ContentTranslator,
-  field: HardwareRateField,
-): string | undefined {
-  switch (field) {
-    case "perDrawerMinor":
-      return translate("priceDashboard.hardware.priceSlideHint");
-    case "perLiftMinor":
-      return translate("priceDashboard.hardware.priceLiftHint");
-    default:
-      return undefined;
-  }
 }
 
 /** What a typed value reads as, and where the server's answer to the write last tried is told: under its own field. */

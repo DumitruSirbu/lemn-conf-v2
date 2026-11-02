@@ -3,12 +3,10 @@
 import { useTranslations } from "next-intl";
 import {
   useCallback,
-  useEffect,
   useId,
   useRef,
   useState,
   type CSSProperties,
-  type RefObject,
 } from "react";
 
 import type { HardwareRateField, ItemRef } from "@lemnaria/configurator-domain";
@@ -19,27 +17,28 @@ import { useContent } from "@/i18n/use-content";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
-import { CatalogUnavailableNotice } from "./catalog-states";
 import {
   type HardwareClassFacts,
   type HardwarePageInput,
   type ReadyHardware,
 } from "./hardware-model";
 import { hardwareNameOf } from "./hardware-names";
+import {
+  ActionThatMayBeOff,
+  ClassChips,
+  hardwareItemOf,
+  HardwareUnavailableScreen,
+  reasonsOf,
+} from "./hardware-parts";
 import { hardwareClassPathOf, hardwareNewPathOf } from "./hardware-paths";
+import { HARDWARE_RATE_WORDS } from "./hardware-rate-words";
 import styles from "./hardware.module.css";
 import { formatLei, formatLeiAmount } from "./format-lei";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
-import {
-  deleteStandOf,
-  isDefaultItem,
-  isItemOn,
-  switchStandOf,
-  type LifecycleContext,
-} from "./item-lifecycle-model";
-import { offReasonWords } from "./item-lifecycle-words";
+import { isItemOn, type LifecycleContext } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
+import { useCloseOnOutsidePress } from "./use-close-on-outside-press";
 import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 
 // The classes of hardware the customer chooses from (frames D4A, D4E, D4F and D4D): one row each, with its four rates, its
@@ -75,21 +74,6 @@ export function HardwareListScreen({
   return (
     <StaffShell locale={locale} page="hardware" context={shell}>
       <HardwareList locale={locale} desk={desk} derivation={derivation} />
-    </StaffShell>
-  );
-}
-
-/** The classes could not be read: the frame stays, and the notice stands in the page's place. */
-export function HardwareUnavailableScreen({
-  locale,
-  context,
-}: {
-  readonly locale: AppLocale;
-  readonly context: StaffShellContext;
-}) {
-  return (
-    <StaffShell locale={locale} page="hardware" context={context}>
-      <CatalogUnavailableNotice />
     </StaffShell>
   );
 }
@@ -152,13 +136,6 @@ function HardwareList({
   );
 }
 
-const RATE_COLUMN_WORDS = {
-  perHingeMinor: "priceDashboard.hardware.columnHinge",
-  perDrawerMinor: "priceDashboard.hardware.columnSlide",
-  perPushToOpenMinor: "priceDashboard.hardware.columnPush",
-  perLiftMinor: "priceDashboard.hardware.columnLift",
-} as const satisfies Record<HardwareRateField, string>;
-
 /** The desktop's column titles. Each row's cells say what they are in their own words, so the titles are for the eye. */
 function ColumnHeads({
   rates,
@@ -170,7 +147,7 @@ function ColumnHeads({
     <div className={styles.columns} aria-hidden="true">
       <span>{translate("priceDashboard.hardware.columnClass")}</span>
       {rates.map((field) => (
-        <span key={field}>{translate(RATE_COLUMN_WORDS[field])}</span>
+        <span key={field}>{translate(HARDWARE_RATE_WORDS[field].column)}</span>
       ))}
       <span>{translate("priceDashboard.hardware.columnState")}</span>
       <span />
@@ -261,7 +238,7 @@ function RateCell({
       data-field={rate.field}
     >
       <span className={styles.rateLabel}>
-        {translate(RATE_COLUMN_WORDS[rate.field])}
+        {translate(HARDWARE_RATE_WORDS[rate.field].column)}
       </span>
       <span className={styles.rateValue}>
         {formatLei(pendingMinor, translate("priceDashboard.units.currency"))}
@@ -275,52 +252,6 @@ function RateCell({
       ) : null}
     </li>
   );
-}
-
-/** What the class is to customers now, whether it is the default, and whether the draft touches it. */
-export function ClassChips({
-  facts,
-  context,
-}: {
-  readonly facts: HardwareClassFacts;
-  readonly context: LifecycleContext;
-}) {
-  const translate = useTranslations();
-  const item = hardwareItemOf(facts);
-  const isOn = isItemOn(item, context);
-  return (
-    <span className={styles.chips}>
-      {isDefaultItem(item, context) ? (
-        <span className={styles.chip} data-testid="hardware-chip">
-          {translate("priceDashboard.chips.defaultChoice")}
-        </span>
-      ) : null}
-      <span
-        className={styles.chip}
-        data-tone={isOn ? "on" : undefined}
-        data-testid="hardware-chip"
-      >
-        {translate(
-          isOn
-            ? "priceDashboard.chips.active"
-            : "priceDashboard.chips.inactive",
-        )}
-      </span>
-      {facts.isModified ? (
-        <span
-          className={styles.chip}
-          data-tone="warm"
-          data-testid="hardware-chip"
-        >
-          {translate("priceDashboard.chips.pending")}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-export function hardwareItemOf({ tierId }: HardwareClassFacts): ItemRef {
-  return { kind: "hardware", tierId };
 }
 
 /** "⋯": a disclosure of the actions that change what customers are offered. An action that cannot be taken stays in the
@@ -351,8 +282,11 @@ function RowMenu({
   useCloseOnOutsidePress(wrapRef, isOpen && !isAsking, close);
   const item = hardwareItemOf(facts);
   const isOn = isItemOn(item, context);
-  const switchReason = switchReasonOf(translate, facts, context);
-  const deleteReason = deleteReasonOf(translate, facts, context);
+  const { switchReason, deleteReason } = reasonsOf({
+    translate,
+    facts,
+    context,
+  });
   return (
     <div
       ref={wrapRef}
@@ -396,48 +330,13 @@ function RowMenu({
             label={translate("priceDashboard.common.delete")}
             reason={deleteReason}
             onPress={() => {
-              availability.requestDeletion({
-                kind: "hardware",
-                tierId: facts.tierId,
-              });
+              availability.requestDeletion(item);
             }}
           />
         </ul>
       ) : null}
     </div>
   );
-}
-
-/** A class the draft deletes cannot be switched: nothing is offered of it once the deletion is published. */
-function switchReasonOf(
-  translate: ContentTranslator,
-  facts: HardwareClassFacts,
-  context: LifecycleContext,
-): string | undefined {
-  if (facts.isDeletionPending) {
-    return translate("priceDashboard.hardware.deleteNotice");
-  }
-  const stand = switchStandOf(hardwareItemOf(facts), context);
-  return stand.kind === "off"
-    ? offReasonWords(translate, stand.reason)
-    : undefined;
-}
-
-function deleteReasonOf(
-  translate: ContentTranslator,
-  facts: HardwareClassFacts,
-  context: LifecycleContext,
-): string | undefined {
-  if (facts.isDeletionPending) {
-    return translate("priceDashboard.hardware.deleteNotice");
-  }
-  const stand = deleteStandOf(
-    { kind: "hardware", tierId: facts.tierId },
-    context,
-  );
-  return stand.kind === "off"
-    ? offReasonWords(translate, stand.reason)
-    : undefined;
 }
 
 function MenuEntry({
@@ -450,49 +349,18 @@ function MenuEntry({
   readonly reason: string | undefined;
   readonly onPress: () => void;
 }) {
-  const reasonId = useId();
-  const isOff = reason !== undefined;
   return (
     <li className={styles.menuItem}>
-      <button
-        type="button"
-        className={styles.menuEntry}
-        aria-disabled={isOff ? true : undefined}
-        aria-describedby={isOff ? reasonId : undefined}
-        onClick={isOff ? undefined : onPress}
+      <ActionThatMayBeOff
+        reason={reason}
+        onPress={onPress}
+        buttonClassName={styles.menuEntry}
+        noteClassName={styles.menuReason}
+        noteTag="span"
+        noteTestId="menu-reason"
       >
         {label}
-      </button>
-      {isOff ? (
-        <span
-          id={reasonId}
-          className={styles.menuReason}
-          data-testid="menu-reason"
-        >
-          {reason}
-        </span>
-      ) : null}
+      </ActionThatMayBeOff>
     </li>
   );
-}
-
-/** A press outside the menu closes it and moves nothing: focus is wherever the press put it. */
-function useCloseOnOutsidePress(
-  ref: RefObject<HTMLElement | null>,
-  isOpen: boolean,
-  close: () => void,
-): void {
-  useEffect(() => {
-    if (!isOpen) return;
-    const onPress = (event: PointerEvent) => {
-      if (event.target instanceof Node && ref.current?.contains(event.target)) {
-        return;
-      }
-      close();
-    };
-    document.addEventListener("pointerdown", onPress);
-    return () => {
-      document.removeEventListener("pointerdown", onPress);
-    };
-  }, [ref, isOpen, close]);
 }

@@ -11,6 +11,7 @@ import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import type { HardwarePageInput } from "./hardware-model";
 import { hardwareClassPathOf, hardwarePathOf } from "./hardware-paths";
+import { HARDWARE_RATE_WORDS } from "./hardware-rate-words";
 import styles from "./hardware.module.css";
 import editStyles from "./price-edit.module.css";
 import type { PriceDraftClient } from "./price-draft-client";
@@ -244,20 +245,6 @@ function errorProps(
     : { error: createdTextRefusalWords(translate, entry.judgement.code) };
 }
 
-const RATE_LABELS = {
-  perHingeMinor: "priceDashboard.hardware.priceHinge",
-  perDrawerMinor: "priceDashboard.hardware.priceSlide",
-  perPushToOpenMinor: "priceDashboard.hardware.pricePush",
-  perLiftMinor: "priceDashboard.hardware.priceLift",
-} as const;
-
-const RATE_UNITS = {
-  perHingeMinor: "priceDashboard.units.perHinge",
-  perDrawerMinor: "priceDashboard.units.perSlidePair",
-  perPushToOpenMinor: "priceDashboard.units.perMechanism",
-  perLiftMinor: "priceDashboard.units.perMechanism",
-} as const;
-
 function RateEntryField({
   entry,
   creation,
@@ -267,37 +254,24 @@ function RateEntryField({
 }) {
   const translate = useTranslations();
   const { field, reading } = entry;
+  const hintWords = HARDWARE_RATE_WORDS[field].hint;
   const error =
     entry.isTouched && reading.kind === "refused"
       ? leiRefusalWords(translate, reading.refusal)
       : undefined;
   return (
     <PriceUnitField
-      label={translate(RATE_LABELS[field])}
-      unit={translate(RATE_UNITS[field])}
+      label={translate(HARDWARE_RATE_WORDS[field].label)}
+      unit={translate(HARDWARE_RATE_WORDS[field].unit)}
       inputMode="decimal"
       value={entry.text}
-      hint={rateHintOf(translate, field)}
+      hint={hintWords === undefined ? undefined : translate(hintWords)}
       error={error}
       onChange={(text) => {
         creation.typeRate(field, text);
       }}
     />
   );
-}
-
-function rateHintOf(
-  translate: ContentTranslator,
-  field: RateEntry["field"],
-): string | undefined {
-  switch (field) {
-    case "perDrawerMinor":
-      return translate("priceDashboard.hardware.priceSlideHint");
-    case "perLiftMinor":
-      return translate("priceDashboard.hardware.priceLiftHint");
-    default:
-      return undefined;
-  }
 }
 
 /** What the server's answer to the creation says, where nothing was written. */

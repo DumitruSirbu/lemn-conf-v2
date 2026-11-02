@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
 import { HardwareCreateScreen } from "@/price-dashboard/hardware-create";
-import { HardwareUnavailableScreen } from "@/price-dashboard/hardware-list";
+import { HardwareUnavailableScreen } from "@/price-dashboard/hardware-parts";
 import { readHardware } from "@/price-dashboard/hardware-source";
 
 import {
