@@ -1795,7 +1795,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       negative: "Suma nu poate fi negativă.",
       tooManyDecimals: "Cel mult două zecimale, de exemplu {example}.",
       notMultipleOfTen:
-        "Prețul se scrie în multipli de 10 lei, de exemplu {example}.",
+        "Prețul se scrie în multipli de {step} lei, de exemplu {example}.",
       tooBig: "Suma este prea mare.",
       empty: "Completează suma. Scrie zero dacă nu se adaugă nimic.",
       percentEmpty:

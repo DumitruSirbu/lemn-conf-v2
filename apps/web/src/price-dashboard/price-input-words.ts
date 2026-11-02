@@ -24,6 +24,7 @@ import type { BulkWriteResult, FieldWriteResult } from "./use-price-draft";
 
 const LEI_EXAMPLE = "450,00";
 const LEI_EXAMPLE_WITH_DECIMALS = "450,25";
+const LEI_STEP = "10";
 const LEI_EXAMPLE_IN_TENS = "450";
 const PERCENT_EXAMPLE = "15";
 const BULK_PERCENT_EXAMPLE = "5";
@@ -47,6 +48,7 @@ export function leiRefusalWords(
       });
     case "notMultipleOfTen":
       return translate("priceDashboard.errors.notMultipleOfTen", {
+        step: LEI_STEP,
         example: LEI_EXAMPLE_IN_TENS,
       });
     case "tooBig":

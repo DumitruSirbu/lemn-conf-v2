@@ -1376,7 +1376,7 @@ declare const messages: {
       "notNumber": "Scrie doar cifre și o virgulă pentru bani, de exemplu {example}.",
       "negative": "Suma nu poate fi negativă.",
       "tooManyDecimals": "Cel mult două zecimale, de exemplu {example}.",
-      "notMultipleOfTen": "Prețul se scrie în multipli de 10 lei, de exemplu {example}.",
+      "notMultipleOfTen": "Prețul se scrie în multipli de {step} lei, de exemplu {example}.",
       "tooBig": "Suma este prea mare.",
       "empty": "Completează suma. Scrie zero dacă nu se adaugă nimic.",
       "percentEmpty": "Completează procentul. Scrie zero dacă adâncimea nu schimbă prețul.",
