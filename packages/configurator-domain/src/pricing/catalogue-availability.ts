@@ -7,8 +7,8 @@ import { HandleSchema, type Design, type Handle } from "../design.js";
 // switch never needs a publish. Ids are opaque strings, as a tier id is: this module imports no catalogue, no palette
 // and no book (ADR 0062 seam 1), and the existence of an item is a question for the book, not for this module.
 //
-// The functions below only compare, order and read what a design names. None of them is a price: no amount, rate or
-// coefficient is keyed on a colour here.
+// The functions below compare, order, read what a design names, and list the options of a group. None of them is a
+// price: no amount, rate or coefficient is keyed on a colour here.
 
 /**
  * One thing availability can be switched on or off for. A built-in or a linked accessory is one `accessory` ref (a

@@ -1,4 +1,4 @@
-// What may be done to a switchable item (ADR 0062 Amendment 3 and the Amendment that starts M10, A-16, A-17, A-18):
+// What may be done to a switchable item (ADR 0062 Amendment 3 and its availability-is-immediate Amendment, A-16, A-17, A-18):
 // switch it off or on, and delete it. A pure judgement over the state the caller read; it is applied at write time, so
 // the guards hold whatever the screen showed.
 //
