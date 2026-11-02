@@ -24,8 +24,16 @@ const sourceOf = (path: string): string =>
   withoutComments(readFileSync(path, "utf8"));
 
 describe("the invented cabinet list can reach nobody", () => {
-  // The list reads the dashboard's own answer, so the sample stands behind the source in no build: it is a fixture for the
-  // screen's tests, and no module of the application imports it.
+  // The sample is a fixture for the screen's tests and lives in `tests/support`: `src/` holds no copy of it, and no
+  // module of the application imports it from anywhere.
+  it("is not in the application's source tree", () => {
+    expect(
+      filesUnder(SOURCE_ROOT).filter((path) =>
+        /cabinet-list-sample\.tsx?$/.test(path),
+      ),
+    ).toEqual([]);
+  });
+
   it("is imported by no module of the application", () => {
     const importers = filesUnder(SOURCE_ROOT)
       .filter((path) => /cabinet-list-sample["']/.test(sourceOf(path)))
@@ -42,11 +50,14 @@ describe("the invented cabinet list can reach nobody", () => {
     expect(importers).toEqual(["app/[locale]/staff/catalog/cabinets/page.tsx"]);
   });
 
-  it("reads the dashboard's own answer, is server-only, and never reads the environment or loads a sample", () => {
+  it("reads the dashboard's state without writing, is server-only, and never reads the environment or loads a sample", () => {
     const source = sourceOf(join(DASHBOARD_ROOT, "cabinet-list-source.ts"));
 
     expect(source).toMatch(/^import "server-only";/m);
-    expect(source).toMatch(/readDashboardForStaff/);
+    expect(source).toMatch(/readDashboardStateForAdmittedPage/);
+    expect(source).not.toMatch(
+      /readDashboardForStaff|touchCurrentSession|commitAuditRow/,
+    );
     expect(source).not.toMatch(/process\.env|isProductionBuild|sample/i);
   });
 

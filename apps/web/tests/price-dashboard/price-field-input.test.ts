@@ -13,7 +13,8 @@ import {
   readBulkPercentInput,
   readDepthPercentInput,
   readLeiInput,
-  readLeiInputOverActive,
+  plainLeiOf,
+  readLeiInputOverHeld,
 } from "@/price-dashboard/price-field-input";
 
 const NBSP = " ";
@@ -179,11 +180,11 @@ describe("a bulk percentage", () => {
   });
 });
 
-describe("an amount in lei typed over the active price", () => {
+describe("an amount in lei typed over the prices already held", () => {
   const LEGACY_ACTIVE_MINOR = 396_050;
 
   it("reads the active price as an amount although it is not a whole ten of lei", () => {
-    expect(readLeiInputOverActive("3960,50", LEGACY_ACTIVE_MINOR)).toEqual({
+    expect(readLeiInputOverHeld("3960,50", [LEGACY_ACTIVE_MINOR])).toEqual({
       kind: "amount",
       minor: LEGACY_ACTIVE_MINOR,
     });
@@ -191,15 +192,40 @@ describe("an amount in lei typed over the active price", () => {
 
   it("still refuses any other amount that is not a whole ten of lei, the active price beside it or not", () => {
     for (const typed of ["3960,60", "3961", "12,5"]) {
-      expect(readLeiInputOverActive(typed, LEGACY_ACTIVE_MINOR), typed).toEqual(
+      expect(readLeiInputOverHeld(typed, [LEGACY_ACTIVE_MINOR]), typed).toEqual(
         { kind: "refused", refusal: "notMultipleOfTen" },
       );
     }
   });
 
   it("reads a whole ten of lei as it does without an active price", () => {
-    expect(readLeiInputOverActive("3960", LEGACY_ACTIVE_MINOR)).toEqual(
+    expect(readLeiInputOverHeld("3960", [LEGACY_ACTIVE_MINOR])).toEqual(
       readLeiInput("3960"),
     );
+  });
+
+  it("reads every held amount as an amount, the draft's beside the active one, and no amount beside them", () => {
+    const held = [LEGACY_ACTIVE_MINOR, 396_075];
+
+    expect(readLeiInputOverHeld("3960,75", held)).toEqual({
+      kind: "amount",
+      minor: 396_075,
+    });
+    expect(readLeiInputOverHeld("3960,50", held).kind).toBe("amount");
+    expect(readLeiInputOverHeld("3960,60", held)).toEqual({
+      kind: "refused",
+      refusal: "notMultipleOfTen",
+    });
+  });
+});
+
+describe("an amount as a person types it back", () => {
+  it.each([
+    [396_000, "3960"],
+    [396_050, "3960,50"],
+    [1_250_000, "12500"],
+    [5, "0,05"],
+  ])("writes %i bani as %s, without the grouping spaces", (minor, typed) => {
+    expect(plainLeiOf(minor)).toBe(typed);
   });
 });

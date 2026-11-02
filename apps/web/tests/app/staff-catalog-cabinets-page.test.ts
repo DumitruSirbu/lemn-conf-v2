@@ -19,9 +19,6 @@ import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
 import { pageOf } from "../price-dashboard/dashboard-state-fixture";
 
-const COOKIES = { get: () => undefined };
-const HEADERS = { get: () => null };
-
 const world = vi.hoisted(() => ({
   gate: undefined as CatalogPageRead | undefined,
   gateAsked: [] as { locale: string; page: string }[],
@@ -30,10 +27,6 @@ const world = vi.hoisted(() => ({
 }));
 
 vi.mock("next/server", () => ({ connection: () => Promise.resolve() }));
-vi.mock("next/headers", () => ({
-  cookies: () => Promise.resolve(COOKIES),
-  headers: () => Promise.resolve(HEADERS),
-}));
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -58,8 +51,8 @@ vi.mock("../../src/app/[locale]/staff/catalog/_lib/read-catalog-page", () => ({
   },
 }));
 vi.mock("@/price-dashboard/cabinet-list-source", () => ({
-  readCabinetList: (request: unknown) => {
-    world.listAsked.push(request);
+  readCabinetList: (...args: unknown[]) => {
+    world.listAsked.push(args);
     if (world.list === undefined) throw new Error("no list planned");
     return Promise.resolve(world.list);
   },
@@ -114,10 +107,10 @@ describe("the cabinets page for each answer of the catalog gate", () => {
     });
   });
 
-  it("asks the source once, as the request that came: its cookies and its headers", async () => {
+  it("asks the source once, handing it no cookies and no headers: the gate has admitted the reader, and a render writes nothing", async () => {
     await pageFor({ kind: "signed-in", shell: SHELL });
 
-    expect(world.listAsked).toEqual([{ cookies: COOKIES, headers: HEADERS }]);
+    expect(world.listAsked).toEqual([[]]);
   });
 
   it("draws the notice inside the frame when the source has no list, and keeps the frame's menu", async () => {

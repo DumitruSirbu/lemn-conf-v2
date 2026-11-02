@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useState, type RefObject } from "react";
+import { useId, useRef, useState, type RefObject } from "react";
 
 import {
   DEEP_CABINET_DEPTH_MM,
@@ -52,6 +52,7 @@ export function DepthRuleCard({
   const titleId = useId();
   const [typed, setTyped] = useState<string | undefined>(undefined);
   const [feedback, setFeedback] = useState<SaveFeedback>({ kind: "none" });
+  const moveCountRef = useRef(0);
   const isPending = pendingPercent !== activePercent;
   const value = typed ?? String(pendingPercent);
   const reading = readDepthPercentInput(value);
@@ -65,15 +66,25 @@ export function DepthRuleCard({
         ? depthWriteFailureWords(translate, feedback.failure)
         : undefined;
 
+  /** Typing and cancelling each make a save still on its way an answer to a field that is no longer this one. */
+  const moveOn = () => {
+    moveCountRef.current += 1;
+    setFeedback({ kind: "none" });
+  };
+
   const save = async () => {
     if (reading.kind !== "percent" || isBusy) return;
-    const result = await onSave(reading.percent);
+    const { percent } = reading;
+    const moveCountWhenSent = moveCountRef.current;
+    const result = await onSave(percent);
     if (result.kind === "busy") return;
-    if (result.kind === "unchanged") {
+    if (moveCountRef.current !== moveCountWhenSent) return;
+    if (result.kind === "saved" || result.kind === "unchanged") {
       setTyped(undefined);
-    } else if (result.kind === "saved") {
-      setTyped(undefined);
-      setFeedback({ kind: "saved" });
+      // The active percentage written over a pending one takes the change out: nothing went to De publicat.
+      if (result.kind === "saved" && percent !== activePercent) {
+        setFeedback({ kind: "saved" });
+      }
     } else {
       setFeedback({ kind: "failed", failure: result });
     }
@@ -130,8 +141,8 @@ export function DepthRuleCard({
             error={error}
             isPending={isChanged || isPending}
             onChange={(next) => {
+              moveOn();
               setTyped(next);
-              setFeedback({ kind: "none" });
             }}
           />
         </div>
@@ -152,8 +163,8 @@ export function DepthRuleCard({
               type="button"
               className={styles.action}
               onClick={() => {
+                moveOn();
                 setTyped(undefined);
-                setFeedback({ kind: "none" });
               }}
             >
               {translate("priceDashboard.common.cancel")}

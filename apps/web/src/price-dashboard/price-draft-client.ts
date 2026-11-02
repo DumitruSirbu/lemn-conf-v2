@@ -1,22 +1,21 @@
-import {
-  readBulk,
-  type DraftBulk,
-  type DraftChange,
-} from "@lemnaria/configurator-domain";
-
 import { ownValueOf } from "@/staff/staff-kitchens-wire-reading";
 
-import type {
-  BulkChangedWire,
-  BulkChangeRequestWire,
-  BulkRefusalCode,
-  DashboardBookPayload,
-  DashboardDraftWire,
-  DashboardStateWire,
-  DraftChangeRefusalCode,
-  DraftChangeRequestWire,
-  DraftRevertRequestWire,
+import {
+  BULK_REFUSAL_CODES,
+  DRAFT_CHANGE_REFUSAL_CODES,
+  type BulkChangedWire,
+  type BulkChangeRequestWire,
+  type BulkRefusalCode,
+  type DashboardDraftWire,
+  type DashboardStateWire,
+  type DraftChangeRefusalCode,
+  type DraftChangeRequestWire,
+  type DraftRevertRequestWire,
 } from "./price-dashboard-wire-contract";
+import {
+  readDashboardStateWire,
+  readDraftWire,
+} from "./price-dashboard-wire-reading";
 
 // What the dashboard's screens write the draft through, and read the state again through. The fetching one asks the routes
 // of the dashboard: `GET /api/staff/prices`, `PUT` and `DELETE` of `…/draft`, and `POST …/bulk`. Each answer is sorted into the
@@ -72,12 +71,23 @@ export const FETCHING_PRICE_DRAFT_CLIENT: PriceDraftClient = {
       ? readDashboardStateWire(answer.body)
       : undefined;
   },
-  change: (request) =>
-    write("PUT", DRAFT_ADDRESS, request, (body) => readDraftWire(body)),
-  revert: (request) =>
-    write("DELETE", DRAFT_ADDRESS, request, (body) => readDraftWire(body)),
-  bulk: (request) =>
-    write("POST", BULK_ADDRESS, request, (body) => readBulkChangedWire(body)),
+  change: (request) => write("PUT", DRAFT_ADDRESS, request, DRAFT_ANSWERS),
+  revert: (request) => write("DELETE", DRAFT_ADDRESS, request, DRAFT_ANSWERS),
+  bulk: (request) => write("POST", BULK_ADDRESS, request, BULK_ANSWERS),
+};
+
+/** How a route's `200` is read and which closed codes its `400` may name; any other code is not the route's own. */
+interface RouteAnswers<Code extends string, Written> {
+  readonly readWritten: (body: unknown) => Written | undefined;
+  readonly refusalCodes: readonly Code[];
+}
+
+const DRAFT_ANSWERS: RouteAnswers<DraftChangeRefusalCode, DashboardDraftWire> =
+  { readWritten: readDraftWire, refusalCodes: DRAFT_CHANGE_REFUSAL_CODES };
+
+const BULK_ANSWERS: RouteAnswers<BulkRefusalCode, BulkChangedWire> = {
+  readWritten: readBulkChangedWire,
+  refusalCodes: BULK_REFUSAL_CODES,
 };
 
 interface Answer {
@@ -116,16 +126,16 @@ async function write<Code extends string, Written>(
   method: "PUT" | "DELETE" | "POST",
   address: string,
   request: object,
-  readWritten: (body: unknown) => Written | undefined,
+  answers: RouteAnswers<Code, Written>,
 ): Promise<DraftWriteResult<Code, Written>> {
   const answer = await ask(address, { method, body: JSON.stringify(request) });
   if (answer === undefined) return { kind: "failed" };
-  return outcomeOf<Code, Written>(answer, readWritten);
+  return outcomeOf(answer, answers);
 }
 
 function outcomeOf<Code extends string, Written>(
   { status, body }: Answer,
-  readWritten: (body: unknown) => Written | undefined,
+  { readWritten, refusalCodes }: RouteAnswers<Code, Written>,
 ): DraftWriteResult<Code, Written> {
   if (status === OK_STATUS) {
     const written = readWritten(body);
@@ -134,7 +144,7 @@ function outcomeOf<Code extends string, Written>(
       : { kind: "changed", written };
   }
   if (status === UNAUTHORISED_STATUS) return { kind: "session-ended" };
-  if (status === INVALID_INPUT_STATUS) return refusalOf<Code>(body);
+  if (status === INVALID_INPUT_STATUS) return refusalOf(body, refusalCodes);
   if (status === CONFLICT_STATUS) return conflictOf(body);
   return { kind: "failed" };
 }
@@ -146,75 +156,16 @@ function conflictOf(body: unknown): DraftWriteResult<never, never> {
   return { kind: "failed" };
 }
 
-/** The first member a `400` names, with its closed code. Whatever else a `400` says is the guards' and reads as failed. */
+/** The first member a `400` names, with its closed code. A code outside the route's list is not its own: `failed`. */
 function refusalOf<Code extends string>(
   body: unknown,
+  refusalCodes: readonly Code[],
 ): DraftWriteResult<Code, never> {
   const issues = ownValueOf(body, "issues");
   const first: unknown = Array.isArray(issues) ? issues[0] : undefined;
-  const code = ownValueOf(first, "code");
-  return typeof code === "string"
-    ? { kind: "refused", code: code as Code }
-    : { kind: "failed" };
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Reading what the routes answer
-
-function isRecord(value: unknown): boolean {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isChange(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    typeof ownValueOf(ownValueOf(value, "address"), "kind") === "string"
-  );
-}
-
-/** The draft as the routes send it: a revision, and changes that each name an address. `applyChanges` judges the rest. */
-export function readDraftWire(body: unknown): DashboardDraftWire | undefined {
-  const draftRevision = ownValueOf(body, "draftRevision");
-  const declared = ownValueOf(body, "changes");
-  if (typeof draftRevision !== "string" || !Array.isArray(declared)) {
-    return undefined;
-  }
-  const changes: DraftChange[] = [];
-  for (const change of declared as readonly unknown[]) {
-    const read = readChange(change);
-    if (read === undefined) return undefined;
-    changes.push(read);
-  }
-  return { draftRevision, changes };
-}
-
-/** A change rebuilt from the members a draft change declares, so what else the answer carried never reaches the screen. */
-function readChange(declared: unknown): DraftChange | undefined {
-  if (!isChange(declared)) return undefined;
-  const declaredBulk = ownValueOf(declared, "bulk");
-  const bulk =
-    declaredBulk === undefined ? undefined : readBulkOf(declaredBulk);
-  const groupId = ownValueOf(declared, "groupId");
-  const isBulkUnreadable = declaredBulk !== undefined && bulk === undefined;
-  const isGroupIdUnreadable =
-    groupId !== undefined && typeof groupId !== "string";
-  if (isBulkUnreadable || isGroupIdUnreadable) return undefined;
-  return {
-    address: ownValueOf(declared, "address"),
-    value: ownValueOf(declared, "value"),
-    ...(groupId === undefined ? {} : { groupId }),
-    ...(bulk === undefined ? {} : { bulk }),
-  } as DraftChange;
-}
-
-/** The bulk action's own three members, judged by the domain; a member beside them is dropped. */
-function readBulkOf(declared: unknown): DraftBulk | undefined {
-  const groupCode = ownValueOf(declared, "groupCode");
-  return readBulk({
-    percent: ownValueOf(declared, "percent"),
-    scope: ownValueOf(declared, "scope"),
-    ...(groupCode === undefined ? {} : { groupCode }),
-  });
+  const named = ownValueOf(first, "code");
+  const code = refusalCodes.find((known) => known === named);
+  return code === undefined ? { kind: "failed" } : { kind: "refused", code };
 }
 
 function readBulkChangedWire(body: unknown): BulkChangedWire | undefined {
@@ -229,37 +180,4 @@ function readBulkChangedWire(body: unknown): BulkChangedWire | undefined {
     return undefined;
   }
   return { draft, ruleCount, amountCount };
-}
-
-/** The dashboard's state as `GET /api/staff/prices` sends it; the book is judged by whoever applies the draft to it. */
-export function readDashboardStateWire(
-  body: unknown,
-): DashboardStateWire | undefined {
-  const active = ownValueOf(body, "active");
-  const draft = readDraftWire(ownValueOf(body, "draft"));
-  if (draft === undefined || !isRecord(active)) return undefined;
-  const book = ownValueOf(active, "book");
-  const availability = ownValueOf(active, "availability");
-  const versionId = ownValueOf(active, "versionId");
-  const sequenceNumber = ownValueOf(active, "sequenceNumber");
-  const label = ownValueOf(active, "label");
-  const publishedAt = ownValueOf(active, "publishedAt");
-  if (!isRecord(book) || !isRecord(availability)) return undefined;
-  if (typeof versionId !== "string" || typeof sequenceNumber !== "number") {
-    return undefined;
-  }
-  if (typeof label !== "string" || typeof publishedAt !== "string") {
-    return undefined;
-  }
-  return {
-    active: {
-      versionId,
-      sequenceNumber,
-      label,
-      publishedAt,
-      book: book as DashboardBookPayload["book"],
-      availability: availability as DashboardBookPayload["availability"],
-    },
-    draft,
-  };
 }

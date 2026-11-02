@@ -1,5 +1,5 @@
 // The cabinet list's source where the price stores are the unavailable ones (production, until the database-backed stores
-// exist): the dashboard's read answers 503, the source says `unavailable`, and no price is claimed. This is how the list
+// exist): the store throws, the source says `unavailable`, and no price is claimed. This is how the list
 // handles the stub: a production build never shows a sample. The real `getPriceStores` is used here, and a
 // deployment variable is how production is chosen.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,12 +12,7 @@ import {
   captureConsole,
   freshAccountWorld,
 } from "../../../support/account-world";
-import { readRequest } from "../../../support/price-dashboard-requests";
-import {
-  freshStaffWorld,
-  signedInAs,
-  type StaffWorld,
-} from "../../../support/staff-world";
+import { freshStaffWorld, type StaffWorld } from "../../../support/staff-world";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -48,17 +43,9 @@ afterEach(() => {
 });
 
 describe("the list's source in production", () => {
-  it("answers unavailable to an administrator, every time, and leaves no audit row and no word of a sample", async () => {
-    const { session } = await signedInAs({ role: "administrator" });
-
+  it("answers unavailable, every time, and leaves no audit row and no word of a sample", async () => {
     for (let ask = 0; ask < 3; ask += 1) {
-      const request = readRequest({ cookie: session.cookie });
-      expect(
-        await readCabinetList({
-          cookies: request.cookies,
-          headers: request.headers,
-        }),
-      ).toEqual({ kind: "unavailable" });
+      expect(await readCabinetList()).toEqual({ kind: "unavailable" });
     }
 
     expect(staffWorld.audit.heldEvents()).toEqual([]);

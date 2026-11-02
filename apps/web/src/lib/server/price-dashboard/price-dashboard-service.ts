@@ -131,16 +131,41 @@ export async function readDashboardForStaff(
 }
 
 async function serveState(cookies: SessionCookieReader): Promise<NextResponse> {
-  const stores = await getPriceStores();
-  const reading = await readDashboardState(stores);
+  const reading = await readStateWire();
   if (reading.kind !== "ready") {
     return refusalOfUnreadyState(PRICE_READ_EVENT, reading);
   }
-  const availability = await readDashboardAvailability(stores);
   return serveAudited(cookies, {
-    response: dashboardStateResponse(stateWireOf(reading.state, availability)),
+    response: dashboardStateResponse(reading.wire),
     section: "catalogue",
   });
+}
+
+/**
+ * The state for a page whose own staff gate has admitted the reader. It touches no session, spends no limiter bucket
+ * and writes no audit row, because a Server Component render must not write. `undefined` when there is no active
+ * version or the draft cannot be read; a store that fails throws.
+ */
+export async function readDashboardStateForAdmittedPage(): Promise<
+  DashboardStateWire | undefined
+> {
+  const reading = await readStateWire();
+  return reading.kind === "ready" ? reading.wire : undefined;
+}
+
+type StateWireReading =
+  | { readonly kind: "ready"; readonly wire: DashboardStateWire }
+  | Exclude<DashboardStateReading, { readonly kind: "ready" }>;
+
+async function readStateWire(): Promise<StateWireReading> {
+  const stores = await getPriceStores();
+  const reading = await readDashboardState(stores);
+  if (reading.kind !== "ready") return reading;
+  const availability = await readDashboardAvailability(stores);
+  return {
+    kind: "ready",
+    wire: stateWireOf(reading.state, availability),
+  };
 }
 
 export interface VersionListRequest extends DashboardReadRequest {

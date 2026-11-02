@@ -4,10 +4,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  FETCHING_PRICE_DRAFT_CLIENT,
   readDashboardStateWire,
   readDraftWire,
-} from "@/price-dashboard/price-draft-client";
+} from "@/price-dashboard/price-dashboard-wire-reading";
+import { FETCHING_PRICE_DRAFT_CLIENT } from "@/price-dashboard/price-draft-client";
 
 import { stateOf } from "./dashboard-state-fixture";
 
@@ -161,6 +161,50 @@ describe("what an answer comes to", () => {
     expect(await FETCHING_PRICE_DRAFT_CLIENT.change(CHANGE_REQUEST)).toEqual(
       outcome,
     );
+  });
+
+  it.each([
+    ["a code no route has", "NOT_A_CODE"],
+    [
+      "a code of the bulk route, sent by the draft route",
+      "NO_CABINETS_SELECTED",
+    ],
+    ["a member's name in place of a code", "__proto__"],
+  ])("is failed for a 400 naming %s", async (_name, code) => {
+    stubFetch(400, {
+      status: "invalid-input",
+      issues: [{ field: "change", code }],
+    });
+
+    expect(await FETCHING_PRICE_DRAFT_CLIENT.change(CHANGE_REQUEST)).toEqual({
+      kind: "failed",
+    });
+    expect(
+      await FETCHING_PRICE_DRAFT_CLIENT.revert({
+        expectedDraftRevision: "6",
+        target: { kind: "change", address: { kind: "depth-rule" } },
+      }),
+    ).toEqual({ kind: "failed" });
+  });
+
+  it("reads a 400 of the bulk route against the bulk route's codes, and no other", async () => {
+    const bulk = {
+      expectedDraftRevision: "6",
+      target: { scope: "all" as const },
+      percent: 5,
+    };
+    stubFetch(400, {
+      issues: [{ field: "percent", code: "PERCENT_OUT_OF_RANGE" }],
+    });
+    expect(await FETCHING_PRICE_DRAFT_CLIENT.bulk(bulk)).toEqual({
+      kind: "refused",
+      code: "PERCENT_OUT_OF_RANGE",
+    });
+
+    stubFetch(400, { issues: [{ field: "percent", code: "NEGATIVE" }] });
+    expect(await FETCHING_PRICE_DRAFT_CLIENT.bulk(bulk)).toEqual({
+      kind: "failed",
+    });
   });
 
   it.each([

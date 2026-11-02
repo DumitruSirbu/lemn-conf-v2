@@ -1,6 +1,5 @@
 import { hasLocale } from "next-intl";
 import { getTranslations } from "next-intl/server";
-import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import type { Metadata } from "next";
@@ -33,7 +32,8 @@ export async function generateMetadata({
 /**
  * The list of cabinet types. `readCatalogPage` decides who sees it: a visitor leaves for the login page, an operator gets
  * the forbidden screen inside the staff frame, any other account gets the account area's, and an unreadable session store
- * draws a notice, all with HTTP 200. `readCabinetList` supplies what the list shows, and the list writes through its own client. Rendered per request.
+ * draws a notice, all with HTTP 200. `readCabinetList` supplies what the list shows once that gate has admitted the
+ * reader, and reads without writing; the list writes through its own client. Rendered per request.
  */
 export default async function CabinetsPage({ params }: CabinetsPageProps) {
   await connection();
@@ -42,10 +42,7 @@ export default async function CabinetsPage({ params }: CabinetsPageProps) {
   const read = await readCatalogPage({ locale, page: "cabinets" });
   switch (read.kind) {
     case "signed-in": {
-      const list = await readCabinetList({
-        cookies: await cookies(),
-        headers: await headers(),
-      });
+      const list = await readCabinetList();
       return list.kind === "ready" ? (
         <CabinetListEditor
           locale={locale}

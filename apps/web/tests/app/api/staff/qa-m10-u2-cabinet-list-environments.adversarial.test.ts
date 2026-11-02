@@ -17,12 +17,7 @@ import {
   captureConsole,
   freshAccountWorld,
 } from "../../../support/account-world";
-import { readRequest } from "../../../support/price-dashboard-requests";
-import {
-  freshStaffWorld,
-  signedInAs,
-  type StaffWorld,
-} from "../../../support/staff-world";
+import { freshStaffWorld, type StaffWorld } from "../../../support/staff-world";
 
 vi.mock("@/lib/server/account/session-store-instance", () =>
   import("../../../support/account-world").then((world) =>
@@ -61,18 +56,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
-
-async function listAsAdministrator(cookie?: string) {
-  const session = {
-    cookie:
-      cookie ?? (await signedInAs({ role: "administrator" })).session.cookie,
-  };
-  const request = readRequest({ cookie: session.cookie });
-  return readCabinetList({
-    cookies: request.cookies,
-    headers: request.headers,
-  });
-}
 
 interface Environment {
   readonly name: string;
@@ -117,7 +100,7 @@ const PRODUCTION_LIKE: readonly Environment[] = [
   },
 ];
 
-describe("an administrator's list where the stores are the ones of production", () => {
+describe("the list where the stores are the ones of production", () => {
   it.each(PRODUCTION_LIKE.map((env) => [env.name, env] as const))(
     "is unavailable, leaves no audit row and no word of a sample in the log: %s",
     async (_name, environment) => {
@@ -125,11 +108,8 @@ describe("an administrator's list where the stores are the ones of production", 
         vi.stubEnv(name, value);
       }
 
-      const { session } = await signedInAs({ role: "administrator" });
       for (let ask = 0; ask < 2; ask += 1) {
-        expect(await listAsAdministrator(session.cookie)).toEqual({
-          kind: "unavailable",
-        });
+        expect(await readCabinetList()).toEqual({ kind: "unavailable" });
       }
 
       expect(staffWorld.audit.heldEvents()).toEqual([]);
@@ -156,7 +136,7 @@ describe("the same source where the seeded stores are meant to serve", () => {
         vi.stubEnv(name, value);
       }
 
-      const read = await listAsAdministrator();
+      const read = await readCabinetList();
 
       expect(read.kind).toBe("ready");
     },

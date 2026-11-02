@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SAMPLE_CABINET_LIST } from "@/price-dashboard/cabinet-list-sample";
+import { SAMPLE_CABINET_LIST } from "../support/cabinet-list-sample";
 import { pendingPriceCountOf } from "@/price-dashboard/cabinet-list-model";
 import { readPendingPriceCount } from "@/price-dashboard/publish-source";
 
@@ -17,7 +17,7 @@ import { importClosureOf } from "../support/source-import-closure";
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const USE_CLIENT = /^\s*["']use client["']/m;
 const SERVER_ONLY_OR_INVENTED =
-  /(^|\/)(publish-sample|publish-source|cabinet-list-sample|cabinet-list-source|shipped-price-book)\.tsx?$|^lib\/server\//;
+  /(^|\/)(publish-sample|publish-source|cabinet-list-source|shipped-price-book)\.tsx?$|^lib\/server\//;
 
 describe("the count of waiting prices on one build", () => {
   afterEach(() => {

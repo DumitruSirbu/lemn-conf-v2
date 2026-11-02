@@ -1,18 +1,21 @@
 // The cabinet list's source over the worlds the dashboard's routes are tested in: the seeded fake price stores a
-// development server reads, with the app's own sessions. An administrator gets the list's page and leaves the one
-// `price-catalogue-viewed` row the route would have; anyone else, and a session that is not live, get `unavailable` and no
-// row. The production variant of the stores is the next file's.
+// development server reads, with the app's own sessions. The source is called after the page's staff gate has admitted
+// the reader, and a render must not write: it gets the list's page and leaves no audit row, touches no session and
+// spends no limiter bucket. Who is admitted is the gate's, held by `read-catalog-page.test.ts` and
+// `qa-m10-u1-catalog-gate`. The production variant of the stores is the next file's.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deriveCabinetList } from "@/price-dashboard/cabinet-list-facts";
 import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
+import { STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 
 import {
   captureConsole,
   freshAccountWorld,
+  limiterLedger,
+  type AccountWorld,
 } from "../../../support/account-world";
-import { readRequest } from "../../../support/price-dashboard-requests";
 import {
   freshStaffWorld,
   signedInAs,
@@ -42,9 +45,10 @@ vi.mock("@/lib/server/price-stores", () => ({
 }));
 
 let staffWorld: StaffWorld;
+let accountWorld: AccountWorld;
 
 beforeEach(() => {
-  freshAccountWorld();
+  accountWorld = freshAccountWorld();
   staffWorld = freshStaffWorld();
   captureConsole();
   vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "vercel");
@@ -55,63 +59,43 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** The request a page is served for, as the source is handed it: its cookies and its headers. */
-function requestOf(cookie: string | undefined) {
-  const request = readRequest(cookie === undefined ? {} : { cookie });
-  return { cookies: request.cookies, headers: request.headers };
-}
-
 describe("an administrator's page", () => {
-  it("is the seeded book's list, which the browser works out too, and one price-catalogue-viewed row", async () => {
-    const { session, account } = await signedInAs({ role: "administrator" });
-
-    const read = await readCabinetList(requestOf(session.cookie));
+  it("is the seeded book's list, which the browser works out too", async () => {
+    const read = await readCabinetList();
 
     expect(read.kind).toBe("ready");
     if (read.kind !== "ready") return;
     expect(deriveCabinetList(read.page).kind).toBe("ready");
     expect(read.page.state.draft.changes).toEqual([]);
-    expect(
-      staffWorld.audit
-        .heldEvents()
-        .map(({ action, detail, actorAccountId }) => ({
-          action,
-          detail,
-          actorAccountId,
-        })),
-    ).toEqual([
-      {
-        action: "price-catalogue-viewed",
-        detail: { section: "catalogue" },
-        actorAccountId: account.id,
-      },
-    ]);
   });
 });
 
-describe("anyone else", () => {
-  it("gets unavailable and leaves no row: an operator holds no price.edit", async () => {
-    const { session } = await signedInAs({ role: "operator" });
-
-    expect(await readCabinetList(requestOf(session.cookie))).toEqual({
-      kind: "unavailable",
-    });
-    expect(staffWorld.audit.heldEvents()).toEqual([]);
-  });
-
-  it("gets unavailable and leaves no row: a request with no session", async () => {
-    expect(await readCabinetList(requestOf(undefined))).toEqual({
-      kind: "unavailable",
-    });
-    expect(staffWorld.audit.heldEvents()).toEqual([]);
-  });
-
-  it("gets unavailable, with no price, when the audit row cannot be written", async () => {
-    const { session } = await signedInAs({ role: "administrator" });
+describe("a page render writes nothing and spends nothing", () => {
+  it("leaves no audit row, whatever the audit store would have done with one", async () => {
     staffWorld.auditBehaviour = "reject";
 
-    expect(await readCabinetList(requestOf(session.cookie))).toEqual({
-      kind: "unavailable",
-    });
+    const read = await readCabinetList();
+
+    expect(read.kind).toBe("ready");
+    expect(staffWorld.audit.heldEvents()).toEqual([]);
+  });
+
+  it("touches no session, asks no account store and counts no limiter bucket", async () => {
+    await signedInAs({ role: "administrator" });
+    const callsBefore = accountWorld.calls.length;
+    const bucketsBefore = limiterLedger.counted.length;
+
+    await readCabinetList();
+
+    expect(accountWorld.calls.slice(callsBefore)).toEqual([]);
+    expect(limiterLedger.counted.slice(bucketsBefore)).toEqual([]);
+  });
+
+  it("stays the list past the account's hourly read limit, which only the route's read spends", async () => {
+    const reads = STAFF_PRICES_READ_PER_ACCOUNT_HOUR_FIGURE + 1;
+
+    for (let read = 0; read < reads; read += 1) {
+      expect((await readCabinetList()).kind, String(read)).toBe("ready");
+    }
   });
 });

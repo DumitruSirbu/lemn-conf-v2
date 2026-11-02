@@ -68,6 +68,8 @@ export interface BulkChangeDialogProps {
   /** The active book with the draft applied: the prices the action scales. */
   readonly candidate: PriceBook;
   readonly onApply: (input: BulkChangeInput) => Promise<BulkWriteResult>;
+  /** Another write of the draft is out: confirming waits for it, without the dialog claiming to be sending. */
+  readonly isDraftBusy: boolean;
   readonly onClose: () => void;
   /** Where focus goes on close when the press that opened the dialog did not focus its button (Safari and Firefox). */
   readonly returnFocusFallbackRef: RefObject<HTMLElement | null>;
@@ -77,6 +79,7 @@ export function BulkChangeDialog({
   rows,
   candidate,
   onApply,
+  isDraftBusy,
   onClose,
   returnFocusFallbackRef,
 }: BulkChangeDialogProps) {
@@ -125,17 +128,25 @@ export function BulkChangeDialog({
   });
   const isReady = preview?.kind === "ready";
 
+  /** A change to what the action would do takes the last refusal off the screen. */
+  const forgettingFailure =
+    <Value,>(update: (value: Value) => void) =>
+    (value: Value) => {
+      update(value);
+      setFailure(undefined);
+    };
+
   const apply = async () => {
     if (reading.kind !== "percent" || target === undefined || !isReady) return;
+    if (isDraftBusy) return;
     setIsSending(true);
     const result = await onApply({
       target,
       percent: reading.percent,
     });
-    if (result.kind === "busy") return;
     setIsSending(false);
     if (result.kind === "saved") onClose();
-    else setFailure(result);
+    else if (result.kind !== "busy") setFailure(result);
   };
 
   return (
@@ -149,7 +160,7 @@ export function BulkChangeDialog({
           label: translate("priceDashboard.common.addToPending"),
           busyLabel: translate("priceDashboard.bulk.adding"),
           isBusy: isSending,
-          isOff: !isReady,
+          isOff: !isReady || isDraftBusy,
           onPress: () => {
             void apply();
           },
@@ -159,21 +170,12 @@ export function BulkChangeDialog({
           onPress: onClose,
         }}
       >
-        <ScopePicker
-          scope={scope}
-          onScope={(next) => {
-            setScope(next);
-            setFailure(undefined);
-          }}
-        />
+        <ScopePicker scope={scope} onScope={forgettingFailure(setScope)} />
         {scope === "group" ? (
           <GroupSelect
             groups={groups}
             value={groupCode}
-            onChange={(next) => {
-              setGroupCode(next);
-              setFailure(undefined);
-            }}
+            onChange={forgettingFailure(setGroupCode)}
           />
         ) : null}
         {scope === "selection" ? (
@@ -183,10 +185,9 @@ export function BulkChangeDialog({
             describedBy={
               preview?.kind === "no-cabinets" ? noCabinetsId : undefined
             }
-            onToggle={(ruleId) => {
+            onToggle={forgettingFailure((ruleId: string) => {
               setTicked((held) => toggled(held, ruleId));
-              setFailure(undefined);
-            }}
+            })}
           />
         ) : null}
         {preview?.kind === "no-cabinets" ? (
@@ -204,11 +205,10 @@ export function BulkChangeDialog({
             example: BULK_REDUCTION_EXAMPLE,
           })}
           error={percentError}
-          onChange={(next) => {
+          onChange={forgettingFailure((next: string) => {
             setTyped(next);
             setIsTouched(true);
-            setFailure(undefined);
-          }}
+          })}
         />
         {preview?.kind === "ready" ? (
           <FormNotice

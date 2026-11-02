@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 
-import { formatLeiAmount } from "./format-lei";
 import type { CabinetAnchorField } from "./cabinet-list-model";
 import { PriceUnitField } from "./price-unit-field";
 import {
@@ -17,7 +16,7 @@ import {
   priceWriteFailureWords,
   type FailedFieldWrite,
 } from "./price-input-words";
-import { readLeiInputOverActive } from "./price-field-input";
+import { plainLeiOf, readLeiInputOverHeld } from "./price-field-input";
 import styles from "./price-edit.module.css";
 import type { FieldWriteResult } from "./use-price-draft";
 
@@ -25,8 +24,8 @@ import type { FieldWriteResult } from "./use-price-draft";
 // value to "De publicat", Escape closes the field and sends nothing. A value that is not an amount is never sent: the
 // field keeps it, says why under itself and stays open. So does a value the server refused, in the same place, unless the
 // person has since closed the field, opened it again or typed over the text: an answer to a value no longer in the field
-// is ignored. A price already active is never refused for its size, so a stored price that is not a whole ten of lei can
-// be opened, closed and typed back.
+// is ignored. A price already held, the active one or the draft's, is never refused for its size, so a stored price
+// that is not a whole ten of lei can be opened, closed and typed back.
 
 /** What the list is given where it can change a price: the one write, and whether another is out. */
 export interface PriceEditing {
@@ -112,7 +111,10 @@ export function EditablePrice({
     );
   }
 
-  const reading = readLeiInputOverActive(typed, field.activeMinor);
+  const reading = readLeiInputOverHeld(typed, [
+    field.activeMinor,
+    field.pendingMinor,
+  ]);
   const error =
     reading.kind === "refused"
       ? leiRefusalWords(translate, reading.refusal)
@@ -122,7 +124,7 @@ export function EditablePrice({
 
   const save = async () => {
     if (reading.kind !== "amount" || editing.isBusy) return;
-    if (reading.minor === field.pendingMinor) {
+    if (isDraftsOwnValue(reading.minor, field)) {
       close();
       return;
     }
@@ -163,9 +165,9 @@ export function EditablePrice({
   );
 }
 
-/** The amount as a person types it back: the grouping spaces of `formatLeiAmount` left out. */
-function plainLeiOf(minor: number): string {
-  return formatLeiAmount(minor).replace(/\s/g, "");
+/** The draft's own value is nothing to send; the active price never is, as typing it takes the draft's change out. */
+function isDraftsOwnValue(minor: number, field: CabinetAnchorField): boolean {
+  return minor === field.pendingMinor && minor !== field.activeMinor;
 }
 
 /** Focus returns to the price only from nowhere or from this row: a person who went to another field keeps it. */

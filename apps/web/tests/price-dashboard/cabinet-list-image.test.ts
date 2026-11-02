@@ -5,7 +5,7 @@ import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import { findCabinetListImage } from "@/price-dashboard/cabinet-list-image";
-import { SAMPLE_CABINET_LIST } from "@/price-dashboard/cabinet-list-sample";
+import { SAMPLE_CABINET_LIST } from "../support/cabinet-list-sample";
 
 // A drawing that does not resolve paints an empty tile and no test sees it, so every cabinet the book prices must map to a
 // file that is really vendored, at the widths where its door count (and so its drawing) changes.

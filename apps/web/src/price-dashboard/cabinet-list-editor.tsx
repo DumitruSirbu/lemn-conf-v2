@@ -120,6 +120,7 @@ export function CabinetListEditor({
           rows={reading.input.rules}
           candidate={reading.candidate}
           onApply={bulk}
+          isDraftBusy={isBusy}
           returnFocusFallbackRef={bulkButtonRef}
           onClose={() => {
             setIsBulkOpen(false);

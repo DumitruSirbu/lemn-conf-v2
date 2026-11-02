@@ -6,14 +6,15 @@ import {
   TEN_LEI_MINOR,
 } from "@lemnaria/configurator-domain";
 
+import { BANI_PER_LEU, DECIMAL_PLACES, formatLeiAmount } from "./format-lei";
+
 // What a person types into a price or a percentage field, read before anything is sent. A value that is not one of these
 // is never sent: the field says why, in the words of `priceDashboard.errors` and `priceDashboard.bulk`, and stays where
 // it is. No float is parsed: an amount is whole bani counted from the digits, and a percentage is whole. A price is set
-// in whole tens of lei (ADR 0001, 2026-10-28 amendment): any other amount is refused, never rounded to one, except the
-// price already active, which a stored book may hold in any amount and which a person may type back.
+// in whole tens of lei (ADR 0001, 2026-10-28 amendment): any other amount is refused, never rounded to one, except a
+// price the screen already holds (the active one or the draft's), which a stored book may hold in any amount and which
+// a person may type back.
 
-const BANI_PER_LEU = 100;
-const DECIMAL_PLACES = 2;
 const MINUS_SIGNS = /^[-−]/;
 const SIGNED_WHOLE_NUMBER = /^([-−+])?(\d+)$/;
 const WHITESPACE = /\s/g;
@@ -37,14 +38,19 @@ export function readLeiInput(text: string): LeiInputReading {
   return refusingNonTens(readLeiAmount(text));
 }
 
-/** As `readLeiInput`, except that the active price is an amount whatever its size: the ten-lei rule is for new prices. */
-export function readLeiInputOverActive(
+/** As `readLeiInput`, except that an amount already held needs no ten-lei size: the ten-lei rule is for new ones. */
+export function readLeiInputOverHeld(
   text: string,
-  activeMinor: number,
+  heldMinors: readonly number[],
 ): LeiInputReading {
   const amount = readLeiAmount(text);
-  const isActive = amount.kind === "amount" && amount.minor === activeMinor;
-  return isActive ? amount : refusingNonTens(amount);
+  const isHeld = amount.kind === "amount" && heldMinors.includes(amount.minor);
+  return isHeld ? amount : refusingNonTens(amount);
+}
+
+/** The amount as a person types it back: the grouping spaces of `formatLeiAmount` left out. */
+export function plainLeiOf(minor: number): string {
+  return formatLeiAmount(minor).replace(WHITESPACE, "");
 }
 
 function refusingNonTens(reading: LeiInputReading): LeiInputReading {

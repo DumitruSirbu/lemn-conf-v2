@@ -1,19 +1,18 @@
-// Adversarial QA of M10 wave U2, the cabinet list's seam to the dashboard's read (`cabinet-list-source.ts`).
-// `cabinet-list-source.test.ts` hands the source a handful of answers; the world tests run it over the real route.
-// Neither asks what the seam does with every status a read could come back with, with a `200` whose body is almost the state,
-// or with a `200` that carries more than the wire is allowed to (the R2 row: the wire sent to the client screen stays minimal).
-// The service is replaced by a function that answers as the test says; the seam, its limiter wrapper and the facts are real.
+// Adversarial QA of M10 wave U2, the cabinet list's seam to the dashboard's state (`cabinet-list-source.ts`).
+// `cabinet-list-source.test.ts` hands the source a handful of answers; the world tests run it over the real service.
+// Neither asks what the seam does with a state that is almost one, or with one that carries more than the wire is
+// allowed to (the R2 row: the wire sent to the client screen stays minimal). The service's read is replaced by a
+// function that answers as the test says; the seam and the facts are real.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deriveCabinetList } from "@/price-dashboard/cabinet-list-facts";
 import { readCabinetList } from "@/price-dashboard/cabinet-list-source";
 
 import { captureConsole } from "../../../support/account-world";
-import { readRequest } from "../../../support/price-dashboard-requests";
 import { stateOf } from "../../../price-dashboard/dashboard-state-fixture";
 
 const service = vi.hoisted(() => ({
-  read: undefined as undefined | (() => Promise<Response>),
+  read: undefined as undefined | (() => Promise<unknown>),
 }));
 
 vi.mock(
@@ -22,7 +21,7 @@ vi.mock(
     ...(await importOriginal<
       typeof import("@/lib/server/price-dashboard/price-dashboard-service")
     >()),
-    readDashboardForStaff: () => {
+    readDashboardStateForAdmittedPage: () => {
       if (service.read === undefined) throw new Error("no answer set");
       return service.read();
     },
@@ -38,53 +37,33 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const request = () => {
-  const { cookies, headers } = readRequest({});
-  return { cookies, headers };
-};
+const giving = (body: unknown): Promise<unknown> => Promise.resolve(body);
 
-const json = (status: number, body: unknown): Response =>
-  new Response(JSON.stringify(body), { status });
-
-describe("an answer of the read that is not a 200", () => {
-  const STATUSES = [
-    201, 202, 203, 206, 301, 302, 304, 307, 400, 401, 403, 404, 405, 409, 410,
-    413, 422, 429, 500, 501, 502, 503, 504,
-  ];
-
-  it.each(STATUSES)(
-    "is unavailable for a %i, even when its body is a perfectly good state",
-    async (status) => {
-      service.read = () => Promise.resolve(json(status, stateOf()));
-
-      expect(await readCabinetList(request())).toEqual({ kind: "unavailable" });
-    },
-  );
-
-  it("is unavailable when the read throws, rejects with something that is not an Error, or gives a body that cannot be read", async () => {
+describe("a read that gives no state", () => {
+  it("is unavailable when the read throws or rejects", async () => {
     for (const read of [
       () => {
         throw new Error("secret connection string postgres://user:pw@host");
       },
       () => Promise.reject(new Error("socket hang up")),
-      () => Promise.reject(new Error("a string")),
       () => Promise.reject(new Error("")),
-      () =>
-        Promise.resolve({
-          status: 200,
-          json: () => Promise.reject(new SyntaxError("Unexpected end")),
-        } as unknown as Response),
     ]) {
-      service.read = read as () => Promise<Response>;
+      service.read = read;
 
-      await expect(readCabinetList(request())).resolves.toEqual({
+      await expect(readCabinetList()).resolves.toEqual({
         kind: "unavailable",
       });
     }
   });
+
+  it("is unavailable when there is no active version or the draft cannot be read", async () => {
+    service.read = () => giving(undefined);
+
+    expect(await readCabinetList()).toEqual({ kind: "unavailable" });
+  });
 });
 
-describe("a 200 that is almost the state", () => {
+describe("a state that is almost the state", () => {
   const good = stateOf();
   const MALFORMED: readonly (readonly [string, unknown])[] = [
     ["null", null],
@@ -164,16 +143,16 @@ describe("a 200 that is almost the state", () => {
   it.each(MALFORMED)(
     "is unavailable for %s, and the list is never half drawn",
     async (_name, body) => {
-      service.read = () => Promise.resolve(json(200, body));
+      service.read = () => giving(body);
 
-      expect(await readCabinetList(request())).toEqual({ kind: "unavailable" });
+      expect(await readCabinetList()).toEqual({ kind: "unavailable" });
     },
   );
 
   it("is the page for a good state, and a page the browser can derive the same list from", async () => {
-    service.read = () => Promise.resolve(json(200, good));
+    service.read = () => giving(good);
 
-    const read = await readCabinetList(request());
+    const read = await readCabinetList();
 
     expect(read.kind).toBe("ready");
     if (read.kind === "ready") {
@@ -182,7 +161,7 @@ describe("a 200 that is almost the state", () => {
   });
 });
 
-describe("a 200 that carries more than the wire allows", () => {
+describe("a state that carries more than the wire allows", () => {
   const WIRE_ACTIVE_KEYS = [
     "availability",
     "book",
@@ -218,9 +197,9 @@ describe("a 200 that carries more than the wire allows", () => {
       },
       sessionTokenHash: "deadbeef",
     };
-    service.read = () => Promise.resolve(json(200, withExtras));
+    service.read = () => giving(withExtras);
 
-    const read = await readCabinetList(request());
+    const read = await readCabinetList();
 
     expect(read.kind).toBe("ready");
     if (read.kind !== "ready") return;
