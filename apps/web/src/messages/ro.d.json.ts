@@ -1728,6 +1728,8 @@ declare const messages: {
       "unreadableBody": "Ce ai pregătit nu mai poate fi afișat sau publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
       "staleDraftTitle": "Unele prețuri pregătite nu mai pot fi aplicate",
       "staleDraftBody": "Lista nu poate fi afișată, pentru că ce ai pregătit nu se mai potrivește cu prețurile active. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
+      "unchangedDraftTitle": "Ce ai pregătit nu diferă de prețurile active",
+      "unchangedDraftBody": "Modificările pregătite se anulează între ele, așa că lista nu are ce arăta și nu e nimic de publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
       "discardAction": "Renunță la ciornă",
       "discardTitle": "Renunți la toate prețurile pregătite?",
       "discardBody": "Toate prețurile din „De publicat” se șterg și nu mai pot fi aduse înapoi. Prețurile active nu se schimbă.",

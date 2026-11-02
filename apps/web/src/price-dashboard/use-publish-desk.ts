@@ -6,7 +6,6 @@ import type {
   CandidateRefusalWire,
   DashboardDraftWire,
   DashboardStateWire,
-  PriceVersionSummaryWire,
   DraftRevertTargetWire,
   PublishedWire,
   PublishTextRefusalCode,
@@ -20,6 +19,7 @@ import {
   type PublishOutcome,
 } from "./publish-client";
 import {
+  offersOnlyDiscard,
   readPendingDraft,
   type PendingDraftReading,
   type PublishPageInput,
@@ -131,30 +131,27 @@ export function usePublishDesk({
   const isBusy = phase.kind === "publishing";
   const {
     adopt,
+    refresh,
     change: changeDraft,
     revert: revertDraft,
     changeOrRevert,
     isBusy: isDraftBusy,
   } = priceDraft;
 
-  const refreshState = useCallback(async () => {
-    const fresh = await orFailed(() => client.readState(), undefined);
-    if (fresh !== undefined) adopt(fresh);
-  }, [client, adopt]);
-
   const readAgain = useCallback(async () => {
-    await refreshState();
+    await refresh();
     setNotice({ kind: "conflict" });
-  }, [refreshState]);
+  }, [refresh]);
 
   const discard = useDiscardDraft({
     client,
     draftRevision: state.draft.draftRevision,
+    isOffered: offersOnlyDiscard(reading),
     onDiscarded: (draft: DashboardDraftWire) => {
       adopt({ ...state, draft });
       setNotice({ kind: "discarded" });
     },
-    onConflict: () => void refreshState(),
+    onConflict: () => void readAgain(),
   });
 
   const noticeAfterWrite = useCallback((result: FieldWriteResult) => {
@@ -203,34 +200,38 @@ export function usePublishDesk({
   }, [revertDraft, changeDraft, reading, state, noticeAfterWrite]);
 
   const adoptPublished = useCallback(
-    async (published: PublishedWire) => {
-      const fresh = await orFailed(() => client.readState(), undefined);
-      const adopted =
-        fresh ??
-        locallyPublished(state, reading, {
-          published,
-          label: versionName.trim(),
-        });
-      adopt(adopted);
-      history.showPublished(
-        summaryOfActive(adopted, state.draft.changes.length),
-      );
+    async (published: PublishedWire, sentLabel: string) => {
+      const fresh = await refresh();
+      const ownVersion =
+        fresh?.active.versionId === published.versionId ? fresh : undefined;
+      const label = ownVersion?.active.label ?? sentLabel;
+      if (fresh === undefined) {
+        adopt(locallyPublished(state, reading, { published, label }));
+      }
+      history.showPublished({
+        versionId: published.versionId,
+        sequenceNumber: published.sequenceNumber,
+        label,
+        state: "active",
+        publishedAt: ownVersion?.active.publishedAt ?? new Date().toISOString(),
+        changeCount: state.draft.changes.length,
+      });
       setNotice({
         kind: "published",
         sequenceNumber: published.sequenceNumber,
-        label: adopted.active.label,
+        label,
       });
       setView("history");
     },
-    [client, state, reading, versionName, adopt, history],
+    [refresh, state, reading, adopt, history],
   );
 
   const settlePublish = useCallback(
-    (outcome: PublishOutcome) => {
+    (outcome: PublishOutcome, sentLabel: string) => {
       setPhase({ kind: "idle" });
       switch (outcome.kind) {
         case "published":
-          void adoptPublished(outcome.published);
+          void adoptPublished(outcome.published, sentLabel);
           return;
         case "conflict":
           void readAgain();
@@ -256,17 +257,20 @@ export function usePublishDesk({
 
   const confirmPublish = useCallback(() => {
     setPhase({ kind: "publishing" });
+    const sentLabel = versionName.trim();
     void orFailed(
       () =>
         client.publish({
           expectedDraftRevision: state.draft.draftRevision,
           expectedActiveSequence: state.active.sequenceNumber,
           expectedAvailabilityRevision: state.active.availability.revision,
-          label: versionName.trim(),
+          label: sentLabel,
           note: "",
         }),
       PUBLISH_FAILED,
-    ).then(settlePublish);
+    ).then((outcome) => {
+      settlePublish(outcome, sentLabel);
+    });
   }, [client, state, versionName, settlePublish]);
 
   return {
@@ -339,20 +343,6 @@ function isProvisionalOf(
   return reading.kind === "ready"
     ? reading.view.candidateIsProvisional
     : state.active.book.amountsProvisional;
-}
-
-function summaryOfActive(
-  adopted: DashboardStateWire,
-  changeCount: number,
-): PriceVersionSummaryWire {
-  return {
-    versionId: adopted.active.versionId,
-    sequenceNumber: adopted.active.sequenceNumber,
-    label: adopted.active.label,
-    state: "active",
-    publishedAt: adopted.active.publishedAt,
-    changeCount,
-  };
 }
 
 /** The state after a publish whose fresh read was not to be had: the candidate is the active book, the draft is empty. */

@@ -139,6 +139,8 @@ export function ProvisionalOffDialog({
 
 export interface DiscardDraftDialogProps extends FocusFallback {
   readonly isBusy: boolean;
+  /** Off, the press is ignored: the draft has moved past the revision the page holds, and the failure says so. */
+  readonly canConfirm: boolean;
   readonly failure: DiscardFailure | undefined;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
@@ -147,6 +149,7 @@ export interface DiscardDraftDialogProps extends FocusFallback {
 /** Giving up the draft throws away every pending price at once, so it is asked first and opens on "Anulează". */
 export function DiscardDraftDialog({
   isBusy,
+  canConfirm,
   failure,
   onConfirm,
   onCancel,
@@ -164,6 +167,7 @@ export function DiscardDraftDialog({
           label: translate("priceDashboard.publish.discardAction"),
           busyLabel: translate("priceDashboard.publish.discarding"),
           isBusy,
+          isOff: !canConfirm,
           onPress: onConfirm,
         }}
         cancel={{

@@ -51,23 +51,28 @@ export function refusalLinesOf(
   };
 }
 
+/** The wire is not parsed on this side, so a source this code was not written for is told as a reason naming no row. */
+const UNNAMED_LINE: RefusalLine = { kind: "unnamed" };
+
 function lineOf(
   refusal: CandidateRefusalWire,
   context: RefusalContext,
 ): RefusalLine {
   switch (refusal.source) {
     case "pricing":
-      return { kind: "unnamed" };
+      return UNNAMED_LINE;
     case "changes":
       return changeLineOf(refusal.index, context);
     case "catalogue":
       return catalogueLineOf(refusal, context);
+    default:
+      return UNNAMED_LINE;
   }
 }
 
 function changeLineOf(index: number, context: RefusalContext): RefusalLine {
   const change = context.changes[index];
-  if (change === undefined) return { kind: "unnamed" };
+  if (change === undefined) return UNNAMED_LINE;
   return { kind: "change", subject: subjectOfAddress(change.address, context) };
 }
 

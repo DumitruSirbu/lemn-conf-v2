@@ -23,6 +23,7 @@ import type {
   DraftChangeRefusalCode,
   DraftRevertTargetWire,
 } from "./price-dashboard-wire-contract";
+import { useLateAnswerGuard } from "./use-late-answer-guard";
 
 // The draft of prices as a screen holds it. A write names the draft revision the screen last saw, one write is out at a
 // time, and a write the server refuses as `changed-meanwhile` leaves the screen with the state read again, so the
@@ -76,8 +77,10 @@ export interface PriceDraft {
     activeValue: number,
   ) => Promise<FieldWriteResult>;
   readonly bulk: (input: BulkChangeInput) => Promise<BulkWriteResult>;
-  /** Takes a state read or made elsewhere (a publish, a discard) as the one the next write names the revision of. */
+  /** Takes a state made elsewhere (a publish, a discard) as the one the next write names the revision of. */
   readonly adopt: (state: DashboardStateWire) => void;
+  /** Reads the state again and adopts it unless a later read or adoption began meanwhile; the state read, or `undefined`. */
+  readonly refresh: () => Promise<DashboardStateWire | undefined>;
 }
 
 interface DraftInput {
@@ -94,22 +97,35 @@ export function usePriceDraft({
   const stateRef = useRef(state);
   const isOutRef = useRef(false);
 
-  const adoptDraft = useCallback((draft: DashboardDraftWire) => {
-    stateRef.current = { ...stateRef.current, draft };
-    setState(stateRef.current);
-  }, []);
+  const { moveOn, begin } = useLateAnswerGuard();
 
-  const adopt = useCallback((adopted: DashboardStateWire) => {
-    stateRef.current = adopted;
-    setState(adopted);
-  }, []);
+  const adoptDraft = useCallback(
+    (draft: DashboardDraftWire) => {
+      moveOn();
+      stateRef.current = { ...stateRef.current, draft };
+      setState(stateRef.current);
+    },
+    [moveOn],
+  );
 
-  const readAgain = useCallback(async () => {
+  const adopt = useCallback(
+    (adopted: DashboardStateWire) => {
+      moveOn();
+      stateRef.current = adopted;
+      setState(adopted);
+    },
+    [moveOn],
+  );
+
+  const refresh = useCallback(async () => {
+    moveOn();
+    const isSuperseded = begin();
     const fresh = await client.readState().catch(() => undefined);
-    if (fresh === undefined) return;
+    if (fresh === undefined || isSuperseded()) return fresh;
     stateRef.current = fresh;
     setState(fresh);
-  }, [client]);
+    return fresh;
+  }, [client, moveOn, begin]);
 
   /** One write at a time: a second press while one is out is not sent. */
   const exclusively = useCallback(
@@ -136,12 +152,12 @@ export function usePriceDraft({
       draftOf: (written: Written) => DashboardDraftWire,
     ) => {
       if (outcome.kind === "changed") adoptDraft(draftOf(outcome.written));
-      else if (outcome.kind === "conflict") await readAgain();
+      else if (outcome.kind === "conflict") await refresh();
       else if (outcome.kind === "session-ended") {
         raiseStaffSessionExpired({ keepsTypedText: true });
       }
     },
-    [adoptDraft, readAgain],
+    [adoptDraft, refresh],
   );
 
   const change = useCallback(
@@ -208,7 +224,16 @@ export function usePriceDraft({
     [client, exclusively, settle],
   );
 
-  return { state, isBusy, change, revert, changeOrRevert, bulk, adopt };
+  return {
+    state,
+    isBusy,
+    change,
+    revert,
+    changeOrRevert,
+    bulk,
+    adopt,
+    refresh,
+  };
 }
 
 const FAILED = { kind: "failed" } as const;

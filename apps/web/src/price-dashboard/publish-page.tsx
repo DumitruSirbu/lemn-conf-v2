@@ -28,6 +28,7 @@ import styles from "./publish.module.css";
 import { DiffSections, useRowWords } from "./publish-rows";
 import { CandidateRefusals } from "./publish-refusal-lines";
 import { useFocusAfterRevert } from "./use-focus-after-revert";
+import { useFocusWhenLost } from "./use-focus-when-lost";
 import {
   usePublishDesk,
   type PublishDesk,
@@ -61,8 +62,10 @@ export function PublishScreen({
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const discardButtonRef = useRef<HTMLButtonElement>(null);
   const pageRef = useRef<HTMLElement>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
   const { rememberRevertPosition, rememberEditPosition, emptyHeadingRef } =
     useFocusAfterRevert(pageRef, desk.state.draft);
+  useFocusWhenLost(noticeRef, noticeThatReplacesTheQuestion(desk.notice));
   const shell = {
     ...context,
     pendingPriceCount: desk.state.draft.changes.length,
@@ -77,7 +80,11 @@ export function PublishScreen({
         onKeyDownCapture={rememberEditPosition}
       >
         <PublishHeading locale={locale} desk={desk} />
-        <PublishNoticeBanner desk={desk} cabinetNames={input.cabinetNames} />
+        <PublishNoticeBanner
+          desk={desk}
+          cabinetNames={input.cabinetNames}
+          noticeRef={noticeRef}
+        />
         {desk.view === "history" ? (
           <VersionHistory
             locale={locale}
@@ -106,6 +113,15 @@ export function PublishScreen({
       </section>
     </StaffShell>
   );
+}
+
+/** The notices a closed discard question leaves behind: the draft is gone, or it moved and was read again. */
+function noticeThatReplacesTheQuestion(
+  notice: PublishNotice | undefined,
+): PublishNotice | undefined {
+  return notice?.kind === "discarded" || notice?.kind === "conflict"
+    ? notice
+    : undefined;
 }
 
 /** The prices could not be read: the frame stays, and the notice stands in the page's place. */
@@ -208,6 +224,14 @@ function PendingPrices({
     );
   }
   const { view } = reading;
+  if (!view.hasRows) {
+    return (
+      <UnchangedDraftNotice
+        buttonRef={discardButtonRef}
+        onDiscard={desk.discard.ask}
+      />
+    );
+  }
   return (
     <div className={styles.layout}>
       <div className={styles.main}>
@@ -268,6 +292,25 @@ function StaleDraftNotice({
   );
 }
 
+/** The pending changes cancel each other out: there is no row to list and nothing to publish, but they are still stored. */
+function UnchangedDraftNotice({
+  buttonRef,
+  onDiscard,
+}: {
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
+  readonly onDiscard: () => void;
+}) {
+  const translate = useTranslations();
+  return (
+    <DiscardNotice
+      title={translate("priceDashboard.publish.unchangedDraftTitle")}
+      body={translate("priceDashboard.publish.unchangedDraftBody")}
+      buttonRef={buttonRef}
+      onDiscard={onDiscard}
+    />
+  );
+}
+
 /** D7D: nothing waits, and the page says what the clients see now and shows the latest versions. The switch stays, because
  *  turning the provisional figures off is a draft change and would otherwise need an unrelated price first. */
 function NothingToPublish({
@@ -321,14 +364,16 @@ function NothingToPublish({
 function PublishNoticeBanner({
   desk,
   cabinetNames,
+  noticeRef,
 }: {
   readonly desk: PublishDesk;
   readonly cabinetNames: Readonly<Record<string, string>>;
+  readonly noticeRef: RefObject<HTMLDivElement | null>;
 }) {
   const { notice } = desk;
   if (notice === undefined) return null;
   return (
-    <div data-testid="publish-notice">
+    <div ref={noticeRef} tabIndex={-1} data-testid="publish-notice">
       <NoticeBody notice={notice} desk={desk} cabinetNames={cabinetNames} />
     </div>
   );
@@ -465,6 +510,7 @@ function PublishDialogs({
           returnFocusFallbackRef={discardFocusFallbackRef}
           isBusy={discard.phase === "discarding"}
           failure={discard.failure}
+          canConfirm={discard.canConfirm}
           onConfirm={discard.confirm}
           onCancel={discard.cancel}
         />

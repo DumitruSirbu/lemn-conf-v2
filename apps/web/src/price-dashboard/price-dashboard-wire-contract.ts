@@ -392,6 +392,9 @@ export interface PriceVersionSummaryWire {
   readonly changeCount: number;
 }
 
+/** Far past any history this dashboard will hold: it keeps the page a small integer a store can turn into an offset. */
+export const MAX_VERSION_PAGE = 10_000;
+
 export interface PriceVersionListWire {
   readonly total: number;
   readonly page: number;

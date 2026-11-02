@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 
 import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
@@ -14,6 +14,7 @@ import type { PublishClient } from "./publish-client";
 import { publishPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
 import { useDiscardDraft } from "./use-discard-draft";
+import { useFocusWhenLost } from "./use-focus-when-lost";
 
 // The stored draft cannot be read, so neither it nor the active prices can be shown, and the one write that works is
 // giving it up. The frame keeps no count of pending prices: an unreadable draft is not an empty one.
@@ -41,12 +42,14 @@ export function PublishDraftUnreadableScreen({
     [suppliedClient],
   );
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const resolvedRef = useRef<HTMLDivElement>(null);
   const [resolution, setResolution] = useState<Resolution | undefined>(
     undefined,
   );
   const discard = useDiscardDraft({
     client,
     draftRevision,
+    isOffered: true,
     onDiscarded: () => {
       setResolution("discarded");
     },
@@ -54,26 +57,32 @@ export function PublishDraftUnreadableScreen({
       setResolution("changed-meanwhile");
     },
   });
+  useFocusWhenLost(resolvedRef, resolution);
   return (
     <StaffShell locale={locale} page="publish" context={context}>
       <section className={styles.page} data-testid="publish-unreadable">
         <h1 className={styles.title}>
           {translate("priceDashboard.publish.title")}
         </h1>
-        {resolution === "discarded" ? null : (
+        {resolution === undefined ? (
           <DiscardNotice
             title={translate("priceDashboard.publish.unreadableTitle")}
             body={translate("priceDashboard.publish.unreadableBody")}
             buttonRef={buttonRef}
             onDiscard={discard.ask}
           />
-        )}
-        <Resolved locale={locale} resolution={resolution} />
+        ) : null}
+        <Resolved
+          locale={locale}
+          resolution={resolution}
+          resolvedRef={resolvedRef}
+        />
         {discard.phase === "idle" ? null : (
           <DiscardDraftDialog
             returnFocusFallbackRef={buttonRef}
             isBusy={discard.phase === "discarding"}
             failure={discard.failure}
+            canConfirm={discard.canConfirm}
             onConfirm={discard.confirm}
             onCancel={discard.cancel}
           />
@@ -86,14 +95,20 @@ export function PublishDraftUnreadableScreen({
 function Resolved({
   locale,
   resolution,
+  resolvedRef,
 }: {
   readonly locale: AppLocale;
   readonly resolution: Resolution | undefined;
+  readonly resolvedRef: RefObject<HTMLDivElement | null>;
 }) {
   const translate = useTranslations();
   if (resolution === undefined) return null;
   return (
-    <div data-testid="publish-unreadable-resolved">
+    <div
+      ref={resolvedRef}
+      tabIndex={-1}
+      data-testid="publish-unreadable-resolved"
+    >
       <FormNotice tone={resolution === "discarded" ? "success" : "warning"}>
         {resolution === "discarded"
           ? translate("priceDashboard.publish.discardedBody")

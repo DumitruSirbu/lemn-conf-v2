@@ -175,6 +175,8 @@ export interface SectionView {
 
 export interface PendingDraftView {
   readonly sections: readonly SectionView[];
+  /** The changes make a book that shows a row against the active one. A class created and deleted again shows none. */
+  readonly hasRows: boolean;
   /** The draft's changes: the number the header and the menu show. */
   readonly changeCount: number;
   /** The candidate book differs from the active one. A draft of restated values has rows and cannot be published. */
@@ -219,6 +221,7 @@ export function readPendingDraft(
           }),
         ),
       ),
+      hasRows: rows.length > 0,
       changeCount: changes.length,
       canPublish: diffBooks(active, candidate).length > 0,
       holdsProvisionalOff: changes.some(isProvisionalOff),
@@ -226,6 +229,14 @@ export function readPendingDraft(
       candidateBook: candidate,
     },
   };
+}
+
+/** The draft has changes and no row to take back one by one, so the one way out is giving the whole draft up. */
+export function offersOnlyDiscard(reading: PendingDraftReading): boolean {
+  return (
+    reading.kind === "candidate-refused" ||
+    (reading.kind === "ready" && !reading.view.hasRows)
+  );
 }
 
 function isProvisionalOff(change: DraftChange): boolean {

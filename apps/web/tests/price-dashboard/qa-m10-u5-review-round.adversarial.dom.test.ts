@@ -731,10 +731,13 @@ describe("the sample client's rule for a version's name", () => {
     expect((await fresh.publish(request(label))).kind).toBe("published");
   });
 
-  it("judges the length before the characters, so a long name with a control character is told as too long", async () => {
+  it("judges the characters before the length, as the route does, so a long name with a control character is told as forbidden", async () => {
     const outcome = await client.publish(request(`${"x".repeat(80)}\n`));
 
-    expect(outcome).toEqual({ kind: "invalid", code: "TEXT_TOO_LONG" });
+    expect(outcome).toEqual({
+      kind: "invalid",
+      code: "TEXT_FORBIDDEN_CHARACTER",
+    });
   });
 
   it("refuses without writing: the draft and the active version are what they were", async () => {

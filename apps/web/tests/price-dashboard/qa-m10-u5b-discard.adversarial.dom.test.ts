@@ -14,6 +14,7 @@ import type {
 import { PublishDraftUnreadableScreen } from "@/price-dashboard/publish-unreadable";
 
 import {
+  allIn,
   byWords,
   click,
   mountInCatalogue,
@@ -177,48 +178,42 @@ describe("a discard the draft has moved under", () => {
     ).toBe(revisions.length);
   });
 
-  // A QUESTION FOR THE COORDINATOR, not a settled defect: `use-discard-draft.ts` keeps the question open after a conflict "so
-  // the person decides again", and the desk's re-read may by then have drawn a list behind the dialog. A second press then
-  // discards a draft the person has not looked at. `it.fails` flips to red the day the page closes the question instead.
-  it.fails(
-    "does not leave the question open over a draft that is now a list the person has not seen",
-    async () => {
-      const healthy = inputWithDraft(
-        inputWithDraft([]).state.draft.changes,
-        "8",
-      ).state;
-      const { container, client } = await mountStale({
-        discardDraft: () => Promise.resolve({ kind: "conflict" }),
-        readState: () =>
-          Promise.resolve({
-            ...healthy,
-            draft: {
-              draftRevision: "8",
-              changes: [
-                {
-                  address: {
-                    kind: "cabinet",
-                    ruleId: "cabinet.base-cabinet",
-                    field: "anchorMinor",
-                  },
-                  value: 90_000,
-                } as DraftChange,
-              ],
-            },
-          }),
-      });
-      await openQuestion(container);
-      await confirmDiscard();
+  it("does not leave the question open over a draft that is now a list the person has not seen", async () => {
+    const healthy = inputWithDraft(
+      inputWithDraft([]).state.draft.changes,
+      "8",
+    ).state;
+    const { container, client } = await mountStale({
+      discardDraft: () => Promise.resolve({ kind: "conflict" }),
+      readState: () =>
+        Promise.resolve({
+          ...healthy,
+          draft: {
+            draftRevision: "8",
+            changes: [
+              {
+                address: {
+                  kind: "cabinet",
+                  ruleId: "cabinet.base-cabinet",
+                  field: "anchorMinor",
+                },
+                value: 90_000,
+              } as DraftChange,
+            ],
+          },
+        }),
+    });
+    await openQuestion(container);
+    await confirmDiscard();
 
-      const canDiscardUnseenDraft =
-        dialog() !== null &&
-        byWords(requireDialog(), "button", DISCARD_ACTION).isConnected;
-      if (canDiscardUnseenDraft) await confirmDiscard();
-
-      expect(
-        client.discardDraft.mock.calls.map(([request]) => request),
-        "a second confirm discarded revision 8, which the person never saw",
-      ).toHaveLength(1);
-    },
-  );
+    expect(dialog(), "the question is still open over the list").toBeNull();
+    expect(
+      allIn(container, '[data-testid="diff-row"]').length,
+      "the person is left looking at the list",
+    ).toBeGreaterThan(0);
+    expect(
+      client.discardDraft.mock.calls.map(([request]) => request),
+      "a confirm discarded revision 8, which the person never saw",
+    ).toHaveLength(1);
+  });
 });
