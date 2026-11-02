@@ -62,8 +62,8 @@ const NUMBER = "\\p{Nd}+(?:[.,\\s\\u00A0\\u202F]\\p{Nd}+)*";
  *  a slash, a colon, a bracket. */
 const GAP = "[\\s\\p{Pd}/:()\\[\\]]*";
 
-/** The Romanian "de" of "500 de lei" and the thousands and millions of "5 mii lei", between a number and its unit. */
-const MAGNITUDE_AND_DE = `(?:(?:mii|milioane)(?!\\p{L})${GAP})?(?:de(?!\\p{L})${GAP})?`;
+/** The Romanian "de" of "500 de lei" and the thousands and millions of "5 mii lei" ("20 de mii de lei"), between a number and its unit. */
+const MAGNITUDE_AND_DE = `(?:(?:de(?!\\p{L})${GAP})?(?:mii|milioane)(?!\\p{L})${GAP})?(?:de(?!\\p{L})${GAP})?`;
 
 /** A number beside a money unit, either side of it: "500 lei", "500 de lei", "500-lei", "MDL 500", "lei: 500",
  *  "€5". A bare number is not an amount: a model or a size ("Blum 2000", "60 cm") is how a row is named. */
