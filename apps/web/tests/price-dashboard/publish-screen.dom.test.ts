@@ -143,6 +143,12 @@ function spiedClient(
     revert: vi.fn<PublishClient["revert"]>(
       replace.revert ?? ((request) => base.revert(request)),
     ),
+    discardDraft: vi.fn<PublishClient["discardDraft"]>(
+      replace.discardDraft ?? ((request) => base.discardDraft(request)),
+    ),
+    readVersionPage: vi.fn<PublishClient["readVersionPage"]>(
+      replace.readVersionPage ?? ((page) => base.readVersionPage(page)),
+    ),
     restore: vi.fn<PublishClient["restore"]>(
       replace.restore ?? ((version, request) => base.restore(version, request)),
     ),
@@ -794,7 +800,7 @@ describe("a client that rejects", () => {
     ).toContain(COPY.errors.saveFailed);
   });
 
-  it("does not leave a conflict waiting when the state cannot be read again", async () => {
+  it("says nothing was saved, and not that the data was read again, when the state cannot be read again", async () => {
     const client = spiedClient(PLAIN_DRAFT, {
       publish: () => Promise.resolve({ kind: "conflict" }),
       readState: () => Promise.reject(new Error("offline")),
@@ -806,9 +812,12 @@ describe("a client that rejects", () => {
     click(byWords(requireDialog(), "button", COPY.publish.confirmAction));
     await settle();
 
-    expect(
-      requireIn(container, '[data-testid="publish-notice"]').textContent,
-    ).toContain(COPY.errors.changedMeanwhile);
+    const notice = requireIn(
+      container,
+      '[data-testid="publish-notice"]',
+    ).textContent;
+    expect(notice).toContain(COPY.errors.saveFailed);
+    expect(notice).not.toContain(COPY.errors.changedMeanwhile);
   });
 });
 
@@ -846,7 +855,8 @@ describe("where focus goes when a dialog closes after a press that did not focus
 describe("a publish refused for the book the draft would make", () => {
   it("says what is wrong in its own words, with no retry that could never succeed, and leaves the draft", async () => {
     const client = spiedClient(PLAIN_DRAFT, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
     const container = await mountPublish({ input: PLAIN_DRAFT, client });
     const rowsBefore = rowsIn(container).length;
@@ -866,7 +876,8 @@ describe("a publish refused for the book the draft would make", () => {
 
   it("is told in Russian too", async () => {
     const client = spiedClient(PLAIN_DRAFT, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
     const container = await mountPublish({
       input: PLAIN_DRAFT,

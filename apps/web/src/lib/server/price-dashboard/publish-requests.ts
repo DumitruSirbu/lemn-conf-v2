@@ -2,7 +2,6 @@ import {
   judgeVersionLabel,
   judgeVersionNote,
   type VersionTextJudgement,
-  type VersionTextRefusalCode,
 } from "@lemnaria/configurator-domain";
 
 import {
@@ -15,9 +14,11 @@ import {
 } from "@/lib/server/price-dashboard/draft-requests";
 import { isVersionId } from "@/lib/server/price-dashboard/identifier-shape";
 import { isRevisionShape } from "@/lib/server/price-dashboard/revision-shape";
-import type {
-  DashboardIssue,
-  PublishTextRefusalCode,
+import { publishTextRefusalCodeOf } from "@/price-dashboard/publish-text-refusal";
+import {
+  MAX_VERSION_PAGE,
+  type DashboardIssue,
+  type PublishTextRefusalCode,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 
 // A body that is not an object, names a member the route does not take, or holds a member of the wrong type is
@@ -123,22 +124,7 @@ function issueOf(
 ): readonly DashboardIssue<PublishTextRefusalCode>[] {
   return judgement.ok
     ? []
-    : [{ field, code: textRefusalCodeOf(judgement.code) }];
-}
-
-/** `NOT_TEXT` cannot reach here: a value that is not text was `malformed` before it was judged. */
-function textRefusalCodeOf(
-  code: VersionTextRefusalCode,
-): PublishTextRefusalCode {
-  switch (code) {
-    case "REQUIRED":
-      return "TEXT_EMPTY";
-    case "TOO_LONG":
-      return "TEXT_TOO_LONG";
-    case "FORBIDDEN_CHARACTER":
-    case "NOT_TEXT":
-      return "TEXT_FORBIDDEN_CHARACTER";
-  }
+    : [{ field, code: publishTextRefusalCodeOf(judgement.code) }];
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -168,9 +154,6 @@ export function readRestoreRequest(
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The history's page
-
-/** Far past any history this dashboard will hold; it keeps the page a small integer the store can turn into an offset. */
-export const MAX_VERSION_PAGE = 10_000;
 
 const FIRST_VERSION_PAGE = 1;
 const PAGE_SHAPE = /^[1-9][0-9]*$/;

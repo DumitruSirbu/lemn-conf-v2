@@ -1,8 +1,6 @@
-// Adversarial QA of M10 wave U4a where its drafts meet the publish screen. Until this wave no screen wrote a creation or a
-// deletion, and the publish model says so in a comment ("none reaches this model until the screens that author them are built");
-// now a person can create a class and delete one. What the review of a draft shows of them, and what a publish would store, is
-// held here to the draft the hardware screens leave: the created class named with its four amounts, the deleted class named, the
-// count the menu shows, and the availability log's owed rows for a class that only the draft held.
+// What the publish review shows of a draft the hardware screens leave, and what a publish would store: a created class
+// named with its four amounts, a deleted class named, the count the menu shows, and the availability log's owed rows for a
+// class that only the draft held.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -80,8 +78,10 @@ describe("a class the hardware screens created, as the publish review reads the 
   });
 
   it("is taken out whole by the ↺ of any one of its rows, as the review offers it: the class goes, not one amount", () => {
-    for (const row of rowsOf(CREATED_CLASS)) {
-      if (row.kind !== "field" || row.revert?.kind !== "change") {
+    const rows = rowsOf(CREATED_CLASS);
+
+    for (const row of rows) {
+      if (row.revert?.kind !== "change") {
         throw new Error("a row of a created class has no ↺ of its own");
       }
 
@@ -89,6 +89,9 @@ describe("a class the hardware screens created, as the publish review reads the 
 
       expect(remaining).toEqual([]);
     }
+    expect(rows.filter((row) => row.kind === "field")).toHaveLength(
+      HARDWARE_RATE_FIELDS.length,
+    );
   });
 });
 
@@ -105,11 +108,12 @@ describe("a class the hardware screens deleted, as the publish review reads the 
     expect(reading.view.changeCount).toBe(1);
     expect(reading.view.canPublish).toBe(true);
     const rows = rowsOf(DELETES_HETTICH);
-    expect(rows).toHaveLength(HARDWARE_RATE_FIELDS.length);
+    const fieldRows = rows.filter((row) => row.kind === "field");
+    expect(rows.filter((row) => row.kind === "row")).toHaveLength(1);
+    expect(fieldRows).toHaveLength(HARDWARE_RATE_FIELDS.length);
     expect(
-      rows.every(
+      fieldRows.every(
         (row) =>
-          row.kind === "field" &&
           row.subject.kind === "book-text" &&
           row.subject.authored === "Hettich" &&
           typeof row.after === "object",
@@ -122,7 +126,7 @@ describe("a class the hardware screens deleted, as the publish review reads the 
       { kind: "hardware", tierId: HETTICH },
     ]);
     for (const row of rowsOf(DELETES_HETTICH)) {
-      if (row.kind !== "field" || row.revert?.kind !== "change") {
+      if (row.revert?.kind !== "change") {
         throw new Error("a row of a deleted class has no ↺ of its own");
       }
 

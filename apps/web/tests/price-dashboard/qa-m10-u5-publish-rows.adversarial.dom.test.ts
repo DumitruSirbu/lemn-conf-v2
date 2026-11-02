@@ -277,6 +277,12 @@ function spiedClient(
     revert: vi.fn<PublishClient["revert"]>(
       replace.revert ?? ((request) => base.revert(request)),
     ),
+    discardDraft: vi.fn<PublishClient["discardDraft"]>(
+      replace.discardDraft ?? ((request) => base.discardDraft(request)),
+    ),
+    readVersionPage: vi.fn<PublishClient["readVersionPage"]>(
+      replace.readVersionPage ?? ((page) => base.readVersionPage(page)),
+    ),
     restore: vi.fn<PublishClient["restore"]>(
       replace.restore ?? ((version, request) => base.restore(version, request)),
     ),
@@ -402,6 +408,13 @@ function expectDrawn(
   );
 }
 
+/** A corrected price draws its figure twice, as the button and as the phone's text; the figure is read once. */
+function figureOf(cell: Element): string {
+  return (
+    cell.querySelector('[class*="priceText"]')?.textContent ?? cell.textContent
+  );
+}
+
 function expectCellsOf(
   container: HTMLElement,
   changes: readonly DraftChange[],
@@ -422,7 +435,7 @@ function expectCellsOf(
     const [before, after, difference] = allIn(
       drawn[index] ?? container,
       '[class*="cellValue"]',
-    ).map((cell) => cell.textContent);
+    ).map(figureOf);
     if (expected === undefined) throw new Error("a row nobody asked for");
     if (expected.unit === "amount") {
       expect(before).toBe(formatLei(expected.before as number, CURRENCY_WORD));

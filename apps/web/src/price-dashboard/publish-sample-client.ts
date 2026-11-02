@@ -1,21 +1,30 @@
 import {
   applyChanges,
-  MAX_BOOK_NAME_LENGTH,
+  type ApplyChangesResult,
+  judgeVersionLabel,
   revertChange,
   type DraftChange,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
-import type {
-  DashboardStateWire,
-  PublishTextRefusalCode,
+import { judgeDraft } from "./draft-judgement";
+import {
+  MAX_VERSION_PAGE,
+  type CandidateRefusalWire,
+  type DashboardStateWire,
+  type PriceVersionSummaryWire,
+  type PublishRequestWire,
 } from "./price-dashboard-wire-contract";
 import type {
+  DiscardOutcome,
   DraftWriteOutcome,
   PublishClient,
+  PublishOutcome,
   RestoreOutcome,
+  VersionPageOutcome,
 } from "./publish-client";
 import { planRestore, type VersionDetailInput } from "./publish-model";
+import { publishTextRefusalCodeOf } from "./publish-text-refusal";
 
 // A client over memory for builds that show samples. Loaded only outside production, next to `publish-sample.ts`.
 
@@ -23,13 +32,22 @@ import { planRestore, type VersionDetailInput } from "./publish-model";
 export interface SampleDeskStart {
   readonly state: DashboardStateWire;
   readonly archived: ReadonlyMap<string, PriceBook>;
+  /** Every version of the history, newest first, and how many a page holds. Left out, the history is empty. */
+  readonly history?: {
+    readonly versions: readonly PriceVersionSummaryWire[];
+    readonly pageSize: number;
+  };
 }
+
+/** What a write of the sample desk comes to: it stores the draft or it does not. */
+type StoredOutcome = Extract<
+  DraftWriteOutcome,
+  { readonly kind: "changed" | "failed" }
+>;
 
 const SAMPLE_VERSION_PREFIX = "sample-version-";
 const SAMPLE_VERSION_DIGITS = 8;
-
-/** Control, surrogate and line-separator characters: the text rule of the contact fields, which a version's name follows. */
-const FORBIDDEN_CHARACTER = /[\p{Cc}\p{Cs}\p{Zl}\p{Zp}]/u;
+const FIRST_VERSION_PAGE = 1;
 
 /** The id the sample gives version number `sequenceNumber`: the books and the client must agree on it. */
 export function sampleVersionIdOf(sequenceNumber: number): string {
@@ -58,14 +76,19 @@ export function makeSampleVersionClient(
 
 /** An in-memory client over the starting facts. Its draft revision is the count of writes so far, as a string. */
 export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
-  const desk = { state: start.state, writes: 0 };
+  const desk = {
+    state: start.state,
+    writes: 0,
+    versions: start.history?.versions ?? [],
+  };
+  const pageSize = start.history?.pageSize ?? 1;
   const isStale = (expected: string): boolean =>
     expected !== desk.state.draft.draftRevision;
   const nextRevision = (): string => {
     desk.writes += 1;
     return `sample-${String(desk.writes)}`;
   };
-  const store = (changes: readonly DraftChange[]): DraftWriteOutcome => {
+  const store = (changes: readonly DraftChange[]): StoredOutcome => {
     if (!applyChanges(desk.state.active.book, changes).ok) {
       return { kind: "failed" };
     }
@@ -74,16 +97,107 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
     return { kind: "changed", draft };
   };
 
+  const storeChange = (change: DraftChange): DraftWriteOutcome => {
+    const kept = revertChange(desk.state.draft.changes, change.address);
+    const changes = [...kept, change];
+    const judgement = judgeDraft({
+      book: desk.state.active.book,
+      changes,
+      firstNewIndex: kept.length,
+      stored: desk.state.draft.changes,
+    });
+    switch (judgement.kind) {
+      case "refused-new-change":
+        return { kind: "refused", code: judgement.code };
+      case "candidate-refused":
+        return { kind: "candidate-refused" };
+      case "applies":
+        return store(changes);
+    }
+  };
+
+  const discarded = (): DiscardOutcome => {
+    const draft = { draftRevision: nextRevision(), changes: [] };
+    desk.state = { ...desk.state, draft };
+    return { kind: "changed", draft };
+  };
+
+  const publish = (request: PublishRequestWire): PublishOutcome => {
+    const label = judgeVersionLabel(request.label);
+    if (!label.ok) {
+      return { kind: "invalid", code: publishTextRefusalCodeOf(label.code) };
+    }
+    const { active, draft } = desk.state;
+    const isStalePublish =
+      isStale(request.expectedDraftRevision) ||
+      request.expectedActiveSequence !== active.sequenceNumber;
+    if (isStalePublish || draft.changes.length === 0) {
+      return { kind: "conflict" };
+    }
+    const applied = applyChanges(active.book, draft.changes);
+    if (!applied.ok) {
+      return { kind: "candidate-refused", refusals: refusalsOf(applied) };
+    }
+    if (request.expectedAvailabilityRevision !== active.availability.revision) {
+      return { kind: "conflict" };
+    }
+    return publishVersion({ label: label.text, book: applied.book, request });
+  };
+
+  const publishVersion = ({
+    label,
+    book,
+    request,
+  }: {
+    readonly label: string;
+    readonly book: PriceBook;
+    readonly request: PublishRequestWire;
+  }): PublishOutcome => {
+    const sequenceNumber = desk.state.active.sequenceNumber + 1;
+    const versionId = sampleVersionIdOf(sequenceNumber);
+    const publishedAt = new Date().toISOString();
+    desk.versions = [
+      {
+        versionId,
+        sequenceNumber,
+        label,
+        state: "active",
+        publishedAt,
+        changeCount: desk.state.draft.changes.length,
+      },
+      ...desk.versions.map((version) => ({
+        ...version,
+        state: "archived" as const,
+      })),
+    ];
+    desk.state = {
+      active: {
+        ...desk.state.active,
+        versionId,
+        sequenceNumber,
+        label,
+        publishedAt,
+        book,
+      },
+      draft: { draftRevision: nextRevision(), changes: [] },
+    };
+    return {
+      kind: "published",
+      published: {
+        versionId,
+        sequenceNumber,
+        availabilityRevision: request.expectedAvailabilityRevision,
+      },
+    };
+  };
+
   return {
     readState: () => Promise.resolve(desk.state),
     change: ({ expectedDraftRevision, change }) =>
       Promise.resolve(
         isStale(expectedDraftRevision)
           ? { kind: "conflict" }
-          : store([
-              ...revertChange(desk.state.draft.changes, change.address),
-              change,
-            ]),
+          : storeChange(change),
       ),
     revert: ({ expectedDraftRevision, target }) =>
       Promise.resolve(
@@ -97,44 +211,13 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
                   ),
             ),
       ),
-    publish: (request) => {
-      if (isStale(request.expectedDraftRevision)) {
-        return Promise.resolve({ kind: "conflict" });
-      }
-      const refusal = refusalOfVersionName(request.label);
-      if (refusal !== undefined) {
-        return Promise.resolve({ kind: "invalid", code: refusal });
-      }
-      if (desk.state.draft.changes.length === 0) {
-        return Promise.resolve({ kind: "conflict" });
-      }
-      const applied = applyChanges(
-        desk.state.active.book,
-        desk.state.draft.changes,
-      );
-      if (!applied.ok) return Promise.resolve({ kind: "candidate-refused" });
-      const sequenceNumber = desk.state.active.sequenceNumber + 1;
-      const versionId = sampleVersionIdOf(sequenceNumber);
-      desk.state = {
-        active: {
-          ...desk.state.active,
-          versionId,
-          sequenceNumber,
-          label: request.label,
-          publishedAt: new Date().toISOString(),
-          book: applied.book,
-        },
-        draft: { draftRevision: nextRevision(), changes: [] },
-      };
-      return Promise.resolve({
-        kind: "published",
-        published: {
-          versionId,
-          sequenceNumber,
-          availabilityRevision: request.expectedAvailabilityRevision,
-        },
-      });
-    },
+    discardDraft: ({ expectedDraftRevision }) =>
+      Promise.resolve<DiscardOutcome>(
+        isStale(expectedDraftRevision) ? { kind: "conflict" } : discarded(),
+      ),
+    readVersionPage: (page) =>
+      Promise.resolve(pageOfHistory(desk.versions, pageSize, page)),
+    publish: (request) => Promise.resolve(publish(request)),
     restore: (versionId, request) => {
       const archived = start.archived.get(versionId);
       if (archived === undefined) {
@@ -165,12 +248,42 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
   };
 }
 
-function refusalOfVersionName(
-  label: string,
-): PublishTextRefusalCode | undefined {
-  if (label.trim() === "") return "TEXT_EMPTY";
-  if (label.length > MAX_BOOK_NAME_LENGTH) return "TEXT_TOO_LONG";
-  return FORBIDDEN_CHARACTER.test(label)
-    ? "TEXT_FORBIDDEN_CHARACTER"
-    : undefined;
+function refusalsOf(
+  refused: Exclude<ApplyChangesResult, { readonly ok: true }>,
+): readonly CandidateRefusalWire[] {
+  if (refused.reason === "candidate-refused") {
+    return [{ source: "pricing", code: refused.failure.code }];
+  }
+  return refused.refusals.map(({ index, code }) => ({
+    source: "changes",
+    index,
+    code,
+  }));
+}
+
+function pageOfHistory(
+  versions: readonly PriceVersionSummaryWire[],
+  pageSize: number,
+  page: number,
+): VersionPageOutcome {
+  if (!isListablePage(page)) return { kind: "failed" };
+  const first = (page - FIRST_VERSION_PAGE) * pageSize;
+  return {
+    kind: "listed",
+    list: {
+      total: versions.length,
+      page,
+      pageSize,
+      versions: versions.slice(first, first + pageSize),
+    },
+  };
+}
+
+/** The pages a route lists: whole numbers from the first to `MAX_VERSION_PAGE`. */
+function isListablePage(page: number): boolean {
+  return (
+    Number.isSafeInteger(page) &&
+    page >= FIRST_VERSION_PAGE &&
+    page <= MAX_VERSION_PAGE
+  );
 }

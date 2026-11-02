@@ -130,6 +130,12 @@ function spied(
     revert: vi.fn<PublishClient["revert"]>(
       replace.revert ?? ((request) => base.revert(request)),
     ),
+    discardDraft: vi.fn<PublishClient["discardDraft"]>(
+      replace.discardDraft ?? ((request) => base.discardDraft(request)),
+    ),
+    readVersionPage: vi.fn<PublishClient["readVersionPage"]>(
+      replace.readVersionPage ?? ((page) => base.readVersionPage(page)),
+    ),
     restore: vi.fn<PublishClient["restore"]>(
       replace.restore ?? ((version, request) => base.restore(version, request)),
     ),
@@ -200,7 +206,8 @@ describe("a publish the catalogue refuses", () => {
   it("says so in its own notice, offers no retry, and leaves the draft, the rows, the count and the active version alone", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
 
     const container = await publishWith(client, input);
@@ -233,7 +240,8 @@ describe("a publish the catalogue refuses", () => {
   it("does not read the state again, because nothing moved, and lets the person ask again after changing the draft", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
     const container = await publishWith(client, input);
     const readsBefore = client.readState.mock.calls.length;
@@ -248,7 +256,8 @@ describe("a publish the catalogue refuses", () => {
   it("is told in Russian with the Russian words", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
     screen = undefined;
     const container = await mountPublish(input, client, "ru");
@@ -335,7 +344,7 @@ describe("a client that rejects", () => {
     ).toBe(before);
   });
 
-  it("leaves a conflict whose re-read rejects as a conflict notice over the rows it had", async () => {
+  it("leaves a conflict whose re-read rejects as a notice that nothing was saved, over the rows it had", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
       publish: () => Promise.resolve({ kind: "conflict" }),
@@ -346,7 +355,7 @@ describe("a client that rejects", () => {
 
     expect(
       requireIn(container, '[data-testid="publish-notice"]').textContent,
-    ).toContain(COPY.errors.changedMeanwhile);
+    ).toContain(COPY.errors.saveFailed);
     expect(rowsIn(container)).toHaveLength(1);
   });
 });
@@ -722,10 +731,13 @@ describe("the sample client's rule for a version's name", () => {
     expect((await fresh.publish(request(label))).kind).toBe("published");
   });
 
-  it("judges the length before the characters, so a long name with a control character is told as too long", async () => {
+  it("judges the characters before the length, as the route does, so a long name with a control character is told as forbidden", async () => {
     const outcome = await client.publish(request(`${"x".repeat(80)}\n`));
 
-    expect(outcome).toEqual({ kind: "invalid", code: "TEXT_TOO_LONG" });
+    expect(outcome).toEqual({
+      kind: "invalid",
+      code: "TEXT_FORBIDDEN_CHARACTER",
+    });
   });
 
   it("refuses without writing: the draft and the active version are what they were", async () => {

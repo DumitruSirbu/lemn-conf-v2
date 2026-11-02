@@ -3,29 +3,39 @@
 import { useCallback, useMemo, useState } from "react";
 
 import type {
+  CandidateRefusalWire,
+  DashboardDraftWire,
   DashboardStateWire,
   DraftRevertTargetWire,
-  PriceVersionSummaryWire,
   PublishedWire,
   PublishTextRefusalCode,
 } from "./price-dashboard-wire-contract";
 import { orFailed } from "./async-seams";
 import { defaultPublishClient } from "./default-publish-client";
+import type { PriceDraftClient } from "./price-draft-client";
 import {
-  type DraftWriteOutcome,
   type PublishBlock,
   type PublishClient,
   type PublishOutcome,
 } from "./publish-client";
 import {
+  offersOnlyDiscard,
   readPendingDraft,
   type PendingDraftReading,
   type PublishPageInput,
 } from "./publish-model";
+import { useUnsentAmounts, type ReportUnsentAmount } from "./unsent-amounts";
+import { useDiscardDraft, type DiscardControl } from "./use-discard-draft";
+import {
+  usePriceDraft,
+  type FieldWriteResult,
+  type PriceDraft,
+} from "./use-price-draft";
+import { useVersionHistory, type VersionHistory } from "./use-version-history";
 
 // Nothing is shown as published until the client said so; a refusal as `changed-meanwhile` reads the state again first.
+// The draft belongs to `usePriceDraft`: every write of it, here or in a row's field, goes through it, one at a time.
 
-const WRITE_FAILED: DraftWriteOutcome = { kind: "failed" };
 const PUBLISH_FAILED: PublishOutcome = { kind: "failed" };
 
 export type PublishView = "pending" | "history";
@@ -45,28 +55,41 @@ export type PublishNotice =
       readonly label: string;
     }
   | { readonly kind: "failed" }
-  | { readonly kind: "candidate-refused" }
+  | {
+      readonly kind: "candidate-refused";
+      readonly refusals: readonly CandidateRefusalWire[];
+    }
   | { readonly kind: "conflict" }
   | { readonly kind: "save-failed" }
+  | { readonly kind: "discarded" }
   | { readonly kind: "blocked"; readonly block: PublishBlock };
 
 export interface PublishDesk {
   readonly state: DashboardStateWire;
-  readonly versions: readonly PriceVersionSummaryWire[];
+  readonly history: VersionHistory;
   readonly reading: PendingDraftReading;
   readonly view: PublishView;
   readonly versionName: string;
   readonly nameRefusal: PublishTextRefusalCode | undefined;
   readonly phase: PublishPhase;
   readonly notice: PublishNotice | undefined;
+  /** A publish has its request out. */
   readonly isBusy: boolean;
+  /** A publish or a write of the draft is out: no other write is sent meanwhile. */
+  readonly isLocked: boolean;
   readonly isProvisional: boolean;
+  /** A row's "Nou" holds text that was not sent: a publish would put the old figure live, so none is asked. */
+  readonly hasUnsentAmount: boolean;
+  readonly reportUnsentAmount: ReportUnsentAmount;
+  readonly discard: DiscardControl;
   readonly setVersionName: (name: string) => void;
   readonly requestPublish: () => void;
   readonly cancelPublish: () => void;
   readonly confirmProvisionalOff: (isChecked: boolean) => void;
   readonly confirmPublish: () => void;
   readonly revert: (target: DraftRevertTargetWire) => void;
+  /** A value typed into a row's "Nou": equal to the active one, it takes the draft's change out. */
+  readonly saveAmount: PriceDraft["changeOrRevert"];
   readonly toggleProvisional: () => void;
   readonly dismissNotice: () => void;
 }
@@ -86,8 +109,13 @@ export function usePublishDesk({
     () => suppliedClient ?? defaultPublishClient({ kind: "publish", input }),
     [suppliedClient, input],
   );
-  const [state, setState] = useState(input.state);
-  const [versions, setVersions] = useState(input.versions.versions);
+  const draftClient = useMemo(() => draftClientOf(client), [client]);
+  const priceDraft = usePriceDraft({
+    initial: input.state,
+    client: draftClient,
+  });
+  const { state } = priceDraft;
+  const history = useVersionHistory({ client, initial: input.versions });
   const [view, setView] = useState<PublishView>(initialView);
   const [versionName, setVersionNameState] = useState("");
   const [nameRefusal, setNameRefusal] = useState<
@@ -104,86 +132,113 @@ export function usePublishDesk({
       }),
     [state, input.cabinetNames],
   );
+  const { hasUnsentAmount, reportUnsentAmount } = useUnsentAmounts();
   const isBusy = phase.kind === "publishing";
+  const {
+    adopt,
+    refresh,
+    change: changeDraft,
+    revert: revertDraft,
+    changeOrRevert,
+    isBusy: isDraftBusy,
+  } = priceDraft;
 
   const readAgain = useCallback(async () => {
-    const fresh = await orFailed(() => client.readState(), undefined);
-    if (fresh !== undefined) setState(fresh);
-    setNotice({ kind: "conflict" });
-  }, [client]);
+    const read = await refresh();
+    setNotice({ kind: read.kind === "failed" ? "save-failed" : "conflict" });
+  }, [refresh]);
 
-  const applyDraftWrite = useCallback(
-    (outcome: DraftWriteOutcome) => {
-      if (outcome.kind === "changed") {
-        setState((current) => ({ ...current, draft: outcome.draft }));
-        setNotice(undefined);
-      } else if (outcome.kind === "conflict") void readAgain();
-      else setNotice({ kind: "save-failed" });
+  const discard = useDiscardDraft({
+    client,
+    draftRevision: state.draft.draftRevision,
+    isOffered: offersOnlyDiscard(reading),
+    onDiscarded: (draft: DashboardDraftWire) => {
+      adopt({ ...state, draft });
+      setNotice({ kind: "discarded" });
     },
-    [readAgain],
-  );
+    onConflict: () => void readAgain(),
+  });
+
+  const noticeAfterWrite = useCallback((result: FieldWriteResult) => {
+    switch (result.kind) {
+      case "saved":
+        setNotice(undefined);
+        return;
+      case "conflict":
+        setNotice({ kind: "conflict" });
+        return;
+      case "refused":
+      case "candidate-refused":
+      case "failed":
+        setNotice({ kind: "save-failed" });
+        return;
+      case "busy":
+      case "unchanged":
+        return;
+    }
+  }, []);
 
   const revert = useCallback(
     (target: DraftRevertTargetWire) => {
-      void orFailed(
-        () =>
-          client.revert({
-            expectedDraftRevision: state.draft.draftRevision,
-            target,
-          }),
-        WRITE_FAILED,
-      ).then(applyDraftWrite);
+      void revertDraft(target).then(noticeAfterWrite);
     },
-    [client, state.draft.draftRevision, applyDraftWrite],
+    [revertDraft, noticeAfterWrite],
+  );
+
+  const saveAmount = useCallback<PriceDraft["changeOrRevert"]>(
+    async (wanted, activeValue) => {
+      const result = await changeOrRevert(wanted, activeValue);
+      if (result.kind === "saved") setNotice(undefined);
+      if (result.kind === "conflict") setNotice({ kind: "conflict" });
+      return result;
+    },
+    [changeOrRevert],
   );
 
   const toggleProvisional = useCallback(() => {
     const next = !isProvisionalOf(reading, state);
-    const isActiveValue = next === state.active.book.amountsProvisional;
-    const request = { expectedDraftRevision: state.draft.draftRevision };
-    const write = () =>
-      isActiveValue
-        ? client.revert({
-            ...request,
-            target: { kind: "change", address: { kind: "provisional" } },
-          })
-        : client.change({
-            ...request,
-            change: { address: { kind: "provisional" }, value: next },
-          });
-    void orFailed(write, WRITE_FAILED).then(applyDraftWrite);
-  }, [client, reading, state, applyDraftWrite]);
+    const address = { kind: "provisional" } as const;
+    const write =
+      next === state.active.book.amountsProvisional
+        ? revertDraft({ kind: "change", address })
+        : changeDraft({ address, value: next });
+    void write.then(noticeAfterWrite);
+  }, [revertDraft, changeDraft, reading, state, noticeAfterWrite]);
 
   const adoptPublished = useCallback(
-    async (published: PublishedWire) => {
-      const fresh = await orFailed(() => client.readState(), undefined);
-      const adopted =
-        fresh ??
-        locallyPublished(state, reading, {
-          published,
-          label: versionName.trim(),
-        });
-      setState(adopted);
-      setVersions((held) => [
-        summaryOfActive(adopted, state.draft.changes.length),
-        ...held.map((version) => ({ ...version, state: "archived" as const })),
-      ]);
+    async (published: PublishedWire, sentLabel: string) => {
+      const read = await refresh();
+      const fresh = read.kind === "failed" ? undefined : read.state;
+      const ownVersion =
+        fresh?.active.versionId === published.versionId ? fresh : undefined;
+      const label = ownVersion?.active.label ?? sentLabel;
+      if (read.kind === "failed") {
+        adopt(locallyPublished(state, reading, { published, label }));
+      }
+      history.showPublished({
+        versionId: published.versionId,
+        sequenceNumber: published.sequenceNumber,
+        label,
+        state: "active",
+        publishedAt: ownVersion?.active.publishedAt ?? new Date().toISOString(),
+        changeCount: state.draft.changes.length,
+      });
       setNotice({
         kind: "published",
         sequenceNumber: published.sequenceNumber,
-        label: adopted.active.label,
+        label,
       });
       setView("history");
     },
-    [client, state, reading, versionName],
+    [refresh, state, reading, adopt, history],
   );
 
   const settlePublish = useCallback(
-    (outcome: PublishOutcome) => {
+    (outcome: PublishOutcome, sentLabel: string) => {
       setPhase({ kind: "idle" });
       switch (outcome.kind) {
         case "published":
-          void adoptPublished(outcome.published);
+          void adoptPublished(outcome.published, sentLabel);
           return;
         case "conflict":
           void readAgain();
@@ -195,7 +250,10 @@ export function usePublishDesk({
           setNotice({ kind: "blocked", block: outcome.block });
           return;
         case "candidate-refused":
-          setNotice({ kind: "candidate-refused" });
+          setNotice({
+            kind: "candidate-refused",
+            refusals: outcome.refusals,
+          });
           return;
         case "failed":
           setNotice({ kind: "failed" });
@@ -206,22 +264,25 @@ export function usePublishDesk({
 
   const confirmPublish = useCallback(() => {
     setPhase({ kind: "publishing" });
+    const sentLabel = versionName.trim();
     void orFailed(
       () =>
         client.publish({
           expectedDraftRevision: state.draft.draftRevision,
           expectedActiveSequence: state.active.sequenceNumber,
           expectedAvailabilityRevision: state.active.availability.revision,
-          label: versionName.trim(),
+          label: sentLabel,
           note: "",
         }),
       PUBLISH_FAILED,
-    ).then(settlePublish);
+    ).then((outcome) => {
+      settlePublish(outcome, sentLabel);
+    });
   }, [client, state, versionName, settlePublish]);
 
   return {
     state,
-    versions,
+    history,
     reading,
     view,
     versionName,
@@ -229,12 +290,17 @@ export function usePublishDesk({
     phase,
     notice,
     isBusy,
+    isLocked: isBusy || isDraftBusy,
     isProvisional: isProvisionalOf(reading, state),
+    hasUnsentAmount,
+    reportUnsentAmount,
+    discard,
     setVersionName: (name) => {
       setVersionNameState(name);
       setNameRefusal(undefined);
     },
     requestPublish: () => {
+      if (isDraftBusy || hasUnsentAmount) return;
       if (versionName.trim() === "") {
         setNameRefusal("TEXT_EMPTY");
         return;
@@ -253,11 +319,30 @@ export function usePublishDesk({
     },
     confirmPublish,
     revert,
+    saveAmount,
     toggleProvisional,
     dismissNotice: () => {
       setNotice(undefined);
     },
   };
+}
+
+/** The draft's own client over the desk's: the desk never makes a bulk change, so that one is never sent. */
+function draftClientOf(client: PublishClient): PriceDraftClient {
+  return {
+    readState: () => client.readState(),
+    change: async (request) => draftResultOf(await client.change(request)),
+    revert: async (request) => draftResultOf(await client.revert(request)),
+    bulk: () => Promise.resolve({ kind: "failed" }),
+  };
+}
+
+function draftResultOf(
+  outcome: Awaited<ReturnType<PublishClient["change"]>>,
+): Awaited<ReturnType<PriceDraftClient["change"]>> {
+  return outcome.kind === "changed"
+    ? { kind: "changed", written: outcome.draft }
+    : outcome;
 }
 
 function isProvisionalOf(
@@ -267,20 +352,6 @@ function isProvisionalOf(
   return reading.kind === "ready"
     ? reading.view.candidateIsProvisional
     : state.active.book.amountsProvisional;
-}
-
-function summaryOfActive(
-  adopted: DashboardStateWire,
-  changeCount: number,
-): PriceVersionSummaryWire {
-  return {
-    versionId: adopted.active.versionId,
-    sequenceNumber: adopted.active.sequenceNumber,
-    label: adopted.active.label,
-    state: "active",
-    publishedAt: adopted.active.publishedAt,
-    changeCount,
-  };
 }
 
 /** The state after a publish whose fresh read was not to be had: the candidate is the active book, the draft is empty. */

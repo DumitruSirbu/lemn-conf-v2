@@ -2235,6 +2235,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       publishAction:
         "Publică {count, plural, one {un preț} few {{count, number, ::group-off} prețuri} other {{count, number, ::group-off} de prețuri}}",
       publishing: "Se publică…",
+      unsentAmountHint:
+        "Ai o valoare scrisă în „Nou” care nu a fost trimisă. Trimite-o cu Enter sau închide câmpul cu Esc, apoi publică.",
       confirmTitle: "Publici „{versionName}”?",
       confirmBody:
         "{count, plural, one {Prețul nou devine activ} few {Cele {count, number, ::group-off} prețuri noi devin active} other {Cele {count, number, ::group-off} de prețuri noi devin active}} imediat în toate bucătăriile, și în cele deja salvate de clienți. Clienții vor vedea o notificare că prețurile s-au actualizat.",
@@ -2275,6 +2277,37 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       // Drafted, not approved: the Romanian is the agent's draft of wave U5's visual-round copy, pending the owner's
       // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
       noDifference: "fără diferență",
+      // Drafted, not approved: the Romanian is an agent draft awaiting the owner's approval as drafted. The Russian is
+      // an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      unreadableTitle: "Ciorna nu poate fi citită",
+      unreadableBody:
+        "Ce ai pregătit nu mai poate fi afișat sau publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
+      staleDraftTitle: "Unele prețuri pregătite nu mai pot fi aplicate",
+      staleDraftBody:
+        "Lista nu poate fi afișată, pentru că ce ai pregătit nu se mai potrivește cu prețurile active. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
+      unchangedDraftTitle: "Ce ai pregătit nu diferă de prețurile active",
+      unchangedDraftBody:
+        "Modificările pregătite se anulează între ele, așa că lista nu are ce arăta și nu e nimic de publicat. Prețurile active nu s-au schimbat. Poți renunța la ciornă și o iei de la capăt.",
+      discardAction: "Renunță la ciornă",
+      discardTitle: "Renunți la toate prețurile pregătite?",
+      discardBody:
+        "Toate prețurile din „De publicat” se șterg și nu mai pot fi aduse înapoi. Prețurile active nu se schimbă.",
+      discarding: "Se șterge…",
+      discardedBody:
+        "Ciorna a fost ștearsă. Prețurile active nu s-au schimbat.",
+      discardChangedMeanwhile:
+        "Ciorna s-a schimbat între timp, așa că nu am șters nimic. Reîncarcă pagina înainte să încerci din nou.",
+      refusalChange: "{name}: modificarea nu mai poate fi aplicată.",
+      refusalPriceNotPositive:
+        "{name}: la {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm prețul ar ieși zero sau negativ.",
+      refusalPriceTooLarge:
+        "{name}: la {widthMm, number, ::group-off} × {heightMm, number, ::group-off} mm prețul ar fi prea mare.",
+      refusalPercent: "{name}: procentul iese din limitele permise.",
+      refusalLink: "{name}: dulapul la care se adaugă nu poate fi prețuit.",
+      refusalCabinet: "{name}: lista nu poate calcula prețul acestui dulap.",
+      refusalUnnamed: "Lista nu poate calcula prețurile catalogului.",
+      refusalsMore: "Alte probleme: {count, number, ::group-off}.",
+      rowDeleted: "Șters",
     },
     history: {
       subtitle:
@@ -2316,6 +2349,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       // approval as drafted (OQ-11). The Russian is an agent draft, unapproved under ADR 0095 decision 2, never pinned.
       restoreReplaces:
         "Prețuri pregătite de tine care se înlocuiesc: {count, number, ::group-off}.",
+      // Drafted, not approved: the Romanian is an agent draft awaiting the owner's approval as drafted. The Russian is
+      // an agent draft, unapproved under ADR 0095 decision 2, never pinned.
+      pageFailed:
+        "Nu am putut citi pagina cerută. Rămâne afișată cea de dinainte.",
     },
     defaults: {
       title: "Setări implicite",

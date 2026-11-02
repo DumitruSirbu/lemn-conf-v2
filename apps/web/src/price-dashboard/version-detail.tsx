@@ -247,6 +247,7 @@ function VersionChanges({ input }: { readonly input: VersionDetailInput }) {
             }),
           }}
           onRevert={undefined}
+          onSaveAmount={undefined}
           isBusy={false}
         />
       )}

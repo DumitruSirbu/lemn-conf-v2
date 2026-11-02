@@ -9,6 +9,7 @@ import { FormNotice } from "@/account/account-form-parts";
 import type { ContentTranslator } from "@/i18n/content";
 
 import styles from "./publish.module.css";
+import type { DiscardFailure } from "./use-discard-draft";
 
 // Each dialog opens on the safe action and Escape takes it; `AccountDialog` holds the rest.
 // They are drawn into the frame's `<main>`, so the page behind goes inert.
@@ -131,6 +132,56 @@ export function ProvisionalOffDialog({
           />
           <span>{translate("priceDashboard.publish.provisionalOffCheck")}</span>
         </label>
+      </AccountDialog>
+    </InMain>
+  );
+}
+
+export interface DiscardDraftDialogProps extends FocusFallback {
+  readonly isBusy: boolean;
+  /** Off, the press is ignored: the draft has moved past the revision the page holds, and the failure says so. */
+  readonly canConfirm: boolean;
+  readonly failure: DiscardFailure | undefined;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
+}
+
+/** Giving up the draft throws away every pending price at once, so it is asked first and opens on "Anulează". */
+export function DiscardDraftDialog({
+  isBusy,
+  canConfirm,
+  failure,
+  onConfirm,
+  onCancel,
+  returnFocusFallbackRef,
+}: DiscardDraftDialogProps) {
+  const translate = useTranslations();
+  return (
+    <InMain>
+      <AccountDialog
+        kind="destructive"
+        title={translate("priceDashboard.publish.discardTitle")}
+        description={translate("priceDashboard.publish.discardBody")}
+        returnFocusFallbackRef={returnFocusFallbackRef}
+        confirm={{
+          label: translate("priceDashboard.publish.discardAction"),
+          busyLabel: translate("priceDashboard.publish.discarding"),
+          isBusy,
+          isOff: !canConfirm,
+          onPress: onConfirm,
+        }}
+        cancel={{
+          label: translate("priceDashboard.common.cancel"),
+          onPress: onCancel,
+        }}
+      >
+        {failure === undefined ? null : (
+          <FormNotice tone="error">
+            {failure === "conflict"
+              ? translate("priceDashboard.publish.discardChangedMeanwhile")
+              : translate("priceDashboard.errors.saveFailed")}
+          </FormNotice>
+        )}
       </AccountDialog>
     </InMain>
   );
