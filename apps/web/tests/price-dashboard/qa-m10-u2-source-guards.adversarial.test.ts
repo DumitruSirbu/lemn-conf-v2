@@ -18,7 +18,6 @@ import {
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const SOURCE_FILE = "price-dashboard/cabinet-list-source.ts";
-const HARDWARE_SOURCE_FILE = "price-dashboard/hardware-source.ts";
 const PAGE = "app/[locale]/staff/catalog/cabinets/page.tsx";
 const DETAIL_PAGE = "app/[locale]/staff/catalog/cabinets/[ruleId]/page.tsx";
 const SERVER_ONLY_IMPORT = /^import\s+["']server-only["'];?\s*$/m;
@@ -149,16 +148,12 @@ describe("the allow-list entry the developer added to the R-d guard", () => {
     }
   });
 
-  it("is needed by that file and by no other file of the dashboard's client side: every file under price-dashboard that reads the server's side is that one or the hardware source", () => {
+  it("is needed by that file and by no other file of the dashboard's client side: the one file under price-dashboard that reads the server's side is the read both sources go through", () => {
     const readers = allSources
       .filter((path) => path.startsWith("price-dashboard/"))
       .filter((path) => READS_DRAFT_OR_ARCHIVE.test(codeOf(path)));
 
-    expect(
-      readers.filter(
-        (path) => path !== SOURCE_FILE && path !== HARDWARE_SOURCE_FILE,
-      ),
-    ).toEqual([]);
+    expect(readers).toEqual(["price-dashboard/admitted-state-read.ts"]);
   });
 
   it("does not admit the client-side file that would write through it: no price-dashboard module with a use-client line reads the server directory", () => {

@@ -55,13 +55,18 @@ describe("the invented cabinet list can reach nobody", () => {
 
   it("reads the dashboard's state without writing, is server-only, and never reads the environment or loads a sample", () => {
     const source = sourceOf(join(DASHBOARD_ROOT, "cabinet-list-source.ts"));
+    const read = sourceOf(join(DASHBOARD_ROOT, "admitted-state-read.ts"));
 
     expect(source).toMatch(/^import "server-only";/m);
-    expect(source).toMatch(/readDashboardStateForAdmittedPage/);
-    expect(source).not.toMatch(
+    expect(source).toMatch(/readStateOrNothing/);
+    expect(read).toMatch(/^import "server-only";/m);
+    expect(read).toMatch(/readDashboardStateForAdmittedPage/);
+    expect(`${source}${read}`).not.toMatch(
       /readDashboardForStaff|touchCurrentSession|commitAuditRow/,
     );
-    expect(source).not.toMatch(/process\.env|isProductionBuild|sample/i);
+    expect(`${source}${read}`).not.toMatch(
+      /process\.env|isProductionBuild|sample/i,
+    );
   });
 
   it("keeps the browser's choice of client on the literal itself, with the sample behind a dynamic import", () => {

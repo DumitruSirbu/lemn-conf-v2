@@ -57,6 +57,25 @@ describe("the hardware source", () => {
   });
 });
 
+describe("the read of the state for an admitted page", () => {
+  const ADMITTED_STATE_READ = "price-dashboard/admitted-state-read.ts";
+
+  it("opens with the server-only import, and is named by the two sources that read for a page and by nothing else", () => {
+    const firstImport = /^import\s.*$/m.exec(textOf(ADMITTED_STATE_READ))?.[0];
+    const namers = allSources.filter(
+      (path) =>
+        path !== ADMITTED_STATE_READ &&
+        codeOf(path).includes("admitted-state-read"),
+    );
+
+    expect(firstImport).toBe('import "server-only";');
+    expect(namers.sort()).toEqual([
+      "price-dashboard/cabinet-list-source.ts",
+      "price-dashboard/hardware-source.ts",
+    ]);
+  });
+});
+
 describe("what a browser loads", () => {
   const clientModules = allSources.filter((path) =>
     USE_CLIENT.test(textOf(path)),

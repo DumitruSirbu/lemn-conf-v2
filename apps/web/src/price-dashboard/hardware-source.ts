@@ -2,12 +2,7 @@ import "server-only";
 
 import type { NewKitchenSettings } from "@lemnaria/configurator-domain";
 
-import { reportAccountEvent } from "@/lib/server/account/account-log";
-import {
-  PRICE_READ_EVENT,
-  readDashboardStateForAdmittedPage,
-} from "@/lib/server/price-dashboard/price-dashboard-service";
-
+import { readStateOrNothing } from "./admitted-state-read";
 import { deriveHardware, type HardwarePageInput } from "./hardware-model";
 import { isProductionBuild } from "./is-production-build";
 import { readKitchenDefaults } from "./kitchen-defaults-source";
@@ -79,14 +74,4 @@ async function sampleUsage(): Promise<HardwarePageInput["sampleUsage"]> {
   if (isProductionBuild()) return undefined;
   const { SAMPLE_HARDWARE_USAGE } = await import("./hardware-sample");
   return SAMPLE_HARDWARE_USAGE;
-}
-
-/** A store that fails is nothing to show, and the line written down names the event and the outcome alone. */
-async function readStateOrNothing(): Promise<DashboardStateWire | undefined> {
-  try {
-    return await readDashboardStateForAdmittedPage();
-  } catch {
-    reportAccountEvent({ event: PRICE_READ_EVENT, outcome: "unavailable" });
-    return undefined;
-  }
 }
