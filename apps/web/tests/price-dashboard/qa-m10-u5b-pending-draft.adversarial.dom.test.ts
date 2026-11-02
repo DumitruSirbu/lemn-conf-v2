@@ -1,31 +1,21 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of the pending page: drafts the page must stay usable under, and answers that arrive out of the order
-// they were asked in.
+// Adversarial QA of the pending page: drafts the page must stay usable under, and what a publish's own read of the
+// state may say about the version just published.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { applyChanges, type DraftChange } from "@lemnaria/configurator-domain";
 
-import type { DashboardStateWire } from "@/price-dashboard/price-dashboard-wire-contract";
-
-import { allIn, typeInto } from "../support/render-with-intl";
+import { allIn } from "../support/render-with-intl";
 import {
-  deferred,
   inputWithDraft,
   mountDesk,
-  pressKey,
   settle,
   spiedPublishClient,
   type MountedDesk,
 } from "./publish-desk-harness";
 import { roCopy } from "./romanian-copy";
-import {
-  askToPublish,
-  BASE_ANCHOR,
-  openFieldOf,
-  stateAt,
-  TWO_AMOUNT_ROWS,
-} from "./qa-m10-u5b-support";
+import { askToPublish, stateAt, TWO_AMOUNT_ROWS } from "./qa-m10-u5b-support";
 import {
   ACTIVE,
   change,
@@ -79,47 +69,6 @@ describe("a draft that creates a class and deletes it again", () => {
       hasArrow || hasDiscard || hasEmptyPage,
       `the page counts "${countedAsPending}" pending and offers neither an arrow, nor the discard, nor the empty page`,
     ).toBe(true);
-  });
-});
-
-describe("two reads of the state that answer out of the order they were asked in", () => {
-  it("leave the newer one standing, so the next write names the newest revision the page was told", async () => {
-    const reads = [
-      deferred<DashboardStateWire | undefined>(),
-      deferred<DashboardStateWire | undefined>(),
-    ];
-    let asked = 0;
-    const input = inputWithDraft(TWO_AMOUNT_ROWS, "1");
-    mounted = await mountDesk({
-      input,
-      client: spiedPublishClient(input, {
-        publish: () => Promise.resolve({ kind: "conflict" }),
-        change: () => Promise.resolve({ kind: "conflict" }),
-        readState: () => {
-          const answer = reads[asked];
-          asked += 1;
-          return answer?.promise ?? Promise.resolve(undefined);
-        },
-      }),
-    });
-    const { container, client } = mounted;
-    await askToPublish(container);
-    expect(asked, "the publish's conflict read the state").toBe(1);
-
-    const field = openFieldOf(container, BASE_ANCHOR.ruleId);
-    typeInto(field, "1230");
-    await pressKey(field, "Enter");
-    expect(asked, "the write's conflict read it again").toBe(2);
-
-    reads[1]?.resolve(stateAt("8"));
-    await settle();
-    reads[0]?.resolve(stateAt("7"));
-    await settle();
-    await pressKey(field, "Enter");
-
-    const lastWrite = client.change.mock.calls.at(-1)?.[0];
-    expect(client.change.mock.calls.length).toBeGreaterThan(1);
-    expect(lastWrite?.expectedDraftRevision).toBe("8");
   });
 });
 

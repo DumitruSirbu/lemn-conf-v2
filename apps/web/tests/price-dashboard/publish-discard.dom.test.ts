@@ -278,9 +278,7 @@ describe("what the page says after the answer", () => {
 
     await confirmDiscard();
 
-    expect(requireDialog().textContent).toContain(
-      roCopy("priceDashboard.publish.discardChangedMeanwhile"),
-    );
+    expect(dialog(), "the question closes on a refusal").toBeNull();
     const resolved = requireIn(
       container,
       '[data-testid="publish-unreadable-resolved"]',
@@ -353,7 +351,7 @@ describe("a draft whose changes no longer make a book", () => {
     expect(requireIn(container, ALL_PUBLISHED).isConnected).toBe(true);
   });
 
-  it("reads the state again on a stale revision and then discards at the revision it found", async () => {
+  it("closes the question on a stale revision, says the draft moved, and discards at the revision it found only when asked again", async () => {
     const { container, client } = await mountStale({
       discardDraft: (request) =>
         Promise.resolve(
@@ -369,11 +367,15 @@ describe("a draft whose changes no longer make a book", () => {
     click(byWords(container, "button", DISCARD_ACTION));
     await settle();
     await confirmDiscard();
-    expect(requireDialog().textContent).toContain(
-      roCopy("priceDashboard.publish.discardChangedMeanwhile"),
-    );
+    expect(dialog(), "the question closes on a refusal").toBeNull();
+    expect(
+      requireIn(container, '[data-testid="publish-notice"]').textContent,
+    ).toContain(roCopy("priceDashboard.errors.changedMeanwhile"));
     expect(client.readState).toHaveBeenCalledTimes(1);
+    expect(client.discardDraft).toHaveBeenCalledTimes(1);
 
+    click(byWords(container, "button", DISCARD_ACTION));
+    await settle();
     await confirmDiscard();
 
     expect(client.discardDraft.mock.calls.map((call) => call[0])).toStrictEqual(
@@ -382,5 +384,22 @@ describe("a draft whose changes no longer make a book", () => {
         { expectedDraftRevision: "8", scope: "all" },
       ],
     );
+  });
+
+  it("does not discard a different draft the re-read brought, though it is still one only to be given up", async () => {
+    const reread = inputWithDraft(
+      [NEGATIVE_ANCHOR, { ...NEGATIVE_ANCHOR, value: -2 } as DraftChange],
+      "8",
+    ).state;
+    const { container, client } = await mountStale({
+      discardDraft: () => Promise.resolve({ kind: "conflict" }),
+      readState: () => Promise.resolve(reread),
+    });
+    click(byWords(container, "button", DISCARD_ACTION));
+    await settle();
+    await confirmDiscard();
+
+    expect(dialog(), "no question stands over the draft just read").toBeNull();
+    expect(client.discardDraft).toHaveBeenCalledTimes(1);
   });
 });

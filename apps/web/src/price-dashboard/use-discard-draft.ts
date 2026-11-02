@@ -7,8 +7,9 @@ import type { DashboardDraftWire } from "./price-dashboard-wire-contract";
 import type { DiscardOutcome, PublishClient } from "./publish-client";
 
 // Giving up the whole draft is asked before it is sent, because it cannot be taken back. The question has a request
-// out only while `discarding`. A refusal as `changed-meanwhile` leaves it open with the reason and takes the confirmation
-// away for as long as the page holds the revision that was refused: sending it again could only be refused again.
+// out only while `discarding`. A refusal as `changed-meanwhile` closes the question: the page reads the draft again, and
+// the person asks again once they have seen what it now holds. Asked again at a revision that was refused, the
+// confirmation is off, since sending it could only be refused again.
 
 const DISCARD_FAILED: DiscardOutcome = { kind: "failed" };
 
@@ -62,6 +63,26 @@ export function useDiscardDraft({
     if (!isOutRef.current) setPhase("idle");
   }, []);
 
+  const settleDiscard = useCallback(
+    (outcome: DiscardOutcome, sentRevision: string) => {
+      switch (outcome.kind) {
+        case "changed":
+          setPhase("idle");
+          onDiscarded(outcome.draft);
+          return;
+        case "conflict":
+          setRefusedRevision(sentRevision);
+          setPhase("idle");
+          onConflict();
+          return;
+        case "failed":
+          setPhase("confirming");
+          setFailure("failed");
+      }
+    },
+    [onDiscarded, onConflict],
+  );
+
   const confirm = useCallback(() => {
     if (isOutRef.current || hasRefusedRevision) return;
     isOutRef.current = true;
@@ -76,19 +97,9 @@ export function useDiscardDraft({
       DISCARD_FAILED,
     ).then((outcome) => {
       isOutRef.current = false;
-      if (outcome.kind === "changed") {
-        setPhase("idle");
-        onDiscarded(outcome.draft);
-        return;
-      }
-      setPhase("confirming");
-      setFailure(outcome.kind);
-      if (outcome.kind === "conflict") {
-        setRefusedRevision(draftRevision);
-        onConflict();
-      }
+      settleDiscard(outcome, draftRevision);
     });
-  }, [client, draftRevision, hasRefusedRevision, onDiscarded, onConflict]);
+  }, [client, draftRevision, hasRefusedRevision, settleDiscard]);
 
   return {
     phase,

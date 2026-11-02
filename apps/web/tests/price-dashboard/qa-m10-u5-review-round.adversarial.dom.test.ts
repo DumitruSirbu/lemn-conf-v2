@@ -344,7 +344,7 @@ describe("a client that rejects", () => {
     ).toBe(before);
   });
 
-  it("leaves a conflict whose re-read rejects as a conflict notice over the rows it had", async () => {
+  it("leaves a conflict whose re-read rejects as a notice that nothing was saved, over the rows it had", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
       publish: () => Promise.resolve({ kind: "conflict" }),
@@ -355,7 +355,7 @@ describe("a client that rejects", () => {
 
     expect(
       requireIn(container, '[data-testid="publish-notice"]').textContent,
-    ).toContain(COPY.errors.changedMeanwhile);
+    ).toContain(COPY.errors.saveFailed);
     expect(rowsIn(container)).toHaveLength(1);
   });
 });

@@ -139,8 +139,8 @@ export function usePublishDesk({
   } = priceDraft;
 
   const readAgain = useCallback(async () => {
-    await refresh();
-    setNotice({ kind: "conflict" });
+    const read = await refresh();
+    setNotice({ kind: read.kind === "failed" ? "save-failed" : "conflict" });
   }, [refresh]);
 
   const discard = useDiscardDraft({
@@ -184,6 +184,7 @@ export function usePublishDesk({
     async (wanted, activeValue) => {
       const result = await changeOrRevert(wanted, activeValue);
       if (result.kind === "saved") setNotice(undefined);
+      if (result.kind === "conflict") setNotice({ kind: "conflict" });
       return result;
     },
     [changeOrRevert],
@@ -201,11 +202,12 @@ export function usePublishDesk({
 
   const adoptPublished = useCallback(
     async (published: PublishedWire, sentLabel: string) => {
-      const fresh = await refresh();
+      const read = await refresh();
+      const fresh = read.kind === "failed" ? undefined : read.state;
       const ownVersion =
         fresh?.active.versionId === published.versionId ? fresh : undefined;
       const label = ownVersion?.active.label ?? sentLabel;
-      if (fresh === undefined) {
+      if (read.kind === "failed") {
         adopt(locallyPublished(state, reading, { published, label }));
       }
       history.showPublished({

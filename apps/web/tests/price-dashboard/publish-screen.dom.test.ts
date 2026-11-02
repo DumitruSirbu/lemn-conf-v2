@@ -800,7 +800,7 @@ describe("a client that rejects", () => {
     ).toContain(COPY.errors.saveFailed);
   });
 
-  it("does not leave a conflict waiting when the state cannot be read again", async () => {
+  it("says nothing was saved, and not that the data was read again, when the state cannot be read again", async () => {
     const client = spiedClient(PLAIN_DRAFT, {
       publish: () => Promise.resolve({ kind: "conflict" }),
       readState: () => Promise.reject(new Error("offline")),
@@ -812,9 +812,12 @@ describe("a client that rejects", () => {
     click(byWords(requireDialog(), "button", COPY.publish.confirmAction));
     await settle();
 
-    expect(
-      requireIn(container, '[data-testid="publish-notice"]').textContent,
-    ).toContain(COPY.errors.changedMeanwhile);
+    const notice = requireIn(
+      container,
+      '[data-testid="publish-notice"]',
+    ).textContent;
+    expect(notice).toContain(COPY.errors.saveFailed);
+    expect(notice).not.toContain(COPY.errors.changedMeanwhile);
   });
 });
 

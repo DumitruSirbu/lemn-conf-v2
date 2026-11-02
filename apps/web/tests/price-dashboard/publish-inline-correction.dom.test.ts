@@ -25,6 +25,7 @@ import {
   spiedPublishClient,
   type MountedDesk,
 } from "./publish-desk-harness";
+import { stateAt } from "./qa-m10-u5b-support";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -384,6 +385,25 @@ describe("a write the server does not take", () => {
     expect(alertOf(container, BASE_ANCHOR.ruleId)).toBe(
       roCopy("priceDashboard.errors.changedMeanwhile"),
     );
+  });
+});
+
+describe("a correction refused as changed meanwhile whose row the read-again took away", () => {
+  it("is told on the page, where the field that would have told it is gone", async () => {
+    const wallOnly = TWO_AMOUNT_ROWS.slice(1);
+    const { container } = await mount(TWO_AMOUNT_ROWS, {
+      change: () => Promise.resolve({ kind: "conflict" }),
+      readState: () => Promise.resolve(stateAt("2", wallOnly)),
+    });
+    const input = openFieldOf(container, BASE_ANCHOR.ruleId);
+    typeInto(input, String((anchorOf(BASE_ANCHOR.ruleId) + 90 * LEI) / LEI));
+
+    await pressKey(input, "Enter");
+
+    expect(allIn(container, '[data-testid="diff-row"]')).toHaveLength(1);
+    expect(
+      requireIn(container, '[data-testid="publish-notice"]').textContent,
+    ).toContain(roCopy("priceDashboard.errors.changedMeanwhile"));
   });
 });
 

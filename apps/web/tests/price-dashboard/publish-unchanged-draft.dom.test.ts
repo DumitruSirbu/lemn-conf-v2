@@ -156,16 +156,20 @@ describe("a discard question asked at a revision the draft has moved past", () =
     return mounted;
   }
 
-  it("is not sent again at that revision after the person cancels and asks again", async () => {
-    const { container, client } = await mountStaleWithUnreadableRevisions();
-    click(byWords(container, "button", DISCARD_ACTION));
+  async function askAfterTheRefusal(): Promise<MountedDesk> {
+    const desk = await mountStaleWithUnreadableRevisions();
+    click(byWords(desk.container, "button", DISCARD_ACTION));
     await settle();
     await confirmDiscard();
-    click(byWords(requireDialog(), "button", CANCEL));
+    expect(dialog(), "the refusal closes the question").toBeNull();
+    click(byWords(desk.container, "button", DISCARD_ACTION));
     await settle();
+    return desk;
+  }
 
-    click(byWords(container, "button", DISCARD_ACTION));
-    await settle();
+  it("is not sent again at that revision when the person asks again", async () => {
+    const { client } = await askAfterTheRefusal();
+
     await confirmDiscard();
 
     expect(client.discardDraft).toHaveBeenCalledTimes(1);
@@ -175,14 +179,14 @@ describe("a discard question asked at a revision the draft has moved past", () =
   });
 
   it("is a confirmation that reads as off, so the press is taken away and the way out is the cancel", async () => {
-    const { container } = await mountStaleWithUnreadableRevisions();
-    click(byWords(container, "button", DISCARD_ACTION));
-    await settle();
-    await confirmDiscard();
+    await askAfterTheRefusal();
 
     const confirmation = byWords(requireDialog(), "button", DISCARD_ACTION);
 
     expect(confirmation.getAttribute("aria-disabled")).toBe("true");
     expect(allIn(requireDialog(), "button")).toHaveLength(2);
+    click(byWords(requireDialog(), "button", CANCEL));
+    await settle();
+    expect(dialog()).toBeNull();
   });
 });

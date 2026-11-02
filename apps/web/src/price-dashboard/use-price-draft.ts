@@ -66,6 +66,18 @@ export interface WantedAmount {
   readonly value: number;
 }
 
+/**
+ * What a read of the state came to. `superseded` is a read that a later read or an adoption overtook: its state, when it
+ * got one, was not adopted. `failed` is a read that got nothing and was not overtaken, so the state is as it was.
+ */
+export type StateRead =
+  | { readonly kind: "read"; readonly state: DashboardStateWire }
+  | {
+      readonly kind: "superseded";
+      readonly state: DashboardStateWire | undefined;
+    }
+  | { readonly kind: "failed" };
+
 export interface PriceDraft {
   readonly state: DashboardStateWire;
   readonly isBusy: boolean;
@@ -79,8 +91,11 @@ export interface PriceDraft {
   readonly bulk: (input: BulkChangeInput) => Promise<BulkWriteResult>;
   /** Takes a state made elsewhere (a publish, a discard) as the one the next write names the revision of. */
   readonly adopt: (state: DashboardStateWire) => void;
-  /** Reads the state again and adopts it unless a later read or adoption began meanwhile; the state read, or `undefined`. */
-  readonly refresh: () => Promise<DashboardStateWire | undefined>;
+  /**
+   * Reads the state again and adopts it unless a later read or adoption began meanwhile. The draft takes no write while
+   * it is out, so a write cannot land beside it and drop the revisions it carries.
+   */
+  readonly refresh: () => Promise<StateRead>;
 }
 
 interface DraftInput {
@@ -95,7 +110,7 @@ export function usePriceDraft({
   const [state, setState] = useState(initial);
   const [isBusy, setIsBusy] = useState(false);
   const stateRef = useRef(state);
-  const isOutRef = useRef(false);
+  const holdsRef = useRef(0);
 
   const { moveOn, begin } = useLateAnswerGuard();
 
@@ -117,33 +132,44 @@ export function usePriceDraft({
     [moveOn],
   );
 
-  const refresh = useCallback(async () => {
+  const readAgain = useCallback(async (): Promise<StateRead> => {
     moveOn();
     const isSuperseded = begin();
     const fresh = await client.readState().catch(() => undefined);
-    if (fresh === undefined || isSuperseded()) return fresh;
+    if (isSuperseded()) return { kind: "superseded", state: fresh };
+    if (fresh === undefined) return { kind: "failed" };
     stateRef.current = fresh;
     setState(fresh);
-    return fresh;
+    return { kind: "read", state: fresh };
   }, [client, moveOn, begin]);
+
+  /** Holds the draft against other writes while `send` is out. Holds stack: the last one to end frees it. */
+  const holdingTheDraft = useCallback(
+    async <Result>(send: () => Promise<Result>): Promise<Result> => {
+      holdsRef.current += 1;
+      setIsBusy(true);
+      try {
+        return await send();
+      } finally {
+        holdsRef.current -= 1;
+        if (holdsRef.current === 0) setIsBusy(false);
+      }
+    },
+    [],
+  );
 
   /** One write at a time: a second press while one is out is not sent. */
   const exclusively = useCallback(
     async <Result extends { readonly kind: string }>(
       send: () => Promise<Result>,
       busy: Result,
-    ): Promise<Result> => {
-      if (isOutRef.current) return busy;
-      isOutRef.current = true;
-      setIsBusy(true);
-      try {
-        return await send();
-      } finally {
-        isOutRef.current = false;
-        setIsBusy(false);
-      }
-    },
-    [],
+    ): Promise<Result> => (holdsRef.current > 0 ? busy : holdingTheDraft(send)),
+    [holdingTheDraft],
+  );
+
+  const refresh = useCallback(
+    () => holdingTheDraft(readAgain),
+    [readAgain, holdingTheDraft],
   );
 
   const settle = useCallback(
@@ -152,12 +178,12 @@ export function usePriceDraft({
       draftOf: (written: Written) => DashboardDraftWire,
     ) => {
       if (outcome.kind === "changed") adoptDraft(draftOf(outcome.written));
-      else if (outcome.kind === "conflict") await refresh();
+      else if (outcome.kind === "conflict") await readAgain();
       else if (outcome.kind === "session-ended") {
         raiseStaffSessionExpired({ keepsTypedText: true });
       }
     },
-    [adoptDraft, refresh],
+    [adoptDraft, readAgain],
   );
 
   const change = useCallback(
