@@ -23,6 +23,7 @@ import type {
   DraftChangeRefusalCode,
   DraftRevertTargetWire,
 } from "./price-dashboard-wire-contract";
+import { useLateAnswerGuard } from "./use-late-answer-guard";
 
 // The draft of prices as a screen holds it. A write names the draft revision the screen last saw, one write is out at a
 // time, and a write the server refuses as `changed-meanwhile` leaves the screen with the state read again, so the
@@ -65,6 +66,18 @@ export interface WantedAmount {
   readonly value: number;
 }
 
+/**
+ * What a read of the state came to. `superseded` is a read that a later read or an adoption overtook: its state, when it
+ * got one, was not adopted. `failed` is a read that got nothing and was not overtaken, so the state is as it was.
+ */
+export type StateRead =
+  | { readonly kind: "read"; readonly state: DashboardStateWire }
+  | {
+      readonly kind: "superseded";
+      readonly state: DashboardStateWire | undefined;
+    }
+  | { readonly kind: "failed" };
+
 export interface PriceDraft {
   readonly state: DashboardStateWire;
   readonly isBusy: boolean;
@@ -76,6 +89,13 @@ export interface PriceDraft {
     activeValue: number,
   ) => Promise<FieldWriteResult>;
   readonly bulk: (input: BulkChangeInput) => Promise<BulkWriteResult>;
+  /** Takes a state made elsewhere (a publish, a discard) as the one the next write names the revision of. */
+  readonly adopt: (state: DashboardStateWire) => void;
+  /**
+   * Reads the state again and adopts it unless a later read or adoption began meanwhile. The draft takes no write while
+   * it is out, so a write cannot land beside it and drop the revisions it carries.
+   */
+  readonly refresh: () => Promise<StateRead>;
 }
 
 interface DraftInput {
@@ -90,37 +110,66 @@ export function usePriceDraft({
   const [state, setState] = useState(initial);
   const [isBusy, setIsBusy] = useState(false);
   const stateRef = useRef(state);
-  const isOutRef = useRef(false);
+  const holdsRef = useRef(0);
 
-  const adoptDraft = useCallback((draft: DashboardDraftWire) => {
-    stateRef.current = { ...stateRef.current, draft };
-    setState(stateRef.current);
-  }, []);
+  const { moveOn, begin } = useLateAnswerGuard();
 
-  const readAgain = useCallback(async () => {
+  const adoptDraft = useCallback(
+    (draft: DashboardDraftWire) => {
+      moveOn();
+      stateRef.current = { ...stateRef.current, draft };
+      setState(stateRef.current);
+    },
+    [moveOn],
+  );
+
+  const adopt = useCallback(
+    (adopted: DashboardStateWire) => {
+      moveOn();
+      stateRef.current = adopted;
+      setState(adopted);
+    },
+    [moveOn],
+  );
+
+  const readAgain = useCallback(async (): Promise<StateRead> => {
+    moveOn();
+    const isSuperseded = begin();
     const fresh = await client.readState().catch(() => undefined);
-    if (fresh === undefined) return;
+    if (isSuperseded()) return { kind: "superseded", state: fresh };
+    if (fresh === undefined) return { kind: "failed" };
     stateRef.current = fresh;
     setState(fresh);
-  }, [client]);
+    return { kind: "read", state: fresh };
+  }, [client, moveOn, begin]);
+
+  /** Holds the draft against other writes while `send` is out. Holds stack: the last one to end frees it. */
+  const holdingTheDraft = useCallback(
+    async <Result>(send: () => Promise<Result>): Promise<Result> => {
+      holdsRef.current += 1;
+      setIsBusy(true);
+      try {
+        return await send();
+      } finally {
+        holdsRef.current -= 1;
+        if (holdsRef.current === 0) setIsBusy(false);
+      }
+    },
+    [],
+  );
 
   /** One write at a time: a second press while one is out is not sent. */
   const exclusively = useCallback(
     async <Result extends { readonly kind: string }>(
       send: () => Promise<Result>,
       busy: Result,
-    ): Promise<Result> => {
-      if (isOutRef.current) return busy;
-      isOutRef.current = true;
-      setIsBusy(true);
-      try {
-        return await send();
-      } finally {
-        isOutRef.current = false;
-        setIsBusy(false);
-      }
-    },
-    [],
+    ): Promise<Result> => (holdsRef.current > 0 ? busy : holdingTheDraft(send)),
+    [holdingTheDraft],
+  );
+
+  const refresh = useCallback(
+    () => holdingTheDraft(readAgain),
+    [readAgain, holdingTheDraft],
   );
 
   const settle = useCallback(
@@ -201,7 +250,16 @@ export function usePriceDraft({
     [client, exclusively, settle],
   );
 
-  return { state, isBusy, change, revert, changeOrRevert, bulk };
+  return {
+    state,
+    isBusy,
+    change,
+    revert,
+    changeOrRevert,
+    bulk,
+    adopt,
+    refresh,
+  };
 }
 
 const FAILED = { kind: "failed" } as const;

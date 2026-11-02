@@ -7,8 +7,11 @@ import {
   isSameAddress,
   readEditableFields,
   restoreChanges,
+  type AbsentValue,
   type AppliedAddress,
   type BookDiffRow,
+  type BookFieldAddress,
+  type CreatedRowTextField,
   type DiffSection,
   type DiffValue,
   type DraftBulk,
@@ -17,8 +20,11 @@ import {
   type FieldUnit,
   type GroupDiffRow,
   type ItemRef,
+  type LinkDiffRow,
   type PriceBook,
   type PriceGroupCode,
+  type RowDiffRow,
+  type TextDiffRow,
 } from "@lemnaria/configurator-domain";
 
 import type {
@@ -119,7 +125,48 @@ export interface GroupRowView {
   readonly revert: DraftRevertTargetWire | undefined;
 }
 
-export type RowView = FieldRowView | GroupRowView;
+/** A hardware class or a linked accessory the book gains or loses. */
+export interface ItemRowView {
+  readonly kind: "row";
+  readonly key: string;
+  readonly section: DiffSection;
+  readonly change: RowDiffRow["change"];
+  readonly itemKind: ItemRef["kind"];
+  readonly subject: RowSubject;
+  /** What ↺ removes: the creation with the changes that cannot stand without it, or the deletion. */
+  readonly revert: DraftRevertTargetWire | undefined;
+}
+
+/** The words of a created row, as each book states them; a side the book does not state is `undefined`. */
+export interface TextRowView {
+  readonly kind: "text";
+  readonly key: string;
+  readonly section: DiffSection;
+  readonly subject: RowSubject;
+  readonly field: CreatedRowTextField;
+  readonly before: string | undefined;
+  readonly after: string | undefined;
+  readonly revert: DraftRevertTargetWire | undefined;
+}
+
+/** The catalogue row a linked accessory follows, named as the cabinet list names it. It has no ↺ of its own: the one
+ *  change that sets a link is the accessory's creation. */
+export interface LinkRowView {
+  readonly kind: "link";
+  readonly key: string;
+  readonly section: DiffSection;
+  readonly subject: RowSubject;
+  readonly before: string;
+  readonly after: string;
+  readonly revert: undefined;
+}
+
+export type RowView =
+  | FieldRowView
+  | GroupRowView
+  | ItemRowView
+  | TextRowView
+  | LinkRowView;
 
 export interface SectionView {
   readonly section: DiffSection;
@@ -128,6 +175,8 @@ export interface SectionView {
 
 export interface PendingDraftView {
   readonly sections: readonly SectionView[];
+  /** The changes make a book that shows a row against the active one. A class created and deleted again shows none. */
+  readonly hasRows: boolean;
   /** The draft's changes: the number the header and the menu show. */
   readonly changeCount: number;
   /** The candidate book differs from the active one. A draft of restated values has rows and cannot be published. */
@@ -164,7 +213,7 @@ export function readPendingDraft(
     kind: "ready",
     view: {
       sections: sectionsOf(
-        pricedRowsOf(rows).map((row) =>
+        rows.map((row) =>
           rowViewOf(row, {
             books: { before: active, after: candidate },
             cabinetNames,
@@ -172,6 +221,7 @@ export function readPendingDraft(
           }),
         ),
       ),
+      hasRows: rows.length > 0,
       changeCount: changes.length,
       canPublish: diffBooks(active, candidate).length > 0,
       holdsProvisionalOff: changes.some(isProvisionalOff),
@@ -179,6 +229,14 @@ export function readPendingDraft(
       candidateBook: candidate,
     },
   };
+}
+
+/** The draft has changes and no row to take back one by one, so the one way out is giving the whole draft up. */
+export function offersOnlyDiscard(reading: PendingDraftReading): boolean {
+  return (
+    reading.kind === "candidate-refused" ||
+    (reading.kind === "ready" && !reading.view.hasRows)
+  );
 }
 
 function isProvisionalOff(change: DraftChange): boolean {
@@ -194,7 +252,7 @@ export function describeVersionDiff(input: {
 }): readonly SectionView[] {
   const { before, after, changes, cabinetNames } = input;
   return sectionsOf(
-    pricedRowsOf(diffBooks(before, after, { changes })).map((row) =>
+    diffBooks(before, after, { changes }).map((row) =>
       rowViewOf(row, {
         books: { before, after },
         cabinetNames,
@@ -204,30 +262,36 @@ export function describeVersionDiff(input: {
   );
 }
 
+/** The two books a screen reads against: a row the draft creates is only in `after`, one it deletes only in `before`. */
+export interface BookPair {
+  readonly before: PriceBook;
+  readonly after: PriceBook;
+}
+
 interface RowContext {
-  readonly books: { readonly before: PriceBook; readonly after: PriceBook };
+  readonly books: BookPair;
   readonly cabinetNames: Readonly<Record<string, string>>;
   readonly isRevertable: boolean;
 }
 
-/** The rows of a price or a bulk action. The rows for a created, deleted or reworded item are not drawn yet: the draft
- *  wire carries no such change, so none reaches this model until the screens that author them are built (U4c). */
-function pricedRowsOf(
-  rows: readonly BookDiffRow[],
-): readonly (FieldDiffRow | GroupDiffRow)[] {
-  return rows.filter(
-    (row): row is FieldDiffRow | GroupDiffRow =>
-      row.kind === "field" || row.kind === "group",
-  );
+function rowViewOf(row: BookDiffRow, context: RowContext): RowView {
+  switch (row.kind) {
+    case "field":
+      return fieldRowViewOf(row, context, {
+        isRevertable: context.isRevertable,
+      });
+    case "group":
+      return groupRowViewOf(row, context);
+    case "row":
+      return itemRowViewOf(row, context);
+    case "text":
+      return textRowViewOf(row, context);
+    case "link":
+      return linkRowViewOf(row, context);
+  }
 }
 
-function rowViewOf(
-  row: FieldDiffRow | GroupDiffRow,
-  context: RowContext,
-): RowView {
-  if (row.kind === "field") {
-    return fieldRowViewOf(row, context, { isRevertable: context.isRevertable });
-  }
+function groupRowViewOf(row: GroupDiffRow, context: RowContext): GroupRowView {
   const items = row.items.map((item) =>
     fieldRowViewOf(item, context, { isRevertable: false }),
   );
@@ -244,6 +308,55 @@ function rowViewOf(
       ? { kind: "group", groupId: row.groupId }
       : undefined,
   };
+}
+
+function itemRowViewOf(row: RowDiffRow, context: RowContext): ItemRowView {
+  return {
+    kind: "row",
+    key: JSON.stringify(row.address),
+    section: row.section,
+    change: row.change,
+    itemKind: row.item.kind,
+    subject: itemSubjectOf(row.item, context.books),
+    revert: ownRevertOf(row.address, context),
+  };
+}
+
+function textRowViewOf(row: TextDiffRow, context: RowContext): TextRowView {
+  return {
+    kind: "text",
+    key: JSON.stringify(row.address),
+    section: row.section,
+    subject: itemSubjectOf(row.item, context.books),
+    field: row.field,
+    before: textSideOf(row.before),
+    after: textSideOf(row.after),
+    revert: ownRevertOf(row.address, context),
+  };
+}
+
+function linkRowViewOf(row: LinkDiffRow, context: RowContext): LinkRowView {
+  const { cabinetNames } = context;
+  return {
+    kind: "link",
+    key: `link:${JSON.stringify(row.address)}`,
+    section: row.section,
+    subject: itemSubjectOf(row.item, context.books),
+    before: cabinetNames[row.before] ?? row.before,
+    after: cabinetNames[row.after] ?? row.after,
+    revert: undefined,
+  };
+}
+
+function ownRevertOf(
+  address: BookFieldAddress,
+  context: RowContext,
+): DraftRevertTargetWire | undefined {
+  return context.isRevertable ? { kind: "change", address } : undefined;
+}
+
+function textSideOf(side: string | AbsentValue): string | undefined {
+  return typeof side === "string" ? side : undefined;
 }
 
 function bulkViewOf(
@@ -304,23 +417,9 @@ function subjectOf(row: FieldDiffRow, context: RowContext): RowSubject {
     case "provisional":
       return { kind: "provisional" };
     case "hardware":
-      return tierSubjectOf(
-        books.after.hardware.tiers.find(
-          (tier) => tier.tierId === address.tierId,
-        ) ??
-          books.before.hardware.tiers.find(
-            (tier) => tier.tierId === address.tierId,
-          ),
-        address.tierId,
-      );
     case "material":
       return tierSubjectOf(
-        books.after.material.tiers.find(
-          (tier) => tier.tierId === address.tierId,
-        ) ??
-          books.before.material.tiers.find(
-            (tier) => tier.tierId === address.tierId,
-          ),
+        tierIn(books, address.kind, address.tierId),
         address.tierId,
       );
     case "accessory":
@@ -344,13 +443,25 @@ function tierSubjectOf(
   };
 }
 
-function accessorySubjectOf(
-  accessoryId: string,
-  books: RowContext["books"],
-): RowSubject {
+function accessorySubjectOf(accessoryId: string, books: BookPair): RowSubject {
   const id = ACCESSORY_IDS.find((candidate) => candidate === accessoryId);
-  const rule = id === undefined ? undefined : books.after.accessories[id];
-  return tierSubjectOf(rule, accessoryId);
+  const ruleIn = (book: PriceBook): NamedBookRow | undefined =>
+    id === undefined
+      ? linkedAccessoriesOf(book).find(
+          (linked) => linked.accessoryId === accessoryId,
+        )
+      : book.accessories[id];
+  return tierSubjectOf(
+    ruleIn(books.after) ?? ruleIn(books.before),
+    accessoryId,
+  );
+}
+
+/** A book stored before linked accessories existed declares none, although `PriceBook` types the section as required. */
+function linkedAccessoriesOf(
+  book: Partial<Pick<PriceBook, "linkedAccessories">>,
+): NonNullable<PriceBook["linkedAccessories"]> {
+  return book.linkedAccessories ?? [];
 }
 
 function differenceOf(row: FieldDiffRow): DifferenceView {
@@ -442,27 +553,28 @@ function withoutGroup(change: DraftChange): DraftChange {
   return ordinary as DraftChange;
 }
 
-/** What an item a publish was refused for is called: its tier or accessory text from the book, else its own code. */
-export function itemSubjectOf(item: ItemRef, book: PriceBook): RowSubject {
+/** What an item is called: its tier or accessory text from the book that states it (the later one first), else its own code. */
+export function itemSubjectOf(item: ItemRef, books: BookPair): RowSubject {
   switch (item.kind) {
     case "material":
-      return tierSubjectOf(
-        book.material.tiers.find((tier) => tier.tierId === item.tierId),
-        item.tierId,
-      );
+      return tierSubjectOf(tierIn(books, "material", item.tierId), item.tierId);
     case "hardware":
-      return tierSubjectOf(
-        book.hardware.tiers.find((tier) => tier.tierId === item.tierId),
-        item.tierId,
-      );
+      return tierSubjectOf(tierIn(books, "hardware", item.tierId), item.tierId);
     case "accessory":
-      return accessorySubjectOf(item.accessoryId, {
-        before: book,
-        after: book,
-      });
+      return accessorySubjectOf(item.accessoryId, books);
     case "finish":
       return { kind: "name", name: item.finishId };
     case "handle":
       return { kind: "name", name: item.handle };
   }
+}
+
+function tierIn(
+  books: BookPair,
+  group: "hardware" | "material",
+  tierId: string,
+): NamedBookRow | undefined {
+  const find = (book: PriceBook): NamedBookRow | undefined =>
+    book[group].tiers.find((tier) => tier.tierId === tierId);
+  return find(books.after) ?? find(books.before);
 }

@@ -148,6 +148,12 @@ function spiedClient(
     revert: vi.fn<PublishClient["revert"]>(
       replace.revert ?? ((request) => base.revert(request)),
     ),
+    discardDraft: vi.fn<PublishClient["discardDraft"]>(
+      replace.discardDraft ?? ((request) => base.discardDraft(request)),
+    ),
+    readVersionPage: vi.fn<PublishClient["readVersionPage"]>(
+      replace.readVersionPage ?? ((page) => base.readVersionPage(page)),
+    ),
     restore: vi.fn<PublishClient["restore"]>(
       replace.restore ?? ((version, request) => base.restore(version, request)),
     ),
@@ -590,6 +596,12 @@ function spiedDetailClient(
     revert: vi.fn<PublishClient["revert"]>(
       replace.revert ?? ((request) => base.revert(request)),
     ),
+    discardDraft: vi.fn<PublishClient["discardDraft"]>(
+      replace.discardDraft ?? ((request) => base.discardDraft(request)),
+    ),
+    readVersionPage: vi.fn<PublishClient["readVersionPage"]>(
+      replace.readVersionPage ?? ((page) => base.readVersionPage(page)),
+    ),
     restore: vi.fn<PublishClient["restore"]>(
       replace.restore ?? ((version, request) => base.restore(version, request)),
     ),
@@ -866,13 +878,16 @@ describe("a count that is a number but not a number of waiting prices", () => {
 });
 
 describe("the order a keyboard visits the pending list in", () => {
-  it("follows the order the page is drawn in: the tabs, the rows from the top, then the name, the switch and the button", async () => {
+  it("follows the order the page is drawn in: the tabs, each row's price then its arrow from the top, then the name, the switch and the button", async () => {
     const container = await mountPublish(SAMPLE_PUBLISH_PAGE);
 
     const page = requireIn(container, '[data-testid="publish-page"]');
     const kinds = allIn(page, "a[href], button, input").map((control) => {
       if (control.getAttribute("class")?.includes("_tab_")) return "tab";
       if (control.dataset.testid === "diff-revert") return "revert";
+      if (control.getAttribute("class")?.includes("_priceButton_")) {
+        return "correct";
+      }
       if (control.hasAttribute("aria-expanded")) return "toggle";
       if (control.getAttribute("type") === "text") return "name";
       if (control.getAttribute("role") === "switch") return "switch";
@@ -882,8 +897,13 @@ describe("the order a keyboard visits the pending list in", () => {
 
     expect(collapsed).toEqual([
       "tab",
+      "correct",
       "revert",
       "toggle",
+      "revert",
+      "correct",
+      "revert",
+      "correct",
       "revert",
       "name",
       "switch",

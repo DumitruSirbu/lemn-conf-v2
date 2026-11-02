@@ -144,6 +144,8 @@ export interface PublishButtonProps {
   readonly buttonRef: RefObject<HTMLButtonElement | null>;
   readonly changeCount: number;
   readonly canPublish: boolean;
+  /** A row's "Nou" holds text that was not sent: the publish is off, and the reason stands beside it. */
+  readonly hasUnsentAmount: boolean;
   readonly isBusy: boolean;
   readonly onPress: () => void;
 }
@@ -153,19 +155,27 @@ export function PublishButton({
   buttonRef,
   changeCount,
   canPublish,
+  hasUnsentAmount,
   isBusy,
   onPress,
 }: PublishButtonProps) {
   const translate = useTranslations();
-  const isOff = !canPublish || isBusy;
+  const reasonId = useId();
+  const isOff = !canPublish || isBusy || hasUnsentAmount;
   return (
     <div className={styles.actionBar}>
+      {hasUnsentAmount ? (
+        <p id={reasonId} className={styles.actionReason}>
+          {translate("priceDashboard.publish.unsentAmountHint")}
+        </p>
+      ) : null}
       <button
         ref={buttonRef}
         type="button"
         className={styles.primary}
         aria-disabled={isOff ? true : undefined}
         aria-busy={isBusy ? true : undefined}
+        aria-describedby={hasUnsentAmount ? reasonId : undefined}
         onClick={isOff ? undefined : onPress}
       >
         {isBusy

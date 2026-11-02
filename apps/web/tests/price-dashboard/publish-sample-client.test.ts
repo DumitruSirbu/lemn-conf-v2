@@ -62,6 +62,7 @@ describe("a draft the catalogue would refuse", () => {
 
     expect(await client.publish(publishRequest("Ajustari"))).toEqual({
       kind: "candidate-refused",
+      refusals: [{ source: "changes", index: 0, code: "TOO_LARGE" }],
     });
   });
 });

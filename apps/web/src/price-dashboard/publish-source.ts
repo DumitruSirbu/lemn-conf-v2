@@ -7,6 +7,8 @@ import type { PublishPageInput, VersionDetailInput } from "./publish-model";
 
 export type PublishPageRead =
   | { readonly kind: "ready"; readonly input: PublishPageInput }
+  /** The store holds a draft it cannot read; the revision is what giving it up is made at. */
+  | { readonly kind: "draft-unreadable"; readonly draftRevision: string }
   | { readonly kind: "unavailable" };
 
 export type VersionDetailRead =

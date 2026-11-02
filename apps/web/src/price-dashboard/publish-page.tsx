@@ -1,17 +1,21 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRef, type ReactNode, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 
-import { FormNotice } from "@/account/account-form-parts";
 import type { AppLocale } from "@/i18n/routing";
 import { isolated } from "@/staff/bidi-isolate";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { CatalogUnavailableNotice } from "./catalog-states";
+import { DiscardNotice } from "./publish-discard-notice";
 import type { PublishClient } from "./publish-client";
-import { ProvisionalOffDialog, PublishConfirmDialog } from "./publish-dialogs";
-import { itemSubjectOf, type PublishPageInput } from "./publish-model";
+import {
+  DiscardDraftDialog,
+  ProvisionalOffDialog,
+  PublishConfirmDialog,
+} from "./publish-dialogs";
+import type { PublishPageInput } from "./publish-model";
 import {
   ProvisionalSwitch,
   PublishButton,
@@ -20,8 +24,11 @@ import {
 } from "./publish-panel";
 import { historyPathOf, publishPathOf } from "./publish-paths";
 import styles from "./publish.module.css";
-import { DiffSections, useRowWords } from "./publish-rows";
+import { NoticeBody } from "./publish-notices";
+import { DiffSections } from "./publish-rows";
+import { UnsentAmountsContext } from "./unsent-amounts";
 import { useFocusAfterRevert } from "./use-focus-after-revert";
+import { useFocusWhenLost } from "./use-focus-when-lost";
 import {
   usePublishDesk,
   type PublishDesk,
@@ -53,11 +60,12 @@ export function PublishScreen({
 }: PublishScreenProps) {
   const desk = usePublishDesk({ input, initialView, client });
   const publishButtonRef = useRef<HTMLButtonElement>(null);
+  const discardButtonRef = useRef<HTMLButtonElement>(null);
   const pageRef = useRef<HTMLElement>(null);
-  const { rememberRevertPosition, emptyHeadingRef } = useFocusAfterRevert(
-    pageRef,
-    desk.state.draft,
-  );
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const { rememberRevertPosition, rememberEditPosition, emptyHeadingRef } =
+    useFocusAfterRevert(pageRef, desk.state.draft);
+  useFocusWhenLost(noticeRef, noticeThatReplacesTheQuestion(desk.notice));
   const shell = {
     ...context,
     pendingPriceCount: desk.state.draft.changes.length,
@@ -69,27 +77,53 @@ export function PublishScreen({
         className={styles.page}
         data-testid="publish-page"
         onClickCapture={rememberRevertPosition}
+        onKeyDownCapture={rememberEditPosition}
       >
         <PublishHeading locale={locale} desk={desk} />
-        <PublishNoticeBanner desk={desk} />
+        <PublishNoticeBanner
+          desk={desk}
+          cabinetNames={input.cabinetNames}
+          noticeRef={noticeRef}
+        />
         {desk.view === "history" ? (
           <VersionHistory
             locale={locale}
-            versions={desk.versions}
+            versions={desk.history.list.versions}
             pendingCount={desk.state.draft.changes.length}
+            paging={{
+              list: desk.history.list,
+              status: desk.history.status,
+              onGoToPage: desk.history.goToPage,
+            }}
           />
         ) : (
-          <PendingPrices
-            locale={locale}
-            desk={desk}
-            publishButtonRef={publishButtonRef}
-            emptyHeadingRef={emptyHeadingRef}
-          />
+          <UnsentAmountsContext.Provider value={desk.reportUnsentAmount}>
+            <PendingPrices
+              locale={locale}
+              desk={desk}
+              publishButtonRef={publishButtonRef}
+              discardButtonRef={discardButtonRef}
+              emptyHeadingRef={emptyHeadingRef}
+            />
+          </UnsentAmountsContext.Provider>
         )}
-        <PublishDialogs desk={desk} returnFocusFallbackRef={publishButtonRef} />
+        <PublishDialogs
+          desk={desk}
+          returnFocusFallbackRef={publishButtonRef}
+          discardFocusFallbackRef={discardButtonRef}
+        />
       </section>
     </StaffShell>
   );
+}
+
+/** The notices a closed discard question leaves behind: the draft is gone, or it moved and was read again. */
+function noticeThatReplacesTheQuestion(
+  notice: PublishNotice | undefined,
+): PublishNotice | undefined {
+  return notice?.kind === "discarded" || notice?.kind === "conflict"
+    ? notice
+    : undefined;
 }
 
 /** The prices could not be read: the frame stays, and the notice stands in the page's place. */
@@ -163,16 +197,25 @@ function PendingPrices({
   locale,
   desk,
   publishButtonRef,
+  discardButtonRef,
   emptyHeadingRef,
 }: {
   readonly locale: AppLocale;
   readonly desk: PublishDesk;
   readonly publishButtonRef: RefObject<HTMLButtonElement | null>;
+  readonly discardButtonRef: RefObject<HTMLButtonElement | null>;
   readonly emptyHeadingRef: RefObject<HTMLElement | null>;
 }) {
   const translate = useTranslations();
   const { reading } = desk;
-  if (reading.kind === "candidate-refused") return <CatalogUnavailableNotice />;
+  if (reading.kind === "candidate-refused") {
+    return (
+      <StaleDraftNotice
+        buttonRef={discardButtonRef}
+        onDiscard={desk.discard.ask}
+      />
+    );
+  }
   if (reading.kind === "empty") {
     return (
       <NothingToPublish
@@ -183,6 +226,14 @@ function PendingPrices({
     );
   }
   const { view } = reading;
+  if (!view.hasRows) {
+    return (
+      <UnchangedDraftNotice
+        buttonRef={discardButtonRef}
+        onDiscard={desk.discard.ask}
+      />
+    );
+  }
   return (
     <div className={styles.layout}>
       <div className={styles.main}>
@@ -193,7 +244,8 @@ function PendingPrices({
             after: translate("priceDashboard.publish.columnNew"),
           }}
           onRevert={desk.revert}
-          isBusy={desk.isBusy}
+          onSaveAmount={desk.saveAmount}
+          isBusy={desk.isLocked}
         />
       </div>
       <div className={styles.aside}>
@@ -207,7 +259,7 @@ function PendingPrices({
           isChanged={
             desk.isProvisional !== desk.state.active.book.amountsProvisional
           }
-          isBusy={desk.isBusy}
+          isBusy={desk.isLocked}
           onToggle={desk.toggleProvisional}
         />
         <PublishHelp />
@@ -215,11 +267,50 @@ function PendingPrices({
           buttonRef={publishButtonRef}
           changeCount={view.changeCount}
           canPublish={view.canPublish}
+          hasUnsentAmount={desk.hasUnsentAmount}
           isBusy={desk.isBusy}
           onPress={desk.requestPublish}
         />
       </div>
     </div>
+  );
+}
+
+/** The pending changes do not make a book against the active one: they cannot be listed, only given up. */
+function StaleDraftNotice({
+  buttonRef,
+  onDiscard,
+}: {
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
+  readonly onDiscard: () => void;
+}) {
+  const translate = useTranslations();
+  return (
+    <DiscardNotice
+      title={translate("priceDashboard.publish.staleDraftTitle")}
+      body={translate("priceDashboard.publish.staleDraftBody")}
+      buttonRef={buttonRef}
+      onDiscard={onDiscard}
+    />
+  );
+}
+
+/** The pending changes cancel each other out: there is no row to list and nothing to publish, but they are still stored. */
+function UnchangedDraftNotice({
+  buttonRef,
+  onDiscard,
+}: {
+  readonly buttonRef: RefObject<HTMLButtonElement | null>;
+  readonly onDiscard: () => void;
+}) {
+  const translate = useTranslations();
+  return (
+    <DiscardNotice
+      title={translate("priceDashboard.publish.unchangedDraftTitle")}
+      body={translate("priceDashboard.publish.unchangedDraftBody")}
+      buttonRef={buttonRef}
+      onDiscard={onDiscard}
+    />
   );
 }
 
@@ -257,7 +348,7 @@ function NothingToPublish({
         </h2>
         <VersionHistory
           locale={locale}
-          versions={desk.versions.slice(0, LATEST_VERSIONS_SHOWN)}
+          versions={desk.history.list.versions.slice(0, LATEST_VERSIONS_SHOWN)}
           pendingCount={0}
         />
       </div>
@@ -265,7 +356,7 @@ function NothingToPublish({
         <ProvisionalSwitch
           isProvisional={desk.isProvisional}
           isChanged={false}
-          isBusy={desk.isBusy}
+          isBusy={desk.isLocked}
           onToggle={desk.toggleProvisional}
         />
       </div>
@@ -273,100 +364,57 @@ function NothingToPublish({
   );
 }
 
-function PublishNoticeBanner({ desk }: { readonly desk: PublishDesk }) {
+function PublishNoticeBanner({
+  desk,
+  cabinetNames,
+  noticeRef,
+}: {
+  readonly desk: PublishDesk;
+  readonly cabinetNames: Readonly<Record<string, string>>;
+  readonly noticeRef: RefObject<HTMLDivElement | null>;
+}) {
   const { notice } = desk;
   if (notice === undefined) return null;
   return (
-    <div data-testid="publish-notice">
-      <NoticeBody notice={notice} desk={desk} />
+    <div ref={noticeRef} tabIndex={-1} data-testid="publish-notice">
+      <NoticeBody notice={notice} desk={desk} cabinetNames={cabinetNames} />
     </div>
   );
-}
-
-function NoticeBody({
-  notice,
-  desk,
-}: {
-  readonly notice: PublishNotice;
-  readonly desk: PublishDesk;
-}): ReactNode {
-  const translate = useTranslations();
-  const words = useRowWords();
-  switch (notice.kind) {
-    case "published":
-      return (
-        <FormNotice
-          tone="success"
-          title={translate("priceDashboard.publish.publishedTitle", {
-            versionId: String(notice.sequenceNumber),
-            versionName: isolated(notice.label),
-          })}
-        >
-          {translate("priceDashboard.publish.publishedBody")}
-        </FormNotice>
-      );
-    case "candidate-refused":
-      return (
-        <FormNotice
-          tone="error"
-          title={translate("priceDashboard.publish.candidateRefusedTitle")}
-        >
-          {translate("priceDashboard.publish.candidateRefusedBody")}
-        </FormNotice>
-      );
-    case "failed":
-      return (
-        <FormNotice
-          tone="error"
-          title={translate("priceDashboard.publish.failedTitle")}
-        >
-          {translate("priceDashboard.publish.failedBody")}
-          <span className={styles.noticeActions}>
-            <button
-              type="button"
-              className={styles.secondary}
-              onClick={desk.requestPublish}
-            >
-              {translate("priceDashboard.publish.retry")}
-            </button>
-          </span>
-        </FormNotice>
-      );
-    case "conflict":
-      return (
-        <FormNotice tone="warning">
-          {translate("priceDashboard.errors.changedMeanwhile")}
-        </FormNotice>
-      );
-    case "save-failed":
-      return (
-        <FormNotice tone="error">
-          {translate("priceDashboard.errors.saveFailed")}
-        </FormNotice>
-      );
-    case "blocked": {
-      const item =
-        notice.block.kind === "in-use"
-          ? notice.block.items[0]
-          : notice.block.item;
-      const name =
-        item === undefined
-          ? ""
-          : words.subject(itemSubjectOf(item, desk.state.active.book));
-      return (
-        <FormNotice tone="error">
-          {notice.block.kind === "in-use"
-            ? translate("priceDashboard.publish.blockedInUse", { name })
-            : translate("priceDashboard.publish.blockedIsDefault", { name })}
-        </FormNotice>
-      );
-    }
-  }
 }
 
 /** The question the phase asks, if it asks one: the provisional one in place of the plain one whenever the draft turns the
  *  figures off. */
 function PublishDialogs({
+  desk,
+  returnFocusFallbackRef,
+  discardFocusFallbackRef,
+}: {
+  readonly desk: PublishDesk;
+  readonly returnFocusFallbackRef: RefObject<HTMLElement | null>;
+  readonly discardFocusFallbackRef: RefObject<HTMLElement | null>;
+}) {
+  const { discard } = desk;
+  return (
+    <>
+      <PublishQuestion
+        desk={desk}
+        returnFocusFallbackRef={returnFocusFallbackRef}
+      />
+      {discard.phase === "idle" ? null : (
+        <DiscardDraftDialog
+          returnFocusFallbackRef={discardFocusFallbackRef}
+          isBusy={discard.phase === "discarding"}
+          failure={discard.failure}
+          canConfirm={discard.canConfirm}
+          onConfirm={discard.confirm}
+          onCancel={discard.cancel}
+        />
+      )}
+    </>
+  );
+}
+
+function PublishQuestion({
   desk,
   returnFocusFallbackRef,
 }: {

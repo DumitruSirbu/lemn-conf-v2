@@ -43,6 +43,7 @@ const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const SHEETS = [
   "price-dashboard/publish.module.css",
   "account/account.module.css",
+  "price-dashboard/price-edit.module.css",
 ].map((path) => readFileSync(join(SOURCE_ROOT, path), "utf8"));
 const TOUCH_TARGET_PX = 44;
 const MENU: Parameters<typeof contextOf>[1] = [
