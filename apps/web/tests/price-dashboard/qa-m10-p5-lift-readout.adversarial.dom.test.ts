@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave P5 on the cabinet page's hardware readout (ADR 0177 A-20): the lift is said where a cabinet
+// Adversarial QA of the cabinet page's hardware readout (ADR 0177 A-20): the lift is said where a cabinet
 // carries one and nowhere else, the draft's lift rate alone moves the readout, and the sentence is the one the
 // catalogue's words make from counts and an amount stated here from the book's own rates.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

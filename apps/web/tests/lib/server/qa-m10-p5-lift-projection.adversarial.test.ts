@@ -1,5 +1,5 @@
-// Adversarial QA of M10 wave P5 (ADR 0177 A-20) at the application's boundaries: the stored book's projection keeps the
-// fourth rate (so a page's preview is priced with it), drops what a tier does not declare beside it, and every place in
+// Adversarial QA of the lift rate (ADR 0177 A-20) at the application's boundaries: the stored book's projection keeps
+// the lift rate (so a page's preview is priced with it), drops what a tier does not declare beside it, and every place in
 // the application that names a hardware count or a rate names the lift where it names its neighbours.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -41,7 +41,7 @@ function parsedOrThrow(declared: unknown): PriceBook {
 describe("the projection of a stored book keeps the lift rate", () => {
   const stored: unknown = JSON.parse(JSON.stringify(SAMPLE_PRICE_BOOK));
 
-  it("hands the page every tier with the four rates it was stored with", () => {
+  it("hands the page every tier with the rates it was stored with", () => {
     const projected = projectPriceBook(parsedOrThrow(stored));
 
     expect(projected.hardware.tiers).toEqual(SAMPLE_PRICE_BOOK.hardware.tiers);
@@ -119,14 +119,14 @@ describe("the projection of a stored book keeps the lift rate", () => {
 });
 
 describe("liftCount reads right across the count range, in both languages", () => {
-  const CATALOGUES: readonly [string, Catalogue][] = [
+  const CATALOGUES: readonly ["ro" | "ru", Catalogue][] = [
     ["ro", roMessages],
     ["ru", ruMessages as Catalogue],
   ];
   const COUNT_SWEEP_UPPER_BOUND = 130;
 
   function render(
-    locale: string,
+    locale: "ro" | "ru",
     messages: Catalogue,
     key: string,
     count: number,
@@ -190,7 +190,7 @@ describe("liftCount reads right across the count range, in both languages", () =
       for (const category of integerCategories) {
         expect(leaf, `${locale} ${category}`).toContain(`${category} {`);
       }
-      expect(cldrPluralCategories(locale as "ro" | "ru")).toEqual(
+      expect(cldrPluralCategories(locale)).toEqual(
         expect.arrayContaining([...integerCategories]),
       );
     },

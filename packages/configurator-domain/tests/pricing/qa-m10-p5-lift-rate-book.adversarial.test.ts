@@ -1,4 +1,4 @@
-// M10 P5 (ADR 0177 A-20), adversarial: the fourth rate as a book carries it. Where the implementer's tests hold each
+// ADR 0177 A-20, adversarial: the lift rate as a book carries it. Where the implementer's tests hold each
 // refusal in isolation, these run the rate through the whole path a stored or drafted book takes: parse, JSON
 // round-trip, a created class priced end to end, and a book stored before the rate existed.
 import * as fc from "fast-check";
@@ -28,7 +28,7 @@ import {
 
 type RateField = (typeof HARDWARE_RATE_FIELDS)[number];
 
-const BEFORE_P5_TIER_KEYS_TO_DROP = ["perLiftMinor"];
+const LIFT_RATE_KEYS = ["perLiftMinor"];
 
 function withoutKeys(
   tier: HardwareTier,
@@ -39,13 +39,14 @@ function withoutKeys(
   ) as unknown as HardwareTier;
 }
 
-/** The sample book as it was stored before P5: every hardware tier without the lift rate. */
-const BOOK_STORED_BEFORE_P5: PriceBook = {
+/** The sample book with every hardware tier stripped of the lift rate, as a version stored before that rate existed
+ *  would read. */
+const BOOK_WITHOUT_LIFT_RATE: PriceBook = {
   ...SAMPLE_PRICE_BOOK,
   hardware: {
     ...SAMPLE_PRICE_BOOK.hardware,
     tiers: SAMPLE_PRICE_BOOK.hardware.tiers.map((tier) =>
-      withoutKeys(tier, BEFORE_P5_TIER_KEYS_TO_DROP),
+      withoutKeys(tier, LIFT_RATE_KEYS),
     ),
   },
 };
@@ -68,7 +69,7 @@ function failureDetailOf(book: unknown): string {
 }
 
 describe("the sample book, as a stored version carries it", () => {
-  it("survives a JSON round trip parsed whole, every tier keeping all four rates", () => {
+  it("survives a JSON round trip parsed whole, every tier keeping all its rates", () => {
     const stored: unknown = JSON.parse(JSON.stringify(SAMPLE_PRICE_BOOK));
 
     const parsed = parsePriceBook(stored);
@@ -92,18 +93,18 @@ describe("the sample book, as a stored version carries it", () => {
 
 describe("a version stored before the lift rate existed", () => {
   it("is refused whole by the parser, naming the tier and the field", () => {
-    const detail = failureDetailOf(BOOK_STORED_BEFORE_P5);
+    const detail = failureDetailOf(BOOK_WITHOUT_LIFT_RATE);
 
     expect(detail).toContain("perLiftMinor");
     expect(detail).toContain(SAMPLE_PRICE_BOOK.hardware.tiers[0]?.tierId ?? "");
   });
 
-  it("is refused by the whole-kitchen price with a coded failure, never priced at a three-rate line", () => {
+  it("is refused by the whole-kitchen price with a coded failure, never priced as a line without the lift rate", () => {
     const result = priceDesign({
       design: { ...KITCHEN_L_DESIGN, settings: { cabinetDepthMm: 600 } },
       catalog: buildKitchenLBodyCatalog(600),
-      book: BOOK_STORED_BEFORE_P5,
-      pricingVersion: BOOK_STORED_BEFORE_P5.version,
+      book: BOOK_WITHOUT_LIFT_RATE,
+      pricingVersion: BOOK_WITHOUT_LIFT_RATE.version,
       deepeningRows: DEEPENING_ROWS,
       availability: NOTHING_DISABLED,
     });
@@ -114,15 +115,15 @@ describe("a version stored before the lift rate existed", () => {
   });
 
   it("cannot be repaired from the dashboard: no change is accepted on it, and the lift rate cannot be added to it", () => {
-    // Recorded consequence, not a defect while no version has been published (A-10): a stored pre-P5 version would be
-    // unreadable and unrepairable through a draft, so the first production version must be published with the rate.
+    // Recorded consequence, not a defect while no version has been published (A-10): a stored version without the rate
+    // would be unreadable and unrepairable through a draft, so the first production version must be published with it.
     const anyEdit = setRate("hardware.standard", "perHingeMinor", 1);
     const addLift = setRate("hardware.standard", "perLiftMinor", 1);
 
-    expect(refusalCodes(applyChanges(BOOK_STORED_BEFORE_P5, [addLift]))).toBe(
+    expect(refusalCodes(applyChanges(BOOK_WITHOUT_LIFT_RATE, [addLift]))).toBe(
       "0:FIELD_NOT_ON_RULE",
     );
-    expect(applyChanges(BOOK_STORED_BEFORE_P5, [anyEdit]).ok).toBe(false);
+    expect(applyChanges(BOOK_WITHOUT_LIFT_RATE, [anyEdit]).ok).toBe(false);
   });
 
   it("is refused too when only one tier of the group lacks the rate", () => {
@@ -144,7 +145,7 @@ describe("a version stored before the lift rate existed", () => {
   });
 });
 
-describe("the four rates, each against every value a book can carry", () => {
+describe("each rate against every value a book can carry", () => {
   const NOT_USABLE: readonly [string, unknown][] = [
     ["one past the bound", MAX_PRICE_COEFFICIENT_MINOR + 1],
     ["one past the bound, negative", -MAX_PRICE_COEFFICIENT_MINOR - 1],
@@ -289,7 +290,7 @@ describe("a hardware tier states exactly its declared members", () => {
   ];
 
   it.each(PLANTED_NEXT_TO_THE_LIFT_RATE)(
-    "refuses a stray %s beside the four rates, naming it",
+    "refuses a stray %s beside the rates, naming it",
     (stray) => {
       expect(
         failureDetailOf(withFirstTierRate(stray as RateField, 1)),
@@ -331,7 +332,7 @@ describe("a created class, through the draft and into a kitchen's price", () => 
     ];
   }
 
-  it("is accepted with all four rates and prices a lift door at them", () => {
+  it("is accepted with all its rates and prices a lift door at them", () => {
     const book = applied(SAMPLE_PRICE_BOOK, draftWith(RATES));
     const result = priceDesign({
       design: {
@@ -364,7 +365,7 @@ describe("a created class, through the draft and into a kitchen's price", () => 
     );
   });
 
-  it("is refused for each of the four rates left unset, whatever order the other three are set in", () => {
+  it("is refused for each rate left unset, whatever order the others are set in", () => {
     fc.assert(
       fc.property(
         fc.constantFrom(...HARDWARE_RATE_FIELDS),

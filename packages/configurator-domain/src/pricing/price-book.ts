@@ -108,7 +108,7 @@ export interface TierIdentity {
 
 /** A hardware tier, priced per mechanism (ADR 0070 decision 1). A `handle: "push"` body carries
  *  mechanisms and no handle, so a per-handle basis would bill a push-to-open kitchen at zero.
- *  The four rates are independent: a tier can be dearest on hinges and cheapest on drawers.
+ *  The rates are independent: a tier can be dearest on hinges and cheapest on drawers.
  *  `countHardwareMechanisms` (`hardware-mechanisms.ts`) supplies the quantities. */
 export interface HardwareTier extends TierIdentity {
   /** Charged per hinge — 2 on a door leaf, 3 on one taller than 900 mm; on a lift door, 3 when wider than 500 mm. */
@@ -455,7 +455,7 @@ export class InexactPriceArithmeticError extends Error {
 /** Every amount a price is computed from — each shape's coefficients and the tier amounts — and so
  *  the only fields a malformed-amount refusal can name. A literal union so a typo is a compile error.
  *
- *  The four hardware rates are separate fields so a refusal names the unusable one. */
+ *  The hardware rates are separate fields so a refusal names the unusable one. */
 export type PriceCoefficientField =
   | "anchorMinor"
   | "perStepWiderMinor"

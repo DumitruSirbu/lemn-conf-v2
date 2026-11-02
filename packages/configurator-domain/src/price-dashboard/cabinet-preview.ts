@@ -8,6 +8,11 @@ import {
   roundUpToPriceStepMm,
 } from "../pricing/anchored-price-formula.js";
 import {
+  HARDWARE_RATE_FIELDS,
+  mechanismsChargedAt,
+  type HardwareRateField,
+} from "../pricing/hardware-rate-fields.js";
+import {
   DEEP_CABINET_DEPTH_MM,
   percentageStagesOf,
   roundHalfUpToTenLei,
@@ -22,7 +27,6 @@ import {
 import type { BodyCatalog } from "../void-engine.js";
 import { declaredCabinetDepthsMm } from "../worktop-depth.js";
 
-import type { HardwareRateField } from "./book-field-address.js";
 import {
   isDepthPercentInRange,
   isMaterialPercentInRange,
@@ -365,16 +369,11 @@ function hardwareMinorAt(
     setting.catalog,
   );
   return roundHalfUpToTenLei(
-    exactAmountOfTerms([
-      termOf(hardware.perHingeMinor, counts.hinges, "perHingeMinor"),
-      termOf(hardware.perDrawerMinor, counts.drawers, "perDrawerMinor"),
-      termOf(
-        hardware.perPushToOpenMinor,
-        counts.pushToOpen,
-        "perPushToOpenMinor",
+    exactAmountOfTerms(
+      HARDWARE_RATE_FIELDS.map((field) =>
+        termOf(hardware[field], mechanismsChargedAt(counts, field), field),
       ),
-      termOf(hardware.perLiftMinor, counts.lifts, "perLiftMinor"),
-    ]),
+    ),
   );
 }
 

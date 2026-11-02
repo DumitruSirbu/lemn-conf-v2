@@ -1,7 +1,7 @@
-// M10 P5 (ADR 0177 A-20), adversarial: the hardware line of a kitchen with lift-up doors, against an oracle written from
+// ADR 0177 A-20, adversarial: the hardware line of a kitchen with lift-up doors, against an oracle written from
 // the rule's own words (a lift door counts one lift and two hinges, or three when its door is wider than 500 mm; the
 // line is `r10` of the rates times the counts), and against the cabinet preview. Neither the oracle's counts nor its
-// rounding come from the module under test.
+// rounding come from the module under test, so its 500 mm boundary is typed here and not imported.
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -32,6 +32,7 @@ import {
   ruleOf,
   SHALLOW_DEPTH_MM,
 } from "../price-dashboard/m2-support.js";
+import { CABINETRY_CHIPS_MM } from "../support/width-model.js";
 
 const LIFT_DOOR_THIRD_HINGE_ABOVE_MM = 500;
 const HINGES_ON_A_NARROW_LIFT_DOOR = 2;
@@ -39,14 +40,6 @@ const HINGES_ON_A_WIDE_LIFT_DOOR = 3;
 const TEN_LEI_MINOR = 1_000;
 const WALL_ROW_FLOOR_MM = 1_500;
 const WALL_LIFT_HEIGHT_MM = 700;
-const MIN_WIDTH_MM = 300;
-const MAX_WIDTH_MM = 800;
-const WIDTH_STEP_MM = 50;
-
-const EVERY_LIFT_WIDTH_MM: readonly number[] = Array.from(
-  { length: (MAX_WIDTH_MM - MIN_WIDTH_MM) / WIDTH_STEP_MM + 1 },
-  (_, index) => MIN_WIDTH_MM + index * WIDTH_STEP_MM,
-);
 
 /** Half up to ten lei in integer arithmetic, so the seam does not vouch for itself. */
 function r10(exactMinor: number): number {
@@ -149,7 +142,7 @@ const ratesArbitrary: fc.Arbitrary<Rates> = fc.record({
 
 describe("a one-lift kitchen: the whole-kitchen hardware line, the oracle and the cabinet preview agree", () => {
   const settings = fc.record({
-    widthMm: fc.constantFrom(...EVERY_LIFT_WIDTH_MM),
+    widthMm: fc.constantFrom(...CABINETRY_CHIPS_MM),
     tier: fc.constantFrom(
       ...SAMPLE_PRICE_BOOK.hardware.tiers.map(({ tierId }) => tierId),
     ),
@@ -322,7 +315,7 @@ describe("the rounding seam: the hardware line is rounded once over every lift o
   it("sums lifts and hinges of several doors exactly before it rounds, over a swept kitchen", () => {
     fc.assert(
       fc.property(
-        fc.array(fc.constantFrom(...EVERY_LIFT_WIDTH_MM), {
+        fc.array(fc.constantFrom(...CABINETRY_CHIPS_MM), {
           minLength: 1,
           maxLength: 6,
         }),
@@ -355,11 +348,11 @@ describe("the rounding seam: the hardware line is rounded once over every lift o
 
 describe("the width a lift door is judged by, at every width the cabinet is built at", () => {
   it("has two hinges up to and including 500 mm and three from 550 mm, one lift at each", () => {
-    for (const widthMm of EVERY_LIFT_WIDTH_MM) {
+    for (const widthMm of CABINETRY_CHIPS_MM) {
       const counts = countOf(kitchenOf([liftAt(0, widthMm)]));
 
       expect(counts).toEqual({
-        hinges: widthMm > 500 ? 3 : 2,
+        hinges: oracleHingesOnLiftDoor(widthMm),
         drawers: 0,
         pushToOpen: 0,
         lifts: 1,
@@ -369,7 +362,7 @@ describe("the width a lift door is judged by, at every width the cabinet is buil
 
   it("agrees with the door as built (the body less its 6 mm shadow gaps) at every width the cabinet is built at", () => {
     const BUILT_DOOR_INSET_MM = 6;
-    for (const widthMm of EVERY_LIFT_WIDTH_MM) {
+    for (const widthMm of CABINETRY_CHIPS_MM) {
       const doorWidthMm = widthMm - BUILT_DOOR_INSET_MM;
 
       expect(oracleHingesOnLiftDoor(widthMm)).toBe(
@@ -404,13 +397,13 @@ function countOf(design: Design) {
 describe("a lift door in a push-to-open kitchen", () => {
   const PUSH_KITCHEN = { handle: "push" as const };
 
-  // Characterises current behaviour, not a ruling (see the next test): a latch beside the lift is unruled.
+  // Characterises current behaviour (see the next test): whether a latch is billed beside the lift is not specified.
   it("keeps its hinges and its lift, and is billed the one latch every opening front takes", () => {
-    for (const widthMm of EVERY_LIFT_WIDTH_MM) {
+    for (const widthMm of CABINETRY_CHIPS_MM) {
       const counts = countOf(kitchenOf([liftAt(0, widthMm)], PUSH_KITCHEN));
 
       expect(counts).toEqual({
-        hinges: widthMm > 500 ? 3 : 2,
+        hinges: oracleHingesOnLiftDoor(widthMm),
         drawers: 0,
         pushToOpen: 1,
         lifts: 1,
@@ -418,12 +411,12 @@ describe("a lift door in a push-to-open kitchen", () => {
     }
   });
 
-  // Characterises current behaviour, not a ruling: no owner decision says whether a lift-up door takes a latch beside its
-  // lift in a push-to-open kitchen. Change this with the ruling.
-  it("is billed the four terms of the line, the latch beside the lift", () => {
+  // Characterises current behaviour: whether a lift-up door takes a latch beside its lift in a push-to-open kitchen is
+  // not specified. Change this when it is.
+  it("is billed every term of the line, the latch beside the lift", () => {
     fc.assert(
       fc.property(
-        fc.constantFrom(...EVERY_LIFT_WIDTH_MM),
+        fc.constantFrom(...CABINETRY_CHIPS_MM),
         ratesArbitrary,
         (widthMm, rates) => {
           const book = bookWithRates("hardware.soft-close", rates);
@@ -467,7 +460,7 @@ describe("a lift door in a push-to-open kitchen", () => {
   });
 });
 
-describe("each of the four rates is charged over its own count, in a kitchen carrying every mechanism", () => {
+describe("each rate is charged over its own count, in a kitchen carrying every mechanism", () => {
   const MIXED_KITCHEN: Design = kitchenOf(
     [
       liftAt(0, 600),
@@ -570,7 +563,7 @@ describe("the hardware gap between two classes is the rate gaps times the counts
   const MENU = fc.oneof(
     fc.record({
       kind: fc.constant<Stand>("lift"),
-      widthMm: fc.constantFrom(...EVERY_LIFT_WIDTH_MM),
+      widthMm: fc.constantFrom(...CABINETRY_CHIPS_MM),
     }),
     fc.record({
       kind: fc.constant<Stand>("drawers"),

@@ -1,7 +1,7 @@
-// M10 P5 (ADR 0177 A-20), the sweep the other way round: the domain prices a lift on the one row that declares `liftUp`,
+// ADR 0177 A-20, the sweep the other way round: the domain prices a lift on the one row that declares `liftUp`,
 // and the geometry draws a front hinged and barred as a lift-up is (a horizontal bar on its bottom edge, which is where
-// a hand reaches an overhead flap) on a larger set of rows. Each such front is named here with what A-20 did with it, so
-// a new one cannot ship as a plain leaf by silence: it fails this list and needs a ruling.
+// a hand reaches an overhead flap) on a larger set of rows. Each such front is named here with what A-20 does with it, so
+// a new one cannot ship as a plain leaf by silence: it fails this list until its pricing is stated.
 import {
   KITCHEN_L_BODY_CATALOG,
   type BodyDefinition,
@@ -101,8 +101,8 @@ function rowsDrawingABottomBarredDoor(): readonly string[] {
   return [...rows].sort();
 }
 
-/** The rows whose built doors carry a bottom-edge bar, and what A-20 did with each. Only `wall-lift` is declared lift-up:
- *  the owner named no other, so each remaining row is a hinged leaf or a flap that is reported, not priced. */
+/** The rows whose built doors carry a bottom-edge bar, and what A-20 does with each. Only `wall-lift` is declared
+ *  lift-up, so each remaining row is a hinged leaf or a flap that is reported, not priced. */
 const ROWS_DRAWN_WITH_A_BOTTOM_EDGE_DOOR: Readonly<Record<string, string>> = {
   "wall-lift": "declared liftUp: one lift, hinges by width",
   "tall-fridge-housing":
@@ -119,7 +119,7 @@ const ROWS_DRAWN_WITH_A_BOTTOM_EDGE_DOOR: Readonly<Record<string, string>> = {
 };
 
 describe("every row that draws a door barred on its bottom edge", () => {
-  it("is named, with what A-20 did with it, so a new one cannot ship as a plain leaf unnoticed", () => {
+  it("is named, with what A-20 does with it, so a new one cannot ship as a plain leaf unnoticed", () => {
     expect(rowsDrawingABottomBarredDoor()).toEqual(
       Object.keys(ROWS_DRAWN_WITH_A_BOTTOM_EDGE_DOOR).sort(),
     );

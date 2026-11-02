@@ -1,4 +1,4 @@
-// M10 P5 (ADR 0177 A-20), adversarial: the lift count and the lift door's hinges follow the design as it is edited. A
+// ADR 0177 A-20, adversarial: the lift count and the lift door's hinges follow the design as it is edited. A
 // resize changes the width the hinge rule reads, a swap changes whether a lift stands at all, and neither may leave a
 // count behind that the kitchen no longer has. The design is read as the whole-kitchen price reads it: projected for
 // display, then counted.
@@ -9,7 +9,10 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import { countHardwareMechanisms } from "../../src/hardware-mechanisms.js";
+import {
+  countHardwareMechanisms,
+  WIDE_LIFT_DOOR_THRESHOLD_MM,
+} from "../../src/hardware-mechanisms.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
 import {
   deriveColumns,
@@ -22,12 +25,11 @@ import {
   createWorld,
   type KitchenWorld,
 } from "../support/kitchen-world.js";
+import { CABINETRY_CHIPS_MM } from "../support/width-model.js";
 
 const WALL_CABINET_SEEDED_ID = "p8";
 const HINGES_ON_A_WIDE_LIFT_DOOR = 3;
 const HINGES_ON_A_NARROW_LIFT_DOOR = 2;
-const WIDE_LIFT_ABOVE_MM = 500;
-const LIFT_WIDTHS_MM = [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800];
 
 function countsOf(design: Design) {
   return countHardwareMechanisms(
@@ -86,7 +88,7 @@ describe("a lift swapped in for a wall cabinet", () => {
     expect(counts.hinges).toBe(
       seededCounts.hinges -
         wallCabinetHinges +
-        (widthOf(world.design, liftId) > WIDE_LIFT_ABOVE_MM
+        (widthOf(world.design, liftId) > WIDE_LIFT_DOOR_THRESHOLD_MM
           ? HINGES_ON_A_WIDE_LIFT_DOOR
           : HINGES_ON_A_NARROW_LIFT_DOOR),
     );
@@ -113,8 +115,8 @@ describe("a lift resized across every width it is built at", () => {
     const seenWidths: number[] = [];
 
     for (const requestedMm of [
-      ...LIFT_WIDTHS_MM,
-      ...[...LIFT_WIDTHS_MM].reverse(),
+      ...CABINETRY_CHIPS_MM,
+      ...[...CABINETRY_CHIPS_MM].reverse(),
     ]) {
       const resized = resizeTo(world, liftId, requestedMm);
       if (!resized.ok) continue;
@@ -124,7 +126,7 @@ describe("a lift resized across every width it is built at", () => {
 
       expect(counts, `${String(widthMm)} mm`).toEqual({
         hinges:
-          widthMm > WIDE_LIFT_ABOVE_MM
+          widthMm > WIDE_LIFT_DOOR_THRESHOLD_MM
             ? HINGES_ON_A_WIDE_LIFT_DOOR
             : HINGES_ON_A_NARROW_LIFT_DOOR,
         drawers: 0,
@@ -134,8 +136,12 @@ describe("a lift resized across every width it is built at", () => {
     }
 
     expect(new Set(seenWidths).size).toBeGreaterThan(4);
-    expect(seenWidths.some((width) => width <= WIDE_LIFT_ABOVE_MM)).toBe(true);
-    expect(seenWidths.some((width) => width > WIDE_LIFT_ABOVE_MM)).toBe(true);
+    expect(
+      seenWidths.some((width) => width <= WIDE_LIFT_DOOR_THRESHOLD_MM),
+    ).toBe(true);
+    expect(
+      seenWidths.some((width) => width > WIDE_LIFT_DOOR_THRESHOLD_MM),
+    ).toBe(true);
   });
 
   it("is refused at every width off the 50 mm grid by a resize", () => {
@@ -207,9 +213,9 @@ describe("a lift inserted into an empty column of an off-grid width", () => {
     },
   );
 
-  // Characterises the reading OQ-5a leaves open, not a ruling: the hinge rule reads the body's width, as the owner's
-  // "the door is wide" is taken here. The built door is 6 mm narrower than its body, so at 501 to 506 mm the body is
-  // over 500 mm and its door is not. Whoever rules OQ-5a should see this band: one comparison moves it.
+  // Characterises current behaviour: the hinge rule reads the body's width, not the built door's. The built door is
+  // 6 mm narrower than its body, so at 501 to 506 mm the body is over the threshold and its door is not. Which of the
+  // two widths the rule reads is not specified; one comparison moves this band.
   it.each([501, 503, 506])(
     "takes three hinges at %i mm by its body's width, though the door it draws is no wider than 500 mm",
     (openingMm) => {
@@ -229,7 +235,7 @@ describe("a lift inserted into an empty column of an off-grid width", () => {
         HINGES_ON_A_WIDE_LIFT_DOOR,
       );
       expect(openingMm - BUILT_DOOR_INSET_MM).toBeLessThanOrEqual(
-        WIDE_LIFT_ABOVE_MM,
+        WIDE_LIFT_DOOR_THRESHOLD_MM,
       );
     },
   );

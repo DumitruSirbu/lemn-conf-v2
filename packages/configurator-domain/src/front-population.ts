@@ -364,8 +364,9 @@ export function doorLeafCount(query: FrontPopulationQuery): number {
 }
 
 /** The width of each lift-up door this body carries, one entry per door, empty for a body that declares none: the
- *  list ADR 0177 A-20's lift count and width-based hinge rule are applied over. A door is the body's width shared
- *  between the leaves of one band. Only a declared `liftUp` makes a door a lift door. */
+ *  list ADR 0177 A-20's lift count and width-based hinge rule are applied over. Each entry is the body's width shared
+ *  between the leaves of one band, not the built door's width: the door the adapter draws is 6 mm narrower than that.
+ *  Only a declared `liftUp` makes a door a lift door. */
 export function liftDoorWidthsMm(
   query: FrontPopulationQuery,
 ): readonly number[] {

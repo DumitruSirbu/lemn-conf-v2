@@ -293,12 +293,10 @@ const DRAFTED_PUSH_TO_OPEN_MINOR = {
 } as const;
 
 /**
- * PENDING OWNER INPUT: drafted placeholders, with no supplier source and no figure anywhere in this repository (ADR 0177
- * A-20). Ordered as the hinge rates are; their magnitudes are not evidence and must not be quoted as a price.
- * No seeded or generated kitchen carries a lift-up door, so they move no shipped total. Assertions read the rate off
+ * Placeholders: their magnitudes are not evidence and must never be quoted as a price. Assertions read the rate off
  * this book and multiply; none types a magnitude.
  *
- * Non-zero on purpose, as the push rates are: a zero would price a lift-up door's mechanism at nothing.
+ * Non-zero on purpose: a zero would price a lift-up door's mechanism at nothing.
  */
 const DRAFTED_LIFT_MINOR = {
   standard: 20_000,

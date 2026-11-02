@@ -1,4 +1,4 @@
-// M10 P5 (ADR 0177 A-20), adversarial: the lift rate on the path a draft takes from edit to publish list. Every rate of
+// ADR 0177 A-20, adversarial: the lift rate on the path a draft takes from edit to publish list. Every rate of
 // every class is held to the same journey: an accepted edit, a diff row naming its own address, a revert that takes only
 // it, and a bulk percentage that never reaches it.
 import { describe, expect, it } from "vitest";
