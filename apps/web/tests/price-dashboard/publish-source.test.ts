@@ -8,7 +8,6 @@ import { applyChanges } from "@lemnaria/configurator-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import roMessages from "@/messages/ro.json";
-import ruMessages from "@/messages/ru.json";
 import { UNAVAILABLE_PUBLISH_CLIENT } from "@/price-dashboard/publish-client";
 import { readPendingDraft } from "@/price-dashboard/publish-model";
 import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
@@ -119,9 +118,9 @@ describe.each(["development", "test"])("a %s build", (mode) => {
 
   it.each([
     ["ro", roMessages.catalog.entries],
-    ["ru", ruMessages.catalog.entries],
+    ["ru", roMessages.catalog.entries],
   ] as const)(
-    "names the page's and the version's cabinets in the language of the %s route",
+    "names the page's and the version's cabinets in Romanian on the %s route, until the official translation",
     async (locale, catalogueEntries) => {
       vi.stubEnv("NODE_ENV", mode);
 

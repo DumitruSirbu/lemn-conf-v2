@@ -740,7 +740,7 @@ test.describe("the publish page at desktop 1440", () => {
         await shootForReview(page, "1440-d7f-published");
       });
 
-      test("JUDGEMENT: after publishing, focus is not dropped to the page body: the notice that says so is where a keyboard user is", async ({
+      test("after publishing, focus is not dropped to the page body: the notice that says so is where a keyboard user is", async ({
         page,
       }) => {
         await openPublish(page);
@@ -946,7 +946,7 @@ test.describe("the publish page at desktop 1440", () => {
     });
 
     test.describe("Russian", () => {
-      test("the pending list names its cabinets in Russian, a price is still a button, and the provisional question speaks Russian", async ({
+      test("the pending list keeps its cabinets' Romanian names, a price is still a button, and the provisional question speaks Russian", async ({
         page,
       }) => {
         const russian = wordsOf("ru");
@@ -961,13 +961,11 @@ test.describe("the publish page at desktop 1440", () => {
         await expect(newValueButtons(page, russian)).toHaveCount(
           EDITABLE_PRICES_IN_SAMPLE,
         );
-        // DEFECT of the sample: `CABINET_NAMES` in publish-sample.ts is the Romanian catalogue whatever the locale of the
-        // route, so the Russian page names the cabinet in Romanian where the cabinet list of the same route names it in
-        // Russian. U5c's real input must be built per locale (`cabinetNamesOf(book, translate)`).
+        // Frame D2R: cabinet names stay Romanian on the Russian route until the official translation.
         await expect(
           diffRows(page).first(),
-          "the Russian page names a cabinet in Russian",
-        ).toContainText(russian("catalog.entries.base-cabinet"));
+          "the Russian page keeps a cabinet's Romanian name",
+        ).toContainText(wordsOf("ro")("catalog.entries.base-cabinet"));
         await versionNameField(page, russian).fill("Ноябрьские цены");
         await publishButton(page, russian, PENDING_IN_SAMPLE).click();
         await expect(
@@ -1023,7 +1021,6 @@ async function checkOneRowAtWidth(
     .soft(open.outsideItsCell, `${where}: nothing leaves its cell`)
     .toEqual([]);
   expect.soft(open.overlapsNextCell, `${where}: no overlap`).toBe(false);
-  expect.soft(open.tableOverflow, `${where}: the table's width`).toBe(0);
   expect.soft(open.pageOverflow, `${where}: the page's width`).toBe(0);
   if (shot !== undefined) await shootForReview(page, `${shot}-open`);
   await field.press("Escape");

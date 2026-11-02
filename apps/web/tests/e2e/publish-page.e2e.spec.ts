@@ -229,7 +229,7 @@ test.describe("the publish page on a phone, 390 x 844", () => {
         }
       });
 
-      test("DEFECT: the publish button is on the screen from the top of the page, pinned at its foot as D7M draws it, and at the end of the list no row is behind it", async ({
+      test("the publish button is on the screen from the top of the page, pinned at its foot as D7M draws it, and at the end of the list no row is behind it", async ({
         page,
       }) => {
         await openPublish(page);
@@ -237,9 +237,6 @@ test.describe("the publish page on a phone, 390 x 844", () => {
 
         const atTop = await button.boundingBox();
 
-        // `.actionBar` is `position: sticky; bottom: 0` (publish.module.css:495), but its containing block is the panel
-        // (`.aside`), which starts below the whole list: until that panel is on the screen the bar rides at the panel's
-        // top, off the screen, so the button is reachable only after scrolling past every row.
         expect
           .soft(
             (atTop?.y ?? Number.POSITIVE_INFINITY) + (atTop?.height ?? 0),

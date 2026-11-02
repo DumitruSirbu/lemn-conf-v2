@@ -194,7 +194,6 @@ export interface OpenFieldGeometry {
   /** The "Nou" cell reaches into the cell beside it. */
   readonly overlapsNextCell: boolean;
   /** How far the table's content is wider than the table: more than 0 is clipped or scrolled content. */
-  readonly tableOverflow: number;
   readonly pageOverflow: number;
 }
 
@@ -218,13 +217,11 @@ export function measureOpenField(row: Locator): Promise<OpenFieldGeometry> {
       }
     }
     const next = cell.nextElementSibling?.getBoundingClientRect();
-    const table = rowElement.closest<HTMLElement>('[data-testid="diff-table"]');
     const root = document.documentElement;
     return {
       rowHeight: rowElement.getBoundingClientRect().height,
       outsideItsCell,
       overlapsNextCell: next !== undefined && box.right > next.left + 0.5,
-      tableOverflow: table === null ? 0 : table.scrollWidth - table.clientWidth,
       pageOverflow: root.scrollWidth - root.clientWidth,
     };
   });

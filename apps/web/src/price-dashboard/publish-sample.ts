@@ -11,7 +11,6 @@ import {
 import type { AppLocale } from "@/i18n/routing";
 import { readActivePriceBook } from "@/lib/server/active-price-book";
 import roMessages from "@/messages/ro.json";
-import ruMessages from "@/messages/ru.json";
 
 import { sampleVersionIdOf } from "./publish-sample-client";
 import type {
@@ -295,12 +294,12 @@ const VERSIONS: readonly SampleVersion[] = [
   ACTIVE_VERSION,
 ];
 
-/** The catalogue's name for each entry, in the language of the route that draws the page. */
+/** The catalogue's name for each entry. Both routes draw the Romanian names until the official translation exists. */
 const CABINET_NAMES_BY_LOCALE: Readonly<
   Record<AppLocale, Readonly<Record<string, string>>>
 > = {
   ro: roMessages.catalog.entries,
-  ru: ruMessages.catalog.entries,
+  ru: roMessages.catalog.entries,
 };
 
 /** The Romanian page: what the sample's figures and drafts are checked against, whatever the route's language. */
