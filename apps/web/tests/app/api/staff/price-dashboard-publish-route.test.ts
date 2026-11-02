@@ -667,6 +667,9 @@ describe("the whole candidate is judged before anything is stored (A-7, M2's jud
   it("refuses an anchor of 0, an ordinary change the draft stores, with the same closed members, and stores nothing", async () => {
     const { cookie } = await administrator();
     await putChange(cookie, ANCHOR_ADDRESS, 0);
+    expect((await prices.stores.priceBook.readDraft()).changes).toEqual([
+      { address: ANCHOR_ADDRESS, value: 0 },
+    ]);
     const before = await snapshot();
 
     const answer = await publish(cookie);
