@@ -11,6 +11,11 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { countHardwareMechanisms } from "../../src/hardware-mechanisms.js";
 import { projectDesignForDisplay } from "../../src/queries/design-projection.js";
+import {
+  deriveColumns,
+  derivePlacementRecords,
+  recomputeVoids,
+} from "../../src/void-engine.js";
 import { insertInto, resizeTo } from "../support/commands.js";
 import {
   advance,
@@ -133,7 +138,7 @@ describe("a lift resized across every width it is built at", () => {
     expect(seenWidths.some((width) => width > WIDE_LIFT_ABOVE_MM)).toBe(true);
   });
 
-  it("is refused at every width off the 50 mm grid, so the 501 to 549 mm band is never built", () => {
+  it("is refused at every width off the 50 mm grid by a resize", () => {
     const { world, liftId } = worldWithALiftInPlaceOfAWallCabinet();
 
     for (const requestedMm of [
@@ -144,4 +149,88 @@ describe("a lift resized across every width it is built at", () => {
       expect(resized.ok, `${String(requestedMm)} mm`).toBe(false);
     }
   });
+});
+
+describe("a lift inserted into an empty column of an off-grid width", () => {
+  const BUILT_DOOR_INSET_MM = 6;
+
+  function worldWithAnEmptyWallColumnOf(widthMm: number): KitchenWorld {
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.filter(({ id }) => id !== "p14"),
+      emptyColumns: [
+        {
+          wall: "A",
+          alongMm: 1_000,
+          widthMm,
+          y0Mm: 1_500,
+          topMm: 2_200,
+          depthMm: 350,
+        },
+      ],
+    };
+    const base = createWorld(design, KITCHEN_L_BODY_CATALOG);
+    const records = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG);
+    const columns = deriveColumns(
+      records,
+      { emptyColumns: design.emptyColumns },
+      design.room,
+    );
+    return {
+      ...base,
+      columns,
+      records,
+      voids: recomputeVoids(records, columns),
+    };
+  }
+
+  it.each([499, 500, 501, 503, 506, 507, 523, 549])(
+    "is built at the %i mm of its opening, so the 501 to 549 mm band is reachable by insertion",
+    (openingMm) => {
+      const world = worldWithAnEmptyWallColumnOf(openingMm);
+      const opening = world.voids.find(
+        ({ w }) => Math.round(w * 1_000) === openingMm,
+      );
+      if (opening === undefined) throw new Error("no opening of that width");
+
+      const inserted = insertInto(
+        world,
+        { kind: "void", id: opening.id },
+        "wall-lift",
+      );
+
+      expect(inserted.ok).toBe(true);
+      if (!inserted.ok) return;
+      expect(widthOf(inserted.design, inserted.effect.placementId)).toBe(
+        openingMm,
+      );
+    },
+  );
+
+  // Characterises the reading OQ-5a leaves open, not a ruling: the hinge rule reads the body's width, as the owner's
+  // "the door is wide" is taken here. The built door is 6 mm narrower than its body, so at 501 to 506 mm the body is
+  // over 500 mm and its door is not. Whoever rules OQ-5a should see this band: one comparison moves it.
+  it.each([501, 503, 506])(
+    "takes three hinges at %i mm by its body's width, though the door it draws is no wider than 500 mm",
+    (openingMm) => {
+      const world = worldWithAnEmptyWallColumnOf(openingMm);
+      const opening = world.voids.find(
+        ({ w }) => Math.round(w * 1_000) === openingMm,
+      );
+      if (opening === undefined) throw new Error("no opening of that width");
+      const inserted = insertInto(
+        world,
+        { kind: "void", id: opening.id },
+        "wall-lift",
+      );
+      if (!inserted.ok) throw new Error(inserted.reason.code);
+
+      expect(countsOfTheLiftsOf(inserted.design).hinges).toBe(
+        HINGES_ON_A_WIDE_LIFT_DOOR,
+      );
+      expect(openingMm - BUILT_DOOR_INSET_MM).toBeLessThanOrEqual(
+        WIDE_LIFT_ABOVE_MM,
+      );
+    },
+  );
 });

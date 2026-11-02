@@ -404,6 +404,7 @@ function countOf(design: Design) {
 describe("a lift door in a push-to-open kitchen", () => {
   const PUSH_KITCHEN = { handle: "push" as const };
 
+  // Characterises current behaviour, not a ruling (see the next test): a latch beside the lift is unruled.
   it("keeps its hinges and its lift, and is billed the one latch every opening front takes", () => {
     for (const widthMm of EVERY_LIFT_WIDTH_MM) {
       const counts = countOf(kitchenOf([liftAt(0, widthMm)], PUSH_KITCHEN));
@@ -417,6 +418,8 @@ describe("a lift door in a push-to-open kitchen", () => {
     }
   });
 
+  // Characterises current behaviour, not a ruling: no owner decision says whether a lift-up door takes a latch beside its
+  // lift in a push-to-open kitchen. Change this with the ruling.
   it("is billed the four terms of the line, the latch beside the lift", () => {
     fc.assert(
       fc.property(
