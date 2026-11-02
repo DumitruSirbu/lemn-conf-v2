@@ -1422,6 +1422,7 @@ declare const messages: {
       "widthRange": "{minMm, number, ::group-off}–{maxMm, number, ::group-off} mm",
       "widthDefault": "implicit {widthMm, number, ::group-off}",
       "widthFollowsBase": "implicit: după dulapul de jos",
+      "nameWithWidth": "{name} {widthMm, number, ::group-off}",
       "proposed": "propus",
       "priceBasis": "{widthMm, number, ::group-off} mm · PAL",
       "priceBasisHeight": "{widthMm, number, ::group-off} mm × {heightMm, number, ::group-off} · PAL",
