@@ -112,6 +112,12 @@ function spiedClient(
     revert: vi.fn<PublishClient["revert"]>(
       replace.revert ?? ((request) => base.revert(request)),
     ),
+    discardDraft: vi.fn<PublishClient["discardDraft"]>(
+      replace.discardDraft ?? ((request) => base.discardDraft(request)),
+    ),
+    readVersionPage: vi.fn<PublishClient["readVersionPage"]>(
+      replace.readVersionPage ?? ((page) => base.readVersionPage(page)),
+    ),
     restore: vi.fn<PublishClient["restore"]>(
       replace.restore ?? ((version, request) => base.restore(version, request)),
     ),

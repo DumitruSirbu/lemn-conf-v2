@@ -4,12 +4,9 @@ import { connection } from "next/server";
 import type { Metadata } from "next";
 
 import { routing } from "@/i18n/routing";
-import {
-  PublishScreen,
-  PublishUnavailableScreen,
-} from "@/price-dashboard/publish-page";
 import { readPublishPage } from "@/price-dashboard/publish-source";
 
+import { publishScreenOf } from "../../_lib/publish-read-screen";
 import {
   brandOnlyMetadata,
   renderCatalogPage,
@@ -41,16 +38,12 @@ export default async function HistoryPage({ params }: HistoryPageProps) {
     page: "publish",
     signedIn: async (shell) => {
       const read = await readPublishPage();
-      return read.kind === "ready" ? (
-        <PublishScreen
-          locale={locale}
-          context={shell}
-          input={read.input}
-          initialView="history"
-        />
-      ) : (
-        <PublishUnavailableScreen locale={locale} context={shell} />
-      );
+      return publishScreenOf({
+        read,
+        locale,
+        shell,
+        initialView: "history",
+      });
     },
   });
 }

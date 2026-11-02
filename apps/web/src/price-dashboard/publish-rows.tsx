@@ -16,20 +16,26 @@ import {
 
 import type { ContentTranslator } from "@/i18n/content";
 import { useContent, useStaffKitchensCopy } from "@/i18n/use-content";
+import { isolated } from "@/staff/bidi-isolate";
 
 import { formatLei } from "./format-lei";
 import type { DraftRevertTargetWire } from "./price-dashboard-wire-contract";
+import { PriceEditor } from "./price-editor";
 import { signOf, signedLei, signedWholeNumber } from "./publish-format";
 import type {
   BulkScopeView,
   DifferenceView,
   FieldRowView,
   GroupRowView,
+  ItemRowView,
+  LinkRowView,
   RowSubject,
   RowView,
   SectionView,
+  TextRowView,
 } from "./publish-model";
 import styles from "./publish.module.css";
+import type { PriceDraft } from "./use-price-draft";
 
 // One markup: cards on a phone, a table from 900 px. Each cell carries its own label; the column titles are for the eye.
 
@@ -55,11 +61,16 @@ export interface DiffColumns {
   readonly after: string;
 }
 
+/** What the pending list is given where a "Nou" amount can be corrected; an archived version's rows have none. */
+export type SaveAmount = PriceDraft["changeOrRevert"];
+
 export interface DiffSectionsProps {
   readonly sections: readonly SectionView[];
   readonly columns: DiffColumns;
   /** Present on the pending list only: what ↺ asks for. Absent, the rows are read-only. */
   readonly onRevert: ((target: DraftRevertTargetWire) => void) | undefined;
+  /** Present on the pending list only: the write a corrected "Nou" amount goes through. */
+  readonly onSaveAmount: SaveAmount | undefined;
   readonly isBusy: boolean;
 }
 
@@ -67,6 +78,7 @@ export function DiffSections({
   sections,
   columns,
   onRevert,
+  onSaveAmount,
   isBusy,
 }: DiffSectionsProps) {
   const translate = useTranslations();
@@ -85,6 +97,7 @@ export function DiffSections({
           section={section}
           columns={columns}
           onRevert={onRevert}
+          onSaveAmount={onSaveAmount}
           isBusy={isBusy}
         />
       ))}
@@ -96,6 +109,7 @@ function DiffSectionBlock({
   section,
   columns,
   onRevert,
+  onSaveAmount,
   isBusy,
 }: Omit<DiffSectionsProps, "sections"> & { readonly section: SectionView }) {
   const translate = useTranslations();
@@ -113,25 +127,16 @@ function DiffSectionBlock({
         </span>
       </h2>
       <ul className={styles.rows}>
-        {section.rows.map((row) =>
-          row.kind === "field" ? (
-            <FieldRow
-              key={row.key}
-              row={row}
-              columns={columns}
-              onRevert={onRevert}
-              isBusy={isBusy}
-            />
-          ) : (
-            <GroupRow
-              key={row.key}
-              row={row}
-              columns={columns}
-              onRevert={onRevert}
-              isBusy={isBusy}
-            />
-          ),
-        )}
+        {section.rows.map((row) => (
+          <DiffRow
+            key={row.key}
+            row={row}
+            columns={columns}
+            onRevert={onRevert}
+            onSaveAmount={onSaveAmount}
+            isBusy={isBusy}
+          />
+        ))}
       </ul>
     </section>
   );
@@ -141,10 +146,33 @@ interface RowProps<Row extends RowView> {
   readonly row: Row;
   readonly columns: DiffColumns;
   readonly onRevert: ((target: DraftRevertTargetWire) => void) | undefined;
+  readonly onSaveAmount: SaveAmount | undefined;
   readonly isBusy: boolean;
 }
 
-function FieldRow({ row, columns, onRevert, isBusy }: RowProps<FieldRowView>) {
+function DiffRow(props: RowProps<RowView>) {
+  const { row } = props;
+  switch (row.kind) {
+    case "field":
+      return <FieldRow {...props} row={row} />;
+    case "group":
+      return <GroupRow {...props} row={row} />;
+    case "row":
+      return <ItemRow {...props} row={row} />;
+    case "text":
+      return <TextRow {...props} row={row} />;
+    case "link":
+      return <LinkRow {...props} row={row} />;
+  }
+}
+
+function FieldRow({
+  row,
+  columns,
+  onRevert,
+  onSaveAmount,
+  isBusy,
+}: RowProps<FieldRowView>) {
   const words = useRowWords();
   const name = words.subject(row.subject);
   const field = words.field(row);
@@ -156,7 +184,19 @@ function FieldRow({ row, columns, onRevert, isBusy }: RowProps<FieldRowView>) {
     >
       <RowName name={name} field={field} />
       <Cell label={columns.before} value={words.value(row.before, row)} />
-      <Cell label={columns.after} value={words.value(row.after, row)} />
+      <Cell
+        label={columns.after}
+        value={
+          <NewValue
+            row={row}
+            text={words.value(row.after, row)}
+            name={name}
+            field={field}
+            onSaveAmount={onSaveAmount}
+            isBusy={isBusy}
+          />
+        }
+      />
       <DifferenceCell text={words.difference(row.difference)} />
       <RevertButton
         target={row.revert}
@@ -231,10 +271,153 @@ function GroupRow({ row, columns, onRevert, isBusy }: RowProps<GroupRowView>) {
             row={item}
             columns={columns}
             onRevert={undefined}
+            onSaveAmount={undefined}
             isBusy={isBusy}
           />
         ))}
       </ul>
+    </li>
+  );
+}
+
+/** The corrected value of a pending amount: a field from 900 px, the figure as text on a phone, and the figure alone for
+ *  every row whose amount is not a price of this draft. */
+function NewValue({
+  row,
+  text,
+  name,
+  field,
+  onSaveAmount,
+  isBusy,
+}: {
+  readonly row: FieldRowView;
+  readonly text: string;
+  readonly name: string;
+  readonly field: string;
+  readonly onSaveAmount: SaveAmount | undefined;
+  readonly isBusy: boolean;
+}) {
+  const translate = useTranslations();
+  const { before, after } = row;
+  const isCorrectable =
+    onSaveAmount !== undefined &&
+    row.unit === "amount" &&
+    typeof before === "number" &&
+    typeof after === "number";
+  if (!isCorrectable) return text;
+  const label = translate("priceDashboard.publish.newValueAria", {
+    name,
+    field,
+  });
+  return (
+    <PriceEditor
+      label={label}
+      openAriaLabel={label}
+      activeMinor={before}
+      pendingMinor={after}
+      isBusy={isBusy}
+      save={(minor) =>
+        onSaveAmount({ address: row.address, value: minor }, before)
+      }
+      figure={text}
+    />
+  );
+}
+
+function ItemRow({ row, columns, onRevert, isBusy }: RowProps<ItemRowView>) {
+  const translate = useTranslations();
+  const words = useRowWords();
+  const name = words.subject(row.subject);
+  return (
+    <li
+      className={styles.row}
+      data-testid="diff-row"
+      data-row-kind={`${row.itemKind}-${row.change}`}
+    >
+      <RowName name={name} field={itemRowNote(translate, row)} />
+      <Cell label={columns.before} value="" />
+      <Cell label={columns.after} value="" />
+      <Cell
+        label={translate("priceDashboard.publish.columnDifference")}
+        value=""
+      />
+      <RevertButton
+        target={row.revert}
+        name={name}
+        onRevert={onRevert}
+        isBusy={isBusy}
+      />
+    </li>
+  );
+}
+
+function itemRowNote(translate: Translate, row: ItemRowView): string {
+  if (row.change === "deleted") {
+    return translate("priceDashboard.lifecycle.deleteBody");
+  }
+  return row.itemKind === "hardware"
+    ? translate("priceDashboard.hardware.newTitle")
+    : translate("priceDashboard.accessories.newTitle");
+}
+
+function TextRow({ row, columns, onRevert, isBusy }: RowProps<TextRowView>) {
+  const translate = useTranslations();
+  const words = useRowWords();
+  const name = words.subject(row.subject);
+  return (
+    <li className={styles.row} data-testid="diff-row" data-row-kind="text">
+      <RowName name={name} field={textFieldWords(translate, row)} />
+      <Cell label={columns.before} value={textSideWords(row.before, words)} />
+      <Cell label={columns.after} value={textSideWords(row.after, words)} />
+      <Cell
+        label={translate("priceDashboard.publish.columnDifference")}
+        value=""
+      />
+      <RevertButton
+        target={row.revert}
+        name={name}
+        onRevert={onRevert}
+        isBusy={isBusy}
+      />
+    </li>
+  );
+}
+
+function textFieldWords(translate: Translate, row: TextRowView): string {
+  const isHardware = row.section === "hardware";
+  if (row.field === "name") {
+    return isHardware
+      ? translate("priceDashboard.hardware.nameLabel")
+      : translate("priceDashboard.accessories.nameLabel");
+  }
+  return isHardware
+    ? translate("priceDashboard.hardware.descriptionLabel")
+    : translate("priceDashboard.accessories.descriptionLabel");
+}
+
+function textSideWords(
+  side: string | undefined,
+  words: ReturnType<typeof useRowWords>,
+): string {
+  return side === undefined ? words.noValue : isolated(side);
+}
+
+function LinkRow({ row, columns }: RowProps<LinkRowView>) {
+  const translate = useTranslations();
+  const words = useRowWords();
+  return (
+    <li className={styles.row} data-testid="diff-row" data-row-kind="link">
+      <RowName
+        name={words.subject(row.subject)}
+        field={translate("priceDashboard.accessories.linkLabel")}
+      />
+      <Cell label={columns.before} value={row.before} />
+      <Cell label={columns.after} value={row.after} />
+      <Cell
+        label={translate("priceDashboard.publish.columnDifference")}
+        value=""
+      />
+      <span className={styles.revertPlaceholder} />
     </li>
   );
 }
@@ -267,7 +450,7 @@ function Cell({
   return (
     <div className={styles.cell} data-empty={value === ""}>
       <span className={styles.cellLabel}>{label}</span>
-      <span className={styles.cellValue}>{value}</span>
+      <div className={styles.cellValue}>{value}</div>
       {hiddenNote === undefined ? null : (
         <span className={styles.visuallyHidden}>{hiddenNote}</span>
       )}

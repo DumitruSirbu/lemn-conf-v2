@@ -7,8 +7,11 @@ import {
   isSameAddress,
   readEditableFields,
   restoreChanges,
+  type AbsentValue,
   type AppliedAddress,
   type BookDiffRow,
+  type BookFieldAddress,
+  type CreatedRowTextField,
   type DiffSection,
   type DiffValue,
   type DraftBulk,
@@ -17,8 +20,11 @@ import {
   type FieldUnit,
   type GroupDiffRow,
   type ItemRef,
+  type LinkDiffRow,
   type PriceBook,
   type PriceGroupCode,
+  type RowDiffRow,
+  type TextDiffRow,
 } from "@lemnaria/configurator-domain";
 
 import type {
@@ -119,7 +125,48 @@ export interface GroupRowView {
   readonly revert: DraftRevertTargetWire | undefined;
 }
 
-export type RowView = FieldRowView | GroupRowView;
+/** A hardware class or a linked accessory the book gains or loses. */
+export interface ItemRowView {
+  readonly kind: "row";
+  readonly key: string;
+  readonly section: DiffSection;
+  readonly change: RowDiffRow["change"];
+  readonly itemKind: ItemRef["kind"];
+  readonly subject: RowSubject;
+  /** What ↺ removes: the creation with the changes that cannot stand without it, or the deletion. */
+  readonly revert: DraftRevertTargetWire | undefined;
+}
+
+/** The words of a created row, as each book states them; a side the book does not state is `undefined`. */
+export interface TextRowView {
+  readonly kind: "text";
+  readonly key: string;
+  readonly section: DiffSection;
+  readonly subject: RowSubject;
+  readonly field: CreatedRowTextField;
+  readonly before: string | undefined;
+  readonly after: string | undefined;
+  readonly revert: DraftRevertTargetWire | undefined;
+}
+
+/** The catalogue row a linked accessory follows, named as the cabinet list names it. It has no ↺ of its own: the one
+ *  change that sets a link is the accessory's creation. */
+export interface LinkRowView {
+  readonly kind: "link";
+  readonly key: string;
+  readonly section: DiffSection;
+  readonly subject: RowSubject;
+  readonly before: string;
+  readonly after: string;
+  readonly revert: undefined;
+}
+
+export type RowView =
+  | FieldRowView
+  | GroupRowView
+  | ItemRowView
+  | TextRowView
+  | LinkRowView;
 
 export interface SectionView {
   readonly section: DiffSection;
@@ -164,7 +211,7 @@ export function readPendingDraft(
     kind: "ready",
     view: {
       sections: sectionsOf(
-        pricedRowsOf(rows).map((row) =>
+        rows.map((row) =>
           rowViewOf(row, {
             books: { before: active, after: candidate },
             cabinetNames,
@@ -194,7 +241,7 @@ export function describeVersionDiff(input: {
 }): readonly SectionView[] {
   const { before, after, changes, cabinetNames } = input;
   return sectionsOf(
-    pricedRowsOf(diffBooks(before, after, { changes })).map((row) =>
+    diffBooks(before, after, { changes }).map((row) =>
       rowViewOf(row, {
         books: { before, after },
         cabinetNames,
@@ -210,24 +257,24 @@ interface RowContext {
   readonly isRevertable: boolean;
 }
 
-/** The rows of a price or a bulk action. The rows for a created, deleted or reworded item are not drawn yet: the draft
- *  wire carries no such change, so none reaches this model until the screens that author them are built (U4c). */
-function pricedRowsOf(
-  rows: readonly BookDiffRow[],
-): readonly (FieldDiffRow | GroupDiffRow)[] {
-  return rows.filter(
-    (row): row is FieldDiffRow | GroupDiffRow =>
-      row.kind === "field" || row.kind === "group",
-  );
+function rowViewOf(row: BookDiffRow, context: RowContext): RowView {
+  switch (row.kind) {
+    case "field":
+      return fieldRowViewOf(row, context, {
+        isRevertable: context.isRevertable,
+      });
+    case "group":
+      return groupRowViewOf(row, context);
+    case "row":
+      return itemRowViewOf(row, context);
+    case "text":
+      return textRowViewOf(row, context);
+    case "link":
+      return linkRowViewOf(row, context);
+  }
 }
 
-function rowViewOf(
-  row: FieldDiffRow | GroupDiffRow,
-  context: RowContext,
-): RowView {
-  if (row.kind === "field") {
-    return fieldRowViewOf(row, context, { isRevertable: context.isRevertable });
-  }
+function groupRowViewOf(row: GroupDiffRow, context: RowContext): GroupRowView {
   const items = row.items.map((item) =>
     fieldRowViewOf(item, context, { isRevertable: false }),
   );
@@ -244,6 +291,60 @@ function rowViewOf(
       ? { kind: "group", groupId: row.groupId }
       : undefined,
   };
+}
+
+function itemRowViewOf(row: RowDiffRow, context: RowContext): ItemRowView {
+  return {
+    kind: "row",
+    key: JSON.stringify(row.address),
+    section: row.section,
+    change: row.change,
+    itemKind: row.item.kind,
+    subject: authoredSubjectOf(row.name),
+    revert: ownRevertOf(row.address, context),
+  };
+}
+
+function textRowViewOf(row: TextDiffRow, context: RowContext): TextRowView {
+  return {
+    kind: "text",
+    key: JSON.stringify(row.address),
+    section: row.section,
+    subject: itemSubjectOf(row.item, context.books.after),
+    field: row.field,
+    before: textSideOf(row.before),
+    after: textSideOf(row.after),
+    revert: ownRevertOf(row.address, context),
+  };
+}
+
+function linkRowViewOf(row: LinkDiffRow, context: RowContext): LinkRowView {
+  const { cabinetNames } = context;
+  return {
+    kind: "link",
+    key: `link:${JSON.stringify(row.address)}`,
+    section: row.section,
+    subject: itemSubjectOf(row.item, context.books.after),
+    before: cabinetNames[row.before] ?? row.before,
+    after: cabinetNames[row.after] ?? row.after,
+    revert: undefined,
+  };
+}
+
+function ownRevertOf(
+  address: BookFieldAddress,
+  context: RowContext,
+): DraftRevertTargetWire | undefined {
+  return context.isRevertable ? { kind: "change", address } : undefined;
+}
+
+function textSideOf(side: string | AbsentValue): string | undefined {
+  return typeof side === "string" ? side : undefined;
+}
+
+/** The words of a row the dashboard authored: no catalogue key renders them. */
+function authoredSubjectOf(name: string): RowSubject {
+  return { kind: "book-text", authored: name, key: undefined };
 }
 
 function bulkViewOf(
@@ -349,8 +450,20 @@ function accessorySubjectOf(
   books: RowContext["books"],
 ): RowSubject {
   const id = ACCESSORY_IDS.find((candidate) => candidate === accessoryId);
-  const rule = id === undefined ? undefined : books.after.accessories[id];
+  const rule =
+    id === undefined
+      ? linkedAccessoriesOf(books.after).find(
+          (linked) => linked.accessoryId === accessoryId,
+        )
+      : books.after.accessories[id];
   return tierSubjectOf(rule, accessoryId);
+}
+
+/** A book stored before linked accessories existed declares none, although `PriceBook` types the section as required. */
+function linkedAccessoriesOf(
+  book: Partial<Pick<PriceBook, "linkedAccessories">>,
+): NonNullable<PriceBook["linkedAccessories"]> {
+  return book.linkedAccessories ?? [];
 }
 
 function differenceOf(row: FieldDiffRow): DifferenceView {

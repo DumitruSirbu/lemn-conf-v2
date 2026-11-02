@@ -76,6 +76,8 @@ export interface PriceDraft {
     activeValue: number,
   ) => Promise<FieldWriteResult>;
   readonly bulk: (input: BulkChangeInput) => Promise<BulkWriteResult>;
+  /** Takes a state read or made elsewhere (a publish, a discard) as the one the next write names the revision of. */
+  readonly adopt: (state: DashboardStateWire) => void;
 }
 
 interface DraftInput {
@@ -95,6 +97,11 @@ export function usePriceDraft({
   const adoptDraft = useCallback((draft: DashboardDraftWire) => {
     stateRef.current = { ...stateRef.current, draft };
     setState(stateRef.current);
+  }, []);
+
+  const adopt = useCallback((adopted: DashboardStateWire) => {
+    stateRef.current = adopted;
+    setState(adopted);
   }, []);
 
   const readAgain = useCallback(async () => {
@@ -201,7 +208,7 @@ export function usePriceDraft({
     [client, exclusively, settle],
   );
 
-  return { state, isBusy, change, revert, changeOrRevert, bulk };
+  return { state, isBusy, change, revert, changeOrRevert, bulk, adopt };
 }
 
 const FAILED = { kind: "failed" } as const;

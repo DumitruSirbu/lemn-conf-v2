@@ -1,5 +1,6 @@
 import {
   applyChanges,
+  type ApplyChangesResult,
   MAX_BOOK_NAME_LENGTH,
   revertChange,
   type DraftChange,
@@ -7,13 +8,17 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import type {
+  CandidateRefusalWire,
   DashboardStateWire,
+  PriceVersionSummaryWire,
   PublishTextRefusalCode,
 } from "./price-dashboard-wire-contract";
 import type {
+  DiscardOutcome,
   DraftWriteOutcome,
   PublishClient,
   RestoreOutcome,
+  VersionPageOutcome,
 } from "./publish-client";
 import { planRestore, type VersionDetailInput } from "./publish-model";
 
@@ -23,7 +28,18 @@ import { planRestore, type VersionDetailInput } from "./publish-model";
 export interface SampleDeskStart {
   readonly state: DashboardStateWire;
   readonly archived: ReadonlyMap<string, PriceBook>;
+  /** Every version of the history, newest first, and how many a page holds. Left out, the history is empty. */
+  readonly history?: {
+    readonly versions: readonly PriceVersionSummaryWire[];
+    readonly pageSize: number;
+  };
 }
+
+/** What a write of the sample desk comes to: it stores the draft or it does not. */
+type StoredOutcome = Extract<
+  DraftWriteOutcome,
+  { readonly kind: "changed" | "failed" }
+>;
 
 const SAMPLE_VERSION_PREFIX = "sample-version-";
 const SAMPLE_VERSION_DIGITS = 8;
@@ -65,11 +81,17 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
     desk.writes += 1;
     return `sample-${String(desk.writes)}`;
   };
-  const store = (changes: readonly DraftChange[]): DraftWriteOutcome => {
+  const store = (changes: readonly DraftChange[]): StoredOutcome => {
     if (!applyChanges(desk.state.active.book, changes).ok) {
       return { kind: "failed" };
     }
     const draft = { draftRevision: nextRevision(), changes };
+    desk.state = { ...desk.state, draft };
+    return { kind: "changed", draft };
+  };
+
+  const discarded = (): DiscardOutcome => {
+    const draft = { draftRevision: nextRevision(), changes: [] };
     desk.state = { ...desk.state, draft };
     return { kind: "changed", draft };
   };
@@ -97,6 +119,11 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
                   ),
             ),
       ),
+    discardDraft: ({ expectedDraftRevision }) =>
+      Promise.resolve<DiscardOutcome>(
+        isStale(expectedDraftRevision) ? { kind: "conflict" } : discarded(),
+      ),
+    readVersionPage: (page) => Promise.resolve(pageOfHistory(start, page)),
     publish: (request) => {
       if (isStale(request.expectedDraftRevision)) {
         return Promise.resolve({ kind: "conflict" });
@@ -112,7 +139,12 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
         desk.state.active.book,
         desk.state.draft.changes,
       );
-      if (!applied.ok) return Promise.resolve({ kind: "candidate-refused" });
+      if (!applied.ok) {
+        return Promise.resolve({
+          kind: "candidate-refused",
+          refusals: refusalsOf(applied),
+        });
+      }
       const sequenceNumber = desk.state.active.sequenceNumber + 1;
       const versionId = sampleVersionIdOf(sequenceNumber);
       desk.state = {
@@ -161,6 +193,36 @@ export function makeSamplePublishClient(start: SampleDeskStart): PublishClient {
             }
           : outcome;
       return Promise.resolve(restored);
+    },
+  };
+}
+
+function refusalsOf(
+  refused: Exclude<ApplyChangesResult, { readonly ok: true }>,
+): readonly CandidateRefusalWire[] {
+  if (refused.reason === "candidate-refused") {
+    return [{ source: "pricing", code: refused.failure.code }];
+  }
+  return refused.refusals.map(({ index, code }) => ({
+    source: "changes",
+    index,
+    code,
+  }));
+}
+
+function pageOfHistory(
+  start: SampleDeskStart,
+  page: number,
+): VersionPageOutcome {
+  const { versions, pageSize } = start.history ?? { versions: [], pageSize: 1 };
+  const first = (page - 1) * pageSize;
+  return {
+    kind: "listed",
+    list: {
+      total: versions.length,
+      page,
+      pageSize,
+      versions: versions.slice(first, first + pageSize),
     },
   };
 }

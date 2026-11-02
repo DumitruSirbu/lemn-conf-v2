@@ -130,6 +130,12 @@ function spied(
     revert: vi.fn<PublishClient["revert"]>(
       replace.revert ?? ((request) => base.revert(request)),
     ),
+    discardDraft: vi.fn<PublishClient["discardDraft"]>(
+      replace.discardDraft ?? ((request) => base.discardDraft(request)),
+    ),
+    readVersionPage: vi.fn<PublishClient["readVersionPage"]>(
+      replace.readVersionPage ?? ((page) => base.readVersionPage(page)),
+    ),
     restore: vi.fn<PublishClient["restore"]>(
       replace.restore ?? ((version, request) => base.restore(version, request)),
     ),
@@ -200,7 +206,8 @@ describe("a publish the catalogue refuses", () => {
   it("says so in its own notice, offers no retry, and leaves the draft, the rows, the count and the active version alone", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
 
     const container = await publishWith(client, input);
@@ -233,7 +240,8 @@ describe("a publish the catalogue refuses", () => {
   it("does not read the state again, because nothing moved, and lets the person ask again after changing the draft", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
     const container = await publishWith(client, input);
     const readsBefore = client.readState.mock.calls.length;
@@ -248,7 +256,8 @@ describe("a publish the catalogue refuses", () => {
   it("is told in Russian with the Russian words", async () => {
     const input = inputWith([PRICE]);
     const client = spiedPublish(input, {
-      publish: () => Promise.resolve({ kind: "candidate-refused" }),
+      publish: () =>
+        Promise.resolve({ kind: "candidate-refused", refusals: [] }),
     });
     screen = undefined;
     const container = await mountPublish(input, client, "ru");
