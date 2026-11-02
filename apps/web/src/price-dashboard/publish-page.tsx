@@ -61,10 +61,8 @@ export function PublishScreen({
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const discardButtonRef = useRef<HTMLButtonElement>(null);
   const pageRef = useRef<HTMLElement>(null);
-  const { rememberRevertPosition, emptyHeadingRef } = useFocusAfterRevert(
-    pageRef,
-    desk.state.draft,
-  );
+  const { rememberRevertPosition, rememberEditPosition, emptyHeadingRef } =
+    useFocusAfterRevert(pageRef, desk.state.draft);
   const shell = {
     ...context,
     pendingPriceCount: desk.state.draft.changes.length,
@@ -76,6 +74,7 @@ export function PublishScreen({
         className={styles.page}
         data-testid="publish-page"
         onClickCapture={rememberRevertPosition}
+        onKeyDownCapture={rememberEditPosition}
       >
         <PublishHeading locale={locale} desk={desk} />
         <PublishNoticeBanner desk={desk} cabinetNames={input.cabinetNames} />
@@ -369,7 +368,13 @@ function NoticeBody({
           <CandidateRefusals
             refusals={notice.refusals}
             context={{
-              book: desk.state.active.book,
+              books: {
+                before: desk.state.active.book,
+                after:
+                  desk.reading.kind === "ready"
+                    ? desk.reading.view.candidateBook
+                    : desk.state.active.book,
+              },
               changes: desk.state.draft.changes,
               cabinetNames,
             }}
@@ -420,7 +425,12 @@ function NoticeBody({
       const name =
         item === undefined
           ? ""
-          : words.subject(itemSubjectOf(item, desk.state.active.book));
+          : words.subject(
+              itemSubjectOf(item, {
+                before: desk.state.active.book,
+                after: desk.state.active.book,
+              }),
+            );
       return (
         <FormNotice tone="error">
           {notice.block.kind === "in-use"

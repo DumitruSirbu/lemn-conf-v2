@@ -1,11 +1,10 @@
 import type {
   BookFieldAddress,
   DraftChange,
-  PriceBook,
 } from "@lemnaria/configurator-domain";
 
 import type { CandidateRefusalWire } from "./price-dashboard-wire-contract";
-import { itemSubjectOf, type RowSubject } from "./publish-model";
+import { itemSubjectOf, type BookPair, type RowSubject } from "./publish-model";
 
 // What a refused publish names, as lines a screen words: the row each reason is about and the closed kind of the reason.
 // The reasons are many and mostly developer-level; each line says what the person can act on, and a reason about no row
@@ -34,7 +33,8 @@ export interface RefusalLines {
 }
 
 export interface RefusalContext {
-  readonly book: PriceBook;
+  /** The active book and the one the draft makes: a row the draft created is named from the second. */
+  readonly books: BookPair;
   readonly changes: readonly DraftChange[];
   readonly cabinetNames: Readonly<Record<string, string>>;
 }
@@ -95,7 +95,7 @@ function catalogueLineOf(
             ? { kind: "depth-rule" }
             : itemSubjectOf(
                 { kind: "material", tierId: refusal.item },
-                context.book,
+                context.books,
               ),
       };
     case "LINK_TARGET_UNKNOWN":
@@ -104,7 +104,7 @@ function catalogueLineOf(
         kind: "link",
         subject: itemSubjectOf(
           { kind: "accessory", accessoryId: refusal.accessoryId },
-          context.book,
+          context.books,
         ),
       };
     default:
@@ -129,13 +129,13 @@ function subjectOfAddress(
   address: BookFieldAddress,
   context: RefusalContext,
 ): RowSubject {
-  const { book, cabinetNames } = context;
+  const { books, cabinetNames } = context;
   switch (address.kind) {
     case "cabinet":
     case "cabinet-size": {
-      const rule = book.cabinetRules.find(
-        (candidate) => candidate.ruleId === address.ruleId,
-      );
+      const rule = [books.after, books.before]
+        .flatMap((book) => book.cabinetRules)
+        .find((candidate) => candidate.ruleId === address.ruleId);
       return {
         kind: "name",
         name:
@@ -152,22 +152,22 @@ function subjectOfAddress(
     case "material":
       return itemSubjectOf(
         { kind: address.kind, tierId: address.tierId },
-        book,
+        books,
       );
     case "accessory":
       return itemSubjectOf(
         { kind: "accessory", accessoryId: address.accessoryId },
-        book,
+        books,
       );
     case "hardware-tier-created":
-      return itemSubjectOf({ kind: "hardware", tierId: address.tierId }, book);
+      return itemSubjectOf({ kind: "hardware", tierId: address.tierId }, books);
     case "accessory-created":
       return itemSubjectOf(
         { kind: "accessory", accessoryId: address.accessoryId },
-        book,
+        books,
       );
     case "created-row-text":
     case "item-deleted":
-      return itemSubjectOf(address.item, book);
+      return itemSubjectOf(address.item, books);
   }
 }

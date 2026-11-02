@@ -2276,6 +2276,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       refusalCabinet: "{name}: lista nu poate calcula prețul acestui dulap.",
       refusalUnnamed: "Lista nu poate calcula prețurile catalogului.",
       refusalsMore: "Alte probleme: {count, number, ::group-off}.",
+      rowDeleted: "Șters",
     },
     history: {
       subtitle:

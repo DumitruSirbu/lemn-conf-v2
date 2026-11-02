@@ -26,6 +26,11 @@ import {
   type SpiedPublishClient,
 } from "./publish-desk-harness";
 import { roCopy } from "./romanian-copy";
+import {
+  createAccessoryChange,
+  NEW_ACCESSORY,
+  NEW_ACCESSORY_NAME,
+} from "./publish-structural-rows.support";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
 const BOOK = SAMPLE_PUBLISH_PAGE.state.active.book;
@@ -156,6 +161,47 @@ describe("a publish the catalogue refuses", () => {
     expect(lines.at(-1)).toBe(
       roCopy("priceDashboard.publish.refusalsMore", { count: 3 }),
     );
+  });
+
+  it("names an accessory the draft created by its authored name, which only the book the draft makes holds", async () => {
+    const input = inputWithDraft([createAccessoryChange(RULE.buildId)]);
+    mounted = await mountDesk({
+      input,
+      client: spiedPublishClient(input, {
+        publish: () =>
+          Promise.resolve({
+            kind: "candidate-refused",
+            refusals: [
+              {
+                source: "catalogue",
+                code: "LINK_TARGET_UNKNOWN",
+                accessoryId: NEW_ACCESSORY,
+                linkedBuildId: RULE.buildId,
+              },
+            ],
+          }),
+      }),
+    });
+    const { container } = mounted;
+    typeInto(
+      requireIn<HTMLInputElement>(container, 'input[type="text"]'),
+      "Ajustari",
+    );
+    click(requireIn(container, '[class*="primary"]'));
+    click(
+      byWords(
+        document.body,
+        "button",
+        roCopy("priceDashboard.publish.confirmAction"),
+      ),
+    );
+    await settle();
+
+    expect(linesIn(container)).toEqual([
+      roCopy("priceDashboard.publish.refusalLink", {
+        name: NEW_ACCESSORY_NAME,
+      }),
+    ]);
   });
 
   it("draws no list for a refusal that names no reason", async () => {

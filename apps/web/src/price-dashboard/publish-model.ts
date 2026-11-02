@@ -251,8 +251,14 @@ export function describeVersionDiff(input: {
   );
 }
 
+/** The two books a screen reads against: a row the draft creates is only in `after`, one it deletes only in `before`. */
+export interface BookPair {
+  readonly before: PriceBook;
+  readonly after: PriceBook;
+}
+
 interface RowContext {
-  readonly books: { readonly before: PriceBook; readonly after: PriceBook };
+  readonly books: BookPair;
   readonly cabinetNames: Readonly<Record<string, string>>;
   readonly isRevertable: boolean;
 }
@@ -310,7 +316,7 @@ function textRowViewOf(row: TextDiffRow, context: RowContext): TextRowView {
     kind: "text",
     key: JSON.stringify(row.address),
     section: row.section,
-    subject: itemSubjectOf(row.item, context.books.after),
+    subject: itemSubjectOf(row.item, context.books),
     field: row.field,
     before: textSideOf(row.before),
     after: textSideOf(row.after),
@@ -324,7 +330,7 @@ function linkRowViewOf(row: LinkDiffRow, context: RowContext): LinkRowView {
     kind: "link",
     key: `link:${JSON.stringify(row.address)}`,
     section: row.section,
-    subject: itemSubjectOf(row.item, context.books.after),
+    subject: itemSubjectOf(row.item, context.books),
     before: cabinetNames[row.before] ?? row.before,
     after: cabinetNames[row.after] ?? row.after,
     revert: undefined,
@@ -405,23 +411,9 @@ function subjectOf(row: FieldDiffRow, context: RowContext): RowSubject {
     case "provisional":
       return { kind: "provisional" };
     case "hardware":
-      return tierSubjectOf(
-        books.after.hardware.tiers.find(
-          (tier) => tier.tierId === address.tierId,
-        ) ??
-          books.before.hardware.tiers.find(
-            (tier) => tier.tierId === address.tierId,
-          ),
-        address.tierId,
-      );
     case "material":
       return tierSubjectOf(
-        books.after.material.tiers.find(
-          (tier) => tier.tierId === address.tierId,
-        ) ??
-          books.before.material.tiers.find(
-            (tier) => tier.tierId === address.tierId,
-          ),
+        tierIn(books, address.kind, address.tierId),
         address.tierId,
       );
     case "accessory":
@@ -445,18 +437,18 @@ function tierSubjectOf(
   };
 }
 
-function accessorySubjectOf(
-  accessoryId: string,
-  books: RowContext["books"],
-): RowSubject {
+function accessorySubjectOf(accessoryId: string, books: BookPair): RowSubject {
   const id = ACCESSORY_IDS.find((candidate) => candidate === accessoryId);
-  const rule =
+  const ruleIn = (book: PriceBook): NamedBookRow | undefined =>
     id === undefined
-      ? linkedAccessoriesOf(books.after).find(
+      ? linkedAccessoriesOf(book).find(
           (linked) => linked.accessoryId === accessoryId,
         )
-      : books.after.accessories[id];
-  return tierSubjectOf(rule, accessoryId);
+      : book.accessories[id];
+  return tierSubjectOf(
+    ruleIn(books.after) ?? ruleIn(books.before),
+    accessoryId,
+  );
 }
 
 /** A book stored before linked accessories existed declares none, although `PriceBook` types the section as required. */
@@ -555,27 +547,28 @@ function withoutGroup(change: DraftChange): DraftChange {
   return ordinary as DraftChange;
 }
 
-/** What an item a publish was refused for is called: its tier or accessory text from the book, else its own code. */
-export function itemSubjectOf(item: ItemRef, book: PriceBook): RowSubject {
+/** What an item is called: its tier or accessory text from the book that states it (the later one first), else its own code. */
+export function itemSubjectOf(item: ItemRef, books: BookPair): RowSubject {
   switch (item.kind) {
     case "material":
-      return tierSubjectOf(
-        book.material.tiers.find((tier) => tier.tierId === item.tierId),
-        item.tierId,
-      );
+      return tierSubjectOf(tierIn(books, "material", item.tierId), item.tierId);
     case "hardware":
-      return tierSubjectOf(
-        book.hardware.tiers.find((tier) => tier.tierId === item.tierId),
-        item.tierId,
-      );
+      return tierSubjectOf(tierIn(books, "hardware", item.tierId), item.tierId);
     case "accessory":
-      return accessorySubjectOf(item.accessoryId, {
-        before: book,
-        after: book,
-      });
+      return accessorySubjectOf(item.accessoryId, books);
     case "finish":
       return { kind: "name", name: item.finishId };
     case "handle":
       return { kind: "name", name: item.handle };
   }
+}
+
+function tierIn(
+  books: BookPair,
+  group: "hardware" | "material",
+  tierId: string,
+): NamedBookRow | undefined {
+  const find = (book: PriceBook): NamedBookRow | undefined =>
+    book[group].tiers.find((tier) => tier.tierId === tierId);
+  return find(books.after) ?? find(books.before);
 }

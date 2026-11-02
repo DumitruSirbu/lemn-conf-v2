@@ -155,13 +155,13 @@ describe("an item the draft deletes", () => {
     true,
   );
 
-  it("is a row naming it and saying the deletion takes effect at publication", async () => {
+  it("is a row naming it and saying it is deleted, in words true of a pending deletion and of a published one", async () => {
     const { container } = await mountOver(withTier, [deletion]);
 
     const row = onlyRowOfKind(container, "hardware-deleted");
 
     expect(nameOf(row)).toBe(NEW_TIER_NAME);
-    expect(noteOf(row)).toBe(roCopy("priceDashboard.lifecycle.deleteBody"));
+    expect(noteOf(row)).toBe(roCopy("priceDashboard.publish.rowDeleted"));
   });
 
   it("is taken back by the address of the deletion", async () => {
@@ -270,6 +270,17 @@ describe("a version's diff, which takes nothing back", () => {
     expect(rowsOfKind(container, "accessory-created")).toHaveLength(1);
     expect(allIn(container, '[data-testid="diff-revert"]')).toEqual([]);
     expect(allIn(container, 'button[class*="priceButton"]')).toEqual([]);
+  });
+
+  it("draws a deleted class in the same words as the pending list, with no arrow", () => {
+    const withTier = applied(ACTIVE, createTierChanges());
+
+    const container = drawDiff(withTier, ACTIVE);
+    const row = onlyRowOfKind(container, "hardware-deleted");
+
+    expect(noteOf(row)).toBe(roCopy("priceDashboard.publish.rowDeleted"));
+    expect(nameOf(row)).toBe(NEW_TIER_NAME);
+    expect(row.querySelector('[data-testid="diff-revert"]')).toBeNull();
   });
 
   it("draws a relinked accessory with the cabinet each version follows", () => {

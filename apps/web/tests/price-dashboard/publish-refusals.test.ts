@@ -13,6 +13,15 @@ import {
 } from "@/price-dashboard/publish-refusals";
 import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
 
+import {
+  applied,
+  createAccessoryChange,
+  createTierChanges,
+  NEW_ACCESSORY,
+  NEW_ACCESSORY_NAME,
+  NEW_TIER_NAME,
+} from "./publish-structural-rows.support";
+
 const BOOK = SAMPLE_PUBLISH_PAGE.state.active.book;
 const NAMES = SAMPLE_PUBLISH_PAGE.cabinetNames;
 const RULE = BOOK.cabinetRules[0];
@@ -30,8 +39,19 @@ const CHANGE: DraftChange = {
 } as DraftChange;
 
 const CONTEXT: RefusalContext = {
-  book: BOOK,
+  books: { before: BOOK, after: BOOK },
   changes: [CHANGE],
+  cabinetNames: NAMES,
+};
+
+/** What the draft makes of the active book when it creates a hardware class and a linked accessory. */
+const CREATING_DRAFT: readonly DraftChange[] = [
+  ...createTierChanges(),
+  createAccessoryChange(RULE.buildId),
+];
+const CREATING_CONTEXT: RefusalContext = {
+  books: { before: BOOK, after: applied(BOOK, CREATING_DRAFT) },
+  changes: CREATING_DRAFT,
   cabinetNames: NAMES,
 };
 
@@ -91,25 +111,60 @@ describe("the reasons a catalogue gives", () => {
   });
 
   it.each(["LINK_TARGET_UNKNOWN", "LINK_TARGET_CUSTOMER_SUPPLIED"] as const)(
-    "tells %s as the accessory whose cabinet cannot be priced",
+    "tells %s as the accessory the draft created, by its authored name and not by its id",
     (code) => {
-      const [line] = linesOf({
-        source: "catalogue",
-        code,
-        accessoryId: "plinth-light",
-        linkedBuildId: RULE.buildId,
-      });
+      const { lines } = refusalLinesOf(
+        [
+          {
+            source: "catalogue",
+            code,
+            accessoryId: NEW_ACCESSORY,
+            linkedBuildId: RULE.buildId,
+          },
+        ],
+        CREATING_CONTEXT,
+      );
 
-      expect(line).toEqual({
+      expect(lines).toEqual([
+        {
+          kind: "link",
+          subject: {
+            kind: "book-text",
+            authored: NEW_ACCESSORY_NAME,
+            key: undefined,
+          },
+        },
+      ]);
+    },
+  );
+
+  it("names an accessory only the active book states from that book, so a deleted one is not told by its id", () => {
+    const { lines } = refusalLinesOf(
+      [
+        {
+          source: "catalogue",
+          code: "LINK_TARGET_UNKNOWN",
+          accessoryId: NEW_ACCESSORY,
+          linkedBuildId: RULE.buildId,
+        },
+      ],
+      {
+        ...CREATING_CONTEXT,
+        books: { before: CREATING_CONTEXT.books.after, after: BOOK },
+      },
+    );
+
+    expect(lines).toEqual([
+      {
         kind: "link",
         subject: {
           kind: "book-text",
-          authored: "plinth-light",
+          authored: NEW_ACCESSORY_NAME,
           key: undefined,
         },
-      });
-    },
-  );
+      },
+    ]);
+  });
 
   it("tells every other reason as the cabinet it is about", () => {
     expect(
@@ -138,6 +193,34 @@ describe("the reasons a change or a pricing gives", () => {
     expect(linesOf({ source: "changes", index: 0, code: "TOO_LARGE" })).toEqual(
       [{ kind: "change", subject: CABINET_NAME }],
     );
+  });
+
+  it("names a row the draft created by its authored name, which only the book the draft makes holds", () => {
+    const creationIndex = CREATING_DRAFT.findIndex(
+      (change) => change.address.kind === "hardware-tier-created",
+    );
+
+    const { lines } = refusalLinesOf(
+      [
+        {
+          source: "changes",
+          index: creationIndex,
+          code: "CREATED_TIER_RATES_MISSING",
+        },
+      ],
+      CREATING_CONTEXT,
+    );
+
+    expect(lines).toEqual([
+      {
+        kind: "change",
+        subject: {
+          kind: "book-text",
+          authored: NEW_TIER_NAME,
+          key: undefined,
+        },
+      },
+    ]);
   });
 
   it("names no row for an index the draft does not have", () => {

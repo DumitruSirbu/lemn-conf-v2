@@ -353,7 +353,7 @@ function ItemRow({ row, columns, onRevert, isBusy }: RowProps<ItemRowView>) {
 
 function itemRowNote(translate: Translate, row: ItemRowView): string {
   if (row.change === "deleted") {
-    return translate("priceDashboard.lifecycle.deleteBody");
+    return translate("priceDashboard.publish.rowDeleted");
   }
   return row.itemKind === "hardware"
     ? translate("priceDashboard.hardware.newTitle")

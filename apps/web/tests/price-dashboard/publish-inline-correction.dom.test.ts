@@ -232,6 +232,59 @@ describe("correcting a pending price in the table", () => {
   });
 });
 
+describe("focus after a correction that takes a row out", () => {
+  const revertOf = (container: HTMLElement, ruleId: string): HTMLElement =>
+    requireIn(rowOfRule(container, ruleId), '[data-testid="diff-revert"]');
+
+  it("goes to the arrow of the row now standing where the corrected one stood", async () => {
+    const { container } = await mount(TWO_AMOUNT_ROWS);
+    const input = openFieldOf(container, BASE_ANCHOR.ruleId);
+    typeInto(input, String(anchorOf(BASE_ANCHOR.ruleId) / LEI));
+
+    await pressKey(input, "Enter");
+
+    expect(document.activeElement).toBe(
+      revertOf(container, WALL_ANCHOR.ruleId),
+    );
+  });
+
+  it("goes to the row before it when the corrected row was the last", async () => {
+    const { container } = await mount(TWO_AMOUNT_ROWS);
+    const input = openFieldOf(container, WALL_ANCHOR.ruleId);
+    typeInto(input, String(anchorOf(WALL_ANCHOR.ruleId) / LEI));
+
+    await pressKey(input, "Enter");
+
+    expect(document.activeElement).toBe(
+      revertOf(container, BASE_ANCHOR.ruleId),
+    );
+  });
+
+  it("is left alone when the row stays: the price the field came from takes the focus back", async () => {
+    const { container } = await mount(TWO_AMOUNT_ROWS);
+    const input = openFieldOf(container, BASE_ANCHOR.ruleId);
+    typeInto(input, String((anchorOf(BASE_ANCHOR.ruleId) + 90 * LEI) / LEI));
+
+    await pressKey(input, "Enter");
+
+    expect(document.activeElement).toBe(
+      priceButtonOf(container, BASE_ANCHOR.ruleId),
+    );
+  });
+
+  it("is left alone when the write is refused: the field keeps it", async () => {
+    const { container } = await mount(TWO_AMOUNT_ROWS, {
+      revert: () => Promise.resolve({ kind: "failed" }),
+    });
+    const input = openFieldOf(container, BASE_ANCHOR.ruleId);
+    typeInto(input, String(anchorOf(BASE_ANCHOR.ruleId) / LEI));
+
+    await pressKey(input, "Enter");
+
+    expect(document.activeElement).toBe(input);
+  });
+});
+
 describe("a value that is not a price", () => {
   it("is refused in the field before anything is sent, and the field stays open", async () => {
     const { container, client } = await mount(TWO_AMOUNT_ROWS);
