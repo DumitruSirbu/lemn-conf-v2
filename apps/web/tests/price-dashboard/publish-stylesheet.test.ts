@@ -1,7 +1,8 @@
 // Reads the stylesheet's text (no layout runs here) for what a thumb and a narrow screen need from the publish pages: every
 // interactive box at least a touch target tall, a ring on whatever takes focus, the card layout on a phone and the table from
-// 900 px (the staff frame's own breakpoint), the column titles read by the cells on a phone, and nothing that makes a 390 px
-// page scroll sideways.
+// 900 px (the staff frame's own breakpoint), the panel beside the table only where the table keeps its narrowest width, the
+// publish bar pinned over the whole page on a phone, the column titles read by the cells on a phone, and nothing that makes
+// a 390 px page scroll sideways.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -13,8 +14,16 @@ const css = readFileSync(
   join(import.meta.dirname, "../../src/price-dashboard/publish.module.css"),
   "utf8",
 );
+const frameCss = readFileSync(
+  join(import.meta.dirname, "../../src/staff/staff.module.css"),
+  "utf8",
+);
 const TOUCH_TARGET = "var(--touch-target)";
+const PHONE = "@media (max-width: 899.98px)";
 const DESKTOP = "@media (min-width: 900px)";
+const PANEL_BESIDE_TABLE = "@media (min-width: 1300px)";
+/** The pinned bar: a 52 px button, 20 px of padding around it and a 1 px rule. */
+const PINNED_BAR_HEIGHT_PX = 73;
 
 function pixelsOf(className: string, property: string): number[] {
   return valuesFor(css, className, property).map((value) =>
@@ -115,21 +124,58 @@ describe("one markup, two layouts", () => {
     ]);
   });
 
-  it("puts the panel beside the rows only from 900 px, and the publish bar at the foot of a phone", () => {
+  it("puts the panel beside the rows only from 1300 px, below them from 900 px", () => {
     expect(
-      declarationsFor(css, "layout", "grid-template-columns").map(
-        (d) => d.media,
-      ),
-    ).toEqual([DESKTOP]);
+      declarationsFor(css, "layout", "grid-template-columns").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([[PANEL_BESIDE_TABLE, "minmax(0, 1fr) 320px"]]);
+  });
+
+  it("pins the publish bar at the foot of a phone and nowhere else", () => {
     expect(
       declarationsFor(css, "actionBar", "position").map((d) => [
         d.media,
         d.value,
       ]),
+    ).toEqual([[PHONE, "sticky"]]);
+    expect(
+      declarationsFor(css, "actionBar", "bottom").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([[PHONE, "0"]]);
+  });
+
+  it("lifts the panel's controls into the layout on a phone, so the bar's containing block is the page and not the panel below the list", () => {
+    expect(
+      declarationsFor(css, "aside", "display").map((d) => [d.media, d.value]),
     ).toEqual([
-      ["", "sticky"],
-      [DESKTOP, "static"],
+      ["", "flex"],
+      [PHONE, "contents"],
     ]);
+  });
+
+  it("leaves room under a row or control focused on a phone for the pinned bar", () => {
+    for (const className of [
+      "row",
+      "revert",
+      "groupToggle",
+      "textInput",
+      "switch",
+    ]) {
+      const margins = declarationsFor(css, className, "scroll-margin-bottom");
+
+      expect(
+        margins.map((d) => d.media),
+        className,
+      ).toEqual([PHONE]);
+      expect(
+        Number.parseFloat(margins[0]?.value ?? "0"),
+        className,
+      ).toBeGreaterThanOrEqual(PINNED_BAR_HEIGHT_PX);
+    }
   });
 
   it("shows the phone's line of subtitle on a phone and the desktop's from 900 px", () => {
@@ -160,8 +206,17 @@ describe("a narrow screen", () => {
     expect(valuesFor(css, "title", "overflow-wrap")).toEqual(["anywhere"]);
   });
 
-  it("scrolls nothing sideways and fixes no width on the page", () => {
-    expect(css).not.toMatch(/overflow(-x)?:\s*(auto|scroll)/);
+  it("scrolls nothing sideways but the table, inside its own box and only from 900 px", () => {
+    expect(
+      declarationsFor(css, "diffScroll", "overflow-x").map((d) => [
+        d.media,
+        d.value,
+      ]),
+    ).toEqual([[DESKTOP, "auto"]]);
+    expect(css.match(/overflow(-x)?:\s*(auto|scroll)/g)).toHaveLength(1);
+  });
+
+  it("fixes no width on the page", () => {
     expect(css).not.toMatch(/(?<![-\w])width:\s*\d{3,}px/);
   });
 
@@ -182,5 +237,104 @@ describe("a value that does not fit its column", () => {
     expect(css).toMatch(
       /\.cell\[data-empty="true"\] \.cellValue::before\s*\{\s*content:\s*"\\2014" \/ ""/,
     );
+  });
+});
+
+/**
+ * Measured in Chromium at the cells' own fonts (Helvetica, 13.5 px and 14.5 px bold) over the sample's Romanian and
+ * Russian rows: "Предварительные" in the name column, "предварительные" in the "Activ acum" one and "процентных" in the
+ * difference. The new column is the open field: 28 px of padding, 8 of gap, the unit and a four-digit amount.
+ */
+const WIDEST_WORD_PX = {
+  "--diff-name-min": 133,
+  "--diff-before-min": 115,
+  "--diff-after-min": 100,
+  "--diff-difference-min": 76,
+};
+
+describe("a table that cannot be squeezed", () => {
+  const trackMinimums = [
+    "--diff-name-min",
+    "--diff-before-min",
+    "--diff-after-min",
+    "--diff-difference-min",
+  ];
+
+  function pixelsOfVariable(name: string): number {
+    const [declared] = valuesFor(css, "page", name);
+    return Number.parseFloat(declared ?? "NaN");
+  }
+
+  function narrowestTablePx(): number {
+    const minimums = trackMinimums.map(pixelsOfVariable);
+    const sum = minimums.reduce((total, width) => total + width, 0);
+    return (
+      sum +
+      44 +
+      4 * pixelsOfVariable("--diff-gap") +
+      2 * pixelsOfVariable("--diff-row-inline") +
+      pixelsOfVariable("--diff-members-inset")
+    );
+  }
+
+  it("gives each of the four flexible tracks a minimum width, none of them zero", () => {
+    const [columns] = valuesFor(css, "page", "--diff-columns");
+
+    expect(columns).not.toMatch(/minmax\(\s*0/);
+    for (const variable of trackMinimums) {
+      expect(columns, variable).toContain(`minmax(var(${variable}),`);
+      expect(pixelsOfVariable(variable), variable).toBeGreaterThan(0);
+    }
+  });
+
+  it("makes the table as wide as its tracks, gaps, padding and the members' inset need, so a row never leaves its box", () => {
+    const [minWidth] = valuesFor(css, "diff", "min-width");
+    const [declaredCalc] = valuesFor(css, "page", "--diff-min-width");
+
+    expect(minWidth).toBe("var(--diff-min-width)");
+    for (const variable of [
+      ...trackMinimums,
+      "--diff-gap",
+      "--diff-row-inline",
+      "--diff-members-inset",
+    ]) {
+      expect(declaredCalc, variable).toContain(`var(${variable})`);
+    }
+    expect(declaredCalc).toContain("var(--touch-target)");
+  });
+
+  /** What the staff frame takes from the width of the screen from 900 px: its navigation and the page's side padding. */
+  function frameTakesPx(): number {
+    const navigation = declarationsFor(frameCss, "nav", "flex").find(
+      (d) => d.media === DESKTOP,
+    );
+    const padding = declarationsFor(frameCss, "content", "padding").find(
+      (d) => d.media === DESKTOP,
+    );
+    const navigationPx = Number.parseFloat(
+      navigation?.value.split(" ")[2] ?? "NaN",
+    );
+    const sidePx = Number.parseFloat(padding?.value.split(" ")[1] ?? "NaN");
+    return navigationPx + 2 * sidePx;
+  }
+
+  it("gives each track at least the widest word its column holds, so a word is never cut", () => {
+    for (const [variable, widestWordPx] of Object.entries(WIDEST_WORD_PX)) {
+      expect(pixelsOfVariable(variable), variable).toBeGreaterThanOrEqual(
+        widestWordPx,
+      );
+    }
+  });
+
+  it("puts the panel beside the table only where the table still has its narrowest width", () => {
+    const [grid] = valuesFor(css, "layout", "grid-template-columns");
+    const [gap] = declarationsFor(css, "layout", "gap")
+      .filter((d) => d.media === PANEL_BESIDE_TABLE)
+      .map((d) => Number.parseFloat(d.value));
+    const panelPx = Number.parseFloat(grid?.split(" ").at(-1) ?? "NaN");
+
+    expect(
+      1300 - frameTakesPx() - panelPx - (gap ?? Number.NaN),
+    ).toBeGreaterThanOrEqual(narrowestTablePx());
   });
 });

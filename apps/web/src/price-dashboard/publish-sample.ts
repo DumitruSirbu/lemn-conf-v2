@@ -8,8 +8,10 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
+import type { AppLocale } from "@/i18n/routing";
 import { readActivePriceBook } from "@/lib/server/active-price-book";
 import roMessages from "@/messages/ro.json";
+import ruMessages from "@/messages/ru.json";
 
 import { sampleVersionIdOf } from "./publish-sample-client";
 import type {
@@ -293,9 +295,15 @@ const VERSIONS: readonly SampleVersion[] = [
   ACTIVE_VERSION,
 ];
 
-const CABINET_NAMES: Readonly<Record<string, string>> =
-  roMessages.catalog.entries;
+/** The catalogue's name for each entry, in the language of the route that draws the page. */
+const CABINET_NAMES_BY_LOCALE: Readonly<
+  Record<AppLocale, Readonly<Record<string, string>>>
+> = {
+  ro: roMessages.catalog.entries,
+  ru: ruMessages.catalog.entries,
+};
 
+/** The Romanian page: what the sample's figures and drafts are checked against, whatever the route's language. */
 export const SAMPLE_PUBLISH_PAGE: PublishPageInput = {
   state: {
     active: {
@@ -314,12 +322,21 @@ export const SAMPLE_PUBLISH_PAGE: PublishPageInput = {
     pageSize: PAGE_SIZE,
     versions: VERSIONS.map((version) => version.summary).reverse(),
   },
-  cabinetNames: CABINET_NAMES,
+  cabinetNames: CABINET_NAMES_BY_LOCALE.ro,
 };
+
+/** The sample page with its cabinets named in this language. */
+export function samplePublishPageIn(locale: AppLocale): PublishPageInput {
+  return {
+    ...SAMPLE_PUBLISH_PAGE,
+    cabinetNames: CABINET_NAMES_BY_LOCALE[locale],
+  };
+}
 
 /** The sample version with this id, read with its predecessor and the active version; absent for an id nobody holds. */
 export function sampleVersionDetail(
   versionId: string,
+  locale: AppLocale,
 ): VersionDetailInput | undefined {
   const index = VERSIONS.findIndex(
     (version) => version.summary.versionId === versionId,
@@ -358,6 +375,6 @@ export function sampleVersionDetail(
       book: ROOT_BOOK,
     },
     draft: SAMPLE_PUBLISH_PAGE.state.draft,
-    cabinetNames: CABINET_NAMES,
+    cabinetNames: CABINET_NAMES_BY_LOCALE[locale],
   };
 }

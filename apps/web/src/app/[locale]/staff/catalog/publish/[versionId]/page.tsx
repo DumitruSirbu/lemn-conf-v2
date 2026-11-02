@@ -38,7 +38,7 @@ export default async function VersionPage({ params }: VersionPageProps) {
     locale,
     page: "publish",
     signedIn: async (shell) => {
-      const read = await readVersionDetail(versionId);
+      const read = await readVersionDetail(versionId, locale);
       if (read.kind === "not-found") notFound();
       return read.kind === "ready" ? (
         <VersionDetailScreen

@@ -64,24 +64,26 @@ export function DiffSections({
 }: DiffSectionsProps) {
   const translate = useTranslations();
   return (
-    <div className={styles.diff} data-testid="diff-table">
-      <div className={styles.columns} aria-hidden="true">
-        <span>{translate("priceDashboard.publish.columnChange")}</span>
-        <span>{columns.before}</span>
-        <span>{columns.after}</span>
-        <span>{translate("priceDashboard.publish.columnDifference")}</span>
-        <span />
+    <div className={styles.diffScroll}>
+      <div className={styles.diff} data-testid="diff-table">
+        <div className={styles.columns} aria-hidden="true">
+          <span>{translate("priceDashboard.publish.columnChange")}</span>
+          <span>{columns.before}</span>
+          <span>{columns.after}</span>
+          <span>{translate("priceDashboard.publish.columnDifference")}</span>
+          <span />
+        </div>
+        {sections.map((section) => (
+          <DiffSectionBlock
+            key={section.section}
+            section={section}
+            columns={columns}
+            onRevert={onRevert}
+            onSaveAmount={onSaveAmount}
+            isBusy={isBusy}
+          />
+        ))}
       </div>
-      {sections.map((section) => (
-        <DiffSectionBlock
-          key={section.section}
-          section={section}
-          columns={columns}
-          onRevert={onRevert}
-          onSaveAmount={onSaveAmount}
-          isBusy={isBusy}
-        />
-      ))}
     </div>
   );
 }

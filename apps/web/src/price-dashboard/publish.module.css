@@ -1,14 +1,31 @@
-/* The publish page, its history and an archived version. One markup, two layouts: a phone draws each row as a card with
- * the publish action in a bar at the foot, and from 900 px, the staff frame's own breakpoint, the rows line up as a table
- * beside a panel. Every interactive box is at least `--touch-target` tall; the marks on ↺ and the carets are drawn here, so
- * no glyph is text. The dialogs are the account stylesheet's. */
+/* The publish page, its history and an archived version. One markup, three layouts: a phone draws each row as a card with
+ * the publish action in a bar pinned at the foot of the screen; from 900 px, the staff frame's own breakpoint, the rows line
+ * up as a table with the panel below it; from 1300 px the panel stands beside the table. Every interactive box is at least
+ * `--touch-target` tall; the marks on ↺ and the carets are drawn here, so no glyph is text. The dialogs are the account
+ * stylesheet's. */
 .page {
   --warm-surface: #f7ecdc;
   --warm-row: #fbf5ea;
   --warm-edge: #e6cfa8;
   --warm-ink: #5a3e25;
-  --diff-columns: minmax(0, 1.5fr) minmax(0, 1.15fr) minmax(0, 1.15fr)
-    minmax(0, 1fr) var(--touch-target);
+  /* The widest word of the column at its font, over the Romanian and Russian rows, plus a few pixels: no word is cut. */
+  --diff-name-min: 136px;
+  --diff-before-min: 118px;
+  --diff-after-min: 100px;
+  --diff-difference-min: 80px;
+  --diff-gap: 12px;
+  --diff-row-inline: 12px;
+  /* `.members`: 14 px of padding and a 2 px rule. */
+  --diff-members-inset: 16px;
+  --diff-columns: minmax(var(--diff-name-min), 1.5fr)
+    minmax(var(--diff-before-min), 1.15fr) minmax(var(--diff-after-min), 1.15fr)
+    minmax(var(--diff-difference-min), 1fr) var(--touch-target);
+  /* The narrowest the table is drawn: the five tracks, their gaps, the row's padding and the inset of a bulk row's members. */
+  --diff-min-width: calc(
+    var(--diff-name-min) + var(--diff-before-min) + var(--diff-after-min) +
+      var(--diff-difference-min) + var(--touch-target) + 4 * var(--diff-gap) +
+      2 * var(--diff-row-inline) + var(--diff-members-inset)
+  );
 
   display: flex;
   flex: 1;
@@ -493,8 +510,6 @@
 }
 
 .actionBar {
-  position: sticky;
-  bottom: 0;
   padding: 12px 0 8px;
   background: var(--paper);
 }
@@ -682,6 +697,32 @@ a.version:focus-visible {
   color: var(--ink);
 }
 
+/* A phone: the panel's controls become children of the layout, so the bar's containing block is the whole page and it is
+ * pinned at the foot of the screen from the top of the list down to where the layout ends. Tab still goes through the
+ * rows, the name, the switch and then the bar, as the markup runs. */
+@media (max-width: 899.98px) {
+  .aside {
+    display: contents;
+  }
+
+  .actionBar {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    border-top: 1px solid var(--line);
+  }
+
+  /* A row or control reached by Tab or by script stops above the pinned bar: its 73 px (a 52 px button, 20 px around it
+   * and a 1 px rule) and up to two lines of the reason under the button. */
+  .row,
+  .revert,
+  .groupToggle,
+  .textInput,
+  .switch {
+    scroll-margin-bottom: 120px;
+  }
+}
+
 @media (min-width: 900px) {
   .subtitleOnPhone {
     display: none;
@@ -691,18 +732,21 @@ a.version:focus-visible {
     display: block;
   }
 
-  .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 32px;
-    align-items: start;
+  /* The table cannot shrink below its tracks: under 942 px the staff frame leaves it less than that, and it scrolls
+   * inside its own box, so the page never does. */
+  .diffScroll {
+    overflow-x: auto;
+  }
+
+  .diff {
+    min-width: var(--diff-min-width);
   }
 
   .columns {
     display: grid;
     grid-template-columns: var(--diff-columns);
-    gap: 16px;
-    padding: 0 14px;
+    gap: var(--diff-gap);
+    padding: 0 var(--diff-row-inline);
     font: 700 11px/1.4 var(--font-ui);
     color: var(--ink-muted);
     text-transform: uppercase;
@@ -717,9 +761,9 @@ a.version:focus-visible {
 
   .row {
     grid-template-columns: var(--diff-columns);
-    gap: 16px;
+    gap: var(--diff-gap);
     align-items: center;
-    padding: 10px 14px;
+    padding: 10px var(--diff-row-inline);
     background: transparent;
     border: 0;
     border-bottom: 1px solid var(--line-soft);
@@ -764,7 +808,6 @@ a.version:focus-visible {
   }
 
   .actionBar {
-    position: static;
     padding: 0;
   }
 
@@ -791,5 +834,16 @@ a.version:focus-visible {
     border: 0;
     border-bottom: 1px solid var(--line-soft);
     border-radius: 0;
+  }
+}
+
+/* The panel stands beside the table once the table keeps its narrowest width: 264 px of navigation, 112 of padding, the
+ * 320 px panel and its 32 px gap leave 572 px of table at this width, against the 566 px `--diff-min-width` needs. */
+@media (min-width: 1300px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 32px;
+    align-items: start;
   }
 }

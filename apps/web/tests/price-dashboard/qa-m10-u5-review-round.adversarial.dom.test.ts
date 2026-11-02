@@ -366,7 +366,7 @@ function detailOf(
   sequenceNumber: number,
   changes: readonly DraftChange[] = [],
 ): VersionDetailInput {
-  const found = sampleVersionDetail(sampleVersionIdOf(sequenceNumber));
+  const found = sampleVersionDetail(sampleVersionIdOf(sequenceNumber), "ro");
   if (found === undefined) throw new Error("the sample holds no such version");
   return { ...found, draft: { draftRevision: "1", changes } };
 }

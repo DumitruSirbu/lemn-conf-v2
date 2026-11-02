@@ -7,6 +7,8 @@ import { readFileSync } from "node:fs";
 import { applyChanges } from "@lemnaria/configurator-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import roMessages from "@/messages/ro.json";
+import ruMessages from "@/messages/ru.json";
 import { UNAVAILABLE_PUBLISH_CLIENT } from "@/price-dashboard/publish-client";
 import { readPendingDraft } from "@/price-dashboard/publish-model";
 import { SAMPLE_PUBLISH_PAGE } from "@/price-dashboard/publish-sample";
@@ -30,8 +32,8 @@ describe("a production build", () => {
     vi.stubEnv("NODE_ENV", "production");
 
     for (let ask = 0; ask < 3; ask += 1) {
-      expect(await readPublishPage()).toEqual({ kind: "unavailable" });
-      expect(await readVersionDetail(SAMPLE_VERSION)).toEqual({
+      expect(await readPublishPage("ro")).toEqual({ kind: "unavailable" });
+      expect(await readVersionDetail(SAMPLE_VERSION, "ro")).toEqual({
         kind: "unavailable",
       });
       expect(await readPendingPriceCount()).toBeUndefined();
@@ -105,20 +107,40 @@ describe.each(["development", "test"])("a %s build", (mode) => {
   it("reads the sample page, the sample version and the sample's count", async () => {
     vi.stubEnv("NODE_ENV", mode);
 
-    expect(await readPublishPage()).toEqual({
+    expect(await readPublishPage("ro")).toEqual({
       kind: "ready",
       input: SAMPLE_PUBLISH_PAGE,
     });
-    expect((await readVersionDetail(SAMPLE_VERSION)).kind).toBe("ready");
+    expect((await readVersionDetail(SAMPLE_VERSION, "ro")).kind).toBe("ready");
     expect(await readPendingPriceCount()).toBe(
       SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
     );
   });
 
+  it.each([
+    ["ro", roMessages.catalog.entries],
+    ["ru", ruMessages.catalog.entries],
+  ] as const)(
+    "names the page's and the version's cabinets in the language of the %s route",
+    async (locale, catalogueEntries) => {
+      vi.stubEnv("NODE_ENV", mode);
+
+      const page = await readPublishPage(locale);
+      const version = await readVersionDetail(SAMPLE_VERSION, locale);
+
+      expect(page.kind === "ready" && page.input.cabinetNames).toEqual(
+        catalogueEntries,
+      );
+      expect(version.kind === "ready" && version.input.cabinetNames).toEqual(
+        catalogueEntries,
+      );
+    },
+  );
+
   it("answers not-found to a version nobody holds", async () => {
     vi.stubEnv("NODE_ENV", mode);
 
-    expect(await readVersionDetail("nobody-holds-this")).toEqual({
+    expect(await readVersionDetail("nobody-holds-this", "ro")).toEqual({
       kind: "not-found",
     });
   });

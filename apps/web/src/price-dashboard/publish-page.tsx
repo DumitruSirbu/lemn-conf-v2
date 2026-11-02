@@ -117,13 +117,16 @@ export function PublishScreen({
   );
 }
 
-/** The notices a closed discard question leaves behind: the draft is gone, or it moved and was read again. */
+/** The notices that leave the control which asked the question out of the page: the version is published, the draft is
+ *  gone, or it moved and was read again. Every other notice leaves the control in place, and focus returns to it. */
 function noticeThatReplacesTheQuestion(
   notice: PublishNotice | undefined,
 ): PublishNotice | undefined {
-  return notice?.kind === "discarded" || notice?.kind === "conflict"
-    ? notice
-    : undefined;
+  const replacesControls =
+    notice?.kind === "published" ||
+    notice?.kind === "discarded" ||
+    notice?.kind === "conflict";
+  return replacesControls ? notice : undefined;
 }
 
 /** The prices could not be read: the frame stays, and the notice stands in the page's place. */

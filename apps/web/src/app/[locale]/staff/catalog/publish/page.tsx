@@ -37,7 +37,7 @@ export default async function PublishPage({ params }: PublishPageProps) {
     locale,
     page: "publish",
     signedIn: async (shell) => {
-      const read = await readPublishPage();
+      const read = await readPublishPage(locale);
       return publishScreenOf({
         read,
         locale,
