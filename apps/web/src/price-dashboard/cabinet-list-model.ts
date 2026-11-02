@@ -40,7 +40,10 @@ export interface CabinetDefaultPrice {
 /** The address of a cabinet's price: its anchor, or one listed size. */
 export type CabinetPriceAddress = AddressOfKind<"cabinet" | "cabinet-size">;
 
-/** The one amount the list edits in place: the price the row is quoted at, as the book holds it (not the rounded display). */
+/**
+ * The one amount the list edits in place: the price the row is quoted at, as the book holds it (not the rounded
+ * display).
+ */
 export interface CabinetAnchorField {
   /** What a draft change names: the anchor of an anchored rule, or the default size of a rule priced per size. */
   readonly address: CabinetPriceAddress;
@@ -64,7 +67,9 @@ export interface CabinetRuleFacts {
   readonly isCustomerSupplied: boolean;
   /** Absent exactly for a customer-supplied row. */
   readonly price?: CabinetDefaultPrice;
-  /** What the price cell edits; absent for a row the list cannot edit (a customer-supplied one, and a read-only list). */
+  /**
+   * What the price cell edits; absent for a row the list cannot edit (a customer-supplied one, and a read-only list).
+   */
   readonly anchorField?: CabinetAnchorField;
 }
 

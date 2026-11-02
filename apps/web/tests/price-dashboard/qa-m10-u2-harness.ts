@@ -1,6 +1,6 @@
-// What the adversarial DOM tests of wave U2 share: the cabinet list mounted over a draft client that judges as the routes do,
-// a page built from any price book (the fixture of the wave's own tests is the sample book alone), and the few gestures a
-// person makes. Nothing here asserts; a test says what it expects.
+// What the adversarial DOM tests of wave U2 share: the cabinet list mounted over a draft client that judges as the
+// routes do, a page built from any price book (the fixture of the wave's own tests is the sample book alone), and the
+// few gestures a person makes. Nothing here asserts; a test says what it expects.
 import { act, createElement } from "react";
 
 import {

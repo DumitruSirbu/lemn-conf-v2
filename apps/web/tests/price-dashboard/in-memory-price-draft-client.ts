@@ -1,7 +1,8 @@
-// A draft client for the DOM tests that judges the way the dashboard's routes do, with the domain's own functions: a stale revision is
-// `conflict`, a change `applyChanges` refuses is `refused` with its code, a bulk action is the domain's plan with the route's two
-// extra refusals (a plan with nothing left to change is `PERCENT_OUT_OF_RANGE`), and every accepted write moves the
-// revision. Every call is recorded, so a test can say what was sent and, as often, that nothing was.
+// A draft client for the DOM tests that judges the way the dashboard's routes do, with the domain's own functions: a
+// stale revision is `conflict`, a change `applyChanges` refuses is `refused` with its code, a bulk action is the
+// domain's plan with the route's two extra refusals (a plan with nothing left to change is `PERCENT_OUT_OF_RANGE`), and
+// every accepted write moves the revision. Every call is recorded, so a test can say what was sent and, as often, that
+// nothing was.
 import {
   applyChanges,
   isSameAddress,

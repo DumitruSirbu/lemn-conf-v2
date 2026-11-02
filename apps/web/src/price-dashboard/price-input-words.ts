@@ -18,9 +18,10 @@ import type {
 } from "./price-dashboard-wire-contract";
 import type { BulkWriteResult, FieldWriteResult } from "./use-price-draft";
 
-// The words of every refusal a price or percentage field can meet, before a request is sent and after the server's answer.
-// A refusal is a closed code (ADR 0095 decision 3) and these are the only places a code becomes a sentence, so a message is
-// told in one way wherever it is shown. The examples are the illustrations the sentences ask for, not figures of the book.
+// The words of every refusal a price or percentage field can meet, before a request is sent and after the server's
+// answer. A refusal is a closed code (ADR 0095 decision 3) and these are the only places a code becomes a sentence, so
+// a message is told in one way wherever it is shown. The examples are the illustrations the sentences ask for, not
+// figures of the book.
 
 const LEI_EXAMPLE = "450,00";
 const LEI_EXAMPLE_WITH_DECIMALS = "450,25";
@@ -104,9 +105,9 @@ export function bulkPercentRefusalWords(
 }
 
 /**
- * Why the bulk dialog would be refused, from its own preview. "Out of range" is said of a percentage past the bounds and of
- * nothing else: the server's `PERCENT_OUT_OF_RANGE` also answers an action whose every price rounds back to what it is and
- * one that scales a price past what a cabinet may cost, and each of those has a sentence of its own.
+ * Why the bulk dialog would be refused, from its own preview. "Out of range" is said of a percentage past the bounds
+ * and of nothing else: the server's `PERCENT_OUT_OF_RANGE` also answers an action whose every price rounds back to what
+ * it is and one that scales a price past what a cabinet may cost, and each of those has a sentence of its own.
  */
 export function bulkPreviewRefusalWords(
   translate: ContentTranslator,
@@ -190,7 +191,9 @@ function refusedPriceWords(
   }
 }
 
-/** What the server's answer to the depth rule says, when a percentage that read well was still refused or not written. */
+/**
+ * What the server's answer to the depth rule says, when a percentage that read well was still refused or not written.
+ */
 export function depthWriteFailureWords(
   translate: ContentTranslator,
   failure: FailedFieldWrite,

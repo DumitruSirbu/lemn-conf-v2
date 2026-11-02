@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave U2, the bulk-percentage dialog (frame D2D). `cabinet-list-editing.dom.test.ts` presses one valid
-// percentage once, from a fresh dialog, over the sample book. Here the dialog is pressed twice in one moment, closed while its
-// write is out, moved from one scope to another after a refusal, shown to a draft that already holds a price the rule
-// refuses (the M2 hand-off to U2), and every refusal the server can give is worded and checked against the one sentence a
-// refusal of this kind must never be (the "out of range" one).
+// Adversarial QA of M10 wave U2, the bulk-percentage dialog (frame D2D). `cabinet-list-editing.dom.test.ts` presses one
+// valid percentage once, from a fresh dialog, over the sample book. Here the dialog is pressed twice in one moment,
+// closed while its write is out, moved from one scope to another after a refusal, shown to a draft that already holds a
+// price the rule refuses (the M2 hand-off to U2), and every refusal the server can give is worded and checked against
+// the one sentence a refusal of this kind must never be (the "out of range" one).
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

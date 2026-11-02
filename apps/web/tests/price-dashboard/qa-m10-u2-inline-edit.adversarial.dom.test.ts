@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave U2, the price in the table (frame D2C). `cabinet-list-editing.dom.test.ts` presses Enter and
-// Escape once, on an anchor that is a whole ten of lei, with no write in flight. Here the field meets what a stored book of
-// an earlier time holds (an anchor that is not a multiple of 10 lei), a second press while the first is out, a key that closes
-// the field before the answer comes, an answer that arrives after the person moved on, and every editable row of the book.
+// Adversarial QA of M10 wave U2, the price in the table (frame D2C). `cabinet-list-editing.dom.test.ts` presses Enter
+// and Escape once, on an anchor that is a whole ten of lei, with no write in flight. Here the field meets what a stored
+// book of an earlier time holds (an anchor that is not a multiple of 10 lei), a second press while the first is out, a
+// key that closes the field before the answer comes, an answer that arrives after the person moved on, and every
+// editable row of the book.
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

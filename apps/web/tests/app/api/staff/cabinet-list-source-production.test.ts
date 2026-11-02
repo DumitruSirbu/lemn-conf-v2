@@ -1,7 +1,7 @@
-// The cabinet list's source where the price stores are the unavailable ones (production, until the database-backed stores
-// exist): the store throws, the source says `unavailable`, and no price is claimed. This is how the list
-// handles the stub: a production build never shows a sample. The real `getPriceStores` is used here, and a
-// deployment variable is how production is chosen.
+// The cabinet list's source where the price stores are the unavailable ones (production, until the database-backed
+// stores exist): the store throws, the source says `unavailable`, and no price is claimed. This is how the list handles
+// the stub: a production build never shows a sample. The real `getPriceStores` is used here, and a deployment variable
+// is how production is chosen.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readCabinetList } from "@/price-dashboard/cabinet-list-source";

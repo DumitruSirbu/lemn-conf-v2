@@ -20,8 +20,8 @@ import type {
 } from "./price-dashboard-wire-contract";
 
 // The draft of prices as a screen holds it. A write names the draft revision the screen last saw, one write is out at a
-// time, and a write the server refuses as `changed-meanwhile` leaves the screen with the state read again, so the person
-// retypes against what is now there. Nothing is shown as written until the server said so.
+// time, and a write the server refuses as `changed-meanwhile` leaves the screen with the state read again, so the
+// person retypes against what is now there. Nothing is shown as written until the server said so.
 
 /** What a screen is told of a write. The draft it shows has already moved when this is `saved`. */
 export type FieldWriteResult =

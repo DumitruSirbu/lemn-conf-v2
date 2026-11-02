@@ -1,9 +1,9 @@
 // Adversarial QA of M10 wave U2, the guards on what reaches a browser and who reads the dashboard's server side. The
-// developer moved `cabinet-list-source.ts` out of the production-build predicate, into the R-d allow-list, and rewrote the U1
-// guards around it. These checks hold the new arrangement to what the old one did: the source is server-only and is read
-// by one page; no module a browser loads (the editor, the draft hook, the client, every module they import) is, or imports, a
-// module marked `server-only`; no module outside the allow-list mentions the source in code, in any spelling an import
-// can take; and the allow-list's entry is as narrow as the file it names.
+// developer moved `cabinet-list-source.ts` out of the production-build predicate, into the R-d allow-list, and rewrote
+// the U1 guards around it. These checks hold the new arrangement to what the old one did: the source is server-only and
+// is read by one page; no module a browser loads (the editor, the draft hook, the client, every module they import) is,
+// or imports, a module marked `server-only`; no module outside the allow-list mentions the source in code, in any
+// spelling an import can take; and the allow-list's entry is as narrow as the file it names.
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 

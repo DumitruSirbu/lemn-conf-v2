@@ -1,8 +1,9 @@
-// Adversarial QA of M10 wave U2, the cabinet list in every environment a server can be started in. The developer removed the
-// list source from the production-build predicate (`publish-source.test.ts`) and rewrote the U1 guards that held it, on the
-// ground that the dashboard's read now answers 503 where the stores are the unavailable ones. That ground is
-// `selectPriceStores`; the only test of it through the list is one environment (a test run that names a network source).
-// This file walks the environments and asks the list's source, with the real `getPriceStores`, in each.
+// Adversarial QA of M10 wave U2, the cabinet list in every environment a server can be started in. The developer
+// removed the list source from the production-build predicate (`publish-source.test.ts`) and rewrote the U1 guards that
+// held it, on the ground that the dashboard's read now answers 503 where the stores are the unavailable ones. That
+// ground is `selectPriceStores`; the only test of it through the list is one environment (a test run that names a
+// network source). This file walks the environments and asks the list's source, with the real `getPriceStores`, in
+// each.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readCabinetList } from "@/price-dashboard/cabinet-list-source";

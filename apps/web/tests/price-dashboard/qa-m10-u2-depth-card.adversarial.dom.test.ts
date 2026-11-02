@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave U2, the depth rule's card (frames D2E1 to D2E3, D2ER). The developer's tests type one wrong value
-// per error and save once. Here the bounds are walked at both edges, every error is checked for the way it is tied to the
-// field, the save is pressed twice in one moment and with the server answering as each code, and a value that differs from
-// the pending one only in how it is written (a leading zero) is saved.
+// Adversarial QA of M10 wave U2, the depth rule's card (frames D2E1 to D2E3, D2ER). The developer's tests type one
+// wrong value per error and save once. Here the bounds are walked at both edges, every error is checked for the way it
+// is tied to the field, the save is pressed twice in one moment and with the server answering as each code, and a value
+// that differs from the pending one only in how it is written (a leading zero) is saved.
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

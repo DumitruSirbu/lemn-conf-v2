@@ -1,9 +1,9 @@
-// Adversarial QA of M10 wave U2, the bulk dialog's preview against the route it previews. `bulk-preview.test.ts` checks the
-// preview against `planBulkChange` called directly; the in-memory client of the DOM tests re-implements the route's
-// filtering. Neither is the route. Here the real `POST /api/staff/prices/bulk` (the real planner, the real draft judgement, the
-// persistence package's fake stores) answers the same scenario the dialog previews, and the two are compared: the verdict, the
-// counts the dialog names and the answer's counts, the example's price after, and the refusal the dialog words against the
-// code the server gave.
+// Adversarial QA of M10 wave U2, the bulk dialog's preview against the route it previews. `bulk-preview.test.ts` checks
+// the preview against `planBulkChange` called directly; the in-memory client of the DOM tests re-implements the route's
+// filtering. Neither is the route. Here the real `POST /api/staff/prices/bulk` (the real planner, the real draft
+// judgement, the persistence package's fake stores) answers the same scenario the dialog previews, and the two are
+// compared: the verdict, the counts the dialog names and the answer's counts, the example's price after, and the
+// refusal the dialog words against the code the server gave.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {

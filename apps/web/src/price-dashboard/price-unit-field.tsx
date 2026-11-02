@@ -6,9 +6,9 @@ import { FormHint, InlineRefusal } from "@/account/account-form-parts";
 
 import styles from "./price-edit.module.css";
 
-// A number the manufacturer types, with its label above it and its unit inside the box. A field that is refused says why
-// under itself (`role="alert"`), is `aria-invalid`, and names the sentence in `aria-describedby`, so the reason is read
-// with the field and never only seen.
+// A number the manufacturer types, with its label above it and its unit inside the box. A field that is refused says
+// why under itself (`role="alert"`), is `aria-invalid`, and names the sentence in `aria-describedby`, so the reason is
+// read with the field and never only seen.
 
 /** The unit of a percentage field: a symbol, the same in both languages. */
 export const PERCENT_UNIT = "%";

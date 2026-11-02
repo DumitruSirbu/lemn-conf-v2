@@ -37,12 +37,16 @@ import styles from "./price-edit.module.css";
 import { PERCENT_UNIT, PriceUnitField } from "./price-unit-field";
 import type { BulkChangeInput, BulkWriteResult } from "./use-price-draft";
 
-// Frame D2D: "Modifică prețurile cu %". The scope is every cabinet, one group, or the cabinets ticked; the percentage is whole
-// and signed. Before anything is sent the dialog says how many cabinets and prices the action touches and shows one
-// cabinet's price before and after, all from the domain's plan on the candidate book, and says why an action would be refused.
-// Focus starts on the percentage field, as the frame draws it, so the person types without first moving.
+// Frame D2D: "Modifică prețurile cu %". The scope is every cabinet, one group, or the cabinets ticked; the percentage
+// is whole and signed. Before anything is sent the dialog says how many cabinets and prices the action touches and
+// shows one cabinet's price before and after, all from the domain's plan on the candidate book, and says why an action
+// would be refused. Focus starts on the percentage field, as the frame draws it, so the person types without first
+// moving.
 
-/** The illustration the percentage field's hint asks for ("with a minus for a reduction, e.g. −3"), not a figure of the book. */
+/**
+ * The illustration the percentage field's hint asks for ("with a minus for a reduction, e.g. −3"), not a figure of the
+ * book.
+ */
 const BULK_REDUCTION_EXAMPLE = "3";
 
 type Scope = BulkTarget["scope"];

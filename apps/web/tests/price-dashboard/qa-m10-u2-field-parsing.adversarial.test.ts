@@ -1,9 +1,10 @@
-// Adversarial QA of M10 wave U2, the readers of what a person types (`price-field-input.ts`). `price-field-input.test.ts` holds
-// hand-picked refusals and two sweeps over well-formed text. It never types Unicode digits or separators of other scripts,
-// never pastes text a spreadsheet or a phone keyboard makes, never asks what the field does with an amount the book itself
-// refuses, and its oracle for an accepted amount is the reader's own arithmetic. Here the oracle is BigInt on the digits,
-// the alphabet includes the characters that look like digits, and "accepted" is followed into the consumer that receives it:
-// the draft's own judgement (`applyChanges`) and the list built from the draft that results.
+// Adversarial QA of M10 wave U2, the readers of what a person types (`price-field-input.ts`).
+// `price-field-input.test.ts` holds hand-picked refusals and two sweeps over well-formed text. It never types Unicode
+// digits or separators of other scripts, never pastes text a spreadsheet or a phone keyboard makes, never asks what the
+// field does with an amount the book itself refuses, and its oracle for an accepted amount is the reader's own
+// arithmetic. Here the oracle is BigInt on the digits, the alphabet includes the characters that look like digits, and
+// "accepted" is followed into the consumer that receives it: the draft's own judgement (`applyChanges`) and the list
+// built from the draft that results.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -31,8 +32,9 @@ const BASE_ANCHOR = {
   field: "anchorMinor",
 } as const;
 
-// Characters a person can paste that are not the ASCII digits the readers accept: other scripts' digits, fullwidth digits,
-// superscripts, the several minus signs and plus signs, separators of other locales, zero-width and bidirectional marks.
+// Characters a person can paste that are not the ASCII digits the readers accept: other scripts' digits, fullwidth
+// digits, superscripts, the several minus signs and plus signs, separators of other locales, zero-width and
+// bidirectional marks.
 const LOOK_ALIKES = [
   "٣", // Arabic-Indic three
   "۳", // Extended Arabic-Indic three
@@ -61,7 +63,9 @@ const LOOK_ALIKES = [
   "\n",
 ];
 
-/** The greatest anchor the draft's judgement accepts and the least it refuses, found by asking it (no constant copied). */
+/**
+ * The greatest anchor the draft's judgement accepts and the least it refuses, found by asking it (no constant copied).
+ */
 function theBooksLimitForAnAnchor(): { accepted: number; refused: number } {
   const isAccepted = (minor: number) =>
     applyChanges(SAMPLE_PRICE_BOOK, [
@@ -77,7 +81,9 @@ function theBooksLimitForAnAnchor(): { accepted: number; refused: number } {
   return { accepted, refused };
 }
 
-/** Any text, and whole numbers around every bound of both percentages, written plainly or padded, so the edges are met. */
+/**
+ * Any text, and whole numbers around every bound of both percentages, written plainly or padded, so the edges are met.
+ */
 function typedPercent() {
   return fc.oneof(
     fc.string({ maxLength: 12 }),
@@ -154,9 +160,9 @@ describe("an amount in lei that is very large", () => {
   });
 
   it("is, when the field reads it, an amount the draft's own judgement accepts (U2-a: nothing the field lets through is a value the book itself refuses)", () => {
-    // The book's greatest anchor is found by asking the book, so no constant is copied. The field's own greatest is thirteen
-    // digits of lei; between the two lies a range of amounts the field reads, the screen sends, and the server refuses
-    // (TOO_LARGE): a request for a value the screen could have known was invalid.
+    // The book's greatest anchor is found by asking the book, so no constant is copied. The field's own greatest is
+    // thirteen digits of lei; between the two lies a range of amounts the field reads, the screen sends, and the server
+    // refuses (TOO_LARGE): a request for a value the screen could have known was invalid.
     const { refused } = theBooksLimitForAnAnchor();
 
     const typed = String(refused / 100);

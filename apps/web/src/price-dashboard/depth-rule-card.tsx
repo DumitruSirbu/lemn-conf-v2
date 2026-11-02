@@ -19,9 +19,9 @@ import { readDepthPercentInput } from "./price-field-input";
 import styles from "./price-edit.module.css";
 import type { FieldWriteResult } from "./use-price-draft";
 
-// Frames D2E1 to D2E3: the percentage the deep kitchen adds to the cabinets that get deeper, from 0 to the book's greatest.
-// The field says why a value is wrong as it is typed and keeps Save off until it is right; a saved value goes to "De
-// publicat" and the card says so. The card also carries the way to the bulk dialog, as the frame draws it.
+// Frames D2E1 to D2E3: the percentage the deep kitchen adds to the cabinets that get deeper, from 0 to the book's
+// greatest. The field says why a value is wrong as it is typed and keeps Save off until it is right; a saved value goes
+// to "De publicat" and the card says so. The card also carries the way to the bulk dialog, as the frame draws it.
 
 export interface DepthRuleCardProps {
   /** The percentage in the active version. */

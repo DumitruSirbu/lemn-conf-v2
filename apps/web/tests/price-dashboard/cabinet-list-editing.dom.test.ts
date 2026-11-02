@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
-// The cabinet list with its writes (frames D2C, D2D, D2E1 to D2E3, D2ER): a price changes in the table, the depth
-// rule on its card, and several prices at once from the bulk dialog. Every write goes to the draft and never to the live
-// prices; an invalid value is never sent; a refusal stays in the field it belongs to, tied to it, and is told in words the
-// value does not decide. The server is a draft client that judges as the dashboard's routes do.
+// The cabinet list with its writes (frames D2C, D2D, D2E1 to D2E3, D2ER): a price changes in the table, the depth rule
+// on its card, and several prices at once from the bulk dialog. Every write goes to the draft and never to the live
+// prices; an invalid value is never sent; a refusal stays in the field it belongs to, tied to it, and is told in words
+// the value does not decide. The server is a draft client that judges as the dashboard's routes do.
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

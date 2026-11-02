@@ -22,10 +22,10 @@ import type { FieldWriteResult } from "./use-price-draft";
 
 // Frame D2C: the price at the default size changes in the table. A press on the price opens its field; Enter sends the
 // value to "De publicat", Escape closes the field and sends nothing. A value that is not an amount is never sent: the
-// field keeps it, says why under itself and stays open. So does a value the server refused, in the same place, unless the
-// person has since closed the field, opened it again or typed over the text: an answer to a value no longer in the field
-// is ignored. A price already held, the active one or the draft's, is never refused for its size, so a stored price
-// that is not a whole ten of lei can be opened, closed and typed back.
+// field keeps it, says why under itself and stays open. So does a value the server refused, in the same place, unless
+// the person has since closed the field, opened it again or typed over the text: an answer to a value no longer in the
+// field is ignored. A price already held, the active one or the draft's, is never refused for its size, so a stored
+// price that is not a whole ten of lei can be opened, closed and typed back.
 
 /** What the list is given where it can change a price: the one write, and whether another is out. */
 export interface PriceEditing {
@@ -76,7 +76,9 @@ export function EditablePrice({
     }
   }, [isOpen, isFocusOwed]);
 
-  /** Opening, typing and closing each make an answer still on its way an answer to a field that is no longer this one. */
+  /**
+   * Opening, typing and closing each make an answer still on its way an answer to a field that is no longer this one.
+   */
   const moveOn = () => {
     moveCountRef.current += 1;
     setRefusal(undefined);

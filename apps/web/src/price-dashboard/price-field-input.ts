@@ -8,12 +8,12 @@ import {
 
 import { BANI_PER_LEU, DECIMAL_PLACES, formatLeiAmount } from "./format-lei";
 
-// What a person types into a price or a percentage field, read before anything is sent. A value that is not one of these
-// is never sent: the field says why, in the words of `priceDashboard.errors` and `priceDashboard.bulk`, and stays where
-// it is. No float is parsed: an amount is whole bani counted from the digits, and a percentage is whole. A price is set
-// in whole tens of lei (ADR 0001, 2026-10-28 amendment): any other amount is refused, never rounded to one, except a
-// price the screen already holds (the active one or the draft's), which a stored book may hold in any amount and which
-// a person may type back.
+// What a person types into a price or a percentage field, read before anything is sent. A value that is not one of
+// these is never sent: the field says why, in the words of `priceDashboard.errors` and `priceDashboard.bulk`, and stays
+// where it is. No float is parsed: an amount is whole bani counted from the digits, and a percentage is whole. A price
+// is set in whole tens of lei (ADR 0001, 2026-10-28 amendment): any other amount is refused, never rounded to one,
+// except a price the screen already holds (the active one or the draft's), which a stored book may hold in any amount
+// and which a person may type back.
 
 const MINUS_SIGNS = /^[-−]/;
 const SIGNED_WHOLE_NUMBER = /^([-−+])?(\d+)$/;

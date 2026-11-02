@@ -1,6 +1,6 @@
-// The cabinet list's facts are worked out from the dashboard's state: a row's default-size price is the domain's preview of the book,
-// the pending one is the preview of the book with the draft applied, and a price that moved with no change naming its cabinet
-// is a defect that keeps the list from being drawn.
+// The cabinet list's facts are worked out from the dashboard's state: a row's default-size price is the domain's
+// preview of the book, the pending one is the preview of the book with the draft applied, and a price that moved with
+// no change naming its cabinet is a defect that keeps the list from being drawn.
 import { describe, expect, it } from "vitest";
 
 import {

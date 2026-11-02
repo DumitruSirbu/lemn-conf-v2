@@ -1,6 +1,6 @@
-// What a person types into a price or a percentage field is read before anything is sent: an amount in lei as whole bani, the
-// depth rule's percentage from 0 to the book's greatest, and a bulk percentage that is whole, signed, not 0, and within the
-// action's bounds. A value that is not one of these is a refusal with a closed reason, never a number.
+// What a person types into a price or a percentage field is read before anything is sent: an amount in lei as whole
+// bani, the depth rule's percentage from 0 to the book's greatest, and a bulk percentage that is whole, signed, not 0,
+// and within the action's bounds. A value that is not one of these is a refusal with a closed reason, never a number.
 import { describe, expect, it } from "vitest";
 
 import {

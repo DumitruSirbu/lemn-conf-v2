@@ -11,11 +11,12 @@ import { defaultSizePriceMinor } from "./cabinet-list-facts";
 import type { CabinetRuleFacts } from "./cabinet-list-model";
 import { priceDashboardCatalogue } from "./price-dashboard-catalogue";
 
-// What the bulk dialog tells before anything is sent: the counts the route will write, one cabinet's price before and after,
-// and why an action that would be refused would be. All of it is `planBulkChange` run on the candidate book (the
-// active one with the draft applied), so the preview and the server's plan read the same prices. The server
-// answers one code, `PERCENT_OUT_OF_RANGE`, for three different things: a percentage past the action's bounds, a scaled price
-// past what a cabinet may cost, and an action whose every price rounds back to what it is. This is where they are told apart.
+// What the bulk dialog tells before anything is sent: the counts the route will write, one cabinet's price before and
+// after, and why an action that would be refused would be. All of it is `planBulkChange` run on the candidate book (the
+// active one with the draft applied), so the preview and the server's plan read the same prices. The server answers one
+// code, `PERCENT_OUT_OF_RANGE`, for three different things: a percentage past the action's bounds, a scaled price past
+// what a cabinet may cost, and an action whose every price rounds back to what it is. This is where they are told
+// apart.
 
 export interface BulkExample {
   readonly name: string;
@@ -94,7 +95,9 @@ function previewOfPlan(
   };
 }
 
-/** The plan's prices as the draft would hold them: a cabinet address and a value are a change, as the route stores them. */
+/**
+ * The plan's prices as the draft would hold them: a cabinet address and a value are a change, as the route stores them.
+ */
 function changesOf(plan: PlannedBulk): readonly DraftChange[] {
   return plan.changes.map(
     ({ address, value }) => ({ address, value }) as DraftChange,

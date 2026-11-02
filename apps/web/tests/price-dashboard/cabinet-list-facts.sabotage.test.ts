@@ -1,6 +1,6 @@
-// The list's own check, shown to bite: when the domain's preview lets the depth rule leak into the default-size price (a
-// sabotage of `previewCabinet`), a draft that holds only the depth rule moves the price of cabinets no change names, and the
-// list is not drawn. With the preview as it is, the same draft draws.
+// The list's own check, shown to bite: when the domain's preview lets the depth rule leak into the default-size price
+// (a sabotage of `previewCabinet`), a draft that holds only the depth rule moves the price of cabinets no change names,
+// and the list is not drawn. With the preview as it is, the same draft draws.
 import { describe, expect, it, vi } from "vitest";
 
 import { deriveCabinetList } from "@/price-dashboard/cabinet-list-facts";

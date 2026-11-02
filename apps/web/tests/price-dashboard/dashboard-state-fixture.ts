@@ -1,5 +1,5 @@
-// A dashboard state built from the domain's sample book, for the tests of the list's facts and of the writes. The names are
-// the catalogue's, resolved by the app's own label seam, so a test holds no second copy of them.
+// A dashboard state built from the domain's sample book, for the tests of the list's facts and of the writes. The names
+// are the catalogue's, resolved by the app's own label seam, so a test holds no second copy of them.
 import { createTranslator } from "next-intl";
 
 import {

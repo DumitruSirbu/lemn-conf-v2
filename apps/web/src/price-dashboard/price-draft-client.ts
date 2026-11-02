@@ -17,14 +17,14 @@ import {
   readDraftWire,
 } from "./price-dashboard-wire-reading";
 
-// What the dashboard's screens write the draft through, and read the state again through. The fetching one asks the routes
-// of the dashboard: `GET /api/staff/prices`, `PUT` and `DELETE` of `…/draft`, and `POST …/bulk`. Each answer is sorted into the
-// outcomes below, and anything that is not one of the routes' own answers is `failed`.
+// What the dashboard's screens write the draft through, and read the state again through. The fetching one asks the
+// routes of the dashboard: `GET /api/staff/prices`, `PUT` and `DELETE` of `…/draft`, and `POST …/bulk`. Each answer is
+// sorted into the outcomes below, and anything that is not one of the routes' own answers is `failed`.
 
 /**
- * What a write to the draft came to. `refused` is a `400` naming a member the person can correct; `candidate-refused` is
- * the `409` of a draft that no longer makes a book; `conflict` is `changed-meanwhile`: nothing was written, and the page
- * reads the state again. `session-ended` is a `401`.
+ * What a write to the draft came to. `refused` is a `400` naming a member the person can correct; `candidate-refused`
+ * is the `409` of a draft that no longer makes a book; `conflict` is `changed-meanwhile`: nothing was written, and the
+ * page reads the state again. `session-ended` is a `401`.
  */
 export type DraftWriteResult<Code extends string, Written> =
   | { readonly kind: "changed"; readonly written: Written }

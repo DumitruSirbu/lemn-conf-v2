@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 //
 // Adversarial QA of M10 wave U2, the draft a screen writes through (`use-price-draft.ts` over the fetching client).
-// `use-price-draft.dom.test.ts` drives the hook over an in-memory client that answers with the client's own outcome types, so
-// no test there reaches the part that turns a response into one: a 401 from the network, a 503, a 200 whose body is not the
-// route's, a connection that drops, a screen that goes away with a write out. Here the hook runs over the fetching client and
-// a stubbed `fetch`, and the words a refusal becomes are checked against every code a body could carry.
+// `use-price-draft.dom.test.ts` drives the hook over an in-memory client that answers with the client's own outcome
+// types, so no test there reaches the part that turns a response into one: a 401 from the network, a 503, a 200 whose
+// body is not the route's, a connection that drops, a screen that goes away with a write out. Here the hook runs over
+// the fetching client and a stubbed `fetch`, and the words a refusal becomes are checked against every code a body
+// could carry.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

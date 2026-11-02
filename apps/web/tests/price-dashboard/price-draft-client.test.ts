@@ -1,6 +1,6 @@
-// The fetching client asks the dashboard's routes as they are written: the method and the address, a JSON body, the origin the routes'
-// cross-site guard reads, and the answer sorted into the closed outcomes. An answer that is not one of the routes' own is
-// `failed`, and nothing it carries is believed.
+// The fetching client asks the dashboard's routes as they are written: the method and the address, a JSON body, the
+// origin the routes' cross-site guard reads, and the answer sorted into the closed outcomes. An answer that is not one
+// of the routes' own is `failed`, and nothing it carries is believed.
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {

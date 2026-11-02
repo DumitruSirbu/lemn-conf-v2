@@ -1,6 +1,6 @@
 /* The fields the dashboard edits prices in: the cabinet list's price cell, the depth rule's card and the bulk dialog's
- * percentage. A field has its label above it and its unit inside its box, its hint and its refusal below. Every box is at
- * least `--touch-target` tall. The pencil on the price button is drawn here, so no glyph is text. */
+ * percentage. A field has its label above it and its unit inside its box, its hint and its refusal below. Every box is
+ * at least `--touch-target` tall. The pencil on the price button is drawn here, so no glyph is text. */
 .field {
   display: flex;
   flex-direction: column;

@@ -63,7 +63,8 @@ export function CabinetListEditor({
       wanted: { readonly address: AppliedAddress; readonly value: number },
       activeValue: number,
     ): Promise<FieldWriteResult> => {
-      // The address of a number field and a number are a change of that field: the route judges which address takes one.
+      // The address of a number field and a number are a change of that field: the route judges which address takes
+      // one.
       if (wanted.value !== activeValue) {
         return change(wanted as DraftChangeInputWire);
       }

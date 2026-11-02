@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 //
-// The draft of prices as a screen holds it: a write names the revision the screen last saw, one write is out at a time, a
-// write refused as `changed-meanwhile` leaves the state read again, and nothing is shown as written until the server said so.
+// The draft of prices as a screen holds it: a write names the revision the screen last saw, one write is out at a time,
+// a write refused as `changed-meanwhile` leaves the state read again, and nothing is shown as written until the server
+// said so.
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 

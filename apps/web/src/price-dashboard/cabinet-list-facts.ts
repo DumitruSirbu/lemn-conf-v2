@@ -35,10 +35,10 @@ import type {
   DashboardStateWire,
 } from "./price-dashboard-wire-contract";
 
-// The cabinet list's facts, worked out from what the dashboard's route answers: the active book, and the draft beside it. The
-// browser works them out again after every write, so the list shows the new price without asking the server for it. Nothing
-// here adds a price up: the default-size price is a row of `previewCabinet`, the book with the draft applied is
-// `applyChanges`, and the width and the group of a row are the catalogue's.
+// The cabinet list's facts, worked out from what the dashboard's route answers: the active book, and the draft beside
+// it. The browser works them out again after every write, so the list shows the new price without asking the server for
+// it. Nothing here adds a price up: the default-size price is a row of `previewCabinet`, the book with the draft
+// applied is `applyChanges`, and the width and the group of a row are the catalogue's.
 
 /** Everything the screen is given: the dashboard's state, and the Romanian name of each cabinet by build id. */
 export interface CabinetListPageInput {
@@ -64,9 +64,9 @@ class CabinetListUnreadableError extends Error {
 }
 
 /**
- * The rows of the list for a state. A draft that does not apply, a rule the catalogue does not hold, a price the preview
- * refuses, or a cabinet whose price moved with no change naming it, is `unreadable`: the last is the seam's assertion that
- * an unmodified row's pending price equals its active one.
+ * The rows of the list for a state. A draft that does not apply, a rule the catalogue does not hold, a price the
+ * preview refuses, or a cabinet whose price moved with no change naming it, is `unreadable`: the last is the seam's
+ * assertion that an unmodified row's pending price equals its active one.
  */
 export function deriveCabinetList(
   page: CabinetListPageInput,

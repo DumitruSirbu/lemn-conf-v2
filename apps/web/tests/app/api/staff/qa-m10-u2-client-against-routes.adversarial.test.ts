@@ -1,8 +1,9 @@
-// Adversarial QA of M10 wave U2, the draft client against the routes it talks to. `price-draft-client.test.ts` checks what the
-// client sends and what it makes of an answer it is handed; the routes' tests check what they answer to a request they
-// build themselves. Neither says that the request the client builds is the request the route reads, or that the answer the
-// route gives is the one the client sorts as the person is told. Here a stub of `fetch` hands the client's request to the real
-// route handlers, over the persistence package's fake stores, and the client's outcome is read.
+// Adversarial QA of M10 wave U2, the draft client against the routes it talks to. `price-draft-client.test.ts` checks
+// what the client sends and what it makes of an answer it is handed; the routes' tests check what they answer to a
+// request they build themselves. Neither says that the request the client builds is the request the route reads, or
+// that the answer the route gives is the one the client sorts as the person is told. Here a stub of `fetch` hands the
+// client's request to the real route handlers, over the persistence package's fake stores, and the client's outcome is
+// read.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SAMPLE_PRICE_BOOK } from "@lemnaria/configurator-domain";

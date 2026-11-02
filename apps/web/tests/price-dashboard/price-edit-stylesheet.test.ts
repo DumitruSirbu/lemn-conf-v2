@@ -1,6 +1,6 @@
 // Reads the stylesheet's text (no layout runs here) for what a thumb needs from the price fields: every box a person
-// presses or types in at least a touch target tall, a visible ring on every control that takes focus, and the invalid field
-// drawn in the refusal colours so the state is not carried by the message alone.
+// presses or types in at least a touch target tall, a visible ring on every control that takes focus, and the invalid
+// field drawn in the refusal colours so the state is not carried by the message alone.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 

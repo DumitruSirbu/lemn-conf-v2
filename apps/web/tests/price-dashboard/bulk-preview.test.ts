@@ -1,7 +1,7 @@
-// What the bulk dialog tells before anything is sent is the domain's plan on the candidate book. The server answers one code,
-// `PERCENT_OUT_OF_RANGE`, for a percentage past the bounds, a scaled price past what a cabinet may cost and an action whose
-// every price rounds back to what it is; the preview is where they are told apart, and where the cabinet that makes a
-// price non-positive is named.
+// What the bulk dialog tells before anything is sent is the domain's plan on the candidate book. The server answers one
+// code, `PERCENT_OUT_OF_RANGE`, for a percentage past the bounds, a scaled price past what a cabinet may cost and an
+// action whose every price rounds back to what it is; the preview is where they are told apart, and where the cabinet
+// that makes a price non-positive is named.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -182,7 +182,8 @@ describe("an action every price of which rounds back to what it is", () => {
     expect(previewBulk({ candidate, rows, target, percent: 1 })).toEqual({
       kind: "nothing-changes",
     });
-    // The premise: the domain's plan is `planned`, not refused, so the route's own check is what turns it into the code.
+    // The premise: the domain's plan is `planned`, not refused, so the route's own check is what turns it into the
+    // code.
     expect(plan).toMatchObject({
       kind: "planned",
       changed: { amountCount: 0 },
