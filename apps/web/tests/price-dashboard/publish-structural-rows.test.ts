@@ -168,6 +168,34 @@ describe("an item the draft deletes", () => {
     });
   });
 
+  it("names a class the catalogue words by its key, as the rows of its link and text changes do", () => {
+    const keyed = ACTIVE.material.tiers.find(
+      (tier) =>
+        tier.nameKey !== undefined &&
+        tier.tierId !== ACTIVE.material.defaultTierId,
+    );
+    if (keyed === undefined) throw new Error("the sample has no keyed class");
+
+    const [deleted] = rowsOfKind(
+      readyRows(ACTIVE, [
+        change(
+          {
+            kind: "item-deleted",
+            item: { kind: "material", tierId: keyed.tierId },
+          },
+          true,
+        ),
+      ]),
+      "row",
+    );
+
+    expect(deleted?.subject).toEqual({
+      kind: "book-text",
+      authored: keyed.name,
+      key: keyed.nameKey,
+    });
+  });
+
   it("leaves no row of any kind for a class created and deleted in the same draft", () => {
     const rows = readyRows(ACTIVE, [...createTierChanges(), deletion]);
 

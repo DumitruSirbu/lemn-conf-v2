@@ -317,7 +317,7 @@ function itemRowViewOf(row: RowDiffRow, context: RowContext): ItemRowView {
     section: row.section,
     change: row.change,
     itemKind: row.item.kind,
-    subject: authoredSubjectOf(row.name),
+    subject: itemSubjectOf(row.item, context.books),
     revert: ownRevertOf(row.address, context),
   };
 }
@@ -357,11 +357,6 @@ function ownRevertOf(
 
 function textSideOf(side: string | AbsentValue): string | undefined {
   return typeof side === "string" ? side : undefined;
-}
-
-/** The words of a row the dashboard authored: no catalogue key renders them. */
-function authoredSubjectOf(name: string): RowSubject {
-  return { kind: "book-text", authored: name, key: undefined };
 }
 
 function bulkViewOf(
