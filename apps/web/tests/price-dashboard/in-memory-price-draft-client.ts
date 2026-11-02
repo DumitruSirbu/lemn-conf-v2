@@ -5,6 +5,7 @@
 // nothing was.
 import {
   applyChanges,
+  HARDWARE_RATE_FIELDS,
   isSameAddress,
   planBulkChange,
   readEditableFields,
@@ -15,12 +16,14 @@ import {
 import { priceDashboardCatalogue } from "@/price-dashboard/price-dashboard-catalogue";
 import type {
   BulkChangeRequestWire,
+  CreateHardwareClassRequestWire,
   DashboardStateWire,
   DraftChangeRequestWire,
   DraftRevertRequestWire,
 } from "@/price-dashboard/price-dashboard-wire-contract";
 import type {
   BulkChangeOutcome,
+  CreateHardwareClassOutcome,
   DraftChangeOutcome,
   PriceDraftClient,
 } from "@/price-dashboard/price-draft-client";
@@ -29,6 +32,10 @@ export type RecordedCall =
   | { readonly kind: "change"; readonly request: DraftChangeRequestWire }
   | { readonly kind: "revert"; readonly request: DraftRevertRequestWire }
   | { readonly kind: "bulk"; readonly request: BulkChangeRequestWire }
+  | {
+      readonly kind: "createHardwareClass";
+      readonly request: CreateHardwareClassRequestWire;
+    }
   | { readonly kind: "readState" };
 
 export interface InMemoryPriceDraftClient {
@@ -37,7 +44,10 @@ export interface InMemoryPriceDraftClient {
   readonly state: () => DashboardStateWire;
   /** The next write is answered with this instead of being judged, once. */
   readonly answerNextWriteWith: (
-    outcome: DraftChangeOutcome | BulkChangeOutcome,
+    outcome:
+      | DraftChangeOutcome
+      | BulkChangeOutcome
+      | CreateHardwareClassOutcome,
   ) => void;
   /** Another writer moves the draft: the revision advances with no change from this screen. */
   readonly moveDraftBehindTheScreen: () => void;
@@ -49,7 +59,12 @@ export function inMemoryPriceDraftClient(
   initial: DashboardStateWire,
 ): InMemoryPriceDraftClient {
   let state = initial;
-  let nextAnswer: DraftChangeOutcome | BulkChangeOutcome | undefined;
+  let nextAnswer:
+    | DraftChangeOutcome
+    | BulkChangeOutcome
+    | CreateHardwareClassOutcome
+    | undefined;
+  let created = 0;
   let held: Promise<void> | undefined;
   let groups = 0;
   const calls: RecordedCall[] = [];
@@ -169,6 +184,42 @@ export function inMemoryPriceDraftClient(
       return {
         kind: "changed",
         written: { draft, ruleCount: ruleIds.size, amountCount: minted.length },
+      };
+    },
+    createHardwareClass: async (request) => {
+      calls.push({ kind: "createHardwareClass", request });
+      await gate();
+      const forced = takeAnswer() as CreateHardwareClassOutcome | undefined;
+      if (forced !== undefined) return forced;
+      if (isStale(request.expectedDraftRevision)) return { kind: "conflict" };
+      created += 1;
+      const tierId = `hardware.created-${String(created)}`;
+      const creation = {
+        address: { kind: "hardware-tier-created", tierId },
+        value: request.value,
+      } as DraftChange;
+      const rates = HARDWARE_RATE_FIELDS.map(
+        (field) =>
+          ({
+            address: { kind: "hardware", tierId, field },
+            value: request.rates[field],
+          }) as DraftChange,
+      );
+      const changes = [...state.draft.changes, creation, ...rates];
+      const applied = applyChanges(state.active.book, changes);
+      if (!applied.ok && applied.reason === "changes-refused") {
+        const [refusal] = applied.refusals;
+        if (refusal !== undefined) {
+          return { kind: "refused", code: refusal.code };
+        }
+      }
+      if (!applied.ok) return { kind: "candidate-refused" };
+      return {
+        kind: "changed",
+        written: {
+          draft: adopt(changes),
+          created: { kind: "hardware", tierId },
+        },
       };
     },
   };

@@ -258,7 +258,14 @@ describe("what each kind of account is shown", () => {
       shell: {
         role: "administrator",
         email: STAFF_ADDRESS,
-        navigation: ["kitchens", "audit", "cabinets", "defaults", "publish"],
+        navigation: [
+          "kitchens",
+          "audit",
+          "cabinets",
+          "hardware",
+          "defaults",
+          "publish",
+        ],
         pendingPriceCount: SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
       },
     });

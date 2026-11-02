@@ -55,6 +55,7 @@ const EVERY_PAGE: readonly StaffAreaPage[] = [
   "kitchens",
   "audit",
   "cabinets",
+  "hardware",
   "defaults",
   "publish",
 ];
@@ -107,6 +108,7 @@ describe("an administrator", () => {
       "kitchens",
       "audit",
       "cabinets",
+      "hardware",
       "defaults",
       "publish",
     ]);

@@ -3,19 +3,14 @@ import "server-only";
 import { createTranslator } from "next-intl";
 
 import type { ContentTranslator } from "@/i18n/content";
-import { reportAccountEvent } from "@/lib/server/account/account-log";
-import {
-  PRICE_READ_EVENT,
-  readDashboardStateForAdmittedPage,
-} from "@/lib/server/price-dashboard/price-dashboard-service";
 import roMessages from "@/messages/ro.json";
 
+import { readStateOrNothing } from "./admitted-state-read";
 import { cabinetNamesOf } from "./cabinet-names";
 import {
   deriveCabinetList,
   type CabinetListPageInput,
 } from "./cabinet-list-facts";
-import type { DashboardStateWire } from "./price-dashboard-wire-contract";
 import { readDashboardStateWire } from "./price-dashboard-wire-reading";
 
 // The one place the cabinet list's facts come from: the dashboard's state, read for a page whose staff gate
@@ -65,14 +60,4 @@ async function readPage(): Promise<CabinetListPageInput | undefined> {
   };
   // The seam's own check: a list that cannot be worked out here would not be worked out in the browser either.
   return deriveCabinetList(page).kind === "ready" ? page : undefined;
-}
-
-/** A store that fails is nothing to show, and the line written down names the event and the outcome alone. */
-async function readStateOrNothing(): Promise<DashboardStateWire | undefined> {
-  try {
-    return await readDashboardStateForAdmittedPage();
-  } catch {
-    reportAccountEvent({ event: PRICE_READ_EVENT, outcome: "unavailable" });
-    return undefined;
-  }
 }

@@ -1809,8 +1809,18 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       fixToSave:
         "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
+      // Drafted, not approved: a Save of several prices that landed some and then failed. It does not say nothing changed,
+      // because the draft already holds what the earlier writes did.
+      savePartlyFailed:
+        "Nu am putut salva toate prețurile. Cele dinainte s-au salvat; încearcă din nou pentru celelalte.",
       changedMeanwhile:
         "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
+      textEmpty: "Completează textul.",
+      textTooLong: "Textul este prea lung. Scurtează-l.",
+      textForbiddenCharacter:
+        "Textul conține un caracter care nu se poate folosi. Folosește litere, cifre și semne obișnuite.",
+      textStatesAnAmount:
+        "Textul nu poate spune un preț sau un procent. Prețurile se scriu în câmpurile lor.",
     },
     diff: {
       amountPercent: "{signedAmount} · {signedPercent} %",
@@ -2061,6 +2071,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       createAction: "Creează clasa",
       createdNotice:
         "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
+      createdRemoved: "Clasa a fost scoasă din „De publicat”.",
+      // Drafted, not approved: the server refused a new class that the form had let through. Nothing was written, and no
+      // retry would change the answer, so it sends the person back to what they typed.
+      createRefused:
+        "Clasa nu poate fi adăugată așa. Nu am schimbat nimic; verifică numele și prețurile.",
     },
     materials: {
       title: "Materiale",
@@ -2161,6 +2176,27 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       deleteBlockedBody:
         "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
       deactivateInstead: "Dezactivează în schimb",
+      fixedDefaultCannotChange:
+        "Este opțiunea implicită a catalogului și rămâne mereu disponibilă.",
+      cannotJudge:
+        "Nu putem verifica acum dacă se poate. Încearcă din nou mai târziu.",
+      usageUnavailable:
+        "Nu am putut număra bucătăriile salvate care folosesc această opțiune, așa că nu schimbăm nimic acum. Încearcă din nou.",
+      deleteBlockedInactiveBody:
+        "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc această opțiune. Este deja dezactivată; clienții aleg altă opțiune când își deschid bucătăria.",
+      deleteBlockedAccessoryBody:
+        "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      deleteBlockedAccessoryInactiveBody:
+        "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc acest accesoriu. Este deja dezactivat; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      deleteBlockedUncountedBody:
+        "Nu poți șterge „{name}”: bucătării salvate folosesc această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
+      deleteBlockedAccessoryUncountedBody:
+        "Nu poți șterge „{name}”: bucătării salvate folosesc acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      working: "Se aplică…",
+      // Drafted, not approved: said while the saved kitchens that use an option are counted, before a dialog can open.
+      counting: "Numărăm bucătăriile salvate care folosesc această opțiune…",
+      deleteCreatedBody:
+        "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”.",
     },
     publish: {
       title: "Publicare prețuri",

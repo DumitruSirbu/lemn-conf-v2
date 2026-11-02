@@ -1384,7 +1384,12 @@
       "priceNotPositive": "Cu valorile acestea un preț ar ieși zero sau negativ.",
       "fixToSave": "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       "saveFailed": "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
-      "changedMeanwhile": "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou."
+      "savePartlyFailed": "Nu am putut salva toate prețurile. Cele dinainte s-au salvat; încearcă din nou pentru celelalte.",
+      "changedMeanwhile": "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
+      "textEmpty": "Completează textul.",
+      "textTooLong": "Textul este prea lung. Scurtează-l.",
+      "textForbiddenCharacter": "Textul conține un caracter care nu se poate folosi. Folosește litere, cifre și semne obișnuite.",
+      "textStatesAnAmount": "Textul nu poate spune un preț sau un procent. Prețurile se scriu în câmpurile lor."
     },
     "diff": {
       "amountPercent": "{signedAmount} · {signedPercent} %",
@@ -1580,7 +1585,9 @@
       "priceLiftHint": "Pentru dulapul suspendat rabatabil",
       "newPricesNote": "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
       "createAction": "Creează clasa",
-      "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici."
+      "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
+      "createdRemoved": "Clasa a fost scoasă din „De publicat”.",
+      "createRefused": "Clasa nu poate fi adăugată așa. Nu am schimbat nimic; verifică numele și prețurile."
     },
     "materials": {
       "title": "Materiale",
@@ -1657,7 +1664,18 @@
       "deleteBody": "Ștergerea intră în vigoare când publici.",
       "deleteBlockedTitle": "Nu poți șterge „{name}”",
       "deleteBlockedBody": "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
-      "deactivateInstead": "Dezactivează în schimb"
+      "deactivateInstead": "Dezactivează în schimb",
+      "fixedDefaultCannotChange": "Este opțiunea implicită a catalogului și rămâne mereu disponibilă.",
+      "cannotJudge": "Nu putem verifica acum dacă se poate. Încearcă din nou mai târziu.",
+      "usageUnavailable": "Nu am putut număra bucătăriile salvate care folosesc această opțiune, așa că nu schimbăm nimic acum. Încearcă din nou.",
+      "deleteBlockedInactiveBody": "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc această opțiune. Este deja dezactivată; clienții aleg altă opțiune când își deschid bucătăria.",
+      "deleteBlockedAccessoryBody": "Nu poți șterge „{name}”: {count, plural, one {o bucătărie salvată folosește} few {{count, number, ::group-off} bucătării salvate folosesc} other {{count, number, ::group-off} de bucătării salvate folosesc}} acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      "deleteBlockedAccessoryInactiveBody": "Nu poți șterge „{name}”: bucătăriile salvate încă folosesc acest accesoriu. Este deja dezactivat; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      "deleteBlockedUncountedBody": "Nu poți șterge „{name}”: bucătării salvate folosesc această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
+      "deleteBlockedAccessoryUncountedBody": "Nu poți șterge „{name}”: bucătării salvate folosesc acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
+      "working": "Se aplică…",
+      "counting": "Numărăm bucătăriile salvate care folosesc această opțiune…",
+      "deleteCreatedBody": "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”."
     },
     "publish": {
       "title": "Publicare prețuri",

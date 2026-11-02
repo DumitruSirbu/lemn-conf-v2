@@ -70,6 +70,7 @@ export const NUMBER_REFUSAL_CODES = Object.freeze([
   "NEGATIVE",
   "TOO_LARGE",
 ] as const);
+export type NumberRefusalCode = (typeof NUMBER_REFUSAL_CODES)[number];
 
 /** What a version's label or note can be refused for. */
 export const PUBLISH_TEXT_REFUSAL_CODES = Object.freeze([

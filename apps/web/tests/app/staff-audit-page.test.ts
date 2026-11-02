@@ -97,7 +97,14 @@ describe("an administrator", () => {
       context: {
         role: "administrator",
         email: "administrator@example.test",
-        navigation: ["kitchens", "audit", "cabinets", "defaults", "publish"],
+        navigation: [
+          "kitchens",
+          "audit",
+          "cabinets",
+          "hardware",
+          "defaults",
+          "publish",
+        ],
         pendingPriceCount: SAMPLE_PUBLISH_PAGE.state.draft.changes.length,
       },
     });

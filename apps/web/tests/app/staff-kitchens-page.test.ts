@@ -84,7 +84,10 @@ async function signInAs(
 describe("a person who is signed in as staff", () => {
   it.each([
     ["operator", ["kitchens"]],
-    ["administrator", ["kitchens", "audit", "cabinets", "defaults", "publish"]],
+    [
+      "administrator",
+      ["kitchens", "audit", "cabinets", "hardware", "defaults", "publish"],
+    ],
   ] as const)(
     "gets the list for a verified %s, in the staff frame with the pages the role opens in its navigation",
     async (role, navigation) => {

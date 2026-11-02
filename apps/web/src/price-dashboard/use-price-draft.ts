@@ -5,6 +5,8 @@ import { useCallback, useRef, useState } from "react";
 import {
   isSameAddress,
   type AppliedAddress,
+  type HardwareTierCreation,
+  type ItemRef,
 } from "@lemnaria/configurator-domain";
 
 import { raiseStaffSessionExpired } from "@/staff/staff-session-expiry";
@@ -19,6 +21,7 @@ import type {
   BulkTargetWire,
   DashboardDraftWire,
   DashboardStateWire,
+  HardwareRatesWire,
   DraftChangeInputWire,
   DraftChangeRefusalCode,
   DraftRevertTargetWire,
@@ -55,6 +58,22 @@ export type BulkWriteResult =
   /** Another write is out, so this one was not sent. Not a failure: a screen shows nothing for it. */
   | { readonly kind: "busy" };
 
+export type CreateWriteResult =
+  /** The class and its rates are in the draft, under the id the server minted. */
+  | { readonly kind: "created"; readonly created: ItemRef }
+  | { readonly kind: "refused"; readonly code: DraftChangeRefusalCode }
+  | { readonly kind: "candidate-refused" }
+  | { readonly kind: "conflict" }
+  | { readonly kind: "failed" }
+  /** Another write is out, so this one was not sent. Not a failure: a screen shows nothing for it. */
+  | { readonly kind: "busy" };
+
+/** What a hardware class is created from: its Romanian words, and one rate for each mechanism. */
+export interface HardwareClassCreation {
+  readonly value: HardwareTierCreation;
+  readonly rates: HardwareRatesWire;
+}
+
 export interface BulkChangeInput {
   readonly target: BulkTargetWire;
   readonly percent: number;
@@ -89,6 +108,11 @@ export interface PriceDraft {
     activeValue: number,
   ) => Promise<FieldWriteResult>;
   readonly bulk: (input: BulkChangeInput) => Promise<BulkWriteResult>;
+  readonly createHardwareClass: (
+    input: HardwareClassCreation,
+  ) => Promise<CreateWriteResult>;
+  /** Whether the client has any route that takes a creation; where it has none, a screen offers none. */
+  readonly canCreateHardwareClass: boolean;
   /** Takes a state made elsewhere (a publish, a discard) as the one the next write names the revision of. */
   readonly adopt: (state: DashboardStateWire) => void;
   /**
@@ -250,6 +274,23 @@ export function usePriceDraft({
     [client, exclusively, settle],
   );
 
+  const createHardwareClass = useCallback(
+    (input: HardwareClassCreation) =>
+      exclusively<CreateWriteResult>(async () => {
+        const { createHardwareClass: create } = client;
+        if (create === undefined) return FAILED;
+        const outcome = await sendOrFail(() =>
+          create({
+            expectedDraftRevision: stateRef.current.draft.draftRevision,
+            ...input,
+          }),
+        );
+        await settle(outcome, (written) => written.draft);
+        return createResultOf(outcome);
+      }, BUSY),
+    [client, exclusively, settle],
+  );
+
   return {
     state,
     isBusy,
@@ -257,6 +298,8 @@ export function usePriceDraft({
     revert,
     changeOrRevert,
     bulk,
+    createHardwareClass,
+    canCreateHardwareClass: client.createHardwareClass !== undefined,
     adopt,
     refresh,
   };
@@ -309,6 +352,25 @@ function bulkResultOf(
         ruleCount: outcome.written.ruleCount,
         amountCount: outcome.written.amountCount,
       };
+    case "refused":
+    case "candidate-refused":
+    case "conflict":
+      return outcome;
+    case "session-ended":
+    case "failed":
+      return FAILED;
+  }
+}
+
+function createResultOf(
+  outcome: DraftWriteResult<
+    DraftChangeRefusalCode,
+    { readonly created: ItemRef }
+  >,
+): CreateWriteResult {
+  switch (outcome.kind) {
+    case "changed":
+      return { kind: "created", created: outcome.written.created };
     case "refused":
     case "candidate-refused":
     case "conflict":
