@@ -116,11 +116,7 @@ export function bulkPreviewRefusalWords(
     case "no-cabinets":
       return translate("priceDashboard.bulk.errors.noCabinets");
     case "price-not-positive":
-      return preview.cabinetName === undefined
-        ? translate("priceDashboard.bulk.errors.cannotApply")
-        : translate("priceDashboard.bulk.errors.priceNotPositive", {
-            name: preview.cabinetName,
-          });
+      return notPositivePriceWords(translate, preview);
     case "price-too-large":
       return translate("priceDashboard.bulk.errors.priceTooLarge");
     case "cannot-apply":
@@ -128,8 +124,36 @@ export function bulkPreviewRefusalWords(
   }
 }
 
-export type FailedFieldWrite = Exclude<FieldWriteResult, { kind: "saved" }>;
-export type FailedBulkWrite = Exclude<BulkWriteResult, { kind: "saved" }>;
+type PriceNotPositivePreview = Extract<
+  BulkPreview,
+  { readonly kind: "price-not-positive" }
+>;
+
+function notPositivePriceWords(
+  translate: ContentTranslator,
+  { cabinetName, isHeldAlready }: PriceNotPositivePreview,
+): string {
+  if (cabinetName === undefined) {
+    return translate("priceDashboard.bulk.errors.cannotApply");
+  }
+  return isHeldAlready === true
+    ? translate("priceDashboard.bulk.errors.priceAlreadyNotPositive", {
+        name: cabinetName,
+      })
+    : translate("priceDashboard.bulk.errors.priceNotPositive", {
+        name: cabinetName,
+      });
+}
+
+/** A write that came to nothing the person did not ask for: not one that landed, was not needed or was never sent. */
+export type FailedFieldWrite = Exclude<
+  FieldWriteResult,
+  { kind: "saved" | "unchanged" | "busy" }
+>;
+export type FailedBulkWrite = Exclude<
+  BulkWriteResult,
+  { kind: "saved" | "busy" }
+>;
 
 /** What the server's answer to an inline price says, when a value that read well was still refused or not written. */
 export function priceWriteFailureWords(

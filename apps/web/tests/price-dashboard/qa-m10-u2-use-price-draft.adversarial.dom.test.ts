@@ -413,7 +413,7 @@ describe("one write at a time, whatever the writes are", () => {
     [fc.array(fc.constantFrom(...WRITES), { minLength: 2, maxLength: 6 })],
     { numRuns: 60 },
   )(
-    "sends exactly one request when several writes are asked in one moment, and answers every other as failed without sending it",
+    "sends exactly one request when several writes are asked in one moment, and answers every other as busy without sending it",
     async (kinds) => {
       let release: () => void = () => undefined;
       const stub = stubFetch(
@@ -448,7 +448,7 @@ describe("one write at a time, whatever the writes are", () => {
 
       expect(stub).toHaveBeenCalledTimes(1);
       const refused = await Promise.all(results.slice(1));
-      expect(refused).toEqual(refused.map(() => ({ kind: "failed" })));
+      expect(refused).toEqual(refused.map(() => ({ kind: "busy" })));
       release();
       await act(async () => {
         await results[0];

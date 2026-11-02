@@ -848,7 +848,7 @@ describe("the bulk dialog (frame D2D)", () => {
     expect(server.calls).toEqual([]);
   });
 
-  it("names the cabinet whose price would be zero or less", async () => {
+  it("names the cabinet whose price the draft already holds at zero, and says the price is fixed first", async () => {
     const zeroed = [
       {
         address: {
@@ -893,7 +893,7 @@ describe("the bulk dialog (frame D2D)", () => {
     typeInto(percentField(), "5");
 
     expect(refusalOf(percentField())).toBe(
-      roCopy("priceDashboard.bulk.errors.priceNotPositive", {
+      roCopy("priceDashboard.bulk.errors.priceAlreadyNotPositive", {
         name: nameOf(BASE_CABINET_RULE),
       }),
     );

@@ -1,5 +1,6 @@
 import {
   applyChanges,
+  judgePricesOfRule,
   planBulkChange,
   type BulkTarget,
   type DraftChange,
@@ -10,7 +11,7 @@ import { defaultSizePriceMinor } from "./cabinet-list-facts";
 import type { CabinetRuleFacts } from "./cabinet-list-model";
 import { priceDashboardCatalogue } from "./price-dashboard-catalogue";
 
-// What the bulk dialog tells before anything is sent: the counts the action touches, one cabinet's price before and after,
+// What the bulk dialog tells before anything is sent: the counts the route will write, one cabinet's price before and after,
 // and why an action that would be refused would be. All of it is `planBulkChange` run on the candidate book (the
 // active one with the draft applied), so the preview and the server's plan read the same prices. The server
 // answers one code, `PERCENT_OUT_OF_RANGE`, for three different things: a percentage past the action's bounds, a scaled price
@@ -33,10 +34,14 @@ export type BulkPreview =
   /** Every scaled price rounds back to the one it is: the server would refuse the action as `PERCENT_OUT_OF_RANGE`. */
   | { readonly kind: "nothing-changes" }
   | { readonly kind: "no-cabinets" }
-  /** A cabinet's price would be zero or less; the cabinet is named when it can be found. */
+  /**
+   * A cabinet's price would be zero or less; the cabinet is named when it can be found. `isHeldAlready` is present when
+   * the draft already holds it so, and no percentage helps until the price is fixed.
+   */
   | {
       readonly kind: "price-not-positive";
       readonly cabinetName: string | undefined;
+      readonly isHeldAlready?: true;
     }
   | { readonly kind: "price-too-large" }
   | { readonly kind: "cannot-apply" };
@@ -55,10 +60,7 @@ export function previewBulk(request: BulkPreviewRequest): BulkPreview {
     case "NO_CABINETS_SELECTED":
       return { kind: "no-cabinets" };
     case "PRICE_WOULD_BE_NEGATIVE":
-      return {
-        kind: "price-not-positive",
-        cabinetName: cabinetRefusedForPrice(request)?.name,
-      };
+      return notPositivePreview(request);
     case "PERCENT_OUT_OF_RANGE":
       return { kind: "price-too-large" };
     default:
@@ -86,8 +88,8 @@ function previewOfPlan(
   if (example === undefined) return { kind: "cannot-apply" };
   return {
     kind: "ready",
-    cabinetCount: plan.scope.ruleCount,
-    priceCount: plan.scope.amountCount,
+    cabinetCount: plan.changed.ruleCount,
+    priceCount: plan.changed.amountCount,
     example,
   };
 }
@@ -131,14 +133,30 @@ function exampleOf(
   );
 }
 
-/** The cabinet a refusal for a non-positive price is about: the first of the action's whose own plan is refused for it. */
-function cabinetRefusedForPrice({
+/** Names the cabinet a refusal for a non-positive price is about, and says whether its price was already so. */
+function notPositivePreview(request: BulkPreviewRequest): BulkPreview {
+  const refused = cabinetsRefusedForPrice(request);
+  const held = refused.find(({ ruleId }) =>
+    isPriceHeldNotPositive(request.candidate, ruleId),
+  );
+  if (held !== undefined) {
+    return {
+      kind: "price-not-positive",
+      cabinetName: held.name,
+      isHeldAlready: true,
+    };
+  }
+  return { kind: "price-not-positive", cabinetName: refused[0]?.name };
+}
+
+/** The action's cabinets whose own plan is refused for a non-positive price. */
+function cabinetsRefusedForPrice({
   candidate,
   rows,
   target,
   percent,
-}: BulkPreviewRequest): CabinetRuleFacts | undefined {
-  return rows.find((row) => {
+}: BulkPreviewRequest): readonly CabinetRuleFacts[] {
+  return rows.filter((row) => {
     if (row.isCustomerSupplied || !isInTarget(row, target)) return false;
     const alone = planOf(
       candidate,
@@ -147,6 +165,15 @@ function cabinetRefusedForPrice({
     );
     return alone.kind === "refused" && alone.code === "PRICE_WOULD_BE_NEGATIVE";
   });
+}
+
+function isPriceHeldNotPositive(book: PriceBook, ruleId: string): boolean {
+  const rule = book.cabinetRules.find((held) => held.ruleId === ruleId);
+  return (
+    rule !== undefined &&
+    judgePricesOfRule(rule, priceDashboardCatalogue())?.code ===
+      "PRICE_NOT_POSITIVE"
+  );
 }
 
 function isInTarget(row: CabinetRuleFacts, target: BulkTarget): boolean {

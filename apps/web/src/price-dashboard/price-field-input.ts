@@ -1,6 +1,7 @@
 import {
   MAX_BULK_PERCENT,
   MAX_DEEP_CABINET_PERCENT,
+  MAX_PRICE_COEFFICIENT_MINOR,
   MIN_BULK_PERCENT,
   TEN_LEI_MINOR,
 } from "@lemnaria/configurator-domain";
@@ -8,11 +9,11 @@ import {
 // What a person types into a price or a percentage field, read before anything is sent. A value that is not one of these
 // is never sent: the field says why, in the words of `priceDashboard.errors` and `priceDashboard.bulk`, and stays where
 // it is. No float is parsed: an amount is whole bani counted from the digits, and a percentage is whole. A price is set
-// in whole tens of lei (ADR 0001, 2026-10-28 amendment): any other amount is refused, never rounded to one.
+// in whole tens of lei (ADR 0001, 2026-10-28 amendment): any other amount is refused, never rounded to one, except the
+// price already active, which a stored book may hold in any amount and which a person may type back.
 
 const BANI_PER_LEU = 100;
 const DECIMAL_PLACES = 2;
-const MAX_WHOLE_LEI_DIGITS = 13;
 const MINUS_SIGNS = /^[-−]/;
 const SIGNED_WHOLE_NUMBER = /^([-−+])?(\d+)$/;
 const WHITESPACE = /\s/g;
@@ -33,6 +34,28 @@ export type LeiInputReading =
 
 /** An amount in lei (a comma or a point before at most two decimals) as whole bani; only a multiple of 10 lei. */
 export function readLeiInput(text: string): LeiInputReading {
+  return refusingNonTens(readLeiAmount(text));
+}
+
+/** As `readLeiInput`, except that the active price is an amount whatever its size: the ten-lei rule is for new prices. */
+export function readLeiInputOverActive(
+  text: string,
+  activeMinor: number,
+): LeiInputReading {
+  const amount = readLeiAmount(text);
+  const isActive = amount.kind === "amount" && amount.minor === activeMinor;
+  return isActive ? amount : refusingNonTens(amount);
+}
+
+function refusingNonTens(reading: LeiInputReading): LeiInputReading {
+  const isNotTens =
+    reading.kind === "amount" && reading.minor % TEN_LEI_MINOR !== 0;
+  return isNotTens ? refusedLei("notMultipleOfTen") : reading;
+}
+
+/** An amount in lei as whole bani, up to the greatest the draft's own judgement takes. A digit string too long to be
+ *  counted exactly parses to a figure past that greatest, so it is refused with the rest. */
+function readLeiAmount(text: string): LeiInputReading {
   const typed = text.replace(WHITESPACE, "");
   if (typed === "") return refusedLei("empty");
   if (MINUS_SIGNS.test(typed)) return refusedLei("negative");
@@ -40,16 +63,12 @@ export function readLeiInput(text: string): LeiInputReading {
   if (shape === null) return refusedLei("notNumber");
   const [, wholeLei = "", decimals = ""] = shape;
   if (decimals.length > DECIMAL_PLACES) return refusedLei("tooManyDecimals");
-  if (wholeLei.replace(/^0+/, "").length > MAX_WHOLE_LEI_DIGITS) {
-    return refusedLei("tooBig");
-  }
   const minor =
     Number.parseInt(wholeLei, 10) * BANI_PER_LEU +
     Number.parseInt(decimals.padEnd(DECIMAL_PLACES, "0"), 10);
-  if (!Number.isSafeInteger(minor)) return refusedLei("tooBig");
-  return minor % TEN_LEI_MINOR === 0
-    ? { kind: "amount", minor }
-    : refusedLei("notMultipleOfTen");
+  return minor > MAX_PRICE_COEFFICIENT_MINOR
+    ? refusedLei("tooBig")
+    : { kind: "amount", minor };
 }
 
 function refusedLei(refusal: LeiInputRefusal): LeiInputReading {

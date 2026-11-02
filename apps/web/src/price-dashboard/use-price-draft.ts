@@ -30,7 +30,11 @@ export type FieldWriteResult =
   | { readonly kind: "candidate-refused" }
   /** Another write landed first. The state has been read again, and nothing was written. */
   | { readonly kind: "conflict" }
-  | { readonly kind: "failed" };
+  | { readonly kind: "failed" }
+  /** Another write is out, so this one was not sent. Not a failure: a screen shows nothing for it. */
+  | { readonly kind: "busy" }
+  /** The value is the one the draft already holds, so nothing was written. */
+  | { readonly kind: "unchanged" };
 
 export type BulkWriteResult =
   | {
@@ -41,7 +45,9 @@ export type BulkWriteResult =
   | { readonly kind: "refused"; readonly code: BulkRefusalCode }
   | { readonly kind: "candidate-refused" }
   | { readonly kind: "conflict" }
-  | { readonly kind: "failed" };
+  | { readonly kind: "failed" }
+  /** Another write is out, so this one was not sent. Not a failure: a screen shows nothing for it. */
+  | { readonly kind: "busy" };
 
 export interface BulkChangeInput {
   readonly target: BulkTargetWire;
@@ -126,7 +132,7 @@ export function usePriceDraft({
         );
         await settle(outcome, (written) => written);
         return fieldResultOf(outcome);
-      }, FAILED),
+      }, BUSY),
     [client, exclusively, settle],
   );
 
@@ -141,7 +147,7 @@ export function usePriceDraft({
         );
         await settle(outcome, (written) => written);
         return fieldResultOf(outcome);
-      }, FAILED),
+      }, BUSY),
     [client, exclusively, settle],
   );
 
@@ -156,7 +162,7 @@ export function usePriceDraft({
         );
         await settle(outcome, (written) => written.draft);
         return bulkResultOf(outcome);
-      }, FAILED),
+      }, BUSY),
     [client, exclusively, settle],
   );
 
@@ -164,6 +170,7 @@ export function usePriceDraft({
 }
 
 const FAILED = { kind: "failed" } as const;
+const BUSY = { kind: "busy" } as const;
 
 /** A client that throws is a write that failed: the screen is never left waiting on one. */
 async function sendOrFail<Code extends string, Written>(

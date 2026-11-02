@@ -1,9 +1,16 @@
+import {
+  readBulk,
+  type DraftBulk,
+  type DraftChange,
+} from "@lemnaria/configurator-domain";
+
 import { ownValueOf } from "@/staff/staff-kitchens-wire-reading";
 
 import type {
   BulkChangedWire,
   BulkChangeRequestWire,
   BulkRefusalCode,
+  DashboardBookPayload,
   DashboardDraftWire,
   DashboardStateWire,
   DraftChangeRefusalCode,
@@ -168,10 +175,46 @@ function isChange(value: unknown): boolean {
 /** The draft as the routes send it: a revision, and changes that each name an address. `applyChanges` judges the rest. */
 export function readDraftWire(body: unknown): DashboardDraftWire | undefined {
   const draftRevision = ownValueOf(body, "draftRevision");
-  const changes = ownValueOf(body, "changes");
-  if (typeof draftRevision !== "string") return undefined;
-  if (!Array.isArray(changes) || !changes.every(isChange)) return undefined;
-  return { draftRevision, changes: changes as DashboardDraftWire["changes"] };
+  const declared = ownValueOf(body, "changes");
+  if (typeof draftRevision !== "string" || !Array.isArray(declared)) {
+    return undefined;
+  }
+  const changes: DraftChange[] = [];
+  for (const change of declared as readonly unknown[]) {
+    const read = readChange(change);
+    if (read === undefined) return undefined;
+    changes.push(read);
+  }
+  return { draftRevision, changes };
+}
+
+/** A change rebuilt from the members a draft change declares, so what else the answer carried never reaches the screen. */
+function readChange(declared: unknown): DraftChange | undefined {
+  if (!isChange(declared)) return undefined;
+  const declaredBulk = ownValueOf(declared, "bulk");
+  const bulk =
+    declaredBulk === undefined ? undefined : readBulkOf(declaredBulk);
+  const groupId = ownValueOf(declared, "groupId");
+  const isBulkUnreadable = declaredBulk !== undefined && bulk === undefined;
+  const isGroupIdUnreadable =
+    groupId !== undefined && typeof groupId !== "string";
+  if (isBulkUnreadable || isGroupIdUnreadable) return undefined;
+  return {
+    address: ownValueOf(declared, "address"),
+    value: ownValueOf(declared, "value"),
+    ...(groupId === undefined ? {} : { groupId }),
+    ...(bulk === undefined ? {} : { bulk }),
+  } as DraftChange;
+}
+
+/** The bulk action's own three members, judged by the domain; a member beside them is dropped. */
+function readBulkOf(declared: unknown): DraftBulk | undefined {
+  const groupCode = ownValueOf(declared, "groupCode");
+  return readBulk({
+    percent: ownValueOf(declared, "percent"),
+    scope: ownValueOf(declared, "scope"),
+    ...(groupCode === undefined ? {} : { groupCode }),
+  });
 }
 
 function readBulkChangedWire(body: unknown): BulkChangedWire | undefined {
@@ -195,15 +238,28 @@ export function readDashboardStateWire(
   const active = ownValueOf(body, "active");
   const draft = readDraftWire(ownValueOf(body, "draft"));
   if (draft === undefined || !isRecord(active)) return undefined;
-  const hasBook =
-    isRecord(ownValueOf(active, "book")) &&
-    isRecord(ownValueOf(active, "availability"));
-  const hasFacts =
-    typeof ownValueOf(active, "versionId") === "string" &&
-    typeof ownValueOf(active, "sequenceNumber") === "number" &&
-    typeof ownValueOf(active, "label") === "string" &&
-    typeof ownValueOf(active, "publishedAt") === "string";
-  return hasBook && hasFacts
-    ? ({ active, draft } as unknown as DashboardStateWire)
-    : undefined;
+  const book = ownValueOf(active, "book");
+  const availability = ownValueOf(active, "availability");
+  const versionId = ownValueOf(active, "versionId");
+  const sequenceNumber = ownValueOf(active, "sequenceNumber");
+  const label = ownValueOf(active, "label");
+  const publishedAt = ownValueOf(active, "publishedAt");
+  if (!isRecord(book) || !isRecord(availability)) return undefined;
+  if (typeof versionId !== "string" || typeof sequenceNumber !== "number") {
+    return undefined;
+  }
+  if (typeof label !== "string" || typeof publishedAt !== "string") {
+    return undefined;
+  }
+  return {
+    active: {
+      versionId,
+      sequenceNumber,
+      label,
+      publishedAt,
+      book: book as DashboardBookPayload["book"],
+      availability: availability as DashboardBookPayload["availability"],
+    },
+    draft,
+  };
 }

@@ -20,8 +20,8 @@ import { pricedRowOf, type PricedRow } from "./priced-row.js";
 // scale), and neither is any percentage.
 //
 // The plan lists every amount in scope, ones that round back to their current value included: the caller (R2's bulk
-// route) drops those and refuses an action that leaves none. `scope` counts what the dialog's preview names
-// ("22 dulapuri, 64 prețuri"), `changed` what the plan really changes.
+// route) drops those and refuses an action that leaves none. `scope` counts everything in scope, `changed` what the
+// plan really changes and the route writes ("22 dulapuri, 64 prețuri" in the dialog's preview and the audit entry).
 
 /** The least and greatest whole percentage a bulk action may apply. Architect's bounds (the plan's M2-a), not a
  *  business figure: −90 % keeps every price a tenth of itself and 300 % quadruples it, and a price the book cannot

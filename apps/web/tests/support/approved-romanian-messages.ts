@@ -1902,6 +1902,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         noCabinets: "Bifează cel puțin un dulap.",
         priceNotPositive:
           "Prețul dulapului „{name}” ar ieși zero sau negativ. Alege un procent mai mic sau scoate dulapul din alegere.",
+        priceAlreadyNotPositive:
+          "Prețul dulapului „{name}” este deja zero sau negativ. Corectează mai întâi prețul, apoi aplică procentul.",
         priceTooLarge:
           "Un preț ar depăși cât poate costa un dulap. Alege un procent mai mic.",
         cannotApply:

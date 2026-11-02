@@ -55,7 +55,9 @@ export function DepthRuleCard({
   const isPending = pendingPercent !== activePercent;
   const value = typed ?? String(pendingPercent);
   const reading = readDepthPercentInput(value);
-  const isChanged = typed !== undefined && typed !== String(pendingPercent);
+  const isChanged =
+    typed !== undefined &&
+    !(reading.kind === "percent" && reading.percent === pendingPercent);
   const error =
     reading.kind === "refused"
       ? depthPercentRefusalWords(translate, reading.refusal)
@@ -66,7 +68,10 @@ export function DepthRuleCard({
   const save = async () => {
     if (reading.kind !== "percent" || isBusy) return;
     const result = await onSave(reading.percent);
-    if (result.kind === "saved") {
+    if (result.kind === "busy") return;
+    if (result.kind === "unchanged") {
+      setTyped(undefined);
+    } else if (result.kind === "saved") {
       setTyped(undefined);
       setFeedback({ kind: "saved" });
     } else {

@@ -44,7 +44,7 @@ function listAfter(changes: readonly DraftChange[]): {
 }
 
 describe("an action that changes prices", () => {
-  it("counts the cabinets and prices M2's plan names, over every cabinet", () => {
+  it("counts the cabinets and prices the plan changes, not those it only scales back to what they are, over every cabinet", () => {
     const { candidate, rows } = listAfter([]);
     const plan = planBulkChange({
       book: candidate,
@@ -61,10 +61,15 @@ describe("an action that changes prices", () => {
     });
 
     expect(plan.kind).toBe("planned");
+    if (plan.kind !== "planned") return;
+    expect(
+      plan.changed.amountCount,
+      "5 % must leave some amounts rounding back, or the counts below are not told apart",
+    ).toBeLessThan(plan.scope.amountCount);
     expect(preview).toMatchObject({
       kind: "ready",
-      cabinetCount: plan.kind === "planned" ? plan.scope.ruleCount : -1,
-      priceCount: plan.kind === "planned" ? plan.scope.amountCount : -1,
+      cabinetCount: plan.changed.ruleCount,
+      priceCount: plan.changed.amountCount,
     });
   });
 
@@ -199,7 +204,7 @@ describe("an action every price of which rounds back to what it is", () => {
 });
 
 describe("an action that cannot be applied", () => {
-  it("names the cabinet whose price would be zero or less, and no other", () => {
+  it("names the cabinet whose price the draft already holds at zero, says it was so before the percentage, and names no other", () => {
     const { candidate, rows } = listAfter([
       field(BASE_CABINET_RULE, "anchorMinor", 0),
       field(BASE_CABINET_RULE, "perStepWiderMinor", 0),
@@ -212,6 +217,28 @@ describe("an action that cannot be applied", () => {
       rows,
       target: { scope: "all" },
       percent: 5,
+    });
+
+    expect(preview).toEqual({
+      kind: "price-not-positive",
+      cabinetName: rows.find((row) => row.ruleId === BASE_CABINET_RULE)?.name,
+      isHeldAlready: true,
+    });
+  });
+
+  it("names the cabinet a percentage drives to zero, without saying its price was zero already", () => {
+    const { candidate, rows } = listAfter([
+      field(BASE_CABINET_RULE, "anchorMinor", SMALL_ANCHOR_MINOR),
+      field(BASE_CABINET_RULE, "perStepWiderMinor", 0),
+      field(BASE_CABINET_RULE, "perStepNarrowerMinor", 0),
+      field(BASE_CABINET_RULE, "perExtraDoorLeafMinor", 0),
+    ]);
+
+    const preview = previewBulk({
+      candidate,
+      rows,
+      target: { scope: "all" },
+      percent: -90,
     });
 
     expect(preview).toEqual({

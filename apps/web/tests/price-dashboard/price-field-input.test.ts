@@ -13,6 +13,7 @@ import {
   readBulkPercentInput,
   readDepthPercentInput,
   readLeiInput,
+  readLeiInputOverActive,
 } from "@/price-dashboard/price-field-input";
 
 const NBSP = " ";
@@ -175,5 +176,30 @@ describe("a bulk percentage", () => {
     const reading = readBulkPercentInput("-0");
 
     expect(reading.kind).toBe("refused");
+  });
+});
+
+describe("an amount in lei typed over the active price", () => {
+  const LEGACY_ACTIVE_MINOR = 396_050;
+
+  it("reads the active price as an amount although it is not a whole ten of lei", () => {
+    expect(readLeiInputOverActive("3960,50", LEGACY_ACTIVE_MINOR)).toEqual({
+      kind: "amount",
+      minor: LEGACY_ACTIVE_MINOR,
+    });
+  });
+
+  it("still refuses any other amount that is not a whole ten of lei, the active price beside it or not", () => {
+    for (const typed of ["3960,60", "3961", "12,5"]) {
+      expect(readLeiInputOverActive(typed, LEGACY_ACTIVE_MINOR), typed).toEqual(
+        { kind: "refused", refusal: "notMultipleOfTen" },
+      );
+    }
+  });
+
+  it("reads a whole ten of lei as it does without an active price", () => {
+    expect(readLeiInputOverActive("3960", LEGACY_ACTIVE_MINOR)).toEqual(
+      readLeiInput("3960"),
+    );
   });
 });

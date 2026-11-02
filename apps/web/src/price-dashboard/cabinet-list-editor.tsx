@@ -72,7 +72,7 @@ export function CabinetListEditor({
       );
       return holdsChange
         ? revert({ kind: "change", address: wanted.address })
-        : Promise.resolve({ kind: "saved" });
+        : Promise.resolve({ kind: "unchanged" });
     },
     [state.draft.changes, change, revert],
   );

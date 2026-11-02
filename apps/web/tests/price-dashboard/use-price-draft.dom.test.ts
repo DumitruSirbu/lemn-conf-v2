@@ -189,7 +189,7 @@ describe("one write at a time", () => {
       });
     });
 
-    expect(second).toEqual({ kind: "failed" });
+    expect(second).toEqual({ kind: "busy" });
     expect(draft.result.current.isBusy).toBe(true);
     expect(server.calls).toHaveLength(1);
 

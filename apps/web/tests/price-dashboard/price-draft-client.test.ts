@@ -216,3 +216,51 @@ describe("the readers", () => {
     }
   });
 });
+
+describe("the readers keep only the members the wire declares", () => {
+  const ANCHOR = {
+    kind: "cabinet" as const,
+    ruleId: "cabinet.base-cabinet",
+    field: "anchorMinor" as const,
+  };
+  const BULK = { percent: 5, scope: "group" as const, groupCode: "base" };
+
+  it("hands on a change's address, value, group and bulk, and nothing else the answer carried", () => {
+    const draft = readDraftWire({
+      draftRevision: "7",
+      editor: "editor@example.test",
+      changes: [
+        {
+          address: ANCHOR,
+          value: 400_000,
+          groupId: "group-1",
+          bulk: { ...BULK, author: "author@example.test" },
+          authorEmail: "author@example.test",
+        },
+      ],
+    });
+
+    expect(draft).toEqual({
+      draftRevision: "7",
+      changes: [
+        { address: ANCHOR, value: 400_000, groupId: "group-1", bulk: BULK },
+      ],
+    });
+  });
+
+  it("takes a draft whose bulk action is not the shape of one as no draft", () => {
+    expect(
+      readDraftWire({
+        draftRevision: "7",
+        changes: [
+          {
+            address: ANCHOR,
+            value: 400_000,
+            groupId: "group-1",
+            bulk: { percent: 5.5, scope: "all" },
+          },
+        ],
+      }),
+    ).toBeUndefined();
+  });
+});

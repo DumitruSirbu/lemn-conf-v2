@@ -81,6 +81,7 @@ export function BulkChangeDialog({
   returnFocusFallbackRef,
 }: BulkChangeDialogProps) {
   const translate = useTranslations();
+  const noCabinetsId = useId();
   const percentRef = useRef<HTMLInputElement>(null);
   const priced = useMemo(
     () => rows.filter((row) => !row.isCustomerSupplied),
@@ -131,6 +132,7 @@ export function BulkChangeDialog({
       target,
       percent: reading.percent,
     });
+    if (result.kind === "busy") return;
     setIsSending(false);
     if (result.kind === "saved") onClose();
     else setFailure(result);
@@ -168,13 +170,19 @@ export function BulkChangeDialog({
           <GroupSelect
             groups={groups}
             value={groupCode}
-            onChange={setGroupCode}
+            onChange={(next) => {
+              setGroupCode(next);
+              setFailure(undefined);
+            }}
           />
         ) : null}
         {scope === "selection" ? (
           <CabinetChecklist
             rows={priced}
             ticked={ticked}
+            describedBy={
+              preview?.kind === "no-cabinets" ? noCabinetsId : undefined
+            }
             onToggle={(ruleId) => {
               setTicked((held) => toggled(held, ruleId));
               setFailure(undefined);
@@ -182,7 +190,7 @@ export function BulkChangeDialog({
           />
         ) : null}
         {preview?.kind === "no-cabinets" ? (
-          <InlineRefusal>
+          <InlineRefusal id={noCabinetsId}>
             {bulkPreviewRefusalWords(translate, preview)}
           </InlineRefusal>
         ) : null}
@@ -367,10 +375,12 @@ function GroupSelect({
 function CabinetChecklist({
   rows,
   ticked,
+  describedBy,
   onToggle,
 }: {
   readonly rows: readonly CabinetRuleFacts[];
   readonly ticked: ReadonlySet<string>;
+  readonly describedBy: string | undefined;
   readonly onToggle: (ruleId: string) => void;
 }) {
   const translate = useTranslations();
@@ -378,6 +388,7 @@ function CabinetChecklist({
     <ul
       className={styles.cabinetChecklist}
       aria-label={translate("priceDashboard.bulk.scopeSelected")}
+      aria-describedby={describedBy}
     >
       {rows.map((row) => (
         <li key={row.ruleId}>

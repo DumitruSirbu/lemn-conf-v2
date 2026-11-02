@@ -17,13 +17,16 @@ import {
   priceWriteFailureWords,
   type FailedFieldWrite,
 } from "./price-input-words";
-import { readLeiInput } from "./price-field-input";
+import { readLeiInputOverActive } from "./price-field-input";
 import styles from "./price-edit.module.css";
 import type { FieldWriteResult } from "./use-price-draft";
 
 // Frame D2C: the price at the default size changes in the table. A press on the price opens its field; Enter sends the
 // value to "De publicat", Escape closes the field and sends nothing. A value that is not an amount is never sent: the
-// field keeps it, says why under itself and stays open. So does a value the server refused, in the same place.
+// field keeps it, says why under itself and stays open. So does a value the server refused, in the same place, unless the
+// person has since closed the field, opened it again or typed over the text: an answer to a value no longer in the field
+// is ignored. A price already active is never refused for its size, so a stored price that is not a whole ten of lei can
+// be opened, closed and typed back.
 
 /** What the list is given where it can change a price: the one write, and whether another is out. */
 export interface PriceEditing {
@@ -61,6 +64,7 @@ export function EditablePrice({
     undefined,
   );
   const [isFocusOwed, setIsFocusOwed] = useState(false);
+  const moveCountRef = useRef(0);
   const isOpen = typed !== undefined;
 
   useEffect(() => {
@@ -68,14 +72,20 @@ export function EditablePrice({
       inputRef.current?.focus();
       inputRef.current?.select();
     } else if (isFocusOwed) {
-      buttonRef.current?.focus();
+      if (isFocusFreeToReturn(buttonRef.current)) buttonRef.current?.focus();
       setIsFocusOwed(false);
     }
   }, [isOpen, isFocusOwed]);
 
-  const close = () => {
-    setTyped(undefined);
+  /** Opening, typing and closing each make an answer still on its way an answer to a field that is no longer this one. */
+  const moveOn = () => {
+    moveCountRef.current += 1;
     setRefusal(undefined);
+  };
+
+  const close = () => {
+    moveOn();
+    setTyped(undefined);
     setIsFocusOwed(true);
   };
 
@@ -90,6 +100,7 @@ export function EditablePrice({
             name: cabinetName,
           })}
           onClick={() => {
+            moveOn();
             setTyped(plainLeiOf(field.pendingMinor));
           }}
         >
@@ -101,7 +112,7 @@ export function EditablePrice({
     );
   }
 
-  const reading = readLeiInput(typed);
+  const reading = readLeiInputOverActive(typed, field.activeMinor);
   const error =
     reading.kind === "refused"
       ? leiRefusalWords(translate, reading.refusal)
@@ -115,8 +126,11 @@ export function EditablePrice({
       close();
       return;
     }
+    const moveCountWhenSent = moveCountRef.current;
     const result = await editing.saveAnchor(field, reading.minor);
-    if (result.kind === "saved") close();
+    if (result.kind === "busy") return;
+    if (moveCountRef.current !== moveCountWhenSent) return;
+    if (result.kind === "saved" || result.kind === "unchanged") close();
     else setRefusal(result);
   };
 
@@ -141,8 +155,8 @@ export function EditablePrice({
       error={error}
       isPending={field.pendingMinor !== field.activeMinor}
       onChange={(next) => {
+        moveOn();
         setTyped(next);
-        setRefusal(undefined);
       }}
       onKeyDown={onKeyDown}
     />
@@ -152,4 +166,11 @@ export function EditablePrice({
 /** The amount as a person types it back: the grouping spaces of `formatLeiAmount` left out. */
 function plainLeiOf(minor: number): string {
   return formatLeiAmount(minor).replace(/\s/g, "");
+}
+
+/** Focus returns to the price only from nowhere or from this row: a person who went to another field keeps it. */
+function isFocusFreeToReturn(button: HTMLElement | null): boolean {
+  const focused = document.activeElement;
+  if (focused === null || focused === document.body) return true;
+  return button?.closest("li")?.contains(focused) ?? false;
 }
