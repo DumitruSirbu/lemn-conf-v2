@@ -203,7 +203,7 @@ function Dimension({
       </dt>
       <dd className={styles.dimensionValue}>{children}</dd>
       {hint === undefined ? null : (
-        <span className={styles.dimensionHint}>{hint}</span>
+        <dd className={styles.dimensionHint}>{hint}</dd>
       )}
     </div>
   );
@@ -247,11 +247,7 @@ function Facts({ facts }: { readonly facts: CabinetDetailFacts }) {
         <DoorsValue translate={translate} doors={facts.doors} />
       </Fact>
       <Fact name={translate("priceDashboard.cabinet.drawers")}>
-        {facts.drawers === 0 ? (
-          <span className={styles.noValue} />
-        ) : (
-          String(facts.drawers)
-        )}
+        {String(facts.drawers)}
       </Fact>
       <Fact name={translate("priceDashboard.cabinet.hasHandle")}>
         {yesOrNo(facts.hasHandle)}
@@ -287,7 +283,7 @@ function DoorsValue({
 }) {
   switch (doors.kind) {
     case "none":
-      return <span className={styles.noValue} />;
+      return translate("priceDashboard.cabinet.doorCount", { doorCount: 0 });
     case "fixed":
       return translate("priceDashboard.cabinet.doorCount", {
         doorCount: doors.leaves,

@@ -321,7 +321,11 @@ function PreviewLine({
               kind: active,
             })}
           >
-            {formatLei(cell.activeMinor, currency)}
+            {cell.activeMinor === undefined ? (
+              <span className={styles.noValue} />
+            ) : (
+              formatLei(cell.activeMinor, currency)
+            )}
           </td>,
           <td
             role="cell"

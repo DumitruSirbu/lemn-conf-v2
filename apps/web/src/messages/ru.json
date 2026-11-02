@@ -1542,7 +1542,6 @@
       "widthRoundedUp": "{widthMm, number, ::group-off} → как {roundedMm, number, ::group-off}",
       "doorCount": "{doorCount, plural, one {{doorCount, number, ::group-off} дверь} few {{doorCount, number, ::group-off} двери} many {{doorCount, number, ::group-off} дверей} other {{doorCount, number, ::group-off} двери}}",
       "doorsFromHere": "отсюда {doorCount, plural, one {# дверь} few {{doorCount, number, ::group-off} двери} many {{doorCount, number, ::group-off} дверей} other {{doorCount, number, ::group-off} двери}}",
-      "activeCell": "действует {amount}",
       "pendingNotice": "Новая цена в «К публикации» и вступит в силу после публикации.",
       "customerSupplied": "Клиент предоставляет этот предмет; на цену не влияет.",
       "hoodNote": "Для встраиваемой вытяжки в каталоге пока нет шкафа. До тех пор любая вытяжка остаётся вне цены.",

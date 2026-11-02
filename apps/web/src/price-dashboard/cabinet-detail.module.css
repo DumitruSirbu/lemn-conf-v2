@@ -210,6 +210,7 @@
 }
 
 .dimensionHint {
+  margin: 0;
   font: 400 11.5px/1.35 var(--font-ui);
   color: var(--ink-muted);
 }
@@ -319,6 +320,11 @@
   background: var(--warm-surface);
   border: 1px solid var(--warm-edge);
   border-radius: 12px;
+}
+
+.saved:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
 }
 
 .savedText {

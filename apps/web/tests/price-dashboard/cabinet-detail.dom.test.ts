@@ -520,7 +520,7 @@ describe("Save", () => {
     );
   });
 
-  it("writes first the amount that keeps every width above zero, so no half of a pair is refused", async () => {
+  it("writes first the amount that keeps every width above zero, so a failure between the pair leaves a draft that can be published", async () => {
     const { container, server } = await mount(BASE_RULE);
     typeInField(container, ANCHOR_LABEL, "1500");
     typeInField(container, MINUS_LABEL, "0");

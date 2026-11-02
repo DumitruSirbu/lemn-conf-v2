@@ -108,6 +108,7 @@ export function EditablePrice({
           <span>{figure}</span>
           <span className={styles.pencil} aria-hidden="true" />
         </button>
+        <span className={styles.priceText}>{figure}</span>
         {basis}
       </>
     );

@@ -281,7 +281,7 @@ describe("the table beside the price", () => {
     );
 
     const priceAt = (table: typeof without, index: number) =>
-      atIndex(atIndex(table?.rows ?? [], index).cells, 0).activeMinor;
+      atIndex(atIndex(table?.rows ?? [], index).cells, 0).activeMinor ?? 0;
     expect(without?.rows.length).toBeGreaterThan(0);
     expect(
       (withHardware?.rows ?? []).every(

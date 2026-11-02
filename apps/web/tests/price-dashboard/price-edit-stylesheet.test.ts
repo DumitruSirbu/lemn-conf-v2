@@ -66,19 +66,21 @@ describe("what the fields look like", () => {
     expect(css).not.toMatch(/content:\s*"[^"\\/]/);
   });
 
-  it("keeps the price a button in the table, and below 900 px a figure the card's link opens the cabinet from", () => {
-    expect(valuesFor(css, "priceButton", "display")).toEqual(["inline-flex"]);
-    expect(
-      declarationsFor(css, "priceButton", "pointer-events").map((d) => [
-        d.media,
-        d.value,
-      ]),
-    ).toEqual([[PHONE, "none"]]);
-    expect(
-      declarationsFor(css, "pencil", "display").map((d) => [d.media, d.value]),
-    ).toEqual([
-      ["", "inline-block"],
+  it("keeps the price a button in the table, and below 900 px leaves it out of the tree for the same figure as plain text", () => {
+    const displayOf = (className: string) =>
+      declarationsFor(css, className, "display").map((d) => [d.media, d.value]);
+
+    expect(displayOf("priceButton")).toEqual([
+      ["", "inline-flex"],
       [PHONE, "none"],
     ]);
+    expect(displayOf("priceText")).toEqual([
+      ["", "none"],
+      [PHONE, "inline"],
+    ]);
+    expect(
+      declarationsFor(css, "priceButton", "pointer-events"),
+      "a button hidden by pointer-events stays in the tab order",
+    ).toEqual([]);
   });
 });

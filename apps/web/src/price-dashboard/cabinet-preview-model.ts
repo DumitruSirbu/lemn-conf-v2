@@ -46,7 +46,8 @@ export type PreviewColumn =
     };
 
 export interface PreviewCell {
-  readonly activeMinor: number;
+  /** Absent where the active version prices the width at or below zero, which no screen draws as a figure. */
+  readonly activeMinor: number | undefined;
   /** The price the typed amounts make; absent while they make none. */
   readonly nextMinor: number | undefined;
 }
@@ -101,7 +102,7 @@ export function previewTableOf(
       doorLeaves: row.doorLeaves,
       isDoorStep: row.isDoorStep,
       cells: lines.map(({ active, next }) => ({
-        activeMinor: active[index]?.priceMinor ?? 0,
+        activeMinor: drawablePriceOf(active[index]),
         nextMinor: next?.[index]?.priceMinor,
       })),
     })),
@@ -204,6 +205,10 @@ function lineOf(
 /** A price the table can write: the screen never draws a figure that is not a count of bani. */
 function isDrawable(row: PreviewRow): boolean {
   return isCountOfBani(row.priceMinor);
+}
+
+function drawablePriceOf(row: PreviewRow | undefined): number | undefined {
+  return row !== undefined && isDrawable(row) ? row.priceMinor : undefined;
 }
 
 function rowsIn(

@@ -60,7 +60,8 @@
 }
 
 /* The price, as a button that opens its field. The frame draws no field on a phone, where the whole card opens the
- * cabinet's own page and the price is changed there: below 900 px the button is a figure to read, not a control. */
+ * cabinet's own page and the price is changed there: below 900 px the button is left out of the tree (a button hidden
+ * by `pointer-events` stays in the tab order) and `.priceText`, the same figure as plain text, takes its place. */
 .priceButton {
   display: inline-flex;
   gap: 8px;
@@ -95,16 +96,19 @@
   outline-offset: 2px;
 }
 
+.priceText {
+  display: none;
+  font: 700 14px/1.3 var(--font-ui);
+  color: var(--ink);
+}
+
 @media (max-width: 899.98px) {
   .priceButton {
-    min-height: 0;
-    padding: 0;
-    margin-inline-start: 0;
-    pointer-events: none;
+    display: none;
   }
 
-  .pencil {
-    display: none;
+  .priceText {
+    display: inline;
   }
 }
 

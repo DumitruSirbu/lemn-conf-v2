@@ -1542,7 +1542,6 @@
       "widthRoundedUp": "{widthMm, number, ::group-off} → ca {roundedMm, number, ::group-off}",
       "doorCount": "{doorCount, plural, one {{doorCount, number, ::group-off} ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
       "doorsFromHere": "de aici {doorCount, plural, one {o ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
-      "activeCell": "activ {amount}",
       "pendingNotice": "Prețul nou este în „De publicat” și intră în vigoare când publici.",
       "customerSupplied": "Clientul oferă acest obiect; nu influențează prețul.",
       "hoodNote": "Pentru hota încorporată lipsește încă dulapul ei din catalog. Până atunci, orice hotă rămâne în afara prețului.",

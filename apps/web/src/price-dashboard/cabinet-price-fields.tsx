@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 
 import { PRICE_STEP_MM } from "@lemnaria/configurator-domain";
 
@@ -188,9 +189,22 @@ function SaveBar({
   readonly hasError: boolean;
 }) {
   const translate = useTranslations();
-  if (editing.feedback.kind === "saved" && !editing.isChanged) {
+  const savedNoticeRef = useRef<HTMLDivElement>(null);
+  const isSaved = editing.feedback.kind === "saved" && !editing.isChanged;
+  useEffect(() => {
+    // Save leaves the page with the notice that replaces it; focus lost with it goes to the notice, not the body.
+    if (isSaved && document.activeElement === document.body) {
+      savedNoticeRef.current?.focus();
+    }
+  }, [isSaved]);
+  if (isSaved) {
     return (
-      <div className={styles.saved} role="status">
+      <div
+        ref={savedNoticeRef}
+        tabIndex={-1}
+        className={styles.saved}
+        role="status"
+      >
         <p className={styles.savedText}>
           {translate("priceDashboard.common.priceSavedNotice")}
         </p>

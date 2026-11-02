@@ -287,9 +287,9 @@ export interface PlannedWrite {
 }
 
 /**
- * The writes a Save sends, one per changed field. The draft takes one change per write, so the order matters: the
- * server judges each against the draft as it then stands, and a half of two changes can price a width at zero that both
- * together do not. Each write is taken from the first remaining one that keeps every price of the rule above zero.
+ * The writes a Save sends, one per changed field. The draft takes one change per write and the server does not judge a
+ * half of two changes, so a write that fails part-way leaves the draft holding the writes before it. Each write is taken
+ * from the first remaining one that keeps every price of the rule above zero, so that draft can always be published.
  */
 export function plannedWritesOf(
   candidate: PriceBook,
@@ -300,10 +300,12 @@ export function plannedWritesOf(
   const planned: PlannedWrite[] = [];
   let running = candidate;
   while (remaining.length > 0) {
-    const pick = Math.max(
-      0,
-      remaining.findIndex((write) => isSafeAfter(running, ruleId, write)),
+    const firstSafe = remaining.findIndex((write) =>
+      isSafeAfter(running, ruleId, write),
     );
+    // A Save is offered only for a publishable end state, so no write safe alone means a pair safe only together: the
+    // writes go in the order typed (a `-1` would make `splice` take the last).
+    const pick = firstSafe === -1 ? 0 : firstSafe;
     const [write] = remaining.splice(pick, 1);
     if (write === undefined) break;
     planned.push(write);

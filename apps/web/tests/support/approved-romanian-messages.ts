@@ -2008,7 +2008,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "{doorCount, plural, one {{doorCount, number, ::group-off} ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
       doorsFromHere:
         "de aici {doorCount, plural, one {o ușă} few {{doorCount, number, ::group-off} uși} other {{doorCount, number, ::group-off} uși}}",
-      activeCell: "activ {amount}",
       pendingNotice:
         "Prețul nou este în „De publicat” și intră în vigoare când publici.",
       customerSupplied: "Clientul oferă acest obiect; nu influențează prețul.",
