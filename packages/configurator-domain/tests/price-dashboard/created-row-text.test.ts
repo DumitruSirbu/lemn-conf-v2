@@ -259,9 +259,9 @@ describe("a text may not state an amount, a percentage or an inclusion (ADR 0106
   });
 });
 
-// eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
+// eslint-disable-next-line no-restricted-syntax -- a Romanian letter the text rule must judge
 const S_COMMA = "\u0219";
-// eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
+// eslint-disable-next-line no-restricted-syntax -- a Romanian letter the text rule must judge
 const T_COMMA = "\u021b";
 
 describe('"euro" states an amount only after its number', () => {
