@@ -218,7 +218,10 @@ describe("a number beside a money unit is refused, whatever the digits, grouping
         aPlainWord,
         fc.constantFrom<CreatedRowTextField>(...FIELDS),
         (amount, unit, spacer, isUnitFirst, word, field) => {
-          const stated = isUnitFirst
+          // "Euro 450" names a model, so "euro" states an amount only after its number.
+          const isUnitBeforeNumber =
+            isUnitFirst && unit.toLowerCase() !== "euro";
+          const stated = isUnitBeforeNumber
             ? `${unit}${spacer}${amount}`
             : `${amount}${spacer}${unit}`;
 

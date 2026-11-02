@@ -199,6 +199,11 @@ export const ACCESSORY_IDS: readonly AccessoryId[] = [
   "dishDryingRack",
 ];
 
+/** Whether `id` names one of the two accessories code declares, as against a linked accessory the dashboard created. */
+export function isBuiltInAccessoryId(id: string): id is AccessoryId {
+  return (ACCESSORY_IDS as readonly string[]).includes(id);
+}
+
 /** One whole-kitchen choice: the tiers on offer and the one a design that has chosen nothing is
  *  priced at. */
 export interface TierGroup<TTier extends TierIdentity> {

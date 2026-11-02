@@ -1,5 +1,5 @@
 import { isSameItem, type ItemRef } from "../pricing/catalogue-availability.js";
-import { ACCESSORY_IDS } from "../pricing/price-book.js";
+import { isBuiltInAccessoryId } from "../pricing/price-book.js";
 
 import type { DraftChange } from "./book-field-address.js";
 import type { DefaultsContext } from "./defaults-judgement.js";
@@ -63,7 +63,6 @@ type DeletableItem = Extract<
 >;
 
 function isDeletableKind(item: ItemRef): item is DeletableItem {
-  if (item.kind === "accessory")
-    return !(ACCESSORY_IDS as readonly string[]).includes(item.accessoryId);
+  if (item.kind === "accessory") return !isBuiltInAccessoryId(item.accessoryId);
   return item.kind === "hardware" || item.kind === "material";
 }

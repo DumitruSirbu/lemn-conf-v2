@@ -16,7 +16,6 @@ export {
 export * from "./apply-changes.js";
 export * from "./diff-books.js";
 export {
-  type AbsentText,
   type LinkDiffRow,
   type RowDiffRow,
   type StructuralDiffRow,
@@ -77,13 +76,7 @@ export {
   type CreatedRowTextRefusalCode,
   type AuthoredTextRefusalCode,
 } from "./created-row-text.js";
-export {
-  STRUCTURAL_ADDRESS_KINDS,
-  hardwareRatesOf,
-  isStructuralAddress,
-  type StructuralAddress,
-  type StructuralAddressKind,
-} from "./structural-changes.js";
+export { hardwareRatesOf, isStructuralAddress } from "./structural-changes.js";
 export { createdItemsOf, deletedItemsOf } from "./draft-structure.js";
 export {
   judgeDeletionsAtPublish,

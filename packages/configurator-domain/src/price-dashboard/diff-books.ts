@@ -1,6 +1,7 @@
 import { isRecord } from "../pricing/book-reading.js";
 import type { PriceBook } from "../pricing/price-book.js";
 
+import { ABSENT_VALUE, type AbsentValue } from "./absent-value.js";
 import { addressKey } from "./address-key.js";
 import { readBulk } from "./apply-changes.js";
 import type { DraftBulk, DraftChange } from "./book-field-address.js";
@@ -33,11 +34,7 @@ export const DIFF_SECTIONS = Object.freeze([
 ] as const);
 export type DiffSection = (typeof DIFF_SECTIONS)[number];
 
-/** A side of a row that has no value: the field is not in that book (D8's new depth rule reads "Regulă nouă", before "—"). */
-export interface AbsentValue {
-  readonly kind: "absent";
-}
-export const ABSENT_VALUE: AbsentValue = Object.freeze({ kind: "absent" });
+export { ABSENT_VALUE, type AbsentValue };
 
 export type DiffValue = FieldValue | AbsentValue;
 

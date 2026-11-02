@@ -450,6 +450,7 @@ function refuseUnreadableWords(
       named: `${named} description`,
       maxLength: MAX_BOOK_DESCRIPTION_LENGTH,
     }) ??
+    refuseUnsoundUnkeyedDescription(declared, named) ??
     refuseUnusableTextKey(declared, named, "nameKey") ??
     refuseUnusableTextKey(declared, named, "descriptionKey")
   );
@@ -475,6 +476,19 @@ function refuseUnsoundUnkeyedName(
   return invalidBook(
     `The ${named} declares a blank "name" and names no "nameKey", so it would render nothing`,
   );
+}
+
+/** A description naming no catalogue leaf renders as typed, so it is held to the characters a name is. It may be empty:
+ *  a created class states none. */
+function refuseUnsoundUnkeyedDescription(
+  declared: Record<string, unknown>,
+  named: string,
+): PricingFailure | undefined {
+  if (readDeclared(declared, "descriptionKey") !== undefined) return undefined;
+  return refuseUnreadableAuthoredText(readDeclared(declared, "description"), {
+    named: `${named} description`,
+    maxLength: MAX_BOOK_DESCRIPTION_LENGTH,
+  });
 }
 
 /**

@@ -6,6 +6,7 @@ import type {
   PriceBook,
 } from "../pricing/price-book.js";
 
+import { ABSENT_VALUE, type AbsentValue } from "./absent-value.js";
 import { addressKey } from "./address-key.js";
 import type {
   AddressOfKind,
@@ -20,11 +21,6 @@ import { linkedAccessoriesOf } from "./editable-fields.js";
 // created class are the `hardware` field rows beside this one, and a deleted row's rates are field rows that end
 // absent: reverting any of them reverts the deletion (`withoutRow`). A linked accessory that now follows another
 // catalogue row has a link row.
-
-/** A side of a text row with no text: a description the row does not state. */
-export interface AbsentText {
-  readonly kind: "absent";
-}
 
 /** A hardware class or a linked accessory the second book states and the first does not, or an item the first states
  *  and the second does not. Its words are those of the book that states it. */
@@ -58,8 +54,8 @@ export interface TextDiffRow {
   readonly address: AddressOfKind<"created-row-text">;
   readonly item: CreatedRowItemRef;
   readonly field: CreatedRowTextField;
-  readonly before: string | AbsentText;
-  readonly after: string | AbsentText;
+  readonly before: string | AbsentValue;
+  readonly after: string | AbsentValue;
 }
 
 /** The catalogue row a linked accessory follows, where the two books state it differently (A-19). Like a text row it
@@ -91,8 +87,12 @@ export function structuralRowsOf(
   const before = statedRowsOf(books.before);
   const after = statedRowsOf(books.after);
   return [
-    ...after.filter((row) => !isStatedIn(before, row.item)).flatMap(createdRow),
-    ...before.filter((row) => !isStatedIn(after, row.item)).flatMap(deletedRow),
+    ...after
+      .filter((row) => statedRowFor(before, row.item) === undefined)
+      .flatMap(createdRow),
+    ...before
+      .filter((row) => statedRowFor(after, row.item) === undefined)
+      .flatMap(deletedRow),
     ...after.flatMap((row) => textRows(row, before, namedTextKeys)),
     ...after.flatMap((row) => linkRows(row, before)),
   ];
@@ -126,8 +126,11 @@ function linkedRow(linked: LinkedAccessoryRule): StatedRow {
   };
 }
 
-function isStatedIn(rows: readonly StatedRow[], item: ItemRef): boolean {
-  return rows.some(
+function statedRowFor(
+  rows: readonly StatedRow[],
+  item: ItemRef,
+): StatedRow | undefined {
+  return rows.find(
     (row) => addressKeyOfItem(row.item) === addressKeyOfItem(item),
   );
 }
@@ -200,9 +203,7 @@ function textRows(
 ): readonly TextDiffRow[] {
   const { item } = after;
   if (item.kind === "material") return [];
-  const earlier = before.find(
-    (row) => addressKeyOfItem(row.item) === addressKeyOfItem(item),
-  );
+  const earlier = statedRowFor(before, item);
   if (earlier === undefined) return [];
   return TEXT_FIELDS.flatMap((field) => {
     const address = { kind: "created-row-text", item, field } as const;
@@ -230,9 +231,7 @@ function linkRows(
 ): readonly LinkDiffRow[] {
   const { item } = after;
   if (item.kind !== "accessory") return [];
-  const earlier = before.find(
-    (row) => addressKeyOfItem(row.item) === addressKeyOfItem(item),
-  );
+  const earlier = statedRowFor(before, item);
   const was = earlier?.linkedBuildId;
   const now = after.linkedBuildId;
   if (was === undefined || now === undefined || was === now) return [];
@@ -251,9 +250,7 @@ function linkRows(
 function textOf(
   row: StatedRow,
   field: CreatedRowTextField,
-): string | AbsentText {
+): string | AbsentValue {
   const text = field === "name" ? row.name : row.description;
-  return text ?? ABSENT_TEXT;
+  return text ?? ABSENT_VALUE;
 }
-
-const ABSENT_TEXT: AbsentText = Object.freeze({ kind: "absent" });

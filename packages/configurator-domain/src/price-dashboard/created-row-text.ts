@@ -43,43 +43,59 @@ const MAX_LENGTH_OF_FIELD: Readonly<Record<CreatedRowTextField, number>> = {
  *  thousand. */
 const PERCENT_SIGN = /[%\uff05\u066a\ufe6a\u2030\u2031]/u;
 
+/** `alternatives` as a whole word: not inside a longer one, whatever the script of the letters around it. */
+function standaloneWord(alternatives: string): string {
+  return String.raw`(?<!\p{L})(?:${alternatives})(?!\p{L})`;
+}
+
 /** A percentage said in words. */
-const PERCENT_WORD = /(?<!\p{L})procent(?:e|ul|elor)?(?!\p{L})/iu;
+const PERCENT_WORD = new RegExp(standaloneWord("procent(?:e|ul|elor)?"), "iu");
 
-/** The inclusion words, in the family ADR 0106 Amendment A names and the catalogue sweep widens to: `inclus`, `inclusa`
- *  (with or without its breve), `incluse`, `inclusiv`, `incluzand` (with or without its circumflex). `include` is not
- *  one: it says nothing about what a price holds. */
-const INCLUSION_WORD =
-  /(?<!\p{L})(?:inclus(?:[a\u0103e]|iv)?|incluz[a\u00e2]nd)(?!\p{L})/iu;
+/** The inclusion words: inclus, inclusa, incluse, inclusiv, inclusi, incluzand, with and without their diacritics.
+ *  `include` is not one: it says nothing about what a price holds. */
+const INCLUSION_WORD = new RegExp(
+  standaloneWord(
+    String.raw`inclus(?:[a\u0103e]|iv)?|inclu[s\u0219\u015f]i|incluz[a\u00e2]nd`,
+  ),
+  "iu",
+);
 
-const MONEY_SYMBOL = "[\\u20AC$\\u00A3\\u20BD]";
-const MONEY_WORD =
-  "(?<!\\p{L})(?:lei|leu|mdl|ron|bani|eur|euro|usd|dolari|dolar|gbp|chf)(?!\\p{L})";
-const MONEY_UNIT = `(?:${MONEY_WORD}|${MONEY_SYMBOL})`;
-const NUMBER = "\\p{Nd}+(?:[.,\\s\\u00A0\\u202F]\\p{Nd}+)*";
+const MONEY_SYMBOL = String.raw`[\u20ac$\u00a3\u20bd]`;
+const MONEY_WORDS = "lei|leu|mdl|ron|bani|eur|usd|dolari|dolar|gbp|chf";
+const MONEY_UNIT_BEFORE_NUMBER = `(?:${standaloneWord(MONEY_WORDS)}|${MONEY_SYMBOL})`;
+// "Euro 450" is a model's name, so "euro" is a unit only after its number ("450 euro").
+const MONEY_UNIT_AFTER_NUMBER = `(?:${standaloneWord(`${MONEY_WORDS}|euro`)}|${MONEY_SYMBOL})`;
+const NUMBER = String.raw`\p{Nd}+(?:[.,\s\u00a0\u202f]\p{Nd}+)*`;
 
-/** What may stand between a number and its unit, or a unit and its number, without hiding the amount: space, a dash,
- *  a slash, a colon, a bracket. */
-const GAP = "[\\s\\p{Pd}/:()\\[\\]]*";
+/** What may stand between a unit and its number without hiding the amount: space, a dash, a slash, a colon, a
+ *  bracket. */
+const GAP = String.raw`[\s\p{Pd}/:()\[\]]*`;
+/** The same after a number, which may also end a sentence or a price: "500.- lei", "500,-lei", "500. lei". */
+const GAP_AFTER_NUMBER = String.raw`[\s\p{Pd}/:()\[\].,]*`;
 
-/** The Romanian "de" of "500 de lei" and the thousands and millions of "5 mii lei" ("20 de mii de lei"), between a number and its unit. */
-const MAGNITUDE_AND_DE = `(?:(?:de(?!\\p{L})${GAP})?(?:mii|milioane)(?!\\p{L})${GAP})?(?:de(?!\\p{L})${GAP})?`;
+const DE_THEN_GAP = `${standaloneWord("de")}${GAP_AFTER_NUMBER}`;
+const MAGNITUDE_THEN_GAP = `${standaloneWord("mii|milioane")}${GAP_AFTER_NUMBER}`;
+/** The Romanian "de" and the thousands and millions between a number and its unit: "500 de lei", "5 mii lei",
+ *  "20 de mii de lei". */
+const MAGNITUDE_AND_DE = `(?:(?:${DE_THEN_GAP})?${MAGNITUDE_THEN_GAP})?(?:${DE_THEN_GAP})?`;
 
 /** A number beside a money unit, either side of it: "500 lei", "500 de lei", "500-lei", "MDL 500", "lei: 500",
  *  "€5". A bare number is not an amount: a model or a size ("Blum 2000", "60 cm") is how a row is named. */
 const AMOUNT = new RegExp(
-  `${NUMBER}${GAP}${MAGNITUDE_AND_DE}${MONEY_UNIT}|${MONEY_UNIT}${GAP}${NUMBER}`,
+  `${NUMBER}${GAP_AFTER_NUMBER}${MAGNITUDE_AND_DE}${MONEY_UNIT_AFTER_NUMBER}` +
+    `|${MONEY_UNIT_BEFORE_NUMBER}${GAP}${NUMBER}`,
   "iu",
 );
 
 /** A number said in words, in the forms a percentage follows: the units, "zece", the teens and tens (any word ending in
- *  "sprezece" or "zeci"), "sută", "mie" and "mii", with and without the diacritics. */
+ *  "sprezece" or "zeci"), "suta", "mie" and "mii", with and without the diacritics. */
 const NUMBER_WORD =
-  /(?:zero|unu|una|un|o|doi|dou[a\u0103]|trei|patru|cinci|[s\u0219\u015f]ase|[s\u0219\u015f]apte|opt|nou[a\u0103]|zece|sut[a\u0103]|mie|mii|\p{L}*(?:sprezece|zeci))/u;
+  String.raw`zero|unu|una|un|o|doi|dou[a\u0103]|trei|patru|cinci|[s\u0219\u015f]ase|[s\u0219\u015f]apte|opt|` +
+  String.raw`nou[a\u0103]|zece|sut[a\u0103]|mie|mii|\p{L}*(?:sprezece|zeci)`;
 
-/** "la sută" after a number or a number word: a percentage said in words. On its own it is an ordinary phrase. */
+/** "la suta" after a number or a number word: a percentage said in words. On its own it is an ordinary phrase. */
 const PERCENT_PHRASE = new RegExp(
-  `(?:${NUMBER}|(?<!\\p{L})${NUMBER_WORD.source}(?!\\p{L}))\\s*la\\s+sut[a\u0103](?!\\p{L})`,
+  String.raw`(?:${NUMBER}|${standaloneWord(NUMBER_WORD)})\s*${standaloneWord(String.raw`la\s+sut[a\u0103]`)}`,
   "iu",
 );
 

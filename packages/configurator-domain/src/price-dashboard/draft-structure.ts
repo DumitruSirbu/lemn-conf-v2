@@ -18,7 +18,10 @@ import { hardwareRatesOf, snapshotItem } from "./structural-changes.js";
 export function createdItemsOf(
   changes: readonly DraftChange[],
 ): readonly ItemRef[] {
-  const read = readChanges(changes);
+  return createdItemsIn(readChanges(changes));
+}
+
+function createdItemsIn(read: readonly ReadChange[]): readonly ItemRef[] {
   const deletions = deletionsOf(read);
   return creationsOf(read)
     .filter((creation) => !isDeletedAfter(deletions, creation))
@@ -60,10 +63,13 @@ export function incompleteCreationIndexes(
 }
 
 /**
- * The draft without the row a revert names, whose address is `address`. Reverting a creation also takes every change
- * that names the created row (its rates, price, words and deletion), since none can stand without it. Reverting a field
- * of an item the draft deletes takes the deletion, since that is the change the field's row is drawn for; the field's
- * own change, if any, stays. Anything else takes the change at that address.
+ * The draft without the row a revert names, whose address is `address`. Reverting a creation takes every change that
+ * names the created row (its rates, price, words and deletion), since none can stand without it. Reverting a field of a
+ * row the draft creates takes the creation too, unless the field's own change is one the creation stands without: a
+ * created accessory's price and a created row's words, which the creation already carries, go alone. A rate has no
+ * such change, since every rate is owed. Reverting a field of an item the draft deletes takes the deletion, since that
+ * is the change the field's row is drawn for; the field's own change, if any, stays. Anything else takes the change at
+ * that address.
  */
 export function withoutRow(
   changes: readonly DraftChange[],
@@ -81,17 +87,52 @@ function removalOf(
   reverted: Readonly<Record<string, unknown>>,
   read: readonly ReadChange[],
 ): AddressTest {
-  const key = addressKey(reverted);
   const item = itemOfAddress(reverted);
-  if (item === undefined) return (address) => addressKey(address) === key;
+  if (item === undefined) return isAtAddress(reverted);
   if (createdItemOf(reverted) !== undefined)
     return (address) => isOnItem(address, item);
+  if (isFieldOfCreatedRow(reverted, item, read))
+    return hasOwnChangeToDrop(reverted, read)
+      ? isAtAddress(reverted)
+      : (address) => isOnItem(address, item);
   const isFieldOfDeletedItem = deletionsOf(read).some((deletion) =>
     isSameItem(deletion.item, item),
   );
   return isFieldOfDeletedItem
     ? (address) => address["kind"] === "item-deleted" && isOnItem(address, item)
-    : (address) => addressKey(address) === key;
+    : isAtAddress(reverted);
+}
+
+function isAtAddress(reverted: Readonly<Record<string, unknown>>): AddressTest {
+  const key = addressKey(reverted);
+  return (address) => addressKey(address) === key;
+}
+
+/** A rate, a price or the words of a row the draft creates and does not delete afterwards. */
+function isFieldOfCreatedRow(
+  reverted: Readonly<Record<string, unknown>>,
+  item: ItemRef,
+  read: readonly ReadChange[],
+): boolean {
+  const isField =
+    reverted["kind"] === "hardware" ||
+    reverted["kind"] === "accessory" ||
+    reverted["kind"] === "created-row-text";
+  return (
+    isField && createdItemsIn(read).some((created) => isSameItem(created, item))
+  );
+}
+
+/** Whether the draft holds a change at `reverted` that the creation stands without: not a rate, which is owed. */
+function hasOwnChangeToDrop(
+  reverted: Readonly<Record<string, unknown>>,
+  read: readonly ReadChange[],
+): boolean {
+  const key = addressKey(reverted);
+  return (
+    reverted["kind"] !== "hardware" &&
+    read.some(({ address }) => addressKey(address) === key)
+  );
 }
 
 function isOnItem(

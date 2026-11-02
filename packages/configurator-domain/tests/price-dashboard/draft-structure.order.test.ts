@@ -94,12 +94,15 @@ describe("an id that was a row is never given to a row again", () => {
 });
 
 describe("reverting a row takes the changes that cannot stand without it", () => {
+  const classWords = rewordRow(X, "name", "Alta");
+  const accessoryPrice = setAccessoryPrice("acc.x", 9);
+  const otherRate = setRate("hardware.soft-close", "perHingeMinor", 5);
   const created = [
     ...tierDraft("hw.x"),
-    rewordRow(X, "name", "Alta"),
+    classWords,
     createAccessory("acc.x"),
-    setAccessoryPrice("acc.x", 9),
-    setRate("hardware.soft-close", "perHingeMinor", 5),
+    accessoryPrice,
+    otherRate,
   ];
 
   it("takes a created class with its rates and words, and leaves every other change", () => {
@@ -129,14 +132,61 @@ describe("reverting a row takes the changes that cannot stand without it", () =>
     expect(rest).toEqual([...created.slice(0, 5), created[7]]);
   });
 
-  it("takes one rate of a created class alone when the rate is what is reverted", () => {
+  it("takes the created class with its other rates when one of its rates is reverted", () => {
     const rest = withoutRow(created, {
       kind: "hardware",
       tierId: "hw.x",
       field: "perHingeMinor",
     });
 
-    expect(rest).toHaveLength(created.length - 1);
+    expect(rest).toEqual(created.slice(5));
+    expect(applyChanges(BASE, rest).ok).toBe(true);
+  });
+
+  it("takes only the separate price of a created accessory when that price is reverted", () => {
+    const rest = withoutRow(created, {
+      kind: "accessory",
+      accessoryId: "acc.x",
+      field: "perUnitMinor",
+    });
+
+    expect(rest).toEqual(created.filter((change) => change !== accessoryPrice));
+    expect(applyChanges(BASE, rest).ok).toBe(true);
+  });
+
+  it("takes the created accessory when its price is reverted and no change of the draft set it apart", () => {
+    const withoutPrice = [createAccessory("acc.x"), otherRate];
+
+    const rest = withoutRow(withoutPrice, {
+      kind: "accessory",
+      accessoryId: "acc.x",
+      field: "perUnitMinor",
+    });
+
+    expect(rest).toEqual([otherRate]);
+    expect(applyChanges(BASE, rest).ok).toBe(true);
+  });
+
+  it("takes only the words of a created class when the words are reverted", () => {
+    const rest = withoutRow(created, {
+      kind: "created-row-text",
+      item: X,
+      field: "name",
+    });
+
+    expect(rest).toEqual(created.filter((change) => change !== classWords));
+    expect(applyChanges(BASE, rest).ok).toBe(true);
+  });
+
+  it("takes the created class when words are reverted that no change of the draft set apart", () => {
+    const rest = withoutRow(created, {
+      kind: "created-row-text",
+      item: X,
+      field: "description",
+    });
+
+    expect(rest).toEqual(created.slice(5));
+    expect(applyChanges(BASE, rest).ok).toBe(true);
   });
 
   it("takes the deletion of a class when a rate row of the class is reverted", () => {

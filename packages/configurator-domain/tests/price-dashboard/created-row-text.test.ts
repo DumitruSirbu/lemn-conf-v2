@@ -258,3 +258,73 @@ describe("a text may not state an amount, a percentage or an inclusion (ADR 0106
     expect(codeOf(`${"a".repeat(90)} 500 lei`)).toBe("TEXT_TOO_LONG");
   });
 });
+
+// eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
+const S_COMMA = "\u0219";
+// eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
+const T_COMMA = "\u021b";
+
+describe('"euro" states an amount only after its number', () => {
+  it.each([
+    `Glisier${BREVE_A} Euro 450`,
+    "Balama Euro 35",
+    "Euro 2000",
+    "Euro-2",
+    "euro 2000",
+  ])("lets %j through: a model named Euro is not an amount", (text) => {
+    expect(codeOf(text)).toBe("ok");
+    expect(codeOf(text, "description")).toBe("ok");
+  });
+
+  it.each(["50 euro", "50 de euro", "50 EURO", "Glisiere 450 Euro"])(
+    "refuses %j: the number comes before the unit",
+    (text) => {
+      expect(codeOf(text)).toBe("TEXT_STATES_AN_AMOUNT");
+    },
+  );
+
+  it.each(["lei 500", "leu 500", "ron 500", "RON 500", "EUR 500"])(
+    "still refuses %j: every other unit states an amount before its number too",
+    (text) => {
+      expect(codeOf(text)).toBe("TEXT_STATES_AN_AMOUNT");
+    },
+  );
+});
+
+describe("an amount ending in a dot, comma or dash is still an amount", () => {
+  it.each([
+    "500.- lei",
+    "500,- lei",
+    "Set 500,-lei",
+    `Pre${T_COMMA} 500. lei`,
+    "500, lei",
+  ])("refuses %j", (text) => {
+    expect(codeOf(text)).toBe("TEXT_STATES_AN_AMOUNT");
+  });
+
+  it.each(["2.5 mm", "Blum 2000", "2000", "Cod 2000, nou", "Sertar 2.5."])(
+    "lets %j through: no money unit follows its number",
+    (text) => {
+      expect(codeOf(text)).toBe("ok");
+    },
+  );
+});
+
+describe("the masculine plural of included is an inclusion", () => {
+  it.each([
+    `inclu${S_COMMA}i`,
+    "inclusi",
+    "INCLUSI",
+    `INCLU${S_COMMA.toUpperCase()}I`,
+    "Montaj inclusi in pret",
+  ])("refuses %j", (text) => {
+    expect(codeOf(text)).toBe("TEXT_STATES_AN_AMOUNT");
+  });
+
+  it.each(["Inclusiune", "Reinclusi", "Exclusi"])(
+    "lets %j through: it is not the word",
+    (text) => {
+      expect(codeOf(text)).toBe("ok");
+    },
+  );
+});

@@ -19,6 +19,7 @@ import {
   CABINET_RULE_FIELDS,
   type CabinetRuleField,
 } from "./book-field-address.js";
+import { refuseLinkTarget } from "./link-target.js";
 import {
   isDepthPercentInRange,
   isMaterialPercentInRange,
@@ -226,15 +227,11 @@ function refuseLinkedAccessories(
   const pricedRows = new Set(listPricedRows(catalog).map((row) => row.buildId));
   return book.linkedAccessories.flatMap(
     ({ accessoryId, linkedBuildId }): readonly BookRefusal[] => {
-      const rule = book.cabinetRules.find(
-        (candidate) => candidate.buildId === linkedBuildId,
-      );
       const named = { accessoryId, linkedBuildId };
-      if (rule === undefined || !pricedRows.has(linkedBuildId))
+      if (!pricedRows.has(linkedBuildId))
         return [{ code: "LINK_TARGET_UNKNOWN", ...named }];
-      return rule.suppliedBy === "customer"
-        ? [{ code: "LINK_TARGET_CUSTOMER_SUPPLIED", ...named }]
-        : [];
+      const code = refuseLinkTarget(book, linkedBuildId);
+      return code === undefined ? [] : [{ code, ...named }];
     },
   );
 }

@@ -4,7 +4,7 @@ import {
 } from "../pricing/book-reading.js";
 import type { ItemRef } from "../pricing/catalogue-availability.js";
 import {
-  ACCESSORY_IDS,
+  isBuiltInAccessoryId,
   type HardwareTier,
   type LinkedAccessoryRule,
   type PriceBook,
@@ -21,6 +21,7 @@ import {
   type HardwareRateField,
 } from "./book-field-address.js";
 import { judgeCreatedRowText } from "./created-row-text.js";
+import { refuseLinkTarget } from "./link-target.js";
 import {
   accepted,
   judgeWholeNumber,
@@ -105,21 +106,15 @@ function prepareTierCreation(
   if (typeof tierId !== "string") return refused("UNKNOWN_ADDRESS");
   const members = readMembers(value, TIER_CREATION_MEMBERS);
   if (!members.ok) return members;
-  const name = judgeCreatedRowText(members.value["name"], "name");
-  if (!name.ok) return refused(name.code);
-  const description = judgeCreatedRowText(
-    members.value["description"],
-    "description",
-  );
-  if (!description.ok) return refused(description.code);
+  const words = judgeTierWords(members.value);
+  if (!words.ok) return words;
   const unsetRates = Object.fromEntries(
     hardwareRatesOf(book).map((field) => [field, 0]),
   );
   const tier = {
     tierId,
     ruleId: tierId,
-    name: name.text,
-    description: description.text,
+    ...words.value,
     ...unsetRates,
   } as HardwareTier;
   return accepted((target) => ({
@@ -142,43 +137,59 @@ function prepareAccessoryCreation(
   if (!members.ok) return members;
   const linkedBuildId = members.value["linkedBuildId"];
   if (typeof linkedBuildId !== "string") return refused("MISSING_VALUE");
-  const linked = refuseUnlinkableRow(book, linkedBuildId);
+  const linked = refuseLinkTarget(book, linkedBuildId);
   if (linked !== undefined) return refused(linked);
   const perUnit = judgeWholeNumber(
     members.value["perUnitMinor"],
     MAX_PRICE_COEFFICIENT_MINOR,
   );
   if (!perUnit.ok) return perUnit;
-  const name = judgeCreatedRowText(members.value["name"], "name");
-  if (!name.ok) return refused(name.code);
-  const description = judgeOptionalDescription(members.value["description"]);
-  if (!description.ok) return refused(description.code);
-  const accessory: LinkedAccessoryRule = {
-    accessoryId,
-    ruleId: `accessory.${accessoryId}`,
-    linkedBuildId,
-    perUnitMinor: perUnit.value,
-    name: name.text,
-    ...(description.text === "" ? {} : { description: description.text }),
-  };
+  const words = judgeAccessoryWords(members.value);
+  if (!words.ok) return words;
+  const accessory = withDescription(
+    {
+      accessoryId,
+      ruleId: `accessory.${accessoryId}`,
+      linkedBuildId,
+      perUnitMinor: perUnit.value,
+      name: words.value.name,
+    },
+    words.value.description,
+  );
   return accepted((target) => ({
     ...target,
     linkedAccessories: [...linkedAccessoriesOf(target), accessory],
   }));
 }
 
-/** An accessory is linked to a row the book prices and the manufacturer supplies (A-19). */
-function refuseUnlinkableRow(
-  book: PriceBook,
-  linkedBuildId: string,
-): "LINK_TARGET_UNKNOWN" | "LINK_TARGET_CUSTOMER_SUPPLIED" | undefined {
-  const rule = book.cabinetRules.find(
-    (candidate) => candidate.buildId === linkedBuildId,
+interface RowWords {
+  readonly name: string;
+  readonly description: string;
+}
+
+/** A created class states both words. */
+function judgeTierWords(
+  members: Readonly<Record<string, unknown>>,
+): Judged<RowWords> {
+  const name = judgeCreatedRowText(members["name"], "name");
+  if (!name.ok) return refused(name.code);
+  const description = judgeCreatedRowText(
+    members["description"],
+    "description",
   );
-  if (rule === undefined) return "LINK_TARGET_UNKNOWN";
-  return rule.suppliedBy === "customer"
-    ? "LINK_TARGET_CUSTOMER_SUPPLIED"
-    : undefined;
+  if (!description.ok) return refused(description.code);
+  return accepted({ name: name.text, description: description.text });
+}
+
+/** A created accessory's description may be left out, which reads as empty. */
+function judgeAccessoryWords(
+  members: Readonly<Record<string, unknown>>,
+): Judged<RowWords> {
+  const name = judgeCreatedRowText(members["name"], "name");
+  if (!name.ok) return refused(name.code);
+  const description = judgeOptionalDescription(members["description"]);
+  if (!description.ok) return refused(description.code);
+  return accepted({ name: name.text, description: description.text });
 }
 
 function judgeOptionalDescription(raw: unknown) {
@@ -215,8 +226,7 @@ function locateCreatedRow(book: PriceBook, item: ItemRef): Judged<TextWriter> {
   if (item.kind === "hardware") return locateCreatedTier(book, item.tierId);
   if (item.kind !== "accessory") return refused("NOT_EDITABLE");
   const { accessoryId } = item;
-  if ((ACCESSORY_IDS as readonly string[]).includes(accessoryId))
-    return refused("NOT_EDITABLE");
+  if (isBuiltInAccessoryId(accessoryId)) return refused("NOT_EDITABLE");
   const exists = linkedAccessoriesOf(book).some(
     (linked) => linked.accessoryId === accessoryId,
   );
@@ -254,16 +264,31 @@ function isKeyed(tier: TierIdentity): boolean {
   return tier.nameKey !== undefined || tier.descriptionKey !== undefined;
 }
 
-/** An emptied description is no description: the member is left out, as the parser's list reads it. */
 function withLinkedText(
   linked: LinkedAccessoryRule,
   field: CreatedRowTextField,
   text: string,
 ): LinkedAccessoryRule {
-  if (field === "name") return { ...linked, name: text };
-  const { description: ignored, ...withoutDescription } = linked;
-  void ignored;
-  return text === "" ? withoutDescription : { ...linked, description: text };
+  return field === "name"
+    ? { ...linked, name: text }
+    : withDescription(linked, text);
+}
+
+/** The accessory with `description` as its words; an emptied one is no description, so the member is left out, as the
+ *  parser's list reads it. */
+function withDescription(
+  linked: LinkedAccessoryRule,
+  description: string,
+): LinkedAccessoryRule {
+  const { accessoryId, ruleId, linkedBuildId, perUnitMinor, name } = linked;
+  return {
+    accessoryId,
+    ruleId,
+    linkedBuildId,
+    perUnitMinor,
+    name,
+    ...(description === "" ? {} : { description }),
+  };
 }
 
 function isTextField(field: unknown): field is CreatedRowTextField {
@@ -344,8 +369,7 @@ function deleteLinkedAccessory(
   book: PriceBook,
   accessoryId: string,
 ): Judged<BookUpdater> {
-  if ((ACCESSORY_IDS as readonly string[]).includes(accessoryId))
-    return refused("NOT_EDITABLE");
+  if (isBuiltInAccessoryId(accessoryId)) return refused("NOT_EDITABLE");
   if (!linkedAccessoriesOf(book).some((l) => l.accessoryId === accessoryId))
     return refused("UNKNOWN_ITEM");
   return accepted((target) => ({
