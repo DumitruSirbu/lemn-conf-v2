@@ -10,11 +10,15 @@ import {
   buildKitchenLBodyCatalog,
   CabinetDepthBelowMinimumError,
   cabinetDepthMmOf,
+  handleRef,
+  HandleSchema,
+  isItemDisabled,
   priceDesign,
   UnknownWorktopDepthError,
   type BodyCatalog,
   type CatalogueAvailability,
   type Design,
+  type Handle,
   type PriceBook,
   type PricedDesign,
   type PricingResult,
@@ -113,6 +117,21 @@ export function offerTiersAgainstBook(
     deepeningRows: shippedDeepeningRows(),
     availability: root.availability,
   });
+}
+
+/**
+ * The handles the sheet may offer: every declared handle availability has not switched off, in the declared order.
+ * A handle carries no price of its own, so unlike a tier it has no delta; a push-to-open choice reaches the total
+ * through the hardware line. No book is raised, as for the tiers: availability travels with the book.
+ */
+export function offerHandlesAgainstBook(
+  root: PriceBookRoot,
+): readonly Handle[] {
+  if (root.kind === "none")
+    throw new UnreadablePriceBookError(NO_PRICE_BOOK_DETAIL);
+  return HandleSchema.options.filter(
+    (handle) => !isItemDisabled(root.availability, handleRef(handle)),
+  );
 }
 
 /**

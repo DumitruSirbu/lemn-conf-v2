@@ -4,6 +4,7 @@
 import {
   DEEP_CABINET_DEPTH_MM,
   DEFAULT_CABINET_DEPTH_MM,
+  DEFAULT_HANDLE,
   DEFAULT_MATERIAL_ID,
   declaredCabinetDepthsMm,
   lookUpMaterial,
@@ -11,6 +12,7 @@ import {
   MIN_CABINET_DEPTH_MM,
   type DisplayGroup,
   type Finish,
+  type Handle,
   type MaterialLookup,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
@@ -99,6 +101,24 @@ export interface ColourGroupView {
   readonly warning: string;
 }
 
+/** One offered handle. No delta: a handle has no price of its own, and the total moves through the bar. */
+export interface HandleOption {
+  readonly handle: Handle;
+  readonly label: string;
+  /** Against the **pending** choice, like a tier's. */
+  readonly isSelected: boolean;
+}
+
+/**
+ * The whole-kitchen handle row (frame C2). Its options are the handles availability has not switched off; a kitchen
+ * whose own handle is switched off shows none selected, because choosing a replacement is not this row's to do.
+ */
+export interface HandleGroupView {
+  readonly heading: string;
+  readonly hint: string;
+  readonly options: readonly HandleOption[];
+}
+
 /**
  * The step between *Aplică* and a material change that would discard a chosen colour (ADR 0086 decision 3).
  * Absent, never an empty view, when nothing would be lost: the component never asks whether one is owed.
@@ -171,6 +191,8 @@ export interface GlobalSettingsView {
   /** After the material group, before hardware (ADR 0099 decision 9). Absent, never empty, where the pending
    *  material is undeclared: it declares no `ColourControl`, and the rest of the sheet still renders. */
   readonly colourGroup?: ColourGroupView;
+  /** After the colour group, before hardware (frame C2). Absent, never empty, when no handle is on offer. */
+  readonly handleGroup?: HandleGroupView;
   readonly warning: string;
   /** The running total, restated because this surface covers the bar that shows it. Absent, never zero,
    *  when the design cannot be priced. It carries no refusal wording. */
@@ -193,6 +215,9 @@ export interface WholeKitchenChoice {
   /** ADR 0099's whole-kitchen colour. Absent means every cabinet follows the material's default and must stay
    *  reachable: an apply that stamped a colour in would turn following cabinets into overriding ones. */
   readonly finish?: Finish | undefined;
+  /** The kitchen's handle. Absent means every cabinet follows the slot's default, and must stay reachable: seeding
+   *  one would make *Aplică* on an untouched sheet stamp a handle into a document that chose none. */
+  readonly handle?: Handle | undefined;
 }
 
 export interface DescribeGlobalSettingsInput {
@@ -200,6 +225,9 @@ export interface DescribeGlobalSettingsInput {
   readonly content: Content;
   readonly pricing: PricingResult;
   readonly offer: WholeKitchenTierOffer;
+  /** The handles on offer, from `useKitchenHandleOffer`. Absent, like an empty list, hides the row: a sheet that was
+   *  not told what is on offer cannot say which handles are active. */
+  readonly offeredHandles?: readonly Handle[] | undefined;
   /** The published depth rule's whole percentage (`book.depthRule.deepCabinetPercent`): the only source of the figure
    *  in the depth note. Required, because an absent one would read as 0 %, which says the depth is free. */
   readonly deepCabinetPercent: number;
@@ -256,6 +284,7 @@ export function describeGlobalSettings(
     input.content,
   );
   const colourGroup = toColourGroupView(input.pending, input.content);
+  const handleGroup = toHandleGroupView(input);
   return {
     pill: describeSettingsPill({
       offer: input.offer,
@@ -286,6 +315,7 @@ export function describeGlobalSettings(
       deepCabinetPercent: input.deepCabinetPercent,
     }),
     ...(colourGroup === undefined ? {} : { colourGroup }),
+    ...(handleGroup === undefined ? {} : { handleGroup }),
     warning: input.content.globalSettings.materialWarning,
     ...(figure === undefined ? {} : { figure }),
     ...(overflowWarning === undefined ? {} : { overflowWarning }),
@@ -350,6 +380,14 @@ export function chooseTierIn(
     : { ...chosen, hardwareTierId: choice.tierId };
 }
 
+/** A handle press as a change of pending state; nothing is written until *Aplică*. */
+export function chooseHandleIn(
+  chosen: WholeKitchenChoice,
+  handle: Handle,
+): WholeKitchenChoice {
+  return { ...chosen, handle };
+}
+
 export function chooseDepthIn(
   chosen: WholeKitchenChoice,
   cabinetDepthMm: number,
@@ -402,6 +440,7 @@ function settingHeadings(
   return {
     material: content.globalSettings.groupHeadings.material,
     finish: content.globalSettings.colourHeading,
+    handle: content.globalSettings.kitchenHandleHeading,
     hardware: content.globalSettings.groupHeadings.hardware,
     cabinetDepth: content.globalSettings.depthHeading,
   };
@@ -484,6 +523,27 @@ function toColourGroupView(
     selected: pending.finish ?? lookup.material.defaultFinish,
     note: content.globalSettings.colourNote,
     warning: content.globalSettings.colourWarning,
+  };
+}
+
+/** The handle row, or nothing where no handle is on offer. The marked option is the pending choice, else the slot's
+ *  default, which is what an unset kitchen shows. */
+function toHandleGroupView(
+  input: DescribeGlobalSettingsInput,
+): HandleGroupView | undefined {
+  const { offeredHandles, content } = input;
+  if (offeredHandles === undefined || offeredHandles.length === 0) {
+    return undefined;
+  }
+  const selected = input.pending.handle ?? DEFAULT_HANDLE;
+  return {
+    heading: content.globalSettings.kitchenHandleHeading,
+    hint: content.globalSettings.kitchenHandleHint,
+    options: offeredHandles.map((handle) => ({
+      handle,
+      label: content.panel.handleLabels[handle],
+      isSelected: handle === selected,
+    })),
   };
 }
 

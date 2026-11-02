@@ -2438,6 +2438,8 @@ export function resolveContent(translate: ContentTranslator) {
           openLabel: translate("globalSettings.open"),
           settings: settings.join(translate("globalSettings.pillNameJoin")),
         }),
+      kitchenHandleHeading: translate("globalSettings.kitchenHandleHeading"),
+      kitchenHandleHint: translate("globalSettings.kitchenHandleHint"),
       colourHeading: translate("globalSettings.colourHeading"),
       colourNote: translate("globalSettings.colourNote"),
       colourWarning: translate("globalSettings.colourWarning"),

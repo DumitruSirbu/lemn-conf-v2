@@ -130,14 +130,15 @@ function intendSelection(
     const vacated = findVacatedVoid(voids, effect.vacated);
     return vacated ? { kind: "void", id: vacated.id } : null;
   }
-  // A whole-kitchen setting (material tier, hardware tier, global colour, cabinet depth) acts on no cabinet, so
-  // the held selection is carried through, still put through `isStillPresent` so "the selection never dangles"
-  // has no exception. A depth change keeps every placement id, so the same cabinet stays selected, now deeper;
-  // `setGlobalFinish` touches no placement at all (ADR 0099 decision 2).
+  // A whole-kitchen setting (material tier, hardware tier, global colour, kitchen handle, cabinet depth) acts on no
+  // cabinet, so the held selection is carried through, still put through `isStillPresent` so "the selection never
+  // dangles" has no exception. A depth change keeps every placement id, so the same cabinet stays selected, now deeper;
+  // `setGlobalFinish` and `setKitchenHandle` touch no placement at all (ADR 0099 decision 2).
   if (
     effect.type === "material_tier_set" ||
     effect.type === "hardware_tier_set" ||
     effect.type === "global_finish_set" ||
+    effect.type === "kitchen_handle_set" ||
     effect.type === "cabinet_depth_set"
   ) {
     return current;

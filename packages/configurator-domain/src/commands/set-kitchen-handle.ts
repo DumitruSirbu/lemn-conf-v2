@@ -1,8 +1,5 @@
 // The whole-kitchen handle. The input names no placements, so no cabinet's own `body.handle` can be
 // written: cabinets with none follow through `resolvedHandleOf`.
-//
-// Its result is not a `CommandResult`: `CommandEffect` is read by the web store's `intendSelection`
-// (`effect.placementId`), so the effect joins that union in the same change as the store branch.
 import {
   HandleSchema,
   type Design,
@@ -13,8 +10,10 @@ import {
 import {
   isValidOccurredAt,
   refuse,
+  succeedWith,
   withSettings,
-  type CommandRejection,
+  type CommandResult,
+  type KitchenHandleSetEffect,
 } from "./command-result.js";
 
 export interface KitchenHandleInput {
@@ -23,18 +22,7 @@ export interface KitchenHandleInput {
   readonly occurredAt: string;
 }
 
-export interface KitchenHandleSetEffect {
-  readonly type: "kitchen_handle_set";
-  readonly handle: Handle;
-}
-
-export interface KitchenHandleSetSuccess {
-  readonly ok: true;
-  readonly design: Design;
-  readonly effect: KitchenHandleSetEffect;
-}
-
-export type KitchenHandleResult = KitchenHandleSetSuccess | CommandRejection;
+export type KitchenHandleResult = CommandResult<KitchenHandleSetEffect>;
 
 /**
  * Writes `settings.handle` and nothing else. Refuses an invalid timestamp, then a value outside
@@ -53,9 +41,8 @@ export function setKitchenHandle(
     ...input.design.settings,
     handle: input.handle,
   };
-  return {
-    ok: true,
-    design: withSettings(input.design, settings, input.occurredAt),
-    effect: { type: "kitchen_handle_set", handle: input.handle },
-  };
+  return succeedWith(withSettings(input.design, settings, input.occurredAt), {
+    type: "kitchen_handle_set",
+    handle: input.handle,
+  });
 }
