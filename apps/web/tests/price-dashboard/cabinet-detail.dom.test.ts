@@ -644,6 +644,54 @@ describe("the hardware switch (Cu feronerie)", () => {
   });
 });
 
+describe("the page's definition lists", () => {
+  const withoutDoorsOrDrawers = SAMPLE_PRICE_BOOK.cabinetRules.filter(
+    ({ ruleId }) => {
+      const detail = deriveCabinetDetail(pageOf(), ruleId);
+      return (
+        detail.kind === "ready" &&
+        detail.facts.doors.kind === "none" &&
+        detail.facts.drawers === 0
+      );
+    },
+  );
+
+  it("holds nothing but dt and dd in a dl or in the div that groups them, and no dd empty, for a cabinet with no doors and no drawers", async () => {
+    expect(
+      withoutDoorsOrDrawers.length,
+      "the sweep must reach a cabinet with neither doors nor drawers",
+    ).toBeGreaterThan(0);
+
+    for (const { ruleId } of withoutDoorsOrDrawers) {
+      const { container } = await mount(ruleId);
+      const lists = allIn(container, "dl");
+      expect(lists.length, ruleId).toBeGreaterThan(0);
+      const strayChildren = lists.flatMap((list) =>
+        Array.from(list.children).flatMap((child) =>
+          child.tagName === "DIV"
+            ? Array.from(child.children).filter(
+                (grandchild) => !["DT", "DD"].includes(grandchild.tagName),
+              )
+            : ["DT", "DD"].includes(child.tagName)
+              ? []
+              : [child],
+        ),
+      );
+      const emptyValues = allIn(container, "dd").filter(
+        (value) => value.textContent.trim() === "",
+      );
+
+      expect(
+        strayChildren.map((child) => child.tagName),
+        `${ruleId}: content a dl does not allow`,
+      ).toEqual([]);
+      expect(emptyValues, `${ruleId}: a dd with nothing in it`).toEqual([]);
+      mounted?.unmount();
+      mounted = undefined;
+    }
+  });
+});
+
 describe("a cabinet of another shape", () => {
   it("shows a wall cabinet by height: the wall row and the top row, each in PAL", async () => {
     const { container } = await mount(WALL_RULE);

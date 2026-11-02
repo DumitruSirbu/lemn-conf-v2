@@ -303,8 +303,8 @@ export function plannedWritesOf(
     const firstSafe = remaining.findIndex((write) =>
       isSafeAfter(running, ruleId, write),
     );
-    // A Save is offered only for a publishable end state, so no write safe alone means a pair safe only together: the
-    // writes go in the order typed (a `-1` would make `splice` take the last).
+    // `judgePrices` places only two refusals on a field, so Save can be offered for a state this finds unsafe at every
+    // step; those writes go in the order of the fields (`splice(-1)` would take the last).
     const pick = firstSafe === -1 ? 0 : firstSafe;
     const [write] = remaining.splice(pick, 1);
     if (write === undefined) break;

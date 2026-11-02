@@ -280,8 +280,15 @@ describe("the table beside the price", () => {
       },
     );
 
-    const priceAt = (table: typeof without, index: number) =>
-      atIndex(atIndex(table?.rows ?? [], index).cells, 0).activeMinor ?? 0;
+    const priceAt = (table: typeof without, index: number) => {
+      const price = atIndex(
+        atIndex(table?.rows ?? [], index).cells,
+        0,
+      ).activeMinor;
+      if (price === undefined)
+        throw new Error(`row ${String(index)} has no price`);
+      return price;
+    };
     expect(without?.rows.length).toBeGreaterThan(0);
     expect(
       (withHardware?.rows ?? []).every(

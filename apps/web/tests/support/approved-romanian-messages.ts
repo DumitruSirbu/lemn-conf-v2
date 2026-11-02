@@ -1927,10 +1927,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       sourceGenerator: "din generatorul de bucătării",
       sourceSameAsWidth: "aceeași cu lățimea disponibilă",
       sourceToConfirm: "de confirmat de tine",
-      followsBase: "după dulapul de jos",
-      wallRows: "rândul de perete / rândul de sus",
       followsOpening: "după golul din perete",
-      noMaxHeight: "nu există încă; ia înălțimea golului",
       doors: "Uși",
       doorsRange:
         "{low, number, ::group-off} · {high, number, ::group-off} de la {atMm, number, ::group-off} mm",
