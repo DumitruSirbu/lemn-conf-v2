@@ -1,6 +1,6 @@
 // What the publish review shows of a draft the hardware screens leave, and what a publish would store: a created class
-// named with its four amounts, a deleted class named, the count the menu shows, and the availability log's owed rows for a
-// class that only the draft held.
+// named with its four amounts, a deleted class named, the count the menu shows, and the availability log's owed rows
+// for a class that only the draft held.
 import { describe, expect, it } from "vitest";
 
 import {

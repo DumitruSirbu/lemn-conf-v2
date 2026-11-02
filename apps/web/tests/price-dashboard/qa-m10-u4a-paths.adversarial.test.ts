@@ -1,7 +1,7 @@
-// Adversarial QA of M10 wave U4a, the hardware pages' addresses. `cabinet-paths.test.ts` holds the cabinets' to the staff proxy
-// (marked as a staff page, reached by its matcher, one segment whatever the id holds); the hardware pages have no such test.
-// A class's id is minted by the server and is one segment under the list's own address; the creation form's segment, `new`,
-// is the one a class's own address must never be.
+// The hardware pages' addresses, held to the staff proxy as `cabinet-paths.test.ts` holds the cabinets' (marked as a
+// staff page, reached by its matcher, one segment whatever the id holds). A class's id is minted by the server and is
+// one segment under the list's own address; the creation form's segment, `new`, is the one a class's own address must
+// never be.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 

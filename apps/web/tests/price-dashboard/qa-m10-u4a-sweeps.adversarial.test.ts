@@ -1,7 +1,7 @@
-// Adversarial QA of M10 wave U4a, the values a person can type on the hardware screens held against the domain that judges
-// them again: what the screen reads as a rate or as a class's words must be taken by `applyChanges`, or the screen offers a
-// Save that the server refuses, and what the screen refuses must not be something the book would have held. Swept over the
-// whole range of a rate, and over arbitrary text, rather than the boundaries a person thought of.
+// The values a person can type on the hardware screens, held against the domain that judges them again: what the screen
+// reads as a rate or as a class's words must be taken by `applyChanges`, or the screen offers a Save that the server
+// refuses, and what the screen refuses must not be something the book would have held. Swept over the whole range of a
+// rate, and over arbitrary text, rather than the boundaries a person thought of.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 

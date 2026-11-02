@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave U4a, the deletion of a class as the server may answer it, and two classes that read alike. The wave's
-// tests answer a deletion with what the in-memory draft judges; a real draft route answers `ITEM_IN_USE` (a saved kitchen began
-// to use the class between the count and the confirmation: `DRAFT_CHANGE_REFUSAL_CODES`), a conflict, and a refusal of the
-// candidate, and each must leave the dialog saying something true. Nothing in the domain forbids two classes of one name.
+// The deletion of a class as the server may answer it, and two classes that read alike. The in-memory draft answers a
+// deletion with what it judges itself; a real draft route answers `ITEM_IN_USE` (a saved kitchen began to use the class
+// between the count and the confirmation: `DRAFT_CHANGE_REFUSAL_CODES`), a conflict, and a refusal of the candidate,
+// and each must leave the dialog saying something true. Nothing in the domain forbids two classes of one name.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { DraftChange } from "@lemnaria/configurator-domain";

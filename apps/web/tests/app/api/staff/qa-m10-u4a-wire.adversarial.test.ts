@@ -43,13 +43,13 @@ vi.mock("@/lib/server/price-stores", () =>
   ),
 );
 
-// Adversarial QA of M10 wave U4a against the routes as they are in the tree. The screens' DOM tests write through
-// `inMemoryPriceDraftClient`, which calls `applyChanges` itself, so no test of the wave reaches the boundary reader that
-// turns a request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real
-// `PUT` and `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, and the bodies are the
-// ones the hardware screens send. R4a is not built (no `/api/staff/prices/availability` and no usage route exist, and
-// `draft-address.ts` reads only the applied kinds): a test below marked `it.fails` is a promise of the screens' port
-// that no route keeps yet. It runs and goes red the moment R4a keeps it; R4a flips each to `it`.
+// The hardware screens' writes against the routes as they are in the tree. The screens' DOM tests write through
+// `inMemoryPriceDraftClient`, which calls `applyChanges` itself, so none of them reaches the boundary reader that turns
+// a request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real
+// `PUT` and `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, and the bodies are
+// the ones the hardware screens send. R4a is not built (no `/api/staff/prices/availability` and no usage route exist,
+// and `draft-address.ts` reads only the applied kinds): a test below marked `it.fails` is a promise of the screens'
+// port that no route keeps yet. It runs and goes red the moment R4a keeps it; R4a flips each to `it`.
 
 let prices: PriceDashboardWorld;
 let cookie: string;
@@ -240,8 +240,8 @@ describe("what the draft client does with the 409s the real routes can answer", 
   });
 });
 
-describe("the refusal words of the lifecycle client's port against the wire's conflicts (R4a gives the wire the fixed default, M10 hand-off U4a/T1)", () => {
-  it("states today which one is missing: the fixed default, which the hand-off gives to R4a (this test must change with it)", () => {
+describe("the refusal words of the lifecycle client's port against the wire's conflicts (R4a gives the wire the fixed default)", () => {
+  it("states today which one is missing: the fixed default, which R4a gives the wire (this test must change with it)", () => {
     const wireWords: readonly string[] = DASHBOARD_CONFLICTS;
 
     expect(

@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave U4a, `ItemDialogs` as U4b and U4c will use it. The dialogs are written to be told an item and
-// the names of what remains, and "drawn the same for every kind of item"; the hardware tests only ever run them over a hardware
-// class. Here every flow is drawn over each kind of item the book can switch, in both locales, and what a kind must not be
-// told is checked: no hardware word for a material, a colour, a handle or an accessory, and no promise of a replacement to
-// choose for an accessory (the v2-fixes-2 brief, "Accessories have no alternative to choose"; M10 hand-offs, U4a/T1: "the D5E
-// hint does not hold for accessories: opening a kitchen never lowers their count").
+// `ItemDialogs` over every kind of item the book can switch. The dialogs are told an item and the names of what
+// remains, and are drawn the same for every kind of item; the hardware tests only run them over a hardware class. Here
+// every flow is drawn over each kind, in both locales, and what a kind must not be told is checked: no hardware word
+// for a material, a colour, a handle or an accessory, and no promise of a replacement to choose for an accessory (a
+// customer who opens a kitchen that uses a switched-off accessory is told it was taken out, and opening a kitchen never
+// lowers its count).
 import { act, createElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -207,7 +207,7 @@ describe("what a switch-off says of an accessory", () => {
   });
 });
 
-describe("the block on deleting a used accessory (reads the brief and the M10 hand-off, U4a/T1)", () => {
+describe("the block on deleting a used accessory", () => {
   // "Accessories have no alternative to choose": a customer who opens a kitchen that uses a switched-off accessory is told it
   // was taken out, and chooses nothing. The block names "o poți dezactiva; clientului i se va cere atunci să aleagă altă
   // opțiune" and the inactive block says "clienții aleg altă opțiune": both are false of an accessory.

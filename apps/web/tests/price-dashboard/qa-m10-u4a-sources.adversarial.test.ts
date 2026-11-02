@@ -1,8 +1,8 @@
-// Adversarial QA of M10 wave U4a, what its source files may reach. The wave's own source guards (`hardware-sources.test.ts`)
-// say "server-only" in a title and never read the line; the guards of waves U2, U6 and R3 were widened to admit
-// `hardware-source.ts` without anything checking the file they now trust. Here: the file opens with the line, a copy without it
-// is caught, no module a browser loads is or reaches a server-only module, no customer page reaches the hardware source, the
-// invented counts are written in one file only, and the modules meant for every kind of item name no kind of hardware.
+// What the hardware screens' source files may reach. The guards in `hardware-sources.test.ts` say "server-only" in a
+// title and never read the line; the guards that allow the dashboard's server-side readers trust the files they name.
+// Here: each opens with the line, a copy without it is caught, no module a browser loads is or reaches a server-only
+// module, no customer page reaches the hardware source, the invented counts are written in one file only, and the
+// modules meant for every kind of item name no kind of hardware.
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -109,7 +109,7 @@ describe("what a browser loads", () => {
     expect(leaks).toEqual([]);
   });
 
-  it("holds no usage count the wave invented in the closure of any page a customer can open", () => {
+  it("holds no invented usage count in the closure of any page a customer can open", () => {
     const customerPages = allSources.filter(
       (path) =>
         path.startsWith("app/") &&

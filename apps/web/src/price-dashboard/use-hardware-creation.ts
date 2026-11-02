@@ -222,31 +222,25 @@ function creationOf(
     }
   | undefined {
   if (!name.judgement.ok || !description.judgement.ok) return undefined;
-  const perHingeMinor = amountOf(rates, "perHingeMinor");
-  const perDrawerMinor = amountOf(rates, "perDrawerMinor");
-  const perPushToOpenMinor = amountOf(rates, "perPushToOpenMinor");
-  const perLiftMinor = amountOf(rates, "perLiftMinor");
-  if (
-    perHingeMinor === undefined ||
-    perDrawerMinor === undefined ||
-    perPushToOpenMinor === undefined ||
-    perLiftMinor === undefined
-  ) {
-    return undefined;
-  }
+  const amounts = amountsOf(rates);
+  if (amounts === undefined) return undefined;
   return {
     value: {
       name: name.judgement.text,
       description: description.judgement.text,
     },
-    rates: { perHingeMinor, perDrawerMinor, perPushToOpenMinor, perLiftMinor },
+    rates: amounts,
   };
 }
 
-function amountOf(
-  rates: readonly RateEntry[],
-  field: HardwareRateField,
-): number | undefined {
-  const entry = rates.find((rate) => rate.field === field);
-  return entry?.reading.kind === "amount" ? entry.reading.minor : undefined;
+/** The amount of every rate, or nothing while one is not an amount. */
+function amountsOf(rates: readonly RateEntry[]): HardwareRatesWire | undefined {
+  const amounts: Partial<Record<HardwareRateField, number>> = {};
+  for (const field of HARDWARE_RATE_FIELDS) {
+    const entry = rates.find((rate) => rate.field === field);
+    if (entry?.reading.kind !== "amount") return undefined;
+    amounts[field] = entry.reading.minor;
+  }
+  // The loop has set every field of the list, which is the whole record.
+  return amounts as HardwareRatesWire;
 }

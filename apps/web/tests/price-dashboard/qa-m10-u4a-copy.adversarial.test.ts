@@ -1,7 +1,7 @@
-// Adversarial QA of M10 wave U4a, the leaves it added or leaned on, in both languages: every leaf is in both catalogues with
-// the same placeholders, a leaf that counts kitchens reads right for each count (the plural categories of Romanian and of
-// Russian differ, and a count of a thousand has a grouping the other categories switch off), and a leaf the wave added holds no
-// digit of its own (a number is a placeholder, never typed into a sentence).
+// The copy of the hardware screens' lifecycle, creation and save feedback, in both languages: every leaf is in both
+// catalogues with the same placeholders, a leaf that counts kitchens reads right for each count (the plural categories
+// of Romanian and of Russian differ, and a count of a thousand has a grouping the other categories switch off), and no
+// leaf holds a digit of its own (a number is a placeholder, never typed into a sentence).
 import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 
@@ -25,8 +25,8 @@ function leavesOf(tree: unknown, prefix = ""): Leaves {
 const RO = leavesOf(roMessages.priceDashboard);
 const RU = leavesOf(ruMessages.priceDashboard);
 
-/** The leaves this wave added, by the keys it named in its diff; every other leaf of the namespace is an earlier wave's. */
-const ADDED_BY_THE_WAVE = [
+/** The leaves written for the hardware screens, by key. */
+const LEAVES_OF_THE_SCREENS = [
   "errors.textEmpty",
   "errors.textTooLong",
   "errors.textForbiddenCharacter",
@@ -41,6 +41,9 @@ const ADDED_BY_THE_WAVE = [
   "lifecycle.deleteBlockedAccessoryInactiveBody",
   "lifecycle.deleteBlockedUncountedBody",
   "lifecycle.deleteBlockedAccessoryUncountedBody",
+  "lifecycle.counting",
+  "errors.savePartlyFailed",
+  "hardware.createRefused",
 ];
 
 const COUNTING_LEAVES = [
@@ -64,7 +67,7 @@ const translatorOf = (locale: "ro" | "ru") =>
     namespace: "priceDashboard",
   }) as unknown as (key: string, values?: Record<string, unknown>) => string;
 
-describe("the namespace the wave draws from", () => {
+describe("the namespace the screens draw from", () => {
   it("holds every leaf of the lifecycle, the hardware pages and the creation errors in Russian as in Romanian, and nothing more", () => {
     const scoped = (leaves: Leaves) =>
       Object.keys(leaves)
@@ -76,7 +79,7 @@ describe("the namespace the wave draws from", () => {
     expect(scoped(RU)).toEqual(scoped(RO));
   });
 
-  it.each(ADDED_BY_THE_WAVE)(
+  it.each(LEAVES_OF_THE_SCREENS)(
     "%s is a real sentence in both languages, with the same placeholders, and Russian is not the Romanian",
     (key) => {
       const ro = RO[key];
@@ -90,7 +93,7 @@ describe("the namespace the wave draws from", () => {
     },
   );
 
-  it.each(ADDED_BY_THE_WAVE)(
+  it.each(LEAVES_OF_THE_SCREENS)(
     "%s carries no digit of its own: a number is a placeholder",
     (key) => {
       expect(RO[key]).not.toMatch(/\d/);

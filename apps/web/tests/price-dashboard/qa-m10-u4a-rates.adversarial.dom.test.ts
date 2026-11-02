@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave U4a, saving the four rates of a class: one write for each rate that differs, the first that is not
-// written stops the rest, and what the page says afterwards is only what the server stored. `hardware-edit.dom.test.ts` makes
-// the first write fail; here the second does (the one case where a rate is already in the draft when the sequence stops), a
-// person types between two writes, and a late answer arrives after the screen has moved on.
+// Saving the four rates of a class: one write for each rate that differs, the first that is not written stops the rest,
+// and what the page says afterwards is only what the server stored. `hardware-edit.dom.test.ts` makes the first write
+// fail; here the second does (the one case where a rate is already in the draft when the sequence stops), a person
+// types between two writes, and a late answer arrives after the screen has moved on.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {

@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 //
-// Adversarial QA of M10 wave U4a, the lifecycle of a hardware class as a person drives it, where `hardware-lifecycle.dom.test.ts`
-// presses with a bare `click`. A real press is a `pointerdown` first, and the "⋯" menu closes on any press outside it, the dialog
-// being drawn outside the menu: so the entry that opened the dialog is gone by the time the dialog closes. Also here: a
-// production build's own client, a confirmation pressed twice or abandoned with Escape while it is out, what "the last class that
-// is on" and "what remains" mean beside classes that are off or only in the draft, and a deletion of a class with edits.
+// The lifecycle of a hardware class as a person drives it, where `hardware-lifecycle.dom.test.ts` presses with a bare
+// `click`. A real press is a `pointerdown` first, and the "⋯" menu closes on any press outside it, the dialog being
+// drawn outside the menu: so the entry that opened the dialog is gone by the time the dialog closes. Also here: a
+// production build's own client, a confirmation pressed twice or abandoned with Escape while it is out, what "the last
+// class that is on" and "what remains" mean beside classes that are off or only in the draft, and a deletion of a class
+// with edits.
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
