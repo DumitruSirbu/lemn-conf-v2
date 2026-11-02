@@ -267,3 +267,90 @@ describe("planRestoreToDraft over generated books and drafts", () => {
     expect(restoredWithPending).toBeGreaterThan(10);
   });
 });
+
+describe("planRestoreToDraft over generated bulk groups", () => {
+  const BULK = { percent: 10, scope: "all" } as const;
+  const GROUP_IDS = ["group-a", "group-b"] as const;
+
+  const groupedScenario = fc.record({
+    archivedChanges: changesArbitrary,
+    activeChanges: changesArbitrary,
+    draftChanges: changesArbitrary,
+    droppedRows: droppedRowsArbitrary,
+    memberships: fc.array(
+      fc.constantFrom<string | undefined>(undefined, ...GROUP_IDS),
+      { minLength: 12, maxLength: 12 },
+    ),
+  });
+
+  function groupedDraft(
+    draft: readonly DraftChange[],
+    memberships: readonly (string | undefined)[],
+  ): DraftChange[] {
+    return draft.map((change, index) => {
+      const groupId = memberships[index];
+      return groupId === undefined
+        ? change
+        : ({ ...change, groupId, bulk: BULK } as DraftChange);
+    });
+  }
+
+  function membersOf(draft: readonly DraftChange[], groupId: string): number {
+    return draft.filter((change) => change.groupId === groupId).length;
+  }
+
+  it("leaves every group whole or no group: groupId and bulk together or both gone, and the candidate still applies", () => {
+    let appliedScenarios = 0;
+    let groupsBroken = 0;
+    let groupsKeptWhole = 0;
+    fc.assert(
+      fc.property(groupedScenario, (generated) => {
+        const archivedWhole = bookOf(BASE, generated.archivedChanges);
+        const active = bookOf(BASE, generated.activeChanges);
+        fc.pre(archivedWhole !== undefined && active !== undefined);
+        const draft = groupedDraft(
+          generated.draftChanges,
+          generated.memberships,
+        );
+        fc.pre(bookOf(active, draft) !== undefined);
+        const archived = without(archivedWhole, generated.droppedRows);
+        appliedScenarios += 1;
+
+        const plan = planRestoreToDraft({ archived, active, draft });
+
+        for (const change of plan.draft) {
+          expect(change.groupId === undefined).toBe(change.bulk === undefined);
+        }
+        for (const groupId of GROUP_IDS) {
+          const before = membersOf(draft, groupId);
+          const after = membersOf(plan.draft, groupId);
+          if (after > 0) expect(after).toBe(before);
+          if (before > 0 && after === before) groupsKeptWhole += 1;
+          if (before > 0 && after === 0 && demotedIn(plan, draft) > 0) {
+            groupsBroken += 1;
+          }
+        }
+        expect(bookOf(active, plan.draft)).toBeDefined();
+      }),
+      { numRuns: 600 },
+    );
+    expect(appliedScenarios).toBeGreaterThan(50);
+    expect(groupsKeptWhole).toBeGreaterThan(5);
+    expect(groupsBroken).toBeGreaterThan(5);
+  });
+
+  function demotedIn(
+    plan: ReturnType<typeof planRestoreToDraft>,
+    draft: readonly DraftChange[],
+  ): number {
+    return plan.draft.filter(
+      (change) =>
+        change.groupId === undefined &&
+        draft.some(
+          (before) =>
+            isSameAddress(before.address, change.address) &&
+            before.groupId !== undefined,
+        ),
+    ).length;
+  }
+});

@@ -395,51 +395,86 @@ describe("a restore followed by a publish", () => {
 });
 
 describe("requests that race for one draft revision", () => {
-  it("let exactly one of a publish, a restore, a change and a discard through, with one audit row and a stored draft that is the winner's", async () => {
-    const { cookie } = await administrator();
-    await publishAnchor(cookie, 510_000, "Second");
-    await putChange(cookie, DEPTH_RULE_ADDRESS, 30);
+  type Kind = "publish" | "restore" | "change" | "discard";
+  const ACTION_OF: Record<Kind, string> = {
+    publish: "price-published",
+    restore: "price-restored-to-draft",
+    change: "price-draft-changed",
+    discard: "price-draft-reverted",
+  };
+
+  async function raceInOrder(cookie: string, order: readonly Kind[]) {
     const revision = await currentDraftRevision();
     const publishJson = await publishBody({ label: "Race" });
-    const before = await worldFacts();
+    const ask: Record<Kind, () => Promise<Response>> = {
+      publish: () => publishDraft({ cookie, json: publishJson }),
+      restore: () =>
+        restoreVersion(firstVersionId(), {
+          cookie,
+          json: { expectedDraftRevision: revision },
+        }),
+      change: () =>
+        changeDraft({
+          cookie,
+          json: {
+            expectedDraftRevision: revision,
+            change: { address: ANCHOR_ADDRESS, value: 640_000 },
+          },
+        }),
+      discard: () =>
+        revertDraft({
+          cookie,
+          json: { expectedDraftRevision: revision, scope: "all" },
+        }),
+    };
+    const answers = await Promise.all(order.map((kind) => ask[kind]()));
+    return order.map((kind, index) => ({
+      kind,
+      status: answers[index]?.status,
+    }));
+  }
 
-    const answers = await Promise.all([
-      publishDraft({ cookie, json: publishJson }),
-      restoreVersion(firstVersionId(), {
-        cookie,
-        json: { expectedDraftRevision: revision },
-      }),
-      changeDraft({
-        cookie,
-        json: {
-          expectedDraftRevision: revision,
-          change: { address: ANCHOR_ADDRESS, value: 640_000 },
-        },
-      }),
-      revertDraft({
-        cookie,
-        json: { expectedDraftRevision: revision, scope: "all" },
-      }),
-    ]);
+  const RACES: readonly (readonly Kind[])[] = [
+    ["publish", "restore", "change", "discard"],
+    ["discard", "change", "restore", "publish"],
+    ["publish", "restore", "change"],
+    ["change", "restore", "publish"],
+    ["publish", "restore"],
+    ["restore", "publish"],
+    ["publish", "change"],
+    ["change", "publish"],
+    ["restore", "change"],
+    ["change", "restore"],
+  ];
 
-    const statuses = answers.map(({ status }) => status);
-    expect(statuses.filter((status) => status === 200)).toHaveLength(1);
-    expect(statuses.filter((status) => status === 409)).toHaveLength(3);
-    const winner = statuses.indexOf(200);
-    const expectedAction = [
-      "price-published",
-      "price-restored-to-draft",
-      "price-draft-changed",
-      "price-draft-reverted",
-    ][winner];
-    const after = await worldFacts();
-    expect(after.auditRows).toBe(before.auditRows + 1);
-    expect(prices.ledger.heldEvents().at(-1)?.action).toBe(expectedAction);
-    expect(after.versions).toBe(before.versions + (winner === 0 ? 1 : 0));
-    if (winner === 0) expect(after.draft.changes).toEqual([]);
-    if (winner === 3) expect(after.draft.changes).toEqual([]);
-    if (winner === 2) expect(after.draft.changes).toHaveLength(2);
-  });
+  it.each(RACES)(
+    "let exactly one of %s through, with one audit row and the winner's draft",
+    async (...order) => {
+      const { cookie } = await administrator();
+      await publishAnchor(cookie, 510_000, "Second");
+      await putChange(cookie, DEPTH_RULE_ADDRESS, 30);
+      const before = await worldFacts();
+
+      const results = await raceInOrder(cookie, order);
+
+      const won = results.filter(({ status }) => status === 200);
+      expect(won).toHaveLength(1);
+      expect(results.filter(({ status }) => status === 409)).toHaveLength(
+        order.length - 1,
+      );
+      const winner = won[0]?.kind ?? "publish";
+      const after = await worldFacts();
+      expect(after.auditRows).toBe(before.auditRows + 1);
+      expect(prices.ledger.heldEvents().at(-1)?.action).toBe(ACTION_OF[winner]);
+      expect(after.versions).toBe(
+        before.versions + (winner === "publish" ? 1 : 0),
+      );
+      if (winner === "publish" || winner === "discard") {
+        expect(after.draft.changes).toEqual([]);
+      }
+      if (winner === "change") expect(after.draft.changes).toHaveLength(2);
+    },
+  );
 });
 
 describe("the draft bucket both writes spend", () => {

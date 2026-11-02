@@ -237,35 +237,51 @@ describe("a stored version that is not what the store declares", () => {
     return active.version.versionId;
   }
 
-  it("is served without a member the store never declared, or is a 503 with no detail: never with one of them", async () => {
+  const BOOK_WITH_EXTRA_MEMBERS = {
+    ...SAMPLE_PRICE_BOOK,
+    secretMargin: "EXTRA-BOOK-MARKER-31",
+    cabinetRules: SAMPLE_PRICE_BOOK.cabinetRules.map((rule) => ({
+      ...rule,
+      internalNote: "EXTRA-RULE-MARKER-32",
+    })),
+  };
+  const SUMMARY_WITH_EXTRA_MEMBER = [
+    {
+      address: ANCHOR_ADDRESS,
+      value: 500_000,
+      authorEmail: "EXTRA-CHANGE-MARKER-33",
+    },
+  ];
+
+  it("serves a book with members the store never declared projected onto the declared ones, and says nothing of the extras", async () => {
     const { cookie, tokenHash } = await administrator();
-    const hostileBook = {
-      ...SAMPLE_PRICE_BOOK,
-      secretMargin: "EXTRA-BOOK-MARKER-31",
-      cabinetRules: SAMPLE_PRICE_BOOK.cabinetRules.map((rule) => ({
-        ...rule,
-        internalNote: "EXTRA-RULE-MARKER-32",
-      })),
-    };
     await storeVersion(tokenHash, {
-      book: hostileBook,
-      changeSummary: [
-        {
-          address: ANCHOR_ADDRESS,
-          value: 500_000,
-          authorEmail: "EXTRA-CHANGE-MARKER-33",
-        },
-      ],
+      book: BOOK_WITH_EXTRA_MEMBERS,
+      changeSummary: [],
     });
     const id = await newestVersionId();
 
     const detail = await readVersion(id, { cookie });
     const list = await readVersions({ cookie });
 
-    expect([200, 503]).toContain(detail.status);
+    expect(detail.status).toBe(200);
     const text = `${await detail.text()}${await list.text()}${console_.everything()}`;
     expect(text).not.toContain("EXTRA-BOOK-MARKER-31");
     expect(text).not.toContain("EXTRA-RULE-MARKER-32");
+  });
+
+  it("serves a change summary whose changes carry an undeclared member with the member left out", async () => {
+    const { cookie, tokenHash } = await administrator();
+    await storeVersion(tokenHash, {
+      book: SAMPLE_PRICE_BOOK,
+      changeSummary: SUMMARY_WITH_EXTRA_MEMBER,
+    });
+    const id = await newestVersionId();
+
+    const detail = await readVersion(id, { cookie });
+
+    expect(detail.status).toBe(200);
+    const text = `${await detail.text()}${console_.everything()}`;
     expect(text).not.toContain("EXTRA-CHANGE-MARKER-33");
   });
 
