@@ -149,7 +149,7 @@ describe("the allow-list entry the developer added to the R-d guard", () => {
     }
   });
 
-  it("is needed by that file and by no other file of the dashboard's client side: every file under price-dashboard that reads the server's side is that one (or the publish source)", () => {
+  it("is needed by that file and by no other file of the dashboard's client side: every file under price-dashboard that reads the server's side is that one or the hardware source", () => {
     const readers = allSources
       .filter((path) => path.startsWith("price-dashboard/"))
       .filter((path) => READS_DRAFT_OR_ARCHIVE.test(codeOf(path)));

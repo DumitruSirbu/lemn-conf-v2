@@ -38,7 +38,7 @@ const DEACTIVATE = roCopy("priceDashboard.common.deactivate");
 const ACTIVATE = roCopy("priceDashboard.common.activate");
 const CANCEL = roCopy("priceDashboard.common.cancel");
 /** The sentence the earlier mock put in every dialog: a switch applies at once now. */
-const TAKES_EFFECT_AT_PUBLISH = /intr. in vigoare c.nd publici/i;
+const TAKES_EFFECT_AT_PUBLISH = /intr. .n vigoare c.nd publici/iu;
 const chipsOf = (container: HTMLElement, tierId: string) =>
   allIn(rowOf(container, tierId), '[data-testid="hardware-chip"]').map(
     (chip) => chip.textContent,
