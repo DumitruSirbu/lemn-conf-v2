@@ -1,5 +1,4 @@
 // M10 M4 (b), (d): the words of a row the dashboard creates.
-/* eslint-disable no-restricted-syntax -- the subject is Romanian text: these are the inputs the judgement must pass or refuse, and a letter, a word and a codepoint of them are the point */
 import { describe, expect, it } from "vitest";
 
 import { judgeCreatedRowText } from "../../src/price-dashboard/created-row-text.js";
@@ -7,7 +6,9 @@ import type { CreatedRowTextField } from "../../src/price-dashboard/book-field-a
 
 const FIELDS: readonly CreatedRowTextField[] = ["name", "description"];
 
+// eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
 const BREVE_A = "ă";
+// eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
 const CIRCUMFLEX_A = "â";
 
 function codeOf(raw: unknown, field: CreatedRowTextField = "name"): string {
@@ -152,6 +153,7 @@ describe("a text may not state an amount, a percentage or an inclusion (ADR 0106
     "$ 20",
     "20 USD",
     "٥٠٠ lei",
+    // eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
     "Preț: 99 RON",
   ])("refuses %j as an amount", (text) => {
     expect(codeOf(text)).toBe("TEXT_STATES_AN_AMOUNT");
@@ -181,6 +183,7 @@ describe("a text may not state an amount, a percentage or an inclusion (ADR 0106
     "Inclusiv montaj",
     `Incluz${CIRCUMFLEX_A}nd montaj`,
     "Incluzand montaj",
+    // eslint-disable-next-line no-restricted-syntax -- the judgement is about Romanian wording: this letter is an input it must pass or refuse
     `Montaj inclus${BREVE_A} în preț`,
     `INCLUS${BREVE_A.toUpperCase()}`,
   ])("refuses %j as an inclusion", (text) => {

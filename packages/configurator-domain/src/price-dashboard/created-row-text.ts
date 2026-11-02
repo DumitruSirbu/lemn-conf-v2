@@ -48,12 +48,9 @@ const PERCENT_WORD = /(?<!\p{L})procent(?:e|ul|elor)?(?!\p{L})/iu;
 
 /** The inclusion words, in the family ADR 0106 Amendment A names and the catalogue sweep widens to: `inclus`, `inclusa`
  *  (with or without its breve), `incluse`, `inclusiv`, `incluzand` (with or without its circumflex). `include` is not
- *  one: it says nothing about what a price holds. Built from a string because the lint gate rejects a Romanian letter
- *  in a regular expression literal. */
-const INCLUSION_WORD = new RegExp(
-  "(?<!\\p{L})(?:inclus(?:[a\\u0103e]|iv)?|incluz[a\\u00e2]nd)(?!\\p{L})",
-  "iu",
-);
+ *  one: it says nothing about what a price holds. */
+const INCLUSION_WORD =
+  /(?<!\p{L})(?:inclus(?:[a\u0103e]|iv)?|incluz[a\u00e2]nd)(?!\p{L})/iu;
 
 const MONEY_SYMBOL = "[\\u20AC$\\u00A3\\u20BD]";
 const MONEY_WORD =
