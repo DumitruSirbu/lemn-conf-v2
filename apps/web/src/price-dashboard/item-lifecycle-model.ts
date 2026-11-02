@@ -1,6 +1,7 @@
 import {
   fixedDefaultItemsOf,
   isItemOffered,
+  isItemStated,
   isSameItem,
   judgeAvailabilityChange,
   judgeDeletion,
@@ -11,6 +12,7 @@ import {
   type AvailabilityRefusalCode,
   type CatalogueAvailability,
   type DeletableItemRef,
+  type DeletionRequest,
   type ItemRef,
   type ItemUsageCounts,
   type NewKitchenSettings,
@@ -21,7 +23,8 @@ import {
 // `judgeDeletion`), so the order the guards are read in is never written a second time here: this module maps a verdict to
 // the control a person is shown. The server judges the same write again when it is made.
 
-/** What a screen knows to judge a change by. `defaults` is absent when they could not be read: no change is then judged. */
+/** What a screen knows to judge a change by. `defaults` is absent when they could not be read: what the book alone
+ *  refuses is still refused, and what it allows is left unjudged. */
 export interface LifecycleContext {
   readonly book: PriceBook;
   readonly availability: CatalogueAvailability;
@@ -77,12 +80,12 @@ export function switchStandOf(
       ? { kind: "enable" }
       : { kind: "off", reason: "cannot-judge" };
   }
-  if (defaults === undefined) return { kind: "off", reason: "cannot-judge" };
   const verdict = judgeAvailabilityChange(
     { item, active: false },
-    { book, availability, defaults },
+    { book, availability, defaults: defaults ?? {} },
   );
   if (verdict.kind === "refused") return standOfRefusal(verdict.code);
+  if (defaults === undefined) return { kind: "off", reason: "cannot-judge" };
   return {
     kind: "disable",
     remaining: remainingOptionsIfSwitchedOff(item, context),
@@ -124,9 +127,17 @@ export function countedDeletionOf(
   counts: ItemUsageCounts,
 ): CountedDeletion {
   const { book, defaults } = context;
-  if (defaults === undefined) return { kind: "off", reason: "cannot-judge" };
-  const verdict = judgeDeletion({ item, usage: counts, book, defaults });
-  if (verdict.kind === "allowed") return { kind: "allowed" };
+  const verdict = judgeDeletion({
+    item,
+    usage: counts,
+    book,
+    defaults: defaults ?? {},
+  });
+  if (verdict.kind === "allowed") {
+    return mustAwaitDefaults(item, context)
+      ? { kind: "off", reason: "cannot-judge" }
+      : { kind: "allowed" };
+  }
   if (verdict.code === "item-in-use") {
     return { kind: "in-use", count: usageCountOf(counts, item) };
   }
@@ -135,16 +146,29 @@ export function countedDeletionOf(
 
 /**
  * What forbids a deletion before anything is counted. `judgeDeletion` names a default first and counts afterwards, and
- * throws for an item no count names: that throw is "not counted yet" here, never a zero.
+ * throws for an item no count names: that throw is "not counted yet" here, never a zero. Judged without the saved
+ * defaults first: what that refuses stays refused, and only an allowance waits for them.
  */
 function deletionRefusalWithoutCount(
   item: DeletableItemRef,
   context: LifecycleContext,
 ): OffReason | undefined {
   const { book, defaults } = context;
-  if (defaults === undefined) return "cannot-judge";
+  const reason = refusalOfUncountedDeletion({
+    item,
+    usage: [],
+    book,
+    defaults: defaults ?? {},
+  });
+  if (reason !== undefined) return reason;
+  return mustAwaitDefaults(item, context) ? "cannot-judge" : undefined;
+}
+
+function refusalOfUncountedDeletion(
+  request: DeletionRequest,
+): OffReason | undefined {
   try {
-    const verdict = judgeDeletion({ item, usage: [], book, defaults });
+    const verdict = judgeDeletion(request);
     return verdict.kind === "refused" && verdict.code !== "item-in-use"
       ? verdict.code
       : undefined;
@@ -152,6 +176,15 @@ function deletionRefusalWithoutCount(
     if (failure instanceof UsageNotCountedError) return undefined;
     throw failure;
   }
+}
+
+/** Saved defaults that could not be read leave an allowance open for an item the book states; an item it never stated
+ *  cannot be named by any saved default. */
+function mustAwaitDefaults(
+  item: ItemRef,
+  { book, defaults }: LifecycleContext,
+): boolean {
+  return defaults === undefined && isItemStated(item, book);
 }
 
 /** The number of saved kitchens that use the item, or `undefined` where the reader named none for it. */

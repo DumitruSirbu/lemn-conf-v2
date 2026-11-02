@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type {
   CabinetPriceRule,
@@ -20,23 +20,11 @@ import {
   type TypedTexts,
 } from "./cabinet-detail-fields";
 import { plannedWritesOf, type PlannedWrite } from "./cabinet-write-plan";
-import type { FailedFieldWrite } from "./price-input-words";
-import { useLateAnswerGuard } from "./use-late-answer-guard";
 import type { PriceDraft } from "./use-price-draft";
+import { useSequentialSave, type SaveFeedback } from "./use-sequential-save";
 
 // Typing, saving and cancelling on the cabinet's page. Nothing is sent while typing; a save sends one write per
-// changed field and stops at the first not written; its answer is dropped once the person has typed since, and a
-// notice is shown only for what the server wrote.
-
-export type SaveFeedback =
-  | { readonly kind: "none" }
-  /** Every write landed and at least one put an amount into the draft. */
-  | { readonly kind: "saved" }
-  | {
-      readonly kind: "failed";
-      readonly fieldKey: string;
-      readonly failure: FailedFieldWrite;
-    };
+// changed field (`use-sequential-save.ts`).
 
 export interface CabinetPriceEditing {
   readonly states: readonly FieldState[];
@@ -63,15 +51,6 @@ interface EditingInput {
   readonly draft: Pick<PriceDraft, "changeOrRevert" | "isBusy">;
 }
 
-type WriteSequence =
-  | { readonly kind: "done"; readonly putAnAmountInTheDraft: boolean }
-  | { readonly kind: "stopped" }
-  | {
-      readonly kind: "failed";
-      readonly write: PlannedWrite;
-      readonly failure: FailedFieldWrite;
-    };
-
 export function useCabinetPriceEditing({
   fields,
   candidate,
@@ -79,10 +58,8 @@ export function useCabinetPriceEditing({
   draft,
 }: EditingInput): CabinetPriceEditing {
   const [typed, setTyped] = useState<TypedTexts>({});
-  const [feedback, setFeedback] = useState<SaveFeedback>({ kind: "none" });
-  const [isSaving, setIsSaving] = useState(false);
-  const isSavingRef = useRef(false);
-  const { moveOn: markMoved, begin } = useLateAnswerGuard();
+  const sequence = useSequentialSave<PlannedWrite>();
+  const { feedback, isSaving, moveOn, save: saveInOrder } = sequence;
   const { changeOrRevert, isBusy } = draft;
 
   const states = useMemo(() => fieldStatesOf(fields, typed), [fields, typed]);
@@ -109,11 +86,6 @@ export function useCabinetPriceEditing({
     !isSaving &&
     !isBusy;
 
-  const moveOn = useCallback(() => {
-    markMoved();
-    setFeedback({ kind: "none" });
-  }, [markMoved]);
-
   const type = useCallback(
     (fieldKey: string, text: string) => {
       moveOn();
@@ -128,31 +100,15 @@ export function useCabinetPriceEditing({
   }, [moveOn]);
 
   const save = useCallback(async () => {
-    if (!canSave || isSavingRef.current) return;
-    const writes = plannedWritesOf(candidate, ruleId, states);
-    const hasMoved = begin();
-    isSavingRef.current = true;
-    setIsSaving(true);
-    try {
-      const sequence = await sendInOrder(writes, changeOrRevert, hasMoved);
-      if (hasMoved()) return;
-      if (sequence.kind === "done") {
+    if (!canSave) return;
+    await saveInOrder({
+      writes: plannedWritesOf(candidate, ruleId, states),
+      send: (write) => changeOrRevert(write, write.activeMinor),
+      onDone: () => {
         setTyped({});
-        setFeedback(
-          sequence.putAnAmountInTheDraft ? { kind: "saved" } : { kind: "none" },
-        );
-      } else if (sequence.kind === "failed") {
-        setFeedback({
-          kind: "failed",
-          fieldKey: sequence.write.fieldKey,
-          failure: sequence.failure,
-        });
-      }
-    } finally {
-      isSavingRef.current = false;
-      setIsSaving(false);
-    }
-  }, [canSave, candidate, ruleId, states, changeOrRevert, begin]);
+      },
+    });
+  }, [canSave, saveInOrder, candidate, ruleId, states, changeOrRevert]);
 
   return {
     states,
@@ -168,25 +124,4 @@ export function useCabinetPriceEditing({
     cancel,
     save,
   };
-}
-
-/** The writes in order; nothing more is sent once the person has typed, or one is not written. */
-async function sendInOrder(
-  writes: readonly PlannedWrite[],
-  changeOrRevert: PriceDraft["changeOrRevert"],
-  hasMoved: () => boolean,
-): Promise<WriteSequence> {
-  let putAnAmountInTheDraft = false;
-  for (const write of writes) {
-    if (hasMoved()) return { kind: "stopped" };
-    const result = await changeOrRevert(write, write.activeMinor);
-    if (result.kind === "busy") return { kind: "stopped" };
-    if (result.kind !== "saved" && result.kind !== "unchanged") {
-      return { kind: "failed", write, failure: result };
-    }
-    if (result.kind === "saved" && write.value !== write.activeMinor) {
-      putAnAmountInTheDraft = true;
-    }
-  }
-  return { kind: "done", putAnAmountInTheDraft };
 }

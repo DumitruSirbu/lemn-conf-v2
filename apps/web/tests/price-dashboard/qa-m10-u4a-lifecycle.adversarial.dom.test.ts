@@ -216,6 +216,35 @@ describe("a production build, as the server hands it its page", () => {
     expect(screen().draftServer.calls).toEqual([]);
   });
 
+  it("takes a class that only the draft holds back out of the draft, though the saved defaults cannot be read and no kitchen can be counted", async () => {
+    await mountWithNoLifecycleClient(
+      productionPageOf({ changes: CREATED_CLASS }),
+    );
+
+    const dialog = await dialogFor(CREATED, CREATED_NAME, DELETE);
+    await pressWithPointer(dialogButton(dialog, DELETE));
+
+    expect(openDialog()).toBeNull();
+    expect(() => rowOf(screen().container, CREATED)).toThrow();
+    expect(screen().draftServer.calls).toHaveLength(1);
+  });
+
+  it("names the fallback class a default that cannot be deleted, where the saved defaults cannot be read", async () => {
+    await mountWithNoLifecycleClient(productionPageOf());
+
+    await openMenuOf(screen().container, STANDARD, STANDARD_NAME);
+
+    expect(
+      allIn(
+        rowOf(screen().container, STANDARD),
+        '[data-testid="menu-reason"]',
+      ).map((reason) => reason.textContent),
+    ).toEqual([
+      roCopy("priceDashboard.lifecycle.fixedDefaultCannotChange"),
+      roCopy("priceDashboard.lifecycle.fixedDefaultCannotChange"),
+    ]);
+  });
+
   it("claims no count of kitchens even where a page was handed one with the saved defaults, and leaves the confirmation off", async () => {
     // Not a page production builds: it is what a leak would look like, and no figure may then reach a dialog.
     await mountWithNoLifecycleClient(hardwarePageOf());
@@ -518,7 +547,7 @@ describe("deleting a class that only the draft holds, after its rates were edite
 });
 
 describe("what the page says after it read the data again", () => {
-  it("draws what the second read holds of what is switched off, not what the first read held: a re-read is the whole state", async () => {
+  it("draws what the read of the lifecycle holds of what is switched off, not what the screen held before the draft was read again", async () => {
     const page = hardwarePageOf();
     const server = inMemoryPriceDraftClient(page.state);
     const switchedOffMeanwhile = {
@@ -538,6 +567,10 @@ describe("what the page says after it read the data again", () => {
       },
     };
     mounted = await mountHardwareList(page, { draftClient });
+    await screen().lifecycle.writeBehindTheScreen({
+      item: hardwareItem(BLUM),
+      active: false,
+    });
     server.moveDraftBehindTheScreen();
     const dialog = await dialogFor(BLUM, BLUM_NAME, DELETE);
 

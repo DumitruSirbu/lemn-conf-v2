@@ -56,6 +56,25 @@ export function ItemDialogs({
   );
 }
 
+export interface ItemDeskNoticeProps {
+  readonly desk: Pick<ItemAvailabilityDesk, "flow" | "failure" | "isReading">;
+}
+
+/** What the desk says where no dialog is open: that the saved kitchens are being counted, and the answer to a
+ *  confirmation after which its dialog closed. */
+export function ItemDeskNotice({ desk }: ItemDeskNoticeProps) {
+  const translate = useTranslations();
+  if (desk.isReading) {
+    return (
+      <FormNotice tone="info">
+        {translate("priceDashboard.lifecycle.counting")}
+      </FormNotice>
+    );
+  }
+  if (desk.flow.kind !== "closed") return null;
+  return <FailureNotice failure={desk.failure} />;
+}
+
 /** Drawn into the frame's `<main>`, so the page behind goes inert. */
 function InMain({ children }: { readonly children: ReactNode }) {
   return createPortal(

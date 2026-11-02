@@ -1,30 +1,22 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type { HardwareRateField } from "@lemnaria/configurator-domain";
 
 import type { HardwareRateFacts } from "./hardware-model";
 import type { LeiInputReading } from "./price-field-input";
 import { plainLeiOf, readLeiInputOverHeld } from "./price-field-input";
-import type { FailedFieldWrite } from "./price-input-words";
-import { useLateAnswerGuard } from "./use-late-answer-guard";
+import {
+  useSequentialSave,
+  type PlannedFieldWrite,
+  type SaveFeedback,
+} from "./use-sequential-save";
 import type { FieldWriteResult, PriceDraft } from "./use-price-draft";
 
 // Typing, saving and cancelling the rates on a class's page. Nothing is sent while typing; a save sends one write per
-// changed rate and stops at the first that is not written; its answer is dropped once the person has typed since, and a
-// notice is shown only for what the server wrote. A class only the draft knows has no active rate to type back to, so each
-// of its rates is a change of its own and none is ever taken out of the draft as "equal to the active one".
-
-export type RateSaveFeedback =
-  | { readonly kind: "none" }
-  /** Every write landed and at least one put an amount into the draft. */
-  | { readonly kind: "saved" }
-  | {
-      readonly kind: "failed";
-      readonly field: HardwareRateField;
-      readonly failure: FailedFieldWrite;
-    };
+// changed rate (`use-sequential-save.ts`). A class only the draft knows has no active rate to type back to, so each of its
+// rates is a change of its own and none is ever taken out of the draft as "equal to the active one".
 
 export interface RateFieldState {
   readonly rate: HardwareRateFacts;
@@ -36,7 +28,7 @@ export interface RateFieldState {
 
 export interface HardwareRateEditing {
   readonly states: readonly RateFieldState[];
-  readonly feedback: RateSaveFeedback;
+  readonly feedback: SaveFeedback;
   readonly isChanged: boolean;
   readonly canSave: boolean;
   readonly isSaving: boolean;
@@ -53,14 +45,9 @@ interface EditingInput {
 
 type TypedTexts = Readonly<Partial<Record<HardwareRateField, string>>>;
 
-type WriteSequence =
-  | { readonly kind: "done"; readonly putAnAmountInTheDraft: boolean }
-  | { readonly kind: "stopped" }
-  | {
-      readonly kind: "failed";
-      readonly field: HardwareRateField;
-      readonly failure: FailedFieldWrite;
-    };
+interface RateWrite extends PlannedFieldWrite {
+  readonly field: HardwareRateField;
+}
 
 export function useHardwareRateEditing({
   tierId,
@@ -68,11 +55,9 @@ export function useHardwareRateEditing({
   draft,
 }: EditingInput): HardwareRateEditing {
   const [typed, setTyped] = useState<TypedTexts>({});
-  const [feedback, setFeedback] = useState<RateSaveFeedback>({ kind: "none" });
-  const [isSaving, setIsSaving] = useState(false);
-  const isSavingRef = useRef(false);
-  const { moveOn: markMoved, begin } = useLateAnswerGuard();
+  const sequence = useSequentialSave<RateWrite>();
   const { change, changeOrRevert, isBusy } = draft;
+  const { feedback, isSaving, moveOn, save: saveInOrder } = sequence;
 
   const states = useMemo(() => statesOf(rates, typed), [rates, typed]);
   const changed = states.filter((state) => state.isChanged);
@@ -80,11 +65,6 @@ export function useHardwareRateEditing({
     (state) => state.reading.kind === "amount",
   );
   const canSave = changed.length > 0 && isEveryReadable && !isSaving && !isBusy;
-
-  const moveOn = useCallback(() => {
-    markMoved();
-    setFeedback({ kind: "none" });
-  }, [markMoved]);
 
   const type = useCallback(
     (field: HardwareRateField, text: string) => {
@@ -100,35 +80,15 @@ export function useHardwareRateEditing({
   }, [moveOn]);
 
   const save = useCallback(async () => {
-    if (!canSave || isSavingRef.current) return;
-    const hasMoved = begin();
-    isSavingRef.current = true;
-    setIsSaving(true);
-    try {
-      const sequence = await sendInOrder({
-        tierId,
-        states: changed,
-        write: { change, changeOrRevert },
-        hasMoved,
-      });
-      if (hasMoved()) return;
-      if (sequence.kind === "done") {
+    if (!canSave) return;
+    await saveInOrder({
+      writes: plannedWritesOf(changed),
+      send: (write) => writeRate(tierId, write, { change, changeOrRevert }),
+      onDone: () => {
         setTyped({});
-        setFeedback(
-          sequence.putAnAmountInTheDraft ? { kind: "saved" } : { kind: "none" },
-        );
-      } else if (sequence.kind === "failed") {
-        setFeedback({
-          kind: "failed",
-          field: sequence.field,
-          failure: sequence.failure,
-        });
-      }
-    } finally {
-      isSavingRef.current = false;
-      setIsSaving(false);
-    }
-  }, [canSave, begin, tierId, changed, change, changeOrRevert]);
+      },
+    });
+  }, [canSave, saveInOrder, changed, tierId, change, changeOrRevert]);
 
   return {
     states,
@@ -159,53 +119,33 @@ function statesOf(
   });
 }
 
-async function sendInOrder({
-  tierId,
-  states,
-  write,
-  hasMoved,
-}: {
-  readonly tierId: string;
-  readonly states: readonly RateFieldState[];
-  readonly write: Pick<PriceDraft, "change" | "changeOrRevert">;
-  readonly hasMoved: () => boolean;
-}): Promise<WriteSequence> {
-  let putAnAmountInTheDraft = false;
-  for (const { rate, reading } of states) {
-    if (hasMoved()) return { kind: "stopped" };
-    if (reading.kind !== "amount") return { kind: "stopped" };
-    const result = await writeRate({
-      tierId,
-      rate,
-      minor: reading.minor,
-      write,
-    });
-    if (result.kind === "busy") return { kind: "stopped" };
-    if (result.kind !== "saved" && result.kind !== "unchanged") {
-      return { kind: "failed", field: rate.field, failure: result };
-    }
-    if (result.kind === "saved" && reading.minor !== rate.activeMinor) {
-      putAnAmountInTheDraft = true;
-    }
-  }
-  return { kind: "done", putAnAmountInTheDraft };
+/** One write for each changed rate that reads as an amount; a Save is offered only where every rate does. */
+function plannedWritesOf(
+  changed: readonly RateFieldState[],
+): readonly RateWrite[] {
+  return changed.flatMap(({ rate, reading }) =>
+    reading.kind === "amount"
+      ? [
+          {
+            fieldKey: rate.field,
+            field: rate.field,
+            value: reading.minor,
+            activeMinor: rate.activeMinor,
+          },
+        ]
+      : [],
+  );
 }
 
 /** A class the active version holds takes a rate back out of the draft when it is typed back to the active one; a class
  *  only the draft knows has no active rate, so every write is a change. */
-function writeRate({
-  tierId,
-  rate,
-  minor,
-  write,
-}: {
-  readonly tierId: string;
-  readonly rate: HardwareRateFacts;
-  readonly minor: number;
-  readonly write: Pick<PriceDraft, "change" | "changeOrRevert">;
-}): Promise<FieldWriteResult> {
-  const address = { kind: "hardware", tierId, field: rate.field } as const;
-  return rate.activeMinor === undefined
-    ? write.change({ address, value: minor })
-    : write.changeOrRevert({ address, value: minor }, rate.activeMinor);
+function writeRate(
+  tierId: string,
+  { field, value, activeMinor }: RateWrite,
+  write: Pick<PriceDraft, "change" | "changeOrRevert">,
+): Promise<FieldWriteResult> {
+  const address = { kind: "hardware", tierId, field } as const;
+  return activeMinor === undefined
+    ? write.change({ address, value })
+    : write.changeOrRevert({ address, value }, activeMinor);
 }

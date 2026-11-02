@@ -14,7 +14,11 @@ import { hardwareClassPathOf, hardwarePathOf } from "./hardware-paths";
 import styles from "./hardware.module.css";
 import editStyles from "./price-edit.module.css";
 import type { PriceDraftClient } from "./price-draft-client";
-import { createdTextRefusalWords, leiRefusalWords } from "./price-input-words";
+import {
+  createdTextRefusalWords,
+  creationFailureWords,
+  leiRefusalWords,
+} from "./price-input-words";
 import { PriceUnitField } from "./price-unit-field";
 import {
   useHardwareCreation,
@@ -302,11 +306,7 @@ function FailureNotice({ feedback }: { readonly feedback: CreationFeedback }) {
   if (feedback.kind !== "failed") return null;
   return (
     <FormNotice tone="error">
-      {translate(
-        feedback.failure.kind === "conflict"
-          ? "priceDashboard.errors.changedMeanwhile"
-          : "priceDashboard.errors.saveFailed",
-      )}
+      {creationFailureWords(translate, feedback.failure)}
     </FormNotice>
   );
 }

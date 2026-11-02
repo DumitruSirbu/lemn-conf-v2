@@ -63,6 +63,11 @@ export type HardwareDerivation =
   /** A draft that does not apply: a defect, so the screen is not drawn rather than drawn wrong. */
   | { readonly kind: "unreadable" };
 
+export type ReadyHardware = Extract<
+  HardwareDerivation,
+  { readonly kind: "ready" }
+>;
+
 export function deriveHardware(state: DashboardStateWire): HardwareDerivation {
   const { book: active } = state.active;
   const { draft } = state;
@@ -88,7 +93,7 @@ export function deriveHardware(state: DashboardStateWire): HardwareDerivation {
 
 /** The class of one id, or `undefined` where neither the active book nor the draft's creations hold it. */
 export function hardwareClassOf(
-  derivation: Extract<HardwareDerivation, { readonly kind: "ready" }>,
+  derivation: ReadyHardware,
   tierId: string,
 ): HardwareClassFacts | undefined {
   return derivation.classes.find((held) => held.tierId === tierId);

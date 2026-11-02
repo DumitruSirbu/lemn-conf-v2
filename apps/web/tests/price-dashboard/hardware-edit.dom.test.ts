@@ -12,6 +12,7 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import { formatLei } from "@/price-dashboard/format-lei";
+import type { PriceDraftClient } from "@/price-dashboard/price-draft-client";
 import { plainLeiOf } from "@/price-dashboard/price-field-input";
 import { resetStaffSessionExpiryForTests } from "@/staff/staff-session-expiry";
 
@@ -37,6 +38,7 @@ import {
   press,
   type MountedHardware,
 } from "./hardware-harness";
+import { inMemoryPriceDraftClient } from "./in-memory-price-draft-client";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
 
@@ -253,6 +255,35 @@ describe("Save", () => {
     expect(fieldNamed(container, LIFT).value).toBe("700");
   });
 
+  it("does not say nothing changed when the second of two rates fails after the first landed", async () => {
+    const page = hardwarePageOf();
+    const server = inMemoryPriceDraftClient(page.state);
+    let sent = 0;
+    const failingSecondWrite: PriceDraftClient = {
+      ...server.client,
+      change: (request) => {
+        sent += 1;
+        return sent === 2
+          ? Promise.resolve({ kind: "failed" })
+          : server.client.change(request);
+      },
+    };
+    mounted = await mountHardwareEdit(HETTICH, page, {
+      draftClient: failingSecondWrite,
+    });
+    const container = mounted.container;
+    typeInField(container, HINGE, "9990");
+    typeInField(container, LIFT, "9990");
+
+    await press(buttonNamed(container, SAVE));
+
+    const alerts = allIn(container, '[role="alert"]').map(
+      (alert) => alert.textContent,
+    );
+    expect(server.state().draft.changes).toHaveLength(1);
+    expect(alerts).toEqual([roCopy("priceDashboard.errors.savePartlyFailed")]);
+  });
+
   it("drops the answer of a write the person has typed over, so no notice is shown for what is no longer on screen", async () => {
     const container = await mountHettich();
     typeInField(container, LIFT, "700");
@@ -332,6 +363,18 @@ describe("whether customers may choose the class", () => {
     expect(
       mounted?.lifecycle.calls.filter((call) => call.kind === "setActive"),
     ).toHaveLength(1);
+  });
+
+  it("names the other classes that stay on offer in its dialog, each by its own name and never by this class's", async () => {
+    const container = await mountHettich();
+
+    await press(requireIn(container, '[role="switch"]'));
+
+    expect(openDialog()?.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.remaining", {
+        options: `${roCopy("priceBook.hardware.standard.name")}, Blum`,
+      }),
+    );
   });
 
   it("is off, with the fixed-default reason beside it, for the book's fallback class", async () => {

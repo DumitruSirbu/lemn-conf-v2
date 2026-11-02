@@ -21,15 +21,15 @@ import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { CatalogUnavailableNotice } from "./catalog-states";
 import {
-  hardwareClassOf,
   type HardwareClassFacts,
-  type HardwareDerivation,
   type HardwarePageInput,
+  type ReadyHardware,
 } from "./hardware-model";
+import { hardwareNameOf } from "./hardware-names";
 import { hardwareClassPathOf, hardwareNewPathOf } from "./hardware-paths";
 import styles from "./hardware.module.css";
 import { formatLei, formatLeiAmount } from "./format-lei";
-import { ItemDialogs } from "./item-dialogs";
+import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import {
   deleteStandOf,
@@ -45,8 +45,6 @@ import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 // The classes of hardware the customer chooses from (frames D4A, D4E, D4F and D4D): one row each, with its four rates, its
 // state and the actions "⋯" opens. A rate is changed on the class's own page, so a card never holds a field. Disabling and
 // enabling apply at once and are asked of the dialogs; deleting waits for publication.
-
-type ReadyHardware = Extract<HardwareDerivation, { readonly kind: "ready" }>;
 
 export interface HardwareListScreenProps {
   readonly locale: AppLocale;
@@ -110,15 +108,8 @@ function HardwareList({
   const { availability } = desk;
   const { classes, rates } = derivation;
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const nameOf = (item: ItemRef) => {
-    const held =
-      item.kind === "hardware"
-        ? hardwareClassOf(derivation, item.tierId)
-        : undefined;
-    return held === undefined
-      ? ""
-      : content.bookText(held.name.authored, held.name.key);
-  };
+  const nameOf = (item: ItemRef) =>
+    hardwareNameOf(derivation, content.bookText, item);
   return (
     <section
       className={styles.page}
@@ -136,6 +127,7 @@ function HardwareList({
           {translate("priceDashboard.hardware.addAction")}
         </a>
       </div>
+      <ItemDeskNotice desk={availability} />
       <ColumnHeads rates={rates} />
       <ul
         className={styles.rows}

@@ -78,6 +78,24 @@ describe("the switch of an item", () => {
     });
   });
 
+  it("is off, named a fixed default, for the fallback class when the saved defaults could not be read: no saved default changes that", () => {
+    expect(switchStandOf(STANDARD, contextOf({ defaults: undefined }))).toEqual(
+      { kind: "off", reason: "item-is-fixed-default" },
+    );
+  });
+
+  it("opens the block for the only class that is on when the saved defaults could not be read: no saved default changes that", () => {
+    const stand = switchStandOf(
+      BLUM,
+      contextOf({
+        defaults: undefined,
+        availability: { revision: "1", disabled: [STANDARD, HETTICH] },
+      }),
+    );
+
+    expect(stand).toEqual({ kind: "last-active-option" });
+  });
+
   it("opens the enabling dialog for a switched-off item even where the saved defaults could not be read", () => {
     const stand = switchStandOf(
       BLUM,
@@ -126,6 +144,36 @@ describe("the deletion of an item", () => {
         { kind: "hardware", tierId: BLUM.tierId },
         contextOf({ defaults: undefined }),
       ),
+    ).toEqual({ kind: "off", reason: "cannot-judge" });
+  });
+
+  it("is off, named a fixed default, for the fallback class when the saved defaults could not be read", () => {
+    expect(
+      deleteStandOf(
+        { kind: "hardware", tierId: STANDARD.tierId },
+        contextOf({ defaults: undefined }),
+      ),
+    ).toEqual({ kind: "off", reason: "item-is-fixed-default" });
+  });
+
+  it("waits for a count for a class the active book does not state, where the saved defaults could not be read: none can name it", () => {
+    expect(
+      deleteStandOf(
+        { kind: "hardware", tierId: STRANGER.tierId },
+        contextOf({ defaults: undefined }),
+      ),
+    ).toEqual({ kind: "count-first" });
+  });
+
+  it("is forbidden, with the count, when a used class is judged without its saved defaults, and unjudged when none uses it", () => {
+    const item = { kind: "hardware", tierId: BLUM.tierId } as const;
+    const unreadable = contextOf({ defaults: undefined });
+
+    expect(
+      countedDeletionOf(item, unreadable, [{ item, designCount: 3 }]),
+    ).toEqual({ kind: "in-use", count: 3 });
+    expect(
+      countedDeletionOf(item, unreadable, [{ item, designCount: 0 }]),
     ).toEqual({ kind: "off", reason: "cannot-judge" });
   });
 

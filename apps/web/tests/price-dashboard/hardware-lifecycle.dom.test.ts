@@ -44,6 +44,9 @@ const chipsOf = (container: HTMLElement, tierId: string) =>
     (chip) => chip.textContent,
   );
 
+const readUsageCalls = (screen: MountedHardware): number =>
+  screen.lifecycle.calls.filter((call) => call.kind === "readUsage").length;
+
 let mounted: MountedHardware | undefined;
 
 beforeEach(() => {
@@ -269,13 +272,14 @@ describe("a switch that is not written", () => {
     );
   });
 
-  it("reads again after a conflict, says the data changed, and judges the next press against what it read", async () => {
+  it("closes the dialog after a conflict and says the data changed, and the next question is asked of what was read, and counted again", async () => {
     mounted = await mountHardwareList(hardwarePageOf());
     const dialog = await openDialogFor(HETTICH, HETTICH_NAME, DEACTIVATE);
     await mounted.lifecycle.writeBehindTheScreen({
       item: hardwareItem(BLUM),
       active: false,
     });
+    const countsBefore = readUsageCalls(mounted);
 
     await press(
       dialogButton(
@@ -284,9 +288,12 @@ describe("a switch that is not written", () => {
       ),
     );
 
-    expect(openDialog()?.textContent).toContain(
-      roCopy("priceDashboard.errors.changedMeanwhile"),
-    );
+    expect(openDialog()).toBeNull();
+    expect(
+      allIn(mounted.container, '[role="alert"]').map(
+        (alert) => alert.textContent,
+      ),
+    ).toEqual([roCopy("priceDashboard.errors.changedMeanwhile")]);
     expect(
       mounted.lifecycle.calls.some((call) => call.kind === "readAvailability"),
     ).toBe(true);
@@ -296,6 +303,42 @@ describe("a switch that is not written", () => {
     expect(chipsOf(mounted.container, HETTICH)).toEqual([
       roCopy("priceDashboard.chips.active"),
     ]);
+
+    // The menu that asked is still open: the same entry asks again.
+    await press(menuEntry(mounted.container, HETTICH, DEACTIVATE));
+    const asked = openDialog();
+
+    expect(asked?.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.remaining", { options: STANDARD_NAME }),
+    );
+    expect(readUsageCalls(mounted)).toBe(countsBefore + 1);
+    expect(
+      allIn(mounted.container, '[role="alert"]'),
+      "asking again clears the notice",
+    ).toEqual([]);
+  });
+
+  it("says the saved kitchens are being counted while they are, with no dialog yet, and opens the dialog when the count is in", async () => {
+    mounted = await mountHardwareList(hardwarePageOf());
+    const release = mounted.lifecycle.holdNextUsage();
+    await openMenuOf(mounted.container, HETTICH, HETTICH_NAME);
+
+    await press(menuEntry(mounted.container, HETTICH, DEACTIVATE));
+
+    expect(openDialog()).toBeNull();
+    expect(mounted.container.textContent).toContain(
+      roCopy("priceDashboard.lifecycle.counting"),
+    );
+
+    release();
+    await act(async () => {
+      await flushPromises(10);
+    });
+
+    expect(openDialog()).not.toBeNull();
+    expect(mounted.container.textContent).not.toContain(
+      roCopy("priceDashboard.lifecycle.counting"),
+    );
   });
 
   it("says the save failed and leaves the class active when the request fails, and the press can be made again", async () => {

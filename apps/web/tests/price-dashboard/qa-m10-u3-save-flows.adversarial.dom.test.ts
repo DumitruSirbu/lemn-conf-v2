@@ -186,6 +186,14 @@ const FAILURES: readonly [string, Failure, string][] = [
   ],
 ];
 
+/** Where the draft already holds a write of the same Save, "nothing changed" would be untrue, so that sentence is another. */
+function wordsAtPosition(words: string, position: number): string {
+  const isFirst = position === 1;
+  return words === roCopy("priceDashboard.errors.saveFailed") && !isFirst
+    ? roCopy("priceDashboard.errors.savePartlyFailed")
+    : words;
+}
+
 describe("a save of five prices that fails at each position, in each way", () => {
   it("has five fields, all of which can change by ten lei, so the sweep is five writes deep", () => {
     const { fields } = fiveFieldDraftlessPage();
@@ -216,7 +224,7 @@ describe("a save of five prices that fails at each position, in each way", () =>
           position,
         );
         expect(container.querySelector('[role="status"]')).toBeNull();
-        expect(alertsIn(container)).toEqual([words]);
+        expect(alertsIn(container)).toEqual([wordsAtPosition(words, position)]);
         const [invalid, ...others] = invalidInputs(container);
         expect(others).toEqual([]);
         expect(invalid).toBeDefined();

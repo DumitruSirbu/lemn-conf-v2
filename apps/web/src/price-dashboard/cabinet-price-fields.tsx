@@ -15,7 +15,7 @@ import { priceSentence } from "./cabinet-price-sentence";
 import { formatLei } from "./format-lei";
 import { PriceUnitField } from "./price-unit-field";
 import { useFocusAfterCancel } from "./use-focus-after-cancel";
-import { leiRefusalWords, priceWriteFailureWords } from "./price-input-words";
+import { leiRefusalWords, saveFailureWords } from "./price-input-words";
 import editStyles from "./price-edit.module.css";
 import { publishPathOf } from "./publish-paths";
 import type { CabinetPriceEditing } from "./use-cabinet-price-editing";
@@ -184,7 +184,7 @@ function withWriteFailure(
   if (feedback.kind !== "failed" || toFix.has(feedback.fieldKey)) return toFix;
   return new Map([
     ...toFix,
-    [feedback.fieldKey, priceWriteFailureWords(translate, feedback.failure)],
+    [feedback.fieldKey, saveFailureWords(translate, feedback)],
   ]);
 }
 

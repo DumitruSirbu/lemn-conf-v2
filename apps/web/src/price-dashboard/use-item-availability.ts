@@ -94,8 +94,8 @@ export interface ItemAvailabilityDesk {
 }
 
 export interface ItemAvailabilityInput {
-  /** What the screen's last whole-state read holds of what is switched off. It seeds the desk, and a later read
-   *  replaces what the desk holds unless it names a revision the desk has already moved on from. */
+  /** What the screen's last whole-state read holds of what is switched off. It seeds the desk; a later one that names
+   *  another revision only says the data moved, and the desk reads what is switched off again. */
   readonly observed: CatalogueAvailability;
   /** The active book: its rows are the items, and its tiers are the groups. */
   readonly book: PriceBook;
@@ -130,7 +130,7 @@ export function useItemAvailability({
   const [isBusy, setIsBusy] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const availabilityRef = useRef(availability);
-  const leftBehindRef = useRef<ReadonlySet<string>>(new Set());
+  const readTicketRef = useRef(0);
   const observedRef = useRef(observed);
   const isSendingRef = useRef(false);
   const { moveOn: markMoved, begin } = useLateAnswerGuard();
@@ -140,25 +140,34 @@ export function useItemAvailability({
   );
 
   const adopt = useCallback((next: CatalogueAvailability) => {
-    const held = availabilityRef.current.revision;
-    const leftBehind = new Set(leftBehindRef.current);
-    leftBehind.delete(next.revision);
-    if (held !== next.revision) leftBehind.add(held);
-    leftBehindRef.current = leftBehind;
     availabilityRef.current = next;
     setAvailability(next);
   }, []);
 
+  /** What is switched off, as the lifecycle's own read says. The latest read wins, and a switch written meanwhile
+   *  overtakes one still out; a read that gets nothing leaves what is held. */
+  const readAvailabilityAgain = useCallback(async () => {
+    readTicketRef.current += 1;
+    const ticket = readTicketRef.current;
+    const fresh = await orFailed(() => client.readAvailability(), undefined);
+    if (fresh !== undefined && readTicketRef.current === ticket) adopt(fresh);
+  }, [client, adopt]);
+
+  const adoptWritten = useCallback(
+    (next: CatalogueAvailability) => {
+      readTicketRef.current += 1;
+      adopt(next);
+    },
+    [adopt],
+  );
+
   useEffect(() => {
     if (observedRef.current === observed) return;
     observedRef.current = observed;
-    if (!leftBehindRef.current.has(observed.revision)) adopt(observed);
-  }, [observed, adopt]);
-
-  const readAvailabilityAgain = useCallback(async () => {
-    const fresh = await orFailed(() => client.readAvailability(), undefined);
-    if (fresh !== undefined) adopt(fresh);
-  }, [client, adopt]);
+    if (observed.revision !== availabilityRef.current.revision) {
+      void readAvailabilityAgain();
+    }
+  }, [observed, readAvailabilityAgain]);
 
   const moveOn = useCallback(() => {
     markMoved();
@@ -230,7 +239,9 @@ export function useItemAvailability({
     async (outcome: AvailabilityOutcome, item: ItemRef, active: boolean) => {
       switch (outcome.kind) {
         case "set":
-          adopt(afterSwitch(availabilityRef.current, item, active, outcome));
+          adoptWritten(
+            afterSwitch(availabilityRef.current, item, active, outcome),
+          );
           setFlow(CLOSED);
           return;
         case "refused":
@@ -238,7 +249,9 @@ export function useItemAvailability({
           await readAvailabilityAgain();
           return;
         case "conflict":
+          // The dialog was drawn from facts this read replaces, so it closes and the notice stays: asking again counts again.
           setFailure({ kind: "conflict" });
+          setFlow(CLOSED);
           await readAvailabilityAgain();
           return;
         case "session-ended":
@@ -250,7 +263,7 @@ export function useItemAvailability({
           return;
       }
     },
-    [adopt, readAvailabilityAgain],
+    [adoptWritten, readAvailabilityAgain],
   );
 
   /** A saved kitchen has come to use the item since it was counted: no retry changes that, so the block is said. */

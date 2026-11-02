@@ -16,8 +16,13 @@ import type {
 import type {
   BulkRefusalCode,
   DraftChangeRefusalCode,
+  NumberRefusalCode,
 } from "./price-dashboard-wire-contract";
-import type { BulkWriteResult, FieldWriteResult } from "./use-price-draft";
+import type {
+  BulkWriteResult,
+  CreateWriteResult,
+  FieldWriteResult,
+} from "./use-price-draft";
 
 // The words of every refusal a price or percentage field can meet, before a request is sent and after the server's
 // answer. A refusal is a closed code (ADR 0095 decision 3) and these are the only places a code becomes a sentence, so
@@ -177,23 +182,67 @@ export type FailedBulkWrite = Exclude<
   { kind: "saved" | "busy" }
 >;
 
+/** A failed Save: the write that was not written, and whether an earlier write of the same Save had been. */
+export interface FailedSave {
+  readonly failure: FailedFieldWrite;
+  readonly hasWrittenEarlier: boolean;
+}
+
+const SAVE_FAILED = "priceDashboard.errors.saveFailed";
+const SAVE_PARTLY_FAILED = "priceDashboard.errors.savePartlyFailed";
+
 /** What the server's answer to an inline price says, when a value that read well was still refused or not written. */
 export function priceWriteFailureWords(
   translate: ContentTranslator,
   failure: FailedFieldWrite,
 ): string {
+  return priceFailureWords(translate, failure, SAVE_FAILED);
+}
+
+/** What the answer to a Save says. Only a sentence that claims nothing was changed differs where an earlier write of the
+ *  Save had landed, since the draft then holds it. */
+export function saveFailureWords(
+  translate: ContentTranslator,
+  { failure, hasWrittenEarlier }: FailedSave,
+): string {
+  return priceFailureWords(
+    translate,
+    failure,
+    hasWrittenEarlier ? SAVE_PARTLY_FAILED : SAVE_FAILED,
+  );
+}
+
+function priceFailureWords(
+  translate: ContentTranslator,
+  failure: FailedFieldWrite,
+  unsavedLeaf: typeof SAVE_FAILED | typeof SAVE_PARTLY_FAILED,
+): string {
   if (failure.kind === "conflict") {
     return translate("priceDashboard.errors.changedMeanwhile");
   }
-  if (failure.kind !== "refused") {
-    return translate("priceDashboard.errors.saveFailed");
-  }
-  return refusedPriceWords(translate, failure.code);
+  if (failure.kind !== "refused") return translate(unsavedLeaf);
+  return refusedPriceWords(translate, failure.code, unsavedLeaf);
 }
 
 function refusedPriceWords(
   translate: ContentTranslator,
   code: DraftChangeRefusalCode,
+  unsavedLeaf: typeof SAVE_FAILED | typeof SAVE_PARTLY_FAILED,
+): string {
+  switch (code) {
+    case "NEGATIVE":
+    case "TOO_LARGE":
+    case "NOT_A_WHOLE_NUMBER":
+    case "MISSING_VALUE":
+      return numberRefusalWords(translate, code);
+    default:
+      return translate(unsavedLeaf);
+  }
+}
+
+function numberRefusalWords(
+  translate: ContentTranslator,
+  code: NumberRefusalCode,
 ): string {
   switch (code) {
     case "NEGATIVE":
@@ -205,8 +254,60 @@ function refusedPriceWords(
       return translate("priceDashboard.errors.notNumber", {
         example: LEI_EXAMPLE,
       });
-    default:
-      return translate("priceDashboard.errors.saveFailed");
+  }
+}
+
+/** A creation that was not written: nothing of it is in the draft. */
+export type FailedCreation = Exclude<
+  CreateWriteResult,
+  { kind: "created" | "busy" }
+>;
+
+/** What the server's answer to a new class says, after a form whose every value read well. */
+export function creationFailureWords(
+  translate: ContentTranslator,
+  failure: FailedCreation,
+): string {
+  switch (failure.kind) {
+    case "conflict":
+      return translate("priceDashboard.errors.changedMeanwhile");
+    case "failed":
+      return translate(SAVE_FAILED);
+    case "candidate-refused":
+      return translate("priceDashboard.hardware.createRefused");
+    case "refused":
+      return creationRefusalWords(translate, failure.code);
+  }
+}
+
+/** A code the form's own reading rules out says what is true of every refusal the form did not foresee. */
+function creationRefusalWords(
+  translate: ContentTranslator,
+  code: DraftChangeRefusalCode,
+): string {
+  switch (code) {
+    case "NEGATIVE":
+    case "TOO_LARGE":
+    case "NOT_A_WHOLE_NUMBER":
+      return numberRefusalWords(translate, code);
+    case "MISSING_VALUE":
+    case "TEXT_EMPTY":
+    case "TEXT_TOO_LONG":
+    case "TEXT_FORBIDDEN_CHARACTER":
+    case "TEXT_STATES_AN_AMOUNT":
+      return createdTextRefusalWords(translate, code);
+    case "UNKNOWN_ADDRESS":
+    case "UNKNOWN_RULE":
+    case "UNKNOWN_ITEM":
+    case "NOT_EDITABLE":
+    case "FIELD_NOT_ON_RULE":
+    case "LINK_TARGET_UNKNOWN":
+    case "LINK_TARGET_CUSTOMER_SUPPLIED":
+    case "ITEM_IS_DEFAULT":
+    case "ITEM_IN_USE":
+    case "CREATED_TIER_RATES_MISSING":
+    case "PRICE_WOULD_BE_NEGATIVE":
+      return translate("priceDashboard.hardware.createRefused");
   }
 }
 

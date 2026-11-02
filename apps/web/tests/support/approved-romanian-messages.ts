@@ -1809,6 +1809,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       fixToSave:
         "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       saveFailed: "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
+      // Drafted, not approved: a Save of several prices that landed some and then failed. It does not say nothing changed,
+      // because the earlier prices are in "De publicat".
+      savePartlyFailed:
+        "Nu am putut salva toate prețurile. Cele salvate deja sunt în „De publicat”; încearcă din nou pentru celelalte.",
       changedMeanwhile:
         "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
       textEmpty: "Completează textul.",
@@ -2068,6 +2072,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       createdNotice:
         "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
       createdRemoved: "Clasa a fost scoasă din „De publicat”.",
+      // Drafted, not approved: the server refused a new class that the form had let through. Nothing was written, and no
+      // retry would change the answer, so it sends the person back to what they typed.
+      createRefused:
+        "Clasa nu poate fi adăugată așa. Nu am schimbat nimic; verifică numele și prețurile.",
     },
     materials: {
       title: "Materiale",
@@ -2185,6 +2193,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       deleteBlockedAccessoryUncountedBody:
         "Nu poți șterge „{name}”: bucătării salvate folosesc acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
       working: "Se aplică…",
+      // Drafted, not approved: said while the saved kitchens that use an option are counted, before a dialog can open.
+      counting: "Numărăm bucătăriile salvate care folosesc această opțiune…",
       deleteCreatedBody:
         "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”.",
     },

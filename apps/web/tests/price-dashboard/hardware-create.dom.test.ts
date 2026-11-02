@@ -37,6 +37,7 @@ const PUSH = roCopy("priceDashboard.hardware.pricePush");
 const LIFT = roCopy("priceDashboard.hardware.priceLift");
 const CREATE = roCopy("priceDashboard.hardware.createAction");
 const SAVE_FAILED = roCopy("priceDashboard.errors.saveFailed");
+const CREATE_REFUSED = roCopy("priceDashboard.hardware.createRefused");
 const CHANGED_MEANWHILE = roCopy("priceDashboard.errors.changedMeanwhile");
 const alertsIn = (container: HTMLElement) =>
   allIn(container, '[role="alert"]').map((alert) => alert.textContent);
@@ -214,14 +215,24 @@ describe("creating", () => {
 
   it.each([
     [
-      "a refusal",
-      { kind: "refused", code: "TEXT_EMPTY" } as const,
-      SAVE_FAILED,
+      "a refusal of the words",
+      { kind: "refused", code: "TEXT_STATES_AN_AMOUNT" } as const,
+      roCopy("priceDashboard.errors.textStatesAnAmount"),
+    ],
+    [
+      "a refusal of an amount",
+      { kind: "refused", code: "TOO_LARGE" } as const,
+      roCopy("priceDashboard.errors.tooBig"),
+    ],
+    [
+      "a refusal no field explains",
+      { kind: "refused", code: "UNKNOWN_ITEM" } as const,
+      CREATE_REFUSED,
     ],
     [
       "a candidate the book would refuse",
       { kind: "candidate-refused" } as const,
-      SAVE_FAILED,
+      CREATE_REFUSED,
     ],
     ["a failure", { kind: "failed" } as const, SAVE_FAILED],
     ["a conflict", { kind: "conflict" } as const, CHANGED_MEANWHILE],

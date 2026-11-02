@@ -16,7 +16,9 @@ import {
   hardwareClassOf,
   type HardwareClassFacts,
   type HardwarePageInput,
+  type ReadyHardware,
 } from "./hardware-model";
+import { hardwareNameOf } from "./hardware-names";
 import {
   ClassChips,
   hardwareItemOf,
@@ -24,12 +26,12 @@ import {
 } from "./hardware-list";
 import { hardwarePathOf } from "./hardware-paths";
 import styles from "./hardware.module.css";
-import { ItemDialogs } from "./item-dialogs";
+import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { deleteStandOf, isItemOn, switchStandOf } from "./item-lifecycle-model";
 import { offReasonWords } from "./item-lifecycle-words";
 import type { PriceDraftClient } from "./price-draft-client";
-import { leiRefusalWords, priceWriteFailureWords } from "./price-input-words";
+import { leiRefusalWords, saveFailureWords } from "./price-input-words";
 import editStyles from "./price-edit.module.css";
 import { PriceUnitField } from "./price-unit-field";
 import { publishPathOf } from "./publish-paths";
@@ -82,7 +84,13 @@ export function HardwareEditScreen({
   }
   return (
     <StaffShell locale={locale} page="hardware" context={shell}>
-      <HardwareEdit key={tierId} locale={locale} desk={desk} facts={facts} />
+      <HardwareEdit
+        key={tierId}
+        locale={locale}
+        desk={desk}
+        derivation={derivation}
+        facts={facts}
+      />
     </StaffShell>
   );
 }
@@ -109,10 +117,12 @@ function ClassRemoved({ locale }: { readonly locale: AppLocale }) {
 function HardwareEdit({
   locale,
   desk,
+  derivation,
   facts,
 }: {
   readonly locale: AppLocale;
   readonly desk: HardwareDesk;
+  readonly derivation: ReadyHardware;
   readonly facts: HardwareClassFacts;
 }) {
   const translate = useTranslations();
@@ -136,6 +146,7 @@ function HardwareEdit({
         </h1>
         <ClassChips facts={facts} context={availability.context} />
       </div>
+      <ItemDeskNotice desk={availability} />
       <div className={styles.editColumns}>
         <div className={styles.editColumn}>
           <ClassWords facts={facts} name={name} />
@@ -155,7 +166,7 @@ function HardwareEdit({
       </div>
       <ItemDialogs
         desk={availability}
-        nameOf={() => name}
+        nameOf={(item) => hardwareNameOf(derivation, content.bookText, item)}
         returnFocusFallbackRef={headingRef}
       />
     </section>
@@ -445,8 +456,8 @@ function errorOf(
   if (reading.kind === "refused") {
     return leiRefusalWords(translate, reading.refusal);
   }
-  if (feedback.kind === "failed" && feedback.field === rate.field) {
-    return priceWriteFailureWords(translate, feedback.failure);
+  if (feedback.kind === "failed" && feedback.fieldKey === rate.field) {
+    return saveFailureWords(translate, feedback);
   }
   return undefined;
 }

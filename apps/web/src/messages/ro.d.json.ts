@@ -1387,6 +1387,7 @@ declare const messages: {
       "priceNotPositive": "Cu valorile acestea un preț ar ieși zero sau negativ.",
       "fixToSave": "Corectează câmpul ca să poți salva. O valoare greșită nu se salvează niciodată.",
       "saveFailed": "Nu am putut salva. Nu am schimbat nimic. Încearcă din nou.",
+      "savePartlyFailed": "Nu am putut salva toate prețurile. Cele salvate deja sunt în „De publicat”; încearcă din nou pentru celelalte.",
       "changedMeanwhile": "Altcineva a schimbat între timp datele. Le-am citit din nou; încearcă din nou.",
       "textEmpty": "Completează textul.",
       "textTooLong": "Textul este prea lung. Scurtează-l.",
@@ -1588,7 +1589,8 @@ declare const messages: {
       "newPricesNote": "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero.",
       "createAction": "Creează clasa",
       "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
-      "createdRemoved": "Clasa a fost scoasă din „De publicat”."
+      "createdRemoved": "Clasa a fost scoasă din „De publicat”.",
+      "createRefused": "Clasa nu poate fi adăugată așa. Nu am schimbat nimic; verifică numele și prețurile."
     },
     "materials": {
       "title": "Materiale",
@@ -1675,6 +1677,7 @@ declare const messages: {
       "deleteBlockedUncountedBody": "Nu poți șterge „{name}”: bucătării salvate folosesc această opțiune. O poți dezactiva; clientului i se va cere atunci să aleagă altă opțiune.",
       "deleteBlockedAccessoryUncountedBody": "Nu poți șterge „{name}”: bucătării salvate folosesc acest accesoriu. Îl poți dezactiva; accesoriul nu se mai adaugă, iar clientul este anunțat când își deschide bucătăria.",
       "working": "Se aplică…",
+      "counting": "Numărăm bucătăriile salvate care folosesc această opțiune…",
       "deleteCreatedBody": "Opțiunea nu a fost încă publicată. Ștergerea o scoate din „De publicat”."
     },
     "publish": {
