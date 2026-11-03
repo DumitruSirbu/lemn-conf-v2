@@ -11,6 +11,7 @@ import {
   DEFAULT_CABINET_DEPTH_MM,
   MAX_MATERIAL_PERCENT,
   SAMPLE_PRICE_BOOK,
+  type DeletableItemRef,
   type DraftChange,
   type PriceBook,
 } from "@lemnaria/configurator-domain";
@@ -275,7 +276,10 @@ describe("a page that has no field", () => {
       materialPageOf({
         changes: [
           {
-            address: { kind: "item-deleted", item: materialItem(VENEER) },
+            address: {
+              kind: "item-deleted",
+              item: materialItem(VENEER) as DeletableItemRef,
+            },
             value: true,
           },
         ],

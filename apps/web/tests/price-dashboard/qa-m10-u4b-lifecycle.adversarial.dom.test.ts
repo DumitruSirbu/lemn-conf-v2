@@ -7,6 +7,8 @@ import { act, createElement } from "react";
 import { createTranslator } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { DeletableItemRef } from "@lemnaria/configurator-domain";
+
 import { MaterialEditScreen } from "@/price-dashboard/material-edit";
 import { MaterialListScreen } from "@/price-dashboard/material-list";
 import {
@@ -313,7 +315,10 @@ describe("Escape in each dialog", () => {
 
 describe("a draft that deletes a material, beside the switches", () => {
   const deletesVeneer = {
-    address: { kind: "item-deleted", item: materialItem(VENEER) },
+    address: {
+      kind: "item-deleted",
+      item: materialItem(VENEER) as DeletableItemRef,
+    },
     value: true,
   } as const;
 
