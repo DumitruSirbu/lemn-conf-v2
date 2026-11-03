@@ -707,6 +707,15 @@ built yet. Each row that changes behaviour names the work it adds.
 
 Nothing is open for the owner from the waves merged so far.
 
+### 6.4 Queued for the owner (from 2026-11-03)
+
+The owner is away for 12 hours from 2026-11-03 and asked that no wave wait on a decision. Each entry below was built on
+the stated default and needs only a yes or a correction.
+
+| # | Question | Default built | Wave |
+| --- | --- | --- | --- |
+| OQ-28a | Push runner: replaces the drawer runner's rate, or adds to it? | Replaces it | P6 |
+
 ---
 
 ## 7. W0 — records (scribe, main tree, docs only)
