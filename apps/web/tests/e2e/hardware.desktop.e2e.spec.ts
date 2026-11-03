@@ -79,9 +79,9 @@ import {
 const DESKTOP = { width: 1440, height: 900 } as const;
 const LOCALES = ["ro", "ru"] as const;
 /** Where the layout changes from the card to the table (`hardware.module.css`), and the widths either side of it. */
-const TABLE_FROM_PX = 1360;
-const WIDTHS = [900, 1024, 1200, 1280, 1359, 1360, 1440, 1920] as const;
-const POPOVER_WIDTHS = [900, 1280, 1359, 1360, 1440, 1920] as const;
+const TABLE_FROM_PX = 1440;
+const WIDTHS = [900, 1024, 1200, 1280, 1439, 1440, 1600, 1920] as const;
+const POPOVER_WIDTHS = [900, 1280, 1439, 1440, 1920] as const;
 const ALIGNMENT_TOLERANCE_PX = 1;
 /** A dialog centred in the viewport is off true centre by at most the width a scrollbar would take. */
 const CENTRE_SLACK_PX = 16;
@@ -131,7 +131,7 @@ test.describe("the hardware screens at desktop 1440", () => {
   });
 
   test.describe("D4A: the table, under either server", () => {
-    test("the table has a title for the class, the four rates (the lift among them) and the state, each over its own figures; RO and RU", async ({
+    test("the table has a title for the class, the five rates (the lift and the push runner among them) and the state, each over its own figures; RO and RU", async ({
       page,
     }) => {
       for (const locale of LOCALES) {
@@ -179,7 +179,7 @@ test.describe("the hardware screens at desktop 1440", () => {
       }
     });
 
-    test("no width from 900 to 1920 scrolls the page sideways, in RO and RU; the card is drawn below 1360 and the table from 1360; no word is broken in the middle", async ({
+    test("no width from 900 to 1920 scrolls the page sideways, in RO and RU; the card is drawn below 1440 and the table from 1440; no word is broken in the middle", async ({
       page,
     }) => {
       for (const locale of LOCALES) {
@@ -231,7 +231,7 @@ test.describe("the hardware screens at desktop 1440", () => {
             expect
               .soft(
                 new Set(tops).size,
-                `${title}: the four rates stand on one line`,
+                `${title}: the five rates stand on one line`,
               )
               .toBe(1);
           } else {
@@ -249,7 +249,7 @@ test.describe("the hardware screens at desktop 1440", () => {
   });
 
   test.describe("a class's page and the new class form, under either server", () => {
-    test("the class's page stands in two columns, the words and the switch on the left and the four rates on the right; a rate is saved by the pointer and a reload keeps it", async ({
+    test("the class's page stands in two columns, the words and the switch on the left and the five rates on the right; a rate is saved by the pointer and a reload keeps it", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -313,7 +313,7 @@ test.describe("the hardware screens at desktop 1440", () => {
       await shootForReview(page, "1440-d4b-refused-ru");
     });
 
-    test("the new class form stands in two columns in Romanian only: name, description, four prices; Create is off and says why, and nothing is sent", async ({
+    test("the new class form stands in two columns in Romanian only: name, description, five prices; Create is off and says why, and nothing is sent", async ({
       page,
     }) => {
       const words = wordsOf("ro");
@@ -321,7 +321,9 @@ test.describe("the hardware screens at desktop 1440", () => {
       const requests = collectDashboardRequests(page);
       const form = page.getByTestId("hardware-create");
 
-      await expect(form.locator("input[type=text]")).toHaveCount(6);
+      await expect(form.locator("input[type=text]")).toHaveCount(
+        RATE_FIELDS.length + 2,
+      );
       await expect(form.getByRole("tab")).toHaveCount(0);
       const name = await boxOf(
         form.getByLabel(words("priceDashboard.hardware.nameLabel"), {

@@ -1,23 +1,18 @@
 // Reads the stylesheet's text (no layout runs here) for what a thumb and a narrow screen need from the hardware pages: every
-// interactive box at least a touch target tall, a ring on whatever takes focus, the card layout until 1360 px and the table
-// from there (seven columns with the four rate titles whole do not fit beside the staff frame's navigation any sooner), the
+// interactive box at least a touch target tall, a ring on whatever takes focus, the card layout until 1440 px and the table
+// from there (the state column holds its widest Russian chips only from 1434 px, measured in a browser), the
 // column titles read by the cells below that, a row's menu floating over the rows wherever a pointer is the input, and nothing
 // that would make a 390 px page scroll sideways. A price is never edited in a card.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { declarationsFor, valuesFor } from "../support/css-declarations";
+import { readItemScreenSheet } from "../support/item-screen-stylesheet";
 
-const css = readFileSync(
-  join(import.meta.dirname, "../../src/price-dashboard/hardware.module.css"),
-  "utf8",
-);
+const css = readItemScreenSheet("hardware.module.css");
 const TOUCH_TARGET = "var(--touch-target)";
 const PHONE = "@media (max-width: 899.98px)";
 const POINTER_WIDTH = "@media (min-width: 900px)";
-const TABLE = "@media (min-width: 1360px)";
+const TABLE = "@media (min-width: 1440px)";
 const EDIT_COLUMNS = "@media (min-width: 1200px)";
 const RATE_TITLE_WORD_PX = 113;
 
@@ -78,7 +73,7 @@ describe("what a thumb must hit", () => {
 });
 
 describe("one markup, two layouts", () => {
-  it("is a one-column card until 1360 px and the table's seven columns from there, titles and rows on one template", () => {
+  it("is a one-column card until 1440 px and the table's eight columns from there, titles and rows on one template", () => {
     const rowColumns = declarationsFor(css, "row", "grid-template-columns");
     const titleColumns = declarationsFor(
       css,

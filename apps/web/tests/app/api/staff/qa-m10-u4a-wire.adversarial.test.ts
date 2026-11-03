@@ -8,6 +8,7 @@ import {
 
 import { DELETE, PUT } from "@/app/api/staff/prices/draft/route";
 import { GET } from "@/app/api/staff/prices/route";
+import { IDLE_LIFETIME_SECONDS_BY_ROLE } from "@/lib/server/account/session-lifetimes";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 import { DASHBOARD_CONFLICTS } from "@/price-dashboard/price-dashboard-wire-contract";
 import {
@@ -53,6 +54,7 @@ vi.mock("@/lib/server/price-stores", () =>
 
 let prices: PriceDashboardWorld;
 let cookie: string;
+let sessionTokenHash: string;
 
 beforeEach(async () => {
   freshAccountWorld();
@@ -64,6 +66,7 @@ beforeEach(async () => {
     "administrator@example.test",
   );
   cookie = session.cookie;
+  sessionTokenHash = session.tokenHash;
   vi.stubGlobal("fetch", answerFromTheRoutes);
 });
 
@@ -195,6 +198,84 @@ describe("the revert that takes a class only the draft holds back out (`deleteFr
       });
     },
   );
+});
+
+describe("the write that renames a class the draft created (the class page's rename) — no route until R4a", () => {
+  const CREATED_TIER = "hardware.economic";
+  const CREATION: readonly DraftChange[] = [
+    {
+      address: { kind: "hardware-tier-created", tierId: CREATED_TIER },
+      value: { name: "GTV Economic", description: "" },
+    },
+    ...HARDWARE_RATE_FIELDS.map(
+      (field): DraftChange => ({
+        address: { kind: "hardware", tierId: CREATED_TIER, field },
+        value: 2_000,
+      }),
+    ),
+  ];
+
+  async function storeCreatedClass(): Promise<void> {
+    const written = await prices.priceBook.writeDraft({
+      expectedDraftRevision: await currentDraftRevision(),
+      changes: CREATION,
+      audit: {
+        session: {
+          sessionTokenHash,
+          idleLifetimeSeconds: IDLE_LIFETIME_SECONDS_BY_ROLE,
+        },
+        entry: {
+          action: "price-draft-changed",
+          detail: { changeKind: "provisional" },
+        },
+      },
+    });
+    if (written.kind !== "ok") throw new Error("seed: the draft not written");
+  }
+
+  async function renameTheClass(): Promise<DraftChangeOutcome> {
+    return FETCHING_PRICE_DRAFT_CLIENT.change({
+      expectedDraftRevision: await currentDraftRevision(),
+      change: {
+        address: {
+          kind: "created-row-text",
+          item: { kind: "hardware", tierId: CREATED_TIER },
+          field: "name",
+        },
+        value: "GTV Premium",
+      },
+    });
+  }
+
+  // R4a teaches the draft route the address of a created row's words and owes the flip to `it`.
+  it.fails(
+    "is taken by the draft route, so the rename on a created class's page can succeed",
+    async () => {
+      await storeCreatedClass();
+
+      const outcome = await renameTheClass();
+
+      expect(outcome.kind).toBe("changed");
+    },
+  );
+
+  // R4a gives the fetching client the capability and owes the flip to `it`.
+  it.fails(
+    "is declared by the browser's client, so the page offers the rename at all",
+    () => {
+      expect(FETCHING_PRICE_DRAFT_CLIENT.acceptsCreatedRowText).toBe(true);
+    },
+  );
+
+  // Pins today's answer, and goes red when R4a adds the address: delete this test then, with the flips above.
+  it("is answered, today, as a refusal of the address, which is why the page offers no rename outside a sample", async () => {
+    await storeCreatedClass();
+
+    expect(await renameTheClass()).toEqual<DraftChangeOutcome>({
+      kind: "refused",
+      code: "NOT_EDITABLE",
+    });
+  });
 });
 
 describe("what the draft client does with the 409s the real routes can answer", () => {

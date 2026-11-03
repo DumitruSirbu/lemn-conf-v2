@@ -112,14 +112,18 @@ function factsOf({
   const { tierId } = tier;
   const activeTier = tierIn(active, tierId);
   const candidateTier = tierIn(candidate, tierId);
+  const pendingTier = candidateTier ?? tier;
   return {
     tierId,
-    name: { authored: tier.name, key: tier.nameKey },
-    description: { authored: tier.description, key: tier.descriptionKey },
+    name: { authored: pendingTier.name, key: pendingTier.nameKey },
+    description: {
+      authored: pendingTier.description,
+      key: pendingTier.descriptionKey,
+    },
     rates: rates.map((field) => ({
       field,
       activeMinor: activeTier?.[field],
-      pendingMinor: (candidateTier ?? tier)[field],
+      pendingMinor: pendingTier[field],
     })),
     isCreated: activeTier === undefined,
     isDeletionPending: activeTier !== undefined && candidateTier === undefined,

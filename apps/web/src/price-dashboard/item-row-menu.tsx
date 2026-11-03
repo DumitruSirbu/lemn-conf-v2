@@ -20,6 +20,8 @@ export interface ItemRowMenuClasses {
 }
 
 export interface ItemRowMenuEntry {
+  /** What the entry is, kept when its words change: focus returns to the same element after "Activează" becomes "Dezactivează". */
+  readonly id: string;
   readonly label: string;
   /** Why the entry is off; absent, it can be pressed. */
   readonly reason: string | undefined;
@@ -81,7 +83,7 @@ export function ItemRowMenu({
           aria-label={translate("priceDashboard.common.actionsFor", { name })}
         >
           {entries.map((entry) => (
-            <li key={entry.label} className={classes.menuItem}>
+            <li key={entry.id} className={classes.menuItem}>
               <ActionThatMayBeOff
                 reason={entry.reason}
                 onPress={entry.onPress}

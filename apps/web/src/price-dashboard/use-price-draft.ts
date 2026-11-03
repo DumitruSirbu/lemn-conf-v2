@@ -113,6 +113,8 @@ export interface PriceDraft {
   ) => Promise<CreateWriteResult>;
   /** Whether the client has any route that takes a creation; where it has none, a screen offers none. */
   readonly canCreateHardwareClass: boolean;
+  /** Whether the client takes a change of a created row's words; where it does not, a screen offers no rename. */
+  readonly canChangeCreatedText: boolean;
   /** Takes a state made elsewhere (a publish, a discard) as the one the next write names the revision of. */
   readonly adopt: (state: DashboardStateWire) => void;
   /**
@@ -300,6 +302,7 @@ export function usePriceDraft({
     bulk,
     createHardwareClass,
     canCreateHardwareClass: client.createHardwareClass !== undefined,
+    canChangeCreatedText: client.acceptsCreatedRowText === true,
     adopt,
     refresh,
   };

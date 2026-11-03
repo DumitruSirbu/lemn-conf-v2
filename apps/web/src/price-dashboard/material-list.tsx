@@ -306,6 +306,7 @@ function RowMenu({
       classes={MENU_CLASSES}
       entries={[
         {
+          id: "switch",
           label: translate(
             isItemOn(item, context)
               ? "priceDashboard.common.deactivate"
@@ -317,6 +318,7 @@ function RowMenu({
           },
         },
         {
+          id: "delete",
           label: translate("priceDashboard.common.delete"),
           reason: deleteReason,
           onPress: () => {

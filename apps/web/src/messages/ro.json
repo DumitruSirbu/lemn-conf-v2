@@ -1589,6 +1589,7 @@
       "pricePushRunnerHint": "Un sertar al unui corp push-to-open primește acest preț în locul prețului pe glisieră.",
       "newPricesNote": "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero, în afară de prețul pe glisieră push-to-open.",
       "createAction": "Creează clasa",
+      "renameAction": "Redenumește",
       "createdNotice": "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
       "createdRemoved": "Clasa a fost scoasă din „De publicat”.",
       "createRefused": "Clasa nu poate fi adăugată așa. Nu am schimbat nimic; verifică numele și prețurile."

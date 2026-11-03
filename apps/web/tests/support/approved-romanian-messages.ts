@@ -2077,6 +2077,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       newPricesNote:
         "Completează prețurile; un mecanism pe care clasa nu-l are se lasă la zero, în afară de prețul pe glisieră push-to-open.",
       createAction: "Creează clasa",
+      // Drafted, not approved: the button that saves a created class's new name.
+      renameAction: "Redenumește",
       createdNotice:
         "Clasa a fost creată în „De publicat”. O activezi după ce publici.",
       createdRemoved: "Clasa a fost scoasă din „De publicat”.",

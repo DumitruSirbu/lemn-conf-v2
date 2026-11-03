@@ -1,5 +1,7 @@
 import { staffPathOf } from "@/staff/staff-paths";
 
+import { segmentOf } from "./path-segment";
+
 // The hardware pages' addresses. A class's stands under the list's, which the staff proxy already admits, in one segment
 // whatever characters the tier id holds.
 
@@ -16,10 +18,4 @@ export function hardwareNewPathOf(locale: string): string {
 
 export function hardwareClassPathOf(locale: string, tierId: string): string {
   return `${hardwarePathOf(locale)}/${segmentOf(tierId)}`;
-}
-
-/** A URL parser reads `.` and `%2E` alike as a dot segment, so the ids `.` and `..` have their dots encoded twice. */
-function segmentOf(tierId: string): string {
-  const encoded = encodeURIComponent(tierId);
-  return /^\.\.?$/.test(encoded) ? encoded.replaceAll(".", "%252E") : encoded;
 }

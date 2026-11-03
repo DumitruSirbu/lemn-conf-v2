@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// One hardware class's page (frame D4B): four rate fields that read what they are typed as before anything is sent, a Save
+// One hardware class's page (frame D4B): five rate fields that read what they are typed as before anything is sent, a Save
 // that sends one change of "De publicat" per changed rate and shows only what the server stored, and the class's switch and
 // deletion, which are the dialogs' and not the draft's.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

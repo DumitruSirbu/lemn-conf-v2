@@ -4,17 +4,12 @@
 // sooner, by the arithmetic below, not by a measurement in a browser), the column titles read by the cells below that,
 // a row's menu floating over the rows wherever a pointer is the input, and nothing that would make a 390 px page scroll
 // sideways. A surcharge is never edited in a card.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { declarationsFor, valuesFor } from "../support/css-declarations";
+import { readItemScreenSheet } from "../support/item-screen-stylesheet";
 
-const css = readFileSync(
-  join(import.meta.dirname, "../../src/price-dashboard/material.module.css"),
-  "utf8",
-);
+const css = readItemScreenSheet("material.module.css");
 const TOUCH_TARGET = "var(--touch-target)";
 const PHONE = "@media (max-width: 899.98px)";
 const POINTER_WIDTH = "@media (min-width: 900px)";

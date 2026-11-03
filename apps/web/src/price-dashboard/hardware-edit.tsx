@@ -7,6 +7,7 @@ import type { ContentTranslator } from "@/i18n/content";
 import type { AppLocale } from "@/i18n/routing";
 import { useContent } from "@/i18n/use-content";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
+import { TextField } from "@/account/account-form-parts";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
 import { formatLei } from "./format-lei";
@@ -31,10 +32,19 @@ import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { isItemOn } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
-import { leiRefusalWords, saveFailureWords } from "./price-input-words";
+import {
+  createdTextRefusalWords,
+  leiRefusalWords,
+  priceWriteFailureWords,
+  saveFailureWords,
+} from "./price-input-words";
 import editStyles from "./price-edit.module.css";
 import { PriceUnitField } from "./price-unit-field";
 import { publishPathOf } from "./publish-paths";
+import {
+  useCreatedNameEditing,
+  type CreatedNameEditing,
+} from "./use-created-name-editing";
 import { useFocusAfterCancel } from "./use-focus-after-cancel";
 import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 import {
@@ -135,6 +145,11 @@ function HardwareEdit({
     rates: facts.rates,
     draft: desk.draft,
   });
+  const renaming = useCreatedNameEditing({
+    tierId: facts.tierId,
+    currentName: facts.name.authored,
+    draft: desk.draft,
+  });
   return (
     <section className={styles.page} data-testid="hardware-edit">
       <div className={styles.heading}>
@@ -149,7 +164,7 @@ function HardwareEdit({
       <ItemDeskNotice desk={availability} />
       <div className={styles.editColumns}>
         <div className={styles.editColumn}>
-          <ClassWords facts={facts} name={name} />
+          <ClassWords facts={facts} name={name} renaming={renaming} />
           {facts.isDeletionPending ? (
             <p className={styles.notice} role="status">
               {translate("priceDashboard.hardware.deleteNotice")}
@@ -173,14 +188,16 @@ function HardwareEdit({
   );
 }
 
-/** The class's name and description. A catalogue row's are the catalogue's and a created row's are authored Romanian; this
- *  page edits neither. */
+/** The class's name and description. A catalogue row's are the catalogue's and read-only; a created row's name is authored
+ *  Romanian and can be reworded here, its description is shown only. */
 function ClassWords({
   facts,
   name,
+  renaming,
 }: {
   readonly facts: HardwareClassFacts;
   readonly name: string;
+  readonly renaming: CreatedNameEditing;
 }) {
   const translate = useTranslations();
   const content = useContent();
@@ -188,14 +205,19 @@ function ClassWords({
     facts.description.authored,
     facts.description.key,
   );
+  const canRename = !facts.isKeyed && !facts.isDeletionPending;
   return (
     <>
-      <div className={styles.words}>
-        <span className={styles.wordsLabel}>
-          {translate("priceDashboard.hardware.nameLabel")}
-        </span>
-        <span className={styles.wordsValue}>{name}</span>
-      </div>
+      {canRename ? (
+        <CreatedName renaming={renaming} />
+      ) : (
+        <div className={styles.words}>
+          <span className={styles.wordsLabel}>
+            {translate("priceDashboard.hardware.nameLabel")}
+          </span>
+          <span className={styles.wordsValue}>{name}</span>
+        </div>
+      )}
       <div className={styles.words}>
         <span className={styles.wordsLabel}>
           {translate("priceDashboard.hardware.descriptionLabel")}
@@ -211,6 +233,65 @@ function ClassWords({
       </p>
     </>
   );
+}
+
+/** The name of a created class as a field with its Save; where the client cannot take it, the name is shown with the reason. */
+function CreatedName({ renaming }: { readonly renaming: CreatedNameEditing }) {
+  const translate = useTranslations();
+  if (!renaming.canWrite) {
+    return (
+      <div className={styles.words}>
+        <span className={styles.wordsLabel}>
+          {translate("priceDashboard.hardware.nameLabel")}
+        </span>
+        <span className={styles.wordsValue}>{renaming.text}</span>
+        <p className={styles.hint}>
+          {translate("priceDashboard.lifecycle.cannotJudge")}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <>
+      <TextField
+        label={translate("priceDashboard.hardware.nameLabel")}
+        name="name"
+        type="text"
+        autoComplete="off"
+        autoCapitalize="words"
+        spellCheck
+        value={renaming.text}
+        onChange={renaming.type}
+        {...nameErrorProps(translate, renaming)}
+      />
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={editStyles.action}
+          data-tone="primary"
+          disabled={!renaming.canSave}
+          onClick={() => {
+            void renaming.save();
+          }}
+        >
+          {translate("priceDashboard.hardware.renameAction")}
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** What the typed name reads as, then what the server's answer to its Save says. */
+function nameErrorProps(
+  translate: ContentTranslator,
+  { judgement, isTouched, failure }: CreatedNameEditing,
+): { readonly error?: string } {
+  if (isTouched && !judgement.ok) {
+    return { error: createdTextRefusalWords(translate, judgement.code) };
+  }
+  return failure === undefined
+    ? {}
+    : { error: priceWriteFailureWords(translate, failure) };
 }
 
 /** Whether customers may choose the class, and its deletion. */

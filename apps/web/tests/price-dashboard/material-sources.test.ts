@@ -89,12 +89,16 @@ describe("what a browser is sent (reads source)", () => {
 
 describe("what the materials screens may read", () => {
   it("reads the dashboard's state through the one admitted read, and writes nothing from a render", () => {
+    const read = sourceOf(join(DASHBOARD_ROOT, "item-page-read.ts"));
     const source = sourceOf(join(DASHBOARD_ROOT, "material-source.ts"));
 
-    expect(source).toMatch(/readStateOrNothing/);
-    expect(source).not.toMatch(
-      /readDashboardForStaff|touchCurrentSession|commitAuditRow|readDashboardStateForAdmittedPage/,
-    );
+    expect(source).toMatch(/readItemPage/);
+    expect(read).toMatch(/readStateOrNothing/);
+    for (const text of [source, read]) {
+      expect(text).not.toMatch(
+        /readDashboardForStaff|touchCurrentSession|commitAuditRow|readDashboardStateForAdmittedPage/,
+      );
+    }
   });
 
   it("the usage hook writes no count of its own: no number is a default of it or a literal in it (a production build is held by `material-source.test.ts`)", () => {

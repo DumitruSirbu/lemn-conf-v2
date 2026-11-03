@@ -1,13 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  useCallback,
-  useId,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useId, useRef, type CSSProperties } from "react";
 
 import type { HardwareRateField, ItemRef } from "@lemnaria/configurator-domain";
 
@@ -23,7 +17,6 @@ import {
   type ReadyHardware,
 } from "./hardware-model";
 import { hardwareNameOf } from "./hardware-names";
-import { ActionThatMayBeOff } from "./action-that-may-be-off";
 import {
   ClassChips,
   hardwareItemOf,
@@ -36,14 +29,23 @@ import styles from "./hardware.module.css";
 import { formatLei, formatLeiAmount } from "./format-lei";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
+import { ItemRowMenu, type ItemRowMenuClasses } from "./item-row-menu";
 import { isItemOn, type LifecycleContext } from "./item-lifecycle-model";
 import type { PriceDraftClient } from "./price-draft-client";
-import { useCloseOnOutsidePress } from "./use-close-on-outside-press";
 import { useHardwareDesk, type HardwareDesk } from "./use-hardware-desk";
 
 // The classes of hardware the customer chooses from (frames D4A, D4E, D4F and D4D): one row each, with every rate, its
 // state and the actions "⋯" opens. A rate is changed on the class's own page, so a card never holds a field. Disabling and
 // enabling apply at once and are asked of the dialogs; deleting waits for publication.
+
+const MENU_CLASSES: ItemRowMenuClasses = {
+  rowMenu: styles.rowMenu,
+  more: styles.more,
+  menu: styles.menu,
+  menuItem: styles.menuItem,
+  menuEntry: styles.menuEntry,
+  menuReason: styles.menuReason,
+};
 
 export interface HardwareListScreenProps {
   readonly locale: AppLocale;
@@ -254,8 +256,6 @@ function RateCell({
   );
 }
 
-/** "⋯": a disclosure of the actions that change what customers are offered. An action that cannot be taken stays in the
- *  list, off, with the reason under it. */
 function RowMenu({
   facts,
   name,
@@ -268,99 +268,40 @@ function RowMenu({
   readonly desk: HardwareDesk;
 }) {
   const translate = useTranslations();
-  const menuId = useId();
-  const [isOpen, setIsOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const close = useCallback(() => {
-    setIsOpen(false);
-  }, []);
   const { availability } = desk;
-  // The dialog is drawn outside the menu, so a press in it is an outside press; the menu stays, and holds the entry
-  // that asked, for focus to return to.
-  const isAsking = availability.flow.kind !== "closed";
-  useCloseOnOutsidePress(wrapRef, isOpen && !isAsking, close);
   const item = hardwareItemOf(facts);
-  const isOn = isItemOn(item, context);
   const { switchReason, deleteReason } = reasonsOf({
     translate,
     facts,
     context,
   });
   return (
-    <div
-      ref={wrapRef}
-      className={styles.rowMenu}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape" || !isOpen) return;
-        event.stopPropagation();
-        setIsOpen(false);
-        buttonRef.current?.focus();
-      }}
-    >
-      <button
-        ref={buttonRef}
-        type="button"
-        className={styles.more}
-        aria-expanded={isOpen}
-        aria-controls={menuId}
-        aria-label={translate("priceDashboard.common.moreActionsFor", { name })}
-        onClick={() => {
-          setIsOpen((wasOpen) => !wasOpen);
-        }}
-      />
-      {isOpen ? (
-        <ul
-          id={menuId}
-          className={styles.menu}
-          aria-label={translate("priceDashboard.common.actionsFor", { name })}
-        >
-          <MenuEntry
-            label={translate(
-              isOn
-                ? "priceDashboard.common.deactivate"
-                : "priceDashboard.common.activate",
-            )}
-            reason={switchReason}
-            onPress={() => {
-              availability.requestSwitch(item);
-            }}
-          />
-          <MenuEntry
-            label={translate("priceDashboard.common.delete")}
-            reason={deleteReason}
-            onPress={() => {
-              availability.requestDeletion(item);
-            }}
-          />
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
-function MenuEntry({
-  label,
-  reason,
-  onPress,
-}: {
-  readonly label: string;
-  /** Why the entry is off; absent, it can be pressed. */
-  readonly reason: string | undefined;
-  readonly onPress: () => void;
-}) {
-  return (
-    <li className={styles.menuItem}>
-      <ActionThatMayBeOff
-        reason={reason}
-        onPress={onPress}
-        buttonClassName={styles.menuEntry}
-        noteClassName={styles.menuReason}
-        noteTag="span"
-        noteTestId="menu-reason"
-      >
-        {label}
-      </ActionThatMayBeOff>
-    </li>
+    <ItemRowMenu
+      name={name}
+      isAsking={availability.flow.kind !== "closed"}
+      classes={MENU_CLASSES}
+      entries={[
+        {
+          id: "switch",
+          label: translate(
+            isItemOn(item, context)
+              ? "priceDashboard.common.deactivate"
+              : "priceDashboard.common.activate",
+          ),
+          reason: switchReason,
+          onPress: () => {
+            availability.requestSwitch(item);
+          },
+        },
+        {
+          id: "delete",
+          label: translate("priceDashboard.common.delete"),
+          reason: deleteReason,
+          onPress: () => {
+            availability.requestDeletion(item);
+          },
+        },
+      ]}
+    />
   );
 }
