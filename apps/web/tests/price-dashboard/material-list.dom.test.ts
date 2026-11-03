@@ -3,6 +3,7 @@
 // The materials list (frames D5A, D5D and D5E): each material with its surcharge over PAL, its colours, the state it is in
 // and the actions "⋯" offers. An action that cannot be taken stays in the list, off, with its reason under it, a surcharge
 // is never edited in a card, and a count of saved kitchens is said only where it was had.
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { staffNavigationOf } from "@/lib/server/staff/staff-page";
@@ -313,6 +314,56 @@ describe("the actions of a material", () => {
         roCopy("priceDashboard.materials.deleteNotice"),
       );
     }
+  });
+});
+
+describe("closing the menu by a press outside it", () => {
+  const pressOutside = (type: "pointerdown" | "click") => {
+    act(() => {
+      document.body.dispatchEvent(
+        new MouseEvent(type, { bubbles: true, cancelable: true }),
+      );
+    });
+  };
+  const isOpen = (container: HTMLElement, tierId: string) =>
+    allIn(rowOf(container, tierId), "ul button").length > 0;
+
+  it("waits for the click, so nothing below the menu moves up under a finger that has not lifted", async () => {
+    mounted = await mountMaterialList(materialPageOf());
+    await openMenuOf(mounted.container, VENEER, VENEER_NAME);
+
+    pressOutside("pointerdown");
+    expect(isOpen(mounted.container, VENEER)).toBe(true);
+
+    pressOutside("click");
+    expect(isOpen(mounted.container, VENEER)).toBe(false);
+  });
+
+  it("leaves it open for a click inside it", async () => {
+    mounted = await mountMaterialList(materialPageOf());
+    await openMenuOf(mounted.container, VENEER, VENEER_NAME);
+
+    act(() => {
+      menuEntry(
+        mounted?.container ?? document.body,
+        VENEER,
+        DELETE,
+      ).dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(isOpen(mounted.container, VENEER)).toBe(true);
+  });
+
+  it("closes the menu that was open when another's three dots are clicked, and opens the other", async () => {
+    mounted = await mountMaterialList(materialPageOf());
+    await openMenuOf(mounted.container, MDF, MDF_NAME);
+
+    await openMenuOf(mounted.container, VENEER, VENEER_NAME);
+
+    expect(isOpen(mounted.container, MDF)).toBe(false);
+    expect(isOpen(mounted.container, VENEER)).toBe(true);
   });
 });
 

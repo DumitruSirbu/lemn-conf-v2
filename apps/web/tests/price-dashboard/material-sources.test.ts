@@ -139,7 +139,9 @@ describe("the dependency direction", () => {
 
     const offenders = screens
       .filter(({ text }) =>
-        /hardware-(model|names|paths|list|edit|create)|use-hardware/.test(text),
+        /hardware-(model|names|paths|list|edit|create|parts)|use-hardware/.test(
+          text,
+        ),
       )
       .map(({ relative }) => relative);
 

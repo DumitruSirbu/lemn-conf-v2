@@ -3,8 +3,8 @@
 import { useTranslations } from "next-intl";
 import { useCallback, useId, useRef, useState } from "react";
 
-import { ActionThatMayBeOff } from "./hardware-parts";
-import { useCloseOnOutsidePress } from "./use-close-on-outside-press";
+import { ActionThatMayBeOff } from "./action-that-may-be-off";
+import { useCloseOnOutsideClick } from "./use-close-on-outside-click";
 
 // "⋯": a disclosure of the actions that change what customers are offered, drawn the same for every kind of item. An action
 // that cannot be taken stays in the list, off, with the reason under it. The screen hands in its own class names, so the
@@ -30,7 +30,7 @@ export interface ItemRowMenuProps {
   /** The item's name as the screen shows it. */
   readonly name: string;
   readonly entries: readonly ItemRowMenuEntry[];
-  /** A dialog is open for an entry of this menu: it is drawn outside the menu, so a press in it is not an outside press,
+  /** A dialog is open for an entry of this menu: it is drawn outside the menu, so a click in it is not an outside click,
    *  and the menu stays, holding the entry that asked for focus to return to. */
   readonly isAsking: boolean;
   readonly classes: ItemRowMenuClasses;
@@ -50,7 +50,7 @@ export function ItemRowMenu({
   const close = useCallback(() => {
     setIsOpen(false);
   }, []);
-  useCloseOnOutsidePress(wrapRef, isOpen && !isAsking, close);
+  useCloseOnOutsideClick(wrapRef, isOpen && !isAsking, close);
   return (
     <div
       ref={wrapRef}

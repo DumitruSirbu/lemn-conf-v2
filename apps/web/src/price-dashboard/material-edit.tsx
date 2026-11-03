@@ -8,7 +8,7 @@ import { useContent } from "@/i18n/use-content";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { pendingPriceCountOf } from "./cabinet-list-model";
-import { ActionThatMayBeOff } from "./hardware-parts";
+import { ActionThatMayBeOff } from "./action-that-may-be-off";
 import { ItemDeskNotice, ItemDialogs } from "./item-dialogs";
 import type { ItemLifecycleClient } from "./item-lifecycle-client";
 import { isItemOn } from "./item-lifecycle-model";

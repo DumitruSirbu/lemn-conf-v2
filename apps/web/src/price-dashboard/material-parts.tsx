@@ -7,7 +7,7 @@ import type { AppLocale } from "@/i18n/routing";
 import { StaffShell, type StaffShellContext } from "@/staff/staff-shell";
 
 import { CatalogUnavailableNotice } from "./catalog-states";
-import type { ActionReasons } from "./hardware-parts";
+import type { ActionReasons } from "./action-that-may-be-off";
 import {
   deleteStandOf,
   isDefaultItem,
