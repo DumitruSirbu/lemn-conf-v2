@@ -1613,7 +1613,17 @@
       "exampleActive": "activ: {before} → {after}",
       "exampleNew": "{before} → {after}",
       "exampleDeep": "La adâncime {deepMm, number, ::group-off}: {before} → {after}",
-      "exampleNote": "Prețurile finale se rotunjesc la {roundTo}. Într-o bucătărie mai mare, adaosul crește odată cu prețul dulapurilor. Clientul vede o singură linie: „{customerLine}”."
+      "exampleNote": "Prețurile finale se rotunjesc la {roundTo}. Într-o bucătărie mai mare, adaosul crește odată cu prețul dulapurilor. Clientul vede o singură linie: „{customerLine}”.",
+      "colourPicker": "Selector de culori",
+      "colourPickerManaged": "Selector de culori · se gestionează separat",
+      "surchargeEmpty": "Completează procentul. Scrie zero dacă materialul nu se scumpește.",
+      "nameLabel": "Nume",
+      "descriptionLabel": "Descriere",
+      "inactiveBannerPlain": "Clienții nu îl mai pot alege. Când un client deschide o bucătărie care îl folosește, alege altă opțiune.",
+      "deleteHeading": "Șterge materialul",
+      "deleteHint": "Poți șterge doar un material nefolosit în bucătării salvate și care nu e implicit. Altfel, dezactivează-l.",
+      "deleteAction": "Șterge materialul",
+      "deleteNotice": "Ștergerea intră în vigoare când publici."
     },
     "accessories": {
       "title": "Accesorii",

@@ -1,0 +1,613 @@
+/* The materials screens: the list of materials and one material's page. One markup, two layouts: a card until 1200 px, and
+ * the table from there, where the staff frame's 264 px navigation and the page's 56 px margins still leave the five
+ * columns room for their titles whole. A surcharge is changed on the material's own page, never in the card. Every
+ * interactive box is at least `--touch-target` tall and wide, and every cell may shrink (`min-width: 0`) so no width
+ * makes a page scroll sideways. */
+.page {
+  --warm-surface: #f7ecdc;
+  --warm-row: #fbf5ea;
+  --warm-edge: #e6cfa8;
+  --warm-ink: #5a3e25;
+  /* The widest title word of a column at 11 px uppercase with its letter-spacing ("Состояние", about 85 px at the
+   * proportion of a measured Russian title word) plus a few pixels: no title runs into the next one. */
+  --title-column-min: 96px;
+
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding-bottom: 28px;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 0;
+  font: 400 13.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 13.5px/1.2 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.columns {
+  display: none;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.row[data-modified="true"] {
+  background: var(--warm-row);
+}
+
+.rowName {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.name {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  font: 700 15px/1.3 var(--font-ui);
+  color: var(--ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.name:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A phone's whole card opens the material: the name's link is stretched over it, and the cells in it are only read. The
+ * controls of the card stand above that link, and the space between them lets a press through to it. */
+@media (max-width: 899.98px) {
+  .name::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+  }
+
+  .rowActions {
+    position: relative;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .editLink,
+  .more,
+  .menu {
+    pointer-events: auto;
+  }
+}
+
+.description {
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips:empty {
+  display: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  font: 700 11.5px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.chip[data-tone="warm"] {
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border-color: var(--warm-edge);
+}
+
+.chip[data-tone="on"] {
+  color: var(--accent-strong);
+  border-color: var(--accent);
+}
+
+.chip[data-tone="off"] {
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.cellLabel {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.cellValue {
+  font: 700 14px/1.3 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cellNote {
+  font: 400 12px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.editLink,
+.more,
+.menuEntry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  font: 700 13.5px/1.2 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.editLink:focus-visible,
+.more:focus-visible,
+.menuEntry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The three dots, drawn here so no glyph is text. */
+.rowMenu {
+  display: contents;
+}
+
+.more::before {
+  font: 700 18px/1 var(--font-ui);
+  content: "\22EF" / "";
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-basis: 100%;
+  padding: 8px;
+  margin: 0;
+  list-style: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(28 24 20 / 14%);
+}
+
+.menuItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.menuEntry {
+  justify-content: flex-start;
+  width: 100%;
+  text-align: start;
+  border: 0;
+}
+
+.menuEntry[aria-disabled="true"] {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.menuReason {
+  padding: 0 14px 6px;
+  font: 400 12px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  font: 400 13.5px/1.5 var(--font-ui);
+  color: var(--ink);
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+/* A switched-off material that saved kitchens still use: said in words, beside the switch that undoes it. */
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-edge);
+  border-radius: 12px;
+}
+
+.bannerTitle {
+  margin: 0;
+  font: 700 13.5px/1.4 var(--font-ui);
+}
+
+.bannerBody {
+  margin: 0;
+}
+
+/* ----- one material's page ----- */
+.editColumns {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.editColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font: 700 16px/1.3 var(--font-ui);
+  color: var(--ink);
+}
+
+.intro {
+  margin: 0;
+  font: 400 13px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.words {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.wordsLabel {
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.wordsValue {
+  font: 400 15px/1.5 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.switch {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: 0 14px;
+  font: 700 14px/1.3 var(--font-ui);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.switch[aria-checked="true"] {
+  border-color: var(--accent);
+}
+
+.switch[aria-disabled="true"] {
+  color: var(--ink-muted);
+  cursor: not-allowed;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.switchState {
+  font: 400 13px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.hint {
+  margin: 0;
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  justify-content: space-between;
+  min-width: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.factLabel {
+  margin: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.factValue {
+  margin: 0;
+  font: 700 13px/1.4 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.exampleTitle {
+  margin: 0;
+  font: 700 13px/1.4 var(--font-ui);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.exampleLine {
+  margin: 0;
+  font: 400 13px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.exampleLine[data-tone="muted"] {
+  color: var(--ink-muted);
+}
+
+.exampleNote {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saved {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  font: 700 13.5px/1.5 var(--font-ui);
+  color: var(--warm-ink);
+  background: var(--warm-surface);
+  border: 1px solid var(--warm-edge);
+  border-radius: 12px;
+}
+
+.savedLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  color: var(--accent-strong);
+}
+
+.savedLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fixToSave {
+  margin: 0;
+  font: 700 13px/1.5 var(--font-ui);
+  color: var(--refusal);
+}
+
+.danger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Where a pointer is the input the menu is a popover over the rows, so opening or closing one moves nothing under the
+ * pointer: to the right of the three dots in a card, to their left in the table, whose dots stand at the row's end. */
+@media (min-width: 900px) {
+  .rowMenu {
+    position: relative;
+    display: flex;
+  }
+
+  .menu {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 8px);
+    z-index: 2;
+    flex-basis: auto;
+    min-width: 15rem;
+    max-width: 20rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .page {
+    --table-columns: minmax(0, 2fr) minmax(var(--title-column-min), 1.2fr)
+      minmax(var(--title-column-min), 1fr)
+      minmax(var(--title-column-min), 1.6fr) minmax(10rem, 1.6fr);
+  }
+
+  .columns {
+    display: grid;
+    grid-template-columns: var(--table-columns);
+    gap: 16px;
+    padding: 0 14px;
+    font: 700 11px/1.4 var(--font-ui);
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .rows {
+    gap: 0;
+  }
+
+  .row {
+    grid-template-columns: var(--table-columns);
+    gap: 16px;
+    align-items: center;
+    padding: 10px 14px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line-soft);
+    border-radius: 0;
+  }
+
+  .row[data-modified="true"] {
+    background: var(--warm-row);
+  }
+
+  /* The cells of a row say what they are in their own words for a reader, and the column titles say it to the eye. */
+  .cells {
+    display: contents;
+  }
+
+  .cellLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 0;
+    clip-path: inset(50%);
+  }
+
+  .menu {
+    right: calc(100% + 8px);
+    left: auto;
+  }
+
+  .editColumns {
+    flex-direction: row;
+    gap: 40px;
+  }
+
+  .editColumn {
+    flex: 1;
+  }
+}

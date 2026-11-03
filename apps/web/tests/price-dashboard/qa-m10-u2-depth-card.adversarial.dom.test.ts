@@ -117,7 +117,7 @@ describe("the bounds", () => {
     ["1.5", "notWhole"],
     ["1,5", "notWhole"],
     ["abc", "notWhole"],
-    ["12%", "notWhole"],
+    ["12%%", "notWhole"],
   ])(
     "never sends %j: Save is off, and the alert the field is described by says %s",
     async (typed) => {

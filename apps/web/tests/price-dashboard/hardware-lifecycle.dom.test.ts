@@ -26,7 +26,6 @@ import {
   rowOf,
   type MountedHardware,
 } from "./hardware-harness";
-import { UNAVAILABLE_ITEM_LIFECYCLE_CLIENT } from "@/price-dashboard/item-lifecycle-client";
 import { flushPromises } from "../support/render-hook";
 import { roCopy } from "./romanian-copy";
 import { leaveTheStaffServer, stubTheStaffServer } from "./staff-frame-harness";
@@ -364,9 +363,8 @@ describe("a switch that is not written", () => {
   });
 
   it("sends nothing and claims nothing about use where the saved kitchens cannot be counted", async () => {
-    mounted = await mountHardwareList(hardwarePageOf(), {
-      lifecycleClient: UNAVAILABLE_ITEM_LIFECYCLE_CLIENT,
-    });
+    mounted = await mountHardwareList(hardwarePageOf());
+    mounted.lifecycle.answerNextUsageWith({ kind: "unavailable" });
 
     const dialog = await openDialogFor(HETTICH, HETTICH_NAME, DEACTIVATE);
     const confirm = dialogButton(

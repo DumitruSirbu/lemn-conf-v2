@@ -85,7 +85,9 @@ export function switchStandOf(
     { book, availability, defaults: defaults ?? {} },
   );
   if (verdict.kind === "refused") return standOfRefusal(verdict.code);
-  if (defaults === undefined) return { kind: "off", reason: "cannot-judge" };
+  if (defaults === undefined || !context.canWrite) {
+    return { kind: "off", reason: "cannot-judge" };
+  }
   return {
     kind: "disable",
     remaining: remainingOptionsIfSwitchedOff(item, context),

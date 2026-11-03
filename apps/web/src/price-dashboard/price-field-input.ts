@@ -1,6 +1,7 @@
 import {
   MAX_BULK_PERCENT,
   MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
   MAX_PRICE_COEFFICIENT_MINOR,
   MIN_BULK_PERCENT,
   TEN_LEI_MINOR,
@@ -19,7 +20,8 @@ const MINUS_SIGNS = /^[-−]/;
 const SIGNED_WHOLE_NUMBER = /^([-−+])?(\d+)$/;
 const WHITESPACE = /\s/g;
 const LEI_SHAPE = /^(\d+)(?:[.,](\d*))?$/;
-const WHOLE_NUMBER = /^\d+$/;
+/** A whole percentage as it is written: an optional plus before and an optional percent sign after (spaces are gone by now). */
+const WHOLE_PERCENT = /^\+?(\d+)%?$/;
 
 export type LeiInputRefusal =
   | "empty"
@@ -81,25 +83,38 @@ function refusedLei(refusal: LeiInputRefusal): LeiInputReading {
   return { kind: "refused", refusal };
 }
 
-export type DepthPercentRefusal = "empty" | "notWhole" | "negative" | "tooBig";
+export type WholePercentRefusal = "empty" | "notWhole" | "negative" | "tooBig";
 
-export type DepthPercentReading =
+export type WholePercentReading =
   | { readonly kind: "percent"; readonly percent: number }
-  | { readonly kind: "refused"; readonly refusal: DepthPercentRefusal };
+  | { readonly kind: "refused"; readonly refusal: WholePercentRefusal };
+
+export type DepthPercentRefusal = WholePercentRefusal;
+export type DepthPercentReading = WholePercentReading;
 
 /** The depth rule's percentage: a whole number from 0 to the book's greatest. */
 export function readDepthPercentInput(text: string): DepthPercentReading {
+  return readWholePercent(text, MAX_DEEP_CABINET_PERCENT);
+}
+
+/** A material's surcharge over PAL: a whole number from 0 to the book's greatest. */
+export function readMaterialPercentInput(text: string): WholePercentReading {
+  return readWholePercent(text, MAX_MATERIAL_PERCENT);
+}
+
+function readWholePercent(text: string, greatest: number): WholePercentReading {
   const typed = text.replace(WHITESPACE, "");
-  if (typed === "") return refusedDepth("empty");
-  if (MINUS_SIGNS.test(typed)) return refusedDepth("negative");
-  if (!WHOLE_NUMBER.test(typed)) return refusedDepth("notWhole");
-  const percent = Number.parseInt(typed, 10);
-  return percent > MAX_DEEP_CABINET_PERCENT
-    ? refusedDepth("tooBig")
+  if (typed === "") return refusedWhole("empty");
+  if (MINUS_SIGNS.test(typed)) return refusedWhole("negative");
+  const [, digits] = WHOLE_PERCENT.exec(typed) ?? [];
+  if (digits === undefined) return refusedWhole("notWhole");
+  const percent = Number.parseInt(digits, 10);
+  return percent > greatest
+    ? refusedWhole("tooBig")
     : { kind: "percent", percent };
 }
 
-function refusedDepth(refusal: DepthPercentRefusal): DepthPercentReading {
+function refusedWhole(refusal: WholePercentRefusal): WholePercentReading {
   return { kind: "refused", refusal };
 }
 

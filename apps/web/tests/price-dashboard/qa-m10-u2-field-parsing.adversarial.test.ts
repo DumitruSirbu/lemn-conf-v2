@@ -213,8 +213,6 @@ describe("the depth rule's percentage typed oddly", () => {
   const depthAccepted = (typed: string) => readDepthPercentInput(typed);
 
   it.each([
-    ["+5", "notWhole"],
-    ["5%", "notWhole"],
     ["5,0", "notWhole"],
     ["5.0", "notWhole"],
     ["0x10", "notWhole"],
@@ -229,6 +227,26 @@ describe("the depth rule's percentage typed oddly", () => {
     expect(depthAccepted(typed)).toEqual({ kind: "refused", refusal });
   });
 
+  it.each([
+    ["+5", 5],
+    ["5%", 5],
+    ["5 %", 5],
+    ["+5 %", 5],
+    ["100%", 100],
+  ])(
+    "reads %j as %i: a plus before and a percent sign after are how a person writes it",
+    (typed, percent) => {
+      expect(depthAccepted(typed)).toEqual({ kind: "percent", percent });
+    },
+  );
+
+  it.each([["%5"], ["5%%"], ["++5"], ["%"], ["+%"]])(
+    "still refuses %j, which no one writes a percentage as",
+    (typed) => {
+      expect(depthAccepted(typed).kind).toBe("refused");
+    },
+  );
+
   it("is the greatest the book allows at 100 and refused at 101, and the bound is the domain's", () => {
     expect(MAX_DEEP_CABINET_PERCENT).toBe(100);
     expect(depthAccepted("100")).toEqual({ kind: "percent", percent: 100 });
@@ -238,11 +256,11 @@ describe("the depth rule's percentage typed oddly", () => {
   });
 
   propertyTest.prop([typedPercent()], { numRuns: 3000 })(
-    "reads a percentage only when the text, once its whitespace is gone, is ASCII digits within 0 to 100",
+    "reads a percentage only when the text, once its whitespace is gone, is ASCII digits within 0 to 100, with an optional plus before and percent sign after",
     (typed) => {
       const reading = depthAccepted(typed);
-      const bare = typed.replace(/\s/g, "");
-      const isExpected = /^\d+$/.test(bare) && BigInt(bare) <= 100n;
+      const digits = /^\+?(\d+)%?$/.exec(typed.replace(/\s/g, ""))?.[1];
+      const isExpected = digits !== undefined && BigInt(digits) <= 100n;
 
       expect(reading.kind === "percent").toBe(isExpected);
     },

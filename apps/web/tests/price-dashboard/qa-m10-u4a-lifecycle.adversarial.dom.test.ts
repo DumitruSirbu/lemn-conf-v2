@@ -246,25 +246,19 @@ describe("a production build, as the server hands it its page", () => {
     ]);
   });
 
-  it("claims no count of kitchens even where a page was handed one with the saved defaults, and leaves the confirmation off", async () => {
+  it("claims no count of kitchens even where a page was handed one with the saved defaults, and opens no question at all: nothing can be written", async () => {
     // Not a page production builds: it is what a leak would look like, and no figure may then reach a dialog.
     await mountWithNoLifecycleClient(hardwarePageOf());
 
-    const dialog = await dialogFor(HETTICH, HETTICH_NAME, DEACTIVATE);
-    const confirm = dialogButton(
-      dialog,
-      roCopy("priceDashboard.lifecycle.deactivateConfirm"),
-    );
-    await press(confirm);
+    await openMenuOf(screen().container, HETTICH, HETTICH_NAME);
+    const entry = menuEntry(screen().container, HETTICH, DEACTIVATE);
+    await press(entry);
 
-    expect(dialog.textContent).not.toContain(
+    expect(entry.getAttribute("aria-disabled")).toBe("true");
+    expect(openDialog()).toBeNull();
+    expect(screen().container.textContent).not.toContain(
       roCopy("priceDashboard.lifecycle.usedBy", { count: 14 }),
     );
-    expect(dialog.textContent).toContain(
-      roCopy("priceDashboard.lifecycle.usageUnavailable"),
-    );
-    expect(confirm.getAttribute("aria-disabled")).toBe("true");
-    expect(openDialog()).not.toBeNull();
   });
 
   it("offers no switch-on that could be pressed: it is off for the reason that nothing can be checked, no dialog opens, and the class stays off", async () => {

@@ -9,6 +9,7 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
+import type { BookText } from "./book-text";
 import type {
   DashboardDraftWire,
   DashboardStateWire,
@@ -18,12 +19,6 @@ import type {
 // beside them, each with its rates as they stand and as the draft would leave them. Worked out again from the state after
 // every write, so the screens show what the server stored and never what was typed. Whether a class is on, or a default,
 // is the lifecycle's to say (`item-lifecycle-model.ts`): this module reads no availability.
-
-/** A row's words as the book states them: the catalogue leaf `key` names, else `authored`. */
-export interface BookText {
-  readonly authored: string;
-  readonly key: string | undefined;
-}
 
 export interface HardwareRateFacts {
   readonly field: HardwareRateField;

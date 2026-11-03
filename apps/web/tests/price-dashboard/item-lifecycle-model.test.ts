@@ -46,6 +46,20 @@ describe("the switch of an item", () => {
     expect(stand).toEqual({ kind: "disable", remaining: [STANDARD] });
   });
 
+  it("is off, as not judged, where nothing can be written, though the item may go and the defaults are known", () => {
+    expect(switchStandOf(HETTICH, contextOf({ canWrite: false }))).toEqual({
+      kind: "off",
+      reason: "cannot-judge",
+    });
+  });
+
+  it("still names what the book alone refuses where nothing can be written", () => {
+    expect(switchStandOf(STANDARD, contextOf({ canWrite: false }))).toEqual({
+      kind: "off",
+      reason: "item-is-fixed-default",
+    });
+  });
+
   it("is off, named a fixed default, for the book's fallback while another class is on", () => {
     expect(switchStandOf(STANDARD, contextOf())).toEqual({
       kind: "off",
