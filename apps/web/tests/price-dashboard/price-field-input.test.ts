@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_BULK_PERCENT,
   MAX_DEEP_CABINET_PERCENT,
+  MAX_MATERIAL_PERCENT,
   MIN_BULK_PERCENT,
 } from "@lemnaria/configurator-domain";
 
@@ -13,6 +14,7 @@ import {
   readBulkPercentInput,
   readDepthPercentInput,
   readLeiInput,
+  readMaterialPercentInput,
   plainLeiOf,
   readLeiInputOverHeld,
 } from "@/price-dashboard/price-field-input";
@@ -88,6 +90,9 @@ describe("the depth rule's percentage", () => {
     ["18", 18],
     [String(MAX_DEEP_CABINET_PERCENT), MAX_DEEP_CABINET_PERCENT],
     [" 007 ", 7],
+    ["+5", 5],
+    ["5%", 5],
+    ["5 %", 5],
   ])("reads %j as %i", (typed, percent) => {
     expect(readDepthPercentInput(typed)).toEqual({ kind: "percent", percent });
   });
@@ -98,7 +103,7 @@ describe("the depth rule's percentage", () => {
     ["−3", "negative"],
     ["abc", "notWhole"],
     ["12,5", "notWhole"],
-    ["+5", "notWhole"],
+    ["%5", "notWhole"],
     [String(MAX_DEEP_CABINET_PERCENT + 1), "tooBig"],
     ["99999999999999999999999", "tooBig"],
   ])(
@@ -123,6 +128,56 @@ describe("the depth rule's percentage", () => {
         isInRange ? "percent" : "refused",
       );
     }
+  });
+});
+
+describe("a material's surcharge", () => {
+  it.each([
+    ["0", 0],
+    ["18", 18],
+    [String(MAX_MATERIAL_PERCENT), MAX_MATERIAL_PERCENT],
+    [" 007 ", 7],
+    ["+35", 35],
+    ["35%", 35],
+    ["35 %", 35],
+    [" +35 % ", 35],
+  ])("reads %j as %i", (typed, percent) => {
+    expect(readMaterialPercentInput(typed)).toEqual({
+      kind: "percent",
+      percent,
+    });
+  });
+
+  it.each([
+    ["", "empty"],
+    ["-1", "negative"],
+    ["−3", "negative"],
+    ["abc", "notWhole"],
+    ["12,5", "notWhole"],
+    ["%5", "notWhole"],
+    ["++5", "notWhole"],
+    [String(MAX_MATERIAL_PERCENT + 1), "tooBig"],
+    ["99999999999999999999999", "tooBig"],
+  ])("refuses %j as %s", (typed, refusal) => {
+    expect(readMaterialPercentInput(typed)).toEqual({
+      kind: "refused",
+      refusal,
+    });
+  });
+
+  it("accepts exactly the whole numbers from 0 to its own greatest, which is not the depth rule's", () => {
+    for (let percent = -5; percent <= MAX_MATERIAL_PERCENT + 5; percent += 1) {
+      const isInRange = percent >= 0 && percent <= MAX_MATERIAL_PERCENT;
+
+      expect(
+        readMaterialPercentInput(String(percent)).kind,
+        String(percent),
+      ).toBe(isInRange ? "percent" : "refused");
+    }
+    expect(MAX_MATERIAL_PERCENT).not.toBe(MAX_DEEP_CABINET_PERCENT);
+    expect(
+      readMaterialPercentInput(String(MAX_DEEP_CABINET_PERCENT + 1)).kind,
+    ).toBe("percent");
   });
 });
 

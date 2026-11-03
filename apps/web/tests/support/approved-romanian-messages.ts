@@ -2120,6 +2120,21 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "La adâncime {deepMm, number, ::group-off}: {before} → {after}",
       exampleNote:
         "Prețurile finale se rotunjesc la {roundTo}. Într-o bucătărie mai mare, adaosul crește odată cu prețul dulapurilor. Clientul vede o singură linie: „{customerLine}”.",
+      // Drafted, not approved: the leaves of the material page and list that the frames draw without words of their own. MDF
+      // is painted, so it offers a picker and no list to count.
+      colourPicker: "Selector de culori",
+      colourPickerManaged: "Selector de culori · se gestionează separat",
+      surchargeEmpty:
+        "Completează procentul. Scrie zero dacă materialul nu se scumpește.",
+      nameLabel: "Nume",
+      descriptionLabel: "Descriere",
+      inactiveBannerPlain:
+        "Clienții nu îl mai pot alege. Când un client deschide o bucătărie care îl folosește, alege altă opțiune.",
+      deleteHeading: "Șterge materialul",
+      deleteHint:
+        "Poți șterge doar un material nefolosit în bucătării salvate și care nu e implicit. Altfel, dezactivează-l.",
+      deleteAction: "Șterge materialul",
+      deleteNotice: "Ștergerea intră în vigoare când publici.",
     },
     accessories: {
       title: "Accesorii",

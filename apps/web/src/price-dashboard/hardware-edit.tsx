@@ -17,8 +17,8 @@ import {
   type ReadyHardware,
 } from "./hardware-model";
 import { hardwareNameOf } from "./hardware-names";
+import { ActionThatMayBeOff } from "./action-that-may-be-off";
 import {
-  ActionThatMayBeOff,
   ClassChips,
   hardwareItemOf,
   HardwareUnavailableScreen,

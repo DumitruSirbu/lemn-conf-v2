@@ -269,6 +269,7 @@ describe("readStaffPage shows the staff frame to staff and to no one else", () =
           "audit",
           "cabinets",
           "hardware",
+          "materials",
           "defaults",
           "publish",
         ],

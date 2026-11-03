@@ -517,6 +517,10 @@ describe("a refusal of the role after the page was drawn", () => {
   );
 });
 
+/** Each case passes two days on fake timers: "a day" takes 27 s alone, past the default limit in a full parallel
+ *  suite, and a timed-out case keeps running into the next test. */
+const LONG_WAIT_TIMEOUT_MS = 120_000;
+
 describe("a limit with a wait, however long", () => {
   const kit = CATALOGUES.ro.accountForm;
 
@@ -551,6 +555,7 @@ describe("a limit with a wait, however long", () => {
       expect(harness.auditRequests()).toHaveLength(2);
       expect(allIn(harness.container(), ROWS)).toHaveLength(2);
     },
+    LONG_WAIT_TIMEOUT_MS,
   );
 
   it.each([
