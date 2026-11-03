@@ -80,7 +80,29 @@ async function answerFromTheRoutes(
   if (address === "/api/staff/prices/draft") {
     return method === "PUT" ? PUT(request) : DELETE(request);
   }
-  return new Response(null, { status: 404 });
+  if (address === AVAILABILITY_ADDRESS) {
+    return (await availabilityHandlerOf())?.(request) ?? NOT_FOUND();
+  }
+  return NOT_FOUND();
+}
+
+const NOT_FOUND = () => new Response(null, { status: 404 });
+const AVAILABILITY_ADDRESS = "/api/staff/prices/availability";
+const AVAILABILITY_ROUTE = "@/app/api/staff/prices/availability/route";
+
+/** The availability route's `PUT` once the tree has one, and `undefined` until then. The module is named through a
+ *  variable so that the file's not existing is an answer and not a failure to load this test. */
+async function availabilityHandlerOf(): Promise<
+  ((request: Request) => Promise<Response>) | undefined
+> {
+  try {
+    const route = (await import(/* @vite-ignore */ AVAILABILITY_ROUTE)) as {
+      readonly PUT?: (request: Request) => Promise<Response>;
+    };
+    return route.PUT;
+  } catch {
+    return undefined;
+  }
 }
 
 const surcharge = (item: typeof MDF | typeof PAL, value: number) => ({
@@ -175,7 +197,7 @@ describe("the write that switches a material off or on (the lifecycle client's `
   it.fails(
     "has a route that takes it, so a confirmed switch can be written outside a sample",
     async () => {
-      const answer = await fetch("/api/staff/prices/availability", {
+      const answer = await fetch(AVAILABILITY_ADDRESS, {
         method: "PUT",
         body: JSON.stringify({
           expectedRevision: "0",
