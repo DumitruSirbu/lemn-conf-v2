@@ -32,13 +32,13 @@ vi.mock("@/lib/server/price-stores", () =>
 );
 
 // The materials screens' writes against the routes as they are in the tree. The screens' DOM tests write through
-// `inMemoryPriceDraftClient`, which calls `applyChanges` itself, so none of them reaches the boundary reader that turns a
-// request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real `PUT` and
-// `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, with the bodies the materials
-// screens send. A surcharge is an applied kind, so its write and its take-back run today and are held as they are. What the
-// screens also send has no route until R4a (no `/api/staff/prices/availability` exists, and `draft-address.ts` reads only the
-// applied kinds): a test below marked `it.fails` is a promise of the screens' port that no route keeps yet. It runs and goes
-// red the moment R4a keeps it; R4a flips each to `it`.
+// `inMemoryPriceDraftClient`, which calls `applyChanges` itself, so none of them reaches the boundary reader that turns
+// a request into a change. Here the fetching client (the one a browser has) is run over a `fetch` that is the real
+// `PUT` and `DELETE` of `/api/staff/prices/draft`, over the persistence package's price-book fake, with the bodies the
+// materials screens send. A surcharge is an applied kind, so its write and its take-back run today and are held as they
+// are. What the screens also send has no route until R4a (no `/api/staff/prices/availability` exists, and
+// `draft-address.ts` reads only the applied kinds): a test below marked `it.fails` is a promise of the screens' port
+// that no route keeps yet. It runs and goes red the moment R4a keeps it; R4a flips each to `it`.
 
 let cookie: string;
 
@@ -87,11 +87,13 @@ async function answerFromTheRoutes(
 }
 
 const NOT_FOUND = () => new Response(null, { status: 404 });
+const BROKEN = () => new Response(null, { status: 500 });
 const AVAILABILITY_ADDRESS = "/api/staff/prices/availability";
 const AVAILABILITY_ROUTE = "@/app/api/staff/prices/availability/route";
 
 /** The availability route's `PUT` once the tree has one, and `undefined` until then. The module is named through a
- *  variable so that the file's not existing is an answer and not a failure to load this test. */
+ *  variable so that the file's not existing is an answer and not a failure to load this test. A route that exists and
+ *  cannot load, or whose handler throws, is answered `500`, so a broken route is never read as an absent one. */
 async function availabilityHandlerOf(): Promise<
   ((request: Request) => Promise<Response>) | undefined
 > {
@@ -99,10 +101,34 @@ async function availabilityHandlerOf(): Promise<
     const route = (await import(/* @vite-ignore */ AVAILABILITY_ROUTE)) as {
       readonly PUT?: (request: Request) => Promise<Response>;
     };
-    return route.PUT;
-  } catch {
-    return undefined;
+    const handler = route.PUT;
+    return handler === undefined
+      ? undefined
+      : async (request) => {
+          try {
+            return await handler(request);
+          } catch {
+            return BROKEN();
+          }
+        };
+  } catch (error) {
+    return isTheRouteItselfMissing(error)
+      ? undefined
+      : () => Promise.resolve(BROKEN());
   }
+}
+
+/** The loader's answer for the route's own file not being there, and for nothing else it could not load. */
+function isTheRouteItselfMissing(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error as { code?: string }).code === "ERR_MODULE_NOT_FOUND" &&
+    error.message.startsWith(`Cannot find module '${AVAILABILITY_ROUTE}'`)
+  );
+}
+
+function isTheRefusalOfTheAddress(outcome: DraftChangeOutcome): boolean {
+  return outcome.kind === "refused" && outcome.code === "NOT_EDITABLE";
 }
 
 const surcharge = (item: typeof MDF | typeof PAL, value: number) => ({
@@ -175,10 +201,15 @@ describe("the write that deletes a held material (the materials screens' `delete
         change: { address: { kind: "item-deleted", item: MDF }, value: true },
       });
 
+      // Only the refusal of the address, which R4a removes, may keep this red by design: any other answer (a write, or
+      // a route that failed) ends the test green, and so turns the `it.fails` red.
+      if (!isTheRefusalOfTheAddress(outcome)) return;
       expect(outcome.kind).toBe("changed");
     },
   );
 
+  // Pins today's answer, and goes red when R4a adds the deletion's route: delete this test then, with the flip of the
+  // `it.fails` above.
   it("is answered, today, as a refusal of the address, which the screen shows as a failed save it asks to retry", async () => {
     const outcome = await FETCHING_PRICE_DRAFT_CLIENT.change({
       expectedDraftRevision: await currentDraftRevision(),

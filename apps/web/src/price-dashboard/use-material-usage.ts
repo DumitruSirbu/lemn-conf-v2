@@ -13,10 +13,10 @@ import { orFailed } from "./async-seams";
 import type { ItemLifecycleClient, UsageRead } from "./item-lifecycle-client";
 import { countOfUse } from "./item-lifecycle-model";
 
-// How many saved kitchens use each material that is switched off, for the chip and the banner that say so (frames D5E and
-// D5F), and the one material a page is about, for its fact line. Asked one material at a time, so a material the reader
-// cannot count leaves the others counted; one it cannot count has no entry, and a screen says nothing of a number it does
-// not have.
+// How many saved kitchens use each material that is switched off, for the chip and the banner that say so (frames D5E
+// and D5F), and the one material a page is about, for its fact line. Asked one material at a time, so a material the
+// reader cannot count leaves the others counted; one it cannot count has no entry, and a screen says nothing of a
+// number it does not have.
 
 export type MaterialUsage = ReadonlyMap<string, number>;
 

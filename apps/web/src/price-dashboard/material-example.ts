@@ -13,10 +13,10 @@ import { isCountOfBani } from "./format-lei";
 import { surchargeAddressOf } from "./material-model";
 import { priceDashboardCatalogue } from "./price-dashboard-catalogue";
 
-// The example on a material's page (frame D5B): what one cabinet costs in PAL and in the material, at the default depth and
-// at the deep one, with the surcharge as typed. Every figure is a cell of `previewCabinet`, the dashboard's one source of
-// price arithmetic; this module chooses the request and reads the answer. Where the book cannot price the example, there
-// is none, and nothing is drawn in its place.
+// The example on a material's page (frame D5B): what one cabinet costs in PAL and in the material, at the default depth
+// and at the deep one, with the surcharge as typed. Every figure is a cell of `previewCabinet`, the dashboard's one
+// source of price arithmetic; this module chooses the request and reads the answer. Where the book cannot price the
+// example, there is none, and nothing is drawn in its place.
 
 /** The cabinet the example prices: a base cabinet without hardware, at the width the frame names. */
 export const EXAMPLE_BUILD_ID = "base-cabinet";
@@ -37,7 +37,7 @@ export interface MaterialExample {
     readonly standard: ExampleFigures;
     readonly deep: ExampleFigures;
   };
-  /** In the active version; absent where it prices the example differently from `next` in no figure. */
+  /** In the active version; present only where it prices the example differently from `next`. */
   readonly active: ExampleFigures | undefined;
 }
 

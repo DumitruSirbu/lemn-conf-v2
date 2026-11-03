@@ -36,8 +36,8 @@ import type { PriceDraftClient } from "./price-draft-client";
 import { useMaterialDesk, type MaterialDesk } from "./use-material-desk";
 
 // The materials the customer chooses from (frames D5A, D5E and D5D): one row each, with its surcharge over PAL, its
-// colours, its state and the actions "⋯" opens. A surcharge is changed on the material's own page, so a card never holds
-// a field. Disabling and enabling apply at once and are asked of the dialogs; deleting waits for publication.
+// colours, its state and the actions "⋯" opens. A surcharge is changed on the material's own page, so a card never
+// holds a field. Disabling and enabling apply at once and are asked of the dialogs; deleting waits for publication.
 
 const MENU_CLASSES: ItemRowMenuClasses = {
   rowMenu: styles.rowMenu,
@@ -134,7 +134,9 @@ function MaterialList({
   );
 }
 
-/** The desktop's column titles. Each row's cells say what they are in their own words, so the titles are for the eye. */
+/**
+ * The desktop's column titles. Each row's cells say what they are in their own words, so the titles are for the eye.
+ */
 function ColumnHeads() {
   const translate = useTranslations();
   return (

@@ -1,5 +1,5 @@
-// What the materials screens are drawn from: the materials of the active book with each surcharge as it is and as the draft
-// would leave it, and what the code declares of each one's colours.
+// What the materials screens are drawn from: the materials of the active book with each surcharge as it is and as the
+// draft would leave it, and what the code declares of each one's colours.
 import { describe, expect, it } from "vitest";
 
 import {

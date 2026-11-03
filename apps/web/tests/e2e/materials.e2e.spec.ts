@@ -1,18 +1,19 @@
 // The materials screens "Materiale" (the list and one material) on a phone, 390 x 844 with real touch, against frames
 // D5A to D5G and D5CM of the dashboard mockup (docs/design/mockups/Lemnaria Dashboard.dc.html).
 //
-// WHICH SERVER THIS FILE HOLDS ON (`playwright.config.ts` starts `next start` when `CI` is set, `next dev` otherwise), and
-// what each gives these pages, is written at the head of `support/material-page.ts`. The list, a surcharge's Save, a reload
-// and the refusals run under BOTH; the dialogs need the sample lifecycle that only `next dev` draws, and the off controls
-// are what `next start` draws. The tests of the dialogs skip themselves under `CI`, and the test of the off controls skips
-// itself without it. A switch never reaches the server, and each page starts from its own copy of it.
+// WHICH SERVER THIS FILE HOLDS ON (`playwright.config.ts` starts `next start` when `CI` is set, `next dev` otherwise),
+// and what each gives these pages, is written at the head of `support/material-page.ts`. The list, a surcharge's Save,
+// a reload and the refusals run under BOTH; the dialogs need the sample lifecycle that only `next dev` draws, and the
+// off controls are what `next start` draws. The tests of the dialogs skip themselves under `CI`, and the test of the
+// off controls skips itself without it. A switch never reaches the server, and each page starts from its own copy of
+// it.
 //
-// NOT REACHABLE, so not asserted here: deleting a material into the draft (the draft route reads no `item-deleted` until
-// R4a, so the dialog's confirmation is refused with a 400, which the test records); a switch's survival of a reload (the
-// in-memory client forgets it).
+// NOT REACHABLE, so not asserted here: deleting a material into the draft (the draft route reads no `item-deleted`
+// until R4a, so the dialog's confirmation is refused with a 400, which the test records); a switch's survival of a
+// reload (the in-memory client forgets it).
 //
-// The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes the
-// lock the dashboard's specs share.
+// The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes
+// the lock the dashboard's specs share.
 import {
   countStaffFixturesForTests,
   removeStaffFixturesForTests,
@@ -861,9 +862,9 @@ test.describe("the materials screens on a phone, 390 x 844", () => {
         })
         .tap();
 
-      // R4a has not built the draft route's deletion yet (`draft-address.ts` reads no `item-deleted`), so the route refuses
-      // it with a 400: the dialog stays, says so, and the draft is untouched. When R4a lands this assertion is the one to
-      // change, to the deletion in De publicat and the pending count of 1.
+      // R4a has not built the draft route's deletion yet (`draft-address.ts` reads no `item-deleted`), so the route
+      // refuses it with a 400: the dialog stays, says so, and the draft is untouched. When R4a lands this assertion is
+      // the one to change, to the deletion in De publicat and the pending count of 1.
       await expect(
         asking.getByText(romanian("priceDashboard.errors.saveFailed")),
         "the refused deletion is said in the dialog, not silently dropped",
@@ -884,7 +885,9 @@ async function expectDialogFitsScreen(dialog: Locator): Promise<void> {
   expect(box.y + box.height, "bottom").toBeLessThanOrEqual(PHONE.height);
 }
 
-/** Takes out of the page's errors the browser's one console line for an answer of this status, which the test provoked. */
+/**
+ * Takes out of the page's errors the browser's one console line for an answer of this status, which the test provoked.
+ */
 function expectBrowsersNoteOf(pageErrors: string[], status: number): void {
   const note = `console: Failed to load resource: the server responded with a status of ${String(status)}`;
   const rest = pageErrors.filter((entry) => !entry.startsWith(note));

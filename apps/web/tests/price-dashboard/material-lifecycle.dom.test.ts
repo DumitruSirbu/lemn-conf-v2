@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Disabling and enabling a material (frames D5C, D5CM and D5G) and deleting one (D5D): each is asked in a dialog that opens on
-// its safe button, a switch applies at once and is no entry of "De publicat", the last material that is on cannot be
-// switched off, and a count that cannot be had is said so and never read as none. Where the screen cannot judge, its
-// controls stay off and no number is made up.
+// Disabling and enabling a material (frames D5C, D5CM and D5G) and deleting one (D5D): each is asked in a dialog that
+// opens on its safe button, a switch applies at once and is no entry of "De publicat", the last material that is on
+// cannot be switched off, and a count that cannot be had is said so and never read as none. Where the screen cannot
+// judge, its controls stay off and no number is made up.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { UNAVAILABLE_ITEM_LIFECYCLE_CLIENT } from "@/price-dashboard/item-lifecycle-client";

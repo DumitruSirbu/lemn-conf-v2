@@ -1,6 +1,6 @@
-// The materials source asks the dashboard's state for a page its staff gate has admitted, and adds what judging a switch-off
-// needs: the saved defaults and, outside a production build only, invented counts of the kitchens that use each material.
-// Anything that does not make a page is `unavailable`, and no figure is claimed.
+// The materials source asks the dashboard's state for a page its staff gate has admitted, and adds what judging a
+// switch-off needs: the saved defaults and, outside a production build only, invented counts of the kitchens that use
+// each material. Anything that does not make a page is `unavailable`, and no figure is claimed.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readMaterial, readMaterials } from "@/price-dashboard/material-source";

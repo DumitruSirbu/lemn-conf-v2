@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 //
-// The materials list (frames D5A, D5D and D5E): each material with its surcharge over PAL, its colours, the state it is in
-// and the actions "⋯" offers. An action that cannot be taken stays in the list, off, with its reason under it, a surcharge
-// is never edited in a card, and a count of saved kitchens is said only where it was had.
+// The materials list (frames D5A, D5D and D5E): each material with its surcharge over PAL, its colours, the state it is
+// in and the actions "⋯" offers. An action that cannot be taken stays in the list, off, with its reason under it, a
+// surcharge is never edited in a card, and a count of saved kitchens is said only where it was had.
 import { act } from "react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { staffNavigationOf } from "@/lib/server/staff/staff-page";
 import { BUILT_CATALOG_PAGES } from "@/price-dashboard/catalog-pages";
@@ -23,6 +23,7 @@ import {
   materialPageOf,
   USAGE,
   menuEntry,
+  moreButtonOf,
   mountMaterialList,
   openMenuOf,
   reasonOf,
@@ -318,6 +319,19 @@ describe("the actions of a material", () => {
 });
 
 describe("closing the menu by a press outside it", () => {
+  const afterTheOpeningClick = () =>
+    act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  const clickAt = (target: HTMLElement, timeStamp?: number) => {
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    if (timeStamp !== undefined) {
+      Object.defineProperty(click, "timeStamp", { value: timeStamp });
+    }
+    act(() => {
+      target.dispatchEvent(click);
+    });
+  };
   const pressOutside = (type: "pointerdown" | "click") => {
     act(() => {
       document.body.dispatchEvent(
@@ -331,6 +345,7 @@ describe("closing the menu by a press outside it", () => {
   it("waits for the click, so nothing below the menu moves up under a finger that has not lifted", async () => {
     mounted = await mountMaterialList(materialPageOf());
     await openMenuOf(mounted.container, VENEER, VENEER_NAME);
+    await afterTheOpeningClick();
 
     pressOutside("pointerdown");
     expect(isOpen(mounted.container, VENEER)).toBe(true);
@@ -339,19 +354,26 @@ describe("closing the menu by a press outside it", () => {
     expect(isOpen(mounted.container, VENEER)).toBe(false);
   });
 
+  it("is not closed by the click that opened it, whatever the resolution of the clock: the time stamps are equal", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(1_000);
+    mounted = await mountMaterialList(materialPageOf());
+
+    clickAt(moreButtonOf(mounted.container, VENEER, VENEER_NAME), 1_000);
+    await afterTheOpeningClick();
+
+    expect(isOpen(mounted.container, VENEER)).toBe(true);
+
+    clickAt(document.body, 1_000);
+
+    expect(isOpen(mounted.container, VENEER)).toBe(false);
+  });
+
   it("leaves it open for a click inside it", async () => {
     mounted = await mountMaterialList(materialPageOf());
     await openMenuOf(mounted.container, VENEER, VENEER_NAME);
+    await afterTheOpeningClick();
 
-    act(() => {
-      menuEntry(
-        mounted?.container ?? document.body,
-        VENEER,
-        DELETE,
-      ).dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-      );
-    });
+    clickAt(menuEntry(mounted.container, VENEER, DELETE));
 
     expect(isOpen(mounted.container, VENEER)).toBe(true);
   });
@@ -359,6 +381,7 @@ describe("closing the menu by a press outside it", () => {
   it("closes the menu that was open when another's three dots are clicked, and opens the other", async () => {
     mounted = await mountMaterialList(materialPageOf());
     await openMenuOf(mounted.container, MDF, MDF_NAME);
+    await afterTheOpeningClick();
 
     await openMenuOf(mounted.container, VENEER, VENEER_NAME);
 

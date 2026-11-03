@@ -22,8 +22,8 @@ import {
   type ReadyMaterials,
 } from "./material-model";
 import {
-  colourWords,
   isStillUsed,
+  managedColourWords,
   MaterialChips,
   materialReasonsOf,
   MaterialUnavailableScreen,
@@ -47,8 +47,8 @@ import {
 } from "./use-material-surcharge-editing";
 
 // One material (frame D5B): its words, whether customers may choose it, its surcharge over PAL with an example, and its
-// deletion. The surcharge is sent to "De publicat" only on Save; whether the material is on applies at once, through the
-// dialogs, and never joins the draft.
+// deletion. The surcharge is sent to "De publicat" only on Save; whether the material is on applies at once, through
+// the dialogs, and never joins the draft.
 
 export interface MaterialEditScreenProps {
   readonly locale: AppLocale;
@@ -325,7 +325,7 @@ function MaterialFactLines({
   readonly usedBy: number | undefined;
 }) {
   const translate = useTranslations();
-  const colours = colourWords(translate, facts.colours);
+  const colours = managedColourWords(translate, facts.colours);
   if (colours === undefined && usedBy === undefined) return null;
   return (
     <dl className={styles.facts}>
@@ -334,13 +334,7 @@ function MaterialFactLines({
           <dt className={styles.factLabel}>
             {translate("priceDashboard.materials.coloursLabel")}
           </dt>
-          <dd className={styles.factValue}>
-            {facts.colours.kind === "count"
-              ? translate("priceDashboard.materials.coloursManaged", {
-                  count: facts.colours.count,
-                })
-              : translate("priceDashboard.materials.colourPickerManaged")}
-          </dd>
+          <dd className={styles.factValue}>{colours}</dd>
         </div>
       )}
       {usedBy === undefined ? null : (
@@ -368,32 +362,52 @@ function Surcharge({
   readonly editing: MaterialSurchargeEditing;
 }) {
   const translate = useTranslations();
+  return (
+    <>
+      <h2 className={styles.cardTitle}>
+        {translate("priceDashboard.materials.surchargeHeading")}
+      </h2>
+      {facts.isReference ? (
+        <>
+          <p className={styles.intro}>
+            {translate("priceDashboard.materials.referenceNote")}
+          </p>
+          <p className={styles.hint}>
+            {translate("priceDashboard.materials.referenceRow")}
+          </p>
+        </>
+      ) : (
+        <SurchargeEditor
+          locale={locale}
+          facts={facts}
+          derivation={derivation}
+          editing={editing}
+        />
+      )}
+    </>
+  );
+}
+
+function SurchargeEditor({
+  locale,
+  facts,
+  derivation,
+  editing,
+}: {
+  readonly locale: AppLocale;
+  readonly facts: MaterialFacts;
+  readonly derivation: ReadyMaterials;
+  readonly editing: MaterialSurchargeEditing;
+}) {
+  const translate = useTranslations();
   const fieldsRef = useRef<HTMLDivElement>(null);
   const cancel = useFocusAfterCancel(editing.cancel, fieldsRef);
-  if (facts.isReference) {
-    return (
-      <>
-        <h2 className={styles.cardTitle}>
-          {translate("priceDashboard.materials.surchargeHeading")}
-        </h2>
-        <p className={styles.intro}>
-          {translate("priceDashboard.materials.referenceNote")}
-        </p>
-        <p className={styles.hint}>
-          {translate("priceDashboard.materials.referenceRow")}
-        </p>
-      </>
-    );
-  }
   const percent =
     editing.reading.kind === "percent"
       ? editing.reading.percent
       : facts.pendingPercent;
   return (
     <>
-      <h2 className={styles.cardTitle}>
-        {translate("priceDashboard.materials.surchargeHeading")}
-      </h2>
       <p className={styles.intro}>
         {translate("priceDashboard.materials.surchargeHint")}
       </p>

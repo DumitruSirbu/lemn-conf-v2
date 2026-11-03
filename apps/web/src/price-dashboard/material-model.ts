@@ -10,21 +10,16 @@ import {
   type PriceBook,
 } from "@lemnaria/configurator-domain";
 
+import type { BookText } from "./book-text";
 import type {
   DashboardDraftWire,
   DashboardStateWire,
 } from "./price-dashboard-wire-contract";
 
-// What the materials screens are drawn from (frames D5A to D5F): the materials of the active book, each with its surcharge
-// over PAL as it stands and as the draft would leave it. Worked out again from the state after every write, so the
-// screens show what the server stored and never what was typed. Whether a material is on, or a default, is the
+// What the materials screens are drawn from (frames D5A to D5F): the materials of the active book, each with its
+// surcharge over PAL as it stands and as the draft would leave it. Worked out again from the state after every write,
+// so the screens show what the server stored and never what was typed. Whether a material is on, or a default, is the
 // lifecycle's to say (`item-lifecycle-model.ts`): this module reads no availability.
-
-/** A row's words as the book states them: the catalogue leaf `key` names, else `authored`. */
-export interface BookText {
-  readonly authored: string;
-  readonly key: string | undefined;
-}
 
 /** What a material lets the customer choose as a colour, as the code declares it. */
 export type MaterialColours =
@@ -86,7 +81,10 @@ export function deriveMaterials(state: DashboardStateWire): MaterialDerivation {
   };
 }
 
-/** The material of one id, or `undefined` where the active book does not hold it: a material is never created in the draft. */
+/**
+ * The material of one id, or `undefined` where the active book does not hold it: a material is never created in the
+ * draft.
+ */
 export function materialOf(
   derivation: ReadyMaterials,
   tierId: string,
@@ -173,11 +171,15 @@ function isOnMaterial(address: BookFieldAddress, tierId: string): boolean {
   }
 }
 
-/** Everything a materials screen is given: the dashboard's state, and what judging a switch-off or a deletion also needs. */
+/**
+ * Everything a materials screen is given: the dashboard's state, and what judging a switch-off or a deletion also
+ * needs.
+ */
 export interface MaterialPageInput {
   readonly state: DashboardStateWire;
-  /** The new-kitchen defaults as the lifecycle's judgement reads them (`{}` where none were saved); absent when they could
-   *  not be read, so no switch-off or deletion is then judged. */
+  /**
+   * The new-kitchen defaults as the lifecycle's judgement reads them (`{}` where none were saved); absent when they
+   * could not be read, so no switch-off or deletion is then judged. */
   readonly defaults: NewKitchenSettings | undefined;
   /** What a build with no usage reader counts: given to a non-production page only, and never by a production one. */
   readonly sampleUsage?: ItemUsageCounts | undefined;

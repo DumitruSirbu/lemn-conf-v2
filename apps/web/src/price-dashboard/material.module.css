@@ -1,8 +1,8 @@
 /* The materials screens: the list of materials and one material's page. One markup, two layouts: a card until 1200 px, and
- * the table from there, where the staff frame's 264 px navigation and the page's 56 px margins still leave the five columns
- * room for their titles whole. A surcharge is changed on the material's own page, never in the card. Every interactive box
- * is at least `--touch-target` tall and wide, and every cell may shrink (`min-width: 0`) so no width makes a page scroll
- * sideways. */
+ * the table from there, where the staff frame's 264 px navigation and the page's 56 px margins still leave the five
+ * columns room for their titles whole. A surcharge is changed on the material's own page, never in the card. Every
+ * interactive box is at least `--touch-target` tall and wide, and every cell may shrink (`min-width: 0`) so no width
+ * makes a page scroll sideways. */
 .page {
   --warm-surface: #f7ecdc;
   --warm-row: #fbf5ea;

@@ -90,6 +90,9 @@ describe("the depth rule's percentage", () => {
     ["18", 18],
     [String(MAX_DEEP_CABINET_PERCENT), MAX_DEEP_CABINET_PERCENT],
     [" 007 ", 7],
+    ["+5", 5],
+    ["5%", 5],
+    ["5 %", 5],
   ])("reads %j as %i", (typed, percent) => {
     expect(readDepthPercentInput(typed)).toEqual({ kind: "percent", percent });
   });
@@ -100,7 +103,7 @@ describe("the depth rule's percentage", () => {
     ["−3", "negative"],
     ["abc", "notWhole"],
     ["12,5", "notWhole"],
-    ["+5", "notWhole"],
+    ["%5", "notWhole"],
     [String(MAX_DEEP_CABINET_PERCENT + 1), "tooBig"],
     ["99999999999999999999999", "tooBig"],
   ])(
@@ -134,6 +137,10 @@ describe("a material's surcharge", () => {
     ["18", 18],
     [String(MAX_MATERIAL_PERCENT), MAX_MATERIAL_PERCENT],
     [" 007 ", 7],
+    ["+35", 35],
+    ["35%", 35],
+    ["35 %", 35],
+    [" +35 % ", 35],
   ])("reads %j as %i", (typed, percent) => {
     expect(readMaterialPercentInput(typed)).toEqual({
       kind: "percent",
@@ -147,7 +154,8 @@ describe("a material's surcharge", () => {
     ["−3", "negative"],
     ["abc", "notWhole"],
     ["12,5", "notWhole"],
-    ["+5", "notWhole"],
+    ["%5", "notWhole"],
+    ["++5", "notWhole"],
     [String(MAX_MATERIAL_PERCENT + 1), "tooBig"],
     ["99999999999999999999999", "tooBig"],
   ])("refuses %j as %s", (typed, refusal) => {

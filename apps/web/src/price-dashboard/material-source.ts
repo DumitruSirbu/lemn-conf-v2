@@ -13,10 +13,10 @@ import type {
 import { readDashboardStateWire } from "./price-dashboard-wire-reading";
 
 // The one place the materials screens' facts come from: the dashboard's state, read for a page whose staff gate
-// (`price.edit`) has already admitted the reader, and the saved new-kitchen defaults, which judging a switch-off needs. A
-// render reads and never writes: no session, no limiter bucket, no audit row. A state that cannot be read is `unavailable`
-// and no price is claimed. Defaults that cannot be read leave the page drawn with none judged; a production build has no
-// usage reader yet, so it hands the page no count, and a count is never made up.
+// (`price.edit`) has already admitted the reader, and the saved new-kitchen defaults, which judging a switch-off needs.
+// A render reads and never writes: no session, no limiter bucket, no audit row. A state that cannot be read is
+// `unavailable` and no price is claimed. Defaults that cannot be read leave the page drawn with none judged; a
+// production build has no usage reader yet, so it hands the page no count, and a count is never made up.
 
 export type MaterialsRead =
   | { readonly kind: "ready"; readonly page: MaterialPageInput }
@@ -56,7 +56,10 @@ async function pageOf(state: DashboardStateWire): Promise<MaterialPageInput> {
   };
 }
 
-/** The saved defaults as the lifecycle reads them; none saved reads as `{}`, and the kitchen starts from the fixed fallbacks. */
+/**
+ * The saved defaults as the lifecycle reads them; none saved reads as `{}`, and the kitchen starts from the fixed
+ * fallbacks.
+ */
 function settingsOf({
   saved,
   defaults,

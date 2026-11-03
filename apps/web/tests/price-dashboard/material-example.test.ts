@@ -1,5 +1,5 @@
-// The example on a material's page: every figure is a cell of `previewCabinet`, the surcharge is the one typed, and where
-// the book cannot price the cabinet there is no example.
+// The example on a material's page: every figure is a cell of `previewCabinet`, the surcharge is the one typed, and
+// where the book cannot price the cabinet there is no example.
 import { describe, expect, it } from "vitest";
 
 import {

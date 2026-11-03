@@ -14,18 +14,17 @@ import { expectHydrated } from "./cabinet-detail-page";
 import { type Words } from "./publish-page";
 import { signIn, type SignedInAdministrator } from "./staff-world";
 
-// How the materials screens at /staff/catalog/materials (the list and one material) are read in a browser: where they are
-// and the names of their parts. The assertions stay in the specs (docs/best-practices/browser-and-visual-qa.md).
+// How the materials screens at /staff/catalog/materials (the list and one material) are read in a browser: where they
+// are and the names of their parts. The assertions stay in the specs (docs/best-practices/browser-and-visual-qa.md).
 //
-// WHAT EACH SERVER GIVES THESE PAGES (read from the source):
-//  - The materials and the draft come from the dashboard's state, which the e2e server holds in its fake price book under
-//    BOTH `next dev` and `next start`, so the list, the material page, the surcharge Save and a reload are the same under
-//    both.
-//  - What differs is the lifecycle, which has no server behind it yet. A production build (CI) hands the
-//    page no saved defaults, no usage counts and a lifecycle client that cannot write, so every switch and deletion of a
-//    material the book states is drawn off with its reason, and no count is claimed. `next dev` hands it the sample
-//    defaults (PAL is the saved default), the sample counts (PAL 31, MDF 23, veneer 0) and an in-memory client, so the
-//    dialogs can be driven; nothing it does reaches the server, and each page starts from its own copy.
+// WHAT EACH SERVER GIVES THESE PAGES (read from the source): - The materials and the draft come from the dashboard's
+// state, which the e2e server holds in its fake price book under BOTH `next dev` and `next start`, so the list, the
+// material page, the surcharge Save and a reload are the same under both. - What differs is the lifecycle, which has no
+// server behind it yet. A production build (CI) hands the page no saved defaults, no usage counts and a lifecycle
+// client that cannot write, so every switch and deletion of a material the book states is drawn off with its reason,
+// and no count is claimed. `next dev` hands it the sample defaults (PAL is the saved default), the sample counts (PAL
+// 31, MDF 23, veneer 0) and an in-memory client, so the dialogs can be driven; nothing it does reaches the server, and
+// each page starts from its own copy.
 
 export const MATERIALS_PATH = "/ro/staff/catalog/materials";
 export const RUSSIAN_MATERIALS_PATH = "/ru/staff/catalog/materials";
@@ -53,7 +52,9 @@ export function activePercentOf(tierId: string): number {
   return tier.percentOfCabinets;
 }
 
-/** How many colours the code declares for a material that offers a list; none for painted MDF, which offers a picker. */
+/**
+ * How many colours the code declares for a material that offers a list; none for painted MDF, which offers a picker.
+ */
 export function listedColoursOf(tierId: string): number | undefined {
   const declared = MATERIALS.find(({ materialId }) => materialId === tierId);
   if (declared === undefined || declared.colourControl.shape === "ral-picker") {

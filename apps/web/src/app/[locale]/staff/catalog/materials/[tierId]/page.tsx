@@ -26,9 +26,10 @@ export async function generateMetadata({
 }
 
 /**
- * One material, with its surcharge. The id is judged only after the gate has let the person in, so every caller who may not
- * read prices is answered alike whatever the address says; a material the book does not hold is then the framework's
- * not-found. The source reads without writing; the page writes through its own clients. Rendered per request.
+ * One material, with its surcharge. The id is judged only after the gate has let the person in, so every caller who may
+ * not read prices is answered alike whatever the address says; a material the book does not hold is then the
+ * framework's not-found. The source reads without writing; the page writes through its own clients. Rendered per
+ * request.
  */
 export default async function MaterialPage({ params }: MaterialPageProps) {
   await connection();

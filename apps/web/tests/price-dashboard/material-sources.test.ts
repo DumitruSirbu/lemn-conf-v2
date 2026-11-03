@@ -1,6 +1,7 @@
-// Reads the sources for what must never reach a browser or a production build: the invented counts, the server-only source,
-// and the dependency direction between the screens and the modules every kind of item shares. These are absence claims over
-// source text, each with the rule it guards named in its title; the behaviour itself is proved by the tests of the source.
+// Reads the sources for what must never reach a browser or a production build: the invented counts, the server-only
+// source, and the dependency direction between the screens and the modules every kind of item shares. These are absence
+// claims over source text, each with the rule it guards named in its title; the behaviour itself is proved by the tests
+// of the source.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -96,7 +97,7 @@ describe("what the materials screens may read", () => {
     );
   });
 
-  it("reads no usage in a production build: the figure of one is never a default of the usage hook", () => {
+  it("the usage hook writes no count of its own: no number is a default of it or a literal in it (a production build is held by `material-source.test.ts`)", () => {
     const hook = sourceOf(join(DASHBOARD_ROOT, "use-material-usage.ts"));
 
     expect(hook).not.toMatch(/(designCount|count)\s*(\?\?|\|\|)\s*\d/);

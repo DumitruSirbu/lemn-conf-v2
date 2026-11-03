@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
-// One material's page (frame D5B and D5F): its words, a surcharge field that reads what is typed before anything is sent, a
-// Save that sends one change of "De publicat" and shows only what the server stored, the example that follows what is
-// typed, and the switch, which is the dialogs' and not the draft's.
+// One material's page (frame D5B and D5F): its words, a surcharge field that reads what is typed before anything is
+// sent, a Save that sends one change of "De publicat" and shows only what the server stored, the example that follows
+// what is typed, and the switch, which is the dialogs' and not the draft's.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {

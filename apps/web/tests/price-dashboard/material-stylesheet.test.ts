@@ -1,9 +1,9 @@
-// Reads the stylesheet's text (no layout runs here) for what a thumb and a narrow screen need from the materials pages: every
-// interactive box at least a touch target tall, a ring on whatever takes focus, the card layout until 1200 px and the table
-// from there (five columns with their titles whole, which do not fit beside the staff frame's navigation any sooner, by the
-// arithmetic below, not by a measurement in a browser), the column titles read by the cells below that, a row's menu floating
-// over the rows wherever a pointer is the input, and nothing that would make a 390 px page scroll sideways. A surcharge is
-// never edited in a card.
+// Reads the stylesheet's text (no layout runs here) for what a thumb and a narrow screen need from the materials pages:
+// every interactive box at least a touch target tall, a ring on whatever takes focus, the card layout until 1200 px and
+// the table from there (five columns with their titles whole, which do not fit beside the staff frame's navigation any
+// sooner, by the arithmetic below, not by a measurement in a browser), the column titles read by the cells below that,
+// a row's menu floating over the rows wherever a pointer is the input, and nothing that would make a 390 px page scroll
+// sideways. A surcharge is never edited in a card.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -19,15 +19,20 @@ const TOUCH_TARGET = "var(--touch-target)";
 const PHONE = "@media (max-width: 899.98px)";
 const POINTER_WIDTH = "@media (min-width: 900px)";
 const TABLE = "@media (min-width: 1200px)";
-/** The staff frame's navigation and the content's margins, from `staff.module.css`: what the table's width is taken from. */
+/**
+ * The staff frame's navigation and the content's margins, from `staff.module.css`: what the table's width is taken
+ * from.
+ */
 const NAVIGATION_PX = 264;
 const CONTENT_MARGINS_PX = 56 * 2;
 const REM_PX = 16;
 const ROW_PADDING_PX = 14 * 2;
 const COLUMN_GAP_PX = 16;
 const TABLE_COLUMNS = 5;
-/** A Russian column title at 11 px uppercase with its letter-spacing: the measured width of "Направляющие" (113 px, twelve
- *  letters, in the hardware stylesheet's test) scaled to the nine letters of "Состояние", the longest word of these titles. */
+/**
+ * A Russian column title at 11 px uppercase with its letter-spacing: the measured width of "Направляющие" (113 px,
+ * twelve letters, in the hardware stylesheet's test) scaled to the nine letters of "Состояние", the longest word of
+ * these titles. */
 const LONGEST_TITLE_WORD_PX = Math.ceil((113 / 12) * 9);
 /** What the first column wants for a name and a line of description at the narrowest the table is drawn. */
 const MATERIAL_COLUMN_WANTS_PX = 180;

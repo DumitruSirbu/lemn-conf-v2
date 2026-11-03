@@ -18,8 +18,8 @@ import {
 import type { MaterialFacts } from "./material-model";
 import styles from "./material.module.css";
 
-// Frame D5B's example: what one cabinet costs in PAL and in the material, as the surcharge stands typed, with the version
-// that is live beside it where it differs. Nothing is drawn where the book cannot price the cabinet.
+// Frame D5B's example: what one cabinet costs in PAL and in the material, as the surcharge stands typed, with the
+// version that is live beside it where it differs. Nothing is drawn where the book cannot price the cabinet.
 
 export function MaterialExampleCard({
   active,

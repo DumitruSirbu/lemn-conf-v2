@@ -1,5 +1,6 @@
-// What the DOM tests of the materials screens share: a page built from the sample book, the screens mounted over a draft
-// client and a lifecycle client that judge as the routes do, and the few gestures a person makes. Nothing here asserts.
+// What the DOM tests of the materials screens share: a page built from the sample book, the screens mounted over a
+// draft client and a lifecycle client that judge as the routes do, and the few gestures a person makes. Nothing here
+// asserts.
 import { act, createElement } from "react";
 
 import {

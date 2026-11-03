@@ -1,13 +1,13 @@
-// The materials screens "Materiale" (the list and one material) at 1440 x 900 with a pointer, against frames D5A to D5G of
-// the dashboard mockup (docs/design/mockups/Lemnaria Dashboard.dc.html).
+// The materials screens "Materiale" (the list and one material) at 1440 x 900 with a pointer, against frames D5A to D5G
+// of the dashboard mockup (docs/design/mockups/Lemnaria Dashboard.dc.html).
 //
 // WHICH SERVER THIS FILE HOLDS ON, and what is not reachable, is written at the head of materials.e2e.spec.ts and
-// support/material-page.ts and holds here too: the list, the surcharge Save and the refusals run under both `next dev` and
-// `CI` (`next start`); the dialogs need the sample lifecycle that only `next dev` draws, and the off controls are what
-// `next start` draws; deleting a material into the draft needs R4a.
+// support/material-page.ts and holds here too: the list, the surcharge Save and the refusals run under both `next dev`
+// and `CI` (`next start`); the dialogs need the sample lifecycle that only `next dev` draws, and the off controls are
+// what `next start` draws; deleting a material into the draft needs R4a.
 //
-// The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes the
-// lock the dashboard's specs share.
+// The draft is ONE draft in the e2e server's memory, so every test starts and ends by emptying it and the file takes
+// the lock the dashboard's specs share.
 import {
   countStaffFixturesForTests,
   removeStaffFixturesForTests,

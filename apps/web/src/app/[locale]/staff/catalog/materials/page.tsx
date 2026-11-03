@@ -27,9 +27,9 @@ export async function generateMetadata({
 
 /**
  * The materials. `renderCatalogPage` decides who sees it: a visitor leaves for the login page, an operator gets the
- * forbidden screen inside the staff frame, any other account gets the account area's, and an unreadable session store draws
- * a notice, all with HTTP 200. `readMaterials` supplies what the list shows once that gate has admitted the reader, and
- * reads without writing; the list writes through its own clients. Rendered per request.
+ * forbidden screen inside the staff frame, any other account gets the account area's, and an unreadable session store
+ * draws a notice, all with HTTP 200. `readMaterials` supplies what the list shows once that gate has admitted the
+ * reader, and reads without writing; the list writes through its own clients. Rendered per request.
  */
 export default async function MaterialsPage({ params }: MaterialsPageProps) {
   await connection();

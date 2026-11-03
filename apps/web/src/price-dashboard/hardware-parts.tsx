@@ -114,10 +114,3 @@ export function reasonsOf({
         : undefined,
   };
 }
-
-// Kept here for the hardware screens, which import it from this file; the component itself is kind-agnostic.
-export { ActionThatMayBeOff } from "./action-that-may-be-off";
-export type {
-  ActionReasons,
-  ActionThatMayBeOffProps,
-} from "./action-that-may-be-off";

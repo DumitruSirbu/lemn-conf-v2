@@ -157,3 +157,22 @@ export function colourWords(
       return undefined;
   }
 }
+
+/**
+ * What the material's colours are, said as managed elsewhere (the page's fact line); absent where nothing is declared.
+ */
+export function managedColourWords(
+  translate: ContentTranslator,
+  colours: MaterialColours,
+): string | undefined {
+  switch (colours.kind) {
+    case "count":
+      return translate("priceDashboard.materials.coloursManaged", {
+        count: colours.count,
+      });
+    case "picker":
+      return translate("priceDashboard.materials.colourPickerManaged");
+    case "undeclared":
+      return undefined;
+  }
+}

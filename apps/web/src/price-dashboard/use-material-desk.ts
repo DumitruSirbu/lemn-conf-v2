@@ -19,9 +19,12 @@ import {
 } from "./use-item-availability";
 import { usePriceDraft, type PriceDraft } from "./use-price-draft";
 
-// What the two materials screens hold in common: the draft of prices, what is switched off, and the materials worked out
-// from both again after every write. A deletion is a change of the draft; a switch is not. A material is never created in
-// the draft, so no deletion ever takes one back out of it.
+// What the two materials screens hold in common: the draft of prices, what is switched off, and the materials worked
+// out from both again after every write. A deletion is a change of the draft; a switch is not. A material is never
+// created in the draft, so no deletion ever takes one back out of it.
+
+/** A material is never created in the draft, so none is held by the draft alone. */
+const NEVER_DRAFT_ONLY = () => false;
 
 export interface MaterialDesk {
   readonly draft: PriceDraft;
@@ -65,14 +68,13 @@ export function useMaterialDesk({
       change({ address: { kind: "item-deleted", item }, value: true }),
     [change],
   );
-  const isDraftOnly = useCallback(() => false, []);
   const availability = useItemAvailability({
     observed: draft.state.active.availability,
     book: draft.state.active.book,
     defaults: page.defaults,
     client: lifecycle,
     deleteFromDraft,
-    isDraftOnly,
+    isDraftOnly: NEVER_DRAFT_ONLY,
   });
   const usage = useMaterialUsage({
     client: lifecycle,

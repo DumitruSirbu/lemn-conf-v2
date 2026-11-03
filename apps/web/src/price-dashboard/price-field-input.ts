@@ -20,7 +20,8 @@ const MINUS_SIGNS = /^[-−]/;
 const SIGNED_WHOLE_NUMBER = /^([-−+])?(\d+)$/;
 const WHITESPACE = /\s/g;
 const LEI_SHAPE = /^(\d+)(?:[.,](\d*))?$/;
-const WHOLE_NUMBER = /^\d+$/;
+/** A whole percentage as it is written: an optional plus before and an optional percent sign after (spaces are gone by now). */
+const WHOLE_PERCENT = /^\+?(\d+)%?$/;
 
 export type LeiInputRefusal =
   | "empty"
@@ -105,8 +106,9 @@ function readWholePercent(text: string, greatest: number): WholePercentReading {
   const typed = text.replace(WHITESPACE, "");
   if (typed === "") return refusedWhole("empty");
   if (MINUS_SIGNS.test(typed)) return refusedWhole("negative");
-  if (!WHOLE_NUMBER.test(typed)) return refusedWhole("notWhole");
-  const percent = Number.parseInt(typed, 10);
+  const [, digits] = WHOLE_PERCENT.exec(typed) ?? [];
+  if (digits === undefined) return refusedWhole("notWhole");
+  const percent = Number.parseInt(digits, 10);
   return percent > greatest
     ? refusedWhole("tooBig")
     : { kind: "percent", percent };
