@@ -33,6 +33,12 @@ const BULK_ROUTE = "/api/staff/prices/bulk";
 const VERSIONS_ROUTE = "/api/staff/prices/versions";
 const BASE_CABINET_RULE_ID = "cabinet.base-cabinet";
 const BULK_PERCENT = 5;
+/** The third amount the bulk action scales: left out, so the group holds the two amounts a row of the review draws. */
+const EXTRA_DOOR_LEAF: AppliedAddress = {
+  kind: "cabinet",
+  ruleId: BASE_CABINET_RULE_ID,
+  field: "perExtraDoorLeafMinor",
+};
 const ANCHOR_RISE_MINOR = 6_000;
 const DEPTH_PERCENT = 18;
 const MDF_PERCENT = 30;
@@ -57,6 +63,7 @@ interface DraftBody {
 export async function seedPendingDraft(context: BrowserContext): Promise<void> {
   const state = await readStateOf(context);
   let revision = await bulkOnBaseCabinet(context, state.draft.draftRevision);
+  revision = await revertChange(context, revision, EXTRA_DOOR_LEAF);
   for (const change of seedChangesOf(state.active.book)) {
     revision = await putChange(context, revision, change);
   }
@@ -139,6 +146,18 @@ async function bulkOnBaseCabinet(
   });
   expect(answer.status(), "the bulk action on the base cabinet").toBe(OK);
   return ((await answer.json()) as { draft: DraftBody }).draft.draftRevision;
+}
+
+async function revertChange(
+  context: BrowserContext,
+  expectedDraftRevision: string,
+  address: AppliedAddress,
+): Promise<string> {
+  const answer = await context.request.delete(DRAFT_ROUTE, {
+    data: { expectedDraftRevision, target: { kind: "change", address } },
+  });
+  expect(answer.status(), "taking a member of the bulk action out").toBe(OK);
+  return ((await answer.json()) as DraftBody).draftRevision;
 }
 
 async function putChange(

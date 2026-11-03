@@ -307,6 +307,10 @@ test.describe("the publish page on a phone, 390 x 844", () => {
           const arrows = await revertButtons(page).count();
           if (arrows === 0) break;
           await revertButtons(page).first().tap();
+          await expect(
+            revertButtons(page),
+            "the write is answered before the next row is taken back",
+          ).toHaveCount(arrows - 1);
         }
 
         await expect(page.getByTestId("publish-empty")).toBeVisible();

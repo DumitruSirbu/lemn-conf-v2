@@ -713,6 +713,10 @@ test.describe("the publish page at desktop 1440", () => {
             `${String(left)} arrows left`,
           ).toBeFocused();
           await page.keyboard.press("Enter");
+          await expect(
+            revertButtons(page),
+            "the write is answered before the next row is taken back",
+          ).toHaveCount(left - 1);
         }
 
         const empty = page.getByTestId("publish-empty");
