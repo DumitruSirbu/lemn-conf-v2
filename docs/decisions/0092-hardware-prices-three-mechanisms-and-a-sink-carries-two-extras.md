@@ -1226,8 +1226,8 @@ above stand as written; this names what it supersedes.
 ## Amendment — 2026-11-03: a push-to-open latch is per door leaf, a push-to-open drawer bills a push-runner rate
 
 **Evidence tier: owner answers of 2026-11-03, coordinator-relayed (a relay, not a verbatim transcript), doc-quoted from
-`docs/milestones/M10-price-dashboard.md` §6.3 (OQ-18, OQ-28) and §6.4 (OQ-28a, OQ-28b, OQ-28c). Nothing is built at the
-time of writing.** Decision 3's *Count* sentence (*"One per door leaf and one per drawer"*) stands as written above and
+`docs/milestones/M10-price-dashboard.md` §6.3 (OQ-18, OQ-28) and §6.4 (OQ-28a, OQ-28b, OQ-28c). Built in the same change
+as this amendment.** Decision 3's *Count* sentence (*"One per door leaf and one per drawer"*) stands as written above and
 is superseded in part by this amendment.
 
 - **OQ-18, owner answer as recorded in §6.3:** "Push-to-open closes by a magnet on the cabinet's edge; every other front
