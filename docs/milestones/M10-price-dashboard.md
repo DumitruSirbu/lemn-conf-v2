@@ -717,6 +717,8 @@ the stated default and needs only a yes or a correction.
 | OQ-28a | Push runner: replaces the drawer runner's rate, or adds to it? | Replaces it | P6 |
 | OQ-28b | May a hardware class's push-runner rate be 0? Under "replaces", 0 bills every push-to-open drawer's runner at nothing | **Refused at 0**: every push-to-open drawer has a runner (the "0 means the class lacks it" convention does not fit) | P6 |
 | OQ-11b | New P6 copy: `priceDashboard.errors.aboveZero` and the creation note's push-runner exception, marked drafted | Built as drafted | P6 |
+| OQ-24a | The hardware table now starts at 1440 px, not the 1360 OQ-24 kept: with five rates the Russian state chips ("По умолчанию", "Активно") overflow their column until about 1434 | 1440 (the desktop tests' width) | P6b |
+| OQ-21a | Renaming a created class uses its own "Redenumește" button beside the name, not the page's Save | As built | P6b |
 | OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
