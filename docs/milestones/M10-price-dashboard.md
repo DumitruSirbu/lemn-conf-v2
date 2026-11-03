@@ -715,6 +715,8 @@ the stated default and needs only a yes or a correction.
 | # | Question | Default built | Wave |
 | --- | --- | --- | --- |
 | OQ-28a | Push runner: replaces the drawer runner's rate, or adds to it? | Replaces it | P6 |
+| OQ-28b | May a hardware class's push-runner rate be 0? Under "replaces", 0 bills every push-to-open drawer's runner at nothing | **Refused at 0**: every push-to-open drawer has a runner (the "0 means the class lacks it" convention does not fit) | P6 |
+| OQ-28c | P6 leaves the seeded default kitchen's hardware total unchanged (its push fronts are top-row doors, no drawers); only push-to-open drawers move | Recorded, no question | P6 |
 
 ---
 
