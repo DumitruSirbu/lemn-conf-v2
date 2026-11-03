@@ -701,8 +701,10 @@ built yet. Each row that changes behaviour names the work it adds.
 | OQ-25 | A class deleted in the draft stays on the list, switched off with a reason | Kept, as built | None |
 | OQ-26 | A draft whose changes cancel out offers Discard only | Kept, as built | None |
 | OQ-27 | Publish is off while a "Nou" field holds unsent text | Kept, as built | None |
+| OQ-15 | A cabinet's own handle has no way back to "follow the kitchen" | **Mirror colour**: `clearHandle` and "Ca restul bucătăriei", as recommended | Q2b, as planned |
+| OQ-11 | M10's new Romanian copy, including U5b's 23 and U4a's 18 lines | **Approved as drafted.** Russian stays an agent draft, marked and never pinned (ADR 0095) | None |
 
-Still open: the U5b (23 lines) and U4a (18 lines) wording, OQ-15, and OQ-11's earlier copy.
+Nothing is open for the owner from the waves merged so far.
 
 ---
 
