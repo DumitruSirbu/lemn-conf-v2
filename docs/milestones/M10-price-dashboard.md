@@ -682,6 +682,28 @@ A-17, A-19, A-20 and A-21 implement the owner's own 2026-10-26 answers. The owne
 (rounding), A-9 (defaults) and A-18 (creation and deletion stay in the draft), because each is customer-visible or
 departs from a mockup comment.
 
+### 6.3 Owner answers, 2026-11-03
+
+Asked by the coordinator from the U3, U4a, U5b and P5 records; the owner answered in the session. Nothing below is
+built yet. Each row that changes behaviour names the work it adds.
+
+| # | Question | Answer | Work it adds |
+| --- | --- | --- | --- |
+| OQ-16 | Lift prices (200 / 600 / 500 MDL) | Keep the placeholders; the owner sets real ones in the dashboard (as OQ-12) | None |
+| OQ-17 | A lift door's third hinge: "wider than 500" reads the body or the door? | **The door.** `liftDoorWidthsMm` today returns the body's width per leaf, so bodies of 501–506 mm get a third hinge they should not | Change P5's comparison to the door's width, with its boundary tests (Full tier); amends A-20 |
+| OQ-18 | Which fronts take a push-to-open latch | Push-to-open closes by a magnet on the cabinet's edge; every other front closes on its hinges. **One latch per door leaf, lift doors included. Drawers take none**: they open on push runners | `countPushToOpen` counts door leaves, not `openingFrontCount`; amends ADR 0092 decision 3 (a dated amendment is owed); every seeded hardware total moves (Full tier) |
+| OQ-19 | Is the fridge housing's top flap a lift? | No, an ordinary door | None |
+| OQ-20 | A refused draft that also holds valid changes | **List each change with its own ↺**, not discard only | The publish page's refusal list gains per-change revert (U5c, on R4a's revert reader) |
+| OQ-21 | A created class's name is not editable (departs from A-18) | **Allow renaming, per A-18** | A rename route (R4a) and an editable name field (U4b) |
+| OQ-22 | Anchor price 0 | Refused, as built | None |
+| OQ-23 | Corner pieces named by built width (330, mockup 320) | Built width, as built | None |
+| OQ-24 | Breakpoints 1200 / 1300 / 1360 px | Kept, as built | None |
+| OQ-25 | A class deleted in the draft stays on the list, switched off with a reason | Kept, as built | None |
+| OQ-26 | A draft whose changes cancel out offers Discard only | Kept, as built | None |
+| OQ-27 | Publish is off while a "Nou" field holds unsent text | Kept, as built | None |
+
+Still open: the U5b (23 lines) and U4a (18 lines) wording, OQ-15, and OQ-11's earlier copy.
+
 ---
 
 ## 7. W0 — records (scribe, main tree, docs only)
