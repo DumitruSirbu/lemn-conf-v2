@@ -2043,6 +2043,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       columnSlide: "Glisieră (pereche)",
       columnPush: "Push-to-open",
       columnLift: "Mecanism rabatabil",
+      // Drafted, not approved: the push-runner column, price and hint wording await the owner.
       columnPushRunner: "Glisieră push-to-open",
       columnState: "Stare",
       newTitle: "Clasă nouă de feronerie",

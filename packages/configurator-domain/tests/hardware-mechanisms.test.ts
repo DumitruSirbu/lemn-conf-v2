@@ -483,7 +483,8 @@ describe("the latch count never exceeds the door leaves, and no drawer is lost o
  * **An opening front always has something to open it** (ADR 0092 decision 3, Amendment C).
  *
  * A row declaring leaves or drawers and **no** cabinet handle would have a front with neither a bar
- * nor — below the top row — a latch, and nothing could open it. No row violates it today; the case
+ * nor — below the top row — a push mechanism (a latch on a door leaf, a push runner on a drawer), and nothing could
+ * open it. No row violates it today; the case
  * is a catalogue defect this gate refuses rather than a question pricing invents an answer for.
  *
  * **The one place `cabinetHandles` is read for this wave**, and it is a static gate: ADR 0070
@@ -491,7 +492,7 @@ describe("the latch count never exceeds the door leaves, and no drawer is lost o
  * the fronts that open — `wall-corner-return-570` declares `carriesHandles(1)` beside two openings —
  * so it is not a source the predicate may take.
  */
-describe("every opening front in the catalogue has a bar or a latch available to it", () => {
+describe("every opening front in the catalogue has a bar or a push mechanism available to it", () => {
   it("declares a cabinet handle wherever it declares something that opens", () => {
     const violating = EVERY_CATALOGUE_ENTRY_AT_EVERY_SIZE.filter((sized) => {
       const query = frontPopulationQueryFor({

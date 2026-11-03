@@ -356,10 +356,10 @@ const EVERY_ROW_AT_EVERY_LEGAL_SIZE: readonly SweptRow[] = [...CATALOG].flatMap(
 
 /**
  * The claim that makes the owner's rule total (ADR 0092 decision 3, Amendment C): every front has a bar or a
- * latch, else nothing opens it and pricing bills a mechanism the body lacks or omits one it has. Stated as
+ * push mechanism, else nothing opens it and pricing bills a mechanism the body lacks or omits one it has. Stated as
  * *no bar implies nothing opens*.
  */
-describe("no catalogue row has a front with neither a bar nor a latch", () => {
+describe("no catalogue row has a front with neither a bar nor a push mechanism", () => {
   it("sweeps every row of both populations, at every legal width and frame height", () => {
     const sweptIds = new Set(
       EVERY_ROW_AT_EVERY_LEGAL_SIZE.map((row) => row.buildId),

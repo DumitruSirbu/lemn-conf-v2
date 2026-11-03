@@ -141,8 +141,8 @@ test.describe("the hardware screens at desktop 1440", () => {
         const titles = columnTitlesOf(page).locator("span");
         await expect(
           titles,
-          `${locale}: seven titles, the last blank`,
-        ).toHaveCount(7);
+          `${locale}: a title for the class, each rate and the state, and a blank one`,
+        ).toHaveCount(RATE_FIELDS.length + 3);
         await expect(titles.nth(0)).toHaveText(
           words("priceDashboard.hardware.columnClass"),
         );
@@ -151,7 +151,7 @@ test.describe("the hardware screens at desktop 1440", () => {
             words(RATE_COLUMN_KEY[field]),
           );
         }
-        await expect(titles.nth(5)).toHaveText(
+        await expect(titles.nth(RATE_FIELDS.length + 1)).toHaveText(
           words("priceDashboard.hardware.columnState"),
         );
         await expect(rowsOf(page)).toHaveCount(3);

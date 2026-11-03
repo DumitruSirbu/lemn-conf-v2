@@ -80,7 +80,7 @@ describe("a recorded mode decides, where the definition permits one", () => {
 
 /** ADR 0092 decision 3, Amendment C: `canHandle` **disqualifies the recorded mode and nothing
  *  more**. Both halves are asserted, because each of the two tempting readings — "no handle, so a
- *  latch on every front" and "structural, so no mechanism at all" — is refused by one of them. */
+ *  push mechanism on every front" and "structural, so no mechanism at all" — is refused by one of them. */
 describe("canHandle disqualifies the recorded mode and nothing more", () => {
   const DENIED = { canHandle: false } as const;
 
